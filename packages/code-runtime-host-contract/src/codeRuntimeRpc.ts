@@ -11,7 +11,7 @@ import type {
   HugeCodeRunSummary,
   HugeCodeTakeoverBundle,
   HugeCodeTaskMode,
-} from "./hugeCodeMissionControlCompat.js";
+} from "./hugeCodeMissionControl.js";
 
 export type ReasonEffort = "low" | "medium" | "high" | "xhigh";
 

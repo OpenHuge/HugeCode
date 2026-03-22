@@ -9,9 +9,9 @@
 
 ### 2. Public contract naming is still split
 
-- `packages/code-runtime-host-contract` still carries `HypeCode*` mission-control types plus `HugeCode*` compatibility aliases.
-- Downstream packages mix both names.
-  The active runtime RPC contract now uses `HugeCode*` internally, but the public export surface is still dual-named.
+- `packages/code-runtime-host-contract` root entrypoint is now canonical `HugeCode*` only.
+- Remaining debt is the explicit `./hypeCodeMissionControl` compat subpath, which still exists for short-lived legacy access.
+- Downstream active packages no longer mix both names in the live path.
 
 ### 3. Client-side fallback surfaces are too broad
 
@@ -33,8 +33,8 @@
 
 - `codeRuntimeRpcCompat`
   Still public and broad.
-- `hugeCodeMissionControlCompat`
-  Alias bridge still needed because downstream packages have not fully migrated.
+- `hypeCodeMissionControl`
+  Explicit compat subpath still exists because the underlying source file and legacy names have not been deleted yet.
 - deprecated Tauri aggregation surfaces are blocked by tests, which is good, but their existence shows the repo is still carrying compatibility cleanup work.
 
 ## Suspicious Layering
@@ -58,5 +58,5 @@
 
 ## Immediate Deletion Candidates
 
-- remaining `HypeCode*` compat exports from `packages/code-runtime-host-contract` once downstream compatibility consumers are gone
+- remaining `packages/code-runtime-host-contract/src/hypeCodeMissionControl.ts` compat module once downstream compatibility consumers are gone
 - any Tauri adapter code that still normalizes runtime-domain errors or state instead of forwarding canonical contracts
