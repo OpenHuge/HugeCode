@@ -105,11 +105,23 @@ export function createUnavailableRuntimeClient(
     interruptTurn() {
       return rejectUnavailable("interrupt turn");
     },
+    runtimeRunPrepareV2() {
+      return rejectUnavailable("prepare runtime run v2");
+    },
     runtimeRunStart() {
       return rejectUnavailable("start runtime run");
     },
+    runtimeRunStartV2() {
+      return rejectUnavailable("start runtime run v2");
+    },
+    runtimeRunGetV2() {
+      return rejectUnavailable("read runtime run v2");
+    },
     runtimeRunIntervene() {
       return rejectUnavailable("intervene runtime run");
+    },
+    runtimeRunInterveneV2() {
+      return rejectUnavailable("intervene runtime run v2");
     },
     runtimeRunCancel() {
       return rejectUnavailable("cancel runtime run");
@@ -117,8 +129,17 @@ export function createUnavailableRuntimeClient(
     runtimeRunResume() {
       return rejectUnavailable("resume runtime run");
     },
+    runtimeRunResumeV2() {
+      return rejectUnavailable("resume runtime run v2");
+    },
     runtimeRunSubscribe() {
       return rejectUnavailable("subscribe runtime run");
+    },
+    runtimeRunSubscribeV2() {
+      return rejectUnavailable("subscribe runtime run v2");
+    },
+    runtimeReviewGetV2() {
+      return rejectUnavailable("read runtime review v2");
     },
     runtimeRunsList() {
       return rejectUnavailable("list runtime runs");

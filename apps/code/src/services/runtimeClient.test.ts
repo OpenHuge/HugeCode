@@ -279,6 +279,140 @@ describe("runtimeClient mode detection", () => {
     );
 
     invokeMock.mockResolvedValueOnce({
+      preparedAt: 1,
+      runIntent: {
+        title: "Prepare runtime kernel v2",
+        objective: "Verify runtime run prepare",
+        summary: "prepared",
+        taskSource: null,
+        accessMode: "on-request",
+        executionMode: "single",
+        executionProfileId: null,
+        reviewProfileId: null,
+        validationPresetId: null,
+        preferredBackendIds: [],
+        requiredCapabilities: [],
+        riskLevel: "low",
+        clarified: true,
+        missingContext: [],
+      },
+      contextWorkingSet: {
+        summary: "working set",
+        workspaceRoot: "/tmp/workspace",
+        layers: [],
+      },
+      executionGraph: {
+        graphId: "graph-1",
+        summary: "graph",
+        nodes: [],
+      },
+      approvalBatches: [],
+      validationPlan: {
+        required: false,
+        summary: "none",
+        commands: [],
+      },
+      reviewFocus: [],
+    });
+    await client.runtimeRunPrepareV2({
+      workspaceId: "workspace-123",
+      threadId: "thread-123",
+      requestId: "prepare-123",
+      accessMode: "on-request",
+      executionMode: "single",
+      steps: [{ kind: "read", input: "Inspect runtime kernel v2" }],
+    });
+    expect(invokeMock).toHaveBeenLastCalledWith(
+      "code_runtime_run_prepare_v2",
+      expect.objectContaining({
+        workspaceId: "workspace-123",
+        threadId: "thread-123",
+        requestId: "prepare-123",
+        steps: expect.arrayContaining([
+          expect.objectContaining({ kind: "read", input: "Inspect runtime kernel v2" }),
+        ]),
+      })
+    );
+
+    invokeMock.mockResolvedValueOnce({
+      run: {
+        taskId: "run-123",
+        workspaceId: "workspace-123",
+        threadId: null,
+        requestId: null,
+        title: "Runtime v2",
+        status: "queued",
+        accessMode: "on-request",
+        provider: null,
+        modelId: null,
+        routedProvider: null,
+        routedModelId: null,
+        routedPool: null,
+        routedSource: null,
+        currentStep: null,
+        createdAt: 1,
+        updatedAt: 1,
+        startedAt: null,
+        completedAt: null,
+        errorCode: null,
+        errorMessage: null,
+        pendingApprovalId: null,
+        steps: [],
+      },
+      missionRun: {
+        runId: "run-123",
+        workspaceId: "workspace-123",
+        threadId: null,
+        status: "queued",
+        title: "Runtime v2",
+        summary: null,
+        objective: null,
+        createdAt: 1,
+        updatedAt: 1,
+        lastEventAt: null,
+        pendingApprovalId: null,
+        activeSubAgentCount: 0,
+        reviewStatus: "not_started",
+        nextAction: null,
+        progressLabel: null,
+      },
+      reviewPack: null,
+    });
+    await client.runtimeRunStartV2({
+      workspaceId: "workspace-123",
+      accessMode: "on-request",
+      executionMode: "single",
+      steps: [{ kind: "read", input: "Start runtime kernel v2" }],
+    });
+    expect(invokeMock).toHaveBeenLastCalledWith(
+      "code_runtime_run_start_v2",
+      expect.objectContaining({
+        workspaceId: "workspace-123",
+        steps: expect.arrayContaining([
+          expect.objectContaining({ kind: "read", input: "Start runtime kernel v2" }),
+        ]),
+      })
+    );
+
+    invokeMock.mockResolvedValueOnce(null);
+    await client.runtimeRunSubscribeV2({ runId: "run-123" });
+    expect(invokeMock).toHaveBeenLastCalledWith(
+      "code_runtime_run_subscribe_v2",
+      expect.objectContaining({
+        runId: "run-123",
+      })
+    );
+
+    invokeMock.mockResolvedValueOnce(null);
+    await client.runtimeReviewGetV2({ runId: "run-123" });
+    expect(invokeMock).toHaveBeenLastCalledWith(
+      "code_runtime_review_get_v2",
+      expect.objectContaining({
+        runId: "run-123",
+      })
+    );
+
+    invokeMock.mockResolvedValueOnce({
       id: "job-123",
       workspaceId: "workspace-123",
       status: "queued",

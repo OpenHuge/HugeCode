@@ -103,14 +103,24 @@ import type {
   RuntimeRunCancelRequest,
   RuntimeRunCheckpointApprovalAck,
   RuntimeRunCheckpointApprovalRequest,
+  RuntimeRunPrepareV2Request,
+  RuntimeRunPrepareV2Response,
+  RuntimeRunGetV2Request,
+  RuntimeRunGetV2Response,
   RuntimeRunInterventionAck,
   RuntimeRunInterventionRequest,
+  RuntimeRunInterventionV2Response,
   RuntimeRunResumeAck,
   RuntimeRunResumeRequest,
+  RuntimeRunResumeV2Response,
   RuntimeRunsListRequest,
   RuntimeRunStartRequest,
+  RuntimeRunStartV2Response,
   RuntimeRunSubscribeRequest,
+  RuntimeRunSubscribeV2Response,
   RuntimeRunSummary,
+  RuntimeReviewGetV2Request,
+  RuntimeReviewGetV2Response,
   RuntimeSecurityPreflightDecision,
   RuntimeSecurityPreflightRequest,
   RuntimeSessionDeleteRequest,
@@ -240,13 +250,26 @@ export type RuntimeClient<TAppSettings extends Record<string, unknown> = Record<
     threadLiveUnsubscribe: (subscriptionId: string) => Promise<Record<string, unknown>>;
     sendTurn: (payload: TurnSendRequest) => Promise<TurnAck>;
     interruptTurn: (payload: TurnInterruptRequest) => Promise<boolean>;
+    runtimeRunPrepareV2: (
+      request: RuntimeRunPrepareV2Request
+    ) => Promise<RuntimeRunPrepareV2Response>;
     runtimeRunStart: (request: RuntimeRunStartRequest) => Promise<RuntimeRunSummary>;
+    runtimeRunStartV2: (request: RuntimeRunStartRequest) => Promise<RuntimeRunStartV2Response>;
+    runtimeRunGetV2: (request: RuntimeRunGetV2Request) => Promise<RuntimeRunGetV2Response>;
     runtimeRunIntervene: (
       request: RuntimeRunInterventionRequest
     ) => Promise<RuntimeRunInterventionAck>;
+    runtimeRunInterveneV2: (
+      request: RuntimeRunInterventionRequest
+    ) => Promise<RuntimeRunInterventionV2Response>;
     runtimeRunCancel: (request: RuntimeRunCancelRequest) => Promise<RuntimeRunCancelAck>;
     runtimeRunResume: (request: RuntimeRunResumeRequest) => Promise<RuntimeRunResumeAck>;
+    runtimeRunResumeV2: (request: RuntimeRunResumeRequest) => Promise<RuntimeRunResumeV2Response>;
     runtimeRunSubscribe: (request: RuntimeRunSubscribeRequest) => Promise<RuntimeRunSummary | null>;
+    runtimeRunSubscribeV2: (
+      request: RuntimeRunGetV2Request
+    ) => Promise<RuntimeRunSubscribeV2Response>;
+    runtimeReviewGetV2: (request: RuntimeReviewGetV2Request) => Promise<RuntimeReviewGetV2Response>;
     runtimeRunsList: (request: RuntimeRunsListRequest) => Promise<RuntimeRunSummary[]>;
     kernelJobStartV3: (request: KernelJobStartRequestV3) => Promise<KernelJob>;
     kernelJobGetV3: (request: KernelJobGetRequestV3) => Promise<KernelJob | null>;
