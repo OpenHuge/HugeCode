@@ -68,7 +68,6 @@ export function PinnedThreadList({
             thread={thread}
             canPin={canPin}
             depth={depth}
-            indentUnit={14}
             isActive={isActive}
             isPinned={isPinned}
             relativeTime={relativeTime}

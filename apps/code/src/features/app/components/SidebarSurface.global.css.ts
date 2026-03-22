@@ -2,6 +2,8 @@ import { typographyValues } from "@ku0/design-system";
 import { applyGlobalStyle } from "../../../styles/system/globalStyleHelpers";
 import { layers } from "../../../styles/system/layers.css";
 
+const MAX_THREAD_DEPTH = 12;
+
 applyGlobalStyle(".thread-list", {
   "@layer": {
     [layers.features]: {
@@ -93,6 +95,24 @@ applyGlobalStyle(".thread-row", {
     },
   },
 });
+
+for (let depth = 1; depth <= MAX_THREAD_DEPTH; depth += 1) {
+  applyGlobalStyle(`.thread-row[data-thread-depth="${depth}"]`, {
+    "@layer": {
+      [layers.features]: {
+        "--thread-indent": `${depth * 14}px`,
+      },
+    },
+  });
+
+  applyGlobalStyle(`.thread-list-nested .thread-row[data-thread-depth="${depth}"]`, {
+    "@layer": {
+      [layers.features]: {
+        "--thread-indent": `${depth * 10}px`,
+      },
+    },
+  });
+}
 
 applyGlobalStyle(".thread-row-main", {
   "@layer": {
