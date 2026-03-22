@@ -183,7 +183,7 @@
     "lint-staged": "^16.3.1",
     "lru-cache": "^11.2.6",
     "madge": "^8.0.0",
-    "oxfmt": "0.36.0",
+    "oxfmt": "0.41.0",
     "oxlint": "1.51.0",
     "playwright": "^1.58.2",
     "postcss": "^8.5.6",
