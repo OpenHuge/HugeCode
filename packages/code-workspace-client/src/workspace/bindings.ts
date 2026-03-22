@@ -6,9 +6,9 @@ import type {
   GitDiffContent,
   GitLogResponse,
   GitOperationResult,
-  HypeCodeMissionControlSnapshot,
-  HypeCodeMissionControlSummary,
-  HypeCodeReviewPackSummary,
+  HugeCodeMissionControlSnapshot,
+  HugeCodeMissionControlSummary,
+  HugeCodeReviewPackSummary,
   KernelJob,
   KernelJobInterventionRequestV3,
   KernelJobsListRequest,
@@ -123,10 +123,10 @@ export type WorkspaceClientRuntimeWorkspaceCatalogBindings = {
 };
 
 export type WorkspaceClientRuntimeMissionControlBindings = {
-  readMissionControlSnapshot: () => Promise<HypeCodeMissionControlSnapshot>;
+  readMissionControlSnapshot: () => Promise<HugeCodeMissionControlSnapshot>;
   readMissionControlSummary?: (
     activeWorkspaceId: string | null
-  ) => Promise<HypeCodeMissionControlSummary>;
+  ) => Promise<HugeCodeMissionControlSummary>;
 };
 
 export type WorkspaceClientRuntimeKernelProjectionBindings = {
@@ -198,7 +198,7 @@ export type WorkspaceClientRuntimeWorkspaceFilesBindings = {
 };
 
 export type WorkspaceClientRuntimeReviewBindings = {
-  listReviewPacks: () => Promise<HypeCodeReviewPackSummary[]>;
+  listReviewPacks: () => Promise<HugeCodeReviewPackSummary[]>;
 };
 
 export type WorkspaceClientRuntimeBindings = {

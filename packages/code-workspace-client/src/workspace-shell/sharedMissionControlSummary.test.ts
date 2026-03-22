@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { HypeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
+import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
 import { buildSharedMissionControlSummary } from "./sharedMissionControlSummary";
 
 function createSnapshot(
-  overrides: Partial<HypeCodeMissionControlSnapshot> = {}
-): HypeCodeMissionControlSnapshot {
+  overrides: Partial<HugeCodeMissionControlSnapshot> = {}
+): HugeCodeMissionControlSnapshot {
   return {
     source: "runtime_snapshot_v1",
     generatedAt: 0,

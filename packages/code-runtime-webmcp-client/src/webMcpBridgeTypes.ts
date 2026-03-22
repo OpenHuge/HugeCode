@@ -17,9 +17,9 @@ import type {
   AgentTaskSourceSummary,
   AgentTaskStepSummary,
   AgentTaskSummary,
-  HypeCodeReviewPackSummary,
-  HypeCodeRunSummary,
-  HypeCodeTaskSourceSummary,
+  HugeCodeReviewPackSummary,
+  HugeCodeRunSummary,
+  HugeCodeTaskSourceSummary,
   LiveSkillExecuteRequest,
   LiveSkillExecutionResult,
   LiveSkillSummary,
@@ -247,8 +247,8 @@ export type RuntimeAgentTaskSummary = RuntimeAgentTaskSummaryCore &
     reviewActionability?: AgentTaskSummary["reviewActionability"] | null;
     takeoverBundle?: AgentTaskSummary["takeoverBundle"] | null;
     executionGraph?: AgentTaskSummary["executionGraph"] | null;
-    runSummary?: HypeCodeRunSummary | null;
-    reviewPackSummary?: HypeCodeReviewPackSummary | null;
+    runSummary?: HugeCodeRunSummary | null;
+    reviewPackSummary?: HugeCodeReviewPackSummary | null;
     acpIntegrationId?: string | null;
     acpSessionId?: string | null;
     acpConfigOptions?: Record<string, unknown> | null;
@@ -473,7 +473,7 @@ export type RuntimeAgentTaskStartInput = {
   threadId?: string | null;
   requestId?: string;
   title?: string | null;
-  taskSource?: HypeCodeTaskSourceSummary | null;
+  taskSource?: HugeCodeTaskSourceSummary | null;
   reviewProfileId?: string | null;
   validationPresetId?: string | null;
   instruction: string;

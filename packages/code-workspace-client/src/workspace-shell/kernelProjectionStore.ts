@@ -1,5 +1,5 @@
 import type {
-  HypeCodeMissionControlSnapshot,
+  HugeCodeMissionControlSnapshot,
   KernelCapabilitiesSlice,
   KernelContinuitySlice,
   KernelDiagnosticsSlice,
@@ -184,10 +184,10 @@ function readRequestedScopes(scopes: readonly KernelProjectionScope[]) {
 
 export function readMissionControlProjectionSlice(
   state: Pick<KernelProjectionState, "slices">
-): HypeCodeMissionControlSnapshot | null {
+): HugeCodeMissionControlSnapshot | null {
   const missionControl = state.slices.mission_control;
   return missionControl && typeof missionControl === "object"
-    ? (missionControl as HypeCodeMissionControlSnapshot)
+    ? (missionControl as HugeCodeMissionControlSnapshot)
     : null;
 }
 
