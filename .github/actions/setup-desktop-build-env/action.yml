@@ -14,9 +14,9 @@ inputs:
     description: Cache suffix used by setup-rust-ci
     required: true
   install-command:
-    description: Command used to install desktop/Tauri dependencies
+    description: Command used to install desktop/Tauri and frontend build dependencies
     required: false
-    default: "pnpm install --offline --frozen-lockfile --filter @ku0/code-tauri..."
+    default: "pnpm install --offline --frozen-lockfile --filter @ku0/code... --filter @ku0/code-tauri..."
   artifact-name:
     description: Artifact name used by restore-artifact
     required: false

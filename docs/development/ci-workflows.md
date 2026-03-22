@@ -28,3 +28,4 @@ Key reusable mappings currently in use:
 - Internal or tooling-only lanes should not be reintroduced as product-facing workflow entrypoints.
 - Workflow docs must stay aligned with `scripts/check-workflow-governance.mjs`.
 - Shared Node/pnpm bootstrap should stay lockfile-first: prefetch with `pnpm fetch --frozen-lockfile`, then install with `pnpm install --offline --frozen-lockfile` unless a workflow has a documented reason to require a different install path.
+- Desktop build lanes must install both `@ku0/code...` and `@ku0/code-tauri...` so Tauri `beforeBuildCommand` can build the frontend app without relying on a full workspace install.
