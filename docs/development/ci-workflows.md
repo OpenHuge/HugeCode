@@ -27,4 +27,4 @@ Key reusable mappings currently in use:
 - Public workflows should compose reusable workflows instead of duplicating job definitions.
 - Internal or tooling-only lanes should not be reintroduced as product-facing workflow entrypoints.
 - Workflow docs must stay aligned with `scripts/check-workflow-governance.mjs`.
-- Shared Node/pnpm bootstrap should stay lockfile-first: prefetch with `pnpm ci:fetch`, then install with `pnpm ci:install:offline` unless a workflow has a documented reason to require a different install path.
+- Shared Node/pnpm bootstrap should stay lockfile-first: prefetch with `pnpm fetch --frozen-lockfile`, then install with `pnpm install --offline --frozen-lockfile` unless a workflow has a documented reason to require a different install path.

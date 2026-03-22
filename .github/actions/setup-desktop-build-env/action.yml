@@ -16,7 +16,7 @@ inputs:
   install-command:
     description: Command used to install desktop/Tauri dependencies
     required: false
-    default: "pnpm ci:install:offline --filter @ku0/code-tauri..."
+    default: "pnpm install --offline --frozen-lockfile --filter @ku0/code-tauri..."
   artifact-name:
     description: Artifact name used by restore-artifact
     required: false
@@ -44,7 +44,7 @@ runs:
 
     - name: Prefetch dependencies
       shell: bash
-      run: pnpm ci:fetch
+      run: pnpm fetch --frozen-lockfile
 
     - name: Install desktop dependencies
       shell: bash
