@@ -158,6 +158,19 @@ jobs:
 
       - uses: ./.github/actions/cache-turbo
 
+      - uses: ./.github/actions/setup-rust-ci
+        with:
+          cargo-cache-path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ~/.cache/ku0/cargo-target/code-tauri
+          cargo-cache-key: ${{ runner.os }}-code-tauri-build
+
+      - uses: ./.github/actions/install-linux-desktop-deps
+        if: ${{ runner.os == 'Linux' }}
+
       - name: Build
         run: pnpm build
 
