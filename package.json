@@ -180,7 +180,7 @@
     "eslint": "^10.0.2",
     "fast-check": "^4.5.3",
     "husky": "^9.1.7",
-    "lint-staged": "^16.3.1",
+    "lint-staged": "^16.4.0",
     "lru-cache": "^11.2.6",
     "madge": "^8.0.0",
     "oxfmt": "0.36.0",
