@@ -1065,9 +1065,7 @@ export function parseCodeRuntimeHostEventEnvelope(
 
 export type * from "./codeRuntimeRpc.js";
 export type * from "./codeRuntimeRpcCompat.js";
-export type * from "./hypeCodeMissionControl.js";
-export type * from "./hugeCodeMissionControlCompat.js";
-export { HYPECODE_INTERVENTION_ACTIONS, HYPECODE_RUN_STATES } from "./hypeCodeMissionControl.js";
+export type * from "./hugeCodeMissionControl.js";
 export {
   buildCodeRuntimeRpcSpec,
   CODE_RUNTIME_RPC_CONTRACT_VERSION,

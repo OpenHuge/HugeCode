@@ -42,3 +42,9 @@ Path count reduced:
 
 - Migrated `packages/code-runtime-host-contract/src/codeRuntimeRpc.ts` off direct `HypeCode*` mission-control type imports
 - Switched the active runtime RPC contract source to consume `HugeCode*` aliases internally while preserving the public compatibility surface
+
+### Step 7. Host-contract root export cleanup
+
+- Deleted `packages/code-runtime-host-contract/src/hugeCodeMissionControlCompat.ts`
+- Renamed its surviving canonical `HugeCode*` exports into `packages/code-runtime-host-contract/src/hugeCodeMissionControl.ts`
+- Removed `HypeCode*` mission-control exports from the package root entrypoint

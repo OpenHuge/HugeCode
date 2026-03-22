@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
-
 import {
-  CODE_RUNTIME_RPC_INVOCATION_COMPLETION_MODES,
   HYPECODE_INTERVENTION_ACTIONS,
   HYPECODE_RUN_STATES,
   type HypeCodeExecutionGraphSummary,
   type HypeCodeReviewPackSummary,
   type HypeCodeTaskSummary,
+} from "./hypeCodeMissionControl";
+
+import {
+  CODE_RUNTIME_RPC_INVOCATION_COMPLETION_MODES,
   type HugeCodeExecutionGraphSummary,
   type HugeCodeReviewPackSummary,
   type HugeCodeRunPlacementEvidence,
@@ -23,7 +25,7 @@ describe("code runtime host event envelope", () => {
     });
   });
 
-  it("re-exports legacy HypeCode mission-control contract enums", () => {
+  it("keeps legacy HypeCode mission-control enums behind the explicit compat module", () => {
     expect(HYPECODE_RUN_STATES).toEqual([
       "draft",
       "queued",

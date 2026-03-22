@@ -16,7 +16,7 @@ Collapse duplicated runtime-adjacent ownership into the canonical path while del
 - Canonicalized shared WebMCP/runtime-agent type naming to `HugeCode*`
 - Converted `apps/code/src/services/webMcpBridgeTypes.ts` from a full duplicate into a package shim
 - Migrated `packages/code-workspace-client` mission-control consumers to `HugeCode*`
-- Filled missing `HugeCode*` alias exports in the host contract compat layer
+- Filled missing `HugeCode*` alias exports in the host contract layer
 
 ### Step 3. Runtime client type ownership consolidation
 
@@ -44,28 +44,35 @@ Collapse duplicated runtime-adjacent ownership into the canonical path while del
 - Migrated `packages/code-runtime-host-contract/src/codeRuntimeRpc.ts` from direct `HypeCode*` mission-control imports to `HugeCode*` aliases
 - Kept the public compat surface stable while removing another active internal dependency on legacy names
 
+### Step 7. Host-contract root export cleanup
+
+- Renamed `hugeCodeMissionControlCompat.ts` into canonical `hugeCodeMissionControl.ts`
+- Deleted the old compat file and pointed `codeRuntimeRpc.ts` at the canonical module
+- Removed `HypeCode*` mission-control names from the package root entrypoint
+- Exposed legacy names only through the explicit `./hypeCodeMissionControl` subpath
+
 ## Next steps
 
-### Step 7. Collapse mission-control snapshot/projection fallback logic
+### Step 8. Collapse mission-control snapshot/projection fallback logic
 
 Target:
 
 - shared workspace shell reads kernel projection and runtime snapshot truth only
 - remove local projection fallback logic that reconstructs equivalent truth from older shapes
 
-### Step 8. Reduce Tauri bridge surface to host adaptation only
+### Step 9. Reduce Tauri bridge surface to host adaptation only
 
 Target:
 
 - remove runtime-domain normalization from Tauri adapters where canonical contract types already exist
 - keep only transport adaptation and platform-specific error mapping
 
-### Step 9. Shrink public compat surface
+### Step 10. Delete the remaining mission-control compat module
 
 Target:
 
-- stop exposing legacy mission-control names to active consumers
-- narrow root-level compat exports once downstream imports are migrated
+- migrate or delete any remaining callers of `./hypeCodeMissionControl`
+- rename the underlying source file away from `HypeCode*` once the compat module is dead
 
 ## Validation gates
 
