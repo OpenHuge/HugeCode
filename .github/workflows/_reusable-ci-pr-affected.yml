@@ -19,7 +19,7 @@ jobs:
     env:
       TURBO_CACHE_DIR: .turbo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Skip affected build/tests for non-code change
         if: ${{ !inputs.ci_required }}

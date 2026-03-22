@@ -25,7 +25,7 @@ jobs:
       frontend_optimization_changed: ${{ steps.filter.outputs.frontend_optimization }}
       ci_required: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.runtime_contract == 'true' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - id: filter
         uses: dorny/paths-filter@v3
@@ -99,7 +99,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -144,7 +144,7 @@ jobs:
     env:
       TURBO_CACHE_DIR: .turbo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -174,7 +174,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -202,7 +202,7 @@ jobs:
       KU0_NATIVE_ACCELERATORS_ENABLED: "true"
       TURBO_CACHE_DIR: .turbo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -237,7 +237,7 @@ jobs:
     timeout-minutes: 15
     needs: [build]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -272,7 +272,7 @@ jobs:
     timeout-minutes: 20
     needs: [build]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
