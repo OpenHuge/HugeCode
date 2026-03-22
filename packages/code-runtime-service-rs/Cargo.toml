@@ -52,5 +52,5 @@ futures-util = "0.3.32"
 
 [dev-dependencies]
 tempfile = "3"
-tokio-tungstenite = "0.28.0"
+tokio-tungstenite = "0.29.0"
 tower = { version = "0.5.3", features = ["util"] }
