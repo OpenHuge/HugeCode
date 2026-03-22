@@ -23,7 +23,7 @@ tauri-plugin-process = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
 tokio = { version = "1", features = ["sync"] }
-reqwest = { version = "0.12.24", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls-tls"] }
 base64 = "0.22.1"
 notify = "8.2.0"
 ku0-runtime-diagnostics-export-core = { path = "../../../packages/runtime-diagnostics-export-core-rs" }
