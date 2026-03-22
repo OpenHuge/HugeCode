@@ -1,0 +1,71 @@
+{
+  "name": "@ku0/design-system",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./styles": {
+      "types": "./src/styles.ts",
+      "default": "./dist/styles.js"
+    },
+    "./theme-contract": {
+      "types": "./src/theme-contract.ts",
+      "default": "./dist/theme-contract.js"
+    },
+    "./themes": {
+      "types": "./src/themes.ts",
+      "default": "./dist/themes.js"
+    },
+    "./theme-runtime": {
+      "types": "./src/themeRuntime.ts",
+      "default": "./dist/themeRuntime.js"
+    },
+    "./tokens": {
+      "types": "./src/tokens.ts",
+      "default": "./dist/tokens.js"
+    },
+    "./motion": {
+      "types": "./src/motion.ts",
+      "default": "./dist/motion.js"
+    },
+    "./shell-theme-values": {
+      "types": "./src/shell-theme-values.ts",
+      "default": "./dist/shell-theme-values.js"
+    }
+  },
+  "scripts": {
+    "build": "node -e \"const fs=require('node:fs');fs.rmSync('dist',{recursive:true,force:true});\" && pnpm exec vite build --config vite.config.ts && pnpm exec tsc -p tsconfig.json --emitDeclarationOnly --declaration --declarationMap false --outDir dist",
+    "tokens:build": "node ./scripts/build-token-pipeline.mjs",
+    "tokens:check": "node ./scripts/build-token-pipeline.mjs --check",
+    "typecheck": "pnpm exec tsc --noEmit -p tsconfig.json",
+    "lint": "pnpm exec oxlint .",
+    "lint:fix": "pnpm exec oxlint --fix --fix-suggestions . && pnpm exec oxfmt --write .",
+    "test": "pnpm exec vitest run --config vitest.config.ts",
+    "clean": "node -e \"const fs=require('node:fs');fs.rmSync('dist',{recursive:true,force:true});\""
+  },
+  "devDependencies": {
+    "@terrazzo/cli": "^0.10.5",
+    "@terrazzo/plugin-css": "^0.10.4",
+    "@terrazzo/plugin-js": "^0.10.3",
+    "@terrazzo/plugin-vanilla-extract": "^0.2.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vanilla-extract/css": "^1.18.0",
+    "@vanilla-extract/vite-plugin": "^5.1.4",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "typescript": "^5.9.3",
+    "vite": "8.0.0",
+    "vitest": "^4.1.0"
+  },
+  "peerDependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  }
+}

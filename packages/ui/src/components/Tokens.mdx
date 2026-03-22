@@ -1,0 +1,77 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Foundations/Tokens" />
+
+# Tokens
+
+`@ku0/design-system` exposes a TypeScript-first token layer backed by global CSS custom properties generated with `vanilla-extract`.
+
+This page documents the public token contract that shared UI components should consume. For the full shared component surface, see [Foundations/Public Components](?path=/docs/foundations-public-components--docs).
+
+## Public Contract
+
+Use these interfaces in new code:
+
+- CSS variables from the theme layer: `--color-*`, `--font-size-*`, `--line-height-*`, `--radius-*`, `--shadow-*`, `--duration-*`, `--ease-*`
+- TypeScript exports from `@ku0/design-system`: `semanticColors`, `fontSize`, `spacing`, `borderRadius`, `boxShadow`, `transitionDuration`
+- Semantic primitives from `@ku0/design-system`: typography, motion, elevation, and focus helpers
+- Shared semantic contracts from `@ku0/design-system`: `semanticThemeVars`, `componentThemeVars`, `executionThemeVars`
+
+Do not treat `apps/code` bridge tokens such as `--ds-*` as package API. They exist only to keep the app shell compatible with the shared design-system contract.
+
+Do not consume legacy alias families such as `--surface-*`, `--text-*`, `--border-*`, or `--brand-*` in downstream package styles.
+
+---
+
+## Color Tokens
+
+Representative theme variables:
+
+| Token                                                   | Purpose                         |
+| ------------------------------------------------------- | ------------------------------- |
+| `--color-background`                                    | App background                  |
+| `--color-foreground`                                    | Default foreground text         |
+| `--color-card`                                          | Card surfaces                   |
+| `--color-popover`                                       | Floating surfaces               |
+| `--color-primary`                                       | Primary action / brand emphasis |
+| `--color-primary-foreground`                            | Foreground on primary actions   |
+| `--color-secondary`                                     | Secondary emphasis              |
+| `--color-muted`                                         | Muted containers                |
+| `--color-muted-foreground`                              | Secondary text                  |
+| `--color-surface-0` ... `--color-surface-3`             | Surface depth ramp              |
+| `--color-surface-elevated`                              | Elevated panels / overlays      |
+| `--color-border`                                        | Default borders                 |
+| `--color-input`                                         | Input borders / shells          |
+| `--color-ring`                                          | Focus ring                      |
+| `--color-success` / `--color-warning` / `--color-error` | Status colors                   |
+| `--color-destructive`                                   | Destructive actions             |
+
+For TypeScript consumers, prefer `semanticColors.*` over stringly-typed `var(...)` when possible.
+For semantic grouping across app chrome, execution, diff, and layout widths, prefer `semanticThemeVars.*` and `componentThemeVars.*` over app-local token maps.
+
+## Typography Tokens
+
+The type scale is exposed as CSS vars and TS helpers:
+
+| Scale                                                   | CSS vars                           |
+| ------------------------------------------------------- | ---------------------------------- |
+| `nano`, `tiny`, `micro`, `fine`                         | `--font-size-*`, `--line-height-*` |
+| `label`, `meta`, `ui`, `chrome`                         | `--font-size-*`, `--line-height-*` |
+| `chat`, `content`                                       | `--font-size-*`, `--line-height-*` |
+| `title`, `titleLg`, `displaySm`, `display`, `displayLg` | `--font-size-*`, `--line-height-*` |
+
+Use `fontSize.*` or the semantic typography primitives instead of embedding raw font-size / line-height values.
+
+## Motion, Radius, and Shadow Tokens
+
+| Family | Examples                                                                   |
+| ------ | -------------------------------------------------------------------------- |
+| Motion | `--duration-fast`, `--duration-normal`, `--duration-slow`, `--ease-smooth` |
+| Radius | `--radius-sm`, `--radius`, `--radius-lg`, `--radius-2xl`                   |
+| Shadow | `--shadow-xs`, `--shadow-sm`, `--shadow-md`, `--shadow-lg`, `--shadow-xl`  |
+
+Use semantic motion/elevation/focus exports for component chrome. Raw timing strings and one-off shadows are not part of the supported contract.
+
+---
+
+> Use `@ku0/design-system` as the source of truth. `@ku0/ui` is the public inspection and composition layer. `apps/code` bridge vars and legacy alias families are implementation details, not public token APIs.

@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keep-up.local/schemas/ux-audit.schema.json",
+  "title": "Code UX Audit Report",
+  "type": "object",
+  "required": ["version", "generatedAt", "baseUrl", "summary", "pages", "slo"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "baseUrl": { "type": "string" },
+    "summary": {
+      "type": "object",
+      "required": ["totalDefects", "p0", "p1", "p2"],
+      "properties": {
+        "totalDefects": { "type": "integer", "minimum": 0 },
+        "p0": { "type": "integer", "minimum": 0 },
+        "p1": { "type": "integer", "minimum": 0 },
+        "p2": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "viewport", "scores", "defects", "screenshots"],
+        "properties": {
+          "id": { "type": "string" },
+          "viewport": { "type": "string" },
+          "scores": {
+            "type": "object",
+            "required": [
+              "visualAlignment",
+              "interactionIntuition",
+              "accessibility",
+              "stateFeedback",
+              "performanceFeeling",
+              "total"
+            ],
+            "properties": {
+              "visualAlignment": { "type": "number", "minimum": 0, "maximum": 5 },
+              "interactionIntuition": { "type": "number", "minimum": 0, "maximum": 5 },
+              "accessibility": { "type": "number", "minimum": 0, "maximum": 5 },
+              "stateFeedback": { "type": "number", "minimum": 0, "maximum": 5 },
+              "performanceFeeling": { "type": "number", "minimum": 0, "maximum": 5 },
+              "total": { "type": "number", "minimum": 0, "maximum": 5 }
+            },
+            "additionalProperties": false
+          },
+          "defects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "page",
+                "element",
+                "severity",
+                "reproSteps",
+                "expected",
+                "actual",
+                "recommendation",
+                "owner"
+              ],
+              "properties": {
+                "id": { "type": "string" },
+                "page": { "type": "string" },
+                "element": { "type": "string" },
+                "severity": { "type": "string", "enum": ["P0", "P1", "P2"] },
+                "reproSteps": { "type": "string" },
+                "expected": { "type": "string" },
+                "actual": { "type": "string" },
+                "recommendation": { "type": "string" },
+                "owner": { "type": "string" },
+                "evidence": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "screenshots": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "slo": {
+      "type": "object",
+      "required": ["thresholdMs", "actions", "violations"],
+      "properties": {
+        "thresholdMs": { "type": "number", "minimum": 1 },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "samples", "p95"],
+            "properties": {
+              "id": { "type": "string" },
+              "samples": {
+                "type": "array",
+                "items": { "type": "number", "minimum": 0 }
+              },
+              "p95": { "type": "number", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "violations": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "skips": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "viewport", "reason"],
+        "properties": {
+          "id": { "type": "string" },
+          "viewport": { "type": "string" },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

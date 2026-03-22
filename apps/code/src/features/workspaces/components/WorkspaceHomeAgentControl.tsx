@@ -1,0 +1,1 @@
+export { WorkspaceHomeAgentControl } from "./WorkspaceHomeAgentControlCore";

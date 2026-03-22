@@ -1,0 +1,28 @@
+{
+  "id": "research-multi-repo-analysis",
+  "policy": "always_passes",
+  "kind": "research_orchestrator",
+  "description": "Bounded multi-repo research against .tmp/analysis paths should stay in the research lane and return auditable citations.",
+  "input": "coding agent runtime trends across codex and gemini cli",
+  "options": {
+    "subQueries": [
+      "coding agent runtime trends codex cli",
+      "coding agent runtime trends gemini cli"
+    ],
+    "maxParallel": 2,
+    "maxSubQueries": 2,
+    "maxResults": 2,
+    "maxCharsPerResult": 240,
+    "fetchPageContent": true,
+    "workspaceContextPaths": [".tmp/analysis/codex", ".tmp/analysis/gemini-cli"],
+    "preferDomains": ["developers.openai.com", "geminicli.com"]
+  },
+  "expectations": {
+    "status": "completed",
+    "scope_profile": "research",
+    "checkpoint_state": "completed",
+    "profile_used": "research",
+    "eval_tags": ["scope:research", "skill:research-orchestrator"],
+    "research_session_count": 2
+  }
+}

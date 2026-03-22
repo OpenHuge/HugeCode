@@ -1,0 +1,257 @@
+.DS_Store
+node_modules
+/dist
+coverage/
+.keys/
+.wrangler/
+**/.wrangler/
+
+# local env files
+.env.local
+.env.*.local
+.env.development
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories and files
+.idea
+.yarn.lock
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+
+
+# Xcode
+#
+# gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
+
+## User settings
+xcuserdata/
+
+## Obj-C/Swift specific
+*.hmap
+
+## App packaging
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+#
+# Add this line if you want to avoid checking in source code from Swift Package Manager dependencies.
+# Packages/
+# Package.pins
+# Package.resolved
+# *.xcodeproj
+#
+# Xcode automatically generates this directory with a .xcworkspacedata file and xcuserdata
+# hence it is not needed unless you have added a package configuration file to your project
+# .swiftpm
+
+.build/
+
+# CocoaPods
+#
+# We recommend against adding the Pods directory to your .gitignore. However
+# you should judge for yourself, the pros and cons are mentioned at:
+# https://guides.cocoapods.org/using/using-cocoapods.html#should-i-check-the-pods-directory-into-source-control
+#
+# Pods/
+#
+# Add this line if you want to avoid checking in source code from the Xcode workspace
+# *.xcworkspace
+
+# Carthage
+#
+# Add this line if you want to avoid checking in source code from Carthage dependencies.
+# Carthage/Checkouts
+
+Carthage/Build/
+
+# fastlane
+#
+# It is recommended to not store the screenshots in the git repo.
+# Instead, use fastlane to re-generate the screenshots whenever they are needed.
+# For more information about the recommended setup visit:
+# https://docs.fastlane.tools/best-practices/source-control/#source-control
+
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+node_modules
+.next
+**/dist
+.turbo
+.fuzz-artifacts
+artifacts/fuzz
+
+# TypeScript build artifacts in wrong location (should be in dist)
+packages/app/src/**/*.js
+packages/app/src/**/*.d.ts
+packages/app/src/**/*.d.ts.map
+packages/overlay/src/**/*.js
+packages/overlay/src/**/*.d.ts
+packages/overlay/src/**/*.d.ts.map
+artifacts/fuzz
+
+.tmp
+.tmp-dict
+.playwright-mcp
+.playwright-cli/
+.claude
+*.bak
+coverage/.tmp
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+/test-logs/
+
+# E2E
+e2e/test-results/
+e2e/playwright-report/
+e2e/artifacts/
+e2e/__snapshots__/
+e2e/.temp/
+
+# Local Playwright debug artifacts
+/output/
+/tests/e2e/output/
+/tests/e2e/tmp-*.mjs
+/tests/e2e/src/tmp-*.mjs
+
+perf-artifacts/
+*.heapsnapshot
+*.cpuprofile
+packages/core/*.tgz
+implementation_plan.md
+walkthrough.md
+task.md
+
+# Project Brain (local)
+.keep-up/
+.worktrees/
+
+# HugeCode runtime state (keep repo-owned manifests and skills tracked)
+.hugecode/runs/
+.hugecode/runtime-state.json
+.hugecode/runtime-tool-execution-metrics.json
+.hugecode/runtime-tool-guardrails.json
+.hugecode/*.db
+.hugecode/*.db-shm
+.hugecode/*.db-wal
+.hugecode/*.key
+
+# Agent (keep .agent, it contains project documentation)
+# Ignore only runtime/generated agent files
+.kiro/
+.claude/
+
+# Turbo
+.turbo/
+
+# Vite caches
+.vite/
+.vite-temp/
+**/.vite/
+**/.vite-temp/
+
+# Storybook
+storybook-static/
+
+# IDE and Editor caches
+.vscode/.history/
+.vscode/launch.json
+.vscode/extensions.json
+.cursor/
+.cursorignore
+.idea/
+.DS_Store
+
+# Node debugging
+.node-debug.log*
+.node-inspector/
+
+# System and temporary files
+*.swp
+*.swo
+*~
+.cache/
+.tmp/
+# Repo-owned Codex config lives under .codex; ignore only local outputs.
+packages/*/.codex/
+.codex-artifacts
+.codex/code-integration-watch.json
+.codex/validate-cache.json
+.codex/ux-audit/core-*.json
+.codex/ux-audit/perf-*.json
+.codex/ux-audit/screenshots/
+.figma-workflow/
+artifacts/figma-codegen/
+
+# Build and dist
+dist/
+build/
+**/target/
+packages/*/Cargo.lock
+packages/*/native/Cargo.lock
+apps/*/src-tauri/Cargo.lock
+*.tsbuildinfo
+/build.log
+/build_debug.log
+/test_output.txt
+/runtime-proof*.txt
+/output/**/*.log
+
+# Ignore tasks directory
+docs/tasks/
+
+# Placeholder and retired workspace directories (remove if a future ADR restores them)
+apps/web/
+apps/core/
+apps/edge/
+packages/agent-*-rs/
+packages/lfcc-*/
+packages/gateway*/
+
+# Local dependency audit artifacts
+/outdates.json
+/outdated.json
+
+# Local runtime replay reports
+artifacts/runtime-replay/
+
+packages/discovery-rs/target/
+packages/discovery-rs/Cargo.lock
+packages/discovery-rs/*.node
+packages/sandbox-rs/target/
+packages/sandbox-rs/Cargo.lock
+
+packages/runtime-shell-core-rs/Cargo.lock
+packages/runtime-shell-core-rs/target/
+
+packages/model-fabric-rs/target/
+packages/model-fabric-rs/Cargo.lock
+packages/model-fabric-rs/*.node
+packages/runtime-diagnostics-export-core-rs/target/
+packages/runtime-diagnostics-export-core-rs/Cargo.lock
+
+
+# Desktop Tauri
+apps/code-tauri/src-tauri/target/
+apps/code-tauri/src-tauri/gen/
+apps/code-tauri/src-tauri/Cargo.lock

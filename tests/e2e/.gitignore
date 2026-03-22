@@ -1,0 +1,8 @@
+/playwright-report/
+/test-results/
+/blob-report/
+/.auth/
+/output/
+/tmp-*.mjs
+/src/tmp-*.mjs
+/.codex/

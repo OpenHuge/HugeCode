@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/design-system/schemas/semantic-tokens.schema.json",
+  "type": "object",
+  "required": ["artifactVersion", "sourcePrimitiveRef", "mappings", "summary"],
+  "properties": {
+    "artifactVersion": { "type": "integer", "minimum": 1 },
+    "sourcePrimitiveRef": { "type": "string" },
+    "mappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "primitiveRef", "confidence"],
+        "properties": {
+          "path": { "type": "string" },
+          "primitiveRef": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "additionalProperties": true
+      }
+    },
+    "summary": { "type": "object" }
+  },
+  "additionalProperties": true
+}

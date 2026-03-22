@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "runtime-provider-replay-sample.schema.json",
+  "title": "Runtime Provider Replay Dataset Sample",
+  "type": "object",
+  "required": ["schemaVersion", "sample", "input", "process", "result", "assertions", "governance"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "sample": {
+      "type": "object",
+      "required": [
+        "id",
+        "variant",
+        "family",
+        "scenarioType",
+        "mode",
+        "source",
+        "recordedAt",
+        "runtimeKind",
+        "providerKind",
+        "requiresRealRuntime",
+        "supportsReplayOnly",
+        "tags",
+        "stability",
+        "redactionVersion",
+        "notes"
+      ]
+    },
+    "input": {
+      "type": "object",
+      "required": ["task", "variant", "runtimeConfig", "endpointIsolation", "turns"],
+      "properties": {
+        "runtimeOperation": {
+          "type": "object",
+          "required": ["type"]
+        },
+        "workspaceSetup": {
+          "type": "object"
+        }
+      }
+    },
+    "process": {
+      "type": "object",
+      "required": [
+        "expectedStateTransitions",
+        "providerEventRequirements",
+        "runtimeBinding",
+        "harness"
+      ]
+    },
+    "result": {
+      "type": "object",
+      "required": ["successStatus", "summaryHeading"],
+      "properties": {
+        "providerReplay": {
+          "type": "object"
+        },
+        "runtimeOperation": {
+          "type": "object",
+          "required": ["type", "method"]
+        }
+      }
+    },
+    "runtimeTruth": {
+      "type": "object",
+      "properties": {
+        "taskFields": {
+          "type": "array",
+          "items": { "type": "object", "required": ["type"] }
+        },
+        "review": {
+          "type": "array",
+          "items": { "type": "object", "required": ["type"] }
+        },
+        "autodrive": {
+          "type": "array",
+          "items": { "type": "object", "required": ["type"] }
+        },
+        "eventReplay": {
+          "type": "array",
+          "items": { "type": "object", "required": ["type"] }
+        }
+      }
+    },
+    "assertions": {
+      "type": "object",
+      "required": ["hard", "soft"]
+    },
+    "governance": {
+      "type": "object",
+      "required": ["owner", "lastRefreshReason", "redaction"]
+    }
+  }
+}

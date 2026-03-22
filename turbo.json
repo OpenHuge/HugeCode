@@ -1,0 +1,88 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "remoteCache": {
+    "signature": true
+  },
+  "globalDependencies": [
+    "pnpm-lock.yaml",
+    "turbo.json",
+    "tsconfig.base.json",
+    ".oxlintrc.json",
+    ".oxfmtrc.json",
+    "vitest.config.ts",
+    "vitest.aliases.ts",
+    "vitest.shared.ts",
+    "vitest.workspace.ts",
+    "vitest.root.config.ts",
+    "playwright.config.local.ts"
+  ],
+  "boundaries": {
+    "tags": {
+      "app-control-plane": {
+        "dependencies": {
+          "deny": ["runtime-service"]
+        }
+      },
+      "desktop-host": {
+        "dependencies": {
+          "deny": ["runtime-service"]
+        }
+      },
+      "runtime-client-infra": {
+        "dependencies": {
+          "deny": ["app-control-plane", "desktop-host"]
+        }
+      },
+      "runtime-webmcp-client": {
+        "dependencies": {
+          "deny": ["app-control-plane", "desktop-host"]
+        }
+      },
+      "runtime-service": {
+        "dependents": {
+          "deny": ["app-control-plane", "runtime-client-infra", "runtime-webmcp-client"]
+        }
+      }
+    }
+  },
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "@ku0/code-tauri#build": {
+      "dependsOn": ["@ku0/code#build", "^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["src-tauri/target/**"]
+    },
+    "lint": {
+      "dependsOn": ["^lint"],
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": []
+    },
+    "check": {
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^test"],
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": ["coverage/**"]
+    },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "inputs": ["$TURBO_DEFAULT$", "e2e/**"],
+      "outputs": ["playwright-report/**", "test-results/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KnowledgeIndexContractsV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "contract", "body"],
+  "properties": {
+    "schema_version": { "const": "knowledge_index.v1" },
+    "contract": {
+      "type": "string",
+      "enum": ["ingest_request", "ingest_response", "retrieve_request", "retrieve_response"]
+    },
+    "body": {
+      "oneOf": [
+        { "$ref": "#/$defs/IngestRequest" },
+        { "$ref": "#/$defs/IngestResponse" },
+        { "$ref": "#/$defs/RetrieveRequest" },
+        { "$ref": "#/$defs/RetrieveResponse" }
+      ]
+    }
+  },
+  "$defs": {
+    "IngestRequest": {
+      "type": "object",
+      "required": ["session_id", "source"],
+      "properties": {
+        "session_id": { "type": "string", "minLength": 1 },
+        "source": {
+          "type": "object",
+          "required": ["kind", "uri", "retention_policy"],
+          "properties": {
+            "kind": { "type": "string", "enum": ["file", "directory", "mcp", "api"] },
+            "uri": { "type": "string", "minLength": 1 },
+            "retention_policy": { "type": "string", "enum": ["session", "workspace", "manual"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "IngestResponse": {
+      "type": "object",
+      "required": ["source_id", "status"],
+      "properties": {
+        "source_id": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "enum": ["queued", "indexing", "ready", "failed", "paused"] }
+      },
+      "additionalProperties": false
+    },
+    "RetrieveRequest": {
+      "type": "object",
+      "required": ["session_id", "query"],
+      "properties": {
+        "session_id": { "type": "string", "minLength": 1 },
+        "query": { "type": "string", "minLength": 1 },
+        "limit": { "type": "integer", "minimum": 1 },
+        "filters": {
+          "type": "object",
+          "properties": {
+            "source_ids": { "type": "array", "items": { "type": "string" } },
+            "min_score": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "RetrieveResponse": {
+      "type": "object",
+      "required": ["query_id", "results", "metrics"],
+      "properties": {
+        "query_id": { "type": "string", "minLength": 1 },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source_id", "uri", "score", "snippet"],
+            "properties": {
+              "source_id": { "type": "string" },
+              "uri": { "type": "string" },
+              "score": { "type": "number", "minimum": 0, "maximum": 1 },
+              "snippet": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "required": ["latency_ms", "hit_count", "coverage_score", "quality_score"],
+          "properties": {
+            "latency_ms": { "type": "integer", "minimum": 0 },
+            "hit_count": { "type": "integer", "minimum": 0 },
+            "coverage_score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "quality_score": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

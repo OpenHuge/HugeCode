@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "McpAuthSessionV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "session_id",
+    "server_id",
+    "auth_mode",
+    "consent_mode",
+    "policy_tag_set",
+    "token_state"
+  ],
+  "properties": {
+    "schema_version": { "const": "mcp_auth_session.v1" },
+    "session_id": { "type": "string", "minLength": 1 },
+    "server_id": { "type": "string", "minLength": 1 },
+    "auth_mode": {
+      "type": "string",
+      "enum": ["oauth2", "api_key", "local"]
+    },
+    "consent_mode": {
+      "type": "string",
+      "enum": ["allow", "ask", "deny"]
+    },
+    "policy_tag_set": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "token_state": {
+      "type": "string",
+      "enum": ["active", "expiring", "expired", "revoked", "invalid_scope"]
+    },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "last_refresh_at": { "type": "string", "format": "date-time" },
+    "metadata": { "type": "object", "additionalProperties": true }
+  }
+}

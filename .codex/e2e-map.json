@@ -1,0 +1,54 @@
+{
+  "categories": ["core", "blocks", "collab", "annotations", "features", "smoke", "a11y"],
+  "rules": [
+    {
+      "category": "a11y",
+      "pathContains": ["a11y", "accessibility", "aria"]
+    },
+    {
+      "category": "annotations",
+      "pathContains": ["annotation", "comment", "highlight"]
+    },
+    {
+      "category": "collab",
+      "pathContains": ["collab", "presence", "sync", "websocket", "loro", "crdt"]
+    },
+    {
+      "category": "blocks",
+      "pathContains": ["block", "nodeview", "drag"]
+    },
+    {
+      "category": "features",
+      "pathContains": [
+        "import",
+        "ai",
+        "gateway",
+        "persistence",
+        "connector",
+        "marketplace",
+        "feature",
+        "perf",
+        "latency",
+        "virtual",
+        "render",
+        "worker",
+        "bundle",
+        "chunk",
+        "markdown",
+        "terminal"
+      ]
+    },
+    {
+      "category": "core",
+      "pathContains": ["core", "editor", "prosemirror", "schema", "selection", "format", "sidebar"]
+    },
+    {
+      "category": "smoke",
+      "pathContains": ["smoke"]
+    }
+  ],
+  "fallback": {
+    "codeSrcCategory": "smoke",
+    "codeSrcPrefixes": ["apps/code/src/", "packages/design-system/"]
+  }
+}

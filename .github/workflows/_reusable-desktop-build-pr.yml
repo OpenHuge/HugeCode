@@ -1,0 +1,62 @@
+name: _reusable-desktop-build-pr
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        required: true
+        type: string
+      rust_target:
+        required: true
+        type: string
+      cargo_cache_key:
+        required: true
+        type: string
+      enable_sccache:
+        required: false
+        type: string
+        default: "true"
+      host_check_command:
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  build_pr:
+    name: Build PR
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 35
+    env:
+      RUST_BACKTRACE: 1
+      CARGO_INCREMENTAL: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-desktop-build-env
+        with:
+          targets: ${{ inputs.rust_target }}
+          enable-sccache: ${{ inputs.enable_sccache }}
+          cargo-cache-key: ${{ inputs.cargo_cache_key }}
+
+      - name: Run platform host checks
+        if: ${{ inputs.host_check_command != '' }}
+        run: ${{ inputs.host_check_command }}
+
+      - name: Validate desktop capabilities
+        if: contains(inputs.rust_target, 'windows')
+        run: pnpm check:desktop-capabilities
+
+      - name: Run desktop smoke tests
+        if: contains(inputs.rust_target, 'windows')
+        run: pnpm test:desktop:smoke
+
+      - name: Build Tauri app (fast verify)
+        env:
+          DESKTOP_PREBUILD_MODE: skip
+        run: |
+          echo "desktop prebuild=${DESKTOP_PREBUILD_MODE}"
+          pnpm --filter @ku0/code-tauri run build -- --target ${{ inputs.rust_target }} --debug --no-bundle
+
+      - name: Show sccache stats
+        if: always()
+        run: sccache --show-stats

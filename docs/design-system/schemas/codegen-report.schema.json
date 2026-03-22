@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/design-system/schemas/codegen-report.schema.json",
+  "type": "object",
+  "required": [
+    "artifactVersion",
+    "generatedAt",
+    "sourceManifest",
+    "outputRoot",
+    "mode",
+    "promotion",
+    "generatedTargets",
+    "promotedTargets",
+    "skippedTargets"
+  ],
+  "properties": {
+    "artifactVersion": { "type": "integer", "minimum": 1 },
+    "generatedAt": { "type": "string" },
+    "sourceManifest": { "type": "string" },
+    "outputRoot": { "type": "string" },
+    "mode": {
+      "type": "string",
+      "enum": ["artifacts-only", "artifacts-and-promote"]
+    },
+    "promotion": {
+      "type": "object",
+      "required": ["enabled", "promoteRoot", "allowReviewTargets", "overwrite"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "promoteRoot": { "type": "string" },
+        "allowReviewTargets": { "type": "boolean" },
+        "overwrite": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "generatedTargets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "componentName",
+          "family",
+          "targetLayer",
+          "templateFamily",
+          "readiness",
+          "outputDirectory",
+          "generatedFiles",
+          "notes"
+        ],
+        "properties": {
+          "componentName": { "type": "string" },
+          "family": { "type": "string" },
+          "targetLayer": {
+            "type": "string",
+            "enum": [
+              "design-system-primitive",
+              "design-system-component",
+              "app-adapter",
+              "app-pattern",
+              "defer"
+            ]
+          },
+          "templateFamily": { "type": "string" },
+          "readiness": { "type": "string", "enum": ["ready", "review", "defer"] },
+          "outputDirectory": { "type": "string" },
+          "generatedFiles": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["path", "role"],
+              "properties": {
+                "path": { "type": "string" },
+                "role": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "promotedTargets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "componentName",
+          "family",
+          "targetLayer",
+          "readiness",
+          "targetDirectory",
+          "promotedFiles",
+          "overwrittenFiles",
+          "notes"
+        ],
+        "properties": {
+          "componentName": { "type": "string" },
+          "family": { "type": "string" },
+          "targetLayer": {
+            "type": "string",
+            "enum": [
+              "design-system-primitive",
+              "design-system-component",
+              "app-adapter",
+              "app-pattern",
+              "defer"
+            ]
+          },
+          "readiness": { "type": "string", "enum": ["ready", "review", "defer"] },
+          "targetDirectory": { "type": "string" },
+          "promotedFiles": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["path", "role"],
+              "properties": {
+                "path": { "type": "string" },
+                "role": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "overwrittenFiles": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "notes": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "skippedTargets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["componentName", "family", "targetLayer", "readiness", "stage", "reason"],
+        "properties": {
+          "componentName": { "type": "string" },
+          "family": { "type": "string" },
+          "targetLayer": {
+            "type": "string",
+            "enum": [
+              "design-system-primitive",
+              "design-system-component",
+              "app-adapter",
+              "app-pattern",
+              "defer"
+            ]
+          },
+          "readiness": { "type": "string", "enum": ["ready", "review", "defer"] },
+          "stage": { "type": "string", "enum": ["generate", "promote"] },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

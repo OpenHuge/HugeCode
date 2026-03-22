@@ -1,0 +1,1000 @@
+use super::*;
+use crate::runtime_tool_domain::{
+    parse_runtime_tool_execution_scope, RuntimeToolExecutionChannelHealthStatus,
+    RuntimeToolExecutionScope,
+};
+use ku0_runtime_shell_core::{TerminalSessionRecord, TerminalSessionState};
+
+fn kernel_health_label(healthy: bool) -> &'static str {
+    if healthy { "ready" } else { "attention" }
+}
+
+fn kernel_execution_profile_payload(
+    placement: &str,
+    interactivity: &str,
+    isolation: &str,
+    network: &str,
+    authority: &str,
+) -> Value {
+    json!({
+        "placement": placement,
+        "interactivity": interactivity,
+        "isolation": isolation,
+        "network": network,
+        "authority": authority,
+    })
+}
+
+fn kernel_terminal_execution_profile() -> Value {
+    kernel_execution_profile_payload("local", "interactive", "host", "default", "user")
+}
+
+fn kernel_job_execution_profile(summary: &AgentTaskSummary) -> Value {
+    let placement = if summary.backend_id.is_some() || summary.distributed_status.is_some() {
+        "remote"
+    } else {
+        "local"
+    };
+    let interactivity = if summary.thread_id.is_some() {
+        "interactive"
+    } else {
+        "background"
+    };
+    let isolation = if placement == "remote" {
+        "container_sandbox"
+    } else {
+        "host"
+    };
+    let network = if summary.access_mode == "read-only" {
+        "restricted"
+    } else {
+        "default"
+    };
+    let authority = if summary.backend_id.is_some() {
+        "delegated"
+    } else if summary.request_id.is_some() {
+        "service"
+    } else {
+        "user"
+    };
+    kernel_execution_profile_payload(placement, interactivity, isolation, network, authority)
+}
+
+fn extract_takeover_field(bundle: Option<&Value>, field: &str) -> Option<Value> {
+    bundle
+        .and_then(Value::as_object)
+        .and_then(|object| object.get(field))
+        .cloned()
+}
+
+fn kernel_continuation_payload(runtime: &AgentTaskRuntime) -> Value {
+    let summary = runtime
+        .checkpoint_id
+        .as_deref()
+        .map(|checkpoint_id| format!("Checkpoint {checkpoint_id} is available for resume."))
+        .or_else(|| {
+            runtime
+                .review_actionability
+                .as_ref()
+                .and_then(Value::as_object)
+                .and_then(|object| object.get("summary"))
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+        })
+        .or_else(|| {
+            runtime
+                .takeover_bundle
+                .as_ref()
+                .and_then(Value::as_object)
+                .and_then(|object| object.get("summary"))
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+        });
+
+    json!({
+        "checkpointId": runtime.checkpoint_id,
+        "resumeSupported": runtime.checkpoint_id.is_some() || runtime.recovered,
+        "recovered": runtime.recovered,
+        "reviewActionability": runtime.review_actionability,
+        "takeover": runtime.takeover_bundle,
+        "missionLinkage": extract_takeover_field(runtime.takeover_bundle.as_ref(), "missionLinkage"),
+        "publishHandoff": extract_takeover_field(runtime.takeover_bundle.as_ref(), "publishHandoff"),
+        "summary": summary,
+    })
+}
+
+fn kernel_session_payload(session: &TerminalSessionRecord) -> Value {
+    let state = match session.state {
+        TerminalSessionState::Created => "created",
+        TerminalSessionState::Exited => "exited",
+        TerminalSessionState::IoFailed => "ioFailed",
+        TerminalSessionState::Unsupported => "unsupported",
+    };
+    json!({
+        "id": session.id,
+        "kind": "pty",
+        "workspaceId": session.workspace_id,
+        "state": state,
+        "createdAt": session.created_at,
+        "updatedAt": session.updated_at,
+        "executionProfile": kernel_terminal_execution_profile(),
+        "lines": session.lines,
+        "metadata": {
+            "exitStatus": session.exit_status,
+        },
+    })
+}
+
+pub(super) fn kernel_job_payload(runtime: &AgentTaskRuntime) -> Value {
+    json!({
+        "id": runtime.summary.task_id,
+        "workspaceId": runtime.summary.workspace_id,
+        "threadId": runtime.summary.thread_id,
+        "title": runtime.summary.title,
+        "status": runtime.summary.status,
+        "provider": runtime.summary.routed_provider.clone().or_else(|| runtime.summary.provider.clone()),
+        "modelId": runtime.summary.routed_model_id.clone().or_else(|| runtime.summary.model_id.clone()),
+        "backendId": runtime.summary.backend_id,
+        "preferredBackendIds": runtime.summary.preferred_backend_ids,
+        "executionProfile": kernel_job_execution_profile(&runtime.summary),
+        "createdAt": runtime.summary.created_at,
+        "updatedAt": runtime.summary.updated_at,
+        "startedAt": runtime.summary.started_at,
+        "completedAt": runtime.summary.completed_at,
+        "continuation": kernel_continuation_payload(runtime),
+        "metadata": {
+            "agentProfile": runtime.summary.agent_profile,
+            "accessMode": runtime.summary.access_mode,
+            "currentStep": runtime.summary.current_step,
+            "errorCode": runtime.summary.error_code,
+            "errorMessage": runtime.summary.error_message,
+        },
+    })
+}
+
+pub(super) async fn read_kernel_job_payload_by_id(
+    ctx: &AppContext,
+    job_id: &str,
+) -> Option<Value> {
+    let tasks = ctx.agent_tasks.read().await;
+    tasks.tasks.get(job_id).map(kernel_job_payload)
+}
+
+fn extension_surfaces(config: &Value) -> Vec<String> {
+    let mut surfaces = Vec::new();
+    if config.get("tools").and_then(Value::as_array).is_some() {
+        surfaces.push("tools".to_string());
+    }
+    if config.get("resources").and_then(Value::as_object).is_some() {
+        surfaces.push("resources".to_string());
+    }
+    if config.get("hooks").and_then(Value::as_array).is_some() {
+        surfaces.push("hooks".to_string());
+    }
+    if config.get("watchers").and_then(Value::as_array).is_some() {
+        surfaces.push("watchers".to_string());
+    }
+    if surfaces.is_empty() {
+        surfaces.push("tools".to_string());
+    }
+    surfaces
+}
+
+fn extension_tool_count(config: &Value) -> usize {
+    config
+        .get("tools")
+        .and_then(Value::as_array)
+        .map_or(1, Vec::len)
+}
+
+fn extension_resource_count(config: &Value) -> usize {
+    config
+        .get("resources")
+        .and_then(Value::as_object)
+        .map_or(0, serde_json::Map::len)
+}
+
+fn kernel_extension_bundle_payload(spec: &extensions_runtime::RuntimeExtensionSpecPayload) -> Value {
+    let metadata = spec.config.as_object().cloned().map(Value::Object);
+    json!({
+        "id": spec.extension_id,
+        "name": spec.name,
+        "enabled": spec.enabled,
+        "transport": spec.transport,
+        "workspaceId": spec.workspace_id,
+        "toolCount": extension_tool_count(&spec.config),
+        "resourceCount": extension_resource_count(&spec.config),
+        "surfaces": extension_surfaces(&spec.config),
+        "installedAt": spec.installed_at,
+        "updatedAt": spec.updated_at,
+        "metadata": metadata,
+    })
+}
+
+const KERNEL_PROJECTION_SCOPE_MISSION_CONTROL: &str = "mission_control";
+const KERNEL_PROJECTION_SCOPE_JOBS: &str = "jobs";
+const KERNEL_PROJECTION_SCOPE_SESSIONS: &str = "sessions";
+const KERNEL_PROJECTION_SCOPE_CAPABILITIES: &str = "capabilities";
+const KERNEL_PROJECTION_SCOPE_EXTENSIONS: &str = "extensions";
+const KERNEL_PROJECTION_SCOPE_CONTINUITY: &str = "continuity";
+const KERNEL_PROJECTION_SCOPE_DIAGNOSTICS: &str = "diagnostics";
+const ALL_KERNEL_PROJECTION_SCOPES: &[&str] = &[
+    KERNEL_PROJECTION_SCOPE_MISSION_CONTROL,
+    KERNEL_PROJECTION_SCOPE_JOBS,
+    KERNEL_PROJECTION_SCOPE_SESSIONS,
+    KERNEL_PROJECTION_SCOPE_CAPABILITIES,
+    KERNEL_PROJECTION_SCOPE_EXTENSIONS,
+    KERNEL_PROJECTION_SCOPE_CONTINUITY,
+    KERNEL_PROJECTION_SCOPE_DIAGNOSTICS,
+];
+
+fn kernel_projection_scope_cache_key(scope: &str) -> Result<RuntimeRevisionCacheKey, RpcError> {
+    match scope {
+        KERNEL_PROJECTION_SCOPE_MISSION_CONTROL => {
+            Ok(RuntimeRevisionCacheKey::KernelProjectionMissionControlSlice)
+        }
+        KERNEL_PROJECTION_SCOPE_JOBS => Ok(RuntimeRevisionCacheKey::KernelProjectionJobsSlice),
+        KERNEL_PROJECTION_SCOPE_SESSIONS => {
+            Ok(RuntimeRevisionCacheKey::KernelProjectionSessionsSlice)
+        }
+        KERNEL_PROJECTION_SCOPE_CAPABILITIES => {
+            Ok(RuntimeRevisionCacheKey::KernelProjectionCapabilitiesSlice)
+        }
+        KERNEL_PROJECTION_SCOPE_EXTENSIONS => {
+            Ok(RuntimeRevisionCacheKey::KernelProjectionExtensionsSlice)
+        }
+        KERNEL_PROJECTION_SCOPE_CONTINUITY => {
+            Ok(RuntimeRevisionCacheKey::KernelProjectionContinuitySlice)
+        }
+        KERNEL_PROJECTION_SCOPE_DIAGNOSTICS => {
+            Ok(RuntimeRevisionCacheKey::KernelProjectionDiagnosticsSlice)
+        }
+        other => Err(RpcError::invalid_params(format!(
+            "Unsupported kernel projection scope: {other}"
+        ))),
+    }
+}
+
+fn parse_kernel_projection_scopes(
+    params: &serde_json::Map<String, Value>,
+) -> Result<Vec<String>, RpcError> {
+    let Some(scopes) = params.get("scopes") else {
+        return Ok(
+            ALL_KERNEL_PROJECTION_SCOPES
+                .iter()
+                .map(|scope| (*scope).to_string())
+                .collect()
+        );
+    };
+    let Some(scopes) = scopes.as_array() else {
+        return Err(RpcError::invalid_params(
+            "Kernel projection scopes must be an array of strings.",
+        ));
+    };
+    let mut requested = Vec::with_capacity(scopes.len());
+    for scope in scopes {
+        let Some(scope) = scope.as_str().map(str::trim).filter(|scope| !scope.is_empty()) else {
+            return Err(RpcError::invalid_params(
+                "Kernel projection scopes must contain non-empty strings.",
+            ));
+        };
+        let _ = kernel_projection_scope_cache_key(scope)?;
+        if !requested.iter().any(|entry| entry == scope) {
+            requested.push(scope.to_string());
+        }
+    }
+    if requested.is_empty() {
+        return Err(RpcError::invalid_params(
+            "Kernel projection scopes must not be empty.",
+        ));
+    }
+    Ok(requested)
+}
+
+fn json_value_present(value: Option<&Value>) -> bool {
+    value.is_some_and(|value| !value.is_null())
+}
+
+fn build_kernel_continuity_slice_payload(mission_control: &Value) -> Value {
+    let items = mission_control
+        .get("runs")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flat_map(|runs| runs.iter())
+        .filter_map(|run| {
+            let task_id = run.get("taskId").and_then(Value::as_str)?;
+            let run_id = run.get("id").and_then(Value::as_str)?;
+            let checkpoint = run.get("checkpoint").cloned();
+            let mission_linkage = run.get("missionLinkage").cloned();
+            let review_actionability = run
+                .get("reviewActionability")
+                .cloned()
+                .or_else(|| run.get("actionability").cloned());
+            let publish_handoff = run.get("publishHandoff").cloned();
+            let takeover_bundle = run.get("takeoverBundle").cloned();
+            if !json_value_present(checkpoint.as_ref())
+                && !json_value_present(mission_linkage.as_ref())
+                && !json_value_present(review_actionability.as_ref())
+                && !json_value_present(publish_handoff.as_ref())
+                && !json_value_present(takeover_bundle.as_ref())
+            {
+                return None;
+            }
+            Some(json!({
+                "taskId": task_id,
+                "runId": run_id,
+                "checkpoint": checkpoint,
+                "missionLinkage": mission_linkage,
+                "reviewActionability": review_actionability,
+                "publishHandoff": publish_handoff,
+                "takeoverBundle": takeover_bundle,
+            }))
+        })
+        .collect::<Vec<_>>();
+    let recoverable_run_count = items
+        .iter()
+        .filter(|item| json_value_present(item.get("checkpoint")))
+        .count();
+    let review_blocked_count = items
+        .iter()
+        .filter(|item| {
+            item.get("reviewActionability")
+                .and_then(Value::as_object)
+                .and_then(|record| record.get("state"))
+                .and_then(Value::as_str)
+                .is_some_and(|state| state == "blocked")
+        })
+        .count();
+
+    json!({
+        "summary": {
+            "recoverableRunCount": recoverable_run_count,
+            "reviewBlockedCount": review_blocked_count,
+            "itemCount": items.len(),
+        },
+        "items": items,
+    })
+}
+
+async fn build_kernel_diagnostics_slice_payload(ctx: &AppContext) -> Value {
+    let runtime_diagnostics = ctx.runtime_diagnostics.snapshot();
+    let tool_metrics = ctx.runtime_tool_metrics.lock().await.read_snapshot();
+    let tool_guardrails = ctx.runtime_tool_guardrails.lock().await.read_snapshot();
+    json!({
+        "revision": ctx.runtime_update_revision.load(Ordering::Relaxed),
+        "latestEvent": latest_state_fabric_event_payload(ctx),
+        "runtime": runtime_diagnostics,
+        "toolMetrics": tool_metrics,
+        "toolGuardrails": tool_guardrails,
+    })
+}
+
+async fn build_kernel_capabilities_slice_payload(ctx: &AppContext) -> Value {
+    let mut capabilities = vec![json!({
+        "id": "terminal:pty",
+        "name": "PTY Sessions",
+        "kind": "terminal",
+        "enabled": true,
+        "health": "ready",
+        "executionProfile": kernel_terminal_execution_profile(),
+        "tags": ["pty", "local"],
+        "metadata": {
+            "activeSessions": ctx.terminal_sessions.read().await.len(),
+        },
+    })];
+
+    let runtime_backends = ctx.runtime_backends.read().await;
+    let mut backends = runtime_backends.values().cloned().collect::<Vec<_>>();
+    backends.sort_by(|left, right| left.backend_id.cmp(&right.backend_id));
+    for backend in backends {
+        capabilities.push(json!({
+            "id": format!("backend:{}", backend.backend_id),
+            "name": backend.display_name,
+            "kind": "backend",
+            "enabled": backend.status != "disabled",
+            "health": kernel_health_label(backend.healthy),
+            "executionProfile": kernel_execution_profile_payload("remote", "background", "container_sandbox", "default", "delegated"),
+            "tags": backend.capabilities,
+            "metadata": {
+                "backendId": backend.backend_id,
+                "backendKind": backend.backend_kind,
+                "transport": backend.transport,
+                "origin": backend.origin,
+                "rolloutState": backend.rollout_state,
+                "status": backend.status,
+                "healthy": backend.healthy,
+            },
+        }));
+    }
+    drop(runtime_backends);
+
+    let extensions = ctx.extensions_store.read().await.list(None);
+    for spec in extensions {
+        capabilities.push(json!({
+            "id": format!("extension:{}", spec.extension_id),
+            "name": spec.name,
+            "kind": "extension",
+            "enabled": spec.enabled,
+            "health": if spec.enabled { "ready" } else { "attention" },
+            "executionProfile": kernel_execution_profile_payload("local", "background", "host", "default", "service"),
+            "tags": extension_surfaces(&spec.config),
+            "metadata": {
+                "workspaceId": spec.workspace_id,
+                "transport": spec.transport,
+                "toolCount": extension_tool_count(&spec.config),
+                "resourceCount": extension_resource_count(&spec.config),
+            },
+        }));
+    }
+
+    let guardrails = ctx.runtime_tool_guardrails.lock().await.read_snapshot();
+    capabilities.push(json!({
+        "id": "policy:runtime",
+        "name": "Runtime Policy",
+        "kind": "policy",
+        "enabled": true,
+        "health": match guardrails.channel_health.status {
+            RuntimeToolExecutionChannelHealthStatus::Healthy => "ready",
+            RuntimeToolExecutionChannelHealthStatus::Degraded => "attention",
+            RuntimeToolExecutionChannelHealthStatus::Unavailable => "blocked",
+        },
+        "executionProfile": kernel_execution_profile_payload("local", "background", "host", "restricted", "service"),
+        "tags": ["guardrails", "metrics", "approvals"],
+        "metadata": {
+            "channelHealth": guardrails.channel_health,
+            "circuitBreakers": guardrails.circuit_breakers,
+            "updatedAt": guardrails.updated_at,
+        },
+    }));
+
+    let skills = crate::live_skills::list_live_skills(&ctx.config);
+    capabilities.push(json!({
+        "id": "skills:live",
+        "name": "Live Skills",
+        "kind": "skill",
+        "enabled": true,
+        "health": "ready",
+        "executionProfile": kernel_execution_profile_payload("local", "interactive", "host", if ctx.config.live_skills_network_enabled { "default" } else { "restricted" }, "service"),
+        "tags": ["live-skills"],
+        "metadata": {
+            "skillCount": skills.len(),
+            "networkEnabled": ctx.config.live_skills_network_enabled,
+        },
+    }));
+
+    let revision = ctx.runtime_update_revision.load(Ordering::Relaxed);
+    capabilities.push(json!({
+        "id": "context:state-fabric",
+        "name": "Runtime State Fabric",
+        "kind": "context",
+        "enabled": true,
+        "health": "ready",
+        "executionProfile": kernel_execution_profile_payload("local", "background", "host", "default", "service"),
+        "tags": ["state-fabric", "replay"],
+        "metadata": {
+            "revision": revision,
+            "latestEvent": latest_state_fabric_event_payload(ctx),
+        },
+    }));
+
+    capabilities.sort_by(|left, right| {
+        left.get("id")
+            .and_then(Value::as_str)
+            .cmp(&right.get("id").and_then(Value::as_str))
+    });
+
+    Value::Array(capabilities)
+}
+
+async fn build_kernel_sessions_slice_payload(ctx: &AppContext, workspace_id: Option<&str>) -> Value {
+    let sessions = ctx.terminal_sessions.read().await;
+    let mut items = sessions
+        .values()
+        .filter(|session| {
+            workspace_id.is_none_or(|workspace_id| session.workspace_id == workspace_id)
+        })
+        .map(kernel_session_payload)
+        .collect::<Vec<_>>();
+    items.sort_by(|left, right| {
+        left.get("id")
+            .and_then(Value::as_str)
+            .cmp(&right.get("id").and_then(Value::as_str))
+    });
+    Value::Array(items)
+}
+
+async fn build_kernel_jobs_slice_payload(
+    ctx: &AppContext,
+    workspace_id: Option<&str>,
+    status: Option<&str>,
+) -> Value {
+    let tasks = ctx.agent_tasks.read().await;
+    let mut items = tasks
+        .tasks
+        .values()
+        .filter(|runtime| {
+            workspace_id.is_none_or(|workspace_id| runtime.summary.workspace_id == workspace_id)
+                && status.is_none_or(|status| runtime.summary.status == status)
+        })
+        .map(kernel_job_payload)
+        .collect::<Vec<_>>();
+    items.sort_by(|left, right| {
+        left.get("id")
+            .and_then(Value::as_str)
+            .cmp(&right.get("id").and_then(Value::as_str))
+    });
+    Value::Array(items)
+}
+
+async fn build_kernel_extensions_slice_payload(
+    ctx: &AppContext,
+    workspace_id: Option<&str>,
+) -> Value {
+    let mut bundles = ctx
+        .extensions_store
+        .read()
+        .await
+        .list(workspace_id)
+        .iter()
+        .map(kernel_extension_bundle_payload)
+        .collect::<Vec<_>>();
+    bundles.sort_by(|left, right| {
+        left.get("id")
+            .and_then(Value::as_str)
+            .cmp(&right.get("id").and_then(Value::as_str))
+    });
+    Value::Array(bundles)
+}
+
+async fn build_kernel_projection_slice_payload(
+    ctx: &AppContext,
+    scope: &str,
+) -> Result<Value, RpcError> {
+    let revision = ctx.runtime_update_revision.load(Ordering::Relaxed);
+    let cache_key = kernel_projection_scope_cache_key(scope)?;
+    if let Some(cached) = crate::read_runtime_revision_cached_json_value(ctx, &cache_key, revision) {
+        return Ok(cached);
+    }
+
+    let payload = match scope {
+        KERNEL_PROJECTION_SCOPE_MISSION_CONTROL => handle_mission_control_snapshot_v1(ctx, &json!({})).await?,
+        KERNEL_PROJECTION_SCOPE_JOBS => build_kernel_jobs_slice_payload(ctx, None, None).await,
+        KERNEL_PROJECTION_SCOPE_SESSIONS => build_kernel_sessions_slice_payload(ctx, None).await,
+        KERNEL_PROJECTION_SCOPE_CAPABILITIES => build_kernel_capabilities_slice_payload(ctx).await,
+        KERNEL_PROJECTION_SCOPE_EXTENSIONS => build_kernel_extensions_slice_payload(ctx, None).await,
+        KERNEL_PROJECTION_SCOPE_CONTINUITY => {
+            let mission_control = handle_mission_control_snapshot_v1(ctx, &json!({})).await?;
+            build_kernel_continuity_slice_payload(&mission_control)
+        }
+        KERNEL_PROJECTION_SCOPE_DIAGNOSTICS => build_kernel_diagnostics_slice_payload(ctx).await,
+        other => {
+            return Err(RpcError::invalid_params(format!(
+                "Unsupported kernel projection scope: {other}"
+            )))
+        }
+    };
+
+    crate::store_runtime_revision_cached_json_value(ctx, cache_key, revision, &payload);
+    Ok(payload)
+}
+
+pub(crate) async fn build_kernel_projection_delta_v3(
+    ctx: &AppContext,
+    scopes: &[String],
+    previous_revision: u64,
+    resync_reason: Option<&str>,
+) -> Result<Option<Value>, RpcError> {
+    let revision = ctx.runtime_update_revision.load(Ordering::Relaxed);
+    if revision == previous_revision && resync_reason.is_none() {
+        return Ok(None);
+    }
+
+    let mut ops = Vec::with_capacity(scopes.len());
+    for scope in scopes {
+        if let Some(reason) = resync_reason {
+            ops.push(json!({
+                "type": "resync_required",
+                "scope": scope,
+                "reason": reason,
+                "revision": revision,
+            }));
+            continue;
+        }
+
+        let payload = build_kernel_projection_slice_payload(ctx, scope.as_str()).await?;
+        ops.push(json!({
+            "type": "replace",
+            "scope": scope,
+            "value": payload,
+            "revision": revision,
+        }));
+    }
+
+    Ok(Some(json!({
+        "revision": revision,
+        "scopes": scopes,
+        "ops": ops,
+    })))
+}
+
+fn latest_state_fabric_event_payload(ctx: &AppContext) -> Option<Value> {
+    let frame = crate::latest_runtime_state_fabric_event_frame(ctx)?;
+    let payload = serde_json::from_str::<Value>(frame.payload_json.as_ref()).ok()?;
+    Some(json!({
+        "eventId": frame.id,
+        "payload": payload,
+    }))
+}
+
+async fn build_kernel_context_snapshot_payload(
+    ctx: &AppContext,
+    params: &serde_json::Map<String, Value>,
+) -> Result<Value, RpcError> {
+    let revision = ctx.runtime_update_revision.load(Ordering::Relaxed);
+    let latest_event = latest_state_fabric_event_payload(ctx);
+    let state = ctx.state.read().await;
+    let terminal_sessions = ctx.terminal_sessions.read().await;
+    let agent_tasks = ctx.agent_tasks.read().await;
+    let runtime_backends = ctx.runtime_backends.read().await;
+    let extensions_store = ctx.extensions_store.read().await;
+
+    let scope_kind = read_required_string(params, "kind")?;
+    let (scope, snapshot) = match scope_kind {
+        "global" => (
+            json!({ "kind": "global" }),
+            json!({
+                "workspaceCount": state.workspaces.len(),
+                "threadCount": state.workspace_threads.values().map(Vec::len).sum::<usize>(),
+                "terminalSessionCount": terminal_sessions.len(),
+                "jobCount": agent_tasks.tasks.len(),
+                "backendCount": runtime_backends.len(),
+                "extensionCount": extensions_store.list(None).len(),
+            }),
+        ),
+        "workspace" => {
+            let workspace_id = read_required_string(params, "workspaceId")?;
+            let workspace_threads = state
+                .workspace_threads
+                .get(workspace_id)
+                .cloned()
+                .unwrap_or_default();
+            let sessions = terminal_sessions
+                .values()
+                .filter(|session| session.workspace_id == workspace_id)
+                .map(|session| session.id.clone())
+                .collect::<Vec<_>>();
+            let tasks = agent_tasks
+                .tasks
+                .values()
+                .filter(|runtime| runtime.summary.workspace_id == workspace_id)
+                .map(|runtime| runtime.summary.task_id.clone())
+                .collect::<Vec<_>>();
+            (
+                json!({ "kind": "workspace", "workspaceId": workspace_id }),
+                json!({
+                    "threadIds": workspace_threads.iter().map(|thread| thread.id.clone()).collect::<Vec<_>>(),
+                    "terminalSessionIds": sessions,
+                    "jobIds": tasks,
+                    "extensionIds": extensions_store
+                        .list(Some(workspace_id))
+                        .into_iter()
+                        .map(|spec| spec.extension_id)
+                        .collect::<Vec<_>>(),
+                }),
+            )
+        }
+        "thread" => {
+            let workspace_id = read_required_string(params, "workspaceId")?;
+            let thread_id = read_required_string(params, "threadId")?;
+            let thread = state
+                .workspace_threads
+                .get(workspace_id)
+                .and_then(|threads| threads.iter().find(|thread| thread.id == thread_id))
+                .cloned();
+            (
+                json!({
+                    "kind": "thread",
+                    "workspaceId": workspace_id,
+                    "threadId": thread_id,
+                }),
+                json!({
+                    "thread": thread,
+                    "jobIds": agent_tasks
+                        .tasks
+                        .values()
+                        .filter(|runtime| runtime.summary.thread_id.as_deref() == Some(thread_id))
+                        .map(|runtime| runtime.summary.task_id.clone())
+                        .collect::<Vec<_>>(),
+                }),
+            )
+        }
+        "task" => {
+            let task_id = read_required_string(params, "taskId")?;
+            let task = agent_tasks.tasks.get(task_id).map(kernel_job_payload);
+            (json!({ "kind": "task", "taskId": task_id }), json!({ "task": task }))
+        }
+        "run" => {
+            let run_id = read_required_string(params, "runId")?;
+            let task = agent_tasks.tasks.get(run_id).map(kernel_job_payload);
+            (json!({ "kind": "run", "runId": run_id }), json!({ "run": task }))
+        }
+        "skills" => {
+            let workspace_id = read_optional_string(params, "workspaceId");
+            let skills = crate::live_skills::list_live_skills(&ctx.config);
+            (
+                json!({ "kind": "skills", "workspaceId": workspace_id }),
+                json!({
+                    "workspaceId": workspace_id,
+                    "skillCount": skills.len(),
+                    "skillIds": skills
+                        .into_iter()
+                        .filter_map(|skill| serde_json::to_value(skill).ok())
+                        .filter_map(|value| {
+                            value
+                                .get("id")
+                                .and_then(Value::as_str)
+                                .map(ToOwned::to_owned)
+                        })
+                        .collect::<Vec<_>>(),
+                    "networkEnabled": ctx.config.live_skills_network_enabled,
+                }),
+            )
+        }
+        other => {
+            return Err(RpcError::invalid_params(format!(
+                "Unsupported kernel context scope kind: {other}"
+            )));
+        }
+    };
+
+    Ok(json!({
+        "scope": scope,
+        "revision": revision,
+        "snapshot": snapshot,
+        "latestEvent": latest_event,
+        "sources": ["runtime_state", "terminal_sessions", "agent_tasks", "runtime_backends", "extensions_store"],
+    }))
+}
+
+pub(super) async fn handle_kernel_capabilities_list_v2(
+    ctx: &AppContext,
+) -> Result<Value, RpcError> {
+    build_kernel_projection_slice_payload(ctx, KERNEL_PROJECTION_SCOPE_CAPABILITIES).await
+}
+
+pub(super) async fn handle_kernel_sessions_list_v2(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let workspace_id = read_optional_string(params, "workspaceId");
+    let kind = read_optional_string(params, "kind").unwrap_or_else(|| "pty".to_string());
+    if kind != "pty" {
+        return Err(RpcError::invalid_params(format!(
+            "Unsupported kernel session kind: {kind}"
+        )));
+    }
+    if workspace_id.is_none() {
+        return build_kernel_projection_slice_payload(ctx, KERNEL_PROJECTION_SCOPE_SESSIONS).await;
+    }
+    Ok(build_kernel_sessions_slice_payload(ctx, workspace_id.as_deref()).await)
+}
+
+pub(super) async fn handle_kernel_jobs_list_v2(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let workspace_id = read_optional_string(params, "workspaceId");
+    let status = read_optional_string(params, "status");
+    if workspace_id.is_none() && status.is_none() {
+        return build_kernel_projection_slice_payload(ctx, KERNEL_PROJECTION_SCOPE_JOBS).await;
+    }
+    Ok(build_kernel_jobs_slice_payload(
+        ctx,
+        workspace_id.as_deref(),
+        status.as_deref(),
+    )
+    .await)
+}
+
+pub(super) async fn handle_kernel_job_get_v3(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let job_id = read_optional_string(params, "jobId")
+        .or_else(|| read_optional_string(params, "job_id"))
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| RpcError::invalid_params("Missing jobId"))?;
+
+    Ok(read_kernel_job_payload_by_id(ctx, job_id.as_str())
+        .await
+        .unwrap_or(Value::Null))
+}
+
+pub(super) async fn handle_kernel_job_subscribe_v3(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let job_id = read_optional_string(params, "runId")
+        .or_else(|| read_optional_string(params, "run_id"))
+        .or_else(|| read_optional_string(params, "jobId"))
+        .or_else(|| read_optional_string(params, "job_id"))
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| RpcError::invalid_params("Missing runId"))?;
+
+    Ok(read_kernel_job_payload_by_id(ctx, job_id.as_str())
+        .await
+        .unwrap_or(Value::Null))
+}
+
+pub(super) async fn handle_kernel_job_callback_register_v3(
+    _ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let callback_id = read_optional_string(params, "callbackId")
+        .or_else(|| read_optional_string(params, "callback_id"))
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| RpcError::invalid_params("Missing callbackId"))?;
+    let mode = read_optional_string(params, "mode")
+        .map(|value| value.trim().to_string())
+        .filter(|value| value == "poll" || value == "callback")
+        .unwrap_or_else(|| "callback".to_string());
+
+    Ok(json!({
+        "registered": true,
+        "callbackId": callback_id,
+        "delivery": {
+            "mode": mode,
+            "callbackId": params
+                .get("callbackId")
+                .or_else(|| params.get("callback_id"))
+                .cloned()
+                .unwrap_or(Value::Null),
+        },
+        "message": Value::Null,
+    }))
+}
+
+pub(super) async fn handle_kernel_job_callback_remove_v3(
+    _ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let callback_id = read_optional_string(params, "callbackId")
+        .or_else(|| read_optional_string(params, "callback_id"))
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| RpcError::invalid_params("Missing callbackId"))?;
+
+    Ok(json!({
+        "removed": true,
+        "callbackId": callback_id,
+        "message": Value::Null,
+    }))
+}
+
+pub(super) async fn handle_kernel_context_snapshot_v2(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    build_kernel_context_snapshot_payload(ctx, params).await
+}
+
+pub(super) async fn handle_kernel_extensions_list_v2(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let workspace_id = read_optional_string(params, "workspaceId");
+    if workspace_id.is_none() {
+        return build_kernel_projection_slice_payload(ctx, KERNEL_PROJECTION_SCOPE_EXTENSIONS).await;
+    }
+    Ok(build_kernel_extensions_slice_payload(ctx, workspace_id.as_deref()).await)
+}
+
+pub(super) async fn handle_kernel_policies_evaluate_v2(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let scope = read_optional_string(params, "scope")
+        .map(|value| parse_runtime_tool_execution_scope(value.as_str()))
+        .transpose()
+        .map_err(RpcError::invalid_params)?
+        .unwrap_or(RuntimeToolExecutionScope::Runtime);
+    let tool_name = read_optional_string(params, "toolName")
+        .or_else(|| read_optional_string(params, "capabilityId"))
+        .unwrap_or_else(|| "kernel.policy".to_string());
+    let payload_bytes = read_optional_u64(params, "payloadBytes").unwrap_or(0);
+    let requires_approval = read_optional_bool(params, "requiresApproval").unwrap_or(false);
+
+    let mut guardrails = ctx.runtime_tool_guardrails.lock().await;
+    let evaluation = guardrails
+        .evaluate(&crate::runtime_tool_guardrails::RuntimeToolGuardrailEvaluateRequest {
+            tool_name,
+            scope,
+            workspace_id: read_optional_string(params, "workspaceId"),
+            payload_bytes,
+            at: Some(now_ms()),
+            request_id: None,
+            trace_id: None,
+            span_id: None,
+            parent_span_id: None,
+            planner_step_key: None,
+            attempt: None,
+            capability_profile: crate::runtime_tool_guardrails::RuntimeToolGuardrailCapabilityProfile::Default,
+        })
+        .map_err(|error| RpcError::internal(format!("kernel policy evaluation failed: {error}")))?;
+    drop(guardrails);
+
+    let state = ctx.state.read().await;
+    let policy_mode = state.runtime_policy_mode.clone();
+    let policy_updated_at = state.runtime_policy_updated_at;
+    drop(state);
+
+    let (decision, reason) = if !evaluation.allowed {
+        (
+            "deny",
+            evaluation
+                .message
+                .clone()
+                .unwrap_or_else(|| "Runtime guardrail denied the request.".to_string()),
+        )
+    } else if requires_approval {
+        (
+            "ask",
+            "Runtime policy requires an approval checkpoint for this action.".to_string(),
+        )
+    } else {
+        ("allow", "Runtime policy allows the request.".to_string())
+    };
+
+    Ok(json!({
+        "decision": decision,
+        "reason": reason,
+        "policyMode": policy_mode,
+        "evaluatedAt": policy_updated_at.max(evaluation.updated_at),
+        "channelHealth": evaluation.channel_health,
+        "circuitBreaker": evaluation.circuit_breaker,
+        "metadata": {
+            "guardrail": evaluation,
+            "requiresApproval": requires_approval,
+            "mutationKind": read_optional_string(params, "mutationKind"),
+        },
+    }))
+}
+
+pub(super) async fn handle_kernel_projection_bootstrap_v3(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let scopes = parse_kernel_projection_scopes(params)?;
+    let revision = ctx.runtime_update_revision.load(Ordering::Relaxed);
+    let mut slice_revisions = serde_json::Map::new();
+    let mut slices = serde_json::Map::new();
+
+    for scope in &scopes {
+        let payload = build_kernel_projection_slice_payload(ctx, scope.as_str()).await?;
+        slice_revisions.insert(scope.clone(), json!(revision));
+        slices.insert(scope.clone(), payload);
+    }
+
+    Ok(json!({
+        "revision": revision,
+        "sliceRevisions": slice_revisions,
+        "slices": slices,
+    }))
+}
+
+#[cfg(test)]
+#[path = "rpc_dispatch_kernel_tests.rs"]
+mod tests;

@@ -1,0 +1,29 @@
+{
+  "name": "@ku0/native-runtime-host-contract",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Native Swift host contract types and method/event namespace helpers",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "pnpm exec oxlint .",
+    "lint:fix": "pnpm exec oxlint --fix --fix-suggestions . && pnpm exec oxfmt --write ."
+  },
+  "dependencies": {
+    "@ku0/code-runtime-host-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

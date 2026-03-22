@@ -1,0 +1,80 @@
+name: Nightly Robustness
+
+on:
+  schedule:
+    # Run at 3 AM UTC daily
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-robustness
+  cancel-in-progress: false
+
+jobs:
+  ui_gate_3x:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        attempt: [1, 2, 3]
+    env:
+      TURBO_CACHE_DIR: .turbo
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm ci:install:offline
+
+      - uses: ./.github/actions/cache-turbo
+
+      - uses: ./.github/actions/setup-rust-ci
+        with:
+          cargo-cache-path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ~/.cache/ku0/cargo-target/code-tauri
+          cargo-cache-key: ${{ runner.os }}-nightly-code-tauri-check
+
+      - name: Build code workspace (attempt ${{ matrix.attempt }})
+        run: pnpm code:build
+
+      - name: Desktop runtime fast verify (attempt ${{ matrix.attempt }})
+        run: pnpm desktop:verify:fast
+
+  runtime_proving_lane:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TURBO_CACHE_DIR: .turbo
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm ci:install:offline
+
+      - uses: ./.github/actions/cache-turbo
+
+      - name: Run internal runtime proving lane
+        run: pnpm runtime:prove
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [ui_gate_3x, runtime_proving_lane]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## Nightly Robustness Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| UI Gate 3x | ${{ needs.ui_gate_3x.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Runtime Proving Lane | ${{ needs.runtime_proving_lane.result }} |" >> $GITHUB_STEP_SUMMARY

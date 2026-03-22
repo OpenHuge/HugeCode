@@ -1,0 +1,110 @@
+{
+  "name": "@ku0/code-runtime-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./runtimeClientCapabilitiesContract": {
+      "types": "./src/runtimeClientCapabilitiesContract.ts",
+      "default": "./src/runtimeClientCapabilitiesContract.ts"
+    },
+    "./runtimeClientErrorUtils": {
+      "types": "./src/runtimeClientErrorUtils.ts",
+      "default": "./src/runtimeClientErrorUtils.ts"
+    },
+    "./runtimeClientMethodSets": {
+      "types": "./src/runtimeClientMethodSets.ts",
+      "default": "./src/runtimeClientMethodSets.ts"
+    },
+    "./runtimeClientLiveSkills": {
+      "types": "./src/runtimeClientLiveSkills.ts",
+      "default": "./src/runtimeClientLiveSkills.ts"
+    },
+    "./runtimeClientRpcMethods": {
+      "types": "./src/runtimeClientRpcMethods.ts",
+      "default": "./src/runtimeClientRpcMethods.ts"
+    },
+    "./runtimeClientTransportCore": {
+      "types": "./src/runtimeClientTransportCore.ts",
+      "default": "./src/runtimeClientTransportCore.ts"
+    },
+    "./runtimeClientTransportShared": {
+      "types": "./src/runtimeClientTransportShared.ts",
+      "default": "./src/runtimeClientTransportShared.ts"
+    },
+    "./runtimeClientCapabilitiesProbeCore": {
+      "types": "./src/runtimeClientCapabilitiesProbeCore.ts",
+      "default": "./src/runtimeClientCapabilitiesProbeCore.ts"
+    },
+    "./runtimeClientTypes": {
+      "types": "./src/runtimeClientTypes.ts",
+      "default": "./src/runtimeClientTypes.ts"
+    },
+    "./runtimeClientWebRequestTimeouts": {
+      "types": "./src/runtimeClientWebRequestTimeouts.ts",
+      "default": "./src/runtimeClientWebRequestTimeouts.ts"
+    },
+    "./runtimeClientWebHttpTransport": {
+      "types": "./src/runtimeClientWebHttpTransport.ts",
+      "default": "./src/runtimeClientWebHttpTransport.ts"
+    },
+    "./runtimeClientWebRetryUtils": {
+      "types": "./src/runtimeClientWebRetryUtils.ts",
+      "default": "./src/runtimeClientWebRetryUtils.ts"
+    },
+    "./runtimeErrorClassifier": {
+      "types": "./src/runtimeErrorClassifier.ts",
+      "default": "./src/runtimeErrorClassifier.ts"
+    },
+    "./runtimeMessageCodes": {
+      "types": "./src/runtimeMessageCodes.ts",
+      "default": "./src/runtimeMessageCodes.ts"
+    },
+    "./runtimeMessageEnvelope": {
+      "types": "./src/runtimeMessageEnvelope.ts",
+      "default": "./src/runtimeMessageEnvelope.ts"
+    },
+    "./runtimeEventChannelDiagnostics": {
+      "types": "./src/runtimeEventChannelDiagnostics.ts",
+      "default": "./src/runtimeEventChannelDiagnostics.ts"
+    },
+    "./runtimeEventStabilityMetrics": {
+      "types": "./src/runtimeEventStabilityMetrics.ts",
+      "default": "./src/runtimeEventStabilityMetrics.ts"
+    },
+    "./runtimeEventStateMachine": {
+      "types": "./src/runtimeEventStateMachine.ts",
+      "default": "./src/runtimeEventStateMachine.ts"
+    },
+    "./webMcpToolInputSchemaValidation": {
+      "types": "./src/webMcpToolInputSchemaValidation.ts",
+      "default": "./src/webMcpToolInputSchemaValidation.ts"
+    },
+    "./webMcpModelInputSchemas": {
+      "types": "./src/webMcpModelInputSchemas.ts",
+      "default": "./src/webMcpModelInputSchemas.ts"
+    },
+    "./webMcpInputSchemaValidationError": {
+      "types": "./src/webMcpInputSchemaValidationError.ts",
+      "default": "./src/webMcpInputSchemaValidationError.ts"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "pnpm exec oxlint .",
+    "lint:fix": "pnpm exec oxlint --fix --fix-suggestions . && pnpm exec oxfmt --write ."
+  },
+  "dependencies": {
+    "@ku0/code-runtime-host-contract": "workspace:*"
+  }
+}

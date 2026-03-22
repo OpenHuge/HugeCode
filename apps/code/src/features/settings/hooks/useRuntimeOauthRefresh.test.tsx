@@ -1,0 +1,225 @@
+// @vitest-environment jsdom
+
+import { useEffect, useState } from "react";
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { subscribeAppServerEvents } from "../../../application/runtime/ports/events";
+import {
+  type RuntimeUpdatedEvent,
+  type ScopedRuntimeUpdatedEventSnapshot,
+  useScopedRuntimeUpdatedEvent,
+} from "../../../application/runtime/ports/runtimeUpdatedEvents";
+import { useOauthPopupRefresh, useRuntimeOauthRefresh } from "./useRuntimeOauthRefresh";
+
+vi.mock("../../../application/runtime/ports/events", () => ({
+  subscribeAppServerEvents: vi.fn(),
+}));
+
+vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
+  useScopedRuntimeUpdatedEvent: vi.fn(),
+}));
+
+let runtimeUpdatedListener: ((event: RuntimeUpdatedEvent) => void) | null = null;
+let appServerListener: ((event: { workspace_id?: string; message?: unknown }) => void) | null =
+  null;
+const EMPTY_RUNTIME_UPDATED_SNAPSHOT: ScopedRuntimeUpdatedEventSnapshot = {
+  revision: 0,
+  lastEvent: null,
+};
+let runtimeUpdatedRevisionCounter = 0;
+
+beforeEach(() => {
+  runtimeUpdatedListener = null;
+  appServerListener = null;
+  runtimeUpdatedRevisionCounter = 0;
+  vi.mocked(useScopedRuntimeUpdatedEvent).mockImplementation(() => {
+    const [snapshot, setSnapshot] = useState<ScopedRuntimeUpdatedEventSnapshot>(
+      EMPTY_RUNTIME_UPDATED_SNAPSHOT
+    );
+
+    useEffect(() => {
+      const currentListener = (event: RuntimeUpdatedEvent) => {
+        runtimeUpdatedRevisionCounter += 1;
+        setSnapshot({
+          revision: runtimeUpdatedRevisionCounter,
+          lastEvent: event,
+        });
+      };
+      runtimeUpdatedListener = currentListener;
+      return () => {
+        if (runtimeUpdatedListener === currentListener) {
+          runtimeUpdatedListener = null;
+        }
+      };
+    }, []);
+
+    return snapshot;
+  });
+  vi.mocked(subscribeAppServerEvents).mockImplementation((callback) => {
+    appServerListener = callback as typeof appServerListener;
+    return () => {
+      if (appServerListener === callback) {
+        appServerListener = null;
+      }
+    };
+  });
+});
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
+function emitRuntimeUpdatedOauth(params: Record<string, unknown>) {
+  runtimeUpdatedListener?.({
+    event: {
+      workspace_id: "workspace-1",
+      message: {
+        method: "runtime/updated",
+        params,
+      },
+    },
+    params,
+    scope: Array.isArray(params.scope)
+      ? params.scope.filter((entry): entry is string => typeof entry === "string")
+      : ["oauth"],
+    reason: typeof params.reason === "string" ? params.reason : "",
+    eventWorkspaceId: "workspace-1",
+    paramsWorkspaceId: null,
+    isWorkspaceLocalEvent: false,
+  });
+}
+
+describe("useRuntimeOauthRefresh", () => {
+  it("dedupes runtime updates by revision when a revision ref is provided", async () => {
+    const refreshOAuthState = vi.fn();
+    const setError = vi.fn();
+    const lastRuntimeUpdatedRevisionRef = { current: null as string | null };
+
+    renderHook(() =>
+      useRuntimeOauthRefresh({
+        lastRuntimeUpdatedRevisionRef,
+        refreshOAuthState,
+        setError,
+      })
+    );
+
+    await act(async () => {
+      emitRuntimeUpdatedOauth({ revision: "41", scope: ["oauth"] });
+    });
+    await act(async () => {
+      emitRuntimeUpdatedOauth({ revision: "41", scope: ["oauth"] });
+    });
+    await act(async () => {
+      emitRuntimeUpdatedOauth({ revision: "42", scope: ["oauth"] });
+    });
+
+    expect(refreshOAuthState).toHaveBeenCalledTimes(2);
+    expect(lastRuntimeUpdatedRevisionRef.current).toBe("42");
+  });
+
+  it("surfaces oauth failures without refreshing", async () => {
+    const refreshOAuthState = vi.fn();
+    const setError = vi.fn();
+
+    renderHook(() =>
+      useRuntimeOauthRefresh({
+        refreshOAuthState,
+        setError,
+      })
+    );
+
+    await act(async () => {
+      emitRuntimeUpdatedOauth({
+        oauthLoginSuccess: false,
+        oauthLoginError: "Failed to exchange OAuth id_token for API key.",
+      });
+    });
+
+    expect(setError).toHaveBeenCalledWith("Failed to exchange OAuth id_token for API key.");
+    expect(refreshOAuthState).not.toHaveBeenCalled();
+  });
+
+  it("refreshes when account/login/completed reports success", async () => {
+    const refreshOAuthState = vi.fn();
+    const setError = vi.fn();
+
+    renderHook(() =>
+      useRuntimeOauthRefresh({
+        refreshOAuthState,
+        setError,
+      })
+    );
+
+    await act(async () => {
+      appServerListener?.({
+        workspace_id: "workspace-1",
+        message: {
+          method: "account/login/completed",
+          params: {
+            loginId: "login-1",
+            success: true,
+          },
+        },
+      });
+    });
+
+    expect(refreshOAuthState).toHaveBeenCalledTimes(1);
+    expect(setError).not.toHaveBeenCalled();
+  });
+});
+
+describe("useOauthPopupRefresh", () => {
+  it("refreshes on successful OAuth popup callback", async () => {
+    const refreshOAuthState = vi.fn();
+    const setError = vi.fn();
+
+    renderHook(() =>
+      useOauthPopupRefresh({
+        refreshOAuthState,
+        setError,
+      })
+    );
+
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "fastcode:oauth:codex",
+            success: true,
+          },
+        })
+      );
+    });
+
+    expect(refreshOAuthState).toHaveBeenCalledTimes(1);
+    expect(setError).not.toHaveBeenCalled();
+  });
+
+  it("surfaces popup callback failures without refreshing", async () => {
+    const refreshOAuthState = vi.fn();
+    const setError = vi.fn();
+
+    renderHook(() =>
+      useOauthPopupRefresh({
+        refreshOAuthState,
+        setError,
+      })
+    );
+
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "fastcode:oauth:codex",
+            success: false,
+          },
+        })
+      );
+    });
+
+    expect(setError).toHaveBeenCalledWith(
+      "Codex OAuth failed during callback verification. Check the OAuth popup for details."
+    );
+    expect(refreshOAuthState).not.toHaveBeenCalled();
+  });
+});

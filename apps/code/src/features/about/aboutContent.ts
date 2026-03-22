@@ -1,0 +1,8 @@
+export {
+  ABOUT_FOOTER,
+  ABOUT_ICON_ALT,
+  ABOUT_LINKS,
+  ABOUT_PRODUCT_NAME,
+  ABOUT_TAGLINE,
+  ABOUT_VERSION_PREFIX,
+} from "@ku0/shared/aboutContent";

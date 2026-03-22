@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/design-system/schemas/raw-artifact-manifest.schema.json",
+  "type": "object",
+  "required": ["artifactVersion", "source", "files", "checksum"],
+  "properties": {
+    "artifactVersion": { "type": "integer", "minimum": 1 },
+    "source": {
+      "type": "object",
+      "required": ["fileKey", "nodeId", "url", "exportedAt"],
+      "properties": {
+        "fileKey": { "type": "string" },
+        "nodeId": { "type": "string" },
+        "url": { "type": "string" },
+        "exportedAt": { "type": "string" },
+        "documentMeta": {
+          "type": ["object", "null"],
+          "properties": {
+            "name": { "type": ["string", "null"] },
+            "version": { "type": ["string", "null"] },
+            "lastModified": { "type": ["string", "null"] }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "files": {
+      "type": "object",
+      "required": ["json"],
+      "properties": {
+        "json": { "type": "string" },
+        "png": { "type": "string" },
+        "svg": { "type": "string" },
+        "summary": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "checksum": {
+      "type": "object",
+      "required": ["jsonSha256"],
+      "properties": {
+        "jsonSha256": { "type": "string" },
+        "pngSha256": { "type": "string" },
+        "svgSha256": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

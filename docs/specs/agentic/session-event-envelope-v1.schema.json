@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SessionEventEnvelopeV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "event_type",
+    "session_id",
+    "agent_id",
+    "channel_id",
+    "occurred_at",
+    "sequence",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": { "const": "session_event_envelope.v1" },
+    "event_id": { "type": "string", "minLength": 1 },
+    "event_type": {
+      "type": "string",
+      "enum": ["plan_step", "tool_call", "approval", "checkpoint", "artifact"]
+    },
+    "session_id": { "type": "string", "minLength": 1 },
+    "agent_id": { "type": "string", "minLength": 1 },
+    "channel_id": { "type": "string", "minLength": 1 },
+    "task_id": { "type": "string" },
+    "correlation_id": { "type": "string" },
+    "parent_event_id": { "type": "string" },
+    "trace_id": { "type": "string" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "payload": { "type": "object", "additionalProperties": true },
+    "metadata": { "type": "object", "additionalProperties": true }
+  }
+}

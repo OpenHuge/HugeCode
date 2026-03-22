@@ -1,0 +1,15 @@
+{
+  "name": "HugeCode Local Figma Bridge",
+  "api": "1.0.0",
+  "editorType": ["figma"],
+  "main": "code.js",
+  "ui": {
+    "main": "ui.html",
+    "figmaCodegenMap": "generated/figmaCodegenMap.js"
+  },
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["none"],
+    "devAllowedDomains": ["http://127.0.0.1:3845", "http://localhost:3845"]
+  }
+}

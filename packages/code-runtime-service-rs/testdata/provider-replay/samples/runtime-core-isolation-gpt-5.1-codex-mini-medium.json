@@ -1,0 +1,277 @@
+{
+  "schemaVersion": 1,
+  "sample": {
+    "id": "runtime-core-isolation-gpt-5.1-codex-mini-medium",
+    "variant": "gpt-5.1-codex-mini-medium",
+    "family": "runtime-core",
+    "scenarioType": "runtime-isolation",
+    "mode": "isolation",
+    "source": "recorded",
+    "recordedAt": "2026-03-16T08:14:21.000Z",
+    "schemaVersion": 1,
+    "runtimeKind": "code-runtime-gateway-web",
+    "providerKind": "openai",
+    "requiresRealRuntime": true,
+    "supportsReplayOnly": true,
+    "tags": [
+      "golden",
+      "runtime-core",
+      "provider-replay",
+      "playwright",
+      "runtime-isolation",
+      "mini"
+    ],
+    "stability": "golden",
+    "redactionVersion": "runtime-provider-replay-v1",
+    "notes": "Mini-model isolation variant that keeps dedicated-runtime startup checks from staying single-profile."
+  },
+  "input": {
+    "task": "Validate isolated runtime startup while preserving a smaller-model routing profile.",
+    "variant": {
+      "provider": "openai",
+      "modelId": "gpt-5.1-codex-mini",
+      "reasonEffort": "medium"
+    },
+    "runtimeConfig": {
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default"
+    },
+    "endpointIsolation": {
+      "strategy": "dedicated-runtime-port",
+      "rpcEndpointTemplate": "http://127.0.0.1:{runtimePort}/rpc",
+      "workspaceId": "workspace-web",
+      "reuseExistingRuntime": false
+    },
+    "turns": [
+      {
+        "id": "turn-1",
+        "role": "user",
+        "action": "send",
+        "prompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_MINI_ISOLATION_TURN_1\". Line 2 must start with \"MINI_ISOLATION_VALUE: \" and explain why replay must verify dedicated runtime startup for a smaller model profile too. No bullets. No markdown."
+      }
+    ]
+  },
+  "process": {
+    "expectedStateTransitions": [
+      "runtime.spawned",
+      "runtime.healthy",
+      "thread.opened",
+      "turn.started",
+      "provider.delta",
+      "turn.completed"
+    ],
+    "providerEventRequirements": [
+      {
+        "kind": "item.agentMessage.delta",
+        "minCount": 2
+      },
+      {
+        "kind": "turn.completed",
+        "exactCount": 1
+      }
+    ],
+    "longOutputReadback": {
+      "enabled": false,
+      "expectedPolling": false,
+      "fragments": []
+    },
+    "errorRecovery": {
+      "expected": false,
+      "signals": []
+    },
+    "runtimeBinding": {
+      "strategy": "dedicated-runtime-port",
+      "host": "127.0.0.1",
+      "forbidCompatibleRuntimeProbe": true
+    },
+    "harness": {
+      "runner": "runtime-core-playwright",
+      "testName": "runtime replay preserves dedicated runtime startup for the mini model profile",
+      "workspaceId": "ws-playground",
+      "actions": [
+        {
+          "type": "select-option",
+          "control": "Agent access",
+          "value": "On-request"
+        },
+        {
+          "type": "select-option",
+          "control": "Model",
+          "value": "gpt-5.1-codex-mini"
+        },
+        {
+          "type": "select-option",
+          "control": "Thinking mode",
+          "value": "medium"
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "new",
+          "promptTurnId": "turn-1"
+        }
+      ],
+      "assertions": [
+        {
+          "type": "wait-message",
+          "text": "RUNTIME_E2E_MINI_ISOLATION_TURN_1"
+        }
+      ]
+    }
+  },
+  "result": {
+    "successStatus": "completed",
+    "summaryHeading": "RUNTIME_E2E_MINI_ISOLATION_TURN_1",
+    "providerReplay": {
+      "variantId": "gpt-5.1-codex-mini-medium",
+      "provider": "openai",
+      "modelId": "gpt-5.1-codex-mini",
+      "reasonEffort": "medium",
+      "recordingAccessMode": "on-request",
+      "recordingExecutionMode": "runtime",
+      "coverage": ["reasoning-effort", "runtime-isolation", "mini-model"],
+      "turns": [
+        {
+          "userPrompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_MINI_ISOLATION_TURN_1\". Line 2 must start with \"MINI_ISOLATION_VALUE: \" and explain why replay must verify dedicated runtime startup for a smaller model profile too. No bullets. No markdown.",
+          "output": "RUNTIME_E2E_MINI_ISOLATION_TURN_1\nMINI_ISOLATION_VALUE: Replay must verify dedicated runtime startup for the smaller model profile too, because routing, boot order, and runtime reuse bugs can surface differently once the app switches away from the flagship default.",
+          "deltaChunks": [
+            "RUNTIME",
+            "_E2E_MINI",
+            "_ISOLATION_TURN_1",
+            "\nMINI_ISOLATION_VALUE:",
+            " Replay must verify",
+            " dedicated runtime startup",
+            " for the smaller",
+            " model profile too,",
+            " because routing, boot",
+            " order, and runtime reuse",
+            " bugs can surface differently",
+            " once the app switches",
+            " away from the",
+            " flagship default."
+          ],
+          "chunkDelayMs": 30,
+          "expectations": {
+            "startsWith": "RUNTIME_E2E_MINI_ISOLATION_TURN_1",
+            "mustContain": ["MINI_ISOLATION_VALUE:", "smaller model profile"],
+            "minDeltaChunks": 2
+          },
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-isolation-gpt-5.1-codex-mini-medium",
+            "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.1-codex-mini",
+            "recordedReasonEffort": "medium",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "recorded"
+          },
+          "recordedAt": "2026-03-16T08:14:21.000Z"
+        }
+      ]
+    }
+  },
+  "assertions": {
+    "hard": [
+      {
+        "type": "message-visible",
+        "text": "RUNTIME_E2E_MINI_ISOLATION_TURN_1"
+      },
+      {
+        "type": "runtime-isolation",
+        "forbidLogPattern": "Existing runtime on"
+      },
+      {
+        "type": "delta-chunk-min",
+        "turnId": "turn-1",
+        "value": 2
+      }
+    ],
+    "soft": [
+      {
+        "type": "duration-ms",
+        "max": 45000
+      },
+      {
+        "type": "log-warning-budget",
+        "max": 6
+      },
+      {
+        "type": "delta-chunk-range",
+        "turnId": "turn-1",
+        "min": 2,
+        "max": 32
+      }
+    ]
+  },
+  "governance": {
+    "owner": "runtime-core-e2e",
+    "lastRefreshReason": "Added mini-model isolation coverage to keep the runtime replay matrix from staying single-profile.",
+    "deprecationStatus": "active",
+    "archiveStatus": null,
+    "optimizationSignals": {
+      "seedSource": "manual",
+      "incubationTrack": "blocking",
+      "recommendedLevers": ["sandbox", "rules"],
+      "safeBackgroundCandidate": true
+    },
+    "deterministicRegressions": [
+      {
+        "id": "runtime-isolation-mini-profile-is-covered-in-matrix",
+        "layer": "dataset-lib",
+        "path": "scripts/lib/runtimeReplayDataset.node.test.mjs",
+        "testName": "buildRuntimeReplayValidationReport exposes a manifest-driven coverage matrix",
+        "status": "active"
+      }
+    ],
+    "redaction": {
+      "applied": true,
+      "normalizedFields": ["rpcEndpoint", "workspaceId"],
+      "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
+    }
+  },
+  "runtimeTruth": {
+    "taskFields": [
+      {
+        "type": "wait-runtime-task-field",
+        "fieldPath": "checkpointId",
+        "matcher": "present",
+        "timeoutMs": 20000
+      },
+      {
+        "type": "wait-runtime-task-field",
+        "fieldPath": "traceId",
+        "matcher": "present",
+        "timeoutMs": 20000
+      },
+      {
+        "type": "wait-runtime-task-field",
+        "fieldPath": "publishHandoff",
+        "matcher": "absent",
+        "timeoutMs": 20000
+      }
+    ],
+    "review": [],
+    "autodrive": [
+      {
+        "type": "assert-autodrive-trace",
+        "decisionTraceMatcher": "absent",
+        "runtimeScenarioProfileMatcher": "absent",
+        "repoEvaluationProfileMatcher": "absent",
+        "outcomeFeedbackMatcher": "absent",
+        "autonomyStateMatcher": "absent",
+        "timeoutMs": 20000
+      }
+    ],
+    "eventReplay": [
+      {
+        "type": "assert-replay-gap-event",
+        "expectedReason": "runtime.updated",
+        "timeoutMs": 20000
+      }
+    ]
+  }
+}

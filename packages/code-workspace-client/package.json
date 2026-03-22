@@ -1,0 +1,69 @@
+{
+  "name": "@ku0/code-workspace-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./account-center": {
+      "types": "./src/account-center/AccountCenterDashboard.tsx",
+      "default": "./src/account-center/AccountCenterDashboard.tsx"
+    },
+    "./account-center-state": {
+      "types": "./src/account-center/accountCenterState.ts",
+      "default": "./src/account-center/accountCenterState.ts"
+    },
+    "./runtime-shell": {
+      "types": "./src/runtime-shell/WorkspaceRuntimeShell.tsx",
+      "default": "./src/runtime-shell/WorkspaceRuntimeShell.tsx"
+    },
+    "./workspace": {
+      "types": "./src/workspace/index.ts",
+      "default": "./src/workspace/index.ts"
+    },
+    "./settings-state": {
+      "types": "./src/settings-state/index.ts",
+      "default": "./src/settings-state/index.ts"
+    },
+    "./workspace-app": {
+      "types": "./src/workspace-app/index.ts",
+      "default": "./src/workspace-app/index.ts"
+    },
+    "./workspace-shell": {
+      "types": "./src/workspace-shell/index.ts",
+      "default": "./src/workspace-shell/index.ts"
+    },
+    "./settings-shell": {
+      "types": "./src/settings-shell/index.ts",
+      "default": "./src/settings-shell/index.ts"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "lint": "pnpm exec oxlint .",
+    "lint:fix": "pnpm exec oxlint --fix --fix-suggestions . && pnpm exec oxfmt --write ."
+  },
+  "dependencies": {
+    "@ku0/code-runtime-host-contract": "workspace:*",
+    "@ku0/design-system": "workspace:*",
+    "@ku0/shared": "workspace:*",
+    "@vanilla-extract/css": "^1.18.0",
+    "lucide-react": "^0.576.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

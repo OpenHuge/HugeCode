@@ -1,0 +1,1 @@
+import "./MessagesRichContent.global.css";

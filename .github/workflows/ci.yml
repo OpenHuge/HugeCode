@@ -1,0 +1,292 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect CI-relevant changes
+    runs-on: ubuntu-latest
+    outputs:
+      code_changed: ${{ steps.filter.outputs.code }}
+      runtime_contract_changed: ${{ steps.filter.outputs.runtime_contract }}
+      desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime }}
+      repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
+      frontend_optimization_changed: ${{ steps.filter.outputs.frontend_optimization }}
+      ci_required: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.runtime_contract == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!.agent/**'
+              - '!**/*.md'
+            runtime_contract:
+              - 'packages/code-runtime-host-contract/**'
+              - 'packages/native-runtime-host-contract/**'
+              - 'packages/code-runtime-service-rs/src/**'
+              - 'apps/code-tauri/src-tauri/**'
+              - 'apps/code/src/services/runtimeClient*'
+              - 'docs/runtime/spec/**'
+              - 'docs/specs/code-runtime-spec-2026.md'
+              - 'docs/specs/code-runtime/**'
+              - 'scripts/check-runtime-sot.mjs'
+            desktop_runtime:
+              - 'apps/code-tauri/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'turbo.json'
+              - '.github/actions/setup-rust-ci/**'
+              - '.github/actions/cache-turbo/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/_reusable-ci-quality.yml'
+            repo_sot:
+              - '.nvmrc'
+              - 'package.json'
+              - 'README.md'
+              - 'AGENTS.md'
+              - 'CLAUDE.md'
+              - 'CONTRIBUTING.md'
+              - 'docs/README.md'
+              - 'docs/architecture/README.md'
+              - 'docs/architecture/frontend-style-governance.md'
+              - 'docs/development/README.md'
+              - 'docs/development/ci-workflows.md'
+              - 'docs/workspace-map.md'
+              - 'docs/runtime/README.md'
+              - 'docs/adr/**'
+              - '.github/workflows/**'
+              - '.github/actions/**'
+              - 'scripts/check-branch-policy.mjs'
+              - 'scripts/lib/branch-policy.mjs'
+              - 'scripts/check-repo-sot.mjs'
+              - 'scripts/check-workflow-governance.mjs'
+              - 'scripts/workflow-list.mjs'
+              - 'apps/deskt*/README.md'
+            frontend_optimization:
+              - 'apps/code/**'
+              - '!apps/code/**/*.md'
+              - '!apps/code/**/*.mdx'
+              - 'packages/design-system/**'
+              - '.github/workflows/_reusable-ci-frontend-optimization.yml'
+              - 'scripts/check-code-bundle-budget.mjs'
+              - 'scripts/report-code-bundle.mjs'
+              - 'scripts/config/code-bundle-budget.config.mjs'
+              - '.codex/e2e-map.json'
+              - 'scripts/lib/e2e-map.mjs'
+              - '.github/workflows/ci.yml'
+              - '.github/actions/setup-node-pnpm/**'
+              - '.github/actions/setup-playwright/**'
+  repo_sot:
+    name: Repository SOT
+    needs: [changes]
+    if: needs.changes.outputs.repo_sot_changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install: "false"
+
+      - name: Codex preflight
+        run: pnpm preflight:codex
+
+  # Combined quality checks (lint + typecheck) - saves ~60s by eliminating duplicate setup
+  quality:
+    name: Quality
+    needs: [changes]
+    uses: ./.github/workflows/_reusable-ci-quality.yml
+    with:
+      ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
+      runtime_contract_changed: ${{ needs.changes.outputs.runtime_contract_changed == 'true' }}
+      desktop_runtime_changed: ${{ needs.changes.outputs.desktop_runtime_changed == 'true' }}
+      base_ref: ${{ github.base_ref }}
+
+  # PR fast path (affected build + tests)
+  pr_affected:
+    name: PR Affected Checks
+    if: github.event_name == 'pull_request'
+    needs: [changes]
+    uses: ./.github/workflows/_reusable-ci-pr-affected.yml
+    with:
+      ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
+      base_ref: ${{ github.base_ref }}
+
+  frontend_optimization:
+    name: frontend_optimization
+    if: github.event_name == 'pull_request' && needs.changes.outputs.ci_required == 'true' && needs.changes.outputs.frontend_optimization_changed == 'true'
+    needs: [changes]
+    uses: ./.github/workflows/_reusable-ci-frontend-optimization.yml
+
+  # Build job with artifact upload
+  build:
+    if: github.event_name != 'pull_request' && needs.changes.outputs.ci_required == 'true'
+    needs: [changes, quality]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TURBO_CACHE_DIR: .turbo
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm ci:install:offline
+
+      - uses: ./.github/actions/cache-turbo
+
+      - name: Build
+        run: pnpm build
+
+      - uses: ./.github/actions/upload-workflow-artifact
+        with:
+          name: build-output
+          path: |
+            packages/*/dist/
+            apps/code/dist/
+          retention-days: 1
+
+  # Tests - downloads build artifacts instead of rebuilding
+  test:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [build]
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm ci:install:offline
+
+      - uses: ./.github/actions/restore-artifact
+        with:
+          name: build-output
+
+      - name: Verify dist artifacts
+        run: |
+          echo "Checking apps/code/dist structure:"
+          ls -R apps/code/dist/ || echo "No apps/code dist folder!"
+
+      - name: Test (shard ${{ matrix.shard }}/4)
+        run: pnpm vitest run --shard=${{ matrix.shard }}/4
+
+  # Native Rust parity tests - verifies Rust bindings match TS implementations
+  native-test:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build]
+    env:
+      KU0_NATIVE_ACCELERATORS_ENABLED: "true"
+      TURBO_CACHE_DIR: .turbo
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm ci:install:offline
+
+      - uses: ./.github/actions/cache-turbo
+
+      - uses: ./.github/actions/setup-rust-ci
+        with:
+          cargo-cache-path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            packages/*-rs/target/
+          cargo-cache-key: ${{ runner.os }}
+
+      - uses: ./.github/actions/restore-artifact
+        with:
+          name: build-output
+
+      - name: Build Rust packages
+        run: pnpm turbo run build --filter="*-rs"
+
+      - name: Run native parity tests
+        run: pnpm vitest run --reporter=verbose packages/**/*.native.test.ts
+
+  # Core release gate - runs independently (small and fast)
+  core_release_gate:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm ci:install:offline
+
+      - uses: ./.github/actions/restore-artifact
+        with:
+          name: build-output
+
+      - name: Core tests
+        run: pnpm --filter @ku0/code-runtime-host-contract test
+
+      - name: Pack validation
+        run: |
+          TARBALL_NAME="$(pnpm -C packages/code-runtime-host-contract pack | tail -n 1)"
+          TARBALL_PATH="packages/code-runtime-host-contract/${TARBALL_NAME}"
+          TARBALL_LIST="$(mktemp)"
+          tar -tf "${TARBALL_PATH}" > "${TARBALL_LIST}"
+          grep -q "package/README.md" "${TARBALL_LIST}"
+          grep -q "package/dist/index.js" "${TARBALL_LIST}"
+          grep -q "package/dist/index.d.ts" "${TARBALL_LIST}"
+          if grep -q "__tests__" "${TARBALL_LIST}"; then
+            echo "Tarball includes __tests__ (unexpected)"
+            exit 1
+          fi
+          rm -f "${TARBALL_LIST}" "${TARBALL_PATH}"
+
+  # UI gate - downloads build artifacts and shares Playwright cache
+  ui_gate:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm ci:install:offline
+
+      - uses: ./.github/actions/setup-playwright
+
+      - name: E2E Smoke Gate
+        run: pnpm test:e2e:smoke
+
+      - if: failure()
+        uses: ./.github/actions/upload-workflow-artifact
+        with:
+          name: e2e-smoke-artifacts
+          path: |
+            tests/e2e/test-results/
+            tests/e2e/playwright-report/

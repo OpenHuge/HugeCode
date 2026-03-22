@@ -1,0 +1,27 @@
+[package]
+name = "sandbox-rs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+napi = { version = "3.8.3", features = ["napi8", "tokio_rt"] }
+napi-derive = "3.5.2"
+libc = "0.2"
+regex = "1.12.3"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "2.0.18"
+url = "2.5.8"
+
+[build-dependencies]
+napi-build = "2.3.1"
+
+
+[target.'cfg(target_os = "linux")'.dependencies]
+landlock = "0.4.4"
+seccompiler = "0.5.0"
+
+[dev-dependencies]
+tempfile = "3"

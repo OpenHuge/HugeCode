@@ -1,0 +1,46 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Foundations/Public Components" />
+
+# Public Components
+
+This page tracks the mature shared primitives that engineers should inspect and consume through `@ku0/ui`.
+
+## Stable Shared Primitives
+
+### Form Controls
+
+- `Button`
+- `Input`
+- `Textarea`
+- `Select`
+- `Checkbox`
+- `Switch`
+- `RadioGroup`
+- `Field`
+- `Popover`
+- `Dialog`
+
+### Information And Layout
+
+- `Badge`
+- `StatusBadge`
+- `Text`
+- `Surface`
+- `SectionHeader`
+- `ListRow`
+- `Rows`
+- `Shell`
+
+## Promotion Rules
+
+- The component already exists in `@ku0/design-system` with a stable prop contract.
+- The component is useful across multiple product surfaces.
+- The component has a dedicated Storybook inspection surface in `packages/ui`.
+- The public export does not leak product-specific policy or runtime concerns.
+
+## When Not To Promote
+
+- The API is still changing around a single feature rollout.
+- The primitive exists only to adapt an app shell or host boundary.
+- The component is a low-level implementation detail that lacks meaningful standalone inspection value.

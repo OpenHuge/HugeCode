@@ -1,0 +1,456 @@
+{
+  "$schema": "https://www.designtokens.org/TR/2025.10/format/",
+  "$metadata": {
+    "product": "HugeCode",
+    "themes": ["light", "dark", "dim"]
+  },
+  "primitive": {
+    "primitive": {
+      "typography": {
+        "family": {
+          "ui": {
+            "$type": "fontFamily",
+            "$value": "\"Soehne\", \"Inter\", \"Manrope\", ui-sans-serif, system-ui, sans-serif"
+          },
+          "code": {
+            "$type": "fontFamily",
+            "$value": "\"IBM Plex Mono\", ui-monospace, monospace"
+          }
+        },
+        "size": {
+          "label": {
+            "$type": "dimension",
+            "$value": "14px"
+          },
+          "ui": {
+            "$type": "dimension",
+            "$value": "13px"
+          },
+          "content": {
+            "$type": "dimension",
+            "$value": "15px"
+          },
+          "title": {
+            "$type": "dimension",
+            "$value": "16px"
+          },
+          "display": {
+            "$type": "dimension",
+            "$value": "22px"
+          }
+        }
+      }
+    }
+  },
+  "semantic": {
+    "common": {
+      "space": {
+        "2xs": {
+          "$type": "dimension",
+          "$value": "{primitive.space.2xs}"
+        },
+        "xs": {
+          "$type": "dimension",
+          "$value": "{primitive.space.xs}"
+        },
+        "sm": {
+          "$type": "dimension",
+          "$value": "{primitive.space.sm}"
+        },
+        "md": {
+          "$type": "dimension",
+          "$value": "{primitive.space.md}"
+        },
+        "lg": {
+          "$type": "dimension",
+          "$value": "{primitive.space.lg}"
+        },
+        "xl": {
+          "$type": "dimension",
+          "$value": "{primitive.space.xl}"
+        },
+        "2xl": {
+          "$type": "dimension",
+          "$value": "{primitive.space.2xl}"
+        }
+      },
+      "radius": {
+        "sm": {
+          "$type": "dimension",
+          "$value": "{primitive.radius.sm}"
+        },
+        "md": {
+          "$type": "dimension",
+          "$value": "{primitive.radius.md}"
+        },
+        "lg": {
+          "$type": "dimension",
+          "$value": "{primitive.radius.lg}"
+        },
+        "xl": {
+          "$type": "dimension",
+          "$value": "{primitive.radius.xl}"
+        },
+        "2xl": {
+          "$type": "dimension",
+          "$value": "{primitive.radius.2xl}"
+        },
+        "full": {
+          "$type": "dimension",
+          "$value": "{primitive.radius.full}"
+        }
+      },
+      "motion": {
+        "duration": {
+          "fast": {
+            "$type": "duration",
+            "$value": "{primitive.motion.duration.fast}"
+          },
+          "normal": {
+            "$type": "duration",
+            "$value": "{primitive.motion.duration.normal}"
+          },
+          "slow": {
+            "$type": "duration",
+            "$value": "{primitive.motion.duration.slow}"
+          }
+        },
+        "easing": {
+          "standard": {
+            "$type": "string",
+            "$value": "{primitive.motion.easing.standard}"
+          },
+          "expressive": {
+            "$type": "string",
+            "$value": "{primitive.motion.easing.expressive}"
+          }
+        }
+      },
+      "typography": {
+        "family": {
+          "ui": {
+            "$type": "fontFamily",
+            "$value": "{primitive.typography.family.ui}"
+          },
+          "code": {
+            "$type": "fontFamily",
+            "$value": "{primitive.typography.family.code}"
+          }
+        },
+        "size": {
+          "label": {
+            "$type": "dimension",
+            "$value": "{primitive.typography.size.label}"
+          },
+          "ui": {
+            "$type": "dimension",
+            "$value": "{primitive.typography.size.ui}"
+          },
+          "content": {
+            "$type": "dimension",
+            "$value": "{primitive.typography.size.content}"
+          },
+          "title": {
+            "$type": "dimension",
+            "$value": "{primitive.typography.size.title}"
+          },
+          "display": {
+            "$type": "dimension",
+            "$value": "{primitive.typography.size.display}"
+          }
+        }
+      }
+    }
+  },
+  "themes": {
+    "light": {
+      "color": {
+        "background": {
+          "$type": "color",
+          "$value": "{primitive.color.neutral.50}"
+        },
+        "foreground": {
+          "$type": "color",
+          "$value": "{primitive.color.neutral.900}"
+        },
+        "surface": {
+          "canvas": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.0}"
+          },
+          "card": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.0}"
+          },
+          "elevated": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.0}"
+          },
+          "muted": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.100}"
+          }
+        },
+        "text": {
+          "primary": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.900}"
+          },
+          "muted": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.700}"
+          },
+          "inverse": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.0}"
+          }
+        },
+        "border": {
+          "default": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.200}"
+          },
+          "strong": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.700}"
+          }
+        },
+        "action": {
+          "primary": {
+            "background": {
+              "$type": "color",
+              "$value": "{primitive.color.blue.500}"
+            },
+            "foreground": {
+              "$type": "color",
+              "$value": "{primitive.color.neutral.0}"
+            },
+            "hover": {
+              "$type": "color",
+              "$value": "{primitive.color.blue.600}"
+            }
+          }
+        },
+        "status": {
+          "success": {
+            "$type": "color",
+            "$value": "{primitive.color.green.500}"
+          },
+          "warning": {
+            "$type": "color",
+            "$value": "{primitive.color.amber.500}"
+          },
+          "error": {
+            "$type": "color",
+            "$value": "{primitive.color.red.500}"
+          }
+        }
+      }
+    },
+    "dark": {
+      "color": {
+        "background": {
+          "$type": "color",
+          "$value": "{primitive.color.neutral.950}"
+        },
+        "foreground": {
+          "$type": "color",
+          "$value": "{primitive.color.neutral.50}"
+        },
+        "surface": {
+          "canvas": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.950}"
+          },
+          "card": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.900}"
+          },
+          "elevated": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.800}"
+          },
+          "muted": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.800}"
+          }
+        },
+        "text": {
+          "primary": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.50}"
+          },
+          "muted": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.200}"
+          },
+          "inverse": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.950}"
+          }
+        },
+        "border": {
+          "default": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.800}"
+          },
+          "strong": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.200}"
+          }
+        },
+        "action": {
+          "primary": {
+            "background": {
+              "$type": "color",
+              "$value": "{primitive.color.blue.500}"
+            },
+            "foreground": {
+              "$type": "color",
+              "$value": "{primitive.color.neutral.0}"
+            },
+            "hover": {
+              "$type": "color",
+              "$value": "{primitive.color.blue.600}"
+            }
+          }
+        },
+        "status": {
+          "success": {
+            "$type": "color",
+            "$value": "{primitive.color.green.500}"
+          },
+          "warning": {
+            "$type": "color",
+            "$value": "{primitive.color.amber.500}"
+          },
+          "error": {
+            "$type": "color",
+            "$value": "{primitive.color.red.500}"
+          }
+        }
+      }
+    },
+    "dim": {
+      "color": {
+        "background": {
+          "$type": "color",
+          "$value": "{primitive.color.neutral.900}"
+        },
+        "foreground": {
+          "$type": "color",
+          "$value": "{primitive.color.neutral.50}"
+        },
+        "surface": {
+          "canvas": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.900}"
+          },
+          "card": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.800}"
+          },
+          "elevated": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.700}"
+          },
+          "muted": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.800}"
+          }
+        },
+        "text": {
+          "primary": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.50}"
+          },
+          "muted": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.200}"
+          },
+          "inverse": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.900}"
+          }
+        },
+        "border": {
+          "default": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.700}"
+          },
+          "strong": {
+            "$type": "color",
+            "$value": "{primitive.color.neutral.200}"
+          }
+        },
+        "action": {
+          "primary": {
+            "background": {
+              "$type": "color",
+              "$value": "{primitive.color.blue.600}"
+            },
+            "foreground": {
+              "$type": "color",
+              "$value": "{primitive.color.neutral.0}"
+            },
+            "hover": {
+              "$type": "color",
+              "$value": "{primitive.color.blue.700}"
+            }
+          }
+        },
+        "status": {
+          "success": {
+            "$type": "color",
+            "$value": "{primitive.color.green.500}"
+          },
+          "warning": {
+            "$type": "color",
+            "$value": "{primitive.color.amber.500}"
+          },
+          "error": {
+            "$type": "color",
+            "$value": "{primitive.color.red.500}"
+          }
+        }
+      }
+    }
+  },
+  "tokensStudio": {
+    "$themes": [
+      {
+        "id": "hugecode-light",
+        "name": "HugeCode Light",
+        "selectedTokenSets": {
+          "primitives": "source",
+          "semantic/common": "enabled",
+          "semantic/light": "enabled",
+          "semantic/dark": "disabled",
+          "semantic/dim": "disabled"
+        }
+      },
+      {
+        "id": "hugecode-dark",
+        "name": "HugeCode Dark",
+        "selectedTokenSets": {
+          "primitives": "source",
+          "semantic/common": "enabled",
+          "semantic/light": "disabled",
+          "semantic/dark": "enabled",
+          "semantic/dim": "disabled"
+        }
+      },
+      {
+        "id": "hugecode-dim",
+        "name": "HugeCode Dim",
+        "selectedTokenSets": {
+          "primitives": "source",
+          "semantic/common": "enabled",
+          "semantic/light": "disabled",
+          "semantic/dark": "disabled",
+          "semantic/dim": "enabled"
+        }
+      }
+    ]
+  }
+}

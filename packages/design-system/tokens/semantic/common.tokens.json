@@ -1,0 +1,43 @@
+{
+  "space": {
+    "2xs": { "$type": "dimension", "$value": "{primitive.space.2xs}" },
+    "xs": { "$type": "dimension", "$value": "{primitive.space.xs}" },
+    "sm": { "$type": "dimension", "$value": "{primitive.space.sm}" },
+    "md": { "$type": "dimension", "$value": "{primitive.space.md}" },
+    "lg": { "$type": "dimension", "$value": "{primitive.space.lg}" },
+    "xl": { "$type": "dimension", "$value": "{primitive.space.xl}" },
+    "2xl": { "$type": "dimension", "$value": "{primitive.space.2xl}" }
+  },
+  "radius": {
+    "sm": { "$type": "dimension", "$value": "{primitive.radius.sm}" },
+    "md": { "$type": "dimension", "$value": "{primitive.radius.md}" },
+    "lg": { "$type": "dimension", "$value": "{primitive.radius.lg}" },
+    "xl": { "$type": "dimension", "$value": "{primitive.radius.xl}" },
+    "2xl": { "$type": "dimension", "$value": "{primitive.radius.2xl}" },
+    "full": { "$type": "dimension", "$value": "{primitive.radius.full}" }
+  },
+  "motion": {
+    "duration": {
+      "fast": { "$type": "duration", "$value": "{primitive.motion.duration.fast}" },
+      "normal": { "$type": "duration", "$value": "{primitive.motion.duration.normal}" },
+      "slow": { "$type": "duration", "$value": "{primitive.motion.duration.slow}" }
+    },
+    "easing": {
+      "standard": { "$type": "string", "$value": "{primitive.motion.easing.standard}" },
+      "expressive": { "$type": "string", "$value": "{primitive.motion.easing.expressive}" }
+    }
+  },
+  "typography": {
+    "family": {
+      "ui": { "$type": "fontFamily", "$value": "{primitive.typography.family.ui}" },
+      "code": { "$type": "fontFamily", "$value": "{primitive.typography.family.code}" }
+    },
+    "size": {
+      "label": { "$type": "dimension", "$value": "{primitive.typography.size.label}" },
+      "ui": { "$type": "dimension", "$value": "{primitive.typography.size.ui}" },
+      "content": { "$type": "dimension", "$value": "{primitive.typography.size.content}" },
+      "title": { "$type": "dimension", "$value": "{primitive.typography.size.title}" },
+      "display": { "$type": "dimension", "$value": "{primitive.typography.size.display}" }
+    }
+  }
+}

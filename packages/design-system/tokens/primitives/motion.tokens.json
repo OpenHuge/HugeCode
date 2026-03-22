@@ -1,0 +1,15 @@
+{
+  "primitive": {
+    "motion": {
+      "duration": {
+        "fast": { "$type": "duration", "$value": "100ms" },
+        "normal": { "$type": "duration", "$value": "200ms" },
+        "slow": { "$type": "duration", "$value": "300ms" }
+      },
+      "easing": {
+        "standard": { "$type": "string", "$value": "cubic-bezier(0.4, 0, 0.2, 1)" },
+        "expressive": { "$type": "string", "$value": "cubic-bezier(0.19, 1, 0.22, 1)" }
+      }
+    }
+  }
+}

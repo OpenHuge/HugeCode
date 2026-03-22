@@ -1,0 +1,74 @@
+name: Setup Rust CI
+description: Install Rust toolchain, Cargo cache, and optional sccache for CI jobs.
+
+inputs:
+  toolchain:
+    description: Rust toolchain version or channel to install.
+    required: false
+    default: "1.93.1"
+  profile:
+    description: Rust toolchain profile.
+    required: false
+    default: "minimal"
+  targets:
+    description: Optional Rust compilation targets.
+    required: false
+    default: ""
+  enable-sccache:
+    description: Enable sccache integration for the job.
+    required: false
+    default: "false"
+  sccache-version:
+    description: sccache version to install when enabled.
+    required: false
+    default: "v0.10.0"
+  cargo-cache-path:
+    description: Multiline Cargo cache path list.
+    required: false
+    default: |
+      ~/.cargo/registry/index/
+      ~/.cargo/registry/cache/
+      ~/.cargo/git/db/
+  cargo-cache-key:
+    description: Stable identifier for Cargo cache entries.
+    required: false
+    default: "shared"
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust toolchain
+      if: inputs.targets == ''
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        profile: ${{ inputs.profile }}
+
+    - name: Install Rust toolchain with targets
+      if: inputs.targets != ''
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        profile: ${{ inputs.profile }}
+        targets: ${{ inputs.targets }}
+
+    - name: Enable sccache env
+      if: inputs.enable-sccache == 'true'
+      shell: bash
+      run: |
+        echo "SCCACHE_GHA_ENABLED=true" >> "$GITHUB_ENV"
+        echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
+
+    - name: Setup sccache
+      if: inputs.enable-sccache == 'true'
+      uses: mozilla-actions/sccache-action@v0.0.9
+      with:
+        version: ${{ inputs.sccache-version }}
+
+    - name: Cache Cargo
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.cargo-cache-path }}
+        key: cargo-${{ inputs.cargo-cache-key }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          cargo-${{ inputs.cargo-cache-key }}-

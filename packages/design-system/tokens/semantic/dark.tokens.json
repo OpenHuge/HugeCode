@@ -1,0 +1,33 @@
+{
+  "color": {
+    "background": { "$type": "color", "$value": "{primitive.color.neutral.950}" },
+    "foreground": { "$type": "color", "$value": "{primitive.color.neutral.50}" },
+    "surface": {
+      "canvas": { "$type": "color", "$value": "{primitive.color.neutral.950}" },
+      "card": { "$type": "color", "$value": "{primitive.color.neutral.900}" },
+      "elevated": { "$type": "color", "$value": "{primitive.color.neutral.800}" },
+      "muted": { "$type": "color", "$value": "{primitive.color.neutral.800}" }
+    },
+    "text": {
+      "primary": { "$type": "color", "$value": "{primitive.color.neutral.50}" },
+      "muted": { "$type": "color", "$value": "{primitive.color.neutral.200}" },
+      "inverse": { "$type": "color", "$value": "{primitive.color.neutral.950}" }
+    },
+    "border": {
+      "default": { "$type": "color", "$value": "{primitive.color.neutral.800}" },
+      "strong": { "$type": "color", "$value": "{primitive.color.neutral.200}" }
+    },
+    "action": {
+      "primary": {
+        "background": { "$type": "color", "$value": "{primitive.color.blue.500}" },
+        "foreground": { "$type": "color", "$value": "{primitive.color.neutral.0}" },
+        "hover": { "$type": "color", "$value": "{primitive.color.blue.600}" }
+      }
+    },
+    "status": {
+      "success": { "$type": "color", "$value": "{primitive.color.green.500}" },
+      "warning": { "$type": "color", "$value": "{primitive.color.amber.500}" },
+      "error": { "$type": "color", "$value": "{primitive.color.red.500}" }
+    }
+  }
+}

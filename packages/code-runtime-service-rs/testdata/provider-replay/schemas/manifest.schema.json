@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "runtime-provider-replay-manifest.schema.json",
+  "title": "Runtime Provider Replay Dataset Manifest",
+  "type": "object",
+  "required": ["schemaVersion", "datasetId", "version", "taxonomy", "samples"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "datasetId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "taxonomy": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["scenarioType", "status", "why"]
+      }
+    },
+    "coverageMatrix": {
+      "type": "object",
+      "properties": {
+        "sources": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "modelProfiles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "modelId", "family", "status"]
+          }
+        },
+        "capabilityCatalog": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id"]
+          }
+        },
+        "capabilityRequirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["capabilityId", "requiredProfiles"]
+          }
+        },
+        "scenarioRequirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["scenarioType", "requiredProfiles"]
+          }
+        }
+      }
+    },
+    "samples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "file",
+          "variant",
+          "family",
+          "scenarioType",
+          "mode",
+          "source",
+          "recordedAt",
+          "schemaVersion",
+          "runtimeKind",
+          "providerKind",
+          "requiresRealRuntime",
+          "supportsReplayOnly",
+          "tags",
+          "stability",
+          "redactionVersion",
+          "notes"
+        ]
+      }
+    }
+  }
+}

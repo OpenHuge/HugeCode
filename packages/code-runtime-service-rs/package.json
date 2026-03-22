@@ -1,0 +1,11 @@
+{
+  "name": "@ku0/code-runtime-service-rs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ./scripts/dev.mjs",
+    "check": "node ../../scripts/run-cargo-with-target-guard.mjs check --manifest-path Cargo.toml",
+    "test": "node ../../scripts/run-cargo-with-target-guard.mjs test --manifest-path Cargo.toml"
+  }
+}

@@ -1,0 +1,74 @@
+name: Setup Node and pnpm
+description: Standardize pnpm + Node bootstrap for HugeCode GitHub Actions workflows.
+
+inputs:
+  pnpm-version:
+    description: pnpm version to install
+    required: false
+    default: "10.28.0"
+  node-version-file:
+    description: Path to the Node version file
+    required: false
+    default: ".nvmrc"
+  cache-dependency-path:
+    description: Files that should invalidate the pnpm store cache
+    required: false
+    default: |
+      pnpm-lock.yaml
+      pnpm-workspace.yaml
+      package.json
+  install:
+    description: Whether to run the install command after setup
+    required: false
+    default: "true"
+  fetch:
+    description: Whether to prefetch lockfile dependencies into the pnpm store before install
+    required: false
+    default: "true"
+  fetch-command:
+    description: Command used to prefetch dependencies into the pnpm store
+    required: false
+    default: "pnpm ci:fetch"
+  install-command:
+    description: Command used to install dependencies
+    required: false
+    default: "pnpm ci:install:offline"
+  registry-url:
+    description: Optional npm registry URL for publish/release flows
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - name: Setup Node.js
+      if: ${{ inputs.registry-url == '' }}
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+        cache: pnpm
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}
+
+    - name: Setup Node.js with registry
+      if: ${{ inputs.registry-url != '' }}
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+        cache: pnpm
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}
+        registry-url: ${{ inputs.registry-url }}
+
+    - name: Prefetch dependencies
+      if: ${{ inputs.install == 'true' && inputs.fetch == 'true' }}
+      shell: bash
+      run: ${{ inputs.fetch-command }}
+
+    - name: Install dependencies
+      if: ${{ inputs.install == 'true' }}
+      shell: bash
+      run: ${{ inputs.install-command }}

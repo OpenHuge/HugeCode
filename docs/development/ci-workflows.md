@@ -1,0 +1,30 @@
+# HugeCode CI Workflow Map
+
+This document is the source of truth for how HugeCode maps public workflows to internal reusable workflow implementations.
+
+## Workflow Governance
+
+- `pnpm check:workflow-governance`
+  Use this guard whenever `.github/workflows/*.yml`, workflow-facing docs, or reusable workflow wiring changes.
+
+## Public Workflows vs Internal Reusable Workflows
+
+Public entry workflows live under `.github/workflows/*.yml` and are the only workflows that should be treated as user-facing automation entrypoints.
+
+Internal reusable workflows live under `.github/workflows/_reusable-*.yml`.
+
+Key reusable mappings currently in use:
+
+- `.github/workflows/_reusable-ci-quality.yml`
+- `.github/workflows/_reusable-ci-pr-affected.yml`
+- `.github/workflows/_reusable-ci-frontend-optimization.yml`
+- `.github/workflows/_reusable-desktop-prepare-frontend.yml`
+- `.github/workflows/_reusable-desktop-build-pr.yml`
+- `.github/workflows/_reusable-desktop-build-release.yml`
+
+## Rules
+
+- Public workflows should compose reusable workflows instead of duplicating job definitions.
+- Internal or tooling-only lanes should not be reintroduced as product-facing workflow entrypoints.
+- Workflow docs must stay aligned with `scripts/check-workflow-governance.mjs`.
+- Shared Node/pnpm bootstrap should stay lockfile-first: prefetch with `pnpm ci:fetch`, then install with `pnpm ci:install:offline` unless a workflow has a documented reason to require a different install path.

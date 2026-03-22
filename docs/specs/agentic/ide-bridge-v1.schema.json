@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IdeBridgeV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "session_id", "worktree_id", "path", "line", "column", "focus"],
+  "properties": {
+    "schema_version": { "const": "ide_bridge.v1" },
+    "session_id": { "type": "string", "minLength": 1 },
+    "worktree_id": { "type": "string", "minLength": 1 },
+    "path": { "type": "string", "minLength": 1 },
+    "line": { "type": "integer", "minimum": 1 },
+    "column": { "type": "integer", "minimum": 1 },
+    "focus": {
+      "type": "string",
+      "enum": ["editor", "diff", "terminal"]
+    },
+    "event_id": { "type": "string" },
+    "anchor_id": { "type": "string" },
+    "metadata": { "type": "object", "additionalProperties": true }
+  }
+}

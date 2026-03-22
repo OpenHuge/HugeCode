@@ -1,0 +1,453 @@
+{
+  "schemaVersion": 1,
+  "sample": {
+    "id": "runtime-core-tool-error-recovery-orchestration-gpt-5.4-low",
+    "variant": "gpt-5.4-low-recovery-orchestration",
+    "family": "runtime-core",
+    "scenarioType": "tool-error-recovery",
+    "mode": "failure-recovery",
+    "source": "mixed",
+    "recordedAt": "2026-03-13T07:45:24.848Z",
+    "schemaVersion": 1,
+    "runtimeKind": "code-runtime-gateway-web",
+    "providerKind": "openai",
+    "requiresRealRuntime": true,
+    "supportsReplayOnly": true,
+    "tags": [
+      "candidate",
+      "runtime-core",
+      "provider-replay",
+      "playwright",
+      "tool-error-recovery",
+      "orchestration"
+    ],
+    "stability": "candidate",
+    "redactionVersion": "runtime-provider-replay-v1",
+    "notes": "Candidate recovery variant for orchestration-layer failure handling with a controlled failure leg and recorded recovery leg."
+  },
+  "input": {
+    "task": "Validate recovery after an orchestration-layer failure and confirm the next turn succeeds cleanly.",
+    "variant": {
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "low"
+    },
+    "runtimeConfig": {
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default"
+    },
+    "endpointIsolation": {
+      "strategy": "dedicated-runtime-port",
+      "rpcEndpointTemplate": "http://127.0.0.1:{runtimePort}/rpc",
+      "workspaceId": "workspace-web",
+      "reuseExistingRuntime": false
+    },
+    "turns": [
+      {
+        "id": "turn-1",
+        "role": "user",
+        "action": "send",
+        "prompt": "Reply with exactly \"RUNTIME_E2E_ORCHESTRATION_FAILURE\". No bullets. No markdown."
+      },
+      {
+        "id": "turn-2",
+        "role": "user",
+        "action": "send",
+        "prompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_ORCHESTRATION_RECOVERY_TURN_2\". Line 2 must start with \"ORCHESTRATION_RECOVERY: \" and explain why orchestration failure recovery belongs in runtime replay coverage. No bullets. No markdown."
+      }
+    ]
+  },
+  "process": {
+    "expectedStateTransitions": [
+      "runtime.spawned",
+      "runtime.healthy",
+      "thread.opened",
+      "turn.started",
+      "turn.failed",
+      "recovery.turn.started",
+      "provider.delta",
+      "recovery.turn.completed"
+    ],
+    "providerEventRequirements": [
+      {
+        "kind": "turn.failed",
+        "exactCount": 1
+      },
+      {
+        "kind": "item.agentMessage.delta",
+        "minCount": 2
+      },
+      {
+        "kind": "turn.completed",
+        "exactCount": 1
+      }
+    ],
+    "longOutputReadback": {
+      "enabled": false,
+      "expectedPolling": false,
+      "fragments": []
+    },
+    "errorRecovery": {
+      "expected": true,
+      "failureTurnId": "turn-1",
+      "recoveryTurnId": "turn-2",
+      "expectedFailureClasses": ["runtime.orchestration.unavailable"],
+      "disallowedFailureClasses": ["provider.request-failed", "provider.stream-interrupted"],
+      "signals": ["Runtime orchestration unavailable", "RUNTIME_E2E_ORCHESTRATION_RECOVERY_TURN_2"]
+    },
+    "runtimeBinding": {
+      "strategy": "dedicated-runtime-port",
+      "host": "127.0.0.1",
+      "forbidCompatibleRuntimeProbe": true
+    },
+    "harness": {
+      "runner": "runtime-core-playwright",
+      "testName": "runtime replay keeps orchestration failures explainable while validating the recorded recovery path",
+      "timeoutMs": 60000,
+      "workspaceId": "ws-playground",
+      "actions": [
+        {
+          "type": "select-option",
+          "control": "Agent access",
+          "value": "On-request"
+        },
+        {
+          "type": "select-option",
+          "control": "Model",
+          "value": "gpt-5.4"
+        },
+        {
+          "type": "select-option",
+          "control": "Thinking mode",
+          "value": "low"
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "new",
+          "promptTurnId": "turn-1"
+        },
+        {
+          "type": "wait-turn-state",
+          "state": "failed",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "wait-message",
+          "text": "Runtime orchestration unavailable",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "append",
+          "promptTurnId": "turn-2"
+        }
+      ],
+      "assertions": [
+        {
+          "type": "wait-message",
+          "text": "RUNTIME_E2E_ORCHESTRATION_RECOVERY_TURN_2",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "wait-turn-state",
+          "state": "complete",
+          "timeoutMs": 20000
+        }
+      ]
+    }
+  },
+  "result": {
+    "successStatus": "completed_after_recovery",
+    "summaryHeading": "RUNTIME_E2E_ORCHESTRATION_RECOVERY_TURN_2",
+    "providerReplay": {
+      "variantId": "gpt-5.4-low-recovery-orchestration",
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "low",
+      "recordingAccessMode": "on-request",
+      "recordingExecutionMode": "runtime",
+      "coverage": ["error-recovery", "orchestration", "retry"],
+      "turns": [
+        {
+          "userPrompt": "Reply with exactly \"RUNTIME_E2E_ORCHESTRATION_FAILURE\". No bullets. No markdown.",
+          "output": null,
+          "deltaChunks": [],
+          "failure": {
+            "class": "runtime.orchestration.unavailable",
+            "code": "runtime.turn.orchestration_unavailable",
+            "message": "Runtime orchestration unavailable for this turn."
+          },
+          "recordingProfile": "controlled-orchestration-unavailable",
+          "provenance": {
+            "source": "controlled-synthetic",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-tool-error-recovery-orchestration-gpt-5.4-low",
+            "notes": "Controlled synthetic failure injected by the runtime replay recorder to keep the recovery failure class stable.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4",
+            "recordedReasonEffort": "low",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "none"
+          },
+          "recordedAt": "2026-03-13T07:45:19.856Z"
+        },
+        {
+          "userPrompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_ORCHESTRATION_RECOVERY_TURN_2\". Line 2 must start with \"ORCHESTRATION_RECOVERY: \" and explain why orchestration failure recovery belongs in runtime replay coverage. No bullets. No markdown.",
+          "output": "RUNTIME_E2E_ORCHESTRATION_RECOVERY_TURN_2\nORCHESTRATION_RECOVERY: Runtime replay coverage must include orchestration failure recovery because the correctness of long-lived workflows depends on deterministically rebuilding state after crashes, restarts, retries, and partial progress, ensuring the orchestrator resumes the same decisions, preserves side-effect boundaries, and avoids duplicate or lost work under real failure conditions.",
+          "deltaChunks": [
+            "R",
+            "UNTIME_E2E_ORCHESTR",
+            "ATION_REC",
+            "OVERY_TURN_2",
+            "\nORCHE",
+            "STRATION",
+            "_RECOVERY: Runtime",
+            " replay coverage must include",
+            " orchestration failure",
+            " recovery because the",
+            " correctness",
+            " of long",
+            "-lived",
+            " workflows depends on determin",
+            "istically rebuilding",
+            " state after crashes, rest",
+            "arts, retries, and",
+            " partial progress",
+            ", ensuring",
+            " the",
+            " orchestr",
+            "ator resumes the same",
+            " decisions",
+            ",",
+            " preserves",
+            " side-effect",
+            " boundaries",
+            ", and avoids duplicate or",
+            " lost work under",
+            " real failure",
+            " conditions."
+          ],
+          "chunkDelayMs": 25,
+          "expectations": {
+            "startsWith": "RUNTIME_E2E_ORCHESTRATION_RECOVERY_TURN_2",
+            "mustContain": ["ORCHESTRATION_RECOVERY:"],
+            "minDeltaChunks": 2
+          },
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-tool-error-recovery-orchestration-gpt-5.4-low",
+            "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4",
+            "recordedReasonEffort": "low",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "recorded"
+          },
+          "recordedAt": "2026-03-13T07:45:24.848Z"
+        }
+      ]
+    }
+  },
+  "assertions": {
+    "hard": [
+      {
+        "type": "runtime-isolation",
+        "forbidLogPattern": "Existing runtime on"
+      },
+      {
+        "type": "message-visible",
+        "text": "Runtime orchestration unavailable"
+      },
+      {
+        "type": "message-visible",
+        "text": "RUNTIME_E2E_ORCHESTRATION_RECOVERY_TURN_2"
+      }
+    ],
+    "soft": [
+      {
+        "type": "duration-ms",
+        "max": 60000
+      },
+      {
+        "type": "log-warning-budget",
+        "max": 6
+      },
+      {
+        "type": "delta-chunk-range",
+        "turnId": "turn-2",
+        "min": 2,
+        "max": 32
+      }
+    ]
+  },
+  "governance": {
+    "owner": "runtime-core-e2e",
+    "lastRefreshReason": "Refreshed with controlled synthetic failure evidence plus live recorded recovery evidence.",
+    "deprecationStatus": "active",
+    "archiveStatus": null,
+    "lastLiveFailureClass": null,
+    "lastLiveRerecordStable": false,
+    "rerecordStability": {
+      "status": "missing",
+      "stable": false,
+      "compatibleWithExpectedFailureClass": null,
+      "observedFailureClasses": [],
+      "driftObserved": false,
+      "lastCheckedAt": null
+    },
+    "recoveryQualification": {
+      "expectedFailureClasses": ["runtime.orchestration.unavailable"],
+      "disallowedFailureClasses": ["provider.request-failed", "provider.stream-interrupted"],
+      "observedFailureClass": "runtime.orchestration.unavailable",
+      "recoveryObserved": true,
+      "recoveryTurnId": "turn-2",
+      "evidenceMode": "mixed",
+      "rerecordStability": {
+        "status": "missing",
+        "stable": false,
+        "compatibleWithExpectedFailureClass": null,
+        "observedFailureClasses": [],
+        "driftObserved": false,
+        "lastCheckedAt": null
+      },
+      "goldenBlockers": [
+        "failure_leg_not_fully_recorded",
+        "evidence_not_fully_recorded",
+        "live_failure_probe_missing"
+      ],
+      "recoveryStable": false,
+      "eligibleForGolden": false
+    },
+    "goldenBlockers": [
+      "failure_leg_not_fully_recorded",
+      "evidence_not_fully_recorded",
+      "live_failure_probe_missing"
+    ],
+    "optimizationSignals": {
+      "seedSource": "workflow-failure",
+      "incubationTrack": "nightly",
+      "recommendedLevers": ["hooks", "rules", "session-lineage"],
+      "safeBackgroundCandidate": false,
+      "lineage": {
+        "parentSampleId": "runtime-core-tool-error-recovery-gpt-5.3-codex-medium",
+        "strategy": "failure-class-branch"
+      }
+    },
+    "deterministicRegressions": [
+      {
+        "id": "synthetic-failure-profiles-do-not-force-scoped-runtime",
+        "layer": "recorder",
+        "path": "scripts/record-runtime-provider-replay.node.test.mjs",
+        "testName": "recordingProfileRequiresScopedRuntime ignores synthetic failure profiles",
+        "status": "active"
+      }
+    ],
+    "promotionCriteria": {
+      "upgradeToGolden": [
+        "Replace the controlled orchestration failure with a real recorded failure leg that lands on runtime.orchestration.unavailable.",
+        "Keep the recovery leg recorded and replay-green under dedicated runtime isolation."
+      ]
+    },
+    "evidencePlan": {
+      "mixedEvidence": true,
+      "turnSources": {
+        "turn-1": "controlled-synthetic",
+        "turn-2": "recorded"
+      },
+      "notes": "The failure leg is synthetic because there is not yet a deterministic runtime-controlled orchestration failure profile for recorder use."
+    },
+    "liveFailureProbe": {
+      "enabled": false,
+      "profileId": "controlled-orchestration-unavailable",
+      "turnId": "turn-1",
+      "attempts": 1,
+      "expectedFailureClasses": ["runtime.orchestration.unavailable"]
+    },
+    "recordingProfiles": {
+      "controlled-orchestration-unavailable": {
+        "strategy": "synthetic-failure",
+        "notes": "Injects a stable orchestration failure so the sample can exercise failed-then-recovered behavior while the real orchestration path still falls back instead of failing deterministically.",
+        "failure": {
+          "class": "runtime.orchestration.unavailable",
+          "code": "runtime.turn.orchestration_unavailable",
+          "message": "Runtime orchestration unavailable for this turn."
+        }
+      }
+    },
+    "redaction": {
+      "applied": true,
+      "normalizedFields": ["rpcEndpoint", "workspaceId"],
+      "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
+    },
+    "goldenBlockerHistory": [
+      {
+        "blocker": "evidence_not_fully_recorded",
+        "active": true,
+        "firstObservedAt": "2026-03-13T07:45:24.848Z",
+        "lastObservedAt": "2026-03-13T07:45:24.848Z",
+        "observationCount": 1
+      },
+      {
+        "blocker": "failure_leg_not_fully_recorded",
+        "active": true,
+        "firstObservedAt": "2026-03-13T07:45:24.848Z",
+        "lastObservedAt": "2026-03-13T07:45:24.848Z",
+        "observationCount": 1
+      },
+      {
+        "blocker": "live_failure_probe_missing",
+        "active": true,
+        "firstObservedAt": "2026-03-13T07:45:24.848Z",
+        "lastObservedAt": "2026-03-13T07:45:24.848Z",
+        "observationCount": 1
+      }
+    ]
+  },
+  "runtimeTruth": {
+    "taskFields": [
+      {
+        "type": "wait-runtime-task-field",
+        "fieldPath": "checkpointId",
+        "matcher": "present",
+        "timeoutMs": 20000
+      },
+      {
+        "type": "wait-runtime-task-field",
+        "fieldPath": "traceId",
+        "matcher": "present",
+        "timeoutMs": 20000
+      },
+      {
+        "type": "wait-runtime-task-field",
+        "fieldPath": "publishHandoff",
+        "matcher": "absent",
+        "timeoutMs": 20000
+      }
+    ],
+    "review": [],
+    "autodrive": [
+      {
+        "type": "assert-autodrive-trace",
+        "decisionTraceMatcher": "absent",
+        "runtimeScenarioProfileMatcher": "absent",
+        "repoEvaluationProfileMatcher": "absent",
+        "outcomeFeedbackMatcher": "absent",
+        "autonomyStateMatcher": "absent",
+        "timeoutMs": 20000
+      }
+    ],
+    "eventReplay": [
+      {
+        "type": "assert-replay-gap-event",
+        "expectedReason": "runtime.updated",
+        "timeoutMs": 20000
+      }
+    ]
+  }
+}

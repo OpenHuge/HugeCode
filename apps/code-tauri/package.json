@@ -1,0 +1,16 @@
+{
+  "name": "@ku0/code-tauri",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/run-tauri.mjs dev",
+    "build": "node scripts/run-tauri.mjs build",
+    "tauri": "tauri",
+    "check": "node scripts/check-fast.mjs",
+    "check:raw": "node ../../scripts/run-cargo-with-target-guard.mjs check --manifest-path src-tauri/Cargo.toml"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.0"
+  }
+}

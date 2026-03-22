@@ -1,0 +1,210 @@
+{
+  "schemaVersion": 1,
+  "sample": {
+    "id": "runtime-core-autodrive-launch-gpt-5.4-low",
+    "variant": "gpt-5.4-low-autodrive-launch",
+    "family": "runtime-core",
+    "scenarioType": "autodrive-launch",
+    "mode": "runtime-only",
+    "source": "recorded",
+    "recordedAt": "2026-03-20T06:10:00.000Z",
+    "schemaVersion": 1,
+    "runtimeKind": "code-runtime-gateway-web",
+    "providerKind": "openai",
+    "requiresRealRuntime": true,
+    "supportsReplayOnly": true,
+    "tags": ["golden", "runtime-core", "runtime-replay", "playwright", "autodrive", "runtime-only"],
+    "capabilities": [
+      "runtime-truth",
+      "autodrive-navigation",
+      "autodrive-evaluation-profile",
+      "event-replay-gap"
+    ],
+    "stability": "golden",
+    "redactionVersion": "runtime-provider-replay-v1",
+    "notes": "Runtime-only AutoDrive launch sample that proves task-start truth is published even before task execution finishes."
+  },
+  "input": {
+    "task": "Validate that AutoDrive task start publishes runtime launch truth on the flagship runtime route.",
+    "variant": {
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "low"
+    },
+    "runtimeConfig": {
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default"
+    },
+    "endpointIsolation": {
+      "strategy": "dedicated-runtime-port",
+      "rpcEndpointTemplate": "http://127.0.0.1:{runtimePort}/rpc",
+      "workspaceId": "workspace-web",
+      "reuseExistingRuntime": false
+    },
+    "workspaceSetup": {
+      "files": [
+        {
+          "relativePath": "AGENTS.md",
+          "content": "# Agent Rules\n- Run validate:fast before signoff.\n- Keep runtime-first boundaries.\n"
+        },
+        {
+          "relativePath": ".codex/e2e-map.json",
+          "content": "{\"default\":\"test:e2e:smoke\"}\n"
+        },
+        {
+          "relativePath": ".hugecode/repository-execution-contract.json",
+          "content": "{\"version\":1,\"defaults\":{\"executionProfileId\":\"balanced-delegate\",\"validationPresetId\":\"standard\"},\"validationPresets\":[{\"id\":\"standard\",\"label\":\"Standard\"}],\"reviewProfiles\":[]}\n"
+        }
+      ]
+    },
+    "runtimeOperation": {
+      "type": "agent-task-start",
+      "title": "Ship runtime truth",
+      "taskSource": {
+        "kind": "autodrive",
+        "label": "AutoDrive Mission Control",
+        "shortLabel": "AutoDrive",
+        "externalId": "autodrive:workspace-runtime"
+      },
+      "autoDrive": {
+        "enabled": true,
+        "destination": {
+          "title": "Ship runtime truth",
+          "desiredEndState": ["Runtime-backed controls"],
+          "doneDefinition": {
+            "arrivalCriteria": ["Controls use runtime truth"],
+            "requiredValidation": ["Validation"],
+            "waypointIndicators": ["Progress"]
+          },
+          "hardBoundaries": ["Do not widen scope"],
+          "routePreference": "balanced"
+        },
+        "riskPolicy": {
+          "allowValidationCommands": true,
+          "allowNetworkAnalysis": true,
+          "minimumConfidence": "medium"
+        }
+      },
+      "steps": [
+        {
+          "kind": "read",
+          "path": "AGENTS.md"
+        }
+      ]
+    },
+    "turns": []
+  },
+  "process": {
+    "expectedStateTransitions": [
+      "runtime.spawned",
+      "runtime.healthy",
+      "turn.started",
+      "native_state_fabric_updated",
+      "turn.failed"
+    ],
+    "providerEventRequirements": [],
+    "longOutputReadback": {
+      "enabled": false,
+      "expectedPolling": false,
+      "fragments": []
+    },
+    "errorRecovery": {
+      "expected": false,
+      "signals": []
+    },
+    "runtimeBinding": {
+      "strategy": "dedicated-runtime-port",
+      "host": "127.0.0.1",
+      "forbidCompatibleRuntimeProbe": true
+    },
+    "harness": {
+      "runner": "runtime-core-playwright",
+      "testName": "runtime replay preserves autodrive launch truth for runtime-only task starts",
+      "workspaceId": "ws-playground",
+      "actions": [
+        {
+          "type": "rpc-agent-task-start"
+        }
+      ],
+      "assertions": []
+    }
+  },
+  "result": {
+    "successStatus": "recorded",
+    "summaryHeading": "AutoDrive launch publishes runtime truth before task execution settles.",
+    "runtimeOperation": {
+      "type": "agent-task-start",
+      "method": "code_runtime_run_start",
+      "taskId": "agent-task-runtime-only",
+      "recordedAt": "2026-03-20T06:10:00.000Z",
+      "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-autodrive-launch-gpt-5.4-low"
+    }
+  },
+  "runtimeTruth": {
+    "taskFields": [],
+    "review": [],
+    "autodrive": [
+      {
+        "type": "assert-autodrive-trace",
+        "decisionTraceMatcher": "present",
+        "runtimeScenarioProfileMatcher": "present",
+        "repoEvaluationProfileMatcher": "absent",
+        "outcomeFeedbackMatcher": "present",
+        "autonomyStateMatcher": "present",
+        "timeoutMs": 20000
+      }
+    ],
+    "eventReplay": [
+      {
+        "type": "assert-replay-gap-event",
+        "expectedReason": "native_state_fabric_updated",
+        "timeoutMs": 20000
+      }
+    ]
+  },
+  "assertions": {
+    "hard": [
+      {
+        "type": "runtime-isolation",
+        "forbidLogPattern": "Existing runtime on"
+      }
+    ],
+    "soft": [
+      {
+        "type": "duration-ms",
+        "max": 45000
+      },
+      {
+        "type": "log-warning-budget",
+        "max": 6
+      }
+    ]
+  },
+  "governance": {
+    "owner": "runtime-core-e2e",
+    "lastRefreshReason": "Added a runtime-only AutoDrive launch sample so positive task-start truth is no longer hidden behind provider-only replay assumptions.",
+    "deprecationStatus": "active",
+    "archiveStatus": null,
+    "optimizationSignals": {
+      "seedSource": "manual",
+      "incubationTrack": "blocking",
+      "recommendedLevers": ["skills", "background-agents"],
+      "safeBackgroundCandidate": false
+    },
+    "deterministicRegressions": [
+      {
+        "id": "runtime-only-autodrive-launch-sample-validates-without-provider-turns",
+        "layer": "dataset-lib",
+        "path": "scripts/lib/runtimeReplayDataset.node.test.mjs",
+        "testName": "validateRuntimeReplayDataset accepts runtime-only autodrive launch samples",
+        "status": "active"
+      }
+    ],
+    "redaction": {
+      "applied": true,
+      "normalizedFields": ["rpcEndpoint", "workspaceId"],
+      "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/design-system/schemas/qa-report.schema.json",
+  "type": "object",
+  "required": ["artifactVersion", "checkedArtifacts", "blockers", "warnings", "summary"],
+  "properties": {
+    "artifactVersion": { "type": "integer", "minimum": 1 },
+    "checkedArtifacts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "blockers": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["score", "status"],
+      "properties": {
+        "score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "status": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

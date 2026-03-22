@@ -1,0 +1,39 @@
+name: _reusable-desktop-prepare-frontend
+
+on:
+  workflow_call:
+    inputs:
+      prebuild_mode:
+        required: false
+        type: string
+        default: auto
+
+jobs:
+  prepare_frontend:
+    name: Prepare frontend dist
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm ci:install:offline
+
+      - uses: ./.github/actions/cache-turbo
+        with:
+          path: .turbo/cache/
+          key-prefix: turbo-prebuild
+
+      - name: Build code dist once
+        env:
+          DESKTOP_PREBUILD_MODE: ${{ inputs.prebuild_mode }}
+        run: pnpm desktop:prepare
+
+      - uses: ./.github/actions/upload-workflow-artifact
+        with:
+          name: code-dist
+          path: apps/code/dist/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1

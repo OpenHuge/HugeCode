@@ -1,0 +1,31 @@
+{
+  "name": "@ku0/internal-figma-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "workflow:list": "node ./workflow-list.mjs",
+    "bridge:fetch": "cd ../.. && node scripts/figma-json-bridge/fetch.mjs",
+    "bridge:doctor": "cd ../.. && node scripts/figma-json-bridge/doctor.mjs",
+    "bridge:inspect": "cd ../.. && node scripts/figma-json-bridge/inspect.mjs",
+    "bridge:resolve": "cd ../.. && node scripts/figma-json-bridge/resolve.mjs",
+    "bridge:listen": "cd ../.. && node scripts/figma-json-bridge/receiver.mjs",
+    "bridge:prepare": "cd ../.. && node scripts/figma-json-bridge/prepare.mjs",
+    "bridge:smoke": "cd ../.. && node scripts/figma-json-bridge/smoke.mjs",
+    "pipeline:classify": "cd ../.. && node scripts/figma-pipeline/classify.mjs",
+    "pipeline:tokens": "cd ../.. && node scripts/figma-pipeline/extract-primitives.mjs && node scripts/figma-pipeline/map-semantics.mjs",
+    "pipeline:components": "cd ../.. && node scripts/figma-pipeline/detect-components.mjs",
+    "pipeline:variants": "cd ../.. && node scripts/figma-pipeline/model-variants.mjs",
+    "pipeline:specs": "cd ../.. && node scripts/figma-pipeline/generate-component-specs.mjs",
+    "pipeline:plan": "cd ../.. && node scripts/figma-pipeline/plan-generation-targets.mjs",
+    "pipeline:codegen": "cd ../.. && node scripts/figma-pipeline/generate-scaffolds.mjs",
+    "pipeline:develop": "cd ../.. && node scripts/figma-pipeline/develop.mjs",
+    "pipeline:production": "cd ../.. && node scripts/figma-pipeline/production-workflow.mjs",
+    "pipeline:focus-plan": "cd ../.. && node scripts/figma-pipeline/plan-focus-resources.mjs",
+    "pipeline:focus-fetch": "cd ../.. && node scripts/figma-pipeline/fetch-focus-batch.mjs",
+    "pipeline:promote": "cd ../.. && node scripts/figma-pipeline/generate-scaffolds.mjs --promote",
+    "pipeline:review": "cd ../.. && node scripts/figma-pipeline/review-promotions.mjs",
+    "pipeline:apply": "cd ../.. && node scripts/figma-pipeline/apply-promotions.mjs",
+    "pipeline:validate": "cd ../.. && node scripts/figma-pipeline/validate-artifacts.mjs",
+    "pipeline:run": "cd ../.. && node scripts/figma-pipeline/run.mjs"
+  }
+}

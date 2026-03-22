@@ -1,0 +1,59 @@
+{
+  "name": "@ku0/code-runtime-webmcp-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./webMcpBridge": {
+      "types": "./src/webMcpBridge.ts",
+      "default": "./src/webMcpBridge.ts"
+    },
+    "./webMcpBridgeModelContextApi": {
+      "types": "./src/webMcpBridgeModelContextApi.ts",
+      "default": "./src/webMcpBridgeModelContextApi.ts"
+    },
+    "./webMcpBridgeContextDescriptors": {
+      "types": "./src/webMcpBridgeContextDescriptors.ts",
+      "default": "./src/webMcpBridgeContextDescriptors.ts"
+    },
+    "./webMcpBridgeReadTools": {
+      "types": "./src/webMcpBridgeReadTools.ts",
+      "default": "./src/webMcpBridgeReadTools.ts"
+    },
+    "./webMcpBridgeToolNames": {
+      "types": "./src/webMcpBridgeToolNames.ts",
+      "default": "./src/webMcpBridgeToolNames.ts"
+    },
+    "./webMcpBridgeTypes": {
+      "types": "./src/webMcpBridgeTypes.ts",
+      "default": "./src/webMcpBridgeTypes.ts"
+    },
+    "./webMcpInputSchemaValidationError": {
+      "types": "./src/webMcpInputSchemaValidationError.ts",
+      "default": "./src/webMcpInputSchemaValidationError.ts"
+    },
+    "./webMcpToolInputSchemaValidation": {
+      "types": "./src/webMcpToolInputSchemaValidation.ts",
+      "default": "./src/webMcpToolInputSchemaValidation.ts"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "pnpm exec oxlint .",
+    "lint:fix": "pnpm exec oxlint --fix --fix-suggestions . && pnpm exec oxfmt --write ."
+  },
+  "dependencies": {
+    "@ku0/code-runtime-client": "workspace:*",
+    "@ku0/code-runtime-host-contract": "workspace:*"
+  }
+}

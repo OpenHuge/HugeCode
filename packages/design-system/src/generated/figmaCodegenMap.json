@@ -1,0 +1,170 @@
+{
+  "color.action.primary.background": {
+    "cssVar": "--ds-color-action-primary-background",
+    "contractAccess": "vars.color.action.primary.background"
+  },
+  "color.action.primary.foreground": {
+    "cssVar": "--ds-color-action-primary-foreground",
+    "contractAccess": "vars.color.action.primary.foreground"
+  },
+  "color.action.primary.hover": {
+    "cssVar": "--ds-color-action-primary-hover",
+    "contractAccess": "vars.color.action.primary.hover"
+  },
+  "color.background": {
+    "cssVar": "--ds-color-background",
+    "contractAccess": "vars.color.background"
+  },
+  "color.border.default": {
+    "cssVar": "--ds-color-border-default",
+    "contractAccess": "vars.color.border.default"
+  },
+  "color.border.strong": {
+    "cssVar": "--ds-color-border-strong",
+    "contractAccess": "vars.color.border.strong"
+  },
+  "color.foreground": {
+    "cssVar": "--ds-color-foreground",
+    "contractAccess": "vars.color.foreground"
+  },
+  "color.status.error": {
+    "cssVar": "--ds-color-status-error",
+    "contractAccess": "vars.color.status.error"
+  },
+  "color.status.success": {
+    "cssVar": "--ds-color-status-success",
+    "contractAccess": "vars.color.status.success"
+  },
+  "color.status.warning": {
+    "cssVar": "--ds-color-status-warning",
+    "contractAccess": "vars.color.status.warning"
+  },
+  "color.surface.canvas": {
+    "cssVar": "--ds-color-surface-canvas",
+    "contractAccess": "vars.color.surface.canvas"
+  },
+  "color.surface.card": {
+    "cssVar": "--ds-color-surface-card",
+    "contractAccess": "vars.color.surface.card"
+  },
+  "color.surface.elevated": {
+    "cssVar": "--ds-color-surface-elevated",
+    "contractAccess": "vars.color.surface.elevated"
+  },
+  "color.surface.muted": {
+    "cssVar": "--ds-color-surface-muted",
+    "contractAccess": "vars.color.surface.muted"
+  },
+  "color.text.inverse": {
+    "cssVar": "--ds-color-text-inverse",
+    "contractAccess": "vars.color.text.inverse"
+  },
+  "color.text.muted": {
+    "cssVar": "--ds-color-text-muted",
+    "contractAccess": "vars.color.text.muted"
+  },
+  "color.text.primary": {
+    "cssVar": "--ds-color-text-primary",
+    "contractAccess": "vars.color.text.primary"
+  },
+  "motion.duration.fast": {
+    "cssVar": "--ds-motion-duration-fast",
+    "contractAccess": "vars.motion.duration.fast"
+  },
+  "motion.duration.normal": {
+    "cssVar": "--ds-motion-duration-normal",
+    "contractAccess": "vars.motion.duration.normal"
+  },
+  "motion.duration.slow": {
+    "cssVar": "--ds-motion-duration-slow",
+    "contractAccess": "vars.motion.duration.slow"
+  },
+  "motion.easing.expressive": {
+    "cssVar": "--ds-motion-easing-expressive",
+    "contractAccess": "vars.motion.easing.expressive"
+  },
+  "motion.easing.standard": {
+    "cssVar": "--ds-motion-easing-standard",
+    "contractAccess": "vars.motion.easing.standard"
+  },
+  "radius.2xl": {
+    "cssVar": "--ds-radius-2xl",
+    "contractAccess": "vars.radius.2xl"
+  },
+  "radius.full": {
+    "cssVar": "--ds-radius-full",
+    "contractAccess": "vars.radius.full"
+  },
+  "radius.lg": {
+    "cssVar": "--ds-radius-lg",
+    "contractAccess": "vars.radius.lg"
+  },
+  "radius.md": {
+    "cssVar": "--ds-radius-md",
+    "contractAccess": "vars.radius.md"
+  },
+  "radius.sm": {
+    "cssVar": "--ds-radius-sm",
+    "contractAccess": "vars.radius.sm"
+  },
+  "radius.xl": {
+    "cssVar": "--ds-radius-xl",
+    "contractAccess": "vars.radius.xl"
+  },
+  "space.2xl": {
+    "cssVar": "--ds-space-2xl",
+    "contractAccess": "vars.space.2xl"
+  },
+  "space.2xs": {
+    "cssVar": "--ds-space-2xs",
+    "contractAccess": "vars.space.2xs"
+  },
+  "space.lg": {
+    "cssVar": "--ds-space-lg",
+    "contractAccess": "vars.space.lg"
+  },
+  "space.md": {
+    "cssVar": "--ds-space-md",
+    "contractAccess": "vars.space.md"
+  },
+  "space.sm": {
+    "cssVar": "--ds-space-sm",
+    "contractAccess": "vars.space.sm"
+  },
+  "space.xl": {
+    "cssVar": "--ds-space-xl",
+    "contractAccess": "vars.space.xl"
+  },
+  "space.xs": {
+    "cssVar": "--ds-space-xs",
+    "contractAccess": "vars.space.xs"
+  },
+  "typography.family.code": {
+    "cssVar": "--ds-typography-family-code",
+    "contractAccess": "vars.typography.family.code"
+  },
+  "typography.family.ui": {
+    "cssVar": "--ds-typography-family-ui",
+    "contractAccess": "vars.typography.family.ui"
+  },
+  "typography.size.content": {
+    "cssVar": "--ds-typography-size-content",
+    "contractAccess": "vars.typography.size.content"
+  },
+  "typography.size.display": {
+    "cssVar": "--ds-typography-size-display",
+    "contractAccess": "vars.typography.size.display"
+  },
+  "typography.size.label": {
+    "cssVar": "--ds-typography-size-label",
+    "contractAccess": "vars.typography.size.label"
+  },
+  "typography.size.title": {
+    "cssVar": "--ds-typography-size-title",
+    "contractAccess": "vars.typography.size.title"
+  },
+  "typography.size.ui": {
+    "cssVar": "--ds-typography-size-ui",
+    "contractAccess": "vars.typography.size.ui"
+  }
+}

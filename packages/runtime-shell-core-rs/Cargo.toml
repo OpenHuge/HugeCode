@@ -1,0 +1,13 @@
+[package]
+name = "ku0-runtime-shell-core"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "ku0_runtime_shell_core"
+path = "src/lib.rs"
+
+[dependencies]
+portable-pty = "0.9"
+serde = { version = "1.0", features = ["derive"] }

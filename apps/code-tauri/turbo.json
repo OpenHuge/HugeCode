@@ -1,0 +1,13 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tags": ["desktop-host"],
+  "tasks": {
+    "build": {
+      "outputs": ["src-tauri/target/**"]
+    },
+    "check": {
+      "outputs": [".cache/check-fast-cache.json"]
+    }
+  }
+}

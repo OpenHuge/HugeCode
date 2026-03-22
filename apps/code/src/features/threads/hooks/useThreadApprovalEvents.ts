@@ -1,0 +1,29 @@
+import type { Dispatch, MutableRefObject } from "react";
+import { useCallback } from "react";
+import { respondToServerRequest } from "../../../application/runtime/ports/tauriThreads";
+import type { ApprovalRequest } from "../../../types";
+import { getApprovalCommandInfo, matchesCommandPrefix } from "../../../utils/approvalRules";
+import type { ThreadAction } from "./useThreadsReducer";
+
+type UseThreadApprovalEventsOptions = {
+  dispatch: Dispatch<ThreadAction>;
+  approvalAllowlistRef: MutableRefObject<Record<string, string[][]>>;
+};
+
+export function useThreadApprovalEvents({
+  dispatch,
+  approvalAllowlistRef,
+}: UseThreadApprovalEventsOptions) {
+  return useCallback(
+    (approval: ApprovalRequest) => {
+      const commandInfo = getApprovalCommandInfo(approval.params ?? {});
+      const allowlist = approvalAllowlistRef.current[approval.workspace_id] ?? [];
+      if (commandInfo && matchesCommandPrefix(commandInfo.tokens, allowlist)) {
+        void respondToServerRequest(approval.workspace_id, approval.request_id, "accept");
+        return;
+      }
+      dispatch({ type: "addApproval", approval });
+    },
+    [approvalAllowlistRef, dispatch]
+  );
+}

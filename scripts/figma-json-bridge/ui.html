@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Local Figma JSON Bridge</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, "Segoe UI", sans-serif;
+      }
+
+      body {
+        margin: 0;
+        background: #f4f6f8;
+        color: #102033;
+      }
+
+      .shell {
+        padding: 16px;
+      }
+
+      .stack {
+        display: grid;
+        gap: 12px;
+      }
+
+      .panel {
+        background: #ffffff;
+        border: 1px solid #d7dee6;
+        border-radius: 12px;
+        padding: 14px;
+        box-shadow: 0 10px 24px rgba(16, 32, 51, 0.08);
+      }
+
+      h1,
+      h2 {
+        margin: 0 0 8px;
+      }
+
+      h1 {
+        font-size: 16px;
+      }
+
+      h2 {
+        font-size: 13px;
+      }
+
+      p {
+        margin: 0 0 12px;
+        line-height: 1.45;
+        font-size: 12px;
+      }
+
+      .meta,
+      .status,
+      .results,
+      .search-note {
+        font-size: 12px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        background: #f4f6f8;
+        border-radius: 10px;
+        padding: 10px;
+        border: 1px solid #e4e9ef;
+      }
+
+      .status,
+      .results,
+      .search-note {
+        margin-top: 12px;
+      }
+
+      .actions {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #d7dee6;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 12px;
+        background: #ffffff;
+        color: #102033;
+      }
+
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+        background: #102033;
+        color: #ffffff;
+      }
+
+      button.secondary {
+        background: #e9eef5;
+        color: #102033;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      .hint {
+        margin-top: 12px;
+        font-size: 11px;
+        color: #516173;
+      }
+
+      .entry {
+        border: 1px solid #d7dee6;
+        border-radius: 10px;
+        background: #ffffff;
+        padding: 10px;
+      }
+
+      .entry + .entry {
+        margin-top: 8px;
+      }
+
+      .entry-title {
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+
+      .entry-subtitle {
+        font-size: 11px;
+        color: #516173;
+        margin-bottom: 8px;
+      }
+
+      code,
+      pre {
+        font-family: "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      pre {
+        margin: 6px 0 0;
+        background: #0f1e31;
+        color: #f4f6f8;
+        border-radius: 8px;
+        padding: 8px;
+        overflow: auto;
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .pill {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 2px 8px;
+        background: #e9eef5;
+        color: #304255;
+        font-size: 11px;
+        margin-bottom: 8px;
+      }
+
+      .warning {
+        color: #9a4d00;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <div class="stack">
+        <section class="panel">
+          <h1>HugeCode Local Figma Bridge</h1>
+          <p>
+            Free local workflow for export plus token/code lookup. Export uses
+            <code>JSON_REST_V1</code>; token lookup reads the checked-in design-system token map and
+            does not require Dev Mode or a paid seat.
+          </p>
+
+          <div class="meta" id="selectionState">Waiting for selection state...</div>
+
+          <div class="status" id="targetState">
+            Optional target: paste a Figma URL or node id like <code>1-24862</code>. If empty, the
+            plugin exports the current selection.
+          </div>
+
+          <div class="actions">
+            <input
+              id="targetInput"
+              type="text"
+              placeholder="https://www.figma.com/design/...?...node-id=1-24862"
+            />
+          </div>
+
+          <div class="actions">
+            <button type="button" id="exportButton">Export selection or target</button>
+            <button type="button" class="secondary" id="downloadButton" disabled>
+              Download last export
+            </button>
+            <button type="button" class="secondary" id="sendButton" disabled>
+              Send last export to localhost
+            </button>
+            <button type="button" class="secondary" id="closeButton">Close</button>
+          </div>
+
+          <div class="status" id="statusOutput">No export yet.</div>
+          <div class="hint">
+            The localhost receiver must be started first with
+            <code>pnpm -C tools/figma bridge:listen</code>.
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Token And Code Inspector</h2>
+          <p>
+            Best effort mapping from the current selection's bound Figma variables to repository
+            token paths, CSS custom properties, and <code>vanilla-extract</code> contract access.
+          </p>
+
+          <div class="actions">
+            <input
+              id="tokenSearchInput"
+              type="text"
+              placeholder="Search token path or variable name, e.g. color/text/primary"
+            />
+            <button type="button" class="secondary" id="refreshInspectorButton">
+              Refresh selection bindings
+            </button>
+          </div>
+
+          <div class="search-note" id="codegenSummary">
+            Select exactly one node to inspect bound variables, or search the token map manually.
+          </div>
+          <div class="results" id="codegenResults">No token matches yet.</div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const exportButton = document.getElementById("exportButton");
+      const downloadButton = document.getElementById("downloadButton");
+      const sendButton = document.getElementById("sendButton");
+      const closeButton = document.getElementById("closeButton");
+      const selectionState = document.getElementById("selectionState");
+      const targetState = document.getElementById("targetState");
+      const targetInput = document.getElementById("targetInput");
+      const statusOutput = document.getElementById("statusOutput");
+      const tokenSearchInput = document.getElementById("tokenSearchInput");
+      const refreshInspectorButton = document.getElementById("refreshInspectorButton");
+      const codegenSummary = document.getElementById("codegenSummary");
+      const codegenResults = document.getElementById("codegenResults");
+      const receiverUrl =
+        new URLSearchParams(window.location.search).get("receiver") ??
+        "http://127.0.0.1:3845/figma-export";
+      const tokenMap = window.__HYPECODE_FIGMA_CODEGEN_MAP__ ?? {};
+      const tokenEntries = Object.entries(tokenMap).map(([tokenPath, mapping]) => ({
+        tokenPath,
+        cssVar: mapping.cssVar,
+        contractAccess: mapping.contractAccess,
+        normalizedTokenPath: normalizeTokenCandidate(tokenPath),
+      }));
+
+      let lastPayload = null;
+      let lastFileName = "figma-node.json";
+      let latestSelectionMessage = null;
+
+      function setStatus(message) {
+        statusOutput.textContent = message;
+      }
+
+      function updateActionState() {
+        const hasPayload = lastPayload !== null;
+        downloadButton.disabled = !hasPayload;
+        sendButton.disabled = !hasPayload;
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function normalizeTokenCandidate(value) {
+        return String(value)
+          .trim()
+          .toLowerCase()
+          .replace(/[\\/:]+/gu, ".")
+          .replace(/[\s_-]+/gu, ".")
+          .replace(/\.+/gu, ".")
+          .replace(/^\.+|\.+$/gu, "");
+      }
+
+      function downloadPayload() {
+        if (!lastPayload) {
+          return;
+        }
+
+        const blob = new Blob([JSON.stringify(lastPayload, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = lastFileName;
+        anchor.click();
+        URL.revokeObjectURL(url);
+      }
+
+      async function sendPayload() {
+        if (!lastPayload) {
+          return;
+        }
+
+        setStatus(`Sending export to ${receiverUrl} ...`);
+        try {
+          const response = await fetch(receiverUrl, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+            },
+            body: JSON.stringify(lastPayload),
+          });
+
+          if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || `Receiver returned ${response.status}`);
+          }
+
+          const result = await response.json();
+          setStatus(
+            `Saved by local receiver.\nStatus: ${response.status}\nPath: ${result.path}\nSummary: ${result.summaryPath}`
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          setStatus(`Local receiver request failed.\n${message}`);
+        }
+      }
+
+      function findTokenMatchesForVariable(name) {
+        const normalizedVariableName = normalizeTokenCandidate(name);
+        if (!normalizedVariableName) {
+          return [];
+        }
+
+        const exactMatches = tokenEntries.filter(
+          (entry) => entry.normalizedTokenPath === normalizedVariableName
+        );
+        if (exactMatches.length > 0) {
+          return exactMatches;
+        }
+
+        const suffixMatches = tokenEntries
+          .filter((entry) => normalizedVariableName.endsWith(entry.normalizedTokenPath))
+          .sort(
+            (left, right) => right.normalizedTokenPath.length - left.normalizedTokenPath.length
+          );
+
+        if (suffixMatches.length > 0) {
+          return [suffixMatches[0]];
+        }
+
+        return tokenEntries.filter((entry) =>
+          entry.normalizedTokenPath.includes(normalizedVariableName)
+        );
+      }
+
+      function renderEntry(title, subtitle, entry, badge) {
+        const badgeMarkup = badge ? `<div class="pill">${escapeHtml(badge)}</div>` : "";
+        return `
+          <div class="entry">
+            ${badgeMarkup}
+            <div class="entry-title">${escapeHtml(title)}</div>
+            <div class="entry-subtitle">${escapeHtml(subtitle)}</div>
+            <div>Token path</div>
+            <pre>${escapeHtml(entry.tokenPath)}</pre>
+            <div>CSS variable</div>
+            <pre>${escapeHtml(entry.cssVar)}</pre>
+            <div>vanilla-extract access</div>
+            <pre>${escapeHtml(entry.contractAccess)}</pre>
+          </div>
+        `;
+      }
+
+      function renderUnmappedEntry(binding) {
+        return `
+          <div class="entry">
+            <div class="pill warning">Unmapped</div>
+            <div class="entry-title">${escapeHtml(binding.name ?? binding.id)}</div>
+            <div class="entry-subtitle">
+              No repo token path matched this Figma variable name. Search manually below if the
+              variable uses a different naming scheme.
+            </div>
+          </div>
+        `;
+      }
+
+      function renderSelectionResults(message) {
+        const bindings = message?.codegenState?.bindings ?? [];
+        if (bindings.length === 0) {
+          codegenResults.textContent = "No bound variables found on the current selection.";
+          return;
+        }
+
+        const markup = bindings
+          .map((binding) => {
+            if (!binding.name) {
+              return renderUnmappedEntry(binding);
+            }
+
+            const matches = findTokenMatchesForVariable(binding.name);
+            if (matches.length === 0) {
+              return renderUnmappedEntry(binding);
+            }
+
+            return matches
+              .slice(0, 1)
+              .map((entry) =>
+                renderEntry(
+                  binding.name,
+                  `${binding.resolvedType ?? "unknown"} variable${binding.missing ? " (missing)" : ""}`,
+                  entry,
+                  "Selection match"
+                )
+              )
+              .join("");
+          })
+          .join("");
+
+        codegenResults.innerHTML = markup;
+      }
+
+      function renderSearchResults(query) {
+        const normalizedQuery = normalizeTokenCandidate(query);
+        if (!normalizedQuery) {
+          renderSelectionResults(latestSelectionMessage);
+          return;
+        }
+
+        const results = tokenEntries
+          .filter(
+            (entry) =>
+              entry.normalizedTokenPath.includes(normalizedQuery) ||
+              entry.tokenPath.toLowerCase().includes(query.trim().toLowerCase())
+          )
+          .slice(0, 12);
+
+        if (results.length === 0) {
+          codegenResults.textContent = "No token paths matched that search.";
+          return;
+        }
+
+        codegenResults.innerHTML = results
+          .map((entry) => renderEntry(entry.tokenPath, "Manual search result", entry, "Search"))
+          .join("");
+      }
+
+      function updateSelectionSummary(message) {
+        latestSelectionMessage = message;
+        const selection = message.selection;
+        const bindingMessage = message.codegenState?.message ?? "No codegen data available.";
+
+        if (selection) {
+          codegenSummary.textContent =
+            `Selection: ${selection.name}\n` +
+            `Node id: ${selection.id}\n` +
+            `Node type: ${selection.type}\n` +
+            `${bindingMessage}`;
+        } else {
+          codegenSummary.textContent = bindingMessage;
+        }
+
+        if (tokenSearchInput.value.trim().length > 0) {
+          renderSearchResults(tokenSearchInput.value);
+        } else {
+          renderSelectionResults(message);
+        }
+      }
+
+      exportButton.addEventListener("click", () => {
+        const target = targetInput.value.trim();
+        parent.postMessage({ pluginMessage: { type: "export-selection", target } }, "*");
+        setStatus(
+          target.length > 0 ? `Exporting target ${target}...` : "Exporting current selection..."
+        );
+      });
+
+      downloadButton.addEventListener("click", downloadPayload);
+      sendButton.addEventListener("click", sendPayload);
+      closeButton.addEventListener("click", () => {
+        parent.postMessage({ pluginMessage: { type: "close" } }, "*");
+      });
+      refreshInspectorButton.addEventListener("click", () => {
+        parent.postMessage({ pluginMessage: { type: "refresh-selection" } }, "*");
+      });
+      tokenSearchInput.addEventListener("input", () => {
+        renderSearchResults(tokenSearchInput.value);
+      });
+
+      onmessage = (event) => {
+        const message = event.data.pluginMessage;
+        if (!message || typeof message !== "object") {
+          return;
+        }
+
+        if (message.type === "selection-state") {
+          targetState.textContent =
+            `Current file key: ${message.fileKey ?? "unknown"}\n` +
+            "Paste a full Figma URL or node id to export a specific node.";
+
+          if (message.selection) {
+            selectionState.textContent =
+              `Selection count: ${message.selectionCount}\n` +
+              `Node: ${message.selection.name}\n` +
+              `ID: ${message.selection.id}\n` +
+              `Type: ${message.selection.type}`;
+          } else {
+            selectionState.textContent =
+              `Selection count: ${message.selectionCount}\n` +
+              "Select exactly one node before exporting, or paste a target URL.";
+          }
+
+          updateSelectionSummary(message);
+          return;
+        }
+
+        if (message.type === "export-ready") {
+          lastPayload = message.payload;
+          lastFileName = message.suggestedFileName;
+          updateActionState();
+          setStatus(
+            `Export ready.\nNode: ${message.payload.selection.name}\n` +
+              `ID: ${message.payload.selection.id}\n` +
+              `Requested target: ${message.payload.requestedTarget?.raw ?? "current selection"}\n` +
+              `PNG preview: yes\n` +
+              `SVG preview: yes\n` +
+              `Suggested file: ${lastFileName}`
+          );
+          return;
+        }
+
+        if (message.type === "export-error") {
+          setStatus(`Export failed.\n${message.message}`);
+        }
+      };
+
+      updateActionState();
+      renderSearchResults("");
+    </script>
+  </body>
+</html>

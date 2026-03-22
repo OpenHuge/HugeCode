@@ -1,0 +1,29 @@
+packages:
+  - "apps/code"
+  # Cloudflare platform web shell. Keep this in the workspace and default
+  # quality gates because it is the active public-route and SSR surface.
+  - "apps/code-web"
+  - "apps/code-tauri"
+  - "packages/*"
+  - "tests/*"
+minimumReleaseAge: 60
+strictDepBuilds: true
+verifyDepsBeforeRun: error
+allowBuilds:
+  esbuild: true
+  sharp: true
+  workerd: true
+overrides:
+  "axios@>=1.0.0 <1.12.0": ">=1.12.0"
+  "axios@>=1.0.0 <1.8.2": ">=1.8.2"
+  "diff@>=5.0.0 <5.2.2": ">=5.2.2"
+  "esbuild@<=0.24.2": ">=0.25.0"
+  "hono@<4.11.7": ">=4.11.7"
+  "lodash@>=4.0.0 <=4.17.22": ">=4.17.23"
+  "minimatch@<3.1.4": ">=3.1.4"
+  "minimatch@>=9.0.0 <9.0.7": ">=9.0.7"
+  "tar@<7.5.7": ">=7.5.7"
+  "tar@<=7.5.2": ">=7.5.3"
+  "tar@<=7.5.3": ">=7.5.4"
+  "undici@<5.29.0": ">=5.29.0"
+  "undici@<6.23.0": ">=6.23.0"

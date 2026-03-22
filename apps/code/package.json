@@ -1,0 +1,66 @@
+{
+  "name": "@ku0/code",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./workspace-surface": {
+      "types": "./src/MainAppContainerCore.tsx",
+      "default": "./src/MainAppContainerCore.tsx"
+    }
+  },
+  "scripts": {
+    "dev": "node ./node_modules/vite/bin/vite.js --port 5187",
+    "build": "node ./node_modules/vite/bin/vite.js build",
+    "preview": "node ./node_modules/vite/bin/vite.js preview --port 4187",
+    "lint": "pnpm -C ../.. exec oxlint apps/code/src",
+    "test": "vitest run --config vitest.config.ts",
+    "test:component": "pnpm -C ../.. exec vitest run --config apps/code/vitest.browser.config.ts",
+    "test:component:watch": "pnpm -C ../.. exec vitest --config apps/code/vitest.browser.config.ts",
+    "typecheck": "tsc --noEmit",
+    "test:worker:quick": "vitest run src/services/workerQuickGate.test.ts"
+  },
+  "dependencies": {
+    "@ku0/code-runtime-client": "workspace:*",
+    "@ku0/code-runtime-host-contract": "workspace:*",
+    "@ku0/code-runtime-webmcp-client": "workspace:*",
+    "@ku0/code-workspace-client": "workspace:*",
+    "@ku0/design-system": "workspace:*",
+    "@ku0/native-runtime-host-contract": "workspace:*",
+    "@ku0/shared": "workspace:*",
+    "@ku0/ui": "workspace:*",
+    "@pierre/diffs": "^1.0.11",
+    "@sentry/react": "^10.40.0",
+    "@tanstack/react-virtual": "^3.13.19",
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@tauri-apps/plugin-notification": "^2.3.3",
+    "@tauri-apps/plugin-opener": "^2.5.3",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.0",
+    "@vanilla-extract/css": "^1.18.0",
+    "@vanilla-extract/vite-plugin": "^5.1.4",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "lucide-react": "^0.576.0",
+    "next-themes": "^0.4.6",
+    "prismjs": "^1.30.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "tauri-plugin-liquid-glass-api": "^0.1.6",
+    "vscode-material-icons": "^0.1.1"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/prismjs": "^1.26.6",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.0",
+    "jsdom": "^28.1.0",
+    "typescript": "^5.9.3",
+    "vite": "8.0.0",
+    "vitest": "^4.1.0"
+  }
+}

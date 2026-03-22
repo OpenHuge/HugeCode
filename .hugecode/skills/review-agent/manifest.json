@@ -1,0 +1,18 @@
+{
+  "schema_version": "skills_source_manifest.v1",
+  "id": "review-agent",
+  "name": "Review Agent",
+  "version": "1.0.0",
+  "kind": "skill",
+  "publisher": {
+    "name": "HugeCode"
+  },
+  "trust_level": "local",
+  "signature": "unsigned-local-manifest",
+  "entrypoint": "review-agent",
+  "permissions": ["workspace:read", "runtime:review"],
+  "compatibility": {
+    "min_runtime": "1.0.0",
+    "min_app": "1.0.0"
+  }
+}

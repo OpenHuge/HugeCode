@@ -1,0 +1,56 @@
+name: Setup desktop build environment
+description: Bootstrap cross-platform Tauri desktop build jobs with Node, Rust, optional Linux system deps, filtered installs, and restored code dist artifacts.
+
+inputs:
+  targets:
+    description: Optional rustup target list passed to setup-rust-ci
+    required: false
+    default: ""
+  enable-sccache:
+    description: Whether sccache should be enabled in setup-rust-ci
+    required: false
+    default: "true"
+  cargo-cache-key:
+    description: Cache suffix used by setup-rust-ci
+    required: true
+  install-command:
+    description: Command used to install desktop/Tauri dependencies
+    required: false
+    default: "pnpm ci:install:offline --filter @ku0/code-tauri..."
+  artifact-name:
+    description: Artifact name used by restore-artifact
+    required: false
+    default: "code-dist"
+  artifact-path:
+    description: Destination path for the restored frontend artifact
+    required: false
+    default: "apps/code/dist"
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-node-pnpm
+      with:
+        install: "false"
+
+    - uses: ./.github/actions/setup-rust-ci
+      with:
+        targets: ${{ inputs.targets }}
+        enable-sccache: ${{ inputs.enable-sccache }}
+        cargo-cache-key: ${{ inputs.cargo-cache-key }}
+
+    - uses: ./.github/actions/install-linux-desktop-deps
+      if: ${{ runner.os == 'Linux' }}
+
+    - name: Prefetch dependencies
+      shell: bash
+      run: pnpm ci:fetch
+
+    - name: Install desktop dependencies
+      shell: bash
+      run: ${{ inputs.install-command }}
+
+    - uses: ./.github/actions/restore-artifact
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.artifact-path }}

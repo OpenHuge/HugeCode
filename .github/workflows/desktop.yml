@@ -1,0 +1,166 @@
+name: Desktop (Tauri)
+
+on:
+  workflow_dispatch:
+    inputs:
+      prebuild_mode:
+        description: Prebuild mode for code dist
+        type: choice
+        required: false
+        default: auto
+        options:
+          - auto
+          - fast
+          - full
+  pull_request:
+    paths:
+      - "apps/code-tauri/**"
+      - "apps/code/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
+      - ".github/workflows/_reusable-desktop-build-pr.yml"
+      - ".github/workflows/_reusable-desktop-build-release.yml"
+      - ".github/actions/cache-turbo/**"
+      - ".github/actions/install-linux-desktop-deps/**"
+      - ".github/actions/restore-artifact/**"
+      - ".github/actions/setup-desktop-build-env/**"
+      - ".github/actions/setup-node-pnpm/**"
+      - ".github/actions/setup-rust-ci/**"
+      - ".github/actions/upload-workflow-artifact/**"
+      - ".github/workflows/desktop.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/code-tauri/**"
+      - "apps/code/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
+      - ".github/workflows/_reusable-desktop-build-pr.yml"
+      - ".github/workflows/_reusable-desktop-build-release.yml"
+      - ".github/actions/cache-turbo/**"
+      - ".github/actions/install-linux-desktop-deps/**"
+      - ".github/actions/restore-artifact/**"
+      - ".github/actions/setup-desktop-build-env/**"
+      - ".github/actions/setup-node-pnpm/**"
+      - ".github/actions/setup-rust-ci/**"
+      - ".github/actions/upload-workflow-artifact/**"
+      - ".github/workflows/desktop.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare-frontend:
+    name: Prepare frontend dist
+    uses: ./.github/workflows/_reusable-desktop-prepare-frontend.yml
+    with:
+      prebuild_mode: ${{ github.event_name == 'workflow_dispatch' && inputs.prebuild_mode || 'auto' }}
+
+  build-pr:
+    name: Build PR (${{ matrix.name }})
+    if: github.event_name == 'pull_request'
+    needs: prepare-frontend
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Apple Silicon
+            id: macos-apple-silicon
+            runner: macos-14
+            rust_target: aarch64-apple-darwin
+            host_check_command: ""
+            enable_sccache: "true"
+          - name: Windows x64
+            id: windows-x64
+            runner: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            host_check_command: pnpm desktop:doctor:windows
+            enable_sccache: "true"
+          - name: Windows ARM64
+            id: windows-arm64
+            runner: windows-11-arm
+            rust_target: aarch64-pc-windows-msvc
+            host_check_command: pnpm desktop:doctor:windows:arm64
+            enable_sccache: "false"
+          - name: Linux x64
+            id: linux-x64
+            runner: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
+            host_check_command: ""
+            enable_sccache: "true"
+    uses: ./.github/workflows/_reusable-desktop-build-pr.yml
+    with:
+      runner: ${{ matrix.runner }}
+      rust_target: ${{ matrix.rust_target }}
+      cargo_cache_key: ${{ matrix.id }}
+      enable_sccache: ${{ matrix.enable_sccache }}
+      host_check_command: ${{ matrix.host_check_command }}
+
+  build-release:
+    name: Build (${{ matrix.name }})
+    if: github.event_name != 'pull_request'
+    needs: prepare-frontend
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Intel
+            id: macos-intel
+            # Cross-compile x86_64 target on Apple Silicon runner for faster availability.
+            runner: macos-14
+            rust_target: x86_64-apple-darwin
+            bundle_targets: dmg
+            artifact_path: apps/code-tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/**/*
+            host_check_command: ""
+          - name: macOS Apple Silicon
+            id: macos-apple-silicon
+            runner: macos-14
+            rust_target: aarch64-apple-darwin
+            bundle_targets: dmg
+            artifact_path: apps/code-tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/**/*
+            host_check_command: ""
+          - name: Windows x64
+            id: windows-x64
+            runner: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            bundle_targets: nsis
+            artifact_path: apps/code-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*
+            host_check_command: pnpm desktop:doctor:windows
+          - name: Windows ARM64
+            id: windows-arm64
+            runner: windows-11-arm
+            rust_target: aarch64-pc-windows-msvc
+            bundle_targets: nsis
+            artifact_path: apps/code-tauri/src-tauri/target/aarch64-pc-windows-msvc/release/bundle/**/*
+            host_check_command: pnpm desktop:doctor:windows:arm64
+          - name: Linux x64
+            id: linux-x64
+            runner: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
+            bundle_targets: deb,appimage
+            artifact_path: apps/code-tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/**/*
+            host_check_command: ""
+          - name: Linux ARM64
+            id: linux-arm64
+            runner: ubuntu-24.04-arm
+            rust_target: aarch64-unknown-linux-gnu
+            bundle_targets: deb,appimage
+            artifact_path: apps/code-tauri/src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/**/*
+            host_check_command: ""
+    uses: ./.github/workflows/_reusable-desktop-build-release.yml
+    with:
+      runner: ${{ matrix.runner }}
+      rust_target: ${{ matrix.rust_target }}
+      bundle_targets: ${{ matrix.bundle_targets }}
+      artifact_path: ${{ matrix.artifact_path }}
+      artifact_name: desktop-${{ matrix.id }}
+      cargo_cache_key: ${{ matrix.id }}
+      enable_sccache: ${{ matrix.id != 'windows-arm64' && 'true' || 'false' }}
+      host_check_command: ${{ matrix.host_check_command }}

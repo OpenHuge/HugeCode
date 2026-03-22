@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/design-system/schemas/primitive-tokens.schema.json",
+  "type": "object",
+  "required": ["artifactVersion", "sourceGraphRef", "collections", "summary"],
+  "properties": {
+    "artifactVersion": { "type": "integer", "minimum": 1 },
+    "sourceGraphRef": { "type": "string" },
+    "collections": { "type": "object" },
+    "summary": { "type": "object" }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,42 @@
+{
+  "name": "@ku0/model-fabric-rs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rust model fabric bindings",
+  "files": [
+    "dist",
+    "*.node"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "browser": "./src/browser.ts",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./src/node.ts",
+      "node": "./dist/node.js",
+      "default": "./dist/node.js"
+    }
+  },
+  "scripts": {
+    "build": "pnpm run build:rs && tsc",
+    "build:rs": "tsx scripts/build-native.ts --release",
+    "build:debug": "tsx scripts/build-native.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "pnpm exec oxlint .",
+    "lint:fix": "pnpm exec oxlint --fix --fix-suggestions . && pnpm exec oxfmt --write ."
+  },
+  "dependencies": {
+    "@ku0/native-bindings": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3"
+  }
+}

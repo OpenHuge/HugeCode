@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/design-system/schemas/classified-node-graph.schema.json",
+  "type": "object",
+  "required": ["artifactVersion", "manifestRef", "source", "summary", "nodes"],
+  "properties": {
+    "artifactVersion": { "type": "integer", "minimum": 1 },
+    "manifestRef": { "type": "string" },
+    "source": { "type": "object" },
+    "summary": { "type": "object" },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "type", "role", "path", "depth", "confidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "role": { "type": "string" },
+          "path": { "type": "string" },
+          "depth": { "type": "integer", "minimum": 0 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

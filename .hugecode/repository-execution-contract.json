@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "metadata": {
+    "label": "HugeCode repository execution defaults",
+    "description": "Repo-owned launch defaults and validation presets for manual and GitHub source-linked delegation."
+  },
+  "defaults": {
+    "executionProfileId": "balanced-delegate",
+    "reviewProfileId": "default-review",
+    "validationPresetId": "standard"
+  },
+  "defaultReviewProfileId": "default-review",
+  "sourceMappings": {
+    "manual": {
+      "executionProfileId": "balanced-delegate",
+      "reviewProfileId": "default-review",
+      "validationPresetId": "standard"
+    },
+    "github_issue": {
+      "executionProfileId": "autonomous-delegate",
+      "reviewProfileId": "issue-review",
+      "validationPresetId": "standard"
+    },
+    "github_pr_followup": {
+      "executionProfileId": "autonomous-delegate",
+      "reviewProfileId": "pr-followup-review",
+      "validationPresetId": "standard"
+    }
+  },
+  "validationPresets": [
+    {
+      "id": "review-first",
+      "label": "Review first",
+      "description": "Fast read-first validation for tightly supervised work.",
+      "commands": ["pnpm validate:fast"]
+    },
+    {
+      "id": "standard",
+      "label": "Standard",
+      "description": "Default repo validation bundle for delegated implementation work.",
+      "commands": ["pnpm validate", "pnpm test:component"]
+    },
+    {
+      "id": "fast-lane",
+      "label": "Fast lane",
+      "description": "Fast validation bundle for high-autonomy reruns and low-risk follow-ups.",
+      "commands": ["pnpm validate:fast", "pnpm test:e2e:smoke"]
+    }
+  ],
+  "reviewProfiles": [
+    {
+      "id": "default-review",
+      "label": "Default Review",
+      "description": "General workspace review profile for delegated implementation work.",
+      "allowedSkillIds": ["review-agent", "repo-policy-check"],
+      "validationPresetId": "review-first",
+      "autofixPolicy": "bounded",
+      "githubMirrorPolicy": "summary"
+    },
+    {
+      "id": "issue-review",
+      "label": "Issue Review",
+      "description": "Issue-linked review profile that emphasizes correctness and policy checks.",
+      "allowedSkillIds": ["review-agent", "repo-policy-check"],
+      "validationPresetId": "standard",
+      "autofixPolicy": "manual",
+      "githubMirrorPolicy": "summary"
+    },
+    {
+      "id": "pr-followup-review",
+      "label": "PR Follow-up Review",
+      "description": "PR follow-up profile that keeps review-first validation and bounded autofix available.",
+      "allowedSkillIds": ["review-agent", "repo-policy-check"],
+      "validationPresetId": "review-first",
+      "autofixPolicy": "bounded",
+      "githubMirrorPolicy": "check_output"
+    }
+  ]
+}

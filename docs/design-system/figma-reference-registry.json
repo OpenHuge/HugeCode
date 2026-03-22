@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "defaultWorkflow": "docs/design-system/figma-local-bridge.md",
+  "resources": [
+    {
+      "id": "linear-design-system-community-root",
+      "name": "Linear Design System Community Root",
+      "status": "ready-for-local-bridge",
+      "sourceType": "figma-design-url",
+      "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+      "nodeId": "8:2",
+      "url": "https://www.figma.com/design/KWUgG9JAz50HjH0jIrGkpH/Linear-Design-System--Community---Copy-?node-id=8-2&p=f&t=weIRY2hJGy82XA7A-0",
+      "recommendedAccess": "local-figma-json-bridge",
+      "artifactDir": ".figma-workflow/figma-exports",
+      "notes": [
+        "Use this root node when validating the newer Linear Design System community file through the repo-native bridge.",
+        "Prefer doctor + fetch via URL or registry before falling back to Figma MCP.",
+        "If api.figma.com is unreachable or the token path is blocked, use the Desktop plugin fallback and preserve the resulting raw manifest for provenance."
+      ]
+    },
+    {
+      "id": "linear-ui-community-copy-card-reference",
+      "name": "Linear UI Community Copy",
+      "status": "ready-for-local-bridge",
+      "sourceType": "figma-design-url",
+      "fileKey": "FR8BpWK6jlWrhTLZVtB2Zv",
+      "nodeId": "1:24862",
+      "url": "https://www.figma.com/design/FR8BpWK6jlWrhTLZVtB2Zv/Linear-UI---Free-UI-Kit--Recreated---Community---Copy-?node-id=1-24862&t=hFw3G4JBlkGEaVIJ-0",
+      "recommendedAccess": "local-figma-json-bridge",
+      "artifactDir": ".figma-workflow/figma-exports",
+      "notes": [
+        "Use the local Figma bridge instead of Figma MCP.",
+        "The file should be opened in Figma Desktop before export.",
+        "Paste the full URL into the plugin target field to export the exact node.",
+        "This is a card-scale reference, not a page-scale UI audit target."
+      ]
+    },
+    {
+      "id": "linear-ui-community-page-reference",
+      "name": "Linear UI Community Page",
+      "status": "ready-for-local-bridge",
+      "sourceType": "figma-design-url",
+      "fileKey": "FR8BpWK6jlWrhTLZVtB2Zv",
+      "nodeId": "0:1",
+      "url": "https://www.figma.com/design/FR8BpWK6jlWrhTLZVtB2Zv/Linear-UI---Free-UI-Kit--Recreated---Community---Copy-?node-id=0-1&t=hFw3G4JBlkGEaVIJ-0",
+      "recommendedAccess": "local-figma-json-bridge",
+      "artifactDir": ".figma-workflow/figma-exports",
+      "notes": [
+        "Use this page-scale reference when auditing overall shell, hierarchy, and panel density.",
+        "The page title in Figma is Design - UI Kit.",
+        "Use the local Figma bridge instead of Figma MCP."
+      ]
+    },
+    {
+      "id": "linear-ui-community-settings-shell",
+      "name": "Linear UI Community Settings Shell",
+      "status": "ready-for-local-bridge",
+      "sourceType": "figma-design-url",
+      "fileKey": "FR8BpWK6jlWrhTLZVtB2Zv",
+      "nodeId": "3:25595",
+      "url": "https://www.figma.com/design/FR8BpWK6jlWrhTLZVtB2Zv/Linear-UI---Free-UI-Kit--Recreated---Community---Copy-?node-id=3-25595&t=hFw3G4JBlkGEaVIJ-0",
+      "recommendedAccess": "local-figma-json-bridge",
+      "artifactDir": ".figma-workflow/figma-exports",
+      "notes": [
+        "Primary page-shell reference for settings-style layouts.",
+        "Use for sidebar plus content-pane proportion, contrast, and spacing."
+      ]
+    },
+    {
+      "id": "linear-ui-community-settings-sidebar",
+      "name": "Linear UI Community Settings Sidebar",
+      "status": "ready-for-local-bridge",
+      "sourceType": "figma-design-url",
+      "fileKey": "FR8BpWK6jlWrhTLZVtB2Zv",
+      "nodeId": "3:25757",
+      "url": "https://www.figma.com/design/FR8BpWK6jlWrhTLZVtB2Zv/Linear-UI---Free-UI-Kit--Recreated---Community---Copy-?node-id=3-25757&t=hFw3G4JBlkGEaVIJ-0",
+      "recommendedAccess": "local-figma-json-bridge",
+      "artifactDir": ".figma-workflow/figma-exports",
+      "notes": [
+        "Primary sidebar-shell reference.",
+        "Use for translucent dark rail, 1px border, and nav density."
+      ]
+    },
+    {
+      "id": "linear-ui-community-settings-content-pane",
+      "name": "Linear UI Community Settings Content Pane",
+      "status": "ready-for-local-bridge",
+      "sourceType": "figma-design-url",
+      "fileKey": "FR8BpWK6jlWrhTLZVtB2Zv",
+      "nodeId": "3:25597",
+      "url": "https://www.figma.com/design/FR8BpWK6jlWrhTLZVtB2Zv/Linear-UI---Free-UI-Kit--Recreated---Community---Copy-?node-id=3-25597&t=hFw3G4JBlkGEaVIJ-0",
+      "recommendedAccess": "local-figma-json-bridge",
+      "artifactDir": ".figma-workflow/figma-exports",
+      "notes": [
+        "Primary content-pane reference for section grouping and header hierarchy.",
+        "Use for review and home dashboard shell alignment."
+      ]
+    },
+    {
+      "id": "linear-ui-community-settings-theme-row",
+      "name": "Linear UI Community Theme Setting Row",
+      "status": "ready-for-local-bridge",
+      "sourceType": "figma-design-url",
+      "fileKey": "FR8BpWK6jlWrhTLZVtB2Zv",
+      "nodeId": "3:25649",
+      "url": "https://www.figma.com/design/FR8BpWK6jlWrhTLZVtB2Zv/Linear-UI---Free-UI-Kit--Recreated---Community---Copy-?node-id=3-25649&t=hFw3G4JBlkGEaVIJ-0",
+      "recommendedAccess": "local-figma-json-bridge",
+      "artifactDir": ".figma-workflow/figma-exports",
+      "notes": [
+        "Primary setting-row reference with label, description, and trailing value chip.",
+        "Use for section row spacing and divider treatment."
+      ]
+    },
+    {
+      "id": "linear-ui-community-settings-translucent-row",
+      "name": "Linear UI Community Translucent UI Row",
+      "status": "ready-for-local-bridge",
+      "sourceType": "figma-design-url",
+      "fileKey": "FR8BpWK6jlWrhTLZVtB2Zv",
+      "nodeId": "3:25667",
+      "url": "https://www.figma.com/design/FR8BpWK6jlWrhTLZVtB2Zv/Linear-UI---Free-UI-Kit--Recreated---Community---Copy-?node-id=3-25667&t=hFw3G4JBlkGEaVIJ-0",
+      "recommendedAccess": "local-figma-json-bridge",
+      "artifactDir": ".figma-workflow/figma-exports",
+      "notes": [
+        "Reference row for translucency guidance.",
+        "This row contains the explicit product rule for transparent sidebar and modal surfaces."
+      ]
+    },
+    {
+      "id": "linear-ui-community-settings-theme-chip",
+      "name": "Linear UI Community Theme Value Chip",
+      "status": "ready-for-local-bridge",
+      "sourceType": "figma-design-url",
+      "fileKey": "FR8BpWK6jlWrhTLZVtB2Zv",
+      "nodeId": "3:25655",
+      "url": "https://www.figma.com/design/FR8BpWK6jlWrhTLZVtB2Zv/Linear-UI---Free-UI-Kit--Recreated---Community---Copy-?node-id=3-25655&t=hFw3G4JBlkGEaVIJ-0",
+      "recommendedAccess": "local-figma-json-bridge",
+      "artifactDir": ".figma-workflow/figma-exports",
+      "notes": [
+        "Reference chip for low-noise pills and value capsules.",
+        "Use for badge fill, radius, and label density."
+      ]
+    },
+    {
+      "id": "linear-ui-community-settings-sidebar-selected-item",
+      "name": "Linear UI Community Sidebar Selected Item",
+      "status": "ready-for-local-bridge",
+      "sourceType": "figma-design-url",
+      "fileKey": "FR8BpWK6jlWrhTLZVtB2Zv",
+      "nodeId": "3:25813",
+      "url": "https://www.figma.com/design/FR8BpWK6jlWrhTLZVtB2Zv/Linear-UI---Free-UI-Kit--Recreated---Community---Copy-?node-id=3-25813&t=hFw3G4JBlkGEaVIJ-0",
+      "recommendedAccess": "local-figma-json-bridge",
+      "artifactDir": ".figma-workflow/figma-exports",
+      "notes": [
+        "Reference selected-nav item for compact rails and selected states.",
+        "Use for sidebar row height, radius, and muted emphasis."
+      ]
+    },
+    {
+      "id": "linear-design-system-community-dark-mode-page",
+      "name": "Linear Design System Community Dark Mode Page",
+      "status": "ready-for-local-bridge",
+      "sourceType": "figma-design-url",
+      "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+      "nodeId": "8:2",
+      "url": "https://www.figma.com/design/KWUgG9JAz50HjH0jIrGkpH/Linear-Design-System--Community---Copy-?node-id=8-2&p=f&t=weIRY2hJGy82XA7A-0",
+      "recommendedAccess": "local-figma-json-bridge",
+      "artifactDir": ".figma-workflow/figma-exports",
+      "notes": [
+        "Use this page-scale dark mode reference for token audit, inventory, and shell-level review.",
+        "Do not use this CANVAS export for direct codegen or promotion; capture a smaller child component or component set first.",
+        "The free-path default should be local bridge or REST fetch plus the production workflow gate, not repeated MCP reads."
+      ]
+    }
+  ]
+}

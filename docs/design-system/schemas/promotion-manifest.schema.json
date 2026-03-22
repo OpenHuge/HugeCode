@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/design-system/schemas/promotion-manifest.schema.json",
+  "type": "object",
+  "required": [
+    "artifactVersion",
+    "generatedAt",
+    "sourceManifest",
+    "codegenReportRef",
+    "reviewDocPath",
+    "applyRoot",
+    "targets"
+  ],
+  "properties": {
+    "artifactVersion": { "type": "integer", "minimum": 1 },
+    "generatedAt": { "type": "string" },
+    "sourceManifest": { "type": "string" },
+    "codegenReportRef": { "type": "string" },
+    "reviewDocPath": { "type": "string" },
+    "applyRoot": { "type": "string" },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "componentName",
+          "family",
+          "targetLayer",
+          "readiness",
+          "approvalStatus",
+          "approvalNotes",
+          "files"
+        ],
+        "properties": {
+          "componentName": { "type": "string" },
+          "family": { "type": "string" },
+          "targetLayer": {
+            "type": "string",
+            "enum": [
+              "design-system-primitive",
+              "design-system-component",
+              "app-adapter",
+              "app-pattern",
+              "defer"
+            ]
+          },
+          "readiness": { "type": "string", "enum": ["ready", "review", "defer"] },
+          "approvalStatus": {
+            "type": "string",
+            "enum": ["pending-review", "approved", "rejected"]
+          },
+          "approvalNotes": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "files": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "role",
+                "artifactPath",
+                "repoRelativePath",
+                "artifactSha256",
+                "targetExists",
+                "targetSha256",
+                "diffStatus"
+              ],
+              "properties": {
+                "role": { "type": "string" },
+                "artifactPath": { "type": "string" },
+                "repoRelativePath": { "type": "string" },
+                "artifactSha256": { "type": "string" },
+                "targetExists": { "type": "boolean" },
+                "targetSha256": { "type": ["string", "null"] },
+                "diffStatus": {
+                  "type": "string",
+                  "enum": ["new", "unchanged", "modified"]
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

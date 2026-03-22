@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/design-system/schemas/generation-plan.schema.json",
+  "type": "object",
+  "required": ["artifactVersion", "generatedAt", "sourceManifest", "targets"],
+  "properties": {
+    "artifactVersion": { "type": "integer", "minimum": 1 },
+    "generatedAt": { "type": "string" },
+    "sourceManifest": { "type": "string" },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "componentName",
+          "family",
+          "status",
+          "targetLayer",
+          "packagePath",
+          "directoryPath",
+          "files",
+          "exportStrategy",
+          "stylingStrategy",
+          "tokenStrategy",
+          "themeStrategy",
+          "hookDependencies",
+          "utilityDependencies",
+          "dependsOn",
+          "testRequirements",
+          "exampleRequirements",
+          "codegenReadiness",
+          "blockers",
+          "notes"
+        ],
+        "properties": {
+          "componentName": { "type": "string" },
+          "family": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["ready", "review", "defer"]
+          },
+          "targetLayer": {
+            "type": "string",
+            "enum": [
+              "design-system-primitive",
+              "design-system-component",
+              "app-adapter",
+              "app-pattern",
+              "defer"
+            ]
+          },
+          "packagePath": { "type": "string" },
+          "directoryPath": { "type": "string" },
+          "files": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["path", "role"],
+              "properties": {
+                "path": { "type": "string" },
+                "role": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "exportStrategy": {
+            "type": "object",
+            "required": ["publicPath", "barrelExport"],
+            "properties": {
+              "publicPath": { "type": "string" },
+              "barrelExport": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          },
+          "stylingStrategy": {
+            "type": "object",
+            "required": ["mode", "recipe", "sprinkles", "styleModule"],
+            "properties": {
+              "mode": { "type": "string" },
+              "recipe": { "type": "boolean" },
+              "sprinkles": { "type": "boolean" },
+              "styleModule": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          },
+          "tokenStrategy": {
+            "type": "object",
+            "required": ["semanticTokens", "primitiveExceptions", "defaultPolicy"],
+            "properties": {
+              "semanticTokens": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/$defs/semanticDependency" }
+              },
+              "primitiveExceptions": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/primitiveException" }
+              },
+              "defaultPolicy": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          "themeStrategy": {
+            "type": "object",
+            "required": ["contract", "requiresThemeValues"],
+            "properties": {
+              "contract": { "type": "string" },
+              "requiresThemeValues": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          },
+          "hookDependencies": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "utilityDependencies": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "testRequirements": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "exampleRequirements": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "codegenReadiness": {
+            "type": "object",
+            "required": ["status", "confidence"],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["ready", "review", "defer"]
+              },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+            },
+            "additionalProperties": false
+          },
+          "blockers": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "notes": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "semanticDependency": {
+      "type": "object",
+      "required": ["path", "status", "primitiveRef", "confidence", "source", "reason"],
+      "properties": {
+        "path": { "type": "string" },
+        "status": { "type": "string", "enum": ["mapped", "unmapped"] },
+        "primitiveRef": { "type": ["string", "null"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "source": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "primitiveException": {
+      "type": "object",
+      "required": ["path", "reason"],
+      "properties": {
+        "path": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

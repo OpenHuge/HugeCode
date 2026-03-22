@@ -1,0 +1,52 @@
+name: Codex Nightly
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  codex-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm ci:install:offline
+
+      - uses: ./.github/actions/cache-turbo
+
+      - name: Codex preflight
+        run: pnpm preflight:codex
+
+      - name: Detect OpenAI API key
+        id: openai_key
+        shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Codex infra review (optional)
+        if: ${{ steps.openai_key.outputs.has_key == 'true' }}
+        continue-on-error: true
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/prompts/nightly-infra.md
+
+      - name: Codex validate (full)
+        run: pnpm validate:full

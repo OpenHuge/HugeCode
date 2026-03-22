@@ -1,0 +1,21 @@
+name: _reusable-ci-frontend-optimization
+
+on:
+  workflow_call:
+
+jobs:
+  frontend_optimization:
+    name: frontend_optimization
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm ci:install:offline
+
+      - uses: ./.github/actions/setup-playwright
+
+      - name: Frontend optimization gate
+        run: pnpm validate:frontend-optimization

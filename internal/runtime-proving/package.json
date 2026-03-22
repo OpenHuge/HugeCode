@@ -1,0 +1,21 @@
+{
+  "name": "@ku0/internal-runtime-proving",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "workflow:list": "node ./workflow-list.mjs",
+    "runtime:prove": "pnpm run replay:intake && pnpm run replay:nightly",
+    "provider:record": "cd ../.. && node scripts/record-runtime-provider-replay.mjs",
+    "provider:validate": "cd ../.. && node scripts/validate-runtime-provider-replay.mjs",
+    "replay:list": "cd ../.. && node scripts/validate-runtime-provider-replay.mjs --report-json artifacts/runtime-replay/dataset-selection.json",
+    "replay:intake": "cd ../.. && node scripts/export-runtime-replay-candidate-intake.mjs --report-json artifacts/runtime-replay/candidate-intake.json",
+    "replay:lineage": "cd ../.. && node scripts/export-runtime-replay-lineage.mjs --output artifacts/runtime-replay/lineage-graph.json",
+    "replay:nightly": "cd ../.. && node scripts/run-runtime-replay-background-nightly.mjs --candidate-intake artifacts/runtime-replay/candidate-intake.json",
+    "replay:golden": "cd ../.. && node scripts/run-runtime-core-replay-e2e.mjs --stability golden",
+    "replay:smoke": "cd ../.. && node scripts/run-runtime-core-replay-e2e.mjs --id runtime-core-read-only-gpt-5.4-low",
+    "replay:rerecord": "cd ../.. && node scripts/record-runtime-provider-replay.mjs --stability golden",
+    "replay:lint": "cd ../.. && node scripts/validate-runtime-provider-replay.mjs --stability golden",
+    "test:runtime-replay-e2e": "cd ../.. && node scripts/run-runtime-core-replay-e2e.mjs",
+    "test:runtime-replay-dataset": "cd ../.. && node --test scripts/lib/runtimeReplayDataset.node.test.mjs"
+  }
+}

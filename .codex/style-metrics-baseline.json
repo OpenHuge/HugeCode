@@ -1,0 +1,32 @@
+{
+  "styleFileCount": 63,
+  "styleTotalLines": 14851,
+  "globalStyleCount": 287,
+  "localStyleModuleCount": 86,
+  "oversizedStyleFiles": [],
+  "buttonWithoutTypeCount": 0,
+  "duplicateSelectorCount": 0,
+  "styleFileCountAll": 131,
+  "styleTotalLinesAll": 25787,
+  "globalStyleCountAll": 300,
+  "styleFileCountAllRaw": 149,
+  "styleTotalLinesAllRaw": 32329,
+  "globalStyleCountAllRaw": 321,
+  "oversizedCssTsFilesAllRaw": [
+    {
+      "filePath": "apps/code/src/features/home/components/HomeSurface.global.css.ts",
+      "lines": 1342
+    }
+  ],
+  "oversizedStyleFilesAllRaw": [
+    {
+      "filePath": "apps/code/src/features/home/components/HomeSurface.global.css.ts",
+      "lines": 1342
+    }
+  ],
+  "oversizedCssTsFilesAll": [],
+  "oversizedStyleFilesAll": [],
+  "duplicateSelectorCountAllRaw": 0,
+  "duplicateSelectorCountAll": 0,
+  "bridgeStyleFileCount": 0
+}

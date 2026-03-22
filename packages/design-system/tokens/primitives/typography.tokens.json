@@ -1,0 +1,23 @@
+{
+  "primitive": {
+    "typography": {
+      "family": {
+        "ui": {
+          "$type": "fontFamily",
+          "$value": "\"Soehne\", \"Inter\", \"Manrope\", ui-sans-serif, system-ui, sans-serif"
+        },
+        "code": {
+          "$type": "fontFamily",
+          "$value": "\"IBM Plex Mono\", ui-monospace, monospace"
+        }
+      },
+      "size": {
+        "label": { "$type": "dimension", "$value": "14px" },
+        "ui": { "$type": "dimension", "$value": "13px" },
+        "content": { "$type": "dimension", "$value": "15px" },
+        "title": { "$type": "dimension", "$value": "16px" },
+        "display": { "$type": "dimension", "$value": "22px" }
+      }
+    }
+  }
+}

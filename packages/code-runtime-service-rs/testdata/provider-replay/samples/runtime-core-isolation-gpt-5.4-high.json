@@ -1,0 +1,286 @@
+{
+  "schemaVersion": 1,
+  "sample": {
+    "id": "runtime-core-isolation-gpt-5.4-high",
+    "variant": "gpt-5.4-high",
+    "family": "runtime-core",
+    "scenarioType": "runtime-isolation",
+    "mode": "isolation",
+    "source": "recorded",
+    "recordedAt": "2026-03-12T19:49:43.694Z",
+    "schemaVersion": 1,
+    "runtimeKind": "code-runtime-gateway-web",
+    "providerKind": "openai",
+    "requiresRealRuntime": true,
+    "supportsReplayOnly": true,
+    "tags": [
+      "golden",
+      "runtime-core",
+      "provider-replay",
+      "playwright",
+      "runtime-isolation",
+      "reasoning-effort"
+    ],
+    "stability": "golden",
+    "redactionVersion": "runtime-provider-replay-v1",
+    "notes": "High-effort runtime-core sample used to verify isolated runtime startup and stable CI replay semantics."
+  },
+  "input": {
+    "task": "Validate isolated runtime startup while preserving the selected reasoning effort.",
+    "variant": {
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "high"
+    },
+    "runtimeConfig": {
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default"
+    },
+    "endpointIsolation": {
+      "strategy": "dedicated-runtime-port",
+      "rpcEndpointTemplate": "http://127.0.0.1:{runtimePort}/rpc",
+      "workspaceId": "workspace-web",
+      "reuseExistingRuntime": false
+    },
+    "turns": [
+      {
+        "id": "turn-1",
+        "role": "user",
+        "action": "send",
+        "prompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_HIGH_TURN_1\". Line 2 must start with \"CI_REPLAY_VALUE: \" and explain why keeping recorded responses in-repo is better than hitting live providers inside CI. No bullets. No markdown."
+      }
+    ]
+  },
+  "process": {
+    "expectedStateTransitions": [
+      "runtime.spawned",
+      "runtime.healthy",
+      "thread.opened",
+      "turn.started",
+      "provider.delta",
+      "turn.completed"
+    ],
+    "providerEventRequirements": [
+      {
+        "kind": "item.agentMessage.delta",
+        "minCount": 2
+      },
+      {
+        "kind": "turn.completed",
+        "exactCount": 1
+      }
+    ],
+    "longOutputReadback": {
+      "enabled": false,
+      "expectedPolling": false,
+      "fragments": []
+    },
+    "errorRecovery": {
+      "expected": false,
+      "signals": []
+    },
+    "runtimeBinding": {
+      "strategy": "dedicated-runtime-port",
+      "host": "127.0.0.1",
+      "forbidCompatibleRuntimeProbe": true
+    },
+    "harness": {
+      "runner": "runtime-core-playwright",
+      "testName": "runtime replay preserves reasoning-effort selection for a single turn",
+      "workspaceId": "ws-playground",
+      "actions": [
+        {
+          "type": "select-option",
+          "control": "Agent access",
+          "value": "On-request"
+        },
+        {
+          "type": "select-option",
+          "control": "Model",
+          "value": "gpt-5.4"
+        },
+        {
+          "type": "select-option",
+          "control": "Thinking mode",
+          "value": "high"
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "new",
+          "promptTurnId": "turn-1"
+        }
+      ],
+      "assertions": [
+        {
+          "type": "wait-message",
+          "text": "RUNTIME_E2E_HIGH_TURN_1"
+        }
+      ]
+    }
+  },
+  "result": {
+    "successStatus": "completed",
+    "summaryHeading": "RUNTIME_E2E_HIGH_TURN_1",
+    "providerReplay": {
+      "variantId": "gpt-5.4-high",
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "high",
+      "recordingAccessMode": "on-request",
+      "recordingExecutionMode": "runtime",
+      "coverage": ["reasoning-effort", "runtime-isolation"],
+      "turns": [
+        {
+          "userPrompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_HIGH_TURN_1\". Line 2 must start with \"CI_REPLAY_VALUE: \" and explain why keeping recorded responses in-repo is better than hitting live providers inside CI. No bullets. No markdown.",
+          "output": "RUNTIME_E2E_HIGH_TURN_1\nCI_REPLAY_VALUE: Keeping recorded responses in-repo makes CI deterministic, faster, cheaper, and safer by avoiding flaky network and provider outages, rate limits, auth and quota issues, data leakage risks, and behavior drift from changing models or APIs, so test failures reflect real regressions in our code instead of external randomness.",
+          "deltaChunks": [
+            "R",
+            "UNTIME",
+            "_E2E_HIGH_TURN",
+            "_1\n",
+            "CI_REPLAY_VALUE",
+            ": Keeping recorded",
+            " responses in-re",
+            "po makes CI deterministic",
+            ", faster, cheaper",
+            ",",
+            " and safer by avoiding flaky network",
+            " and provider outages,",
+            " rate limits,",
+            " auth and quota issues",
+            ", data leakage",
+            " risks, and behavior",
+            " drift from changing",
+            " models or APIs",
+            ", so test failures",
+            " reflect real regress",
+            "ions in our",
+            " code instead of external",
+            " randomness."
+          ],
+          "chunkDelayMs": 30,
+          "expectations": {
+            "startsWith": "RUNTIME_E2E_HIGH_TURN_1",
+            "mustContain": ["CI_REPLAY_VALUE:", "CI"],
+            "minDeltaChunks": 2
+          },
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-isolation-gpt-5.4-high",
+            "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4",
+            "recordedReasonEffort": "high",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "recorded"
+          },
+          "recordedAt": "2026-03-12T19:49:43.694Z"
+        }
+      ]
+    }
+  },
+  "assertions": {
+    "hard": [
+      {
+        "type": "message-visible",
+        "text": "RUNTIME_E2E_HIGH_TURN_1"
+      },
+      {
+        "type": "runtime-isolation",
+        "forbidLogPattern": "Existing runtime on"
+      },
+      {
+        "type": "delta-chunk-min",
+        "turnId": "turn-1",
+        "value": 2
+      }
+    ],
+    "soft": [
+      {
+        "type": "duration-ms",
+        "max": 45000
+      },
+      {
+        "type": "log-warning-budget",
+        "max": 6
+      },
+      {
+        "type": "delta-chunk-range",
+        "turnId": "turn-1",
+        "min": 2,
+        "max": 40
+      }
+    ]
+  },
+  "governance": {
+    "owner": "runtime-core-e2e",
+    "lastRefreshReason": "Recorded from isolated runtime for high-effort CI replay behavior coverage.",
+    "deprecationStatus": "active",
+    "archiveStatus": null,
+    "optimizationSignals": {
+      "seedSource": "manual",
+      "incubationTrack": "blocking",
+      "recommendedLevers": ["sandbox", "rules"],
+      "safeBackgroundCandidate": true
+    },
+    "deterministicRegressions": [
+      {
+        "id": "runtime-isolation-compatible-runtime-log-is-fatal",
+        "layer": "dataset-lib",
+        "path": "scripts/lib/runtimeReplayDataset.node.test.mjs",
+        "testName": "buildRuntimeReplayReport fails runtime-isolation samples when compatible runtime reuse is observed",
+        "status": "active"
+      }
+    ],
+    "redaction": {
+      "applied": true,
+      "normalizedFields": ["rpcEndpoint", "workspaceId"],
+      "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
+    }
+  },
+  "runtimeTruth": {
+    "taskFields": [
+      {
+        "type": "wait-runtime-task-field",
+        "fieldPath": "checkpointId",
+        "matcher": "present",
+        "timeoutMs": 20000
+      },
+      {
+        "type": "wait-runtime-task-field",
+        "fieldPath": "traceId",
+        "matcher": "present",
+        "timeoutMs": 20000
+      },
+      {
+        "type": "wait-runtime-task-field",
+        "fieldPath": "publishHandoff",
+        "matcher": "absent",
+        "timeoutMs": 20000
+      }
+    ],
+    "review": [],
+    "autodrive": [
+      {
+        "type": "assert-autodrive-trace",
+        "decisionTraceMatcher": "absent",
+        "runtimeScenarioProfileMatcher": "absent",
+        "repoEvaluationProfileMatcher": "absent",
+        "outcomeFeedbackMatcher": "absent",
+        "autonomyStateMatcher": "absent",
+        "timeoutMs": 20000
+      }
+    ],
+    "eventReplay": [
+      {
+        "type": "assert-replay-gap-event",
+        "expectedReason": "runtime.updated",
+        "timeoutMs": 20000
+      }
+    ]
+  }
+}

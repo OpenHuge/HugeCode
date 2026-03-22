@@ -1,0 +1,52 @@
+{
+  "name": "@ku0/native-bindings",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/node.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "development": "./src/index.ts",
+      "node": "./dist/node.js",
+      "default": "./src/index.ts"
+    },
+    "./bench": {
+      "types": "./src/bench.ts",
+      "import": "./src/bench.ts",
+      "development": "./src/bench.ts",
+      "default": "./src/bench.ts"
+    },
+    "./flags": {
+      "types": "./src/flags.ts",
+      "import": "./src/flags.ts",
+      "development": "./src/flags.ts",
+      "default": "./src/flags.ts"
+    },
+    "./testing": {
+      "types": "./src/testing/index.ts",
+      "import": "./src/testing/index.ts",
+      "development": "./src/testing/index.ts",
+      "default": "./src/testing/index.ts"
+    },
+    "./node": {
+      "types": "./src/node.ts",
+      "import": "./src/node.ts",
+      "development": "./src/node.ts",
+      "node": "./dist/node.js",
+      "default": "./src/node.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
+    "lint": "pnpm exec oxlint .",
+    "lint:fix": "pnpm exec oxlint --fix --fix-suggestions . && pnpm exec oxfmt --write ."
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "typescript": "^5.7.3"
+  }
+}

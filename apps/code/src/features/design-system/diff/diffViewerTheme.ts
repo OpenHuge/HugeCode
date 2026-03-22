@@ -1,0 +1,79 @@
+import type { WorkerInitializationRenderOptions } from "@pierre/diffs/react";
+
+export const DIFF_VIEWER_SCROLL_CSS = `
+[data-column-number],
+[data-buffer],
+[data-separator-wrapper],
+[data-annotation-content] {
+  position: static !important;
+}
+
+[data-buffer] {
+  background-image: none !important;
+}
+
+diffs-container,
+[data-diffs],
+[data-diffs-header],
+[data-error-wrapper] {
+  position: relative !important;
+  contain: layout style !important;
+  isolation: isolate !important;
+}
+
+[data-diffs-header],
+[data-diffs],
+[data-error-wrapper] {
+  --diffs-light-bg: var(--ds-diff-lib-bg-light);
+  --diffs-dark-bg: var(--ds-diff-lib-bg-dark);
+}
+
+[data-diffs-header][data-theme-type='light'],
+[data-diffs][data-theme-type='light'] {
+  --diffs-bg: var(--ds-diff-lib-bg-light);
+}
+
+[data-diffs-header][data-theme-type='dark'],
+[data-diffs][data-theme-type='dark'] {
+  --diffs-bg: var(--ds-diff-lib-bg-dark);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-diffs-header]:not([data-theme-type]),
+  [data-diffs]:not([data-theme-type]),
+  [data-diffs-header][data-theme-type='system'],
+  [data-diffs][data-theme-type='system'] {
+    --diffs-bg: var(--ds-diff-lib-bg-system-dark);
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  [data-diffs-header]:not([data-theme-type]),
+  [data-diffs]:not([data-theme-type]),
+  [data-diffs-header][data-theme-type='system'],
+  [data-diffs][data-theme-type='system'] {
+    --diffs-bg: var(--ds-diff-lib-bg-system-light);
+  }
+}
+`;
+
+// Keep the eager preload list intentionally small; uncommon languages still load on-demand.
+const DIFF_VIEWER_PRELOAD_LANGS = [
+  "text",
+  "ansi",
+  "javascript",
+  "typescript",
+  "jsx",
+  "tsx",
+  "json",
+  "yaml",
+  "markdown",
+  "zsh",
+  "python",
+  "rust",
+] as const;
+
+export const DIFF_VIEWER_HIGHLIGHTER_OPTIONS: WorkerInitializationRenderOptions = {
+  theme: { dark: "pierre-dark", light: "pierre-light" },
+  langs: [...DIFF_VIEWER_PRELOAD_LANGS],
+};

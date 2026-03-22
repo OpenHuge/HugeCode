@@ -1,0 +1,35 @@
+[
+  {
+    "id": "hugecode-light",
+    "name": "HugeCode Light",
+    "selectedTokenSets": {
+      "primitives": "source",
+      "semantic/common": "enabled",
+      "semantic/light": "enabled",
+      "semantic/dark": "disabled",
+      "semantic/dim": "disabled"
+    }
+  },
+  {
+    "id": "hugecode-dark",
+    "name": "HugeCode Dark",
+    "selectedTokenSets": {
+      "primitives": "source",
+      "semantic/common": "enabled",
+      "semantic/light": "disabled",
+      "semantic/dark": "enabled",
+      "semantic/dim": "disabled"
+    }
+  },
+  {
+    "id": "hugecode-dim",
+    "name": "HugeCode Dim",
+    "selectedTokenSets": {
+      "primitives": "source",
+      "semantic/common": "enabled",
+      "semantic/light": "disabled",
+      "semantic/dark": "disabled",
+      "semantic/dim": "enabled"
+    }
+  }
+]

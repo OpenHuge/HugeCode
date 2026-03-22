@@ -1,0 +1,795 @@
+{
+  "artifactVersion": 1,
+  "generatedAt": "2026-03-13T05:25:11.819Z",
+  "source": {
+    "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+    "documentMeta": {
+      "name": "Linear Design System (Community) (Copy)",
+      "version": "2330275133624231707",
+      "lastModified": "2026-03-13T03:20:50Z"
+    },
+    "selection": {
+      "id": "8:2",
+      "name": "Design System (Dark Mode)",
+      "type": "CANVAS"
+    },
+    "currentPage": null
+  },
+  "strategy": {
+    "mode": "family-focus-plan",
+    "goal": "Prefer component-scale nodes over page-scale canvases for governed design-system ingestion.",
+    "excludedLayoutFamilies": ["LocalPattern", "Box", "Inline", "Stack"],
+    "priorityOrder": [
+      "Button",
+      "Input",
+      "Select",
+      "Checkbox",
+      "Switch",
+      "Tabs",
+      "Badge",
+      "Avatar",
+      "DropdownMenu",
+      "Tooltip",
+      "Radio",
+      "Text",
+      "Card",
+      "EmptyState"
+    ],
+    "selectionPolicy": "Choose the highest-scoring representative per family, favoring component sets, shared structures, safe node sizes, and cache-friendly reuse.",
+    "fetchPolicy": "Run sequential cache-first fetches, honor Retry-After on 429, and refresh only for intentional design changes."
+  },
+  "summary": {
+    "candidatesConsidered": 911,
+    "familiesSelected": 14,
+    "codegenSafeTargets": 14,
+    "auditOnlyTargets": 0
+  },
+  "targets": [
+    {
+      "family": "Button",
+      "priority": 1,
+      "resourceId": "linear-design-system-community-copy-button",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "68:3189",
+        "nodeName": "Issue More Button",
+        "nodeType": "COMPONENT_SET",
+        "nodeCount": 7,
+        "childCount": 2,
+        "depth": 2
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "COMPONENT_SET",
+        "selectionName": "Issue More Button",
+        "nodeCount": 7,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 1440,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "Issue More Button",
+        "classification": "composite",
+        "shared": true,
+        "confidence": 0.99,
+        "occurrences": 2,
+        "signature": "issue-more-button|COMPONENT_SET|component-set|2|none|COMPONENT_SET|component-set|2|NONE|SOLID",
+        "rationale": "Repeated structure with stable role signature."
+      },
+      "alternates": [
+        {
+          "nodeId": "88:3170",
+          "nodeName": "_Issue More Button",
+          "nodeType": "COMPONENT_SET",
+          "nodeCount": 7,
+          "score": 128
+        },
+        {
+          "nodeId": "16:114",
+          "nodeName": "Buttons",
+          "nodeType": "COMPONENT_SET",
+          "nodeCount": 59,
+          "score": 127
+        },
+        {
+          "nodeId": "65:2505",
+          "nodeName": "Buttons",
+          "nodeType": "INSTANCE",
+          "nodeCount": 2,
+          "score": 124
+        }
+      ]
+    },
+    {
+      "family": "Input",
+      "priority": 2,
+      "resourceId": "linear-design-system-community-copy-input",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "11:137",
+        "nodeName": "Input",
+        "nodeType": "FRAME",
+        "nodeCount": 5,
+        "childCount": 2,
+        "depth": 4
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "FRAME",
+        "selectionName": "Input",
+        "nodeCount": 5,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 360,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "Input",
+        "classification": "primitive",
+        "shared": true,
+        "confidence": 0.96,
+        "occurrences": 12,
+        "signature": "input|FRAME|layout|2|horizontal|FRAME|layout|2|HORIZONTAL|SOLID|SOLID",
+        "rationale": "Repeated structure with stable role signature."
+      },
+      "alternates": [
+        {
+          "nodeId": "11:158",
+          "nodeName": "Input",
+          "nodeType": "FRAME",
+          "nodeCount": 5,
+          "score": 119
+        },
+        {
+          "nodeId": "11:163",
+          "nodeName": "Input",
+          "nodeType": "FRAME",
+          "nodeCount": 5,
+          "score": 119
+        },
+        {
+          "nodeId": "14:190",
+          "nodeName": "Input",
+          "nodeType": "FRAME",
+          "nodeCount": 5,
+          "score": 119
+        }
+      ]
+    },
+    {
+      "family": "Select",
+      "priority": 3,
+      "resourceId": "linear-design-system-community-copy-select",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "86:2827",
+        "nodeName": "Selected=False, State=Hover",
+        "nodeType": "COMPONENT",
+        "nodeCount": 2,
+        "childCount": 1,
+        "depth": 3
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "COMPONENT",
+        "selectionName": "Selected=False, State=Hover",
+        "nodeCount": 2,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 1440,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "Selected=False, State=Hover",
+        "classification": "composite",
+        "shared": true,
+        "confidence": 0.99,
+        "occurrences": 2,
+        "signature": "selected-false-state-hover|COMPONENT|component|1|horizontal|COMPONENT|component|1|HORIZONTAL|SOLID",
+        "rationale": "Repeated structure with stable role signature."
+      },
+      "alternates": [
+        {
+          "nodeId": "102:5578",
+          "nodeName": "Selected=False, State=Hover",
+          "nodeType": "COMPONENT",
+          "nodeCount": 3,
+          "score": 120
+        },
+        {
+          "nodeId": "88:3558",
+          "nodeName": "_Issue Priority Selector",
+          "nodeType": "COMPONENT_SET",
+          "nodeCount": 57,
+          "score": 113
+        },
+        {
+          "nodeId": "88:3693",
+          "nodeName": "_Issue Assignee Selector",
+          "nodeType": "COMPONENT_SET",
+          "nodeCount": 22,
+          "score": 113
+        }
+      ]
+    },
+    {
+      "family": "Checkbox",
+      "priority": 4,
+      "resourceId": "linear-design-system-community-copy-checkbox",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "62:1964",
+        "nodeName": "Checkbox",
+        "nodeType": "COMPONENT_SET",
+        "nodeCount": 6,
+        "childCount": 3,
+        "depth": 2
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "COMPONENT_SET",
+        "selectionName": "Checkbox",
+        "nodeCount": 6,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 1440,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "Checkbox",
+        "classification": "composite",
+        "shared": false,
+        "confidence": 0.98,
+        "occurrences": 1,
+        "signature": "checkbox|COMPONENT_SET|component-set|3|none|COMPONENT_SET|component-set|3|NONE|SOLID",
+        "rationale": "Keep local until repetition or semantic stability improves."
+      },
+      "alternates": [
+        {
+          "nodeId": "62:2024",
+          "nodeName": "Checkbox",
+          "nodeType": "INSTANCE",
+          "nodeCount": 2,
+          "score": 119
+        },
+        {
+          "nodeId": "62:2027",
+          "nodeName": "Checkbox",
+          "nodeType": "INSTANCE",
+          "nodeCount": 2,
+          "score": 119
+        },
+        {
+          "nodeId": "62:2020",
+          "nodeName": "Checkbox",
+          "nodeType": "INSTANCE",
+          "nodeCount": 1,
+          "score": 118
+        }
+      ]
+    },
+    {
+      "family": "Switch",
+      "priority": 5,
+      "resourceId": "linear-design-system-community-copy-switch",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "22:1232",
+        "nodeName": "Toggle",
+        "nodeType": "COMPONENT_SET",
+        "nodeCount": 9,
+        "childCount": 4,
+        "depth": 2
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "COMPONENT_SET",
+        "selectionName": "Toggle",
+        "nodeCount": 9,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 1440,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "Toggle",
+        "classification": "composite",
+        "shared": false,
+        "confidence": 0.98,
+        "occurrences": 1,
+        "signature": "toggle|COMPONENT_SET|component-set|4|none|COMPONENT_SET|component-set|4|NONE|SOLID",
+        "rationale": "Keep local until repetition or semantic stability improves."
+      },
+      "alternates": [
+        {
+          "nodeId": "86:2788",
+          "nodeName": "Toggle",
+          "nodeType": "INSTANCE",
+          "nodeCount": 2,
+          "score": 99
+        },
+        {
+          "nodeId": "86:2795",
+          "nodeName": "Toggle",
+          "nodeType": "INSTANCE",
+          "nodeCount": 2,
+          "score": 99
+        },
+        {
+          "nodeId": "86:2881",
+          "nodeName": "Toggle",
+          "nodeType": "INSTANCE",
+          "nodeCount": 2,
+          "score": 99
+        }
+      ]
+    },
+    {
+      "family": "Tabs",
+      "priority": 6,
+      "resourceId": "linear-design-system-community-copy-tabs",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "22:1873",
+        "nodeName": "database",
+        "nodeType": "COMPONENT",
+        "nodeCount": 2,
+        "childCount": 1,
+        "depth": 2
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "COMPONENT",
+        "selectionName": "database",
+        "nodeCount": 2,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 1440,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "database",
+        "classification": "composite",
+        "shared": false,
+        "confidence": 0.97,
+        "occurrences": 1,
+        "signature": "database|COMPONENT|component|1|none|COMPONENT|component|1|NONE",
+        "rationale": "Keep local until repetition or semantic stability improves."
+      },
+      "alternates": [
+        {
+          "nodeId": "22:1847",
+          "nodeName": "narrow-desktop",
+          "nodeType": "COMPONENT",
+          "nodeCount": 2,
+          "score": 88
+        }
+      ]
+    },
+    {
+      "family": "Badge",
+      "priority": 7,
+      "resourceId": "linear-design-system-community-copy-badge",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "20:898",
+        "nodeName": "Team Tag",
+        "nodeType": "INSTANCE",
+        "nodeCount": 8,
+        "childCount": 2,
+        "depth": 6
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "INSTANCE",
+        "selectionName": "Team Tag",
+        "nodeCount": 8,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 360,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "Team Tag",
+        "classification": "composite",
+        "shared": true,
+        "confidence": 0.99,
+        "occurrences": 2,
+        "signature": "team-tag|INSTANCE|instance|2|horizontal|INSTANCE|instance|2|HORIZONTAL|SOLID",
+        "rationale": "Repeated structure with stable role signature."
+      },
+      "alternates": [
+        {
+          "nodeId": "20:920",
+          "nodeName": "Team Tag",
+          "nodeType": "INSTANCE",
+          "nodeCount": 8,
+          "score": 88
+        },
+        {
+          "nodeId": "20:897",
+          "nodeName": "Team Tag",
+          "nodeType": "COMPONENT",
+          "nodeCount": 8,
+          "score": 87
+        },
+        {
+          "nodeId": "106:5571",
+          "nodeName": "Percentage=0%",
+          "nodeType": "COMPONENT",
+          "nodeCount": 3,
+          "score": 87
+        }
+      ]
+    },
+    {
+      "family": "Avatar",
+      "priority": 8,
+      "resourceId": "linear-design-system-community-copy-avatar",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "109:6157",
+        "nodeName": "_Avatar",
+        "nodeType": "COMPONENT_SET",
+        "nodeCount": 7,
+        "childCount": 4,
+        "depth": 2
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "COMPONENT_SET",
+        "selectionName": "_Avatar",
+        "nodeCount": 7,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 1440,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "_Avatar",
+        "classification": "composite",
+        "shared": false,
+        "confidence": 0.98,
+        "occurrences": 1,
+        "signature": "avatar|COMPONENT_SET|component-set|4|none|COMPONENT_SET|component-set|4|NONE|SOLID",
+        "rationale": "Keep local until repetition or semantic stability improves."
+      },
+      "alternates": [
+        {
+          "nodeId": "109:6208",
+          "nodeName": "_Avatar",
+          "nodeType": "INSTANCE",
+          "nodeCount": 2,
+          "score": 110
+        },
+        {
+          "nodeId": "111:5814",
+          "nodeName": "_Avatar",
+          "nodeType": "INSTANCE",
+          "nodeCount": 2,
+          "score": 110
+        },
+        {
+          "nodeId": "111:6153",
+          "nodeName": "_Avatar",
+          "nodeType": "INSTANCE",
+          "nodeCount": 2,
+          "score": 110
+        }
+      ]
+    },
+    {
+      "family": "DropdownMenu",
+      "priority": 9,
+      "resourceId": "linear-design-system-community-copy-dropdownmenu",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "28:531",
+        "nodeName": "move-menu",
+        "nodeType": "INSTANCE",
+        "nodeCount": 2,
+        "childCount": 1,
+        "depth": 4
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "INSTANCE",
+        "selectionName": "move-menu",
+        "nodeCount": 2,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 360,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "move-menu",
+        "classification": "composite",
+        "shared": true,
+        "confidence": 0.99,
+        "occurrences": 14,
+        "signature": "move-menu|INSTANCE|instance|1|none|INSTANCE|instance|1|NONE",
+        "rationale": "Repeated structure with stable role signature."
+      },
+      "alternates": [
+        {
+          "nodeId": "28:534",
+          "nodeName": "move-menu",
+          "nodeType": "INSTANCE",
+          "nodeCount": 2,
+          "score": 92
+        },
+        {
+          "nodeId": "34:686",
+          "nodeName": "Sidebar Menu",
+          "nodeType": "COMPONENT",
+          "nodeCount": 106,
+          "score": 85
+        },
+        {
+          "nodeId": "28:362",
+          "nodeName": "Type=Submenu, State=Default",
+          "nodeType": "COMPONENT",
+          "nodeCount": 4,
+          "score": 85
+        }
+      ]
+    },
+    {
+      "family": "Tooltip",
+      "priority": 10,
+      "resourceId": "linear-design-system-community-copy-tooltip",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "22:2058",
+        "nodeName": "Tooltips",
+        "nodeType": "COMPONENT_SET",
+        "nodeCount": 21,
+        "childCount": 3,
+        "depth": 2
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "COMPONENT_SET",
+        "selectionName": "Tooltips",
+        "nodeCount": 21,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 1440,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "Tooltips",
+        "classification": "composite",
+        "shared": false,
+        "confidence": 0.98,
+        "occurrences": 1,
+        "signature": "tooltips|COMPONENT_SET|component-set|3|none|COMPONENT_SET|component-set|3|NONE|SOLID",
+        "rationale": "Keep local until repetition or semantic stability improves."
+      },
+      "alternates": []
+    },
+    {
+      "family": "Radio",
+      "priority": 11,
+      "resourceId": "linear-design-system-community-copy-radio",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "22:1798",
+        "nodeName": "radio",
+        "nodeType": "COMPONENT",
+        "nodeCount": 2,
+        "childCount": 1,
+        "depth": 2
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "COMPONENT",
+        "selectionName": "radio",
+        "nodeCount": 2,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 1440,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "radio",
+        "classification": "composite",
+        "shared": false,
+        "confidence": 0.97,
+        "occurrences": 1,
+        "signature": "radio|COMPONENT|component|1|none|COMPONENT|component|1|NONE",
+        "rationale": "Keep local until repetition or semantic stability improves."
+      },
+      "alternates": []
+    },
+    {
+      "family": "Text",
+      "priority": 12,
+      "resourceId": "linear-design-system-community-copy-text",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "35:723",
+        "nodeName": "text",
+        "nodeType": "COMPONENT",
+        "nodeCount": 2,
+        "childCount": 1,
+        "depth": 2
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "COMPONENT",
+        "selectionName": "text",
+        "nodeCount": 2,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 1440,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "text",
+        "classification": "composite",
+        "shared": false,
+        "confidence": 0.97,
+        "occurrences": 1,
+        "signature": "text|COMPONENT|component|1|none|COMPONENT|component|1|NONE|SOLID",
+        "rationale": "Keep local until repetition or semantic stability improves."
+      },
+      "alternates": [
+        {
+          "nodeId": "82:2601",
+          "nodeName": "Input Issue Title",
+          "nodeType": "INSTANCE",
+          "nodeCount": 2,
+          "score": 93
+        },
+        {
+          "nodeId": "82:2811",
+          "nodeName": "Input Issue Title",
+          "nodeType": "INSTANCE",
+          "nodeCount": 2,
+          "score": 93
+        },
+        {
+          "nodeId": "66:2676",
+          "nodeName": "Input Issue Title",
+          "nodeType": "INSTANCE",
+          "nodeCount": 2,
+          "score": 93
+        }
+      ]
+    },
+    {
+      "family": "Card",
+      "priority": 13,
+      "resourceId": "linear-design-system-community-copy-card",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "22:1867",
+        "nodeName": "credit-card",
+        "nodeType": "COMPONENT",
+        "nodeCount": 2,
+        "childCount": 1,
+        "depth": 2
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "COMPONENT",
+        "selectionName": "credit-card",
+        "nodeCount": 2,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 1440,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "credit-card",
+        "classification": "composite",
+        "shared": false,
+        "confidence": 0.97,
+        "occurrences": 1,
+        "signature": "credit-card|COMPONENT|component|1|none|COMPONENT|component|1|NONE",
+        "rationale": "Keep local until repetition or semantic stability improves."
+      },
+      "alternates": []
+    },
+    {
+      "family": "EmptyState",
+      "priority": 14,
+      "resourceId": "linear-design-system-community-copy-emptystate",
+      "target": {
+        "fileKey": "KWUgG9JAz50HjH0jIrGkpH",
+        "nodeId": "40:1568",
+        "nodeName": "State=No Results",
+        "nodeType": "COMPONENT",
+        "nodeCount": 8,
+        "childCount": 1,
+        "depth": 3
+      },
+      "workflowRecommendation": {
+        "codegenSafe": true,
+        "recommendedMode": "develop",
+        "recommendedCommand": "node scripts/figma-pipeline/develop.mjs",
+        "selectionType": "COMPONENT",
+        "selectionName": "State=No Results",
+        "nodeCount": 8,
+        "reasons": []
+      },
+      "cachePolicy": {
+        "maxCacheAgeMinutes": 1440,
+        "refreshStrategy": "manual-on-design-change",
+        "burstProtection": "sequential-cache-first"
+      },
+      "evidence": {
+        "sourceComponentName": "State=No Results",
+        "classification": "composite",
+        "shared": true,
+        "confidence": 0.99,
+        "occurrences": 2,
+        "signature": "state-no-results|COMPONENT|component|1|vertical|COMPONENT|component|1|VERTICAL|SOLID|SOLID,SOLID,SOLID",
+        "rationale": "Repeated structure with stable role signature."
+      },
+      "alternates": [
+        {
+          "nodeId": "75:2404",
+          "nodeName": "State=No Results",
+          "nodeType": "COMPONENT",
+          "nodeCount": 9,
+          "score": 93
+        }
+      ]
+    }
+  ]
+}

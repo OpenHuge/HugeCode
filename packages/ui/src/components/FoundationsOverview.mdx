@@ -1,0 +1,35 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Foundations/Overview" />
+
+# Foundations
+
+`packages/ui` is the public inspection surface for shared UI work. It sits on top of `@ku0/design-system`, which remains the source of truth for tokens, themes, and primitive implementations.
+
+## How To Use This Storybook
+
+- Start here when you need the shared visual contract, not app-specific fixtures.
+- Use [Foundations/Tokens](?path=/docs/foundations-tokens--docs) to inspect public theme and semantic token rules.
+- Use [Foundations/Public Components](?path=/docs/foundations-public-components--docs) to see which mature primitives are intentionally exposed through `@ku0/ui`.
+- Use the `Components/*` stories to verify visual states and interaction coverage.
+
+## Layering
+
+| Layer                | Responsibility                                                                    |
+| -------------------- | --------------------------------------------------------------------------------- |
+| `@ku0/design-system` | tokens, themes, low-level primitives, motion, shared styling contract             |
+| `@ku0/ui`            | public package exports, Storybook inspection, thin wrappers, curated compositions |
+| `apps/code`          | product-specific assemblies and runtime-aware UI                                  |
+
+## Review Principles
+
+- Prefer public `@ku0/ui` exports before importing directly from `@ku0/design-system` in app code.
+- Promote only stable primitives that already have a coherent contract and inspection story.
+- Keep app fixtures out of the public component layer unless they become shared compositions first.
+
+## Current Focus
+
+This foundations pass improves discoverability in two ways:
+
+1. It gives Storybook a top-level foundations entry instead of a token page floating beside component stories.
+2. It promotes stable shared primitives such as `Checkbox`, `Field`, `RadioGroup`, `Switch`, `Text`, and `ListRow` into the public `@ku0/ui` surface with dedicated stories.

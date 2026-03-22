@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/design-system/schemas/component-specs.schema.json",
+  "type": "object",
+  "required": ["artifactVersion", "generatedAt", "sourceManifest", "components"],
+  "properties": {
+    "artifactVersion": { "type": "integer", "minimum": 1 },
+    "generatedAt": { "type": "string" },
+    "sourceManifest": { "type": "string" },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "family",
+          "kind",
+          "sharedLevel",
+          "confidence",
+          "status",
+          "purpose",
+          "sourcePatterns",
+          "anatomy",
+          "props",
+          "variants",
+          "sizes",
+          "tones",
+          "densities",
+          "states",
+          "slots",
+          "accessibility",
+          "styling",
+          "tokenDependencies",
+          "implementationBoundary",
+          "generationTarget",
+          "notes",
+          "unresolvedAssumptions",
+          "manualReview"
+        ],
+        "properties": {
+          "name": { "type": "string" },
+          "family": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": ["primitive", "composite", "local-pattern"]
+          },
+          "sharedLevel": {
+            "type": "string",
+            "enum": ["shared-foundation", "shared-component", "app-adapter", "app-local", "defer"]
+          },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "status": {
+            "type": "string",
+            "enum": ["ready", "review", "defer"]
+          },
+          "purpose": { "type": "string" },
+          "sourcePatterns": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" }
+          },
+          "anatomy": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["name", "role", "required"],
+              "properties": {
+                "name": { "type": "string" },
+                "role": { "type": "string" },
+                "required": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "props": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["name", "type", "required", "source", "rationale"],
+              "properties": {
+                "name": { "type": "string" },
+                "type": { "type": "string" },
+                "required": { "type": "boolean" },
+                "source": { "type": "string" },
+                "rationale": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "variants": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/namedInference" }
+          },
+          "sizes": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/namedInference" }
+          },
+          "tones": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/namedInference" }
+          },
+          "densities": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/namedInference" }
+          },
+          "states": {
+            "type": "object",
+            "required": ["persistent", "interaction"],
+            "properties": {
+              "persistent": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/namedInference" }
+              },
+              "interaction": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/namedInference" }
+              }
+            },
+            "additionalProperties": false
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "required", "confidence", "source"],
+              "properties": {
+                "name": { "type": "string" },
+                "required": { "type": "boolean" },
+                "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                "source": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "accessibility": {
+            "type": "object",
+            "required": ["role", "keyboard", "labels", "requiredStates", "notes"],
+            "properties": {
+              "role": { "type": "string" },
+              "keyboard": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "labels": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "requiredStates": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "notes": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            },
+            "additionalProperties": false
+          },
+          "styling": {
+            "type": "object",
+            "required": [
+              "approach",
+              "recipeRecommendation",
+              "sprinklesRecommendation",
+              "semanticTokenDefault",
+              "rawPrimitiveExceptions",
+              "tokenDependencies",
+              "notes"
+            ],
+            "properties": {
+              "approach": { "type": "string" },
+              "recipeRecommendation": { "type": "boolean" },
+              "sprinklesRecommendation": { "type": "boolean" },
+              "semanticTokenDefault": { "type": "boolean" },
+              "rawPrimitiveExceptions": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/primitiveException" }
+              },
+              "tokenDependencies": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/semanticDependency" }
+              },
+              "notes": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            },
+            "additionalProperties": false
+          },
+          "tokenDependencies": {
+            "type": "object",
+            "required": ["semantic", "primitiveExceptions"],
+            "properties": {
+              "semantic": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/$defs/semanticDependency" }
+              },
+              "primitiveExceptions": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/primitiveException" }
+              }
+            },
+            "additionalProperties": false
+          },
+          "implementationBoundary": {
+            "type": "object",
+            "required": ["owner", "sharedLevel", "boundaryReason"],
+            "properties": {
+              "owner": { "type": "string" },
+              "sharedLevel": { "type": "string" },
+              "boundaryReason": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          "generationTarget": {
+            "type": "object",
+            "required": ["targetLayer", "owner", "readiness", "directoryHint"],
+            "properties": {
+              "targetLayer": {
+                "type": "string",
+                "enum": [
+                  "design-system-primitive",
+                  "design-system-component",
+                  "app-adapter",
+                  "app-pattern",
+                  "defer"
+                ]
+              },
+              "owner": { "type": "string" },
+              "readiness": {
+                "type": "string",
+                "enum": ["ready", "review", "defer"]
+              },
+              "directoryHint": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          "notes": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "unresolvedAssumptions": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/unresolvedAssumption" }
+          },
+          "manualReview": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "namedInference": {
+      "type": "object",
+      "required": ["name", "source", "confidence", "evidence"],
+      "properties": {
+        "name": { "type": "string" },
+        "source": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "semanticDependency": {
+      "type": "object",
+      "required": ["path", "status", "primitiveRef", "confidence", "source", "reason"],
+      "properties": {
+        "path": { "type": "string" },
+        "status": { "type": "string", "enum": ["mapped", "unmapped"] },
+        "primitiveRef": { "type": ["string", "null"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "source": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "primitiveException": {
+      "type": "object",
+      "required": ["path", "reason"],
+      "properties": {
+        "path": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "unresolvedAssumption": {
+      "type": "object",
+      "required": ["reason", "confidence"],
+      "properties": {
+        "reason": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

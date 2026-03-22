@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/design-system/schemas/variant-state-model.schema.json",
+  "type": "object",
+  "required": ["artifactVersion", "generatedAt", "sourceManifest", "families"],
+  "properties": {
+    "artifactVersion": { "type": "integer", "minimum": 1 },
+    "generatedAt": { "type": "string" },
+    "sourceManifest": { "type": "string" },
+    "families": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "familyName",
+          "candidateComponents",
+          "confidence",
+          "evidence",
+          "variants",
+          "sizes",
+          "tones",
+          "densities",
+          "persistentStates",
+          "interactionStates",
+          "slotModel",
+          "inferredRules",
+          "unresolvedAssumptions",
+          "manualReview"
+        ],
+        "properties": {
+          "familyName": { "type": "string" },
+          "candidateComponents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "sourceNodeId",
+                "classification",
+                "shared",
+                "sharedLevel",
+                "kind",
+                "occurrences",
+                "confidence"
+              ],
+              "properties": {
+                "name": { "type": "string" },
+                "sourceNodeId": { "type": "string" },
+                "classification": {
+                  "type": "string",
+                  "enum": ["primitive", "composite", "page-pattern"]
+                },
+                "shared": { "type": "boolean" },
+                "sharedLevel": {
+                  "type": "string",
+                  "enum": [
+                    "shared-foundation",
+                    "shared-component",
+                    "app-adapter",
+                    "app-local",
+                    "defer"
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": ["primitive", "composite", "local-pattern"]
+                },
+                "occurrences": { "type": "integer", "minimum": 1 },
+                "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+              },
+              "additionalProperties": false
+            }
+          },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["type", "detail", "componentName"],
+              "properties": {
+                "type": { "type": "string" },
+                "detail": { "type": "string" },
+                "componentName": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "variants": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/namedInference" }
+          },
+          "sizes": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/namedInference" }
+          },
+          "tones": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/namedInference" }
+          },
+          "densities": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/namedInference" }
+          },
+          "persistentStates": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/namedInference" }
+          },
+          "interactionStates": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/namedInference" }
+          },
+          "slotModel": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "required", "confidence", "source"],
+              "properties": {
+                "name": { "type": "string" },
+                "required": { "type": "boolean" },
+                "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                "source": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "inferredRules": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "unresolvedAssumptions": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/unresolvedAssumption" }
+          },
+          "manualReview": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "namedInference": {
+      "type": "object",
+      "required": ["name", "source", "confidence", "evidence"],
+      "properties": {
+        "name": { "type": "string" },
+        "source": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "unresolvedAssumption": {
+      "type": "object",
+      "required": ["reason", "confidence"],
+      "properties": {
+        "reason": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

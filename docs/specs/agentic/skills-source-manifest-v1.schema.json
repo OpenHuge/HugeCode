@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SkillsSourceManifestV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "name",
+    "version",
+    "kind",
+    "publisher",
+    "trust_level",
+    "signature",
+    "compatibility"
+  ],
+  "properties": {
+    "schema_version": { "const": "skills_source_manifest.v1" },
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "enum": ["skill", "source"] },
+    "publisher": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "trust_level": {
+      "type": "string",
+      "enum": ["verified", "community", "local"]
+    },
+    "signature": { "type": "string", "minLength": 1 },
+    "digest": { "type": "string" },
+    "entrypoint": { "type": "string" },
+    "permissions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "mcp_servers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "resources": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "compatibility": {
+      "type": "object",
+      "required": ["min_runtime"],
+      "properties": {
+        "min_runtime": { "type": "string" },
+        "max_runtime": { "type": "string" },
+        "min_app": { "type": "string" },
+        "max_app": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

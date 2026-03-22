@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ContextBudgetV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "session_id", "limits", "usage", "policy", "compaction_state"],
+  "properties": {
+    "schema_version": { "const": "context_budget.v1" },
+    "session_id": { "type": "string", "minLength": 1 },
+    "limits": {
+      "type": "object",
+      "required": ["prompt", "history", "tool_output", "total"],
+      "properties": {
+        "prompt": { "type": "integer", "minimum": 0 },
+        "history": { "type": "integer", "minimum": 0 },
+        "tool_output": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "usage": {
+      "type": "object",
+      "required": ["prompt", "history", "tool_output", "total"],
+      "properties": {
+        "prompt": { "type": "integer", "minimum": 0 },
+        "history": { "type": "integer", "minimum": 0 },
+        "tool_output": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "string",
+      "enum": ["warn", "compact", "stop"]
+    },
+    "compaction_state": {
+      "type": "string",
+      "enum": ["none", "pending", "completed", "failed"]
+    },
+    "last_compaction_reason": { "type": "string" },
+    "lineage_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

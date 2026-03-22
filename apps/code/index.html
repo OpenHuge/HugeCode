@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#212121" />
+    <title>Code Assistant</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      (() => {
+        const storageKey = "ku0.theme.preference";
+        const root = document.documentElement;
+        const readStoredPreference = () => {
+          try {
+            return window.localStorage.getItem(storageKey);
+          } catch {
+            return null;
+          }
+        };
+        const supportsMediaQuery = typeof window.matchMedia === "function";
+        const matchesMedia = (query) =>
+          supportsMediaQuery ? window.matchMedia(query).matches : false;
+        const normalizePreference = (value) =>
+          value === "dark" || value === "dim" || value === "light" || value === "system"
+            ? value
+            : "system";
+        const preference = normalizePreference(readStoredPreference() ?? "system");
+        const resolved =
+          preference === "system"
+            ? matchesMedia("(prefers-color-scheme: dark)")
+              ? "dark"
+              : "light"
+            : preference;
+        const reducedMotion = matchesMedia("(prefers-reduced-motion: reduce)")
+          ? "reduce"
+          : "no-preference";
+        const contrast = matchesMedia("(prefers-contrast: more)") ? "more" : "no-preference";
+
+        root.setAttribute("data-theme", resolved);
+        root.setAttribute("data-theme-preference", preference);
+        root.setAttribute("data-theme-resolved", resolved);
+        root.setAttribute("data-reduced-motion", reducedMotion);
+        root.setAttribute("data-contrast", contrast);
+        root.style.colorScheme = resolved === "light" ? "light" : "dark";
+        document
+          .querySelector('meta[name="theme-color"]')
+          ?.setAttribute(
+            "content",
+            resolved === "light" ? "#f4f6fa" : resolved === "dim" ? "#15171d" : "#212121"
+          );
+      })();
+    </script>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --boot-bg: rgb(244 246 250);
+        --boot-fg: rgb(21 24 31);
+        --boot-muted: rgba(21, 24, 31, 0.62);
+        --boot-eyebrow: rgba(21, 24, 31, 0.42);
+        --boot-card-bg: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.98),
+          rgba(244, 246, 250, 0.96)
+        );
+        --boot-card-border: rgba(15, 23, 42, 0.08);
+        --boot-card-shadow: 0 24px 64px rgba(15, 23, 42, 0.08);
+        --boot-shell-bg:
+          radial-gradient(circle at 20% 0%, rgba(93, 127, 214, 0.1), transparent 34%),
+          linear-gradient(180deg, rgba(248, 249, 252, 0.98), rgb(244 246 250));
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --boot-bg: rgb(33 33 33);
+          --boot-fg: rgb(255 255 255);
+          --boot-muted: rgba(255, 255, 255, 0.56);
+          --boot-eyebrow: rgba(255, 255, 255, 0.4);
+          --boot-card-bg: linear-gradient(180deg, rgba(47, 50, 56, 0.9), rgba(33, 33, 33, 0.94));
+          --boot-card-border: rgba(255, 255, 255, 0.08);
+          --boot-card-shadow: 0 24px 64px rgba(0, 0, 0, 0.36);
+          --boot-shell-bg:
+            radial-gradient(circle at 20% 0%, rgba(122, 183, 255, 0.16), transparent 34%),
+            linear-gradient(180deg, rgba(33, 33, 33, 0.94), rgb(33 33 33));
+        }
+      }
+
+      :root[data-theme="dark"],
+      :root[data-theme="dim"] {
+        color-scheme: dark;
+        --boot-bg: rgb(33 33 33);
+        --boot-fg: rgb(255 255 255);
+        --boot-muted: rgba(255, 255, 255, 0.56);
+        --boot-eyebrow: rgba(255, 255, 255, 0.4);
+        --boot-card-bg: linear-gradient(180deg, rgba(47, 50, 56, 0.9), rgba(33, 33, 33, 0.94));
+        --boot-card-border: rgba(255, 255, 255, 0.08);
+        --boot-card-shadow: 0 24px 64px rgba(0, 0, 0, 0.36);
+        --boot-shell-bg:
+          radial-gradient(circle at 20% 0%, rgba(122, 183, 255, 0.16), transparent 34%),
+          linear-gradient(180deg, rgba(33, 33, 33, 0.94), rgb(33 33 33));
+      }
+
+      :root[data-theme="light"] {
+        color-scheme: light;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        background: var(--boot-bg);
+        color: var(--boot-fg);
+        font-family:
+          "Sohne",
+          "OpenAI Sans",
+          "Segoe UI",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+      }
+
+      body {
+        overflow: hidden;
+      }
+
+      #root {
+        min-height: 100dvh;
+      }
+
+      .app-boot-shell {
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--boot-shell-bg);
+      }
+
+      .app-boot-card {
+        width: min(520px, 100%);
+        display: grid;
+        gap: 10px;
+        padding: 28px;
+        border: 1px solid var(--boot-card-border);
+        border-radius: 22px;
+        background: var(--boot-card-bg);
+        box-shadow: var(--boot-card-shadow);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .app-boot-card {
+          animation: none;
+        }
+      }
+
+      .app-boot-eyebrow {
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--boot-eyebrow);
+      }
+
+      .app-boot-title {
+        font-size: clamp(22px, 3vw, 30px);
+        font-weight: 600;
+        line-height: 1.1;
+        color: var(--boot-fg);
+      }
+
+      .app-boot-detail {
+        max-width: 40ch;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--boot-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div
+        aria-label="Launching workspace"
+        aria-live="polite"
+        class="app-boot-shell"
+        data-app-boot="workspace"
+        role="status"
+      >
+        <div class="app-boot-card">
+          <span class="app-boot-eyebrow">HugeCode</span>
+          <strong class="app-boot-title">Launching workspace</strong>
+          <span class="app-boot-detail">Loading the workspace shell and runtime services.</span>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

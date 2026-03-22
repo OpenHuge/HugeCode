@@ -1,0 +1,631 @@
+{
+  "schemaVersion": 1,
+  "datasetId": "runtime-provider-replay",
+  "version": "2026-03-20",
+  "description": "Managed replay dataset for runtime/provider-backed AI coding agent workflows. Sample files are the source of truth; runners compile temporary provider replay fixtures from this manifest.",
+  "defaultRunner": "runtime-core-playwright",
+  "redactionVersion": "runtime-provider-replay-v1",
+  "runtimeIsolationDefault": {
+    "strategy": "dedicated-runtime-port",
+    "host": "127.0.0.1",
+    "reuseExistingRuntime": false,
+    "notes": "Replay and re-record flows allocate isolated runtime ports unless the caller explicitly opts into an existing runtime."
+  },
+  "taxonomy": [
+    {
+      "scenarioType": "read-only",
+      "status": "implemented",
+      "why": "Stable baseline for provider-backed analysis turns with minimal side effects."
+    },
+    {
+      "scenarioType": "streaming-long-output",
+      "status": "implemented",
+      "why": "Exercises chunked provider output, multi-turn queueing, and long-response stability."
+    },
+    {
+      "scenarioType": "tool-error-recovery",
+      "status": "implemented",
+      "why": "Validates that a failed runtime/provider turn is surfaced clearly and that the next turn can recover cleanly."
+    },
+    {
+      "scenarioType": "runtime-isolation",
+      "status": "implemented",
+      "why": "Protects against accidental reuse of stale local runtimes and validates dedicated port binding."
+    },
+    {
+      "scenarioType": "autodrive-launch",
+      "status": "implemented",
+      "why": "Captures runtime-only AutoDrive launch truth so decision, scenario, and autonomy state stay replay-visible."
+    },
+    {
+      "scenarioType": "write-safe-minimal",
+      "status": "implemented",
+      "why": "Covers a deterministic low-risk write path so replay protects the smallest real workspace mutation workflow."
+    },
+    {
+      "scenarioType": "unsupported-or-edge",
+      "status": "implemented",
+      "why": "Guards non-default and boundary behavior so regressions do not silently corrupt edge paths."
+    }
+  ],
+  "admissionRules": {
+    "golden": [
+      "Recorded from a real runtime/provider path or migrated from an already verified golden sample.",
+      "Schema-valid, replay-valid, and redaction-valid.",
+      "Contains blocking assertions beyond final text equality.",
+      "Stable under dedicated runtime isolation."
+    ],
+    "candidate": [
+      "Useful scenario coverage but not yet stable enough for default CI.",
+      "May require re-recording, broader normalization, or more resilient assertions."
+    ],
+    "archived": [
+      "Kept for historical reference but excluded from default replay execution.",
+      "Used when the workflow is obsolete, too flaky, or superseded by a better sample."
+    ]
+  },
+  "coverageMatrix": {
+    "sources": [
+      "https://developers.openai.com/api/docs/guides/latest-model/",
+      "https://developers.openai.com/api/docs/guides/evaluation-best-practices/"
+    ],
+    "modelProfiles": [
+      {
+        "id": "gpt-5.4",
+        "modelId": "gpt-5.4",
+        "family": "flagship",
+        "coverageRole": "primary",
+        "reasoningEffort": "low",
+        "verbosity": "medium",
+        "snapshotPinned": true,
+        "status": "preferred",
+        "notes": "Default flagship coverage track for the most important runtime replay workflows."
+      },
+      {
+        "id": "gpt-5.1-codex-mini",
+        "modelId": "gpt-5.1-codex-mini",
+        "family": "mini",
+        "coverageRole": "supporting",
+        "reasoningEffort": "medium",
+        "verbosity": "low",
+        "snapshotPinned": true,
+        "status": "active",
+        "notes": "Cost-optimized model track kept in replay to catch routing and behavior drift."
+      },
+      {
+        "id": "gpt-5.3-codex",
+        "modelId": "gpt-5.3-codex",
+        "family": "coding",
+        "coverageRole": "compatibility",
+        "reasoningEffort": "medium",
+        "verbosity": "medium",
+        "snapshotPinned": true,
+        "status": "compatibility",
+        "notes": "Compatibility coding-model route retained until a `gpt-5-codex` live sample is promoted into the replay golden set."
+      }
+    ],
+    "capabilityCatalog": [
+      {
+        "id": "runtime-truth",
+        "status": "implemented",
+        "notes": "Structured runtime-published truth must be asserted independently from transcript equality."
+      },
+      {
+        "id": "continuity-handoff",
+        "status": "implemented",
+        "notes": "Checkpoint, mission linkage, publish handoff, and review continuation truth."
+      },
+      {
+        "id": "placement-routing",
+        "status": "implemented",
+        "notes": "Backend preference, routing choice, and operability metadata."
+      },
+      {
+        "id": "autodrive-navigation",
+        "status": "implemented",
+        "notes": "AutoDrive decision trace and navigation-state coverage."
+      },
+      {
+        "id": "autodrive-evaluation-profile",
+        "status": "implemented",
+        "notes": "Runtime evaluation profile and scenario-profile coverage for AutoDrive."
+      },
+      {
+        "id": "event-replay-gap",
+        "status": "implemented",
+        "notes": "Replay gap resync and event durability assertions."
+      },
+      {
+        "id": "tool-error-recovery",
+        "status": "implemented",
+        "notes": "Recoverable runtime/provider failure sequences with deterministic follow-up proof."
+      },
+      {
+        "id": "write-safe",
+        "status": "implemented",
+        "notes": "Deterministic write-safe workspace mutations with machine-readable evidence."
+      }
+    ],
+    "capabilityRequirements": [
+      {
+        "capabilityId": "runtime-truth",
+        "requiredProfiles": ["gpt-5.4"],
+        "notes": "Runtime truth migration starts with the flagship baseline before expanding to alternate tracks."
+      },
+      {
+        "capabilityId": "tool-error-recovery",
+        "requiredProfiles": ["gpt-5.4", "gpt-5.3-codex"],
+        "notes": "Recovery coverage must keep both the flagship and compatibility coding route observable."
+      },
+      {
+        "capabilityId": "write-safe",
+        "requiredProfiles": ["gpt-5.4"],
+        "notes": "Write-safe coverage stays anchored to the flagship route until additional migrated samples land."
+      },
+      {
+        "capabilityId": "event-replay-gap",
+        "requiredProfiles": ["gpt-5.4", "gpt-5.1-codex-mini", "gpt-5.3-codex"],
+        "notes": "Replay gap resync assertions must stay live across flagship, mini, and compatibility coding routes."
+      },
+      {
+        "capabilityId": "autodrive-navigation",
+        "requiredProfiles": ["gpt-5.4", "gpt-5.3-codex"],
+        "notes": "AutoDrive launch truth must stay visible on both the flagship and compatibility coding routes."
+      },
+      {
+        "capabilityId": "autodrive-evaluation-profile",
+        "requiredProfiles": ["gpt-5.4", "gpt-5.3-codex"],
+        "notes": "Scenario and outcome coverage for AutoDrive launch must stay live on the flagship and compatibility coding routes."
+      }
+    ],
+    "scenarioRequirements": [
+      {
+        "scenarioType": "read-only",
+        "requiredProfiles": ["gpt-5.4", "gpt-5.3-codex"],
+        "notes": "Read-only coverage must keep both flagship and coding-route inspection paths healthy."
+      },
+      {
+        "scenarioType": "streaming-long-output",
+        "requiredProfiles": ["gpt-5.4", "gpt-5.1-codex-mini"],
+        "notes": "Streaming queue/resume coverage should prove both flagship and mini routing stay replay-safe."
+      },
+      {
+        "scenarioType": "tool-error-recovery",
+        "requiredProfiles": ["gpt-5.4", "gpt-5.3-codex"],
+        "notes": "Recovery coverage spans the active flagship path and the coding-model route where failure behavior differs."
+      },
+      {
+        "scenarioType": "runtime-isolation",
+        "requiredProfiles": ["gpt-5.4", "gpt-5.1-codex-mini"],
+        "notes": "Isolation checks must cover both the flagship default and the smaller mini tier."
+      },
+      {
+        "scenarioType": "autodrive-launch",
+        "requiredProfiles": ["gpt-5.4", "gpt-5.3-codex"],
+        "notes": "AutoDrive launch truth is replayed on the flagship route and a compatibility coding route so the scenario is no longer single-sample thin."
+      },
+      {
+        "scenarioType": "write-safe-minimal",
+        "requiredProfiles": ["gpt-5.4"],
+        "notes": "Safe write-path baseline remains anchored to the flagship route until mini write semantics are recorded."
+      },
+      {
+        "scenarioType": "unsupported-or-edge",
+        "requiredProfiles": ["gpt-5.3-codex", "gpt-5.1-codex-mini"],
+        "notes": "Edge routing should exercise both legacy coding-model behavior and the smaller general route."
+      }
+    ]
+  },
+  "samples": [
+    {
+      "id": "runtime-core-streaming-queue-resume-gpt-5.4-low",
+      "file": "samples/runtime-core-streaming-queue-resume-gpt-5.4-low.json",
+      "variant": "gpt-5.4-low",
+      "family": "runtime-core",
+      "scenarioType": "streaming-long-output",
+      "mode": "multi-turn",
+      "source": "recorded",
+      "recordedAt": "2026-03-12T19:48:40.984Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "golden",
+        "runtime-core",
+        "provider-replay",
+        "playwright",
+        "streaming",
+        "queue-resume"
+      ],
+      "stability": "golden",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Multi-turn streaming baseline with queued follow-up while the first turn is still active."
+    },
+    {
+      "id": "runtime-core-streaming-queue-resume-gpt-5.1-codex-mini-low",
+      "file": "samples/runtime-core-streaming-queue-resume-gpt-5.1-codex-mini-low.json",
+      "variant": "gpt-5.1-codex-mini-low",
+      "family": "runtime-core",
+      "scenarioType": "streaming-long-output",
+      "mode": "multi-turn",
+      "source": "recorded",
+      "recordedAt": "2026-03-16T08:05:12.000Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "golden",
+        "runtime-core",
+        "provider-replay",
+        "playwright",
+        "streaming",
+        "queue-resume",
+        "mini"
+      ],
+      "stability": "golden",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Mini-model streaming variant that extends queue/resume replay coverage beyond the flagship baseline."
+    },
+    {
+      "id": "runtime-core-read-only-gpt-5.4-low",
+      "file": "samples/runtime-core-read-only-gpt-5.4-low.json",
+      "variant": "gpt-5.4-low-read-only",
+      "family": "runtime-core",
+      "scenarioType": "read-only",
+      "mode": "read-only",
+      "source": "recorded",
+      "recordedAt": "2026-03-13T03:58:30.298Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "golden",
+        "runtime-core",
+        "provider-replay",
+        "playwright",
+        "read-only",
+        "runtime-isolation"
+      ],
+      "stability": "golden",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Read-only baseline proving isolated runtime replay stays deterministic for safe inspection flows."
+    },
+    {
+      "id": "runtime-core-read-only-background-gpt-5.3-codex-medium",
+      "file": "samples/runtime-core-read-only-background-gpt-5.3-codex-medium.json",
+      "variant": "gpt-5.3-codex-medium-read-only-background",
+      "family": "runtime-core",
+      "scenarioType": "read-only",
+      "mode": "read-only",
+      "source": "recorded",
+      "recordedAt": "2026-03-14T03:25:03.071Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "golden",
+        "runtime-core",
+        "provider-replay",
+        "playwright",
+        "read-only",
+        "background-ready"
+      ],
+      "stability": "golden",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Read-only variant that keeps background-safe automation semantics covered without allowing workspace writes."
+    },
+    {
+      "id": "runtime-core-autodrive-launch-gpt-5.4-low",
+      "file": "samples/runtime-core-autodrive-launch-gpt-5.4-low.json",
+      "variant": "gpt-5.4-low-autodrive-launch",
+      "family": "runtime-core",
+      "scenarioType": "autodrive-launch",
+      "mode": "runtime-only",
+      "source": "recorded",
+      "recordedAt": "2026-03-20T06:10:00.000Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "golden",
+        "runtime-core",
+        "runtime-replay",
+        "playwright",
+        "autodrive",
+        "runtime-only"
+      ],
+      "stability": "golden",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Runtime-only AutoDrive launch sample that proves task-start truth is published even before task execution finishes."
+    },
+    {
+      "id": "runtime-core-autodrive-launch-gpt-5.3-codex-medium",
+      "file": "samples/runtime-core-autodrive-launch-gpt-5.3-codex-medium.json",
+      "variant": "gpt-5.3-codex-medium-autodrive-launch",
+      "family": "runtime-core",
+      "scenarioType": "autodrive-launch",
+      "mode": "runtime-only",
+      "source": "recorded",
+      "recordedAt": "2026-03-20T14:49:04.506Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "golden",
+        "runtime-core",
+        "runtime-replay",
+        "playwright",
+        "autodrive",
+        "runtime-only"
+      ],
+      "stability": "golden",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Runtime-only AutoDrive launch sample that proves task-start truth also stays replay-visible on the compatibility coding route."
+    },
+    {
+      "id": "runtime-core-isolation-gpt-5.4-high",
+      "file": "samples/runtime-core-isolation-gpt-5.4-high.json",
+      "variant": "gpt-5.4-high",
+      "family": "runtime-core",
+      "scenarioType": "runtime-isolation",
+      "mode": "isolation",
+      "source": "recorded",
+      "recordedAt": "2026-03-12T19:49:43.694Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "golden",
+        "runtime-core",
+        "provider-replay",
+        "playwright",
+        "runtime-isolation",
+        "reasoning-effort"
+      ],
+      "stability": "golden",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "High-effort runtime-core sample used to verify isolated runtime startup and stable CI replay semantics."
+    },
+    {
+      "id": "runtime-core-isolation-gpt-5.1-codex-mini-medium",
+      "file": "samples/runtime-core-isolation-gpt-5.1-codex-mini-medium.json",
+      "variant": "gpt-5.1-codex-mini-medium",
+      "family": "runtime-core",
+      "scenarioType": "runtime-isolation",
+      "mode": "isolation",
+      "source": "recorded",
+      "recordedAt": "2026-03-16T08:14:21.000Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "golden",
+        "runtime-core",
+        "provider-replay",
+        "playwright",
+        "runtime-isolation",
+        "mini"
+      ],
+      "stability": "golden",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Mini-model isolation variant that keeps dedicated-runtime startup checks from staying single-profile."
+    },
+    {
+      "id": "runtime-core-model-selection-gpt-5.3-codex-medium",
+      "file": "samples/runtime-core-model-selection-gpt-5.3-codex-medium.json",
+      "variant": "gpt-5.3-codex-medium",
+      "family": "runtime-core",
+      "scenarioType": "unsupported-or-edge",
+      "mode": "model-selection",
+      "source": "recorded",
+      "recordedAt": "2026-03-13T05:02:47.834Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "golden",
+        "runtime-core",
+        "provider-replay",
+        "playwright",
+        "model-selection",
+        "alternate-model"
+      ],
+      "stability": "golden",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Non-default model route coverage for medium-effort runtime-core replay."
+    },
+    {
+      "id": "runtime-core-model-selection-gpt-5.1-codex-mini-medium",
+      "file": "samples/runtime-core-model-selection-gpt-5.1-codex-mini-medium.json",
+      "variant": "gpt-5.1-codex-mini-medium",
+      "family": "runtime-core",
+      "scenarioType": "unsupported-or-edge",
+      "mode": "model-selection",
+      "source": "recorded",
+      "recordedAt": "2026-03-16T08:22:47.000Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "golden",
+        "runtime-core",
+        "provider-replay",
+        "playwright",
+        "model-selection",
+        "mini"
+      ],
+      "stability": "golden",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Mini-model route coverage that keeps unsupported-or-edge replay from relying on a single alternate model."
+    },
+    {
+      "id": "runtime-core-tool-error-recovery-gpt-5.3-codex-medium",
+      "file": "samples/runtime-core-tool-error-recovery-gpt-5.3-codex-medium.json",
+      "variant": "gpt-5.3-codex-medium-recovery",
+      "family": "runtime-core",
+      "scenarioType": "tool-error-recovery",
+      "mode": "failure-recovery",
+      "source": "mixed",
+      "recordedAt": "2026-03-13T07:05:31.245Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "candidate",
+        "runtime-core",
+        "provider-replay",
+        "playwright",
+        "tool-error-recovery",
+        "retry"
+      ],
+      "stability": "candidate",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Candidate recovery sample with a controlled synthetic provider.stream-interrupted failure leg and a live recorded recovery leg; it remains candidate until live failure rerecords stop drifting."
+    },
+    {
+      "id": "runtime-core-write-safe-minimal-gpt-5.4-low",
+      "file": "samples/runtime-core-write-safe-minimal-gpt-5.4-low.json",
+      "variant": "gpt-5.4-low-write-safe-minimal",
+      "family": "runtime-core",
+      "scenarioType": "write-safe-minimal",
+      "mode": "write-safe",
+      "source": "recorded",
+      "recordedAt": "2026-03-13T13:42:39.245Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": ["golden", "runtime-core", "provider-replay", "playwright", "write-safe-minimal"],
+      "stability": "golden",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Recorded safe write-path sample with deterministic workspace-file assertions that verify the low-risk write during replay."
+    },
+    {
+      "id": "runtime-core-write-safe-minimal-json-gpt-5.4-low",
+      "file": "samples/runtime-core-write-safe-minimal-json-gpt-5.4-low.json",
+      "variant": "gpt-5.4-low-write-safe-minimal-json",
+      "family": "runtime-core",
+      "scenarioType": "write-safe-minimal",
+      "mode": "write-safe",
+      "source": "recorded",
+      "recordedAt": "2026-03-13T13:59:07.905Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "golden",
+        "runtime-core",
+        "provider-replay",
+        "playwright",
+        "write-safe-minimal",
+        "structured-write"
+      ],
+      "stability": "golden",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Recorded safe write-path variant that verifies a minimal structured JSON workspace write during replay."
+    },
+    {
+      "id": "runtime-core-tool-error-recovery-request-failed-gpt-5.4-low",
+      "file": "samples/runtime-core-tool-error-recovery-request-failed-gpt-5.4-low.json",
+      "variant": "gpt-5.4-low-recovery-request-failed",
+      "family": "runtime-core",
+      "scenarioType": "tool-error-recovery",
+      "mode": "failure-recovery",
+      "source": "recorded",
+      "recordedAt": "2026-03-13T13:42:59.672Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "golden",
+        "runtime-core",
+        "provider-replay",
+        "playwright",
+        "tool-error-recovery",
+        "provider-request-failed"
+      ],
+      "stability": "golden",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Recorded recovery sample that captures a real provider.request-failed first turn and verifies a clean follow-up succeeds in the same thread."
+    },
+    {
+      "id": "runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low",
+      "file": "samples/runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low.json",
+      "variant": "gpt-5.4-low-recovery-provider-rejected",
+      "family": "runtime-core",
+      "scenarioType": "tool-error-recovery",
+      "mode": "failure-recovery",
+      "source": "mixed",
+      "recordedAt": "2026-03-13T14:00:44.993Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "candidate",
+        "runtime-core",
+        "provider-replay",
+        "playwright",
+        "tool-error-recovery",
+        "provider-rejected"
+      ],
+      "stability": "candidate",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Candidate recovery variant for provider.rejected handling with a controlled rejection failure leg and a recorded recovery leg."
+    },
+    {
+      "id": "runtime-core-tool-error-recovery-orchestration-gpt-5.4-low",
+      "file": "samples/runtime-core-tool-error-recovery-orchestration-gpt-5.4-low.json",
+      "variant": "gpt-5.4-low-recovery-orchestration",
+      "family": "runtime-core",
+      "scenarioType": "tool-error-recovery",
+      "mode": "failure-recovery",
+      "source": "mixed",
+      "recordedAt": "2026-03-13T07:45:24.848Z",
+      "schemaVersion": 1,
+      "runtimeKind": "code-runtime-gateway-web",
+      "providerKind": "openai",
+      "requiresRealRuntime": true,
+      "supportsReplayOnly": true,
+      "tags": [
+        "candidate",
+        "runtime-core",
+        "provider-replay",
+        "playwright",
+        "tool-error-recovery",
+        "orchestration"
+      ],
+      "stability": "candidate",
+      "redactionVersion": "runtime-provider-replay-v1",
+      "notes": "Candidate recovery variant for orchestration-layer failure handling with a controlled failure leg and recorded recovery leg."
+    }
+  ]
+}

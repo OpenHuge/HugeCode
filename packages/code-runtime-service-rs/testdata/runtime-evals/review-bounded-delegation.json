@@ -1,0 +1,20 @@
+{
+  "id": "review-bounded-delegation",
+  "policy": "always_passes",
+  "kind": "review_sub_agent",
+  "description": "Review delegation should remain read-only, no-network, approval-safe, and auditable through the sub-agent lifecycle.",
+  "instruction": "Review the runtime profile metadata implementation and summarize risks.",
+  "requires_approval": true,
+  "approval_reason": "review fixture safety check",
+  "approval_decision": "rejected",
+  "wait_timeout_ms": 50,
+  "expectations": {
+    "status": "failed",
+    "scope_profile": "review",
+    "checkpoint_state": "failed",
+    "eval_tags": ["scope:review"],
+    "allow_network": false,
+    "allowed_skill_ids": ["core-read", "core-grep", "core-tree"],
+    "approval_state": "awaiting_approval"
+  }
+}

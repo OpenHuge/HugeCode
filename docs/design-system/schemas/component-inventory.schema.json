@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "docs/design-system/schemas/component-inventory.schema.json",
+  "type": "object",
+  "required": ["artifactVersion", "sourceGraphRef", "components", "summary"],
+  "properties": {
+    "artifactVersion": { "type": "integer", "minimum": 1 },
+    "sourceGraphRef": { "type": "string" },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "signature", "classification", "shared", "occurrences", "confidence"],
+        "properties": {
+          "name": { "type": "string" },
+          "signature": { "type": "string" },
+          "classification": { "type": "string" },
+          "shared": { "type": "boolean" },
+          "occurrences": { "type": "integer", "minimum": 1 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "additionalProperties": true
+      }
+    },
+    "summary": { "type": "object" }
+  },
+  "additionalProperties": true
+}

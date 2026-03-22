@@ -1,0 +1,445 @@
+{
+  "schemaVersion": 1,
+  "sample": {
+    "id": "runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low",
+    "variant": "gpt-5.4-low-recovery-provider-rejected",
+    "family": "runtime-core",
+    "scenarioType": "tool-error-recovery",
+    "mode": "failure-recovery",
+    "source": "mixed",
+    "recordedAt": "2026-03-13T14:00:44.993Z",
+    "schemaVersion": 1,
+    "runtimeKind": "code-runtime-gateway-web",
+    "providerKind": "openai",
+    "requiresRealRuntime": true,
+    "supportsReplayOnly": true,
+    "tags": [
+      "candidate",
+      "runtime-core",
+      "provider-replay",
+      "playwright",
+      "tool-error-recovery",
+      "provider-rejected"
+    ],
+    "stability": "candidate",
+    "redactionVersion": "runtime-provider-replay-v1",
+    "notes": "Candidate recovery variant for provider.rejected handling with a controlled rejection failure leg and a recorded recovery leg."
+  },
+  "input": {
+    "task": "Validate recovery after a provider.rejected failure and confirm the next turn succeeds cleanly.",
+    "variant": {
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "low"
+    },
+    "runtimeConfig": {
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default"
+    },
+    "endpointIsolation": {
+      "strategy": "dedicated-runtime-port",
+      "rpcEndpointTemplate": "http://127.0.0.1:{runtimePort}/rpc",
+      "workspaceId": "workspace-web",
+      "reuseExistingRuntime": false
+    },
+    "turns": [
+      {
+        "id": "turn-1",
+        "role": "user",
+        "action": "send",
+        "prompt": "Reply with exactly \"RUNTIME_E2E_PROVIDER_REJECTED_FAILURE\". No bullets. No markdown."
+      },
+      {
+        "id": "turn-2",
+        "role": "user",
+        "action": "send",
+        "prompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2\". Line 2 must start with \"PROVIDER_REJECTED_RECOVERY: \" and explain why a stable provider.rejected recovery belongs in runtime replay coverage. No bullets. No markdown."
+      }
+    ]
+  },
+  "process": {
+    "expectedStateTransitions": [
+      "runtime.spawned",
+      "runtime.healthy",
+      "thread.opened",
+      "turn.started",
+      "turn.failed",
+      "recovery.turn.started",
+      "provider.delta",
+      "recovery.turn.completed"
+    ],
+    "providerEventRequirements": [
+      {
+        "kind": "turn.failed",
+        "exactCount": 1
+      },
+      {
+        "kind": "item.agentMessage.delta",
+        "minCount": 2
+      },
+      {
+        "kind": "turn.completed",
+        "exactCount": 1
+      }
+    ],
+    "longOutputReadback": {
+      "enabled": false,
+      "expectedPolling": false,
+      "fragments": []
+    },
+    "errorRecovery": {
+      "expected": true,
+      "failureTurnId": "turn-1",
+      "recoveryTurnId": "turn-2",
+      "expectedFailureClasses": ["provider.rejected"],
+      "disallowedFailureClasses": ["provider.request-failed", "provider.stream-interrupted"],
+      "signals": [
+        "Provider rejected request for this turn.",
+        "RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2"
+      ]
+    },
+    "runtimeBinding": {
+      "strategy": "dedicated-runtime-port",
+      "host": "127.0.0.1",
+      "forbidCompatibleRuntimeProbe": true
+    },
+    "harness": {
+      "runner": "runtime-core-playwright",
+      "testName": "runtime replay keeps provider.rejected failures explainable while validating the recorded recovery path",
+      "timeoutMs": 60000,
+      "workspaceId": "ws-playground",
+      "actions": [
+        {
+          "type": "select-option",
+          "control": "Agent access",
+          "value": "On-request"
+        },
+        {
+          "type": "select-option",
+          "control": "Model",
+          "value": "gpt-5.4"
+        },
+        {
+          "type": "select-option",
+          "control": "Thinking mode",
+          "value": "low"
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "new",
+          "promptTurnId": "turn-1"
+        },
+        {
+          "type": "wait-turn-state",
+          "state": "failed",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "wait-message",
+          "text": "Provider rejected request for this turn.",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "append",
+          "promptTurnId": "turn-2"
+        }
+      ],
+      "assertions": [
+        {
+          "type": "wait-message",
+          "text": "RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "wait-turn-state",
+          "state": "complete",
+          "timeoutMs": 20000
+        }
+      ]
+    }
+  },
+  "result": {
+    "successStatus": "completed_after_recovery",
+    "summaryHeading": "RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2",
+    "providerReplay": {
+      "variantId": "gpt-5.4-low-recovery-provider-rejected",
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "low",
+      "recordingAccessMode": "on-request",
+      "recordingExecutionMode": "runtime",
+      "coverage": ["error-recovery", "provider-rejected", "retry"],
+      "turns": [
+        {
+          "userPrompt": "Reply with exactly \"RUNTIME_E2E_PROVIDER_REJECTED_FAILURE\". No bullets. No markdown.",
+          "output": null,
+          "deltaChunks": [],
+          "failure": {
+            "class": "provider.rejected",
+            "code": "runtime.turn.provider.rejected",
+            "message": "Provider rejected request for this turn."
+          },
+          "recordingProfile": "controlled-provider-rejected",
+          "provenance": {
+            "source": "controlled-synthetic",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low",
+            "notes": "Controlled synthetic failure injected by the runtime replay recorder to keep the recovery failure class stable.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4",
+            "recordedReasonEffort": "low",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "none"
+          },
+          "recordedAt": "2026-03-13T14:00:40.043Z"
+        },
+        {
+          "userPrompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2\". Line 2 must start with \"PROVIDER_REJECTED_RECOVERY: \" and explain why a stable provider.rejected recovery belongs in runtime replay coverage. No bullets. No markdown.",
+          "output": "RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2\nPROVIDER_REJECTED_RECOVERY: A stable provider.rejected recovery belongs in runtime replay coverage because replay must deterministically preserve the rejection signal, the recovery path, and the resumed state across turns so regressions in error handling, event ordering, or state restoration are caught end to end.",
+          "deltaChunks": [
+            "R",
+            "UNTIME_E2",
+            "E_PROVIDER_RE",
+            "JECTED_RECOVERY",
+            "_TURN_",
+            "2\nPRO",
+            "VIDER_REJECT",
+            "ED_RECOVERY",
+            ": A stable provider",
+            ".rejected recovery",
+            " belongs in runtime",
+            " replay coverage because",
+            " replay must deterministically preserve",
+            " the rejection signal,",
+            " the recovery",
+            " path, and the resumed state across turns so regressions in",
+            " error handling,",
+            " event ordering, or",
+            " state restoration are",
+            " caught end to end."
+          ],
+          "chunkDelayMs": 25,
+          "expectations": {
+            "startsWith": "RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2",
+            "mustContain": ["PROVIDER_REJECTED_RECOVERY:"],
+            "minDeltaChunks": 2
+          },
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low",
+            "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4",
+            "recordedReasonEffort": "low",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "recorded"
+          },
+          "recordedAt": "2026-03-13T14:00:44.993Z"
+        }
+      ]
+    }
+  },
+  "assertions": {
+    "hard": [
+      {
+        "type": "runtime-isolation",
+        "forbidLogPattern": "Existing runtime on"
+      },
+      {
+        "type": "message-visible",
+        "text": "Provider rejected request for this turn."
+      },
+      {
+        "type": "message-visible",
+        "text": "RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2"
+      }
+    ],
+    "soft": [
+      {
+        "type": "duration-ms",
+        "max": 60000
+      },
+      {
+        "type": "log-warning-budget",
+        "max": 6
+      },
+      {
+        "type": "delta-chunk-range",
+        "turnId": "turn-2",
+        "min": 2,
+        "max": 32
+      }
+    ]
+  },
+  "governance": {
+    "owner": "runtime-core-e2e",
+    "lastRefreshReason": "Refreshed with controlled synthetic failure evidence plus live recorded recovery evidence.",
+    "deprecationStatus": "active",
+    "archiveStatus": null,
+    "lastLiveFailureClass": null,
+    "lastLiveRerecordStable": false,
+    "rerecordStability": {
+      "status": "missing",
+      "stable": false,
+      "compatibleWithExpectedFailureClass": null,
+      "observedFailureClasses": [],
+      "driftObserved": false,
+      "lastCheckedAt": null
+    },
+    "recoveryQualification": {
+      "expectedFailureClasses": ["provider.rejected"],
+      "disallowedFailureClasses": ["provider.request-failed", "provider.stream-interrupted"],
+      "observedFailureClass": "provider.rejected",
+      "recoveryObserved": true,
+      "recoveryTurnId": "turn-2",
+      "evidenceMode": "mixed",
+      "rerecordStability": {
+        "status": "missing",
+        "stable": false,
+        "compatibleWithExpectedFailureClass": null,
+        "observedFailureClasses": [],
+        "driftObserved": false,
+        "lastCheckedAt": null
+      },
+      "goldenBlockers": [
+        "failure_leg_not_fully_recorded",
+        "evidence_not_fully_recorded",
+        "live_failure_probe_missing"
+      ],
+      "recoveryStable": false,
+      "eligibleForGolden": false
+    },
+    "goldenBlockers": [
+      "failure_leg_not_fully_recorded",
+      "evidence_not_fully_recorded",
+      "live_failure_probe_missing"
+    ],
+    "optimizationSignals": {
+      "seedSource": "workflow-failure",
+      "incubationTrack": "nightly",
+      "recommendedLevers": ["hooks", "rules", "session-lineage"],
+      "safeBackgroundCandidate": false,
+      "lineage": {
+        "parentSampleId": "runtime-core-tool-error-recovery-gpt-5.3-codex-medium",
+        "strategy": "failure-class-branch"
+      }
+    },
+    "deterministicRegressions": [
+      {
+        "id": "synthetic-failure-profiles-do-not-force-scoped-runtime",
+        "layer": "recorder",
+        "path": "scripts/record-runtime-provider-replay.node.test.mjs",
+        "testName": "recordingProfileRequiresScopedRuntime ignores synthetic failure profiles",
+        "status": "active"
+      }
+    ],
+    "promotionCriteria": {
+      "upgradeToGolden": [
+        "Replace the controlled provider.rejected failure with a real recorded failure leg that stays on provider.rejected.",
+        "Keep the recovery leg recorded and replay-green under dedicated runtime isolation."
+      ]
+    },
+    "evidencePlan": {
+      "mixedEvidence": true,
+      "turnSources": {
+        "turn-1": "controlled-synthetic",
+        "turn-2": "recorded"
+      },
+      "notes": "The failure leg is synthetic so the sample can deterministically pin the provider.rejected recovery shape while the live rejection path is still too brittle to rerecord as golden."
+    },
+    "liveFailureProbe": {
+      "enabled": false,
+      "profileId": "controlled-provider-rejected",
+      "turnId": "turn-1",
+      "attempts": 1,
+      "expectedFailureClasses": ["provider.rejected"]
+    },
+    "recordingProfiles": {
+      "controlled-provider-rejected": {
+        "strategy": "synthetic-failure",
+        "notes": "Injects a stable provider.rejected failure so the sample can exercise rejected-then-recovered behavior while keeping the failure class deterministic.",
+        "failure": {
+          "class": "provider.rejected",
+          "code": "runtime.turn.provider.rejected",
+          "message": "Provider rejected request for this turn."
+        }
+      }
+    },
+    "redaction": {
+      "applied": true,
+      "normalizedFields": ["rpcEndpoint", "workspaceId"],
+      "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
+    },
+    "goldenBlockerHistory": [
+      {
+        "blocker": "evidence_not_fully_recorded",
+        "active": true,
+        "firstObservedAt": "2026-03-13T13:59:02.052Z",
+        "lastObservedAt": "2026-03-13T14:00:44.993Z",
+        "observationCount": 2
+      },
+      {
+        "blocker": "failure_leg_not_fully_recorded",
+        "active": true,
+        "firstObservedAt": "2026-03-13T13:59:02.052Z",
+        "lastObservedAt": "2026-03-13T14:00:44.993Z",
+        "observationCount": 2
+      },
+      {
+        "blocker": "live_failure_probe_missing",
+        "active": true,
+        "firstObservedAt": "2026-03-13T13:59:02.052Z",
+        "lastObservedAt": "2026-03-13T14:00:44.993Z",
+        "observationCount": 2
+      }
+    ]
+  },
+  "runtimeTruth": {
+    "taskFields": [
+      {
+        "type": "wait-runtime-task-field",
+        "fieldPath": "checkpointId",
+        "matcher": "present",
+        "timeoutMs": 20000
+      },
+      {
+        "type": "wait-runtime-task-field",
+        "fieldPath": "traceId",
+        "matcher": "present",
+        "timeoutMs": 20000
+      },
+      {
+        "type": "wait-runtime-task-field",
+        "fieldPath": "publishHandoff",
+        "matcher": "absent",
+        "timeoutMs": 20000
+      }
+    ],
+    "review": [],
+    "autodrive": [
+      {
+        "type": "assert-autodrive-trace",
+        "decisionTraceMatcher": "absent",
+        "runtimeScenarioProfileMatcher": "absent",
+        "repoEvaluationProfileMatcher": "absent",
+        "outcomeFeedbackMatcher": "absent",
+        "autonomyStateMatcher": "absent",
+        "timeoutMs": 20000
+      }
+    ],
+    "eventReplay": [
+      {
+        "type": "assert-replay-gap-event",
+        "expectedReason": "runtime.updated",
+        "timeoutMs": 20000
+      }
+    ]
+  }
+}

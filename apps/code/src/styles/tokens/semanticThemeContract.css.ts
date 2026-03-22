@@ -1,0 +1,215 @@
+/*
+ * Deprecated runtime semantic contract.
+ * Frozen for compatibility during the design-system runtime migration.
+ * Do not import from runtime entrypoints or new code.
+ */
+import { createGlobalThemeContract } from "@vanilla-extract/css";
+
+const semanticThemeContractShape = {
+  color: {
+    bg: {
+      canvas: null,
+      app: null,
+      panel: null,
+      card: null,
+      elevated: null,
+      overlay: null,
+      inset: null,
+      sidebar: null,
+      topbar: null,
+      composer: null,
+      message: null,
+      input: null,
+      hover: null,
+      pressed: null,
+      selected: null,
+    },
+    text: {
+      primary: null,
+      secondary: null,
+      tertiary: null,
+      muted: null,
+      inverse: null,
+      disabled: null,
+      accent: null,
+    },
+    border: {
+      subtle: null,
+      default: null,
+      strong: null,
+      focus: null,
+      accent: null,
+    },
+    icon: {
+      primary: null,
+      secondary: null,
+      muted: null,
+      inverse: null,
+    },
+    control: {
+      default: null,
+      hover: null,
+      pressed: null,
+      selected: null,
+    },
+    state: {
+      running: null,
+      queued: null,
+      thinking: null,
+      streaming: null,
+      success: null,
+      warning: null,
+      danger: null,
+      info: null,
+      cancelled: null,
+      offline: null,
+    },
+    diff: {
+      insertBg: null,
+      insertBorder: null,
+      deleteBg: null,
+      deleteBorder: null,
+      modifiedBg: null,
+      modifiedBorder: null,
+      gutter: null,
+      inlineHighlight: null,
+    },
+    overlay: {
+      scrim: null,
+      glass: null,
+    },
+  },
+  typography: {
+    font: {
+      ui: null,
+      mono: null,
+    },
+    size: {
+      xs: null,
+      sm: null,
+      md: null,
+      lg: null,
+      xl: null,
+      x2: null,
+      x3: null,
+      x4: null,
+    },
+    lineHeight: {
+      tight: null,
+      sm: null,
+      md: null,
+      lg: null,
+      relaxed: null,
+    },
+    weight: {
+      regular: null,
+      medium: null,
+      semibold: null,
+      bold: null,
+    },
+    role: {
+      heading: null,
+      body: null,
+      label: null,
+      caption: null,
+      code: null,
+      log: null,
+    },
+  },
+  space: {
+    px: null,
+    xxs: null,
+    xs: null,
+    sm: null,
+    md: null,
+    lg: null,
+    xl: null,
+    x2: null,
+    x3: null,
+    x4: null,
+    x5: null,
+    x6: null,
+  },
+  size: {
+    control: {
+      xs: null,
+      sm: null,
+      md: null,
+      lg: null,
+    },
+    icon: {
+      xs: null,
+      sm: null,
+      md: null,
+      lg: null,
+      xl: null,
+    },
+    layout: {
+      sidebarRail: null,
+      sidebar: null,
+      sidebarCompact: null,
+      inspector: null,
+      composerMinHeight: null,
+      composerMaxWidth: null,
+      contentMaxWidth: null,
+    },
+  },
+  radius: {
+    xs: null,
+    sm: null,
+    md: null,
+    lg: null,
+    xl: null,
+    x2: null,
+    pill: null,
+  },
+  borderWidth: {
+    hairline: null,
+    default: null,
+    strong: null,
+  },
+  shadow: {
+    none: null,
+    xs: null,
+    sm: null,
+    md: null,
+    lg: null,
+    overlay: null,
+  },
+  motion: {
+    duration: {
+      instant: null,
+      fast: null,
+      base: null,
+      slow: null,
+    },
+    easing: {
+      standard: null,
+      enter: null,
+      exit: null,
+    },
+    blur: {
+      subtle: null,
+      overlay: null,
+    },
+    focus: {
+      width: null,
+      offset: null,
+    },
+  },
+  layer: {
+    base: null,
+    stickyHeader: null,
+    popover: null,
+    dropdown: null,
+    modal: null,
+    toast: null,
+    commandPalette: null,
+    dragOverlay: null,
+  },
+} as const;
+
+export const semanticThemeVars = createGlobalThemeContract(
+  semanticThemeContractShape,
+  (_value, path) => `--semantic-${path.join("-")}`
+);

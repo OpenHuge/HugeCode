@@ -1,0 +1,23 @@
+name: Cache Turbo
+description: Restore and save Turbo local cache with shared invalidation inputs.
+
+inputs:
+  path:
+    description: Turbo cache path.
+    required: false
+    default: ".turbo"
+  key-prefix:
+    description: Cache key prefix.
+    required: false
+    default: "turbo"
+
+runs:
+  using: composite
+  steps:
+    - name: Cache Turbo
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ inputs.key-prefix }}-${{ runner.os }}-${{ hashFiles('.nvmrc', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json', 'turbo.json', '**/package.json', '**/tsconfig*.json', '**/Cargo.toml', '**/Cargo.lock') }}
+        restore-keys: |
+          ${{ inputs.key-prefix }}-${{ runner.os }}-
