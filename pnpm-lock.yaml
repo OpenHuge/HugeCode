@@ -350,8 +350,8 @@ importers:
         specifier: ^0.10.3
         version: 0.10.3(@terrazzo/cli@0.10.5(hono@4.12.7))
       '@terrazzo/plugin-vanilla-extract':
-        specifier: ^0.2.2
-        version: 0.2.2(@terrazzo/cli@0.10.5(hono@4.12.7))(@terrazzo/plugin-css@0.10.4(@terrazzo/cli@0.10.5(hono@4.12.7)))
+        specifier: ^2.0.0
+        version: 2.0.0(@terrazzo/cli@0.10.5(hono@4.12.7))(@terrazzo/parser@0.10.5)(@terrazzo/plugin-css@0.10.4(@terrazzo/cli@0.10.5(hono@4.12.7)))
       '@types/react':
         specifier: ^19.2.14
         version: 19.2.14
@@ -655,6 +655,10 @@ packages:
 
   '@babel/runtime@7.28.6':
     resolution: {integrity: sha512-05WQkdpL9COIMz4LjTxGpPNCdlpyimKppYNoJ5Di5EUObifl8t4tuLuUBBZEpoLYOmfvIWrsp9fCl0HoPRVTdA==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/runtime@7.29.2':
+    resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.28.6':
@@ -2190,11 +2194,12 @@ packages:
     peerDependencies:
       '@terrazzo/cli': ^0.10.3
 
-  '@terrazzo/plugin-vanilla-extract@0.2.2':
-    resolution: {integrity: sha512-cmtfKDONYKwY8o3ZOUQG1yspDiC3+UkEBM9yX6KnwuzlaBEcvr+PCdWieno06mFtsFBpOKNHjiAmviruvGMKow==}
+  '@terrazzo/plugin-vanilla-extract@2.0.0':
+    resolution: {integrity: sha512-LfijX3Wr0dEO6Nw0+yDZWGHOgrIgMa5pSUfXDctPJKyxVzib+nH1VpEfM4s3+4Be9N7/rQZN2Rd2/pR1OnVYiA==}
     peerDependencies:
-      '@terrazzo/cli': ^0.10.3
-      '@terrazzo/plugin-css': ^0.10.4
+      '@terrazzo/cli': ^2.0.0
+      '@terrazzo/parser': ^2.0.0
+      '@terrazzo/plugin-css': ^2.0.0
 
   '@terrazzo/token-tools@0.10.5':
     resolution: {integrity: sha512-XQ6LDOmEZC8kesrhF48pvhz8F0RJsi56vQUg97VCmiKCOXBwPFJ7bOfv9M3f/tnYWo8eAs3EJvrCgMckZPKhbg==}
@@ -4437,6 +4442,11 @@ packages:
   sprintf-js@1.0.3:
     resolution: {integrity: sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==}
 
+  srvx@0.11.12:
+    resolution: {integrity: sha512-AQfrGqntqVPXgP03pvBDN1KyevHC+KmYVqb8vVf4N+aomQqdhaZxjvoVp+AOm4u6x+GgNQY3MVzAUIn+TqwkOA==}
+    engines: {node: '>=20.16.0'}
+    hasBin: true
+
   srvx@0.11.9:
     resolution: {integrity: sha512-97wWJS6F0KTKAhDlHVmBzMvlBOp5FiNp3XrLoodIgYJpXxgG5tE9rX4Pg7s46n2shI4wtEsMATTS1+rI3/ubzA==}
     engines: {node: '>=20.16.0'}
@@ -4929,6 +4939,7 @@ packages:
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
     engines: {node: '>=18'}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-mimetype@4.0.0:
     resolution: {integrity: sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg==}
@@ -5173,6 +5184,8 @@ snapshots:
   '@babel/runtime@7.28.4': {}
 
   '@babel/runtime@7.28.6': {}
+
+  '@babel/runtime@7.29.2': {}
 
   '@babel/template@7.28.6':
     dependencies:
@@ -6540,9 +6553,10 @@ snapshots:
       '@terrazzo/cli': 0.10.5(hono@4.12.7)
       '@terrazzo/token-tools': 0.10.5
 
-  '@terrazzo/plugin-vanilla-extract@0.2.2(@terrazzo/cli@0.10.5(hono@4.12.7))(@terrazzo/plugin-css@0.10.4(@terrazzo/cli@0.10.5(hono@4.12.7)))':
+  '@terrazzo/plugin-vanilla-extract@2.0.0(@terrazzo/cli@0.10.5(hono@4.12.7))(@terrazzo/parser@0.10.5)(@terrazzo/plugin-css@0.10.4(@terrazzo/cli@0.10.5(hono@4.12.7)))':
     dependencies:
       '@terrazzo/cli': 0.10.5(hono@4.12.7)
+      '@terrazzo/parser': 0.10.5
       '@terrazzo/plugin-css': 0.10.4(@terrazzo/cli@0.10.5(hono@4.12.7))
       scule: 1.3.0
 
@@ -6555,7 +6569,7 @@ snapshots:
   '@testing-library/dom@10.4.1':
     dependencies:
       '@babel/code-frame': 7.29.0
-      '@babel/runtime': 7.28.6
+      '@babel/runtime': 7.29.2
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
       dom-accessibility-api: 0.5.16
@@ -6828,6 +6842,20 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
+
+  '@vitest/browser-playwright@4.1.0(playwright@1.59.0-alpha-1771104257000)(vite@8.0.0(@types/node@25.3.3)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.1.0)':
+    dependencies:
+      '@vitest/browser': 4.1.0(vite@8.0.0(@types/node@25.3.3)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.1.0)
+      '@vitest/mocker': 4.1.0(vite@8.0.0(@types/node@25.3.3)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+      playwright: 1.59.0-alpha-1771104257000
+      tinyrainbow: 3.0.3
+      vitest: 4.1.0(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(@vitest/browser-playwright@4.1.0)(jsdom@28.1.0)(vite@8.0.0(@types/node@25.3.3)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))
+    transitivePeerDependencies:
+      - bufferutil
+      - msw
+      - utf-8-validate
+      - vite
+    optional: true
 
   '@vitest/browser@4.1.0(vite@8.0.0(@types/node@25.3.3)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.1.0)':
     dependencies:
@@ -7752,7 +7780,7 @@ snapshots:
   h3@2.0.1-rc.16:
     dependencies:
       rou3: 0.8.1
-      srvx: 0.11.9
+      srvx: 0.11.12
 
   has-flag@4.0.0: {}
 
@@ -9250,6 +9278,8 @@ snapshots:
 
   sprintf-js@1.0.3: {}
 
+  srvx@0.11.12: {}
+
   srvx@0.11.9: {}
 
   stackback@0.0.2: {}
@@ -9648,7 +9678,7 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
       '@types/node': 25.3.3
-      '@vitest/browser-playwright': 4.1.0(playwright@1.58.2)(vite@8.0.0(@types/node@25.3.3)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.1.0)
+      '@vitest/browser-playwright': 4.1.0(playwright@1.59.0-alpha-1771104257000)(vite@8.0.0(@types/node@25.3.3)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.1.0)
       jsdom: 28.1.0
     transitivePeerDependencies:
       - msw
