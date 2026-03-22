@@ -23,6 +23,13 @@ jobs:
           registry-url: https://registry.npmjs.org
           install-command: pnpm install --offline --frozen-lockfile
 
+      - uses: ./.github/actions/setup-rust-ci
+        with:
+          cargo-cache-key: ${{ runner.os }}-release
+
+      - uses: ./.github/actions/install-linux-desktop-deps
+        if: ${{ runner.os == 'Linux' }}
+
       - name: Create Release Pull Request or Publish to npm
         id: changesets
         uses: changesets/action@v1

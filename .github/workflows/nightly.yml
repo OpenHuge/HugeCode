@@ -32,6 +32,8 @@ jobs:
 
       - uses: ./.github/actions/cache-turbo
 
+      - uses: ./.github/actions/install-linux-desktop-deps
+
       - uses: ./.github/actions/setup-rust-ci
         with:
           cargo-cache-path: |
