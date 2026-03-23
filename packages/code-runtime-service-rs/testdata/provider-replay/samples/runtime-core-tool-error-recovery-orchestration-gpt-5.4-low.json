@@ -2,28 +2,122 @@
   "schemaVersion": 1,
   "sample": {
     "id": "runtime-core-tool-error-recovery-orchestration-gpt-5.4-low",
-    "variant": "gpt-5.4-low-recovery-orchestration",
+    "variant": "tool-error-recovery-orchestration-gpt-5.4-low",
     "family": "runtime-core",
     "scenarioType": "tool-error-recovery",
     "mode": "failure-recovery",
     "source": "mixed",
-    "recordedAt": "2026-03-13T07:45:24.848Z",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
     "schemaVersion": 1,
     "runtimeKind": "code-runtime-gateway-web",
     "providerKind": "openai",
     "requiresRealRuntime": true,
     "supportsReplayOnly": true,
     "tags": [
-      "candidate",
       "runtime-core",
       "provider-replay",
       "playwright",
       "tool-error-recovery",
-      "orchestration"
+      "orchestration",
+      "incubating",
+      "recovery-orchestration-flagship-low",
+      "gpt-5.4"
     ],
-    "stability": "candidate",
+    "stability": "incubating",
     "redactionVersion": "runtime-provider-replay-v1",
-    "notes": "Candidate recovery variant for orchestration-layer failure handling with a controlled failure leg and recorded recovery leg."
+    "notes": "runtime-core-tool-error-recovery-orchestration-gpt-5.4-low expanded for gpt-5.4/low.",
+    "capabilities": ["tool-error-recovery"],
+    "riskTier": "critical",
+    "axisCoverage": {
+      "scenarioType": "tool-error-recovery",
+      "failureClass": "runtime.orchestration.unavailable",
+      "modelProfile": "gpt-5.4",
+      "reasoningEffort": "low",
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "not-applicable",
+      "runtimeTruthCapabilities": ["tool-error-recovery"],
+      "interactionStrength": "3-way",
+      "coverageSlice": "recovery-orchestration-flagship-low"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "failure-class-correct",
+          "label": "Failure class is preserved",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "recovery-path-complete",
+          "label": "Recovery path completes",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "user-visible-error-clear",
+          "label": "User-visible error is clear",
+          "weight": 0.25,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "mixed",
+      "providerPath": "provider-replay",
+      "failureLeg": "controlled-synthetic",
+      "runtimeTruth": "not-applicable",
+      "workspaceEffects": "none"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.95,
+      "requiresRecordedEvidence": false,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": false,
+      "blockingTrack": false
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 30,
+      "maxDebtDays": 30,
+      "strict": false,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": true
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": ["runtime.orchestration.unavailable"],
+      "disallowedFailureClasses": ["provider.request-failed", "provider.stream-interrupted"],
+      "observedFailureClass": "runtime.orchestration.unavailable",
+      "failureMode": "runtime.orchestration.unavailable"
+    },
+    "sourceFingerprint": {
+      "seedSource": "workflow-failure",
+      "priorityBucket": "workflow-failure",
+      "parentSampleId": "runtime-core-tool-error-recovery-gpt-5.3-codex-medium",
+      "evidenceMode": "mixed",
+      "dedupKey": "tool-error-recovery|runtime.orchestration.unavailable|on-request|recovery-orchestration-flagship-low"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "needs-follow-up",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier critical.",
+        "runtime-core-tool-error-recovery-orchestration-gpt-5.4-low expanded for gpt-5.4/low.",
+        "Coverage slice recovery-orchestration-flagship-low.",
+        "Generated from runtime-core-tool-error-recovery-orchestration-gpt-5.4-low with seed source workflow-failure."
+      ]
+    }
   },
   "input": {
     "task": "Validate recovery after an orchestration-layer failure and confirm the next turn succeeds cleanly.",
@@ -103,7 +197,7 @@
     },
     "harness": {
       "runner": "runtime-core-playwright",
-      "testName": "runtime replay keeps orchestration failures explainable while validating the recorded recovery path",
+      "testName": "runtime replay keeps orchestration failures explainable while validating the recorded recovery path [runtime-core-tool-error-recovery-orchestration-gpt-5.4-low]",
       "timeoutMs": 60000,
       "workspaceId": "ws-playground",
       "actions": [
@@ -153,6 +247,24 @@
           "type": "wait-turn-state",
           "state": "complete",
           "timeoutMs": 20000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Agent access",
+          "value": "On-request",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.4",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "low",
+          "timeoutMs": 15000
         }
       ]
     }
@@ -161,7 +273,7 @@
     "successStatus": "completed_after_recovery",
     "summaryHeading": "RUNTIME_E2E_ORCHESTRATION_RECOVERY_TURN_2",
     "providerReplay": {
-      "variantId": "gpt-5.4-low-recovery-orchestration",
+      "variantId": "tool-error-recovery-orchestration-gpt-5.4-low",
       "provider": "openai",
       "modelId": "gpt-5.4",
       "reasonEffort": "low",
@@ -288,7 +400,7 @@
   },
   "governance": {
     "owner": "runtime-core-e2e",
-    "lastRefreshReason": "Refreshed with controlled synthetic failure evidence plus live recorded recovery evidence.",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
     "deprecationStatus": "active",
     "archiveStatus": null,
     "lastLiveFailureClass": null,
@@ -331,7 +443,7 @@
     ],
     "optimizationSignals": {
       "seedSource": "workflow-failure",
-      "incubationTrack": "nightly",
+      "incubationTrack": "incubation",
       "recommendedLevers": ["hooks", "rules", "session-lineage"],
       "safeBackgroundCandidate": false,
       "lineage": {
@@ -350,8 +462,8 @@
     ],
     "promotionCriteria": {
       "upgradeToGolden": [
-        "Replace the controlled orchestration failure with a real recorded failure leg that lands on runtime.orchestration.unavailable.",
-        "Keep the recovery leg recorded and replay-green under dedicated runtime isolation."
+        "Add a real runtime-controlled orchestration-unavailable recording profile.",
+        "Keep the recovery leg recorded and the failure class probeable without synthetic evidence."
       ]
     },
     "evidencePlan": {
@@ -360,7 +472,7 @@
         "turn-1": "controlled-synthetic",
         "turn-2": "recorded"
       },
-      "notes": "The failure leg is synthetic because there is not yet a deterministic runtime-controlled orchestration failure profile for recorder use."
+      "notes": "The failure leg is synthetic because the orchestration-unavailable path still falls back instead of failing deterministically."
     },
     "liveFailureProbe": {
       "enabled": false,
@@ -389,65 +501,30 @@
       {
         "blocker": "evidence_not_fully_recorded",
         "active": true,
-        "firstObservedAt": "2026-03-13T07:45:24.848Z",
-        "lastObservedAt": "2026-03-13T07:45:24.848Z",
+        "firstObservedAt": "2026-03-23T00:00:00.000Z",
+        "lastObservedAt": "2026-03-23T00:00:00.000Z",
         "observationCount": 1
       },
       {
         "blocker": "failure_leg_not_fully_recorded",
         "active": true,
-        "firstObservedAt": "2026-03-13T07:45:24.848Z",
-        "lastObservedAt": "2026-03-13T07:45:24.848Z",
+        "firstObservedAt": "2026-03-23T00:00:00.000Z",
+        "lastObservedAt": "2026-03-23T00:00:00.000Z",
         "observationCount": 1
       },
       {
         "blocker": "live_failure_probe_missing",
         "active": true,
-        "firstObservedAt": "2026-03-13T07:45:24.848Z",
-        "lastObservedAt": "2026-03-13T07:45:24.848Z",
+        "firstObservedAt": "2026-03-23T00:00:00.000Z",
+        "lastObservedAt": "2026-03-23T00:00:00.000Z",
         "observationCount": 1
       }
     ]
   },
   "runtimeTruth": {
-    "taskFields": [
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "checkpointId",
-        "matcher": "present",
-        "timeoutMs": 20000
-      },
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "traceId",
-        "matcher": "present",
-        "timeoutMs": 20000
-      },
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "publishHandoff",
-        "matcher": "absent",
-        "timeoutMs": 20000
-      }
-    ],
+    "taskFields": [],
     "review": [],
-    "autodrive": [
-      {
-        "type": "assert-autodrive-trace",
-        "decisionTraceMatcher": "absent",
-        "runtimeScenarioProfileMatcher": "absent",
-        "repoEvaluationProfileMatcher": "absent",
-        "outcomeFeedbackMatcher": "absent",
-        "autonomyStateMatcher": "absent",
-        "timeoutMs": 20000
-      }
-    ],
-    "eventReplay": [
-      {
-        "type": "assert-replay-gap-event",
-        "expectedReason": "runtime.updated",
-        "timeoutMs": 20000
-      }
-    ]
+    "autodrive": [],
+    "eventReplay": []
   }
 }

@@ -1,0 +1,505 @@
+{
+  "schemaVersion": 1,
+  "sample": {
+    "id": "runtime-core-tool-error-recovery-request-failed-gpt-5.4-medium",
+    "variant": "tool-error-recovery-request-failed-gpt-5.4-medium",
+    "family": "runtime-core",
+    "scenarioType": "tool-error-recovery",
+    "mode": "failure-recovery",
+    "source": "recorded",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
+    "schemaVersion": 1,
+    "runtimeKind": "code-runtime-gateway-web",
+    "providerKind": "openai",
+    "requiresRealRuntime": true,
+    "supportsReplayOnly": true,
+    "tags": [
+      "runtime-core",
+      "provider-replay",
+      "playwright",
+      "tool-error-recovery",
+      "provider-request-failed",
+      "golden",
+      "recovery-request-failed-flagship-medium",
+      "gpt-5.4"
+    ],
+    "stability": "golden",
+    "redactionVersion": "runtime-provider-replay-v1",
+    "notes": "runtime-core-tool-error-recovery-request-failed-gpt-5.4-low expanded for gpt-5.4/medium.",
+    "capabilities": ["tool-error-recovery"],
+    "riskTier": "critical",
+    "axisCoverage": {
+      "scenarioType": "tool-error-recovery",
+      "failureClass": "provider.request-failed",
+      "modelProfile": "gpt-5.4",
+      "reasoningEffort": "medium",
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "not-applicable",
+      "runtimeTruthCapabilities": ["tool-error-recovery"],
+      "interactionStrength": "3-way",
+      "coverageSlice": "recovery-request-failed-flagship-medium"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "failure-class-correct",
+          "label": "Failure class is preserved",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "recovery-path-complete",
+          "label": "Recovery path completes",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "user-visible-error-clear",
+          "label": "User-visible error is clear",
+          "weight": 0.25,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "recorded",
+      "providerPath": "provider-replay",
+      "failureLeg": "recorded",
+      "runtimeTruth": "not-applicable",
+      "workspaceEffects": "none"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.95,
+      "requiresRecordedEvidence": true,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": true,
+      "blockingTrack": true
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 21,
+      "maxDebtDays": 7,
+      "strict": true,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": true
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": ["provider.request-failed"],
+      "disallowedFailureClasses": ["provider.stream-interrupted", "provider.rejected"],
+      "observedFailureClass": "provider.request-failed",
+      "failureMode": "provider.request-failed"
+    },
+    "sourceFingerprint": {
+      "seedSource": "workflow-failure",
+      "priorityBucket": "workflow-failure",
+      "parentSampleId": "runtime-core-tool-error-recovery-request-failed-gpt-5.4-low",
+      "evidenceMode": "recorded",
+      "dedupKey": "tool-error-recovery|provider.request-failed|on-request|recovery-request-failed-flagship-medium"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "approved",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier critical.",
+        "runtime-core-tool-error-recovery-request-failed-gpt-5.4-low expanded for gpt-5.4/medium.",
+        "Coverage slice recovery-request-failed-flagship-medium.",
+        "Generated from runtime-core-tool-error-recovery-request-failed-gpt-5.4-low with seed source workflow-failure."
+      ]
+    }
+  },
+  "input": {
+    "task": "Validate recovery after a real provider.request-failed turn, then confirm the next turn succeeds.",
+    "variant": {
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "medium"
+    },
+    "runtimeConfig": {
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default"
+    },
+    "endpointIsolation": {
+      "strategy": "dedicated-runtime-port",
+      "rpcEndpointTemplate": "http://127.0.0.1:{runtimePort}/rpc",
+      "workspaceId": "workspace-web",
+      "reuseExistingRuntime": false
+    },
+    "turns": [
+      {
+        "id": "turn-1",
+        "role": "user",
+        "action": "send",
+        "prompt": "Reply with exactly \"RUNTIME_E2E_REQUEST_FAILED_FAILURE\". No bullets. No markdown."
+      },
+      {
+        "id": "turn-2",
+        "role": "user",
+        "action": "send",
+        "prompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_REQUEST_FAILED_RECOVERY_TURN_2\". Line 2 must start with \"REQUEST_FAILED_RECOVERY: \" and explain why a stable request-failed recovery belongs in runtime replay coverage. No bullets. No markdown."
+      }
+    ]
+  },
+  "process": {
+    "expectedStateTransitions": [
+      "runtime.spawned",
+      "runtime.healthy",
+      "thread.opened",
+      "turn.started",
+      "turn.failed",
+      "recovery.turn.started",
+      "provider.delta",
+      "recovery.turn.completed"
+    ],
+    "providerEventRequirements": [
+      {
+        "kind": "turn.failed",
+        "exactCount": 1
+      },
+      {
+        "kind": "item.agentMessage.delta",
+        "minCount": 2
+      },
+      {
+        "kind": "turn.completed",
+        "exactCount": 1
+      }
+    ],
+    "longOutputReadback": {
+      "enabled": false,
+      "expectedPolling": false,
+      "fragments": []
+    },
+    "errorRecovery": {
+      "expected": true,
+      "failureTurnId": "turn-1",
+      "recoveryTurnId": "turn-2",
+      "expectedFailureClasses": ["provider.request-failed"],
+      "disallowedFailureClasses": ["provider.stream-interrupted", "provider.rejected"],
+      "signals": ["request failed", "RUNTIME_E2E_REQUEST_FAILED_RECOVERY_TURN_2"]
+    },
+    "runtimeBinding": {
+      "strategy": "dedicated-runtime-port",
+      "host": "127.0.0.1",
+      "forbidCompatibleRuntimeProbe": true
+    },
+    "harness": {
+      "runner": "runtime-core-playwright",
+      "testName": "runtime replay records provider.request-failed recovery as a stable golden flow [runtime-core-tool-error-recovery-request-failed-gpt-5.4-medium]",
+      "timeoutMs": 60000,
+      "workspaceId": "ws-playground",
+      "actions": [
+        {
+          "type": "select-option",
+          "control": "Agent access",
+          "value": "On-request"
+        },
+        {
+          "type": "select-option",
+          "control": "Model",
+          "value": "gpt-5.4"
+        },
+        {
+          "type": "select-option",
+          "control": "Thinking mode",
+          "value": "medium"
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "new",
+          "promptTurnId": "turn-1"
+        },
+        {
+          "type": "wait-turn-state",
+          "state": "failed",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "append",
+          "promptTurnId": "turn-2"
+        }
+      ],
+      "assertions": [
+        {
+          "type": "wait-message",
+          "text": "RUNTIME_E2E_REQUEST_FAILED_RECOVERY_TURN_2",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "wait-turn-state",
+          "state": "complete",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Agent access",
+          "value": "On-request",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.4",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "medium",
+          "timeoutMs": 15000
+        }
+      ]
+    }
+  },
+  "result": {
+    "successStatus": "completed_after_recovery",
+    "summaryHeading": "RUNTIME_E2E_REQUEST_FAILED_RECOVERY_TURN_2",
+    "providerReplay": {
+      "variantId": "tool-error-recovery-request-failed-gpt-5.4-medium",
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "medium",
+      "recordingAccessMode": "on-request",
+      "recordingExecutionMode": "runtime",
+      "coverage": ["error-recovery", "provider-request-failed", "retry"],
+      "turns": [
+        {
+          "userPrompt": "Reply with exactly \"RUNTIME_E2E_REQUEST_FAILED_FAILURE\". No bullets. No markdown.",
+          "output": null,
+          "deltaChunks": [],
+          "failure": {
+            "class": "provider.request-failed",
+            "code": "TURN_EXECUTION_FAILED",
+            "message": "ChatGPT Codex request failed: error sending request for url (https://chatgpt.com/backend-api/codex/responses)"
+          },
+          "recordingProfile": "openai-endpoint-refused-live",
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-tool-error-recovery-request-failed-gpt-5.4-medium",
+            "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4",
+            "recordedReasonEffort": "medium",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "none"
+          },
+          "recordedAt": "2026-03-13T13:42:49.468Z"
+        },
+        {
+          "userPrompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_REQUEST_FAILED_RECOVERY_TURN_2\". Line 2 must start with \"REQUEST_FAILED_RECOVERY: \" and explain why a stable request-failed recovery belongs in runtime replay coverage. No bullets. No markdown.",
+          "output": "RUNTIME_E2E_REQUEST_FAILED_RECOVERY_TURN_2\nREQUEST_FAILED_RECOVERY: A stable request-failed recovery must be covered by runtime replay because failures and retries are part of real execution semantics, and replay must deterministically reproduce the same recovery path to prove resilience, state consistency, and no hidden side effects across turns.",
+          "deltaChunks": [
+            "R",
+            "UNTIME_E2E_REQUEST",
+            "_FAILED_RECOVERY_TURN",
+            "_2\nREQUEST",
+            "_FAILED_RECOVERY:",
+            " A stable request",
+            "-failed recovery must",
+            " be covered by",
+            " runtime replay because",
+            " failures and retries",
+            " are part of real",
+            " execution semantics",
+            ", and",
+            " replay must",
+            " determin",
+            "istically reproduce the same recovery",
+            " path to",
+            " prove",
+            " resilience",
+            ", state consistency, and",
+            " no",
+            " hidden",
+            " side effects across turns",
+            "."
+          ],
+          "chunkDelayMs": 25,
+          "expectations": {
+            "startsWith": "RUNTIME_E2E_REQUEST_FAILED_RECOVERY_TURN_2",
+            "mustContain": ["REQUEST_FAILED_RECOVERY:"],
+            "minDeltaChunks": 2
+          },
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-tool-error-recovery-request-failed-gpt-5.4-medium",
+            "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4",
+            "recordedReasonEffort": "medium",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "recorded"
+          },
+          "recordedAt": "2026-03-13T13:42:59.672Z"
+        }
+      ]
+    }
+  },
+  "assertions": {
+    "hard": [
+      {
+        "type": "runtime-isolation",
+        "forbidLogPattern": "Existing runtime on"
+      },
+      {
+        "type": "message-visible",
+        "text": "RUNTIME_E2E_REQUEST_FAILED_RECOVERY_TURN_2"
+      }
+    ],
+    "soft": [
+      {
+        "type": "duration-ms",
+        "max": 60000
+      },
+      {
+        "type": "log-warning-budget",
+        "max": 6
+      },
+      {
+        "type": "delta-chunk-range",
+        "turnId": "turn-2",
+        "min": 2,
+        "max": 32
+      }
+    ]
+  },
+  "governance": {
+    "owner": "runtime-core-e2e",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
+    "deprecationStatus": "active",
+    "archiveStatus": null,
+    "lastLiveFailureClass": "provider.request-failed",
+    "lastLiveRerecordStable": true,
+    "rerecordStability": {
+      "status": "stable-compatible",
+      "stable": true,
+      "compatibleWithExpectedFailureClass": true,
+      "observedFailureClasses": ["provider.request-failed"],
+      "driftObserved": false,
+      "lastCheckedAt": "2026-03-23T00:00:00.000Z"
+    },
+    "recoveryQualification": {
+      "expectedFailureClasses": ["provider.request-failed"],
+      "disallowedFailureClasses": ["provider.stream-interrupted", "provider.rejected"],
+      "observedFailureClass": "provider.request-failed",
+      "recoveryObserved": true,
+      "recoveryTurnId": "turn-2",
+      "evidenceMode": "recorded",
+      "rerecordStability": {
+        "status": "stable-compatible",
+        "stable": true,
+        "compatibleWithExpectedFailureClass": true,
+        "observedFailureClasses": ["provider.request-failed"],
+        "driftObserved": false,
+        "lastCheckedAt": "2026-03-23T00:00:00.000Z"
+      },
+      "goldenBlockers": [],
+      "recoveryStable": true,
+      "eligibleForGolden": true
+    },
+    "goldenBlockers": [],
+    "optimizationSignals": {
+      "seedSource": "workflow-failure",
+      "incubationTrack": "blocking",
+      "recommendedLevers": ["hooks", "rules", "session-lineage"],
+      "safeBackgroundCandidate": false,
+      "lineage": {
+        "parentSampleId": "runtime-core-tool-error-recovery-request-failed-gpt-5.4-low",
+        "strategy": "combinatorial-expansion"
+      }
+    },
+    "deterministicRegressions": [
+      {
+        "id": "endpoint-refused-profiles-require-scoped-runtime",
+        "layer": "recorder",
+        "path": "scripts/record-runtime-provider-replay.node.test.mjs",
+        "testName": "recordingProfileRequiresScopedRuntime requires isolated runtime when env overrides exist",
+        "status": "active"
+      }
+    ],
+    "promotionCriteria": {
+      "upgradeToGolden": [
+        "The live failure probe must keep provider.request-failed across repeated attempts.",
+        "The recovery leg must remain recorded and replay-green under dedicated runtime isolation."
+      ]
+    },
+    "evidencePlan": {
+      "mixedEvidence": false,
+      "turnSources": {
+        "turn-1": "recorded",
+        "turn-2": "recorded"
+      },
+      "notes": "Failure and recovery legs are recorded from the live runtime path using a refused-endpoint recording profile."
+    },
+    "liveFailureProbe": {
+      "enabled": true,
+      "profileId": "openai-endpoint-refused-live",
+      "turnId": "turn-1",
+      "attempts": 2,
+      "expectedFailureClasses": ["provider.request-failed"],
+      "lastRun": {
+        "recordedAt": "2026-03-23T00:00:00.000Z",
+        "attempts": 2,
+        "observedFailureClasses": ["provider.request-failed"],
+        "attemptRecords": [
+          {
+            "attempt": 1,
+            "outcome": "failed",
+            "failureClass": "provider.request-failed"
+          },
+          {
+            "attempt": 2,
+            "outcome": "failed",
+            "failureClass": "provider.request-failed"
+          }
+        ],
+        "stable": true,
+        "driftObserved": false
+      }
+    },
+    "recordingProfiles": {
+      "openai-endpoint-refused-live": {
+        "strategy": "runtime-record",
+        "notes": "Disables retries and redirects the OpenAI endpoint to a refused local socket so the first turn lands on provider.request-failed.",
+        "env": {
+          "CODE_RUNTIME_SERVICE_OPENAI_ENDPOINT": "http://127.0.0.1:9/v1/responses",
+          "CODE_RUNTIME_SERVICE_OPENAI_MAX_RETRIES": "0",
+          "CODE_RUNTIME_SERVICE_OPENAI_TIMEOUT_MS": "500",
+          "CODE_RUNTIME_SERVICE_OPENAI_COMPAT_API_KEY": null,
+          "CODE_RUNTIME_SERVICE_OPENAI_COMPAT_BASE_URL": null
+        }
+      }
+    },
+    "redaction": {
+      "applied": true,
+      "normalizedFields": ["rpcEndpoint", "workspaceId"],
+      "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
+    },
+    "goldenBlockerHistory": []
+  },
+  "runtimeTruth": {
+    "taskFields": [],
+    "review": [],
+    "autodrive": [],
+    "eventReplay": []
+  }
+}

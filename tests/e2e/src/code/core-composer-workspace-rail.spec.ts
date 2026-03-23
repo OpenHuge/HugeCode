@@ -35,6 +35,7 @@ test("workspace rail stays outside the composer footer and remains interactive",
   const readOnlyOption = page.getByRole("option", { name: "Read only" }).first();
   await expect(readOnlyOption).toBeVisible();
   await clickByDom(readOnlyOption);
+  await expect(accessButton).toContainText("Read only");
 
   const branchButton = page.getByRole("button", { name: "Branch & worktree" }).first();
   await expect(branchButton).toBeVisible();

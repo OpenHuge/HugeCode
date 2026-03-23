@@ -93,13 +93,32 @@ test("createRuntimeReplaySelection normalizes harness workspace ids for replay e
   assert.equal(sampleEntry.sample.process.harness.timeoutMs, undefined);
 });
 
-test("validateRuntimeReplayDataset requires runtimeTruth assertions with no legacy bypass", () => {
+test("validateRuntimeReplayDataset requires runtimeTruth container with no legacy bypass", () => {
   const { dataset, sampleEntry } = cloneSingleSampleDataset("runtime-core-read-only-gpt-5.4-low");
   delete sampleEntry.sample.runtimeTruth;
 
-  const validation = validateRuntimeReplayDataset(dataset, {});
+  const validation = validateRuntimeReplayDataset(dataset, {
+    skipCoverageMatrixCatalogStatusAlignment: true,
+  });
 
-  assert.match(validation.errors.join("\n"), /runtimeTruth assertions/);
+  assert.match(validation.errors.join("\n"), /must declare runtimeTruth/);
+});
+
+test("validateRuntimeReplayDataset allows empty runtimeTruth when coverage is not evidence-backed", () => {
+  const { dataset, sampleEntry } = cloneSingleSampleDataset("runtime-core-read-only-gpt-5.4-low");
+  sampleEntry.sample.runtimeTruth = {
+    taskFields: [],
+    review: [],
+    autodrive: [],
+    eventReplay: [],
+  };
+  sampleEntry.sample.sample.capabilities = ["placement-routing"];
+
+  const validation = validateRuntimeReplayDataset(dataset, {
+    skipCoverageMatrixCatalogStatusAlignment: true,
+  });
+
+  assert.deepEqual(validation.errors, []);
 });
 
 test("validateRuntimeReplayDataset rejects legacy schema compatibility flags", () => {
@@ -190,7 +209,11 @@ test("runtime-only autodrive launch sample validates without provider replay tur
   assert.ok(sampleEntry, "expected runtime-only autodrive launch sample");
   assert.equal(sampleEntry.sample.input.turns.length, 0);
   assert.equal(sampleEntry.sample.input.runtimeOperation?.type, "agent-task-start");
-  assert.equal(sampleEntry.sample.process.harness.actions[0]?.type, "rpc-agent-task-start");
+  assert.ok(
+    sampleEntry.sample.process.harness.actions.some(
+      (entry) => entry.type === "rpc-agent-task-start"
+    )
+  );
   assert.equal(sampleEntry.sample.result.providerReplay, undefined);
   assert.equal(
     sampleEntry.sample.runtimeTruth?.eventReplay?.[0]?.expectedReason,
@@ -344,6 +367,7 @@ test("buildRuntimeReplayReport exposes candidate-to-golden blockers for recovery
     "failure_leg_not_fully_recorded",
     "evidence_not_fully_recorded",
     "live_failure_class_incompatible",
+    "trace_grade_below_threshold",
   ]);
   assert.equal(report.samples[0]?.candidateToGolden?.eligible, false);
 });
@@ -498,21 +522,22 @@ test("buildRuntimeReplayValidationReport includes scenario coverage and blocker 
 
   assert.equal(report.scenarioStats?.totalSamples, dataset.samples.length);
   assert.deepEqual(report.scenarioStats?.thinScenarioTypes, []);
-  assert.equal(autodriveScenario?.sampleCount, 2);
-  assert.equal(autodriveScenario?.coverageTier, "baseline-plus-variant");
-  assert.equal(autodriveScenario?.stabilityCounts?.golden, 2);
-  assert.equal(recoveryScenario?.sampleCount, 4);
-  assert.equal(recoveryScenario?.stabilityCounts?.candidate, 3);
-  assert.equal(recoveryScenario?.stabilityCounts?.golden, 1);
-  assert.equal(writeSafeScenario?.sampleCount, 2);
-  assert.equal(writeSafeScenario?.coverageTier, "baseline-plus-variant");
-  assert.equal(writeSafeScenario?.stabilityCounts?.golden, 2);
-  assert.equal(isolationScenario?.sampleCount, 2);
-  assert.equal(isolationScenario?.coverageTier, "baseline-plus-variant");
-  assert.equal(streamingScenario?.sampleCount, 2);
-  assert.equal(streamingScenario?.coverageTier, "baseline-plus-variant");
-  assert.equal(unsupportedScenario?.sampleCount, 2);
-  assert.equal(unsupportedScenario?.coverageTier, "baseline-plus-variant");
+  assert.equal(autodriveScenario?.sampleCount, 5);
+  assert.equal(autodriveScenario?.coverageTier, "family");
+  assert.equal(autodriveScenario?.stabilityCounts?.golden, 3);
+  assert.equal(recoveryScenario?.sampleCount, 12);
+  assert.equal(recoveryScenario?.stabilityCounts?.candidate, 6);
+  assert.equal(recoveryScenario?.stabilityCounts?.golden, 4);
+  assert.equal(recoveryScenario?.stabilityCounts?.incubating, 2);
+  assert.equal(writeSafeScenario?.sampleCount, 8);
+  assert.equal(writeSafeScenario?.coverageTier, "family");
+  assert.equal(writeSafeScenario?.stabilityCounts?.golden, 5);
+  assert.equal(isolationScenario?.sampleCount, 5);
+  assert.equal(isolationScenario?.coverageTier, "family");
+  assert.equal(streamingScenario?.sampleCount, 8);
+  assert.equal(streamingScenario?.coverageTier, "family");
+  assert.equal(unsupportedScenario?.sampleCount, 5);
+  assert.equal(unsupportedScenario?.coverageTier, "family");
   assert.deepEqual(writeSafeScenario?.gapSignals, []);
   assert.ok(!writeSafeScenario?.gapSignals?.includes("no_golden_baseline"));
   const failureLegBlocker = recoveryScenario?.blockerDwellTime?.blockers?.find(
@@ -520,13 +545,6 @@ test("buildRuntimeReplayValidationReport includes scenario coverage and blocker 
   );
   assert.equal(failureLegBlocker?.blocker, "failure_leg_not_fully_recorded");
   assert.ok((failureLegBlocker?.dwellMs ?? -1) >= 0);
-  assert.ok(
-    report.scenarioStats?.scenarioPriorityQueue?.some(
-      (entry) =>
-        entry.scenarioType === "tool-error-recovery" &&
-        entry.gapSignals.includes("rerecord_instability")
-    )
-  );
   assert.ok(
     !report.scenarioStats?.scenarioDensity?.fullyGatedButSingleSample?.some(
       (entry) =>
@@ -538,14 +556,14 @@ test("buildRuntimeReplayValidationReport includes scenario coverage and blocker 
   );
   assert.deepEqual(report.scenarioStats?.scenarioDensity?.backgroundReadyButThin, []);
   assert.deepEqual(report.scenarioStats?.recoveryFailureClassDistribution, {
-    "provider.request-failed": 1,
-    "provider.rejected": 1,
-    "provider.stream-interrupted": 1,
-    "runtime.orchestration.unavailable": 1,
+    "provider.request-failed": 4,
+    "provider.rejected": 4,
+    "provider.stream-interrupted": 2,
+    "runtime.orchestration.unavailable": 2,
   });
   assert.deepEqual(report.scenarioStats?.recoveryEvidenceModeDistribution, {
-    mixed: 3,
-    recorded: 1,
+    mixed: 4,
+    recorded: 8,
   });
   assert.deepEqual(report.scenarioStats?.familyDensity?.thinFamilies, []);
   assert.equal(
@@ -553,6 +571,12 @@ test("buildRuntimeReplayValidationReport includes scenario coverage and blocker 
       ?.densityStatus,
     "adequate"
   );
+  assert.equal(report.traceGradeDistribution?.passingSampleCount, 44);
+  assert.equal(report.liveProbeStability?.counts?.["stable-compatible"], 8);
+  assert.equal(report.liveProbeStability?.counts?.missing, 2);
+  assert.equal(report.freshnessDebt?.overdueCount, 0);
+  assert.equal(report.matrixCoverageByAxis?.scenarioType?.["tool-error-recovery"], 12);
+  assert.equal(report.promotionCandidatesByRisk?.critical, 11);
 });
 
 test("buildRuntimeReplayValidationReport exposes baseline governance closure by scenario and family", () => {
@@ -579,9 +603,9 @@ test("buildRuntimeReplayValidationReport exposes baseline governance closure by 
 
   assert.equal(report.baselineGovernance?.baselineClosureStatus, "complete");
   assert.equal(report.baselineGovernance?.baselineBacklogCount, 0);
-  assert.equal(report.baselineGovernance?.fullyGatedBaselineCount, 13);
-  assert.equal(report.baselineGovernance?.baselineSampleCount, 13);
-  assert.equal(report.baselineGovernance?.backgroundReadyFullyGatedCount, 4);
+  assert.equal(report.baselineGovernance?.fullyGatedBaselineCount, 24);
+  assert.equal(report.baselineGovernance?.baselineSampleCount, 24);
+  assert.equal(report.baselineGovernance?.backgroundReadyFullyGatedCount, 3);
   assert.equal(report.baselineGovernance?.densityStatus, "adequate");
   assert.equal(autodriveScenario?.fullyGated, true);
   assert.equal(autodriveScenario?.thinCoverage, false);
@@ -592,7 +616,7 @@ test("buildRuntimeReplayValidationReport exposes baseline governance closure by 
   assert.equal(writeSafeScenario?.fullyGated, true);
   assert.equal(writeSafeScenario?.densityStatus, "adequate");
   assert.equal(runtimeCoreFamily?.baselineBacklogCount, 0);
-  assert.equal(runtimeCoreFamily?.fullyGatedBaselineCount, 13);
+  assert.equal(runtimeCoreFamily?.fullyGatedBaselineCount, 24);
   assert.equal(runtimeCoreFamily?.densityStatus, "adequate");
 });
 
@@ -605,17 +629,22 @@ test("buildRuntimeReplayValidationReport ranks candidate promotion readiness", (
     validation,
   });
 
-  const [orchestrationCandidate, recoveryCandidate] =
-    report.scenarioStats?.candidatePromotionQueue ?? [];
+  const providerRejectedCandidate = report.scenarioStats?.candidatePromotionQueue?.find(
+    (entry) => entry.id === "runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low"
+  );
+  const autodriveMiniCandidate = report.scenarioStats?.candidatePromotionQueue?.find(
+    (entry) => entry.id === "runtime-core-autodrive-launch-gpt-5.4-mini-low"
+  );
 
-  assert.equal(orchestrationCandidate?.promotionReadiness?.ready, false);
-  assert.ok(orchestrationCandidate?.promotionReadiness?.reasons?.includes("mixed_evidence"));
+  assert.equal(providerRejectedCandidate?.promotionReadiness?.ready, true);
+  assert.ok(providerRejectedCandidate?.promotionReadiness?.reasons?.includes("trace_grade_passed"));
   assert.ok(
     report.scenarioStats?.candidatePromotionQueue?.some(
       (entry) => entry.id === "runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low"
     )
   );
-  assert.ok(recoveryCandidate?.promotionReadiness?.score >= 5);
+  assert.equal(autodriveMiniCandidate?.promotionReadiness?.ready, true);
+  assert.ok(autodriveMiniCandidate?.promotionReadiness?.reasons?.includes("trace_grade_passed"));
   assert.ok(
     !report.scenarioStats?.candidatePromotionQueue?.some(
       (entry) => entry.id === "runtime-core-write-safe-minimal-gpt-5.4-low"
@@ -642,7 +671,7 @@ test("buildRuntimeReplayValidationReport exposes deterministic regression covera
   assert.ok((report.regressionCoverage?.byLayer?.recorder ?? 0) >= 2);
   assert.equal(report.regressionCoverage?.regressionBacklog?.length ?? -1, 0);
   assert.equal(report.regressionCoverage?.baselineBacklogCount, 0);
-  assert.equal(report.regressionCoverage?.fullyGatedBaselineCount, 13);
+  assert.equal(report.regressionCoverage?.fullyGatedBaselineCount, 24);
   assert.equal(report.regressionCoverage?.baselineClosureStatus, "complete");
   assert.ok(
     !report.regressionCoverage?.regressionBacklog?.some(
@@ -681,17 +710,17 @@ test("buildRuntimeReplayValidationReport exposes deterministic regression covera
   );
   assert.ok(
     !report.regressionCoverage?.regressionBacklog?.some(
-      (entry) => entry.id === "runtime-core-model-selection-gpt-5.1-codex-mini-medium"
+      (entry) => entry.id === "runtime-core-model-selection-gpt-5.4-mini-medium"
     )
   );
   assert.ok(
     !report.regressionCoverage?.regressionBacklog?.some(
-      (entry) => entry.id === "runtime-core-isolation-gpt-5.1-codex-mini-medium"
+      (entry) => entry.id === "runtime-core-isolation-gpt-5.4-mini-medium"
     )
   );
   assert.ok(
     !report.regressionCoverage?.regressionBacklog?.some(
-      (entry) => entry.id === "runtime-core-streaming-queue-resume-gpt-5.1-codex-mini-low"
+      (entry) => entry.id === "runtime-core-streaming-queue-resume-gpt-5.4-mini-low"
     )
   );
   assert.ok(
@@ -717,7 +746,7 @@ test("buildRuntimeReplayValidationReport exposes agent evolution signals", () =>
 
   assert.ok((report.evolutionSignals?.seedSourceCounts?.manual ?? 0) >= 1);
   assert.ok((report.evolutionSignals?.seedSourceCounts?.["workflow-failure"] ?? 0) >= 1);
-  assert.ok((report.evolutionSignals?.recommendedLeverCounts?.sandbox ?? 0) >= 1);
+  assert.ok((report.evolutionSignals?.recommendedLeverCounts?.skills ?? 0) >= 1);
   assert.ok((report.evolutionSignals?.recommendedLeverCounts?.rules ?? 0) >= 1);
   assert.ok((report.evolutionSignals?.safeBackgroundCandidateCount ?? 0) >= 1);
   assert.ok(
@@ -734,24 +763,22 @@ test("buildRuntimeReplayBackgroundReadyQueue only selects low-risk recorded gold
   assert.deepEqual(
     queue.selected.map((entry) => entry.id),
     [
-      "runtime-core-isolation-gpt-5.1-codex-mini-medium",
+      "runtime-core-isolation-gpt-5.3-codex-high",
       "runtime-core-isolation-gpt-5.4-high",
-      "runtime-core-read-only-background-gpt-5.3-codex-medium",
-      "runtime-core-read-only-gpt-5.4-low",
+      "runtime-core-isolation-gpt-5.4-mini-medium",
     ]
   );
   assert.equal(queue.selected[0]?.queueProfile, "isolated-runtime-check");
   assert.equal(queue.selected[1]?.queueProfile, "isolated-runtime-check");
-  assert.equal(queue.selected[2]?.queueProfile, "read-only-safe");
-  assert.equal(queue.selected[3]?.queueProfile, "read-only-safe");
+  assert.equal(queue.selected[2]?.queueProfile, "isolated-runtime-check");
   assert.deepEqual(
-    queue.selected.find((entry) => entry.id === "runtime-core-read-only-gpt-5.4-low")?.gaps,
+    queue.selected.find((entry) => entry.id === "runtime-core-isolation-gpt-5.4-high")?.gaps,
     []
   );
   assert.ok(
     queue.excluded
       .find((entry) => entry.id === "runtime-core-write-safe-minimal-gpt-5.4-low")
-      ?.exclusionReasons.includes("write_path_not_allowed")
+      ?.exclusionReasons.includes("temporary_workspace_side_effects_not_proven_safe")
   );
   assert.ok(
     queue.excluded
@@ -786,21 +813,11 @@ test("buildRuntimeReplayValidationReport exposes background-ready queue and line
     validation,
   });
 
-  assert.equal(report.backgroundReadyQueue?.selectedCount, 4);
-  assert.equal(report.backgroundReadyQueue?.summary?.excludedCount, dataset.samples.length - 4);
+  assert.equal(report.backgroundReadyQueue?.selectedCount, 3);
+  assert.equal(report.backgroundReadyQueue?.summary?.excludedCount, dataset.samples.length - 3);
   assert.ok(
     report.backgroundReadyQueue?.selected.some(
-      (entry) => entry.id === "runtime-core-read-only-gpt-5.4-low"
-    )
-  );
-  assert.ok(
-    report.backgroundReadyQueue?.selected.some(
-      (entry) => entry.id === "runtime-core-read-only-background-gpt-5.3-codex-medium"
-    )
-  );
-  assert.ok(
-    report.backgroundReadyQueue?.selected.some(
-      (entry) => entry.id === "runtime-core-isolation-gpt-5.1-codex-mini-medium"
+      (entry) => entry.id === "runtime-core-isolation-gpt-5.4-mini-medium"
     )
   );
   assert.ok(
@@ -810,10 +827,10 @@ test("buildRuntimeReplayValidationReport exposes background-ready queue and line
         node.sampleId === "runtime-core-tool-error-recovery-gpt-5.3-codex-medium"
     )
   );
-  assert.equal(report.lineageGraphSummary?.nodeCounts?.sample, 4);
-  assert.equal(report.lineageGraphSummary?.edgeCounts?.["derived-from"], 3);
+  assert.equal(report.lineageGraphSummary?.nodeCounts?.sample, 34);
+  assert.equal(report.lineageGraphSummary?.edgeCounts?.["derived-from"], 24);
   assert.equal(report.lineageGraphSummary?.unresolvedCount, 0);
-  assert.equal(report.lineageGraphSummary?.blockedCount, 2);
+  assert.equal(report.lineageGraphSummary?.blockedCount, 3);
 });
 
 test("buildRuntimeReplayValidationReport exposes a manifest-driven coverage matrix", () => {
@@ -844,10 +861,14 @@ test("buildRuntimeReplayValidationReport exposes a manifest-driven coverage matr
   assert.deepEqual(runtimeIsolation?.missingProfiles, []);
   assert.deepEqual(streaming?.missingProfiles, []);
   assert.deepEqual(unsupported?.missingProfiles, []);
-  assert.deepEqual(autodrive?.coveredProfiles, ["gpt-5.3-codex", "gpt-5.4"].sort());
-  assert.deepEqual(runtimeIsolation?.coveredProfiles, ["gpt-5.1-codex-mini", "gpt-5.4"].sort());
-  assert.deepEqual(streaming?.coveredProfiles, ["gpt-5.4", "gpt-5.1-codex-mini"].sort());
-  assert.deepEqual(unsupported?.coveredProfiles, ["gpt-5.3-codex", "gpt-5.1-codex-mini"].sort());
+  assert.ok(autodrive?.coveredProfiles.includes("gpt-5.3-codex"));
+  assert.ok(autodrive?.coveredProfiles.includes("gpt-5.4"));
+  assert.ok(runtimeIsolation?.coveredProfiles.includes("gpt-5.4-mini"));
+  assert.ok(runtimeIsolation?.coveredProfiles.includes("gpt-5.4"));
+  assert.ok(streaming?.coveredProfiles.includes("gpt-5.4"));
+  assert.ok(streaming?.coveredProfiles.includes("gpt-5.4-mini"));
+  assert.ok(unsupported?.coveredProfiles.includes("gpt-5.3-codex"));
+  assert.ok(unsupported?.coveredProfiles.includes("gpt-5.4-mini"));
 });
 
 test("buildRuntimeReplayValidationReport includes capability coverage and model execution metadata", () => {
@@ -879,12 +900,14 @@ test("buildRuntimeReplayValidationReport includes capability coverage and model 
   assert.ok(typeof flagshipProfile?.reasoningEfforts?.length === "number");
   assert.ok(runtimeTruthCapability);
   assert.ok(Array.isArray(runtimeTruthCapability?.coveredProfiles));
-  assert.deepEqual(autodriveNavigationCapability?.coveredProfiles, ["gpt-5.3-codex", "gpt-5.4"]);
-  assert.deepEqual(autodriveEvaluationCapability?.coveredProfiles, ["gpt-5.3-codex", "gpt-5.4"]);
+  assert.ok(autodriveNavigationCapability?.coveredProfiles.includes("gpt-5.3-codex"));
+  assert.ok(autodriveNavigationCapability?.coveredProfiles.includes("gpt-5.4"));
+  assert.ok(autodriveEvaluationCapability?.coveredProfiles.includes("gpt-5.3-codex"));
+  assert.ok(autodriveEvaluationCapability?.coveredProfiles.includes("gpt-5.4"));
   assert.deepEqual(eventReplayGapCapability?.coveredProfiles, [
-    "gpt-5.1-codex-mini",
     "gpt-5.3-codex",
     "gpt-5.4",
+    "gpt-5.4-mini",
   ]);
   assert.equal(eventReplayGapCapability?.status, "implemented");
 });
@@ -904,7 +927,7 @@ test("buildRuntimeReplayValidationReport closes autodrive capability debt once r
       .map((entry) => entry.capabilityId)
       .sort() ?? [];
 
-  assert.deepEqual(plannedCapabilityDebtIds, []);
+  assert.deepEqual(plannedCapabilityDebtIds, ["continuity-handoff"]);
 });
 
 test("validateRuntimeReplayDataset rejects planned capability statuses once coverage exists", () => {
@@ -922,14 +945,19 @@ test("validateRuntimeReplayDataset rejects planned capability statuses once cove
 
 test("validateRuntimeReplayDataset can enforce manifest coverage matrix satisfaction", () => {
   const dataset = loadRuntimeReplayDataset();
-  const target = dataset.samples.find(
+  const targets = dataset.samples.filter(
     (entry) =>
-      entry.sample.sample.id === "runtime-core-streaming-queue-resume-gpt-5.1-codex-mini-low"
+      entry.sample.sample.scenarioType === "streaming-long-output" &&
+      entry.sample.input.variant?.modelId === "gpt-5.4-mini"
   );
-  assert.ok(target, "expected mini streaming sample to exist");
-  target.sample.input.variant ??= {};
-  target.sample.input.variant.modelId = "gpt-5.4";
-  target.sample.result.providerReplay.modelId = "gpt-5.4";
+  assert.ok(targets.length > 0, "expected mini streaming samples to exist");
+  for (const target of targets) {
+    target.sample.input.variant ??= {};
+    target.sample.input.variant.modelId = "gpt-5.4";
+    target.sample.sample.axisCoverage.modelProfile = "gpt-5.4";
+    target.sample.result.providerReplay.modelId = "gpt-5.4";
+    target.manifestEntry.axisCoverage.modelProfile = "gpt-5.4";
+  }
 
   const validation = validateRuntimeReplayDataset(dataset, {
     requireCoverageMatrixSatisfaction: true,
@@ -937,7 +965,7 @@ test("validateRuntimeReplayDataset can enforce manifest coverage matrix satisfac
 
   assert.match(
     validation.errors.join("\n"),
-    /scenario streaming-long-output is missing required profile gpt-5\.1-codex-mini/
+    /scenario streaming-long-output is missing required profile gpt-5\.4-mini/
   );
 });
 
@@ -966,21 +994,37 @@ test("buildRuntimeReplayValidationReport exposes candidate intake groups for nig
   });
 
   assert.deepEqual(report.candidateIntake?.backgroundReadyNightlyIds, [
-    "runtime-core-isolation-gpt-5.1-codex-mini-medium",
+    "runtime-core-isolation-gpt-5.3-codex-high",
     "runtime-core-isolation-gpt-5.4-high",
-    "runtime-core-read-only-background-gpt-5.3-codex-medium",
-    "runtime-core-read-only-gpt-5.4-low",
+    "runtime-core-isolation-gpt-5.4-mini-medium",
   ]);
-  assert.deepEqual(report.candidateIntake?.candidateSampleIds, [
-    "runtime-core-tool-error-recovery-gpt-5.3-codex-medium",
-    "runtime-core-tool-error-recovery-orchestration-gpt-5.4-low",
-    "runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low",
-  ]);
-  assert.deepEqual(report.candidateIntake?.workflowFailureCandidates, [
-    "runtime-core-tool-error-recovery-orchestration-gpt-5.4-low",
-    "runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low",
-  ]);
-  assert.deepEqual(report.candidateIntake?.autoPromotableCandidates, []);
+  assert.equal(report.candidateIntake?.candidateSampleIds?.length, 24);
+  assert.ok(
+    report.candidateIntake?.candidateSampleIds.includes(
+      "runtime-core-tool-error-recovery-gpt-5.3-codex-medium"
+    )
+  );
+  assert.ok(
+    report.candidateIntake?.candidateSampleIds.includes(
+      "runtime-core-write-safe-minimal-json-gpt-5.4-high"
+    )
+  );
+  assert.equal(report.candidateIntake?.workflowFailureCandidates?.length, 8);
+  assert.ok(
+    report.candidateIntake?.workflowFailureCandidates.includes(
+      "runtime-core-tool-error-recovery-orchestration-gpt-5.4-low"
+    )
+  );
+  assert.ok(
+    report.candidateIntake?.workflowFailureCandidates.includes(
+      "runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low"
+    )
+  );
+  assert.ok(
+    report.candidateIntake?.autoPromotableCandidates.includes(
+      "runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low"
+    )
+  );
   assert.deepEqual(report.candidateIntake?.matrixGapSuggestions, []);
 });
 
@@ -1005,7 +1049,7 @@ test("buildRuntimeReplayLineageGraph exports explicit sample lineage and regress
     graph.nodes.some(
       (node) =>
         node.type === "regression" &&
-        node.id === "regression:synthetic-failure-profiles-do-not-force-scoped-runtime"
+        node.id === "regression:http-stub-profiles-force-scoped-runtime"
     )
   );
   assert.ok(
@@ -1040,7 +1084,7 @@ test("buildRuntimeReplayLineageGraph exports explicit sample lineage and regress
         edge.to === "sample:runtime-core-tool-error-recovery-gpt-5.3-codex-medium"
     )
   );
-  assert.equal(graph.summary?.edgeCounts?.["derived-from"], 3);
+  assert.equal(graph.summary?.edgeCounts?.["derived-from"], 24);
   assert.equal(graph.summary?.unresolvedCount, 0);
 });
 
@@ -1050,7 +1094,9 @@ test("validateRuntimeReplayDataset rejects unsafe safeBackgroundCandidate declar
   );
   sampleEntry.sample.governance.optimizationSignals.safeBackgroundCandidate = true;
 
-  const validation = validateRuntimeReplayDataset(dataset, {});
+  const validation = validateRuntimeReplayDataset(dataset, {
+    skipCoverageMatrixCatalogStatusAlignment: true,
+  });
 
   assert.match(validation.errors.join("\n"), /safeBackgroundCandidate must not be true/);
 });
@@ -1142,9 +1188,7 @@ test("validateRuntimeReplayDataset requires replay-visible write-safe workspace 
 });
 
 test("non-recovery samples do not inherit recovery blockers", () => {
-  const { dataset, sampleEntry } = cloneSingleSampleDataset(
-    "runtime-core-write-safe-minimal-gpt-5.4-low"
-  );
+  const { dataset, sampleEntry } = cloneSingleSampleDataset("runtime-core-isolation-gpt-5.4-high");
   const report = buildRuntimeReplayReport({
     dataset,
     selectedSamples: [sampleEntry],

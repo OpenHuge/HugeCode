@@ -159,6 +159,37 @@ describe("threadCodexParamsSeed", () => {
     });
   });
 
+  it("preserves no-thread composer overrides within the same workspace scope", () => {
+    const resolved = resolveThreadCodexState({
+      workspaceId: "ws-1",
+      threadId: null,
+      defaultAccessMode: "full-access",
+      lastComposerModelId: "gpt-5.4",
+      lastComposerReasoningEffort: "medium",
+      lastComposerFastMode: false,
+      lastComposerExecutionMode: "runtime",
+      stored: null,
+      pendingSeed: null,
+      currentScopeKey: "ws-1:__no_thread__",
+      currentModelId: "gpt-5.3-codex",
+      currentReasoningEffort: "low",
+      currentAccessMode: "read-only",
+      currentFastMode: true,
+      currentCollaborationModeId: "plan",
+      currentExecutionMode: "hybrid",
+    });
+
+    expect(resolved).toEqual({
+      scopeKey: "ws-1:__no_thread__",
+      accessMode: "read-only",
+      preferredModelId: "gpt-5.3-codex",
+      preferredEffort: "low",
+      preferredFastMode: true,
+      preferredCollabModeId: "plan",
+      executionMode: "hybrid",
+    });
+  });
+
   it("builds first-message seed patch with pending workspace snapshot", () => {
     expect(
       buildThreadCodexSeedPatch({

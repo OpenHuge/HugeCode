@@ -2,27 +2,120 @@
   "schemaVersion": 1,
   "sample": {
     "id": "runtime-core-autodrive-launch-gpt-5.4-low",
-    "variant": "gpt-5.4-low-autodrive-launch",
+    "variant": "autodrive-launch-gpt-5.4-low",
     "family": "runtime-core",
     "scenarioType": "autodrive-launch",
     "mode": "runtime-only",
     "source": "recorded",
-    "recordedAt": "2026-03-20T06:10:00.000Z",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
     "schemaVersion": 1,
     "runtimeKind": "code-runtime-gateway-web",
     "providerKind": "openai",
     "requiresRealRuntime": true,
     "supportsReplayOnly": true,
-    "tags": ["golden", "runtime-core", "runtime-replay", "playwright", "autodrive", "runtime-only"],
+    "tags": [
+      "runtime-core",
+      "runtime-replay",
+      "playwright",
+      "autodrive",
+      "runtime-only",
+      "golden",
+      "launch-autodrive-flagship-baseline",
+      "gpt-5.4"
+    ],
+    "stability": "golden",
+    "redactionVersion": "runtime-provider-replay-v1",
+    "notes": "runtime-core-autodrive-launch-gpt-5.4-low expanded for gpt-5.4/low.",
     "capabilities": [
       "runtime-truth",
       "autodrive-navigation",
       "autodrive-evaluation-profile",
       "event-replay-gap"
     ],
-    "stability": "golden",
-    "redactionVersion": "runtime-provider-replay-v1",
-    "notes": "Runtime-only AutoDrive launch sample that proves task-start truth is published even before task execution finishes."
+    "riskTier": "high",
+    "axisCoverage": {
+      "scenarioType": "autodrive-launch",
+      "failureClass": "none",
+      "modelProfile": "gpt-5.4",
+      "reasoningEffort": "low",
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "runtime-default",
+      "runtimeTruthCapabilities": [
+        "autodrive-evaluation-profile",
+        "autodrive-navigation",
+        "event-replay-gap",
+        "runtime-truth"
+      ],
+      "interactionStrength": "3-way",
+      "coverageSlice": "launch-autodrive-flagship-baseline"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.5,
+          "required": true
+        },
+        {
+          "id": "runtime-truth-complete",
+          "label": "Runtime truth is asserted",
+          "weight": 0.5,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "recorded",
+      "providerPath": "runtime-only",
+      "failureLeg": "not-applicable",
+      "runtimeTruth": "asserted",
+      "workspaceEffects": "none"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.9,
+      "requiresRecordedEvidence": true,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": false,
+      "blockingTrack": true
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 21,
+      "maxDebtDays": 7,
+      "strict": true,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": false
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": [],
+      "disallowedFailureClasses": [],
+      "observedFailureClass": null,
+      "failureMode": null
+    },
+    "sourceFingerprint": {
+      "seedSource": "manual",
+      "priorityBucket": "matrix-gap",
+      "parentSampleId": null,
+      "evidenceMode": "recorded",
+      "dedupKey": "autodrive-launch|none|on-request|launch-autodrive-flagship-baseline"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "approved",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier high.",
+        "runtime-core-autodrive-launch-gpt-5.4-low expanded for gpt-5.4/low.",
+        "Coverage slice launch-autodrive-flagship-baseline.",
+        "Generated from runtime-core-autodrive-launch-gpt-5.4-low with seed source manual."
+      ]
+    }
   },
   "input": {
     "task": "Validate that AutoDrive task start publishes runtime launch truth on the flagship runtime route.",
@@ -120,14 +213,37 @@
     },
     "harness": {
       "runner": "runtime-core-playwright",
-      "testName": "runtime replay preserves autodrive launch truth for runtime-only task starts",
+      "testName": "runtime replay preserves autodrive launch truth for runtime-only task starts [runtime-core-autodrive-launch-gpt-5.4-low]",
       "workspaceId": "ws-playground",
       "actions": [
+        {
+          "type": "select-option",
+          "control": "Thinking mode",
+          "value": "low"
+        },
+        {
+          "type": "select-option",
+          "control": "Model",
+          "value": "gpt-5.4"
+        },
         {
           "type": "rpc-agent-task-start"
         }
       ],
-      "assertions": []
+      "assertions": [
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "low",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.4",
+          "timeoutMs": 15000
+        }
+      ]
     }
   },
   "result": {
@@ -183,13 +299,13 @@
   },
   "governance": {
     "owner": "runtime-core-e2e",
-    "lastRefreshReason": "Added a runtime-only AutoDrive launch sample so positive task-start truth is no longer hidden behind provider-only replay assumptions.",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
     "deprecationStatus": "active",
     "archiveStatus": null,
     "optimizationSignals": {
       "seedSource": "manual",
       "incubationTrack": "blocking",
-      "recommendedLevers": ["skills", "background-agents"],
+      "recommendedLevers": ["hooks", "skills", "session-lineage"],
       "safeBackgroundCandidate": false
     },
     "deterministicRegressions": [
@@ -205,6 +321,8 @@
       "applied": true,
       "normalizedFields": ["rpcEndpoint", "workspaceId"],
       "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
-    }
+    },
+    "goldenBlockers": [],
+    "goldenBlockerHistory": []
   }
 }

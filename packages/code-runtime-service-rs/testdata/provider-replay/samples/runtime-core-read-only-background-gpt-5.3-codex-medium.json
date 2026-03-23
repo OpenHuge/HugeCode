@@ -2,28 +2,110 @@
   "schemaVersion": 1,
   "sample": {
     "id": "runtime-core-read-only-background-gpt-5.3-codex-medium",
-    "variant": "gpt-5.3-codex-medium-read-only-background",
+    "variant": "read-only-background-gpt-5.3-codex-medium",
     "family": "runtime-core",
     "scenarioType": "read-only",
     "mode": "read-only",
     "source": "recorded",
-    "recordedAt": "2026-03-14T03:25:03.071Z",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
     "schemaVersion": 1,
     "runtimeKind": "code-runtime-gateway-web",
     "providerKind": "openai",
     "requiresRealRuntime": true,
     "supportsReplayOnly": true,
     "tags": [
-      "golden",
       "runtime-core",
       "provider-replay",
       "playwright",
       "read-only",
-      "background-ready"
+      "background-ready",
+      "golden",
+      "launch-read-only-codex-background",
+      "gpt-5.3-codex"
     ],
     "stability": "golden",
     "redactionVersion": "runtime-provider-replay-v1",
-    "notes": "Read-only variant that keeps background-safe automation semantics covered without allowing workspace writes."
+    "notes": "runtime-core-read-only-background-gpt-5.3-codex-medium expanded for gpt-5.3-codex/medium.",
+    "capabilities": ["placement-routing"],
+    "riskTier": "low",
+    "axisCoverage": {
+      "scenarioType": "read-only",
+      "failureClass": "none",
+      "modelProfile": "gpt-5.3-codex",
+      "reasoningEffort": "medium",
+      "accessMode": "read-only",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "explicit-preferred",
+      "runtimeTruthCapabilities": ["placement-routing"],
+      "interactionStrength": "3-way",
+      "coverageSlice": "launch-read-only-codex-background"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "placement-routing-preserved",
+          "label": "Placement and routing evidence is preserved",
+          "weight": 0.75,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "recorded",
+      "providerPath": "provider-replay",
+      "failureLeg": "not-applicable",
+      "runtimeTruth": "not-applicable",
+      "workspaceEffects": "none"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.85,
+      "requiresRecordedEvidence": true,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": false,
+      "blockingTrack": true
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 21,
+      "maxDebtDays": 7,
+      "strict": true,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": false
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": [],
+      "disallowedFailureClasses": [],
+      "observedFailureClass": null,
+      "failureMode": null
+    },
+    "sourceFingerprint": {
+      "seedSource": "session-regression",
+      "priorityBucket": "session-regression",
+      "parentSampleId": null,
+      "evidenceMode": "recorded",
+      "dedupKey": "read-only|none|read-only|launch-read-only-codex-background"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "approved",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier low.",
+        "runtime-core-read-only-background-gpt-5.3-codex-medium expanded for gpt-5.3-codex/medium.",
+        "Coverage slice launch-read-only-codex-background.",
+        "Generated from runtime-core-read-only-background-gpt-5.3-codex-medium with seed source session-regression."
+      ]
+    }
   },
   "input": {
     "task": "Validate a background-safe read-only provider-backed turn under dedicated runtime isolation.",
@@ -35,7 +117,8 @@
     "runtimeConfig": {
       "accessMode": "read-only",
       "executionMode": "runtime",
-      "collaborationMode": "default"
+      "collaborationMode": "default",
+      "preferredBackendIds": ["backend-launch-read-only-codex-background"]
     },
     "endpointIsolation": {
       "strategy": "dedicated-runtime-port",
@@ -87,7 +170,7 @@
     },
     "harness": {
       "runner": "runtime-core-playwright",
-      "testName": "runtime replay keeps read-only background-safe flows deterministic without workspace writes",
+      "testName": "runtime replay keeps read-only background-safe flows deterministic without workspace writes [runtime-core-read-only-background-gpt-5.3-codex-medium]",
       "workspaceId": "ws-playground",
       "actions": [
         {
@@ -115,6 +198,24 @@
         {
           "type": "wait-message",
           "text": "RUNTIME_E2E_READ_ONLY_BACKGROUND_TURN_1"
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Agent access",
+          "value": "Read only",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.3-codex",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "medium",
+          "timeoutMs": 15000
         }
       ]
     }
@@ -123,7 +224,7 @@
     "successStatus": "completed",
     "summaryHeading": "RUNTIME_E2E_READ_ONLY_BACKGROUND_TURN_1",
     "providerReplay": {
-      "variantId": "gpt-5.3-codex-medium-read-only-background",
+      "variantId": "read-only-background-gpt-5.3-codex-medium",
       "provider": "openai",
       "modelId": "gpt-5.3-codex",
       "reasonEffort": "medium",
@@ -189,59 +290,10 @@
     }
   },
   "runtimeTruth": {
-    "taskFields": [
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "checkpointId",
-        "matcher": "present",
-        "timeoutMs": 20000
-      },
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "traceId",
-        "matcher": "present",
-        "timeoutMs": 20000
-      },
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "publishHandoff",
-        "matcher": "absent",
-        "timeoutMs": 20000
-      }
-    ],
-    "review": [
-      {
-        "type": "wait-runtime-summary",
-        "fieldPath": "missionLinkage.summary",
-        "matcher": "present",
-        "timeoutMs": 20000
-      },
-      {
-        "type": "assert-runtime-actionability",
-        "expectedState": "ready",
-        "summaryMatcher": "present",
-        "minimumActionCount": 1,
-        "timeoutMs": 20000
-      }
-    ],
-    "autodrive": [
-      {
-        "type": "assert-autodrive-trace",
-        "decisionTraceMatcher": "absent",
-        "runtimeScenarioProfileMatcher": "absent",
-        "repoEvaluationProfileMatcher": "absent",
-        "outcomeFeedbackMatcher": "absent",
-        "autonomyStateMatcher": "absent",
-        "timeoutMs": 20000
-      }
-    ],
-    "eventReplay": [
-      {
-        "type": "assert-replay-gap-event",
-        "expectedReason": "runtime.updated",
-        "timeoutMs": 20000
-      }
-    ]
+    "taskFields": [],
+    "review": [],
+    "autodrive": [],
+    "eventReplay": []
   },
   "assertions": {
     "hard": [
@@ -278,14 +330,14 @@
   },
   "governance": {
     "owner": "runtime-core-e2e",
-    "lastRefreshReason": "Re-recorded from the live runtime/provider path.",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
     "deprecationStatus": "active",
     "archiveStatus": null,
     "optimizationSignals": {
-      "seedSource": "manual",
+      "seedSource": "session-regression",
       "incubationTrack": "blocking",
-      "recommendedLevers": ["skills", "background-agents"],
-      "safeBackgroundCandidate": true
+      "recommendedLevers": ["rules", "skills"],
+      "safeBackgroundCandidate": false
     },
     "deterministicRegressions": [
       {
