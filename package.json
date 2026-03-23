@@ -195,13 +195,13 @@
   "config": {
     "repoBaselines": {
       "product": "HugeCode",
-      "node": "22.21.1",
+      "node": "24.11.1",
       "pnpm": "10.28.0",
       "rust": "1.93.1"
     }
   },
   "engines": {
-    "node": ">=22.21.1 <23 || >=24 <25",
+    "node": ">=24.11.1 <25",
     "pnpm": "10.28.0"
   },
   "packageManager": "pnpm@10.28.0"

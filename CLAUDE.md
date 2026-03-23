@@ -4,7 +4,7 @@ This file exists so Claude Code loads the same repo policy as other coding agent
 `AGENTS.md` is the canonical shared instruction file for this repository.
 
 **Name**: HugeCode
-**Node**: 22.21.1
+**Node**: 24.11.1
 **pnpm**: 10.28.0
 
 If `CLAUDE.md`, `AGENTS.md`, package manifests, or tracked scripts disagree, follow `AGENTS.md` first, then current manifests/scripts/source.
