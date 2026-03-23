@@ -62,7 +62,7 @@ apps/
   code-electron/              # Experimental Electron shell around apps/code
 
 packages/
-  code-application/          # Shared application orchestration and host-agnostic use-case logic
+  code-application/          # Shared application orchestration, host bindings, and host-agnostic use-case logic
   code-workspace-client/      # Shared workspace boot/bindings layer for web + desktop shells
   code-platform-interfaces/   # Shared platform capability types and host bridge contracts
   code-runtime-service-rs/    # Rust-first coding runtime service
