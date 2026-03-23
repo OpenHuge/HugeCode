@@ -471,6 +471,67 @@ describe("runtimeAutoDrivePlanner", () => {
     expect(proposal.promptText).toContain("Execution rule:");
   });
 
+  it("switches to a browser verification loop when the runtime scenario requires real-browser evidence", () => {
+    const previousSummary = createPreviousSummary({
+      goalReached: true,
+      validation: {
+        ran: true,
+        commands: ["pnpm validate:fast"],
+        success: true,
+        failures: [],
+        summary: "Validation passed but browser verification still needs evidence.",
+      },
+      waypoint: {
+        id: "waypoint-browser",
+        title: "Verify the browser path",
+        status: "arrived",
+        arrivalCriteriaMet: ["Target code path updated"],
+        arrivalCriteriaMissed: ["Confirm the target UI in the real browser."],
+      },
+    });
+    const context = createContext(previousSummary);
+    context.repo.evaluation = {
+      representativeCommands: context.repo.evaluation?.representativeCommands ?? [
+        "pnpm validate:fast",
+      ],
+      componentCommands: context.repo.evaluation?.componentCommands ?? [],
+      endToEndCommands: context.repo.evaluation?.endToEndCommands ?? [],
+      samplePaths: context.repo.evaluation?.samplePaths ?? [],
+      heldOutGuidance: context.repo.evaluation?.heldOutGuidance ?? [],
+      sourceSignals: context.repo.evaluation?.sourceSignals ?? [],
+      scenarioKeys: ["browser_repro_fix_verify"],
+    };
+    const proposal = buildNextTaskProposal({
+      run: {
+        ...createRun(),
+        runtimeScenarioProfile: {
+          authorityScope: "workspace_graph",
+          authoritySources: ["repo_authority", "browser_runtime"],
+          representativeCommands: [],
+          componentCommands: [],
+          endToEndCommands: [],
+          samplePaths: [],
+          heldOutGuidance: [],
+          sourceSignals: ["browser_debug"],
+          scenarioKeys: ["browser_repro_fix_verify"],
+          safeBackground: false,
+        },
+      },
+      context,
+      previousSummary,
+    });
+
+    expect(proposal.currentWaypoint.title).toContain("browser verification gap");
+    expect(proposal.currentWaypoint.arrivalCriteria).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("real browser"),
+        expect.stringContaining("browser evidence"),
+      ])
+    );
+    expect(proposal.promptText).toContain("Browser scenario: browser_repro_fix_verify");
+    expect(proposal.promptText).toContain("Browser execution rule:");
+  });
+
   it("biases route selection toward publish preparation when adaptive tuning requests it", () => {
     const previousSummary = createPreviousSummary();
     const context = createContext(previousSummary);

@@ -64,6 +64,10 @@ function sanitizeAutoDriveDraft(value: unknown): AutoDriveControllerHookDraft | 
   const destination = (entry.destination ?? {}) as Record<string, unknown>;
   return {
     enabled: entry.enabled === true,
+    scenarioProfile:
+      entry.scenarioProfile === "browser_repro_fix_verify"
+        ? entry.scenarioProfile
+        : "browser_repro_fix_verify",
     destination: {
       title:
         typeof destination.title === "string"

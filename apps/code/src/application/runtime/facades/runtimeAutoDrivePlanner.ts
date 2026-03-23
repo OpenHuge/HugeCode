@@ -8,11 +8,25 @@ import type {
   AutoDriveRunRecord,
   AutoDriveWaypointProposal,
 } from "../types/autoDrive";
+import {
+  getBrowserReproFixVerifyGuidance,
+  isBrowserReproFixVerifyScenario,
+} from "./runtimeScenarioProfiles";
 
 function dedupe(values: string[], limit = values.length): string[] {
   return [
     ...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0)),
   ].slice(0, limit);
+}
+
+function isBrowserFixLoop(input: {
+  run: AutoDriveRunRecord;
+  context: AutoDriveContextSnapshot;
+}): boolean {
+  return (
+    isBrowserReproFixVerifyScenario(input.run.runtimeScenarioProfile ?? null) ||
+    (input.context.repo.evaluation?.scenarioKeys ?? []).includes("browser_repro_fix_verify")
+  );
 }
 
 function buildEvidence(context: AutoDriveContextSnapshot): AutoDriveRouteEvidence[] {
@@ -273,6 +287,10 @@ function buildWaypoint(params: {
   milestones: AutoDriveRouteMilestone[];
   validationPlan: string[];
 }): AutoDriveWaypointProposal {
+  const browserFixLoop = isBrowserFixLoop({
+    run: params.run,
+    context: params.context,
+  });
   const remainingIterations = params.context.startState.system.remainingIterations;
   const remainingTokens = params.context.startState.system.remainingTokensEstimate;
   const lowBudget =
@@ -302,9 +320,9 @@ function buildWaypoint(params: {
     "The repo rules conflict with the current route.",
   ];
   let commandsToRun: string[] = [];
-  const samplePaths = params.context.repo.evaluation?.samplePaths ?? [];
-  const heldOutGuidance = params.context.repo.evaluation?.heldOutGuidance ?? [];
-  const scenarioKeys = params.context.repo.evaluation?.scenarioKeys ?? [];
+  let samplePaths = params.context.repo.evaluation?.samplePaths ?? [];
+  let heldOutGuidance = params.context.repo.evaluation?.heldOutGuidance ?? [];
+  let scenarioKeys = params.context.repo.evaluation?.scenarioKeys ?? [];
   let estimatedRisk: AutoDriveRiskLevel = "low";
 
   if (previousSummary && !priorFailedValidation && !priorOffRoute) {
@@ -366,14 +384,23 @@ function buildWaypoint(params: {
   }
 
   if (needsContinuationFollowUp) {
-    title = "Close the remaining verification gap";
-    objective =
-      "Reuse the current route, avoid repeating already completed work, and close the highest-priority remaining validation or blocker gap.";
+    title = browserFixLoop
+      ? "Close the remaining browser verification gap"
+      : "Close the remaining verification gap";
+    objective = browserFixLoop
+      ? "Reuse the current route, avoid repeating already completed work, and close the highest-priority remaining real-browser verification or blocker gap."
+      : "Reuse the current route, avoid repeating already completed work, and close the highest-priority remaining validation or blocker gap.";
     whyNow =
       continuationFocus[0] ??
       "The destination is close, but the route still needs stronger verification before arrival.";
     arrivalCriteria = dedupe([
       ...continuationFocus,
+      ...(browserFixLoop
+        ? [
+            "Confirm the target repro or final assertion in the real browser.",
+            "Attach screenshot or browser evidence before declaring arrival.",
+          ]
+        : []),
       "Leave behind explicit verification evidence or a concrete blocker for the next decision.",
     ]);
     rerouteTriggers = dedupe([
@@ -388,6 +415,23 @@ function buildWaypoint(params: {
       previousSummary?.validation.success === false || previousSummary?.routeHealth.offRoute
         ? "high"
         : "medium";
+  }
+
+  if (browserFixLoop) {
+    heldOutGuidance = dedupe([...heldOutGuidance, ...getBrowserReproFixVerifyGuidance()]);
+    scenarioKeys = dedupe([...scenarioKeys, "browser_repro_fix_verify"]);
+    if (!needsContinuationFollowUp) {
+      arrivalCriteria = dedupe([
+        ...arrivalCriteria,
+        "Confirm the target repro or user-visible assertion in the real browser.",
+        "Return to the real browser after editing and capture browser evidence.",
+      ]);
+    }
+    rerouteTriggers = dedupe([
+      ...rerouteTriggers,
+      "The browser session is unavailable, blocked, or no longer matches the target repro path.",
+    ]);
+    samplePaths = dedupe(samplePaths, samplePaths.length);
   }
 
   return {
@@ -431,6 +475,10 @@ function buildPromptText(params: {
   waypoint: AutoDriveWaypointProposal;
   milestones: AutoDriveRouteMilestone[];
 }) {
+  const browserFixLoop = isBrowserFixLoop({
+    run: params.run,
+    context: params.context,
+  });
   const continuationPolicy = params.run.continuationPolicy;
   const continuationState = params.run.continuationState;
   const selectedOpportunity =
@@ -488,6 +536,7 @@ function buildPromptText(params: {
       ? `Continuation state: used ${continuationState?.automaticFollowUpCount ?? 0}/${continuationPolicy?.maxAutomaticFollowUps ?? 2} automatic follow-ups. Last reason: ${continuationState?.lastContinuationReason ?? "none"}.`
       : null,
     continuationFocus.length > 0 ? `Continuation focus: ${continuationFocus.join(" | ")}` : null,
+    browserFixLoop ? "Browser scenario: browser_repro_fix_verify" : null,
     `Latest verification gap: ${latestGapSummary}`,
     `Route summary: ${params.routeSummary}`,
     `Current waypoint: ${params.waypoint.title}`,
@@ -496,6 +545,9 @@ function buildPromptText(params: {
     `Evaluation strategy: ${params.waypoint.validationPlan.join(" | ") || "No representative evaluation lane available."}`,
     `Representative samples: ${params.waypoint.samplePaths.join(" | ") || "none"}`,
     `Held-out guidance: ${params.waypoint.heldOutGuidance.join(" | ") || "none"}`,
+    browserFixLoop
+      ? "Browser execution rule: Confirm the repro in the real browser before editing, then return for final verification and screenshot evidence."
+      : null,
     `Arrival criteria: ${params.waypoint.arrivalCriteria.join(" | ")}`,
     `Reroute triggers: ${params.waypoint.rerouteTriggers.join(" | ")}`,
     `Milestones: ${params.milestones.map((milestone) => `${milestone.status}:${milestone.title}`).join(" | ")}`,

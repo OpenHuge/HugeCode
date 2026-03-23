@@ -2762,4 +2762,115 @@ describe("AutoDriveRunController", () => {
     expect(deps.interruptSubAgentSession).toHaveBeenCalledTimes(1);
     expect(writeFinalReport).toHaveBeenCalledTimes(1);
   });
+
+  it("prefers a browser-specific continuation reason when real-browser verification is still open", async () => {
+    const deps = createDeps();
+    const controller = new AutoDriveRunController({
+      deps,
+      ledger: {
+        writeRun: vi.fn().mockResolvedValue(undefined),
+        writeContext: vi.fn().mockResolvedValue(undefined),
+        writeProposal: vi.fn().mockResolvedValue(undefined),
+        writeSummary: vi.fn().mockResolvedValue(undefined),
+        writeReroute: vi.fn().mockResolvedValue(undefined),
+        writeFinalReport: vi.fn().mockResolvedValue(undefined),
+      },
+      run: {
+        ...createRun(),
+        budget: {
+          ...createRun().budget,
+          maxIterations: 2,
+        },
+        runtimeScenarioProfile: {
+          authorityScope: "workspace_graph",
+          authoritySources: ["repo_authority", "browser_runtime"],
+          representativeCommands: [],
+          componentCommands: [],
+          endToEndCommands: [],
+          samplePaths: [],
+          heldOutGuidance: [],
+          sourceSignals: ["browser_debug"],
+          scenarioKeys: ["browser_repro_fix_verify"],
+          safeBackground: false,
+        },
+      },
+      synthesizeContext: async ({ iteration }) => createContext(iteration),
+      buildProposal: ({ iteration }) => createProposal(iteration),
+      reviewProposal: () => ({
+        approved: true,
+        issues: [],
+        confidence: "high",
+        shouldReroute: false,
+        rerouteReason: null,
+      }),
+      summarizeIteration: async ({ iteration, task, validation }) => ({
+        schemaVersion: "autodrive-summary/v2",
+        runId: "run-123",
+        iteration,
+        status: "success",
+        taskTitle: `Waypoint ${iteration}`,
+        summaryText: "Validation is green, but browser evidence is still missing.",
+        changedFiles: ["apps/code/src/features/review/components/ReviewPackSurface.tsx"],
+        blockers: [],
+        completedSubgoals: ["destination_reached"],
+        unresolvedItems: [],
+        suggestedNextAreas: [],
+        validation,
+        progress: {
+          currentMilestone: "Validate the route and decide whether to arrive or reroute",
+          currentWaypointTitle: `Waypoint ${iteration}`,
+          completedWaypoints: 3,
+          totalWaypoints: 3,
+          waypointCompletion: 100,
+          overallProgress: 100,
+          remainingMilestones: [],
+          remainingBlockers: [],
+          remainingDistance: "Browser verification remains.",
+          arrivalConfidence: "high",
+          stopRisk: "low",
+        },
+        routeHealth: {
+          offRoute: false,
+          noProgressLoop: false,
+          rerouteRecommended: false,
+          rerouteReason: null,
+          triggerSignals: [],
+        },
+        waypoint: {
+          id: `waypoint-${iteration}`,
+          title: "Verify browser evidence",
+          status: "arrived",
+          arrivalCriteriaMet: ["Validation passed"],
+          arrivalCriteriaMissed: ["Confirm the target UI in the real browser."],
+        },
+        goalReached: true,
+        task: {
+          taskId: task.taskId,
+          status: task.status,
+          outputExcerpt: "Goal reached",
+        },
+        reroute: null,
+        createdAt: iteration,
+      }),
+      validateIteration: async () => ({
+        ran: true,
+        commands: ["pnpm validate:fast"],
+        success: true,
+        failures: [],
+        summary: "validate:fast passed",
+      }),
+      decideNextStep: ({ run }) => ({
+        action: (run.continuationState?.automaticFollowUpCount ?? 0) > 0 ? "stop" : "continue",
+        reason: null,
+        reroute: null,
+      }),
+      buildFinalReport: ({ run }) => `# Final Report\n\nRun ${run.runId} arrived.\n`,
+    });
+
+    const snapshot = await controller.start();
+
+    expect(snapshot.continuationState?.lastContinuationReason).toBe(
+      "Browser verification gap remains: Confirm the target UI in the real browser."
+    );
+  });
 });

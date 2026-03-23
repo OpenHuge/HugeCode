@@ -96,6 +96,14 @@ type PublishHandoffSummary = {
   details?: string[] | null;
 };
 
+type BrowserEvidenceSummary = {
+  status: "passed" | "gap" | "blocked" | "unavailable";
+  targetUrl: string | null;
+  summary: string;
+  artifacts: string[];
+  blockingReason: string | null;
+};
+
 type ReviewPackContinuitySummary = {
   state: RuntimeContinuityReadinessState;
   summary: string;
@@ -200,6 +208,7 @@ export type ReviewPackDetailModel = {
   assumptions: string[];
   reproductionGuidance: string[];
   rollbackGuidance: string[];
+  browserEvidence?: BrowserEvidenceSummary | null;
   reviewDecision: {
     status: HugeCodeReviewDecisionState;
     reviewPackId: string;
@@ -262,6 +271,7 @@ export type ReviewPackDetailModel = {
     warnings: string;
     validations: string;
     artifacts: string;
+    browserEvidence?: string;
     reproduction: string;
     rollback: string;
   };
@@ -408,6 +418,24 @@ function buildAutoDriveSummary(
   if (!autoDrive?.enabled) {
     return summary;
   }
+  const browserScenario = autoDrive.scenarioProfile?.scenarioKeys?.includes(
+    "browser_repro_fix_verify"
+  );
+  if (browserScenario) {
+    if (
+      autoDrive.continuationState?.lastContinuationReason &&
+      /browser/i.test(autoDrive.continuationState.lastContinuationReason)
+    ) {
+      pushUnique(
+        summary,
+        `Browser verification gap remains: ${autoDrive.continuationState.lastContinuationReason}`
+      );
+    } else if (autoDrive.stop?.reason === "completed") {
+      pushUnique(summary, "Browser verification passed");
+    } else if (autoDrive.navigation?.activeWaypoint) {
+      pushUnique(summary, "Browser repro confirmed");
+    }
+  }
   pushUnique(summary, `Destination: ${autoDrive.destination.title}`);
   if (autoDrive.destination.desiredEndState.length > 0) {
     pushUnique(summary, `Desired end state: ${autoDrive.destination.desiredEndState.join("; ")}`);
@@ -433,6 +461,72 @@ function buildAutoDriveSummary(
     pushUnique(summary, `Stop reason: ${autoDrive.stop.reason}`);
   }
   return summary;
+}
+
+function buildBrowserEvidenceSummary(input: {
+  artifacts:
+    | MissionControlProjection["reviewPacks"][number]["artifacts"]
+    | MissionControlProjection["runs"][number]["artifacts"];
+  warnings: string[];
+  reproductionGuidance?: string[];
+  autoDrive?: MissionControlProjection["runs"][number]["autoDrive"] | null;
+}): BrowserEvidenceSummary | null {
+  const artifacts = input.artifacts ?? [];
+  const browserArtifacts = artifacts
+    .filter(
+      (artifact) =>
+        artifact.kind === "evidence" &&
+        /browser|screenshot|chatgpt|inspect|page|ui/i.test(
+          `${artifact.label} ${artifact.uri ?? ""}`
+        )
+    )
+    .map((artifact) => artifact.label);
+  const targetUrl =
+    artifacts.find(
+      (artifact) => artifact.kind === "evidence" && /^https?:\/\//i.test(artifact.uri ?? "")
+    )?.uri ?? null;
+  const blockingReason =
+    input.warnings.find((warning) =>
+      /browser session blocked|chatgpt login|browser unavailable/i.test(warning)
+    ) ??
+    (input.autoDrive?.continuationState?.lastContinuationReason &&
+    /browser/i.test(input.autoDrive.continuationState.lastContinuationReason)
+      ? input.autoDrive.continuationState.lastContinuationReason
+      : null);
+
+  if (browserArtifacts.length === 0 && !blockingReason && !input.reproductionGuidance?.length) {
+    return null;
+  }
+
+  if (blockingReason) {
+    return {
+      status: "blocked",
+      targetUrl,
+      summary:
+        "Browser session blocked before the runtime could publish complete browser evidence.",
+      artifacts: browserArtifacts,
+      blockingReason,
+    };
+  }
+
+  if (browserArtifacts.length === 0) {
+    return {
+      status: "gap",
+      targetUrl,
+      summary:
+        "Browser verification is still required before this result can be treated as complete.",
+      artifacts: [],
+      blockingReason: null,
+    };
+  }
+
+  return {
+    status: "passed",
+    targetUrl,
+    summary: "Runtime attached browser evidence for the target repro and final verification path.",
+    artifacts: browserArtifacts,
+    blockingReason: null,
+  };
 }
 
 function normalizeSubAgentSummary(
@@ -1057,6 +1151,12 @@ export function buildReviewPackDetailModel(input: {
   const rollbackGuidance = Array.isArray(reviewPack.rollbackGuidance)
     ? reviewPack.rollbackGuidance
     : [];
+  const browserEvidence = buildBrowserEvidenceSummary({
+    artifacts: reviewPack.artifacts,
+    warnings: reviewPack.warnings,
+    reproductionGuidance,
+    autoDrive: run?.autoDrive ?? null,
+  });
   const backendAudit = reviewPack.backendAudit ?? {
     summary: "Runtime backend audit unavailable",
     details: [],
@@ -1151,6 +1251,7 @@ export function buildReviewPackDetailModel(input: {
     assumptions,
     reproductionGuidance,
     rollbackGuidance,
+    browserEvidence,
     reviewDecision,
     reviewIntelligence,
     reviewProfileId: reviewIntelligence?.reviewProfileId ?? null,
@@ -1198,6 +1299,8 @@ export function buildReviewPackDetailModel(input: {
           ? "Validation evidence was not recorded for this run."
           : "No individual validation checks were recorded for this run.",
       artifacts: "No artifacts or evidence references were attached to this review pack.",
+      browserEvidence:
+        "The runtime did not publish browser evidence for this review pack. Re-open the browser lane or record a blocked browser reason before accepting the result.",
       reproduction:
         "The runtime did not record reproduction guidance for this review pack. Re-run the linked validations or inspect attached evidence.",
       rollback:

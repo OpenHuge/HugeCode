@@ -7,6 +7,10 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import type { AutoDriveControllerHookDraft } from "../types/autoDrive";
 import type { AccessMode } from "../../../types";
+import {
+  BROWSER_REPRO_FIX_VERIFY_SCENARIO_PROFILE,
+  buildBrowserReproFixVerifyScenarioProfile,
+} from "./runtimeScenarioProfiles";
 
 export type MissionDraft = {
   objective: string;
@@ -242,6 +246,11 @@ export function buildAgentTaskMissionBrief(
   const preferredBackendIds = normalizePreferredBackendIds(input.preferredBackendIds);
   const permissionSummary = buildMissionPermissionSummary(input);
 
+  const scenarioProfile =
+    input.autoDriveDraft?.scenarioProfile === BROWSER_REPRO_FIX_VERIFY_SCENARIO_PROFILE
+      ? buildBrowserReproFixVerifyScenarioProfile()
+      : null;
+
   return {
     objective: input.objective,
     doneDefinition,
@@ -251,6 +260,7 @@ export function buildAgentTaskMissionBrief(
     maxSubtasks: launchControls.maxSubtasks,
     preferredBackendIds,
     permissionSummary,
+    ...(scenarioProfile ? { scenarioProfile } : {}),
   };
 }
 

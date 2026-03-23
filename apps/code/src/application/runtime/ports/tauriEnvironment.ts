@@ -1,3 +1,5 @@
+import { toSafeExternalUrl } from "@ku0/shared";
+
 type TauriCoreModule = {
   isTauri: () => boolean;
 };
@@ -12,24 +14,31 @@ type TauriWindowModule = {
   };
 };
 
+type TauriOpenerModule = {
+  openUrl?: (url: string) => Promise<unknown> | unknown;
+};
+
 type TauriRuntimeModules = {
   app?: TauriAppModule;
   core?: TauriCoreModule;
+  opener?: TauriOpenerModule;
   window?: TauriWindowModule;
 };
 
 type TauriModuleLoader = () => Promise<TauriRuntimeModules>;
 
 async function defaultTauriModuleLoader(): Promise<TauriRuntimeModules> {
-  const [app, core, window] = await Promise.all([
+  const [app, core, opener, window] = await Promise.all([
     import("@tauri-apps/api/app"),
     import("@tauri-apps/api/core"),
+    import("@tauri-apps/plugin-opener"),
     import("@tauri-apps/api/window"),
   ]);
 
   return {
     app,
     core,
+    opener,
     window,
   };
 }
@@ -96,15 +105,6 @@ export async function openExternalUrlWithFallback(url: string) {
   }
 
   return window.open(safeUrl, "_blank", "noopener,noreferrer") !== null;
-}
-
-export async function readTauriWindowLabel() {
-  const label = await resolveWindowLabel("");
-  return label.length > 0 ? label : null;
-}
-
-export async function readTauriAppVersion() {
-  return resolveAppVersion();
 }
 
 export function __setTauriModuleLoaderForTests(loader: TauriModuleLoader) {

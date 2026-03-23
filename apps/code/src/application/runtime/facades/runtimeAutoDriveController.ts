@@ -38,6 +38,7 @@ import {
 } from "./runtimeAutoDrivePublishRecovery";
 import { renderAutoDriveFinalReport } from "./runtimeAutoDriveReport";
 import { decideAutoDriveNextStep, shouldAutoRunChatgptDecisionLab } from "./runtimeAutoDrivePolicy";
+import { isBrowserReproFixVerifyScenario } from "./runtimeScenarioProfiles";
 import { synthesizeAutoDriveContext } from "./runtimeAutoDriveContext";
 import type {
   AutoDriveConfidence,
@@ -71,15 +72,31 @@ function buildContinuationReason(
   run: AutoDriveRunRecord,
   summary: AutoDriveIterationSummary
 ): string {
+  const browserFixLoop = isBrowserReproFixVerifyScenario(run.runtimeScenarioProfile ?? null);
   const validationCommands = summary.validation.commands.join(" | ");
+  const browserGap = summary.waypoint.arrivalCriteriaMissed.find(
+    (criterion) =>
+      /browser|screenshot|repro|page|ui|visual/i.test(criterion) && !/validation/i.test(criterion)
+  );
+  if (browserFixLoop && browserGap) {
+    return `Browser verification gap remains: ${browserGap}`;
+  }
   if (
     (run.continuationPolicy?.requireValidationSuccessToStop ?? true) &&
     summary.validation.success !== true
   ) {
     if (summary.validation.success === false) {
+      if (browserFixLoop) {
+        return `Browser verification gap remains: ${summary.validation.failures[0] ?? summary.validation.summary}`;
+      }
       return `Validation is still failing: ${
         summary.validation.failures[0] ?? summary.validation.summary
       }`;
+    }
+    if (browserFixLoop) {
+      return validationCommands.length > 0
+        ? `Browser verification gap remains: rerun ${validationCommands} and confirm the real browser path.`
+        : `Browser verification gap remains: ${summary.validation.summary}`;
     }
     return validationCommands.length > 0
       ? `Validation is still pending for ${validationCommands}.`

@@ -20,6 +20,10 @@ import type {
   AutoDriveRunStage,
   AutoDriveStopReason,
 } from "../../../application/runtime/types/autoDrive";
+import {
+  BROWSER_REPRO_FIX_VERIFY_SCENARIO_PROFILE,
+  buildBrowserReproFixVerifyScenarioProfile,
+} from "../../../application/runtime/facades/runtimeScenarioProfiles";
 
 const DEFAULT_BUDGET: AutoDriveControllerHookDraft["budget"] = {
   maxTokens: 6000,
@@ -95,6 +99,10 @@ export function fromRuntimeRoutePreference(
 export function mapDraftToRuntimeAutoDriveState(
   draft: AutoDriveControllerHookDraft
 ): AgentTaskAutoDriveState {
+  const scenarioProfile =
+    draft.scenarioProfile === BROWSER_REPRO_FIX_VERIFY_SCENARIO_PROFILE
+      ? buildBrowserReproFixVerifyScenarioProfile()
+      : null;
   return {
     enabled: true,
     destination: {
@@ -151,6 +159,7 @@ export function mapDraftToRuntimeAutoDriveState(
         draft.continuation?.minimumConfidenceToStop ??
         DEFAULT_CONTINUATION_POLICY.minimumConfidenceToStop,
     },
+    scenarioProfile,
   };
 }
 

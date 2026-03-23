@@ -432,6 +432,7 @@ describe("autoDriveRuntimeSnapshotAdapter", () => {
   it("maps draft route preference to runtime balanced/speed/stability", () => {
     const payload = mapDraftToRuntimeAutoDriveState({
       enabled: true,
+      scenarioProfile: "browser_repro_fix_verify",
       destination: {
         title: "Ship runtime migration",
         endState: "Runtime truth",
@@ -464,6 +465,13 @@ describe("autoDriveRuntimeSnapshotAdapter", () => {
     });
 
     expect(payload.destination.routePreference).toBe("balanced");
+    expect(payload.scenarioProfile).toEqual(
+      expect.objectContaining({
+        authorityScope: "workspace_graph",
+        scenarioKeys: expect.arrayContaining(["browser_repro_fix_verify"]),
+        safeBackground: false,
+      })
+    );
     expect(payload.riskPolicy).toEqual({
       pauseOnDestructiveChange: true,
       pauseOnDependencyChange: true,

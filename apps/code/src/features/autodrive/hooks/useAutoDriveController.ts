@@ -22,6 +22,7 @@ import {
   type AutoDriveRuntimeRunRecord,
   selectAutoDriveSnapshot,
 } from "./autoDriveRuntimeSnapshotAdapter";
+import { BROWSER_REPRO_FIX_VERIFY_SCENARIO_PROFILE } from "../../../application/runtime/facades/runtimeScenarioProfiles";
 
 const DEFAULT_RISK_POLICY: AutoDriveRiskPolicy = {
   pauseOnDestructiveChange: true,
@@ -48,6 +49,7 @@ const DEFAULT_CONTINUATION_POLICY: AutoDriveContinuationPolicy = {
 
 const DEFAULT_DRAFT: AutoDriveControllerHookDraft = {
   enabled: false,
+  scenarioProfile: BROWSER_REPRO_FIX_VERIFY_SCENARIO_PROFILE,
   destination: {
     title: "",
     endState: "",
@@ -216,6 +218,10 @@ function normalizeDraft(
   }
   return {
     enabled: value.enabled === true,
+    scenarioProfile:
+      value.scenarioProfile === "browser_repro_fix_verify"
+        ? value.scenarioProfile
+        : DEFAULT_DRAFT.scenarioProfile,
     destination: migratePersistedDraftShape(value),
     budget: {
       maxTokens: value.budget?.maxTokens ?? DEFAULT_DRAFT.budget.maxTokens,

@@ -42,7 +42,7 @@ vi.mock("@tauri-apps/api/dpi", () => ({
 const revealItemInDir = vi.hoisted(() => vi.fn());
 const pushErrorToastMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
+vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
   revealItemInDir: (...args: unknown[]) => revealItemInDir(...args),
 }));
 

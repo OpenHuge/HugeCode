@@ -819,6 +819,7 @@ export type AutoDriveLedger = {
 
 export type AutoDriveControllerHookDraft = {
   enabled: boolean;
+  scenarioProfile?: "browser_repro_fix_verify" | null;
   destination: {
     title: string;
     endState: string;

@@ -34,12 +34,15 @@ describe("workspace client boundaries", () => {
   it("routes the desktop workspace app through the shared workspace client entry", () => {
     const appSource = readRepoFile("apps/code/src/App.tsx");
     const entrySource = readRepoFile("apps/code/src/web/WorkspaceClientEntry.tsx");
+    const bindingsSource = readRepoFile(
+      "apps/code/src/web/createDesktopWorkspaceClientBindings.tsx"
+    );
 
     expect(appSource).toContain("./web/WorkspaceClientEntry");
     expect(appSource).not.toContain("./web/WorkspaceAppBridge");
     expect(entrySource).toContain("WorkspaceClientBoot");
-    expect(entrySource).toContain("@ku0/code-application");
-    expect(entrySource).toContain("createDesktopWorkspaceClientHostBindings");
+    expect(bindingsSource).toContain("@ku0/code-application");
+    expect(bindingsSource).toContain("createDesktopWorkspaceClientHostBindings");
   });
 
   it("keeps the web adapter focused on binding composition instead of inline runtime transport", () => {
@@ -54,7 +57,9 @@ describe("workspace client boundaries", () => {
   });
 
   it("uses runtime and host domain slices instead of legacy empty binding buckets", () => {
-    const desktopSource = readRepoFile("apps/code/src/web/WorkspaceClientEntry.tsx");
+    const desktopSource = readRepoFile(
+      "apps/code/src/web/createDesktopWorkspaceClientBindings.tsx"
+    );
     const webSource = readRepoFile(
       "apps/code-web/app/components/createWebWorkspaceClientBindings.tsx"
     );

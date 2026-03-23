@@ -82,6 +82,7 @@ describe("runtimeMissionDraftFacade", () => {
         toolNames: ["git", "pnpm", "git"],
         autoDriveDraft: {
           enabled: true,
+          scenarioProfile: "browser_repro_fix_verify",
           destination: {
             title: "Ship runtime truth",
             endState: "Review-ready",
@@ -123,6 +124,11 @@ describe("runtimeMissionDraftFacade", () => {
         writableRoots: ["/repo/apps/code"],
         toolNames: ["git", "pnpm"],
       },
+      scenarioProfile: expect.objectContaining({
+        authorityScope: "workspace_graph",
+        scenarioKeys: expect.arrayContaining(["browser_repro_fix_verify"]),
+        safeBackground: false,
+      }),
     });
   });
 
