@@ -1,0 +1,43 @@
+{
+  "name": "HugeCode",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22.21.1"
+    },
+    "ghcr.io/devcontainers/features/rust:1": {
+      "version": "1.93.1",
+      "profile": "minimal",
+      "components": "rustfmt,clippy"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "forwardPorts": [5187, 8788],
+  "portsAttributes": {
+    "5187": {
+      "label": "HugeCode UI",
+      "onAutoForward": "notify"
+    },
+    "8788": {
+      "label": "HugeCode Runtime",
+      "onAutoForward": "silent"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tauri-apps.tauri-vscode",
+        "ms-playwright.playwright",
+        "vitest.explorer"
+      ],
+      "settings": {
+        "rust-analyzer.cargo.targetDir": true,
+        "rust-analyzer.checkOnSave.command": "clippy"
+      }
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh"
+}
