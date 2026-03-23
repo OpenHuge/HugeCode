@@ -11,6 +11,6 @@
     "check:raw": "node ../../scripts/run-cargo-with-target-guard.mjs check --manifest-path src-tauri/Cargo.toml"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.10.0"
+    "@tauri-apps/cli": "^2.10.1"
   }
 }
