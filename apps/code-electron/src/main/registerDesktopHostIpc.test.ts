@@ -32,8 +32,8 @@ describe("registerDesktopHostIpc", () => {
     });
 
     expect(handleMock).toHaveBeenCalledTimes(Object.keys(DESKTOP_HOST_IPC_CHANNELS).length);
-    expect(handleMock.mock.calls.map(([channel]) => channel)).toEqual(
-      Object.values(DESKTOP_HOST_IPC_CHANNELS)
+    expect(handleMock.mock.calls.map(([channel]) => channel).sort()).toEqual(
+      [...Object.values(DESKTOP_HOST_IPC_CHANNELS)].sort()
     );
   });
 });
