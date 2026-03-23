@@ -4,7 +4,7 @@ import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import RotateCw from "lucide-react/dist/esm/icons/rotate-cw";
 import Upload from "lucide-react/dist/esm/icons/upload";
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
-import { openUrl } from "../../../application/runtime/ports/tauriOpener";
+import { openUrl } from "../../../application/runtime/facades/desktopHostFacade";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import { Button, IconButton, StatusBadge, Textarea } from "../../../design-system";
 import type { GitHubIssue, GitHubPullRequest, GitLogEntry } from "../../../types";

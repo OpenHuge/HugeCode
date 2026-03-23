@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "../../../application/runtime/facades/desktopHostFacade";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UpdateState } from "../hooks/useUpdater";
 import { UpdateToast } from "./UpdateToast";
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
+vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
   openUrl: vi.fn(),
 }));
 

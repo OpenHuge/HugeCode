@@ -4,7 +4,7 @@ import {
   WorkspaceHeaderAction,
   WorkspaceHeaderActionCopyGlyphs,
 } from "../../../design-system";
-import { revealItemInDir } from "../../../application/runtime/ports/tauriOpener";
+import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
 import Check from "lucide-react/dist/esm/icons/check";
 import Copy from "lucide-react/dist/esm/icons/copy";
 import Terminal from "lucide-react/dist/esm/icons/terminal";

@@ -62,6 +62,45 @@ describe("ui service boundary guard", () => {
     ]);
   });
 
+  it("rejects direct desktop host adapter port imports in product code", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/about/components/AboutView.tsx",
+      'import { resolveAppVersion } from "../../../application/runtime/ports/tauriEnvironment";\n'
+    );
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        rule: "desktop-host-facade-only",
+      }),
+    ]);
+  });
+
+  it("rejects direct desktop host global access in UI code", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/example/hooks/useExample.ts",
+      "export const host = window.hugeCodeDesktopHost;\n"
+    );
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        rule: "desktop-host-global-access",
+      }),
+    ]);
+  });
+
+  it("rejects direct electron imports in product code", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/utils/runtimeExample.ts",
+      'import { ipcRenderer } from "electron";\n'
+    );
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        rule: "electron-import",
+      }),
+    ]);
+  });
+
   it("rejects direct tauri skill bridge imports in production UI files", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/skills/hooks/useSkills.ts",

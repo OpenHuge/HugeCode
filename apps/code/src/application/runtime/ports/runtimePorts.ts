@@ -7,7 +7,6 @@ import * as tauriDpi from "./tauriDpi";
 import * as tauriFiles from "./tauriFiles";
 import * as tauriMenu from "./tauriMenu";
 import * as tauriNotifications from "./tauriNotifications";
-import * as tauriOpener from "./tauriOpener";
 import * as tauriProcess from "./tauriProcess";
 import * as tauriStateFabric from "./tauriStateFabric";
 import * as tauriUpdater from "./tauriUpdater";
@@ -23,7 +22,6 @@ export type DesktopRuntimePorts = {
   files: typeof tauriFiles;
   menu: typeof tauriMenu;
   notifications: typeof tauriNotifications;
-  opener: typeof tauriOpener;
   process: typeof tauriProcess;
   stateFabric: typeof tauriStateFabric;
   updater: typeof tauriUpdater;
@@ -48,7 +46,6 @@ export function createRuntimePorts(): RuntimePorts {
       files: tauriFiles,
       menu: tauriMenu,
       notifications: tauriNotifications,
-      opener: tauriOpener,
       process: tauriProcess,
       stateFabric: tauriStateFabric,
       updater: tauriUpdater,

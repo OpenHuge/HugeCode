@@ -4,6 +4,7 @@ packages:
   # quality gates because it is the active public-route and SSR surface.
   - "apps/code-web"
   - "apps/code-tauri"
+  - "apps/code-electron"
   - "packages/*"
   - "tests/*"
 minimumReleaseAge: 60
@@ -13,6 +14,7 @@ strictDepBuilds: true
 # the signal visible when a fresh install is actually needed.
 verifyDepsBeforeRun: warn
 allowBuilds:
+  electron: true
   esbuild: true
   sharp: true
   workerd: true

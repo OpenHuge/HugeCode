@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { revealItemInDir } from "../../../application/runtime/ports/tauriOpener";
+import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
 
 type PromptCreateInput = {
   scope: "workspace" | "global";

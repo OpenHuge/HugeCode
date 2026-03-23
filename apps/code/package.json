@@ -21,6 +21,8 @@
     "test:worker:quick": "vitest run src/services/workerQuickGate.test.ts"
   },
   "dependencies": {
+    "@ku0/code-application": "workspace:*",
+    "@ku0/code-platform-interfaces": "workspace:*",
     "@ku0/code-runtime-client": "workspace:*",
     "@ku0/code-runtime-host-contract": "workspace:*",
     "@ku0/code-runtime-webmcp-client": "workspace:*",
@@ -31,6 +33,7 @@
     "@ku0/ui": "workspace:*",
     "@pierre/diffs": "^1.0.11",
     "@sentry/react": "^10.45.0",
+    "@shikijs/engine-javascript": "^3.23.0",
     "@tanstack/react-virtual": "^3.13.23",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-dialog": "^2.6.0",

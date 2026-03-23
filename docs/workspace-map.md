@@ -4,11 +4,12 @@ This document defines the intended directory roles for the HugeCode monorepo.
 
 ## Active Application Surfaces
 
-| Path              | Role                        | Stack                             | Status |
-| ----------------- | --------------------------- | --------------------------------- | ------ |
-| `apps/code`       | Primary coding workspace UI | React 19 + Vite + vanilla-extract | Active |
-| `apps/code-web`   | Cloudflare platform web app | TanStack Start + React 19         | Active |
-| `apps/code-tauri` | Desktop runtime container   | Tauri v2                          | Active |
+| Path                 | Role                        | Stack                             | Status       |
+| -------------------- | --------------------------- | --------------------------------- | ------------ |
+| `apps/code`          | Primary coding workspace UI | React 19 + Vite + vanilla-extract | Active       |
+| `apps/code-web`      | Cloudflare platform web app | TanStack Start + React 19         | Active       |
+| `apps/code-tauri`    | Desktop runtime container   | Tauri v2                          | Active       |
+| `apps/code-electron` | Experimental desktop shell  | Electron 41 + preload bridge      | Experimental |
 
 Interpret this carefully:
 
@@ -16,8 +17,17 @@ Interpret this carefully:
   shell in this repo.
 - `packages/code-workspace-client` is the canonical shared workspace-client
   layer consumed by both the web and desktop shells.
+- `packages/code-application` is the shared application-layer package for
+  orchestration, shared workspace host rendering, host binding composition,
+  and host-agnostic desktop/web use cases. Keep it free of direct Tauri and
+  Electron imports.
+- `packages/code-platform-interfaces` is the shared capability-contract layer
+  for desktop and web host adapters. Keep it free of concrete Tauri and
+  Electron runtime imports.
 - `apps/code` remains the desktop-first host shell and runtime bootstrap layer
   around that shared workspace client.
+- `apps/code-electron` is an additive desktop shell around the same `apps/code`
+  renderer. Do not fork product logic into Electron-only React surfaces.
 - `apps/code-web` is active product infrastructure and now participates in the
   default root build/lint/typecheck quality gates.
 - Do not start default product feature work from `apps/code-web`, but also do
@@ -37,14 +47,16 @@ Interpret this carefully:
 
 ## Core Package Layers
 
-| Layer                  | Representative paths                                                           | Responsibility                                                   |
-| ---------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| Runtime protocol       | `packages/code-runtime-host-contract`, `packages/native-runtime-host-contract` | Shared runtime transport types, method sets, spec generation     |
-| Runtime implementation | `packages/code-runtime-service-rs`                                             | Rust Axum service, orchestration, event stream, health/readiness |
-| Shared workspace app   | `packages/code-workspace-client`                                               | Shared workspace boot, bindings contract, and shell adapters     |
-| Shared UI foundation   | `packages/design-system`                                                       | Tokens and active code-workspace UI foundations                  |
-| Shared utilities       | `packages/shared`                                                              | Reusable utilities and UI helpers shared across active packages  |
-| Native accelerators    | `packages/*-rs`                                                                | Accelerators, runtime support, and text processing               |
+| Layer                  | Representative paths                                                           | Responsibility                                                             |
+| ---------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Runtime protocol       | `packages/code-runtime-host-contract`, `packages/native-runtime-host-contract` | Shared runtime transport types, method sets, spec generation               |
+| Runtime implementation | `packages/code-runtime-service-rs`                                             | Rust Axum service, orchestration, event stream, health/readiness           |
+| Application layer      | `packages/code-application`                                                    | Shared orchestration, workspace host rendering, facades, and host bindings |
+| Shared workspace app   | `packages/code-workspace-client`                                               | Shared workspace boot, bindings contract, and shell adapters               |
+| Platform contracts     | `packages/code-platform-interfaces`                                            | Shared capability types and host bridge contracts                          |
+| Shared UI foundation   | `packages/design-system`                                                       | Tokens and active code-workspace UI foundations                            |
+| Shared utilities       | `packages/shared`                                                              | Reusable utilities and UI helpers shared across active packages            |
+| Native accelerators    | `packages/*-rs`                                                                | Accelerators, runtime support, and text processing                         |
 
 ## Core Product vs Supporting Packages
 
@@ -52,6 +64,7 @@ Treat these as the product-defining core:
 
 - `apps/code`
 - `apps/code-tauri`
+- `apps/code-electron`
 - `packages/code-runtime-service-rs`
 - `packages/code-runtime-host-contract`
 - `packages/native-runtime-host-contract`
@@ -59,6 +72,8 @@ Treat these as the product-defining core:
 Treat these as supporting layers for the core product, not separate app narratives:
 
 - `packages/code-workspace-client`
+- `packages/code-application`
+- `packages/code-platform-interfaces`
 - `packages/design-system`
 - `packages/shared`
 - `packages/native-bindings`

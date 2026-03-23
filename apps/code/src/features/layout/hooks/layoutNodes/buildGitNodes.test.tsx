@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createLayoutNodesOptions,
   type LayoutNodesFieldRegistry,
   type LayoutNodesOptions,
 } from "./types";
 
-const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 60_000;
+const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 20_000;
 
 function mockGitDiffViewerChunk() {
   vi.doMock("../../../utils/diffsWorker", () => ({
@@ -158,12 +158,15 @@ function createGitOptions(overrides: Partial<LayoutNodesFieldRegistry> = {}): La
 }
 
 async function importBuildGitNodes() {
-  vi.resetModules();
   const { buildGitNodes: importedBuildGitNodes } = await import("./buildGitNodes");
   return importedBuildGitNodes;
 }
 
 describe("buildGitNodes diff lazy boundary", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -174,8 +177,6 @@ describe("buildGitNodes diff lazy boundary", () => {
   it(
     "keeps the lightweight placeholder on empty diff state without loading the viewer chunk",
     async () => {
-      mockGitDiffViewerChunk();
-
       const buildGitNodesImpl = await importBuildGitNodes();
       const nodes = buildGitNodesImpl(createGitOptions());
 

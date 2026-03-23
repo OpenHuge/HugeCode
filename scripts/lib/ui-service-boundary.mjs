@@ -280,6 +280,15 @@ const VIOLATION_RULES = [
       filePath === "apps/code/src/web/createDesktopWorkspaceClientBindings.tsx",
   },
   {
+    id: "desktop-host-facade-only",
+    description:
+      "product code must use `application/runtime/facades/desktopHostFacade` instead of importing desktop host adapter ports directly",
+    pattern:
+      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/(?:tauriEnvironment|tauriOpener)["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/(?:tauriEnvironment|tauriOpener)["'])/u,
+    appliesTo: (filePath) =>
+      (isUiBoundaryFile(filePath) || isNonUiAppProductFile(filePath)) && !isUiTestFile(filePath),
+  },
+  {
     id: "runtime-webmcp-type-surface",
     description:
       "type-only imports must use `application/runtime/types/webMcpBridge` instead of the behavior port",
@@ -329,6 +338,22 @@ const VIOLATION_RULES = [
     pattern:
       /runtime\.doc\.(?:getMap|getList|getText|subscribe|frontiers|version|setPeerId|peerIdStr)/u,
     appliesTo: isUiBoundaryFile,
+  },
+  {
+    id: "desktop-host-global-access",
+    description:
+      "UI and product code must not read `window.hugeCodeDesktopHost` directly; use runtime ports or platform adapters",
+    pattern: /window\.hugeCodeDesktopHost/u,
+    appliesTo: (filePath) =>
+      (isUiBoundaryFile(filePath) || isNonUiAppProductFile(filePath)) && !isUiTestFile(filePath),
+  },
+  {
+    id: "electron-import",
+    description:
+      "UI and product code must not import Electron renderer APIs directly; use runtime ports or platform adapters",
+    pattern: /(?:from\s+["']electron["']|import\(\s*["']electron["']\s*\)|\bipcRenderer\b)/u,
+    appliesTo: (filePath) =>
+      (isUiBoundaryFile(filePath) || isNonUiAppProductFile(filePath)) && !isUiTestFile(filePath),
   },
 ];
 
