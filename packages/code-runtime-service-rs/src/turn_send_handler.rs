@@ -136,9 +136,11 @@ fn parse_turn_auto_drive(
     else {
         return Ok(None);
     };
-    serde_json::from_value::<AgentTaskAutoDriveState>(value.clone()).map(Some).map_err(|error| {
-        RpcError::invalid_params(format!("Invalid turn autoDrive payload: {error}"))
-    })
+    serde_json::from_value::<AgentTaskAutoDriveState>(value.clone())
+        .map(Some)
+        .map_err(|error| {
+            RpcError::invalid_params(format!("Invalid turn autoDrive payload: {error}"))
+        })
 }
 
 async fn query_provider_with_local_exec_fallback(
