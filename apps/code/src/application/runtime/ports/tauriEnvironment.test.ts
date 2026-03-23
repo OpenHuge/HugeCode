@@ -69,4 +69,17 @@ describe("tauriRuntimeEnvironment", () => {
 
     await expect(openExternalUrlWithFallback("https://example.com")).resolves.toBe(false);
   });
+
+  it("rejects unsafe external URLs before invoking any opener", async () => {
+    const openUrl = vi.fn(async () => undefined);
+    __setTauriModuleLoaderForTests(async () => ({
+      opener: {
+        openUrl,
+      },
+    }));
+
+    await expect(openExternalUrlWithFallback("javascript:alert(1)")).resolves.toBe(false);
+    expect(openUrl).not.toHaveBeenCalled();
+    expect(window.open).not.toHaveBeenCalled();
+  });
 });

@@ -24,6 +24,7 @@ export {
   ABOUT_TAGLINE,
   ABOUT_VERSION_PREFIX,
 } from "./aboutContent";
+export { isSafeExternalUrl, toSafeExternalUrl } from "./externalUrls";
 export type {
   ConfiguredWebRuntimeGatewayProfile,
   LocalRuntimeGatewayTarget,
@@ -45,6 +46,7 @@ export {
   readStoredWebRuntimeGatewayProfile,
   saveStoredWebRuntimeGatewayProfile,
 } from "./runtimeGatewayBrowser";
+export { WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY } from "./runtimeGatewayEnv";
 export type * from "./ui/chat";
 export { ChatComposer, ChatMessageRow, useAutosizeTextArea } from "./ui/chat";
 export type * from "./ui/nav";

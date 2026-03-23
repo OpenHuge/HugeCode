@@ -44,9 +44,7 @@ async function openExternalUrl(url: string) {
     await openUrl(url);
     return;
   } catch {
-    if (typeof window !== "undefined" && typeof window.open === "function") {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
+    // Ignore: the update surfaces already degrade gracefully when external links cannot open.
   }
 }
 

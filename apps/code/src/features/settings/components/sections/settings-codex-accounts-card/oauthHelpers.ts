@@ -1,3 +1,8 @@
+import {
+  readStoredWebRuntimeGatewayProfile,
+  toSafeExternalUrl,
+  WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY,
+} from "@ku0/shared";
 import { isTauri } from "../../../../../application/runtime/ports/tauriCore";
 import { openUrl } from "../../../../../application/runtime/ports/tauriOpener";
 import {
@@ -15,6 +20,8 @@ export const OAUTH_WORKSPACE_DISCOVERY_TIMEOUT_MS = 1_500;
 export const OAUTH_ACCOUNT_SYNC_TIMEOUT_MS = 20_000;
 export const OAUTH_ACCOUNT_SYNC_POLL_INTERVAL_MS = 800;
 export const OAUTH_POPUP_MESSAGE_TYPE = "fastcode:oauth:codex";
+const OAUTH_POPUP_LOGIN_ID_STORAGE_KEY = "hugecode.oauth.codex.active-login-id";
+let activeOauthPopupLoginIdMemory: string | null = null;
 
 export const STICKY_MODE_DESCRIPTION: Record<OAuthPoolSummary["stickyMode"], string> = {
   cache_first: "Keep session on last healthy account for stable context and fewer switches.",
@@ -63,13 +70,82 @@ export function openOAuthPopupWindow(): Window | null {
   }
 }
 
+function readStorage() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function tryReadOrigin(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+export function setActiveOauthPopupLoginId(loginId: string | null) {
+  activeOauthPopupLoginIdMemory = loginId;
+  const storage = readStorage();
+  if (!storage) {
+    return;
+  }
+  if (!loginId) {
+    storage.removeItem(OAUTH_POPUP_LOGIN_ID_STORAGE_KEY);
+    return;
+  }
+  storage.setItem(OAUTH_POPUP_LOGIN_ID_STORAGE_KEY, loginId);
+}
+
+export function readActiveOauthPopupLoginId() {
+  const storage = readStorage();
+  return storage?.getItem(OAUTH_POPUP_LOGIN_ID_STORAGE_KEY) ?? activeOauthPopupLoginIdMemory;
+}
+
+export function clearActiveOauthPopupLoginId() {
+  setActiveOauthPopupLoginId(null);
+}
+
+export function resolveAllowedOauthPopupOrigins() {
+  const origins = new Set<string>();
+  if (typeof window !== "undefined" && window.location.origin !== "null") {
+    origins.add(window.location.origin);
+  }
+  const runtimeGatewayOrigin = tryReadOrigin(readStoredWebRuntimeGatewayProfile()?.httpBaseUrl);
+  if (runtimeGatewayOrigin) {
+    origins.add(runtimeGatewayOrigin);
+  }
+  const env = (
+    import.meta as ImportMeta & {
+      env?: Record<string, string | boolean | undefined>;
+    }
+  ).env;
+  const configuredGatewayOrigin = tryReadOrigin(
+    typeof env?.[WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY] === "string"
+      ? env[WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY]
+      : null
+  );
+  if (configuredGatewayOrigin) {
+    origins.add(configuredGatewayOrigin);
+  }
+  return origins;
+}
+
 export async function openOAuthUrl(
   authUrl: string,
   preopenedPopup: Window | null = null
 ): Promise<void> {
-  const normalizedUrl = authUrl.trim();
-  if (!normalizedUrl) {
-    return;
+  const safeUrl = toSafeExternalUrl(authUrl);
+  if (!safeUrl) {
+    throw new Error("Blocked unsafe OAuth URL.");
   }
   if (shouldUseWebOAuthPopup()) {
     const popup = preopenedPopup ?? openOAuthPopupWindow();
@@ -77,12 +153,12 @@ export async function openOAuthUrl(
       throw new Error("OAuth popup was blocked. Please allow pop-ups and try again.");
     }
     try {
-      popup.location.replace(normalizedUrl);
+      popup.location.replace(safeUrl);
       popup.focus?.();
       return;
     } catch {
       try {
-        const fallbackPopup = window.open(normalizedUrl, "_blank", "noopener,noreferrer");
+        const fallbackPopup = window.open(safeUrl, "_blank", "noopener,noreferrer");
         if (fallbackPopup) {
           fallbackPopup.focus?.();
           return;
@@ -94,7 +170,7 @@ export async function openOAuthUrl(
     }
   }
   try {
-    await openUrl(normalizedUrl);
+    await openUrl(safeUrl);
     return;
   } catch {
     // Fall through to window.open fallback.
@@ -103,7 +179,7 @@ export async function openOAuthUrl(
     return;
   }
   try {
-    const popup = window.open(normalizedUrl, "_blank", "noopener,noreferrer");
+    const popup = window.open(safeUrl, "_blank", "noopener,noreferrer");
     if (popup) {
       popup.focus?.();
       return;

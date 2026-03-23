@@ -29,12 +29,6 @@ async function openExternalIssueUrl(url: string) {
     await openUrl(url);
     return;
   } catch (error) {
-    if (typeof window !== "undefined" && typeof window.open === "function") {
-      const opened = window.open(url, "_blank", "noopener,noreferrer");
-      if (opened) {
-        return;
-      }
-    }
     pushErrorToast({
       title: "Couldn't open issue link",
       message: error instanceof Error ? error.message : "Unable to open issue URL.",
