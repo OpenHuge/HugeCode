@@ -927,6 +927,7 @@ fn map_turn_send_request(payload: &TurnSendRequest) -> EmbeddedRuntimeTurnSendRe
             })
             .collect(),
         collaboration_mode: payload.collaboration_mode.clone(),
+        auto_drive: payload.auto_drive.clone(),
     }
 }
 

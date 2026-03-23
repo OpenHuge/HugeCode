@@ -11,6 +11,10 @@ import {
   getRuntimeBrowserDebugStatus,
   runRuntimeBrowserDebug,
 } from "../ports/tauriRuntimeAutomation";
+import {
+  ensureDesktopBrowserDebugSession,
+  getDesktopBrowserDebugSession,
+} from "../ports/desktopBrowserDebug";
 import { getCollaborationModes } from "../ports/tauriCollaboration";
 import { listRuntimeModels } from "../ports/tauriRuntimeCatalog";
 import { listMcpServerStatus, listWorkspaceDiagnostics } from "../ports/tauriRuntimeDiagnostics";
@@ -73,6 +77,20 @@ import {
 import { getAccountRateLimits } from "../ports/tauriThreads";
 
 export function buildRuntimeDiscoveryControl(workspaceId: string) {
+  const resolveBrowserDebugTarget = async (input?: {
+    operation?: "inspect" | "automation" | "chatgpt_decision_lab";
+    targetUrl?: string | null;
+    decisionLab?: { chatgptUrl?: string | null } | null;
+  }) => {
+    const targetUrl =
+      input?.operation === "chatgpt_decision_lab"
+        ? (input.decisionLab?.chatgptUrl ?? input.targetUrl ?? null)
+        : (input?.targetUrl ?? null);
+    return targetUrl
+      ? ensureDesktopBrowserDebugSession({ targetUrl, focus: true })
+      : getDesktopBrowserDebugSession();
+  };
+
   return {
     getRuntimePolicy: async () => getRuntimePolicy(),
     setRuntimePolicy: async (input: {
@@ -301,11 +319,17 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
         maxItems: input.maxItems ?? null,
         includeProviderDetails: input.includeProviderDetails,
       }),
-    getRuntimeBrowserDebugStatus: async (input: { workspaceId: string }) =>
-      getRuntimeBrowserDebugStatus(input.workspaceId),
+    getRuntimeBrowserDebugStatus: async (input: { workspaceId: string }) => {
+      const browserSession = await resolveBrowserDebugTarget();
+      return getRuntimeBrowserDebugStatus({
+        workspaceId: input.workspaceId,
+        browserUrl: browserSession?.browserUrl ?? null,
+      });
+    },
     runRuntimeBrowserDebug: async (input: {
       workspaceId: string;
       operation: "inspect" | "automation" | "chatgpt_decision_lab";
+      targetUrl?: string | null;
       prompt?: string | null;
       includeScreenshot?: boolean | null;
       timeoutMs?: number | null;
@@ -324,16 +348,24 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
         allowLiveWebResearch?: boolean | null;
         chatgptUrl?: string | null;
       } | null;
-    }) =>
-      runRuntimeBrowserDebug({
+    }) => {
+      const browserSession = await resolveBrowserDebugTarget({
+        operation: input.operation,
+        targetUrl: input.targetUrl ?? null,
+        decisionLab: input.decisionLab ?? null,
+      });
+      return runRuntimeBrowserDebug({
         workspaceId: input.workspaceId,
         operation: input.operation,
+        browserUrl: browserSession?.browserUrl ?? null,
+        targetUrl: input.targetUrl ?? null,
         prompt: input.prompt ?? null,
         includeScreenshot: input.includeScreenshot ?? null,
         timeoutMs: input.timeoutMs ?? null,
         steps: input.steps ?? null,
         decisionLab: input.decisionLab ?? null,
-      }),
+      });
+    },
     listRuntimeExtensions: async (targetWorkspaceId?: string | null) =>
       listRuntimeExtensions(targetWorkspaceId ?? workspaceId),
     listRuntimeExtensionTools: async (input: {

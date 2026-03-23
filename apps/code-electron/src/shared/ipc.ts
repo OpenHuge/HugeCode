@@ -13,6 +13,8 @@ export const DESKTOP_HOST_IPC_CHANNELS = {
   showNotification: "hugecode:desktop-host:show-notification",
   openExternalUrl: "hugecode:desktop-host:open-external-url",
   revealItemInDir: "hugecode:desktop-host:reveal-item-in-dir",
+  getBrowserDebugSession: "hugecode:desktop-host:get-browser-debug-session",
+  ensureBrowserDebugSession: "hugecode:desktop-host:ensure-browser-debug-session",
 } as const;
 
 export type DesktopWindowLabel = "main" | "about";
@@ -56,6 +58,19 @@ export type DesktopNotificationInput = {
   title: string;
 };
 
+export type DesktopBrowserDebugSessionInput = {
+  focus?: boolean;
+  reset?: boolean;
+  targetUrl?: string | null;
+};
+
+export type DesktopBrowserDebugSessionInfo = {
+  browserUrl: string;
+  currentUrl: string | null;
+  targetUrl: string | null;
+  windowId: number;
+};
+
 export type DesktopHostBridgeApi = {
   kind: "electron";
   app: {
@@ -85,5 +100,11 @@ export type DesktopHostBridgeApi = {
   shell: {
     openExternalUrl(url: string): Promise<boolean>;
     revealItemInDir(path: string): Promise<boolean>;
+  };
+  browserDebug: {
+    getSession(): Promise<DesktopBrowserDebugSessionInfo | null>;
+    ensureSession(
+      input?: DesktopBrowserDebugSessionInput
+    ): Promise<DesktopBrowserDebugSessionInfo | null>;
   };
 };

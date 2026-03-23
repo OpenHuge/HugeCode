@@ -16,6 +16,7 @@ macro_rules! turn_send_request {
             execution_profile_id: None,
             preferred_backend_ids: None,
             service_tier: None,
+            auto_drive: None,
             $($field)*
         }
     };

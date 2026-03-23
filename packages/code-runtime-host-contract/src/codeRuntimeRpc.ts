@@ -3277,6 +3277,7 @@ export type RuntimeBrowserDebugToolSummary = {
 
 export type RuntimeBrowserDebugStatusRequest = {
   workspaceId: string;
+  browserUrl?: string | null;
 };
 
 export type RuntimeBrowserDebugStatusResponse = {
@@ -3286,6 +3287,7 @@ export type RuntimeBrowserDebugStatusResponse = {
   status: RuntimeBrowserDebugAvailabilityStatus;
   packageRoot?: string | null;
   serverName?: string | null;
+  browserUrl?: string | null;
   tools: RuntimeBrowserDebugToolSummary[];
   warnings: string[];
 };
@@ -3324,6 +3326,8 @@ export type RuntimeBrowserDebugOperation = "inspect" | "automation" | "chatgpt_d
 export type RuntimeBrowserDebugRunRequest = {
   workspaceId: string;
   operation: RuntimeBrowserDebugOperation;
+  browserUrl?: string | null;
+  targetUrl?: string | null;
   prompt?: string | null;
   includeScreenshot?: boolean | null;
   timeoutMs?: number | null;
@@ -3348,6 +3352,7 @@ export type RuntimeBrowserDebugRunResponse = {
   status: "completed" | "failed" | "blocked";
   mode: RuntimeBrowserDebugMode;
   operation: RuntimeBrowserDebugOperation;
+  browserUrl?: string | null;
   message: string;
   toolCalls: RuntimeBrowserDebugToolCallResult[];
   contentText?: string | null;

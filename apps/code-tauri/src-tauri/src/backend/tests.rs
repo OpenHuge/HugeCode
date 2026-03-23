@@ -23,7 +23,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 static TEST_STATE_COUNTER: AtomicU64 = AtomicU64::new(0);
 macro_rules! turn_send_request {
-    ($($field:tt)*) => { TurnSendRequest { mission_mode: None, execution_profile_id: None, preferred_backend_ids: None, service_tier: None, $($field)* } };
+    ($($field:tt)*) => { TurnSendRequest { mission_mode: None, execution_profile_id: None, preferred_backend_ids: None, service_tier: None, auto_drive: None, $($field)* } };
 }
 fn test_state_path(suffix: &str) -> PathBuf {
     let pid = std::process::id();

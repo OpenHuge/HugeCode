@@ -18,6 +18,8 @@ describe("desktopHostIpcChannels", () => {
       showNotification: "hugecode:desktop-host:show-notification",
       openExternalUrl: "hugecode:desktop-host:open-external-url",
       revealItemInDir: "hugecode:desktop-host:reveal-item-in-dir",
+      getBrowserDebugSession: "hugecode:desktop-host:get-browser-debug-session",
+      ensureBrowserDebugSession: "hugecode:desktop-host:ensure-browser-debug-session",
     });
   });
 });

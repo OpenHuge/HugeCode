@@ -10,6 +10,8 @@ use tokio::time::{timeout, Duration};
 
 #[path = "rpc_dispatch_browser_debug_decision_lab.rs"]
 mod decision_lab;
+#[path = "rpc_dispatch_browser_debug_chrome.rs"]
+mod chrome;
 
 const BROWSER_DEBUG_MCP_COMMAND_OVERRIDE_ENV: &str =
     "CODE_RUNTIME_BROWSER_DEBUG_PLAYWRIGHT_COMMAND";
@@ -36,6 +38,8 @@ pub(super) fn browser_debug_env_lock() -> &'static std::sync::Mutex<()> {
 struct BrowserDebugStatusRequest {
     #[serde(alias = "workspace_id")]
     workspace_id: String,
+    #[serde(default, alias = "browser_url")]
+    browser_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,6 +48,8 @@ struct BrowserDebugRunRequest {
     #[serde(alias = "workspace_id")]
     workspace_id: String,
     operation: String,
+    #[serde(default, alias = "browser_url")]
+    browser_url: Option<String>,
     #[serde(default)]
     prompt: Option<String>,
     #[serde(default, alias = "include_screenshot")]
@@ -102,6 +108,7 @@ struct BrowserDebugStatusSnapshot {
     status: &'static str,
     package_root: Option<String>,
     server_name: Option<String>,
+    browser_url: Option<String>,
     tools: Vec<Value>,
     warnings: Vec<String>,
 }
@@ -111,6 +118,7 @@ struct BrowserDebugRunSnapshot {
     available: bool,
     status: &'static str,
     mode: &'static str,
+    browser_url: Option<String>,
     message: String,
     tool_calls: Vec<Value>,
     content_text: Option<String>,
@@ -457,16 +465,38 @@ fn resolve_playwright_mcp_launch_config(
     }))
 }
 
+fn normalize_browser_debug_browser_url(candidate: Option<&str>) -> Option<String> {
+    candidate
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn chrome_mcp_args_include_browser_url(args: &[String]) -> bool {
+    args.iter().any(|arg| arg.starts_with("--browserUrl="))
+}
+
 fn resolve_chrome_devtools_mcp_launch_config(
     workspace_path: &Path,
+    requested_browser_url: Option<&str>,
 ) -> Result<Option<BrowserDebugMcpLaunchConfig>, String> {
+    let browser_url = normalize_browser_debug_browser_url(requested_browser_url).or_else(|| {
+        normalize_browser_debug_browser_url(
+            std::env::var(BROWSER_DEBUG_CHROME_BROWSER_URL_ENV).ok().as_deref(),
+        )
+    });
     if let Ok(command) = std::env::var(BROWSER_DEBUG_CHROME_COMMAND_OVERRIDE_ENV) {
         let trimmed = command.trim();
         if !trimmed.is_empty() {
-            let args = match std::env::var(BROWSER_DEBUG_CHROME_ARGS_OVERRIDE_ENV) {
+            let mut args = match std::env::var(BROWSER_DEBUG_CHROME_ARGS_OVERRIDE_ENV) {
                 Ok(raw) if !raw.trim().is_empty() => parse_mcp_args_override(raw.as_str())?,
                 _ => Vec::new(),
             };
+            if let Some(browser_url) = browser_url.clone() {
+                if !chrome_mcp_args_include_browser_url(args.as_slice()) {
+                    args.push(format!("--browserUrl={browser_url}"));
+                }
+            }
             return Ok(Some(BrowserDebugMcpLaunchConfig {
                 command: trimmed.to_string(),
                 args,
@@ -478,10 +508,6 @@ fn resolve_chrome_devtools_mcp_launch_config(
     if !command_exists_on_path("npx") {
         return Ok(None);
     }
-    let browser_url = std::env::var(BROWSER_DEBUG_CHROME_BROWSER_URL_ENV)
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
     let mut args = vec!["-y".to_string(), "chrome-devtools-mcp@latest".to_string()];
     if let Some(browser_url) = browser_url {
         args.push(format!("--browserUrl={browser_url}"));
@@ -665,6 +691,7 @@ fn build_inspect_steps(
 async fn collect_browser_debug_status(
     workspace_path: &Path,
     timeout_ms: u64,
+    browser_url: Option<&str>,
 ) -> BrowserDebugStatusSnapshot {
     let collect_from_config = |config: BrowserDebugMcpLaunchConfig,
                                mode: &'static str,
@@ -673,6 +700,7 @@ async fn collect_browser_debug_status(
             .package_root
             .as_ref()
             .map(|path| path.to_string_lossy().to_string());
+        let browser_url = normalize_browser_debug_browser_url(browser_url);
         let result = timeout(Duration::from_millis(timeout_ms), async move {
             let mut client = BrowserDebugMcpClient::connect(&config).await?;
             let tools = client.list_tools().await?;
@@ -692,6 +720,7 @@ async fn collect_browser_debug_status(
                     status: "ready",
                     package_root,
                     server_name: Some(server_name.to_string()),
+                    browser_url,
                     tools: tools.iter().map(normalize_browser_tool_summary).collect(),
                     warnings,
                 }
@@ -702,6 +731,7 @@ async fn collect_browser_debug_status(
                 status: "degraded",
                 package_root,
                 server_name: Some(server_name.to_string()),
+                browser_url,
                 tools: Vec::new(),
                 warnings: vec![error],
             },
@@ -711,6 +741,7 @@ async fn collect_browser_debug_status(
                 status: "degraded",
                 package_root,
                 server_name: Some(server_name.to_string()),
+                browser_url,
                 tools: Vec::new(),
                 warnings: vec![format!("Timed out while querying {server_name} MCP.")],
             },
@@ -725,6 +756,7 @@ async fn collect_browser_debug_status(
             status: "unavailable",
             package_root: None,
             server_name: None,
+            browser_url: None,
             tools: Vec::new(),
             warnings: vec![
                 "Playwright MCP is unavailable. Add @playwright/mcp to the workspace and ensure node/pnpm are installed.".to_string(),
@@ -736,6 +768,7 @@ async fn collect_browser_debug_status(
             status: "degraded",
             package_root: None,
             server_name: Some("playwright".to_string()),
+            browser_url: None,
             tools: Vec::new(),
             warnings: vec![error],
         },
@@ -744,7 +777,8 @@ async fn collect_browser_debug_status(
         return playwright_snapshot;
     }
 
-    let chrome_snapshot = match resolve_chrome_devtools_mcp_launch_config(workspace_path) {
+    let chrome_snapshot =
+        match resolve_chrome_devtools_mcp_launch_config(workspace_path, browser_url) {
         Ok(Some(config)) => {
             collect_from_config(config, "mcp-chrome-devtools", "chrome-devtools").await
         }
@@ -754,6 +788,7 @@ async fn collect_browser_debug_status(
             status: "unavailable",
             package_root: None,
             server_name: None,
+            browser_url: normalize_browser_debug_browser_url(browser_url),
             tools: Vec::new(),
             warnings: vec![
                 "Chrome DevTools MCP is unavailable. Ensure npx is installed and a connectable Chrome session exists.".to_string(),
@@ -765,6 +800,7 @@ async fn collect_browser_debug_status(
             status: "degraded",
             package_root: None,
             server_name: Some("chrome-devtools".to_string()),
+            browser_url: normalize_browser_debug_browser_url(browser_url),
             tools: Vec::new(),
             warnings: vec![error],
         },
@@ -790,6 +826,7 @@ async fn collect_browser_debug_status(
         status: "unavailable",
         package_root: None,
         server_name: None,
+        browser_url: chrome_snapshot.browser_url.clone(),
         tools: Vec::new(),
         warnings: playwright_snapshot
             .warnings
@@ -806,11 +843,42 @@ async fn run_browser_debug_operation(
     if request.operation.trim() == "chatgpt_decision_lab" {
         return decision_lab::run_chatgpt_decision_lab_operation(workspace_path, request).await;
     }
+    let timeout_ms = request
+        .timeout_ms
+        .unwrap_or(BROWSER_DEBUG_DEFAULT_TIMEOUT_MS)
+        .clamp(1_000, BROWSER_DEBUG_MAX_TIMEOUT_MS);
+    let operation = request.operation.trim();
+    let requested_browser_url =
+        normalize_browser_debug_browser_url(request.browser_url.as_deref());
+    if operation == "inspect" && requested_browser_url.is_some() {
+        let Ok(Some(config)) =
+            resolve_chrome_devtools_mcp_launch_config(workspace_path, request.browser_url.as_deref())
+        else {
+            return BrowserDebugRunSnapshot {
+                available: false,
+                status: "blocked",
+                mode: "mcp-chrome-devtools",
+                browser_url: requested_browser_url,
+                message: "Chrome DevTools MCP is unavailable for runtime browser inspect.".to_string(),
+                tool_calls: Vec::new(),
+                content_text: None,
+                structured_content: None,
+                artifacts: Vec::new(),
+                warnings: vec![
+                    "Chrome DevTools MCP is unavailable. Install Node/npx and provide a connectable browser debug target.".to_string(),
+                ],
+                decision_lab: None,
+            };
+        };
+        return chrome::run_chrome_devtools_inspect(&config, request, timeout_ms).await;
+    }
+
     let Ok(Some(config)) = resolve_playwright_mcp_launch_config(workspace_path) else {
         return BrowserDebugRunSnapshot {
             available: false,
             status: "blocked",
             mode: "unavailable",
+            browser_url: requested_browser_url,
             message: "Playwright MCP is unavailable for runtime browser debug.".to_string(),
             tool_calls: Vec::new(),
             content_text: None,
@@ -823,11 +891,6 @@ async fn run_browser_debug_operation(
         };
     };
 
-    let timeout_ms = request
-        .timeout_ms
-        .unwrap_or(BROWSER_DEBUG_DEFAULT_TIMEOUT_MS)
-        .clamp(1_000, BROWSER_DEBUG_MAX_TIMEOUT_MS);
-    let operation = request.operation.trim();
     let result = timeout(Duration::from_millis(timeout_ms), async move {
         let mut client = BrowserDebugMcpClient::connect(&config).await?;
         let tools = client.list_tools().await?;
@@ -894,6 +957,7 @@ async fn run_browser_debug_operation(
                 available: true,
                 status: "completed",
                 mode: "mcp-playwright",
+                browser_url: requested_browser_url,
                 message: if request.operation.trim() == "inspect" {
                     request
                         .prompt
@@ -917,6 +981,7 @@ async fn run_browser_debug_operation(
             available: false,
             status: "failed",
             mode: "mcp-playwright",
+            browser_url: requested_browser_url,
             message: error.clone(),
             tool_calls: Vec::new(),
             content_text: None,
@@ -929,6 +994,7 @@ async fn run_browser_debug_operation(
             available: false,
             status: "failed",
             mode: "mcp-playwright",
+            browser_url: requested_browser_url,
             message: "Timed out while running browser debug operation.".to_string(),
             tool_calls: Vec::new(),
             content_text: None,
@@ -951,9 +1017,12 @@ pub(super) async fn handle_browser_debug_status_v1(
     let workspace_path =
         super::workspace_git_dispatch::resolve_workspace_path(ctx, request.workspace_id.as_str())
             .await?;
-    let snapshot =
-        collect_browser_debug_status(workspace_path.as_path(), BROWSER_DEBUG_DEFAULT_TIMEOUT_MS)
-            .await;
+    let snapshot = collect_browser_debug_status(
+        workspace_path.as_path(),
+        BROWSER_DEBUG_DEFAULT_TIMEOUT_MS,
+        request.browser_url.as_deref(),
+    )
+    .await;
     Ok(json!({
         "workspaceId": request.workspace_id,
         "available": snapshot.available,
@@ -961,6 +1030,7 @@ pub(super) async fn handle_browser_debug_status_v1(
         "status": snapshot.status,
         "packageRoot": snapshot.package_root,
         "serverName": snapshot.server_name,
+        "browserUrl": snapshot.browser_url,
         "tools": snapshot.tools,
         "warnings": snapshot.warnings,
     }))
@@ -984,6 +1054,7 @@ pub(super) async fn handle_browser_debug_run_v1(
         "status": result.status,
         "mode": result.mode,
         "operation": request.operation,
+        "browserUrl": result.browser_url,
         "message": result.message,
         "toolCalls": result.tool_calls,
         "contentText": result.content_text,

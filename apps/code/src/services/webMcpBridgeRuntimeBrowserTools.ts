@@ -15,6 +15,7 @@ type RuntimeBrowserControl = RuntimeAgentControl & {
   runRuntimeBrowserDebug?: (input: {
     workspaceId: string;
     operation: "inspect" | "automation" | "chatgpt_decision_lab";
+    targetUrl?: string | null;
     prompt?: string | null;
     includeScreenshot?: boolean | null;
     timeoutMs?: number | null;
@@ -180,6 +181,8 @@ export function buildRuntimeBrowserTools(
           workspaceId: { type: "string" },
           prompt: { type: "string" },
           query: { type: "string" },
+          targetUrl: { type: "string" },
+          url: { type: "string" },
           includeScreenshot: { type: "boolean" },
           timeoutMs: { type: "number" },
         },
@@ -199,12 +202,15 @@ export function buildRuntimeBrowserTools(
         const workspaceId = resolveWorkspaceId(input, snapshot, helpers);
         const prompt =
           helpers.toNonEmptyString(input.prompt) ?? helpers.toNonEmptyString(input.query);
+        const targetUrl =
+          helpers.toNonEmptyString(input.targetUrl) ?? helpers.toNonEmptyString(input.url);
         const timeoutMs = helpers.toPositiveInteger(input.timeoutMs);
         const includeScreenshot =
           typeof input.includeScreenshot === "boolean" ? input.includeScreenshot : false;
         const result = await runRuntimeBrowserDebug({
           workspaceId,
           operation: "inspect",
+          ...(targetUrl ? { targetUrl } : {}),
           prompt,
           includeScreenshot,
           timeoutMs,
@@ -224,6 +230,7 @@ export function buildRuntimeBrowserTools(
         type: "object",
         properties: {
           workspaceId: { type: "string" },
+          targetUrl: { type: "string" },
           timeoutMs: { type: "number" },
           steps: {
             type: "array",
@@ -255,6 +262,7 @@ export function buildRuntimeBrowserTools(
         if (!steps || steps.length === 0) {
           throw requiredInputError("steps is required.");
         }
+        const targetUrl = helpers.toNonEmptyString(input.targetUrl);
         const timeoutMs = helpers.toPositiveInteger(input.timeoutMs);
         await helpers.confirmWriteAction(
           agent,
@@ -265,6 +273,7 @@ export function buildRuntimeBrowserTools(
         const result = await runRuntimeBrowserDebug({
           workspaceId,
           operation: "automation",
+          ...(targetUrl ? { targetUrl } : {}),
           prompt: null,
           includeScreenshot: false,
           timeoutMs,

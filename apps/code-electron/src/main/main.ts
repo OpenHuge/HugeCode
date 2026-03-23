@@ -1,17 +1,20 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  app,
-  BrowserWindow,
-  ipcMain,
-  Menu,
-  nativeImage,
-  Notification,
-  shell,
-  Tray,
+import type {
+  BrowserWindow as ElectronBrowserWindow,
+  Event as ElectronEvent,
+  HandlerDetails,
+  IpcMainInvokeEvent,
+  Menu as ElectronMenu,
+  Tray as ElectronTray,
 } from "electron";
-import type { DesktopNotificationInput, OpenDesktopWindowInput } from "../shared/ipc.js";
+import type {
+  DesktopBrowserDebugSessionInput,
+  DesktopNotificationInput,
+  OpenDesktopWindowInput,
+} from "../shared/ipc.js";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import {
   createDesktopShellState,
@@ -20,7 +23,24 @@ import {
   type DesktopSessionDescriptor,
   type DesktopWindowBounds,
 } from "./desktopShellState.js";
+import {
+  ensureBrowserDebugSession,
+  getBrowserDebugSession,
+  resolveBrowserDebugPort,
+} from "./browserDebugSession.js";
 import { buildTrayMenuTemplate, getTrayMenuStateSignature } from "./trayMenu.js";
+
+const require = createRequire(import.meta.url);
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  nativeImage,
+  Notification,
+  shell,
+  Tray,
+} = require("electron");
 
 const DEFAULT_WINDOW_STATE: DesktopWindowBounds = {
   width: 1440,
@@ -28,17 +48,22 @@ const DEFAULT_WINDOW_STATE: DesktopWindowBounds = {
 };
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rendererDevServerUrl = process.env.HUGECODE_ELECTRON_DEV_SERVER_URL?.trim() ?? "";
+const enableAppSandbox = process.env.HUGECODE_ELECTRON_ENABLE_SANDBOX === "1";
 const isTraySupported = process.platform === "darwin" || process.platform === "win32";
 const trayIconDataUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAK0lEQVR42mP8z8AARMBEw0AEYBxVSFUBQwqGQYQmGmKagjYwNAxMDAwMDAwAAABEgQJkzJYGQAAAABJRU5ErkJggg==";
 
 let isQuitting = false;
-let tray: Tray | null = null;
-let trayMenu: Menu | null = null;
+let tray: ElectronTray | null = null;
+let trayMenu: ElectronMenu | null = null;
 let trayMenuSignature: string | null = null;
-const activeWindows = new Map<number, BrowserWindow>();
+const activeWindows = new Map<number, ElectronBrowserWindow>();
 
-app.enableSandbox();
+if (enableAppSandbox) {
+  app.enableSandbox();
+}
+app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1");
+app.commandLine.appendSwitch("remote-debugging-port", String(resolveBrowserDebugPort()));
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
@@ -106,10 +131,11 @@ function createBrowserWindowForSession(session: DesktopSessionDescriptor) {
     title: getWindowTitle(session),
     backgroundColor: "#0f1115",
     webPreferences: {
-      preload: join(__dirname, "../preload/preload.js"),
+      preload: join(__dirname, "../preload/preload.mjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      // Electron only enables ESM preload entrypoints on unsandboxed windows.
+      sandbox: false,
     },
   });
 
@@ -126,7 +152,7 @@ function createBrowserWindowForSession(session: DesktopSessionDescriptor) {
     }
   });
 
-  nextWindow.webContents.setWindowOpenHandler(({ url }) => {
+  nextWindow.webContents.setWindowOpenHandler(({ url }: HandlerDetails) => {
     void shell.openExternal(url);
     return { action: "deny" };
   });
@@ -137,7 +163,7 @@ function createBrowserWindowForSession(session: DesktopSessionDescriptor) {
     void nextWindow.loadFile(join(__dirname, "../renderer/index.html"));
   }
 
-  nextWindow.on("close", (event) => {
+  nextWindow.on("close", (event: ElectronEvent) => {
     if (!isQuitting && resolveCloseBehavior(desktopShellState, nextWindow.id) === "hide") {
       event.preventDefault();
       nextWindow.hide();
@@ -254,9 +280,13 @@ function updateTray() {
 
   if (!tray) {
     tray = new Tray(createTrayIcon());
-    tray.setToolTip("HugeCode");
-    tray.on("double-click", () => {
-      const visibleWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
+    const trayHandle = tray ?? new Tray(createTrayIcon());
+    tray = trayHandle;
+    trayHandle.setToolTip("HugeCode");
+    trayHandle.on("double-click", () => {
+      const visibleWindow = BrowserWindow.getAllWindows().find(
+        (window: ElectronBrowserWindow) => !window.isDestroyed()
+      );
       if (visibleWindow) {
         visibleWindow.show();
         visibleWindow.focus();
@@ -299,7 +329,7 @@ function updateTray() {
     })
   );
   trayMenuSignature = nextTrayMenuSignature;
-  tray.setContextMenu(trayMenu);
+  tray?.setContextMenu(trayMenu);
 }
 
 ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getAppVersion, async () => {
@@ -307,7 +337,7 @@ ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getAppVersion, async () => {
   return typeof version === "string" && version.length > 0 ? version : null;
 });
 
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getCurrentSession, async (event) => {
+ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getCurrentSession, async (event: IpcMainInvokeEvent) => {
   const sourceWindow = BrowserWindow.fromWebContents(event.sender);
   if (!sourceWindow) {
     return null;
@@ -319,11 +349,14 @@ ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.listRecentSessions, async () => {
   return desktopShellState.recentSessions;
 });
 
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.reopenSession, async (_event, sessionId: string) => {
-  return reopenSession(sessionId);
-});
+ipcMain.handle(
+  DESKTOP_HOST_IPC_CHANNELS.reopenSession,
+  async (_event: IpcMainInvokeEvent, sessionId: string) => {
+    return reopenSession(sessionId);
+  }
+);
 
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getWindowLabel, async (event) => {
+ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getWindowLabel, async (event: IpcMainInvokeEvent) => {
   const sourceWindow = BrowserWindow.fromWebContents(event.sender);
   if (!sourceWindow) {
     return "main";
@@ -337,7 +370,7 @@ ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.listWindows, async () => {
 
 ipcMain.handle(
   DESKTOP_HOST_IPC_CHANNELS.openWindow,
-  async (_event, input?: OpenDesktopWindowInput) => {
+  async (_event: IpcMainInvokeEvent, input?: OpenDesktopWindowInput) => {
     const window = openWindow(input);
     const session = desktopShellState.getSessionByWindowId(window.id);
     if (!session) {
@@ -354,33 +387,42 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.focusWindow, async (_event, windowId: number) => {
-  return focusWindow(windowId);
-});
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.closeWindow, async (_event, windowId: number) => {
-  const targetWindow = activeWindows.get(windowId);
-  if (!targetWindow || targetWindow.isDestroyed()) {
-    return false;
+ipcMain.handle(
+  DESKTOP_HOST_IPC_CHANNELS.focusWindow,
+  async (_event: IpcMainInvokeEvent, windowId: number) => {
+    return focusWindow(windowId);
   }
-  targetWindow.close();
-  return true;
-});
+);
+
+ipcMain.handle(
+  DESKTOP_HOST_IPC_CHANNELS.closeWindow,
+  async (_event: IpcMainInvokeEvent, windowId: number) => {
+    const targetWindow = activeWindows.get(windowId);
+    if (!targetWindow || targetWindow.isDestroyed()) {
+      return false;
+    }
+    targetWindow.close();
+    return true;
+  }
+);
 
 ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getTrayState, async () => {
   return getTrayState();
 });
 
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.setTrayEnabled, async (_event, enabled: boolean) => {
-  desktopShellState.setTrayEnabled(enabled === true);
-  persistDesktopState();
-  updateTray();
-  return getTrayState();
-});
+ipcMain.handle(
+  DESKTOP_HOST_IPC_CHANNELS.setTrayEnabled,
+  async (_event: IpcMainInvokeEvent, enabled: boolean) => {
+    desktopShellState.setTrayEnabled(enabled === true);
+    persistDesktopState();
+    updateTray();
+    return getTrayState();
+  }
+);
 
 ipcMain.handle(
   DESKTOP_HOST_IPC_CHANNELS.showNotification,
-  async (event, input: DesktopNotificationInput) => {
+  async (event: IpcMainInvokeEvent, input: DesktopNotificationInput) => {
     if (!Notification.isSupported()) {
       return false;
     }
@@ -401,14 +443,29 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.openExternalUrl, async (_event, url: string) => {
-  await shell.openExternal(url);
-  return true;
+ipcMain.handle(
+  DESKTOP_HOST_IPC_CHANNELS.openExternalUrl,
+  async (_event: IpcMainInvokeEvent, url: string) => {
+    await shell.openExternal(url);
+    return true;
+  }
+);
+
+ipcMain.handle(
+  DESKTOP_HOST_IPC_CHANNELS.revealItemInDir,
+  async (_event: IpcMainInvokeEvent, path: string) => shell.showItemInFolder(path)
+);
+
+ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getBrowserDebugSession, async () => {
+  return getBrowserDebugSession();
 });
 
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.revealItemInDir, async (_event, path: string) => {
-  return shell.showItemInFolder(path);
-});
+ipcMain.handle(
+  DESKTOP_HOST_IPC_CHANNELS.ensureBrowserDebugSession,
+  async (_event: IpcMainInvokeEvent, input?: DesktopBrowserDebugSessionInput) => {
+    return ensureBrowserDebugSession(input);
+  }
+);
 
 app.on("second-instance", () => {
   const openWindows = BrowserWindow.getAllWindows();

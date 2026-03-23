@@ -649,11 +649,13 @@ pub(super) async fn run_chatgpt_decision_lab_operation(
     workspace_path: &Path,
     request: &BrowserDebugRunRequest,
 ) -> BrowserDebugRunSnapshot {
+    let browser_url = normalize_browser_debug_browser_url(request.browser_url.as_deref());
     let Some(decision_lab_request) = request.decision_lab.as_ref() else {
         return BrowserDebugRunSnapshot {
             available: false,
             status: "failed",
             mode: "mcp-chrome-devtools",
+            browser_url: browser_url.clone(),
             message: "ChatGPT decision lab requires a decisionLab payload.".to_string(),
             tool_calls: Vec::new(),
             content_text: None,
@@ -663,11 +665,14 @@ pub(super) async fn run_chatgpt_decision_lab_operation(
             decision_lab: None,
         };
     };
-    let Ok(Some(config)) = resolve_chrome_devtools_mcp_launch_config(workspace_path) else {
+    let Ok(Some(config)) =
+        resolve_chrome_devtools_mcp_launch_config(workspace_path, request.browser_url.as_deref())
+    else {
         return BrowserDebugRunSnapshot {
             available: false,
             status: "blocked",
             mode: "mcp-chrome-devtools",
+            browser_url: browser_url.clone(),
             message: "Chrome DevTools MCP is unavailable for the ChatGPT decision lab.".to_string(),
             tool_calls: Vec::new(),
             content_text: None,
@@ -873,6 +878,7 @@ pub(super) async fn run_chatgpt_decision_lab_operation(
                     available: false,
                     status: "failed",
                     mode: "mcp-chrome-devtools",
+                    browser_url: browser_url.clone(),
                     message: "ChatGPT decision lab did not return a code block.".to_string(),
                     tool_calls,
                     content_text,
@@ -893,6 +899,7 @@ pub(super) async fn run_chatgpt_decision_lab_operation(
                         available: false,
                         status: "failed",
                         mode: "mcp-chrome-devtools",
+                        browser_url: browser_url.clone(),
                         message: format!("ChatGPT decision lab returned invalid JSON: {error}"),
                         tool_calls,
                         content_text,
@@ -914,6 +921,7 @@ pub(super) async fn run_chatgpt_decision_lab_operation(
                 available: true,
                 status: "completed",
                 mode: "mcp-chrome-devtools",
+                browser_url: browser_url.clone(),
                 message: "ChatGPT decision lab completed.".to_string(),
                 tool_calls,
                 content_text,
@@ -927,6 +935,7 @@ pub(super) async fn run_chatgpt_decision_lab_operation(
             available: false,
             status: "failed",
             mode: "mcp-chrome-devtools",
+            browser_url: browser_url.clone(),
             message: error.clone(),
             tool_calls: Vec::new(),
             content_text: None,
@@ -939,6 +948,7 @@ pub(super) async fn run_chatgpt_decision_lab_operation(
             available: false,
             status: "failed",
             mode: "mcp-chrome-devtools",
+            browser_url,
             message: "Timed out while running the ChatGPT decision lab.".to_string(),
             tool_calls: Vec::new(),
             content_text: None,
@@ -1071,6 +1081,7 @@ done
         let request = BrowserDebugRunRequest {
             workspace_id: "ws-browser".to_string(),
             operation: "chatgpt_decision_lab".to_string(),
+            browser_url: None,
             prompt: None,
             include_screenshot: Some(false),
             timeout_ms: Some(5_000),

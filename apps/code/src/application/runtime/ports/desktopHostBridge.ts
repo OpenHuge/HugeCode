@@ -40,6 +40,19 @@ export type DesktopNotificationInput = {
   title: string;
 };
 
+export type DesktopBrowserDebugSessionInput = {
+  focus?: boolean;
+  reset?: boolean;
+  targetUrl?: string | null;
+};
+
+export type DesktopBrowserDebugSessionInfo = {
+  browserUrl: string;
+  currentUrl: string | null;
+  targetUrl: string | null;
+  windowId: number;
+};
+
 export type DesktopHostBridge = {
   kind: DesktopHostKind;
   app?: {
@@ -89,6 +102,20 @@ export type DesktopHostBridge = {
   shell?: {
     openExternalUrl?: (url: string) => Promise<boolean | void> | boolean | void;
     revealItemInDir?: (path: string) => Promise<boolean | void> | boolean | void;
+  };
+  browserDebug?: {
+    getSession?: () =>
+      | Promise<DesktopBrowserDebugSessionInfo | null | undefined>
+      | DesktopBrowserDebugSessionInfo
+      | null
+      | undefined;
+    ensureSession?: (
+      input?: DesktopBrowserDebugSessionInput
+    ) =>
+      | Promise<DesktopBrowserDebugSessionInfo | null | undefined>
+      | DesktopBrowserDebugSessionInfo
+      | null
+      | undefined;
   };
 };
 

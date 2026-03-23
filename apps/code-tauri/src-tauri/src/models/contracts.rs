@@ -195,6 +195,8 @@ pub struct TurnSendRequest {
     pub attachments: Vec<TurnSendAttachment>,
     #[serde(alias = "collaboration_mode")]
     pub collaboration_mode: Option<serde_json::Value>,
+    #[serde(alias = "auto_drive")]
+    pub auto_drive: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -245,7 +247,10 @@ mod tests {
             "codex_args": ["--profile", "desktop"],
             "access_mode": "on-request",
             "queue": false,
-            "attachments": []
+            "attachments": [],
+            "auto_drive": {
+                "enabled": true
+            }
         });
 
         let request: TurnSendRequest = serde_json::from_value(payload).expect("parse turn payload");
@@ -272,6 +277,12 @@ mod tests {
             Some(vec!["--profile".to_string(), "desktop".to_string()])
         );
         assert_eq!(request.access_mode, "on-request");
+        assert_eq!(
+            request.auto_drive,
+            Some(json!({
+                "enabled": true
+            }))
+        );
     }
 
     #[test]
