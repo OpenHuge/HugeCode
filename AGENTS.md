@@ -13,6 +13,11 @@
 - If agent-facing docs ever disagree, follow `AGENTS.md`, then tracked manifests/scripts, then current source.
 - For repo-wide work, start discovery from `README.md`, `AGENTS.md`, `docs/README.md`, `docs/guide/agents.md`, `docs/development/README.md`, and `docs/workspace-map.md` before opening deeper or archived docs.
 
+## GitHub PR Language
+
+- When using `gh` to inspect, review, comment on, update, or otherwise handle pull requests and related GitHub Actions state, agents must use English in all agent-authored PR-facing output.
+- This includes review bodies, issue or PR comments, merge or triage notes, and workflow-status summaries posted or drafted for GitHub surfaces.
+
 ## Engineering Quality Bar
 
 Apply this quality bar to every task, not only large features:

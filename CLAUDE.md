@@ -9,6 +9,8 @@ This file exists so Claude Code loads the same repo policy as other coding agent
 
 If `CLAUDE.md`, `AGENTS.md`, package manifests, or tracked scripts disagree, follow `AGENTS.md` first, then current manifests/scripts/source.
 
+When using `gh` to inspect or handle pull requests, reviews, comments, or related Actions status, use English for all agent-authored GitHub-facing output.
+
 Use the root docs in this order before scanning deeper materials:
 
 1. `README.md`

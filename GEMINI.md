@@ -7,6 +7,7 @@ This file exists so Gemini CLI loads the same repo-level guidance as Codex and C
 - `AGENTS.md` is the canonical shared instruction file for this repository.
 - If `GEMINI.md`, `CLAUDE.md`, and `AGENTS.md` disagree, follow `AGENTS.md`, then tracked manifests/scripts, then current source.
 - Start repo discovery from `README.md`, `AGENTS.md`, `docs/README.md`, `docs/guide/agents.md`, `docs/development/README.md`, and `docs/workspace-map.md` before reading deeper docs.
+- When using `gh` to inspect or handle pull requests, reviews, comments, or related Actions status, use English for all agent-authored GitHub-facing output.
 
 ## Product And Scope
 

@@ -140,6 +140,7 @@ Use deeper docs to refine a higher-level source, not to replace it.
 - `CLAUDE.md` is the Claude Code compatibility entrypoint.
 - `GEMINI.md` is the Gemini CLI compatibility entrypoint.
 - Keep these entrypoints aligned so different agents do not receive divergent repository guidance.
+- When agents use `gh` for PR handling, reviews, comments, or Actions triage, keep all agent-authored GitHub-facing output in English.
 
 ## Validation Defaults
 
