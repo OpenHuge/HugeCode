@@ -3,7 +3,16 @@
   "$id": "runtime-provider-replay-sample.schema.json",
   "title": "Runtime Provider Replay Dataset Sample",
   "type": "object",
-  "required": ["schemaVersion", "sample", "input", "process", "result", "assertions", "governance"],
+  "required": [
+    "schemaVersion",
+    "sample",
+    "input",
+    "process",
+    "result",
+    "runtimeTruth",
+    "assertions",
+    "governance"
+  ],
   "properties": {
     "schemaVersion": {
       "type": "integer",
@@ -26,13 +35,199 @@
         "tags",
         "stability",
         "redactionVersion",
-        "notes"
-      ]
+        "notes",
+        "riskTier",
+        "axisCoverage",
+        "traceScorecard",
+        "replayFidelity",
+        "promotionPolicy",
+        "freshnessPolicy",
+        "failureTaxonomy",
+        "sourceFingerprint",
+        "qualityReview"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "variant": { "type": "string", "minLength": 1 },
+        "family": { "type": "string", "minLength": 1 },
+        "scenarioType": { "type": "string", "minLength": 1 },
+        "mode": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "recordedAt": { "type": "string", "minLength": 1 },
+        "runtimeKind": { "type": "string", "minLength": 1 },
+        "providerKind": { "type": "string", "minLength": 1 },
+        "requiresRealRuntime": { "type": "boolean" },
+        "supportsReplayOnly": { "type": "boolean" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "stability": { "type": "string", "minLength": 1 },
+        "redactionVersion": { "type": "string", "minLength": 1 },
+        "notes": { "type": "string" },
+        "riskTier": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"]
+        },
+        "axisCoverage": {
+          "type": "object",
+          "required": [
+            "scenarioType",
+            "failureClass",
+            "modelProfile",
+            "reasoningEffort",
+            "accessMode",
+            "backendPreference",
+            "runtimeTruthCapabilities"
+          ],
+          "properties": {
+            "scenarioType": { "type": "string", "minLength": 1 },
+            "failureClass": { "type": "string", "minLength": 1 },
+            "modelProfile": { "type": "string", "minLength": 1 },
+            "reasoningEffort": { "type": "string", "minLength": 1 },
+            "accessMode": { "type": "string", "minLength": 1 },
+            "executionMode": { "type": "string", "minLength": 1 },
+            "collaborationMode": { "type": "string", "minLength": 1 },
+            "backendPreference": { "type": "string", "minLength": 1 },
+            "runtimeTruthCapabilities": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "interactionStrength": { "type": "string", "minLength": 1 },
+            "coverageSlice": { "type": "string", "minLength": 1 }
+          }
+        },
+        "traceScorecard": {
+          "type": "object",
+          "required": ["version", "passThreshold", "criteria"],
+          "properties": {
+            "version": { "type": "integer" },
+            "passThreshold": { "type": "number" },
+            "criteria": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "label", "weight", "required"],
+                "properties": {
+                  "id": { "type": "string", "minLength": 1 },
+                  "label": { "type": "string", "minLength": 1 },
+                  "weight": { "type": "number" },
+                  "required": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "replayFidelity": {
+          "type": "object",
+          "required": [
+            "evidenceMode",
+            "providerPath",
+            "failureLeg",
+            "runtimeTruth",
+            "workspaceEffects"
+          ],
+          "properties": {
+            "evidenceMode": { "type": "string", "minLength": 1 },
+            "providerPath": { "type": "string", "minLength": 1 },
+            "failureLeg": { "type": "string", "minLength": 1 },
+            "runtimeTruth": { "type": "string", "minLength": 1 },
+            "workspaceEffects": { "type": "string", "minLength": 1 }
+          }
+        },
+        "promotionPolicy": {
+          "type": "object",
+          "required": [
+            "minimumTraceGrade",
+            "requiresRecordedEvidence",
+            "requiresDeterministicRegression",
+            "requiresLiveFailureProbe",
+            "blockingTrack"
+          ],
+          "properties": {
+            "minimumTraceGrade": { "type": "number" },
+            "requiresRecordedEvidence": { "type": "boolean" },
+            "requiresDeterministicRegression": { "type": "boolean" },
+            "requiresLiveFailureProbe": { "type": "boolean" },
+            "blockingTrack": { "type": "boolean" }
+          }
+        },
+        "freshnessPolicy": {
+          "type": "object",
+          "required": [
+            "maxAgeDays",
+            "maxDebtDays",
+            "strict",
+            "refreshOnModelChange",
+            "refreshOnRuntimeTruthDrift",
+            "refreshOnFailureClassDrift"
+          ],
+          "properties": {
+            "maxAgeDays": { "type": "integer" },
+            "maxDebtDays": { "type": "integer" },
+            "strict": { "type": "boolean" },
+            "refreshOnModelChange": { "type": "boolean" },
+            "refreshOnRuntimeTruthDrift": { "type": "boolean" },
+            "refreshOnFailureClassDrift": { "type": "boolean" }
+          }
+        },
+        "failureTaxonomy": {
+          "type": "object",
+          "required": ["expectedFailureClasses", "disallowedFailureClasses"],
+          "properties": {
+            "expectedFailureClasses": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "disallowedFailureClasses": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "observedFailureClass": { "type": "string" },
+            "failureMode": { "type": "string" }
+          }
+        },
+        "sourceFingerprint": {
+          "type": "object",
+          "required": ["seedSource", "priorityBucket", "evidenceMode", "dedupKey"],
+          "properties": {
+            "seedSource": { "type": "string", "minLength": 1 },
+            "priorityBucket": { "type": "string", "minLength": 1 },
+            "parentSampleId": {
+              "type": ["string", "null"]
+            },
+            "evidenceMode": { "type": "string", "minLength": 1 },
+            "dedupKey": { "type": "string", "minLength": 1 }
+          }
+        },
+        "qualityReview": {
+          "type": "object",
+          "required": ["reviewedAt", "reviewedBy", "status", "passThreshold", "notes"],
+          "properties": {
+            "reviewedAt": { "type": "string", "minLength": 1 },
+            "reviewedBy": { "type": "string", "minLength": 1 },
+            "status": { "type": "string", "minLength": 1 },
+            "passThreshold": { "type": "number" },
+            "notes": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
     },
     "input": {
       "type": "object",
       "required": ["task", "variant", "runtimeConfig", "endpointIsolation", "turns"],
       "properties": {
+        "task": { "type": "string", "minLength": 1 },
+        "variant": { "type": "object" },
+        "runtimeConfig": { "type": "object" },
+        "endpointIsolation": { "type": "object" },
+        "turns": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
         "runtimeOperation": {
           "type": "object",
           "required": ["type"]

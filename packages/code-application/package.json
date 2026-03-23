@@ -1,0 +1,32 @@
+{
+  "name": "@ku0/code-application",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "lint": "pnpm exec oxlint src",
+    "lint:fix": "pnpm exec oxlint --fix --fix-suggestions src && pnpm exec oxfmt --write ."
+  },
+  "dependencies": {
+    "@ku0/code-platform-interfaces": "workspace:*",
+    "@ku0/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "peerDependencies": {
+    "react": "^19.2.4"
+  }
+}

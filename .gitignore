@@ -207,6 +207,8 @@ artifacts/figma-codegen/
 # Build and dist
 dist/
 build/
+apps/code-electron/dist-electron/
+apps/code-electron/out/
 **/target/
 packages/*/Cargo.lock
 packages/*/native/Cargo.lock

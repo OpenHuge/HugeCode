@@ -33,6 +33,8 @@ Then move into the core authority set:
   [prd.md](./prd.md), [specs/apps/code-product-shape-2026.md](./specs/apps/code-product-shape-2026.md)
 - Runtime behavior, contracts, and backend routing:
   [arch.md](./arch.md), [agents-system-design.md](./agents-system-design.md), [runtime/README.md](./runtime/README.md)
+- Runtime replay dataset governance and proving:
+  [runtime-replay-evolution-layer.prd.md](./runtime-replay-evolution-layer.prd.md), [runtime-replay-evolution-layer.spec.md](./runtime-replay-evolution-layer.spec.md)
 - Local setup, commands, and validation selection:
   [development/README.md](./development/README.md), [testing.md](./testing.md)
 - Prompt-design workflow using ChatGPT web before Codex execution:

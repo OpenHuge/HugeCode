@@ -4,7 +4,7 @@ import {
   WorkspaceHeaderAction,
   WorkspaceHeaderActionCopyGlyphs,
 } from "../../../design-system";
-import { revealItemInDir } from "../../../application/runtime/ports/tauriOpener";
+import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
 import Check from "lucide-react/dist/esm/icons/check";
 import Copy from "lucide-react/dist/esm/icons/copy";
 import Terminal from "lucide-react/dist/esm/icons/terminal";
@@ -22,6 +22,7 @@ import { LaunchScriptButton } from "./LaunchScriptButton";
 import { LaunchScriptEntryButton } from "./LaunchScriptEntryButton";
 import { OpenAppMenu } from "./OpenAppMenu";
 import type { RecentThreadItem } from "./RecentThreadStrip";
+import { formatHeaderBranchLabel } from "../utils/headerBranchLabel";
 
 const MainHeaderBranchMenu = lazy(() =>
   import("./MainHeaderBranchMenu").then((module) => ({
@@ -221,6 +222,11 @@ export function MainHeader({
     }
     return `${workspace.name}\n${normalizedPath}`;
   }, [displayWorktreePath, workspace.name]);
+  const branchLabel = useMemo(() => formatHeaderBranchLabel(branchName), [branchName]);
+  const staticBranchLabel = useMemo(
+    () => formatHeaderBranchLabel(worktreeLabel?.trim() || branchName),
+    [branchName, worktreeLabel]
+  );
   const relativeWorktreePath = useMemo(() => {
     const normalizedWorktreePath = displayWorktreePath.replace(/[\\/]+$/, "");
     if (!parentPath) {
@@ -353,8 +359,9 @@ export function MainHeader({
                   aria-haspopup="dialog"
                   aria-expanded={infoOpen}
                   data-tauri-drag-region="false"
-                  title="Worktree info"
-                  label={worktreeLabel || branchName}
+                  aria-label={worktreeLabel?.trim() || branchName}
+                  title={worktreeLabel?.trim() || branchName}
+                  label={staticBranchLabel}
                   trailing={
                     <span className="workspace-branch-caret" aria-hidden>
                       ›
@@ -507,10 +514,13 @@ export function MainHeader({
                   onClick={branchMenuEnabled ? () => setMenuOpen((prev) => !prev) : undefined}
                   aria-haspopup={branchMenuEnabled ? "menu" : undefined}
                   aria-expanded={branchMenuEnabled ? menuOpen : undefined}
+                  aria-label={branchName}
                   disabled={!branchMenuEnabled}
-                  title={branchMenuEnabled ? undefined : "Git branch actions unavailable"}
+                  title={
+                    branchMenuEnabled ? branchName : `Git branch actions unavailable\n${branchName}`
+                  }
                   data-tauri-drag-region="false"
-                  label={<span className="workspace-branch">{branchName}</span>}
+                  label={<span className="workspace-branch">{branchLabel}</span>}
                   trailing={
                     <span className="workspace-branch-caret" aria-hidden>
                       ›

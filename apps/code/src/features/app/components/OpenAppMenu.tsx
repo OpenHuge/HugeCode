@@ -1,5 +1,5 @@
 import { isTauri } from "../../../application/runtime/ports/tauriCore";
-import { revealItemInDir } from "../../../application/runtime/ports/tauriOpener";
+import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import { useMemo } from "react";
 import { Select, type SelectOption, WorkspaceHeaderAction } from "../../../design-system";

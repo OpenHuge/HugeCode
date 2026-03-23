@@ -26,12 +26,59 @@ const IGNORABLE_WARNING_PATTERNS = [
   /The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set\./u,
   /Use `node --trace-warnings \.\.\.` to show where the warning was created/u,
 ];
-const BACKGROUND_READY_SCENARIO_ALLOWLIST = new Set(["read-only", "runtime-isolation"]);
 const BACKGROUND_READY_QUEUE_PROFILES = {
   "read-only": "read-only-safe",
   "runtime-isolation": "isolated-runtime-check",
+  "streaming-long-output": "streaming-observer-safe",
 };
 const DEFAULT_RUNTIME_REPLAY_HARNESS_TIMEOUT_MS = 60_000;
+const RUNTIME_REPLAY_SUPPORTED_SEED_SOURCES = new Set([
+  "manual",
+  "workflow-failure",
+  "session-regression",
+  "runtime-incident",
+  "synthetic-adversarial",
+  "combinatorial-expansion",
+]);
+const RUNTIME_REPLAY_SUPPORTED_RISK_TIERS = new Set(["low", "medium", "high", "critical"]);
+const RUNTIME_REPLAY_SUPPORTED_PRIORITY_BUCKETS = new Set([
+  "workflow-failure",
+  "session-regression",
+  "matrix-gap",
+  "synthetic-adversarial",
+]);
+const RUNTIME_REPLAY_SUPPORTED_STABILITY_LEVELS = new Set([
+  "golden",
+  "candidate",
+  "incubating",
+  "flaky-blocked",
+  "archived",
+]);
+const RUNTIME_REPLAY_DEFAULT_TRACE_PASS_THRESHOLD = 0.85;
+const RUNTIME_REPLAY_EVIDENCE_BACKED_CAPABILITY_IDS = new Set([
+  "runtime-truth",
+  "continuity-handoff",
+  "event-replay-gap",
+  "autodrive-navigation",
+  "autodrive-evaluation-profile",
+]);
+const RUNTIME_REPLAY_FRESHNESS_POLICY_BY_STABILITY = {
+  golden: { maxAgeDays: 21, maxDebtDays: 7, strict: true },
+  candidate: { maxAgeDays: 14, maxDebtDays: 14, strict: true },
+  incubating: { maxAgeDays: 30, maxDebtDays: 30, strict: false },
+  "flaky-blocked": { maxAgeDays: 30, maxDebtDays: 30, strict: false },
+  archived: { maxAgeDays: 365, maxDebtDays: 365, strict: false },
+};
+const RUNTIME_REPLAY_TRACE_LABELS = {
+  "failure-class-correct": "Failure class is preserved",
+  "recovery-path-complete": "Recovery path completes",
+  "event-order-stable": "Event ordering stays stable",
+  "runtime-truth-complete": "Runtime truth is asserted",
+  "user-visible-error-clear": "User-visible error is clear",
+  "side-effects-correct": "Workspace side effects are proven",
+  "placement-routing-preserved": "Placement and routing evidence is preserved",
+  "streaming-contract-preserved": "Streaming contract is preserved",
+};
 const RUNTIME_TRUTH_ASSERTION_TYPES = new Set([
   "wait-runtime-task-field",
   "wait-runtime-summary",
@@ -56,6 +103,353 @@ function ensureStringArray(value) {
     .map((entry) => entry.trim());
 }
 
+function normalizeRuntimeReplayRiskTier(value) {
+  return typeof value === "string" && RUNTIME_REPLAY_SUPPORTED_RISK_TIERS.has(value.trim())
+    ? value.trim()
+    : null;
+}
+
+function normalizeRuntimeReplaySeedSource(value) {
+  return typeof value === "string" && RUNTIME_REPLAY_SUPPORTED_SEED_SOURCES.has(value.trim())
+    ? value.trim()
+    : null;
+}
+
+function normalizeRuntimeReplayPriorityBucket(value) {
+  return typeof value === "string" && RUNTIME_REPLAY_SUPPORTED_PRIORITY_BUCKETS.has(value.trim())
+    ? value.trim()
+    : null;
+}
+
+function normalizeRuntimeReplayStability(value) {
+  return typeof value === "string" && RUNTIME_REPLAY_SUPPORTED_STABILITY_LEVELS.has(value.trim())
+    ? value.trim()
+    : "candidate";
+}
+
+function resolveRuntimeReplaySampleFailureTaxonomy(sample) {
+  const expectedFailureClasses = ensureStringArray(
+    sample.process?.errorRecovery?.expectedFailureClasses
+  );
+  const disallowedFailureClasses = ensureStringArray(
+    sample.process?.errorRecovery?.disallowedFailureClasses
+  );
+  const replayTurns = ensureArray(sample.result?.providerReplay?.turns);
+  const failedTurn = replayTurns.find((turn) => replayTurnHasFailure(turn)) ?? null;
+  const observedFailureClass = resolveRuntimeReplayFailureClass(failedTurn?.failure);
+  return {
+    expectedFailureClasses,
+    disallowedFailureClasses,
+    observedFailureClass,
+    failureMode:
+      sample.process?.errorRecovery?.expected === true
+        ? (observedFailureClass ?? expectedFailureClasses[0] ?? "unknown")
+        : null,
+  };
+}
+
+function deriveRuntimeReplayRiskTier(sample) {
+  const explicit = normalizeRuntimeReplayRiskTier(sample.sample?.riskTier);
+  if (explicit) {
+    return explicit;
+  }
+  if (sample.process?.errorRecovery?.expected === true) {
+    return "critical";
+  }
+  if (sample.sample?.scenarioType === "write-safe-minimal") {
+    return sample.input?.runtimeConfig?.accessMode === "full-access" ? "critical" : "high";
+  }
+  if (
+    sample.sample?.scenarioType === "autodrive-launch" ||
+    sample.sample?.scenarioType === "runtime-isolation" ||
+    sample.sample?.scenarioType === "unsupported-or-edge"
+  ) {
+    return "high";
+  }
+  if (sample.sample?.scenarioType === "streaming-long-output") {
+    return "medium";
+  }
+  return "low";
+}
+
+function deriveRuntimeReplayBackendPreference(sample) {
+  const explicit =
+    typeof sample.sample?.axisCoverage?.backendPreference === "string" &&
+    sample.sample.axisCoverage.backendPreference.trim().length > 0
+      ? sample.sample.axisCoverage.backendPreference.trim()
+      : null;
+  if (explicit) {
+    return explicit;
+  }
+  const preferredBackendIds = ensureStringArray(
+    sample.input?.runtimeOperation?.preferredBackendIds ??
+      sample.input?.runtimeConfig?.preferredBackendIds
+  );
+  if (preferredBackendIds.length > 0) {
+    return "explicit-preferred";
+  }
+  return sample.sample?.scenarioType === "autodrive-launch" ? "runtime-default" : "not-applicable";
+}
+
+function deriveRuntimeReplayAxisCoverage(sample, capabilityIds) {
+  const explicit = sample.sample?.axisCoverage;
+  if (explicit && typeof explicit === "object") {
+    return structuredClone(explicit);
+  }
+  const failureTaxonomy = resolveRuntimeReplaySampleFailureTaxonomy(sample);
+  return {
+    scenarioType: sample.sample?.scenarioType ?? "unknown",
+    failureClass: failureTaxonomy.failureMode ?? "none",
+    modelProfile: resolveRuntimeReplaySampleModelId(sample) ?? "runtime-only",
+    reasoningEffort: resolveRuntimeReplaySampleReasonEffort(sample) ?? "none",
+    accessMode: sample.input?.runtimeConfig?.accessMode ?? "unspecified",
+    executionMode: sample.input?.runtimeConfig?.executionMode ?? "unspecified",
+    collaborationMode: sample.input?.runtimeConfig?.collaborationMode ?? "unspecified",
+    backendPreference: deriveRuntimeReplayBackendPreference(sample),
+    runtimeTruthCapabilities: capabilityIds,
+    interactionStrength:
+      sample.sample?.scenarioType === "tool-error-recovery" ||
+      sample.sample?.scenarioType === "autodrive-launch" ||
+      capabilityIds.includes("placement-routing")
+        ? "3-way"
+        : "pairwise",
+  };
+}
+
+function deriveRuntimeReplayTraceCriteria(sample, capabilityIds) {
+  const explicitCriteria = ensureArray(sample.sample?.traceScorecard?.criteria)
+    .filter((entry) => isObjectRecord(entry))
+    .map((entry) => structuredClone(entry));
+  if (explicitCriteria.length > 0) {
+    return explicitCriteria;
+  }
+
+  const criteria = [
+    {
+      id: "event-order-stable",
+      label: RUNTIME_REPLAY_TRACE_LABELS["event-order-stable"],
+      weight: 0.2,
+      required: true,
+    },
+  ];
+  if (collectRuntimeTruthHarnessAssertions(sample).length > 0) {
+    criteria.push({
+      id: "runtime-truth-complete",
+      label: RUNTIME_REPLAY_TRACE_LABELS["runtime-truth-complete"],
+      weight: 0.2,
+      required: true,
+    });
+  }
+  if (sample.process?.errorRecovery?.expected === true) {
+    criteria.push(
+      {
+        id: "failure-class-correct",
+        label: RUNTIME_REPLAY_TRACE_LABELS["failure-class-correct"],
+        weight: 0.2,
+        required: true,
+      },
+      {
+        id: "recovery-path-complete",
+        label: RUNTIME_REPLAY_TRACE_LABELS["recovery-path-complete"],
+        weight: 0.2,
+        required: true,
+      },
+      {
+        id: "user-visible-error-clear",
+        label: RUNTIME_REPLAY_TRACE_LABELS["user-visible-error-clear"],
+        weight: 0.2,
+        required: true,
+      }
+    );
+  } else if (sample.sample?.scenarioType === "write-safe-minimal") {
+    criteria.push({
+      id: "side-effects-correct",
+      label: RUNTIME_REPLAY_TRACE_LABELS["side-effects-correct"],
+      weight: capabilityIds.includes("placement-routing") ? 0.3 : 0.6,
+      required: true,
+    });
+    if (capabilityIds.includes("placement-routing")) {
+      criteria.push({
+        id: "placement-routing-preserved",
+        label: RUNTIME_REPLAY_TRACE_LABELS["placement-routing-preserved"],
+        weight: 0.3,
+        required: true,
+      });
+    }
+  } else if (sample.sample?.scenarioType === "streaming-long-output") {
+    criteria.push({
+      id: "streaming-contract-preserved",
+      label: RUNTIME_REPLAY_TRACE_LABELS["streaming-contract-preserved"],
+      weight: capabilityIds.includes("placement-routing") ? 0.3 : 0.6,
+      required: true,
+    });
+    if (capabilityIds.includes("placement-routing")) {
+      criteria.push({
+        id: "placement-routing-preserved",
+        label: RUNTIME_REPLAY_TRACE_LABELS["placement-routing-preserved"],
+        weight: 0.3,
+        required: true,
+      });
+    }
+  } else if (capabilityIds.includes("placement-routing")) {
+    criteria.push({
+      id: "placement-routing-preserved",
+      label: RUNTIME_REPLAY_TRACE_LABELS["placement-routing-preserved"],
+      weight: 0.6,
+      required: true,
+    });
+  }
+
+  const totalWeight = criteria.reduce(
+    (sum, criterion) => sum + (typeof criterion.weight === "number" ? criterion.weight : 0),
+    0
+  );
+  return criteria.map((criterion) => ({
+    ...criterion,
+    weight:
+      typeof criterion.weight === "number" && totalWeight > 0
+        ? Number((criterion.weight / totalWeight).toFixed(4))
+        : 0,
+  }));
+}
+
+function deriveRuntimeReplayTraceScorecard(sample, capabilityIds) {
+  const criteria = deriveRuntimeReplayTraceCriteria(sample, capabilityIds);
+  const passThreshold =
+    typeof sample.sample?.traceScorecard?.passThreshold === "number"
+      ? sample.sample.traceScorecard.passThreshold
+      : RUNTIME_REPLAY_DEFAULT_TRACE_PASS_THRESHOLD;
+  return {
+    version: 1,
+    passThreshold,
+    criteria,
+  };
+}
+
+function deriveRuntimeReplayReplayFidelity(sample) {
+  const explicit = sample.sample?.replayFidelity;
+  if (explicit && typeof explicit === "object") {
+    return structuredClone(explicit);
+  }
+  const replayTurns = ensureArray(sample.result?.providerReplay?.turns);
+  const turnSources = replayTurns.map((turn) => turn?.provenance?.source ?? "unknown");
+  const runtimeTruthAssertions = collectRuntimeTruthHarnessAssertions(sample);
+  const declaredEvidenceBackedCapabilities = ensureStringArray(sample.sample?.capabilities).filter(
+    (entry) => RUNTIME_REPLAY_EVIDENCE_BACKED_CAPABILITY_IDS.has(entry)
+  );
+  const runtimeTruthStatus =
+    runtimeTruthAssertions.length > 0
+      ? "asserted"
+      : declaredEvidenceBackedCapabilities.length > 0
+        ? "missing"
+        : "not-applicable";
+  return {
+    evidenceMode: sample.sample?.source ?? "unknown",
+    providerPath:
+      sample.input?.runtimeOperation?.type === "agent-task-start"
+        ? "runtime-only"
+        : replayTurns.length > 0
+          ? "provider-replay"
+          : "unknown",
+    failureLeg:
+      sample.process?.errorRecovery?.expected === true
+        ? (turnSources.find(
+            (source, index) =>
+              replayTurnHasFailure(replayTurns[index] ?? null) && typeof source === "string"
+          ) ?? "unknown")
+        : "not-applicable",
+    runtimeTruth: runtimeTruthStatus,
+    workspaceEffects:
+      sample.sample?.scenarioType === "write-safe-minimal"
+        ? findWriteSafeWorkspaceAssertionGaps(sample).length === 0
+          ? "machine-asserted"
+          : "gapped"
+        : "none",
+  };
+}
+
+function deriveRuntimeReplayPromotionPolicy(sample, riskTier) {
+  const explicit = sample.sample?.promotionPolicy;
+  if (explicit && typeof explicit === "object") {
+    return structuredClone(explicit);
+  }
+  return {
+    minimumTraceGrade:
+      riskTier === "critical"
+        ? 0.95
+        : riskTier === "high"
+          ? 0.9
+          : RUNTIME_REPLAY_DEFAULT_TRACE_PASS_THRESHOLD,
+    requiresRecordedEvidence: sample.sample?.stability === "golden",
+    requiresDeterministicRegression: true,
+    requiresLiveFailureProbe:
+      sample.process?.errorRecovery?.expected === true && sample.sample?.stability !== "incubating",
+    blockingTrack: sample.governance?.optimizationSignals?.incubationTrack === "blocking",
+  };
+}
+
+function deriveRuntimeReplayFreshnessPolicy(sample) {
+  const explicit = sample.sample?.freshnessPolicy;
+  if (explicit && typeof explicit === "object") {
+    return structuredClone(explicit);
+  }
+  const stability = normalizeRuntimeReplayStability(sample.sample?.stability);
+  const baseline =
+    RUNTIME_REPLAY_FRESHNESS_POLICY_BY_STABILITY[stability] ??
+    RUNTIME_REPLAY_FRESHNESS_POLICY_BY_STABILITY.candidate;
+  return {
+    maxAgeDays: baseline.maxAgeDays,
+    maxDebtDays: baseline.maxDebtDays,
+    strict: baseline.strict,
+    refreshOnModelChange: true,
+    refreshOnRuntimeTruthDrift: true,
+    refreshOnFailureClassDrift: sample.process?.errorRecovery?.expected === true,
+  };
+}
+
+function deriveRuntimeReplaySourceFingerprint(sample, axisCoverage, failureTaxonomy) {
+  const explicit = sample.sample?.sourceFingerprint;
+  if (explicit && typeof explicit === "object") {
+    return structuredClone(explicit);
+  }
+  const optimizationSignals = normalizeRuntimeReplayOptimizationSignals(sample);
+  const promptFingerprint = ensureArray(sample.input?.turns)
+    .map((turn) => (typeof turn?.prompt === "string" ? turn.prompt.trim() : ""))
+    .filter(Boolean)
+    .join("\n")
+    .replace(/\s+/gu, " ")
+    .slice(0, 160);
+  return {
+    seedSource: normalizeRuntimeReplaySeedSource(optimizationSignals?.seedSource) ?? "manual",
+    priorityBucket:
+      normalizeRuntimeReplayPriorityBucket(optimizationSignals?.seedSource) ??
+      (sample.process?.errorRecovery?.expected === true ? "workflow-failure" : "matrix-gap"),
+    parentSampleId: optimizationSignals?.lineage?.parentSampleId ?? null,
+    evidenceMode: sample.sample?.source ?? "unknown",
+    dedupKey: [
+      sample.sample?.scenarioType ?? "unknown",
+      axisCoverage.failureClass ?? "none",
+      axisCoverage.accessMode ?? "unspecified",
+      axisCoverage.executionMode ?? "unspecified",
+      promptFingerprint,
+    ].join("|"),
+  };
+}
+
+function deriveRuntimeReplayQualityReview(sample, traceScorecard, riskTier) {
+  const explicit = sample.sample?.qualityReview;
+  if (explicit && typeof explicit === "object") {
+    return structuredClone(explicit);
+  }
+  return {
+    reviewedAt: sample.sample?.recordedAt ?? null,
+    reviewedBy: "runtime-replay-dataset",
+    status: sample.sample?.stability === "golden" ? "approved" : "needs-follow-up",
+    passThreshold: traceScorecard.passThreshold,
+    notes: [`Risk tier ${riskTier}.`, sample.sample?.notes ?? "Replay sample."],
+  };
+}
+
 function normalizeRuntimeTruthSectionAssertions(value) {
   return ensureArray(value)
     .filter((entry) => isObjectRecord(entry))
@@ -76,6 +470,18 @@ function collectRuntimeTruthHarnessAssertions(sample) {
     ...normalizeRuntimeTruthSectionAssertions(runtimeTruth.autodrive),
     ...normalizeRuntimeTruthSectionAssertions(runtimeTruth.eventReplay),
   ];
+}
+
+function collectComposerOptionAssertions(sample) {
+  return ensureArray(sample.process?.harness?.assertions).filter(
+    (entry) =>
+      isObjectRecord(entry) &&
+      entry.type === "assert-composer-option" &&
+      typeof entry.control === "string" &&
+      entry.control.trim().length > 0 &&
+      typeof entry.value === "string" &&
+      entry.value.trim().length > 0
+  );
 }
 
 function buildRuntimeReplayCapabilityEvidence(sample) {
@@ -129,9 +535,16 @@ function buildRuntimeReplayCapabilityEvidence(sample) {
     inferredCapabilities.add("autodrive-evaluation-profile");
   }
 
+  const declaredOperationalCapabilities = declaredCapabilities.filter(
+    (entry) => !RUNTIME_REPLAY_EVIDENCE_BACKED_CAPABILITY_IDS.has(entry)
+  );
+
   return {
-    capabilityIds: [...new Set([...declaredCapabilities, ...inferredCapabilities])].sort(),
+    capabilityIds: [
+      ...new Set([...declaredOperationalCapabilities, ...inferredCapabilities]),
+    ].sort(),
     declaredCapabilities,
+    declaredOperationalCapabilities,
     inferredCapabilities: [...inferredCapabilities].sort(),
     hasPositiveAutodriveNavigation,
     hasPositiveAutodriveEvaluationProfile,
@@ -140,6 +553,65 @@ function buildRuntimeReplayCapabilityEvidence(sample) {
 
 function resolveRuntimeReplaySampleCapabilities(sample) {
   return buildRuntimeReplayCapabilityEvidence(sample).capabilityIds;
+}
+
+export function normalizeRuntimeReplaySample(sample) {
+  const normalized = structuredClone(sample);
+  const capabilityIds = resolveRuntimeReplaySampleCapabilities(normalized);
+  const riskTier = deriveRuntimeReplayRiskTier(normalized);
+  const axisCoverage = deriveRuntimeReplayAxisCoverage(normalized, capabilityIds);
+  const traceScorecard = deriveRuntimeReplayTraceScorecard(normalized, capabilityIds);
+  const replayFidelity = deriveRuntimeReplayReplayFidelity(normalized);
+  const promotionPolicy = deriveRuntimeReplayPromotionPolicy(normalized, riskTier);
+  const freshnessPolicy = deriveRuntimeReplayFreshnessPolicy(normalized);
+  const failureTaxonomy = resolveRuntimeReplaySampleFailureTaxonomy(normalized);
+  const sourceFingerprint = deriveRuntimeReplaySourceFingerprint(
+    normalized,
+    axisCoverage,
+    failureTaxonomy
+  );
+  const qualityReview = deriveRuntimeReplayQualityReview(normalized, traceScorecard, riskTier);
+
+  normalized.sample = {
+    ...normalized.sample,
+    riskTier,
+    axisCoverage,
+    traceScorecard,
+    replayFidelity,
+    promotionPolicy,
+    freshnessPolicy,
+    failureTaxonomy,
+    sourceFingerprint,
+    qualityReview,
+  };
+
+  return normalized;
+}
+
+export function createRuntimeReplayManifestEntry(sample, file) {
+  return {
+    id: sample.sample.id,
+    file,
+    variant: sample.sample.variant,
+    family: sample.sample.family,
+    scenarioType: sample.sample.scenarioType,
+    mode: sample.sample.mode,
+    source: sample.sample.source,
+    recordedAt: sample.sample.recordedAt,
+    schemaVersion: sample.sample.schemaVersion,
+    runtimeKind: sample.sample.runtimeKind,
+    providerKind: sample.sample.providerKind,
+    requiresRealRuntime: sample.sample.requiresRealRuntime,
+    supportsReplayOnly: sample.sample.supportsReplayOnly,
+    tags: sample.sample.tags,
+    stability: sample.sample.stability,
+    redactionVersion: sample.sample.redactionVersion,
+    notes: sample.sample.notes,
+    riskTier: sample.sample.riskTier,
+    axisCoverage: sample.sample.axisCoverage,
+    promotionPolicy: sample.sample.promotionPolicy,
+    freshnessPolicy: sample.sample.freshnessPolicy,
+  };
 }
 
 function hasRecordedProviderReplay(sample) {
@@ -637,9 +1109,19 @@ export function resolveRuntimeReplayFailureClass(failure) {
   if (
     detail.includes("runtime.turn.provider.rejected") ||
     detail.includes("provider rejected") ||
-    detail.includes("rejected by provider")
+    detail.includes("rejected by provider") ||
+    detail.includes("unauthorized") ||
+    detail.includes("forbidden") ||
+    detail.includes("http 401") ||
+    detail.includes("http 403")
   ) {
     return "provider.rejected";
+  }
+  if (
+    detail.includes("runtime.turn.orchestration_unavailable") ||
+    detail.includes("runtime orchestration unavailable")
+  ) {
+    return "runtime.orchestration.unavailable";
   }
   if (detail.includes("request failed") || detail.includes("error sending request")) {
     return "provider.request-failed";
@@ -851,6 +1333,129 @@ function summarizeRuntimeReplayRerecordSuccessRate(sample) {
   };
 }
 
+function summarizeRuntimeReplaySampleFreshnessDebt(sample, nowMs = Date.now()) {
+  const policy = sample.sample?.freshnessPolicy ?? deriveRuntimeReplayFreshnessPolicy(sample);
+  const recordedAtMs = parseIsoTimestamp(sample.sample?.recordedAt);
+  if (recordedAtMs === null) {
+    return {
+      overdue: false,
+      ageDays: null,
+      maxAgeDays: policy.maxAgeDays,
+      debtDays: null,
+      severity: "unknown",
+    };
+  }
+  const ageDays = (nowMs - recordedAtMs) / (24 * 60 * 60 * 1000);
+  const debtDays = ageDays - policy.maxAgeDays;
+  const overdue = debtDays > 0;
+  let severity = "healthy";
+  if (overdue && debtDays > (policy.maxDebtDays ?? policy.maxAgeDays)) {
+    severity = "critical";
+  } else if (overdue) {
+    severity = "attention";
+  }
+  return {
+    overdue,
+    ageDays: Number(ageDays.toFixed(2)),
+    maxAgeDays: policy.maxAgeDays,
+    debtDays: overdue ? Number(debtDays.toFixed(2)) : 0,
+    severity,
+  };
+}
+
+function evaluateRuntimeReplayTraceCriterion(sample, criterion, context = {}) {
+  const recoveryQualification =
+    context.recoveryQualification ??
+    (sample.process?.errorRecovery?.expected === true
+      ? (sample.governance?.recoveryQualification ??
+        summarizeRuntimeReplayRecoveryQualification(sample))
+      : null);
+  switch (criterion.id) {
+    case "failure-class-correct":
+      return Boolean(
+        recoveryQualification?.observedFailureClass &&
+        ensureArray(recoveryQualification?.expectedFailureClasses).includes(
+          recoveryQualification.observedFailureClass
+        ) &&
+        recoveryQualification?.evidenceMode === "recorded"
+      );
+    case "recovery-path-complete":
+      return (
+        recoveryQualification?.recoveryObserved === true &&
+        recoveryQualification?.recoveryStable === true
+      );
+    case "event-order-stable":
+      return (
+        context.playwrightPassed !== false &&
+        ensureArray(sample.process?.expectedStateTransitions).length > 0
+      );
+    case "runtime-truth-complete":
+      return collectRuntimeTruthHarnessAssertions(sample).length > 0;
+    case "user-visible-error-clear":
+      return (
+        ensureArray(sample.process?.harness?.actions).some(
+          (entry) => entry?.type === "wait-message" || entry?.type === "wait-turn-state"
+        ) ||
+        ensureArray(sample.process?.harness?.assertions).some(
+          (entry) => entry?.type === "wait-message" || entry?.type === "message-visible"
+        )
+      );
+    case "side-effects-correct":
+      return findWriteSafeWorkspaceAssertionGaps(sample).length === 0;
+    case "placement-routing-preserved":
+      return (
+        collectComposerOptionAssertions(sample).length > 0 ||
+        ensureArray(sample.result?.providerReplay?.coverage).includes("model-selection") ||
+        ensureStringArray(
+          sample.input?.runtimeOperation?.preferredBackendIds ??
+            sample.input?.runtimeConfig?.preferredBackendIds
+        ).length > 0 ||
+        sample.sample?.scenarioType === "runtime-isolation"
+      );
+    case "streaming-contract-preserved":
+      return (
+        sample.sample?.scenarioType === "streaming-long-output" &&
+        ensureArray(sample.process?.harness?.actions).some(
+          (entry) => entry?.type === "queue-prompt"
+        )
+      );
+    default:
+      return true;
+  }
+}
+
+function scoreRuntimeReplayTraceScorecard(sample, context = {}) {
+  const traceScorecard =
+    sample.sample?.traceScorecard ??
+    deriveRuntimeReplayTraceScorecard(sample, resolveRuntimeReplaySampleCapabilities(sample));
+  const criteria = ensureArray(traceScorecard.criteria).map((criterion) => {
+    const passed = evaluateRuntimeReplayTraceCriterion(sample, criterion, context);
+    return {
+      ...criterion,
+      passed,
+      score: passed ? 1 : 0,
+    };
+  });
+  const weightedScore = criteria.reduce(
+    (sum, criterion) => sum + (criterion.score ?? 0) * (criterion.weight ?? 0),
+    0
+  );
+  const normalizedScore = Number(weightedScore.toFixed(4));
+  return {
+    passThreshold:
+      typeof traceScorecard.passThreshold === "number"
+        ? traceScorecard.passThreshold
+        : RUNTIME_REPLAY_DEFAULT_TRACE_PASS_THRESHOLD,
+    criteria,
+    score: normalizedScore,
+    passed:
+      normalizedScore >=
+      (typeof traceScorecard.passThreshold === "number"
+        ? traceScorecard.passThreshold
+        : RUNTIME_REPLAY_DEFAULT_TRACE_PASS_THRESHOLD),
+  };
+}
+
 function summarizeRuntimeReplaySampleMetrics(sample, nowMs = Date.now()) {
   const recordedAtMs = parseIsoTimestamp(sample.sample?.recordedAt);
   return {
@@ -858,6 +1463,7 @@ function summarizeRuntimeReplaySampleMetrics(sample, nowMs = Date.now()) {
     sampleAgeMs: recordedAtMs === null ? null : Math.max(0, nowMs - recordedAtMs),
     rerecordSuccessRate: summarizeRuntimeReplayRerecordSuccessRate(sample),
     blockerDwellTime: summarizeRuntimeReplayBlockerDwell(sample, nowMs),
+    freshnessDebt: summarizeRuntimeReplaySampleFreshnessDebt(sample, nowMs),
   };
 }
 
@@ -923,6 +1529,11 @@ function summarizeRuntimeReplayPromotionReadiness(item) {
   const blockerCount = item.metrics.blockerDwellTime.blockerCount;
   const evidenceMode = item.entry.sample.sample?.source ?? "unknown";
   const rerecordRate = item.metrics.rerecordSuccessRate.rate;
+  const traceGrade = scoreRuntimeReplayTraceScorecard(item.entry.sample);
+  const freshnessDebt = item.metrics.freshnessDebt;
+  const minimumTraceGrade =
+    item.entry.sample.sample?.promotionPolicy?.minimumTraceGrade ??
+    RUNTIME_REPLAY_DEFAULT_TRACE_PASS_THRESHOLD;
   const reasons = [];
   let score = 100;
 
@@ -952,8 +1563,25 @@ function summarizeRuntimeReplayPromotionReadiness(item) {
     score -= 10;
   }
 
+  if (traceGrade.score >= minimumTraceGrade) {
+    reasons.push("trace_grade_passed");
+  } else {
+    reasons.push("trace_grade_below_threshold");
+    score -= 20;
+  }
+
+  if (freshnessDebt?.overdue) {
+    reasons.push("freshness_debt");
+    score -= 10;
+  } else {
+    reasons.push("freshness_healthy");
+  }
+
   return {
-    ready: blockerCount === 0,
+    ready:
+      blockerCount === 0 &&
+      traceGrade.score >= minimumTraceGrade &&
+      freshnessDebt?.overdue !== true,
     score: Math.max(0, score),
     reasons,
   };
@@ -1041,7 +1669,6 @@ function assessRuntimeReplayBackgroundReadyCandidate(sample) {
   const provenanceAccessModes = ensureArray(sample.result?.providerReplay?.turns)
     .map((turn) => turn?.provenance?.recordedAccessMode ?? null)
     .filter((entry) => typeof entry === "string" && entry.trim().length > 0);
-  const queueProfile = BACKGROUND_READY_QUEUE_PROFILES[meta.scenarioType] ?? null;
   const selectionReasons = [];
   const exclusionReasons = [];
   const gaps = [];
@@ -1051,9 +1678,35 @@ function assessRuntimeReplayBackgroundReadyCandidate(sample) {
   );
   const hasNonRecordedTurnSources = evidenceSources.some((source) => source !== "recorded");
   const isRecoverySample = sample.process?.errorRecovery?.expected === true;
+  const expectedWrites = ensureArray(sample.governance?.workspaceEffects?.expectedWrites);
+  const hasMachineAssertedWriteEffects =
+    meta.scenarioType === "write-safe-minimal" &&
+    findWriteSafeWorkspaceAssertionGaps(sample).length === 0;
   const isWritePathSample =
-    meta.scenarioType === "write-safe-minimal" || accessMode === "full-access";
-  const scenarioAllowed = BACKGROUND_READY_SCENARIO_ALLOWLIST.has(meta.scenarioType);
+    expectedWrites.length > 0 ||
+    meta.scenarioType === "write-safe-minimal" ||
+    accessMode === "full-access";
+  const isolatedRuntime =
+    sample.process?.runtimeBinding?.strategy === "dedicated-runtime-port" &&
+    sample.process?.runtimeBinding?.forbidCompatibleRuntimeProbe === true;
+  const queueProfile =
+    accessMode === "read-only"
+      ? BACKGROUND_READY_QUEUE_PROFILES["read-only"]
+      : meta.scenarioType === "runtime-isolation"
+        ? BACKGROUND_READY_QUEUE_PROFILES["runtime-isolation"]
+        : meta.scenarioType === "streaming-long-output" &&
+            !isWritePathSample &&
+            !isRecoverySample &&
+            ensureArray(sample.process?.harness?.actions).some(
+              (entry) => entry?.type === "queue-prompt"
+            )
+          ? BACKGROUND_READY_QUEUE_PROFILES["streaming-long-output"]
+          : null;
+  const staticTraceGrade = scoreRuntimeReplayTraceScorecard(sample);
+  const safeWorkspaceCandidate =
+    accessMode === "read-only" ||
+    (meta.scenarioType === "runtime-isolation" && expectedWrites.length === 0) ||
+    (meta.scenarioType === "streaming-long-output" && expectedWrites.length === 0);
 
   if (optimizationSignals?.safeBackgroundCandidate === true) {
     selectionReasons.push("declared_safe_background_candidate");
@@ -1073,10 +1726,10 @@ function assessRuntimeReplayBackgroundReadyCandidate(sample) {
     exclusionReasons.push("source_not_recorded");
   }
 
-  if (scenarioAllowed) {
-    selectionReasons.push("scenario_allowlisted");
+  if (safeWorkspaceCandidate) {
+    selectionReasons.push("temporary_workspace_side_effects_proven_safe");
   } else {
-    exclusionReasons.push("scenario_type_not_allowed");
+    exclusionReasons.push("temporary_workspace_side_effects_not_proven_safe");
   }
 
   if (meta.scenarioType === "read-only") {
@@ -1095,7 +1748,7 @@ function assessRuntimeReplayBackgroundReadyCandidate(sample) {
     exclusionReasons.push("recovery_path_not_allowed");
   }
 
-  if (isWritePathSample) {
+  if (isWritePathSample && !hasMachineAssertedWriteEffects) {
     exclusionReasons.push("write_path_not_allowed");
   }
 
@@ -1109,7 +1762,19 @@ function assessRuntimeReplayBackgroundReadyCandidate(sample) {
     selectionReasons.push("no_active_golden_blockers");
   }
 
-  if (!queueProfile && scenarioAllowed) {
+  if (isolatedRuntime) {
+    selectionReasons.push("isolated_runtime_enforced");
+  } else {
+    exclusionReasons.push("isolated_runtime_required");
+  }
+
+  if (staticTraceGrade.passed) {
+    selectionReasons.push("static_trace_grade_passed");
+  } else {
+    exclusionReasons.push("static_trace_grade_failed");
+  }
+
+  if (!queueProfile && safeWorkspaceCandidate) {
     exclusionReasons.push("queue_profile_unconfigured");
   }
 
@@ -1157,7 +1822,7 @@ export function buildRuntimeReplayBackgroundReadyQueue(selectedSamples) {
 
   return {
     generatedAt: new Date().toISOString(),
-    allowlist: [...BACKGROUND_READY_SCENARIO_ALLOWLIST].sort(),
+    allowlist: ["isolated-runtime-enforced", "temporary-workspace-side-effects-proven-safe"],
     selectedCount: selected.length,
     selected,
     excluded,
@@ -2016,7 +2681,7 @@ export function classifyRuntimeReplayWarnings(logText) {
 
 function loadSampleFile(samplePath) {
   const sample = readJson(samplePath);
-  return sample;
+  return normalizeRuntimeReplaySample(sample);
 }
 
 export function loadRuntimeReplayDataset({ manifestPath = DEFAULT_MANIFEST_PATH } = {}) {
@@ -2028,7 +2693,22 @@ export function loadRuntimeReplayDataset({ manifestPath = DEFAULT_MANIFEST_PATH 
     const sample = loadSampleFile(samplePath);
     return {
       filePath: samplePath,
-      manifestEntry: entry,
+      manifestEntry: {
+        ...entry,
+        riskTier: entry.riskTier ?? sample.sample?.riskTier ?? deriveRuntimeReplayRiskTier(sample),
+        axisCoverage:
+          entry.axisCoverage ??
+          sample.sample?.axisCoverage ??
+          deriveRuntimeReplayAxisCoverage(sample, resolveRuntimeReplaySampleCapabilities(sample)),
+        promotionPolicy:
+          entry.promotionPolicy ??
+          sample.sample?.promotionPolicy ??
+          deriveRuntimeReplayPromotionPolicy(sample, deriveRuntimeReplayRiskTier(sample)),
+        freshnessPolicy:
+          entry.freshnessPolicy ??
+          sample.sample?.freshnessPolicy ??
+          deriveRuntimeReplayFreshnessPolicy(sample),
+      },
       sample,
     };
   });
@@ -2176,6 +2856,10 @@ function compareManifestToSample(entry, errors) {
     "stability",
     "redactionVersion",
     "notes",
+    "riskTier",
+    "axisCoverage",
+    "promotionPolicy",
+    "freshnessPolicy",
   ];
 
   for (const field of mirroredFields) {
@@ -2299,6 +2983,36 @@ function validateSampleStructure(entry, errors, warnings, options) {
     errors.push(`Sample ${filePath} is missing sample.id.`);
     return;
   }
+  if (!normalizeRuntimeReplayRiskTier(meta.riskTier)) {
+    errors.push(`Sample ${meta.id} must declare sample.riskTier.`);
+  }
+  if (!isObjectRecord(meta.axisCoverage)) {
+    errors.push(`Sample ${meta.id} must declare sample.axisCoverage.`);
+  }
+  if (
+    !isObjectRecord(meta.traceScorecard) ||
+    ensureArray(meta.traceScorecard.criteria).length === 0
+  ) {
+    errors.push(`Sample ${meta.id} must declare sample.traceScorecard.criteria.`);
+  }
+  if (!isObjectRecord(meta.replayFidelity)) {
+    errors.push(`Sample ${meta.id} must declare sample.replayFidelity.`);
+  }
+  if (!isObjectRecord(meta.promotionPolicy)) {
+    errors.push(`Sample ${meta.id} must declare sample.promotionPolicy.`);
+  }
+  if (!isObjectRecord(meta.freshnessPolicy)) {
+    errors.push(`Sample ${meta.id} must declare sample.freshnessPolicy.`);
+  }
+  if (!isObjectRecord(meta.failureTaxonomy)) {
+    errors.push(`Sample ${meta.id} must declare sample.failureTaxonomy.`);
+  }
+  if (!isObjectRecord(meta.sourceFingerprint)) {
+    errors.push(`Sample ${meta.id} must declare sample.sourceFingerprint.`);
+  }
+  if (!isObjectRecord(meta.qualityReview)) {
+    errors.push(`Sample ${meta.id} must declare sample.qualityReview.`);
+  }
   if (!ensureArray(sample.input?.turns).length && !hasRuntimeOnlyOperation(sample)) {
     errors.push(`Sample ${meta.id} must define input.turns.`);
   }
@@ -2317,13 +3031,14 @@ function validateSampleStructure(entry, errors, warnings, options) {
   const runtimeTruthAssertions = collectRuntimeTruthHarnessAssertions(sample);
   if (sample.governance?.legacySchemaCompat !== undefined) {
     errors.push(
-      `Sample ${meta.id} must not declare governance.legacySchemaCompat; runtimeTruth assertions are now required for every sample.`
+      `Sample ${meta.id} must not declare governance.legacySchemaCompat; runtimeTruth must use the explicit taskFields/review/autodrive/eventReplay structure.`
     );
   }
-  if (runtimeTruthAssertions.length === 0) {
-    errors.push(`Sample ${meta.id} must declare runtimeTruth assertions.`);
-  }
-  if (sample.runtimeTruth !== undefined && !isObjectRecord(sample.runtimeTruth)) {
+  if (sample.runtimeTruth === undefined) {
+    errors.push(
+      `Sample ${meta.id} must declare runtimeTruth with explicit taskFields/review/autodrive/eventReplay arrays.`
+    );
+  } else if (!isObjectRecord(sample.runtimeTruth)) {
     errors.push(`Sample ${meta.id} runtimeTruth must be an object when provided.`);
   }
   if (isObjectRecord(sample.runtimeTruth)) {
@@ -2346,6 +3061,50 @@ function validateSampleStructure(entry, errors, warnings, options) {
   const capabilities = resolveRuntimeReplaySampleCapabilities(sample);
   if (sample.sample?.capabilities !== undefined && capabilities.length === 0) {
     errors.push(`Sample ${meta.id} sample.capabilities must include at least one capability.`);
+  }
+  const declaredCapabilities = new Set(ensureStringArray(sample.sample?.capabilities));
+  const capabilitySet = new Set(capabilities);
+  if (
+    (capabilitySet.has("runtime-truth") ||
+      capabilitySet.has("continuity-handoff") ||
+      declaredCapabilities.has("runtime-truth") ||
+      declaredCapabilities.has("continuity-handoff")) &&
+    runtimeTruthAssertions.length === 0
+  ) {
+    errors.push(
+      `Sample ${meta.id} declares runtime truth coverage but runtimeTruth assertions are empty.`
+    );
+  }
+  if (
+    (capabilitySet.has("autodrive-navigation") ||
+      capabilitySet.has("autodrive-evaluation-profile") ||
+      declaredCapabilities.has("autodrive-navigation") ||
+      declaredCapabilities.has("autodrive-evaluation-profile")) &&
+    normalizeRuntimeTruthSectionAssertions(sample.runtimeTruth?.autodrive).length === 0
+  ) {
+    errors.push(
+      `Sample ${meta.id} declares autodrive runtime coverage but runtimeTruth.autodrive is empty.`
+    );
+  }
+  if (
+    (capabilitySet.has("event-replay-gap") || declaredCapabilities.has("event-replay-gap")) &&
+    normalizeRuntimeTruthSectionAssertions(sample.runtimeTruth?.eventReplay).length === 0
+  ) {
+    errors.push(
+      `Sample ${meta.id} declares event-replay-gap coverage but runtimeTruth.eventReplay is empty.`
+    );
+  }
+  if (
+    typeof sample.sample?.sourceFingerprint?.seedSource !== "string" ||
+    !RUNTIME_REPLAY_SUPPORTED_SEED_SOURCES.has(sample.sample.sourceFingerprint.seedSource)
+  ) {
+    errors.push(`Sample ${meta.id} sample.sourceFingerprint.seedSource is unsupported.`);
+  }
+  if (
+    typeof sample.sample?.sourceFingerprint?.dedupKey !== "string" ||
+    sample.sample.sourceFingerprint.dedupKey.trim().length === 0
+  ) {
+    errors.push(`Sample ${meta.id} sample.sourceFingerprint.dedupKey must be a non-empty string.`);
   }
 
   const replay = sample.result?.providerReplay;
@@ -2570,8 +3329,20 @@ function validateSampleStructure(entry, errors, warnings, options) {
     }
     const liveFailureProbe = sample.governance?.liveFailureProbe;
     if (!liveFailureProbe || typeof liveFailureProbe !== "object") {
-      warnings.push(`Sample ${meta.id} does not declare governance.liveFailureProbe.`);
+      if (meta.promotionPolicy?.requiresLiveFailureProbe === true) {
+        errors.push(`Sample ${meta.id} must declare governance.liveFailureProbe.`);
+      } else {
+        warnings.push(`Sample ${meta.id} does not declare governance.liveFailureProbe.`);
+      }
     } else {
+      if (
+        meta.promotionPolicy?.requiresLiveFailureProbe === true &&
+        liveFailureProbe.enabled !== true
+      ) {
+        errors.push(
+          `Sample ${meta.id} promotionPolicy.requiresLiveFailureProbe is true but governance.liveFailureProbe.enabled is not true.`
+        );
+      }
       if (
         typeof liveFailureProbe.profileId !== "string" ||
         liveFailureProbe.profileId.trim().length === 0
@@ -2927,6 +3698,7 @@ export function validateRuntimeReplayDataset(dataset, options = {}) {
 
   const seenIds = new Set();
   const seenFiles = new Set();
+  const seenDedupKeys = new Map();
   for (const entry of dataset.samples) {
     const meta = entry.sample.sample;
     if (seenIds.has(meta.id)) {
@@ -2937,6 +3709,20 @@ export function validateRuntimeReplayDataset(dataset, options = {}) {
       errors.push(`Duplicate sample file detected in manifest: ${entry.manifestEntry.file}`);
     }
     seenFiles.add(entry.manifestEntry.file);
+    const dedupSignature = JSON.stringify({
+      dedupKey: meta.sourceFingerprint?.dedupKey ?? null,
+      axisCoverage: meta.axisCoverage ?? null,
+    });
+    if (meta.sourceFingerprint?.dedupKey) {
+      const duplicateForKey = seenDedupKeys.get(dedupSignature);
+      if (duplicateForKey) {
+        errors.push(
+          `Near-duplicate sample detected: ${meta.id} duplicates ${duplicateForKey} for the same dedupKey and axisCoverage.`
+        );
+      } else {
+        seenDedupKeys.set(dedupSignature, meta.id);
+      }
+    }
     compareManifestToSample(entry, errors);
     validateSampleStructure(entry, errors, warnings, validationOptions);
   }
@@ -3074,12 +3860,47 @@ function buildRuntimeReplayCandidateIntake({
     .map((entry) => entry.id)
     .sort();
 
+  const orderedCandidates = selectedSamples
+    .filter((entry) => entry.sample.sample?.stability !== "golden")
+    .map((entry) => {
+      const sample = entry.sample;
+      const sourceFingerprint = sample.sample?.sourceFingerprint ?? {};
+      const priorityBucket =
+        sourceFingerprint.priorityBucket ??
+        (sample.process?.errorRecovery?.expected === true ? "workflow-failure" : "matrix-gap");
+      const bucketRank =
+        {
+          "workflow-failure": 0,
+          "session-regression": 1,
+          "matrix-gap": 2,
+          "synthetic-adversarial": 3,
+        }[priorityBucket] ?? 4;
+      const metrics = summarizeRuntimeReplaySampleMetrics(sample);
+      return {
+        id: sample.sample.id,
+        priorityBucket,
+        bucketRank,
+        riskTier: sample.sample?.riskTier ?? deriveRuntimeReplayRiskTier(sample),
+        freshnessDebt: metrics.freshnessDebt,
+      };
+    })
+    .sort(
+      (left, right) =>
+        left.bucketRank - right.bucketRank ||
+        ["critical", "high", "medium", "low"].indexOf(left.riskTier) -
+          ["critical", "high", "medium", "low"].indexOf(right.riskTier) ||
+        Number(right.freshnessDebt?.debtDays ?? 0) - Number(left.freshnessDebt?.debtDays ?? 0) ||
+        left.id.localeCompare(right.id)
+    );
+
   return {
     generatedAt: new Date().toISOString(),
     backgroundReadyNightlyIds,
     candidateSampleIds,
     workflowFailureCandidates,
     autoPromotableCandidates,
+    orderedCandidateIds: orderedCandidates.map((entry) => entry.id),
+    orderedCandidates,
     matrixGapSuggestions,
     summary: {
       backgroundReadyNightlyCount: backgroundReadyNightlyIds.length,
@@ -3088,6 +3909,143 @@ function buildRuntimeReplayCandidateIntake({
       autoPromotableCandidateCount: autoPromotableCandidates.length,
       matrixGapSuggestionCount: matrixGapSuggestions.length,
     },
+  };
+}
+
+function buildRuntimeReplayAxisCoverageSummary(selectedSamples) {
+  const axisValues = {
+    scenarioType: new Map(),
+    failureClass: new Map(),
+    modelProfile: new Map(),
+    reasoningEffort: new Map(),
+    accessMode: new Map(),
+    backendPreference: new Map(),
+    runtimeTruthCapability: new Map(),
+  };
+  for (const entry of selectedSamples) {
+    const sample = entry.sample;
+    const axisCoverage =
+      sample.sample?.axisCoverage ??
+      deriveRuntimeReplayAxisCoverage(sample, resolveRuntimeReplaySampleCapabilities(sample));
+    const pairs = [
+      ["scenarioType", axisCoverage.scenarioType ?? "unknown"],
+      ["failureClass", axisCoverage.failureClass ?? "none"],
+      ["modelProfile", axisCoverage.modelProfile ?? "unknown"],
+      ["reasoningEffort", axisCoverage.reasoningEffort ?? "none"],
+      ["accessMode", axisCoverage.accessMode ?? "unspecified"],
+      ["backendPreference", axisCoverage.backendPreference ?? "not-applicable"],
+    ];
+    for (const [axis, value] of pairs) {
+      axisValues[axis].set(value, (axisValues[axis].get(value) ?? 0) + 1);
+    }
+    for (const capabilityId of ensureStringArray(axisCoverage.runtimeTruthCapabilities)) {
+      axisValues.runtimeTruthCapability.set(
+        capabilityId,
+        (axisValues.runtimeTruthCapability.get(capabilityId) ?? 0) + 1
+      );
+    }
+  }
+  return Object.fromEntries(
+    Object.entries(axisValues).map(([axis, counts]) => [axis, toCountRecord(counts)])
+  );
+}
+
+function summarizeRuntimeReplayTraceGradeDistribution(selectedSamples, contextResolver = null) {
+  const distribution = new Map([
+    ["excellent", 0],
+    ["healthy", 0],
+    ["attention", 0],
+  ]);
+  const perSample = selectedSamples.map((entry) => {
+    const sample = entry.sample;
+    const traceGrade = scoreRuntimeReplayTraceScorecard(
+      sample,
+      typeof contextResolver === "function" ? contextResolver(sample) : {}
+    );
+    const bucket =
+      traceGrade.score >= 0.95
+        ? "excellent"
+        : traceGrade.score >= traceGrade.passThreshold
+          ? "healthy"
+          : "attention";
+    distribution.set(bucket, (distribution.get(bucket) ?? 0) + 1);
+    return {
+      id: sample.sample.id,
+      score: traceGrade.score,
+      passed: traceGrade.passed,
+      bucket,
+    };
+  });
+  return {
+    counts: toCountRecord(distribution),
+    averageScore:
+      perSample.length > 0
+        ? Number(
+            (perSample.reduce((sum, entry) => sum + entry.score, 0) / perSample.length).toFixed(4)
+          )
+        : 0,
+    passingSampleCount: perSample.filter((entry) => entry.passed).length,
+    perSample,
+  };
+}
+
+function summarizeRuntimeReplayPromotionCandidatesByRisk(selectedSamples) {
+  const grouped = new Map();
+  for (const entry of selectedSamples) {
+    const sample = entry.sample;
+    if (sample.sample?.stability === "golden") {
+      continue;
+    }
+    const riskTier = sample.sample?.riskTier ?? deriveRuntimeReplayRiskTier(sample);
+    grouped.set(riskTier, (grouped.get(riskTier) ?? 0) + 1);
+  }
+  return toCountRecord(grouped);
+}
+
+function summarizeRuntimeReplayLiveProbeStability(selectedSamples) {
+  const counts = new Map();
+  const perSample = [];
+  for (const entry of selectedSamples) {
+    const sample = entry.sample;
+    const rerecordStability =
+      sample.process?.errorRecovery?.expected === true
+        ? deriveRuntimeReplayRerecordStability(
+            ensureArray(sample.process?.errorRecovery?.expectedFailureClasses),
+            sample.governance?.liveFailureProbe?.lastRun
+          )
+        : null;
+    const status = rerecordStability?.status ?? "not-applicable";
+    counts.set(status, (counts.get(status) ?? 0) + 1);
+    perSample.push({
+      id: sample.sample.id,
+      status,
+      stable: rerecordStability?.stable ?? null,
+    });
+  }
+  return {
+    counts: toCountRecord(counts),
+    perSample,
+  };
+}
+
+function summarizeRuntimeReplayFreshnessDebt(selectedSamples, nowMs = Date.now()) {
+  const overdueSamples = selectedSamples
+    .map((entry) => {
+      const freshnessDebt = summarizeRuntimeReplaySampleFreshnessDebt(entry.sample, nowMs);
+      return {
+        id: entry.sample.sample.id,
+        freshnessDebt,
+      };
+    })
+    .filter((entry) => entry.freshnessDebt.overdue)
+    .sort(
+      (left, right) =>
+        Number(right.freshnessDebt.debtDays ?? 0) - Number(left.freshnessDebt.debtDays ?? 0) ||
+        left.id.localeCompare(right.id)
+    );
+  return {
+    overdueCount: overdueSamples.length,
+    overdueSamples: overdueSamples.slice(0, 10),
   };
 }
 
@@ -3116,6 +4074,12 @@ export function buildRuntimeReplayValidationReport({ dataset, selectedSamples, v
     backgroundReadyQueue,
     coverageMatrix,
   });
+  const matrixCoverageByAxis = buildRuntimeReplayAxisCoverageSummary(selectedSamples);
+  const traceGradeDistribution = summarizeRuntimeReplayTraceGradeDistribution(selectedSamples);
+  const promotionCandidatesByRisk =
+    summarizeRuntimeReplayPromotionCandidatesByRisk(selectedSamples);
+  const liveProbeStability = summarizeRuntimeReplayLiveProbeStability(selectedSamples);
+  const freshnessDebt = summarizeRuntimeReplayFreshnessDebt(selectedSamples, nowMs);
   return {
     validatedAt: new Date().toISOString(),
     datasetId: dataset.manifest.datasetId,
@@ -3127,6 +4091,11 @@ export function buildRuntimeReplayValidationReport({ dataset, selectedSamples, v
     errors: validation.errors,
     scenarioStats,
     coverageMatrix,
+    matrixCoverageByAxis,
+    traceGradeDistribution,
+    promotionCandidatesByRisk,
+    liveProbeStability,
+    freshnessDebt,
     candidateIntake,
     backgroundReadyQueue,
     baselineGovernance,
@@ -3142,10 +4111,20 @@ export function buildRuntimeReplayValidationReport({ dataset, selectedSamples, v
         stability: sample.sample.stability,
         scenarioType: sample.sample.scenarioType,
         source: sample.sample.source,
+        riskTier: sample.sample.riskTier,
+        axisCoverage: sample.sample.axisCoverage,
+        traceScorecard: scoreRuntimeReplayTraceScorecard(sample),
+        replayFidelity: sample.sample.replayFidelity,
+        promotionPolicy: sample.sample.promotionPolicy,
+        freshnessPolicy: sample.sample.freshnessPolicy,
+        failureTaxonomy: sample.sample.failureTaxonomy,
+        sourceFingerprint: sample.sample.sourceFingerprint,
+        qualityReview: sample.sample.qualityReview,
         sampleAgeMs: sampleMetrics.sampleAgeMs,
         lastVerifiedAt: sampleMetrics.lastVerifiedAt,
         rerecordSuccessRate: sampleMetrics.rerecordSuccessRate,
         blockerDwellTime: sampleMetrics.blockerDwellTime,
+        freshnessDebt: sampleMetrics.freshnessDebt,
         optimizationSignals: normalizeRuntimeReplayOptimizationSignals(sample),
         deterministicRegressions: normalizeRuntimeReplayDeterministicRegressions(sample),
         baselineReadiness: summarizeRuntimeReplayBaselineReadiness(
@@ -3184,6 +4163,10 @@ export function updateManifestEntryFromSample(dataset, updatedSample) {
     "stability",
     "redactionVersion",
     "notes",
+    "riskTier",
+    "axisCoverage",
+    "promotionPolicy",
+    "freshnessPolicy",
   ]) {
     manifestEntry[field] = meta[field];
   }
@@ -3253,6 +4236,9 @@ export function buildRuntimeReplayReport({
     scenarioStats,
     backgroundReadyQueue
   );
+  const matrixCoverageByAxis = buildRuntimeReplayAxisCoverageSummary(selectedSamples);
+  const liveProbeStability = summarizeRuntimeReplayLiveProbeStability(selectedSamples);
+  const freshnessDebt = summarizeRuntimeReplayFreshnessDebt(selectedSamples, nowMs);
   const sampleReports = [];
   const hardFailures = [];
   const softWarnings = [];
@@ -3352,6 +4338,10 @@ export function buildRuntimeReplayReport({
           summarizeRuntimeReplayRecoveryQualification(sample))
         : null;
     const sampleMetrics = summarizeRuntimeReplaySampleMetrics(sample, nowMs);
+    const traceScorecard = scoreRuntimeReplayTraceScorecard(sample, {
+      playwrightPassed: status === "passed",
+      recoveryQualification,
+    });
     const failureTurnIndex = turnOutcomes.indexOf("failed");
     const recoveryTurnIndex = turnOutcomes.findIndex(
       (outcome, index) => index > failureTurnIndex && outcome === "completed"
@@ -3396,12 +4386,24 @@ export function buildRuntimeReplayReport({
         promotionBlockers.push("live_failure_class_incompatible");
       }
     }
+    const minimumTraceGrade =
+      meta.promotionPolicy?.minimumTraceGrade ?? RUNTIME_REPLAY_DEFAULT_TRACE_PASS_THRESHOLD;
+    if (traceScorecard.score < minimumTraceGrade) {
+      promotionBlockers.push("trace_grade_below_threshold");
+    }
 
     sampleReports.push({
       id: meta.id,
       testName,
       status,
       durationMs,
+      traceScorecard,
+      riskTier: meta.riskTier,
+      axisCoverage: meta.axisCoverage,
+      replayFidelity: meta.replayFidelity,
+      failureTaxonomy: meta.failureTaxonomy,
+      sourceFingerprint: meta.sourceFingerprint,
+      qualityReview: meta.qualityReview,
       turnOutcomes,
       failedTurnCount: turnOutcomes.filter((outcome) => outcome === "failed").length,
       successfulTurnCount: turnOutcomes.filter((outcome) => outcome === "completed").length,
@@ -3429,11 +4431,34 @@ export function buildRuntimeReplayReport({
       candidateToGolden: {
         eligible: promotionBlockers.length === 0,
         blockers: [...new Set(promotionBlockers)],
+        minimumTraceGrade,
       },
+      steadyStateMetrics: {
+        pre: {
+          accessMode: sample.input?.runtimeConfig?.accessMode ?? null,
+          executionMode: sample.input?.runtimeConfig?.executionMode ?? null,
+          collaborationMode: sample.input?.runtimeConfig?.collaborationMode ?? null,
+          backendPreference: meta.axisCoverage?.backendPreference ?? null,
+        },
+        post: {
+          successStatus: sample.result?.successStatus ?? null,
+          playwrightStatus: status,
+          recoveryObserved: recoveryQualification?.recoveryObserved ?? false,
+        },
+      },
+      failureClass: failureClass,
+      recoveryLatencyMs: sample.process?.errorRecovery?.expected === true ? durationMs : null,
       sampleAgeMs: sampleMetrics.sampleAgeMs,
       lastVerifiedAt: sampleMetrics.lastVerifiedAt,
       rerecordSuccessRate: sampleMetrics.rerecordSuccessRate,
       blockerDwellTime: sampleMetrics.blockerDwellTime,
+      freshnessDebt: sampleMetrics.freshnessDebt,
+      blockerDelta: {
+        active: [...new Set(promotionBlockers)],
+        historicalActive: ensureArray(sample.governance?.goldenBlockerHistory)
+          .filter((entry) => entry?.active === true)
+          .map((entry) => entry.blocker),
+      },
       deterministicRegressions: normalizeRuntimeReplayDeterministicRegressions(sample),
       baselineReadiness: summarizeRuntimeReplayBaselineReadiness(
         sample,
@@ -3465,6 +4490,20 @@ export function buildRuntimeReplayReport({
     datasetId: dataset.manifest.datasetId,
     selection: selectedSamples.map((entry) => entry.sample.sample.id),
     scenarioStats,
+    matrixCoverageByAxis,
+    traceGradeDistribution: summarizeRuntimeReplayTraceGradeDistribution(
+      selectedSamples,
+      (sample) => {
+        const sampleReport = sampleReports.find((entry) => entry.id === sample.sample.id);
+        return {
+          playwrightPassed: sampleReport?.status === "passed",
+          recoveryQualification: sampleReport?.recoveryQualification ?? null,
+        };
+      }
+    ),
+    promotionCandidatesByRisk: summarizeRuntimeReplayPromotionCandidatesByRisk(selectedSamples),
+    liveProbeStability,
+    freshnessDebt,
     backgroundReadyQueue,
     baselineGovernance,
     evolutionSignals: summarizeRuntimeReplayEvolutionSignals(selectedSamples),

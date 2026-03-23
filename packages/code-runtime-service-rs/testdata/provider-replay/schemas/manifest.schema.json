@@ -3,7 +3,7 @@
   "$id": "runtime-provider-replay-manifest.schema.json",
   "title": "Runtime Provider Replay Dataset Manifest",
   "type": "object",
-  "required": ["schemaVersion", "datasetId", "version", "taxonomy", "samples"],
+  "required": ["schemaVersion", "datasetId", "version", "taxonomy", "coverageMatrix", "samples"],
   "properties": {
     "schemaVersion": {
       "type": "integer",
@@ -21,7 +21,12 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["scenarioType", "status", "why"]
+        "required": ["scenarioType", "status", "why"],
+        "properties": {
+          "scenarioType": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "minLength": 1 },
+          "why": { "type": "string", "minLength": 1 }
+        }
       }
     },
     "coverageMatrix": {
@@ -35,28 +40,69 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["id", "modelId", "family", "status"]
+            "required": [
+              "id",
+              "modelId",
+              "family",
+              "coverageRole",
+              "reasoningEffort",
+              "verbosity",
+              "snapshotPinned",
+              "status"
+            ],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "modelId": { "type": "string", "minLength": 1 },
+              "family": { "type": "string", "minLength": 1 },
+              "coverageRole": { "type": "string", "minLength": 1 },
+              "reasoningEffort": { "type": "string", "minLength": 1 },
+              "verbosity": { "type": "string", "minLength": 1 },
+              "snapshotPinned": { "type": "boolean" },
+              "status": { "type": "string", "minLength": 1 },
+              "notes": { "type": "string" }
+            }
           }
         },
         "capabilityCatalog": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["id"]
+            "required": ["id"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "status": { "type": "string" },
+              "notes": { "type": "string" }
+            }
           }
         },
         "capabilityRequirements": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["capabilityId", "requiredProfiles"]
+            "required": ["capabilityId", "requiredProfiles"],
+            "properties": {
+              "capabilityId": { "type": "string", "minLength": 1 },
+              "requiredProfiles": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "notes": { "type": "string" }
+            }
           }
         },
         "scenarioRequirements": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["scenarioType", "requiredProfiles"]
+            "required": ["scenarioType", "requiredProfiles"],
+            "properties": {
+              "scenarioType": { "type": "string", "minLength": 1 },
+              "requiredProfiles": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "notes": { "type": "string" }
+            }
           }
         }
       }
@@ -82,8 +128,102 @@
           "tags",
           "stability",
           "redactionVersion",
-          "notes"
-        ]
+          "notes",
+          "riskTier",
+          "axisCoverage",
+          "promotionPolicy",
+          "freshnessPolicy"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "file": { "type": "string", "minLength": 1 },
+          "variant": { "type": "string", "minLength": 1 },
+          "family": { "type": "string", "minLength": 1 },
+          "scenarioType": { "type": "string", "minLength": 1 },
+          "mode": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "minLength": 1 },
+          "recordedAt": { "type": "string", "minLength": 1 },
+          "schemaVersion": { "type": "integer", "const": 1 },
+          "runtimeKind": { "type": "string", "minLength": 1 },
+          "providerKind": { "type": "string", "minLength": 1 },
+          "requiresRealRuntime": { "type": "boolean" },
+          "supportsReplayOnly": { "type": "boolean" },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "stability": { "type": "string", "minLength": 1 },
+          "redactionVersion": { "type": "string", "minLength": 1 },
+          "notes": { "type": "string" },
+          "riskTier": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"]
+          },
+          "axisCoverage": {
+            "type": "object",
+            "required": [
+              "scenarioType",
+              "failureClass",
+              "modelProfile",
+              "reasoningEffort",
+              "accessMode",
+              "backendPreference",
+              "runtimeTruthCapabilities"
+            ],
+            "properties": {
+              "scenarioType": { "type": "string", "minLength": 1 },
+              "failureClass": { "type": "string", "minLength": 1 },
+              "modelProfile": { "type": "string", "minLength": 1 },
+              "reasoningEffort": { "type": "string", "minLength": 1 },
+              "accessMode": { "type": "string", "minLength": 1 },
+              "executionMode": { "type": "string", "minLength": 1 },
+              "collaborationMode": { "type": "string", "minLength": 1 },
+              "backendPreference": { "type": "string", "minLength": 1 },
+              "runtimeTruthCapabilities": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "interactionStrength": { "type": "string", "minLength": 1 },
+              "coverageSlice": { "type": "string", "minLength": 1 }
+            }
+          },
+          "promotionPolicy": {
+            "type": "object",
+            "required": [
+              "minimumTraceGrade",
+              "requiresRecordedEvidence",
+              "requiresDeterministicRegression",
+              "requiresLiveFailureProbe",
+              "blockingTrack"
+            ],
+            "properties": {
+              "minimumTraceGrade": { "type": "number" },
+              "requiresRecordedEvidence": { "type": "boolean" },
+              "requiresDeterministicRegression": { "type": "boolean" },
+              "requiresLiveFailureProbe": { "type": "boolean" },
+              "blockingTrack": { "type": "boolean" }
+            }
+          },
+          "freshnessPolicy": {
+            "type": "object",
+            "required": [
+              "maxAgeDays",
+              "maxDebtDays",
+              "strict",
+              "refreshOnModelChange",
+              "refreshOnRuntimeTruthDrift",
+              "refreshOnFailureClassDrift"
+            ],
+            "properties": {
+              "maxAgeDays": { "type": "integer" },
+              "maxDebtDays": { "type": "integer" },
+              "strict": { "type": "boolean" },
+              "refreshOnModelChange": { "type": "boolean" },
+              "refreshOnRuntimeTruthDrift": { "type": "boolean" },
+              "refreshOnFailureClassDrift": { "type": "boolean" }
+            }
+          }
+        }
       }
     }
   }

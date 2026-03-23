@@ -1,0 +1,360 @@
+{
+  "schemaVersion": 1,
+  "sample": {
+    "id": "runtime-core-write-safe-minimal-gpt-5.4-medium",
+    "variant": "write-safe-minimal-gpt-5.4-medium",
+    "family": "runtime-core",
+    "scenarioType": "write-safe-minimal",
+    "mode": "write-safe",
+    "source": "recorded",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
+    "schemaVersion": 1,
+    "runtimeKind": "code-runtime-gateway-web",
+    "providerKind": "openai",
+    "requiresRealRuntime": true,
+    "supportsReplayOnly": true,
+    "tags": [
+      "runtime-core",
+      "provider-replay",
+      "playwright",
+      "write-safe-minimal",
+      "golden",
+      "write-safe-text-flagship-medium",
+      "gpt-5.4"
+    ],
+    "stability": "golden",
+    "redactionVersion": "runtime-provider-replay-v1",
+    "notes": "runtime-core-write-safe-minimal-gpt-5.4-low expanded for gpt-5.4/medium.",
+    "capabilities": ["write-safe"],
+    "riskTier": "critical",
+    "axisCoverage": {
+      "scenarioType": "write-safe-minimal",
+      "failureClass": "none",
+      "modelProfile": "gpt-5.4",
+      "reasoningEffort": "medium",
+      "accessMode": "full-access",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "not-applicable",
+      "runtimeTruthCapabilities": ["write-safe"],
+      "interactionStrength": "pairwise",
+      "coverageSlice": "write-safe-text-flagship-medium"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "side-effects-correct",
+          "label": "Workspace side effects are proven",
+          "weight": 0.75,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "recorded",
+      "providerPath": "provider-replay",
+      "failureLeg": "not-applicable",
+      "runtimeTruth": "not-applicable",
+      "workspaceEffects": "machine-asserted"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.95,
+      "requiresRecordedEvidence": true,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": false,
+      "blockingTrack": true
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 21,
+      "maxDebtDays": 7,
+      "strict": true,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": false
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": [],
+      "disallowedFailureClasses": [],
+      "observedFailureClass": null,
+      "failureMode": null
+    },
+    "sourceFingerprint": {
+      "seedSource": "session-regression",
+      "priorityBucket": "session-regression",
+      "parentSampleId": null,
+      "evidenceMode": "recorded",
+      "dedupKey": "write-safe-minimal|none|full-access|write-safe-text-flagship-medium"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "approved",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier critical.",
+        "runtime-core-write-safe-minimal-gpt-5.4-low expanded for gpt-5.4/medium.",
+        "Coverage slice write-safe-text-flagship-medium.",
+        "Generated from runtime-core-write-safe-minimal-gpt-5.4-low with seed source session-regression."
+      ]
+    }
+  },
+  "input": {
+    "task": "Validate a low-risk recorded write path under dedicated runtime isolation.",
+    "variant": {
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "medium"
+    },
+    "runtimeConfig": {
+      "accessMode": "full-access",
+      "executionMode": "runtime",
+      "collaborationMode": "default"
+    },
+    "endpointIsolation": {
+      "strategy": "dedicated-runtime-port",
+      "rpcEndpointTemplate": "http://127.0.0.1:{runtimePort}/rpc",
+      "workspaceId": "workspace-web",
+      "reuseExistingRuntime": false
+    },
+    "turns": [
+      {
+        "id": "turn-1",
+        "role": "user",
+        "action": "send",
+        "prompt": "Inside the current workspace, create the file runtime-replay-write-safe/write-safe-minimal.txt with exactly one line: WRITE_SAFE_CONTENT: runtime replay dataset. Do not modify any other files. When done, reply with exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_WRITE_SAFE_MINIMAL_TURN_1\". Line 2 must be exactly \"WRITE_SAFE_PATH: runtime-replay-write-safe/write-safe-minimal.txt\". No bullets. No markdown."
+      }
+    ]
+  },
+  "process": {
+    "expectedStateTransitions": [
+      "runtime.spawned",
+      "runtime.healthy",
+      "thread.opened",
+      "turn.started",
+      "provider.delta",
+      "turn.completed"
+    ],
+    "providerEventRequirements": [
+      {
+        "kind": "item.agentMessage.delta",
+        "minCount": 2
+      },
+      {
+        "kind": "turn.completed",
+        "exactCount": 1
+      }
+    ],
+    "longOutputReadback": {
+      "enabled": false,
+      "expectedPolling": false,
+      "fragments": []
+    },
+    "errorRecovery": {
+      "expected": false,
+      "signals": []
+    },
+    "runtimeBinding": {
+      "strategy": "dedicated-runtime-port",
+      "host": "127.0.0.1",
+      "forbidCompatibleRuntimeProbe": true
+    },
+    "harness": {
+      "runner": "runtime-core-playwright",
+      "testName": "runtime replay records a safe workspace write and preserves deterministic file evidence [runtime-core-write-safe-minimal-gpt-5.4-medium]",
+      "timeoutMs": 60000,
+      "workspaceId": "ws-playground",
+      "actions": [
+        {
+          "type": "select-option",
+          "control": "Agent access",
+          "value": "Full access"
+        },
+        {
+          "type": "select-option",
+          "control": "Model",
+          "value": "gpt-5.4"
+        },
+        {
+          "type": "select-option",
+          "control": "Thinking mode",
+          "value": "medium"
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "new",
+          "promptTurnId": "turn-1"
+        }
+      ],
+      "assertions": [
+        {
+          "type": "wait-message",
+          "text": "RUNTIME_E2E_WRITE_SAFE_MINIMAL_TURN_1",
+          "timeoutMs": 30000
+        },
+        {
+          "type": "workspace-file-contains",
+          "relativePath": "runtime-replay-write-safe/write-safe-minimal.txt",
+          "text": "WRITE_SAFE_CONTENT: runtime replay dataset",
+          "timeoutMs": 30000
+        },
+        {
+          "type": "wait-turn-state",
+          "state": "complete",
+          "timeoutMs": 30000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Agent access",
+          "value": "Full access",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.4",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "medium",
+          "timeoutMs": 15000
+        }
+      ]
+    }
+  },
+  "result": {
+    "successStatus": "completed",
+    "summaryHeading": "RUNTIME_E2E_WRITE_SAFE_MINIMAL_TURN_1",
+    "providerReplay": {
+      "variantId": "write-safe-minimal-gpt-5.4-medium",
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "medium",
+      "recordingAccessMode": "full-access",
+      "recordingExecutionMode": "runtime",
+      "coverage": ["write-safe-minimal", "workspace-write"],
+      "turns": [
+        {
+          "userPrompt": "Inside the current workspace, create the file runtime-replay-write-safe/write-safe-minimal.txt with exactly one line: WRITE_SAFE_CONTENT: runtime replay dataset. Do not modify any other files. When done, reply with exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_WRITE_SAFE_MINIMAL_TURN_1\". Line 2 must be exactly \"WRITE_SAFE_PATH: runtime-replay-write-safe/write-safe-minimal.txt\". No bullets. No markdown.",
+          "output": "RUNTIME_E2E_WRITE_SAFE_MINIMAL_TURN_1\nWRITE_SAFE_PATH: runtime-replay-write-safe/write-safe-minimal.txt",
+          "deltaChunks": [
+            "RUNTIME_E2E_WRITE_SAFE_MINIMAL_TURN_1\n",
+            "WRITE_SAFE_PATH: runtime-replay-write-safe/write-safe-minimal.txt"
+          ],
+          "chunkDelayMs": 25,
+          "expectations": {
+            "startsWith": "RUNTIME_E2E_WRITE_SAFE_MINIMAL_TURN_1",
+            "mustContain": ["WRITE_SAFE_PATH: runtime-replay-write-safe/write-safe-minimal.txt"],
+            "minDeltaChunks": 2
+          },
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-write-safe-minimal-gpt-5.4-medium",
+            "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4",
+            "recordedReasonEffort": "medium",
+            "recordedAccessMode": "full-access",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "recorded"
+          },
+          "recordedAt": "2026-03-13T13:42:39.245Z"
+        }
+      ]
+    }
+  },
+  "assertions": {
+    "hard": [
+      {
+        "type": "message-visible",
+        "text": "RUNTIME_E2E_WRITE_SAFE_MINIMAL_TURN_1"
+      },
+      {
+        "type": "runtime-isolation",
+        "forbidLogPattern": "Existing runtime on"
+      }
+    ],
+    "soft": [
+      {
+        "type": "duration-ms",
+        "max": 60000
+      },
+      {
+        "type": "log-warning-budget",
+        "max": 6
+      },
+      {
+        "type": "delta-chunk-range",
+        "turnId": "turn-1",
+        "min": 2,
+        "max": 40
+      }
+    ]
+  },
+  "governance": {
+    "owner": "runtime-core-e2e",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
+    "deprecationStatus": "active",
+    "archiveStatus": null,
+    "workspaceEffects": {
+      "expectedWrites": [
+        {
+          "relativePath": "runtime-replay-write-safe/write-safe-minimal.txt",
+          "mustContain": "WRITE_SAFE_CONTENT: runtime replay dataset"
+        }
+      ]
+    },
+    "manualGoldenBlockers": [],
+    "optimizationSignals": {
+      "seedSource": "session-regression",
+      "incubationTrack": "blocking",
+      "recommendedLevers": ["rules", "skills"],
+      "safeBackgroundCandidate": false
+    },
+    "deterministicRegressions": [
+      {
+        "id": "write-safe-workspace-evidence-required",
+        "layer": "dataset-lib",
+        "path": "scripts/lib/runtimeReplayDataset.node.test.mjs",
+        "testName": "validateRuntimeReplayDataset requires machine-readable write-safe workspace evidence",
+        "status": "active"
+      },
+      {
+        "id": "write-safe-workspace-assertion-required",
+        "layer": "dataset-lib",
+        "path": "scripts/lib/runtimeReplayDataset.node.test.mjs",
+        "testName": "validateRuntimeReplayDataset requires replay-visible write-safe workspace assertions",
+        "status": "active"
+      }
+    ],
+    "promotionCriteria": {
+      "upgradeToGolden": [
+        "Keep the workspace-file-contains harness assertion aligned with governance.workspaceEffects so replay continues to verify the recorded write-path side effect directly."
+      ]
+    },
+    "redaction": {
+      "applied": true,
+      "normalizedFields": ["rpcEndpoint", "workspaceId"],
+      "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
+    },
+    "goldenBlockers": [],
+    "goldenBlockerHistory": []
+  },
+  "runtimeTruth": {
+    "taskFields": [],
+    "review": [],
+    "autodrive": [],
+    "eventReplay": []
+  }
+}

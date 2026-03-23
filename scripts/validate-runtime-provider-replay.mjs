@@ -88,6 +88,11 @@ function main() {
   const baselineGovernance = report.baselineGovernance ?? null;
   const lineageGraphSummary = report.lineageGraphSummary ?? null;
   const regressionCoverage = report.regressionCoverage ?? null;
+  const traceGradeDistribution = report.traceGradeDistribution ?? null;
+  const matrixCoverageByAxis = report.matrixCoverageByAxis ?? null;
+  const promotionCandidatesByRisk = report.promotionCandidatesByRisk ?? null;
+  const liveProbeStability = report.liveProbeStability ?? null;
+  const freshnessDebt = report.freshnessDebt ?? null;
   writeStdoutLine(
     `Scenario stats: ${report.scenarioStats?.totalSamples ?? 0} samples; stability=${JSON.stringify(report.scenarioStats?.stabilityCounts ?? {})}; thin=${thinScenarioTypes.map((entry) => `${entry.scenarioType}:${entry.sampleCount}`).join(", ") || "none"}`
   );
@@ -217,6 +222,27 @@ function main() {
           .join(", ")}`
       );
     }
+  }
+  if (traceGradeDistribution) {
+    writeStdoutLine(
+      `Trace grades: counts=${JSON.stringify(traceGradeDistribution.counts ?? {})}; passing=${traceGradeDistribution.passingSampleCount ?? 0}; average=${traceGradeDistribution.averageScore ?? 0}`
+    );
+  }
+  if (matrixCoverageByAxis) {
+    writeStdoutLine(`Axis coverage: ${JSON.stringify(matrixCoverageByAxis)}`);
+  }
+  if (promotionCandidatesByRisk) {
+    writeStdoutLine(`Promotion candidates by risk: ${JSON.stringify(promotionCandidatesByRisk)}`);
+  }
+  if (liveProbeStability) {
+    writeStdoutLine(
+      `Live probe stability: counts=${JSON.stringify(liveProbeStability.counts ?? {})}; samples=${liveProbeStability.perSample?.length ?? 0}`
+    );
+  }
+  if (freshnessDebt) {
+    writeStdoutLine(
+      `Freshness debt: overdue=${freshnessDebt.overdueCount ?? 0}; samples=${(freshnessDebt.overdueSamples ?? []).map((entry) => `${entry.id}:${entry.freshnessDebt?.debtDays ?? 0}`).join(", ") || "none"}`
+    );
   }
 
   writeStdoutLine(

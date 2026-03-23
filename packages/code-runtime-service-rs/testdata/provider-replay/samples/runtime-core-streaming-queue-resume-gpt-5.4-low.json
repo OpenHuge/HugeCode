@@ -2,28 +2,109 @@
   "schemaVersion": 1,
   "sample": {
     "id": "runtime-core-streaming-queue-resume-gpt-5.4-low",
-    "variant": "gpt-5.4-low",
+    "variant": "streaming-queue-resume-gpt-5.4-low",
     "family": "runtime-core",
     "scenarioType": "streaming-long-output",
     "mode": "multi-turn",
     "source": "recorded",
-    "recordedAt": "2026-03-12T19:48:40.984Z",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
     "schemaVersion": 1,
     "runtimeKind": "code-runtime-gateway-web",
     "providerKind": "openai",
     "requiresRealRuntime": true,
     "supportsReplayOnly": true,
     "tags": [
-      "golden",
       "runtime-core",
       "provider-replay",
       "playwright",
       "streaming",
-      "queue-resume"
+      "queue-resume",
+      "golden",
+      "streaming-flagship-baseline",
+      "gpt-5.4"
     ],
     "stability": "golden",
     "redactionVersion": "runtime-provider-replay-v1",
-    "notes": "Multi-turn streaming baseline with queued follow-up while the first turn is still active."
+    "notes": "runtime-core-streaming-queue-resume-gpt-5.4-low expanded for gpt-5.4/low.",
+    "riskTier": "medium",
+    "axisCoverage": {
+      "scenarioType": "streaming-long-output",
+      "failureClass": "none",
+      "modelProfile": "gpt-5.4",
+      "reasoningEffort": "low",
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "not-applicable",
+      "runtimeTruthCapabilities": [],
+      "interactionStrength": "pairwise",
+      "coverageSlice": "streaming-flagship-baseline"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "streaming-contract-preserved",
+          "label": "Streaming contract is preserved",
+          "weight": 0.75,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "recorded",
+      "providerPath": "provider-replay",
+      "failureLeg": "not-applicable",
+      "runtimeTruth": "not-applicable",
+      "workspaceEffects": "none"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.85,
+      "requiresRecordedEvidence": true,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": false,
+      "blockingTrack": true
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 21,
+      "maxDebtDays": 7,
+      "strict": true,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": false
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": [],
+      "disallowedFailureClasses": [],
+      "observedFailureClass": null,
+      "failureMode": null
+    },
+    "sourceFingerprint": {
+      "seedSource": "session-regression",
+      "priorityBucket": "session-regression",
+      "parentSampleId": null,
+      "evidenceMode": "recorded",
+      "dedupKey": "streaming-long-output|none|on-request|streaming-flagship-baseline"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "approved",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier medium.",
+        "runtime-core-streaming-queue-resume-gpt-5.4-low expanded for gpt-5.4/low.",
+        "Coverage slice streaming-flagship-baseline.",
+        "Generated from runtime-core-streaming-queue-resume-gpt-5.4-low with seed source session-regression."
+      ]
+    }
   },
   "input": {
     "task": "Validate streaming chunk delivery and queued follow-up sequencing.",
@@ -96,7 +177,7 @@
     },
     "harness": {
       "runner": "runtime-core-playwright",
-      "testName": "runtime replay accepts a follow-up while the first streamed turn is still active",
+      "testName": "runtime replay accepts a follow-up while the first streamed turn is still active [runtime-core-streaming-queue-resume-gpt-5.4-low]",
       "timeoutMs": 60000,
       "workspaceId": "ws-playground",
       "actions": [
@@ -133,6 +214,24 @@
         {
           "type": "wait-message",
           "text": "RUNTIME_E2E_LOW_TURN_2"
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Agent access",
+          "value": "On-request",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.4",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "low",
+          "timeoutMs": 15000
         }
       ]
     }
@@ -141,7 +240,7 @@
     "successStatus": "completed",
     "summaryHeading": "RUNTIME_E2E_LOW_TURN_1",
     "providerReplay": {
-      "variantId": "gpt-5.4-low",
+      "variantId": "streaming-queue-resume-gpt-5.4-low",
       "provider": "openai",
       "modelId": "gpt-5.4",
       "reasonEffort": "low",
@@ -244,45 +343,10 @@
     }
   },
   "runtimeTruth": {
-    "taskFields": [
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "checkpointId",
-        "matcher": "present",
-        "timeoutMs": 20000
-      },
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "traceId",
-        "matcher": "present",
-        "timeoutMs": 20000
-      },
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "publishHandoff",
-        "matcher": "absent",
-        "timeoutMs": 20000
-      }
-    ],
+    "taskFields": [],
     "review": [],
-    "autodrive": [
-      {
-        "type": "assert-autodrive-trace",
-        "decisionTraceMatcher": "absent",
-        "runtimeScenarioProfileMatcher": "absent",
-        "repoEvaluationProfileMatcher": "absent",
-        "outcomeFeedbackMatcher": "absent",
-        "autonomyStateMatcher": "absent",
-        "timeoutMs": 20000
-      }
-    ],
-    "eventReplay": [
-      {
-        "type": "assert-replay-gap-event",
-        "expectedReason": "runtime.updated",
-        "timeoutMs": 20000
-      }
-    ]
+    "autodrive": [],
+    "eventReplay": []
   },
   "assertions": {
     "hard": [
@@ -323,7 +387,7 @@
   },
   "governance": {
     "owner": "runtime-core-e2e",
-    "lastRefreshReason": "Initial recorded multi-turn streaming baseline for queue-resume coverage.",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
     "deprecationStatus": "active",
     "archiveStatus": null,
     "deterministicRegressions": [
@@ -339,6 +403,14 @@
       "applied": true,
       "normalizedFields": ["rpcEndpoint", "workspaceId"],
       "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
-    }
+    },
+    "optimizationSignals": {
+      "seedSource": "session-regression",
+      "incubationTrack": "blocking",
+      "recommendedLevers": ["rules", "skills"],
+      "safeBackgroundCandidate": false
+    },
+    "goldenBlockers": [],
+    "goldenBlockerHistory": []
   }
 }

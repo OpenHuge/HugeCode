@@ -1,17 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   __resetTauriRuntimeEnvironmentForTests,
   __setTauriModuleLoaderForTests,
   detectTauriRuntime,
-  openExternalUrlWithFallback,
-  resolveAppVersion,
-  resolveWindowLabel,
+  readTauriAppVersion,
+  readTauriWindowLabel,
 } from "./tauriEnvironment";
 
 describe("tauriRuntimeEnvironment", () => {
   beforeEach(() => {
     __resetTauriRuntimeEnvironmentForTests();
-    window.open = vi.fn(() => window) as typeof window.open;
   });
 
   it("falls back when the Tauri module loader fails", async () => {
@@ -20,27 +18,17 @@ describe("tauriRuntimeEnvironment", () => {
     });
 
     await expect(detectTauriRuntime()).resolves.toBe(false);
-    await expect(resolveAppVersion()).resolves.toBeNull();
-    await expect(resolveWindowLabel("workspace")).resolves.toBe("workspace");
-    await expect(openExternalUrlWithFallback("https://example.com")).resolves.toBe(true);
-    expect(window.open).toHaveBeenCalledWith(
-      "https://example.com",
-      "_blank",
-      "noopener,noreferrer"
-    );
+    await expect(readTauriAppVersion()).resolves.toBeNull();
+    await expect(readTauriWindowLabel()).resolves.toBeNull();
   });
 
   it("uses the loaded Tauri modules when they are available", async () => {
-    const openUrl = vi.fn(async () => undefined);
     __setTauriModuleLoaderForTests(async () => ({
       app: {
         getVersion: async () => "9.9.9",
       },
       core: {
         isTauri: () => true,
-      },
-      opener: {
-        openUrl,
       },
       window: {
         getCurrentWindow: () => ({
@@ -50,36 +38,7 @@ describe("tauriRuntimeEnvironment", () => {
     }));
 
     await expect(detectTauriRuntime()).resolves.toBe(true);
-    await expect(resolveAppVersion()).resolves.toBe("9.9.9");
-    await expect(resolveWindowLabel("main")).resolves.toBe("about");
-    await expect(openExternalUrlWithFallback("https://example.com")).resolves.toBe(true);
-    expect(openUrl).toHaveBeenCalledWith("https://example.com");
-    expect(window.open).not.toHaveBeenCalled();
-  });
-
-  it("returns false when neither Tauri nor browser fallback can open an external link", async () => {
-    __setTauriModuleLoaderForTests(async () => ({
-      opener: {
-        openUrl: async () => {
-          throw new Error("native opener unavailable");
-        },
-      },
-    }));
-    window.open = vi.fn(() => null) as typeof window.open;
-
-    await expect(openExternalUrlWithFallback("https://example.com")).resolves.toBe(false);
-  });
-
-  it("rejects unsafe external URLs before invoking any opener", async () => {
-    const openUrl = vi.fn(async () => undefined);
-    __setTauriModuleLoaderForTests(async () => ({
-      opener: {
-        openUrl,
-      },
-    }));
-
-    await expect(openExternalUrlWithFallback("javascript:alert(1)")).resolves.toBe(false);
-    expect(openUrl).not.toHaveBeenCalled();
-    expect(window.open).not.toHaveBeenCalled();
+    await expect(readTauriAppVersion()).resolves.toBe("9.9.9");
+    await expect(readTauriWindowLabel()).resolves.toBe("about");
   });
 });

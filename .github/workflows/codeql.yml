@@ -8,6 +8,12 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "scripts/**"
+      - ".github/actions/**"
+      - ".github/workflows/codeql.yml"
   schedule:
     - cron: "20 3 * * 1"
 
@@ -23,7 +29,7 @@ jobs:
       javascript_required: ${{ github.event_name == 'schedule' || steps.filter.outputs.javascript == 'true' }}
       rust_required: ${{ github.event_name == 'schedule' || steps.filter.outputs.rust == 'true' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 2
 
@@ -34,7 +40,7 @@ jobs:
             +refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
 
       - id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             javascript:
@@ -77,7 +83,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Skip untouched JavaScript/TypeScript lane
         if: needs.changes.outputs.javascript_required != 'true'
@@ -107,7 +113,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Skip untouched Rust lane
         if: needs.changes.outputs.rust_required != 'true'

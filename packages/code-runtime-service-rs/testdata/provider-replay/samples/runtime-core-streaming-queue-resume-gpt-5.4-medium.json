@@ -1,0 +1,416 @@
+{
+  "schemaVersion": 1,
+  "sample": {
+    "id": "runtime-core-streaming-queue-resume-gpt-5.4-medium",
+    "variant": "streaming-queue-resume-gpt-5.4-medium",
+    "family": "runtime-core",
+    "scenarioType": "streaming-long-output",
+    "mode": "multi-turn",
+    "source": "recorded",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
+    "schemaVersion": 1,
+    "runtimeKind": "code-runtime-gateway-web",
+    "providerKind": "openai",
+    "requiresRealRuntime": true,
+    "supportsReplayOnly": true,
+    "tags": [
+      "runtime-core",
+      "provider-replay",
+      "playwright",
+      "streaming",
+      "queue-resume",
+      "golden",
+      "streaming-flagship-medium",
+      "gpt-5.4"
+    ],
+    "stability": "golden",
+    "redactionVersion": "runtime-provider-replay-v1",
+    "notes": "runtime-core-streaming-queue-resume-gpt-5.4-low expanded for gpt-5.4/medium.",
+    "riskTier": "medium",
+    "axisCoverage": {
+      "scenarioType": "streaming-long-output",
+      "failureClass": "none",
+      "modelProfile": "gpt-5.4",
+      "reasoningEffort": "medium",
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "not-applicable",
+      "runtimeTruthCapabilities": [],
+      "interactionStrength": "pairwise",
+      "coverageSlice": "streaming-flagship-medium"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "streaming-contract-preserved",
+          "label": "Streaming contract is preserved",
+          "weight": 0.75,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "recorded",
+      "providerPath": "provider-replay",
+      "failureLeg": "not-applicable",
+      "runtimeTruth": "not-applicable",
+      "workspaceEffects": "none"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.85,
+      "requiresRecordedEvidence": true,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": false,
+      "blockingTrack": true
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 21,
+      "maxDebtDays": 7,
+      "strict": true,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": false
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": [],
+      "disallowedFailureClasses": [],
+      "observedFailureClass": null,
+      "failureMode": null
+    },
+    "sourceFingerprint": {
+      "seedSource": "session-regression",
+      "priorityBucket": "session-regression",
+      "parentSampleId": null,
+      "evidenceMode": "recorded",
+      "dedupKey": "streaming-long-output|none|on-request|streaming-flagship-medium"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "approved",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier medium.",
+        "runtime-core-streaming-queue-resume-gpt-5.4-low expanded for gpt-5.4/medium.",
+        "Coverage slice streaming-flagship-medium.",
+        "Generated from runtime-core-streaming-queue-resume-gpt-5.4-low with seed source session-regression."
+      ]
+    }
+  },
+  "input": {
+    "task": "Validate streaming chunk delivery and queued follow-up sequencing.",
+    "variant": {
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "medium"
+    },
+    "runtimeConfig": {
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default"
+    },
+    "endpointIsolation": {
+      "strategy": "dedicated-runtime-port",
+      "rpcEndpointTemplate": "http://127.0.0.1:{runtimePort}/rpc",
+      "workspaceId": "workspace-web",
+      "reuseExistingRuntime": false
+    },
+    "turns": [
+      {
+        "id": "turn-1",
+        "role": "user",
+        "action": "send",
+        "prompt": "Return exactly 3 lines. Line 1 must be exactly \"RUNTIME_E2E_LOW_TURN_1\". Line 2 must start with \"STREAMING_STABILITY: \" and explain why runtime-level replay keeps streaming E2E tests deterministic. Line 3 must start with \"E2E_DIAGNOSIS: \" and explain why failures are easier to diagnose. No bullets. No markdown."
+      },
+      {
+        "id": "turn-2",
+        "role": "user",
+        "action": "queue",
+        "prompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_LOW_TURN_2\". Line 2 must start with \"QUEUE_RESUME: \" and confirm the queued follow-up resumed after the prior streamed turn completed. No bullets. No markdown."
+      }
+    ]
+  },
+  "process": {
+    "expectedStateTransitions": [
+      "runtime.spawned",
+      "runtime.healthy",
+      "thread.opened",
+      "turn.started",
+      "provider.delta",
+      "turn.queue.accepted",
+      "turn.completed",
+      "queued-turn.resumed",
+      "queued-turn.completed"
+    ],
+    "providerEventRequirements": [
+      {
+        "kind": "item.agentMessage.delta",
+        "minCount": 3
+      },
+      {
+        "kind": "turn.completed",
+        "exactCount": 2
+      }
+    ],
+    "longOutputReadback": {
+      "enabled": true,
+      "expectedPolling": false,
+      "fragments": ["STREAMING_STABILITY:", "E2E_DIAGNOSIS:"]
+    },
+    "errorRecovery": {
+      "expected": false,
+      "signals": []
+    },
+    "runtimeBinding": {
+      "strategy": "dedicated-runtime-port",
+      "host": "127.0.0.1",
+      "forbidCompatibleRuntimeProbe": true
+    },
+    "harness": {
+      "runner": "runtime-core-playwright",
+      "testName": "runtime replay accepts a follow-up while the first streamed turn is still active [runtime-core-streaming-queue-resume-gpt-5.4-medium]",
+      "timeoutMs": 60000,
+      "workspaceId": "ws-playground",
+      "actions": [
+        {
+          "type": "select-option",
+          "control": "Agent access",
+          "value": "On-request"
+        },
+        {
+          "type": "select-option",
+          "control": "Model",
+          "value": "gpt-5.4"
+        },
+        {
+          "type": "select-option",
+          "control": "Thinking mode",
+          "value": "medium"
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "new",
+          "promptTurnId": "turn-1"
+        },
+        {
+          "type": "queue-prompt",
+          "promptTurnId": "turn-2"
+        }
+      ],
+      "assertions": [
+        {
+          "type": "wait-message",
+          "text": "RUNTIME_E2E_LOW_TURN_1"
+        },
+        {
+          "type": "wait-message",
+          "text": "RUNTIME_E2E_LOW_TURN_2"
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Agent access",
+          "value": "On-request",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.4",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "medium",
+          "timeoutMs": 15000
+        }
+      ]
+    }
+  },
+  "result": {
+    "successStatus": "completed",
+    "summaryHeading": "RUNTIME_E2E_LOW_TURN_1",
+    "providerReplay": {
+      "variantId": "streaming-queue-resume-gpt-5.4-medium",
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "medium",
+      "recordingAccessMode": "on-request",
+      "recordingExecutionMode": "runtime",
+      "coverage": ["multi-turn", "streaming", "queue-resume"],
+      "turns": [
+        {
+          "userPrompt": "Return exactly 3 lines. Line 1 must be exactly \"RUNTIME_E2E_LOW_TURN_1\". Line 2 must start with \"STREAMING_STABILITY: \" and explain why runtime-level replay keeps streaming E2E tests deterministic. Line 3 must start with \"E2E_DIAGNOSIS: \" and explain why failures are easier to diagnose. No bullets. No markdown.",
+          "output": "RUNTIME_E2E_LOW_TURN_1\nSTREAMING_STABILITY: Runtime-level replay fixes the exact sequence and timing of streamed events, removing network and model nondeterminism so E2E assertions see the same chunks every run.\nE2E_DIAGNOSIS: Failures are easier to diagnose because the replayed runtime trace is a stable, inspectable source of truth that lets you pinpoint whether the app, renderer, or test expectation diverged.",
+          "deltaChunks": [
+            "R",
+            "UNTIME_E2",
+            "E_LOW_TURN",
+            "_1\n",
+            "STREAMING_STABILITY",
+            ": Runtime-level",
+            " replay fixes the",
+            " exact sequence and timing",
+            " of streamed events,",
+            " removing network and model",
+            " nondeterminism so",
+            " E2E assertions",
+            " see the same",
+            " chunks every",
+            " run.\nE2E",
+            "_DIAGNOSIS",
+            ": Failures are",
+            " easier to diagnose",
+            " because the replayed",
+            " runtime trace is",
+            " a stable, inspect",
+            "able source of",
+            " truth that lets you",
+            " pinpoint whether the",
+            " app,",
+            " renderer",
+            ", or test expectation",
+            " diver",
+            "ged."
+          ],
+          "chunkDelayMs": 500,
+          "expectations": {
+            "startsWith": "RUNTIME_E2E_LOW_TURN_1",
+            "mustContain": ["STREAMING_STABILITY:", "E2E_DIAGNOSIS:"],
+            "minDeltaChunks": 3
+          },
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-streaming-queue-resume-gpt-5.4-medium",
+            "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4",
+            "recordedReasonEffort": "medium",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "recorded"
+          },
+          "recordedAt": "2026-03-12T19:48:38.398Z"
+        },
+        {
+          "userPrompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_LOW_TURN_2\". Line 2 must start with \"QUEUE_RESUME: \" and confirm the queued follow-up resumed after the prior streamed turn completed. No bullets. No markdown.",
+          "output": "RUNTIME_E2E_LOW_TURN_2\nQUEUE_RESUME: Confirmed the queued follow-up resumed after the prior streamed turn completed.",
+          "deltaChunks": [
+            "R",
+            "UNTIME_E2",
+            "E_LOW_TURN",
+            "_2\n",
+            "QUEUE_RESUME",
+            ": Confirmed",
+            " the queued follow-up",
+            " resumed after the",
+            " prior streamed turn",
+            " completed."
+          ],
+          "chunkDelayMs": 40,
+          "expectations": {
+            "startsWith": "RUNTIME_E2E_LOW_TURN_2",
+            "mustContain": ["QUEUE_RESUME:", "prior streamed turn completed"],
+            "minDeltaChunks": 2
+          },
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-streaming-queue-resume-gpt-5.4-medium",
+            "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4",
+            "recordedReasonEffort": "medium",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "recorded"
+          },
+          "recordedAt": "2026-03-12T19:48:40.984Z"
+        }
+      ]
+    }
+  },
+  "runtimeTruth": {
+    "taskFields": [],
+    "review": [],
+    "autodrive": [],
+    "eventReplay": []
+  },
+  "assertions": {
+    "hard": [
+      {
+        "type": "message-visible",
+        "text": "RUNTIME_E2E_LOW_TURN_1"
+      },
+      {
+        "type": "message-visible",
+        "text": "RUNTIME_E2E_LOW_TURN_2"
+      },
+      {
+        "type": "runtime-isolation",
+        "forbidLogPattern": "Existing runtime on"
+      },
+      {
+        "type": "delta-chunk-min",
+        "turnId": "turn-1",
+        "value": 3
+      }
+    ],
+    "soft": [
+      {
+        "type": "duration-ms",
+        "max": 70000
+      },
+      {
+        "type": "log-warning-budget",
+        "max": 8
+      },
+      {
+        "type": "delta-chunk-range",
+        "turnId": "turn-1",
+        "min": 3,
+        "max": 80
+      }
+    ]
+  },
+  "governance": {
+    "owner": "runtime-core-e2e",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
+    "deprecationStatus": "active",
+    "archiveStatus": null,
+    "deterministicRegressions": [
+      {
+        "id": "streaming-long-output-requires-queue-resume-evidence",
+        "layer": "dataset-lib",
+        "path": "scripts/lib/runtimeReplayDataset.node.test.mjs",
+        "testName": "validateRuntimeReplayDataset requires queue-resume evidence for streaming-long-output samples",
+        "status": "active"
+      }
+    ],
+    "redaction": {
+      "applied": true,
+      "normalizedFields": ["rpcEndpoint", "workspaceId"],
+      "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
+    },
+    "optimizationSignals": {
+      "seedSource": "session-regression",
+      "incubationTrack": "blocking",
+      "recommendedLevers": ["rules", "skills"],
+      "safeBackgroundCandidate": false
+    },
+    "goldenBlockers": [],
+    "goldenBlockerHistory": []
+  }
+}

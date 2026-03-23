@@ -3,7 +3,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import "./MessagesRichContent.styles.css";
 import "./MarkdownSkillReference.global.css";
-import { openUrl } from "../../../application/runtime/ports/tauriOpener";
+import { openUrl } from "../../../application/runtime/facades/desktopHostFacade";
 import Box from "lucide-react/dist/esm/icons/box";
 import { Button, Tooltip } from "../../../design-system";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";

@@ -24,6 +24,13 @@ type ResolveThreadCodexStateInput = {
   lastComposerExecutionMode: ComposerExecutionMode | null | undefined;
   stored: ThreadCodexParams | null;
   pendingSeed: PendingNewThreadSeed | null;
+  currentScopeKey?: string | null;
+  currentModelId?: string | null;
+  currentReasoningEffort?: string | null;
+  currentAccessMode?: AccessMode | null;
+  currentFastMode?: boolean;
+  currentCollaborationModeId?: string | null;
+  currentExecutionMode?: ComposerExecutionMode | null;
 };
 
 export type ResolvedThreadCodexState = {
@@ -90,38 +97,60 @@ export function resolveThreadCodexState(
     lastComposerExecutionMode,
     stored,
     pendingSeed,
+    currentScopeKey,
+    currentModelId,
+    currentReasoningEffort,
+    currentAccessMode,
+    currentFastMode,
+    currentCollaborationModeId,
+    currentExecutionMode,
   } = input;
+  const noThreadScopeKey = `${workspaceId}:${NO_THREAD_SCOPE_SUFFIX}`;
+  const pendingForWorkspace =
+    pendingSeed && pendingSeed.workspaceId === workspaceId ? pendingSeed : null;
+  const preservingCurrentNoThreadScope = currentScopeKey === noThreadScopeKey;
 
   if (!threadId) {
     return {
-      scopeKey: `${workspaceId}:${NO_THREAD_SCOPE_SUFFIX}`,
-      accessMode: defaultAccessMode,
-      preferredModelId: lastComposerModelId,
-      preferredEffort: lastComposerReasoningEffort,
-      preferredFastMode: lastComposerFastMode === true,
-      preferredCollabModeId: null,
-      executionMode: lastComposerExecutionMode ?? "runtime",
+      scopeKey: noThreadScopeKey,
+      accessMode:
+        pendingForWorkspace?.accessMode ??
+        (preservingCurrentNoThreadScope && currentAccessMode
+          ? currentAccessMode
+          : defaultAccessMode),
+      preferredModelId:
+        (preservingCurrentNoThreadScope ? currentModelId : null) ?? lastComposerModelId,
+      preferredEffort:
+        (preservingCurrentNoThreadScope ? currentReasoningEffort : null) ??
+        lastComposerReasoningEffort,
+      preferredFastMode:
+        pendingForWorkspace?.fastMode ??
+        (preservingCurrentNoThreadScope ? currentFastMode === true : lastComposerFastMode === true),
+      preferredCollabModeId:
+        pendingForWorkspace?.collaborationModeId ??
+        (preservingCurrentNoThreadScope ? (currentCollaborationModeId ?? null) : null),
+      executionMode:
+        pendingForWorkspace?.executionMode ??
+        (preservingCurrentNoThreadScope && currentExecutionMode
+          ? currentExecutionMode
+          : (lastComposerExecutionMode ?? "runtime")),
     };
   }
 
-  const pendingAccessMode =
-    pendingSeed && pendingSeed.workspaceId === workspaceId ? pendingSeed.accessMode : null;
-  const pendingCollabModeId =
-    pendingSeed && pendingSeed.workspaceId === workspaceId ? pendingSeed.collaborationModeId : null;
-  const pendingExecutionMode =
-    pendingSeed && pendingSeed.workspaceId === workspaceId ? pendingSeed.executionMode : null;
-  const pendingFastMode =
-    pendingSeed && pendingSeed.workspaceId === workspaceId ? pendingSeed.fastMode : null;
-
   return {
     scopeKey: makeThreadCodexParamsKey(workspaceId, threadId),
-    accessMode: stored?.accessMode ?? pendingAccessMode ?? defaultAccessMode,
+    accessMode: stored?.accessMode ?? pendingForWorkspace?.accessMode ?? defaultAccessMode,
     preferredModelId: stored?.modelId ?? lastComposerModelId ?? null,
     preferredEffort: stored?.effort ?? lastComposerReasoningEffort ?? null,
-    preferredFastMode: stored?.fastMode ?? pendingFastMode ?? lastComposerFastMode === true,
-    preferredCollabModeId: stored?.collaborationModeId ?? pendingCollabModeId ?? null,
+    preferredFastMode:
+      stored?.fastMode ?? pendingForWorkspace?.fastMode ?? lastComposerFastMode === true,
+    preferredCollabModeId:
+      stored?.collaborationModeId ?? pendingForWorkspace?.collaborationModeId ?? null,
     executionMode:
-      stored?.executionMode ?? pendingExecutionMode ?? lastComposerExecutionMode ?? "runtime",
+      stored?.executionMode ??
+      pendingForWorkspace?.executionMode ??
+      lastComposerExecutionMode ??
+      "runtime",
   };
 }
 

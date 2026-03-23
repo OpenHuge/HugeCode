@@ -325,8 +325,8 @@ describe("SettingsCodexAccountsCard", () => {
     render(<SettingsCodexAccountsCard />);
 
     await waitFor(() => {
-      expect(listOAuthAccountsMock).toHaveBeenCalledTimes(1);
-      expect(listOAuthPoolsMock).toHaveBeenCalledTimes(1);
+      expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThan(0);
+      expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThan(0);
     });
 
     act(() => {

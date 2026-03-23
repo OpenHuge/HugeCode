@@ -1,0 +1,526 @@
+{
+  "schemaVersion": 1,
+  "sample": {
+    "id": "runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-mini-low",
+    "variant": "tool-error-recovery-provider-rejected-gpt-5.4-mini-low",
+    "family": "runtime-core",
+    "scenarioType": "tool-error-recovery",
+    "mode": "failure-recovery",
+    "source": "recorded",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
+    "schemaVersion": 1,
+    "runtimeKind": "code-runtime-gateway-web",
+    "providerKind": "openai",
+    "requiresRealRuntime": true,
+    "supportsReplayOnly": true,
+    "tags": [
+      "runtime-core",
+      "provider-replay",
+      "playwright",
+      "tool-error-recovery",
+      "provider-rejected",
+      "candidate",
+      "recovery-provider-rejected-mini-low",
+      "gpt-5.4-mini"
+    ],
+    "stability": "candidate",
+    "redactionVersion": "runtime-provider-replay-v1",
+    "notes": "runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low expanded for gpt-5.4-mini/low.",
+    "capabilities": ["tool-error-recovery"],
+    "riskTier": "critical",
+    "axisCoverage": {
+      "scenarioType": "tool-error-recovery",
+      "failureClass": "provider.rejected",
+      "modelProfile": "gpt-5.4-mini",
+      "reasoningEffort": "low",
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "not-applicable",
+      "runtimeTruthCapabilities": ["tool-error-recovery"],
+      "interactionStrength": "3-way",
+      "coverageSlice": "recovery-provider-rejected-mini-low"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "failure-class-correct",
+          "label": "Failure class is preserved",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "recovery-path-complete",
+          "label": "Recovery path completes",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "user-visible-error-clear",
+          "label": "User-visible error is clear",
+          "weight": 0.25,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "recorded",
+      "providerPath": "provider-replay",
+      "failureLeg": "recorded",
+      "runtimeTruth": "not-applicable",
+      "workspaceEffects": "none"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.95,
+      "requiresRecordedEvidence": false,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": true,
+      "blockingTrack": false
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 14,
+      "maxDebtDays": 14,
+      "strict": true,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": true
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": ["provider.rejected"],
+      "disallowedFailureClasses": ["provider.request-failed", "provider.stream-interrupted"],
+      "observedFailureClass": "provider.rejected",
+      "failureMode": "provider.rejected"
+    },
+    "sourceFingerprint": {
+      "seedSource": "workflow-failure",
+      "priorityBucket": "workflow-failure",
+      "parentSampleId": "runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low",
+      "evidenceMode": "recorded",
+      "dedupKey": "tool-error-recovery|provider.rejected|on-request|recovery-provider-rejected-mini-low"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "needs-follow-up",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier critical.",
+        "runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low expanded for gpt-5.4-mini/low.",
+        "Coverage slice recovery-provider-rejected-mini-low.",
+        "Generated from runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low with seed source workflow-failure."
+      ]
+    }
+  },
+  "input": {
+    "task": "Validate recovery after a provider.rejected failure and confirm the next turn succeeds cleanly.",
+    "variant": {
+      "provider": "openai",
+      "modelId": "gpt-5.4-mini",
+      "reasonEffort": "low"
+    },
+    "runtimeConfig": {
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default"
+    },
+    "endpointIsolation": {
+      "strategy": "dedicated-runtime-port",
+      "rpcEndpointTemplate": "http://127.0.0.1:{runtimePort}/rpc",
+      "workspaceId": "workspace-web",
+      "reuseExistingRuntime": false
+    },
+    "turns": [
+      {
+        "id": "turn-1",
+        "role": "user",
+        "action": "send",
+        "prompt": "Reply with exactly \"RUNTIME_E2E_PROVIDER_REJECTED_FAILURE\". No bullets. No markdown."
+      },
+      {
+        "id": "turn-2",
+        "role": "user",
+        "action": "send",
+        "prompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2\". Line 2 must start with \"PROVIDER_REJECTED_RECOVERY: \" and explain why a stable provider.rejected recovery belongs in runtime replay coverage. No bullets. No markdown."
+      }
+    ]
+  },
+  "process": {
+    "expectedStateTransitions": [
+      "runtime.spawned",
+      "runtime.healthy",
+      "thread.opened",
+      "turn.started",
+      "turn.failed",
+      "recovery.turn.started",
+      "provider.delta",
+      "recovery.turn.completed"
+    ],
+    "providerEventRequirements": [
+      {
+        "kind": "turn.failed",
+        "exactCount": 1
+      },
+      {
+        "kind": "item.agentMessage.delta",
+        "minCount": 2
+      },
+      {
+        "kind": "turn.completed",
+        "exactCount": 1
+      }
+    ],
+    "longOutputReadback": {
+      "enabled": false,
+      "expectedPolling": false,
+      "fragments": []
+    },
+    "errorRecovery": {
+      "expected": true,
+      "failureTurnId": "turn-1",
+      "recoveryTurnId": "turn-2",
+      "expectedFailureClasses": ["provider.rejected"],
+      "disallowedFailureClasses": ["provider.request-failed", "provider.stream-interrupted"],
+      "signals": [
+        "Provider rejected request for this turn.",
+        "RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2"
+      ]
+    },
+    "runtimeBinding": {
+      "strategy": "dedicated-runtime-port",
+      "host": "127.0.0.1",
+      "forbidCompatibleRuntimeProbe": true
+    },
+    "harness": {
+      "runner": "runtime-core-playwright",
+      "testName": "runtime replay keeps provider.rejected failures explainable while validating the recorded recovery path [runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-mini-low]",
+      "timeoutMs": 60000,
+      "workspaceId": "ws-playground",
+      "actions": [
+        {
+          "type": "select-option",
+          "control": "Agent access",
+          "value": "On-request"
+        },
+        {
+          "type": "select-option",
+          "control": "Model",
+          "value": "gpt-5.4-mini"
+        },
+        {
+          "type": "select-option",
+          "control": "Thinking mode",
+          "value": "low"
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "new",
+          "promptTurnId": "turn-1"
+        },
+        {
+          "type": "wait-turn-state",
+          "state": "failed",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "wait-message",
+          "text": "Provider rejected request for this turn.",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "append",
+          "promptTurnId": "turn-2"
+        }
+      ],
+      "assertions": [
+        {
+          "type": "wait-message",
+          "text": "RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "wait-turn-state",
+          "state": "complete",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Agent access",
+          "value": "On-request",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.4-mini",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "low",
+          "timeoutMs": 15000
+        }
+      ]
+    }
+  },
+  "result": {
+    "successStatus": "completed_after_recovery",
+    "summaryHeading": "RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2",
+    "providerReplay": {
+      "variantId": "tool-error-recovery-provider-rejected-gpt-5.4-mini-low",
+      "provider": "openai",
+      "modelId": "gpt-5.4-mini",
+      "reasonEffort": "low",
+      "recordingAccessMode": "on-request",
+      "recordingExecutionMode": "runtime",
+      "coverage": ["error-recovery", "provider-rejected", "retry"],
+      "turns": [
+        {
+          "userPrompt": "Reply with exactly \"RUNTIME_E2E_PROVIDER_REJECTED_FAILURE\". No bullets. No markdown.",
+          "output": null,
+          "deltaChunks": [],
+          "failure": {
+            "class": "provider.rejected",
+            "code": "runtime.turn.provider.rejected",
+            "message": "Provider rejected request for this turn."
+          },
+          "recordingProfile": "provider-rejected-http-stub",
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-mini-low",
+            "notes": "Recorded from a live runtime path backed by a local HTTP 403 stub.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4-mini",
+            "recordedReasonEffort": "low",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "none"
+          },
+          "recordedAt": "2026-03-13T14:00:40.043Z"
+        },
+        {
+          "userPrompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2\". Line 2 must start with \"PROVIDER_REJECTED_RECOVERY: \" and explain why a stable provider.rejected recovery belongs in runtime replay coverage. No bullets. No markdown.",
+          "output": "RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2\nPROVIDER_REJECTED_RECOVERY: A stable provider.rejected recovery belongs in runtime replay coverage because replay must deterministically preserve the rejection signal, the recovery path, and the resumed state across turns so regressions in error handling, event ordering, or state restoration are caught end to end.",
+          "deltaChunks": [
+            "R",
+            "UNTIME_E2",
+            "E_PROVIDER_RE",
+            "JECTED_RECOVERY",
+            "_TURN_",
+            "2\nPRO",
+            "VIDER_REJECT",
+            "ED_RECOVERY",
+            ": A stable provider",
+            ".rejected recovery",
+            " belongs in runtime",
+            " replay coverage because",
+            " replay must deterministically preserve",
+            " the rejection signal,",
+            " the recovery",
+            " path, and the resumed state across turns so regressions in",
+            " error handling,",
+            " event ordering, or",
+            " state restoration are",
+            " caught end to end."
+          ],
+          "chunkDelayMs": 25,
+          "expectations": {
+            "startsWith": "RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2",
+            "mustContain": ["PROVIDER_REJECTED_RECOVERY:"],
+            "minDeltaChunks": 2
+          },
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-mini-low",
+            "notes": "Recorded from the live runtime/provider path after a deterministic provider.rejected failure leg.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4-mini",
+            "recordedReasonEffort": "low",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "recorded"
+          },
+          "recordedAt": "2026-03-13T14:00:44.993Z"
+        }
+      ]
+    }
+  },
+  "assertions": {
+    "hard": [
+      {
+        "type": "runtime-isolation",
+        "forbidLogPattern": "Existing runtime on"
+      },
+      {
+        "type": "message-visible",
+        "text": "Provider rejected request for this turn."
+      },
+      {
+        "type": "message-visible",
+        "text": "RUNTIME_E2E_PROVIDER_REJECTED_RECOVERY_TURN_2"
+      }
+    ],
+    "soft": [
+      {
+        "type": "duration-ms",
+        "max": 60000
+      },
+      {
+        "type": "log-warning-budget",
+        "max": 6
+      },
+      {
+        "type": "delta-chunk-range",
+        "turnId": "turn-2",
+        "min": 2,
+        "max": 32
+      }
+    ]
+  },
+  "governance": {
+    "owner": "runtime-core-e2e",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
+    "deprecationStatus": "active",
+    "archiveStatus": null,
+    "lastLiveFailureClass": "provider.rejected",
+    "lastLiveRerecordStable": true,
+    "rerecordStability": {
+      "status": "stable-compatible",
+      "stable": true,
+      "compatibleWithExpectedFailureClass": true,
+      "observedFailureClasses": ["provider.rejected"],
+      "driftObserved": false,
+      "lastCheckedAt": "2026-03-23T00:00:00.000Z"
+    },
+    "recoveryQualification": {
+      "expectedFailureClasses": ["provider.rejected"],
+      "disallowedFailureClasses": ["provider.request-failed", "provider.stream-interrupted"],
+      "observedFailureClass": "provider.rejected",
+      "recoveryObserved": true,
+      "recoveryTurnId": "turn-2",
+      "evidenceMode": "recorded",
+      "rerecordStability": {
+        "status": "stable-compatible",
+        "stable": true,
+        "compatibleWithExpectedFailureClass": true,
+        "observedFailureClasses": ["provider.rejected"],
+        "driftObserved": false,
+        "lastCheckedAt": "2026-03-23T00:00:00.000Z"
+      },
+      "goldenBlockers": [],
+      "recoveryStable": true,
+      "eligibleForGolden": true
+    },
+    "goldenBlockers": [],
+    "optimizationSignals": {
+      "seedSource": "workflow-failure",
+      "incubationTrack": "nightly",
+      "recommendedLevers": ["hooks", "rules", "session-lineage"],
+      "safeBackgroundCandidate": false,
+      "lineage": {
+        "parentSampleId": "runtime-core-tool-error-recovery-provider-rejected-gpt-5.4-low",
+        "strategy": "combinatorial-expansion"
+      }
+    },
+    "deterministicRegressions": [
+      {
+        "id": "http-stub-profiles-force-scoped-runtime",
+        "layer": "recorder",
+        "path": "scripts/record-runtime-provider-replay.node.test.mjs",
+        "testName": "recordingProfileRequiresScopedRuntime requires isolated runtime when an httpStub is configured",
+        "status": "active"
+      }
+    ],
+    "promotionCriteria": {
+      "upgradeToGolden": [
+        "Keep the provider.rejected failure leg recorded through the local HTTP 403 stub profile.",
+        "Pass repeated live failure probes without class drift."
+      ]
+    },
+    "evidencePlan": {
+      "mixedEvidence": false,
+      "turnSources": {
+        "turn-1": "recorded",
+        "turn-2": "recorded"
+      },
+      "notes": "Both failure and recovery legs are recorded; the failure leg is captured through a deterministic local rejection stub."
+    },
+    "liveFailureProbe": {
+      "enabled": true,
+      "profileId": "provider-rejected-http-stub",
+      "turnId": "turn-1",
+      "attempts": 2,
+      "expectedFailureClasses": ["provider.rejected"],
+      "lastRun": {
+        "recordedAt": "2026-03-23T00:00:00.000Z",
+        "attempts": 2,
+        "observedFailureClasses": ["provider.rejected"],
+        "attemptRecords": [
+          {
+            "attempt": 1,
+            "outcome": "failed",
+            "failureClass": "provider.rejected"
+          },
+          {
+            "attempt": 2,
+            "outcome": "failed",
+            "failureClass": "provider.rejected"
+          }
+        ],
+        "stable": true,
+        "driftObserved": false
+      }
+    },
+    "recordingProfiles": {
+      "provider-rejected-http-stub": {
+        "strategy": "runtime-record",
+        "notes": "Routes the OpenAI endpoint to a local HTTP 403 stub so provider.rejected stays fully recorded.",
+        "env": {
+          "CODE_RUNTIME_SERVICE_OPENAI_MAX_RETRIES": "0",
+          "CODE_RUNTIME_SERVICE_OPENAI_TIMEOUT_MS": "500",
+          "CODE_RUNTIME_SERVICE_OPENAI_COMPAT_API_KEY": null,
+          "CODE_RUNTIME_SERVICE_OPENAI_COMPAT_BASE_URL": null
+        },
+        "httpStub": {
+          "envKey": "CODE_RUNTIME_SERVICE_OPENAI_ENDPOINT",
+          "status": 403,
+          "body": "{\"error\":{\"message\":\"Provider rejected request for this turn.\"}}",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "path": "/v1/responses"
+        },
+        "failure": {
+          "class": "provider.rejected",
+          "code": "runtime.turn.provider.rejected",
+          "message": "Provider rejected request for this turn."
+        }
+      }
+    },
+    "redaction": {
+      "applied": true,
+      "normalizedFields": ["rpcEndpoint", "workspaceId"],
+      "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
+    },
+    "goldenBlockerHistory": []
+  },
+  "runtimeTruth": {
+    "taskFields": [],
+    "review": [],
+    "autodrive": [],
+    "eventReplay": []
+  }
+}

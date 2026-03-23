@@ -4,7 +4,7 @@ import { isTauri } from "../../../application/runtime/ports/tauriCore";
 import { LogicalPosition } from "../../../application/runtime/ports/tauriDpi";
 import { logger } from "../../../application/runtime/ports/logger";
 import { Menu, MenuItem, PredefinedMenuItem } from "../../../application/runtime/ports/tauriMenu";
-import { revealItemInDir } from "../../../application/runtime/ports/tauriOpener";
+import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
 import { openWorkspaceIn } from "../../../application/runtime/ports/tauriApps";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import { getCurrentWindow } from "../../../application/runtime/ports/tauriWindow";

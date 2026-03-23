@@ -2,6 +2,7 @@
 
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -489,6 +490,67 @@ function normalizeRuntimeEnvOverrides(value) {
   );
 }
 
+function normalizeRuntimeReplayHttpStub(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const envKey =
+    typeof value.envKey === "string" && value.envKey.trim().length > 0
+      ? value.envKey.trim()
+      : "CODE_RUNTIME_SERVICE_OPENAI_ENDPOINT";
+  const status =
+    typeof value.status === "number" && Number.isFinite(value.status)
+      ? Math.trunc(value.status)
+      : 403;
+  const body =
+    typeof value.body === "string" && value.body.trim().length > 0
+      ? value.body
+      : JSON.stringify({ error: { message: "Provider rejected request for this turn." } });
+  const headers =
+    value.headers && typeof value.headers === "object" && !Array.isArray(value.headers)
+      ? Object.fromEntries(
+          Object.entries(value.headers).map(([key, entry]) => [key, String(entry)])
+        )
+      : { "content-type": "application/json" };
+  const pathName =
+    typeof value.path === "string" && value.path.trim().length > 0
+      ? value.path.trim()
+      : "/v1/responses";
+  return {
+    envKey,
+    status,
+    body,
+    headers,
+    path: pathName.startsWith("/") ? pathName : `/${pathName}`,
+  };
+}
+
+async function startRuntimeReplayHttpStubServer(stub) {
+  const port = await resolveAvailablePort(32001, {
+    host: "127.0.0.1",
+    maxAttempts: 200,
+  });
+  const server = http.createServer((request, response) => {
+    if (request.url !== stub.path) {
+      response.writeHead(404, { "content-type": "text/plain" });
+      response.end("not found");
+      return;
+    }
+    response.writeHead(stub.status, stub.headers);
+    response.end(stub.body);
+  });
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, "127.0.0.1", resolve);
+  });
+  return {
+    url: `http://127.0.0.1:${port}${stub.path}`,
+    async close() {
+      await new Promise((resolve) => server.close(() => resolve(undefined)));
+    },
+  };
+}
+
 function buildRuntimeChildEnv(rpcEndpoint, envOverrides = {}) {
   const nextEnv = {
     ...process.env,
@@ -508,7 +570,52 @@ export function recordingProfileRequiresScopedRuntime(recordingProfile) {
   if (!recordingProfile || recordingProfile.strategy === "synthetic-failure") {
     return false;
   }
-  return Object.keys(recordingProfile.env ?? {}).length > 0;
+  return Object.keys(recordingProfile.env ?? {}).length > 0 || Boolean(recordingProfile.httpStub);
+}
+
+async function materializeRecordingProfileRuntime(recordingProfile) {
+  const env = {
+    ...(recordingProfile?.env ?? {}),
+  };
+  let stubServer = null;
+  if (recordingProfile?.httpStub) {
+    stubServer = await startRuntimeReplayHttpStubServer(recordingProfile.httpStub);
+    env[recordingProfile.httpStub.envKey] = stubServer.url;
+  }
+  return {
+    env,
+    stubServer,
+    async cleanup() {
+      if (stubServer) {
+        await stubServer.close();
+      }
+    },
+  };
+}
+
+async function cleanupRuntimeMaterialization(materialization) {
+  if (materialization?.cleanup) {
+    await materialization.cleanup();
+  }
+}
+
+function createRuntimeProfileSignature(recordingProfile, rpcEndpoint = null) {
+  return JSON.stringify({
+    strategy: recordingProfile?.strategy ?? "runtime-record",
+    env: recordingProfile?.env ?? {},
+    httpStub: recordingProfile?.httpStub ?? null,
+    rpcEndpoint,
+  });
+}
+
+function canonicalizeRecordedFailure(recordingProfile, failure) {
+  if (!recordingProfile?.failure) {
+    return failure;
+  }
+  return {
+    ...failure,
+    ...recordingProfile.failure,
+  };
 }
 
 async function stopRuntimeChild(runtimeChild) {
@@ -681,6 +788,7 @@ function resolveReplayTurnRecordingProfile(sample, replayTurn) {
   return {
     id: profileId,
     env: normalizeRuntimeEnvOverrides(profile.env),
+    httpStub: normalizeRuntimeReplayHttpStub(profile.httpStub),
     strategy:
       typeof profile.strategy === "string" && profile.strategy.trim().length > 0
         ? profile.strategy.trim()
@@ -741,6 +849,7 @@ function resolveLiveFailureProbe(sample) {
       : [],
     profile: {
       env: normalizeRuntimeEnvOverrides(profile.env),
+      httpStub: normalizeRuntimeReplayHttpStub(profile.httpStub),
       strategy:
         typeof profile.strategy === "string" && profile.strategy.trim().length > 0
           ? profile.strategy.trim()
@@ -832,6 +941,7 @@ async function main() {
 
   let runtimeChild = null;
   let activeRuntimeProfileSignature = null;
+  let activeRuntimeMaterialization = null;
 
   try {
     for (const entry of selectedSamples) {
@@ -840,6 +950,30 @@ async function main() {
       await applyWorkspaceSetup(workspaceRoot, sample);
       const runtimeOnlyOperation = resolveRuntimeOnlyOperation(sample);
       if (runtimeOnlyOperation) {
+        const runtimeOnlyProfileSignature = createRuntimeProfileSignature({
+          strategy: "runtime-only",
+          env: {},
+          httpStub: null,
+        });
+        if (runtimeChild && activeRuntimeProfileSignature !== runtimeOnlyProfileSignature) {
+          await stopRuntimeChild(runtimeChild);
+          runtimeChild = null;
+          activeRuntimeProfileSignature = null;
+          await cleanupRuntimeMaterialization(activeRuntimeMaterialization);
+          activeRuntimeMaterialization = null;
+          try {
+            await waitForRuntimeShutdown(options.rpcEndpoint);
+          } catch (error) {
+            if (options.useExistingOnly || options.rpcEndpointExplicitlyProvided) {
+              throw error;
+            }
+            const previousRpcEndpoint = options.rpcEndpoint;
+            options.rpcEndpoint = await allocateIsolatedRuntimeEndpoint();
+            writeStdoutLine(
+              `Runtime profile change for ${sample.sample.id} kept ${previousRpcEndpoint} alive; rotating to ${options.rpcEndpoint}.`
+            );
+          }
+        }
         if (!(await isRuntimeHealthy(options.rpcEndpoint))) {
           if (options.useExistingOnly) {
             throw new Error(`Runtime is not healthy at ${options.rpcEndpoint}.`);
@@ -852,10 +986,7 @@ async function main() {
             stdio: "inherit",
             detached: false,
           });
-          activeRuntimeProfileSignature = JSON.stringify({
-            strategy: "runtime-only",
-            env: {},
-          });
+          activeRuntimeProfileSignature = runtimeOnlyProfileSignature;
         }
         await waitForRuntime(options.rpcEndpoint, DEFAULT_RUNTIME_READY_TIMEOUT_MS);
         const workspaces = await rpc(options.rpcEndpoint, "code_workspaces_list", {});
@@ -929,10 +1060,7 @@ async function main() {
           continue;
         }
         const recordingProfile = resolveReplayTurnRecordingProfile(sample, replayTurn);
-        const runtimeProfileSignature = JSON.stringify({
-          strategy: recordingProfile.strategy ?? "runtime-record",
-          env: recordingProfile.env,
-        });
+        const runtimeProfileSignature = createRuntimeProfileSignature(recordingProfile);
         const usesSyntheticFailure = recordingProfile.strategy === "synthetic-failure";
         const requiresTurnScopedRuntime = recordingProfileRequiresScopedRuntime(recordingProfile);
         if (
@@ -947,6 +1075,8 @@ async function main() {
           await stopRuntimeChild(runtimeChild);
           runtimeChild = null;
           activeRuntimeProfileSignature = null;
+          await cleanupRuntimeMaterialization(activeRuntimeMaterialization);
+          activeRuntimeMaterialization = null;
           try {
             await waitForRuntimeShutdown(options.rpcEndpoint);
           } catch (error) {
@@ -964,16 +1094,18 @@ async function main() {
           if (options.useExistingOnly) {
             throw new Error(`Runtime is not healthy at ${options.rpcEndpoint}.`);
           }
+          const runtimeMaterialization = await materializeRecordingProfileRuntime(recordingProfile);
           runtimeChild = spawn(process.execPath, [runtimeDevScriptPath], {
             cwd: repoRoot,
             env: buildRuntimeChildEnv(options.rpcEndpoint, {
               CODE_RUNTIME_SERVICE_DEFAULT_WORKSPACE_PATH: workspaceRoot,
-              ...recordingProfile.env,
+              ...runtimeMaterialization.env,
             }),
             stdio: "inherit",
             detached: false,
           });
           activeRuntimeProfileSignature = runtimeProfileSignature;
+          activeRuntimeMaterialization = runtimeMaterialization;
         } else if (!usesSyntheticFailure && requiresTurnScopedRuntime) {
           throw new Error(
             `Runtime at ${options.rpcEndpoint} is already running, so recordingProfile ${recordingProfile.id} cannot be applied safely.`
@@ -1060,21 +1192,37 @@ async function main() {
           );
         }
         if (recorded.status === "failed") {
-          const redactedFailureMessage = redactRuntimeReplayText(recorded.failure?.message ?? "");
+          const observedFailureClass = resolveRuntimeReplayFailureClass(recorded.failure);
+          const canonicalFailure = canonicalizeRecordedFailure(
+            recordingProfile,
+            recorded.failure ?? {}
+          );
+          const redactedFailureMessage = redactRuntimeReplayText(canonicalFailure?.message ?? "");
           if (!replayTurn.failure) {
             replayTurn.failure = {};
           }
           replayTurn.failure.class =
-            resolveRuntimeReplayFailureClass(recorded.failure) ?? replayTurn.failure.class;
+            resolveRuntimeReplayFailureClass(canonicalFailure) ?? replayTurn.failure.class;
           replayTurn.failure.message = redactedFailureMessage;
           if (
-            typeof recorded.failure?.code === "string" &&
-            recorded.failure.code.trim().length > 0
+            typeof canonicalFailure?.code === "string" &&
+            canonicalFailure.code.trim().length > 0
           ) {
-            replayTurn.failure.code = recorded.failure.code.trim();
+            replayTurn.failure.code = canonicalFailure.code.trim();
           }
           replayTurn.output = null;
           replayTurn.deltaChunks = [];
+          if (!replayTurn.provenance || typeof replayTurn.provenance !== "object") {
+            replayTurn.provenance = {};
+          }
+          replayTurn.provenance.observedFailureClass = observedFailureClass;
+          replayTurn.provenance.observedFailureCode =
+            typeof recorded.failure?.code === "string" && recorded.failure.code.trim().length > 0
+              ? recorded.failure.code.trim()
+              : null;
+          replayTurn.provenance.observedFailureMessage = redactRuntimeReplayText(
+            recorded.failure?.message ?? ""
+          );
         } else {
           const redactedOutput = redactRuntimeReplayText(recorded.output);
           const redactedChunks = recorded.deltaChunks.map((chunk) =>
@@ -1158,50 +1306,60 @@ async function main() {
             await stopRuntimeChild(runtimeChild);
             runtimeChild = null;
             activeRuntimeProfileSignature = null;
+            await cleanupRuntimeMaterialization(activeRuntimeMaterialization);
+            activeRuntimeMaterialization = null;
           }
           const probePort = await resolveAvailablePort(8788, {
             host: "127.0.0.1",
             maxAttempts: 200,
           });
           const probeRpcEndpoint = `http://127.0.0.1:${probePort}/rpc`;
-          const runtimeProfileSignature = JSON.stringify({
-            strategy: liveFailureProbe.profile.strategy,
-            env: liveFailureProbe.profile.env,
-            rpcEndpoint: probeRpcEndpoint,
-          });
+          const runtimeProfileSignature = createRuntimeProfileSignature(
+            liveFailureProbe.profile,
+            probeRpcEndpoint
+          );
+          const probeMaterialization = await materializeRecordingProfileRuntime(
+            liveFailureProbe.profile
+          );
           runtimeChild = spawn(process.execPath, [runtimeDevScriptPath], {
             cwd: repoRoot,
             env: buildRuntimeChildEnv(probeRpcEndpoint, {
               CODE_RUNTIME_SERVICE_DEFAULT_WORKSPACE_PATH: workspaceRoot,
-              ...liveFailureProbe.profile.env,
+              ...probeMaterialization.env,
             }),
             stdio: "inherit",
             detached: false,
           });
           activeRuntimeProfileSignature = runtimeProfileSignature;
+          activeRuntimeMaterialization = probeMaterialization;
 
-          writeStdoutLine(
-            `Probing live failure stability for ${sample.sample.id} attempt ${attempt + 1}/${liveFailureProbe.attempts}`
-          );
-          const probeResult = await captureLiveFailureProbeAttempt({
-            rpcEndpoint: probeRpcEndpoint,
-            workspaceId: options.workspaceId,
-            replayVariant,
-            replayTurn,
-          });
-          const failureClass = resolveRuntimeReplayFailureClass(probeResult.failure);
-          const outcome = probeResult.status === "failed" ? "failed" : "completed";
-          attemptRecords.push({
-            attempt: attempt + 1,
-            outcome,
-            failureClass,
-          });
-          if (failureClass) {
-            observedFailureClasses.push(failureClass);
+          try {
+            writeStdoutLine(
+              `Probing live failure stability for ${sample.sample.id} attempt ${attempt + 1}/${liveFailureProbe.attempts}`
+            );
+            const probeResult = await captureLiveFailureProbeAttempt({
+              rpcEndpoint: probeRpcEndpoint,
+              workspaceId: options.workspaceId,
+              replayVariant,
+              replayTurn,
+            });
+            const failureClass = resolveRuntimeReplayFailureClass(probeResult.failure);
+            const outcome = probeResult.status === "failed" ? "failed" : "completed";
+            attemptRecords.push({
+              attempt: attempt + 1,
+              outcome,
+              failureClass,
+            });
+            if (failureClass) {
+              observedFailureClasses.push(failureClass);
+            }
+          } finally {
+            await stopRuntimeChild(runtimeChild);
+            runtimeChild = null;
+            activeRuntimeProfileSignature = null;
+            await cleanupRuntimeMaterialization(activeRuntimeMaterialization);
+            activeRuntimeMaterialization = null;
           }
-          await stopRuntimeChild(runtimeChild);
-          runtimeChild = null;
-          activeRuntimeProfileSignature = null;
         }
 
         const uniqueFailureClasses = [...new Set(observedFailureClasses)];
@@ -1297,6 +1455,7 @@ async function main() {
     writeStdoutLine(`Updated replay dataset: ${dataset.manifestPath}`);
   } finally {
     await stopRuntimeChild(runtimeChild);
+    await cleanupRuntimeMaterialization(activeRuntimeMaterialization);
     fs.rmSync(workspaceRoot, { recursive: true, force: true });
   }
 }

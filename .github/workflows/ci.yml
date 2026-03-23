@@ -25,7 +25,7 @@ jobs:
       frontend_optimization_changed: ${{ steps.filter.outputs.frontend_optimization == 'true' || steps.scope.outputs.frontend_manifest_changed == 'true' }}
       ci_required: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.runtime_contract == 'true' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 2
 
@@ -36,7 +36,7 @@ jobs:
             +refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
 
       - id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             code:
@@ -56,6 +56,7 @@ jobs:
               - 'scripts/check-runtime-sot.mjs'
             desktop_runtime:
               - 'apps/code-tauri/**'
+              - 'apps/code-electron/**'
               - 'turbo.json'
               - '.github/actions/setup-rust-ci/**'
               - '.github/actions/cache-turbo/**'
@@ -146,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -197,7 +198,7 @@ jobs:
     env:
       TURBO_CACHE_DIR: .turbo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -240,7 +241,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -268,7 +269,7 @@ jobs:
       KU0_NATIVE_ACCELERATORS_ENABLED: "true"
       TURBO_CACHE_DIR: .turbo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -303,7 +304,7 @@ jobs:
     timeout-minutes: 15
     needs: [build]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -338,7 +339,7 @@ jobs:
     timeout-minutes: 20
     needs: [build]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
