@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetRuntimeBootstrapStateForTest, RuntimeBootstrapEffects } from "./runtimeBootstrap";
 
@@ -42,6 +42,14 @@ describe("RuntimeBootstrapEffects", () => {
     document.documentElement.removeAttribute("data-tauri-runtime");
     document.documentElement.removeAttribute("data-mobile-composer-focus");
     document.documentElement.style.removeProperty("--app-height");
+    Object.defineProperty(window, "requestIdleCallback", {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(window, "cancelIdleCallback", {
+      configurable: true,
+      value: undefined,
+    });
   });
 
   it("applies the tauri runtime flag without mobile listeners by default", async () => {
@@ -118,19 +126,27 @@ describe("RuntimeBootstrapEffects", () => {
   });
 
   it("initializes sentry only once across repeated mounts", async () => {
+    vi.useFakeTimers();
     vi.stubEnv("VITE_SENTRY_ENABLED", "true");
     vi.stubEnv("VITE_SENTRY_DSN", "https://examplePublicKey@o0.ingest.us.sentry.io/0");
 
     const first = render(<RuntimeBootstrapEffects />);
-    await waitFor(() => {
-      expect(sentryInitMock).toHaveBeenCalledTimes(1);
+    expect(sentryInitMock).not.toHaveBeenCalled();
+    await act(async () => {
+      window.dispatchEvent(new Event("pointerdown"));
+      vi.runAllTimers();
+      await vi.dynamicImportSettled();
     });
+    expect(sentryInitMock).toHaveBeenCalledTimes(1);
     first.unmount();
 
     render(<RuntimeBootstrapEffects />);
-    await waitFor(() => {
-      expect(sentryInitMock).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      vi.advanceTimersByTime(5_000);
+      vi.runAllTimers();
+      await vi.dynamicImportSettled();
     });
+    expect(sentryInitMock).toHaveBeenCalledTimes(1);
     expect(sentryMetricsCountMock).toHaveBeenCalledTimes(1);
   });
 });

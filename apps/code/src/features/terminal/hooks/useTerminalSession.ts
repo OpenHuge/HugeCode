@@ -1,6 +1,5 @@
 import type { RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import "@xterm/xterm/css/xterm.css";
 import * as runtimeEvents from "../../../application/runtime/ports/events";
 import type { TerminalExitEvent } from "../../../application/runtime/ports/events";
 import {
@@ -239,6 +238,7 @@ export function useTerminalSession({
       xtermModulePromiseRef.current = Promise.all([
         import("@xterm/xterm"),
         import("@xterm/addon-fit"),
+        import("@xterm/xterm/css/xterm.css"),
       ]).then(([xterm, fitAddon]) => ({
         TerminalCtor: xterm.Terminal as unknown as XtermModuleConstructors["TerminalCtor"],
         FitAddonCtor: fitAddon.FitAddon as unknown as XtermModuleConstructors["FitAddonCtor"],

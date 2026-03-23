@@ -5,7 +5,6 @@ import type { BranchSwitcherSelection } from "../../git/types/branchWorkflow";
 import { useGitBranches } from "../../git/hooks/useGitBranches";
 import { SettingsModalHeader } from "../../settings/components/SettingsModalHeader";
 import type { SettingsViewProps } from "../../settings/components/SettingsView";
-import { loadSettingsView } from "../../settings/components/settingsViewLoader";
 import type { useRenameThreadPrompt } from "../../threads/hooks/useRenameThreadPrompt";
 import type { useClonePrompt } from "../../workspaces/hooks/useClonePrompt";
 import type { useWorktreePrompt } from "../../workspaces/hooks/useWorktreePrompt";
@@ -32,7 +31,11 @@ const BranchSwitcherPrompt = lazy(() =>
     default: module.BranchSwitcherPrompt,
   }))
 );
-const SettingsView = lazy(loadSettingsView);
+const SettingsView = lazy(() =>
+  import("../../settings/components/SettingsView").then((module) => ({
+    default: module.SettingsView,
+  }))
+);
 
 export function SettingsLoadingFallback() {
   return (
