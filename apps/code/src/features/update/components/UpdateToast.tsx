@@ -1,5 +1,4 @@
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { lazy, Suspense } from "react";
 import { openUrl } from "../../../application/runtime/ports/tauriOpener";
 import { Button } from "../../../design-system";
 import {
@@ -12,6 +11,11 @@ import {
   ToastViewport,
 } from "../../../design-system";
 import type { PostUpdateNoticeState, UpdateState } from "../hooks/useUpdater";
+
+const LazyUpdateToastReleaseNotes = lazy(async () => {
+  const module = await import("./UpdateToastReleaseNotes");
+  return { default: module.UpdateToastReleaseNotes };
+});
 
 type UpdateToastProps = {
   state: UpdateState;
@@ -72,31 +76,16 @@ export function UpdateToast({
                 Updated successfully. Here is what is new:
               </ToastBody>
               <div className="update-toast-notes" role="document">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    a: ({ href, children }) => {
-                      if (!href) {
-                        return <span>{children}</span>;
-                      }
-                      return (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            void openExternalUrl(href);
-                          }}
-                        >
-                          {children}
-                        </a>
-                      );
-                    },
-                  }}
+                <Suspense
+                  fallback={
+                    <ToastBody className="update-toast-body">Loading release notes...</ToastBody>
+                  }
                 >
-                  {postUpdateNotice.body}
-                </ReactMarkdown>
+                  <LazyUpdateToastReleaseNotes
+                    body={postUpdateNotice.body}
+                    onOpenExternalUrl={openExternalUrl}
+                  />
+                </Suspense>
               </div>
             </>
           ) : null}

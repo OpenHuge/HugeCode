@@ -83,12 +83,6 @@ jobs:
             rust_target: x86_64-pc-windows-msvc
             host_check_command: pnpm desktop:doctor:windows
             enable_sccache: "true"
-          - name: Windows ARM64
-            id: windows-arm64
-            runner: windows-11-arm
-            rust_target: aarch64-pc-windows-msvc
-            host_check_command: pnpm desktop:doctor:windows:arm64
-            enable_sccache: "false"
           - name: Linux x64
             id: linux-x64
             runner: ubuntu-22.04
@@ -133,13 +127,6 @@ jobs:
             bundle_targets: nsis
             artifact_path: apps/code-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*
             host_check_command: pnpm desktop:doctor:windows
-          - name: Windows ARM64
-            id: windows-arm64
-            runner: windows-11-arm
-            rust_target: aarch64-pc-windows-msvc
-            bundle_targets: nsis
-            artifact_path: apps/code-tauri/src-tauri/target/aarch64-pc-windows-msvc/release/bundle/**/*
-            host_check_command: pnpm desktop:doctor:windows:arm64
           - name: Linux x64
             id: linux-x64
             runner: ubuntu-22.04

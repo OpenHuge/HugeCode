@@ -1,6 +1,5 @@
 import { Button, Icon, Switch, Textarea } from "../../../design-system";
 import Brain from "lucide-react/dist/esm/icons/brain";
-import Box from "lucide-react/dist/esm/icons/box";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import GitFork from "lucide-react/dist/esm/icons/git-fork";
 import Info from "lucide-react/dist/esm/icons/info";
@@ -38,6 +37,7 @@ import type { ComposerDraftSyncMode } from "../hooks/useComposerDraftSync";
 import { useComposerImageDrop } from "../hooks/useComposerImageDrop";
 import { resolveComposerFooterLayout } from "../utils/composerFooterLayout";
 import { ComposerAttachments } from "./ComposerAttachments";
+import { InlineSkillOverlayChip, useElementStyleMap } from "./ComposerDynamicStyle";
 import * as suggestionStyles from "./ComposerSuggestions.css";
 import { ComposerDraftZone, ComposerFooterBar } from "./ComposerShell";
 import * as styles from "./ComposerInput.styles.css";
@@ -421,6 +421,7 @@ export function ComposerInput({
   const shouldRenderSuggestionsSurface = Boolean(
     suggestionsOpen && (reviewInlinePromptProps || suggestions.length > 0)
   );
+  useElementStyleMap(suggestionListRef, suggestionsStyle);
   const {
     dropTargetRef,
     isDragOver,
@@ -706,6 +707,10 @@ export function ComposerInput({
     return references;
   }, [renderedDraftSegments]);
   const hasInlineSkills = inlineSkillReferences.length > 0;
+  const resolveInlineSkillCursorEnd = useCallback(
+    (tokenEnd: number) => getInlineSkillCursorEnd(text, tokenEnd),
+    [text]
+  );
 
   const clearCompositionCommitGuard = useCallback(() => {
     if (compositionCommitGuardTimerRef.current === null) {
@@ -904,71 +909,14 @@ export function ComposerInput({
                 className={joinClassNames(styles.draftOverlay, "composer-draft-overlay")}
               >
                 {inlineSkillChipLayouts.map((layout) => {
-                  const chipStyle = {
-                    "--composer-inline-skill-top": `${layout.top}px`,
-                    "--composer-inline-skill-left": `${layout.left}px`,
-                    "--composer-inline-skill-width": `${layout.width}px`,
-                    "--composer-inline-skill-height": `${layout.height}px`,
-                  } as React.CSSProperties;
-
-                  const focusTextareaAtSkillEnd = () => {
-                    const textarea = textareaRef.current;
-                    if (!textarea) {
-                      return;
-                    }
-                    const nextCursor = getInlineSkillCursorEnd(text, layout.end);
-                    textarea.focus();
-                    textarea.setSelectionRange(nextCursor, nextCursor);
-                    onSelectionChange(nextCursor);
-                  };
-
-                  const handleInlineSkillMouseDown = (
-                    event: React.MouseEvent<HTMLButtonElement>
-                  ) => {
-                    event.preventDefault();
-                    focusTextareaAtSkillEnd();
-                  };
-
                   return (
-                    <div key={layout.key} style={chipStyle}>
-                      <div
-                        className={joinClassNames(
-                          styles.inlineSkillMask,
-                          "composer-inline-skill-mask"
-                        )}
-                        style={chipStyle}
-                      />
-                      <button
-                        type="button"
-                        className={joinClassNames(
-                          styles.inlineSkillChip,
-                          "composer-inline-skill-chip"
-                        )}
-                        title={layout.skill.description?.trim() || layout.label}
-                        onMouseDown={handleInlineSkillMouseDown}
-                        onClick={focusTextareaAtSkillEnd}
-                        style={chipStyle}
-                        tabIndex={-1}
-                      >
-                        <span
-                          className={joinClassNames(
-                            styles.inlineSkillIcon,
-                            "composer-inline-skill-icon"
-                          )}
-                          aria-hidden
-                        >
-                          <Box size={12} />
-                        </span>
-                        <span
-                          className={joinClassNames(
-                            styles.inlineSkillLabel,
-                            "composer-inline-skill-label"
-                          )}
-                        >
-                          {layout.label}
-                        </span>
-                      </button>
-                    </div>
+                    <InlineSkillOverlayChip
+                      key={layout.key}
+                      layout={layout}
+                      onSelectionChange={onSelectionChange}
+                      resolveCursorEnd={resolveInlineSkillCursorEnd}
+                      textareaRef={textareaRef}
+                    />
                   );
                 })}
               </div>
@@ -1178,7 +1126,6 @@ export function ComposerInput({
             }`}
             role="listbox"
             ref={suggestionListRef}
-            style={suggestionsStyle}
           >
             {reviewInlinePromptProps ? (
               <Suspense fallback={null}>

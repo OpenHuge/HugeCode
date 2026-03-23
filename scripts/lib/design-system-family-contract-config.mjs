@@ -120,7 +120,6 @@ export const DESIGN_SYSTEM_FAMILY_CONTRACTS = [
     inspectionSurface: "Select",
     requiredDesignSystemTest: "packages/design-system/src/components/Select.test.tsx",
     requiredUiTest: "packages/ui/src/components/Select.test.tsx",
-    requiredAppCompatTest: "apps/code/src/design-system/adapters/Select/Select.test.tsx",
     adoption: {
       type: "representative_app_surface",
       evidence: [

@@ -20,4 +20,10 @@ describe("Card", () => {
     expect(markup).toContain("Agent status");
     expect(markup).toContain("Updated just now");
   });
+
+  it("accepts variant as a compatibility alias for tone", () => {
+    const markup = renderToStaticMarkup(<Card variant="translucent">Body</Card>);
+
+    expect(markup).toContain('data-tone="translucent"');
+  });
 });

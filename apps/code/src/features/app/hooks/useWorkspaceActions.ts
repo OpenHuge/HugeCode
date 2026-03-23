@@ -1,8 +1,8 @@
-import * as Sentry from "@sentry/react";
 import type { RefObject } from "react";
 import { useCallback, useRef } from "react";
 import type { DebugEntry, WorkspaceInfo } from "../../../types";
 import type { AppTab } from "../../shell/types/shellRoute";
+import { recordSentryMetric } from "../../shared/sentry";
 
 type Params = {
   isCompact: boolean;
@@ -122,7 +122,7 @@ export function useWorkspaceActions({
       selectWorkspace(workspace.id);
       setActiveThreadId(null, workspace.id);
       onStartNewAgentDraft(workspace.id);
-      Sentry.metrics.count("agent_created", 1, {
+      recordSentryMetric("agent_created", 1, {
         attributes: {
           workspace_id: workspace.id,
           thread_id: "draft",

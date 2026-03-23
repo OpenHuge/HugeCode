@@ -255,6 +255,9 @@ describe("app design-system project coverage", () => {
       "Do not add new visual primitives, token families, or component families here."
     );
     expect(source).toContain('from "@ku0/design-system";');
+    expect(source).not.toContain("./adapters/Card");
+    expect(source).not.toContain("./adapters/Radio");
+    expect(source).not.toContain("./adapters/Select");
     expect(source).not.toContain("export { Dialog,");
     expect(source).not.toContain("export { PanelFrame,");
     expect(source).not.toContain("export { ShellFrame,");

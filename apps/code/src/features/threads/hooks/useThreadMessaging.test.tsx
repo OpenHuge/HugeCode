@@ -1,6 +1,5 @@
 /** @vitest-environment jsdom */
 
-import * as Sentry from "@sentry/react";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -16,6 +15,7 @@ import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type { WorkspaceInfo } from "../../../types";
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
+import { recordSentryMetric } from "../../shared/sentry";
 import { useThreadMessaging } from "./useThreadMessaging";
 
 const openReviewPromptMock = vi.fn();
@@ -35,10 +35,8 @@ const confirmCommitMock = vi.fn();
 const updateCustomInstructionsMock = vi.fn();
 const confirmCustomMock = vi.fn();
 
-vi.mock("@sentry/react", () => ({
-  metrics: {
-    count: vi.fn(),
-  },
+vi.mock("../../shared/sentry", () => ({
+  recordSentryMetric: vi.fn(),
 }));
 
 vi.mock("../../shared/productAnalytics", () => ({
@@ -409,8 +407,8 @@ describe("useThreadMessaging telemetry", () => {
       await result.current.sendUserMessageToThread(workspace, "thread-1", "hello", []);
     });
 
-    expect(Sentry.metrics.count).toHaveBeenCalledTimes(1);
-    expect(Sentry.metrics.count).toHaveBeenCalledWith(
+    expect(recordSentryMetric).toHaveBeenCalledTimes(1);
+    expect(recordSentryMetric).toHaveBeenCalledWith(
       "prompt_sent",
       1,
       expect.objectContaining({
