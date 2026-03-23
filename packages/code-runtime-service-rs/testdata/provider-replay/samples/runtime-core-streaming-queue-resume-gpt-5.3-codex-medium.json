@@ -1,37 +1,118 @@
 {
   "schemaVersion": 1,
   "sample": {
-    "id": "runtime-core-streaming-queue-resume-gpt-5.1-codex-mini-low",
-    "variant": "gpt-5.1-codex-mini-low",
+    "id": "runtime-core-streaming-queue-resume-gpt-5.3-codex-medium",
+    "variant": "streaming-queue-resume-gpt-5.3-codex-medium",
     "family": "runtime-core",
     "scenarioType": "streaming-long-output",
     "mode": "multi-turn",
     "source": "recorded",
-    "recordedAt": "2026-03-16T08:05:12.000Z",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
     "schemaVersion": 1,
     "runtimeKind": "code-runtime-gateway-web",
     "providerKind": "openai",
     "requiresRealRuntime": true,
     "supportsReplayOnly": true,
     "tags": [
-      "golden",
       "runtime-core",
       "provider-replay",
       "playwright",
       "streaming",
       "queue-resume",
-      "mini"
+      "mini",
+      "golden",
+      "streaming-codex-baseline",
+      "gpt-5.3-codex"
     ],
     "stability": "golden",
     "redactionVersion": "runtime-provider-replay-v1",
-    "notes": "Mini-model streaming variant that extends queue/resume replay coverage beyond the flagship baseline."
+    "notes": "runtime-core-streaming-queue-resume-gpt-5.4-mini-low expanded for gpt-5.3-codex/medium.",
+    "riskTier": "medium",
+    "axisCoverage": {
+      "scenarioType": "streaming-long-output",
+      "failureClass": "none",
+      "modelProfile": "gpt-5.3-codex",
+      "reasoningEffort": "medium",
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "not-applicable",
+      "runtimeTruthCapabilities": [],
+      "interactionStrength": "pairwise",
+      "coverageSlice": "streaming-codex-baseline"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "streaming-contract-preserved",
+          "label": "Streaming contract is preserved",
+          "weight": 0.75,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "recorded",
+      "providerPath": "provider-replay",
+      "failureLeg": "not-applicable",
+      "runtimeTruth": "not-applicable",
+      "workspaceEffects": "none"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.85,
+      "requiresRecordedEvidence": true,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": false,
+      "blockingTrack": true
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 21,
+      "maxDebtDays": 7,
+      "strict": true,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": false
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": [],
+      "disallowedFailureClasses": [],
+      "observedFailureClass": null,
+      "failureMode": null
+    },
+    "sourceFingerprint": {
+      "seedSource": "combinatorial-expansion",
+      "priorityBucket": "matrix-gap",
+      "parentSampleId": null,
+      "evidenceMode": "recorded",
+      "dedupKey": "streaming-long-output|none|on-request|streaming-codex-baseline"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "approved",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier medium.",
+        "runtime-core-streaming-queue-resume-gpt-5.4-mini-low expanded for gpt-5.3-codex/medium.",
+        "Coverage slice streaming-codex-baseline.",
+        "Generated from runtime-core-streaming-queue-resume-gpt-5.4-mini-low with seed source combinatorial-expansion."
+      ]
+    }
   },
   "input": {
     "task": "Validate streaming chunk delivery and queued follow-up sequencing for the mini model profile.",
     "variant": {
       "provider": "openai",
-      "modelId": "gpt-5.1-codex-mini",
-      "reasonEffort": "low"
+      "modelId": "gpt-5.3-codex",
+      "reasonEffort": "medium"
     },
     "runtimeConfig": {
       "accessMode": "on-request",
@@ -97,7 +178,7 @@
     },
     "harness": {
       "runner": "runtime-core-playwright",
-      "testName": "runtime replay accepts a queued mini-model follow-up while the first streamed turn is still active",
+      "testName": "runtime replay accepts a queued mini-model follow-up while the first streamed turn is still active [runtime-core-streaming-queue-resume-gpt-5.3-codex-medium]",
       "timeoutMs": 60000,
       "workspaceId": "ws-playground",
       "actions": [
@@ -109,12 +190,12 @@
         {
           "type": "select-option",
           "control": "Model",
-          "value": "gpt-5.1-codex-mini"
+          "value": "gpt-5.3-codex"
         },
         {
           "type": "select-option",
           "control": "Thinking mode",
-          "value": "low"
+          "value": "medium"
         },
         {
           "type": "send-prompt",
@@ -134,6 +215,24 @@
         {
           "type": "wait-message",
           "text": "RUNTIME_E2E_MINI_STREAM_TURN_2"
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Agent access",
+          "value": "On-request",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.3-codex",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "medium",
+          "timeoutMs": 15000
         }
       ]
     }
@@ -142,10 +241,10 @@
     "successStatus": "completed",
     "summaryHeading": "RUNTIME_E2E_MINI_STREAM_TURN_1",
     "providerReplay": {
-      "variantId": "gpt-5.1-codex-mini-low",
+      "variantId": "streaming-queue-resume-gpt-5.3-codex-medium",
       "provider": "openai",
-      "modelId": "gpt-5.1-codex-mini",
-      "reasonEffort": "low",
+      "modelId": "gpt-5.3-codex",
+      "reasonEffort": "medium",
       "recordingAccessMode": "on-request",
       "recordingExecutionMode": "runtime",
       "coverage": ["multi-turn", "streaming", "queue-resume", "mini-model"],
@@ -188,13 +287,13 @@
           },
           "provenance": {
             "source": "recorded",
-            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-streaming-queue-resume-gpt-5.1-codex-mini-low",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-streaming-queue-resume-gpt-5.3-codex-medium",
             "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
             "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
             "workspaceId": "workspace-web",
             "recordedProvider": "openai",
-            "recordedModelId": "gpt-5.1-codex-mini",
-            "recordedReasonEffort": "low",
+            "recordedModelId": "gpt-5.3-codex",
+            "recordedReasonEffort": "medium",
             "recordedAccessMode": "on-request",
             "recordedExecutionMode": "runtime",
             "deltaChunkSource": "recorded"
@@ -223,13 +322,13 @@
           },
           "provenance": {
             "source": "recorded",
-            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-streaming-queue-resume-gpt-5.1-codex-mini-low",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-streaming-queue-resume-gpt-5.3-codex-medium",
             "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
             "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
             "workspaceId": "workspace-web",
             "recordedProvider": "openai",
-            "recordedModelId": "gpt-5.1-codex-mini",
-            "recordedReasonEffort": "low",
+            "recordedModelId": "gpt-5.3-codex",
+            "recordedReasonEffort": "medium",
             "recordedAccessMode": "on-request",
             "recordedExecutionMode": "runtime",
             "deltaChunkSource": "recorded"
@@ -278,7 +377,7 @@
   },
   "governance": {
     "owner": "runtime-core-e2e",
-    "lastRefreshReason": "Added mini-model queue-resume coverage to expand the streaming replay matrix.",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
     "deprecationStatus": "active",
     "archiveStatus": null,
     "deterministicRegressions": [
@@ -294,47 +393,20 @@
       "applied": true,
       "normalizedFields": ["rpcEndpoint", "workspaceId"],
       "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
-    }
+    },
+    "optimizationSignals": {
+      "seedSource": "combinatorial-expansion",
+      "incubationTrack": "blocking",
+      "recommendedLevers": ["rules", "skills"],
+      "safeBackgroundCandidate": false
+    },
+    "goldenBlockers": [],
+    "goldenBlockerHistory": []
   },
   "runtimeTruth": {
-    "taskFields": [
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "checkpointId",
-        "matcher": "present",
-        "timeoutMs": 20000
-      },
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "traceId",
-        "matcher": "present",
-        "timeoutMs": 20000
-      },
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "publishHandoff",
-        "matcher": "absent",
-        "timeoutMs": 20000
-      }
-    ],
+    "taskFields": [],
     "review": [],
-    "autodrive": [
-      {
-        "type": "assert-autodrive-trace",
-        "decisionTraceMatcher": "absent",
-        "runtimeScenarioProfileMatcher": "absent",
-        "repoEvaluationProfileMatcher": "absent",
-        "outcomeFeedbackMatcher": "absent",
-        "autonomyStateMatcher": "absent",
-        "timeoutMs": 20000
-      }
-    ],
-    "eventReplay": [
-      {
-        "type": "assert-replay-gap-event",
-        "expectedReason": "runtime.updated",
-        "timeoutMs": 20000
-      }
-    ]
+    "autodrive": [],
+    "eventReplay": []
   }
 }

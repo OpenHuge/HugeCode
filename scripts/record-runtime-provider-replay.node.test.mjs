@@ -56,6 +56,25 @@ test("recordingProfileRequiresScopedRuntime ignores synthetic failure profiles",
   );
 });
 
+test("recordingProfileRequiresScopedRuntime requires isolated runtime when an httpStub is configured", () => {
+  assert.equal(
+    recordingProfileRequiresScopedRuntime({
+      id: "provider-rejected-http-stub",
+      strategy: "runtime-record",
+      env: {
+        CODE_RUNTIME_SERVICE_OPENAI_MAX_RETRIES: "0",
+      },
+      httpStub: {
+        envKey: "CODE_RUNTIME_SERVICE_OPENAI_ENDPOINT",
+        status: 403,
+        body: JSON.stringify({ error: { message: "Provider rejected request for this turn." } }),
+        path: "/v1/responses",
+      },
+    }),
+    true
+  );
+});
+
 test("resolveRuntimeReplayIntakeSampleIds returns ids for a named intake group", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-replay-intake-"));
   const intakePath = path.join(tempRoot, "candidate-intake.json");

@@ -29,6 +29,17 @@ Each sample is organized in four layers:
    Owner, refresh reason, redaction metadata, and lifecycle status.
 
 Samples may also declare a top-level `runtimeTruth` section.
+Samples now also carry additive replay-governance metadata under `sample`:
+
+- `riskTier`
+- `axisCoverage`
+- `traceScorecard`
+- `replayFidelity`
+- `promotionPolicy`
+- `freshnessPolicy`
+- `failureTaxonomy`
+- `sourceFingerprint`
+- `qualityReview`
 
 This is the migration path away from transcript-only replay assertions:
 
@@ -229,12 +240,19 @@ AutoDrive capability closure is stricter than event-gap closure:
 
 The runtime replay runner emits a structured report under `artifacts/runtime-replay/`.
 
-That report includes:
+That report is a resilience evidence bundle. It includes:
 
 - selected sample ids
+- trace grades
 - hard assertion failures
 - soft assertion warnings
 - per-sample status and duration
+- pre/post steady-state metrics
+- failure class
+- recovery latency
+- blocker delta
+- freshness debt
+- whether a cheaper deterministic regression already exists
 - scenario-level coverage, density, freshness, rerecord success, and blocker dwell metrics
 - family-level density summaries so thin families stay machine-visible
 - recovery failure-class and evidence-mode distributions for comparing recovery sample quality

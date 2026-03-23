@@ -1,0 +1,357 @@
+{
+  "schemaVersion": 1,
+  "sample": {
+    "id": "runtime-core-isolation-gpt-5.4-medium",
+    "variant": "isolation-gpt-5.4-medium",
+    "family": "runtime-core",
+    "scenarioType": "runtime-isolation",
+    "mode": "isolation",
+    "source": "recorded",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
+    "schemaVersion": 1,
+    "runtimeKind": "code-runtime-gateway-web",
+    "providerKind": "openai",
+    "requiresRealRuntime": true,
+    "supportsReplayOnly": true,
+    "tags": [
+      "runtime-core",
+      "provider-replay",
+      "playwright",
+      "runtime-isolation",
+      "reasoning-effort",
+      "candidate",
+      "routing-isolation-flagship-medium",
+      "gpt-5.4"
+    ],
+    "stability": "candidate",
+    "redactionVersion": "runtime-provider-replay-v1",
+    "notes": "runtime-core-isolation-gpt-5.4-high expanded for gpt-5.4/medium.",
+    "capabilities": ["placement-routing"],
+    "riskTier": "high",
+    "axisCoverage": {
+      "scenarioType": "runtime-isolation",
+      "failureClass": "none",
+      "modelProfile": "gpt-5.4",
+      "reasoningEffort": "medium",
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "not-applicable",
+      "runtimeTruthCapabilities": ["placement-routing"],
+      "interactionStrength": "3-way",
+      "coverageSlice": "routing-isolation-flagship-medium"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "placement-routing-preserved",
+          "label": "Placement and routing evidence is preserved",
+          "weight": 0.75,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "recorded",
+      "providerPath": "provider-replay",
+      "failureLeg": "not-applicable",
+      "runtimeTruth": "not-applicable",
+      "workspaceEffects": "none"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.9,
+      "requiresRecordedEvidence": false,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": false,
+      "blockingTrack": false
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 14,
+      "maxDebtDays": 14,
+      "strict": true,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": false
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": [],
+      "disallowedFailureClasses": [],
+      "observedFailureClass": null,
+      "failureMode": null
+    },
+    "sourceFingerprint": {
+      "seedSource": "combinatorial-expansion",
+      "priorityBucket": "matrix-gap",
+      "parentSampleId": "runtime-core-isolation-gpt-5.4-high",
+      "evidenceMode": "recorded",
+      "dedupKey": "runtime-isolation|none|on-request|routing-isolation-flagship-medium"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "needs-follow-up",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier high.",
+        "runtime-core-isolation-gpt-5.4-high expanded for gpt-5.4/medium.",
+        "Coverage slice routing-isolation-flagship-medium.",
+        "Generated from runtime-core-isolation-gpt-5.4-high with seed source combinatorial-expansion."
+      ]
+    }
+  },
+  "input": {
+    "task": "Validate isolated runtime startup while preserving the selected reasoning effort.",
+    "variant": {
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "medium"
+    },
+    "runtimeConfig": {
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default"
+    },
+    "endpointIsolation": {
+      "strategy": "dedicated-runtime-port",
+      "rpcEndpointTemplate": "http://127.0.0.1:{runtimePort}/rpc",
+      "workspaceId": "workspace-web",
+      "reuseExistingRuntime": false
+    },
+    "turns": [
+      {
+        "id": "turn-1",
+        "role": "user",
+        "action": "send",
+        "prompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_HIGH_TURN_1\". Line 2 must start with \"CI_REPLAY_VALUE: \" and explain why keeping recorded responses in-repo is better than hitting live providers inside CI. No bullets. No markdown."
+      }
+    ]
+  },
+  "process": {
+    "expectedStateTransitions": [
+      "runtime.spawned",
+      "runtime.healthy",
+      "thread.opened",
+      "turn.started",
+      "provider.delta",
+      "turn.completed"
+    ],
+    "providerEventRequirements": [
+      {
+        "kind": "item.agentMessage.delta",
+        "minCount": 2
+      },
+      {
+        "kind": "turn.completed",
+        "exactCount": 1
+      }
+    ],
+    "longOutputReadback": {
+      "enabled": false,
+      "expectedPolling": false,
+      "fragments": []
+    },
+    "errorRecovery": {
+      "expected": false,
+      "signals": []
+    },
+    "runtimeBinding": {
+      "strategy": "dedicated-runtime-port",
+      "host": "127.0.0.1",
+      "forbidCompatibleRuntimeProbe": true
+    },
+    "harness": {
+      "runner": "runtime-core-playwright",
+      "testName": "runtime replay preserves reasoning-effort selection for a single turn [runtime-core-isolation-gpt-5.4-medium]",
+      "workspaceId": "ws-playground",
+      "actions": [
+        {
+          "type": "select-option",
+          "control": "Agent access",
+          "value": "On-request"
+        },
+        {
+          "type": "select-option",
+          "control": "Model",
+          "value": "gpt-5.4"
+        },
+        {
+          "type": "select-option",
+          "control": "Thinking mode",
+          "value": "medium"
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "new",
+          "promptTurnId": "turn-1"
+        }
+      ],
+      "assertions": [
+        {
+          "type": "wait-message",
+          "text": "RUNTIME_E2E_HIGH_TURN_1"
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Agent access",
+          "value": "On-request",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.4",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "medium",
+          "timeoutMs": 15000
+        }
+      ]
+    }
+  },
+  "result": {
+    "successStatus": "completed",
+    "summaryHeading": "RUNTIME_E2E_HIGH_TURN_1",
+    "providerReplay": {
+      "variantId": "isolation-gpt-5.4-medium",
+      "provider": "openai",
+      "modelId": "gpt-5.4",
+      "reasonEffort": "medium",
+      "recordingAccessMode": "on-request",
+      "recordingExecutionMode": "runtime",
+      "coverage": ["reasoning-effort", "runtime-isolation"],
+      "turns": [
+        {
+          "userPrompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_HIGH_TURN_1\". Line 2 must start with \"CI_REPLAY_VALUE: \" and explain why keeping recorded responses in-repo is better than hitting live providers inside CI. No bullets. No markdown.",
+          "output": "RUNTIME_E2E_HIGH_TURN_1\nCI_REPLAY_VALUE: Keeping recorded responses in-repo makes CI deterministic, faster, cheaper, and safer by avoiding flaky network and provider outages, rate limits, auth and quota issues, data leakage risks, and behavior drift from changing models or APIs, so test failures reflect real regressions in our code instead of external randomness.",
+          "deltaChunks": [
+            "R",
+            "UNTIME",
+            "_E2E_HIGH_TURN",
+            "_1\n",
+            "CI_REPLAY_VALUE",
+            ": Keeping recorded",
+            " responses in-re",
+            "po makes CI deterministic",
+            ", faster, cheaper",
+            ",",
+            " and safer by avoiding flaky network",
+            " and provider outages,",
+            " rate limits,",
+            " auth and quota issues",
+            ", data leakage",
+            " risks, and behavior",
+            " drift from changing",
+            " models or APIs",
+            ", so test failures",
+            " reflect real regress",
+            "ions in our",
+            " code instead of external",
+            " randomness."
+          ],
+          "chunkDelayMs": 30,
+          "expectations": {
+            "startsWith": "RUNTIME_E2E_HIGH_TURN_1",
+            "mustContain": ["CI_REPLAY_VALUE:", "CI"],
+            "minDeltaChunks": 2
+          },
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-isolation-gpt-5.4-medium",
+            "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4",
+            "recordedReasonEffort": "medium",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "recorded"
+          },
+          "recordedAt": "2026-03-12T19:49:43.694Z"
+        }
+      ]
+    }
+  },
+  "assertions": {
+    "hard": [
+      {
+        "type": "message-visible",
+        "text": "RUNTIME_E2E_HIGH_TURN_1"
+      },
+      {
+        "type": "runtime-isolation",
+        "forbidLogPattern": "Existing runtime on"
+      },
+      {
+        "type": "delta-chunk-min",
+        "turnId": "turn-1",
+        "value": 2
+      }
+    ],
+    "soft": [
+      {
+        "type": "duration-ms",
+        "max": 45000
+      },
+      {
+        "type": "log-warning-budget",
+        "max": 6
+      },
+      {
+        "type": "delta-chunk-range",
+        "turnId": "turn-1",
+        "min": 2,
+        "max": 40
+      }
+    ]
+  },
+  "governance": {
+    "owner": "runtime-core-e2e",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
+    "deprecationStatus": "active",
+    "archiveStatus": null,
+    "optimizationSignals": {
+      "seedSource": "combinatorial-expansion",
+      "incubationTrack": "nightly",
+      "recommendedLevers": ["rules", "skills"],
+      "safeBackgroundCandidate": false,
+      "lineage": {
+        "parentSampleId": "runtime-core-isolation-gpt-5.4-high",
+        "strategy": "combinatorial-expansion"
+      }
+    },
+    "deterministicRegressions": [
+      {
+        "id": "runtime-isolation-compatible-runtime-log-is-fatal",
+        "layer": "dataset-lib",
+        "path": "scripts/lib/runtimeReplayDataset.node.test.mjs",
+        "testName": "buildRuntimeReplayReport fails runtime-isolation samples when compatible runtime reuse is observed",
+        "status": "active"
+      }
+    ],
+    "redaction": {
+      "applied": true,
+      "normalizedFields": ["rpcEndpoint", "workspaceId"],
+      "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
+    },
+    "goldenBlockers": [],
+    "goldenBlockerHistory": []
+  },
+  "runtimeTruth": {
+    "taskFields": [],
+    "review": [],
+    "autodrive": [],
+    "eventReplay": []
+  }
+}

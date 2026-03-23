@@ -143,6 +143,18 @@ async function requestStatus(url, timeoutMs) {
   });
 }
 
+async function requestJson(url, timeoutMs) {
+  const response = await fetch(url, {
+    method: "GET",
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  return {
+    ok: response.ok,
+    status: response.status,
+    json: await response.json().catch(() => null),
+  };
+}
+
 function createManagedWebServerState(child, expectedUrl) {
   const state = {
     ready: false,
@@ -195,6 +207,22 @@ async function waitForWebServer(url, child, state, timeoutMs = DEFAULT_WEB_READY
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
   throw new Error(`Timed out waiting for managed runtime replay web server at ${url}.`);
+}
+
+async function waitForRuntimeHealth(url, timeoutMs = 30_000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const response = await requestJson(url, 1_500);
+      if (response.ok && response.json?.app === "code-runtime-service-rs") {
+        return;
+      }
+    } catch {
+      // keep polling until timeout
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+  throw new Error(`Timed out waiting for runtime replay health endpoint at ${url}.`);
 }
 
 async function stopManagedWebServer(child) {
@@ -311,6 +339,7 @@ async function main() {
       managedWebServer,
       managedWebServerState
     );
+    await waitForRuntimeHealth(env.CODE_RUNTIME_REPLAY_HEALTH_ENDPOINT);
     result = spawnSync(
       playwrightBin,
       ["test", "src/code/runtime-core-replay.spec.ts", "--reporter=line,json", ...playwrightArgs],

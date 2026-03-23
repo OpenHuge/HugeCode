@@ -59,6 +59,10 @@ function delay(ms: number) {
   });
 }
 
+function escapeRegExpText(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 async function pollBoolean(
   predicate: () => Promise<boolean>,
   options?: {
@@ -441,8 +445,25 @@ export async function selectComposerOption(
   await clickByUser(page, trigger);
   const listbox = page.getByRole("listbox", { name: controlName }).last();
   await expect(listbox).toBeVisible();
-  await clickByUser(page, listbox.getByRole("option", { name: optionName }).first());
+  const option = listbox.getByRole("option", { name: optionName }).first();
+  await expect(option).toBeVisible({ timeout: 5_000 });
+  await clickByDom(option);
+  await assertPageResponsive(page);
   await expect(listbox).toBeHidden({ timeout: 5_000 });
+  await expectComposerControlValue(page, controlName, optionName, 5_000);
+}
+
+export async function expectComposerControlValue(
+  page: Page,
+  controlName: "Model" | "Thinking mode" | "Execution path" | "Agent access",
+  expectedValue: string,
+  timeoutMs = 5_000
+): Promise<void> {
+  const trigger = page.getByRole("button", { name: controlName }).first();
+  await expect(trigger).toBeVisible({ timeout: timeoutMs });
+  await expect(trigger).toContainText(new RegExp(escapeRegExpText(expectedValue), "i"), {
+    timeout: timeoutMs,
+  });
 }
 
 export async function sendComposerPrompt(
