@@ -12,7 +12,7 @@ jobs:
       PW_WEBSERVER_TIMEOUT_MS: "900000"
       CODE_RUNTIME_SERVICE_READY_TIMEOUT_MS: "900000"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:

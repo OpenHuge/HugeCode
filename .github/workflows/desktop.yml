@@ -16,8 +16,6 @@ on:
     paths:
       - "apps/code-tauri/**"
       - "apps/code/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
       - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
       - ".github/workflows/_reusable-desktop-build-pr.yml"
       - ".github/workflows/_reusable-desktop-build-release.yml"
@@ -29,6 +27,7 @@ on:
       - ".github/actions/setup-rust-ci/**"
       - ".github/actions/upload-workflow-artifact/**"
       - ".github/workflows/desktop.yml"
+      - "apps/code-electron/**"
   push:
     branches:
       - main
