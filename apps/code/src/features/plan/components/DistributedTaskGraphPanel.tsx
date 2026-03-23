@@ -58,6 +58,17 @@ function buildRows(graph: DistributedTaskGraphSnapshot | null): GraphRow[] {
   return rows;
 }
 
+function syncVirtualRowOffset(node: HTMLDivElement | null, yOffset?: number) {
+  if (!node) {
+    return;
+  }
+  if (yOffset === undefined) {
+    node.style.removeProperty("--distributed-task-graph-row-offset");
+    return;
+  }
+  node.style.setProperty("--distributed-task-graph-row-offset", `${yOffset}px`);
+}
+
 export function DistributedTaskGraphPanel({
   graph,
   capabilityEnabled,
@@ -114,11 +125,13 @@ export function DistributedTaskGraphPanel({
       return (
         <div
           key={row.key}
+          ref={(node) => {
+            syncVirtualRowOffset(node, yOffset);
+          }}
           className={joinClassNames(
             styles.groupRowBase,
             yOffset === undefined ? undefined : styles.absoluteRow
           )}
-          style={yOffset === undefined ? undefined : { transform: `translateY(${yOffset}px)` }}
         >
           <span>{row.label}</span>
           <span>{row.count}</span>
@@ -131,11 +144,13 @@ export function DistributedTaskGraphPanel({
     return (
       <div
         key={row.key}
+        ref={(node) => {
+          syncVirtualRowOffset(node, yOffset);
+        }}
         className={joinClassNames(
           styles.nodeRowBase,
           yOffset === undefined ? undefined : styles.absoluteRow
         )}
-        style={yOffset === undefined ? undefined : { transform: `translateY(${yOffset}px)` }}
       >
         <div className={styles.nodeMain}>
           <div className={styles.nodeTitle}>{row.node.title}</div>

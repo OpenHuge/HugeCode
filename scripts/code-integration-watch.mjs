@@ -86,7 +86,7 @@ function fetchRequiredRefs(targetBranch, trackedBranches) {
 function loadConfig(configPath) {
   const absolutePath = path.resolve(process.cwd(), configPath);
   if (!fs.existsSync(absolutePath)) {
-    throw new Error(`config file not found: ${configPath}`);
+    return null;
   }
 
   const raw = fs.readFileSync(absolutePath, "utf8");
@@ -281,7 +281,15 @@ function main() {
   const configPath = resolveConfigPath();
   const strict = hasFlag("--strict");
   const fetchFirst = hasFlag("--fetch");
-  const { absolutePath, targetBranch, trackedBranches, triage } = loadConfig(configPath);
+  const config = loadConfig(configPath);
+  if (!config) {
+    process.stdout.write(
+      `No integration watch config at ${configPath}; integration watch passes.\n`
+    );
+    return;
+  }
+
+  const { absolutePath, targetBranch, trackedBranches, triage } = config;
   const triageIndex = buildTriageIndex(triage);
 
   if (fetchFirst) {
@@ -289,6 +297,13 @@ function main() {
   }
 
   ensureRefExists(targetBranch);
+  if (trackedBranches.length === 0) {
+    process.stdout.write(
+      `No tracked integration branches configured for ${targetBranch}; integration watch passes.\n`
+    );
+    return;
+  }
+
   for (const branch of trackedBranches) {
     ensureRefExists(branch);
   }
@@ -345,5 +360,6 @@ try {
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
 
+  process.stderr.write(`${message}\n`);
   process.exitCode = 1;
 }

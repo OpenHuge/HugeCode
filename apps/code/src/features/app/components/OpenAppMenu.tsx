@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/react";
 import { isTauri } from "../../../application/runtime/ports/tauriCore";
 import { revealItemInDir } from "../../../application/runtime/ports/tauriOpener";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
@@ -10,6 +9,7 @@ import type { OpenAppTarget } from "../../../types";
 import { writeSafeLocalStorageItem } from "../../../utils/safeLocalStorage";
 import { DEFAULT_OPEN_APP_ID, DEFAULT_OPEN_APP_TARGETS, OPEN_APP_STORAGE_KEY } from "../constants";
 import { resolveOpenAppGlyph } from "../utils/openAppGlyphs";
+import { captureSentryException } from "../../shared/sentry";
 import "./OpenAppMenu.css";
 
 type OpenTarget = {
@@ -77,7 +77,7 @@ export function OpenAppMenu({
 
   const reportOpenError = (error: unknown, target: OpenTarget) => {
     const message = error instanceof Error ? error.message : String(error);
-    Sentry.captureException(error instanceof Error ? error : new Error(message), {
+    captureSentryException(error, {
       tags: {
         feature: "open-app-menu",
       },

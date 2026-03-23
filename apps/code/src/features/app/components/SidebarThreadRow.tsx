@@ -1,6 +1,6 @@
 import Archive from "lucide-react/dist/esm/icons/archive";
 import Pin from "lucide-react/dist/esm/icons/pin";
-import type { CSSProperties, MouseEvent, ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { useState } from "react";
 import { Icon } from "../../../design-system";
 import type { ThreadSummary } from "../../../types";
@@ -14,7 +14,6 @@ type SidebarThreadRowProps = {
   thread: ThreadSummary;
   canPin: boolean;
   depth: number;
-  indentUnit: number;
   isActive: boolean;
   isPinned: boolean;
   relativeTime: string | null;
@@ -38,7 +37,6 @@ export function SidebarThreadRow({
   thread,
   canPin,
   depth,
-  indentUnit,
   isActive,
   isPinned,
   relativeTime,
@@ -52,14 +50,11 @@ export function SidebarThreadRow({
   onArchiveThread,
 }: SidebarThreadRowProps) {
   const [confirmArchive, setConfirmArchive] = useState(false);
-  const indentStyle =
-    depth > 0 ? ({ "--thread-indent": `${depth * indentUnit}px` } as CSSProperties) : undefined;
   const subline = renderThreadSubline?.(thread) ?? null;
 
   return (
     <SidebarRow
       className={`thread-row ${isActive ? "active" : ""}${confirmArchive ? " is-confirming" : ""}`}
-      style={indentStyle}
       onContextMenu={(event) => onShowThreadMenu(event, workspaceId, thread.id, canPin)}
       data-thread-state={statusClass}
       data-thread-depth={depth}

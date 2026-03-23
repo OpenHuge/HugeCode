@@ -9,7 +9,6 @@ import { WorkspaceMenuSection, WorkspaceSupportMeta } from "../../../design-syst
 import type { AccountSnapshot } from "../../../types";
 import { joinClassNames } from "../../../utils/classNames";
 import type { CodexSection } from "../../settings/components/settingsTypes";
-import { preloadSettingsView } from "../../settings/components/settingsViewLoader";
 import type { AccountCenterState } from "../hooks/useAccountCenterState";
 import { useDismissibleMenu } from "../hooks/useDismissibleMenu";
 import * as styles from "./SidebarUserNav.css";
@@ -117,7 +116,9 @@ export function SidebarUserNav({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const primeSettingsView = useCallback(() => {
-    void preloadSettingsView();
+    void import("../../settings/components/settingsViewLoader").then((module) => {
+      return module.preloadSettingsView();
+    });
   }, []);
   const closeMenuAndRun = useCallback((action: () => void) => {
     if (typeof window === "undefined") {
@@ -224,13 +225,8 @@ export function SidebarUserNav({
         type="button"
         className={joinClassNames("sidebar-user-nav", styles.nav)}
         onClick={() => {
-          if (!isOpen) {
-            primeSettingsView();
-          }
           setIsOpen(!isOpen);
         }}
-        onPointerEnter={primeSettingsView}
-        onFocus={primeSettingsView}
         aria-label="User menu"
         aria-expanded={isOpen}
         data-open={isOpen ? "true" : "false"}

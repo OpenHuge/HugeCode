@@ -19,28 +19,28 @@ export const retiredRuntimeCompatStyleFiles = [
 export const restrictedCompatClassRules = [
   {
     label: "dialog-form-compat",
-    pattern: String.raw`\bds-modal-(title|subtitle|actions|label|input|textarea|button|error|divider)\b`,
+    pattern: String.raw`(?<!--)\bds-modal-(title|subtitle|actions|label|input|textarea|button|error|divider)\b`,
     allowedPaths: new Set(["packages/design-system/src/components/Dialog.tsx"]),
     guidance:
       "import the shared Dialog* helpers instead of using raw compat classes in feature code.",
   },
   {
     label: "panel-structure-compat",
-    pattern: String.raw`\bds-panel(?:-header|-meta|-search|-search-icon|-search-input|-nav|-nav-item|-nav-item-main|-nav-item-icon|-nav-item-label|-nav-item-disclosure)?\b`,
+    pattern: String.raw`(?<!--)\bds-panel(?:-header|-meta|-search|-search-icon|-search-input|-nav|-nav-item|-nav-item-main|-nav-item-icon|-nav-item-label|-nav-item-disclosure)?\b`,
     allowedPaths: new Set(["packages/design-system/src/components/Panel.tsx"]),
     guidance:
       "import the shared Panel* primitives instead of using raw compat classes in feature code.",
   },
   {
     label: "popover-structure-compat",
-    pattern: String.raw`\bds-popover(?:-item|-item-icon|-item-label)?\b`,
+    pattern: String.raw`(?<!--)\bds-popover(?:-item|-item-icon|-item-label)?\b`,
     allowedPaths: new Set(["packages/design-system/src/components/Popover.tsx"]),
     guidance:
       "import the shared Popover* primitives or use local refs/data hooks instead of raw compat classes in feature code.",
   },
   {
     label: "select-structure-compat",
-    pattern: String.raw`\bds-select(?!-anchor)(?:-trigger|-trigger-label|-trigger-caret|-menu|-option|-option-label|-option-check)?\b`,
+    pattern: String.raw`(?<!--)\bds-select(?!-anchor)(?:-trigger|-trigger-label|-trigger-caret|-menu|-option|-option-label|-option-check)?\b`,
     allowedPaths: new Set(["packages/design-system/src/components/Select.tsx"]),
     guidance:
       "use the shared Select component plus stable data-ui-select-* hooks instead of raw compat classes in feature code.",
