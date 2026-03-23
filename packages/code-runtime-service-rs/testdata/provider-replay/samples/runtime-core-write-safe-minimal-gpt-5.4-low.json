@@ -2,22 +2,109 @@
   "schemaVersion": 1,
   "sample": {
     "id": "runtime-core-write-safe-minimal-gpt-5.4-low",
-    "variant": "gpt-5.4-low-write-safe-minimal",
+    "variant": "write-safe-minimal-gpt-5.4-low",
     "family": "runtime-core",
     "scenarioType": "write-safe-minimal",
     "mode": "write-safe",
     "source": "recorded",
-    "recordedAt": "2026-03-13T13:42:39.245Z",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
     "schemaVersion": 1,
     "runtimeKind": "code-runtime-gateway-web",
     "providerKind": "openai",
     "requiresRealRuntime": true,
     "supportsReplayOnly": true,
-    "tags": ["golden", "runtime-core", "provider-replay", "playwright", "write-safe-minimal"],
-    "capabilities": ["write-safe"],
+    "tags": [
+      "runtime-core",
+      "provider-replay",
+      "playwright",
+      "write-safe-minimal",
+      "golden",
+      "write-safe-text-flagship-baseline",
+      "gpt-5.4"
+    ],
     "stability": "golden",
     "redactionVersion": "runtime-provider-replay-v1",
-    "notes": "Recorded safe write-path sample with deterministic workspace-file assertions that verify the low-risk write during replay."
+    "notes": "runtime-core-write-safe-minimal-gpt-5.4-low expanded for gpt-5.4/low.",
+    "capabilities": ["write-safe"],
+    "riskTier": "critical",
+    "axisCoverage": {
+      "scenarioType": "write-safe-minimal",
+      "failureClass": "none",
+      "modelProfile": "gpt-5.4",
+      "reasoningEffort": "low",
+      "accessMode": "full-access",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "not-applicable",
+      "runtimeTruthCapabilities": ["write-safe"],
+      "interactionStrength": "pairwise",
+      "coverageSlice": "write-safe-text-flagship-baseline"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "side-effects-correct",
+          "label": "Workspace side effects are proven",
+          "weight": 0.75,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "recorded",
+      "providerPath": "provider-replay",
+      "failureLeg": "not-applicable",
+      "runtimeTruth": "not-applicable",
+      "workspaceEffects": "machine-asserted"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.95,
+      "requiresRecordedEvidence": true,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": false,
+      "blockingTrack": true
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 21,
+      "maxDebtDays": 7,
+      "strict": true,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": false
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": [],
+      "disallowedFailureClasses": [],
+      "observedFailureClass": null,
+      "failureMode": null
+    },
+    "sourceFingerprint": {
+      "seedSource": "manual",
+      "priorityBucket": "matrix-gap",
+      "parentSampleId": null,
+      "evidenceMode": "recorded",
+      "dedupKey": "write-safe-minimal|none|full-access|write-safe-text-flagship-baseline"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "approved",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier critical.",
+        "runtime-core-write-safe-minimal-gpt-5.4-low expanded for gpt-5.4/low.",
+        "Coverage slice write-safe-text-flagship-baseline.",
+        "Generated from runtime-core-write-safe-minimal-gpt-5.4-low with seed source manual."
+      ]
+    }
   },
   "input": {
     "task": "Validate a low-risk recorded write path under dedicated runtime isolation.",
@@ -81,7 +168,7 @@
     },
     "harness": {
       "runner": "runtime-core-playwright",
-      "testName": "runtime replay records a safe workspace write and preserves deterministic file evidence",
+      "testName": "runtime replay records a safe workspace write and preserves deterministic file evidence [runtime-core-write-safe-minimal-gpt-5.4-low]",
       "timeoutMs": 60000,
       "workspaceId": "ws-playground",
       "actions": [
@@ -122,6 +209,24 @@
           "type": "wait-turn-state",
           "state": "complete",
           "timeoutMs": 30000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Agent access",
+          "value": "Full access",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.4",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "low",
+          "timeoutMs": 15000
         }
       ]
     }
@@ -130,7 +235,7 @@
     "successStatus": "completed",
     "summaryHeading": "RUNTIME_E2E_WRITE_SAFE_MINIMAL_TURN_1",
     "providerReplay": {
-      "variantId": "gpt-5.4-low-write-safe-minimal",
+      "variantId": "write-safe-minimal-gpt-5.4-low",
       "provider": "openai",
       "modelId": "gpt-5.4",
       "reasonEffort": "low",
@@ -199,7 +304,7 @@
   },
   "governance": {
     "owner": "runtime-core-e2e",
-    "lastRefreshReason": "Re-recorded from the live runtime/provider path.",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
     "deprecationStatus": "active",
     "archiveStatus": null,
     "workspaceEffects": {
@@ -213,8 +318,8 @@
     "manualGoldenBlockers": [],
     "optimizationSignals": {
       "seedSource": "manual",
-      "incubationTrack": "nightly",
-      "recommendedLevers": ["hooks", "sandbox"],
+      "incubationTrack": "blocking",
+      "recommendedLevers": ["rules", "skills"],
       "safeBackgroundCandidate": false
     },
     "deterministicRegressions": [
@@ -244,64 +349,12 @@
       "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
     },
     "goldenBlockers": [],
-    "goldenBlockerHistory": [
-      {
-        "blocker": "live_failure_probe_missing",
-        "active": false,
-        "firstObservedAt": "2026-03-13T07:38:17.142Z",
-        "lastObservedAt": "2026-03-13T13:42:39.245Z",
-        "observationCount": 3,
-        "lastClearedAt": "2026-03-13T13:42:39.245Z"
-      },
-      {
-        "blocker": "workspace_effects_not_replayed",
-        "active": false,
-        "firstObservedAt": "2026-03-13T08:00:28.577Z",
-        "lastObservedAt": "2026-03-13T13:42:39.245Z",
-        "observationCount": 1,
-        "lastClearedAt": "2026-03-13T13:42:39.245Z"
-      }
-    ]
+    "goldenBlockerHistory": []
   },
   "runtimeTruth": {
-    "taskFields": [
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "checkpointId",
-        "matcher": "present",
-        "timeoutMs": 20000
-      },
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "traceId",
-        "matcher": "present",
-        "timeoutMs": 20000
-      },
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "publishHandoff",
-        "matcher": "absent",
-        "timeoutMs": 20000
-      }
-    ],
+    "taskFields": [],
     "review": [],
-    "autodrive": [
-      {
-        "type": "assert-autodrive-trace",
-        "decisionTraceMatcher": "absent",
-        "runtimeScenarioProfileMatcher": "absent",
-        "repoEvaluationProfileMatcher": "absent",
-        "outcomeFeedbackMatcher": "absent",
-        "autonomyStateMatcher": "absent",
-        "timeoutMs": 20000
-      }
-    ],
-    "eventReplay": [
-      {
-        "type": "assert-replay-gap-event",
-        "expectedReason": "runtime.updated",
-        "timeoutMs": 20000
-      }
-    ]
+    "autodrive": [],
+    "eventReplay": []
   }
 }

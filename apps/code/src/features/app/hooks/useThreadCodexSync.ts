@@ -54,6 +54,7 @@ type UseThreadCodexSyncOptions = {
   pendingNewThreadSeedRef: MutableRefObject<PendingNewThreadSeed | null>;
   resolvedModel: string | null;
   resolvedEffort: string | null;
+  threadCodexSelectionKey: string | null;
   accessMode: AccessMode;
   fastModeEnabled: boolean;
   selectedCollaborationModeId: string | null;
@@ -82,6 +83,7 @@ export function useThreadCodexSync({
   pendingNewThreadSeedRef,
   resolvedModel,
   resolvedEffort,
+  threadCodexSelectionKey,
   accessMode,
   fastModeEnabled,
   selectedCollaborationModeId,
@@ -108,6 +110,13 @@ export function useThreadCodexSync({
       lastComposerExecutionMode,
       stored,
       pendingSeed: pendingNewThreadSeedRef.current,
+      currentScopeKey: threadCodexSelectionKey,
+      currentModelId: resolvedModel,
+      currentReasoningEffort: resolvedEffort,
+      currentAccessMode: accessMode,
+      currentFastMode: fastModeEnabled,
+      currentCollaborationModeId: selectedCollaborationModeId,
+      currentExecutionMode: executionMode,
     });
 
     setThreadCodexSelectionKey(resolved.scopeKey);
@@ -127,6 +136,13 @@ export function useThreadCodexSync({
     lastComposerFastMode,
     lastComposerExecutionMode,
     pendingNewThreadSeedRef,
+    threadCodexSelectionKey,
+    resolvedModel,
+    resolvedEffort,
+    accessMode,
+    fastModeEnabled,
+    selectedCollaborationModeId,
+    executionMode,
     setAccessMode,
     setPreferredCollabModeId,
     setPreferredEffort,

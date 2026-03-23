@@ -1,0 +1,555 @@
+{
+  "schemaVersion": 1,
+  "sample": {
+    "id": "runtime-core-tool-error-recovery-stream-interrupted-gpt-5.4-mini-medium",
+    "variant": "tool-error-recovery-stream-interrupted-gpt-5.4-mini-medium",
+    "family": "runtime-core",
+    "scenarioType": "tool-error-recovery",
+    "mode": "failure-recovery",
+    "source": "mixed",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
+    "schemaVersion": 1,
+    "runtimeKind": "code-runtime-gateway-web",
+    "providerKind": "openai",
+    "requiresRealRuntime": true,
+    "supportsReplayOnly": true,
+    "tags": [
+      "runtime-core",
+      "provider-replay",
+      "playwright",
+      "tool-error-recovery",
+      "retry",
+      "candidate",
+      "recovery-stream-interrupted-mini-medium",
+      "gpt-5.4-mini"
+    ],
+    "stability": "candidate",
+    "redactionVersion": "runtime-provider-replay-v1",
+    "notes": "runtime-core-tool-error-recovery-gpt-5.3-codex-medium expanded for gpt-5.4-mini/medium.",
+    "capabilities": ["tool-error-recovery"],
+    "riskTier": "critical",
+    "axisCoverage": {
+      "scenarioType": "tool-error-recovery",
+      "failureClass": "provider.stream-interrupted",
+      "modelProfile": "gpt-5.4-mini",
+      "reasoningEffort": "medium",
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "not-applicable",
+      "runtimeTruthCapabilities": ["tool-error-recovery"],
+      "interactionStrength": "3-way",
+      "coverageSlice": "recovery-stream-interrupted-mini-medium"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "failure-class-correct",
+          "label": "Failure class is preserved",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "recovery-path-complete",
+          "label": "Recovery path completes",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "user-visible-error-clear",
+          "label": "User-visible error is clear",
+          "weight": 0.25,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "mixed",
+      "providerPath": "provider-replay",
+      "failureLeg": "controlled-synthetic",
+      "runtimeTruth": "not-applicable",
+      "workspaceEffects": "none"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.95,
+      "requiresRecordedEvidence": false,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": true,
+      "blockingTrack": false
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 14,
+      "maxDebtDays": 14,
+      "strict": true,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": true
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": ["provider.stream-interrupted"],
+      "disallowedFailureClasses": ["provider.request-failed", "provider.rejected"],
+      "observedFailureClass": "provider.stream-interrupted",
+      "failureMode": "provider.stream-interrupted"
+    },
+    "sourceFingerprint": {
+      "seedSource": "workflow-failure",
+      "priorityBucket": "workflow-failure",
+      "parentSampleId": "runtime-core-tool-error-recovery-gpt-5.3-codex-medium",
+      "evidenceMode": "mixed",
+      "dedupKey": "tool-error-recovery|provider.stream-interrupted|on-request|recovery-stream-interrupted-mini-medium"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "needs-follow-up",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier critical.",
+        "runtime-core-tool-error-recovery-gpt-5.3-codex-medium expanded for gpt-5.4-mini/medium.",
+        "Coverage slice recovery-stream-interrupted-mini-medium.",
+        "Generated from runtime-core-tool-error-recovery-gpt-5.3-codex-medium with seed source workflow-failure."
+      ]
+    }
+  },
+  "input": {
+    "task": "Validate recovery after a real runtime/provider failure, then confirm a clean follow-up succeeds in the same thread.",
+    "variant": {
+      "provider": "openai",
+      "modelId": "gpt-5.4-mini",
+      "reasonEffort": "medium"
+    },
+    "runtimeConfig": {
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default"
+    },
+    "endpointIsolation": {
+      "strategy": "dedicated-runtime-port",
+      "rpcEndpointTemplate": "http://127.0.0.1:{runtimePort}/rpc",
+      "workspaceId": "workspace-web",
+      "reuseExistingRuntime": false
+    },
+    "turns": [
+      {
+        "id": "turn-1",
+        "role": "user",
+        "action": "send",
+        "prompt": "Reply with exactly \"RUNTIME_E2E_RECOVERY_FAILED\". No bullets. No markdown."
+      },
+      {
+        "id": "turn-2",
+        "role": "user",
+        "action": "send",
+        "prompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_MODEL_MEDIUM_TURN_1\". Line 2 must start with \"MODEL_ROUTE_CHECK: \" and explain why model-selection coverage belongs in runtime replay tests. No bullets. No markdown."
+      }
+    ]
+  },
+  "process": {
+    "expectedStateTransitions": [
+      "runtime.spawned",
+      "runtime.healthy",
+      "thread.opened",
+      "turn.started",
+      "turn.failed",
+      "recovery.turn.started",
+      "provider.delta",
+      "recovery.turn.completed"
+    ],
+    "providerEventRequirements": [
+      {
+        "kind": "turn.failed",
+        "exactCount": 1
+      },
+      {
+        "kind": "item.agentMessage.delta",
+        "minCount": 2
+      },
+      {
+        "kind": "turn.completed",
+        "exactCount": 1
+      }
+    ],
+    "longOutputReadback": {
+      "enabled": false,
+      "expectedPolling": false,
+      "fragments": []
+    },
+    "errorRecovery": {
+      "expected": true,
+      "failureTurnId": "turn-1",
+      "recoveryTurnId": "turn-2",
+      "expectedFailureClasses": ["provider.stream-interrupted"],
+      "disallowedFailureClasses": ["provider.request-failed", "provider.rejected"],
+      "signals": [
+        "Failed to read ChatGPT Codex response stream",
+        "Provider stream interrupted",
+        "RUNTIME_E2E_MODEL_MEDIUM_TURN_1"
+      ]
+    },
+    "runtimeBinding": {
+      "strategy": "dedicated-runtime-port",
+      "host": "127.0.0.1",
+      "forbidCompatibleRuntimeProbe": true
+    },
+    "harness": {
+      "runner": "runtime-core-playwright",
+      "testName": "runtime replay recovers after a failed runtime/provider turn and completes the retry [runtime-core-tool-error-recovery-stream-interrupted-gpt-5.4-mini-medium]",
+      "timeoutMs": 60000,
+      "workspaceId": "ws-playground",
+      "actions": [
+        {
+          "type": "select-option",
+          "control": "Agent access",
+          "value": "On-request"
+        },
+        {
+          "type": "select-option",
+          "control": "Model",
+          "value": "gpt-5.4-mini"
+        },
+        {
+          "type": "select-option",
+          "control": "Thinking mode",
+          "value": "medium"
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "new",
+          "promptTurnId": "turn-1"
+        },
+        {
+          "type": "wait-turn-state",
+          "state": "failed",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "wait-message",
+          "text": "Provider stream interrupted",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "append",
+          "promptTurnId": "turn-2"
+        }
+      ],
+      "assertions": [
+        {
+          "type": "wait-message",
+          "text": "RUNTIME_E2E_MODEL_MEDIUM_TURN_1",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "wait-turn-state",
+          "state": "complete",
+          "timeoutMs": 20000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Agent access",
+          "value": "On-request",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.4-mini",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "medium",
+          "timeoutMs": 15000
+        }
+      ]
+    }
+  },
+  "result": {
+    "successStatus": "completed_after_recovery",
+    "summaryHeading": "RUNTIME_E2E_MODEL_MEDIUM_TURN_1",
+    "providerReplay": {
+      "variantId": "tool-error-recovery-stream-interrupted-gpt-5.4-mini-medium",
+      "provider": "openai",
+      "modelId": "gpt-5.4-mini",
+      "reasonEffort": "medium",
+      "recordingAccessMode": "on-request",
+      "recordingExecutionMode": "runtime",
+      "coverage": ["error-recovery", "runtime-provider-failure", "retry"],
+      "turns": [
+        {
+          "userPrompt": "Reply with exactly \"RUNTIME_E2E_RECOVERY_FAILED\". No bullets. No markdown.",
+          "output": null,
+          "deltaChunks": [],
+          "failure": {
+            "class": "provider.stream-interrupted",
+            "code": "runtime.turn.provider.stream_read_failed",
+            "message": "Failed to read ChatGPT Codex response stream: error decoding response body"
+          },
+          "recordingProfile": "controlled-stream-interruption",
+          "provenance": {
+            "source": "controlled-synthetic",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-tool-error-recovery-stream-interrupted-gpt-5.4-mini-medium",
+            "notes": "Controlled synthetic failure injected by the runtime replay recorder to keep the recovery failure class stable.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4-mini",
+            "recordedReasonEffort": "medium",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "none"
+          },
+          "recordedAt": "2026-03-13T07:05:25.889Z"
+        },
+        {
+          "userPrompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_MODEL_MEDIUM_TURN_1\". Line 2 must start with \"MODEL_ROUTE_CHECK: \" and explain why model-selection coverage belongs in runtime replay tests. No bullets. No markdown.",
+          "output": "RUNTIME_E2E_MODEL_MEDIUM_TURN_1\nMODEL_ROUTE_CHECK: Model-selection coverage belongs in runtime replay tests because only end-to-end replay validates that real routing logic, configuration, fallbacks, and policy gates choose the intended model under production-like conditions and continue to do so across code and infrastructure changes.",
+          "deltaChunks": [
+            "R",
+            "UNTIME_E2",
+            "E_MODEL_MEDIUM_T",
+            "URN_1\nMODEL",
+            "_ROUTE_CHECK: Model-selection",
+            " coverage belongs in runtime",
+            " replay tests because",
+            " only end",
+            "-to-end replay validates that",
+            " real",
+            " routing logic, configuration",
+            ", fall",
+            "backs, and policy",
+            " gates",
+            " choose",
+            " the intended model under",
+            " production",
+            "-like conditions and",
+            " continue",
+            " to do",
+            " so across code",
+            " and infrastructure changes."
+          ],
+          "chunkDelayMs": 25,
+          "expectations": {
+            "startsWith": "RUNTIME_E2E_MODEL_MEDIUM_TURN_1",
+            "mustContain": ["MODEL_ROUTE_CHECK:", "routing logic"],
+            "minDeltaChunks": 2
+          },
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-tool-error-recovery-stream-interrupted-gpt-5.4-mini-medium",
+            "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4-mini",
+            "recordedReasonEffort": "medium",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "recorded"
+          },
+          "recordedAt": "2026-03-13T07:05:31.245Z"
+        }
+      ]
+    }
+  },
+  "assertions": {
+    "hard": [
+      {
+        "type": "runtime-isolation",
+        "forbidLogPattern": "Existing runtime on"
+      },
+      {
+        "type": "message-visible",
+        "text": "Provider stream interrupted"
+      },
+      {
+        "type": "message-visible",
+        "text": "RUNTIME_E2E_MODEL_MEDIUM_TURN_1"
+      }
+    ],
+    "soft": [
+      {
+        "type": "duration-ms",
+        "max": 60000
+      },
+      {
+        "type": "log-warning-budget",
+        "max": 6
+      },
+      {
+        "type": "delta-chunk-range",
+        "turnId": "turn-2",
+        "min": 2,
+        "max": 30
+      }
+    ]
+  },
+  "governance": {
+    "owner": "runtime-core-e2e",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
+    "deprecationStatus": "active",
+    "archiveStatus": null,
+    "lastLiveFailureClass": "provider.request-failed",
+    "lastLiveRerecordStable": false,
+    "rerecordStability": {
+      "status": "stable-incompatible",
+      "stable": false,
+      "compatibleWithExpectedFailureClass": false,
+      "observedFailureClasses": ["provider.request-failed"],
+      "driftObserved": false,
+      "lastCheckedAt": "2026-03-23T00:00:00.000Z"
+    },
+    "recoveryQualification": {
+      "expectedFailureClasses": ["provider.stream-interrupted"],
+      "disallowedFailureClasses": ["provider.request-failed", "provider.rejected"],
+      "observedFailureClass": "provider.stream-interrupted",
+      "recoveryObserved": true,
+      "recoveryTurnId": "turn-2",
+      "evidenceMode": "mixed",
+      "rerecordStability": {
+        "status": "stable-incompatible",
+        "stable": false,
+        "compatibleWithExpectedFailureClass": false,
+        "observedFailureClasses": ["provider.request-failed"],
+        "driftObserved": false,
+        "lastCheckedAt": "2026-03-23T00:00:00.000Z"
+      },
+      "goldenBlockers": [
+        "failure_leg_not_fully_recorded",
+        "evidence_not_fully_recorded",
+        "live_failure_class_incompatible"
+      ],
+      "recoveryStable": false,
+      "eligibleForGolden": false
+    },
+    "goldenBlockers": [
+      "failure_leg_not_fully_recorded",
+      "evidence_not_fully_recorded",
+      "live_failure_class_incompatible"
+    ],
+    "optimizationSignals": {
+      "seedSource": "workflow-failure",
+      "incubationTrack": "nightly",
+      "recommendedLevers": ["hooks", "rules", "session-lineage"],
+      "safeBackgroundCandidate": false,
+      "lineage": {
+        "parentSampleId": "runtime-core-tool-error-recovery-gpt-5.3-codex-medium",
+        "strategy": "combinatorial-expansion"
+      }
+    },
+    "deterministicRegressions": [
+      {
+        "id": "stable-incompatible-live-failure-probe-classification",
+        "layer": "dataset-lib",
+        "path": "scripts/lib/runtimeReplayDataset.node.test.mjs",
+        "testName": "deriveRuntimeReplayRerecordStability distinguishes stable-incompatible probes",
+        "status": "active"
+      }
+    ],
+    "promotionCriteria": {
+      "upgradeToGolden": [
+        "Replace the controlled provider.stream-interrupted leg with a real recorded stream interruption.",
+        "Keep live rerecords on provider.stream-interrupted instead of provider.request-failed."
+      ]
+    },
+    "evidencePlan": {
+      "mixedEvidence": true,
+      "turnSources": {
+        "turn-1": "controlled-synthetic",
+        "turn-2": "recorded"
+      },
+      "notes": "The failure leg is still controlled synthetic because live rerecord probes land on provider.request-failed."
+    },
+    "liveFailureProbe": {
+      "enabled": true,
+      "profileId": "openai-endpoint-refused-live",
+      "turnId": "turn-1",
+      "attempts": 2,
+      "expectedFailureClasses": ["provider.stream-interrupted"],
+      "lastRun": {
+        "recordedAt": "2026-03-23T00:00:00.000Z",
+        "attempts": 2,
+        "observedFailureClasses": ["provider.request-failed"],
+        "attemptRecords": [
+          {
+            "attempt": 1,
+            "outcome": "failed",
+            "failureClass": "provider.request-failed"
+          },
+          {
+            "attempt": 2,
+            "outcome": "failed",
+            "failureClass": "provider.request-failed"
+          }
+        ],
+        "stable": false,
+        "driftObserved": false
+      }
+    },
+    "recordingProfiles": {
+      "controlled-stream-interruption": {
+        "strategy": "synthetic-failure",
+        "notes": "Injects a stable provider.stream-interrupted failure so the candidate can keep exercising a failed-then-recovered workflow while live provider-route failures are still drifting.",
+        "failure": {
+          "class": "provider.stream-interrupted",
+          "code": "runtime.turn.provider.stream_read_failed",
+          "message": "Failed to read ChatGPT Codex response stream: error decoding response body"
+        }
+      },
+      "openai-endpoint-refused-live": {
+        "strategy": "runtime-record",
+        "notes": "Live probe profile that disables retries and redirects the OpenAI endpoint to a refused local socket so rerecord stability can observe whether the runtime still lands on the expected provider.stream-interrupted class.",
+        "env": {
+          "CODE_RUNTIME_SERVICE_OPENAI_ENDPOINT": "http://127.0.0.1:9/v1/responses",
+          "CODE_RUNTIME_SERVICE_OPENAI_MAX_RETRIES": "0",
+          "CODE_RUNTIME_SERVICE_OPENAI_TIMEOUT_MS": "500",
+          "CODE_RUNTIME_SERVICE_OPENAI_COMPAT_API_KEY": null,
+          "CODE_RUNTIME_SERVICE_OPENAI_COMPAT_BASE_URL": null
+        }
+      }
+    },
+    "redaction": {
+      "applied": true,
+      "normalizedFields": ["rpcEndpoint", "workspaceId"],
+      "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
+    },
+    "goldenBlockerHistory": [
+      {
+        "blocker": "evidence_not_fully_recorded",
+        "active": true,
+        "firstObservedAt": "2026-03-23T00:00:00.000Z",
+        "lastObservedAt": "2026-03-23T00:00:00.000Z",
+        "observationCount": 1
+      },
+      {
+        "blocker": "failure_leg_not_fully_recorded",
+        "active": true,
+        "firstObservedAt": "2026-03-23T00:00:00.000Z",
+        "lastObservedAt": "2026-03-23T00:00:00.000Z",
+        "observationCount": 1
+      },
+      {
+        "blocker": "live_failure_class_incompatible",
+        "active": true,
+        "firstObservedAt": "2026-03-23T00:00:00.000Z",
+        "lastObservedAt": "2026-03-23T00:00:00.000Z",
+        "observationCount": 1
+      }
+    ]
+  },
+  "runtimeTruth": {
+    "taskFields": [],
+    "review": [],
+    "autodrive": [],
+    "eventReplay": []
+  }
+}

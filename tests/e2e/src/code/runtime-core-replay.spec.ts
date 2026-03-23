@@ -7,6 +7,7 @@ import { expect, test } from "@playwright/test";
 import {
   assertPageResponsive,
   isRuntimeGatewayReady,
+  expectComposerControlValue,
   queueComposerPrompt,
   selectComposerOption,
   sendComposerPrompt,
@@ -65,6 +66,12 @@ type SelectionAssertion =
   | {
       type: "workspace-file-missing";
       relativePath: string;
+      timeoutMs?: number;
+    }
+  | {
+      type: "assert-composer-option";
+      control: "Agent access" | "Model" | "Thinking mode" | "Execution path";
+      value: string;
       timeoutMs?: number;
     }
   | {
@@ -573,6 +580,15 @@ async function runAssertion(context: RuntimeAssertionContext, assertion: Selecti
       .toBe(false);
     return;
   }
+  if (assertion.type === "assert-composer-option") {
+    await expectComposerControlValue(
+      page,
+      assertion.control,
+      assertion.value,
+      assertion.timeoutMs ?? 20_000
+    );
+    return;
+  }
   if (assertion.type === "wait-runtime-task-field") {
     await pollLatestRuntimeTask(
       context,
@@ -753,8 +769,12 @@ for (const sample of samples) {
     if (typeof sample.process.harness.timeoutMs === "number") {
       test.setTimeout(sample.process.harness.timeoutMs);
     }
-    const runtimeReady = await isRuntimeGatewayReady(page.request);
-    test.skip(!runtimeReady, "Runtime gateway is not running");
+    await expect
+      .poll(async () => await isRuntimeGatewayReady(page.request), {
+        timeout: 30_000,
+        message: "Runtime gateway must be ready before runtime replay execution begins.",
+      })
+      .toBe(true);
     await gotoRuntimeReplayWorkspace(page, sample.process.harness.workspaceId);
     await waitForThreadHistoryReady(page, { timeoutMs: 20_000 });
     await applyRuntimeReplayWorkspaceSetup(sample);

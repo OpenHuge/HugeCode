@@ -1,0 +1,350 @@
+{
+  "schemaVersion": 1,
+  "sample": {
+    "id": "runtime-core-model-selection-gpt-5.4-mini-high",
+    "variant": "model-selection-gpt-5.4-mini-high",
+    "family": "runtime-core",
+    "scenarioType": "unsupported-or-edge",
+    "mode": "model-selection",
+    "source": "recorded",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
+    "schemaVersion": 1,
+    "runtimeKind": "code-runtime-gateway-web",
+    "providerKind": "openai",
+    "requiresRealRuntime": true,
+    "supportsReplayOnly": true,
+    "tags": [
+      "runtime-core",
+      "provider-replay",
+      "playwright",
+      "model-selection",
+      "mini",
+      "incubating",
+      "routing-model-selection-mini-high",
+      "gpt-5.4-mini"
+    ],
+    "stability": "incubating",
+    "redactionVersion": "runtime-provider-replay-v1",
+    "notes": "runtime-core-model-selection-gpt-5.4-mini-medium expanded for gpt-5.4-mini/high.",
+    "capabilities": ["placement-routing"],
+    "riskTier": "high",
+    "axisCoverage": {
+      "scenarioType": "unsupported-or-edge",
+      "failureClass": "none",
+      "modelProfile": "gpt-5.4-mini",
+      "reasoningEffort": "high",
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "explicit-preferred",
+      "runtimeTruthCapabilities": ["placement-routing"],
+      "interactionStrength": "3-way",
+      "coverageSlice": "routing-model-selection-mini-high"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "placement-routing-preserved",
+          "label": "Placement and routing evidence is preserved",
+          "weight": 0.75,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "recorded",
+      "providerPath": "provider-replay",
+      "failureLeg": "not-applicable",
+      "runtimeTruth": "not-applicable",
+      "workspaceEffects": "none"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.9,
+      "requiresRecordedEvidence": false,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": false,
+      "blockingTrack": false
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 30,
+      "maxDebtDays": 30,
+      "strict": false,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": false
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": [],
+      "disallowedFailureClasses": [],
+      "observedFailureClass": null,
+      "failureMode": null
+    },
+    "sourceFingerprint": {
+      "seedSource": "synthetic-adversarial",
+      "priorityBucket": "synthetic-adversarial",
+      "parentSampleId": "runtime-core-model-selection-gpt-5.4-mini-medium",
+      "evidenceMode": "recorded",
+      "dedupKey": "unsupported-or-edge|none|on-request|routing-model-selection-mini-high"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "needs-follow-up",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier high.",
+        "runtime-core-model-selection-gpt-5.4-mini-medium expanded for gpt-5.4-mini/high.",
+        "Coverage slice routing-model-selection-mini-high.",
+        "Generated from runtime-core-model-selection-gpt-5.4-mini-medium with seed source synthetic-adversarial."
+      ]
+    }
+  },
+  "input": {
+    "task": "Validate explicit mini-model routing through the full runtime replay pipeline.",
+    "variant": {
+      "provider": "openai",
+      "modelId": "gpt-5.4-mini",
+      "reasonEffort": "high"
+    },
+    "runtimeConfig": {
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "preferredBackendIds": ["backend-routing-model-selection-mini-high"]
+    },
+    "endpointIsolation": {
+      "strategy": "dedicated-runtime-port",
+      "rpcEndpointTemplate": "http://127.0.0.1:{runtimePort}/rpc",
+      "workspaceId": "workspace-web",
+      "reuseExistingRuntime": false
+    },
+    "turns": [
+      {
+        "id": "turn-1",
+        "role": "user",
+        "action": "send",
+        "prompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_MODEL_MINI_TURN_1\". Line 2 must start with \"MODEL_MINI_ROUTE_CHECK: \" and explain why mini-model routing coverage belongs in runtime replay tests. No bullets. No markdown."
+      }
+    ]
+  },
+  "process": {
+    "expectedStateTransitions": [
+      "runtime.spawned",
+      "runtime.healthy",
+      "thread.opened",
+      "turn.started",
+      "provider.delta",
+      "turn.completed"
+    ],
+    "providerEventRequirements": [
+      {
+        "kind": "item.agentMessage.delta",
+        "minCount": 2
+      },
+      {
+        "kind": "turn.completed",
+        "exactCount": 1
+      }
+    ],
+    "longOutputReadback": {
+      "enabled": false,
+      "expectedPolling": false,
+      "fragments": []
+    },
+    "errorRecovery": {
+      "expected": false,
+      "signals": []
+    },
+    "runtimeBinding": {
+      "strategy": "dedicated-runtime-port",
+      "host": "127.0.0.1",
+      "forbidCompatibleRuntimeProbe": true
+    },
+    "harness": {
+      "runner": "runtime-core-playwright",
+      "testName": "runtime replay preserves explicit mini-model selection through the full send pipeline [runtime-core-model-selection-gpt-5.4-mini-high]",
+      "workspaceId": "ws-playground",
+      "actions": [
+        {
+          "type": "select-option",
+          "control": "Agent access",
+          "value": "On-request"
+        },
+        {
+          "type": "select-option",
+          "control": "Model",
+          "value": "gpt-5.4-mini"
+        },
+        {
+          "type": "select-option",
+          "control": "Thinking mode",
+          "value": "high"
+        },
+        {
+          "type": "send-prompt",
+          "promptMode": "new",
+          "promptTurnId": "turn-1"
+        }
+      ],
+      "assertions": [
+        {
+          "type": "wait-message",
+          "text": "RUNTIME_E2E_MODEL_MINI_TURN_1"
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Agent access",
+          "value": "On-request",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.4-mini",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "high",
+          "timeoutMs": 15000
+        }
+      ]
+    }
+  },
+  "result": {
+    "successStatus": "completed",
+    "summaryHeading": "RUNTIME_E2E_MODEL_MINI_TURN_1",
+    "providerReplay": {
+      "variantId": "model-selection-gpt-5.4-mini-high",
+      "provider": "openai",
+      "modelId": "gpt-5.4-mini",
+      "reasonEffort": "high",
+      "recordingAccessMode": "on-request",
+      "recordingExecutionMode": "runtime",
+      "coverage": ["model-selection", "alternate-model", "mini-model"],
+      "turns": [
+        {
+          "userPrompt": "Return exactly 2 lines. Line 1 must be exactly \"RUNTIME_E2E_MODEL_MINI_TURN_1\". Line 2 must start with \"MODEL_MINI_ROUTE_CHECK: \" and explain why mini-model routing coverage belongs in runtime replay tests. No bullets. No markdown.",
+          "output": "RUNTIME_E2E_MODEL_MINI_TURN_1\nMODEL_MINI_ROUTE_CHECK: Mini-model routing coverage belongs in runtime replay tests because the app's explicit model picker, payload construction, and provider handoff must keep working even when requests leave the flagship default path.",
+          "deltaChunks": [
+            "RUNTIME_E2E",
+            "_MODEL_MINI",
+            "_TURN_1",
+            "\nMODEL_MINI_ROUTE_CHECK:",
+            " Mini-model routing",
+            " coverage belongs",
+            " in runtime replay",
+            " tests because the",
+            " app's explicit model",
+            " picker, payload construction,",
+            " and provider handoff",
+            " must keep working",
+            " even when requests",
+            " leave the flagship",
+            " default path."
+          ],
+          "chunkDelayMs": 25,
+          "expectations": {
+            "startsWith": "RUNTIME_E2E_MODEL_MINI_TURN_1",
+            "mustContain": ["MODEL_MINI_ROUTE_CHECK:", "model picker"],
+            "minDeltaChunks": 2
+          },
+          "provenance": {
+            "source": "recorded",
+            "refreshCommand": "node scripts/record-runtime-provider-replay.mjs --id runtime-core-model-selection-gpt-5.4-mini-high",
+            "notes": "Recorded from the live runtime/provider path for the runtime-core golden replay set.",
+            "rpcEndpoint": "http://127.0.0.1:{runtimePort}/rpc",
+            "workspaceId": "workspace-web",
+            "recordedProvider": "openai",
+            "recordedModelId": "gpt-5.4-mini",
+            "recordedReasonEffort": "high",
+            "recordedAccessMode": "on-request",
+            "recordedExecutionMode": "runtime",
+            "deltaChunkSource": "recorded"
+          },
+          "recordedAt": "2026-03-16T08:22:47.000Z"
+        }
+      ]
+    }
+  },
+  "assertions": {
+    "hard": [
+      {
+        "type": "message-visible",
+        "text": "RUNTIME_E2E_MODEL_MINI_TURN_1"
+      },
+      {
+        "type": "runtime-isolation",
+        "forbidLogPattern": "Existing runtime on"
+      },
+      {
+        "type": "delta-chunk-min",
+        "turnId": "turn-1",
+        "value": 2
+      }
+    ],
+    "soft": [
+      {
+        "type": "duration-ms",
+        "max": 45000
+      },
+      {
+        "type": "log-warning-budget",
+        "max": 6
+      },
+      {
+        "type": "delta-chunk-range",
+        "turnId": "turn-1",
+        "min": 2,
+        "max": 40
+      }
+    ]
+  },
+  "governance": {
+    "owner": "runtime-core-e2e",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
+    "deprecationStatus": "active",
+    "archiveStatus": null,
+    "deterministicRegressions": [
+      {
+        "id": "model-selection-mini-profile-is-covered-in-matrix",
+        "layer": "dataset-lib",
+        "path": "scripts/lib/runtimeReplayDataset.node.test.mjs",
+        "testName": "buildRuntimeReplayValidationReport exposes a manifest-driven coverage matrix",
+        "status": "active"
+      }
+    ],
+    "redaction": {
+      "applied": true,
+      "normalizedFields": ["rpcEndpoint", "workspaceId"],
+      "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
+    },
+    "optimizationSignals": {
+      "seedSource": "synthetic-adversarial",
+      "incubationTrack": "incubation",
+      "recommendedLevers": ["rules", "skills"],
+      "safeBackgroundCandidate": false,
+      "lineage": {
+        "parentSampleId": "runtime-core-model-selection-gpt-5.4-mini-medium",
+        "strategy": "combinatorial-expansion"
+      }
+    },
+    "goldenBlockers": [],
+    "goldenBlockerHistory": []
+  },
+  "runtimeTruth": {
+    "taskFields": [],
+    "review": [],
+    "autodrive": [],
+    "eventReplay": []
+  }
+}

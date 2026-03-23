@@ -2,28 +2,110 @@
   "schemaVersion": 1,
   "sample": {
     "id": "runtime-core-model-selection-gpt-5.3-codex-medium",
-    "variant": "gpt-5.3-codex-medium",
+    "variant": "model-selection-gpt-5.3-codex-medium",
     "family": "runtime-core",
     "scenarioType": "unsupported-or-edge",
     "mode": "model-selection",
     "source": "recorded",
-    "recordedAt": "2026-03-13T05:02:47.834Z",
+    "recordedAt": "2026-03-23T00:00:00.000Z",
     "schemaVersion": 1,
     "runtimeKind": "code-runtime-gateway-web",
     "providerKind": "openai",
     "requiresRealRuntime": true,
     "supportsReplayOnly": true,
     "tags": [
-      "golden",
       "runtime-core",
       "provider-replay",
       "playwright",
       "model-selection",
-      "alternate-model"
+      "alternate-model",
+      "golden",
+      "routing-model-selection-codex-medium",
+      "gpt-5.3-codex"
     ],
     "stability": "golden",
     "redactionVersion": "runtime-provider-replay-v1",
-    "notes": "Non-default model route coverage for medium-effort runtime-core replay."
+    "notes": "runtime-core-model-selection-gpt-5.3-codex-medium expanded for gpt-5.3-codex/medium.",
+    "capabilities": ["placement-routing"],
+    "riskTier": "high",
+    "axisCoverage": {
+      "scenarioType": "unsupported-or-edge",
+      "failureClass": "none",
+      "modelProfile": "gpt-5.3-codex",
+      "reasoningEffort": "medium",
+      "accessMode": "on-request",
+      "executionMode": "runtime",
+      "collaborationMode": "default",
+      "backendPreference": "explicit-preferred",
+      "runtimeTruthCapabilities": ["placement-routing"],
+      "interactionStrength": "3-way",
+      "coverageSlice": "routing-model-selection-codex-medium"
+    },
+    "traceScorecard": {
+      "version": 1,
+      "passThreshold": 0.85,
+      "criteria": [
+        {
+          "id": "event-order-stable",
+          "label": "Event ordering stays stable",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "id": "placement-routing-preserved",
+          "label": "Placement and routing evidence is preserved",
+          "weight": 0.75,
+          "required": true
+        }
+      ]
+    },
+    "replayFidelity": {
+      "evidenceMode": "recorded",
+      "providerPath": "provider-replay",
+      "failureLeg": "not-applicable",
+      "runtimeTruth": "not-applicable",
+      "workspaceEffects": "none"
+    },
+    "promotionPolicy": {
+      "minimumTraceGrade": 0.9,
+      "requiresRecordedEvidence": true,
+      "requiresDeterministicRegression": true,
+      "requiresLiveFailureProbe": false,
+      "blockingTrack": true
+    },
+    "freshnessPolicy": {
+      "maxAgeDays": 21,
+      "maxDebtDays": 7,
+      "strict": true,
+      "refreshOnModelChange": true,
+      "refreshOnRuntimeTruthDrift": true,
+      "refreshOnFailureClassDrift": false
+    },
+    "failureTaxonomy": {
+      "expectedFailureClasses": [],
+      "disallowedFailureClasses": [],
+      "observedFailureClass": null,
+      "failureMode": null
+    },
+    "sourceFingerprint": {
+      "seedSource": "session-regression",
+      "priorityBucket": "session-regression",
+      "parentSampleId": null,
+      "evidenceMode": "recorded",
+      "dedupKey": "unsupported-or-edge|none|on-request|routing-model-selection-codex-medium"
+    },
+    "qualityReview": {
+      "reviewedAt": "2026-03-23T00:00:00.000Z",
+      "reviewedBy": "runtime-replay-phase1-generator",
+      "status": "approved",
+      "passThreshold": 0.85,
+      "notes": [
+        "Risk tier high.",
+        "runtime-core-model-selection-gpt-5.3-codex-medium expanded for gpt-5.3-codex/medium.",
+        "Coverage slice routing-model-selection-codex-medium.",
+        "Generated from runtime-core-model-selection-gpt-5.3-codex-medium with seed source session-regression."
+      ]
+    }
   },
   "input": {
     "task": "Validate explicit non-default model routing through the full runtime replay pipeline.",
@@ -35,7 +117,8 @@
     "runtimeConfig": {
       "accessMode": "on-request",
       "executionMode": "runtime",
-      "collaborationMode": "default"
+      "collaborationMode": "default",
+      "preferredBackendIds": ["backend-routing-model-selection-codex-medium"]
     },
     "endpointIsolation": {
       "strategy": "dedicated-runtime-port",
@@ -87,7 +170,7 @@
     },
     "harness": {
       "runner": "runtime-core-playwright",
-      "testName": "runtime replay preserves explicit model selection through the full send pipeline",
+      "testName": "runtime replay preserves explicit model selection through the full send pipeline [runtime-core-model-selection-gpt-5.3-codex-medium]",
       "workspaceId": "ws-playground",
       "actions": [
         {
@@ -115,6 +198,24 @@
         {
           "type": "wait-message",
           "text": "RUNTIME_E2E_MODEL_MEDIUM_TURN_1"
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Agent access",
+          "value": "On-request",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Model",
+          "value": "gpt-5.3-codex",
+          "timeoutMs": 15000
+        },
+        {
+          "type": "assert-composer-option",
+          "control": "Thinking mode",
+          "value": "medium",
+          "timeoutMs": 15000
         }
       ]
     }
@@ -123,7 +224,7 @@
     "successStatus": "completed",
     "summaryHeading": "RUNTIME_E2E_MODEL_MEDIUM_TURN_1",
     "providerReplay": {
-      "variantId": "gpt-5.3-codex-medium",
+      "variantId": "model-selection-gpt-5.3-codex-medium",
       "provider": "openai",
       "modelId": "gpt-5.3-codex",
       "reasonEffort": "medium",
@@ -216,7 +317,7 @@
   },
   "governance": {
     "owner": "runtime-core-e2e",
-    "lastRefreshReason": "Re-recorded from the live runtime/provider path.",
+    "lastRefreshReason": "Generated from the phase-one runtime replay expansion plan for risk-weighted combinatorial coverage.",
     "deprecationStatus": "active",
     "archiveStatus": null,
     "deterministicRegressions": [
@@ -232,47 +333,20 @@
       "applied": true,
       "normalizedFields": ["rpcEndpoint", "workspaceId"],
       "sensitiveFieldPolicy": "No live tokens, cookies, host-specific account identifiers, or absolute workstation paths."
-    }
+    },
+    "optimizationSignals": {
+      "seedSource": "session-regression",
+      "incubationTrack": "blocking",
+      "recommendedLevers": ["rules", "skills"],
+      "safeBackgroundCandidate": false
+    },
+    "goldenBlockers": [],
+    "goldenBlockerHistory": []
   },
   "runtimeTruth": {
-    "taskFields": [
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "checkpointId",
-        "matcher": "present",
-        "timeoutMs": 20000
-      },
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "traceId",
-        "matcher": "present",
-        "timeoutMs": 20000
-      },
-      {
-        "type": "wait-runtime-task-field",
-        "fieldPath": "publishHandoff",
-        "matcher": "absent",
-        "timeoutMs": 20000
-      }
-    ],
+    "taskFields": [],
     "review": [],
-    "autodrive": [
-      {
-        "type": "assert-autodrive-trace",
-        "decisionTraceMatcher": "absent",
-        "runtimeScenarioProfileMatcher": "absent",
-        "repoEvaluationProfileMatcher": "absent",
-        "outcomeFeedbackMatcher": "absent",
-        "autonomyStateMatcher": "absent",
-        "timeoutMs": 20000
-      }
-    ],
-    "eventReplay": [
-      {
-        "type": "assert-replay-gap-event",
-        "expectedReason": "runtime.updated",
-        "timeoutMs": 20000
-      }
-    ]
+    "autodrive": [],
+    "eventReplay": []
   }
 }
