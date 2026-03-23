@@ -49,64 +49,78 @@ export type RegisterDesktopHostIpcInput = {
   channels: typeof DESKTOP_HOST_IPC_CHANNELS;
   handlers: DesktopHostIpcHandlers;
   ipcMain: IpcMainLike;
+  isTrustedSender(event: IpcInvokeEventLike): boolean;
 };
 
 export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
-  const { channels, handlers, ipcMain } = input;
+  const { channels, handlers, ipcMain, isTrustedSender } = input;
 
-  ipcMain.handle(channels.getAppVersion, async () => {
+  function handleTrusted(
+    channel: string,
+    listener: (event: IpcInvokeEventLike, ...args: unknown[]) => unknown
+  ) {
+    ipcMain.handle(channel, async (event, ...args) => {
+      if (!isTrustedSender(event)) {
+        throw new Error("Blocked untrusted desktop IPC sender.");
+      }
+
+      return listener(event, ...args);
+    });
+  }
+
+  handleTrusted(channels.getAppVersion, async () => {
     return handlers.getAppVersion();
   });
 
-  ipcMain.handle(channels.getCurrentSession, async (event) => {
+  handleTrusted(channels.getCurrentSession, async (event) => {
     return handlers.getCurrentSession(event);
   });
 
-  ipcMain.handle(channels.listRecentSessions, async () => {
+  handleTrusted(channels.listRecentSessions, async () => {
     return handlers.listRecentSessions();
   });
 
-  ipcMain.handle(channels.reopenSession, async (_event, sessionId) => {
+  handleTrusted(channels.reopenSession, async (_event, sessionId) => {
     return handlers.reopenSession(sessionId as string);
   });
 
-  ipcMain.handle(channels.getWindowLabel, async (event) => {
+  handleTrusted(channels.getWindowLabel, async (event) => {
     return handlers.getWindowLabel(event);
   });
 
-  ipcMain.handle(channels.listWindows, async () => {
+  handleTrusted(channels.listWindows, async () => {
     return handlers.listWindows();
   });
 
-  ipcMain.handle(channels.openWindow, async (_event, openWindowInput) => {
+  handleTrusted(channels.openWindow, async (_event, openWindowInput) => {
     return handlers.openWindow(openWindowInput as OpenDesktopWindowInput | undefined);
   });
 
-  ipcMain.handle(channels.focusWindow, async (_event, windowId) => {
+  handleTrusted(channels.focusWindow, async (_event, windowId) => {
     return handlers.focusWindow(windowId as number);
   });
 
-  ipcMain.handle(channels.closeWindow, async (_event, windowId) => {
+  handleTrusted(channels.closeWindow, async (_event, windowId) => {
     return handlers.closeWindow(windowId as number);
   });
 
-  ipcMain.handle(channels.getTrayState, async () => {
+  handleTrusted(channels.getTrayState, async () => {
     return handlers.getTrayState();
   });
 
-  ipcMain.handle(channels.setTrayEnabled, async (_event, enabled) => {
+  handleTrusted(channels.setTrayEnabled, async (_event, enabled) => {
     return handlers.setTrayEnabled(enabled === true);
   });
 
-  ipcMain.handle(channels.showNotification, async (event, notificationInput) => {
+  handleTrusted(channels.showNotification, async (event, notificationInput) => {
     return handlers.showNotification(event, notificationInput as DesktopNotificationInput);
   });
 
-  ipcMain.handle(channels.openExternalUrl, async (_event, url) => {
+  handleTrusted(channels.openExternalUrl, async (_event, url) => {
     return handlers.openExternalUrl(url as string);
   });
 
-  ipcMain.handle(channels.revealItemInDir, async (_event, path) => {
+  handleTrusted(channels.revealItemInDir, async (_event, path) => {
     return handlers.revealItemInDir(path as string);
   });
 }
