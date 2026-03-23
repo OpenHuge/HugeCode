@@ -390,9 +390,9 @@ fn native_rpc_capabilities_payload() -> Value {
                 "resume": true,
             },
             "tooling": {
-                "plugins": true,
+                "plugins": false,
                 "tools": true,
-                "skills": true,
+                "skills": false,
             },
             "fallback": {
                 "threadLive": "polling",

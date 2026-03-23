@@ -530,17 +530,10 @@ pub(crate) fn runtime_update_scope_for_method(method: &str) -> Option<&'static [
             Some(&["threads", "agents", "bootstrap"])
         }
         "code_security_preflight_v1" => Some(&["tools", "agents"]),
-        "native_plugin_install"
-        | "native_plugin_uninstall"
-        | "native_plugin_update"
-        | "native_plugin_set_enabled" => Some(&["plugins"]),
         "native_tool_policy_upsert"
         | "native_tool_set_enabled"
         | "native_tool_secret_upsert"
         | "native_tool_secret_remove" => Some(&["tools"]),
-        "native_skill_upsert" | "native_skill_remove" | "native_skill_set_enabled" => {
-            Some(&["skills"])
-        }
         "native_theme_upsert" | "native_theme_remove" | "native_theme_set_active" => {
             Some(&["themes", "settings"])
         }

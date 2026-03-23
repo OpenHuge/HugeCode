@@ -444,6 +444,75 @@ impl RuntimeExtensionStore {
         extensions
     }
 
+    pub(crate) fn list_visible(
+        &self,
+        workspace_id: Option<&str>,
+    ) -> Vec<RuntimeExtensionSpecPayload> {
+        let mut extensions = Vec::new();
+        let mut seen = HashSet::new();
+
+        if let Some(workspace_id) = normalize_workspace_id(workspace_id) {
+            let mut workspace_entries = self
+                .entries
+                .values()
+                .filter(|entry| entry.workspace_id.as_deref() == Some(workspace_id.as_str()))
+                .map(RuntimeExtensionSpecRecord::to_payload)
+                .collect::<Vec<_>>();
+            workspace_entries.sort_by(|left, right| {
+                right
+                    .updated_at
+                    .cmp(&left.updated_at)
+                    .then_with(|| left.extension_id.cmp(&right.extension_id))
+            });
+            for entry in workspace_entries {
+                seen.insert(entry.extension_id.clone());
+                extensions.push(entry);
+            }
+        }
+
+        let mut global_entries = self
+            .entries
+            .values()
+            .filter(|entry| entry.workspace_id.is_none())
+            .map(RuntimeExtensionSpecRecord::to_payload)
+            .filter(|entry| seen.insert(entry.extension_id.clone()))
+            .collect::<Vec<_>>();
+        global_entries.sort_by(|left, right| {
+            right
+                .updated_at
+                .cmp(&left.updated_at)
+                .then_with(|| left.extension_id.cmp(&right.extension_id))
+        });
+        extensions.extend(global_entries);
+        extensions
+    }
+
+    fn record_for_lookup(
+        &self,
+        workspace_id: Option<&str>,
+        extension_id: &str,
+    ) -> Option<&RuntimeExtensionSpecRecord> {
+        let workspace_id = normalize_workspace_id(workspace_id);
+        if let Some(workspace_id) = workspace_id.as_deref() {
+            let workspace_key = extension_store_key(Some(workspace_id), extension_id);
+            if let Some(entry) = self.entries.get(workspace_key.as_str()) {
+                return Some(entry);
+            }
+        }
+        let global_key = extension_store_key(None, extension_id);
+        self.entries.get(global_key.as_str())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn get(
+        &self,
+        workspace_id: Option<&str>,
+        extension_id: &str,
+    ) -> Option<RuntimeExtensionSpecPayload> {
+        self.record_for_lookup(workspace_id, extension_id)
+            .map(RuntimeExtensionSpecRecord::to_payload)
+    }
+
     pub(crate) fn upsert_record(
         &mut self,
         input: RuntimeExtensionRecordInput,
@@ -577,7 +646,10 @@ impl RuntimeExtensionStore {
         enabled: bool,
     ) -> Option<RuntimeExtensionSpecPayload> {
         let workspace_id = normalize_workspace_id(workspace_id);
-        let key = extension_store_key(workspace_id.as_deref(), extension_id);
+        let mut key = extension_store_key(workspace_id.as_deref(), extension_id);
+        if !self.entries.contains_key(key.as_str()) && workspace_id.is_some() {
+            key = extension_store_key(None, extension_id);
+        }
         let entry = self.entries.get_mut(key.as_str())?;
         entry.enabled = enabled;
         entry.lifecycle_state = if enabled {
@@ -592,7 +664,14 @@ impl RuntimeExtensionStore {
     pub(crate) fn remove(&mut self, workspace_id: Option<&str>, extension_id: &str) -> bool {
         let workspace_id = normalize_workspace_id(workspace_id);
         let key = extension_store_key(workspace_id.as_deref(), extension_id);
-        self.entries.remove(&key).is_some()
+        if self.entries.remove(&key).is_some() {
+            return true;
+        }
+        if workspace_id.is_some() {
+            let global_key = extension_store_key(None, extension_id);
+            return self.entries.remove(&global_key).is_some();
+        }
+        false
     }
 
     pub(crate) fn tools(
@@ -600,10 +679,7 @@ impl RuntimeExtensionStore {
         workspace_id: Option<&str>,
         extension_id: &str,
     ) -> Option<Vec<RuntimeExtensionToolSummaryPayload>> {
-        let workspace_id = normalize_workspace_id(workspace_id);
-        let key = extension_store_key(workspace_id.as_deref(), extension_id);
-        self.entries
-            .get(key.as_str())
+        self.record_for_lookup(workspace_id, extension_id)
             .map(|entry| parse_tools_from_config(extension_id, &entry.config))
     }
 
@@ -613,10 +689,72 @@ impl RuntimeExtensionStore {
         extension_id: &str,
         resource_id: &str,
     ) -> Option<RuntimeExtensionResourceReadResponsePayload> {
-        let workspace_id = normalize_workspace_id(workspace_id);
-        let key = extension_store_key(workspace_id.as_deref(), extension_id);
-        self.entries
-            .get(key.as_str())
+        self.record_for_lookup(workspace_id, extension_id)
             .map(|entry| parse_resource_from_config(extension_id, resource_id, &entry.config))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn record_input(
+        extension_id: &str,
+        workspace_id: Option<&str>,
+        display_name: &str,
+    ) -> RuntimeExtensionRecordInput {
+        RuntimeExtensionRecordInput {
+            extension_id: extension_id.to_string(),
+            version: Some("1.0.0".to_string()),
+            display_name: Some(display_name.to_string()),
+            publisher: Some("HugeCode".to_string()),
+            summary: Some("Runtime extension".to_string()),
+            kind: Some("host".to_string()),
+            distribution: Some("workspace".to_string()),
+            transport: "host-native".to_string(),
+            lifecycle_state: Some("enabled".to_string()),
+            enabled: true,
+            workspace_id: workspace_id.map(ToString::to_string),
+            capabilities: vec!["tools".to_string()],
+            permissions: Vec::new(),
+            ui_apps: Vec::new(),
+            provenance: Some(json!({})),
+            config: Some(json!({})),
+        }
+    }
+
+    #[test]
+    fn list_visible_prefers_workspace_entries_and_includes_global_fallbacks() {
+        let mut store = RuntimeExtensionStore::default();
+        store.upsert_record(record_input("plugin-a", None, "Global Plugin A"));
+        store.upsert_record(record_input("plugin-b", None, "Global Plugin B"));
+        store.upsert_record(record_input("plugin-a", Some("ws-1"), "Workspace Plugin A"));
+
+        let visible = store.list_visible(Some("ws-1"));
+        assert_eq!(visible.len(), 2);
+        assert_eq!(visible[0].extension_id, "plugin-a");
+        assert_eq!(visible[0].display_name, "Workspace Plugin A");
+        assert_eq!(visible[1].extension_id, "plugin-b");
+        assert_eq!(visible[1].display_name, "Global Plugin B");
+
+        let resolved = store
+            .get(Some("ws-1"), "plugin-b")
+            .expect("global fallback should resolve");
+        assert_eq!(resolved.display_name, "Global Plugin B");
+    }
+
+    #[test]
+    fn set_enabled_and_remove_fall_back_to_global_scope() {
+        let mut store = RuntimeExtensionStore::default();
+        store.upsert_record(record_input("plugin-a", None, "Global Plugin A"));
+
+        let updated = store
+            .set_enabled(Some("ws-1"), "plugin-a", false)
+            .expect("global record should be updated from workspace lookup");
+        assert!(!updated.enabled);
+        assert_eq!(updated.lifecycle_state, "installed");
+
+        assert!(store.remove(Some("ws-1"), "plugin-a"));
+        assert!(store.get(None, "plugin-a").is_none());
     }
 }
