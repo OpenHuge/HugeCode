@@ -498,9 +498,14 @@
         }
       }
 
+      const FIGMA_PARENT_ORIGIN = "https://www.figma.com";
+
       exportButton.addEventListener("click", () => {
         const target = targetInput.value.trim();
-        parent.postMessage({ pluginMessage: { type: "export-selection", target } }, "*");
+        parent.postMessage(
+          { pluginMessage: { type: "export-selection", target } },
+          FIGMA_PARENT_ORIGIN
+        );
         setStatus(
           target.length > 0 ? `Exporting target ${target}...` : "Exporting current selection..."
         );
@@ -509,10 +514,10 @@
       downloadButton.addEventListener("click", downloadPayload);
       sendButton.addEventListener("click", sendPayload);
       closeButton.addEventListener("click", () => {
-        parent.postMessage({ pluginMessage: { type: "close" } }, "*");
+        parent.postMessage({ pluginMessage: { type: "close" } }, FIGMA_PARENT_ORIGIN);
       });
       refreshInspectorButton.addEventListener("click", () => {
-        parent.postMessage({ pluginMessage: { type: "refresh-selection" } }, "*");
+        parent.postMessage({ pluginMessage: { type: "refresh-selection" } }, FIGMA_PARENT_ORIGIN);
       });
       tokenSearchInput.addEventListener("input", () => {
         renderSearchResults(tokenSearchInput.value);
