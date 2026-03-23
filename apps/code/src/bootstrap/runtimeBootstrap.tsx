@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { detectDesktopRuntimeHost } from "../application/runtime/ports/tauriEnvironment";
+import { detectDesktopRuntimeHost } from "../application/runtime/facades/desktopHostFacade";
 import {
   getDesktopArchitectureTag,
   getDesktopPlatformArchitectureTag,

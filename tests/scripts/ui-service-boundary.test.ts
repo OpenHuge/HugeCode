@@ -62,6 +62,19 @@ describe("ui service boundary guard", () => {
     ]);
   });
 
+  it("rejects direct desktop host adapter port imports in product code", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/about/components/AboutView.tsx",
+      'import { resolveAppVersion } from "../../../application/runtime/ports/tauriEnvironment";\n'
+    );
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        rule: "desktop-host-facade-only",
+      }),
+    ]);
+  });
+
   it("rejects direct desktop host global access in UI code", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/example/hooks/useExample.ts",

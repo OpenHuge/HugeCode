@@ -2,7 +2,7 @@ import { type MouseEvent, useCallback } from "react";
 import { isTauri } from "../../../application/runtime/ports/tauriCore";
 import { LogicalPosition } from "../../../application/runtime/ports/tauriDpi";
 import { Menu, MenuItem } from "../../../application/runtime/ports/tauriMenu";
-import { revealItemInDir } from "../../../application/runtime/ports/tauriOpener";
+import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import { getCurrentWindow } from "../../../application/runtime/ports/tauriWindow";
 import type { WorkspaceInfo } from "../../../types";

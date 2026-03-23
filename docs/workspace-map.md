@@ -17,6 +17,9 @@ Interpret this carefully:
   shell in this repo.
 - `packages/code-workspace-client` is the canonical shared workspace-client
   layer consumed by both the web and desktop shells.
+- `packages/code-application` is the shared application-layer package for
+  orchestration and host-agnostic desktop/web use cases. Keep it free of
+  direct Tauri and Electron imports.
 - `packages/code-platform-interfaces` is the shared capability-contract layer
   for desktop and web host adapters. Keep it free of concrete Tauri and
   Electron runtime imports.
@@ -47,6 +50,7 @@ Interpret this carefully:
 | ---------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
 | Runtime protocol       | `packages/code-runtime-host-contract`, `packages/native-runtime-host-contract` | Shared runtime transport types, method sets, spec generation     |
 | Runtime implementation | `packages/code-runtime-service-rs`                                             | Rust Axum service, orchestration, event stream, health/readiness |
+| Application layer      | `packages/code-application`                                                    | Shared orchestration, facades, and host-agnostic use cases       |
 | Shared workspace app   | `packages/code-workspace-client`                                               | Shared workspace boot, bindings contract, and shell adapters     |
 | Platform contracts     | `packages/code-platform-interfaces`                                            | Shared capability types and host bridge contracts                |
 | Shared UI foundation   | `packages/design-system`                                                       | Tokens and active code-workspace UI foundations                  |
@@ -67,6 +71,7 @@ Treat these as the product-defining core:
 Treat these as supporting layers for the core product, not separate app narratives:
 
 - `packages/code-workspace-client`
+- `packages/code-application`
 - `packages/code-platform-interfaces`
 - `packages/design-system`
 - `packages/shared`

@@ -1,10 +1,7 @@
 import type { WorkspaceClientBindings } from "@ku0/code-workspace-client";
 import { WorkspaceRuntimeShell } from "@ku0/code-workspace-client/runtime-shell";
+import { openUrl, showDesktopNotification } from "../application/runtime/facades/desktopHostFacade";
 import { createRuntimeKernel } from "../application/runtime/kernel/createRuntimeKernel";
-import {
-  openExternalUrlWithFallback,
-  showDesktopNotification,
-} from "../application/runtime/ports/tauriEnvironment";
 import { desktopSettingsShellFraming } from "../features/settings/components/desktopSettingsShellFraming";
 import { waitForCodexOauthBinding } from "../features/settings/components/sections/settings-codex-accounts-card/codexOauthBinding";
 import { desktopWorkspaceNavigation } from "../features/workspaces/hooks/workspaceRoute";
@@ -22,7 +19,7 @@ export function createDesktopWorkspaceClientBindings(
       platform: "desktop",
       intents: {
         openOauthAuthorizationUrl: async (url) => {
-          await openExternalUrlWithFallback(url);
+          await openUrl(url);
         },
         createOauthPopupWindow: () => null,
         waitForOauthBinding: async (workspaceId, baselineUpdatedAt) =>

@@ -1,7 +1,3 @@
-import { toSafeExternalUrl } from "@ku0/shared";
-import type { DesktopShellCapability } from "@ku0/code-platform-interfaces";
-import { getDesktopHostBridge } from "./desktopHostBridge";
-
 type TauriOpenerModule = {
   openUrl: (url: string) => Promise<void>;
   revealItemInDir: (path: string) => Promise<void>;
@@ -25,60 +21,24 @@ async function loadTauriOpener() {
   return cachedTauriOpenerPromise;
 }
 
-function resolveDesktopShellCapability(): DesktopShellCapability | null {
-  return getDesktopHostBridge()?.shell ?? null;
-}
-
-export async function openUrl(url: string) {
-  const safeUrl = toSafeExternalUrl(url);
-  if (!safeUrl) {
-    throw new Error("Blocked unsafe external URL.");
-  }
-
-  try {
-    const desktopShell = resolveDesktopShellCapability();
-    const openResult = await desktopShell?.openExternalUrl?.(safeUrl);
-    if (desktopShell?.openExternalUrl && openResult !== false) {
-      return;
-    }
-  } catch {
-    // Fall through to the Tauri loader and browser fallback.
-  }
-
+export async function openTauriUrl(url: string) {
   const opener = await loadTauriOpener();
   if (opener?.openUrl) {
-    await opener.openUrl(safeUrl);
-    return;
+    await opener.openUrl(url);
+    return true;
   }
 
-  if (typeof window !== "undefined" && typeof window.open === "function") {
-    const popup = window.open(safeUrl, "_blank", "noopener,noreferrer");
-    if (popup !== null) {
-      return;
-    }
-  }
-
-  throw new Error("Desktop external-url opener unavailable.");
+  return false;
 }
 
-export async function revealItemInDir(path: string) {
-  try {
-    const desktopShell = resolveDesktopShellCapability();
-    const revealResult = await desktopShell?.revealItemInDir?.(path);
-    if (desktopShell?.revealItemInDir && revealResult !== false) {
-      return;
-    }
-  } catch {
-    // Fall through to the Tauri loader.
-  }
-
+export async function revealTauriItemInDir(path: string) {
   const opener = await loadTauriOpener();
   if (opener?.revealItemInDir) {
     await opener.revealItemInDir(path);
-    return;
+    return true;
   }
 
-  throw new Error("Desktop reveal-in-directory bridge unavailable.");
+  return false;
 }
 
 export function __setTauriOpenerLoaderForTests(loader: TauriOpenerLoader) {

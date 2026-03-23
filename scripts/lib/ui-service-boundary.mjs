@@ -280,6 +280,15 @@ const VIOLATION_RULES = [
       filePath === "apps/code/src/web/createDesktopWorkspaceClientBindings.tsx",
   },
   {
+    id: "desktop-host-facade-only",
+    description:
+      "product code must use `application/runtime/facades/desktopHostFacade` instead of importing desktop host adapter ports directly",
+    pattern:
+      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/(?:tauriEnvironment|tauriOpener)["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/(?:tauriEnvironment|tauriOpener)["'])/u,
+    appliesTo: (filePath) =>
+      (isUiBoundaryFile(filePath) || isNonUiAppProductFile(filePath)) && !isUiTestFile(filePath),
+  },
+  {
     id: "runtime-webmcp-type-surface",
     description:
       "type-only imports must use `application/runtime/types/webMcpBridge` instead of the behavior port",
