@@ -7,6 +7,7 @@ import {
   setAppTheme,
   stabilizeVisualSnapshot,
   waitForAppBootFallbackToClear,
+  waitForSharedShellMissionSummaryToSettle,
   waitForWorkspaceShell,
 } from "./helpers";
 
@@ -24,6 +25,7 @@ for (const theme of THEMES) {
 
     const shellReady = await waitForWorkspaceShell(page, 20_000);
     expect(shellReady).toBe(true);
+    await waitForSharedShellMissionSummaryToSettle(page);
 
     await setAppTheme(page, theme);
 
