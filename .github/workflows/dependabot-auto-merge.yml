@@ -1,0 +1,46 @@
+name: Dependabot Auto Merge
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  enable_auto_merge:
+    name: Enable auto-merge for low-risk Dependabot groups
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+
+      - name: Enable auto-merge
+        if: >-
+          steps.metadata.outputs.dependency-group == 'devcontainers-safe' ||
+          steps.metadata.outputs.dependency-group == 'github-actions-safe'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"
+
+      - name: Skip manual-review updates
+        if: >-
+          steps.metadata.outputs.dependency-group != 'devcontainers-safe' &&
+          steps.metadata.outputs.dependency-group != 'github-actions-safe'
+        run: |
+          echo "Keeping Dependabot PR on manual review."
+          echo "dependency-group=${{ steps.metadata.outputs.dependency-group }}"
+          echo "update-type=${{ steps.metadata.outputs.update-type }}"
+          echo "dependency-type=${{ steps.metadata.outputs.dependency-type }}"

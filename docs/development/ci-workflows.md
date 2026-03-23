@@ -22,6 +22,16 @@ Key reusable mappings currently in use:
 - `.github/workflows/_reusable-desktop-build-pr.yml`
 - `.github/workflows/_reusable-desktop-build-release.yml`
 
+Public workflow entrypoints currently include:
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/codeql.yml`
+- `.github/workflows/codex-nightly.yml`
+- `.github/workflows/dependabot-auto-merge.yml`
+- `.github/workflows/desktop.yml`
+- `.github/workflows/nightly.yml`
+- `.github/workflows/release.yml`
+
 ## Rules
 
 - Public workflows should compose reusable workflows instead of duplicating job definitions.
@@ -29,3 +39,4 @@ Key reusable mappings currently in use:
 - Workflow docs must stay aligned with `scripts/check-workflow-governance.mjs`.
 - Shared Node/pnpm bootstrap should stay lockfile-first: prefetch with `pnpm fetch --frozen-lockfile`, then install with `pnpm install --offline --frozen-lockfile` unless a workflow has a documented reason to require a different install path.
 - Desktop build lanes must install both `@ku0/code...` and `@ku0/code-tauri...` so Tauri `beforeBuildCommand` can build the frontend app without relying on a full workspace install.
+- Dependabot auto-merge must stay selective: only low-risk grouped updates such as `devcontainers-safe` and `github-actions-safe` should auto-enable merge after checks pass; runtime, frontend, and Rust dependency bumps remain manual-review lanes.

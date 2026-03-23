@@ -8,6 +8,14 @@ updates:
       time: "03:30"
       timezone: "UTC"
     open-pull-requests-limit: 5
+    groups:
+      devcontainers-safe:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
     labels:
       - "dependencies"
 
@@ -30,6 +38,14 @@ updates:
       time: "04:30"
       timezone: "UTC"
     open-pull-requests-limit: 10
+    groups:
+      github-actions-safe:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
     labels:
       - "dependencies"
 
