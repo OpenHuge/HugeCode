@@ -18,13 +18,12 @@
 ## Windows support
 
 - Run `pnpm desktop:doctor:windows` before local Windows build/verify work. It checks MSVC, Windows SDK, Rust target, PowerShell, and WebView2 presence.
-- Run `pnpm desktop:verify:windows` for x64 and `pnpm desktop:verify:windows:arm64` for ARM64 before release-sensitive Windows changes.
+- Run `pnpm desktop:verify:windows` for the supported x64 Windows verification path before release-sensitive Windows changes.
 - Use `pnpm desktop:build:windows` for the default x64 NSIS installer and `pnpm desktop:build:windows:msi` when enterprise MSI deployment is needed.
-- Use `pnpm desktop:build:windows:arm64` for the default ARM64 NSIS installer.
 - Use `pnpm desktop:build:windows:store` for Store/offline distribution. That command layers `src-tauri/tauri.windows.store.conf.json` on top of the base Tauri config and switches WebView2 to offline installer mode.
-- Use `pnpm desktop:build:windows:arm64:store` for ARM64 Store/offline distribution.
 - Base Windows bundles use `embedBootstrapper` WebView2 mode to reduce first-run install failures on developer and end-user machines.
-- CI desktop coverage stays asymmetric by design: PRs verify macOS Apple Silicon, Windows x64, Windows ARM64, and Linux x64, while release builds add macOS Intel and Linux ARM64 packaging.
+- Windows ARM64 packaging remains best-effort local work only until upstream Node/runtime dependencies add reliable `win32 arm64` support.
+- CI desktop coverage stays asymmetric by design: PRs verify macOS Apple Silicon, Windows x64, and Linux x64, while release builds add macOS Intel and Linux ARM64 packaging.
 
 ## Build cache tuning
 
