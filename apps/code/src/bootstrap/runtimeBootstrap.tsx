@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { detectTauriRuntime } from "../application/runtime/ports/tauriEnvironment";
+import { detectDesktopRuntimeHost } from "../application/runtime/ports/tauriEnvironment";
 import {
   getDesktopArchitectureTag,
   getDesktopPlatformArchitectureTag,
@@ -205,7 +205,10 @@ export async function applyRuntimeFlags() {
   if (typeof document === "undefined") {
     return;
   }
-  document.documentElement.dataset.tauriRuntime = (await detectTauriRuntime()) ? "true" : "false";
+  const runtimeHost = await detectDesktopRuntimeHost();
+  document.documentElement.dataset.desktopRuntime = runtimeHost;
+  document.documentElement.dataset.tauriRuntime = runtimeHost === "tauri" ? "true" : "false";
+  document.documentElement.dataset.electronRuntime = runtimeHost === "electron" ? "true" : "false";
 }
 
 export function resetRuntimeBootstrapStateForTest() {

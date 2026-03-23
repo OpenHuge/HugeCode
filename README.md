@@ -92,6 +92,7 @@ The active engineering center of this repo is:
 - `apps/code`: primary React 19 + Vite coding workspace UI
 - `apps/code-web`: Cloudflare platform web implementation for public routes, SSR, and deploy wiring
 - `apps/code-tauri`: desktop container and host bridge
+- `apps/code-electron`: experimental Electron desktop shell around the shared `apps/code` renderer
 - `packages/code-workspace-client`: shared workspace client boot and compatibility adapters for web and desktop shells
 - `packages/code-runtime-service-rs`: Rust-first runtime orchestrator
 - `packages/code-runtime-host-contract`: canonical TypeScript runtime contract
@@ -127,6 +128,7 @@ Useful entrypoints:
 - `pnpm dev:code:ui`: Vite UI only
 - `pnpm dev:code:service`: runtime service only
 - `pnpm desktop:prepare:fast && pnpm dev:desktop`: Tauri desktop flow
+- `pnpm desktop:electron:dev`: Electron desktop shell flow
 
 ## Validation
 

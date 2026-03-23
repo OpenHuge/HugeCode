@@ -1,0 +1,22 @@
+{
+  "name": "@ku0/code-electron",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist-electron/main/main.js",
+  "scripts": {
+    "build:main": "tsc --project tsconfig.build.json",
+    "build:renderer": "pnpm -C ../code exec vite build && node ./scripts/prepare-renderer.mjs",
+    "dev": "node ./scripts/dev.mjs",
+    "build": "pnpm run build:main && pnpm run build:renderer",
+    "package": "pnpm run build && node ./scripts/package.mjs",
+    "make": "pnpm run package",
+    "lint": "pnpm -C ../.. exec oxlint apps/code-electron/src apps/code-electron/scripts",
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "electron": "41.0.3",
+    "vitest": "^4.1.0"
+  }
+}

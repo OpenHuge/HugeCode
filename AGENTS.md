@@ -39,15 +39,15 @@ A task is not done until the agent has, within the task scope:
 
 ## Project Overview
 
-| Item      | Detail                                                                                                         |
-| --------- | -------------------------------------------------------------------------------------------------------------- |
-| Stack     | TypeScript, React 19, pnpm 10 monorepo, Turbo, Vite, Rust (native accelerators)                                |
-| Namespace | `@ku0/*` (TS) and `ku0-*` (Rust crates)                                                                        |
-| Core App  | `apps/code` (UI) + `apps/code-tauri` (Tauri runtime container)                                                 |
-| CRDT      | Loro only; never add Yjs                                                                                       |
-| Styling   | `vanilla-extract` (`.css.ts`) + CSS custom properties across active UI surfaces; no Tailwind, no inline styles |
-| Linter    | Oxlint (TS/JS/JSX) and Clippy (Rust)                                                                           |
-| Formatter | `pnpm format` (Oxfmt) and `cargo fmt` (Rust)                                                                   |
+| Item      | Detail                                                                                                              |
+| --------- | ------------------------------------------------------------------------------------------------------------------- |
+| Stack     | TypeScript, React 19, pnpm 10 monorepo, Turbo, Vite, Rust (native accelerators)                                     |
+| Namespace | `@ku0/*` (TS) and `ku0-*` (Rust crates)                                                                             |
+| Core App  | `apps/code` (UI) + `apps/code-tauri` (Tauri runtime container) + `apps/code-electron` (experimental Electron shell) |
+| CRDT      | Loro only; never add Yjs                                                                                            |
+| Styling   | `vanilla-extract` (`.css.ts`) + CSS custom properties across active UI surfaces; no Tailwind, no inline styles      |
+| Linter    | Oxlint (TS/JS/JSX) and Clippy (Rust)                                                                                |
+| Formatter | `pnpm format` (Oxfmt) and `cargo fmt` (Rust)                                                                        |
 
 ## Architecture
 
@@ -59,6 +59,7 @@ A task is not done until the agent has, within the task scope:
 apps/
   code/                       # Core coding app (Vite + React 19)
   code-tauri/                 # Desktop runtime container (Tauri v2)
+  code-electron/              # Experimental Electron shell around apps/code
 
 packages/
   code-workspace-client/      # Shared workspace boot/bindings layer for web + desktop shells

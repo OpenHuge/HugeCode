@@ -1,8 +1,11 @@
 import type { WorkspaceClientBindings } from "@ku0/code-workspace-client";
 import { WorkspaceRuntimeShell } from "@ku0/code-workspace-client/runtime-shell";
 import { createRuntimeKernel } from "../application/runtime/kernel/createRuntimeKernel";
+import {
+  openExternalUrlWithFallback,
+  showDesktopNotification,
+} from "../application/runtime/ports/tauriEnvironment";
 import { desktopSettingsShellFraming } from "../features/settings/components/desktopSettingsShellFraming";
-import { openUrl } from "../application/runtime/ports/tauriOpener";
 import { waitForCodexOauthBinding } from "../features/settings/components/sections/settings-codex-accounts-card/codexOauthBinding";
 import { desktopWorkspaceNavigation } from "../features/workspaces/hooks/workspaceRoute";
 import DesktopWorkspaceSurface from "./DesktopWorkspaceSurface";
@@ -19,7 +22,7 @@ export function createDesktopWorkspaceClientBindings(
       platform: "desktop",
       intents: {
         openOauthAuthorizationUrl: async (url) => {
-          await openUrl(url);
+          await openExternalUrlWithFallback(url);
         },
         createOauthPopupWindow: () => null,
         waitForOauthBinding: async (workspaceId, baselineUpdatedAt) =>
@@ -35,7 +38,12 @@ export function createDesktopWorkspaceClientBindings(
       },
       notifications: {
         testSound: () => undefined,
-        testSystemNotification: () => undefined,
+        testSystemNotification: () => {
+          void showDesktopNotification({
+            title: "HugeCode desktop notifications",
+            body: "Electron desktop notifications are connected.",
+          });
+        },
       },
       shell: {
         platformHint: "desktop",
