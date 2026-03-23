@@ -19,6 +19,8 @@ import {
   type ModelProvider,
   type RuntimeRunPrepareV2Request,
   type RuntimeRunPrepareV2Response,
+  type RuntimeRunGetV2Request,
+  type RuntimeRunGetV2Response,
   type RuntimeRunStartRequest,
   type RuntimeRunStartV2Response,
   type RuntimeReviewGetV2Request,
@@ -99,6 +101,12 @@ export async function startRuntimeRunV2(
   request: RuntimeRunStartRequest
 ): Promise<RuntimeRunStartV2Response> {
   return getRuntimeClient().runtimeRunStartV2(request);
+}
+
+export async function getRuntimeRunV2(
+  request: RuntimeRunGetV2Request
+): Promise<RuntimeRunGetV2Response> {
+  return getRuntimeClient().runtimeRunGetV2(request);
 }
 
 export async function getRuntimeReviewV2(

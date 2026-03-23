@@ -18,6 +18,8 @@ export type {
   KernelJobSubscribeRequestV3,
   RuntimeRunPrepareV2Request,
   RuntimeRunPrepareV2Response,
+  RuntimeRunGetV2Request,
+  RuntimeRunGetV2Response,
   RuntimeRunStartRequest,
   RuntimeRunStartV2Response,
   RuntimeRunCancelAck,
@@ -34,6 +36,7 @@ export type {
 } from "../../../services/tauriRuntimeJobsBridge";
 export {
   cancelRuntimeJob,
+  getRuntimeRunV2,
   getRuntimeReviewV2,
   submitRuntimeJobApprovalDecision,
   getRuntimeJob,
