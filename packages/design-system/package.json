@@ -51,7 +51,7 @@
   },
   "devDependencies": {
     "@terrazzo/cli": "^2.0.0",
-    "@terrazzo/plugin-css": "^0.10.4",
+    "@terrazzo/plugin-css": "^2.0.0",
     "@terrazzo/plugin-js": "^2.0.0",
     "@terrazzo/plugin-vanilla-extract": "^0.2.2",
     "@types/react": "^19.2.14",
