@@ -6,6 +6,10 @@ on:
       ci_required:
         required: true
         type: boolean
+      skip_expensive_checks:
+        required: false
+        type: boolean
+        default: false
       base_ref:
         required: false
         type: string
@@ -25,28 +29,32 @@ jobs:
         if: ${{ !inputs.ci_required }}
         run: echo "Skipping affected build/tests for non-code changes."
 
+      - name: Skip affected build/tests for low-risk Dependabot update
+        if: ${{ inputs.ci_required && inputs.skip_expensive_checks }}
+        run: echo "Skipping affected build/tests for low-risk Dependabot dependency update."
+
       - uses: ./.github/actions/setup-node-pnpm
-        if: inputs.ci_required
+        if: inputs.ci_required && !inputs.skip_expensive_checks
         with:
           install-command: pnpm install --offline --frozen-lockfile
 
-      - if: inputs.ci_required
+      - if: inputs.ci_required && !inputs.skip_expensive_checks
         uses: ./.github/actions/cache-turbo
 
       - name: Ensure PR base ref is available
-        if: inputs.ci_required
+        if: inputs.ci_required && !inputs.skip_expensive_checks
         run: |
           git fetch --no-tags --prune --depth=1 origin \
             +refs/heads/${{ inputs.base_ref }}:refs/remotes/origin/${{ inputs.base_ref }}
 
       - name: Build (affected)
-        if: inputs.ci_required
+        if: inputs.ci_required && !inputs.skip_expensive_checks
         env:
           TURBO_BASE_REF: origin/${{ inputs.base_ref }}
         run: pnpm build:affected -- --filter=!@ku0/code-tauri
 
       - name: Tests (affected)
-        if: inputs.ci_required
+        if: inputs.ci_required && !inputs.skip_expensive_checks
         env:
           TURBO_BASE_REF: origin/${{ inputs.base_ref }}
         run: pnpm test:affected -- --filter=!@ku0/code-tauri
