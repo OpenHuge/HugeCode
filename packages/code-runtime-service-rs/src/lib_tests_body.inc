@@ -82,7 +82,7 @@
             ws_max_frame_size_bytes: DEFAULT_RUNTIME_WS_MAX_FRAME_SIZE_BYTES,
             ws_max_message_size_bytes: DEFAULT_RUNTIME_WS_MAX_MESSAGE_SIZE_BYTES,
             ws_max_connections: DEFAULT_RUNTIME_WS_MAX_CONNECTIONS,
-            provider_extensions: Vec::new(),
+            provider_extension_seeds: Vec::new(),
         }
     }
 
@@ -1414,8 +1414,8 @@
     }
 
     #[test]
-    fn parse_runtime_provider_extensions_parses_valid_payload() {
-        let parsed = parse_runtime_provider_extensions(Some(
+    fn parse_provider_extension_seeds_parses_valid_payload() {
+        let parsed = parse_provider_extension_seeds(Some(
             r#"[{
                 "providerId":"deepseek",
                 "displayName":"DeepSeek",
@@ -1437,8 +1437,8 @@
     }
 
     #[test]
-    fn parse_runtime_provider_extensions_rejects_core_alias_collisions() {
-        let result = parse_runtime_provider_extensions(Some(
+    fn parse_provider_extension_seeds_rejects_core_alias_collisions() {
+        let result = parse_provider_extension_seeds(Some(
             r#"[{
                 "providerId":"openai",
                 "displayName":"Invalid",
@@ -1451,8 +1451,8 @@
     }
 
     #[test]
-    fn parse_runtime_provider_extensions_rejects_extension_alias_collisions() {
-        let result = parse_runtime_provider_extensions(Some(
+    fn parse_provider_extension_seeds_rejects_extension_alias_collisions() {
+        let result = parse_provider_extension_seeds(Some(
             r#"[{
                 "providerId":"deepseek",
                 "displayName":"DeepSeek",
@@ -3917,7 +3917,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
 
@@ -3956,7 +3956,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
 
@@ -4005,7 +4005,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-v2-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
 
@@ -7973,7 +7973,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
 
@@ -14433,7 +14433,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
         let request = Request::builder()
@@ -14491,7 +14491,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
         let request = Request::builder()
@@ -14536,7 +14536,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
         let request = Request::builder()
@@ -14584,7 +14584,7 @@
         let mut extension = test_extension_provider(base_url.as_str(), "deepseek-key");
         extension.api_key = None;
         extension.api_key_env = "DEEPSEEK_API_KEY".to_string();
-        config.provider_extensions = vec![extension];
+        config.provider_extension_seeds = vec![extension];
         let app = test_router_with_config(config);
         let request = Request::builder()
             .method("POST")
@@ -14634,7 +14634,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-v2-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
 
@@ -14756,7 +14756,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
 

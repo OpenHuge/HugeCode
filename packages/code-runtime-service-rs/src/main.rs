@@ -13,7 +13,7 @@ use code_runtime_service_rs::oauth_pool::{
 };
 use code_runtime_service_rs::{
     build_router_from_runtime_app_state, build_runtime_app_state_from_env, create_initial_state,
-    parse_runtime_provider_extensions, validate_service_config, ServiceConfig,
+    parse_provider_extension_seeds, validate_service_config, ServiceConfig,
     DEFAULT_AGENT_MAX_CONCURRENT_TASKS, DEFAULT_AGENT_TASK_HISTORY_LIMIT,
     DEFAULT_ANTHROPIC_ENDPOINT, DEFAULT_ANTHROPIC_VERSION, DEFAULT_DISCOVERY_BROWSE_INTERVAL_MS,
     DEFAULT_DISCOVERY_SERVICE_TYPE, DEFAULT_DISCOVERY_STALE_TTL_MS,
@@ -542,8 +542,8 @@ async fn main() -> anyhow::Result<()> {
     let address: SocketAddr = format!("{}:{}", cli.host, cli.port)
         .parse()
         .with_context(|| "Failed to parse CODE_RUNTIME_SERVICE_HOST/CODE_RUNTIME_SERVICE_PORT")?;
-    let provider_extensions =
-        parse_runtime_provider_extensions(cli.provider_extensions_json.as_deref())
+    let provider_extension_seeds =
+        parse_provider_extension_seeds(cli.provider_extensions_json.as_deref())
             .map_err(anyhow::Error::msg)
             .with_context(|| "Failed to parse provider extension configuration")?;
     let resolved_oauth_secret_key = resolve_oauth_secret_key(cli.oauth_secret_key.clone())?;
@@ -612,7 +612,7 @@ CODE_RUNTIME_SERVICE_OAUTH_SECRET_KEY (or delete the persisted key file to regen
         ws_max_frame_size_bytes: cli.ws_max_frame_size_bytes,
         ws_max_message_size_bytes: cli.ws_max_message_size_bytes,
         ws_max_connections: cli.ws_max_connections,
-        provider_extensions,
+        provider_extension_seeds,
     };
     prepare_oauth_pool_db_path_for_startup(Path::new(config.oauth_pool_db_path.as_str()))?;
     let validation = validate_service_config(&config);
@@ -706,7 +706,7 @@ mod tests {
             ws_max_frame_size_bytes: DEFAULT_RUNTIME_WS_MAX_FRAME_SIZE_BYTES,
             ws_max_message_size_bytes: DEFAULT_RUNTIME_WS_MAX_MESSAGE_SIZE_BYTES,
             ws_max_connections: DEFAULT_RUNTIME_WS_MAX_CONNECTIONS,
-            provider_extensions: Vec::new(),
+            provider_extension_seeds: Vec::new(),
         }
     }
 

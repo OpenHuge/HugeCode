@@ -35,7 +35,7 @@ fn provider_extension_seed_by_id<'a>(
     extension_id: &str,
 ) -> Option<&'a RuntimeProviderExtension> {
     ctx.config
-        .provider_extensions
+        .provider_extension_seeds
         .iter()
         .find(|extension| extension.provider_id == extension_id)
 }
@@ -390,7 +390,7 @@ pub(super) fn normalize_extension_api_key(
         .filter(|entry| !entry.is_empty())
 }
 
-pub fn parse_runtime_provider_extensions(
+pub fn parse_provider_extension_seeds(
     raw: Option<&str>,
 ) -> Result<Vec<RuntimeProviderExtension>, String> {
     let Some(raw) = raw.map(str::trim).filter(|entry| !entry.is_empty()) else {

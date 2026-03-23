@@ -15,7 +15,7 @@ mod transport_router_builder;
 
 pub use embedded_runtime::*;
 pub use embedded_runtime_context_sync::EmbeddedRuntimeContextScope;
-pub use config_provider_resolution::parse_runtime_provider_extensions;
+pub use config_provider_resolution::parse_provider_extension_seeds;
 pub use config_service_config_views::ServiceConfigViews;
 pub(crate) use config_provider_resolution::*;
 pub(crate) use rpc_capabilities::*;
@@ -430,7 +430,7 @@ pub fn validate_service_config(config: &ServiceConfig) -> ConfigValidation {
     }
     let mut seen_extension_provider_ids = std::collections::HashSet::new();
     let mut seen_extension_aliases = std::collections::HashSet::new();
-    for extension in &config.provider_extensions {
+    for extension in &config.provider_extension_seeds {
         if !seen_extension_provider_ids.insert(extension.provider_id.clone()) {
             validation.errors.push(format!(
                 "Duplicate provider extension id `{}`.",
