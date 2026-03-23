@@ -1,4 +1,5 @@
 import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/tauriOauth";
+import { clearActiveOauthPopupLoginId, setActiveOauthPopupLoginId } from "./oauthHelpers";
 
 export type CodexOAuthAction =
   | {
@@ -31,6 +32,7 @@ export class CodexOAuthSyncNotDetectedError extends Error {
 }
 
 type CodexLoginResult = {
+  loginId: string;
   authUrl: string;
   immediateSuccess?: boolean;
 };
@@ -99,11 +101,12 @@ export async function launchCodexOAuthFlow(
       workspaces,
       defaultWorkspaceId: input.defaultWorkspaceId,
     });
-    const { authUrl, immediateSuccess } = await deps.runCodexLogin(workspaceId, {
+    const { authUrl, immediateSuccess, loginId } = await deps.runCodexLogin(workspaceId, {
       forceOAuth: true,
     });
 
     if (immediateSuccess) {
+      clearActiveOauthPopupLoginId();
       closePopupWindow(popup);
       await deps.refreshOAuthState();
       return {
@@ -112,12 +115,14 @@ export async function launchCodexOAuthFlow(
       };
     }
 
+    setActiveOauthPopupLoginId(loginId);
     await deps.openOAuthUrl(authUrl, popup);
 
     return {
       workspaceId,
       pendingSync: (async () => {
         const synced = await deps.waitForCodexOauthBinding(workspaceId, input.baselineUpdatedAt);
+        clearActiveOauthPopupLoginId();
         if (!synced) {
           throw new CodexOAuthSyncNotDetectedError();
         }
@@ -125,6 +130,7 @@ export async function launchCodexOAuthFlow(
       })(),
     };
   } catch (error) {
+    clearActiveOauthPopupLoginId();
     closePopupWindow(popup);
     throw error;
   }

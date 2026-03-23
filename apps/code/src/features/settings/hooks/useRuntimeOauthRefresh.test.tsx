@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 
 import { useEffect, useState } from "react";
-import { act, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  readActiveOauthPopupLoginId,
+  setActiveOauthPopupLoginId,
+} from "../components/sections/settings-codex-accounts-card/oauthHelpers";
 import { subscribeAppServerEvents } from "../../../application/runtime/ports/events";
 import {
   type RuntimeUpdatedEvent,
@@ -66,7 +70,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cleanup();
   vi.clearAllMocks();
+  setActiveOauthPopupLoginId(null);
 });
 
 function emitRuntimeUpdatedOauth(params: Record<string, unknown>) {
@@ -172,6 +178,7 @@ describe("useOauthPopupRefresh", () => {
   it("refreshes on successful OAuth popup callback", async () => {
     const refreshOAuthState = vi.fn();
     const setError = vi.fn();
+    setActiveOauthPopupLoginId("login-1");
 
     renderHook(() =>
       useOauthPopupRefresh({
@@ -179,14 +186,17 @@ describe("useOauthPopupRefresh", () => {
         setError,
       })
     );
+    expect(readActiveOauthPopupLoginId()).toBe("login-1");
 
     await act(async () => {
       window.dispatchEvent(
-        new MessageEvent("message", {
+        new window.MessageEvent("message", {
           data: {
             type: "fastcode:oauth:codex",
             success: true,
+            loginId: "login-1",
           },
+          origin: window.location.origin,
         })
       );
     });
@@ -198,6 +208,7 @@ describe("useOauthPopupRefresh", () => {
   it("surfaces popup callback failures without refreshing", async () => {
     const refreshOAuthState = vi.fn();
     const setError = vi.fn();
+    setActiveOauthPopupLoginId("login-1");
 
     renderHook(() =>
       useOauthPopupRefresh({
@@ -208,11 +219,13 @@ describe("useOauthPopupRefresh", () => {
 
     await act(async () => {
       window.dispatchEvent(
-        new MessageEvent("message", {
+        new window.MessageEvent("message", {
           data: {
             type: "fastcode:oauth:codex",
             success: false,
+            loginId: "login-1",
           },
+          origin: window.location.origin,
         })
       );
     });
@@ -221,5 +234,47 @@ describe("useOauthPopupRefresh", () => {
       "Codex OAuth failed during callback verification. Check the OAuth popup for details."
     );
     expect(refreshOAuthState).not.toHaveBeenCalled();
+  });
+
+  it("ignores popup messages from unexpected origins or login ids", async () => {
+    const refreshOAuthState = vi.fn();
+    const setError = vi.fn();
+    setActiveOauthPopupLoginId("login-expected");
+
+    renderHook(() =>
+      useOauthPopupRefresh({
+        refreshOAuthState,
+        setError,
+      })
+    );
+
+    await act(async () => {
+      window.dispatchEvent(
+        new window.MessageEvent("message", {
+          data: {
+            type: "fastcode:oauth:codex",
+            success: true,
+            loginId: "login-expected",
+          },
+          origin: "https://evil.example",
+        })
+      );
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new window.MessageEvent("message", {
+          data: {
+            type: "fastcode:oauth:codex",
+            success: true,
+            loginId: "login-other",
+          },
+          origin: window.location.origin,
+        })
+      );
+    });
+
+    expect(refreshOAuthState).not.toHaveBeenCalled();
+    expect(setError).not.toHaveBeenCalled();
   });
 });

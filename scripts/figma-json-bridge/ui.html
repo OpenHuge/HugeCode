@@ -278,15 +278,6 @@
         sendButton.disabled = !hasPayload;
       }
 
-      function escapeHtml(value) {
-        return String(value)
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#39;");
-      }
-
       function normalizeTokenCandidate(value) {
         return String(value)
           .trim()
@@ -371,34 +362,58 @@
         );
       }
 
-      function renderEntry(title, subtitle, entry, badge) {
-        const badgeMarkup = badge ? `<div class="pill">${escapeHtml(badge)}</div>` : "";
-        return `
-          <div class="entry">
-            ${badgeMarkup}
-            <div class="entry-title">${escapeHtml(title)}</div>
-            <div class="entry-subtitle">${escapeHtml(subtitle)}</div>
-            <div>Token path</div>
-            <pre>${escapeHtml(entry.tokenPath)}</pre>
-            <div>CSS variable</div>
-            <pre>${escapeHtml(entry.cssVar)}</pre>
-            <div>vanilla-extract access</div>
-            <pre>${escapeHtml(entry.contractAccess)}</pre>
-          </div>
-        `;
+      function clearNode(node) {
+        while (node.firstChild) {
+          node.removeChild(node.firstChild);
+        }
+      }
+
+      function appendTextElement(parent, tagName, text, className = "") {
+        const element = document.createElement(tagName);
+        if (className) {
+          element.className = className;
+        }
+        element.textContent = text;
+        parent.appendChild(element);
+        return element;
+      }
+
+      function appendEntryDetail(parent, label, value) {
+        appendTextElement(parent, "div", label);
+        appendTextElement(parent, "pre", value);
+      }
+
+      function createEntryElement(title, subtitle, entry, badge, warning = false) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "entry";
+
+        if (badge) {
+          const badgeElement = appendTextElement(wrapper, "div", badge, "pill");
+          if (warning) {
+            badgeElement.classList.add("warning");
+          }
+        }
+
+        appendTextElement(wrapper, "div", title, "entry-title");
+        appendTextElement(wrapper, "div", subtitle, "entry-subtitle");
+
+        if (entry) {
+          appendEntryDetail(wrapper, "Token path", entry.tokenPath);
+          appendEntryDetail(wrapper, "CSS variable", entry.cssVar);
+          appendEntryDetail(wrapper, "vanilla-extract access", entry.contractAccess);
+        }
+
+        return wrapper;
       }
 
       function renderUnmappedEntry(binding) {
-        return `
-          <div class="entry">
-            <div class="pill warning">Unmapped</div>
-            <div class="entry-title">${escapeHtml(binding.name ?? binding.id)}</div>
-            <div class="entry-subtitle">
-              No repo token path matched this Figma variable name. Search manually below if the
-              variable uses a different naming scheme.
-            </div>
-          </div>
-        `;
+        return createEntryElement(
+          binding.name ?? binding.id,
+          "No repo token path matched this Figma variable name. Search manually below if the variable uses a different naming scheme.",
+          null,
+          "Unmapped",
+          true
+        );
       }
 
       function renderSelectionResults(message) {
@@ -408,32 +423,29 @@
           return;
         }
 
-        const markup = bindings
-          .map((binding) => {
-            if (!binding.name) {
-              return renderUnmappedEntry(binding);
-            }
+        clearNode(codegenResults);
 
-            const matches = findTokenMatchesForVariable(binding.name);
-            if (matches.length === 0) {
-              return renderUnmappedEntry(binding);
-            }
+        bindings.forEach((binding) => {
+          if (!binding.name) {
+            codegenResults.appendChild(renderUnmappedEntry(binding));
+            return;
+          }
 
-            return matches
-              .slice(0, 1)
-              .map((entry) =>
-                renderEntry(
-                  binding.name,
-                  `${binding.resolvedType ?? "unknown"} variable${binding.missing ? " (missing)" : ""}`,
-                  entry,
-                  "Selection match"
-                )
-              )
-              .join("");
-          })
-          .join("");
+          const match = findTokenMatchesForVariable(binding.name)[0];
+          if (!match) {
+            codegenResults.appendChild(renderUnmappedEntry(binding));
+            return;
+          }
 
-        codegenResults.innerHTML = markup;
+          codegenResults.appendChild(
+            createEntryElement(
+              binding.name,
+              `${binding.resolvedType ?? "unknown"} variable${binding.missing ? " (missing)" : ""}`,
+              match,
+              "Selection match"
+            )
+          );
+        });
       }
 
       function renderSearchResults(query) {
@@ -456,9 +468,12 @@
           return;
         }
 
-        codegenResults.innerHTML = results
-          .map((entry) => renderEntry(entry.tokenPath, "Manual search result", entry, "Search"))
-          .join("");
+        clearNode(codegenResults);
+        results.forEach((entry) => {
+          codegenResults.appendChild(
+            createEntryElement(entry.tokenPath, "Manual search result", entry, "Search")
+          );
+        });
       }
 
       function updateSelectionSummary(message) {

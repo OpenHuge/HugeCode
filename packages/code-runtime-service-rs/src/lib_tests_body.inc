@@ -735,6 +735,7 @@
                 workspace_id: "ws-expired".to_string(),
                 redirect_uri: "http://127.0.0.1:8788/auth/callback".to_string(),
                 code_verifier: "verifier".to_string(),
+                post_message_origin: None,
                 expires_at_ms: now.saturating_sub(1),
             },
         );
@@ -759,17 +760,34 @@
     #[test]
     fn oauth_result_html_posts_popup_message_and_only_autocloses_on_success() {
         let success_html =
-            codex_oauth_handlers::build_oauth_result_html("Codex OAuth sign-in complete", "ok", true)
-                .0;
+            codex_oauth_handlers::build_oauth_result_html(
+                "Codex OAuth sign-in complete",
+                "ok",
+                true,
+                Some("login-1"),
+                Some("https://app.example.test"),
+            )
+            .0;
         assert!(success_html.contains("fastcode:oauth:codex"));
         assert!(success_html.contains("success: true"));
+        assert!(success_html.contains("loginId: \"login-1\""));
+        assert!(success_html.contains("\"https://app.example.test\""));
+        assert!(!success_html.contains(", \"*\""));
         assert!(success_html.contains("window.close"));
 
         let failure_html =
-            codex_oauth_handlers::build_oauth_result_html("Codex OAuth sign-in failed", "failed", false)
-                .0;
+            codex_oauth_handlers::build_oauth_result_html(
+                "Codex OAuth sign-in failed",
+                "failed",
+                false,
+                Some("login-1"),
+                Some("https://app.example.test"),
+            )
+            .0;
         assert!(failure_html.contains("fastcode:oauth:codex"));
         assert!(failure_html.contains("success: false"));
+        assert!(failure_html.contains("loginId: \"login-1\""));
+        assert!(!failure_html.contains(", \"*\""));
         assert!(!failure_html.contains("window.close"));
     }
 
@@ -784,6 +802,7 @@
                 workspace_id: "ws-expired".to_string(),
                 redirect_uri: "http://127.0.0.1:8788/auth/callback".to_string(),
                 code_verifier: "verifier-expired".to_string(),
+                post_message_origin: None,
                 expires_at_ms: now.saturating_sub(1),
             },
         );
@@ -794,6 +813,7 @@
                 workspace_id: "ws-active".to_string(),
                 redirect_uri: "http://127.0.0.1:8788/auth/callback".to_string(),
                 code_verifier: "verifier-active".to_string(),
+                post_message_origin: None,
                 expires_at_ms: now.saturating_add(30_000),
             },
         );
