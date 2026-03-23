@@ -1,9 +1,14 @@
 export {
+  checkDesktopForUpdates,
+  consumeDesktopLaunchIntent,
   detectDesktopRuntimeHost,
   openDesktopExternalUrl,
+  resolveDesktopAppInfo,
   resolveDesktopAppVersion,
   resolveDesktopSessionInfo,
+  resolveDesktopUpdateState,
   resolveDesktopWindowLabel,
+  restartDesktopToApplyUpdate,
   revealDesktopItemInDir,
   showDesktopNotification,
 } from "./desktopHostFacade";

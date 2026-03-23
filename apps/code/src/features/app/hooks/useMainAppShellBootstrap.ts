@@ -10,6 +10,7 @@ import { useGitHubPanelController } from "./useGitHubPanelController";
 import { useGitPanelController } from "./useGitPanelController";
 import { useLiquidGlassEffect } from "./useLiquidGlassEffect";
 import { useSidebarToggleProps } from "./useSidebarToggleProps";
+import { useDesktopLaunchIntentBootstrap } from "./useDesktopLaunchIntentBootstrap";
 import { useSettingsModalState } from "./useSettingsModalState";
 import { useUpdaterController } from "./useUpdaterController";
 import { useWorkspaceController } from "./useWorkspaceController";
@@ -70,6 +71,10 @@ export function useMainAppShellBootstrap({
     appSettingsLoading,
     queueSaveSettings,
     refreshWorkspaces,
+  });
+  useDesktopLaunchIntentBootstrap({
+    enabled: !mobileState.isMobileRuntime,
+    onDebug: debugState.addDebugEntry,
   });
 
   const handleConnectLocalRuntimePort = useCallback(

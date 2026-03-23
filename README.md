@@ -129,6 +129,8 @@ Useful entrypoints:
 - `pnpm dev:code:service`: runtime service only
 - `pnpm desktop:prepare:fast && pnpm dev:desktop`: Tauri desktop flow
 - `pnpm desktop:electron:dev`: Electron desktop shell flow
+- `pnpm desktop:electron:make:smoke`: Electron beta installer smoke build on the current host
+- `pnpm desktop:electron:publish:dry-run`: Electron beta release configuration dry-run
 
 ## Validation
 

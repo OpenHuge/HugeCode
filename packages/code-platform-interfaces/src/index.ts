@@ -2,6 +2,17 @@ export type DesktopHostKind = "electron";
 export type DesktopRuntimeHost = "browser" | DesktopHostKind | "tauri";
 export type DesktopWindowLabel = "main" | "about";
 export type DesktopRuntimeMode = "local" | "remote";
+export type DesktopReleaseChannel = "stable" | "beta" | "dev";
+export type DesktopUpdateCapability = "automatic" | "manual" | "unsupported";
+export type DesktopLaunchIntentKind = "launch" | "protocol" | "post-install" | "post-update";
+export type DesktopUpdateStage =
+  | "idle"
+  | "checking"
+  | "available"
+  | "downloading"
+  | "downloaded"
+  | "latest"
+  | "error";
 
 export type DesktopSessionInfo = {
   id: string;
@@ -27,6 +38,29 @@ export type DesktopTrayState = {
   supported: boolean;
 };
 
+export type DesktopAppInfo = {
+  channel: DesktopReleaseChannel;
+  platform: NodeJS.Platform;
+  updateCapability: DesktopUpdateCapability;
+  version: string | null;
+};
+
+export type DesktopLaunchIntent = {
+  kind: DesktopLaunchIntentKind;
+  receivedAt: string;
+  url?: string | null;
+};
+
+export type DesktopUpdateState = {
+  capability: DesktopUpdateCapability;
+  downloadedBytes?: number;
+  error?: string | null;
+  releaseUrl?: string | null;
+  stage: DesktopUpdateStage;
+  totalBytes?: number;
+  version?: string | null;
+};
+
 export type OpenDesktopWindowInput = {
   duplicate?: boolean;
   preferredBackendId?: string | null;
@@ -42,7 +76,16 @@ export type DesktopNotificationInput = {
 };
 
 export type DesktopAppCapability = {
+  getInfo?: () => Promise<DesktopAppInfo | null | undefined> | DesktopAppInfo | null | undefined;
   getVersion?: () => Promise<string | null | undefined> | string | null | undefined;
+};
+
+export type DesktopLaunchCapability = {
+  consumePendingIntent?: () =>
+    | Promise<DesktopLaunchIntent | null | undefined>
+    | DesktopLaunchIntent
+    | null
+    | undefined;
 };
 
 export type DesktopSessionCapability = {
@@ -91,6 +134,20 @@ export type DesktopNotificationCapability = {
   show?: (input: DesktopNotificationInput) => Promise<boolean | void> | boolean | void;
 };
 
+export type DesktopUpdaterCapability = {
+  checkForUpdates?: () =>
+    | Promise<DesktopUpdateState | null | undefined>
+    | DesktopUpdateState
+    | null
+    | undefined;
+  getState?: () =>
+    | Promise<DesktopUpdateState | null | undefined>
+    | DesktopUpdateState
+    | null
+    | undefined;
+  restartToApplyUpdate?: () => Promise<boolean | void> | boolean | void;
+};
+
 export type DesktopShellCapability = {
   openExternalUrl?: (url: string) => Promise<boolean | void> | boolean | void;
   revealItemInDir?: (path: string) => Promise<boolean | void> | boolean | void;
@@ -98,6 +155,8 @@ export type DesktopShellCapability = {
 
 export type DesktopHostCapabilities = {
   app?: DesktopAppCapability;
+  launch?: DesktopLaunchCapability;
+  updater?: DesktopUpdaterCapability;
   session?: DesktopSessionCapability;
   window?: DesktopWindowCapability;
   windowing?: DesktopWindowingCapability;
@@ -113,7 +172,11 @@ export type DesktopHostBridge = {
 export type DesktopHostBridgeApi = {
   kind: DesktopHostKind;
   app: {
+    getInfo(): Promise<DesktopAppInfo | null>;
     getVersion(): Promise<string | null>;
+  };
+  launch: {
+    consumePendingIntent(): Promise<DesktopLaunchIntent | null>;
   };
   session: {
     getCurrentSession(): Promise<DesktopSessionInfo | null>;
@@ -135,6 +198,11 @@ export type DesktopHostBridgeApi = {
   };
   notifications: {
     show(input: DesktopNotificationInput): Promise<boolean>;
+  };
+  updater: {
+    checkForUpdates(): Promise<DesktopUpdateState>;
+    getState(): Promise<DesktopUpdateState>;
+    restartToApplyUpdate(): Promise<boolean>;
   };
   shell: {
     openExternalUrl(url: string): Promise<boolean>;
