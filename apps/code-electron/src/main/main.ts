@@ -2,6 +2,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
+import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
 import { createDesktopShellState, type DesktopWindowBounds } from "./desktopShellState.js";
 import { createDesktopNotificationController } from "./desktopNotificationController.js";
 import { createDesktopStateStore } from "./desktopStateStore.js";
@@ -22,11 +23,6 @@ const trayIconDataUrl =
 let isQuitting = false;
 
 app.enableSandbox();
-
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
-if (!hasSingleInstanceLock) {
-  app.quit();
-}
 
 function getWindowStatePath() {
   return join(app.getPath("userData"), "desktop-state.json");
@@ -144,50 +140,27 @@ registerDesktopHostIpc({
   ipcMain,
 });
 
-app.on("second-instance", () => {
-  const openWindows = BrowserWindow.getAllWindows();
-  const nextWindow = openWindows[0];
-  if (!nextWindow) {
-    windowController.openWindow();
-    return;
-  }
-  if (nextWindow.isMinimized()) {
-    nextWindow.restore();
-  }
-  nextWindow.show();
-  nextWindow.focus();
-});
-
-app.whenReady().then(() => {
-  const persistedSessions = desktopShellState.recentSessions;
-  if (persistedSessions.length > 0) {
-    for (const session of persistedSessions) {
-      windowController.createWindowForSession(session);
-    }
-  } else {
-    windowController.openWindow();
-  }
-  updateTray();
-
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      const latestSession = desktopShellState.recentSessions[0];
-      if (latestSession) {
-        windowController.createWindowForSession(latestSession);
-      } else {
-        windowController.openWindow();
-      }
-    }
-  });
-});
-
-app.on("before-quit", () => {
-  isQuitting = true;
-  trayController.dispose();
-});
-
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin" && !desktopShellState.trayEnabled) {
-    app.quit();
-  }
+registerDesktopAppLifecycle({
+  app,
+  browserWindow: {
+    getAllWindows() {
+      return BrowserWindow.getAllWindows();
+    },
+  },
+  createWindowForSession: windowController.createWindowForSession,
+  getLatestSession() {
+    return desktopShellState.recentSessions[0] ?? null;
+  },
+  getPersistedSessions() {
+    return desktopShellState.recentSessions;
+  },
+  isTrayEnabled() {
+    return desktopShellState.trayEnabled;
+  },
+  onBeforeQuit() {
+    isQuitting = true;
+    trayController.dispose();
+  },
+  openWindow: windowController.openWindow,
+  updateTray,
 });
