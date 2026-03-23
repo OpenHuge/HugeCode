@@ -34,7 +34,7 @@ describe("App boot fallback", () => {
     vi.doMock("./application/runtime/ports", () => ({
       RuntimePortsProvider: ({ children }: { children: ReactNode }) => children,
     }));
-    vi.doMock("./features/app/components/ErrorBoundary", () => ({
+    vi.doMock("@ku0/code-application", () => ({
       ErrorBoundary: ({ children }: { children: ReactNode }) => children,
     }));
     vi.doMock("./web/WorkspaceClientEntry", () => workspaceClientEntryModule);

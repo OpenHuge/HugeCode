@@ -8,6 +8,13 @@ export {
   showDesktopNotification,
 } from "./desktopHostFacade";
 export {
+  applyBrowserRuntimeFlags,
+  BrowserRuntimeBootstrapEffects,
+  createWorkspaceHostRenderer,
+  WorkspaceHostErrorBoundary as ErrorBoundary,
+  WorkspaceHostErrorBoundary,
+} from "./workspaceHostRenderer";
+export {
   createDesktopWorkspaceClientHostBindings,
   createWorkspaceClientBindings,
 } from "./workspaceClientBindings";
@@ -24,3 +31,8 @@ export type {
   DesktopVersionFallbacks,
   DesktopWindowLabelFallbacks,
 } from "./desktopHostFacade";
+export type {
+  CreateWorkspaceHostRendererInput,
+  WorkspaceHostEffect,
+  WorkspaceHostProvider,
+} from "./workspaceHostRenderer";

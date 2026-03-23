@@ -14,10 +14,12 @@ describe("renderWebWorkspaceHost", () => {
     container?.remove();
     root = null;
     container = null;
+    delete document.documentElement.dataset.desktopRuntime;
     delete document.documentElement.dataset.tauriRuntime;
+    delete document.documentElement.dataset.electronRuntime;
   });
 
-  it("wraps children in the web host shell and marks the runtime as non-tauri", async () => {
+  it("wraps children in the shared web host shell and marks browser runtime flags", async () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -26,6 +28,8 @@ describe("renderWebWorkspaceHost", () => {
     });
 
     expect(container.textContent).toContain("Web workspace body");
+    expect(document.documentElement.dataset.desktopRuntime).toBe("browser");
     expect(document.documentElement.dataset.tauriRuntime).toBe("false");
+    expect(document.documentElement.dataset.electronRuntime).toBe("false");
   });
 });

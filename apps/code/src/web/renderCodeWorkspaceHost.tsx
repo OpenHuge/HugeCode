@@ -1,15 +1,8 @@
-import type { ReactNode } from "react";
+import { createWorkspaceHostRenderer } from "@ku0/code-application";
 import { RuntimeBootstrapEffects } from "../bootstrap/runtimeBootstrap";
 import { RuntimePortsProvider } from "../application/runtime/ports";
-import { ErrorBoundary } from "../features/app/components/ErrorBoundary";
 
-export function renderCodeWorkspaceHost(children: ReactNode) {
-  return (
-    <RuntimePortsProvider>
-      <ErrorBoundary>
-        <RuntimeBootstrapEffects />
-        {children}
-      </ErrorBoundary>
-    </RuntimePortsProvider>
-  );
-}
+export const renderCodeWorkspaceHost = createWorkspaceHostRenderer({
+  effects: [RuntimeBootstrapEffects],
+  providers: [RuntimePortsProvider],
+});
