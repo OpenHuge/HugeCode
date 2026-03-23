@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createLayoutNodesOptions,
   type LayoutNodesFieldRegistry,
@@ -178,6 +178,10 @@ async function importBuildGitNodes() {
 }
 
 describe("buildGitNodes diff lazy boundary", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
   afterAll(() => {
     Object.defineProperty(globalThis, "Worker", {
       value: originalWorker,
