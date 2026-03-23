@@ -324,14 +324,15 @@ describe("SidebarUserNav", () => {
     expect(onOpenDebug).toHaveBeenCalledTimes(1);
   });
 
-  it("preloads settings when the user menu becomes likely to open settings", () => {
+  it("preloads settings only when the user is near a settings action", async () => {
     renderSidebarUserNav();
 
     fireEvent.pointerEnter(screen.getByRole("button", { name: "User menu" }));
     fireEvent.click(screen.getByRole("button", { name: "User menu" }));
     fireEvent.pointerEnter(screen.getByRole("button", { name: "Open settings" }));
+    await vi.dynamicImportSettled();
 
-    expect(preloadSettingsViewMock).toHaveBeenCalledTimes(3);
+    expect(preloadSettingsViewMock).toHaveBeenCalledTimes(1);
   });
 
   it("shows cancel action while codex account switching is in progress", () => {

@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/react";
 import type { HugeCodeTaskMode } from "@ku0/code-runtime-host-contract";
 import type { Dispatch, MutableRefObject } from "react";
 import { useCallback } from "react";
@@ -27,6 +26,7 @@ import type {
 import { formatRelativeTime } from "../../../utils/time";
 import { extractCollaborationModeId } from "../../../application/runtime/ports/runtimeCollaborationModes";
 import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
+import { recordSentryMetric } from "../../shared/sentry";
 import {
   type AtlasLongTermMemoryDigest,
   buildAtlasContextPrefix,
@@ -405,7 +405,7 @@ export function useThreadMessaging({
           hasCustomName: Boolean(getCustomName(workspace.id, threadId)),
         });
       }
-      Sentry.metrics.count("prompt_sent", 1, {
+      recordSentryMetric("prompt_sent", 1, {
         attributes: {
           workspace_id: workspace.id,
           thread_id: threadId,
@@ -415,7 +415,7 @@ export function useThreadMessaging({
           effort: resolvedEffort ?? "unknown",
           fast_mode: resolvedFastMode ? "true" : "false",
           execution_mode: resolvedExecutionMode,
-          collaboration_mode: sanitizedCollaborationMode ?? "unknown",
+          collaboration_mode: extractCollaborationModeId(sanitizedCollaborationMode) ?? "unknown",
         },
       });
       void trackProductAnalyticsEvent("define_started", analyticsAttributes);

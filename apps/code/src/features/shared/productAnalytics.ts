@@ -1,3 +1,5 @@
+import { recordSentryMetricIfAvailable } from "./sentry";
+
 export const PRODUCT_ANALYTICS_EVENT_NAMES = [
   "define_started",
   "delegate_started",
@@ -45,7 +47,6 @@ type ProductAnalyticsAdapter = {
 };
 
 let adapterOverrideForTests: ProductAnalyticsAdapter | null = null;
-let sentryAdapterPromise: Promise<ProductAnalyticsAdapter | null> | null = null;
 
 function toSnakeCase(value: string): string {
   return value
@@ -74,20 +75,11 @@ async function resolveProductAnalyticsAdapter(): Promise<ProductAnalyticsAdapter
   if (adapterOverrideForTests) {
     return adapterOverrideForTests;
   }
-  if (!sentryAdapterPromise) {
-    sentryAdapterPromise = import("@sentry/react")
-      .then((module) => {
-        const metrics = module.metrics;
-        if (!metrics || typeof metrics.count !== "function") {
-          return null;
-        }
-        return {
-          count: (metricName, value, options) => metrics.count(metricName, value, options),
-        } satisfies ProductAnalyticsAdapter;
-      })
-      .catch(() => null);
-  }
-  return sentryAdapterPromise;
+  return {
+    count: async (metricName, value, options) => {
+      await recordSentryMetricIfAvailable(metricName, value, options);
+    },
+  };
 }
 
 export async function trackProductAnalyticsEvent(
@@ -118,5 +110,4 @@ export function __setProductAnalyticsAdapterForTests(
 
 export function __resetProductAnalyticsAdapterForTests(): void {
   adapterOverrideForTests = null;
-  sentryAdapterPromise = null;
 }
