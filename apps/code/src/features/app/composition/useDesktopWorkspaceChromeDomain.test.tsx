@@ -27,10 +27,12 @@ vi.mock("../hooks/useMainAppShellSurfaceProps", () => ({
 const appStyle = { opacity: 1 };
 const layoutNodes = {
   desktopTopbarLeftNode: <div>Left</div>,
+  desktopTopbarRightNode: <div>Right</div>,
   messagesNode: <div>Messages</div>,
 };
 const mainAppLayoutProps = { id: "layout" };
 const mainAppModalsProps = { id: "modals" };
+const titlebarControlsNode = <div>titlebar-controls</div>;
 
 function createInput() {
   return {
@@ -271,6 +273,7 @@ describe("useDesktopWorkspaceChromeDomain", () => {
     vi.mocked(useMainAppShellSurfaceProps).mockReturnValue({
       mainAppLayoutProps: mainAppLayoutProps as never,
       mainAppModalsProps: mainAppModalsProps as never,
+      titlebarControlsNode,
     });
 
     const input = createInput();
@@ -307,6 +310,7 @@ describe("useDesktopWorkspaceChromeDomain", () => {
       appStyle,
       appLayoutProps: mainAppLayoutProps,
       appModalsProps: mainAppModalsProps,
+      titlebarControlsNode,
       showCompactCodexThreadActions: true,
       showMobilePollingFetchStatus: false,
     });

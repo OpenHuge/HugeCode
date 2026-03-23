@@ -208,6 +208,28 @@ describe("MainHeader", () => {
     expect(container.querySelector('[data-main-header-actions="true"]')).toBeTruthy();
   });
 
+  it("omits the in-header actions container when desktop chrome owns the right-side controls", () => {
+    const { container } = render(
+      <MainHeader
+        workspace={workspace}
+        openTargets={[]}
+        openAppIconById={{}}
+        selectedOpenAppId=""
+        onSelectOpenAppId={() => undefined}
+        branchName="main"
+        onRefreshGitStatus={() => undefined}
+        onToggleTerminal={() => undefined}
+        isTerminalOpen={false}
+        showTerminalButton={false}
+        showWorkspaceTools={false}
+        renderHeaderActions={false}
+      />
+    );
+
+    expect(container.querySelector('[data-main-header-identity="true"]')).toBeTruthy();
+    expect(container.querySelector('[data-main-header-actions="true"]')).toBeNull();
+  });
+
   it("keeps the main header overflow visible so anchored menus are not clipped", () => {
     const mainSource = readRelativeSource(import.meta.dirname, "../../../styles/main.css.ts");
     const topbarSource = readRelativeSource(
@@ -219,7 +241,53 @@ describe("MainHeader", () => {
     expect(getApplyGlobalStyleBlock(mainSource, ".main-header")).toContain(
       "var(--main-header-right-overlay-gutter, 0px)"
     );
+    expect(getApplyGlobalStyleBlock(mainSource, ".main-header")).toContain(
+      "var(--shell-chrome-inset-top, 10px) - 1px"
+    );
+    expect(getApplyGlobalStyleBlock(mainSource, ".main-header")).toContain(
+      "var(--shell-chrome-row-bottom, 6px) + 3px"
+    );
     expect(getApplyGlobalStyleBlock(topbarSource, ".main-header")).toContain('overflow: "visible"');
+    expect(getApplyGlobalStyleBlock(topbarSource, ".main-header")).toContain(
+      "var(--main-header-right-overlay-gutter, 0px)"
+    );
+    expect(getApplyGlobalStyleBlock(topbarSource, ".main-header")).toContain(
+      "var(--shell-chrome-inset-top, 10px) - 1px"
+    );
+    expect(getApplyGlobalStyleBlock(topbarSource, ".main-header")).toContain(
+      "var(--shell-chrome-row-bottom, 6px) + 3px"
+    );
+  });
+
+  it("anchors main header actions to the shared shell chrome baseline instead of vertically centering them", () => {
+    const mainSource = readRelativeSource(import.meta.dirname, "../../../styles/main.css.ts");
+
+    expect(getApplyGlobalStyleBlock(mainSource, ".main-header-actions")).toContain(
+      '"align-self": "flex-start"'
+    );
+  });
+
+  it("offsets desktop right-side titlebar controls by the expanded rail width", () => {
+    const baseSource = readRelativeSource(import.meta.dirname, "../../../styles/base.css.ts");
+
+    expect(getApplyGlobalStyleBlock(baseSource, ".titlebar-controls")).toContain(
+      'top: "calc(var(--shell-chrome-inset-top, 10px) + 3px)"'
+    );
+    expect(getApplyGlobalStyleBlock(baseSource, ".titlebar-toggle-right")).toContain(
+      'right: "var(--shell-chrome-inset-x, 16px)"'
+    );
+    expect(
+      getApplyGlobalStyleBlock(
+        baseSource,
+        ".app:not(.right-panel-collapsed) .titlebar-toggle-right"
+      )
+    ).toContain("var(--right-panel-width-live, var(--right-panel-width, 360px)) + 12px");
+    expect(getApplyGlobalStyleBlock(baseSource, ".titlebar-control-group")).toContain(
+      '"justify-content": "flex-end"'
+    );
+    expect(getApplyGlobalStyleBlock(baseSource, ".titlebar-control-group")).toContain(
+      '"flex-wrap": "nowrap"'
+    );
   });
 
   it("keeps the open-app menu icon sizing and spacing on the refined header/menu chrome", () => {

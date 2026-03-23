@@ -6,7 +6,7 @@ applyGlobalStyle(".workspace-branch-static-pill", {
   "@layer": {
     [layers.features]: {
       color: "var(--ds-text-stronger)",
-      "max-width": "min(44vw, 520px)",
+      "max-width": "clamp(10rem, 28vw, 20rem)",
     },
   },
 });
@@ -244,7 +244,7 @@ applyGlobalStyle(".workspace-branch-pill", {
   "@layer": {
     [layers.features]: {
       color: "var(--ds-text-subtle)",
-      "max-width": "min(24vw, 260px)",
+      "max-width": "clamp(10rem, 24vw, 18rem)",
       "min-width": "0",
     },
   },

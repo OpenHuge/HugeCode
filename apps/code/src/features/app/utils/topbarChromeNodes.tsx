@@ -1,5 +1,9 @@
 import type { ComponentProps, ReactNode } from "react";
-import { SidebarExpandButton } from "../../layout/components/SidebarToggleControls";
+import {
+  RightPanelCollapseButton,
+  RightPanelExpandButton,
+  SidebarExpandButton,
+} from "../../layout/components/SidebarToggleControls";
 import { MainAppCompactThreadConnectionChip } from "../components/MainAppCompactThreadConnectionChip";
 
 type SidebarToggleProps = ComponentProps<typeof SidebarExpandButton>;
@@ -8,6 +12,7 @@ type BuildTopbarChromeNodesOptions = {
   isCompact: boolean;
   sidebarToggleProps: SidebarToggleProps;
   desktopTopbarLeftNode: ReactNode;
+  desktopTopbarRightNode: ReactNode;
   showCompactCodexThreadActions: boolean;
   hasActiveThread: boolean;
   isActiveWorkspaceConnected: boolean;
@@ -15,8 +20,10 @@ type BuildTopbarChromeNodesOptions = {
 };
 
 export function buildTopbarChromeNodes({
-  isCompact: _isCompact,
+  isCompact,
+  sidebarToggleProps,
   desktopTopbarLeftNode,
+  desktopTopbarRightNode,
   showCompactCodexThreadActions,
   hasActiveThread,
   isActiveWorkspaceConnected,
@@ -24,6 +31,24 @@ export function buildTopbarChromeNodes({
 }: BuildTopbarChromeNodesOptions) {
   return {
     desktopTopbarLeftNodeWithToggle: desktopTopbarLeftNode,
+    titlebarControlsNode: !isCompact ? (
+      <div className="titlebar-controls">
+        <div className="titlebar-toggle titlebar-toggle-left">
+          <SidebarExpandButton {...sidebarToggleProps} />
+        </div>
+        <div
+          className="titlebar-toggle titlebar-toggle-right titlebar-control-group titlebar-control-group-right"
+          data-titlebar-right-controls="true"
+        >
+          {desktopTopbarRightNode}
+          {sidebarToggleProps.rightPanelCollapsed ? (
+            <RightPanelExpandButton {...sidebarToggleProps} />
+          ) : (
+            <RightPanelCollapseButton {...sidebarToggleProps} />
+          )}
+        </div>
+      </div>
+    ) : null,
     codexTopbarActionsNode: (
       <MainAppCompactThreadConnectionChip
         show={showCompactCodexThreadActions}

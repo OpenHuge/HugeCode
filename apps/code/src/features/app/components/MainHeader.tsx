@@ -1,13 +1,6 @@
-import {
-  Button,
-  WorkspaceChromePill,
-  WorkspaceHeaderAction,
-  WorkspaceHeaderActionCopyGlyphs,
-} from "../../../design-system";
+import { Button, WorkspaceChromePill } from "../../../design-system";
+import { Check, Copy } from "lucide-react";
 import { revealItemInDir } from "../../../application/runtime/ports/tauriOpener";
-import Check from "lucide-react/dist/esm/icons/check";
-import Copy from "lucide-react/dist/esm/icons/copy";
-import Terminal from "lucide-react/dist/esm/icons/terminal";
 import { lazy, Suspense, useLayoutEffect } from "react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -18,10 +11,9 @@ import { normalizePathForDisplay, revealInFileManagerLabel } from "../../../util
 import { RecentThreadStrip } from "./RecentThreadStrip";
 import { useDismissibleMenu } from "../hooks/useDismissibleMenu";
 import type { WorkspaceLaunchScriptsState } from "../hooks/useWorkspaceLaunchScripts";
-import { LaunchScriptButton } from "./LaunchScriptButton";
-import { LaunchScriptEntryButton } from "./LaunchScriptEntryButton";
-import { OpenAppMenu } from "./OpenAppMenu";
+import { MainHeaderRightActions } from "./MainHeaderRightActions";
 import type { RecentThreadItem } from "./RecentThreadStrip";
+import { formatHeaderBranchLabel } from "../utils/headerBranchLabel";
 
 const MainHeaderBranchMenu = lazy(() =>
   import("./MainHeaderBranchMenu").then((module) => ({
@@ -57,6 +49,8 @@ type MainHeaderProps = {
   showTerminalButton?: boolean;
   showWorkspaceTools?: boolean;
   extraActionsNode?: ReactNode;
+  headerActionsNode?: ReactNode;
+  renderHeaderActions?: boolean;
   launchScript?: string | null;
   launchScriptEditorOpen?: boolean;
   launchScriptDraft?: string;
@@ -151,9 +145,11 @@ export function MainHeaderShell({
       <div className="workspace-header" data-main-header-identity="true">
         {identityNode}
       </div>
-      <div className="main-header-actions" data-main-header-actions="true">
-        {actionsNode}
-      </div>
+      {actionsNode ? (
+        <div className="main-header-actions" data-main-header-actions="true">
+          {actionsNode}
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -179,6 +175,8 @@ export function MainHeader({
   showTerminalButton = true,
   showWorkspaceTools = true,
   extraActionsNode,
+  headerActionsNode,
+  renderHeaderActions = true,
   launchScript = null,
   launchScriptEditorOpen = false,
   launchScriptDraft = "",
@@ -196,8 +194,6 @@ export function MainHeader({
 }: MainHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
-  const [copyFeedback, setCopyFeedback] = useState(false);
-  const copyTimeoutRef = useRef<number | null>(null);
   const launchScriptErrorRef = useRef<string | null>(null);
   const newLaunchScriptErrorRef = useRef<string | null>(null);
   const launchScriptEntryErrorRef = useRef<string | null>(null);
@@ -221,6 +217,11 @@ export function MainHeader({
     }
     return `${workspace.name}\n${normalizedPath}`;
   }, [displayWorktreePath, workspace.name]);
+  const branchLabel = useMemo(() => formatHeaderBranchLabel(branchName), [branchName]);
+  const staticBranchLabel = useMemo(
+    () => formatHeaderBranchLabel(worktreeLabel?.trim() || branchName),
+    [branchName, worktreeLabel]
+  );
   const relativeWorktreePath = useMemo(() => {
     const normalizedWorktreePath = displayWorktreePath.replace(/[\\/]+$/, "");
     if (!parentPath) {
@@ -251,14 +252,6 @@ export function MainHeader({
       renameOnCancel();
     }
   }, [infoOpen, renameOnCancel]);
-
-  useEffect(() => {
-    return () => {
-      if (copyTimeoutRef.current) {
-        window.clearTimeout(copyTimeoutRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (launchScriptError && launchScriptError !== launchScriptErrorRef.current) {
@@ -319,23 +312,33 @@ export function MainHeader({
     worktreeUpstreamErrorRef.current = nextError;
   }, [worktreeRename?.upstream?.error]);
 
-  const handleCopyClick = async () => {
-    if (!onCopyThread) {
-      return;
-    }
-    try {
-      await onCopyThread();
-      setCopyFeedback(true);
-      if (copyTimeoutRef.current) {
-        window.clearTimeout(copyTimeoutRef.current);
-      }
-      copyTimeoutRef.current = window.setTimeout(() => {
-        setCopyFeedback(false);
-      }, 1200);
-    } catch {
-      // Errors are handled upstream in the copy handler.
-    }
-  };
+  const resolvedHeaderActionsNode = headerActionsNode ?? (
+    <MainHeaderRightActions
+      path={resolvedWorktreePath}
+      openTargets={openTargets}
+      openAppIconById={openAppIconById}
+      selectedOpenAppId={selectedOpenAppId}
+      onSelectOpenAppId={onSelectOpenAppId}
+      canCopyThread={canCopyThread}
+      onCopyThread={onCopyThread}
+      onToggleTerminal={onToggleTerminal}
+      isTerminalOpen={isTerminalOpen}
+      showTerminalButton={showTerminalButton}
+      showWorkspaceTools={showWorkspaceTools}
+      extraActionsNode={extraActionsNode}
+      launchScript={launchScript}
+      launchScriptEditorOpen={launchScriptEditorOpen}
+      launchScriptDraft={launchScriptDraft}
+      launchScriptSaving={launchScriptSaving}
+      launchScriptError={launchScriptError}
+      onRunLaunchScript={onRunLaunchScript}
+      onOpenLaunchScriptEditor={onOpenLaunchScriptEditor}
+      onCloseLaunchScriptEditor={onCloseLaunchScriptEditor}
+      onLaunchScriptDraftChange={onLaunchScriptDraftChange}
+      onSaveLaunchScript={onSaveLaunchScript}
+      launchScriptsState={launchScriptsState}
+    />
+  );
 
   return (
     <MainHeaderShell
@@ -353,8 +356,9 @@ export function MainHeader({
                   aria-haspopup="dialog"
                   aria-expanded={infoOpen}
                   data-tauri-drag-region="false"
-                  title="Worktree info"
-                  label={worktreeLabel || branchName}
+                  aria-label={worktreeLabel?.trim() || branchName}
+                  title={worktreeLabel?.trim() || branchName}
+                  label={staticBranchLabel}
                   trailing={
                     <span className="workspace-branch-caret" aria-hidden>
                       ›
@@ -507,10 +511,13 @@ export function MainHeader({
                   onClick={branchMenuEnabled ? () => setMenuOpen((prev) => !prev) : undefined}
                   aria-haspopup={branchMenuEnabled ? "menu" : undefined}
                   aria-expanded={branchMenuEnabled ? menuOpen : undefined}
+                  aria-label={branchName}
                   disabled={!branchMenuEnabled}
-                  title={branchMenuEnabled ? undefined : "Git branch actions unavailable"}
+                  title={
+                    branchMenuEnabled ? branchName : `Git branch actions unavailable\n${branchName}`
+                  }
                   data-tauri-drag-region="false"
-                  label={<span className="workspace-branch">{branchName}</span>}
+                  label={<span className="workspace-branch">{branchLabel}</span>}
                   trailing={
                     <span className="workspace-branch-caret" aria-hidden>
                       ›
@@ -537,102 +544,7 @@ export function MainHeader({
           </div>
         </div>
       }
-      actionsNode={
-        <>
-          {showWorkspaceTools ? (
-            <OpenAppMenu
-              path={resolvedWorktreePath}
-              openTargets={openTargets}
-              selectedOpenAppId={selectedOpenAppId}
-              onSelectOpenAppId={onSelectOpenAppId}
-              iconById={openAppIconById}
-            />
-          ) : null}
-          {showWorkspaceTools &&
-            onRunLaunchScript &&
-            onOpenLaunchScriptEditor &&
-            onCloseLaunchScriptEditor &&
-            onLaunchScriptDraftChange &&
-            onSaveLaunchScript && (
-              <div className="launch-script-cluster">
-                <LaunchScriptButton
-                  launchScript={launchScript}
-                  editorOpen={launchScriptEditorOpen}
-                  draftScript={launchScriptDraft}
-                  isSaving={launchScriptSaving}
-                  error={launchScriptError}
-                  onRun={onRunLaunchScript}
-                  onOpenEditor={onOpenLaunchScriptEditor}
-                  onCloseEditor={onCloseLaunchScriptEditor}
-                  onDraftChange={onLaunchScriptDraftChange}
-                  onSave={onSaveLaunchScript}
-                  showNew={Boolean(launchScriptsState)}
-                  newEditorOpen={launchScriptsState?.newEditorOpen}
-                  newDraftScript={launchScriptsState?.newDraftScript}
-                  newDraftIcon={launchScriptsState?.newDraftIcon}
-                  newDraftLabel={launchScriptsState?.newDraftLabel}
-                  newError={launchScriptsState?.newError ?? null}
-                  onOpenNew={launchScriptsState?.onOpenNew}
-                  onCloseNew={launchScriptsState?.onCloseNew}
-                  onNewDraftChange={launchScriptsState?.onNewDraftScriptChange}
-                  onNewDraftIconChange={launchScriptsState?.onNewDraftIconChange}
-                  onNewDraftLabelChange={launchScriptsState?.onNewDraftLabelChange}
-                  onCreateNew={launchScriptsState?.onCreateNew}
-                />
-                {launchScriptsState?.launchScripts.map((entry) => (
-                  <LaunchScriptEntryButton
-                    key={entry.id}
-                    entry={entry}
-                    editorOpen={launchScriptsState.editorOpenId === entry.id}
-                    draftScript={launchScriptsState.draftScript}
-                    draftIcon={launchScriptsState.draftIcon}
-                    draftLabel={launchScriptsState.draftLabel}
-                    isSaving={launchScriptsState.isSaving}
-                    error={launchScriptsState.errorById[entry.id] ?? null}
-                    onRun={() => launchScriptsState.onRunScript(entry.id)}
-                    onOpenEditor={() => launchScriptsState.onOpenEditor(entry.id)}
-                    onCloseEditor={launchScriptsState.onCloseEditor}
-                    onDraftChange={launchScriptsState.onDraftScriptChange}
-                    onDraftIconChange={launchScriptsState.onDraftIconChange}
-                    onDraftLabelChange={launchScriptsState.onDraftLabelChange}
-                    onSave={launchScriptsState.onSaveScript}
-                    onDelete={launchScriptsState.onDeleteScript}
-                  />
-                ))}
-              </div>
-            )}
-          {showTerminalButton && (
-            <WorkspaceHeaderAction
-              onClick={onToggleTerminal}
-              data-tauri-drag-region="false"
-              aria-label="Toggle terminal panel"
-              title="Terminal"
-              active={isTerminalOpen}
-              segment="icon"
-              icon={<Terminal size={16} aria-hidden />}
-            />
-          )}
-          <WorkspaceHeaderAction
-            onClick={handleCopyClick}
-            disabled={!canCopyThread || !onCopyThread}
-            data-tauri-drag-region="false"
-            aria-label="Copy thread"
-            title="Copy thread"
-            copied={copyFeedback}
-            segment="icon"
-            icon={
-              <WorkspaceHeaderActionCopyGlyphs
-                copied={copyFeedback}
-                copyIcon={<Copy size={16} />}
-                checkIcon={<Check size={16} />}
-              />
-            }
-          >
-            {null}
-          </WorkspaceHeaderAction>
-          {extraActionsNode}
-        </>
-      }
+      actionsNode={renderHeaderActions ? resolvedHeaderActionsNode : null}
     />
   );
 }
