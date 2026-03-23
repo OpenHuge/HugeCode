@@ -15,12 +15,13 @@ describe("useSettingsModalState", () => {
     preloadSettingsViewMock.mockClear();
   });
 
-  it("preloads settings before opening the modal", () => {
+  it("preloads settings before opening the modal", async () => {
     const { result } = renderHook(() => useSettingsModalState());
 
     act(() => {
       result.current.openSettings();
     });
+    await vi.dynamicImportSettled();
 
     expect(preloadSettingsViewMock).toHaveBeenCalledTimes(1);
     expect(result.current.settingsOpen).toBe(true);

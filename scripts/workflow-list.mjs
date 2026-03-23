@@ -74,10 +74,6 @@ const WORKFLOW_SECTIONS = [
         "pnpm desktop:verify:windows",
         "Run Windows x64 desktop host checks plus debug/no-bundle verification.",
       ],
-      [
-        "pnpm desktop:verify:windows:arm64",
-        "Run Windows ARM64 host checks plus debug/no-bundle verification.",
-      ],
       ["pnpm desktop:verify", "Run desktop smoke plus a debug/no-bundle Tauri build."],
       ["pnpm desktop:build:windows", "Build the Windows x64 NSIS desktop installer."],
       [

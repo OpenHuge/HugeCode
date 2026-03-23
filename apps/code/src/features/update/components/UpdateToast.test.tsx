@@ -116,7 +116,7 @@ describe("UpdateToast", () => {
     expect(onDismissPostUpdateNotice).toHaveBeenCalledTimes(1);
   });
 
-  it("renders post-update release notes and opens GitHub link", () => {
+  it("renders post-update release notes and opens GitHub link", async () => {
     const onDismissPostUpdateNotice = vi.fn();
     const htmlUrl = "https://github.com/byoungd/keep-up/releases/tag/v1.2.3";
     const state: UpdateState = { stage: "idle" };
@@ -137,8 +137,8 @@ describe("UpdateToast", () => {
     );
     const scoped = within(container);
 
-    expect(scoped.getByText("Highlights")).toBeTruthy();
-    expect(scoped.getByText("Added release notes toast")).toBeTruthy();
+    expect(await scoped.findByText("Highlights")).toBeTruthy();
+    expect(await scoped.findByText("Added release notes toast")).toBeTruthy();
 
     fireEvent.click(scoped.getByRole("button", { name: "View on GitHub" }));
     expect(openUrlMock).toHaveBeenCalledWith(htmlUrl);

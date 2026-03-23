@@ -33,6 +33,15 @@ const STARTUP_WARMUP_CLIENT_FILES = [
   "./src/features/settings/components/SettingsViewCore.tsx",
   "./src/features/shared/components/FileTypeIconImage.tsx",
 ] as const;
+const NON_CRITICAL_JS_PRELOAD_PATTERNS = [
+  /^assets\/sentry-[^/]+\.js$/,
+  /^assets\/settings(?:ViewLoader)?-[^/]+\.js$/,
+  /^assets\/xterm-vendor-[^/]+\.(?:js|css)$/,
+] as const;
+
+function shouldDeferNonCriticalJsPreload(file: string) {
+  return NON_CRITICAL_JS_PRELOAD_PATTERNS.some((pattern) => pattern.test(file));
+}
 
 function resolveDevHost() {
   const envHost =
@@ -54,6 +63,14 @@ export default defineConfig({
     include: [...STARTUP_OPTIMIZE_DEPS],
   },
   build: {
+    modulePreload: {
+      resolveDependencies(_filename, deps, context) {
+        if (context.hostType === "js") {
+          return deps.filter((dep) => !shouldDeferNonCriticalJsPreload(dep));
+        }
+        return deps;
+      },
+    },
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL("./index.html", import.meta.url)),
@@ -72,12 +89,6 @@ export default defineConfig({
           }
           if (id.includes("/node_modules/@xterm/")) {
             return "xterm-vendor";
-          }
-          if (
-            id.includes("/node_modules/react-markdown/") ||
-            id.includes("/node_modules/remark-gfm/")
-          ) {
-            return "markdown-vendor";
           }
           if (id.includes("/node_modules/prismjs/")) {
             return "prism-vendor";
