@@ -76,6 +76,7 @@ fn build_chatgpt_prepare_page_script() -> String {
 async () => {
   /* decision_lab_prepare_page_v4 */
   const normalizeLabel = (value) => (value ?? '').replace(/\s+/g, ' ').trim();
+  const pageText = () => normalizeLabel(document.body?.innerText ?? '');
   const dismissedDialogLabels = [];
   const dismissBlockingDialogs = () => {
     const buttonPatterns = [/^continue$/i, /^close$/i, /^ok$/i, /^dismiss$/i, /^got it$/i, /^not now$/i, /^maybe later$/i];
@@ -101,6 +102,17 @@ async () => {
   });
   const isConversationUrl = () => /^\/c(\/|$)/.test(window.location.pathname);
   dismissBlockingDialogs();
+  const textSnapshot = pageText();
+  const authRequired =
+    /\/auth(\/|$)/.test(window.location.pathname) ||
+    /\b(log in|sign up for free|get started)\b/i.test(textSnapshot);
+  const planBlockedMessage = [
+    /team plan failed to renew/i,
+    /workspace will be deactivated/i,
+  ]
+    .map((pattern) => textSnapshot.match(pattern)?.[0] ?? null)
+    .filter(Boolean)
+    .join(' | ');
   const composer =
     document.querySelector('#prompt-textarea') ||
     document.querySelector('textarea[placeholder]') ||
@@ -120,6 +132,8 @@ async () => {
     dismissedDialogLabels,
     newChatControlFound: Boolean(findNewChatControl()),
     isConversationUrl: isConversationUrl(),
+    authRequired,
+    planBlockedMessage: planBlockedMessage || null,
     title: document.title,
     url: window.location.href
   };
@@ -217,6 +231,16 @@ async () => {{
     const label = normalizeLabel(`${{button.getAttribute('aria-label') ?? ''}} ${{button.textContent ?? ''}}`).toLowerCase();
     return /(^send prompt$|^send$| send prompt| send )/.test(label);
   }});
+  const readComposerText = () => {{
+    const currentComposer = findComposer();
+    if (!currentComposer) {{
+      return '';
+    }}
+    if ('value' in currentComposer && typeof currentComposer.value === 'string') {{
+      return currentComposer.value;
+    }}
+    return currentComposer.textContent ?? '';
+  }};
   dismissBlockingDialogs();
   await new Promise((resolve) => setTimeout(resolve, 50));
   const composer =
@@ -269,12 +293,21 @@ async () => {{
     composer.dispatchEvent(new Event('change', {{ bubbles: true }}));
   }}
   await new Promise((resolve) => setTimeout(resolve, 50));
-  const sendButton = findSendButton();
+  let sendButton = findSendButton();
+  const enableDeadline = Date.now() + 2500;
+  while ((!sendButton || sendButton.disabled) && Date.now() < enableDeadline) {{
+    dismissBlockingDialogs();
+    composer.dispatchEvent(new Event('input', {{ bubbles: true }}));
+    composer.dispatchEvent(new Event('change', {{ bubbles: true }}));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    sendButton = findSendButton();
+  }}
   if (!sendButton) {{
     return {{
       ok: false,
       error: 'send_button_not_found',
       composerFound: true,
+      composerTextLength: readComposerText().trim().length,
       usedExecCommand,
       dismissedDialogLabels
     }};
@@ -286,6 +319,7 @@ async () => {{
       composerFound: true,
       sendButtonFound: true,
       sendButtonEnabled: false,
+      composerTextLength: readComposerText().trim().length,
       usedExecCommand,
       dismissedDialogLabels
     }};
@@ -671,6 +705,25 @@ fn is_navigation_context_reset_error(error: &str) -> bool {
         || normalized.contains("cannot find context with specified id")
 }
 
+fn chatgpt_prepare_requires_auth(result: &Value) -> bool {
+    extract_structured_object(result)
+        .and_then(|object| object.get("authRequired").and_then(Value::as_bool))
+        .unwrap_or(false)
+}
+
+fn chatgpt_prepare_plan_blocked_message(result: &Value) -> Option<String> {
+    extract_structured_object(result)
+        .and_then(|object| object.get("planBlockedMessage").and_then(Value::as_str).map(str::trim).map(ToOwned::to_owned))
+        .filter(|value| !value.is_empty())
+}
+
+fn should_retry_chatgpt_fill_step(error: &str) -> bool {
+    matches!(
+        error.trim(),
+        "composer_not_found" | "send_button_not_found" | "send_button_disabled"
+    )
+}
+
 fn page_matches_chatgpt_url(candidate_url: &str, chatgpt_url: &str) -> bool {
     let candidate_raw = candidate_url.trim();
     let target_raw = chatgpt_url.trim();
@@ -1001,6 +1054,18 @@ pub(super) async fn run_chatgpt_decision_lab_operation(
         if let Some(error) = extract_decision_lab_step_error(&prepare_result) {
             return Err(format!("ChatGPT decision lab browser step failed: {error}"));
         }
+        if chatgpt_prepare_requires_auth(&prepare_result) {
+            let stderr = client.close().await;
+            if !stderr.trim().is_empty() {
+                warnings.push(stderr.trim().to_string());
+            }
+            return Ok((tool_calls, warnings, "auth_required".to_string()));
+        }
+        if let Some(plan_blocked_message) = chatgpt_prepare_plan_blocked_message(&prepare_result) {
+            warnings.push(format!(
+                "ChatGPT surfaced an account/workspace warning before the decision lab prompt: {plan_blocked_message}"
+            ));
+        }
         let mut baseline_assistant_turn_count = 0;
         let mut should_reset_to_fresh_chat = false;
         if let Some(object) = extract_structured_object(&prepare_result) {
@@ -1076,45 +1141,98 @@ pub(super) async fn run_chatgpt_decision_lab_operation(
             if let Some(error) = extract_decision_lab_step_error(&prepare_result) {
                 return Err(format!("ChatGPT decision lab browser step failed: {error}"));
             }
+            if chatgpt_prepare_requires_auth(&prepare_result) {
+                let stderr = client.close().await;
+                if !stderr.trim().is_empty() {
+                    warnings.push(stderr.trim().to_string());
+                }
+                return Ok((tool_calls, warnings, "auth_required".to_string()));
+            }
+            if let Some(plan_blocked_message) = chatgpt_prepare_plan_blocked_message(&prepare_result)
+            {
+                warnings.push(format!(
+                    "ChatGPT surfaced an account/workspace warning after resetting the page: {plan_blocked_message}"
+                ));
+            }
             baseline_assistant_turn_count = extract_structured_object(&prepare_result)
                 .and_then(|object| object.get("assistantTurnCount").and_then(Value::as_u64))
                 .unwrap_or(0);
             tool_calls.push(prepare_result.clone());
         }
 
-        for (tool_name, arguments) in [
-            (
-                "evaluate_script",
-                Some(Map::from_iter([(
-                    "function".to_string(),
-                    Value::String(build_chatgpt_fill_and_send_script(prompt.as_str())),
-                )])),
+        let mut fill_succeeded = false;
+        for attempt in 0..2 {
+            let call_result = client
+                .call_tool(
+                    "evaluate_script",
+                    Some(Map::from_iter([(
+                        "function".to_string(),
+                        Value::String(build_chatgpt_fill_and_send_script(prompt.as_str())),
+                    )])),
+                )
+                .await?;
+            let normalized =
+                normalize_browser_call_result("evaluate_script", call_result, &mut warnings);
+            let maybe_error = extract_decision_lab_step_error(&normalized);
+            tool_calls.push(normalized.clone());
+            let Some(error) = maybe_error else {
+                fill_succeeded = true;
+                break;
+            };
+            if attempt == 0 && should_retry_chatgpt_fill_step(error.as_str()) {
+                warnings.push(format!(
+                    "Retrying the ChatGPT send step after `{error}` because the composer was not yet actionable."
+                ));
+                let wait_for_result = client
+                    .call_tool(
+                        "wait_for",
+                        Some(Map::from_iter([
+                            (
+                                "text".to_string(),
+                                Value::Array(vec![
+                                    Value::String("ChatGPT".to_string()),
+                                    Value::String("Ask anything".to_string()),
+                                    Value::String("New chat".to_string()),
+                                ]),
+                            ),
+                            ("timeout".to_string(), Value::Number(timeout_ms.into())),
+                        ])),
+                    )
+                    .await?;
+                tool_calls.push(normalize_browser_call_result(
+                    "wait_for",
+                    wait_for_result,
+                    &mut warnings,
+                ));
+                continue;
+            }
+            return Err(format!("ChatGPT decision lab browser step failed: {error}"));
+        }
+        if !fill_succeeded {
+            return Err("ChatGPT decision lab browser step failed: send_step_exhausted".to_string());
+        }
+
+        for function in [
+            build_chatgpt_completion_wait_script(
+                timeout_ms,
+                request_id.as_str(),
+                baseline_assistant_turn_count,
             ),
-            (
-                "evaluate_script",
-                Some(Map::from_iter([(
-                    "function".to_string(),
-                    Value::String(build_chatgpt_completion_wait_script(
-                        timeout_ms,
-                        request_id.as_str(),
-                        baseline_assistant_turn_count,
-                    )),
-                )])),
-            ),
-            (
-                "evaluate_script",
-                Some(Map::from_iter([(
-                    "function".to_string(),
-                    Value::String(build_chatgpt_extract_code_block_script(request_id.as_str())),
-                )])),
-            ),
+            build_chatgpt_extract_code_block_script(request_id.as_str()),
         ] {
-            let call_result = client.call_tool(tool_name, arguments).await?;
-            let normalized = normalize_browser_call_result(tool_name, call_result, &mut warnings);
-            if tool_name == "evaluate_script" {
-                if let Some(error) = extract_decision_lab_step_error(&normalized) {
-                    return Err(format!("ChatGPT decision lab browser step failed: {error}"));
-                }
+            let call_result = client
+                .call_tool(
+                    "evaluate_script",
+                    Some(Map::from_iter([(
+                        "function".to_string(),
+                        Value::String(function),
+                    )])),
+                )
+                .await?;
+            let normalized =
+                normalize_browser_call_result("evaluate_script", call_result, &mut warnings);
+            if let Some(error) = extract_decision_lab_step_error(&normalized) {
+                return Err(format!("ChatGPT decision lab browser step failed: {error}"));
             }
             tool_calls.push(normalized);
         }
@@ -1122,12 +1240,33 @@ pub(super) async fn run_chatgpt_decision_lab_operation(
         if !stderr.trim().is_empty() {
             warnings.push(stderr.trim().to_string());
         }
-        Ok::<(Vec<Value>, Vec<String>), String>((tool_calls, warnings))
+        Ok::<(Vec<Value>, Vec<String>, String), String>((
+            tool_calls,
+            warnings,
+            "completed".to_string(),
+        ))
     })
     .await;
 
     match result {
-        Ok(Ok((tool_calls, warnings))) => {
+        Ok(Ok((tool_calls, warnings, completion_state))) => {
+            if completion_state == "auth_required" {
+                let (content_text, structured_content, artifacts) =
+                    aggregate_browser_tool_call_results(tool_calls.as_slice());
+                return BrowserDebugRunSnapshot {
+                    available: false,
+                    status: "blocked",
+                    mode: "mcp-chrome-devtools",
+                    browser_url: browser_url.clone(),
+                    message: "ChatGPT login is required in the selected browser session.".to_string(),
+                    tool_calls,
+                    content_text,
+                    structured_content,
+                    artifacts,
+                    warnings,
+                    decision_lab: None,
+                };
+            }
             let (content_text, structured_content, artifacts) =
                 aggregate_browser_tool_call_results(tool_calls.as_slice());
             let extract_result = tool_calls.last().cloned().unwrap_or(Value::Null);
