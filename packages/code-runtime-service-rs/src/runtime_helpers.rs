@@ -735,26 +735,29 @@ mod tests {
     }
 }
 
-pub(super) fn compute_agent_route(
+pub(super) async fn compute_agent_route(
     ctx: &AppContext,
     provider_hint: Option<&str>,
     requested_model_id: Option<&str>,
 ) -> Result<(TurnProviderRoute, String, String), RpcError> {
     let provider_hint_core =
         provider_hint.and_then(|provider| parse_runtime_provider(Some(provider)));
-    let provider_hint_extension = provider_hint
-        .and_then(|provider| resolve_provider_extension_by_alias(&ctx.config, provider))
-        .cloned();
-    let model_hint_extension = requested_model_id
-        .and_then(|model_id| resolve_provider_extension_by_model_id(&ctx.config, model_id))
-        .cloned();
+    let provider_hint_extension = match provider_hint {
+        Some(provider) => resolve_active_provider_extension_by_alias(ctx, provider).await,
+        None => None,
+    };
+    let model_hint_extension = match requested_model_id {
+        Some(model_id) => resolve_active_provider_extension_by_model_id(ctx, model_id).await,
+        None => None,
+    };
 
     if let Some(provider_value) = provider_hint {
         if provider_hint_core.is_none() && provider_hint_extension.is_none() {
+            let active_extensions = active_provider_extensions(ctx).await;
             let supported = RuntimeProvider::specs()
                 .iter()
                 .map(|spec| format!("{} ({})", spec.routed_provider, spec.aliases.join("/")))
-                .chain(ctx.config.provider_extensions.iter().map(|extension| {
+                .chain(active_extensions.iter().map(|extension| {
                     format!(
                         "{} ({})",
                         extension.provider_id,
