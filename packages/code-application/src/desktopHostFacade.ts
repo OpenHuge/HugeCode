@@ -4,7 +4,6 @@ import type {
   DesktopRuntimeHost,
   DesktopSessionInfo,
 } from "@ku0/code-platform-interfaces";
-import { toSafeExternalUrl } from "@ku0/shared";
 
 export type DesktopRuntimeDetectionInput = {
   desktopHostBridge: DesktopHostBridge | null;
@@ -130,13 +129,8 @@ export async function openDesktopExternalUrl(
   input: DesktopExternalUrlFallbacks,
   url: string
 ): Promise<boolean> {
-  const safeUrl = toSafeExternalUrl(url);
-  if (!safeUrl) {
-    return false;
-  }
-
   try {
-    const openResult = await input.desktopHostBridge?.shell?.openExternalUrl?.(safeUrl);
+    const openResult = await input.desktopHostBridge?.shell?.openExternalUrl?.(url);
     if (input.desktopHostBridge?.shell?.openExternalUrl) {
       return openResult !== false;
     }
@@ -145,7 +139,7 @@ export async function openDesktopExternalUrl(
   }
 
   try {
-    const tauriOpened = await input.openTauriUrl?.(safeUrl);
+    const tauriOpened = await input.openTauriUrl?.(url);
     if (tauriOpened) {
       return true;
     }
@@ -153,7 +147,7 @@ export async function openDesktopExternalUrl(
     // Fall through to browser fallback.
   }
 
-  return input.openBrowserUrl?.(safeUrl) === true;
+  return input.openBrowserUrl?.(url) === true;
 }
 
 export async function revealDesktopItemInDir(

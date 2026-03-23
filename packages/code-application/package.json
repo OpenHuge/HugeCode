@@ -18,15 +18,6 @@
     "lint:fix": "pnpm exec oxlint --fix --fix-suggestions src && pnpm exec oxfmt --write ."
   },
   "dependencies": {
-    "@ku0/code-platform-interfaces": "workspace:*",
-    "@ku0/shared": "workspace:*"
-  },
-  "devDependencies": {
-    "@types/react": "^19.2.14",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4"
-  },
-  "peerDependencies": {
-    "react": "^19.2.4"
+    "@ku0/code-platform-interfaces": "workspace:*"
   }
 }
