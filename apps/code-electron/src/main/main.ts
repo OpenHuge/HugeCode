@@ -1,15 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  app,
-  BrowserWindow,
-  ipcMain,
-  Menu,
-  nativeImage,
-  Notification,
-  shell,
-  Tray,
-} from "electron";
+import { app, BrowserWindow, ipcMain, Notification, shell } from "electron";
 import type { Event as ElectronEvent, HandlerDetails } from "electron";
 import type { OpenDesktopWindowInput } from "../shared/ipc.js";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
@@ -25,8 +16,8 @@ import {
   resolveBrowserDebugPort,
 } from "./browserDebugSession.js";
 import { createDesktopStateStore } from "./desktopStateStore.js";
+import { createDesktopTrayController } from "./desktopTrayController.js";
 import { registerDesktopHostIpc } from "./registerDesktopHostIpc.js";
-import { buildTrayMenuTemplate, getTrayMenuStateSignature } from "./trayMenu.js";
 
 const DEFAULT_WINDOW_STATE: DesktopWindowBounds = {
   width: 1440,
@@ -40,9 +31,6 @@ const trayIconDataUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAK0lEQVR42mP8z8AARMBEw0AEYBxVSFUBQwqGQYQmGmKagjYwNAxMDAwMDAwAAABEgQJkzJYGQAAAABJRU5ErkJggg==";
 
 let isQuitting = false;
-let tray: Tray | null = null;
-let trayMenu: Menu | null = null;
-let trayMenuSignature: string | null = null;
 const activeWindows = new Map<number, BrowserWindow>();
 
 if (enableAppSandbox) {
@@ -112,7 +100,7 @@ function createBrowserWindowForSession(session: DesktopSessionDescriptor) {
     if (activeSession) {
       desktopShellState.attachWindow(activeSession, nextWindow.id);
       persistDesktopState();
-      updateTray();
+      trayController.update();
     }
   });
 
@@ -131,25 +119,25 @@ function createBrowserWindowForSession(session: DesktopSessionDescriptor) {
     if (!isQuitting && resolveCloseBehavior(desktopShellState, nextWindow.id) === "hide") {
       event.preventDefault();
       nextWindow.hide();
-      updateTray();
+      trayController.update();
       return;
     }
 
     desktopShellState.detachWindow(nextWindow.id, nextWindow.getBounds());
     persistDesktopState();
     activeWindows.delete(nextWindow.id);
-    updateTray();
+    trayController.update();
   });
 
   nextWindow.on("closed", () => {
     activeWindows.delete(nextWindow.id);
-    updateTray();
+    trayController.update();
   });
 
   desktopShellState.attachWindow(session, nextWindow.id);
   activeWindows.set(nextWindow.id, nextWindow);
   persistDesktopState();
-  updateTray();
+  trayController.update();
 
   return nextWindow;
 }
@@ -213,84 +201,43 @@ function listWindows() {
   }));
 }
 
-function getTrayState() {
-  return {
-    supported: isTraySupported,
-    enabled: isTraySupported && desktopShellState.trayEnabled,
-  };
+function restoreVisibleWindow() {
+  const visibleWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
+  if (!visibleWindow) {
+    return false;
+  }
+
+  visibleWindow.show();
+  visibleWindow.focus();
+  return true;
 }
 
-function createTrayIcon() {
-  const image = nativeImage.createFromDataURL(trayIconDataUrl);
-  if (process.platform === "darwin") {
-    image.setTemplateImage(true);
-  }
-  return image;
-}
-
-function updateTray() {
-  if (!isTraySupported) {
-    return;
-  }
-
-  if (!desktopShellState.trayEnabled) {
-    tray?.setContextMenu(null);
-    tray?.destroy();
-    tray = null;
-    trayMenu = null;
-    trayMenuSignature = null;
-    return;
-  }
-
-  if (!tray) {
-    tray = new Tray(createTrayIcon());
-    tray.setToolTip("HugeCode");
-    tray.on("double-click", () => {
-      const visibleWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
-      if (visibleWindow) {
-        visibleWindow.show();
-        visibleWindow.focus();
-      } else {
-        openWindow();
-      }
-    });
-  }
-
-  const trayMenuState = {
-    trayEnabled: desktopShellState.trayEnabled,
-    windows: listWindows(),
-    recentSessions: desktopShellState.recentSessions,
-  };
-  const nextTrayMenuSignature = getTrayMenuStateSignature(trayMenuState);
-  if (trayMenuSignature === nextTrayMenuSignature && trayMenu) {
-    return;
-  }
-
-  trayMenu = Menu.buildFromTemplate(
-    buildTrayMenuTemplate(trayMenuState, {
-      onFocusWindow: (windowId) => {
-        focusWindow(windowId);
-      },
-      onNewWindow: () => {
-        openWindow();
-      },
-      onQuit: () => {
-        isQuitting = true;
-        app.quit();
-      },
-      onReopenSession: (sessionId) => {
-        reopenSession(sessionId);
-      },
-      onToggleTray: (enabled) => {
-        desktopShellState.setTrayEnabled(enabled);
-        persistDesktopState();
-        updateTray();
-      },
-    })
-  );
-  trayMenuSignature = nextTrayMenuSignature;
-  tray.setContextMenu(trayMenu);
-}
+const trayController = createDesktopTrayController({
+  isSupported: isTraySupported,
+  onFocusWindow: focusWindow,
+  onNewWindow: () => {
+    openWindow();
+  },
+  onQuit: () => {
+    isQuitting = true;
+    app.quit();
+  },
+  onReopenSession: reopenSession,
+  onSetTrayEnabled: (enabled) => {
+    desktopShellState.setTrayEnabled(enabled);
+    persistDesktopState();
+  },
+  platform: process.platform,
+  readState() {
+    return {
+      recentSessions: desktopShellState.recentSessions,
+      trayEnabled: desktopShellState.trayEnabled,
+      windows: listWindows(),
+    };
+  },
+  restoreVisibleWindow,
+  trayIconDataUrl,
+});
 
 registerDesktopHostIpc({
   channels: DESKTOP_HOST_IPC_CHANNELS,
@@ -317,7 +264,9 @@ registerDesktopHostIpc({
       }
       return desktopShellState.getSessionByWindowId(sourceWindow.id);
     },
-    getTrayState,
+    getTrayState() {
+      return trayController.getState();
+    },
     getWindowLabel(event) {
       const sourceWindow = BrowserWindow.fromWebContents(event.sender);
       if (!sourceWindow) {
@@ -356,8 +305,8 @@ registerDesktopHostIpc({
     setTrayEnabled(enabled) {
       desktopShellState.setTrayEnabled(enabled === true);
       persistDesktopState();
-      updateTray();
-      return getTrayState();
+      trayController.update();
+      return trayController.getState();
     },
     showNotification(event, input) {
       if (!Notification.isSupported()) {
@@ -405,7 +354,7 @@ app.whenReady().then(() => {
   } else {
     openWindow();
   }
-  updateTray();
+  trayController.update();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -421,6 +370,7 @@ app.whenReady().then(() => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  trayController.dispose();
 });
 
 app.on("window-all-closed", () => {
