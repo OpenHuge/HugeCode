@@ -26,6 +26,8 @@ const startRuntimeJobWithRemoteSelectionMock = vi.hoisted(() => vi.fn());
 const readRepositoryExecutionContractMock = vi.hoisted(() => vi.fn());
 const startAgentTask = vi.hoisted(() => vi.fn());
 const prepareRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
+const getRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
+const subscribeRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 const startRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
@@ -63,6 +65,8 @@ vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
   getRuntimeJob: vi.fn(),
   interveneRuntimeJob: vi.fn(),
   listRuntimeJobs: vi.fn(),
+  getRuntimeRunV2: getRuntimeRunV2Mock,
+  subscribeRuntimeRunV2: subscribeRuntimeRunV2Mock,
   prepareRuntimeRunV2: prepareRuntimeRunV2Mock,
   startRuntimeRunV2: startRuntimeRunV2Mock,
   resumeRuntimeJob: vi.fn(),
@@ -100,6 +104,7 @@ import { subscribeScopedRuntimeUpdatedEvents } from "../../../application/runtim
 import { getMissionControlSnapshot } from "../../../application/runtime/ports/tauriMissionControl";
 import {
   cancelRuntimeJob as interruptAgentTask,
+  getRuntimeRunV2,
   submitRuntimeJobApprovalDecision as submitTaskApprovalDecision,
   listRuntimeJobs,
   resumeRuntimeJob as resumeAgentTask,
@@ -121,7 +126,7 @@ import type { RuntimeKernel } from "../../../application/runtime/kernel/runtimeK
 import { parseRepositoryExecutionContract } from "../../../application/runtime/facades/runtimeRepositoryExecutionContract";
 
 type MockAgentTaskSummary = AgentTaskSummary;
-let runtimeUpdatedListener: ((event: RuntimeUpdatedEvent) => void) | null = null;
+const runtimeUpdatedListeners = new Set<(event: RuntimeUpdatedEvent) => void>();
 const getMissionControlSnapshotMock = vi.mocked(getMissionControlSnapshot);
 const submitTaskApprovalDecisionMock = vi.mocked(submitTaskApprovalDecision) as unknown as Mock;
 const interruptAgentTaskMock = vi.mocked(interruptAgentTask) as unknown as Mock;
@@ -152,16 +157,16 @@ function mockRuntimeTasks(tasks: MockAgentTaskSummary[]) {
 }
 
 beforeEach(() => {
-  runtimeUpdatedListener = null;
+  runtimeUpdatedListeners.clear();
   vi.mocked(subscribeScopedRuntimeUpdatedEvents).mockImplementation((_options, listener) => {
-    runtimeUpdatedListener = listener;
+    runtimeUpdatedListeners.add(listener);
     return () => {
-      if (runtimeUpdatedListener === listener) {
-        runtimeUpdatedListener = null;
-      }
+      runtimeUpdatedListeners.delete(listener);
     };
   });
   startRuntimeJobWithRemoteSelectionMock.mockResolvedValue({});
+  vi.mocked(getRuntimeRunV2).mockResolvedValue(null);
+  subscribeRuntimeRunV2Mock.mockResolvedValue(null);
   prepareRuntimeRunV2Mock.mockResolvedValue(createRuntimeLaunchPreparationFixture());
   startRuntimeRunV2Mock.mockResolvedValue({
     run: {
@@ -262,7 +267,14 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.clearAllMocks();
+  runtimeUpdatedListeners.clear();
 });
+
+function emitRuntimeUpdated(event: RuntimeUpdatedEvent) {
+  for (const listener of runtimeUpdatedListeners) {
+    listener(event);
+  }
+}
 
 function buildTask(
   taskId: string,
@@ -1814,7 +1826,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     expect(screen.getByText("Running task")).toBeTruthy();
 
     act(() => {
-      runtimeUpdatedListener?.(buildRuntimeUpdatedEvent("durability-rev-1", 5, 17));
+      emitRuntimeUpdated(buildRuntimeUpdatedEvent("durability-rev-1", 5, 17));
     });
 
     expect(screen.getByTestId("workspace-runtime-durability-warning")).toBeTruthy();
@@ -1829,7 +1841,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     });
 
     act(() => {
-      runtimeUpdatedListener?.(buildRuntimeUpdatedEvent("durability-rev-1", 6, 18));
+      emitRuntimeUpdated(buildRuntimeUpdatedEvent("durability-rev-1", 6, 18));
     });
 
     expect(screen.getByText(/Checkpoint failed: 6\/18/)).toBeTruthy();
@@ -1843,7 +1855,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     expect(screen.getByText(/Repeats: x2/)).toBeTruthy();
 
     act(() => {
-      runtimeUpdatedListener?.(buildRuntimeUpdatedEvent("durability-rev-2", 7, 19));
+      emitRuntimeUpdated(buildRuntimeUpdatedEvent("durability-rev-2", 7, 19));
     });
 
     expect(screen.getByTestId("workspace-runtime-durability-warning")).toBeTruthy();

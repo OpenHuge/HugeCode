@@ -128,6 +128,7 @@ export function WorkspaceHomeAgentRuntimeRunItem({
 }: WorkspaceHomeAgentRuntimeRunItemProps) {
   const runtimeRunTruth = useRuntimeRunRecordTruth({
     runId: run?.id ?? task.runSummary?.id ?? task.taskId,
+    workspaceId: task.workspaceId ?? run?.workspaceId ?? null,
   });
   const truthTask = runtimeRunTruth.record?.run ?? null;
   const effectiveTask = truthTask ? ({ ...task, ...truthTask } as RuntimeAgentTaskSummary) : task;

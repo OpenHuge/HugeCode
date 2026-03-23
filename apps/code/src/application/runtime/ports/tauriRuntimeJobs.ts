@@ -20,6 +20,7 @@ export type {
   RuntimeRunPrepareV2Response,
   RuntimeRunGetV2Request,
   RuntimeRunGetV2Response,
+  RuntimeRunSubscribeV2Response,
   RuntimeRunStartRequest,
   RuntimeRunStartV2Response,
   RuntimeRunCancelAck,
@@ -49,4 +50,5 @@ export {
   resumeRuntimeJob,
   startRuntimeJob,
   subscribeRuntimeJob,
+  subscribeRuntimeRunV2,
 } from "../../../services/tauriRuntimeJobsBridge";

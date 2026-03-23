@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
+import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import { ToolCallChip } from "../../../design-system";
 import {
@@ -104,6 +105,19 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         .map((dependency) => `${dependency} -> ${task.taskKey}`)
     );
   }, [runtimeBatchPreview.tasks]);
+
+  useEffect(() => {
+    for (const entry of visibleRuntimeRuns.slice(0, 8)) {
+      const runId = entry.run?.id ?? entry.task.runSummary?.id ?? entry.task.taskId;
+      if (!runId) {
+        continue;
+      }
+      void primeRuntimeRunTruth({
+        runId,
+        workspaceId: entry.task.workspaceId ?? workspaceId,
+      });
+    }
+  }, [visibleRuntimeRuns, workspaceId]);
 
   return (
     <div className={controlStyles.controlSection}>

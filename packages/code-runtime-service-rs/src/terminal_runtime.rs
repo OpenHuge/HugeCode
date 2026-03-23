@@ -377,8 +377,8 @@ pub(crate) async fn handle_terminal_read_output(
     ctx: &AppContext,
     session_id: &str,
 ) -> Result<Value, RpcError> {
-    const OUTPUT_SYNC_ATTEMPTS: usize = 4;
-    const OUTPUT_SYNC_RETRY_DELAY_MS: u64 = 40;
+    const OUTPUT_SYNC_ATTEMPTS: usize = 12;
+    const OUTPUT_SYNC_RETRY_DELAY_MS: u64 = 50;
 
     for attempt in 0..OUTPUT_SYNC_ATTEMPTS {
         let (output, summary) = sync_terminal_output(ctx, session_id).await?;
@@ -391,11 +391,15 @@ pub(crate) async fn handle_terminal_read_output(
             .get("exitStatus")
             .and_then(Value::as_object)
             .is_some_and(|status| !status.is_empty());
-        if !effective_output.trim().is_empty() || exited || attempt + 1 == OUTPUT_SYNC_ATTEMPTS {
+        if !effective_output.trim().is_empty() || attempt + 1 == OUTPUT_SYNC_ATTEMPTS {
             return Ok(json!({
                 "output": effective_output,
                 "summary": summary,
             }));
+        }
+        if exited {
+            sleep(Duration::from_millis(OUTPUT_SYNC_RETRY_DELAY_MS)).await;
+            continue;
         }
         sleep(Duration::from_millis(OUTPUT_SYNC_RETRY_DELAY_MS)).await;
     }

@@ -36,6 +36,7 @@ import { getRuntimeCapabilitiesSummary as getRuntimeCapabilitiesSummaryFromRemot
 import {
   cancelRuntimeJob,
   getRuntimeRunV2,
+  subscribeRuntimeRunV2,
   submitRuntimeJobApprovalDecision,
   getRuntimeJob,
   interveneRuntimeJob,
@@ -102,6 +103,7 @@ import {
 import {
   cancelRuntimeJob as cancelRuntimeJobBridge,
   getRuntimeRunV2 as getRuntimeRunV2Bridge,
+  subscribeRuntimeRunV2 as subscribeRuntimeRunV2Bridge,
   submitRuntimeJobApprovalDecision as submitRuntimeJobApprovalDecisionBridge,
   getRuntimeJob as getRuntimeJobBridge,
   interveneRuntimeJob as interveneRuntimeJobBridge,
@@ -137,6 +139,7 @@ describe("tauri runtime port contract", () => {
       ["resumeRuntimeJob", resumeRuntimeJob, resumeRuntimeJobBridge],
       ["startRuntimeRunV2", startRuntimeRunV2, startRuntimeRunV2Bridge],
       ["getRuntimeRunV2", getRuntimeRunV2, getRuntimeRunV2Bridge],
+      ["subscribeRuntimeRunV2", subscribeRuntimeRunV2, subscribeRuntimeRunV2Bridge],
       ["subscribeRuntimeJob", subscribeRuntimeJob, subscribeRuntimeJobBridge],
       ["listRuntimeJobs", listRuntimeJobs, listRuntimeJobsBridge],
       [
