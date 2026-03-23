@@ -8,8 +8,10 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import type {
   AutoDriveControllerHookDraft,
+  AutoDriveContinuationPolicy,
   AutoDriveRiskPolicy,
   AutoDriveRoutePreference,
+  AutoDriveRuntimeContinuationState,
   AutoDriveRuntimeAutonomyState,
   AutoDriveRuntimeDecisionTrace,
   AutoDriveRuntimeOutcomeFeedback,
@@ -36,7 +38,18 @@ const DEFAULT_RISK_POLICY: AutoDriveRiskPolicy = {
   pauseOnHumanCheckpoint: true,
   allowNetworkAnalysis: true,
   allowValidationCommands: true,
+  allowChatgptDecisionLab: true,
+  autoRunChatgptDecisionLab: true,
+  chatgptDecisionLabMinConfidence: "medium",
+  chatgptDecisionLabMaxScoreGap: 8,
   minimumConfidence: "medium",
+};
+
+const DEFAULT_CONTINUATION_POLICY: AutoDriveContinuationPolicy = {
+  enabled: true,
+  maxAutomaticFollowUps: 2,
+  requireValidationSuccessToStop: true,
+  minimumConfidenceToStop: "high",
 };
 
 export type AutoDriveRuntimeRunStatus = AutoDriveRunRecord["status"] | "review_ready" | "cancelled";
@@ -120,7 +133,23 @@ export function mapDraftToRuntimeAutoDriveState(
       pauseOnHumanCheckpoint: draft.riskPolicy.pauseOnHumanCheckpoint,
       allowNetworkAnalysis: draft.riskPolicy.allowNetworkAnalysis,
       allowValidationCommands: draft.riskPolicy.allowValidationCommands,
+      allowChatgptDecisionLab: draft.riskPolicy.allowChatgptDecisionLab,
+      autoRunChatgptDecisionLab: draft.riskPolicy.autoRunChatgptDecisionLab,
+      chatgptDecisionLabMinConfidence: draft.riskPolicy.chatgptDecisionLabMinConfidence,
+      chatgptDecisionLabMaxScoreGap: draft.riskPolicy.chatgptDecisionLabMaxScoreGap,
       minimumConfidence: draft.riskPolicy.minimumConfidence,
+    },
+    continuationPolicy: {
+      enabled: draft.continuation?.enabled ?? DEFAULT_CONTINUATION_POLICY.enabled,
+      maxAutomaticFollowUps:
+        draft.continuation?.maxAutomaticFollowUps ??
+        DEFAULT_CONTINUATION_POLICY.maxAutomaticFollowUps,
+      requireValidationSuccessToStop:
+        draft.continuation?.requireValidationSuccessToStop ??
+        DEFAULT_CONTINUATION_POLICY.requireValidationSuccessToStop,
+      minimumConfidenceToStop:
+        draft.continuation?.minimumConfidenceToStop ??
+        DEFAULT_CONTINUATION_POLICY.minimumConfidenceToStop,
     },
   };
 }
@@ -324,6 +353,38 @@ function toRuntimeAutonomyState(
   };
 }
 
+function toRuntimeContinuationPolicy(
+  policy: AgentTaskAutoDriveState["continuationPolicy"]
+): AutoDriveContinuationPolicy | null {
+  if (!policy) {
+    return null;
+  }
+  return {
+    enabled: policy.enabled ?? DEFAULT_CONTINUATION_POLICY.enabled,
+    maxAutomaticFollowUps:
+      policy.maxAutomaticFollowUps ?? DEFAULT_CONTINUATION_POLICY.maxAutomaticFollowUps,
+    requireValidationSuccessToStop:
+      policy.requireValidationSuccessToStop ??
+      DEFAULT_CONTINUATION_POLICY.requireValidationSuccessToStop,
+    minimumConfidenceToStop:
+      policy.minimumConfidenceToStop ?? DEFAULT_CONTINUATION_POLICY.minimumConfidenceToStop,
+  };
+}
+
+function toRuntimeContinuationState(
+  state: AgentTaskAutoDriveState["continuationState"]
+): AutoDriveRuntimeContinuationState | null {
+  if (!state) {
+    return null;
+  }
+  return {
+    automaticFollowUpCount: state.automaticFollowUpCount ?? 0,
+    status: state.status === "continuing" || state.status === "stopped" ? state.status : "idle",
+    lastContinuationAt: state.lastContinuationAt ?? null,
+    lastContinuationReason: state.lastContinuationReason ?? null,
+  };
+}
+
 function adaptRun(params: {
   run: HugeCodeRunSummary;
   task: HugeCodeTaskSummary;
@@ -370,6 +431,8 @@ function adaptRun(params: {
   const runtimeDecisionTrace = toRuntimeDecisionTrace(autoDrive.decisionTrace);
   const runtimeOutcomeFeedback = toRuntimeOutcomeFeedback(autoDrive.outcomeFeedback);
   const runtimeAutonomyState = toRuntimeAutonomyState(autoDrive.autonomyState);
+  const runtimeContinuationPolicy = toRuntimeContinuationPolicy(autoDrive.continuationPolicy);
+  const runtimeContinuationState = toRuntimeContinuationState(autoDrive.continuationState);
   const status = mapRuntimeRunStateToStatus(params.run.state);
   const overallProgress = computeOverallProgress({
     completedWaypoints,
@@ -435,6 +498,8 @@ function adaptRun(params: {
       maxReroutes: budget.maxReroutes ?? DEFAULT_BUDGET.maxReroutes,
     },
     riskPolicy,
+    continuationPolicy: runtimeContinuationPolicy ?? DEFAULT_CONTINUATION_POLICY,
+    continuationState: runtimeContinuationState,
     execution: null,
     iteration,
     totals: {
@@ -517,6 +582,7 @@ function adaptRun(params: {
     runtimeDecisionTrace,
     runtimeOutcomeFeedback,
     runtimeAutonomyState,
+    runtimeContinuationState,
   };
 }
 
@@ -601,7 +667,7 @@ export function selectAutoDriveSnapshot(params: {
     snapshot,
     workspaceId: params.workspaceId,
   });
-  const candidateTasks = threadBoundTasks.length > 0 ? threadBoundTasks : standaloneAutoDriveTasks;
+  const candidateTasks = params.threadId === null ? standaloneAutoDriveTasks : threadBoundTasks;
   const candidateTaskIds = new Set(candidateTasks.map((task) => task.id));
   let candidateRuns = selectAutoDriveRuns({
     snapshot,
@@ -609,7 +675,11 @@ export function selectAutoDriveSnapshot(params: {
     taskIds: candidateTaskIds,
   });
 
-  if (candidateRuns.length === 0 && standaloneAutoDriveTasks.length > 0) {
+  if (
+    params.threadId === null &&
+    candidateRuns.length === 0 &&
+    standaloneAutoDriveTasks.length > 0
+  ) {
     const fallbackTaskIds = new Set(standaloneAutoDriveTasks.map((task) => task.id));
     candidateRuns = selectAutoDriveRuns({
       snapshot,
@@ -645,9 +715,11 @@ export function selectAutoDriveSnapshot(params: {
 
   const selectedTask =
     candidateTasks.find((task) => task.id === selectedRun.taskId) ??
-    standaloneAutoDriveTasks.find((task) => task.id === selectedRun.taskId) ??
+    (params.threadId === null
+      ? standaloneAutoDriveTasks.find((task) => task.id === selectedRun.taskId)
+      : undefined) ??
     candidateTasks[0] ??
-    standaloneAutoDriveTasks[0] ??
+    (params.threadId === null ? standaloneAutoDriveTasks[0] : undefined) ??
     null;
   if (!selectedTask) {
     return {

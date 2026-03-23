@@ -160,6 +160,7 @@ export type TurnSendRequest = {
   queue: boolean;
   attachments: TurnSendAttachment[];
   collaborationMode?: Record<string, unknown> | null;
+  autoDrive?: AgentTaskAutoDriveState | null;
 };
 
 export type TurnInterruptRequest = {
@@ -374,8 +375,12 @@ export type AgentTaskAutoDriveRiskPolicy = {
   pauseOnLowConfidence?: boolean | null;
   pauseOnHumanCheckpoint?: boolean | null;
   allowNetworkAnalysis?: boolean | null;
+  allowChatgptDecisionLab?: boolean | null;
+  autoRunChatgptDecisionLab?: boolean | null;
   allowValidationCommands?: boolean | null;
   minimumConfidence?: AgentTaskAutoDriveConfidence | null;
+  chatgptDecisionLabMinConfidence?: AgentTaskAutoDriveConfidence | null;
+  chatgptDecisionLabMaxScoreGap?: number | null;
 };
 
 export type AgentTaskAutoDriveContextPolicy = {
@@ -390,6 +395,20 @@ export type AgentTaskAutoDriveDecisionPolicy = {
   autonomyPriority?: AgentTaskAutoDriveAutonomyPriority | null;
   promptStrategy?: AgentTaskAutoDrivePromptStrategy | null;
   researchMode?: AgentTaskAutoDriveResearchMode | null;
+};
+
+export type AgentTaskAutoDriveContinuationPolicy = {
+  enabled?: boolean | null;
+  maxAutomaticFollowUps?: number | null;
+  requireValidationSuccessToStop?: boolean | null;
+  minimumConfidenceToStop?: AgentTaskAutoDriveConfidence | null;
+};
+
+export type AgentTaskAutoDriveContinuationState = {
+  automaticFollowUpCount?: number | null;
+  status?: "idle" | "continuing" | "stopped" | null;
+  lastContinuationAt?: number | null;
+  lastContinuationReason?: string | null;
 };
 
 export type AgentTaskAutoDriveDecisionScore = {
@@ -483,6 +502,8 @@ export type AgentTaskAutoDriveState = {
   riskPolicy?: AgentTaskAutoDriveRiskPolicy | null;
   contextPolicy?: AgentTaskAutoDriveContextPolicy | null;
   decisionPolicy?: AgentTaskAutoDriveDecisionPolicy | null;
+  continuationPolicy?: AgentTaskAutoDriveContinuationPolicy | null;
+  continuationState?: AgentTaskAutoDriveContinuationState | null;
   scenarioProfile?: AgentTaskAutoDriveScenarioProfile | null;
   decisionTrace?: AgentTaskAutoDriveDecisionTrace | null;
   outcomeFeedback?: AgentTaskAutoDriveOutcomeFeedback | null;
@@ -3235,6 +3256,7 @@ export type RuntimeMcpServerStatusListResponse = {
 
 export type RuntimeBrowserDebugMode =
   | "mcp-playwright"
+  | "mcp-chrome-devtools"
   | "observe-only"
   | "unavailable"
   | (string & {});
@@ -3273,7 +3295,31 @@ export type RuntimeBrowserDebugToolCall = {
   arguments?: Record<string, unknown> | null;
 };
 
-export type RuntimeBrowserDebugOperation = "inspect" | "automation";
+export type RuntimeBrowserDebugDecisionLabOption = {
+  id: string;
+  label: string;
+  summary?: string | null;
+};
+
+export type RuntimeBrowserDebugDecisionLabRequest = {
+  question: string;
+  options: RuntimeBrowserDebugDecisionLabOption[];
+  constraints?: string[] | null;
+  allowLiveWebResearch?: boolean | null;
+  chatgptUrl?: string | null;
+};
+
+export type RuntimeBrowserDebugDecisionLabResult = {
+  recommendedOptionId?: string | null;
+  recommendedOption?: string | null;
+  alternativeOptionIds?: string[] | null;
+  decisionMemo?: string | null;
+  confidence?: "low" | "medium" | "high" | null;
+  assumptions?: string[] | null;
+  followUpQuestions?: string[] | null;
+};
+
+export type RuntimeBrowserDebugOperation = "inspect" | "automation" | "chatgpt_decision_lab";
 
 export type RuntimeBrowserDebugRunRequest = {
   workspaceId: string;
@@ -3282,6 +3328,7 @@ export type RuntimeBrowserDebugRunRequest = {
   includeScreenshot?: boolean | null;
   timeoutMs?: number | null;
   steps?: RuntimeBrowserDebugToolCall[] | null;
+  decisionLab?: RuntimeBrowserDebugDecisionLabRequest | null;
 };
 
 export type RuntimeBrowserDebugArtifact = RuntimeArtifact;
@@ -3307,6 +3354,7 @@ export type RuntimeBrowserDebugRunResponse = {
   structuredContent?: Record<string, unknown> | null;
   artifacts: RuntimeBrowserDebugArtifact[];
   warnings: string[];
+  decisionLab?: RuntimeBrowserDebugDecisionLabResult | null;
 };
 
 export type RuntimeSecurityPreflightRequest = {
@@ -3724,6 +3772,7 @@ export type TurnSendRequestCompat = TurnSendRequest & {
   execution_mode?: TurnExecutionMode;
   codex_bin?: string | null;
   codex_args?: string[] | null;
+  auto_drive?: AgentTaskAutoDriveState | null;
 };
 
 export type TurnInterruptRequestCompat = TurnInterruptRequest & {

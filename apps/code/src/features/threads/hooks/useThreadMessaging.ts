@@ -49,6 +49,8 @@ import {
   resolveTurnRequestRouting,
   type SendMessageOptions,
 } from "./useThreadMessagingHelpers";
+import { mapDraftToRuntimeAutoDriveState } from "../../autodrive/hooks/autoDriveRuntimeSnapshotAdapter";
+import type { useThreadCodexParams } from "./useThreadCodexParams";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 
 type UseThreadMessagingOptions = {
@@ -110,6 +112,7 @@ type UseThreadMessagingOptions = {
     workspaceId: string,
     threadId: string
   ) => AtlasLongTermMemoryDigest | null | undefined;
+  getThreadCodexParams?: ReturnType<typeof useThreadCodexParams>["getThreadCodexParams"];
 };
 
 async function invokeSteerTurnRequest(params: {
@@ -131,8 +134,23 @@ async function invokeSteerTurnRequest(params: {
   preferredBackendIds: string[] | null;
   codexBin: string | null;
   codexArgs: string[] | null;
+  autoDrive?: ReturnType<typeof mapDraftToRuntimeAutoDriveState> | null;
 }): Promise<Record<string, unknown>> {
   const serviceTier = params.fastMode ? "fast" : null;
+  const steerOptions = {
+    model: params.model,
+    effort: params.effort,
+    serviceTier,
+    collaborationMode: params.collaborationMode,
+    accessMode: params.accessMode,
+    executionMode: params.executionMode,
+    missionMode: params.missionMode,
+    executionProfileId: params.executionProfileId,
+    preferredBackendIds: params.preferredBackendIds,
+    codexBin: params.codexBin,
+    codexArgs: params.codexArgs,
+    ...(params.autoDrive ? { autoDrive: params.autoDrive } : {}),
+  };
   if (params.contextPrefix) {
     return (await steerTurnService(
       params.workspaceId,
@@ -142,19 +160,7 @@ async function invokeSteerTurnRequest(params: {
       params.images,
       params.appMentions.length > 0 ? params.appMentions : undefined,
       params.contextPrefix,
-      {
-        model: params.model,
-        effort: params.effort,
-        serviceTier,
-        collaborationMode: params.collaborationMode,
-        accessMode: params.accessMode,
-        executionMode: params.executionMode,
-        missionMode: params.missionMode,
-        executionProfileId: params.executionProfileId,
-        preferredBackendIds: params.preferredBackendIds,
-        codexBin: params.codexBin,
-        codexArgs: params.codexArgs,
-      }
+      steerOptions
     )) as Record<string, unknown>;
   }
   if (params.appMentions.length > 0) {
@@ -166,19 +172,7 @@ async function invokeSteerTurnRequest(params: {
       params.images,
       params.appMentions,
       undefined,
-      {
-        model: params.model,
-        effort: params.effort,
-        serviceTier,
-        collaborationMode: params.collaborationMode,
-        accessMode: params.accessMode,
-        executionMode: params.executionMode,
-        missionMode: params.missionMode,
-        executionProfileId: params.executionProfileId,
-        preferredBackendIds: params.preferredBackendIds,
-        codexBin: params.codexBin,
-        codexArgs: params.codexArgs,
-      }
+      steerOptions
     )) as Record<string, unknown>;
   }
   return (await steerTurnService(
@@ -189,19 +183,7 @@ async function invokeSteerTurnRequest(params: {
     params.images,
     undefined,
     undefined,
-    {
-      model: params.model,
-      effort: params.effort,
-      serviceTier,
-      collaborationMode: params.collaborationMode,
-      accessMode: params.accessMode,
-      executionMode: params.executionMode,
-      missionMode: params.missionMode,
-      executionProfileId: params.executionProfileId,
-      preferredBackendIds: params.preferredBackendIds,
-      codexBin: params.codexBin,
-      codexArgs: params.codexArgs,
-    }
+    steerOptions
   )) as Record<string, unknown>;
 }
 
@@ -275,6 +257,7 @@ export function useThreadMessaging({
   getAtlasEnabled,
   getAtlasDetailLevel,
   getAtlasLongTermMemoryDigest,
+  getThreadCodexParams,
 }: UseThreadMessagingOptions) {
   const reportReviewUnavailable = useCallback(() => {
     const runtimeMode = detectRuntimeMode();
@@ -476,6 +459,10 @@ export function useThreadMessaging({
           .filter((entry): entry is string => Boolean(entry))
           .join("\n")
           .trim() || null;
+      const autoDriveDraft = getThreadCodexParams?.(workspace.id, threadId)?.autoDriveDraft ?? null;
+      const autoDrive = autoDriveDraft?.enabled
+        ? mapDraftToRuntimeAutoDriveState(autoDriveDraft)
+        : null;
       try {
         void trackProductAnalyticsEvent("delegate_started", analyticsAttributes);
         const startPayload = buildStartTurnPayload({
@@ -493,6 +480,7 @@ export function useThreadMessaging({
           contextPrefix,
           images,
           appMentions,
+          autoDrive,
         });
         const startTurn = () =>
           sendUserMessageService(workspace.id, threadId, finalText, startPayload);
@@ -518,6 +506,7 @@ export function useThreadMessaging({
             preferredBackendIds: resolvedPreferredBackendIds,
             codexBin: resolvedExecutionMode === "runtime" ? null : resolvedCodexBin,
             codexArgs: resolvedExecutionMode === "runtime" ? null : resolvedCodexArgs,
+            autoDrive,
           });
         } else {
           response = (await startTurn()) as Record<string, unknown>;

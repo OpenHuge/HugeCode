@@ -1,5 +1,6 @@
 import type {
   AutoDriveConfidence,
+  AutoDriveContextSnapshot,
   AutoDriveExecutionTuning,
   AutoDriveIterationSummary,
   AutoDriveNextDecision,
@@ -13,6 +14,59 @@ const CONFIDENCE_RANK: Record<AutoDriveConfidence, number> = {
   medium: 1,
   high: 2,
 };
+
+const DEFAULT_CHATGPT_DECISION_LAB_MIN_CONFIDENCE: AutoDriveConfidence = "medium";
+const DEFAULT_CHATGPT_DECISION_LAB_MAX_SCORE_GAP = 8;
+const DEFAULT_CONTINUATION_MIN_CONFIDENCE: AutoDriveConfidence = "high";
+const DEFAULT_CONTINUATION_MAX_FOLLOW_UPS = 2;
+
+function resolveChatgptDecisionLabMinConfidence(run: AutoDriveRunRecord): AutoDriveConfidence {
+  return (
+    run.riskPolicy.chatgptDecisionLabMinConfidence ?? DEFAULT_CHATGPT_DECISION_LAB_MIN_CONFIDENCE
+  );
+}
+
+function resolveChatgptDecisionLabMaxScoreGap(run: AutoDriveRunRecord): number {
+  return run.riskPolicy.chatgptDecisionLabMaxScoreGap ?? DEFAULT_CHATGPT_DECISION_LAB_MAX_SCORE_GAP;
+}
+
+function resolveContinuationMinConfidence(run: AutoDriveRunRecord): AutoDriveConfidence {
+  return run.continuationPolicy?.minimumConfidenceToStop ?? DEFAULT_CONTINUATION_MIN_CONFIDENCE;
+}
+
+function resolveContinuationMaxFollowUps(run: AutoDriveRunRecord): number {
+  return run.continuationPolicy?.maxAutomaticFollowUps ?? DEFAULT_CONTINUATION_MAX_FOLLOW_UPS;
+}
+
+function shouldContinuePastNominalGoal(params: {
+  run: AutoDriveRunRecord;
+  latestSummary: AutoDriveIterationSummary;
+  criticConfidence: AutoDriveConfidence;
+}): boolean {
+  const { run, latestSummary, criticConfidence } = params;
+  if (run.continuationPolicy?.enabled === false) {
+    return false;
+  }
+  const maxAutomaticFollowUps = resolveContinuationMaxFollowUps(run);
+  if (maxAutomaticFollowUps <= 0) {
+    return false;
+  }
+  const automaticFollowUpCount = run.continuationState?.automaticFollowUpCount ?? 0;
+  if (automaticFollowUpCount >= maxAutomaticFollowUps) {
+    return false;
+  }
+  if (
+    (run.continuationPolicy?.requireValidationSuccessToStop ?? true) &&
+    latestSummary.validation.success !== true
+  ) {
+    return true;
+  }
+  const minimumConfidence = resolveContinuationMinConfidence(run);
+  return (
+    CONFIDENCE_RANK[criticConfidence] < CONFIDENCE_RANK[minimumConfidence] ||
+    CONFIDENCE_RANK[latestSummary.progress.arrivalConfidence] < CONFIDENCE_RANK[minimumConfidence]
+  );
+}
 
 function nextRiskLevel(left: AutoDriveRiskLevel, right: AutoDriveRiskLevel): AutoDriveRiskLevel {
   const ranking: Record<AutoDriveRiskLevel, number> = {
@@ -41,6 +95,42 @@ function buildRerouteRecord(params: {
   };
 }
 
+export function shouldAutoRunChatgptDecisionLab(params: {
+  run: AutoDriveRunRecord;
+  context: AutoDriveContextSnapshot;
+}): boolean {
+  const { run, context } = params;
+  if (run.riskPolicy.allowChatgptDecisionLab === false) {
+    return false;
+  }
+  if (run.riskPolicy.autoRunChatgptDecisionLab === false) {
+    return false;
+  }
+  const [selected, fallbackSecond] = context.opportunities.candidates;
+  const currentSelection =
+    context.opportunities.candidates.find(
+      (candidate) => candidate.id === context.opportunities.selectedCandidateId
+    ) ?? selected;
+  const competingCandidate =
+    context.opportunities.candidates.find((candidate) => candidate.id !== currentSelection?.id) ??
+    fallbackSecond ??
+    null;
+  if (!currentSelection || !competingCandidate) {
+    return false;
+  }
+
+  const scoreGap = Math.abs(currentSelection.score - competingCandidate.score);
+  if (scoreGap > resolveChatgptDecisionLabMaxScoreGap(run)) {
+    return false;
+  }
+
+  const minimumConfidence = resolveChatgptDecisionLabMinConfidence(run);
+  return (
+    CONFIDENCE_RANK[currentSelection.confidence] <= CONFIDENCE_RANK[minimumConfidence] ||
+    CONFIDENCE_RANK[context.startState.task.confidence] <= CONFIDENCE_RANK[minimumConfidence]
+  );
+}
+
 export function decideAutoDriveNextStep(params: {
   run: AutoDriveRunRecord;
   latestSummary: AutoDriveIterationSummary;
@@ -67,15 +157,6 @@ export function decideAutoDriveNextStep(params: {
     latestSummary.progress.stopRisk !== "high" &&
     latestSummary.blockers.length === 0;
 
-  if (latestSummary.goalReached) {
-    return {
-      action: "stop",
-      reason: {
-        code: "goal_reached",
-        detail: "The latest waypoint satisfied the destination arrival criteria.",
-      },
-    };
-  }
   if (run.totals.consumedTokensEstimate >= run.budget.maxTokens) {
     return {
       action: "stop",
@@ -133,6 +214,21 @@ export function decideAutoDriveNextStep(params: {
       reason: {
         code: "reroute_limit_reached",
         detail: "The route has rerouted too many times and should stop safely.",
+      },
+    };
+  }
+  if (latestSummary.goalReached) {
+    if (shouldContinuePastNominalGoal({ run, latestSummary, criticConfidence })) {
+      return {
+        action: "continue",
+        reason: null,
+      };
+    }
+    return {
+      action: "stop",
+      reason: {
+        code: "goal_reached",
+        detail: "The latest waypoint satisfied the destination arrival criteria.",
       },
     };
   }

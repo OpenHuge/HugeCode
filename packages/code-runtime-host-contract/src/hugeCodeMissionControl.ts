@@ -222,6 +222,20 @@ export type HugeCodeAutoDriveDecisionPolicy = {
   researchMode?: HugeCodeAutoDriveResearchMode | null;
 };
 
+export type HugeCodeAutoDriveContinuationPolicy = {
+  enabled?: boolean | null;
+  maxAutomaticFollowUps?: number | null;
+  requireValidationSuccessToStop?: boolean | null;
+  minimumConfidenceToStop?: HugeCodeAutoDriveConfidence | null;
+};
+
+export type HugeCodeAutoDriveContinuationState = {
+  automaticFollowUpCount?: number | null;
+  status?: "idle" | "continuing" | "stopped" | null;
+  lastContinuationAt?: number | null;
+  lastContinuationReason?: string | null;
+};
+
 export type HugeCodeAutoDriveDecisionScore = {
   reasonCode: string;
   label: string;
@@ -313,6 +327,8 @@ export type HugeCodeAutoDriveState = {
   riskPolicy?: HugeCodeAutoDriveRiskPolicy | null;
   contextPolicy?: HugeCodeAutoDriveContextPolicy | null;
   decisionPolicy?: HugeCodeAutoDriveDecisionPolicy | null;
+  continuationPolicy?: HugeCodeAutoDriveContinuationPolicy | null;
+  continuationState?: HugeCodeAutoDriveContinuationState | null;
   scenarioProfile?: HugeCodeAutoDriveScenarioProfile | null;
   decisionTrace?: HugeCodeAutoDriveDecisionTrace | null;
   outcomeFeedback?: HugeCodeAutoDriveOutcomeFeedback | null;

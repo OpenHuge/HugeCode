@@ -1,4 +1,5 @@
 import type { AccessMode, ComposerExecutionMode } from "../../../types";
+import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
 import type { ThreadCodexParams } from "./threadStorage";
 import { makeThreadCodexParamsKey } from "./threadStorage";
 
@@ -10,6 +11,7 @@ export type PendingNewThreadSeed = {
   accessMode: AccessMode;
   executionMode: ComposerExecutionMode;
   fastMode: boolean;
+  autoDriveDraft: AutoDriveControllerHookDraft | null;
 };
 
 type ResolveThreadCodexStateInput = {
@@ -48,6 +50,7 @@ export type ThreadCodexSeedPatch = {
   accessMode: AccessMode;
   collaborationModeId: string | null;
   executionMode: ComposerExecutionMode;
+  autoDriveDraft: AutoDriveControllerHookDraft | null;
 };
 
 export function createPendingThreadSeed(options: {
@@ -57,6 +60,7 @@ export function createPendingThreadSeed(options: {
   accessMode: AccessMode;
   executionMode: ComposerExecutionMode;
   fastMode: boolean;
+  autoDriveDraft?: AutoDriveControllerHookDraft | null;
 }): PendingNewThreadSeed | null {
   const {
     activeThreadId,
@@ -65,6 +69,7 @@ export function createPendingThreadSeed(options: {
     accessMode,
     executionMode,
     fastMode,
+    autoDriveDraft,
   } = options;
   if (activeThreadId || !activeWorkspaceId) {
     return null;
@@ -75,6 +80,7 @@ export function createPendingThreadSeed(options: {
     accessMode,
     executionMode,
     fastMode,
+    autoDriveDraft: autoDriveDraft?.enabled ? autoDriveDraft : null,
   };
 }
 
@@ -179,5 +185,6 @@ export function buildThreadCodexSeedPatch(options: {
     accessMode: pendingForWorkspace?.accessMode ?? accessMode,
     collaborationModeId: pendingForWorkspace?.collaborationModeId ?? selectedCollaborationModeId,
     executionMode: pendingForWorkspace?.executionMode ?? executionMode,
+    autoDriveDraft: pendingForWorkspace?.autoDriveDraft ?? null,
   };
 }

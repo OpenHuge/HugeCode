@@ -119,6 +119,7 @@ export function useDesktopWorkspaceThreadDomain({
     getAtlasDetailLevel: resolveThreadAtlasDetailLevel,
     getAtlasLongTermMemoryDigest: getThreadAtlasMemoryDigest,
     upsertThreadAtlasMemoryDigest,
+    getThreadCodexParams,
   });
 
   const {

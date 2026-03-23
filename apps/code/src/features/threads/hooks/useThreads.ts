@@ -35,6 +35,7 @@ import { initialState, threadReducer } from "./useThreadsReducer";
 import { useThreadTitleAutogeneration } from "./useThreadTitleAutogeneration";
 import { useThreadToolCall } from "./useThreadToolCall";
 import { useThreadUserInput } from "./useThreadUserInput";
+import type { useThreadCodexParams } from "./useThreadCodexParams";
 
 type UseThreadsOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -70,6 +71,7 @@ type UseThreadsOptions = {
     threadId: string,
     digest: AtlasLongTermMemoryDigest
   ) => void;
+  getThreadCodexParams?: ReturnType<typeof useThreadCodexParams>["getThreadCodexParams"];
 };
 
 export function useThreads({
@@ -99,6 +101,7 @@ export function useThreads({
   getAtlasDetailLevel,
   getAtlasLongTermMemoryDigest,
   upsertThreadAtlasMemoryDigest,
+  getThreadCodexParams,
 }: UseThreadsOptions) {
   const [state, dispatch] = useReducer(threadReducer, initialState);
   const [pendingDraftUserMessagesByWorkspace, setPendingDraftUserMessagesByWorkspace] = useState<
@@ -668,6 +671,7 @@ export function useThreads({
     getAtlasEnabled,
     getAtlasDetailLevel,
     getAtlasLongTermMemoryDigest,
+    getThreadCodexParams,
   });
 
   const removeThread = useCallback(

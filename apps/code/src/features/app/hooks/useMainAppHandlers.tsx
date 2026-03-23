@@ -1,5 +1,6 @@
 import type { MutableRefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
 import { pickWorkspacePath } from "../../../application/runtime/ports/tauriWorkspaceDialogs";
 import type { AppMention, ComposerExecutionMode, WorkspaceInfo } from "../../../types";
 import { usePullRequestComposer } from "../../git/hooks/usePullRequestComposer";
@@ -138,6 +139,7 @@ type UseMainAppHandlersParams = {
   handleSend: PullRequestComposerParams["handleSend"];
   queueMessage: PullRequestComposerParams["queueMessage"];
   pendingNewThreadSeedRef: MutableRefObject<PendingNewThreadSeed | null>;
+  pendingNewThreadAutoDriveDraftRef: MutableRefObject<AutoDriveControllerHookDraft | null>;
   selectedCollaborationModeId: string | null;
   accessMode: AccessMode;
   executionMode: ComposerExecutionMode;
@@ -237,6 +239,7 @@ export function useMainAppHandlers({
   handleSend,
   queueMessage,
   pendingNewThreadSeedRef,
+  pendingNewThreadAutoDriveDraftRef,
   selectedCollaborationModeId,
   accessMode,
   executionMode,
@@ -482,6 +485,7 @@ export function useMainAppHandlers({
       accessMode,
       executionMode,
       fastMode: fastModeEnabled,
+      autoDriveDraft: pendingNewThreadAutoDriveDraftRef.current,
     });
   }, [
     accessMode,
@@ -489,6 +493,7 @@ export function useMainAppHandlers({
     activeWorkspaceId,
     executionMode,
     fastModeEnabled,
+    pendingNewThreadAutoDriveDraftRef,
     selectedCollaborationModeId,
     pendingNewThreadSeedRef,
   ]);

@@ -305,7 +305,7 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
       getRuntimeBrowserDebugStatus(input.workspaceId),
     runRuntimeBrowserDebug: async (input: {
       workspaceId: string;
-      operation: "inspect" | "automation";
+      operation: "inspect" | "automation" | "chatgpt_decision_lab";
       prompt?: string | null;
       includeScreenshot?: boolean | null;
       timeoutMs?: number | null;
@@ -313,6 +313,17 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
         toolName: string;
         arguments?: Record<string, unknown> | null;
       }> | null;
+      decisionLab?: {
+        question: string;
+        options: Array<{
+          id: string;
+          label: string;
+          summary?: string | null;
+        }>;
+        constraints?: string[] | null;
+        allowLiveWebResearch?: boolean | null;
+        chatgptUrl?: string | null;
+      } | null;
     }) =>
       runRuntimeBrowserDebug({
         workspaceId: input.workspaceId,
@@ -321,6 +332,7 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
         includeScreenshot: input.includeScreenshot ?? null,
         timeoutMs: input.timeoutMs ?? null,
         steps: input.steps ?? null,
+        decisionLab: input.decisionLab ?? null,
       }),
     listRuntimeExtensions: async (targetWorkspaceId?: string | null) =>
       listRuntimeExtensions(targetWorkspaceId ?? workspaceId),

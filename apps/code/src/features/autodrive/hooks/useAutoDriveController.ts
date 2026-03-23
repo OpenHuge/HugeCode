@@ -6,15 +6,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AutoDriveConfidence,
   AutoDriveControllerHookDraft,
+  AutoDriveContinuationPolicy,
   AutoDriveRiskPolicy,
   AutoDriveRoutePreference,
   AutoDriveRunRecord,
 } from "../../../application/runtime/types/autoDrive";
 import type { RuntimeAgentControl } from "../../../application/runtime/types/webMcpBridge";
-import {
-  buildAgentTaskLaunchControls,
-  buildAgentTaskMissionBrief,
-} from "../../../application/runtime/facades/runtimeMissionDraftFacade";
+import { buildAgentTaskLaunchControls } from "../../../application/runtime/facades/runtimeMissionDraftFacade";
+import { launchAutoDriveThread } from "../../../application/runtime/facades/runtimeAutoDriveThreadLaunch";
 import type { AccessMode, WorkspaceInfo } from "../../../types";
 import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
 import type { ThreadCodexParamsPatch } from "../../threads/hooks/useThreadCodexParams";
@@ -31,10 +30,21 @@ const DEFAULT_RISK_POLICY: AutoDriveRiskPolicy = {
   pauseOnHumanCheckpoint: true,
   allowNetworkAnalysis: true,
   allowValidationCommands: true,
+  allowChatgptDecisionLab: true,
+  autoRunChatgptDecisionLab: true,
+  chatgptDecisionLabMinConfidence: "medium",
+  chatgptDecisionLabMaxScoreGap: 8,
   minimumConfidence: "medium",
 };
 
 const DEFAULT_ROUTE_PREFERENCE: AutoDriveRoutePreference = "stability_first";
+
+const DEFAULT_CONTINUATION_POLICY: AutoDriveContinuationPolicy = {
+  enabled: true,
+  maxAutomaticFollowUps: 2,
+  requireValidationSuccessToStop: true,
+  minimumConfidenceToStop: "high",
+};
 
 const DEFAULT_DRAFT: AutoDriveControllerHookDraft = {
   enabled: false,
@@ -55,6 +65,7 @@ const DEFAULT_DRAFT: AutoDriveControllerHookDraft = {
     maxReroutes: 2,
   },
   riskPolicy: DEFAULT_RISK_POLICY,
+  continuation: DEFAULT_CONTINUATION_POLICY,
 };
 
 type RuntimeAutoDriveControl = Pick<RuntimeAgentControl, "startTask" | "interveneTask">;
@@ -171,6 +182,13 @@ function normalizeConfidence(value: string | null | undefined): AutoDriveConfide
   return DEFAULT_RISK_POLICY.minimumConfidence;
 }
 
+function normalizeContinuationConfidence(value: string | null | undefined): AutoDriveConfidence {
+  if (value === "low" || value === "medium" || value === "high") {
+    return value;
+  }
+  return DEFAULT_CONTINUATION_POLICY.minimumConfidenceToStop;
+}
+
 type PersistedAutoDriveDraft = AutoDriveControllerHookDraft & {
   goal?: string;
   constraints?: string;
@@ -216,6 +234,13 @@ function normalizeDraft(
       ...DEFAULT_RISK_POLICY,
       ...(value.riskPolicy ?? {}),
       minimumConfidence: normalizeConfidence(value.riskPolicy?.minimumConfidence),
+    },
+    continuation: {
+      ...DEFAULT_CONTINUATION_POLICY,
+      ...(value.continuation ?? {}),
+      minimumConfidenceToStop: normalizeContinuationConfidence(
+        value.continuation?.minimumConfidenceToStop
+      ),
     },
   };
 }
@@ -502,6 +527,7 @@ function buildAutoDriveInstruction(
   const endState = draft.destination.endState.trim();
   const doneDefinition = draft.destination.doneDefinition.trim();
   const avoid = draft.destination.avoid.trim();
+  const continuationPolicy = draft.continuation ?? DEFAULT_CONTINUATION_POLICY;
   return [
     "AutoDrive launch capsule",
     `Objective: ${destination || "Untitled destination"}`,
@@ -514,6 +540,12 @@ function buildAutoDriveInstruction(
       ? `Launch capabilities: ${launchControls.requiredCapabilities.join(", ")}`
       : null,
     launchControls.maxSubtasks ? `Bounded subtasks: ${launchControls.maxSubtasks}` : null,
+    continuationPolicy.enabled
+      ? `Continuation policy: Keep autonomously issuing focused follow-up prompts until the route is validated and confidence reaches ${continuationPolicy.minimumConfidenceToStop}, capped at ${continuationPolicy.maxAutomaticFollowUps} automatic follow-ups.`
+      : "Continuation policy: Do not auto-append follow-up prompts after the first route pass.",
+    continuationPolicy.requireValidationSuccessToStop
+      ? "Stopping rule: Do not declare the route final while required validation is still missing or failing."
+      : "Stopping rule: Validation is advisory for route completion.",
     draft.riskPolicy.allowNetworkAnalysis
       ? "Research posture: Use network analysis when it materially improves architecture, implementation choices, or validation strategy."
       : "Research posture: Network analysis is disabled, so rely on local repository truth only.",
@@ -526,18 +558,18 @@ function buildAutoDriveInstruction(
 function canStartAutoDriveRun(params: {
   enabled: boolean;
   hasWorkspace: boolean;
+  hasThread: boolean;
   readyToLaunch: boolean;
   source: HugeCodeMissionControlSnapshot["source"] | null;
-  supportsStart: boolean;
   runStatus: AutoDriveRuntimeRunRecord["status"] | null;
   busyAction: AutoDriveBusyAction | null;
 }): boolean {
   if (
     !params.enabled ||
     !params.hasWorkspace ||
+    !params.hasThread ||
     !params.readyToLaunch ||
     params.source !== "runtime_snapshot_v1" ||
-    !params.supportsStart ||
     params.busyAction !== null
   ) {
     return false;
@@ -682,16 +714,11 @@ export function useAutoDriveController({
   );
   const activePreset = useMemo(() => resolveActivePresetKey(draft), [draft]);
 
-  const supportsStart = Boolean(runtimeControlSource?.startTask);
   const supportsIntervention = typeof runtimeControlSource?.interveneTask === "function";
   const runtimeOnlyControlsEnabled = snapshot.source === "runtime_snapshot_v1";
 
   const handleStart = useCallback(async () => {
-    if (!activeWorkspace?.id || !runtimeOnlyControlsEnabled || !supportsStart) {
-      return;
-    }
-    const startTask = runtimeControlSource?.startTask;
-    if (!startTask) {
+    if (!activeWorkspace?.id || !activeThreadId || !runtimeOnlyControlsEnabled) {
       return;
     }
     if (!readiness.readyToLaunch || !draft.enabled) {
@@ -738,13 +765,25 @@ export function useAutoDriveController({
       promptStrategy: "workspace_graph_first",
       researchMode: draft.riskPolicy.allowNetworkAnalysis ? "live_when_allowed" : "repository_only",
     };
+    autoDrivePayload.continuationPolicy = {
+      enabled: draft.continuation?.enabled ?? DEFAULT_CONTINUATION_POLICY.enabled,
+      maxAutomaticFollowUps:
+        draft.continuation?.maxAutomaticFollowUps ??
+        DEFAULT_CONTINUATION_POLICY.maxAutomaticFollowUps,
+      requireValidationSuccessToStop:
+        draft.continuation?.requireValidationSuccessToStop ??
+        DEFAULT_CONTINUATION_POLICY.requireValidationSuccessToStop,
+      minimumConfidenceToStop:
+        draft.continuation?.minimumConfidenceToStop ??
+        DEFAULT_CONTINUATION_POLICY.minimumConfidenceToStop,
+    };
 
     setBusyAction("starting");
     appendActivity({
       id: `control:start:${now()}`,
       kind: "control",
       title: "Start requested",
-      detail: `Dispatching runtime AutoDrive route toward ${draft.destination.title.trim() || "the destination"}.`,
+      detail: `Dispatching an AutoDrive route through the active thread toward ${draft.destination.title.trim() || "the destination"}.`,
       iteration: run?.iteration ?? 0,
       timestamp: now(),
     });
@@ -759,34 +798,14 @@ export function useAutoDriveController({
         requestMode: "start",
         eventSource: "auto_drive",
       });
-      await startTask({
+      await launchAutoDriveThread({
         workspaceId: activeWorkspace.id,
-        title: draft.destination.title.trim() || "AutoDrive mission",
-        taskSource: {
-          kind: "autodrive",
-          label: "AutoDrive Mission Control",
-          shortLabel: "AutoDrive",
-          title: draft.destination.title.trim() || "AutoDrive mission",
-          workspaceId: activeWorkspace.id,
-          workspaceRoot: activeWorkspace.path,
-          externalId: `autodrive:${activeWorkspace.id}`,
-        },
+        threadId: activeThreadId,
         instruction: buildAutoDriveInstruction(draft, launchControls),
-        stepKind: "read",
         accessMode,
-        reasonEffort: normalizeReasonEffort(selectedEffort),
         modelId: selectedModelId,
-        ...(launchControls.requiredCapabilities
-          ? { requiredCapabilities: [launchControls.requiredCapabilities[0] ?? "code"] }
-          : {}),
-        ...(preferredBackendIds ? { preferredBackendIds } : {}),
-        missionBrief: buildAgentTaskMissionBrief({
-          objective: draft.destination.title.trim() || "AutoDrive mission",
-          accessMode,
-          preferredBackendIds: preferredBackendIds ?? null,
-          maxSubtasks: launchControls.maxSubtasks,
-          autoDriveDraft: draft,
-        }),
+        reasonEffort: normalizeReasonEffort(selectedEffort),
+        preferredBackendIds: preferredBackendIds ?? null,
         autoDrive: autoDrivePayload,
       });
       await onRefreshMissionControl?.();
@@ -804,11 +823,9 @@ export function useAutoDriveController({
     preferredBackendIds,
     readiness.readyToLaunch,
     run?.iteration,
-    runtimeControlSource,
     runtimeOnlyControlsEnabled,
     selectedEffort,
     selectedModelId,
-    supportsStart,
   ]);
 
   const runTaskId = snapshot.runtimeTaskId;
@@ -947,9 +964,9 @@ export function useAutoDriveController({
       canStart: canStartAutoDriveRun({
         enabled: draft.enabled,
         hasWorkspace: Boolean(activeWorkspace?.id),
+        hasThread: Boolean(activeThreadId),
         readyToLaunch: readiness.readyToLaunch,
         source: snapshot.source,
-        supportsStart,
         runStatus: run?.status ?? null,
         busyAction,
       }),

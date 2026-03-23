@@ -10,10 +10,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeAgentControl } from "../../../application/runtime/types/webMcpBridge";
 import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
 import type { WorkspaceInfo } from "../../../types";
+import { launchAutoDriveThread } from "../../../application/runtime/facades/runtimeAutoDriveThreadLaunch";
 import { useAutoDriveController } from "./useAutoDriveController";
 
 vi.mock("../../shared/productAnalytics", () => ({
   trackProductAnalyticsEvent: vi.fn(async () => undefined),
+}));
+
+vi.mock("../../../application/runtime/facades/runtimeAutoDriveThreadLaunch", () => ({
+  launchAutoDriveThread: vi.fn(async () => ({ result: { turn: { id: "turn-1" } } })),
 }));
 
 const WORKSPACE: WorkspaceInfo = {
@@ -200,7 +205,7 @@ describe("useAutoDriveController", () => {
     vi.clearAllMocks();
   });
 
-  it("launches runtime AutoDrive via startTask(autoDrive, read step)", async () => {
+  it("launches AutoDrive through the active thread turn with runtime autoDrive payload", async () => {
     const { result, startTask } = renderAutoDriveHook({
       missionControlProjection: createSnapshot({
         run: createRun({
@@ -219,36 +224,27 @@ describe("useAutoDriveController", () => {
       await result.current.controls.onStart();
     });
 
-    expect(startTask).toHaveBeenCalledTimes(1);
-    expect(startTask).toHaveBeenCalledWith(
+    expect(startTask).not.toHaveBeenCalled();
+    expect(launchAutoDriveThread).toHaveBeenCalledTimes(1);
+    expect(launchAutoDriveThread).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId: "workspace-1",
-        taskSource: expect.objectContaining({
-          kind: "autodrive",
-          label: "AutoDrive Mission Control",
-          externalId: "autodrive:workspace-1",
-        }),
-        stepKind: "read",
+        threadId: "thread-1",
         instruction: expect.stringMatching(
-          /AutoDrive launch capsule[\s\S]*independent AutoDrive mission/
+          /AutoDrive launch capsule[\s\S]*independent AutoDrive mission[\s\S]*Continuation policy/
         ),
-        requiredCapabilities: ["code"],
-        missionBrief: expect.objectContaining({
-          objective: "Ship runtime truth",
-          doneDefinition: ["Start/Pause/Resume/Stop work"],
-          constraints: ["No local .hugecode/runs truth"],
-          riskLevel: "medium",
-          requiredCapabilities: ["code", "validation", "review", "research"],
-          maxSubtasks: 2,
-          permissionSummary: expect.objectContaining({
-            accessMode: "on-request",
-            allowNetwork: true,
-          }),
-        }),
+        modelId: "gpt-5",
+        reasonEffort: "medium",
         autoDrive: expect.objectContaining({
           destination: expect.objectContaining({
             title: "Ship runtime truth",
             routePreference: "balanced",
+          }),
+          continuationPolicy: expect.objectContaining({
+            enabled: true,
+            maxAutomaticFollowUps: 2,
+            requireValidationSuccessToStop: true,
+            minimumConfidenceToStop: "high",
           }),
           contextPolicy: expect.objectContaining({
             scope: "workspace_graph",
@@ -273,7 +269,7 @@ describe("useAutoDriveController", () => {
     );
   });
 
-  it("launches runtime AutoDrive without requiring an active thread binding", async () => {
+  it("does not start AutoDrive when no active thread is bound", async () => {
     const { result, startTask } = renderAutoDriveHook({
       activeThreadId: null,
       missionControlProjection: createSnapshot({
@@ -296,15 +292,9 @@ describe("useAutoDriveController", () => {
       await result.current.controls.onStart();
     });
 
-    expect(startTask).toHaveBeenCalledTimes(1);
-    expect(trackProductAnalyticsEvent).toHaveBeenCalledWith(
-      "delegate_started",
-      expect.objectContaining({
-        workspaceId: "workspace-1",
-        threadId: null,
-        eventSource: "auto_drive",
-      })
-    );
+    expect(result.current.controls.canStart).toBe(false);
+    expect(startTask).not.toHaveBeenCalled();
+    expect(launchAutoDriveThread).not.toHaveBeenCalled();
   });
 
   it("routes pause/resume/stop to interveneTask actions", async () => {
@@ -520,7 +510,7 @@ describe("useAutoDriveController", () => {
       await result.current.controls.onStart();
     });
 
-    expect(startTask).toHaveBeenCalledWith(
+    expect(launchAutoDriveThread).toHaveBeenCalledWith(
       expect.objectContaining({
         reasonEffort: "xhigh",
       })

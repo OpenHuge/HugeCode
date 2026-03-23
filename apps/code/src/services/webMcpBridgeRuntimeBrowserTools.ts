@@ -14,7 +14,7 @@ type RuntimeBrowserControl = RuntimeAgentControl & {
   getRuntimeBrowserDebugStatus?: (input: { workspaceId: string }) => Promise<unknown>;
   runRuntimeBrowserDebug?: (input: {
     workspaceId: string;
-    operation: "inspect" | "automation";
+    operation: "inspect" | "automation" | "chatgpt_decision_lab";
     prompt?: string | null;
     includeScreenshot?: boolean | null;
     timeoutMs?: number | null;
@@ -22,6 +22,17 @@ type RuntimeBrowserControl = RuntimeAgentControl & {
       toolName: string;
       arguments?: Record<string, unknown> | null;
     }> | null;
+    decisionLab?: {
+      question: string;
+      options: Array<{
+        id: string;
+        label: string;
+        summary?: string | null;
+      }>;
+      constraints?: string[] | null;
+      allowLiveWebResearch?: boolean | null;
+      chatgptUrl?: string | null;
+    } | null;
   }) => Promise<unknown>;
 };
 
@@ -85,6 +96,43 @@ function normalizeToolCallArray(value: unknown): Array<{
     };
   });
   return normalized;
+}
+
+function normalizeDecisionLabOptions(value: unknown): Array<{
+  id: string;
+  label: string;
+  summary?: string | null;
+}> {
+  if (!Array.isArray(value)) {
+    throw invalidInputError("options must be an array.");
+  }
+  return value.map((entry, index) => {
+    const record = asRecord(entry);
+    if (!record) {
+      throw invalidInputError(`options[${index}] must be an object.`);
+    }
+    const id =
+      typeof record.id === "string" && record.id.trim().length > 0 ? record.id.trim() : null;
+    const label =
+      typeof record.label === "string" && record.label.trim().length > 0
+        ? record.label.trim()
+        : null;
+    if (!id) {
+      throw invalidInputError(`options[${index}].id is required.`);
+    }
+    if (!label) {
+      throw invalidInputError(`options[${index}].label is required.`);
+    }
+    const summary =
+      typeof record.summary === "string" && record.summary.trim().length > 0
+        ? record.summary.trim()
+        : null;
+    return {
+      id,
+      label,
+      ...(summary ? { summary } : {}),
+    };
+  });
 }
 
 export function buildRuntimeBrowserTools(
@@ -223,6 +271,88 @@ export function buildRuntimeBrowserTools(
           steps,
         });
         return helpers.buildResponse("Runtime browser automation completed.", {
+          workspaceId,
+          result,
+        });
+      },
+    },
+    {
+      name: "run-chatgpt-decision-lab",
+      description:
+        "Use Chrome DevTools MCP against an authenticated ChatGPT web session to compare route options and return a structured decision recommendation.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          workspaceId: { type: "string" },
+          question: { type: "string" },
+          options: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                label: { type: "string" },
+                summary: { type: "string" },
+              },
+              required: ["id", "label"],
+            },
+          },
+          constraints: {
+            oneOf: [{ type: "array", items: { type: "string" } }, { type: "string" }],
+          },
+          allowLiveWebResearch: { type: "boolean" },
+          chatgptUrl: { type: "string" },
+          timeoutMs: { type: "number" },
+        },
+        required: ["question", "options"],
+      },
+      annotations: {
+        openWorldHint: true,
+        title: "Run ChatGPT Decision Lab",
+        taskSupport: "partial",
+      },
+      execute: async (input, agent) => {
+        const runRuntimeBrowserDebug = requireBrowserControlMethod(
+          control,
+          "runRuntimeBrowserDebug",
+          "run-chatgpt-decision-lab"
+        );
+        const workspaceId = resolveWorkspaceId(input, snapshot, helpers);
+        const question = helpers.toNonEmptyString(input.question);
+        if (!question) {
+          throw requiredInputError("question is required.");
+        }
+        const options = normalizeDecisionLabOptions(input.options);
+        if (options.length === 0) {
+          throw requiredInputError("options is required.");
+        }
+        const timeoutMs = helpers.toPositiveInteger(input.timeoutMs);
+        const constraints = helpers.toStringArray(input.constraints);
+        const chatgptUrl = helpers.toNonEmptyString(input.chatgptUrl);
+        const allowLiveWebResearch =
+          typeof input.allowLiveWebResearch === "boolean" ? input.allowLiveWebResearch : false;
+        await helpers.confirmWriteAction(
+          agent,
+          requireUserApproval,
+          `Run ChatGPT decision lab in workspace ${snapshot.workspaceName}?`,
+          onApprovalRequest
+        );
+        const result = await runRuntimeBrowserDebug({
+          workspaceId,
+          operation: "chatgpt_decision_lab",
+          prompt: null,
+          includeScreenshot: false,
+          timeoutMs,
+          steps: null,
+          decisionLab: {
+            question,
+            options,
+            constraints,
+            allowLiveWebResearch,
+            chatgptUrl,
+          },
+        });
+        return helpers.buildResponse("ChatGPT decision lab completed.", {
           workspaceId,
           result,
         });

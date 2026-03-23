@@ -3,6 +3,8 @@ import type {
   GitBranchesSnapshot,
   GitLogEntry,
   GitLogResponse,
+  RuntimeBrowserDebugRunRequest,
+  RuntimeBrowserDebugRunResponse,
   LiveSkillExecuteRequest,
   LiveSkillExecutionResult,
   SubAgentCloseAck,
@@ -84,8 +86,28 @@ export type AutoDriveRiskPolicy = {
   pauseOnLowConfidence: boolean;
   pauseOnHumanCheckpoint: boolean;
   allowNetworkAnalysis: boolean;
+  allowChatgptDecisionLab?: boolean;
+  autoRunChatgptDecisionLab?: boolean;
   allowValidationCommands: boolean;
   minimumConfidence: AutoDriveConfidence;
+  chatgptDecisionLabMinConfidence?: AutoDriveConfidence;
+  chatgptDecisionLabMaxScoreGap?: number;
+};
+
+export type AutoDriveContinuationPolicy = {
+  enabled: boolean;
+  maxAutomaticFollowUps: number;
+  requireValidationSuccessToStop: boolean;
+  minimumConfidenceToStop: AutoDriveConfidence;
+};
+
+export type AutoDriveContinuationStatus = "idle" | "continuing" | "stopped";
+
+export type AutoDriveContinuationState = {
+  automaticFollowUpCount: number;
+  status: AutoDriveContinuationStatus;
+  lastContinuationAt: number | null;
+  lastContinuationReason: string | null;
 };
 
 export type AutoDriveExecutionConfig = {
@@ -220,6 +242,18 @@ export type AutoDriveRuntimeAutonomyState = {
   unattendedContinuationAllowed: boolean | null;
   backgroundSafe: boolean | null;
   humanInterventionHotspots: string[];
+};
+
+export type AutoDriveRuntimeContinuationState = AutoDriveContinuationState;
+
+export type AutoDriveChatgptDecisionLabResult = {
+  recommendedOptionId: string | null;
+  recommendedOption: string | null;
+  alternativeOptionIds: string[];
+  decisionMemo: string | null;
+  confidence: AutoDriveConfidence | null;
+  assumptions: string[];
+  followUpQuestions: string[];
 };
 
 export type AutoDriveIntentSignalKind =
@@ -662,6 +696,8 @@ export type AutoDriveRunRecord = {
   destination: AutoDriveDestinationModel;
   budget: AutoDriveBudget;
   riskPolicy: AutoDriveRiskPolicy;
+  continuationPolicy?: AutoDriveContinuationPolicy | null;
+  continuationState?: AutoDriveContinuationState | null;
   execution?: AutoDriveExecutionConfig | null;
   iteration: number;
   totals: AutoDriveRunTotals;
@@ -683,6 +719,8 @@ export type AutoDriveRunRecord = {
   runtimeDecisionTrace?: AutoDriveRuntimeDecisionTrace | null;
   runtimeOutcomeFeedback?: AutoDriveRuntimeOutcomeFeedback | null;
   runtimeAutonomyState?: AutoDriveRuntimeAutonomyState | null;
+  runtimeContinuationState?: AutoDriveRuntimeContinuationState | null;
+  lastChatgptDecisionLab?: AutoDriveChatgptDecisionLabResult | null;
 };
 
 export type AutoDriveNextDecision = {
@@ -747,6 +785,9 @@ export type AutoDriveControllerDeps = {
   }) => Promise<SubAgentSessionSummary | null>;
   interruptSubAgentSession: (request: SubAgentInterruptRequest) => Promise<SubAgentInterruptAck>;
   closeSubAgentSession: (request: SubAgentCloseRequest) => Promise<SubAgentCloseAck>;
+  runRuntimeBrowserDebug?: (
+    request: RuntimeBrowserDebugRunRequest
+  ) => Promise<RuntimeBrowserDebugRunResponse>;
   runLiveSkill: (request: LiveSkillExecuteRequest) => Promise<LiveSkillExecutionResult>;
   now?: () => number;
   createRunId?: () => string;
@@ -795,4 +836,5 @@ export type AutoDriveControllerHookDraft = {
     maxReroutes: number;
   };
   riskPolicy: AutoDriveRiskPolicy;
+  continuation?: AutoDriveContinuationPolicy;
 };
