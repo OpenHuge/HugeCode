@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createLayoutNodesOptions,
   type LayoutNodesFieldRegistry,
@@ -158,12 +158,15 @@ function createGitOptions(overrides: Partial<LayoutNodesFieldRegistry> = {}): La
 }
 
 async function importBuildGitNodes() {
-  vi.resetModules();
   const { buildGitNodes: importedBuildGitNodes } = await import("./buildGitNodes");
   return importedBuildGitNodes;
 }
 
 describe("buildGitNodes diff lazy boundary", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
