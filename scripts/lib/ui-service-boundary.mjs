@@ -330,6 +330,22 @@ const VIOLATION_RULES = [
       /runtime\.doc\.(?:getMap|getList|getText|subscribe|frontiers|version|setPeerId|peerIdStr)/u,
     appliesTo: isUiBoundaryFile,
   },
+  {
+    id: "desktop-host-global-access",
+    description:
+      "UI and product code must not read `window.hugeCodeDesktopHost` directly; use runtime ports or platform adapters",
+    pattern: /window\.hugeCodeDesktopHost/u,
+    appliesTo: (filePath) =>
+      (isUiBoundaryFile(filePath) || isNonUiAppProductFile(filePath)) && !isUiTestFile(filePath),
+  },
+  {
+    id: "electron-import",
+    description:
+      "UI and product code must not import Electron renderer APIs directly; use runtime ports or platform adapters",
+    pattern: /(?:from\s+["']electron["']|import\(\s*["']electron["']\s*\)|\bipcRenderer\b)/u,
+    appliesTo: (filePath) =>
+      (isUiBoundaryFile(filePath) || isNonUiAppProductFile(filePath)) && !isUiTestFile(filePath),
+  },
 ];
 
 export function collectUiBoundaryViolationsForSource(filePath, content) {
