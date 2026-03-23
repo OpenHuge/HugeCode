@@ -24,7 +24,7 @@ jobs:
     env:
       TURBO_CACHE_DIR: .turbo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -56,7 +56,7 @@ jobs:
     env:
       TURBO_CACHE_DIR: .turbo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
