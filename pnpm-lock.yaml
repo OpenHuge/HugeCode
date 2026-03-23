@@ -262,6 +262,9 @@ importers:
 
   apps/code-web:
     dependencies:
+      '@ku0/code-application':
+        specifier: workspace:*
+        version: link:../../packages/code-application
       '@ku0/code-runtime-host-contract':
         specifier: workspace:*
         version: link:../../packages/code-runtime-host-contract

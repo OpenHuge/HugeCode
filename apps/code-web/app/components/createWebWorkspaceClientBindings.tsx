@@ -1,11 +1,12 @@
 import { lazy } from "react";
+import { createWorkspaceClientBindings } from "@ku0/code-application";
 import {
   createBrowserWorkspaceClientHostBindings,
   createBrowserWorkspaceClientRuntimeBindings,
   createBrowserWorkspaceClientRuntimeGatewayBindings,
+  WorkspaceRuntimeShell,
   type WorkspaceClientBindings,
 } from "@ku0/code-workspace-client";
-import { WorkspaceRuntimeShell } from "@ku0/code-workspace-client/runtime-shell";
 import type { WorkspaceNavigationAdapter } from "@ku0/code-workspace-client/workspace-shell";
 import { renderWebWorkspaceHost } from "./renderWebWorkspaceHost";
 
@@ -27,7 +28,7 @@ function WebWorkspaceShellApp() {
 export function createWebWorkspaceClientBindings(
   navigation: WorkspaceNavigationAdapter
 ): WorkspaceClientBindings {
-  return {
+  return createWorkspaceClientBindings({
     navigation,
     runtimeGateway: createBrowserWorkspaceClientRuntimeGatewayBindings(),
     runtime: createBrowserWorkspaceClientRuntimeBindings(),
@@ -38,5 +39,5 @@ export function createWebWorkspaceClientBindings(
       renderWorkspaceHost: renderWebWorkspaceHost,
       settingsShellFraming: webSettingsShellFraming,
     },
-  };
+  });
 }

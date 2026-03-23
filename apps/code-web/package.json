@@ -18,6 +18,7 @@
     "experimental:typecheck": "pnpm run typecheck"
   },
   "dependencies": {
+    "@ku0/code-application": "workspace:*",
     "@ku0/code-runtime-host-contract": "workspace:*",
     "@ku0/code-workspace-client": "workspace:*",
     "@ku0/design-system": "workspace:*",
