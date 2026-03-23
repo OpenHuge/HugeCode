@@ -304,7 +304,12 @@ describe("DesktopLayout", () => {
     expect(source).toContain(
       'gridTemplateColumns:\n      "minmax(0, 1fr) 12px clamp(320px, var(--right-panel-width-live, var(--right-panel-width, 360px)), 440px)"'
     );
-    expect(mainRule).not.toContain("grid-template-columns");
+    expect(mainRule).toContain(
+      '"grid-template-columns":\n        "minmax(0, 1fr) var(\\n      --right-panel-width-live,\\n      var(--right-panel-width, 360px)\\n    )"'
+    );
+    expect(mainRule).toContain(
+      '"grid-template-rows": "var(--main-topbar-height, 48px) minmax(0, 1fr) auto auto auto"'
+    );
     expect(shellRule).not.toContain("radial-gradient(circle at top right");
   });
 

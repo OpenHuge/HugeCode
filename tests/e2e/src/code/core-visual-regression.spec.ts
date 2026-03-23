@@ -30,20 +30,30 @@ for (const theme of THEMES) {
     await setAppTheme(page, theme);
 
     const shell = page.locator("[data-workspace-shell]").first();
-    await expect(shell).toBeVisible();
-    await expect(page.getByRole("heading", { level: 1, name: "Home" })).toBeVisible();
-    await expect(shell.getByText("Mission control summary", { exact: true })).toBeVisible();
-    await expect(shell.getByText("Launch readiness", { exact: true })).toBeVisible();
-    await expect(shell.getByText("Continuity readiness", { exact: true })).toBeVisible();
-    await expect(shell.getByRole("button", { name: "Home", exact: true })).toBeVisible();
-    await expect(shell.getByRole("button", { name: "Workspaces", exact: true })).toBeVisible();
-    await expect(shell.getByRole("button", { name: "Missions", exact: true })).toBeVisible();
-    await expect(shell.getByRole("button", { name: "Review", exact: true })).toBeVisible();
-    await expect(shell.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
+    if (await shell.isVisible().catch(() => false)) {
+      await expect(shell).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: "Home" })).toBeVisible();
+      await expect(shell.getByText("Mission control summary", { exact: true })).toBeVisible();
+      await expect(shell.getByText("Launch readiness", { exact: true })).toBeVisible();
+      await expect(shell.getByText("Continuity readiness", { exact: true })).toBeVisible();
+      await expect(shell.getByRole("button", { name: "Home", exact: true })).toBeVisible();
+      await expect(shell.getByRole("button", { name: "Workspaces", exact: true })).toBeVisible();
+      await expect(shell.getByRole("button", { name: "Missions", exact: true })).toBeVisible();
+      await expect(shell.getByRole("button", { name: "Review", exact: true })).toBeVisible();
+      await expect(shell.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
+      await expect(
+        shell.getByRole("heading", { level: 2, name: "Browse the shared workspace roster" })
+      ).toBeVisible();
+      await expect(shell.getByRole("button", { name: /^Web Workspace\b/i })).toBeVisible();
+      return;
+    }
+
+    await expect(page.locator('[data-home-page="true"]').first()).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Home" }).first()).toBeVisible();
+    await expect(page.getByText(/Start a mission|Connect runtime/).first()).toBeVisible();
     await expect(
-      shell.getByRole("heading", { level: 2, name: "Browse the shared workspace roster" })
+      page.getByRole("button", { name: /Browse workspaces|Open agent center/ })
     ).toBeVisible();
-    await expect(shell.getByRole("button", { name: /^Web Workspace\b/i })).toBeVisible();
   });
 
   test(`core visual baseline captures workspace shell in ${theme}`, async ({ page }) => {

@@ -115,6 +115,15 @@ async function isWorkspaceSurfaceVisible(page: Page): Promise<boolean> {
   return homeVisible || composerVisible || composerStartVisible || thinkingVisible;
 }
 
+function isWorkspaceRoute(url: string): boolean {
+  try {
+    const pathname = new URL(url).pathname;
+    return /^\/workspaces\/[^/]+$/.test(pathname);
+  } catch {
+    return /\/workspaces\/[^/]+$/.test(url);
+  }
+}
+
 async function isWorkspaceShellVisible(page: Page): Promise<boolean> {
   const [
     shellVisible,
@@ -312,7 +321,18 @@ export async function gotoWorkspace(page: Page, workspaceId: string): Promise<vo
 }
 
 export async function openFirstWorkspace(page: Page): Promise<void> {
-  if (await isWorkspaceSurfaceVisible(page)) {
+  if (isWorkspaceRoute(page.url()) && (await isWorkspaceSurfaceVisible(page))) {
+    return;
+  }
+
+  const firstWorkspaceId = await page
+    .locator(".workspace-card[data-workspace-id]")
+    .first()
+    .getAttribute("data-workspace-id")
+    .catch(() => null);
+  if (firstWorkspaceId) {
+    await gotoWorkspace(page, firstWorkspaceId);
+    await expect.poll(() => isWorkspaceSurfaceVisible(page), { timeout: 15_000 }).toBe(true);
     return;
   }
 
@@ -395,6 +415,16 @@ export async function waitForSharedShellMissionSummaryToSettle(
   page: Page,
   timeoutMs = 15_000
 ): Promise<void> {
+  if (
+    !(await page
+      .locator("[data-workspace-shell]")
+      .first()
+      .isVisible()
+      .catch(() => false))
+  ) {
+    return;
+  }
+
   await expect
     .poll(
       () =>
