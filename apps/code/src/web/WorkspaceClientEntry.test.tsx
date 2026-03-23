@@ -3,11 +3,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceClientEntry } from "./WorkspaceClientEntry";
 
 const {
+  createWorkspaceHostRendererMock,
   createDesktopWorkspaceClientHostBindingsMock,
   createRuntimeKernelMock,
   createWorkspaceClientBindingsMock,
   workspaceClientBootMock,
 } = vi.hoisted(() => ({
+  createWorkspaceHostRendererMock: vi.fn(() => (children: unknown) => children),
   createDesktopWorkspaceClientHostBindingsMock: vi.fn(() => ({
     platform: "desktop",
     intents: {},
@@ -41,6 +43,7 @@ vi.mock("@ku0/code-workspace-client", () => ({
 }));
 
 vi.mock("@ku0/code-application", () => ({
+  createWorkspaceHostRenderer: createWorkspaceHostRendererMock,
   createDesktopWorkspaceClientHostBindings: createDesktopWorkspaceClientHostBindingsMock,
   createWorkspaceClientBindings: createWorkspaceClientBindingsMock,
 }));
@@ -76,10 +79,6 @@ vi.mock("./DesktopWorkspaceSurface", () => ({
   default: () => null,
 }));
 
-vi.mock("./renderCodeWorkspaceHost", () => ({
-  renderCodeWorkspaceHost: (children: unknown) => children,
-}));
-
 describe("WorkspaceClientEntry", () => {
   afterEach(() => {
     cleanup();
@@ -89,6 +88,7 @@ describe("WorkspaceClientEntry", () => {
     render(<WorkspaceClientEntry />);
 
     expect(createRuntimeKernelMock).toHaveBeenCalledTimes(1);
+    expect(createWorkspaceHostRendererMock).toHaveBeenCalledTimes(1);
     expect(createDesktopWorkspaceClientHostBindingsMock).toHaveBeenCalledTimes(1);
     expect(createWorkspaceClientBindingsMock).toHaveBeenCalledTimes(1);
     expect(workspaceClientBootMock).toHaveBeenCalledTimes(1);

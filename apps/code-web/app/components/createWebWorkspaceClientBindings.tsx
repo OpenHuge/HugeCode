@@ -1,5 +1,9 @@
 import { lazy } from "react";
-import { createWorkspaceClientBindings } from "@ku0/code-application";
+import {
+  BrowserRuntimeBootstrapEffects,
+  createWorkspaceClientBindings,
+  createWorkspaceHostRenderer,
+} from "@ku0/code-application";
 import {
   createBrowserWorkspaceClientHostBindings,
   createBrowserWorkspaceClientRuntimeBindings,
@@ -8,7 +12,6 @@ import {
   type WorkspaceClientBindings,
 } from "@ku0/code-workspace-client";
 import type { WorkspaceNavigationAdapter } from "@ku0/code-workspace-client/workspace-shell";
-import { renderWebWorkspaceHost } from "./renderWebWorkspaceHost";
 
 const webSettingsShellFraming = {
   kickerLabel: "Gateway session",
@@ -25,6 +28,10 @@ function WebWorkspaceShellApp() {
   return <LazyWebWorkspaceShellApp />;
 }
 
+const renderWorkspaceHost = createWorkspaceHostRenderer({
+  effects: [BrowserRuntimeBootstrapEffects],
+});
+
 export function createWebWorkspaceClientBindings(
   navigation: WorkspaceNavigationAdapter
 ): WorkspaceClientBindings {
@@ -36,7 +43,7 @@ export function createWebWorkspaceClientBindings(
     platformUi: {
       WorkspaceRuntimeShell,
       WorkspaceApp: WebWorkspaceShellApp,
-      renderWorkspaceHost: renderWebWorkspaceHost,
+      renderWorkspaceHost,
       settingsShellFraming: webSettingsShellFraming,
     },
   });
