@@ -19,5 +19,12 @@
   },
   "dependencies": {
     "@ku0/code-platform-interfaces": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "react": "^19.2.4"
+  },
+  "peerDependencies": {
+    "react": "^19.2.4"
   }
 }

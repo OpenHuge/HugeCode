@@ -326,6 +326,13 @@ importers:
       '@ku0/code-platform-interfaces':
         specifier: workspace:*
         version: link:../code-platform-interfaces
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.14
+        version: 19.2.14
+      react:
+        specifier: ^19.2.4
+        version: 19.2.4
 
   packages/code-platform-interfaces: {}
 
