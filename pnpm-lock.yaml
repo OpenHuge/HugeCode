@@ -410,14 +410,14 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)
       '@terrazzo/plugin-css':
-        specifier: ^0.10.4
-        version: 0.10.4(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))
+        specifier: ^2.0.0
+        version: 2.0.0(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))(@terrazzo/parser@2.0.0(yaml-to-momoa@0.0.9))
       '@terrazzo/plugin-js':
         specifier: ^2.0.0
         version: 2.0.0(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))(@terrazzo/parser@2.0.0(yaml-to-momoa@0.0.9))
       '@terrazzo/plugin-vanilla-extract':
         specifier: ^0.2.2
-        version: 0.2.2(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))(@terrazzo/plugin-css@0.10.4(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)))
+        version: 0.2.2(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))(@terrazzo/plugin-css@2.0.0(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))(@terrazzo/parser@2.0.0(yaml-to-momoa@0.0.9)))
       '@types/react':
         specifier: ^19.2.14
         version: 19.2.14
@@ -719,6 +719,10 @@ packages:
 
   '@babel/runtime@7.28.6':
     resolution: {integrity: sha512-05WQkdpL9COIMz4LjTxGpPNCdlpyimKppYNoJ5Di5EUObifl8t4tuLuUBBZEpoLYOmfvIWrsp9fCl0HoPRVTdA==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/runtime@7.29.2':
+    resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.28.6':
@@ -2551,10 +2555,11 @@ packages:
       yaml-to-momoa:
         optional: true
 
-  '@terrazzo/plugin-css@0.10.4':
-    resolution: {integrity: sha512-SnxRZBkwLMQPbXB2xcrDi9O7VEU8DIus9HfCOjv4hXPjOfNaRJsZdM2cK9OKb6vzIyxLzzv3klsCeVKe3EMFgA==}
+  '@terrazzo/plugin-css@2.0.0':
+    resolution: {integrity: sha512-g3cGx3kHKVChMwkwPHVXJTF2wU2tSI+AhiiJaw9PzxXdYysKsEaCYYqYpLLCplN3OYpMMO7Zu0G8bzXFgK89dw==}
     peerDependencies:
-      '@terrazzo/cli': ^0.10.3
+      '@terrazzo/cli': ^2.0.0
+      '@terrazzo/parser': ^2.0.0
 
   '@terrazzo/plugin-js@2.0.0':
     resolution: {integrity: sha512-RKPkCejGu3ADNHFnW6mT8HoODnViyofYbcgCIX912UhxKTWjs3GSUp0g76FtD4nGIGXR2O4dpkSseW8yo6ORcg==}
@@ -2567,9 +2572,6 @@ packages:
     peerDependencies:
       '@terrazzo/cli': ^0.10.3
       '@terrazzo/plugin-css': ^0.10.4
-
-  '@terrazzo/token-tools@0.10.5':
-    resolution: {integrity: sha512-XQ6LDOmEZC8kesrhF48pvhz8F0RJsi56vQUg97VCmiKCOXBwPFJ7bOfv9M3f/tnYWo8eAs3EJvrCgMckZPKhbg==}
 
   '@terrazzo/token-tools@2.0.0':
     resolution: {integrity: sha512-HM+UUe1ykXWBSwF3oDQSBfybqTPyaWmFY5XVt6KAIzaMmFtd7muAfer8eAkuWMCm/cXImPX6kTNW0l2wGzWhWg==}
@@ -3308,10 +3310,6 @@ packages:
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
-
-  culori@4.0.2:
-    resolution: {integrity: sha512-1+BhOB8ahCn4O0cep0Sh2l9KCOfOdY+BXJnKMHFFzDEouSr/el18QwXEMRlOj9UY5nCeA8UN3a/82rUWRBeyBw==}
-    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   data-urls@7.0.0:
     resolution: {integrity: sha512-23XHcCF+coGYevirZceTVD7NdJOqVn+49IHyxgszm+JIiHLoB2TkmPtsYkNWT1pvRSGkc35L6NHs0yHkN2SumA==}
@@ -5330,6 +5328,11 @@ packages:
   sprintf-js@1.1.3:
     resolution: {integrity: sha512-Oo+0REFV59/rz3gfJNKQiBlwfHaSESl1pcGyABQsnnIfWOFt6JNj5gCog2U6MLZ//IGYD+nA8nI+mTShREReaA==}
 
+  srvx@0.11.12:
+    resolution: {integrity: sha512-AQfrGqntqVPXgP03pvBDN1KyevHC+KmYVqb8vVf4N+aomQqdhaZxjvoVp+AOm4u6x+GgNQY3MVzAUIn+TqwkOA==}
+    engines: {node: '>=20.16.0'}
+    hasBin: true
+
   srvx@0.11.9:
     resolution: {integrity: sha512-97wWJS6F0KTKAhDlHVmBzMvlBOp5FiNp3XrLoodIgYJpXxgG5tE9rX4Pg7s46n2shI4wtEsMATTS1+rI3/ubzA==}
     engines: {node: '>=20.16.0'}
@@ -5447,6 +5450,10 @@ packages:
 
   tapable@2.3.0:
     resolution: {integrity: sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg==}
+    engines: {node: '>=6'}
+
+  tapable@2.3.1:
+    resolution: {integrity: sha512-b+u3CEM6FjDHru+nhUSjDofpWSBp2rINziJWgApm72wwGasQ/wKXftZe4tI2Y5HPv6OpzXSZHOFq87H4vfsgsw==}
     engines: {node: '>=6'}
 
   tauri-plugin-liquid-glass-api@0.1.6:
@@ -5938,6 +5945,7 @@ packages:
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
     engines: {node: '>=18'}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-mimetype@4.0.0:
     resolution: {integrity: sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg==}
@@ -6191,6 +6199,8 @@ snapshots:
   '@babel/runtime@7.28.4': {}
 
   '@babel/runtime@7.28.6': {}
+
+  '@babel/runtime@7.29.2': {}
 
   '@babel/template@7.28.6':
     dependencies:
@@ -7805,11 +7815,11 @@ snapshots:
     optionalDependencies:
       yaml-to-momoa: 0.0.9
 
-  '@terrazzo/plugin-css@0.10.4(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))':
+  '@terrazzo/plugin-css@2.0.0(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))(@terrazzo/parser@2.0.0(yaml-to-momoa@0.0.9))':
     dependencies:
       '@terrazzo/cli': 2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)
-      '@terrazzo/token-tools': 0.10.5
-      wildcard-match: 5.1.4
+      '@terrazzo/parser': 2.0.0(yaml-to-momoa@0.0.9)
+      '@terrazzo/token-tools': 2.0.0
 
   '@terrazzo/plugin-js@2.0.0(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))(@terrazzo/parser@2.0.0(yaml-to-momoa@0.0.9))':
     dependencies:
@@ -7817,17 +7827,11 @@ snapshots:
       '@terrazzo/parser': 2.0.0(yaml-to-momoa@0.0.9)
       scule: 1.3.0
 
-  '@terrazzo/plugin-vanilla-extract@0.2.2(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))(@terrazzo/plugin-css@0.10.4(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)))':
+  '@terrazzo/plugin-vanilla-extract@0.2.2(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))(@terrazzo/plugin-css@2.0.0(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))(@terrazzo/parser@2.0.0(yaml-to-momoa@0.0.9)))':
     dependencies:
       '@terrazzo/cli': 2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)
-      '@terrazzo/plugin-css': 0.10.4(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))
+      '@terrazzo/plugin-css': 2.0.0(@terrazzo/cli@2.0.0(@types/node@25.5.0)(esbuild@0.27.4)(hono@4.12.7)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0))(@terrazzo/parser@2.0.0(yaml-to-momoa@0.0.9))
       scule: 1.3.0
-
-  '@terrazzo/token-tools@0.10.5':
-    dependencies:
-      '@humanwhocodes/momoa': 3.3.10
-      culori: 4.0.2
-      wildcard-match: 5.1.4
 
   '@terrazzo/token-tools@2.0.0':
     dependencies:
@@ -7838,7 +7842,7 @@ snapshots:
   '@testing-library/dom@10.4.1':
     dependencies:
       '@babel/code-frame': 7.29.0
-      '@babel/runtime': 7.28.6
+      '@babel/runtime': 7.29.2
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
       dom-accessibility-api: 0.5.16
@@ -8831,8 +8835,6 @@ snapshots:
 
   csstype@3.2.3: {}
 
-  culori@4.0.2: {}
-
   data-urls@7.0.0:
     dependencies:
       whatwg-mimetype: 5.0.0
@@ -9541,7 +9543,7 @@ snapshots:
   h3@2.0.1-rc.16:
     dependencies:
       rou3: 0.8.1
-      srvx: 0.11.9
+      srvx: 0.11.12
 
   has-flag@4.0.0: {}
 
@@ -11258,6 +11260,8 @@ snapshots:
   sprintf-js@1.1.3:
     optional: true
 
+  srvx@0.11.12: {}
+
   srvx@0.11.9: {}
 
   stackback@0.0.2: {}
@@ -11381,6 +11385,9 @@ snapshots:
   symbol-tree@3.2.4: {}
 
   tapable@2.3.0: {}
+
+  tapable@2.3.1:
+    optional: true
 
   tauri-plugin-liquid-glass-api@0.1.6(@tauri-apps/api@2.10.1):
     dependencies:
@@ -11869,7 +11876,7 @@ snapshots:
       mime-types: 2.1.35
       neo-async: 2.6.2
       schema-utils: 4.3.3
-      tapable: 2.3.0
+      tapable: 2.3.1
       terser-webpack-plugin: 5.4.0(esbuild@0.27.4)(webpack@5.105.4(esbuild@0.27.4))
       watchpack: 2.5.1
       webpack-sources: 3.3.4
