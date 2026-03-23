@@ -40,13 +40,13 @@
     }
   },
   "scripts": {
-    "build": "node -e \"const fs=require('node:fs');fs.rmSync('dist',{recursive:true,force:true});\" && pnpm exec vite build --config vite.config.ts && pnpm exec tsc -p tsconfig.json --emitDeclarationOnly --declaration --declarationMap false --outDir dist",
+    "build": "node -e \"const fs=require('node:fs');fs.rmSync('dist',{recursive:true,force:true});\" && vite build --config vite.config.ts && tsc -p tsconfig.json --emitDeclarationOnly --declaration --declarationMap false --outDir dist",
     "tokens:build": "node ./scripts/build-token-pipeline.mjs",
     "tokens:check": "node ./scripts/build-token-pipeline.mjs --check",
-    "typecheck": "pnpm exec tsc --noEmit -p tsconfig.json",
-    "lint": "pnpm exec oxlint .",
-    "lint:fix": "pnpm exec oxlint --fix --fix-suggestions . && pnpm exec oxfmt --write .",
-    "test": "pnpm exec vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix --fix-suggestions . && oxfmt --write .",
+    "test": "vitest run --config vitest.config.ts",
     "clean": "node -e \"const fs=require('node:fs');fs.rmSync('dist',{recursive:true,force:true});\""
   },
   "devDependencies": {

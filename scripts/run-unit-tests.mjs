@@ -2,6 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import process from "node:process";
+import { resolveLocalBinaryCommand } from "./lib/local-bin.mjs";
 
 const repoRoot = process.cwd();
 const forwardedArgs = process.argv.slice(2);
@@ -26,6 +27,15 @@ function shellQuote(token) {
 }
 
 function resolveCommandInvocation(command, args) {
+  const localBinaryCommand = resolveLocalBinaryCommand(command);
+  if (localBinaryCommand) {
+    return {
+      command: localBinaryCommand,
+      args,
+      display: [command, ...args],
+    };
+  }
+
   if (process.platform === "win32" && command === "pnpm") {
     return {
       command: "cmd.exe",
@@ -60,7 +70,7 @@ function runCommand(command, args, label) {
 }
 
 function buildWorkspaceUnitTestArgs() {
-  const args = ["exec", "turbo", "run", "test"];
+  const args = ["run", "test"];
   for (const filter of workspaceUnitTestFilters) {
     args.push(`--filter=${filter}`);
   }
@@ -72,11 +82,11 @@ function buildWorkspaceUnitTestArgs() {
 
 try {
   runCommand(
-    "pnpm",
-    ["exec", "vitest", "run", "--config", "vitest.root.config.ts", ...forwardedArgs],
+    "vitest",
+    ["run", "--config", "vitest.root.config.ts", ...forwardedArgs],
     "Root unit tests"
   );
-  runCommand("pnpm", buildWorkspaceUnitTestArgs(), "Workspace unit tests");
+  runCommand("turbo", buildWorkspaceUnitTestArgs(), "Workspace unit tests");
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   if (message) {

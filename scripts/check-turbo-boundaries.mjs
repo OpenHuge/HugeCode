@@ -2,8 +2,10 @@
 
 import { spawnSync } from "node:child_process";
 import { renderCheckMessage, writeLines } from "./lib/check-output.mjs";
+import { resolveLocalBinaryCommand } from "./lib/local-bin.mjs";
 
 const strict = process.argv.includes("--strict");
+const turboCommand = resolveLocalBinaryCommand("turbo");
 const boundaryFilters = [
   "@ku0/code",
   "@ku0/code-runtime-client",
@@ -12,8 +14,8 @@ const boundaryFilters = [
   "@ku0/code-runtime-service-rs",
 ];
 const result = spawnSync(
-  "pnpm",
-  ["exec", "turbo", "boundaries", ...boundaryFilters.flatMap((filter) => ["--filter", filter])],
+  turboCommand,
+  ["boundaries", ...boundaryFilters.flatMap((filter) => ["--filter", filter])],
   {
     cwd: process.cwd(),
     encoding: "utf8",

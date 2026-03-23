@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+// @boundaries-ignore shared workspace test/dev config
 import { createCodeWorkspaceAliases } from "../../scripts/lib/viteWorkspaceAliases";
 
 const packageJson = JSON.parse(

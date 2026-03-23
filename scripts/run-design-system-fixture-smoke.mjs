@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 const BASE_PORT = 5197;
 const PORT_HOST = "127.0.0.1";
 const PORT_MAX_ATTEMPTS = 20;
+const FIXTURE_SMOKE_RUNTIME_READY_TIMEOUT_MS = "480000";
+const FIXTURE_SMOKE_WEB_SERVER_TIMEOUT_MS = "540000";
 const PLAYWRIGHT_ARGS = [
   "-C",
   "tests/e2e",
@@ -117,16 +119,25 @@ export async function resolveFixtureSmokePort({
   }
 }
 
+export function buildFixtureSmokeEnv(env = process.env, port) {
+  return {
+    ...env,
+    // Fixture smoke routinely pays the cold Rust compile cost. Give it a
+    // higher startup budget than interactive dev without changing repo-wide defaults.
+    CODE_RUNTIME_SERVICE_READY_TIMEOUT_MS:
+      env.CODE_RUNTIME_SERVICE_READY_TIMEOUT_MS ?? FIXTURE_SMOKE_RUNTIME_READY_TIMEOUT_MS,
+    PW_WEBSERVER_TIMEOUT_MS: env.PW_WEBSERVER_TIMEOUT_MS ?? FIXTURE_SMOKE_WEB_SERVER_TIMEOUT_MS,
+    WEB_E2E_PORT: String(port),
+  };
+}
+
 export async function main() {
   const port = await resolveFixtureSmokePort();
 
   const child = spawn("pnpm", PLAYWRIGHT_ARGS, {
     stdio: "inherit",
     shell: process.platform === "win32",
-    env: {
-      ...process.env,
-      WEB_E2E_PORT: String(port),
-    },
+    env: buildFixtureSmokeEnv(process.env, port),
   });
 
   child.on("exit", (code, signal) => {

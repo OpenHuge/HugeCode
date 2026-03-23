@@ -25,8 +25,8 @@
     "build": "tsx scripts/build-native.ts --release && tsc",
     "build:debug": "tsx scripts/build-native.ts && tsc",
     "typecheck": "tsc --noEmit",
-    "lint": "pnpm exec oxlint .",
-    "lint:fix": "pnpm exec oxlint --fix --fix-suggestions . && pnpm exec oxfmt --write ."
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix --fix-suggestions . && oxfmt --write ."
   },
   "dependencies": {
     "@ku0/native-bindings": "workspace:*"

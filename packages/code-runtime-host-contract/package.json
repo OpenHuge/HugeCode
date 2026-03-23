@@ -31,10 +31,11 @@
     "test": "vitest run",
     "spec:generate": "tsx scripts/generate-runtime-rpc-spec.ts",
     "spec:check": "tsx scripts/check-runtime-rpc-spec.ts",
-    "lint": "pnpm exec oxlint .",
-    "lint:fix": "pnpm exec oxlint --fix --fix-suggestions . && pnpm exec oxfmt --write ."
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix --fix-suggestions . && oxfmt --write ."
   },
   "devDependencies": {
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.0"
   }
 }

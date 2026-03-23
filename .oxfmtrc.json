@@ -25,6 +25,8 @@
     "**/*.min.js",
     "**/*.min.css",
     "apps/code/public/vendor",
+    ".devcontainer/agents-skills",
+    ".devcontainer/agents-skills/**",
     "**/routeTree.gen.ts",
     "**/*.inc",
     "pnpm-lock.yaml",

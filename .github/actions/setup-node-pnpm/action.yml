@@ -17,6 +17,10 @@ inputs:
       pnpm-lock.yaml
       pnpm-workspace.yaml
       package.json
+  cache:
+    description: Whether to enable pnpm store caching via actions/setup-node
+    required: false
+    default: "true"
   install:
     description: Whether to run the install command after setup
     required: false
@@ -47,20 +51,33 @@ runs:
         version: ${{ inputs.pnpm-version }}
 
     - name: Setup Node.js
-      if: ${{ inputs.registry-url == '' }}
+      if: ${{ inputs.registry-url == '' && inputs.cache == 'true' }}
       uses: actions/setup-node@v4
       with:
         node-version-file: ${{ inputs.node-version-file }}
         cache: pnpm
         cache-dependency-path: ${{ inputs.cache-dependency-path }}
 
+    - name: Setup Node.js without cache
+      if: ${{ inputs.registry-url == '' && inputs.cache != 'true' }}
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+
     - name: Setup Node.js with registry
-      if: ${{ inputs.registry-url != '' }}
+      if: ${{ inputs.registry-url != '' && inputs.cache == 'true' }}
       uses: actions/setup-node@v4
       with:
         node-version-file: ${{ inputs.node-version-file }}
         cache: pnpm
         cache-dependency-path: ${{ inputs.cache-dependency-path }}
+        registry-url: ${{ inputs.registry-url }}
+
+    - name: Setup Node.js with registry without cache
+      if: ${{ inputs.registry-url != '' && inputs.cache != 'true' }}
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
         registry-url: ${{ inputs.registry-url }}
 
     - name: Prefetch dependencies

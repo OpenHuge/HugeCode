@@ -8,7 +8,10 @@ packages:
   - "tests/*"
 minimumReleaseAge: 60
 strictDepBuilds: true
-verifyDepsBeforeRun: error
+# Worktrees frequently share a valid install state while diverging in branch-local
+# metadata. Warn instead of hard-failing so local tooling remains usable, but keep
+# the signal visible when a fresh install is actually needed.
+verifyDepsBeforeRun: warn
 allowBuilds:
   esbuild: true
   sharp: true

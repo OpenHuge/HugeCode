@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import { defineConfig } from "vitest/config";
+// @boundaries-ignore shared workspace test/dev config
 import { aliases } from "../../vitest.aliases";
 
 const codeRuntimeHostContractEntry = fileURLToPath(

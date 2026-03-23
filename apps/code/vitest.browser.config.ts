@@ -3,6 +3,7 @@ import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
+// @boundaries-ignore shared workspace test/dev config
 import { aliases } from "../../vitest.aliases";
 
 const appRoot = fileURLToPath(new URL("./", import.meta.url));

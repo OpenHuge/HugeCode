@@ -22,9 +22,9 @@
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist',{ recursive: true, force: true })\" && vite build && tsc -p tsconfig.build.json --emitDeclarationOnly",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "pnpm exec oxlint .",
+    "lint": "oxlint .",
     "test": "vitest run",
-    "format": "pnpm exec oxfmt --write .",
+    "format": "oxfmt --write .",
     "clean": "node -e \"require('node:fs').rmSync('dist',{ recursive: true, force: true })\"",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
