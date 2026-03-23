@@ -17,6 +17,10 @@ export function getSidebarEmptyStateAction(page: Page): Locator {
   return page.getByTestId("sidebar-empty-state-action").first();
 }
 
+export function getComposerStartHeading(page: Page): Locator {
+  return page.getByRole("heading", { name: "Start in the composer." }).first();
+}
+
 export function getSidebarSortOption(page: Page, sortKey: "created_at" | "updated_at"): Locator {
   return page
     .getByTestId(sortKey === "created_at" ? "sidebar-sort-created-at" : "sidebar-sort-updated-at")
@@ -90,7 +94,7 @@ async function isLocatorActionable(locator: Locator): Promise<boolean> {
 }
 
 async function isWorkspaceSurfaceVisible(page: Page): Promise<boolean> {
-  const [homeVisible, composerVisible, thinkingVisible] = await Promise.all([
+  const [homeVisible, composerVisible, composerStartVisible, thinkingVisible] = await Promise.all([
     page
       .locator('[data-home-page="true"], [data-home-content="true"]')
       .first()
@@ -99,13 +103,16 @@ async function isWorkspaceSurfaceVisible(page: Page): Promise<boolean> {
     getComposerInput(page)
       .isVisible()
       .catch(() => false),
+    getComposerStartHeading(page)
+      .isVisible()
+      .catch(() => false),
     page
       .getByRole("button", { name: "Thinking mode" })
       .first()
       .isVisible()
       .catch(() => false),
   ]);
-  return homeVisible || composerVisible || thinkingVisible;
+  return homeVisible || composerVisible || composerStartVisible || thinkingVisible;
 }
 
 async function isWorkspaceShellVisible(page: Page): Promise<boolean> {
