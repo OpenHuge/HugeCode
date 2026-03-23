@@ -42,7 +42,7 @@
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.0",
     "@vanilla-extract/css": "^1.18.0",
-    "@vanilla-extract/vite-plugin": "^5.1.4",
+    "@vanilla-extract/vite-plugin": "^5.2.1",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "lucide-react": "^0.576.0",
