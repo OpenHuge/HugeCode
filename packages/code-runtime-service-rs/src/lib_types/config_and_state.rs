@@ -26,6 +26,18 @@ pub struct RuntimeProviderExtension {
     pub api_key: Option<String>,
 }
 
+#[derive(Clone, Debug)]
+pub struct RuntimeResolvedProviderExtension {
+    pub provider_id: String,
+    pub display_name: String,
+    pub pool: String,
+    pub default_model_id: String,
+    pub compat_base_url: String,
+    pub aliases: Vec<String>,
+    pub api_key_env: String,
+    pub api_key: Option<String>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum RuntimeProvider {
     OpenAI,
@@ -634,7 +646,7 @@ struct RuntimeProviderCatalogEntry {
 #[derive(Clone, Debug)]
 enum TurnProviderRoute {
     Core(RuntimeProvider),
-    Extension(RuntimeProviderExtension),
+    Extension(RuntimeResolvedProviderExtension),
 }
 
 impl TurnProviderRoute {
