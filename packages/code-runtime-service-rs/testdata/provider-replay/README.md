@@ -129,6 +129,9 @@ Recorder output is normalized before it becomes a sample:
 - repo paths become `$REPO_ROOT`
 - live tokens, cookies, auth headers, and host-specific user paths are forbidden
 
+When the runtime surface can observe the provider's resolved response model, recorder output should also persist `turn.provenance.recordedResponseModelId`.
+This is distinct from `recordedModelId`: the latter is the requested routing alias, while `recordedResponseModelId` is the provider-returned model identifier or snapshot when available.
+
 Redaction is not optional and is checked by dataset lint.
 
 ## Admission Rules
@@ -140,6 +143,7 @@ Golden samples must:
 - be replay-stable under dedicated runtime isolation
 - carry workflow assertions beyond final string matching
 - contain no disallowed secrets or host-specific leakage
+- preserve provider snapshot evidence for `snapshotPinned` model profiles when the runtime event stream exposes it
 
 Archive or reject samples when:
 

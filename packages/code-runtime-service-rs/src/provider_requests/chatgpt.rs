@@ -8,7 +8,8 @@ use super::{
     build_upstream_error_message, provider_elapsed_budget_exhausted,
     resolve_chatgpt_sse_buffer_max_bytes, resolve_chatgpt_sse_frame_max_bytes,
     resolve_provider_max_elapsed_ms, retry_after_ms_from_headers, retry_backoff_ms,
-    should_retry_status_code, should_retry_transport_error, ProviderDeltaCallback, ServiceConfig,
+    should_retry_status_code, should_retry_transport_error, ProviderDeltaCallback,
+    ProviderQueryResult, ServiceConfig,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -32,7 +33,31 @@ fn pop_next_sse_frame(buffer: &mut String) -> Option<String> {
     Some(frame)
 }
 
-fn parse_chatgpt_sse_frame(frame: &str, output_text: &mut String) -> ChatgptSseFrameParse {
+fn extract_chatgpt_sse_model_id(event: &Value) -> Option<String> {
+    [
+        event.get("model"),
+        event.get("model_id"),
+        event.get("modelId"),
+        event.get("model_slug"),
+        event.get("active_model"),
+        event.get("response").and_then(|response| response.get("model")),
+        event
+            .get("response")
+            .and_then(|response| response.get("model_slug")),
+    ]
+    .into_iter()
+    .flatten()
+    .find_map(Value::as_str)
+    .map(str::trim)
+    .filter(|value| !value.is_empty())
+    .map(ToOwned::to_owned)
+}
+
+fn parse_chatgpt_sse_frame(
+    frame: &str,
+    output_text: &mut String,
+    response_model_id: &mut Option<String>,
+) -> ChatgptSseFrameParse {
     let mut payload = String::new();
     for line in frame.lines() {
         let trimmed = line.trim_end();
@@ -49,6 +74,9 @@ fn parse_chatgpt_sse_frame(frame: &str, output_text: &mut String) -> ChatgptSseF
     let Ok(event) = serde_json::from_str::<Value>(payload.as_str()) else {
         return ChatgptSseFrameParse::Ignore;
     };
+    if response_model_id.is_none() {
+        *response_model_id = extract_chatgpt_sse_model_id(&event);
+    }
     let Some(event_type) = event.get("type").and_then(Value::as_str) else {
         return ChatgptSseFrameParse::Ignore;
     };
@@ -87,7 +115,7 @@ pub(super) async fn query_chatgpt_codex_responses_with_endpoint(
     service_tier: Option<&str>,
     account_id: Option<&str>,
     delta_callback: Option<ProviderDeltaCallback>,
-) -> Result<String, String> {
+) -> Result<ProviderQueryResult, String> {
     let mut request_body = json!({
         "model": model_id,
         "store": false,
@@ -204,6 +232,7 @@ pub(super) async fn query_chatgpt_codex_responses_with_endpoint(
         }
 
         let mut output_text = String::new();
+        let mut response_model_id = None;
         let mut buffer = String::new();
         let mut saw_data_frame = false;
         let mut stream = response.bytes_stream();
@@ -275,14 +304,23 @@ pub(super) async fn query_chatgpt_codex_responses_with_endpoint(
                 {
                     saw_data_frame = true;
                 }
-                match parse_chatgpt_sse_frame(frame.as_str(), &mut output_text) {
+                match parse_chatgpt_sse_frame(
+                    frame.as_str(),
+                    &mut output_text,
+                    &mut response_model_id,
+                ) {
                     ChatgptSseFrameParse::Ignore => {}
                     ChatgptSseFrameParse::Delta(delta) => {
                         if let Some(callback) = delta_callback.as_ref() {
                             callback(delta);
                         }
                     }
-                    ChatgptSseFrameParse::Done(done_text) => return Ok(done_text),
+                    ChatgptSseFrameParse::Done(done_text) => {
+                        return Ok(ProviderQueryResult {
+                            output: done_text,
+                            response_model_id,
+                        });
+                    }
                 }
             }
             if stream_retry_backoff_ms.is_some() {
@@ -337,14 +375,23 @@ pub(super) async fn query_chatgpt_codex_responses_with_endpoint(
                 || buffer
                     .lines()
                     .any(|line| line.trim_start().starts_with("data:"));
-            match parse_chatgpt_sse_frame(buffer.as_str(), &mut output_text) {
+            match parse_chatgpt_sse_frame(
+                buffer.as_str(),
+                &mut output_text,
+                &mut response_model_id,
+            ) {
                 ChatgptSseFrameParse::Ignore => {}
                 ChatgptSseFrameParse::Delta(delta) => {
                     if let Some(callback) = delta_callback.as_ref() {
                         callback(delta);
                     }
                 }
-                ChatgptSseFrameParse::Done(done_text) => return Ok(done_text),
+                ChatgptSseFrameParse::Done(done_text) => {
+                    return Ok(ProviderQueryResult {
+                        output: done_text,
+                        response_model_id,
+                    });
+                }
             }
         }
 

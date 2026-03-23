@@ -206,6 +206,7 @@ export interface ApprovalResolvedEventPayload {
 export interface TurnCompletedEventPayload {
   turnId: string;
   output?: unknown;
+  responseModelId?: string;
 }
 
 export interface TurnFailedEventPayload {

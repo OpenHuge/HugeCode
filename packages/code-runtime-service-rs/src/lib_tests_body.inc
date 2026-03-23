@@ -13456,7 +13456,13 @@
         .await;
 
         openai_handle.abort();
-        assert_eq!(result, Ok("ok:gpt-5.3-codex:alternate".to_string()));
+        assert_eq!(
+            result,
+            Ok(crate::provider_requests::ProviderQueryResult {
+                output: "ok:gpt-5.3-codex:alternate".to_string(),
+                response_model_id: None,
+            })
+        );
         assert_eq!(primary_responses_counter.load(AtomicOrdering::Relaxed), 1);
         assert_eq!(alternate_responses_counter.load(AtomicOrdering::Relaxed), 1);
         assert_eq!(chat_counter.load(AtomicOrdering::Relaxed), 0);
