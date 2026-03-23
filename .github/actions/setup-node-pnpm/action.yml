@@ -28,11 +28,11 @@ inputs:
   fetch-command:
     description: Command used to prefetch dependencies into the pnpm store
     required: false
-    default: "pnpm ci:fetch"
+    default: "pnpm fetch --frozen-lockfile"
   install-command:
     description: Command used to install dependencies
     required: false
-    default: "pnpm ci:install:offline"
+    default: "pnpm install --offline --frozen-lockfile"
   registry-url:
     description: Optional npm registry URL for publish/release flows
     required: false

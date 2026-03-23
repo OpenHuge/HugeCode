@@ -1,7 +1,7 @@
-import * as Sentry from "@sentry/react";
 import { startTransition, useCallback } from "react";
 import type { WorkspaceInfo, WorkspaceSettings } from "../../../types";
 import type { AppTab } from "../../shell/types/shellRoute";
+import { recordSentryMetric } from "../../shared/sentry";
 
 type UseWorkspaceSelectionOptions = {
   workspaces: WorkspaceInfo[];
@@ -66,7 +66,7 @@ export function useWorkspaceSelection({
         }
       });
       if (didSwitch) {
-        Sentry.metrics.count("workspace_switched", 1, {
+        recordSentryMetric("workspace_switched", 1, {
           attributes: {
             workspace_id: workspaceId,
             workspace_kind: target?.kind ?? "main",
