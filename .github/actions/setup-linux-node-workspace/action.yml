@@ -5,7 +5,7 @@ inputs:
   install-command:
     description: Command used to install workspace dependencies
     required: false
-    default: "pnpm ci:install:offline"
+    default: "pnpm install --offline --frozen-lockfile"
   setup-playwright:
     description: Whether to install Playwright browsers after dependencies are installed
     required: false
@@ -30,7 +30,7 @@ runs:
 
     - name: Prefetch dependencies
       shell: bash
-      run: pnpm ci:fetch
+      run: pnpm fetch --frozen-lockfile
 
     - name: Install dependencies
       shell: bash

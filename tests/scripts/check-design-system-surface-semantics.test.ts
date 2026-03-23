@@ -15,10 +15,7 @@ const requiredEntries = [
 
 const adapterEntries = [
   "apps/code/src/design-system/adapters/Button/Button.tsx",
-  "apps/code/src/design-system/adapters/Card/Card.tsx",
   "apps/code/src/design-system/adapters/Input/Input.tsx",
-  "apps/code/src/design-system/adapters/Radio/Radio.tsx",
-  "apps/code/src/design-system/adapters/Select/Select.tsx",
 ] as const;
 
 const allowedCompatFiles = new Map<string, string>([
@@ -104,7 +101,7 @@ export {
   CardHeader,
   CardTitle,
   type CardProps,
-} from "./adapters/Card";
+} from "@ku0/design-system";
 export { Checkbox, type CheckboxProps } from "@ku0/design-system";
 export { EmptyState, type EmptyStateProps } from "@ku0/design-system";
 export { Icon, type IconProps, type IconSize } from "./components/Icon";
@@ -124,8 +121,8 @@ export {
   type PopoverMenuItemProps,
   type PopoverSurfaceProps,
 } from "./components/popover/PopoverPrimitives";
-export { RadioGroup, type RadioGroupOption, type RadioGroupProps } from "./adapters/Radio";
-export { Select, type SelectOption, type SelectProps } from "./adapters/Select";
+export { RadioGroup, type RadioGroupOption, type RadioGroupProps } from "@ku0/design-system";
+export { Select, type SelectOption, type SelectProps } from "@ku0/design-system";
 export {
   DialogButton,
   Dialog,
@@ -191,7 +188,12 @@ export {
   PanelNavList,
   PanelSearchField,
 } from "./components/panel/PanelPrimitives";
-export { ShellFrame, ShellSection, ShellToolbar, SplitPanel } from "./components/shell/ShellPrimitives";
+export {
+  ShellFrame,
+  ShellSection,
+  ShellToolbar,
+  SplitPanel,
+} from "./components/shell/ShellPrimitives";
 export {
   Tabs,
   TabsContent,

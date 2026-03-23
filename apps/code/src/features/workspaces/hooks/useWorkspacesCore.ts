@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import {
@@ -35,6 +34,7 @@ import {
   writeWebRuntimeWorkspaceSidebarCollapsed,
   writeWebRuntimeWorkspaceSortOrder,
 } from "./useWorkspaces.helpers";
+import { recordSentryMetric } from "../../shared/sentry";
 
 type UseWorkspacesOptions = {
   onDebug?: (entry: DebugEntry) => void;
@@ -300,7 +300,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         if (shouldActivate) {
           setActiveWorkspaceId(resolvedWorkspace.id);
         }
-        Sentry.metrics.count("workspace_added", 1, {
+        recordSentryMetric("workspace_added", 1, {
           attributes: {
             workspace_id: resolvedWorkspace.id,
             workspace_kind: resolvedWorkspace.kind ?? "main",
@@ -495,7 +495,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
       if (options?.activate !== false) {
         setActiveWorkspaceId(workspace.id);
       }
-      Sentry.metrics.count("worktree_agent_created", 1, {
+      recordSentryMetric("worktree_agent_created", 1, {
         attributes: {
           workspace_id: workspace.id,
           parent_id: parent.id,
@@ -538,7 +538,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
       const workspace = await addCloneService(source.id, trimmedFolder, trimmedName);
       setWorkspaces((prev) => [...prev, workspace]);
       setActiveWorkspaceId(workspace.id);
-      Sentry.metrics.count("clone_agent_created", 1, {
+      recordSentryMetric("clone_agent_created", 1, {
         attributes: {
           workspace_id: workspace.id,
           parent_id: source.id,
