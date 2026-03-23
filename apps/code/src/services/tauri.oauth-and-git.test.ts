@@ -1318,62 +1318,6 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
-  it("routes getSkillsList through native instruction skills registry in tauri mode", async () => {
-    const invokeMock = vi.mocked(invoke);
-    invokeMock.mockImplementation(async (command: string, params?: unknown) => {
-      if (command === "is_macos_debug_build") {
-        return false;
-      }
-      if (command === "native_skills_list") {
-        expect(params).toEqual({ workspaceId: "ws-skills-1" });
-        return [
-          {
-            id: "workspace.agents.review",
-            name: "review",
-            description: "Review the current changeset",
-            scope: "workspace",
-            sourceFamily: "agents",
-            entryPath: "/repo/.agents/skills/review/SKILL.md",
-            enabled: true,
-            aliases: ["agents:review"],
-            shadowedBy: null,
-          },
-        ];
-      }
-      return undefined;
-    });
-
-    await expect(getSkillsList("ws-skills-1")).resolves.toEqual({
-      result: {
-        skills: [
-          {
-            name: "review",
-            path: "workspace.agents.review",
-            description: "Review the current changeset",
-            scope: "workspace",
-            sourceFamily: "agents",
-            enabled: true,
-            aliases: ["agents:review"],
-            shadowedBy: null,
-          },
-        ],
-      },
-      skills: [
-        {
-          name: "review",
-          path: "workspace.agents.review",
-          description: "Review the current changeset",
-          scope: "workspace",
-          sourceFamily: "agents",
-          enabled: true,
-          aliases: ["agents:review"],
-          shadowedBy: null,
-        },
-      ],
-    });
-    expect(invokeMock).toHaveBeenCalledWith("native_skills_list", { workspaceId: "ws-skills-1" });
-  });
-
   it("prefers the unified extension catalog when listing instruction skills", async () => {
     const invokeMock = vi.mocked(invoke);
     const extensionCatalogListV2 = vi.fn(async () => [
@@ -1465,39 +1409,67 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("maps instruction skill metadata without collapsing source and conflict fields", async () => {
-    const invokeMock = vi.mocked(invoke);
-    invokeMock.mockImplementation(async (command: string) => {
-      if (command === "is_macos_debug_build") {
-        return false;
-      }
-      if (command === "native_skills_list") {
-        return [
-          {
-            id: "workspace.agents.review",
-            name: "review",
-            description: "Review the current changeset",
-            scope: "workspace",
-            sourceFamily: "agents",
-            entryPath: "/repo/.agents/skills/review/SKILL.md",
-            enabled: true,
-            aliases: ["agents:review"],
-            shadowedBy: null,
-          },
-          {
-            id: "user.codex.review",
-            name: "review",
-            description: "Legacy codex review flow",
-            scope: "global",
-            sourceFamily: "codex",
-            entryPath: "/Users/han/.codex/skills/review/SKILL.md",
-            enabled: false,
-            aliases: ["codex:review"],
-            shadowedBy: "workspace.agents.review",
-          },
-        ];
-      }
-      return undefined;
-    });
+    const extensionCatalogListV2 = vi.fn(async () => [
+      {
+        extensionId: "workspace.agents.review",
+        version: "1.0.0",
+        displayName: "review",
+        publisher: "agents",
+        summary: "Review the current changeset",
+        kind: "instruction",
+        distribution: "workspace",
+        name: "review",
+        transport: "repo-manifest",
+        lifecycleState: "enabled",
+        enabled: true,
+        workspaceId: "ws-skills-availability",
+        capabilities: ["instructions"],
+        permissions: [],
+        uiApps: [],
+        provenance: {
+          sourceId: "workspace-skill",
+          scope: "workspace",
+          sourceFamily: "agents",
+          entryPath: "/repo/.agents/skills/review/SKILL.md",
+          aliases: ["agents:review"],
+          shadowedBy: null,
+        },
+        config: {},
+        installedAt: 1,
+        updatedAt: 1,
+      },
+      {
+        extensionId: "user.codex.review",
+        version: "1.0.0",
+        displayName: "review",
+        publisher: "codex",
+        summary: "Legacy codex review flow",
+        kind: "instruction",
+        distribution: "workspace",
+        name: "review",
+        transport: "repo-manifest",
+        lifecycleState: "installed",
+        enabled: false,
+        workspaceId: "ws-skills-availability",
+        capabilities: ["instructions"],
+        permissions: [],
+        uiApps: [],
+        provenance: {
+          sourceId: "workspace-skill",
+          scope: "global",
+          sourceFamily: "codex",
+          entryPath: "/Users/han/.codex/skills/review/SKILL.md",
+          aliases: ["codex:review"],
+          shadowedBy: "workspace.agents.review",
+        },
+        config: {},
+        installedAt: 1,
+        updatedAt: 1,
+      },
+    ]);
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      extensionCatalogListV2,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
 
     await expect(getSkillsList("ws-skills-availability")).resolves.toEqual({
       result: {
@@ -1549,23 +1521,18 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
-  it("does not fall back to runtime liveSkills when native instruction skills listing fails", async () => {
-    const invokeMock = vi.mocked(invoke);
-    invokeMock.mockImplementation(async (command: string) => {
-      if (command === "is_macos_debug_build") {
-        return false;
-      }
-      if (command === "native_skills_list") {
-        throw new Error("native instruction skills failed");
-      }
-      return undefined;
+  it("surfaces extension catalog failures instead of falling back to legacy skill rpc", async () => {
+    const extensionCatalogListV2 = vi.fn(async () => {
+      throw new Error("extension catalog failed");
     });
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      extensionCatalogListV2,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
 
-    await expect(getSkillsList("ws-skills-2")).rejects.toThrow("native instruction skills failed");
-    expect(invokeMock).not.toHaveBeenCalledWith("skills_list", expect.anything());
+    await expect(getSkillsList("ws-skills-2")).rejects.toThrow("extension catalog failed");
   });
 
-  it("loads instruction skill content through extension resources before native skill rpc", async () => {
+  it("loads instruction skill content through extension resources", async () => {
     const invokeMock = vi.mocked(invoke);
     const extensionGetV2 = vi.fn(async () => ({
       extensionId: "workspace.agents.review",
@@ -1596,7 +1563,7 @@ describe("tauri invoke wrappers", () => {
       installedAt: 1,
       updatedAt: 1,
     }));
-    const extensionResourceReadV1 = vi.fn(async (request: { resourceId: string }) => {
+    const extensionResourceReadV2 = vi.fn(async (request: { resourceId: string }) => {
       if (request.resourceId === "body") {
         return {
           extensionId: "workspace.agents.review",
@@ -1625,7 +1592,7 @@ describe("tauri invoke wrappers", () => {
     });
     vi.mocked(getRuntimeClient).mockReturnValue({
       extensionGetV2,
-      extensionResourceReadV1,
+      extensionResourceReadV2,
     } as unknown as ReturnType<typeof getRuntimeClient>);
 
     await expect(
@@ -1650,58 +1617,48 @@ describe("tauri invoke wrappers", () => {
       workspaceId: "ws-skills-extension-read",
       extensionId: "workspace.agents.review",
     });
-    expect(extensionResourceReadV1).toHaveBeenCalledTimes(3);
+    expect(extensionResourceReadV2).toHaveBeenCalledTimes(3);
     expect(invokeMock).not.toHaveBeenCalledWith("native_skill_get", expect.anything());
   });
 
-  it("loads instruction skill content through native_skill_get", async () => {
-    const invokeMock = vi.mocked(invoke);
-    invokeMock.mockImplementation(async (command: string, params?: unknown) => {
-      if (command === "is_macos_debug_build") {
-        return false;
-      }
-      if (command === "native_skill_get") {
-        expect(params).toEqual({
-          workspaceId: "ws-skills-3",
-          skillId: "workspace.agents.review",
-        });
-        return {
-          id: "workspace.agents.review",
-          name: "review",
-          description: "Review the current changeset",
-          scope: "workspace",
-          sourceFamily: "agents",
-          sourceRoot: "/repo/.agents/skills",
-          entryPath: "/repo/.agents/skills/review/SKILL.md",
-          enabled: true,
-          aliases: ["review", "agents:review"],
-          shadowedBy: null,
-          frontmatter: { name: "review" },
-          body: "Review carefully",
-          supportingFiles: [{ path: "checklist.md", content: "- item" }],
-        };
-      }
-      return undefined;
-    });
-
-    await expect(getInstructionSkill("ws-skills-3", "workspace.agents.review")).resolves.toEqual({
-      id: "workspace.agents.review",
+  it("returns null when the instruction extension does not expose a body resource", async () => {
+    const extensionGetV2 = vi.fn(async () => ({
+      extensionId: "workspace.agents.review",
+      version: "1.0.0",
+      displayName: "review",
+      publisher: "agents",
+      summary: "Review the current changeset",
+      kind: "instruction",
+      distribution: "workspace",
       name: "review",
-      description: "Review the current changeset",
-      scope: "workspace",
-      sourceFamily: "agents",
-      sourceRoot: "/repo/.agents/skills",
-      entryPath: "/repo/.agents/skills/review/SKILL.md",
+      transport: "repo-manifest",
+      lifecycleState: "enabled",
       enabled: true,
-      aliases: ["review", "agents:review"],
-      shadowedBy: undefined,
-      frontmatter: { name: "review" },
-      body: "Review carefully",
-      supportingFiles: [{ path: "checklist.md", content: "- item" }],
-    });
-    expect(invokeMock).toHaveBeenCalledWith("native_skill_get", {
       workspaceId: "ws-skills-3",
-      skillId: "workspace.agents.review",
-    });
+      capabilities: ["instructions"],
+      permissions: [],
+      uiApps: [],
+      provenance: {
+        sourceId: "workspace-skill",
+        scope: "workspace",
+        sourceFamily: "agents",
+        sourceRoot: "/repo/.agents/skills",
+        entryPath: "/repo/.agents/skills/review/SKILL.md",
+        aliases: ["review", "agents:review"],
+        shadowedBy: null,
+      },
+      config: {},
+      installedAt: 1,
+      updatedAt: 1,
+    }));
+    const extensionResourceReadV2 = vi.fn(async (request: { resourceId: string }) =>
+      request.resourceId === "body" ? null : null
+    );
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      extensionGetV2,
+      extensionResourceReadV2,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
+
+    await expect(getInstructionSkill("ws-skills-3", "workspace.agents.review")).resolves.toBeNull();
   });
 });

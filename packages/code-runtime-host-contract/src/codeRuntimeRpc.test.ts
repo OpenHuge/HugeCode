@@ -1293,24 +1293,12 @@ describe("agent and oauth rpc methods", () => {
     expect(
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_UI_APPS_LIST_V2)
     ).toEqual(["code_extension_ui_apps_list_v2"]);
-    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSIONS_LIST_V1)).toEqual(
-      ["code_extensions_list_v1"]
-    );
     expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_INSTALL_V1)
-    ).toEqual(["code_extension_install_v1"]);
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V2)
+    ).toEqual(["code_extension_tools_list_v2"]);
     expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_REMOVE_V1)
-    ).toEqual(["code_extension_remove_v1"]);
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V1)
-    ).toEqual(["code_extension_tools_list_v1"]);
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V1)
-    ).toEqual(["code_extension_resource_read_v1"]);
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSIONS_CONFIG_V1)
-    ).toEqual(["code_extensions_config_v1"]);
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V2)
+    ).toEqual(["code_extension_resource_read_v2"]);
     expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.SESSION_EXPORT_V1)).toEqual([
       "code_session_export_v1",
     ]);

@@ -1,25 +1,17 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { RuntimeExtensionRecord } from "@ku0/code-runtime-host-contract";
-import { detectRuntimeMode, getRuntimeClient } from "./runtimeClient";
+import { getRuntimeClient } from "./runtimeClient";
 import {
   getRuntimeExtensionWithFallback,
   listRuntimeExtensionsWithFallback,
   readRuntimeExtensionResourceWithFallback,
 } from "./runtimeClientExtensions";
 import { invokeWebRuntimeDirectRpc } from "./runtimeWebDirectRpc";
-
 type LooseResultEnvelope = Record<string, unknown>;
 
 type RuntimeReasoningEffort = "low" | "medium" | "high" | "xhigh";
 const RUNTIME_REASONING_EFFORTS = ["low", "medium", "high", "xhigh"] as const;
 
 type RuntimeModelsRpcEnvelope = {
-  ok?: boolean;
-  result?: unknown;
-  data?: unknown;
-};
-
-type InstructionSkillsRpcEnvelope = {
   ok?: boolean;
   result?: unknown;
   data?: unknown;
@@ -82,61 +74,6 @@ function normalizeStringArray(value: unknown): string[] {
   return normalized;
 }
 
-function isTauriRuntime(): boolean {
-  try {
-    return isTauri();
-  } catch {
-    return false;
-  }
-}
-
-function extractInstructionSkillEntries(payload: unknown): unknown[] {
-  if (Array.isArray(payload)) {
-    return payload;
-  }
-  if (!isRecord(payload)) {
-    return [];
-  }
-  const envelope = payload as InstructionSkillsRpcEnvelope;
-  if (Array.isArray(envelope.result)) {
-    return envelope.result;
-  }
-  if (Array.isArray(envelope.data)) {
-    return envelope.data;
-  }
-  const resultRecord = isRecord(envelope.result)
-    ? (envelope.result as Record<string, unknown>)
-    : null;
-  if (Array.isArray(resultRecord?.data)) {
-    return resultRecord.data;
-  }
-  return [];
-}
-
-function normalizeInstructionSkillSummary(value: unknown): RuntimeInstructionSkillSummary | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const id = normalizeText(value.id);
-  const name = normalizeText(value.name);
-  if (!id || !name) {
-    return null;
-  }
-  return {
-    id,
-    name,
-    description: normalizeText(value.description) ?? undefined,
-    scope: normalizeText(value.scope) ?? undefined,
-    sourceFamily:
-      normalizeText(value.sourceFamily) ?? normalizeText(value.source_family) ?? undefined,
-    entryPath: normalizeText(value.entryPath) ?? normalizeText(value.entry_path) ?? undefined,
-    sourceRoot: normalizeText(value.sourceRoot) ?? normalizeText(value.source_root) ?? undefined,
-    enabled: typeof value.enabled === "boolean" ? value.enabled : undefined,
-    aliases: normalizeStringArray(value.aliases),
-    shadowedBy: normalizeText(value.shadowedBy) ?? normalizeText(value.shadowed_by) ?? undefined,
-  };
-}
-
 function normalizeInstructionSkillSummaryFromExtension(
   extension: RuntimeExtensionRecord
 ): RuntimeInstructionSkillSummary | null {
@@ -185,45 +122,6 @@ function normalizeInstructionSkillFile(value: unknown): RuntimeInstructionSkillF
   return { path, content };
 }
 
-function extractInstructionSkillPayload(payload: unknown): unknown {
-  if (isRecord(payload)) {
-    const envelope = payload as InstructionSkillsRpcEnvelope;
-    if (envelope.result !== undefined) {
-      return envelope.result;
-    }
-    if (envelope.data !== undefined) {
-      return envelope.data;
-    }
-  }
-  return payload;
-}
-
-function normalizeInstructionSkill(value: unknown): RuntimeInstructionSkill | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const summary = normalizeInstructionSkillSummary(value);
-  const body = typeof value.body === "string" ? value.body : null;
-  const frontmatter = isRecord(value.frontmatter) ? value.frontmatter : {};
-  const supportingFilesSource = Array.isArray(value.supportingFiles)
-    ? value.supportingFiles
-    : Array.isArray(value.supporting_files)
-      ? value.supporting_files
-      : [];
-  const supportingFiles = supportingFilesSource
-    .map((entry) => normalizeInstructionSkillFile(entry))
-    .filter((entry): entry is RuntimeInstructionSkillFile => Boolean(entry));
-  if (!summary || body === null) {
-    return null;
-  }
-  return {
-    ...summary,
-    frontmatter,
-    body,
-    supportingFiles,
-  };
-}
-
 function normalizeJsonRecord(value: string | null | undefined): Record<string, unknown> {
   if (!value) {
     return {};
@@ -258,87 +156,54 @@ function normalizeInstructionSkillFilesPayload(
 async function listInstructionSkills(
   workspaceId: string
 ): Promise<RuntimeInstructionSkillSummary[]> {
-  try {
-    const extensions = await listRuntimeExtensionsWithFallback(getRuntimeClient(), workspaceId);
-    return extensions
-      .map((entry) => normalizeInstructionSkillSummaryFromExtension(entry))
-      .filter((entry): entry is RuntimeInstructionSkillSummary => Boolean(entry));
-  } catch (primaryError) {
-    const params = { workspaceId };
-    try {
-      if (isTauriRuntime()) {
-        const payload = await invoke("native_skills_list", params);
-        return extractInstructionSkillEntries(payload)
-          .map((entry) => normalizeInstructionSkillSummary(entry))
-          .filter((entry): entry is RuntimeInstructionSkillSummary => Boolean(entry));
-      }
-      if (detectRuntimeMode() === "runtime-gateway-web") {
-        const payload = await invokeWebRuntimeDirectRpc("native_skills_list", params);
-        return extractInstructionSkillEntries(payload)
-          .map((entry) => normalizeInstructionSkillSummary(entry))
-          .filter((entry): entry is RuntimeInstructionSkillSummary => Boolean(entry));
-      }
-    } catch (fallbackError) {
-      throw fallbackError instanceof Error ? fallbackError : primaryError;
-    }
-  }
-  return [];
+  const extensions = await listRuntimeExtensionsWithFallback(getRuntimeClient(), workspaceId);
+  return extensions
+    .map((entry) => normalizeInstructionSkillSummaryFromExtension(entry))
+    .filter((entry): entry is RuntimeInstructionSkillSummary => Boolean(entry));
 }
 
 export async function getInstructionSkill(
   workspaceId: string,
   skillId: string
 ): Promise<RuntimeInstructionSkill | null> {
-  try {
-    const client = getRuntimeClient();
-    const extension = await getRuntimeExtensionWithFallback(client, {
-      workspaceId,
-      extensionId: skillId,
-    });
-    if (extension?.kind === "instruction") {
-      const [body, frontmatter, supportingFiles] = await Promise.all([
-        readRuntimeExtensionResourceWithFallback(client, {
-          workspaceId,
-          extensionId: skillId,
-          resourceId: INSTRUCTION_SKILL_BODY_RESOURCE_ID,
-        }),
-        readRuntimeExtensionResourceWithFallback(client, {
-          workspaceId,
-          extensionId: skillId,
-          resourceId: INSTRUCTION_SKILL_FRONTMATTER_RESOURCE_ID,
-        }),
-        readRuntimeExtensionResourceWithFallback(client, {
-          workspaceId,
-          extensionId: skillId,
-          resourceId: INSTRUCTION_SKILL_SUPPORTING_FILES_RESOURCE_ID,
-        }),
-      ]);
-      if (body?.content) {
-        const summary = normalizeInstructionSkillSummaryFromExtension(extension);
-        if (summary) {
-          return {
-            ...summary,
-            frontmatter: normalizeJsonRecord(frontmatter?.content),
-            body: body.content,
-            supportingFiles: normalizeInstructionSkillFilesPayload(supportingFiles?.content),
-          };
-        }
-      }
-    }
-  } catch {
-    // Fall back to the legacy native skill RPC when extension resources are unavailable.
-  }
-
-  const params = { workspaceId, skillId };
-  let payload: unknown;
-  if (isTauriRuntime()) {
-    payload = await invoke("native_skill_get", params);
-  } else if (detectRuntimeMode() === "runtime-gateway-web") {
-    payload = await invokeWebRuntimeDirectRpc("native_skill_get", params);
-  } else {
+  const client = getRuntimeClient();
+  const extension = await getRuntimeExtensionWithFallback(client, {
+    workspaceId,
+    extensionId: skillId,
+  });
+  if (extension?.kind !== "instruction") {
     return null;
   }
-  return normalizeInstructionSkill(extractInstructionSkillPayload(payload));
+  const [body, frontmatter, supportingFiles] = await Promise.all([
+    readRuntimeExtensionResourceWithFallback(client, {
+      workspaceId,
+      extensionId: skillId,
+      resourceId: INSTRUCTION_SKILL_BODY_RESOURCE_ID,
+    }),
+    readRuntimeExtensionResourceWithFallback(client, {
+      workspaceId,
+      extensionId: skillId,
+      resourceId: INSTRUCTION_SKILL_FRONTMATTER_RESOURCE_ID,
+    }),
+    readRuntimeExtensionResourceWithFallback(client, {
+      workspaceId,
+      extensionId: skillId,
+      resourceId: INSTRUCTION_SKILL_SUPPORTING_FILES_RESOURCE_ID,
+    }),
+  ]);
+  if (!body?.content) {
+    return null;
+  }
+  const summary = normalizeInstructionSkillSummaryFromExtension(extension);
+  if (!summary) {
+    return null;
+  }
+  return {
+    ...summary,
+    frontmatter: normalizeJsonRecord(frontmatter?.content),
+    body: body.content,
+    supportingFiles: normalizeInstructionSkillFilesPayload(supportingFiles?.content),
+  };
 }
 
 function titleCaseModelToken(token: string): string {

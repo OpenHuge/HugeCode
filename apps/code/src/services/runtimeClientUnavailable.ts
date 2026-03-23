@@ -324,23 +324,11 @@ export function createUnavailableRuntimeClient(
     workspacePatchApplyV1() {
       return rejectUnavailable("apply workspace patch");
     },
-    extensionsListV1() {
-      return rejectUnavailable("list runtime extensions");
-    },
-    extensionInstallV1() {
-      return rejectUnavailable("install runtime extension");
-    },
-    extensionRemoveV1() {
-      return rejectUnavailable("remove runtime extension");
-    },
-    extensionToolsListV1() {
+    extensionToolsListV2() {
       return rejectUnavailable("list runtime extension tools");
     },
-    extensionResourceReadV1() {
+    extensionResourceReadV2() {
       return rejectUnavailable("read runtime extension resource");
-    },
-    extensionsConfigV1() {
-      return rejectUnavailable("read runtime extension config");
     },
     sessionExportV1() {
       return rejectUnavailable("export runtime session");
