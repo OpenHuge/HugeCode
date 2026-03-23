@@ -16,6 +16,7 @@ type PrimaryLayoutNodes = Pick<
   | "missionOverviewNode"
   | "mainHeaderNode"
   | "desktopTopbarLeftNode"
+  | "desktopTopbarRightNode"
   | "tabBarNode"
 >;
 

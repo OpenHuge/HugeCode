@@ -70,6 +70,20 @@ applyGlobalStyle(".timeline-status-card--success", {
     },
   },
 });
+applyGlobalStyle(
+  ".timeline-status-card [data-artifact-kind='status-banner'],\n.timeline-status-card [data-artifact-kind='status-success']",
+  {
+    "@layer": {
+      [layers.features]: {
+        padding: "0",
+        border: "none",
+        "border-radius": "0",
+        background: "transparent",
+        "box-shadow": "none",
+      },
+    },
+  }
+);
 applyGlobalStyle(".request-user-input-header", {
   "@layer": {
     [layers.features]: {

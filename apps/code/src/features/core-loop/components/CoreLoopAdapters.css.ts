@@ -188,7 +188,19 @@ export const statePanelGuideMode = style({
   "@layer": {
     [layers.features]: {
       gridTemplateColumns: "minmax(0, 1fr)",
-      gap: "14px",
+      gap: "16px",
+      padding: "22px 22px 20px",
+      borderRadius: "20px",
+      borderColor: "color-mix(in srgb, var(--ds-border-default) 74%, transparent)",
+      background: "color-mix(in srgb, var(--ds-surface-card-base) 98%, var(--ds-surface-item))",
+      boxShadow: "inset 0 1px 0 color-mix(in srgb, var(--ds-surface-card-base) 84%, transparent)",
+      "@media": {
+        "(max-width: 900px)": {
+          gap: "16px",
+          padding: "20px 20px 18px",
+          borderRadius: "20px",
+        },
+      },
     },
   },
 });
@@ -226,7 +238,7 @@ export const stateAside = style({
 export const stateAsideGuide = style({
   "@layer": {
     [layers.features]: {
-      gap: "10px",
+      gap: "12px",
       padding: 0,
       borderLeft: "none",
     },
@@ -276,10 +288,10 @@ export const stateChecklistGuide = style({
       gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
       gap: "12px",
       "@media": {
-        "(max-width: 1024px)": {
+        "(max-width: 1120px)": {
           gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
         },
-        "(max-width: 640px)": {
+        "(max-width: 720px)": {
           gridTemplateColumns: "minmax(0, 1fr)",
         },
       },
@@ -310,84 +322,76 @@ export const stateChecklistItemGuide = style({
       vars: {
         "--core-loop-step-accent": "var(--ds-brand-primary)",
         "--core-loop-step-surface":
-          "color-mix(in srgb, var(--ds-brand-primary) 6%, var(--ds-surface-card-base) 94%)",
-        "--core-loop-step-border":
-          "color-mix(in srgb, var(--ds-brand-primary) 34%, var(--ds-surface-card-base))",
+          "color-mix(in srgb, var(--ds-surface-card-base) 97%, var(--ds-surface-item))",
+        "--core-loop-step-border": "color-mix(in srgb, var(--ds-border-default) 82%, transparent)",
         "--core-loop-step-badge-surface":
-          "color-mix(in srgb, var(--ds-brand-primary) 16%, var(--ds-surface-card-base))",
+          "color-mix(in srgb, var(--ds-surface-card-base) 92%, var(--core-loop-step-accent) 8%)",
         "--core-loop-step-badge-border":
-          "color-mix(in srgb, var(--ds-brand-primary) 42%, var(--ds-surface-card-base))",
-        "--core-loop-step-badge-text": "color-mix(in srgb, var(--ds-brand-primary) 84%, white 16%)",
+          "color-mix(in srgb, var(--core-loop-step-accent) 18%, var(--ds-border-default))",
+        "--core-loop-step-badge-text":
+          "color-mix(in srgb, var(--core-loop-step-accent) 54%, var(--ds-text-stronger))",
         "--core-loop-step-title": "var(--ds-text-stronger)",
         "--core-loop-step-detail": "var(--ds-text-subtle)",
+        "--core-loop-step-rule":
+          "color-mix(in srgb, var(--core-loop-step-accent) 28%, transparent)",
       },
       gridTemplateColumns: "minmax(0, 1fr)",
-      gap: "7px",
-      minHeight: "96px",
-      padding: "14px 15px 13px",
-      borderRadius: "16px",
+      gap: "12px",
+      minHeight: "152px",
+      padding: "18px 18px 16px",
+      borderRadius: "18px",
       border: "1px solid var(--core-loop-step-border)",
       background: "var(--core-loop-step-surface)",
+      position: "relative",
+      overflow: "hidden",
+      boxShadow: "inset 0 1px 0 color-mix(in srgb, var(--ds-surface-card-base) 74%, transparent)",
       selectors: {
         '&[data-step-tone="skills"]': {
           vars: {
-            "--core-loop-step-accent": "var(--color-accent-violet)",
-            "--core-loop-step-surface":
-              "color-mix(in srgb, var(--color-accent-violet) 7%, var(--ds-surface-card-base) 93%)",
-            "--core-loop-step-border":
-              "color-mix(in srgb, var(--color-accent-violet) 36%, var(--ds-surface-card-base))",
-            "--core-loop-step-badge-surface":
-              "color-mix(in srgb, var(--color-accent-violet) 16%, var(--ds-surface-card-base))",
-            "--core-loop-step-badge-border":
-              "color-mix(in srgb, var(--color-accent-violet) 42%, var(--ds-surface-card-base))",
-            "--core-loop-step-badge-text":
-              "color-mix(in srgb, var(--color-accent-violet) 84%, white 16%)",
-            "--core-loop-step-title":
-              "color-mix(in srgb, var(--color-accent-violet) 58%, white 42%)",
+            "--core-loop-step-accent":
+              "color-mix(in srgb, var(--ds-text-stronger) 80%, var(--ds-brand-primary) 20%)",
           },
         },
         '&[data-step-tone="commands"]': {
           vars: {
-            "--core-loop-step-accent": "var(--ds-status-success)",
-            "--core-loop-step-surface":
-              "color-mix(in srgb, var(--ds-status-success) 8%, var(--ds-surface-card-base) 92%)",
-            "--core-loop-step-border":
-              "color-mix(in srgb, var(--ds-status-success) 38%, var(--ds-surface-card-base))",
-            "--core-loop-step-badge-surface":
-              "color-mix(in srgb, var(--ds-status-success) 16%, var(--ds-surface-card-base))",
-            "--core-loop-step-badge-border":
-              "color-mix(in srgb, var(--ds-status-success) 42%, var(--ds-surface-card-base))",
-            "--core-loop-step-badge-text":
-              "color-mix(in srgb, var(--ds-status-success) 84%, white 16%)",
-            "--core-loop-step-title": "color-mix(in srgb, var(--ds-status-success) 60%, white 40%)",
+            "--core-loop-step-accent":
+              "color-mix(in srgb, var(--ds-status-success) 38%, var(--ds-text-stronger))",
           },
         },
         '&[data-step-tone="mentions"]': {
           vars: {
-            "--core-loop-step-accent": "var(--ds-brand-primary)",
-            "--core-loop-step-surface":
-              "color-mix(in srgb, var(--ds-brand-primary) 7%, var(--ds-surface-card-base) 93%)",
-            "--core-loop-step-border":
-              "color-mix(in srgb, var(--ds-brand-primary) 36%, var(--ds-surface-card-base))",
-            "--core-loop-step-badge-surface":
-              "color-mix(in srgb, var(--ds-brand-primary) 16%, var(--ds-surface-card-base))",
-            "--core-loop-step-badge-border":
-              "color-mix(in srgb, var(--ds-brand-primary) 42%, var(--ds-surface-card-base))",
-            "--core-loop-step-badge-text":
-              "color-mix(in srgb, var(--ds-brand-primary) 84%, white 16%)",
-            "--core-loop-step-title": "color-mix(in srgb, var(--ds-brand-primary) 58%, white 42%)",
+            "--core-loop-step-accent":
+              "color-mix(in srgb, var(--ds-brand-primary) 44%, var(--ds-text-stronger))",
           },
         },
         '&[data-step-tone="queue"]': {
           vars: {
-            "--core-loop-step-accent": "var(--status-warning)",
+            "--core-loop-step-accent":
+              "color-mix(in srgb, var(--status-warning) 42%, var(--ds-text-stronger))",
           },
         },
         '&[data-step-tone="images"]': {
           vars: {
             "--core-loop-step-accent":
-              "color-mix(in srgb, var(--color-accent-violet) 48%, var(--status-warning))",
+              "color-mix(in srgb, var(--status-warning) 28%, var(--ds-brand-primary) 72%)",
           },
+        },
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          top: 0,
+          left: "18px",
+          right: "18px",
+          height: "1px",
+          background: "var(--core-loop-step-rule)",
+          pointerEvents: "none",
+        },
+      },
+      "@media": {
+        "(max-width: 900px)": {
+          minHeight: "144px",
+          padding: "16px 16px 15px",
+          borderRadius: "18px",
         },
       },
     },
@@ -397,12 +401,13 @@ export const stateChecklistItemGuide = style({
 export const stateChecklistGuideChip = style({
   "@layer": {
     [layers.features]: {
-      display: "inline-flex",
-      alignItems: "center",
-      gap: "10px",
-      width: "fit-content",
+      display: "grid",
+      justifyItems: "start",
+      alignContent: "start",
+      gap: "12px",
+      width: "100%",
       minWidth: 0,
-      minHeight: "36px",
+      minHeight: "max-content",
       padding: 0,
       border: "none",
       background: "transparent",
@@ -416,16 +421,19 @@ export const stateChecklistBadge = style({
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
-      minWidth: "40px",
-      height: "36px",
-      paddingInline: "10px",
+      width: "44px",
+      height: "44px",
+      minWidth: "44px",
+      padding: 0,
       borderRadius: "12px",
       border: "1px solid var(--core-loop-step-badge-border)",
       background: "var(--core-loop-step-badge-surface)",
       color: "var(--core-loop-step-badge-text)",
       boxShadow: "none",
-      fontWeight: 700,
-      letterSpacing: "-0.04em",
+      fontWeight: 720,
+      letterSpacing: "-0.06em",
+      fontSize: typographyValues.meta.fontSize,
+      lineHeight: typographyValues.meta.lineHeight,
       flexShrink: 0,
     },
   },
@@ -434,10 +442,10 @@ export const stateChecklistBadge = style({
 export const stateChecklistGuideChipLabel = style({
   "@layer": {
     [layers.features]: {
-      fontSize: typographyValues.meta.fontSize,
-      lineHeight: typographyValues.meta.lineHeight,
-      fontWeight: 650,
-      letterSpacing: "-0.02em",
+      fontSize: typographyValues.ui.fontSize,
+      lineHeight: typographyValues.ui.lineHeight,
+      fontWeight: 680,
+      letterSpacing: "-0.025em",
       color: "var(--core-loop-step-title)",
       textWrap: "balance",
     },
@@ -474,6 +482,8 @@ export const stateChecklistDetail = style({
       color: "var(--core-loop-step-detail)",
       fontSize: typographyValues.fine.fontSize,
       lineHeight: typographyValues.fine.lineHeight,
+      maxWidth: "30ch",
+      letterSpacing: "0.01em",
       textWrap: "pretty",
     },
   },

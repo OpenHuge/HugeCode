@@ -1,12 +1,8 @@
-import { type MouseEvent, type ReactNode, useEffect } from "react";
+import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { onOpenPlanPanel } from "../../plan/utils/planPanelSurface";
 import { RightPanelResizeHandle } from "../../right-panel/RightPanelPrimitives";
 import { ThreadRightPanel } from "../../right-panel/ThreadRightPanel";
-import {
-  RightPanelCollapseButton,
-  RightPanelExpandButton,
-  SidebarExpandButton,
-} from "./SidebarToggleControls";
+import { RIGHT_RAIL_ENTER_SETTLE_MS, RIGHT_RAIL_EXIT_MS } from "./DesktopLayout.motion";
 import * as styles from "./DesktopLayout.css";
 
 type DesktopLayoutProps = {
@@ -45,6 +41,8 @@ type DesktopLayoutProps = {
   onPlanPanelResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
 };
 
+type RightRailMotionState = "hidden" | "entering" | "open" | "exiting";
+
 export function DesktopLayout({
   sidebarNode,
   updateToastNode,
@@ -60,8 +58,6 @@ export function DesktopLayout({
   rightPanelGitNode,
   rightPanelFilesNode,
   rightPanelPromptsNode,
-  sidebarCollapsed,
-  onExpandSidebar,
   messagesNode,
   gitDiffViewerNode,
   hasGitDiffViewerContent = gitDiffViewerNode != null,
@@ -71,11 +67,18 @@ export function DesktopLayout({
   debugPanelNode,
   hasActivePlan,
   rightPanelCollapsed,
-  onCollapseRightPanel,
   onExpandRightPanel,
   onSidebarResizeStart,
   onRightPanelResizeStart,
 }: DesktopLayoutProps) {
+  const [rightRailMotionState, setRightRailMotionState] = useState<RightRailMotionState>(() =>
+    rightPanelCollapsed ? "hidden" : "open"
+  );
+  const rightRailMotionStateRef = useRef(rightRailMotionState);
+  const enterTimerRef = useRef<number | null>(null);
+  const exitTimerRef = useRef<number | null>(null);
+  rightRailMotionStateRef.current = rightRailMotionState;
+
   useEffect(
     () =>
       onOpenPlanPanel(() => {
@@ -86,6 +89,56 @@ export function DesktopLayout({
       }),
     [hasActivePlan, onExpandRightPanel, rightPanelCollapsed]
   );
+
+  useEffect(() => {
+    const clearTimers = () => {
+      if (enterTimerRef.current != null) {
+        window.clearTimeout(enterTimerRef.current);
+        enterTimerRef.current = null;
+      }
+      if (exitTimerRef.current != null) {
+        window.clearTimeout(exitTimerRef.current);
+        exitTimerRef.current = null;
+      }
+    };
+
+    clearTimers();
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (!rightPanelCollapsed) {
+      if (prefersReducedMotion) {
+        setRightRailMotionState("open");
+        return clearTimers;
+      }
+      if (rightRailMotionStateRef.current === "hidden") {
+        setRightRailMotionState("entering");
+        enterTimerRef.current = window.setTimeout(() => {
+          setRightRailMotionState("open");
+          enterTimerRef.current = null;
+        }, RIGHT_RAIL_ENTER_SETTLE_MS);
+        return clearTimers;
+      }
+      setRightRailMotionState("open");
+      return clearTimers;
+    }
+
+    if (prefersReducedMotion || rightRailMotionStateRef.current === "hidden") {
+      setRightRailMotionState("hidden");
+      return clearTimers;
+    }
+
+    setRightRailMotionState("exiting");
+    exitTimerRef.current = window.setTimeout(() => {
+      setRightRailMotionState("hidden");
+      exitTimerRef.current = null;
+    }, RIGHT_RAIL_EXIT_MS);
+    return clearTimers;
+  }, [rightPanelCollapsed]);
+
+  const rightRailVisible = rightRailMotionState !== "hidden";
 
   return (
     <div className={styles.desktopShell} data-desktop-shell="kanna-frame">
@@ -105,7 +158,7 @@ export function DesktopLayout({
 
       <div className={styles.mainPane} data-desktop-main-pane="true">
         <section
-          className={`main ${styles.mainShell[rightPanelCollapsed ? "collapsed" : "expanded"]} ${
+          className={`main ${styles.mainShell[rightRailVisible ? "expanded" : "collapsed"]} ${
             showWorkspace ? styles.workspaceShell : ""
           }`}
         >
@@ -115,54 +168,22 @@ export function DesktopLayout({
           {showHome ? homeNode : null}
           {showWorkspace ? (
             <>
-              {sidebarCollapsed ? (
-                <div className={styles.sidebarExpandToggle} data-desktop-sidebar-expand="true">
-                  <SidebarExpandButton
-                    isCompact={false}
-                    sidebarCollapsed
-                    rightPanelCollapsed={rightPanelCollapsed}
-                    onCollapseSidebar={() => undefined}
-                    onExpandSidebar={onExpandSidebar}
-                    onCollapseRightPanel={() => undefined}
-                    onExpandRightPanel={onExpandRightPanel}
-                  />
-                </div>
-              ) : null}
-              <div className={styles.rightPanelExpandToggle} data-desktop-right-rail-toggle="true">
-                {rightPanelCollapsed ? (
-                  <RightPanelExpandButton
-                    isCompact={false}
-                    sidebarCollapsed={sidebarCollapsed}
-                    rightPanelCollapsed
-                    onCollapseSidebar={() => undefined}
-                    onExpandSidebar={onExpandSidebar}
-                    onCollapseRightPanel={() => undefined}
-                    onExpandRightPanel={onExpandRightPanel}
-                  />
-                ) : (
-                  <RightPanelCollapseButton
-                    isCompact={false}
-                    sidebarCollapsed={sidebarCollapsed}
-                    rightPanelCollapsed={false}
-                    onCollapseSidebar={() => undefined}
-                    onExpandSidebar={onExpandSidebar}
-                    onCollapseRightPanel={onCollapseRightPanel}
-                    onExpandRightPanel={onExpandRightPanel}
-                  />
-                )}
-              </div>
               {topbarLeftNode}
               <div className={styles.timelineSurface}>{messagesNode}</div>
-              {!rightPanelCollapsed ? (
+              {rightRailVisible ? (
                 <>
                   <RightPanelResizeHandle
                     aria-label="Resize right panel"
-                    className={styles.rightRailResizeHandle}
+                    className={`${styles.rightRailResizeHandle} ${styles.rightRailResizeHandleMotion[rightRailMotionState]}`}
                     onMouseDown={(event) =>
                       onRightPanelResizeStart(event as unknown as MouseEvent<HTMLDivElement>)
                     }
                   />
-                  <aside className={styles.rightRail} data-right-rail="true">
+                  <aside
+                    className={`${styles.rightRail} ${styles.rightRailMotion[rightRailMotionState]}`}
+                    data-right-rail="true"
+                    data-right-rail-motion={rightRailMotionState}
+                  >
                     <ThreadRightPanel
                       interruptNode={rightPanelInterruptNode}
                       detailNode={rightPanelDetailsNode}

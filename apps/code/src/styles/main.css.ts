@@ -8,9 +8,6 @@ applyGlobalStyle(".main", {
   "@layer": {
     [layers.features]: {
       display: "grid",
-      "grid-template-columns":
-        "minmax(0, 1fr) var(\n      --right-panel-width-live,\n      var(--right-panel-width, 360px)\n    )",
-      "grid-template-rows": "auto 1fr auto auto auto",
       gap: "0",
       padding: "0",
       position: "relative",
@@ -20,8 +17,6 @@ applyGlobalStyle(".main", {
       "--main-panel-padding": "18px",
       "--conversation-optimal-width": conversationOptimalWidth,
       "--workspace-thread-lane-width": conversationOptimalWidthVar,
-      transition:
-        "grid-template-columns var(--duration-slow, 240ms) var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1))",
       background:
         "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-messages) 98%, white 2%), color-mix(in srgb, var(--ds-surface-app) 100%, transparent))",
       "border-left": "none",
@@ -47,7 +42,7 @@ applyGlobalStyle(".main-header", {
       overflow: "visible",
       "-webkit-app-region": "drag",
       padding:
-        "12px calc(var(--main-panel-padding, 12px) + var(--main-header-right-overlay-gutter, 0px)) 10px var(--main-panel-padding, 12px)",
+        "calc(var(--shell-chrome-inset-top, 10px) - 1px) calc(var(--main-panel-padding, 12px) + var(--main-header-right-overlay-gutter, 0px)) calc(var(--shell-chrome-row-bottom, 6px) + 3px) var(--main-panel-padding, 12px)",
       border: "none",
       borderRadius: "0",
       background: "transparent",
@@ -71,7 +66,7 @@ applyGlobalStyle(".main-header-actions", {
     [layers.features]: {
       display: "flex",
       "align-items": "center",
-      "align-self": "center",
+      "align-self": "flex-start",
       "flex-wrap": "wrap",
       "justify-content": "flex-end",
       margin: "0 0 0 auto",

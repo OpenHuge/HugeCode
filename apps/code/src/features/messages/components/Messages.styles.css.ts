@@ -25,7 +25,7 @@ export const messagesFull = style({
       flexDirection: "column",
       background: "transparent",
       borderRadius: "0",
-      padding: "12px calc(var(--main-panel-padding) + 2px) 18px",
+      padding: "12px 0 18px calc(var(--main-panel-padding) + 2px)",
       border: "none",
     },
   },
