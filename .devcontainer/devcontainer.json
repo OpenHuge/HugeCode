@@ -3,6 +3,9 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
+  "containerEnv": {
+    "PLAYWRIGHT_BROWSERS_PATH": "${containerWorkspaceFolder}/.cache/ms-playwright"
+  },
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "version": "22.21.1"
@@ -39,5 +42,7 @@
       }
     }
   },
+  "onCreateCommand": "bash .devcontainer/on-create.sh",
+  "updateContentCommand": "bash .devcontainer/update-content.sh",
   "postCreateCommand": "bash .devcontainer/post-create.sh"
 }
