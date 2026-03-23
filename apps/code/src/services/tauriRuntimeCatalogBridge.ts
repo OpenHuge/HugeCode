@@ -1,5 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import type { RuntimeExtensionRecord } from "@ku0/code-runtime-host-contract";
 import { detectRuntimeMode, getRuntimeClient } from "./runtimeClient";
+import { listRuntimeExtensionsWithFallback } from "./runtimeClientExtensions";
 import { invokeWebRuntimeDirectRpc } from "./runtimeWebDirectRpc";
 
 type LooseResultEnvelope = Record<string, unknown>;
@@ -127,6 +129,42 @@ function normalizeInstructionSkillSummary(value: unknown): RuntimeInstructionSki
   };
 }
 
+function normalizeInstructionSkillSummaryFromExtension(
+  extension: RuntimeExtensionRecord
+): RuntimeInstructionSkillSummary | null {
+  if (extension.kind !== "instruction") {
+    return null;
+  }
+  const provenance = isRecord(extension.provenance) ? extension.provenance : null;
+  const id = normalizeText(extension.extensionId);
+  const name = normalizeText(extension.name) ?? normalizeText(extension.displayName);
+  if (!id || !name) {
+    return null;
+  }
+
+  const scopeSource = normalizeText(provenance?.scope);
+  const scope =
+    scopeSource === "workspace" || scopeSource === "global"
+      ? scopeSource
+      : extension.distribution === "workspace"
+        ? "workspace"
+        : "global";
+
+  return {
+    id,
+    name,
+    description: normalizeText(extension.summary) ?? undefined,
+    scope,
+    sourceFamily:
+      normalizeText(provenance?.sourceFamily) ?? normalizeText(extension.publisher) ?? undefined,
+    entryPath: normalizeText(provenance?.entryPath) ?? undefined,
+    sourceRoot: normalizeText(provenance?.sourceRoot) ?? undefined,
+    enabled: extension.enabled,
+    aliases: normalizeStringArray(provenance?.aliases),
+    shadowedBy: normalizeText(provenance?.shadowedBy) ?? undefined,
+  };
+}
+
 function normalizeInstructionSkillFile(value: unknown): RuntimeInstructionSkillFile | null {
   if (!isRecord(value)) {
     return null;
@@ -181,18 +219,29 @@ function normalizeInstructionSkill(value: unknown): RuntimeInstructionSkill | nu
 async function listInstructionSkills(
   workspaceId: string
 ): Promise<RuntimeInstructionSkillSummary[]> {
-  const params = { workspaceId };
-  if (isTauriRuntime()) {
-    const payload = await invoke("native_skills_list", params);
-    return extractInstructionSkillEntries(payload)
-      .map((entry) => normalizeInstructionSkillSummary(entry))
+  try {
+    const extensions = await listRuntimeExtensionsWithFallback(getRuntimeClient(), workspaceId);
+    return extensions
+      .map((entry) => normalizeInstructionSkillSummaryFromExtension(entry))
       .filter((entry): entry is RuntimeInstructionSkillSummary => Boolean(entry));
-  }
-  if (detectRuntimeMode() === "runtime-gateway-web") {
-    const payload = await invokeWebRuntimeDirectRpc("native_skills_list", params);
-    return extractInstructionSkillEntries(payload)
-      .map((entry) => normalizeInstructionSkillSummary(entry))
-      .filter((entry): entry is RuntimeInstructionSkillSummary => Boolean(entry));
+  } catch (primaryError) {
+    const params = { workspaceId };
+    try {
+      if (isTauriRuntime()) {
+        const payload = await invoke("native_skills_list", params);
+        return extractInstructionSkillEntries(payload)
+          .map((entry) => normalizeInstructionSkillSummary(entry))
+          .filter((entry): entry is RuntimeInstructionSkillSummary => Boolean(entry));
+      }
+      if (detectRuntimeMode() === "runtime-gateway-web") {
+        const payload = await invokeWebRuntimeDirectRpc("native_skills_list", params);
+        return extractInstructionSkillEntries(payload)
+          .map((entry) => normalizeInstructionSkillSummary(entry))
+          .filter((entry): entry is RuntimeInstructionSkillSummary => Boolean(entry));
+      }
+    } catch (fallbackError) {
+      throw fallbackError instanceof Error ? fallbackError : primaryError;
+    }
   }
   return [];
 }

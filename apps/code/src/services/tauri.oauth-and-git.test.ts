@@ -1374,6 +1374,96 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).toHaveBeenCalledWith("native_skills_list", { workspaceId: "ws-skills-1" });
   });
 
+  it("prefers the unified extension catalog when listing instruction skills", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const extensionCatalogListV2 = vi.fn(async () => [
+      {
+        extensionId: "workspace.agents.review",
+        version: "1.0.0",
+        displayName: "review",
+        publisher: "agents",
+        summary: "Review the current changeset",
+        kind: "instruction",
+        distribution: "workspace",
+        name: "review",
+        transport: "repo-manifest",
+        lifecycleState: "enabled",
+        enabled: true,
+        workspaceId: "ws-skills-catalog",
+        capabilities: ["instructions"],
+        permissions: [],
+        uiApps: [],
+        provenance: {
+          sourceId: "workspace-skill",
+          scope: "workspace",
+          sourceFamily: "agents",
+          entryPath: "/repo/.agents/skills/review/SKILL.md",
+          aliases: ["review", "agents:review"],
+          shadowedBy: null,
+        },
+        config: {},
+        installedAt: 1,
+        updatedAt: 1,
+      },
+      {
+        extensionId: "ext-mcp-1",
+        version: "1.0.0",
+        displayName: "MCP Server",
+        publisher: "HugeCode",
+        summary: "Non-instruction extension",
+        kind: "mcp",
+        distribution: "workspace",
+        name: "MCP Server",
+        transport: "mcp-http",
+        lifecycleState: "enabled",
+        enabled: true,
+        workspaceId: "ws-skills-catalog",
+        capabilities: ["tools"],
+        permissions: [],
+        uiApps: [],
+        provenance: {},
+        config: {},
+        installedAt: 1,
+        updatedAt: 1,
+      },
+    ]);
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      extensionCatalogListV2,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
+
+    await expect(getSkillsList("ws-skills-catalog")).resolves.toEqual({
+      result: {
+        skills: [
+          {
+            name: "review",
+            path: "workspace.agents.review",
+            description: "Review the current changeset",
+            scope: "workspace",
+            sourceFamily: "agents",
+            enabled: true,
+            aliases: ["review", "agents:review"],
+            shadowedBy: null,
+          },
+        ],
+      },
+      skills: [
+        {
+          name: "review",
+          path: "workspace.agents.review",
+          description: "Review the current changeset",
+          scope: "workspace",
+          sourceFamily: "agents",
+          enabled: true,
+          aliases: ["review", "agents:review"],
+          shadowedBy: null,
+        },
+      ],
+    });
+
+    expect(extensionCatalogListV2).toHaveBeenCalledWith({ workspaceId: "ws-skills-catalog" });
+    expect(invokeMock).not.toHaveBeenCalledWith("native_skills_list", expect.anything());
+  });
+
   it("maps instruction skill metadata without collapsing source and conflict fields", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockImplementation(async (command: string) => {
