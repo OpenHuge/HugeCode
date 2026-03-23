@@ -1,4 +1,8 @@
-import type { DesktopNotificationInput } from "../shared/ipc.js";
+import type {
+  DesktopBrowserDebugSessionInfo,
+  DesktopBrowserDebugSessionInput,
+  DesktopNotificationInput,
+} from "../shared/ipc.js";
 import type { DesktopWindowDescriptor } from "./desktopShellState.js";
 
 type WindowController = {
@@ -20,8 +24,19 @@ type NotificationController = {
   showNotification(event: { sender: unknown }, input: DesktopNotificationInput): boolean;
 };
 
+type BrowserDebugController = {
+  ensureBrowserDebugSession(
+    input?: DesktopBrowserDebugSessionInput
+  ): Promise<DesktopBrowserDebugSessionInfo | null> | DesktopBrowserDebugSessionInfo | null;
+  getBrowserDebugSession():
+    | Promise<DesktopBrowserDebugSessionInfo | null>
+    | DesktopBrowserDebugSessionInfo
+    | null;
+};
+
 export type CreateDesktopHostHandlersInput = {
   appVersion: string | null;
+  browserDebugController: BrowserDebugController;
   listRecentSessions(): unknown[];
   notificationController: NotificationController;
   openExternalUrl(url: string): Promise<boolean> | boolean;
@@ -34,10 +49,12 @@ export type CreateDesktopHostHandlersInput = {
 export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput) {
   return {
     closeWindow: input.windowController.closeWindow,
+    ensureBrowserDebugSession: input.browserDebugController.ensureBrowserDebugSession,
     focusWindow: input.windowController.focusWindow,
     getAppVersion() {
       return input.appVersion;
     },
+    getBrowserDebugSession: input.browserDebugController.getBrowserDebugSession,
     getCurrentSession(event: { sender: unknown }) {
       return input.windowController.getSessionForWebContents(event.sender);
     },

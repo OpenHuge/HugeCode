@@ -2,6 +2,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
+import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
 import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
 import { createDesktopShellState, type DesktopWindowBounds } from "./desktopShellState.js";
 import {
@@ -108,51 +109,38 @@ const trayController = createDesktopTrayController({
   restoreVisibleWindow: windowController.restoreVisibleWindow,
   trayIconDataUrl,
 });
+const desktopHostHandlers = createDesktopHostHandlers({
+  appVersion: (() => {
+    const version = app.getVersion();
+    return typeof version === "string" && version.length > 0 ? version : null;
+  })(),
+  browserDebugController: {
+    ensureBrowserDebugSession,
+    getBrowserDebugSession,
+  },
+  listRecentSessions() {
+    return desktopShellState.recentSessions;
+  },
+  notificationController,
+  openExternalUrl: async (url) => {
+    await shell.openExternal(url);
+    return true;
+  },
+  persistTrayEnabled(enabled) {
+    desktopShellState.setTrayEnabled(enabled);
+    persistDesktopState();
+  },
+  revealItemInDir(path) {
+    shell.showItemInFolder(path);
+    return true;
+  },
+  trayController,
+  windowController,
+});
 
 registerDesktopHostIpc({
   channels: DESKTOP_HOST_IPC_CHANNELS,
-  handlers: {
-    closeWindow: windowController.closeWindow,
-    focusWindow: windowController.focusWindow,
-    ensureBrowserDebugSession,
-    getAppVersion() {
-      const version = app.getVersion();
-      return typeof version === "string" && version.length > 0 ? version : null;
-    },
-    getBrowserDebugSession,
-    getCurrentSession(event) {
-      return windowController.getSessionForWebContents(event.sender);
-    },
-    getTrayState() {
-      return trayController.getState();
-    },
-    getWindowLabel(event) {
-      return windowController.getWindowLabelForWebContents(event.sender);
-    },
-    listRecentSessions() {
-      return desktopShellState.recentSessions;
-    },
-    listWindows: windowController.listWindows,
-    async openExternalUrl(url) {
-      await shell.openExternal(url);
-      return true;
-    },
-    openWindow: windowController.openWindow,
-    reopenSession: windowController.reopenSession,
-    revealItemInDir(path) {
-      shell.showItemInFolder(path);
-      return true;
-    },
-    setTrayEnabled(enabled) {
-      desktopShellState.setTrayEnabled(enabled === true);
-      persistDesktopState();
-      trayController.update();
-      return trayController.getState();
-    },
-    showNotification(event, input) {
-      return notificationController.showNotification(event, input);
-    },
-  },
+  handlers: desktopHostHandlers,
   ipcMain,
 });
 
