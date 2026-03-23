@@ -3761,12 +3761,8 @@ export const CODE_RUNTIME_RPC_METHODS = {
   EXTENSION_PERMISSIONS_EVALUATE_V2: "code_extension_permissions_evaluate_v2",
   EXTENSION_HEALTH_READ_V2: "code_extension_health_read_v2",
   EXTENSION_UI_APPS_LIST_V2: "code_extension_ui_apps_list_v2",
-  EXTENSIONS_LIST_V1: "code_extensions_list_v1",
-  EXTENSION_INSTALL_V1: "code_extension_install_v1",
-  EXTENSION_REMOVE_V1: "code_extension_remove_v1",
-  EXTENSION_TOOLS_LIST_V1: "code_extension_tools_list_v1",
-  EXTENSION_RESOURCE_READ_V1: "code_extension_resource_read_v1",
-  EXTENSIONS_CONFIG_V1: "code_extensions_config_v1",
+  EXTENSION_TOOLS_LIST_V2: "code_extension_tools_list_v2",
+  EXTENSION_RESOURCE_READ_V2: "code_extension_resource_read_v2",
   SESSION_EXPORT_V1: "code_session_export_v1",
   SESSION_IMPORT_V1: "code_session_import_v1",
   SESSION_DELETE_V1: "code_session_delete_v1",
@@ -4615,30 +4611,14 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
     workspace_id?: string | null;
     extension_id?: string | null;
   };
-  [CODE_RUNTIME_RPC_METHODS.EXTENSIONS_LIST_V1]: {
-    workspaceId?: string | null;
-    workspace_id?: string | null;
-  };
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_INSTALL_V1]: RuntimeExtensionInstallRequest & {
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V2]: RuntimeExtensionToolsListRequest & {
     workspace_id?: string | null;
     extension_id?: string;
   };
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_REMOVE_V1]: RuntimeExtensionRemoveRequest & {
-    workspace_id?: string | null;
-    extension_id?: string;
-  };
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V1]: RuntimeExtensionToolsListRequest & {
-    workspace_id?: string | null;
-    extension_id?: string;
-  };
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V1]: RuntimeExtensionResourceReadRequest & {
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V2]: RuntimeExtensionResourceReadRequest & {
     workspace_id?: string | null;
     extension_id?: string;
     resource_id?: string;
-  };
-  [CODE_RUNTIME_RPC_METHODS.EXTENSIONS_CONFIG_V1]: {
-    workspaceId?: string | null;
-    workspace_id?: string | null;
   };
   [CODE_RUNTIME_RPC_METHODS.SESSION_EXPORT_V1]: RuntimeSessionExportRequest & {
     workspace_id?: string;
@@ -4826,12 +4806,8 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_PERMISSIONS_EVALUATE_V2]: RuntimeExtensionPermissionsEvaluateResponse;
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_HEALTH_READ_V2]: RuntimeExtensionHealthReadResponse;
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_UI_APPS_LIST_V2]: RuntimeExtensionUiAppsListResponse;
-  [CODE_RUNTIME_RPC_METHODS.EXTENSIONS_LIST_V1]: RuntimeExtensionSpec[];
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_INSTALL_V1]: RuntimeExtensionSpec;
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_REMOVE_V1]: boolean;
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V1]: RuntimeExtensionToolSummary[];
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V1]: RuntimeExtensionResourceReadResponse;
-  [CODE_RUNTIME_RPC_METHODS.EXTENSIONS_CONFIG_V1]: RuntimeExtensionsConfigResponse;
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V2]: RuntimeExtensionToolSummary[];
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V2]: RuntimeExtensionResourceReadResponse;
   [CODE_RUNTIME_RPC_METHODS.SESSION_EXPORT_V1]: RuntimeSessionExportResponse;
   [CODE_RUNTIME_RPC_METHODS.SESSION_IMPORT_V1]: RuntimeSessionImportResponse;
   [CODE_RUNTIME_RPC_METHODS.SESSION_DELETE_V1]: boolean;

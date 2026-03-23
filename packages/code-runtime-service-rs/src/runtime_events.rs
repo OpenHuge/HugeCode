@@ -110,8 +110,7 @@ fn is_extension_scope_method(method: &str) -> bool { matches!(method,
     "code_extension_catalog_list_v2" | "code_extension_get_v2" | "code_extension_install_v2" | "code_extension_update_v2"
     | "code_extension_set_state_v2" | "code_extension_remove_v2" | "code_extension_registry_search_v2"
     | "code_extension_registry_sources_v2" | "code_extension_permissions_evaluate_v2" | "code_extension_health_read_v2"
-    | "code_extension_ui_apps_list_v2" | "code_extensions_list_v1" | "code_extension_install_v1"
-    | "code_extension_remove_v1" | "code_extension_tools_list_v1" | "code_extension_resource_read_v1" | "code_extensions_config_v1") }
+    | "code_extension_ui_apps_list_v2" | "code_extension_tools_list_v2" | "code_extension_resource_read_v2") }
 #[rustfmt::skip]
 fn lock_mutex_with_poison_recovery<'a, T>(mutex: &'a std::sync::Mutex<T>, recovered_message: &str) -> std::sync::MutexGuard<'a, T> {
     let mut recovered_from_poison = false;

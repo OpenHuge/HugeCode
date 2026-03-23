@@ -1,9 +1,9 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-03-23T08:04:26.270Z`
+- Generated at: `2026-03-23T12:02:32.688Z`
 - Contract version: `2026-03-23`
 - Freeze effective at: `2026-03-23`
-- Method-set hash: `fc33710431eae4b5`
+- Method-set hash: `6d56cb2e864f60f0`
 
 ## Features
 
@@ -219,12 +219,8 @@
 - `code_extension_permissions_evaluate_v2`
 - `code_extension_health_read_v2`
 - `code_extension_ui_apps_list_v2`
-- `code_extensions_list_v1`
-- `code_extension_install_v1`
-- `code_extension_remove_v1`
-- `code_extension_tools_list_v1`
-- `code_extension_resource_read_v1`
-- `code_extensions_config_v1`
+- `code_extension_tools_list_v2`
+- `code_extension_resource_read_v2`
 - `code_session_export_v1`
 - `code_session_import_v1`
 - `code_session_delete_v1`
@@ -259,20 +255,16 @@
 - `code_extension_catalog_list_v2`
 - `code_extension_get_v2`
 - `code_extension_health_read_v2`
-- `code_extension_install_v1`
 - `code_extension_install_v2`
 - `code_extension_permissions_evaluate_v2`
 - `code_extension_registry_search_v2`
 - `code_extension_registry_sources_v2`
-- `code_extension_remove_v1`
 - `code_extension_remove_v2`
-- `code_extension_resource_read_v1`
+- `code_extension_resource_read_v2`
 - `code_extension_set_state_v2`
-- `code_extension_tools_list_v1`
+- `code_extension_tools_list_v2`
 - `code_extension_ui_apps_list_v2`
 - `code_extension_update_v2`
-- `code_extensions_config_v1`
-- `code_extensions_list_v1`
 - `code_git_branch_checkout`
 - `code_git_branch_create`
 - `code_git_branches_list`

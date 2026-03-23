@@ -964,30 +964,7 @@ pub(super) async fn handle_extension_ui_apps_list_v2(
     }))
 }
 
-pub(super) async fn handle_extensions_list_v1(
-    ctx: &AppContext,
-    params: &Value,
-) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let workspace_id = optional_workspace_id(params);
-    Ok(json!(list_extension_catalog(ctx, workspace_id.as_deref(), true).await?))
-}
-
-pub(super) async fn handle_extension_install_v1(
-    ctx: &AppContext,
-    params: &Value,
-) -> Result<Value, RpcError> {
-    handle_extension_install_v2(ctx, params).await
-}
-
-pub(super) async fn handle_extension_remove_v1(
-    ctx: &AppContext,
-    params: &Value,
-) -> Result<Value, RpcError> {
-    handle_extension_remove_v2(ctx, params).await
-}
-
-pub(super) async fn handle_extension_tools_list_v1(
+pub(super) async fn handle_extension_tools_list_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
@@ -1003,7 +980,7 @@ pub(super) async fn handle_extension_tools_list_v1(
     Ok(json!(tools))
 }
 
-pub(super) async fn handle_extension_resource_read_v1(
+pub(super) async fn handle_extension_resource_read_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
@@ -1030,24 +1007,3 @@ pub(super) async fn handle_extension_resource_read_v1(
 #[cfg(test)]
 #[path = "rpc_dispatch_extensions_tests.rs"]
 mod tests;
-
-pub(super) async fn handle_extensions_config_v1(
-    ctx: &AppContext,
-    params: &Value,
-) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let workspace_id = optional_workspace_id(params);
-    let extensions = list_extension_catalog(ctx, workspace_id.as_deref(), true).await?;
-    let warnings = if extensions.is_empty() {
-        vec!["No runtime extensions are currently installed.".to_string()]
-    } else {
-        Vec::new()
-    };
-    Ok(json!(
-        extensions_runtime::RuntimeExtensionsConfigResponsePayload {
-            extensions,
-            warnings,
-            registry_sources: default_registry_sources(),
-        }
-    ))
-}

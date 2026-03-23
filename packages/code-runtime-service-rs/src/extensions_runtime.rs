@@ -66,15 +66,6 @@ pub(crate) struct RuntimeExtensionResourceReadResponsePayload {
     pub(crate) metadata: Option<Value>,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct RuntimeExtensionsConfigResponsePayload {
-    pub(crate) extensions: Vec<RuntimeExtensionSpecPayload>,
-    pub(crate) warnings: Vec<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub(crate) registry_sources: Vec<RuntimeExtensionRegistrySourcePayload>,
-}
-
 #[derive(Clone, Debug)]
 pub(crate) struct RuntimeExtensionRecordInput {
     pub(crate) extension_id: String,

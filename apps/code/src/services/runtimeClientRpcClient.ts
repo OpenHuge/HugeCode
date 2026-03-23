@@ -838,46 +838,18 @@ export function createRpcRuntimeClient(invokeRpc: RuntimeRpcInvoker): RuntimeCli
         adaptRuntimeRpcPayload("workspaceDiagnosticsList", request)
       );
     },
-    extensionsListV1(workspaceId?: string | null) {
+    extensionToolsListV2(request: { workspaceId?: string | null; extensionId: string }) {
       return invokeRuntimeExtensionRpc(
         invokeRpc,
-        RUNTIME_EXTENSION_RPC_METHODS.EXTENSIONS_LIST_V1,
-        withCanonicalFields({ workspaceId: workspaceId ?? null })
-      );
-    },
-    extensionInstallV1(request: RuntimeExtensionInstallRequest) {
-      return invokeRuntimeExtensionRpc(
-        invokeRpc,
-        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_INSTALL_V1,
-        adaptRuntimeRpcPayload("extensionInstall", request)
-      );
-    },
-    extensionRemoveV1(request: { workspaceId?: string | null; extensionId: string }) {
-      return invokeRuntimeExtensionRpc(
-        invokeRpc,
-        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_REMOVE_V1,
-        adaptRuntimeRpcPayload("extensionRemove", request)
-      );
-    },
-    extensionToolsListV1(request: { workspaceId?: string | null; extensionId: string }) {
-      return invokeRuntimeExtensionRpc(
-        invokeRpc,
-        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_TOOLS_LIST_V1,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_TOOLS_LIST_V2,
         adaptRuntimeRpcPayload("extensionToolsList", request)
       );
     },
-    extensionResourceReadV1(request: RuntimeExtensionResourceReadRequest) {
+    extensionResourceReadV2(request: RuntimeExtensionResourceReadRequest) {
       return invokeRuntimeExtensionRpc(
         invokeRpc,
-        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_RESOURCE_READ_V1,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_RESOURCE_READ_V2,
         adaptRuntimeRpcPayload("extensionResourceRead", request)
-      );
-    },
-    extensionsConfigV1(workspaceId?: string | null) {
-      return invokeRuntimeExtensionRpc(
-        invokeRpc,
-        RUNTIME_EXTENSION_RPC_METHODS.EXTENSIONS_CONFIG_V1,
-        withCanonicalFields({ workspaceId: workspaceId ?? null })
       );
     },
     sessionExportV1(request: RuntimeSessionExportRequest) {
