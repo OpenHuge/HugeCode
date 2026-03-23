@@ -1565,6 +1565,95 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).not.toHaveBeenCalledWith("skills_list", expect.anything());
   });
 
+  it("loads instruction skill content through extension resources before native skill rpc", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const extensionGetV2 = vi.fn(async () => ({
+      extensionId: "workspace.agents.review",
+      version: "1.0.0",
+      displayName: "review",
+      publisher: "agents",
+      summary: "Review the current changeset",
+      kind: "instruction",
+      distribution: "workspace",
+      name: "review",
+      transport: "repo-manifest",
+      lifecycleState: "enabled",
+      enabled: true,
+      workspaceId: "ws-skills-extension-read",
+      capabilities: ["instructions"],
+      permissions: [],
+      uiApps: [],
+      provenance: {
+        sourceId: "workspace-skill",
+        scope: "workspace",
+        sourceFamily: "agents",
+        sourceRoot: "/repo/.agents/skills",
+        entryPath: "/repo/.agents/skills/review/SKILL.md",
+        aliases: ["review", "agents:review"],
+        shadowedBy: null,
+      },
+      config: {},
+      installedAt: 1,
+      updatedAt: 1,
+    }));
+    const extensionResourceReadV1 = vi.fn(async (request: { resourceId: string }) => {
+      if (request.resourceId === "body") {
+        return {
+          extensionId: "workspace.agents.review",
+          resourceId: "body",
+          contentType: "text/markdown",
+          content: "Review carefully",
+          metadata: null,
+        };
+      }
+      if (request.resourceId === "frontmatter") {
+        return {
+          extensionId: "workspace.agents.review",
+          resourceId: "frontmatter",
+          contentType: "application/json",
+          content: JSON.stringify({ name: "review" }),
+          metadata: null,
+        };
+      }
+      return {
+        extensionId: "workspace.agents.review",
+        resourceId: "supporting-files",
+        contentType: "application/json",
+        content: JSON.stringify([{ path: "checklist.md", content: "- item" }]),
+        metadata: null,
+      };
+    });
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      extensionGetV2,
+      extensionResourceReadV1,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
+
+    await expect(
+      getInstructionSkill("ws-skills-extension-read", "workspace.agents.review")
+    ).resolves.toEqual({
+      id: "workspace.agents.review",
+      name: "review",
+      description: "Review the current changeset",
+      scope: "workspace",
+      sourceFamily: "agents",
+      sourceRoot: "/repo/.agents/skills",
+      entryPath: "/repo/.agents/skills/review/SKILL.md",
+      enabled: true,
+      aliases: ["review", "agents:review"],
+      shadowedBy: undefined,
+      frontmatter: { name: "review" },
+      body: "Review carefully",
+      supportingFiles: [{ path: "checklist.md", content: "- item" }],
+    });
+
+    expect(extensionGetV2).toHaveBeenCalledWith({
+      workspaceId: "ws-skills-extension-read",
+      extensionId: "workspace.agents.review",
+    });
+    expect(extensionResourceReadV1).toHaveBeenCalledTimes(3);
+    expect(invokeMock).not.toHaveBeenCalledWith("native_skill_get", expect.anything());
+  });
+
   it("loads instruction skill content through native_skill_get", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockImplementation(async (command: string, params?: unknown) => {

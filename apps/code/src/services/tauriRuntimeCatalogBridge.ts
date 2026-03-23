@@ -1,7 +1,11 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { RuntimeExtensionRecord } from "@ku0/code-runtime-host-contract";
 import { detectRuntimeMode, getRuntimeClient } from "./runtimeClient";
-import { listRuntimeExtensionsWithFallback } from "./runtimeClientExtensions";
+import {
+  getRuntimeExtensionWithFallback,
+  listRuntimeExtensionsWithFallback,
+  readRuntimeExtensionResourceWithFallback,
+} from "./runtimeClientExtensions";
 import { invokeWebRuntimeDirectRpc } from "./runtimeWebDirectRpc";
 
 type LooseResultEnvelope = Record<string, unknown>;
@@ -38,6 +42,10 @@ type RuntimeInstructionSkillFile = {
   path: string;
   content: string;
 };
+
+const INSTRUCTION_SKILL_BODY_RESOURCE_ID = "body";
+const INSTRUCTION_SKILL_FRONTMATTER_RESOURCE_ID = "frontmatter";
+const INSTRUCTION_SKILL_SUPPORTING_FILES_RESOURCE_ID = "supporting-files";
 
 export type RuntimeInstructionSkill = RuntimeInstructionSkillSummary & {
   frontmatter: Record<string, unknown>;
@@ -216,6 +224,37 @@ function normalizeInstructionSkill(value: unknown): RuntimeInstructionSkill | nu
   };
 }
 
+function normalizeJsonRecord(value: string | null | undefined): Record<string, unknown> {
+  if (!value) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(value);
+    return isRecord(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeInstructionSkillFilesPayload(
+  value: string | null | undefined
+): RuntimeInstructionSkillFile[] {
+  if (!value) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .map((entry) => normalizeInstructionSkillFile(entry))
+      .filter((entry): entry is RuntimeInstructionSkillFile => Boolean(entry));
+  } catch {
+    return [];
+  }
+}
+
 async function listInstructionSkills(
   workspaceId: string
 ): Promise<RuntimeInstructionSkillSummary[]> {
@@ -250,6 +289,46 @@ export async function getInstructionSkill(
   workspaceId: string,
   skillId: string
 ): Promise<RuntimeInstructionSkill | null> {
+  try {
+    const client = getRuntimeClient();
+    const extension = await getRuntimeExtensionWithFallback(client, {
+      workspaceId,
+      extensionId: skillId,
+    });
+    if (extension?.kind === "instruction") {
+      const [body, frontmatter, supportingFiles] = await Promise.all([
+        readRuntimeExtensionResourceWithFallback(client, {
+          workspaceId,
+          extensionId: skillId,
+          resourceId: INSTRUCTION_SKILL_BODY_RESOURCE_ID,
+        }),
+        readRuntimeExtensionResourceWithFallback(client, {
+          workspaceId,
+          extensionId: skillId,
+          resourceId: INSTRUCTION_SKILL_FRONTMATTER_RESOURCE_ID,
+        }),
+        readRuntimeExtensionResourceWithFallback(client, {
+          workspaceId,
+          extensionId: skillId,
+          resourceId: INSTRUCTION_SKILL_SUPPORTING_FILES_RESOURCE_ID,
+        }),
+      ]);
+      if (body?.content) {
+        const summary = normalizeInstructionSkillSummaryFromExtension(extension);
+        if (summary) {
+          return {
+            ...summary,
+            frontmatter: normalizeJsonRecord(frontmatter?.content),
+            body: body.content,
+            supportingFiles: normalizeInstructionSkillFilesPayload(supportingFiles?.content),
+          };
+        }
+      }
+    }
+  } catch {
+    // Fall back to the legacy native skill RPC when extension resources are unavailable.
+  }
+
   const params = { workspaceId, skillId };
   let payload: unknown;
   if (isTauriRuntime()) {
