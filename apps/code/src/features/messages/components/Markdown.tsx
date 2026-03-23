@@ -88,6 +88,10 @@ type MarkdownNode = {
   children?: MarkdownNode[];
 };
 
+type MarkdownTableStyle = {
+  textAlign?: string;
+};
+
 async function openExternalUrl(url: string) {
   try {
     await openUrl(url);
@@ -223,6 +227,13 @@ function normalizeUrlLine(line: string) {
     return null;
   }
   return withoutBullet;
+}
+
+function resolveMarkdownTableAlignment(style?: MarkdownTableStyle) {
+  if (style?.textAlign === "center" || style?.textAlign === "right") {
+    return style.textAlign;
+  }
+  return undefined;
 }
 
 function extractUrlLines(value: string) {
@@ -755,6 +766,50 @@ export function Markdown({
         />
       );
     },
+    table: ({ node: _node, className: tableClassName, children, ...props }) => (
+      <div className={styles.markdownTableScroll} data-markdown-table-container="true">
+        <table
+          {...props}
+          className={joinClassNames(styles.markdownTable, tableClassName)}
+          data-testid="markdown-table"
+        >
+          {children}
+        </table>
+      </div>
+    ),
+    thead: ({ node: _node, className: headClassName, children, ...props }) => (
+      <thead {...props} className={joinClassNames(styles.markdownTableHead, headClassName)}>
+        {children}
+      </thead>
+    ),
+    tbody: ({ node: _node, className: bodyClassName, children, ...props }) => (
+      <tbody {...props} className={joinClassNames(styles.markdownTableBody, bodyClassName)}>
+        {children}
+      </tbody>
+    ),
+    tr: ({ node: _node, className: rowClassName, children, ...props }) => (
+      <tr {...props} className={joinClassNames(styles.markdownTableRow, rowClassName)}>
+        {children}
+      </tr>
+    ),
+    th: ({ node: _node, className: cellClassName, style: tableStyle, children, ...props }) => (
+      <th
+        {...props}
+        className={joinClassNames(styles.markdownTableHeaderCell, cellClassName)}
+        data-markdown-align={resolveMarkdownTableAlignment(tableStyle)}
+      >
+        {children}
+      </th>
+    ),
+    td: ({ node: _node, className: cellClassName, style: tableStyle, children, ...props }) => (
+      <td
+        {...props}
+        className={joinClassNames(styles.markdownTableCell, cellClassName)}
+        data-markdown-align={resolveMarkdownTableAlignment(tableStyle)}
+      >
+        {children}
+      </td>
+    ),
   };
 
   if (codeBlockStyle === "message") {
