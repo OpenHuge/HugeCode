@@ -123,9 +123,13 @@ export const nodeRowBase = style({
 export const absoluteRow = style({
   "@layer": {
     [layers.features]: {
+      vars: {
+        "--distributed-task-graph-row-offset": "0px",
+      },
       position: "absolute",
       left: 0,
       right: 0,
+      transform: "translateY(var(--distributed-task-graph-row-offset))",
     },
   },
 });

@@ -37,7 +37,12 @@ function resolveTauriExecutable() {
   return executableName;
 }
 
-const tauriArgs = process.argv.slice(2);
+const rawTauriArgs = process.argv.slice(2);
+// `pnpm run <script> -- ...` forwards a literal `--` separator that Tauri should not see.
+const tauriArgs =
+  rawTauriArgs.length > 1 && rawTauriArgs[1] === "--"
+    ? [rawTauriArgs[0], ...rawTauriArgs.slice(2)]
+    : rawTauriArgs;
 if (tauriArgs.length === 0) {
   process.stderr.write("Usage: node scripts/run-tauri.mjs <tauri-args...>\n");
   process.exit(1);

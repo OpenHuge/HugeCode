@@ -9,7 +9,7 @@ const rootDir = path.resolve(__dirname, "..");
 const scanAll = process.argv.includes("--all");
 const SHARED_CHANGED_FILES_ENV_KEY = "VALIDATE_CHANGED_FILES_JSON";
 
-const INLINE_STYLE_REGEX = /style=\{\s*\{/g;
+const INLINE_STYLE_REGEX = /\bstyle=\{/g;
 const EXCLUDED_DIRS = [
   "node_modules",
   "dist",
@@ -52,19 +52,17 @@ function scanSingleFile(fullPath) {
   if (!file.endsWith(".tsx") && !file.endsWith(".jsx")) {
     return;
   }
+  if (file.includes(".test.") || file.includes(".stories.")) {
+    return;
+  }
 
   const content = fs.readFileSync(fullPath, "utf8");
   INLINE_STYLE_REGEX.lastIndex = 0;
 
-  // Some exceptions like Storybook decorators or specific runtime injects might use styles
-  // but for standard components we ban it.
-  if (INLINE_STYLE_REGEX.test(content) && !fullPath.includes(".stories.")) {
-    const lines = content.split("\n");
-    lines.forEach((line) => {
-      INLINE_STYLE_REGEX.lastIndex = 0;
-      if (INLINE_STYLE_REGEX.test(line)) {
-      }
-    });
+  if (INLINE_STYLE_REGEX.test(content)) {
+    process.stderr.write(
+      `Inline style usage is forbidden in repo-owned UI: ${toPosixPath(path.relative(rootDir, fullPath))}\n`
+    );
     hasViolations = true;
   }
 }

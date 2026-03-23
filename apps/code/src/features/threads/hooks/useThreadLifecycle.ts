@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject } 
 import { useScopedRuntimeUpdatedEvent } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import { mergeThreadItems } from "../../../utils/threadItems";
 import type { DebugEntry, ThreadListSortKey, WorkspaceInfo } from "../../../types";
+import { recordSentryMetric } from "../../shared/sentry";
 import { saveDetachedReviewLinks, type PersistedThreadSnapshot } from "../utils/threadStorage";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 
@@ -15,17 +16,8 @@ const RUNTIME_UPDATED_SKIP_THREAD_REFRESH_REASONS = new Set([
 ]);
 const THREAD_RUNTIME_REFRESH_DEBOUNCE_MS = 220;
 
-let sentryReactModulePromise: Promise<typeof import("@sentry/react") | null> | null = null;
-
-async function recordThreadSwitchedMetric(params: { workspaceId: string; threadId: string }) {
-  if (!sentryReactModulePromise) {
-    sentryReactModulePromise = import("@sentry/react").catch(() => null);
-  }
-  const sentry = await sentryReactModulePromise;
-  if (!sentry) {
-    return;
-  }
-  sentry.metrics.count("thread_switched", 1, {
+function recordThreadSwitchedMetric(params: { workspaceId: string; threadId: string }) {
+  recordSentryMetric("thread_switched", 1, {
     attributes: {
       workspace_id: params.workspaceId,
       thread_id: params.threadId,
@@ -327,7 +319,7 @@ export function useThreadLifecycle({
       const currentThreadId = state.activeThreadIdByWorkspace[targetId] ?? null;
       dispatch({ type: "setActiveThreadId", workspaceId: targetId, threadId });
       if (threadId && currentThreadId !== threadId) {
-        void recordThreadSwitchedMetric({ workspaceId: targetId, threadId });
+        recordThreadSwitchedMetric({ workspaceId: targetId, threadId });
       }
       if (threadId) {
         void (async () => {
