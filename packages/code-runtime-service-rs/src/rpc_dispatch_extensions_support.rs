@@ -479,6 +479,13 @@ fn legacy_native_plugin_record_input(
         .map(extension_record_input_from_spec)
 }
 
+fn provider_extension_record_input(
+    extension: &RuntimeProviderExtension,
+) -> extensions_runtime::RuntimeExtensionRecordInput {
+    let spec = provider_extension_to_catalog(extension, None);
+    extension_record_input_from_spec(&spec)
+}
+
 pub(super) async fn ensure_legacy_extension_records_imported(
     ctx: &AppContext,
 ) -> Result<(), RpcError> {
@@ -515,6 +522,12 @@ pub(super) async fn ensure_legacy_extension_records_imported(
         let Some(input) = instruction_skill_record_input_from_overlay(overlay) else {
             continue;
         };
+        if !existing_ids.contains(input.extension_id.as_str()) {
+            inputs.push(input);
+        }
+    }
+    for extension in &ctx.config.provider_extensions {
+        let input = provider_extension_record_input(extension);
         if !existing_ids.contains(input.extension_id.as_str()) {
             inputs.push(input);
         }

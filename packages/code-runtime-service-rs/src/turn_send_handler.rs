@@ -625,21 +625,18 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
     let provider_hint_core = provider_hint
         .as_deref()
         .and_then(|provider| parse_runtime_provider(Some(provider)));
-    let provider_hint_extension = provider_hint
-        .as_deref()
-        .and_then(|provider| resolve_provider_extension_by_alias(&ctx.config, provider))
-        .cloned();
+    #[rustfmt::skip]
+    let provider_hint_extension = match provider_hint.as_deref() { Some(provider) => resolve_active_provider_extension_by_alias(ctx, provider).await, None => None };
     let requested_model_id = read_optional_string(payload, "modelId");
-    let model_hint_extension = requested_model_id
-        .as_deref()
-        .and_then(|model_id| resolve_provider_extension_by_model_id(&ctx.config, model_id))
-        .cloned();
+    #[rustfmt::skip]
+    let model_hint_extension = match requested_model_id.as_deref() { Some(model_id) => resolve_active_provider_extension_by_model_id(ctx, model_id).await, None => None };
     if let Some(provider_value) = provider_hint.as_deref() {
         if provider_hint_core.is_none() && provider_hint_extension.is_none() {
+            let active_extensions = active_provider_extensions(ctx).await;
             let supported = RuntimeProvider::specs()
                 .iter()
                 .map(|spec| format!("{} ({})", spec.routed_provider, spec.aliases.join("/")))
-                .chain(ctx.config.provider_extensions.iter().map(|extension| {
+                .chain(active_extensions.iter().map(|extension| {
                     format!(
                         "{} ({})",
                         extension.provider_id,

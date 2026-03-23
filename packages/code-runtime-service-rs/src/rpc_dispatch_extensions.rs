@@ -2,15 +2,14 @@ use super::*;
 use crate::{instruction_skills, rpc_dispatch::workspace_git_dispatch::resolve_workspace_path};
 #[path = "rpc_dispatch_extensions_support.rs"]
 mod support;
+#[cfg(test)]
+use support::instruction_skill_overlay_from_spec;
 use support::{
     default_registry_sources, ensure_legacy_extension_records_imported,
     extension_record_input_from_spec, instruction_skill_overlays_from_store,
     instruction_skill_record_input_from_overlay, normalize_ui_apps_from_value,
-    optional_string_array, optional_workspace_id, provider_extension_to_catalog,
-    string_array_from_object, string_from_object,
+    optional_string_array, optional_workspace_id, string_array_from_object, string_from_object,
 };
-#[cfg(test)]
-use support::instruction_skill_overlay_from_spec;
 
 const INSTRUCTION_SKILL_BODY_RESOURCE_ID: &str = "body";
 const INSTRUCTION_SKILL_FRONTMATTER_RESOURCE_ID: &str = "frontmatter";
@@ -194,13 +193,6 @@ pub(crate) async fn list_extension_catalog(
         instruction_skills::list_instruction_skill_summaries(&roots, skill_overlays.as_slice())
             .into_iter()
             .map(|entry| instruction_skill_to_catalog(entry, workspace_id)),
-    );
-
-    entries.extend(
-        ctx.config
-            .provider_extensions
-            .iter()
-            .map(|entry| provider_extension_to_catalog(entry, workspace_id)),
     );
 
     let mut deduped = HashMap::<String, extensions_runtime::RuntimeExtensionSpecPayload>::new();
