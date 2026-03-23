@@ -408,7 +408,9 @@ async fn build_kernel_capabilities_slice_payload(ctx: &AppContext) -> Value {
     }
     drop(runtime_backends);
 
-    let extensions = ctx.extensions_store.read().await.list(None);
+    let extensions = super::extensions_dispatch::list_extension_catalog(ctx, None, true)
+        .await
+        .unwrap_or_default();
     for spec in extensions {
         capabilities.push(json!({
             "id": format!("extension:{}", spec.extension_id),
@@ -530,11 +532,9 @@ async fn build_kernel_extensions_slice_payload(
     ctx: &AppContext,
     workspace_id: Option<&str>,
 ) -> Value {
-    let mut bundles = ctx
-        .extensions_store
-        .read()
+    let mut bundles = super::extensions_dispatch::list_extension_catalog(ctx, workspace_id, true)
         .await
-        .list(workspace_id)
+        .unwrap_or_default()
         .iter()
         .map(kernel_extension_bundle_payload)
         .collect::<Vec<_>>();
@@ -636,7 +636,9 @@ async fn build_kernel_context_snapshot_payload(
     let terminal_sessions = ctx.terminal_sessions.read().await;
     let agent_tasks = ctx.agent_tasks.read().await;
     let runtime_backends = ctx.runtime_backends.read().await;
-    let extensions_store = ctx.extensions_store.read().await;
+    let extension_catalog = super::extensions_dispatch::list_extension_catalog(ctx, None, true)
+        .await
+        .unwrap_or_default();
 
     let scope_kind = read_required_string(params, "kind")?;
     let (scope, snapshot) = match scope_kind {
@@ -648,7 +650,7 @@ async fn build_kernel_context_snapshot_payload(
                 "terminalSessionCount": terminal_sessions.len(),
                 "jobCount": agent_tasks.tasks.len(),
                 "backendCount": runtime_backends.len(),
-                "extensionCount": extensions_store.list(None).len(),
+                "extensionCount": extension_catalog.len(),
             }),
         ),
         "workspace" => {
@@ -675,8 +677,10 @@ async fn build_kernel_context_snapshot_payload(
                     "threadIds": workspace_threads.iter().map(|thread| thread.id.clone()).collect::<Vec<_>>(),
                     "terminalSessionIds": sessions,
                     "jobIds": tasks,
-                    "extensionIds": extensions_store
-                        .list(Some(workspace_id))
+                    "extensionIds": extension_catalog
+                        .iter()
+                        .filter(|spec| spec.workspace_id.as_deref() == Some(workspace_id))
+                        .cloned()
                         .into_iter()
                         .map(|spec| spec.extension_id)
                         .collect::<Vec<_>>(),

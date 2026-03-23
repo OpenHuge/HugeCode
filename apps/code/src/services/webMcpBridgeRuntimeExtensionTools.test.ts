@@ -13,10 +13,40 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
         enabled: true,
         workspaceId: "ws-1",
         config: {},
+        permissions: [],
+        uiApps: [],
         installedAt: 1,
         updatedAt: 1,
       },
     ]);
+    const getRuntimeExtension = vi.fn(async () => ({
+      extensionId: "ext-1",
+      displayName: "Extension One",
+      uiApps: [],
+    }));
+    const searchRuntimeExtensionRegistry = vi.fn(async () => ({
+      query: "",
+      results: [{ extensionId: "ext-1" }],
+      sources: [{ sourceId: "workspace" }],
+    }));
+    const listRuntimeExtensionRegistrySources = vi.fn(async () => [{ sourceId: "workspace" }]);
+    const evaluateRuntimeExtensionPermissions = vi.fn(async () => ({
+      extensionId: "ext-1",
+      permissions: ["network"],
+      decision: "ask",
+      warnings: ["derived"],
+    }));
+    const readRuntimeExtensionHealth = vi.fn(async () => ({
+      extensionId: "ext-1",
+      lifecycleState: "enabled",
+      healthy: true,
+      warnings: [],
+      checkedAt: 1,
+    }));
+    const listRuntimeExtensionUiApps = vi.fn(async () => ({
+      workspaceId: "ws-1",
+      apps: [{ appId: "app-1", title: "App One", route: "/extensions/app-one" }],
+    }));
     const tools = buildRuntimeExtensionTools({
       snapshot: createAgentCommandCenterSnapshot(),
       runtimeControl: {
@@ -26,10 +56,18 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
         interruptTask: vi.fn(),
         submitTaskApprovalDecision: vi.fn(),
         listRuntimeExtensions,
+        getRuntimeExtension,
         installRuntimeExtension: vi.fn(async () => null),
+        updateRuntimeExtension: vi.fn(async () => null),
+        setRuntimeExtensionState: vi.fn(async () => null),
         removeRuntimeExtension: vi.fn(async () => false),
+        searchRuntimeExtensionRegistry,
+        listRuntimeExtensionRegistrySources,
         listRuntimeExtensionTools: vi.fn(async () => []),
+        evaluateRuntimeExtensionPermissions,
         readRuntimeExtensionResource: vi.fn(async () => null),
+        readRuntimeExtensionHealth,
+        listRuntimeExtensionUiApps,
         getRuntimeExtensionsConfig: vi.fn(async () => ({ extensions: [], warnings: [] })),
       },
       requireUserApproval: true,
@@ -43,10 +81,18 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
 
     expect(tools.map((tool) => tool.name)).toEqual([
       "list-runtime-extensions",
+      "get-runtime-extension",
       "install-runtime-extension",
+      "update-runtime-extension",
+      "set-runtime-extension-state",
       "remove-runtime-extension",
+      "search-runtime-extension-registry",
+      "list-runtime-extension-registry-sources",
       "list-runtime-extension-tools",
+      "evaluate-runtime-extension-permissions",
       "read-runtime-extension-resource",
+      "get-runtime-extension-health",
+      "list-runtime-extension-ui-apps",
       "get-runtime-extensions-config",
     ]);
 
@@ -63,6 +109,92 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
         total: 1,
       },
     });
+
+    const getExtensionTool = tools.find((tool) => tool.name === "get-runtime-extension");
+    const getExtensionResponse = await getExtensionTool?.execute({ extensionId: "ext-1" }, null);
+    expect(getRuntimeExtension).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      extensionId: "ext-1",
+    });
+    expect(getExtensionResponse).toMatchObject({
+      ok: true,
+      message: "Runtime extension retrieved.",
+    });
+
+    const searchRegistryTool = tools.find(
+      (tool) => tool.name === "search-runtime-extension-registry"
+    );
+    const searchRegistryResponse = await searchRegistryTool?.execute({ query: "ext" }, null);
+    expect(searchRuntimeExtensionRegistry).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      query: "ext",
+      kinds: null,
+      sourceIds: null,
+    });
+    expect(searchRegistryResponse).toMatchObject({
+      ok: true,
+      message: "Runtime extension registry search completed.",
+      data: {
+        total: 1,
+      },
+    });
+
+    const registrySourcesTool = tools.find(
+      (tool) => tool.name === "list-runtime-extension-registry-sources"
+    );
+    const registrySourcesResponse = await registrySourcesTool?.execute({}, null);
+    expect(listRuntimeExtensionRegistrySources).toHaveBeenCalledWith("ws-1");
+    expect(registrySourcesResponse).toMatchObject({
+      ok: true,
+      message: "Runtime extension registry sources retrieved.",
+      data: {
+        total: 1,
+      },
+    });
+
+    const evaluatePermissionsTool = tools.find(
+      (tool) => tool.name === "evaluate-runtime-extension-permissions"
+    );
+    const evaluatePermissionsResponse = await evaluatePermissionsTool?.execute(
+      { extensionId: "ext-1" },
+      null
+    );
+    expect(evaluateRuntimeExtensionPermissions).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      extensionId: "ext-1",
+    });
+    expect(evaluatePermissionsResponse).toMatchObject({
+      ok: true,
+      message: "Runtime extension permissions evaluated.",
+      data: {
+        warnings: ["derived"],
+      },
+    });
+
+    const healthTool = tools.find((tool) => tool.name === "get-runtime-extension-health");
+    const healthResponse = await healthTool?.execute({ extensionId: "ext-1" }, null);
+    expect(readRuntimeExtensionHealth).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      extensionId: "ext-1",
+    });
+    expect(healthResponse).toMatchObject({
+      ok: true,
+      message: "Runtime extension health retrieved.",
+    });
+
+    const uiAppsTool = tools.find((tool) => tool.name === "list-runtime-extension-ui-apps");
+    const uiAppsResponse = await uiAppsTool?.execute({}, null);
+    expect(listRuntimeExtensionUiApps).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      extensionId: null,
+    });
+    expect(uiAppsResponse).toMatchObject({
+      ok: true,
+      message: "Runtime extension UI apps retrieved.",
+      data: {
+        total: 1,
+      },
+    });
   });
 
   it("raises resource-not-found when an extension resource is unavailable", async () => {
@@ -75,10 +207,33 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
         interruptTask: vi.fn(),
         submitTaskApprovalDecision: vi.fn(),
         listRuntimeExtensions: vi.fn(async () => []),
+        getRuntimeExtension: vi.fn(async () => null),
         installRuntimeExtension: vi.fn(async () => null),
+        updateRuntimeExtension: vi.fn(async () => null),
+        setRuntimeExtensionState: vi.fn(async () => null),
         removeRuntimeExtension: vi.fn(async () => false),
+        searchRuntimeExtensionRegistry: vi.fn(async () => ({
+          query: "",
+          results: [],
+          sources: [],
+        })),
+        listRuntimeExtensionRegistrySources: vi.fn(async () => []),
         listRuntimeExtensionTools: vi.fn(async () => []),
+        evaluateRuntimeExtensionPermissions: vi.fn(async () => ({
+          extensionId: "ext-1",
+          permissions: [],
+          decision: "allow",
+          warnings: [],
+        })),
         readRuntimeExtensionResource: vi.fn(async () => null),
+        readRuntimeExtensionHealth: vi.fn(async () => ({
+          extensionId: "ext-1",
+          lifecycleState: "blocked",
+          healthy: false,
+          warnings: [],
+          checkedAt: 1,
+        })),
+        listRuntimeExtensionUiApps: vi.fn(async () => ({ workspaceId: "ws-1", apps: [] })),
         getRuntimeExtensionsConfig: vi.fn(async () => ({ extensions: [], warnings: [] })),
       },
       requireUserApproval: true,
@@ -106,6 +261,14 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
       installedAt: 1,
       updatedAt: 2,
     }));
+    const updateRuntimeExtension = vi.fn(async (input: Record<string, unknown>) => ({
+      ...input,
+      updatedAt: 3,
+    }));
+    const setRuntimeExtensionState = vi.fn(async (input: Record<string, unknown>) => ({
+      ...input,
+      lifecycleState: "enabled",
+    }));
     const removeRuntimeExtension = vi.fn(async () => true);
     const onApprovalRequest = vi.fn(async () => true);
     const tools = buildRuntimeExtensionTools({
@@ -117,10 +280,33 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
         interruptTask: vi.fn(),
         submitTaskApprovalDecision: vi.fn(),
         listRuntimeExtensions: vi.fn(async () => []),
+        getRuntimeExtension: vi.fn(async () => null),
         installRuntimeExtension,
+        updateRuntimeExtension,
+        setRuntimeExtensionState,
         removeRuntimeExtension,
+        searchRuntimeExtensionRegistry: vi.fn(async () => ({
+          query: "",
+          results: [],
+          sources: [],
+        })),
+        listRuntimeExtensionRegistrySources: vi.fn(async () => []),
         listRuntimeExtensionTools: vi.fn(async () => []),
+        evaluateRuntimeExtensionPermissions: vi.fn(async () => ({
+          extensionId: "ext-1",
+          permissions: [],
+          decision: "allow",
+          warnings: [],
+        })),
         readRuntimeExtensionResource: vi.fn(async () => null),
+        readRuntimeExtensionHealth: vi.fn(async () => ({
+          extensionId: "ext-1",
+          lifecycleState: "enabled",
+          healthy: true,
+          warnings: [],
+          checkedAt: 1,
+        })),
+        listRuntimeExtensionUiApps: vi.fn(async () => ({ workspaceId: "ws-1", apps: [] })),
         getRuntimeExtensionsConfig: vi.fn(async () => ({ extensions: [], warnings: [] })),
       },
       requireUserApproval: false,
@@ -131,6 +317,19 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
           typeof value === "string" && value.trim().length > 0 ? value.trim() : null,
         confirmWriteAction,
       },
+    });
+
+    const updateTool = tools.find((tool) => tool.name === "update-runtime-extension");
+    await expect(
+      updateTool?.execute(
+        {
+          extensionId: "ext-1",
+          provenance: [],
+        },
+        null
+      )
+    ).rejects.toMatchObject({
+      code: "runtime.validation.input.invalid",
     });
 
     const installTool = tools.find((tool) => tool.name === "install-runtime-extension");
@@ -184,10 +383,75 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
       },
     });
 
+    const updateResponse = await updateTool?.execute(
+      {
+        extensionId: "ext-1",
+        displayName: "Extension One Updated",
+        enabled: false,
+        capabilities: ["tools"],
+        permissions: ["network"],
+        config: { profile: "strict" },
+        provenance: { sourceId: "workspace" },
+      },
+      null
+    );
+    expect(confirmWriteAction).toHaveBeenCalledTimes(2);
+    expect(confirmWriteAction).toHaveBeenLastCalledWith(
+      null,
+      false,
+      "Update runtime extension ext-1 in workspace ws-1.",
+      onApprovalRequest
+    );
+    expect(updateRuntimeExtension).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      extensionId: "ext-1",
+      version: null,
+      displayName: "Extension One Updated",
+      publisher: null,
+      summary: null,
+      kind: null,
+      distribution: null,
+      transport: null,
+      enabled: false,
+      capabilities: ["tools"],
+      permissions: ["network"],
+      config: { profile: "strict" },
+      provenance: { sourceId: "workspace" },
+    });
+    expect(updateResponse).toMatchObject({
+      ok: true,
+      message: "Runtime extension updated.",
+    });
+
+    const setStateTool = tools.find((tool) => tool.name === "set-runtime-extension-state");
+    const setStateResponse = await setStateTool?.execute(
+      {
+        extensionId: "ext-1",
+        enabled: false,
+      },
+      null
+    );
+    expect(confirmWriteAction).toHaveBeenCalledTimes(3);
+    expect(confirmWriteAction).toHaveBeenLastCalledWith(
+      null,
+      false,
+      "Disable runtime extension ext-1 in workspace ws-1.",
+      onApprovalRequest
+    );
+    expect(setRuntimeExtensionState).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      extensionId: "ext-1",
+      enabled: false,
+    });
+    expect(setStateResponse).toMatchObject({
+      ok: true,
+      message: "Runtime extension state updated.",
+    });
+
     const removeTool = tools.find((tool) => tool.name === "remove-runtime-extension");
     expect(removeTool?.annotations?.destructiveHint).toBe(true);
     const removeResponse = await removeTool?.execute({ extensionId: "ext-1" }, null);
-    expect(confirmWriteAction).toHaveBeenCalledTimes(2);
+    expect(confirmWriteAction).toHaveBeenCalledTimes(4);
     expect(confirmWriteAction).toHaveBeenLastCalledWith(
       null,
       false,

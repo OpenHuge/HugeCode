@@ -130,10 +130,18 @@ const RUNTIME_PHASE_ONE_TOOL_NAMES = [
   "list-runtime-collaboration-modes",
   "list-runtime-mcp-server-status",
   "list-runtime-extensions",
+  "get-runtime-extension",
   "install-runtime-extension",
+  "update-runtime-extension",
+  "set-runtime-extension-state",
   "remove-runtime-extension",
+  "search-runtime-extension-registry",
+  "list-runtime-extension-registry-sources",
   "list-runtime-extension-tools",
+  "evaluate-runtime-extension-permissions",
   "read-runtime-extension-resource",
+  "get-runtime-extension-health",
+  "list-runtime-extension-ui-apps",
   "get-runtime-extensions-config",
 ] as const;
 

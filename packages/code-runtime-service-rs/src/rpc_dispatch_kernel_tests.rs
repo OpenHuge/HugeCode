@@ -217,10 +217,21 @@ fn kernel_extension_bundle_detects_declared_surfaces() {
     let payload =
         kernel_extension_bundle_payload(&extensions_runtime::RuntimeExtensionSpecPayload {
             extension_id: "ext-1".to_string(),
+            version: "1.0.0".to_string(),
+            display_name: "Kernel Extension".to_string(),
+            publisher: "HugeCode".to_string(),
+            summary: "Kernel projection test extension".to_string(),
+            kind: "mcp".to_string(),
+            distribution: "workspace".to_string(),
             name: "Kernel Extension".to_string(),
             transport: "mcp-http".to_string(),
+            lifecycle_state: "enabled".to_string(),
             enabled: true,
             workspace_id: Some("ws-1".to_string()),
+            capabilities: vec!["tools".to_string(), "resources".to_string(), "hooks".to_string()],
+            permissions: vec![],
+            ui_apps: vec![],
+            provenance: json!({ "sourceId": "workspace" }),
             config: json!({
                 "tools": [{ "toolName": "search" }],
                 "resources": {

@@ -4,7 +4,12 @@ import type {
   OAuthPoolSelectionRequest,
   OAuthProviderId,
   OAuthUsageRefreshMode,
+  RuntimeExtensionGetRequest,
   RuntimeExtensionInstallRequest,
+  RuntimeExtensionPermissionsEvaluateRequest,
+  RuntimeExtensionSetStateRequest,
+  RuntimeExtensionUiAppsListRequest,
+  RuntimeExtensionUpdateRequest,
 } from "@ku0/code-runtime-host-contract";
 import {
   applyWorkspacePatch,
@@ -15,12 +20,20 @@ import { getCollaborationModes } from "../ports/tauriCollaboration";
 import { listRuntimeModels } from "../ports/tauriRuntimeCatalog";
 import { listMcpServerStatus, listWorkspaceDiagnostics } from "../ports/tauriRuntimeDiagnostics";
 import {
+  evaluateRuntimeExtensionPermissions,
+  getRuntimeExtension,
   getRuntimeExtensionsConfig,
   installRuntimeExtension,
+  listRuntimeExtensionRegistrySources,
   listRuntimeExtensionTools,
+  listRuntimeExtensionUiApps,
   listRuntimeExtensions,
   readRuntimeExtensionResource,
+  readRuntimeExtensionHealth,
   removeRuntimeExtension,
+  searchRuntimeExtensionRegistry,
+  setRuntimeExtensionState,
+  updateRuntimeExtension,
 } from "../ports/tauriRuntimeExtensions";
 import {
   runRuntimeCodexDoctor,
@@ -336,6 +349,11 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
       }),
     listRuntimeExtensions: async (targetWorkspaceId?: string | null) =>
       listRuntimeExtensions(targetWorkspaceId ?? workspaceId),
+    getRuntimeExtension: async (input: RuntimeExtensionGetRequest) =>
+      getRuntimeExtension({
+        workspaceId: input.workspaceId ?? workspaceId,
+        extensionId: input.extensionId,
+      }),
     listRuntimeExtensionTools: async (input: {
       workspaceId?: string | null;
       extensionId: string;
@@ -348,6 +366,17 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
       getRuntimeExtensionsConfig(targetWorkspaceId ?? workspaceId),
     installRuntimeExtension: async (input: RuntimeExtensionInstallRequest) =>
       installRuntimeExtension(input),
+    updateRuntimeExtension: async (input: RuntimeExtensionUpdateRequest) =>
+      updateRuntimeExtension({
+        ...input,
+        workspaceId: input.workspaceId ?? workspaceId,
+      }),
+    setRuntimeExtensionState: async (input: RuntimeExtensionSetStateRequest) =>
+      setRuntimeExtensionState({
+        workspaceId: input.workspaceId ?? workspaceId,
+        extensionId: input.extensionId,
+        enabled: input.enabled,
+      }),
     removeRuntimeExtension: async (input: { workspaceId?: string | null; extensionId: string }) =>
       removeRuntimeExtension({
         workspaceId: input.workspaceId ?? workspaceId,
@@ -362,6 +391,40 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
         workspaceId: input.workspaceId ?? workspaceId,
         extensionId: input.extensionId,
         resourceId: input.resourceId,
+      }),
+    searchRuntimeExtensionRegistry: async (input?: {
+      workspaceId?: string | null;
+      query?: string | null;
+      kinds?: string[] | null;
+      sourceIds?: string[] | null;
+    }) =>
+      searchRuntimeExtensionRegistry({
+        workspaceId: input?.workspaceId ?? workspaceId,
+        query: input?.query ?? null,
+        kinds: input?.kinds ?? null,
+        sourceIds: input?.sourceIds ?? null,
+      }),
+    listRuntimeExtensionRegistrySources: async (targetWorkspaceId?: string | null) =>
+      listRuntimeExtensionRegistrySources(targetWorkspaceId ?? workspaceId),
+    evaluateRuntimeExtensionPermissions: async (
+      input: RuntimeExtensionPermissionsEvaluateRequest
+    ) =>
+      evaluateRuntimeExtensionPermissions({
+        workspaceId: input.workspaceId ?? workspaceId,
+        extensionId: input.extensionId,
+      }),
+    readRuntimeExtensionHealth: async (input: {
+      workspaceId?: string | null;
+      extensionId: string;
+    }) =>
+      readRuntimeExtensionHealth({
+        workspaceId: input.workspaceId ?? workspaceId,
+        extensionId: input.extensionId,
+      }),
+    listRuntimeExtensionUiApps: async (input?: RuntimeExtensionUiAppsListRequest) =>
+      listRuntimeExtensionUiApps({
+        workspaceId: input?.workspaceId ?? workspaceId,
+        extensionId: input?.extensionId ?? null,
       }),
     listRuntimeMcpServerStatus: async (input: {
       workspaceId: string;
