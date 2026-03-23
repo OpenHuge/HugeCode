@@ -693,14 +693,15 @@ async fn collect_browser_debug_status(
     timeout_ms: u64,
     browser_url: Option<&str>,
 ) -> BrowserDebugStatusSnapshot {
+    let explicit_browser_target = normalize_browser_debug_browser_url(browser_url);
     let collect_from_config = |config: BrowserDebugMcpLaunchConfig,
                                mode: &'static str,
-                               server_name: &'static str| async move {
+                               server_name: &'static str,
+                               browser_url: Option<String>| async move {
         let package_root = config
             .package_root
             .as_ref()
             .map(|path| path.to_string_lossy().to_string());
-        let browser_url = normalize_browser_debug_browser_url(browser_url);
         let result = timeout(Duration::from_millis(timeout_ms), async move {
             let mut client = BrowserDebugMcpClient::connect(&config).await?;
             let tools = client.list_tools().await?;
@@ -749,7 +750,15 @@ async fn collect_browser_debug_status(
     };
 
     let playwright_snapshot = match resolve_playwright_mcp_launch_config(workspace_path) {
-        Ok(Some(config)) => collect_from_config(config, "mcp-playwright", "playwright").await,
+        Ok(Some(config)) => {
+            collect_from_config(
+                config,
+                "mcp-playwright",
+                "playwright",
+                explicit_browser_target.clone(),
+            )
+            .await
+        }
         Ok(None) => BrowserDebugStatusSnapshot {
             available: false,
             mode: "unavailable",
@@ -780,7 +789,13 @@ async fn collect_browser_debug_status(
     let chrome_snapshot =
         match resolve_chrome_devtools_mcp_launch_config(workspace_path, browser_url) {
         Ok(Some(config)) => {
-            collect_from_config(config, "mcp-chrome-devtools", "chrome-devtools").await
+            collect_from_config(
+                config,
+                "mcp-chrome-devtools",
+                "chrome-devtools",
+                explicit_browser_target.clone(),
+            )
+            .await
         }
         Ok(None) => BrowserDebugStatusSnapshot {
             available: false,
@@ -807,12 +822,16 @@ async fn collect_browser_debug_status(
     };
     if chrome_snapshot.available {
         let mut snapshot = chrome_snapshot;
-        snapshot.warnings.extend(playwright_snapshot.warnings);
+        if explicit_browser_target.is_none() {
+            snapshot.warnings.extend(playwright_snapshot.warnings);
+        }
         return snapshot;
     }
     if chrome_snapshot.status != "unavailable" {
         let mut snapshot = chrome_snapshot;
-        snapshot.warnings.extend(playwright_snapshot.warnings);
+        if explicit_browser_target.is_none() {
+            snapshot.warnings.extend(playwright_snapshot.warnings);
+        }
         return snapshot;
     }
     if playwright_snapshot.status != "unavailable" {

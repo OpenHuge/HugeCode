@@ -259,6 +259,34 @@ async fn collect_browser_debug_status_falls_back_to_chrome_devtools_when_playwri
 }
 
 #[tokio::test]
+async fn collect_browser_debug_status_prefers_explicit_browser_target_without_playwright_warning() {
+    let _guard = browser_debug_env_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let temp = TempDir::new().expect("create temp dir");
+    let script_path = write_fake_chrome_devtools_server_script(&temp);
+
+    std::env::remove_var(BROWSER_DEBUG_MCP_COMMAND_OVERRIDE_ENV);
+    std::env::remove_var(BROWSER_DEBUG_MCP_ARGS_OVERRIDE_ENV);
+    std::env::set_var(BROWSER_DEBUG_CHROME_COMMAND_OVERRIDE_ENV, script_path.as_os_str());
+    std::env::set_var(BROWSER_DEBUG_CHROME_ARGS_OVERRIDE_ENV, "[]");
+
+    let snapshot =
+        collect_browser_debug_status(temp.path(), 5_000, Some("http://127.0.0.1:9333")).await;
+    assert!(snapshot.available, "{snapshot:?}");
+    assert_eq!(snapshot.mode, "mcp-chrome-devtools");
+    assert_eq!(snapshot.status, "ready");
+    assert_eq!(snapshot.browser_url.as_deref(), Some("http://127.0.0.1:9333"));
+    assert!(snapshot
+        .warnings
+        .iter()
+        .all(|warning| !warning.contains("Playwright MCP is unavailable")));
+
+    std::env::remove_var(BROWSER_DEBUG_CHROME_COMMAND_OVERRIDE_ENV);
+    std::env::remove_var(BROWSER_DEBUG_CHROME_ARGS_OVERRIDE_ENV);
+}
+
+#[tokio::test]
 async fn collect_browser_debug_status_ignores_non_json_banner_lines_from_chrome_devtools() {
     let _guard = browser_debug_env_lock()
         .lock()

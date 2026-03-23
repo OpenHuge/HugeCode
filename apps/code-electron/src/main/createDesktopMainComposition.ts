@@ -1,6 +1,10 @@
 import { join } from "node:path";
 import type { IpcMainInvokeEvent } from "electron";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
+import type {
+  DesktopBrowserDebugSessionInfo,
+  DesktopBrowserDebugSessionInput,
+} from "../shared/ipc.js";
 import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
 import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
 import { createDesktopRendererTrust } from "./desktopRendererTrust.js";
@@ -19,6 +23,16 @@ const DEFAULT_WINDOW_STATE: DesktopWindowBounds = {
 const DEFAULT_TRAY_ICON_DATA_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAK0lEQVR42mP8z8AARMBEw0AEYBxVSFUBQwqGQYQmGmKagjYwNAxMDAwMDAwAAABEgQJkzJYGQAAAABJRU5ErkJggg==";
 
+type BrowserDebugController = {
+  ensureBrowserDebugSession(
+    input?: DesktopBrowserDebugSessionInput
+  ): Promise<DesktopBrowserDebugSessionInfo | null> | DesktopBrowserDebugSessionInfo | null;
+  getBrowserDebugSession():
+    | Promise<DesktopBrowserDebugSessionInfo | null>
+    | DesktopBrowserDebugSessionInfo
+    | null;
+};
+
 export type CreateDesktopMainCompositionInput = {
   app: {
     enableSandbox(): void;
@@ -32,6 +46,7 @@ export type CreateDesktopMainCompositionInput = {
     requestSingleInstanceLock(): boolean;
     whenReady(): Promise<unknown>;
   };
+  browserDebugController: BrowserDebugController;
   browserWindow: {
     getAllWindows(): Array<{
       focus(): void;
@@ -41,6 +56,7 @@ export type CreateDesktopMainCompositionInput = {
       show(): void;
     }>;
   };
+  enableAppSandbox?: boolean;
   ipcMain: {
     handle(
       channel: string,
@@ -48,6 +64,7 @@ export type CreateDesktopMainCompositionInput = {
     ): void;
   };
   platform: NodeJS.Platform;
+  preloadPath: string;
   rendererDevServerUrl?: string | null;
   shell: {
     openExternal(url: string): Promise<void>;
@@ -97,8 +114,12 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       return input.shell.openExternal(url);
     },
     persistState: persistDesktopState,
-    preloadPath: join(input.sourceDirectory, "../preload/preload.js"),
+    preloadPath: input.preloadPath,
     shellState,
+    webPreferences: {
+      // Electron only enables the current ESM preload bridge on unsandboxed windows.
+      sandbox: false,
+    },
   });
   const notificationController = createDesktopNotificationController();
   const trayController = createDesktopTrayController({
@@ -133,6 +154,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       const version = input.app.getVersion();
       return typeof version === "string" && version.length > 0 ? version : null;
     })(),
+    browserDebugController: input.browserDebugController,
     listRecentSessions() {
       return shellState.recentSessions;
     },
@@ -170,7 +192,9 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   }
 
   function start() {
-    input.app.enableSandbox();
+    if (input.enableAppSandbox === true) {
+      input.app.enableSandbox();
+    }
 
     registerDesktopHostIpc({
       channels: DESKTOP_HOST_IPC_CHANNELS,

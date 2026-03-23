@@ -32,6 +32,10 @@ type BrowserWindowLike = {
   restore(): void;
   show(): void;
   webContents: {
+    on(
+      event: "will-navigate",
+      listener: (event: { preventDefault(): void }, url: string) => void
+    ): void;
     setWindowOpenHandler(handler: (details: { url: string }) => WindowOpenHandlerResult): void;
   };
 };
@@ -56,7 +60,9 @@ type DesktopShellStateLike = Pick<
 export type CreateDesktopWindowControllerInput = {
   browserWindow?: BrowserWindowFacade;
   defaultWindowBounds: DesktopWindowBounds;
+  isSafeExternalUrl(url: string): boolean;
   isQuitting(): boolean;
+  isTrustedRendererUrl(url: string): boolean;
   loadRenderer(window: BrowserWindowLike): void;
   notifyWindowsChanged(): void;
   openExternalUrl(url: string): Promise<void> | void;
@@ -70,6 +76,7 @@ export type DesktopWindowController = {
   closeWindow(windowId: number): boolean;
   createWindowForSession(session: DesktopSessionDescriptor): DesktopWindowDescriptor | null;
   focusWindow(windowId: number): boolean;
+  hasWindowForWebContents(webContents: unknown): boolean;
   getSessionForWebContents(webContents: unknown): DesktopSessionDescriptor | null;
   getWindowLabelForWebContents(webContents: unknown): DesktopSessionDescriptor["windowLabel"];
   listWindows(): DesktopWindowDescriptor[];
@@ -186,8 +193,21 @@ export function createDesktopWindowController(
     });
 
     nextWindow.webContents.setWindowOpenHandler(({ url }) => {
-      void input.openExternalUrl(url);
+      if (input.isSafeExternalUrl(url) && !input.isTrustedRendererUrl(url)) {
+        void input.openExternalUrl(url);
+      }
       return { action: "deny" };
+    });
+
+    nextWindow.webContents.on("will-navigate", (event, url) => {
+      if (input.isTrustedRendererUrl(url)) {
+        return;
+      }
+
+      event.preventDefault();
+      if (input.isSafeExternalUrl(url)) {
+        void input.openExternalUrl(url);
+      }
     });
 
     input.loadRenderer(nextWindow);
@@ -228,6 +248,10 @@ export function createDesktopWindowController(
     return input.shellState.getSessionByWindowId(sourceWindow.id);
   }
 
+  function hasWindowForWebContents(webContents: unknown) {
+    return browserWindow.fromWebContents(webContents) !== null;
+  }
+
   return {
     closeWindow(windowId) {
       const targetWindow = activeWindows.get(windowId);
@@ -240,6 +264,7 @@ export function createDesktopWindowController(
     },
     createWindowForSession,
     focusWindow,
+    hasWindowForWebContents,
     getSessionForWebContents,
     getWindowLabelForWebContents(webContents) {
       return getSessionForWebContents(webContents)?.windowLabel ?? "main";
