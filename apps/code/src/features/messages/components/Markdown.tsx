@@ -90,14 +90,22 @@ type MarkdownNode = {
 
 async function openExternalUrl(url: string) {
   try {
-    await openUrl(url);
-    return;
+    const opened = await openUrl(url);
+    if (opened) {
+      return;
+    }
   } catch (error) {
     pushErrorToast({
       title: "Couldn’t open link",
       message: error instanceof Error ? error.message : "Unable to open link.",
     });
+    return;
   }
+
+  pushErrorToast({
+    title: "Couldn’t open link",
+    message: "Unable to open link.",
+  });
 }
 
 function normalizePathSeparators(path: string) {

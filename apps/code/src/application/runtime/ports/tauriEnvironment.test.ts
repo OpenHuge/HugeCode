@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetTauriRuntimeEnvironmentForTests,
   __setTauriModuleLoaderForTests,
   detectTauriRuntime,
+  openExternalUrlWithFallback,
   readTauriAppVersion,
   readTauriWindowLabel,
 } from "./tauriEnvironment";
@@ -10,6 +11,8 @@ import {
 describe("tauriRuntimeEnvironment", () => {
   beforeEach(() => {
     __resetTauriRuntimeEnvironmentForTests();
+    vi.restoreAllMocks();
+    vi.spyOn(window, "open").mockReturnValue(null);
   });
 
   it("falls back when the Tauri module loader fails", async () => {

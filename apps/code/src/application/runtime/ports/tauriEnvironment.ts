@@ -74,6 +74,39 @@ export async function readTauriAppVersion() {
     return null;
   }
 }
+
+export async function openExternalUrlWithFallback(url: string) {
+  const safeUrl = toSafeExternalUrl(url);
+  if (!safeUrl) {
+    return false;
+  }
+
+  try {
+    const modules = await loadTauriModules();
+    if (modules.opener?.openUrl) {
+      await modules.opener.openUrl(safeUrl);
+      return true;
+    }
+  } catch {
+    // Fall through to browser fallback.
+  }
+
+  if (typeof window === "undefined" || typeof window.open !== "function") {
+    return false;
+  }
+
+  return window.open(safeUrl, "_blank", "noopener,noreferrer") !== null;
+}
+
+export async function readTauriWindowLabel() {
+  const label = await resolveWindowLabel("");
+  return label.length > 0 ? label : null;
+}
+
+export async function readTauriAppVersion() {
+  return resolveAppVersion();
+}
+
 export function __setTauriModuleLoaderForTests(loader: TauriModuleLoader) {
   tauriModuleLoader = loader;
   cachedTauriModulesPromise = null;

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { openUrl } from "../../../application/runtime/facades/desktopHostFacade";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { openUrl } from "../../../application/runtime/facades/desktopHostFacade";
 import type { UpdateState } from "../hooks/useUpdater";
 import { UpdateToast } from "./UpdateToast";
 

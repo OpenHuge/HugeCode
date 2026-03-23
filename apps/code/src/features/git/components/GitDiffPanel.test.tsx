@@ -9,7 +9,8 @@ const isTauriMock = vi.hoisted(() => vi.fn(() => true));
 const menuNew = vi.hoisted(() => vi.fn(async ({ items }) => ({ popup: vi.fn(), items })));
 const menuItemNew = vi.hoisted(() => vi.fn(async (options) => options));
 const clipboardWriteText = vi.hoisted(() => vi.fn());
-const openUrlMock = vi.hoisted(() => vi.fn(async () => undefined));
+const openUrlMock = vi.hoisted(() => vi.fn(async () => true));
+const revealItemInDirMock = vi.hoisted(() => vi.fn(async () => true));
 
 vi.mock("@tauri-apps/api/core", () => ({
   isTauri: isTauriMock,
@@ -35,12 +36,10 @@ vi.mock("@tauri-apps/api/dpi", () => ({
   },
 }));
 
-const revealItemInDir = vi.hoisted(() => vi.fn());
 const pushErrorToastMock = vi.hoisted(() => vi.fn());
-
 vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
   openUrl: openUrlMock,
-  revealItemInDir,
+  revealItemInDir: revealItemInDirMock,
 }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -103,6 +102,7 @@ describe("GitDiffPanel", () => {
   beforeEach(() => {
     isTauriMock.mockReturnValue(true);
     openUrlMock.mockClear();
+    revealItemInDirMock.mockClear();
     pushErrorToastMock.mockClear();
   });
 
@@ -271,7 +271,7 @@ describe("GitDiffPanel", () => {
 
     expect(revealItem).toBeDefined();
     await revealItem.action();
-    expect(revealItemInDir).toHaveBeenCalledWith("/tmp/repo/src/sample.ts");
+    expect(revealItemInDirMock).toHaveBeenCalledWith("/tmp/repo/src/sample.ts");
   });
 
   it("copies file name and path from the context menu", async () => {
@@ -329,7 +329,7 @@ describe("GitDiffPanel", () => {
   });
 
   it("resolves relative git roots against the workspace path", async () => {
-    revealItemInDir.mockClear();
+    revealItemInDirMock.mockClear();
     menuNew.mockClear();
     const { container } = render(
       <GitDiffPanel
@@ -352,7 +352,7 @@ describe("GitDiffPanel", () => {
 
     expect(revealItem).toBeDefined();
     await revealItem.action();
-    expect(revealItemInDir).toHaveBeenCalledWith("/tmp/repo/apps/src/sample.ts");
+    expect(revealItemInDirMock).toHaveBeenCalledWith("/tmp/repo/apps/src/sample.ts");
   });
 
   it("copies file path relative to the workspace root", async () => {
