@@ -15,6 +15,9 @@
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@ku0/code-platform-interfaces": "workspace:*"
+  },
   "devDependencies": {
     "electron": "41.0.3",
     "vitest": "^4.1.0"

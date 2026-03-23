@@ -41,6 +41,19 @@ export type DesktopNotificationInput = {
   title: string;
 };
 
+export type DesktopBrowserDebugSessionInput = {
+  focus?: boolean;
+  reset?: boolean;
+  targetUrl?: string | null;
+};
+
+export type DesktopBrowserDebugSessionInfo = {
+  browserUrl: string;
+  currentUrl: string | null;
+  targetUrl: string | null;
+  windowId: number;
+};
+
 export type DesktopAppCapability = {
   getVersion?: () => Promise<string | null | undefined> | string | null | undefined;
 };
@@ -96,6 +109,21 @@ export type DesktopShellCapability = {
   revealItemInDir?: (path: string) => Promise<boolean | void> | boolean | void;
 };
 
+export type DesktopBrowserDebugCapability = {
+  getSession?: () =>
+    | Promise<DesktopBrowserDebugSessionInfo | null | undefined>
+    | DesktopBrowserDebugSessionInfo
+    | null
+    | undefined;
+  ensureSession?: (
+    input?: DesktopBrowserDebugSessionInput
+  ) =>
+    | Promise<DesktopBrowserDebugSessionInfo | null | undefined>
+    | DesktopBrowserDebugSessionInfo
+    | null
+    | undefined;
+};
+
 export type DesktopHostCapabilities = {
   app?: DesktopAppCapability;
   session?: DesktopSessionCapability;
@@ -104,6 +132,7 @@ export type DesktopHostCapabilities = {
   tray?: DesktopTrayCapability;
   notifications?: DesktopNotificationCapability;
   shell?: DesktopShellCapability;
+  browserDebug?: DesktopBrowserDebugCapability;
 };
 
 export type DesktopHostBridge = {
@@ -139,6 +168,12 @@ export type DesktopHostBridgeApi = {
   shell: {
     openExternalUrl(url: string): Promise<boolean>;
     revealItemInDir(path: string): Promise<boolean>;
+  };
+  browserDebug: {
+    getSession(): Promise<DesktopBrowserDebugSessionInfo | null>;
+    ensureSession(
+      input?: DesktopBrowserDebugSessionInput
+    ): Promise<DesktopBrowserDebugSessionInfo | null>;
   };
 };
 

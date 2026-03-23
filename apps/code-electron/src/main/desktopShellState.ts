@@ -1,5 +1,10 @@
-export type DesktopWindowLabel = "main" | "about";
-export type DesktopRuntimeMode = "local" | "remote";
+import type {
+  DesktopRuntimeMode,
+  DesktopWindowLabel,
+  OpenDesktopWindowInput,
+} from "@ku0/code-platform-interfaces";
+
+export type { DesktopRuntimeMode, DesktopWindowLabel };
 
 export type DesktopWindowBounds = {
   height: number;
@@ -33,14 +38,7 @@ export type DesktopWindowDescriptor = {
   workspaceLabel: string | null;
 };
 
-export type OpenDesktopSessionInput = {
-  duplicate?: boolean;
-  preferredBackendId?: string | null;
-  runtimeMode?: DesktopRuntimeMode;
-  windowLabel?: DesktopWindowLabel;
-  workspaceLabel?: string | null;
-  workspacePath?: string | null;
-};
+export type OpenDesktopSessionInput = OpenDesktopWindowInput;
 
 type ActiveWindowRecord = {
   sessionId: string;
