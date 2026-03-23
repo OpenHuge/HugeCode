@@ -1,26 +1,95 @@
-import {
-  isElectronDesktopHostBridge,
-  type DesktopHostBridge,
-  type DesktopHostKind,
-  type DesktopNotificationInput,
-  type DesktopRuntimeMode,
-  type DesktopSessionInfo,
-  type DesktopTrayState,
-  type DesktopWindowInfo,
-  type DesktopWindowLabel,
-  type OpenDesktopWindowInput,
-} from "@ku0/code-platform-interfaces";
+export type DesktopHostKind = "electron";
+export type DesktopWindowLabel = "main" | "about";
+export type DesktopRuntimeMode = "local" | "remote";
 
-export type {
-  DesktopHostBridge,
-  DesktopHostKind,
-  DesktopNotificationInput,
-  DesktopRuntimeMode,
-  DesktopSessionInfo,
-  DesktopTrayState,
-  DesktopWindowInfo,
-  DesktopWindowLabel,
-  OpenDesktopWindowInput,
+export type DesktopSessionInfo = {
+  id: string;
+  lastActiveAt: string;
+  preferredBackendId: string | null;
+  runtimeMode: DesktopRuntimeMode;
+  windowLabel: DesktopWindowLabel;
+  workspaceLabel: string | null;
+  workspacePath: string | null;
+};
+
+export type DesktopWindowInfo = {
+  focused: boolean;
+  hidden?: boolean;
+  sessionId: string;
+  windowId: number;
+  windowLabel: DesktopWindowLabel;
+  workspaceLabel: string | null;
+};
+
+export type DesktopTrayState = {
+  enabled: boolean;
+  supported: boolean;
+};
+
+export type OpenDesktopWindowInput = {
+  duplicate?: boolean;
+  preferredBackendId?: string | null;
+  runtimeMode?: DesktopRuntimeMode;
+  windowLabel?: DesktopWindowLabel;
+  workspaceLabel?: string | null;
+  workspacePath?: string | null;
+};
+
+export type DesktopNotificationInput = {
+  body?: string | null;
+  title: string;
+};
+
+export type DesktopHostBridge = {
+  kind: DesktopHostKind;
+  app?: {
+    getVersion?: () => Promise<string | null | undefined> | string | null | undefined;
+  };
+  session?: {
+    getCurrentSession?: () =>
+      | Promise<DesktopSessionInfo | null | undefined>
+      | DesktopSessionInfo
+      | null
+      | undefined;
+    listRecentSessions?: () =>
+      | Promise<DesktopSessionInfo[] | null | undefined>
+      | DesktopSessionInfo[]
+      | null
+      | undefined;
+    reopenSession?: (sessionId: string) => Promise<boolean | void> | boolean | void;
+  };
+  window?: {
+    getLabel?: () => Promise<string | null | undefined> | string | null | undefined;
+  };
+  windowing?: {
+    closeWindow?: (windowId: number) => Promise<boolean | void> | boolean | void;
+    focusWindow?: (windowId: number) => Promise<boolean | void> | boolean | void;
+    listWindows?: () =>
+      | Promise<DesktopWindowInfo[] | null | undefined>
+      | DesktopWindowInfo[]
+      | null
+      | undefined;
+    openWindow?: (
+      input?: OpenDesktopWindowInput
+    ) => Promise<DesktopWindowInfo | null | undefined> | DesktopWindowInfo | null | undefined;
+  };
+  tray?: {
+    getState?: () =>
+      | Promise<DesktopTrayState | null | undefined>
+      | DesktopTrayState
+      | null
+      | undefined;
+    setEnabled?: (
+      enabled: boolean
+    ) => Promise<DesktopTrayState | null | undefined> | DesktopTrayState | null | undefined;
+  };
+  notifications?: {
+    show?: (input: DesktopNotificationInput) => Promise<boolean | void> | boolean | void;
+  };
+  shell?: {
+    openExternalUrl?: (url: string) => Promise<boolean | void> | boolean | void;
+    revealItemInDir?: (path: string) => Promise<boolean | void> | boolean | void;
+  };
 };
 
 declare global {
@@ -35,7 +104,7 @@ export function getDesktopHostBridge(): DesktopHostBridge | null {
   }
 
   const bridge = window.hugeCodeDesktopHost;
-  if (!isElectronDesktopHostBridge(bridge)) {
+  if (!bridge || bridge.kind !== "electron") {
     return null;
   }
 

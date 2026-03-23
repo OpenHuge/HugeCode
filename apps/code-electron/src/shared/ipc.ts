@@ -1,14 +1,3 @@
-export type {
-  DesktopHostBridgeApi,
-  DesktopNotificationInput,
-  DesktopRuntimeMode,
-  DesktopSessionInfo,
-  DesktopTrayState,
-  DesktopWindowInfo,
-  DesktopWindowLabel,
-  OpenDesktopWindowInput,
-} from "@ku0/code-platform-interfaces";
-
 export const DESKTOP_HOST_IPC_CHANNELS = {
   getAppVersion: "hugecode:desktop-host:get-app-version",
   getCurrentSession: "hugecode:desktop-host:get-current-session",
@@ -25,3 +14,76 @@ export const DESKTOP_HOST_IPC_CHANNELS = {
   openExternalUrl: "hugecode:desktop-host:open-external-url",
   revealItemInDir: "hugecode:desktop-host:reveal-item-in-dir",
 } as const;
+
+export type DesktopWindowLabel = "main" | "about";
+export type DesktopRuntimeMode = "local" | "remote";
+
+export type DesktopSessionInfo = {
+  id: string;
+  lastActiveAt: string;
+  preferredBackendId: string | null;
+  runtimeMode: DesktopRuntimeMode;
+  windowLabel: DesktopWindowLabel;
+  workspaceLabel: string | null;
+  workspacePath: string | null;
+};
+
+export type DesktopWindowInfo = {
+  focused: boolean;
+  hidden?: boolean;
+  sessionId: string;
+  windowId: number;
+  windowLabel: DesktopWindowLabel;
+  workspaceLabel: string | null;
+};
+
+export type DesktopTrayState = {
+  enabled: boolean;
+  supported: boolean;
+};
+
+export type OpenDesktopWindowInput = {
+  duplicate?: boolean;
+  preferredBackendId?: string | null;
+  runtimeMode?: DesktopRuntimeMode;
+  windowLabel?: DesktopWindowLabel;
+  workspaceLabel?: string | null;
+  workspacePath?: string | null;
+};
+
+export type DesktopNotificationInput = {
+  body?: string | null;
+  title: string;
+};
+
+export type DesktopHostBridgeApi = {
+  kind: "electron";
+  app: {
+    getVersion(): Promise<string | null>;
+  };
+  session: {
+    getCurrentSession(): Promise<DesktopSessionInfo | null>;
+    listRecentSessions(): Promise<DesktopSessionInfo[]>;
+    reopenSession(sessionId: string): Promise<boolean>;
+  };
+  window: {
+    getLabel(): Promise<string>;
+  };
+  windowing: {
+    closeWindow(windowId: number): Promise<boolean>;
+    focusWindow(windowId: number): Promise<boolean>;
+    listWindows(): Promise<DesktopWindowInfo[]>;
+    openWindow(input?: OpenDesktopWindowInput): Promise<DesktopWindowInfo | null>;
+  };
+  tray: {
+    getState(): Promise<DesktopTrayState>;
+    setEnabled(enabled: boolean): Promise<DesktopTrayState>;
+  };
+  notifications: {
+    show(input: DesktopNotificationInput): Promise<boolean>;
+  };
+  shell: {
+    openExternalUrl(url: string): Promise<boolean>;
+    revealItemInDir(path: string): Promise<boolean>;
+  };
+};

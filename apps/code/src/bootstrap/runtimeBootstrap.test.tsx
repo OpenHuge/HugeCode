@@ -22,7 +22,7 @@ vi.mock("@sentry/react", () => ({
   },
 }));
 
-vi.mock("../application/runtime/facades/desktopHostFacade", () => ({
+vi.mock("../application/runtime/ports/tauriEnvironment", () => ({
   detectDesktopRuntimeHost: detectDesktopRuntimeHostMock,
 }));
 
