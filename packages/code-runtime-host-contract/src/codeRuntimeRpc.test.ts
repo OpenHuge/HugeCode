@@ -1260,6 +1260,39 @@ describe("agent and oauth rpc methods", () => {
     expect(
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.MCP_SERVER_STATUS_LIST_V1)
     ).toEqual(["code_mcp_server_status_list_v1"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_CATALOG_LIST_V2)
+    ).toEqual(["code_extension_catalog_list_v2"]);
+    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_GET_V2)).toEqual([
+      "code_extension_get_v2",
+    ]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_INSTALL_V2)
+    ).toEqual(["code_extension_install_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_UPDATE_V2)
+    ).toEqual(["code_extension_update_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_SET_STATE_V2)
+    ).toEqual(["code_extension_set_state_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_REMOVE_V2)
+    ).toEqual(["code_extension_remove_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_REGISTRY_SEARCH_V2)
+    ).toEqual(["code_extension_registry_search_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_REGISTRY_SOURCES_V2)
+    ).toEqual(["code_extension_registry_sources_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_PERMISSIONS_EVALUATE_V2)
+    ).toEqual(["code_extension_permissions_evaluate_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_HEALTH_READ_V2)
+    ).toEqual(["code_extension_health_read_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_UI_APPS_LIST_V2)
+    ).toEqual(["code_extension_ui_apps_list_v2"]);
     expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSIONS_LIST_V1)).toEqual(
       ["code_extensions_list_v1"]
     );
@@ -1301,7 +1334,7 @@ describe("agent and oauth rpc methods", () => {
 
 describe("rpc capability constants", () => {
   it("exposes contract version", () => {
-    expect(CODE_RUNTIME_RPC_CONTRACT_VERSION).toBe("2026-03-22");
+    expect(CODE_RUNTIME_RPC_CONTRACT_VERSION).toBe("2026-03-23");
   });
 
   it("exposes required feature flags", () => {
@@ -1357,8 +1390,8 @@ describe("rpc capability constants", () => {
         "runtime_codex_execpolicy_preflight_v1",
         "runtime_codex_unified_rpc_migration_v1",
         "runtime_host_deprecated",
-        "app_server_protocol_v2_2026_03_22",
-        "contract_frozen_2026_03_22",
+        "app_server_protocol_v2_2026_03_23",
+        "contract_frozen_2026_03_23",
       ])
     );
   });

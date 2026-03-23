@@ -1,8 +1,16 @@
 export {
+  evaluateRuntimeExtensionPermissions,
+  getRuntimeExtension,
   getRuntimeExtensionsConfig,
   installRuntimeExtension,
+  listRuntimeExtensionRegistrySources,
   listRuntimeExtensionTools,
+  listRuntimeExtensionUiApps,
   listRuntimeExtensions,
   readRuntimeExtensionResource,
+  readRuntimeExtensionHealth,
   removeRuntimeExtension,
+  searchRuntimeExtensionRegistry,
+  setRuntimeExtensionState,
+  updateRuntimeExtension,
 } from "../../../services/tauriRuntimeExtensionBridge";
