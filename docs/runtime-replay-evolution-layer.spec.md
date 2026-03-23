@@ -63,6 +63,10 @@ If a profile declares environment overrides or an HTTP stub, recording must run 
 
 Observed failures are normalized into canonical failure classes before persistence.
 
+For snapshot-capable model tracks, the runtime/provider boundary should preserve the provider-returned response model id when available.
+Recorder output stores this as `turn.provenance.recordedResponseModelId`, while `recordedModelId` remains the requested routing alias.
+Validation should warn, not hard-fail, when historical samples on `snapshotPinned` profiles are still missing this evidence.
+
 ## Recovery Promotion Contract
 
 For recovery samples:

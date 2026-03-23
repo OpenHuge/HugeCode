@@ -138,7 +138,7 @@ async fn query_provider_with_local_exec_fallback(
     oauth_external_account_id_override: Option<&str>,
     error_prefix: Option<&str>,
     delta_callback: Option<provider_requests::ProviderDeltaCallback>,
-) -> Result<String, String> {
+) -> Result<provider_requests::ProviderQueryResult, String> {
     let query_provider_direct = || async {
         query_provider_with_delta(
             &ctx.client,
@@ -184,7 +184,7 @@ async fn query_provider_with_local_exec_fallback(
     )
     .await
     {
-        Ok(message) => Ok(message),
+        Ok(message) => Ok(provider_requests::ProviderQueryResult::from_output(message)),
         Err(local_exec_error) => {
             warn!(
                 workspace_id = workspace_id,
@@ -498,12 +498,13 @@ async fn complete_turn_send(
 
     match completion {
         Ok(message) => {
+            let response_model_id = message.response_model_id.clone();
             let completion_message = if use_runtime_plan_flow {
-                message
+                message.output
             } else {
                 maybe_recover_provider_local_access_refusal(
                     &ctx,
-                    message,
+                    message.output,
                     task.collaboration_mode.suppress_runtime_plan_delta(),
                     task.access_mode.as_str(),
                     local_exec_preferred,
@@ -561,6 +562,7 @@ async fn complete_turn_send(
                 json!({
                     "turnId": task.turn_id,
                     "output": completion_message.as_str(),
+                    "responseModelId": response_model_id,
                     "accessMode": task.access_mode,
                     "routedProvider": task.routed_provider_route.routed_provider(),
                     "executionMode": task.execution_mode.as_str(),

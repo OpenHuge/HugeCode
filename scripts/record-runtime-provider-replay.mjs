@@ -723,6 +723,11 @@ async function captureTurn({
               typeof event.payload?.output === "string"
                 ? event.payload.output
                 : deltaChunks.join(""),
+            responseModelId:
+              typeof event.payload?.responseModelId === "string" &&
+              event.payload.responseModelId.trim().length > 0
+                ? event.payload.responseModelId.trim()
+                : null,
             deltaChunks,
             failure: null,
           };
@@ -1248,6 +1253,9 @@ async function main() {
           workspaceId: normalizeRuntimeReplayWorkspaceId(workspaceId),
           recordedProvider: replayVariant.provider ?? null,
           recordedModelId: replayVariant.modelId,
+          ...(typeof recorded.responseModelId === "string"
+            ? { recordedResponseModelId: recorded.responseModelId }
+            : {}),
           recordedReasonEffort: replayVariant.reasonEffort ?? null,
           recordedAccessMode: replayVariant.recordingAccessMode ?? "on-request",
           recordedExecutionMode: replayVariant.recordingExecutionMode ?? "runtime",

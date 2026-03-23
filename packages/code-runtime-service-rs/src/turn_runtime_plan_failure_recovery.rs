@@ -227,7 +227,7 @@ pub(super) async fn maybe_retry_failed_execution_legacy_plan(
     )
     .await
     .ok()?;
-    let retry_plan = parse_provider_runtime_plan_response(retry_response.as_str())?;
+    let retry_plan = parse_provider_runtime_plan_response(retry_response.output.as_str())?;
     Some(enforce_provider_runtime_plan_step_constraints(
         content, retry_plan,
     ))

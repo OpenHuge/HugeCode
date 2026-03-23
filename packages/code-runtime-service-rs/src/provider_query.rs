@@ -17,7 +17,7 @@ pub(super) async fn query_provider(
     model_id: &str,
     reason_effort: Option<&str>,
     service_tier: Option<&str>,
-) -> Result<String, String> {
+) -> Result<provider_requests::ProviderQueryResult, String> {
     query_provider_with_delta(
         client,
         config,
@@ -58,7 +58,7 @@ pub(super) async fn query_provider_with_delta(
     reason_effort: Option<&str>,
     service_tier: Option<&str>,
     delta_callback: Option<provider_requests::ProviderDeltaCallback>,
-) -> Result<String, String> {
+) -> Result<provider_requests::ProviderQueryResult, String> {
     if let Some(replayed_output) = provider_replay::maybe_replay_provider_response(
         None,
         provider_route,
@@ -69,7 +69,9 @@ pub(super) async fn query_provider_with_delta(
     )
     .await?
     {
-        return Ok(replayed_output);
+        return Ok(provider_requests::ProviderQueryResult::from_output(
+            replayed_output,
+        ));
     }
 
     match provider_route {

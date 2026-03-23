@@ -197,6 +197,7 @@ function updateModel(sample, modelId, reasonEffort) {
     for (const turn of ensureArray(sample.result.providerReplay.turns)) {
       if (turn?.provenance && typeof turn.provenance === "object") {
         turn.provenance.recordedModelId = modelId;
+        delete turn.provenance.recordedResponseModelId;
         turn.provenance.recordedReasonEffort = reasonEffort;
       }
     }
