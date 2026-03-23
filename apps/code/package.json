@@ -30,7 +30,7 @@
     "@ku0/shared": "workspace:*",
     "@ku0/ui": "workspace:*",
     "@pierre/diffs": "^1.0.11",
-    "@sentry/react": "^10.40.0",
+    "@sentry/react": "^10.45.0",
     "@tanstack/react-virtual": "^3.13.19",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-dialog": "^2.6.0",
