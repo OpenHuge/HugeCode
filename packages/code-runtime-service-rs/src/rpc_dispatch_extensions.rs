@@ -6,6 +6,11 @@ use crate::{
     rpc_dispatch_native_skills::set_native_skill_enabled,
 };
 
+const INSTRUCTION_SKILL_BODY_RESOURCE_ID: &str = "body";
+const INSTRUCTION_SKILL_FRONTMATTER_RESOURCE_ID: &str = "frontmatter";
+const INSTRUCTION_SKILL_SUPPORTING_FILES_RESOURCE_ID: &str = "supporting-files";
+const INSTRUCTION_SKILL_SUPPORTING_FILE_PREFIX: &str = "supporting-file:";
+
 fn optional_workspace_id(params: &serde_json::Map<String, Value>) -> Option<String> {
     read_optional_string(params, "workspaceId")
         .map(|value| value.trim().to_string())
@@ -298,6 +303,103 @@ fn instruction_skill_to_catalog(
         installed_at: now,
         updated_at: now,
     }
+}
+
+fn instruction_skill_resource_payload(
+    extension_id: &str,
+    skill: &instruction_skills::ResolvedInstructionSkill,
+    resource_id: &str,
+) -> Result<extensions_runtime::RuntimeExtensionResourceReadResponsePayload, RpcError> {
+    match resource_id {
+        INSTRUCTION_SKILL_BODY_RESOURCE_ID => Ok(
+            extensions_runtime::RuntimeExtensionResourceReadResponsePayload {
+                extension_id: extension_id.to_string(),
+                resource_id: resource_id.to_string(),
+                content_type: "text/markdown".to_string(),
+                content: skill.body.clone(),
+                metadata: Some(json!({
+                    "source": "instruction-skill",
+                    "entryPath": skill.entry_path,
+                    "sourceRoot": skill.source_root,
+                })),
+            },
+        ),
+        INSTRUCTION_SKILL_FRONTMATTER_RESOURCE_ID => Ok(
+            extensions_runtime::RuntimeExtensionResourceReadResponsePayload {
+                extension_id: extension_id.to_string(),
+                resource_id: resource_id.to_string(),
+                content_type: "application/json".to_string(),
+                content: serde_json::to_string(&skill.frontmatter).unwrap_or_else(|_| "{}".to_string()),
+                metadata: Some(json!({
+                    "source": "instruction-skill",
+                    "entryPath": skill.entry_path,
+                })),
+            },
+        ),
+        INSTRUCTION_SKILL_SUPPORTING_FILES_RESOURCE_ID => Ok(
+            extensions_runtime::RuntimeExtensionResourceReadResponsePayload {
+                extension_id: extension_id.to_string(),
+                resource_id: resource_id.to_string(),
+                content_type: "application/json".to_string(),
+                content: serde_json::to_string(&skill.supporting_files).unwrap_or_else(|_| "[]".to_string()),
+                metadata: Some(json!({
+                    "source": "instruction-skill",
+                    "count": skill.supporting_files.len(),
+                })),
+            },
+        ),
+        candidate if candidate.starts_with(INSTRUCTION_SKILL_SUPPORTING_FILE_PREFIX) => {
+            let requested_path = candidate
+                .trim_start_matches(INSTRUCTION_SKILL_SUPPORTING_FILE_PREFIX)
+                .trim();
+            let Some(file) = skill
+                .supporting_files
+                .iter()
+                .find(|entry| entry.path == requested_path)
+            else {
+                return Err(RpcError::invalid_params(format!(
+                    "instruction skill `{extension_id}` does not expose supporting file `{requested_path}`"
+                )));
+            };
+            Ok(extensions_runtime::RuntimeExtensionResourceReadResponsePayload {
+                extension_id: extension_id.to_string(),
+                resource_id: resource_id.to_string(),
+                content_type: "text/plain".to_string(),
+                content: file.content.clone(),
+                metadata: Some(json!({
+                    "source": "instruction-skill",
+                    "path": file.path,
+                })),
+            })
+        }
+        _ => Err(RpcError::invalid_params(format!(
+            "instruction skill `{extension_id}` does not expose resource `{resource_id}`"
+        ))),
+    }
+}
+
+async fn read_instruction_skill_resource(
+    ctx: &AppContext,
+    workspace_id: Option<&str>,
+    extension_id: &str,
+    resource_id: &str,
+) -> Result<Option<extensions_runtime::RuntimeExtensionResourceReadResponsePayload>, RpcError> {
+    let workspace_root = match workspace_id {
+        Some(workspace_id) => Some(resolve_workspace_path(ctx, workspace_id).await?),
+        None => None,
+    };
+    let skill_overlays = ctx
+        .native_state_store
+        .list_entities(TABLE_NATIVE_SKILLS)
+        .await
+        .map_err(RpcError::internal)?;
+    let roots = instruction_skills::resolve_instruction_skill_roots(workspace_root);
+    let Some(skill) =
+        instruction_skills::get_instruction_skill(&roots, skill_overlays.as_slice(), extension_id)
+    else {
+        return Ok(None);
+    };
+    instruction_skill_resource_payload(extension_id, &skill, resource_id).map(Some)
 }
 
 pub(crate) async fn list_extension_catalog(
@@ -714,6 +816,12 @@ pub(super) async fn handle_extension_resource_read_v1(
     let workspace_id = optional_workspace_id(params);
     let extension_id = read_required_string(params, "extensionId")?;
     let resource_id = read_required_string(params, "resourceId")?;
+    if let Some(resource) =
+        read_instruction_skill_resource(ctx, workspace_id.as_deref(), extension_id, resource_id)
+            .await?
+    {
+        return Ok(json!(resource));
+    }
     let store = ctx.extensions_store.read().await;
     let Some(resource) = store.read_resource(workspace_id.as_deref(), extension_id, resource_id)
     else {
@@ -722,6 +830,89 @@ pub(super) async fn handle_extension_resource_read_v1(
         )));
     };
     Ok(json!(resource))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn resolved_instruction_skill_fixture() -> instruction_skills::ResolvedInstructionSkill {
+        instruction_skills::ResolvedInstructionSkill {
+            id: "workspace.agents.review".to_string(),
+            name: "review".to_string(),
+            description: "Review the current changeset".to_string(),
+            scope: "workspace".to_string(),
+            source_family: "agents".to_string(),
+            source_root: "/repo/.agents/skills".to_string(),
+            entry_path: "/repo/.agents/skills/review/SKILL.md".to_string(),
+            enabled: true,
+            aliases: vec!["review".to_string(), "agents:review".to_string()],
+            shadowed_by: None,
+            frontmatter: json!({
+                "name": "review",
+                "description": "Review the current changeset",
+            }),
+            body: "Review carefully".to_string(),
+            supporting_files: vec![instruction_skills::ResolvedInstructionSkillFile {
+                path: "checklist.md".to_string(),
+                content: "- item".to_string(),
+            }],
+        }
+    }
+
+    #[test]
+    fn instruction_skill_resource_payload_exposes_body_frontmatter_and_supporting_files() {
+        let skill = resolved_instruction_skill_fixture();
+
+        let body = instruction_skill_resource_payload(
+            skill.id.as_str(),
+            &skill,
+            INSTRUCTION_SKILL_BODY_RESOURCE_ID,
+        )
+        .expect("body resource");
+        assert_eq!(body.content_type, "text/markdown");
+        assert_eq!(body.content, "Review carefully");
+
+        let frontmatter = instruction_skill_resource_payload(
+            skill.id.as_str(),
+            &skill,
+            INSTRUCTION_SKILL_FRONTMATTER_RESOURCE_ID,
+        )
+        .expect("frontmatter resource");
+        assert_eq!(frontmatter.content_type, "application/json");
+        assert!(frontmatter.content.contains("\"name\":\"review\""));
+
+        let supporting_files = instruction_skill_resource_payload(
+            skill.id.as_str(),
+            &skill,
+            INSTRUCTION_SKILL_SUPPORTING_FILES_RESOURCE_ID,
+        )
+        .expect("supporting files resource");
+        assert_eq!(supporting_files.content_type, "application/json");
+        assert!(supporting_files.content.contains("checklist.md"));
+
+        let supporting_file = instruction_skill_resource_payload(
+            skill.id.as_str(),
+            &skill,
+            "supporting-file:checklist.md",
+        )
+        .expect("supporting file resource");
+        assert_eq!(supporting_file.content_type, "text/plain");
+        assert_eq!(supporting_file.content, "- item");
+    }
+
+    #[test]
+    fn instruction_skill_resource_payload_rejects_unknown_resource_ids() {
+        let skill = resolved_instruction_skill_fixture();
+        let error = instruction_skill_resource_payload(skill.id.as_str(), &skill, "unknown")
+            .expect_err("unknown resource should fail");
+        assert_eq!(error.code_str(), "INVALID_PARAMS");
+        assert!(
+            error.message.contains("does not expose resource"),
+            "unexpected error message: {}",
+            error.message
+        );
+    }
 }
 
 pub(super) async fn handle_extensions_config_v1(
