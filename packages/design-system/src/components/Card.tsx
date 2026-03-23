@@ -4,6 +4,7 @@ import * as styles from "./Card.css";
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   tone?: "default" | "subtle" | "translucent" | "ghost";
+  variant?: "default" | "subtle" | "translucent" | "ghost";
   padding?: "none" | "sm" | "md" | "lg";
   interactive?: boolean;
   selected?: boolean;
@@ -21,22 +22,26 @@ export const Card = forwardRef<HTMLDivElement, PropsWithChildren<CardProps>>(fun
     padding = "md",
     selected = false,
     tone = "default",
+    variant,
     ...props
   },
   ref
 ) {
+  const resolvedTone = variant ?? tone;
+
   return (
     <div
       {...props}
       ref={ref}
       className={cx(
         styles.root,
-        styles.tone[tone],
+        styles.tone[resolvedTone],
         styles.padding[padding],
         interactive && styles.interactive,
         selected && styles.selected,
         className
       )}
+      data-tone={resolvedTone}
     >
       {header ? <div className={styles.header}>{header}</div> : null}
       {children ? <div className={styles.body}>{children}</div> : null}

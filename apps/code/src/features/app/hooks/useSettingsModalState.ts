@@ -1,5 +1,4 @@
 import { useCallback, useState } from "react";
-import { preloadSettingsView } from "../../settings/components/settingsViewLoader";
 import type { CodexSection } from "../../settings/components/settingsTypes";
 
 export type SettingsSection = CodexSection;
@@ -26,13 +25,18 @@ function normalizeSettingsSection(section: unknown): SettingsSection | null {
     : null;
 }
 
+async function preloadSettingsViewOnDemand() {
+  const module = await import("../../settings/components/settingsViewLoader");
+  return module.preloadSettingsView();
+}
+
 export function useSettingsModalState() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
 
   const openSettings = useCallback((section?: SettingsSection) => {
     const normalizedSection = normalizeSettingsSection(section);
-    void preloadSettingsView();
+    void preloadSettingsViewOnDemand();
     setSettingsSection((currentSection) => normalizedSection ?? currentSection ?? null);
     setSettingsOpen(true);
   }, []);
