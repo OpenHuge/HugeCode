@@ -209,7 +209,7 @@ pub struct ServiceConfig {
     pub ws_max_frame_size_bytes: usize,
     pub ws_max_message_size_bytes: usize,
     pub ws_max_connections: usize,
-    pub provider_extensions: Vec<RuntimeProviderExtension>,
+    pub provider_extension_seeds: Vec<RuntimeProviderExtension>,
 }
 
 #[derive(Clone)]

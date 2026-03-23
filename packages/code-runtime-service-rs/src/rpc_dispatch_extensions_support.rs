@@ -526,7 +526,7 @@ pub(super) async fn ensure_legacy_extension_records_imported(
             inputs.push(input);
         }
     }
-    for extension in &ctx.config.provider_extensions {
+    for extension in &ctx.config.provider_extension_seeds {
         let input = provider_extension_record_input(extension);
         if !existing_ids.contains(input.extension_id.as_str()) {
             inputs.push(input);
