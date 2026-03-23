@@ -174,7 +174,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
-    "@electron/packager": "^18.4.4",
+    "@electron/packager": "^19.1.0",
     "@playwright/mcp": "^0.0.68",
     "@playwright/test": "^1.58.2",
     "@types/node": "^25.5.0",
