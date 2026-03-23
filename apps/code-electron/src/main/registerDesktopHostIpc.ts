@@ -1,5 +1,10 @@
 import type { IpcMainInvokeEvent } from "electron";
-import type { DesktopNotificationInput, OpenDesktopWindowInput } from "../shared/ipc.js";
+import type {
+  DesktopBrowserDebugSessionInfo,
+  DesktopBrowserDebugSessionInput,
+  DesktopNotificationInput,
+  OpenDesktopWindowInput,
+} from "../shared/ipc.js";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 
 type IpcInvokeEventLike = IpcMainInvokeEvent;
@@ -29,9 +34,16 @@ type DesktopHostIpcHandlers = {
   closeWindow(windowId: number): Promise<boolean> | boolean;
   focusWindow(windowId: number): Promise<boolean> | boolean;
   getAppVersion(): Promise<string | null> | string | null;
+  getBrowserDebugSession():
+    | Promise<DesktopBrowserDebugSessionInfo | null>
+    | DesktopBrowserDebugSessionInfo
+    | null;
   getCurrentSession(event: IpcInvokeEventLike): Promise<unknown> | unknown;
   getTrayState(): Promise<DesktopTrayState> | DesktopTrayState;
   getWindowLabel(event: IpcInvokeEventLike): Promise<string> | string;
+  ensureBrowserDebugSession(
+    input?: DesktopBrowserDebugSessionInput
+  ): Promise<DesktopBrowserDebugSessionInfo | null> | DesktopBrowserDebugSessionInfo | null;
   listRecentSessions(): Promise<unknown[]> | unknown[];
   listWindows(): Promise<DesktopWindowDescriptor[]> | DesktopWindowDescriptor[];
   openExternalUrl(url: string): Promise<boolean> | boolean;
@@ -49,78 +61,74 @@ export type RegisterDesktopHostIpcInput = {
   channels: typeof DESKTOP_HOST_IPC_CHANNELS;
   handlers: DesktopHostIpcHandlers;
   ipcMain: IpcMainLike;
-  isTrustedSender(event: IpcInvokeEventLike): boolean;
 };
 
 export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
-  const { channels, handlers, ipcMain, isTrustedSender } = input;
+  const { channels, handlers, ipcMain } = input;
 
-  function handleTrusted(
-    channel: string,
-    listener: (event: IpcInvokeEventLike, ...args: unknown[]) => unknown
-  ) {
-    ipcMain.handle(channel, async (event, ...args) => {
-      if (!isTrustedSender(event)) {
-        throw new Error("Blocked untrusted desktop IPC sender.");
-      }
-
-      return listener(event, ...args);
-    });
-  }
-
-  handleTrusted(channels.getAppVersion, async () => {
+  ipcMain.handle(channels.getAppVersion, async () => {
     return handlers.getAppVersion();
   });
 
-  handleTrusted(channels.getCurrentSession, async (event) => {
+  ipcMain.handle(channels.getBrowserDebugSession, async () => {
+    return handlers.getBrowserDebugSession();
+  });
+
+  ipcMain.handle(channels.getCurrentSession, async (event) => {
     return handlers.getCurrentSession(event);
   });
 
-  handleTrusted(channels.listRecentSessions, async () => {
+  ipcMain.handle(channels.listRecentSessions, async () => {
     return handlers.listRecentSessions();
   });
 
-  handleTrusted(channels.reopenSession, async (_event, sessionId) => {
+  ipcMain.handle(channels.reopenSession, async (_event, sessionId) => {
     return handlers.reopenSession(sessionId as string);
   });
 
-  handleTrusted(channels.getWindowLabel, async (event) => {
+  ipcMain.handle(channels.getWindowLabel, async (event) => {
     return handlers.getWindowLabel(event);
   });
 
-  handleTrusted(channels.listWindows, async () => {
+  ipcMain.handle(channels.ensureBrowserDebugSession, async (_event, sessionInput) => {
+    return handlers.ensureBrowserDebugSession(
+      sessionInput as DesktopBrowserDebugSessionInput | undefined
+    );
+  });
+
+  ipcMain.handle(channels.listWindows, async () => {
     return handlers.listWindows();
   });
 
-  handleTrusted(channels.openWindow, async (_event, openWindowInput) => {
+  ipcMain.handle(channels.openWindow, async (_event, openWindowInput) => {
     return handlers.openWindow(openWindowInput as OpenDesktopWindowInput | undefined);
   });
 
-  handleTrusted(channels.focusWindow, async (_event, windowId) => {
+  ipcMain.handle(channels.focusWindow, async (_event, windowId) => {
     return handlers.focusWindow(windowId as number);
   });
 
-  handleTrusted(channels.closeWindow, async (_event, windowId) => {
+  ipcMain.handle(channels.closeWindow, async (_event, windowId) => {
     return handlers.closeWindow(windowId as number);
   });
 
-  handleTrusted(channels.getTrayState, async () => {
+  ipcMain.handle(channels.getTrayState, async () => {
     return handlers.getTrayState();
   });
 
-  handleTrusted(channels.setTrayEnabled, async (_event, enabled) => {
+  ipcMain.handle(channels.setTrayEnabled, async (_event, enabled) => {
     return handlers.setTrayEnabled(enabled === true);
   });
 
-  handleTrusted(channels.showNotification, async (event, notificationInput) => {
+  ipcMain.handle(channels.showNotification, async (event, notificationInput) => {
     return handlers.showNotification(event, notificationInput as DesktopNotificationInput);
   });
 
-  handleTrusted(channels.openExternalUrl, async (_event, url) => {
+  ipcMain.handle(channels.openExternalUrl, async (_event, url) => {
     return handlers.openExternalUrl(url as string);
   });
 
-  handleTrusted(channels.revealItemInDir, async (_event, path) => {
+  ipcMain.handle(channels.revealItemInDir, async (_event, path) => {
     return handlers.revealItemInDir(path as string);
   });
 }

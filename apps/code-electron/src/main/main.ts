@@ -1,37 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type {
-  BrowserWindow as ElectronBrowserWindow,
-  Event as ElectronEvent,
-  HandlerDetails,
-  IpcMainInvokeEvent,
-  Menu as ElectronMenu,
-  Tray as ElectronTray,
-} from "electron";
-import type {
-  DesktopBrowserDebugSessionInput,
-  DesktopNotificationInput,
-  OpenDesktopWindowInput,
-} from "../shared/ipc.js";
-import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import {
-  createDesktopShellState,
-  resolveCloseBehavior,
-  type DesktopPersistedState,
-  type DesktopSessionDescriptor,
-  type DesktopWindowBounds,
-} from "./desktopShellState.js";
-import {
-  ensureBrowserDebugSession,
-  getBrowserDebugSession,
-  resolveBrowserDebugPort,
-} from "./browserDebugSession.js";
-import { buildTrayMenuTemplate, getTrayMenuStateSignature } from "./trayMenu.js";
-
-const require = createRequire(import.meta.url);
-const {
   app,
   BrowserWindow,
   ipcMain,
@@ -40,7 +9,24 @@ const {
   Notification,
   shell,
   Tray,
-} = require("electron");
+} from "electron";
+import type { Event as ElectronEvent, HandlerDetails } from "electron";
+import type { OpenDesktopWindowInput } from "../shared/ipc.js";
+import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
+import {
+  createDesktopShellState,
+  resolveCloseBehavior,
+  type DesktopSessionDescriptor,
+  type DesktopWindowBounds,
+} from "./desktopShellState.js";
+import {
+  ensureBrowserDebugSession,
+  getBrowserDebugSession,
+  resolveBrowserDebugPort,
+} from "./browserDebugSession.js";
+import { createDesktopStateStore } from "./desktopStateStore.js";
+import { registerDesktopHostIpc } from "./registerDesktopHostIpc.js";
+import { buildTrayMenuTemplate, getTrayMenuStateSignature } from "./trayMenu.js";
 
 const DEFAULT_WINDOW_STATE: DesktopWindowBounds = {
   width: 1440,
@@ -54,10 +40,10 @@ const trayIconDataUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAK0lEQVR42mP8z8AARMBEw0AEYBxVSFUBQwqGQYQmGmKagjYwNAxMDAwMDAwAAABEgQJkzJYGQAAAABJRU5ErkJggg==";
 
 let isQuitting = false;
-let tray: ElectronTray | null = null;
-let trayMenu: ElectronMenu | null = null;
+let tray: Tray | null = null;
+let trayMenu: Menu | null = null;
 let trayMenuSignature: string | null = null;
-const activeWindows = new Map<number, ElectronBrowserWindow>();
+const activeWindows = new Map<number, BrowserWindow>();
 
 if (enableAppSandbox) {
   app.enableSandbox();
@@ -74,38 +60,16 @@ function getWindowStatePath() {
   return join(app.getPath("userData"), "desktop-state.json");
 }
 
-function readPersistedState(): DesktopPersistedState {
-  const statePath = getWindowStatePath();
-  if (!existsSync(statePath)) {
-    return {
-      trayEnabled: false,
-      sessions: [],
-    };
-  }
-
-  try {
-    const raw = readFileSync(statePath, "utf8");
-    const parsed = JSON.parse(raw) as Partial<DesktopPersistedState>;
-    return {
-      trayEnabled: parsed.trayEnabled === true,
-      sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-    };
-  } catch {
-    return {
-      trayEnabled: false,
-      sessions: [],
-    };
-  }
-}
+const desktopStateStore = createDesktopStateStore({
+  statePath: getWindowStatePath(),
+});
 
 const desktopShellState = createDesktopShellState({
-  persistedState: readPersistedState(),
+  persistedState: desktopStateStore.read(),
 });
 
 function persistDesktopState() {
-  const statePath = getWindowStatePath();
-  mkdirSync(dirname(statePath), { recursive: true });
-  writeFileSync(statePath, JSON.stringify(desktopShellState.toPersistedState(), null, 2));
+  desktopStateStore.write(desktopShellState.toPersistedState());
 }
 
 function getWindowTitle(session: DesktopSessionDescriptor) {
@@ -280,13 +244,9 @@ function updateTray() {
 
   if (!tray) {
     tray = new Tray(createTrayIcon());
-    const trayHandle = tray ?? new Tray(createTrayIcon());
-    tray = trayHandle;
-    trayHandle.setToolTip("HugeCode");
-    trayHandle.on("double-click", () => {
-      const visibleWindow = BrowserWindow.getAllWindows().find(
-        (window: ElectronBrowserWindow) => !window.isDestroyed()
-      );
+    tray.setToolTip("HugeCode");
+    tray.on("double-click", () => {
+      const visibleWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
       if (visibleWindow) {
         visibleWindow.show();
         visibleWindow.focus();
@@ -329,143 +289,98 @@ function updateTray() {
     })
   );
   trayMenuSignature = nextTrayMenuSignature;
-  tray?.setContextMenu(trayMenu);
+  tray.setContextMenu(trayMenu);
 }
 
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getAppVersion, async () => {
-  const version = app.getVersion();
-  return typeof version === "string" && version.length > 0 ? version : null;
-});
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getCurrentSession, async (event: IpcMainInvokeEvent) => {
-  const sourceWindow = BrowserWindow.fromWebContents(event.sender);
-  if (!sourceWindow) {
-    return null;
-  }
-  return desktopShellState.getSessionByWindowId(sourceWindow.id);
-});
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.listRecentSessions, async () => {
-  return desktopShellState.recentSessions;
-});
-
-ipcMain.handle(
-  DESKTOP_HOST_IPC_CHANNELS.reopenSession,
-  async (_event: IpcMainInvokeEvent, sessionId: string) => {
-    return reopenSession(sessionId);
-  }
-);
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getWindowLabel, async (event: IpcMainInvokeEvent) => {
-  const sourceWindow = BrowserWindow.fromWebContents(event.sender);
-  if (!sourceWindow) {
-    return "main";
-  }
-  return desktopShellState.getSessionByWindowId(sourceWindow.id)?.windowLabel ?? "main";
-});
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.listWindows, async () => {
-  return listWindows();
-});
-
-ipcMain.handle(
-  DESKTOP_HOST_IPC_CHANNELS.openWindow,
-  async (_event: IpcMainInvokeEvent, input?: OpenDesktopWindowInput) => {
-    const window = openWindow(input);
-    const session = desktopShellState.getSessionByWindowId(window.id);
-    if (!session) {
-      return null;
-    }
-    return {
-      windowId: window.id,
-      sessionId: session.id,
-      windowLabel: session.windowLabel,
-      workspaceLabel: session.workspaceLabel,
-      focused: window.isFocused(),
-      hidden: window.isVisible() === false,
-    };
-  }
-);
-
-ipcMain.handle(
-  DESKTOP_HOST_IPC_CHANNELS.focusWindow,
-  async (_event: IpcMainInvokeEvent, windowId: number) => {
-    return focusWindow(windowId);
-  }
-);
-
-ipcMain.handle(
-  DESKTOP_HOST_IPC_CHANNELS.closeWindow,
-  async (_event: IpcMainInvokeEvent, windowId: number) => {
-    const targetWindow = activeWindows.get(windowId);
-    if (!targetWindow || targetWindow.isDestroyed()) {
-      return false;
-    }
-    targetWindow.close();
-    return true;
-  }
-);
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getTrayState, async () => {
-  return getTrayState();
-});
-
-ipcMain.handle(
-  DESKTOP_HOST_IPC_CHANNELS.setTrayEnabled,
-  async (_event: IpcMainInvokeEvent, enabled: boolean) => {
-    desktopShellState.setTrayEnabled(enabled === true);
-    persistDesktopState();
-    updateTray();
-    return getTrayState();
-  }
-);
-
-ipcMain.handle(
-  DESKTOP_HOST_IPC_CHANNELS.showNotification,
-  async (event: IpcMainInvokeEvent, input: DesktopNotificationInput) => {
-    if (!Notification.isSupported()) {
-      return false;
-    }
-
-    const sourceWindow = BrowserWindow.fromWebContents(event.sender);
-    const notification = new Notification({
-      title: input.title,
-      body: input.body ?? "",
-    });
-    notification.on("click", () => {
-      if (sourceWindow && !sourceWindow.isDestroyed()) {
-        sourceWindow.show();
-        sourceWindow.focus();
+registerDesktopHostIpc({
+  channels: DESKTOP_HOST_IPC_CHANNELS,
+  handlers: {
+    closeWindow(windowId) {
+      const targetWindow = activeWindows.get(windowId);
+      if (!targetWindow || targetWindow.isDestroyed()) {
+        return false;
       }
-    });
-    notification.show();
-    return true;
-  }
-);
+      targetWindow.close();
+      return true;
+    },
+    ensureBrowserDebugSession,
+    focusWindow,
+    getAppVersion() {
+      const version = app.getVersion();
+      return typeof version === "string" && version.length > 0 ? version : null;
+    },
+    getBrowserDebugSession,
+    getCurrentSession(event) {
+      const sourceWindow = BrowserWindow.fromWebContents(event.sender);
+      if (!sourceWindow) {
+        return null;
+      }
+      return desktopShellState.getSessionByWindowId(sourceWindow.id);
+    },
+    getTrayState,
+    getWindowLabel(event) {
+      const sourceWindow = BrowserWindow.fromWebContents(event.sender);
+      if (!sourceWindow) {
+        return "main";
+      }
+      return desktopShellState.getSessionByWindowId(sourceWindow.id)?.windowLabel ?? "main";
+    },
+    listRecentSessions() {
+      return desktopShellState.recentSessions;
+    },
+    listWindows,
+    async openExternalUrl(url) {
+      await shell.openExternal(url);
+      return true;
+    },
+    openWindow(input) {
+      const window = openWindow(input);
+      const session = desktopShellState.getSessionByWindowId(window.id);
+      if (!session) {
+        return null;
+      }
+      return {
+        windowId: window.id,
+        sessionId: session.id,
+        windowLabel: session.windowLabel,
+        workspaceLabel: session.workspaceLabel,
+        focused: window.isFocused(),
+        hidden: window.isVisible() === false,
+      };
+    },
+    reopenSession,
+    revealItemInDir(path) {
+      shell.showItemInFolder(path);
+      return true;
+    },
+    setTrayEnabled(enabled) {
+      desktopShellState.setTrayEnabled(enabled === true);
+      persistDesktopState();
+      updateTray();
+      return getTrayState();
+    },
+    showNotification(event, input) {
+      if (!Notification.isSupported()) {
+        return false;
+      }
 
-ipcMain.handle(
-  DESKTOP_HOST_IPC_CHANNELS.openExternalUrl,
-  async (_event: IpcMainInvokeEvent, url: string) => {
-    await shell.openExternal(url);
-    return true;
-  }
-);
-
-ipcMain.handle(
-  DESKTOP_HOST_IPC_CHANNELS.revealItemInDir,
-  async (_event: IpcMainInvokeEvent, path: string) => shell.showItemInFolder(path)
-);
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getBrowserDebugSession, async () => {
-  return getBrowserDebugSession();
+      const sourceWindow = BrowserWindow.fromWebContents(event.sender);
+      const notification = new Notification({
+        title: input.title,
+        body: input.body ?? "",
+      });
+      notification.on("click", () => {
+        if (sourceWindow && !sourceWindow.isDestroyed()) {
+          sourceWindow.show();
+          sourceWindow.focus();
+        }
+      });
+      notification.show();
+      return true;
+    },
+  },
+  ipcMain,
 });
-
-ipcMain.handle(
-  DESKTOP_HOST_IPC_CHANNELS.ensureBrowserDebugSession,
-  async (_event: IpcMainInvokeEvent, input?: DesktopBrowserDebugSessionInput) => {
-    return ensureBrowserDebugSession(input);
-  }
-);
 
 app.on("second-instance", () => {
   const openWindows = BrowserWindow.getAllWindows();
