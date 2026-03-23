@@ -2,7 +2,8 @@ use super::*;
 mod agent_task_launch_synthesis_autodrive;
 use agent_task_launch_synthesis_autodrive::{
     merge_scenario_profile, synthesize_auto_drive_autonomy_state,
-    synthesize_auto_drive_context_policy, synthesize_auto_drive_decision_policy,
+    synthesize_auto_drive_context_policy, synthesize_auto_drive_continuation_policy,
+    synthesize_auto_drive_continuation_state, synthesize_auto_drive_decision_policy,
     synthesize_auto_drive_outcome_feedback, synthesize_auto_drive_scenario_profile,
     synthesize_launch_decision_trace,
 };
@@ -520,6 +521,36 @@ fn build_decision_policy_guidance(auto_drive: &AgentTaskAutoDriveState) -> Vec<S
     guidance
 }
 
+fn build_continuation_policy_guidance(auto_drive: &AgentTaskAutoDriveState) -> Vec<String> {
+    let Some(continuation_policy) = auto_drive.continuation_policy.as_ref() else {
+        return Vec::new();
+    };
+    let mut guidance = Vec::new();
+    if let Some(enabled) = continuation_policy.enabled {
+        guidance.push(format!("Enabled: {enabled}."));
+    }
+    if let Some(max_automatic_follow_ups) = continuation_policy.max_automatic_follow_ups {
+        guidance.push(format!(
+            "Automatic follow-up budget: {max_automatic_follow_ups}."
+        ));
+    }
+    if let Some(require_validation_success_to_stop) =
+        continuation_policy.require_validation_success_to_stop
+    {
+        guidance.push(format!(
+            "Require validation success before stop: {require_validation_success_to_stop}."
+        ));
+    }
+    if let Some(minimum_confidence_to_stop) =
+        read_optional_text(continuation_policy.minimum_confidence_to_stop.as_deref())
+    {
+        guidance.push(format!(
+            "Minimum confidence to stop: {minimum_confidence_to_stop}."
+        ));
+    }
+    guidance
+}
+
 pub(crate) fn synthesize_agent_task_auto_drive_state(
     explicit: Option<AgentTaskAutoDriveState>,
     context: &WorkspaceLaunchContext,
@@ -535,6 +566,10 @@ pub(crate) fn synthesize_agent_task_auto_drive_state(
         &auto_drive,
         context,
     );
+    auto_drive.continuation_policy =
+        synthesize_auto_drive_continuation_policy(auto_drive.continuation_policy.clone());
+    auto_drive.continuation_state =
+        synthesize_auto_drive_continuation_state(auto_drive.continuation_state.clone());
     auto_drive.scenario_profile = synthesize_auto_drive_scenario_profile(
         auto_drive.scenario_profile.clone(),
         &auto_drive,
@@ -754,6 +789,7 @@ fn build_auto_drive_launch_instruction(
     let workspace_graph_guidance = build_workspace_graph_guidance(context);
     let context_policy_guidance = build_context_policy_guidance(auto_drive);
     let decision_policy_guidance = build_decision_policy_guidance(auto_drive);
+    let continuation_policy_guidance = build_continuation_policy_guidance(auto_drive);
     let evaluation_strategy_guidance = build_evaluation_strategy_guidance(mission_brief);
 
     [
@@ -775,6 +811,7 @@ fn build_auto_drive_launch_instruction(
             .and_then(|values| format_multiline_list("Hard boundaries", values)),
         format_multiline_list("Context policy", context_policy_guidance),
         format_multiline_list("Decision policy", decision_policy_guidance),
+        format_multiline_list("Continuation policy", continuation_policy_guidance),
         format_multiline_list("App workspace graph", workspace_graph_guidance),
         format_multiline_list("Repository guidance", repo_guidance),
         format_multiline_list("Evaluation strategy", evaluation_strategy_guidance),
@@ -786,7 +823,7 @@ fn build_auto_drive_launch_instruction(
                 .to_string()
         }),
         Some(
-            "Execution policy:\n- Start by inspecting current repo state, authority docs, and the app-wide workspace graph.\n- Make the smallest safe change that advances the destination.\n- Validate before claiming arrival.\n- Stop and surface blockers instead of broadening scope silently."
+            "Execution policy:\n- Start by inspecting current repo state, authority docs, and the app-wide workspace graph.\n- Make the smallest safe change that advances the destination.\n- When the route is useful but not yet final, issue focused self-follow-up prompts instead of stopping early.\n- Validate before claiming arrival.\n- Stop and surface blockers instead of broadening scope silently."
                 .to_string(),
         ),
     ]
@@ -794,6 +831,28 @@ fn build_auto_drive_launch_instruction(
     .flatten()
     .collect::<Vec<_>>()
     .join("\n\n")
+}
+
+pub(crate) fn build_auto_drive_turn_guidance(
+    operator_seed: &str,
+    access_mode: &str,
+    preferred_backend_ids: &[String],
+    auto_drive: AgentTaskAutoDriveState,
+    context: &WorkspaceLaunchContext,
+) -> String {
+    let auto_drive = synthesize_agent_task_auto_drive_state(Some(auto_drive), context)
+        .expect("turn auto drive state should exist");
+    let objective = read_optional_text(Some(auto_drive.destination.title.as_str()))
+        .unwrap_or_else(|| operator_seed.to_string());
+    let mission_brief = synthesize_agent_task_mission_brief(
+        None,
+        objective,
+        access_mode,
+        preferred_backend_ids,
+        Some(&auto_drive),
+        context,
+    );
+    build_auto_drive_launch_instruction(operator_seed, &mission_brief, &auto_drive, context)
 }
 
 pub(crate) fn synthesize_agent_task_steps(
@@ -855,6 +914,8 @@ mod tests {
             }),
             context_policy: None,
             decision_policy: None,
+            continuation_policy: None,
+            continuation_state: None,
             scenario_profile: None,
             decision_trace: None,
             outcome_feedback: None,
@@ -943,6 +1004,7 @@ mod tests {
         assert!(instruction.contains("Peer workspace: Peer Workspace"));
         assert!(instruction.contains("Context policy"));
         assert!(instruction.contains("Decision policy"));
+        assert!(instruction.contains("Continuation policy"));
         assert!(instruction.contains("Evaluation strategy"));
         assert!(instruction.contains("Representative regression lane"));
         assert!(instruction.contains("held-out regression detection"));
@@ -977,6 +1039,27 @@ mod tests {
                 .as_ref()
                 .and_then(|policy| policy.prompt_strategy.as_deref()),
             Some("workspace_graph_first")
+        );
+        assert_eq!(
+            auto_drive
+                .continuation_policy
+                .as_ref()
+                .and_then(|policy| policy.enabled),
+            Some(true)
+        );
+        assert_eq!(
+            auto_drive
+                .continuation_policy
+                .as_ref()
+                .and_then(|policy| policy.max_automatic_follow_ups),
+            Some(2)
+        );
+        assert_eq!(
+            auto_drive
+                .autonomy_state
+                .as_ref()
+                .and_then(|state| state.unattended_continuation_allowed),
+            Some(true)
         );
         assert_eq!(
             auto_drive

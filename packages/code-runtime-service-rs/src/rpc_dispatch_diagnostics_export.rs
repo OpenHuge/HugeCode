@@ -843,6 +843,8 @@ mod tests {
             risk_policy: None,
             context_policy: None,
             decision_policy: None,
+            continuation_policy: None,
+            continuation_state: None,
             scenario_profile: None,
             decision_trace: None,
             outcome_feedback: None,
