@@ -1,291 +1,21 @@
 use super::*;
-use crate::{
-    instruction_skills,
-    native_state_store::{TABLE_NATIVE_PLUGINS, TABLE_NATIVE_SKILLS},
-    rpc_dispatch::workspace_git_dispatch::resolve_workspace_path,
-    rpc_dispatch_native_skills::set_native_skill_enabled,
+use crate::{instruction_skills, rpc_dispatch::workspace_git_dispatch::resolve_workspace_path};
+#[path = "rpc_dispatch_extensions_support.rs"]
+mod support;
+use support::{
+    default_registry_sources, ensure_legacy_extension_records_imported,
+    extension_record_input_from_spec, instruction_skill_overlays_from_store,
+    instruction_skill_record_input_from_overlay, normalize_ui_apps_from_value,
+    optional_string_array, optional_workspace_id, provider_extension_to_catalog,
+    string_array_from_object, string_from_object,
 };
+#[cfg(test)]
+use support::instruction_skill_overlay_from_spec;
 
 const INSTRUCTION_SKILL_BODY_RESOURCE_ID: &str = "body";
 const INSTRUCTION_SKILL_FRONTMATTER_RESOURCE_ID: &str = "frontmatter";
 const INSTRUCTION_SKILL_SUPPORTING_FILES_RESOURCE_ID: &str = "supporting-files";
 const INSTRUCTION_SKILL_SUPPORTING_FILE_PREFIX: &str = "supporting-file:";
-
-fn optional_string_array_from_value(value: Option<&Value>) -> Vec<String> {
-    value
-        .and_then(Value::as_array)
-        .map(|entries| {
-            entries
-                .iter()
-                .filter_map(Value::as_str)
-                .map(str::trim)
-                .filter(|entry| !entry.is_empty())
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
-
-fn string_from_object(record: Option<&serde_json::Map<String, Value>>, keys: &[&str]) -> Option<String> {
-    let record = record?;
-    for key in keys {
-        let value = record
-            .get(*key)
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|entry| !entry.is_empty());
-        if let Some(value) = value {
-            return Some(value.to_string());
-        }
-    }
-    None
-}
-
-fn string_array_from_object(record: Option<&serde_json::Map<String, Value>>, keys: &[&str]) -> Vec<String> {
-    let record = match record {
-        Some(record) => record,
-        None => return Vec::new(),
-    };
-    for key in keys {
-        let values = optional_string_array_from_value(record.get(*key));
-        if !values.is_empty() {
-            return values;
-        }
-    }
-    Vec::new()
-}
-
-fn optional_workspace_id(params: &serde_json::Map<String, Value>) -> Option<String> {
-    read_optional_string(params, "workspaceId")
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-}
-
-fn optional_string_array(params: &serde_json::Map<String, Value>, key: &str) -> Vec<String> {
-    params
-        .get(key)
-        .and_then(Value::as_array)
-        .map(|entries| {
-            entries
-                .iter()
-                .filter_map(Value::as_str)
-                .map(|entry| entry.trim().to_string())
-                .filter(|entry| !entry.is_empty())
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
-
-fn normalize_ui_apps_from_value(value: Option<&Value>) -> Vec<extensions_runtime::RuntimeExtensionUiAppPayload> {
-    value
-        .and_then(Value::as_array)
-        .map(|entries| {
-            entries
-                .iter()
-                .filter_map(Value::as_object)
-                .filter_map(|entry| {
-                    let app_id = entry
-                        .get("appId")
-                        .or_else(|| entry.get("app_id"))
-                        .and_then(Value::as_str)
-                        .map(str::trim)
-                        .filter(|value| !value.is_empty())?
-                        .to_string();
-                    let route = entry
-                        .get("route")
-                        .and_then(Value::as_str)
-                        .map(str::trim)
-                        .filter(|value| !value.is_empty())?
-                        .to_string();
-                    Some(extensions_runtime::RuntimeExtensionUiAppPayload {
-                        app_id,
-                        title: entry
-                            .get("title")
-                            .and_then(Value::as_str)
-                            .map(str::trim)
-                            .filter(|value| !value.is_empty())
-                            .unwrap_or(route.as_str())
-                            .to_string(),
-                        route,
-                        description: entry
-                            .get("description")
-                            .and_then(Value::as_str)
-                            .map(str::to_string),
-                        icon: entry.get("icon").and_then(Value::as_str).map(str::to_string),
-                    })
-                })
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
-
-fn default_registry_sources() -> Vec<extensions_runtime::RuntimeExtensionRegistrySourcePayload> {
-    vec![
-        extensions_runtime::RuntimeExtensionRegistrySourcePayload {
-            source_id: "workspace".to_string(),
-            display_name: "Workspace Extensions".to_string(),
-            kind: "workspace".to_string(),
-            url: None,
-            public: false,
-            install_supported: true,
-            search_supported: true,
-        },
-        extensions_runtime::RuntimeExtensionRegistrySourcePayload {
-            source_id: "hugecode-private-registry".to_string(),
-            display_name: "HugeCode Private Registry".to_string(),
-            kind: "private-registry".to_string(),
-            url: Some("https://registry.hugecode.local".to_string()),
-            public: false,
-            install_supported: true,
-            search_supported: true,
-        },
-        extensions_runtime::RuntimeExtensionRegistrySourcePayload {
-            source_id: "mcp-registry".to_string(),
-            display_name: "MCP Registry".to_string(),
-            kind: "public-registry".to_string(),
-            url: Some("https://registry.modelcontextprotocol.io".to_string()),
-            public: true,
-            install_supported: true,
-            search_supported: true,
-        },
-    ]
-}
-
-fn provider_extension_to_catalog(
-    extension: &RuntimeProviderExtension,
-    workspace_id: Option<&str>,
-) -> extensions_runtime::RuntimeExtensionSpecPayload {
-    let now = now_ms();
-    extensions_runtime::RuntimeExtensionSpecPayload {
-        extension_id: extension.provider_id.clone(),
-        version: "1.0.0".to_string(),
-        display_name: extension.display_name.clone(),
-        publisher: "workspace-provider".to_string(),
-        summary: format!("Provider extension for {}", extension.display_name),
-        kind: "provider".to_string(),
-        distribution: if workspace_id.is_some() {
-            "workspace".to_string()
-        } else {
-            "private-registry".to_string()
-        },
-        name: extension.display_name.clone(),
-        transport: "openai-compatible".to_string(),
-        lifecycle_state: if extension.api_key.is_some() {
-            "enabled".to_string()
-        } else {
-            "blocked".to_string()
-        },
-        enabled: extension.api_key.is_some(),
-        workspace_id: workspace_id.map(str::to_string),
-        capabilities: vec!["models".to_string(), "provider-routing".to_string()],
-        permissions: if extension.api_key_env.is_empty() {
-            vec![]
-        } else {
-            vec![format!("secret:{}", extension.api_key_env)]
-        },
-        ui_apps: Vec::new(),
-        provenance: json!({
-            "sourceId": "workspace-provider",
-            "aliases": extension.aliases,
-            "pool": extension.pool,
-            "defaultModelId": extension.default_model_id,
-            "compatBaseUrl": extension.compat_base_url,
-        }),
-        config: json!({
-            "pool": extension.pool,
-            "aliases": extension.aliases,
-            "defaultModelId": extension.default_model_id,
-            "compatBaseUrl": extension.compat_base_url,
-            "apiKeyEnv": extension.api_key_env,
-        }),
-        installed_at: now,
-        updated_at: now,
-    }
-}
-
-fn native_plugin_to_catalog(
-    plugin: &Value,
-    workspace_id: Option<&str>,
-) -> Option<extensions_runtime::RuntimeExtensionSpecPayload> {
-    let object = plugin.as_object()?;
-    let extension_id = object
-        .get("pluginId")
-        .or_else(|| object.get("id"))
-        .and_then(Value::as_str)?
-        .trim()
-        .to_string();
-    let display_name = object
-        .get("name")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or(extension_id.as_str())
-        .to_string();
-    let enabled = object.get("enabled").and_then(Value::as_bool).unwrap_or(true);
-    Some(extensions_runtime::RuntimeExtensionSpecPayload {
-        extension_id,
-        version: object
-            .get("version")
-            .and_then(Value::as_str)
-            .unwrap_or("1.0.0")
-            .to_string(),
-        display_name: display_name.clone(),
-        publisher: object
-            .get("publisher")
-            .and_then(Value::as_str)
-            .unwrap_or("native")
-            .to_string(),
-        summary: object
-            .get("description")
-            .or_else(|| object.get("summary"))
-            .and_then(Value::as_str)
-            .unwrap_or("Host-native extension")
-            .to_string(),
-        kind: "host".to_string(),
-        distribution: "workspace".to_string(),
-        name: display_name,
-        transport: "host-native".to_string(),
-        lifecycle_state: if enabled {
-            "enabled".to_string()
-        } else {
-            "installed".to_string()
-        },
-        enabled,
-        workspace_id: workspace_id.map(str::to_string),
-        capabilities: optional_string_array_from_object(object, "capabilities"),
-        permissions: optional_string_array_from_object(object, "permissions"),
-        ui_apps: normalize_ui_apps_from_value(object.get("uiApps").or_else(|| object.get("ui_apps"))),
-        provenance: json!({
-            "sourceId": "native-plugin",
-        }),
-        config: Value::Object(object.clone()),
-        installed_at: object
-            .get("updatedAt")
-            .and_then(Value::as_u64)
-            .unwrap_or_else(now_ms),
-        updated_at: object
-            .get("updatedAt")
-            .and_then(Value::as_u64)
-            .unwrap_or_else(now_ms),
-    })
-}
-
-fn optional_string_array_from_object(
-    record: &serde_json::Map<String, Value>,
-    key: &str,
-) -> Vec<String> {
-    record
-        .get(key)
-        .and_then(Value::as_array)
-        .map(|entries| {
-            entries
-                .iter()
-                .filter_map(Value::as_str)
-                .map(str::to_string)
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
 
 fn instruction_skill_to_catalog(
     skill: instruction_skills::DiscoveredInstructionSkillSummary,
@@ -373,7 +103,8 @@ fn instruction_skill_resource_payload(
                 extension_id: extension_id.to_string(),
                 resource_id: resource_id.to_string(),
                 content_type: "application/json".to_string(),
-                content: serde_json::to_string(&skill.frontmatter).unwrap_or_else(|_| "{}".to_string()),
+                content: serde_json::to_string(&skill.frontmatter)
+                    .unwrap_or_else(|_| "{}".to_string()),
                 metadata: Some(json!({
                     "source": "instruction-skill",
                     "entryPath": skill.entry_path,
@@ -385,7 +116,8 @@ fn instruction_skill_resource_payload(
                 extension_id: extension_id.to_string(),
                 resource_id: resource_id.to_string(),
                 content_type: "application/json".to_string(),
-                content: serde_json::to_string(&skill.supporting_files).unwrap_or_else(|_| "[]".to_string()),
+                content: serde_json::to_string(&skill.supporting_files)
+                    .unwrap_or_else(|_| "[]".to_string()),
                 metadata: Some(json!({
                     "source": "instruction-skill",
                     "count": skill.supporting_files.len(),
@@ -405,16 +137,18 @@ fn instruction_skill_resource_payload(
                     "instruction skill `{extension_id}` does not expose supporting file `{requested_path}`"
                 )));
             };
-            Ok(extensions_runtime::RuntimeExtensionResourceReadResponsePayload {
-                extension_id: extension_id.to_string(),
-                resource_id: resource_id.to_string(),
-                content_type: "text/plain".to_string(),
-                content: file.content.clone(),
-                metadata: Some(json!({
-                    "source": "instruction-skill",
-                    "path": file.path,
-                })),
-            })
+            Ok(
+                extensions_runtime::RuntimeExtensionResourceReadResponsePayload {
+                    extension_id: extension_id.to_string(),
+                    resource_id: resource_id.to_string(),
+                    content_type: "text/plain".to_string(),
+                    content: file.content.clone(),
+                    metadata: Some(json!({
+                        "source": "instruction-skill",
+                        "path": file.path,
+                    })),
+                },
+            )
         }
         _ => Err(RpcError::invalid_params(format!(
             "instruction skill `{extension_id}` does not expose resource `{resource_id}`"
@@ -432,11 +166,7 @@ async fn read_instruction_skill_resource(
         Some(workspace_id) => Some(resolve_workspace_path(ctx, workspace_id).await?),
         None => None,
     };
-    let skill_overlays = ctx
-        .native_state_store
-        .list_entities(TABLE_NATIVE_SKILLS)
-        .await
-        .map_err(RpcError::internal)?;
+    let skill_overlays = instruction_skill_overlays_from_store(ctx, workspace_id).await?;
     let roots = instruction_skills::resolve_instruction_skill_roots(workspace_root);
     let Some(skill) =
         instruction_skills::get_instruction_skill(&roots, skill_overlays.as_slice(), extension_id)
@@ -451,28 +181,14 @@ pub(crate) async fn list_extension_catalog(
     workspace_id: Option<&str>,
     include_disabled: bool,
 ) -> Result<Vec<extensions_runtime::RuntimeExtensionSpecPayload>, RpcError> {
+    ensure_legacy_extension_records_imported(ctx).await?;
     let workspace_root = match workspace_id {
         Some(workspace_id) => Some(resolve_workspace_path(ctx, workspace_id).await?),
         None => None,
     };
-    let mut entries = ctx.extensions_store.read().await.list(workspace_id);
+    let mut entries = ctx.extensions_store.read().await.list_visible(workspace_id);
 
-    let native_plugins = ctx
-        .native_state_store
-        .list_entities(TABLE_NATIVE_PLUGINS)
-        .await
-        .map_err(RpcError::internal)?;
-    entries.extend(
-        native_plugins
-            .iter()
-            .filter_map(|entry| native_plugin_to_catalog(entry, workspace_id)),
-    );
-
-    let skill_overlays = ctx
-        .native_state_store
-        .list_entities(TABLE_NATIVE_SKILLS)
-        .await
-        .map_err(RpcError::internal)?;
+    let skill_overlays = instruction_skill_overlays_from_store(ctx, workspace_id).await?;
     let roots = instruction_skills::resolve_instruction_skill_roots(workspace_root);
     entries.extend(
         instruction_skills::list_instruction_skill_summaries(&roots, skill_overlays.as_slice())
@@ -608,7 +324,6 @@ async fn upsert_instruction_skill_overlay(
     params: &serde_json::Map<String, Value>,
     existing: Option<&extensions_runtime::RuntimeExtensionSpecPayload>,
 ) -> Result<extensions_runtime::RuntimeExtensionSpecPayload, RpcError> {
-    let workspace_id = optional_workspace_id(params);
     let extension_id = read_required_string(params, "extensionId")?;
     let Some(existing) = existing else {
         return Err(RpcError::invalid_params(format!(
@@ -616,27 +331,29 @@ async fn upsert_instruction_skill_overlay(
         )));
     };
     let payload = build_instruction_skill_overlay_payload(extension_id, params, Some(existing));
-    let enabled = payload.get("enabled").and_then(Value::as_bool);
-    ctx.native_state_store
-        .upsert_entity(TABLE_NATIVE_SKILLS, extension_id, enabled, payload)
-        .await
-        .map_err(RpcError::internal)?;
-    let entries = list_extension_catalog(ctx, workspace_id.as_deref(), true).await?;
-    catalog_entry_by_id(entries, extension_id).ok_or_else(|| {
+    let input = instruction_skill_record_input_from_overlay(&payload).ok_or_else(|| {
         RpcError::internal(format!(
-            "instruction extension `{extension_id}` was updated but could not be reloaded from the catalog"
+            "instruction extension `{extension_id}` produced an invalid overlay payload"
         ))
-    })
+    })?;
+    let spec = {
+        let mut store = ctx.extensions_store.write().await;
+        store.upsert_record(input)
+    };
+    Ok(spec)
 }
 
 fn extension_record_input_from_params(
     params: &serde_json::Map<String, Value>,
 ) -> Result<extensions_runtime::RuntimeExtensionRecordInput, RpcError> {
     let extension_id = read_required_string(params, "extensionId")?.to_string();
-    let display_name =
-        read_optional_string(params, "displayName").or_else(|| read_optional_string(params, "name"));
+    let display_name = read_optional_string(params, "displayName")
+        .or_else(|| read_optional_string(params, "name"));
     let transport = read_optional_string(params, "transport").unwrap_or("frontend".to_string());
-    let enabled = params.get("enabled").and_then(Value::as_bool).unwrap_or(true);
+    let enabled = params
+        .get("enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
     Ok(extensions_runtime::RuntimeExtensionRecordInput {
         extension_id,
         version: read_optional_string(params, "version"),
@@ -651,7 +368,9 @@ fn extension_record_input_from_params(
         workspace_id: optional_workspace_id(params),
         capabilities: optional_string_array(params, "capabilities"),
         permissions: optional_string_array(params, "permissions"),
-        ui_apps: normalize_ui_apps_from_value(params.get("uiApps").or_else(|| params.get("ui_apps"))),
+        ui_apps: normalize_ui_apps_from_value(
+            params.get("uiApps").or_else(|| params.get("ui_apps")),
+        ),
         provenance: params.get("provenance").cloned(),
         config: params.get("config").cloned(),
     })
@@ -675,7 +394,7 @@ fn publish_extension_updated_event(
     );
 }
 
-pub(super) async fn handle_extension_catalog_list_v2(
+pub(crate) async fn handle_extension_catalog_list_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
@@ -686,14 +405,15 @@ pub(super) async fn handle_extension_catalog_list_v2(
         .and_then(Value::as_bool)
         .unwrap_or(true);
     let kinds = optional_string_array(params, "kinds");
-    let mut entries = list_extension_catalog(ctx, workspace_id.as_deref(), include_disabled).await?;
+    let mut entries =
+        list_extension_catalog(ctx, workspace_id.as_deref(), include_disabled).await?;
     if !kinds.is_empty() {
         entries.retain(|entry| kinds.iter().any(|kind| kind == &entry.kind));
     }
     Ok(json!(entries))
 }
 
-pub(super) async fn handle_extension_get_v2(
+pub(crate) async fn handle_extension_get_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
@@ -706,7 +426,7 @@ pub(super) async fn handle_extension_get_v2(
     )))
 }
 
-pub(super) async fn handle_extension_install_v2(
+pub(crate) async fn handle_extension_install_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
@@ -731,7 +451,7 @@ pub(super) async fn handle_extension_install_v2(
     Ok(json!(spec))
 }
 
-pub(super) async fn handle_extension_update_v2(
+pub(crate) async fn handle_extension_update_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
@@ -756,7 +476,7 @@ pub(super) async fn handle_extension_update_v2(
     Ok(json!(spec))
 }
 
-pub(super) async fn handle_extension_set_state_v2(
+pub(crate) async fn handle_extension_set_state_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
@@ -765,6 +485,7 @@ pub(super) async fn handle_extension_set_state_v2(
     let extension_id = read_required_string(params, "extensionId")?;
     let enabled = read_optional_bool(params, "enabled")
         .ok_or_else(|| RpcError::invalid_params("Missing required boolean field: enabled"))?;
+    ensure_legacy_extension_records_imported(ctx).await?;
 
     let store_updated = {
         let mut store = ctx.extensions_store.write().await;
@@ -775,55 +496,38 @@ pub(super) async fn handle_extension_set_state_v2(
         return Ok(json!(spec));
     }
 
-    if let Ok(payload) = ctx
-        .native_state_store
-        .set_entity_enabled(TABLE_NATIVE_PLUGINS, extension_id, enabled)
-        .await
-    {
-        if let Some(spec) = native_plugin_to_catalog(&payload, workspace_id.as_deref()) {
-            publish_extension_updated_event(ctx, "updated", &spec);
-            return Ok(json!(spec));
-        }
-    }
-
-    let _ = set_native_skill_enabled(ctx, &Value::Object(params.clone())).await?;
-    let entries = list_extension_catalog(ctx, workspace_id.as_deref(), true).await?;
-    Ok(json!(catalog_entry_by_id(entries, extension_id)))
+    let existing = catalog_entry_by_id(
+        list_extension_catalog(ctx, workspace_id.as_deref(), true).await?,
+        extension_id,
+    )
+    .ok_or_else(|| RpcError::invalid_params(format!("extension `{extension_id}` was not found")))?;
+    let mut input = extension_record_input_from_spec(&existing);
+    input.enabled = enabled;
+    input.lifecycle_state = Some(if enabled {
+        "enabled".to_string()
+    } else {
+        "installed".to_string()
+    });
+    let spec = {
+        let mut store = ctx.extensions_store.write().await;
+        store.upsert_record(input)
+    };
+    publish_extension_updated_event(ctx, "updated", &spec);
+    Ok(json!(spec))
 }
 
-pub(super) async fn handle_extension_remove_v2(
+pub(crate) async fn handle_extension_remove_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
     let params = as_object(params)?;
     let workspace_id = optional_workspace_id(params);
     let extension_id = read_required_string(params, "extensionId")?;
-    let existing = catalog_entry_by_id(
-        list_extension_catalog(ctx, workspace_id.as_deref(), true).await?,
-        extension_id,
-    );
+    ensure_legacy_extension_records_imported(ctx).await?;
 
-    let removed = if existing.as_ref().is_some_and(|entry| entry.kind == "instruction") {
-        ctx.native_state_store
-            .remove_entity(TABLE_NATIVE_SKILLS, extension_id)
-            .await
-            .unwrap_or(false)
-    } else {
-        let store_removed = {
-            let mut store = ctx.extensions_store.write().await;
-            store.remove(workspace_id.as_deref(), extension_id)
-        };
-        let native_plugin_removed = ctx
-            .native_state_store
-            .remove_entity(TABLE_NATIVE_PLUGINS, extension_id)
-            .await
-            .unwrap_or(false);
-        let native_skill_removed = ctx
-            .native_state_store
-            .remove_entity(TABLE_NATIVE_SKILLS, extension_id)
-            .await
-            .unwrap_or(false);
-        store_removed || native_plugin_removed || native_skill_removed
+    let removed = {
+        let mut store = ctx.extensions_store.write().await;
+        store.remove(workspace_id.as_deref(), extension_id)
     };
 
     if removed {
@@ -843,7 +547,7 @@ pub(super) async fn handle_extension_remove_v2(
     Ok(json!(removed))
 }
 
-pub(super) async fn handle_extension_registry_search_v2(
+pub(crate) async fn handle_extension_registry_search_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
@@ -858,8 +562,14 @@ pub(super) async fn handle_extension_registry_search_v2(
     let mut results = list_extension_catalog(ctx, workspace_id.as_deref(), true).await?;
     if !query.is_empty() {
         results.retain(|entry| {
-            entry.extension_id.to_ascii_lowercase().contains(query.as_str())
-                || entry.display_name.to_ascii_lowercase().contains(query.as_str())
+            entry
+                .extension_id
+                .to_ascii_lowercase()
+                .contains(query.as_str())
+                || entry
+                    .display_name
+                    .to_ascii_lowercase()
+                    .contains(query.as_str())
                 || entry.summary.to_ascii_lowercase().contains(query.as_str())
         });
     }
@@ -873,14 +583,14 @@ pub(super) async fn handle_extension_registry_search_v2(
     }))
 }
 
-pub(super) async fn handle_extension_registry_sources_v2(
+pub(crate) async fn handle_extension_registry_sources_v2(
     _ctx: &AppContext,
     _params: &Value,
 ) -> Result<Value, RpcError> {
     Ok(json!(default_registry_sources()))
 }
 
-pub(super) async fn handle_extension_permissions_evaluate_v2(
+pub(crate) async fn handle_extension_permissions_evaluate_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
@@ -912,7 +622,7 @@ pub(super) async fn handle_extension_permissions_evaluate_v2(
     }))
 }
 
-pub(super) async fn handle_extension_health_read_v2(
+pub(crate) async fn handle_extension_health_read_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
@@ -926,7 +636,9 @@ pub(super) async fn handle_extension_health_read_v2(
     .ok_or_else(|| RpcError::invalid_params(format!("extension `{extension_id}` was not found")))?;
     let healthy = spec.enabled && !matches!(spec.lifecycle_state.as_str(), "blocked" | "degraded");
     let warnings = match spec.lifecycle_state.as_str() {
-        "blocked" => vec!["Extension is blocked by missing readiness or permission requirements.".to_string()],
+        "blocked" => vec![
+            "Extension is blocked by missing readiness or permission requirements.".to_string(),
+        ],
         "degraded" => vec!["Extension is degraded and should be inspected before use.".to_string()],
         _ => Vec::new(),
     };
@@ -939,7 +651,7 @@ pub(super) async fn handle_extension_health_read_v2(
     }))
 }
 
-pub(super) async fn handle_extension_ui_apps_list_v2(
+pub(crate) async fn handle_extension_ui_apps_list_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
@@ -964,7 +676,7 @@ pub(super) async fn handle_extension_ui_apps_list_v2(
     }))
 }
 
-pub(super) async fn handle_extension_tools_list_v2(
+pub(crate) async fn handle_extension_tools_list_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
@@ -980,7 +692,7 @@ pub(super) async fn handle_extension_tools_list_v2(
     Ok(json!(tools))
 }
 
-pub(super) async fn handle_extension_resource_read_v2(
+pub(crate) async fn handle_extension_resource_read_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {

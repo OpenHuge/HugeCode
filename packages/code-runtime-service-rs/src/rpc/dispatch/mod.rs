@@ -10,8 +10,6 @@ mod browser_debug_dispatch;
 mod codex_dispatch;
 #[path = "../../rpc_dispatch_diagnostics_export.rs"]
 mod diagnostics_export_dispatch;
-#[path = "../../rpc_dispatch_extensions.rs"]
-mod extensions_dispatch;
 #[path = "../../rpc_dispatch_kernel.rs"]
 mod kernel_dispatch;
 #[path = "../../rpc_dispatch_mission_control.rs"]
@@ -61,6 +59,7 @@ use bootstrap_batch::{
 };
 use browser_debug_dispatch::{handle_browser_debug_run_v1, handle_browser_debug_status_v1};
 use codex_dispatch::handle_codex_rpc_method;
+pub(crate) use crate::rpc_dispatch_extensions as extensions_dispatch;
 use diagnostics_export_dispatch::handle_runtime_diagnostics_export_v1;
 use extensions_dispatch::{
     handle_extension_catalog_list_v2, handle_extension_get_v2, handle_extension_health_read_v2,

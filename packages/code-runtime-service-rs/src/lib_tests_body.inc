@@ -2794,45 +2794,41 @@
             payload["result"]["capabilities"]["uiLayers"]["utilityPanel"],
             Value::Bool(true)
         );
+        assert_eq!(
+            payload["result"]["capabilities"]["tooling"]["plugins"],
+            Value::Bool(false)
+        );
+        assert_eq!(
+            payload["result"]["capabilities"]["tooling"]["skills"],
+            Value::Bool(false)
+        );
     }
 
     #[tokio::test]
-    async fn native_only_management_methods_support_crud_flow() {
+    async fn native_management_snapshot_projects_unified_extension_catalog() {
         let app = test_router();
 
         let install_payload = send_rpc_request(
             app.clone(),
             json!({
-                "method": "native_plugin_install",
+                "method": "code_extension_install_v2",
                 "params": {
-                    "pluginId": "plugin-a",
-                    "plugin": {
-                        "name": "Plugin A",
-                        "version": "1.0.0",
-                        "enabled": true
-                    }
+                    "extensionId": "plugin-a",
+                    "displayName": "Plugin A",
+                    "name": "Plugin A",
+                    "version": "1.0.0",
+                    "kind": "host",
+                    "distribution": "workspace",
+                    "transport": "host-native",
+                    "enabled": true,
+                    "config": {}
                 }
             }),
         )
         .await;
         assert_eq!(install_payload["ok"], Value::Bool(true));
         assert_eq!(
-            install_payload["result"]["id"],
-            Value::String("plugin-a".to_string())
-        );
-
-        let list_payload = send_rpc_request(
-            app.clone(),
-            json!({
-                "method": "native_plugins_list",
-                "params": {}
-            }),
-        )
-        .await;
-        assert_eq!(list_payload["ok"], Value::Bool(true));
-        assert_eq!(list_payload["result"].as_array().map(Vec::len), Some(1));
-        assert_eq!(
-            list_payload["result"][0]["id"],
+            install_payload["result"]["extensionId"],
             Value::String("plugin-a".to_string())
         );
 
@@ -2849,17 +2845,25 @@
             snapshot_payload["result"]["plugins"].as_array().map(Vec::len),
             Some(1)
         );
+        assert_eq!(
+            snapshot_payload["result"]["plugins"][0]["extensionId"],
+            Value::String("plugin-a".to_string())
+        );
+        assert_eq!(
+            snapshot_payload["result"]["skills"].as_array().map(Vec::len),
+            Some(0)
+        );
     }
 
     #[tokio::test]
-    async fn native_only_methods_validate_params_for_enabled_mutation() {
+    async fn native_only_tool_methods_validate_params_for_enabled_mutation() {
         let app = test_router();
         let payload = send_rpc_request(
             app.clone(),
             json!({
-                "method": "native_plugin_set_enabled",
+                "method": "native_tool_set_enabled",
                 "params": {
-                    "pluginId": "plugin-a"
+                    "toolId": "tool-a"
                 }
             }),
         )

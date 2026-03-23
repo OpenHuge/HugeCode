@@ -18,27 +18,36 @@ async fn native_unknown_rpc_method_returns_method_not_found() {
 }
 
 #[tokio::test]
-async fn native_plugin_update_missing_entity_returns_invalid_params() {
+async fn native_legacy_plugin_and_skill_methods_return_method_not_found() {
     let app = test_router();
-    let payload = send_rpc_request(
-        app,
-        json!({
-            "method": "native_plugin_update",
-            "params": {
-                "pluginId": "plugin-missing",
-                "plugin": {
-                    "name": "Missing Plugin"
-                }
-            }
-        }),
-    )
-    .await;
+    for method in [
+        "native_plugins_list",
+        "native_plugin_install",
+        "native_plugin_uninstall",
+        "native_plugin_update",
+        "native_plugin_set_enabled",
+        "native_skills_list",
+        "native_skill_get",
+        "native_skill_upsert",
+        "native_skill_remove",
+        "native_skill_set_enabled",
+    ] {
+        let payload = send_rpc_request(
+            app.clone(),
+            json!({
+                "method": method,
+                "params": {}
+            }),
+        )
+        .await;
 
-    assert_eq!(payload["ok"], Value::Bool(false));
-    assert_eq!(
-        payload["error"]["code"],
-        Value::String("INVALID_PARAMS".to_string())
-    );
+        assert_eq!(payload["ok"], Value::Bool(false), "expected failure for `{method}`");
+        assert_eq!(
+            payload["error"]["code"],
+            Value::String("METHOD_NOT_FOUND".to_string()),
+            "expected method not found for `{method}`"
+        );
+    }
 }
 
 #[tokio::test]
@@ -374,17 +383,10 @@ async fn native_state_store_migrations_and_crud_are_idempotent() {
 #[test]
 fn native_runtime_update_scope_matrix_covers_native_mutation_methods() {
     let expectations: &[(&str, &[&str])] = &[
-        ("native_plugin_install", &["plugins"]),
-        ("native_plugin_uninstall", &["plugins"]),
-        ("native_plugin_update", &["plugins"]),
-        ("native_plugin_set_enabled", &["plugins"]),
         ("native_tool_policy_upsert", &["tools"]),
         ("native_tool_set_enabled", &["tools"]),
         ("native_tool_secret_upsert", &["tools"]),
         ("native_tool_secret_remove", &["tools"]),
-        ("native_skill_upsert", &["skills"]),
-        ("native_skill_remove", &["skills"]),
-        ("native_skill_set_enabled", &["skills"]),
         ("native_theme_upsert", &["themes", "settings"]),
         ("native_theme_remove", &["themes", "settings"]),
         ("native_theme_set_active", &["themes", "settings"]),
@@ -428,10 +430,7 @@ fn native_runtime_update_scope_matrix_keeps_read_only_methods_outside_runtime_up
     let read_only_methods = [
         "native_management_snapshot",
         "native_review_comments_list",
-        "native_plugins_list",
         "native_tools_list",
-        "native_skills_list",
-        "native_skill_get",
         "native_themes_list",
         "native_schedules_list",
         "native_watchers_list",
@@ -491,7 +490,7 @@ fn native_rpc_capabilities_v2_method_set_hash_is_stable() {
     let methods = list_native_rpc_method_capabilities();
     assert_eq!(
         hash_rpc_method_capabilities(methods.as_slice()),
-        "e352cf7ba18bce7e"
+        "03d258d6bab6a9e9"
     );
 }
 
