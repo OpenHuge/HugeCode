@@ -87,7 +87,7 @@ fn provider_extension_aliases_from_catalog(
 fn runtime_provider_extension_from_catalog_entry(
     ctx: &AppContext,
     entry: extensions_runtime::RuntimeExtensionSpecPayload,
-) -> Option<RuntimeProviderExtension> {
+) -> Option<RuntimeResolvedProviderExtension> {
     let seed = provider_extension_seed_by_id(ctx, entry.extension_id.as_str());
     let aliases = provider_extension_aliases_from_catalog(&entry, seed);
     let display_name = if entry.display_name.trim().is_empty() {
@@ -113,7 +113,7 @@ fn runtime_provider_extension_from_catalog_entry(
         api_key_env.as_str(),
     );
 
-    Some(RuntimeProviderExtension {
+    Some(RuntimeResolvedProviderExtension {
         provider_id: entry.extension_id.clone(),
         display_name,
         pool,
@@ -127,7 +127,7 @@ fn runtime_provider_extension_from_catalog_entry(
 
 pub(super) async fn active_provider_extensions(
     ctx: &AppContext,
-) -> Vec<RuntimeProviderExtension> {
+) -> Vec<RuntimeResolvedProviderExtension> {
     active_provider_extension_specs(ctx)
         .await
         .into_iter()
@@ -138,7 +138,7 @@ pub(super) async fn active_provider_extensions(
 pub(super) async fn resolve_active_provider_extension_by_alias(
     ctx: &AppContext,
     provider_hint: &str,
-) -> Option<RuntimeProviderExtension> {
+) -> Option<RuntimeResolvedProviderExtension> {
     let active = active_provider_extensions(ctx).await;
     let normalized = normalize_provider_hint(provider_hint)?;
     active
@@ -149,7 +149,7 @@ pub(super) async fn resolve_active_provider_extension_by_alias(
 pub(super) async fn resolve_active_provider_extension_by_model_id(
     ctx: &AppContext,
     model_id: &str,
-) -> Option<RuntimeProviderExtension> {
+) -> Option<RuntimeResolvedProviderExtension> {
     let normalized_model_id = model_id.trim().to_ascii_lowercase();
     if normalized_model_id.is_empty() {
         return None;
