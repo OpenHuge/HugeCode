@@ -108,8 +108,7 @@ Internal helper crates such as `internal/runtime-policy-rs` remain in-repo for p
 
 ## Toolchain
 
-- **Node**: `22.21.1`
-- **Node 24**: also supported locally; root `engines.node` allows `>=22.21.1 <23 || >=24 <25`
+- **Node**: `24.11.1`
 - **pnpm**: `10.28.0`
 - **Rust**: `1.93.1`
 

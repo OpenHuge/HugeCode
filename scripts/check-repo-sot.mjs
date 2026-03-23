@@ -10,8 +10,8 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json
 const baselines = packageJson.config?.repoBaselines ?? {};
 
 const product = baselines.product ?? "HugeCode";
-const nodeVersion = baselines.node ?? "22.21.1";
-const nodeEngineRange = `>=${nodeVersion} <23 || >=24 <25`;
+const nodeVersion = baselines.node ?? "24.11.1";
+const nodeEngineRange = `>=${nodeVersion} <25`;
 const pnpmVersion = baselines.pnpm ?? "10.28.0";
 const rustVersion = baselines.rust ?? "1.93.1";
 const bannedLegacyToken = String.fromCharCode(99, 111, 119, 111, 114, 107);

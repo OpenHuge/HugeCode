@@ -200,6 +200,7 @@ packages/*/.codex/
 .codex/ux-audit/core-*.json
 .codex/ux-audit/perf-*.json
 .codex/ux-audit/screenshots/
+.devcontainer/local/
 .figma-workflow/
 artifacts/figma-codegen/
 
