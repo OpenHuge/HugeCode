@@ -51,6 +51,7 @@ fn build_chatgpt_decision_lab_prompt(
         "Optimize the decision only; do not execute the task.",
         "Choose exactly one recommendedOptionId from the supplied options.",
         research_rule,
+        "Treat this as an isolated task. Ignore unrelated earlier chat history unless it is repeated in the current request.",
         "Use the following request id only as opaque context.",
         &format!("Decision lab request id: {request_id}"),
         "Do not mention the request id in the response.",
@@ -70,10 +71,10 @@ fn build_chatgpt_decision_lab_prompt(
     .join("\n")
 }
 
-fn build_chatgpt_prepare_page_script() -> &'static str {
+fn build_chatgpt_prepare_page_script() -> String {
     r#"
-() => {
-  /* decision_lab_prepare_page_v2 */
+async () => {
+  /* decision_lab_prepare_page_v4 */
   const normalizeLabel = (value) => (value ?? '').replace(/\s+/g, ' ').trim();
   const dismissedDialogLabels = [];
   const dismissBlockingDialogs = () => {
@@ -90,11 +91,16 @@ fn build_chatgpt_prepare_page_script() -> &'static str {
       button.click();
     }
   };
-  dismissBlockingDialogs();
-  const assistantTurnCount = Array.from(document.querySelectorAll('main section')).filter((section) => {
+  const readAssistantTurnCount = () => Array.from(document.querySelectorAll('main section')).filter((section) => {
     const heading = normalizeLabel(section.querySelector('h4, [role="heading"]')?.textContent ?? '');
     return /^chatgpt said:?$/i.test(heading);
   }).length;
+  const findNewChatControl = () => Array.from(document.querySelectorAll('a, button')).find((element) => {
+    const label = normalizeLabel(`${element.getAttribute('aria-label') ?? ''} ${element.textContent ?? ''}`);
+    return /^new chat$/i.test(label);
+  });
+  const isConversationUrl = () => /^\/c(\/|$)/.test(window.location.pathname);
+  dismissBlockingDialogs();
   const composer =
     document.querySelector('#prompt-textarea') ||
     document.querySelector('textarea[placeholder]') ||
@@ -110,13 +116,72 @@ fn build_chatgpt_prepare_page_script() -> &'static str {
     composerFound: Boolean(composer),
     sendButtonFound: Boolean(sendButton),
     sendButtonEnabled: Boolean(sendButton) && !sendButton.disabled,
-    assistantTurnCount,
+    assistantTurnCount: readAssistantTurnCount(),
     dismissedDialogLabels,
+    newChatControlFound: Boolean(findNewChatControl()),
+    isConversationUrl: isConversationUrl(),
     title: document.title,
     url: window.location.href
   };
 }
 "#
+    .to_string()
+}
+
+fn build_chatgpt_reset_page_script(chatgpt_url: &str) -> String {
+    let chatgpt_url_literal =
+        serde_json::to_string(chatgpt_url).unwrap_or_else(|_| "\"https://chatgpt.com/\"".to_string());
+    format!(
+        r#"
+async () => {{
+  /* decision_lab_reset_page_v1 */
+  const chatgptUrl = {chatgpt_url_literal};
+  const normalizeLabel = (value) => (value ?? '').replace(/\s+/g, ' ').trim();
+  const dismissedDialogLabels = [];
+  const dismissBlockingDialogs = () => {{
+    const buttonPatterns = [/^continue$/i, /^close$/i, /^ok$/i, /^dismiss$/i, /^got it$/i, /^not now$/i, /^maybe later$/i];
+    for (const button of Array.from(document.querySelectorAll('button'))) {{
+      const label = normalizeLabel(`${{button.getAttribute('aria-label') ?? ''}} ${{button.textContent ?? ''}}`);
+      if (!label || button.disabled) {{
+        continue;
+      }}
+      if (!buttonPatterns.some((pattern) => pattern.test(label))) {{
+        continue;
+      }}
+      dismissedDialogLabels.push(label);
+      button.click();
+    }}
+  }};
+  const findNewChatControl = () => Array.from(document.querySelectorAll('a, button')).find((element) => {{
+    const label = normalizeLabel(`${{element.getAttribute('aria-label') ?? ''}} ${{element.textContent ?? ''}}`);
+    return /^new chat$/i.test(label);
+  }});
+  dismissBlockingDialogs();
+  const newChatControl = findNewChatControl();
+  if (newChatControl) {{
+    newChatControl.click();
+    return {{
+      ok: true,
+      action: 'new_chat_click',
+      dismissedDialogLabels
+    }};
+  }}
+  if (window.location.href !== chatgptUrl) {{
+    window.location.assign(chatgptUrl);
+    return {{
+      ok: true,
+      action: 'navigate_home',
+      dismissedDialogLabels
+    }};
+  }}
+  return {{
+    ok: true,
+    action: 'noop',
+    dismissedDialogLabels
+  }};
+}}
+"#
+    )
 }
 
 fn build_chatgpt_fill_and_send_script(prompt: &str) -> String {
@@ -600,15 +665,75 @@ fn extract_decision_lab_step_error(result: &Value) -> Option<String> {
     None
 }
 
+fn is_navigation_context_reset_error(error: &str) -> bool {
+    let normalized = error.trim().to_ascii_lowercase();
+    normalized.contains("execution context was destroyed")
+        || normalized.contains("cannot find context with specified id")
+}
+
 fn page_matches_chatgpt_url(candidate_url: &str, chatgpt_url: &str) -> bool {
-    let candidate = candidate_url.trim().trim_end_matches('/');
-    let target = chatgpt_url.trim().trim_end_matches('/');
-    if candidate.is_empty() || target.is_empty() {
+    let candidate_raw = candidate_url.trim();
+    let target_raw = chatgpt_url.trim();
+    if candidate_raw.is_empty() || target_raw.is_empty() {
         return false;
     }
+    let candidate = reqwest::Url::parse(candidate_raw).ok();
+    let target = reqwest::Url::parse(target_raw).ok();
+    let same_origin = match (candidate.as_ref(), target.as_ref()) {
+        (Some(candidate), Some(target)) => {
+            candidate.host_str() == target.host_str()
+                && candidate.scheme() == target.scheme()
+                && candidate.port_or_known_default() == target.port_or_known_default()
+        }
+        _ => false,
+    };
+    if same_origin {
+        let candidate_path = candidate
+            .as_ref()
+            .map(|value| value.path().trim_end_matches('/'))
+            .unwrap_or_default();
+        let target_path = target
+            .as_ref()
+            .map(|value| value.path().trim_end_matches('/'))
+            .unwrap_or_default();
+        let candidate_is_conversation =
+            candidate_path == "/c" || candidate_path.starts_with("/c/");
+        let target_is_conversation = target_path == "/c" || target_path.starts_with("/c/");
+        if target_is_conversation {
+            return candidate_path == target_path;
+        }
+        if candidate_is_conversation {
+            return false;
+        }
+        return true;
+    }
+    let candidate = candidate_raw.trim_end_matches('/');
+    let target = target_raw.trim_end_matches('/');
     candidate.starts_with(target)
         || target.starts_with(candidate)
         || (candidate.contains("chatgpt.com") && target.contains("chatgpt.com"))
+}
+
+fn page_is_same_chatgpt_surface(candidate_url: &str, chatgpt_url: &str) -> bool {
+    let candidate_raw = candidate_url.trim();
+    let target_raw = chatgpt_url.trim();
+    if candidate_raw.is_empty() || target_raw.is_empty() {
+        return false;
+    }
+    let candidate = reqwest::Url::parse(candidate_raw).ok();
+    let target = reqwest::Url::parse(target_raw).ok();
+    match (candidate, target) {
+        (Some(candidate), Some(target)) => {
+            candidate.host_str() == target.host_str()
+                && candidate.scheme() == target.scheme()
+                && candidate.port_or_known_default() == target.port_or_known_default()
+        }
+        _ => candidate_raw.contains("chatgpt.com") && target_raw.contains("chatgpt.com"),
+    }
+}
+
+fn should_prefer_fresh_chat_context(chatgpt_url: &str) -> bool {
+    !page_matches_chatgpt_url(chatgpt_url, chatgpt_url) || !chatgpt_url.contains("/c/")
 }
 
 fn extract_chatgpt_page_id(result: &Value, chatgpt_url: &str) -> Option<u64> {
@@ -639,6 +764,40 @@ fn extract_chatgpt_page_id(result: &Value, chatgpt_url: &str) -> Option<u64> {
             continue;
         };
         if page_matches_chatgpt_url(url_raw.trim(), chatgpt_url) {
+            return Some(page_id);
+        }
+    }
+    None
+}
+
+fn extract_any_chatgpt_page_id(result: &Value, chatgpt_url: &str) -> Option<u64> {
+    let structured_pages = result
+        .get("structuredContent")
+        .and_then(Value::as_object)
+        .and_then(|object| object.get("pages"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for page in structured_pages {
+        let Some(page_id) = page.get("pageId").and_then(Value::as_u64) else {
+            continue;
+        };
+        let Some(url) = page.get("url").and_then(Value::as_str) else {
+            continue;
+        };
+        if page_is_same_chatgpt_surface(url, chatgpt_url) {
+            return Some(page_id);
+        }
+    }
+    let content_text = extract_content_text(result)?;
+    for line in content_text.lines() {
+        let Some((page_id_raw, url_raw)) = line.split_once(':') else {
+            continue;
+        };
+        let Ok(page_id) = page_id_raw.trim().parse::<u64>() else {
+            continue;
+        };
+        if page_is_same_chatgpt_surface(url_raw.trim(), chatgpt_url) {
             return Some(page_id);
         }
     }
@@ -723,10 +882,12 @@ pub(super) async fn run_chatgpt_decision_lab_operation(
 
         let mut warnings = Vec::new();
         let mut tool_calls = Vec::new();
+        let force_fresh_chat = should_prefer_fresh_chat_context(chatgpt_url);
         if can_reuse_existing_page {
             let call_result = client.call_tool("list_pages", None).await?;
             let normalized = normalize_browser_call_result("list_pages", call_result, &mut warnings);
             let existing_page_id = extract_chatgpt_page_id(&normalized, chatgpt_url);
+            let fallback_page_id = extract_any_chatgpt_page_id(&normalized, chatgpt_url);
             tool_calls.push(normalized);
             if let Some(page_id) = existing_page_id {
                 let call_result = client
@@ -743,7 +904,30 @@ pub(super) async fn run_chatgpt_decision_lab_operation(
                     call_result,
                     &mut warnings,
                 ));
+            } else if let Some(page_id) = fallback_page_id {
+                warnings.push(
+                    "Resetting the current ChatGPT page to a fresh task context to avoid prior conversation leakage."
+                        .to_string(),
+                );
+                let call_result = client
+                    .call_tool(
+                        "select_page",
+                        Some(Map::from_iter([(
+                            "pageId".to_string(),
+                            Value::Number(page_id.into()),
+                        )])),
+                    )
+                    .await?;
+                tool_calls.push(normalize_browser_call_result(
+                    "select_page",
+                    call_result,
+                    &mut warnings,
+                ));
             } else if can_open_new_page {
+                warnings.push(
+                    "Opened a fresh ChatGPT page to avoid leaking prior conversation history into the decision lab."
+                        .to_string(),
+                );
                 let call_result = client
                     .call_tool(
                         "new_page",
@@ -808,19 +992,95 @@ pub(super) async fn run_chatgpt_decision_lab_operation(
                 "evaluate_script",
                 Some(Map::from_iter([(
                     "function".to_string(),
-                    Value::String(build_chatgpt_prepare_page_script().to_string()),
+                    Value::String(build_chatgpt_prepare_page_script()),
                 )])),
             )
             .await?;
-        let prepare_result =
+        let mut prepare_result =
             normalize_browser_call_result("evaluate_script", prepare_result, &mut warnings);
         if let Some(error) = extract_decision_lab_step_error(&prepare_result) {
             return Err(format!("ChatGPT decision lab browser step failed: {error}"));
         }
-        let baseline_assistant_turn_count = extract_structured_object(&prepare_result)
-            .and_then(|object| object.get("assistantTurnCount").and_then(Value::as_u64))
-            .unwrap_or(0);
-        tool_calls.push(prepare_result);
+        let mut baseline_assistant_turn_count = 0;
+        let mut should_reset_to_fresh_chat = false;
+        if let Some(object) = extract_structured_object(&prepare_result) {
+            baseline_assistant_turn_count = object
+                .get("assistantTurnCount")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            should_reset_to_fresh_chat = force_fresh_chat
+                && (object
+                    .get("isConversationUrl")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+                    || baseline_assistant_turn_count > 0);
+        }
+        tool_calls.push(prepare_result.clone());
+
+        if should_reset_to_fresh_chat {
+            warnings.push(
+                "Resetting the ChatGPT page into a fresh task context before sending the decision lab prompt."
+                    .to_string(),
+            );
+            let reset_result = client
+                .call_tool(
+                    "evaluate_script",
+                    Some(Map::from_iter([(
+                        "function".to_string(),
+                        Value::String(build_chatgpt_reset_page_script(chatgpt_url)),
+                    )])),
+                )
+                .await?;
+            let reset_result =
+                normalize_browser_call_result("evaluate_script", reset_result, &mut warnings);
+            if let Some(error) = extract_decision_lab_step_error(&reset_result) {
+                if !is_navigation_context_reset_error(error.as_str()) {
+                    return Err(format!("ChatGPT decision lab browser step failed: {error}"));
+                }
+            }
+            tool_calls.push(reset_result);
+
+            let wait_for_result = client
+                .call_tool(
+                    "wait_for",
+                    Some(Map::from_iter([
+                        (
+                            "text".to_string(),
+                            Value::Array(vec![
+                                Value::String("ChatGPT".to_string()),
+                                Value::String("Ask anything".to_string()),
+                                Value::String("New chat".to_string()),
+                            ]),
+                        ),
+                        ("timeout".to_string(), Value::Number(timeout_ms.into())),
+                    ])),
+                )
+                .await?;
+            tool_calls.push(normalize_browser_call_result(
+                "wait_for",
+                wait_for_result,
+                &mut warnings,
+            ));
+
+            let reprobe_result = client
+                .call_tool(
+                    "evaluate_script",
+                    Some(Map::from_iter([(
+                        "function".to_string(),
+                        Value::String(build_chatgpt_prepare_page_script()),
+                    )])),
+                )
+                .await?;
+            prepare_result =
+                normalize_browser_call_result("evaluate_script", reprobe_result, &mut warnings);
+            if let Some(error) = extract_decision_lab_step_error(&prepare_result) {
+                return Err(format!("ChatGPT decision lab browser step failed: {error}"));
+            }
+            baseline_assistant_turn_count = extract_structured_object(&prepare_result)
+                .and_then(|object| object.get("assistantTurnCount").and_then(Value::as_u64))
+                .unwrap_or(0);
+            tool_calls.push(prepare_result.clone());
+        }
 
         for (tool_name, arguments) in [
             (
@@ -1007,9 +1267,50 @@ mod tests {
         assert_eq!(extract_decision_lab_step_error(&result), None);
     }
 
+    #[test]
+    fn page_matches_chatgpt_url_prefers_fresh_home_over_existing_conversation() {
+        assert!(!page_matches_chatgpt_url(
+            "https://chatgpt.com/c/abc123",
+            "https://chatgpt.com/"
+        ));
+        assert!(page_matches_chatgpt_url(
+            "https://chatgpt.com/",
+            "https://chatgpt.com/"
+        ));
+    }
+
+    #[test]
+    fn page_matches_chatgpt_url_reuses_specific_conversation_targets() {
+        assert!(page_matches_chatgpt_url(
+            "https://chatgpt.com/c/abc123",
+            "https://chatgpt.com/c/abc123"
+        ));
+        assert!(!page_matches_chatgpt_url(
+            "https://chatgpt.com/c/def456",
+            "https://chatgpt.com/c/abc123"
+        ));
+    }
+
+    #[test]
+    fn extract_any_chatgpt_page_id_recognizes_conversation_pages_for_reset_flow() {
+        let result = json!({
+            "structuredContent": {
+                "pages": [
+                    { "pageId": 1, "url": "https://example.com/" },
+                    { "pageId": 2, "url": "https://chatgpt.com/c/abc123" }
+                ]
+            }
+        });
+        assert_eq!(
+            extract_any_chatgpt_page_id(&result, "https://chatgpt.com/"),
+            Some(2)
+        );
+    }
+
     fn write_fake_chrome_devtools_server_script(temp: &TempDir) -> std::path::PathBuf {
         let script_path = temp.path().join("fake-chrome-devtools-mcp.sh");
         let script = r##"#!/bin/sh
+probe_state="${TMPDIR:-/tmp}/fake-chrome-devtools-probe-state.$$"
 while IFS= read -r line; do
   id=$(printf '%s' "$line" | sed -n 's/.*"id":\([0-9][0-9]*\).*/\1/p')
   case "$line" in
@@ -1019,7 +1320,7 @@ while IFS= read -r line; do
     *'"method":"notifications/initialized"'*)
       ;;
     *'"method":"tools/list"'*)
-      printf '{"jsonrpc":"2.0","id":%s,"result":{"tools":[{"name":"list_pages","description":"List pages","inputSchema":{"type":"object"}},{"name":"select_page","description":"Select page","inputSchema":{"type":"object"}},{"name":"wait_for","description":"Wait","inputSchema":{"type":"object"}},{"name":"evaluate_script","description":"Eval","inputSchema":{"type":"object"}}]}}\n' "$id"
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"tools":[{"name":"list_pages","description":"List pages","inputSchema":{"type":"object"}},{"name":"select_page","description":"Select page","inputSchema":{"type":"object"}},{"name":"new_page","description":"New page","inputSchema":{"type":"object"}},{"name":"wait_for","description":"Wait","inputSchema":{"type":"object"}},{"name":"evaluate_script","description":"Eval","inputSchema":{"type":"object"}}]}}\n' "$id"
       ;;
     *'"method":"tools/call"'*'"name":"list_pages"'*)
       printf '{"jsonrpc":"2.0","id":%s,"result":{"content":[{"type":"text","text":"Pages\\n1: https://example.com/\\n2: https://chatgpt.com/c/abc123"}],"structuredContent":{"pages":[{"pageId":1,"url":"https://example.com/"},{"pageId":2,"url":"https://chatgpt.com/c/abc123"}]}}}\n' "$id"
@@ -1027,11 +1328,22 @@ while IFS= read -r line; do
     *'"method":"tools/call"'*'"name":"select_page"'*)
       printf '{"jsonrpc":"2.0","id":%s,"result":{"structuredContent":{"ok":true,"pageId":2}}}\n' "$id"
       ;;
+    *'"method":"tools/call"'*'"name":"new_page"'*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"structuredContent":{"ok":true,"pageId":3,"url":"https://chatgpt.com/"}}}\n' "$id"
+      ;;
     *'"method":"tools/call"'*'"name":"wait_for"'*)
       printf '{"jsonrpc":"2.0","id":%s,"result":{"structuredContent":{"ok":true}}}\n' "$id"
       ;;
-    *decision_lab_prepare_page_v2*)
-      printf '{"jsonrpc":"2.0","id":%s,"result":{"structuredContent":{"ok":true,"composerFound":true,"assistantTurnCount":3,"dismissedDialogLabels":["Continue"]}}}\n' "$id"
+    *decision_lab_prepare_page_v4*)
+      if [ ! -f "$probe_state" ]; then
+        : > "$probe_state"
+        printf '{"jsonrpc":"2.0","id":%s,"result":{"structuredContent":{"ok":true,"composerFound":true,"assistantTurnCount":2,"dismissedDialogLabels":["Continue"],"newChatControlFound":true,"isConversationUrl":true}}}\n' "$id"
+      else
+        printf '{"jsonrpc":"2.0","id":%s,"result":{"structuredContent":{"ok":true,"composerFound":true,"assistantTurnCount":0,"dismissedDialogLabels":["Continue"],"newChatControlFound":true,"isConversationUrl":false}}}\n' "$id"
+      fi
+      ;;
+    *decision_lab_reset_page_v1*)
+      printf '{"jsonrpc":"2.0","id":%s,"result":{"structuredContent":{"ok":false,"error":"Execution context was destroyed, most likely because of a navigation."}}}\n' "$id"
       ;;
     *decision_lab_fill_and_send_v2*execCommand*)
       printf '{"jsonrpc":"2.0","id":%s,"result":{"structuredContent":{"ok":true,"composerFound":true,"usedExecCommand":true,"sendButtonFound":true,"sendButtonEnabled":true,"sendTriggered":true}}}\n' "$id"
@@ -1110,7 +1422,15 @@ done
         assert!(result.available, "{result:?}");
         assert_eq!(result.status, "completed");
         assert_eq!(result.mode, "mcp-chrome-devtools");
-        assert_eq!(result.tool_calls.len(), 7);
+        assert_eq!(result.tool_calls.len(), 10);
+        assert!(result
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("fresh task context")));
+        assert!(result
+            .tool_calls
+            .iter()
+            .any(|value| value.get("toolName") == Some(&json!("select_page"))));
         assert_eq!(
             result
                 .decision_lab
