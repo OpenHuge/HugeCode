@@ -5,8 +5,8 @@ import type {
   OAuthUsageRefreshMode,
 } from "./runtimeClient";
 import type { RuntimeClientMode } from "./runtimeClient";
-import { isRuntimeRpcContractGuardError } from "./runtimeClientCapabilitiesContract";
-import { createRuntimeError } from "./runtimeMessageEnvelope";
+import { isRuntimeRpcContractGuardError } from "@ku0/code-runtime-client/runtimeClientCapabilitiesContract";
+import { createRuntimeError } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 
 type RuntimeClientOAuthBridge = {
   oauthAccounts?: (

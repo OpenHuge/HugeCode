@@ -8,7 +8,7 @@ import {
   isMissingTauriCommandError,
   isMissingTauriInvokeError,
   isRuntimeMethodUnsupportedError,
-} from "./runtimeErrorClassifier";
+} from "@ku0/code-runtime-client/runtimeErrorClassifier";
 import { invokeWebRuntimeDirectRpc } from "./runtimeWebDirectRpc";
 import { normalizePathForDisplay } from "../utils/platformPaths";
 

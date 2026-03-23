@@ -43,6 +43,20 @@ import type {
 } from "./codeRuntimeRpc";
 
 describe("code runtime rpc method consistency", () => {
+  it("includes runtime kernel v2 methods in the canonical method list", () => {
+    expect(CODE_RUNTIME_RPC_METHOD_LIST).toEqual(
+      expect.arrayContaining([
+        CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2,
+        CODE_RUNTIME_RPC_METHODS.RUN_START_V2,
+        CODE_RUNTIME_RPC_METHODS.RUN_GET_V2,
+        CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE_V2,
+        CODE_RUNTIME_RPC_METHODS.REVIEW_GET_V2,
+        CODE_RUNTIME_RPC_METHODS.RUN_RESUME_V2,
+        CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2,
+      ])
+    );
+  });
+
   it("generates invocation candidates for every canonical method", () => {
     for (const method of CODE_RUNTIME_RPC_METHOD_LIST) {
       const candidates = listCodeRuntimeRpcMethodCandidates(method);
@@ -1021,6 +1035,18 @@ describe("code runtime rpc compatibility helpers", () => {
     expect(payloadRecord.review_actionability).toBe(runtimePayload.reviewActionability);
     expect(payloadRecord.takeoverBundle).toBe(runtimePayload.takeoverBundle);
     expect(payloadRecord.takeover_bundle).toBe(runtimePayload.takeoverBundle);
+  });
+});
+
+describe("code runtime rpc v2 features", () => {
+  it("advertises the runtime kernel prepare feature", () => {
+    expect(CODE_RUNTIME_RPC_FEATURES).toContain("runtime_kernel_prepare_v2");
+  });
+
+  it("changes the canonical method hash when v2 runtime methods are present", () => {
+    const hash = computeCodeRuntimeRpcMethodSetHash(CODE_RUNTIME_RPC_METHOD_LIST);
+    expect(typeof hash).toBe("string");
+    expect(hash.length).toBeGreaterThan(10);
   });
 });
 

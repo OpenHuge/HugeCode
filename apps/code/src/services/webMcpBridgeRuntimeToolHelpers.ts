@@ -2,8 +2,8 @@ import {
   RUNTIME_CONTEXT_BUDGET_PREVIEW_MAX_BYTES,
   RUNTIME_CONTEXT_BUDGET_PREVIEW_MAX_CHARS,
 } from "./runtimeContextBudget";
-import { RUNTIME_MESSAGE_CODES } from "./runtimeMessageCodes";
-import { createRuntimeError } from "./runtimeMessageEnvelope";
+import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
+import { createRuntimeError } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 
 export const RUNTIME_TOOL_OUTPUT_MAX_BYTES = RUNTIME_CONTEXT_BUDGET_PREVIEW_MAX_BYTES;
 export const RUNTIME_TOOL_OUTPUT_MAX_CHARS = RUNTIME_CONTEXT_BUDGET_PREVIEW_MAX_CHARS;

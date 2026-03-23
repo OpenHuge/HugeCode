@@ -1,5 +1,5 @@
-import { RUNTIME_MESSAGE_CODES } from "./runtimeMessageCodes";
-import { createRuntimeError } from "./runtimeMessageEnvelope";
+import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
+import { createRuntimeError } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 import { buildRuntimeAgentTaskTools } from "./webMcpBridgeRuntimeAgentTaskTools";
 import { buildRuntimeActionRequiredTools } from "./webMcpBridgeRuntimeActionRequiredTools";
 import { buildRuntimeBackendControlTools } from "./webMcpBridgeRuntimeBackendControlTools";

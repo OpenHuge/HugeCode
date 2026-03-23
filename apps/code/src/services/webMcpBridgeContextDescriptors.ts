@@ -1,5 +1,8 @@
 import type { RuntimeToolExposurePolicyDecision } from "../application/runtime/facades/runtimeToolExposurePolicy";
-import type { AgentCommandCenterSnapshot, WebMcpActiveModelContext } from "./webMcpBridgeTypes";
+import type {
+  AgentCommandCenterSnapshot,
+  WebMcpActiveModelContext,
+} from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 type JsonRecord = Record<string, unknown>;
 

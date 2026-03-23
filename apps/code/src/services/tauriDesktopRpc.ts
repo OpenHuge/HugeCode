@@ -7,7 +7,10 @@ import type {
   WorkspacePatchApplyResponse,
 } from "@ku0/code-runtime-host-contract";
 import { getRuntimeClient } from "./runtimeClient";
-import { isMissingTauriCommandError, isMissingTauriInvokeError } from "./runtimeErrorClassifier";
+import {
+  isMissingTauriCommandError,
+  isMissingTauriInvokeError,
+} from "@ku0/code-runtime-client/runtimeErrorClassifier";
 import {
   getCodexConfigPathWithFallback,
   listCollaborationModesWithFallback,

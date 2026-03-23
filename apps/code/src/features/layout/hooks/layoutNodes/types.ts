@@ -257,6 +257,7 @@ export type LayoutNodesFieldRegistry = {
   } | null;
   onRefreshMissionControl?: () => void | Promise<void>;
   reviewPackSelection: ReviewPackSelectionState;
+  runtimeReviewPack?: MissionControlProjection["reviewPacks"][number] | null;
   onOpenReviewPack: (selection: ReviewPackSelectionRequest) => void;
   reviewPackDecisionSubmission?: ReviewPackDecisionSubmissionState | null;
   onSubmitReviewPackDecision?: (input: {
@@ -935,6 +936,7 @@ const LAYOUT_GIT_REVIEW_NODE_KEYS = [
   "missionControlFreshness",
   "onRefreshMissionControl",
   "reviewPackSelection",
+  "runtimeReviewPack",
   "onOpenReviewPack",
   "reviewPackDecisionSubmission",
   "onSubmitReviewPackDecision",

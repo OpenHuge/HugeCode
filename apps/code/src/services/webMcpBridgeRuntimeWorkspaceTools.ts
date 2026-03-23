@@ -26,7 +26,10 @@ import {
   resolveWorkspaceId,
   type WebMcpToolDescriptor,
 } from "./webMcpBridgeRuntimeToolsShared";
-import type { RuntimeAgentControl, WebMcpAgent } from "./webMcpBridgeTypes";
+import type {
+  RuntimeAgentControl,
+  WebMcpAgent,
+} from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 type BuildRuntimeWorkspaceToolsOptions = BuildRuntimeToolsOptions & {
   maxRuntimeFilePayloadBytes: number;

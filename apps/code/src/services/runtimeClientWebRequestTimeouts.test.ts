@@ -1,6 +1,6 @@
 import { CODE_RUNTIME_RPC_METHODS } from "@ku0/code-runtime-host-contract";
 import { describe, expect, it } from "vitest";
-import { resolveWebRuntimeRequestTimeoutMs } from "./runtimeClientWebRequestTimeouts";
+import { resolveWebRuntimeRequestTimeoutMs } from "@ku0/code-runtime-client/runtimeClientWebRequestTimeouts";
 
 describe("resolveWebRuntimeRequestTimeoutMs", () => {
   it("keeps the default timeout for non turn-send methods", () => {

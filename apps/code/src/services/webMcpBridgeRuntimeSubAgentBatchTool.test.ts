@@ -4,7 +4,10 @@ import {
   buildOrchestrateRuntimeSubAgentBatchTool,
 } from "./webMcpBridgeRuntimeSubAgentBatchTool";
 import { createAgentCommandCenterSnapshot } from "./webMcpBridgeRuntimeTestUtils";
-import type { RuntimeAgentControl, RuntimeSubAgentSessionSummary } from "./webMcpBridgeTypes";
+import type {
+  RuntimeAgentControl,
+  RuntimeSubAgentSessionSummary,
+} from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 function createSession(sessionId: string): RuntimeSubAgentSessionSummary {
   return {

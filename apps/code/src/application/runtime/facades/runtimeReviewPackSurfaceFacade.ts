@@ -761,6 +761,7 @@ export function buildReviewPackDetailModel(input: {
   projection: MissionControlProjection | null;
   selection: ReviewPackSelectionState;
   repositoryExecutionContract?: RepositoryExecutionContract | null;
+  runtimeReviewPack?: MissionControlProjection["reviewPacks"][number] | null;
 }): MissionSurfaceDetailModel | null {
   const projection = input.projection;
   if (!projection) {
@@ -770,10 +771,18 @@ export function buildReviewPackDetailModel(input: {
   const runId = input.selection.selectedRunId;
   const taskId = input.selection.selectedTaskId;
   const reviewPackId = input.selection.selectedReviewPackId;
+  const runtimeReviewPack =
+    input.runtimeReviewPack &&
+    ((reviewPackId !== null && input.runtimeReviewPack.id === reviewPackId) ||
+      (runId !== null && input.runtimeReviewPack.runId === runId) ||
+      (taskId !== null && input.runtimeReviewPack.taskId === taskId))
+      ? input.runtimeReviewPack
+      : null;
   const reviewPack =
-    reviewPackId === null
+    runtimeReviewPack ??
+    (reviewPackId === null
       ? null
-      : (projection.reviewPacks.find((entry) => entry.id === reviewPackId) ?? null);
+      : (projection.reviewPacks.find((entry) => entry.id === reviewPackId) ?? null));
   const run =
     (reviewPack
       ? projection.runs.find((entry) => entry.id === reviewPack.runId)

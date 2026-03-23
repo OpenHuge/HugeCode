@@ -302,6 +302,9 @@ export function createRuntimeAgentControlDependencies(
         ...(input.requestId !== undefined ? { requestId: input.requestId } : {}),
         ...(input.title !== undefined ? { title: input.title } : {}),
         ...(input.taskSource !== undefined ? { taskSource: input.taskSource } : {}),
+        ...(input.executionProfileId !== undefined && input.executionProfileId !== null
+          ? { executionProfileId: input.executionProfileId }
+          : {}),
         ...(input.reviewProfileId !== undefined && input.reviewProfileId !== null
           ? { reviewProfileId: input.reviewProfileId }
           : {}),

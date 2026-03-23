@@ -1,5 +1,5 @@
-import { RUNTIME_MESSAGE_CODES } from "./runtimeMessageCodes";
-import { readRuntimeCode } from "./runtimeMessageEnvelope";
+import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
+import { readRuntimeCode } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 import {
   planRuntimeSubAgentBatch,
   type RuntimeSubAgentBatchExecutionMode,
@@ -19,7 +19,7 @@ import type {
   RuntimeAllowedSkillResolution,
   RuntimeSubAgentSessionHandle,
   WebMcpAgent,
-} from "./webMcpBridgeTypes";
+} from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 type JsonRecord = Record<string, unknown>;
 

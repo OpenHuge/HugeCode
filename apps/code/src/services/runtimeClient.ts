@@ -1,3 +1,5 @@
+import type { AppSettings } from "../types";
+
 export type {
   AcpIntegrationProbeRequest,
   AcpIntegrationState,
@@ -81,14 +83,25 @@ export type {
   RuntimeRunCancelRequest,
   RuntimeRunCheckpointApprovalAck,
   RuntimeRunCheckpointApprovalRequest,
+  RuntimeRunPrepareV2Request,
+  RuntimeRunPrepareV2Response,
+  RuntimeRunGetV2Request,
+  RuntimeRunGetV2Response,
   RuntimeRunInterventionAck,
   RuntimeRunInterventionRequest,
+  RuntimeRunInterventionV2Response,
+  RuntimeRunRecordV2,
   RuntimeRunsListRequest,
   RuntimeRunResumeAck,
   RuntimeRunResumeRequest,
+  RuntimeRunResumeV2Response,
   RuntimeRunStartRequest,
+  RuntimeRunStartV2Response,
   RuntimeRunSubscribeRequest,
+  RuntimeRunSubscribeV2Response,
   RuntimeRunSummary,
+  RuntimeReviewGetV2Request,
+  RuntimeReviewGetV2Response,
   RuntimeBackendSetStateRequest,
   RuntimeBackendSummary,
   RuntimeBackendUpsertInput,
@@ -132,7 +145,7 @@ export {
   RuntimeRpcContractFreezeEffectiveAtMismatchError,
   RuntimeRpcContractProfileMismatchError,
   RuntimeRpcContractVersionMismatchError,
-} from "./runtimeClientCapabilitiesContract";
+} from "@ku0/code-runtime-client/runtimeClientCapabilitiesContract";
 export { detectRuntimeMode } from "./runtimeClientMode";
 export {
   getRuntimeClient,
@@ -142,6 +155,9 @@ export {
 } from "./runtimeClientTransport";
 export type {
   RuntimeCapabilitiesSummary,
-  RuntimeClient,
   RuntimeClientMode,
-} from "./runtimeClientTypes";
+  RuntimeClient as SharedRuntimeClient,
+} from "@ku0/code-runtime-client/runtimeClientTypes";
+
+export type RuntimeClient =
+  import("@ku0/code-runtime-client/runtimeClientTypes").RuntimeClient<AppSettings>;

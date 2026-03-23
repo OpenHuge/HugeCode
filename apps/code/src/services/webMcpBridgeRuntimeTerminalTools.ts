@@ -8,7 +8,7 @@ import {
   type BuildRuntimeToolsOptions,
   type WebMcpToolDescriptor,
 } from "./webMcpBridgeRuntimeToolsShared";
-import type { RuntimeAgentControl } from "./webMcpBridgeTypes";
+import type { RuntimeAgentControl } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 type RuntimeTerminalControl = RuntimeAgentControl & {
   openRuntimeTerminalSession?: (input?: { workspaceId?: string | null }) => Promise<unknown>;

@@ -4,7 +4,7 @@ import {
   getAccountRateLimits,
   readOAuthSubscriptionPersistenceCapability,
 } from "./tauriOauthBridgeWorkspaceAccountFacade";
-import { RuntimeRpcContractFeatureMissingError } from "./runtimeClientCapabilitiesContract";
+import { RuntimeRpcContractFeatureMissingError } from "@ku0/code-runtime-client/runtimeClientCapabilitiesContract";
 
 function createDeps(overrides: Partial<Parameters<typeof getAccountInfo>[0]> = {}) {
   return {

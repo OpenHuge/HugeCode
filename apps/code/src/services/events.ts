@@ -36,14 +36,14 @@ import {
 import {
   normalizeRuntimeEventChannelError,
   updateRuntimeEventChannelDiagnostics,
-} from "./runtimeEventChannelDiagnostics";
+} from "@ku0/code-runtime-client/runtimeEventChannelDiagnostics";
 import {
   recordRuntimeEventDedupeHit,
   recordRuntimeEventFallbackEntered,
   recordRuntimeEventFallbackRecovered,
   recordRuntimeEventReconnectAttempt,
   recordRuntimeEventReconnectSuccess,
-} from "./runtimeEventStabilityMetrics";
+} from "@ku0/code-runtime-client/runtimeEventStabilityMetrics";
 
 export type TerminalExitEvent = {
   workspaceId: string;

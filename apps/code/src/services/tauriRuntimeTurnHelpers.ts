@@ -7,7 +7,7 @@ import type { DistributedTaskGraphRequest, RuntimeBackendSetStateRequest } from 
 import {
   normalizeRuntimeEventChannelError,
   updateRuntimeEventChannelDiagnostics,
-} from "./runtimeEventChannelDiagnostics";
+} from "@ku0/code-runtime-client/runtimeEventChannelDiagnostics";
 import {
   parseRuntimeTurnEventMessage,
   parseRuntimeTurnWsEventId,

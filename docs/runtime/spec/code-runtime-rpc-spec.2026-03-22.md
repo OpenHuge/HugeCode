@@ -1,9 +1,9 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-03-22T14:36:32.760Z`
+- Generated at: `2026-03-22T19:42:18.133Z`
 - Contract version: `2026-03-22`
 - Freeze effective at: `2026-03-22`
-- Method-set hash: `ede62313c4b1b03e`
+- Method-set hash: `59bb020e0aafd91a`
 
 ## Features
 
@@ -35,6 +35,7 @@
 - `runtime_autonomy_v2`
 - `runtime_autonomy_safety_v1`
 - `runtime_kernel_v2`
+- `runtime_kernel_prepare_v2`
 - `runtime_kernel_projection_v3`
 - `runtime_kernel_jobs_v3`
 - `runtime_stream_backpressure_v1`
@@ -119,10 +120,17 @@
 - `code_turn_send`
 - `code_turn_interrupt`
 - `code_runtime_run_start`
+- `code_runtime_run_prepare_v2`
+- `code_runtime_run_start_v2`
 - `code_runtime_run_cancel`
 - `code_runtime_run_resume`
+- `code_runtime_run_resume_v2`
 - `code_runtime_run_intervene`
+- `code_runtime_run_intervene_v2`
 - `code_runtime_run_subscribe`
+- `code_runtime_run_get_v2`
+- `code_runtime_run_subscribe_v2`
+- `code_runtime_review_get_v2`
 - `code_runtime_runs_list`
 - `code_kernel_job_start_v3`
 - `code_kernel_job_get_v3`
@@ -318,12 +326,19 @@
 - `code_runtime_diagnostics_export_v1`
 - `code_runtime_policy_get_v2`
 - `code_runtime_policy_set_v2`
+- `code_runtime_review_get_v2`
 - `code_runtime_run_cancel`
 - `code_runtime_run_checkpoint_approval`
+- `code_runtime_run_get_v2`
 - `code_runtime_run_intervene`
+- `code_runtime_run_intervene_v2`
+- `code_runtime_run_prepare_v2`
 - `code_runtime_run_resume`
+- `code_runtime_run_resume_v2`
 - `code_runtime_run_start`
+- `code_runtime_run_start_v2`
 - `code_runtime_run_subscribe`
+- `code_runtime_run_subscribe_v2`
 - `code_runtime_runs_list`
 - `code_runtime_tool_guardrail_evaluate`
 - `code_runtime_tool_guardrail_read`

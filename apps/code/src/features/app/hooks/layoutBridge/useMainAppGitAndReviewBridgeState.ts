@@ -8,6 +8,7 @@ import {
   applyReviewAutofix,
   runReviewAgent,
 } from "../../../../application/runtime/facades/runtimeReviewIntelligenceActions";
+import { useRuntimeReviewPackRuntimeTruth } from "../../../../application/runtime/facades/runtimeReviewPackRuntimeTruth";
 import type { MissionInterventionDraft } from "../../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
 import { useWorkspaceRuntimeAgentControl } from "../../../../application/runtime/ports/runtimeAgentControl";
 import {
@@ -139,6 +140,10 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
   const { reviewPackSelection, openReviewPack } = useReviewPackSelectionState({
     projection: homeState.missionControlProjection ?? null,
     activeWorkspaceId,
+  });
+  const runtimeReviewPackTruth = useRuntimeReviewPackRuntimeTruth({
+    projection: homeState.missionControlProjection ?? null,
+    selection: reviewPackSelection,
   });
 
   useEffect(() => {
@@ -398,6 +403,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
     missionControlFreshness: homeState.missionControlFreshness,
     onRefreshMissionControl: homeState.refreshMissionControl,
     reviewPackSelection,
+    runtimeReviewPack: runtimeReviewPackTruth.reviewPack,
     onOpenReviewPack: openReviewPack,
     reviewPackDecisionSubmission,
     onSubmitReviewPackDecision: submitReviewPackDecision,

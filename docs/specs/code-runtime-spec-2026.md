@@ -2,7 +2,7 @@
 
 **Spec ID**: SPEC-CODE-RUNTIME-2026.1
 **Status**: Active
-**Date**: 2026-03-11
+**Date**: 2026-03-22
 **Supersedes**: All previous drafts in `docs/archive/research/`
 
 ## 1. Purpose
@@ -108,7 +108,38 @@ Method names, payloads, and compatibility rules come from `packages/code-runtime
 For this specification phase, canonical task payloads should carry an additive task-source summary wherever task start, task status/list/summary, or review-linkage payloads need to preserve upstream intake context.
 That summary is source-agnostic and currently covers manual-thread, GitHub-issue, GitHub-PR-follow-up, schedule, and external-runtime cases without introducing tracker-specific workflow behavior.
 
-## 6.1 Product Object Mapping
+### 6.1 Runtime Kernel v2
+
+The preferred evolution path for run planning, execution, and review is the
+runtime kernel v2 method family:
+
+- `code_runtime_run_prepare_v2`
+- `code_runtime_run_start_v2`
+- `code_runtime_run_get_v2`
+- `code_runtime_run_subscribe_v2`
+- `code_runtime_review_get_v2`
+- `code_runtime_run_resume_v2`
+- `code_runtime_run_intervene_v2`
+
+`code_runtime_run_prepare_v2` is the canonical pre-execution planning surface.
+It returns runtime-owned preparation truth for:
+
+- normalized intent (`runIntent`)
+- context shaping (`contextWorkingSet`)
+- execution structure (`executionGraph`)
+- approval grouping (`approvalBatches`)
+- validation scope (`validationPlan`)
+- review emphasis (`reviewFocus`)
+
+New control-plane work should consume these runtime-owned summaries directly
+instead of rebuilding intent clarity, repo context, approval grouping, or
+validation scope in UI facades.
+
+Legacy run methods may remain during migration, but they are compatibility
+surfaces. New product meaning should land in the v2 contract rather than
+continuing to grow v1 run payloads.
+
+## 6.2 Product Object Mapping
 
 The runtime and contract surface should be read through the current product model rather than as a separate platform taxonomy.
 
@@ -137,6 +168,11 @@ These terms are valid, but they should be explained as subordinate to the primar
 
 - `apps/code` owns runtime client adapters, transport selection, capability probing, and UI-facing integration.
 - `apps/code-tauri` owns desktop host bridging and packaging concerns.
+- `apps/code` should prefer the v2 run/review lifecycle when introducing new
+  runtime-planning, review, or operator-guidance behavior.
+- App-runtime facades may continue reading compat-backed projections during the
+  migration window, but they must not reintroduce UI-owned planning truth as a
+  substitute for missing runtime fields.
 
 ### 7.2 Runtime Service
 

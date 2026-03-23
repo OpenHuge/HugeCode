@@ -1,6 +1,6 @@
 # Code Runtime Contract Compatibility Policy
 
-Updated: 2026-03-17
+Updated: 2026-03-22
 
 ## Current Strategy
 
@@ -9,14 +9,15 @@ Updated: 2026-03-17
 - Clients must call canonical methods directly and must not depend on alias retry branches.
 - Request payload compatibility fields are generated from one helper (`buildCodeRuntimeRpcCompatFields`) to keep camelCase + snake_case aligned.
 
-## Frozen Contract Baseline (2026-03-11)
+## Frozen Contract Baseline (2026-03-22)
 
 - Required capabilities contract fields:
   - `profile` should identify runtime capability surface (`full-runtime` or `desktop-core`)
-  - `contractVersion = "2026-03-11"`
-  - `freezeEffectiveAt = "2026-03-11"`
+  - `contractVersion = "2026-03-22"`
+  - `freezeEffectiveAt = "2026-03-22"`
   - `methodSetHash` must match the advertised `methods` set
-  - `features` must include `contract_frozen_2026_02_27`
+  - `features` must include `contract_frozen_2026_03_22`
+  - `features` must include `runtime_kernel_prepare_v2`
 - `methods` in frozen specs represent canonical methods only.
 - `canonicalMethods` is the canonical `code_*` only set.
 - `desktop-core` profile may expose a reduced `features` subset while preserving frozen baseline markers.
@@ -81,6 +82,25 @@ Updated: 2026-03-17
 - `takeoverBundle` is the canonical operator-facing continuation object. Clients
   must prefer it over reconstructing approval, resume, handoff, or review
   follow-up semantics from separate runtime fields when it is present.
+
+## Runtime Kernel v2 Compatibility Rule
+
+- New planning and review semantics belong in the v2 lifecycle methods, not in
+  additional growth on legacy run payloads.
+- `code_runtime_run_prepare_v2` is the canonical pre-execution planning
+  surface.
+- `code_runtime_run_start_v2`, `code_runtime_run_get_v2`,
+  `code_runtime_run_subscribe_v2`, `code_runtime_review_get_v2`,
+  `code_runtime_run_resume_v2`, and `code_runtime_run_intervene_v2` are the
+  preferred shared client/runtime lifecycle for new work.
+- Legacy `code_runtime_run_start`, `code_runtime_run_subscribe`,
+  `code_runtime_run_resume`, and `code_runtime_run_intervene` remain valid
+  compatibility methods during migration, but they are not the preferred place
+  to introduce new product meaning.
+- Clients may rely on the frozen v2 contract even when the runtime service is
+  still temporarily fulfilling some v2 reads through compat-backed projections.
+  The compat bridge lives in the runtime/service side, not in client-local
+  heuristics or alias retry behavior.
 
 ### Backend & routing persistence
 

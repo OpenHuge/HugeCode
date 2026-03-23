@@ -1,4 +1,4 @@
-import { type RuntimeRpcParams } from "./runtimeClientTransportShared";
+import { type RuntimeRpcParams } from "@ku0/code-runtime-client/runtimeClientTransportShared";
 import { invokeWebRuntimeRaw } from "./runtimeClientWebTransport";
 
 export async function invokeWebRuntimeDirectRpc(

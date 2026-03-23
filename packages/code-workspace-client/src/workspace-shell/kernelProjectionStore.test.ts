@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type {
-  HypeCodeMissionControlSnapshot,
+  HugeCodeMissionControlSnapshot,
   KernelProjectionDelta,
   KernelProjectionSubscriptionRequest,
   OAuthPrimaryAccountSummary,
@@ -14,7 +14,7 @@ import {
 
 type KernelProjectionBindings = NonNullable<WorkspaceClientRuntimeBindings["kernelProjection"]>;
 
-function createMissionControlSnapshot(): HypeCodeMissionControlSnapshot {
+function createMissionControlSnapshot(): HugeCodeMissionControlSnapshot {
   return {
     source: "runtime_snapshot_v1",
     generatedAt: 0,

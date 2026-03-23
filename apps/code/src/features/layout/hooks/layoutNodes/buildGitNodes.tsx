@@ -206,6 +206,7 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
           projection: input.missionControlProjection ?? null,
           selection: input.reviewPackSelection,
           repositoryExecutionContract: input.activeRepositoryExecutionContract ?? null,
+          runtimeReviewPack: input.runtimeReviewPack ?? null,
         })}
         selection={input.reviewPackSelection}
         freshness={input.missionControlFreshness ?? null}

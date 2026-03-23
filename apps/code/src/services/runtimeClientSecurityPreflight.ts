@@ -4,8 +4,8 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import { isCodeRuntimeRpcMethodNotFoundErrorCode } from "@ku0/code-runtime-host-contract/codeRuntimeRpcCompat";
 
-import { toRuntimeRpcInvocationError } from "./runtimeClientErrorUtils";
-import type { RuntimeClient } from "./runtimeClientTypes";
+import { toRuntimeRpcInvocationError } from "@ku0/code-runtime-client/runtimeClientErrorUtils";
+import type { RuntimeClient } from "./runtimeClient";
 
 function isMethodUnsupported(error: unknown): boolean {
   const normalized = toRuntimeRpcInvocationError(error);

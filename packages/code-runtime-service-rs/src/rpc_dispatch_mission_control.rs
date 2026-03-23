@@ -407,7 +407,7 @@ fn build_sub_agent_summary(runtime: &sub_agents::SubAgentSessionRuntime) -> Miss
     }
 }
 
-fn build_sub_agent_summary_map(
+pub(crate) fn build_sub_agent_summary_map(
     runtimes: &[sub_agents::SubAgentSessionRuntime],
 ) -> HashMap<String, Vec<MissionRunSubAgentSummary>> {
     let mut map: HashMap<String, Vec<MissionRunSubAgentSummary>> = HashMap::new();
@@ -420,6 +420,51 @@ fn build_sub_agent_summary_map(
         }
     }
     map
+}
+
+pub(crate) async fn build_mission_run_projection_by_run_id(
+    ctx: &AppContext,
+    run_id: &str,
+) -> Option<MissionRunProjection> {
+    let runtime = {
+        let store = ctx.agent_tasks.read().await;
+        store.tasks.get(run_id.trim()).cloned()
+    }?;
+
+    let backend_summaries = {
+        let store = ctx.runtime_backends.read().await;
+        store.clone()
+    };
+    let sub_agents_by_run = {
+        let runtimes = {
+            let store = ctx.sub_agent_sessions.read().await;
+            store.sessions.values().cloned().collect::<Vec<_>>()
+        };
+        build_sub_agent_summary_map(runtimes.as_slice())
+    };
+    let workspace_roots_by_id = {
+        let state = ctx.state.read().await;
+        state
+            .workspaces
+            .iter()
+            .map(|workspace| (workspace.id.clone(), workspace.path.clone()))
+            .collect::<HashMap<_, _>>()
+    };
+
+    Some(project_runtime_task_to_run(
+        &runtime,
+        &backend_summaries,
+        &sub_agents_by_run,
+        &workspace_roots_by_id,
+    ))
+}
+
+pub(crate) async fn build_review_pack_projection_by_run_id(
+    ctx: &AppContext,
+    run_id: &str,
+) -> Option<MissionReviewPackProjection> {
+    let run = build_mission_run_projection_by_run_id(ctx, run_id).await?;
+    Some(build_review_pack(&run))
 }
 
 pub(crate) fn project_run_state(status: &str, distributed_status: Option<&str>) -> String {

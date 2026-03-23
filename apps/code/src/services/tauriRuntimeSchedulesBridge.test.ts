@@ -4,7 +4,7 @@ import { detectRuntimeMode } from "./runtimeClient";
 import {
   isRuntimeMethodUnsupportedError,
   isWebRuntimeConnectionError,
-} from "./runtimeErrorClassifier";
+} from "@ku0/code-runtime-client/runtimeErrorClassifier";
 import {
   cancelNativeScheduleRun,
   createNativeSchedule,
@@ -28,7 +28,7 @@ vi.mock("./runtimeClient", () => ({
   detectRuntimeMode: vi.fn(),
 }));
 
-vi.mock("./runtimeErrorClassifier", () => ({
+vi.mock("@ku0/code-runtime-client/runtimeErrorClassifier", () => ({
   isRuntimeMethodUnsupportedError: vi.fn(),
   isWebRuntimeConnectionError: vi.fn(),
 }));

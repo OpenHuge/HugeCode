@@ -6,8 +6,8 @@ import type {
 import { isCodeRuntimeRpcMethodNotFoundErrorCode } from "@ku0/code-runtime-host-contract/codeRuntimeRpcCompat";
 
 import { logger } from "./logger";
-import { toRuntimeRpcInvocationError } from "./runtimeClientErrorUtils";
-import type { RuntimeClient } from "./runtimeClientTypes";
+import { toRuntimeRpcInvocationError } from "@ku0/code-runtime-client/runtimeClientErrorUtils";
+import type { RuntimeClient } from "./runtimeClient";
 
 const SUPPORTED_DIAGNOSTICS_SOURCES: ReadonlySet<RuntimeDiagnosticsExportResponse["source"]> =
   new Set(["runtime-service", "tauri"]);

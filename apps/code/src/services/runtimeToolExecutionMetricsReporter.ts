@@ -7,10 +7,10 @@ import type {
   RuntimeToolGuardrailOutcomeEvent,
 } from "@ku0/code-runtime-host-contract";
 import { logger } from "./logger";
-import { getErrorMessage } from "./runtimeClientErrorUtils";
-import { readRuntimeErrorCode } from "./runtimeErrorClassifier";
-import { RUNTIME_MESSAGE_CODES } from "./runtimeMessageCodes";
-import { createRuntimeError } from "./runtimeMessageEnvelope";
+import { getErrorMessage } from "@ku0/code-runtime-client/runtimeClientErrorUtils";
+import { readRuntimeErrorCode } from "@ku0/code-runtime-client/runtimeErrorClassifier";
+import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
+import { createRuntimeError } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 import {
   runtimeToolGuardrailEvaluate,
   runtimeToolGuardrailRecordOutcome,

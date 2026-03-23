@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RUNTIME_MESSAGE_CODES } from "./runtimeMessageCodes";
+import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
 import {
   __resetRuntimeToolExecutionMetricsForTests,
   readRuntimeToolExecutionMetrics,

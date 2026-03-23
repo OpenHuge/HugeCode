@@ -1,4 +1,4 @@
-import type { AgentCommandCenterSnapshot } from "./webMcpBridgeTypes";
+import type { AgentCommandCenterSnapshot } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 type SnapshotOverrides = Omit<Partial<AgentCommandCenterSnapshot>, "intent" | "governance"> & {
   intent?: Partial<AgentCommandCenterSnapshot["intent"]>;

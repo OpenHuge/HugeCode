@@ -1,6 +1,6 @@
 import { CODE_RUNTIME_RPC_METHODS } from "@ku0/code-runtime-host-contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RuntimeRpcInvocationError } from "./runtimeClientErrorUtils";
+import { RuntimeRpcInvocationError } from "@ku0/code-runtime-client/runtimeClientErrorUtils";
 import { invokeWebRuntimeRaw } from "./runtimeClientWebTransport";
 
 const {
@@ -37,11 +37,11 @@ vi.mock("./runtimeClientWebGateway", () => ({
   resolveWebRuntimeEndpoint: resolveWebRuntimeEndpointMock,
 }));
 
-vi.mock("./runtimeClientWebRequestTimeouts", () => ({
+vi.mock("@ku0/code-runtime-client/runtimeClientWebRequestTimeouts", () => ({
   resolveWebRuntimeRequestTimeoutMs: resolveWebRuntimeRequestTimeoutMsMock,
 }));
 
-vi.mock("./runtimeClientWebRetryUtils", () => ({
+vi.mock("@ku0/code-runtime-client/runtimeClientWebRetryUtils", () => ({
   computeWebRuntimeRetryDelayMs: computeWebRuntimeRetryDelayMsMock,
   shouldRetryWebRuntimeInvocation: shouldRetryWebRuntimeInvocationMock,
   sleep: sleepMock,

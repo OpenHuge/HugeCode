@@ -26,7 +26,7 @@ import type {
   RuntimeAgentTaskStepKind,
   WebMcpAgent,
   WebMcpResponseRequiredState,
-} from "./webMcpBridgeTypes";
+} from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 export type JsonRecord = Record<string, unknown>;
 

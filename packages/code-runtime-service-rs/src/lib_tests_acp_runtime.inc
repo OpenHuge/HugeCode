@@ -589,6 +589,11 @@ rl.on("line", (line) => {{
         (script_path, cancel_log_path)
     }
 
+    fn acp_runtime_test_lock() -> &'static std::sync::Mutex<()> {
+        static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
+        LOCK.get_or_init(|| std::sync::Mutex::new(()))
+    }
+
     async fn send_service_rpc_request(
         client: &reqwest::Client,
         service_base_url: &str,
@@ -714,6 +719,9 @@ rl.on("line", (line) => {{
 
     #[tokio::test]
     async fn events_route_sends_acp_prompt_as_structured_text_blocks() {
+        let _guard = acp_runtime_test_lock()
+            .lock()
+            .expect("acp runtime test lock poisoned");
         let (script_path, cancel_log_path) =
             write_fake_acp_stdio_server_script("turn-prompt-structured", "prompt-structured");
         let (service_base_url, service_handle) =
@@ -791,6 +799,9 @@ rl.on("line", (line) => {{
 
     #[tokio::test]
     async fn events_route_streams_acp_turn_completion_from_session_updates_without_prompt_text() {
+        let _guard = acp_runtime_test_lock()
+            .lock()
+            .expect("acp runtime test lock poisoned");
         let (script_path, cancel_log_path) =
             write_fake_acp_stdio_server_script("turn-stream-complete", "stream-complete");
         let (service_base_url, service_handle) =
@@ -877,6 +888,9 @@ rl.on("line", (line) => {{
     }
     #[tokio::test]
     async fn turn_interrupt_sends_acp_session_cancel_notification() {
+        let _guard = acp_runtime_test_lock()
+            .lock()
+            .expect("acp runtime test lock poisoned");
         let (script_path, cancel_log_path) =
             write_fake_acp_stdio_server_script("turn-interrupt-cancel", "wait-cancel");
         let (service_base_url, service_handle) =
@@ -1013,6 +1027,9 @@ rl.on("line", (line) => {{
 
     #[tokio::test]
     async fn agent_task_status_records_acp_diagnostics_from_stream_updates() {
+        let _guard = acp_runtime_test_lock()
+            .lock()
+            .expect("acp runtime test lock poisoned");
         let (script_path, cancel_log_path) =
             write_fake_acp_stdio_server_script("task-stream-diagnostics", "stream-complete");
         let app = test_router();
@@ -1095,6 +1112,9 @@ rl.on("line", (line) => {{
 
     #[tokio::test]
     async fn events_route_supports_acp_terminal_create_with_command_execution() {
+        let _guard = acp_runtime_test_lock()
+            .lock()
+            .expect("acp runtime test lock poisoned");
         let (script_path, cancel_log_path) =
             write_fake_acp_stdio_server_script("terminal-command", "terminal-command");
         let (service_base_url, service_handle) =
@@ -1172,6 +1192,9 @@ rl.on("line", (line) => {{
 
     #[tokio::test]
     async fn events_route_supports_acp_terminal_wait_for_exit_and_env_arrays() {
+        let _guard = acp_runtime_test_lock()
+            .lock()
+            .expect("acp runtime test lock poisoned");
         let (script_path, cancel_log_path) =
             write_fake_acp_stdio_server_script("terminal-wait-exit", "terminal-wait-exit");
         let (service_base_url, service_handle) =
@@ -1248,6 +1271,9 @@ rl.on("line", (line) => {{
 
     #[tokio::test]
     async fn events_route_supports_acp_terminal_kill_then_wait_for_exit() {
+        let _guard = acp_runtime_test_lock()
+            .lock()
+            .expect("acp runtime test lock poisoned");
         let (script_path, cancel_log_path) =
             write_fake_acp_stdio_server_script("terminal-kill", "terminal-kill");
         let (service_base_url, service_handle) =
@@ -1327,6 +1353,9 @@ rl.on("line", (line) => {{
 
     #[tokio::test]
     async fn events_route_supports_acp_terminal_output_byte_limits() {
+        let _guard = acp_runtime_test_lock()
+            .lock()
+            .expect("acp runtime test lock poisoned");
         let (script_path, cancel_log_path) =
             write_fake_acp_stdio_server_script("terminal-output-limit", "terminal-output-limit");
         let (service_base_url, service_handle) =

@@ -148,6 +148,20 @@ A start request should support, where relevant:
 - route or step hints
 - explicit constraints and done definition
 
+The preferred lifecycle for new work is now the runtime kernel v2 family:
+
+- `code_runtime_run_prepare_v2`
+- `code_runtime_run_start_v2`
+- `code_runtime_run_get_v2`
+- `code_runtime_run_subscribe_v2`
+- `code_runtime_review_get_v2`
+- `code_runtime_run_resume_v2`
+- `code_runtime_run_intervene_v2`
+
+`code_runtime_run_prepare_v2` is the canonical place to publish intent
+clarification, context shaping, execution graph, approval grouping, and
+validation scope before execution starts.
+
 ### 6.2 Start-Time Backend Resolution Rule
 
 Backend preference must resolve in runtime-facing application logic before crossing the host-native boundary.
@@ -198,6 +212,10 @@ Minimum governance states:
 
 Runtime and contract layers own canonical governance state.
 The UI may render or group it, but must not invent alternate state-machine semantics.
+
+During migration, compat-backed runtime projections are acceptable inside the
+service layer. They are not a license for app-runtime facades or pages to
+rebuild governance, review, or planning truth locally.
 
 ### 7.3 Review Surface Rule
 

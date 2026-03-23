@@ -22,9 +22,12 @@ import {
   type RuntimeCockpitToolsCodexImportResponse,
 } from "./runtimeClient";
 import type { RuntimeProviderCatalogEntry } from "../contracts/runtime";
-import { isRuntimeMethodUnsupportedError, readRuntimeErrorCode } from "./runtimeErrorClassifier";
-import { RUNTIME_MESSAGE_CODES } from "./runtimeMessageCodes";
-import { createRuntimeError } from "./runtimeMessageEnvelope";
+import {
+  isRuntimeMethodUnsupportedError,
+  readRuntimeErrorCode,
+} from "@ku0/code-runtime-client/runtimeErrorClassifier";
+import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
+import { createRuntimeError } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 import {
   accountHasRoutingCredential,
   createMockOauthEntityId,

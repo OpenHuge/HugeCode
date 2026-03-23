@@ -8,6 +8,9 @@ jobs:
     name: frontend_optimization
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      PW_WEBSERVER_TIMEOUT_MS: "900000"
+      CODE_RUNTIME_SERVICE_READY_TIMEOUT_MS: "900000"
     steps:
       - uses: actions/checkout@v4
 

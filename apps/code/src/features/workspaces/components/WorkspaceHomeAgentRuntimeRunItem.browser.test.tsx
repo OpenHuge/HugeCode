@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { RuntimeRunGetV2Response, HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import { WorkspaceHomeAgentRuntimeRunItem } from "./WorkspaceHomeAgentRuntimeRunItem";
+
+const getRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
+  getRuntimeRunV2: getRuntimeRunV2Mock,
+}));
 
 function buildTask(overrides: Partial<RuntimeAgentTaskSummary> = {}): RuntimeAgentTaskSummary {
   const now = 1_700_000_000_000;
@@ -76,6 +82,10 @@ function buildRun(overrides: Partial<HugeCodeRunSummary> = {}): HugeCodeRunSumma
 }
 
 describe("WorkspaceHomeAgentRuntimeRunItem", () => {
+  beforeEach(() => {
+    getRuntimeRunV2Mock.mockResolvedValue(null);
+  });
+
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -256,5 +266,83 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
 
     expect(screen.getByRole("button", { name: "Open sub-agent observability" })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Sub-agent observability" })).toBeNull();
+  });
+
+  it("prefers runtime run truth for review, checkpoint, and publish handoff detail", async () => {
+    const noop = vi.fn();
+    getRuntimeRunV2Mock.mockResolvedValue({
+      run: {
+        ...buildTask({
+          status: "completed",
+          checkpointId: "checkpoint-runtime-1",
+          traceId: "trace-runtime-1",
+        }),
+      },
+      missionRun: buildRun({
+        state: "review_ready",
+        summary: "Projection summary should not win.",
+      }),
+      reviewPack: {
+        id: "review-pack:runtime-task-1",
+        runId: "runtime-task-1",
+        taskId: "runtime-task-1",
+        workspaceId: "workspace-1",
+        summary: "Runtime review truth is ready for operator inspection.",
+        reviewStatus: "ready",
+        evidenceState: "confirmed",
+        validationOutcome: "passed",
+        warningCount: 0,
+        warnings: [],
+        validations: [],
+        artifacts: [],
+        checksPerformed: [],
+        recommendedNextAction: "Inspect review evidence.",
+        createdAt: 1_700_000_000_000,
+        checkpoint: {
+          state: "available",
+          lifecycleState: "published",
+          checkpointId: "checkpoint-runtime-1",
+          traceId: "trace-runtime-1",
+          recovered: false,
+          updatedAt: 1_700_000_000_000,
+          resumeReady: true,
+          summary: "Checkpoint published.",
+        },
+        publishHandoff: {
+          jsonPath: ".hugecode/runs/runtime-task-1/publish/handoff.json",
+          markdownPath: ".hugecode/runs/runtime-task-1/publish/handoff.md",
+          summary: "Runtime handoff is ready for another control device.",
+        },
+      },
+    } satisfies RuntimeRunGetV2Response);
+
+    render(
+      <WorkspaceHomeAgentRuntimeRunItem
+        task={buildTask({
+          status: "completed",
+        })}
+        run={buildRun({
+          state: "review_ready",
+          summary: "Projection summary should not win.",
+        })}
+        continuityItem={null}
+        runtimeLoading={false}
+        onRefresh={noop}
+        onInterrupt={noop}
+        onResume={noop}
+        onPrepareLauncher={noop}
+        onApproval={noop}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Review: Runtime review truth is ready for operator inspection.")
+      ).toBeTruthy();
+      expect(
+        screen.getByText("Publish handoff: Runtime handoff is ready for another control device.")
+      ).toBeTruthy();
+      expect(screen.getAllByText(/Checkpoint checkpoint-runtime-1/).length).toBeGreaterThan(0);
+    });
   });
 });

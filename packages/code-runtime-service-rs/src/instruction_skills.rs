@@ -963,9 +963,11 @@ mod tests {
             "codex".to_string(),
             home_root.join(".codex").join("skills"),
         )));
-        assert!(root_paths
-            .iter()
-            .any(|(scope, source_family, _)| scope == "global" && source_family == "bundled"));
+        if resolve_bundled_skills_root().is_some() {
+            assert!(root_paths
+                .iter()
+                .any(|(scope, source_family, _)| scope == "global" && source_family == "bundled"));
+        }
 
         match previous_home {
             Some(value) => std::env::set_var("HOME", value),

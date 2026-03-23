@@ -8,7 +8,7 @@ import {
   withLastEventIdQuery,
 } from "./eventsWebTransportHelpers";
 import { normalizeAppServerPayload } from "./eventsRuntimePayloadAdapter";
-import { recordRuntimeEventDedupeHit } from "./runtimeEventStabilityMetrics";
+import { recordRuntimeEventDedupeHit } from "@ku0/code-runtime-client/runtimeEventStabilityMetrics";
 import { DEFAULT_RUNTIME_WORKSPACE_ID } from "../utils/runtimeWorkspaceIds";
 
 export type Unsubscribe = () => void;

@@ -95,6 +95,15 @@ Resolved backend placement, fallback source, and placement rationale must be ins
 
 New fields and lifecycle states should be added additively. Avoid client-specific copies, aliases, and divergent payloads.
 
+### 4.7 Runtime Kernel v2 Is The Preferred Lifecycle Path
+
+Truth-first run preparation, execution, and review semantics should land in the
+runtime kernel v2 contract first.
+
+The app may keep consuming compatibility projections while migration is in
+flight, but new meaning must not be implemented by expanding UI-side heuristics
+or by continuing to grow legacy v1 run payloads.
+
 ---
 
 ## 5. System Context

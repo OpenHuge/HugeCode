@@ -33,10 +33,6 @@
       "types": "./src/webMcpBridgeTypes.ts",
       "default": "./src/webMcpBridgeTypes.ts"
     },
-    "./webMcpInputSchemaValidationError": {
-      "types": "./src/webMcpInputSchemaValidationError.ts",
-      "default": "./src/webMcpInputSchemaValidationError.ts"
-    },
     "./webMcpToolInputSchemaValidation": {
       "types": "./src/webMcpToolInputSchemaValidation.ts",
       "default": "./src/webMcpToolInputSchemaValidation.ts"

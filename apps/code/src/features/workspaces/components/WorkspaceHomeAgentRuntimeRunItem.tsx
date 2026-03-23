@@ -4,6 +4,7 @@ import type {
   HugeCodeRunSummary,
 } from "@ku0/code-runtime-host-contract";
 import { projectAgentTaskStatusToRunState } from "../../../application/runtime/facades/runtimeMissionControlFacade";
+import { useRuntimeRunRecordTruth } from "../../../application/runtime/facades/runtimeRunRecordTruth";
 import type { RuntimeTaskLauncherInterventionIntent } from "../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
 import type { RuntimeContinuityReadinessItem } from "../../../application/runtime/facades/runtimeContinuityReadiness";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
@@ -125,16 +126,52 @@ export function WorkspaceHomeAgentRuntimeRunItem({
   onPrepareLauncher,
   onApproval,
 }: WorkspaceHomeAgentRuntimeRunItemProps) {
+  const runtimeRunTruth = useRuntimeRunRecordTruth({
+    runId: run?.id ?? task.runSummary?.id ?? task.taskId,
+    workspaceId: task.workspaceId ?? run?.workspaceId ?? null,
+  });
+  const truthTask = runtimeRunTruth.record?.run ?? null;
+  const effectiveTask = truthTask ? ({ ...task, ...truthTask } as RuntimeAgentTaskSummary) : task;
+  const effectiveRun = runtimeRunTruth.record?.missionRun ?? run ?? task.runSummary ?? null;
+  const effectiveReviewPack =
+    runtimeRunTruth.record?.reviewPack ?? effectiveTask.reviewPackSummary ?? null;
+  const effectiveTakeoverBundle =
+    effectiveReviewPack?.takeoverBundle ??
+    effectiveRun?.takeoverBundle ??
+    effectiveTask.takeoverBundle ??
+    null;
+  const reviewSummary =
+    effectiveReviewPack?.summary?.trim() ||
+    (effectiveRun?.state === "review_ready" ? effectiveRun.summary?.trim() || null : null);
+  const publishHandoffSummary =
+    effectiveReviewPack?.publishHandoff?.summary?.trim() ||
+    effectiveRun?.publishHandoff?.summary?.trim() ||
+    effectiveTask.publishHandoff?.summary?.trim() ||
+    null;
   const canInterrupt =
-    task.status === "queued" || task.status === "running" || task.status === "awaiting_approval";
-  const checkpointId = formatTaskCheckpoint(task);
-  const traceId = formatTaskTrace(task);
-  const missionRunState = projectAgentTaskStatusToRunState(task.status);
-  const supervisionSignals = buildMissionRunSupervisionSignals(task, run);
+    effectiveTask.status === "queued" ||
+    effectiveTask.status === "running" ||
+    effectiveTask.status === "awaiting_approval";
+  const checkpointId = formatTaskCheckpoint({
+    checkpointId:
+      effectiveTask.checkpointId ??
+      effectiveReviewPack?.checkpoint?.checkpointId ??
+      effectiveRun?.checkpoint?.checkpointId ??
+      null,
+  });
+  const traceId = formatTaskTrace({
+    traceId:
+      effectiveTask.traceId ??
+      effectiveReviewPack?.checkpoint?.traceId ??
+      effectiveRun?.checkpoint?.traceId ??
+      null,
+  });
+  const missionRunState = projectAgentTaskStatusToRunState(effectiveTask.status);
+  const supervisionSignals = buildMissionRunSupervisionSignals(effectiveTask, effectiveRun);
   const canResume = continuityItem?.pathKind === "resume";
-  const executionGraph = run?.executionGraph ?? null;
-  const subAgents = run?.subAgents ?? [];
-  const operatorSnapshot = run?.operatorSnapshot ?? null;
+  const executionGraph = effectiveRun?.executionGraph ?? null;
+  const subAgents = effectiveRun?.subAgents ?? [];
+  const operatorSnapshot = effectiveRun?.operatorSnapshot ?? null;
   const recentEvents = operatorSnapshot?.recentEvents ?? [];
   const graphNodes = executionGraph?.nodes ?? [];
   const graphEdges = executionGraph?.edges ?? [];
@@ -160,7 +197,7 @@ export function WorkspaceHomeAgentRuntimeRunItem({
     Boolean(operatorSnapshot?.blocker) ||
     recentEvents.length > 0;
   const initialObservabilityOpen =
-    task.status === "awaiting_approval" || attentionSubAgentCount > 0;
+    effectiveTask.status === "awaiting_approval" || attentionSubAgentCount > 0;
   const [observabilityOpen, setObservabilityOpen] = useState(initialObservabilityOpen);
   const previousAutoOpenSignalRef = useRef(initialObservabilityOpen);
   const observabilityPanelId = useId();
@@ -178,8 +215,8 @@ export function WorkspaceHomeAgentRuntimeRunItem({
     operatorSnapshot?.blocker ??
     attentionSubAgents[0]?.summary ??
     attentionSubAgents[0]?.approvalState?.reason ??
-    run?.approval?.summary ??
-    run?.nextAction?.detail ??
+    effectiveRun?.approval?.summary ??
+    effectiveRun?.nextAction?.detail ??
     null;
 
   useEffect(() => {
@@ -194,23 +231,25 @@ export function WorkspaceHomeAgentRuntimeRunItem({
       <div className={joinClassNames("workspace-home-code-runtime-item-main", styles.runHeader)}>
         <div className={styles.runTitleRow}>
           <strong className={styles.runTitle}>
-            {task.title?.trim().length ? task.title : task.taskId}
+            {effectiveTask.title?.trim().length ? effectiveTask.title : effectiveTask.taskId}
           </strong>
           <StatusBadge tone={resolveMissionRunBadgeTone(missionRunState)}>
             {formatMissionRunStateLabel(missionRunState)}
           </StatusBadge>
-          {task.recovered === true ? <StatusBadge tone="success">Recovered</StatusBadge> : null}
+          {effectiveTask.recovered === true ? (
+            <StatusBadge tone="success">Recovered</StatusBadge>
+          ) : null}
         </div>
         <div className={styles.runMetaRail}>
-          <span className={styles.runMetaChip}>Step {task.currentStep ?? "n/a"}</span>
+          <span className={styles.runMetaChip}>Step {effectiveTask.currentStep ?? "n/a"}</span>
           <span className={styles.runMetaChip}>
-            Updated {formatRuntimeTimestamp(task.updatedAt)}
+            Updated {formatRuntimeTimestamp(effectiveTask.updatedAt)}
           </span>
-          {run?.executionProfile ? (
-            <span className={styles.runMetaChip}>Profile {run.executionProfile.name}</span>
+          {effectiveRun?.executionProfile ? (
+            <span className={styles.runMetaChip}>Profile {effectiveRun.executionProfile.name}</span>
           ) : null}
-          {run?.routing ? (
-            <span className={styles.runMetaChip}>Route {run.routing.routeLabel}</span>
+          {effectiveRun?.routing ? (
+            <span className={styles.runMetaChip}>Route {effectiveRun.routing.routeLabel}</span>
           ) : null}
           {checkpointId ? (
             <span className={styles.runMetaChip}>Checkpoint {checkpointId}</span>
@@ -218,14 +257,20 @@ export function WorkspaceHomeAgentRuntimeRunItem({
           {traceId ? <span className={styles.runMetaChip}>Trace {traceId}</span> : null}
         </div>
         <div className={styles.runDetailStack}>
-          {run?.placement ? <span>Placement: {run.placement.summary}</span> : null}
-          {run?.routing?.routeHint ? <span>Routing detail: {run.routing.routeHint}</span> : null}
-          {run?.approval && !richObservabilityAvailable ? (
-            <span>Approval: {run.approval.label}</span>
+          {effectiveRun?.placement ? (
+            <span>Placement: {effectiveRun.placement.summary}</span>
           ) : null}
-          {run?.nextAction && !richObservabilityAvailable ? (
-            <span>Next: {run.nextAction.label}</span>
+          {effectiveRun?.routing?.routeHint ? (
+            <span>Routing detail: {effectiveRun.routing.routeHint}</span>
           ) : null}
+          {effectiveRun?.approval && !richObservabilityAvailable ? (
+            <span>Approval: {effectiveRun.approval.label}</span>
+          ) : null}
+          {effectiveRun?.nextAction && !richObservabilityAvailable ? (
+            <span>Next: {effectiveRun.nextAction.label}</span>
+          ) : null}
+          {reviewSummary ? <span>Review: {reviewSummary}</span> : null}
+          {publishHandoffSummary ? <span>Publish handoff: {publishHandoffSummary}</span> : null}
           {executionGraph && !richObservabilityAvailable ? (
             <span>
               Graph: {executionGraph.nodes.length} node(s), {executionGraph.edges.length} edge(s)
@@ -237,6 +282,10 @@ export function WorkspaceHomeAgentRuntimeRunItem({
           {continuityItem ? (
             <span>
               Continuity ({continuityItem.pathKind}): {continuityItem.detail}
+            </span>
+          ) : effectiveTakeoverBundle?.summary ? (
+            <span>
+              Continuity ({effectiveTakeoverBundle.pathKind}): {effectiveTakeoverBundle.summary}
             </span>
           ) : null}
           {supervisionSignals.map((detail) => (
@@ -305,7 +354,7 @@ export function WorkspaceHomeAgentRuntimeRunItem({
             type="button"
             className={styles.actionButtonPrimary}
             onClick={() => void onRefresh()}
-            aria-label={`Refresh mission run ${task.title?.trim().length ? task.title : task.taskId}`}
+            aria-label={`Refresh mission run ${effectiveTask.title?.trim().length ? effectiveTask.title : effectiveTask.taskId}`}
             disabled={runtimeLoading}
           >
             Refresh
@@ -329,9 +378,13 @@ export function WorkspaceHomeAgentRuntimeRunItem({
           <button
             type="button"
             className={styles.actionButtonAffirm}
-            onClick={() => (task.pendingApprovalId ? void onApproval("approved") : undefined)}
+            onClick={() =>
+              effectiveTask.pendingApprovalId ? void onApproval("approved") : undefined
+            }
             disabled={
-              !task.pendingApprovalId || task.status !== "awaiting_approval" || runtimeLoading
+              !effectiveTask.pendingApprovalId ||
+              effectiveTask.status !== "awaiting_approval" ||
+              runtimeLoading
             }
           >
             Approve
@@ -339,9 +392,13 @@ export function WorkspaceHomeAgentRuntimeRunItem({
           <button
             type="button"
             className={joinClassNames(styles.actionButtonSecondary, styles.actionButtonDanger)}
-            onClick={() => (task.pendingApprovalId ? void onApproval("rejected") : undefined)}
+            onClick={() =>
+              effectiveTask.pendingApprovalId ? void onApproval("rejected") : undefined
+            }
             disabled={
-              !task.pendingApprovalId || task.status !== "awaiting_approval" || runtimeLoading
+              !effectiveTask.pendingApprovalId ||
+              effectiveTask.status !== "awaiting_approval" ||
+              runtimeLoading
             }
           >
             Reject
@@ -580,47 +637,60 @@ export function WorkspaceHomeAgentRuntimeRunItem({
             framed={false}
             title="Governance and next action"
             meta={
-              run?.governance?.label ? (
-                <StatusBadge tone={run.governance.blocking ? "warning" : "progress"}>
-                  {run.governance.label}
+              effectiveRun?.governance?.label ? (
+                <StatusBadge tone={effectiveRun.governance.blocking ? "warning" : "progress"}>
+                  {effectiveRun.governance.label}
                 </StatusBadge>
               ) : undefined
             }
           >
             <ul className={styles.detailList}>
-              {run?.nextAction?.label ? <li>Next: {run.nextAction.label}</li> : null}
-              {run?.nextAction?.detail ? <li>{run.nextAction.detail}</li> : null}
-              {run?.approval?.summary ? <li>Approval: {run.approval.summary}</li> : null}
+              {effectiveRun?.nextAction?.label ? (
+                <li>Next: {effectiveRun.nextAction.label}</li>
+              ) : null}
+              {effectiveRun?.nextAction?.detail ? <li>{effectiveRun.nextAction.detail}</li> : null}
+              {effectiveRun?.approval?.summary ? (
+                <li>Approval: {effectiveRun.approval.summary}</li>
+              ) : null}
               {continuityItem ? (
                 <li>
                   Continuity ({continuityItem.pathKind}): {continuityItem.detail}
                 </li>
+              ) : effectiveTakeoverBundle?.summary ? (
+                <li>
+                  Continuity ({effectiveTakeoverBundle.pathKind}): {effectiveTakeoverBundle.summary}
+                </li>
               ) : null}
-              {run?.placement?.summary ? <li>Placement: {run.placement.summary}</li> : null}
+              {publishHandoffSummary ? <li>Publish handoff: {publishHandoffSummary}</li> : null}
+              {effectiveRun?.placement?.summary ? (
+                <li>Placement: {effectiveRun.placement.summary}</li>
+              ) : null}
               {checkpointId ? <li>Checkpoint: {checkpointId}</li> : null}
               {traceId ? <li>Trace: {traceId}</li> : null}
             </ul>
           </ReviewLoopSection>
         </div>
       ) : null}
-      {run?.operatorState ? (
+      {effectiveRun?.operatorState ? (
         <div
           className={
-            run.operatorState.health === "healthy"
+            effectiveRun.operatorState.health === "healthy"
               ? controlStyles.sectionMeta
               : controlStyles.warning
           }
         >
-          {run.operatorState.headline}
-          {run.operatorState.detail ? `: ${run.operatorState.detail}` : ""}
+          {effectiveRun.operatorState.headline}
+          {effectiveRun.operatorState.detail ? `: ${effectiveRun.operatorState.detail}` : ""}
         </div>
       ) : null}
-      {run?.profileReadiness && !run.profileReadiness.ready ? (
+      {effectiveRun?.profileReadiness && !effectiveRun.profileReadiness.ready ? (
         <div className={controlStyles.warning}>
-          Profile readiness: {run.profileReadiness.summary}
+          Profile readiness: {effectiveRun.profileReadiness.summary}
         </div>
       ) : null}
-      {task.errorMessage && <div className={controlStyles.warning}>{task.errorMessage}</div>}
+      {effectiveTask.errorMessage && (
+        <div className={controlStyles.warning}>{effectiveTask.errorMessage}</div>
+      )}
     </div>
   );
 }

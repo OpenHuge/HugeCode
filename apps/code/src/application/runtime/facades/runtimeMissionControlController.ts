@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkspaceRuntimeAgentControl } from "../ports/runtimeAgentControl";
+import { startRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
 import { readRuntimeErrorCode, readRuntimeErrorMessage } from "../ports/runtimeErrorClassifier";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
-import { buildAgentTaskMissionBrief } from "./runtimeMissionDraftFacade";
 import { listRunExecutionProfiles } from "./runtimeMissionControlFacade";
+import {
+  buildRuntimeMissionLaunchPrepareRequest,
+  useRuntimeMissionLaunchPreview,
+} from "./runtimeMissionLaunchPreparation";
 import { buildWorkspaceRuntimeMissionControlProjection } from "./runtimeWorkspaceMissionControlProjection";
 import { useRuntimeWorkspaceLaunchDefaults } from "./runtimeWorkspaceLaunchDefaultsFacade";
 import {
@@ -104,6 +108,17 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
   const selectedExecutionProfile = draft.selectedExecutionProfile;
   const selectedProviderRoute = missionControlProjection.routeSelection.selected;
   const providerRouteOptions = missionControlProjection.routeSelection.options;
+  const routedProvider =
+    draft.runtimeDraftProviderRoute === "auto" ? null : draft.runtimeDraftProviderRoute;
+  const runtimeLaunchPreview = useRuntimeMissionLaunchPreview({
+    workspaceId,
+    draftTitle: draft.runtimeDraftTitle,
+    draftInstruction: draft.runtimeDraftInstruction,
+    selectedExecutionProfile,
+    repositoryLaunchDefaults,
+    runtimeSourceDraft: draft.runtimeSourceDraft,
+    routedProvider,
+  });
 
   const setRuntimeError = useCallback((value: string | null) => {
     setRuntimeActionError(value);
@@ -113,30 +128,23 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     if (draft.runtimeDraftInstruction.trim().length === 0) {
       return;
     }
-    const routedProvider =
-      draft.runtimeDraftProviderRoute === "auto" ? null : draft.runtimeDraftProviderRoute;
+    const launchRequest =
+      runtimeLaunchPreview.request ??
+      buildRuntimeMissionLaunchPrepareRequest({
+        workspaceId,
+        draftTitle: draft.runtimeDraftTitle,
+        draftInstruction: draft.runtimeDraftInstruction,
+        selectedExecutionProfile,
+        repositoryLaunchDefaults,
+        runtimeSourceDraft: draft.runtimeSourceDraft,
+        routedProvider,
+      });
+    if (!launchRequest) {
+      return;
+    }
     setRuntimeActionLoading(true);
     try {
-      await runtimeControl.startTask({
-        workspaceId,
-        title: draft.runtimeDraftTitle.trim().length > 0 ? draft.runtimeDraftTitle.trim() : null,
-        validationPresetId:
-          draft.runtimeSourceDraft?.validationPresetId ??
-          selectedExecutionProfile.validationPresetId,
-        accessMode: draft.runtimeSourceDraft?.accessMode ?? selectedExecutionProfile.accessMode,
-        executionMode:
-          selectedExecutionProfile.executionMode === "remote_sandbox" ? "distributed" : "single",
-        provider: routedProvider,
-        instruction: draft.runtimeDraftInstruction.trim(),
-        stepKind: "read",
-        missionBrief: buildAgentTaskMissionBrief({
-          objective:
-            draft.runtimeDraftTitle.trim().length > 0
-              ? draft.runtimeDraftTitle.trim()
-              : draft.runtimeDraftInstruction.trim(),
-          accessMode: draft.runtimeSourceDraft?.accessMode ?? selectedExecutionProfile.accessMode,
-        }),
-      });
+      await startRuntimeRunV2(launchRequest);
       draft.resetRuntimeDraftState();
       setRuntimeError(null);
       setRuntimeInfo(
@@ -152,10 +160,13 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     draft,
     runtimeControl,
     selectedExecutionProfile,
+    repositoryLaunchDefaults,
     selectedProviderRoute,
     snapshot,
     workspaceId,
     setRuntimeError,
+    routedProvider,
+    runtimeLaunchPreview.request,
   ]);
 
   const interruptRuntimeTaskById = useCallback(
@@ -381,6 +392,9 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     repositoryExecutionContract,
     repositoryExecutionContractError,
     repositoryLaunchDefaults,
+    runtimeLaunchPreparation: runtimeLaunchPreview.preparation,
+    runtimeLaunchPreparationError: runtimeLaunchPreview.error,
+    runtimeLaunchPreparationLoading: runtimeLaunchPreview.loading,
     resumeRecoverableTasks,
     runtimeDraftInstruction: draft.runtimeDraftInstruction,
     setRuntimeDraftInstruction: draft.setRuntimeDraftInstruction,

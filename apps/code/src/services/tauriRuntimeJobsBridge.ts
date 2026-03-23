@@ -17,6 +17,15 @@ import {
   type KernelJobStartRequestV3,
   type KernelJobSubscribeRequestV3,
   type ModelProvider,
+  type RuntimeRunPrepareV2Request,
+  type RuntimeRunPrepareV2Response,
+  type RuntimeRunGetV2Request,
+  type RuntimeRunGetV2Response,
+  type RuntimeRunSubscribeV2Response,
+  type RuntimeRunStartRequest,
+  type RuntimeRunStartV2Response,
+  type RuntimeReviewGetV2Request,
+  type RuntimeReviewGetV2Response,
 } from "@ku0/code-runtime-host-contract";
 import {
   getRuntimeClient,
@@ -81,6 +90,36 @@ function toRuntimeJobInterventionOutcome(
 
 export async function startRuntimeJob(request: KernelJobStartRequestV3): Promise<KernelJob> {
   return getRuntimeClient().kernelJobStartV3(request);
+}
+
+export async function prepareRuntimeRunV2(
+  request: RuntimeRunPrepareV2Request
+): Promise<RuntimeRunPrepareV2Response> {
+  return getRuntimeClient().runtimeRunPrepareV2(request);
+}
+
+export async function startRuntimeRunV2(
+  request: RuntimeRunStartRequest
+): Promise<RuntimeRunStartV2Response> {
+  return getRuntimeClient().runtimeRunStartV2(request);
+}
+
+export async function getRuntimeRunV2(
+  request: RuntimeRunGetV2Request
+): Promise<RuntimeRunGetV2Response> {
+  return getRuntimeClient().runtimeRunGetV2(request);
+}
+
+export async function subscribeRuntimeRunV2(
+  request: RuntimeRunGetV2Request
+): Promise<RuntimeRunSubscribeV2Response> {
+  return getRuntimeClient().runtimeRunSubscribeV2(request);
+}
+
+export async function getRuntimeReviewV2(
+  request: RuntimeReviewGetV2Request
+): Promise<RuntimeReviewGetV2Response> {
+  return getRuntimeClient().runtimeReviewGetV2(request);
 }
 
 export async function getRuntimeJob(request: KernelJobGetRequestV3): Promise<KernelJob | null> {
