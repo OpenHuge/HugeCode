@@ -52,15 +52,8 @@ const allowedAppComponentFiles = new Set([
 const allowedAppAdapterFiles = new Set([
   "apps/code/src/design-system/adapters/Button/Button.tsx",
   "apps/code/src/design-system/adapters/Button/index.ts",
-  "apps/code/src/design-system/adapters/Card/Card.tsx",
-  "apps/code/src/design-system/adapters/Card/index.ts",
   "apps/code/src/design-system/adapters/Input/Input.tsx",
   "apps/code/src/design-system/adapters/Input/index.ts",
-  "apps/code/src/design-system/adapters/Radio/Radio.tsx",
-  "apps/code/src/design-system/adapters/Radio/index.ts",
-  "apps/code/src/design-system/adapters/Select/Select.tsx",
-  "apps/code/src/design-system/adapters/Select/Select.test.tsx",
-  "apps/code/src/design-system/adapters/Select/index.ts",
   "apps/code/src/design-system/adapters/index.test.ts",
   "apps/code/src/design-system/adapters/index.ts",
 ]);

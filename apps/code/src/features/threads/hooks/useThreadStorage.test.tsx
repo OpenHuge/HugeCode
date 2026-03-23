@@ -464,7 +464,7 @@ describe("useThreadStorage", () => {
     });
   });
 
-  it("falls back to legacy snapshots when native thread storage cannot be read", async () => {
+  it("does not fall back to legacy snapshots when native thread storage cannot be read", async () => {
     vi.mocked(loadThreadActivity).mockReturnValue({});
     vi.mocked(loadPinnedThreads).mockReturnValue({});
     vi.mocked(loadCustomNames).mockReturnValue({});
@@ -482,22 +482,15 @@ describe("useThreadStorage", () => {
     const { result } = renderHook(() => useThreadStorage());
 
     await waitFor(() => {
-      expect(result.current.listThreadSnapshots("ws-1")).toEqual([
-        {
-          workspaceId: "ws-1",
-          threadId: "thread-legacy",
-          name: "Legacy thread",
-          updatedAt: 91,
-          items: [{ id: "msg-legacy", kind: "message", role: "user", text: "restore legacy" }],
-        },
-      ]);
+      expect(result.current.threadSnapshotsReady).toBe(true);
     });
 
+    expect(result.current.listThreadSnapshots("ws-1")).toEqual([]);
     expect(writePersistedThreadStorageState).not.toHaveBeenCalled();
     expect(clearThreadSnapshots).not.toHaveBeenCalled();
   });
 
-  it("keeps legacy snapshots until native migration succeeds", async () => {
+  it("migrates legacy snapshots only after native storage responds successfully", async () => {
     vi.mocked(loadThreadActivity).mockReturnValue({});
     vi.mocked(loadPinnedThreads).mockReturnValue({});
     vi.mocked(loadCustomNames).mockReturnValue({});

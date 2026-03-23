@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { act, waitFor } from "@testing-library/react";
+import { act } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const sentryInitMock = vi.fn();
@@ -25,6 +25,14 @@ describe("main sentry bootstrap", () => {
     sentryInitMock.mockClear();
     sentryMetricsCountMock.mockClear();
     document.body.innerHTML = '<div id="root"></div>';
+    Object.defineProperty(window, "requestIdleCallback", {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(window, "cancelIdleCallback", {
+      configurable: true,
+      value: undefined,
+    });
   });
 
   it("does not initialize sentry by default", async () => {
@@ -38,15 +46,20 @@ describe("main sentry bootstrap", () => {
   });
 
   it("initializes sentry and records app_open when explicitly enabled", async () => {
+    vi.useFakeTimers();
     vi.stubEnv("VITE_SENTRY_ENABLED", "true");
     vi.stubEnv("VITE_SENTRY_DSN", "https://examplePublicKey@o0.ingest.us.sentry.io/0");
     await act(async () => {
       await import("./main");
       await vi.dynamicImportSettled();
     });
-    await waitFor(() => {
-      expect(sentryInitMock).toHaveBeenCalled();
+    expect(sentryInitMock).not.toHaveBeenCalled();
+    await act(async () => {
+      window.dispatchEvent(new Event("pointerdown"));
+      vi.runAllTimers();
+      await vi.dynamicImportSettled();
     });
+    expect(sentryInitMock).toHaveBeenCalled();
     expect(sentryInitMock).toHaveBeenCalledWith(
       expect.objectContaining({
         dsn: "https://examplePublicKey@o0.ingest.us.sentry.io/0",
