@@ -29,6 +29,14 @@
       "types": "./src/runtimeClientRpcMethods.ts",
       "default": "./src/runtimeClientRpcMethods.ts"
     },
+    "./runtimeClientRpcHelpers": {
+      "types": "./src/runtimeClientRpcHelpers.ts",
+      "default": "./src/runtimeClientRpcHelpers.ts"
+    },
+    "./runtimeClientRpcPayloads": {
+      "types": "./src/runtimeClientRpcPayloads.ts",
+      "default": "./src/runtimeClientRpcPayloads.ts"
+    },
     "./runtimeClientTransportCore": {
       "types": "./src/runtimeClientTransportCore.ts",
       "default": "./src/runtimeClientTransportCore.ts"
