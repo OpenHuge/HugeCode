@@ -17,7 +17,7 @@ import {
   toFileLink,
 } from "../../../utils/remarkFileLinks";
 import { normalizePathForDisplay } from "../../../utils/platformPaths";
-import { highlightCode } from "../../../utils/syntax";
+import { highlightLineSegments } from "../../../utils/syntax";
 import {
   buildSkillMetaChips,
   buildSkillStateChips,
@@ -93,12 +93,6 @@ async function openExternalUrl(url: string) {
     await openUrl(url);
     return;
   } catch (error) {
-    if (typeof window !== "undefined" && typeof window.open === "function") {
-      const opened = window.open(url, "_blank", "noopener,noreferrer");
-      if (opened) {
-        return;
-      }
-    }
     pushErrorToast({
       title: "Couldn’t open link",
       message: error instanceof Error ? error.message : "Unable to open link.",
@@ -423,7 +417,8 @@ function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
   const languageTag = extractLanguageTag(className);
   const languageLabel = languageTag ?? "Code";
   const fencedValue = `\`\`\`${languageTag ?? ""}\n${value}\n\`\`\``;
-  const highlightedValue = highlightCode(value, languageTag);
+  const highlightedSegments = highlightLineSegments(value, languageTag);
+  let highlightedOffset = 0;
 
   useEffect(() => {
     return () => {
@@ -469,7 +464,19 @@ function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
         </Button>
       </div>
       <pre className={styles.markdownCodeblockPre}>
-        <code className={className} dangerouslySetInnerHTML={{ __html: highlightedValue }} />
+        <code className={className}>
+          {highlightedSegments.map((segment) => {
+            const key = `${segment.className ?? "plain"}:${highlightedOffset}`;
+            highlightedOffset += segment.text.length;
+            return segment.className ? (
+              <span key={key} className={segment.className}>
+                {segment.text}
+              </span>
+            ) : (
+              <span key={key}>{segment.text}</span>
+            );
+          })}
+        </code>
       </pre>
     </div>
   );

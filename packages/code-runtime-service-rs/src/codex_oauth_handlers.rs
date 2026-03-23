@@ -1,4 +1,5 @@
 use super::*;
+use axum::response::Response;
 use rand::Rng;
 
 #[derive(Debug)]
@@ -12,6 +13,7 @@ pub(super) struct PendingCodexOauthLogin {
     pub(super) workspace_id: String,
     pub(super) redirect_uri: String,
     pub(super) code_verifier: String,
+    pub(super) post_message_origin: Option<String>,
     pub(super) expires_at_ms: u64,
 }
 
@@ -165,28 +167,46 @@ async fn maybe_stop_codex_oauth_loopback_listener(ctx: &AppContext) {
     }
 }
 
-pub(super) fn build_oauth_result_html(title: &str, message: &str, success: bool) -> Html<String> {
+pub(super) fn build_oauth_result_html(
+    title: &str,
+    message: &str,
+    success: bool,
+    login_id: Option<&str>,
+    post_message_origin: Option<&str>,
+) -> Html<String> {
     let heading = sanitize_html(title);
     let body = sanitize_html(message);
     let status_class = if success { "success" } else { "error" };
     let status_label = if success { "Success" } else { "Failed" };
-    let callback_script = if success {
-        r#"<script>
-    try {
-      if (window.opener && !window.opener.closed) {
-        window.opener.postMessage({ type: "fastcode:oauth:codex", success: true }, "*");
-      }
-      window.close();
-    } catch (_) {}
-  </script>"#
-    } else {
-        r#"<script>
-    try {
-      if (window.opener && !window.opener.closed) {
-        window.opener.postMessage({ type: "fastcode:oauth:codex", success: false }, "*");
-      }
-    } catch (_) {}
-  </script>"#
+    let callback_script = match (login_id, post_message_origin) {
+        (Some(login_id), Some(post_message_origin)) => {
+            let serialized_login_id =
+                serde_json::to_string(login_id).unwrap_or_else(|_| "\"\"".to_string());
+            let serialized_origin =
+                serde_json::to_string(post_message_origin).unwrap_or_else(|_| "\"\"".to_string());
+            let close_statement = if success { "\n      window.close();" } else { "" };
+            format!(
+                r#"<script>
+    try {{
+      if (window.opener && !window.opener.closed) {{
+        window.opener.postMessage(
+          {{
+            type: "fastcode:oauth:codex",
+            success: {success},
+            loginId: {login_id}
+          }},
+          {target_origin}
+        );
+      }}{close_statement}
+    }} catch (_) {{}}
+  </script>"#,
+                success = if success { "true" } else { "false" },
+                login_id = serialized_login_id,
+                target_origin = serialized_origin,
+                close_statement = close_statement,
+            )
+        }
+        _ => String::new(),
     };
     Html(format!(
         r#"<!doctype html>
@@ -217,6 +237,25 @@ pub(super) fn build_oauth_result_html(title: &str, message: &str, success: bool)
     ))
 }
 
+fn build_pending_oauth_error_response(
+    status: StatusCode,
+    title: &str,
+    message: &str,
+    pending_login: Option<&PendingCodexOauthLogin>,
+) -> Response {
+    (
+        status,
+        build_oauth_result_html(
+            title,
+            message,
+            false,
+            pending_login.map(|entry| entry.login_id.as_str()),
+            pending_login.and_then(|entry| entry.post_message_origin.as_deref()),
+        ),
+    )
+        .into_response()
+}
+
 fn resolve_request_origin(headers: &HeaderMap) -> Option<String> {
     let forwarded_host = headers
         .get("x-forwarded-host")
@@ -244,6 +283,28 @@ fn resolve_request_origin(headers: &HeaderMap) -> Option<String> {
         .filter(|entry| !entry.is_empty())
         .unwrap_or("http");
     Some(format!("{forwarded_proto}://{host}"))
+}
+
+fn resolve_post_message_origin(headers: &HeaderMap) -> Option<String> {
+    let origin_candidate = headers
+        .get("origin")
+        .and_then(|entry| entry.to_str().ok())
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty() && *entry != "null")
+        .map(str::to_string)
+        .or_else(|| {
+            headers
+                .get("referer")
+                .and_then(|entry| entry.to_str().ok())
+                .map(str::trim)
+                .filter(|entry| !entry.is_empty())
+                .map(str::to_string)
+        })?;
+    let parsed = reqwest::Url::parse(origin_candidate.as_str()).ok()?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return None;
+    }
+    Some(parsed.origin().ascii_serialization())
 }
 
 fn build_codex_oauth_redirect_uri(
@@ -581,7 +642,7 @@ pub(super) fn codex_oauth_error_response(
     title: &str,
     message: &str,
 ) -> impl IntoResponse {
-    (status, build_oauth_result_html(title, message, false))
+    build_pending_oauth_error_response(status, title, message, None)
 }
 
 pub(super) async fn start_codex_oauth(
@@ -607,6 +668,7 @@ pub(super) async fn start_codex_oauth(
     let code_verifier = generate_codex_pkce_verifier();
     let code_challenge = generate_codex_pkce_challenge(&code_verifier);
     let auth_url = build_codex_authorize_url(&redirect_uri, &state, &code_challenge)?;
+    let post_message_origin = resolve_post_message_origin(headers);
     ensure_codex_oauth_loopback_listener(ctx).await?;
     let now = now_ms();
     {
@@ -619,6 +681,7 @@ pub(super) async fn start_codex_oauth(
                 workspace_id,
                 redirect_uri,
                 code_verifier,
+                post_message_origin,
                 expires_at_ms: now.saturating_add(CODEX_OAUTH_LOGIN_TTL_MS),
             },
         );
@@ -714,12 +777,12 @@ pub(super) async fn codex_oauth_callback_handler(
                     error: Some(error_detail),
                 }),
             );
-            let response = codex_oauth_error_response(
+            let response = build_pending_oauth_error_response(
                 StatusCode::BAD_REQUEST,
                 "Codex OAuth sign-in expired",
                 error_detail,
-            )
-            .into_response();
+                Some(&expired_login),
+            );
             maybe_stop_codex_oauth_loopback_listener(&ctx).await;
             return response;
         }
@@ -756,12 +819,12 @@ pub(super) async fn codex_oauth_callback_handler(
                 error: Some(detail),
             }),
         );
-        let response = codex_oauth_error_response(
+        let response = build_pending_oauth_error_response(
             StatusCode::BAD_REQUEST,
             "Codex OAuth sign-in failed",
             detail,
-        )
-        .into_response();
+            Some(&pending_login),
+        );
         maybe_stop_codex_oauth_loopback_listener(&ctx).await;
         return response;
     }
@@ -784,12 +847,12 @@ pub(super) async fn codex_oauth_callback_handler(
                     error: Some("Missing OAuth authorization code."),
                 }),
             );
-            let response = codex_oauth_error_response(
+            let response = build_pending_oauth_error_response(
                 StatusCode::BAD_REQUEST,
                 "Codex OAuth sign-in failed",
                 "Missing OAuth authorization code.",
-            )
-            .into_response();
+                Some(&pending_login),
+            );
             maybe_stop_codex_oauth_loopback_listener(&ctx).await;
             return response;
         }
@@ -820,12 +883,12 @@ pub(super) async fn codex_oauth_callback_handler(
                     error: Some("Unable to exchange authorization code for tokens."),
                 }),
             );
-            let response = codex_oauth_error_response(
+            let response = build_pending_oauth_error_response(
                 StatusCode::BAD_GATEWAY,
                 "Codex OAuth sign-in failed",
                 "Unable to exchange authorization code for tokens.",
-            )
-            .into_response();
+                Some(&pending_login),
+            );
             maybe_stop_codex_oauth_loopback_listener(&ctx).await;
             return response;
         }
@@ -843,12 +906,12 @@ pub(super) async fn codex_oauth_callback_handler(
                 error: Some("OAuth token response did not include id_token."),
             }),
         );
-        let response = codex_oauth_error_response(
+        let response = build_pending_oauth_error_response(
             StatusCode::BAD_GATEWAY,
             "Codex OAuth sign-in failed",
             "OAuth token response did not include id_token.",
-        )
-        .into_response();
+            Some(&pending_login),
+        );
         maybe_stop_codex_oauth_loopback_listener(&ctx).await;
         return response;
     };
@@ -886,13 +949,13 @@ pub(super) async fn codex_oauth_callback_handler(
                             error: Some("Failed to exchange OAuth id_token for API key."),
                         }),
                     );
-                    let response = codex_oauth_error_response(
+                    let response = build_pending_oauth_error_response(
                         StatusCode::BAD_GATEWAY,
                         "Codex OAuth sign-in failed",
                         format!("Failed to exchange OAuth id_token for API key ({detail}).")
                             .as_str(),
-                    )
-                    .into_response();
+                        Some(&pending_login),
+                    );
                     maybe_stop_codex_oauth_loopback_listener(&ctx).await;
                     return response;
                 }
@@ -909,12 +972,12 @@ pub(super) async fn codex_oauth_callback_handler(
                 error: Some("OAuth token response did not include a usable API key."),
             }),
         );
-        let response = codex_oauth_error_response(
+        let response = build_pending_oauth_error_response(
             StatusCode::BAD_GATEWAY,
             "Codex OAuth sign-in failed",
             "OAuth token response did not include a usable API key.",
-        )
-        .into_response();
+            Some(&pending_login),
+        );
         maybe_stop_codex_oauth_loopback_listener(&ctx).await;
         return response;
     }
@@ -1039,12 +1102,12 @@ pub(super) async fn codex_oauth_callback_handler(
                 error: Some("Failed to persist Codex account in OAuth pool."),
             }),
         );
-        let response = codex_oauth_error_response(
+        let response = build_pending_oauth_error_response(
             StatusCode::INTERNAL_SERVER_ERROR,
             "Codex OAuth sign-in failed",
             "Failed to persist Codex account in OAuth pool.",
-        )
-        .into_response();
+            Some(&pending_login),
+        );
         maybe_stop_codex_oauth_loopback_listener(&ctx).await;
         return response;
     }
@@ -1066,6 +1129,8 @@ pub(super) async fn codex_oauth_callback_handler(
             "Codex OAuth sign-in complete",
             "Account is now available in this workspace.",
             true,
+            Some(pending_login.login_id.as_str()),
+            pending_login.post_message_origin.as_deref(),
         ),
     )
         .into_response();

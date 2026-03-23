@@ -18,6 +18,7 @@ import {
   saveStoredWebRuntimeGatewayProfile,
   type ConfiguredWebRuntimeGatewayProfile,
 } from "@ku0/shared/runtimeGatewayBrowser";
+import { toSafeExternalUrl } from "@ku0/shared";
 import { WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY } from "@ku0/shared/runtimeGatewayEnv";
 import type {
   DiscoveredLocalRuntimeGatewayTarget,
@@ -164,16 +165,16 @@ function readMissionControlProjectionSlice(
 }
 
 function openBrowserExternalUrl(url: string, popup: Window | null = null) {
-  const normalizedUrl = url.trim();
-  if (!normalizedUrl || typeof window === "undefined") {
+  const safeUrl = toSafeExternalUrl(url);
+  if (!safeUrl || typeof window === "undefined") {
     return;
   }
   if (popup) {
-    popup.location.replace(normalizedUrl);
+    popup.location.replace(safeUrl);
     popup.focus?.();
     return;
   }
-  const opened = window.open(normalizedUrl, "_blank", "noopener,noreferrer");
+  const opened = window.open(safeUrl, "_blank", "noopener,noreferrer");
   opened?.focus?.();
 }
 

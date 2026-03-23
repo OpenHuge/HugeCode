@@ -1,3 +1,5 @@
+import { toSafeExternalUrl } from "@ku0/shared";
+
 type TauriCoreModule = {
   isTauri: () => boolean;
 };
@@ -83,10 +85,15 @@ export async function resolveAppVersion() {
 }
 
 export async function openExternalUrlWithFallback(url: string) {
+  const safeUrl = toSafeExternalUrl(url);
+  if (!safeUrl) {
+    return false;
+  }
+
   try {
     const modules = await loadTauriModules();
     if (modules.opener?.openUrl) {
-      await modules.opener.openUrl(url);
+      await modules.opener.openUrl(safeUrl);
       return true;
     }
   } catch {
@@ -97,7 +104,7 @@ export async function openExternalUrlWithFallback(url: string) {
     return false;
   }
 
-  return window.open(url, "_blank", "noopener,noreferrer") !== null;
+  return window.open(safeUrl, "_blank", "noopener,noreferrer") !== null;
 }
 
 export function __setTauriModuleLoaderForTests(loader: TauriModuleLoader) {

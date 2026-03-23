@@ -33,6 +33,7 @@ import {
 } from "../../../../application/runtime/ports/tauriOauth";
 import { listWorkspaces } from "../../../../application/runtime/ports/tauriWorkspaceCatalog";
 import type { AppServerEvent } from "../../../../types";
+import { setActiveOauthPopupLoginId } from "./settings-codex-accounts-card/oauthHelpers";
 import { SettingsCodexAccountsCard } from "./SettingsCodexAccountsCard";
 
 vi.mock("../../../../application/runtime/ports/events", () => ({
@@ -126,6 +127,7 @@ beforeEach(() => {
     window.localStorage.removeItem("codex_accounts_search_query_v1");
     window.localStorage.removeItem("codex_pools_provider_filter_v1");
   }
+  setActiveOauthPopupLoginId(null);
   listener = null;
   runtimeUpdatedListener = null;
   runtimeUpdatedRevisionCounter = 0;
@@ -251,6 +253,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  setActiveOauthPopupLoginId(null);
 });
 
 describe("SettingsCodexAccountsCard", () => {
@@ -686,6 +689,7 @@ describe("SettingsCodexAccountsCard", () => {
   });
 
   it("refreshes when oauth popup posts success message", async () => {
+    setActiveOauthPopupLoginId("login-popup-1");
     render(<SettingsCodexAccountsCard />);
 
     await waitFor(() => {
@@ -697,8 +701,9 @@ describe("SettingsCodexAccountsCard", () => {
 
     act(() => {
       window.dispatchEvent(
-        new MessageEvent("message", {
-          data: { type: "fastcode:oauth:codex", success: true },
+        new window.MessageEvent("message", {
+          data: { type: "fastcode:oauth:codex", success: true, loginId: "login-popup-1" },
+          origin: window.location.origin,
         })
       );
     });
@@ -710,6 +715,7 @@ describe("SettingsCodexAccountsCard", () => {
   });
 
   it("shows callback verification error when oauth popup posts failure message", async () => {
+    setActiveOauthPopupLoginId("login-popup-2");
     render(<SettingsCodexAccountsCard />);
 
     await waitFor(() => {
@@ -719,8 +725,9 @@ describe("SettingsCodexAccountsCard", () => {
 
     act(() => {
       window.dispatchEvent(
-        new MessageEvent("message", {
-          data: { type: "fastcode:oauth:codex", success: false },
+        new window.MessageEvent("message", {
+          data: { type: "fastcode:oauth:codex", success: false, loginId: "login-popup-2" },
+          origin: window.location.origin,
         })
       );
     });
