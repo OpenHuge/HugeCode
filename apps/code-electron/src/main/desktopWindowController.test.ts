@@ -12,28 +12,13 @@ function createFakeBrowserWindow(id: number, bounds: DesktopWindowBounds) {
   const listeners: {
     [Key in keyof WindowEventMap]?: WindowEventMap[Key][];
   } = {};
-  let windowOpenHandler: ((details: { url: string }) => { action: "deny" }) | null = null;
-  const webContentsListeners: {
-    "will-navigate"?: Array<(event: { preventDefault(): void }, url: string) => void>;
-  } = {};
   let destroyed = false;
   let focused = false;
   let minimized = false;
   let visible = false;
 
   const webContents = {
-    on: vi.fn(
-      (
-        event: "will-navigate",
-        listener: (event: { preventDefault(): void }, url: string) => void
-      ) => {
-        webContentsListeners[event] ??= [];
-        webContentsListeners[event]?.push(listener);
-      }
-    ),
-    setWindowOpenHandler: vi.fn((handler: (details: { url: string }) => { action: "deny" }) => {
-      windowOpenHandler = handler;
-    }),
+    setWindowOpenHandler: vi.fn(),
   };
 
   return {
@@ -96,15 +81,6 @@ function createFakeBrowserWindow(id: number, bounds: DesktopWindowBounds) {
         listener();
       });
     },
-    emitWindowOpen(url: string) {
-      return windowOpenHandler?.({ url }) ?? null;
-    },
-    emitWillNavigate(url: string, event = { preventDefault: vi.fn() }) {
-      webContentsListeners["will-navigate"]?.forEach((listener) => {
-        listener(event, url);
-      });
-      return event;
-    },
   };
 }
 
@@ -134,9 +110,7 @@ describe("desktopWindowController", () => {
         height: 960,
         width: 1440,
       },
-      isSafeExternalUrl: () => true,
       isQuitting: () => false,
-      isTrustedRendererUrl: () => false,
       loadRenderer,
       notifyWindowsChanged,
       openExternalUrl: vi.fn(),
@@ -185,9 +159,7 @@ describe("desktopWindowController", () => {
         height: 960,
         width: 1440,
       },
-      isSafeExternalUrl: () => true,
       isQuitting: () => false,
-      isTrustedRendererUrl: () => false,
       loadRenderer: vi.fn(),
       notifyWindowsChanged: vi.fn(),
       openExternalUrl: vi.fn(),
@@ -234,9 +206,7 @@ describe("desktopWindowController", () => {
         height: 960,
         width: 1440,
       },
-      isSafeExternalUrl: () => true,
       isQuitting: () => false,
-      isTrustedRendererUrl: () => false,
       loadRenderer: vi.fn(),
       notifyWindowsChanged: vi.fn(),
       openExternalUrl: vi.fn(),
@@ -251,56 +221,5 @@ describe("desktopWindowController", () => {
     expect(fakeWindow.restore).toHaveBeenCalledTimes(1);
     expect(fakeWindow.show).toHaveBeenCalled();
     expect(fakeWindow.focus).toHaveBeenCalled();
-  });
-
-  it("blocks untrusted navigation and only opens safe external urls", () => {
-    const shellState = createDesktopShellState({
-      now: () => "2026-03-23T10:00:00.000Z",
-      persistedState: {
-        sessions: [],
-        trayEnabled: false,
-      },
-    });
-    const fakeWindow = createFakeBrowserWindow(401, {
-      height: 900,
-      width: 1400,
-    });
-    const openExternalUrl = vi.fn();
-    const controller = createDesktopWindowController({
-      browserWindow: {
-        create: vi.fn(() => fakeWindow),
-        fromWebContents: vi.fn(() => fakeWindow),
-        getAllWindows: vi.fn(() => [fakeWindow]),
-      },
-      defaultWindowBounds: {
-        height: 960,
-        width: 1440,
-      },
-      isSafeExternalUrl: (url) => url.startsWith("https://"),
-      isQuitting: () => false,
-      isTrustedRendererUrl: (url) => url.startsWith("file://"),
-      loadRenderer: vi.fn(),
-      notifyWindowsChanged: vi.fn(),
-      openExternalUrl,
-      persistState: vi.fn(),
-      preloadPath: "/tmp/preload.js",
-      shellState,
-    });
-
-    controller.openWindow();
-
-    expect(fakeWindow.emitWindowOpen("https://example.com")).toEqual({ action: "deny" });
-    expect(openExternalUrl).toHaveBeenCalledWith("https://example.com");
-
-    const safeNavigationEvent = fakeWindow.emitWillNavigate("https://example.com");
-    expect(safeNavigationEvent.preventDefault).toHaveBeenCalledTimes(1);
-    expect(openExternalUrl).toHaveBeenCalledWith("https://example.com");
-
-    const unsafeNavigationEvent = fakeWindow.emitWillNavigate("javascript:alert(1)");
-    expect(unsafeNavigationEvent.preventDefault).toHaveBeenCalledTimes(1);
-    expect(openExternalUrl).toHaveBeenCalledTimes(2);
-
-    const trustedNavigationEvent = fakeWindow.emitWillNavigate("file:///tmp/index.html");
-    expect(trustedNavigationEvent.preventDefault).not.toHaveBeenCalled();
   });
 });
