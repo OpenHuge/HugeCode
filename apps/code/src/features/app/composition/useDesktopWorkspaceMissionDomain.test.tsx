@@ -70,8 +70,12 @@ function createInput() {
     patchThreadCodexParams: vi.fn(),
     threadDomain: {
       activeThreadId: "thread-1",
+      activeItems: [],
+      visibleActiveItems: [],
+      threadStatusById: {},
       threadsState: {
         setActiveThreadId: vi.fn(),
+        sendUserMessageToThread: vi.fn(async () => undefined),
       },
     },
     conversationState: {
@@ -116,7 +120,10 @@ describe("useDesktopWorkspaceMissionDomain", () => {
     expect(useMainAppMissionControlState).toHaveBeenCalledWith(
       expect.objectContaining({
         activeThreadId: "thread-1",
+        activeItems: [],
         missionControlProjection: input.conversationState.homeState.missionControlProjection,
+        threadStatusById: input.threadDomain.threadStatusById,
+        sendUserMessageToThread: input.threadDomain.threadsState.sendUserMessageToThread,
         setActiveThreadId: input.threadDomain.threadsState.setActiveThreadId,
       })
     );

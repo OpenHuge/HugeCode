@@ -152,6 +152,59 @@ function resolveHistoricalValidationPlan(context: AutoDriveContextSnapshot): str
   );
 }
 
+function buildContinuationFocus(params: {
+  previousSummary: AutoDriveContextSnapshot["previousSummary"];
+  validationPlan: string[];
+}): string[] {
+  const previousSummary = params.previousSummary;
+  if (!previousSummary?.goalReached) {
+    return [];
+  }
+
+  const focus: string[] = [];
+  const validationPlanSummary = params.validationPlan.join(" | ");
+
+  if (previousSummary.validation.success === false) {
+    const validationFailure =
+      previousSummary.validation.failures[0] ?? previousSummary.validation.summary;
+    focus.push(`Repair the failing verification lane: ${validationFailure}`);
+  } else if (previousSummary.validation.success !== true) {
+    focus.push(
+      validationPlanSummary.length > 0
+        ? `Run the required validation lane and close failures: ${validationPlanSummary}`
+        : `Close the open validation gap: ${previousSummary.validation.summary}`
+    );
+  }
+
+  for (const missedCriterion of previousSummary.waypoint.arrivalCriteriaMissed.slice(0, 2)) {
+    focus.push(`Satisfy the missed arrival criterion: ${missedCriterion}`);
+  }
+
+  for (const blocker of previousSummary.blockers.slice(0, 2)) {
+    focus.push(`Resolve the active blocker: ${blocker}`);
+  }
+
+  if (previousSummary.routeHealth.offRoute || previousSummary.routeHealth.rerouteRecommended) {
+    focus.push(
+      `Re-anchor the route before continuing: ${
+        previousSummary.routeHealth.rerouteReason ??
+        previousSummary.routeHealth.triggerSignals[0] ??
+        "The previous waypoint drifted from plan."
+      }`
+    );
+  }
+
+  for (const unresolvedItem of previousSummary.unresolvedItems.slice(0, 1)) {
+    focus.push(`Close the remaining unresolved item: ${unresolvedItem}`);
+  }
+
+  if (focus.length === 0) {
+    focus.push("Gather stronger verification evidence and avoid reopening already completed work.");
+  }
+
+  return dedupe(focus, 4);
+}
+
 function buildMilestones(params: {
   run: AutoDriveRunRecord;
   context: AutoDriveContextSnapshot;
@@ -227,6 +280,14 @@ function buildWaypoint(params: {
   const previousSummary = params.context.previousSummary;
   const priorFailedValidation = previousSummary?.validation.success === false;
   const priorOffRoute = params.context.startState.routeHealth.offRoute;
+  const continuationFocus = buildContinuationFocus({
+    previousSummary,
+    validationPlan: params.validationPlan,
+  });
+  const needsContinuationFollowUp =
+    params.run.continuationPolicy?.enabled !== false &&
+    previousSummary?.goalReached === true &&
+    continuationFocus.length > 0;
 
   let title = "Establish the route baseline";
   let objective =
@@ -304,6 +365,31 @@ function buildWaypoint(params: {
     estimatedRisk = "high";
   }
 
+  if (needsContinuationFollowUp) {
+    title = "Close the remaining verification gap";
+    objective =
+      "Reuse the current route, avoid repeating already completed work, and close the highest-priority remaining validation or blocker gap.";
+    whyNow =
+      continuationFocus[0] ??
+      "The destination is close, but the route still needs stronger verification before arrival.";
+    arrivalCriteria = dedupe([
+      ...continuationFocus,
+      "Leave behind explicit verification evidence or a concrete blocker for the next decision.",
+    ]);
+    rerouteTriggers = dedupe([
+      "The remaining gap requires broadening scope or reopening settled work.",
+      "The current route drifts away from the unresolved verification target.",
+      ...params.validationPlan.map(
+        (command) => `The continuation loop cannot make ${command} pass without a wider reroute.`
+      ),
+    ]);
+    commandsToRun = params.validationPlan;
+    estimatedRisk =
+      previousSummary?.validation.success === false || previousSummary?.routeHealth.offRoute
+        ? "high"
+        : "medium";
+  }
+
   return {
     id: `waypoint-${params.context.iteration}`,
     title,
@@ -345,6 +431,8 @@ function buildPromptText(params: {
   waypoint: AutoDriveWaypointProposal;
   milestones: AutoDriveRouteMilestone[];
 }) {
+  const continuationPolicy = params.run.continuationPolicy;
+  const continuationState = params.run.continuationState;
   const selectedOpportunity =
     params.context.opportunities.candidates.find(
       (candidate) => candidate.id === params.context.opportunities.selectedCandidateId
@@ -353,6 +441,28 @@ function buildPromptText(params: {
     selectedOpportunity?.scoreBreakdown
       ?.map((entry) => `${entry.reasonCode}:${entry.delta >= 0 ? "+" : ""}${entry.delta}`)
       .join(" | ") ?? "none";
+  const continuationFocus = buildContinuationFocus({
+    previousSummary: params.context.previousSummary,
+    validationPlan: params.waypoint.validationPlan,
+  });
+  const previousSummary = params.context.previousSummary;
+  const latestGapSummary = previousSummary
+    ? [
+        previousSummary.validation.success === true
+          ? "Validation currently green."
+          : previousSummary.validation.success === false
+            ? `Validation failing: ${previousSummary.validation.summary}`
+            : `Validation still pending: ${previousSummary.validation.summary}`,
+        previousSummary.waypoint.arrivalCriteriaMissed.length > 0
+          ? `Missed criteria ${previousSummary.waypoint.arrivalCriteriaMissed.join(" | ")}`
+          : null,
+        previousSummary.blockers.length > 0
+          ? `Blockers ${previousSummary.blockers.join(" | ")}`
+          : null,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join("; ")
+    : "No previous summary available.";
   return [
     `Destination: ${params.context.destination.title}`,
     `Desired end state: ${params.context.destination.desiredEndState.join(" | ")}`,
@@ -371,6 +481,14 @@ function buildPromptText(params: {
     `Historical publish corridor: ${params.context.publishHistory.bestCorridor?.summaryText ?? "none"}`,
     `Historical publish caution: ${params.context.publishHistory.latestFailureSummary ?? "none"}`,
     `System pressure: remaining iterations ${params.context.startState.system.remainingIterations}, remaining tokens ${params.context.startState.system.remainingTokensEstimate ?? "n/a"}, reroutes ${params.context.startState.system.rerouteCount}/${params.run.budget.maxReroutes}`,
+    continuationPolicy?.enabled !== false
+      ? `Continuation policy: Keep iterating until validation is green and confidence reaches ${continuationPolicy?.minimumConfidenceToStop ?? "high"}, capped at ${continuationPolicy?.maxAutomaticFollowUps ?? 2} automatic follow-ups.`
+      : "Continuation policy: Do not auto-append follow-up prompts.",
+    continuationPolicy?.enabled !== false
+      ? `Continuation state: used ${continuationState?.automaticFollowUpCount ?? 0}/${continuationPolicy?.maxAutomaticFollowUps ?? 2} automatic follow-ups. Last reason: ${continuationState?.lastContinuationReason ?? "none"}.`
+      : null,
+    continuationFocus.length > 0 ? `Continuation focus: ${continuationFocus.join(" | ")}` : null,
+    `Latest verification gap: ${latestGapSummary}`,
     `Route summary: ${params.routeSummary}`,
     `Current waypoint: ${params.waypoint.title}`,
     `Waypoint objective: ${params.waypoint.objective}`,
@@ -382,6 +500,7 @@ function buildPromptText(params: {
     `Reroute triggers: ${params.waypoint.rerouteTriggers.join(" | ")}`,
     `Milestones: ${params.milestones.map((milestone) => `${milestone.status}:${milestone.title}`).join(" | ")}`,
     `Collaborator intent: ${params.context.collaboratorIntent.probableIntent}`,
+    "Execution rule: Reuse the current route/session state, do not redo completed work, close the highest-priority unresolved gap first, then verify again before declaring arrival.",
     buildResponseFormat(),
   ].join("\n\n");
 }

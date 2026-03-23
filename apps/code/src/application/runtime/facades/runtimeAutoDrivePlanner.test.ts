@@ -13,7 +13,7 @@ function createRun(): AutoDriveRunRecord {
     workspaceId: "workspace-1",
     workspacePath: "/repo",
     threadId: "thread-1",
-    status: "planning_next_task",
+    status: "running",
     stage: "planning_next_task",
     destination: {
       title: "Implement AutoDrive navigation in HugeCode",
@@ -429,6 +429,46 @@ describe("runtimeAutoDrivePlanner", () => {
     expect(proposal.currentWaypoint.repoAreas.length).toBeLessThanOrEqual(2);
     expect(proposal.currentWaypoint.validationPlan).toContain("pnpm validate");
     expect(proposal.promptText).toContain("Execution tuning:");
+  });
+
+  it("builds a focused continuation waypoint when the previous summary reached the goal but left verification gaps", () => {
+    const previousSummary = createPreviousSummary({
+      goalReached: true,
+      validation: {
+        ran: false,
+        commands: ["pnpm validate:fast"],
+        success: null,
+        failures: [],
+        summary: "Validation not run yet.",
+      },
+      blockers: ["Need to confirm the final validation lane."],
+      unresolvedItems: ["Re-run the narrow validation lane before shipping."],
+      waypoint: {
+        id: "waypoint-1",
+        title: "Validate the current route",
+        status: "arrived",
+        arrivalCriteriaMet: ["Implemented the target slice"],
+        arrivalCriteriaMissed: ["pnpm validate:fast"],
+      },
+    });
+    const context = createContext(previousSummary);
+    const proposal = buildNextTaskProposal({
+      run: createRun(),
+      context,
+      previousSummary,
+    });
+
+    expect(proposal.currentWaypoint.title).toContain("verification gap");
+    expect(proposal.currentWaypoint.arrivalCriteria).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Run the required validation lane"),
+        expect.stringContaining("Satisfy the missed arrival criterion"),
+        expect.stringContaining("Resolve the active blocker"),
+      ])
+    );
+    expect(proposal.promptText).toContain("Continuation focus:");
+    expect(proposal.promptText).toContain("Latest verification gap:");
+    expect(proposal.promptText).toContain("Execution rule:");
   });
 
   it("biases route selection toward publish preparation when adaptive tuning requests it", () => {

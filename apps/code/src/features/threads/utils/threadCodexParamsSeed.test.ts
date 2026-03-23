@@ -15,6 +15,7 @@ describe("threadCodexParamsSeed", () => {
         fastMode: true,
         accessMode: "full-access",
         executionMode: "local-cli",
+        autoDriveDraft: null,
       })
     ).toBeNull();
 
@@ -26,6 +27,7 @@ describe("threadCodexParamsSeed", () => {
         fastMode: true,
         accessMode: "full-access",
         executionMode: "local-cli",
+        autoDriveDraft: null,
       })
     ).toBeNull();
 
@@ -37,6 +39,44 @@ describe("threadCodexParamsSeed", () => {
         fastMode: true,
         accessMode: "full-access",
         executionMode: "local-cli",
+        autoDriveDraft: {
+          enabled: true,
+          destination: {
+            title: "Ship validation",
+            endState: "",
+            doneDefinition: "",
+            avoid: "",
+            routePreference: "stability_first",
+          },
+          budget: {
+            maxTokens: 6000,
+            maxIterations: 3,
+            maxDurationMinutes: 10,
+            maxFilesPerIteration: 6,
+            maxNoProgressIterations: 2,
+            maxValidationFailures: 2,
+            maxReroutes: 2,
+          },
+          riskPolicy: {
+            pauseOnDestructiveChange: true,
+            pauseOnDependencyChange: true,
+            pauseOnLowConfidence: true,
+            pauseOnHumanCheckpoint: true,
+            allowNetworkAnalysis: true,
+            allowValidationCommands: true,
+            allowChatgptDecisionLab: true,
+            autoRunChatgptDecisionLab: true,
+            chatgptDecisionLabMinConfidence: "medium",
+            chatgptDecisionLabMaxScoreGap: 8,
+            minimumConfidence: "medium",
+          },
+          continuation: {
+            enabled: true,
+            maxAutomaticFollowUps: 2,
+            requireValidationSuccessToStop: true,
+            minimumConfidenceToStop: "high",
+          },
+        },
       })
     ).toEqual({
       workspaceId: "ws-1",
@@ -44,6 +84,10 @@ describe("threadCodexParamsSeed", () => {
       fastMode: true,
       accessMode: "full-access",
       executionMode: "local-cli",
+      autoDriveDraft: expect.objectContaining({
+        enabled: true,
+        destination: expect.objectContaining({ title: "Ship validation" }),
+      }),
     });
   });
 
@@ -71,6 +115,7 @@ describe("threadCodexParamsSeed", () => {
         fastMode: true,
         accessMode: "full-access",
         executionMode: "hybrid",
+        autoDriveDraft: null,
       },
     });
 
@@ -99,6 +144,7 @@ describe("threadCodexParamsSeed", () => {
         fastMode: true,
         accessMode: "full-access",
         executionMode: "hybrid",
+        autoDriveDraft: null,
       },
     });
 
@@ -129,6 +175,44 @@ describe("threadCodexParamsSeed", () => {
           fastMode: true,
           accessMode: "full-access",
           executionMode: "local-cli",
+          autoDriveDraft: {
+            enabled: true,
+            destination: {
+              title: "Auto continue",
+              endState: "",
+              doneDefinition: "",
+              avoid: "",
+              routePreference: "stability_first",
+            },
+            budget: {
+              maxTokens: 6000,
+              maxIterations: 3,
+              maxDurationMinutes: 10,
+              maxFilesPerIteration: 6,
+              maxNoProgressIterations: 2,
+              maxValidationFailures: 2,
+              maxReroutes: 2,
+            },
+            riskPolicy: {
+              pauseOnDestructiveChange: true,
+              pauseOnDependencyChange: true,
+              pauseOnLowConfidence: true,
+              pauseOnHumanCheckpoint: true,
+              allowNetworkAnalysis: true,
+              allowValidationCommands: true,
+              allowChatgptDecisionLab: true,
+              autoRunChatgptDecisionLab: true,
+              chatgptDecisionLabMinConfidence: "medium",
+              chatgptDecisionLabMaxScoreGap: 8,
+              minimumConfidence: "medium",
+            },
+            continuation: {
+              enabled: true,
+              maxAutomaticFollowUps: 2,
+              requireValidationSuccessToStop: true,
+              minimumConfidenceToStop: "high",
+            },
+          },
         },
       })
     ).toEqual({
@@ -138,6 +222,10 @@ describe("threadCodexParamsSeed", () => {
       accessMode: "full-access",
       collaborationModeId: "plan",
       executionMode: "local-cli",
+      autoDriveDraft: expect.objectContaining({
+        enabled: true,
+        destination: expect.objectContaining({ title: "Auto continue" }),
+      }),
     });
 
     expect(
@@ -155,6 +243,7 @@ describe("threadCodexParamsSeed", () => {
           fastMode: true,
           accessMode: "full-access",
           executionMode: "local-cli",
+          autoDriveDraft: null,
         },
       })
     ).toEqual({
@@ -164,6 +253,7 @@ describe("threadCodexParamsSeed", () => {
       accessMode: "full-access",
       collaborationModeId: "default",
       executionMode: "runtime",
+      autoDriveDraft: null,
     });
   });
 
@@ -186,6 +276,7 @@ describe("threadCodexParamsSeed", () => {
       accessMode: "full-access",
       collaborationModeId: null,
       executionMode: "hybrid",
+      autoDriveDraft: null,
     });
   });
 });

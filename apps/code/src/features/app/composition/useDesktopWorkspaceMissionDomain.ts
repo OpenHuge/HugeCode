@@ -62,7 +62,8 @@ export function useDesktopWorkspaceMissionDomain({
 }: DesktopWorkspaceMissionDomainInput): DesktopWorkspaceMissionDomainOutput {
   const { activeWorkspace, activeWorkspaceId, hasLoaded, refreshWorkspaces, connectWorkspace } =
     workspaceState;
-  const { activeThreadId, threadsState } = threadDomain;
+  const { activeThreadId, activeItems, threadStatusById, visibleActiveItems, threadsState } =
+    threadDomain;
   const { handleStartTaskFromGitHubIssue, handleStartTaskFromGitHubPullRequest } =
     useGitHubRuntimeTaskLaunchers({
       activeWorkspace,
@@ -98,6 +99,9 @@ export function useDesktopWorkspaceMissionDomain({
     },
     threadCodexParamsVersion,
     getThreadCodexParams,
+    activeItems: visibleActiveItems.length > 0 ? visibleActiveItems : activeItems,
+    threadStatusById,
+    sendUserMessageToThread: threadsState.sendUserMessageToThread,
     patchThreadCodexParams,
     preferredBackendIds: threadCodexState.preferredBackendIds,
   });

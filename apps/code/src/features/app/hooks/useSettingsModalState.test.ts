@@ -60,19 +60,20 @@ describe("useSettingsModalState", () => {
     expect(result.current.settingsSection).toBeNull();
   });
 
-  it("does not let a generic open request erase an explicit section in the same turn", () => {
+  it("does not let a generic open request erase an explicit section in the same turn", async () => {
     const { result } = renderHook(() => useSettingsModalState());
 
     act(() => {
       result.current.openSettings("codex");
       result.current.openSettings();
     });
+    await vi.dynamicImportSettled();
 
     expect(result.current.settingsOpen).toBe(true);
     expect(result.current.settingsSection).toBe("codex");
   });
 
-  it("stays consistent through rapid open/close cycles", () => {
+  it("stays consistent through rapid open/close cycles", async () => {
     const { result } = renderHook(() => useSettingsModalState());
 
     act(() => {
@@ -82,6 +83,7 @@ describe("useSettingsModalState", () => {
       }
       result.current.openSettings("server");
     });
+    await vi.dynamicImportSettled();
 
     expect(result.current.settingsOpen).toBe(true);
     expect(result.current.settingsSection).toBe("server");

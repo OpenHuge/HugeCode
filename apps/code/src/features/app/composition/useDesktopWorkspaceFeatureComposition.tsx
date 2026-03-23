@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, type ComponentProps } from "react";
 import type { ComposerEditorSettings } from "../../../types";
+import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
 import { useComposerEditorState } from "../../composer/hooks/useComposerEditorState";
 import { useAutoExitEmptyDiff } from "../../git/hooks/useAutoExitEmptyDiff";
 import { useGitActions } from "../../git/hooks/useGitActions";
@@ -39,6 +40,7 @@ export function useDesktopWorkspaceFeatureComposition(): ComponentProps<
   const visibleActiveThreadIdRef = useRef<string | null>(null);
   const activeThreadIdRef = useRef<string | null>(null);
   const pendingNewThreadSeedRef = useRef<PendingNewThreadSeed | null>(null);
+  const pendingNewThreadAutoDriveDraftRef = useRef<AutoDriveControllerHookDraft | null>(null);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const recordPendingThreadLinkRef = useRef<(workspaceId: string, threadId: string) => void>(
     () => undefined
@@ -259,6 +261,7 @@ export function useDesktopWorkspaceFeatureComposition(): ComponentProps<
     composerInputRef,
     activeThreadIdRef,
     pendingNewThreadSeedRef,
+    pendingNewThreadAutoDriveDraftRef,
   });
 
   const missionDomain = useDesktopWorkspaceMissionDomain({
@@ -278,6 +281,8 @@ export function useDesktopWorkspaceFeatureComposition(): ComponentProps<
     conversationState: conversationDomain.conversationState,
     recordPendingThreadLinkRef,
   });
+  pendingNewThreadAutoDriveDraftRef.current =
+    missionDomain.missionControlState.autoDriveState.draft;
 
   const chromeDomain = useDesktopWorkspaceChromeDomain({
     workspaceState,

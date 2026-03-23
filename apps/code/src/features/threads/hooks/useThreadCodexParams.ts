@@ -60,6 +60,7 @@ function sanitizeAutoDriveDraft(value: unknown): AutoDriveControllerHookDraft | 
   const entry = value as Record<string, unknown>;
   const budget = (entry.budget ?? {}) as Record<string, unknown>;
   const riskPolicy = (entry.riskPolicy ?? {}) as Record<string, unknown>;
+  const continuation = (entry.continuation ?? {}) as Record<string, unknown>;
   const destination = (entry.destination ?? {}) as Record<string, unknown>;
   return {
     enabled: entry.enabled === true,
@@ -108,12 +109,38 @@ function sanitizeAutoDriveDraft(value: unknown): AutoDriveControllerHookDraft | 
       pauseOnHumanCheckpoint: riskPolicy.pauseOnHumanCheckpoint !== false,
       allowNetworkAnalysis: riskPolicy.allowNetworkAnalysis === true,
       allowValidationCommands: riskPolicy.allowValidationCommands !== false,
+      allowChatgptDecisionLab: riskPolicy.allowChatgptDecisionLab !== false,
+      autoRunChatgptDecisionLab: riskPolicy.autoRunChatgptDecisionLab !== false,
+      chatgptDecisionLabMinConfidence:
+        riskPolicy.chatgptDecisionLabMinConfidence === "low" ||
+        riskPolicy.chatgptDecisionLabMinConfidence === "medium" ||
+        riskPolicy.chatgptDecisionLabMinConfidence === "high"
+          ? riskPolicy.chatgptDecisionLabMinConfidence
+          : "medium",
+      chatgptDecisionLabMaxScoreGap:
+        typeof riskPolicy.chatgptDecisionLabMaxScoreGap === "number"
+          ? riskPolicy.chatgptDecisionLabMaxScoreGap
+          : 8,
       minimumConfidence:
         riskPolicy.minimumConfidence === "low" ||
         riskPolicy.minimumConfidence === "medium" ||
         riskPolicy.minimumConfidence === "high"
           ? riskPolicy.minimumConfidence
           : "medium",
+    },
+    continuation: {
+      enabled: continuation.enabled !== false,
+      maxAutomaticFollowUps:
+        typeof continuation.maxAutomaticFollowUps === "number"
+          ? Math.max(0, Math.round(continuation.maxAutomaticFollowUps))
+          : 2,
+      requireValidationSuccessToStop: continuation.requireValidationSuccessToStop !== false,
+      minimumConfidenceToStop:
+        continuation.minimumConfidenceToStop === "low" ||
+        continuation.minimumConfidenceToStop === "medium" ||
+        continuation.minimumConfidenceToStop === "high"
+          ? continuation.minimumConfidenceToStop
+          : "high",
     },
   };
 }

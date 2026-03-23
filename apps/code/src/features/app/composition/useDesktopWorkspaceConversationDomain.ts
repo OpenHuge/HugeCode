@@ -1,5 +1,6 @@
 import type { MutableRefObject } from "react";
 import type { AppSettings } from "../../../types";
+import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
 import type { useCustomPrompts } from "../../prompts/hooks/useCustomPrompts";
 import type { PendingNewThreadSeed } from "../../threads/utils/threadCodexParamsSeed";
 import { useDesktopWorkspaceProjectDomain } from "./useDesktopWorkspaceProjectDomain";
@@ -34,6 +35,7 @@ export type DesktopWorkspaceConversationDomainInput = {
   composerInputRef: MutableRefObject<HTMLTextAreaElement | null>;
   activeThreadIdRef: MutableRefObject<string | null>;
   pendingNewThreadSeedRef: MutableRefObject<PendingNewThreadSeed | null>;
+  pendingNewThreadAutoDriveDraftRef: MutableRefObject<AutoDriveControllerHookDraft | null>;
 };
 
 export type DesktopWorkspaceConversationDomainOutput = {
@@ -60,6 +62,7 @@ export function useDesktopWorkspaceConversationDomain({
   composerInputRef,
   activeThreadIdRef,
   pendingNewThreadSeedRef,
+  pendingNewThreadAutoDriveDraftRef,
 }: DesktopWorkspaceConversationDomainInput): DesktopWorkspaceConversationDomainOutput {
   const {
     workspaces,
@@ -223,6 +226,7 @@ export function useDesktopWorkspaceConversationDomain({
     handleSend: conversationState.composerState.handleSend,
     queueMessage: conversationState.composerState.queueMessage,
     pendingNewThreadSeedRef,
+    pendingNewThreadAutoDriveDraftRef,
     selectedCollaborationModeId: threadCodexState.selectedCollaborationModeId,
     accessMode: threadCodexState.accessMode,
     executionMode: threadCodexState.executionMode,

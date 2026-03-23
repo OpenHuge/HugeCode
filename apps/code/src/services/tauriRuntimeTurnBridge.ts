@@ -1,5 +1,5 @@
 import type { AccessMode, AppMention, ComposerExecutionMode } from "../types";
-import type { HugeCodeTaskMode } from "@ku0/code-runtime-host-contract";
+import type { AgentTaskAutoDriveState, HugeCodeTaskMode } from "@ku0/code-runtime-host-contract";
 import { registerRuntimeTurnContextByTurnId, registerRuntimeTurnRequestContext } from "./events";
 import { getRuntimeClient } from "./runtimeClient";
 import {
@@ -23,6 +23,7 @@ type RuntimeTurnOptions = {
   codexBin?: string | null;
   codexArgs?: string[] | null;
   collaborationMode?: Record<string, unknown> | null;
+  autoDrive?: AgentTaskAutoDriveState | null;
 };
 
 function mapTurnRoutingFields(ack: RuntimeTurnAck) {
@@ -58,6 +59,7 @@ export async function sendUserMessage(
     images?: string[];
     collaborationMode?: Record<string, unknown> | null;
     appMentions?: AppMention[];
+    autoDrive?: AgentTaskAutoDriveState | null;
   }
 ) {
   const requestId =
@@ -88,6 +90,7 @@ export async function sendUserMessage(
     ...(Object.hasOwn(options ?? {}, "collaborationMode") && options?.collaborationMode != null
       ? { collaborationMode: options.collaborationMode }
       : {}),
+    ...(options?.autoDrive ? { autoDrive: options.autoDrive } : {}),
   })) as RuntimeTurnAck;
 
   if (ack.turnId) {
@@ -158,6 +161,7 @@ export async function steerTurn(
     ...(Object.hasOwn(options ?? {}, "collaborationMode") && options?.collaborationMode != null
       ? { collaborationMode: options.collaborationMode }
       : {}),
+    ...(options?.autoDrive ? { autoDrive: options.autoDrive } : {}),
   })) as RuntimeTurnAck;
 
   if (!ack.accepted || !ack.turnId) {

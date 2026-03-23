@@ -215,6 +215,9 @@ function createHookProps(
     },
     threadCodexParamsVersion: 1,
     getThreadCodexParams: vi.fn(() => null),
+    activeItems: [],
+    threadStatusById: {},
+    sendUserMessageToThread: vi.fn(async () => undefined),
     patchThreadCodexParams: vi.fn(),
     preferredBackendIds: ["backend-a"],
   };

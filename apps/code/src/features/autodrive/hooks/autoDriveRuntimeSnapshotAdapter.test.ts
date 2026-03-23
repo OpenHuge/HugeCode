@@ -213,7 +213,7 @@ describe("autoDriveRuntimeSnapshotAdapter", () => {
     expect(selected.adaptedRun?.navigation.stopRisk).toBe("medium");
   });
 
-  it("falls back to the latest standalone autodrive run in the workspace", () => {
+  it("does not fall back to a standalone autodrive run when a thread is selected", () => {
     const snapshot = createSnapshot({
       tasks: [
         createTask({
@@ -250,6 +250,51 @@ describe("autoDriveRuntimeSnapshotAdapter", () => {
       missionControlProjection: snapshot,
       workspaceId: "workspace-1",
       threadId: "thread-missing",
+    });
+
+    expect(selected.task).toBeNull();
+    expect(selected.run).toBeNull();
+    expect(selected.runtimeTaskId).toBeNull();
+    expect(selected.adaptedRun).toBeNull();
+  });
+
+  it("falls back to the latest standalone autodrive run only when no thread is selected", () => {
+    const snapshot = createSnapshot({
+      tasks: [
+        createTask({
+          id: "autodrive-task-1",
+          origin: {
+            kind: "run",
+            threadId: null,
+            runId: "run-standalone",
+            requestId: null,
+          },
+          taskSource: {
+            kind: "autodrive",
+            label: "AutoDrive Mission Control",
+            shortLabel: "AutoDrive",
+            externalId: "autodrive:workspace-1",
+            workspaceId: "workspace-1",
+            workspaceRoot: "/repo",
+          },
+          currentRunId: "run-standalone",
+          latestRunId: "run-standalone",
+          latestRunState: "running",
+        }),
+      ],
+      runs: [
+        createRun({
+          id: "run-standalone",
+          taskId: "autodrive-task-1",
+          updatedAt: 7,
+        }),
+      ],
+    });
+
+    const selected = selectAutoDriveSnapshot({
+      missionControlProjection: snapshot,
+      workspaceId: "workspace-1",
+      threadId: null,
     });
 
     expect(selected.task?.id).toBe("autodrive-task-1");
@@ -410,10 +455,27 @@ describe("autoDriveRuntimeSnapshotAdapter", () => {
         pauseOnHumanCheckpoint: true,
         allowNetworkAnalysis: true,
         allowValidationCommands: true,
+        allowChatgptDecisionLab: true,
+        autoRunChatgptDecisionLab: true,
+        chatgptDecisionLabMinConfidence: "medium",
+        chatgptDecisionLabMaxScoreGap: 8,
         minimumConfidence: "medium",
       },
     });
 
     expect(payload.destination.routePreference).toBe("balanced");
+    expect(payload.riskPolicy).toEqual({
+      pauseOnDestructiveChange: true,
+      pauseOnDependencyChange: true,
+      pauseOnLowConfidence: true,
+      pauseOnHumanCheckpoint: true,
+      allowNetworkAnalysis: true,
+      allowValidationCommands: true,
+      allowChatgptDecisionLab: true,
+      autoRunChatgptDecisionLab: true,
+      chatgptDecisionLabMinConfidence: "medium",
+      chatgptDecisionLabMaxScoreGap: 8,
+      minimumConfidence: "medium",
+    });
   });
 });

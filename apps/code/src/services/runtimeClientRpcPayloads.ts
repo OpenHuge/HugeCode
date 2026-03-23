@@ -62,6 +62,8 @@ function toCompatTurnSendPayload(payload: TurnSendRequest): TurnSendRequestCompa
   const contextPrefix = payload.contextPrefix ?? compatPayload.context_prefix ?? null;
   const hasCollaborationModeField = Object.hasOwn(payload, "collaborationMode");
   const collaborationMode = payload.collaborationMode;
+  const hasAutoDriveField = Object.hasOwn(payload, "autoDrive");
+  const autoDrive = payload.autoDrive;
 
   return withCanonicalPayload({
     ...payload,
@@ -77,6 +79,11 @@ function toCompatTurnSendPayload(payload: TurnSendRequest): TurnSendRequestCompa
     ...(hasContextPrefixField
       ? {
           contextPrefix,
+        }
+      : {}),
+    ...(hasAutoDriveField && autoDrive != null
+      ? {
+          autoDrive,
         }
       : {}),
     ...(hasCollaborationModeField && collaborationMode != null

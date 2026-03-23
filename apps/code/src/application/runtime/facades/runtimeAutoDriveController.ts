@@ -37,7 +37,7 @@ import {
   shouldAvoidAutomaticPushFromHistory,
 } from "./runtimeAutoDrivePublishRecovery";
 import { renderAutoDriveFinalReport } from "./runtimeAutoDriveReport";
-import { decideAutoDriveNextStep } from "./runtimeAutoDrivePolicy";
+import { decideAutoDriveNextStep, shouldAutoRunChatgptDecisionLab } from "./runtimeAutoDrivePolicy";
 import { synthesizeAutoDriveContext } from "./runtimeAutoDriveContext";
 import type {
   AutoDriveConfidence,
@@ -66,6 +66,80 @@ function notifyAutoDriveRunListener(
     logger.error("[AutoDriveRunController] listener failed", error);
   }
 }
+
+function buildContinuationReason(
+  run: AutoDriveRunRecord,
+  summary: AutoDriveIterationSummary
+): string {
+  const validationCommands = summary.validation.commands.join(" | ");
+  if (
+    (run.continuationPolicy?.requireValidationSuccessToStop ?? true) &&
+    summary.validation.success !== true
+  ) {
+    if (summary.validation.success === false) {
+      return `Validation is still failing: ${
+        summary.validation.failures[0] ?? summary.validation.summary
+      }`;
+    }
+    return validationCommands.length > 0
+      ? `Validation is still pending for ${validationCommands}.`
+      : `Validation is still pending: ${summary.validation.summary}`;
+  }
+  if (summary.waypoint.arrivalCriteriaMissed.length > 0) {
+    return `A required arrival criterion is still open: ${summary.waypoint.arrivalCriteriaMissed[0]}`;
+  }
+  if (summary.blockers.length > 0) {
+    return `An active blocker still needs resolution: ${summary.blockers[0]}`;
+  }
+  if (summary.routeHealth.offRoute || summary.routeHealth.rerouteRecommended) {
+    return `The route still needs re-anchoring: ${
+      summary.routeHealth.rerouteReason ?? summary.routeHealth.triggerSignals[0] ?? "route drift"
+    }`;
+  }
+  const minimumConfidence = run.continuationPolicy?.minimumConfidenceToStop ?? "high";
+  const confidenceRank: Record<AutoDriveConfidence, number> = {
+    low: 0,
+    medium: 1,
+    high: 2,
+  };
+  if (confidenceRank[summary.progress.arrivalConfidence] < confidenceRank[minimumConfidence]) {
+    return `Confidence is still below the stop target of ${minimumConfidence}.`;
+  }
+  return "The route needs one more verification pass before stopping.";
+}
+
+function advanceContinuationState(params: {
+  run: AutoDriveRunRecord;
+  summary: AutoDriveIterationSummary;
+  now: number;
+}): AutoDriveRunRecord {
+  const automaticFollowUpCount = (params.run.continuationState?.automaticFollowUpCount ?? 0) + 1;
+  return {
+    ...params.run,
+    continuationState: {
+      automaticFollowUpCount,
+      status: "continuing",
+      lastContinuationAt: params.now,
+      lastContinuationReason: buildContinuationReason(params.run, params.summary),
+    },
+  };
+}
+
+function resolveStoppedContinuationState(
+  run: AutoDriveRunRecord,
+  now: number
+): AutoDriveRunRecord["continuationState"] {
+  if (!run.continuationState && !run.continuationPolicy) {
+    return run.continuationState ?? null;
+  }
+  return {
+    automaticFollowUpCount: run.continuationState?.automaticFollowUpCount ?? 0,
+    status: "stopped",
+    lastContinuationAt: run.continuationState?.lastContinuationAt ?? now,
+    lastContinuationReason: run.continuationState?.lastContinuationReason ?? "finalized",
+  };
+}
+
 type AutoDriveControllerServices = {
   synthesizeContext?: (params: {
     deps: AutoDriveControllerDeps;
@@ -419,6 +493,92 @@ export class AutoDriveRunController {
     };
   }
 
+  private async maybeApplyChatgptDecisionLab(
+    context: AutoDriveContextSnapshot
+  ): Promise<AutoDriveContextSnapshot> {
+    if (
+      typeof this.deps.runRuntimeBrowserDebug !== "function" ||
+      !shouldAutoRunChatgptDecisionLab({ run: this.run, context })
+    ) {
+      return context;
+    }
+
+    try {
+      const result = await this.deps.runRuntimeBrowserDebug({
+        workspaceId: this.run.workspaceId,
+        operation: "chatgpt_decision_lab",
+        prompt: null,
+        includeScreenshot: false,
+        timeoutMs: 45_000,
+        steps: null,
+        decisionLab: {
+          question: `Which route should AutoDrive choose for iteration ${context.iteration}? Recommend the strongest option and explain the tradeoff.`,
+          options: context.opportunities.candidates.map((candidate) => ({
+            id: candidate.id,
+            label: candidate.title,
+            summary: candidate.summary,
+          })),
+          constraints: this.run.destination.hardBoundaries,
+          allowLiveWebResearch: this.run.riskPolicy.allowNetworkAnalysis,
+          chatgptUrl: null,
+        },
+      });
+      const decisionLab = result.decisionLab;
+      if (!decisionLab?.recommendedOptionId) {
+        return context;
+      }
+      const recommendedIndex = context.opportunities.candidates.findIndex(
+        (candidate) => candidate.id === decisionLab.recommendedOptionId
+      );
+      if (recommendedIndex < 0) {
+        return context;
+      }
+      const recommendedCandidate = context.opportunities.candidates[recommendedIndex];
+      const selectionSummary = [
+        `Candidate ${recommendedIndex + 1} (${recommendedCandidate.title}) recommended by ChatGPT decision lab.`,
+        decisionLab.decisionMemo,
+      ]
+        .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+        .join(" ");
+
+      this.run = {
+        ...this.run,
+        lastChatgptDecisionLab: {
+          recommendedOptionId: decisionLab.recommendedOptionId ?? null,
+          recommendedOption: decisionLab.recommendedOption ?? null,
+          alternativeOptionIds: decisionLab.alternativeOptionIds ?? [],
+          decisionMemo: decisionLab.decisionMemo ?? null,
+          confidence: decisionLab.confidence ?? null,
+          assumptions: decisionLab.assumptions ?? [],
+          followUpQuestions: decisionLab.followUpQuestions ?? [],
+        },
+        runtimeDecisionTrace: {
+          phase: "progress",
+          summary: selectionSummary,
+          selectedCandidateId: recommendedCandidate.id,
+          selectedCandidateSummary: recommendedCandidate.summary,
+          selectionTags: ["chatgpt_decision_lab_auto"],
+          representativeCommand: null,
+          authoritySources: ["chatgpt_web", "chrome_devtools_mcp"],
+          heldOutGuidance: [],
+        },
+      };
+      await this.persistRun();
+
+      return {
+        ...context,
+        opportunities: {
+          ...context.opportunities,
+          selectedCandidateId: recommendedCandidate.id,
+          selectionSummary,
+        },
+      };
+    } catch (error) {
+      logger.error("[AutoDriveRunController] chatgpt decision lab failed", error);
+      return context;
+    }
+  }
+
   private async finalize(
     status: AutoDriveRunRecord["status"],
     stage: AutoDriveRunRecord["stage"],
@@ -437,6 +597,10 @@ export class AutoDriveRunController {
       stage,
       completedAt: status === "paused" ? null : defaultNow(this.deps),
       lastStopReason: reason,
+      continuationState:
+        status === "completed" || status === "stopped" || status === "failed"
+          ? resolveStoppedContinuationState(this.run, defaultNow(this.deps))
+          : this.run.continuationState,
       navigation: {
         ...this.run.navigation,
         lastDecision: reason?.code ?? status,
@@ -684,12 +848,13 @@ export class AutoDriveRunController {
       };
       await this.persistRun();
 
-      const context = await this.services.synthesizeContext({
+      let context = await this.services.synthesizeContext({
         deps: this.deps,
         run: this.run,
         iteration,
         previousSummary,
       });
+      context = await this.maybeApplyChatgptDecisionLab(context);
       await this.ledger.writeContext(context);
       this.run = {
         ...this.run,
@@ -900,6 +1065,14 @@ export class AutoDriveRunController {
         summaries: [...this.run.summaries, summary],
         latestReroute: summary.reroute,
         latestPublishOutcome: publishOutcome,
+        continuationState:
+          decision.action === "continue" && summary.goalReached
+            ? advanceContinuationState({
+                run: this.run,
+                summary,
+                now: defaultNow(this.deps),
+              }).continuationState
+            : this.run.continuationState,
         navigation: {
           ...this.run.navigation,
           rerouting: decision.action === "reroute",

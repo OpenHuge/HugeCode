@@ -1,5 +1,6 @@
 import { type MutableRefObject, useEffect, useLayoutEffect, useRef } from "react";
 import type { AccessMode, ComposerExecutionMode } from "../../../types";
+import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
 import {
   buildThreadCodexSeedPatch,
   type PendingNewThreadSeed,
@@ -27,6 +28,7 @@ type UseThreadCodexSyncOptions = {
     accessMode: AccessMode | null;
     collaborationModeId: string | null;
     executionMode: ComposerExecutionMode | null;
+    autoDriveDraft?: AutoDriveControllerHookDraft | null;
     updatedAt: number;
   } | null;
   patchThreadCodexParams: (
@@ -39,6 +41,7 @@ type UseThreadCodexSyncOptions = {
       accessMode?: AccessMode | null;
       collaborationModeId?: string | null;
       executionMode?: ComposerExecutionMode | null;
+      autoDriveDraft?: AutoDriveControllerHookDraft | null;
     }
   ) => void;
   setThreadCodexSelectionKey: (key: string | null) => void;

@@ -139,4 +139,61 @@ describe("useThreadCodexParams", () => {
 
     expect(result.current.getThreadCodexParams("ws-1", "thread-3")).toBeNull();
   });
+
+  it("restores ChatGPT decision lab defaults in persisted autodrive drafts", () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_THREAD_CODEX_PARAMS,
+      JSON.stringify({
+        "ws-1:thread-4": {
+          autoDriveDraft: {
+            enabled: true,
+            destination: {
+              title: "Ship AutoDrive",
+              endState: "Decision lab auto-runs",
+              doneDefinition: "Runtime uses ChatGPT when routes are close",
+              avoid: "No silent destructive changes",
+              routePreference: "stability_first",
+            },
+            budget: {
+              maxTokens: 4000,
+              maxIterations: 2,
+              maxDurationMinutes: 5,
+              maxFilesPerIteration: 4,
+              maxNoProgressIterations: 1,
+              maxValidationFailures: 1,
+              maxReroutes: 1,
+            },
+            riskPolicy: {
+              pauseOnDestructiveChange: true,
+              allowNetworkAnalysis: true,
+              allowValidationCommands: true,
+              minimumConfidence: "medium",
+            },
+          },
+          updatedAt: 2,
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useThreadCodexParams());
+
+    expect(result.current.getThreadCodexParams("ws-1", "thread-4")).toEqual(
+      expect.objectContaining({
+        autoDriveDraft: expect.objectContaining({
+          continuation: expect.objectContaining({
+            enabled: true,
+            maxAutomaticFollowUps: 2,
+            requireValidationSuccessToStop: true,
+            minimumConfidenceToStop: "high",
+          }),
+          riskPolicy: expect.objectContaining({
+            allowChatgptDecisionLab: true,
+            autoRunChatgptDecisionLab: true,
+            chatgptDecisionLabMinConfidence: "medium",
+            chatgptDecisionLabMaxScoreGap: 8,
+          }),
+        }),
+      })
+    );
+  });
 });

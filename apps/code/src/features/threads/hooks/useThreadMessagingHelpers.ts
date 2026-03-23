@@ -4,7 +4,7 @@ import type {
   ComposerExecutionMode,
   CustomPromptOption,
 } from "../../../types";
-import type { HugeCodeTaskMode } from "@ku0/code-runtime-host-contract";
+import type { AgentTaskAutoDriveState, HugeCodeTaskMode } from "@ku0/code-runtime-host-contract";
 import { splitCommandLine } from "../../../utils/approvalRules";
 import { expandCustomCommandText } from "../../../utils/slashCommands";
 import { asString } from "../utils/threadNormalize";
@@ -68,6 +68,7 @@ export type StartTurnPayload = {
   contextPrefix?: string | null;
   images?: string[];
   appMentions?: AppMention[];
+  autoDrive?: AgentTaskAutoDriveState | null;
 };
 
 function isInlineAttachmentSource(value: string) {
@@ -300,6 +301,7 @@ export function buildStartTurnPayload(params: {
   contextPrefix: string | null;
   images: string[];
   appMentions: AppMention[];
+  autoDrive?: AgentTaskAutoDriveState | null;
 }): StartTurnPayload {
   const payload: StartTurnPayload = {
     model: params.model,
@@ -316,6 +318,9 @@ export function buildStartTurnPayload(params: {
     contextPrefix: params.contextPrefix,
     images: params.images,
   };
+  if (params.autoDrive) {
+    payload.autoDrive = params.autoDrive;
+  }
   if (params.appMentions.length > 0) {
     payload.appMentions = params.appMentions;
   }

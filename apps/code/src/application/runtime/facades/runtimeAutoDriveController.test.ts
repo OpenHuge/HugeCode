@@ -1,3 +1,4 @@
+import type { SubAgentWaitResult } from "@ku0/code-runtime-host-contract";
 import { describe, expect, it, vi } from "vitest";
 import { AutoDriveRunController } from "./runtimeAutoDriveController";
 import type {
@@ -42,8 +43,12 @@ function createRun(): AutoDriveRunRecord {
       pauseOnLowConfidence: true,
       pauseOnHumanCheckpoint: true,
       allowNetworkAnalysis: false,
+      allowChatgptDecisionLab: true,
+      autoRunChatgptDecisionLab: true,
       allowValidationCommands: true,
       minimumConfidence: "medium",
+      chatgptDecisionLabMinConfidence: "medium",
+      chatgptDecisionLabMaxScoreGap: 8,
     },
     iteration: 0,
     totals: {
@@ -297,6 +302,29 @@ function createDeps(): AutoDriveControllerDeps {
       status: "closed",
       message: "closed",
     }),
+    runRuntimeBrowserDebug: vi.fn().mockResolvedValue({
+      workspaceId: "workspace-1",
+      available: true,
+      status: "completed",
+      mode: "mcp-chrome-devtools",
+      operation: "chatgpt_decision_lab",
+      message: "ChatGPT decision lab completed.",
+      toolCalls: [{ toolName: "evaluate_script", ok: true }],
+      contentText: "decision lab raw response",
+      structuredContent: null,
+      artifacts: [],
+      warnings: [],
+      decisionLab: {
+        recommendedOptionId: "stabilize_route",
+        recommendedOption: "Stabilize the route before widening scope.",
+        alternativeOptionIds: ["advance_primary_surface"],
+        decisionMemo:
+          "The lower-risk route keeps the runtime boundary intact while confidence is only medium.",
+        confidence: "high",
+        assumptions: ["The validation lane is still representative."],
+        followUpQuestions: [],
+      },
+    }),
     runLiveSkill: vi.fn().mockResolvedValue({
       runId: "live-skill-run",
       skillId: "core-bash",
@@ -538,6 +566,135 @@ const expectedPublishBranchName =
   "autodrive/build-autodrive-navigation-in-tw-19700101000001-run-123";
 
 describe("AutoDriveRunController", () => {
+  it("auto-runs the ChatGPT decision lab and applies its recommendation before building the next proposal", async () => {
+    const deps = createDeps();
+    const ambiguousContext = createContext(1);
+    ambiguousContext.opportunities = {
+      selectedCandidateId: "advance_primary_surface",
+      selectionSummary:
+        "Advance the primary surface barely leads, but the route remains ambiguous.",
+      candidates: [
+        {
+          id: "advance_primary_surface",
+          title: "Advance the primary AutoDrive surface",
+          summary: "Move the active waypoint immediately.",
+          rationale: "Momentum points here.",
+          repoAreas: ["apps/code/src/application/runtime/facades/runtimeAutoDriveController.ts"],
+          score: 61,
+          confidence: "medium",
+          risk: "medium",
+        },
+        {
+          id: "stabilize_route",
+          title: "Stabilize the route before widening scope",
+          summary: "Tighten the route and validation loop first.",
+          rationale: "Risk is lower and the score gap is small.",
+          repoAreas: ["apps/code/src/application/runtime/facades/runtimeAutoDrivePolicy.ts"],
+          score: 56,
+          confidence: "medium",
+          risk: "low",
+        },
+      ],
+    };
+
+    const buildProposal = vi.fn(({ context }: { context: AutoDriveContextSnapshot }) =>
+      createProposal(context.iteration)
+    );
+
+    const controller = new AutoDriveRunController({
+      deps,
+      ledger: {
+        writeRun: vi.fn().mockResolvedValue(undefined),
+        writeContext: vi.fn().mockResolvedValue(undefined),
+        writeProposal: vi.fn().mockResolvedValue(undefined),
+        writeSummary: vi.fn().mockResolvedValue(undefined),
+        writeReroute: vi.fn().mockResolvedValue(undefined),
+        writeFinalReport: vi.fn().mockResolvedValue(undefined),
+      },
+      run: {
+        ...createRun(),
+        budget: {
+          ...createRun().budget,
+          maxIterations: 1,
+        },
+      },
+      synthesizeContext: async () => ambiguousContext,
+      buildProposal,
+      reviewProposal: () => ({
+        approved: true,
+        issues: [],
+        confidence: "medium",
+        shouldReroute: false,
+        rerouteReason: null,
+      }),
+    });
+
+    await controller.start();
+
+    expect(deps.runRuntimeBrowserDebug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: "workspace-1",
+        operation: "chatgpt_decision_lab",
+        decisionLab: expect.objectContaining({
+          question: expect.stringContaining("Which route should AutoDrive choose"),
+          options: expect.arrayContaining([
+            expect.objectContaining({ id: "advance_primary_surface" }),
+            expect.objectContaining({ id: "stabilize_route" }),
+          ]),
+        }),
+      })
+    );
+    expect(buildProposal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          opportunities: expect.objectContaining({
+            selectedCandidateId: "stabilize_route",
+            selectionSummary: expect.stringContaining("Candidate 2"),
+          }),
+        }),
+      })
+    );
+  });
+
+  it("skips the ChatGPT decision lab when automatic invocation is disabled", async () => {
+    const deps = createDeps();
+    const controller = new AutoDriveRunController({
+      deps,
+      ledger: {
+        writeRun: vi.fn().mockResolvedValue(undefined),
+        writeContext: vi.fn().mockResolvedValue(undefined),
+        writeProposal: vi.fn().mockResolvedValue(undefined),
+        writeSummary: vi.fn().mockResolvedValue(undefined),
+        writeReroute: vi.fn().mockResolvedValue(undefined),
+        writeFinalReport: vi.fn().mockResolvedValue(undefined),
+      },
+      run: {
+        ...createRun(),
+        riskPolicy: {
+          ...createRun().riskPolicy,
+          autoRunChatgptDecisionLab: false,
+        },
+        budget: {
+          ...createRun().budget,
+          maxIterations: 1,
+        },
+      },
+      synthesizeContext: async ({ iteration }) => createContext(iteration),
+      buildProposal: ({ iteration }) => createProposal(iteration),
+      reviewProposal: () => ({
+        approved: true,
+        issues: [],
+        confidence: "medium",
+        shouldReroute: false,
+        rerouteReason: null,
+      }),
+    });
+
+    await controller.start();
+
+    expect(deps.runRuntimeBrowserDebug).not.toHaveBeenCalled();
+  });
+
   it("continues notifying remaining subscribers when one listener throws", async () => {
     const controller = new AutoDriveRunController({
       deps: createDeps(),
@@ -765,30 +922,30 @@ describe("AutoDriveRunController", () => {
       run: createRun(),
     });
 
-    const validation = await (
-      controller as AutoDriveRunController & {
-        defaultValidateIteration: (params: {
-          deps: AutoDriveControllerDeps;
-          iteration: number;
-          run: AutoDriveRunRecord;
-          context: AutoDriveContextSnapshot;
-          proposal: AutoDriveRouteProposal;
-          task: {
-            taskId: string;
-            status: "completed";
-            title: string;
-            steps: [];
-            errorMessage: null;
-          };
-        }) => Promise<{
-          ran: boolean;
-          commands: string[];
-          success: boolean | null;
-          failures: string[];
-          summary: string;
-        }>;
-      }
-    ).defaultValidateIteration({
+    const controllerWithInternals = controller as unknown as {
+      defaultValidateIteration: (params: {
+        deps: AutoDriveControllerDeps;
+        iteration: number;
+        run: AutoDriveRunRecord;
+        context: AutoDriveContextSnapshot;
+        proposal: AutoDriveRouteProposal;
+        task: {
+          taskId: string;
+          status: "completed";
+          title: string;
+          steps: [];
+          errorMessage: null;
+        };
+      }) => Promise<{
+        ran: boolean;
+        commands: string[];
+        success: boolean | null;
+        failures: string[];
+        summary: string;
+      }>;
+    };
+
+    const validation = await controllerWithInternals.defaultValidateIteration({
       deps,
       iteration: 1,
       run: createRun(),
@@ -1168,6 +1325,107 @@ describe("AutoDriveRunController", () => {
     expect(writeProposal).toHaveBeenCalledTimes(1);
     expect(writeSummary).toHaveBeenCalledTimes(1);
     expect(writeFinalReport).toHaveBeenCalledTimes(1);
+  });
+
+  it("records a human-readable continuation reason before the final follow-up closes the run", async () => {
+    const deps = createDeps();
+    const controller = new AutoDriveRunController({
+      deps,
+      ledger: {
+        writeRun: vi.fn().mockResolvedValue(undefined),
+        writeContext: vi.fn().mockResolvedValue(undefined),
+        writeProposal: vi.fn().mockResolvedValue(undefined),
+        writeSummary: vi.fn().mockResolvedValue(undefined),
+        writeReroute: vi.fn().mockResolvedValue(undefined),
+        writeFinalReport: vi.fn().mockResolvedValue(undefined),
+      },
+      run: {
+        ...createRun(),
+        budget: {
+          ...createRun().budget,
+          maxIterations: 3,
+        },
+      },
+      synthesizeContext: async ({ iteration }) => createContext(iteration),
+      buildProposal: ({ iteration }) => createProposal(iteration),
+      reviewProposal: () => ({
+        approved: true,
+        issues: [],
+        confidence: "high",
+        shouldReroute: false,
+        rerouteReason: null,
+      }),
+      summarizeIteration: async ({ iteration, task, validation }) => ({
+        schemaVersion: "autodrive-summary/v2",
+        runId: "run-123",
+        iteration,
+        status: "success",
+        taskTitle: `Waypoint ${iteration}`,
+        summaryText:
+          iteration === 1
+            ? "Goal reached, but validation has not run yet."
+            : "Goal reached with verification complete.",
+        changedFiles: ["apps/code/src/application/runtime/facades/runtimeAutoDriveController.ts"],
+        blockers: [],
+        completedSubgoals: ["destination_reached"],
+        unresolvedItems: [],
+        suggestedNextAreas: [],
+        validation,
+        progress: {
+          currentMilestone: "Validate the route and decide whether to arrive or reroute",
+          currentWaypointTitle: `Waypoint ${iteration}`,
+          completedWaypoints: 3,
+          totalWaypoints: 3,
+          waypointCompletion: 100,
+          overallProgress: 100,
+          remainingMilestones: [],
+          remainingBlockers: [],
+          remainingDistance: "Destination reached.",
+          arrivalConfidence: iteration === 1 ? "medium" : "high",
+          stopRisk: "low",
+        },
+        routeHealth: {
+          offRoute: false,
+          noProgressLoop: false,
+          rerouteRecommended: false,
+          rerouteReason: null,
+          triggerSignals: [],
+        },
+        waypoint: {
+          id: `waypoint-${iteration}`,
+          title: `Waypoint ${iteration}`,
+          status: "arrived",
+          arrivalCriteriaMet: ["Destination reached"],
+          arrivalCriteriaMissed: iteration === 1 ? ["pnpm validate:fast"] : [],
+        },
+        goalReached: true,
+        task: {
+          taskId: task.taskId,
+          status: task.status,
+          outputExcerpt: iteration === 1 ? "Validation pending" : "Validation complete",
+        },
+        reroute: null,
+        createdAt: iteration,
+      }),
+      validateIteration: async ({ iteration }) => ({
+        ran: iteration === 2,
+        commands: ["pnpm validate:fast"],
+        success: iteration === 2 ? true : null,
+        failures: [],
+        summary: iteration === 2 ? "validate:fast passed" : "Validation not run yet.",
+      }),
+    });
+
+    const snapshot = await controller.start();
+
+    expect(snapshot.status).toBe("completed");
+    expect(snapshot.continuationState).toEqual(
+      expect.objectContaining({
+        automaticFollowUpCount: 1,
+        status: "stopped",
+        lastContinuationReason: "Validation is still pending for pnpm validate:fast.",
+      })
+    );
   });
 
   it("creates a branch-only commit candidate when the route reaches goal with publish-ready local changes", async () => {
@@ -2161,9 +2419,10 @@ describe("AutoDriveRunController", () => {
 
   it("honors an operator pause that lands during waypoint execution", async () => {
     const deps = createDeps();
-    let resolveWait:
-      | ((value: Awaited<ReturnType<AutoDriveControllerDeps["waitSubAgentSession"]>>) => void)
-      | null = null;
+    let waitResolverCaptured = false;
+    let resolveWait: (value: SubAgentWaitResult) => void = () => {
+      throw new Error("waitSubAgentSession resolver was not captured");
+    };
     let executionStartedResolve: (() => void) | null = null;
     const executionStarted = new Promise<void>((resolve) => {
       executionStartedResolve = resolve;
@@ -2218,6 +2477,7 @@ describe("AutoDriveRunController", () => {
     deps.waitSubAgentSession = vi.fn().mockImplementation(
       () =>
         new Promise((resolve) => {
+          waitResolverCaptured = true;
           resolveWait = resolve;
         })
     );
@@ -2253,7 +2513,10 @@ describe("AutoDriveRunController", () => {
     const startPromise = controller.start();
     await executionStarted;
     await controller.pause();
-    resolveWait?.({
+    if (!waitResolverCaptured) {
+      throw new Error("Expected waitSubAgentSession resolver to be captured before pause");
+    }
+    resolveWait({
       done: true,
       timedOut: false,
       session: {
@@ -2329,9 +2592,10 @@ describe("AutoDriveRunController", () => {
 
   it("honors a manual stop that lands during waypoint execution", async () => {
     const deps = createDeps();
-    let resolveWait:
-      | ((value: Awaited<ReturnType<AutoDriveControllerDeps["waitSubAgentSession"]>>) => void)
-      | null = null;
+    let waitResolverCaptured = false;
+    let resolveWait: (value: SubAgentWaitResult) => void = () => {
+      throw new Error("waitSubAgentSession resolver was not captured");
+    };
     let executionStartedResolve: (() => void) | null = null;
     const executionStarted = new Promise<void>((resolve) => {
       executionStartedResolve = resolve;
@@ -2386,6 +2650,7 @@ describe("AutoDriveRunController", () => {
     deps.waitSubAgentSession = vi.fn().mockImplementation(
       () =>
         new Promise((resolve) => {
+          waitResolverCaptured = true;
           resolveWait = resolve;
         })
     );
@@ -2421,7 +2686,10 @@ describe("AutoDriveRunController", () => {
     const startPromise = controller.start();
     await executionStarted;
     await controller.stop();
-    resolveWait?.({
+    if (!waitResolverCaptured) {
+      throw new Error("Expected waitSubAgentSession resolver to be captured before stop");
+    }
+    resolveWait({
       done: true,
       timedOut: false,
       session: {

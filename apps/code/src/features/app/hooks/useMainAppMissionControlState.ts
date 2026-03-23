@@ -1,6 +1,6 @@
 import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
 import { useCallback, useEffect, useRef } from "react";
-import type { DebugEntry, WorkspaceInfo } from "../../../types";
+import type { ConversationItem, DebugEntry, WorkspaceInfo } from "../../../types";
 import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
 import type { AppTab } from "../../shell/types/shellRoute";
 import type { ReviewPackSelectionRequest } from "../../review/utils/reviewPackSurfaceModel";
@@ -39,6 +39,15 @@ type Params = {
   ) => {
     autoDriveDraft?: ReturnType<typeof useMainAppAutoDriveState>["draft"] | null;
   } | null;
+  activeItems: ConversationItem[];
+  threadStatusById: Record<string, { isProcessing: boolean } | undefined>;
+  sendUserMessageToThread: (
+    workspace: WorkspaceInfo,
+    threadId: string,
+    text: string,
+    images?: string[],
+    options?: { skipPromptExpansion?: boolean }
+  ) => Promise<void>;
   patchThreadCodexParams: (
     workspaceId: string,
     threadId: string,
@@ -108,6 +117,9 @@ export function useMainAppMissionControlState({
   threadCodexState,
   threadCodexParamsVersion,
   getThreadCodexParams,
+  activeItems,
+  threadStatusById,
+  sendUserMessageToThread,
   patchThreadCodexParams,
   preferredBackendIds,
 }: Params) {
@@ -122,6 +134,9 @@ export function useMainAppMissionControlState({
     threadCodexState,
     threadCodexParamsVersion,
     getThreadCodexParams,
+    activeItems,
+    threadStatusById,
+    sendUserMessageToThread,
     patchThreadCodexParams,
     preferredBackendIds,
     refreshMissionControl

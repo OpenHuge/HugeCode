@@ -609,6 +609,104 @@ describe("useThreadMessaging telemetry", () => {
     );
   });
 
+  it("forwards enabled autodrive draft into the runtime turn payload", async () => {
+    const getThreadCodexParams = vi.fn(() => ({
+      autoDriveDraft: {
+        enabled: true,
+        destination: {
+          title: "Ship runtime truth",
+          endState: "Runtime-backed controls",
+          doneDefinition: "pnpm validate:fast passes",
+          avoid: "Do not widen scope",
+          routePreference: "validation_first" as const,
+        },
+        budget: {
+          maxTokens: 2800,
+          maxIterations: 3,
+          maxDurationMinutes: 10,
+          maxFilesPerIteration: 5,
+          maxNoProgressIterations: 2,
+          maxValidationFailures: 2,
+          maxReroutes: 2,
+        },
+        riskPolicy: {
+          pauseOnDestructiveChange: true,
+          pauseOnDependencyChange: true,
+          pauseOnLowConfidence: true,
+          pauseOnHumanCheckpoint: true,
+          allowNetworkAnalysis: true,
+          allowValidationCommands: true,
+          allowChatgptDecisionLab: true,
+          autoRunChatgptDecisionLab: true,
+          chatgptDecisionLabMinConfidence: "medium" as const,
+          chatgptDecisionLabMaxScoreGap: 8,
+          minimumConfidence: "medium" as const,
+        },
+        continuation: {
+          enabled: true,
+          maxAutomaticFollowUps: 2,
+          requireValidationSuccessToStop: true,
+          minimumConfidenceToStop: "high" as const,
+        },
+      },
+    }));
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "on-request",
+        executionMode: "runtime",
+        model: "gpt-5.4",
+        effort: "medium",
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+        getThreadCodexParams,
+      })
+    );
+
+    await act(async () => {
+      await result.current.sendUserMessageToThread(workspace, "thread-1", "continue", []);
+    });
+
+    expect(sendUserMessageService).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "continue",
+      expect.objectContaining({
+        autoDrive: expect.objectContaining({
+          destination: expect.objectContaining({
+            title: "Ship runtime truth",
+          }),
+          continuationPolicy: expect.objectContaining({
+            enabled: true,
+            maxAutomaticFollowUps: 2,
+          }),
+        }),
+      })
+    );
+  });
+
   it("forwards effective codex overrides for local-cli sends", async () => {
     const workspaceWithOverrides: WorkspaceInfo = {
       ...workspace,
