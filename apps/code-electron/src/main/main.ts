@@ -1,4 +1,3 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -11,15 +10,16 @@ import {
   shell,
   Tray,
 } from "electron";
-import type { DesktopNotificationInput, OpenDesktopWindowInput } from "../shared/ipc.js";
+import type { OpenDesktopWindowInput } from "../shared/ipc.js";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import {
   createDesktopShellState,
   resolveCloseBehavior,
-  type DesktopPersistedState,
   type DesktopSessionDescriptor,
   type DesktopWindowBounds,
 } from "./desktopShellState.js";
+import { createDesktopStateStore } from "./desktopStateStore.js";
+import { registerDesktopHostIpc } from "./registerDesktopHostIpc.js";
 import { buildTrayMenuTemplate, getTrayMenuStateSignature } from "./trayMenu.js";
 
 const DEFAULT_WINDOW_STATE: DesktopWindowBounds = {
@@ -49,38 +49,16 @@ function getWindowStatePath() {
   return join(app.getPath("userData"), "desktop-state.json");
 }
 
-function readPersistedState(): DesktopPersistedState {
-  const statePath = getWindowStatePath();
-  if (!existsSync(statePath)) {
-    return {
-      trayEnabled: false,
-      sessions: [],
-    };
-  }
-
-  try {
-    const raw = readFileSync(statePath, "utf8");
-    const parsed = JSON.parse(raw) as Partial<DesktopPersistedState>;
-    return {
-      trayEnabled: parsed.trayEnabled === true,
-      sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-    };
-  } catch {
-    return {
-      trayEnabled: false,
-      sessions: [],
-    };
-  }
-}
+const desktopStateStore = createDesktopStateStore({
+  statePath: getWindowStatePath(),
+});
 
 const desktopShellState = createDesktopShellState({
-  persistedState: readPersistedState(),
+  persistedState: desktopStateStore.read(),
 });
 
 function persistDesktopState() {
-  const statePath = getWindowStatePath();
-  mkdirSync(dirname(statePath), { recursive: true });
-  writeFileSync(statePath, JSON.stringify(desktopShellState.toPersistedState(), null, 2));
+  desktopStateStore.write(desktopShellState.toPersistedState());
 }
 
 function getWindowTitle(session: DesktopSessionDescriptor) {
@@ -302,112 +280,92 @@ function updateTray() {
   tray.setContextMenu(trayMenu);
 }
 
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getAppVersion, async () => {
-  const version = app.getVersion();
-  return typeof version === "string" && version.length > 0 ? version : null;
-});
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getCurrentSession, async (event) => {
-  const sourceWindow = BrowserWindow.fromWebContents(event.sender);
-  if (!sourceWindow) {
-    return null;
-  }
-  return desktopShellState.getSessionByWindowId(sourceWindow.id);
-});
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.listRecentSessions, async () => {
-  return desktopShellState.recentSessions;
-});
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.reopenSession, async (_event, sessionId: string) => {
-  return reopenSession(sessionId);
-});
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getWindowLabel, async (event) => {
-  const sourceWindow = BrowserWindow.fromWebContents(event.sender);
-  if (!sourceWindow) {
-    return "main";
-  }
-  return desktopShellState.getSessionByWindowId(sourceWindow.id)?.windowLabel ?? "main";
-});
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.listWindows, async () => {
-  return listWindows();
-});
-
-ipcMain.handle(
-  DESKTOP_HOST_IPC_CHANNELS.openWindow,
-  async (_event, input?: OpenDesktopWindowInput) => {
-    const window = openWindow(input);
-    const session = desktopShellState.getSessionByWindowId(window.id);
-    if (!session) {
-      return null;
-    }
-    return {
-      windowId: window.id,
-      sessionId: session.id,
-      windowLabel: session.windowLabel,
-      workspaceLabel: session.workspaceLabel,
-      focused: window.isFocused(),
-      hidden: window.isVisible() === false,
-    };
-  }
-);
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.focusWindow, async (_event, windowId: number) => {
-  return focusWindow(windowId);
-});
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.closeWindow, async (_event, windowId: number) => {
-  const targetWindow = activeWindows.get(windowId);
-  if (!targetWindow || targetWindow.isDestroyed()) {
-    return false;
-  }
-  targetWindow.close();
-  return true;
-});
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.getTrayState, async () => {
-  return getTrayState();
-});
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.setTrayEnabled, async (_event, enabled: boolean) => {
-  desktopShellState.setTrayEnabled(enabled === true);
-  persistDesktopState();
-  updateTray();
-  return getTrayState();
-});
-
-ipcMain.handle(
-  DESKTOP_HOST_IPC_CHANNELS.showNotification,
-  async (event, input: DesktopNotificationInput) => {
-    if (!Notification.isSupported()) {
-      return false;
-    }
-
-    const sourceWindow = BrowserWindow.fromWebContents(event.sender);
-    const notification = new Notification({
-      title: input.title,
-      body: input.body ?? "",
-    });
-    notification.on("click", () => {
-      if (sourceWindow && !sourceWindow.isDestroyed()) {
-        sourceWindow.show();
-        sourceWindow.focus();
+registerDesktopHostIpc({
+  channels: DESKTOP_HOST_IPC_CHANNELS,
+  handlers: {
+    closeWindow(windowId) {
+      const targetWindow = activeWindows.get(windowId);
+      if (!targetWindow || targetWindow.isDestroyed()) {
+        return false;
       }
-    });
-    notification.show();
-    return true;
-  }
-);
+      targetWindow.close();
+      return true;
+    },
+    focusWindow,
+    getAppVersion() {
+      const version = app.getVersion();
+      return typeof version === "string" && version.length > 0 ? version : null;
+    },
+    getCurrentSession(event) {
+      const sourceWindow = BrowserWindow.fromWebContents(event.sender);
+      if (!sourceWindow) {
+        return null;
+      }
+      return desktopShellState.getSessionByWindowId(sourceWindow.id);
+    },
+    getTrayState,
+    getWindowLabel(event) {
+      const sourceWindow = BrowserWindow.fromWebContents(event.sender);
+      if (!sourceWindow) {
+        return "main";
+      }
+      return desktopShellState.getSessionByWindowId(sourceWindow.id)?.windowLabel ?? "main";
+    },
+    listRecentSessions() {
+      return desktopShellState.recentSessions;
+    },
+    listWindows,
+    async openExternalUrl(url) {
+      await shell.openExternal(url);
+      return true;
+    },
+    openWindow(input) {
+      const window = openWindow(input);
+      const session = desktopShellState.getSessionByWindowId(window.id);
+      if (!session) {
+        return null;
+      }
+      return {
+        windowId: window.id,
+        sessionId: session.id,
+        windowLabel: session.windowLabel,
+        workspaceLabel: session.workspaceLabel,
+        focused: window.isFocused(),
+        hidden: window.isVisible() === false,
+      };
+    },
+    reopenSession,
+    revealItemInDir(path) {
+      shell.showItemInFolder(path);
+      return true;
+    },
+    setTrayEnabled(enabled) {
+      desktopShellState.setTrayEnabled(enabled);
+      persistDesktopState();
+      updateTray();
+      return getTrayState();
+    },
+    showNotification(event, input) {
+      if (!Notification.isSupported()) {
+        return false;
+      }
 
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.openExternalUrl, async (_event, url: string) => {
-  await shell.openExternal(url);
-  return true;
-});
-
-ipcMain.handle(DESKTOP_HOST_IPC_CHANNELS.revealItemInDir, async (_event, path: string) => {
-  return shell.showItemInFolder(path);
+      const sourceWindow = BrowserWindow.fromWebContents(event.sender);
+      const notification = new Notification({
+        title: input.title,
+        body: input.body ?? "",
+      });
+      notification.on("click", () => {
+        if (sourceWindow && !sourceWindow.isDestroyed()) {
+          sourceWindow.show();
+          sourceWindow.focus();
+        }
+      });
+      notification.show();
+      return true;
+    },
+  },
+  ipcMain,
 });
 
 app.on("second-instance", () => {
