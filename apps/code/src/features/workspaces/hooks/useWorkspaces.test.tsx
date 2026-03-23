@@ -645,6 +645,21 @@ describe("useWorkspaces.active workspace persistence", () => {
     });
   });
 
+  it("rewrites the desktop root path to /workspaces instead of restoring a persisted workspace", async () => {
+    window.history.replaceState({}, "", "/");
+    vi.mocked(listWorkspaces).mockResolvedValue([workspaceOne, workspaceTwo]);
+    vi.mocked(readPersistedActiveWorkspaceId).mockResolvedValue(workspaceTwo.id);
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await waitFor(() => {
+      expect(result.current.activeWorkspaceId).toBeNull();
+      expect(result.current.activeWorkspace).toBeNull();
+      expect(result.current.hasWorkspaceRouteSelection).toBe(false);
+      expect(window.location.pathname).toBe("/workspaces");
+    });
+  });
+
   it("preserves workspace route intent when the runtime goes offline before the workspace can resolve", async () => {
     window.history.replaceState({}, "", `/workspaces/${workspaceOne.id}`);
     vi.mocked(listWorkspaces).mockRejectedValue(new Error("runtime unavailable"));
@@ -662,6 +677,7 @@ describe("useWorkspaces.active workspace persistence", () => {
   });
 
   it("restores the last active workspace from native persistence after a reload", async () => {
+    window.history.replaceState({}, "", "/legacy-shell");
     vi.mocked(listWorkspaces).mockResolvedValue([workspaceOne, workspaceTwo]);
     vi.mocked(readPersistedActiveWorkspaceId).mockResolvedValue(workspaceTwo.id);
 
@@ -675,6 +691,7 @@ describe("useWorkspaces.active workspace persistence", () => {
   });
 
   it("restores the last active workspace from app settings after a reload", async () => {
+    window.history.replaceState({}, "", "/legacy-shell");
     vi.mocked(listWorkspaces).mockResolvedValue([workspaceOne, workspaceTwo]);
 
     const { result } = renderHook(() =>
@@ -692,6 +709,7 @@ describe("useWorkspaces.active workspace persistence", () => {
   });
 
   it("waits for app settings hydration before restoring the last active workspace", async () => {
+    window.history.replaceState({}, "", "/legacy-shell");
     vi.mocked(listWorkspaces).mockResolvedValue([workspaceOne, workspaceTwo]);
 
     const { result, rerender } = renderHook(
@@ -734,6 +752,7 @@ describe("useWorkspaces.active workspace persistence", () => {
   });
 
   it("waits for the persisted workspace to appear in the runtime list before finalizing restore", async () => {
+    window.history.replaceState({}, "", "/legacy-shell");
     vi.mocked(readPersistedActiveWorkspaceId).mockResolvedValue(workspaceTwo.id);
     vi.mocked(listWorkspaces)
       .mockResolvedValueOnce([workspaceOne])

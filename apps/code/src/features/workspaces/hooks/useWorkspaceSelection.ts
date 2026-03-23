@@ -61,7 +61,7 @@ export function useWorkspaceSelection({
           setActiveTab("missions");
           return;
         }
-        if (activeTab === "home") {
+        if (activeTab === "home" || activeTab === "workspaces") {
           setActiveTab("codex");
         }
       });
@@ -94,7 +94,9 @@ export function useWorkspaceSelection({
     setActiveWorkspaceId(null);
     if (isCompact) {
       setActiveTab("home");
+      return;
     }
+    setActiveTab("workspaces");
   }, [exitDiffView, isCompact, setActiveTab, setActiveWorkspaceId, setSelectedDiffPath]);
 
   return { exitDiffView, selectWorkspace, selectHome };

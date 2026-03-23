@@ -4,6 +4,19 @@ import type { WorkspaceInfo } from "../../../types";
 import { useShellNavigation } from "./useShellNavigation";
 
 describe("useShellNavigation", () => {
+  it("defaults desktop navigation to the workspaces tab", async () => {
+    const { result } = renderHook(() =>
+      useShellNavigation({
+        activeWorkspace: null,
+        layoutMode: "desktop",
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.activeTab).toBe("workspaces");
+    });
+  });
+
   it("allows the settings tab on phone when no workspace is selected", async () => {
     const { result } = renderHook(() =>
       useShellNavigation({

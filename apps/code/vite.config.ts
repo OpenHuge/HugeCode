@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, type Connect, type Plugin } from "vite";
 // @boundaries-ignore shared workspace test/dev config
 import { createCodeWorkspaceAliases } from "../../scripts/lib/viteWorkspaceAliases";
 
@@ -52,8 +52,38 @@ function resolveDevHost() {
   return envHost.length > 0 ? envHost : DEFAULT_DEV_HOST;
 }
 
+function workspaceEntryRedirectMiddleware(): Connect.NextHandleFunction {
+  return (req, res, next) => {
+    if (req.method !== "GET" || !req.url) {
+      next();
+      return;
+    }
+    const requestUrl = new URL(req.url, "http://workspace-shell.invalid");
+    if (requestUrl.pathname !== "/") {
+      next();
+      return;
+    }
+    const location = `/workspaces${requestUrl.search}`;
+    res.statusCode = 302;
+    res.setHeader("Location", location);
+    res.end();
+  };
+}
+
+function workspaceEntryRedirectPlugin(): Plugin {
+  return {
+    name: "workspace-entry-redirect",
+    configureServer(server) {
+      server.middlewares.use(workspaceEntryRedirectMiddleware());
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(workspaceEntryRedirectMiddleware());
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [vanillaExtractPlugin(), react()],
+  plugins: [workspaceEntryRedirectPlugin(), vanillaExtractPlugin(), react()],
   resolve: {
     alias: createCodeWorkspaceAliases(new URL("./", import.meta.url)),
   },

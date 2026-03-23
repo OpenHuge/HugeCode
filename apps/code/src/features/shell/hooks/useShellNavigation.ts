@@ -13,7 +13,7 @@ type UseShellNavigationOptions = {
 export function useShellNavigation({
   activeWorkspace,
   layoutMode,
-  initialTab = "missions",
+  initialTab = "workspaces",
 }: UseShellNavigationOptions) {
   const isPhone = layoutMode === "phone";
   const hasActiveWorkspace = activeWorkspace !== null;

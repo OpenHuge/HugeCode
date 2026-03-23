@@ -19,7 +19,7 @@ export function useMainAppShellSurfaceProps({
   layoutInput,
   modalsInput,
 }: UseMainAppShellSurfacePropsParams) {
-  const { desktopTopbarLeftNodeWithToggle, codexTopbarActionsNode } =
+  const { desktopTopbarLeftNodeWithToggle, titlebarControlsNode, codexTopbarActionsNode } =
     buildTopbarChromeNodes(chromeInput);
   const mainAppSettingsProps = useMainAppSettingsSectionProps(settingsInput);
   const mainAppLayoutProps = useMainAppLayoutProps({
@@ -35,5 +35,6 @@ export function useMainAppShellSurfaceProps({
   return {
     mainAppLayoutProps,
     mainAppModalsProps,
+    titlebarControlsNode,
   };
 }

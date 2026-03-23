@@ -89,6 +89,21 @@ describe("useWorkspaceSelection", () => {
     expect(options.setActiveTab).toHaveBeenCalledWith("codex");
   });
 
+  it("navigates from the workspaces tab into the codex surface when selecting a workspace", () => {
+    const options = createOptions({
+      activeTab: "workspaces",
+    });
+
+    const { result } = renderHook(() => useWorkspaceSelection(options));
+
+    act(() => {
+      result.current.selectWorkspace(workspaceOne.id);
+    });
+
+    expect(options.setActiveWorkspaceId).toHaveBeenCalledWith(workspaceOne.id);
+    expect(options.setActiveTab).toHaveBeenCalledWith("codex");
+  });
+
   it("navigates into missions when selecting a workspace in compact mode", () => {
     const options = createOptions({
       isCompact: true,
@@ -156,5 +171,22 @@ describe("useWorkspaceSelection", () => {
     });
 
     expect(options.setActiveWorkspaceId).toHaveBeenCalledWith(null);
+    expect(options.setActiveTab).toHaveBeenCalledWith("workspaces");
+  });
+
+  it("returns to the compact home tab when selecting home on phone", () => {
+    const options = createOptions({
+      isCompact: true,
+      activeWorkspaceId: workspaceOne.id,
+    });
+
+    const { result } = renderHook(() => useWorkspaceSelection(options));
+
+    act(() => {
+      result.current.selectHome();
+    });
+
+    expect(options.setActiveWorkspaceId).toHaveBeenCalledWith(null);
+    expect(options.setActiveTab).toHaveBeenCalledWith("home");
   });
 });
