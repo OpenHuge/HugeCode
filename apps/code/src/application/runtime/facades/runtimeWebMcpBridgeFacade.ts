@@ -2,7 +2,7 @@ import {
   AGENT_CONTROL_TOOL_NAMES,
   AGENT_RUNTIME_CONTROL_TOOL_NAMES,
 } from "@ku0/code-runtime-webmcp-client/webMcpBridgeToolNames";
-import { WebMcpInputSchemaValidationError } from "@ku0/code-runtime-webmcp-client/webMcpInputSchemaValidationError";
+import { WebMcpInputSchemaValidationError } from "@ku0/code-runtime-client/webMcpInputSchemaValidationError";
 import {
   callWebMcpTool as callWebMcpToolService,
   createWebMcpMessage as createWebMcpMessageService,

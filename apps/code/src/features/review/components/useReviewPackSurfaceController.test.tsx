@@ -1,5 +1,6 @@
-import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+// @vitest-environment jsdom
+import { act, cleanup, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MissionSurfaceDetailModel } from "../utils/reviewPackSurfaceModel";
 import {
   DEFAULT_REVIEW_BACKEND_OPTION,
@@ -18,6 +19,10 @@ function createDetail(id: string): MissionSurfaceDetailModel {
 }
 
 describe("useReviewPackSurfaceController", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it("seeds prepared intervention state from the selected draft", async () => {
     const onPrepareInterventionDraft = vi.fn(async () => undefined);
     const { result } = renderHook(() =>
@@ -216,18 +221,26 @@ describe("useReviewPackSurfaceController", () => {
       })
     );
 
-    await expect(
-      result.current.handleApplyReviewAutofix({
-        workspaceId: "workspace-1",
-        taskId: "task-1",
-        runId: "run-1",
-        reviewPackId: "review-pack:1",
-        autofixCandidate: {
-          id: "autofix-1",
-          summary: "Apply validation fix",
-          status: "available",
-        },
-      })
-    ).rejects.toThrow("Runtime blocked autofix");
+    let thrownError: unknown = null;
+    await act(async () => {
+      try {
+        await result.current.handleApplyReviewAutofix({
+          workspaceId: "workspace-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:1",
+          autofixCandidate: {
+            id: "autofix-1",
+            summary: "Apply validation fix",
+            status: "available",
+          },
+        });
+      } catch (error) {
+        thrownError = error;
+      }
+    });
+
+    expect(thrownError).toBeInstanceOf(Error);
+    expect((thrownError as Error).message).toBe("Runtime blocked autofix");
   });
 });

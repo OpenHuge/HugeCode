@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildWebMcpPrompts, buildWebMcpResources } from "./webMcpBridgeContextDescriptors";
-import type { AgentCommandCenterSnapshot } from "./webMcpBridgeTypes";
+import type { AgentCommandCenterSnapshot } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 const snapshot: AgentCommandCenterSnapshot = {
   workspaceId: "ws-1",

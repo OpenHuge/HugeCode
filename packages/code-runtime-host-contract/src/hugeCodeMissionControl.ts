@@ -1,4 +1,4 @@
-export const HYPECODE_RUN_STATES = [
+export const HUGECODE_RUN_STATES = [
   "draft",
   "queued",
   "preparing",
@@ -11,9 +11,9 @@ export const HYPECODE_RUN_STATES = [
   "cancelled",
 ] as const;
 
-export type HypeCodeRunState = (typeof HYPECODE_RUN_STATES)[number];
+export type HugeCodeRunState = (typeof HUGECODE_RUN_STATES)[number];
 
-export const HYPECODE_INTERVENTION_ACTIONS = [
+export const HUGECODE_INTERVENTION_ACTIONS = [
   "pause",
   "resume",
   "cancel",
@@ -25,24 +25,24 @@ export const HYPECODE_INTERVENTION_ACTIONS = [
   "escalate_to_pair_mode",
 ] as const;
 
-export type HypeCodeInterventionAction = (typeof HYPECODE_INTERVENTION_ACTIONS)[number];
+export type HugeCodeInterventionAction = (typeof HUGECODE_INTERVENTION_ACTIONS)[number];
 
-export type HypeCodeValidationOutcome = "passed" | "failed" | "warning" | "skipped" | "unknown";
+export type HugeCodeValidationOutcome = "passed" | "failed" | "warning" | "skipped" | "unknown";
 
-export type HypeCodeMissionControlSource = "runtime_snapshot_v1";
+export type HugeCodeMissionControlSource = "runtime_snapshot_v1";
 
-export type HypeCodeEvidenceState = "confirmed" | "incomplete";
+export type HugeCodeEvidenceState = "confirmed" | "incomplete";
 
-export type HypeCodeTaskMode = "ask" | "pair" | "delegate";
+export type HugeCodeTaskMode = "ask" | "pair" | "delegate";
 
-export type HypeCodeTaskModeSource =
+export type HugeCodeTaskModeSource =
   | "execution_profile"
   | "execution_mode"
   | "access_mode"
   | "legacy_thread_projection"
   | "missing";
 
-export type HypeCodeTaskStatus =
+export type HugeCodeTaskStatus =
   | "draft"
   | "ready"
   | "queued"
@@ -54,26 +54,26 @@ export type HypeCodeTaskStatus =
   | "cancelled"
   | "archived";
 
-export type HypeCodeReviewStatus = "ready" | "action_required" | "incomplete_evidence";
+export type HugeCodeReviewStatus = "ready" | "action_required" | "incomplete_evidence";
 
-export type HypeCodeReviewDecisionState = "pending" | "accepted" | "rejected";
+export type HugeCodeReviewDecisionState = "pending" | "accepted" | "rejected";
 
-export type HypeCodeTaskAccountabilityLifecycle = "claimed" | "executing" | "in_review" | "done";
+export type HugeCodeTaskAccountabilityLifecycle = "claimed" | "executing" | "in_review" | "done";
 
-export type HypeCodeGovernanceStateKind =
+export type HugeCodeGovernanceStateKind =
   | "in_progress"
   | "awaiting_approval"
   | "awaiting_review"
   | "action_required"
   | "completed";
 
-export type HypeCodeGovernanceAction =
-  | HypeCodeInterventionAction
+export type HugeCodeGovernanceAction =
+  | HugeCodeInterventionAction
   | "review_result"
   | "accept_result"
   | "reject_result";
 
-export type HypeCodeTaskOrigin =
+export type HugeCodeTaskOrigin =
   | {
       kind: "thread";
       threadId: string;
@@ -87,7 +87,7 @@ export type HypeCodeTaskOrigin =
       requestId: string | null;
     };
 
-export type HypeCodeTaskSourceKind =
+export type HugeCodeTaskSourceKind =
   | "autodrive"
   | "manual"
   | "manual_thread"
@@ -97,15 +97,15 @@ export type HypeCodeTaskSourceKind =
   | "external_runtime"
   | (string & {});
 
-export type HypeCodeTaskSourceRepoContext = {
+export type HugeCodeTaskSourceRepoContext = {
   owner?: string | null;
   name?: string | null;
   fullName?: string | null;
   remoteUrl?: string | null;
 };
 
-export type HypeCodeTaskSourceSummary = {
-  kind: HypeCodeTaskSourceKind;
+export type HugeCodeTaskSourceSummary = {
+  kind: HugeCodeTaskSourceKind;
   label?: string | null;
   shortLabel?: string | null;
   title?: string | null;
@@ -113,7 +113,7 @@ export type HypeCodeTaskSourceSummary = {
   url?: string | null;
   issueNumber?: number | null;
   pullRequestNumber?: number | null;
-  repo?: HypeCodeTaskSourceRepoContext | null;
+  repo?: HugeCodeTaskSourceRepoContext | null;
   workspaceId?: string | null;
   workspaceRoot?: string | null;
   externalId?: string | null;
@@ -124,47 +124,47 @@ export type HypeCodeTaskSourceSummary = {
   sourceRunId?: string | null;
 };
 
-export type HypeCodeTaskSourceLinkage = HypeCodeTaskSourceSummary & {
+export type HugeCodeTaskSourceLinkage = HugeCodeTaskSourceSummary & {
   label: string;
   shortLabel: string;
 };
 
-export type HypeCodeExecutionAutonomy =
+export type HugeCodeExecutionAutonomy =
   | "operator_review"
   | "bounded_delegate"
   | "autonomous_delegate";
 
-export type HypeCodeExecutionToolPosture = "read_only" | "workspace_safe" | "workspace_extended";
+export type HugeCodeExecutionToolPosture = "read_only" | "workspace_safe" | "workspace_extended";
 
-export type HypeCodeExecutionRoutingStrategy =
+export type HugeCodeExecutionRoutingStrategy =
   | "workspace_default"
   | "provider_route"
   | "direct_model";
 
-export type HypeCodeApprovalSensitivity = "heightened" | "standard" | "low_friction";
+export type HugeCodeApprovalSensitivity = "heightened" | "standard" | "low_friction";
 
-export type HypeCodeRoutingHealth = "ready" | "attention" | "blocked";
+export type HugeCodeRoutingHealth = "ready" | "attention" | "blocked";
 
-export type HypeCodeApprovalStateKind =
+export type HugeCodeApprovalStateKind =
   | "not_required"
   | "pending_decision"
   | "approved"
   | "rejected"
   | "unavailable";
 
-export type HypeCodeAutoDriveRoutePreference = "stability_first" | "balanced" | "speed_first";
+export type HugeCodeAutoDriveRoutePreference = "stability_first" | "balanced" | "speed_first";
 
-export type HypeCodeAutoDriveConfidence = "low" | "medium" | "high";
+export type HugeCodeAutoDriveConfidence = "low" | "medium" | "high";
 
-export type HypeCodeAutoDriveContextScope = "active_workspace" | "workspace_graph";
+export type HugeCodeAutoDriveContextScope = "active_workspace" | "workspace_graph";
 
-export type HypeCodeAutoDriveAutonomyPriority = "operator" | "balanced";
+export type HugeCodeAutoDriveAutonomyPriority = "operator" | "balanced";
 
-export type HypeCodeAutoDrivePromptStrategy = "repo_truth_first" | "workspace_graph_first";
+export type HugeCodeAutoDrivePromptStrategy = "repo_truth_first" | "workspace_graph_first";
 
-export type HypeCodeAutoDriveResearchMode = "repository_only" | "live_when_allowed";
+export type HugeCodeAutoDriveResearchMode = "repository_only" | "live_when_allowed";
 
-export type HypeCodeAutoDriveStopReason =
+export type HugeCodeAutoDriveStopReason =
   | "completed"
   | "paused"
   | "budget_exhausted"
@@ -174,21 +174,21 @@ export type HypeCodeAutoDriveStopReason =
   | "cancelled"
   | "failed";
 
-export type HypeCodeAutoDriveDoneDefinition = {
+export type HugeCodeAutoDriveDoneDefinition = {
   arrivalCriteria?: string[];
   requiredValidation?: string[];
   waypointIndicators?: string[];
 };
 
-export type HypeCodeAutoDriveDestination = {
+export type HugeCodeAutoDriveDestination = {
   title: string;
   desiredEndState: string[];
-  doneDefinition?: HypeCodeAutoDriveDoneDefinition | null;
+  doneDefinition?: HugeCodeAutoDriveDoneDefinition | null;
   hardBoundaries?: string[];
-  routePreference?: HypeCodeAutoDriveRoutePreference | null;
+  routePreference?: HugeCodeAutoDriveRoutePreference | null;
 };
 
-export type HypeCodeAutoDriveBudget = {
+export type HugeCodeAutoDriveBudget = {
   maxTokens?: number | null;
   maxIterations?: number | null;
   maxDurationMs?: number | null;
@@ -198,38 +198,38 @@ export type HypeCodeAutoDriveBudget = {
   maxReroutes?: number | null;
 };
 
-export type HypeCodeAutoDriveRiskPolicy = {
+export type HugeCodeAutoDriveRiskPolicy = {
   pauseOnDestructiveChange?: boolean | null;
   pauseOnDependencyChange?: boolean | null;
   pauseOnLowConfidence?: boolean | null;
   pauseOnHumanCheckpoint?: boolean | null;
   allowNetworkAnalysis?: boolean | null;
   allowValidationCommands?: boolean | null;
-  minimumConfidence?: HypeCodeAutoDriveConfidence | null;
+  minimumConfidence?: HugeCodeAutoDriveConfidence | null;
 };
 
-export type HypeCodeAutoDriveContextPolicy = {
-  scope?: HypeCodeAutoDriveContextScope | null;
+export type HugeCodeAutoDriveContextPolicy = {
+  scope?: HugeCodeAutoDriveContextScope | null;
   workspaceReadPaths?: string[] | null;
   workspaceContextPaths?: string[] | null;
   authoritySources?: string[] | null;
 };
 
-export type HypeCodeAutoDriveDecisionPolicy = {
+export type HugeCodeAutoDriveDecisionPolicy = {
   independentThread?: boolean | null;
-  autonomyPriority?: HypeCodeAutoDriveAutonomyPriority | null;
-  promptStrategy?: HypeCodeAutoDrivePromptStrategy | null;
-  researchMode?: HypeCodeAutoDriveResearchMode | null;
+  autonomyPriority?: HugeCodeAutoDriveAutonomyPriority | null;
+  promptStrategy?: HugeCodeAutoDrivePromptStrategy | null;
+  researchMode?: HugeCodeAutoDriveResearchMode | null;
 };
 
-export type HypeCodeAutoDriveDecisionScore = {
+export type HugeCodeAutoDriveDecisionScore = {
   reasonCode: string;
   label: string;
   delta: number;
 };
 
-export type HypeCodeAutoDriveScenarioProfile = {
-  authorityScope?: HypeCodeAutoDriveContextScope | null;
+export type HugeCodeAutoDriveScenarioProfile = {
+  authorityScope?: HugeCodeAutoDriveContextScope | null;
   authoritySources?: string[] | null;
   representativeCommands?: string[] | null;
   componentCommands?: string[] | null;
@@ -241,19 +241,19 @@ export type HypeCodeAutoDriveScenarioProfile = {
   safeBackground?: boolean | null;
 };
 
-export type HypeCodeAutoDriveDecisionTrace = {
+export type HugeCodeAutoDriveDecisionTrace = {
   phase?: "launch" | "progress" | "failure" | "completed" | "recovered" | null;
   summary?: string | null;
   selectedCandidateId?: string | null;
   selectedCandidateSummary?: string | null;
   selectionTags?: string[] | null;
-  scoreBreakdown?: HypeCodeAutoDriveDecisionScore[] | null;
+  scoreBreakdown?: HugeCodeAutoDriveDecisionScore[] | null;
   authoritySources?: string[] | null;
   representativeCommand?: string | null;
   heldOutGuidance?: string[] | null;
 };
 
-export type HypeCodeAutoDriveOutcomeFeedback = {
+export type HugeCodeAutoDriveOutcomeFeedback = {
   status?:
     | "launch_prepared"
     | "progressing"
@@ -271,9 +271,9 @@ export type HypeCodeAutoDriveOutcomeFeedback = {
   at?: number | null;
 };
 
-export type HypeCodeAutoDriveAutonomyState = {
+export type HugeCodeAutoDriveAutonomyState = {
   independentThread?: boolean | null;
-  autonomyPriority?: HypeCodeAutoDriveAutonomyPriority | null;
+  autonomyPriority?: HugeCodeAutoDriveAutonomyPriority | null;
   highPriority?: boolean | null;
   escalationPressure?: "low" | "medium" | "high" | null;
   unattendedContinuationAllowed?: boolean | null;
@@ -281,7 +281,7 @@ export type HypeCodeAutoDriveAutonomyState = {
   humanInterventionHotspots?: string[] | null;
 };
 
-export type HypeCodeAutoDriveNavigation = {
+export type HugeCodeAutoDriveNavigation = {
   activeWaypoint?: string | null;
   completedWaypoints?: string[];
   pendingWaypoints?: string[];
@@ -291,7 +291,7 @@ export type HypeCodeAutoDriveNavigation = {
   noProgressIterations?: number | null;
 };
 
-export type HypeCodeAutoDriveRecoveryMarker = {
+export type HugeCodeAutoDriveRecoveryMarker = {
   recovered?: boolean | null;
   resumeReady?: boolean | null;
   checkpointId?: string | null;
@@ -300,44 +300,44 @@ export type HypeCodeAutoDriveRecoveryMarker = {
   summary?: string | null;
 };
 
-export type HypeCodeAutoDriveStopState = {
-  reason: HypeCodeAutoDriveStopReason;
+export type HugeCodeAutoDriveStopState = {
+  reason: HugeCodeAutoDriveStopReason;
   summary?: string | null;
   at?: number | null;
 };
 
-export type HypeCodeAutoDriveState = {
+export type HugeCodeAutoDriveState = {
   enabled?: boolean | null;
-  destination: HypeCodeAutoDriveDestination;
-  budget?: HypeCodeAutoDriveBudget | null;
-  riskPolicy?: HypeCodeAutoDriveRiskPolicy | null;
-  contextPolicy?: HypeCodeAutoDriveContextPolicy | null;
-  decisionPolicy?: HypeCodeAutoDriveDecisionPolicy | null;
-  scenarioProfile?: HypeCodeAutoDriveScenarioProfile | null;
-  decisionTrace?: HypeCodeAutoDriveDecisionTrace | null;
-  outcomeFeedback?: HypeCodeAutoDriveOutcomeFeedback | null;
-  autonomyState?: HypeCodeAutoDriveAutonomyState | null;
-  navigation?: HypeCodeAutoDriveNavigation | null;
-  recovery?: HypeCodeAutoDriveRecoveryMarker | null;
-  stop?: HypeCodeAutoDriveStopState | null;
+  destination: HugeCodeAutoDriveDestination;
+  budget?: HugeCodeAutoDriveBudget | null;
+  riskPolicy?: HugeCodeAutoDriveRiskPolicy | null;
+  contextPolicy?: HugeCodeAutoDriveContextPolicy | null;
+  decisionPolicy?: HugeCodeAutoDriveDecisionPolicy | null;
+  scenarioProfile?: HugeCodeAutoDriveScenarioProfile | null;
+  decisionTrace?: HugeCodeAutoDriveDecisionTrace | null;
+  outcomeFeedback?: HugeCodeAutoDriveOutcomeFeedback | null;
+  autonomyState?: HugeCodeAutoDriveAutonomyState | null;
+  navigation?: HugeCodeAutoDriveNavigation | null;
+  recovery?: HugeCodeAutoDriveRecoveryMarker | null;
+  stop?: HugeCodeAutoDriveStopState | null;
 };
 
-export type HypeCodeInterventionAvailability = {
-  action: HypeCodeInterventionAction;
+export type HugeCodeInterventionAvailability = {
+  action: HugeCodeInterventionAction;
   label: string;
   enabled: boolean;
   supported: boolean;
   reason: string | null;
 };
 
-export type HypeCodeMissionBriefPermissionSummary = {
+export type HugeCodeMissionBriefPermissionSummary = {
   accessMode?: "read-only" | "on-request" | "full-access" | null;
   allowNetwork?: boolean | null;
   writableRoots?: string[] | null;
   toolNames?: string[] | null;
 };
 
-export type HypeCodeMissionBriefEvaluationPlan = {
+export type HugeCodeMissionBriefEvaluationPlan = {
   representativeCommands?: string[] | null;
   componentCommands?: string[] | null;
   endToEndCommands?: string[] | null;
@@ -346,9 +346,9 @@ export type HypeCodeMissionBriefEvaluationPlan = {
   sourceSignals?: string[] | null;
 };
 
-export type HypeCodeMissionBriefScenarioProfile = HypeCodeAutoDriveScenarioProfile;
+export type HugeCodeMissionBriefScenarioProfile = HugeCodeAutoDriveScenarioProfile;
 
-export type HypeCodeMissionBrief = {
+export type HugeCodeMissionBrief = {
   objective: string;
   doneDefinition?: string[] | null;
   constraints?: string[] | null;
@@ -356,12 +356,12 @@ export type HypeCodeMissionBrief = {
   requiredCapabilities?: string[] | null;
   maxSubtasks?: number | null;
   preferredBackendIds?: string[] | null;
-  permissionSummary?: HypeCodeMissionBriefPermissionSummary | null;
-  evaluationPlan?: HypeCodeMissionBriefEvaluationPlan | null;
-  scenarioProfile?: HypeCodeMissionBriefScenarioProfile | null;
+  permissionSummary?: HugeCodeMissionBriefPermissionSummary | null;
+  evaluationPlan?: HugeCodeMissionBriefEvaluationPlan | null;
+  scenarioProfile?: HugeCodeMissionBriefScenarioProfile | null;
 };
 
-export type HypeCodeFailureClass =
+export type HugeCodeFailureClass =
   | "validation_failed"
   | "approval_required"
   | "runtime_failed"
@@ -370,21 +370,21 @@ export type HypeCodeFailureClass =
   | "cancelled"
   | "unknown";
 
-export type HypeCodeRelaunchContext = {
+export type HugeCodeRelaunchContext = {
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
   sourceReviewPackId?: string | null;
   summary?: string | null;
-  failureClass?: HypeCodeFailureClass | null;
-  recommendedActions?: HypeCodeInterventionAction[] | null;
+  failureClass?: HugeCodeFailureClass | null;
+  recommendedActions?: HugeCodeInterventionAction[] | null;
 };
 
-export type HypeCodeReviewPackRelaunchOptions = HypeCodeRelaunchContext & {
-  primaryAction?: HypeCodeInterventionAction | null;
-  availableActions?: HypeCodeInterventionAvailability[] | null;
+export type HugeCodeReviewPackRelaunchOptions = HugeCodeRelaunchContext & {
+  primaryAction?: HugeCodeInterventionAction | null;
+  availableActions?: HugeCodeInterventionAvailability[] | null;
 };
 
-export type HypeCodePublishHandoffReference = {
+export type HugeCodePublishHandoffReference = {
   jsonPath: string;
   markdownPath: string;
   reason?: string | null;
@@ -396,11 +396,11 @@ export type HypeCodePublishHandoffReference = {
   details?: string[] | null;
 };
 
-export type HypeCodeTakeoverState = "ready" | "attention" | "blocked";
+export type HugeCodeTakeoverState = "ready" | "attention" | "blocked";
 
-export type HypeCodeTakeoverPathKind = "approval" | "resume" | "review" | "handoff" | "missing";
+export type HugeCodeTakeoverPathKind = "approval" | "resume" | "review" | "handoff" | "missing";
 
-export type HypeCodeTakeoverPrimaryAction =
+export type HugeCodeTakeoverPrimaryAction =
   | "approve"
   | "resume"
   | "open_review_pack"
@@ -408,7 +408,7 @@ export type HypeCodeTakeoverPrimaryAction =
   | "open_sub_agent_session"
   | "inspect_runtime";
 
-export type HypeCodeSubAgentCheckpointState = {
+export type HugeCodeSubAgentCheckpointState = {
   state: string;
   lifecycleState: string;
   checkpointId?: string | null;
@@ -420,7 +420,7 @@ export type HypeCodeSubAgentCheckpointState = {
   summary?: string | null;
 };
 
-export type HypeCodeSubAgentApprovalState = {
+export type HugeCodeSubAgentApprovalState = {
   status: string;
   approvalId?: string | null;
   action?: string | null;
@@ -428,42 +428,42 @@ export type HypeCodeSubAgentApprovalState = {
   at?: number | null;
 };
 
-export type HypeCodeSubAgentSummary = {
+export type HugeCodeSubAgentSummary = {
   sessionId: string;
   parentRunId?: string | null;
   scopeProfile?: string | null;
   status: string;
-  approvalState?: HypeCodeSubAgentApprovalState | null;
-  checkpointState?: HypeCodeSubAgentCheckpointState | null;
-  takeoverBundle?: HypeCodeTakeoverBundle | null;
+  approvalState?: HugeCodeSubAgentApprovalState | null;
+  checkpointState?: HugeCodeSubAgentCheckpointState | null;
+  takeoverBundle?: HugeCodeTakeoverBundle | null;
   summary?: string | null;
   timedOutReason?: string | null;
   interruptedReason?: string | null;
 };
 
-export type HypeCodeReviewArtifactRef = {
+export type HugeCodeReviewArtifactRef = {
   id: string;
   label: string;
   kind: "diff" | "validation" | "log" | "evidence" | "command";
   uri?: string | null;
 };
 
-export type HypeCodeReviewDecisionSummary = {
-  status: HypeCodeReviewDecisionState;
+export type HugeCodeReviewDecisionSummary = {
+  status: HugeCodeReviewDecisionState;
   reviewPackId: string;
   label: string;
   summary: string;
   decidedAt: number | null;
 };
 
-export type HypeCodeReviewPackFileChangeSummary = {
+export type HugeCodeReviewPackFileChangeSummary = {
   paths: string[];
   totalCount: number;
   summary: string;
   missingReason: string | null;
 };
 
-export type HypeCodeReviewPackEvidenceRefs = {
+export type HugeCodeReviewPackEvidenceRefs = {
   traceId: string | null;
   checkpointId: string | null;
   diffArtifactIds: string[];
@@ -472,41 +472,41 @@ export type HypeCodeReviewPackEvidenceRefs = {
   commandArtifactIds: string[];
 };
 
-export type HypeCodeValidationSummary = {
+export type HugeCodeValidationSummary = {
   id: string;
   label: string;
-  outcome: HypeCodeValidationOutcome;
+  outcome: HugeCodeValidationOutcome;
   summary: string;
   startedAt?: number | null;
   finishedAt?: number | null;
 };
 
-export type HypeCodeMissionLineage = {
+export type HugeCodeMissionLineage = {
   objective: string | null;
   desiredEndState?: string[];
   hardBoundaries?: string[];
-  doneDefinition?: HypeCodeAutoDriveDoneDefinition | null;
-  riskPolicy?: HypeCodeAutoDriveRiskPolicy | null;
-  taskMode?: HypeCodeTaskMode | null;
+  doneDefinition?: HugeCodeAutoDriveDoneDefinition | null;
+  riskPolicy?: HugeCodeAutoDriveRiskPolicy | null;
+  taskMode?: HugeCodeTaskMode | null;
   executionProfileId?: string | null;
-  taskSource?: HypeCodeTaskSourceSummary | null;
+  taskSource?: HugeCodeTaskSourceSummary | null;
   threadId?: string | null;
   requestId?: string | null;
   rootTaskId?: string | null;
   parentTaskId?: string | null;
   childTaskIds?: string[];
-  reviewDecisionState?: HypeCodeReviewDecisionState | null;
+  reviewDecisionState?: HugeCodeReviewDecisionState | null;
   reviewDecisionSummary?: string | null;
 };
 
-export type HypeCodeTaskAccountability = {
-  lifecycle: HypeCodeTaskAccountabilityLifecycle;
+export type HugeCodeTaskAccountability = {
+  lifecycle: HugeCodeTaskAccountabilityLifecycle;
   claimedBy: string | null;
   claimedAt: number | null;
   lifecycleUpdatedAt: number | null;
 };
 
-export type HypeCodeRunLedger = {
+export type HugeCodeRunLedger = {
   traceId: string | null;
   checkpointId: string | null;
   recovered: boolean;
@@ -515,14 +515,14 @@ export type HypeCodeRunLedger = {
   warningCount: number;
   validationCount: number;
   artifactCount: number;
-  evidenceState: HypeCodeEvidenceState;
+  evidenceState: HugeCodeEvidenceState;
   backendId: string | null;
   routeLabel: string | null;
   completionReason: string | null;
   lastProgressAt: number | null;
 };
 
-export type HypeCodeCheckpointSummary = {
+export type HugeCodeCheckpointSummary = {
   state: string;
   lifecycleState: string | null;
   checkpointId: string | null;
@@ -534,7 +534,7 @@ export type HypeCodeCheckpointSummary = {
   summary?: string | null;
 };
 
-export type HypeCodeMissionNavigationTarget =
+export type HugeCodeMissionNavigationTarget =
   | {
       kind: "thread";
       workspaceId: string;
@@ -550,8 +550,8 @@ export type HypeCodeMissionNavigationTarget =
       traceId?: string | null;
     };
 
-export type HypeCodeTakeoverTarget =
-  | HypeCodeMissionNavigationTarget
+export type HugeCodeTakeoverTarget =
+  | HugeCodeMissionNavigationTarget
   | {
       kind: "review_pack";
       workspaceId: string;
@@ -573,7 +573,7 @@ export type HypeCodeTakeoverTarget =
       traceId?: string | null;
     };
 
-export type HypeCodeMissionLinkageSummary = {
+export type HugeCodeMissionLinkageSummary = {
   workspaceId: string;
   taskId: string;
   runId: string;
@@ -585,11 +585,11 @@ export type HypeCodeMissionLinkageSummary = {
   missionTaskId: string;
   taskEntityKind: "thread" | "run";
   recoveryPath: "thread" | "run";
-  navigationTarget: HypeCodeMissionNavigationTarget;
+  navigationTarget: HugeCodeMissionNavigationTarget;
   summary: string;
 };
 
-export type HypeCodeExecutionNodeSummary = {
+export type HugeCodeExecutionNodeSummary = {
   id: string;
   kind: "plan" | (string & {});
   status?: string;
@@ -599,23 +599,23 @@ export type HypeCodeExecutionNodeSummary = {
   resolvedBackendId: string | null;
   placementLifecycleState?: string | null;
   placementResolutionSource?: string | null;
-  checkpoint?: HypeCodeCheckpointSummary | null;
-  reviewActionability?: HypeCodeReviewActionabilitySummary | null;
+  checkpoint?: HugeCodeCheckpointSummary | null;
+  reviewActionability?: HugeCodeReviewActionabilitySummary | null;
 };
 
-export type HypeCodeExecutionEdgeSummary = {
+export type HugeCodeExecutionEdgeSummary = {
   fromNodeId: string;
   toNodeId: string;
   kind: "depends_on" | (string & {});
 };
 
-export type HypeCodeExecutionGraphSummary = {
+export type HugeCodeExecutionGraphSummary = {
   graphId: string;
-  nodes: HypeCodeExecutionNodeSummary[];
-  edges: HypeCodeExecutionEdgeSummary[];
+  nodes: HugeCodeExecutionNodeSummary[];
+  edges: HugeCodeExecutionEdgeSummary[];
 };
 
-export type HypeCodeReviewActionabilityAction =
+export type HugeCodeReviewActionabilityAction =
   | "accept_result"
   | "reject_result"
   | "retry"
@@ -625,25 +625,25 @@ export type HypeCodeReviewActionabilityAction =
   | "switch_profile_and_retry"
   | "escalate_to_pair_mode";
 
-export type HypeCodeReviewActionAvailability = {
-  action: HypeCodeReviewActionabilityAction;
+export type HugeCodeReviewActionAvailability = {
+  action: HugeCodeReviewActionabilityAction;
   enabled: boolean;
   supported: boolean;
   reason: string | null;
 };
 
-export type HypeCodeReviewActionabilitySummary = {
+export type HugeCodeReviewActionabilitySummary = {
   state: "ready" | "degraded" | "blocked";
   summary: string;
   degradedReasons: string[];
-  actions: HypeCodeReviewActionAvailability[];
+  actions: HugeCodeReviewActionAvailability[];
 };
 
-export type HypeCodeReviewGateState = "pass" | "warn" | "fail" | "blocked";
+export type HugeCodeReviewGateState = "pass" | "warn" | "fail" | "blocked";
 
-export type HypeCodeReviewFindingSeverity = "info" | "warning" | "error" | "critical";
+export type HugeCodeReviewFindingSeverity = "info" | "warning" | "error" | "critical";
 
-export type HypeCodeReviewFindingCategory =
+export type HugeCodeReviewFindingCategory =
   | "correctness_risk"
   | "validation_gap"
   | "security_risk"
@@ -651,9 +651,9 @@ export type HypeCodeReviewFindingCategory =
   | "followup_clarification"
   | (string & {});
 
-export type HypeCodeReviewFindingConfidence = "low" | "medium" | "high";
+export type HugeCodeReviewFindingConfidence = "low" | "medium" | "high";
 
-export type HypeCodeReviewFindingAnchor = {
+export type HugeCodeReviewFindingAnchor = {
   path?: string | null;
   startLine?: number | null;
   endLine?: number | null;
@@ -661,37 +661,37 @@ export type HypeCodeReviewFindingAnchor = {
   label?: string | null;
 };
 
-export type HypeCodeReviewFinding = {
+export type HugeCodeReviewFinding = {
   id: string;
   title: string;
-  severity: HypeCodeReviewFindingSeverity;
-  category: HypeCodeReviewFindingCategory;
+  severity: HugeCodeReviewFindingSeverity;
+  category: HugeCodeReviewFindingCategory;
   summary: string;
-  confidence: HypeCodeReviewFindingConfidence;
+  confidence: HugeCodeReviewFindingConfidence;
   suggestedNextAction?: string | null;
-  anchors?: HypeCodeReviewFindingAnchor[] | null;
+  anchors?: HugeCodeReviewFindingAnchor[] | null;
 };
 
-export type HypeCodeReviewGateSummary = {
-  state: HypeCodeReviewGateState;
+export type HugeCodeReviewGateSummary = {
+  state: HugeCodeReviewGateState;
   summary: string;
   blockingReason?: string | null;
-  highestSeverity?: HypeCodeReviewFindingSeverity | null;
+  highestSeverity?: HugeCodeReviewFindingSeverity | null;
   findingCount?: number | null;
 };
 
-export type HypeCodeRuntimeSkillUsageRecommendedFor = "delegate" | "review" | "repair";
+export type HugeCodeRuntimeSkillUsageRecommendedFor = "delegate" | "review" | "repair";
 
-export type HypeCodeRuntimeSkillUsageSummary = {
+export type HugeCodeRuntimeSkillUsageSummary = {
   skillId: string;
   name: string;
   source?: "builtin" | "managed" | "workspace" | (string & {}) | null;
   status?: "used" | "available" | "suggested" | "unavailable" | null;
-  recommendedFor?: HypeCodeRuntimeSkillUsageRecommendedFor[] | null;
+  recommendedFor?: HugeCodeRuntimeSkillUsageRecommendedFor[] | null;
   summary?: string | null;
 };
 
-export type HypeCodeRuntimeAutofixCandidate = {
+export type HugeCodeRuntimeAutofixCandidate = {
   id: string;
   summary: string;
   status: "available" | "applied" | "blocked";
@@ -700,31 +700,31 @@ export type HypeCodeRuntimeAutofixCandidate = {
   blockingReason?: string | null;
 };
 
-export type HypeCodeTakeoverBundle = {
-  state: HypeCodeTakeoverState;
-  pathKind: HypeCodeTakeoverPathKind;
-  primaryAction: HypeCodeTakeoverPrimaryAction;
+export type HugeCodeTakeoverBundle = {
+  state: HugeCodeTakeoverState;
+  pathKind: HugeCodeTakeoverPathKind;
+  primaryAction: HugeCodeTakeoverPrimaryAction;
   summary: string;
   blockingReason?: string | null;
   recommendedAction: string;
-  target?: HypeCodeTakeoverTarget | null;
+  target?: HugeCodeTakeoverTarget | null;
   checkpointId?: string | null;
   traceId?: string | null;
   reviewPackId?: string | null;
-  publishHandoff?: HypeCodePublishHandoffReference | null;
-  reviewActionability?: HypeCodeReviewActionabilitySummary | null;
+  publishHandoff?: HugeCodePublishHandoffReference | null;
+  reviewActionability?: HugeCodeReviewActionabilitySummary | null;
 };
 
-export type HypeCodeRunGovernanceSummary = {
-  state: HypeCodeGovernanceStateKind;
+export type HugeCodeRunGovernanceSummary = {
+  state: HugeCodeGovernanceStateKind;
   label: string;
   summary: string;
   blocking: boolean;
-  suggestedAction: HypeCodeGovernanceAction | null;
-  availableActions: HypeCodeGovernanceAction[];
+  suggestedAction: HugeCodeGovernanceAction | null;
+  availableActions: HugeCodeGovernanceAction[];
 };
 
-export type HypeCodeBackendContractSummary = {
+export type HugeCodeBackendContractSummary = {
   kind: "native" | "acp";
   origin: "runtime-native" | "acp-projection";
   transport: "stdio" | "http" | null;
@@ -733,26 +733,26 @@ export type HypeCodeBackendContractSummary = {
   rolloutState: "current" | "ramping" | "draining" | "drained";
 };
 
-export type HypeCodePlacementResolutionSource =
+export type HugeCodePlacementResolutionSource =
   | "explicit_preference"
   | "workspace_default"
   | "provider_route"
   | "runtime_fallback"
   | "unresolved";
 
-export type HypeCodePlacementLifecycleState =
+export type HugeCodePlacementLifecycleState =
   | "requested"
   | "resolved"
   | "confirmed"
   | "fallback"
   | "unresolved";
 
-export type HypeCodePlacementHealthSummary =
+export type HugeCodePlacementHealthSummary =
   | "placement_ready"
   | "placement_attention"
   | "placement_blocked";
 
-export type HypeCodePlacementAttentionReason =
+export type HugeCodePlacementAttentionReason =
   | "awaiting_backend_confirmation"
   | "placement_unresolved"
   | "placement_metadata_incomplete"
@@ -776,7 +776,7 @@ export type HypeCodePlacementAttentionReason =
   | "backend_readiness_blocked"
   | "backend_rollout_inactive";
 
-export type HypeCodePlacementScoreBreakdown = {
+export type HugeCodePlacementScoreBreakdown = {
   backendId: string;
   totalScore: number;
   explicitPreferenceScore: number;
@@ -790,24 +790,24 @@ export type HypeCodePlacementScoreBreakdown = {
   reasons: string[];
 };
 
-export type HypeCodeRunPlacementEvidence = {
+export type HugeCodeRunPlacementEvidence = {
   resolvedBackendId: string | null;
   requestedBackendIds: string[];
-  resolutionSource: HypeCodePlacementResolutionSource;
-  lifecycleState: HypeCodePlacementLifecycleState;
-  readiness: HypeCodeRoutingHealth | null;
-  healthSummary: HypeCodePlacementHealthSummary;
-  attentionReasons: HypeCodePlacementAttentionReason[];
+  resolutionSource: HugeCodePlacementResolutionSource;
+  lifecycleState: HugeCodePlacementLifecycleState;
+  readiness: HugeCodeRoutingHealth | null;
+  healthSummary: HugeCodePlacementHealthSummary;
+  attentionReasons: HugeCodePlacementAttentionReason[];
   summary: string;
   rationale: string;
   fallbackReasonCode?: string | null;
   resumeBackendId?: string | null;
-  scoreBreakdown?: HypeCodePlacementScoreBreakdown[] | null;
+  scoreBreakdown?: HugeCodePlacementScoreBreakdown[] | null;
   tcpOverlay?: "tailscale" | "netbird" | null;
-  backendContract?: HypeCodeBackendContractSummary | null;
+  backendContract?: HugeCodeBackendContractSummary | null;
 };
 
-export type HypeCodeRunOperatorEventKind =
+export type HugeCodeRunOperatorEventKind =
   | "status_transition"
   | "tool_start"
   | "tool_finish"
@@ -815,14 +815,14 @@ export type HypeCodeRunOperatorEventKind =
   | "blocked"
   | "recovered";
 
-export type HypeCodeRunOperatorEvent = {
-  kind: HypeCodeRunOperatorEventKind;
+export type HugeCodeRunOperatorEvent = {
+  kind: HugeCodeRunOperatorEventKind;
   label: string;
   detail: string | null;
   at: number | null;
 };
 
-export type HypeCodeRunOperatorSnapshot = {
+export type HugeCodeRunOperatorSnapshot = {
   summary: string;
   runtimeLabel: string | null;
   provider: string | null;
@@ -834,10 +834,10 @@ export type HypeCodeRunOperatorSnapshot = {
   workspaceRoot: string | null;
   currentActivity: string | null;
   blocker: string | null;
-  recentEvents: HypeCodeRunOperatorEvent[];
+  recentEvents: HugeCodeRunOperatorEvent[];
 };
 
-export type HypeCodeWorkspaceEvidenceBucketKind =
+export type HugeCodeWorkspaceEvidenceBucketKind =
   | "changedFiles"
   | "diffs"
   | "validations"
@@ -845,27 +845,27 @@ export type HypeCodeWorkspaceEvidenceBucketKind =
   | "logs"
   | "memoryOrNotes";
 
-export type HypeCodeWorkspaceEvidenceItem = {
+export type HugeCodeWorkspaceEvidenceItem = {
   id: string;
   label: string;
   detail: string | null;
   uri: string | null;
 };
 
-export type HypeCodeWorkspaceEvidenceBucket = {
-  kind: HypeCodeWorkspaceEvidenceBucketKind;
+export type HugeCodeWorkspaceEvidenceBucket = {
+  kind: HugeCodeWorkspaceEvidenceBucketKind;
   label: string;
   summary: string;
-  items: HypeCodeWorkspaceEvidenceItem[];
+  items: HugeCodeWorkspaceEvidenceItem[];
   missingReason: string | null;
 };
 
-export type HypeCodeWorkspaceEvidence = {
+export type HugeCodeWorkspaceEvidence = {
   summary: string;
-  buckets: HypeCodeWorkspaceEvidenceBucket[];
+  buckets: HugeCodeWorkspaceEvidenceBucket[];
 };
 
-export type HypeCodeWorkspace = {
+export type HugeCodeWorkspace = {
   id: string;
   name: string;
   rootPath: string;
@@ -873,109 +873,109 @@ export type HypeCodeWorkspace = {
   defaultProfileId: string | null;
 };
 
-export type HypeCodeTask = {
+export type HugeCodeTask = {
   id: string;
   workspaceId: string;
   title: string;
   objective: string | null;
-  origin: HypeCodeTaskOrigin;
-  taskSource?: HypeCodeTaskSourceSummary | null;
-  mode: HypeCodeTaskMode | null;
-  modeSource: HypeCodeTaskModeSource;
-  status: HypeCodeTaskStatus;
+  origin: HugeCodeTaskOrigin;
+  taskSource?: HugeCodeTaskSourceSummary | null;
+  mode: HugeCodeTaskMode | null;
+  modeSource: HugeCodeTaskModeSource;
+  status: HugeCodeTaskStatus;
   createdAt: number | null;
   updatedAt: number;
   currentRunId: string | null;
   latestRunId: string | null;
-  latestRunState: HypeCodeRunState | null;
-  nextAction?: HypeCodeRunNextAction | null;
-  lineage?: HypeCodeMissionLineage | null;
-  accountability?: HypeCodeTaskAccountability | null;
-  executionGraph?: HypeCodeExecutionGraphSummary | null;
+  latestRunState: HugeCodeRunState | null;
+  nextAction?: HugeCodeRunNextAction | null;
+  lineage?: HugeCodeMissionLineage | null;
+  accountability?: HugeCodeTaskAccountability | null;
+  executionGraph?: HugeCodeExecutionGraphSummary | null;
 };
 
-export type HypeCodeRun = {
+export type HugeCodeRun = {
   id: string;
   taskId: string;
   workspaceId: string;
-  state: HypeCodeRunState;
+  state: HugeCodeRunState;
   title: string | null;
   summary: string | null;
-  taskSource?: HypeCodeTaskSourceSummary | null;
+  taskSource?: HugeCodeTaskSourceSummary | null;
   startedAt: number | null;
   finishedAt: number | null;
   updatedAt: number;
   currentStepIndex: number | null;
-  pendingIntervention?: HypeCodeInterventionAction | null;
-  autoDrive?: HypeCodeAutoDriveState | null;
-  executionProfile?: HypeCodeExecutionProfile | null;
+  pendingIntervention?: HugeCodeInterventionAction | null;
+  autoDrive?: HugeCodeAutoDriveState | null;
+  executionProfile?: HugeCodeExecutionProfile | null;
   reviewProfileId?: string | null;
-  profileReadiness?: HypeCodeExecutionProfileReadiness | null;
-  routing?: HypeCodeRunRoutingSummary | null;
-  approval?: HypeCodeRunApprovalSummary | null;
-  reviewDecision?: HypeCodeReviewDecisionSummary | null;
-  intervention?: HypeCodeRunInterventionSummary | null;
-  operatorState?: HypeCodeRunOperatorState | null;
-  nextAction?: HypeCodeRunNextAction | null;
+  profileReadiness?: HugeCodeExecutionProfileReadiness | null;
+  routing?: HugeCodeRunRoutingSummary | null;
+  approval?: HugeCodeRunApprovalSummary | null;
+  reviewDecision?: HugeCodeReviewDecisionSummary | null;
+  intervention?: HugeCodeRunInterventionSummary | null;
+  operatorState?: HugeCodeRunOperatorState | null;
+  nextAction?: HugeCodeRunNextAction | null;
   warnings?: string[];
-  validations?: HypeCodeValidationSummary[];
-  artifacts?: HypeCodeReviewArtifactRef[];
+  validations?: HugeCodeValidationSummary[];
+  artifacts?: HugeCodeReviewArtifactRef[];
   changedPaths?: string[];
   completionReason?: string | null;
   reviewPackId?: string | null;
-  lineage?: HypeCodeMissionLineage | null;
-  ledger?: HypeCodeRunLedger | null;
-  checkpoint?: HypeCodeCheckpointSummary | null;
-  missionLinkage?: HypeCodeMissionLinkageSummary | null;
-  actionability?: HypeCodeReviewActionabilitySummary | null;
-  reviewGate?: HypeCodeReviewGateSummary | null;
-  reviewFindings?: HypeCodeReviewFinding[] | null;
+  lineage?: HugeCodeMissionLineage | null;
+  ledger?: HugeCodeRunLedger | null;
+  checkpoint?: HugeCodeCheckpointSummary | null;
+  missionLinkage?: HugeCodeMissionLinkageSummary | null;
+  actionability?: HugeCodeReviewActionabilitySummary | null;
+  reviewGate?: HugeCodeReviewGateSummary | null;
+  reviewFindings?: HugeCodeReviewFinding[] | null;
   reviewRunId?: string | null;
-  skillUsage?: HypeCodeRuntimeSkillUsageSummary[] | null;
-  autofixCandidate?: HypeCodeRuntimeAutofixCandidate | null;
-  governance?: HypeCodeRunGovernanceSummary | null;
-  placement?: HypeCodeRunPlacementEvidence | null;
-  operatorSnapshot?: HypeCodeRunOperatorSnapshot | null;
-  workspaceEvidence?: HypeCodeWorkspaceEvidence | null;
-  missionBrief?: HypeCodeMissionBrief | null;
-  relaunchContext?: HypeCodeRelaunchContext | null;
-  subAgents?: HypeCodeSubAgentSummary[];
-  publishHandoff?: HypeCodePublishHandoffReference | null;
-  takeoverBundle?: HypeCodeTakeoverBundle | null;
-  executionGraph?: HypeCodeExecutionGraphSummary | null;
+  skillUsage?: HugeCodeRuntimeSkillUsageSummary[] | null;
+  autofixCandidate?: HugeCodeRuntimeAutofixCandidate | null;
+  governance?: HugeCodeRunGovernanceSummary | null;
+  placement?: HugeCodeRunPlacementEvidence | null;
+  operatorSnapshot?: HugeCodeRunOperatorSnapshot | null;
+  workspaceEvidence?: HugeCodeWorkspaceEvidence | null;
+  missionBrief?: HugeCodeMissionBrief | null;
+  relaunchContext?: HugeCodeRelaunchContext | null;
+  subAgents?: HugeCodeSubAgentSummary[];
+  publishHandoff?: HugeCodePublishHandoffReference | null;
+  takeoverBundle?: HugeCodeTakeoverBundle | null;
+  executionGraph?: HugeCodeExecutionGraphSummary | null;
 };
 
-export type HypeCodeExecutionProfile = {
+export type HugeCodeExecutionProfile = {
   id: string;
   name: string;
   description: string;
   executionMode: "local_interactive" | "local_background" | "desktop_sandbox" | "remote_sandbox";
-  autonomy: HypeCodeExecutionAutonomy;
+  autonomy: HugeCodeExecutionAutonomy;
   supervisionLabel: string;
   accessMode: "read-only" | "on-request" | "full-access";
   networkPolicy: "default" | "restricted" | "offline";
-  routingStrategy: HypeCodeExecutionRoutingStrategy;
-  toolPosture: HypeCodeExecutionToolPosture;
-  approvalSensitivity: HypeCodeApprovalSensitivity;
+  routingStrategy: HugeCodeExecutionRoutingStrategy;
+  toolPosture: HugeCodeExecutionToolPosture;
+  approvalSensitivity: HugeCodeApprovalSensitivity;
   identitySource: string | null;
   validationPresetId: string | null;
 };
 
-export type HypeCodeExecutionProfileReadiness = {
+export type HugeCodeExecutionProfileReadiness = {
   ready: boolean;
-  health: HypeCodeRoutingHealth;
+  health: HugeCodeRoutingHealth;
   summary: string;
   issues: string[];
 };
 
-export type HypeCodeRunRoutingSummary = {
+export type HugeCodeRunRoutingSummary = {
   backendId?: string | null;
   provider: string | null;
   providerLabel: string | null;
   pool: string | null;
   routeLabel: string;
   routeHint: string | null;
-  health: HypeCodeRoutingHealth;
+  health: HugeCodeRoutingHealth;
   backendOperability?: {
     state: "ready" | "attention" | "blocked";
     placementEligible: boolean;
@@ -994,48 +994,48 @@ export type HypeCodeRunRoutingSummary = {
   enabledPoolCount: number;
 };
 
-export type HypeCodeRunApprovalSummary = {
-  status: HypeCodeApprovalStateKind;
+export type HugeCodeRunApprovalSummary = {
+  status: HugeCodeApprovalStateKind;
   approvalId: string | null;
   label: string;
   summary: string;
 };
 
-export type HypeCodeRunInterventionSummary = {
-  actions: HypeCodeInterventionAvailability[];
-  primaryAction: HypeCodeInterventionAction | null;
+export type HugeCodeRunInterventionSummary = {
+  actions: HugeCodeInterventionAvailability[];
+  primaryAction: HugeCodeInterventionAction | null;
 };
 
-export type HypeCodeRunOperatorState = {
+export type HugeCodeRunOperatorState = {
   health: "healthy" | "attention" | "blocked";
   headline: string;
   detail: string | null;
 };
 
-export type HypeCodeRunNextAction = {
+export type HugeCodeRunNextAction = {
   label: string;
-  action: HypeCodeInterventionAction | "review";
+  action: HugeCodeInterventionAction | "review";
   detail: string | null;
 };
 
-export type HypeCodeReviewPack = {
+export type HugeCodeReviewPack = {
   id: string;
   runId: string;
   taskId: string;
   workspaceId: string;
   summary: string;
-  taskSource?: HypeCodeTaskSourceSummary | null;
-  reviewStatus: HypeCodeReviewStatus;
-  evidenceState: HypeCodeEvidenceState;
-  validationOutcome: HypeCodeValidationOutcome;
+  taskSource?: HugeCodeTaskSourceSummary | null;
+  reviewStatus: HugeCodeReviewStatus;
+  evidenceState: HugeCodeEvidenceState;
+  validationOutcome: HugeCodeValidationOutcome;
   warningCount: number;
   warnings: string[];
-  validations: HypeCodeValidationSummary[];
-  artifacts: HypeCodeReviewArtifactRef[];
+  validations: HugeCodeValidationSummary[];
+  artifacts: HugeCodeReviewArtifactRef[];
   checksPerformed: string[];
   recommendedNextAction: string | null;
-  fileChanges?: HypeCodeReviewPackFileChangeSummary | null;
-  evidenceRefs?: HypeCodeReviewPackEvidenceRefs | null;
+  fileChanges?: HugeCodeReviewPackFileChangeSummary | null;
+  evidenceRefs?: HugeCodeReviewPackEvidenceRefs | null;
   assumptions?: string[];
   reproductionGuidance?: string[];
   rollbackGuidance?: string[];
@@ -1044,31 +1044,31 @@ export type HypeCodeReviewPack = {
     details: string[];
     missingReason: string | null;
   };
-  reviewDecision?: HypeCodeReviewDecisionSummary | null;
+  reviewDecision?: HugeCodeReviewDecisionSummary | null;
   createdAt: number;
-  lineage?: HypeCodeMissionLineage | null;
-  ledger?: HypeCodeRunLedger | null;
-  checkpoint?: HypeCodeCheckpointSummary | null;
-  missionLinkage?: HypeCodeMissionLinkageSummary | null;
-  actionability?: HypeCodeReviewActionabilitySummary | null;
+  lineage?: HugeCodeMissionLineage | null;
+  ledger?: HugeCodeRunLedger | null;
+  checkpoint?: HugeCodeCheckpointSummary | null;
+  missionLinkage?: HugeCodeMissionLinkageSummary | null;
+  actionability?: HugeCodeReviewActionabilitySummary | null;
   reviewProfileId?: string | null;
-  reviewGate?: HypeCodeReviewGateSummary | null;
-  reviewFindings?: HypeCodeReviewFinding[] | null;
+  reviewGate?: HugeCodeReviewGateSummary | null;
+  reviewFindings?: HugeCodeReviewFinding[] | null;
   reviewRunId?: string | null;
-  skillUsage?: HypeCodeRuntimeSkillUsageSummary[] | null;
-  autofixCandidate?: HypeCodeRuntimeAutofixCandidate | null;
-  governance?: HypeCodeRunGovernanceSummary | null;
-  placement?: HypeCodeRunPlacementEvidence | null;
-  workspaceEvidence?: HypeCodeWorkspaceEvidence | null;
-  failureClass?: HypeCodeFailureClass | null;
-  relaunchOptions?: HypeCodeReviewPackRelaunchOptions | null;
-  subAgentSummary?: HypeCodeSubAgentSummary[] | null;
-  publishHandoff?: HypeCodePublishHandoffReference | null;
-  takeoverBundle?: HypeCodeTakeoverBundle | null;
+  skillUsage?: HugeCodeRuntimeSkillUsageSummary[] | null;
+  autofixCandidate?: HugeCodeRuntimeAutofixCandidate | null;
+  governance?: HugeCodeRunGovernanceSummary | null;
+  placement?: HugeCodeRunPlacementEvidence | null;
+  workspaceEvidence?: HugeCodeWorkspaceEvidence | null;
+  failureClass?: HugeCodeFailureClass | null;
+  relaunchOptions?: HugeCodeReviewPackRelaunchOptions | null;
+  subAgentSummary?: HugeCodeSubAgentSummary[] | null;
+  publishHandoff?: HugeCodePublishHandoffReference | null;
+  takeoverBundle?: HugeCodeTakeoverBundle | null;
 };
 
-export type HypeCodeTaskSummary = Pick<
-  HypeCodeTask,
+export type HugeCodeTaskSummary = Pick<
+  HugeCodeTask,
   | "id"
   | "workspaceId"
   | "title"
@@ -1089,8 +1089,8 @@ export type HypeCodeTaskSummary = Pick<
   | "executionGraph"
 >;
 
-export type HypeCodeRunSummary = Pick<
-  HypeCodeRun,
+export type HugeCodeRunSummary = Pick<
+  HugeCodeRun,
   | "id"
   | "taskId"
   | "workspaceId"
@@ -1142,8 +1142,8 @@ export type HypeCodeRunSummary = Pick<
   | "executionGraph"
 >;
 
-export type HypeCodeReviewPackSummary = Pick<
-  HypeCodeReviewPack,
+export type HugeCodeReviewPackSummary = Pick<
+  HugeCodeReviewPack,
   | "id"
   | "runId"
   | "taskId"
@@ -1189,60 +1189,60 @@ export type HypeCodeReviewPackSummary = Pick<
   | "takeoverBundle"
 >;
 
-export type HypeCodeMissionControlSnapshot = {
-  source: HypeCodeMissionControlSource;
+export type HugeCodeMissionControlSnapshot = {
+  source: HugeCodeMissionControlSource;
   generatedAt: number;
-  workspaces: HypeCodeWorkspace[];
-  tasks: HypeCodeTaskSummary[];
-  runs: HypeCodeRunSummary[];
-  reviewPacks: HypeCodeReviewPackSummary[];
+  workspaces: HugeCodeWorkspace[];
+  tasks: HugeCodeTaskSummary[];
+  runs: HugeCodeRunSummary[];
+  reviewPacks: HugeCodeReviewPackSummary[];
 };
 
-export type HypeCodeMissionControlReadinessTone = "ready" | "attention" | "blocked" | "idle";
+export type HugeCodeMissionControlReadinessTone = "ready" | "attention" | "blocked" | "idle";
 
-export type HypeCodeMissionControlActivityTone =
+export type HugeCodeMissionControlActivityTone =
   | "active"
   | "ready"
   | "attention"
   | "blocked"
   | "neutral";
 
-export type HypeCodeMissionControlReadinessSummary = {
-  tone: HypeCodeMissionControlReadinessTone;
+export type HugeCodeMissionControlReadinessSummary = {
+  tone: HugeCodeMissionControlReadinessTone;
   label: string;
   detail: string;
 };
 
-export type HypeCodeMissionActivityItem = {
+export type HugeCodeMissionActivityItem = {
   id: string;
   title: string;
   workspaceName: string;
   statusLabel: string;
-  tone: HypeCodeMissionControlActivityTone;
+  tone: HugeCodeMissionControlActivityTone;
   detail: string;
   highlights: string[];
 };
 
-export type HypeCodeReviewQueueItem = {
+export type HugeCodeReviewQueueItem = {
   id: string;
   title: string;
   workspaceName: string;
   summary: string;
   reviewStatusLabel: string;
   validationLabel: string;
-  tone: HypeCodeMissionControlActivityTone;
+  tone: HugeCodeMissionControlActivityTone;
   warningCount: number;
 };
 
-export type HypeCodeMissionControlSummary = {
+export type HugeCodeMissionControlSummary = {
   workspaceLabel: string;
   tasksCount: number;
   runsCount: number;
   approvalCount: number;
   reviewPacksCount: number;
   connectedWorkspaceCount: number;
-  launchReadiness: HypeCodeMissionControlReadinessSummary;
-  continuityReadiness: HypeCodeMissionControlReadinessSummary;
-  missionItems: HypeCodeMissionActivityItem[];
-  reviewItems: HypeCodeReviewQueueItem[];
+  launchReadiness: HugeCodeMissionControlReadinessSummary;
+  continuityReadiness: HugeCodeMissionControlReadinessSummary;
+  missionItems: HugeCodeMissionActivityItem[];
+  reviewItems: HugeCodeReviewQueueItem[];
 };

@@ -33,11 +33,14 @@ import {
   type RuntimeBrowserDebugStatusRequest,
   type RuntimeRunCancelRequest,
   type RuntimeRunCheckpointApprovalRequest,
+  type RuntimeRunGetV2Request,
   type RuntimeRunInterventionRequest,
+  type RuntimeRunPrepareV2Request,
   type RuntimeRunsListRequest,
   type RuntimeRunResumeRequest,
   type RuntimeRunStartRequest,
   type RuntimeRunSubscribeRequest,
+  type RuntimeReviewGetV2Request,
   type RuntimeBackendSetStateRequest,
   type RuntimeBackendUpsertInput,
   type RuntimeCodexCloudTasksListRequest,
@@ -78,6 +81,7 @@ import type {
   TurnSendRequest,
 } from "../contracts/runtime";
 import type { AppSettings } from "../types";
+import type { RuntimeClient as SharedRuntimeClient } from "@ku0/code-runtime-client/runtimeClientTypes";
 import {
   normalizeLiveSkillExecuteRequest,
   validateLiveSkillExecuteRequest,
@@ -91,7 +95,6 @@ import {
   THREAD_LIVE_RPC_METHODS,
 } from "./runtimeClientRpcMethods";
 import { adaptRuntimeRpcPayload, withCanonicalFields } from "./runtimeClientRpcPayloads";
-import type { RuntimeClient } from "./runtimeClientTypes";
 import {
   invokeRuntimeExtensionRpc,
   normalizeNullableTerminalSessionSummary,
@@ -99,6 +102,8 @@ import {
   normalizeTerminalStatus,
   type RuntimeRpcInvoker,
 } from "./runtimeClientRpcHelpers";
+
+type RuntimeClient = SharedRuntimeClient<AppSettings>;
 
 export function createRpcRuntimeClient(invokeRpc: RuntimeRpcInvoker): RuntimeClient {
   const client: RuntimeClient = {
@@ -293,16 +298,40 @@ export function createRpcRuntimeClient(invokeRpc: RuntimeRpcInvoker): RuntimeCli
         payload: adaptRuntimeRpcPayload("turnInterrupt", payload),
       });
     },
+    runtimeRunPrepareV2(request: RuntimeRunPrepareV2Request) {
+      return invokeRpc(
+        CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2,
+        adaptRuntimeRpcPayload("runtimeRunPrepareV2", request)
+      );
+    },
     runtimeRunStart(request: RuntimeRunStartRequest) {
       return invokeRpc(
         CODE_RUNTIME_RPC_METHODS.RUN_START,
         adaptRuntimeRpcPayload("runtimeRunStart", request)
       );
     },
+    runtimeRunStartV2(request: RuntimeRunStartRequest) {
+      return invokeRpc(
+        CODE_RUNTIME_RPC_METHODS.RUN_START_V2,
+        adaptRuntimeRpcPayload("runtimeRunStartV2", request)
+      );
+    },
+    runtimeRunGetV2(request: RuntimeRunGetV2Request) {
+      return invokeRpc(
+        CODE_RUNTIME_RPC_METHODS.RUN_GET_V2,
+        adaptRuntimeRpcPayload("runtimeRunGetV2", request)
+      );
+    },
     runtimeRunIntervene(request: RuntimeRunInterventionRequest) {
       return invokeRpc(
         CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE,
         adaptRuntimeRpcPayload("runtimeRunIntervene", request)
+      );
+    },
+    runtimeRunInterveneV2(request: RuntimeRunInterventionRequest) {
+      return invokeRpc(
+        CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2,
+        adaptRuntimeRpcPayload("runtimeRunInterveneV2", request)
       );
     },
     runtimeRunCancel(request: RuntimeRunCancelRequest) {
@@ -317,10 +346,28 @@ export function createRpcRuntimeClient(invokeRpc: RuntimeRpcInvoker): RuntimeCli
         adaptRuntimeRpcPayload("runtimeRunResume", request)
       );
     },
+    runtimeRunResumeV2(request: RuntimeRunResumeRequest) {
+      return invokeRpc(
+        CODE_RUNTIME_RPC_METHODS.RUN_RESUME_V2,
+        adaptRuntimeRpcPayload("runtimeRunResumeV2", request)
+      );
+    },
     runtimeRunSubscribe(request: RuntimeRunSubscribeRequest) {
       return invokeRpc(
         CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE,
         adaptRuntimeRpcPayload("runtimeRunSubscribe", request)
+      );
+    },
+    runtimeRunSubscribeV2(request: RuntimeRunGetV2Request) {
+      return invokeRpc(
+        CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE_V2,
+        adaptRuntimeRpcPayload("runtimeRunSubscribeV2", request)
+      );
+    },
+    runtimeReviewGetV2(request: RuntimeReviewGetV2Request) {
+      return invokeRpc(
+        CODE_RUNTIME_RPC_METHODS.REVIEW_GET_V2,
+        adaptRuntimeRpcPayload("runtimeReviewGetV2", request)
       );
     },
     runtimeRunsList(request: RuntimeRunsListRequest) {

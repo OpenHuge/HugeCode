@@ -6,7 +6,7 @@ import {
   computeCodeRuntimeRpcMethodSetHash,
 } from "@ku0/code-runtime-host-contract";
 import { describe, expect, it } from "vitest";
-import { normalizeRpcCapabilitiesPayload } from "./runtimeClientCapabilitiesContract";
+import { normalizeRpcCapabilitiesPayload } from "@ku0/code-runtime-client/runtimeClientCapabilitiesContract";
 
 function createCapabilitiesPayload(
   overrides: Record<string, unknown> = {}

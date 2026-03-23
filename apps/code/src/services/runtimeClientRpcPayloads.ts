@@ -9,11 +9,14 @@ import {
   type RuntimeBrowserDebugStatusRequest,
   type RuntimeRunCancelRequest,
   type RuntimeRunCheckpointApprovalRequest,
+  type RuntimeRunGetV2Request,
   type RuntimeRunInterventionRequest,
+  type RuntimeRunPrepareV2Request,
   type RuntimeRunsListRequest,
   type RuntimeRunResumeRequest,
   type RuntimeRunStartRequest,
   type RuntimeRunSubscribeRequest,
+  type RuntimeReviewGetV2Request,
   type RuntimeCodexCloudTasksListRequest,
   type RuntimeCodexDoctorRequest,
   type RuntimeCodexExecRunRequest,
@@ -143,6 +146,10 @@ function toCompatRuntimeRunStartPayload(payload: RuntimeRunStartRequest) {
   });
 }
 
+function toCompatRuntimeRunPrepareV2Payload(payload: RuntimeRunPrepareV2Request) {
+  return toCompatRuntimeRunStartPayload(payload);
+}
+
 function toCompatRuntimeRunCancelPayload(payload: RuntimeRunCancelRequest) {
   return withCanonicalPayload({ ...payload });
 }
@@ -163,6 +170,14 @@ function toCompatRuntimeRunResumePayload(payload: RuntimeRunResumeRequest) {
 }
 
 function toCompatRuntimeRunSubscribePayload(payload: RuntimeRunSubscribeRequest) {
+  return withCanonicalPayload({ ...payload });
+}
+
+function toCompatRuntimeRunGetV2Payload(payload: RuntimeRunGetV2Request) {
+  return withCanonicalPayload({ ...payload });
+}
+
+function toCompatRuntimeReviewGetV2Payload(payload: RuntimeReviewGetV2Request) {
   return withCanonicalPayload({ ...payload });
 }
 
@@ -378,11 +393,18 @@ function toCompatRuntimeDiagnosticsExportPayload(payload: RuntimeDiagnosticsExpo
 export const RUNTIME_RPC_PAYLOAD_REGISTRY = Object.freeze({
   turnSend: toCompatTurnSendPayload,
   turnInterrupt: toCompatTurnInterruptPayload,
+  runtimeRunPrepareV2: toCompatRuntimeRunPrepareV2Payload,
   runtimeRunStart: toCompatRuntimeRunStartPayload,
+  runtimeRunStartV2: toCompatRuntimeRunStartPayload,
   runtimeRunIntervene: toCompatRuntimeRunInterventionPayload,
+  runtimeRunInterveneV2: toCompatRuntimeRunInterventionPayload,
   runtimeRunCancel: toCompatRuntimeRunCancelPayload,
   runtimeRunResume: toCompatRuntimeRunResumePayload,
+  runtimeRunResumeV2: toCompatRuntimeRunResumePayload,
   runtimeRunSubscribe: toCompatRuntimeRunSubscribePayload,
+  runtimeRunGetV2: toCompatRuntimeRunGetV2Payload,
+  runtimeRunSubscribeV2: toCompatRuntimeRunGetV2Payload,
+  runtimeReviewGetV2: toCompatRuntimeReviewGetV2Payload,
   runtimeRunsList: toCompatRuntimeRunsListPayload,
   kernelJobStartV3: toCompatRuntimeRunStartPayload,
   kernelJobGetV3: toCompatKernelJobGetPayload,

@@ -6,7 +6,7 @@ import {
   isWebRuntimeConnectionError,
   readRuntimeErrorCode,
   readRuntimeErrorMessage,
-} from "./runtimeErrorClassifier";
+} from "@ku0/code-runtime-client/runtimeErrorClassifier";
 
 describe("runtimeErrorClassifier", () => {
   it("detects missing tauri command via structured method-not-found code", () => {

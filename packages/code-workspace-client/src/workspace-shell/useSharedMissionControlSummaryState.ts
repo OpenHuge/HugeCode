@@ -1,4 +1,4 @@
-import type { HypeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
+import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspaceClientRuntimeBindings } from "../workspace/WorkspaceClientBindingsProvider";
 import {
@@ -23,7 +23,7 @@ const IDLE_MISSION_CONTROL_STATE = {
 };
 
 type SharedMissionControlSummaryState = {
-  snapshot: HypeCodeMissionControlSnapshot | null;
+  snapshot: HugeCodeMissionControlSnapshot | null;
   summary: SharedMissionControlSummary;
   loadState: MissionControlLoadState;
   error: string | null;

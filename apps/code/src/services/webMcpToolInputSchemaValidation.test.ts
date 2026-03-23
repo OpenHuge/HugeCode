@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateToolInputAgainstSchema } from "./webMcpToolInputSchemaValidation";
+import { validateToolInputAgainstSchema } from "@ku0/code-runtime-client/webMcpToolInputSchemaValidation";
 
 describe("validateToolInputAgainstSchema", () => {
   it("reports missing required fields", () => {

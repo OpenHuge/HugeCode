@@ -378,6 +378,42 @@ export async function waitForWorkspaceShell(page: Page, timeoutMs = 15_000): Pro
   return pollBoolean(() => isWorkspaceShellVisible(page), { timeoutMs });
 }
 
+const SHARED_SHELL_PENDING_COPY = [
+  "Runtime summary is loading in the background so the shared shell can render immediately.",
+  "Runtime activity is loading in the background.",
+  "Review signals load after the shell becomes interactive.",
+];
+
+export async function waitForSharedShellMissionSummaryToSettle(
+  page: Page,
+  timeoutMs = 15_000
+): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate((pendingCopy) => {
+          const shell = document.querySelector("[data-workspace-shell]");
+          if (!shell) {
+            return false;
+          }
+
+          const text = shell.textContent ?? "";
+          return pendingCopy.every((message) => !text.includes(message));
+        }, SHARED_SHELL_PENDING_COPY),
+      { timeout: timeoutMs }
+    )
+    .toBe(true);
+
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
 export async function waitForAppBootFallbackToClear(
   page: Page,
   options?: {

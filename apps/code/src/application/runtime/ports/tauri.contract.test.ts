@@ -35,11 +35,14 @@ import { getRuntimeHealth } from "./tauriRuntime";
 import { getRuntimeCapabilitiesSummary as getRuntimeCapabilitiesSummaryFromRemoteServers } from "./tauriRemoteServers";
 import {
   cancelRuntimeJob,
+  getRuntimeRunV2,
+  subscribeRuntimeRunV2,
   submitRuntimeJobApprovalDecision,
   getRuntimeJob,
   interveneRuntimeJob,
   listRuntimeJobs,
   resumeRuntimeJob,
+  startRuntimeRunV2,
   startRuntimeJob,
   subscribeRuntimeJob,
 } from "./tauriRuntimeJobs";
@@ -99,11 +102,14 @@ import {
 } from "../../../services/tauriRuntimeSystemBridge";
 import {
   cancelRuntimeJob as cancelRuntimeJobBridge,
+  getRuntimeRunV2 as getRuntimeRunV2Bridge,
+  subscribeRuntimeRunV2 as subscribeRuntimeRunV2Bridge,
   submitRuntimeJobApprovalDecision as submitRuntimeJobApprovalDecisionBridge,
   getRuntimeJob as getRuntimeJobBridge,
   interveneRuntimeJob as interveneRuntimeJobBridge,
   listRuntimeJobs as listRuntimeJobsBridge,
   resumeRuntimeJob as resumeRuntimeJobBridge,
+  startRuntimeRunV2 as startRuntimeRunV2Bridge,
   startRuntimeJob as startRuntimeJobBridge,
   subscribeRuntimeJob as subscribeRuntimeJobBridge,
 } from "../../../services/tauriRuntimeJobsBridge";
@@ -131,6 +137,9 @@ describe("tauri runtime port contract", () => {
       ["interveneRuntimeJob", interveneRuntimeJob, interveneRuntimeJobBridge],
       ["cancelRuntimeJob", cancelRuntimeJob, cancelRuntimeJobBridge],
       ["resumeRuntimeJob", resumeRuntimeJob, resumeRuntimeJobBridge],
+      ["startRuntimeRunV2", startRuntimeRunV2, startRuntimeRunV2Bridge],
+      ["getRuntimeRunV2", getRuntimeRunV2, getRuntimeRunV2Bridge],
+      ["subscribeRuntimeRunV2", subscribeRuntimeRunV2, subscribeRuntimeRunV2Bridge],
       ["subscribeRuntimeJob", subscribeRuntimeJob, subscribeRuntimeJobBridge],
       ["listRuntimeJobs", listRuntimeJobs, listRuntimeJobsBridge],
       [
@@ -333,7 +342,7 @@ describe("tauri runtime port contract", () => {
 
   it("removes legacy run-first approval names from shared and app-facing control surfaces", () => {
     const appSurfaceSource = readFileSync(
-      path.resolve(import.meta.dirname, "../../../services/webMcpBridgeTypes.ts"),
+      path.resolve(import.meta.dirname, "../types/webMcpBridge.ts"),
       "utf8"
     );
     const sharedSurfaceSource = readFileSync(
@@ -348,7 +357,7 @@ describe("tauri runtime port contract", () => {
       "utf8"
     );
 
-    expect(appSurfaceSource).toContain("submitTaskApprovalDecision");
+    expect(appSurfaceSource).toContain("@ku0/code-runtime-webmcp-client/webMcpBridgeTypes");
     expect(appSurfaceSource).not.toContain("checkpointRunApproval");
     expect(sharedSurfaceSource).toContain("submitTaskApprovalDecision");
     expect(sharedSurfaceSource).not.toContain("checkpointRunApproval");

@@ -7,4 +7,4 @@ export {
   assertRuntimeRpcMethodSetHashSupported,
   assertRuntimeRpcProfileSupported,
   normalizeRpcCapabilitiesPayload,
-} from "../../../services/runtimeClientCapabilitiesContract";
+} from "@ku0/code-runtime-client/runtimeClientCapabilitiesContract";

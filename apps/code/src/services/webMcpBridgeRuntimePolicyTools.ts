@@ -4,7 +4,7 @@ import type {
   JsonRecord,
   WebMcpToolDescriptor,
 } from "./webMcpBridgeRuntimeToolsShared";
-import type { RuntimeAgentControl } from "./webMcpBridgeTypes";
+import type { RuntimeAgentControl } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 type RuntimePolicyControl = RuntimeAgentControl & {
   getRuntimePolicy?: () => Promise<unknown>;

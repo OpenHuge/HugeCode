@@ -24,6 +24,8 @@ mod runtime_autonomy_v2_dispatch;
 mod runtime_backends_dispatch;
 #[path = "../../rpc_dispatch_runtime_backends_native_store.rs"]
 mod runtime_backends_native_store;
+#[path = "../../rpc_dispatch_runtime_kernel_v2.rs"]
+mod runtime_kernel_v2_dispatch;
 #[path = "../../rpc_dispatch_runtime_tool_guardrails.rs"]
 mod runtime_tool_guardrails_dispatch;
 #[path = "../../rpc_dispatch_runtime_tool_metrics.rs"]
@@ -89,6 +91,11 @@ pub(crate) use runtime_backends_dispatch::{
 use runtime_backends_dispatch::{
     handle_distributed_task_graph, handle_runtime_backend_remove, handle_runtime_backend_set_state,
     handle_runtime_backend_upsert, handle_runtime_backends_list,
+};
+use runtime_kernel_v2_dispatch::{
+    handle_runtime_review_get_v2, handle_runtime_run_get_v2, handle_runtime_run_intervene_v2,
+    handle_runtime_run_prepare_v2, handle_runtime_run_resume_v2,
+    handle_runtime_run_start_v2, handle_runtime_run_subscribe_v2,
 };
 pub(crate) use runtime_backends_native_store::{
     hydrate_runtime_backends_from_native_store, persist_runtime_backends_to_native_store,
@@ -158,11 +165,18 @@ pub(crate) async fn handle_rpc(
         "code_thread_live_unsubscribe" => handle_thread_live_unsubscribe(ctx, params).await,
         "code_turn_send" => handle_turn_send(ctx, params).await,
         "code_turn_interrupt" => handle_turn_interrupt(ctx, params).await,
+        "code_runtime_run_prepare_v2" => handle_runtime_run_prepare_v2(ctx, params).await,
         "code_runtime_run_start" => handle_agent_task_start(ctx, params).await,
+        "code_runtime_run_start_v2" => handle_runtime_run_start_v2(ctx, params).await,
         "code_runtime_run_cancel" => handle_agent_task_interrupt(ctx, params).await,
         "code_runtime_run_resume" => handle_agent_task_resume(ctx, params).await,
+        "code_runtime_run_resume_v2" => handle_runtime_run_resume_v2(ctx, params).await,
         "code_runtime_run_intervene" => handle_agent_task_intervene(ctx, params).await,
+        "code_runtime_run_intervene_v2" => handle_runtime_run_intervene_v2(ctx, params).await,
         "code_runtime_run_subscribe" => handle_agent_task_status(ctx, params).await,
+        "code_runtime_run_get_v2" => handle_runtime_run_get_v2(ctx, params).await,
+        "code_runtime_run_subscribe_v2" => handle_runtime_run_subscribe_v2(ctx, params).await,
+        "code_runtime_review_get_v2" => handle_runtime_review_get_v2(ctx, params).await,
         "code_runtime_runs_list" => handle_agent_tasks_list(ctx, params).await,
         "code_kernel_job_start_v3" => {
             let response = handle_agent_task_start(ctx, params).await?;

@@ -2,16 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetRuntimeEventChannelDiagnosticsForTests,
   readRuntimeEventChannelDiagnostics,
-} from "./runtimeEventChannelDiagnostics";
+} from "@ku0/code-runtime-client/runtimeEventChannelDiagnostics";
 import {
   __resetRuntimeEventStabilityMetricsForTests,
   readRuntimeEventStabilityMetrics,
-} from "./runtimeEventStabilityMetrics";
+} from "@ku0/code-runtime-client/runtimeEventStabilityMetrics";
 import {
   createRuntimeEventStateMachine,
   subscribeRuntimeEventStateChannel,
 } from "./runtimeEventStateMachine";
-import type { AgentEnvelopeMetadata } from "./runtimeMessageEnvelope";
+import type { AgentEnvelopeMetadata } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 
 function readChannel(id: string) {
   return readRuntimeEventChannelDiagnostics().find((entry) => entry.id === id) ?? null;

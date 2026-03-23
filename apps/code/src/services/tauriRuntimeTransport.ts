@@ -16,7 +16,7 @@ import {
   isMissingTextFileError,
   isRuntimeMethodUnsupportedError,
   isWebRuntimeConnectionError,
-} from "./runtimeErrorClassifier";
+} from "@ku0/code-runtime-client/runtimeErrorClassifier";
 import {
   CODE_RUNTIME_RPC_CAPABILITIES_METHOD,
   deriveWebEventsEndpoint,

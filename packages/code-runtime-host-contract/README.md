@@ -8,6 +8,10 @@ Transport-neutral source of truth for the HugeCode code runtime host contract.
 - Explicit compatibility registry and alias lifecycle
 - Shared event envelope types for `/events`
 - Frozen contract spec generation and verification for `/rpc`, `/events`, and `/ws`
+- Runtime kernel v2 lifecycle contract for run preparation, execution, and
+  review (`code_runtime_run_prepare_v2`, `code_runtime_run_start_v2`,
+  `code_runtime_run_get_v2`, `code_runtime_review_get_v2`, and companion
+  resume/intervene/subscribe methods)
 
 ## Start Here
 

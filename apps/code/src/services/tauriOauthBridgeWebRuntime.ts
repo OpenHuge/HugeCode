@@ -1,9 +1,12 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { logger } from "./logger";
 import { detectRuntimeMode } from "./runtimeClient";
-import { getErrorMessage } from "./runtimeClientErrorUtils";
-import { isTimeoutLikeError, isWebRuntimeConnectionError } from "./runtimeErrorClassifier";
-import { createRuntimeError } from "./runtimeMessageEnvelope";
+import { getErrorMessage } from "@ku0/code-runtime-client/runtimeClientErrorUtils";
+import {
+  isTimeoutLikeError,
+  isWebRuntimeConnectionError,
+} from "@ku0/code-runtime-client/runtimeErrorClassifier";
+import { createRuntimeError } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 import {
   resolveWebRuntimeControlEndpoint as resolveWebRuntimeControlEndpointFromCore,
   resolveWebRuntimeEndpoint,

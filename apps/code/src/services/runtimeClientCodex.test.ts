@@ -5,7 +5,7 @@ import {
   listCollaborationModesWithFallback,
   listMcpServerStatusWithFallback,
 } from "./runtimeClientCodex";
-import type { RuntimeClient } from "./runtimeClientTypes";
+import type { RuntimeClient } from "./runtimeClient";
 
 describe("runtimeClientCodex", () => {
   it("logs and downgrades invalid collaboration mode payloads", async () => {

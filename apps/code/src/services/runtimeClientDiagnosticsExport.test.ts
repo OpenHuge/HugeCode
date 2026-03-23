@@ -4,7 +4,7 @@ import {
   exportRuntimeDiagnosticsWithFallback,
   RuntimeDiagnosticsExportPayloadInvalidError,
 } from "./runtimeClientDiagnosticsExport";
-import type { RuntimeClient } from "./runtimeClientTypes";
+import type { RuntimeClient } from "./runtimeClient";
 
 function createBaseResponse() {
   return {

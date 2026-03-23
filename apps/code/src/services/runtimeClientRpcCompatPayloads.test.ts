@@ -148,4 +148,36 @@ describe("runtimeClientRpcPayloads", () => {
     );
     expect(payload).not.toHaveProperty("mission_brief");
   });
+
+  it("keeps runtime kernel v2 payloads canonical-only", () => {
+    expect(
+      adaptRuntimeRpcPayload("runtimeRunPrepareV2", {
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        requestId: "req-prepare",
+        accessMode: "on-request",
+        executionMode: "single",
+        steps: [{ kind: "read", input: "Inspect runtime." }],
+      })
+    ).toEqual(
+      expect.objectContaining({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        requestId: "req-prepare",
+        steps: [expect.objectContaining({ kind: "read", input: "Inspect runtime." })],
+      })
+    );
+
+    expect(adaptRuntimeRpcPayload("runtimeRunGetV2", { runId: "run-1" })).toEqual({
+      runId: "run-1",
+    });
+
+    expect(adaptRuntimeRpcPayload("runtimeRunSubscribeV2", { runId: "run-1" })).toEqual({
+      runId: "run-1",
+    });
+
+    expect(adaptRuntimeRpcPayload("runtimeReviewGetV2", { runId: "run-1" })).toEqual({
+      runId: "run-1",
+    });
+  });
 });

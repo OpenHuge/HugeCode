@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { RUNTIME_MESSAGE_CODES } from "./runtimeMessageCodes";
-import { readRuntimeCode } from "./runtimeMessageEnvelope";
+import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
+import { readRuntimeCode } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 import {
   ensureCommandLengthWithinLimit,
   ensureNoDangerousShellCommand,

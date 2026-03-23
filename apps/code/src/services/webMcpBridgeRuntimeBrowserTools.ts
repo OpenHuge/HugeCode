@@ -8,7 +8,7 @@ import {
   resolveWorkspaceId,
   type WebMcpToolDescriptor,
 } from "./webMcpBridgeRuntimeToolsShared";
-import type { RuntimeAgentControl } from "./webMcpBridgeTypes";
+import type { RuntimeAgentControl } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 type RuntimeBrowserControl = RuntimeAgentControl & {
   getRuntimeBrowserDebugStatus?: (input: { workspaceId: string }) => Promise<unknown>;

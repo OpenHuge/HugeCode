@@ -9,7 +9,7 @@ import {
   type WebMcpToolDescriptor,
 } from "./webMcpBridgeRuntimeToolsShared";
 import type { RuntimeExtensionInstallRequest } from "@ku0/code-runtime-host-contract";
-import type { RuntimeAgentControl } from "./webMcpBridgeTypes";
+import type { RuntimeAgentControl } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 type JsonRecord = Record<string, unknown>;
 

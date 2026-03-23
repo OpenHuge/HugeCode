@@ -3,12 +3,12 @@ import type {
   WebMcpPromptDescriptor,
   WebMcpResourceDescriptor,
 } from "./webMcpBridgeContextDescriptors";
-import type { WebMcpAgent } from "./webMcpBridgeTypes";
-import { WebMcpInputSchemaValidationError } from "./webMcpInputSchemaValidationError";
+import type { WebMcpAgent } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
+import { WebMcpInputSchemaValidationError } from "@ku0/code-runtime-client/webMcpInputSchemaValidationError";
 import {
   validateWebMcpCreateMessageInput,
   validateWebMcpElicitInput,
-} from "./webMcpModelInputSchemas";
+} from "@ku0/code-runtime-client/webMcpModelInputSchemas";
 
 type JsonRecord = Record<string, unknown>;
 

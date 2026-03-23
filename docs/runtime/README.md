@@ -19,6 +19,28 @@ This directory is the canonical entrypoint for runtime transport, contract, and 
 - Rust service implementation: `packages/code-runtime-service-rs`
 - Native parity layer: `packages/native-runtime-host-contract`
 - Tauri bridge surface: `apps/code-tauri/src-tauri`
+- Current frozen contract baseline:
+  - `contractVersion = "2026-03-22"`
+  - `freezeEffectiveAt = "2026-03-22"`
+- Runtime kernel v2 is now the preferred truth-first lifecycle for new run
+  preparation, execution, and review work:
+  - `code_runtime_run_prepare_v2`
+  - `code_runtime_run_start_v2`
+  - `code_runtime_run_get_v2`
+  - `code_runtime_run_subscribe_v2`
+  - `code_runtime_review_get_v2`
+  - `code_runtime_run_resume_v2`
+  - `code_runtime_run_intervene_v2`
+- `code_runtime_run_prepare_v2` publishes runtime-owned preparation truth:
+  - `runIntent`
+  - `contextWorkingSet`
+  - `executionGraph`
+  - `approvalBatches`
+  - `validationPlan`
+  - `reviewFocus`
+- `apps/code` should prefer these v2 surfaces for new work. Older run methods
+  remain compatibility paths while the runtime service continues converging on a
+  smaller native execution kernel.
 - Task/start/status/list runtime truth now includes the shared Track A baseline fields:
   - `taskSource`
   - `executionProfile`
@@ -78,6 +100,9 @@ Internal parity helpers such as `internal/runtime-policy-rs` may support tooling
   Account-pool and provider-routing domain guidance.
 - [runtime-launch-readiness.md](./runtime-launch-readiness.md)
   Launch-scoped operator preflight guidance over existing runtime truth surfaces.
+- [runtime-kernel-v2.md](./runtime-kernel-v2.md)
+  Truth-first lifecycle direction for run preparation, execution, review, and
+  the current v1-to-v2 compatibility bridge.
 - [pi-mono-runtime-source-deep-dive-2026-03-22.md](./pi-mono-runtime-source-deep-dive-2026-03-22.md)
   Runtime 主线源码解剖，解释宿主装配、shared bindings、projection fabric、frozen contract 与 Rust 真相源如何闭环。
 - [runtime-borrowing-blueprint-2026-03-22.md](./runtime-borrowing-blueprint-2026-03-22.md)

@@ -1,10 +1,10 @@
-import { RUNTIME_MESSAGE_CODES } from "./runtimeMessageCodes";
-import { createRuntimeError } from "./runtimeMessageEnvelope";
+import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
+import { createRuntimeError } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 import type {
   AgentCommandCenterSnapshot,
   RuntimeAgentControl,
   WebMcpAgent,
-} from "./webMcpBridgeTypes";
+} from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 type JsonRecord = Record<string, unknown>;
 

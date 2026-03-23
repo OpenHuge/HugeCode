@@ -11,7 +11,7 @@ import {
 } from "./eventsWebTransportHelpers";
 import { logger } from "./logger";
 import { createExponentialRetryScheduler } from "./retryScheduler";
-import { recordRuntimeEventDedupeHit } from "./runtimeEventStabilityMetrics";
+import { recordRuntimeEventDedupeHit } from "@ku0/code-runtime-client/runtimeEventStabilityMetrics";
 import {
   APP_SERVER_BRIDGE_CHANNEL_ID,
   APP_SERVER_WS_CHANNEL_ID,
@@ -35,7 +35,7 @@ import type {
   AgentEnvelopeMetadata,
   AgentEnvelopeQueueReference,
   AgentEnvelopeRoute,
-} from "./runtimeMessageEnvelope";
+} from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 
 type RuntimeEventBridgeOptions = {
   onError?: (error: unknown) => void;

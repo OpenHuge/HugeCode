@@ -1,12 +1,12 @@
 import { CODE_RUNTIME_RPC_METHODS } from "@ku0/code-runtime-host-contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RuntimeRpcInvocationError } from "./runtimeClientErrorUtils";
+import { RuntimeRpcInvocationError } from "@ku0/code-runtime-client/runtimeClientErrorUtils";
 import {
   computeWebRuntimeRetryDelayMs,
   parseWebRuntimeRetryAfterMs,
   shouldRetryWebRuntimeInvocation,
   WEB_RUNTIME_MAX_RETRY_ATTEMPTS,
-} from "./runtimeClientWebRetryUtils";
+} from "@ku0/code-runtime-client/runtimeClientWebRetryUtils";
 
 describe("runtimeClientWebRetryUtils", () => {
   afterEach(() => {

@@ -110,8 +110,10 @@ This change establishes four hard rules:
 
 ## Deferred Debt Register
 
-- Durable run lifecycle (`startRun/resumeRun/subscribeRun/cancelRun/...`) has
-  not been introduced at the contract boundary yet.
+- Runtime kernel v2 lifecycle now exists at the contract boundary
+  (`prepare/start/get/subscribe/review/resume/intervene`), but app-runtime
+  facades still need a broader migration away from legacy run methods and
+  compatibility projections.
 - Rust runtime hotspot decomposition (`router_builder.rs`, backend dispatch,
   mission control dispatch) is still pending.
 - Backend policy exists as explicit runtime metadata, but routing/placement

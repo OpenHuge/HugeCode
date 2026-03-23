@@ -145,6 +145,9 @@ describe("runtimeTaskInterventionDraftFacade", () => {
           title: "Investigate runtime issue",
           instruction: "Investigate runtime issue\n\nInspect runtime orchestration state.",
           intent: "retry",
+          profileId: "balanced-delegate",
+          preferredBackendIds: ["backend-review-a"],
+          reviewProfileId: null,
           taskSource: null,
           sourceMappingKind: null,
           validationPresetId: "standard",
@@ -199,6 +202,8 @@ describe("runtimeTaskInterventionDraftFacade", () => {
           instruction:
             "Investigate runtime issue\n\nInspect runtime orchestration state.\n\nClarify before continuing:\n- What changed?\n- What should stay in bounds?\n- What outcome is required now?",
           intent: "clarify",
+          profileId: "operator-review",
+          reviewProfileId: null,
           taskSource: null,
           sourceMappingKind: null,
           validationPresetId: "review-first",

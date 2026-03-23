@@ -1,4 +1,4 @@
-import type { HypeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
+import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
 import type { WorkspaceClientRuntimeBindings } from "../workspace/bindings";
 import {
   getKernelProjectionStore,
@@ -8,7 +8,7 @@ import {
 export type MissionControlLoadState = "idle" | "loading" | "ready" | "error";
 
 export type MissionControlSnapshotState = {
-  snapshot: HypeCodeMissionControlSnapshot | null;
+  snapshot: HugeCodeMissionControlSnapshot | null;
   loadState: MissionControlLoadState;
   error: string | null;
 };

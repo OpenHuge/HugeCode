@@ -1,9 +1,9 @@
 import type {
-  HypeCodeMissionActivityItem as SharedMissionActivityItem,
-  HypeCodeMissionControlReadinessSummary as SharedMissionControlReadinessSummary,
-  HypeCodeMissionControlSnapshot,
-  HypeCodeMissionControlSummary as SharedMissionControlSummary,
-  HypeCodeReviewQueueItem as SharedReviewQueueItem,
+  HugeCodeMissionActivityItem as SharedMissionActivityItem,
+  HugeCodeMissionControlReadinessSummary as SharedMissionControlReadinessSummary,
+  HugeCodeMissionControlSnapshot,
+  HugeCodeMissionControlSummary as SharedMissionControlSummary,
+  HugeCodeReviewQueueItem as SharedReviewQueueItem,
 } from "@ku0/code-runtime-host-contract";
 
 export type {
@@ -47,12 +47,12 @@ function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function hasRecoveryPath(run: HypeCodeMissionControlSnapshot["runs"][number]): boolean {
+function hasRecoveryPath(run: HugeCodeMissionControlSnapshot["runs"][number]): boolean {
   return Boolean(run.publishHandoff || run.missionLinkage?.navigationTarget);
 }
 
 function analyzeRunContinuitySignal(
-  run: HypeCodeMissionControlSnapshot["runs"][number]
+  run: HugeCodeMissionControlSnapshot["runs"][number]
 ): keyof ContinuitySignalCounts | null {
   const takeoverBundle = run.takeoverBundle;
   if (takeoverBundle) {
@@ -96,7 +96,7 @@ function analyzeRunContinuitySignal(
 }
 
 function countContinuitySignals(
-  runs: HypeCodeMissionControlSnapshot["runs"]
+  runs: HugeCodeMissionControlSnapshot["runs"]
 ): ContinuitySignalCounts {
   const counts: ContinuitySignalCounts = {
     readyResumeCount: 0,
@@ -120,7 +120,7 @@ function countContinuitySignals(
 function buildLaunchReadiness(
   hasActiveWorkspace: boolean,
   activeWorkspaceConnected: boolean,
-  runs: HypeCodeMissionControlSnapshot["runs"]
+  runs: HugeCodeMissionControlSnapshot["runs"]
 ): SharedMissionControlReadinessSummary {
   if (!hasActiveWorkspace) {
     return EMPTY_SHARED_MISSION_CONTROL_SUMMARY.launchReadiness;
@@ -165,8 +165,8 @@ function buildLaunchReadiness(
 function buildContinuityReadiness(
   hasActiveWorkspace: boolean,
   activeWorkspaceConnected: boolean,
-  runs: HypeCodeMissionControlSnapshot["runs"],
-  reviewPacks: HypeCodeMissionControlSnapshot["reviewPacks"]
+  runs: HugeCodeMissionControlSnapshot["runs"],
+  reviewPacks: HugeCodeMissionControlSnapshot["reviewPacks"]
 ): SharedMissionControlReadinessSummary {
   if (!hasActiveWorkspace) {
     return EMPTY_SHARED_MISSION_CONTROL_SUMMARY.continuityReadiness;
@@ -244,14 +244,14 @@ function buildContinuityReadiness(
 }
 
 function getWorkspaceName(
-  workspaces: HypeCodeMissionControlSnapshot["workspaces"],
+  workspaces: HugeCodeMissionControlSnapshot["workspaces"],
   workspaceId: string
 ) {
   return workspaces.find((workspace) => workspace.id === workspaceId)?.name ?? workspaceId;
 }
 
 function getMissionItemTone(
-  run: HypeCodeMissionControlSnapshot["runs"][number]
+  run: HugeCodeMissionControlSnapshot["runs"][number]
 ): SharedMissionActivityItem["tone"] {
   if (run.approval?.status === "pending_decision" || run.state === "needs_input") {
     return "attention";
@@ -268,7 +268,7 @@ function getMissionItemTone(
   return "neutral";
 }
 
-function getMissionStatusLabel(run: HypeCodeMissionControlSnapshot["runs"][number]) {
+function getMissionStatusLabel(run: HugeCodeMissionControlSnapshot["runs"][number]) {
   if (run.approval?.label) {
     return run.approval.label;
   }
@@ -285,8 +285,8 @@ function getMissionStatusLabel(run: HypeCodeMissionControlSnapshot["runs"][numbe
 }
 
 function buildMissionActivityItems(
-  workspaces: HypeCodeMissionControlSnapshot["workspaces"],
-  runs: HypeCodeMissionControlSnapshot["runs"]
+  workspaces: HugeCodeMissionControlSnapshot["workspaces"],
+  runs: HugeCodeMissionControlSnapshot["runs"]
 ): SharedMissionActivityItem[] {
   return [...runs]
     .sort((left, right) => right.updatedAt - left.updatedAt)
@@ -344,8 +344,8 @@ function getReviewItemTone(
 }
 
 function buildReviewQueueItems(
-  workspaces: HypeCodeMissionControlSnapshot["workspaces"],
-  reviewPacks: HypeCodeMissionControlSnapshot["reviewPacks"]
+  workspaces: HugeCodeMissionControlSnapshot["workspaces"],
+  reviewPacks: HugeCodeMissionControlSnapshot["reviewPacks"]
 ): SharedReviewQueueItem[] {
   return [...reviewPacks]
     .sort((left, right) => right.createdAt - left.createdAt)
@@ -366,7 +366,7 @@ function buildReviewQueueItems(
 }
 
 export function buildSharedMissionControlSummary(
-  snapshot: HypeCodeMissionControlSnapshot | null,
+  snapshot: HugeCodeMissionControlSnapshot | null,
   activeWorkspaceId: string | null
 ): SharedMissionControlSummary {
   if (!snapshot) {

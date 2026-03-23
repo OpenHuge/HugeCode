@@ -1,7 +1,10 @@
 import { logger } from "./logger";
-import { isTimeoutLikeError, readRuntimeErrorCode } from "./runtimeErrorClassifier";
-import { RUNTIME_MESSAGE_CODES } from "./runtimeMessageCodes";
-import { createRuntimeError } from "./runtimeMessageEnvelope";
+import {
+  isTimeoutLikeError,
+  readRuntimeErrorCode,
+} from "@ku0/code-runtime-client/runtimeErrorClassifier";
+import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
+import { createRuntimeError } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 import {
   type RuntimeToolExecutionScope,
   recordRuntimeToolExecutionAttempt,
@@ -15,9 +18,9 @@ import {
   reportRuntimeToolExecutionStarted,
   reportRuntimeToolGuardrailOutcome,
 } from "./runtimeToolExecutionMetricsReporter";
-import type { WebMcpAgent } from "./webMcpBridgeTypes";
-import { WebMcpInputSchemaValidationError } from "./webMcpInputSchemaValidationError";
-import { validateToolInputAgainstSchema } from "./webMcpToolInputSchemaValidation";
+import type { WebMcpAgent } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
+import { WebMcpInputSchemaValidationError } from "@ku0/code-runtime-client/webMcpInputSchemaValidationError";
+import { validateToolInputAgainstSchema } from "@ku0/code-runtime-client/webMcpToolInputSchemaValidation";
 
 type JsonRecord = Record<string, unknown>;
 

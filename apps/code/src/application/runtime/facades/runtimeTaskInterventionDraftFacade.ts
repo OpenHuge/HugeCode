@@ -18,10 +18,14 @@ export type RuntimeTaskLauncherSourceDraft = {
   title: string | null;
   instruction: string;
   intent: RuntimeTaskLauncherInterventionIntent;
+  profileId: string;
+  preferredBackendIds?: string[];
+  reviewProfileId: string | null;
   taskSource?: MissionInterventionDraft["taskSource"];
   sourceMappingKind?: MissionInterventionDraft["sourceMappingKind"];
   validationPresetId?: string | null;
   accessMode?: MissionInterventionDraft["accessMode"];
+  relaunchContext?: AgentTaskRelaunchContext | null;
   fieldOrigins: MissionInterventionDraft["fieldOrigins"];
 };
 
@@ -199,10 +203,18 @@ export function prepareRuntimeTaskLauncherDraft(
         title: input.task.title ?? null,
         instruction: nextInstruction,
         intent: input.intent,
+        profileId: interventionDraft.profileId,
+        ...(interventionDraft.preferredBackendIds
+          ? { preferredBackendIds: interventionDraft.preferredBackendIds }
+          : {}),
+        reviewProfileId: interventionDraft.reviewProfileId,
         taskSource: interventionDraft.taskSource,
         sourceMappingKind: interventionDraft.sourceMappingKind,
         validationPresetId: interventionDraft.validationPresetId,
         accessMode: interventionDraft.accessMode,
+        ...(interventionDraft.relaunchContext
+          ? { relaunchContext: interventionDraft.relaunchContext }
+          : {}),
         fieldOrigins: interventionDraft.fieldOrigins,
       },
       infoMessage: buildInfoMessage(input.task.taskId, input.intent),

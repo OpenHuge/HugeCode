@@ -3,7 +3,7 @@ import { logger } from "./logger";
 import {
   isRuntimeMethodUnsupportedError,
   isWebRuntimeConnectionError,
-} from "./runtimeErrorClassifier";
+} from "@ku0/code-runtime-client/runtimeErrorClassifier";
 import { detectRuntimeMode } from "./runtimeClient";
 import { invokeWebRuntimeDirectRpc } from "./runtimeWebDirectRpc";
 

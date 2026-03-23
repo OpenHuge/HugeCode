@@ -2509,8 +2509,13 @@
             .iter()
             .any(|method| method == "code_oauth_primary_account_set"));
         assert!(!methods.iter().any(|method| method == "oauth_pool_apply"));
-        assert!(!methods.iter().any(|method| method == "code_runtime_run_start"));
-        assert!(!methods.iter().any(|method| method == "code_runtime_run_checkpoint_approval"));
+        assert!(!methods.iter().any(|method| method == "runtime_run_start"));
+        assert!(!methods
+            .iter()
+            .any(|method| method == "runtime_run_checkpoint_approval"));
+        assert!(!methods
+            .iter()
+            .any(|method| method == "oauth_primary_account_set"));
     }
 
     #[tokio::test]

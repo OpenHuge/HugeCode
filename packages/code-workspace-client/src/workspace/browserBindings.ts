@@ -2,7 +2,7 @@ import {
   CODE_RUNTIME_RPC_METHODS,
   type CodeRuntimeRpcRequestPayloadByMethod,
   type CodeRuntimeRpcResponsePayloadByMethod,
-  type HypeCodeMissionControlSnapshot,
+  type HugeCodeMissionControlSnapshot,
   type KernelProjectionBootstrapRequest,
   type KernelProjectionBootstrapResponse,
   type KernelProjectionDelta,
@@ -156,10 +156,10 @@ function parseKernelProjectionDelta(payload: unknown): KernelProjectionDelta | n
 
 function readMissionControlProjectionSlice(
   bootstrap: KernelProjectionBootstrapResponse
-): HypeCodeMissionControlSnapshot | null {
+): HugeCodeMissionControlSnapshot | null {
   const missionControl = bootstrap.slices.mission_control;
   return missionControl && typeof missionControl === "object"
-    ? (missionControl as HypeCodeMissionControlSnapshot)
+    ? (missionControl as HugeCodeMissionControlSnapshot)
     : null;
 }
 

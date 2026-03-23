@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
+import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import { ToolCallChip } from "../../../design-system";
 import {
@@ -34,6 +35,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     repositoryExecutionContractError,
     repositoryLaunchDefaults,
     resumeRecoverableTasks,
+    runtimeLaunchPreparation,
+    runtimeLaunchPreparationError,
+    runtimeLaunchPreparationLoading,
     runtimeDraftInstruction,
     runtimeDraftProfileId,
     runtimeDraftProfileTouched,
@@ -101,6 +105,19 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         .map((dependency) => `${dependency} -> ${task.taskKey}`)
     );
   }, [runtimeBatchPreview.tasks]);
+
+  useEffect(() => {
+    for (const entry of visibleRuntimeRuns.slice(0, 8)) {
+      const runId = entry.run?.id ?? entry.task.runSummary?.id ?? entry.task.taskId;
+      if (!runId) {
+        continue;
+      }
+      void primeRuntimeRunTruth({
+        runId,
+        workspaceId: entry.task.workspaceId ?? workspaceId,
+      });
+    }
+  }, [visibleRuntimeRuns, workspaceId]);
 
   return (
     <div className={controlStyles.controlSection}>
@@ -375,6 +392,74 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           rows={2}
           placeholder="Mission brief for agent"
         />
+        {runtimeDraftInstruction.trim().length > 0 ? (
+          <div className="workspace-home-code-runtime-item">
+            <div className="workspace-home-code-runtime-item-main">
+              <strong>Runtime launch plan</strong>
+              {runtimeLaunchPreparationLoading ? (
+                <span>Preparing runtime-owned launch plan...</span>
+              ) : runtimeLaunchPreparation ? (
+                <>
+                  <span>{runtimeLaunchPreparation.runIntent.summary}</span>
+                  <span>
+                    Clarified: {runtimeLaunchPreparation.runIntent.clarified ? "yes" : "needs work"}
+                  </span>
+                  <span>Risk: {runtimeLaunchPreparation.runIntent.riskLevel}</span>
+                  <span>{runtimeLaunchPreparation.contextWorkingSet.summary}</span>
+                  <span>{runtimeLaunchPreparation.executionGraph.summary}</span>
+                  <span>
+                    Approval batches:{" "}
+                    {runtimeLaunchPreparation.approvalBatches.length > 0
+                      ? runtimeLaunchPreparation.approvalBatches
+                          .map((batch) => `${batch.summary} (${batch.actionCount})`)
+                          .join(" | ")
+                      : "none"}
+                  </span>
+                  <span>
+                    Validation: {runtimeLaunchPreparation.validationPlan.summary}
+                    {runtimeLaunchPreparation.validationPlan.commands.length > 0
+                      ? ` | ${runtimeLaunchPreparation.validationPlan.commands.join(" | ")}`
+                      : ""}
+                  </span>
+                  <span>
+                    Review focus:{" "}
+                    {runtimeLaunchPreparation.reviewFocus.length > 0
+                      ? runtimeLaunchPreparation.reviewFocus.join(" | ")
+                      : "runtime did not publish review focus"}
+                  </span>
+                  {runtimeLaunchPreparation.runIntent.missingContext.length > 0 ? (
+                    <span>
+                      Missing context:{" "}
+                      {runtimeLaunchPreparation.runIntent.missingContext.join(" | ")}
+                    </span>
+                  ) : null}
+                </>
+              ) : (
+                <span>Runtime launch plan unavailable.</span>
+              )}
+            </div>
+            {runtimeLaunchPreparation?.contextWorkingSet.layers.length ? (
+              <div className={controlStyles.sectionMeta}>
+                {runtimeLaunchPreparation.contextWorkingSet.layers
+                  .map((layer) => {
+                    const entries = layer.entries.map((entry) => entry.label).join(", ");
+                    return `${layer.tier}: ${entries || layer.summary}`;
+                  })
+                  .join(" | ")}
+              </div>
+            ) : null}
+            {runtimeLaunchPreparation?.executionGraph.nodes.length ? (
+              <div className={controlStyles.sectionMeta}>
+                {runtimeLaunchPreparation.executionGraph.nodes
+                  .map((node) => `${node.label} [${node.kind}]`)
+                  .join(" -> ")}
+              </div>
+            ) : null}
+            {runtimeLaunchPreparationError ? (
+              <div className={controlStyles.warning}>{runtimeLaunchPreparationError}</div>
+            ) : null}
+          </div>
+        ) : null}
         <label>
           <span>Batch config (preview only)</span>
           <textarea

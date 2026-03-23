@@ -1,4 +1,4 @@
-import { RUNTIME_MESSAGE_CODES } from "./runtimeMessageCodes";
+import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
 import {
   type RuntimeToolExecutionScope,
   type RuntimeToolExecutionSnapshot,

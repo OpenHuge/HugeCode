@@ -368,6 +368,7 @@ const CODE_RUNTIME_RPC_FEATURES: &[&str] = &[
     "runtime_autonomy_v2",
     "runtime_autonomy_safety_v1",
     "runtime_kernel_v2",
+    "runtime_kernel_prepare_v2",
     "runtime_kernel_projection_v3",
     "runtime_kernel_jobs_v3",
     "runtime_stream_backpressure_v1",

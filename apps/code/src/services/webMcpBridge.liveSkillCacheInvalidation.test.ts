@@ -31,7 +31,10 @@ vi.mock("../application/runtime/ports/runtimeUpdatedEvents", () => ({
   subscribeScopedRuntimeUpdatedEvents: subscribeScopedRuntimeUpdatedEventsMock,
 }));
 
-import type { AgentCommandCenterActions, AgentCommandCenterSnapshot } from "./webMcpBridgeTypes";
+import type {
+  AgentCommandCenterActions,
+  AgentCommandCenterSnapshot,
+} from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 import { syncWebMcpAgentControl, teardownWebMcpAgentControl } from "./webMcpBridge";
 
 type ModelContextStub = {

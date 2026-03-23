@@ -1,5 +1,8 @@
-import { RUNTIME_MESSAGE_CODES } from "./runtimeMessageCodes";
-import { createRuntimeEnvelope, createRuntimeError } from "./runtimeMessageEnvelope";
+import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
+import {
+  createRuntimeEnvelope,
+  createRuntimeError,
+} from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 import { buildWebMcpPrompts, buildWebMcpResources } from "./webMcpBridgeContextDescriptors";
 import {
   buildCapabilityMatrix,
@@ -31,7 +34,7 @@ import type {
   WebMcpAgent,
   WebMcpSyncOptions,
   WebMcpSyncResult,
-} from "./webMcpBridgeTypes";
+} from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -578,8 +581,8 @@ export {
   listWebMcpCatalog,
   supportsWebMcp,
 } from "./webMcpBridgeModelContextApi";
-export type * from "./webMcpBridgeTypes";
-export { WebMcpInputSchemaValidationError } from "./webMcpInputSchemaValidationError";
+export type * from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
+export { WebMcpInputSchemaValidationError } from "@ku0/code-runtime-client/webMcpInputSchemaValidationError";
 export { invalidateCachedRuntimeLiveSkills } from "./webMcpBridgeRuntimeWorkspaceTools";
 
 export const WEB_MCP_AGENT_CONTROL_TOOL_NAMES = [...AGENT_CONTROL_TOOL_NAMES];
