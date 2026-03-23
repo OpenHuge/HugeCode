@@ -11,6 +11,50 @@ const INSTRUCTION_SKILL_FRONTMATTER_RESOURCE_ID: &str = "frontmatter";
 const INSTRUCTION_SKILL_SUPPORTING_FILES_RESOURCE_ID: &str = "supporting-files";
 const INSTRUCTION_SKILL_SUPPORTING_FILE_PREFIX: &str = "supporting-file:";
 
+fn optional_string_array_from_value(value: Option<&Value>) -> Vec<String> {
+    value
+        .and_then(Value::as_array)
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|entry| !entry.is_empty())
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn string_from_object(record: Option<&serde_json::Map<String, Value>>, keys: &[&str]) -> Option<String> {
+    let record = record?;
+    for key in keys {
+        let value = record
+            .get(*key)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|entry| !entry.is_empty());
+        if let Some(value) = value {
+            return Some(value.to_string());
+        }
+    }
+    None
+}
+
+fn string_array_from_object(record: Option<&serde_json::Map<String, Value>>, keys: &[&str]) -> Vec<String> {
+    let record = match record {
+        Some(record) => record,
+        None => return Vec::new(),
+    };
+    for key in keys {
+        let values = optional_string_array_from_value(record.get(*key));
+        if !values.is_empty() {
+            return values;
+        }
+    }
+    Vec::new()
+}
+
 fn optional_workspace_id(params: &serde_json::Map<String, Value>) -> Option<String> {
     read_optional_string(params, "workspaceId")
         .map(|value| value.trim().to_string())
@@ -469,6 +513,122 @@ fn catalog_entry_by_id(
         .find(|entry| entry.extension_id == extension_id.trim())
 }
 
+fn request_targets_instruction_extension(
+    params: &serde_json::Map<String, Value>,
+    existing: Option<&extensions_runtime::RuntimeExtensionSpecPayload>,
+) -> bool {
+    if existing.is_some_and(|entry| entry.kind == "instruction") {
+        return true;
+    }
+    if read_optional_string(params, "kind").is_some_and(|kind| kind == "instruction") {
+        return true;
+    }
+    optional_string_array(params, "capabilities")
+        .iter()
+        .any(|capability| capability == "instructions")
+}
+
+fn build_instruction_skill_overlay_payload(
+    extension_id: &str,
+    params: &serde_json::Map<String, Value>,
+    existing: Option<&extensions_runtime::RuntimeExtensionSpecPayload>,
+) -> Value {
+    let request_provenance = params.get("provenance").and_then(Value::as_object);
+    let request_config = params.get("config").and_then(Value::as_object);
+    let existing_provenance = existing.and_then(|entry| entry.provenance.as_object());
+
+    let name = read_optional_string(params, "displayName")
+        .or_else(|| read_optional_string(params, "name"))
+        .or_else(|| existing.map(|entry| entry.display_name.clone()))
+        .unwrap_or_else(|| extension_id.to_string());
+    let description = read_optional_string(params, "summary")
+        .or_else(|| existing.map(|entry| entry.summary.clone()))
+        .unwrap_or_default();
+    let scope = string_from_object(request_provenance, &["scope"])
+        .or_else(|| string_from_object(request_config, &["scope"]))
+        .or_else(|| string_from_object(existing_provenance, &["scope"]))
+        .unwrap_or_else(|| {
+            if existing.is_some_and(|entry| entry.distribution == "workspace") {
+                "workspace".to_string()
+            } else {
+                "global".to_string()
+            }
+        });
+    let source_family = string_from_object(request_provenance, &["sourceFamily", "source_family"])
+        .or_else(|| string_from_object(request_config, &["sourceFamily", "source_family"]))
+        .or_else(|| string_from_object(existing_provenance, &["sourceFamily", "source_family"]))
+        .or_else(|| existing.map(|entry| entry.publisher.clone()))
+        .unwrap_or_else(|| "native".to_string());
+    let entry_path = string_from_object(request_provenance, &["entryPath", "entry_path"])
+        .or_else(|| string_from_object(request_config, &["entryPath", "entry_path"]))
+        .or_else(|| string_from_object(existing_provenance, &["entryPath", "entry_path"]))
+        .unwrap_or_default();
+    let source_root = string_from_object(request_provenance, &["sourceRoot", "source_root"])
+        .or_else(|| string_from_object(request_config, &["sourceRoot", "source_root"]))
+        .or_else(|| string_from_object(existing_provenance, &["sourceRoot", "source_root"]))
+        .unwrap_or_default();
+    let aliases = {
+        let values = string_array_from_object(request_provenance, &["aliases"]);
+        if !values.is_empty() {
+            values
+        } else {
+            let values = string_array_from_object(request_config, &["aliases"]);
+            if !values.is_empty() {
+                values
+            } else {
+                string_array_from_object(existing_provenance, &["aliases"])
+            }
+        }
+    };
+    let shadowed_by = string_from_object(request_provenance, &["shadowedBy", "shadowed_by"])
+        .or_else(|| string_from_object(existing_provenance, &["shadowedBy", "shadowed_by"]));
+    let enabled = read_optional_bool(params, "enabled")
+        .or_else(|| existing.map(|entry| entry.enabled))
+        .unwrap_or(true);
+
+    json!({
+        "id": extension_id,
+        "name": name,
+        "description": description,
+        "version": read_optional_string(params, "version")
+            .or_else(|| existing.map(|entry| entry.version.clone()))
+            .unwrap_or_else(|| "v1".to_string()),
+        "scope": scope,
+        "sourceFamily": source_family,
+        "entryPath": entry_path,
+        "sourceRoot": source_root,
+        "enabled": enabled,
+        "aliases": aliases,
+        "shadowedBy": shadowed_by,
+    })
+}
+
+async fn upsert_instruction_skill_overlay(
+    ctx: &AppContext,
+    params: &serde_json::Map<String, Value>,
+    existing: Option<&extensions_runtime::RuntimeExtensionSpecPayload>,
+) -> Result<extensions_runtime::RuntimeExtensionSpecPayload, RpcError> {
+    let workspace_id = optional_workspace_id(params);
+    let extension_id = read_required_string(params, "extensionId")?;
+    let Some(existing) = existing else {
+        return Err(RpcError::invalid_params(format!(
+            "instruction extension `{extension_id}` must come from a workspace or bundled skill source before it can be managed through the extension lifecycle"
+        )));
+    };
+    let payload = build_instruction_skill_overlay_payload(extension_id, params, Some(existing));
+    let enabled = payload.get("enabled").and_then(Value::as_bool);
+    ctx.native_state_store
+        .upsert_entity(TABLE_NATIVE_SKILLS, extension_id, enabled, payload)
+        .await
+        .map_err(RpcError::internal)?;
+    let entries = list_extension_catalog(ctx, workspace_id.as_deref(), true).await?;
+    catalog_entry_by_id(entries, extension_id).ok_or_else(|| {
+        RpcError::internal(format!(
+            "instruction extension `{extension_id}` was updated but could not be reloaded from the catalog"
+        ))
+    })
+}
+
 fn extension_record_input_from_params(
     params: &serde_json::Map<String, Value>,
 ) -> Result<extensions_runtime::RuntimeExtensionRecordInput, RpcError> {
@@ -551,6 +711,17 @@ pub(super) async fn handle_extension_install_v2(
     params: &Value,
 ) -> Result<Value, RpcError> {
     let params = as_object(params)?;
+    let workspace_id = optional_workspace_id(params);
+    let extension_id = read_required_string(params, "extensionId")?;
+    let existing = catalog_entry_by_id(
+        list_extension_catalog(ctx, workspace_id.as_deref(), true).await?,
+        extension_id,
+    );
+    if request_targets_instruction_extension(params, existing.as_ref()) {
+        let spec = upsert_instruction_skill_overlay(ctx, params, existing.as_ref()).await?;
+        publish_extension_updated_event(ctx, "installed", &spec);
+        return Ok(json!(spec));
+    }
     let input = extension_record_input_from_params(params)?;
     let spec = {
         let mut store = ctx.extensions_store.write().await;
@@ -565,6 +736,17 @@ pub(super) async fn handle_extension_update_v2(
     params: &Value,
 ) -> Result<Value, RpcError> {
     let params = as_object(params)?;
+    let workspace_id = optional_workspace_id(params);
+    let extension_id = read_required_string(params, "extensionId")?;
+    let existing = catalog_entry_by_id(
+        list_extension_catalog(ctx, workspace_id.as_deref(), true).await?,
+        extension_id,
+    );
+    if request_targets_instruction_extension(params, existing.as_ref()) {
+        let spec = upsert_instruction_skill_overlay(ctx, params, existing.as_ref()).await?;
+        publish_extension_updated_event(ctx, "updated", &spec);
+        return Ok(json!(spec));
+    }
     let input = extension_record_input_from_params(params)?;
     let spec = {
         let mut store = ctx.extensions_store.write().await;
@@ -616,20 +798,33 @@ pub(super) async fn handle_extension_remove_v2(
     let params = as_object(params)?;
     let workspace_id = optional_workspace_id(params);
     let extension_id = read_required_string(params, "extensionId")?;
+    let existing = catalog_entry_by_id(
+        list_extension_catalog(ctx, workspace_id.as_deref(), true).await?,
+        extension_id,
+    );
 
-    let removed = {
-        let mut store = ctx.extensions_store.write().await;
-        store.remove(workspace_id.as_deref(), extension_id)
-    } || ctx
-        .native_state_store
-        .remove_entity(TABLE_NATIVE_PLUGINS, extension_id)
-        .await
-        .unwrap_or(false)
-        || ctx
+    let removed = if existing.as_ref().is_some_and(|entry| entry.kind == "instruction") {
+        ctx.native_state_store
+            .remove_entity(TABLE_NATIVE_SKILLS, extension_id)
+            .await
+            .unwrap_or(false)
+    } else {
+        let store_removed = {
+            let mut store = ctx.extensions_store.write().await;
+            store.remove(workspace_id.as_deref(), extension_id)
+        };
+        let native_plugin_removed = ctx
+            .native_state_store
+            .remove_entity(TABLE_NATIVE_PLUGINS, extension_id)
+            .await
+            .unwrap_or(false);
+        let native_skill_removed = ctx
             .native_state_store
             .remove_entity(TABLE_NATIVE_SKILLS, extension_id)
             .await
             .unwrap_or(false);
+        store_removed || native_plugin_removed || native_skill_removed
+    };
 
     if removed {
         publish_turn_event(
@@ -833,87 +1028,8 @@ pub(super) async fn handle_extension_resource_read_v1(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn resolved_instruction_skill_fixture() -> instruction_skills::ResolvedInstructionSkill {
-        instruction_skills::ResolvedInstructionSkill {
-            id: "workspace.agents.review".to_string(),
-            name: "review".to_string(),
-            description: "Review the current changeset".to_string(),
-            scope: "workspace".to_string(),
-            source_family: "agents".to_string(),
-            source_root: "/repo/.agents/skills".to_string(),
-            entry_path: "/repo/.agents/skills/review/SKILL.md".to_string(),
-            enabled: true,
-            aliases: vec!["review".to_string(), "agents:review".to_string()],
-            shadowed_by: None,
-            frontmatter: json!({
-                "name": "review",
-                "description": "Review the current changeset",
-            }),
-            body: "Review carefully".to_string(),
-            supporting_files: vec![instruction_skills::ResolvedInstructionSkillFile {
-                path: "checklist.md".to_string(),
-                content: "- item".to_string(),
-            }],
-        }
-    }
-
-    #[test]
-    fn instruction_skill_resource_payload_exposes_body_frontmatter_and_supporting_files() {
-        let skill = resolved_instruction_skill_fixture();
-
-        let body = instruction_skill_resource_payload(
-            skill.id.as_str(),
-            &skill,
-            INSTRUCTION_SKILL_BODY_RESOURCE_ID,
-        )
-        .expect("body resource");
-        assert_eq!(body.content_type, "text/markdown");
-        assert_eq!(body.content, "Review carefully");
-
-        let frontmatter = instruction_skill_resource_payload(
-            skill.id.as_str(),
-            &skill,
-            INSTRUCTION_SKILL_FRONTMATTER_RESOURCE_ID,
-        )
-        .expect("frontmatter resource");
-        assert_eq!(frontmatter.content_type, "application/json");
-        assert!(frontmatter.content.contains("\"name\":\"review\""));
-
-        let supporting_files = instruction_skill_resource_payload(
-            skill.id.as_str(),
-            &skill,
-            INSTRUCTION_SKILL_SUPPORTING_FILES_RESOURCE_ID,
-        )
-        .expect("supporting files resource");
-        assert_eq!(supporting_files.content_type, "application/json");
-        assert!(supporting_files.content.contains("checklist.md"));
-
-        let supporting_file = instruction_skill_resource_payload(
-            skill.id.as_str(),
-            &skill,
-            "supporting-file:checklist.md",
-        )
-        .expect("supporting file resource");
-        assert_eq!(supporting_file.content_type, "text/plain");
-        assert_eq!(supporting_file.content, "- item");
-    }
-
-    #[test]
-    fn instruction_skill_resource_payload_rejects_unknown_resource_ids() {
-        let skill = resolved_instruction_skill_fixture();
-        let error = instruction_skill_resource_payload(skill.id.as_str(), &skill, "unknown")
-            .expect_err("unknown resource should fail");
-        assert_eq!(error.code_str(), "INVALID_PARAMS");
-        assert!(
-            error.message.contains("does not expose resource"),
-            "unexpected error message: {}",
-            error.message
-        );
-    }
-}
+#[path = "rpc_dispatch_extensions_tests.rs"]
+mod tests;
 
 pub(super) async fn handle_extensions_config_v1(
     ctx: &AppContext,
