@@ -49,7 +49,7 @@ export const workspaceShell = style({
 
 const mainShellBase = {
   display: "grid",
-  gridTemplateRows: "auto minmax(0, 1fr) auto auto auto",
+  gridTemplateRows: "var(--main-topbar-height, 48px) minmax(0, 1fr) auto auto auto",
   position: "relative" as const,
   width: "100%",
   height: "100%",
