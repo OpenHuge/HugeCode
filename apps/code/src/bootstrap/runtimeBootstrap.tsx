@@ -8,6 +8,7 @@ import {
 } from "../utils/platformPaths";
 
 const appVersion = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "dev";
+const SENTRY_FALLBACK_INITIALIZATION_DELAY_MS = 5_000;
 
 let sentryInitializationPromise: Promise<void> | null = null;
 
@@ -58,6 +59,60 @@ export function ensureSentryInitialized() {
     throw error;
   });
   return sentryInitializationPromise;
+}
+
+function scheduleSentryInitialization() {
+  if (typeof window === "undefined") {
+    void ensureSentryInitialized();
+    return noop;
+  }
+
+  let cleanupIdleCallback = noop;
+  let initialized = false;
+
+  const scheduleIdleInitialization = () => {
+    if (initialized) {
+      return;
+    }
+    initialized = true;
+    if (typeof window.requestIdleCallback === "function") {
+      const idleHandle = window.requestIdleCallback(() => {
+        void ensureSentryInitialized();
+      });
+      cleanupIdleCallback = () => {
+        window.cancelIdleCallback?.(idleHandle);
+      };
+      return;
+    }
+    const idleTimeoutHandle = window.setTimeout(() => {
+      void ensureSentryInitialized();
+    }, 0);
+    cleanupIdleCallback = () => {
+      window.clearTimeout(idleTimeoutHandle);
+    };
+  };
+
+  const onFirstInteraction = () => {
+    scheduleIdleInitialization();
+  };
+
+  const interactionEventOptions = { capture: true, passive: true, once: true } as const;
+  window.addEventListener("pointerdown", onFirstInteraction, interactionEventOptions);
+  window.addEventListener("keydown", onFirstInteraction, {
+    capture: true,
+    once: true,
+  });
+
+  const timeoutHandle = window.setTimeout(() => {
+    scheduleIdleInitialization();
+  }, SENTRY_FALLBACK_INITIALIZATION_DELAY_MS);
+
+  return () => {
+    window.removeEventListener("pointerdown", onFirstInteraction, true);
+    window.removeEventListener("keydown", onFirstInteraction, true);
+    window.clearTimeout(timeoutHandle);
+    cleanupIdleCallback();
+  };
 }
 
 export function installMobileZoomGesturePrevention() {
@@ -162,9 +217,10 @@ export function RuntimeBootstrapEffects() {
     void applyRuntimeFlags();
     const cleanupZoom = installMobileZoomGesturePrevention();
     const cleanupViewport = installMobileViewportHeightSync();
-    void ensureSentryInitialized();
+    const cleanupSentry = scheduleSentryInitialization();
 
     return () => {
+      cleanupSentry();
       cleanupViewport();
       cleanupZoom();
     };

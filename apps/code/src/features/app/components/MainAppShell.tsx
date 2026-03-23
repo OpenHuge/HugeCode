@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { lazy, memo, Suspense } from "react";
+import { lazy, memo, Suspense, useLayoutEffect, useRef } from "react";
 import type { GitHubPanelDataProps } from "../../git/components/GitHubPanelData";
 import type { MobileServerSetupWizardProps } from "../../mobile/components/MobileServerSetupWizard";
 import type { AppLayoutProps } from "./AppLayout";
@@ -33,6 +33,39 @@ type MainAppShellProps = {
   mobileSetupWizardProps: MobileServerSetupWizardProps;
 };
 
+function toStylePropertyName(property: string) {
+  if (property.startsWith("--")) {
+    return property;
+  }
+  if (property.startsWith("ms")) {
+    return `-${property.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)}`;
+  }
+  return property.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
+}
+
+function applyStyleMap(node: HTMLElement, styleMap: CSSProperties | undefined) {
+  if (!styleMap) {
+    return;
+  }
+
+  for (const [property, value] of Object.entries(styleMap)) {
+    if (value === undefined || value === null || value === "") {
+      continue;
+    }
+    node.style.setProperty(toStylePropertyName(property), String(value));
+  }
+}
+
+function clearStyleMap(node: HTMLElement, styleMap: CSSProperties | undefined) {
+  if (!styleMap) {
+    return;
+  }
+
+  for (const property of Object.keys(styleMap)) {
+    node.style.removeProperty(toStylePropertyName(property));
+  }
+}
+
 export const MainAppShell = memo(function MainAppShell({
   appClassName,
   appStyle,
@@ -43,6 +76,8 @@ export const MainAppShell = memo(function MainAppShell({
   showMobileSetupWizard,
   mobileSetupWizardProps,
 }: MainAppShellProps) {
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  const previousStyleRef = useRef<CSSProperties | undefined>(undefined);
   const shouldLoadAppModals =
     appModalsProps.renamePrompt !== null ||
     appModalsProps.worktreePrompt !== null ||
@@ -50,8 +85,24 @@ export const MainAppShell = memo(function MainAppShell({
     appModalsProps.branchSwitcher !== null ||
     appModalsProps.settingsOpen;
 
+  useLayoutEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) {
+      return;
+    }
+
+    clearStyleMap(shell, previousStyleRef.current);
+    applyStyleMap(shell, appStyle);
+    previousStyleRef.current = appStyle;
+
+    return () => {
+      clearStyleMap(shell, previousStyleRef.current);
+      previousStyleRef.current = undefined;
+    };
+  }, [appStyle]);
+
   return (
-    <div className={appClassName} style={appStyle}>
+    <div ref={shellRef} className={appClassName}>
       <div className="drag-strip" id="titlebar" data-tauri-drag-region />
       {shouldLoadGitHubPanelData ? (
         <Suspense fallback={null}>

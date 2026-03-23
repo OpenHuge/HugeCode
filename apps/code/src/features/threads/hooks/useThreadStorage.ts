@@ -275,7 +275,9 @@ export function useThreadStorage(): UseThreadStorageResult {
         if (cancelled) {
           return;
         }
-        hydrateLegacySnapshots({ persistToNative: false });
+        threadSnapshotsReadyRef.current = true;
+        setThreadSnapshotsReady(true);
+        flushPendingThreadSnapshotSync();
       });
     window.addEventListener("storage", handleStorage);
     return () => {

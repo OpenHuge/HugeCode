@@ -1,9 +1,6 @@
 export const APP_DESIGN_SYSTEM_ADAPTER_ENTRY_FILES = [
   "apps/code/src/design-system/adapters/Button/Button.tsx",
-  "apps/code/src/design-system/adapters/Card/Card.tsx",
   "apps/code/src/design-system/adapters/Input/Input.tsx",
-  "apps/code/src/design-system/adapters/Radio/Radio.tsx",
-  "apps/code/src/design-system/adapters/Select/Select.tsx",
 ];
 
 export const APP_DESIGN_SYSTEM_ALLOWED_COMPONENT_FILES = [
@@ -103,28 +100,8 @@ export const APP_DESIGN_SYSTEM_ROOT_ADAPTER_EXPORTS = [
     exports: ["Button", "ButtonProps"],
   },
   {
-    source: "./adapters/Card",
-    exports: [
-      "Card",
-      "CardBody",
-      "CardDescription",
-      "CardFooter",
-      "CardHeader",
-      "CardTitle",
-      "CardProps",
-    ],
-  },
-  {
     source: "./adapters/Input",
     exports: ["Input", "InputProps"],
-  },
-  {
-    source: "./adapters/Radio",
-    exports: ["RadioGroup", "RadioGroupOption", "RadioGroupProps"],
-  },
-  {
-    source: "./adapters/Select",
-    exports: ["Select", "SelectOption", "SelectProps"],
   },
 ];
 
@@ -261,6 +238,13 @@ export const APP_DESIGN_SYSTEM_ROOT_DIRECT_SHARED_EXPORTS = [
   "AvatarProps",
   "Badge",
   "BadgeProps",
+  "Card",
+  "CardBody",
+  "CardDescription",
+  "CardFooter",
+  "CardHeader",
+  "CardProps",
+  "CardTitle",
   "Checkbox",
   "CheckboxProps",
   "DropdownMenuContent",
@@ -279,8 +263,14 @@ export const APP_DESIGN_SYSTEM_ROOT_DIRECT_SHARED_EXPORTS = [
   "MetadataListProps",
   "MetadataRow",
   "MetadataRowProps",
+  "RadioGroup",
+  "RadioGroupOption",
+  "RadioGroupProps",
   "SectionHeader",
   "SectionHeaderProps",
+  "Select",
+  "SelectOption",
+  "SelectProps",
   "StatusBadge",
   "StatusBadgeProps",
   "StatusBadgeTone",
