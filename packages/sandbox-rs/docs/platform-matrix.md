@@ -4,14 +4,14 @@ This document tracks restricted runtime isolation support. It is separate from d
 
 ## Desktop Packaging Coverage
 
-| Platform            | PR Desktop Verify | Release Packaging | Notes                                                         |
-| ------------------- | ----------------- | ----------------- | ------------------------------------------------------------- |
-| macOS Apple Silicon | Yes               | Yes               | Primary macOS PR target.                                      |
-| macOS Intel         | No                | Yes               | Release-only to keep PR runtime lower.                        |
-| Windows x64         | Yes               | Yes               | Uses Tauri Windows host checks plus NSIS packaging.           |
-| Windows ARM64       | Yes               | Yes               | PR verifies compile/link and release packages NSIS artifacts. |
-| Linux x64           | Yes               | Yes               | Uses deb/appimage packaging in release workflows.             |
-| Linux ARM64         | No                | Yes               | Release-only packaging target.                                |
+| Platform            | PR Desktop Verify | Release Packaging | Notes                                                                                 |
+| ------------------- | ----------------- | ----------------- | ------------------------------------------------------------------------------------- |
+| macOS Apple Silicon | Yes               | Yes               | Primary macOS PR target.                                                              |
+| macOS Intel         | No                | Yes               | Release-only to keep PR runtime lower.                                                |
+| Windows x64         | Yes               | Yes               | Uses Tauri Windows host checks plus NSIS packaging.                                   |
+| Windows ARM64       | No                | No                | CI packaging disabled until upstream Node/runtime dependencies support `win32 arm64`. |
+| Linux x64           | Yes               | Yes               | Uses deb/appimage packaging in release workflows.                                     |
+| Linux ARM64         | No                | Yes               | Release-only packaging target.                                                        |
 
 ## Restricted Sandbox Coverage
 

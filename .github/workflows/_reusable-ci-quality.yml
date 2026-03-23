@@ -34,10 +34,13 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
         if: inputs.ci_required
         with:
-          install-command: pnpm ci:install:offline
+          install-command: pnpm install --offline --frozen-lockfile
 
       - if: inputs.ci_required
         uses: ./.github/actions/cache-turbo
+
+      - if: inputs.ci_required && inputs.desktop_runtime_changed
+        uses: ./.github/actions/install-linux-desktop-deps
 
       - if: inputs.ci_required && inputs.desktop_runtime_changed
         uses: ./.github/actions/setup-rust-ci
@@ -62,7 +65,7 @@ jobs:
 
       - name: Code integration watch
         if: inputs.ci_required
-        run: pnpm code:integration:check
+        run: node scripts/code-integration-watch.mjs --fetch
 
       - name: Format check
         if: inputs.ci_required

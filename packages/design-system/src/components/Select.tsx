@@ -77,6 +77,39 @@ const COMPACT_MIN_MENU_WIDTH_RATIO = 0.45;
 const AUTO_ALIGN_END_SWITCH_DELTA_PX = 16;
 const AUTO_ALIGN_END_MIN_START_OVERFLOW_PX = 8;
 
+function toStylePropertyName(property: string) {
+  if (property.startsWith("--")) {
+    return property;
+  }
+  if (property.startsWith("ms")) {
+    return `-${property.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)}`;
+  }
+  return property.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
+}
+
+function applyStyleMap(node: HTMLElement, styleMap: CSSProperties | null | undefined) {
+  if (!styleMap) {
+    return;
+  }
+
+  for (const [property, value] of Object.entries(styleMap)) {
+    if (value === undefined || value === null || value === "") {
+      continue;
+    }
+    node.style.setProperty(toStylePropertyName(property), String(value));
+  }
+}
+
+function clearStyleMap(node: HTMLElement, styleMap: CSSProperties | null | undefined) {
+  if (!styleMap) {
+    return;
+  }
+
+  for (const property of Object.keys(styleMap)) {
+    node.style.removeProperty(toStylePropertyName(property));
+  }
+}
+
 function normalizeUniqueValues(values: readonly string[]) {
   return Array.from(
     new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))
@@ -614,11 +647,28 @@ export function Select({
     updateMenuPosition,
   ]);
 
+  const previousMenuStyleRef = useRef<CSSProperties | null | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) {
+      return;
+    }
+
+    clearStyleMap(menu, previousMenuStyleRef.current);
+    applyStyleMap(menu, menuStyle);
+    previousMenuStyleRef.current = menuStyle;
+
+    return () => {
+      clearStyleMap(menu, previousMenuStyleRef.current);
+      previousMenuStyleRef.current = undefined;
+    };
+  }, [menuStyle, open]);
+
   const menu = open ? (
     <div
       ref={menuRef}
       className={cx("ds-select-menu", menuPlacement === "up" && "is-up", menuClassName)}
-      style={menuStyle ?? undefined}
       id={listboxId}
       role="listbox"
       aria-label={resolvedAriaLabel}

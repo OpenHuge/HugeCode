@@ -166,7 +166,8 @@ describe("ThreadList", () => {
     if (!nestedRow) {
       throw new Error("Missing nested thread row");
     }
-    expect(nestedRow.getAttribute("style")).toContain("--thread-indent");
+    expect(nestedRow.getAttribute("data-thread-depth")).toBe("1");
+    expect(nestedRow.getAttribute("style")).toBeNull();
 
     fireEvent.contextMenu(nestedRow);
     expect(onShowThreadMenu).toHaveBeenCalledWith(expect.anything(), "ws-1", "thread-2", false);

@@ -76,6 +76,8 @@ jobs:
               - 'scripts/lib/branch-policy.mjs'
               - 'scripts/check-repo-sot.mjs'
               - 'scripts/check-workflow-governance.mjs'
+              - 'scripts/check-workspace-task-coverage.mjs'
+              - 'scripts/codex-preflight.mjs'
               - 'scripts/workflow-list.mjs'
               - 'apps/deskt*/README.md'
             frontend_optimization:
@@ -106,7 +108,11 @@ jobs:
           install: "false"
 
       - name: Codex preflight
-        run: pnpm preflight:codex
+        run: |
+          node scripts/check-repo-sot.mjs
+          node scripts/check-workflow-governance.mjs
+          node scripts/check-workspace-task-coverage.mjs
+          node scripts/codex-preflight.mjs
 
   # Combined quality checks (lint + typecheck) - saves ~60s by eliminating duplicate setup
   quality:
@@ -148,9 +154,22 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
-          install-command: pnpm ci:install:offline
+          install-command: pnpm install --offline --frozen-lockfile
 
       - uses: ./.github/actions/cache-turbo
+
+      - uses: ./.github/actions/setup-rust-ci
+        with:
+          cargo-cache-path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ~/.cache/ku0/cargo-target/code-tauri
+          cargo-cache-key: ${{ runner.os }}-code-tauri-build
+
+      - uses: ./.github/actions/install-linux-desktop-deps
+        if: ${{ runner.os == 'Linux' }}
 
       - name: Build
         run: pnpm build
@@ -178,7 +197,7 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
-          install-command: pnpm ci:install:offline
+          install-command: pnpm install --offline --frozen-lockfile
 
       - uses: ./.github/actions/restore-artifact
         with:
@@ -206,7 +225,7 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
-          install-command: pnpm ci:install:offline
+          install-command: pnpm install --offline --frozen-lockfile
 
       - uses: ./.github/actions/cache-turbo
 
@@ -241,7 +260,7 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
-          install-command: pnpm ci:install:offline
+          install-command: pnpm install --offline --frozen-lockfile
 
       - uses: ./.github/actions/restore-artifact
         with:
@@ -276,7 +295,7 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
-          install-command: pnpm ci:install:offline
+          install-command: pnpm install --offline --frozen-lockfile
 
       - uses: ./.github/actions/setup-playwright
 

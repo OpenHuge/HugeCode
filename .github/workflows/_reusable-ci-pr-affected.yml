@@ -28,7 +28,7 @@ jobs:
       - uses: ./.github/actions/setup-node-pnpm
         if: inputs.ci_required
         with:
-          install-command: pnpm ci:install:offline
+          install-command: pnpm install --offline --frozen-lockfile
 
       - if: inputs.ci_required
         uses: ./.github/actions/cache-turbo
