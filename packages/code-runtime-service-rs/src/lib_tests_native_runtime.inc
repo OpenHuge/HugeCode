@@ -490,7 +490,7 @@ fn native_rpc_capabilities_v2_method_set_hash_is_stable() {
     let methods = list_native_rpc_method_capabilities();
     assert_eq!(
         hash_rpc_method_capabilities(methods.as_slice()),
-        "03d258d6bab6a9e9"
+        "935b0f75bcd9c0a1"
     );
 }
 

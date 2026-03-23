@@ -30,6 +30,17 @@ async fn active_provider_extension_specs(
         .collect::<Vec<_>>()
 }
 
+async fn known_provider_extension_specs(
+    ctx: &AppContext,
+) -> Vec<extensions_runtime::RuntimeExtensionSpecPayload> {
+    crate::rpc_dispatch_extensions::list_extension_catalog(ctx, None, true)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|entry| entry.kind == "provider")
+        .collect::<Vec<_>>()
+}
+
 fn provider_extension_seed_by_id<'a>(
     ctx: &'a AppContext,
     extension_id: &str,
@@ -125,6 +136,26 @@ fn runtime_provider_extension_from_catalog_entry(
     })
 }
 
+fn provider_extension_matches_model_id(
+    entry: &RuntimeResolvedProviderExtension,
+    model_id: &str,
+) -> bool {
+    let normalized_model_id = model_id.trim().to_ascii_lowercase();
+    if normalized_model_id.is_empty() {
+        return false;
+    }
+
+    let default_model_id = entry.default_model_id.trim().to_ascii_lowercase();
+    if default_model_id == normalized_model_id {
+        return true;
+    }
+
+    entry.aliases.iter().any(|alias| {
+        normalized_model_id.starts_with(format!("{alias}/").as_str())
+            || normalized_model_id.starts_with(format!("{alias}-").as_str())
+    })
+}
+
 pub(super) async fn active_provider_extensions(
     ctx: &AppContext,
 ) -> Vec<RuntimeResolvedProviderExtension> {
@@ -133,6 +164,18 @@ pub(super) async fn active_provider_extensions(
         .into_iter()
         .filter_map(|entry| runtime_provider_extension_from_catalog_entry(ctx, entry))
         .collect::<Vec<_>>()
+}
+
+pub(super) async fn resolve_known_provider_extension_by_alias(
+    ctx: &AppContext,
+    provider_hint: &str,
+) -> Option<RuntimeResolvedProviderExtension> {
+    let normalized = normalize_provider_hint(provider_hint)?;
+    known_provider_extension_specs(ctx)
+        .await
+        .into_iter()
+        .filter_map(|entry| runtime_provider_extension_from_catalog_entry(ctx, entry))
+        .find(|extension| extension.aliases.iter().any(|alias| alias == &normalized))
 }
 
 pub(super) async fn resolve_active_provider_extension_by_alias(
@@ -146,28 +189,25 @@ pub(super) async fn resolve_active_provider_extension_by_alias(
         .find(|extension| extension.aliases.iter().any(|alias| alias == &normalized))
 }
 
+pub(super) async fn resolve_known_provider_extension_by_model_id(
+    ctx: &AppContext,
+    model_id: &str,
+) -> Option<RuntimeResolvedProviderExtension> {
+    known_provider_extension_specs(ctx)
+        .await
+        .into_iter()
+        .filter_map(|entry| runtime_provider_extension_from_catalog_entry(ctx, entry))
+        .find(|extension| provider_extension_matches_model_id(extension, model_id))
+}
+
 pub(super) async fn resolve_active_provider_extension_by_model_id(
     ctx: &AppContext,
     model_id: &str,
 ) -> Option<RuntimeResolvedProviderExtension> {
-    let normalized_model_id = model_id.trim().to_ascii_lowercase();
-    if normalized_model_id.is_empty() {
-        return None;
-    }
-
     active_provider_extensions(ctx)
         .await
         .into_iter()
-        .find(|extension| {
-            let default_model_id = extension.default_model_id.trim().to_ascii_lowercase();
-            if default_model_id == normalized_model_id {
-                return true;
-            }
-            extension.aliases.iter().any(|alias| {
-                normalized_model_id.starts_with(format!("{alias}/").as_str())
-                    || normalized_model_id.starts_with(format!("{alias}-").as_str())
-            })
-        })
+        .find(|extension| provider_extension_matches_model_id(extension, model_id))
 }
 
 pub(super) fn normalize_openai_compat_base_url(base_url: &str) -> Option<String> {

@@ -112,6 +112,16 @@ fn build_turn_contents(content: &str, context_prefix: Option<&str>) -> (String, 
     (provider_content, local_exec_content)
 }
 
+fn extension_provider_unavailable_error(
+    extension: &RuntimeResolvedProviderExtension,
+) -> RpcError {
+    if extension.api_key.is_none() {
+        RpcError::invalid_params("Selected extension provider is not configured with API key.")
+    } else {
+        RpcError::invalid_params("Selected extension provider is disabled.")
+    }
+}
+
 async fn query_provider_with_local_exec_fallback(
     ctx: &AppContext,
     routed_provider_route: &TurnProviderRoute,
@@ -626,12 +636,16 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
         .as_deref()
         .and_then(|provider| parse_runtime_provider(Some(provider)));
     #[rustfmt::skip]
+    let provider_hint_known_extension = match provider_hint.as_deref() { Some(provider) => resolve_known_provider_extension_by_alias(ctx, provider).await, None => None };
+    #[rustfmt::skip]
     let provider_hint_extension = match provider_hint.as_deref() { Some(provider) => resolve_active_provider_extension_by_alias(ctx, provider).await, None => None };
     let requested_model_id = read_optional_string(payload, "modelId");
     #[rustfmt::skip]
+    let model_hint_known_extension = match requested_model_id.as_deref() { Some(model_id) => resolve_known_provider_extension_by_model_id(ctx, model_id).await, None => None };
+    #[rustfmt::skip]
     let model_hint_extension = match requested_model_id.as_deref() { Some(model_id) => resolve_active_provider_extension_by_model_id(ctx, model_id).await, None => None };
     if let Some(provider_value) = provider_hint.as_deref() {
-        if provider_hint_core.is_none() && provider_hint_extension.is_none() {
+        if provider_hint_core.is_none() && provider_hint_known_extension.is_none() {
             let active_extensions = active_provider_extensions(ctx).await;
             let supported = RuntimeProvider::specs()
                 .iter()
@@ -648,6 +662,18 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
             return Err(RpcError::invalid_params(format!(
                 "Unsupported turn provider `{provider_value}`. Supported providers: {supported}."
             )));
+        }
+    }
+    if let Some(extension) = provider_hint_known_extension.as_ref() {
+        if provider_hint_extension.is_none() {
+            return Err(extension_provider_unavailable_error(extension));
+        }
+    }
+    if provider_hint.is_none() {
+        if let Some(extension) = model_hint_known_extension.as_ref() {
+            if model_hint_extension.is_none() {
+                return Err(extension_provider_unavailable_error(extension));
+            }
         }
     }
     if let (Some(provider_value), Some(extension_provider)) =
