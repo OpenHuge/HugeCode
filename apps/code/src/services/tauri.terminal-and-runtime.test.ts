@@ -1390,8 +1390,8 @@ describe("tauri invoke wrappers", () => {
     });
     const removeRuntimeExtensionMock = vi.fn().mockResolvedValue(true);
     vi.mocked(getRuntimeClient).mockReturnValue({
-      extensionInstallV1: installRuntimeExtensionMock,
-      extensionRemoveV1: removeRuntimeExtensionMock,
+      extensionInstallV2: installRuntimeExtensionMock,
+      extensionRemoveV2: removeRuntimeExtensionMock,
     } as unknown as ReturnType<typeof getRuntimeClient>);
 
     await expect(
@@ -1425,15 +1425,15 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
-  it("returns helper fallbacks for unsupported runtime extension wrappers", async () => {
+  it("surfaces unsupported runtime extension wrapper methods", async () => {
     const unsupportedError = {
       name: "RuntimeRpcMethodUnsupportedError",
       code: "method_not_found",
       message: "method not found",
     };
     vi.mocked(getRuntimeClient).mockReturnValue({
-      extensionInstallV1: vi.fn().mockRejectedValue(unsupportedError),
-      extensionRemoveV1: vi.fn().mockRejectedValue(unsupportedError),
+      extensionInstallV2: vi.fn().mockRejectedValue(unsupportedError),
+      extensionRemoveV2: vi.fn().mockRejectedValue(unsupportedError),
     } as unknown as ReturnType<typeof getRuntimeClient>);
 
     await expect(
@@ -1443,18 +1443,18 @@ describe("tauri invoke wrappers", () => {
         name: "Extension Z",
         transport: "builtin",
       })
-    ).resolves.toBeNull();
+    ).rejects.toMatchObject({ code: "method_not_found" });
     await expect(
       removeRuntimeExtension({ workspaceId: "ws-4", extensionId: "ext-z" })
-    ).resolves.toBe(false);
+    ).rejects.toMatchObject({ code: "method_not_found" });
   });
 
   it("rethrows runtime extension mutation connection errors in web runtime mode", async () => {
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const connectionError = new Error("Failed to fetch (127.0.0.1:8788)");
     vi.mocked(getRuntimeClient).mockReturnValue({
-      extensionInstallV1: vi.fn().mockRejectedValue(connectionError),
-      extensionRemoveV1: vi.fn().mockRejectedValue(connectionError),
+      extensionInstallV2: vi.fn().mockRejectedValue(connectionError),
+      extensionRemoveV2: vi.fn().mockRejectedValue(connectionError),
     } as unknown as ReturnType<typeof getRuntimeClient>);
 
     await expect(

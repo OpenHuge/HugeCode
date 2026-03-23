@@ -1,104 +1,127 @@
 import type {
   RuntimeExtensionInstallRequest,
+  RuntimeExtensionHealthReadRequest,
+  RuntimeExtensionHealthReadResponse,
+  RuntimeExtensionPermissionsEvaluateRequest,
+  RuntimeExtensionPermissionsEvaluateResponse,
+  RuntimeExtensionRecord,
+  RuntimeExtensionRegistrySearchRequest,
+  RuntimeExtensionRegistrySearchResponse,
+  RuntimeExtensionRegistrySource,
   RuntimeExtensionResourceReadRequest,
   RuntimeExtensionResourceReadResponse,
   RuntimeExtensionSpec,
+  RuntimeExtensionUiAppsListRequest,
+  RuntimeExtensionUiAppsListResponse,
   RuntimeExtensionsConfigResponse,
   RuntimeExtensionToolSummary,
+  RuntimeExtensionUpdateRequest,
 } from "@ku0/code-runtime-host-contract";
-import { isCodeRuntimeRpcMethodNotFoundErrorCode } from "@ku0/code-runtime-host-contract/codeRuntimeRpcCompat";
-
-import { toRuntimeRpcInvocationError } from "@ku0/code-runtime-client/runtimeClientErrorUtils";
 import type { RuntimeClient } from "./runtimeClient";
-
-function isMethodUnsupported(error: unknown): boolean {
-  const normalized = toRuntimeRpcInvocationError(error);
-  return Boolean(normalized && isCodeRuntimeRpcMethodNotFoundErrorCode(normalized.code));
-}
 
 export async function listRuntimeExtensionsWithFallback(
   client: RuntimeClient,
   workspaceId?: string | null
 ): Promise<RuntimeExtensionSpec[]> {
-  try {
-    return await client.extensionsListV1(workspaceId ?? null);
-  } catch (error) {
-    if (isMethodUnsupported(error)) {
-      return [];
-    }
-    throw error;
-  }
+  return client.extensionCatalogListV2({ workspaceId: workspaceId ?? null });
+}
+
+export async function getRuntimeExtensionWithFallback(
+  client: RuntimeClient,
+  request: { workspaceId?: string | null; extensionId: string }
+): Promise<RuntimeExtensionRecord | null> {
+  return client.extensionGetV2(request);
 }
 
 export async function installRuntimeExtensionWithFallback(
   client: RuntimeClient,
   request: RuntimeExtensionInstallRequest
 ): Promise<RuntimeExtensionSpec | null> {
-  try {
-    return await client.extensionInstallV1(request);
-  } catch (error) {
-    if (isMethodUnsupported(error)) {
-      return null;
-    }
-    throw error;
-  }
+  return client.extensionInstallV2(request);
+}
+
+export async function updateRuntimeExtensionWithFallback(
+  client: RuntimeClient,
+  request: RuntimeExtensionUpdateRequest
+): Promise<RuntimeExtensionSpec | null> {
+  return client.extensionUpdateV2(request);
+}
+
+export async function setRuntimeExtensionStateWithFallback(
+  client: RuntimeClient,
+  request: { workspaceId?: string | null; extensionId: string; enabled: boolean }
+): Promise<RuntimeExtensionSpec | null> {
+  return client.extensionSetStateV2(request);
 }
 
 export async function removeRuntimeExtensionWithFallback(
   client: RuntimeClient,
   request: { workspaceId?: string | null; extensionId: string }
 ): Promise<boolean> {
-  try {
-    return await client.extensionRemoveV1(request);
-  } catch (error) {
-    if (isMethodUnsupported(error)) {
-      return false;
-    }
-    throw error;
-  }
+  return client.extensionRemoveV2(request);
+}
+
+export async function searchRuntimeExtensionRegistryWithFallback(
+  client: RuntimeClient,
+  request: RuntimeExtensionRegistrySearchRequest = {}
+): Promise<RuntimeExtensionRegistrySearchResponse> {
+  return client.extensionRegistrySearchV2(request);
+}
+
+export async function listRuntimeExtensionRegistrySourcesWithFallback(
+  client: RuntimeClient,
+  workspaceId?: string | null
+): Promise<RuntimeExtensionRegistrySource[]> {
+  void workspaceId;
+  return client.extensionRegistrySourcesV2();
+}
+
+export async function evaluateRuntimeExtensionPermissionsWithFallback(
+  client: RuntimeClient,
+  request: RuntimeExtensionPermissionsEvaluateRequest
+): Promise<RuntimeExtensionPermissionsEvaluateResponse> {
+  return client.extensionPermissionsEvaluateV2(request);
+}
+
+export async function readRuntimeExtensionHealthWithFallback(
+  client: RuntimeClient,
+  request: RuntimeExtensionHealthReadRequest
+): Promise<RuntimeExtensionHealthReadResponse> {
+  return client.extensionHealthReadV2(request);
+}
+
+export async function listRuntimeExtensionUiAppsWithFallback(
+  client: RuntimeClient,
+  request: RuntimeExtensionUiAppsListRequest = {}
+): Promise<RuntimeExtensionUiAppsListResponse> {
+  return client.extensionUiAppsListV2(request);
 }
 
 export async function listRuntimeExtensionToolsWithFallback(
   client: RuntimeClient,
   request: { workspaceId?: string | null; extensionId: string }
 ): Promise<RuntimeExtensionToolSummary[]> {
-  try {
-    return await client.extensionToolsListV1(request);
-  } catch (error) {
-    if (isMethodUnsupported(error)) {
-      return [];
-    }
-    throw error;
-  }
+  return client.extensionToolsListV2(request);
 }
 
 export async function readRuntimeExtensionResourceWithFallback(
   client: RuntimeClient,
   request: RuntimeExtensionResourceReadRequest
 ): Promise<RuntimeExtensionResourceReadResponse | null> {
-  try {
-    return await client.extensionResourceReadV1(request);
-  } catch (error) {
-    if (isMethodUnsupported(error)) {
-      return null;
-    }
-    throw error;
-  }
+  return client.extensionResourceReadV2(request);
 }
 
 export async function readRuntimeExtensionsConfigWithFallback(
   client: RuntimeClient,
   workspaceId?: string | null
 ): Promise<RuntimeExtensionsConfigResponse> {
-  try {
-    return await client.extensionsConfigV1(workspaceId ?? null);
-  } catch (error) {
-    if (isMethodUnsupported(error)) {
-      return {
-        extensions: [],
-        warnings: ["Runtime does not support extension config RPC methods."],
-      };
-    }
-    throw error;
-  }
+  const [extensions, registrySources] = await Promise.all([
+    client.extensionCatalogListV2({ workspaceId: workspaceId ?? null }),
+    client.extensionRegistrySourcesV2(),
+  ]);
+  return {
+    extensions,
+    warnings: extensions.length === 0 ? ["No runtime extensions are currently installed."] : [],
+    registrySources,
+  };
 }

@@ -525,7 +525,7 @@ fn embedded_runtime_service_config(
         .or_else(|| default_model_id.map(str::trim).map(str::to_string))
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "gpt-5.4".to_string());
-    let provider_extensions = parse_runtime_provider_extensions(
+    let provider_extension_seeds = parse_provider_extension_seeds(
         std::env::var("CODE_RUNTIME_SERVICE_PROVIDER_EXTENSIONS_JSON")
             .ok()
             .as_deref(),
@@ -648,7 +648,7 @@ fn embedded_runtime_service_config(
         .unwrap_or(DEFAULT_RUNTIME_WS_MAX_MESSAGE_SIZE_BYTES),
         ws_max_connections: env_usize("CODE_RUNTIME_SERVICE_WS_MAX_CONNECTIONS")
             .unwrap_or(DEFAULT_RUNTIME_WS_MAX_CONNECTIONS),
-        provider_extensions,
+        provider_extension_seeds,
     })
 }
 
@@ -735,7 +735,7 @@ mod tests {
             ws_max_frame_size_bytes: DEFAULT_RUNTIME_WS_MAX_FRAME_SIZE_BYTES,
             ws_max_message_size_bytes: DEFAULT_RUNTIME_WS_MAX_MESSAGE_SIZE_BYTES,
             ws_max_connections: DEFAULT_RUNTIME_WS_MAX_CONNECTIONS,
-            provider_extensions: Vec::new(),
+            provider_extension_seeds: Vec::new(),
         }
     }
 

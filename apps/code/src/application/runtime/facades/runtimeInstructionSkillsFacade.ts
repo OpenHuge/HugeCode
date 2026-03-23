@@ -3,6 +3,7 @@ import { getAppServerRawMethod } from "../../../utils/appServerEvents";
 import type { DebugEntry, SkillOption } from "../../../types";
 import { useScopedRuntimeUpdatedEvent } from "../ports/runtimeUpdatedEvents";
 import { getInstructionSkill, getSkillsList } from "../ports/tauriSkills";
+import type { RuntimeUpdatedEvent } from "../ports/runtimeUpdatedEvents";
 
 type RuntimeInstructionSkillsFacadeOptions = {
   workspaceId: string | null;
@@ -81,6 +82,20 @@ function normalizeInstructionSkillsResponse(response: SkillsResponse): SkillOpti
   });
 }
 
+function shouldRefreshInstructionSkills(runtimeEvent: RuntimeUpdatedEvent | null): boolean {
+  if (!runtimeEvent) {
+    return false;
+  }
+  const method = getAppServerRawMethod(runtimeEvent.event);
+  if (method === "native_state_fabric_updated") {
+    return runtimeEvent.scope.includes("skills");
+  }
+  if (method === "runtime/updated") {
+    return runtimeEvent.scope.some((scope) => scope === "skills" || scope === "plugins");
+  }
+  return false;
+}
+
 export function listInstructionSkills(workspaceId: string) {
   return getSkillsList(workspaceId);
 }
@@ -103,7 +118,7 @@ export function useRuntimeInstructionSkillsFacade({
   const runtimeUpdatedSnapshot = useScopedRuntimeUpdatedEvent({
     enabled: Boolean(workspaceId && isConnected),
     workspaceId,
-    scopes: ["skills"],
+    scopes: ["skills", "plugins"],
   });
 
   useEffect(() => {
@@ -177,17 +192,14 @@ export function useRuntimeInstructionSkillsFacade({
 
   useEffect(() => {
     const runtimeEvent = runtimeUpdatedSnapshot.lastEvent;
-    if (!runtimeEvent) {
-      return;
-    }
-    if (getAppServerRawMethod(runtimeEvent.event) !== "native_state_fabric_updated") {
+    if (!runtimeEvent || !shouldRefreshInstructionSkills(runtimeEvent)) {
       return;
     }
     onDebug?.({
-      id: `${Date.now()}-server-native-state-fabric-skills-refresh`,
+      id: `${Date.now()}-server-runtime-instruction-skills-refresh`,
       timestamp: Date.now(),
       source: "server",
-      label: "native state fabric skills refresh",
+      label: "runtime instruction skills refresh",
       payload: runtimeEvent.event,
     });
     void refreshSkillsRef.current();

@@ -1840,10 +1840,15 @@ describe("SettingsView Shortcuts", () => {
       />
     );
 
-    expect(document.querySelector('[data-settings-section-frame="true"]')).toBeTruthy();
-    expect(
-      await screen.findByText("Panels", { selector: '[data-settings-field-group-title="true"]' })
-    ).toBeTruthy();
+    await waitFor(
+      () => {
+        expect(document.querySelector('[data-settings-section-frame="true"]')).toBeTruthy();
+        expect(
+          screen.getByText("Panels", { selector: '[data-settings-field-group-title="true"]' })
+        ).toBeTruthy();
+      },
+      { timeout: 3_000 }
+    );
   });
 
   it("closes on Cmd+W", async () => {

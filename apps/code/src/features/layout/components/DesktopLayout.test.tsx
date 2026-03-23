@@ -338,4 +338,20 @@ describe("DesktopLayout", () => {
     expect(surfaceSource).toContain('"--sidebar-resize-handle-width"');
     expect(surfaceSource).toContain("`${!isPhone && sidebarCollapsed ? 0 : 12}px`");
   });
+
+  it("reserves the topbar row before the lazy workspace header mounts", () => {
+    const layoutSource = readRelativeSource(import.meta.dirname, "DesktopLayout.css.ts");
+    const shellRule = layoutSource.slice(
+      layoutSource.indexOf("const mainShellBase = {"),
+      layoutSource.indexOf("export const mainShell")
+    );
+    const mainSource = readRelativeSource(import.meta.dirname, "../../../styles/main.css.ts");
+
+    expect(shellRule).toContain(
+      'gridTemplateRows: "var(--main-topbar-height, 48px) minmax(0, 1fr) auto auto auto"'
+    );
+    expect(mainSource).toContain(
+      '"grid-template-rows": "var(--main-topbar-height, 48px) minmax(0, 1fr) auto auto auto"'
+    );
+  });
 });

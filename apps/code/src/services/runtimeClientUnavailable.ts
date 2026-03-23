@@ -285,29 +285,50 @@ export function createUnavailableRuntimeClient(
     browserDebugRunV1() {
       return rejectUnavailable("run browser debug operation");
     },
+    extensionCatalogListV2() {
+      return rejectUnavailable("list runtime extension catalog");
+    },
+    extensionGetV2() {
+      return rejectUnavailable("read runtime extension");
+    },
+    extensionInstallV2() {
+      return rejectUnavailable("install runtime extension v2");
+    },
+    extensionUpdateV2() {
+      return rejectUnavailable("update runtime extension v2");
+    },
+    extensionSetStateV2() {
+      return rejectUnavailable("set runtime extension state v2");
+    },
+    extensionRemoveV2() {
+      return rejectUnavailable("remove runtime extension v2");
+    },
+    extensionRegistrySearchV2() {
+      return rejectUnavailable("search runtime extension registry");
+    },
+    extensionRegistrySourcesV2() {
+      return rejectUnavailable("list runtime extension registry sources");
+    },
+    extensionPermissionsEvaluateV2() {
+      return rejectUnavailable("evaluate runtime extension permissions");
+    },
+    extensionHealthReadV2() {
+      return rejectUnavailable("read runtime extension health");
+    },
+    extensionUiAppsListV2() {
+      return rejectUnavailable("list runtime extension ui apps");
+    },
     workspaceDiagnosticsListV1() {
       return rejectUnavailable("list workspace diagnostics");
     },
     workspacePatchApplyV1() {
       return rejectUnavailable("apply workspace patch");
     },
-    extensionsListV1() {
-      return rejectUnavailable("list runtime extensions");
-    },
-    extensionInstallV1() {
-      return rejectUnavailable("install runtime extension");
-    },
-    extensionRemoveV1() {
-      return rejectUnavailable("remove runtime extension");
-    },
-    extensionToolsListV1() {
+    extensionToolsListV2() {
       return rejectUnavailable("list runtime extension tools");
     },
-    extensionResourceReadV1() {
+    extensionResourceReadV2() {
       return rejectUnavailable("read runtime extension resource");
-    },
-    extensionsConfigV1() {
-      return rejectUnavailable("read runtime extension config");
     },
     sessionExportV1() {
       return rejectUnavailable("export runtime session");

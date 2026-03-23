@@ -62,7 +62,7 @@ fn mission_control_summary_test_config() -> ServiceConfig {
         ws_max_frame_size_bytes: DEFAULT_RUNTIME_WS_MAX_FRAME_SIZE_BYTES,
         ws_max_message_size_bytes: DEFAULT_RUNTIME_WS_MAX_MESSAGE_SIZE_BYTES,
         ws_max_connections: DEFAULT_RUNTIME_WS_MAX_CONNECTIONS,
-        provider_extensions: Vec::new(),
+            provider_extension_seeds: Vec::new(),
     }
 }
 

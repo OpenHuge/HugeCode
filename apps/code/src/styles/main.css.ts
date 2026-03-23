@@ -10,7 +10,7 @@ applyGlobalStyle(".main", {
       display: "grid",
       "grid-template-columns":
         "minmax(0, 1fr) var(\n      --right-panel-width-live,\n      var(--right-panel-width, 360px)\n    )",
-      "grid-template-rows": "auto 1fr auto auto auto",
+      "grid-template-rows": "var(--main-topbar-height, 48px) minmax(0, 1fr) auto auto auto",
       gap: "0",
       padding: "0",
       position: "relative",

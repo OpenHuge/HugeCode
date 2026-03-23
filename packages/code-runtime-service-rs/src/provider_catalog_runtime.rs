@@ -12,6 +12,7 @@ struct CompatCatalogResolutionAttempt {
 pub(super) async fn build_models_pool(ctx: &AppContext) -> Vec<Value> {
     let compat_catalog = resolve_compat_catalog_with_recovery(ctx).await;
     let local_codex_cached_models = load_local_codex_cached_model_slugs();
+    let provider_extensions = list_runtime_provider_extensions(ctx).await;
     let mut pool = Vec::new();
 
     for provider in RuntimeProvider::all() {
@@ -28,14 +29,17 @@ pub(super) async fn build_models_pool(ctx: &AppContext) -> Vec<Value> {
             "capabilities": ["chat", "coding", "reasoning", "vision"]
         }));
     }
-    for extension in &ctx.config.provider_extensions {
+    for extension in &provider_extensions {
+        let Some(default_model_id) = provider_extension_default_model_id(extension) else {
+            continue;
+        };
         pool.push(json!({
-            "id": extension.default_model_id,
+            "id": default_model_id,
             "displayName": extension.display_name,
-            "provider": extension.provider_id,
-            "pool": extension.pool,
+            "provider": extension.extension_id,
+            "pool": provider_extension_pool(extension).unwrap_or_else(|| extension.extension_id.clone()),
             "source": "workspace-default",
-            "available": provider_extension_is_available(extension),
+            "available": provider_extension_spec_is_available(extension),
             "supportsReasoning": true,
             "supportsVision": true,
             "reasoningEfforts": ["low", "medium", "high"],
@@ -115,6 +119,7 @@ fn mark_model_entry_discovered(pool: &mut [Value], model_id: &str, dynamic_sourc
 pub(super) async fn build_providers_catalog(ctx: &AppContext) -> Vec<RuntimeProviderCatalogEntry> {
     let compat_catalog = resolve_compat_catalog_with_recovery(ctx).await;
     let supports_openai_compat = has_openai_compat_mode(&ctx.config);
+    let provider_extensions = list_runtime_provider_extensions(ctx).await;
     let mut entries = RuntimeProvider::all()
         .map(|provider| RuntimeProviderCatalogEntry {
             provider_id: provider.routed_provider().to_string(),
@@ -133,20 +138,22 @@ pub(super) async fn build_providers_catalog(ctx: &AppContext) -> Vec<RuntimeProv
             registry_version: Some(CODE_RUNTIME_RPC_CONTRACT_VERSION.to_string()),
         })
         .collect::<Vec<_>>();
-    entries.extend(ctx.config.provider_extensions.iter().map(|extension| {
-        RuntimeProviderCatalogEntry {
-            provider_id: extension.provider_id.clone(),
-            display_name: extension.display_name.clone(),
-            pool: Some(extension.pool.clone()),
-            oauth_provider_id: None,
-            aliases: extension.aliases.clone(),
-            default_model_id: Some(extension.default_model_id.clone()),
-            available: provider_extension_is_available(extension),
-            supports_native: false,
-            supports_openai_compat: true,
-            registry_version: Some(CODE_RUNTIME_RPC_CONTRACT_VERSION.to_string()),
-        }
-    }));
+    entries.extend(
+        provider_extensions
+            .iter()
+            .map(|extension| RuntimeProviderCatalogEntry {
+                provider_id: extension.extension_id.clone(),
+                display_name: extension.display_name.clone(),
+                pool: provider_extension_pool(extension),
+                oauth_provider_id: None,
+                aliases: provider_extension_aliases(extension),
+                default_model_id: provider_extension_default_model_id(extension),
+                available: provider_extension_spec_is_available(extension),
+                supports_native: false,
+                supports_openai_compat: true,
+                registry_version: Some(CODE_RUNTIME_RPC_CONTRACT_VERSION.to_string()),
+            }),
+    );
 
     entries.sort_by(|left, right| left.provider_id.cmp(&right.provider_id));
     entries
@@ -218,11 +225,66 @@ fn provider_is_available(
         || compat_catalog.has_provider_models(provider)
 }
 
-fn provider_extension_is_available(extension: &RuntimeProviderExtension) -> bool {
+async fn list_runtime_provider_extensions(
+    ctx: &AppContext,
+) -> Vec<extensions_runtime::RuntimeExtensionSpecPayload> {
+    crate::rpc_dispatch_extensions::list_extension_catalog(ctx, None, true)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|entry| entry.kind == "provider")
+        .collect()
+}
+
+fn provider_extension_spec_is_available(
+    extension: &extensions_runtime::RuntimeExtensionSpecPayload,
+) -> bool {
+    extension.enabled && extension.lifecycle_state != "blocked"
+}
+
+fn provider_extension_pool(
+    extension: &extensions_runtime::RuntimeExtensionSpecPayload,
+) -> Option<String> {
     extension
-        .api_key
-        .as_ref()
-        .is_some_and(|entry| !entry.trim().is_empty())
+        .config
+        .get("pool")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string)
+}
+
+fn provider_extension_default_model_id(
+    extension: &extensions_runtime::RuntimeExtensionSpecPayload,
+) -> Option<String> {
+    extension
+        .config
+        .get("defaultModelId")
+        .or_else(|| extension.config.get("default_model_id"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string)
+}
+
+fn provider_extension_aliases(
+    extension: &extensions_runtime::RuntimeExtensionSpecPayload,
+) -> Vec<String> {
+    extension
+        .provenance
+        .get("aliases")
+        .or_else(|| extension.config.get("aliases"))
+        .and_then(Value::as_array)
+        .map(|aliases| {
+            aliases
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|alias| !alias.is_empty())
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| vec![extension.extension_id.clone()])
 }
 
 fn provider_default_model_source(provider: RuntimeProvider) -> &'static str {

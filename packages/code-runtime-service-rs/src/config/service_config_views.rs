@@ -46,7 +46,7 @@ impl<'a> ServiceConfigViews<'a> {
             anthropic_version: self.config.anthropic_version.as_str(),
             gemini_api_key: self.config.gemini_api_key.as_deref(),
             gemini_endpoint: self.config.gemini_endpoint.as_str(),
-            provider_extensions: self.config.provider_extensions.as_slice(),
+            provider_extension_seeds: self.config.provider_extension_seeds.as_slice(),
         }
     }
 
@@ -135,7 +135,7 @@ pub struct ProviderConfigView<'a> {
     pub anthropic_version: &'a str,
     pub gemini_api_key: Option<&'a str>,
     pub gemini_endpoint: &'a str,
-    pub provider_extensions: &'a [RuntimeProviderExtension],
+    pub provider_extension_seeds: &'a [RuntimeProviderExtension],
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -215,7 +215,7 @@ pub struct OwnedProviderConfig {
     pub anthropic_version: String,
     pub gemini_api_key: Option<String>,
     pub gemini_endpoint: String,
-    pub provider_extensions: Vec<RuntimeProviderExtension>,
+    pub provider_extension_seeds: Vec<RuntimeProviderExtension>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -285,7 +285,7 @@ impl<'a> ProviderConfigView<'a> {
             anthropic_version: self.anthropic_version.to_string(),
             gemini_api_key: self.gemini_api_key.map(str::to_string),
             gemini_endpoint: self.gemini_endpoint.to_string(),
-            provider_extensions: self.provider_extensions.to_vec(),
+            provider_extension_seeds: self.provider_extension_seeds.to_vec(),
         }
     }
 }
@@ -415,7 +415,7 @@ mod tests {
             ws_max_frame_size_bytes: 8 * 1024 * 1024,
             ws_max_message_size_bytes: 8 * 1024 * 1024,
             ws_max_connections: 256,
-            provider_extensions: vec![RuntimeProviderExtension {
+            provider_extension_seeds: vec![RuntimeProviderExtension {
                 provider_id: "custom".to_string(),
                 display_name: "Custom".to_string(),
                 pool: "custom".to_string(),

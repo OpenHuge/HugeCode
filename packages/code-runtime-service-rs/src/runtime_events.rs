@@ -1,9 +1,5 @@
-use std::{
-    collections::VecDeque,
-    convert::Infallible,
-    sync::{atomic::Ordering, Arc},
-    time::Duration,
-};
+#[rustfmt::skip]
+use std::{collections::VecDeque, convert::Infallible, sync::{atomic::Ordering, Arc}, time::Duration};
 
 use axum::{
     extract::State,
@@ -22,8 +18,8 @@ use crate::{native_runtime::native_event_method_for_kind, now_ms, AppContext};
 pub(crate) const TURN_EVENTS_BUFFER: usize = 256;
 pub(crate) const TURN_EVENTS_REPLAY_BUFFER: usize = 1_024;
 pub(crate) const TURN_EVENTS_REPLAY_MAX_BYTES: usize = 4 * 1024 * 1024;
-const CODE_RUNTIME_SERVICE_TURN_EVENT_REPLAY_MAX_FRAME_BYTES_ENV: &str =
-    "CODE_RUNTIME_SERVICE_TURN_EVENT_REPLAY_MAX_FRAME_BYTES";
+#[rustfmt::skip]
+const CODE_RUNTIME_SERVICE_TURN_EVENT_REPLAY_MAX_FRAME_BYTES_ENV: &str = "CODE_RUNTIME_SERVICE_TURN_EVENT_REPLAY_MAX_FRAME_BYTES";
 const DEFAULT_TURN_EVENT_REPLAY_MAX_FRAME_BYTES: usize = 262_144;
 const MIN_TURN_EVENT_REPLAY_MAX_FRAME_BYTES: usize = 4_096;
 const MAX_TURN_EVENT_REPLAY_MAX_FRAME_BYTES: usize = 4_194_304;
@@ -109,11 +105,14 @@ fn is_agent_job_scope_method(method: &str) -> bool {
         | "code_runtime_run_checkpoint_approval"
     )
 }
-
-fn lock_mutex_with_poison_recovery<'a, T>(
-    mutex: &'a std::sync::Mutex<T>,
-    recovered_message: &str,
-) -> std::sync::MutexGuard<'a, T> {
+#[rustfmt::skip]
+fn is_extension_scope_method(method: &str) -> bool { matches!(method,
+    "code_extension_catalog_list_v2" | "code_extension_get_v2" | "code_extension_install_v2" | "code_extension_update_v2"
+    | "code_extension_set_state_v2" | "code_extension_remove_v2" | "code_extension_registry_search_v2"
+    | "code_extension_registry_sources_v2" | "code_extension_permissions_evaluate_v2" | "code_extension_health_read_v2"
+    | "code_extension_ui_apps_list_v2" | "code_extension_tools_list_v2" | "code_extension_resource_read_v2") }
+#[rustfmt::skip]
+fn lock_mutex_with_poison_recovery<'a, T>(mutex: &'a std::sync::Mutex<T>, recovered_message: &str) -> std::sync::MutexGuard<'a, T> {
     let mut recovered_from_poison = false;
     let guard = match mutex.lock() {
         Ok(guard) => guard,
@@ -524,27 +523,17 @@ pub(crate) fn runtime_update_scope_for_method(method: &str) -> Option<&'static [
         | "code_prompt_library_update"
         | "code_prompt_library_delete"
         | "code_prompt_library_move" => Some(&["prompts", "bootstrap"]),
-        "code_extensions_list_v1"
-        | "code_extension_install_v1"
-        | "code_extension_remove_v1"
-        | "code_extension_tools_list_v1"
-        | "code_extension_resource_read_v1"
-        | "code_extensions_config_v1" => Some(&["tools", "plugins", "bootstrap"]),
+        candidate if is_extension_scope_method(candidate) => {
+            Some(&["tools", "plugins", "bootstrap"])
+        }
         "code_session_export_v1" | "code_session_import_v1" | "code_session_delete_v1" => {
             Some(&["threads", "agents", "bootstrap"])
         }
         "code_security_preflight_v1" => Some(&["tools", "agents"]),
-        "native_plugin_install"
-        | "native_plugin_uninstall"
-        | "native_plugin_update"
-        | "native_plugin_set_enabled" => Some(&["plugins"]),
         "native_tool_policy_upsert"
         | "native_tool_set_enabled"
         | "native_tool_secret_upsert"
         | "native_tool_secret_remove" => Some(&["tools"]),
-        "native_skill_upsert" | "native_skill_remove" | "native_skill_set_enabled" => {
-            Some(&["skills"])
-        }
         "native_theme_upsert" | "native_theme_remove" | "native_theme_set_active" => {
             Some(&["themes", "settings"])
         }
@@ -994,7 +983,7 @@ mod tests {
             ws_max_frame_size_bytes: DEFAULT_RUNTIME_WS_MAX_FRAME_SIZE_BYTES,
             ws_max_message_size_bytes: DEFAULT_RUNTIME_WS_MAX_MESSAGE_SIZE_BYTES,
             ws_max_connections: DEFAULT_RUNTIME_WS_MAX_CONNECTIONS,
-            provider_extensions: Vec::new(),
+            provider_extension_seeds: Vec::new(),
         }
     }
 

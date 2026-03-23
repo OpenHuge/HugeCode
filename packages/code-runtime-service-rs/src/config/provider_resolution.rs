@@ -13,36 +13,201 @@ pub(super) fn normalize_provider_hint(value: &str) -> Option<String> {
     }
 }
 
-pub(super) fn resolve_provider_extension_by_alias<'a>(
-    config: &'a ServiceConfig,
-    provider_hint: &str,
+fn provider_extension_catalog_is_routable(
+    entry: &extensions_runtime::RuntimeExtensionSpecPayload,
+) -> bool {
+    entry.kind == "provider" && entry.enabled && entry.lifecycle_state != "blocked"
+}
+
+async fn active_provider_extension_specs(
+    ctx: &AppContext,
+) -> Vec<extensions_runtime::RuntimeExtensionSpecPayload> {
+    crate::rpc_dispatch_extensions::list_extension_catalog(ctx, None, true)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .filter(provider_extension_catalog_is_routable)
+        .collect::<Vec<_>>()
+}
+
+async fn known_provider_extension_specs(
+    ctx: &AppContext,
+) -> Vec<extensions_runtime::RuntimeExtensionSpecPayload> {
+    crate::rpc_dispatch_extensions::list_extension_catalog(ctx, None, true)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|entry| entry.kind == "provider")
+        .collect::<Vec<_>>()
+}
+
+fn provider_extension_seed_by_id<'a>(
+    ctx: &'a AppContext,
+    extension_id: &str,
 ) -> Option<&'a RuntimeProviderExtension> {
-    let normalized = normalize_provider_hint(provider_hint)?;
-    config
-        .provider_extensions
+    ctx.config
+        .provider_extension_seeds
         .iter()
+        .find(|extension| extension.provider_id == extension_id)
+}
+
+fn provider_extension_config_string(
+    entry: &extensions_runtime::RuntimeExtensionSpecPayload,
+    camel_key: &str,
+    snake_key: &str,
+) -> Option<String> {
+    entry
+        .config
+        .get(camel_key)
+        .or_else(|| entry.config.get(snake_key))
+        .or_else(|| entry.provenance.get(camel_key))
+        .or_else(|| entry.provenance.get(snake_key))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string)
+}
+
+fn provider_extension_aliases_from_catalog(
+    entry: &extensions_runtime::RuntimeExtensionSpecPayload,
+    seed: Option<&RuntimeProviderExtension>,
+) -> Vec<String> {
+    let aliases = entry
+        .provenance
+        .get("aliases")
+        .or_else(|| entry.config.get("aliases"))
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+        })
+        .filter(|aliases| !aliases.is_empty())
+        .unwrap_or_else(|| {
+            seed.map(|extension| extension.aliases.clone())
+                .unwrap_or_else(|| vec![entry.extension_id.clone()])
+        });
+    normalize_extension_aliases(entry.extension_id.as_str(), &aliases)
+        .unwrap_or_else(|_| vec![entry.extension_id.clone()])
+}
+
+fn runtime_provider_extension_from_catalog_entry(
+    ctx: &AppContext,
+    entry: extensions_runtime::RuntimeExtensionSpecPayload,
+) -> Option<RuntimeResolvedProviderExtension> {
+    let seed = provider_extension_seed_by_id(ctx, entry.extension_id.as_str());
+    let aliases = provider_extension_aliases_from_catalog(&entry, seed);
+    let display_name = if entry.display_name.trim().is_empty() {
+        seed.map(|extension| extension.display_name.clone())
+            .unwrap_or_else(|| entry.extension_id.clone())
+    } else {
+        entry.display_name.clone()
+    };
+    let pool = provider_extension_config_string(&entry, "pool", "pool")
+        .or_else(|| seed.map(|extension| extension.pool.clone()))?;
+    let default_model_id =
+        provider_extension_config_string(&entry, "defaultModelId", "default_model_id")
+            .or_else(|| seed.map(|extension| extension.default_model_id.clone()))?;
+    let compat_base_url =
+        provider_extension_config_string(&entry, "compatBaseUrl", "compat_base_url")
+            .or_else(|| seed.map(|extension| extension.compat_base_url.clone()))
+            .and_then(|value| normalize_openai_compat_base_url(value.as_str()))?;
+    let api_key_env = provider_extension_config_string(&entry, "apiKeyEnv", "api_key_env")
+        .or_else(|| seed.map(|extension| extension.api_key_env.clone()))
+        .unwrap_or_default();
+    let api_key = normalize_extension_api_key(
+        seed.and_then(|extension| extension.api_key.as_deref()),
+        api_key_env.as_str(),
+    );
+
+    Some(RuntimeResolvedProviderExtension {
+        provider_id: entry.extension_id.clone(),
+        display_name,
+        pool,
+        default_model_id,
+        compat_base_url,
+        aliases,
+        api_key_env,
+        api_key,
+    })
+}
+
+fn provider_extension_matches_model_id(
+    entry: &RuntimeResolvedProviderExtension,
+    model_id: &str,
+) -> bool {
+    let normalized_model_id = model_id.trim().to_ascii_lowercase();
+    if normalized_model_id.is_empty() {
+        return false;
+    }
+
+    let default_model_id = entry.default_model_id.trim().to_ascii_lowercase();
+    if default_model_id == normalized_model_id {
+        return true;
+    }
+
+    entry.aliases.iter().any(|alias| {
+        normalized_model_id.starts_with(format!("{alias}/").as_str())
+            || normalized_model_id.starts_with(format!("{alias}-").as_str())
+    })
+}
+
+pub(super) async fn active_provider_extensions(
+    ctx: &AppContext,
+) -> Vec<RuntimeResolvedProviderExtension> {
+    active_provider_extension_specs(ctx)
+        .await
+        .into_iter()
+        .filter_map(|entry| runtime_provider_extension_from_catalog_entry(ctx, entry))
+        .collect::<Vec<_>>()
+}
+
+pub(super) async fn resolve_known_provider_extension_by_alias(
+    ctx: &AppContext,
+    provider_hint: &str,
+) -> Option<RuntimeResolvedProviderExtension> {
+    let normalized = normalize_provider_hint(provider_hint)?;
+    known_provider_extension_specs(ctx)
+        .await
+        .into_iter()
+        .filter_map(|entry| runtime_provider_extension_from_catalog_entry(ctx, entry))
         .find(|extension| extension.aliases.iter().any(|alias| alias == &normalized))
 }
 
-pub(super) fn resolve_provider_extension_by_model_id<'a>(
-    config: &'a ServiceConfig,
-    model_id: &str,
-) -> Option<&'a RuntimeProviderExtension> {
-    let normalized_model_id = model_id.trim().to_ascii_lowercase();
-    if normalized_model_id.is_empty() {
-        return None;
-    }
+pub(super) async fn resolve_active_provider_extension_by_alias(
+    ctx: &AppContext,
+    provider_hint: &str,
+) -> Option<RuntimeResolvedProviderExtension> {
+    let active = active_provider_extensions(ctx).await;
+    let normalized = normalize_provider_hint(provider_hint)?;
+    active
+        .into_iter()
+        .find(|extension| extension.aliases.iter().any(|alias| alias == &normalized))
+}
 
-    config.provider_extensions.iter().find(|extension| {
-        let default_model_id = extension.default_model_id.trim().to_ascii_lowercase();
-        if default_model_id == normalized_model_id {
-            return true;
-        }
-        extension.aliases.iter().any(|alias| {
-            normalized_model_id.starts_with(format!("{alias}/").as_str())
-                || normalized_model_id.starts_with(format!("{alias}-").as_str())
-        })
-    })
+pub(super) async fn resolve_known_provider_extension_by_model_id(
+    ctx: &AppContext,
+    model_id: &str,
+) -> Option<RuntimeResolvedProviderExtension> {
+    known_provider_extension_specs(ctx)
+        .await
+        .into_iter()
+        .filter_map(|entry| runtime_provider_extension_from_catalog_entry(ctx, entry))
+        .find(|extension| provider_extension_matches_model_id(extension, model_id))
+}
+
+pub(super) async fn resolve_active_provider_extension_by_model_id(
+    ctx: &AppContext,
+    model_id: &str,
+) -> Option<RuntimeResolvedProviderExtension> {
+    active_provider_extensions(ctx)
+        .await
+        .into_iter()
+        .find(|extension| provider_extension_matches_model_id(extension, model_id))
 }
 
 pub(super) fn normalize_openai_compat_base_url(base_url: &str) -> Option<String> {
@@ -265,7 +430,7 @@ pub(super) fn normalize_extension_api_key(
         .filter(|entry| !entry.is_empty())
 }
 
-pub fn parse_runtime_provider_extensions(
+pub fn parse_provider_extension_seeds(
     raw: Option<&str>,
 ) -> Result<Vec<RuntimeProviderExtension>, String> {
     let Some(raw) = raw.map(str::trim).filter(|entry| !entry.is_empty()) else {

@@ -23,6 +23,7 @@ import {
   type RuntimeCodexUpdateRequest,
   type RuntimeDiagnosticsExportRequest,
   type RuntimeExtensionInstallRequest,
+  type RuntimeExtensionUpdateRequest,
   type RuntimeExtensionResourceReadRequest,
   type RuntimeMcpServerStatusListRequest,
   type RuntimeBackendSetStateRequest,
@@ -264,6 +265,24 @@ function toCompatExtensionInstallPayload(payload: RuntimeExtensionInstallRequest
   });
 }
 
+function toCompatExtensionUpdatePayload(payload: RuntimeExtensionUpdateRequest) {
+  return withCanonicalPayload({
+    ...payload,
+    workspaceId: payload.workspaceId ?? null,
+  });
+}
+
+function toCompatExtensionSetStatePayload(payload: {
+  workspaceId?: string | null;
+  extensionId: string;
+  enabled: boolean;
+}) {
+  return withCanonicalPayload({
+    ...payload,
+    workspaceId: payload.workspaceId ?? null,
+  });
+}
+
 function toCompatExtensionRemovePayload(payload: {
   workspaceId?: string | null;
   extensionId: string;
@@ -443,6 +462,8 @@ export const RUNTIME_RPC_PAYLOAD_REGISTRY = Object.freeze({
   workspacePatchApply: toCompatWorkspacePatchApplyPayload,
   workspaceDiagnosticsList: toCompatWorkspaceDiagnosticsListPayload,
   extensionInstall: toCompatExtensionInstallPayload,
+  extensionUpdate: toCompatExtensionUpdatePayload,
+  extensionSetState: toCompatExtensionSetStatePayload,
   extensionRemove: toCompatExtensionRemovePayload,
   extensionToolsList: toCompatExtensionToolsListPayload,
   extensionResourceRead: toCompatExtensionResourceReadPayload,
