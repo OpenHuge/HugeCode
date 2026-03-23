@@ -63,6 +63,7 @@ apps/
 
 packages/
   code-workspace-client/      # Shared workspace boot/bindings layer for web + desktop shells
+  code-platform-interfaces/   # Shared platform capability types and host bridge contracts
   code-runtime-service-rs/    # Rust-first coding runtime service
   code-runtime-host-contract/ # RPC contract between UI and runtime
   native-runtime-host-contract/ # Native host alias contract

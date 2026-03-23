@@ -17,6 +17,9 @@ Interpret this carefully:
   shell in this repo.
 - `packages/code-workspace-client` is the canonical shared workspace-client
   layer consumed by both the web and desktop shells.
+- `packages/code-platform-interfaces` is the shared capability-contract layer
+  for desktop and web host adapters. Keep it free of concrete Tauri and
+  Electron runtime imports.
 - `apps/code` remains the desktop-first host shell and runtime bootstrap layer
   around that shared workspace client.
 - `apps/code-electron` is an additive desktop shell around the same `apps/code`
@@ -45,6 +48,7 @@ Interpret this carefully:
 | Runtime protocol       | `packages/code-runtime-host-contract`, `packages/native-runtime-host-contract` | Shared runtime transport types, method sets, spec generation     |
 | Runtime implementation | `packages/code-runtime-service-rs`                                             | Rust Axum service, orchestration, event stream, health/readiness |
 | Shared workspace app   | `packages/code-workspace-client`                                               | Shared workspace boot, bindings contract, and shell adapters     |
+| Platform contracts     | `packages/code-platform-interfaces`                                            | Shared capability types and host bridge contracts                |
 | Shared UI foundation   | `packages/design-system`                                                       | Tokens and active code-workspace UI foundations                  |
 | Shared utilities       | `packages/shared`                                                              | Reusable utilities and UI helpers shared across active packages  |
 | Native accelerators    | `packages/*-rs`                                                                | Accelerators, runtime support, and text processing               |
@@ -63,6 +67,7 @@ Treat these as the product-defining core:
 Treat these as supporting layers for the core product, not separate app narratives:
 
 - `packages/code-workspace-client`
+- `packages/code-platform-interfaces`
 - `packages/design-system`
 - `packages/shared`
 - `packages/native-bindings`

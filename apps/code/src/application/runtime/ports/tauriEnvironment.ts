@@ -1,5 +1,9 @@
 import { toSafeExternalUrl } from "@ku0/shared";
-import type { DesktopNotificationInput, DesktopSessionInfo } from "./desktopHostBridge";
+import type {
+  DesktopNotificationInput,
+  DesktopRuntimeHost,
+  DesktopSessionInfo,
+} from "@ku0/code-platform-interfaces";
 import { getDesktopHostBridge } from "./desktopHostBridge";
 
 type TauriCoreModule = {
@@ -28,7 +32,6 @@ type TauriRuntimeModules = {
 };
 
 type TauriModuleLoader = () => Promise<TauriRuntimeModules>;
-export type DesktopRuntimeHost = "browser" | "electron" | "tauri";
 
 async function defaultTauriModuleLoader(): Promise<TauriRuntimeModules> {
   const [app, core, opener, window] = await Promise.all([
