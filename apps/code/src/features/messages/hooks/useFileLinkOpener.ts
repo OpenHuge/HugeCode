@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/react";
 import type { MouseEvent } from "react";
 import { useCallback } from "react";
 import { isTauri } from "../../../application/runtime/ports/tauriCore";
@@ -15,6 +14,7 @@ import {
   joinWorkspacePath,
   revealInFileManagerLabel,
 } from "../../../utils/platformPaths";
+import { captureSentryException } from "../../shared/sentry";
 
 type OpenTarget = {
   id: string;
@@ -69,7 +69,7 @@ export function useFileLinkOpener(
 ) {
   const reportOpenError = useCallback((error: unknown, context: Record<string, string | null>) => {
     const message = error instanceof Error ? error.message : String(error);
-    Sentry.captureException(error instanceof Error ? error : new Error(message), {
+    captureSentryException(error, {
       tags: {
         feature: "file-link-open",
       },

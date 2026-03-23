@@ -13,7 +13,7 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
-          install-command: pnpm ci:install:offline
+          install-command: pnpm install --offline --frozen-lockfile
 
       - uses: ./.github/actions/setup-playwright
 
