@@ -40,6 +40,7 @@ import {
   interveneRuntimeJob,
   listRuntimeJobs,
   resumeRuntimeJob,
+  startRuntimeRunV2,
   startRuntimeJob,
   subscribeRuntimeJob,
 } from "./tauriRuntimeJobs";
@@ -104,6 +105,7 @@ import {
   interveneRuntimeJob as interveneRuntimeJobBridge,
   listRuntimeJobs as listRuntimeJobsBridge,
   resumeRuntimeJob as resumeRuntimeJobBridge,
+  startRuntimeRunV2 as startRuntimeRunV2Bridge,
   startRuntimeJob as startRuntimeJobBridge,
   subscribeRuntimeJob as subscribeRuntimeJobBridge,
 } from "../../../services/tauriRuntimeJobsBridge";
@@ -131,6 +133,7 @@ describe("tauri runtime port contract", () => {
       ["interveneRuntimeJob", interveneRuntimeJob, interveneRuntimeJobBridge],
       ["cancelRuntimeJob", cancelRuntimeJob, cancelRuntimeJobBridge],
       ["resumeRuntimeJob", resumeRuntimeJob, resumeRuntimeJobBridge],
+      ["startRuntimeRunV2", startRuntimeRunV2, startRuntimeRunV2Bridge],
       ["subscribeRuntimeJob", subscribeRuntimeJob, subscribeRuntimeJobBridge],
       ["listRuntimeJobs", listRuntimeJobs, listRuntimeJobsBridge],
       [

@@ -26,6 +26,7 @@ const startRuntimeJobWithRemoteSelectionMock = vi.hoisted(() => vi.fn());
 const readRepositoryExecutionContractMock = vi.hoisted(() => vi.fn());
 const startAgentTask = vi.hoisted(() => vi.fn());
 const prepareRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
+const startRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   subscribeScopedRuntimeUpdatedEvents: vi.fn(),
@@ -63,6 +64,7 @@ vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
   interveneRuntimeJob: vi.fn(),
   listRuntimeJobs: vi.fn(),
   prepareRuntimeRunV2: prepareRuntimeRunV2Mock,
+  startRuntimeRunV2: startRuntimeRunV2Mock,
   resumeRuntimeJob: vi.fn(),
 }));
 
@@ -161,6 +163,40 @@ beforeEach(() => {
   });
   startRuntimeJobWithRemoteSelectionMock.mockResolvedValue({});
   prepareRuntimeRunV2Mock.mockResolvedValue(createRuntimeLaunchPreparationFixture());
+  startRuntimeRunV2Mock.mockResolvedValue({
+    run: {
+      taskId: "run-123",
+      workspaceId: "ws-approval",
+      threadId: null,
+      requestId: null,
+      title: "Inspect runtime launch path",
+      status: "queued",
+      accessMode: "on-request",
+      provider: null,
+      modelId: null,
+      routedProvider: null,
+      routedModelId: null,
+      routedPool: null,
+      routedSource: null,
+      checkpointId: null,
+      traceId: null,
+      recovered: false,
+      distributedStatus: null,
+      currentStep: 0,
+      createdAt: 1_700_000_000_000,
+      updatedAt: 1_700_000_000_000,
+      startedAt: null,
+      completedAt: null,
+      errorCode: null,
+      errorMessage: null,
+      pendingApprovalId: null,
+      steps: [],
+    },
+    missionRun: projectAgentTaskSummaryToRunSummary(
+      buildTask("run-123", "queued", "Inspect runtime launch path")
+    ),
+    reviewPack: null,
+  });
   vi.mocked(getRuntimeCapabilitiesSummary).mockResolvedValue({
     mode: "tauri",
     methods: ["code_health"],
@@ -2018,9 +2054,8 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start mission run" }));
 
     await waitFor(() => {
-      expect(startRuntimeJobWithRemoteSelectionMock).toHaveBeenCalledWith({
+      expect(startRuntimeRunV2Mock).toHaveBeenCalledWith({
         workspaceId: "ws-approval",
-        title: null,
         taskSource: {
           kind: "manual",
           title: "Inspect src/runtime and summarize.",

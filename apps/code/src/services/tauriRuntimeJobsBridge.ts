@@ -19,6 +19,8 @@ import {
   type ModelProvider,
   type RuntimeRunPrepareV2Request,
   type RuntimeRunPrepareV2Response,
+  type RuntimeRunStartRequest,
+  type RuntimeRunStartV2Response,
   type RuntimeReviewGetV2Request,
   type RuntimeReviewGetV2Response,
 } from "@ku0/code-runtime-host-contract";
@@ -91,6 +93,12 @@ export async function prepareRuntimeRunV2(
   request: RuntimeRunPrepareV2Request
 ): Promise<RuntimeRunPrepareV2Response> {
   return getRuntimeClient().runtimeRunPrepareV2(request);
+}
+
+export async function startRuntimeRunV2(
+  request: RuntimeRunStartRequest
+): Promise<RuntimeRunStartV2Response> {
+  return getRuntimeClient().runtimeRunStartV2(request);
 }
 
 export async function getRuntimeReviewV2(

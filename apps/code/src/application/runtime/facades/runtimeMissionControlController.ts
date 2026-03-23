@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkspaceRuntimeAgentControl } from "../ports/runtimeAgentControl";
+import { startRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
 import { readRuntimeErrorCode, readRuntimeErrorMessage } from "../ports/runtimeErrorClassifier";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import { listRunExecutionProfiles } from "./runtimeMissionControlFacade";
@@ -109,7 +110,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
   const providerRouteOptions = missionControlProjection.routeSelection.options;
   const routedProvider =
     draft.runtimeDraftProviderRoute === "auto" ? null : draft.runtimeDraftProviderRoute;
-  const runtimeLaunchPreparation = useRuntimeMissionLaunchPreview({
+  const runtimeLaunchPreview = useRuntimeMissionLaunchPreview({
     workspaceId,
     draftTitle: draft.runtimeDraftTitle,
     draftInstruction: draft.runtimeDraftInstruction,
@@ -127,40 +128,23 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     if (draft.runtimeDraftInstruction.trim().length === 0) {
       return;
     }
-    const launchRequest = buildRuntimeMissionLaunchPrepareRequest({
-      workspaceId,
-      draftTitle: draft.runtimeDraftTitle,
-      draftInstruction: draft.runtimeDraftInstruction,
-      selectedExecutionProfile,
-      repositoryLaunchDefaults,
-      runtimeSourceDraft: draft.runtimeSourceDraft,
-      routedProvider,
-    });
+    const launchRequest =
+      runtimeLaunchPreview.request ??
+      buildRuntimeMissionLaunchPrepareRequest({
+        workspaceId,
+        draftTitle: draft.runtimeDraftTitle,
+        draftInstruction: draft.runtimeDraftInstruction,
+        selectedExecutionProfile,
+        repositoryLaunchDefaults,
+        runtimeSourceDraft: draft.runtimeSourceDraft,
+        routedProvider,
+      });
     if (!launchRequest) {
       return;
     }
     setRuntimeActionLoading(true);
     try {
-      await runtimeControl.startTask({
-        workspaceId: launchRequest.workspaceId,
-        title: launchRequest.title ?? null,
-        taskSource: launchRequest.taskSource ?? null,
-        executionProfileId: launchRequest.executionProfileId ?? null,
-        reviewProfileId: launchRequest.reviewProfileId ?? null,
-        validationPresetId: launchRequest.validationPresetId ?? null,
-        accessMode: launchRequest.accessMode,
-        executionMode: launchRequest.executionMode,
-        provider: launchRequest.provider ?? null,
-        ...(launchRequest.preferredBackendIds
-          ? { preferredBackendIds: launchRequest.preferredBackendIds }
-          : {}),
-        missionBrief: launchRequest.missionBrief ?? null,
-        ...(launchRequest.relaunchContext !== undefined && launchRequest.relaunchContext !== null
-          ? { relaunchContext: launchRequest.relaunchContext }
-          : {}),
-        instruction: launchRequest.steps[0]?.input ?? draft.runtimeDraftInstruction.trim(),
-        stepKind: "read",
-      });
+      await startRuntimeRunV2(launchRequest);
       draft.resetRuntimeDraftState();
       setRuntimeError(null);
       setRuntimeInfo(
@@ -182,6 +166,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     workspaceId,
     setRuntimeError,
     routedProvider,
+    runtimeLaunchPreview.request,
   ]);
 
   const interruptRuntimeTaskById = useCallback(
@@ -407,9 +392,9 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     repositoryExecutionContract,
     repositoryExecutionContractError,
     repositoryLaunchDefaults,
-    runtimeLaunchPreparation: runtimeLaunchPreparation.preparation,
-    runtimeLaunchPreparationError: runtimeLaunchPreparation.error,
-    runtimeLaunchPreparationLoading: runtimeLaunchPreparation.loading,
+    runtimeLaunchPreparation: runtimeLaunchPreview.preparation,
+    runtimeLaunchPreparationError: runtimeLaunchPreview.error,
+    runtimeLaunchPreparationLoading: runtimeLaunchPreview.loading,
     resumeRecoverableTasks,
     runtimeDraftInstruction: draft.runtimeDraftInstruction,
     setRuntimeDraftInstruction: draft.setRuntimeDraftInstruction,
