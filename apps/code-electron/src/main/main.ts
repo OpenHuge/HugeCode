@@ -1,16 +1,11 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, ipcMain, Notification, shell } from "electron";
-import type { OpenDesktopWindowInput } from "../shared/ipc.js";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
-import {
-  createDesktopShellState,
-  resolveCloseBehavior,
-  type DesktopSessionDescriptor,
-  type DesktopWindowBounds,
-} from "./desktopShellState.js";
+import { createDesktopShellState, type DesktopWindowBounds } from "./desktopShellState.js";
 import { createDesktopStateStore } from "./desktopStateStore.js";
 import { createDesktopTrayController } from "./desktopTrayController.js";
+import { createDesktopWindowController } from "./desktopWindowController.js";
 import { registerDesktopHostIpc } from "./registerDesktopHostIpc.js";
 
 const DEFAULT_WINDOW_STATE: DesktopWindowBounds = {
@@ -24,7 +19,6 @@ const trayIconDataUrl =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAK0lEQVR42mP8z8AARMBEw0AEYBxVSFUBQwqGQYQmGmKagjYwNAxMDAwMDAwAAABEgQJkzJYGQAAAABJRU5ErkJggg==";
 
 let isQuitting = false;
-const activeWindows = new Map<number, BrowserWindow>();
 
 app.enableSandbox();
 
@@ -49,168 +43,44 @@ function persistDesktopState() {
   desktopStateStore.write(desktopShellState.toPersistedState());
 }
 
-function getWindowTitle(session: DesktopSessionDescriptor) {
-  if (session.windowLabel === "about") {
-    return "HugeCode About";
-  }
-
-  if (session.workspaceLabel) {
-    return `HugeCode - ${session.workspaceLabel}`;
-  }
-
-  return "HugeCode";
-}
-
-function createBrowserWindowForSession(session: DesktopSessionDescriptor) {
-  const windowState = session.windowBounds ?? DEFAULT_WINDOW_STATE;
-  const nextWindow = new BrowserWindow({
-    width: windowState.width,
-    height: windowState.height,
-    x: windowState.x,
-    y: windowState.y,
-    show: false,
-    title: getWindowTitle(session),
-    backgroundColor: "#0f1115",
-    webPreferences: {
-      preload: join(__dirname, "../preload/preload.js"),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-    },
-  });
-
-  nextWindow.once("ready-to-show", () => {
-    nextWindow.show();
-  });
-
-  nextWindow.on("focus", () => {
-    const activeSession = desktopShellState.getSessionByWindowId(nextWindow.id);
-    if (activeSession) {
-      desktopShellState.attachWindow(activeSession, nextWindow.id);
-      persistDesktopState();
-      trayController.update();
-    }
-  });
-
-  nextWindow.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
-    return { action: "deny" };
-  });
-
-  if (rendererDevServerUrl.length > 0) {
-    void nextWindow.loadURL(rendererDevServerUrl);
-  } else {
-    void nextWindow.loadFile(join(__dirname, "../renderer/index.html"));
-  }
-
-  nextWindow.on("close", (event) => {
-    if (!isQuitting && resolveCloseBehavior(desktopShellState, nextWindow.id) === "hide") {
-      event.preventDefault();
-      nextWindow.hide();
-      trayController.update();
-      return;
-    }
-
-    desktopShellState.detachWindow(nextWindow.id, nextWindow.getBounds());
-    persistDesktopState();
-    activeWindows.delete(nextWindow.id);
-    trayController.update();
-  });
-
-  nextWindow.on("closed", () => {
-    activeWindows.delete(nextWindow.id);
-    trayController.update();
-  });
-
-  desktopShellState.attachWindow(session, nextWindow.id);
-  activeWindows.set(nextWindow.id, nextWindow);
-  persistDesktopState();
+function updateTray() {
   trayController.update();
-
-  return nextWindow;
 }
 
-function focusWindow(windowId: number) {
-  const targetWindow = activeWindows.get(windowId);
-  if (!targetWindow || targetWindow.isDestroyed()) {
-    return false;
-  }
-
-  if (targetWindow.isMinimized()) {
-    targetWindow.restore();
-  }
-  targetWindow.show();
-  targetWindow.focus();
-  return true;
-}
-
-function findWindowBySessionId(sessionId: string) {
-  for (const [windowId] of activeWindows) {
-    const session = desktopShellState.getSessionByWindowId(windowId);
-    if (session?.id === sessionId) {
-      return activeWindows.get(windowId) ?? null;
+const windowController = createDesktopWindowController({
+  defaultWindowBounds: DEFAULT_WINDOW_STATE,
+  isQuitting() {
+    return isQuitting;
+  },
+  loadRenderer(window) {
+    if (rendererDevServerUrl.length > 0) {
+      void window.loadURL(rendererDevServerUrl);
+    } else {
+      void window.loadFile(join(__dirname, "../renderer/index.html"));
     }
-  }
-
-  return null;
-}
-
-function openWindow(input: OpenDesktopWindowInput = {}) {
-  const session = desktopShellState.resolveSession(input);
-  const existingWindow = findWindowBySessionId(session.id);
-  if (existingWindow) {
-    focusWindow(existingWindow.id);
-    return existingWindow;
-  }
-
-  return createBrowserWindowForSession(session);
-}
-
-function reopenSession(sessionId: string) {
-  const session = desktopShellState.getSessionById(sessionId);
-  if (!session) {
-    return false;
-  }
-
-  const existingWindow = findWindowBySessionId(session.id);
-  if (existingWindow) {
-    return focusWindow(existingWindow.id);
-  }
-
-  createBrowserWindowForSession(session);
-  return true;
-}
-
-function listWindows() {
-  return desktopShellState.listWindows().map((windowDescriptor) => ({
-    ...windowDescriptor,
-    focused: activeWindows.get(windowDescriptor.windowId)?.isFocused() ?? false,
-    hidden: activeWindows.get(windowDescriptor.windowId)?.isVisible() === false,
-  }));
-}
-
-function restoreVisibleWindow() {
-  const visibleWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
-  if (!visibleWindow) {
-    return false;
-  }
-
-  visibleWindow.show();
-  visibleWindow.focus();
-  return true;
-}
+  },
+  notifyWindowsChanged() {
+    updateTray();
+  },
+  openExternalUrl(url) {
+    return shell.openExternal(url);
+  },
+  persistState: persistDesktopState,
+  preloadPath: join(__dirname, "../preload/preload.js"),
+  shellState: desktopShellState,
+});
 
 const trayController = createDesktopTrayController({
   isSupported: isTraySupported,
-  onFocusWindow: focusWindow,
+  onFocusWindow: windowController.focusWindow,
   onNewWindow: () => {
-    openWindow();
+    windowController.openWindow();
   },
   onQuit: () => {
     isQuitting = true;
     app.quit();
   },
-  onReopenSession: reopenSession,
+  onReopenSession: windowController.reopenSession,
   onSetTrayEnabled: (enabled) => {
     desktopShellState.setTrayEnabled(enabled);
     persistDesktopState();
@@ -220,70 +90,41 @@ const trayController = createDesktopTrayController({
     return {
       recentSessions: desktopShellState.recentSessions,
       trayEnabled: desktopShellState.trayEnabled,
-      windows: listWindows(),
+      windows: windowController.listWindows(),
     };
   },
-  restoreVisibleWindow,
+  restoreVisibleWindow: windowController.restoreVisibleWindow,
   trayIconDataUrl,
 });
 
 registerDesktopHostIpc({
   channels: DESKTOP_HOST_IPC_CHANNELS,
   handlers: {
-    closeWindow(windowId) {
-      const targetWindow = activeWindows.get(windowId);
-      if (!targetWindow || targetWindow.isDestroyed()) {
-        return false;
-      }
-      targetWindow.close();
-      return true;
-    },
-    focusWindow,
+    closeWindow: windowController.closeWindow,
+    focusWindow: windowController.focusWindow,
     getAppVersion() {
       const version = app.getVersion();
       return typeof version === "string" && version.length > 0 ? version : null;
     },
     getCurrentSession(event) {
-      const sourceWindow = BrowserWindow.fromWebContents(event.sender);
-      if (!sourceWindow) {
-        return null;
-      }
-      return desktopShellState.getSessionByWindowId(sourceWindow.id);
+      return windowController.getSessionForWebContents(event.sender);
     },
     getTrayState() {
       return trayController.getState();
     },
     getWindowLabel(event) {
-      const sourceWindow = BrowserWindow.fromWebContents(event.sender);
-      if (!sourceWindow) {
-        return "main";
-      }
-      return desktopShellState.getSessionByWindowId(sourceWindow.id)?.windowLabel ?? "main";
+      return windowController.getWindowLabelForWebContents(event.sender);
     },
     listRecentSessions() {
       return desktopShellState.recentSessions;
     },
-    listWindows,
+    listWindows: windowController.listWindows,
     async openExternalUrl(url) {
       await shell.openExternal(url);
       return true;
     },
-    openWindow(input) {
-      const window = openWindow(input);
-      const session = desktopShellState.getSessionByWindowId(window.id);
-      if (!session) {
-        return null;
-      }
-      return {
-        windowId: window.id,
-        sessionId: session.id,
-        windowLabel: session.windowLabel,
-        workspaceLabel: session.workspaceLabel,
-        focused: window.isFocused(),
-        hidden: window.isVisible() === false,
-      };
-    },
-    reopenSession,
+    openWindow: windowController.openWindow,
+    reopenSession: windowController.reopenSession,
     revealItemInDir(path) {
       shell.showItemInFolder(path);
       return true;
@@ -321,7 +162,7 @@ app.on("second-instance", () => {
   const openWindows = BrowserWindow.getAllWindows();
   const nextWindow = openWindows[0];
   if (!nextWindow) {
-    openWindow();
+    windowController.openWindow();
     return;
   }
   if (nextWindow.isMinimized()) {
@@ -335,20 +176,20 @@ app.whenReady().then(() => {
   const persistedSessions = desktopShellState.recentSessions;
   if (persistedSessions.length > 0) {
     for (const session of persistedSessions) {
-      createBrowserWindowForSession(session);
+      windowController.createWindowForSession(session);
     }
   } else {
-    openWindow();
+    windowController.openWindow();
   }
-  trayController.update();
+  updateTray();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       const latestSession = desktopShellState.recentSessions[0];
       if (latestSession) {
-        createBrowserWindowForSession(latestSession);
+        windowController.createWindowForSession(latestSession);
       } else {
-        openWindow();
+        windowController.openWindow();
       }
     }
   });
