@@ -95,6 +95,47 @@ describe("Markdown", () => {
     expect(screen.getAllByText("Global").length).toBeGreaterThan(0);
   });
 
+  it("wraps gfm tables in a horizontal scroll container and preserves alignment semantics", () => {
+    render(
+      <Markdown
+        value={[
+          "| Left | Center | Right |",
+          "| :--- | :----: | ----: |",
+          "| alpha | beta | gamma |",
+        ].join("\n")}
+      />
+    );
+
+    const table = screen.getByRole("table");
+    expect(table.getAttribute("data-testid")).toBe("markdown-table");
+    expect(table.closest('[data-markdown-table-container="true"]')).not.toBeNull();
+
+    const headers = screen.getAllByRole("columnheader");
+    expect(headers[0].getAttribute("style")).toBeNull();
+    expect(headers[1].getAttribute("data-markdown-align")).toBe("center");
+    expect(headers[2].getAttribute("data-markdown-align")).toBe("right");
+
+    const cells = screen.getAllByRole("cell");
+    expect(cells[0].getAttribute("style")).toBeNull();
+    expect(cells[1].getAttribute("data-markdown-align")).toBe("center");
+    expect(cells[2].getAttribute("data-markdown-align")).toBe("right");
+  });
+
+  it("owns table layout styles inside markdown styles instead of relying on page-level overrides", () => {
+    const stylesSource = readFileSync(
+      resolve(import.meta.dirname, "Markdown.styles.css.ts"),
+      "utf8"
+    );
+
+    expect(stylesSource).toContain("export const markdownTableScroll = style({");
+    expect(stylesSource).toContain('overflowX: "auto"');
+    expect(stylesSource).toContain('scrollbarGutter: "stable both-edges"');
+    expect(stylesSource).toContain('width: "max-content"');
+    expect(stylesSource).toContain('minWidth: "100%"');
+    expect(stylesSource).toContain('data-markdown-align="center"');
+    expect(stylesSource).toContain(":nth-child(even)");
+  });
+
   it("owns skill reference chrome in markdown styles and keeps it flat", () => {
     const markdownSource = readFileSync(
       resolve(import.meta.dirname, "Markdown.styles.css.ts"),
