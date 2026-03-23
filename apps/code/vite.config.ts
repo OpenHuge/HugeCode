@@ -90,12 +90,6 @@ export default defineConfig({
           if (id.includes("/node_modules/@xterm/")) {
             return "xterm-vendor";
           }
-          if (
-            id.includes("/node_modules/react-markdown/") ||
-            id.includes("/node_modules/remark-gfm/")
-          ) {
-            return "markdown-vendor";
-          }
           if (id.includes("/node_modules/prismjs/")) {
             return "prism-vendor";
           }
