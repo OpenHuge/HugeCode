@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow, ipcMain, Notification, shell } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import { createDesktopShellState, type DesktopWindowBounds } from "./desktopShellState.js";
 import {
@@ -8,6 +8,7 @@ import {
   getBrowserDebugSession,
   resolveBrowserDebugPort,
 } from "./browserDebugSession.js";
+import { createDesktopNotificationController } from "./desktopNotificationController.js";
 import { createDesktopStateStore } from "./desktopStateStore.js";
 import { createDesktopTrayController } from "./desktopTrayController.js";
 import { createDesktopWindowController } from "./desktopWindowController.js";
@@ -83,6 +84,7 @@ const windowController = createDesktopWindowController({
     sandbox: false,
   },
 });
+const notificationController = createDesktopNotificationController();
 
 const trayController = createDesktopTrayController({
   isSupported: isTraySupported,
@@ -152,23 +154,7 @@ registerDesktopHostIpc({
       return trayController.getState();
     },
     showNotification(event, input) {
-      if (!Notification.isSupported()) {
-        return false;
-      }
-
-      const sourceWindow = BrowserWindow.fromWebContents(event.sender);
-      const notification = new Notification({
-        title: input.title,
-        body: input.body ?? "",
-      });
-      notification.on("click", () => {
-        if (sourceWindow && !sourceWindow.isDestroyed()) {
-          sourceWindow.show();
-          sourceWindow.focus();
-        }
-      });
-      notification.show();
-      return true;
+      return notificationController.showNotification(event, input);
     },
   },
   ipcMain,
