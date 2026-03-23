@@ -10,7 +10,7 @@
     "deploy": "wrangler deploy",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "pnpm -C ../.. exec oxlint apps/code-web",
+    "lint": "oxlint .",
     "experimental:dev": "pnpm run dev",
     "experimental:build": "pnpm run build",
     "experimental:preview": "pnpm run preview",

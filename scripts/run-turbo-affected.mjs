@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { spawnPnpmSync } from "./lib/spawn-pnpm.mjs";
+import { resolveLocalBinaryCommand } from "./lib/local-bin.mjs";
 
 const isCi = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 
@@ -91,7 +91,7 @@ function resolveBaseRef() {
 
 function runTurbo(task, additionalArgs) {
   const { ref: baseRef, kind } = resolveBaseRef();
-  const args = ["exec", "turbo", "run", task];
+  const args = ["run", task];
   const forwardedArgs = additionalArgs[0] === "--" ? additionalArgs.slice(1) : additionalArgs;
 
   if (baseRef) {
@@ -103,7 +103,8 @@ function runTurbo(task, additionalArgs) {
 
   args.push(...forwardedArgs);
 
-  const result = spawnPnpmSync(args, {
+  const turboCommand = resolveLocalBinaryCommand("turbo");
+  const result = spawnSync(turboCommand, args, {
     stdio: "inherit",
     env: process.env,
   });

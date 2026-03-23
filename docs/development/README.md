@@ -25,6 +25,10 @@ pnpm repo:doctor
 If multiple repos keep hitting the same error after a forced install, clean the global pnpm store before
 continuing local debugging.
 
+When working from multiple git worktrees, `pnpm run` / `pnpm exec` now warn instead of hard-failing if
+`node_modules` looks stale for the current branch metadata. Treat the warning as a prompt to run
+`pnpm install` when dependencies, lockfile contents, or workspace package manifests actually changed.
+
 Core setup excludes the Cloudflare web shell from the default root workflow.
 
 - `pnpm check:workflow-governance`

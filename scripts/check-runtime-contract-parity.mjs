@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
+import { resolveLocalBinaryCommand } from "./lib/local-bin.mjs";
 import { spawnPnpmSync } from "./lib/spawn-pnpm.mjs";
 
 /**
@@ -58,23 +59,26 @@ const steps = [
   },
   {
     label: "Web runtime client contract test",
-    command: "pnpm",
-    args: ["-C", "apps/code", "exec", "vitest", "run", "src/services/runtimeClient.test.ts"],
+    command: "vitest",
+    args: ["run", "--config", "vitest.config.ts", "src/services/runtimeClient.test.ts"],
+    cwd: "apps/code",
   },
 ];
 
 function runStep(step) {
   process.stdout.write(`\n==> ${step.label}\n`);
+  const localBinaryCommand = resolveLocalBinaryCommand(step.command);
   const result =
     step.command === "pnpm"
       ? spawnPnpmSync(step.args, {
           stdio: "inherit",
           env: process.env,
         })
-      : spawnSync(step.command, step.args, {
+      : spawnSync(localBinaryCommand ?? step.command, step.args, {
+          cwd: step.cwd ?? process.cwd(),
           stdio: "inherit",
           env: process.env,
-          shell: process.platform === "win32",
+          shell: localBinaryCommand ? false : process.platform === "win32",
         });
 
   if (result.error) {

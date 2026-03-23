@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { loadE2EMapConfig, recommendE2ECategoriesFromPaths } from "./lib/e2e-map.mjs";
+import { resolveLocalBinaryCommand } from "./lib/local-bin.mjs";
 import { formatProcessTree, terminateProcessTree } from "./lib/process-tree.mjs";
 import { createValidateTempManager } from "./lib/validate-temp-config.mjs";
 import {
@@ -591,6 +592,15 @@ function shouldSkipOxcTarget(filePath) {
 }
 
 function resolveCommandInvocation(command, args) {
+  const localBinaryCommand = resolveLocalBinaryCommand(command);
+  if (localBinaryCommand) {
+    return {
+      command: localBinaryCommand,
+      args,
+      display: [command, ...args],
+    };
+  }
+
   if (process.platform === "win32" && command === "pnpm") {
     return {
       command: "cmd.exe",
@@ -633,7 +643,7 @@ function runCommand(command, args, label, options = {}) {
   }
 
   const result = spawnSync(invocation.command, invocation.args, {
-    cwd: repoRoot,
+    cwd: options.cwd ?? repoRoot,
     stdio: "inherit",
     env: buildCommandEnv(options.env),
   });
@@ -656,7 +666,7 @@ function runCommandAsync(command, args, label, options = {}) {
 
   return new Promise((resolve, reject) => {
     const child = spawn(invocation.command, invocation.args, {
-      cwd: repoRoot,
+      cwd: options.cwd ?? repoRoot,
       stdio: "inherit",
       env: buildCommandEnv(options.env),
     });
@@ -857,7 +867,7 @@ function resolveAppsCodeRelatedMaxWorkers(targets) {
 }
 
 function buildAppsCodeDirectVitestArgs(targets) {
-  const args = ["-C", APPS_CODE_PACKAGE_DIR, "exec", "vitest", "run", "--passWithNoTests"];
+  const args = ["run", "--config", "vitest.config.ts", "--passWithNoTests"];
   args.push(`--maxWorkers=${resolveAppsCodeRelatedMaxWorkers(targets)}`);
   args.push(...targets);
   return args;
@@ -865,7 +875,8 @@ function buildAppsCodeDirectVitestArgs(targets) {
 
 async function runAppsCodeFallbackPackageTest() {
   const fallbackLabel = "Vitest fallback full package test (apps/code)";
-  await runCommandAsync("pnpm", ["-C", APPS_CODE_PACKAGE_DIR, "test"], fallbackLabel, {
+  await runCommandAsync("vitest", ["run", "--config", "vitest.config.ts"], fallbackLabel, {
+    cwd: APPS_CODE_PACKAGE_DIR,
     timeoutMs: APPS_CODE_FALLBACK_TEST_TIMEOUT_MS,
     onTimeout: async ({ child, label, rendered, timeoutMs }) => {
       writeStderrLine(`[validate] ${label} timed out after ${timeoutMs}ms.`);
@@ -880,9 +891,10 @@ async function runAppsCodeFallbackPackageTest() {
 async function runAppsCodeDirectTests(targets) {
   for (const chunk of splitIntoChunks([...new Set(targets)], CHUNK_SIZE)) {
     await runCommandAsync(
-      "pnpm",
+      "vitest",
       buildAppsCodeDirectVitestArgs(chunk),
-      `Vitest direct run (${APPS_CODE_PACKAGE_DIR})`
+      `Vitest direct run (${APPS_CODE_PACKAGE_DIR})`,
+      { cwd: APPS_CODE_PACKAGE_DIR }
     );
   }
 }
@@ -988,7 +1000,7 @@ async function runAppsCodeIncrementalTests(targets, validationCache) {
       );
     }
     writeStderrLine(
-      `[validate] apps/code incremental fallback: running \`pnpm -C apps/code test\` for ${uncoveredSourceTargets.length} uncovered source target${
+      `[validate] apps/code incremental fallback: running \`vitest run --config vitest.config.ts\` for ${uncoveredSourceTargets.length} uncovered source target${
         uncoveredSourceTargets.length === 1 ? "" : "s"
       }.`
     );
@@ -1143,16 +1155,10 @@ async function runRuntimeContractGuardChecks(changedFiles, options = {}) {
             "Code runtime host contract build for web client tests"
           );
           await runCommandAsync(
-            "pnpm",
-            [
-              "-C",
-              "apps/code",
-              "exec",
-              "vitest",
-              "run",
-              CODE_WEB_RUNTIME_CLIENT_CONTRACT_TEST_PATH,
-            ],
-            "Code web runtime gateway client contract test"
+            "vitest",
+            ["run", "--config", "vitest.config.ts", CODE_WEB_RUNTIME_CLIENT_CONTRACT_TEST_PATH],
+            "Code web runtime gateway client contract test",
+            { cwd: APPS_CODE_PACKAGE_DIR }
           );
         }
       })()
@@ -1434,20 +1440,13 @@ function runChangedFileLint(existingChangedFiles) {
   }
 
   for (const chunk of splitIntoChunks(oxlintTargets, CHUNK_SIZE)) {
-    runCommand("pnpm", ["exec", "oxlint", "--no-ignore", ...chunk], "Oxlint (changed files)");
+    runCommand("oxlint", ["--no-ignore", ...chunk], "Oxlint (changed files)");
   }
 
   for (const chunk of splitIntoChunks(oxfmtTargets, CHUNK_SIZE)) {
     runCommand(
-      "pnpm",
-      [
-        "exec",
-        "oxfmt",
-        "--check",
-        "--no-error-on-unmatched-pattern",
-        "--ignore-path=.gitignore",
-        ...chunk,
-      ],
+      "oxfmt",
+      ["--check", "--no-error-on-unmatched-pattern", "--ignore-path=.gitignore", ...chunk],
       "Oxfmt (changed files)"
     );
   }
@@ -1616,9 +1615,10 @@ async function runPackageRelatedTests(packageTargets, validationCache) {
 
     for (const chunk of splitIntoChunks(dedupedTargets, CHUNK_SIZE)) {
       await runCommandAsync(
-        "pnpm",
-        ["-C", packageDir, "exec", "vitest", "related", "--run", "--passWithNoTests", ...chunk],
-        `Vitest related (${packageDir})`
+        "vitest",
+        ["related", "--run", "--passWithNoTests", ...chunk],
+        `Vitest related (${packageDir})`,
+        { cwd: packageDir }
       );
     }
   }
@@ -1631,16 +1631,16 @@ async function runRootRelatedTests(rootTargets) {
 
   for (const chunk of splitIntoChunks(directTestTargets, CHUNK_SIZE)) {
     await runCommandAsync(
-      "pnpm",
-      ["exec", "vitest", "run", "--passWithNoTests", ...chunk],
+      "vitest",
+      ["run", "--passWithNoTests", ...chunk],
       "Vitest direct run (root)"
     );
   }
 
   for (const chunk of splitIntoChunks(relatedTargets, CHUNK_SIZE)) {
     await runCommandAsync(
-      "pnpm",
-      ["exec", "vitest", "related", "--run", "--passWithNoTests", ...chunk],
+      "vitest",
+      ["related", "--run", "--passWithNoTests", ...chunk],
       "Vitest related (root)"
     );
   }

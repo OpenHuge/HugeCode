@@ -14,19 +14,25 @@ async function createFixtureRepo(): Promise<string> {
   const tempRoot = await mkdtemp(path.join(tmpdir(), "run-unit-tests-"));
   tempRoots.push(tempRoot);
 
-  await mkdir(path.join(tempRoot, "scripts"), { recursive: true });
+  await mkdir(path.join(tempRoot, "scripts", "lib"), { recursive: true });
   await mkdir(path.join(tempRoot, "bin"), { recursive: true });
+  await mkdir(path.join(tempRoot, "node_modules", ".bin"), { recursive: true });
   await cp(
     path.join(repoRoot, "scripts", "run-unit-tests.mjs"),
     path.join(tempRoot, "scripts", "run-unit-tests.mjs")
   );
+  await cp(
+    path.join(repoRoot, "scripts", "lib", "local-bin.mjs"),
+    path.join(tempRoot, "scripts", "lib", "local-bin.mjs")
+  );
 
-  await writeCommandShim(tempRoot, "pnpm");
+  await writeLocalBinaryShim(tempRoot, "turbo");
+  await writeLocalBinaryShim(tempRoot, "vitest");
   return tempRoot;
 }
 
-async function writeCommandShim(targetRoot: string, commandName: string): Promise<void> {
-  const binDir = path.join(targetRoot, "bin");
+async function writeShim(binDir: string, commandName: string): Promise<void> {
+  await mkdir(binDir, { recursive: true });
   const scriptBody = `${nodeShebang}
 const fs = require("node:fs");
 const args = process.argv.slice(2).join(" ");
@@ -65,6 +71,10 @@ if (matchedRule?.action === "fail") {
     );
     chmodSync(cmdShimPath, 0o755);
   }
+}
+
+async function writeLocalBinaryShim(targetRoot: string, commandName: string): Promise<void> {
+  await writeShim(path.join(targetRoot, "node_modules", ".bin"), commandName);
 }
 
 async function writeCommandBehavior(
@@ -117,8 +127,8 @@ describe("run-unit-tests.mjs", () => {
 
     expect(result.status).toBe(0);
     expect(commandLines).toHaveLength(2);
-    expect(commandLines[0]).toBe("pnpm exec vitest run --config vitest.root.config.ts");
-    expect(commandLines[1]).toContain("pnpm exec turbo run test");
+    expect(commandLines[0]).toBe("vitest run --config vitest.root.config.ts");
+    expect(commandLines[1]).toContain("turbo run test");
     expect(commandLines[1]).toContain("--filter=@ku0/code");
     expect(commandLines[1]).toContain("--filter=@ku0/code-workspace-client");
     expect(commandLines[1]).toContain("--filter=@ku0/shared");
@@ -132,8 +142,8 @@ describe("run-unit-tests.mjs", () => {
     const commandLog = await readCommandLog(tempRoot);
 
     expect(result.status).toBe(0);
-    expect(commandLog).toContain("pnpm exec vitest run --config vitest.root.config.ts --coverage");
-    expect(commandLog).toContain("pnpm exec turbo run test");
+    expect(commandLog).toContain("vitest run --config vitest.root.config.ts --coverage");
+    expect(commandLog).toContain("turbo run test");
     expect(commandLog).toContain("-- --coverage");
   });
 
@@ -141,7 +151,7 @@ describe("run-unit-tests.mjs", () => {
     const tempRoot = await createFixtureRepo();
     const behaviorPath = await writeCommandBehavior(tempRoot, [
       {
-        match: "pnpm exec vitest run --config vitest.root.config.ts",
+        match: "vitest run --config vitest.root.config.ts",
         action: "fail",
         exitCode: 7,
       },
@@ -153,7 +163,7 @@ describe("run-unit-tests.mjs", () => {
 
     expect(result.status).toBe(1);
     expect(commandLines).toHaveLength(1);
-    expect(commandLines[0]).toBe("pnpm exec vitest run --config vitest.root.config.ts");
+    expect(commandLines[0]).toBe("vitest run --config vitest.root.config.ts");
     expect(result.stderr).toContain("Root unit tests failed with exit code 7");
   });
 });

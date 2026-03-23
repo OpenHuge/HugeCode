@@ -19,8 +19,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
-    "lint": "pnpm exec oxlint .",
-    "lint:fix": "pnpm exec oxlint --fix --fix-suggestions . && pnpm exec oxfmt --write ."
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix --fix-suggestions . && oxfmt --write ."
   },
   "dependencies": {
     "clsx": "^2.1.1"

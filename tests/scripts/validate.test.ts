@@ -16,6 +16,7 @@ async function createFixtureRepo(): Promise<string> {
 
   await mkdir(path.join(tempRoot, "scripts", "lib"), { recursive: true });
   await mkdir(path.join(tempRoot, "bin"), { recursive: true });
+  await mkdir(path.join(tempRoot, "node_modules", ".bin"), { recursive: true });
   await mkdir(path.join(tempRoot, "apps", "code", "src", "styles"), {
     recursive: true,
   });
@@ -42,6 +43,10 @@ async function createFixtureRepo(): Promise<string> {
   await cp(
     path.join(repoRoot, "scripts", "lib", "process-tree.mjs"),
     path.join(tempRoot, "scripts", "lib", "process-tree.mjs")
+  );
+  await cp(
+    path.join(repoRoot, "scripts", "lib", "local-bin.mjs"),
+    path.join(tempRoot, "scripts", "lib", "local-bin.mjs")
   );
   await writeStyleBudgetProbeScript(tempRoot);
   await writeNoOpScript(tempRoot, "scripts/check-style-color-tokens.mjs");
@@ -121,6 +126,12 @@ async function createFixtureRepo(): Promise<string> {
 
   await writeCommandShim(tempRoot, "pnpm");
   await writeCommandShim(tempRoot, "node");
+  await writeLocalBinaryShim(tempRoot, "madge");
+  await writeLocalBinaryShim(tempRoot, "oxfmt");
+  await writeLocalBinaryShim(tempRoot, "oxlint");
+  await writeLocalBinaryShim(tempRoot, "tsc");
+  await writeLocalBinaryShim(tempRoot, "turbo");
+  await writeLocalBinaryShim(tempRoot, "vitest");
 
   runGit(tempRoot, ["init", "--initial-branch=main"]);
   runGit(tempRoot, ["config", "user.name", "Codex"]);
@@ -137,8 +148,8 @@ async function writeRepoFile(targetRoot: string, relativePath: string, content: 
   await writeFile(targetPath, content, "utf8");
 }
 
-async function writeCommandShim(targetRoot: string, commandName: string): Promise<void> {
-  const binDir = path.join(targetRoot, "bin");
+async function writeShim(binDir: string, commandName: string): Promise<void> {
+  await mkdir(binDir, { recursive: true });
   const scriptBody = `${nodeShebang}
 const fs = require("node:fs");
 const { spawn } = require("node:child_process");
@@ -199,6 +210,14 @@ if (matchedRule?.action === "fail") {
     );
     chmodSync(cmdShimPath, 0o755);
   }
+}
+
+async function writeCommandShim(targetRoot: string, commandName: string): Promise<void> {
+  await writeShim(path.join(targetRoot, "bin"), commandName);
+}
+
+async function writeLocalBinaryShim(targetRoot: string, commandName: string): Promise<void> {
+  await writeShim(path.join(targetRoot, "node_modules", ".bin"), commandName);
 }
 
 async function writeNoOpScript(targetRoot: string, relativePath: string): Promise<void> {
@@ -312,7 +331,7 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
     expect(result.status).toBe(0);
     expect(commandLog).toContain("node scripts/check-runtime-sot.mjs");
-    expect(commandLog).toContain("pnpm exec oxlint --no-ignore scripts/check-runtime-sot.mjs");
+    expect(commandLog).toContain("oxlint --no-ignore scripts/check-runtime-sot.mjs");
     expect(commandLog).not.toContain("pnpm check:workflow-governance");
     expect(commandLog).not.toContain("pnpm lint");
     expect(commandLog).not.toContain("pnpm format:check");
@@ -398,8 +417,8 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     const commandLog = await readCommandLog(tempRoot);
 
     expect(result.status).toBe(0);
-    expect(commandLog).toContain("pnpm exec vitest run tests/scripts/validate.test.ts");
-    expect(commandLog).not.toContain("pnpm exec vitest related --run --passWithNoTests");
+    expect(commandLog).toContain("vitest run tests/scripts/validate.test.ts");
+    expect(commandLog).not.toContain("vitest related --run --passWithNoTests");
     expect(commandLog).not.toContain("pnpm check:workflow-governance");
     expect(commandLog).not.toContain("pnpm check:app-circular");
     expect(commandLog).not.toContain("pnpm check:frontend-file-size:all");
@@ -766,11 +785,9 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     const commandLog = await readCommandLog(tempRoot);
 
     expect(result.status).toBe(0);
-    expect(commandLog).toContain(
-      "pnpm exec vitest run --passWithNoTests tests/scripts/example.test.ts"
-    );
+    expect(commandLog).toContain("vitest run --passWithNoTests tests/scripts/example.test.ts");
     expect(commandLog).not.toContain(
-      "pnpm exec vitest related --run --passWithNoTests tests/scripts/example.test.ts"
+      "vitest related --run --passWithNoTests tests/scripts/example.test.ts"
     );
   });
 
@@ -786,7 +803,7 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     const commandLog = await readCommandLog(tempRoot);
 
     expect(result.status).toBe(0);
-    expect(commandLog).toContain("pnpm exec vitest run tests/scripts/validate.test.ts");
+    expect(commandLog).toContain("vitest run tests/scripts/validate.test.ts");
   });
 
   it("runs the dedicated review-pack regression when runtime review flow files change", async () => {
@@ -835,7 +852,7 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     expect(result.status).toBe(0);
     expect(commandLog).toContain("pnpm test:runtime:review-pack-selection");
     expect(commandLog).not.toContain(
-      "pnpm exec vitest related --run --passWithNoTests tests/scripts/review-pack-selection-flow.test.ts"
+      "vitest related --run --passWithNoTests tests/scripts/review-pack-selection-flow.test.ts"
     );
   });
 
@@ -848,13 +865,11 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
     expect(result.status).toBe(0);
     expect(commandLog).toContain(
-      "pnpm -C apps/code exec vitest run --passWithNoTests --maxWorkers=75% src/example.test.ts"
+      "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=75% src/example.test.ts"
     );
-    expect(commandLog).not.toContain(
-      "pnpm -C apps/code exec vitest related --run --passWithNoTests"
-    );
-    expect(commandLog).not.toContain("pnpm -C apps/code test");
-    expect(result.stderr).not.toContain("Falling back to `pnpm -C apps/code test`");
+    expect(commandLog).not.toContain("vitest related --run --passWithNoTests");
+    expect(commandLog.split(/\r?\n/u)).not.toContain("vitest run --config vitest.config.ts");
+    expect(result.stderr).not.toContain("Falling back to `vitest run --config vitest.config.ts`");
   });
 
   it("passes through an explicit apps/code direct-test maxWorkers override", async () => {
@@ -868,9 +883,9 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
     expect(result.status).toBe(0);
     expect(commandLog).toContain(
-      "pnpm -C apps/code exec vitest run --passWithNoTests --maxWorkers=50% src/example.test.ts"
+      "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=50% src/example.test.ts"
     );
-    expect(commandLog).not.toContain("pnpm -C apps/code test");
+    expect(commandLog.split(/\r?\n/u)).not.toContain("vitest run --config vitest.config.ts");
   });
 
   it("uses the browser-specific apps/code direct-test maxWorkers override when browser targets are present", async () => {
@@ -884,7 +899,7 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
     expect(result.status).toBe(0);
     expect(commandLog).toContain(
-      "pnpm -C apps/code exec vitest run --passWithNoTests --maxWorkers=25% src/example.browser.test.tsx"
+      "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=25% src/example.browser.test.tsx"
     );
   });
 
@@ -899,7 +914,7 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
     expect(result.status).toBe(0);
     expect(commandLog).toContain(
-      "pnpm -C apps/code exec vitest run --passWithNoTests --maxWorkers=60% src/example.test.ts"
+      "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=60% src/example.test.ts"
     );
   });
 
@@ -913,12 +928,10 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
     expect(result.status).toBe(0);
     expect(commandLog).toContain(
-      "pnpm -C apps/code exec vitest run --passWithNoTests --maxWorkers=75% src/example.test.ts"
+      "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=75% src/example.test.ts"
     );
-    expect(commandLog).not.toContain(
-      "pnpm -C apps/code exec vitest related --run --passWithNoTests"
-    );
-    expect(commandLog).not.toContain("pnpm -C apps/code test");
+    expect(commandLog).not.toContain("vitest related --run --passWithNoTests");
+    expect(commandLog.split(/\r?\n/u)).not.toContain("vitest run --config vitest.config.ts");
     expect(result.stderr).toContain("[validate] apps/code incremental pruning:");
   });
 
@@ -940,12 +953,12 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
     expect(result.status).toBe(0);
     expect(commandLog).toContain(
-      "pnpm -C apps/code exec vitest run --passWithNoTests --maxWorkers=75% src/features/composer/components/ComposerInput.lazy.test.tsx"
+      "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=75% src/features/composer/components/ComposerInput.lazy.test.tsx"
     );
     expect(commandLog).not.toContain(
-      "pnpm -C apps/code exec vitest related --run --passWithNoTests --maxWorkers=75% src/features/composer/components/ComposerInput.tsx"
+      "vitest related --run --passWithNoTests --maxWorkers=75% src/features/composer/components/ComposerInput.tsx"
     );
-    expect(commandLog).not.toContain("pnpm -C apps/code test");
+    expect(commandLog.split(/\r?\n/u)).not.toContain("vitest run --config vitest.config.ts");
     expect(result.stderr).toContain("[validate] apps/code incremental pruning:");
   });
 
@@ -959,11 +972,11 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     const commandLog = await readCommandLog(tempRoot);
 
     expect(result.status).toBe(0);
-    expect(commandLog).toContain("pnpm -C apps/code test");
+    expect(commandLog).toContain("vitest run --config vitest.config.ts");
     expect(commandLog).not.toContain(
-      "pnpm -C apps/code exec vitest run --passWithNoTests --maxWorkers=75% src/example.test.ts"
+      "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=75% src/example.test.ts"
     );
-    expect(commandLog).not.toContain("pnpm -C apps/code exec vitest related --run");
+    expect(commandLog).not.toContain("vitest related --run");
     expect(result.stderr).toContain("[validate] apps/code incremental dedupe:");
     expect(result.stderr).toContain("[validate] apps/code incremental fallback:");
   });
@@ -982,8 +995,8 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     const commandLog = await readCommandLog(tempRoot);
 
     expect(result.status).toBe(0);
-    expect(commandLog.match(/pnpm -C apps\/code test/g)?.length).toBe(1);
-    expect(commandLog).not.toContain("pnpm -C apps/code exec vitest related --run");
+    expect(commandLog.match(/vitest run --config vitest\.config\.ts/g)?.length).toBe(1);
+    expect(commandLog).not.toContain("vitest related --run");
     expect(result.stderr).toContain("[validate] apps/code incremental fallback:");
   });
 
@@ -1005,10 +1018,10 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
     expect(result.status).toBe(0);
     expect(commandLog).toContain(
-      "pnpm -C apps/code exec vitest run --passWithNoTests --maxWorkers=75% src/application/runtime/facades/runtimeAutoDriveContext.test.ts"
+      "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=75% src/application/runtime/facades/runtimeAutoDriveContext.test.ts"
     );
-    expect(commandLog).not.toContain("pnpm -C apps/code exec vitest related --run");
-    expect(commandLog).not.toContain("pnpm -C apps/code test");
+    expect(commandLog).not.toContain("vitest related --run");
+    expect(commandLog.split(/\r?\n/u)).not.toContain("vitest run --config vitest.config.ts");
     expect(result.stderr).toContain("[validate] apps/code incremental pruning:");
   });
 
@@ -1027,10 +1040,10 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
     expect(result.status).toBe(0);
     expect(commandLog).toContain(
-      "pnpm -C apps/code exec vitest run --passWithNoTests --maxWorkers=75% src/services/example-a.test.ts src/services/example-b.test.ts"
+      "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=75% src/services/example-a.test.ts src/services/example-b.test.ts"
     );
-    expect(commandLog).not.toContain("pnpm -C apps/code exec vitest related --run");
-    expect(commandLog).not.toContain("pnpm -C apps/code test");
+    expect(commandLog).not.toContain("vitest related --run");
+    expect(commandLog.split(/\r?\n/u)).not.toContain("vitest run --config vitest.config.ts");
     expect(result.stderr).toContain("[validate] apps/code incremental pruning:");
   });
 
@@ -1044,10 +1057,10 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
     expect(result.status).toBe(0);
     expect(commandLog).toContain(
-      "pnpm -C apps/code exec vitest run --passWithNoTests --maxWorkers=75% src/example.test.ts"
+      "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=75% src/example.test.ts"
     );
-    expect(commandLog).not.toContain("pnpm -C apps/code exec vitest related --run");
-    expect(commandLog).not.toContain("pnpm -C apps/code test");
+    expect(commandLog).not.toContain("vitest related --run");
+    expect(commandLog.split(/\r?\n/u)).not.toContain("vitest run --config vitest.config.ts");
     expect(result.stderr).toContain("[validate] apps/code incremental pruning:");
   });
 
@@ -1074,10 +1087,10 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
     expect(result.status).toBe(0);
     expect(commandLog).toContain(
-      "pnpm -C apps/code exec vitest run --passWithNoTests --maxWorkers=75% src/application/runtime/facades/runtimeMissionControlFacade.test.ts"
+      "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=75% src/application/runtime/facades/runtimeMissionControlFacade.test.ts"
     );
-    expect(commandLog).not.toContain("pnpm -C apps/code exec vitest related --run");
-    expect(commandLog).not.toContain("pnpm -C apps/code test");
+    expect(commandLog).not.toContain("vitest related --run");
+    expect(commandLog.split(/\r?\n/u)).not.toContain("vitest run --config vitest.config.ts");
     expect(result.stderr).toContain("[validate] apps/code incremental pruning:");
   });
 
@@ -1104,10 +1117,10 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
     expect(result.status).toBe(0);
     expect(commandLog).toContain(
-      "pnpm -C apps/code exec vitest run --passWithNoTests --maxWorkers=75% src/features/settings/components/sections/SettingsGitSection.test.tsx src/features/settings/components/SettingsView.test.tsx"
+      "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=75% src/features/settings/components/sections/SettingsGitSection.test.tsx src/features/settings/components/SettingsView.test.tsx"
     );
-    expect(commandLog).not.toContain("pnpm -C apps/code exec vitest related --run");
-    expect(commandLog).not.toContain("pnpm -C apps/code test");
+    expect(commandLog).not.toContain("vitest related --run");
+    expect(commandLog.split(/\r?\n/u)).not.toContain("vitest run --config vitest.config.ts");
     expect(result.stderr).toContain("[validate] apps/code incremental pruning:");
   });
 
@@ -1123,9 +1136,9 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     const commandLog = await readCommandLog(tempRoot);
 
     expect(secondResult.status).toBe(0);
-    expect(commandLog.match(/pnpm -C apps\/code exec vitest run --passWithNoTests/g)?.length).toBe(
-      1
-    );
+    expect(
+      commandLog.match(/vitest run --config vitest\.config\.ts --passWithNoTests/g)?.length
+    ).toBe(1);
     expect(secondResult.stderr).toContain("[validate] apps/code targeted-tests cache hit:");
   });
 
@@ -1142,9 +1155,9 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     const commandLog = await readCommandLog(tempRoot);
 
     expect(secondResult.status).toBe(0);
-    expect(commandLog.match(/pnpm -C apps\/code exec vitest run --passWithNoTests/g)?.length).toBe(
-      2
-    );
+    expect(
+      commandLog.match(/vitest run --config vitest\.config\.ts --passWithNoTests/g)?.length
+    ).toBe(2);
     expect(secondResult.stderr).toContain("[validate] apps/code targeted-tests cache hit:");
   });
 
@@ -1156,8 +1169,8 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     const commandLog = await readCommandLog(tempRoot);
 
     expect(result.status).toBe(0);
-    expect(commandLog).toContain("pnpm -C apps/code test");
-    expect(commandLog).not.toContain("pnpm -C apps/code exec vitest related --run");
+    expect(commandLog).toContain("vitest run --config vitest.config.ts");
+    expect(commandLog).not.toContain("vitest related --run");
     expect(result.stderr).toContain("[validate] apps/code incremental fallback:");
   });
 
@@ -1166,7 +1179,7 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     await writeRepoFile(tempRoot, "apps/code/src/example.ts", "export const value = 1;\n");
     const behaviorPath = await writeCommandBehavior(tempRoot, [
       {
-        match: "pnpm -C apps/code test",
+        match: "vitest run --config vitest.config.ts",
         action: "fail",
         exitCode: 3,
       },
@@ -1178,8 +1191,8 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     const commandLog = await readCommandLog(tempRoot);
 
     expect(result.status).toBe(1);
-    expect(commandLog).toContain("pnpm -C apps/code test");
-    expect(commandLog).not.toContain("pnpm -C apps/code exec vitest related --run");
+    expect(commandLog).toContain("vitest run --config vitest.config.ts");
+    expect(commandLog).not.toContain("vitest related --run");
     expect(result.stderr).toContain("Vitest fallback full package test (apps/code) failed");
   });
 
@@ -1188,7 +1201,7 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     await writeRepoFile(tempRoot, "apps/code/src/example.ts", "export const value = 1;\n");
     const behaviorPath = await writeCommandBehavior(tempRoot, [
       {
-        match: "pnpm -C apps/code test",
+        match: "vitest run --config vitest.config.ts",
         action: "hang",
       },
     ]);
@@ -1200,8 +1213,8 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     const commandLog = await readCommandLog(tempRoot);
 
     expect(result.status).toBe(1);
-    expect(commandLog).toContain("pnpm -C apps/code test");
-    expect(commandLog).not.toContain("pnpm -C apps/code exec vitest related --run");
+    expect(commandLog).toContain("vitest run --config vitest.config.ts");
+    expect(commandLog).not.toContain("vitest related --run");
     expect(result.stderr).toContain("Vitest fallback full package test (apps/code) timed out");
   });
 
@@ -1213,10 +1226,8 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     const commandLog = await readCommandLog(tempRoot);
 
     expect(result.status).toBe(0);
-    expect(commandLog).toContain(
-      "pnpm -C packages/demo exec vitest related --run --passWithNoTests"
-    );
-    expect(commandLog).not.toContain("pnpm -C packages/demo test");
+    expect(commandLog).toContain("vitest related --run --passWithNoTests src/example.test.ts");
+    expect(commandLog.split(/\r?\n/u)).not.toContain("vitest run --config vitest.config.ts");
   });
 
   it("kills descendant processes when the apps/code package fallback test times out", async () => {
@@ -1225,7 +1236,7 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     await writeRepoFile(tempRoot, "apps/code/src/example.ts", "export const value = 1;\n");
     const behaviorPath = await writeCommandBehavior(tempRoot, [
       {
-        match: "pnpm -C apps/code test",
+        match: "vitest run --config vitest.config.ts",
         action: "hang",
         spawnChild: true,
         childPidFile,

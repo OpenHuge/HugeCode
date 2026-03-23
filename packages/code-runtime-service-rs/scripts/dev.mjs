@@ -6,6 +6,7 @@ import { copyFile, mkdir, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+// @boundaries-ignore shared workspace dev script
 import {
   buildRustBuildEnv,
   prepareCargoTargetDirForBuild,
