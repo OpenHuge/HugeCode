@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { resolveWindowLabel } from "../../../application/runtime/ports/tauriEnvironment";
+import { resolveWindowLabel } from "../../../application/runtime/facades/desktopHostFacade";
 
 export function useWindowLabel(defaultLabel = "main") {
   const [label, setLabel] = useState(defaultLabel);

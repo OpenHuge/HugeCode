@@ -16,8 +16,6 @@ on:
     paths:
       - "apps/code-tauri/**"
       - "apps/code/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
       - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
       - ".github/workflows/_reusable-desktop-build-pr.yml"
       - ".github/workflows/_reusable-desktop-build-release.yml"
@@ -29,6 +27,7 @@ on:
       - ".github/actions/setup-rust-ci/**"
       - ".github/actions/upload-workflow-artifact/**"
       - ".github/workflows/desktop.yml"
+      - "apps/code-electron/**"
   push:
     branches:
       - main
@@ -57,16 +56,61 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect desktop-relevant changes
+    runs-on: ubuntu-latest
+    outputs:
+      desktop_required: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.desktop == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Ensure diff base is available
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --prune --depth=1 origin \
+            +refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
+
+      - id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            desktop:
+              - "apps/code-tauri/**"
+              - "apps/code/**"
+              - "apps/code-electron/**"
+              - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
+              - ".github/workflows/_reusable-desktop-build-pr.yml"
+              - ".github/workflows/_reusable-desktop-build-release.yml"
+              - ".github/actions/cache-turbo/**"
+              - ".github/actions/install-linux-desktop-deps/**"
+              - ".github/actions/restore-artifact/**"
+              - ".github/actions/setup-desktop-build-env/**"
+              - ".github/actions/setup-node-pnpm/**"
+              - ".github/actions/setup-rust-ci/**"
+              - ".github/actions/upload-workflow-artifact/**"
+              - ".github/workflows/desktop.yml"
+
+      - id: scope
+        name: Classify dependency manifest scope
+        env:
+          CI_SCOPE_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD^' }}
+          CI_SCOPE_HEAD_REF: HEAD
+        run: node scripts/classify-ci-change-scope.mjs
+
   prepare-frontend:
     name: Prepare frontend dist
+    needs: changes
+    if: needs.changes.outputs.desktop_required == 'true'
     uses: ./.github/workflows/_reusable-desktop-prepare-frontend.yml
     with:
       prebuild_mode: ${{ github.event_name == 'workflow_dispatch' && inputs.prebuild_mode || 'auto' }}
 
   build-pr:
     name: Build PR (${{ matrix.name }})
-    if: github.event_name == 'pull_request'
-    needs: prepare-frontend
+    if: github.event_name == 'pull_request' && needs.changes.outputs.desktop_required == 'true'
+    needs: [changes, prepare-frontend]
     strategy:
       fail-fast: false
       matrix:
@@ -99,8 +143,8 @@ jobs:
 
   build-release:
     name: Build (${{ matrix.name }})
-    if: github.event_name != 'pull_request'
-    needs: prepare-frontend
+    if: github.event_name != 'pull_request' && needs.changes.outputs.desktop_required == 'true'
+    needs: [changes, prepare-frontend]
     strategy:
       fail-fast: false
       matrix:

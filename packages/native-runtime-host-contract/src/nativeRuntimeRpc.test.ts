@@ -39,6 +39,20 @@ describe("native runtime rpc mapping", () => {
         "native_state_fabric_diagnostics",
       ])
     );
+    expect(NATIVE_RUNTIME_NATIVE_ONLY_METHOD_LIST).not.toEqual(
+      expect.arrayContaining([
+        "native_plugins_list",
+        "native_plugin_install",
+        "native_plugin_uninstall",
+        "native_plugin_update",
+        "native_plugin_set_enabled",
+        "native_skills_list",
+        "native_skill_get",
+        "native_skill_upsert",
+        "native_skill_remove",
+        "native_skill_set_enabled",
+      ])
+    );
     for (const method of NATIVE_RUNTIME_NATIVE_ONLY_METHOD_LIST) {
       expect(toCodeRuntimeRpcMethod(method)).toBeNull();
       expect(isNativeRuntimeRpcMethod(method)).toBe(true);
@@ -131,9 +145,9 @@ describe("native runtime rpc mapping", () => {
       resume: true,
     });
     expect(nativeCapabilities.capabilities?.tooling).toEqual({
-      plugins: true,
+      plugins: false,
       tools: true,
-      skills: true,
+      skills: false,
     });
     expect(nativeCapabilities.capabilities?.fallback).toEqual({
       threadLive: "polling",
@@ -146,7 +160,7 @@ describe("native runtime rpc mapping", () => {
 
   it("keeps native v2 method set hash stable", () => {
     expect(computeCodeRuntimeRpcMethodSetHash([...NATIVE_RUNTIME_RPC_METHOD_LIST])).toBe(
-      "d50464c1ed31c62a"
+      "03d258d6bab6a9e9"
     );
   });
 });

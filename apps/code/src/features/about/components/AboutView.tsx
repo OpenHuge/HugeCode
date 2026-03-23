@@ -7,15 +7,12 @@ import {
   ABOUT_TAGLINE,
   ABOUT_VERSION_PREFIX,
 } from "@ku0/shared/aboutContent";
-import {
-  openExternalUrlWithFallback,
-  resolveAppVersion,
-} from "../../../application/runtime/ports/tauriEnvironment";
+import { openUrl, resolveAppVersion } from "../../../application/runtime/facades/desktopHostFacade";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import "./AboutView.global.css";
 
 async function openExternalUrl(url: string) {
-  const opened = await openExternalUrlWithFallback(url);
+  const opened = await openUrl(url);
   if (opened) {
     return;
   }

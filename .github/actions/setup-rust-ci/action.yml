@@ -6,10 +6,6 @@ inputs:
     description: Rust toolchain version or channel to install.
     required: false
     default: "1.93.1"
-  profile:
-    description: Rust toolchain profile.
-    required: false
-    default: "minimal"
   targets:
     description: Optional Rust compilation targets.
     required: false
@@ -42,14 +38,12 @@ runs:
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: ${{ inputs.toolchain }}
-        profile: ${{ inputs.profile }}
 
     - name: Install Rust toolchain with targets
       if: inputs.targets != ''
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: ${{ inputs.toolchain }}
-        profile: ${{ inputs.profile }}
         targets: ${{ inputs.targets }}
 
     - name: Enable sccache env
@@ -66,7 +60,7 @@ runs:
         version: ${{ inputs.sccache-version }}
 
     - name: Cache Cargo
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ${{ inputs.cargo-cache-path }}
         key: cargo-${{ inputs.cargo-cache-key }}-${{ hashFiles('**/Cargo.lock') }}

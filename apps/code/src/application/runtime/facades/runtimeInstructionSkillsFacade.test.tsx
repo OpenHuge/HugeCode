@@ -160,7 +160,7 @@ describe("useRuntimeInstructionSkillsFacade", () => {
     });
   });
 
-  it("ignores runtime compatibility events outside the canonical native fabric update path", async () => {
+  it("refreshes on runtime updated plugin scope changes", async () => {
     vi.mocked(getSkillsList)
       .mockResolvedValueOnce({
         result: { skills: [{ name: "first", path: "/skills/first" }] },
@@ -186,8 +186,46 @@ describe("useRuntimeInstructionSkillsFacade", () => {
         createRuntimeUpdatedEventFixture({
           paramsWorkspaceId: workspace.id,
           revision: "46",
-          scope: ["skills"],
-          reason: "native_skill_set_enabled",
+          scope: ["plugins"],
+          reason: "code_extension_set_state_v2",
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(getSkillsList).toHaveBeenCalledTimes(2);
+      expect(result.current.skills.map((skill) => skill.name)).toEqual(["second"]);
+    });
+  });
+
+  it("ignores unrelated runtime compatibility events", async () => {
+    vi.mocked(getSkillsList)
+      .mockResolvedValueOnce({
+        result: { skills: [{ name: "first", path: "/skills/first" }] },
+      })
+      .mockResolvedValueOnce({
+        result: { skills: [{ name: "second", path: "/skills/second" }] },
+      });
+
+    const { result } = renderHook(() =>
+      useRuntimeInstructionSkillsFacade({
+        workspaceId: workspace.id,
+        isConnected: true,
+      })
+    );
+
+    await waitFor(() => {
+      expect(getSkillsList).toHaveBeenCalledTimes(1);
+      expect(result.current.skills.map((skill) => skill.name)).toEqual(["first"]);
+    });
+
+    act(() => {
+      runtimeUpdatedHarness.emitRuntimeUpdated(
+        createRuntimeUpdatedEventFixture({
+          paramsWorkspaceId: workspace.id,
+          revision: "47",
+          scope: ["threads"],
+          reason: "code_thread_live_subscribe",
         })
       );
     });

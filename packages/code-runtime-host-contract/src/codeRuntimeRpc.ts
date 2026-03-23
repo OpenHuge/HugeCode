@@ -2975,6 +2975,48 @@ export type KernelExtensionsListRequest = {
   workspaceId?: string | null;
 };
 
+export type RuntimeExtensionCatalogListRequest = {
+  workspaceId?: string | null;
+  kinds?: RuntimeExtensionKind[] | null;
+  includeDisabled?: boolean | null;
+};
+
+export type RuntimeExtensionGetRequest = {
+  workspaceId?: string | null;
+  extensionId: string;
+};
+
+export type RuntimeExtensionRegistrySourceKind =
+  | "workspace"
+  | "private-registry"
+  | "public-registry"
+  | (string & {});
+
+export type RuntimeExtensionKind =
+  | "instruction"
+  | "mcp"
+  | "host"
+  | "provider"
+  | "bundle"
+  | (string & {});
+
+export type RuntimeExtensionDistribution =
+  | "bundled"
+  | "workspace"
+  | "private-registry"
+  | "public-registry"
+  | (string & {});
+
+export type RuntimeExtensionLifecycleState =
+  | "discovered"
+  | "installed"
+  | "enabled"
+  | "degraded"
+  | "blocked"
+  | "updating"
+  | "removed"
+  | (string & {});
+
 export type KernelPoliciesEvaluateRequest = {
   toolName?: string | null;
   scope?: RuntimeToolExecutionScope | null;
@@ -2987,21 +3029,55 @@ export type KernelPoliciesEvaluateRequest = {
 
 export type RuntimeExtensionTransport =
   | "builtin"
+  | "repo-manifest"
   | "mcp-stdio"
   | "mcp-http"
+  | "host-native"
+  | "openai-compatible"
   | "frontend"
   | (string & {});
 
-export type RuntimeExtensionSpec = {
+export type RuntimeExtensionUiAppDescriptor = {
+  appId: string;
+  title: string;
+  route: string;
+  description?: string | null;
+  icon?: string | null;
+};
+
+export type RuntimeExtensionRegistrySource = {
+  sourceId: string;
+  displayName: string;
+  kind: RuntimeExtensionRegistrySourceKind;
+  url?: string | null;
+  public: boolean;
+  installSupported: boolean;
+  searchSupported: boolean;
+};
+
+export type RuntimeExtensionRecord = {
   extensionId: string;
+  version: string;
+  displayName: string;
+  publisher: string;
+  summary: string;
+  kind: RuntimeExtensionKind;
+  distribution: RuntimeExtensionDistribution;
   name: string;
   transport: RuntimeExtensionTransport;
+  lifecycleState: RuntimeExtensionLifecycleState;
   enabled: boolean;
   workspaceId: string | null;
+  capabilities: string[];
+  permissions: string[];
+  uiApps: RuntimeExtensionUiAppDescriptor[];
+  provenance: Record<string, unknown>;
   config: Record<string, unknown>;
   installedAt: number;
   updatedAt: number;
 };
+
+export type RuntimeExtensionSpec = RuntimeExtensionRecord;
 
 export type RuntimeExtensionToolSummary = {
   extensionId: string;
@@ -3014,15 +3090,49 @@ export type RuntimeExtensionToolSummary = {
 export type RuntimeExtensionInstallRequest = {
   workspaceId?: string | null;
   extensionId: string;
-  name: string;
+  version?: string | null;
+  displayName?: string | null;
+  publisher?: string | null;
+  summary?: string | null;
+  kind?: RuntimeExtensionKind | null;
+  distribution?: RuntimeExtensionDistribution | null;
+  name?: string | null;
   transport: RuntimeExtensionTransport;
   enabled?: boolean;
+  capabilities?: string[] | null;
+  permissions?: string[] | null;
+  uiApps?: RuntimeExtensionUiAppDescriptor[] | null;
+  provenance?: Record<string, unknown> | null;
   config?: Record<string, unknown> | null;
 };
 
 export type RuntimeExtensionRemoveRequest = {
   workspaceId?: string | null;
   extensionId: string;
+};
+
+export type RuntimeExtensionUpdateRequest = {
+  workspaceId?: string | null;
+  extensionId: string;
+  version?: string | null;
+  displayName?: string | null;
+  publisher?: string | null;
+  summary?: string | null;
+  kind?: RuntimeExtensionKind | null;
+  distribution?: RuntimeExtensionDistribution | null;
+  transport?: RuntimeExtensionTransport | null;
+  enabled?: boolean | null;
+  capabilities?: string[] | null;
+  permissions?: string[] | null;
+  uiApps?: RuntimeExtensionUiAppDescriptor[] | null;
+  provenance?: Record<string, unknown> | null;
+  config?: Record<string, unknown> | null;
+};
+
+export type RuntimeExtensionSetStateRequest = {
+  workspaceId?: string | null;
+  extensionId: string;
+  enabled: boolean;
 };
 
 export type RuntimeExtensionToolsListRequest = {
@@ -3045,8 +3155,58 @@ export type RuntimeExtensionResourceReadResponse = {
 };
 
 export type RuntimeExtensionsConfigResponse = {
-  extensions: RuntimeExtensionSpec[];
+  extensions: RuntimeExtensionRecord[];
   warnings: string[];
+  registrySources?: RuntimeExtensionRegistrySource[];
+};
+
+export type RuntimeExtensionRegistrySearchRequest = {
+  workspaceId?: string | null;
+  query?: string | null;
+  kinds?: RuntimeExtensionKind[] | null;
+  sourceIds?: string[] | null;
+};
+
+export type RuntimeExtensionRegistrySearchResponse = {
+  query: string;
+  results: RuntimeExtensionRecord[];
+  sources: RuntimeExtensionRegistrySource[];
+};
+
+export type RuntimeExtensionPermissionsEvaluateRequest = {
+  workspaceId?: string | null;
+  extensionId: string;
+};
+
+export type RuntimeExtensionPermissionsEvaluateResponse = {
+  extensionId: string;
+  permissions: string[];
+  decision: "allow" | "ask" | "deny";
+  warnings: string[];
+};
+
+export type RuntimeExtensionHealthReadRequest = {
+  workspaceId?: string | null;
+  extensionId: string;
+};
+
+export type RuntimeExtensionHealthReadResponse = {
+  extensionId: string;
+  lifecycleState: RuntimeExtensionLifecycleState;
+  healthy: boolean;
+  warnings: string[];
+  checkedAt: number;
+};
+
+export type RuntimeExtensionUiAppsListRequest = {
+  workspaceId?: string | null;
+  extensionId?: string | null;
+};
+
+export type RuntimeExtensionUiAppsListResponse = {
+  workspaceId: string | null;
+  extensionId?: string | null;
+  apps: RuntimeExtensionUiAppDescriptor[];
 };
 
 export type RuntimeSessionExportRequest = {
@@ -3590,12 +3750,19 @@ export const CODE_RUNTIME_RPC_METHODS = {
   MCP_SERVER_STATUS_LIST_V1: "code_mcp_server_status_list_v1",
   BROWSER_DEBUG_STATUS_V1: "code_browser_debug_status_v1",
   BROWSER_DEBUG_RUN_V1: "code_browser_debug_run_v1",
-  EXTENSIONS_LIST_V1: "code_extensions_list_v1",
-  EXTENSION_INSTALL_V1: "code_extension_install_v1",
-  EXTENSION_REMOVE_V1: "code_extension_remove_v1",
-  EXTENSION_TOOLS_LIST_V1: "code_extension_tools_list_v1",
-  EXTENSION_RESOURCE_READ_V1: "code_extension_resource_read_v1",
-  EXTENSIONS_CONFIG_V1: "code_extensions_config_v1",
+  EXTENSION_CATALOG_LIST_V2: "code_extension_catalog_list_v2",
+  EXTENSION_GET_V2: "code_extension_get_v2",
+  EXTENSION_INSTALL_V2: "code_extension_install_v2",
+  EXTENSION_UPDATE_V2: "code_extension_update_v2",
+  EXTENSION_SET_STATE_V2: "code_extension_set_state_v2",
+  EXTENSION_REMOVE_V2: "code_extension_remove_v2",
+  EXTENSION_REGISTRY_SEARCH_V2: "code_extension_registry_search_v2",
+  EXTENSION_REGISTRY_SOURCES_V2: "code_extension_registry_sources_v2",
+  EXTENSION_PERMISSIONS_EVALUATE_V2: "code_extension_permissions_evaluate_v2",
+  EXTENSION_HEALTH_READ_V2: "code_extension_health_read_v2",
+  EXTENSION_UI_APPS_LIST_V2: "code_extension_ui_apps_list_v2",
+  EXTENSION_TOOLS_LIST_V2: "code_extension_tools_list_v2",
+  EXTENSION_RESOURCE_READ_V2: "code_extension_resource_read_v2",
   SESSION_EXPORT_V1: "code_session_export_v1",
   SESSION_IMPORT_V1: "code_session_import_v1",
   SESSION_DELETE_V1: "code_session_delete_v1",
@@ -3612,8 +3779,8 @@ export const CODE_RUNTIME_RPC_METHOD_LIST = Object.freeze(
   Object.values(CODE_RUNTIME_RPC_METHODS)
 ) as readonly CodeRuntimeRpcMethod[];
 
-export const CODE_RUNTIME_RPC_CONTRACT_VERSION = "2026-03-22" as const;
-export const CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT = "2026-03-22" as const;
+export const CODE_RUNTIME_RPC_CONTRACT_VERSION = "2026-03-23" as const;
+export const CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT = "2026-03-23" as const;
 export const CODE_RUNTIME_RPC_CAPABILITY_PROFILES = Object.freeze({
   FULL_RUNTIME: "full-runtime",
   DESKTOP_CORE: "desktop-core",
@@ -3684,8 +3851,8 @@ export const CODE_RUNTIME_RPC_FEATURES = Object.freeze([
   "runtime_codex_execpolicy_preflight_v1",
   "runtime_codex_unified_rpc_migration_v1",
   "runtime_host_deprecated",
-  "app_server_protocol_v2_2026_03_22",
-  "contract_frozen_2026_03_22",
+  "app_server_protocol_v2_2026_03_23",
+  "contract_frozen_2026_03_23",
 ]) as readonly string[];
 
 export const CODE_RUNTIME_RPC_TRANSPORTS = Object.freeze({
@@ -4397,30 +4564,61 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
     workspace_id?: string;
     include_screenshot?: boolean | null;
   };
-  [CODE_RUNTIME_RPC_METHODS.EXTENSIONS_LIST_V1]: {
-    workspaceId?: string | null;
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_CATALOG_LIST_V2]: RuntimeExtensionCatalogListRequest & {
     workspace_id?: string | null;
+    include_disabled?: boolean | null;
   };
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_INSTALL_V1]: RuntimeExtensionInstallRequest & {
-    workspace_id?: string | null;
-    extension_id?: string;
-  };
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_REMOVE_V1]: RuntimeExtensionRemoveRequest & {
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_GET_V2]: RuntimeExtensionGetRequest & {
     workspace_id?: string | null;
     extension_id?: string;
   };
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V1]: RuntimeExtensionToolsListRequest & {
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_INSTALL_V2]: RuntimeExtensionInstallRequest & {
+    workspace_id?: string | null;
+    extension_id?: string;
+    display_name?: string | null;
+    lifecycle_state?: string | null;
+    ui_apps?: RuntimeExtensionUiAppDescriptor[] | null;
+  };
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_UPDATE_V2]: RuntimeExtensionUpdateRequest & {
+    workspace_id?: string | null;
+    extension_id?: string;
+    display_name?: string | null;
+    lifecycle_state?: string | null;
+    ui_apps?: RuntimeExtensionUiAppDescriptor[] | null;
+  };
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_SET_STATE_V2]: RuntimeExtensionSetStateRequest & {
     workspace_id?: string | null;
     extension_id?: string;
   };
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V1]: RuntimeExtensionResourceReadRequest & {
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_REMOVE_V2]: RuntimeExtensionRemoveRequest & {
+    workspace_id?: string | null;
+    extension_id?: string;
+  };
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_REGISTRY_SEARCH_V2]: RuntimeExtensionRegistrySearchRequest & {
+    workspace_id?: string | null;
+    source_ids?: string[] | null;
+  };
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_REGISTRY_SOURCES_V2]: CodeRuntimeRpcEmptyParams;
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_PERMISSIONS_EVALUATE_V2]: RuntimeExtensionPermissionsEvaluateRequest & {
+    workspace_id?: string | null;
+    extension_id?: string;
+  };
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_HEALTH_READ_V2]: RuntimeExtensionHealthReadRequest & {
+    workspace_id?: string | null;
+    extension_id?: string;
+  };
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_UI_APPS_LIST_V2]: RuntimeExtensionUiAppsListRequest & {
+    workspace_id?: string | null;
+    extension_id?: string | null;
+  };
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V2]: RuntimeExtensionToolsListRequest & {
+    workspace_id?: string | null;
+    extension_id?: string;
+  };
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V2]: RuntimeExtensionResourceReadRequest & {
     workspace_id?: string | null;
     extension_id?: string;
     resource_id?: string;
-  };
-  [CODE_RUNTIME_RPC_METHODS.EXTENSIONS_CONFIG_V1]: {
-    workspaceId?: string | null;
-    workspace_id?: string | null;
   };
   [CODE_RUNTIME_RPC_METHODS.SESSION_EXPORT_V1]: RuntimeSessionExportRequest & {
     workspace_id?: string;
@@ -4597,12 +4795,19 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.MCP_SERVER_STATUS_LIST_V1]: RuntimeMcpServerStatusListResponse;
   [CODE_RUNTIME_RPC_METHODS.BROWSER_DEBUG_STATUS_V1]: RuntimeBrowserDebugStatusResponse;
   [CODE_RUNTIME_RPC_METHODS.BROWSER_DEBUG_RUN_V1]: RuntimeBrowserDebugRunResponse;
-  [CODE_RUNTIME_RPC_METHODS.EXTENSIONS_LIST_V1]: RuntimeExtensionSpec[];
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_INSTALL_V1]: RuntimeExtensionSpec;
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_REMOVE_V1]: boolean;
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V1]: RuntimeExtensionToolSummary[];
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V1]: RuntimeExtensionResourceReadResponse;
-  [CODE_RUNTIME_RPC_METHODS.EXTENSIONS_CONFIG_V1]: RuntimeExtensionsConfigResponse;
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_CATALOG_LIST_V2]: RuntimeExtensionRecord[];
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_GET_V2]: RuntimeExtensionRecord | null;
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_INSTALL_V2]: RuntimeExtensionRecord;
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_UPDATE_V2]: RuntimeExtensionRecord;
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_SET_STATE_V2]: RuntimeExtensionRecord | null;
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_REMOVE_V2]: boolean;
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_REGISTRY_SEARCH_V2]: RuntimeExtensionRegistrySearchResponse;
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_REGISTRY_SOURCES_V2]: RuntimeExtensionRegistrySource[];
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_PERMISSIONS_EVALUATE_V2]: RuntimeExtensionPermissionsEvaluateResponse;
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_HEALTH_READ_V2]: RuntimeExtensionHealthReadResponse;
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_UI_APPS_LIST_V2]: RuntimeExtensionUiAppsListResponse;
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V2]: RuntimeExtensionToolSummary[];
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V2]: RuntimeExtensionResourceReadResponse;
   [CODE_RUNTIME_RPC_METHODS.SESSION_EXPORT_V1]: RuntimeSessionExportResponse;
   [CODE_RUNTIME_RPC_METHODS.SESSION_IMPORT_V1]: RuntimeSessionImportResponse;
   [CODE_RUNTIME_RPC_METHODS.SESSION_DELETE_V1]: boolean;

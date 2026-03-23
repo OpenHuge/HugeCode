@@ -3192,6 +3192,23 @@ function validateSampleStructure(entry, errors, warnings, options) {
     }
   }
 
+  const snapshotPinnedProfile = options.profileByModelId?.get(sample.input?.variant?.modelId);
+  if (snapshotPinnedProfile?.snapshotPinned === true) {
+    const successfulTurns = replay.turns.filter((turn) => !replayTurnHasFailure(turn));
+    if (
+      successfulTurns.length > 0 &&
+      successfulTurns.some(
+        (turn) =>
+          typeof turn?.provenance?.recordedResponseModelId !== "string" ||
+          turn.provenance.recordedResponseModelId.trim().length === 0
+      )
+    ) {
+      warnings.push(
+        `Sample ${meta.id} uses snapshotPinned model ${snapshotPinnedProfile.modelId} but does not preserve turn.provenance.recordedResponseModelId for every successful replay turn.`
+      );
+    }
+  }
+
   for (const [turnIndex, turn] of replay.turns.entries()) {
     const hasFailure = replayTurnHasFailure(turn);
     if (typeof turn.recordingProfile === "string" && turn.recordingProfile.trim().length > 0) {
@@ -3573,6 +3590,9 @@ export function validateRuntimeReplayDataset(dataset, options = {}) {
   }
 
   const coverageMatrix = normalizeRuntimeReplayCoverageMatrix(manifest);
+  validationOptions.profileByModelId = new Map(
+    ensureArray(coverageMatrix?.modelProfiles).map((entry) => [entry.modelId, entry])
+  );
   if (manifest.coverageMatrix && !coverageMatrix) {
     errors.push("Manifest coverageMatrix must declare at least one model profile.");
   }

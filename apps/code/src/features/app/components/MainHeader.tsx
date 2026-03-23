@@ -1,6 +1,7 @@
 import { Button, WorkspaceChromePill } from "../../../design-system";
-import { Check, Copy } from "lucide-react";
-import { revealItemInDir } from "../../../application/runtime/ports/tauriOpener";
+import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
+import Check from "lucide-react/dist/esm/icons/check";
+import Copy from "lucide-react/dist/esm/icons/copy";
 import { lazy, Suspense, useLayoutEffect } from "react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";

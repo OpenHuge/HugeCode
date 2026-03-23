@@ -20,15 +20,23 @@ jobs:
     outputs:
       code_changed: ${{ steps.filter.outputs.code }}
       runtime_contract_changed: ${{ steps.filter.outputs.runtime_contract }}
-      desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime }}
+      desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
       repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
-      frontend_optimization_changed: ${{ steps.filter.outputs.frontend_optimization }}
+      frontend_optimization_changed: ${{ steps.filter.outputs.frontend_optimization == 'true' || steps.scope.outputs.frontend_manifest_changed == 'true' }}
       ci_required: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.runtime_contract == 'true' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Ensure diff base is available
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --prune --depth=1 origin \
+            +refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
 
       - id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             code:
@@ -48,8 +56,7 @@ jobs:
               - 'scripts/check-runtime-sot.mjs'
             desktop_runtime:
               - 'apps/code-tauri/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
+              - 'apps/code-electron/**'
               - 'turbo.json'
               - '.github/actions/setup-rust-ci/**'
               - '.github/actions/cache-turbo/**'
@@ -92,8 +99,47 @@ jobs:
               - '.codex/e2e-map.json'
               - 'scripts/lib/e2e-map.mjs'
               - '.github/workflows/ci.yml'
+              - '.github/actions/cache-turbo/**'
               - '.github/actions/setup-node-pnpm/**'
               - '.github/actions/setup-playwright/**'
+
+      - id: scope
+        name: Classify dependency manifest scope
+        env:
+          CI_SCOPE_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD^' }}
+          CI_SCOPE_HEAD_REF: HEAD
+        run: node scripts/classify-ci-change-scope.mjs
+
+  dependabot_policy:
+    name: Dependabot policy
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      skip_pr_affected: ${{ steps.policy.outputs.skip_pr_affected }}
+    steps:
+      - id: policy
+        run: echo "skip_pr_affected=false" >> "$GITHUB_OUTPUT"
+
+      - id: metadata
+        if: github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'app/dependabot'
+        uses: dependabot/fetch-metadata@v2
+
+      - id: derive
+        if: steps.metadata.outcome == 'success'
+        env:
+          DEPENDENCY_GROUP: ${{ steps.metadata.outputs.dependency-group }}
+          DEPENDENCY_TYPE: ${{ steps.metadata.outputs.dependency-type }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+        run: |
+          skip=false
+          if [[ "$DEPENDENCY_GROUP" == "npm-dev-safe" ]] || {
+            [[ "$DEPENDENCY_TYPE" == "direct:development" ]] && \
+            [[ "$UPDATE_TYPE" != "version-update:semver-major" ]];
+          }; then
+            skip=true
+          fi
+
+          echo "skip_pr_affected=$skip" >> "$GITHUB_OUTPUT"
   repo_sot:
     name: Repository SOT
     needs: [changes]
@@ -101,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -130,11 +176,12 @@ jobs:
   pr_affected:
     name: PR Affected Checks
     if: github.event_name == 'pull_request'
-    needs: [changes]
+    needs: [changes, dependabot_policy]
     uses: ./.github/workflows/_reusable-ci-pr-affected.yml
     with:
       ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
       base_ref: ${{ github.base_ref }}
+      skip_expensive_checks: ${{ needs.dependabot_policy.outputs.skip_pr_affected == 'true' }}
 
   frontend_optimization:
     name: frontend_optimization
@@ -151,7 +198,7 @@ jobs:
     env:
       TURBO_CACHE_DIR: .turbo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -194,7 +241,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -222,7 +269,7 @@ jobs:
       KU0_NATIVE_ACCELERATORS_ENABLED: "true"
       TURBO_CACHE_DIR: .turbo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -257,7 +304,7 @@ jobs:
     timeout-minutes: 15
     needs: [build]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -292,7 +339,7 @@ jobs:
     timeout-minutes: 20
     needs: [build]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:

@@ -492,6 +492,24 @@ test("validateRuntimeReplayDataset requires explicit model-selection evidence", 
   assert.match(validation.errors.join("\n"), /model-selection evidence/);
 });
 
+test("validateRuntimeReplayDataset warns when snapshotPinned samples lack recorded response model ids", () => {
+  const { dataset } = cloneSingleSampleDataset("runtime-core-read-only-gpt-5.4-low");
+
+  const validation = validateRuntimeReplayDataset(dataset, {});
+
+  assert.match(validation.warnings.join("\n"), /recordedResponseModelId/);
+});
+
+test("validateRuntimeReplayDataset clears snapshotPinned warning once recorded response model ids exist", () => {
+  const { dataset, sampleEntry } = cloneSingleSampleDataset("runtime-core-read-only-gpt-5.4-low");
+  sampleEntry.sample.result.providerReplay.turns[0].provenance.recordedResponseModelId =
+    "gpt-5.4-2026-03-01";
+
+  const validation = validateRuntimeReplayDataset(dataset, {});
+
+  assert.ok(!validation.warnings.some((warning) => /recordedResponseModelId/.test(warning)));
+});
+
 test("buildRuntimeReplayValidationReport includes scenario coverage and blocker aging stats", () => {
   const dataset = loadRuntimeReplayDataset();
   const validation = validateRuntimeReplayDataset(dataset, {});

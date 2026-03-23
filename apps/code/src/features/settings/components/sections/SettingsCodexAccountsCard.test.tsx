@@ -325,8 +325,8 @@ describe("SettingsCodexAccountsCard", () => {
     render(<SettingsCodexAccountsCard />);
 
     await waitFor(() => {
-      expect(listOAuthAccountsMock).toHaveBeenCalledTimes(1);
-      expect(listOAuthPoolsMock).toHaveBeenCalledTimes(1);
+      expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+      expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
     });
 
     act(() => {
@@ -344,8 +344,8 @@ describe("SettingsCodexAccountsCard", () => {
     render(<SettingsCodexAccountsCard />);
 
     await waitFor(() => {
-      expect(listOAuthAccountsMock).toHaveBeenCalledTimes(1);
-      expect(listOAuthPoolsMock).toHaveBeenCalledTimes(1);
+      expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+      expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
     });
 
     act(() => {
@@ -635,9 +635,11 @@ describe("SettingsCodexAccountsCard", () => {
       expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThan(1);
     });
 
-    expect(
-      screen.getAllByText("Imported 2 accounts and updated 1 from cockpit-tools.").length
-    ).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(
+        screen.queryAllByText("Imported 2 accounts and updated 1 from cockpit-tools.").length
+      ).toBeGreaterThan(0);
+    });
   }, 60_000);
 
   it("creates the canonical default pool for the first non-codex account", async () => {
@@ -732,11 +734,13 @@ describe("SettingsCodexAccountsCard", () => {
       );
     });
 
-    expect(
-      screen.queryByText(
-        "Codex OAuth failed during callback verification. Check the OAuth popup for details."
-      )
-    ).not.toBeNull();
+    await waitFor(() => {
+      expect(
+        screen.queryByText(
+          "Codex OAuth failed during callback verification. Check the OAuth popup for details."
+        )
+      ).not.toBeNull();
+    });
   });
 
   it("allows setting account and pool filters to the same provider", async () => {

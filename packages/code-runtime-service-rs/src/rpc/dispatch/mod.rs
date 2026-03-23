@@ -10,8 +10,6 @@ mod browser_debug_dispatch;
 mod codex_dispatch;
 #[path = "../../rpc_dispatch_diagnostics_export.rs"]
 mod diagnostics_export_dispatch;
-#[path = "../../rpc_dispatch_extensions.rs"]
-mod extensions_dispatch;
 #[path = "../../rpc_dispatch_kernel.rs"]
 mod kernel_dispatch;
 #[path = "../../rpc_dispatch_mission_control.rs"]
@@ -61,10 +59,16 @@ use bootstrap_batch::{
 };
 use browser_debug_dispatch::{handle_browser_debug_run_v1, handle_browser_debug_status_v1};
 use codex_dispatch::handle_codex_rpc_method;
+pub(crate) use crate::rpc_dispatch_extensions as extensions_dispatch;
 use diagnostics_export_dispatch::handle_runtime_diagnostics_export_v1;
 use extensions_dispatch::{
-    handle_extension_install_v1, handle_extension_remove_v1, handle_extension_resource_read_v1,
-    handle_extension_tools_list_v1, handle_extensions_config_v1, handle_extensions_list_v1,
+    handle_extension_catalog_list_v2, handle_extension_get_v2, handle_extension_health_read_v2,
+    handle_extension_install_v2,
+    handle_extension_permissions_evaluate_v2, handle_extension_registry_search_v2,
+    handle_extension_registry_sources_v2, handle_extension_remove_v2,
+    handle_extension_resource_read_v2, handle_extension_set_state_v2,
+    handle_extension_tools_list_v2, handle_extension_ui_apps_list_v2,
+    handle_extension_update_v2,
 };
 use kernel_dispatch::{
     handle_kernel_capabilities_list_v2, handle_kernel_context_snapshot_v2,
@@ -636,12 +640,21 @@ pub(crate) async fn handle_rpc(
         }
         "code_live_skills_list" => Ok(json!(live_skills::list_live_skills(&ctx.config))),
         "code_live_skill_execute" => live_skills::handle_live_skill_execute(ctx, params).await,
-        "code_extensions_list_v1" => handle_extensions_list_v1(ctx, params).await,
-        "code_extension_install_v1" => handle_extension_install_v1(ctx, params).await,
-        "code_extension_remove_v1" => handle_extension_remove_v1(ctx, params).await,
-        "code_extension_tools_list_v1" => handle_extension_tools_list_v1(ctx, params).await,
-        "code_extension_resource_read_v1" => handle_extension_resource_read_v1(ctx, params).await,
-        "code_extensions_config_v1" => handle_extensions_config_v1(ctx, params).await,
+        "code_extension_catalog_list_v2" => handle_extension_catalog_list_v2(ctx, params).await,
+        "code_extension_get_v2" => handle_extension_get_v2(ctx, params).await,
+        "code_extension_install_v2" => handle_extension_install_v2(ctx, params).await,
+        "code_extension_update_v2" => handle_extension_update_v2(ctx, params).await,
+        "code_extension_set_state_v2" => handle_extension_set_state_v2(ctx, params).await,
+        "code_extension_remove_v2" => handle_extension_remove_v2(ctx, params).await,
+        "code_extension_registry_search_v2" => handle_extension_registry_search_v2(ctx, params).await,
+        "code_extension_registry_sources_v2" => handle_extension_registry_sources_v2(ctx, params).await,
+        "code_extension_permissions_evaluate_v2" => {
+            handle_extension_permissions_evaluate_v2(ctx, params).await
+        }
+        "code_extension_health_read_v2" => handle_extension_health_read_v2(ctx, params).await,
+        "code_extension_ui_apps_list_v2" => handle_extension_ui_apps_list_v2(ctx, params).await,
+        "code_extension_tools_list_v2" => handle_extension_tools_list_v2(ctx, params).await,
+        "code_extension_resource_read_v2" => handle_extension_resource_read_v2(ctx, params).await,
         "code_session_export_v1" => handle_session_export_v1(ctx, params).await,
         "code_session_import_v1" => handle_session_import_v1(ctx, params).await,
         "code_session_delete_v1" => handle_session_delete_v1(ctx, params).await,

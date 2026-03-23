@@ -88,12 +88,25 @@ import type {
   RuntimeCollaborationModesListResponse,
   RuntimeDiagnosticsExportRequest,
   RuntimeDiagnosticsExportResponse,
+  RuntimeExtensionCatalogListRequest,
+  RuntimeExtensionGetRequest,
+  RuntimeExtensionHealthReadRequest,
+  RuntimeExtensionHealthReadResponse,
   RuntimeExtensionInstallRequest,
+  RuntimeExtensionPermissionsEvaluateRequest,
+  RuntimeExtensionPermissionsEvaluateResponse,
+  RuntimeExtensionRecord,
+  RuntimeExtensionRegistrySearchRequest,
+  RuntimeExtensionRegistrySearchResponse,
+  RuntimeExtensionRegistrySource,
+  RuntimeExtensionRemoveRequest,
   RuntimeExtensionResourceReadRequest,
   RuntimeExtensionResourceReadResponse,
-  RuntimeExtensionsConfigResponse,
-  RuntimeExtensionSpec,
+  RuntimeExtensionSetStateRequest,
   RuntimeExtensionToolSummary,
+  RuntimeExtensionToolsListRequest,
+  RuntimeExtensionUiAppsListRequest,
+  RuntimeExtensionUiAppsListResponse,
   RuntimeMcpServerStatusListRequest,
   RuntimeMcpServerStatusListResponse,
   RuntimePolicySetRequest,
@@ -168,6 +181,7 @@ import type {
   RuntimeToolGuardrailStateSnapshot,
   RuntimeToolOutcomeRecordRequest,
   RuntimeToolPreflightV2Request,
+  RuntimeExtensionUpdateRequest,
 } from "@ku0/code-runtime-host-contract";
 
 export type RuntimeClientMode = "tauri" | "runtime-gateway-web" | "unavailable";
@@ -353,20 +367,37 @@ export type RuntimeClient<TAppSettings extends Record<string, unknown> = Record<
     browserDebugRunV1: (
       request: RuntimeBrowserDebugRunRequest
     ) => Promise<RuntimeBrowserDebugRunResponse>;
-    extensionsListV1: (workspaceId?: string | null) => Promise<RuntimeExtensionSpec[]>;
-    extensionInstallV1: (request: RuntimeExtensionInstallRequest) => Promise<RuntimeExtensionSpec>;
-    extensionRemoveV1: (request: {
-      workspaceId?: string | null;
-      extensionId: string;
-    }) => Promise<boolean>;
-    extensionToolsListV1: (request: {
-      workspaceId?: string | null;
-      extensionId: string;
-    }) => Promise<RuntimeExtensionToolSummary[]>;
-    extensionResourceReadV1: (
+    extensionCatalogListV2: (
+      request?: RuntimeExtensionCatalogListRequest
+    ) => Promise<RuntimeExtensionRecord[]>;
+    extensionGetV2: (request: RuntimeExtensionGetRequest) => Promise<RuntimeExtensionRecord | null>;
+    extensionInstallV2: (
+      request: RuntimeExtensionInstallRequest
+    ) => Promise<RuntimeExtensionRecord>;
+    extensionUpdateV2: (request: RuntimeExtensionUpdateRequest) => Promise<RuntimeExtensionRecord>;
+    extensionSetStateV2: (
+      request: RuntimeExtensionSetStateRequest
+    ) => Promise<RuntimeExtensionRecord | null>;
+    extensionRemoveV2: (request: RuntimeExtensionRemoveRequest) => Promise<boolean>;
+    extensionRegistrySearchV2: (
+      request?: RuntimeExtensionRegistrySearchRequest
+    ) => Promise<RuntimeExtensionRegistrySearchResponse>;
+    extensionRegistrySourcesV2: () => Promise<RuntimeExtensionRegistrySource[]>;
+    extensionPermissionsEvaluateV2: (
+      request: RuntimeExtensionPermissionsEvaluateRequest
+    ) => Promise<RuntimeExtensionPermissionsEvaluateResponse>;
+    extensionHealthReadV2: (
+      request: RuntimeExtensionHealthReadRequest
+    ) => Promise<RuntimeExtensionHealthReadResponse>;
+    extensionUiAppsListV2: (
+      request?: RuntimeExtensionUiAppsListRequest
+    ) => Promise<RuntimeExtensionUiAppsListResponse>;
+    extensionToolsListV2: (
+      request: RuntimeExtensionToolsListRequest
+    ) => Promise<RuntimeExtensionToolSummary[]>;
+    extensionResourceReadV2: (
       request: RuntimeExtensionResourceReadRequest
     ) => Promise<RuntimeExtensionResourceReadResponse>;
-    extensionsConfigV1: (workspaceId?: string | null) => Promise<RuntimeExtensionsConfigResponse>;
     sessionExportV1: (
       request: RuntimeSessionExportRequest
     ) => Promise<RuntimeSessionExportResponse>;

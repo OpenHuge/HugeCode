@@ -7,7 +7,7 @@ import { type RuntimePorts, runtimePorts } from "./runtimePorts";
 export const RuntimePortsContext = createContext<RuntimePorts>(runtimePorts);
 
 type RuntimePortsProviderProps = {
-  children: ReactNode;
+  children?: ReactNode;
   kernel?: RuntimeKernel;
   value?: RuntimePorts;
 };

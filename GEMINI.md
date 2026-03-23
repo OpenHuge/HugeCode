@@ -13,7 +13,7 @@ This file exists so Gemini CLI loads the same repo-level guidance as Codex and C
 
 - Official product context is `HugeCode`.
 - Legacy names such as `Keep-Up` and `Reader` are historical only.
-- Active product surfaces are `apps/code`, `apps/code-web`, and `apps/code-tauri`.
+- Active product surfaces are `apps/code`, `apps/code-web`, `apps/code-tauri`, and `apps/code-electron`.
 - `apps/code-web` is the Cloudflare-platform web implementation for public routes, SSR, and deploy wiring.
 - `apps/code` remains the shared workspace client implementation that `apps/code-web` reuses for client-only `/app` flows.
 - The local Agent Command Center in `apps/code` is intentionally slim: keep it

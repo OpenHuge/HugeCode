@@ -1,8 +1,8 @@
+import { ErrorBoundary } from "@ku0/code-application";
 import { lazy, Suspense } from "react";
 import { RuntimePortsProvider } from "./application/runtime/ports";
 import { aboutBootState, workspaceBootState } from "./appBoot";
 import { AppBootFallback } from "./features/app/components/AppBootFallback";
-import { ErrorBoundary } from "./features/app/components/ErrorBoundary";
 import { useWindowLabel } from "./features/layout/hooks/useWindowLabel";
 
 const AboutView = lazy(() =>

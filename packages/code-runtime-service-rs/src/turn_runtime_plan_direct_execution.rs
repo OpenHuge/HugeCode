@@ -273,7 +273,8 @@ pub(super) async fn maybe_retry_direct_execution_legacy_plan(
         return plan;
     };
 
-    let Some(retry_plan) = parse_provider_runtime_plan_response(retry_response.as_str()) else {
+    let Some(retry_plan) = parse_provider_runtime_plan_response(retry_response.output.as_str())
+    else {
         return plan;
     };
     enforce_provider_runtime_plan_step_constraints(content, retry_plan)

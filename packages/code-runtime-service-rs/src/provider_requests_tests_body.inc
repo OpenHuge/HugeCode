@@ -67,7 +67,7 @@
             ws_max_frame_size_bytes: 8 * 1024 * 1024,
             ws_max_message_size_bytes: 8 * 1024 * 1024,
             ws_max_connections: 256,
-            provider_extensions: Vec::new(),
+            provider_extension_seeds: Vec::new(),
         }
     }
 
@@ -208,7 +208,7 @@
                             [("content-type", "text/event-stream")],
                             concat!(
                                 "event: response.created\n",
-                                "data: {\"type\":\"response.created\"}\n\n",
+                                "data: {\"type\":\"response.created\",\"response\":{\"model\":\"gpt-5.4-2026-03-01\"}}\n\n",
                                 "event: response.output_text.delta\n",
                                 "data: {\"type\":\"response.output_text.delta\",\"delta\":\"po\"}\n\n",
                                 "event: response.output_text.delta\n",
@@ -362,7 +362,7 @@
                     continue;
                 }
 
-                let body = "{\"output_text\":\"ok:recovered\"}";
+                let body = "{\"output_text\":\"ok:recovered\",\"model\":\"gpt-5.4-2026-03-01\"}";
                 let head = format!(
                     "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
                     body.len()
@@ -390,7 +390,10 @@
                         .push(payload);
                     (
                         AxumStatusCode::OK,
-                        Json(json!({ "output_text": "ok:captured" })),
+                        Json(json!({
+                            "output_text": "ok:captured",
+                            "model": "gpt-5.4-2026-03-01"
+                        })),
                     )
                 }
             }),
@@ -597,14 +600,14 @@
                         .lock()
                         .expect("lock chatgpt payload capture")
                         .push(payload);
-                    (
-                        AxumStatusCode::OK,
-                        [("content-type", "text/event-stream")],
-                        concat!(
-                            "event: response.output_text.done\n",
-                            "data: {\"type\":\"response.output_text.done\",\"text\":\"ok:captured\"}\n\n"
-                        ),
-                    )
+                        (
+                            AxumStatusCode::OK,
+                            [("content-type", "text/event-stream")],
+                            concat!(
+                                "event: response.output_text.done\n",
+                                "data: {\"type\":\"response.output_text.done\",\"text\":\"ok:captured\",\"response\":{\"model\":\"gpt-5.4-2026-03-01\"}}\n\n"
+                            ),
+                        )
                 }
             }),
         );
@@ -766,7 +769,8 @@
         .await
         .expect("openai request should retry body decode failure");
 
-        assert_eq!(response, "ok:recovered");
+        assert_eq!(response.output, "ok:recovered");
+        assert_eq!(response.response_model_id.as_deref(), Some("gpt-5.4-2026-03-01"));
         assert_eq!(requests.load(Ordering::SeqCst), 2);
         server_handle.abort();
     }
@@ -795,7 +799,8 @@
         .await
         .expect("openai request should succeed");
 
-        assert_eq!(response, "ok:captured");
+        assert_eq!(response.output, "ok:captured");
+        assert_eq!(response.response_model_id.as_deref(), Some("gpt-5.4-2026-03-01"));
         let payloads = captured_payload.lock().expect("lock openai payloads");
         assert_eq!(payloads.len(), 1);
         assert_eq!(payloads[0]["service_tier"], json!("priority"));
@@ -847,7 +852,8 @@
         .await
         .expect("request should recover after retry");
 
-        assert_eq!(result, "ok:recovered");
+        assert_eq!(result.output, "ok:recovered");
+        assert_eq!(result.response_model_id, None);
         assert_eq!(attempts.load(Ordering::SeqCst), 2);
         server_handle.abort();
     }
@@ -915,7 +921,8 @@
         .await
         .expect("compat request should succeed");
 
-        assert_eq!(result, "ok:captured");
+        assert_eq!(result.output, "ok:captured");
+        assert_eq!(result.response_model_id, None);
         let payloads = captured_payload.lock().expect("lock compat payloads");
         assert_eq!(payloads.len(), 1);
         assert_eq!(payloads[0]["service_tier"], json!("priority"));
@@ -950,7 +957,8 @@
         .await
         .expect("chatgpt codex stream should return output text");
 
-        assert_eq!(response, "pong");
+        assert_eq!(response.output, "pong");
+        assert_eq!(response.response_model_id.as_deref(), Some("gpt-5.4-2026-03-01"));
         assert_eq!(requests.load(Ordering::SeqCst), 1);
         server_handle.abort();
     }
@@ -981,7 +989,8 @@
         .await
         .expect("chatgpt codex request should succeed");
 
-        assert_eq!(response, "ok:captured");
+        assert_eq!(response.output, "ok:captured");
+        assert_eq!(response.response_model_id.as_deref(), Some("gpt-5.4-2026-03-01"));
         let payloads = captured_payload.lock().expect("lock chatgpt payloads");
         assert_eq!(payloads.len(), 1);
         assert_eq!(payloads[0]["serviceTier"], json!("fast"));
@@ -1023,7 +1032,8 @@
         .await
         .expect("chatgpt codex stream should emit deltas and complete");
 
-        assert_eq!(response, "pong");
+        assert_eq!(response.output, "pong");
+        assert_eq!(response.response_model_id.as_deref(), Some("gpt-5.4-2026-03-01"));
         let observed = deltas.lock().expect("lock delta sink").clone();
         assert_eq!(observed, vec!["po".to_string(), "ng".to_string()]);
         server_handle.abort();
@@ -1087,7 +1097,7 @@
         .await
         .expect("chatgpt codex stream decode errors should retry and recover");
 
-        assert_eq!(response, "pong");
+        assert_eq!(response.output, "pong");
         assert_eq!(requests.load(Ordering::SeqCst), 2);
         server_handle.abort();
     }
@@ -1120,7 +1130,7 @@
         .await
         .expect("chatgpt codex stream should retry incomplete stream output");
 
-        assert_eq!(response, "pong");
+        assert_eq!(response.output, "pong");
         assert_eq!(requests.load(Ordering::SeqCst), 2);
         server_handle.abort();
     }
@@ -1186,7 +1196,7 @@
         .await
         .expect("created-only stream should retry and recover");
 
-        assert_eq!(response, "pong");
+        assert_eq!(response.output, "pong");
         assert_eq!(requests.load(Ordering::SeqCst), 2);
         server_handle.abort();
     }

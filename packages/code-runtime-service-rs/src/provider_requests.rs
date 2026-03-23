@@ -42,6 +42,21 @@ const MAX_PROVIDER_MAX_ELAPSED_MS: u64 = 900_000;
 
 pub(crate) type ProviderDeltaCallback = Arc<dyn Fn(String) + Send + Sync>;
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ProviderQueryResult {
+    pub(crate) output: String,
+    pub(crate) response_model_id: Option<String>,
+}
+
+impl ProviderQueryResult {
+    pub(crate) fn from_output(output: String) -> Self {
+        Self {
+            output,
+            response_model_id: None,
+        }
+    }
+}
+
 fn resolve_chatgpt_sse_buffer_max_bytes() -> usize {
     std::env::var(CODE_RUNTIME_SERVICE_CHATGPT_SSE_BUFFER_MAX_BYTES_ENV)
         .ok()
@@ -97,7 +112,7 @@ pub(crate) async fn query_openai(
     model_id: &str,
     reason_effort: Option<&str>,
     service_tier: Option<&str>,
-) -> Result<String, String> {
+) -> Result<ProviderQueryResult, String> {
     let api_key = api_key_override.or(config.openai_api_key.as_deref());
     let Some(api_key) = api_key else {
         return Err("OPENAI_API_KEY is not configured for code-runtime-service-rs.".to_string());
@@ -236,8 +251,12 @@ pub(crate) async fn query_openai(
         let payload =
             payload.map_err(|error| format!("Failed to parse OpenAI response: {error}"))?;
 
+        let response_model_id = extract_response_model_id(&payload);
         if let Some(text) = extract_output_text(&payload) {
-            return Ok(text);
+            return Ok(ProviderQueryResult {
+                output: text,
+                response_model_id,
+            });
         }
 
         return Err("OpenAI response did not include text output.".to_string());
@@ -256,7 +275,7 @@ pub(crate) async fn query_chatgpt_codex_responses(
     service_tier: Option<&str>,
     account_id: Option<&str>,
     delta_callback: Option<ProviderDeltaCallback>,
-) -> Result<String, String> {
+) -> Result<ProviderQueryResult, String> {
     query_chatgpt_codex_responses_with_endpoint(
         client,
         config,
@@ -315,7 +334,7 @@ async fn query_chatgpt_codex_responses_with_endpoint(
     service_tier: Option<&str>,
     account_id: Option<&str>,
     delta_callback: Option<ProviderDeltaCallback>,
-) -> Result<String, String> {
+) -> Result<ProviderQueryResult, String> {
     chatgpt::query_chatgpt_codex_responses_with_endpoint(
         client,
         config,
@@ -373,7 +392,7 @@ pub(crate) async fn query_openai_compat_chat(
     model_id: &str,
     reason_effort: Option<&str>,
     service_tier: Option<&str>,
-) -> Result<String, String> {
+) -> Result<ProviderQueryResult, String> {
     let endpoint = build_openai_compat_endpoint(base_url, "chat/completions")?;
     let mut request_body = json!({
         "model": model_id,
@@ -483,8 +502,12 @@ pub(crate) async fn query_openai_compat_chat(
         let payload = payload
             .map_err(|error| format!("Failed to parse OpenAI-compat chat response: {error}"))?;
 
+        let response_model_id = extract_response_model_id(&payload);
         if let Some(text) = extract_chat_completions_text(&payload) {
-            return Ok(text);
+            return Ok(ProviderQueryResult {
+                output: text,
+                response_model_id,
+            });
         }
         return Err("OpenAI-compat chat response did not include text output.".to_string());
     }
@@ -498,7 +521,7 @@ pub(crate) async fn query_anthropic(
     api_key_override: Option<&str>,
     content: &str,
     model_id: &str,
-) -> Result<String, String> {
+) -> Result<ProviderQueryResult, String> {
     let api_key = api_key_override.or(config.anthropic_api_key.as_deref());
     let Some(api_key) = api_key else {
         return Err("ANTHROPIC_API_KEY is not configured for code-runtime-service-rs.".to_string());
@@ -609,8 +632,12 @@ pub(crate) async fn query_anthropic(
         let payload =
             payload.map_err(|error| format!("Failed to parse Anthropic response: {error}"))?;
 
+        let response_model_id = extract_response_model_id(&payload);
         if let Some(text) = extract_anthropic_text(&payload) {
-            return Ok(text);
+            return Ok(ProviderQueryResult {
+                output: text,
+                response_model_id,
+            });
         }
         return Err("Anthropic response did not include text output.".to_string());
     }
@@ -624,7 +651,7 @@ pub(crate) async fn query_google(
     api_key_override: Option<&str>,
     content: &str,
     model_id: &str,
-) -> Result<String, String> {
+) -> Result<ProviderQueryResult, String> {
     let api_key = api_key_override.or(config.gemini_api_key.as_deref());
     let Some(api_key) = api_key else {
         return Err("GEMINI_API_KEY is not configured for code-runtime-service-rs.".to_string());
@@ -732,8 +759,12 @@ pub(crate) async fn query_google(
         let payload =
             payload.map_err(|error| format!("Failed to parse Gemini response: {error}"))?;
 
+        let response_model_id = extract_response_model_id(&payload);
         if let Some(text) = extract_gemini_text(&payload) {
-            return Ok(text);
+            return Ok(ProviderQueryResult {
+                output: text,
+                response_model_id,
+            });
         }
         return Err("Gemini response did not include text output.".to_string());
     }
@@ -808,6 +839,21 @@ fn extract_output_text(payload: &Value) -> Option<String> {
         })
         .map(|text| text.trim().to_string())
         .filter(|text| !text.is_empty())
+}
+
+fn extract_response_model_id(payload: &Value) -> Option<String> {
+    [
+        payload.get("model"),
+        payload.get("model_id"),
+        payload.get("modelId"),
+        payload.get("modelVersion"),
+    ]
+    .into_iter()
+    .flatten()
+    .find_map(Value::as_str)
+    .map(str::trim)
+    .filter(|value| !value.is_empty())
+    .map(ToOwned::to_owned)
 }
 
 fn extract_chat_completions_text(payload: &Value) -> Option<String> {

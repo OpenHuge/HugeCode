@@ -8,6 +8,12 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "scripts/**"
+      - ".github/actions/**"
+      - ".github/workflows/codeql.yml"
   schedule:
     - cron: "20 3 * * 1"
 
@@ -16,8 +22,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  analyze:
-    name: Analyze (${{ matrix.language }})
+  changes:
+    name: Detect CodeQL-relevant changes
+    runs-on: ubuntu-latest
+    outputs:
+      javascript_required: ${{ github.event_name == 'schedule' || steps.filter.outputs.javascript == 'true' }}
+      rust_required: ${{ github.event_name == 'schedule' || steps.filter.outputs.rust == 'true' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Ensure diff base is available
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --prune --depth=1 origin \
+            +refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
+
+      - id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            javascript:
+              - "apps/code/**"
+              - "apps/code-web/**"
+              - "packages/code-runtime-client/**"
+              - "packages/code-runtime-host-contract/**"
+              - "packages/code-runtime-webmcp-client/**"
+              - "packages/code-workspace-client/**"
+              - "packages/design-system/**"
+              - "packages/native-bindings/**"
+              - "packages/native-runtime-host-contract/**"
+              - "packages/shared/**"
+              - "packages/ui/**"
+              - "tests/**"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
+              - "turbo.json"
+              - ".github/workflows/codeql.yml"
+              - ".github/actions/setup-node-pnpm/**"
+            rust:
+              - "apps/code-tauri/**"
+              - "packages/*-rs/**"
+              - "internal/runtime-policy-rs/**"
+              - "**/Cargo.toml"
+              - "**/Cargo.lock"
+              - ".github/workflows/codeql.yml"
+              - ".github/actions/setup-rust-ci/**"
+
+  analyze_javascript:
+    name: Analyze (javascript-typescript)
+    needs: [changes]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -25,29 +81,52 @@ jobs:
       contents: read
       security-events: write
 
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - language: javascript-typescript
-            build-mode: none
-          - language: rust
-            build-mode: none
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Skip untouched JavaScript/TypeScript lane
+        if: needs.changes.outputs.javascript_required != 'true'
+        run: echo "Skipping JavaScript/TypeScript CodeQL lane because no relevant files changed."
+
+      - name: Initialize CodeQL
+        if: needs.changes.outputs.javascript_required == 'true'
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          queries: security-extended,security-and-quality
+
+      - name: Analyze
+        if: needs.changes.outputs.javascript_required == 'true'
+        uses: github/codeql-action/analyze@v3
+
+  analyze_rust:
+    name: Analyze (rust)
+    needs: [changes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - name: Skip untouched Rust lane
+        if: needs.changes.outputs.rust_required != 'true'
+        run: echo "Skipping Rust CodeQL lane because no relevant files changed."
 
       - name: Initialize CodeQL
+        if: needs.changes.outputs.rust_required == 'true'
         uses: github/codeql-action/init@v3
         with:
-          languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
+          languages: rust
+          build-mode: none
           queries: security-extended,security-and-quality
 
-      - name: Autobuild
-        if: matrix.build-mode == 'autobuild'
-        uses: github/codeql-action/autobuild@v3
-
       - name: Analyze
+        if: needs.changes.outputs.rust_required == 'true'
         uses: github/codeql-action/analyze@v3

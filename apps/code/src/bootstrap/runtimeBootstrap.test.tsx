@@ -3,13 +3,17 @@ import { act, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetRuntimeBootstrapStateForTest, RuntimeBootstrapEffects } from "./runtimeBootstrap";
 
-const { detectTauriRuntimeMock, sentryInitMock, sentryMetricsCountMock, isMobilePlatformMock } =
-  vi.hoisted(() => ({
-    detectTauriRuntimeMock: vi.fn(),
-    sentryInitMock: vi.fn(),
-    sentryMetricsCountMock: vi.fn(),
-    isMobilePlatformMock: vi.fn(),
-  }));
+const {
+  detectDesktopRuntimeHostMock,
+  sentryInitMock,
+  sentryMetricsCountMock,
+  isMobilePlatformMock,
+} = vi.hoisted(() => ({
+  detectDesktopRuntimeHostMock: vi.fn(),
+  sentryInitMock: vi.fn(),
+  sentryMetricsCountMock: vi.fn(),
+  isMobilePlatformMock: vi.fn(),
+}));
 
 vi.mock("@sentry/react", () => ({
   init: sentryInitMock,
@@ -18,8 +22,8 @@ vi.mock("@sentry/react", () => ({
   },
 }));
 
-vi.mock("../application/runtime/ports/tauriEnvironment", () => ({
-  detectTauriRuntime: detectTauriRuntimeMock,
+vi.mock("../application/runtime/facades/desktopHostFacade", () => ({
+  detectDesktopRuntimeHost: detectDesktopRuntimeHostMock,
 }));
 
 vi.mock("../utils/platformPaths", () => ({
@@ -33,13 +37,15 @@ describe("RuntimeBootstrapEffects", () => {
   beforeEach(() => {
     resetRuntimeBootstrapStateForTest();
     vi.unstubAllEnvs();
-    detectTauriRuntimeMock.mockReset();
+    detectDesktopRuntimeHostMock.mockReset();
     sentryInitMock.mockClear();
     sentryMetricsCountMock.mockClear();
     isMobilePlatformMock.mockReset();
-    detectTauriRuntimeMock.mockResolvedValue(false);
+    detectDesktopRuntimeHostMock.mockResolvedValue("browser");
     isMobilePlatformMock.mockReturnValue(false);
+    document.documentElement.removeAttribute("data-desktop-runtime");
     document.documentElement.removeAttribute("data-tauri-runtime");
+    document.documentElement.removeAttribute("data-electron-runtime");
     document.documentElement.removeAttribute("data-mobile-composer-focus");
     document.documentElement.style.removeProperty("--app-height");
     Object.defineProperty(window, "requestIdleCallback", {
@@ -52,15 +58,17 @@ describe("RuntimeBootstrapEffects", () => {
     });
   });
 
-  it("applies the tauri runtime flag without mobile listeners by default", async () => {
-    detectTauriRuntimeMock.mockResolvedValue(true);
+  it("applies the desktop runtime flags without mobile listeners by default", async () => {
+    detectDesktopRuntimeHostMock.mockResolvedValue("electron");
     const addDocumentListenerSpy = vi.spyOn(document, "addEventListener");
     const addWindowListenerSpy = vi.spyOn(window, "addEventListener");
 
     try {
       render(<RuntimeBootstrapEffects />);
       await waitFor(() => {
-        expect(document.documentElement.dataset.tauriRuntime).toBe("true");
+        expect(document.documentElement.dataset.desktopRuntime).toBe("electron");
+        expect(document.documentElement.dataset.tauriRuntime).toBe("false");
+        expect(document.documentElement.dataset.electronRuntime).toBe("true");
       });
       expect(addDocumentListenerSpy).not.toHaveBeenCalledWith(
         "gesturestart",

@@ -49,7 +49,15 @@ import {
   type RuntimeCodexUpdateRequest,
   type RuntimeDiagnosticsExportRequest,
   type RuntimeExtensionInstallRequest,
+  type RuntimeExtensionCatalogListRequest,
+  type RuntimeExtensionGetRequest,
+  type RuntimeExtensionHealthReadRequest,
+  type RuntimeExtensionPermissionsEvaluateRequest,
+  type RuntimeExtensionRegistrySearchRequest,
   type RuntimeExtensionResourceReadRequest,
+  type RuntimeExtensionSetStateRequest,
+  type RuntimeExtensionUiAppsListRequest,
+  type RuntimeExtensionUpdateRequest,
   type RuntimeMcpServerStatusListRequest,
   type RuntimePolicySetRequest,
   type RuntimeSecurityPreflightRequest,
@@ -718,6 +726,104 @@ export function createRpcRuntimeClient(invokeRpc: RuntimeRpcInvoker): RuntimeCli
         adaptRuntimeRpcPayload("browserDebugRun", request)
       );
     },
+    extensionCatalogListV2(request: RuntimeExtensionCatalogListRequest = {}) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_CATALOG_LIST_V2,
+        withCanonicalFields({
+          workspaceId: request.workspaceId ?? null,
+          includeDisabled: request.includeDisabled ?? null,
+          kinds: request.kinds ?? null,
+        })
+      );
+    },
+    extensionGetV2(request: RuntimeExtensionGetRequest) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_GET_V2,
+        withCanonicalFields({
+          workspaceId: request.workspaceId ?? null,
+          extensionId: request.extensionId,
+        })
+      );
+    },
+    extensionInstallV2(request: RuntimeExtensionInstallRequest) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_INSTALL_V2,
+        adaptRuntimeRpcPayload("extensionInstall", request)
+      );
+    },
+    extensionUpdateV2(request: RuntimeExtensionUpdateRequest) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_UPDATE_V2,
+        adaptRuntimeRpcPayload("extensionUpdate", request)
+      );
+    },
+    extensionSetStateV2(request: RuntimeExtensionSetStateRequest) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_SET_STATE_V2,
+        adaptRuntimeRpcPayload("extensionSetState", request)
+      );
+    },
+    extensionRemoveV2(request: { workspaceId?: string | null; extensionId: string }) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_REMOVE_V2,
+        adaptRuntimeRpcPayload("extensionRemove", request)
+      );
+    },
+    extensionRegistrySearchV2(request: RuntimeExtensionRegistrySearchRequest = {}) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_REGISTRY_SEARCH_V2,
+        withCanonicalFields({
+          workspaceId: request.workspaceId ?? null,
+          query: request.query ?? null,
+          kinds: request.kinds ?? null,
+          sourceIds: request.sourceIds ?? null,
+        })
+      );
+    },
+    extensionRegistrySourcesV2() {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_REGISTRY_SOURCES_V2,
+        CODE_RUNTIME_RPC_EMPTY_PARAMS
+      );
+    },
+    extensionPermissionsEvaluateV2(request: RuntimeExtensionPermissionsEvaluateRequest) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_PERMISSIONS_EVALUATE_V2,
+        withCanonicalFields({
+          workspaceId: request.workspaceId ?? null,
+          extensionId: request.extensionId,
+        })
+      );
+    },
+    extensionHealthReadV2(request: RuntimeExtensionHealthReadRequest) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_HEALTH_READ_V2,
+        withCanonicalFields({
+          workspaceId: request.workspaceId ?? null,
+          extensionId: request.extensionId,
+        })
+      );
+    },
+    extensionUiAppsListV2(request: RuntimeExtensionUiAppsListRequest = {}) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_UI_APPS_LIST_V2,
+        withCanonicalFields({
+          workspaceId: request.workspaceId ?? null,
+          extensionId: request.extensionId ?? null,
+        })
+      );
+    },
     workspacePatchApplyV1(request: WorkspacePatchApplyRequest) {
       return invokeRuntimeExtensionRpc(
         invokeRpc,
@@ -732,46 +838,18 @@ export function createRpcRuntimeClient(invokeRpc: RuntimeRpcInvoker): RuntimeCli
         adaptRuntimeRpcPayload("workspaceDiagnosticsList", request)
       );
     },
-    extensionsListV1(workspaceId?: string | null) {
+    extensionToolsListV2(request: { workspaceId?: string | null; extensionId: string }) {
       return invokeRuntimeExtensionRpc(
         invokeRpc,
-        RUNTIME_EXTENSION_RPC_METHODS.EXTENSIONS_LIST_V1,
-        withCanonicalFields({ workspaceId: workspaceId ?? null })
-      );
-    },
-    extensionInstallV1(request: RuntimeExtensionInstallRequest) {
-      return invokeRuntimeExtensionRpc(
-        invokeRpc,
-        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_INSTALL_V1,
-        adaptRuntimeRpcPayload("extensionInstall", request)
-      );
-    },
-    extensionRemoveV1(request: { workspaceId?: string | null; extensionId: string }) {
-      return invokeRuntimeExtensionRpc(
-        invokeRpc,
-        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_REMOVE_V1,
-        adaptRuntimeRpcPayload("extensionRemove", request)
-      );
-    },
-    extensionToolsListV1(request: { workspaceId?: string | null; extensionId: string }) {
-      return invokeRuntimeExtensionRpc(
-        invokeRpc,
-        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_TOOLS_LIST_V1,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_TOOLS_LIST_V2,
         adaptRuntimeRpcPayload("extensionToolsList", request)
       );
     },
-    extensionResourceReadV1(request: RuntimeExtensionResourceReadRequest) {
+    extensionResourceReadV2(request: RuntimeExtensionResourceReadRequest) {
       return invokeRuntimeExtensionRpc(
         invokeRpc,
-        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_RESOURCE_READ_V1,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_RESOURCE_READ_V2,
         adaptRuntimeRpcPayload("extensionResourceRead", request)
-      );
-    },
-    extensionsConfigV1(workspaceId?: string | null) {
-      return invokeRuntimeExtensionRpc(
-        invokeRpc,
-        RUNTIME_EXTENSION_RPC_METHODS.EXTENSIONS_CONFIG_V1,
-        withCanonicalFields({ workspaceId: workspaceId ?? null })
       );
     },
     sessionExportV1(request: RuntimeSessionExportRequest) {

@@ -163,7 +163,8 @@ async fn launch_agent_task(
         ctx,
         spec.provider_hint.as_deref(),
         spec.model_id_hint.as_deref(),
-    )?;
+    )
+    .await?;
     let task_id = new_id("agent-task");
     let now = now_ms();
     let distributed_mode_requested = execution_mode == "distributed";

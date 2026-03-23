@@ -344,7 +344,7 @@ fn sub_agent_session_stale_ttl_has_floor() {
         ws_max_frame_size_bytes: 1024,
         ws_max_message_size_bytes: 1024,
         ws_max_connections: 1,
-        provider_extensions: Vec::new(),
+        provider_extension_seeds: Vec::new(),
     };
     assert!(sub_agent_session_stale_ttl_ms(&config) >= 60_000);
     let _ = SubAgentSessionStore {

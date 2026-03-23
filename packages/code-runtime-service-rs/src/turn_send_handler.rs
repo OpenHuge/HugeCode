@@ -112,6 +112,16 @@ fn build_turn_contents(content: &str, context_prefix: Option<&str>) -> (String, 
     (provider_content, local_exec_content)
 }
 
+fn extension_provider_unavailable_error(
+    extension: &RuntimeResolvedProviderExtension,
+) -> RpcError {
+    if extension.api_key.is_none() {
+        RpcError::invalid_params("Selected extension provider is not configured with API key.")
+    } else {
+        RpcError::invalid_params("Selected extension provider is disabled.")
+    }
+}
+
 async fn query_provider_with_local_exec_fallback(
     ctx: &AppContext,
     routed_provider_route: &TurnProviderRoute,
@@ -138,7 +148,7 @@ async fn query_provider_with_local_exec_fallback(
     oauth_external_account_id_override: Option<&str>,
     error_prefix: Option<&str>,
     delta_callback: Option<provider_requests::ProviderDeltaCallback>,
-) -> Result<String, String> {
+) -> Result<provider_requests::ProviderQueryResult, String> {
     let query_provider_direct = || async {
         query_provider_with_delta(
             &ctx.client,
@@ -184,7 +194,7 @@ async fn query_provider_with_local_exec_fallback(
     )
     .await
     {
-        Ok(message) => Ok(message),
+        Ok(message) => Ok(provider_requests::ProviderQueryResult::from_output(message)),
         Err(local_exec_error) => {
             warn!(
                 workspace_id = workspace_id,
@@ -498,12 +508,13 @@ async fn complete_turn_send(
 
     match completion {
         Ok(message) => {
+            let response_model_id = message.response_model_id.clone();
             let completion_message = if use_runtime_plan_flow {
-                message
+                message.output
             } else {
                 maybe_recover_provider_local_access_refusal(
                     &ctx,
-                    message,
+                    message.output,
                     task.collaboration_mode.suppress_runtime_plan_delta(),
                     task.access_mode.as_str(),
                     local_exec_preferred,
@@ -561,6 +572,7 @@ async fn complete_turn_send(
                 json!({
                     "turnId": task.turn_id,
                     "output": completion_message.as_str(),
+                    "responseModelId": response_model_id,
                     "accessMode": task.access_mode,
                     "routedProvider": task.routed_provider_route.routed_provider(),
                     "executionMode": task.execution_mode.as_str(),
@@ -625,21 +637,22 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
     let provider_hint_core = provider_hint
         .as_deref()
         .and_then(|provider| parse_runtime_provider(Some(provider)));
-    let provider_hint_extension = provider_hint
-        .as_deref()
-        .and_then(|provider| resolve_provider_extension_by_alias(&ctx.config, provider))
-        .cloned();
+    #[rustfmt::skip]
+    let provider_hint_known_extension = match provider_hint.as_deref() { Some(provider) => resolve_known_provider_extension_by_alias(ctx, provider).await, None => None };
+    #[rustfmt::skip]
+    let provider_hint_extension = match provider_hint.as_deref() { Some(provider) => resolve_active_provider_extension_by_alias(ctx, provider).await, None => None };
     let requested_model_id = read_optional_string(payload, "modelId");
-    let model_hint_extension = requested_model_id
-        .as_deref()
-        .and_then(|model_id| resolve_provider_extension_by_model_id(&ctx.config, model_id))
-        .cloned();
+    #[rustfmt::skip]
+    let model_hint_known_extension = match requested_model_id.as_deref() { Some(model_id) => resolve_known_provider_extension_by_model_id(ctx, model_id).await, None => None };
+    #[rustfmt::skip]
+    let model_hint_extension = match requested_model_id.as_deref() { Some(model_id) => resolve_active_provider_extension_by_model_id(ctx, model_id).await, None => None };
     if let Some(provider_value) = provider_hint.as_deref() {
-        if provider_hint_core.is_none() && provider_hint_extension.is_none() {
+        if provider_hint_core.is_none() && provider_hint_known_extension.is_none() {
+            let active_extensions = active_provider_extensions(ctx).await;
             let supported = RuntimeProvider::specs()
                 .iter()
                 .map(|spec| format!("{} ({})", spec.routed_provider, spec.aliases.join("/")))
-                .chain(ctx.config.provider_extensions.iter().map(|extension| {
+                .chain(active_extensions.iter().map(|extension| {
                     format!(
                         "{} ({})",
                         extension.provider_id,
@@ -651,6 +664,18 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
             return Err(RpcError::invalid_params(format!(
                 "Unsupported turn provider `{provider_value}`. Supported providers: {supported}."
             )));
+        }
+    }
+    if let Some(extension) = provider_hint_known_extension.as_ref() {
+        if provider_hint_extension.is_none() {
+            return Err(extension_provider_unavailable_error(extension));
+        }
+    }
+    if provider_hint.is_none() {
+        if let Some(extension) = model_hint_known_extension.as_ref() {
+            if model_hint_extension.is_none() {
+                return Err(extension_provider_unavailable_error(extension));
+            }
         }
     }
     if let (Some(provider_value), Some(extension_provider)) =

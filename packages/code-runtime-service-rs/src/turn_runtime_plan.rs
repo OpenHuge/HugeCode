@@ -610,7 +610,7 @@ pub(super) async fn query_provider_via_runtime_plan_only(
     oauth_credential_source_override: Option<&str>,
     oauth_auth_mode_override: Option<&str>,
     oauth_external_account_id_override: Option<&str>,
-) -> Result<String, String> {
+) -> Result<crate::provider_requests::ProviderQueryResult, String> {
     let structured_planner_prompt =
         build_provider_runtime_plan_review_prompt(content, workspace_path);
     match query_provider_runtime_tool_call(
@@ -660,7 +660,9 @@ pub(super) async fn query_provider_via_runtime_plan_only(
                         &planner_diagnostics,
                     );
                     if planner_diagnostics.has_fatal {
-                        return Ok(build_runtime_planner_lint_fallback(&planner_diagnostics));
+                        return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+                            build_runtime_planner_lint_fallback(&planner_diagnostics),
+                        ));
                     }
                     if publish_provider_runtime_plan_item(
                         ctx,
@@ -669,7 +671,9 @@ pub(super) async fn query_provider_via_runtime_plan_only(
                         request_id,
                         &constrained,
                     ) {
-                        return Ok(String::new());
+                        return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+                            String::new(),
+                        ));
                     }
                     if let Some(final_message) = constrained
                         .final_message
@@ -677,13 +681,17 @@ pub(super) async fn query_provider_via_runtime_plan_only(
                         .map(str::trim)
                         .filter(|entry| !entry.is_empty())
                     {
-                        return Ok(final_message.to_string());
+                        return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+                            final_message.to_string(),
+                        ));
                     }
                 }
             } else if let Some(text) = selection.assistant_text {
                 let trimmed = text.trim();
                 if !trimmed.is_empty() {
-                    return Ok(trimmed.to_string());
+                    return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+                        trimmed.to_string(),
+                    ));
                 }
             }
         }
@@ -717,7 +725,8 @@ pub(super) async fn query_provider_via_runtime_plan_only(
     )
     .await?;
 
-    let Some(parsed_plan) = parse_provider_runtime_plan_response(planner_response.as_str()) else {
+    let Some(parsed_plan) = parse_provider_runtime_plan_response(planner_response.output.as_str())
+    else {
         return Ok(planner_response);
     };
     let plan = maybe_retry_direct_execution_legacy_plan(
@@ -744,10 +753,14 @@ pub(super) async fn query_provider_via_runtime_plan_only(
     let planner_diagnostics = build_runtime_planner_diagnostics(content, access_mode, &plan);
     publish_runtime_planner_diagnostics(ctx, turn_id, request_id, &planner_diagnostics);
     if planner_diagnostics.has_fatal {
-        return Ok(build_runtime_planner_lint_fallback(&planner_diagnostics));
+        return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+            build_runtime_planner_lint_fallback(&planner_diagnostics),
+        ));
     }
     if publish_provider_runtime_plan_item(ctx, thread_id, turn_id, request_id, &plan) {
-        return Ok(String::new());
+        return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+            String::new(),
+        ));
     }
     if let Some(final_message) = plan
         .final_message
@@ -755,7 +768,9 @@ pub(super) async fn query_provider_via_runtime_plan_only(
         .map(str::trim)
         .filter(|entry| !entry.is_empty())
     {
-        return Ok(final_message.to_string());
+        return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+            final_message.to_string(),
+        ));
     }
     Ok(planner_response)
 }
@@ -783,7 +798,7 @@ pub(super) async fn query_provider_via_runtime_plan(
     oauth_credential_source_override: Option<&str>,
     oauth_auth_mode_override: Option<&str>,
     oauth_external_account_id_override: Option<&str>,
-) -> Result<String, String> {
+) -> Result<crate::provider_requests::ProviderQueryResult, String> {
     let structured_planner_prompt = build_provider_runtime_plan_prompt(content, workspace_path);
     let should_force_direct_execution =
         is_full_access_mode(access_mode) && request_requires_direct_runtime_execution(content);
@@ -834,7 +849,9 @@ pub(super) async fn query_provider_via_runtime_plan(
                         &planner_diagnostics,
                     );
                     if planner_diagnostics.has_fatal {
-                        return Ok(build_runtime_planner_lint_fallback(&planner_diagnostics));
+                        return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+                            build_runtime_planner_lint_fallback(&planner_diagnostics),
+                        ));
                     }
                     if constrained.steps.is_empty() {
                         if let Some(final_message) = constrained
@@ -843,7 +860,9 @@ pub(super) async fn query_provider_via_runtime_plan(
                             .map(str::trim)
                             .filter(|entry| !entry.is_empty())
                         {
-                            return Ok(final_message.to_string());
+                            return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+                                final_message.to_string(),
+                            ));
                         }
                     } else {
                         let execution_outcome = execute_provider_runtime_plan_with_tool_recovery(
@@ -870,8 +889,10 @@ pub(super) async fn query_provider_via_runtime_plan(
                         )
                         .await;
                         if execution_outcome.unresolved_blocking_failure {
-                            return Ok(build_provider_runtime_execution_fallback(
-                                execution_outcome.step_results.as_slice(),
+                            return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+                                build_provider_runtime_execution_fallback(
+                                    execution_outcome.step_results.as_slice(),
+                                ),
                             ));
                         }
                         let final_results_json = build_provider_runtime_final_results_json(
@@ -903,11 +924,14 @@ pub(super) async fn query_provider_via_runtime_plan(
                         .await
                         {
                             Ok(final_message) => {
-                                return Ok(normalize_provider_runtime_final_response(
-                                    turn_id,
-                                    final_message,
-                                    execution_outcome.step_results.as_slice(),
-                                ));
+                                return Ok(crate::provider_requests::ProviderQueryResult {
+                                    output: normalize_provider_runtime_final_response(
+                                        turn_id,
+                                        final_message.output,
+                                        execution_outcome.step_results.as_slice(),
+                                    ),
+                                    response_model_id: final_message.response_model_id,
+                                });
                             }
                             Err(error) => {
                                 warn!(
@@ -915,8 +939,10 @@ pub(super) async fn query_provider_via_runtime_plan(
                                     error = error.as_str(),
                                     "runtime tool-call final response request failed; returning execution fallback"
                                 );
-                                return Ok(build_provider_runtime_execution_fallback(
-                                    execution_outcome.step_results.as_slice(),
+                                return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+                                    build_provider_runtime_execution_fallback(
+                                        execution_outcome.step_results.as_slice(),
+                                    ),
                                 ));
                             }
                         }
@@ -930,7 +956,9 @@ pub(super) async fn query_provider_via_runtime_plan(
             } else if let Some(text) = selection.assistant_text {
                 let trimmed = text.trim();
                 if !trimmed.is_empty() && !should_force_direct_execution {
-                    return Ok(trimmed.to_string());
+                    return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+                        trimmed.to_string(),
+                    ));
                 }
             }
         }
@@ -964,7 +992,8 @@ pub(super) async fn query_provider_via_runtime_plan(
     )
     .await?;
 
-    let Some(parsed_plan) = parse_provider_runtime_plan_response(planner_response.as_str()) else {
+    let Some(parsed_plan) = parse_provider_runtime_plan_response(planner_response.output.as_str())
+    else {
         return query_provider(
             &ctx.client,
             &ctx.config,
@@ -1018,7 +1047,9 @@ pub(super) async fn query_provider_via_runtime_plan(
     let planner_diagnostics = build_runtime_planner_diagnostics(content, access_mode, &plan);
     publish_runtime_planner_diagnostics(ctx, turn_id, request_id, &planner_diagnostics);
     if planner_diagnostics.has_fatal {
-        return Ok(build_runtime_planner_lint_fallback(&planner_diagnostics));
+        return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+            build_runtime_planner_lint_fallback(&planner_diagnostics),
+        ));
     }
 
     if plan.steps.is_empty() {
@@ -1028,7 +1059,9 @@ pub(super) async fn query_provider_via_runtime_plan(
             .map(str::trim)
             .filter(|entry| !entry.is_empty())
         {
-            return Ok(final_message.to_string());
+            return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+                final_message.to_string(),
+            ));
         }
         return query_provider(
             &ctx.client,
@@ -1079,8 +1112,8 @@ pub(super) async fn query_provider_via_runtime_plan(
     )
     .await;
     if execution_outcome.unresolved_blocking_failure {
-        return Ok(build_provider_runtime_execution_fallback(
-            execution_outcome.step_results.as_slice(),
+        return Ok(crate::provider_requests::ProviderQueryResult::from_output(
+            build_provider_runtime_execution_fallback(execution_outcome.step_results.as_slice()),
         ));
     }
     let final_results_json =
@@ -1110,19 +1143,22 @@ pub(super) async fn query_provider_via_runtime_plan(
     )
     .await
     {
-        Ok(final_message) => Ok(normalize_provider_runtime_final_response(
-            turn_id,
-            final_message,
-            execution_outcome.step_results.as_slice(),
-        )),
+        Ok(final_message) => Ok(crate::provider_requests::ProviderQueryResult {
+            output: normalize_provider_runtime_final_response(
+                turn_id,
+                final_message.output,
+                execution_outcome.step_results.as_slice(),
+            ),
+            response_model_id: final_message.response_model_id,
+        }),
         Err(error) => {
             warn!(
                 turn_id = turn_id,
                 error = error.as_str(),
                 "runtime plan final response request failed; returning execution fallback"
             );
-            Ok(build_provider_runtime_execution_fallback(
-                execution_outcome.step_results.as_slice(),
+            Ok(crate::provider_requests::ProviderQueryResult::from_output(
+                build_provider_runtime_execution_fallback(execution_outcome.step_results.as_slice()),
             ))
         }
     }
@@ -1194,7 +1230,7 @@ pub(super) async fn maybe_recover_provider_local_access_refusal(
     )
     .await
     {
-        Ok(response) => response,
+        Ok(response) => response.output,
         Err(error) => {
             warn!(
                 turn_id = turn_id,

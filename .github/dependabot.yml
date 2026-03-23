@@ -27,6 +27,15 @@ updates:
       time: "04:00"
       timezone: "UTC"
     open-pull-requests-limit: 10
+    groups:
+      npm-dev-safe:
+        applies-to: version-updates
+        dependency-type: development
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
     labels:
       - "dependencies"
 

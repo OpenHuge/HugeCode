@@ -1,15 +1,9 @@
-import { toSafeExternalUrl } from "@ku0/shared";
-
 type TauriCoreModule = {
   isTauri: () => boolean;
 };
 
 type TauriAppModule = {
   getVersion: () => Promise<string>;
-};
-
-type TauriOpenerModule = {
-  openUrl: (url: string) => Promise<void>;
 };
 
 type TauriWindowModule = {
@@ -21,24 +15,21 @@ type TauriWindowModule = {
 type TauriRuntimeModules = {
   app?: TauriAppModule;
   core?: TauriCoreModule;
-  opener?: TauriOpenerModule;
   window?: TauriWindowModule;
 };
 
 type TauriModuleLoader = () => Promise<TauriRuntimeModules>;
 
 async function defaultTauriModuleLoader(): Promise<TauriRuntimeModules> {
-  const [app, core, opener, window] = await Promise.all([
+  const [app, core, window] = await Promise.all([
     import("@tauri-apps/api/app"),
     import("@tauri-apps/api/core"),
-    import("@tauri-apps/plugin-opener"),
     import("@tauri-apps/api/window"),
   ]);
 
   return {
     app,
     core,
-    opener,
     window,
   };
 }
@@ -64,17 +55,17 @@ export async function detectTauriRuntime() {
   }
 }
 
-export async function resolveWindowLabel(defaultLabel = "main") {
+export async function readTauriWindowLabel() {
   try {
     const modules = await loadTauriModules();
     const label = modules.window?.getCurrentWindow?.().label;
-    return typeof label === "string" && label.length > 0 ? label : defaultLabel;
+    return typeof label === "string" && label.length > 0 ? label : null;
   } catch {
-    return defaultLabel;
+    return null;
   }
 }
 
-export async function resolveAppVersion() {
+export async function readTauriAppVersion() {
   try {
     const modules = await loadTauriModules();
     const version = await modules.app?.getVersion?.();
@@ -83,30 +74,6 @@ export async function resolveAppVersion() {
     return null;
   }
 }
-
-export async function openExternalUrlWithFallback(url: string) {
-  const safeUrl = toSafeExternalUrl(url);
-  if (!safeUrl) {
-    return false;
-  }
-
-  try {
-    const modules = await loadTauriModules();
-    if (modules.opener?.openUrl) {
-      await modules.opener.openUrl(safeUrl);
-      return true;
-    }
-  } catch {
-    // Fall through to browser fallback.
-  }
-
-  if (typeof window === "undefined" || typeof window.open !== "function") {
-    return false;
-  }
-
-  return window.open(safeUrl, "_blank", "noopener,noreferrer") !== null;
-}
-
 export function __setTauriModuleLoaderForTests(loader: TauriModuleLoader) {
   tauriModuleLoader = loader;
   cachedTauriModulesPromise = null;

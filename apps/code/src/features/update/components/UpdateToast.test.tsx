@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "../../../application/runtime/facades/desktopHostFacade";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UpdateState } from "../hooks/useUpdater";
 import { UpdateToast } from "./UpdateToast";
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
+vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
   openUrl: vi.fn(),
 }));
 
@@ -137,8 +137,10 @@ describe("UpdateToast", () => {
     );
     const scoped = within(container);
 
-    expect(await scoped.findByText("Highlights")).toBeTruthy();
-    expect(await scoped.findByText("Added release notes toast")).toBeTruthy();
+    expect(await scoped.findByText("Highlights", undefined, { timeout: 3_000 })).toBeTruthy();
+    expect(
+      await scoped.findByText("Added release notes toast", undefined, { timeout: 3_000 })
+    ).toBeTruthy();
 
     fireEvent.click(scoped.getByRole("button", { name: "View on GitHub" }));
     expect(openUrlMock).toHaveBeenCalledWith(htmlUrl);

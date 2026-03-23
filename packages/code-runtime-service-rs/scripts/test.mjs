@@ -4,6 +4,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { cpus } from "node:os";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const cargoGuardScript = resolve(scriptDir, "../../../scripts/run-cargo-with-target-guard.mjs");
@@ -17,6 +18,8 @@ const result = spawnSync(
     cwd: packageDir,
     env: {
       ...process.env,
+      CARGO_BUILD_JOBS:
+        process.env.CARGO_BUILD_JOBS ?? String(Math.max(1, Math.min(2, cpus().length - 1))),
       RUST_MIN_STACK: process.env.RUST_MIN_STACK ?? "16777216",
     },
     stdio: "inherit",

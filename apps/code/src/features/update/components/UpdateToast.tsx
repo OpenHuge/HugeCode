@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { openUrl } from "../../../application/runtime/ports/tauriOpener";
+import { openUrl } from "../../../application/runtime/facades/desktopHostFacade";
 import { Button } from "../../../design-system";
 import {
   ToastActions,
