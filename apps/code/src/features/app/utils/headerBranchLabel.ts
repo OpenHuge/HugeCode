@@ -63,13 +63,14 @@ export function formatHeaderBranchLabel(
 
   const compactPrefix = `${firstSegment}/${ELLIPSIS}/`;
   if (compactPrefix.length < maxChars - 1) {
-    candidates.push(`${compactPrefix}${truncateMiddle(lastSegment, maxChars - compactPrefix.length)}`);
+    candidates.push(
+      `${compactPrefix}${truncateMiddle(lastSegment, maxChars - compactPrefix.length)}`
+    );
   }
 
   return (
     candidates.find(
-      (candidate) =>
-        candidate.length <= maxChars && candidate.length < normalizedBranchName.length
+      (candidate) => candidate.length <= maxChars && candidate.length < normalizedBranchName.length
     ) ?? truncateMiddle(normalizedBranchName, maxChars)
   );
 }

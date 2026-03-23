@@ -517,9 +517,7 @@ export function MainHeader({
                   aria-label={branchName}
                   disabled={!branchMenuEnabled}
                   title={
-                    branchMenuEnabled
-                      ? branchName
-                      : `Git branch actions unavailable\n${branchName}`
+                    branchMenuEnabled ? branchName : `Git branch actions unavailable\n${branchName}`
                   }
                   data-tauri-drag-region="false"
                   label={<span className="workspace-branch">{branchLabel}</span>}
