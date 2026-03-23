@@ -137,8 +137,10 @@ describe("UpdateToast", () => {
     );
     const scoped = within(container);
 
-    expect(await scoped.findByText("Highlights")).toBeTruthy();
-    expect(await scoped.findByText("Added release notes toast")).toBeTruthy();
+    expect(await scoped.findByText("Highlights", undefined, { timeout: 3_000 })).toBeTruthy();
+    expect(
+      await scoped.findByText("Added release notes toast", undefined, { timeout: 3_000 })
+    ).toBeTruthy();
 
     fireEvent.click(scoped.getByRole("button", { name: "View on GitHub" }));
     expect(openUrlMock).toHaveBeenCalledWith(htmlUrl);

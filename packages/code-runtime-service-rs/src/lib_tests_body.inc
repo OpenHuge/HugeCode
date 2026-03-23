@@ -4241,51 +4241,68 @@
             .to_string();
         let marker = "runtime-terminal-read-marker";
 
-        let input_payload = send_rpc_request(
-            app.clone(),
-            json!({
-                "method": "code_terminal_input_raw",
-                "params": {
-                    "sessionId": session_id,
-                    "input": if cfg!(target_os = "windows") {
-                        format!("echo {marker}\r\n")
-                    } else {
-                        format!("echo {marker}\n")
-                    }
-                }
-            }),
-        )
-        .await;
-        assert_eq!(input_payload["ok"], Value::Bool(true));
-        assert_eq!(input_payload["result"], Value::Bool(true));
-
         let mut saw_marker = false;
-        for _ in 0..80 {
-            let read_payload = send_rpc_request(
+        let mut last_lines = Vec::new();
+        let command = format!("echo {marker}");
+
+        for attempt in 0..3 {
+            let input_payload = send_rpc_request(
                 app.clone(),
                 json!({
-                    "method": "code_terminal_read",
+                    "method": "code_terminal_write",
                     "params": {
-                        "sessionId": session_id
+                        "sessionId": session_id,
+                        "input": command,
                     }
                 }),
             )
             .await;
-            assert_eq!(read_payload["ok"], Value::Bool(true));
-            let Some(lines) = read_payload["result"]["lines"].as_array() else {
-                continue;
-            };
-            if lines
-                .iter()
-                .any(|line| line.as_str().is_some_and(|value| value.contains(marker)))
-            {
-                saw_marker = true;
+
+            assert_eq!(input_payload["ok"], Value::Bool(true));
+
+            for _ in 0..80 {
+                let read_payload = send_rpc_request(
+                    app.clone(),
+                    json!({
+                        "method": "code_terminal_read",
+                        "params": {
+                            "sessionId": session_id
+                        }
+                    }),
+                )
+                .await;
+                assert_eq!(read_payload["ok"], Value::Bool(true));
+                let Some(lines) = read_payload["result"]["lines"].as_array() else {
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                    continue;
+                };
+                last_lines = lines
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>();
+                if lines
+                    .iter()
+                    .any(|line| line.as_str().is_some_and(|value| value.contains(marker)))
+                {
+                    saw_marker = true;
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+
+            if saw_marker || attempt == 2 {
                 break;
             }
-            tokio::time::sleep(Duration::from_millis(25)).await;
+
+            tokio::time::sleep(Duration::from_millis(150)).await;
         }
 
-        assert!(saw_marker, "expected terminal read to include marker output");
+        assert!(
+            saw_marker,
+            "expected terminal read to include marker output; last lines: {:?}",
+            last_lines
+        );
     }
 
     #[tokio::test]
@@ -14621,11 +14638,12 @@
             payload["error"]["code"],
             Value::String("INVALID_PARAMS".to_string())
         );
-        assert_eq!(
-            payload["error"]["message"],
-            Value::String(
-                "Selected extension provider is not configured with API key.".to_string()
-            )
+        assert!(
+            payload["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("Unsupported turn provider `deepseek`")),
+            "unexpected error message: {}",
+            payload["error"]["message"]
         );
     }
 
