@@ -57,8 +57,8 @@ vi.mock("../../../application/runtime/ports/logger", () => ({
   },
 }));
 
-vi.mock("@sentry/react", () => ({
-  captureException: (...args: unknown[]) => captureExceptionMock(...args),
+vi.mock("../../shared/sentry", () => ({
+  captureSentryException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
 function createEvent(): MouseEvent {

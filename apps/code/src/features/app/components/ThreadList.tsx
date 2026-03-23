@@ -69,7 +69,6 @@ export function ThreadList({
   renderThreadName,
   renderThreadSubline,
 }: ThreadListProps) {
-  const indentUnit = nested ? 10 : 14;
   const hiddenRootCount = Math.max(0, totalThreadRoots - 3);
   const shouldShowMoreButton = hasMoreRoots ?? totalThreadRoots > 3;
 
@@ -87,7 +86,6 @@ export function ThreadList({
         thread={thread}
         canPin={canPin}
         depth={depth}
-        indentUnit={indentUnit}
         isActive={isActive}
         isPinned={isPinned}
         relativeTime={relativeTime}
