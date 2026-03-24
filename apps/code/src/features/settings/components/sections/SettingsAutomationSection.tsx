@@ -25,6 +25,7 @@ export type SettingsAutomationScheduleSummary = {
   id: string;
   name: string;
   prompt: string;
+  workspaceId: string | null;
   cadenceLabel: string;
   status: SettingsAutomationScheduleStatus;
   nextRunAtMs: number | null;
@@ -44,11 +45,20 @@ export type SettingsAutomationScheduleSummary = {
   wakePolicy: string | null;
   researchPolicy: string | null;
   queueBudget: number | null;
+  currentTaskId: string | null;
+  currentTaskStatus: string | null;
+  currentRunId: string | null;
+  lastTriggeredTaskId: string | null;
+  lastTriggeredTaskStatus: string | null;
+  lastTriggeredRunId: string | null;
+  reviewPackId: string | null;
+  reviewActionabilityState: string | null;
 };
 
 export type SettingsAutomationScheduleDraft = {
   name: string;
   prompt: string;
+  workspaceId: string;
   cadence: string;
   backendId: string;
   reviewProfileId: string;
@@ -64,6 +74,7 @@ export type SettingsAutomationScheduleDraft = {
 
 export type SettingsAutomationSectionProps = {
   backendOptions?: Array<{ id: string; label: string }>;
+  workspaceOptions?: Array<{ id: string; label: string }>;
   defaultBackendId?: string | null;
   schedules?: SettingsAutomationScheduleSummary[];
   loading?: boolean;
@@ -84,11 +95,13 @@ export type SettingsAutomationSectionProps = {
 type ScheduleFieldValue = string | number | null | undefined;
 
 function createBlankDraft(
-  defaultBackendId: string | null | undefined
+  defaultBackendId: string | null | undefined,
+  defaultWorkspaceId: string | null | undefined
 ): SettingsAutomationScheduleDraft {
   return {
     name: "",
     prompt: "",
+    workspaceId: defaultWorkspaceId ?? "",
     cadence: "",
     backendId: defaultBackendId ?? "",
     reviewProfileId: "",
@@ -105,11 +118,13 @@ function createBlankDraft(
 
 function mapSummaryToDraft(
   summary: SettingsAutomationScheduleSummary,
-  defaultBackendId: string | null | undefined
+  defaultBackendId: string | null | undefined,
+  defaultWorkspaceId: string | null | undefined
 ): SettingsAutomationScheduleDraft {
   return {
     name: summary.name,
     prompt: summary.prompt,
+    workspaceId: summary.workspaceId ?? defaultWorkspaceId ?? "",
     cadence: summary.cadenceLabel,
     backendId: summary.backendId ?? defaultBackendId ?? "",
     reviewProfileId: summary.reviewProfileId ?? "",
@@ -178,6 +193,17 @@ function resolveBackendLabel(
   return "Automatic runtime routing";
 }
 
+function resolveWorkspaceLabel(
+  workspaceId: string | null,
+  workspaceOptions: Array<{ id: string; label: string }>
+): string {
+  if (!workspaceId) {
+    return "No workspace selected";
+  }
+  const workspaceOption = workspaceOptions.find((option) => option.id === workspaceId);
+  return workspaceOption?.label ?? workspaceId;
+}
+
 function resolveFieldLabel(value: string | null, fallback: string): string {
   if (value && value.length > 0) {
     return value;
@@ -207,6 +233,7 @@ function resolveReadOnlyReason(
 
 export function SettingsAutomationSection({
   backendOptions = [],
+  workspaceOptions = [],
   defaultBackendId = null,
   schedules = [],
   loading = false,
@@ -225,11 +252,13 @@ export function SettingsAutomationSection({
     optionClassName: controlStyles.selectOption,
     triggerDensity: "compact" as const,
   };
+  const defaultWorkspaceId =
+    workspaceOptions.length === 1 ? (workspaceOptions[0]?.id ?? null) : null;
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(
     () => schedules[0]?.id ?? null
   );
   const [draft, setDraft] = useState<SettingsAutomationScheduleDraft>(() =>
-    createBlankDraft(defaultBackendId)
+    createBlankDraft(defaultBackendId, defaultWorkspaceId)
   );
 
   const selectedSchedule = useMemo(
@@ -253,25 +282,25 @@ export function SettingsAutomationSection({
 
   useEffect(() => {
     if (selectedSchedule === null) {
-      setDraft(createBlankDraft(defaultBackendId));
+      setDraft(createBlankDraft(defaultBackendId, defaultWorkspaceId));
       return;
     }
 
-    setDraft(mapSummaryToDraft(selectedSchedule, defaultBackendId));
-  }, [defaultBackendId, selectedSchedule]);
+    setDraft(mapSummaryToDraft(selectedSchedule, defaultBackendId, defaultWorkspaceId));
+  }, [defaultBackendId, defaultWorkspaceId, selectedSchedule]);
 
   const handleCreateNew = () => {
     setSelectedScheduleId(null);
-    setDraft(createBlankDraft(defaultBackendId));
+    setDraft(createBlankDraft(defaultBackendId, defaultWorkspaceId));
   };
 
   const handleResetDraft = () => {
     if (selectedSchedule === null) {
-      setDraft(createBlankDraft(defaultBackendId));
+      setDraft(createBlankDraft(defaultBackendId, defaultWorkspaceId));
       return;
     }
 
-    setDraft(mapSummaryToDraft(selectedSchedule, defaultBackendId));
+    setDraft(mapSummaryToDraft(selectedSchedule, defaultBackendId, defaultWorkspaceId));
   };
 
   const handleSaveDraft = async () => {
@@ -311,6 +340,16 @@ export function SettingsAutomationSection({
     ],
     [backendOptions]
   );
+  const workspaceSelectOptions: SelectOption[] = useMemo(
+    () => [
+      { value: "", label: "Select workspace" },
+      ...workspaceOptions.map((workspace) => ({
+        value: workspace.id,
+        label: workspace.label,
+      })),
+    ],
+    [workspaceOptions]
+  );
   const autonomyProfileOptions: SelectOption[] = [
     { value: "night_operator", label: "Night Operator" },
     { value: "supervised", label: "Supervised" },
@@ -336,12 +375,18 @@ export function SettingsAutomationSection({
   const cancelDisabled =
     loading || selectedSchedule?.status !== "running" || onScheduleAction === undefined;
   const runNowDisabled = loading || onScheduleAction === undefined;
+  const selectedScheduleCanLaunch =
+    Boolean(selectedSchedule?.workspaceId) && Boolean(selectedSchedule?.prompt.trim().length);
   const pauseResumeDisabled =
     loading || selectedSchedule === null || onScheduleAction === undefined;
   const selectedBackendLabel = resolveBackendLabel(
     selectedSchedule?.backendId ?? draft.backendId ?? null,
     selectedSchedule?.backendLabel ?? null,
     backendOptions
+  );
+  const selectedWorkspaceLabel = resolveWorkspaceLabel(
+    selectedSchedule?.workspaceId ?? draft.workspaceId ?? null,
+    workspaceOptions
   );
 
   return (
@@ -405,6 +450,10 @@ export function SettingsAutomationSection({
                   schedule.validationPresetLabel ?? schedule.validationPresetId,
                   "Default validation preset"
                 );
+                const workspaceLabel = resolveWorkspaceLabel(
+                  schedule.workspaceId,
+                  workspaceOptions
+                );
 
                 return (
                   <SettingsField
@@ -432,6 +481,7 @@ export function SettingsAutomationSection({
                         Last outcome:{" "}
                         {resolveFieldLabel(schedule.lastOutcomeLabel, "Awaiting runtime result")}
                       </div>
+                      <div className={grammar.helpText}>Workspace: {workspaceLabel}</div>
                       <div className={grammar.helpText}>Backend: {backendLabel}</div>
                       <div className={grammar.helpText}>
                         Autonomy: {resolveFieldLabel(schedule.autonomyProfile, "Night Operator")}
@@ -455,6 +505,9 @@ export function SettingsAutomationSection({
                         <div className={grammar.errorText}>
                           Blocking reason: {schedule.blockingReason}
                         </div>
+                      ) : null}
+                      {schedule.reviewPackId ? (
+                        <div className={grammar.helpText}>Review pack: {schedule.reviewPackId}</div>
                       ) : null}
                       <SettingsFooterBar>
                         <Button
@@ -525,6 +578,40 @@ export function SettingsAutomationSection({
             textareaSize="lg"
           />
         </SettingsField>
+
+        {workspaceOptions.length > 0 ? (
+          <SettingsField
+            label="Workspace"
+            help="Schedules must target a workspace before Run now can launch a runtime task."
+          >
+            <Select
+              {...compactSelectProps}
+              ariaLabel="Workspace"
+              options={workspaceSelectOptions}
+              value={draft.workspaceId}
+              onValueChange={(value) =>
+                setDraft((previous) => ({ ...previous, workspaceId: value }))
+              }
+            />
+          </SettingsField>
+        ) : (
+          <SettingsField
+            label="Workspace"
+            htmlFor="schedule-workspace"
+            help="Enter the workspace ID that this schedule should launch against."
+          >
+            <Input
+              id="schedule-workspace"
+              fieldClassName={compactInputFieldClassName}
+              inputSize="sm"
+              value={draft.workspaceId}
+              onValueChange={(value) =>
+                setDraft((previous) => ({ ...previous, workspaceId: value }))
+              }
+              placeholder="workspace-1"
+            />
+          </SettingsField>
+        )}
 
         <SettingsField
           label="Cadence"
@@ -743,6 +830,7 @@ export function SettingsAutomationSection({
               Last outcome:{" "}
               {resolveFieldLabel(selectedSchedule.lastOutcomeLabel, "Awaiting runtime result")}
             </div>
+            <div className={grammar.helpText}>Workspace: {selectedWorkspaceLabel}</div>
             <div className={grammar.helpText}>Backend: {selectedBackendLabel}</div>
             <div className={grammar.helpText}>
               Autonomy profile:{" "}
@@ -778,6 +866,38 @@ export function SettingsAutomationSection({
             {selectedSchedule.triggerSourceLabel ? (
               <div className={grammar.helpText}>
                 Trigger source: {selectedSchedule.triggerSourceLabel}
+              </div>
+            ) : null}
+            {selectedSchedule.currentTaskId ? (
+              <div className={grammar.helpText}>
+                Active task: {selectedSchedule.currentTaskId}
+                {selectedSchedule.currentTaskStatus
+                  ? ` (${selectedSchedule.currentTaskStatus})`
+                  : ""}
+              </div>
+            ) : null}
+            {selectedSchedule.currentRunId ? (
+              <div className={grammar.helpText}>Active run: {selectedSchedule.currentRunId}</div>
+            ) : null}
+            {selectedSchedule.lastTriggeredTaskId ? (
+              <div className={grammar.helpText}>
+                Last triggered task: {selectedSchedule.lastTriggeredTaskId}
+                {selectedSchedule.lastTriggeredTaskStatus
+                  ? ` (${selectedSchedule.lastTriggeredTaskStatus})`
+                  : ""}
+              </div>
+            ) : null}
+            {selectedSchedule.lastTriggeredRunId ? (
+              <div className={grammar.helpText}>
+                Last triggered run: {selectedSchedule.lastTriggeredRunId}
+              </div>
+            ) : null}
+            {selectedSchedule.reviewPackId ? (
+              <div className={grammar.helpText}>Review pack: {selectedSchedule.reviewPackId}</div>
+            ) : null}
+            {selectedSchedule.reviewActionabilityState ? (
+              <div className={grammar.helpText}>
+                Review actionability: {selectedSchedule.reviewActionabilityState}
               </div>
             ) : null}
             {selectedSchedule.blockingReason ? (
@@ -817,8 +937,14 @@ export function SettingsAutomationSection({
                 onClick={() => {
                   void handleScheduleAction("run-now");
                 }}
-                disabled={runNowDisabled}
-                title={runNowDisabled ? (readOnlyStateReason ?? undefined) : undefined}
+                disabled={runNowDisabled || !selectedScheduleCanLaunch}
+                title={
+                  runNowDisabled
+                    ? (readOnlyStateReason ?? undefined)
+                    : !selectedScheduleCanLaunch
+                      ? "Select a workspace and prompt before launching."
+                      : undefined
+                }
               >
                 Run now
               </Button>

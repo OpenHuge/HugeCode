@@ -699,6 +699,10 @@ export function SettingsView({
           backendPoolDiagnosticsError: backendPoolCapabilityEnabled
             ? backendPoolDiagnosticsError
             : null,
+          workspaceOptions: projects.map((workspace) => ({
+            id: workspace.id,
+            label: workspace.name,
+          })),
           automationSchedules,
           automationSchedulesLoading,
           automationSchedulesError,

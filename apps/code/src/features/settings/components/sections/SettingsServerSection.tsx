@@ -153,6 +153,7 @@ type SettingsServerSectionProps = {
   onAcpBackendUpsert: () => void | Promise<void>;
   onAcpBackendEdit: (backendId: string) => void;
   onAcpBackendProbe: (backendId: string) => Promise<void>;
+  workspaceOptions: Array<{ id: string; label: string }>;
   automationSchedules?: SettingsAutomationScheduleSummary[];
   automationSchedulesLoading?: boolean;
   automationSchedulesError?: string | null;
@@ -287,6 +288,7 @@ export function SettingsServerSection({
   onAcpBackendUpsert,
   onAcpBackendEdit,
   onAcpBackendProbe,
+  workspaceOptions,
   automationSchedules,
   automationSchedulesLoading,
   automationSchedulesError,
@@ -420,6 +422,7 @@ export function SettingsServerSection({
       {!isMobileSimplified ? (
         <SettingsAutomationSection
           backendOptions={remoteExecutionBackendOptions}
+          workspaceOptions={workspaceOptions}
           defaultBackendId={defaultRemoteExecutionBackendId}
           schedules={automationSchedules}
           loading={automationSchedulesLoading}
