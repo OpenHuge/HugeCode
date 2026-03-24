@@ -1,7 +1,18 @@
 import { access, readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { listPackage } from "@electron/asar";
+
+async function listAsarPackageEntries(asarPath) {
+  try {
+    const { listPackage } = await import("@electron/asar");
+    return listPackage(asarPath);
+  } catch (error) {
+    throw new Error(
+      "Missing @electron/asar dependency required by Electron release-contract verification. Run pnpm install so root release scripts can inspect packaged app.asar outputs.",
+      { cause: error }
+    );
+  }
+}
 
 function normalizeStaticUpdateBaseUrlRoot(staticUpdateBaseUrl) {
   const trimmed = staticUpdateBaseUrl?.trim();
@@ -107,7 +118,7 @@ export async function verifyElectronPackagedUpdaterRuntime(repoRoot) {
   }
 
   const appAsarPath = resolve(outDir, appAsarRelativePath);
-  const packageEntries = listPackage(appAsarPath);
+  const packageEntries = await listAsarPackageEntries(appAsarPath);
   const hasUpdateElectronApp = packageEntries.includes(
     "/node_modules/update-electron-app/package.json"
   );
