@@ -2,6 +2,7 @@ import {
   validateWebMcpCreateMessageInput,
   validateWebMcpElicitInput,
 } from "@ku0/code-runtime-client/webMcpModelInputSchemas";
+import { WebMcpInputSchemaValidationError } from "@ku0/code-runtime-client/webMcpInputSchemaValidationError";
 import { logger } from "./webMcpBridgeLogger";
 import type {
   WebMcpCallToolInput,
@@ -103,29 +104,6 @@ export function formatMissingMethodsMessage(missingRequired: string[]): string {
   return `WebMCP bridge requires registration methods: ${missingRequired.join(", ")}.`;
 }
 
-export function listWebMcpCatalog(): WebMcpCatalog {
-  const modelContext = getModelContext();
-  const capabilities = getWebMcpCapabilities();
-  if (!modelContext) {
-    throw createMethodUnavailableError("listTools/listResources/listPrompts");
-  }
-
-  const listTools = modelContext.listTools;
-  const listResources = modelContext.listResources;
-  const listPrompts = modelContext.listPrompts;
-  if (!hasFunction(listTools) || !hasFunction(listResources) || !hasFunction(listPrompts)) {
-    throw createMethodUnavailableError("listTools/listResources/listPrompts");
-  }
-
-  return {
-    tools: [],
-    resources: [],
-    resourceTemplates: [],
-    prompts: [],
-    capabilities,
-  };
-}
-
 export function loggerWarning(message: string, context?: Record<string, unknown>): void {
   logger.warn(message, context);
 }
@@ -184,7 +162,7 @@ function warnSchemaValidationWarnings(
   }
 }
 
-export async function listWebMcpCatalogAsync(): Promise<WebMcpCatalog> {
+export async function listWebMcpCatalog(): Promise<WebMcpCatalog> {
   const modelContext = getModelContext();
   const capabilities = buildCapabilityMatrix(modelContext);
   if (!modelContext) {
@@ -213,6 +191,8 @@ export async function listWebMcpCatalogAsync(): Promise<WebMcpCatalog> {
   };
 }
 
+export const listWebMcpCatalogAsync = listWebMcpCatalog;
+
 export async function callWebMcpTool(input: WebMcpCallToolInput): Promise<unknown> {
   const modelContext = getModelContext();
   const callTool = modelContext?.callTool;
@@ -235,10 +215,14 @@ export async function callWebMcpTool(input: WebMcpCallToolInput): Promise<unknow
 
 export async function createWebMcpMessage(input: WebMcpCreateMessageInput): Promise<unknown> {
   const validation = validateWebMcpCreateMessageInput(input);
-  if (validation.errors.length > 0) {
-    throw new Error(validation.errors.join("; "));
-  }
   warnSchemaValidationWarnings("createMessage", validation);
+  if (validation.errors.length > 0) {
+    throw new WebMcpInputSchemaValidationError({
+      toolName: "createMessage",
+      scope: "createMessage",
+      validation,
+    });
+  }
 
   const modelContext = getModelContext();
   const createMessage = modelContext?.createMessage;
@@ -255,10 +239,14 @@ export async function createWebMcpMessage(input: WebMcpCreateMessageInput): Prom
 
 export async function elicitWebMcpInput(input: WebMcpElicitInput): Promise<unknown> {
   const validation = validateWebMcpElicitInput(input);
-  if (validation.errors.length > 0) {
-    throw new Error(validation.errors.join("; "));
-  }
   warnSchemaValidationWarnings("elicitInput", validation);
+  if (validation.errors.length > 0) {
+    throw new WebMcpInputSchemaValidationError({
+      toolName: "elicitInput",
+      scope: "elicitInput",
+      validation,
+    });
+  }
 
   const modelContext = getModelContext();
   const elicitInput = modelContext?.elicitInput;
