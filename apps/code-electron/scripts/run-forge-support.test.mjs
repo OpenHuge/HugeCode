@@ -1,12 +1,38 @@
 import { describe, expect, it } from "vitest";
 import {
   buildForgeEnvironment,
+  parseRunForgeArgs,
   resolveCommandInvocation,
   resolveNodeInstaller,
+  shouldReusePackagedOutput,
   shouldUseLinuxDebianPackagingEnv,
 } from "./run-forge-support.mjs";
 
 describe("run-forge platform support", () => {
+  it("parses forge args after the command and rejects unknown commands", () => {
+    expect(parseRunForgeArgs(["make", "--skip-package", "--arch=x64"])).toEqual({
+      command: "make",
+      forgeArgs: ["--skip-package", "--arch=x64"],
+    });
+
+    expect(() => parseRunForgeArgs(["unknown"])).toThrow(
+      "Usage: node ./scripts/run-forge.mjs <package|make|publish> [forge args]"
+    );
+  });
+
+  it("only reuses packaged output when skip-package is explicitly requested", () => {
+    expect(shouldReusePackagedOutput({ command: "make", forgeArgs: ["--skip-package"] })).toBe(
+      true
+    );
+    expect(shouldReusePackagedOutput({ command: "publish", forgeArgs: ["--skip-package"] })).toBe(
+      true
+    );
+    expect(shouldReusePackagedOutput({ command: "make", forgeArgs: [] })).toBe(false);
+    expect(shouldReusePackagedOutput({ command: "package", forgeArgs: ["--skip-package"] })).toBe(
+      false
+    );
+  });
+
   it("only enables the Linux Debian packaging env on Linux make and publish commands", () => {
     expect(shouldUseLinuxDebianPackagingEnv({ platform: "linux", command: "make" })).toBe(true);
     expect(shouldUseLinuxDebianPackagingEnv({ platform: "linux", command: "publish" })).toBe(true);
