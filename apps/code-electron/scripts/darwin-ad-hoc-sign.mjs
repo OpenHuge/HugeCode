@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { signAsync } from "@electron/osx-sign";
 
 export function hasForgeOsxSignConfig(packagerConfig = {}) {
@@ -7,6 +8,14 @@ export function hasForgeOsxSignConfig(packagerConfig = {}) {
 
 export function shouldRepairDarwinArm64Signature({ arch, hasOsxSignConfig = false, platform }) {
   return platform === "darwin" && arch === "arm64" && !hasOsxSignConfig;
+}
+
+export function resolveDarwinAppBundlePath(packageOutputPath, appName = "HugeCode") {
+  if (packageOutputPath.endsWith(".app")) {
+    return packageOutputPath;
+  }
+
+  return join(packageOutputPath, `${appName}.app`);
 }
 
 export async function repairDarwinArm64Signature(appPath, dependencies = {}) {

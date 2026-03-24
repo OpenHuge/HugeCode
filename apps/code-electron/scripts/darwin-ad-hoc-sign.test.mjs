@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   hasForgeOsxSignConfig,
   repairDarwinArm64Signature,
+  resolveDarwinAppBundlePath,
   shouldRepairDarwinArm64Signature,
 } from "./darwin-ad-hoc-sign.mjs";
 
@@ -36,6 +37,13 @@ describe("darwin ad-hoc signing helpers", () => {
         hasOsxSignConfig: true,
       })
     ).toBe(false);
+  });
+
+  it("normalizes Forge package directories to the actual app bundle path", () => {
+    expect(resolveDarwinAppBundlePath("/tmp/HugeCode-darwin-arm64", "HugeCode")).toBe(
+      "/tmp/HugeCode-darwin-arm64/HugeCode.app"
+    );
+    expect(resolveDarwinAppBundlePath("/tmp/HugeCode.app", "HugeCode")).toBe("/tmp/HugeCode.app");
   });
 
   it("uses explicit ad-hoc signing with disabled identity validation", async () => {
