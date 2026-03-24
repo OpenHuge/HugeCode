@@ -10,6 +10,7 @@ import {
   createDistributedDiagnostics,
   createFormattedDebugEntries,
   createRuntimeEventChannelDiagnostics,
+  createRuntimeToolLifecycleEvent,
 } from "./debugDiagnosticsFixtures";
 
 export function createDebugEntries(): DebugEntry[] {
@@ -53,6 +54,7 @@ export function createDebugPanelBodyProps(
     hasRemoteExecutionDiagnostics: false,
     agentTaskDurabilityDiagnostics: null,
     eventChannelDiagnostics: [],
+    runtimeToolLifecycleEvents: [],
     runtimeEventBridgePath: "legacy",
     formattedEntries: [],
     isRuntimeProbeBusy: false,
@@ -93,6 +95,7 @@ export function createPopulatedDebugPanelBodyProps(
     hasRemoteExecutionDiagnostics: true,
     agentTaskDurabilityDiagnostics: createAgentTaskDurabilityDiagnostics(),
     eventChannelDiagnostics: createRuntimeEventChannelDiagnostics(),
+    runtimeToolLifecycleEvents: [createRuntimeToolLifecycleEvent()],
     runtimeEventBridgePath: "v2",
     formattedEntries: createFormattedDebugEntries(),
     ...overrides,

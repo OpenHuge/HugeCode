@@ -10,6 +10,8 @@ import {
   DebugRuntimeProbesSection,
   type DebugRuntimeProbesSectionProps,
 } from "./DebugRuntimeProbesSection";
+import { DebugRuntimeToolLifecycleSection } from "./DebugRuntimeToolLifecycleSection";
+import type { RuntimeToolLifecycleEvent } from "../../../application/runtime/ports/runtimeToolLifecycle";
 
 export type DebugPanelBodyProps = DebugRuntimeProbesSectionProps & {
   isOpen: boolean;
@@ -18,6 +20,7 @@ export type DebugPanelBodyProps = DebugRuntimeProbesSectionProps & {
   hasRemoteExecutionDiagnostics: boolean;
   agentTaskDurabilityDiagnostics: AgentTaskDurabilityDiagnostics | null;
   eventChannelDiagnostics: RuntimeEventChannelDiagnostics[];
+  runtimeToolLifecycleEvents: RuntimeToolLifecycleEvent[];
   runtimeEventBridgePath: "legacy" | "v2";
   formattedEntries: FormattedDebugEntry[];
 };
@@ -29,6 +32,7 @@ export function DebugPanelBody({
   hasRemoteExecutionDiagnostics,
   agentTaskDurabilityDiagnostics,
   eventChannelDiagnostics,
+  runtimeToolLifecycleEvents,
   runtimeEventBridgePath,
   formattedEntries,
   ...probeProps
@@ -45,6 +49,7 @@ export function DebugPanelBody({
         eventChannelDiagnostics={eventChannelDiagnostics}
         runtimeEventBridgePath={runtimeEventBridgePath}
       />
+      <DebugRuntimeToolLifecycleSection lifecycleEvents={runtimeToolLifecycleEvents} />
       <DebugRuntimeProbesSection {...probeProps} />
       {isOpen ? <DebugEntriesList formattedEntries={formattedEntries} /> : null}
     </>

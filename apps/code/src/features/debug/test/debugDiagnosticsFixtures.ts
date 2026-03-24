@@ -1,4 +1,5 @@
 import type { RuntimeEventChannelDiagnostics } from "../../../application/runtime/ports/runtimeEventChannelDiagnostics";
+import type { RuntimeToolLifecycleEvent } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import type { DebugEntry } from "../../../types";
 import type { FormattedDebugEntry } from "../components/DebugEntriesList";
 import type {
@@ -100,6 +101,27 @@ export function createFormattedDebugEntries(): FormattedDebugEntry[] {
       payloadText: '{"ok":true}',
     },
   ];
+}
+
+export function createRuntimeToolLifecycleEvent(
+  overrides: Partial<RuntimeToolLifecycleEvent> = {}
+): RuntimeToolLifecycleEvent {
+  return {
+    id: "tool-started-1",
+    kind: "tool",
+    phase: "started",
+    source: "app-event",
+    workspaceId: "workspace-1",
+    threadId: "thread-1",
+    turnId: "turn-1",
+    toolCallId: "tool-call-1",
+    toolName: "bash",
+    scope: "write",
+    status: "in_progress",
+    at: 1_771_331_696_000,
+    errorCode: null,
+    ...overrides,
+  } as RuntimeToolLifecycleEvent;
 }
 
 export function createDistributedDiagnosticsEntry(overrides: Partial<DebugEntry> = {}): DebugEntry {

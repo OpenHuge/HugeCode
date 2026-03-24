@@ -2,6 +2,7 @@ import type { DebugPanelViewModel, DebugPanelViewModelParams } from "./debugPane
 import type { useDebugEntryDiagnostics } from "./useDebugEntryDiagnostics";
 import type { useDebugRuntimeCapabilities } from "./useDebugRuntimeCapabilities";
 import type { useDebugRuntimeEventChannels } from "./useDebugRuntimeEventChannels";
+import type { useDebugRuntimeToolLifecycle } from "./useDebugRuntimeToolLifecycle";
 import type { useDebugRuntimeProbe } from "./useDebugRuntimeProbe";
 import type { useFormattedDebugEntries } from "./useFormattedDebugEntries";
 import type { useRuntimeDiagnosticsExport } from "./useRuntimeDiagnosticsExport";
@@ -16,6 +17,7 @@ export type {
 type DebugRuntimeCapabilitiesState = ReturnType<typeof useDebugRuntimeCapabilities>;
 type RuntimeDiagnosticsExportState = ReturnType<typeof useRuntimeDiagnosticsExport>;
 type DebugRuntimeEventChannelsState = ReturnType<typeof useDebugRuntimeEventChannels>;
+type DebugRuntimeToolLifecycleState = ReturnType<typeof useDebugRuntimeToolLifecycle>;
 type DebugRuntimeProbeState = ReturnType<typeof useDebugRuntimeProbe>;
 type DebugEntryDiagnosticsState = ReturnType<typeof useDebugEntryDiagnostics>;
 type FormattedEntries = ReturnType<typeof useFormattedDebugEntries>;
@@ -24,6 +26,7 @@ export type CreateDebugPanelViewModelParams = DebugPanelViewModelParams & {
   runtimeCapabilities: DebugRuntimeCapabilitiesState;
   diagnosticsExport: RuntimeDiagnosticsExportState;
   runtimeEventChannels: DebugRuntimeEventChannelsState;
+  runtimeToolLifecycle: DebugRuntimeToolLifecycleState;
   runtimeProbe: DebugRuntimeProbeState;
   formattedEntries: FormattedEntries;
   entryDiagnostics: DebugEntryDiagnosticsState;
@@ -45,6 +48,7 @@ export function createDebugPanelViewModel({
   runtimeCapabilities,
   diagnosticsExport,
   runtimeEventChannels,
+  runtimeToolLifecycle,
   runtimeProbe,
   formattedEntries,
   entryDiagnostics,
@@ -62,6 +66,7 @@ export function createDebugPanelViewModel({
     exportDiagnostics,
   } = diagnosticsExport;
   const { eventChannelDiagnostics, runtimeEventBridgePath } = runtimeEventChannels;
+  const { lifecycleEvents: runtimeToolLifecycleEvents } = runtimeToolLifecycle;
   const {
     runtimeProbeBusyLabel,
     runtimeProbeError,
@@ -114,6 +119,7 @@ export function createDebugPanelViewModel({
       hasRemoteExecutionDiagnostics,
       agentTaskDurabilityDiagnostics,
       eventChannelDiagnostics,
+      runtimeToolLifecycleEvents,
       runtimeEventBridgePath,
       formattedEntries,
       isRuntimeProbeBusy,

@@ -6,6 +6,7 @@ import {
 import { useDebugEntryDiagnostics } from "./useDebugEntryDiagnostics";
 import { useDebugRuntimeCapabilities } from "./useDebugRuntimeCapabilities";
 import { useDebugRuntimeEventChannels } from "./useDebugRuntimeEventChannels";
+import { useDebugRuntimeToolLifecycle } from "./useDebugRuntimeToolLifecycle";
 import { useDebugRuntimeProbe } from "./useDebugRuntimeProbe";
 import { useFormattedDebugEntries } from "./useFormattedDebugEntries";
 import { useRuntimeDiagnosticsExport } from "./useRuntimeDiagnosticsExport";
@@ -17,6 +18,10 @@ export function useDebugPanelViewModelInputs(
   const runtimeCapabilities = useDebugRuntimeCapabilities();
   const diagnosticsExport = useRuntimeDiagnosticsExport({ workspaceId: params.workspaceId });
   const runtimeEventChannels = useDebugRuntimeEventChannels();
+  const runtimeToolLifecycle = useDebugRuntimeToolLifecycle({
+    workspaceId: params.workspaceId,
+    enabled: isVisible,
+  });
   const runtimeProbe = useDebugRuntimeProbe();
   const formattedEntries = useFormattedDebugEntries(params.entries, isVisible);
   const entryDiagnostics = useDebugEntryDiagnostics(
@@ -30,6 +35,7 @@ export function useDebugPanelViewModelInputs(
     runtimeCapabilities,
     diagnosticsExport,
     runtimeEventChannels,
+    runtimeToolLifecycle,
     runtimeProbe,
     formattedEntries,
     entryDiagnostics,

@@ -93,6 +93,11 @@ export function createDebugPanelViewModelBuilderParams(
     runtimeCapabilities: createDebugRuntimeCapabilitiesState(),
     diagnosticsExport: createRuntimeDiagnosticsExportState(),
     runtimeEventChannels: createDebugRuntimeEventChannelsState(),
+    runtimeToolLifecycle: {
+      revision: 0,
+      lastEvent: null,
+      lifecycleEvents: [],
+    },
     runtimeProbe: createDebugRuntimeProbeState(),
     formattedEntries: [],
     entryDiagnostics: createDebugEntryDiagnosticsState(),
