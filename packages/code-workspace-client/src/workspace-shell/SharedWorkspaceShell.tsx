@@ -233,6 +233,33 @@ function WorkspaceRosterSection({
   );
 }
 
+function getHomeTriagePriority(tone: "blocked" | "attention" | "ready" | "active" | "neutral") {
+  if (tone === "blocked") {
+    return 500;
+  }
+  if (tone === "attention") {
+    return 400;
+  }
+  if (tone === "ready") {
+    return 300;
+  }
+  if (tone === "active") {
+    return 220;
+  }
+  return 100;
+}
+
+type HomeTriageItem = {
+  id: string;
+  scopeLabel: "Mission" | "Review";
+  title: string;
+  detail: string;
+  tone: "blocked" | "attention" | "ready" | "active";
+  statusLabel: string;
+  targetSection: "missions" | "review";
+  sourceOrder: number;
+};
+
 function HomeOverviewSection({
   state,
 }: {
@@ -242,6 +269,50 @@ function HomeOverviewSection({
     state.missionLoadState === "idle" || state.missionLoadState === "loading";
   const topMissionItem = state.missionSummary.missionItems[0] ?? null;
   const topReviewItem = state.missionSummary.reviewItems[0] ?? null;
+  const triageItems = useMemo(
+    () =>
+      [
+        ...state.missionSummary.missionItems.flatMap<HomeTriageItem>((item, index) =>
+          item.tone === "neutral"
+            ? []
+            : [
+                {
+                  id: `mission:${item.id}`,
+                  scopeLabel: "Mission",
+                  title: item.title,
+                  detail: item.detail,
+                  tone: item.tone,
+                  statusLabel: item.statusLabel,
+                  targetSection: "missions",
+                  sourceOrder: index,
+                },
+              ]
+        ),
+        ...state.missionSummary.reviewItems.flatMap<HomeTriageItem>((item, index) =>
+          item.tone === "neutral"
+            ? []
+            : [
+                {
+                  id: `review:${item.id}`,
+                  scopeLabel: "Review",
+                  title: item.title,
+                  detail: item.summary,
+                  tone: item.tone,
+                  statusLabel: item.reviewStatusLabel,
+                  targetSection: "review",
+                  sourceOrder: 100 + index,
+                },
+              ]
+        ),
+      ]
+        .sort(
+          (left, right) =>
+            getHomeTriagePriority(right.tone) - getHomeTriagePriority(left.tone) ||
+            left.sourceOrder - right.sourceOrder
+        )
+        .slice(0, 4),
+    [state.missionSummary.missionItems, state.missionSummary.reviewItems]
+  );
 
   return (
     <section className={styles.sectionStack}>
@@ -290,6 +361,54 @@ function HomeOverviewSection({
           <span className={styles.body}>{state.settingsFraming.subtitle}</span>
         </button>
       </div>
+      <section className={styles.card}>
+        <div className={styles.sectionHeader}>
+          <div className={styles.sectionHeading}>
+            <p className={styles.kicker}>Attention queue</p>
+            <h3 className={styles.activityTitle}>Operator triage</h3>
+          </div>
+          <p className={styles.sectionMeta}>
+            {missionSummaryPending
+              ? "Hydrating mission and review priorities"
+              : "Blocked and attention items stay ahead of passive activity"}
+          </p>
+        </div>
+        {missionSummaryPending ? (
+          <p className={styles.body}>
+            Shared mission and review queues are still hydrating in the background.
+          </p>
+        ) : triageItems.length > 0 ? (
+          <div className={styles.triageList}>
+            {triageItems.map((item) => (
+              <button
+                className={styles.triageCard}
+                key={item.id}
+                onClick={() => state.navigateToSection(item.targetSection)}
+                type="button"
+              >
+                <div className={styles.activityHeader}>
+                  <div className={styles.activityCopy}>
+                    <span className={styles.triageScope}>{item.scopeLabel}</span>
+                    <h4 className={styles.workspaceName}>{item.title}</h4>
+                  </div>
+                  <div className={styles.activityStatus}>
+                    <span
+                      aria-hidden
+                      className={`${styles.statusDot} ${styles.activityTone[item.tone]}`}
+                    />
+                    <span className={styles.readinessLabel}>{item.statusLabel}</span>
+                  </div>
+                </div>
+                <p className={styles.body}>{item.detail}</p>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className={styles.body}>
+            No actionable mission or review items have been published yet.
+          </p>
+        )}
+      </section>
       <WorkspaceRosterSection state={state} />
     </section>
   );

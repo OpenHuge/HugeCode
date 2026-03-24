@@ -501,7 +501,7 @@ describe("WorkspaceShellApp", () => {
                   createdAt: 0,
                 },
               ],
-            }) as MissionControlSnapshot,
+            }) as unknown as MissionControlSnapshot,
         })}
       >
         <WorkspaceShellApp />
@@ -510,6 +510,192 @@ describe("WorkspaceShellApp", () => {
 
     await screen.findByText("Routing blocked: Blocked route");
     expect(screen.getByText("Validation failed: Failed review")).toBeTruthy();
+  });
+
+  it("renders an operator triage queue on home and routes entries into their section", async () => {
+    window.history.pushState({}, "", "/app");
+
+    render(
+      <WorkspaceClientBindingsProvider
+        bindings={createBindings({
+          readMissionControlSnapshot: async () =>
+            ({
+              source: "runtime_snapshot_v1",
+              generatedAt: 0,
+              workspaces: [
+                {
+                  id: "workspace-1",
+                  name: "Alpha",
+                  rootPath: "/alpha",
+                  connected: true,
+                  defaultProfileId: null,
+                },
+              ],
+              tasks: [
+                {
+                  id: "task-approval",
+                  workspaceId: "workspace-1",
+                  title: "Await approval",
+                  objective: null,
+                  origin: {
+                    kind: "run",
+                    threadId: null,
+                    runId: "run-approval",
+                    requestId: null,
+                  },
+                  taskSource: null,
+                  mode: null,
+                  modeSource: "missing",
+                  status: "running",
+                  createdAt: 0,
+                  updatedAt: 0,
+                  currentRunId: "run-approval",
+                  latestRunId: "run-approval",
+                  latestRunState: "running",
+                },
+              ],
+              runs: [
+                {
+                  id: "run-approval",
+                  workspaceId: "workspace-1",
+                  taskId: "task-approval",
+                  state: "running",
+                  title: "Await approval",
+                  summary: "Waiting for approval.",
+                  taskSource: null,
+                  startedAt: 0,
+                  finishedAt: null,
+                  updatedAt: 0,
+                  currentStepIndex: null,
+                  approval: {
+                    status: "pending_decision",
+                    approvalId: "approval-1",
+                    label: "Approval pending",
+                    summary: "Waiting for operator approval.",
+                  },
+                },
+              ],
+              reviewPacks: [],
+            }) as unknown as MissionControlSnapshot,
+        })}
+      >
+        <WorkspaceShellApp />
+      </WorkspaceClientBindingsProvider>
+    );
+
+    const triageHeading = await screen.findByRole("heading", { level: 3, name: "Operator triage" });
+    const triageSection = triageHeading.closest("section");
+
+    expect(triageSection).toBeTruthy();
+
+    const triageEntry = await within(triageSection as HTMLElement).findByRole("button", {
+      name: /Await approval/i,
+    });
+
+    expect(triageEntry).toBeTruthy();
+
+    fireEvent.click(triageEntry);
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Missions" })).toBeTruthy();
+  });
+
+  it("prioritizes blocked review items ahead of lower-severity mission activity in the home triage queue", async () => {
+    window.history.pushState({}, "", "/app");
+
+    render(
+      <WorkspaceClientBindingsProvider
+        bindings={createBindings({
+          readMissionControlSnapshot: async () =>
+            ({
+              source: "runtime_snapshot_v1",
+              generatedAt: 0,
+              workspaces: [
+                {
+                  id: "workspace-1",
+                  name: "Alpha",
+                  rootPath: "/alpha",
+                  connected: true,
+                  defaultProfileId: null,
+                },
+              ],
+              tasks: [
+                {
+                  id: "task-active",
+                  workspaceId: "workspace-1",
+                  title: "Long compile",
+                  objective: null,
+                  origin: {
+                    kind: "run",
+                    threadId: null,
+                    runId: "run-active",
+                    requestId: null,
+                  },
+                  taskSource: null,
+                  mode: null,
+                  modeSource: "missing",
+                  status: "running",
+                  createdAt: 0,
+                  updatedAt: 0,
+                  currentRunId: "run-active",
+                  latestRunId: "run-active",
+                  latestRunState: "running",
+                },
+              ],
+              runs: [
+                {
+                  id: "run-active",
+                  workspaceId: "workspace-1",
+                  taskId: "task-active",
+                  state: "running",
+                  title: "Long compile",
+                  summary: "Still compiling.",
+                  taskSource: null,
+                  startedAt: 0,
+                  finishedAt: null,
+                  updatedAt: 0,
+                  currentStepIndex: null,
+                },
+              ],
+              reviewPacks: [
+                {
+                  id: "review-failed",
+                  runId: "run-active",
+                  taskId: "task-active",
+                  workspaceId: "workspace-1",
+                  summary: "Lint failure",
+                  reviewStatus: "ready",
+                  evidenceState: "complete",
+                  validationOutcome: "failed",
+                  warningCount: 0,
+                  warnings: [],
+                  validations: [],
+                  artifacts: [],
+                  checksPerformed: [],
+                  recommendedNextAction: "Fix the failing lint validation.",
+                  createdAt: 0,
+                },
+              ],
+            }) as unknown as MissionControlSnapshot,
+        })}
+      >
+        <WorkspaceShellApp />
+      </WorkspaceClientBindingsProvider>
+    );
+
+    const triageHeading = await screen.findByRole("heading", {
+      level: 3,
+      name: "Operator triage",
+    });
+    const triageSection = triageHeading.closest("section");
+
+    expect(triageSection).toBeTruthy();
+
+    await within(triageSection as HTMLElement).findByRole("button", { name: /Lint failure/i });
+
+    const triageButtons = within(triageSection as HTMLElement).getAllByRole("button");
+
+    expect(triageButtons[0]?.textContent).toContain("Lint failure");
+    expect(triageButtons[1]?.textContent).toContain("Long compile");
   });
 
   it("routes the operator-next card into the relevant shared section", async () => {

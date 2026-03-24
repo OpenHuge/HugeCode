@@ -477,6 +477,44 @@ export const activityList = style({
   gap: spacing[3],
 });
 
+export const triageList = style({
+  display: "grid",
+  gap: spacing[3],
+});
+
+export const triageCard = style({
+  display: "grid",
+  gap: spacing[2],
+  width: "100%",
+  padding: spacing[4],
+  borderRadius: "18px",
+  border: `1px solid color-mix(in srgb, ${semanticColors.border} 64%, transparent)`,
+  background:
+    "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-item) 92%, transparent), color-mix(in srgb, var(--ds-surface-panel) 94%, transparent))",
+  color: semanticColors.foreground,
+  textAlign: "left",
+  cursor: "pointer",
+  transition: motionValues.interactive,
+  selectors: {
+    "&:hover:not(:disabled), &:focus-visible": {
+      borderColor: "color-mix(in srgb, var(--ds-border-subtle) 68%, transparent)",
+      background:
+        "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-hover) 76%, var(--ds-surface-item)), color-mix(in srgb, var(--ds-surface-panel) 94%, transparent))",
+      outline: "none",
+      transform: "translateY(-1px)",
+    },
+  },
+});
+
+export const triageScope = style({
+  color: semanticColors.mutedForeground,
+  fontSize: typographyValues.meta.fontSize,
+  lineHeight: typographyValues.meta.lineHeight,
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+  fontWeight: 650,
+});
+
 export const activityCard = style({
   display: "grid",
   gap: spacing[3],
