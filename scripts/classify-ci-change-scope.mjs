@@ -53,6 +53,23 @@ function writeOutput(name, value) {
   process.stdout.write(rendered);
 }
 
+function isBuildSkipEligibleFile(file) {
+  return (
+    file.endsWith(".md") ||
+    file.endsWith(".mdx") ||
+    file.endsWith(".test.ts") ||
+    file.endsWith(".test.tsx") ||
+    file.endsWith(".spec.ts") ||
+    file.endsWith(".spec.tsx") ||
+    file.endsWith(".stories.ts") ||
+    file.endsWith(".stories.tsx") ||
+    file.endsWith(".stories.mdx") ||
+    file.includes("/__tests__/") ||
+    file.includes("/src/test/") ||
+    file.includes("/src/fixtures/")
+  );
+}
+
 const baseRef = process.env.CI_SCOPE_BASE_REF?.trim() || "HEAD^";
 const headRef = process.env.CI_SCOPE_HEAD_REF?.trim() || "HEAD";
 const diffArgs = resolveDiffArgs(baseRef, headRef);
@@ -64,6 +81,8 @@ const nameOnly = runGit(["diff", "--name-only", ...diffArgs])
 const changedFiles = new Set(nameOnly);
 const manifestFiles = nameOnly.filter(isManifestLikeFile);
 const manifestOnly = nameOnly.length > 0 && manifestFiles.length === nameOnly.length;
+const buildSkipEligibleOnly =
+  nameOnly.length > 0 && nameOnly.every((file) => isBuildSkipEligibleFile(file));
 const manifestDiff = manifestFiles.length
   ? runGit(["diff", "--unified=0", ...diffArgs, "--", ...manifestFiles]).stdout
   : "";
@@ -93,5 +112,6 @@ const frontendManifestChanged =
   frontendManifestPattern.test(manifestDiff);
 
 writeOutput("manifest_only", manifestOnly ? "true" : "false");
+writeOutput("build_skip_eligible_only", buildSkipEligibleOnly ? "true" : "false");
 writeOutput("desktop_manifest_changed", desktopManifestChanged ? "true" : "false");
 writeOutput("frontend_manifest_changed", frontendManifestChanged ? "true" : "false");
