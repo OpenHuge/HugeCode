@@ -34,6 +34,7 @@ enum RequestedCollaborationMode {
 struct TurnQueryOutcome {
     message: provider_requests::ProviderQueryResult,
     local_claude_session_id: Option<String>,
+    local_claude_recovered_from_stale_resume: bool,
 }
 
 fn parse_requested_collaboration_mode(
@@ -179,6 +180,7 @@ async fn query_provider_with_local_exec_fallback(
                 response_model_id: result.response_model_id,
             },
             local_claude_session_id: result.session_id,
+            local_claude_recovered_from_stale_resume: result.recovered_from_stale_resume,
         });
     }
 
@@ -206,6 +208,7 @@ async fn query_provider_with_local_exec_fallback(
         .map(|message| TurnQueryOutcome {
             message,
             local_claude_session_id: None,
+            local_claude_recovered_from_stale_resume: false,
         })
     };
 
@@ -234,6 +237,7 @@ async fn query_provider_with_local_exec_fallback(
         Ok(message) => Ok(TurnQueryOutcome {
             message: provider_requests::ProviderQueryResult::from_output(message),
             local_claude_session_id: None,
+            local_claude_recovered_from_stale_resume: false,
         }),
         Err(local_exec_error) => {
             warn!(
@@ -367,6 +371,7 @@ async fn complete_turn_send(
                 .map(|message| TurnQueryOutcome {
                     message,
                     local_claude_session_id: None,
+                    local_claude_recovered_from_stale_resume: false,
                 })
                 .map_err(RpcError::internal);
             }
@@ -466,6 +471,7 @@ async fn complete_turn_send(
                         .map(|message| TurnQueryOutcome {
                             message,
                             local_claude_session_id: None,
+                            local_claude_recovered_from_stale_resume: false,
                         })
                     } else {
                         query_provider_with_delta(
@@ -493,6 +499,7 @@ async fn complete_turn_send(
                         .map(|message| TurnQueryOutcome {
                             message,
                             local_claude_session_id: None,
+                            local_claude_recovered_from_stale_resume: false,
                         })
                     }
                 }
@@ -560,6 +567,7 @@ async fn complete_turn_send(
                             Ok(message) => Ok(TurnQueryOutcome {
                                 message,
                                 local_claude_session_id: None,
+                                local_claude_recovered_from_stale_resume: false,
                             }),
                             Err(runtime_plan_error) => {
                                 warn!(
@@ -716,6 +724,14 @@ async fn complete_turn_send(
                 .map(str::trim)
                 .filter(|value| !value.is_empty())
             {
+                if outcome.local_claude_recovered_from_stale_resume {
+                    let _ = clear_local_claude_thread_session(
+                        &ctx,
+                        task.workspace_id.as_str(),
+                        task.thread_id.as_str(),
+                    )
+                    .await;
+                }
                 if let Err(error) = persist_local_claude_thread_session(
                     &ctx,
                     task.workspace_id.as_str(),
@@ -731,6 +747,13 @@ async fn complete_turn_send(
                         "failed to persist local Claude thread session"
                     );
                 }
+            } else if outcome.local_claude_recovered_from_stale_resume {
+                let _ = clear_local_claude_thread_session(
+                    &ctx,
+                    task.workspace_id.as_str(),
+                    task.thread_id.as_str(),
+                )
+                .await;
             }
             if let Some(turn_delta_pipeline) = turn_delta_pipeline.as_ref() {
                 turn_delta_pipeline.flush_final().await;
@@ -759,7 +782,10 @@ async fn complete_turn_send(
                     "responseModelId": response_model_id,
                     "accessMode": task.access_mode,
                     "routedProvider": task.routed_provider_route.routed_provider(),
+                    "routedModelId": task.display_model_id,
+                    "routedPool": task.routed_provider_route.routed_pool(),
                     "executionMode": task.execution_mode.as_str(),
+                    "recoveredFromStaleResume": outcome.local_claude_recovered_from_stale_resume,
                 }),
                 task.request_id.as_deref(),
             );

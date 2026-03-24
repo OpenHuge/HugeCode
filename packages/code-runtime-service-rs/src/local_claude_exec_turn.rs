@@ -30,6 +30,7 @@ pub(crate) struct LocalClaudeExecTurnResult {
     pub(crate) output: String,
     pub(crate) response_model_id: Option<String>,
     pub(crate) session_id: Option<String>,
+    pub(crate) recovered_from_stale_resume: bool,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
@@ -618,6 +619,7 @@ async fn run_local_claude_exec_turn_once(
         output,
         response_model_id,
         session_id,
+        recovered_from_stale_resume: false,
     })
 }
 
@@ -880,7 +882,10 @@ pub(crate) async fn query_local_claude_exec_turn(
         {
             let mut retry_input = input.clone();
             retry_input.resume_session_id = None;
-            run_local_claude_exec_turn_once(&retry_input, delta_callback).await
+            let mut recovered =
+                run_local_claude_exec_turn_once(&retry_input, delta_callback).await?;
+            recovered.recovered_from_stale_resume = true;
+            Ok(recovered)
         }
         Err(error) => Err(error),
     }
@@ -1176,5 +1181,83 @@ exit 1
         assert_eq!(turn.output, "LOCAL_RUNTIME_CLAUDE_OK");
         assert_eq!(turn.response_model_id.as_deref(), Some("claude-sonnet-4-5"));
         assert_eq!(turn.session_id.as_deref(), Some("session-123"));
+        assert!(!turn.recovered_from_stale_resume);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    async fn query_local_claude_exec_turn_retries_without_stale_resume_session() {
+        let _guard = local_claude_exec_env_lock()
+            .lock()
+            .expect("local claude exec env lock poisoned");
+        let previous_override = std::env::var_os(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV);
+        let temp = TempDir::new().expect("create temp dir");
+        let script_path = temp.path().join("fake-claude-stale-resume.sh");
+        let script = r#"#!/bin/sh
+if [ "$1" = "auth" ] && [ "$2" = "status" ] && [ "$3" = "--json" ]; then
+  printf '{"loggedIn":true,"authMethod":"oauth_token","apiProvider":"firstParty"}\n'
+  exit 0
+fi
+
+if [ "$1" = "--print" ]; then
+  previous=""
+  for arg in "$@"; do
+    if [ "$previous" = "--resume" ]; then
+      printf 'resume session not found\n' >&2
+      exit 1
+    fi
+    previous="$arg"
+  done
+
+  printf '%s\n' '{"type":"system","subtype":"init","model":"claude-sonnet-4-5"}'
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"RECOVERED_LOCAL_CLAUDE_OK"}]}}'
+  printf '%s\n' '{"type":"result","subtype":"success","result":"RECOVERED_LOCAL_CLAUDE_OK"}'
+  exit 0
+fi
+
+printf 'unexpected args: %s\n' "$*" >&2
+exit 1
+"#;
+        fs::write(&script_path, script).expect("write fake claude script");
+        let mut permissions = fs::metadata(&script_path)
+            .expect("fake claude metadata")
+            .permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&script_path, permissions).expect("set fake claude permissions");
+
+        unsafe {
+            std::env::set_var(
+                CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV,
+                script_path.as_os_str(),
+            );
+        }
+        reset_local_claude_exec_binary_cache();
+
+        let result = query_local_claude_exec_turn(
+            LocalClaudeExecTurnInput {
+                workspace_path: temp.path().to_string_lossy().to_string(),
+                prompt: "Recover local Claude".to_string(),
+                model_id: Some("claude-sonnet-4-5".to_string()),
+                access_mode: "on-request".to_string(),
+                collaboration_mode_is_plan: false,
+                resume_session_id: Some("expired-session-123".to_string()),
+            },
+            None,
+        )
+        .await;
+
+        unsafe {
+            match previous_override {
+                Some(value) => std::env::set_var(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV, value),
+                None => std::env::remove_var(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV),
+            }
+        }
+        reset_local_claude_exec_binary_cache();
+
+        let turn = result.expect("turn should recover by retrying without resume");
+        assert_eq!(turn.output, "RECOVERED_LOCAL_CLAUDE_OK");
+        assert_eq!(turn.response_model_id.as_deref(), Some("claude-sonnet-4-5"));
+        assert_eq!(turn.session_id, None);
+        assert!(turn.recovered_from_stale_resume);
     }
 }
