@@ -21,6 +21,8 @@ const strongText = semanticThemeVars.color.text.primary;
 const mutedText = `color-mix(in srgb, ${semanticThemeVars.color.text.secondary} 88%, transparent)`;
 const faintText = `color-mix(in srgb, ${semanticThemeVars.color.text.secondary} 68%, transparent)`;
 const accentGradient = `linear-gradient(135deg, color-mix(in srgb, ${semanticThemeVars.color.state.running} 88%, ${semanticThemeVars.color.bg.card} 12%), color-mix(in srgb, ${semanticThemeVars.color.state.success} 70%, ${semanticThemeVars.color.bg.card} 30%))`;
+const titlebarInsetTop = "env(titlebar-area-height, 0px)";
+const titlebarInsetLeft = "env(titlebar-area-x, 0px)";
 
 export const documentBody = style({
   margin: 0,
@@ -41,6 +43,11 @@ export const chromeContainer = style({
   display: "grid",
   gap: "28px",
   padding: "20px 0 72px",
+  selectors: {
+    'html[data-pwa-display-mode="window-controls-overlay"] &': {
+      paddingTop: `calc(${titlebarInsetTop} + 12px)`,
+    },
+  },
   "@media": {
     "(max-width: 960px)": {
       width: "min(100% - 24px, 1120px)",
@@ -61,6 +68,12 @@ export const chromeHeader = style({
   background: surfaceGlass,
   backdropFilter: "blur(18px)",
   boxShadow: elevationValues.card,
+  selectors: {
+    'html[data-pwa-display-mode="window-controls-overlay"] &': {
+      paddingLeft: `calc(16px + ${titlebarInsetLeft})`,
+      minHeight: `calc(48px + ${titlebarInsetTop})`,
+    },
+  },
   "@media": {
     "(max-width: 720px)": {
       padding: "14px",
