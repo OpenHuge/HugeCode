@@ -1254,7 +1254,6 @@ export const Composer = memo(function Composer({
             reasoningOptions={reasoningOptions}
             selectedEffort={selectedEffort}
             onSelectEffort={onSelectEffort}
-            fastModeEnabled={fastModeEnabled}
             reasoningSupported={reasoningSupported}
             accessMode={accessMode}
             onSelectAccessMode={onSelectAccessMode}

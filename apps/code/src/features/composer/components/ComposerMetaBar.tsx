@@ -13,6 +13,7 @@ import type {
   CollaborationModeOption,
   ComposerExecutionMode,
   ComposerModelSelectionMode,
+  ModelOption as SharedModelOption,
 } from "../../../types";
 import { joinClassNames } from "../../../utils/classNames";
 import {
@@ -24,19 +25,19 @@ import { resolveComposerCollaborationModes } from "../utils/collaborationModes";
 import { ComposerMetaBarControls } from "./ComposerMetaBarControls";
 import * as summaryStyles from "./ComposerMetaBarSummary.styles.css";
 
-type ModelOption = {
-  id: string;
-  displayName: string;
-  model: string;
-  description?: string;
-  provider?: string | null;
-  pool?: string | null;
-  source?: string | null;
-  available?: boolean;
-  providerReadinessKind?: string | null;
-  providerReadinessMessage?: string | null;
-  executionKind?: "local" | "cloud" | null;
-};
+type ModelOption = Pick<
+  SharedModelOption,
+  | "id"
+  | "displayName"
+  | "model"
+  | "provider"
+  | "pool"
+  | "source"
+  | "available"
+  | "providerReadinessKind"
+  | "providerReadinessMessage"
+  | "executionKind"
+>;
 
 type ExecutionOption = {
   value: ComposerExecutionMode;

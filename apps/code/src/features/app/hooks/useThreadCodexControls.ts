@@ -71,6 +71,24 @@ function normalizeModelSelectionId(value: string | null): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function normalizeProviderFamilyId(value: string | null): ModelProviderFamilyId | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  switch (value.trim().toLowerCase()) {
+    case "codex":
+      return "codex";
+    case "claude":
+      return "claude";
+    case "gemini":
+      return "gemini";
+    case "antigravity":
+      return "antigravity";
+    default:
+      return null;
+  }
+}
+
 function formatComposerAccountLabel(account: OAuthAccountSummary): string {
   const display = typeof account.displayName === "string" ? account.displayName.trim() : "";
   const email = typeof account.email === "string" ? account.email.trim() : "";
@@ -385,29 +403,30 @@ export function useThreadCodexControls({
   );
 
   const handleSelectProviderFamily = useCallback(
-    (providerFamilyId: ModelProviderFamilyId | null) => {
-      setPreferredProviderFamilyId(providerFamilyId);
+    (providerFamilyId: ModelProviderFamilyId | string | null) => {
+      const normalizedProviderFamilyId = normalizeProviderFamilyId(providerFamilyId);
+      setPreferredProviderFamilyId(normalizedProviderFamilyId);
       if (!appSettingsLoading && !isThreadScopedSelection) {
         setAppSettings((current) => {
-          if (current.lastComposerProviderFamilyId === providerFamilyId) {
+          if (current.lastComposerProviderFamilyId === normalizedProviderFamilyId) {
             return current;
           }
           const nextSettings = {
             ...current,
-            lastComposerProviderFamilyId: providerFamilyId,
+            lastComposerProviderFamilyId: normalizedProviderFamilyId,
           };
           void queueSaveSettings(nextSettings);
           return nextSettings;
         });
       }
       if (isThreadScopedSelection) {
-        persistThreadCodexParams({ providerFamilyId });
+        persistThreadCodexParams({ providerFamilyId: normalizedProviderFamilyId });
       }
       void trackProductAnalyticsEvent("provider_family_switched", {
         workspaceId: activeWorkspace?.id ?? null,
         threadId: activeThreadIdRef.current,
         eventSource: "composer",
-        requestMode: providerFamilyId,
+        requestMode: normalizedProviderFamilyId,
       });
     },
     [

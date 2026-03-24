@@ -267,10 +267,15 @@ export function createDesktopAutoUpdateConfigurator(
           return true;
         }
 
+        const repo = "githubRepo" in strategy ? strategy.githubRepo : null;
+        if (!repo) {
+          throw new Error("Public-service update mode requires a concrete GitHub repository.");
+        }
+
         updateElectronAppImpl({
           notifyUser: false,
           updateSource: {
-            repo: strategy.githubRepo,
+            repo,
             type: UpdateSourceType.ElectronPublicUpdateService,
           },
         });

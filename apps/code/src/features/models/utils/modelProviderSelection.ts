@@ -17,7 +17,6 @@ export type ProviderSelectableModel = Pick<
   | "providerReadinessKind"
   | "providerReadinessMessage"
   | "executionKind"
-  | "isDefault"
 >;
 
 export type ModelProviderOption<TModel extends ProviderSelectableModel = ProviderSelectableModel> =
