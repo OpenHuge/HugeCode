@@ -5,10 +5,9 @@ import { pathToFileURL } from "node:url";
 
 const requireFromHere = createRequire(import.meta.url);
 
-async function listAsarPackageEntries(asarPath) {
+async function loadAsarModule() {
   try {
-    const { listPackage } = await import("@electron/asar");
-    return listPackage(asarPath);
+    return await import("@electron/asar");
   } catch (error) {
     throw new Error(
       "Missing @electron/asar dependency required by Electron release-contract verification. Run pnpm install so root release scripts can inspect packaged app.asar outputs.",
@@ -28,16 +27,57 @@ function loadElectronFuses() {
   }
 }
 
+async function listAsarPackageEntries(asarPath) {
+  const { listPackage } = await loadAsarModule();
+  return listPackage(asarPath);
+}
+
+export function createAsarExtractionCandidates(relativePath) {
+  const normalizedPath = String(relativePath).replaceAll("\\", "/").replace(/^\/+/u, "");
+  return Array.from(
+    new Set([
+      normalizedPath,
+      `/${normalizedPath}`,
+      normalizedPath.replaceAll("/", "\\"),
+      `\\${normalizedPath.replaceAll("/", "\\")}`,
+    ])
+  );
+}
+
+async function resolveAsarArchiveEntryPath(asarPath, relativePath) {
+  const requestedPath = String(relativePath).replaceAll("\\", "/").replace(/^\/+/u, "");
+  const normalizedEntries = (await listAsarPackageEntries(asarPath)).map((entryPath) => ({
+    normalizedPath: normalizeAsarPackageEntryPath(entryPath),
+    rawPath: String(entryPath),
+  }));
+  const matchedEntry = normalizedEntries.find((entry) => {
+    const normalizedEntryPath = entry.normalizedPath.replace(/^\/+/u, "");
+    return normalizedEntryPath === requestedPath;
+  });
+
+  return matchedEntry?.rawPath ?? null;
+}
+
 async function extractAsarTextFile(asarPath, relativePath) {
-  try {
-    const { extractFile } = await import("@electron/asar");
-    return extractFile(asarPath, relativePath).toString("utf8");
-  } catch (error) {
-    throw new Error(
-      "Missing @electron/asar dependency required by Electron release-contract verification. Run pnpm install so root release scripts can inspect packaged app.asar outputs.",
-      { cause: error }
-    );
+  const { extractFile } = await loadAsarModule();
+  const resolvedArchiveEntryPath = await resolveAsarArchiveEntryPath(asarPath, relativePath);
+  const extractionCandidates = [
+    ...createAsarExtractionCandidates(relativePath),
+    ...(resolvedArchiveEntryPath ? [resolvedArchiveEntryPath] : []),
+  ];
+  let lastError = null;
+
+  for (const candidatePath of extractionCandidates) {
+    try {
+      return extractFile(asarPath, candidatePath).toString("utf8");
+    } catch (error) {
+      lastError = error;
+    }
   }
+
+  throw new Error(`"${relativePath}" was not found in this archive`, {
+    cause: lastError,
+  });
 }
 
 export function normalizeAsarPackageEntryPath(entryPath) {

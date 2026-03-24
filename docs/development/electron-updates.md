@@ -112,7 +112,14 @@ If no static feed root is configured, beta builds remain manual and point users 
 
 - Forge fuse hardening must not rely on a blanket `codesign --deep` fallback for unsigned Apple Silicon packages.
 - HugeCode uses explicit post-package ad-hoc signing for unsigned `darwin/arm64` bundles instead.
+- The repair flow signs the Electron framework binary first, then the app bundle, then verifies the final `.app` with `codesign --verify --deep --strict`.
 - If a future maintainer adds real `packagerConfig.osxSign`, this fallback should stay disabled and the explicit Forge signing config becomes the source of truth.
+
+## Windows Release-Contract Rule
+
+- Release verification must treat Windows `app.asar` entry paths as platform-variant archive paths, not as POSIX-only strings.
+- The verifier must never collapse a path-resolution mismatch into a fake "missing @electron/asar dependency" error.
+- If Windows package layout changes, update the release-contract extraction candidates and tests before relaxing the verification step.
 
 ## Native Menu Behavior
 

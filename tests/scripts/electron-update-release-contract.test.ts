@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  createAsarExtractionCandidates,
   isElectronPackagedAppAsarPath,
   normalizeAsarPackageEntryPath,
   normalizeElectronPackagedEntryPath,
@@ -95,6 +96,28 @@ describe("normalizeAsarPackageEntryPath", () => {
     expect(normalizeAsarPackageEntryPath("/node_modules/update-electron-app/package.json")).toBe(
       "/node_modules/update-electron-app/package.json"
     );
+  });
+});
+
+describe("createAsarExtractionCandidates", () => {
+  it("tries both POSIX and Windows asar entry variants", () => {
+    expect(
+      createAsarExtractionCandidates("dist-electron/main/createDesktopMainComposition.js")
+    ).toEqual([
+      "dist-electron/main/createDesktopMainComposition.js",
+      "/dist-electron/main/createDesktopMainComposition.js",
+      "dist-electron\\main\\createDesktopMainComposition.js",
+      "\\dist-electron\\main\\createDesktopMainComposition.js",
+    ]);
+  });
+
+  it("normalizes already-prefixed paths before generating extraction candidates", () => {
+    expect(createAsarExtractionCandidates("\\dist-electron\\main\\desktopAppProtocol.js")).toEqual([
+      "dist-electron/main/desktopAppProtocol.js",
+      "/dist-electron/main/desktopAppProtocol.js",
+      "dist-electron\\main\\desktopAppProtocol.js",
+      "\\dist-electron\\main\\desktopAppProtocol.js",
+    ]);
   });
 });
 

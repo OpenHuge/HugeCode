@@ -1,17 +1,6 @@
-import { createRequire } from "node:module";
-import { join } from "node:path";
-
-const requireFromHere = createRequire(import.meta.url);
-
-function loadOsxSign() {
-  try {
-    return requireFromHere("@electron/osx-sign");
-  } catch (error) {
-    throw new Error("Missing @electron/osx-sign dependency required for macOS ad-hoc signing.", {
-      cause: error,
-    });
-  }
-}
+import { spawn } from "node:child_process";
+import { access } from "node:fs/promises";
+import { join, resolve } from "node:path";
 
 export function hasForgeOsxSignConfig(packagerConfig = {}) {
   const osxSignConfig = packagerConfig.osxSign;
@@ -30,18 +19,63 @@ export function resolveDarwinAppBundlePath(packageOutputPath, appName = "HugeCod
   return join(packageOutputPath, `${appName}.app`).replaceAll("\\", "/");
 }
 
+export async function resolveDarwinCodesignTargetPaths(appPath, dependencies = {}) {
+  const accessImpl = dependencies.accessImpl ?? access;
+  const normalizedAppPath = appPath.replaceAll("\\", "/");
+  const frameworkBinaryPath = `${normalizedAppPath}/Contents/Frameworks/Electron Framework.framework/Electron Framework`;
+
+  try {
+    await accessImpl(frameworkBinaryPath);
+  } catch {
+    return [normalizedAppPath];
+  }
+
+  return [frameworkBinaryPath, normalizedAppPath];
+}
+
+async function runCodesign(arguments_, dependencies = {}) {
+  const spawnImpl = dependencies.spawnImpl ?? spawn;
+
+  await new Promise((resolvePromise, rejectPromise) => {
+    const child = spawnImpl("codesign", arguments_, {
+      shell: false,
+      stdio: "inherit",
+    });
+
+    child.on("error", rejectPromise);
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolvePromise();
+        return;
+      }
+
+      rejectPromise(
+        new Error(`codesign ${arguments_.join(" ")} failed with exit code ${code ?? -1}`)
+      );
+    });
+  });
+}
+
 export async function repairDarwinArm64Signature(appPath, dependencies = {}) {
-  const sign = dependencies.signAsync ?? loadOsxSign().signAsync;
   const logger = dependencies.logger ?? console;
+  const targetPaths = await resolveDarwinCodesignTargetPaths(appPath, dependencies);
 
   logger.info?.(`Re-signing packaged macOS arm64 app bundle: ${appPath}`);
+  logger.info?.(`Re-signing targets: ${targetPaths.join(", ")}`);
 
-  await sign({
-    app: appPath,
-    identity: "-",
-    identityValidation: false,
-    platform: "darwin",
-    preAutoEntitlements: false,
-    strictVerify: true,
-  });
+  for (const targetPath of targetPaths) {
+    await runCodesign(
+      [
+        "--force",
+        "--sign",
+        "-",
+        "--timestamp=none",
+        ...(targetPath.endsWith(".app") ? ["--deep"] : []),
+        targetPath,
+      ],
+      dependencies
+    );
+  }
+
+  await runCodesign(["--verify", "--deep", "--strict", appPath], dependencies);
 }
