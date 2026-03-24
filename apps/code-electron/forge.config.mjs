@@ -28,6 +28,8 @@ const releaseChannel = process.env.HUGECODE_ELECTRON_RELEASE_CHANNEL?.trim() || 
 const staticUpdateBaseUrlRoot = normalizeStaticUpdateBaseUrlRoot(
   process.env.HUGECODE_ELECTRON_UPDATE_BASE_URL
 );
+const productAuthor = "OpenHuge";
+const productDescription = "HugeCode beta desktop shell";
 const betaStaticUpdateBaseUrl =
   releaseChannel === "beta" && staticUpdateBaseUrlRoot
     ? buildStaticUpdateBaseUrl(staticUpdateBaseUrlRoot, process.platform, process.arch)
@@ -73,6 +75,8 @@ export default {
     {
       name: "@electron-forge/maker-squirrel",
       config: {
+        authors: productAuthor,
+        description: productDescription,
         name: "HugeCode",
         ...(betaStaticUpdateBaseUrl
           ? {

@@ -282,6 +282,12 @@ export function verifyElectronForgeUpdateContract(context) {
   ) {
     throw new Error("Electron package.json repository metadata must point to OpenHuge/HugeCode.");
   }
+  if (context.packageJson.author !== "OpenHuge") {
+    throw new Error('Electron package.json author must be "OpenHuge".');
+  }
+  if (context.packageJson.description !== "HugeCode beta desktop shell") {
+    throw new Error('Electron package.json description must be "HugeCode beta desktop shell".');
+  }
 
   const expectedPublisherPrerelease = context.releaseChannel !== "stable";
   if (githubPublisher.config?.prerelease !== expectedPublisherPrerelease) {
@@ -329,6 +335,12 @@ export function verifyElectronForgeUpdateContract(context) {
   const debMakerOptions = debMaker?.config?.options ?? debMaker?.config ?? null;
   if (debMakerOptions?.bin !== "HugeCode") {
     throw new Error('Deb maker options.bin must be "HugeCode" to match the packaged executable.');
+  }
+  if (squirrelMaker?.config?.authors !== "OpenHuge") {
+    throw new Error('Squirrel maker authors must be "OpenHuge".');
+  }
+  if (squirrelMaker?.config?.description !== "HugeCode beta desktop shell") {
+    throw new Error('Squirrel maker description must be "HugeCode beta desktop shell".');
   }
 
   return {
