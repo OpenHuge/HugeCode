@@ -15,11 +15,13 @@ export {
   WorkspaceHostErrorBoundary,
 } from "./workspaceHostRenderer";
 export {
+  createDesktopWorkspaceClientBindings,
   createDesktopWorkspaceClientHostBindings,
   createWorkspaceClientBindings,
 } from "./workspaceClientBindings";
 
 export type {
+  CreateDesktopWorkspaceClientBindingsInput,
   CreateDesktopWorkspaceClientHostBindingsInput,
   CreateWorkspaceClientBindingsInput,
 } from "./workspaceClientBindings";

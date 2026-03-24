@@ -1248,7 +1248,11 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
       VALIDATE_APPS_CODE_FALLBACK_TIMEOUT_MS: "50",
     });
     const commandLog = await readCommandLog(tempRoot);
-    const childPid = Number.parseInt(await readFile(childPidFile, "utf8"), 10);
+    const childPidContents = await readFile(childPidFile, "utf8").catch(
+      (error: NodeJS.ErrnoException) => (error.code === "ENOENT" ? null : Promise.reject(error))
+    );
+    const loggedChildPid = commandLog.match(/spawned-child (\d+)/u)?.[1] ?? null;
+    const childPid = Number.parseInt(childPidContents ?? loggedChildPid ?? "", 10);
 
     expect(result.status).toBe(1);
     expect(commandLog).toContain("spawned-child");

@@ -34,10 +34,33 @@ export type CreateDesktopWorkspaceClientHostBindingsInput = {
   testSound?: () => void;
 };
 
+export type CreateDesktopWorkspaceClientBindingsInput<
+  TBindings extends { host: CreateDesktopWorkspaceClientHostBindingsInput },
+> = TBindings;
+
+export type CreateDesktopWorkspaceClientBindingsResult<
+  TBindings extends { host: CreateDesktopWorkspaceClientHostBindingsInput },
+> = Omit<TBindings, "host"> & {
+  host: WorkspaceClientHostBindings;
+};
+
 export function createWorkspaceClientBindings<TBindings extends Record<string, unknown>>(
   input: CreateWorkspaceClientBindingsInput<TBindings>
 ) {
   return input;
+}
+
+export function createDesktopWorkspaceClientBindings<
+  TBindings extends Record<string, unknown> & {
+    host: CreateDesktopWorkspaceClientHostBindingsInput;
+  },
+>(
+  input: CreateDesktopWorkspaceClientBindingsInput<TBindings>
+): CreateDesktopWorkspaceClientBindingsResult<TBindings> {
+  return createWorkspaceClientBindings({
+    ...input,
+    host: createDesktopWorkspaceClientHostBindings(input.host),
+  }) as CreateDesktopWorkspaceClientBindingsResult<TBindings>;
 }
 
 export function createDesktopWorkspaceClientHostBindings(

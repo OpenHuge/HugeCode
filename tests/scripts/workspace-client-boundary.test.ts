@@ -39,7 +39,7 @@ describe("workspace client boundaries", () => {
     expect(appSource).not.toContain("./web/WorkspaceAppBridge");
     expect(entrySource).toContain("WorkspaceClientBoot");
     expect(entrySource).toContain("@ku0/code-application");
-    expect(entrySource).toContain("createDesktopWorkspaceClientHostBindings");
+    expect(entrySource).toContain("createDesktopWorkspaceClientBindings");
   });
 
   it("keeps the web adapter focused on binding composition instead of inline runtime transport", () => {
@@ -71,8 +71,7 @@ describe("workspace client boundaries", () => {
     expect(desktopSource).not.toContain("window:");
     expect(desktopSource).not.toContain("nativeFiles:");
     expect(desktopSource).not.toContain("updater:");
-    expect(desktopSource).toContain("createWorkspaceClientBindings");
-    expect(desktopSource).toContain("createDesktopWorkspaceClientHostBindings");
+    expect(desktopSource).toContain("createDesktopWorkspaceClientBindings");
     expect(kernelSource).toContain("createWorkspaceClientRuntimeBindings");
     expect(kernelSource).toContain("workspaceClientRuntimeGateway:");
     expect(kernelSource).toContain("workspaceClientRuntime,");

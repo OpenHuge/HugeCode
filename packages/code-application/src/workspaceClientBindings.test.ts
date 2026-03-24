@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  createDesktopWorkspaceClientBindings,
   createDesktopWorkspaceClientHostBindings,
   createWorkspaceClientBindings,
 } from "./workspaceClientBindings";
@@ -81,5 +82,44 @@ describe("workspaceClientBindings", () => {
     expect(bindings.runtime).toBe(runtime);
     expect(bindings.host).toBe(host);
     expect(bindings.platformUi).toBe(platformUi);
+  });
+
+  it("creates desktop workspace bindings with a normalized host surface", async () => {
+    const openExternalUrl = vi.fn();
+    const waitForOauthBinding = vi.fn(async () => true);
+    const testSystemNotification = vi.fn();
+    const bindings = createDesktopWorkspaceClientBindings({
+      navigation: { navigateToSettings: vi.fn(), replaceWorkspaceSelection: vi.fn() },
+      runtimeGateway: {
+        readRuntimeMode: vi.fn(() => "connected"),
+        subscribeRuntimeMode: vi.fn(() => () => undefined),
+        discoverLocalRuntimeGatewayTargets: vi.fn(async () => []),
+        configureManualWebRuntimeGatewayTarget: vi.fn(),
+      },
+      runtime: {
+        missionControl: { readMissionControlSnapshot: vi.fn(async () => null) },
+      },
+      host: {
+        openExternalUrl,
+        waitForOauthBinding,
+        testSystemNotification,
+        platformHint: "electron",
+      },
+      platformUi: {
+        WorkspaceRuntimeShell: () => null,
+        WorkspaceApp: () => null,
+        renderWorkspaceHost: (children: unknown) => children,
+        settingsShellFraming: { mode: "sidebar" as const },
+      },
+    });
+
+    await bindings.host.intents.openOauthAuthorizationUrl("https://example.com", null);
+    await expect(bindings.host.intents.waitForOauthBinding("workspace-a", 7)).resolves.toBe(true);
+
+    expect(bindings.host.platform).toBe("desktop");
+    expect(bindings.host.shell.platformHint).toBe("electron");
+    expect(openExternalUrl).toHaveBeenCalledWith("https://example.com");
+    expect(waitForOauthBinding).toHaveBeenCalledWith("workspace-a", 7);
+    expect(testSystemNotification).not.toHaveBeenCalled();
   });
 });

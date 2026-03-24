@@ -4,18 +4,11 @@ import { WorkspaceClientEntry } from "./WorkspaceClientEntry";
 
 const {
   createWorkspaceHostRendererMock,
-  createDesktopWorkspaceClientHostBindingsMock,
   createRuntimeKernelMock,
-  createWorkspaceClientBindingsMock,
+  createDesktopWorkspaceClientBindingsMock,
   workspaceClientBootMock,
 } = vi.hoisted(() => ({
   createWorkspaceHostRendererMock: vi.fn(() => (children: unknown) => children),
-  createDesktopWorkspaceClientHostBindingsMock: vi.fn(() => ({
-    platform: "desktop",
-    intents: {},
-    notifications: {},
-    shell: {},
-  })),
   createRuntimeKernelMock: vi.fn(() => ({
     workspaceClientRuntimeGateway: {},
     workspaceClientRuntime: {
@@ -25,7 +18,7 @@ const {
       },
     },
   })),
-  createWorkspaceClientBindingsMock: vi.fn(() => ({
+  createDesktopWorkspaceClientBindingsMock: vi.fn(() => ({
     navigation: {},
     runtimeGateway: {},
     runtime: {},
@@ -44,8 +37,7 @@ vi.mock("@ku0/code-workspace-client", () => ({
 
 vi.mock("@ku0/code-application", () => ({
   createWorkspaceHostRenderer: createWorkspaceHostRendererMock,
-  createDesktopWorkspaceClientHostBindings: createDesktopWorkspaceClientHostBindingsMock,
-  createWorkspaceClientBindings: createWorkspaceClientBindingsMock,
+  createDesktopWorkspaceClientBindings: createDesktopWorkspaceClientBindingsMock,
 }));
 
 vi.mock("../application/runtime/facades/desktopHostFacade", () => ({
@@ -89,8 +81,7 @@ describe("WorkspaceClientEntry", () => {
 
     expect(createRuntimeKernelMock).toHaveBeenCalledTimes(1);
     expect(createWorkspaceHostRendererMock).toHaveBeenCalledTimes(1);
-    expect(createDesktopWorkspaceClientHostBindingsMock).toHaveBeenCalledTimes(1);
-    expect(createWorkspaceClientBindingsMock).toHaveBeenCalledTimes(1);
+    expect(createDesktopWorkspaceClientBindingsMock).toHaveBeenCalledTimes(1);
     expect(workspaceClientBootMock).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("workspace-client-boot")).toBeTruthy();
     expect(screen.getByTestId("workspace-client-boot").dataset.hasBindings).toBe("true");

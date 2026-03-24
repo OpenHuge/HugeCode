@@ -1,7 +1,6 @@
 import {
+  createDesktopWorkspaceClientBindings,
   createWorkspaceHostRenderer,
-  createDesktopWorkspaceClientHostBindings,
-  createWorkspaceClientBindings,
 } from "@ku0/code-application";
 import type { WorkspaceClientBindings } from "@ku0/code-workspace-client";
 import { WorkspaceClientBoot, WorkspaceRuntimeShell } from "@ku0/code-workspace-client";
@@ -20,11 +19,11 @@ const renderWorkspaceHost = createWorkspaceHostRenderer({
   providers: [RuntimePortsProvider],
 });
 
-const workspaceClientBindings: WorkspaceClientBindings = createWorkspaceClientBindings({
+const workspaceClientBindings: WorkspaceClientBindings = createDesktopWorkspaceClientBindings({
   navigation: desktopWorkspaceNavigation,
   runtimeGateway: runtimeKernel.workspaceClientRuntimeGateway,
   runtime: runtimeKernel.workspaceClientRuntime,
-  host: createDesktopWorkspaceClientHostBindings({
+  host: {
     openExternalUrl: openUrl,
     waitForOauthBinding: (workspaceId, baselineUpdatedAt) =>
       waitForCodexOauthBinding(
@@ -42,7 +41,7 @@ const workspaceClientBindings: WorkspaceClientBindings = createWorkspaceClientBi
         body: "Electron desktop notifications are connected.",
       });
     },
-  }),
+  },
   platformUi: {
     WorkspaceRuntimeShell,
     WorkspaceApp: DesktopWorkspaceSurface,

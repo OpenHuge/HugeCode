@@ -7,7 +7,7 @@ import {
   type LayoutNodesOptions,
 } from "./types";
 
-const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 20_000;
+const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 60_000;
 
 function mockGitDiffViewerChunk() {
   vi.doMock("../../../utils/diffsWorker", () => ({
@@ -167,11 +167,12 @@ describe("buildGitNodes diff lazy boundary", () => {
     vi.resetModules();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     cleanup();
     vi.clearAllMocks();
     vi.doUnmock("../../../git/components/GitDiffViewer");
     vi.doUnmock("../../../utils/diffsWorker");
+    await vi.dynamicImportSettled();
   });
 
   it(

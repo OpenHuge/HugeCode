@@ -29,6 +29,10 @@
       "types": "./src/webMcpBridgeToolNames.ts",
       "default": "./src/webMcpBridgeToolNames.ts"
     },
+    "./webMcpRuntimeToolCatalog": {
+      "types": "./src/webMcpRuntimeToolCatalog.ts",
+      "default": "./src/webMcpRuntimeToolCatalog.ts"
+    },
     "./webMcpBridgeTypes": {
       "types": "./src/webMcpBridgeTypes.ts",
       "default": "./src/webMcpBridgeTypes.ts"
