@@ -81,8 +81,6 @@ export function buildExecutionContext(input: {
   validationPresetId: string | null | undefined;
   backendId: string | null | undefined;
   providerLabel: string | null | undefined;
-  autonomyProfile?: RuntimeAutonomyProfileV2 | null | undefined;
-  wakePolicy?: RuntimeWakePolicyV2 | null | undefined;
   accessMode?: string | null | undefined;
   sourceMappingKind?: string | null | undefined;
   fieldOrigins?: Partial<ReviewContinuationFieldOrigins> | null | undefined;

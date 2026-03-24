@@ -3,7 +3,7 @@ import type {
   HugeCodeTakeoverTarget,
   HugeCodeTaskSummary,
 } from "@ku0/code-runtime-host-contract";
-import type { MissionNavigationTarget } from "./runtimeMissionControlSurfaceModel";
+import type { MissionNavigationTarget } from "./runtimeMissionControlNavigationTarget";
 
 function mapTakeoverTargetToMissionNavigationTarget(input: {
   task: HugeCodeTaskSummary;
