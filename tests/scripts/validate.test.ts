@@ -400,6 +400,23 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     ).toBe("");
   });
 
+  it("uses committed branch changes when a clean feature branch is ahead of main", async () => {
+    const tempRoot = await createFixtureRepo();
+    runGit(tempRoot, ["checkout", "-b", "feature/validate-branch-diff"]);
+    await writeRepoFile(tempRoot, "apps/code/src/example.test.ts", "export {};\n");
+    runGit(tempRoot, ["add", "-A"]);
+    runGit(tempRoot, ["commit", "-m", "feature change"]);
+
+    const result = runValidate(tempRoot, ["--targeted-only", "--skip-typecheck"]);
+    const commandLog = await readCommandLog(tempRoot);
+
+    expect(result.status).toBe(0);
+    expect(commandLog).toContain(
+      "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=75% src/example.test.ts"
+    );
+    expect(commandLog).not.toBe("");
+  });
+
   it("uses dedicated validate guard coverage for validate-script-only changes", async () => {
     const tempRoot = await createFixtureRepo();
     await writeRepoFile(
