@@ -68,7 +68,8 @@ jobs:
     name: Detect electron-beta-relevant changes
     runs-on: ubuntu-latest
     outputs:
-      electron_required: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.electron == 'true' }}
+      electron_verify_required: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.electron_package == 'true' || steps.filter.outputs.electron_verify == 'true' }}
+      electron_package_required: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.electron_package == 'true' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -84,7 +85,7 @@ jobs:
         uses: dorny/paths-filter@v4
         with:
           filters: |
-            electron:
+            electron_package:
               - "apps/code-electron/**"
               - "!apps/code-electron/**/*.md"
               - "!apps/code-electron/**/*.mdx"
@@ -102,14 +103,16 @@ jobs:
               - "scripts/electron-publish-dry-run.mjs"
               - "scripts/electron-verify-release-contract.mjs"
               - "scripts/lib/electron-update-release-contract.mjs"
+            electron_verify:
               - ".github/workflows/_reusable-electron-beta.yml"
+              - ".github/workflows/electron-beta.yml"
               - ".github/actions/setup-node-pnpm/**"
               - ".github/actions/upload-workflow-artifact/**"
 
   verify:
     name: Verify
     needs: [changes]
-    if: needs.changes.outputs.electron_required == 'true'
+    if: needs.changes.outputs.electron_verify_required == 'true'
     uses: ./.github/workflows/_reusable-electron-beta.yml
     with:
       command: pnpm desktop:electron:verify
@@ -120,7 +123,7 @@ jobs:
   make-smoke:
     name: Make Smoke (${{ matrix.name }})
     needs: [changes, verify]
-    if: needs.changes.outputs.electron_required == 'true'
+    if: needs.changes.outputs.electron_package_required == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -148,7 +151,7 @@ jobs:
 
   publish-dry-run:
     name: Publish Dry Run
-    if: ${{ needs.changes.outputs.electron_required == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.publish != 'true') }}
+    if: ${{ needs.changes.outputs.electron_package_required == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.publish != 'true') }}
     needs: [changes, make-smoke]
     uses: ./.github/workflows/_reusable-electron-beta.yml
     with:
@@ -159,7 +162,7 @@ jobs:
 
   publish:
     name: Publish (${{ matrix.name }})
-    if: ${{ needs.changes.outputs.electron_required == 'true' && github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true' }}
+    if: ${{ needs.changes.outputs.electron_package_required == 'true' && github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true' }}
     needs: [changes, make-smoke]
     permissions:
       contents: write

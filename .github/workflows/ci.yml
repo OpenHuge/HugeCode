@@ -27,13 +27,13 @@ jobs:
       runtime_contract_changed: ${{ steps.filter.outputs.runtime_contract }}
       desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime }}
       repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
-      frontend_optimization_changed: ${{ steps.filter.outputs.frontend_optimization == 'true' || steps.scope.outputs.frontend_manifest_changed == 'true' }}
+      frontend_optimization_changed: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.frontend_optimization == 'true' || steps.scope.outputs.frontend_manifest_changed == 'true') }}
       ui_contract_required: ${{ steps.filter.outputs.ui_contract }}
       circular_required: ${{ steps.filter.outputs.app_circular }}
       integration_watch_required: ${{ steps.filter.outputs.code_integration_watch }}
       pr_affected_build_required: ${{ steps.scope.outputs.build_skip_eligible_only != 'true' }}
-      pr_affected_required: ${{ steps.filter.outputs.quality_core == 'true' || steps.filter.outputs.runtime_contract == 'true' }}
-      ci_required: ${{ steps.filter.outputs.quality_core == 'true' || steps.filter.outputs.runtime_contract == 'true' || steps.filter.outputs.ui_contract == 'true' || steps.filter.outputs.app_circular == 'true' || steps.filter.outputs.code_integration_watch == 'true' }}
+      pr_affected_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.quality_core == 'true' || steps.filter.outputs.runtime_contract == 'true') }}
+      ci_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.quality_core == 'true' || steps.filter.outputs.runtime_contract == 'true' || steps.filter.outputs.ui_contract == 'true' || steps.filter.outputs.app_circular == 'true' || steps.filter.outputs.code_integration_watch == 'true') }}
     steps:
       - uses: actions/checkout@v6
         with:
