@@ -8,7 +8,7 @@ import {
   type LayoutNodesOptions,
 } from "./types";
 
-const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 20_000;
+const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 45_000;
 
 if (!("Worker" in globalThis)) {
   class WorkerStub {

@@ -2,12 +2,11 @@ import { type HTMLAttributes, type ReactNode, type TableHTMLAttributes } from "r
 import { cx } from "./classNames";
 import * as styles from "./RichContent.css";
 
-type TableDataAttributes = {
-  [K in `data-${string}`]?: string;
-};
-
 export interface RichContentProps extends HTMLAttributes<HTMLDivElement> {}
 
+type TableDataAttributes = {
+  [K in `data-${string}`]?: string | number | boolean;
+};
 export function RichContent({ className, ...props }: RichContentProps) {
   return <div {...props} className={cx(styles.root, className)} data-rich-content="true" />;
 }

@@ -8,7 +8,6 @@ import {
   getSidebarSortOption,
   getSidebarSortToggle,
   isRuntimeGatewayReady,
-  openFirstWorkspace,
   openUserMenu,
   resolveWorkspaceHomeControl,
   waitForWorkspaceShell,
@@ -70,7 +69,6 @@ for (const viewport of VIEWPORTS) {
   test(`${viewport.label} sidebar header controls support real clicks`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await ensureRuntimeShell(page);
-    await openFirstWorkspace(page);
 
     const homeShellButton = await resolveWorkspaceHomeControl(page);
     const toggleSearchButton = getSidebarSearchToggle(page);
@@ -99,7 +97,6 @@ for (const viewport of VIEWPORTS) {
 test("sort menu toggles cleanly and keeps radio actions interactive", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await ensureRuntimeShell(page);
-  await openFirstWorkspace(page);
 
   const sortThreadsButton = getSidebarSortToggle(page);
 
@@ -119,13 +116,17 @@ test("sort menu toggles cleanly and keeps radio actions interactive", async ({ p
 test("header actions remain interactive after sequential menu transitions", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await ensureRuntimeShell(page);
-  await openFirstWorkspace(page);
 
   const toggleSearchButton = getSidebarSearchToggle(page);
   const sortThreadsButton = getSidebarSortToggle(page);
 
   await openUserMenu(page);
-  await expect(page.getByRole("button", { name: "Open settings" }).first()).toBeVisible();
+  const settingsEntry = page
+    .getByRole("button", {
+      name: /^(Open settings|Manage Accounts & Billing)$/i,
+    })
+    .first();
+  await expect(settingsEntry).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(toggleSearchButton).toBeVisible();
   await expect(sortThreadsButton).toBeVisible();
@@ -151,7 +152,6 @@ test("sidebar resizer keeps a clean seam and disables transitions while dragging
     window.localStorage.setItem("codexmonitor.sidebarWidth", "280");
   });
   await ensureRuntimeShell(page);
-  await openFirstWorkspace(page);
 
   const resizeSidebar = page.getByRole("separator", { name: "Resize sidebar" });
   await expect(resizeSidebar).toBeVisible();

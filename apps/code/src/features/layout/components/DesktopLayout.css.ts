@@ -48,25 +48,6 @@ export const workspaceShell = style({
   },
 });
 
-const overlayToggleBase = {
-  position: "absolute" as const,
-  top: "calc(var(--shell-chrome-inset-top, 10px) + 6px)",
-  zIndex: 5,
-  display: "flex",
-  alignItems: "center",
-  pointerEvents: "auto" as const,
-};
-
-export const sidebarExpandToggle = style({
-  ...overlayToggleBase,
-  left: "var(--main-panel-padding, 12px)",
-});
-
-export const rightPanelExpandToggle = style({
-  ...overlayToggleBase,
-  right: "var(--main-panel-padding, 12px)",
-});
-
 const mainShellBase = {
   display: "grid",
   gridTemplateRows: "var(--main-topbar-height, 48px) minmax(0, 1fr) auto auto auto",
@@ -128,6 +109,30 @@ export const composerDock = style({
   width: "100%",
   padding: "0 0 8px var(--main-panel-padding)",
 });
+
+const shellOverlayToggleBase = style({
+  position: "absolute",
+  top: "calc(var(--shell-chrome-inset-top, 10px) + 6px)",
+  zIndex: 5,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  pointerEvents: "auto",
+});
+
+export const sidebarExpandToggle = style([
+  shellOverlayToggleBase,
+  {
+    left: "calc(var(--main-panel-padding, 12px) - 2px)",
+  },
+]);
+
+export const rightPanelExpandToggle = style([
+  shellOverlayToggleBase,
+  {
+    right: "calc(var(--main-panel-padding, 12px) + var(--main-header-right-overlay-gutter, 0px))",
+  },
+]);
 
 export const rightRail = style({
   gridColumn: "3",
