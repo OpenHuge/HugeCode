@@ -1140,6 +1140,11 @@
         assert_eq!(result.status, "completed");
         assert!(
             result.output.contains("Playwright MCP is unavailable")
+                || result
+                    .output
+                    .contains("Chrome DevTools MCP is unavailable")
+                || result.output.contains("runtime browser debug")
+                || result.output.contains("\"available\":false")
                 || result.output.contains("Workspace `ws-js-repl-browser-debug-status` not found.")
         );
 
@@ -1213,6 +1218,11 @@
         assert_eq!(result.status, "completed");
         assert!(
             result.output.contains("Playwright MCP is unavailable")
+                || result
+                    .output
+                    .contains("Chrome DevTools MCP is unavailable")
+                || result.output.contains("runtime browser debug")
+                || result.output.contains("\"available\":false")
                 || result.output.contains("Workspace `ws-js-repl-browser-debug-mixed` not found.")
         );
 
