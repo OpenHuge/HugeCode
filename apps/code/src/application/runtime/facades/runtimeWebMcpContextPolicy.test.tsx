@@ -4,13 +4,19 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeRunPrepareV2Response } from "@ku0/code-runtime-host-contract";
 import {
+  __resetRuntimeWebMcpContextPolicyCacheForTests,
   buildRuntimeWebMcpContextPrepareRequest,
   useRuntimeWebMcpContextPolicy,
 } from "./runtimeWebMcpContextPolicy";
 import { prepareRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
+import { recordSentryMetric } from "../../../features/shared/sentry";
 
 vi.mock("../ports/tauriRuntimeJobs", () => ({
   prepareRuntimeRunV2: vi.fn(),
+}));
+
+vi.mock("../../../features/shared/sentry", () => ({
+  recordSentryMetric: vi.fn(),
 }));
 
 function buildPrepareResponse(
@@ -109,11 +115,16 @@ function buildPrepareResponse(
 describe("runtimeWebMcpContextPolicy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    __resetRuntimeWebMcpContextPolicyCacheForTests();
   });
 
   it("builds runtime prepare requests from command-center intent", () => {
     const request = buildRuntimeWebMcpContextPrepareRequest({
       workspaceId: "ws-1",
+      activeModelContext: {
+        provider: "openai",
+        modelId: "gpt-5.4",
+      },
       intent: {
         objective: "Coordinate the next runtime launch",
         constraints: "Avoid wide file rewrites",
@@ -127,6 +138,8 @@ describe("runtimeWebMcpContextPolicy", () => {
     expect(request).toMatchObject({
       workspaceId: "ws-1",
       title: "Coordinate the next runtime launch",
+      provider: "openai",
+      modelId: "gpt-5.4",
       accessMode: "on-request",
       executionMode: "single",
       steps: expect.arrayContaining([
@@ -170,9 +183,23 @@ describe("runtimeWebMcpContextPolicy", () => {
 
     expect(result.current.contextFingerprint).toBe("ctx-123");
     expect(result.current.truthSourceLabel).toBe("Runtime kernel v2 prepare");
+    expect(recordSentryMetric).toHaveBeenCalledWith(
+      "runtime_webmcp_context_policy",
+      1,
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          result: "runtime",
+          provider: "unknown",
+          model_id: "unknown",
+          tool_profile: "minimal",
+        }),
+      })
+    );
   });
 
   it("clears policy state when the command-center objective is empty", async () => {
+    vi.mocked(prepareRuntimeRunV2).mockResolvedValue(buildPrepareResponse("slim"));
+
     const { result, rerender } = renderHook(
       ({ objective }) =>
         useRuntimeWebMcpContextPolicy({
@@ -191,8 +218,6 @@ describe("runtimeWebMcpContextPolicy", () => {
         initialProps: { objective: "Plan runtime work" },
       }
     );
-
-    vi.mocked(prepareRuntimeRunV2).mockResolvedValue(buildPrepareResponse("slim"));
 
     await waitFor(() => {
       expect(result.current.selectionPolicy?.toolExposureProfile).toBe("slim");
@@ -230,5 +255,71 @@ describe("runtimeWebMcpContextPolicy", () => {
     expect(vi.mocked(prepareRuntimeRunV2)).not.toHaveBeenCalled();
     expect(result.current.selectionPolicy).toBeNull();
     expect(result.current.truthSourceLabel).toBeNull();
+  });
+
+  it("reuses cached runtime prepare truth for repeated WebMCP policy requests", async () => {
+    vi.mocked(prepareRuntimeRunV2).mockResolvedValue(buildPrepareResponse("full"));
+
+    const first = renderHook(() =>
+      useRuntimeWebMcpContextPolicy({
+        workspaceId: "ws-1",
+        enabled: true,
+        activeModelContext: {
+          provider: "anthropic",
+          modelId: "claude-sonnet-4-5",
+        },
+        intent: {
+          objective: "Plan runtime work",
+          constraints: "",
+          successCriteria: "",
+          deadline: null,
+          priority: "medium",
+          managerNotes: "",
+        },
+      })
+    );
+
+    await waitFor(() => {
+      expect(first.result.current.selectionPolicy?.toolExposureProfile).toBe("full");
+    });
+
+    first.unmount();
+
+    const second = renderHook(() =>
+      useRuntimeWebMcpContextPolicy({
+        workspaceId: "ws-1",
+        enabled: true,
+        activeModelContext: {
+          provider: "anthropic",
+          modelId: "claude-sonnet-4-5",
+        },
+        intent: {
+          objective: "Plan runtime work",
+          constraints: "",
+          successCriteria: "",
+          deadline: null,
+          priority: "medium",
+          managerNotes: "",
+        },
+      })
+    );
+
+    await waitFor(() => {
+      expect(second.result.current.selectionPolicy?.toolExposureProfile).toBe("full");
+    });
+
+    expect(vi.mocked(prepareRuntimeRunV2)).toHaveBeenCalledTimes(1);
+    expect(second.result.current.truthSourceLabel).toBe("Runtime kernel v2 prepare (cached)");
+    expect(recordSentryMetric).toHaveBeenCalledWith(
+      "runtime_webmcp_context_policy",
+      1,
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          result: "cache",
+          provider: "anthropic",
+          model_id: "claude-sonnet-4-5",
+        }),
+      })
+    );
   });
 });

@@ -153,7 +153,15 @@ describe("WorkspaceHomeAgentControl", () => {
 
   it("focuses the command center on intent, runtime orchestration, and WebMCP controls", async () => {
     render(
-      <WorkspaceHomeAgentControl workspace={workspace} approvals={[]} userInputRequests={[]} />
+      <WorkspaceHomeAgentControl
+        workspace={workspace}
+        activeModelContext={{
+          provider: "openai",
+          modelId: "gpt-5.4",
+        }}
+        approvals={[]}
+        userInputRequests={[]}
+      />
     );
 
     await waitFor(() => {
@@ -192,6 +200,10 @@ describe("WorkspaceHomeAgentControl", () => {
     expect(vi.mocked(useRuntimeWebMcpContextPolicy)).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: true,
+        activeModelContext: {
+          provider: "openai",
+          modelId: "gpt-5.4",
+        },
       })
     );
     expect(screen.getByText(/4 tools synced \(provideContext, slim catalog\)/i)).toBeTruthy();

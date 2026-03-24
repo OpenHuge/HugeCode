@@ -180,6 +180,7 @@ export function WorkspaceHomeAgentControl({
   const runtimeWebMcpContextPolicy = useRuntimeWebMcpContextPolicy({
     workspaceId: workspace.id,
     enabled: webMcpEnabled && controlPreferencesReady,
+    activeModelContext,
     intent,
   });
   const responseRequiredState = useMemo(
