@@ -39,9 +39,26 @@ const NON_CRITICAL_JS_PRELOAD_PATTERNS = [
   /^assets\/settings(?:ViewLoader)?-[^/]+\.js$/,
   /^assets\/xterm-vendor-[^/]+\.(?:js|css)$/,
 ] as const;
+const WORKSPACE_COMPOSITION_CHUNK_PATTERNS = [
+  "/src/features/app/composition/",
+  "/src/features/app/components/WorkspaceDesktopAppHost.tsx",
+] as const;
+const RUNTIME_APPLICATION_CHUNK_PATTERNS = ["/src/application/runtime/"] as const;
+const DESKTOP_SERVICES_CHUNK_PATTERNS = ["/src/services/"] as const;
+const APP_BOOTSTRAP_CHUNK_PATTERNS = [
+  "/src/features/app/hooks/useMainAppShellBootstrap.ts",
+  "/src/features/app/hooks/useThreadCodexControls.ts",
+  "/src/features/app/hooks/useGitRootSelection.ts",
+  "/src/features/app/hooks/useSyncSelectedDiffPath.ts",
+] as const;
+const SHIKI_LAZY_CHUNK_WARNING_LIMIT_KB = 900;
 
 function shouldDeferNonCriticalJsPreload(file: string) {
   return NON_CRITICAL_JS_PRELOAD_PATTERNS.some((pattern) => pattern.test(file));
+}
+
+function matchesChunkPattern(id: string, patterns: readonly string[]) {
+  return patterns.some((pattern) => id.includes(pattern));
 }
 
 function resolveDevHost() {
@@ -94,6 +111,11 @@ export default defineConfig({
     include: [...STARTUP_OPTIMIZE_DEPS],
   },
   build: {
+    // Shiki-backed diff rendering emits very large lazy language and WASM chunks
+    // from @pierre/diffs. We keep warning visibility for real eager regressions by
+    // splitting the app shell more aggressively below, then raise the threshold to
+    // cover the known lazy-only payloads.
+    chunkSizeWarningLimit: SHIKI_LAZY_CHUNK_WARNING_LIMIT_KB,
     modulePreload: {
       resolveDependencies(_filename, deps, context) {
         if (context.hostType === "js") {
@@ -109,6 +131,18 @@ export default defineConfig({
       },
       output: {
         manualChunks(id) {
+          if (matchesChunkPattern(id, WORKSPACE_COMPOSITION_CHUNK_PATTERNS)) {
+            return "workspace-composition";
+          }
+          if (matchesChunkPattern(id, RUNTIME_APPLICATION_CHUNK_PATTERNS)) {
+            return "runtime-application";
+          }
+          if (matchesChunkPattern(id, DESKTOP_SERVICES_CHUNK_PATTERNS)) {
+            return "desktop-services";
+          }
+          if (matchesChunkPattern(id, APP_BOOTSTRAP_CHUNK_PATTERNS)) {
+            return "app-bootstrap";
+          }
           if (id.includes("/node_modules/react/") || id.includes("/node_modules/react-dom/")) {
             return "react-vendor";
           }
