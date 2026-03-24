@@ -33,6 +33,7 @@ const CI_FILTER_EXCLUDED_REQUIREMENTS = new Map([
     new Set([
       // Workflow-governance-only CI plumbing should not force the frontend optimization lane.
       ".github/workflows/ci.yml",
+      ".github/workflows/_reusable-ci-frontend-optimization.yml",
       ".github/actions/cache-turbo/action.yml",
       ".github/actions/install-linux-desktop-deps/action.yml",
       ".github/actions/setup-node-pnpm/action.yml",

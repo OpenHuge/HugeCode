@@ -77,8 +77,6 @@ jobs:
               - 'turbo.json'
               - '.github/actions/setup-rust-ci/**'
               - '.github/actions/cache-turbo/**'
-              - '.github/workflows/ci.yml'
-              - '.github/workflows/_reusable-ci-quality.yml'
             repo_sot:
               - '.nvmrc'
               - 'package.json'
@@ -185,7 +183,6 @@ jobs:
               - '!packages/design-system/**/*.stories.tsx'
               - '!packages/design-system/**/*.stories.mdx'
               - '!packages/design-system/**/__tests__/**'
-              - '.github/workflows/_reusable-ci-frontend-optimization.yml'
               - 'scripts/check-code-bundle-budget.mjs'
               - 'scripts/report-code-bundle.mjs'
               - 'scripts/config/code-bundle-budget.config.mjs'
