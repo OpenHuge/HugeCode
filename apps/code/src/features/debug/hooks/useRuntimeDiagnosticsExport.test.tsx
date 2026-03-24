@@ -2,6 +2,7 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readRuntimeToolExecutionMetrics } from "../../../application/runtime/ports/runtimeToolExecutionMetrics";
 import { runtimeDiagnosticsExportV1 } from "../../../application/runtime/ports/tauriRuntime";
 import {
   filterRuntimeToolLifecycleSnapshot,
@@ -11,6 +12,10 @@ import { useRuntimeDiagnosticsExport } from "./useRuntimeDiagnosticsExport";
 
 vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
   runtimeDiagnosticsExportV1: vi.fn(),
+}));
+
+vi.mock("../../../application/runtime/ports/runtimeToolExecutionMetrics", () => ({
+  readRuntimeToolExecutionMetrics: vi.fn(),
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeToolLifecycle", () => ({
@@ -45,6 +50,7 @@ vi.mock("../../../application/runtime/ports/runtimeToolLifecycle", () => ({
 }));
 
 const filterRuntimeToolLifecycleSnapshotMock = vi.mocked(filterRuntimeToolLifecycleSnapshot);
+const readRuntimeToolExecutionMetricsMock = vi.mocked(readRuntimeToolExecutionMetrics);
 const runtimeDiagnosticsExportV1Mock = vi.mocked(runtimeDiagnosticsExportV1);
 const getRuntimeToolLifecycleSnapshotMock = vi.mocked(getRuntimeToolLifecycleSnapshot);
 
@@ -73,6 +79,52 @@ describe("useRuntimeDiagnosticsExport", () => {
         errorCode: null,
       },
       recentEvents: [],
+    });
+    readRuntimeToolExecutionMetricsMock.mockReturnValue({
+      totals: {
+        attemptedTotal: 2,
+        startedTotal: 1,
+        completedTotal: 1,
+        successTotal: 1,
+        validationFailedTotal: 0,
+        runtimeFailedTotal: 0,
+        timeoutTotal: 0,
+        blockedTotal: 0,
+        truncatedTotal: 0,
+      },
+      byTool: {
+        "runtime:execute-workspace-command": {
+          toolName: "execute-workspace-command",
+          scope: "runtime",
+          attemptedTotal: 2,
+          startedTotal: 1,
+          completedTotal: 1,
+          successTotal: 1,
+          validationFailedTotal: 0,
+          runtimeFailedTotal: 0,
+          timeoutTotal: 0,
+          blockedTotal: 0,
+          truncatedTotal: 0,
+          lastStatus: "success",
+          lastErrorCode: null,
+          lastDurationMs: 42,
+          lastAnnotations: ["workspace-dry-run", "guardrail-skipped"],
+          updatedAt: 1_770_000_000_100,
+        },
+      },
+      recent: [
+        {
+          toolName: "execute-workspace-command",
+          scope: "runtime",
+          status: "success",
+          errorCode: null,
+          durationMs: 42,
+          truncatedOutput: false,
+          annotations: ["workspace-dry-run", "guardrail-skipped"],
+          at: 1_770_000_000_100,
+        },
+      ],
+      updatedAt: 1_770_000_000_100,
     });
     runtimeDiagnosticsExportV1Mock.mockResolvedValue({
       schemaVersion: "runtime-diagnostics-export/v1",
@@ -205,6 +257,7 @@ describe("useRuntimeDiagnosticsExport", () => {
       });
     });
     expect(getRuntimeToolLifecycleSnapshotMock).toHaveBeenCalledTimes(1);
+    expect(readRuntimeToolExecutionMetricsMock).toHaveBeenCalledTimes(1);
     expect(filterRuntimeToolLifecycleSnapshotMock).toHaveBeenCalledWith(
       expect.objectContaining({ revision: 1 }),
       "workspace-debug-meta"
@@ -219,10 +272,13 @@ describe("useRuntimeDiagnosticsExport", () => {
     );
     await expect(metadataBlob.text()).resolves.toContain('"lifecycle"');
     await expect(metadataBlob.text()).resolves.toContain('"tool-started-1"');
+    await expect(metadataBlob.text()).resolves.toContain('"toolExecutionMetrics"');
+    await expect(metadataBlob.text()).resolves.toContain('"lastAnnotations"');
     expect(result.current.diagnosticsExportStatus).toContain(
       "Exported runtime-diagnostics.metadata.json"
     );
     expect(result.current.diagnosticsExportStatus).toContain("1 lifecycle events");
+    expect(result.current.diagnosticsExportStatus).toContain("1 tool metric entries");
     expect(result.current.diagnosticsExportError).toBeNull();
     expect(result.current.diagnosticsExportBusy).toBe(false);
 

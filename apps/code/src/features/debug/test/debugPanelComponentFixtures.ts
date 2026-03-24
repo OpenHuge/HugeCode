@@ -77,6 +77,7 @@ export function createDebugPanelBodyProps(
     onLiveSkillMaxResultsChange: vi.fn(),
     onLiveSkillIncludeHiddenChange: vi.fn(),
     onRunHealthProbe: vi.fn(),
+    onRunToolMetricsProbe: vi.fn(),
     onRunRemoteStatusProbe: vi.fn(),
     onRunTerminalStatusProbe: vi.fn(),
     onRunSettingsProbe: vi.fn(),

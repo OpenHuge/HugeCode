@@ -1,3 +1,4 @@
+import { readRuntimeToolExecutionMetrics } from "../../../application/runtime/ports/runtimeToolExecutionMetrics";
 import { useCallback, useState } from "react";
 import {
   filterRuntimeToolLifecycleSnapshot,
@@ -28,6 +29,12 @@ type DiagnosticsMetadataArtifact = {
     revision: number;
     lastEvent: unknown;
     recentEvents: unknown[];
+  };
+  toolExecutionMetrics: {
+    updatedAt: number;
+    totals: unknown;
+    byTool: unknown;
+    recent: unknown[];
   };
 };
 
@@ -101,6 +108,7 @@ function createDiagnosticsMetadataArtifact(input: {
     getRuntimeToolLifecycleSnapshot(),
     input.workspaceId
   );
+  const toolExecutionMetricsSnapshot = readRuntimeToolExecutionMetrics();
 
   return {
     schemaVersion: "runtime-diagnostics-metadata/v1",
@@ -121,6 +129,12 @@ function createDiagnosticsMetadataArtifact(input: {
       lastEvent: lifecycleSnapshot.lastEvent,
       recentEvents: lifecycleSnapshot.recentEvents,
     },
+    toolExecutionMetrics: {
+      updatedAt: toolExecutionMetricsSnapshot.updatedAt,
+      totals: toolExecutionMetricsSnapshot.totals,
+      byTool: toolExecutionMetricsSnapshot.byTool,
+      recent: toolExecutionMetricsSnapshot.recent,
+    },
   };
 }
 
@@ -130,11 +144,12 @@ function formatDiagnosticsExportStatus(options: {
   sizeBytes: number;
   sectionCount: number;
   lifecycleEventCount: number;
+  toolExecutionRecentCount: number;
   warnings: string[];
 }): string {
   const statusPrefix = options.includeZipBase64
     ? `Exported ${options.artifactFilename} (${options.sizeBytes} bytes).`
-    : `Exported ${options.artifactFilename} (${options.sectionCount} sections, ${options.lifecycleEventCount} lifecycle events).`;
+    : `Exported ${options.artifactFilename} (${options.sectionCount} sections, ${options.lifecycleEventCount} lifecycle events, ${options.toolExecutionRecentCount} tool metric entries).`;
   const warningsSuffix =
     options.warnings.length > 0 ? ` Warnings: ${options.warnings.join(" | ")}` : "";
   return `${statusPrefix}${warningsSuffix}`;
@@ -167,6 +182,7 @@ export function useRuntimeDiagnosticsExport({
         }
         let artifactFilename = exported.filename;
         let lifecycleEventCount = 0;
+        let toolExecutionRecentCount = 0;
         if (includeZipBase64) {
           if (typeof exported.zipBase64 !== "string" || exported.zipBase64.trim().length === 0) {
             setDiagnosticsExportError(
@@ -187,6 +203,7 @@ export function useRuntimeDiagnosticsExport({
             workspaceId,
           });
           lifecycleEventCount = countLifecycleEvents(metadataArtifact);
+          toolExecutionRecentCount = metadataArtifact.toolExecutionMetrics.recent.length;
           triggerDiagnosticsExportDownload(
             JSON.stringify(metadataArtifact, null, 2),
             artifactFilename,
@@ -200,6 +217,7 @@ export function useRuntimeDiagnosticsExport({
             sizeBytes: exported.sizeBytes,
             sectionCount: exported.sections.length,
             lifecycleEventCount,
+            toolExecutionRecentCount,
             warnings: exported.warnings,
           })
         );

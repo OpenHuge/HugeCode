@@ -2,6 +2,7 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readRuntimeToolExecutionMetrics } from "../../../application/runtime/ports/runtimeToolExecutionMetrics";
 import {
   getRuntimeHealth,
   runRuntimeLiveSkill,
@@ -19,6 +20,10 @@ vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
   getRuntimeSettings: vi.fn(),
   getRuntimeTerminalStatus: vi.fn(),
   runRuntimeLiveSkill: vi.fn(),
+}));
+
+vi.mock("../../../application/runtime/ports/runtimeToolExecutionMetrics", () => ({
+  readRuntimeToolExecutionMetrics: vi.fn(),
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeToolLifecycle", () => ({
@@ -49,6 +54,7 @@ vi.mock("../../../application/runtime/ports/runtimeToolLifecycle", () => ({
 }));
 
 const getRuntimeHealthMock = vi.mocked(getRuntimeHealth);
+const readRuntimeToolExecutionMetricsMock = vi.mocked(readRuntimeToolExecutionMetrics);
 const filterRuntimeToolLifecycleSnapshotMock = vi.mocked(filterRuntimeToolLifecycleSnapshot);
 const getRuntimeToolLifecycleSnapshotMock = vi.mocked(getRuntimeToolLifecycleSnapshot);
 const runRuntimeLiveSkillMock = vi.mocked(runRuntimeLiveSkill);
@@ -56,6 +62,52 @@ const runRuntimeLiveSkillMock = vi.mocked(runRuntimeLiveSkill);
 describe("useDebugRuntimeProbe", () => {
   beforeEach(() => {
     getRuntimeHealthMock.mockResolvedValue({ status: "ok", app: "code", version: "1.0.0" });
+    readRuntimeToolExecutionMetricsMock.mockReturnValue({
+      totals: {
+        attemptedTotal: 1,
+        startedTotal: 1,
+        completedTotal: 1,
+        successTotal: 1,
+        validationFailedTotal: 0,
+        runtimeFailedTotal: 0,
+        timeoutTotal: 0,
+        blockedTotal: 0,
+        truncatedTotal: 0,
+      },
+      byTool: {
+        "runtime:execute-workspace-command": {
+          toolName: "execute-workspace-command",
+          scope: "runtime",
+          attemptedTotal: 1,
+          startedTotal: 1,
+          completedTotal: 1,
+          successTotal: 1,
+          validationFailedTotal: 0,
+          runtimeFailedTotal: 0,
+          timeoutTotal: 0,
+          blockedTotal: 0,
+          truncatedTotal: 0,
+          lastStatus: "success",
+          lastErrorCode: null,
+          lastDurationMs: 42,
+          lastAnnotations: ["workspace-dry-run", "guardrail-skipped"],
+          updatedAt: 1_770_000_000_100,
+        },
+      },
+      recent: [
+        {
+          toolName: "execute-workspace-command",
+          scope: "runtime",
+          status: "success",
+          errorCode: null,
+          durationMs: 42,
+          truncatedOutput: false,
+          annotations: ["workspace-dry-run", "guardrail-skipped"],
+          at: 1_770_000_000_100,
+        },
+      ],
+      updatedAt: 1_770_000_000_100,
+    });
     getRuntimeToolLifecycleSnapshotMock.mockReturnValue({
       revision: 2,
       lastEvent: {
@@ -151,6 +203,20 @@ describe("useDebugRuntimeProbe", () => {
     expect(result.current.runtimeProbeResult).toContain('"revision": 2');
     expect(result.current.runtimeProbeResult).toContain('"toolName": "bash"');
     expect(result.current.runtimeProbeResult).not.toContain('"toolName": "python"');
+  });
+
+  it("runs runtime tool metrics probe and formats annotation data", async () => {
+    const { result } = renderHook(() => useDebugRuntimeProbe());
+
+    await act(async () => {
+      await result.current.runToolMetricsProbe();
+    });
+
+    expect(readRuntimeToolExecutionMetricsMock).toHaveBeenCalledTimes(1);
+    expect(result.current.runtimeProbeError).toBeNull();
+    expect(result.current.runtimeProbeBusyLabel).toBeNull();
+    expect(result.current.runtimeProbeResult).toContain('"lastAnnotations": [');
+    expect(result.current.runtimeProbeResult).toContain('"workspace-dry-run"');
   });
 
   it("runs core-tree live skill with structured options", async () => {

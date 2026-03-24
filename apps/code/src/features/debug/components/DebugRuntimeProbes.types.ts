@@ -27,6 +27,7 @@ export type DebugRuntimeProbeFeedbackProps = {
 export type DebugRuntimeProbeActionsProps = {
   isRuntimeProbeBusy: boolean;
   onRunHealthProbe: () => void;
+  onRunToolMetricsProbe: () => void;
   onRunRemoteStatusProbe: () => void;
   onRunTerminalStatusProbe: () => void;
   onRunSettingsProbe: () => void;

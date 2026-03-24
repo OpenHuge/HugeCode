@@ -58,6 +58,7 @@ export function createDebugRuntimeProbeState(
     setLiveSkillIncludeHidden: vi.fn(),
     isCoreTreeSkillSelected: false,
     runHealthProbe: vi.fn(),
+    runToolMetricsProbe: vi.fn(),
     runRemoteStatusProbe: vi.fn(),
     runTerminalStatusProbe: vi.fn(),
     runSettingsProbe: vi.fn(),

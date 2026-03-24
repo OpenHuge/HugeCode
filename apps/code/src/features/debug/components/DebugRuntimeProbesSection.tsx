@@ -12,6 +12,7 @@ export function DebugRuntimeProbesSection(props: DebugRuntimeProbesSectionProps)
       <DebugRuntimeProbeActions
         isRuntimeProbeBusy={props.isRuntimeProbeBusy}
         onRunHealthProbe={props.onRunHealthProbe}
+        onRunToolMetricsProbe={props.onRunToolMetricsProbe}
         onRunRemoteStatusProbe={props.onRunRemoteStatusProbe}
         onRunTerminalStatusProbe={props.onRunTerminalStatusProbe}
         onRunSettingsProbe={props.onRunSettingsProbe}

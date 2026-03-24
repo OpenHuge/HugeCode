@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { readRuntimeToolExecutionMetrics } from "../../../application/runtime/ports/runtimeToolExecutionMetrics";
 import {
   filterRuntimeToolLifecycleSnapshot,
   getRuntimeToolLifecycleSnapshot,
@@ -62,6 +63,10 @@ export function useDebugRuntimeProbe({ workspaceId = null }: UseDebugRuntimeProb
 
   const runHealthProbe = useCallback(
     () => runRuntimeProbe("health", getRuntimeHealth),
+    [runRuntimeProbe]
+  );
+  const runToolMetricsProbe = useCallback(
+    () => runRuntimeProbe("tool metrics", async () => readRuntimeToolExecutionMetrics()),
     [runRuntimeProbe]
   );
   const runRemoteStatusProbe = useCallback(
@@ -162,6 +167,7 @@ export function useDebugRuntimeProbe({ workspaceId = null }: UseDebugRuntimeProb
     setLiveSkillIncludeHidden,
     isCoreTreeSkillSelected,
     runHealthProbe,
+    runToolMetricsProbe,
     runRemoteStatusProbe,
     runTerminalStatusProbe,
     runSettingsProbe,

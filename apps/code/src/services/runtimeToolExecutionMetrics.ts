@@ -14,6 +14,7 @@ export type RuntimeToolExecutionRecentEntry = {
   errorCode: string | null;
   durationMs: number | null;
   truncatedOutput: boolean;
+  annotations: string[];
   at: number;
 };
 
@@ -35,6 +36,7 @@ export type RuntimeToolExecutionByToolEntry = RuntimeToolExecutionTotals & {
   lastStatus: RuntimeToolExecutionStatus | null;
   lastErrorCode: string | null;
   lastDurationMs: number | null;
+  lastAnnotations: string[];
   updatedAt: number;
 };
 
@@ -74,6 +76,26 @@ function createEmptySnapshot(): RuntimeToolExecutionSnapshot {
   };
 }
 
+function normalizeAnnotations(values: string[] | null | undefined): string[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    if (typeof value !== "string") {
+      continue;
+    }
+    const trimmed = value.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  }
+  return normalized;
+}
+
 let snapshot: RuntimeToolExecutionSnapshot = createEmptySnapshot();
 
 function toToolKey(toolName: string, scope: RuntimeToolExecutionScope): string {
@@ -110,13 +132,17 @@ function cloneByTool(
     cloned[key] = {
       ...entry,
       ...cloneTotals(entry),
+      lastAnnotations: [...entry.lastAnnotations],
     };
   }
   return cloned;
 }
 
 function cloneRecent(value: RuntimeToolExecutionRecentEntry[]): RuntimeToolExecutionRecentEntry[] {
-  return value.map((entry) => ({ ...entry }));
+  return value.map((entry) => ({
+    ...entry,
+    annotations: [...entry.annotations],
+  }));
 }
 
 function emitSnapshot(): void {
@@ -143,6 +169,7 @@ function ensureByToolEntry(
     lastStatus: null,
     lastErrorCode: null,
     lastDurationMs: null,
+    lastAnnotations: [],
     updatedAt: Date.now(),
   };
   state.byTool[key] = created;
@@ -237,6 +264,7 @@ export function recordRuntimeToolExecutionEnd(input: {
   errorCode?: string | null;
   durationMs?: number | null;
   truncatedOutput?: boolean;
+  annotations?: string[];
   at?: number;
 }): RuntimeToolExecutionSnapshot {
   return patchSnapshot((draft) => {
@@ -247,6 +275,7 @@ export function recordRuntimeToolExecutionEnd(input: {
         ? input.errorCode.trim()
         : null;
     const truncatedOutput = input.truncatedOutput === true;
+    const annotations = normalizeAnnotations(input.annotations);
 
     draft.totals.completedTotal += 1;
     incrementStatusTotals(draft.totals, input.status);
@@ -263,6 +292,7 @@ export function recordRuntimeToolExecutionEnd(input: {
     byTool.lastStatus = input.status;
     byTool.lastErrorCode = errorCode;
     byTool.lastDurationMs = durationMs;
+    byTool.lastAnnotations = annotations;
     byTool.updatedAt = at;
 
     draft.recent = [
@@ -273,6 +303,7 @@ export function recordRuntimeToolExecutionEnd(input: {
         errorCode,
         durationMs,
         truncatedOutput,
+        annotations,
         at,
       },
       ...draft.recent,
