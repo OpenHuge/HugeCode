@@ -160,3 +160,11 @@ export const actionButton = feature({
   fontSize: "var(--font-size-meta)",
   cursor: "pointer",
 });
+
+export const browserWorkspaceFrame = feature({
+  width: "100%",
+  minHeight: "420px",
+  borderRadius: "var(--ds-radius-sm)",
+  border: "1px solid var(--ds-border-muted)",
+  background: "var(--ds-surface-canvas)",
+});

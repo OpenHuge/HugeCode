@@ -10,6 +10,23 @@ const desktopHostBridge: DesktopHostBridgeApi = {
   app: {
     getVersion: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getAppVersion),
   },
+  browserWorkspace: {
+    getSession: (query) =>
+      ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getBrowserWorkspaceSession, query),
+    ensureSession: (input) =>
+      ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.ensureBrowserWorkspaceSession, input),
+    listSessions: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.listBrowserWorkspaceSessions),
+    setHost: (input) =>
+      ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.setBrowserWorkspaceHost, input),
+    setProfileMode: (input) =>
+      ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.setBrowserWorkspaceProfileMode, input),
+    setAgentAttached: (input) =>
+      ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.setBrowserWorkspaceAgentAttached, input),
+    setPreviewServerStatus: (input) =>
+      ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.setBrowserWorkspacePreviewServerStatus, input),
+    setDevtoolsOpen: (input) =>
+      ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.setBrowserWorkspaceDevtoolsOpen, input),
+  },
   session: {
     getCurrentSession: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getCurrentSession),
     listRecentSessions: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.listRecentSessions),

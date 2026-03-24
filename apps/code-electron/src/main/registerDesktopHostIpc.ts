@@ -2,6 +2,14 @@ import type { IpcMainInvokeEvent } from "electron";
 import type {
   DesktopBrowserDebugSessionInfo,
   DesktopBrowserDebugSessionInput,
+  DesktopBrowserWorkspaceSessionInfo,
+  DesktopBrowserWorkspaceSessionInput,
+  DesktopBrowserWorkspaceSessionQuery,
+  DesktopBrowserWorkspaceSetAgentAttachedInput,
+  DesktopBrowserWorkspaceSetDevtoolsOpenInput,
+  DesktopBrowserWorkspaceSetHostInput,
+  DesktopBrowserWorkspaceSetPreviewServerStatusInput,
+  DesktopBrowserWorkspaceSetProfileModeInput,
   DesktopNotificationInput,
   OpenDesktopWindowInput,
 } from "../shared/ipc.js";
@@ -44,12 +52,36 @@ type DesktopHostIpcHandlers = {
   ensureBrowserDebugSession(
     input?: DesktopBrowserDebugSessionInput
   ): Promise<DesktopBrowserDebugSessionInfo | null> | DesktopBrowserDebugSessionInfo | null;
+  ensureBrowserWorkspaceSession(
+    input?: DesktopBrowserWorkspaceSessionInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
   listRecentSessions(): Promise<unknown[]> | unknown[];
+  listBrowserWorkspaceSessions():
+    | Promise<DesktopBrowserWorkspaceSessionInfo[]>
+    | DesktopBrowserWorkspaceSessionInfo[];
   listWindows(): Promise<DesktopWindowDescriptor[]> | DesktopWindowDescriptor[];
   openExternalUrl(url: string): Promise<boolean> | boolean;
   openWindow(input?: OpenDesktopWindowInput): Promise<unknown> | unknown;
   reopenSession(sessionId: string): Promise<boolean> | boolean;
   revealItemInDir(path: string): Promise<boolean> | boolean;
+  getBrowserWorkspaceSession(
+    query?: DesktopBrowserWorkspaceSessionQuery
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  setBrowserWorkspaceAgentAttached(
+    input: DesktopBrowserWorkspaceSetAgentAttachedInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  setBrowserWorkspaceDevtoolsOpen(
+    input: DesktopBrowserWorkspaceSetDevtoolsOpenInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  setBrowserWorkspaceHost(
+    input: DesktopBrowserWorkspaceSetHostInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  setBrowserWorkspacePreviewServerStatus(
+    input: DesktopBrowserWorkspaceSetPreviewServerStatusInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  setBrowserWorkspaceProfileMode(
+    input: DesktopBrowserWorkspaceSetProfileModeInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
   setTrayEnabled(enabled: boolean): Promise<DesktopTrayState> | DesktopTrayState;
   showNotification(
     event: IpcInvokeEventLike,
@@ -88,6 +120,12 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
     return handlers.getBrowserDebugSession();
   });
 
+  handleTrusted(channels.getBrowserWorkspaceSession, async (_event, query) => {
+    return handlers.getBrowserWorkspaceSession(
+      query as DesktopBrowserWorkspaceSessionQuery | undefined
+    );
+  });
+
   handleTrusted(channels.getCurrentSession, async (event) => {
     return handlers.getCurrentSession(event);
   });
@@ -107,6 +145,44 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
   handleTrusted(channels.ensureBrowserDebugSession, async (_event, sessionInput) => {
     return handlers.ensureBrowserDebugSession(
       sessionInput as DesktopBrowserDebugSessionInput | undefined
+    );
+  });
+
+  handleTrusted(channels.ensureBrowserWorkspaceSession, async (_event, sessionInput) => {
+    return handlers.ensureBrowserWorkspaceSession(
+      sessionInput as DesktopBrowserWorkspaceSessionInput | undefined
+    );
+  });
+
+  handleTrusted(channels.listBrowserWorkspaceSessions, async () => {
+    return handlers.listBrowserWorkspaceSessions();
+  });
+
+  handleTrusted(channels.setBrowserWorkspaceHost, async (_event, hostInput) => {
+    return handlers.setBrowserWorkspaceHost(hostInput as DesktopBrowserWorkspaceSetHostInput);
+  });
+
+  handleTrusted(channels.setBrowserWorkspaceProfileMode, async (_event, profileModeInput) => {
+    return handlers.setBrowserWorkspaceProfileMode(
+      profileModeInput as DesktopBrowserWorkspaceSetProfileModeInput
+    );
+  });
+
+  handleTrusted(channels.setBrowserWorkspaceAgentAttached, async (_event, attachedInput) => {
+    return handlers.setBrowserWorkspaceAgentAttached(
+      attachedInput as DesktopBrowserWorkspaceSetAgentAttachedInput
+    );
+  });
+
+  handleTrusted(channels.setBrowserWorkspacePreviewServerStatus, async (_event, statusInput) => {
+    return handlers.setBrowserWorkspacePreviewServerStatus(
+      statusInput as DesktopBrowserWorkspaceSetPreviewServerStatusInput
+    );
+  });
+
+  handleTrusted(channels.setBrowserWorkspaceDevtoolsOpen, async (_event, devtoolsInput) => {
+    return handlers.setBrowserWorkspaceDevtoolsOpen(
+      devtoolsInput as DesktopBrowserWorkspaceSetDevtoolsOpenInput
     );
   });
 

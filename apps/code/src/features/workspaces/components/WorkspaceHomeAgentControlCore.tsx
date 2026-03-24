@@ -15,6 +15,7 @@ import {
 import { useWorkspaceRuntimeAgentControl } from "../../../application/runtime/ports/runtimeAgentControl";
 import type { ApprovalRequest, RequestUserInputRequest } from "../../../types";
 import { WorkspaceHomeAgentIntentSection } from "./WorkspaceHomeAgentIntentSection";
+import { WorkspaceHomeBrowserWorkspacePanel } from "./WorkspaceHomeBrowserWorkspacePanel";
 import {
   DEFAULT_INTENT,
   readCachedState,
@@ -350,6 +351,7 @@ export function WorkspaceHomeAgentControl({
       ) : null}
 
       <WorkspaceHomeAgentIntentSection intent={intent} onIntentPatch={actions.setIntentPatch} />
+      <WorkspaceHomeBrowserWorkspacePanel workspaceId={workspace.id} />
       <Suspense fallback={null}>
         <LazyWorkspaceHomeAgentRuntimeOrchestration workspaceId={workspace.id} />
       </Suspense>

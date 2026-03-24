@@ -9,6 +9,22 @@ describe("createDesktopHostHandlers", () => {
         ensureBrowserDebugSession: vi.fn(() => ({ browserUrl: "http://127.0.0.1:9333" })),
         getBrowserDebugSession: vi.fn(() => ({ browserUrl: "http://127.0.0.1:9333" })),
       },
+      browserWorkspaceController: {
+        ensureBrowserWorkspaceSession: vi.fn(() => ({ sessionId: "ws-1" })),
+        getBrowserWorkspaceSession: vi.fn(() => ({ sessionId: "ws-1" })),
+        listBrowserWorkspaceSessions: vi.fn(() => [{ sessionId: "ws-1" }]),
+        setBrowserWorkspaceAgentAttached: vi.fn(() => ({ sessionId: "ws-1", agentAttached: true })),
+        setBrowserWorkspaceDevtoolsOpen: vi.fn(() => ({ sessionId: "ws-1", devtoolsOpen: true })),
+        setBrowserWorkspaceHost: vi.fn(() => ({ sessionId: "ws-1", host: "window" })),
+        setBrowserWorkspacePreviewServerStatus: vi.fn(() => ({
+          sessionId: "ws-1",
+          previewServerStatus: "ready",
+        })),
+        setBrowserWorkspaceProfileMode: vi.fn(() => ({
+          sessionId: "ws-1",
+          profileMode: "shared",
+        })),
+      },
       listRecentSessions: vi.fn(() => [{ id: "session-1" }]),
       notificationController: {
         showNotification: vi.fn(() => true),
@@ -36,6 +52,13 @@ describe("createDesktopHostHandlers", () => {
     expect(handlers.getAppVersion()).toBe("1.2.3");
     expect(handlers.getBrowserDebugSession()).toEqual({ browserUrl: "http://127.0.0.1:9333" });
     expect(handlers.ensureBrowserDebugSession()).toEqual({ browserUrl: "http://127.0.0.1:9333" });
+    expect(handlers.getBrowserWorkspaceSession()).toEqual({ sessionId: "ws-1" });
+    expect(handlers.ensureBrowserWorkspaceSession()).toEqual({ sessionId: "ws-1" });
+    expect(handlers.listBrowserWorkspaceSessions()).toEqual([{ sessionId: "ws-1" }]);
+    expect(handlers.setBrowserWorkspaceHost({ sessionId: "ws-1", host: "window" })).toEqual({
+      sessionId: "ws-1",
+      host: "window",
+    });
     expect(handlers.getCurrentSession({ sender: {} as never })).toEqual({ id: "session-1" });
     expect(handlers.getWindowLabel({ sender: {} as never })).toBe("main");
     expect(handlers.listRecentSessions()).toEqual([{ id: "session-1" }]);
@@ -61,6 +84,16 @@ describe("createDesktopHostHandlers", () => {
       browserDebugController: {
         ensureBrowserDebugSession: vi.fn(() => null),
         getBrowserDebugSession: vi.fn(() => null),
+      },
+      browserWorkspaceController: {
+        ensureBrowserWorkspaceSession: vi.fn(() => null),
+        getBrowserWorkspaceSession: vi.fn(() => null),
+        listBrowserWorkspaceSessions: vi.fn(() => []),
+        setBrowserWorkspaceAgentAttached: vi.fn(() => null),
+        setBrowserWorkspaceDevtoolsOpen: vi.fn(() => null),
+        setBrowserWorkspaceHost: vi.fn(() => null),
+        setBrowserWorkspacePreviewServerStatus: vi.fn(() => null),
+        setBrowserWorkspaceProfileMode: vi.fn(() => null),
       },
       listRecentSessions: vi.fn(() => []),
       notificationController: {

@@ -15,6 +15,11 @@ import {
   ensureDesktopBrowserDebugSession,
   getDesktopBrowserDebugSession,
 } from "../ports/desktopBrowserDebug";
+import {
+  ensureDesktopBrowserWorkspaceSession,
+  getDesktopBrowserWorkspaceSession,
+} from "../ports/desktopBrowserWorkspace";
+import type { DesktopBrowserWorkspaceSessionKind } from "../ports/desktopHostBridge";
 import { getCollaborationModes } from "../ports/tauriCollaboration";
 import { listRuntimeModels } from "../ports/tauriRuntimeCatalog";
 import { listMcpServerStatus, listWorkspaceDiagnostics } from "../ports/tauriRuntimeDiagnostics";
@@ -83,12 +88,32 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
     decisionLab?: { chatgptUrl?: string | null } | null;
     researchRouteLab?: { chatgptUrl?: string | null } | null;
   }) => {
+    const sessionKind: DesktopBrowserWorkspaceSessionKind =
+      input?.operation === "chatgpt_decision_lab" ||
+      input?.operation === "chatgpt_research_route_lab"
+        ? "research"
+        : input?.targetUrl &&
+            /^https?:\/\/(?:localhost|127\.0\.0\.1|::1)(?:[:/]|$)/i.test(input.targetUrl)
+          ? "preview"
+          : "debug";
     const targetUrl =
       input?.operation === "chatgpt_decision_lab"
         ? (input.decisionLab?.chatgptUrl ?? input.targetUrl ?? null)
         : input?.operation === "chatgpt_research_route_lab"
           ? (input.researchRouteLab?.chatgptUrl ?? input.targetUrl ?? null)
           : (input?.targetUrl ?? null);
+    const workspaceSession = targetUrl
+      ? await ensureDesktopBrowserWorkspaceSession({
+          kind: sessionKind,
+          targetUrl,
+          focus: true,
+          host: sessionKind === "preview" ? "pane" : "window",
+          workspaceId,
+        })
+      : await getDesktopBrowserWorkspaceSession({ kind: sessionKind, workspaceId });
+    if (workspaceSession) {
+      return workspaceSession;
+    }
     return targetUrl
       ? ensureDesktopBrowserDebugSession({ targetUrl, focus: true })
       : getDesktopBrowserDebugSession();
