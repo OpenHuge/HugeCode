@@ -1145,6 +1145,7 @@
                     .contains("Chrome DevTools MCP is unavailable")
                 || result.output.contains("runtime browser debug")
                 || result.output.contains("\"available\":false")
+                || result.output.contains("\"available\": false")
                 || result.output.contains("Workspace `ws-js-repl-browser-debug-status` not found.")
         );
 
@@ -1223,6 +1224,7 @@
                     .contains("Chrome DevTools MCP is unavailable")
                 || result.output.contains("runtime browser debug")
                 || result.output.contains("\"available\":false")
+                || result.output.contains("\"available\": false")
                 || result.output.contains("Workspace `ws-js-repl-browser-debug-mixed` not found.")
         );
 
