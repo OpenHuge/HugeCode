@@ -18,6 +18,7 @@ import { Card, CardDescription, CardTitle } from "../../../design-system";
 import { SectionHeader } from "../../../design-system";
 import { Surface } from "../../../design-system";
 import { ComposerMetaBar } from "../../composer/components/ComposerMetaBar";
+import { ComposerAutoDriveStatusBar } from "../../composer/components/ComposerMetaBarAutoDriveMeta";
 import { fromRuntimeRoutePreference } from "../hooks/autoDriveRuntimeSnapshotAdapter";
 import { useAutoDriveController } from "../hooks/useAutoDriveController";
 import * as styles from "./AutoDriveNavigationFixture.css";
@@ -687,6 +688,9 @@ export function AutoDriveNavigationFixture() {
     selectedEffort: "medium",
     missionControlProjection,
     runtimeControl,
+    runtimeOverrides: {
+      launchTaskThroughRuntimeControl: true,
+    },
     threadCodexParamsVersion: 1,
     getThreadCodexParams,
     patchThreadCodexParams,
@@ -815,6 +819,39 @@ export function AutoDriveNavigationFixture() {
             onChangeRiskPolicy: autoDrive.setRiskPolicyValue,
           }}
         />
+        {autoDrive.enabled || autoDrive.run ? (
+          <ComposerAutoDriveStatusBar
+            autoDrive={{
+              enabled: autoDrive.enabled,
+              budget: autoDrive.draft.budget,
+              riskPolicy: autoDrive.draft.riskPolicy,
+              preset: autoDrive.preset,
+              controls: autoDrive.controls,
+              recovering: autoDrive.recovering,
+              recoverySummary: autoDrive.recoverySummary,
+              readiness: autoDrive.readiness,
+              run: autoDrive.run
+                ? {
+                    status: autoDrive.run.status,
+                    stage: autoDrive.run.stage,
+                    offRoute: autoDrive.run.navigation.offRoute,
+                    rerouting: autoDrive.run.navigation.rerouting,
+                    overallProgress: autoDrive.run.navigation.overallProgress,
+                    lastValidationSummary: autoDrive.run.lastValidationSummary ?? null,
+                    stopReason: autoDrive.run.lastStopReason?.detail ?? null,
+                    runtimeScenarioProfile: autoDrive.run.runtimeScenarioProfile ?? null,
+                    runtimeDecisionTrace: autoDrive.run.runtimeDecisionTrace ?? null,
+                    runtimeOutcomeFeedback: autoDrive.run.runtimeOutcomeFeedback ?? null,
+                    runtimeAutonomyState: autoDrive.run.runtimeAutonomyState ?? null,
+                  }
+                : null,
+              onToggleEnabled: autoDrive.setEnabled,
+            }}
+            autoDriveBackendLabel="Automatic runtime routing"
+            disabled={false}
+            visibilityState="visible"
+          />
+        ) : null}
         <Surface
           aria-label="AutoDrive ledger"
           className={styles.ledgerPanel}

@@ -458,6 +458,28 @@ describe("code runtime rpc compatibility helpers", () => {
           unattendedContinuationAllowed: false,
         },
       },
+      autonomyRequest: {
+        autonomyProfile: "night_operator",
+        sourceScope: "workspace_graph_and_public_web",
+        queueBudget: {
+          maxQueuedActions: 2,
+          maxRuntimeMinutes: 10,
+          maxAutoContinuations: 2,
+        },
+        wakePolicy: {
+          mode: "auto_queue",
+          safeFollowUp: true,
+          allowAutomaticContinuation: true,
+          allowedActions: ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+          stopGates: ["destructive_change_requires_review", "dependency_change_requires_review"],
+        },
+        researchPolicy: {
+          mode: "staged",
+          allowNetworkAnalysis: true,
+          requireCitations: true,
+          allowPrivateContextStage: true,
+        },
+      },
       steps: [{ kind: "read", input: "Implement runtime-first AutoDrive." }],
     };
     const interventionRequest: AgentTaskInterventionRequest = {
@@ -482,79 +504,68 @@ describe("code runtime rpc compatibility helpers", () => {
       unknown
     >;
 
-    expect(startPayload.autoDrive).toEqual(
-      expect.objectContaining({
-        destination: startRequest.autoDrive?.destination,
-        budget: startRequest.autoDrive?.budget,
-        riskPolicy: startRequest.autoDrive?.riskPolicy,
-      })
-    );
-    expect(startPayload.auto_drive).toEqual(
-      expect.objectContaining({
-        destination: startRequest.autoDrive?.destination,
-        budget: startRequest.autoDrive?.budget,
-        riskPolicy: startRequest.autoDrive?.riskPolicy,
-      })
-    );
-    expect(startPayload.autoDrive).toEqual(
-      expect.objectContaining({
-        contextPolicy: expect.objectContaining({
-          scope: "workspace_graph",
-          workspaceReadPaths: ["/repo", "/peer"],
-          workspace_read_paths: ["/repo", "/peer"],
-          authoritySources: ["repo_authority", "workspace_graph"],
-          authority_sources: ["repo_authority", "workspace_graph"],
-        }),
-        context_policy: expect.objectContaining({
-          scope: "workspace_graph",
-        }),
-        decisionPolicy: expect.objectContaining({
-          independentThread: true,
-          independent_thread: true,
-          autonomyPriority: "operator",
-          autonomy_priority: "operator",
-          promptStrategy: "workspace_graph_first",
-          prompt_strategy: "workspace_graph_first",
-          researchMode: "repository_only",
-          research_mode: "repository_only",
-        }),
-        decision_policy: expect.objectContaining({
-          independentThread: true,
-        }),
-        scenarioProfile: expect.objectContaining({
-          authorityScope: "workspace_graph",
-          authority_scope: "workspace_graph",
-          scenarioKeys: ["validation-recovery"],
-          scenario_keys: ["validation-recovery"],
-        }),
-        scenario_profile: expect.objectContaining({
-          representativeCommands: ["pnpm test"],
-          representative_commands: ["pnpm test"],
-        }),
-        decisionTrace: expect.objectContaining({
-          selectedCandidateId: "launch_autodrive",
-          selected_candidate_id: "launch_autodrive",
-        }),
-        decision_trace: expect.objectContaining({
-          selectionTags: ["workspace_graph", "eval_first"],
-          selection_tags: ["workspace_graph", "eval_first"],
-        }),
-        outcomeFeedback: expect.objectContaining({
-          status: "launch_prepared",
-        }),
-        outcome_feedback: expect.objectContaining({
-          summary: "Runtime prepared AutoDrive launch context.",
-        }),
-        autonomyState: expect.objectContaining({
-          highPriority: true,
-          high_priority: true,
-        }),
-        autonomy_state: expect.objectContaining({
-          unattendedContinuationAllowed: false,
-          unattended_continuation_allowed: false,
-        }),
-      })
-    );
+    expect(startPayload.autoDrive.destination).toEqual(startRequest.autoDrive?.destination);
+    expect(startPayload.autoDrive.budget).toEqual(startRequest.autoDrive?.budget);
+    expect(startPayload.autoDrive.riskPolicy).toMatchObject({
+      ...startRequest.autoDrive?.riskPolicy,
+      allow_network_analysis: false,
+    });
+    expect(startPayload.auto_drive).toEqual(startPayload.autoDrive);
+    expect(startPayload.autoDrive.contextPolicy).toMatchObject({
+      scope: "workspace_graph",
+      workspaceReadPaths: ["/repo", "/peer"],
+      workspace_read_paths: ["/repo", "/peer"],
+      authoritySources: ["repo_authority", "workspace_graph"],
+      authority_sources: ["repo_authority", "workspace_graph"],
+    });
+    expect(startPayload.autoDrive.context_policy).toMatchObject({
+      scope: "workspace_graph",
+    });
+    expect(startPayload.autoDrive.decisionPolicy).toMatchObject({
+      independentThread: true,
+      independent_thread: true,
+      autonomyPriority: "operator",
+      autonomy_priority: "operator",
+      promptStrategy: "workspace_graph_first",
+      prompt_strategy: "workspace_graph_first",
+      researchMode: "repository_only",
+      research_mode: "repository_only",
+    });
+    expect(startPayload.autoDrive.decision_policy).toMatchObject({
+      independentThread: true,
+    });
+    expect(startPayload.autoDrive.scenarioProfile).toMatchObject({
+      authorityScope: "workspace_graph",
+      authority_scope: "workspace_graph",
+      scenarioKeys: ["validation-recovery"],
+      scenario_keys: ["validation-recovery"],
+    });
+    expect(startPayload.autoDrive.scenario_profile).toMatchObject({
+      representativeCommands: ["pnpm test"],
+      representative_commands: ["pnpm test"],
+    });
+    expect(startPayload.autoDrive.decisionTrace).toMatchObject({
+      selectedCandidateId: "launch_autodrive",
+      selected_candidate_id: "launch_autodrive",
+    });
+    expect(startPayload.autoDrive.decision_trace).toMatchObject({
+      selectionTags: ["workspace_graph", "eval_first"],
+      selection_tags: ["workspace_graph", "eval_first"],
+    });
+    expect(startPayload.autoDrive.outcomeFeedback).toMatchObject({
+      status: "launch_prepared",
+    });
+    expect(startPayload.autoDrive.outcome_feedback).toMatchObject({
+      summary: "Runtime prepared AutoDrive launch context.",
+    });
+    expect(startPayload.autoDrive.autonomyState).toMatchObject({
+      highPriority: true,
+      high_priority: true,
+    });
+    expect(startPayload.autoDrive.autonomy_state).toMatchObject({
+      unattendedContinuationAllowed: false,
+      unattended_continuation_allowed: false,
+    });
     expect(startPayload.taskSource).toEqual(
       expect.objectContaining({
         kind: "github_issue",
@@ -592,6 +603,35 @@ describe("code runtime rpc compatibility helpers", () => {
       })
     );
     expect(startPayload.relaunch_context).toEqual(startPayload.relaunchContext);
+    expect(startPayload.autonomyRequest).toMatchObject({
+      autonomyProfile: "night_operator",
+      autonomy_profile: "night_operator",
+      sourceScope: "workspace_graph_and_public_web",
+      source_scope: "workspace_graph_and_public_web",
+    });
+    expect(startPayload.autonomyRequest.queueBudget).toMatchObject({
+      maxQueuedActions: 2,
+      max_queued_actions: 2,
+      maxRuntimeMinutes: 10,
+      max_runtime_minutes: 10,
+    });
+    expect(startPayload.autonomyRequest.wakePolicy).toMatchObject({
+      safeFollowUp: true,
+      safe_follow_up: true,
+      allowAutomaticContinuation: true,
+      allow_automatic_continuation: true,
+      allowedActions: ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+      allowed_actions: ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+    });
+    expect(startPayload.autonomyRequest.researchPolicy).toMatchObject({
+      allowNetworkAnalysis: true,
+      allow_network_analysis: true,
+      requireCitations: true,
+      require_citations: true,
+      allowPrivateContextStage: true,
+      allow_private_context_stage: true,
+    });
+    expect(startPayload.autonomy_request).toEqual(startPayload.autonomyRequest);
     expect(interventionPayload.instructionPatch).toBe(interventionRequest.instructionPatch);
     expect(interventionPayload.instruction_patch).toBe(interventionRequest.instructionPatch);
     expect(interventionPayload.relaunchContext).toEqual(

@@ -27,10 +27,10 @@ export function WebChrome({ children }: WebChromeProps) {
       <header className={chromeHeader}>
         <Link className={chromeBrand} to="/">
           <span className={chromeBrandMark} aria-hidden>
-            OF
+            HC
           </span>
           <span>
-            <span className={chromeBrandMeta}>Open Fast Web</span>
+            <span className={chromeBrandMeta}>HugeCode Web</span>
             <span className={chromeBrandName}>Cloudflare-ready product surface</span>
           </span>
         </Link>

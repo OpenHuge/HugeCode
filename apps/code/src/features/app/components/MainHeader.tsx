@@ -15,7 +15,7 @@ import type { WorkspaceLaunchScriptsState } from "../hooks/useWorkspaceLaunchScr
 import { MainHeaderRightActions } from "./MainHeaderRightActions";
 import type { RecentThreadItem } from "./RecentThreadStrip";
 import { formatHeaderBranchLabel } from "../utils/headerBranchLabel";
-import { MainHeaderShell } from "./MainHeaderShell";
+import { MainHeaderShell, type MainHeaderShellProps } from "./MainHeaderShell";
 
 const MainHeaderBranchMenu = lazy(() =>
   import("./MainHeaderBranchMenu").then((module) => ({
@@ -78,6 +78,9 @@ type MainHeaderProps = {
     onCommit: () => void;
   };
 };
+
+export type { MainHeaderShellProps };
+export { MainHeaderShell };
 
 export function MainHeader({
   leadingNode,

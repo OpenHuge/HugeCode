@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_API: ${{ vars.TURBO_API }}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -23,6 +28,7 @@ jobs:
       desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
       repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
       frontend_optimization_changed: ${{ steps.filter.outputs.frontend_optimization == 'true' || steps.scope.outputs.frontend_manifest_changed == 'true' }}
+      pr_affected_build_required: ${{ steps.scope.outputs.build_skip_eligible_only != 'true' }}
       ci_required: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.runtime_contract == 'true' }}
     steps:
       - uses: actions/checkout@v6
@@ -91,7 +97,27 @@ jobs:
               - 'apps/code/**'
               - '!apps/code/**/*.md'
               - '!apps/code/**/*.mdx'
+              - '!apps/code/**/*.test.ts'
+              - '!apps/code/**/*.test.tsx'
+              - '!apps/code/**/*.spec.ts'
+              - '!apps/code/**/*.spec.tsx'
+              - '!apps/code/**/*.stories.ts'
+              - '!apps/code/**/*.stories.tsx'
+              - '!apps/code/**/*.stories.mdx'
+              - '!apps/code/**/__tests__/**'
+              - '!apps/code/src/test/**'
+              - '!apps/code/src/fixtures/**'
               - 'packages/design-system/**'
+              - '!packages/design-system/**/*.md'
+              - '!packages/design-system/**/*.mdx'
+              - '!packages/design-system/**/*.test.ts'
+              - '!packages/design-system/**/*.test.tsx'
+              - '!packages/design-system/**/*.spec.ts'
+              - '!packages/design-system/**/*.spec.tsx'
+              - '!packages/design-system/**/*.stories.ts'
+              - '!packages/design-system/**/*.stories.tsx'
+              - '!packages/design-system/**/*.stories.mdx'
+              - '!packages/design-system/**/__tests__/**'
               - '.github/workflows/_reusable-ci-frontend-optimization.yml'
               - 'scripts/check-code-bundle-budget.mjs'
               - 'scripts/report-code-bundle.mjs'
@@ -100,6 +126,7 @@ jobs:
               - 'scripts/lib/e2e-map.mjs'
               - '.github/workflows/ci.yml'
               - '.github/actions/cache-turbo/**'
+              - '.github/actions/install-linux-desktop-deps/**'
               - '.github/actions/setup-node-pnpm/**'
               - '.github/actions/setup-playwright/**'
 
@@ -166,6 +193,7 @@ jobs:
     name: Quality
     needs: [changes]
     uses: ./.github/workflows/_reusable-ci-quality.yml
+    secrets: inherit
     with:
       ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
       runtime_contract_changed: ${{ needs.changes.outputs.runtime_contract_changed == 'true' }}
@@ -178,16 +206,19 @@ jobs:
     if: github.event_name == 'pull_request'
     needs: [changes, dependabot_policy]
     uses: ./.github/workflows/_reusable-ci-pr-affected.yml
+    secrets: inherit
     with:
       ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
       base_ref: ${{ github.base_ref }}
       skip_expensive_checks: ${{ needs.dependabot_policy.outputs.skip_pr_affected == 'true' }}
+      affected_build_required: ${{ needs.changes.outputs.pr_affected_build_required == 'true' }}
 
   frontend_optimization:
     name: frontend_optimization
     if: github.event_name == 'pull_request' && needs.changes.outputs.ci_required == 'true' && needs.changes.outputs.frontend_optimization_changed == 'true'
     needs: [changes]
     uses: ./.github/workflows/_reusable-ci-frontend-optimization.yml
+    secrets: inherit
 
   # Build job with artifact upload
   build:
@@ -228,6 +259,7 @@ jobs:
           path: |
             packages/*/dist/
             apps/code/dist/
+          compression-level: 0
           retention-days: 1
 
   # Tests - downloads build artifacts instead of rebuilding

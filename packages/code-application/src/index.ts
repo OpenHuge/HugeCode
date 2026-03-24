@@ -1,9 +1,14 @@
 export {
+  checkDesktopForUpdates,
+  consumeDesktopLaunchIntent,
   detectDesktopRuntimeHost,
   openDesktopExternalUrl,
+  resolveDesktopAppInfo,
   resolveDesktopAppVersion,
   resolveDesktopSessionInfo,
+  resolveDesktopUpdateState,
   resolveDesktopWindowLabel,
+  restartDesktopToApplyUpdate,
   revealDesktopItemInDir,
   showDesktopNotification,
 } from "./desktopHostFacade";
@@ -14,6 +19,7 @@ export {
   WorkspaceHostErrorBoundary as ErrorBoundary,
   WorkspaceHostErrorBoundary,
 } from "./workspaceHostRenderer";
+export { WorkspaceChromeHeader, WorkspaceChromeLayout } from "./workspaceChrome";
 export {
   createDesktopWorkspaceClientHostBindings,
   createWorkspaceClientBindings,
@@ -31,6 +37,7 @@ export type {
   DesktopVersionFallbacks,
   DesktopWindowLabelFallbacks,
 } from "./desktopHostFacade";
+export type { WorkspaceChromeHeaderProps, WorkspaceChromeLayoutProps } from "./workspaceChrome";
 export type {
   CreateWorkspaceHostRendererInput,
   WorkspaceHostEffect,

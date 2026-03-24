@@ -5,7 +5,13 @@ import "./MessagesRichContent.styles.css";
 import "./MarkdownSkillReference.global.css";
 import { openUrl } from "../../../application/runtime/facades/desktopHostFacade";
 import Box from "lucide-react/dist/esm/icons/box";
-import { Button, Tooltip } from "../../../design-system";
+import {
+  Button,
+  CodeBlockSurface,
+  DataTableSurface,
+  RichContent,
+  Tooltip,
+} from "../../../design-system";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import { joinClassNames } from "../../../utils/classNames";
 import type { SkillOption } from "../../../types";
@@ -457,9 +463,9 @@ function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
   };
 
   return (
-    <div className={styles.markdownCodeblock}>
-      <div className={styles.markdownCodeblockHeader}>
-        <span className={styles.markdownCodeblockLanguage}>{languageLabel}</span>
+    <CodeBlockSurface
+      label={<span className={styles.markdownCodeblockLanguage}>{languageLabel}</span>}
+      actions={
         <Button
           variant="ghost"
           size="sm"
@@ -473,23 +479,23 @@ function CodeBlock({ className, value, copyUseModifier }: CodeBlockProps) {
         >
           {copied ? "Copied" : "Copy"}
         </Button>
-      </div>
-      <pre className={styles.markdownCodeblockPre}>
-        <code className={className}>
-          {highlightedSegments.map((segment) => {
-            const key = `${segment.className ?? "plain"}:${highlightedOffset}`;
-            highlightedOffset += segment.text.length;
-            return segment.className ? (
-              <span key={key} className={segment.className}>
-                {segment.text}
-              </span>
-            ) : (
-              <span key={key}>{segment.text}</span>
-            );
-          })}
-        </code>
-      </pre>
-    </div>
+      }
+      bodyClassName={styles.markdownCodeblockPre}
+    >
+      <code className={className}>
+        {highlightedSegments.map((segment) => {
+          const key = `${segment.className ?? "plain"}:${highlightedOffset}`;
+          highlightedOffset += segment.text.length;
+          return segment.className ? (
+            <span key={key} className={segment.className}>
+              {segment.text}
+            </span>
+          ) : (
+            <span key={key}>{segment.text}</span>
+          );
+        })}
+      </code>
+    </CodeBlockSurface>
   );
 }
 
@@ -767,46 +773,26 @@ export function Markdown({
       );
     },
     table: ({ node: _node, className: tableClassName, children, ...props }) => (
-      <div className={styles.markdownTableScroll} data-markdown-table-container="true">
-        <table
-          {...props}
-          className={joinClassNames(styles.markdownTable, tableClassName)}
-          data-testid="markdown-table"
-        >
-          {children}
-        </table>
-      </div>
-    ),
-    thead: ({ node: _node, className: headClassName, children, ...props }) => (
-      <thead {...props} className={joinClassNames(styles.markdownTableHead, headClassName)}>
-        {children}
-      </thead>
-    ),
-    tbody: ({ node: _node, className: bodyClassName, children, ...props }) => (
-      <tbody {...props} className={joinClassNames(styles.markdownTableBody, bodyClassName)}>
-        {children}
-      </tbody>
-    ),
-    tr: ({ node: _node, className: rowClassName, children, ...props }) => (
-      <tr {...props} className={joinClassNames(styles.markdownTableRow, rowClassName)}>
-        {children}
-      </tr>
-    ),
-    th: ({ node: _node, className: cellClassName, style: tableStyle, children, ...props }) => (
-      <th
-        {...props}
-        className={joinClassNames(styles.markdownTableHeaderCell, cellClassName)}
-        data-markdown-align={resolveMarkdownTableAlignment(tableStyle)}
+      <DataTableSurface
+        tableProps={{
+          ...props,
+          className: tableClassName,
+          "data-testid": "markdown-table",
+        }}
       >
+        {children}
+      </DataTableSurface>
+    ),
+    thead: ({ node: _node, children, ...props }) => <thead {...props}>{children}</thead>,
+    tbody: ({ node: _node, children, ...props }) => <tbody {...props}>{children}</tbody>,
+    tr: ({ node: _node, children, ...props }) => <tr {...props}>{children}</tr>,
+    th: ({ node: _node, style: tableStyle, children, ...props }) => (
+      <th {...props} data-markdown-align={resolveMarkdownTableAlignment(tableStyle)}>
         {children}
       </th>
     ),
-    td: ({ node: _node, className: cellClassName, style: tableStyle, children, ...props }) => (
-      <td
-        {...props}
-        className={joinClassNames(styles.markdownTableCell, cellClassName)}
-        data-markdown-align={resolveMarkdownTableAlignment(tableStyle)}
-      >
+    td: ({ node: _node, style: tableStyle, children, ...props }) => (
+      <td {...props} data-markdown-align={resolveMarkdownTableAlignment(tableStyle)}>
         {children}
       </td>
     ),
@@ -837,7 +823,7 @@ export function Markdown({
   }
 
   return (
-    <div className={className}>
+    <RichContent className={joinClassNames(styles.markdown, className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkFileLinks, skillReferenceRemarkPlugin]}
         urlTransform={(url) => {
@@ -864,6 +850,6 @@ export function Markdown({
       >
         {content}
       </ReactMarkdown>
-    </div>
+    </RichContent>
   );
 }

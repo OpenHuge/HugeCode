@@ -15,6 +15,106 @@ fn summarize_run(summary: &AgentTaskSummary) -> Option<String> {
         .find_map(|step| trim_to_option(Some(step.message.as_str())))
 }
 
+fn build_runtime_source_citations(
+    summary: &AgentTaskSummary,
+    workspace_roots_by_id: &HashMap<String, String>,
+) -> Vec<Value> {
+    let mut citations = Vec::new();
+    if workspace_roots_by_id.contains_key(summary.workspace_id.as_str()) {
+        citations.push(json!({
+            "id": "repo-agents-md",
+            "label": "AGENTS.md",
+            "url": Value::Null,
+            "sourceKind": "repo_doc",
+            "trustLevel": "primary",
+            "claimSummary": "Runtime should keep unattended work aligned with repo-owned instructions.",
+        }));
+    }
+    if let Some(task_source) = summary.task_source.as_ref() {
+        citations.push(json!({
+            "id": "task-source",
+            "label": task_source
+                .label
+                .clone()
+                .or(task_source.title.clone())
+                .unwrap_or_else(|| "Task source".to_string()),
+            "url": task_source.url.clone(),
+            "sourceKind": "task_source",
+            "trustLevel": if task_source.url.is_some() { "primary" } else { "runtime" },
+            "claimSummary": task_source
+                .reference
+                .clone()
+                .or(task_source.title.clone())
+                .unwrap_or_else(|| "Task source provided the current mission framing.".to_string()),
+        }));
+    }
+    citations
+}
+
+fn derive_selected_opportunity_id(summary: &AgentTaskSummary) -> Option<String> {
+    summary
+        .auto_drive
+        .as_ref()
+        .and_then(|auto_drive| auto_drive.decision_trace.as_ref())
+        .and_then(|trace| trim_to_option(trace.selected_candidate_id.as_deref()))
+        .or_else(|| {
+            summary
+                .auto_drive
+                .as_ref()
+                .map(|_| "opportunity-primary".to_string())
+        })
+}
+
+fn derive_wake_reason(runtime: &AgentTaskRuntime, run_state: &str) -> Option<String> {
+    if let Some(reason) = runtime
+        .summary
+        .auto_drive
+        .as_ref()
+        .and_then(|auto_drive| auto_drive.stop.as_ref())
+        .and_then(|stop| trim_to_option(Some(stop.reason.as_str())))
+    {
+        return Some(reason);
+    }
+    if runtime.summary.pending_approval.is_some() {
+        return Some("approval_required".to_string());
+    }
+    match run_state {
+        "needs_input" => Some("operator_input_required".to_string()),
+        "failed" => Some("validation_or_execution_failure".to_string()),
+        "review_ready" => Some("review_pack_ready".to_string()),
+        "paused" => Some("paused_for_runtime_gate".to_string()),
+        _ => None,
+    }
+}
+
+fn derive_wake_state(run_state: &str, wake_reason: Option<&str>) -> Option<String> {
+    Some(match run_state {
+        "review_ready" => "ready".to_string(),
+        "failed" => "blocked".to_string(),
+        "needs_input" | "paused" => "attention".to_string(),
+        _ if wake_reason.is_some() => "attention".to_string(),
+        _ => return None,
+    })
+}
+
+fn derive_next_eligible_action(run_state: &str, wake_reason: Option<&str>) -> Option<String> {
+    Some(match run_state {
+        "review_ready" => "approve".to_string(),
+        "failed" => "reroute".to_string(),
+        "needs_input" => "clarify".to_string(),
+        "paused" => "continue".to_string(),
+        _ if wake_reason == Some("approval_required") => "pair".to_string(),
+        _ => return None,
+    })
+}
+
+fn derive_queue_position(run_state: &str) -> Option<u32> {
+    match run_state {
+        "review_ready" | "needs_input" | "paused" | "failed" => Some(1),
+        _ => None,
+    }
+}
+
 fn build_sub_agent_execution_node(
     graph_id: &str,
     sub_agent: &MissionRunSubAgentSummary,
@@ -402,6 +502,12 @@ pub(crate) fn project_runtime_task_to_run(
         publish_handoff.as_ref(),
         relaunch_context_value.as_ref(),
     ));
+    let selected_opportunity_id = derive_selected_opportunity_id(summary);
+    let wake_reason = derive_wake_reason(runtime, run_state.as_str());
+    let wake_state = derive_wake_state(run_state.as_str(), wake_reason.as_deref());
+    let next_eligible_action =
+        derive_next_eligible_action(run_state.as_str(), wake_reason.as_deref());
+    let source_citations = build_runtime_source_citations(summary, workspace_roots_by_id);
     MissionRunProjection {
         id: summary.task_id.clone(),
         task_id: mission_task_id,
@@ -452,6 +558,16 @@ pub(crate) fn project_runtime_task_to_run(
         relaunch_context: relaunch_context_value,
         sub_agents,
         publish_handoff,
+        selected_opportunity_id,
+        wake_reason,
+        wake_state,
+        source_citations: if source_citations.is_empty() {
+            None
+        } else {
+            Some(source_citations)
+        },
+        queue_position: derive_queue_position(run_state.as_str()),
+        next_eligible_action,
     }
 }
 
@@ -767,5 +883,11 @@ pub(crate) fn build_review_pack(run: &MissionRunProjection) -> MissionReviewPack
         relaunch_options,
         sub_agent_summary,
         publish_handoff,
+        selected_opportunity_id: run.selected_opportunity_id.clone(),
+        wake_reason: run.wake_reason.clone(),
+        wake_state: run.wake_state.clone(),
+        source_citations: run.source_citations.clone(),
+        queue_position: run.queue_position,
+        next_eligible_action: run.next_eligible_action.clone(),
     }
 }

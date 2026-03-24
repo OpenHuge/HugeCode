@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { flushBrowserMicrotasks } from "../../../../test/asyncTestUtils";
 import { ReviewLoopClosureFixture } from "./ReviewLoopClosureFixture";
 
 vi.mock("../../../../application/runtime/facades/runtimeRunRecordTruth", () => ({
@@ -12,8 +13,9 @@ vi.mock("../../../../application/runtime/facades/runtimeRunRecordTruth", () => (
 }));
 
 describe("ReviewLoopClosureFixture", () => {
-  it("renders the unified review-loop acceptance surface", () => {
+  it("renders the unified review-loop acceptance surface", async () => {
     render(<ReviewLoopClosureFixture />);
+    await flushBrowserMicrotasks();
 
     expect(screen.getAllByText(/Mission triage/i).length).toBeGreaterThan(0);
     expect(screen.getByText("Fallback routing review")).toBeTruthy();

@@ -108,6 +108,19 @@ function readScheduleBoolean(record: Record<string, unknown>, ...keys: string[])
   return null;
 }
 
+function readScheduleObject(
+  record: Record<string, unknown>,
+  ...keys: string[]
+): Record<string, unknown> | null {
+  for (const key of keys) {
+    const value = record[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+  }
+  return null;
+}
+
 function readScheduleStringArray(record: Record<string, unknown>, ...keys: string[]): string[] {
   for (const key of keys) {
     const value = record[key];
@@ -183,6 +196,11 @@ function mapNativeScheduleToDraft(
   schedule: NativeScheduleRecord,
   defaultBackendId: string | null
 ): SettingsAutomationScheduleDraft {
+  const autonomyRequest = readScheduleObject(schedule, "autonomyRequest", "autonomy_request") ?? {};
+  const wakePolicy = readScheduleObject(autonomyRequest, "wakePolicy", "wake_policy") ?? {};
+  const researchPolicy =
+    readScheduleObject(autonomyRequest, "researchPolicy", "research_policy") ?? {};
+  const queueBudget = readScheduleObject(autonomyRequest, "queueBudget", "queue_budget") ?? {};
   return {
     name: readScheduleText(schedule, "name") ?? schedule.id,
     prompt: readScheduleText(schedule, "prompt", "taskPrompt", "instructions") ?? "",
@@ -192,6 +210,37 @@ function mapNativeScheduleToDraft(
     validationPresetId:
       readScheduleText(schedule, "validationPresetId", "validation_preset_id") ?? "",
     enabled: schedule.enabled !== false,
+    autonomyProfile:
+      readScheduleText(schedule, "autonomyProfile", "autonomy_profile") ??
+      readScheduleText(autonomyRequest, "autonomyProfile", "autonomy_profile") ??
+      "night_operator",
+    sourceScope:
+      readScheduleText(schedule, "sourceScope", "source_scope") ??
+      readScheduleText(autonomyRequest, "sourceScope", "source_scope") ??
+      "workspace_graph",
+    wakePolicy:
+      readScheduleText(
+        schedule,
+        "wakePolicy",
+        "wake_policy",
+        "wakePolicyMode",
+        "wake_policy_mode"
+      ) ??
+      readScheduleText(wakePolicy, "mode") ??
+      "auto_queue",
+    researchPolicy:
+      readScheduleText(schedule, "researchPolicy", "research_policy") ??
+      readScheduleText(researchPolicy, "mode") ??
+      "repository_only",
+    queueBudget: String(
+      readScheduleNumber(schedule, "queueBudget", "queue_budget") ??
+        readScheduleNumber(queueBudget, "maxQueuedActions", "max_queued_actions") ??
+        2
+    ),
+    safeFollowUp:
+      readScheduleBoolean(schedule, "safeFollowUp", "safe_follow_up") ??
+      readScheduleBoolean(wakePolicy, "safeFollowUp", "safe_follow_up") ??
+      true,
   };
 }
 
@@ -203,6 +252,14 @@ function buildNativeSchedulePayload(
   const cadence = normalizeScheduleText(draft.cadence);
   const reviewProfileId = normalizeScheduleText(draft.reviewProfileId);
   const validationPresetId = normalizeScheduleText(draft.validationPresetId);
+  const autonomyProfile = normalizeScheduleText(draft.autonomyProfile) ?? "night_operator";
+  const sourceScope = normalizeScheduleText(draft.sourceScope) ?? "workspace_graph";
+  const wakePolicyMode = normalizeScheduleText(draft.wakePolicy) ?? "auto_queue";
+  const researchPolicyMode = normalizeScheduleText(draft.researchPolicy) ?? "repository_only";
+  const queueBudget =
+    normalizeScheduleNumber(draft.queueBudget) ??
+    normalizeScheduleNumber(existing?.queueBudget) ??
+    2;
   const existingStatus = readScheduleText(existing ?? {}, "status");
 
   return {
@@ -216,6 +273,41 @@ function buildNativeSchedulePayload(
     preferredBackendIds: backendId ? [backendId] : [],
     reviewProfileId,
     validationPresetId,
+    autonomyProfile,
+    sourceScope,
+    wakePolicy: wakePolicyMode,
+    researchPolicy: researchPolicyMode,
+    queueBudget,
+    safeFollowUp: draft.safeFollowUp,
+    autonomyRequest: {
+      autonomyProfile,
+      sourceScope,
+      queueBudget: {
+        maxQueuedActions: queueBudget,
+        maxAutoContinuations: queueBudget,
+      },
+      wakePolicy: {
+        mode: wakePolicyMode,
+        safeFollowUp: draft.safeFollowUp,
+        allowAutomaticContinuation: draft.enabled,
+        allowedActions: ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+        stopGates: [
+          "destructive_change_requires_review",
+          "dependency_change_requires_review",
+          "validation_failure_requires_review",
+        ],
+        queueBudget: {
+          maxQueuedActions: queueBudget,
+          maxAutoContinuations: queueBudget,
+        },
+      },
+      researchPolicy: {
+        mode: researchPolicyMode,
+        allowNetworkAnalysis: researchPolicyMode !== "repository_only",
+        requireCitations: true,
+        allowPrivateContextStage: researchPolicyMode === "staged",
+      },
+    },
     enabled: draft.enabled,
     triggerSourceLabel:
       readScheduleText(existing ?? {}, "triggerSourceLabel", "trigger_source_label") ?? "schedule",
@@ -232,6 +324,11 @@ function mapNativeScheduleToSummary(
   schedule: NativeScheduleRecord,
   backendOptions: Array<{ id: string; label: string }>
 ): SettingsAutomationScheduleSummary {
+  const autonomyRequest = readScheduleObject(schedule, "autonomyRequest", "autonomy_request") ?? {};
+  const wakePolicy = readScheduleObject(autonomyRequest, "wakePolicy", "wake_policy") ?? {};
+  const researchPolicy =
+    readScheduleObject(autonomyRequest, "researchPolicy", "research_policy") ?? {};
+  const queueBudget = readScheduleObject(autonomyRequest, "queueBudget", "queue_budget") ?? {};
   const backendId = resolveAutomationBackendId(schedule);
   const backendLabel =
     readScheduleText(
@@ -282,7 +379,34 @@ function mapNativeScheduleToSummary(
       readScheduleText(schedule, "triggerSourceLabel", "trigger_source_label") ?? "schedule",
     blockingReason:
       readScheduleText(schedule, "blockingReason", "blockReason", "lastError") ?? null,
-    safeFollowUp: readScheduleBoolean(schedule, "safeFollowUp", "safe_follow_up"),
+    safeFollowUp:
+      readScheduleBoolean(schedule, "safeFollowUp", "safe_follow_up") ??
+      readScheduleBoolean(wakePolicy, "safeFollowUp", "safe_follow_up"),
+    autonomyProfile:
+      readScheduleText(schedule, "autonomyProfile", "autonomy_profile") ??
+      readScheduleText(autonomyRequest, "autonomyProfile", "autonomy_profile") ??
+      null,
+    sourceScope:
+      readScheduleText(schedule, "sourceScope", "source_scope") ??
+      readScheduleText(autonomyRequest, "sourceScope", "source_scope") ??
+      null,
+    wakePolicy:
+      readScheduleText(
+        schedule,
+        "wakePolicy",
+        "wake_policy",
+        "wakePolicyMode",
+        "wake_policy_mode"
+      ) ??
+      readScheduleText(wakePolicy, "mode") ??
+      null,
+    researchPolicy:
+      readScheduleText(schedule, "researchPolicy", "research_policy") ??
+      readScheduleText(researchPolicy, "mode") ??
+      null,
+    queueBudget:
+      readScheduleNumber(schedule, "queueBudget", "queue_budget") ??
+      readScheduleNumber(queueBudget, "maxQueuedActions", "max_queued_actions"),
   };
 }
 

@@ -1734,7 +1734,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("button", { name: "Resume recoverable runs (0)" })).toBeTruthy();
       expect(
         screen.getByText(
-          /Continuity \(handoff\): Continue from thread-handoff-only on another control device\./
+          /Continuity \(handoff via Runtime mission linkage\): Continue from thread-handoff-only on another control device\./
         )
       ).toBeTruthy();
     });
@@ -1795,7 +1795,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("button", { name: "Resume recoverable runs (1)" })).toBeTruthy();
       expect(
         screen.getByText(
-          /Continuity \(resume\): Runtime takeover bundle published the canonical resume path\./
+          /Continuity \(resume via Runtime takeover bundle\): Runtime takeover bundle published the canonical resume path\./
         )
       ).toBeTruthy();
     });

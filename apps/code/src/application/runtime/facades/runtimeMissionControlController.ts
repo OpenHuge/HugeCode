@@ -395,6 +395,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimeLaunchPreparation: runtimeLaunchPreview.preparation,
     runtimeLaunchPreparationError: runtimeLaunchPreview.error,
     runtimeLaunchPreparationLoading: runtimeLaunchPreview.loading,
+    runtimeLaunchPreparationTruthSourceLabel: runtimeLaunchPreview.truthSourceLabel,
     resumeRecoverableTasks,
     runtimeDraftInstruction: draft.runtimeDraftInstruction,
     setRuntimeDraftInstruction: draft.setRuntimeDraftInstruction,

@@ -85,7 +85,7 @@ describe("useThreadStorage", () => {
     });
   });
 
-  it("records thread activity and persists updates", () => {
+  it("records thread activity and persists updates", async () => {
     vi.mocked(loadThreadActivity).mockReturnValue({});
     vi.mocked(loadPinnedThreads).mockReturnValue({});
     vi.mocked(readPersistedThreadStorageState).mockResolvedValue({
@@ -95,6 +95,10 @@ describe("useThreadStorage", () => {
     vi.mocked(loadCustomNames).mockReturnValue({});
 
     const { result } = renderHook(() => useThreadStorage());
+
+    await waitFor(() => {
+      expect(result.current.threadSnapshotsReady).toBe(true);
+    });
 
     act(() => {
       result.current.recordThreadActivity("ws-2", "thread-9", 999);
@@ -108,7 +112,7 @@ describe("useThreadStorage", () => {
     });
   });
 
-  it("pins and unpins threads while updating persistence", () => {
+  it("pins and unpins threads while updating persistence", async () => {
     vi.mocked(loadThreadActivity).mockReturnValue({});
     vi.mocked(loadPinnedThreads).mockReturnValue({});
     vi.mocked(readPersistedThreadStorageState).mockResolvedValue({
@@ -118,6 +122,10 @@ describe("useThreadStorage", () => {
     vi.mocked(loadCustomNames).mockReturnValue({});
 
     const { result } = renderHook(() => useThreadStorage());
+
+    await waitFor(() => {
+      expect(result.current.threadSnapshotsReady).toBe(true);
+    });
 
     let pinResult = false;
     act(() => {

@@ -959,6 +959,12 @@ export type HugeCodeRun = {
   publishHandoff?: HugeCodePublishHandoffReference | null;
   takeoverBundle?: HugeCodeTakeoverBundle | null;
   executionGraph?: HugeCodeExecutionGraphSummary | null;
+  selectedOpportunityId?: string | null;
+  wakeReason?: string | null;
+  wakeState?: HugeCodeWakeState | null;
+  sourceCitations?: HugeCodeSourceCitation[] | null;
+  queuePosition?: number | null;
+  nextEligibleAction?: HugeCodeNextEligibleAction | null;
 };
 
 export type HugeCodeExecutionProfile = {
@@ -1034,6 +1040,25 @@ export type HugeCodeRunNextAction = {
   detail: string | null;
 };
 
+export type HugeCodeWakeState = "ready" | "attention" | "blocked";
+
+export type HugeCodeNextEligibleAction =
+  | "continue"
+  | "approve"
+  | "clarify"
+  | "reroute"
+  | "pair"
+  | "hold";
+
+export type HugeCodeSourceCitation = {
+  id: string;
+  label: string;
+  url?: string | null;
+  sourceKind: "repo_doc" | "task_source" | "public_web" | "runtime_log";
+  trustLevel: "primary" | "runtime" | "derived";
+  claimSummary: string;
+};
+
 export type HugeCodeReviewPack = {
   id: string;
   runId: string;
@@ -1081,6 +1106,12 @@ export type HugeCodeReviewPack = {
   subAgentSummary?: HugeCodeSubAgentSummary[] | null;
   publishHandoff?: HugeCodePublishHandoffReference | null;
   takeoverBundle?: HugeCodeTakeoverBundle | null;
+  selectedOpportunityId?: string | null;
+  wakeReason?: string | null;
+  wakeState?: HugeCodeWakeState | null;
+  sourceCitations?: HugeCodeSourceCitation[] | null;
+  queuePosition?: number | null;
+  nextEligibleAction?: HugeCodeNextEligibleAction | null;
 };
 
 export type HugeCodeTaskSummary = Pick<
@@ -1156,6 +1187,12 @@ export type HugeCodeRunSummary = Pick<
   | "publishHandoff"
   | "takeoverBundle"
   | "executionGraph"
+  | "selectedOpportunityId"
+  | "wakeReason"
+  | "wakeState"
+  | "sourceCitations"
+  | "queuePosition"
+  | "nextEligibleAction"
 >;
 
 export type HugeCodeReviewPackSummary = Pick<
@@ -1203,6 +1240,12 @@ export type HugeCodeReviewPackSummary = Pick<
   | "subAgentSummary"
   | "publishHandoff"
   | "takeoverBundle"
+  | "selectedOpportunityId"
+  | "wakeReason"
+  | "wakeState"
+  | "sourceCitations"
+  | "queuePosition"
+  | "nextEligibleAction"
 >;
 
 export type HugeCodeMissionControlSnapshot = {

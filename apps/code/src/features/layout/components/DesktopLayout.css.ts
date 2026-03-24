@@ -48,6 +48,25 @@ export const workspaceShell = style({
   },
 });
 
+const overlayToggleBase = {
+  position: "absolute" as const,
+  top: "calc(var(--shell-chrome-inset-top, 10px) + 6px)",
+  zIndex: 5,
+  display: "flex",
+  alignItems: "center",
+  pointerEvents: "auto" as const,
+};
+
+export const sidebarExpandToggle = style({
+  ...overlayToggleBase,
+  left: "var(--main-panel-padding, 12px)",
+});
+
+export const rightPanelExpandToggle = style({
+  ...overlayToggleBase,
+  right: "var(--main-panel-padding, 12px)",
+});
+
 const mainShellBase = {
   display: "grid",
   gridTemplateRows: "var(--main-topbar-height, 48px) minmax(0, 1fr) auto auto auto",
