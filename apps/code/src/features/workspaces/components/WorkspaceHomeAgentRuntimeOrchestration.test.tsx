@@ -1748,6 +1748,13 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByText(/Review blocked: 1/)).toBeTruthy();
       expect(screen.getByText("Priority continuity queue")).toBeTruthy();
       expect(screen.getByText("Path: review via Runtime review actionability")).toBeTruthy();
+      expect(screen.getByText("Continue in: Review Pack")).toBeTruthy();
+      expect(
+        screen.getByText("Route target: Review Pack review-pack:runtime-review-blocked")
+      ).toBeTruthy();
+      expect(
+        screen.getByText("Runtime evidence: Review Pack review-pack:runtime-review-blocked")
+      ).toBeTruthy();
       expect(
         screen.getAllByText("Review cannot continue until runtime evidence is restored.").length
       ).toBeGreaterThan(0);
@@ -1804,6 +1811,11 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByText("Priority continuity queue")).toBeTruthy();
       expect(screen.getAllByText("Handoff only").length).toBeGreaterThan(0);
       expect(screen.getByText("Path: handoff via Runtime mission linkage")).toBeTruthy();
+      expect(screen.getByText("Continue in: Mission thread")).toBeTruthy();
+      expect(screen.getByText("Route target: Thread thread-handoff-only")).toBeTruthy();
+      expect(
+        screen.getByText("Runtime evidence: Review Pack review-pack:runtime-handoff-only")
+      ).toBeTruthy();
       expect(
         screen.getByText(
           "Next step: Use the runtime-published handoff or navigation target instead of rebuilding recovery locally."

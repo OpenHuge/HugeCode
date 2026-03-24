@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
+import { resolveContinuationPathLabel } from "../../../application/runtime/facades/runtimeContinuationTruth";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
 import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
@@ -13,6 +15,7 @@ import {
   parseRuntimeBatchPreviewState,
 } from "./WorkspaceHomeAgentRuntimeOrchestration.helpers";
 import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";
+import { isBlockingSubAgentStatus } from "../../../utils/subAgentStatus";
 
 type WorkspaceHomeAgentRuntimeOrchestrationProps = {
   workspaceId: string;
@@ -31,6 +34,82 @@ function formatPolicyList(values: string[] | undefined, fallback: string): strin
     return fallback;
   }
   return values.join(", ");
+}
+
+function buildContinuityRouteTargetLabel(run: HugeCodeRunSummary | undefined): string | null {
+  const takeoverTarget = run?.takeoverBundle?.target ?? null;
+  if (takeoverTarget?.kind === "thread") {
+    return `Thread ${takeoverTarget.threadId}`;
+  }
+  if (takeoverTarget?.kind === "review_pack") {
+    return `Review Pack ${takeoverTarget.reviewPackId}`;
+  }
+  if (takeoverTarget?.kind === "run") {
+    return `Run ${takeoverTarget.runId}`;
+  }
+  if (takeoverTarget?.kind === "sub_agent_session") {
+    return `Sub-agent session ${takeoverTarget.sessionId}`;
+  }
+
+  const navigationTarget = run?.missionLinkage?.navigationTarget ?? null;
+  if (navigationTarget?.kind === "thread") {
+    return `Thread ${navigationTarget.threadId}`;
+  }
+  if (navigationTarget?.kind === "run") {
+    return `Run ${navigationTarget.runId}`;
+  }
+
+  const reviewPackId =
+    run?.takeoverBundle?.reviewPackId ??
+    run?.reviewPackId ??
+    run?.missionLinkage?.reviewPackId ??
+    null;
+  if (reviewPackId) {
+    return `Review Pack ${reviewPackId}`;
+  }
+
+  return null;
+}
+
+function buildContinuityEvidenceSummary(run: HugeCodeRunSummary | undefined): string | null {
+  const evidence: string[] = [];
+  const checkpointId =
+    run?.takeoverBundle?.checkpointId ??
+    run?.checkpoint?.checkpointId ??
+    run?.missionLinkage?.checkpointId;
+  const traceId =
+    run?.takeoverBundle?.traceId ?? run?.checkpoint?.traceId ?? run?.missionLinkage?.traceId;
+  const reviewPackId =
+    run?.takeoverBundle?.reviewPackId ??
+    run?.reviewPackId ??
+    run?.missionLinkage?.reviewPackId ??
+    null;
+  const publishBranch =
+    run?.publishHandoff?.branchName ?? run?.takeoverBundle?.publishHandoff?.branchName;
+
+  if (checkpointId) {
+    evidence.push(`Checkpoint ${checkpointId}`);
+  }
+  if (traceId) {
+    evidence.push(`Trace ${traceId}`);
+  }
+  if (reviewPackId) {
+    evidence.push(`Review Pack ${reviewPackId}`);
+  }
+  if (publishBranch) {
+    evidence.push(`Publish branch ${publishBranch}`);
+  }
+
+  return evidence.length > 0 ? evidence.join(" | ") : null;
+}
+
+function hasDelegatedSessionObservability(run: HugeCodeRunSummary): boolean {
+  return Boolean(
+    (run.subAgents?.length ?? 0) > 0 ||
+    run.operatorSnapshot?.currentActivity ||
+    run.operatorSnapshot?.blocker ||
+    (run.operatorSnapshot?.recentEvents?.length ?? 0) > 0
+  );
 }
 
 export function WorkspaceHomeAgentRuntimeOrchestration({
@@ -124,17 +203,80 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   }, [runtimeBatchPreview.tasks]);
   const continuityPriorityItems = useMemo(
     () =>
-      continuityReadiness.items.slice(0, 3).map((item) => ({
-        ...item,
-        title:
-          projectedRunsByTaskId.get(item.taskId)?.title?.trim() ||
-          visibleRuntimeRuns
-            .find((entry) => entry.task.taskId === item.taskId)
-            ?.task.title?.trim() ||
-          item.taskId,
-      })),
+      continuityReadiness.items.slice(0, 3).map((item) => {
+        const run = projectedRunsByTaskId.get(item.taskId);
+        return {
+          ...item,
+          run,
+          title:
+            run?.title?.trim() ||
+            visibleRuntimeRuns
+              .find((entry) => entry.task.taskId === item.taskId)
+              ?.task.title?.trim() ||
+            item.taskId,
+          pathLabel: resolveContinuationPathLabel({
+            takeoverBundle: run?.takeoverBundle ?? null,
+            missionLinkage: run?.missionLinkage ?? null,
+          }),
+          routeTargetLabel: buildContinuityRouteTargetLabel(run),
+          evidenceSummary: buildContinuityEvidenceSummary(run),
+        };
+      }),
     [continuityReadiness.items, projectedRunsByTaskId, visibleRuntimeRuns]
   );
+  const delegatedAttentionItems = useMemo(
+    () =>
+      Array.from(projectedRunsByTaskId.values())
+        .filter(hasDelegatedSessionObservability)
+        .map((run) => {
+          const subAgents = run.subAgents ?? [];
+          const activeSessionCount = subAgents.filter((agent) =>
+            ["running", "pending", "waiting"].includes(agent.status)
+          ).length;
+          const attentionSessionCount = subAgents.filter((agent) =>
+            isBlockingSubAgentStatus(agent.status)
+          ).length;
+          const resumeReadySessionCount = subAgents.filter(
+            (agent) =>
+              agent.checkpointState?.resumeReady === true ||
+              agent.takeoverBundle?.pathKind === "resume"
+          ).length;
+          return {
+            runId: run.id,
+            title: run.title?.trim() || run.taskId,
+            summary:
+              run.operatorSnapshot?.summary ??
+              (subAgents.length > 0
+                ? `${subAgents.length} delegated session${subAgents.length === 1 ? "" : "s"} are publishing runtime state.`
+                : "Runtime published delegated-session trajectory for this run."),
+            activeSessionCount,
+            attentionSessionCount,
+            resumeReadySessionCount,
+            currentActivity: run.operatorSnapshot?.currentActivity ?? null,
+            blocker:
+              run.operatorSnapshot?.blocker ??
+              subAgents.find((agent) => isBlockingSubAgentStatus(agent.status))?.summary ??
+              null,
+            updatedAt: run.updatedAt,
+          };
+        })
+        .sort(
+          (left, right) =>
+            right.attentionSessionCount - left.attentionSessionCount ||
+            right.activeSessionCount - left.activeSessionCount ||
+            right.updatedAt - left.updatedAt
+        )
+        .slice(0, 3),
+    [projectedRunsByTaskId]
+  );
+  const delegatedAttentionRunCount = delegatedAttentionItems.length;
+  const delegatedAttentionActiveSessions = delegatedAttentionItems.reduce(
+    (total, item) => total + item.activeSessionCount,
+    0
+  );
+  const delegatedAttentionBlockingRuns = delegatedAttentionItems.filter(
+    (item) => item.attentionSessionCount > 0 || item.blocker
+  ).length;
   const repositoryPolicyLabel = formatPolicyValue(
     repositoryExecutionContract?.metadata?.label,
     "Repository policy defaults"
@@ -333,6 +475,13 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                     <span>
                       Path: {item.pathKind} via {item.truthSourceLabel}
                     </span>
+                    <span>Continue in: {item.pathLabel}</span>
+                    {item.routeTargetLabel ? (
+                      <span>Route target: {item.routeTargetLabel}</span>
+                    ) : null}
+                    {item.evidenceSummary ? (
+                      <span>Runtime evidence: {item.evidenceSummary}</span>
+                    ) : null}
                     <span>{item.detail}</span>
                     <span>Next step: {item.recommendedAction}</span>
                   </div>
@@ -444,6 +593,69 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
       {runtimeError && <div className={controlStyles.error}>{runtimeError}</div>}
       {runtimeInfo && <div className={controlStyles.sectionMeta}>{runtimeInfo}</div>}
 
+      <MissionControlSectionCard
+        title="Delegated attention"
+        statusLabel={
+          delegatedAttentionBlockingRuns > 0
+            ? "Attention"
+            : delegatedAttentionRunCount > 0
+              ? "Active"
+              : "Clear"
+        }
+        statusTone={
+          delegatedAttentionBlockingRuns > 0
+            ? "warning"
+            : delegatedAttentionRunCount > 0
+              ? "running"
+              : "success"
+        }
+        meta={
+          <>
+            <ToolCallChip tone="neutral">Runs {delegatedAttentionRunCount}</ToolCallChip>
+            <ToolCallChip tone="neutral">
+              Active sessions {delegatedAttentionActiveSessions}
+            </ToolCallChip>
+          </>
+        }
+      >
+        {delegatedAttentionItems.length > 0 ? (
+          <div className="workspace-home-code-runtime-list">
+            {delegatedAttentionItems.map((item) => (
+              <div
+                key={`delegated-attention:${item.runId}`}
+                className="workspace-home-code-runtime-item"
+              >
+                <div className="workspace-home-code-runtime-item-main">
+                  <strong>{item.title}</strong>
+                  <span>{item.summary}</span>
+                  <span>
+                    Delegated sessions: active {item.activeSessionCount} | attention{" "}
+                    {item.attentionSessionCount} | resume ready {item.resumeReadySessionCount}
+                  </span>
+                  {item.currentActivity ? (
+                    <span>Current activity: {item.currentActivity}</span>
+                  ) : null}
+                  {item.blocker ? <span>Blocker: {item.blocker}</span> : null}
+                  <span>
+                    Open the matching run below for full delegated-session observability and
+                    intervention controls.
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="workspace-home-code-runtime-item">
+            <div className="workspace-home-code-runtime-item-main">
+              <strong>No delegated-session attention right now.</strong>
+              <span>
+                Runs that publish sub-agent snapshots, blockers, or delegated trajectory events will
+                appear here ahead of the filtered run list.
+              </span>
+            </div>
+          </div>
+        )}
+      </MissionControlSectionCard>
       <MissionControlSectionCard
         title="Launch readiness"
         statusLabel={launchReadiness.launchAllowed ? "Ready" : "Blocked"}
