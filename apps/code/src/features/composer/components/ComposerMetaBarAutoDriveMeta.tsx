@@ -95,6 +95,21 @@ type AutoDriveView = {
       backgroundSafe: boolean | null;
       humanInterventionHotspots: string[];
     } | null;
+    runtimeContinuationState?: {
+      automaticFollowUpCount: number;
+      status: "idle" | "continuing" | "stopped";
+      lastContinuationAt: number | null;
+      lastContinuationReason: string | null;
+    } | null;
+    lastChatgptDecisionLab?: {
+      recommendedOptionId: string | null;
+      recommendedOption: string | null;
+      alternativeOptionIds: string[];
+      decisionMemo: string | null;
+      confidence: "low" | "medium" | "high" | null;
+      assumptions: string[];
+      followUpQuestions: string[];
+    } | null;
   } | null;
   onToggleEnabled: (enabled: boolean) => void;
 };
@@ -126,6 +141,8 @@ type AutoDrivePresentation = {
   summaryState: "off" | "on" | "running" | "paused" | "arrived" | "stopped" | "failed";
   summaryLine: string;
   isBreathing: boolean;
+  browserLaneLabel: string | null;
+  decisionLabLabel: string | null;
 };
 
 function isRuntimeManagedAutoDriveSource(source: string | null | undefined): boolean {
@@ -238,6 +255,117 @@ function formatRouteStateLabel(run: NonNullable<AutoDriveView["run"]>): string {
     return "Rerouting";
   }
   return run.offRoute ? "Off route" : "On route";
+}
+
+function isBrowserReproFixVerifyScenario(run: NonNullable<AutoDriveView["run"]>): boolean {
+  return run.runtimeScenarioProfile?.scenarioKeys.includes("browser_repro_fix_verify") ?? false;
+}
+
+function matchesBrowserBlockedSignal(value: string | null | undefined): boolean {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return false;
+  }
+  return /browser session blocked|chatgpt login|browser unavailable|login required|auth(entication)? required|workspace deactivated/i.test(
+    normalized
+  );
+}
+
+function extractBrowserBlockedReason(run: NonNullable<AutoDriveView["run"]>): string | null {
+  const candidates = [
+    run.runtimeOutcomeFeedback?.summary,
+    run.runtimeOutcomeFeedback?.failureClass,
+    run.stopReason,
+    run.runtimeContinuationState?.lastContinuationReason,
+  ];
+  for (const candidate of candidates) {
+    if (matchesBrowserBlockedSignal(candidate)) {
+      return candidate?.trim() ?? null;
+    }
+  }
+  return null;
+}
+
+function extractBrowserGapReason(run: NonNullable<AutoDriveView["run"]>): string | null {
+  const candidates = [
+    run.runtimeContinuationState?.lastContinuationReason,
+    run.runtimeOutcomeFeedback?.summary,
+    run.stopReason,
+  ];
+  for (const candidate of candidates) {
+    const normalized = candidate?.trim();
+    if (!normalized) {
+      continue;
+    }
+    if (
+      /browser verification gap remains|rerun .*real browser path|confirm the real browser path/i.test(
+        normalized
+      )
+    ) {
+      return normalized;
+    }
+  }
+  return null;
+}
+
+type BrowserFixLoopPresentation = {
+  headline: string;
+  detail: string;
+  summaryState: AutoDrivePresentation["summaryState"];
+  browserLaneLabel: string;
+  summaryLine: string;
+};
+
+function buildBrowserFixLoopPresentation(
+  run: NonNullable<AutoDriveView["run"]>,
+  launchStatusLabel: string
+): BrowserFixLoopPresentation | null {
+  if (!isBrowserReproFixVerifyScenario(run)) {
+    return null;
+  }
+
+  const blockedReason = extractBrowserBlockedReason(run);
+  if (blockedReason) {
+    return {
+      headline: "Browser session blocked",
+      detail: blockedReason,
+      summaryState: "failed",
+      browserLaneLabel: "Session blocked",
+      summaryLine: `${launchStatusLabel} · Browser session blocked`,
+    };
+  }
+
+  const gapReason = extractBrowserGapReason(run);
+  if (gapReason) {
+    return {
+      headline: "Browser verification gap remains",
+      detail: gapReason,
+      summaryState: "paused",
+      browserLaneLabel: "Verification gap",
+      summaryLine: `${launchStatusLabel} · Browser verification gap remains`,
+    };
+  }
+
+  if (run.status === "review_ready" || run.status === "completed") {
+    return {
+      headline: "Browser verification passed",
+      detail:
+        formatOutcomeSummary(run) ??
+        "The runtime recorded the browser repro and final verification path.",
+      summaryState: "arrived",
+      browserLaneLabel: "Verification passed",
+      summaryLine: `${launchStatusLabel} · Browser verification passed`,
+    };
+  }
+
+  return {
+    headline: "Browser repro confirmed",
+    detail:
+      "The route is anchored to a live browser path. Land the code change, then return to the real browser and capture final verification evidence before stopping.",
+    summaryState: run.status === "paused" ? "paused" : "running",
+    browserLaneLabel: "Live repro",
+    summaryLine: `${launchStatusLabel} · Browser repro confirmed`,
+  };
 }
 
 function formatOutcomeSummary(run: NonNullable<AutoDriveView["run"]>): string | null {
@@ -403,6 +531,23 @@ function buildNextActionSummary(run: NonNullable<AutoDriveView["run"]>): string 
   return "Advance the active leg and verify its arrival criteria before moving on.";
 }
 
+function formatDecisionLabLabel(run: NonNullable<AutoDriveView["run"]>): string | null {
+  const decisionLab = run.lastChatgptDecisionLab;
+  if (!decisionLab) {
+    return null;
+  }
+  const parts: string[] = [];
+  const recommendation =
+    decisionLab.recommendedOptionId?.trim() || decisionLab.recommendedOption?.trim() || null;
+  if (recommendation) {
+    parts.push(recommendation);
+  }
+  if (decisionLab.confidence) {
+    parts.push(`${capitalizePhrase(decisionLab.confidence)} confidence`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : "Decision recorded";
+}
+
 function formatAutoDriveRailHeadline(autoDrive: AutoDriveView): string {
   if (autoDrive.controls.busyAction) {
     return formatBusyActionLabel(autoDrive.controls.busyAction);
@@ -484,8 +629,11 @@ function buildAutoDrivePresentation(autoDrive: AutoDriveView): AutoDrivePresenta
         ? "Ready to launch"
         : `${autoDrive.readiness.setupProgress}% ready`
       : "Manual mode";
-  const headline = formatAutoDriveRailHeadline(autoDrive);
-  const detail = formatAutoDriveRailDetail(autoDrive);
+  const browserFixLoopPresentation = autoDrive.run
+    ? buildBrowserFixLoopPresentation(autoDrive.run, launchStatusLabel)
+    : null;
+  const headline = browserFixLoopPresentation?.headline ?? formatAutoDriveRailHeadline(autoDrive);
+  const detail = browserFixLoopPresentation?.detail ?? formatAutoDriveRailDetail(autoDrive);
   const startActionLabel =
     autoDrive.controls.busyAction === "starting"
       ? formatBusyActionLabel("starting")
@@ -496,21 +644,23 @@ function buildAutoDrivePresentation(autoDrive: AutoDriveView): AutoDrivePresenta
     autoDrive.controls.busyAction === "resuming" ? formatBusyActionLabel("resuming") : "Resume";
   const stopActionLabel =
     autoDrive.controls.busyAction === "stopping" ? formatBusyActionLabel("stopping") : "Stop";
-  const summaryState = !isRuntimeManagedAutoDriveSource(autoDrive.source ?? null)
-    ? "failed"
-    : autoDrive.run?.status === "paused"
-      ? "paused"
-      : autoDrive.run?.status === "review_ready" || autoDrive.run?.status === "completed"
-        ? "arrived"
-        : autoDrive.run?.status === "cancelled" || autoDrive.run?.status === "stopped"
-          ? "stopped"
-          : autoDrive.run?.status === "failed"
-            ? "failed"
-            : autoDrive.run
-              ? "running"
-              : autoDrive.enabled
-                ? "on"
-                : "off";
+  const summaryState =
+    browserFixLoopPresentation?.summaryState ??
+    (!isRuntimeManagedAutoDriveSource(autoDrive.source ?? null)
+      ? "failed"
+      : autoDrive.run?.status === "paused"
+        ? "paused"
+        : autoDrive.run?.status === "review_ready" || autoDrive.run?.status === "completed"
+          ? "arrived"
+          : autoDrive.run?.status === "cancelled" || autoDrive.run?.status === "stopped"
+            ? "stopped"
+            : autoDrive.run?.status === "failed"
+              ? "failed"
+              : autoDrive.run
+                ? "running"
+                : autoDrive.enabled
+                  ? "on"
+                  : "off");
 
   return {
     headerStatusLabel,
@@ -525,15 +675,19 @@ function buildAutoDrivePresentation(autoDrive: AutoDriveView): AutoDrivePresenta
     resumeActionLabel,
     stopActionLabel,
     summaryState,
-    summaryLine: autoDrive.run
-      ? `${launchStatusLabel} · ${headline}`
-      : autoDrive.readiness.readyToLaunch
-        ? `${launchStatusLabel} · ${formatBudgetProfileLabel(autoDrive)}`
-        : `${launchStatusLabel} · ${detail}`,
+    summaryLine:
+      browserFixLoopPresentation?.summaryLine ??
+      (autoDrive.run
+        ? `${launchStatusLabel} · ${headline}`
+        : autoDrive.readiness.readyToLaunch
+          ? `${launchStatusLabel} · ${formatBudgetProfileLabel(autoDrive)}`
+          : `${launchStatusLabel} · ${detail}`),
     isBreathing:
       autoDrive.controls.busyAction !== null ||
       autoDrive.run?.status === "running" ||
       autoDrive.run?.status === "created",
+    browserLaneLabel: browserFixLoopPresentation?.browserLaneLabel ?? null,
+    decisionLabLabel: autoDrive.run ? formatDecisionLabLabel(autoDrive.run) : null,
   };
 }
 
@@ -663,6 +817,22 @@ export function ComposerAutoDriveStatusBar({
                 </div>
                 {autoDrive.run ? (
                   <>
+                    {presentation.browserLaneLabel ? (
+                      <div className={autoDriveStyles.summaryItem}>
+                        <span className={autoDriveStyles.summaryLabel}>Browser lane</span>
+                        <span className={autoDriveStyles.summaryValue}>
+                          {presentation.browserLaneLabel}
+                        </span>
+                      </div>
+                    ) : null}
+                    {presentation.decisionLabLabel ? (
+                      <div className={autoDriveStyles.summaryItem}>
+                        <span className={autoDriveStyles.summaryLabel}>Decision lab</span>
+                        <span className={autoDriveStyles.summaryValue}>
+                          {presentation.decisionLabLabel}
+                        </span>
+                      </div>
+                    ) : null}
                     {formatRuntimeAuthority(autoDrive.run) ? (
                       <div className={autoDriveStyles.summaryItem}>
                         <span className={autoDriveStyles.summaryLabel}>Runtime authority</span>

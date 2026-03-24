@@ -1,7 +1,9 @@
 import { CoreLoopMetaRail, type SelectOption } from "../../../design-system";
 import { memo, useCallback, useMemo, useRef } from "react";
 import type {
+  AutoDriveChatgptDecisionLabResult,
   AutoDriveRuntimeAutonomyState,
+  AutoDriveRuntimeContinuationState,
   AutoDriveRuntimeDecisionTrace,
   AutoDriveRuntimeOutcomeFeedback,
   AutoDriveRuntimeScenarioProfile,
@@ -171,6 +173,8 @@ type ComposerMetaBarProps = {
       runtimeDecisionTrace?: AutoDriveRuntimeDecisionTrace | null;
       runtimeOutcomeFeedback?: AutoDriveRuntimeOutcomeFeedback | null;
       runtimeAutonomyState?: AutoDriveRuntimeAutonomyState | null;
+      runtimeContinuationState?: AutoDriveRuntimeContinuationState | null;
+      lastChatgptDecisionLab?: AutoDriveChatgptDecisionLabResult | null;
       latestReroute: {
         mode: "soft" | "hard";
         reason: string;
