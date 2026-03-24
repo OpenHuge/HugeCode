@@ -126,6 +126,26 @@ function resolveReadinessBadgeLabel(
   return null;
 }
 
+function resolveTriggerBadges<TModel extends ProviderSelectableModel>(
+  selectionMode: ComposerModelSelectionMode,
+  provider: ModelProviderOption<TModel> | null
+): string[] {
+  const badges: string[] = [];
+  badges.push(selectionMode === "auto" ? "Auto" : "Manual");
+  const executionBadge = resolveExecutionBadgeLabel(provider?.executionKind ?? null);
+  if (executionBadge) {
+    badges.push(executionBadge);
+  }
+  const readinessBadge = resolveReadinessBadgeLabel(
+    provider?.readinessKind ?? null,
+    provider?.hasAvailableModels
+  );
+  if (readinessBadge) {
+    badges.push(readinessBadge);
+  }
+  return badges;
+}
+
 type ModelProviderPickerProps<TModel extends ProviderSelectableModel = ProviderSelectableModel> = {
   ariaLabel: string;
   providerOptions: ReadonlyArray<ModelProviderOption<TModel>>;
@@ -206,10 +226,16 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
     "Choose model";
   const triggerTitle =
     currentProvider && selectedModel
-      ? `${selectionMode === "auto" ? "Auto route" : "Pinned model"} · ${currentProvider.label} · ${
-          selectedModel.displayName?.trim() || selectedModel.model
-        }`
+      ? [
+          selectionMode === "auto" ? "Auto route" : "Pinned model",
+          currentProvider.label,
+          selectedModel.displayName?.trim() || selectedModel.model,
+          currentProvider.readinessMessage,
+        ]
+          .filter((value): value is string => Boolean(value?.trim()))
+          .join(" · ")
       : triggerLabel;
+  const triggerBadges = resolveTriggerBadges(selectionMode, currentProvider);
 
   return (
     <div
@@ -245,6 +271,15 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
             />
           </span>
           <span className={styles.triggerLabel}>{triggerLabel}</span>
+          {triggerBadges.length > 0 ? (
+            <span className={styles.triggerMetaRow} aria-hidden>
+              {triggerBadges.map((badge) => (
+                <span key={badge} className={styles.triggerBadge}>
+                  {badge}
+                </span>
+              ))}
+            </span>
+          ) : null}
           <span className={styles.triggerCaret} aria-hidden>
             <ChevronDown size={14} strokeWidth={1.8} />
           </span>

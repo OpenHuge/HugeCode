@@ -53,10 +53,20 @@ export const triggerIcon = style({
 
 export const triggerLabel = style({
   minWidth: 0,
-  flex: 1,
+  flex: "1 1 auto",
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
+});
+
+export const triggerMetaRow = style({
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "4px",
+  flexWrap: "nowrap",
+  minWidth: 0,
+  maxWidth: "40%",
+  overflow: "hidden",
 });
 
 export const triggerCaret = style({
@@ -182,6 +192,16 @@ const badgeBase = style({
   fontWeight: 600,
   whiteSpace: "nowrap",
 });
+
+export const triggerBadge = style([
+  badgeBase,
+  {
+    minHeight: "16px",
+    padding: "0 6px",
+    background: "color-mix(in srgb, var(--ds-surface-hover) 92%, transparent)",
+    color: "var(--ds-text-muted)",
+  },
+]);
 
 export const itemBadge = style([
   badgeBase,

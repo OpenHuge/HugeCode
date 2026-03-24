@@ -198,6 +198,54 @@ describe("ComposerMetaBar", () => {
     expect(onSelectModel).toHaveBeenCalledWith("claude_code_local::claude-sonnet-4-5");
   });
 
+  it("shows collapsed routing badges for the selected provider route", () => {
+    render(
+      <ComposerMetaBar
+        disabled={false}
+        collaborationModes={[]}
+        selectedCollaborationModeId={null}
+        onSelectCollaborationMode={vi.fn()}
+        modelSelectionMode="auto"
+        models={[
+          {
+            id: "claude_code_local::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude_code_local",
+            provider: "claude_code_local",
+            available: true,
+            providerReadinessKind: "ready",
+            providerReadinessMessage: "Local Claude Code is ready on this machine.",
+            executionKind: "local",
+          },
+        ]}
+        selectedModelId="claude_code_local::claude-sonnet-4-5"
+        onSelectProvider={vi.fn()}
+        onSelectModelSelectionMode={vi.fn()}
+        onSelectModel={vi.fn()}
+        reasoningOptions={[]}
+        selectedEffort={null}
+        onSelectEffort={vi.fn()}
+        reasoningSupported={false}
+        accessMode="on-request"
+        onSelectAccessMode={vi.fn()}
+        executionOptions={[{ value: "runtime", label: "Runtime" }]}
+        selectedExecutionMode="runtime"
+        onSelectExecutionMode={vi.fn()}
+      />
+    );
+
+    const modelButton = screen.getByRole("button", { name: "Model" });
+    expect(modelButton.textContent).toContain("Claude Sonnet 4.5");
+    expect(modelButton.textContent).toContain("Auto");
+    expect(modelButton.textContent).toContain("Local");
+    expect(modelButton.textContent).toContain("Ready");
+    expect(modelButton.getAttribute("title")).toContain("Auto route");
+    expect(modelButton.getAttribute("title")).toContain(
+      "Local Claude Code is ready on this machine."
+    );
+  });
+
   it("lists only the deduplicated models for the selected provider family", () => {
     render(
       <ComposerMetaBar
