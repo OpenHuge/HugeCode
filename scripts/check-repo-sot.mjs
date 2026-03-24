@@ -14,6 +14,7 @@ const nodeVersion = baselines.node ?? "24.11.1";
 const nodeEngineRange = `>=${nodeVersion} <25`;
 const pnpmVersion = baselines.pnpm ?? "10.28.0";
 const rustVersion = baselines.rust ?? "1.93.1";
+const pnpmMinimumReleaseAgeMinutes = "60";
 const bannedLegacyToken = String.fromCharCode(99, 111, 119, 111, 114, 107);
 const bannedLegacyTokenPattern = new RegExp(bannedLegacyToken, "iu");
 const archiveRoot = path.join(repoRoot, "docs", "archive");
@@ -738,6 +739,22 @@ if (pnpmWorkspace === null) {
 
   if (readSingleLineYamlScalar(pnpmWorkspace, "engineStrict") !== "true") {
     errors.push(`${pnpmWorkspaceRelativePath}: engineStrict must be true`);
+  }
+
+  if (
+    readSingleLineYamlScalar(pnpmWorkspace, "minimumReleaseAge") !== pnpmMinimumReleaseAgeMinutes
+  ) {
+    errors.push(
+      `${pnpmWorkspaceRelativePath}: minimumReleaseAge must be ${pnpmMinimumReleaseAgeMinutes}`
+    );
+  }
+
+  if (readSingleLineYamlScalar(pnpmWorkspace, "strictDepBuilds") !== "true") {
+    errors.push(`${pnpmWorkspaceRelativePath}: strictDepBuilds must be true`);
+  }
+
+  if (readSingleLineYamlScalar(pnpmWorkspace, "verifyDepsBeforeRun") !== "warn") {
+    errors.push(`${pnpmWorkspaceRelativePath}: verifyDepsBeforeRun must be warn`);
   }
 }
 

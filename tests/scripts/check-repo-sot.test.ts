@@ -243,6 +243,30 @@ describe("check-repo-sot", () => {
   );
 
   it(
+    "fails when pnpm workspace supply-chain guardrails drift from the repo baseline",
+    async () => {
+      const tempRoot = await mkdtemp(path.join(tmpdir(), "repo-sot-"));
+      tempRoots.push(tempRoot);
+      await createTrackedFixtureRepo(tempRoot);
+
+      const workspacePath = path.join(tempRoot, "pnpm-workspace.yaml");
+      const workspaceContent = await readFile(workspacePath, "utf8");
+      await writeFile(
+        workspacePath,
+        workspaceContent.replace("minimumReleaseAge: 60", "minimumReleaseAge: 0"),
+        "utf8"
+      );
+      stageFixtureChanges(tempRoot);
+
+      const result = runRepoSot(tempRoot);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("pnpm-workspace.yaml: minimumReleaseAge must be 60");
+    },
+    repoSotTestTimeoutMs
+  );
+
+  it(
     "fails when active tracked files reintroduce Biome residue outside compatibility shims",
     async () => {
       const tempRoot = await mkdtemp(path.join(tmpdir(), "repo-sot-"));
