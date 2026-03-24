@@ -388,6 +388,81 @@ describe("SettingsCodexSection", () => {
     );
   });
 
+  it("shows the auto-routed provider family model instead of a stale manual pin", () => {
+    getProvidersCatalogMock.mockResolvedValue([
+      {
+        providerId: "anthropic",
+        displayName: "Claude Code",
+        pool: "claude",
+        oauthProviderId: "claude_code",
+        aliases: ["claude", "claude_code"],
+        defaultModelId: "anthropic::claude-sonnet-4-5",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        readinessKind: "ready",
+        readinessMessage: "Claude Code cloud routing is ready.",
+        executionKind: "cloud",
+        registryVersion: "test",
+      },
+      {
+        providerId: "claude_code_local",
+        displayName: "Claude Code Local",
+        pool: null,
+        oauthProviderId: null,
+        aliases: ["claude_code_local"],
+        defaultModelId: "claude_code_local::claude-sonnet-4-5",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: false,
+        readinessKind: "ready",
+        readinessMessage: "Local Claude Code is ready on this machine.",
+        executionKind: "local",
+        registryVersion: "test",
+      },
+    ]);
+
+    render(
+      <SettingsCodexSection
+        {...createProps({
+          appSettings: {
+            ...createProps().appSettings,
+            lastComposerModelId: "openai::gpt-5.1",
+            composerModelSelectionMode: "auto",
+            lastComposerProviderFamilyId: "claude",
+          },
+          defaultModels: [
+            createModelOption({
+              id: "openai::gpt-5.1",
+              model: "gpt-5.1",
+              displayName: "GPT-5.1",
+              provider: "openai",
+              pool: "codex",
+            }),
+            createModelOption({
+              id: "anthropic::claude-sonnet-4-5",
+              model: "claude-sonnet-4-5",
+              displayName: "Claude Sonnet 4.5",
+              provider: "anthropic",
+              pool: "claude",
+            }),
+            createModelOption({
+              id: "claude_code_local::claude-sonnet-4-5",
+              model: "claude-sonnet-4-5",
+              displayName: "Claude Sonnet 4.5",
+              provider: "claude_code_local",
+              pool: "claude_code_local",
+            }),
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Model" }).textContent).toContain(
+      "Claude Sonnet 4.5"
+    );
+  });
+
   it("does not render legacy section shell, toggle, or action wrappers directly", () => {
     const { container } = render(<SettingsCodexSection {...createProps()} />);
 

@@ -19,8 +19,7 @@ import {
 } from "../utils/modelOptionCapabilities";
 import {
   buildModelProviderOptions,
-  resolveAutoProviderId,
-  resolveProviderModelId,
+  resolveAutoModelProviderSelection,
 } from "../utils/modelProviderSelection";
 import { mergeModelsWithProviderCatalogMetadata } from "../utils/providerCatalogMetadata";
 
@@ -401,10 +400,17 @@ export function useModels({
       const nextSelection =
         selectionMode === "auto"
           ? (() => {
-              const autoProviderId = resolveAutoProviderId(providerOptions, preferredProviderId);
-              const autoModelId = resolveProviderModelId(providerOptions, autoProviderId, null);
+              const autoSelection = resolveAutoModelProviderSelection(
+                providerOptions,
+                preferredProviderId,
+                preferredSelectionUsable?.id ??
+                  defaultModel?.id ??
+                  existingSelectionUsable?.id ??
+                  existingSelection?.id ??
+                  null
+              );
               return (
-                findModelByIdOrModel(resolvedModels, autoModelId) ??
+                findModelByIdOrModel(resolvedModels, autoSelection.modelId) ??
                 preferredSelectionUsable ??
                 defaultModel ??
                 existingSelectionUsable ??
@@ -539,12 +545,17 @@ export function useModels({
       selectionMode === "auto"
         ? (() => {
             const providerOptions = buildModelProviderOptions(models);
-            const autoProviderId = resolveAutoProviderId(providerOptions, preferredProviderId);
+            const autoSelection = resolveAutoModelProviderSelection(
+              providerOptions,
+              preferredProviderId,
+              preferredSelection?.id ??
+                defaultModel?.id ??
+                existingSelectionUsable?.id ??
+                existingSelection?.id ??
+                null
+            );
             return (
-              findModelByIdOrModel(
-                models,
-                resolveProviderModelId(providerOptions, autoProviderId, null)
-              ) ??
+              findModelByIdOrModel(models, autoSelection.modelId) ??
               preferredSelection ??
               defaultModel ??
               existingSelectionUsable ??

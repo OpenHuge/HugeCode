@@ -31,6 +31,14 @@ export type ModelProviderOption<TModel extends ProviderSelectableModel = Provide
     executionKind: RuntimeProviderExecutionKind | null;
   };
 
+export type AutoModelProviderSelection<
+  TModel extends ProviderSelectableModel = ProviderSelectableModel,
+> = {
+  providerId: ModelProviderFamilyId | string | null;
+  provider: ModelProviderOption<TModel> | null;
+  modelId: string | null;
+};
+
 const CLAUDE_PROVIDER_IDS = new Set(["anthropic", "claude", "claude_code", "claude_code_local"]);
 const CODEX_PROVIDER_IDS = new Set(["codex", "openai"]);
 const GEMINI_PROVIDER_IDS = new Set(["gemini", "google"]);
@@ -415,10 +423,42 @@ export function resolveAutoProviderId<TModel extends ProviderSelectableModel>(
     if (preferredOption?.hasAvailableModels) {
       return preferredOption.id;
     }
+    if (!providerOptions.some((option) => option.hasAvailableModels)) {
+      return preferredOption?.id ?? null;
+    }
   }
-  return (
-    providerOptions.find((providerOption) => providerOption.hasAvailableModels)?.id ??
-    providerOptions[0]?.id ??
-    null
-  );
+  const rankedProviders = [...providerOptions].sort((left, right) => {
+    const availabilityDelta = Number(right.hasAvailableModels) - Number(left.hasAvailableModels);
+    if (availabilityDelta !== 0) {
+      return availabilityDelta;
+    }
+    const readinessDelta =
+      resolveProviderReadinessPriority(right.readinessKind) -
+      resolveProviderReadinessPriority(left.readinessKind);
+    if (readinessDelta !== 0) {
+      return readinessDelta;
+    }
+    const priorityDelta =
+      resolveProviderFamilyPriority(left.id) - resolveProviderFamilyPriority(right.id);
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+    return left.label.localeCompare(right.label);
+  });
+  return rankedProviders[0]?.id ?? null;
+}
+
+export function resolveAutoModelProviderSelection<TModel extends ProviderSelectableModel>(
+  providerOptions: ReadonlyArray<ModelProviderOption<TModel>>,
+  preferredProviderId: ModelProviderFamilyId | string | null,
+  fallbackModelId: string | null = null
+): AutoModelProviderSelection<TModel> {
+  const providerId = resolveAutoProviderId(providerOptions, preferredProviderId);
+  const provider = providerOptions.find((option) => option.id === providerId) ?? null;
+  return {
+    providerId,
+    provider,
+    modelId:
+      resolveProviderModelId(providerOptions, providerId, fallbackModelId) ?? fallbackModelId,
+  };
 }

@@ -206,7 +206,9 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
     "Choose model";
   const triggerTitle =
     currentProvider && selectedModel
-      ? `${currentProvider.label} · ${selectedModel.displayName?.trim() || selectedModel.model}`
+      ? `${selectionMode === "auto" ? "Auto route" : "Pinned model"} · ${currentProvider.label} · ${
+          selectedModel.displayName?.trim() || selectedModel.model
+        }`
       : triggerLabel;
 
   return (
@@ -265,6 +267,7 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
                     role="menuitem"
                     className={joinClassNames(styles.item, isActive && styles.itemActive)}
                     disabled={!providerOption.hasAvailableModels}
+                    title={providerOption.readinessMessage ?? undefined}
                     onMouseEnter={() => setActiveProviderId(providerOption.id)}
                     onFocus={() => setActiveProviderId(providerOption.id)}
                     onClick={() => {

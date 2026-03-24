@@ -23,7 +23,7 @@ import {
 } from "../../../models/utils/modelOptionCapabilities";
 import {
   buildModelProviderOptions,
-  resolveAutoProviderId,
+  resolveAutoModelProviderSelection,
   resolveModelProviderId,
   resolveSelectedProviderId,
 } from "../../../models/utils/modelProviderSelection";
@@ -210,7 +210,22 @@ export function SettingsCodexSection({
     () => coerceSavedModelSelectionId(appSettings.lastComposerModelId, modelsWithProviderMetadata),
     [appSettings.lastComposerModelId, modelsWithProviderMetadata]
   );
-  const selectedModelId = savedModelId ?? latestModelId ?? "";
+  const providerOptions = useMemo(
+    () => buildModelProviderOptions(modelsWithProviderMetadata),
+    [modelsWithProviderMetadata]
+  );
+  const fallbackSelectedModelId = savedModelId ?? latestModelId ?? null;
+  const autoSelection = useMemo(
+    () =>
+      resolveAutoModelProviderSelection(
+        providerOptions,
+        appSettings.lastComposerProviderFamilyId ?? null,
+        fallbackSelectedModelId
+      ),
+    [appSettings.lastComposerProviderFamilyId, fallbackSelectedModelId, providerOptions]
+  );
+  const selectedModelId =
+    (selectionMode === "auto" ? autoSelection.modelId : fallbackSelectedModelId) ?? "";
   const selectedModel = useMemo(
     () =>
       modelsWithProviderMetadata.find((model) => model.id === selectedModelId) ??
@@ -218,19 +233,16 @@ export function SettingsCodexSection({
       null,
     [modelsWithProviderMetadata, selectedModelId]
   );
-  const providerOptions = useMemo(
-    () => buildModelProviderOptions(modelsWithProviderMetadata),
-    [modelsWithProviderMetadata]
-  );
   const resolvedModelProviderId = selectedModel
     ? resolveModelProviderId(selectedModel)
     : resolveSelectedProviderId(providerOptions, selectedModelId);
   const selectedProviderId = useMemo(
     () =>
       selectionMode === "auto"
-        ? resolveAutoProviderId(providerOptions, appSettings.lastComposerProviderFamilyId ?? null)
+        ? autoSelection.providerId
         : (appSettings.lastComposerProviderFamilyId ?? resolvedModelProviderId),
     [
+      autoSelection.providerId,
       appSettings.lastComposerProviderFamilyId,
       providerOptions,
       resolvedModelProviderId,
