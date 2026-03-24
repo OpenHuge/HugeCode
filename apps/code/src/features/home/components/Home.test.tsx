@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, type ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
@@ -49,6 +50,18 @@ const baseProps = {
 };
 
 const HOME_INTERACTION_TIMEOUT_MS = 60_000;
+
+async function renderHomeAndFlushEffects(element: ReactElement) {
+  let view: ReturnType<typeof render> | null = null;
+  await act(async () => {
+    view = render(element);
+    await Promise.resolve();
+  });
+  if (!view) {
+    throw new Error("Expected Home test render to initialize.");
+  }
+  return view;
+}
 
 function createReviewPromptState(): NonNullable<ReviewPromptState> {
   const workspace: WorkspaceInfo = {
@@ -303,7 +316,13 @@ describe("Home", () => {
   });
 
   it("renders the simplified launchpad when there are no latest runs", () => {
-    const { container } = render(<Home {...baseProps} />);
+    const { container } = render(
+      <Home
+        {...baseProps}
+        onConnectLocalRuntimePort={undefined}
+        workspaceLoadError="Code runtime is unavailable for list workspaces."
+      />
+    );
 
     expect(screen.queryByTestId("home-scenario-bugfix")).toBeNull();
     expect(screen.queryByTestId("home-scenario-refactor")).toBeNull();
@@ -320,6 +339,8 @@ describe("Home", () => {
     render(
       <Home
         {...baseProps}
+        onConnectLocalRuntimePort={undefined}
+        workspaceLoadError="Code runtime is unavailable for list workspaces."
         models={[
           {
             id: "gpt-5",
@@ -556,7 +577,7 @@ describe("Home", () => {
     async () => {
       const onOpenSettings = vi.fn();
       const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
-      render(
+      await renderHomeAndFlushEffects(
         <Home
           {...baseProps}
           onOpenSettings={onOpenSettings}
@@ -595,7 +616,7 @@ describe("Home", () => {
 
   it("validates the manual local runtime port before connecting", async () => {
     const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
-    render(
+    await renderHomeAndFlushEffects(
       <Home
         {...baseProps}
         onConnectLocalRuntimePort={onConnectLocalRuntimePort}
@@ -619,7 +640,9 @@ describe("Home", () => {
 
   it("shows the local runtime port entry on home even before runtime errors appear", async () => {
     const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
-    render(<Home {...baseProps} onConnectLocalRuntimePort={onConnectLocalRuntimePort} />);
+    await renderHomeAndFlushEffects(
+      <Home {...baseProps} onConnectLocalRuntimePort={onConnectLocalRuntimePort} />
+    );
 
     expect(screen.getByRole("textbox", { name: "Runtime target" })).toBeTruthy();
 
@@ -640,7 +663,9 @@ describe("Home", () => {
 
   it("connects to a remote runtime address when provided", async () => {
     const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
-    render(<Home {...baseProps} onConnectLocalRuntimePort={onConnectLocalRuntimePort} />);
+    await renderHomeAndFlushEffects(
+      <Home {...baseProps} onConnectLocalRuntimePort={onConnectLocalRuntimePort} />
+    );
 
     await waitFor(() =>
       expect(onConnectLocalRuntimePort).toHaveBeenCalledWith({ host: null, port: 8788 })
@@ -662,7 +687,9 @@ describe("Home", () => {
 
   it("validates the remote runtime address before connecting", async () => {
     const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
-    render(<Home {...baseProps} onConnectLocalRuntimePort={onConnectLocalRuntimePort} />);
+    await renderHomeAndFlushEffects(
+      <Home {...baseProps} onConnectLocalRuntimePort={onConnectLocalRuntimePort} />
+    );
 
     await waitFor(() =>
       expect(onConnectLocalRuntimePort).toHaveBeenCalledWith({ host: null, port: 8788 })
@@ -681,7 +708,9 @@ describe("Home", () => {
   it("auto-connects the default local runtime once on local home startup", async () => {
     const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
 
-    render(<Home {...baseProps} onConnectLocalRuntimePort={onConnectLocalRuntimePort} />);
+    await renderHomeAndFlushEffects(
+      <Home {...baseProps} onConnectLocalRuntimePort={onConnectLocalRuntimePort} />
+    );
 
     await waitFor(() =>
       expect(onConnectLocalRuntimePort).toHaveBeenCalledWith({ host: null, port: 8788 })
@@ -1377,6 +1406,8 @@ describe("Home", () => {
     render(
       <Home
         {...baseProps}
+        onConnectLocalRuntimePort={undefined}
+        workspaceLoadError="Code runtime is unavailable for list workspaces."
         usageMetric="time"
         localUsageSnapshot={{
           updatedAt: Date.now(),
@@ -1410,7 +1441,14 @@ describe("Home", () => {
 
   it("keeps the launchpad composer available in loading state", () => {
     render(
-      <Home {...baseProps} isLoadingLatestAgents isLoadingLocalUsage localUsageSnapshot={null} />
+      <Home
+        {...baseProps}
+        onConnectLocalRuntimePort={undefined}
+        workspaceLoadError="Code runtime is unavailable for list workspaces."
+        isLoadingLatestAgents
+        isLoadingLocalUsage
+        localUsageSnapshot={null}
+      />
     );
 
     expect(screen.queryByTestId("home-scenario-bugfix")).toBeNull();

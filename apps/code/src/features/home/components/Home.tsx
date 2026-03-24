@@ -1,12 +1,8 @@
-import LayoutTemplate from "lucide-react/dist/esm/icons/layout-template";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
-import Rocket from "lucide-react/dist/esm/icons/rocket";
-import ScanSearch from "lucide-react/dist/esm/icons/scan-search";
 import Settings from "lucide-react/dist/esm/icons/settings";
 import X from "lucide-react/dist/esm/icons/x";
 import {
   type ComponentProps,
-  type ReactNode,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -19,15 +15,10 @@ import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeCli
 import { REVIEW_START_DESKTOP_ONLY_MESSAGE } from "../../../application/runtime/ports/tauriThreads";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import { Button } from "../../../design-system";
-import { Card, CardDescription, CardTitle } from "../../../design-system";
-import { EmptySurface } from "../../../design-system";
 import { Icon } from "../../../design-system";
 import { ShellFrame, ShellSection } from "../../../design-system";
-import { SectionHeader } from "../../../design-system";
 import { Select } from "../../../design-system";
 import { StatusBadge } from "../../../design-system";
-import type { StatusBadgeTone } from "../../../design-system";
-import { Surface } from "../../../design-system";
 import { WorkspaceHeaderAction } from "../../../design-system";
 import type {
   AccessMode,
@@ -42,20 +33,21 @@ import type {
   SkillOption,
 } from "../../../types";
 import { joinClassNames } from "../../../utils/classNames";
-import { MainHeaderShell } from "../../app/components/MainHeader";
+import { MainHeaderShell } from "../../app/components/MainHeaderShell";
 import { Composer } from "../../composer/components/Composer";
 import { ComposerSurface } from "../../composer/components/ComposerSurface";
 import { ModalShell } from "../../../design-system";
 import { PanelSplitToggleIcon } from "../../layout/components/PanelSplitToggleIcon";
 import {
-  describeMissionRunRouteDetail,
   type MissionControlFreshnessState,
   type MissionNavigationTarget,
 } from "../../missions/utils/missionControlPresentation";
 import { resolveMissionEntryActionLabel } from "../../missions/utils/missionNavigation";
 import "@ku0/code-workspace-client/settings-shell/SettingsModalChrome.global.css";
 import type { ReviewPromptState, ReviewPromptStep } from "../../threads/hooks/useReviewPrompt";
-import { HomeFrame, HomeListRow } from "./HomeScaffold";
+import { HomeFrame } from "./HomeScaffold";
+import { HomeMissionLaunchpadSection } from "./HomeMissionLaunchpadSection";
+import { HomeRecentMissionsSection } from "./HomeRecentMissionsSection";
 import * as launchpadStyles from "./HomeLaunchpad.styles.css";
 import * as styles from "./Home.styles.css";
 import * as homeThreadControlStyles from "./HomeThreadControls.css";
@@ -70,26 +62,8 @@ import {
   isActiveHomeMission,
   isReviewReadyHomeMission,
 } from "./homeViewModel";
-
-type LatestAgentRun = {
-  message: string;
-  timestamp: number;
-  projectName: string;
-  groupName?: string | null;
-  workspaceId: string;
-  threadId: string;
-  navigationTarget?: MissionNavigationTarget;
-  secondaryLabel?: string | null;
-  runId: string | null;
-  taskId: string | null;
-  statusLabel: string;
-  statusKind: "active" | "review_ready" | "needs_input" | "attention" | "recent_activity";
-  source: "runtime_snapshot_v1";
-  warningCount: number;
-  operatorActionLabel?: string | null;
-  operatorActionDetail?: string | null;
-  operatorActionTarget?: MissionNavigationTarget | null;
-};
+import { markFeatureVisible } from "../../shared/featurePerformance";
+import type { LatestAgentRun } from "./homeTypes";
 
 type UsageMetric = "tokens" | "time";
 
@@ -104,34 +78,6 @@ type WorkspaceOption = {
   path?: string;
   connected?: boolean;
 };
-
-const launchpadStarters = [
-  {
-    id: "audit-ui",
-    icon: ScanSearch,
-    label: "Audit the UI",
-    description: "Diagnose friction, tighten hierarchy, and implement the highest-leverage polish.",
-    prompt:
-      "Audit the current UI/UX of this project, identify the biggest friction points, and implement the highest-leverage improvements to make it feel like a top-tier product.",
-  },
-  {
-    id: "design-surface",
-    icon: LayoutTemplate,
-    label: "Design a surface",
-    description:
-      "Create a polished user-facing flow with strong visual hierarchy and responsive behavior.",
-    prompt:
-      "Design and implement a polished new user-facing surface for this project with strong visual hierarchy, responsive behavior, and production-ready UI details.",
-  },
-  {
-    id: "ship-feature",
-    icon: Rocket,
-    label: "Ship a feature",
-    description: "Plan, build, validate, and finish a meaningful feature end-to-end.",
-    prompt:
-      "Implement the next high-value user-facing feature for this project, cover the edge cases, and verify the result with targeted tests before signoff.",
-  },
-] as const;
 
 const LazyWorkspaceHomeAgentControl = lazy(async () => {
   const module = await import("../../workspaces/components/WorkspaceHomeAgentControl");
@@ -150,149 +96,6 @@ type PendingHomeSubmit = {
   images: string[];
   appMentions?: AppMention[];
 };
-
-type HomeSignalCardProps = {
-  title: string;
-  count: ReactNode;
-  message: ReactNode;
-  detail?: ReactNode;
-  status: string;
-  statusTone?: StatusBadgeTone;
-  group?: ReactNode;
-};
-
-type HomeMissionSignalTileProps = {
-  label: string;
-  value: ReactNode;
-  detail?: ReactNode;
-  action?: ReactNode;
-  tone?: "neutral" | "success" | "warning" | "accent";
-  onClick?: () => void;
-  disabled?: boolean;
-  ariaLabel?: string;
-  testId?: string;
-};
-
-function HomeMissionSignalTile({
-  label,
-  value,
-  detail,
-  action,
-  tone = "neutral",
-  onClick,
-  disabled = false,
-  ariaLabel,
-  testId,
-}: HomeMissionSignalTileProps) {
-  const content = (
-    <>
-      <div className={styles.missionTileCopy}>
-        <span className={styles.missionTileLabel}>{label}</span>
-        {detail ? <div className={styles.missionTileDetail}>{detail}</div> : null}
-      </div>
-      <div className={styles.missionTileTrailing}>
-        <span className={styles.missionTileValue} data-tone={tone}>
-          {value}
-        </span>
-        {action ? (
-          <div className={styles.missionTileAction} data-tone={tone}>
-            {action}
-          </div>
-        ) : null}
-      </div>
-    </>
-  );
-
-  if (!onClick) {
-    return (
-      <HomeListRow className={styles.missionTile} data-testid={testId}>
-        {content}
-      </HomeListRow>
-    );
-  }
-
-  return (
-    <HomeListRow>
-      <button
-        type="button"
-        className={joinClassNames(styles.missionTile, styles.missionTileButton)}
-        onClick={onClick}
-        disabled={disabled}
-        data-tauri-drag-region="false"
-        aria-label={ariaLabel}
-        data-testid={testId}
-      >
-        {content}
-      </button>
-    </HomeListRow>
-  );
-}
-
-function HomeSignalCard({
-  title,
-  count,
-  message,
-  detail = null,
-  status,
-  statusTone = "default",
-  group,
-}: HomeSignalCardProps) {
-  return (
-    <div className={styles.dashboardCard}>
-      <div className={styles.dashboardCardMain}>
-        <div className={styles.dashboardCardHeading}>
-          <div className={styles.dashboardCardTitleRow}>
-            <CardTitle className={styles.dashboardCardTitle}>{title}</CardTitle>
-            {group ? (
-              <StatusBadge
-                className={styles.dashboardCardGroup}
-                data-home-dashboard-card-group="true"
-              >
-                {group}
-              </StatusBadge>
-            ) : null}
-          </div>
-          <span className={styles.dashboardCardMeta}>{count}</span>
-        </div>
-        <CardDescription className={styles.dashboardCardMessage}>{message}</CardDescription>
-        {detail ? <div className={styles.dashboardCardDetail}>{detail}</div> : null}
-      </div>
-      <div className={styles.dashboardCardStatusRow}>
-        <StatusBadge
-          className={styles.dashboardCardStatus}
-          tone={statusTone}
-          data-home-dashboard-card-status="true"
-        >
-          {status}
-        </StatusBadge>
-      </div>
-    </div>
-  );
-}
-
-function HomeSectionEmptyState({ title, body }: { title: string; body: string }) {
-  return (
-    <Surface className={styles.emptyPanel} padding="md" tone="subtle" depth="card">
-      <div className={styles.emptyPanelTitle}>{title}</div>
-      <div className={styles.emptyPanelBody}>{body}</div>
-    </Surface>
-  );
-}
-
-function resolveRunStatusTone(statusKind: LatestAgentRun["statusKind"]): StatusBadgeTone {
-  switch (statusKind) {
-    case "review_ready":
-      return "success";
-    case "needs_input":
-    case "attention":
-      return "warning";
-    case "active":
-      return "progress";
-    case "recent_activity":
-    default:
-      return "default";
-  }
-}
 
 type HomeProps = {
   onOpenProject: () => void;
@@ -410,15 +213,6 @@ type HomeProps = {
   onExpandSidebar?: () => void;
 };
 
-function formatMissionTimestamp(timestamp: number): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(timestamp);
-}
-
 export function Home({
   onOpenProject,
   onOpenSettings = () => undefined,
@@ -489,6 +283,10 @@ export function Home({
   sidebarCollapsed = false,
   onExpandSidebar,
 }: HomeProps) {
+  useEffect(() => {
+    markFeatureVisible("home");
+  }, []);
+
   const activeModelContext = models.find((model) => model.id === selectedModelId) ?? null;
   const [launchpadPrompt, setLaunchpadPrompt] = useState("");
   const [isAgentSettingsOpen, setIsAgentSettingsOpen] = useState(false);
@@ -884,232 +682,119 @@ export function Home({
               }
               testId="home-mission-launchpad"
             >
-              <div className={styles.launchpadSetupGrid} data-home-launchpad-setup-grid="true">
-                {showWorkspaceSummaryPanel ? (
-                  <div
-                    className={joinClassNames(
-                      styles.launchpadSetupItem,
-                      launchpadSetupHasSinglePanel && styles.launchpadSetupItemFullSpan
-                    )}
-                  >
-                    <Surface
-                      className={joinClassNames(
-                        launchpadStyles.heroMetaPanel,
-                        styles.workspaceSummaryPanel
-                      )}
-                      depth="card"
-                      padding="md"
-                      tone="elevated"
-                      data-testid="home-workspace-summary"
-                      data-workspace-summary-scope={workspaceSummaryScope}
-                    >
-                      <SectionHeader
-                        className={launchpadStyles.heroMetaHeader}
-                        title={workspaceSummaryTitle}
-                        meta={workspaceSummaryMeta}
-                        titleClassName={launchpadStyles.heroMetaValue}
-                        metaClassName={launchpadStyles.heroMetaEyebrow}
-                      />
-                      <div className={launchpadStyles.heroMetaBody}>
-                        {workspaceSummaryDetail ? (
-                          <div className={launchpadStyles.heroMetaDetail}>
-                            {workspaceSummaryDetail}
-                          </div>
-                        ) : null}
-                        {resolvedRemotePlacement ? (
-                          <div
-                            className={`${launchpadStyles.heroPlacement} ${
-                              resolvedRemotePlacement.tone === "warning"
-                                ? launchpadStyles.heroPlacementWarning
-                                : ""
-                            }`}
-                            data-tone={resolvedRemotePlacement.tone}
-                          >
-                            <div className={launchpadStyles.heroPlacementValue}>
-                              {resolvedRemotePlacement.summary}
-                            </div>
-                            {workspacePlacementDetail ? (
-                              <div className={launchpadStyles.heroPlacementDetail}>
-                                {workspacePlacementDetail}
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    </Surface>
-                  </div>
-                ) : null}
-                {showRuntimeNotice ? (
-                  <div
-                    className={joinClassNames(
-                      styles.launchpadSetupItem,
-                      launchpadSetupHasSinglePanel && styles.launchpadSetupItemFullSpan
-                    )}
-                  >
-                    <HomeRuntimeNotice
-                      state={runtimeNoticeState}
-                      title={runtimeNoticeTitle}
-                      tone={runtimeNoticeTone}
-                      body={runtimeNoticeBody}
-                      showLocalRuntimeEntry={showLocalRuntimeEntry}
-                      runtimeTargetDraft={runtimeTargetDraft}
-                      runtimeEndpointPreview={runtimeEndpointPreview}
-                      localRuntimeConnectError={localRuntimeConnectError}
-                      isConnectingLocalRuntime={isConnectingLocalRuntime}
-                      onRuntimeTargetDraftChange={(value) => {
-                        setRuntimeTargetDraft(value);
-                        if (localRuntimeConnectError) {
-                          setLocalRuntimeConnectError(null);
-                        }
-                      }}
-                      onConnectRuntime={handleConnectRuntime}
-                    />
-                  </div>
-                ) : null}
-              </div>
-              {!isConnectionEntryState ? (
-                <>
-                  <div className={styles.missionGrid} data-home-mission-grid="true">
-                    <HomeMissionSignalTile
-                      label="Awaiting action"
-                      value={missionSignals.awaitingActionCount}
-                      detail={
-                        awaitingActionRun
-                          ? (awaitingActionRun.operatorActionDetail ?? awaitingActionRun.message)
-                          : undefined
+              <HomeMissionLaunchpadSection
+                isConnectionEntryState={isConnectionEntryState}
+                showWorkspaceSummaryPanel={showWorkspaceSummaryPanel}
+                showRuntimeNotice={showRuntimeNotice}
+                launchpadSetupHasSinglePanel={launchpadSetupHasSinglePanel}
+                workspaceSummaryScope={workspaceSummaryScope}
+                workspaceSummaryTitle={workspaceSummaryTitle}
+                workspaceSummaryMeta={workspaceSummaryMeta}
+                workspaceSummaryDetail={workspaceSummaryDetail}
+                resolvedRemotePlacement={resolvedRemotePlacement}
+                workspacePlacementDetail={workspacePlacementDetail}
+                runtimeNotice={
+                  <HomeRuntimeNotice
+                    state={runtimeNoticeState}
+                    title={runtimeNoticeTitle}
+                    tone={runtimeNoticeTone}
+                    body={runtimeNoticeBody}
+                    showLocalRuntimeEntry={showLocalRuntimeEntry}
+                    runtimeTargetDraft={runtimeTargetDraft}
+                    runtimeEndpointPreview={runtimeEndpointPreview}
+                    localRuntimeConnectError={localRuntimeConnectError}
+                    isConnectingLocalRuntime={isConnectingLocalRuntime}
+                    onRuntimeTargetDraftChange={(value) => {
+                      setRuntimeTargetDraft(value);
+                      if (localRuntimeConnectError) {
+                        setLocalRuntimeConnectError(null);
                       }
-                      action={
-                        awaitingActionRun
-                          ? resolveMissionEntryActionLabel({
-                              operatorActionLabel: awaitingActionRun.operatorActionLabel,
-                              operatorActionTarget: awaitingActionRun.operatorActionTarget ?? null,
-                              navigationTarget: awaitingActionRun.navigationTarget ?? null,
-                            })
-                          : "Clear"
-                      }
-                      tone={awaitingActionRun ? "warning" : "success"}
-                      onClick={() => {
-                        if (!awaitingActionRun) {
-                          return;
-                        }
-                        openMissionTarget(awaitingActionRun, { preferOperatorAction: true });
-                      }}
-                      disabled={!awaitingActionRun}
-                      ariaLabel={
-                        awaitingActionRun
-                          ? "Open the next mission that requires operator action"
-                          : "No mission is awaiting operator action"
-                      }
-                      testId="home-mission-signal-awaiting-action"
-                    />
-                    <HomeMissionSignalTile
-                      label="Review-ready"
-                      value={missionSignals.reviewReadyCount}
-                      detail={reviewReadyRun ? reviewReadyRun.message : undefined}
-                      action={
-                        reviewReadyRun
-                          ? resolveMissionEntryActionLabel({
-                              operatorActionLabel: reviewReadyRun.operatorActionLabel,
-                              operatorActionTarget: reviewReadyRun.operatorActionTarget ?? null,
-                              navigationTarget: reviewReadyRun.navigationTarget ?? null,
-                            })
-                          : null
-                      }
-                      tone={reviewReadyRun ? "success" : "neutral"}
-                      onClick={() => {
-                        if (reviewReadyRun) {
-                          openMissionTarget(reviewReadyRun, { preferOperatorAction: true });
-                          return;
-                        }
-                        if (workspaces.length === 0) {
-                          setupAction();
-                        }
-                      }}
-                      disabled={!reviewReadyRun && workspaces.length > 0}
-                      ariaLabel={
-                        reviewReadyRun
-                          ? "Open review-ready mission"
-                          : "Review-ready mission pending"
-                      }
-                      testId="home-mission-signal-review-ready"
-                    />
-                    <HomeMissionSignalTile
-                      label="Routing"
-                      value={routingSignal.value}
-                      detail={
-                        routingSignal.tone === "warning" || routingSignal.tone === "accent"
-                          ? routingSignal.detail
-                          : undefined
-                      }
-                      action={routingSignal.action}
-                      tone={routingSignal.tone}
-                      onClick={() => {
-                        if (routingSignal.prefersMissionControl) {
-                          const routingRun =
-                            reviewReadyRun ?? awaitingActionRun ?? activeRun ?? null;
-                          const routingTarget =
-                            routingRun &&
-                            (routingRun.operatorActionTarget ?? routingRun.navigationTarget);
-                          if (routingTarget && onOpenMissionTarget) {
-                            onOpenMissionTarget(routingTarget);
-                            return;
-                          }
-                          onOpenSettings();
-                          return;
-                        }
-                        if (activeRun) {
-                          openMissionTarget(activeRun, { preferOperatorAction: true });
-                          return;
-                        }
-                        onOpenSettings();
-                      }}
-                      ariaLabel={routingSignal.ariaLabel}
-                      testId="home-mission-signal-routing"
-                    />
-                  </div>
-                  <div
-                    className={launchpadStyles.starterSection}
-                    data-testid="home-starter-section"
-                    data-home-launchpad-layout="compact-grid"
-                  >
-                    <div className={launchpadStyles.starterGrid}>
-                      {launchpadStarters.map((starter) => (
-                        <HomeListRow key={starter.id}>
-                          <button
-                            type="button"
-                            className={launchpadStyles.starterCardButton}
-                            onClick={() => setLaunchpadPrompt(starter.prompt)}
-                            data-tauri-drag-region="false"
-                            data-testid={`home-launchpad-starter-${starter.id}`}
-                          >
-                            <Card
-                              className={launchpadStyles.starterCard}
-                              variant="subtle"
-                              padding="sm"
-                              data-selected={launchpadPrompt === starter.prompt ? "true" : "false"}
-                            >
-                              <div className={launchpadStyles.starterIcon} aria-hidden>
-                                <Icon
-                                  icon={starter.icon}
-                                  size={18}
-                                  className={launchpadStyles.starterIconGlyph}
-                                />
-                              </div>
-                              <div className={launchpadStyles.starterCopy}>
-                                <div className={launchpadStyles.starterLabel}>
-                                  <CardTitle className={launchpadStyles.starterTitle}>
-                                    {starter.label}
-                                  </CardTitle>
-                                </div>
-                              </div>
-                            </Card>
-                          </button>
-                        </HomeListRow>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              ) : null}
+                    }}
+                    onConnectRuntime={handleConnectRuntime}
+                  />
+                }
+                awaitingActionCount={missionSignals.awaitingActionCount}
+                awaitingActionDetail={
+                  awaitingActionRun
+                    ? (awaitingActionRun.operatorActionDetail ?? awaitingActionRun.message)
+                    : undefined
+                }
+                awaitingAction={
+                  awaitingActionRun
+                    ? resolveMissionEntryActionLabel({
+                        operatorActionLabel: awaitingActionRun.operatorActionLabel,
+                        operatorActionTarget: awaitingActionRun.operatorActionTarget ?? null,
+                        navigationTarget: awaitingActionRun.navigationTarget ?? null,
+                      })
+                    : "Clear"
+                }
+                onAwaitingActionClick={() => {
+                  if (!awaitingActionRun) {
+                    return;
+                  }
+                  openMissionTarget(awaitingActionRun, { preferOperatorAction: true });
+                }}
+                awaitingActionDisabled={!awaitingActionRun}
+                awaitingActionAriaLabel={
+                  awaitingActionRun
+                    ? "Open the next mission that requires operator action"
+                    : "No mission is awaiting operator action"
+                }
+                reviewReadyCount={missionSignals.reviewReadyCount}
+                reviewReadyDetail={reviewReadyRun ? reviewReadyRun.message : undefined}
+                reviewReadyAction={
+                  reviewReadyRun
+                    ? resolveMissionEntryActionLabel({
+                        operatorActionLabel: reviewReadyRun.operatorActionLabel,
+                        operatorActionTarget: reviewReadyRun.operatorActionTarget ?? null,
+                        navigationTarget: reviewReadyRun.navigationTarget ?? null,
+                      })
+                    : null
+                }
+                onReviewReadyClick={() => {
+                  if (reviewReadyRun) {
+                    openMissionTarget(reviewReadyRun, { preferOperatorAction: true });
+                    return;
+                  }
+                  if (workspaces.length === 0) {
+                    setupAction();
+                  }
+                }}
+                reviewReadyDisabled={!reviewReadyRun && workspaces.length > 0}
+                reviewReadyAriaLabel={
+                  reviewReadyRun ? "Open review-ready mission" : "Review-ready mission pending"
+                }
+                routingValue={routingSignal.value}
+                routingDetail={
+                  routingSignal.tone === "warning" || routingSignal.tone === "accent"
+                    ? routingSignal.detail
+                    : undefined
+                }
+                routingAction={routingSignal.action}
+                routingTone={routingSignal.tone}
+                onRoutingClick={() => {
+                  if (routingSignal.prefersMissionControl) {
+                    const routingRun = reviewReadyRun ?? awaitingActionRun ?? activeRun ?? null;
+                    const routingTarget =
+                      routingRun &&
+                      (routingRun.operatorActionTarget ?? routingRun.navigationTarget);
+                    if (routingTarget && onOpenMissionTarget) {
+                      onOpenMissionTarget(routingTarget);
+                      return;
+                    }
+                    onOpenSettings();
+                    return;
+                  }
+                  if (activeRun) {
+                    openMissionTarget(activeRun, { preferOperatorAction: true });
+                    return;
+                  }
+                  onOpenSettings();
+                }}
+                routingAriaLabel={routingSignal.ariaLabel}
+                onSetLaunchpadPrompt={setLaunchpadPrompt}
+                launchpadPrompt={launchpadPrompt}
+              />
             </ShellSection>
             {!isConnectionEntryState ? (
               <ShellSection
@@ -1119,49 +804,12 @@ export function Home({
                 className={styles.dashboardSection}
                 testId="home-recent-missions"
               >
-                {isLoadingLatestAgents && latestAgentRuns.length === 0 ? (
-                  <HomeSectionEmptyState
-                    title="Syncing missions"
-                    body="Recent missions will appear here."
-                  />
-                ) : latestAgentRuns.length === 0 ? (
-                  <EmptySurface
-                    title="No recent missions yet."
-                    body="Start one from the composer."
-                  />
-                ) : (
-                  <div className={styles.dashboardGrid} data-home-dashboard-grid="true">
-                    {latestAgentRuns.map((run) => (
-                      <HomeListRow key={run.threadId}>
-                        <button
-                          type="button"
-                          className={styles.dashboardCardButton}
-                          aria-label={`Open recent mission ${run.message}`}
-                          onClick={() => openMissionTarget(run)}
-                          data-tauri-drag-region="false"
-                          data-testid={`home-recent-mission-${run.threadId}`}
-                        >
-                          <HomeSignalCard
-                            title={run.projectName}
-                            group={run.groupName}
-                            count={formatMissionTimestamp(run.timestamp)}
-                            message={run.message}
-                            detail={describeMissionRunRouteDetail(
-                              missionControlProjection,
-                              run.runId
-                            )}
-                            status={
-                              run.secondaryLabel
-                                ? `${run.statusLabel} | ${run.secondaryLabel}`
-                                : run.statusLabel
-                            }
-                            statusTone={resolveRunStatusTone(run.statusKind)}
-                          />
-                        </button>
-                      </HomeListRow>
-                    ))}
-                  </div>
-                )}
+                <HomeRecentMissionsSection
+                  isLoadingLatestAgents={isLoadingLatestAgents}
+                  latestAgentRuns={latestAgentRuns}
+                  missionControlProjection={missionControlProjection}
+                  onOpenMission={(run) => openMissionTarget(run)}
+                />
               </ShellSection>
             ) : null}
           </ShellFrame>

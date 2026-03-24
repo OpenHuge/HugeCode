@@ -9,9 +9,12 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
 import {
+  formatRuntimeContinuationTruthSourceLabel,
   resolveContinuationPathLabel,
+  resolveContinuationTruthSource,
   resolvePreferredPublishHandoff,
   resolvePreferredReviewActionability,
+  type RuntimeContinuationTruthSource,
 } from "./runtimeContinuationTruth";
 import {
   resolveRepositoryExecutionDefaults,
@@ -80,6 +83,8 @@ export type ReviewContinuationActionabilitySummary = {
   blockingReason: string | null;
   recommendedAction: string;
   continuePathLabel: "Mission thread" | "Mission run" | "Review Pack";
+  truthSource: RuntimeContinuationTruthSource;
+  truthSourceLabel: string;
 };
 
 type RuntimeRecordedContinuationDefaults = {
@@ -286,6 +291,13 @@ export function summarizeReviewContinuationActionability(input: {
     takeoverBundle: input.takeoverBundle ?? null,
     publishHandoff: input.publishHandoff ?? null,
   });
+  const truthSource = resolveContinuationTruthSource({
+    takeoverBundle: input.takeoverBundle ?? null,
+    actionability: input.actionability ?? null,
+    missionLinkage: input.missionLinkage ?? null,
+    publishHandoff: input.publishHandoff ?? null,
+  });
+  const truthSourceLabel = formatRuntimeContinuationTruthSourceLabel(truthSource);
   const details: string[] = [];
   if (input.takeoverBundle?.summary) {
     details.push(input.takeoverBundle.summary);
@@ -294,6 +306,7 @@ export function summarizeReviewContinuationActionability(input: {
     details.push(input.missionLinkage.summary);
   }
   details.push(`Canonical continue path: ${continuePathLabel}.`);
+  details.push(`Follow-up source: ${truthSourceLabel}.`);
   if (publishHandoff?.summary) {
     details.push(publishHandoff.summary);
   }
@@ -324,6 +337,8 @@ export function summarizeReviewContinuationActionability(input: {
         continuePathLabel,
       }),
     continuePathLabel,
+    truthSource,
+    truthSourceLabel,
   };
 }
 

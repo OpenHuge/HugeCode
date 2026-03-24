@@ -225,13 +225,12 @@ export function OpenAppMenu({
           }}
           renderTrigger={({
             ref,
+            triggerProps,
             open,
-            className: _className,
             caret: _caret,
             selectionLabel: _selectionLabel,
             selectedOptions: _selectedOptions,
             hasSelection: _hasSelection,
-            ...triggerProps
           }) => (
             <WorkspaceHeaderAction
               {...triggerProps}

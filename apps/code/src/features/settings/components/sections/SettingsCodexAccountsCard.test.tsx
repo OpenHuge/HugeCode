@@ -293,6 +293,15 @@ describe("SettingsCodexAccountsCard", () => {
     });
   };
 
+  const emitOauthPopupMessage = (loginId: string, success: boolean) => {
+    window.dispatchEvent(
+      new window.MessageEvent("message", {
+        data: { type: "fastcode:oauth:codex", success, loginId },
+        origin: window.location.origin,
+      })
+    );
+  };
+
   const confirmRemoveAccountDialog = async () => {
     const dialog = await screen.findByRole("dialog", { name: "Remove account" });
     await act(async () => {
@@ -691,7 +700,6 @@ describe("SettingsCodexAccountsCard", () => {
   });
 
   it("refreshes when oauth popup posts success message", async () => {
-    setActiveOauthPopupLoginId("login-popup-1");
     render(<SettingsCodexAccountsCard />);
 
     await waitFor(() => {
@@ -700,14 +708,10 @@ describe("SettingsCodexAccountsCard", () => {
     });
     const accountCallsBeforePopup = listOAuthAccountsMock.mock.calls.length;
     const poolCallsBeforePopup = listOAuthPoolsMock.mock.calls.length;
+    setActiveOauthPopupLoginId("login-popup-1");
 
     act(() => {
-      window.dispatchEvent(
-        new window.MessageEvent("message", {
-          data: { type: "fastcode:oauth:codex", success: true, loginId: "login-popup-1" },
-          origin: window.location.origin,
-        })
-      );
+      emitOauthPopupMessage("login-popup-1", true);
     });
 
     await waitFor(() => {
@@ -717,7 +721,6 @@ describe("SettingsCodexAccountsCard", () => {
   });
 
   it("shows callback verification error when oauth popup posts failure message", async () => {
-    setActiveOauthPopupLoginId("login-popup-2");
     render(<SettingsCodexAccountsCard />);
 
     await waitFor(() => {
@@ -727,14 +730,10 @@ describe("SettingsCodexAccountsCard", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Refresh" })).toBeTruthy();
     });
+    setActiveOauthPopupLoginId("login-popup-2");
 
     act(() => {
-      window.dispatchEvent(
-        new window.MessageEvent("message", {
-          data: { type: "fastcode:oauth:codex", success: false, loginId: "login-popup-2" },
-          origin: window.location.origin,
-        })
-      );
+      emitOauthPopupMessage("login-popup-2", false);
     });
 
     expect(

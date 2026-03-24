@@ -10,10 +10,19 @@ on:
         required: false
         type: boolean
         default: false
+      affected_build_required:
+        required: false
+        type: boolean
+        default: true
       base_ref:
         required: false
         type: string
         default: ""
+
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_API: ${{ vars.TURBO_API }}
 
 jobs:
   pr_affected:
@@ -48,10 +57,14 @@ jobs:
             +refs/heads/${{ inputs.base_ref }}:refs/remotes/origin/${{ inputs.base_ref }}
 
       - name: Build (affected)
-        if: inputs.ci_required && !inputs.skip_expensive_checks
+        if: inputs.ci_required && !inputs.skip_expensive_checks && inputs.affected_build_required
         env:
           TURBO_BASE_REF: origin/${{ inputs.base_ref }}
         run: pnpm build:affected -- --filter=!@ku0/code-tauri
+
+      - name: Skip affected build for test-only scope
+        if: inputs.ci_required && !inputs.skip_expensive_checks && !inputs.affected_build_required
+        run: echo "Skipping affected build because the PR only changes tests, fixtures, stories, or markdown-like frontend surfaces."
 
       - name: Tests (affected)
         if: inputs.ci_required && !inputs.skip_expensive_checks

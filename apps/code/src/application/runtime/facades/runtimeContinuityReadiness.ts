@@ -8,13 +8,12 @@ import type {
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import { buildMissionRunCheckpoint } from "./runtimeMissionControlCheckpoint";
 import {
+  formatRuntimeContinuationTruthSourceLabel,
   projectTakeoverBundleToContinuation,
+  resolveContinuationTruthSource,
   resolvePreferredReviewActionability,
+  type RuntimeContinuationTruthSource,
 } from "./runtimeContinuationTruth";
-import {
-  resolveExecutionGraphCheckpoint,
-  resolveExecutionGraphReviewActionability,
-} from "./runtimeMissionControlExecutionGraph";
 
 export type RuntimeContinuityReadinessState = "ready" | "attention" | "blocked";
 export type RuntimeContinuityPathKind = "resume" | "handoff" | "review" | "missing";
@@ -26,6 +25,8 @@ export type RuntimeContinuityReadinessItem = {
   pathKind: RuntimeContinuityPathKind;
   detail: string;
   recommendedAction: string;
+  truthSource: RuntimeContinuationTruthSource;
+  truthSourceLabel: string;
 };
 
 export type RuntimeContinuityReadinessSummary = {
@@ -113,10 +114,6 @@ function resolveCheckpoint(
   if (run.checkpoint) {
     return run.checkpoint;
   }
-  const graphCheckpoint = resolveExecutionGraphCheckpoint(run.executionGraph);
-  if (graphCheckpoint) {
-    return graphCheckpoint;
-  }
   if (!task) {
     return null;
   }
@@ -161,6 +158,8 @@ function buildReviewItem(
       pathKind: "review",
       detail: takeoverProjection.detail,
       recommendedAction: takeoverProjection.recommendedAction,
+      truthSource: takeoverProjection.truthSource,
+      truthSourceLabel: takeoverProjection.truthSourceLabel,
     };
   }
   if (actionability?.state === "blocked") {
@@ -172,6 +171,8 @@ function buildReviewItem(
       detail: actionability.summary,
       recommendedAction:
         "Open Review Pack and resolve the runtime-blocked follow-up before continuing.",
+      truthSource: "review_actionability",
+      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("review_actionability"),
     };
   }
   if (actionability?.state === "degraded") {
@@ -183,6 +184,8 @@ function buildReviewItem(
       detail: actionability.summary,
       recommendedAction:
         "Open Review Pack and inspect the degraded runtime follow-up guidance before continuing.",
+      truthSource: "review_actionability",
+      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("review_actionability"),
     };
   }
   if (actionability?.state === "ready") {
@@ -193,6 +196,8 @@ function buildReviewItem(
       pathKind: "review",
       detail: actionability.summary,
       recommendedAction: "Continue from Review Pack using the runtime-published follow-up actions.",
+      truthSource: "review_actionability",
+      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("review_actionability"),
     };
   }
   return {
@@ -202,6 +207,8 @@ function buildReviewItem(
     pathKind: "missing",
     detail: "Runtime marked this run review-ready, but review actionability was not published.",
     recommendedAction: "Inspect runtime review truth before continuing from this review-ready run.",
+    truthSource: "missing",
+    truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("missing"),
   };
 }
 
@@ -222,6 +229,8 @@ function buildResumeOrHandoffItem(input: {
       pathKind: takeoverProjection.pathKind,
       detail: takeoverProjection.detail,
       recommendedAction: takeoverProjection.recommendedAction,
+      truthSource: takeoverProjection.truthSource,
+      truthSourceLabel: takeoverProjection.truthSourceLabel,
     };
   }
   const hasResume = checkpoint?.resumeReady === true;
@@ -242,10 +251,16 @@ function buildResumeOrHandoffItem(input: {
         checkpoint?.summary ??
         "Runtime published a canonical checkpoint path and this run is ready to resume.",
       recommendedAction: "Resume this run from its runtime-published checkpoint.",
+      truthSource: "checkpoint" as const,
+      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("checkpoint"),
     };
   }
 
   if (hasHandoff) {
+    const truthSource = resolveContinuationTruthSource({
+      missionLinkage: missionLinkage ?? null,
+      publishHandoff: run.publishHandoff ?? null,
+    });
     const detail =
       run.publishHandoff?.summary ??
       missionLinkage?.summary ??
@@ -258,10 +273,13 @@ function buildResumeOrHandoffItem(input: {
       detail,
       recommendedAction:
         "Use the runtime-published handoff or navigation target instead of rebuilding recovery locally.",
+      truthSource,
+      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel(truthSource),
     };
   }
 
   if (recoverable) {
+    const truthSource: RuntimeContinuationTruthSource = checkpoint ? "checkpoint" : "missing";
     return {
       runId: run.id,
       taskId,
@@ -272,9 +290,12 @@ function buildResumeOrHandoffItem(input: {
         "This run looks recoverable, but runtime did not publish a canonical continue path.",
       recommendedAction:
         "Inspect runtime continuity truth and restore a canonical resume or handoff path before continuing.",
+      truthSource,
+      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel(truthSource),
     };
   }
 
+  const truthSource: RuntimeContinuationTruthSource = checkpoint ? "checkpoint" : "missing";
   return {
     runId: run.id,
     taskId,
@@ -285,6 +306,8 @@ function buildResumeOrHandoffItem(input: {
       "Continuity signals are incomplete for this run even though runtime published partial recovery truth.",
     recommendedAction:
       "Inspect runtime continuity truth before relying on this checkpoint or handoff state.",
+    truthSource,
+    truthSourceLabel: formatRuntimeContinuationTruthSourceLabel(truthSource),
   };
 }
 
@@ -294,8 +317,7 @@ function buildCandidateItem(
   const checkpoint = resolveCheckpoint(input.run, input.task ?? null);
   const actionability = resolvePreferredReviewActionability({
     takeoverBundle: input.run.takeoverBundle ?? null,
-    actionability:
-      input.run.actionability ?? resolveExecutionGraphReviewActionability(input.run.executionGraph),
+    actionability: input.run.actionability ?? null,
   });
   const runtimeTaskId = input.task?.taskId ?? input.run.id;
   if (!isCandidate({ run: input.run, task: input.task ?? null, checkpoint })) {

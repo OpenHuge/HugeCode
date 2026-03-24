@@ -2,6 +2,10 @@
   "name": "@ku0/code-electron",
   "version": "0.1.0",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OpenHuge/HugeCode.git"
+  },
   "type": "module",
   "main": "dist-electron/main/main.js",
   "scripts": {
@@ -9,14 +13,16 @@
     "build:renderer": "pnpm -C ../code exec vite build && node ./scripts/prepare-renderer.mjs",
     "dev": "node ./scripts/dev.mjs",
     "build": "pnpm run build:main && pnpm run build:renderer",
-    "package": "pnpm run build && node ./scripts/package.mjs",
-    "make": "pnpm run package",
+    "package": "pnpm run build && node ./scripts/run-forge.mjs package",
+    "make": "pnpm run build && node ./scripts/run-forge.mjs make",
+    "publish": "pnpm run build && node ./scripts/run-forge.mjs publish",
     "lint": "pnpm -C ../.. exec oxlint apps/code-electron/src apps/code-electron/scripts",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ku0/code-platform-interfaces": "workspace:*"
+    "@ku0/code-platform-interfaces": "workspace:*",
+    "update-electron-app": "3.1.2"
   },
   "devDependencies": {
     "electron": "41.0.3",

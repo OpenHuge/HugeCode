@@ -1,4 +1,4 @@
-import { fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { fireEvent, render, renderHook, screen, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { isValidElement } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -74,7 +74,9 @@ vi.mock("../../composer/components/Composer", () => ({
 }));
 
 vi.mock("../../app/components/MainHeader", () => ({
-  MainHeader: () => <div data-testid="main-header-node" />,
+  MainHeader: ({ renderHeaderActions = true }: { renderHeaderActions?: boolean }) => (
+    <div data-testid="main-header-node" data-render-header-actions={String(renderHeaderActions)} />
+  ),
 }));
 
 vi.mock("./layoutNodes/SidebarNode", () => ({
@@ -402,6 +404,36 @@ describe("useLayoutNodes", () => {
     render(result.current.sidebarNode);
 
     expect(await screen.findByTestId("sidebar-node")).toBeTruthy();
+  });
+
+  it("keeps desktop main header identity-only while titlebar owns right-side controls", async () => {
+    const { result } = renderHook(() =>
+      useLayoutNodes(
+        createLayoutOptions({
+          isPhone: false,
+        })
+      )
+    );
+
+    const view = render(result.current.mainHeaderNode);
+
+    const header = await within(view.container).findByTestId("main-header-node");
+    expect(header.getAttribute("data-render-header-actions")).toBe("false");
+  });
+
+  it("keeps compact main header actions inside the header surface on phone layouts", async () => {
+    const { result } = renderHook(() =>
+      useLayoutNodes(
+        createLayoutOptions({
+          isPhone: true,
+        })
+      )
+    );
+
+    const view = render(result.current.mainHeaderNode);
+
+    const header = await within(view.container).findByTestId("main-header-node");
+    expect(header.getAttribute("data-render-header-actions")).toBe("true");
   });
 
   it("prefers the active thread processing state for messages while keeping composer in draft-start protection", async () => {

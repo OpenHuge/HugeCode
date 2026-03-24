@@ -122,18 +122,23 @@ describe("Markdown", () => {
   });
 
   it("owns table layout styles inside markdown styles instead of relying on page-level overrides", () => {
+    const componentSource = readFileSync(resolve(import.meta.dirname, "Markdown.tsx"), "utf8");
     const stylesSource = readFileSync(
-      resolve(import.meta.dirname, "Markdown.styles.css.ts"),
+      resolve(
+        import.meta.dirname,
+        "../../../../../../packages/design-system/src/components/RichContent.css.ts"
+      ),
       "utf8"
     );
 
-    expect(stylesSource).toContain("export const markdownTableScroll = style({");
+    expect(componentSource).toContain("DataTableSurface");
+    expect(stylesSource).toContain("export const tableScroll = style({");
     expect(stylesSource).toContain('overflowX: "auto"');
     expect(stylesSource).toContain('scrollbarGutter: "stable both-edges"');
     expect(stylesSource).toContain('width: "max-content"');
     expect(stylesSource).toContain('minWidth: "100%"');
     expect(stylesSource).toContain('data-markdown-align="center"');
-    expect(stylesSource).toContain(":nth-child(even)");
+    expect(stylesSource).toContain("tbody tr:nth-child(even)");
   });
 
   it("owns skill reference chrome in markdown styles and keeps it flat", () => {

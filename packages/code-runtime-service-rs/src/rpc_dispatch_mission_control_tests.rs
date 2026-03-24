@@ -652,10 +652,8 @@ fn build_review_pack_emits_file_changes_and_evidence_refs() {
                 }
             ],
         })),
-        mission_brief: None,
-        relaunch_context: None,
-        sub_agents: Vec::new(),
-        publish_handoff: None,
+        mission_brief: None, relaunch_context: None, sub_agents: Vec::new(), publish_handoff: None,
+        selected_opportunity_id: None, wake_reason: None, wake_state: None, source_citations: None, queue_position: None, next_eligible_action: None,
     });
 
     let review_pack_value = serde_json::to_value(review_pack).expect("serialize review pack");
@@ -796,10 +794,8 @@ fn build_review_pack_marks_incomplete_evidence_and_resumable_checkpoint_runs() {
         placement: None,
         operator_snapshot: None,
         workspace_evidence: None,
-        mission_brief: None,
-        relaunch_context: None,
-        sub_agents: Vec::new(),
-        publish_handoff: None,
+        mission_brief: None, relaunch_context: None, sub_agents: Vec::new(), publish_handoff: None,
+        selected_opportunity_id: None, wake_reason: None, wake_state: None, source_citations: None, queue_position: None, next_eligible_action: None,
     });
 
     let review_pack_value =
@@ -950,6 +946,7 @@ fn build_review_pack_includes_relaunch_metadata_and_sub_agents() {
                 "Validation: failed",
             ],
         })),
+        selected_opportunity_id: None, wake_reason: None, wake_state: None, source_citations: None, queue_position: None, next_eligible_action: None,
     });
 
     let review_pack_value = serde_json::to_value(review_pack).expect("serialize relaunch pack");

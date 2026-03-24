@@ -154,6 +154,30 @@ if (!("requestAnimationFrame" in globalThis)) {
   });
 }
 
+if (!("Worker" in globalThis)) {
+  class WorkerMock {
+    onmessage: ((event: MessageEvent) => void) | null = null;
+    postMessage() {
+      return;
+    }
+    addEventListener() {
+      return;
+    }
+    removeEventListener() {
+      return;
+    }
+    terminate() {
+      return;
+    }
+  }
+
+  Object.defineProperty(globalThis, "Worker", {
+    value: WorkerMock,
+    writable: true,
+    configurable: true,
+  });
+}
+
 Object.defineProperty(globalThis, "confirm", {
   value: vi.fn(() => true),
   writable: true,

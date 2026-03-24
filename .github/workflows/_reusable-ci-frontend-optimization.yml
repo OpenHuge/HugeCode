@@ -3,6 +3,11 @@ name: _reusable-ci-frontend-optimization
 on:
   workflow_call:
 
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_API: ${{ vars.TURBO_API }}
+
 jobs:
   frontend_optimization:
     name: frontend_optimization
@@ -20,6 +25,8 @@ jobs:
           install-command: pnpm install --offline --frozen-lockfile
 
       - uses: ./.github/actions/cache-turbo
+
+      - uses: ./.github/actions/install-linux-desktop-deps
 
       - uses: ./.github/actions/setup-playwright
 

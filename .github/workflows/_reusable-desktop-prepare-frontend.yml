@@ -8,6 +8,11 @@ on:
         type: string
         default: auto
 
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_API: ${{ vars.TURBO_API }}
+
 jobs:
   prepare_frontend:
     name: Prepare frontend dist

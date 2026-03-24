@@ -61,6 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       desktop_required: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.desktop == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
+      desktop_full_pr_matrix_required: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.desktop_host == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -79,6 +80,32 @@ jobs:
             desktop:
               - "apps/code-tauri/**"
               - "apps/code/**"
+              - "!apps/code/**/*.md"
+              - "!apps/code/**/*.mdx"
+              - "!apps/code/**/*.test.ts"
+              - "!apps/code/**/*.test.tsx"
+              - "!apps/code/**/*.spec.ts"
+              - "!apps/code/**/*.spec.tsx"
+              - "!apps/code/**/*.stories.ts"
+              - "!apps/code/**/*.stories.tsx"
+              - "!apps/code/**/*.stories.mdx"
+              - "!apps/code/**/__tests__/**"
+              - "!apps/code/src/test/**"
+              - "!apps/code/src/fixtures/**"
+              - "apps/code-electron/**"
+              - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
+              - ".github/workflows/_reusable-desktop-build-pr.yml"
+              - ".github/workflows/_reusable-desktop-build-release.yml"
+              - ".github/actions/cache-turbo/**"
+              - ".github/actions/install-linux-desktop-deps/**"
+              - ".github/actions/restore-artifact/**"
+              - ".github/actions/setup-desktop-build-env/**"
+              - ".github/actions/setup-node-pnpm/**"
+              - ".github/actions/setup-rust-ci/**"
+              - ".github/actions/upload-workflow-artifact/**"
+              - ".github/workflows/desktop.yml"
+            desktop_host:
+              - "apps/code-tauri/**"
               - "apps/code-electron/**"
               - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
               - ".github/workflows/_reusable-desktop-build-pr.yml"
@@ -104,12 +131,36 @@ jobs:
     needs: changes
     if: needs.changes.outputs.desktop_required == 'true'
     uses: ./.github/workflows/_reusable-desktop-prepare-frontend.yml
+    secrets: inherit
     with:
       prebuild_mode: ${{ github.event_name == 'workflow_dispatch' && inputs.prebuild_mode || 'auto' }}
 
-  build-pr:
+  build-pr-fast:
     name: Build PR (${{ matrix.name }})
-    if: github.event_name == 'pull_request' && needs.changes.outputs.desktop_required == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.desktop_required == 'true' && needs.changes.outputs.desktop_full_pr_matrix_required != 'true'
+    needs: [changes, prepare-frontend]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            id: linux-x64
+            runner: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
+            host_check_command: ""
+            enable_sccache: "true"
+    uses: ./.github/workflows/_reusable-desktop-build-pr.yml
+    secrets: inherit
+    with:
+      runner: ${{ matrix.runner }}
+      rust_target: ${{ matrix.rust_target }}
+      cargo_cache_key: ${{ matrix.id }}
+      enable_sccache: ${{ matrix.enable_sccache }}
+      host_check_command: ${{ matrix.host_check_command }}
+
+  build-pr-full:
+    name: Build PR (${{ matrix.name }})
+    if: github.event_name == 'pull_request' && needs.changes.outputs.desktop_full_pr_matrix_required == 'true'
     needs: [changes, prepare-frontend]
     strategy:
       fail-fast: false
@@ -134,6 +185,7 @@ jobs:
             host_check_command: ""
             enable_sccache: "true"
     uses: ./.github/workflows/_reusable-desktop-build-pr.yml
+    secrets: inherit
     with:
       runner: ${{ matrix.runner }}
       rust_target: ${{ matrix.rust_target }}
@@ -186,6 +238,7 @@ jobs:
             artifact_path: apps/code-tauri/src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/**/*
             host_check_command: ""
     uses: ./.github/workflows/_reusable-desktop-build-release.yml
+    secrets: inherit
     with:
       runner: ${{ matrix.runner }}
       rust_target: ${{ matrix.rust_target }}

@@ -4,7 +4,7 @@ export const Route = createFileRoute("/app")({
   head: () => ({
     meta: [
       {
-        title: "Open Fast Workspace",
+        title: "HugeCode Workspace",
       },
       {
         name: "robots",

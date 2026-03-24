@@ -1,8 +1,11 @@
 import type {
+  DesktopAppInfo,
   DesktopHostBridge,
+  DesktopLaunchIntent,
   DesktopNotificationInput,
   DesktopRuntimeHost,
   DesktopSessionInfo,
+  DesktopUpdateState,
 } from "@ku0/code-platform-interfaces";
 import { toSafeExternalUrl } from "@ku0/shared";
 
@@ -20,6 +23,11 @@ export type DesktopWindowLabelFallbacks = {
 export type DesktopVersionFallbacks = {
   desktopHostBridge: DesktopHostBridge | null;
   getTauriAppVersion?: () => Promise<string | null | undefined>;
+};
+
+const DEFAULT_UNSUPPORTED_UPDATE_STATE: DesktopUpdateState = {
+  capability: "unsupported",
+  stage: "idle",
 };
 
 export type DesktopNotificationFallbacks = {
@@ -95,6 +103,25 @@ export async function resolveDesktopAppVersion(
   return null;
 }
 
+export async function resolveDesktopAppInfo(
+  desktopHostBridge: DesktopHostBridge | null
+): Promise<DesktopAppInfo | null> {
+  try {
+    const appInfo = await desktopHostBridge?.app?.getInfo?.();
+    if (!appInfo) {
+      return null;
+    }
+
+    if (typeof appInfo.version === "string" || appInfo.version === null) {
+      return appInfo;
+    }
+  } catch {
+    // App info is optional.
+  }
+
+  return null;
+}
+
 export async function resolveDesktopSessionInfo(
   desktopHostBridge: DesktopHostBridge | null
 ): Promise<DesktopSessionInfo | null> {
@@ -108,6 +135,66 @@ export async function resolveDesktopSessionInfo(
   }
 
   return null;
+}
+
+export async function consumeDesktopLaunchIntent(
+  desktopHostBridge: DesktopHostBridge | null
+): Promise<DesktopLaunchIntent | null> {
+  try {
+    const launchIntent = await desktopHostBridge?.launch?.consumePendingIntent?.();
+    if (launchIntent && typeof launchIntent.kind === "string") {
+      return launchIntent;
+    }
+  } catch {
+    // Launch intents are optional.
+  }
+
+  return null;
+}
+
+export async function resolveDesktopUpdateState(
+  desktopHostBridge: DesktopHostBridge | null
+): Promise<DesktopUpdateState> {
+  try {
+    const updateState = await desktopHostBridge?.updater?.getState?.();
+    if (updateState && typeof updateState.stage === "string") {
+      return updateState;
+    }
+  } catch {
+    // Updater state is optional.
+  }
+
+  return DEFAULT_UNSUPPORTED_UPDATE_STATE;
+}
+
+export async function checkDesktopForUpdates(
+  desktopHostBridge: DesktopHostBridge | null
+): Promise<DesktopUpdateState> {
+  try {
+    const updateState = await desktopHostBridge?.updater?.checkForUpdates?.();
+    if (updateState && typeof updateState.stage === "string") {
+      return updateState;
+    }
+  } catch {
+    // Updater checks are optional.
+  }
+
+  return DEFAULT_UNSUPPORTED_UPDATE_STATE;
+}
+
+export async function restartDesktopToApplyUpdate(
+  desktopHostBridge: DesktopHostBridge | null
+): Promise<boolean> {
+  try {
+    const restartResult = await desktopHostBridge?.updater?.restartToApplyUpdate?.();
+    if (desktopHostBridge?.updater?.restartToApplyUpdate) {
+      return restartResult !== false;
+    }
+  } catch {
+    // Updater restarts are optional.
+  }
+
+  return false;
 }
 
 export async function showDesktopNotification(
