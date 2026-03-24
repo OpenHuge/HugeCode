@@ -133,6 +133,10 @@ async function prepareStage() {
   await cp(distDir, resolve(forgePackageDir, "dist-electron"), { recursive: true });
   await cp(forgeConfigSource, resolve(forgePackageDir, "forge.config.mjs"));
   await cp(localMakerDebSource, resolve(forgePackageDir, "scripts/maker-deb.cjs"));
+  await cp(
+    resolve(packageDir, "scripts/darwin-ad-hoc-sign.mjs"),
+    resolve(forgePackageDir, "scripts/darwin-ad-hoc-sign.mjs")
+  );
 
   const stagedPackageJson = createForgeStagePackageJson(packageJson);
 

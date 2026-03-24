@@ -72,11 +72,20 @@ Linux desktop builds remain manual-update only.
 - HugeCode now maintains both a tray menu and a state-driven application menu.
 - The application menu exposes:
   - `New Window`
+  - `Open File...`
+  - `Open Folder...`
   - `About HugeCode`
   - `Open Recent Session`
   - `Check for Updates...`
 - The menu is rebuilt from the persisted desktop session state instead of hard-coded one-off actions in `main.ts`.
+- Native file and folder pickers normalize into the same launch-intent flow as CLI, Finder, and deep-link workspace opens.
 - `Check for Updates...` follows the same updater source of truth as the in-app update UI:
   - automatic channels trigger a real Electron update check in the main process
   - manual beta builds open GitHub Releases instead of pretending automatic update support
 - Electron pushes updater state changes to live renderer windows, so native menu-triggered checks and in-app checks stay in sync.
+
+## macOS Arm64 Packaging
+
+- HugeCode disables Forge's fallback `codesign --deep` fuse re-sign path for unsigned Apple Silicon builds.
+- Forge still flips package-time fuses, but post-package arm64 bundles are re-signed with explicit ad-hoc signing through `@electron/osx-sign`.
+- This matches Electron's normal deep-first signing model more closely and avoids the ambiguous-bundle failure that can surface on GitHub macOS arm64 runners.

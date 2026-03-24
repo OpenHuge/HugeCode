@@ -10,6 +10,8 @@ type ApplicationMenuState = {
 type ApplicationMenuHandlers = {
   onCheckForUpdates(): void;
   onNewWindow(): void;
+  onOpenFile(): void;
+  onOpenFolder(): void;
   onOpenAbout(): void;
   onQuit(): void;
   onReopenSession(sessionId: string): void;
@@ -27,6 +29,8 @@ export type CreateDesktopApplicationMenuControllerInput = {
   platform: NodeJS.Platform;
   readState(): Pick<ApplicationMenuState, "recentSessions">;
   onNewWindow(): void;
+  onOpenFile(): void;
+  onOpenFolder(): void;
   onOpenAbout(): void;
   onQuit(): void;
   onReopenSession(sessionId: string): void;
@@ -79,6 +83,22 @@ export function buildApplicationMenuTemplate(
       click: () => {
         handlers.onNewWindow();
       },
+    },
+    {
+      label: "Open File...",
+      accelerator: state.platform === "darwin" ? "Command+O" : "Ctrl+O",
+      click: () => {
+        handlers.onOpenFile();
+      },
+    },
+    {
+      label: "Open Folder...",
+      click: () => {
+        handlers.onOpenFolder();
+      },
+    },
+    {
+      type: "separator",
     },
     {
       label: "Open Recent Session",
@@ -229,6 +249,8 @@ export function createDesktopApplicationMenuController(
         buildApplicationMenuTemplate(state, {
           onNewWindow: input.onNewWindow,
           onCheckForUpdates: input.onCheckForUpdates,
+          onOpenFile: input.onOpenFile,
+          onOpenFolder: input.onOpenFolder,
           onOpenAbout: input.onOpenAbout,
           onQuit: input.onQuit,
           onReopenSession: input.onReopenSession,

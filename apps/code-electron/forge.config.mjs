@@ -1,6 +1,11 @@
 import MakerDeb from "./scripts/maker-deb.cjs";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
+import {
+  hasForgeOsxSignConfig,
+  repairDarwinArm64Signature,
+  shouldRepairDarwinArm64Signature,
+} from "./scripts/darwin-ad-hoc-sign.mjs";
 
 function normalizeStaticUpdateBaseUrlRoot(staticUpdateBaseUrl) {
   const trimmed = staticUpdateBaseUrl?.trim();
@@ -35,27 +40,46 @@ const betaStaticUpdateBaseUrl =
   releaseChannel === "beta" && staticUpdateBaseUrlRoot
     ? buildStaticUpdateBaseUrl(staticUpdateBaseUrlRoot, process.platform, process.arch)
     : null;
+const packagerConfig = {
+  appBundleId: "com.openhuge.hugecode",
+  asar: true,
+  ...(electronZipDir
+    ? {
+        electronZipDir,
+      }
+    : {}),
+  executableName: "HugeCode",
+  name: "HugeCode",
+  protocols: [
+    {
+      name: "HugeCode",
+      schemes: ["hugecode"],
+    },
+  ],
+};
 export default {
-  packagerConfig: {
-    appBundleId: "com.openhuge.hugecode",
-    asar: true,
-    ...(electronZipDir
-      ? {
-          electronZipDir,
-        }
-      : {}),
-    executableName: "HugeCode",
-    name: "HugeCode",
-    protocols: [
-      {
-        name: "HugeCode",
-        schemes: ["hugecode"],
-      },
-    ],
+  hooks: {
+    async postPackage(_forgeConfig, packageResult) {
+      if (
+        !shouldRepairDarwinArm64Signature({
+          arch: packageResult.arch,
+          hasOsxSignConfig: hasForgeOsxSignConfig(packagerConfig),
+          platform: packageResult.platform,
+        })
+      ) {
+        return;
+      }
+
+      for (const outputPath of packageResult.outputPaths) {
+        await repairDarwinArm64Signature(outputPath);
+      }
+    },
   },
+  packagerConfig,
   plugins: [
     new FusesPlugin({
       version: FuseVersion.V1,
+      resetAdHocDarwinSignature: false,
       [FuseV1Options.RunAsNode]: false,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,

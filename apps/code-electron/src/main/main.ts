@@ -1,6 +1,15 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { app, autoUpdater, BrowserWindow, ipcMain, protocol, session, shell } from "electron";
+import {
+  app,
+  autoUpdater,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  protocol,
+  session,
+  shell,
+} from "electron";
 import { createDesktopMainComposition } from "./createDesktopMainComposition.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -20,6 +29,7 @@ createDesktopMainComposition({
       return BrowserWindow.getAllWindows();
     },
   },
+  dialog,
   ipcMain,
   platform: process.platform,
   protocol,

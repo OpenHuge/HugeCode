@@ -24,6 +24,8 @@ describe("desktopApplicationMenu", () => {
       {
         onCheckForUpdates: vi.fn(),
         onNewWindow: vi.fn(),
+        onOpenFile: vi.fn(),
+        onOpenFolder: vi.fn(),
         onOpenAbout: vi.fn(),
         onQuit: vi.fn(),
         onReopenSession: vi.fn(),
@@ -38,6 +40,12 @@ describe("desktopApplicationMenu", () => {
       label: "New Window",
     });
     expect(template[1]?.submenu?.[1]).toMatchObject({
+      label: "Open File...",
+    });
+    expect(template[1]?.submenu?.[2]).toMatchObject({
+      label: "Open Folder...",
+    });
+    expect(template[1]?.submenu?.[4]).toMatchObject({
       label: "Open Recent Session",
       submenu: [expect.objectContaining({ label: "alpha" })],
     });
@@ -70,6 +78,8 @@ describe("desktopApplicationMenu", () => {
       },
       onCheckForUpdates: vi.fn(),
       onNewWindow: vi.fn(),
+      onOpenFile: vi.fn(),
+      onOpenFolder: vi.fn(),
       onOpenAbout: vi.fn(),
       onQuit: vi.fn(),
       onReopenSession: vi.fn(),

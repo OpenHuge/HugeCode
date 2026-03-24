@@ -35,6 +35,7 @@ HugeCode now serves packaged renderer content from `hugecode-app://app/...`. `hu
 
 - The Electron shell owns both tray and application-menu state.
 - `Recent Sessions` in tray and in the application menu must derive from the same persisted desktop session model.
+- Native `Open File...` and `Open Folder...` actions should feed the same launch-intent normalization path as CLI and OS file-open events.
 - Do not bolt new desktop actions directly into `main.ts`; add them through the menu/tray controller layer so session-driven desktop chrome stays in sync.
 
 ## Channel Rules
@@ -105,6 +106,12 @@ If no static feed root is configured, beta builds remain manual and point users 
   Verifies current-platform release artifacts and update metadata shape.
 - `pnpm desktop:electron:publish:dry-run`
   Reports the effective channel/update mode and fails on artifact or config mismatches.
+
+## macOS Arm64 Signing Rule
+
+- Forge fuse hardening must not rely on a blanket `codesign --deep` fallback for unsigned Apple Silicon packages.
+- HugeCode uses explicit post-package ad-hoc signing for unsigned `darwin/arm64` bundles instead.
+- If a future maintainer adds real `packagerConfig.osxSign`, this fallback should stay disabled and the explicit Forge signing config becomes the source of truth.
 
 ## Native Menu Behavior
 

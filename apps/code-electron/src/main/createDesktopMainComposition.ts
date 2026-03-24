@@ -97,6 +97,16 @@ export type CreateDesktopMainCompositionInput = {
   };
   arch: NodeJS.Architecture;
   browserWindow: DesktopBrowserWindowFacade;
+  dialog: {
+    showOpenDialog(options: {
+      buttonLabel?: string;
+      properties: Array<"openDirectory" | "openFile">;
+      title?: string;
+    }): Promise<{
+      canceled: boolean;
+      filePaths: string[];
+    }>;
+  };
   ipcMain: {
     handle(
       channel: string,
@@ -270,6 +280,24 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     return typeof version === "string" && version.length > 0 ? version : null;
   })();
 
+  async function openPathSelectionDialog(kind: "directory" | "file") {
+    const result = await input.dialog.showOpenDialog({
+      buttonLabel: kind === "file" ? "Open File" : "Open Folder",
+      properties: kind === "file" ? ["openFile"] : ["openDirectory"],
+      title: kind === "file" ? "Open File" : "Open Folder",
+    });
+    if (result.canceled) {
+      return;
+    }
+
+    const selectedPath = result.filePaths[0];
+    if (typeof selectedPath !== "string" || selectedPath.trim().length === 0) {
+      return;
+    }
+
+    launchIntentController.queueWorkspacePath(selectedPath);
+  }
+
   function persistDesktopState() {
     stateStore.write(shellState.toPersistedState());
   }
@@ -319,6 +347,12 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     },
     onNewWindow: () => {
       windowController.openWindow();
+    },
+    onOpenFile: () => {
+      void openPathSelectionDialog("file");
+    },
+    onOpenFolder: () => {
+      void openPathSelectionDialog("directory");
     },
     onOpenAbout: () => {
       windowController.openWindow({
