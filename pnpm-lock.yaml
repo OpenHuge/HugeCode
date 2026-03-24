@@ -19,6 +19,11 @@ overrides:
   undici@<5.29.0: '>=5.29.0'
   undici@<6.23.0: '>=6.23.0'
 
+patchedDependencies:
+  electron-installer-common@0.10.4:
+    hash: e88751f296f9f313d00fc31a4d0573f6598cf5906ad5b2165f6c4879fe87ddc5
+    path: patches/electron-installer-common@0.10.4.patch
+
 importers:
 
   .:
@@ -10600,7 +10605,7 @@ snapshots:
 
   eastasianwidth@0.2.0: {}
 
-  electron-installer-common@0.10.4:
+  electron-installer-common@0.10.4(patch_hash=e88751f296f9f313d00fc31a4d0573f6598cf5906ad5b2165f6c4879fe87ddc5):
     dependencies:
       '@electron/asar': 3.4.1
       '@malept/cross-spawn-promise': 1.1.1
@@ -10621,7 +10626,7 @@ snapshots:
     dependencies:
       '@malept/cross-spawn-promise': 1.1.1
       debug: 4.4.3
-      electron-installer-common: 0.10.4
+      electron-installer-common: 0.10.4(patch_hash=e88751f296f9f313d00fc31a4d0573f6598cf5906ad5b2165f6c4879fe87ddc5)
       fs-extra: 9.1.0
       get-folder-size: 2.0.1
       lodash: 4.17.23
