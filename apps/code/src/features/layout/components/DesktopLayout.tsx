@@ -1,8 +1,14 @@
 import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { WorkspaceChromeLayout } from "@ku0/code-application";
 import { onOpenPlanPanel } from "../../plan/utils/planPanelSurface";
 import { RightPanelResizeHandle } from "../../right-panel/RightPanelPrimitives";
 import { ThreadRightPanel } from "../../right-panel/ThreadRightPanel";
 import { RIGHT_RAIL_ENTER_SETTLE_MS, RIGHT_RAIL_EXIT_MS } from "./DesktopLayout.motion";
+import {
+  RightPanelCollapseButton,
+  RightPanelExpandButton,
+  SidebarExpandButton,
+} from "./SidebarToggleControls";
 import * as styles from "./DesktopLayout.css";
 
 type DesktopLayoutProps = {
@@ -52,6 +58,8 @@ export function DesktopLayout({
   showHome,
   showWorkspace,
   topbarLeftNode,
+  sidebarCollapsed,
+  onExpandSidebar,
   rightPanelInterruptNode,
   rightPanelDetailsNode,
   hasRightPanelDetailContent,
@@ -67,6 +75,7 @@ export function DesktopLayout({
   debugPanelNode,
   hasActivePlan,
   rightPanelCollapsed,
+  onCollapseRightPanel,
   onExpandRightPanel,
   onSidebarResizeStart,
   onRightPanelResizeStart,
@@ -141,71 +150,114 @@ export function DesktopLayout({
   const rightRailVisible = rightRailMotionState !== "hidden";
 
   return (
-    <div className={styles.desktopShell} data-desktop-shell="kanna-frame">
-      <div className={styles.sidebarPane} data-desktop-sidebar-pane="true">
-        {sidebarNode}
-      </div>
-      <hr
-        className={`sidebar-resizer ${styles.sidebarResizeHandle}`}
-        aria-orientation="vertical"
-        aria-label="Resize sidebar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={50}
-        tabIndex={0}
-        onMouseDown={onSidebarResizeStart}
-      />
-
-      <div className={styles.mainPane} data-desktop-main-pane="true">
-        <section
-          className={`main ${styles.mainShell[rightRailVisible ? "expanded" : "collapsed"]} ${
-            showWorkspace ? styles.workspaceShell : ""
-          }`}
-        >
+    <WorkspaceChromeLayout
+      sidebarNode={sidebarNode}
+      sidebarResizeHandleNode={
+        <hr
+          className={`sidebar-resizer ${styles.sidebarResizeHandle}`}
+          aria-orientation="vertical"
+          aria-label="Resize sidebar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={50}
+          tabIndex={0}
+          onMouseDown={onSidebarResizeStart}
+        />
+      }
+      toastNodes={
+        <>
           {updateToastNode}
           {errorToastsNode}
           {approvalToastsNode}
-          {showHome ? homeNode : null}
-          {showWorkspace ? (
-            <>
-              {topbarLeftNode}
-              <div className={styles.timelineSurface}>{messagesNode}</div>
-              {rightRailVisible ? (
-                <>
-                  <RightPanelResizeHandle
-                    aria-label="Resize right panel"
-                    className={`${styles.rightRailResizeHandle} ${styles.rightRailResizeHandleMotion[rightRailMotionState]}`}
-                    onMouseDown={(event) =>
-                      onRightPanelResizeStart(event as unknown as MouseEvent<HTMLDivElement>)
-                    }
-                  />
-                  <aside
-                    className={`${styles.rightRail} ${styles.rightRailMotion[rightRailMotionState]}`}
-                    data-right-rail="true"
-                    data-right-rail-motion={rightRailMotionState}
-                  >
-                    <ThreadRightPanel
-                      interruptNode={rightPanelInterruptNode}
-                      detailNode={rightPanelDetailsNode}
-                      hasDetailContent={hasRightPanelDetailContent}
-                      gitNode={rightPanelGitNode}
-                      filesNode={rightPanelFilesNode}
-                      promptsNode={rightPanelPromptsNode}
-                      planNode={planPanelNode}
-                      diffNode={gitDiffViewerNode}
-                      hasDiffContent={hasGitDiffViewerContent}
-                      hasActivePlan={hasActivePlan}
-                    />
-                  </aside>
-                </>
-              ) : null}
-              <div className={styles.composerDock}>{composerNode}</div>
-            </>
+        </>
+      }
+      homeNode={homeNode}
+      showHome={showHome}
+      showWorkspace={showWorkspace}
+      shellOverlaysNode={
+        <>
+          {sidebarCollapsed ? (
+            <div className={styles.sidebarExpandToggle} data-desktop-sidebar-expand="true">
+              <SidebarExpandButton
+                isCompact={false}
+                sidebarCollapsed
+                rightPanelCollapsed={rightPanelCollapsed}
+                onCollapseSidebar={() => undefined}
+                onExpandSidebar={onExpandSidebar}
+                onCollapseRightPanel={() => undefined}
+                onExpandRightPanel={onExpandRightPanel}
+              />
+            </div>
           ) : null}
-          {terminalDockNode}
-          {debugPanelNode}
-        </section>
-      </div>
-    </div>
+          <div className={styles.rightPanelExpandToggle} data-desktop-right-rail-toggle="true">
+            {rightPanelCollapsed ? (
+              <RightPanelExpandButton
+                isCompact={false}
+                sidebarCollapsed={sidebarCollapsed}
+                rightPanelCollapsed
+                onCollapseSidebar={() => undefined}
+                onExpandSidebar={onExpandSidebar}
+                onCollapseRightPanel={() => undefined}
+                onExpandRightPanel={onExpandRightPanel}
+              />
+            ) : (
+              <RightPanelCollapseButton
+                isCompact={false}
+                sidebarCollapsed={sidebarCollapsed}
+                rightPanelCollapsed={false}
+                onCollapseSidebar={() => undefined}
+                onExpandSidebar={onExpandSidebar}
+                onCollapseRightPanel={onCollapseRightPanel}
+                onExpandRightPanel={onExpandRightPanel}
+              />
+            )}
+          </div>
+        </>
+      }
+      topbarNode={topbarLeftNode}
+      timelineNode={<div className={styles.timelineSurface}>{messagesNode}</div>}
+      rightRailResizeHandleNode={
+        rightRailVisible ? (
+          <RightPanelResizeHandle
+            aria-label="Resize right panel"
+            className={`${styles.rightRailResizeHandle} ${styles.rightRailResizeHandleMotion[rightRailMotionState]}`}
+            onMouseDown={(event) =>
+              onRightPanelResizeStart(event as unknown as MouseEvent<HTMLDivElement>)
+            }
+          />
+        ) : null
+      }
+      rightRailNode={
+        rightRailVisible ? (
+          <aside
+            className={`${styles.rightRail} ${styles.rightRailMotion[rightRailMotionState]}`}
+            data-right-rail="true"
+            data-right-rail-motion={rightRailMotionState}
+          >
+            <ThreadRightPanel
+              interruptNode={rightPanelInterruptNode}
+              detailNode={rightPanelDetailsNode}
+              hasDetailContent={hasRightPanelDetailContent}
+              gitNode={rightPanelGitNode}
+              filesNode={rightPanelFilesNode}
+              promptsNode={rightPanelPromptsNode}
+              planNode={planPanelNode}
+              diffNode={gitDiffViewerNode}
+              hasDiffContent={hasGitDiffViewerContent}
+              hasActivePlan={hasActivePlan}
+            />
+          </aside>
+        ) : null
+      }
+      composerNode={<div className={styles.composerDock}>{composerNode}</div>}
+      terminalDockNode={terminalDockNode}
+      debugPanelNode={debugPanelNode}
+      desktopShellClassName={styles.desktopShell}
+      sidebarPaneClassName={styles.sidebarPane}
+      mainPaneClassName={styles.mainPane}
+      mainShellClassName={`${styles.mainShell[rightRailVisible ? "expanded" : "collapsed"]} ${
+        showWorkspace ? styles.workspaceShell : ""
+      }`}
+    />
   );
 }
