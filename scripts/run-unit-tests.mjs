@@ -14,6 +14,7 @@ const workspaceUnitTestFilters = [
   "@ku0/code-runtime-webmcp-client",
   "@ku0/code-workspace-client",
   "@ku0/design-system",
+  "@ku0/discovery-rs",
   "@ku0/native-runtime-host-contract",
   "@ku0/shared",
   "@ku0/ui",

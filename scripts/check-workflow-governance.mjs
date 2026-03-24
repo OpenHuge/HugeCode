@@ -18,6 +18,9 @@ const CI_FILTER_EXTRA_REQUIREMENTS = new Map([
   [
     "repo_sot",
     new Set([
+      ".github/PULL_REQUEST_TEMPLATE.md",
+      ".github/dependabot.yml",
+      ".github/dependency-review-config.yml",
       "docs/development/ci-workflows.md",
       "scripts/check-branch-policy.mjs",
       "scripts/lib/branch-policy.mjs",

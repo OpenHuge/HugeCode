@@ -28,6 +28,7 @@ Public workflow entrypoints currently include:
 - `.github/workflows/ci.yml`
 - `.github/workflows/codeql.yml`
 - `.github/workflows/codex-nightly.yml`
+- `.github/workflows/dependency-review.yml`
 - `.github/workflows/dependabot-auto-merge.yml`
 - `.github/workflows/desktop.yml`
 - `.github/workflows/electron-beta.yml`
@@ -42,6 +43,7 @@ Public workflow entrypoints currently include:
 - Shared Node/pnpm bootstrap should stay lockfile-first: prefetch with `pnpm fetch --frozen-lockfile`, then install with `pnpm install --offline --frozen-lockfile` unless a workflow has a documented reason to require a different install path.
 - PR workflow gates may classify manifest-only dependency bumps before deciding whether expensive desktop or frontend lanes are needed; keep that classification script-backed and explicit instead of scattering ad hoc shell heuristics across workflows.
 - Low-risk Dependabot development-version bumps may skip the expensive affected build/test lane when the remaining quality, frontend, or desktop gates already cover the touched risk surface.
+- `dependency-review.yml` should stay as the PR-time supply-chain gate for newly introduced vulnerable dependencies, with repo-owned policy living in `.github/dependency-review-config.yml`.
 - CodeQL remains a required security guardrail, but its language lanes should be scoped to the languages actually touched by the change so npm-only updates do not queue Rust analysis and Rust-only updates do not queue JavaScript analysis.
 - When a required workflow lane is intentionally idle, prefer a fast explicit skip inside the job over removing the check name entirely; this keeps branch protection stable while still reducing runner time.
 - Desktop build lanes must install both `@ku0/code...` and `@ku0/code-tauri...` so Tauri `beforeBuildCommand` can build the frontend app without relying on a full workspace install.
@@ -51,4 +53,5 @@ Public workflow entrypoints currently include:
 - The `CI` workflow should apply the same rule to `desktop:verify:fast`: PRs should only run that fast desktop gate for desktop-owned surfaces, while root dependency and lockfile churn stays covered by the dedicated desktop workflow on `push` to `main`.
 - Electron beta lanes should run the staged Forge entrypoints (`desktop:electron:verify`, `desktop:electron:make:smoke`, `desktop:electron:publish:dry-run`, `desktop:electron:publish`) instead of calling Forge directly from the workspace package root.
 - Dependabot auto-merge must stay selective: only low-risk grouped updates such as `devcontainers-safe` and `github-actions-safe` should auto-enable merge after checks pass; runtime, frontend, and Rust dependency bumps remain manual-review lanes.
+- Cross-directory Rust updates should prefer Dependabot `group-by: dependency-name` so the same crate bump lands in one PR across monorepo manifests instead of fan-out duplicates.
 - npm Dependabot updates should prefer grouped low-risk development-version bumps to reduce queue pressure and redundant CI fan-out, while keeping higher-risk dependency changes in manual-review lanes.

@@ -7,6 +7,8 @@ packages:
   - "apps/code-electron"
   - "packages/*"
   - "tests/*"
+nodeVersion: 24.11.1
+engineStrict: true
 minimumReleaseAge: 60
 strictDepBuilds: true
 # Worktrees frequently share a valid install state while diverging in branch-local

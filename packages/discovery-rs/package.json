@@ -1,7 +1,7 @@
 {
   "name": "@ku0/discovery-rs",
   "version": "0.1.0",
-  "description": "Rust mDNS discovery bindings for HypeCode.",
+  "description": "Rust mDNS discovery bindings for HugeCode.",
   "files": [
     "dist",
     "*.node"
@@ -25,6 +25,7 @@
     "build": "tsx scripts/build-native.ts --release && tsc",
     "build:debug": "tsx scripts/build-native.ts && tsc",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix --fix-suggestions . && oxfmt --write ."
   },

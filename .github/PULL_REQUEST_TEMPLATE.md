@@ -2,30 +2,30 @@
 
 <!-- What changed and why -->
 
-## Changes
+## Validation
 
-<!-- List the files changed and what was modified -->
+- [ ] Docs-only, no runtime impact
+- [ ] `pnpm validate:fast`
+- [ ] `pnpm validate`
+- [ ] `pnpm validate:full`
+- [ ] Targeted check(s) only:
 
-## Testing
+<!-- Add the exact commands you ran and the outcome. -->
 
-- [ ] Not run (docs-only)
-- [ ] `pnpm typecheck` - No type errors
-- [ ] `pnpm lint` - No lint errors
-- [ ] `pnpm format:check` - Formatting is clean
-- [ ] `pnpm test` - All tests pass
-- [ ] `pnpm build` - Build succeeds
-- [ ] Other (specify):
+## Scope
+
+<!-- Call out the touched surfaces, contracts, docs, or workflows. -->
 
 ## Risks / Known Issues
 
 <!-- List risks, edge cases, or "None" -->
 
-## Spec Reference
+## Spec / Docs Impact
 
-<!-- Link to roadmap track document if applicable -->
+<!-- Link the authoritative spec/docs changed or confirm no doc updates were needed. -->
 
-- Track: [Track Name](docs/roadmap/phase-XX/track-XX.md)
-- Phase: [Phase Name](docs/roadmap/phase-XX/README.md)
+- Spec or docs:
+- Follow-up required:
 
 ## UI Evidence
 
