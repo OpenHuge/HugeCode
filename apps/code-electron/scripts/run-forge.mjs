@@ -17,6 +17,7 @@ const requireFromWorkspace = createRequire(resolve(workspaceRoot, "package.json"
 const electronForgeCli = requireFromWorkspace.resolve("@electron-forge/cli/dist/electron-forge.js");
 const darwinAdHocSignSource = resolve(scriptDir, "darwin-ad-hoc-sign.mjs");
 const localMakerDebSource = resolve(scriptDir, "maker-deb.cjs");
+const forgeTempRoot = resolve(workspaceRoot, "node_modules/.cache/hugecode-electron-forge");
 
 let forgeStageDir = "";
 let forgePackageDir = "";
@@ -303,9 +304,8 @@ async function runCommand(commandName, args, cwd, env = process.env) {
 }
 
 async function createStagePaths() {
-  const forgeTempDir = resolve(tempRootDir, "forge");
-  await mkdir(forgeTempDir, { recursive: true });
-  forgeStageDir = await mkdtemp(resolve(forgeTempDir, "stage-"));
+  await mkdir(forgeTempRoot, { recursive: true });
+  forgeStageDir = await mkdtemp(resolve(forgeTempRoot, "stage-"));
   forgePackageDir = resolve(forgeStageDir, "app");
 }
 
@@ -402,7 +402,7 @@ async function runForge() {
 
   try {
     await prepareStage();
-    const processTempDir = resolve(tempRootDir, "process");
+    const processTempDir = resolve(forgeTempRoot, "process");
     await mkdir(processTempDir, { recursive: true });
 
     await new Promise((resolvePromise, rejectPromise) => {

@@ -38,3 +38,6 @@ overrides:
   "tar@<=7.5.3": ">=7.5.4"
   "undici@<5.29.0": ">=5.29.0"
   "undici@<6.23.0": ">=6.23.0"
+
+patchedDependencies:
+  electron-installer-common@0.10.4: patches/electron-installer-common@0.10.4.patch
