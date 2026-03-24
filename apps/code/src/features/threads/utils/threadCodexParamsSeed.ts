@@ -156,6 +156,7 @@ export function resolveThreadCodexState(
 
 export function buildThreadCodexSeedPatch(options: {
   workspaceId: string;
+  selectedModelId: string | null;
   resolvedModel: string | null;
   resolvedEffort: string | null;
   fastMode: boolean;
@@ -166,6 +167,7 @@ export function buildThreadCodexSeedPatch(options: {
 }): ThreadCodexSeedPatch {
   const {
     workspaceId,
+    selectedModelId,
     resolvedModel,
     resolvedEffort,
     fastMode,
@@ -179,7 +181,7 @@ export function buildThreadCodexSeedPatch(options: {
     pendingSeed && pendingSeed.workspaceId === workspaceId ? pendingSeed : null;
 
   return {
-    modelId: resolvedModel,
+    modelId: selectedModelId ?? resolvedModel,
     effort: resolvedEffort,
     fastMode: pendingForWorkspace?.fastMode ?? fastMode,
     accessMode: pendingForWorkspace?.accessMode ?? accessMode,

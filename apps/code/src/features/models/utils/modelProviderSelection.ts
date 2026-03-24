@@ -126,6 +126,24 @@ function resolveProviderReadinessPriority(
   return PROVIDER_READINESS_PRIORITY[readinessKind] ?? -1;
 }
 
+function resolveProviderRoutePriority(model: ProviderSelectableModel): number {
+  const routeId = (
+    normalizeValue(model.provider) ??
+    normalizeValue(model.pool) ??
+    normalizeValue(model.source) ??
+    ""
+  )
+    .trim()
+    .toLowerCase();
+  if (routeId === "claude_code_local") {
+    return 0;
+  }
+  if (routeId === "anthropic" || routeId === "claude_code" || routeId === "claude") {
+    return 1;
+  }
+  return 10;
+}
+
 function tokenizeModelIdentity(model: ProviderSelectableModel): string {
   return (
     normalizeValue(model.model) ??
@@ -248,16 +266,53 @@ function resolveProviderExecutionKind<TModel extends ProviderSelectableModel>(
   return representative?.executionKind ?? null;
 }
 
-export function buildProviderModelEntries<TModel extends ProviderSelectableModel>(
-  providerModels: ReadonlyArray<TModel>
-): TModel[] {
-  return [...providerModels].sort((left, right) => {
+function pickRepresentativeModel<TModel extends ProviderSelectableModel>(
+  models: ReadonlyArray<TModel>,
+  selectedModelId: string | null
+): TModel {
+  const selectedMatch = models.find(
+    (model) => model.id === selectedModelId || model.model === selectedModelId
+  );
+  if (selectedMatch) {
+    return selectedMatch;
+  }
+  return [...models].sort((left, right) => {
     const availabilityDelta = Number(right.available !== false) - Number(left.available !== false);
     if (availabilityDelta !== 0) {
       return availabilityDelta;
     }
+    const routePriorityDelta =
+      resolveProviderRoutePriority(left) - resolveProviderRoutePriority(right);
+    if (routePriorityDelta !== 0) {
+      return routePriorityDelta;
+    }
     return resolveModelPreferenceOrder(left, right);
-  });
+  })[0] as TModel;
+}
+
+export function buildProviderModelEntries<TModel extends ProviderSelectableModel>(
+  providerModels: ReadonlyArray<TModel>,
+  selectedModelId: string | null = null
+): TModel[] {
+  const modelsBySlug = new Map<string, TModel[]>();
+  for (const model of providerModels) {
+    const modelSlug = normalizeValue(model.model) ?? model.id;
+    const group = modelsBySlug.get(modelSlug);
+    if (group) {
+      group.push(model);
+      continue;
+    }
+    modelsBySlug.set(modelSlug, [model]);
+  }
+  return Array.from(modelsBySlug.values())
+    .map((group) => pickRepresentativeModel(group, selectedModelId))
+    .sort((left, right) => {
+      const availabilityDelta = Number(right.available !== false) - Number(left.available !== false);
+      if (availabilityDelta !== 0) {
+        return availabilityDelta;
+      }
+      return resolveModelPreferenceOrder(left, right);
+    });
 }
 
 export function buildModelProviderOptions<TModel extends ProviderSelectableModel>(
@@ -276,7 +331,7 @@ export function buildModelProviderOptions<TModel extends ProviderSelectableModel
 
   return Array.from(modelsByProvider.entries())
     .map(([providerId, providerModels]) => {
-      const prioritizedModels = buildProviderModelEntries(providerModels);
+      const prioritizedModels = buildProviderModelEntries(providerModels, null);
       const defaultModel =
         prioritizedModels.find((model) => model.available !== false) ??
         prioritizedModels[0] ??

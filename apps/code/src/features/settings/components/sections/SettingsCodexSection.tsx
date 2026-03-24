@@ -208,12 +208,15 @@ export function SettingsCodexSection({
       null,
     [defaultModels, selectedModelId]
   );
+  const providerModels = useMemo(
+    () => buildProviderModelEntries(selectedProvider?.models ?? defaultModels, selectedModelId),
+    [defaultModels, selectedModelId, selectedProvider]
+  );
   const reasoningSupported = useMemo(() => supportsModelReasoning(selectedModel), [selectedModel]);
   const reasoningOptions = useMemo(() => getModelReasoningOptions(selectedModel), [selectedModel]);
   const modelSelectOptions = useMemo<SelectOption[]>(() => {
-    const scopedModels = buildProviderModelEntries(selectedProvider?.models ?? defaultModels);
-    const availableModels = scopedModels.filter((model) => model.available !== false);
-    const visibleModels = availableModels.length > 0 ? availableModels : scopedModels;
+    const availableModels = providerModels.filter((model) => model.available !== false);
+    const visibleModels = availableModels.length > 0 ? availableModels : providerModels;
     const optionModels =
       selectedModel && !visibleModels.some((model) => model.id === selectedModel.id)
         ? [selectedModel, ...visibleModels]
@@ -232,7 +235,7 @@ export function SettingsCodexSection({
         label: qualifier ? `${base} / ${qualifier}` : base,
       };
     });
-  }, [defaultModels, selectedModel, selectedProvider]);
+  }, [providerModels, selectedModel]);
   const providerSelectOptions = useMemo<SelectOption[]>(
     () =>
       providerOptions.map((provider) => ({

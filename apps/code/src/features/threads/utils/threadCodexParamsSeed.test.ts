@@ -194,6 +194,7 @@ describe("threadCodexParamsSeed", () => {
     expect(
       buildThreadCodexSeedPatch({
         workspaceId: "ws-1",
+        selectedModelId: "openai::gpt-5",
         resolvedModel: "gpt-5",
         resolvedEffort: "high",
         fastMode: false,
@@ -247,7 +248,7 @@ describe("threadCodexParamsSeed", () => {
         },
       })
     ).toEqual({
-      modelId: "gpt-5",
+      modelId: "openai::gpt-5",
       effort: "high",
       fastMode: true,
       accessMode: "full-access",
@@ -262,6 +263,7 @@ describe("threadCodexParamsSeed", () => {
     expect(
       buildThreadCodexSeedPatch({
         workspaceId: "ws-1",
+        selectedModelId: "openai::gpt-5",
         resolvedModel: "gpt-5",
         resolvedEffort: "high",
         fastMode: false,
@@ -278,7 +280,7 @@ describe("threadCodexParamsSeed", () => {
         },
       })
     ).toEqual({
-      modelId: "gpt-5",
+      modelId: "openai::gpt-5",
       effort: "high",
       fastMode: false,
       accessMode: "full-access",
@@ -288,11 +290,12 @@ describe("threadCodexParamsSeed", () => {
     });
   });
 
-  it("builds first-message seed patch from stable model slug instead of transient option id", () => {
+  it("builds first-message seed patch from the selected model id while preserving the runtime slug separately", () => {
     expect(
       buildThreadCodexSeedPatch({
         workspaceId: "ws-1",
-        resolvedModel: "gpt-5.4",
+        selectedModelId: "claude_code_local::claude-sonnet-4-5",
+        resolvedModel: "claude-sonnet-4-5",
         resolvedEffort: "high",
         fastMode: true,
         accessMode: "full-access",
@@ -301,7 +304,7 @@ describe("threadCodexParamsSeed", () => {
         pendingSeed: null,
       })
     ).toEqual({
-      modelId: "gpt-5.4",
+      modelId: "claude_code_local::claude-sonnet-4-5",
       effort: "high",
       fastMode: true,
       accessMode: "full-access",

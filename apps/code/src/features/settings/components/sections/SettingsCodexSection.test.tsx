@@ -291,6 +291,55 @@ describe("SettingsCodexSection", () => {
     expect(within(container).getByText("Global config.toml")).toBeTruthy();
   });
 
+  it("groups Claude routes under one provider and persists the resolved Claude Code model id", () => {
+    const onUpdateAppSettings = vi.fn(async () => undefined);
+
+    render(
+      <SettingsCodexSection
+        {...createProps({
+          appSettings: {
+            ...createProps().appSettings,
+            lastComposerModelId: "openai::gpt-5.1",
+          },
+          onUpdateAppSettings,
+          defaultModels: [
+            createModelOption({
+              id: "openai::gpt-5.1",
+              model: "gpt-5.1",
+              displayName: "GPT-5.1",
+              provider: "openai",
+              pool: "codex",
+            }),
+            createModelOption({
+              id: "anthropic::claude-sonnet-4-5",
+              model: "claude-sonnet-4-5",
+              displayName: "Claude Sonnet 4.5",
+              provider: "anthropic",
+              pool: "claude",
+            }),
+            createModelOption({
+              id: "claude_code_local::claude-sonnet-4-5",
+              model: "claude-sonnet-4-5",
+              displayName: "Claude Sonnet 4.5",
+              provider: "claude_code_local",
+              pool: "claude_code_local",
+            }),
+          ],
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Provider" }));
+    expect(screen.getAllByRole("option", { name: "Claude" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("option", { name: "Claude" }));
+
+    expect(onUpdateAppSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastComposerModelId: "claude_code_local::claude-sonnet-4-5",
+      })
+    );
+  });
+
   it("does not render legacy section shell, toggle, or action wrappers directly", () => {
     const { container } = render(<SettingsCodexSection {...createProps()} />);
 

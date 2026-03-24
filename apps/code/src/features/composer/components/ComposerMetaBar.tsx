@@ -312,10 +312,13 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
       })),
     [providerOptions]
   );
+  const providerModels = useMemo(
+    () => buildProviderModelEntries(selectedProvider?.models ?? models, selectedModelId),
+    [models, selectedModelId, selectedProvider]
+  );
   const modelSelectOptions: SelectOption[] = useMemo(() => {
-    const scopedModels = buildProviderModelEntries(selectedProvider?.models ?? models);
-    const availableModels = scopedModels.filter((model) => model.available !== false);
-    const visibleModels = availableModels.length > 0 ? availableModels : scopedModels;
+    const availableModels = providerModels.filter((model) => model.available !== false);
+    const visibleModels = availableModels.length > 0 ? availableModels : providerModels;
     const modelOptions =
       selectedModel && !visibleModels.some((model) => model.id === selectedModel.id)
         ? [selectedModel, ...visibleModels]
@@ -325,7 +328,7 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
       label: renderModelLabel(model),
       disabled: model.available === false,
     }));
-  }, [models, renderModelLabel, selectedModel, selectedProvider]);
+  }, [providerModels, renderModelLabel, selectedModel]);
   const effortSelectOptions: SelectOption[] = useMemo(
     () =>
       reasoningOptions.map((effort) => ({

@@ -89,7 +89,7 @@ describe("ComposerMetaBar", () => {
     expect(within(menu).queryByText("Model Unavailable (unavailable)")).toBeNull();
   });
 
-  it("disambiguates duplicate model labels when multiple runtime routes expose the same model", () => {
+  it("deduplicates duplicate routes inside the same provider and keeps provider selection separate", () => {
     render(
       <ComposerMetaBar
         disabled={false}
@@ -128,11 +128,120 @@ describe("ComposerMetaBar", () => {
       />
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Provider" }));
+
+    const providerMenu = screen.getByRole("listbox", { name: "Provider" });
+    expect(within(providerMenu).getAllByText("Codex")).toHaveLength(1);
+
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
 
     const menu = screen.getByRole("listbox", { name: "Model" });
-    expect(within(menu).getByText("GPT-5.3 Codex / codex-primary")).toBeTruthy();
-    expect(within(menu).getByText("GPT-5.3 Codex / codex-secondary")).toBeTruthy();
+    expect(within(menu).getAllByText("GPT-5.3 Codex")).toHaveLength(1);
+  });
+
+  it("groups Claude routes under one provider and prefers local Claude Code for the family default", () => {
+    const onSelectModel = vi.fn();
+
+    render(
+      <ComposerMetaBar
+        disabled={false}
+        collaborationModes={[]}
+        selectedCollaborationModeId={null}
+        onSelectCollaborationMode={vi.fn()}
+        models={[
+          {
+            id: "anthropic::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude",
+            provider: "anthropic",
+            available: true,
+          },
+          {
+            id: "claude_code_local::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude_code_local",
+            provider: "claude_code_local",
+            available: true,
+          },
+          {
+            id: "openai::gpt-5.4",
+            model: "gpt-5.4",
+            displayName: "GPT-5.4",
+            pool: "codex",
+            provider: "openai",
+            available: true,
+          },
+        ]}
+        selectedModelId="openai::gpt-5.4"
+        onSelectModel={onSelectModel}
+        reasoningOptions={[]}
+        selectedEffort={null}
+        onSelectEffort={vi.fn()}
+        reasoningSupported={false}
+        accessMode="on-request"
+        onSelectAccessMode={vi.fn()}
+        executionOptions={[{ value: "runtime", label: "Runtime" }]}
+        selectedExecutionMode="runtime"
+        onSelectExecutionMode={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Provider" }));
+
+    const providerMenu = screen.getByRole("listbox", { name: "Provider" });
+    expect(within(providerMenu).getAllByText("Claude")).toHaveLength(1);
+    expect(within(providerMenu).getByText("Codex")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("option", { name: "Claude" }));
+    expect(onSelectModel).toHaveBeenCalledWith("claude_code_local::claude-sonnet-4-5");
+  });
+
+  it("lists only the deduplicated models for the selected provider family", () => {
+    render(
+      <ComposerMetaBar
+        disabled={false}
+        collaborationModes={[]}
+        selectedCollaborationModeId={null}
+        onSelectCollaborationMode={vi.fn()}
+        models={[
+          {
+            id: "anthropic::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude",
+            provider: "anthropic",
+            available: true,
+          },
+          {
+            id: "claude_code_local::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude_code_local",
+            provider: "claude_code_local",
+            available: true,
+          },
+        ]}
+        selectedModelId="claude_code_local::claude-sonnet-4-5"
+        onSelectModel={vi.fn()}
+        reasoningOptions={[]}
+        selectedEffort={null}
+        onSelectEffort={vi.fn()}
+        reasoningSupported={false}
+        accessMode="on-request"
+        onSelectAccessMode={vi.fn()}
+        executionOptions={[{ value: "runtime", label: "Runtime" }]}
+        selectedExecutionMode="runtime"
+        onSelectExecutionMode={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Model" }));
+
+    const menu = screen.getByRole("listbox", { name: "Model" });
+    expect(within(menu).getByRole("option", { name: "Claude Sonnet 4.5" })).toBeTruthy();
+    expect(within(menu).queryByText("GPT-5.4")).toBeNull();
   });
 
   it("shows provider families and switches to the provider's recommended route model", () => {

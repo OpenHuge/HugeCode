@@ -240,7 +240,7 @@ export function useThreadCodexControls({
       ? !threadCodexSelectionKey.endsWith(NO_THREAD_SCOPE_SUFFIX)
       : Boolean(visibleActiveThreadIdRef.current);
 
-  const resolvePersistedModelId = useCallback(
+  const resolvePersistedModelSelectionId = useCallback(
     (id: string | null) => {
       const normalizedId = normalizeModelSelectionId(id);
       if (!normalizedId) {
@@ -258,7 +258,7 @@ export function useThreadCodexControls({
   const handleSelectModel = useCallback(
     (id: string | null) => {
       const normalizedId = normalizeModelSelectionId(id);
-      const persistedModelId = resolvePersistedModelId(normalizedId);
+      const persistedModelId = resolvePersistedModelSelectionId(normalizedId);
       setSelectedModelId(normalizedId);
       if (!appSettingsLoading && !isThreadScopedSelection) {
         setAppSettings((current) => {
@@ -279,7 +279,7 @@ export function useThreadCodexControls({
       isThreadScopedSelection,
       persistThreadCodexParams,
       queueSaveSettings,
-      resolvePersistedModelId,
+      resolvePersistedModelSelectionId,
       setAppSettings,
       setSelectedModelId,
     ]

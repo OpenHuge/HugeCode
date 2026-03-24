@@ -96,6 +96,36 @@ function ExecutionModeIcon({ mode }: { mode: ComposerExecutionMode }) {
   );
 }
 
+function ProviderIcon({
+  providerLabel,
+  className,
+}: {
+  providerLabel: string | null | undefined;
+  className?: string;
+}) {
+  if (providerLabel === "Codex") {
+    return <CodexMark className={className} />;
+  }
+  if (providerLabel === "Claude" || providerLabel === "Anthropic") {
+    return (
+      <Sparkles
+        className={className}
+        size={META_ICON_SIZE}
+        strokeWidth={META_ICON_STROKE_WIDTH}
+        aria-hidden
+      />
+    );
+  }
+  return (
+    <Bot
+      className={className}
+      size={META_ICON_SIZE}
+      strokeWidth={META_ICON_STROKE_WIDTH}
+      aria-hidden
+    />
+  );
+}
+
 type ComposerMetaBarControlsProps = {
   controlsRef: RefObject<HTMLDivElement | null>;
   disabled: boolean;
@@ -167,6 +197,9 @@ export function ComposerMetaBarControls({
 }: ComposerMetaBarControlsProps) {
   const activeModeLabel = isPlanActive ? planModeLabel : DEFAULT_MODE_LABEL;
   const nextModeLabel = isPlanActive ? DEFAULT_MODE_LABEL : planModeLabel;
+  const selectedProviderLabel =
+    providerSelectOptions.find((option) => option.value === selectedProviderId)?.label ??
+    "Provider";
 
   const handleModeToggle = () => {
     if (disabled || !planModeAvailable) {
@@ -262,11 +295,7 @@ export function ComposerMetaBarControls({
             Provider
           </span>
           <span className={joinClassNames(styles.icon, "composer-icon")} aria-hidden>
-            <Bot
-              className={styles.iconGraphic}
-              size={META_ICON_SIZE}
-              strokeWidth={META_ICON_STROKE_WIDTH}
-            />
+            <ProviderIcon providerLabel={selectedProviderLabel} className={styles.iconGraphic} />
           </span>
           <Select
             className={joinClassNames(
@@ -291,7 +320,7 @@ export function ComposerMetaBarControls({
               }
               onSelectProvider(value);
             }}
-            disabled={disabled}
+            disabled={disabled || providerSelectOptions.length === 0}
             placeholder="No providers"
           />
         </div>
