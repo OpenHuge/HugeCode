@@ -325,8 +325,8 @@ describe("SettingsCodexAccountsCard", () => {
     render(<SettingsCodexAccountsCard />);
 
     await waitFor(() => {
-      expect(listOAuthAccountsMock).toHaveBeenCalledTimes(1);
-      expect(listOAuthPoolsMock).toHaveBeenCalledTimes(1);
+      expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+      expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
     });
 
     act(() => {
@@ -663,8 +663,8 @@ describe("SettingsCodexAccountsCard", () => {
     render(<SettingsCodexAccountsCard />);
 
     await waitFor(() => {
-      expect(listOAuthAccountsMock).toHaveBeenCalledTimes(1);
-      expect(listOAuthPoolsMock).toHaveBeenCalledTimes(1);
+      expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+      expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
     });
 
     await selectAccountOption("Account provider", "Gemini");

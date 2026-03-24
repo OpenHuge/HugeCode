@@ -41,6 +41,7 @@ export const AGENT_RUNTIME_CONTROL_TOOL_NAMES = [
   "inspect-runtime-browser",
   "run-runtime-browser-automation",
   "run-chatgpt-decision-lab",
+  "run-chatgpt-research-route-lab",
   "list-runtime-extensions",
   "install-runtime-extension",
   "remove-runtime-extension",
