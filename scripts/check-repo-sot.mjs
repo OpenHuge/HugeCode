@@ -26,6 +26,7 @@ const dependabotRelativePath = ".github/dependabot.yml";
 const dependencyReviewWorkflowRelativePath = ".github/workflows/dependency-review.yml";
 const dependencyReviewConfigRelativePath = ".github/dependency-review-config.yml";
 const pullRequestTemplateRelativePath = ".github/PULL_REQUEST_TEMPLATE.md";
+const releaseWorkflowRelativePath = ".github/workflows/release.yml";
 const activeBiomeCompatibilityFiles = new Set([
   "scripts/check-repo-sot.mjs",
   "tests/scripts/check-repo-sot.test.ts",
@@ -197,6 +198,9 @@ const requiredChecks = [
       "`.github/workflows/_reusable-*.yml`",
       ".github/workflows/dependency-review.yml",
       ".github/dependency-review-config.yml",
+      "release.yml",
+      "id-token: write",
+      "publishConfig.provenance: true",
       "_reusable-desktop-prepare-frontend.yml",
     ],
   },
@@ -383,6 +387,15 @@ const requiredChecks = [
     file: ".github/workflows/_reusable-desktop-build-release.yml",
     includes: ["name: _reusable-desktop-build-release", "name: Build", "name: Show sccache stats"],
   },
+  {
+    file: releaseWorkflowRelativePath,
+    includes: [
+      "name: Release",
+      "id-token: write",
+      'NPM_CONFIG_PROVENANCE: "true"',
+      "publish: pnpm release",
+    ],
+  },
 ];
 
 const internalIdentityChecks = [
@@ -527,6 +540,34 @@ function readRepoJsonFile(relativePath) {
     return JSON.parse(content);
   } catch {
     return null;
+  }
+}
+
+function checkPublicPackagePublishMetadata(relativePath, expectedDirectory) {
+  const packageJson = readRepoJsonFile(relativePath);
+  if (packageJson === null) {
+    errors.push(`${relativePath}: file is missing or invalid JSON`);
+    return;
+  }
+
+  const repository = packageJson.repository;
+  if (
+    !repository ||
+    repository.type !== "git" ||
+    repository.url !== "https://github.com/OpenHuge/HugeCode.git" ||
+    repository.directory !== expectedDirectory
+  ) {
+    errors.push(
+      `${relativePath}: repository must target https://github.com/OpenHuge/HugeCode.git with directory ${expectedDirectory}`
+    );
+  }
+
+  if (packageJson.publishConfig?.access !== "public") {
+    errors.push(`${relativePath}: publishConfig.access must be public`);
+  }
+
+  if (packageJson.publishConfig?.provenance !== true) {
+    errors.push(`${relativePath}: publishConfig.provenance must be true`);
   }
 }
 
@@ -821,6 +862,9 @@ if (dependabotConfig === null) {
     }
   }
 }
+
+checkPublicPackagePublishMetadata("packages/shared/package.json", "packages/shared");
+checkPublicPackagePublishMetadata("packages/discovery-rs/package.json", "packages/discovery-rs");
 
 for (const check of requiredChecks) {
   const content = readRepoTextFile(check.file);

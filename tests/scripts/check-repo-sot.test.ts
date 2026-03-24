@@ -37,6 +37,7 @@ const requiredEntries = [
   path.join("packages", "runtime-diagnostics-export-core-rs", "Cargo.toml"),
   path.join("packages", "runtime-shell-core-rs", "Cargo.toml"),
   path.join("packages", "sandbox-rs", "Cargo.toml"),
+  path.join("packages", "shared", "package.json"),
   path.join("packages", "tokenizer-rs", "native", "Cargo.toml"),
   path.join("scripts", "config", "code-web-bundle-budget.config.mjs"),
   "scripts/check-repo-sot.mjs",
@@ -262,6 +263,57 @@ describe("check-repo-sot", () => {
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("pnpm-workspace.yaml: blockExoticSubdeps must be true");
+    },
+    repoSotTestTimeoutMs
+  );
+
+  it(
+    "fails when the release workflow loses npm provenance configuration",
+    async () => {
+      const tempRoot = await mkdtemp(path.join(tmpdir(), "repo-sot-"));
+      tempRoots.push(tempRoot);
+      await createTrackedFixtureRepo(tempRoot);
+
+      const releaseWorkflowPath = path.join(tempRoot, ".github", "workflows", "release.yml");
+      const releaseWorkflow = await readFile(releaseWorkflowPath, "utf8");
+      await writeFile(
+        releaseWorkflowPath,
+        releaseWorkflow.replace('NPM_CONFIG_PROVENANCE: "true"\n', ""),
+        "utf8"
+      );
+      stageFixtureChanges(tempRoot);
+
+      const result = runRepoSot(tempRoot);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(".github/workflows/release.yml");
+      expect(result.stderr).toContain("NPM_CONFIG_PROVENANCE");
+    },
+    repoSotTestTimeoutMs
+  );
+
+  it(
+    "fails when public package provenance metadata drifts",
+    async () => {
+      const tempRoot = await mkdtemp(path.join(tmpdir(), "repo-sot-"));
+      tempRoots.push(tempRoot);
+      await createTrackedFixtureRepo(tempRoot);
+
+      const sharedPackagePath = path.join(tempRoot, "packages", "shared", "package.json");
+      const sharedPackage = await readFile(sharedPackagePath, "utf8");
+      await writeFile(
+        sharedPackagePath,
+        sharedPackage.replace('"provenance": true', '"provenance": false'),
+        "utf8"
+      );
+      stageFixtureChanges(tempRoot);
+
+      const result = runRepoSot(tempRoot);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "packages/shared/package.json: publishConfig.provenance must be true"
+      );
     },
     repoSotTestTimeoutMs
   );

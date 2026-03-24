@@ -2,6 +2,11 @@
   "name": "@ku0/discovery-rs",
   "version": "0.1.0",
   "description": "Rust mDNS discovery bindings for HugeCode.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OpenHuge/HugeCode.git",
+    "directory": "packages/discovery-rs"
+  },
   "files": [
     "dist",
     "*.node"
@@ -19,7 +24,8 @@
     }
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "tsx scripts/build-native.ts --release && tsc",
