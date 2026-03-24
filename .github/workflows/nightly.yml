@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_API: ${{ vars.TURBO_API }}
+
 concurrency:
   group: nightly-robustness
   cancel-in-progress: false
