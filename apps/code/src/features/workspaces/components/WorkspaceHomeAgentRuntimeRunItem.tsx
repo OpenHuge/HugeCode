@@ -4,6 +4,11 @@ import type {
   HugeCodeRunSummary,
 } from "@ku0/code-runtime-host-contract";
 import { projectAgentTaskStatusToRunState } from "../../../application/runtime/facades/runtimeMissionControlFacade";
+import {
+  buildRuntimeAutonomyContextDetails,
+  formatRuntimeAutonomyProfileLabel,
+  formatRuntimeWakePolicyLabel,
+} from "../../../application/runtime/facades/runtimeAutonomyPresentation";
 import { useRuntimeRunRecordTruth } from "../../../application/runtime/facades/runtimeRunRecordTruth";
 import type { RuntimeTaskLauncherInterventionIntent } from "../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
 import type { RuntimeContinuityReadinessItem } from "../../../application/runtime/facades/runtimeContinuityReadiness";
@@ -135,6 +140,19 @@ export function WorkspaceHomeAgentRuntimeRunItem({
   const effectiveRun = runtimeRunTruth.record?.missionRun ?? run ?? task.runSummary ?? null;
   const effectiveReviewPack =
     runtimeRunTruth.record?.reviewPack ?? effectiveTask.reviewPackSummary ?? null;
+  const runtimeAutonomyProfile = runtimeRunTruth.record?.autonomyProfile ?? null;
+  const runtimeWakePolicy = runtimeRunTruth.record?.wakePolicy ?? null;
+  const runtimeWakeReason =
+    runtimeRunTruth.record?.wakeReason ??
+    effectiveReviewPack?.wakeReason ??
+    effectiveRun?.wakeReason ??
+    null;
+  const runtimeQueuePosition =
+    effectiveReviewPack?.queuePosition ?? effectiveRun?.queuePosition ?? null;
+  const autonomyContextDetails = buildRuntimeAutonomyContextDetails({
+    autonomyProfile: runtimeAutonomyProfile,
+    wakePolicy: runtimeWakePolicy,
+  });
   const effectiveTakeoverBundle =
     effectiveReviewPack?.takeoverBundle ??
     effectiveRun?.takeoverBundle ??
@@ -271,6 +289,15 @@ export function WorkspaceHomeAgentRuntimeRunItem({
           ) : null}
           {reviewSummary ? <span>Review: {reviewSummary}</span> : null}
           {publishHandoffSummary ? <span>Publish handoff: {publishHandoffSummary}</span> : null}
+          {autonomyContextDetails.map((detail) => (
+            <span key={detail}>{detail}</span>
+          ))}
+          {runtimeWakeReason ? (
+            <span>Wake reason: {formatCompactLabel(runtimeWakeReason)}</span>
+          ) : null}
+          {typeof runtimeQueuePosition === "number" ? (
+            <span>Queue position: {runtimeQueuePosition}</span>
+          ) : null}
           {executionGraph && !richObservabilityAvailable ? (
             <span>
               Graph: {executionGraph.nodes.length} node(s), {executionGraph.edges.length} edge(s)
@@ -653,6 +680,18 @@ export function WorkspaceHomeAgentRuntimeRunItem({
               {effectiveRun?.nextAction?.detail ? <li>{effectiveRun.nextAction.detail}</li> : null}
               {effectiveRun?.approval?.summary ? (
                 <li>Approval: {effectiveRun.approval.summary}</li>
+              ) : null}
+              {formatRuntimeAutonomyProfileLabel(runtimeAutonomyProfile) ? (
+                <li>Autonomy: {formatRuntimeAutonomyProfileLabel(runtimeAutonomyProfile)}</li>
+              ) : null}
+              {formatRuntimeWakePolicyLabel(runtimeWakePolicy) ? (
+                <li>Wake policy: {formatRuntimeWakePolicyLabel(runtimeWakePolicy)}</li>
+              ) : null}
+              {runtimeWakeReason ? (
+                <li>Wake reason: {formatCompactLabel(runtimeWakeReason)}</li>
+              ) : null}
+              {typeof runtimeQueuePosition === "number" ? (
+                <li>Queue position: {runtimeQueuePosition}</li>
               ) : null}
               {continuityItem ? (
                 <li>

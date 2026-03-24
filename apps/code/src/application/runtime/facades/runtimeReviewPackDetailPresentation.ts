@@ -5,6 +5,7 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import type { MissionControlProjection } from "./runtimeMissionControlFacade";
 import { buildTaskSourceLineageDetails } from "./runtimeMissionControlTaskSourceProjector";
+import { buildRuntimeAutonomyContextDetails } from "./runtimeAutonomyPresentation";
 import type {
   ReviewContinuationFieldOrigin,
   ReviewContinuationFieldOrigins,
@@ -80,6 +81,8 @@ export function buildExecutionContext(input: {
   validationPresetId: string | null | undefined;
   backendId: string | null | undefined;
   providerLabel: string | null | undefined;
+  autonomyProfile?: RuntimeAutonomyProfileV2 | null | undefined;
+  wakePolicy?: RuntimeWakePolicyV2 | null | undefined;
   accessMode?: string | null | undefined;
   sourceMappingKind?: string | null | undefined;
   fieldOrigins?: Partial<ReviewContinuationFieldOrigins> | null | undefined;
@@ -105,6 +108,8 @@ export function buildExecutionContext(input: {
     !validationPresetId &&
     !backendId &&
     !providerLabel &&
+    !input.autonomyProfile &&
+    !input.wakePolicy &&
     !accessMode &&
     !sourceMappingKind
   ) {
@@ -151,6 +156,12 @@ export function buildExecutionContext(input: {
   }
   if (sourceMappingKind) {
     pushUnique(details, `Repo source mapping: ${sourceMappingKind}`);
+  }
+  for (const detail of buildRuntimeAutonomyContextDetails({
+    autonomyProfile: input.autonomyProfile,
+    wakePolicy: input.wakePolicy,
+  })) {
+    pushUnique(details, detail);
   }
   pushUnique(
     details,

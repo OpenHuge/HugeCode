@@ -1021,6 +1021,8 @@ export function buildReviewPackDetailModel(input: {
           missionRunContinuationDefaults.validationPresetId,
         backendId: run.routing?.backendId,
         providerLabel: run.routing?.providerLabel,
+        autonomyProfile: null,
+        wakePolicy: null,
         accessMode: missionRunContinuationDefaults.accessMode,
         sourceMappingKind: missionRunContinuationDefaults.sourceMappingKind,
         fieldOrigins: missionRunContinuationDefaults.fieldOrigins,
