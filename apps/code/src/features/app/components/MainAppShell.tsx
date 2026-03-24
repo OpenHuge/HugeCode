@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { lazy, memo, Suspense, useLayoutEffect, useRef } from "react";
 import type { GitHubPanelDataProps } from "../../git/components/GitHubPanelData";
 import type { MobileServerSetupWizardProps } from "../../mobile/components/MobileServerSetupWizard";
@@ -29,6 +29,7 @@ type MainAppShellProps = {
   gitHubPanelDataProps: GitHubPanelDataProps;
   appLayoutProps: AppLayoutProps;
   appModalsProps: AppModalsProps;
+  titlebarControlsNode: ReactNode;
   showMobileSetupWizard: boolean;
   mobileSetupWizardProps: MobileServerSetupWizardProps;
 };
@@ -73,6 +74,7 @@ export const MainAppShell = memo(function MainAppShell({
   gitHubPanelDataProps,
   appLayoutProps,
   appModalsProps,
+  titlebarControlsNode,
   showMobileSetupWizard,
   mobileSetupWizardProps,
 }: MainAppShellProps) {
@@ -101,9 +103,51 @@ export const MainAppShell = memo(function MainAppShell({
     };
   }, [appStyle]);
 
+  useLayoutEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) {
+      return;
+    }
+
+    const rightControls = shell.querySelector<HTMLElement>('[data-titlebar-right-controls="true"]');
+    if (!rightControls) {
+      shell.style.removeProperty("--main-header-right-overlay-gutter");
+      return;
+    }
+
+    const syncRightControlsWidth = () => {
+      const nextWidth = Math.ceil(rightControls.getBoundingClientRect().width);
+      shell.style.setProperty(
+        "--main-header-right-overlay-gutter",
+        `calc(${nextWidth}px + var(--shell-chrome-inset-x, 16px) + 12px)`
+      );
+    };
+
+    syncRightControlsWidth();
+
+    if (typeof ResizeObserver !== "function") {
+      window.addEventListener("resize", syncRightControlsWidth);
+      return () => {
+        window.removeEventListener("resize", syncRightControlsWidth);
+        shell.style.removeProperty("--main-header-right-overlay-gutter");
+      };
+    }
+
+    const observer = new ResizeObserver(syncRightControlsWidth);
+    observer.observe(rightControls);
+    window.addEventListener("resize", syncRightControlsWidth);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", syncRightControlsWidth);
+      shell.style.removeProperty("--main-header-right-overlay-gutter");
+    };
+  }, [titlebarControlsNode]);
+
   return (
     <div ref={shellRef} className={appClassName}>
       <div className="drag-strip" id="titlebar" data-tauri-drag-region />
+      {titlebarControlsNode}
       {shouldLoadGitHubPanelData ? (
         <Suspense fallback={null}>
           <GitHubPanelData {...gitHubPanelDataProps} />

@@ -101,13 +101,17 @@ export function buildSecondaryNodes(options: LayoutNodesOptions): SecondaryLayou
       rightPanelSharedProps.turnDiff?.trim() ||
       rightPanelSharedProps.items.some(isInspectableRightPanelDetailItem))
   );
-  const rightPanelDetailsNode = shouldLoadDesktopRightRail ? (
-    <Suspense fallback={null}>
-      {rightPanelSharedProps ? (
-        <LazyThreadRightPanelDetails section="detail" {...rightPanelSharedProps} />
-      ) : null}
-    </Suspense>
-  ) : null;
+  // Avoid mounting an empty Suspense shell into the context rail. The shell is a
+  // valid React element even when the lazy detail view resolves to `null`, which
+  // produces a blank panel instead of the intended empty state.
+  const rightPanelDetailsNode =
+    shouldLoadDesktopRightRail && hasRightPanelDetailContent ? (
+      <Suspense fallback={null}>
+        {rightPanelSharedProps ? (
+          <LazyThreadRightPanelDetails section="detail" {...rightPanelSharedProps} />
+        ) : null}
+      </Suspense>
+    ) : null;
   const rightPanelInterruptNode =
     shouldLoadDesktopRightRail && hasRightPanelInterruptSurface ? (
       <Suspense fallback={null}>

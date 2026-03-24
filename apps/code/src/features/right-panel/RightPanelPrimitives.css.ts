@@ -15,7 +15,6 @@ export const shell = style({
   minHeight: 0,
   height: "100%",
   overflow: "hidden",
-  borderLeft: `1px solid color-mix(in srgb, ${semanticColors.border} 72%, transparent)`,
   background:
     "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-panel) 98%, var(--ds-surface-shell) 2%), color-mix(in srgb, var(--ds-surface-panel) 94%, var(--ds-surface-card) 6%) 26%, color-mix(in srgb, var(--ds-surface-shell) 96%, var(--ds-surface-card) 4%))",
   color: "var(--ds-panel-value)",
@@ -121,15 +120,18 @@ export const body = style({
   minHeight: 0,
   overflowY: "auto",
   overflowX: "hidden",
-  padding: "0 0 12px",
+  padding: "0 0 14px",
+  scrollPaddingTop: "10px",
+  scrollPaddingBottom: "18px",
   scrollbarGutter: "stable",
 });
 
 export const bodyInner = style({
   display: "grid",
   gridTemplateColumns: "minmax(0, 1fr)",
-  gap: "14px",
-  padding: "12px 12px 16px",
+  alignContent: "start",
+  gap: "10px",
+  padding: "8px 12px 18px",
   minWidth: 0,
 });
 
@@ -139,8 +141,10 @@ export const topBar = style({
   zIndex: 4,
   display: "flex",
   alignItems: "center",
+  gap: "8px",
   minWidth: 0,
-  padding: "10px 12px 6px",
+  minHeight: "var(--main-topbar-height, 44px)",
+  padding: "0 12px",
   background:
     "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-panel) 98%, var(--ds-surface-shell)), color-mix(in srgb, var(--ds-surface-panel) 94%, transparent) 74%, transparent)",
   backdropFilter: "blur(14px) saturate(1.04)",
@@ -148,11 +152,12 @@ export const topBar = style({
 });
 
 export const resizeHandle = style({
-  position: "absolute",
-  top: 0,
-  bottom: 0,
-  right: "calc(var(--right-panel-width-live, var(--right-panel-width, 360px)) - 6px)",
+  position: "relative",
+  alignSelf: "stretch",
+  justifySelf: "stretch",
   width: "12px",
+  minWidth: "12px",
+  height: "100%",
   cursor: "col-resize",
   background: "transparent",
   border: "none",
@@ -186,10 +191,11 @@ export const resizeHandle = style({
 export const emptyState = style({
   display: "grid",
   gap: spacing[2],
-  padding: "14px 12px",
-  borderRadius: "16px",
-  border: `1px solid color-mix(in srgb, ${semanticColors.border} 62%, transparent)`,
-  background: "color-mix(in srgb, var(--ds-surface-card) 94%, transparent)",
+  padding: "16px 14px",
+  borderRadius: "18px",
+  border: `1px solid color-mix(in srgb, ${semanticColors.border} 42%, transparent)`,
+  background:
+    "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-card) 62%, transparent), color-mix(in srgb, var(--ds-surface-panel) 84%, transparent))",
 });
 
 export const emptyStateActions = style({
@@ -218,8 +224,7 @@ export const sectionGroup = style({
   border: `1px solid color-mix(in srgb, ${semanticColors.border} 54%, transparent)`,
   background:
     "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-card) 98%, transparent), color-mix(in srgb, var(--ds-surface-item) 88%, transparent))",
-  boxShadow:
-    "0 18px 40px -34px color-mix(in srgb, var(--ds-shadow-color) 48%, transparent), inset 0 1px 0 color-mix(in srgb, var(--ds-color-white) 5%, transparent)",
+  boxShadow: "inset 0 1px 0 color-mix(in srgb, var(--ds-color-white) 5%, transparent)",
   overflow: "hidden",
 });
 
@@ -238,16 +243,15 @@ export const sectionBody = style({
 export const railSection = style({
   display: "grid",
   gridTemplateColumns: "minmax(0, 1fr)",
-  gap: "14px",
+  gap: "10px",
   minWidth: 0,
-  padding: "14px 14px 10px",
-  borderRadius: "22px",
+  padding: "12px",
+  borderRadius: "18px",
   border: `1px solid color-mix(in srgb, ${semanticColors.border} 64%, transparent)`,
   background:
     "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-card) 98%, transparent), color-mix(in srgb, var(--ds-surface-item) 84%, transparent) 58%, color-mix(in srgb, var(--ds-surface-panel) 92%, transparent))",
   overflow: "hidden",
-  boxShadow:
-    "0 24px 48px -38px color-mix(in srgb, var(--ds-shadow-color) 54%, transparent), inset 0 1px 0 color-mix(in srgb, var(--ds-color-white) 5%, transparent)",
+  boxShadow: "inset 0 1px 0 color-mix(in srgb, var(--ds-color-white) 5%, transparent)",
   selectors: {
     "&[data-rail-section='interrupt']": {
       borderColor: "color-mix(in srgb, var(--status-warning) 38%, var(--ds-border-subtle))",
@@ -560,6 +564,7 @@ export const tabList = style({
   alignItems: "center",
   gap: "4px",
   width: "100%",
+  marginTop: "0",
   padding: "4px",
   borderRadius: "16px",
   background:
@@ -577,7 +582,7 @@ export const tab = style({
   color: semanticColors.mutedForeground,
   borderRadius: "12px",
   minHeight: "32px",
-  padding: "0 12px",
+  padding: "0 14px",
   fontSize: statusChipValues.fontSize,
   lineHeight: statusChipValues.lineHeight,
   fontWeight: 600,

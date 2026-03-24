@@ -9,7 +9,7 @@ applyGlobalStyle(".main-header", {
       "align-items": "center",
       gap: "16px",
       padding:
-        "12px calc(var(--main-panel-padding) + var(--main-header-right-overlay-gutter, 0px)) 10px var(--main-panel-padding)",
+        "calc(var(--shell-chrome-inset-top, 10px) - 1px) calc(var(--main-panel-padding) + var(--main-header-right-overlay-gutter, 0px)) calc(var(--shell-chrome-row-bottom, 6px) + 3px) var(--main-panel-padding)",
       background: "transparent",
       "-webkit-app-region": "drag",
       "grid-column": "1 / -1",

@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ApprovalRequest } from "../../../types";
+import { readRelativeSource } from "../../../test/styleSource";
 import type { TimelineStatusBanner } from "../utils/timelineSurface";
 import { TimelineStatusBannerPanel } from "./MessageTimelinePanels";
 import { TimelineApprovalPanel } from "./TimelineApprovalPanel";
@@ -57,5 +58,32 @@ describe("MessageTimelinePanels", () => {
     expect(onRemember).toHaveBeenCalledWith(request, ["git", "status"]);
     expect(onDecision).toHaveBeenNthCalledWith(1, request, "decline");
     expect(onDecision).toHaveBeenNthCalledWith(2, request, "accept");
+  });
+
+  it("maps error timeline banners to danger semantics instead of neutral info chrome", () => {
+    const banner: TimelineStatusBanner = {
+      title: "Turn failed",
+      body: "Runtime orchestration unavailable for this turn.",
+      tone: "error",
+    };
+
+    render(<TimelineStatusBannerPanel banner={banner} />);
+
+    expect(screen.getByText("Error")).toBeTruthy();
+    expect(screen.queryByText("Info")).toBeNull();
+  });
+
+  it("flattens timeline status rows so the outer status card owns the border", () => {
+    const source = readRelativeSource(
+      import.meta.dirname,
+      "../../../styles/request-user-input.css.ts"
+    );
+
+    expect(source).toContain(".timeline-status-card [data-artifact-kind='status-banner']");
+    expect(source).toContain(".timeline-status-card [data-artifact-kind='status-success']");
+    expect(source).toContain('padding: "0"');
+    expect(source).toContain('border: "none"');
+    expect(source).toContain('background: "transparent"');
+    expect(source).toContain('"box-shadow": "none"');
   });
 });

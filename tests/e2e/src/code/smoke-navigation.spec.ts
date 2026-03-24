@@ -30,6 +30,9 @@ test("smoke navigation keeps workspace shell interactive", async ({ page }) => {
   const toggleSearchButton = getSidebarSearchToggle(page);
   const composerInput = getComposerInput(page);
   const homeSurface = page.locator(".home").first();
+  const composerStartHeading = page.getByRole("heading", {
+    name: "Start in the composer.",
+  });
   const shellReady = await waitForWorkspaceShell(page, 20_000);
   test.skip(
     !shellReady,
@@ -37,7 +40,8 @@ test("smoke navigation keeps workspace shell interactive", async ({ page }) => {
   );
 
   const hasWorkspaces = (await workspaceRows.count()) > 0;
-  if (hasWorkspaces) {
+  const hasComposerStartSurface = await composerStartHeading.isVisible().catch(() => false);
+  if (hasWorkspaces && !hasComposerStartSurface) {
     await openFirstWorkspace(page);
   }
 
@@ -52,13 +56,15 @@ test("smoke navigation keeps workspace shell interactive", async ({ page }) => {
   const hasWorkspacesAfterInteraction = (await workspaceRows.count()) > 0;
   const hasWorkspaceSurfaceAfterInteraction =
     (await homeSurface.isVisible().catch(() => false)) ||
-    (await composerInput.isVisible().catch(() => false));
+    (await composerInput.isVisible().catch(() => false)) ||
+    (await composerStartHeading.isVisible().catch(() => false));
   if (hasWorkspacesAfterInteraction || hasWorkspaceSurfaceAfterInteraction) {
     await expect
       .poll(
         async () =>
           (await homeSurface.isVisible().catch(() => false)) ||
-          (await composerInput.isVisible().catch(() => false))
+          (await composerInput.isVisible().catch(() => false)) ||
+          (await composerStartHeading.isVisible().catch(() => false))
       )
       .toBe(true);
   } else if (await emptyWorkspaceEntry.isVisible().catch(() => false)) {

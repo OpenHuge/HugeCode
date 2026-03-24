@@ -29,6 +29,7 @@ type UseMainAppHomeStateParams = {
   activeWorkspace: WorkspaceInfo | null;
   activeWorkspaceId: string | null;
   hasWorkspaceRouteSelection: boolean;
+  showMissionHomeRoute: boolean;
   activeThreadId: string | null;
   startingDraftThreadWorkspaceId: string | null;
   hasPendingDraftUserMessages: boolean;
@@ -63,6 +64,7 @@ const EMPTY_MISSION_CONTROL_STATE: MissionControlSnapshotState = {
 export function useMainAppHomeState({
   activeWorkspaceId,
   hasWorkspaceRouteSelection,
+  showMissionHomeRoute,
   activeThreadId,
   startingDraftThreadWorkspaceId,
   hasPendingDraftUserMessages,
@@ -212,7 +214,8 @@ export function useMainAppHomeState({
     startingDraftThreadWorkspaceId === activeWorkspaceId;
   const showHome = isCompact
     ? activeTab === "home"
-    : !activeWorkspaceId &&
+    : showMissionHomeRoute &&
+      !activeWorkspaceId &&
       !hasWorkspaceRouteSelection &&
       !isStartingDraftThread &&
       !hasPendingDraftUserMessages;

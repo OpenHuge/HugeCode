@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useMemo } from "react";
 import type { GitHubPanelDataProps } from "../../git/components/GitHubPanelData";
 import type { MobileServerSetupWizardProps } from "../../mobile/components/MobileServerSetupWizard";
@@ -24,6 +24,7 @@ type WorkspaceDesktopAppHostProps = {
   shouldLoadGitHubPanelData: boolean;
   appLayoutProps: AppLayoutProps;
   appModalsProps: AppModalsProps;
+  titlebarControlsNode: ReactNode;
   showMobileSetupWizard: boolean;
   mobileSetupWizardProps: MobileServerSetupWizardProps;
 };
@@ -45,6 +46,7 @@ export function WorkspaceDesktopAppHost({
   shouldLoadGitHubPanelData,
   appLayoutProps,
   appModalsProps,
+  titlebarControlsNode,
   showMobileSetupWizard,
   mobileSetupWizardProps,
 }: WorkspaceDesktopAppHostProps) {
@@ -84,6 +86,7 @@ export function WorkspaceDesktopAppHost({
         gitHubPanelDataProps={gitHubPanelDataProps}
         appLayoutProps={appLayoutProps}
         appModalsProps={appModalsProps}
+        titlebarControlsNode={titlebarControlsNode}
         showMobileSetupWizard={showMobileSetupWizard}
         mobileSetupWizardProps={mobileSetupWizardProps}
       />

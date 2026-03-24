@@ -369,6 +369,7 @@ export function useDesktopWorkspaceFeatureComposition(): ComponentProps<
     shouldLoadGitHubPanelData,
     appLayoutProps: chromeDomain.appLayoutProps,
     appModalsProps: chromeDomain.appModalsProps,
+    titlebarControlsNode: chromeDomain.titlebarControlsNode,
     showMobileSetupWizard,
     mobileSetupWizardProps,
   };

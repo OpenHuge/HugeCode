@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  canonicalizeDesktopWorkspaceEntryRoute,
   clearWorkspaceRouteRestoreSelection,
   desktopWorkspaceNavigation,
   readWorkspaceRouteSelection,
@@ -19,6 +20,37 @@ describe("workspaceRoute", () => {
     const readRouteSelection = desktopWorkspaceNavigation.readRouteSelection;
 
     expect(readRouteSelection()).toEqual({ kind: "home" });
+  });
+
+  it("rewrites the desktop root alias to the workspace home route", () => {
+    window.history.replaceState({}, "", "/");
+
+    expect(canonicalizeDesktopWorkspaceEntryRoute()).toBe(true);
+    expect(window.location.pathname).toBe("/workspaces");
+    expect(desktopWorkspaceNavigation.readRouteSelection()).toEqual({ kind: "home" });
+    expect(readWorkspaceRouteSelection("/")).toEqual({ kind: "home" });
+  });
+
+  it("skips route canonicalization when the workspace home route is already active", () => {
+    window.history.replaceState({}, "", "/workspaces");
+
+    expect(canonicalizeDesktopWorkspaceEntryRoute()).toBe(false);
+    expect(window.location.pathname).toBe("/workspaces");
+  });
+
+  it("does not rewrite the desktop missions route during entry canonicalization", () => {
+    window.history.replaceState({}, "", "/missions");
+
+    expect(canonicalizeDesktopWorkspaceEntryRoute()).toBe(false);
+    expect(window.location.pathname).toBe("/missions");
+    expect(desktopWorkspaceNavigation.readRouteSelection()).toEqual({ kind: "missions" });
+  });
+
+  it("maps the desktop mission home path to the home route selection", () => {
+    window.history.replaceState({}, "", "/missions");
+
+    expect(desktopWorkspaceNavigation.readRouteSelection()).toEqual({ kind: "missions" });
+    expect(readWorkspaceRouteSelection("/missions")).toEqual({ kind: "missions" });
   });
 
   it("reads workspace route selections from the shared workspace base path", () => {
@@ -43,5 +75,14 @@ describe("workspaceRoute", () => {
     expect(readWorkspaceRouteSelection("/workspaces?section=workspaces")).toEqual({
       kind: "workspaces",
     });
+  });
+
+  it("navigates home through the workspace home path", () => {
+    window.history.replaceState({}, "", "/workspaces/ws-1");
+
+    desktopWorkspaceNavigation.navigateHome();
+
+    expect(window.location.pathname).toBe("/workspaces");
+    expect(desktopWorkspaceNavigation.readRouteSelection()).toEqual({ kind: "home" });
   });
 });

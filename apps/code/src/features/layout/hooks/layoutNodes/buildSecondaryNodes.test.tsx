@@ -80,4 +80,30 @@ describe("buildSecondaryNodes compact empty CTAs", () => {
 
     expect(onGoProjects).toHaveBeenCalledTimes(2);
   });
+
+  it("does not mount a placeholder detail shell when the right rail has no inspectable detail content", () => {
+    const nodes = buildSecondaryNodes(createSecondaryOptions());
+
+    expect(nodes.hasRightPanelDetailContent).toBe(false);
+    expect(nodes.rightPanelDetailsNode).toBeNull();
+  });
+
+  it("mounts the detail rail node only when inspectable detail content exists", () => {
+    const nodes = buildSecondaryNodes(
+      createSecondaryOptions({
+        activeThreadId: "thread-1",
+        selectedDiffPath: "apps/code/src/App.tsx",
+        gitDiffs: [
+          {
+            path: "apps/code/src/App.tsx",
+            status: "modified",
+            diff: "@@ -1 +1 @@",
+          },
+        ],
+      })
+    );
+
+    expect(nodes.hasRightPanelDetailContent).toBe(true);
+    expect(nodes.rightPanelDetailsNode).toBeTruthy();
+  });
 });

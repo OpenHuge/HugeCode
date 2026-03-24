@@ -8,6 +8,18 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <script>
       (() => {
+        if (window.location.pathname !== "/") {
+          return;
+        }
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `/workspaces${window.location.search}${window.location.hash}`
+        );
+      })();
+    </script>
+    <script>
+      (() => {
         const storageKey = "ku0.theme.preference";
         const root = document.documentElement;
         const readStoredPreference = () => {
@@ -135,6 +147,9 @@
         place-items: center;
         padding: 24px;
         background: var(--boot-shell-bg);
+        opacity: 0;
+        visibility: hidden;
+        animation: app-boot-reveal 180ms ease 480ms forwards;
       }
 
       .app-boot-card {
@@ -148,9 +163,24 @@
         box-shadow: var(--boot-card-shadow);
       }
 
+      @keyframes app-boot-reveal {
+        from {
+          opacity: 0;
+          visibility: hidden;
+        }
+        to {
+          opacity: 1;
+          visibility: visible;
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .app-boot-card {
           animation: none;
+        }
+
+        .app-boot-shell {
+          animation-duration: 1ms;
         }
       }
 

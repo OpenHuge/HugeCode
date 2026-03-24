@@ -221,6 +221,7 @@ function createShellProps({
     gitHubPanelDataProps: createGitHubPanelDataProps(),
     appLayoutProps: createAppLayoutProps(),
     appModalsProps: createAppModalsProps(appModalsProps),
+    titlebarControlsNode: <div data-testid="titlebar-controls" />,
     showMobileSetupWizard,
     mobileSetupWizardProps: {
       provider: "tcp" as const,
@@ -248,6 +249,7 @@ describe("MainAppShell", () => {
     cleanup();
     vi.resetModules();
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("does not require the app modals chunk when no modal is open", async () => {
@@ -268,6 +270,7 @@ describe("MainAppShell", () => {
     render(<MainAppShell {...createShellProps()} />);
 
     expect(screen.getByTestId("app-layout")).toBeTruthy();
+    expect(screen.getByTestId("titlebar-controls")).toBeTruthy();
     expect(screen.queryByTestId("app-modals")).toBeNull();
   });
 
@@ -349,5 +352,70 @@ describe("MainAppShell", () => {
     });
 
     expect(await screen.findByTestId("mobile-setup")).toBeTruthy();
+  });
+
+  it("measures the shared titlebar right control group and reserves matching header gutter", async () => {
+    const resizeObserverObserve = vi
+      .spyOn(globalThis.ResizeObserver.prototype, "observe")
+      .mockImplementation(() => undefined);
+    const resizeObserverDisconnect = vi
+      .spyOn(globalThis.ResizeObserver.prototype, "disconnect")
+      .mockImplementation(() => undefined);
+    vi.doMock("./AppLayout", () => ({
+      AppLayout: () => <div data-testid="app-layout" />,
+    }));
+    vi.doMock("./AppModals", () => ({
+      AppModals: () => <div data-testid="app-modals" />,
+    }));
+    vi.doMock("../../mobile/components/MobileServerSetupWizard", () => ({
+      MobileServerSetupWizard: () => <div data-testid="mobile-setup" />,
+    }));
+
+    const { MainAppShell } = await import("./MainAppShell");
+
+    render(
+      <MainAppShell
+        {...createShellProps()}
+        titlebarControlsNode={
+          <div
+            data-titlebar-right-controls="true"
+            data-testid="titlebar-controls-measured"
+            ref={(node) => {
+              if (!node) {
+                return;
+              }
+              Object.defineProperty(node, "getBoundingClientRect", {
+                configurable: true,
+                value: () =>
+                  ({
+                    x: 0,
+                    y: 0,
+                    top: 0,
+                    right: 180,
+                    bottom: 28,
+                    left: 0,
+                    width: 180,
+                    height: 28,
+                    toJSON: () => ({}),
+                  }) as DOMRect,
+              });
+            }}
+          />
+        }
+      />
+    );
+
+    expect(screen.getByTestId("app-layout")).toBeTruthy();
+    const shell = document.querySelector(".app-shell");
+    if (!(shell instanceof HTMLElement)) {
+      throw new Error("Expected app shell");
+    }
+    const controls = screen.getByTestId("titlebar-controls-measured");
+
+    expect(resizeObserverObserve).toHaveBeenCalledWith(controls);
+    expect(resizeObserverDisconnect).not.toHaveBeenCalled();
+    expect(shell.style.getPropertyValue("--main-header-right-overlay-gutter")).toBe(
+      "calc(180px + var(--shell-chrome-inset-x, 16px) + 12px)"
+    );
   });
 });

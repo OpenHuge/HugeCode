@@ -169,6 +169,7 @@ function createParams(
     activeWorkspaceId?: string | null;
     activeThreadId?: string | null;
     hasWorkspaceRouteSelection?: boolean;
+    showMissionHomeRoute?: boolean;
     planByThread?: Record<string, TurnPlan | null>;
     startingDraftThreadWorkspaceId?: string | null;
     hasPendingDraftUserMessages?: boolean;
@@ -194,6 +195,7 @@ function createParams(
     activeWorkspaceId,
     activeThreadId,
     hasWorkspaceRouteSelection: overrides.hasWorkspaceRouteSelection ?? Boolean(activeWorkspaceId),
+    showMissionHomeRoute: overrides.showMissionHomeRoute ?? false,
     startingDraftThreadWorkspaceId: overrides.startingDraftThreadWorkspaceId ?? null,
     hasPendingDraftUserMessages: overrides.hasPendingDraftUserMessages ?? false,
     hasLoaded: true,
@@ -391,11 +393,35 @@ describe("useMainAppHomeState", () => {
     expect(result.current.showComposer).toBe(true);
   });
 
-  it("shows home when no workspace is selected on desktop", async () => {
+  it("keeps the workspace shell active when no workspace is selected on desktop", async () => {
     mockHomeStateDefaults();
     const params = createParams({
       activeWorkspaceId: null,
       activeThreadId: null,
+      workspaces: [],
+      workspacesById: new Map(),
+      threadsByWorkspace: {},
+      planByThread: {},
+    });
+
+    const { result } = renderHook(() => useMainAppHomeState(params), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.missionControlFreshness.status).toBe("idle");
+    });
+
+    expect(result.current.showHome).toBe(false);
+    expect(result.current.showComposer).toBe(false);
+  });
+
+  it("shows home when the desktop mission route is selected", async () => {
+    mockHomeStateDefaults();
+    const params = createParams({
+      activeWorkspaceId: null,
+      activeThreadId: null,
+      showMissionHomeRoute: true,
       workspaces: [],
       workspacesById: new Map(),
       threadsByWorkspace: {},

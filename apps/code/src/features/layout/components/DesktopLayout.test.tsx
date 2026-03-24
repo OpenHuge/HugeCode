@@ -3,8 +3,13 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import { type ComponentProps, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getExportedStyleBlock, readRelativeSource } from "../../../test/styleSource";
+import {
+  getApplyGlobalStyleBlock,
+  getExportedStyleBlock,
+  readRelativeSource,
+} from "../../../test/styleSource";
 import { DesktopLayout } from "./DesktopLayout";
+import { RIGHT_RAIL_EXIT_MS } from "./DesktopLayout.motion";
 
 type DesktopLayoutProps = ComponentProps<typeof DesktopLayout>;
 
@@ -171,6 +176,25 @@ describe("DesktopLayout", () => {
     expect(screen.queryByTestId("plan-panel")).toBeNull();
   });
 
+  it("keeps the right rail mounted through the exit animation before removing it", () => {
+    vi.useFakeTimers();
+
+    const { rerender } = render(<DesktopLayout {...createProps({ rightPanelCollapsed: false })} />);
+
+    rerender(<DesktopLayout {...createProps({ rightPanelCollapsed: true })} />);
+
+    expect(screen.getByRole("tab", { name: "Git" })).toBeTruthy();
+    expect(screen.getByLabelText("Resize right panel")).toBeTruthy();
+    expect(document.querySelector('[data-right-rail-motion="exiting"]')).toBeTruthy();
+
+    act(() => {
+      vi.advanceTimersByTime(RIGHT_RAIL_EXIT_MS);
+    });
+
+    expect(screen.queryByRole("tab", { name: "Git" })).toBeNull();
+    expect(screen.queryByTestId("right-panel-git")).toBeNull();
+  });
+
   it("shows the unified right panel shell when expanded", () => {
     render(
       <DesktopLayout
@@ -230,69 +254,6 @@ describe("DesktopLayout", () => {
     expect(screen.queryByTestId("composer")).toBeNull();
   });
 
-  it("renders the sidebar expand toggle as a detached workspace overlay when collapsed", () => {
-    const onExpandSidebar = vi.fn();
-
-    render(
-      <DesktopLayout
-        {...createProps({
-          sidebarCollapsed: true,
-          onExpandSidebar,
-        })}
-      />
-    );
-
-    const toggle = screen.getByRole("button", { name: "Show sidebar" });
-    expect(toggle.closest(".main-header")).toBeNull();
-    expect(toggle.parentElement?.getAttribute("data-desktop-sidebar-expand")).toBe("true");
-
-    act(() => {
-      toggle.click();
-    });
-
-    expect(onExpandSidebar).toHaveBeenCalledTimes(1);
-  });
-
-  it("renders the right-rail expand toggle as a detached workspace overlay when collapsed", () => {
-    const onExpandRightPanel = vi.fn();
-
-    render(
-      <DesktopLayout
-        {...createProps({
-          rightPanelCollapsed: true,
-          onExpandRightPanel,
-        })}
-      />
-    );
-
-    const toggle = screen.getByRole("button", { name: "Show context rail" });
-    expect(toggle.closest(".main-header")).toBeNull();
-    expect(toggle.parentElement?.getAttribute("data-desktop-right-rail-toggle")).toBe("true");
-
-    act(() => {
-      toggle.click();
-    });
-
-    expect(onExpandRightPanel).toHaveBeenCalledTimes(1);
-  });
-
-  it("renders the right-rail collapse toggle as a detached workspace overlay when expanded", () => {
-    const onExpandRightPanel = vi.fn();
-
-    render(
-      <DesktopLayout
-        {...createProps({
-          rightPanelCollapsed: false,
-          onExpandRightPanel,
-        })}
-      />
-    );
-
-    const toggle = screen.getByRole("button", { name: "Hide context rail" });
-    expect(toggle.closest(".main-header")).toBeNull();
-    expect(toggle.parentElement?.getAttribute("data-desktop-right-rail-toggle")).toBe("true");
-  });
-
   it("wraps the desktop workspace in a kanna-like inset shell frame", () => {
     const { container } = render(<DesktopLayout {...createProps()} />);
 
@@ -310,17 +271,45 @@ describe("DesktopLayout", () => {
   it("gives the right rail its own elevated support-panel surface", () => {
     const source = readRelativeSource(import.meta.dirname, "DesktopLayout.css.ts");
     const rightRailRule = getExportedStyleBlock(source, "rightRail");
+    const rightRailResizeHandleRule = getExportedStyleBlock(source, "rightRailResizeHandle");
+    const timelineSurfaceRule = getExportedStyleBlock(source, "timelineSurface");
+    const composerDockRule = getExportedStyleBlock(source, "composerDock");
     const shellRule = source.slice(
       source.indexOf("const mainShellBase = {"),
       source.indexOf("export const mainShell")
     );
+    const mainSource = readRelativeSource(import.meta.dirname, "../../../styles/main.css.ts");
+    const mainRule = getApplyGlobalStyleBlock(mainSource, ".main");
 
-    expect(rightRailRule).toContain(
-      'border: "1px solid color-mix(in srgb, var(--ds-panel-border) 72%, transparent)"'
-    );
-    expect(rightRailRule).toContain('margin: "0 12px 14px 8px"');
+    expect(rightRailRule).toContain('gridColumn: "3"');
+    expect(rightRailRule).toContain("borderLeft:");
+    expect(rightRailRule).toContain('gridRow: "1 / -1"');
+    expect(rightRailRule).toContain('margin: "0"');
+    expect(rightRailRule).toContain('borderRadius: "0 18px 18px 0"');
+    expect(rightRailResizeHandleRule).toContain('gridColumn: "2"');
+    expect(rightRailResizeHandleRule).toContain('width: "12px"');
+    expect(rightRailResizeHandleRule).toContain('justifySelf: "stretch"');
     expect(rightRailRule).toContain('backdropFilter: "blur(20px)"');
+    expect(rightRailRule).toContain('boxShadow: "none"');
+    expect(rightRailRule).toContain('willChange: "transform, opacity"');
     expect(rightRailRule).toContain("radial-gradient(circle at top right");
+    expect(timelineSurfaceRule).toContain('padding: "0 0 0 var(--main-panel-padding)"');
+    expect(composerDockRule).toContain('padding: "0 0 8px var(--main-panel-padding)"');
+    expect(source).toContain(
+      'transition:\n    "grid-template-columns var(--duration-slow) var(--ds-motion-ease-standard, var(--ease-smooth))"'
+    );
+    expect(source).toContain("translateX(18px) scaleX(0.986)");
+    expect(source).toContain("translateX(-1px) scaleX(1.002)");
+    expect(source).toContain("translateX(14px) scaleX(0.992)");
+    expect(source).toContain(
+      'gridTemplateColumns:\n      "minmax(0, 1fr) 12px clamp(320px, var(--right-panel-width-live, var(--right-panel-width, 360px)), 440px)"'
+    );
+    expect(mainRule).toContain(
+      '"grid-template-columns":\n        "minmax(0, 1fr) var(\\n      --right-panel-width-live,\\n      var(--right-panel-width, 360px)\\n    )"'
+    );
+    expect(mainRule).toContain(
+      '"grid-template-rows": "var(--main-topbar-height, 48px) minmax(0, 1fr) auto auto auto"'
+    );
     expect(shellRule).not.toContain("radial-gradient(circle at top right");
   });
 

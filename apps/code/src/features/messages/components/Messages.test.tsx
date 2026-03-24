@@ -440,6 +440,7 @@ describe("Messages", () => {
     expect(source).not.toContain(
       'boxShadow: "0 18px 32px -28px color-mix(in srgb, var(--ds-shadow-color) 18%, transparent)"'
     );
+    expect(source).toContain('padding: "12px 0 18px calc(var(--main-panel-padding) + 2px)"');
   });
 
   it("keeps message rows on flatter surfaces instead of glassy raised cards", () => {

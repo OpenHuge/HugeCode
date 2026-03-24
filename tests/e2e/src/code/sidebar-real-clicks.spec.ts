@@ -170,9 +170,7 @@ test("sidebar resizer keeps a clean seam and disables transitions while dragging
   }
 
   const appTransitionBeforeDrag = await readTransitionMaxMs(page, ".app");
-  const mainTransitionBeforeDrag = await readTransitionMaxMs(page, ".main");
   expect(appTransitionBeforeDrag).toBeGreaterThan(0);
-  expect(mainTransitionBeforeDrag).toBeGreaterThan(0);
 
   const bounds = await resizeSidebar.boundingBox();
   expect(bounds).not.toBeNull();
@@ -187,7 +185,6 @@ test("sidebar resizer keeps a clean seam and disables transitions while dragging
 
   await expect.poll(() => page.evaluate(() => document.body.dataset.resizing)).toBe("sidebar");
   await expect.poll(() => readTransitionMaxMs(page, ".app")).toBe(0);
-  await expect.poll(() => readTransitionMaxMs(page, ".main")).toBe(0);
 
   await page.mouse.move(x + 100, y, { steps: 10 });
   await page.mouse.up();

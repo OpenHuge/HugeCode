@@ -91,6 +91,7 @@ export function useMainAppShellBootstrap({
   const { activeTab, setActiveTab } = useShellNavigation({
     activeWorkspace,
     layoutMode,
+    initialTab: workspaceState.showMissionHomeRoute ? "missions" : "workspaces",
   });
 
   const layoutState = useLayoutController({

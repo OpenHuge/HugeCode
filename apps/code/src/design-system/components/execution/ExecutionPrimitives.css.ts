@@ -6,6 +6,21 @@ const accentVar = createVar();
 const accentSurfaceVar = createVar();
 const accentTextVar = createVar();
 const accentBorderVar = createVar();
+const accentIconSurfaceVar = createVar();
+const accentIconBorderVar = createVar();
+const accentIconShadowVar = createVar();
+
+function buildAccentIconSurface(strengths: { highlight: number; mid: number; base: number }) {
+  return `radial-gradient(circle at 32% 28%, color-mix(in srgb, ${accentVar} ${strengths.highlight}%, transparent), color-mix(in srgb, ${accentVar} ${strengths.mid}%, var(--ds-surface-card-base)) 68%, color-mix(in srgb, ${accentVar} ${strengths.base}%, var(--ds-surface-card-base)) 100%)`;
+}
+
+function buildAccentIconBorder(amount: number) {
+  return `color-mix(in srgb, ${accentVar} ${amount}%, var(--ds-border-subtle))`;
+}
+
+function buildAccentIconShadow(glow: number) {
+  return `inset 0 1px 0 color-mix(in srgb, var(--ds-color-white) 5%, transparent), 0 0 0 1px color-mix(in srgb, ${accentVar} ${glow}%, transparent)`;
+}
 
 const toneVars = {
   neutral: {
@@ -13,6 +28,11 @@ const toneVars = {
     [accentSurfaceVar]: semanticThemeVars.color.bg.inset,
     [accentTextVar]: semanticThemeVars.color.text.secondary,
     [accentBorderVar]: semanticThemeVars.color.border.subtle,
+    [accentIconSurfaceVar]:
+      "color-mix(in srgb, var(--ds-border-subtle) 16%, var(--ds-surface-card-base))",
+    [accentIconBorderVar]: "color-mix(in srgb, var(--ds-border-subtle) 88%, transparent)",
+    [accentIconShadowVar]:
+      "inset 0 1px 0 color-mix(in srgb, var(--ds-color-white) 3%, transparent)",
   },
   running: {
     [accentVar]: semanticThemeVars.color.state.running,
@@ -21,6 +41,9 @@ const toneVars = {
     [accentTextVar]: semanticThemeVars.color.text.primary,
     [accentBorderVar]:
       "color-mix(in srgb, var(--semantic-color-state-running) 38%, var(--semantic-color-border-default))",
+    [accentIconSurfaceVar]: buildAccentIconSurface({ highlight: 20, mid: 9, base: 3 }),
+    [accentIconBorderVar]: buildAccentIconBorder(30),
+    [accentIconShadowVar]: buildAccentIconShadow(8),
   },
   success: {
     [accentVar]: semanticThemeVars.color.state.success,
@@ -29,6 +52,9 @@ const toneVars = {
     [accentTextVar]: semanticThemeVars.color.text.primary,
     [accentBorderVar]:
       "color-mix(in srgb, var(--semantic-color-state-success) 34%, var(--semantic-color-border-default))",
+    [accentIconSurfaceVar]: buildAccentIconSurface({ highlight: 22, mid: 10, base: 4 }),
+    [accentIconBorderVar]: buildAccentIconBorder(30),
+    [accentIconShadowVar]: buildAccentIconShadow(7),
   },
   warning: {
     [accentVar]: semanticThemeVars.color.state.warning,
@@ -37,6 +63,9 @@ const toneVars = {
     [accentTextVar]: semanticThemeVars.color.text.primary,
     [accentBorderVar]:
       "color-mix(in srgb, var(--semantic-color-state-warning) 36%, var(--semantic-color-border-default))",
+    [accentIconSurfaceVar]: buildAccentIconSurface({ highlight: 24, mid: 11, base: 4 }),
+    [accentIconBorderVar]: buildAccentIconBorder(34),
+    [accentIconShadowVar]: buildAccentIconShadow(8),
   },
   danger: {
     [accentVar]: semanticThemeVars.color.state.danger,
@@ -45,6 +74,9 @@ const toneVars = {
     [accentTextVar]: semanticThemeVars.color.text.primary,
     [accentBorderVar]:
       "color-mix(in srgb, var(--semantic-color-state-danger) 34%, var(--semantic-color-border-default))",
+    [accentIconSurfaceVar]: buildAccentIconSurface({ highlight: 24, mid: 11, base: 4 }),
+    [accentIconBorderVar]: buildAccentIconBorder(36),
+    [accentIconShadowVar]: buildAccentIconShadow(9),
   },
 } as const;
 
@@ -151,8 +183,15 @@ export const executionRowIcon = style({
       justifyContent: "center",
       flex: "0 0 auto",
       color: accentVar,
-      background: `color-mix(in srgb, ${accentVar} 14%, ${semanticThemeVars.color.bg.panel})`,
-      border: `${semanticThemeVars.borderWidth.default} solid ${accentBorderVar}`,
+      background: accentIconSurfaceVar,
+      border: `${semanticThemeVars.borderWidth.default} solid ${accentIconBorderVar}`,
+      boxShadow: accentIconShadowVar,
+      transition: [
+        `color ${semanticThemeVars.motion.duration.fast} ${semanticThemeVars.motion.easing.standard}`,
+        `background ${semanticThemeVars.motion.duration.fast} ${semanticThemeVars.motion.easing.standard}`,
+        `border-color ${semanticThemeVars.motion.duration.fast} ${semanticThemeVars.motion.easing.standard}`,
+        `box-shadow ${semanticThemeVars.motion.duration.fast} ${semanticThemeVars.motion.easing.standard}`,
+      ].join(", "),
     },
   },
 });

@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { readRelativeSource } from "../../../test/styleSource";
 import { ActivityLogRow } from "./ActivityLogRow";
 import { ExecutionStatusPill } from "./ExecutionStatusPill";
 import { ToolCallChip } from "./ToolCallChip";
@@ -45,5 +46,16 @@ describe("ExecutionPrimitives", () => {
     expect(screen.getByText("apply_patch").parentElement?.className).toContain("custom-chip");
     expect(container.querySelector('[aria-hidden="true"]')).toBeTruthy();
     expect(screen.getByText("apply_patch").previousElementSibling?.textContent).toBe("!");
+  });
+
+  it("gives execution row icons tone-owned surfaces instead of a single neutral wash", () => {
+    const source = readRelativeSource(import.meta.dirname, "./ExecutionPrimitives.css.ts");
+
+    expect(source).toContain("accentIconSurfaceVar");
+    expect(source).toContain("accentIconBorderVar");
+    expect(source).toContain("accentIconShadowVar");
+    expect(source).toContain("radial-gradient(circle at 32% 28%");
+    expect(source).toContain("background: accentIconSurfaceVar");
+    expect(source).toContain("boxShadow: accentIconShadowVar");
   });
 });
