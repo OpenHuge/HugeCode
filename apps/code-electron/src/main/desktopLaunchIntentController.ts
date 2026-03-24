@@ -2,6 +2,7 @@ import { existsSync, statSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import type { OpenDesktopWindowInput } from "../shared/ipc.js";
 import type { DesktopLaunchIntent } from "../shared/ipc.js";
+import { hasDesktopNewWindowArg } from "./desktopLaunchCommands.js";
 
 type OpenUrlEventLike = {
   preventDefault(): void;
@@ -205,6 +206,16 @@ export function createDesktopLaunchIntentController(
     return resolveProtocolIntent(argv) ?? resolveWorkspaceIntent(argv);
   }
 
+  function resolveDirectOpenWindowInput(argv: string[] | undefined): OpenDesktopWindowInput | null {
+    if (!hasDesktopNewWindowArg(argv)) {
+      return null;
+    }
+
+    return {
+      duplicate: true,
+    };
+  }
+
   function rememberRecentDocument(intent: DesktopLaunchIntent | null) {
     if (intent?.kind !== "workspace" || intent.launchPathKind !== "file" || !intent.launchPath) {
       return;
@@ -214,10 +225,16 @@ export function createDesktopLaunchIntentController(
   }
 
   const pendingIntents: DesktopLaunchIntent[] = [];
+  const pendingOpenWindowInputs: OpenDesktopWindowInput[] = [];
   const initialIntent = resolveInitialIntent(input.initialArgv);
   if (initialIntent) {
     pendingIntents.push(initialIntent);
     rememberRecentDocument(initialIntent);
+  } else {
+    const initialOpenWindowInput = resolveDirectOpenWindowInput(input.initialArgv);
+    if (initialOpenWindowInput) {
+      pendingOpenWindowInputs.push(initialOpenWindowInput);
+    }
   }
 
   function removePendingIntent(intent: DesktopLaunchIntent) {
@@ -300,7 +317,7 @@ export function createDesktopLaunchIntentController(
       pendingIntents.splice(0, pendingIntents.length);
     },
     getPendingOpenWindowInput(): OpenDesktopWindowInput | null {
-      return toOpenWindowInput(pendingIntents[0] ?? null);
+      return toOpenWindowInput(pendingIntents[0] ?? null) ?? pendingOpenWindowInputs[0] ?? null;
     },
     getOpenWindowInput(intent: DesktopLaunchIntent | null): OpenDesktopWindowInput | null {
       return toOpenWindowInput(intent);
@@ -311,13 +328,19 @@ export function createDesktopLaunchIntentController(
     },
     queueArgv(argv: string[]) {
       const nextIntent = resolveInitialIntent(argv);
-      if (!nextIntent) {
-        return null;
+      if (nextIntent) {
+        rememberRecentDocument(nextIntent);
+        pendingIntents.push(nextIntent);
+        return nextIntent;
       }
 
-      rememberRecentDocument(nextIntent);
-      pendingIntents.push(nextIntent);
-      return nextIntent;
+      const nextOpenWindowInput = resolveDirectOpenWindowInput(argv);
+      if (nextOpenWindowInput) {
+        pendingOpenWindowInputs.push(nextOpenWindowInput);
+        return nextOpenWindowInput;
+      }
+
+      return null;
     },
     registerAppHandlers() {
       if (input.platform !== "darwin") {

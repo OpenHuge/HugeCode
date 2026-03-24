@@ -54,6 +54,9 @@ Linux desktop builds remain manual-update only.
 
 - `hugecode://...` remains the external deep-link scheme.
 - Packaged renderer content loads only from `hugecode-app://app/...`.
+- Native launcher surfaces are first-class:
+  - macOS Dock menu exposes `New Window` plus recent workspaces from the persisted session model
+  - Windows Jump List exposes a `New Window` task plus recent workspaces from the same session model
 - Actionable workspace deep links are first-class:
   - `hugecode://workspace/open?path=...` is normalized to the same workspace launch flow as CLI and Finder opens
   - directory targets open or focus the matching workspace window
@@ -61,6 +64,7 @@ Linux desktop builds remain manual-update only.
 - Command-line workspace launches follow modern desktop-editor behavior:
   - launching HugeCode with a folder path opens or focuses that workspace window
   - launching HugeCode with a file path opens the containing workspace directory while preserving the original file target in the launch intent
+  - `--new-window` is the reserved internal launcher flag for opening a duplicate window from native platform launchers such as the Windows Jump List
   - macOS `open-file` events are normalized to the same workspace-launch flow
   - macOS `open-url` workspace deep links are also normalized to that flow
   - file-driven launches are added to the OS recent-documents surface when Electron exposes it
@@ -76,6 +80,7 @@ Linux desktop builds remain manual-update only.
   - `Open Folder...`
   - `About HugeCode`
   - `Open Recent Session`
+  - `Open Recent File` on macOS via the native recent-documents role
   - `Check for Updates...`
 - The menu is rebuilt from the persisted desktop session state instead of hard-coded one-off actions in `main.ts`.
 - Native file and folder pickers normalize into the same launch-intent flow as CLI, Finder, and deep-link workspace opens.

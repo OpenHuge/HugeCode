@@ -49,6 +49,15 @@ describe("desktopApplicationMenu", () => {
       label: "Open Recent Session",
       submenu: [expect.objectContaining({ label: "alpha" })],
     });
+    expect(template[1]?.submenu?.[5]).toMatchObject({
+      label: "Open Recent File",
+    });
+    expect(template[1]?.submenu?.[5]?.submenu).toContainEqual(
+      expect.objectContaining({ role: "recentDocuments" })
+    );
+    expect(template[1]?.submenu?.[5]?.submenu).toContainEqual(
+      expect.objectContaining({ role: "clearRecentDocuments" })
+    );
     expect(template[2]).toMatchObject({
       label: "Help",
       submenu: [expect.objectContaining({ label: "Check for Updates..." })],

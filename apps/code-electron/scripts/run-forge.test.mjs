@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  copyForgeOutDir,
   createForgeExecutionEnv,
   createForgeStageEnv,
   resolveForgeStageCommands,
@@ -95,5 +96,34 @@ describe("forge stage dependencies", () => {
     const { FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES } = await import("./forge-stage-package.mjs");
 
     expect(FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES).toContain("@electron/osx-sign");
+  });
+});
+
+describe("copyForgeOutDir", () => {
+  it("replaces the repo out directory with the staged forge output without dereferencing symlinks", async () => {
+    const calls = [];
+
+    await copyForgeOutDir("/tmp/staged-out", "/tmp/repo-out", {
+      accessImpl: async () => {},
+      cpImpl: async (...args) => {
+        calls.push(["cp", ...args]);
+      },
+      rmImpl: async (...args) => {
+        calls.push(["rm", ...args]);
+      },
+    });
+
+    expect(calls).toEqual([
+      ["rm", "/tmp/repo-out", { force: true, recursive: true }],
+      [
+        "cp",
+        "/tmp/staged-out",
+        "/tmp/repo-out",
+        {
+          force: true,
+          recursive: true,
+        },
+      ],
+    ]);
   });
 });

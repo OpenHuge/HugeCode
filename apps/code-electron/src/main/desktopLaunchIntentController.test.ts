@@ -144,6 +144,23 @@ describe("desktopLaunchIntentController", () => {
     });
   });
 
+  it("treats the new-window CLI argument as an explicit duplicate window request", () => {
+    const controller = createDesktopLaunchIntentController({
+      app: {
+        on: vi.fn(),
+        setAsDefaultProtocolClient: vi.fn(() => true),
+      },
+      initialArgv: ["HugeCode", "--new-window"],
+      platform: "win32",
+      protocol: "hugecode",
+    });
+
+    expect(controller.getPendingOpenWindowInput()).toEqual({
+      duplicate: true,
+    });
+    expect(controller.consumePendingIntent()).toBeNull();
+  });
+
   it("normalizes file launches to the containing workspace directory and preserves the file target", () => {
     const addRecentDocument = vi.fn();
     const controller = createDesktopLaunchIntentController({

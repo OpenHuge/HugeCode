@@ -21,6 +21,7 @@ import { createDesktopRendererTrust } from "./desktopRendererTrust.js";
 import { registerDesktopSessionSecurity } from "./desktopSessionSecurity.js";
 import { createDesktopShellState, type DesktopWindowBounds } from "./desktopShellState.js";
 import { createDesktopNotificationController } from "./desktopNotificationController.js";
+import { createDesktopPlatformLauncherController } from "./desktopPlatformLauncherController.js";
 import { createDesktopStateStore } from "./desktopStateStore.js";
 import { createDesktopTrayController } from "./desktopTrayController.js";
 import { createDesktopUpdaterController } from "./desktopUpdaterController.js";
@@ -72,8 +73,19 @@ type DesktopBrowserWindowFacade = {
 export type CreateDesktopMainCompositionInput = {
   app: {
     addRecentDocument?(path: string): void;
+    dock?: {
+      setMenu(menu: object | null): void;
+    } | null;
     enableSandbox(): void;
     getPath(name: "userData"): string;
+    getJumpListSettings?(): {
+      minItems: number;
+      removedItems: Array<{
+        args?: string;
+        title?: string;
+        type?: "file" | "separator" | "task";
+      }>;
+    };
     getVersion(): string;
     isPackaged: boolean;
     on(event: "activate", listener: () => void): void;
@@ -88,6 +100,7 @@ export type CreateDesktopMainCompositionInput = {
     quit(): void;
     requestSingleInstanceLock(): boolean;
     setAsDefaultProtocolClient(protocol: string): boolean;
+    setJumpList?(categories: unknown[] | null): string;
     whenReady(): Promise<unknown>;
   };
   autoUpdater: {
@@ -303,6 +316,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   }
 
   function updateDesktopChrome() {
+    platformLauncherController.update();
     trayController.update();
     applicationMenuController.update();
   }
@@ -362,6 +376,24 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     onQuit: () => {
       isQuitting = true;
       input.app.quit();
+    },
+    onReopenSession: windowController.reopenSession,
+    platform: input.platform,
+    readState() {
+      return {
+        recentSessions: shellState.recentSessions,
+      };
+    },
+  });
+  const platformLauncherController = createDesktopPlatformLauncherController({
+    app: input.app,
+    dependencies: {
+      logger: console,
+    },
+    onNewWindow: () => {
+      windowController.openWindow({
+        duplicate: true,
+      });
     },
     onReopenSession: windowController.reopenSession,
     platform: input.platform,
@@ -469,11 +501,12 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
         });
         registerDesktopSessionSecurity(defaultSession);
         desktopReady = true;
-        applicationMenuController.update();
+        updateDesktopChrome();
       },
       onBeforeQuit() {
         isQuitting = true;
         applicationMenuController.dispose();
+        platformLauncherController.dispose();
         trayController.dispose();
       },
       onSecondInstance(argv) {

@@ -34,8 +34,9 @@ HugeCode now serves packaged renderer content from `hugecode-app://app/...`. `hu
 ## Desktop Chrome Rules
 
 - The Electron shell owns both tray and application-menu state.
-- `Recent Sessions` in tray and in the application menu must derive from the same persisted desktop session model.
+- `Recent Sessions` in tray, the application menu, the macOS Dock menu, and the Windows Jump List must derive from the same persisted desktop session model.
 - Native `Open File...` and `Open Folder...` actions should feed the same launch-intent normalization path as CLI and OS file-open events.
+- Native launcher-only commands such as `--new-window` are internal desktop-shell affordances. They must stay in the main-process launch pipeline and must not leak into product UI routing.
 - Do not bolt new desktop actions directly into `main.ts`; add them through the menu/tray controller layer so session-driven desktop chrome stays in sync.
 
 ## Channel Rules

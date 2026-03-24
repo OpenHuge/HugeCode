@@ -106,6 +106,23 @@ export function buildApplicationMenuTemplate(
     },
   ];
 
+  if (state.platform === "darwin") {
+    fileMenuItems.push({
+      label: "Open Recent File",
+      submenu: [
+        {
+          role: "recentDocuments",
+        },
+        {
+          type: "separator",
+        },
+        {
+          role: "clearRecentDocuments",
+        },
+      ],
+    });
+  }
+
   const helpMenuItems: MenuItemConstructorOptions[] = [
     {
       label: "Check for Updates...",

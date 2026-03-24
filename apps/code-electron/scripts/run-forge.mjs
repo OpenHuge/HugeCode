@@ -93,6 +93,23 @@ export function createForgeExecutionEnv(baseEnv = process.env, electronZipDir = 
   return env;
 }
 
+export async function copyForgeOutDir(
+  stagedOutDir,
+  nextOutDir,
+  dependencies = {
+    accessImpl: access,
+    cpImpl: cp,
+    rmImpl: rm,
+  }
+) {
+  await dependencies.accessImpl(stagedOutDir);
+  await dependencies.rmImpl(nextOutDir, { force: true, recursive: true });
+  await dependencies.cpImpl(stagedOutDir, nextOutDir, {
+    force: true,
+    recursive: true,
+  });
+}
+
 async function runCommand(invocation, args, cwd, env = process.env) {
   await new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(invocation.command, args, {
@@ -307,8 +324,7 @@ async function runForge() {
 
     const stagedOutDir = resolve(forgePackageDir, "out");
     try {
-      await access(stagedOutDir);
-      await cp(stagedOutDir, outDir, { recursive: true, dereference: true });
+      await copyForgeOutDir(stagedOutDir, outDir);
     } catch {
       // Some Forge commands may not emit an out directory.
     }
