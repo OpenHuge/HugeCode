@@ -29,6 +29,7 @@ jobs:
 
       - uses: ./.github/actions/setup-rust-ci
         with:
+          enable-sccache: "true"
           cargo-cache-path: |
             ~/.cargo/bin/
             ~/.cargo/registry/index/
