@@ -49,6 +49,15 @@ const desktopHostBridge: DesktopHostBridgeApi = {
   updater: {
     checkForUpdates: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.checkForUpdates),
     getState: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getUpdateState),
+    onState: (listener) => {
+      const wrappedListener = (_event: Electron.IpcRendererEvent, state: unknown) => {
+        listener(state as Parameters<typeof listener>[0]);
+      };
+      ipcRenderer.on(DESKTOP_HOST_IPC_CHANNELS.pushUpdateState, wrappedListener);
+      return () => {
+        ipcRenderer.off(DESKTOP_HOST_IPC_CHANNELS.pushUpdateState, wrappedListener);
+      };
+    },
     restartToApplyUpdate: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.restartToApplyUpdate),
   },
   shell: {

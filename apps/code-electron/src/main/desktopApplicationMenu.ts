@@ -8,6 +8,7 @@ type ApplicationMenuState = {
 };
 
 type ApplicationMenuHandlers = {
+  onCheckForUpdates(): void;
   onNewWindow(): void;
   onOpenAbout(): void;
   onQuit(): void;
@@ -29,6 +30,7 @@ export type CreateDesktopApplicationMenuControllerInput = {
   onOpenAbout(): void;
   onQuit(): void;
   onReopenSession(sessionId: string): void;
+  onCheckForUpdates(): void;
 };
 
 function formatSessionLabel(session: DesktopSessionDescriptor) {
@@ -81,6 +83,15 @@ export function buildApplicationMenuTemplate(
     {
       label: "Open Recent Session",
       submenu: recentSessionsSubmenu,
+    },
+  ];
+
+  const helpMenuItems: MenuItemConstructorOptions[] = [
+    {
+      label: "Check for Updates...",
+      click: () => {
+        handlers.onCheckForUpdates();
+      },
     },
   ];
 
@@ -154,6 +165,10 @@ export function buildApplicationMenuTemplate(
         submenu: fileMenuItems,
       },
       {
+        label: "Help",
+        submenu: helpMenuItems,
+      },
+      {
         role: "windowMenu",
       },
     ];
@@ -174,6 +189,10 @@ export function buildApplicationMenuTemplate(
           role: "close",
         },
       ],
+    },
+    {
+      label: "Help",
+      submenu: helpMenuItems,
     },
   ];
 }
@@ -209,6 +228,7 @@ export function createDesktopApplicationMenuController(
       menu = createMenuFromTemplate(
         buildApplicationMenuTemplate(state, {
           onNewWindow: input.onNewWindow,
+          onCheckForUpdates: input.onCheckForUpdates,
           onOpenAbout: input.onOpenAbout,
           onQuit: input.onQuit,
           onReopenSession: input.onReopenSession,

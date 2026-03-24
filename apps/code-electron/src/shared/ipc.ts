@@ -18,6 +18,7 @@ export const DESKTOP_HOST_IPC_CHANNELS = {
   getAppVersion: "hugecode:desktop-host:get-app-version",
   consumePendingLaunchIntent: "hugecode:desktop-host:consume-pending-launch-intent",
   pushLaunchIntent: "hugecode:desktop-host:push-launch-intent",
+  pushUpdateState: "hugecode:desktop-host:push-update-state",
   getCurrentSession: "hugecode:desktop-host:get-current-session",
   listRecentSessions: "hugecode:desktop-host:list-recent-sessions",
   reopenSession: "hugecode:desktop-host:reopen-session",

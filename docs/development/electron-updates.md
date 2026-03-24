@@ -60,6 +60,8 @@ The Electron main process publishes one update mode as the source of truth:
 
 UI and release scripts must consume these modes instead of inferring support indirectly.
 
+The Electron renderer must also consume pushed updater state from the main process instead of assuming every update check starts inside the renderer. Native menu actions and future dock/tray update affordances should drive the same updater state stream.
+
 ## Environment Surface
 
 - `HUGECODE_ELECTRON_RELEASE_CHANNEL=beta|stable`
@@ -103,6 +105,14 @@ If no static feed root is configured, beta builds remain manual and point users 
   Verifies current-platform release artifacts and update metadata shape.
 - `pnpm desktop:electron:publish:dry-run`
   Reports the effective channel/update mode and fails on artifact or config mismatches.
+
+## Native Menu Behavior
+
+- Electron exposes `Check for Updates...` through the native application menu.
+- That action is intentionally channel-aware:
+  - automatic modes trigger the real main-process updater and push state changes to every live renderer window
+  - manual beta mode opens GitHub Releases instead of advertising fake auto-update support
+  - unsupported or misconfigured modes must never claim automatic update availability
 
 ## Intentionally Unsupported
 

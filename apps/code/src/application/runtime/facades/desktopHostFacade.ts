@@ -12,6 +12,7 @@ import {
   revealDesktopItemInDir,
   showDesktopNotification as showDesktopNotificationWithCapabilities,
   subscribeDesktopLaunchIntents as subscribeDesktopLaunchIntentsWithCapabilities,
+  subscribeDesktopUpdateState as subscribeDesktopUpdateStateWithCapabilities,
 } from "@ku0/code-application";
 import type {
   DesktopAppInfo,
@@ -82,6 +83,12 @@ export async function resolveDesktopUpdaterState(): Promise<DesktopUpdateState> 
 
 export async function checkForDesktopUpdates(): Promise<DesktopUpdateState> {
   return checkDesktopForUpdates(getDesktopHostBridge());
+}
+
+export function subscribeToDesktopUpdateState(
+  listener: (state: DesktopUpdateState) => void
+): () => void {
+  return subscribeDesktopUpdateStateWithCapabilities(getDesktopHostBridge(), listener);
 }
 
 export async function restartDesktopUpdate(): Promise<boolean> {

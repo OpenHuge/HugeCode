@@ -1,6 +1,6 @@
 import { BrowserWindow } from "electron";
 import type { BrowserWindowConstructorOptions } from "electron";
-import type { DesktopLaunchIntent } from "../shared/ipc.js";
+import type { DesktopLaunchIntent, DesktopUpdateState } from "../shared/ipc.js";
 import type { OpenDesktopWindowInput } from "../shared/ipc.js";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import {
@@ -34,7 +34,7 @@ type BrowserWindowLike = {
   restore(): void;
   show(): void;
   webContents: {
-    send(channel: string, payload: DesktopLaunchIntent): void;
+    send(channel: string, payload: DesktopLaunchIntent | DesktopUpdateState): void;
     on(
       event: "will-navigate",
       listener: (event: { preventDefault(): void }, url: string) => void
@@ -75,6 +75,7 @@ export type CreateDesktopWindowControllerInput = {
 };
 
 export type DesktopWindowController = {
+  broadcastUpdateState(state: DesktopUpdateState): number;
   closeWindow(windowId: number): boolean;
   createWindowForSession(session: DesktopSessionDescriptor): DesktopWindowDescriptor | null;
   deliverLaunchIntent(windowId: number, intent: DesktopLaunchIntent): boolean;
@@ -158,6 +159,20 @@ export function createDesktopWindowController(
 
     targetWindow.webContents.send(DESKTOP_HOST_IPC_CHANNELS.pushLaunchIntent, intent);
     return true;
+  }
+
+  function broadcastUpdateState(state: DesktopUpdateState) {
+    let deliveredCount = 0;
+    for (const targetWindow of activeWindows.values()) {
+      if (targetWindow.isDestroyed()) {
+        continue;
+      }
+
+      targetWindow.webContents.send(DESKTOP_HOST_IPC_CHANNELS.pushUpdateState, state);
+      deliveredCount += 1;
+    }
+
+    return deliveredCount;
   }
 
   function findWindowBySessionId(sessionId: string) {
@@ -265,6 +280,7 @@ export function createDesktopWindowController(
   }
 
   return {
+    broadcastUpdateState,
     closeWindow(windowId) {
       const targetWindow = activeWindows.get(windowId);
       if (!targetWindow || targetWindow.isDestroyed()) {

@@ -74,4 +74,9 @@ Linux desktop builds remain manual-update only.
   - `New Window`
   - `About HugeCode`
   - `Open Recent Session`
+  - `Check for Updates...`
 - The menu is rebuilt from the persisted desktop session state instead of hard-coded one-off actions in `main.ts`.
+- `Check for Updates...` follows the same updater source of truth as the in-app update UI:
+  - automatic channels trigger a real Electron update check in the main process
+  - manual beta builds open GitHub Releases instead of pretending automatic update support
+- Electron pushes updater state changes to live renderer windows, so native menu-triggered checks and in-app checks stay in sync.

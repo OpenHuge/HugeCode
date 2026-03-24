@@ -6,7 +6,9 @@ describe("registerDesktopHostIpc", () => {
   it("registers all desktop host IPC handlers", () => {
     const handleMock = vi.fn();
     const invokeChannels = Object.entries(DESKTOP_HOST_IPC_CHANNELS)
-      .filter(([channelName]) => channelName !== "pushLaunchIntent")
+      .filter(
+        ([channelName]) => channelName !== "pushLaunchIntent" && channelName !== "pushUpdateState"
+      )
       .map(([, channel]) => channel);
 
     registerDesktopHostIpc({

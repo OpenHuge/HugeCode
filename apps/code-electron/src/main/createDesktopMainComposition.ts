@@ -1,6 +1,10 @@
 import { join } from "node:path";
 import type { BrowserWindowConstructorOptions, IpcMainInvokeEvent } from "electron";
-import type { DesktopLaunchIntent, DesktopReleaseChannel } from "../shared/ipc.js";
+import type {
+  DesktopLaunchIntent,
+  DesktopReleaseChannel,
+  DesktopUpdateState,
+} from "../shared/ipc.js";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
 import {
@@ -50,7 +54,7 @@ type DesktopBrowserWindowLike = {
   restore(): void;
   show(): void;
   webContents: {
-    send(channel: string, payload: DesktopLaunchIntent): void;
+    send(channel: string, payload: DesktopLaunchIntent | DesktopUpdateState): void;
     on(
       event: "will-navigate",
       listener: (event: { preventDefault(): void }, url: string) => void
@@ -255,6 +259,9 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     })(),
     autoUpdater: input.autoUpdater,
     configureAutoUpdates: autoUpdateConfigurator.initialize,
+    onStateChange(state) {
+      windowController.broadcastUpdateState(state);
+    },
     repoUrl: input.repositoryUrl ?? "https://github.com/OpenHuge/HugeCode",
     strategy: autoUpdateConfigurator.strategy,
   });
@@ -300,6 +307,16 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     trayIconDataUrl: input.trayIconDataUrl ?? DEFAULT_TRAY_ICON_DATA_URL,
   });
   const applicationMenuController = createDesktopApplicationMenuController({
+    onCheckForUpdates: () => {
+      const updateState = updaterController.checkForUpdates();
+      if (updateState.capability === "automatic") {
+        return;
+      }
+
+      if (updateState.releaseUrl) {
+        void input.shell.openExternal(updateState.releaseUrl);
+      }
+    },
     onNewWindow: () => {
       windowController.openWindow();
     },

@@ -39,6 +39,9 @@ describe("createDesktopMainComposition", () => {
 
   beforeEach(async () => {
     updateElectronApp.mockReset();
+    const { Menu } = await import("electron");
+    vi.mocked(Menu.buildFromTemplate).mockClear();
+    vi.mocked(Menu.setApplicationMenu).mockClear();
     const { resetDesktopAppProtocolSchemeRegistrationForTests } =
       await import("./desktopAppProtocol.js");
     resetDesktopAppProtocolSchemeRegistrationForTests();
@@ -325,6 +328,56 @@ describe("createDesktopMainComposition", () => {
         kind: "workspace",
         workspacePath: "/workspace/demo",
       })
+    );
+  });
+
+  it("routes the native menu update action through the real automatic updater path", async () => {
+    const { Menu } = await import("electron");
+    const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
+    const input = createInput({
+      releaseChannel: "stable",
+    });
+
+    createDesktopMainComposition(input).start();
+    await input.app.whenReady.mock.results[0]?.value;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const menuTemplate = vi.mocked(Menu.buildFromTemplate).mock.calls.at(-1)?.[0];
+    const helpMenu = menuTemplate?.find((item) => item.label === "Help");
+    const checkForUpdatesItem = helpMenu?.submenu?.find(
+      (item) => "label" in item && item.label === "Check for Updates..."
+    );
+
+    checkForUpdatesItem?.click?.();
+
+    expect(input.autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens releases from the native menu when beta updates are intentionally manual", async () => {
+    const { Menu } = await import("electron");
+    const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
+    const input = createInput({
+      releaseChannel: "beta",
+      staticUpdateBaseUrl: null,
+    });
+
+    createDesktopMainComposition(input).start();
+    await input.app.whenReady.mock.results[0]?.value;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const menuTemplate = vi.mocked(Menu.buildFromTemplate).mock.calls.at(-1)?.[0];
+    const helpMenu = menuTemplate?.find((item) => item.label === "Help");
+    const checkForUpdatesItem = helpMenu?.submenu?.find(
+      (item) => "label" in item && item.label === "Check for Updates..."
+    );
+
+    checkForUpdatesItem?.click?.();
+
+    expect(input.autoUpdater.checkForUpdates).not.toHaveBeenCalled();
+    expect(input.shell.openExternal).toHaveBeenCalledWith(
+      "https://github.com/OpenHuge/HugeCode/releases"
     );
   });
 });

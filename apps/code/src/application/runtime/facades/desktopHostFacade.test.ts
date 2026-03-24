@@ -12,6 +12,7 @@ import {
   restartDesktopUpdate,
   revealItemInDir,
   showDesktopNotification,
+  subscribeToDesktopUpdateState,
 } from "./desktopHostFacade";
 
 const {
@@ -58,6 +59,8 @@ describe("desktopHostFacade", () => {
   });
 
   it("prefers the electron bridge when it is present", async () => {
+    const updaterStateUnsubscribe = vi.fn();
+    const updaterStateListener = vi.fn(() => updaterStateUnsubscribe);
     getDesktopHostBridgeMock.mockReturnValue({
       kind: "electron",
       app: {
@@ -110,6 +113,7 @@ describe("desktopHostFacade", () => {
           stage: "downloaded",
           version: "41.0.4",
         }),
+        onState: updaterStateListener,
         restartToApplyUpdate: async () => true,
       },
       shell: {
@@ -143,6 +147,10 @@ describe("desktopHostFacade", () => {
     await expect(showDesktopNotification({ title: "Build complete" })).resolves.toBe(true);
     await expect(openUrl("https://example.com")).resolves.toBe(true);
     await expect(revealItemInDir("/tmp/workspace")).resolves.toBe(true);
+    const unsubscribe = subscribeToDesktopUpdateState(vi.fn());
+    expect(updaterStateListener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+    expect(updaterStateUnsubscribe).toHaveBeenCalledTimes(1);
     expect(window.open).not.toHaveBeenCalled();
   });
 

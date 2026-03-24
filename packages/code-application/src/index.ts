@@ -11,6 +11,7 @@ export {
   restartDesktopToApplyUpdate,
   revealDesktopItemInDir,
   showDesktopNotification,
+  subscribeDesktopUpdateState,
   subscribeDesktopLaunchIntents,
 } from "./desktopHostFacade";
 export {

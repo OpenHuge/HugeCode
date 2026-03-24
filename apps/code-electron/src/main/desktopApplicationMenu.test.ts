@@ -22,6 +22,7 @@ describe("desktopApplicationMenu", () => {
         ],
       },
       {
+        onCheckForUpdates: vi.fn(),
         onNewWindow: vi.fn(),
         onOpenAbout: vi.fn(),
         onQuit: vi.fn(),
@@ -39,6 +40,10 @@ describe("desktopApplicationMenu", () => {
     expect(template[1]?.submenu?.[1]).toMatchObject({
       label: "Open Recent Session",
       submenu: [expect.objectContaining({ label: "alpha" })],
+    });
+    expect(template[2]).toMatchObject({
+      label: "Help",
+      submenu: [expect.objectContaining({ label: "Check for Updates..." })],
     });
   });
 
@@ -63,6 +68,7 @@ describe("desktopApplicationMenu", () => {
         createMenuFromTemplate,
         setApplicationMenu,
       },
+      onCheckForUpdates: vi.fn(),
       onNewWindow: vi.fn(),
       onOpenAbout: vi.fn(),
       onQuit: vi.fn(),

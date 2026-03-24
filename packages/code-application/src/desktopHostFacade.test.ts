@@ -13,6 +13,7 @@ import {
   revealDesktopItemInDir,
   showDesktopNotification,
   subscribeDesktopLaunchIntents,
+  subscribeDesktopUpdateState,
 } from "./desktopHostFacade";
 
 describe("desktopHostFacade", () => {
@@ -160,6 +161,26 @@ describe("desktopHostFacade", () => {
     );
 
     expect(onIntent).toHaveBeenCalledWith(listener);
+    result();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("subscribes to live desktop update state when the bridge exposes it", () => {
+    const listener = vi.fn();
+    const unsubscribe = vi.fn();
+    const onState = vi.fn(() => unsubscribe);
+
+    const result = subscribeDesktopUpdateState(
+      {
+        kind: "electron",
+        updater: {
+          onState,
+        },
+      },
+      listener
+    );
+
+    expect(onState).toHaveBeenCalledWith(listener);
     result();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });

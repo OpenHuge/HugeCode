@@ -173,6 +173,7 @@ export type DesktopUpdaterCapability = {
     | DesktopUpdateState
     | null
     | undefined;
+  onState?: (listener: (state: DesktopUpdateState) => void) => (() => void) | void;
   restartToApplyUpdate?: () => Promise<boolean | void> | boolean | void;
 };
 
@@ -231,6 +232,7 @@ export type DesktopHostBridgeApi = {
   updater: {
     checkForUpdates(): Promise<DesktopUpdateState>;
     getState(): Promise<DesktopUpdateState>;
+    onState(listener: (state: DesktopUpdateState) => void): () => void;
     restartToApplyUpdate(): Promise<boolean>;
   };
   shell: {

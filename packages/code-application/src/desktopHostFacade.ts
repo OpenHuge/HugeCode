@@ -167,6 +167,18 @@ export function subscribeDesktopLaunchIntents(
   }
 }
 
+export function subscribeDesktopUpdateState(
+  desktopHostBridge: DesktopHostBridge | null,
+  listener: (state: DesktopUpdateState) => void
+): () => void {
+  try {
+    const unsubscribe = desktopHostBridge?.updater?.onState?.(listener);
+    return typeof unsubscribe === "function" ? unsubscribe : () => undefined;
+  } catch {
+    return () => undefined;
+  }
+}
+
 export async function resolveDesktopUpdateState(
   desktopHostBridge: DesktopHostBridge | null
 ): Promise<DesktopUpdateState> {

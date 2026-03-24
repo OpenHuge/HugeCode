@@ -362,4 +362,73 @@ describe("desktopWindowController", () => {
       })
     );
   });
+
+  it("broadcasts updater state to every live window", () => {
+    const shellState = createDesktopShellState({
+      now: () => "2026-03-23T10:00:00.000Z",
+      persistedState: {
+        sessions: [],
+        trayEnabled: false,
+      },
+    });
+    const firstWindow = createFakeBrowserWindow(601, {
+      height: 900,
+      width: 1400,
+    });
+    const secondWindow = createFakeBrowserWindow(602, {
+      height: 900,
+      width: 1400,
+    });
+    const createdWindows = [firstWindow, secondWindow];
+    const controller = createDesktopWindowController({
+      browserWindow: {
+        create: vi.fn(() => createdWindows.shift() ?? firstWindow),
+        fromWebContents: vi.fn(() => firstWindow),
+        getAllWindows: vi.fn(() => [firstWindow, secondWindow]),
+      },
+      defaultWindowBounds: {
+        height: 960,
+        width: 1440,
+      },
+      isSafeExternalUrl: () => true,
+      isQuitting: () => false,
+      isTrustedRendererUrl: () => true,
+      loadRenderer: vi.fn(),
+      notifyWindowsChanged: vi.fn(),
+      openExternalUrl: vi.fn(),
+      persistState: vi.fn(),
+      preloadPath: "/tmp/preload.js",
+      shellState,
+    });
+
+    controller.openWindow({
+      workspaceLabel: "alpha",
+      workspacePath: "/workspace/alpha",
+    });
+    controller.openWindow({
+      workspaceLabel: "beta",
+      workspacePath: "/workspace/beta",
+    });
+
+    expect(
+      controller.broadcastUpdateState({
+        capability: "automatic",
+        mode: "enabled_stable_public_service",
+        provider: "public-github",
+        stage: "checking",
+      })
+    ).toBe(2);
+    expect(firstWindow.webContents.send).toHaveBeenCalledWith(
+      DESKTOP_HOST_IPC_CHANNELS.pushUpdateState,
+      expect.objectContaining({
+        stage: "checking",
+      })
+    );
+    expect(secondWindow.webContents.send).toHaveBeenCalledWith(
+      DESKTOP_HOST_IPC_CHANNELS.pushUpdateState,
+      expect.objectContaining({
+        stage: "checking",
+      })
+    );
+  });
 });
