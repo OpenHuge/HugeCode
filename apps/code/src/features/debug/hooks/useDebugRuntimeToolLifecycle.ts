@@ -1,7 +1,7 @@
 import { useCallback, useRef, useSyncExternalStore } from "react";
 import {
+  filterRuntimeToolLifecycleSnapshot,
   getRuntimeToolLifecycleSnapshot,
-  runtimeToolLifecycleEventMatchesWorkspace,
   subscribeRuntimeToolLifecycleSnapshot,
   type RuntimeToolLifecycleEvent,
   type RuntimeToolLifecycleSnapshot,
@@ -34,14 +34,11 @@ function filterLifecycleSnapshot(
   snapshot: RuntimeToolLifecycleSnapshot,
   workspaceId: string | null
 ): DebugRuntimeToolLifecycleState {
-  const lifecycleEvents = snapshot.recentEvents.filter((event) =>
-    runtimeToolLifecycleEventMatchesWorkspace(event, workspaceId)
-  );
-  const lastEvent = [...lifecycleEvents].pop() ?? null;
+  const filteredSnapshot = filterRuntimeToolLifecycleSnapshot(snapshot, workspaceId);
   return {
-    revision: snapshot.revision,
-    lastEvent,
-    lifecycleEvents,
+    revision: filteredSnapshot.revision,
+    lastEvent: filteredSnapshot.lastEvent,
+    lifecycleEvents: filteredSnapshot.recentEvents,
   };
 }
 

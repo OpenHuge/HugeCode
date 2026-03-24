@@ -117,6 +117,7 @@ describe("useDebugPanelViewModelInputs", () => {
       workspaceId: "workspace-1",
       enabled: true,
     });
+    expect(useDebugRuntimeProbeMock).toHaveBeenCalledWith({ workspaceId: "workspace-1" });
     expect(useFormattedDebugEntriesMock).toHaveBeenCalledWith(entries, true);
     expect(useDebugEntryDiagnosticsMock).toHaveBeenCalledWith(entries, true, true);
     expect(result.current).toEqual({
@@ -147,6 +148,7 @@ describe("useDebugPanelViewModelInputs", () => {
       workspaceId: null,
       enabled: true,
     });
+    expect(useDebugRuntimeProbeMock).toHaveBeenCalledWith({ workspaceId: null });
     expect(useFormattedDebugEntriesMock).toHaveBeenCalledWith(entries, true);
     expect(useDebugEntryDiagnosticsMock).toHaveBeenCalledWith(entries, false, true);
   });
@@ -173,6 +175,7 @@ describe("useDebugPanelViewModelInputs", () => {
       workspaceId: null,
       enabled: false,
     });
+    expect(useDebugRuntimeProbeMock).toHaveBeenCalledWith({ workspaceId: null });
     expect(useFormattedDebugEntriesMock).toHaveBeenCalledWith(entries, false);
     expect(useDebugEntryDiagnosticsMock).toHaveBeenCalledWith(entries, true, false);
   });

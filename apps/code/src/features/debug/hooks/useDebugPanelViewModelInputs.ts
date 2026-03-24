@@ -22,7 +22,7 @@ export function useDebugPanelViewModelInputs(
     workspaceId: params.workspaceId,
     enabled: isVisible,
   });
-  const runtimeProbe = useDebugRuntimeProbe();
+  const runtimeProbe = useDebugRuntimeProbe({ workspaceId: params.workspaceId });
   const formattedEntries = useFormattedDebugEntries(params.entries, isVisible);
   const entryDiagnostics = useDebugEntryDiagnostics(
     params.entries,

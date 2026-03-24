@@ -11,6 +11,29 @@ type RuntimeToolLifecycleTestApi = {
 };
 
 vi.mock("../../../application/runtime/ports/runtimeToolLifecycle", () => ({
+  filterRuntimeToolLifecycleSnapshot: vi.fn(
+    (
+      snapshot: {
+        recentEvents: Array<{ workspaceId: string | null }>;
+        lastEvent: { workspaceId: string | null } | null;
+        revision: number;
+      },
+      workspaceId: string | null
+    ) => {
+      const lifecycleEvents = snapshot.recentEvents.filter(
+        (event) => !workspaceId || event.workspaceId === workspaceId
+      );
+      const lastEvent =
+        snapshot.lastEvent && (!workspaceId || snapshot.lastEvent.workspaceId === workspaceId)
+          ? snapshot.lastEvent
+          : (lifecycleEvents.at(-1) ?? null);
+      return {
+        revision: snapshot.revision,
+        lastEvent,
+        recentEvents: lifecycleEvents,
+      };
+    }
+  ),
   getRuntimeToolLifecycleSnapshot: vi.fn(),
   runtimeToolLifecycleEventMatchesWorkspace: vi.fn(
     (event: { workspaceId: string | null }, workspaceId: string | null) =>
@@ -71,6 +94,32 @@ describe("useDebugRuntimeToolLifecycle", () => {
     expect(api.subscribeRuntimeToolLifecycleSnapshot).toHaveBeenCalledTimes(1);
     expect(result.current.lifecycleEvents).toEqual([lifecycleEvent]);
     expect(result.current.lastEvent).toEqual(lifecycleEvent);
+  });
+
+  it("preserves a matching lastEvent even when it is not present in recentEvents", () => {
+    api.getRuntimeToolLifecycleSnapshot.mockReturnValue({
+      revision: 3,
+      lastEvent: lifecycleEvent,
+      recentEvents: [
+        {
+          ...lifecycleEvent,
+          id: "tool-started-2",
+          workspaceId: "workspace-2",
+          turnId: "turn-2",
+        },
+      ],
+    } satisfies RuntimeToolLifecycleSnapshot);
+
+    const { result } = renderHook(() =>
+      useDebugRuntimeToolLifecycle({
+        workspaceId: "workspace-1",
+        enabled: true,
+      })
+    );
+
+    expect(result.current.lifecycleEvents).toEqual([]);
+    expect(result.current.lastEvent).toEqual(lifecycleEvent);
+    expect(result.current.revision).toBe(3);
   });
 
   it("returns an empty snapshot when disabled", () => {

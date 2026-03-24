@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import {
+  filterRuntimeToolLifecycleSnapshot,
   getRuntimeToolLifecycleSnapshot,
-  runtimeToolLifecycleEventMatchesWorkspace,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import { runtimeDiagnosticsExportV1 } from "../../../application/runtime/ports/tauriRuntime";
 
@@ -97,15 +97,10 @@ function createDiagnosticsMetadataArtifact(input: {
   exported: NonNullable<Awaited<ReturnType<typeof runtimeDiagnosticsExportV1>>>;
   workspaceId: string | null;
 }): DiagnosticsMetadataArtifact {
-  const lifecycleSnapshot = getRuntimeToolLifecycleSnapshot();
-  const recentEvents = lifecycleSnapshot.recentEvents.filter((event) =>
-    runtimeToolLifecycleEventMatchesWorkspace(event, input.workspaceId)
+  const lifecycleSnapshot = filterRuntimeToolLifecycleSnapshot(
+    getRuntimeToolLifecycleSnapshot(),
+    input.workspaceId
   );
-  const lastEvent =
-    lifecycleSnapshot.lastEvent &&
-    runtimeToolLifecycleEventMatchesWorkspace(lifecycleSnapshot.lastEvent, input.workspaceId)
-      ? lifecycleSnapshot.lastEvent
-      : ([...recentEvents].pop() ?? null);
 
   return {
     schemaVersion: "runtime-diagnostics-metadata/v1",
@@ -123,8 +118,8 @@ function createDiagnosticsMetadataArtifact(input: {
     },
     lifecycle: {
       revision: lifecycleSnapshot.revision,
-      lastEvent,
-      recentEvents,
+      lastEvent: lifecycleSnapshot.lastEvent,
+      recentEvents: lifecycleSnapshot.recentEvents,
     },
   };
 }

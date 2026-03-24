@@ -107,3 +107,22 @@ export function runtimeToolLifecycleEventMatchesWorkspace(
   }
   return event.workspaceId === workspaceId;
 }
+
+export function filterRuntimeToolLifecycleSnapshot(
+  snapshot: RuntimeToolLifecycleSnapshot,
+  workspaceId: string | null
+): RuntimeToolLifecycleSnapshot {
+  const recentEvents = snapshot.recentEvents.filter((event) =>
+    runtimeToolLifecycleEventMatchesWorkspace(event, workspaceId)
+  );
+  const lastEvent =
+    snapshot.lastEvent && runtimeToolLifecycleEventMatchesWorkspace(snapshot.lastEvent, workspaceId)
+      ? snapshot.lastEvent
+      : (recentEvents.at(-1) ?? null);
+
+  return {
+    revision: snapshot.revision,
+    lastEvent,
+    recentEvents,
+  };
+}
