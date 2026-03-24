@@ -146,7 +146,7 @@ export const disclosureTitle = feature({
 export const disclosureSummary = feature({
   fontSize: "var(--font-size-fine)",
   color: "var(--ds-text-faint)",
-  lineHeight: 1.4,
+  lineHeight: "var(--line-height-140)",
 });
 
 export const disclosureAction = feature({
