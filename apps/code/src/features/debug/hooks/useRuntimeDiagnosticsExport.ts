@@ -31,6 +31,24 @@ type DiagnosticsMetadataArtifact = {
   };
 };
 
+function countLifecycleEvents(artifact: DiagnosticsMetadataArtifact): number {
+  const eventIds = new Set<string>();
+  if (
+    artifact.lifecycle.lastEvent &&
+    typeof artifact.lifecycle.lastEvent === "object" &&
+    "id" in artifact.lifecycle.lastEvent &&
+    typeof artifact.lifecycle.lastEvent.id === "string"
+  ) {
+    eventIds.add(artifact.lifecycle.lastEvent.id);
+  }
+  for (const event of artifact.lifecycle.recentEvents) {
+    if (event && typeof event === "object" && "id" in event && typeof event.id === "string") {
+      eventIds.add(event.id);
+    }
+  }
+  return eventIds.size;
+}
+
 function decodeBase64ToBytes(value: string): Uint8Array {
   const normalized = value.replace(/\s+/g, "");
   const decoded = globalThis.atob(normalized);
@@ -113,14 +131,15 @@ function createDiagnosticsMetadataArtifact(input: {
 
 function formatDiagnosticsExportStatus(options: {
   includeZipBase64: boolean;
-  filename: string;
+  artifactFilename: string;
   sizeBytes: number;
   sectionCount: number;
+  lifecycleEventCount: number;
   warnings: string[];
 }): string {
   const statusPrefix = options.includeZipBase64
-    ? `Exported ${options.filename} (${options.sizeBytes} bytes).`
-    : `Exported diagnostics metadata for ${options.filename} (${options.sectionCount} sections).`;
+    ? `Exported ${options.artifactFilename} (${options.sizeBytes} bytes).`
+    : `Exported ${options.artifactFilename} (${options.sectionCount} sections, ${options.lifecycleEventCount} lifecycle events).`;
   const warningsSuffix =
     options.warnings.length > 0 ? ` Warnings: ${options.warnings.join(" | ")}` : "";
   return `${statusPrefix}${warningsSuffix}`;
@@ -151,6 +170,8 @@ export function useRuntimeDiagnosticsExport({
           setDiagnosticsExportError("Runtime does not support diagnostics export v1.");
           return;
         }
+        let artifactFilename = exported.filename;
+        let lifecycleEventCount = 0;
         if (includeZipBase64) {
           if (typeof exported.zipBase64 !== "string" || exported.zipBase64.trim().length === 0) {
             setDiagnosticsExportError(
@@ -165,22 +186,25 @@ export function useRuntimeDiagnosticsExport({
           );
           return;
         } else {
+          artifactFilename = toMetadataArtifactFilename(exported.filename);
           const metadataArtifact = createDiagnosticsMetadataArtifact({
             exported,
             workspaceId,
           });
+          lifecycleEventCount = countLifecycleEvents(metadataArtifact);
           triggerDiagnosticsExportDownload(
             JSON.stringify(metadataArtifact, null, 2),
-            toMetadataArtifactFilename(exported.filename),
+            artifactFilename,
             "application/json"
           );
         }
         setDiagnosticsExportStatus(
           formatDiagnosticsExportStatus({
             includeZipBase64,
-            filename: exported.filename,
+            artifactFilename,
             sizeBytes: exported.sizeBytes,
             sectionCount: exported.sections.length,
+            lifecycleEventCount,
             warnings: exported.warnings,
           })
         );

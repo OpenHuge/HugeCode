@@ -188,7 +188,10 @@ describe("useRuntimeDiagnosticsExport", () => {
     );
     await expect(metadataBlob.text()).resolves.toContain('"lifecycle"');
     await expect(metadataBlob.text()).resolves.toContain('"tool-started-1"');
-    expect(result.current.diagnosticsExportStatus).toContain("Exported diagnostics metadata");
+    expect(result.current.diagnosticsExportStatus).toContain(
+      "Exported runtime-diagnostics.metadata.json"
+    );
+    expect(result.current.diagnosticsExportStatus).toContain("1 lifecycle events");
     expect(result.current.diagnosticsExportError).toBeNull();
     expect(result.current.diagnosticsExportBusy).toBe(false);
 

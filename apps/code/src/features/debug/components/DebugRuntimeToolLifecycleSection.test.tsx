@@ -22,14 +22,23 @@ describe("DebugRuntimeToolLifecycleSection", () => {
             source: "telemetry",
             status: "blocked",
             toolCallId: null,
+            at: 1_771_331_697_000,
           }),
         ]}
       />
     );
 
     expect(screen.getByTestId("debug-runtime-tool-lifecycle")).toBeTruthy();
-    expect(screen.getByText("tool/started")).toBeTruthy();
+    expect(screen.getByText("2 events observed.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        (_, node) =>
+          node?.textContent === "Latest event: guardrail/evaluated at 2026-02-17T12:34:57.000Z."
+      )
+    ).toBeTruthy();
     expect(screen.getByText("guardrail/evaluated")).toBeTruthy();
+    expect(screen.getByText("tool/started")).toBeTruthy();
+    expect(screen.getAllByText("2026-02-17T12:34:57.000Z").length).toBeGreaterThan(0);
     expect(screen.getAllByText("bash").length).toBeGreaterThan(0);
   });
 
