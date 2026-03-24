@@ -298,6 +298,9 @@ export function verifyElectronForgeUpdateContract(context) {
   const squirrelMaker = context.forgeConfig.makers?.find(
     (maker) => maker.name === "@electron-forge/maker-squirrel"
   );
+  const debMaker = context.forgeConfig.makers?.find(
+    (maker) => maker.name === "@electron-forge/maker-deb" || isLocalDebMakerName(maker.name)
+  );
 
   if (context.updateMode === "enabled_beta_static_feed") {
     if (zipMaker?.config?.macUpdateManifestBaseUrl !== context.betaStaticFeedUrl) {
@@ -321,6 +324,11 @@ export function verifyElectronForgeUpdateContract(context) {
         "Squirrel remoteReleases must not be configured outside beta static-feed mode."
       );
     }
+  }
+
+  const debMakerOptions = debMaker?.config?.options ?? debMaker?.config ?? null;
+  if (debMakerOptions?.bin !== "HugeCode") {
+    throw new Error('Deb maker options.bin must be "HugeCode" to match the packaged executable.');
   }
 
   return {
