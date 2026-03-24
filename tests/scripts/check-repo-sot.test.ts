@@ -253,7 +253,7 @@ describe("check-repo-sot", () => {
       const workspaceContent = await readFile(workspacePath, "utf8");
       await writeFile(
         workspacePath,
-        workspaceContent.replace("minimumReleaseAge: 60", "minimumReleaseAge: 0"),
+        workspaceContent.replace("blockExoticSubdeps: true", "blockExoticSubdeps: false"),
         "utf8"
       );
       stageFixtureChanges(tempRoot);
@@ -261,7 +261,7 @@ describe("check-repo-sot", () => {
       const result = runRepoSot(tempRoot);
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain("pnpm-workspace.yaml: minimumReleaseAge must be 60");
+      expect(result.stderr).toContain("pnpm-workspace.yaml: blockExoticSubdeps must be true");
     },
     repoSotTestTimeoutMs
   );

@@ -749,6 +749,10 @@ if (pnpmWorkspace === null) {
     );
   }
 
+  if (readSingleLineYamlScalar(pnpmWorkspace, "blockExoticSubdeps") !== "true") {
+    errors.push(`${pnpmWorkspaceRelativePath}: blockExoticSubdeps must be true`);
+  }
+
   if (readSingleLineYamlScalar(pnpmWorkspace, "strictDepBuilds") !== "true") {
     errors.push(`${pnpmWorkspaceRelativePath}: strictDepBuilds must be true`);
   }

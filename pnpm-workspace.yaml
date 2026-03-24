@@ -10,6 +10,7 @@ packages:
 nodeVersion: 24.11.1
 engineStrict: true
 minimumReleaseAge: 60
+blockExoticSubdeps: true
 strictDepBuilds: true
 # Worktrees frequently share a valid install state while diverging in branch-local
 # metadata. Warn instead of hard-failing so local tooling remains usable, but keep
