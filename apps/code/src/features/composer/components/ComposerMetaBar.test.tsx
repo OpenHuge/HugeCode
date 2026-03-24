@@ -242,6 +242,18 @@ describe("ComposerMetaBar", () => {
     expect(modelButton.getAttribute("title")).toContain(
       "Local Claude Code is ready on this machine."
     );
+
+    fireEvent.click(modelButton);
+    expect(
+      screen
+        .getByRole("menuitemradio", { name: /Use recommended route/i })
+        .getAttribute("aria-checked")
+    ).toBe("true");
+    expect(
+      screen
+        .getByRole("menuitemradio", { name: /Claude Sonnet 4\.5/i })
+        .getAttribute("aria-checked")
+    ).toBe("false");
   });
 
   it("lists only the deduplicated models for the selected provider family", () => {
@@ -351,6 +363,10 @@ describe("ComposerMetaBar", () => {
     const autoOption = screen.getByRole("menuitemradio", {
       name: /Use recommended route/i,
     });
+    expect(autoOption.getAttribute("aria-checked")).toBe("false");
+    expect(
+      screen.getByRole("menuitemradio", { name: "GPT-5.4" }).getAttribute("aria-checked")
+    ).toBe("true");
     fireEvent.pointerDown(autoOption);
     fireEvent.click(autoOption);
     expect(onSelectAutoRoute).toHaveBeenCalledWith("codex");

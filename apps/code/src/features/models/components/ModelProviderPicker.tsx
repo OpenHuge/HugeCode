@@ -402,7 +402,9 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
                 </button>
               ) : null}
               {activeProviderModels.map((model) => {
-                const isSelected = model.id === selectedModelId || model.model === selectedModelId;
+                const isSelected =
+                  selectionMode !== "auto" &&
+                  (model.id === selectedModelId || model.model === selectedModelId);
                 return (
                   <button
                     key={model.id}
