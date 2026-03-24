@@ -13,6 +13,7 @@ import {
   SettingsFooterBar,
   SettingsControlRow,
 } from "../SettingsSectionGrammar";
+import type { MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";
 import * as controlStyles from "../SettingsFormControls.css";
 import * as grammar from "../SettingsSectionGrammar.css";
 import { SettingsToggleControl } from "../SettingsToggleControl";
@@ -90,6 +91,7 @@ export type SettingsAutomationSectionProps = {
     scheduleId: string;
     action: SettingsAutomationScheduleAction;
   }) => void | Promise<void>;
+  onOpenMissionTarget?: (target: MissionNavigationTarget) => void | Promise<void>;
 };
 
 type ScheduleFieldValue = string | number | null | undefined;
@@ -231,6 +233,61 @@ function resolveReadOnlyReason(
   return "Schedule facade is not wired yet.";
 }
 
+function readScheduleLinkageValue(value: string | null): string | null {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
+function resolveScheduleNavigationTarget(
+  summary: SettingsAutomationScheduleSummary
+): MissionNavigationTarget | null {
+  const workspaceId = readScheduleLinkageValue(summary.workspaceId);
+  if (!workspaceId) {
+    return null;
+  }
+
+  const reviewPackId = readScheduleLinkageValue(summary.reviewPackId);
+  const currentTaskId = readScheduleLinkageValue(summary.currentTaskId);
+  const currentRunId = readScheduleLinkageValue(summary.currentRunId);
+  const lastTriggeredTaskId = readScheduleLinkageValue(summary.lastTriggeredTaskId);
+  const lastTriggeredRunId = readScheduleLinkageValue(summary.lastTriggeredRunId);
+
+  if (reviewPackId) {
+    const taskId = lastTriggeredTaskId ?? currentTaskId;
+    if (!taskId) {
+      return null;
+    }
+
+    return {
+      kind: "review",
+      workspaceId,
+      taskId,
+      runId: lastTriggeredTaskId ? lastTriggeredRunId : currentRunId,
+      reviewPackId,
+      limitation: "thread_unavailable",
+    };
+  }
+
+  const taskId = currentTaskId ?? lastTriggeredTaskId;
+  if (!taskId) {
+    return null;
+  }
+
+  return {
+    kind: "mission",
+    workspaceId,
+    taskId,
+    runId: currentTaskId ? currentRunId : lastTriggeredRunId,
+    reviewPackId: null,
+    threadId: null,
+    limitation: "thread_unavailable",
+  };
+}
+
+function resolveScheduleNavigationLabel(target: MissionNavigationTarget): string {
+  return target.kind === "review" ? "Open review" : "Open mission";
+}
+
 export function SettingsAutomationSection({
   backendOptions = [],
   workspaceOptions = [],
@@ -243,6 +300,7 @@ export function SettingsAutomationSection({
   onCreateSchedule,
   onUpdateSchedule,
   onScheduleAction,
+  onOpenMissionTarget,
 }: SettingsAutomationSectionProps) {
   const compactInputFieldClassName = `${controlStyles.inputField} ${controlStyles.inputFieldCompact}`;
   const compactSelectProps = {
@@ -388,6 +446,12 @@ export function SettingsAutomationSection({
     selectedSchedule?.workspaceId ?? draft.workspaceId ?? null,
     workspaceOptions
   );
+  const selectedScheduleNavigationTarget = selectedSchedule
+    ? resolveScheduleNavigationTarget(selectedSchedule)
+    : null;
+  const selectedScheduleNavigationLabel = selectedScheduleNavigationTarget
+    ? resolveScheduleNavigationLabel(selectedScheduleNavigationTarget)
+    : null;
 
   return (
     <>
@@ -914,6 +978,19 @@ export function SettingsAutomationSection({
                   : "unknown"}
             </div>
             <SettingsFooterBar>
+              {selectedScheduleNavigationTarget && onOpenMissionTarget ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="settings-button-compact"
+                  onClick={() => {
+                    void onOpenMissionTarget(selectedScheduleNavigationTarget);
+                  }}
+                >
+                  {selectedScheduleNavigationLabel}
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="secondary"

@@ -36,6 +36,7 @@ type Params = {
 type Result = {
   recordPendingThreadLink: (workspaceId: string, threadId: string) => void;
   recordPendingMissionTarget: (target: MissionNavigationTarget) => void;
+  openMissionTarget: (target: MissionNavigationTarget) => Promise<void>;
 };
 
 export function useSystemNotificationThreadLinks({
@@ -65,6 +66,73 @@ export function useSystemNotificationThreadLinks({
     };
   }, []);
 
+  const navigateToTarget = useCallback(
+    async (target: ThreadDeepLink | MissionNavigationTarget) => {
+      setCenterMode("chat");
+      setSelectedDiffPath(null);
+
+      const workspaceId = target.workspaceId;
+      let workspace = workspacesById.get(workspaceId) ?? null;
+      if (!workspace && hasLoadedWorkspaces && !refreshInFlightRef.current) {
+        refreshInFlightRef.current = true;
+        try {
+          const refreshed = await refreshWorkspaces();
+          workspace = refreshed?.find((entry) => entry.id === workspaceId) ?? null;
+        } finally {
+          refreshInFlightRef.current = false;
+        }
+      }
+
+      if (!workspace) {
+        return;
+      }
+
+      if (!workspace.connected) {
+        try {
+          await connectWorkspace(workspace);
+        } catch {
+          // Ignore connect failures; user can retry manually.
+        }
+      }
+
+      if (target.kind === "thread") {
+        setActiveTab("missions");
+        setActiveWorkspaceId(target.workspaceId);
+        setActiveThreadId(target.threadId, target.workspaceId);
+        return;
+      }
+
+      openReviewPack({
+        workspaceId: target.workspaceId,
+        taskId: target.taskId,
+        runId: target.runId,
+        reviewPackId: target.reviewPackId,
+        source: "system",
+      });
+      setActiveWorkspaceId(target.workspaceId);
+      setActiveTab("review");
+    },
+    [
+      connectWorkspace,
+      hasLoadedWorkspaces,
+      openReviewPack,
+      refreshWorkspaces,
+      setActiveTab,
+      setActiveThreadId,
+      setActiveWorkspaceId,
+      setCenterMode,
+      setSelectedDiffPath,
+      workspacesById,
+    ]
+  );
+
+  const openMissionTarget = useCallback(
+    async (target: MissionNavigationTarget) => {
+      await navigateToTarget(target);
+    },
+    [navigateToTarget]
+  );
+
   const tryNavigateToLink = useCallback(async () => {
     const link = pendingLinkRef.current;
     if (!link) {
@@ -75,73 +143,15 @@ export function useSystemNotificationThreadLinks({
       return;
     }
 
-    setCenterMode("chat");
-    setSelectedDiffPath(null);
-
-    const workspaceId = link.kind === "thread" ? link.workspaceId : link.target.workspaceId;
-    let workspace = workspacesById.get(workspaceId) ?? null;
-    if (!workspace && hasLoadedWorkspaces && !refreshInFlightRef.current) {
-      refreshInFlightRef.current = true;
-      try {
-        const refreshed = await refreshWorkspaces();
-        workspace = refreshed?.find((entry) => entry.id === workspaceId) ?? null;
-      } finally {
-        refreshInFlightRef.current = false;
-      }
-    }
-
-    if (!workspace) {
-      pendingLinkRef.current = null;
-      return;
-    }
-
-    if (!workspace.connected) {
-      try {
-        await connectWorkspace(workspace);
-      } catch {
-        // Ignore connect failures; user can retry manually.
-      }
-    }
-
     if (link.kind === "thread") {
-      setActiveTab("missions");
-      setActiveWorkspaceId(link.workspaceId);
-      setActiveThreadId(link.threadId, link.workspaceId);
+      await navigateToTarget(link);
       pendingLinkRef.current = null;
       return;
     }
 
-    if (link.target.kind === "thread") {
-      setActiveTab("missions");
-      setActiveWorkspaceId(link.target.workspaceId);
-      setActiveThreadId(link.target.threadId, link.target.workspaceId);
-      pendingLinkRef.current = null;
-      return;
-    }
-
-    openReviewPack({
-      workspaceId: link.target.workspaceId,
-      taskId: link.target.taskId,
-      runId: link.target.runId,
-      reviewPackId: link.target.reviewPackId,
-      source: "system",
-    });
-    setActiveWorkspaceId(link.target.workspaceId);
-    setActiveTab("review");
+    await navigateToTarget(link.target);
     pendingLinkRef.current = null;
-  }, [
-    connectWorkspace,
-    hasLoadedWorkspaces,
-    maxAgeMs,
-    openReviewPack,
-    refreshWorkspaces,
-    setActiveTab,
-    setActiveThreadId,
-    setActiveWorkspaceId,
-    setCenterMode,
-    setSelectedDiffPath,
-    workspacesById,
-  ]);
+  }, [maxAgeMs, navigateToTarget]);
 
   const focusHandler = useMemo(() => () => void tryNavigateToLink(), [tryNavigateToLink]);
 
@@ -160,5 +170,5 @@ export function useSystemNotificationThreadLinks({
     void tryNavigateToLink();
   }, [hasLoadedWorkspaces, tryNavigateToLink]);
 
-  return { recordPendingThreadLink, recordPendingMissionTarget };
+  return { recordPendingThreadLink, recordPendingMissionTarget, openMissionTarget };
 }

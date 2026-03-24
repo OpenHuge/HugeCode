@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Button, Input, Select, StatusBadge, type SelectOption } from "../../../../design-system";
+import type { MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";
 import type {
   AppSettings,
   BackendPoolBootstrapPreview,
@@ -168,6 +169,7 @@ type SettingsServerSectionProps = {
     scheduleId: string;
     action: SettingsAutomationScheduleAction;
   }) => void | Promise<void>;
+  onOpenMissionTarget?: (target: MissionNavigationTarget) => void | Promise<void>;
 };
 
 export function SettingsServerSection({
@@ -297,6 +299,7 @@ export function SettingsServerSection({
   onCreateAutomationSchedule,
   onUpdateAutomationSchedule,
   onAutomationScheduleAction,
+  onOpenMissionTarget,
 }: SettingsServerSectionProps) {
   const { isMobileSimplified, tcpRunnerStatusText, activeTcpHelperLabel, activeTcpSuggestedHost } =
     buildSettingsServerSectionViewModel({
@@ -432,6 +435,7 @@ export function SettingsServerSection({
           onCreateSchedule={onCreateAutomationSchedule}
           onUpdateSchedule={onUpdateAutomationSchedule}
           onScheduleAction={onAutomationScheduleAction}
+          onOpenMissionTarget={onOpenMissionTarget}
         />
       ) : null}
 

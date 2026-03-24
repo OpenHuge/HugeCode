@@ -104,6 +104,7 @@ function createProps(
       async (_scheduleId: string, _draft: SettingsAutomationScheduleDraft) => undefined
     ),
     onScheduleAction: vi.fn(async () => undefined),
+    onOpenMissionTarget: vi.fn(async () => undefined),
     ...overrides,
   };
 }
@@ -175,6 +176,56 @@ describe("SettingsAutomationSection", () => {
     expect(onScheduleAction).toHaveBeenCalledWith({
       scheduleId: "schedule-nightly-check",
       action: "pause",
+    });
+  });
+
+  it("opens the review surface from runtime lineage when a review pack is available", async () => {
+    const onOpenMissionTarget = vi.fn(async () => undefined);
+
+    render(<SettingsAutomationSection {...createProps({ onOpenMissionTarget })} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Open review" }));
+    });
+
+    expect(onOpenMissionTarget).toHaveBeenCalledWith({
+      kind: "review",
+      workspaceId: "workspace-alpha",
+      taskId: "task-daily-review",
+      runId: "run-daily-review",
+      reviewPackId: "review-pack:task-daily-review",
+      limitation: "thread_unavailable",
+    });
+  });
+
+  it("opens the mission surface when the selected schedule only has task/run linkage", async () => {
+    const onOpenMissionTarget = vi.fn(async () => undefined);
+
+    const { container } = render(
+      <SettingsAutomationSection
+        {...createProps({
+          onOpenMissionTarget,
+          schedules: [createSummaries()[1] as SettingsAutomationScheduleSummary],
+        })}
+      />
+    );
+
+    expect(within(container).getByText("Active task: task-nightly-check (running)")).toBeTruthy();
+
+    const openMissionButton = within(container).getAllByRole("button", { name: "Open mission" });
+
+    await act(async () => {
+      fireEvent.click(openMissionButton.at(-1) as HTMLButtonElement);
+    });
+
+    expect(onOpenMissionTarget).toHaveBeenCalledWith({
+      kind: "mission",
+      workspaceId: "workspace-beta",
+      taskId: "task-nightly-check",
+      runId: "run-nightly-check",
+      reviewPackId: null,
+      threadId: null,
+      limitation: "thread_unavailable",
     });
   });
 
