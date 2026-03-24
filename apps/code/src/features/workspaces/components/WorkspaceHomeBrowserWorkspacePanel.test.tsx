@@ -175,4 +175,33 @@ describe("WorkspaceHomeBrowserWorkspacePanel", () => {
       }),
     });
   });
+
+  it("navigates the active browser workspace session to a drafted url", async () => {
+    mocks.ensureDesktopBrowserWorkspaceSession.mockResolvedValue({
+      sessionId: "workspace-1:preview",
+    });
+
+    render(<WorkspaceHomeBrowserWorkspacePanel workspaceId="workspace-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("http://127.0.0.1:5173/")).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByDisplayValue("http://127.0.0.1:5173/"), {
+      target: { value: "http://127.0.0.1:4173/" },
+    });
+    fireEvent.click(screen.getByText("Go to URL"));
+
+    await waitFor(() => {
+      expect(mocks.ensureDesktopBrowserWorkspaceSession).toHaveBeenCalled();
+    });
+    expect(mocks.ensureDesktopBrowserWorkspaceSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "workspace-1:preview",
+        targetUrl: "http://127.0.0.1:4173/",
+        host: "pane",
+        kind: "preview",
+      })
+    );
+  });
 });

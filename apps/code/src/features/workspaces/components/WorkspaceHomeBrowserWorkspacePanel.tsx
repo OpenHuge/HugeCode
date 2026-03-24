@@ -62,6 +62,7 @@ export function WorkspaceHomeBrowserWorkspacePanel({
   const [sessions, setSessions] = useState<DesktopBrowserWorkspaceSessionInfo[]>([]);
   const [activeKind, setActiveKind] = useState<DesktopBrowserWorkspaceSessionKind>("preview");
   const [explicitUrl, setExplicitUrl] = useState("");
+  const [sessionUrlDraft, setSessionUrlDraft] = useState("");
   const [candidates, setCandidates] = useState<PreviewTargetCandidate[]>([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>("");
   const [busy, setBusy] = useState(false);
@@ -96,6 +97,11 @@ export function WorkspaceHomeBrowserWorkspacePanel({
     [candidates, selectedCandidateId]
   );
   const showNativePane = activeKind === "preview" && activeSession?.host === "pane";
+  const activeSessionUrl = activeSession?.currentUrl ?? activeSession?.targetUrl ?? "";
+
+  useEffect(() => {
+    setSessionUrlDraft(activeSessionUrl);
+  }, [activeSessionUrl, activeSession?.sessionId]);
 
   const withBusy = async (work: () => Promise<void>) => {
     setBusy(true);
@@ -268,6 +274,15 @@ export function WorkspaceHomeBrowserWorkspacePanel({
             ))}
           </select>
         </label>
+        <label className={controlStyles.field}>
+          <span>Session URL</span>
+          <input
+            className={controlStyles.fieldControl}
+            value={sessionUrlDraft}
+            onChange={(event) => setSessionUrlDraft(event.target.value)}
+            placeholder="https://chatgpt.com/ or http://127.0.0.1:5173"
+          />
+        </label>
       </div>
 
       <div className={controlStyles.actions}>
@@ -294,6 +309,46 @@ export function WorkspaceHomeBrowserWorkspacePanel({
           disabled={busy}
         >
           Refresh
+        </button>
+        <button
+          type="button"
+          className={controlStyles.actionButton}
+          onClick={() =>
+            void withBusy(async () => {
+              if (!activeSession) {
+                throw new Error("No browser workspace session is active yet.");
+              }
+              const nextUrl = sessionUrlDraft.trim();
+              if (!nextUrl) {
+                throw new Error("Enter a browser workspace URL before navigating.");
+              }
+              await ensureDesktopBrowserWorkspaceSession({
+                sessionId: activeSession.sessionId,
+                kind: activeSession.kind,
+                host: activeSession.host,
+                workspaceId: activeSession.workspaceId ?? workspaceId,
+                targetUrl: nextUrl,
+                profileMode: activeSession.profileMode,
+                canAgentAttach: activeSession.canAgentAttach,
+                agentAttached: activeSession.agentAttached,
+                devtoolsOpen: activeSession.devtoolsOpen,
+                previewServerStatus: activeSession.previewServerStatus,
+                focus: activeSession.host === "window",
+              });
+              await refresh();
+            })
+          }
+          disabled={busy || !activeSession || sessionUrlDraft.trim().length === 0}
+        >
+          Go to URL
+        </button>
+        <button
+          type="button"
+          className={controlStyles.actionButton}
+          onClick={() => setSessionUrlDraft(activeSessionUrl)}
+          disabled={busy || sessionUrlDraft === activeSessionUrl}
+        >
+          Reset URL
         </button>
       </div>
 
