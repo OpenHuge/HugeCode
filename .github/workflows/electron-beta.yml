@@ -24,11 +24,13 @@ on:
   pull_request:
     paths:
       - "apps/code-electron/**"
-      - "apps/code/**"
+      - "apps/code/package.json"
       - "packages/code-application/**"
       - "packages/code-platform-interfaces/**"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "patches/electron-*.patch"
       - "scripts/electron-publish-dry-run.mjs"
       - "scripts/electron-verify-release-contract.mjs"
       - "scripts/lib/electron-update-release-contract.mjs"
@@ -101,7 +103,6 @@ jobs:
               - "scripts/electron-verify-release-contract.mjs"
               - "scripts/lib/electron-update-release-contract.mjs"
               - ".github/workflows/_reusable-electron-beta.yml"
-              - ".github/workflows/electron-beta.yml"
               - ".github/actions/setup-node-pnpm/**"
               - ".github/actions/upload-workflow-artifact/**"
 

@@ -15,7 +15,17 @@ on:
   pull_request:
     paths:
       - "apps/code-tauri/**"
-      - "apps/code/**"
+      - "apps/code/package.json"
+      - "apps/code/index.html"
+      - "apps/code/vite.config.ts"
+      - "apps/code/src/main.tsx"
+      - "apps/code/src/bootstrap/**"
+      - "apps/code/src/web/**"
+      - "apps/code/src/application/runtime/**"
+      - "apps/code/src/services/runtimeClient*"
+      - "apps/code/src/services/tauri*"
+      - "apps/code/src/services/textFileGateway.ts"
+      - "apps/code/src/features/update/**"
       - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
       - ".github/workflows/_reusable-desktop-build-pr.yml"
       - ".github/workflows/_reusable-desktop-build-release.yml"
@@ -27,7 +37,6 @@ on:
       - ".github/actions/setup-rust-ci/**"
       - ".github/actions/upload-workflow-artifact/**"
       - ".github/workflows/desktop.yml"
-      - "apps/code-electron/**"
   push:
     branches:
       - main
@@ -79,7 +88,6 @@ jobs:
           filters: |
             desktop:
               - "apps/code-tauri/**"
-              - "apps/code-electron/**"
               - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
               - ".github/workflows/_reusable-desktop-build-pr.yml"
               - ".github/workflows/_reusable-desktop-build-release.yml"
@@ -90,7 +98,6 @@ jobs:
               - ".github/actions/setup-node-pnpm/**"
               - ".github/actions/setup-rust-ci/**"
               - ".github/actions/upload-workflow-artifact/**"
-              - ".github/workflows/desktop.yml"
             desktop_frontend:
               - "apps/code/package.json"
               - "apps/code/index.html"
@@ -134,7 +141,6 @@ jobs:
               - "!apps/code/src/features/update/**/*.stories.mdx"
             desktop_host:
               - "apps/code-tauri/**"
-              - "apps/code-electron/**"
               - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
               - ".github/workflows/_reusable-desktop-build-pr.yml"
               - ".github/workflows/_reusable-desktop-build-release.yml"
@@ -145,7 +151,6 @@ jobs:
               - ".github/actions/setup-node-pnpm/**"
               - ".github/actions/setup-rust-ci/**"
               - ".github/actions/upload-workflow-artifact/**"
-              - ".github/workflows/desktop.yml"
 
       - id: scope
         name: Classify dependency manifest scope
