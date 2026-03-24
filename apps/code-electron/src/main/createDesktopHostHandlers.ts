@@ -1,6 +1,7 @@
 import type {
   DesktopBrowserDebugSessionInfo,
   DesktopBrowserDebugSessionInput,
+  DesktopBrowserWorkspaceNavigateInput,
   DesktopBrowserWorkspaceReportVerificationInput,
   DesktopBrowserWorkspaceSessionInfo,
   DesktopBrowserWorkspaceSessionInput,
@@ -59,6 +60,9 @@ type BrowserWorkspaceController = {
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
   setBrowserWorkspaceDevtoolsOpen(
     input: DesktopBrowserWorkspaceSetDevtoolsOpenInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  navigateBrowserWorkspaceSession(
+    input: DesktopBrowserWorkspaceNavigateInput
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
   setBrowserWorkspacePaneState(
     event: { sender: unknown },
@@ -124,6 +128,8 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
       input.browserWorkspaceController.setBrowserWorkspaceAgentAttached,
     setBrowserWorkspaceDevtoolsOpen:
       input.browserWorkspaceController.setBrowserWorkspaceDevtoolsOpen,
+    navigateBrowserWorkspaceSession:
+      input.browserWorkspaceController.navigateBrowserWorkspaceSession,
     setBrowserWorkspacePaneState(
       event: { sender: unknown },
       paneInput: DesktopBrowserWorkspaceSetPaneStateInput

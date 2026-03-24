@@ -8,6 +8,7 @@ import {
 import {
   ensureDesktopBrowserWorkspaceSession,
   listDesktopBrowserWorkspaceSessions,
+  navigateDesktopBrowserWorkspaceSession,
   reportDesktopBrowserWorkspaceVerification,
   setDesktopBrowserWorkspaceAgentAttached,
   setDesktopBrowserWorkspaceDevtoolsOpen,
@@ -16,6 +17,7 @@ import {
   setDesktopBrowserWorkspacePreviewServerStatus,
   setDesktopBrowserWorkspaceProfileMode,
 } from "../../../application/runtime/ports/desktopBrowserWorkspace";
+import { openDesktopExternalUrl } from "../../../application/runtime/ports/desktopShell";
 import type {
   DesktopBrowserWorkspaceSessionInfo,
   DesktopBrowserWorkspaceSessionKind,
@@ -303,6 +305,12 @@ export function WorkspaceHomeBrowserWorkspacePanel({
               {activeSession.currentUrl ?? activeSession.targetUrl ?? "Not loaded"}
             </span>
           </div>
+          {activeSession.pageTitle ? (
+            <div className={controlStyles.controlStatusRow}>
+              <span className={controlStyles.controlStatusLabel}>Page title</span>
+              <span className={controlStyles.controlStatusValue}>{activeSession.pageTitle}</span>
+            </div>
+          ) : null}
           <div className={controlStyles.controlStatusRow}>
             <span className={controlStyles.controlStatusLabel}>Session policy</span>
             <span className={controlStyles.controlStatusValue}>
@@ -327,6 +335,73 @@ export function WorkspaceHomeBrowserWorkspacePanel({
             </div>
           ) : null}
           <div className={controlStyles.actions}>
+            <button
+              type="button"
+              className={controlStyles.actionButton}
+              onClick={() =>
+                void withBusy(async () => {
+                  await navigateDesktopBrowserWorkspaceSession({
+                    sessionId: activeSession.sessionId,
+                    action: "back",
+                  });
+                  await refresh();
+                })
+              }
+              disabled={busy || !activeSession.canGoBack}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              className={controlStyles.actionButton}
+              onClick={() =>
+                void withBusy(async () => {
+                  await navigateDesktopBrowserWorkspaceSession({
+                    sessionId: activeSession.sessionId,
+                    action: "forward",
+                  });
+                  await refresh();
+                })
+              }
+              disabled={busy || !activeSession.canGoForward}
+            >
+              Forward
+            </button>
+            <button
+              type="button"
+              className={controlStyles.actionButton}
+              onClick={() =>
+                void withBusy(async () => {
+                  await navigateDesktopBrowserWorkspaceSession({
+                    sessionId: activeSession.sessionId,
+                    action: "reload",
+                  });
+                  await refresh();
+                })
+              }
+              disabled={busy}
+            >
+              Reload
+            </button>
+            <button
+              type="button"
+              className={controlStyles.actionButton}
+              onClick={() =>
+                void withBusy(async () => {
+                  const currentUrl = activeSession.currentUrl ?? activeSession.targetUrl;
+                  if (!currentUrl) {
+                    throw new Error("No browser workspace URL is available to open externally.");
+                  }
+                  const opened = await openDesktopExternalUrl(currentUrl);
+                  if (!opened) {
+                    throw new Error("Unable to open the current browser workspace URL externally.");
+                  }
+                })
+              }
+              disabled={busy || !(activeSession.currentUrl ?? activeSession.targetUrl)}
+            >
+              Open externally
+            </button>
             <button
               type="button"
               className={controlStyles.actionButton}

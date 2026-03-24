@@ -28,6 +28,8 @@ const desktopHostBridge: DesktopHostBridgeApi = {
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.setBrowserWorkspaceDevtoolsOpen, input),
     setPaneState: (input) =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.setBrowserWorkspacePaneState, input),
+    navigate: (input) =>
+      ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.navigateBrowserWorkspaceSession, input),
     reportVerification: (input) =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.reportBrowserWorkspaceVerification, input),
   },

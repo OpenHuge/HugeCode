@@ -2,6 +2,7 @@ import type { IpcMainInvokeEvent } from "electron";
 import type {
   DesktopBrowserDebugSessionInfo,
   DesktopBrowserDebugSessionInput,
+  DesktopBrowserWorkspaceNavigateInput,
   DesktopBrowserWorkspaceReportVerificationInput,
   DesktopBrowserWorkspaceSessionInfo,
   DesktopBrowserWorkspaceSessionInput,
@@ -74,6 +75,9 @@ type DesktopHostIpcHandlers = {
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
   setBrowserWorkspaceDevtoolsOpen(
     input: DesktopBrowserWorkspaceSetDevtoolsOpenInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  navigateBrowserWorkspaceSession(
+    input: DesktopBrowserWorkspaceNavigateInput
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
   setBrowserWorkspacePaneState(
     event: IpcInvokeEventLike,
@@ -192,6 +196,12 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
   handleTrusted(channels.setBrowserWorkspaceDevtoolsOpen, async (_event, devtoolsInput) => {
     return handlers.setBrowserWorkspaceDevtoolsOpen(
       devtoolsInput as DesktopBrowserWorkspaceSetDevtoolsOpenInput
+    );
+  });
+
+  handleTrusted(channels.navigateBrowserWorkspaceSession, async (_event, navigateInput) => {
+    return handlers.navigateBrowserWorkspaceSession(
+      navigateInput as DesktopBrowserWorkspaceNavigateInput
     );
   });
 

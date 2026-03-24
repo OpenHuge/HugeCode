@@ -3,6 +3,7 @@ import {
   ensureDesktopBrowserWorkspaceSession,
   getDesktopBrowserWorkspaceSession,
   listDesktopBrowserWorkspaceSessions,
+  navigateDesktopBrowserWorkspaceSession,
   reportDesktopBrowserWorkspaceVerification,
   setDesktopBrowserWorkspaceAgentAttached,
   setDesktopBrowserWorkspaceDevtoolsOpen,
@@ -39,6 +40,9 @@ describe("desktopBrowserWorkspace", () => {
       agentAttached: false,
       devtoolsOpen: false,
       previewServerStatus: "ready",
+      pageTitle: " Preview ",
+      canGoBack: true,
+      canGoForward: false,
       paneWindowId: 9,
       paneVisible: true,
       loadingState: "ready",
@@ -60,6 +64,7 @@ describe("desktopBrowserWorkspace", () => {
         setAgentAttached: async () => ({ ...session, agentAttached: true }),
         setPreviewServerStatus: async () => ({ ...session, previewServerStatus: "starting" }),
         setDevtoolsOpen: async () => ({ ...session, devtoolsOpen: true }),
+        navigate: async () => ({ ...session, canGoBack: false, canGoForward: true }),
         setPaneState: async () => ({ ...session, paneVisible: false }),
         reportVerification: async () => ({
           ...session,
@@ -83,6 +88,9 @@ describe("desktopBrowserWorkspace", () => {
       agentAttached: false,
       devtoolsOpen: false,
       previewServerStatus: "ready",
+      pageTitle: "Preview",
+      canGoBack: true,
+      canGoForward: false,
       paneWindowId: 9,
       paneVisible: true,
       loadingState: "ready",
@@ -111,6 +119,9 @@ describe("desktopBrowserWorkspace", () => {
     await expect(
       setDesktopBrowserWorkspaceDevtoolsOpen({ sessionId: "ws-1", open: true })
     ).resolves.toMatchObject({ devtoolsOpen: true });
+    await expect(
+      navigateDesktopBrowserWorkspaceSession({ sessionId: "ws-1", action: "reload" })
+    ).resolves.toMatchObject({ canGoForward: true });
     await expect(
       setDesktopBrowserWorkspacePaneState({ sessionId: "ws-1", visible: false, bounds: null })
     ).resolves.toMatchObject({ paneVisible: false });
@@ -141,6 +152,7 @@ describe("desktopBrowserWorkspace", () => {
         setAgentAttached: async () => ({ sessionId: "x", kind: "invalid" }),
         setPreviewServerStatus: async () => ({ sessionId: "x", kind: "invalid" }),
         setDevtoolsOpen: async () => ({ sessionId: "x", kind: "invalid" }),
+        navigate: async () => ({ sessionId: "x", kind: "invalid" }),
         setPaneState: async () => ({ sessionId: "x", kind: "invalid" }),
         reportVerification: async () => ({ sessionId: "x", kind: "invalid" }),
       },

@@ -4,6 +4,7 @@ export {
   getBrowserWorkspaceSession,
   getBrowserDebugSession,
   listBrowserWorkspaceSessions,
+  navigateBrowserWorkspaceSession,
   resolveBrowserDebugPort,
   resolveBrowserDebugUrl,
   setBrowserWorkspaceAgentAttached,

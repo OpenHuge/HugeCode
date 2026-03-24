@@ -11,6 +11,7 @@ import type {
   DesktopBrowserDebugSessionInput,
   DesktopBrowserWorkspaceHost,
   DesktopBrowserWorkspaceLoadingState,
+  DesktopBrowserWorkspaceNavigateInput,
   DesktopBrowserWorkspacePaneBounds,
   DesktopBrowserWorkspacePreviewServerStatus,
   DesktopBrowserWorkspaceProfileMode,
@@ -48,6 +49,7 @@ type BrowserWorkspaceRecord = {
   canAgentAttach: boolean;
   consoleTail: string[];
   crashCount: number;
+  pageTitle: string | null;
   host: DesktopBrowserWorkspaceHost;
   kind: DesktopBrowserWorkspaceSessionKind;
   lastError: string | null;
@@ -240,9 +242,17 @@ function bindWorkspaceWebContents(record: BrowserWorkspaceRecord, webContents: W
     record.loadingState = "loading";
     record.lastError = null;
   });
+  webContents.on("page-title-updated", (event, title) => {
+    event.preventDefault();
+    record.pageTitle = title.trim().length > 0 ? title.trim() : null;
+  });
   webContents.on("did-finish-load", () => {
     record.loadingState = "ready";
     record.lastError = null;
+    if (!record.pageTitle) {
+      const title = webContents.getTitle().trim();
+      record.pageTitle = title.length > 0 ? title : null;
+    }
     syncCurrentUrl();
   });
   webContents.on("did-navigate", syncCurrentUrl);
@@ -442,6 +452,9 @@ function toSessionInfo(record: BrowserWorkspaceRecord): DesktopBrowserWorkspaceS
     agentAttached: record.agentAttached,
     devtoolsOpen: hostWebContents ? hostWebContents.isDevToolsOpened() : false,
     previewServerStatus: record.previewServerStatus,
+    pageTitle: record.pageTitle,
+    canGoBack: hostWebContents ? hostWebContents.canGoBack() : false,
+    canGoForward: hostWebContents ? hostWebContents.canGoForward() : false,
     paneWindowId: record.paneWindowId,
     paneVisible: record.paneVisible,
     loadingState: record.loadingState,
@@ -507,6 +520,7 @@ async function ensureWorkspaceSessionInternal(
       canAgentAttach,
       consoleTail: [],
       crashCount: 0,
+      pageTitle: null,
       host,
       kind,
       lastError: null,
@@ -714,6 +728,34 @@ export async function setBrowserWorkspaceDevtoolsOpen(
   } else {
     hostWebContents.closeDevTools();
   }
+  return toSessionInfo(record);
+}
+
+export async function navigateBrowserWorkspaceSession(
+  input: DesktopBrowserWorkspaceNavigateInput
+): Promise<DesktopBrowserWorkspaceSessionInfo | null> {
+  const record = getRecord({ sessionId: input.sessionId });
+  if (!record) {
+    return null;
+  }
+  const hostWebContents = getHostWebContents(record);
+  if (!hostWebContents) {
+    return toSessionInfo(record);
+  }
+  if (input.action === "back") {
+    if (hostWebContents.canGoBack()) {
+      hostWebContents.goBack();
+    }
+    return toSessionInfo(record);
+  }
+  if (input.action === "forward") {
+    if (hostWebContents.canGoForward()) {
+      hostWebContents.goForward();
+    }
+    return toSessionInfo(record);
+  }
+  hostWebContents.reload();
+  record.loadingState = "loading";
   return toSessionInfo(record);
 }
 

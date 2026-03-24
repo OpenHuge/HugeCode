@@ -1,4 +1,5 @@
 import type {
+  DesktopBrowserWorkspaceNavigateInput,
   DesktopBrowserWorkspaceReportVerificationInput,
   DesktopBrowserWorkspaceSessionInfo,
   DesktopBrowserWorkspaceSessionInput,
@@ -82,6 +83,12 @@ function normalizeBrowserWorkspaceSession(
     agentAttached: value.agentAttached === true,
     devtoolsOpen: value.devtoolsOpen === true,
     previewServerStatus,
+    pageTitle:
+      typeof value.pageTitle === "string" && value.pageTitle.trim().length > 0
+        ? value.pageTitle.trim()
+        : null,
+    canGoBack: value.canGoBack === true,
+    canGoForward: value.canGoForward === true,
     paneWindowId:
       typeof value.paneWindowId === "number" && Number.isFinite(value.paneWindowId)
         ? value.paneWindowId
@@ -222,6 +229,17 @@ export async function setDesktopBrowserWorkspacePaneState(
   const bridge = getDesktopHostBridge();
   try {
     return readSessionResult(await bridge?.browserWorkspace?.setPaneState?.(input));
+  } catch {
+    return null;
+  }
+}
+
+export async function navigateDesktopBrowserWorkspaceSession(
+  input: DesktopBrowserWorkspaceNavigateInput
+): Promise<DesktopBrowserWorkspaceSessionInfo | null> {
+  const bridge = getDesktopHostBridge();
+  try {
+    return readSessionResult(await bridge?.browserWorkspace?.navigate?.(input));
   } catch {
     return null;
   }

@@ -4,6 +4,7 @@ import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import type {
   DesktopBrowserDebugSessionInfo,
   DesktopBrowserDebugSessionInput,
+  DesktopBrowserWorkspaceNavigateInput,
   DesktopBrowserWorkspaceReportVerificationInput,
   DesktopBrowserWorkspaceSessionInfo,
   DesktopBrowserWorkspaceSessionInput,
@@ -58,6 +59,9 @@ type BrowserWorkspaceController = {
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
   setBrowserWorkspaceDevtoolsOpen(
     input: DesktopBrowserWorkspaceSetDevtoolsOpenInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  navigateBrowserWorkspaceSession(
+    input: DesktopBrowserWorkspaceNavigateInput
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
   setBrowserWorkspacePaneState(
     event: { sender: unknown },

@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   setDesktopBrowserWorkspaceProfileMode: vi.fn(),
   setDesktopBrowserWorkspaceAgentAttached: vi.fn(),
   setDesktopBrowserWorkspaceDevtoolsOpen: vi.fn(),
+  navigateDesktopBrowserWorkspaceSession: vi.fn(),
   setDesktopBrowserWorkspacePaneState: vi.fn(),
   reportDesktopBrowserWorkspaceVerification: vi.fn(),
   setDesktopBrowserWorkspacePreviewServerStatus: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock("../../../application/runtime/ports/desktopBrowserWorkspace", () => ({
   setDesktopBrowserWorkspaceProfileMode: mocks.setDesktopBrowserWorkspaceProfileMode,
   setDesktopBrowserWorkspaceAgentAttached: mocks.setDesktopBrowserWorkspaceAgentAttached,
   setDesktopBrowserWorkspaceDevtoolsOpen: mocks.setDesktopBrowserWorkspaceDevtoolsOpen,
+  navigateDesktopBrowserWorkspaceSession: mocks.navigateDesktopBrowserWorkspaceSession,
   setDesktopBrowserWorkspacePaneState: mocks.setDesktopBrowserWorkspacePaneState,
   reportDesktopBrowserWorkspaceVerification: mocks.reportDesktopBrowserWorkspaceVerification,
   setDesktopBrowserWorkspacePreviewServerStatus:
@@ -38,6 +40,10 @@ vi.mock("../../../application/runtime/ports/tauriRuntimeTerminal", () => ({
   openRuntimeTerminalSession: vi.fn(),
   readRuntimeTerminalSession: vi.fn(),
   writeRuntimeTerminalSession: vi.fn(),
+}));
+
+vi.mock("../../../application/runtime/ports/desktopShell", () => ({
+  openDesktopExternalUrl: vi.fn(async () => true),
 }));
 
 vi.mock("../../../application/runtime/facades/runtimeBrowserWorkspacePreview", async () => {
@@ -71,6 +77,9 @@ describe("WorkspaceHomeBrowserWorkspacePanel", () => {
         agentAttached: false,
         devtoolsOpen: false,
         previewServerStatus: "ready",
+        pageTitle: "Workspace Preview",
+        canGoBack: true,
+        canGoForward: false,
         paneWindowId: 1,
         paneVisible: true,
         loadingState: "ready",
@@ -82,6 +91,7 @@ describe("WorkspaceHomeBrowserWorkspacePanel", () => {
       },
     ]);
     mocks.setDesktopBrowserWorkspacePaneState.mockResolvedValue(null);
+    mocks.navigateDesktopBrowserWorkspaceSession.mockResolvedValue(null);
     mocks.reportDesktopBrowserWorkspaceVerification.mockResolvedValue(null);
     mocks.readWorkspaceFile.mockResolvedValue({
       content: JSON.stringify({
@@ -111,11 +121,38 @@ describe("WorkspaceHomeBrowserWorkspacePanel", () => {
     });
 
     expect(screen.getByText("Current URL")).toBeTruthy();
+    expect(screen.getByText("Workspace Preview")).toBeTruthy();
     expect(screen.getByText("Native preview pane")).toBeTruthy();
     await waitFor(() => {
       expect(mocks.setDesktopBrowserWorkspacePaneState).toHaveBeenCalled();
     });
     expect(screen.getByText("Session policy")).toBeTruthy();
+  });
+
+  it("exposes browser navigation actions for the active session", async () => {
+    render(<WorkspaceHomeBrowserWorkspacePanel workspaceId="workspace-1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Reload")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByText("Back"));
+    await waitFor(() => {
+      expect(mocks.navigateDesktopBrowserWorkspaceSession).toHaveBeenCalledTimes(1);
+    });
+    fireEvent.click(screen.getByText("Reload"));
+
+    await waitFor(() => {
+      expect(mocks.navigateDesktopBrowserWorkspaceSession).toHaveBeenCalledTimes(2);
+    });
+    expect(mocks.navigateDesktopBrowserWorkspaceSession.mock.calls[0]?.[0]).toMatchObject({
+      sessionId: "workspace-1:preview",
+      action: "back",
+    });
+    expect(mocks.navigateDesktopBrowserWorkspaceSession.mock.calls[1]?.[0]).toMatchObject({
+      sessionId: "workspace-1:preview",
+      action: "reload",
+    });
   });
 
   it("boots managed preview from a detected script", async () => {

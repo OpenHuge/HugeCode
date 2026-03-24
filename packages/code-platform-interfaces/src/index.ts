@@ -63,6 +63,7 @@ export type DesktopBrowserWorkspacePreviewServerStatus =
   | "ready"
   | "failed";
 export type DesktopBrowserWorkspaceLoadingState = "idle" | "loading" | "ready" | "failed";
+export type DesktopBrowserWorkspaceNavigationAction = "back" | "forward" | "reload";
 
 export type DesktopBrowserWorkspacePaneBounds = {
   x: number;
@@ -107,6 +108,9 @@ export type DesktopBrowserWorkspaceSessionInfo = {
   agentAttached: boolean;
   devtoolsOpen: boolean;
   previewServerStatus: DesktopBrowserWorkspacePreviewServerStatus;
+  pageTitle: string | null;
+  canGoBack: boolean;
+  canGoForward: boolean;
   paneWindowId: number | null;
   paneVisible: boolean;
   loadingState: DesktopBrowserWorkspaceLoadingState;
@@ -147,6 +151,11 @@ export type DesktopBrowserWorkspaceSetPaneStateInput = {
   bounds?: DesktopBrowserWorkspacePaneBounds | null;
   sessionId: string;
   visible: boolean;
+};
+
+export type DesktopBrowserWorkspaceNavigateInput = {
+  action: DesktopBrowserWorkspaceNavigationAction;
+  sessionId: string;
 };
 
 export type DesktopBrowserWorkspaceReportVerificationInput = {
@@ -266,6 +275,13 @@ export type DesktopBrowserWorkspaceCapability = {
     | DesktopBrowserWorkspaceSessionInfo
     | null
     | undefined;
+  navigate?: (
+    input: DesktopBrowserWorkspaceNavigateInput
+  ) =>
+    | Promise<DesktopBrowserWorkspaceSessionInfo | null | undefined>
+    | DesktopBrowserWorkspaceSessionInfo
+    | null
+    | undefined;
   setHost?: (
     input: DesktopBrowserWorkspaceSetHostInput
   ) =>
@@ -333,6 +349,9 @@ export type DesktopHostBridgeApi = {
     ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
     setPaneState(
       input: DesktopBrowserWorkspaceSetPaneStateInput
+    ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
+    navigate(
+      input: DesktopBrowserWorkspaceNavigateInput
     ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
     setHost(
       input: DesktopBrowserWorkspaceSetHostInput
