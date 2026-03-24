@@ -4,8 +4,9 @@
 HugeCode.
 
 It owns the repo's web route shell, SSR boundary, and Wrangler deployment
-wiring. It is still excluded from the root default dev/build/validate workflows
-today, but that workflow choice does not make the surface experimental.
+wiring. Root build, lint, and typecheck workflows now include this package, but
+explicit Cloudflare dev and deploy flows still use the dedicated `pnpm web:*`
+commands.
 
 Do not treat this package as a duplicate implementation of the workspace client
 in `apps/code`.
@@ -15,16 +16,19 @@ in `apps/code`.
 - TanStack Start app shell and routing.
 - Cloudflare-first SSR deployment target.
 - Public web routes that can use SSR today and prerender later.
-- Client-only `/app` entry that reuses the existing `apps/code` workspace shell without changing the Tauri frontend contract.
-- Web-platform ownership separate from the default root workflow.
+- Client-only `/app` entry that composes the shared workspace shell from
+  `packages/code-workspace-client` and `packages/code-application` without
+  changing the Tauri frontend contract.
+- Web-platform ownership remains separate from the desktop host shell.
 
 ## Current Interpretation
 
 - `apps/code-web` owns the web route shell, TanStack Start integration, and
   Cloudflare/Wrangler deployment boundary.
-- `apps/code` still owns the main workspace client implementation.
-- The current web path is therefore `apps/code-web` shell + `apps/code`
-  workspace client, not two independent workspace apps.
+- `packages/code-workspace-client` owns the shared workspace shell and
+  bindings contract consumed by both web and desktop hosts.
+- The current web path is therefore `apps/code-web` shell +
+  `packages/code-workspace-client`, not two independent workspace apps.
 - Do not assume `apps/code` fully replaces this package for Cloudflare web
   publishing, public routes, or SSR work.
 - If the repo later consolidates these surfaces, prefer extracting a shared
@@ -45,5 +49,5 @@ compatibility, but `pnpm web:*` is the canonical command family.
 - Cloudflare bindings and Worker-only code must stay on the Start server side.
 - Do not import `@tauri-apps/*` into SSR code paths.
 - Tauri continues to load `apps/code`, not this package.
-- Returning this surface to the default root workflows is a workflow-governance
-  decision, not a product-status change.
+- New shared workspace behavior should enter through the shared packages before
+  either host shell grows another private copy.

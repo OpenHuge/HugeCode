@@ -39,14 +39,39 @@ const NON_CRITICAL_JS_PRELOAD_PATTERNS = [
   /^assets\/settings(?:ViewLoader)?-[^/]+\.js$/,
   /^assets\/xterm-vendor-[^/]+\.(?:js|css)$/,
 ] as const;
-const WORKSPACE_COMPOSITION_CHUNK_PATTERNS = [
-  "/src/features/app/composition/",
+const WORKSPACE_HOST_CHUNK_PATTERNS = [
+  "/src/features/app/components/MainAppShell.tsx",
   "/src/features/app/components/WorkspaceDesktopAppHost.tsx",
+  "/src/features/app/composition/useDesktopWorkspaceFeatureComposition.tsx",
+] as const;
+const WORKSPACE_CHROME_DOMAIN_CHUNK_PATTERNS = [
+  "/src/features/app/composition/useDesktopWorkspaceChromeDomain.ts",
+] as const;
+const WORKSPACE_CONVERSATION_DOMAIN_CHUNK_PATTERNS = [
+  "/src/features/app/composition/useDesktopWorkspaceConversationDomain.ts",
+] as const;
+const WORKSPACE_MISSION_DOMAIN_CHUNK_PATTERNS = [
+  "/src/features/app/composition/useDesktopWorkspaceMissionDomain.ts",
+] as const;
+const WORKSPACE_PROJECT_DOMAIN_CHUNK_PATTERNS = [
+  "/src/features/app/composition/useDesktopWorkspaceProjectDomain.ts",
+] as const;
+const WORKSPACE_THREAD_DOMAIN_CHUNK_PATTERNS = [
+  "/src/features/app/composition/useDesktopWorkspaceThreadDomain.ts",
 ] as const;
 const RUNTIME_APPLICATION_CHUNK_PATTERNS = ["/src/application/runtime/"] as const;
 const DESKTOP_SERVICES_CHUNK_PATTERNS = ["/src/services/"] as const;
-const APP_BOOTSTRAP_CHUNK_PATTERNS = [
+const DESKTOP_INTEGRATION_CHUNK_PATTERNS = [
+  "/src/application/runtime/facades/desktopHostFacade.ts",
+  "/src/features/app/hooks/useDesktopLaunchIntentBootstrap.ts",
+  "/src/features/about/components/AboutView.tsx",
+  "/src/features/update/components/UpdateToast.tsx",
+  "/src/features/update/hooks/useUpdater.ts",
+] as const;
+const SHELL_BOOTSTRAP_CHUNK_PATTERNS = [
   "/src/features/app/hooks/useMainAppShellBootstrap.ts",
+] as const;
+const APP_BOOTSTRAP_CHUNK_PATTERNS = [
   "/src/features/app/hooks/useThreadCodexControls.ts",
   "/src/features/app/hooks/useGitRootSelection.ts",
   "/src/features/app/hooks/useSyncSelectedDiffPath.ts",
@@ -131,14 +156,35 @@ export default defineConfig({
       },
       output: {
         manualChunks(id) {
-          if (matchesChunkPattern(id, WORKSPACE_COMPOSITION_CHUNK_PATTERNS)) {
-            return "workspace-composition";
+          if (matchesChunkPattern(id, WORKSPACE_HOST_CHUNK_PATTERNS)) {
+            return "workspace-host";
+          }
+          if (matchesChunkPattern(id, WORKSPACE_CHROME_DOMAIN_CHUNK_PATTERNS)) {
+            return "workspace-chrome";
+          }
+          if (matchesChunkPattern(id, WORKSPACE_CONVERSATION_DOMAIN_CHUNK_PATTERNS)) {
+            return "workspace-conversation";
+          }
+          if (matchesChunkPattern(id, WORKSPACE_MISSION_DOMAIN_CHUNK_PATTERNS)) {
+            return "workspace-mission";
+          }
+          if (matchesChunkPattern(id, WORKSPACE_PROJECT_DOMAIN_CHUNK_PATTERNS)) {
+            return "workspace-project";
+          }
+          if (matchesChunkPattern(id, WORKSPACE_THREAD_DOMAIN_CHUNK_PATTERNS)) {
+            return "workspace-thread";
           }
           if (matchesChunkPattern(id, RUNTIME_APPLICATION_CHUNK_PATTERNS)) {
             return "runtime-application";
           }
           if (matchesChunkPattern(id, DESKTOP_SERVICES_CHUNK_PATTERNS)) {
             return "desktop-services";
+          }
+          if (matchesChunkPattern(id, DESKTOP_INTEGRATION_CHUNK_PATTERNS)) {
+            return "desktop-integration";
+          }
+          if (matchesChunkPattern(id, SHELL_BOOTSTRAP_CHUNK_PATTERNS)) {
+            return "shell-bootstrap";
           }
           if (matchesChunkPattern(id, APP_BOOTSTRAP_CHUNK_PATTERNS)) {
             return "app-bootstrap";

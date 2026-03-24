@@ -27,7 +27,7 @@ async function runBudgetScript(repoRoot: string, configRelativePath: string) {
       [
         scriptPath,
         "--assets-dir",
-        "apps/code-web/dist/open_fast_web/assets",
+        "apps/code-web/dist/hugecode_web/assets",
         "--config",
         configRelativePath,
       ],
@@ -75,10 +75,10 @@ describe("check-code-bundle-budget", () => {
         "",
       ].join("\n")
     );
-    writeRepoFile(repoRoot, "apps/code-web/dist/open_fast_web/index.js", "x".repeat(1200));
+    writeRepoFile(repoRoot, "apps/code-web/dist/hugecode_web/index.js", "x".repeat(1200));
     writeRepoFile(
       repoRoot,
-      "apps/code-web/dist/open_fast_web/assets/MainApp-big.js",
+      "apps/code-web/dist/hugecode_web/assets/MainApp-big.js",
       "x".repeat(1100)
     );
 
@@ -105,9 +105,9 @@ describe("check-code-bundle-budget", () => {
         "",
       ].join("\n")
     );
-    writeRepoFile(repoRoot, "apps/code-web/dist/open_fast_web/index.js", "x".repeat(1200));
-    writeRepoFile(repoRoot, "apps/code-web/dist/open_fast_web/assets/esm-big.js", "x".repeat(1100));
-    writeRepoFile(repoRoot, "apps/code-web/dist/open_fast_web/assets/esm-tiny.js", "x".repeat(100));
+    writeRepoFile(repoRoot, "apps/code-web/dist/hugecode_web/index.js", "x".repeat(1200));
+    writeRepoFile(repoRoot, "apps/code-web/dist/hugecode_web/assets/esm-big.js", "x".repeat(1100));
+    writeRepoFile(repoRoot, "apps/code-web/dist/hugecode_web/assets/esm-tiny.js", "x".repeat(100));
 
     const result = await runBudgetScript(repoRoot, "scripts/config/test-budget.config.mjs");
 

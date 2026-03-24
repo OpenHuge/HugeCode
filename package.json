@@ -73,7 +73,7 @@
     "code:build": "pnpm -C apps/code build",
     "report:code:bundle": "node scripts/report-code-bundle.mjs",
     "check:code:bundle-budget": "node scripts/check-code-bundle-budget.mjs",
-    "check:code-web:bundle-budget": "node scripts/check-code-bundle-budget.mjs --assets-dir apps/code-web/dist/open_fast_web/assets --config scripts/config/code-web-bundle-budget.config.mjs",
+    "check:code-web:bundle-budget": "node scripts/check-code-bundle-budget.mjs --assets-dir apps/code-web/dist/hugecode_web/assets --config scripts/config/code-web-bundle-budget.config.mjs",
     "build": "turbo run build",
     "build:affected": "node scripts/run-turbo-affected.mjs build",
     "test": "pnpm test:unit",

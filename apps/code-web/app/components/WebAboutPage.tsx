@@ -52,7 +52,7 @@ export function WebAboutPage() {
   return (
     <section className={aboutShell}>
       <div className={aboutSubgrid}>
-        <section className={aboutCard} aria-label="About Open Fast">
+        <section className={aboutCard} aria-label="About HugeCode">
           <div className={aboutHeader}>
             <img className={aboutIcon} src="/app-icon.png" alt={ABOUT_ICON_ALT} />
             <div>

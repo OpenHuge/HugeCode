@@ -2,6 +2,10 @@ import { type HTMLAttributes, type ReactNode, type TableHTMLAttributes } from "r
 import { cx } from "./classNames";
 import * as styles from "./RichContent.css";
 
+type TableDataAttributes = {
+  [K in `data-${string}`]?: string;
+};
+
 export interface RichContentProps extends HTMLAttributes<HTMLDivElement> {}
 
 export function RichContent({ className, ...props }: RichContentProps) {
@@ -34,7 +38,7 @@ export function CodeBlockSurface({
 }
 
 export interface DataTableSurfaceProps extends HTMLAttributes<HTMLDivElement> {
-  tableProps?: TableHTMLAttributes<HTMLTableElement>;
+  tableProps?: TableHTMLAttributes<HTMLTableElement> & TableDataAttributes;
 }
 
 export function DataTableSurface({
