@@ -410,6 +410,17 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   </span>
                   <span>Risk: {runtimeLaunchPreparation.runIntent.riskLevel}</span>
                   <span>{runtimeLaunchPreparation.contextWorkingSet.summary}</span>
+                  <span>
+                    Context strategy:{" "}
+                    {runtimeLaunchPreparation.contextWorkingSet.selectionPolicy?.strategy ??
+                      "balanced"}{" "}
+                    | budget{" "}
+                    {runtimeLaunchPreparation.contextWorkingSet.selectionPolicy
+                      ?.tokenBudgetTarget ?? 1500}{" "}
+                    | tools{" "}
+                    {runtimeLaunchPreparation.contextWorkingSet.selectionPolicy
+                      ?.toolExposureProfile ?? "slim"}
+                  </span>
                   <span>{runtimeLaunchPreparation.executionGraph.summary}</span>
                   <span>
                     Approval batches:{" "}

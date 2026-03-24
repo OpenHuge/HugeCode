@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  readPersistedThreadAtlasMemoryDigests,
+  writePersistedThreadAtlasMemoryDigests,
+} from "../../../application/runtime/ports/threadAtlasMemory";
+import {
   DEFAULT_ATLAS_DETAIL_LEVEL,
   normalizeAtlasDetailLevel,
   normalizeAtlasDriverOrder,
@@ -84,6 +88,37 @@ function sanitizeMemoryDigest(value: unknown): ThreadAtlasMemoryDigest | null {
   };
 }
 
+function mergeThreadAtlasMemoryDigests(
+  base: ThreadAtlasMemoryDigestMap,
+  overlay: ThreadAtlasMemoryDigestMap
+): ThreadAtlasMemoryDigestMap {
+  const merged: ThreadAtlasMemoryDigestMap = { ...base };
+  for (const [key, value] of Object.entries(overlay)) {
+    const current = sanitizeMemoryDigest(merged[key]);
+    const next = sanitizeMemoryDigest(value);
+    if (!next) {
+      continue;
+    }
+    if (!current || next.updatedAt >= current.updatedAt) {
+      merged[key] = next;
+    }
+  }
+  return merged;
+}
+
+function areThreadAtlasMemoryDigestsEqual(
+  left: ThreadAtlasMemoryDigestMap,
+  right: ThreadAtlasMemoryDigestMap
+): boolean {
+  const leftEntries = Object.entries(left).sort(([leftKey], [rightKey]) =>
+    leftKey.localeCompare(rightKey)
+  );
+  const rightEntries = Object.entries(right).sort(([leftKey], [rightKey]) =>
+    leftKey.localeCompare(rightKey)
+  );
+  return JSON.stringify(leftEntries) === JSON.stringify(rightEntries);
+}
+
 export function useThreadAtlasParams(): UseThreadAtlasParamsResult {
   const paramsRef = useRef<ThreadAtlasParamsMap>(loadThreadAtlasParams());
   const memoryDigestsRef = useRef<ThreadAtlasMemoryDigestMap>(loadThreadAtlasMemoryDigests());
@@ -106,6 +141,38 @@ export function useThreadAtlasParams(): UseThreadAtlasParamsResult {
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void readPersistedThreadAtlasMemoryDigests()
+      .then((persistedDigests) => {
+        if (cancelled) {
+          return;
+        }
+        const mergedDigests = mergeThreadAtlasMemoryDigests(
+          persistedDigests,
+          memoryDigestsRef.current
+        );
+        const shouldPersistMergedState = !areThreadAtlasMemoryDigestsEqual(
+          persistedDigests,
+          mergedDigests
+        );
+        if (!areThreadAtlasMemoryDigestsEqual(memoryDigestsRef.current, mergedDigests)) {
+          memoryDigestsRef.current = mergedDigests;
+          saveThreadAtlasMemoryDigests(mergedDigests);
+          setVersion((value) => value + 1);
+        }
+        if (shouldPersistMergedState) {
+          void writePersistedThreadAtlasMemoryDigests(mergedDigests);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const getThreadAtlasParams = useCallback((workspaceId: string, threadId: string) => {
@@ -159,6 +226,7 @@ export function useThreadAtlasParams(): UseThreadAtlasParamsResult {
       memoryDigestsRef.current = next;
       saveThreadAtlasMemoryDigests(next);
       setVersion((value) => value + 1);
+      void writePersistedThreadAtlasMemoryDigests(next);
     },
     []
   );

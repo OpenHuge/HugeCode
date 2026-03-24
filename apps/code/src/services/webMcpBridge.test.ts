@@ -417,6 +417,61 @@ describe("webMcpBridge", () => {
     ).toBe(false);
   });
 
+  it("honors an explicit runtime tool exposure profile when syncing WebMCP", async () => {
+    let registeredTools: Array<{ name: string }> = [];
+    let registeredResources: Array<{ name: string }> = [];
+    let registeredPrompts: Array<{ name: string }> = [];
+
+    setModelContext({
+      provideContext: (payload) => {
+        registeredTools = (payload.tools ?? []) as Array<{ name: string }>;
+        registeredResources = (payload.resources ?? []) as Array<{ name: string }>;
+        registeredPrompts = (payload.prompts ?? []) as Array<{ name: string }>;
+      },
+    });
+
+    await syncWebMcpAgentControl({
+      enabled: true,
+      readOnlyMode: false,
+      requireUserApproval: true,
+      snapshot,
+      actions,
+      activeModelContext: {
+        provider: "openai",
+        modelId: "gpt-5.4",
+      },
+      toolExposureProfile: "minimal",
+      runtimeControl: {
+        listTasks: vi.fn(async () => []),
+        getTaskStatus: vi.fn(async () => null),
+        startTask: vi.fn(async () => {
+          throw new Error("not used");
+        }),
+        interruptTask: vi.fn(async () => ({
+          accepted: true,
+          taskId: "runtime-1",
+          status: "interrupted" as const,
+          message: "interrupted",
+        })),
+        submitTaskApprovalDecision: vi.fn(async () => ({
+          recorded: true,
+          approvalId: "approval-1",
+          taskId: "runtime-1",
+          status: "running" as const,
+          message: "recorded",
+        })),
+      },
+    });
+
+    expect(registeredTools.some((tool) => tool.name === "get-runtime-settings")).toBe(false);
+    expect(registeredResources.some((resource) => resource.name === "runtime-tool-discovery")).toBe(
+      true
+    );
+    expect(
+      registeredPrompts.some((prompt) => prompt.name === "choose-runtime-tooling-strategy")
+    ).toBe(true);
+  });
+
   it("registers runtime sub-agent schemas with advanced session-first fields", async () => {
     let registeredTools: Array<{
       name: string;

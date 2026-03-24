@@ -165,7 +165,9 @@ beforeEach(() => {
     };
   });
   startRuntimeJobWithRemoteSelectionMock.mockResolvedValue({});
-  vi.mocked(getRuntimeRunV2).mockResolvedValue(null);
+  vi.mocked(getRuntimeRunV2).mockResolvedValue(
+    null as unknown as Awaited<ReturnType<typeof getRuntimeRunV2>>
+  );
   subscribeRuntimeRunV2Mock.mockResolvedValue(null);
   prepareRuntimeRunV2Mock.mockResolvedValue(createRuntimeLaunchPreparationFixture());
   startRuntimeRunV2Mock.mockResolvedValue({
@@ -368,6 +370,14 @@ function createRuntimeLaunchPreparationFixture() {
     contextWorkingSet: {
       summary: "Hot repo context plus validation defaults are loaded.",
       workspaceRoot: "/workspaces/HugeCode",
+      selectionPolicy: {
+        strategy: "balanced" as const,
+        tokenBudgetTarget: 1500,
+        toolExposureProfile: "slim" as const,
+        preferColdFetch: true,
+      },
+      contextFingerprint: "work-123",
+      stablePrefixFingerprint: "stable-123",
       layers: [
         {
           tier: "hot" as const,

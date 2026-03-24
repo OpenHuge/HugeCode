@@ -14,6 +14,7 @@ export const STORAGE_KEY_THREAD_SNAPSHOTS = "codexmonitor.threadSnapshots";
 export const THREAD_STORAGE_PENDING_DRAFTS_KEY = "__pending_workspace_drafts_v1";
 export const THREAD_STORAGE_LAST_ACTIVE_WORKSPACE_KEY = "__last_active_workspace_v1";
 export const THREAD_STORAGE_ACTIVE_THREAD_IDS_KEY = "__active_thread_ids_v1";
+export const THREAD_STORAGE_ATLAS_MEMORY_DIGESTS_KEY = "__atlas_memory_digests_v1";
 export const STORAGE_KEY_THREAD_CODEX_PARAMS = "codexmonitor.threadCodexParams";
 export const STORAGE_KEY_THREAD_ATLAS_PARAMS = "codexmonitor.threadAtlasParams";
 export const STORAGE_KEY_THREAD_ATLAS_MEMORY_DIGESTS = "codexmonitor.threadAtlasMemoryDigests";
@@ -119,11 +120,7 @@ export function loadThreadAtlasMemoryDigests(): ThreadAtlasMemoryDigestMap {
     if (!raw) {
       return {};
     }
-    const parsed = JSON.parse(raw) as ThreadAtlasMemoryDigestMap;
-    if (!parsed || typeof parsed !== "object") {
-      return {};
-    }
-    return parsed;
+    return normalizeThreadAtlasMemoryDigestMap(JSON.parse(raw) as unknown);
   } catch {
     return {};
   }
@@ -240,6 +237,32 @@ export function normalizeWorkspaceActiveThreadIdsMap(value: unknown): WorkspaceA
       continue;
     }
     next[normalizedWorkspaceId] = normalizedThreadId;
+  }
+  return next;
+}
+
+export function normalizeThreadAtlasMemoryDigestMap(value: unknown): ThreadAtlasMemoryDigestMap {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+  const next: ThreadAtlasMemoryDigestMap = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+    const digest = entry as Partial<ThreadAtlasMemoryDigest>;
+    const summary = typeof digest.summary === "string" ? digest.summary.trim() : "";
+    const updatedAt =
+      typeof digest.updatedAt === "number" && Number.isFinite(digest.updatedAt)
+        ? digest.updatedAt
+        : 0;
+    if (!summary || updatedAt <= 0) {
+      continue;
+    }
+    next[key] = {
+      summary,
+      updatedAt,
+    };
   }
   return next;
 }

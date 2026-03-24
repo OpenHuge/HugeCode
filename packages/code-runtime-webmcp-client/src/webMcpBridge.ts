@@ -16,7 +16,7 @@ import type {
 
 export type WebMcpToolExposureDecision = {
   provider: string;
-  mode: "full" | "slim";
+  mode: "minimal" | "slim" | "full";
   visibleToolNames: string[];
   hiddenToolNames: string[];
   reasonCodes: string[];
@@ -73,6 +73,7 @@ export type WebMcpAgentControlSyncOptions<
   snapshot: TSnapshot;
   actions: TActions;
   activeModelContext?: WebMcpActiveModelContext | null;
+  toolExposureProfile?: "minimal" | "slim" | "full" | null;
   runtimeControl?: TRuntimeControl | null;
   responseRequiredState?: TResponseRequiredState;
   onApprovalRequest?: (message: string) => Promise<boolean>;
@@ -91,6 +92,7 @@ export type WebMcpAgentControlSyncOptions<
   resolveToolExposurePolicy: (input: {
     provider?: string | null;
     modelId?: string | null;
+    toolExposureProfile?: "minimal" | "slim" | "full" | null;
     toolNames: string[];
     runtimeToolNames?: readonly string[];
   }) => WebMcpToolExposureDecision;
@@ -274,6 +276,7 @@ export async function syncWebMcpAgentControl<
   const toolExposureDecision = options.resolveToolExposurePolicy({
     provider: options.activeModelContext?.provider ?? null,
     modelId: options.activeModelContext?.modelId ?? null,
+    toolExposureProfile: options.toolExposureProfile ?? null,
     toolNames: allTools.map((tool) => tool.name),
     runtimeToolNames: options.runtimeToolNames,
   });

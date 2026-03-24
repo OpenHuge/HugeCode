@@ -1,15 +1,25 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   STORAGE_KEY_THREAD_ATLAS_MEMORY_DIGESTS,
   STORAGE_KEY_THREAD_ATLAS_PARAMS,
 } from "../utils/threadStorage";
 import { useThreadAtlasParams } from "./useThreadAtlasParams";
 
+const readPersistedThreadAtlasMemoryDigestsMock = vi.hoisted(() => vi.fn());
+const writePersistedThreadAtlasMemoryDigestsMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../application/runtime/ports/threadAtlasMemory", () => ({
+  readPersistedThreadAtlasMemoryDigests: readPersistedThreadAtlasMemoryDigestsMock,
+  writePersistedThreadAtlasMemoryDigests: writePersistedThreadAtlasMemoryDigestsMock,
+}));
+
 describe("useThreadAtlasParams", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    readPersistedThreadAtlasMemoryDigestsMock.mockResolvedValue({});
+    writePersistedThreadAtlasMemoryDigestsMock.mockResolvedValue(true);
   });
 
   it("patches and retrieves thread-scoped atlas params", () => {
@@ -160,6 +170,54 @@ describe("useThreadAtlasParams", () => {
     expect(persisted["ws-1:thread-memory"]).toEqual({
       summary: "Remembered summary",
       updatedAt: 1234,
+    });
+    expect(writePersistedThreadAtlasMemoryDigestsMock).toHaveBeenCalledWith({
+      "ws-1:thread-memory": {
+        summary: "Remembered summary",
+        updatedAt: 1234,
+      },
+    });
+  });
+
+  it("hydrates runtime-backed memory digests and mirrors newer local digests back to runtime", async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY_THREAD_ATLAS_MEMORY_DIGESTS,
+      JSON.stringify({
+        "ws-1:thread-local": {
+          summary: "Local digest",
+          updatedAt: 200,
+        },
+      })
+    );
+    readPersistedThreadAtlasMemoryDigestsMock.mockResolvedValue({
+      "ws-1:thread-runtime": {
+        summary: "Runtime digest",
+        updatedAt: 100,
+      },
+    });
+
+    const { result } = renderHook(() => useThreadAtlasParams());
+
+    await waitFor(() => {
+      expect(result.current.getThreadAtlasMemoryDigest("ws-1", "thread-runtime")).toEqual({
+        summary: "Runtime digest",
+        updatedAt: 100,
+      });
+    });
+
+    expect(result.current.getThreadAtlasMemoryDigest("ws-1", "thread-local")).toEqual({
+      summary: "Local digest",
+      updatedAt: 200,
+    });
+    expect(writePersistedThreadAtlasMemoryDigestsMock).toHaveBeenCalledWith({
+      "ws-1:thread-local": {
+        summary: "Local digest",
+        updatedAt: 200,
+      },
+      "ws-1:thread-runtime": {
+        summary: "Runtime digest",
+        updatedAt: 100,
+      },
     });
   });
 

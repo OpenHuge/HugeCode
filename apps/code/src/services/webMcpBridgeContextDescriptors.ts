@@ -107,7 +107,7 @@ function buildRuntimeToolDiscoveryResource(
   return {
     uri: `${baseUri}/runtime-tool-discovery`,
     name: "runtime-tool-discovery",
-    description: "Provider-aware runtime discovery guide for slim tool catalogs.",
+    description: "Provider-aware runtime discovery guide for reduced tool catalogs.",
     mimeType: "application/json",
     read: async (uri) => ({
       contents: [
@@ -125,7 +125,9 @@ function buildRuntimeToolDiscoveryContext(
   options?: WebMcpContextDescriptorOptions
 ): JsonRecord | null {
   if (options?.toolExposureDecision?.mode !== "slim") {
-    return null;
+    if (options?.toolExposureDecision?.mode !== "minimal") {
+      return null;
+    }
   }
 
   const runtimeToolNames = new Set(options.runtimeToolNames ?? []);
@@ -213,8 +215,7 @@ function buildRuntimeToolDiscoveryPrompt(
 
   return {
     name: "choose-runtime-tooling-strategy",
-    description:
-      "Choose the best runtime entrypoint when the provider uses a slim runtime catalog.",
+    description: "Choose the best runtime entrypoint when the runtime uses a reduced tool catalog.",
     argsSchema: {
       type: "object",
       properties: {

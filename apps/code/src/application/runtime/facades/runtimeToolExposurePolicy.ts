@@ -4,16 +4,33 @@ import {
 } from "./runtimeToolExecutionPolicy";
 
 export type RuntimeToolExposurePolicyReasonCode =
+  | "runtime-prefers-minimal-tool-catalog"
+  | "runtime-prefers-slim-tool-catalog"
+  | "runtime-keeps-full-tool-catalog"
   | "provider-prefers-slim-tool-catalog"
   | "provider-keeps-full-tool-catalog";
 
 export type RuntimeToolExposurePolicyDecision = {
   provider: RuntimeExecutionProvider;
-  mode: "full" | "slim";
+  mode: "minimal" | "full" | "slim";
   visibleToolNames: string[];
   hiddenToolNames: string[];
   reasonCodes: RuntimeToolExposurePolicyReasonCode[];
 };
+
+const MINIMAL_RUNTIME_INITIAL_TOOL_NAMES = new Set<string>([
+  "list-runtime-runs",
+  "get-runtime-run-status",
+  "list-runtime-live-skills",
+  "get-runtime-capabilities-summary",
+  "get-runtime-health",
+  "inspect-workspace-diagnostics",
+  "search-workspace-files",
+  "list-workspace-tree",
+  "read-workspace-file",
+  "run-runtime-live-skill",
+  "start-runtime-run",
+]);
 
 const ANTHROPIC_RUNTIME_INITIAL_TOOL_NAMES = new Set<string>([
   "list-runtime-runs",
@@ -50,6 +67,7 @@ const ANTHROPIC_RUNTIME_INITIAL_TOOL_NAMES = new Set<string>([
 export function resolveRuntimeToolExposurePolicy(input: {
   provider?: string | null;
   modelId?: string | null;
+  toolExposureProfile?: "minimal" | "slim" | "full" | null;
   toolNames: string[];
   runtimeToolNames?: readonly string[];
 }): RuntimeToolExposurePolicyDecision {
@@ -58,8 +76,28 @@ export function resolveRuntimeToolExposurePolicy(input: {
     modelId: input.modelId,
   });
   const runtimeToolNames = new Set(input.runtimeToolNames ?? []);
+  const explicitProfile = input.toolExposureProfile ?? null;
 
-  if (provider !== "anthropic") {
+  if (explicitProfile === "full") {
+    return {
+      provider,
+      mode: "full",
+      visibleToolNames: [...input.toolNames],
+      hiddenToolNames: [],
+      reasonCodes: ["runtime-keeps-full-tool-catalog"],
+    };
+  }
+
+  const visibleToolNames: string[] = [];
+  const hiddenToolNames: string[] = [];
+  const allowedRuntimeTools =
+    explicitProfile === "minimal"
+      ? MINIMAL_RUNTIME_INITIAL_TOOL_NAMES
+      : explicitProfile === "slim" || provider === "anthropic"
+        ? ANTHROPIC_RUNTIME_INITIAL_TOOL_NAMES
+        : null;
+
+  if (!allowedRuntimeTools) {
     return {
       provider,
       mode: "full",
@@ -69,26 +107,32 @@ export function resolveRuntimeToolExposurePolicy(input: {
     };
   }
 
-  const visibleToolNames: string[] = [];
-  const hiddenToolNames: string[] = [];
-
   for (const toolName of input.toolNames) {
-    if (runtimeToolNames.has(toolName) && !ANTHROPIC_RUNTIME_INITIAL_TOOL_NAMES.has(toolName)) {
+    if (runtimeToolNames.has(toolName) && !allowedRuntimeTools.has(toolName)) {
       hiddenToolNames.push(toolName);
       continue;
     }
     visibleToolNames.push(toolName);
   }
 
+  const mode =
+    explicitProfile === "minimal" ? "minimal" : hiddenToolNames.length > 0 ? "slim" : "full";
+  const reasonCode =
+    explicitProfile === "minimal"
+      ? "runtime-prefers-minimal-tool-catalog"
+      : explicitProfile === "slim"
+        ? hiddenToolNames.length > 0
+          ? "runtime-prefers-slim-tool-catalog"
+          : "runtime-keeps-full-tool-catalog"
+        : hiddenToolNames.length > 0
+          ? "provider-prefers-slim-tool-catalog"
+          : "provider-keeps-full-tool-catalog";
+
   return {
     provider,
-    mode: hiddenToolNames.length > 0 ? "slim" : "full",
+    mode,
     visibleToolNames,
     hiddenToolNames,
-    reasonCodes: [
-      hiddenToolNames.length > 0
-        ? "provider-prefers-slim-tool-catalog"
-        : "provider-keeps-full-tool-catalog",
-    ],
+    reasonCodes: [reasonCode],
   };
 }

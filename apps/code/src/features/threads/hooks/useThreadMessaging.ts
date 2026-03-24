@@ -6,6 +6,7 @@ import {
   compactThread as compactThreadService,
   interruptTurn as interruptTurnService,
   listMcpServerStatus as listMcpServerStatusService,
+  prepareRuntimeRunV2 as prepareRuntimeRunV2Service,
   sendUserMessage as sendUserMessageService,
   startReview as startReviewService,
   steerTurn as steerTurnService,
@@ -31,6 +32,11 @@ import {
   type AtlasLongTermMemoryDigest,
   buildAtlasContextPrefix,
 } from "../../atlas/utils/atlasContext";
+import {
+  buildRuntimeContextPrefix,
+  buildRuntimeThreadContextPrepareRequest,
+} from "../../../application/runtime/facades/runtimeThreadContextManagement";
+import { buildRuntimeThreadContextHints } from "./threadRuntimeContextHints";
 import {
   extractReviewThreadId,
   extractRpcErrorMessage,
@@ -442,8 +448,46 @@ export function useThreadMessaging({
       const atlasLongTermMemoryDigest = getAtlasLongTermMemoryDigest
         ? getAtlasLongTermMemoryDigest(workspace.id, threadId)
         : null;
+      const runtimeContextHints = buildRuntimeThreadContextHints({
+        plan: planByThreadRef?.current[threadId] ?? null,
+        threadStatus: threadStatusById[threadId] ?? null,
+        activeTurnId,
+        longTermMemoryDigest: atlasLongTermMemoryDigest ?? null,
+      });
+      let runtimeContextPrefix: string | null = null;
+      if (resolvedExecutionMode !== "local-cli") {
+        const runtimePrepareRequest = buildRuntimeThreadContextPrepareRequest({
+          workspaceId: workspace.id,
+          threadId,
+          prompt: finalText,
+          threadTitle: getCustomName(workspace.id, threadId) ?? null,
+          accessMode: resolvedAccessMode,
+          executionMode: resolvedExecutionMode,
+          executionProfileId: resolvedExecutionProfileId,
+          preferredBackendIds: resolvedPreferredBackendIds,
+          attachments: images,
+          contextHints: runtimeContextHints,
+        });
+        if (runtimePrepareRequest) {
+          try {
+            const runtimePreparation = await prepareRuntimeRunV2Service(runtimePrepareRequest);
+            runtimeContextPrefix = buildRuntimeContextPrefix(runtimePreparation.contextWorkingSet);
+          } catch (error) {
+            onDebug?.({
+              id: `${Date.now()}-runtime-context-prepare-fallback`,
+              timestamp: Date.now(),
+              source: "error",
+              label: "runtime/context prepare fallback",
+              payload: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+      }
       const atlasContextPrefix =
-        resolvedExecutionMode !== "local-cli" && atlasEnabled && getAtlasDriverOrder
+        !runtimeContextPrefix &&
+        resolvedExecutionMode !== "local-cli" &&
+        atlasEnabled &&
+        getAtlasDriverOrder
           ? buildAtlasContextPrefix({
               order: getAtlasDriverOrder(workspace.id, threadId),
               items: itemsByThreadRef?.current[threadId] ?? [],
@@ -455,12 +499,16 @@ export function useThreadMessaging({
               longTermMemoryDigest: atlasLongTermMemoryDigest,
             })
           : null;
-      const attachmentContextPrefix = buildAttachmentContextPrefix(images);
+      const attachmentContextPrefix = runtimeContextPrefix
+        ? null
+        : buildAttachmentContextPrefix(images);
       const contextPrefix =
-        [atlasContextPrefix, attachmentContextPrefix]
+        runtimeContextPrefix ??
+        ([atlasContextPrefix, attachmentContextPrefix]
           .filter((entry): entry is string => Boolean(entry))
           .join("\n")
-          .trim() || null;
+          .trim() ||
+          null);
       const autoDriveDraft = getThreadCodexParams?.(workspace.id, threadId)?.autoDriveDraft ?? null;
       const autoDrive = autoDriveDraft?.enabled
         ? mapDraftToRuntimeAutoDriveState(autoDriveDraft)

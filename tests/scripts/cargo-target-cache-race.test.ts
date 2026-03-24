@@ -72,4 +72,47 @@ describe("cargo target cache guard race handling", () => {
       })
     ).not.toThrow();
   });
+
+  it("retries lock acquisition when the lock directory disappears before metadata is written", async () => {
+    const workspaceRoot = createTempWorkspace();
+    const targetDir = path.join(workspaceRoot, ".cache", "cargo-target");
+    const lockPath = path.join(workspaceRoot, ".cache", "cargo-target.lock");
+
+    vi.doMock("node:fs", async () => {
+      const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+      let removedLockDirectory = false;
+
+      return {
+        ...actual,
+        writeFileSync(
+          ...args: Parameters<typeof actual.writeFileSync>
+        ): ReturnType<typeof actual.writeFileSync> {
+          const [filePath] = args;
+          if (
+            !removedLockDirectory &&
+            typeof filePath === "string" &&
+            filePath.endsWith(path.join("cargo-target.lock", "owner.json"))
+          ) {
+            actual.rmSync(lockPath, { recursive: true, force: true });
+            removedLockDirectory = true;
+          }
+          return Reflect.apply(actual.writeFileSync, actual, args);
+        },
+      };
+    });
+
+    const moduleUrl = new URL(
+      `${pathToFileURL(path.join(import.meta.dirname, "..", "..", "scripts", "lib", "cargo-target-cache.mjs")).href}?lock-race=${Date.now()}`
+    ).href;
+    const { acquireCargoTargetGuardLock } = await import(moduleUrl);
+
+    const releaseLock = acquireCargoTargetGuardLock({
+      targetDir,
+      timeoutMs: 100,
+      pollMs: 1,
+    });
+
+    expect(releaseLock.waitedForLock).toBe(false);
+    releaseLock();
+  });
 });
