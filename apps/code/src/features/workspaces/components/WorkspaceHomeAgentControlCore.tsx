@@ -22,6 +22,7 @@ import {
 } from "./workspaceHomeAgentControlState";
 import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";
 import { useWorkspaceAgentControlPreferences } from "./useWorkspaceAgentControlPreferences";
+import { WorkspaceHomeAgentLazySection } from "./WorkspaceHomeAgentLazySection";
 
 const LazyWorkspaceHomeAgentRuntimeOrchestration = lazy(async () => {
   const module = await import("./WorkspaceHomeAgentRuntimeOrchestration");
@@ -75,6 +76,8 @@ export function WorkspaceHomeAgentControl({
   const [intent, setIntent] = useState<AgentIntentState>(DEFAULT_INTENT);
   const [webMcpEnabled, setWebMcpEnabled] = useState(true);
   const [webMcpConsoleMode, setWebMcpConsoleMode] = useState<"basic" | "advanced">("basic");
+  const [runtimeSectionOpen, setRuntimeSectionOpen] = useState(false);
+  const [webMcpConsoleOpen, setWebMcpConsoleOpen] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState<string>("Checking WebMCP support...");
   const [bridgeError, setBridgeError] = useState<string | null>(null);
   const controlPreferences = useWorkspaceAgentControlPreferences(workspace.id);
@@ -91,12 +94,16 @@ export function WorkspaceHomeAgentControl({
       setIntent(DEFAULT_INTENT);
       setWebMcpEnabled(true);
       setWebMcpConsoleMode("basic");
+      setRuntimeSectionOpen(false);
+      setWebMcpConsoleOpen(false);
       return;
     }
 
     setIntent(restored.intent);
     setWebMcpEnabled(restored.webMcpEnabled);
     setWebMcpConsoleMode(restored.webMcpConsoleMode);
+    setRuntimeSectionOpen(false);
+    setWebMcpConsoleOpen(false);
   }, [workspace.id]);
 
   const setIntentPatch = useCallback((patch: Partial<AgentIntentState>) => {
@@ -350,20 +357,39 @@ export function WorkspaceHomeAgentControl({
       ) : null}
 
       <WorkspaceHomeAgentIntentSection intent={intent} onIntentPatch={actions.setIntentPatch} />
-      <Suspense fallback={null}>
-        <LazyWorkspaceHomeAgentRuntimeOrchestration workspaceId={workspace.id} />
-      </Suspense>
-      <Suspense fallback={null}>
-        <LazyWorkspaceHomeAgentWebMcpConsoleSection
-          webMcpSupported={webMcpSupported}
-          webMcpEnabled={webMcpEnabled}
-          autoExecuteCalls={webMcpAutoExecuteCalls}
-          onSetAutoExecuteCalls={handleAutoExecuteCallsChange}
-          mode={webMcpConsoleMode}
-          onSetMode={setWebMcpConsoleMode}
-          controlsLocked={controlPreferencesLocked}
-        />
-      </Suspense>
+      <WorkspaceHomeAgentLazySection
+        title="Mission Control"
+        summary="Open runtime orchestration only when you need live run control, approval pressure, and checkpoint recovery details."
+        surface="agent_runtime_orchestration"
+        open={runtimeSectionOpen}
+        onToggle={() => setRuntimeSectionOpen((current) => !current)}
+        testId="workspace-home-agent-runtime-section"
+      >
+        <Suspense fallback={null}>
+          <LazyWorkspaceHomeAgentRuntimeOrchestration workspaceId={workspace.id} />
+        </Suspense>
+      </WorkspaceHomeAgentLazySection>
+      <WorkspaceHomeAgentLazySection
+        title="WebMCP Console"
+        summary="Load tool catalog, browser bridge diagnostics, and manual tool execution controls on demand."
+        surface="agent_webmcp_console"
+        open={webMcpConsoleOpen}
+        onToggle={() => setWebMcpConsoleOpen((current) => !current)}
+        disabled={!webMcpSupported && controlPreferencesLocked}
+        testId="workspace-home-agent-webmcp-section"
+      >
+        <Suspense fallback={null}>
+          <LazyWorkspaceHomeAgentWebMcpConsoleSection
+            webMcpSupported={webMcpSupported}
+            webMcpEnabled={webMcpEnabled}
+            autoExecuteCalls={webMcpAutoExecuteCalls}
+            onSetAutoExecuteCalls={handleAutoExecuteCallsChange}
+            mode={webMcpConsoleMode}
+            onSetMode={setWebMcpConsoleMode}
+            controlsLocked={controlPreferencesLocked}
+          />
+        </Suspense>
+      </WorkspaceHomeAgentLazySection>
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { style, styleVariants } from "@vanilla-extract/css";
+import { semanticColors } from "@ku0/design-system";
+import { keyframes, style, styleVariants } from "@vanilla-extract/css";
 
 export const desktopShell = style({
   display: "grid",
@@ -49,7 +50,7 @@ export const workspaceShell = style({
 
 const mainShellBase = {
   display: "grid",
-  gridTemplateRows: "auto minmax(0, 1fr) auto auto auto",
+  gridTemplateRows: "var(--main-topbar-height, 48px) minmax(0, 1fr) auto auto auto",
   position: "relative" as const,
   width: "100%",
   height: "100%",
@@ -64,13 +65,15 @@ const mainShellBase = {
   border: "1px solid color-mix(in srgb, var(--ds-panel-border) 72%, transparent)",
   boxShadow:
     "0 18px 40px color-mix(in srgb, var(--ds-brand-background) 10%, transparent), inset 0 1px 0 color-mix(in srgb, var(--ds-color-white) 6%, transparent)",
+  transition:
+    "grid-template-columns var(--duration-slow) var(--ds-motion-ease-standard, var(--ease-smooth))",
 };
 
 export const mainShell = styleVariants({
   expanded: {
     ...mainShellBase,
     gridTemplateColumns:
-      "minmax(0, 1fr) clamp(320px, var(--right-panel-width-live, var(--right-panel-width, 360px)), 440px)",
+      "minmax(0, 1fr) 12px clamp(320px, var(--right-panel-width-live, var(--right-panel-width, 360px)), 440px)",
   },
   collapsed: {
     ...mainShellBase,
@@ -93,27 +96,7 @@ export const timelineSurface = style({
   border: "none",
   background: "transparent",
   boxShadow: "none",
-  padding: "0 var(--main-panel-padding) 0",
-});
-
-export const sidebarExpandToggle = style({
-  position: "absolute",
-  top: "calc((var(--main-topbar-height, 48px) - var(--titlebar-toggle-size, 28px)) / 2)",
-  left: "var(--main-panel-padding)",
-  zIndex: 5,
-  display: "flex",
-  alignItems: "center",
-  pointerEvents: "auto",
-});
-
-export const rightPanelExpandToggle = style({
-  position: "absolute",
-  top: "calc((var(--main-topbar-height, 48px) - var(--titlebar-toggle-size, 28px)) / 2)",
-  right: "var(--main-panel-padding)",
-  zIndex: 5,
-  display: "flex",
-  alignItems: "center",
-  pointerEvents: "auto",
+  padding: "0 0 0 var(--main-panel-padding)",
 });
 
 export const composerDock = style({
@@ -124,27 +107,53 @@ export const composerDock = style({
   minHeight: 0,
   minWidth: 0,
   width: "100%",
-  padding: "0 var(--main-panel-padding) 8px",
+  padding: "0 0 8px var(--main-panel-padding)",
 });
 
+const shellOverlayToggleBase = style({
+  position: "absolute",
+  top: "calc(var(--shell-chrome-inset-top, 10px) + 6px)",
+  zIndex: 5,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  pointerEvents: "auto",
+});
+
+export const sidebarExpandToggle = style([
+  shellOverlayToggleBase,
+  {
+    left: "calc(var(--main-panel-padding, 12px) - 2px)",
+  },
+]);
+
+export const rightPanelExpandToggle = style([
+  shellOverlayToggleBase,
+  {
+    right: "calc(var(--main-panel-padding, 12px) + var(--main-header-right-overlay-gutter, 0px))",
+  },
+]);
+
 export const rightRail = style({
-  gridColumn: "2",
-  gridRow: "2 / -1",
+  gridColumn: "3",
+  gridRow: "1 / -1",
   minHeight: 0,
   minWidth: 0,
   display: "flex",
   flexDirection: "column",
   width: "100%",
-  margin: "0 12px 14px 8px",
+  margin: "0",
   position: "relative",
-  border: "1px solid color-mix(in srgb, var(--ds-panel-border) 72%, transparent)",
+  borderLeft: `1px solid color-mix(in srgb, ${semanticColors.border} 72%, transparent)`,
   background:
     "linear-gradient(180deg, color-mix(in srgb, var(--ds-panel-bg) 97%, var(--ds-surface-canvas) 3%), color-mix(in srgb, var(--ds-panel-bg) 88%, var(--ds-surface-app) 12%))",
-  borderRadius: "20px",
+  borderRadius: "0 18px 18px 0",
   overflow: "hidden",
   backdropFilter: "blur(20px)",
-  boxShadow:
-    "inset 1px 0 0 color-mix(in srgb, var(--ds-color-white) 5%, transparent), 0 20px 42px color-mix(in srgb, var(--ds-brand-background) 12%, transparent)",
+  boxShadow: "none",
+  transformOrigin: "left center",
+  willChange: "transform, opacity",
+  contain: "paint",
   selectors: {
     "&::before": {
       content: '""',
@@ -157,9 +166,78 @@ export const rightRail = style({
   },
 });
 
+const rightRailEnter = keyframes({
+  "0%": {
+    opacity: 0,
+    transform: "translateX(18px) scaleX(0.986)",
+  },
+  "72%": {
+    opacity: 1,
+    transform: "translateX(-1px) scaleX(1.002)",
+  },
+  "100%": {
+    opacity: 1,
+    transform: "translateX(0) scaleX(1)",
+  },
+});
+
+const rightRailExit = keyframes({
+  "0%": {
+    opacity: 1,
+    transform: "translateX(0) scaleX(1)",
+  },
+  "100%": {
+    opacity: 0,
+    transform: "translateX(14px) scaleX(0.992)",
+  },
+});
+
+export const rightRailMotion = styleVariants({
+  entering: {
+    animation: `${rightRailEnter} 190ms cubic-bezier(0, 0, 0.2, 1) both`,
+  },
+  open: {
+    opacity: 1,
+    transform: "translateX(0) scaleX(1)",
+  },
+  exiting: {
+    pointerEvents: "none",
+    animation: `${rightRailExit} 170ms cubic-bezier(0.4, 0, 1, 1) both`,
+  },
+  hidden: {},
+});
+
 export const rightRailResizeHandle = style({
   gridColumn: "2",
-  gridRow: "2 / -1",
+  gridRow: "1 / -1",
+  width: "12px",
+  minWidth: "12px",
+  justifySelf: "stretch",
+  alignSelf: "stretch",
   zIndex: 4,
-  margin: "16px 0 16px -1px",
+  margin: "0",
+  willChange: "transform, opacity",
+  transition:
+    "opacity var(--duration-fast) var(--ds-motion-ease-standard, var(--ease-smooth)), transform var(--duration-fast) var(--ds-motion-ease-standard, var(--ease-smooth))",
+});
+
+export const rightRailResizeHandleMotion = styleVariants({
+  entering: {
+    opacity: 0,
+    transform: "translateX(4px)",
+  },
+  open: {
+    opacity: 1,
+    transform: "translateX(0)",
+  },
+  exiting: {
+    opacity: 0,
+    transform: "translateX(3px)",
+    pointerEvents: "none",
+  },
+  hidden: {
+    opacity: 0,
+    transform: "translateX(4px)",
+    pointerEvents: "none",
+  },
 });

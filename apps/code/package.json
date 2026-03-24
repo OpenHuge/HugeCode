@@ -3,12 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": {
-    "./workspace-surface": {
-      "types": "./src/MainAppContainerCore.tsx",
-      "default": "./src/MainAppContainerCore.tsx"
-    }
-  },
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js --port 5187",
     "build": "node ./node_modules/vite/bin/vite.js build",
@@ -33,7 +27,7 @@
     "@ku0/ui": "workspace:*",
     "@pierre/diffs": "^1.0.11",
     "@sentry/react": "^10.45.0",
-    "@shikijs/engine-javascript": "^3.23.0",
+    "@shikijs/engine-javascript": "^4.0.2",
     "@tanstack/react-virtual": "^3.13.23",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-dialog": "^2.6.0",

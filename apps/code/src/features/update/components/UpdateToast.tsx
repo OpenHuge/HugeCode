@@ -155,6 +155,29 @@ export function UpdateToast({
             </Button>
           </div>
         )}
+        {state.stage === "manual" && (
+          <>
+            <ToastBody className="update-toast-body">
+              {state.message ?? "Automatic desktop updates are unavailable for this build."}
+            </ToastBody>
+            <ToastActions className="update-toast-actions">
+              {state.releaseUrl ? (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    void openExternalUrl(state.releaseUrl ?? "");
+                  }}
+                >
+                  View Releases
+                </Button>
+              ) : null}
+              <Button variant="secondary" size="sm" onClick={onDismiss}>
+                Dismiss
+              </Button>
+            </ToastActions>
+          </>
+        )}
         {state.stage === "downloading" && (
           <>
             <ToastBody className="update-toast-body">Downloading update...</ToastBody>
@@ -171,6 +194,21 @@ export function UpdateToast({
                   : `${formatBytes(downloadedBytes)} downloaded`}
               </div>
             </div>
+          </>
+        )}
+        {state.stage === "downloaded" && (
+          <>
+            <ToastBody className="update-toast-body">
+              Update ready. Restart HugeCode to apply it.
+            </ToastBody>
+            <ToastActions className="update-toast-actions">
+              <Button variant="secondary" size="sm" onClick={onDismiss}>
+                Later
+              </Button>
+              <Button variant="primary" size="sm" onClick={onUpdate}>
+                Restart Now
+              </Button>
+            </ToastActions>
           </>
         )}
         {state.stage === "installing" && (

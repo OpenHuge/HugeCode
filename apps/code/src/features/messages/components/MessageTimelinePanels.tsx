@@ -1,6 +1,6 @@
 import AlertTriangle from "lucide-react/dist/esm/icons/alert-triangle";
+import CircleAlert from "lucide-react/dist/esm/icons/circle-alert";
 import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
-import ShieldAlert from "lucide-react/dist/esm/icons/shield-alert";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { lazy, Suspense, useState } from "react";
 import {
@@ -46,7 +46,27 @@ export function TimelineStatusBannerPanel({
   banner: TimelineStatusBanner;
   onAction?: () => void;
 }) {
-  const tone = banner.tone === "runtime" ? "warning" : "neutral";
+  const presentationByTone: Record<
+    TimelineStatusBanner["tone"],
+    {
+      tone: "warning" | "danger";
+      icon: ReactNode;
+      label: string;
+    }
+  > = {
+    runtime: {
+      tone: "warning",
+      icon: <AlertTriangle size={14} />,
+      label: "Attention",
+    },
+    error: {
+      tone: "danger",
+      icon: <CircleAlert size={14} />,
+      label: "Error",
+    },
+  };
+  const presentation = presentationByTone[banner.tone];
+
   return (
     <TimelineMessageShell
       modifierClassName={`timeline-status-card timeline-status-card--${banner.tone}`}
@@ -54,15 +74,15 @@ export function TimelineStatusBannerPanel({
       <ActivityLogRow
         data-testid="timeline-status-banner"
         data-artifact-kind="status-banner"
-        tone={tone}
-        icon={banner.tone === "runtime" ? <AlertTriangle size={16} /> : <ShieldAlert size={16} />}
+        tone={presentation.tone}
+        icon={presentation.icon}
         title={banner.title}
         description={banner.body}
         meta={
           <>
             <ToolCallChip tone="neutral">Timeline status</ToolCallChip>
-            <ExecutionStatusPill tone={tone} showDot>
-              {banner.tone === "runtime" ? "Attention" : "Info"}
+            <ExecutionStatusPill tone={presentation.tone} showDot>
+              {presentation.label}
             </ExecutionStatusPill>
           </>
         }

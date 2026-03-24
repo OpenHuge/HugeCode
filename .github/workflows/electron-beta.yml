@@ -1,0 +1,134 @@
+name: Desktop (Electron Beta)
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish prerelease assets to GitHub Releases.
+        type: boolean
+        required: false
+        default: false
+      release_channel:
+        description: Electron release channel for packaging and publish validation.
+        type: choice
+        required: false
+        default: beta
+        options:
+          - beta
+          - stable
+      static_update_base_url:
+        description: Optional static feed root used to enable automatic beta updates.
+        type: string
+        required: false
+        default: ""
+  pull_request:
+    paths:
+      - "apps/code-electron/**"
+      - "apps/code/**"
+      - "packages/code-application/**"
+      - "packages/code-platform-interfaces/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "scripts/electron-publish-dry-run.mjs"
+      - "scripts/electron-verify-release-contract.mjs"
+      - "scripts/lib/electron-update-release-contract.mjs"
+      - ".github/workflows/_reusable-electron-beta.yml"
+      - ".github/workflows/electron-beta.yml"
+      - ".github/actions/setup-node-pnpm/**"
+      - ".github/actions/upload-workflow-artifact/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/code-electron/**"
+      - "apps/code/**"
+      - "packages/code-application/**"
+      - "packages/code-platform-interfaces/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "scripts/electron-publish-dry-run.mjs"
+      - "scripts/electron-verify-release-contract.mjs"
+      - "scripts/lib/electron-update-release-contract.mjs"
+      - ".github/workflows/_reusable-electron-beta.yml"
+      - ".github/workflows/electron-beta.yml"
+      - ".github/actions/setup-node-pnpm/**"
+      - ".github/actions/upload-workflow-artifact/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: electron-beta-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify
+    uses: ./.github/workflows/_reusable-electron-beta.yml
+    with:
+      command: pnpm desktop:electron:verify
+      release_channel: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_channel || 'beta' }}
+      runner: ubuntu-latest
+      static_update_base_url: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.static_update_base_url || '' }}
+
+  make-smoke:
+    name: Make Smoke (${{ matrix.name }})
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            id: macos
+            runner: macos-14
+            artifact_path: apps/code-electron/out/make/**/*
+          - name: Windows
+            id: windows
+            runner: windows-latest
+            artifact_path: apps/code-electron/out/make/**/*
+          - name: Linux
+            id: linux
+            runner: ubuntu-22.04
+            artifact_path: apps/code-electron/out/make/**/*
+    uses: ./.github/workflows/_reusable-electron-beta.yml
+    with:
+      artifact_name: electron-beta-${{ matrix.id }}
+      artifact_path: ${{ matrix.artifact_path }}
+      command: pnpm desktop:electron:make:smoke
+      release_channel: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_channel || 'beta' }}
+      runner: ${{ matrix.runner }}
+      static_update_base_url: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.static_update_base_url || '' }}
+
+  publish-dry-run:
+    name: Publish Dry Run
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.publish != 'true' }}
+    needs: make-smoke
+    uses: ./.github/workflows/_reusable-electron-beta.yml
+    with:
+      command: pnpm desktop:electron:publish:dry-run
+      release_channel: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_channel || 'beta' }}
+      runner: ubuntu-latest
+      static_update_base_url: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.static_update_base_url || '' }}
+
+  publish:
+    name: Publish (${{ matrix.name }})
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true' }}
+    needs: make-smoke
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            runner: macos-14
+          - name: Windows
+            runner: windows-latest
+          - name: Linux
+            runner: ubuntu-22.04
+    uses: ./.github/workflows/_reusable-electron-beta.yml
+    with:
+      command: pnpm desktop:electron:publish
+      release_channel: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_channel || 'beta' }}
+      runner: ${{ matrix.runner }}
+      static_update_base_url: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.static_update_base_url || '' }}

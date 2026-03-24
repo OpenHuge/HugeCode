@@ -249,6 +249,8 @@ export function ReviewLoopClosureFixture() {
                 pathKind: "resume",
                 detail: "Runtime published a continuity resume path.",
                 recommendedAction: "Resume from the runtime-published checkpoint.",
+                truthSource: "checkpoint",
+                truthSourceLabel: "Runtime checkpoint",
               }}
               runtimeLoading={false}
               onRefresh={() => undefined}

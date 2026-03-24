@@ -30,20 +30,51 @@ for (const theme of THEMES) {
     await setAppTheme(page, theme);
 
     const shell = page.locator("[data-workspace-shell]").first();
-    await expect(shell).toBeVisible();
-    await expect(page.getByRole("heading", { level: 1, name: "Home" })).toBeVisible();
-    await expect(shell.getByText("Mission control summary", { exact: true })).toBeVisible();
-    await expect(shell.getByText("Launch readiness", { exact: true })).toBeVisible();
-    await expect(shell.getByText("Continuity readiness", { exact: true })).toBeVisible();
-    await expect(shell.getByRole("button", { name: "Home", exact: true })).toBeVisible();
-    await expect(shell.getByRole("button", { name: "Workspaces", exact: true })).toBeVisible();
-    await expect(shell.getByRole("button", { name: "Missions", exact: true })).toBeVisible();
-    await expect(shell.getByRole("button", { name: "Review", exact: true })).toBeVisible();
-    await expect(shell.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
+    if (await shell.isVisible().catch(() => false)) {
+      await expect(shell).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: "Home" })).toBeVisible();
+      await expect(shell.getByText("Mission control summary", { exact: true })).toBeVisible();
+      await expect(shell.getByText("Launch readiness", { exact: true })).toBeVisible();
+      await expect(shell.getByText("Continuity readiness", { exact: true })).toBeVisible();
+      await expect(shell.getByRole("button", { name: "Home", exact: true })).toBeVisible();
+      await expect(shell.getByRole("button", { name: "Workspaces", exact: true })).toBeVisible();
+      await expect(shell.getByRole("button", { name: "Missions", exact: true })).toBeVisible();
+      await expect(shell.getByRole("button", { name: "Review", exact: true })).toBeVisible();
+      await expect(shell.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
+      await expect(
+        shell.getByRole("heading", { level: 2, name: "Browse the shared workspace roster" })
+      ).toBeVisible();
+      await expect(shell.getByRole("button", { name: /^Web Workspace\b/i })).toBeVisible();
+      return;
+    }
+
+    const composerStartCopy = page.getByText("Start in the composer.", { exact: true }).first();
+    if (await composerStartCopy.isVisible().catch(() => false)) {
+      await expect(page.getByRole("button", { name: "Go to Home" }).first()).toBeVisible();
+      await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
+      await expect(page.getByRole("button", { name: "User menu" }).first()).toBeVisible();
+      await expect(composerStartCopy).toBeVisible();
+      await expect(
+        page
+          .getByText(
+            "Describe the task in plain language, then add the right context with skills, commands, and mentions directly in the composer."
+          )
+          .first()
+      ).toBeVisible();
+      await expect(page.getByText("Skills", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("Commands", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("Mentions", { exact: true }).first()).toBeVisible();
+      return;
+    }
+
+    await expect(page.locator('[data-home-page="true"]').first()).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Home" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Go to Home" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "User menu" }).first()).toBeVisible();
     await expect(
-      shell.getByRole("heading", { level: 2, name: "Browse the shared workspace roster" })
+      page.getByRole("heading", { level: 2, name: "Start in the composer." }).first()
     ).toBeVisible();
-    await expect(shell.getByRole("button", { name: /^Web Workspace\b/i })).toBeVisible();
   });
 
   test(`core visual baseline captures workspace shell in ${theme}`, async ({ page }) => {

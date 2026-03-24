@@ -1,11 +1,7 @@
 use super::*;
 use crate::native_state_store::{
-    TABLE_NATIVE_PLUGINS, TABLE_NATIVE_REVIEW_COMMENTS, TABLE_NATIVE_SCHEDULES,
-    TABLE_NATIVE_SETTINGS_KV, TABLE_NATIVE_SKILLS, TABLE_NATIVE_THEMES, TABLE_NATIVE_TOOLS,
-    TABLE_NATIVE_VOICE_CONFIG, TABLE_NATIVE_WATCHERS,
-};
-use crate::rpc_dispatch_native_skills::{
-    get_native_skill, list_native_skills, set_native_skill_enabled,
+    TABLE_NATIVE_REVIEW_COMMENTS, TABLE_NATIVE_SCHEDULES, TABLE_NATIVE_SETTINGS_KV,
+    TABLE_NATIVE_THEMES, TABLE_NATIVE_TOOLS, TABLE_NATIVE_VOICE_CONFIG, TABLE_NATIVE_WATCHERS,
 };
 
 pub(crate) async fn handle_native_rpc(
@@ -23,34 +19,6 @@ pub(crate) async fn handle_native_rpc(
         }
         "native_providers_snapshot" => native_providers_snapshot(ctx).await,
         "native_providers_connection_probe" => native_providers_connection_probe(ctx, params).await,
-        "native_plugins_list" => list_native_entities(ctx, TABLE_NATIVE_PLUGINS).await,
-        "native_plugin_install" => {
-            upsert_native_entity(
-                ctx,
-                params,
-                TABLE_NATIVE_PLUGINS,
-                &["pluginId", "id", "name"],
-                "plugin",
-            )
-            .await
-        }
-        "native_plugin_uninstall" => {
-            remove_native_entity(ctx, params, TABLE_NATIVE_PLUGINS, &["pluginId", "id"]).await
-        }
-        "native_plugin_update" => {
-            update_native_entity(
-                ctx,
-                params,
-                TABLE_NATIVE_PLUGINS,
-                &["pluginId", "id"],
-                "plugin",
-            )
-            .await
-        }
-        "native_plugin_set_enabled" => {
-            set_native_entity_enabled(ctx, params, TABLE_NATIVE_PLUGINS, &["pluginId", "id"]).await
-        }
-
         "native_tools_list" => list_native_tools(ctx, params).await,
         "native_tool_policy_upsert" => {
             upsert_native_entity(
@@ -67,23 +35,6 @@ pub(crate) async fn handle_native_rpc(
         }
         "native_tool_secret_upsert" => upsert_tool_secret(ctx, params).await,
         "native_tool_secret_remove" => remove_tool_secret(ctx, params).await,
-
-        "native_skills_list" => list_native_skills(ctx, params).await,
-        "native_skill_get" => get_native_skill(ctx, params).await,
-        "native_skill_upsert" => {
-            upsert_native_entity(
-                ctx,
-                params,
-                TABLE_NATIVE_SKILLS,
-                &["skillId", "id", "name"],
-                "skill",
-            )
-            .await
-        }
-        "native_skill_remove" => {
-            remove_native_entity(ctx, params, TABLE_NATIVE_SKILLS, &["skillId", "id"]).await
-        }
-        "native_skill_set_enabled" => set_native_skill_enabled(ctx, params).await,
 
         "native_themes_list" => list_native_entities(ctx, TABLE_NATIVE_THEMES).await,
         "native_theme_upsert" => {
@@ -170,9 +121,18 @@ pub(crate) async fn handle_native_rpc(
 }
 
 async fn handle_native_management_snapshot(ctx: &AppContext) -> Result<Value, RpcError> {
-    let plugins = list_native_entities(ctx, TABLE_NATIVE_PLUGINS).await?;
+    let extensions =
+        crate::rpc_dispatch_extensions::list_extension_catalog(ctx, None, true).await?;
+    let plugins = extensions
+        .iter()
+        .filter(|entry| entry.kind == "host")
+        .cloned()
+        .collect::<Vec<_>>();
     let tools = list_native_tools(ctx, &json!({})).await?;
-    let skills = list_native_entities(ctx, TABLE_NATIVE_SKILLS).await?;
+    let skills = extensions
+        .into_iter()
+        .filter(|entry| entry.kind == "instruction")
+        .collect::<Vec<_>>();
     let themes = list_native_entities(ctx, TABLE_NATIVE_THEMES).await?;
     let schedules = list_native_entities(ctx, TABLE_NATIVE_SCHEDULES).await?;
     let watchers = list_native_entities(ctx, TABLE_NATIVE_WATCHERS).await?;
@@ -847,21 +807,21 @@ async fn set_active_theme(ctx: &AppContext, params: &Value) -> Result<Value, Rpc
 }
 
 async fn native_insights_summary(ctx: &AppContext) -> Result<Value, RpcError> {
-    let plugins = ctx
-        .native_state_store
-        .list_entities(TABLE_NATIVE_PLUGINS)
-        .await
-        .map_err(RpcError::internal)?;
+    let extensions =
+        crate::rpc_dispatch_extensions::list_extension_catalog(ctx, None, true).await?;
+    let plugins = extensions
+        .iter()
+        .filter(|entry| entry.kind == "host")
+        .collect::<Vec<_>>();
     let tools = ctx
         .native_state_store
         .list_entities(TABLE_NATIVE_TOOLS)
         .await
         .map_err(RpcError::internal)?;
-    let skills = ctx
-        .native_state_store
-        .list_entities(TABLE_NATIVE_SKILLS)
-        .await
-        .map_err(RpcError::internal)?;
+    let skills = extensions
+        .iter()
+        .filter(|entry| entry.kind == "instruction")
+        .collect::<Vec<_>>();
     let schedules = ctx
         .native_state_store
         .list_entities(TABLE_NATIVE_SCHEDULES)

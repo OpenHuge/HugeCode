@@ -5,7 +5,7 @@ inputs:
   path:
     description: Turbo cache path.
     required: false
-    default: ".turbo"
+    default: ".turbo/cache"
   key-prefix:
     description: Cache key prefix.
     required: false
@@ -15,9 +15,9 @@ runs:
   using: composite
   steps:
     - name: Cache Turbo
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ${{ inputs.path }}
-        key: ${{ inputs.key-prefix }}-${{ runner.os }}-${{ hashFiles('.nvmrc', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json', 'turbo.json', '**/package.json', '**/tsconfig*.json', '**/Cargo.toml', '**/Cargo.lock') }}
+        key: ${{ inputs.key-prefix }}-${{ runner.os }}-${{ hashFiles('.nvmrc', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json', 'turbo.json', 'tsconfig.base.json', '.github/actions/cache-turbo/action.yml') }}
         restore-keys: |
           ${{ inputs.key-prefix }}-${{ runner.os }}-

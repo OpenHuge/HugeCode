@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -27,7 +27,7 @@ async function runBudgetScript(repoRoot: string, configRelativePath: string) {
       [
         scriptPath,
         "--assets-dir",
-        "apps/code-web/dist/open_fast_web/assets",
+        "apps/code-web/dist/hugecode_web/assets",
         "--config",
         configRelativePath,
       ],
@@ -70,15 +70,15 @@ describe("check-code-bundle-budget", () => {
         "  entryMaxBytes: 2000,",
         "  chunkMaxBytes: 400,",
         "  growthTolerancePct: 3,",
-        "  knownLargeChunkPrefixes: { 'MainApp-': 1200 },",
+        "  knownLargeChunkPrefixes: { 'shell-': 1200 },",
         "};",
         "",
       ].join("\n")
     );
-    writeRepoFile(repoRoot, "apps/code-web/dist/open_fast_web/index.js", "x".repeat(1200));
+    writeRepoFile(repoRoot, "apps/code-web/dist/hugecode_web/index.js", "x".repeat(1200));
     writeRepoFile(
       repoRoot,
-      "apps/code-web/dist/open_fast_web/assets/MainApp-big.js",
+      "apps/code-web/dist/hugecode_web/assets/shell-big.js",
       "x".repeat(1100)
     );
 
@@ -87,7 +87,7 @@ describe("check-code-bundle-budget", () => {
     expect(result.code).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("Entry chunk: index.js");
-    expect(result.stdout).toContain("MainApp-big.js");
+    expect(result.stdout).toContain("shell-big.js");
   });
 
   it("ignores small chunks that share a known-large prefix", async () => {
@@ -100,19 +100,40 @@ describe("check-code-bundle-budget", () => {
         "  entryMaxBytes: 2000,",
         "  chunkMaxBytes: 400,",
         "  growthTolerancePct: 3,",
-        "  knownLargeChunkPrefixes: { 'esm-': 1200 },",
+        "  knownLargeChunkPrefixes: { 'vendor-': 1200 },",
         "};",
         "",
       ].join("\n")
     );
-    writeRepoFile(repoRoot, "apps/code-web/dist/open_fast_web/index.js", "x".repeat(1200));
-    writeRepoFile(repoRoot, "apps/code-web/dist/open_fast_web/assets/esm-big.js", "x".repeat(1100));
-    writeRepoFile(repoRoot, "apps/code-web/dist/open_fast_web/assets/esm-tiny.js", "x".repeat(100));
+    writeRepoFile(repoRoot, "apps/code-web/dist/hugecode_web/index.js", "x".repeat(1200));
+    writeRepoFile(
+      repoRoot,
+      "apps/code-web/dist/hugecode_web/assets/vendor-big.js",
+      "x".repeat(1100)
+    );
+    writeRepoFile(
+      repoRoot,
+      "apps/code-web/dist/hugecode_web/assets/vendor-tiny.js",
+      "x".repeat(100)
+    );
 
     const result = await runBudgetScript(repoRoot, "scripts/config/test-budget.config.mjs");
 
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain("esm-big.js");
-    expect(result.stdout).not.toContain("esm-tiny.js");
+    expect(result.stdout).toContain("vendor-big.js");
+    expect(result.stdout).not.toContain("vendor-tiny.js");
+  });
+
+  it("keeps the Cloudflare web budget config free of desktop-only chunk baselines", () => {
+    const source = readFileSync(
+      path.resolve(process.cwd(), "scripts/config/code-web-bundle-budget.config.mjs"),
+      "utf8"
+    );
+
+    expect(source).toContain("knownLargeChunkPrefixes: {}");
+    expect(source).not.toContain("MainAppContainerCore-");
+    expect(source).not.toContain("MainApp-");
+    expect(source).not.toContain("Home-");
+    expect(source).not.toContain("SettingsView-");
   });
 });

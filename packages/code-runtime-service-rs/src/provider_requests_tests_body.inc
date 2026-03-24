@@ -67,7 +67,7 @@
             ws_max_frame_size_bytes: 8 * 1024 * 1024,
             ws_max_message_size_bytes: 8 * 1024 * 1024,
             ws_max_connections: 256,
-            provider_extensions: Vec::new(),
+            provider_extension_seeds: Vec::new(),
         }
     }
 

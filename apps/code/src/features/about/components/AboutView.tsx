@@ -7,7 +7,12 @@ import {
   ABOUT_TAGLINE,
   ABOUT_VERSION_PREFIX,
 } from "@ku0/shared/aboutContent";
-import { openUrl, resolveAppVersion } from "../../../application/runtime/facades/desktopHostFacade";
+import type { DesktopAppInfo } from "@ku0/code-platform-interfaces";
+import {
+  openUrl,
+  resolveAppInfo,
+  resolveAppVersion,
+} from "../../../application/runtime/facades/desktopHostFacade";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import "./AboutView.global.css";
 
@@ -23,8 +28,70 @@ async function openExternalUrl(url: string) {
   });
 }
 
+function formatReleaseChannel(channel: DesktopAppInfo["channel"]) {
+  switch (channel) {
+    case "beta":
+      return "Beta";
+    case "dev":
+      return "Dev";
+    case "stable":
+    default:
+      return "Stable";
+  }
+}
+
+function formatPlatform(platform: DesktopAppInfo["platform"]) {
+  switch (platform) {
+    case "darwin":
+      return "macOS";
+    case "win32":
+      return "Windows";
+    case "linux":
+      return "Linux";
+    default:
+      return platform;
+  }
+}
+
+function describeUpdateCapability(appInfo: DesktopAppInfo | null) {
+  if (appInfo?.updateMessage) {
+    return appInfo.updateMessage;
+  }
+
+  switch (appInfo?.updateMode) {
+    case "enabled_stable_public_service":
+      return "Automatic stable updates are enabled through the public Electron update service.";
+    case "enabled_beta_static_feed":
+      return "Automatic beta updates are enabled from the configured static feed.";
+    case "disabled_beta_manual":
+      return "Beta builds update manually from GitHub Releases unless a static beta feed is configured.";
+    case "disabled_unpacked":
+      return "Automatic desktop updates are disabled in unpackaged development builds.";
+    case "disabled_first_run_lock":
+      return "Automatic desktop updates resume after the Windows installer finishes first-run setup.";
+    case "misconfigured":
+      return "Desktop update configuration is invalid for this build.";
+    case "unsupported_platform":
+      return "Automatic desktop updates are unavailable on this platform.";
+    default:
+      break;
+  }
+
+  switch (appInfo?.updateCapability) {
+    case "automatic":
+      return "Automatic desktop updates are enabled for this build.";
+    case "manual":
+      return "Updates are delivered manually through GitHub Releases for this build.";
+    case "unsupported":
+      return "Desktop auto-update is unavailable in this environment.";
+    default:
+      return null;
+  }
+}
+
 export function AboutView() {
   const [version, setVersion] = useState<string | null>(null);
+  const [appInfo, setAppInfo] = useState<DesktopAppInfo | null>(null);
 
   const handleOpenGitHub = () => {
     void openExternalUrl(ABOUT_LINKS[0].href);
@@ -36,16 +103,23 @@ export function AboutView() {
 
   useEffect(() => {
     let active = true;
-    void resolveAppVersion().then((value) => {
-      if (active) {
-        setVersion(value);
+    void (async () => {
+      const info = await resolveAppInfo().catch(() => null);
+      const fallbackVersion = info?.version ?? (await resolveAppVersion().catch(() => null));
+      if (!active) {
+        return;
       }
-    });
+
+      setAppInfo(info);
+      setVersion(fallbackVersion);
+    })();
 
     return () => {
       active = false;
     };
   }, []);
+
+  const updateCapabilityMessage = describeUpdateCapability(appInfo);
 
   return (
     <div className="about">
@@ -57,7 +131,17 @@ export function AboutView() {
         <div className="about-version">
           {version ? `${ABOUT_VERSION_PREFIX} ${version}` : `${ABOUT_VERSION_PREFIX} —`}
         </div>
+        {appInfo ? (
+          <div className="about-meta" aria-label="Desktop release metadata">
+            <span>{formatReleaseChannel(appInfo.channel)} channel</span>
+            <span aria-hidden="true">•</span>
+            <span>{formatPlatform(appInfo.platform)}</span>
+          </div>
+        ) : null}
         <div className="about-tagline">{ABOUT_TAGLINE}</div>
+        {updateCapabilityMessage ? (
+          <div className="about-update-capability">{updateCapabilityMessage}</div>
+        ) : null}
         <div className="about-divider" />
         <div className="about-links">
           <button type="button" className="about-link" onClick={handleOpenGitHub}>

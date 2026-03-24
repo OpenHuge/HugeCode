@@ -1,3 +1,7 @@
+import { getVersion } from "@tauri-apps/api/app";
+import { isTauri } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
 type TauriCoreModule = {
   isTauri: () => boolean;
 };
@@ -21,16 +25,10 @@ type TauriRuntimeModules = {
 type TauriModuleLoader = () => Promise<TauriRuntimeModules>;
 
 async function defaultTauriModuleLoader(): Promise<TauriRuntimeModules> {
-  const [app, core, window] = await Promise.all([
-    import("@tauri-apps/api/app"),
-    import("@tauri-apps/api/core"),
-    import("@tauri-apps/api/window"),
-  ]);
-
   return {
-    app,
-    core,
-    window,
+    app: { getVersion },
+    core: { isTauri },
+    window: { getCurrentWindow },
   };
 }
 

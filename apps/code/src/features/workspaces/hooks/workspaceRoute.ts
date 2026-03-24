@@ -9,6 +9,8 @@ import {
 } from "@ku0/code-workspace-client/workspace-shell";
 
 const WORKSPACE_BASE_PATH = "/workspaces";
+const DESKTOP_MISSION_HOME_PATH = "/missions";
+const DESKTOP_ROOT_HOME_PATH = "/";
 
 type RouteListener = () => void;
 
@@ -23,9 +25,36 @@ function readPathSelectionFromWindow(): SharedWorkspaceRouteSelection {
   if (typeof window === "undefined") {
     return { kind: "none" };
   }
+  if (isDesktopWorkspaceRootAliasPath(window.location.pathname)) {
+    canonicalizeDesktopWorkspaceEntryRoute();
+    return { kind: "home" };
+  }
+  if (isDesktopMissionHomePath(window.location.pathname)) {
+    return { kind: "missions" };
+  }
   return readSharedWorkspaceRouteSelection(`${window.location.pathname}${window.location.search}`, {
     workspaceBasePath: WORKSPACE_BASE_PATH,
   });
+}
+
+export function isDesktopWorkspaceRootAliasPath(pathname: string): boolean {
+  const routeUrl = new URL(pathname || "/", "https://workspace-shell.invalid");
+  return normalizeDesktopRoutePathname(routeUrl.pathname) === DESKTOP_ROOT_HOME_PATH;
+}
+
+export function isDesktopMissionHomePath(pathname: string): boolean {
+  const routeUrl = new URL(pathname || "/", "https://workspace-shell.invalid");
+  return normalizeDesktopRoutePathname(routeUrl.pathname) === DESKTOP_MISSION_HOME_PATH;
+}
+
+function normalizeDesktopRoutePathname(pathname: string): string {
+  if (!pathname) {
+    return "/";
+  }
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return pathname.replace(/\/+$/, "") || "/";
+  }
+  return pathname;
 }
 
 function buildRouteUrl(pathWithSearch: string): string {
@@ -33,6 +62,18 @@ function buildRouteUrl(pathWithSearch: string): string {
     return pathWithSearch;
   }
   return `${pathWithSearch}${window.location.hash}`;
+}
+
+export function canonicalizeDesktopWorkspaceEntryRoute(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const currentPathWithSearch = `${window.location.pathname}${window.location.search}`;
+  if (!isDesktopWorkspaceRootAliasPath(currentPathWithSearch)) {
+    return false;
+  }
+  window.history.replaceState(window.history.state, "", buildRouteUrl(WORKSPACE_BASE_PATH));
+  return true;
 }
 
 function commitRouteSelection(selection: SharedWorkspaceRouteSelection, replace: boolean): void {
@@ -141,6 +182,14 @@ export function useWorkspaceRouteSelection() {
   );
 }
 
+export function useDesktopMissionHomeRoute() {
+  return useSyncExternalStore(
+    desktopWorkspaceNavigation.subscribeRouteSelection.bind(desktopWorkspaceNavigation),
+    () => typeof window !== "undefined" && isDesktopMissionHomePath(window.location.pathname),
+    () => false
+  );
+}
+
 export function setWorkspaceRouteRestoreSelection(workspaceId: string | null) {
   desktopWorkspaceNavigation.setRestoreWorkspaceId(workspaceId);
 }
@@ -152,6 +201,12 @@ export function clearWorkspaceRouteRestoreSelection() {
 export type WorkspaceRouteSelection = SharedWorkspaceRouteSelection;
 
 export function readWorkspaceRouteSelection(pathname: string) {
+  if (isDesktopWorkspaceRootAliasPath(pathname)) {
+    return { kind: "home" } satisfies SharedWorkspaceRouteSelection;
+  }
+  if (isDesktopMissionHomePath(pathname)) {
+    return { kind: "missions" } satisfies SharedWorkspaceRouteSelection;
+  }
   return readSharedWorkspaceRouteSelection(pathname, {
     workspaceBasePath: WORKSPACE_BASE_PATH,
   });

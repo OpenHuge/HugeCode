@@ -218,7 +218,7 @@ applyGlobalStyle(".titlebar-controls", {
   "@layer": {
     [layers.reset]: {
       position: "absolute",
-      top: "0",
+      top: "calc(var(--shell-chrome-inset-top, 10px) + 3px)",
       left: "0",
       right: "0",
       height: "var(--main-topbar-height, 44px)",
@@ -240,6 +240,19 @@ applyGlobalStyle(".titlebar-toggle", {
     },
   },
 });
+applyGlobalStyle(".titlebar-control-group", {
+  "@layer": {
+    [layers.reset]: {
+      display: "inline-flex",
+      "align-items": "center",
+      "justify-content": "flex-end",
+      "flex-wrap": "nowrap",
+      gap: "6px",
+      "max-width": "min(48vw, 640px)",
+      "min-width": "0",
+    },
+  },
+});
 applyGlobalStyle(".titlebar-toggle-left", {
   "@layer": {
     [layers.reset]: {
@@ -249,6 +262,14 @@ applyGlobalStyle(".titlebar-toggle-left", {
 });
 applyGlobalStyle(".titlebar-toggle-right", {
   "@layer": { [layers.reset]: { right: "var(--shell-chrome-inset-x, 16px)" } },
+});
+applyGlobalStyle(".app:not(.right-panel-collapsed) .titlebar-toggle-right", {
+  "@layer": {
+    [layers.reset]: {
+      right:
+        "calc(var(--shell-chrome-inset-x, 16px) + var(--right-panel-width-live, var(--right-panel-width, 360px)) + 12px)",
+    },
+  },
 });
 applyGlobalStyle(
   ".app.right-panel-collapsed:has(.main-header .main-header-actions .sidebar-toggle-button)\n  .titlebar-toggle-right",
@@ -359,10 +380,9 @@ applyGlobalStyle(".app > .sidebar", {
 applyGlobalStyle(".sidebar-resizer", {
   "@layer": { [layers.reset]: { "@media": { "(max-width: 960px)": { display: "none" } } } },
 });
-applyGlobalStyle(
-  ':root[data-tauri-runtime="false"] .drag-strip,\n:root[data-tauri-runtime="false"] .titlebar-controls',
-  { "@layer": { [layers.reset]: { display: "none" } } }
-);
+applyGlobalStyle(':root[data-tauri-runtime="false"] .drag-strip', {
+  "@layer": { [layers.reset]: { display: "none" } },
+});
 applyGlobalStyle(':root[data-tauri-runtime="false"] body *', {
   "@layer": { [layers.reset]: { "-webkit-app-region": "no-drag" } },
 });

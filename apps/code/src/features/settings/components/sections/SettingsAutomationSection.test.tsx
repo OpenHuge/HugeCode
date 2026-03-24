@@ -30,6 +30,11 @@ function createSummaries(): SettingsAutomationScheduleSummary[] {
       triggerSourceLabel: "schedule",
       blockingReason: null,
       safeFollowUp: true,
+      autonomyProfile: "night_operator",
+      sourceScope: "workspace_graph",
+      wakePolicy: "auto_queue",
+      researchPolicy: "repository_only",
+      queueBudget: 2,
     },
     {
       id: "schedule-nightly-check",
@@ -49,6 +54,11 @@ function createSummaries(): SettingsAutomationScheduleSummary[] {
       triggerSourceLabel: "schedule",
       blockingReason: "Waiting for validation results.",
       safeFollowUp: false,
+      autonomyProfile: "night_operator",
+      sourceScope: "workspace_graph_and_public_web",
+      wakePolicy: "review_queue",
+      researchPolicy: "staged",
+      queueBudget: 3,
     },
   ];
 }
@@ -160,6 +170,12 @@ describe("SettingsAutomationSection", () => {
       reviewProfileId: "",
       validationPresetId: "",
       enabled: true,
+      autonomyProfile: "night_operator",
+      sourceScope: "workspace_graph",
+      wakePolicy: "auto_queue",
+      researchPolicy: "repository_only",
+      queueBudget: "2",
+      safeFollowUp: true,
     });
     expect(within(container).getByText("Selected runtime summary")).toBeTruthy();
   });
@@ -187,6 +203,12 @@ describe("SettingsAutomationSection", () => {
       reviewProfileId: "issue-review",
       validationPresetId: "standard",
       enabled: false,
+      autonomyProfile: "night_operator",
+      sourceScope: "workspace_graph",
+      wakePolicy: "auto_queue",
+      researchPolicy: "repository_only",
+      queueBudget: "2",
+      safeFollowUp: true,
     });
   });
 });

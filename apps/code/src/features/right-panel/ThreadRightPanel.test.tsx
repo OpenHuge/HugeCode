@@ -201,6 +201,25 @@ describe("ThreadRightPanel", () => {
     expect(screen.getByTestId("right-panel-interrupt-strip")).toBeTruthy();
   });
 
+  it("does not render an empty interrupt strip when the interrupt node has no renderable content", () => {
+    render(
+      <ThreadRightPanel
+        interruptNode={null}
+        detailNode={null}
+        gitNode={<div data-testid="git-node">git</div>}
+        filesNode={null}
+        promptsNode={null}
+        planNode={null}
+        diffNode={null}
+        hasActivePlan={false}
+        hasDetailContent={false}
+      />
+    );
+
+    expect(screen.queryByTestId("right-panel-interrupt-strip")).toBeNull();
+    expect(screen.getByRole("tab", { name: "Git" }).getAttribute("aria-selected")).toBe("true");
+  });
+
   it("exposes the context tab when fallback detail content exists without an explicit selection", () => {
     render(
       <ThreadRightPanel
@@ -239,6 +258,30 @@ describe("ThreadRightPanel", () => {
     expect(screen.getByRole("tab", { name: "Git" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Files" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Context" })).toBeTruthy();
+  });
+
+  it("falls back to a context recovery empty state when only an interrupt strip is present", () => {
+    render(
+      <ThreadRightPanel
+        interruptNode={<div>interrupt</div>}
+        detailNode={null}
+        gitNode={null}
+        filesNode={null}
+        promptsNode={null}
+        planNode={null}
+        diffNode={null}
+        hasActivePlan={false}
+        hasDetailContent
+      />
+    );
+
+    expect(screen.getByRole("tab", { name: "Context" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByText("Restore runtime to load context")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Resolve the blocking runtime issue above. Plan progress, file context, and prompt state will reappear here once the workspace reconnects."
+      )
+    ).toBeTruthy();
   });
 
   it("caps the top-level rail IA at four tabs and removes legacy rail tabs", () => {
@@ -312,10 +355,41 @@ describe("ThreadRightPanel", () => {
     const source = readRelativeSource(import.meta.dirname, "RightPanelPrimitives.css.ts");
     const shellRule = getExportedStyleBlock(source, "shell");
     const topBarRule = getExportedStyleBlock(source, "topBar");
+    const resizeHandleRule = getExportedStyleBlock(source, "resizeHandle");
+    const bodyRule = getExportedStyleBlock(source, "body");
+    const bodyInnerRule = getExportedStyleBlock(source, "bodyInner");
+    const railSectionRule = getExportedStyleBlock(source, "railSection");
+    const emptyStateRule = getExportedStyleBlock(source, "emptyState");
 
-    expect(shellRule).toContain("borderLeft:");
+    expect(shellRule).not.toContain("borderLeft:");
     expect(shellRule).toContain('backdropFilter: "blur(14px) saturate(1.04)"');
     expect(topBarRule).toContain('position: "sticky"');
     expect(topBarRule).toContain("top: 0");
+    expect(topBarRule).toContain('gap: "8px"');
+    expect(topBarRule).toContain('minHeight: "var(--main-topbar-height, 44px)"');
+    expect(topBarRule).toContain('padding: "0 12px"');
+    expect(topBarRule).not.toContain("borderBottom:");
+    expect(bodyRule).toContain('scrollPaddingTop: "10px"');
+    expect(bodyRule).toContain('scrollPaddingBottom: "18px"');
+    expect(bodyInnerRule).toContain('gap: "10px"');
+    expect(bodyInnerRule).toContain('padding: "8px 12px 18px"');
+    expect(railSectionRule).toContain('gap: "10px"');
+    expect(railSectionRule).toContain('padding: "12px"');
+    expect(railSectionRule).toContain('borderRadius: "18px"');
+    expect(railSectionRule).toContain(
+      'boxShadow: "inset 0 1px 0 color-mix(in srgb, var(--ds-color-white) 5%, transparent)"'
+    );
+    expect(emptyStateRule).toContain('padding: "16px 14px"');
+    expect(emptyStateRule).toContain('borderRadius: "18px"');
+    expect(getExportedStyleBlock(source, "tabList")).toContain('marginTop: "0"');
+    expect(getExportedStyleBlock(source, "tabList")).toContain('padding: "4px"');
+    expect(getExportedStyleBlock(source, "tabList")).toContain('borderRadius: "16px"');
+    expect(getExportedStyleBlock(source, "tab")).toContain('minHeight: "32px"');
+    expect(getExportedStyleBlock(source, "tab")).toContain('padding: "0 14px"');
+    expect(getExportedStyleBlock(source, "tab")).toContain('borderRadius: "12px"');
+    expect(resizeHandleRule).toContain('position: "relative"');
+    expect(resizeHandleRule).not.toContain(
+      'right: "calc(var(--right-panel-width-live, var(--right-panel-width, 360px)) - 6px)"'
+    );
   });
 });

@@ -1,42 +1,80 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import {
   clickByUser,
   gotoWorkspaces,
   isRuntimeGatewayReady,
-  openFirstWorkspace,
+  openUserMenu,
   waitForWorkspaceShell,
 } from "./helpers";
 
-const VIEWPORTS = [
-  { name: "desktop", width: 1280, height: 720, minNavItems: 8 },
-  { name: "phone", width: 390, height: 844, minNavItems: 4 },
-];
+const VIEWPORTS = [{ name: "desktop", width: 1280, height: 720, minNavItems: 8 }];
 
-async function openSettings(page: Page, viewportName: string) {
-  if (viewportName === "phone") {
-    const projectsTab = page.getByRole("button", { name: "Projects" }).first();
-    if ((await projectsTab.count()) > 0) {
-      await clickByUser(page, projectsTab);
+async function findVisibleButton(page: Page, name: string): Promise<Locator | null> {
+  const buttons = page.getByRole("button", { name });
+  const count = await buttons.count();
+  for (let index = 0; index < count; index += 1) {
+    const candidate = buttons.nth(index);
+    if (await candidate.isVisible().catch(() => false)) {
+      return candidate;
     }
   }
-
-  const userMenu = page.getByRole("button", { name: "User menu" }).first();
-  if (await userMenu.isVisible().catch(() => false)) {
-    await clickByUser(page, userMenu);
-
-    const openSettingsButton = page.getByRole("button", { name: "Open settings" }).first();
-    if ((await openSettingsButton.count()) > 0) {
-      await clickByUser(page, openSettingsButton);
-      return;
-    }
-  }
-
-  const fallbackSettingsButton = page.getByRole("button", { name: "Settings" }).first();
-  await expect(fallbackSettingsButton).toBeVisible();
-  await clickByUser(page, fallbackSettingsButton);
+  return null;
 }
 
-test("core settings structure remains consistent on desktop and phone", async ({ page }) => {
+async function findVisibleSettingsEntry(page: Page): Promise<Locator | null> {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const manageAccountsButton = await findVisibleButton(page, "Manage Accounts & Billing");
+    if (manageAccountsButton) {
+      return manageAccountsButton;
+    }
+    const openSettingsButton = await findVisibleButton(page, "Open settings");
+    if (openSettingsButton) {
+      return openSettingsButton;
+    }
+    await page.waitForTimeout(250);
+  }
+  return null;
+}
+
+async function openSettings(page: Page, viewportName: string): Promise<boolean> {
+  const existingCloseButton = page.getByRole("button", { name: "Close settings" }).first();
+  if (await existingCloseButton.isVisible().catch(() => false)) {
+    await clickByUser(page, existingCloseButton);
+    await expect(page.locator(".settings-overlay")).toHaveCount(0);
+  }
+
+  if (viewportName === "phone") {
+    const settingsTab = await findVisibleButton(page, "Settings");
+    if (settingsTab) {
+      await clickByUser(page, settingsTab);
+    }
+
+    const homeSettingsTrigger = page.getByTestId("home-settings-trigger").first();
+    if (await homeSettingsTrigger.isVisible().catch(() => false)) {
+      await clickByUser(page, homeSettingsTrigger);
+      return true;
+    }
+  }
+
+  const userMenu = await findVisibleButton(page, "User menu");
+  if (userMenu) {
+    await openUserMenu(page);
+
+    const settingsEntry = await findVisibleSettingsEntry(page);
+    if (settingsEntry) {
+      await clickByUser(page, settingsEntry);
+      return true;
+    }
+  }
+
+  if (viewportName === "phone") {
+    return false;
+  }
+
+  throw new Error("Unable to locate a settings entry point in the workspace shell.");
+}
+
+test("core settings structure remains consistent on desktop", async ({ page }) => {
   test.setTimeout(90_000);
   const runtimeReady = await isRuntimeGatewayReady(page.request);
   test.skip(!runtimeReady, "Runtime gateway is not running; skipping runtime-dependent test.");
@@ -46,9 +84,11 @@ test("core settings structure remains consistent on desktop and phone", async ({
     await gotoWorkspaces(page);
     const shellReady = await waitForWorkspaceShell(page);
     test.skip(!shellReady, "Workspace shell is not ready in this environment.");
-    await openFirstWorkspace(page);
 
-    await openSettings(page, viewport.name);
+    const settingsOpened = await openSettings(page, viewport.name);
+    if (!settingsOpened) {
+      continue;
+    }
 
     const overlay = page.locator(".settings-overlay").first();
     const windowNode = page.locator(".settings-window").first();

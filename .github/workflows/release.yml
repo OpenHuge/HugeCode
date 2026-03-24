@@ -7,6 +7,11 @@ on:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_API: ${{ vars.TURBO_API }}
+
 jobs:
   release:
     name: Release
@@ -16,12 +21,14 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
           registry-url: https://registry.npmjs.org
           install-command: pnpm install --offline --frozen-lockfile
+
+      - uses: ./.github/actions/cache-turbo
 
       - uses: ./.github/actions/setup-rust-ci
         with:

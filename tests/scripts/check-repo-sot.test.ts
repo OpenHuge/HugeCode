@@ -20,9 +20,13 @@ const requiredEntries = [
   "docs",
   ".github/workflows",
   path.join("apps", "code", "package.json"),
+  path.join("apps", "code-web"),
+  path.join("scripts", "config", "code-web-bundle-budget.config.mjs"),
   "scripts/check-repo-sot.mjs",
+  path.join("scripts", "lib"),
   "scripts/workflow-list.mjs",
   "scripts/verify_pr.sh",
+  "vitest.aliases.ts",
 ];
 
 async function copyRequiredEntries(targetRoot: string): Promise<void> {
@@ -360,6 +364,92 @@ describe("check-repo-sot", () => {
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("docs/arch.md");
       expect(result.stderr).toContain("Open Fast");
+    },
+    repoSotTestTimeoutMs
+  );
+
+  it(
+    "fails when the active web shell reintroduces Open Fast branding",
+    async () => {
+      const tempRoot = await mkdtemp(path.join(tmpdir(), "repo-sot-"));
+      tempRoots.push(tempRoot);
+      await createTrackedFixtureRepo(tempRoot);
+
+      const webIndexPath = path.join(
+        tempRoot,
+        "apps",
+        "code-web",
+        "app",
+        "routes",
+        "_public.index.tsx"
+      );
+      const webIndex = await readFile(webIndexPath, "utf8");
+      await writeFile(webIndexPath, webIndex.replace("HugeCode Web", "Open Fast Web"), "utf8");
+      stageFixtureChanges(tempRoot);
+
+      const result = runRepoSot(tempRoot);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("apps/code-web/app/routes/_public.index.tsx");
+      expect(result.stderr).toContain("Open Fast Web");
+    },
+    repoSotTestTimeoutMs
+  );
+
+  it(
+    "fails when the active web deployment name reintroduces the Open Fast worker id",
+    async () => {
+      const tempRoot = await mkdtemp(path.join(tmpdir(), "repo-sot-"));
+      tempRoots.push(tempRoot);
+      await createTrackedFixtureRepo(tempRoot);
+
+      const wranglerPath = path.join(tempRoot, "apps", "code-web", "wrangler.jsonc");
+      const wrangler = await readFile(wranglerPath, "utf8");
+      await writeFile(
+        wranglerPath,
+        wrangler.replace('"name": "hugecode-web"', '"name": "open-fast-web"'),
+        "utf8"
+      );
+      stageFixtureChanges(tempRoot);
+
+      const result = runRepoSot(tempRoot);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("apps/code-web/wrangler.jsonc");
+      expect(result.stderr).toContain("open-fast-web");
+    },
+    repoSotTestTimeoutMs
+  );
+
+  it(
+    "fails when the web bundle budget config reintroduces desktop-only chunk baselines",
+    async () => {
+      const tempRoot = await mkdtemp(path.join(tmpdir(), "repo-sot-"));
+      tempRoots.push(tempRoot);
+      await createTrackedFixtureRepo(tempRoot);
+
+      const budgetConfigPath = path.join(
+        tempRoot,
+        "scripts",
+        "config",
+        "code-web-bundle-budget.config.mjs"
+      );
+      const budgetConfig = await readFile(budgetConfigPath, "utf8");
+      await writeFile(
+        budgetConfigPath,
+        budgetConfig.replace(
+          "knownLargeChunkPrefixes: {}",
+          'knownLargeChunkPrefixes: { "MainAppContainerCore-": 1450000 }'
+        ),
+        "utf8"
+      );
+      stageFixtureChanges(tempRoot);
+
+      const result = runRepoSot(tempRoot);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("scripts/config/code-web-bundle-budget.config.mjs");
+      expect(result.stderr).toContain("MainAppContainerCore-");
     },
     repoSotTestTimeoutMs
   );

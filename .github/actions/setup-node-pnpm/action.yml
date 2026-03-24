@@ -52,7 +52,7 @@ runs:
 
     - name: Setup Node.js
       if: ${{ inputs.registry-url == '' && inputs.cache == 'true' }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version-file: ${{ inputs.node-version-file }}
         cache: pnpm
@@ -60,13 +60,13 @@ runs:
 
     - name: Setup Node.js without cache
       if: ${{ inputs.registry-url == '' && inputs.cache != 'true' }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version-file: ${{ inputs.node-version-file }}
 
     - name: Setup Node.js with registry
       if: ${{ inputs.registry-url != '' && inputs.cache == 'true' }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version-file: ${{ inputs.node-version-file }}
         cache: pnpm
@@ -75,7 +75,7 @@ runs:
 
     - name: Setup Node.js with registry without cache
       if: ${{ inputs.registry-url != '' && inputs.cache != 'true' }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version-file: ${{ inputs.node-version-file }}
         registry-url: ${{ inputs.registry-url }}

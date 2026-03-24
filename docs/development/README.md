@@ -29,7 +29,9 @@ When working from multiple git worktrees, `pnpm run` / `pnpm exec` now warn inst
 `node_modules` looks stale for the current branch metadata. Treat the warning as a prompt to run
 `pnpm install` when dependencies, lockfile contents, or workspace package manifests actually changed.
 
-Core setup excludes the Cloudflare web shell from the default root workflow.
+Root build, lint, and typecheck include the Cloudflare web shell through the
+default workspace graph. Use the explicit `pnpm web:*` commands when you need
+to run or deploy the Cloudflare shell directly.
 
 - `pnpm check:workflow-governance`
   Required when CI workflow docs, workflow files, or reusable workflow mappings change.
@@ -62,6 +64,8 @@ Validation gates are engineering checks, not product-health promises. In particu
   Default desktop verification gate for Tauri/runtime integration work.
 - `pnpm desktop:verify`
   Use when packaging or full desktop build risk is in scope.
+
+Electron desktop update and release-channel behavior is documented in [Electron Updates](./electron-updates.md).
 
 ## Control-Plane Operator Guidance
 

@@ -57,6 +57,26 @@ describe("UpdateToast", () => {
     expect((progress as HTMLProgressElement).value).toBe(50);
   });
 
+  it("renders downloaded state and offers restart actions", () => {
+    const onUpdate = vi.fn();
+    const onDismiss = vi.fn();
+
+    const { container } = render(
+      <UpdateToast
+        state={{ stage: "downloaded", version: "1.2.4" }}
+        onUpdate={onUpdate}
+        onDismiss={onDismiss}
+      />
+    );
+    const scoped = within(container);
+
+    expect(scoped.getByText("Update ready. Restart HugeCode to apply it.")).toBeTruthy();
+    fireEvent.click(scoped.getByRole("button", { name: "Later" }));
+    fireEvent.click(scoped.getByRole("button", { name: "Restart Now" }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+  });
+
   it("renders error state and lets you dismiss or retry", () => {
     const onUpdate = vi.fn();
     const onDismiss = vi.fn();
@@ -87,6 +107,32 @@ describe("UpdateToast", () => {
     const scoped = within(container);
 
     expect(scoped.getByText("You're up to date.")).toBeTruthy();
+    fireEvent.click(scoped.getByRole("button", { name: "Dismiss" }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders manual update guidance with a release link", () => {
+    const onDismiss = vi.fn();
+    const state: UpdateState = {
+      message:
+        "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
+      releaseUrl: "https://github.com/OpenHuge/HugeCode/releases",
+      stage: "manual",
+      version: "2.0.0-beta.3",
+    };
+
+    const { container } = render(
+      <UpdateToast state={state} onUpdate={vi.fn()} onDismiss={onDismiss} />
+    );
+    const scoped = within(container);
+
+    expect(
+      scoped.getByText(
+        "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured."
+      )
+    ).toBeTruthy();
+    fireEvent.click(scoped.getByRole("button", { name: "View Releases" }));
+    expect(openUrlMock).toHaveBeenCalledWith("https://github.com/OpenHuge/HugeCode/releases");
     fireEvent.click(scoped.getByRole("button", { name: "Dismiss" }));
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
@@ -137,8 +183,10 @@ describe("UpdateToast", () => {
     );
     const scoped = within(container);
 
-    expect(await scoped.findByText("Highlights")).toBeTruthy();
-    expect(await scoped.findByText("Added release notes toast")).toBeTruthy();
+    expect(await scoped.findByText("Highlights", undefined, { timeout: 3_000 })).toBeTruthy();
+    expect(
+      await scoped.findByText("Added release notes toast", undefined, { timeout: 3_000 })
+    ).toBeTruthy();
 
     fireEvent.click(scoped.getByRole("button", { name: "View on GitHub" }));
     expect(openUrlMock).toHaveBeenCalledWith(htmlUrl);

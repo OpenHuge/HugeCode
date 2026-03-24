@@ -281,11 +281,13 @@ export function WorkspaceHomeAgentRuntimeRunItem({
           ) : null}
           {continuityItem ? (
             <span>
-              Continuity ({continuityItem.pathKind}): {continuityItem.detail}
+              Continuity ({continuityItem.pathKind} via {continuityItem.truthSourceLabel}):{" "}
+              {continuityItem.detail}
             </span>
           ) : effectiveTakeoverBundle?.summary ? (
             <span>
-              Continuity ({effectiveTakeoverBundle.pathKind}): {effectiveTakeoverBundle.summary}
+              Continuity ({effectiveTakeoverBundle.pathKind} via Runtime takeover bundle):{" "}
+              {effectiveTakeoverBundle.summary}
             </span>
           ) : null}
           {supervisionSignals.map((detail) => (
@@ -654,11 +656,13 @@ export function WorkspaceHomeAgentRuntimeRunItem({
               ) : null}
               {continuityItem ? (
                 <li>
-                  Continuity ({continuityItem.pathKind}): {continuityItem.detail}
+                  Continuity ({continuityItem.pathKind} via {continuityItem.truthSourceLabel}):{" "}
+                  {continuityItem.detail}
                 </li>
               ) : effectiveTakeoverBundle?.summary ? (
                 <li>
-                  Continuity ({effectiveTakeoverBundle.pathKind}): {effectiveTakeoverBundle.summary}
+                  Continuity ({effectiveTakeoverBundle.pathKind} via Runtime takeover bundle):{" "}
+                  {effectiveTakeoverBundle.summary}
                 </li>
               ) : null}
               {publishHandoffSummary ? <li>Publish handoff: {publishHandoffSummary}</li> : null}

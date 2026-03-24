@@ -49,6 +49,14 @@ export {
   type ShellSectionProps,
   type ShellToolbarProps,
 } from "./components/Shell";
+export {
+  CodeBlockSurface,
+  DataTableSurface,
+  RichContent,
+  type CodeBlockSurfaceProps,
+  type DataTableSurfaceProps,
+  type RichContentProps,
+} from "./components/RichContent";
 export { Field, type FieldProps } from "./components/Field";
 export { Input, type InputProps } from "./components/Input";
 export {

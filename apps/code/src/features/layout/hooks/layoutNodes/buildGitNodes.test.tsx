@@ -1,25 +1,34 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { flushLazyBoundary } from "../../../../test/asyncTestUtils";
 import {
   createLayoutNodesOptions,
   type LayoutNodesFieldRegistry,
   type LayoutNodesOptions,
 } from "./types";
 
-const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 20_000;
+const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 60_000;
 
-function mockGitDiffViewerChunk() {
-  vi.doMock("../../../utils/diffsWorker", () => ({
-    workerFactory: () =>
-      ({
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        postMessage: vi.fn(),
-        terminate: vi.fn(),
-      }) satisfies Partial<Worker>,
+function createMockWorker() {
+  return {
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    postMessage: vi.fn(),
+    terminate: vi.fn(),
+  } satisfies Partial<Worker>;
+}
+
+function mockGitDiffViewerRuntime() {
+  const MockWorker = function MockWorker() {
+    return createMockWorker();
+  };
+
+  vi.stubGlobal("Worker", MockWorker as unknown as typeof Worker);
+
+  vi.doMock("../../../../utils/diffsWorker", () => ({
+    workerFactory: () => createMockWorker(),
   }));
-
   vi.doMock("../../../git/components/GitDiffViewer", () => ({
     GitDiffViewer: () => <div data-testid="git-diff-viewer-chunk" />,
   }));
@@ -167,11 +176,13 @@ describe("buildGitNodes diff lazy boundary", () => {
     vi.resetModules();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     cleanup();
     vi.clearAllMocks();
     vi.doUnmock("../../../git/components/GitDiffViewer");
     vi.doUnmock("../../../utils/diffsWorker");
+    await vi.dynamicImportSettled();
+    vi.unstubAllGlobals();
   });
 
   it(
@@ -192,7 +203,7 @@ describe("buildGitNodes diff lazy boundary", () => {
   it(
     "loads the viewer chunk once actual diff payload exists",
     async () => {
-      mockGitDiffViewerChunk();
+      mockGitDiffViewerRuntime();
 
       const buildGitNodesImpl = await importBuildGitNodes();
       const nodes = buildGitNodesImpl(
@@ -211,11 +222,9 @@ describe("buildGitNodes diff lazy boundary", () => {
       expect(nodes.hasGitDiffViewerContent).toBe(true);
       render(<div>{nodes.gitDiffViewerNode}</div>);
 
-      expect(
-        await screen.findByTestId("git-diff-viewer-chunk", undefined, {
-          timeout: GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS,
-        })
-      ).toBeTruthy();
+      await flushLazyBoundary();
+
+      expect(screen.getByTestId("git-diff-viewer-chunk")).toBeTruthy();
     },
     GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS
   );

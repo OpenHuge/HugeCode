@@ -1,3 +1,4 @@
+import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
 const IGNORED_CONSOLE_WARN_SNIPPETS = [
@@ -83,7 +84,10 @@ process.stderr.write = ((
 }) as typeof process.stderr.write;
 
 afterEach(async () => {
+  cleanup();
   await vi.dynamicImportSettled();
+  cleanup();
+  vi.useRealTimers();
 });
 
 if (!("IS_REACT_ACT_ENVIRONMENT" in globalThis)) {
@@ -151,6 +155,30 @@ if (!("requestAnimationFrame" in globalThis)) {
   });
   Object.defineProperty(globalThis, "cancelAnimationFrame", {
     value: (id: number) => clearTimeout(id),
+  });
+}
+
+if (!("Worker" in globalThis)) {
+  class WorkerMock {
+    onmessage: ((event: MessageEvent) => void) | null = null;
+    postMessage() {
+      return;
+    }
+    addEventListener() {
+      return;
+    }
+    removeEventListener() {
+      return;
+    }
+    terminate() {
+      return;
+    }
+  }
+
+  Object.defineProperty(globalThis, "Worker", {
+    value: WorkerMock,
+    writable: true,
+    configurable: true,
   });
 }
 

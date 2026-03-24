@@ -34,8 +34,8 @@ mod provider_requests;
 mod provider_runtime_tool_call;
 mod repository_execution_contract;
 mod rpc_dispatch;
+pub(crate) mod rpc_dispatch_extensions;
 mod rpc_dispatch_native;
-mod rpc_dispatch_native_skills;
 mod rpc_params;
 mod runtime_checkpoint;
 mod runtime_events;
@@ -337,8 +337,8 @@ const DISTRIBUTED_ERROR_SOURCE_UNKNOWN: &str = "unknown";
 const MAX_DISTRIBUTED_DISPATCH_ERROR_CHARS: usize = 2_048;
 const MAX_DISTRIBUTED_DISPATCH_SUMMARY_CHARS: usize = 4_096;
 const DEFAULT_THREAD_LIVE_HEARTBEAT_INTERVAL_MS: u64 = 10_000;
-const CODE_RUNTIME_RPC_CONTRACT_VERSION: &str = "2026-03-22";
-const CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT: &str = "2026-03-22";
+const CODE_RUNTIME_RPC_CONTRACT_VERSION: &str = "2026-03-23";
+const CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT: &str = "2026-03-23";
 const CODE_RUNTIME_RPC_FEATURES: &[&str] = &[
     "method_not_found_error_code",
     "rpc_capabilities_handshake",
@@ -401,8 +401,8 @@ const CODE_RUNTIME_RPC_FEATURES: &[&str] = &[
     "runtime_codex_execpolicy_preflight_v1",
     "runtime_codex_unified_rpc_migration_v1",
     "runtime_host_deprecated",
-    "app_server_protocol_v2_2026_03_22",
-    "contract_frozen_2026_03_22",
+    "app_server_protocol_v2_2026_03_23",
+    "contract_frozen_2026_03_23",
 ];
 const CODE_RUNTIME_RPC_ERROR_CODES: &[(&str, &str)] = &[
     ("METHOD_NOT_FOUND", "METHOD_NOT_FOUND"),

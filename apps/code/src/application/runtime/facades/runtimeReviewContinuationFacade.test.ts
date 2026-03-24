@@ -295,8 +295,11 @@ describe("runtimeReviewContinuationFacade", () => {
       blockingReason: "Runtime blocked follow-up until validation evidence is repaired.",
       continuePathLabel: "Mission thread",
       recommendedAction: "Open the mission thread and resolve the runtime-blocked follow-up.",
+      truthSource: "review_actionability",
+      truthSourceLabel: "Runtime review actionability",
     });
     expect(summary.details).toContain("Canonical continue path: Mission thread.");
+    expect(summary.details).toContain("Follow-up source: Runtime review actionability.");
     expect(summary.details).toContain("Publish handoff is ready.");
   });
 
@@ -355,6 +358,8 @@ describe("runtimeReviewContinuationFacade", () => {
       blockingReason: null,
       continuePathLabel: "Review Pack",
       recommendedAction: "Continue from Review Pack using takeover guidance.",
+      truthSource: "takeover_bundle",
+      truthSourceLabel: "Runtime takeover bundle",
     });
   });
 });

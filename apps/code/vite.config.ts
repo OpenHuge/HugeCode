@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, type Connect, type Plugin } from "vite";
 // @boundaries-ignore shared workspace test/dev config
 import { createCodeWorkspaceAliases } from "../../scripts/lib/viteWorkspaceAliases";
 
@@ -39,9 +39,51 @@ const NON_CRITICAL_JS_PRELOAD_PATTERNS = [
   /^assets\/settings(?:ViewLoader)?-[^/]+\.js$/,
   /^assets\/xterm-vendor-[^/]+\.(?:js|css)$/,
 ] as const;
+const WORKSPACE_HOST_CHUNK_PATTERNS = [
+  "/src/features/app/components/MainAppShell.tsx",
+  "/src/features/app/components/WorkspaceDesktopAppHost.tsx",
+  "/src/features/app/composition/useDesktopWorkspaceFeatureComposition.tsx",
+] as const;
+const WORKSPACE_CHROME_DOMAIN_CHUNK_PATTERNS = [
+  "/src/features/app/composition/useDesktopWorkspaceChromeDomain.ts",
+] as const;
+const WORKSPACE_CONVERSATION_DOMAIN_CHUNK_PATTERNS = [
+  "/src/features/app/composition/useDesktopWorkspaceConversationDomain.ts",
+] as const;
+const WORKSPACE_MISSION_DOMAIN_CHUNK_PATTERNS = [
+  "/src/features/app/composition/useDesktopWorkspaceMissionDomain.ts",
+] as const;
+const WORKSPACE_PROJECT_DOMAIN_CHUNK_PATTERNS = [
+  "/src/features/app/composition/useDesktopWorkspaceProjectDomain.ts",
+] as const;
+const WORKSPACE_THREAD_DOMAIN_CHUNK_PATTERNS = [
+  "/src/features/app/composition/useDesktopWorkspaceThreadDomain.ts",
+] as const;
+const RUNTIME_APPLICATION_CHUNK_PATTERNS = ["/src/application/runtime/"] as const;
+const DESKTOP_SERVICES_CHUNK_PATTERNS = ["/src/services/"] as const;
+const DESKTOP_INTEGRATION_CHUNK_PATTERNS = [
+  "/src/application/runtime/facades/desktopHostFacade.ts",
+  "/src/features/app/hooks/useDesktopLaunchIntentBootstrap.ts",
+  "/src/features/about/components/AboutView.tsx",
+  "/src/features/update/components/UpdateToast.tsx",
+  "/src/features/update/hooks/useUpdater.ts",
+] as const;
+const SHELL_BOOTSTRAP_CHUNK_PATTERNS = [
+  "/src/features/app/hooks/useMainAppShellBootstrap.ts",
+] as const;
+const APP_BOOTSTRAP_CHUNK_PATTERNS = [
+  "/src/features/app/hooks/useThreadCodexControls.ts",
+  "/src/features/app/hooks/useGitRootSelection.ts",
+  "/src/features/app/hooks/useSyncSelectedDiffPath.ts",
+] as const;
+const SHIKI_LAZY_CHUNK_WARNING_LIMIT_KB = 900;
 
 function shouldDeferNonCriticalJsPreload(file: string) {
   return NON_CRITICAL_JS_PRELOAD_PATTERNS.some((pattern) => pattern.test(file));
+}
+
+function matchesChunkPattern(id: string, patterns: readonly string[]) {
+  return patterns.some((pattern) => id.includes(pattern));
 }
 
 function resolveDevHost() {
@@ -52,8 +94,38 @@ function resolveDevHost() {
   return envHost.length > 0 ? envHost : DEFAULT_DEV_HOST;
 }
 
+function workspaceEntryRedirectMiddleware(): Connect.NextHandleFunction {
+  return (req, res, next) => {
+    if (req.method !== "GET" || !req.url) {
+      next();
+      return;
+    }
+    const requestUrl = new URL(req.url, "http://workspace-shell.invalid");
+    if (requestUrl.pathname !== "/") {
+      next();
+      return;
+    }
+    const location = `/workspaces${requestUrl.search}`;
+    res.statusCode = 302;
+    res.setHeader("Location", location);
+    res.end();
+  };
+}
+
+function workspaceEntryRedirectPlugin(): Plugin {
+  return {
+    name: "workspace-entry-redirect",
+    configureServer(server) {
+      server.middlewares.use(workspaceEntryRedirectMiddleware());
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(workspaceEntryRedirectMiddleware());
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [vanillaExtractPlugin(), react()],
+  plugins: [workspaceEntryRedirectPlugin(), vanillaExtractPlugin(), react()],
   resolve: {
     alias: createCodeWorkspaceAliases(new URL("./", import.meta.url)),
   },
@@ -64,6 +136,11 @@ export default defineConfig({
     include: [...STARTUP_OPTIMIZE_DEPS],
   },
   build: {
+    // Shiki-backed diff rendering emits very large lazy language and WASM chunks
+    // from @pierre/diffs. We keep warning visibility for real eager regressions by
+    // splitting the app shell more aggressively below, then raise the threshold to
+    // cover the known lazy-only payloads.
+    chunkSizeWarningLimit: SHIKI_LAZY_CHUNK_WARNING_LIMIT_KB,
     modulePreload: {
       resolveDependencies(_filename, deps, context) {
         if (context.hostType === "js") {
@@ -79,6 +156,39 @@ export default defineConfig({
       },
       output: {
         manualChunks(id) {
+          if (matchesChunkPattern(id, WORKSPACE_HOST_CHUNK_PATTERNS)) {
+            return "workspace-host";
+          }
+          if (matchesChunkPattern(id, WORKSPACE_CHROME_DOMAIN_CHUNK_PATTERNS)) {
+            return "workspace-chrome";
+          }
+          if (matchesChunkPattern(id, WORKSPACE_CONVERSATION_DOMAIN_CHUNK_PATTERNS)) {
+            return "workspace-conversation";
+          }
+          if (matchesChunkPattern(id, WORKSPACE_MISSION_DOMAIN_CHUNK_PATTERNS)) {
+            return "workspace-mission";
+          }
+          if (matchesChunkPattern(id, WORKSPACE_PROJECT_DOMAIN_CHUNK_PATTERNS)) {
+            return "workspace-project";
+          }
+          if (matchesChunkPattern(id, WORKSPACE_THREAD_DOMAIN_CHUNK_PATTERNS)) {
+            return "workspace-thread";
+          }
+          if (matchesChunkPattern(id, RUNTIME_APPLICATION_CHUNK_PATTERNS)) {
+            return "runtime-application";
+          }
+          if (matchesChunkPattern(id, DESKTOP_SERVICES_CHUNK_PATTERNS)) {
+            return "desktop-services";
+          }
+          if (matchesChunkPattern(id, DESKTOP_INTEGRATION_CHUNK_PATTERNS)) {
+            return "desktop-integration";
+          }
+          if (matchesChunkPattern(id, SHELL_BOOTSTRAP_CHUNK_PATTERNS)) {
+            return "shell-bootstrap";
+          }
+          if (matchesChunkPattern(id, APP_BOOTSTRAP_CHUNK_PATTERNS)) {
+            return "app-bootstrap";
+          }
           if (id.includes("/node_modules/react/") || id.includes("/node_modules/react-dom/")) {
             return "react-vendor";
           }

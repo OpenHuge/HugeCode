@@ -23,6 +23,7 @@ import { useWorkspaceItemMutations } from "./useWorkspaceItemMutations";
 import {
   desktopWorkspaceNavigation,
   setWorkspaceRouteRestoreSelection,
+  useDesktopMissionHomeRoute,
   useWorkspaceRouteSelection,
 } from "./workspaceRoute";
 import {
@@ -107,6 +108,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   );
   const supportsLegacyAppSettingsMirrorRef = useRef(detectRuntimeMode() === "tauri");
   const routeSelection = useWorkspaceRouteSelection();
+  const showMissionHomeRoute = useDesktopMissionHomeRoute();
   const hasWorkspaceRouteSelection = routeSelection.kind === "workspace";
   const isWebRuntimeLocalWorkspaceSettingsPatch = useCallback(
     (patch: Partial<WorkspaceSettings>) => {
@@ -729,6 +731,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     activeWorkspace,
     activeWorkspaceId,
     hasWorkspaceRouteSelection,
+    showMissionHomeRoute,
     setActiveWorkspaceId,
     addWorkspace,
     addWorkspaceFromPath,

@@ -15,6 +15,7 @@ import { ErrorToasts } from "../../../notifications/components/ErrorToasts";
 import { UpdateToast } from "../../../update/components/UpdateToast";
 import { partitionApprovalsForTimeline } from "../../../messages/utils/timelineSurface";
 import { resolveThreadVisualState } from "../../../threads/utils/threadExecutionState";
+import { MainHeaderRightActions } from "../../../app/components/MainHeaderRightActions";
 import type { LayoutNodesOptions, LayoutNodesResult } from "./types";
 import { normalizeRecentThreadStatus, resolveApprovalMissionTarget } from "./primaryNodeHelpers";
 import { flattenLayoutNodesOptions } from "./types";
@@ -28,6 +29,7 @@ type PrimaryChromeNodes = Pick<
   | "missionOverviewNode"
   | "mainHeaderNode"
   | "desktopTopbarLeftNode"
+  | "desktopTopbarRightNode"
   | "tabBarNode"
 >;
 
@@ -272,6 +274,34 @@ export function buildPrimaryChromeNodes(options: LayoutNodesOptions): PrimaryChr
     </Suspense>
   ) : null;
 
+  const desktopHeaderActionsNode = activeWorkspace ? (
+    <MainHeaderRightActions
+      path={activeWorkspace.path}
+      openTargets={input.openAppTargets}
+      openAppIconById={input.openAppIconById}
+      selectedOpenAppId={input.selectedOpenAppId}
+      onSelectOpenAppId={input.onSelectOpenAppId}
+      canCopyThread={input.activeItems.length > 0}
+      onCopyThread={input.onCopyThread}
+      onToggleTerminal={input.onToggleTerminal}
+      isTerminalOpen={input.terminalOpen}
+      showTerminalButton={input.showTerminalButton}
+      showWorkspaceTools={input.showWorkspaceTools}
+      launchScript={input.launchScript}
+      launchScriptEditorOpen={input.launchScriptEditorOpen}
+      launchScriptDraft={input.launchScriptDraft}
+      launchScriptSaving={input.launchScriptSaving}
+      launchScriptError={input.launchScriptError}
+      onRunLaunchScript={input.onRunLaunchScript}
+      onOpenLaunchScriptEditor={input.onOpenLaunchScriptEditor}
+      onCloseLaunchScriptEditor={input.onCloseLaunchScriptEditor}
+      onLaunchScriptDraftChange={input.onLaunchScriptDraftChange}
+      onSaveLaunchScript={input.onSaveLaunchScript}
+      launchScriptsState={input.launchScriptsState}
+      extraActionsNode={input.mainHeaderActionsNode}
+    />
+  ) : null;
+
   const mainHeaderNode = activeWorkspace ? (
     <Suspense fallback={null}>
       <LazyMainHeader
@@ -308,9 +338,12 @@ export function buildPrimaryChromeNodes(options: LayoutNodesOptions): PrimaryChr
         recentThreads={recentThreads}
         onSelectRecentThread={(threadId) => input.onSelectThread(activeWorkspace.id, threadId)}
         extraActionsNode={input.mainHeaderActionsNode}
+        renderHeaderActions={input.isPhone}
       />
     </Suspense>
   ) : null;
+
+  const desktopTopbarRightNode = desktopHeaderActionsNode;
 
   const desktopTopbarLeftNode = (
     <>
@@ -345,6 +378,7 @@ export function buildPrimaryChromeNodes(options: LayoutNodesOptions): PrimaryChr
     missionOverviewNode,
     mainHeaderNode,
     desktopTopbarLeftNode,
+    desktopTopbarRightNode,
     tabBarNode,
   };
 }

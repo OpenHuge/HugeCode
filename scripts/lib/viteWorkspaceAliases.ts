@@ -33,9 +33,6 @@ export function createCodeWorkspaceAliases(
   const codeWorkspaceClientEntry = fileURLToPath(
     new URL("../../packages/code-workspace-client/src/index.ts", appRootUrl)
   );
-  const codeAppWorkspaceSurfaceEntry = fileURLToPath(
-    new URL("../../apps/code/src/MainAppContainerCore.tsx", appRootUrl)
-  );
   const codeWorkspaceClientSrc = fileURLToPath(
     new URL("../../packages/code-workspace-client/src", appRootUrl)
   );
@@ -51,11 +48,29 @@ export function createCodeWorkspaceAliases(
       appRootUrl
     )
   );
+  const codeWorkspaceClientWorkspaceBindingsEntry = fileURLToPath(
+    new URL("../../packages/code-workspace-client/src/workspace/bindings.ts", appRootUrl)
+  );
+  const codeWorkspaceClientWorkspaceBrowserBindingsEntry = fileURLToPath(
+    new URL("../../packages/code-workspace-client/src/workspace/browserBindings.ts", appRootUrl)
+  );
   const codeWorkspaceClientWorkspaceAppEntry = fileURLToPath(
     new URL("../../packages/code-workspace-client/src/workspace-app/index.ts", appRootUrl)
   );
+  const codeWorkspaceClientWorkspaceNavigationEntry = fileURLToPath(
+    new URL(
+      "../../packages/code-workspace-client/src/workspace-shell/workspaceNavigation.ts",
+      appRootUrl
+    )
+  );
   const codeWorkspaceClientSettingsShellEntry = fileURLToPath(
     new URL("../../packages/code-workspace-client/src/settings-shell/index.ts", appRootUrl)
+  );
+  const codeWorkspaceClientSettingsShellTypesEntry = fileURLToPath(
+    new URL(
+      "../../packages/code-workspace-client/src/settings-shell/settingsShellTypes.ts",
+      appRootUrl
+    )
   );
   const codeWorkspaceClientSettingsShellChromeEntry = fileURLToPath(
     new URL(
@@ -115,10 +130,6 @@ export function createCodeWorkspaceAliases(
       replacement: reactDomEntry,
     },
     {
-      find: /^@ku0\/code\/workspace-surface$/,
-      replacement: codeAppWorkspaceSurfaceEntry,
-    },
-    {
       find: /^@ku0\/code-runtime-client$/,
       replacement: codeRuntimeClientEntry,
     },
@@ -151,16 +162,32 @@ export function createCodeWorkspaceAliases(
       replacement: codeWorkspaceClientRuntimeShellEntry,
     },
     {
+      find: /^@ku0\/code-workspace-client\/workspace-bindings$/,
+      replacement: codeWorkspaceClientWorkspaceBindingsEntry,
+    },
+    {
+      find: /^@ku0\/code-workspace-client\/workspace-browser-bindings$/,
+      replacement: codeWorkspaceClientWorkspaceBrowserBindingsEntry,
+    },
+    {
       find: /^@ku0\/code-workspace-client\/workspace-app$/,
       replacement: codeWorkspaceClientWorkspaceAppEntry,
     },
     {
-      find: /^@ku0\/code-workspace-client\/settings-shell$/,
-      replacement: codeWorkspaceClientSettingsShellEntry,
+      find: /^@ku0\/code-workspace-client\/workspace-navigation$/,
+      replacement: codeWorkspaceClientWorkspaceNavigationEntry,
+    },
+    {
+      find: /^@ku0\/code-workspace-client\/settings-shell-types$/,
+      replacement: codeWorkspaceClientSettingsShellTypesEntry,
     },
     {
       find: /^@ku0\/code-workspace-client\/settings-shell\/SettingsModalChrome\.global\.css$/,
       replacement: codeWorkspaceClientSettingsShellChromeEntry,
+    },
+    {
+      find: /^@ku0\/code-workspace-client\/settings-shell$/,
+      replacement: codeWorkspaceClientSettingsShellEntry,
     },
     {
       find: /^@ku0\/code-workspace-client\/(.+)$/,

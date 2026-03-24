@@ -39,7 +39,7 @@ describe("workspace client boundaries", () => {
     expect(appSource).not.toContain("./web/WorkspaceAppBridge");
     expect(entrySource).toContain("WorkspaceClientBoot");
     expect(entrySource).toContain("@ku0/code-application");
-    expect(entrySource).toContain("createDesktopWorkspaceClientHostBindings");
+    expect(entrySource).toContain("createDesktopWorkspaceClientBindings");
   });
 
   it("keeps the web adapter focused on binding composition instead of inline runtime transport", () => {
@@ -47,9 +47,10 @@ describe("workspace client boundaries", () => {
       "apps/code-web/app/components/createWebWorkspaceClientBindings.tsx"
     );
 
-    expect(source).toContain("createBrowserWorkspaceClientRuntimeGatewayBindings()");
-    expect(source).toContain("createBrowserWorkspaceClientRuntimeBindings()");
-    expect(source).toContain("createBrowserWorkspaceClientHostBindings()");
+    expect(source).toContain("createSharedWebWorkspaceClientBindings");
+    expect(source).not.toContain("createBrowserWorkspaceClientRuntimeGatewayBindings()");
+    expect(source).not.toContain("createBrowserWorkspaceClientRuntimeBindings()");
+    expect(source).not.toContain("createBrowserWorkspaceClientHostBindings()");
     expect(source).not.toContain("fetch(");
   });
 
@@ -58,29 +59,36 @@ describe("workspace client boundaries", () => {
     const webSource = readRepoFile(
       "apps/code-web/app/components/createWebWorkspaceClientBindings.tsx"
     );
+    const sharedBindingsSource = readRepoFile(
+      "packages/code-application/src/workspaceClientBindings.ts"
+    );
     const kernelSource = readRepoFile(
       "apps/code/src/application/runtime/kernel/createRuntimeKernel.ts"
     );
 
     expect(desktopSource).toContain("runtimeGateway:");
     expect(desktopSource).toContain("runtime:");
-    expect(desktopSource).toContain("host:");
+    expect(desktopSource).toContain("openExternalUrl:");
+    expect(desktopSource).toContain("waitForOauthBinding:");
+    expect(desktopSource).toContain("testSystemNotification:");
     expect(desktopSource).not.toContain("dialogs:");
     expect(desktopSource).not.toContain("opener:");
     expect(desktopSource).not.toContain("menu:");
     expect(desktopSource).not.toContain("window:");
     expect(desktopSource).not.toContain("nativeFiles:");
     expect(desktopSource).not.toContain("updater:");
-    expect(desktopSource).toContain("createWorkspaceClientBindings");
-    expect(desktopSource).toContain("createDesktopWorkspaceClientHostBindings");
+    expect(desktopSource).toContain("createDesktopWorkspaceClientBindings");
     expect(kernelSource).toContain("createWorkspaceClientRuntimeBindings");
     expect(kernelSource).toContain("workspaceClientRuntimeGateway:");
     expect(kernelSource).toContain("workspaceClientRuntime,");
-    expect(webSource).toContain("runtimeGateway:");
-    expect(webSource).toContain("runtime:");
-    expect(webSource).toContain("host:");
-    expect(webSource).toContain("createBrowserWorkspaceClientRuntimeBindings()");
-    expect(webSource).toContain("createBrowserWorkspaceClientHostBindings()");
+    expect(webSource).not.toContain("runtimeGateway:");
+    expect(webSource).not.toContain("runtime:");
+    expect(webSource).not.toContain("host:");
+    expect(sharedBindingsSource).toContain("runtimeGateway:");
+    expect(sharedBindingsSource).toContain("runtime:");
+    expect(sharedBindingsSource).toContain("host:");
+    expect(sharedBindingsSource).toContain("createBrowserWorkspaceClientRuntimeBindings()");
+    expect(sharedBindingsSource).toContain("createBrowserWorkspaceClientHostBindings()");
   });
 
   it("exports shared runtime shell, workspace app, settings, and account-state subpaths without code-app compat exports", () => {
@@ -115,6 +123,7 @@ describe("workspace client boundaries", () => {
   it("stops exporting shared workspace surfaces from apps/code", () => {
     const source = readRepoFile("apps/code/package.json");
 
+    expect(source).not.toContain('"./workspace-surface"');
     expect(source).not.toContain('"./main-app"');
     expect(source).not.toContain('"./workspace-host"');
   });
@@ -134,7 +143,17 @@ describe("workspace client boundaries", () => {
       "apps/code-web/app/components/createWebWorkspaceClientBindings.tsx"
     );
 
-    expect(source).toContain("@ku0/code-workspace-client/workspace-shell");
+    expect(source).toContain("@ku0/code-application");
     expect(source).not.toContain("@ku0/code/workspace-surface");
+  });
+
+  it("removes legacy workspace-surface aliases from web and test tooling", () => {
+    const webTsconfig = readRepoFile("apps/code-web/tsconfig.json");
+    const viteAliases = readRepoFile("scripts/lib/viteWorkspaceAliases.ts");
+    const vitestAliases = readRepoFile("vitest.aliases.ts");
+
+    expect(webTsconfig).not.toContain("@ku0/code/workspace-surface");
+    expect(viteAliases).not.toContain("@ku0/code/workspace-surface");
+    expect(vitestAliases).not.toContain("@ku0/code/workspace-surface");
   });
 });

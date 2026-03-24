@@ -82,7 +82,7 @@
             ws_max_frame_size_bytes: DEFAULT_RUNTIME_WS_MAX_FRAME_SIZE_BYTES,
             ws_max_message_size_bytes: DEFAULT_RUNTIME_WS_MAX_MESSAGE_SIZE_BYTES,
             ws_max_connections: DEFAULT_RUNTIME_WS_MAX_CONNECTIONS,
-            provider_extensions: Vec::new(),
+            provider_extension_seeds: Vec::new(),
         }
     }
 
@@ -1414,8 +1414,8 @@
     }
 
     #[test]
-    fn parse_runtime_provider_extensions_parses_valid_payload() {
-        let parsed = parse_runtime_provider_extensions(Some(
+    fn parse_provider_extension_seeds_parses_valid_payload() {
+        let parsed = parse_provider_extension_seeds(Some(
             r#"[{
                 "providerId":"deepseek",
                 "displayName":"DeepSeek",
@@ -1437,8 +1437,8 @@
     }
 
     #[test]
-    fn parse_runtime_provider_extensions_rejects_core_alias_collisions() {
-        let result = parse_runtime_provider_extensions(Some(
+    fn parse_provider_extension_seeds_rejects_core_alias_collisions() {
+        let result = parse_provider_extension_seeds(Some(
             r#"[{
                 "providerId":"openai",
                 "displayName":"Invalid",
@@ -1451,8 +1451,8 @@
     }
 
     #[test]
-    fn parse_runtime_provider_extensions_rejects_extension_alias_collisions() {
-        let result = parse_runtime_provider_extensions(Some(
+    fn parse_provider_extension_seeds_rejects_extension_alias_collisions() {
+        let result = parse_provider_extension_seeds(Some(
             r#"[{
                 "providerId":"deepseek",
                 "displayName":"DeepSeek",
@@ -2812,45 +2812,41 @@
             payload["result"]["capabilities"]["uiLayers"]["utilityPanel"],
             Value::Bool(true)
         );
+        assert_eq!(
+            payload["result"]["capabilities"]["tooling"]["plugins"],
+            Value::Bool(false)
+        );
+        assert_eq!(
+            payload["result"]["capabilities"]["tooling"]["skills"],
+            Value::Bool(false)
+        );
     }
 
     #[tokio::test]
-    async fn native_only_management_methods_support_crud_flow() {
+    async fn native_management_snapshot_projects_unified_extension_catalog() {
         let app = test_router();
 
         let install_payload = send_rpc_request(
             app.clone(),
             json!({
-                "method": "native_plugin_install",
+                "method": "code_extension_install_v2",
                 "params": {
-                    "pluginId": "plugin-a",
-                    "plugin": {
-                        "name": "Plugin A",
-                        "version": "1.0.0",
-                        "enabled": true
-                    }
+                    "extensionId": "plugin-a",
+                    "displayName": "Plugin A",
+                    "name": "Plugin A",
+                    "version": "1.0.0",
+                    "kind": "host",
+                    "distribution": "workspace",
+                    "transport": "host-native",
+                    "enabled": true,
+                    "config": {}
                 }
             }),
         )
         .await;
         assert_eq!(install_payload["ok"], Value::Bool(true));
         assert_eq!(
-            install_payload["result"]["id"],
-            Value::String("plugin-a".to_string())
-        );
-
-        let list_payload = send_rpc_request(
-            app.clone(),
-            json!({
-                "method": "native_plugins_list",
-                "params": {}
-            }),
-        )
-        .await;
-        assert_eq!(list_payload["ok"], Value::Bool(true));
-        assert_eq!(list_payload["result"].as_array().map(Vec::len), Some(1));
-        assert_eq!(
-            list_payload["result"][0]["id"],
+            install_payload["result"]["extensionId"],
             Value::String("plugin-a".to_string())
         );
 
@@ -2867,17 +2863,25 @@
             snapshot_payload["result"]["plugins"].as_array().map(Vec::len),
             Some(1)
         );
+        assert_eq!(
+            snapshot_payload["result"]["plugins"][0]["extensionId"],
+            Value::String("plugin-a".to_string())
+        );
+        assert_eq!(
+            snapshot_payload["result"]["skills"].as_array().map(Vec::len),
+            Some(0)
+        );
     }
 
     #[tokio::test]
-    async fn native_only_methods_validate_params_for_enabled_mutation() {
+    async fn native_only_tool_methods_validate_params_for_enabled_mutation() {
         let app = test_router();
         let payload = send_rpc_request(
             app.clone(),
             json!({
-                "method": "native_plugin_set_enabled",
+                "method": "native_tool_set_enabled",
                 "params": {
-                    "pluginId": "plugin-a"
+                    "toolId": "tool-a"
                 }
             }),
         )
@@ -3931,7 +3935,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
 
@@ -3962,6 +3966,121 @@
                 && entry["aliases"]
                     .as_array()
                     .is_some_and(|aliases| aliases.contains(&Value::String("ds".to_string())))
+        }));
+    }
+
+    #[tokio::test]
+    async fn rpc_providers_catalog_reflects_extension_disable_state() {
+        let (base_url, handle) =
+            spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
+        let mut config = test_service_config();
+        config.provider_extension_seeds =
+            vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
+        let app = test_router_with_config(config);
+
+        let disable_payload = send_rpc_request(
+            app.clone(),
+            json!({
+                "method": "code_extension_set_state_v2",
+                "params": {
+                    "extensionId": "deepseek",
+                    "enabled": false
+                }
+            }),
+        )
+        .await;
+        assert_eq!(disable_payload["ok"], Value::Bool(true));
+
+        let request = Request::builder()
+            .method("POST")
+            .uri("/rpc")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{"method":"code_providers_catalog","params":{}}"#,
+            ))
+            .expect("build request");
+
+        let response = app.oneshot(request).await.expect("rpc response");
+        handle.abort();
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("read body");
+        let payload: Value = serde_json::from_slice(&bytes).expect("parse json");
+        assert_eq!(payload["ok"], Value::Bool(true));
+        let providers = payload["result"]
+            .as_array()
+            .expect("providers catalog should be an array");
+        let deepseek = providers
+            .iter()
+            .find(|entry| entry["providerId"] == Value::String("deepseek".to_string()))
+            .expect("deepseek provider entry should exist");
+        assert_eq!(deepseek["available"], Value::Bool(false));
+    }
+
+    #[tokio::test]
+    async fn rpc_providers_catalog_reflects_extension_metadata_updates() {
+        let (base_url, handle) =
+            spawn_openai_compat_mock_server(vec!["deepseek-v2-chat"], Some("deepseek-key")).await;
+        let mut config = test_service_config();
+        config.provider_extension_seeds =
+            vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
+        let app = test_router_with_config(config);
+
+        let update_payload = send_rpc_request(
+            app.clone(),
+            json!({
+                "method": "code_extension_update_v2",
+                "params": {
+                    "extensionId": "deepseek",
+                    "kind": "provider",
+                    "transport": "openai-compatible",
+                    "config": {
+                        "pool": "deepseek-v2",
+                        "aliases": ["deepseek", "ds-v2"],
+                        "defaultModelId": "deepseek-v2-chat",
+                        "compatBaseUrl": base_url,
+                        "apiKeyEnv": ""
+                    },
+                    "provenance": {
+                        "aliases": ["deepseek", "ds-v2"],
+                        "pool": "deepseek-v2",
+                        "defaultModelId": "deepseek-v2-chat",
+                        "compatBaseUrl": base_url
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(update_payload["ok"], Value::Bool(true));
+
+        let request = Request::builder()
+            .method("POST")
+            .uri("/rpc")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{"method":"code_providers_catalog","params":{}}"#,
+            ))
+            .expect("build request");
+
+        let response = app.oneshot(request).await.expect("rpc response");
+        handle.abort();
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("read body");
+        let payload: Value = serde_json::from_slice(&bytes).expect("parse json");
+        assert_eq!(payload["ok"], Value::Bool(true));
+        let providers = payload["result"]
+            .as_array()
+            .expect("providers catalog should be an array");
+        assert!(providers.iter().any(|entry| {
+            entry["providerId"] == Value::String("deepseek".to_string())
+                && entry["pool"] == Value::String("deepseek-v2".to_string())
+                && entry["defaultModelId"] == Value::String("deepseek-v2-chat".to_string())
+                && entry["aliases"]
+                    .as_array()
+                    .is_some_and(|aliases| aliases.contains(&Value::String("ds-v2".to_string())))
         }));
     }
 
@@ -4140,51 +4259,68 @@
             .to_string();
         let marker = "runtime-terminal-read-marker";
 
-        let input_payload = send_rpc_request(
-            app.clone(),
-            json!({
-                "method": "code_terminal_input_raw",
-                "params": {
-                    "sessionId": session_id,
-                    "input": if cfg!(target_os = "windows") {
-                        format!("echo {marker}\r\n")
-                    } else {
-                        format!("echo {marker}\n")
-                    }
-                }
-            }),
-        )
-        .await;
-        assert_eq!(input_payload["ok"], Value::Bool(true));
-        assert_eq!(input_payload["result"], Value::Bool(true));
-
         let mut saw_marker = false;
-        for _ in 0..80 {
-            let read_payload = send_rpc_request(
+        let mut last_lines = Vec::new();
+        let command = format!("echo {marker}");
+
+        for attempt in 0..3 {
+            let input_payload = send_rpc_request(
                 app.clone(),
                 json!({
-                    "method": "code_terminal_read",
+                    "method": "code_terminal_write",
                     "params": {
-                        "sessionId": session_id
+                        "sessionId": session_id,
+                        "input": command,
                     }
                 }),
             )
             .await;
-            assert_eq!(read_payload["ok"], Value::Bool(true));
-            let Some(lines) = read_payload["result"]["lines"].as_array() else {
-                continue;
-            };
-            if lines
-                .iter()
-                .any(|line| line.as_str().is_some_and(|value| value.contains(marker)))
-            {
-                saw_marker = true;
+
+            assert_eq!(input_payload["ok"], Value::Bool(true));
+
+            for _ in 0..80 {
+                let read_payload = send_rpc_request(
+                    app.clone(),
+                    json!({
+                        "method": "code_terminal_read",
+                        "params": {
+                            "sessionId": session_id
+                        }
+                    }),
+                )
+                .await;
+                assert_eq!(read_payload["ok"], Value::Bool(true));
+                let Some(lines) = read_payload["result"]["lines"].as_array() else {
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                    continue;
+                };
+                last_lines = lines
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>();
+                if lines
+                    .iter()
+                    .any(|line| line.as_str().is_some_and(|value| value.contains(marker)))
+                {
+                    saw_marker = true;
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+
+            if saw_marker || attempt == 2 {
                 break;
             }
-            tokio::time::sleep(Duration::from_millis(25)).await;
+
+            tokio::time::sleep(Duration::from_millis(150)).await;
         }
 
-        assert!(saw_marker, "expected terminal read to include marker output");
+        assert!(
+            saw_marker,
+            "expected terminal read to include marker output; last lines: {:?}",
+            last_lines
+        );
     }
 
     #[tokio::test]
@@ -7872,7 +8008,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
 
@@ -14401,7 +14537,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
         let request = Request::builder()
@@ -14459,7 +14595,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
         let request = Request::builder()
@@ -14504,7 +14640,7 @@
         let (base_url, handle) =
             spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
         let mut config = test_service_config();
-        config.provider_extensions =
+        config.provider_extension_seeds =
             vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
         let app = test_router_with_config(config);
         let request = Request::builder()
@@ -14552,7 +14688,7 @@
         let mut extension = test_extension_provider(base_url.as_str(), "deepseek-key");
         extension.api_key = None;
         extension.api_key_env = "DEEPSEEK_API_KEY".to_string();
-        config.provider_extensions = vec![extension];
+        config.provider_extension_seeds = vec![extension];
         let app = test_router_with_config(config);
         let request = Request::builder()
             .method("POST")
@@ -14589,11 +14725,96 @@
             payload["error"]["code"],
             Value::String("INVALID_PARAMS".to_string())
         );
+        assert!(
+            payload["error"]["message"]
+                .as_str()
+                .is_some_and(|message| {
+                    message.contains("Selected extension provider is not configured with API key.")
+                }),
+            "unexpected error message: {}",
+            payload["error"]["message"]
+        );
+    }
+
+    #[tokio::test]
+    async fn turn_send_routes_extension_provider_via_updated_extension_alias() {
+        let (base_url, handle) =
+            spawn_openai_compat_mock_server(vec!["deepseek-v2-chat"], Some("deepseek-key")).await;
+        let mut config = test_service_config();
+        config.provider_extension_seeds =
+            vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
+        let app = test_router_with_config(config);
+
+        let update_payload = send_rpc_request(
+            app.clone(),
+            json!({
+                "method": "code_extension_update_v2",
+                "params": {
+                    "extensionId": "deepseek",
+                    "kind": "provider",
+                    "transport": "openai-compatible",
+                    "config": {
+                        "pool": "deepseek-v2",
+                        "aliases": ["deepseek", "ds-v2"],
+                        "defaultModelId": "deepseek-v2-chat",
+                        "compatBaseUrl": base_url,
+                        "apiKeyEnv": ""
+                    },
+                    "provenance": {
+                        "aliases": ["deepseek", "ds-v2"],
+                        "pool": "deepseek-v2",
+                        "defaultModelId": "deepseek-v2-chat",
+                        "compatBaseUrl": base_url
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(update_payload["ok"], Value::Bool(true));
+
+        let request = Request::builder()
+            .method("POST")
+            .uri("/rpc")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{
+                  "method":"code_turn_send",
+                  "params":{
+                    "payload":{
+                      "workspaceId":"workspace-web",
+                      "threadId":"thread-extension-provider-updated-alias",
+                      "content":"Ping updated extension alias",
+                      "provider":"ds-v2",
+                      "reasonEffort":"high",
+                      "accessMode":"on-request",
+                      "queue":false,
+                      "attachments":[]
+                    }
+                  }
+                }"#,
+            ))
+            .expect("build request");
+
+        let response = app.oneshot(request).await.expect("rpc response");
+        handle.abort();
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("read body");
+        let payload: Value = serde_json::from_slice(&bytes).expect("parse json");
+        assert_eq!(payload["ok"], Value::Bool(true));
+        assert_eq!(payload["result"]["accepted"], Value::Bool(true));
         assert_eq!(
-            payload["error"]["message"],
-            Value::String(
-                "Selected extension provider is not configured with API key.".to_string()
-            )
+            payload["result"]["routedProvider"],
+            Value::String("deepseek".to_string())
+        );
+        assert_eq!(
+            payload["result"]["routedPool"],
+            Value::String("deepseek-v2".to_string())
+        );
+        assert_eq!(
+            payload["result"]["routedModelId"],
+            Value::String("deepseek-v2-chat".to_string())
         );
     }
 
@@ -14625,6 +14846,65 @@
             .expect("build request");
 
         let response = app.oneshot(request).await.expect("rpc response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("read body");
+        let payload: Value = serde_json::from_slice(&bytes).expect("parse json");
+        assert_eq!(payload["ok"], Value::Bool(false));
+        assert_eq!(
+            payload["error"]["code"],
+            Value::String("INVALID_PARAMS".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn turn_send_rejects_disabled_extension_provider() {
+        let (base_url, handle) =
+            spawn_openai_compat_mock_server(vec!["deepseek-chat"], Some("deepseek-key")).await;
+        let mut config = test_service_config();
+        config.provider_extension_seeds =
+            vec![test_extension_provider(base_url.as_str(), "deepseek-key")];
+        let app = test_router_with_config(config);
+
+        let disable_payload = send_rpc_request(
+            app.clone(),
+            json!({
+                "method": "code_extension_set_state_v2",
+                "params": {
+                    "extensionId": "deepseek",
+                    "enabled": false
+                }
+            }),
+        )
+        .await;
+        assert_eq!(disable_payload["ok"], Value::Bool(true));
+
+        let request = Request::builder()
+            .method("POST")
+            .uri("/rpc")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{
+                  "method":"code_turn_send",
+                  "params":{
+                    "payload":{
+                      "workspaceId":"workspace-web",
+                      "threadId":"thread-extension-disabled-provider",
+                      "content":"Ping disabled extension",
+                      "provider":"deepseek",
+                      "reasonEffort":"high",
+                      "accessMode":"on-request",
+                      "queue":false,
+                      "attachments":[]
+                    }
+                  }
+                }"#,
+            ))
+            .expect("build request");
+
+        let response = app.oneshot(request).await.expect("rpc response");
+        handle.abort();
         assert_eq!(response.status(), StatusCode::OK);
         let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
             .await

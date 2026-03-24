@@ -1,0 +1,55 @@
+name: _reusable-electron-beta
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: Optional artifact name to upload after the command completes.
+        required: false
+        type: string
+      artifact_path:
+        description: Optional artifact path to upload after the command completes.
+        required: false
+        type: string
+      command:
+        description: Electron beta command to execute.
+        required: true
+        type: string
+      release_channel:
+        description: Electron release channel to verify or publish.
+        required: false
+        type: string
+      runner:
+        description: Runner label to execute on.
+        required: true
+        type: string
+      static_update_base_url:
+        description: Optional static update feed root for beta auto-updates.
+        required: false
+        type: string
+
+jobs:
+  electron-beta:
+    runs-on: ${{ inputs.runner }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm install --offline --frozen-lockfile
+
+      - name: Run Electron beta command
+        env:
+          HUGECODE_ELECTRON_RELEASE_CHANNEL: ${{ inputs.release_channel != '' && inputs.release_channel || 'beta' }}
+          HUGECODE_ELECTRON_UPDATE_BASE_URL: ${{ inputs.static_update_base_url }}
+        run: ${{ inputs.command }}
+
+      - name: Upload Electron beta artifacts
+        if: ${{ inputs.artifact_name != '' && inputs.artifact_path != '' }}
+        uses: ./.github/actions/upload-workflow-artifact
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ inputs.artifact_path }}

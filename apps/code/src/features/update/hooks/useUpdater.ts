@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isTauri } from "../../../application/runtime/ports/tauriCore";
+import {
+  checkForDesktopUpdates,
+  detectDesktopRuntimeHost,
+  resolveDesktopUpdaterState,
+  restartDesktopUpdate,
+} from "../../../application/runtime/facades/desktopHostFacade";
+import type { DesktopUpdateState } from "../../../application/runtime/ports/desktopHostBridge";
 import { relaunch } from "../../../application/runtime/ports/tauriProcess";
 import {
   check,
@@ -21,7 +27,9 @@ type UpdateStage =
   | "checking"
   | "available"
   | "downloading"
+  | "downloaded"
   | "installing"
+  | "manual"
   | "restarting"
   | "latest"
   | "error";
@@ -32,6 +40,8 @@ type UpdateProgress = {
 };
 
 export type UpdateState = {
+  message?: string;
+  releaseUrl?: string;
   stage: UpdateStage;
   version?: string;
   progress?: UpdateProgress;
@@ -63,6 +73,54 @@ type UseUpdaterOptions = {
   onDebug?: (entry: DebugEntry) => void;
 };
 
+function mapDesktopUpdateStateToUiState(
+  updateState: DesktopUpdateState,
+  options?: { announceNoUpdate?: boolean }
+): UpdateState {
+  if (updateState.capability !== "automatic") {
+    if (options?.announceNoUpdate) {
+      return {
+        message: updateState.message ?? "Automatic desktop updates are unavailable for this build.",
+        releaseUrl: updateState.releaseUrl ?? undefined,
+        stage: "manual",
+        version: updateState.version ?? undefined,
+      };
+    }
+
+    return { stage: "idle", version: updateState.version ?? undefined };
+  }
+
+  switch (updateState.stage) {
+    case "checking":
+      return { stage: "checking", version: updateState.version ?? undefined };
+    case "available":
+      return { stage: "available", version: updateState.version ?? undefined };
+    case "downloading":
+      return {
+        stage: "downloading",
+        progress: {
+          downloadedBytes: updateState.downloadedBytes ?? 0,
+          totalBytes: updateState.totalBytes,
+        },
+        version: updateState.version ?? undefined,
+      };
+    case "downloaded":
+      return { stage: "downloaded", version: updateState.version ?? undefined };
+    case "latest":
+      return { stage: options?.announceNoUpdate ? "latest" : "idle" };
+    case "error":
+      return {
+        error: updateState.error ?? "Unable to check for updates.",
+        releaseUrl: updateState.releaseUrl ?? undefined,
+        stage: "error",
+        version: updateState.version ?? undefined,
+      };
+    case "idle":
+    default:
+      return { stage: "idle", version: updateState.version ?? undefined };
+  }
+}
+
 function isUpdaterUnavailableError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
   const normalized = message.trim().toLowerCase();
@@ -84,6 +142,7 @@ function isUpdaterUnavailableError(error: unknown): boolean {
 export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
   const [state, setState] = useState<UpdateState>({ stage: "idle" });
   const [postUpdateNotice, setPostUpdateNotice] = useState<PostUpdateNoticeState>(null);
+  const desktopUpdatePollGenerationRef = useRef(0);
   const updateRef = useRef<Update | null>(null);
   const postUpdateFetchGenerationRef = useRef(0);
   const latestTimeoutRef = useRef<number | null>(null);
@@ -96,8 +155,46 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
     }
   }, []);
 
+  const syncDesktopUpdateState = useCallback(
+    async (options?: { announceNoUpdate?: boolean; pollUntilSettled?: boolean }) => {
+      const nextState = await resolveDesktopUpdaterState();
+      setState(mapDesktopUpdateStateToUiState(nextState, options));
+
+      if (options?.pollUntilSettled !== true) {
+        return nextState;
+      }
+
+      if (nextState.stage !== "checking" && nextState.stage !== "downloading") {
+        return nextState;
+      }
+
+      const generation = desktopUpdatePollGenerationRef.current + 1;
+      desktopUpdatePollGenerationRef.current = generation;
+
+      for (let attempt = 0; attempt < 24; attempt += 1) {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 250);
+        });
+
+        if (desktopUpdatePollGenerationRef.current !== generation) {
+          return nextState;
+        }
+
+        const polledState = await resolveDesktopUpdaterState();
+        setState(mapDesktopUpdateStateToUiState(polledState, options));
+        if (polledState.stage !== "checking" && polledState.stage !== "downloading") {
+          return polledState;
+        }
+      }
+
+      return nextState;
+    },
+    []
+  );
+
   const resetToIdle = useCallback(async () => {
     clearLatestTimeout();
+    desktopUpdatePollGenerationRef.current += 1;
     const update = updateRef.current;
     updateRef.current = null;
     setState({ stage: "idle" });
@@ -109,6 +206,18 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
       if (!enabled) {
         return;
       }
+      const runtimeHost = await detectDesktopRuntimeHost();
+      if (runtimeHost === "electron") {
+        clearLatestTimeout();
+        const checkedState = await checkForDesktopUpdates();
+        setState(mapDesktopUpdateStateToUiState(checkedState, options));
+        await syncDesktopUpdateState({
+          announceNoUpdate: options?.announceNoUpdate,
+          pollUntilSettled: true,
+        });
+        return;
+      }
+
       let update: Awaited<ReturnType<typeof check>> | null = null;
       try {
         clearLatestTimeout();
@@ -152,13 +261,33 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
         }
       }
     },
-    [clearLatestTimeout, enabled, onDebug]
+    [clearLatestTimeout, enabled, onDebug, syncDesktopUpdateState]
   );
 
   const startUpdate = useCallback(async () => {
     if (!enabled) {
       return;
     }
+    const runtimeHost = await detectDesktopRuntimeHost();
+    if (runtimeHost === "electron") {
+      const desktopState = await resolveDesktopUpdaterState();
+      setState(mapDesktopUpdateStateToUiState(desktopState));
+      if (desktopState.stage === "downloaded") {
+        setState((prev) => ({
+          ...prev,
+          stage: "restarting",
+        }));
+        if (desktopState.version) {
+          savePendingPostUpdateVersion(desktopState.version);
+        }
+        await restartDesktopUpdate();
+        return;
+      }
+
+      await checkForUpdates();
+      return;
+    }
+
     const update = updateRef.current;
     if (!update) {
       await checkForUpdates();
@@ -232,77 +361,106 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
   }, [checkForUpdates, enabled, onDebug, resetToIdle]);
 
   useEffect(() => {
-    if (!enabled || import.meta.env.DEV || !isTauri()) {
+    if (!enabled || import.meta.env.DEV) {
       return;
     }
-    void checkForUpdates();
+
+    let cancelled = false;
+
+    void detectDesktopRuntimeHost().then((runtimeHost) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (runtimeHost !== "electron" && runtimeHost !== "tauri") {
+        return;
+      }
+
+      void checkForUpdates();
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [checkForUpdates, enabled]);
 
   useEffect(() => {
-    if (!enabled || !isTauri()) {
-      return;
-    }
-    const pendingVersion = loadPendingPostUpdateVersion();
-    if (!pendingVersion) {
+    if (!enabled) {
       return;
     }
 
-    const normalizedPendingVersion = normalizeReleaseVersion(pendingVersion);
-    const appVersion = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "";
-    const normalizedCurrentVersion = normalizeReleaseVersion(appVersion);
-    if (!normalizedPendingVersion || normalizedPendingVersion !== normalizedCurrentVersion) {
-      clearPendingPostUpdateVersion();
-      return;
-    }
-
-    const fallbackUrl = buildReleaseTagUrl(normalizedPendingVersion);
-    const generation = postUpdateFetchGenerationRef.current + 1;
-    postUpdateFetchGenerationRef.current = generation;
     let cancelled = false;
-    setPostUpdateNotice({
-      stage: "loading",
-      version: normalizedPendingVersion,
-      htmlUrl: fallbackUrl,
-    });
 
-    void fetchReleaseNotesForVersion(normalizedPendingVersion)
-      .then((releaseInfo) => {
-        if (cancelled || postUpdateFetchGenerationRef.current !== generation) {
-          return;
-        }
-        if (releaseInfo.body) {
+    void detectDesktopRuntimeHost().then((runtimeHost) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (runtimeHost !== "electron" && runtimeHost !== "tauri") {
+        return;
+      }
+
+      const pendingVersion = loadPendingPostUpdateVersion();
+      if (!pendingVersion) {
+        return;
+      }
+
+      const normalizedPendingVersion = normalizeReleaseVersion(pendingVersion);
+      const appVersion = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "";
+      const normalizedCurrentVersion = normalizeReleaseVersion(appVersion);
+      if (!normalizedPendingVersion || normalizedPendingVersion !== normalizedCurrentVersion) {
+        clearPendingPostUpdateVersion();
+        return;
+      }
+
+      const fallbackUrl = buildReleaseTagUrl(normalizedPendingVersion);
+      const generation = postUpdateFetchGenerationRef.current + 1;
+      postUpdateFetchGenerationRef.current = generation;
+      setPostUpdateNotice({
+        stage: "loading",
+        version: normalizedPendingVersion,
+        htmlUrl: fallbackUrl,
+      });
+
+      void fetchReleaseNotesForVersion(normalizedPendingVersion)
+        .then((releaseInfo) => {
+          if (cancelled || postUpdateFetchGenerationRef.current !== generation) {
+            return;
+          }
+          if (releaseInfo.body) {
+            setPostUpdateNotice({
+              stage: "ready",
+              version: normalizedPendingVersion,
+              body: releaseInfo.body,
+              htmlUrl: releaseInfo.htmlUrl,
+            });
+            return;
+          }
           setPostUpdateNotice({
-            stage: "ready",
+            stage: "fallback",
             version: normalizedPendingVersion,
-            body: releaseInfo.body,
             htmlUrl: releaseInfo.htmlUrl,
           });
-          return;
-        }
-        setPostUpdateNotice({
-          stage: "fallback",
-          version: normalizedPendingVersion,
-          htmlUrl: releaseInfo.htmlUrl,
+        })
+        .catch((error) => {
+          if (cancelled || postUpdateFetchGenerationRef.current !== generation) {
+            return;
+          }
+          const message = error instanceof Error ? error.message : JSON.stringify(error);
+          onDebug?.({
+            id: `${Date.now()}-client-updater-release-notes-error`,
+            timestamp: Date.now(),
+            source: "error",
+            label: "updater/release-notes-error",
+            payload: message,
+          });
+          setPostUpdateNotice({
+            stage: "fallback",
+            version: normalizedPendingVersion,
+            htmlUrl: fallbackUrl,
+          });
         });
-      })
-      .catch((error) => {
-        if (cancelled || postUpdateFetchGenerationRef.current !== generation) {
-          return;
-        }
-        const message = error instanceof Error ? error.message : JSON.stringify(error);
-        onDebug?.({
-          id: `${Date.now()}-client-updater-release-notes-error`,
-          timestamp: Date.now(),
-          source: "error",
-          label: "updater/release-notes-error",
-          payload: message,
-        });
-        setPostUpdateNotice({
-          stage: "fallback",
-          version: normalizedPendingVersion,
-          htmlUrl: fallbackUrl,
-        });
-      });
+    });
 
     return () => {
       cancelled = true;

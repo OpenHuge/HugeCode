@@ -78,7 +78,7 @@
     "test": {
       "dependsOn": ["^test"],
       "inputs": ["$TURBO_DEFAULT$"],
-      "outputs": ["coverage/**"]
+      "outputs": []
     },
     "test:e2e": {
       "dependsOn": ["build"],

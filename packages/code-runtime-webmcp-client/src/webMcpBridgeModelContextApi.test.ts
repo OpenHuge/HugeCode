@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { buildCapabilityMatrix, listWebMcpCatalogAsync } from "./webMcpBridgeModelContextApi";
+import { WebMcpInputSchemaValidationError } from "@ku0/code-runtime-client/webMcpInputSchemaValidationError";
+import {
+  buildCapabilityMatrix,
+  createWebMcpMessage,
+  listWebMcpCatalog,
+} from "./webMcpBridgeModelContextApi";
 
 function setModelContext(modelContext: object | null): void {
   const currentNavigator = globalThis.navigator;
@@ -52,7 +57,7 @@ describe("@ku0/code-runtime-webmcp-client model context API", () => {
       listPrompts: async () => [{ name: "prompt-a" }],
     });
 
-    await expect(listWebMcpCatalogAsync()).resolves.toEqual({
+    await expect(listWebMcpCatalog()).resolves.toEqual({
       tools: [{ name: "tool-a" }],
       resources: [{ uri: "resource://a" }],
       resourceTemplates: [{ uriTemplate: "resource://{id}" }],
@@ -64,5 +69,18 @@ describe("@ku0/code-runtime-webmcp-client model context API", () => {
         prompts: expect.objectContaining({ listPrompts: true }),
       }),
     });
+  });
+
+  it("raises shared schema validation errors for invalid message input", async () => {
+    setModelContext({
+      createMessage: async () => ({ ok: true }),
+    });
+
+    await expect(
+      createWebMcpMessage({
+        messages: "invalid" as never,
+        maxTokens: "invalid" as never,
+      })
+    ).rejects.toBeInstanceOf(WebMcpInputSchemaValidationError);
   });
 });

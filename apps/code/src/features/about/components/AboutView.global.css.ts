@@ -49,10 +49,23 @@ feature(".about-title", {
   letterSpacing: "0.02em",
 });
 feature(".about-version", { fontSize: "var(--font-size-meta)", color: "var(--ds-text-faint)" });
+feature(".about-meta", {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  fontSize: "var(--font-size-fine)",
+  color: "var(--ds-text-dim)",
+});
 feature(".about-tagline", {
   fontSize: "var(--font-size-chrome)",
   color: "var(--ds-text-muted)",
   maxWidth: "260px",
+});
+feature(".about-update-capability", {
+  maxWidth: "280px",
+  fontSize: "var(--font-size-fine)",
+  color: "var(--ds-text-dim)",
+  lineHeight: "var(--line-height-145)",
 });
 feature(".about-divider", {
   width: "160px",

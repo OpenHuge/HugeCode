@@ -1184,6 +1184,7 @@ export type LayoutNodesResult = {
   missionOverviewNode?: ReactNode;
   mainHeaderNode: ReactNode;
   desktopTopbarLeftNode: ReactNode;
+  desktopTopbarRightNode: ReactNode;
   tabBarNode: ReactNode;
   rightPanelInterruptNode: ReactNode;
   rightPanelDetailsNode: ReactNode;

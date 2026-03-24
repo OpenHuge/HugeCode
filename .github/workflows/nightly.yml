@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_API: ${{ vars.TURBO_API }}
+
 concurrency:
   group: nightly-robustness
   cancel-in-progress: false
@@ -24,7 +29,7 @@ jobs:
     env:
       TURBO_CACHE_DIR: .turbo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
@@ -56,7 +61,7 @@ jobs:
     env:
       TURBO_CACHE_DIR: .turbo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ./.github/actions/setup-node-pnpm
         with:

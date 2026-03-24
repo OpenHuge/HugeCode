@@ -389,6 +389,8 @@ export function CoreLoopClosureFixture() {
                           detail: "Review Pack can continue from the runtime-published handoff.",
                           recommendedAction:
                             "Open Review Pack and continue from the runtime-published follow-up actions.",
+                          truthSource: "review_actionability",
+                          truthSourceLabel: "Runtime review actionability",
                         },
                       ],
                     ])

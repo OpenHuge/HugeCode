@@ -391,6 +391,16 @@ describe("reviewPackSurfaceModel", () => {
           validations: [],
           artifacts: [],
           reviewPackId: "review-pack:runtime-42",
+          selectedOpportunityId: "opportunity-primary",
+          sourceCitations: [
+            {
+              id: "citation-1",
+              label: "AGENTS.md",
+              sourceKind: "repo_doc" as const,
+              trustLevel: "primary" as const,
+              claimSummary: "Repo instructions remain authoritative for unattended execution.",
+            },
+          ],
         },
       ],
       reviewPacks: [
@@ -418,6 +428,10 @@ describe("reviewPackSurfaceModel", () => {
           checksPerformed: [],
           recommendedNextAction: "Accept the result.",
           createdAt: 10,
+          wakeReason: "review_pack_ready",
+          wakeState: "ready" as const,
+          nextEligibleAction: "approve" as const,
+          queuePosition: 1,
         },
       ],
     });
@@ -442,6 +456,12 @@ describe("reviewPackSurfaceModel", () => {
     expect(detail.lineage?.details).toContain(
       "Source link: https://github.com/ku0/hugecode/issues/42"
     );
+    expect(detail.lineage?.details).toContain("Selected opportunity: opportunity-primary");
+    expect(detail.lineage?.details).toContain(
+      "AGENTS.md: Repo instructions remain authoritative for unattended execution. (primary)"
+    );
+    expect(detail.relaunchContext?.details).toContain("Wake reason: review_pack_ready");
+    expect(detail.relaunchContext?.details).toContain("Next eligible action: approve");
   });
 
   it("surfaces the runtime validation preset in execution context details", () => {

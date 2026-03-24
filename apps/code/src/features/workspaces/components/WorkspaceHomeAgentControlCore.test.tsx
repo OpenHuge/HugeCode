@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { writeCachedState } from "./workspaceHomeAgentControlState";
 
@@ -100,8 +100,8 @@ describe("WorkspaceHomeAgentControl", () => {
     });
 
     expect(screen.getByTestId("intent-section-stub")).toBeTruthy();
-    expect(screen.getByTestId("runtime-section-stub")).toBeTruthy();
-    expect(screen.getByTestId("webmcp-console-stub")).toBeTruthy();
+    expect(screen.queryByTestId("runtime-section-stub")).toBeNull();
+    expect(screen.queryByTestId("webmcp-console-stub")).toBeNull();
     expect(screen.queryByText("Coordination")).toBeNull();
     expect(screen.queryByText("Execution Board")).toBeNull();
     expect(screen.queryByText("Governance")).toBeNull();
@@ -112,6 +112,16 @@ describe("WorkspaceHomeAgentControl", () => {
     expect(within(rootElement).getByLabelText("Enable WebMCP bridge")).toBeTruthy();
     expect(within(rootElement).getByLabelText("Read-only tools only")).toBeTruthy();
     expect(within(rootElement).getByLabelText("Require approval for write tools")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /Mission Control/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId("runtime-section-stub")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /WebMCP Console/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId("webmcp-console-stub")).toBeTruthy();
+    });
   });
 
   it("locks control toggles when persisted controls failed to load", async () => {

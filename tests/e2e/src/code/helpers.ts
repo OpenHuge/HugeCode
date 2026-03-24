@@ -17,6 +17,10 @@ export function getSidebarEmptyStateAction(page: Page): Locator {
   return page.getByTestId("sidebar-empty-state-action").first();
 }
 
+export function getComposerStartHeading(page: Page): Locator {
+  return page.getByRole("heading", { name: "Start in the composer." }).first();
+}
+
 export function getSidebarSortOption(page: Page, sortKey: "created_at" | "updated_at"): Locator {
   return page
     .getByTestId(sortKey === "created_at" ? "sidebar-sort-created-at" : "sidebar-sort-updated-at")
@@ -90,7 +94,18 @@ async function isLocatorActionable(locator: Locator): Promise<boolean> {
 }
 
 async function isWorkspaceSurfaceVisible(page: Page): Promise<boolean> {
-  const [homeVisible, composerVisible, thinkingVisible] = await Promise.all([
+  const [
+    homeVisible,
+    composerVisible,
+    composerStartVisible,
+    thinkingVisible,
+    messagesVisible,
+    addActionVisible,
+    terminalToggleVisible,
+    goHomeVisible,
+    primaryNavVisible,
+    activeWorkspaceRowVisible,
+  ] = await Promise.all([
     page
       .locator('[data-home-page="true"], [data-home-content="true"]')
       .first()
@@ -99,13 +114,69 @@ async function isWorkspaceSurfaceVisible(page: Page): Promise<boolean> {
     getComposerInput(page)
       .isVisible()
       .catch(() => false),
+    getComposerStartHeading(page)
+      .isVisible()
+      .catch(() => false),
     page
       .getByRole("button", { name: "Thinking mode" })
       .first()
       .isVisible()
       .catch(() => false),
+    page
+      .getByTestId("messages-root")
+      .first()
+      .isVisible()
+      .catch(() => false),
+    page
+      .getByRole("button", { name: "Add action" })
+      .first()
+      .isVisible()
+      .catch(() => false),
+    page
+      .getByRole("button", { name: "Toggle terminal panel" })
+      .first()
+      .isVisible()
+      .catch(() => false),
+    page
+      .getByRole("button", { name: "Go to Home" })
+      .first()
+      .isVisible()
+      .catch(() => false),
+    page
+      .getByRole("navigation", { name: "Primary" })
+      .first()
+      .isVisible()
+      .catch(() => false),
+    page
+      .locator(".workspace-row.active")
+      .first()
+      .isVisible()
+      .catch(() => false),
   ]);
-  return homeVisible || composerVisible || thinkingVisible;
+
+  const routeWorkspaceVisible =
+    isWorkspaceRoute(page.url()) &&
+    (goHomeVisible || primaryNavVisible || activeWorkspaceRowVisible);
+
+  return (
+    homeVisible ||
+    composerVisible ||
+    composerStartVisible ||
+    thinkingVisible ||
+    messagesVisible ||
+    addActionVisible ||
+    terminalToggleVisible ||
+    routeWorkspaceVisible
+  );
+}
+
+function isWorkspaceRoute(url: string): boolean {
+  try {
+    const pathname = new URL(url).pathname;
+    return /^\/workspaces\/[^/]+$/.test(pathname);
+  } catch {
+    return /\/workspaces\/[^/]+$/.test(url);
+  }
 }
 
 async function isWorkspaceShellVisible(page: Page): Promise<boolean> {
@@ -171,9 +242,23 @@ export async function resolveWorkspaceHomeControl(page: Page): Promise<Locator> 
 }
 
 export async function openUserMenu(page: Page): Promise<void> {
-  const userMenuButton = page.getByRole("button", { name: "User menu" }).first();
-  await expect(userMenuButton).toBeVisible();
-  await clickByUser(page, userMenuButton);
+  const userMenuButtons = page.getByRole("button", { name: "User menu" });
+  const buttonCount = await userMenuButtons.count();
+  let userMenuButton: Locator | null = null;
+  for (let index = 0; index < buttonCount; index += 1) {
+    const candidate = userMenuButtons.nth(index);
+    if (await candidate.isVisible().catch(() => false)) {
+      userMenuButton = candidate;
+      break;
+    }
+  }
+  expect(userMenuButton).not.toBeNull();
+  const resolvedUserMenuButton = userMenuButton!;
+  await expect(resolvedUserMenuButton).toBeVisible();
+  if ((await resolvedUserMenuButton.getAttribute("aria-expanded")) !== "true") {
+    await clickByUser(page, resolvedUserMenuButton);
+  }
+  await expect(resolvedUserMenuButton).toHaveAttribute("aria-expanded", "true");
 }
 
 export async function assertUserMenuActionsVisible(
@@ -189,7 +274,10 @@ export async function assertUserMenuActionsVisible(
 
 export async function clickUserMenuAction(page: Page, actionLabel: string): Promise<void> {
   await openUserMenu(page);
-  const actionButton = page.getByRole("button", { name: actionLabel }).first();
+  let actionButton = page.getByRole("button", { name: actionLabel }).first();
+  if (!(await actionButton.isVisible().catch(() => false)) && actionLabel === "Open settings") {
+    actionButton = page.getByRole("button", { name: "Manage Accounts & Billing" }).first();
+  }
   await expect(actionButton).toBeVisible();
   await clickByUser(page, actionButton);
 }
@@ -220,92 +308,58 @@ export async function gotoWorkspaces(page: Page): Promise<void> {
 }
 
 export async function gotoWorkspace(page: Page, workspaceId: string): Promise<void> {
-  await gotoWorkspaces(page);
-  const workspaceNamePattern =
-    workspaceId === "workspace-web" ? /Web Workspace/i : new RegExp(workspaceId, "i");
+  if (
+    page.url().includes(`/workspaces/${workspaceId}`) &&
+    (await Promise.all([isWorkspaceShellVisible(page), isWorkspaceSurfaceVisible(page)]).then(
+      ([shellVisible, surfaceVisible]) => shellVisible || surfaceVisible
+    ))
+  ) {
+    await assertPageResponsive(page);
+    return;
+  }
+
   const openWorkspaceRoute = async () => {
     await page.goto(`/workspaces/${workspaceId}`, {
       waitUntil: "domcontentloaded",
       timeout: WORKSPACES_NAV_TIMEOUT_MS,
     });
   };
-  const workspaceCard = getWorkspaceCard(page, workspaceId);
-  const workspaceRow = workspaceCard.locator(".workspace-row").first();
-  const activeWorkspaceRow = workspaceCard.locator(".workspace-row.active").first();
-  const workspaceTreeItem = page.getByRole("treeitem", { name: workspaceNamePattern }).first();
-  const fallbackWorkspaceLabel = workspaceId === "workspace-web" ? "Web Workspace" : workspaceId;
-  const workspaceLabel =
-    (await workspaceRow.textContent().catch(() => fallbackWorkspaceLabel))?.trim() ||
-    fallbackWorkspaceLabel;
-  const isTargetWorkspaceVisible = async () => {
-    if (await activeWorkspaceRow.isVisible().catch(() => false)) {
-      return true;
-    }
-    const workspacePickerText = await page
-      .getByRole("button", { name: "Select workspace" })
-      .first()
-      .textContent()
-      .catch(() => null);
-    return (
-      (typeof workspacePickerText === "string" &&
-        (workspacePickerText.includes(workspaceLabel) ||
-          workspacePickerText.includes(workspaceId))) ||
-      page.url().includes(`/workspaces/${workspaceId}`)
-    );
+  const isTargetWorkspaceReady = async () => {
+    const [shellVisible, surfaceVisible] = await Promise.all([
+      isWorkspaceShellVisible(page),
+      isWorkspaceSurfaceVisible(page),
+    ]);
+    return page.url().includes(`/workspaces/${workspaceId}`) && (shellVisible || surfaceVisible);
   };
 
-  const clickedWorkspaceHomeButton = await pollBoolean(
-    () =>
-      page.evaluate(
-        (pattern) => {
-          const regex = new RegExp(pattern, "i");
-          const buttons = Array.from(
-            document.querySelectorAll<HTMLElement>('main button, main [role="button"]')
-          );
-          const target = buttons.find((button) => regex.test(button.textContent ?? ""));
-          if (!target) {
-            return false;
-          }
-          target.click();
-          return true;
-        },
-        workspaceId === "workspace-web" ? "Web Workspace" : workspaceId
-      ),
-    { timeoutMs: 15_000 }
-  );
-  const hasWorkspaceRow = await workspaceRow.isVisible({ timeout: 15_000 }).catch(() => false);
-  if (clickedWorkspaceHomeButton) {
-    await assertPageResponsive(page);
-    if (
-      workspaceId === "workspace-web" &&
-      (await pollBoolean(() => isWorkspaceSurfaceVisible(page), { timeoutMs: 20_000 }))
-    ) {
-      return;
-    }
-  } else if (hasWorkspaceRow) {
-    await clickByDom(workspaceRow);
-  } else if (await workspaceTreeItem.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await clickByUser(page, workspaceTreeItem);
-  } else {
+  await openWorkspaceRoute();
+  let targetWorkspaceReady = await pollBoolean(isTargetWorkspaceReady, {
+    timeoutMs: 45_000,
+  });
+  if (!targetWorkspaceReady) {
+    await gotoWorkspaces(page);
     await openWorkspaceRoute();
-  }
-
-  let shellReady = await waitForWorkspaceShell(page, 20_000);
-  let targetWorkspaceActive = await isTargetWorkspaceVisible();
-  if (!shellReady || !targetWorkspaceActive) {
-    await openWorkspaceRoute();
-    shellReady = await waitForWorkspaceShell(page, 20_000);
-    targetWorkspaceActive = await pollBoolean(isTargetWorkspaceVisible, {
-      timeoutMs: 15_000,
+    targetWorkspaceReady = await pollBoolean(isTargetWorkspaceReady, {
+      timeoutMs: 45_000,
     });
   }
-  expect(shellReady).toBe(true);
-  expect(targetWorkspaceActive).toBe(true);
+  expect(targetWorkspaceReady).toBe(true);
   await assertPageResponsive(page);
 }
 
 export async function openFirstWorkspace(page: Page): Promise<void> {
-  if (await isWorkspaceSurfaceVisible(page)) {
+  if (isWorkspaceRoute(page.url()) && (await isWorkspaceSurfaceVisible(page))) {
+    return;
+  }
+
+  const firstWorkspaceId = await page
+    .locator(".workspace-card[data-workspace-id]")
+    .first()
+    .getAttribute("data-workspace-id")
+    .catch(() => null);
+  if (firstWorkspaceId) {
+    await gotoWorkspace(page, firstWorkspaceId);
+    await expect.poll(() => isWorkspaceSurfaceVisible(page), { timeout: 15_000 }).toBe(true);
     return;
   }
 
@@ -388,6 +442,16 @@ export async function waitForSharedShellMissionSummaryToSettle(
   page: Page,
   timeoutMs = 15_000
 ): Promise<void> {
+  if (
+    !(await page
+      .locator("[data-workspace-shell]")
+      .first()
+      .isVisible()
+      .catch(() => false))
+  ) {
+    return;
+  }
+
   await expect
     .poll(
       () =>

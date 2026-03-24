@@ -135,8 +135,8 @@ export function SettingsFeaturesSection({
         subtitle="Preview features that may change or be removed."
       >
         <div className={grammar.helpText}>
-          Extension work is skills-first. ChatGPT apps/connectors are no longer part of the active
-          product surface.
+          Extensions now share one runtime catalog. Skills remain the primary extension kind, and
+          ChatGPT apps/connectors are not part of the active product surface.
         </div>
         <SettingsControlRow
           title="Internal runtime diagnostics"

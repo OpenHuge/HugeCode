@@ -1,4 +1,14 @@
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  Children,
+  Fragment,
+  isValidElement,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../design-system";
 import { getLatestPlanPanelRequestId, onOpenPlanPanel } from "../plan/utils/planPanelSurface";
 import {
@@ -41,18 +51,23 @@ export function ThreadRightPanel({
 }: ThreadRightPanelProps) {
   const tabIdBase = useId().replace(/:/g, "");
   const inspector = useOptionalRightPanelInspector();
-  const hasDiff = hasDiffContent && diffNode != null;
+  const hasInterrupt = hasRenderableNode(interruptNode);
+  const hasDiff = hasDiffContent && hasRenderableNode(diffNode);
   const selectionFocusKey = inspector?.selection
     ? `${inspector.selection.kind}:${inspector.selection.itemId}`
     : null;
+  const hasGit = hasRenderableNode(gitNode);
+  const hasFiles = hasRenderableNode(filesNode);
+  const hasContextContent =
+    hasRenderableNode(planNode) || hasRenderableNode(detailNode) || hasRenderableNode(promptsNode);
   const hasContext = Boolean(
-    hasActivePlan || hasDetailContent || promptsNode || inspector?.selection
+    hasActivePlan || hasDetailContent || hasContextContent || inspector?.selection
   );
   const [activeTab, setActiveTab] = useState<RailTab>(() =>
     resolveDefaultRailTab({
       hasDiff,
-      hasGit: gitNode != null,
-      hasFiles: filesNode != null,
+      hasGit,
+      hasFiles,
       hasContext,
       preferContext: Boolean(selectionFocusKey),
     })
@@ -113,7 +128,7 @@ export function ThreadRightPanel({
           </RightPanelTopBar>
         ) : null}
         <RightPanelBody>
-          {interruptNode ? (
+          {hasInterrupt ? (
             <RightRailSection section="interrupt" data-testid="right-panel-interrupt-strip">
               {interruptNode}
             </RightRailSection>
@@ -142,6 +157,7 @@ export function ThreadRightPanel({
                           planNode,
                           detailNode,
                           promptsNode,
+                          hasInterrupt,
                         })
                       : null}
                   </TabsContent>
@@ -164,7 +180,11 @@ function ContextRailContent({
   detailNode: ReactNode;
   promptsNode: ReactNode;
 }) {
-  if (!planNode && !detailNode && !promptsNode) {
+  if (
+    !hasRenderableNode(planNode) &&
+    !hasRenderableNode(detailNode) &&
+    !hasRenderableNode(promptsNode)
+  ) {
     return null;
   }
 
@@ -186,39 +206,42 @@ function renderRailPanel(
     planNode: ReactNode;
     detailNode: ReactNode;
     promptsNode: ReactNode;
+    hasInterrupt: boolean;
   }
 ) {
   if (tab === "diff") {
-    return (
-      nodes.diffNode ?? (
-        <RailTabEmptyState
-          title="Diff is waiting"
-          body="Select a changed file or pull request diff to inspect patches here."
-        />
-      )
+    return hasRenderableNode(nodes.diffNode) ? (
+      nodes.diffNode
+    ) : (
+      <RailTabEmptyState
+        title="Diff is waiting"
+        body="Select a changed file or pull request diff to inspect patches here."
+      />
     );
   }
   if (tab === "git") {
-    return (
-      nodes.gitNode ?? (
-        <RailTabEmptyState
-          title="Git details unavailable"
-          body="Branch status, staged changes, and commit actions will appear here once the workspace is ready."
-        />
-      )
+    return hasRenderableNode(nodes.gitNode) ? (
+      nodes.gitNode
+    ) : (
+      <RailTabEmptyState
+        title="Git details unavailable"
+        body="Branch status, staged changes, and commit actions will appear here once the workspace is ready."
+      />
     );
   }
   if (tab === "files") {
-    return (
-      nodes.filesNode ?? (
-        <RailTabEmptyState
-          title="Files are unavailable"
-          body="Workspace files and modified paths will appear here after the project tree loads."
-        />
-      )
+    return hasRenderableNode(nodes.filesNode) ? (
+      nodes.filesNode
+    ) : (
+      <RailTabEmptyState
+        title="Files are unavailable"
+        body="Workspace files and modified paths will appear here after the project tree loads."
+      />
     );
   }
-  return nodes.planNode || nodes.detailNode || nodes.promptsNode ? (
+  return hasRenderableNode(nodes.planNode) ||
+    hasRenderableNode(nodes.detailNode) ||
+    hasRenderableNode(nodes.promptsNode) ? (
     <ContextRailContent
       planNode={nodes.planNode}
       detailNode={nodes.detailNode}
@@ -226,8 +249,12 @@ function renderRailPanel(
     />
   ) : (
     <RailTabEmptyState
-      title="Context will appear here"
-      body="Plan progress, file details, and prompt context stay docked in this tab."
+      title={nodes.hasInterrupt ? "Restore runtime to load context" : "Context will appear here"}
+      body={
+        nodes.hasInterrupt
+          ? "Resolve the blocking runtime issue above. Plan progress, file context, and prompt state will reappear here once the workspace reconnects."
+          : "Plan progress, file details, and prompt context stay docked in this tab."
+      }
     />
   );
 }
@@ -274,4 +301,26 @@ function resolveDefaultRailTab({
 
 function RailTabEmptyState({ title, body }: { title: string; body: string }) {
   return <RightPanelEmptyState title={title} body={body} />;
+}
+
+function hasRenderableNode(node: ReactNode): boolean {
+  if (node === null || node === undefined || typeof node === "boolean") {
+    return false;
+  }
+  if (typeof node === "string") {
+    return node.trim().length > 0;
+  }
+  if (typeof node === "number") {
+    return true;
+  }
+  if (Array.isArray(node)) {
+    return node.some((child) => hasRenderableNode(child));
+  }
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    if (node.type === Fragment) {
+      return Children.toArray(node.props.children).some((child) => hasRenderableNode(child));
+    }
+    return true;
+  }
+  return true;
 }

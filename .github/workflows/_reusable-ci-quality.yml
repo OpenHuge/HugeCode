@@ -17,6 +17,11 @@ on:
         type: string
         default: ""
 
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_API: ${{ vars.TURBO_API }}
+
 jobs:
   quality:
     name: Quality
@@ -25,7 +30,7 @@ jobs:
     env:
       TURBO_CACHE_DIR: .turbo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Skip heavy checks for non-code change
         if: ${{ !inputs.ci_required }}

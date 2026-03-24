@@ -1,13 +1,17 @@
 import { join } from "node:path";
 import type { IpcMainInvokeEvent } from "electron";
+import type { DesktopReleaseChannel } from "../shared/ipc.js";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
+import { createDesktopAutoUpdateConfigurator } from "./desktopAutoUpdateConfigurator.js";
 import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
+import { createDesktopLaunchIntentController } from "./desktopLaunchIntentController.js";
 import { createDesktopRendererTrust } from "./desktopRendererTrust.js";
 import { createDesktopShellState, type DesktopWindowBounds } from "./desktopShellState.js";
 import { createDesktopNotificationController } from "./desktopNotificationController.js";
 import { createDesktopStateStore } from "./desktopStateStore.js";
 import { createDesktopTrayController } from "./desktopTrayController.js";
+import { createDesktopUpdaterController } from "./desktopUpdaterController.js";
 import { createDesktopWindowController } from "./desktopWindowController.js";
 import { registerDesktopHostIpc } from "./registerDesktopHostIpc.js";
 
@@ -24,14 +28,23 @@ export type CreateDesktopMainCompositionInput = {
     enableSandbox(): void;
     getPath(name: "userData"): string;
     getVersion(): string;
+    isPackaged: boolean;
     on(event: "activate", listener: () => void): void;
     on(event: "before-quit", listener: () => void): void;
-    on(event: "second-instance", listener: () => void): void;
+    on(event: "open-url", listener: (event: { preventDefault(): void }, url: string) => void): void;
+    on(event: "second-instance", listener: (_event: unknown, argv: string[]) => void): void;
     on(event: "window-all-closed", listener: () => void): void;
     quit(): void;
     requestSingleInstanceLock(): boolean;
+    setAsDefaultProtocolClient(protocol: string): boolean;
     whenReady(): Promise<unknown>;
   };
+  autoUpdater: {
+    checkForUpdates(): void;
+    on(event: string, listener: (...args: unknown[]) => void): void;
+    quitAndInstall(): void;
+  };
+  arch: NodeJS.Architecture;
   browserWindow: {
     getAllWindows(): Array<{
       focus(): void;
@@ -48,12 +61,16 @@ export type CreateDesktopMainCompositionInput = {
     ): void;
   };
   platform: NodeJS.Platform;
+  processArgv?: string[];
+  releaseChannel?: DesktopReleaseChannel;
   rendererDevServerUrl?: string | null;
+  repositoryUrl?: string;
   shell: {
     openExternal(url: string): Promise<void>;
     showItemInFolder(path: string): void;
   };
   sourceDirectory: string;
+  staticUpdateBaseUrl?: string | null;
   trayIconDataUrl?: string;
 };
 
@@ -69,6 +86,36 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   const shellState = createDesktopShellState({
     persistedState: stateStore.read(),
   });
+  const launchIntentController = createDesktopLaunchIntentController({
+    app: input.app,
+    initialArgv: input.processArgv,
+    platform: input.platform,
+    protocol: "hugecode",
+  });
+  const autoUpdateConfigurator = createDesktopAutoUpdateConfigurator({
+    arch: input.arch,
+    channel: input.releaseChannel ?? "beta",
+    isPackaged: input.app.isPackaged,
+    logger: console,
+    platform: input.platform,
+    processArgv: input.processArgv,
+    repoUrl: input.repositoryUrl ?? "https://github.com/OpenHuge/HugeCode",
+    staticUpdateBaseUrl: input.staticUpdateBaseUrl ?? null,
+  });
+  const updaterController = createDesktopUpdaterController({
+    appVersion: (() => {
+      const version = input.app.getVersion();
+      return typeof version === "string" && version.length > 0 ? version : null;
+    })(),
+    autoUpdater: input.autoUpdater,
+    configureAutoUpdates: autoUpdateConfigurator.initialize,
+    repoUrl: input.repositoryUrl ?? "https://github.com/OpenHuge/HugeCode",
+    strategy: autoUpdateConfigurator.strategy,
+  });
+  const appVersion = (() => {
+    const version = input.app.getVersion();
+    return typeof version === "string" && version.length > 0 ? version : null;
+  })();
 
   function persistDesktopState() {
     stateStore.write(shellState.toPersistedState());
@@ -129,10 +176,19 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   });
 
   const desktopHostHandlers = createDesktopHostHandlers({
-    appVersion: (() => {
-      const version = input.app.getVersion();
-      return typeof version === "string" && version.length > 0 ? version : null;
-    })(),
+    appVersion,
+    consumePendingLaunchIntent: launchIntentController.consumePendingIntent,
+    getAppInfo() {
+      const updateState = updaterController.getState();
+      return {
+        channel: input.releaseChannel ?? "beta",
+        platform: input.platform,
+        updateCapability: updateState.capability,
+        updateMessage: updateState.message ?? null,
+        updateMode: updateState.mode,
+        version: appVersion,
+      };
+    },
     listRecentSessions() {
       return shellState.recentSessions;
     },
@@ -150,6 +206,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       return true;
     },
     trayController,
+    updaterController,
     windowController,
   });
 
@@ -171,6 +228,9 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
 
   function start() {
     input.app.enableSandbox();
+    updaterController.initialize();
+    launchIntentController.registerAppHandlers();
+    launchIntentController.registerProtocolClient();
 
     registerDesktopHostIpc({
       channels: DESKTOP_HOST_IPC_CHANNELS,
@@ -199,6 +259,9 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       onBeforeQuit() {
         isQuitting = true;
         trayController.dispose();
+      },
+      onSecondInstance(argv) {
+        launchIntentController.queueArgv(argv);
       },
       openWindow: windowController.openWindow,
       updateTray() {

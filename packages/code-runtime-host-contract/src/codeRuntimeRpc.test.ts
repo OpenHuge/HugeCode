@@ -458,6 +458,28 @@ describe("code runtime rpc compatibility helpers", () => {
           unattendedContinuationAllowed: false,
         },
       },
+      autonomyRequest: {
+        autonomyProfile: "night_operator",
+        sourceScope: "workspace_graph_and_public_web",
+        queueBudget: {
+          maxQueuedActions: 2,
+          maxRuntimeMinutes: 10,
+          maxAutoContinuations: 2,
+        },
+        wakePolicy: {
+          mode: "auto_queue",
+          safeFollowUp: true,
+          allowAutomaticContinuation: true,
+          allowedActions: ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+          stopGates: ["destructive_change_requires_review", "dependency_change_requires_review"],
+        },
+        researchPolicy: {
+          mode: "staged",
+          allowNetworkAnalysis: true,
+          requireCitations: true,
+          allowPrivateContextStage: true,
+        },
+      },
       steps: [{ kind: "read", input: "Implement runtime-first AutoDrive." }],
     };
     const interventionRequest: AgentTaskInterventionRequest = {
@@ -482,79 +504,68 @@ describe("code runtime rpc compatibility helpers", () => {
       unknown
     >;
 
-    expect(startPayload.autoDrive).toEqual(
-      expect.objectContaining({
-        destination: startRequest.autoDrive?.destination,
-        budget: startRequest.autoDrive?.budget,
-        riskPolicy: startRequest.autoDrive?.riskPolicy,
-      })
-    );
-    expect(startPayload.auto_drive).toEqual(
-      expect.objectContaining({
-        destination: startRequest.autoDrive?.destination,
-        budget: startRequest.autoDrive?.budget,
-        riskPolicy: startRequest.autoDrive?.riskPolicy,
-      })
-    );
-    expect(startPayload.autoDrive).toEqual(
-      expect.objectContaining({
-        contextPolicy: expect.objectContaining({
-          scope: "workspace_graph",
-          workspaceReadPaths: ["/repo", "/peer"],
-          workspace_read_paths: ["/repo", "/peer"],
-          authoritySources: ["repo_authority", "workspace_graph"],
-          authority_sources: ["repo_authority", "workspace_graph"],
-        }),
-        context_policy: expect.objectContaining({
-          scope: "workspace_graph",
-        }),
-        decisionPolicy: expect.objectContaining({
-          independentThread: true,
-          independent_thread: true,
-          autonomyPriority: "operator",
-          autonomy_priority: "operator",
-          promptStrategy: "workspace_graph_first",
-          prompt_strategy: "workspace_graph_first",
-          researchMode: "repository_only",
-          research_mode: "repository_only",
-        }),
-        decision_policy: expect.objectContaining({
-          independentThread: true,
-        }),
-        scenarioProfile: expect.objectContaining({
-          authorityScope: "workspace_graph",
-          authority_scope: "workspace_graph",
-          scenarioKeys: ["validation-recovery"],
-          scenario_keys: ["validation-recovery"],
-        }),
-        scenario_profile: expect.objectContaining({
-          representativeCommands: ["pnpm test"],
-          representative_commands: ["pnpm test"],
-        }),
-        decisionTrace: expect.objectContaining({
-          selectedCandidateId: "launch_autodrive",
-          selected_candidate_id: "launch_autodrive",
-        }),
-        decision_trace: expect.objectContaining({
-          selectionTags: ["workspace_graph", "eval_first"],
-          selection_tags: ["workspace_graph", "eval_first"],
-        }),
-        outcomeFeedback: expect.objectContaining({
-          status: "launch_prepared",
-        }),
-        outcome_feedback: expect.objectContaining({
-          summary: "Runtime prepared AutoDrive launch context.",
-        }),
-        autonomyState: expect.objectContaining({
-          highPriority: true,
-          high_priority: true,
-        }),
-        autonomy_state: expect.objectContaining({
-          unattendedContinuationAllowed: false,
-          unattended_continuation_allowed: false,
-        }),
-      })
-    );
+    expect(startPayload.autoDrive.destination).toEqual(startRequest.autoDrive?.destination);
+    expect(startPayload.autoDrive.budget).toEqual(startRequest.autoDrive?.budget);
+    expect(startPayload.autoDrive.riskPolicy).toMatchObject({
+      ...startRequest.autoDrive?.riskPolicy,
+      allow_network_analysis: false,
+    });
+    expect(startPayload.auto_drive).toEqual(startPayload.autoDrive);
+    expect(startPayload.autoDrive.contextPolicy).toMatchObject({
+      scope: "workspace_graph",
+      workspaceReadPaths: ["/repo", "/peer"],
+      workspace_read_paths: ["/repo", "/peer"],
+      authoritySources: ["repo_authority", "workspace_graph"],
+      authority_sources: ["repo_authority", "workspace_graph"],
+    });
+    expect(startPayload.autoDrive.context_policy).toMatchObject({
+      scope: "workspace_graph",
+    });
+    expect(startPayload.autoDrive.decisionPolicy).toMatchObject({
+      independentThread: true,
+      independent_thread: true,
+      autonomyPriority: "operator",
+      autonomy_priority: "operator",
+      promptStrategy: "workspace_graph_first",
+      prompt_strategy: "workspace_graph_first",
+      researchMode: "repository_only",
+      research_mode: "repository_only",
+    });
+    expect(startPayload.autoDrive.decision_policy).toMatchObject({
+      independentThread: true,
+    });
+    expect(startPayload.autoDrive.scenarioProfile).toMatchObject({
+      authorityScope: "workspace_graph",
+      authority_scope: "workspace_graph",
+      scenarioKeys: ["validation-recovery"],
+      scenario_keys: ["validation-recovery"],
+    });
+    expect(startPayload.autoDrive.scenario_profile).toMatchObject({
+      representativeCommands: ["pnpm test"],
+      representative_commands: ["pnpm test"],
+    });
+    expect(startPayload.autoDrive.decisionTrace).toMatchObject({
+      selectedCandidateId: "launch_autodrive",
+      selected_candidate_id: "launch_autodrive",
+    });
+    expect(startPayload.autoDrive.decision_trace).toMatchObject({
+      selectionTags: ["workspace_graph", "eval_first"],
+      selection_tags: ["workspace_graph", "eval_first"],
+    });
+    expect(startPayload.autoDrive.outcomeFeedback).toMatchObject({
+      status: "launch_prepared",
+    });
+    expect(startPayload.autoDrive.outcome_feedback).toMatchObject({
+      summary: "Runtime prepared AutoDrive launch context.",
+    });
+    expect(startPayload.autoDrive.autonomyState).toMatchObject({
+      highPriority: true,
+      high_priority: true,
+    });
+    expect(startPayload.autoDrive.autonomy_state).toMatchObject({
+      unattendedContinuationAllowed: false,
+      unattended_continuation_allowed: false,
+    });
     expect(startPayload.taskSource).toEqual(
       expect.objectContaining({
         kind: "github_issue",
@@ -592,6 +603,35 @@ describe("code runtime rpc compatibility helpers", () => {
       })
     );
     expect(startPayload.relaunch_context).toEqual(startPayload.relaunchContext);
+    expect(startPayload.autonomyRequest).toMatchObject({
+      autonomyProfile: "night_operator",
+      autonomy_profile: "night_operator",
+      sourceScope: "workspace_graph_and_public_web",
+      source_scope: "workspace_graph_and_public_web",
+    });
+    expect(startPayload.autonomyRequest.queueBudget).toMatchObject({
+      maxQueuedActions: 2,
+      max_queued_actions: 2,
+      maxRuntimeMinutes: 10,
+      max_runtime_minutes: 10,
+    });
+    expect(startPayload.autonomyRequest.wakePolicy).toMatchObject({
+      safeFollowUp: true,
+      safe_follow_up: true,
+      allowAutomaticContinuation: true,
+      allow_automatic_continuation: true,
+      allowedActions: ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+      allowed_actions: ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+    });
+    expect(startPayload.autonomyRequest.researchPolicy).toMatchObject({
+      allowNetworkAnalysis: true,
+      allow_network_analysis: true,
+      requireCitations: true,
+      require_citations: true,
+      allowPrivateContextStage: true,
+      allow_private_context_stage: true,
+    });
+    expect(startPayload.autonomy_request).toEqual(startPayload.autonomyRequest);
     expect(interventionPayload.instructionPatch).toBe(interventionRequest.instructionPatch);
     expect(interventionPayload.instruction_patch).toBe(interventionRequest.instructionPatch);
     expect(interventionPayload.relaunchContext).toEqual(
@@ -1260,24 +1300,45 @@ describe("agent and oauth rpc methods", () => {
     expect(
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.MCP_SERVER_STATUS_LIST_V1)
     ).toEqual(["code_mcp_server_status_list_v1"]);
-    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSIONS_LIST_V1)).toEqual(
-      ["code_extensions_list_v1"]
-    );
     expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_INSTALL_V1)
-    ).toEqual(["code_extension_install_v1"]);
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_CATALOG_LIST_V2)
+    ).toEqual(["code_extension_catalog_list_v2"]);
+    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_GET_V2)).toEqual([
+      "code_extension_get_v2",
+    ]);
     expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_REMOVE_V1)
-    ).toEqual(["code_extension_remove_v1"]);
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_INSTALL_V2)
+    ).toEqual(["code_extension_install_v2"]);
     expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V1)
-    ).toEqual(["code_extension_tools_list_v1"]);
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_UPDATE_V2)
+    ).toEqual(["code_extension_update_v2"]);
     expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V1)
-    ).toEqual(["code_extension_resource_read_v1"]);
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_SET_STATE_V2)
+    ).toEqual(["code_extension_set_state_v2"]);
     expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSIONS_CONFIG_V1)
-    ).toEqual(["code_extensions_config_v1"]);
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_REMOVE_V2)
+    ).toEqual(["code_extension_remove_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_REGISTRY_SEARCH_V2)
+    ).toEqual(["code_extension_registry_search_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_REGISTRY_SOURCES_V2)
+    ).toEqual(["code_extension_registry_sources_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_PERMISSIONS_EVALUATE_V2)
+    ).toEqual(["code_extension_permissions_evaluate_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_HEALTH_READ_V2)
+    ).toEqual(["code_extension_health_read_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_UI_APPS_LIST_V2)
+    ).toEqual(["code_extension_ui_apps_list_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V2)
+    ).toEqual(["code_extension_tools_list_v2"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V2)
+    ).toEqual(["code_extension_resource_read_v2"]);
     expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.SESSION_EXPORT_V1)).toEqual([
       "code_session_export_v1",
     ]);
@@ -1301,7 +1362,7 @@ describe("agent and oauth rpc methods", () => {
 
 describe("rpc capability constants", () => {
   it("exposes contract version", () => {
-    expect(CODE_RUNTIME_RPC_CONTRACT_VERSION).toBe("2026-03-22");
+    expect(CODE_RUNTIME_RPC_CONTRACT_VERSION).toBe("2026-03-23");
   });
 
   it("exposes required feature flags", () => {
@@ -1357,8 +1418,8 @@ describe("rpc capability constants", () => {
         "runtime_codex_execpolicy_preflight_v1",
         "runtime_codex_unified_rpc_migration_v1",
         "runtime_host_deprecated",
-        "app_server_protocol_v2_2026_03_22",
-        "contract_frozen_2026_03_22",
+        "app_server_protocol_v2_2026_03_23",
+        "contract_frozen_2026_03_23",
       ])
     );
   });
