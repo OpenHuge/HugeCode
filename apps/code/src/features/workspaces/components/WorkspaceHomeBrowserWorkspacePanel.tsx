@@ -63,6 +63,7 @@ export function WorkspaceHomeBrowserWorkspacePanel({
   const [activeKind, setActiveKind] = useState<DesktopBrowserWorkspaceSessionKind>("preview");
   const [explicitUrl, setExplicitUrl] = useState("");
   const [sessionUrlDraft, setSessionUrlDraft] = useState("");
+  const [sessionUrlDirty, setSessionUrlDirty] = useState(false);
   const [candidates, setCandidates] = useState<PreviewTargetCandidate[]>([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>("");
   const [busy, setBusy] = useState(false);
@@ -100,8 +101,22 @@ export function WorkspaceHomeBrowserWorkspacePanel({
   const activeSessionUrl = activeSession?.currentUrl ?? activeSession?.targetUrl ?? "";
 
   useEffect(() => {
-    setSessionUrlDraft(activeSessionUrl);
-  }, [activeSessionUrl, activeSession?.sessionId]);
+    if (!sessionUrlDirty) {
+      setSessionUrlDraft(activeSessionUrl);
+    }
+  }, [activeSessionUrl, activeSession?.sessionId, sessionUrlDirty]);
+
+  useEffect(() => {
+    if (!activeSession) {
+      return;
+    }
+    const interval = window.setInterval(() => {
+      void refresh();
+    }, 1_500);
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [activeSession?.sessionId, workspaceId]);
 
   const withBusy = async (work: () => Promise<void>) => {
     setBusy(true);
@@ -279,7 +294,11 @@ export function WorkspaceHomeBrowserWorkspacePanel({
           <input
             className={controlStyles.fieldControl}
             value={sessionUrlDraft}
-            onChange={(event) => setSessionUrlDraft(event.target.value)}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setSessionUrlDraft(nextValue);
+              setSessionUrlDirty(nextValue !== activeSessionUrl);
+            }}
             placeholder="https://chatgpt.com/ or http://127.0.0.1:5173"
           />
         </label>
@@ -335,6 +354,7 @@ export function WorkspaceHomeBrowserWorkspacePanel({
                 previewServerStatus: activeSession.previewServerStatus,
                 focus: activeSession.host === "window",
               });
+              setSessionUrlDirty(false);
               await refresh();
             })
           }
@@ -345,7 +365,10 @@ export function WorkspaceHomeBrowserWorkspacePanel({
         <button
           type="button"
           className={controlStyles.actionButton}
-          onClick={() => setSessionUrlDraft(activeSessionUrl)}
+          onClick={() => {
+            setSessionUrlDraft(activeSessionUrl);
+            setSessionUrlDirty(false);
+          }}
           disabled={busy || sessionUrlDraft === activeSessionUrl}
         >
           Reset URL
