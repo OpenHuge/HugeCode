@@ -65,16 +65,29 @@ test("sidebar and home shell scaffolds stay stable without reviving legacy wrapp
 
   await clickByUser(page, page.getByRole("button", { name: "Go to Home" }).first());
   const sharedShell = page.locator("[data-workspace-shell]").first();
-  const workspaceSections = page.getByRole("navigation", { name: "Workspace sections" }).first();
-  const homeHeading = page.getByRole("heading", { level: 1, name: "Home" }).first();
+  const homePage = page.locator('[data-home-page="true"]').first();
   const composerStartHeading = page
     .getByRole("heading", { level: 2, name: "Start in the composer." })
     .first();
-
-  const landedOnHomeState =
-    (await sharedShell.isVisible().catch(() => false)) ||
-    (await workspaceSections.isVisible().catch(() => false)) ||
-    (await homeHeading.isVisible().catch(() => false)) ||
-    (await composerStartHeading.isVisible().catch(() => false));
-  expect(landedOnHomeState).toBe(true);
+  if (await sharedShell.isVisible().catch(() => false)) {
+    await expect(sharedShell).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "Workspace sections" }).first()
+    ).toBeVisible();
+  } else if (await composerStartHeading.isVisible().catch(() => false)) {
+    await expect(composerStartHeading).toBeVisible();
+    await expect(page.getByText("Skills", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Commands", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Mentions", { exact: true }).first()).toBeVisible();
+    return;
+  } else {
+    await expect(homePage).toBeVisible();
+  }
+  await expect(page.getByRole("heading", { level: 1, name: "Home" }).first()).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Operator overview" }).first()
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Browse the shared workspace roster" }).first()
+  ).toBeVisible();
 });

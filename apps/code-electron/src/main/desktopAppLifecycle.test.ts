@@ -5,7 +5,8 @@ import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
 type AppEventMap = {
   activate: () => void;
   "before-quit": () => void;
-  "second-instance": () => void;
+  "open-url": (event: { preventDefault(): void }, url: string) => void;
+  "second-instance": (event: unknown, argv: string[]) => void;
   "window-all-closed": () => void;
 };
 
@@ -15,12 +16,12 @@ function createFakeApp(platform = "darwin") {
 
   return {
     on: vi.fn(<Key extends keyof AppEventMap>(event: Key, listener: AppEventMap[Key]) => {
-      listeners.set(event, listener);
+      listeners.set(event, listener as () => void);
     }),
     quit: vi.fn(),
     requestSingleInstanceLock: vi.fn(() => true),
-    trigger<Key extends keyof AppEventMap>(event: Key) {
-      listeners.get(event)?.();
+    trigger<Key extends keyof AppEventMap>(event: Key, ...args: Parameters<AppEventMap[Key]>) {
+      (listeners.get(event) as (...eventArgs: Parameters<AppEventMap[Key]>) => void)?.(...args);
     },
     whenReady,
     platform,
@@ -54,6 +55,7 @@ describe("desktopAppLifecycle", () => {
       getLatestSession: () => sessions[0] ?? null,
       getPersistedSessions: () => sessions,
       isTrayEnabled: () => false,
+      onSecondInstance: vi.fn(),
       onBeforeQuit: vi.fn(),
       openWindow,
       updateTray,
@@ -78,6 +80,7 @@ describe("desktopAppLifecycle", () => {
       getLatestSession: () => null,
       getPersistedSessions: () => [],
       isTrayEnabled: () => false,
+      onSecondInstance: vi.fn(),
       onBeforeQuit: vi.fn(),
       openWindow,
       updateTray: vi.fn(),
@@ -105,16 +108,47 @@ describe("desktopAppLifecycle", () => {
       getLatestSession: () => null,
       getPersistedSessions: () => [],
       isTrayEnabled: () => false,
+      onSecondInstance: vi.fn(),
       onBeforeQuit: vi.fn(),
       openWindow: vi.fn(),
       updateTray: vi.fn(),
     });
 
-    app.trigger("second-instance");
+    app.trigger("second-instance", {}, ["HugeCode"]);
 
     expect(firstWindow.restore).toHaveBeenCalledTimes(1);
     expect(firstWindow.show).toHaveBeenCalledTimes(1);
     expect(firstWindow.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards second-instance argv to the injected launch-intent handler", () => {
+    const app = createFakeApp();
+    const onSecondInstance = vi.fn();
+
+    registerDesktopAppLifecycle({
+      app,
+      browserWindow: {
+        getAllWindows: vi.fn(() => []),
+      },
+      createWindowForSession: vi.fn(),
+      getLatestSession: () => null,
+      getPersistedSessions: () => [],
+      isTrayEnabled: () => false,
+      onSecondInstance,
+      onBeforeQuit: vi.fn(),
+      openWindow: vi.fn(),
+      updateTray: vi.fn(),
+    });
+
+    app.trigger("second-instance", {}, [
+      "HugeCode",
+      "hugecode://workspace/open?path=%2Fworkspace%2Falpha",
+    ]);
+
+    expect(onSecondInstance).toHaveBeenCalledWith([
+      "HugeCode",
+      "hugecode://workspace/open?path=%2Fworkspace%2Falpha",
+    ]);
   });
 
   it("opens a window on activate when no windows are open", async () => {
@@ -139,6 +173,7 @@ describe("desktopAppLifecycle", () => {
       getLatestSession: () => latestSession,
       getPersistedSessions: () => [],
       isTrayEnabled: () => false,
+      onSecondInstance: vi.fn(),
       onBeforeQuit: vi.fn(),
       openWindow: vi.fn(),
       updateTray: vi.fn(),
@@ -162,6 +197,7 @@ describe("desktopAppLifecycle", () => {
       getLatestSession: () => null,
       getPersistedSessions: () => [],
       isTrayEnabled: () => false,
+      onSecondInstance: vi.fn(),
       onBeforeQuit: vi.fn(),
       openWindow: vi.fn(),
       updateTray: vi.fn(),

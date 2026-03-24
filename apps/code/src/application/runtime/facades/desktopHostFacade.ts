@@ -1,13 +1,24 @@
 import {
+  checkDesktopForUpdates,
+  consumeDesktopLaunchIntent,
   detectDesktopRuntimeHost as detectDesktopRuntimeHostWithCapabilities,
   openDesktopExternalUrl,
+  resolveDesktopAppInfo,
   resolveDesktopAppVersion,
   resolveDesktopSessionInfo,
+  resolveDesktopUpdateState,
   resolveDesktopWindowLabel,
+  restartDesktopToApplyUpdate,
   revealDesktopItemInDir,
   showDesktopNotification as showDesktopNotificationWithCapabilities,
 } from "@ku0/code-application";
-import type { DesktopNotificationInput, DesktopSessionInfo } from "@ku0/code-platform-interfaces";
+import type {
+  DesktopAppInfo,
+  DesktopLaunchIntent,
+  DesktopNotificationInput,
+  DesktopSessionInfo,
+  DesktopUpdateState,
+} from "@ku0/code-platform-interfaces";
 import { getDesktopHostBridge } from "../ports/desktopHostBridge";
 import {
   detectTauriRuntime,
@@ -46,8 +57,28 @@ export async function resolveAppVersion() {
   });
 }
 
+export async function resolveAppInfo(): Promise<DesktopAppInfo | null> {
+  return resolveDesktopAppInfo(getDesktopHostBridge());
+}
+
 export async function resolveCurrentDesktopSession(): Promise<DesktopSessionInfo | null> {
   return resolveDesktopSessionInfo(getDesktopHostBridge());
+}
+
+export async function consumePendingDesktopLaunchIntent(): Promise<DesktopLaunchIntent | null> {
+  return consumeDesktopLaunchIntent(getDesktopHostBridge());
+}
+
+export async function resolveDesktopUpdaterState(): Promise<DesktopUpdateState> {
+  return resolveDesktopUpdateState(getDesktopHostBridge());
+}
+
+export async function checkForDesktopUpdates(): Promise<DesktopUpdateState> {
+  return checkDesktopForUpdates(getDesktopHostBridge());
+}
+
+export async function restartDesktopUpdate(): Promise<boolean> {
+  return restartDesktopToApplyUpdate(getDesktopHostBridge());
 }
 
 export async function openUrl(url: string) {

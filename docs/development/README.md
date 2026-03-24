@@ -29,7 +29,9 @@ When working from multiple git worktrees, `pnpm run` / `pnpm exec` now warn inst
 `node_modules` looks stale for the current branch metadata. Treat the warning as a prompt to run
 `pnpm install` when dependencies, lockfile contents, or workspace package manifests actually changed.
 
-Core setup excludes the Cloudflare web shell from the default root workflow.
+Core setup still defaults to the desktop/runtime flow. Root build, lint, and
+typecheck include the Cloudflare web shell, but explicit web dev and deploy work
+should still run through `pnpm web:*`.
 
 - `pnpm check:workflow-governance`
   Required when CI workflow docs, workflow files, or reusable workflow mappings change.

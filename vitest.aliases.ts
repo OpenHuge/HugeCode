@@ -19,10 +19,6 @@ export const aliases: AliasEntry[] = [
 
   // @ku0/shared subpaths
   {
-    find: "@ku0/code/workspace-surface",
-    replacement: path.resolve(__dirname, "apps/code/src/MainAppContainerCore.tsx"),
-  },
-  {
     find: "@ku0/code-runtime-client/runtimeClientTypes",
     replacement: path.resolve(__dirname, "packages/code-runtime-client/src/runtimeClientTypes.ts"),
   },

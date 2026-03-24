@@ -6,7 +6,7 @@ export const Route = createFileRoute("/_public/about")({
   head: () => ({
     meta: [
       {
-        title: "About Open Fast",
+        title: "About HugeCode",
       },
     ],
   }),

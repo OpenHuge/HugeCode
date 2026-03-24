@@ -4,7 +4,18 @@ import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
 describe("createDesktopHostHandlers", () => {
   it("delegates session, tray, and window handlers to the injected controllers", () => {
     const input = {
+      appInfo: {
+        channel: "beta" as const,
+        platform: "darwin" as const,
+        updateCapability: "automatic" as const,
+        version: "1.2.3",
+      },
       appVersion: "1.2.3",
+      consumePendingLaunchIntent: vi.fn(() => ({
+        kind: "protocol" as const,
+        receivedAt: "2026-03-24T00:00:00.000Z",
+        url: "hugecode://workspace/open?path=%2Fworkspace%2Falpha",
+      })),
       listRecentSessions: vi.fn(() => [{ id: "session-1" }]),
       notificationController: {
         showNotification: vi.fn(() => true),
@@ -15,6 +26,18 @@ describe("createDesktopHostHandlers", () => {
       trayController: {
         getState: vi.fn(() => ({ enabled: true, supported: true })),
         update: vi.fn(),
+      },
+      updaterController: {
+        checkForUpdates: vi.fn(() => ({
+          capability: "automatic" as const,
+          stage: "checking" as const,
+        })),
+        getState: vi.fn(() => ({
+          capability: "automatic" as const,
+          stage: "available" as const,
+          version: "1.2.4",
+        })),
+        restartToApplyUpdate: vi.fn(() => true),
       },
       windowController: {
         closeWindow: vi.fn(() => true),
@@ -30,8 +53,19 @@ describe("createDesktopHostHandlers", () => {
     const handlers = createDesktopHostHandlers(input);
 
     expect(handlers.getAppVersion()).toBe("1.2.3");
+    expect(handlers.getAppInfo()).toEqual({
+      channel: "beta",
+      platform: "darwin",
+      updateCapability: "automatic",
+      version: "1.2.3",
+    });
     expect(handlers.getCurrentSession({ sender: {} as never })).toEqual({ id: "session-1" });
     expect(handlers.getWindowLabel({ sender: {} as never })).toBe("main");
+    expect(handlers.consumePendingLaunchIntent()).toEqual({
+      kind: "protocol",
+      receivedAt: "2026-03-24T00:00:00.000Z",
+      url: "hugecode://workspace/open?path=%2Fworkspace%2Falpha",
+    });
     expect(handlers.listRecentSessions()).toEqual([{ id: "session-1" }]);
     expect(handlers.listWindows()).toEqual([{ windowId: 1 }]);
     expect(handlers.openWindow()).toEqual({ windowId: 1 });
@@ -39,6 +73,16 @@ describe("createDesktopHostHandlers", () => {
     expect(handlers.closeWindow(1)).toBe(true);
     expect(handlers.focusWindow(1)).toBe(true);
     expect(handlers.getTrayState()).toEqual({ enabled: true, supported: true });
+    expect(handlers.getUpdateState()).toEqual({
+      capability: "automatic",
+      stage: "available",
+      version: "1.2.4",
+    });
+    expect(handlers.checkForUpdates()).toEqual({
+      capability: "automatic",
+      stage: "checking",
+    });
+    expect(handlers.restartToApplyUpdate()).toBe(true);
     expect(handlers.showNotification({ sender: {} as never }, { title: "Build complete" })).toBe(
       true
     );
@@ -51,7 +95,14 @@ describe("createDesktopHostHandlers", () => {
       update: vi.fn(),
     };
     const handlers = createDesktopHostHandlers({
+      appInfo: {
+        channel: "beta",
+        platform: "darwin",
+        updateCapability: "automatic",
+        version: null,
+      },
       appVersion: null,
+      consumePendingLaunchIntent: vi.fn(() => null),
       listRecentSessions: vi.fn(() => []),
       notificationController: {
         showNotification: vi.fn(() => false),
@@ -60,6 +111,11 @@ describe("createDesktopHostHandlers", () => {
       persistTrayEnabled,
       revealItemInDir: vi.fn(() => true),
       trayController,
+      updaterController: {
+        checkForUpdates: vi.fn(() => ({ capability: "automatic", stage: "idle" })),
+        getState: vi.fn(() => ({ capability: "automatic", stage: "idle" })),
+        restartToApplyUpdate: vi.fn(() => false),
+      },
       windowController: {
         closeWindow: vi.fn(),
         focusWindow: vi.fn(),

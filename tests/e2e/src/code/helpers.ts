@@ -102,6 +102,9 @@ async function isWorkspaceSurfaceVisible(page: Page): Promise<boolean> {
     messagesVisible,
     addActionVisible,
     terminalToggleVisible,
+    goHomeVisible,
+    primaryNavVisible,
+    activeWorkspaceRowVisible,
   ] = await Promise.all([
     page
       .locator('[data-home-page="true"], [data-home-content="true"]')
@@ -134,7 +137,27 @@ async function isWorkspaceSurfaceVisible(page: Page): Promise<boolean> {
       .first()
       .isVisible()
       .catch(() => false),
+    page
+      .getByRole("button", { name: "Go to Home" })
+      .first()
+      .isVisible()
+      .catch(() => false),
+    page
+      .getByRole("navigation", { name: "Primary" })
+      .first()
+      .isVisible()
+      .catch(() => false),
+    page
+      .locator(".workspace-row.active")
+      .first()
+      .isVisible()
+      .catch(() => false),
   ]);
+
+  const routeWorkspaceVisible =
+    isWorkspaceRoute(page.url()) &&
+    (goHomeVisible || primaryNavVisible || activeWorkspaceRowVisible);
+
   return (
     homeVisible ||
     composerVisible ||
@@ -142,7 +165,8 @@ async function isWorkspaceSurfaceVisible(page: Page): Promise<boolean> {
     thinkingVisible ||
     messagesVisible ||
     addActionVisible ||
-    terminalToggleVisible
+    terminalToggleVisible ||
+    routeWorkspaceVisible
   );
 }
 

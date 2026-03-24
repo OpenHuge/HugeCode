@@ -116,6 +116,7 @@ describe("runtimeReviewPackSurfaceFacade", () => {
     expect(detail.continuity).toMatchObject({
       summary: "Continue from Review Pack.",
       recommendedAction: "Open Review Pack",
+      truthSourceLabel: "Runtime takeover bundle",
     });
     expect(detail.recommendedNextAction).toBe("Open Review Pack");
   });

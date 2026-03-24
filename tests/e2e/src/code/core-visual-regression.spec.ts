@@ -48,6 +48,27 @@ for (const theme of THEMES) {
       return;
     }
 
+    const composerStartCopy = page.getByText("Start in the composer.", { exact: true }).first();
+    if (await composerStartCopy.isVisible().catch(() => false)) {
+      await expect(page.getByRole("button", { name: "Go to Home" }).first()).toBeVisible();
+      await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
+      await expect(page.getByRole("button", { name: "User menu" }).first()).toBeVisible();
+      await expect(composerStartCopy).toBeVisible();
+      await expect(
+        page
+          .getByText(
+            "Describe the task in plain language, then add the right context with skills, commands, and mentions directly in the composer."
+          )
+          .first()
+      ).toBeVisible();
+      await expect(page.getByText("Skills", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("Commands", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("Mentions", { exact: true }).first()).toBeVisible();
+      return;
+    }
+
+    await expect(page.locator('[data-home-page="true"]').first()).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Home" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Go to Home" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "New project" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "User menu" }).first()).toBeVisible();

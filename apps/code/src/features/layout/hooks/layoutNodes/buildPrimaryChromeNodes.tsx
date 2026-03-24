@@ -338,8 +338,6 @@ export function buildPrimaryChromeNodes(options: LayoutNodesOptions): PrimaryChr
         recentThreads={recentThreads}
         onSelectRecentThread={(threadId) => input.onSelectThread(activeWorkspace.id, threadId)}
         extraActionsNode={input.mainHeaderActionsNode}
-        renderHeaderActions={input.isPhone}
-        headerActionsNode={desktopHeaderActionsNode}
       />
     </Suspense>
   ) : null;

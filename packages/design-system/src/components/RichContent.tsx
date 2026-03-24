@@ -5,9 +5,8 @@ import * as styles from "./RichContent.css";
 export interface RichContentProps extends HTMLAttributes<HTMLDivElement> {}
 
 type TableDataAttributes = {
-  [key: `data-${string}`]: string | number | boolean | undefined;
+  [K in `data-${string}`]?: string | number | boolean;
 };
-
 export function RichContent({ className, ...props }: RichContentProps) {
   return <div {...props} className={cx(styles.root, className)} data-rich-content="true" />;
 }

@@ -115,6 +115,7 @@ describe("workspace client boundaries", () => {
   it("stops exporting shared workspace surfaces from apps/code", () => {
     const source = readRepoFile("apps/code/package.json");
 
+    expect(source).not.toContain('"./workspace-surface"');
     expect(source).not.toContain('"./main-app"');
     expect(source).not.toContain('"./workspace-host"');
   });
@@ -136,5 +137,15 @@ describe("workspace client boundaries", () => {
 
     expect(source).toContain("@ku0/code-workspace-client/workspace-shell");
     expect(source).not.toContain("@ku0/code/workspace-surface");
+  });
+
+  it("removes legacy workspace-surface aliases from web and test tooling", () => {
+    const webTsconfig = readRepoFile("apps/code-web/tsconfig.json");
+    const viteAliases = readRepoFile("scripts/lib/viteWorkspaceAliases.ts");
+    const vitestAliases = readRepoFile("vitest.aliases.ts");
+
+    expect(webTsconfig).not.toContain("@ku0/code/workspace-surface");
+    expect(viteAliases).not.toContain("@ku0/code/workspace-surface");
+    expect(vitestAliases).not.toContain("@ku0/code/workspace-surface");
   });
 });
