@@ -22,6 +22,9 @@ export default defineConfig(({ command }) => {
       !isDevServer ? cloudflare() : null,
       tanstackStart({
         srcDirectory: "./app",
+        server: {
+          entry: "./server.ts",
+        },
         importProtection: {
           enabled: true,
           server: {

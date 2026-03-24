@@ -82,7 +82,10 @@ pub(super) const RPC_METHOD_REGISTRY: &[RpcMethodEntry] = &[
     // Thread-only conversation path.
     RpcMethodEntry::new("code_turn_send"),
     RpcMethodEntry::new("code_turn_interrupt"),
-    // Canonical Mission Control launch path.
+    RpcMethodEntry::new("code_task_source_ingest_v1"),
+    RpcMethodEntry::new("code_task_source_get_v1"),
+    RpcMethodEntry::new("code_task_source_list_v1"),
+    RpcMethodEntry::new("code_task_source_reconcile_v1"),
     RpcMethodEntry::new("code_runtime_run_prepare_v2"),
     RpcMethodEntry::new("code_runtime_run_start_v2"),
     // Legacy runtime-run compatibility surface. Not a product launch path.

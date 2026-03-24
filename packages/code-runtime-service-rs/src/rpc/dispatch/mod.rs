@@ -34,8 +34,8 @@ mod runtime_tool_metrics_dispatch;
 mod security_preflight_dispatch;
 #[path = "../../rpc_dispatch_sessions.rs"]
 mod sessions_dispatch;
-#[path = "../../rpc_dispatch_text_files.rs"]
-mod text_files_dispatch;
+#[path = "../../rpc_dispatch_task_sources.rs"]
+mod task_sources_dispatch;
 #[path = "../../rpc_dispatch_thread_live.rs"]
 mod thread_live;
 #[path = "../../rpc_dispatch_workspace_diagnostics.rs"]
@@ -120,7 +120,10 @@ use sessions_dispatch::{
     handle_session_delete_v1, handle_session_export_v1, handle_session_import_v1,
     handle_thread_snapshots_get_v1, handle_thread_snapshots_set_v1,
 };
-use text_files_dispatch::{handle_text_file_read_v1, handle_text_file_write_v1};
+use task_sources_dispatch::{
+    handle_task_source_get_v1, handle_task_source_ingest_v1, handle_task_source_list_v1,
+    handle_task_source_reconcile_v1,
+};
 use thread_live::{
     detach_thread_live_subscriptions_for_workspace, handle_thread_archive, handle_thread_create,
     handle_thread_live_subscribe, handle_thread_live_unsubscribe, handle_thread_resume,
@@ -175,7 +178,10 @@ pub(crate) async fn handle_rpc(
         "code_thread_live_unsubscribe" => handle_thread_live_unsubscribe(ctx, params).await,
         "code_turn_send" => handle_turn_send(ctx, params).await,
         "code_turn_interrupt" => handle_turn_interrupt(ctx, params).await,
-        // Canonical Mission Control launch path.
+        "code_task_source_ingest_v1" => handle_task_source_ingest_v1(ctx, params).await,
+        "code_task_source_get_v1" => handle_task_source_get_v1(ctx, params).await,
+        "code_task_source_list_v1" => handle_task_source_list_v1(ctx, params).await,
+        "code_task_source_reconcile_v1" => handle_task_source_reconcile_v1(ctx, params).await,
         "code_runtime_run_prepare_v2" => handle_runtime_run_prepare_v2(ctx, params).await,
         "code_runtime_run_start_v2" => handle_runtime_run_start_v2(ctx, params).await,
         // Legacy runtime-run compatibility surface.

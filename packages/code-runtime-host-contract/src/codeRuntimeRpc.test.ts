@@ -1456,7 +1456,7 @@ describe("agent and oauth rpc methods", () => {
 
 describe("rpc capability constants", () => {
   it("exposes contract version", () => {
-    expect(CODE_RUNTIME_RPC_CONTRACT_VERSION).toBe("2026-03-25");
+    expect(CODE_RUNTIME_RPC_CONTRACT_VERSION).toBe("2026-03-24");
   });
 
   it("exposes required feature flags", () => {
@@ -1513,8 +1513,8 @@ describe("rpc capability constants", () => {
         "runtime_codex_execpolicy_preflight_v1",
         "runtime_codex_unified_rpc_migration_v1",
         "runtime_host_deprecated",
-        "app_server_protocol_v2_2026_03_25",
-        "contract_frozen_2026_03_25",
+        "app_server_protocol_v2_2026_03_23",
+        "contract_frozen_2026_03_24",
       ])
     );
   });

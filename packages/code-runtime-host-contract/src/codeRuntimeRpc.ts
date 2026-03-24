@@ -242,6 +242,163 @@ export type AgentTaskSourceSummary = {
   sourceRunId?: string | null;
 };
 
+export type RuntimeTaskSourceProvider = "github" | (string & {});
+
+export type RuntimeTaskSourceTriggerMode =
+  | "assignment"
+  | "issue_comment_command"
+  | "pull_request_comment_command"
+  | "pull_request_review_comment_command"
+  | "ci_failure"
+  | "manual"
+  | (string & {});
+
+export type RuntimeTaskSourceCommandKind = "run" | "continue" | "retry" | (string & {});
+
+export type RuntimeTaskSourceState =
+  | "received"
+  | "deduped"
+  | "queued"
+  | "launched"
+  | "intervened"
+  | "waiting_review"
+  | "completed"
+  | "failed"
+  | "ignored";
+
+export type RuntimeTaskSourceWriteBackState =
+  | "not_requested"
+  | "pending"
+  | "mirrored"
+  | "failed"
+  | (string & {});
+
+export type RuntimeTaskSourceLaunchDisposition =
+  | "not_requested"
+  | "launched"
+  | "intervened"
+  | "deduped"
+  | "blocked"
+  | "failed";
+
+export type RuntimeTaskSourceEventSummary = {
+  deliveryId?: string | null;
+  eventName: string;
+  action?: string | null;
+  receivedAt?: number | null;
+};
+
+export type RuntimeTaskSourceRequester = {
+  login?: string | null;
+  id?: number | null;
+  type?: string | null;
+};
+
+export type RuntimeTaskSourcePayload = {
+  kind: Extract<AgentTaskSourceKind, "github_issue" | "github_pr_followup"> | (string & {});
+  title?: string | null;
+  body?: string | null;
+  url?: string | null;
+  canonicalUrl?: string | null;
+  repo: AgentTaskSourceRepoContext;
+  issueNumber?: number | null;
+  pullRequestNumber?: number | null;
+  commentId?: number | null;
+  commentUrl?: string | null;
+  commentBody?: string | null;
+  commentAuthor?: RuntimeTaskSourceRequester | null;
+  commandKind?: RuntimeTaskSourceCommandKind | null;
+  triggerMode: RuntimeTaskSourceTriggerMode;
+  headSha?: string | null;
+  externalId?: string | null;
+  requestedBy?: RuntimeTaskSourceRequester | null;
+};
+
+export type RuntimeTaskSourceLaunchRequest = {
+  enabled?: boolean | null;
+  threadId?: string | null;
+  requestId?: string | null;
+  title?: string | null;
+  missionBrief?: AgentTaskMissionBrief | null;
+  executionProfileId?: string | null;
+  reviewProfileId?: string | null;
+  validationPresetId?: string | null;
+  accessMode?: AccessMode | null;
+  preferredBackendIds?: string[] | null;
+};
+
+export type RuntimeTaskSourceRecord = {
+  sourceRecordId: string;
+  provider: RuntimeTaskSourceProvider;
+  sourceKind: AgentTaskSourceKind;
+  dedupeKey: string;
+  state: RuntimeTaskSourceState;
+  writeBackState: RuntimeTaskSourceWriteBackState;
+  workspaceId?: string | null;
+  workspacePath?: string | null;
+  deliveryId?: string | null;
+  eventName?: string | null;
+  action?: string | null;
+  commandKind?: RuntimeTaskSourceCommandKind | null;
+  repo?: AgentTaskSourceRepoContext | null;
+  issueNumber?: number | null;
+  pullRequestNumber?: number | null;
+  headSha?: string | null;
+  url?: string | null;
+  commentId?: number | null;
+  linkedTaskId?: string | null;
+  linkedRunId?: string | null;
+  linkedReviewPackId?: string | null;
+  message?: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt: number;
+  updatedAt: number;
+  payload: RuntimeTaskSourcePayload;
+};
+
+export type RuntimeTaskSourceLaunchResult = {
+  disposition: RuntimeTaskSourceLaunchDisposition;
+  message: string;
+  runId?: string | null;
+  taskId?: string | null;
+  reviewPackId?: string | null;
+};
+
+export type RuntimeTaskSourceIngestRequest = {
+  provider: RuntimeTaskSourceProvider;
+  event: RuntimeTaskSourceEventSummary;
+  payload: RuntimeTaskSourcePayload;
+  launch?: RuntimeTaskSourceLaunchRequest | null;
+};
+
+export type RuntimeTaskSourceIngestResponse = {
+  record: RuntimeTaskSourceRecord;
+  launch: RuntimeTaskSourceLaunchResult;
+  deduped: boolean;
+};
+
+export type RuntimeTaskSourceGetRequest = {
+  sourceRecordId: string;
+};
+
+export type RuntimeTaskSourceListRequest = {
+  workspaceId?: string | null;
+  provider?: RuntimeTaskSourceProvider | null;
+  sourceKind?: AgentTaskSourceKind | null;
+  state?: RuntimeTaskSourceState | null;
+  limit?: number | null;
+};
+
+export type RuntimeTaskSourceReconcileRequest = {
+  sourceRecordId: string;
+};
+
+export type RuntimeTaskSourceReconcileResponse = {
+  reconciled: boolean;
+  record: RuntimeTaskSourceRecord | null;
+  message?: string | null;
+};
+
 export type ReviewGateState = "pass" | "warn" | "fail" | "blocked";
 
 export type ReviewFindingSeverity = "info" | "warning" | "error" | "critical";
@@ -3981,7 +4138,11 @@ export const CODE_RUNTIME_RPC_METHODS = {
   // Thread-only conversation path. Not a Mission Control run launch surface.
   TURN_SEND: "code_turn_send",
   TURN_INTERRUPT: "code_turn_interrupt",
-  // Canonical Mission Control launch path.
+  TASK_SOURCE_INGEST_V1: "code_task_source_ingest_v1",
+  TASK_SOURCE_GET_V1: "code_task_source_get_v1",
+  TASK_SOURCE_LIST_V1: "code_task_source_list_v1",
+  TASK_SOURCE_RECONCILE_V1: "code_task_source_reconcile_v1",
+  RUN_START: "code_runtime_run_start",
   RUN_PREPARE_V2: "code_runtime_run_prepare_v2",
   RUN_START_V2: "code_runtime_run_start_v2",
   // Legacy runtime-run compatibility surface. Not a product launch path.
@@ -4126,8 +4287,8 @@ export const CODE_RUNTIME_RPC_METHOD_LIST = Object.freeze(
   Object.values(CODE_RUNTIME_RPC_METHODS)
 ) as readonly CodeRuntimeRpcMethod[];
 
-export const CODE_RUNTIME_RPC_CONTRACT_VERSION = "2026-03-25" as const;
-export const CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT = "2026-03-25" as const;
+export const CODE_RUNTIME_RPC_CONTRACT_VERSION = "2026-03-24" as const;
+export const CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT = "2026-03-24" as const;
 export const CODE_RUNTIME_RPC_CAPABILITY_PROFILES = Object.freeze({
   FULL_RUNTIME: "full-runtime",
   DESKTOP_CORE: "desktop-core",
@@ -4199,8 +4360,8 @@ export const CODE_RUNTIME_RPC_FEATURES = Object.freeze([
   "runtime_codex_execpolicy_preflight_v1",
   "runtime_codex_unified_rpc_migration_v1",
   "runtime_host_deprecated",
-  "app_server_protocol_v2_2026_03_25",
-  "contract_frozen_2026_03_25",
+  "app_server_protocol_v2_2026_03_23",
+  "contract_frozen_2026_03_24",
 ]) as readonly string[];
 
 export const CODE_RUNTIME_RPC_TRANSPORTS = Object.freeze({
@@ -4509,6 +4670,17 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
   };
   [CODE_RUNTIME_RPC_METHODS.TURN_INTERRUPT]: {
     payload: TurnInterruptRequestCompat;
+  };
+  [CODE_RUNTIME_RPC_METHODS.TASK_SOURCE_INGEST_V1]: RuntimeTaskSourceIngestRequest;
+  [CODE_RUNTIME_RPC_METHODS.TASK_SOURCE_GET_V1]: RuntimeTaskSourceGetRequest & {
+    source_record_id?: string;
+  };
+  [CODE_RUNTIME_RPC_METHODS.TASK_SOURCE_LIST_V1]: RuntimeTaskSourceListRequest & {
+    workspace_id?: string | null;
+    source_kind?: AgentTaskSourceKind | null;
+  };
+  [CODE_RUNTIME_RPC_METHODS.TASK_SOURCE_RECONCILE_V1]: RuntimeTaskSourceReconcileRequest & {
+    source_record_id?: string;
   };
   [CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2]: RuntimeRunPrepareV2Request & {
     workspace_id?: string;
@@ -5060,6 +5232,10 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.THREAD_LIVE_UNSUBSCRIBE]: ThreadLiveUnsubscribeResult;
   [CODE_RUNTIME_RPC_METHODS.TURN_SEND]: TurnAck;
   [CODE_RUNTIME_RPC_METHODS.TURN_INTERRUPT]: boolean;
+  [CODE_RUNTIME_RPC_METHODS.TASK_SOURCE_INGEST_V1]: RuntimeTaskSourceIngestResponse;
+  [CODE_RUNTIME_RPC_METHODS.TASK_SOURCE_GET_V1]: RuntimeTaskSourceRecord | null;
+  [CODE_RUNTIME_RPC_METHODS.TASK_SOURCE_LIST_V1]: RuntimeTaskSourceRecord[];
+  [CODE_RUNTIME_RPC_METHODS.TASK_SOURCE_RECONCILE_V1]: RuntimeTaskSourceReconcileResponse;
   [CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2]: RuntimeRunPrepareV2Response;
   [CODE_RUNTIME_RPC_METHODS.RUN_START]: RuntimeRunSummary;
   [CODE_RUNTIME_RPC_METHODS.RUN_START_V2]: RuntimeRunStartV2Response;
