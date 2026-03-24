@@ -1,7 +1,9 @@
 import { access, readFile, readdir } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { FuseV1Options, FuseVersion } from "@electron/fuses";
+
+const requireFromHere = createRequire(import.meta.url);
 
 async function listAsarPackageEntries(asarPath) {
   try {
@@ -13,6 +15,21 @@ async function listAsarPackageEntries(asarPath) {
       { cause: error }
     );
   }
+}
+
+function loadElectronFuses() {
+  try {
+    return requireFromHere("@electron/fuses");
+  } catch (error) {
+    throw new Error(
+      "Missing @electron/fuses dependency required by Electron release-contract verification.",
+      { cause: error }
+    );
+  }
+}
+
+export function normalizeAsarPackageEntryPath(entryPath) {
+  return String(entryPath).replaceAll("\\", "/");
 }
 
 function normalizeStaticUpdateBaseUrlRoot(staticUpdateBaseUrl) {
@@ -80,7 +97,7 @@ function isLocalDebMakerName(makerName) {
 }
 
 export function normalizeElectronPackagedEntryPath(relativePath) {
-  return relativePath.replaceAll("\\", "/");
+  return normalizeAsarPackageEntryPath(relativePath);
 }
 
 function normalizeFuseBoolean(value) {
@@ -143,7 +160,7 @@ export async function verifyElectronPackagedUpdaterRuntime(repoRoot) {
 
   const appAsarPath = resolve(outDir, appAsarRelativePath);
   const packageEntries = (await listAsarPackageEntries(appAsarPath)).map(
-    normalizeElectronPackagedEntryPath
+    normalizeAsarPackageEntryPath
   );
   const hasUpdateElectronApp = packageEntries.includes(
     "/node_modules/update-electron-app/package.json"
@@ -349,6 +366,7 @@ export function verifyElectronForgeUpdateContract(context) {
 }
 
 export function verifyElectronForgeFuseContract(context) {
+  const { FuseV1Options, FuseVersion } = loadElectronFuses();
   const requiredForgeConfigDependencies = ["@electron-forge/plugin-fuses", "@electron/fuses"];
   for (const dependencyName of requiredForgeConfigDependencies) {
     const version = context.packageJson.devDependencies?.[dependencyName];

@@ -25,6 +25,18 @@ function normalizeCommandPath(commandPath) {
   return commandPath.replaceAll("\\", "/");
 }
 
+const incompatibleForgeStageConfigEnvKeys = new Set([
+  "npm_config__jsr_registry",
+  "npm_config_minimum_release_age",
+  "npm_config_node_linker",
+  "npm_config_npm_globalconfig",
+  "npm_config_overrides",
+  "npm_config_recursive",
+  "npm_config_strict_dep_builds",
+  "npm_config_verify_deps_before_run",
+  "pnpm_config_verify_deps_before_run",
+]);
+
 export function resolveForgeStageCommands(platform = process.platform) {
   return {
     electronForge: {
@@ -46,11 +58,22 @@ export function resolveForgeStageCommands(platform = process.platform) {
   };
 }
 
-async function runCommand(invocation, args, cwd) {
+export function createForgeStageEnv(baseEnv = process.env) {
+  const env = { ...baseEnv };
+  for (const key of Object.keys(env)) {
+    if (incompatibleForgeStageConfigEnvKeys.has(key.toLowerCase())) {
+      delete env[key];
+    }
+  }
+
+  return env;
+}
+
+async function runCommand(invocation, args, cwd, env = process.env) {
   await new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(invocation.command, args, {
       cwd,
-      env: process.env,
+      env,
       shell: invocation.shell,
       stdio: "inherit",
     });
@@ -93,16 +116,21 @@ async function prepareStage() {
     `${JSON.stringify(stagedPackageJson, null, 2)}\n`,
     "utf8"
   );
-  await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
 
   if (shouldInstallForgeStageDependencies(stagedPackageJson)) {
     const { npm } = resolveForgeStageCommands();
+    const stageEnv = createForgeStageEnv();
     await runCommand(
       npm,
       ["install", "--include=dev", "--ignore-scripts", "--no-package-lock"],
-      forgePackageDir
+      forgePackageDir,
+      stageEnv
     );
   }
+
+  // Electron Forge's pnpm integration checks node-linker in the staged project,
+  // but npm itself should not consume pnpm-only project config during install.
+  await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
 }
 
 async function ensureDarwinDmgNativeDependency(command) {
@@ -165,14 +193,20 @@ async function runForge() {
     const processTempDir = resolve(tempRootDir, "process");
     await mkdir(processTempDir, { recursive: true });
 
-    await new Promise((resolvePromise, rejectPromise) => {
-      const child = spawn(electronForge.command, [command], {
-        cwd: forgePackageDir,
-        env: buildForgeEnvironment({
+    const forgeEnv = {
+      ...createForgeStageEnv(
+        buildForgeEnvironment({
           baseEnv: process.env,
           command,
           processTempDir,
-        }),
+        })
+      ),
+    };
+
+    await new Promise((resolvePromise, rejectPromise) => {
+      const child = spawn(electronForge.command, [command], {
+        cwd: forgePackageDir,
+        env: forgeEnv,
         shell: electronForge.shell,
         stdio: "inherit",
       });

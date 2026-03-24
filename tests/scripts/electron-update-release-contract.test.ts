@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isElectronPackagedAppAsarPath,
+  normalizeAsarPackageEntryPath,
   normalizeElectronPackagedEntryPath,
   verifyElectronForgeUpdateContract,
 } from "../../scripts/lib/electron-update-release-contract.mjs";
@@ -47,10 +48,16 @@ describe("verifyElectronForgeUpdateContract", () => {
       verifyElectronForgeUpdateContract({
         forgeConfig: {
           makers: [
-            { name: "@electron-forge/maker-zip" },
+            { name: "@electron-forge/maker-zip", config: {} },
             { name: "@electron-forge/maker-dmg" },
-            { name: "@electron-forge/maker-squirrel" },
-            { name: "deb" },
+            {
+              name: "@electron-forge/maker-squirrel",
+              config: {
+                authors: "OpenHuge",
+                description: "HugeCode beta desktop shell",
+              },
+            },
+            { name: "deb", config: { bin: "HugeCode" } },
           ],
           publishers: [
             {
@@ -62,6 +69,8 @@ describe("verifyElectronForgeUpdateContract", () => {
           ],
         },
         packageJson: {
+          author: "OpenHuge",
+          description: "HugeCode beta desktop shell",
           repository: {
             url: "https://github.com/OpenHuge/HugeCode.git",
           },
@@ -70,5 +79,19 @@ describe("verifyElectronForgeUpdateContract", () => {
         updateMode: "disabled_beta_manual",
       })
     ).not.toThrow();
+  });
+});
+
+describe("normalizeAsarPackageEntryPath", () => {
+  it("normalizes Windows asar entry separators to POSIX style", () => {
+    expect(normalizeAsarPackageEntryPath("\\node_modules\\update-electron-app\\package.json")).toBe(
+      "/node_modules/update-electron-app/package.json"
+    );
+  });
+
+  it("keeps POSIX-style asar entry separators untouched", () => {
+    expect(normalizeAsarPackageEntryPath("/node_modules/update-electron-app/package.json")).toBe(
+      "/node_modules/update-electron-app/package.json"
+    );
   });
 });
