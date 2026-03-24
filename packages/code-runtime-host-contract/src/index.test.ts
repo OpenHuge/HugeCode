@@ -36,6 +36,33 @@ describe("code runtime host event envelope", () => {
     expect(HUGECODE_INTERVENTION_ACTIONS).toContain("switch_profile_and_retry");
   });
 
+  it("accepts turn.completed payloads with responseModelId metadata", () => {
+    const result = parseCodeRuntimeHostEventEnvelope({
+      kind: "turn.completed",
+      payload: {
+        turnId: "turn-1",
+        output: "done",
+        responseModelId: "gpt-5.4-2026-03-01",
+      },
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects turn.completed payloads with a non-string responseModelId", () => {
+    const errors = validateCodeRuntimeHostEventEnvelope({
+      kind: "turn.completed",
+      payload: {
+        turnId: "turn-1",
+        responseModelId: 42,
+      },
+    });
+
+    expect(errors).toEqual(
+      expect.arrayContaining(["responseModelId must be a string when provided."])
+    );
+  });
+
   it("supports runtime-native review-pack file and evidence summaries", () => {
     const placement: HugeCodeRunPlacementEvidence = {
       resolvedBackendId: "worker-b",

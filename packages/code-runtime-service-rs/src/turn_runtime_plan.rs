@@ -1166,7 +1166,7 @@ pub(super) async fn query_provider_via_runtime_plan(
 
 pub(super) async fn maybe_recover_provider_local_access_refusal(
     ctx: &AppContext,
-    message: String,
+    response: crate::provider_requests::ProviderQueryResult,
     suppress_plan_delta: bool,
     access_mode: &str,
     local_exec_enabled: bool,
@@ -1189,9 +1189,9 @@ pub(super) async fn maybe_recover_provider_local_access_refusal(
     oauth_credential_source_override: Option<&str>,
     oauth_auth_mode_override: Option<&str>,
     oauth_external_account_id_override: Option<&str>,
-) -> String {
-    if !assistant_message_indicates_local_access_refusal(message.as_str()) {
-        return message;
+) -> crate::provider_requests::ProviderQueryResult {
+    if !assistant_message_indicates_local_access_refusal(response.output.as_str()) {
+        return response;
     }
     if !should_use_provider_runtime_plan_flow(access_mode, local_exec_enabled, provider_route) {
         warn!(
@@ -1201,7 +1201,7 @@ pub(super) async fn maybe_recover_provider_local_access_refusal(
             routed_provider = provider_route.routed_provider(),
             "provider response indicated local access refusal but runtime refusal recovery is disabled"
         );
-        return message;
+        return response;
     }
 
     match query_provider_via_runtime_plan(
@@ -1230,14 +1230,14 @@ pub(super) async fn maybe_recover_provider_local_access_refusal(
     )
     .await
     {
-        Ok(response) => response.output,
+        Ok(recovered_response) => recovered_response,
         Err(error) => {
             warn!(
                 turn_id = turn_id,
                 error = error.as_str(),
                 "runtime refusal recovery flow failed"
             );
-            message
+            response
         }
     }
 }
