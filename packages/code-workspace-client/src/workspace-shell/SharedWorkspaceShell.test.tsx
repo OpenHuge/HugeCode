@@ -414,6 +414,104 @@ describe("WorkspaceShellApp", () => {
     expect(screen.getByText("Passed")).toBeTruthy();
   });
 
+  it("uses the highest-priority mission and review items in the home overview cards", async () => {
+    window.history.pushState({}, "", "/app");
+
+    render(
+      <WorkspaceClientBindingsProvider
+        bindings={createBindings({
+          readMissionControlSnapshot: async () =>
+            ({
+              source: "runtime_snapshot_v1",
+              generatedAt: 0,
+              workspaces: [
+                {
+                  id: "workspace-1",
+                  name: "Alpha",
+                  rootPath: "/alpha",
+                  connected: true,
+                  defaultProfileId: null,
+                },
+              ],
+              tasks: [
+                {
+                  id: "task-blocked",
+                  workspaceId: "workspace-1",
+                  title: "Blocked route",
+                  objective: null,
+                  origin: {
+                    kind: "run",
+                    threadId: null,
+                    runId: "run-blocked",
+                    requestId: null,
+                  },
+                  taskSource: null,
+                  mode: null,
+                  modeSource: "missing",
+                  status: "running",
+                  createdAt: 0,
+                  updatedAt: 0,
+                  currentRunId: "run-blocked",
+                  latestRunId: "run-blocked",
+                  latestRunState: "running",
+                },
+              ],
+              runs: [
+                {
+                  id: "run-blocked",
+                  workspaceId: "workspace-1",
+                  taskId: "task-blocked",
+                  state: "running",
+                  title: "Blocked route",
+                  summary: "Blocked by routing readiness.",
+                  taskSource: null,
+                  startedAt: 0,
+                  finishedAt: null,
+                  updatedAt: 0,
+                  currentStepIndex: null,
+                  placement: {
+                    resolvedBackendId: null,
+                    requestedBackendIds: [],
+                    resolutionSource: "unresolved",
+                    lifecycleState: "requested",
+                    readiness: "blocked",
+                    healthSummary: "blocked",
+                    attentionReasons: [],
+                    summary: "Blocked by routing readiness.",
+                    rationale: null,
+                  },
+                },
+              ],
+              reviewPacks: [
+                {
+                  id: "review-failed",
+                  runId: "run-blocked",
+                  taskId: "task-blocked",
+                  workspaceId: "workspace-1",
+                  summary: "Failed review",
+                  reviewStatus: "ready",
+                  evidenceState: "confirmed",
+                  validationOutcome: "failed",
+                  warningCount: 0,
+                  warnings: [],
+                  validations: [],
+                  artifacts: [],
+                  checksPerformed: [],
+                  recommendedNextAction: "Fix the failing validation.",
+                  createdAt: 0,
+                },
+              ],
+            }) as MissionControlSnapshot,
+        })}
+      >
+        <WorkspaceShellApp />
+      </WorkspaceClientBindingsProvider>
+    );
+
+    await screen.findByText("Routing blocked: Blocked route");
+    expect(screen.getByText("Validation failed: Failed review")).toBeTruthy();
+  });
+
   it("routes the operator-next card into the relevant shared section", async () => {
     window.history.pushState({}, "", "/app");
 

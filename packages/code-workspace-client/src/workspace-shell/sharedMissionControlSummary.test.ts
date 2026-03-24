@@ -255,4 +255,136 @@ describe("buildSharedMissionControlSummary", () => {
     expect(summary.missionItems[0]?.highlights).toContain("Next: Open review pack");
     expect(summary.reviewItems[0]?.summary).toBe("Open the published review pack.");
   });
+
+  it("orders mission activity by operator urgency before recency", () => {
+    const summary = buildSharedMissionControlSummary(
+      createSnapshot({
+        tasks: [
+          {
+            id: "task-blocked",
+            workspaceId: "workspace-1",
+            title: "Blocked route",
+            objective: null,
+            origin: { kind: "run", runId: "run-blocked", threadId: null, requestId: null },
+            taskSource: null,
+            mode: null,
+            modeSource: "missing",
+            status: "running",
+            createdAt: 0,
+            updatedAt: 1,
+            currentRunId: "run-blocked",
+            latestRunId: "run-blocked",
+            latestRunState: "running",
+          },
+          {
+            id: "task-active",
+            workspaceId: "workspace-1",
+            title: "Active run",
+            objective: null,
+            origin: { kind: "run", runId: "run-active", threadId: null, requestId: null },
+            taskSource: null,
+            mode: null,
+            modeSource: "missing",
+            status: "running",
+            createdAt: 0,
+            updatedAt: 10,
+            currentRunId: "run-active",
+            latestRunId: "run-active",
+            latestRunState: "running",
+          },
+        ],
+        runs: [
+          {
+            id: "run-active",
+            workspaceId: "workspace-1",
+            taskId: "task-active",
+            state: "running",
+            title: "Active run",
+            summary: "Still running.",
+            taskSource: null,
+            startedAt: 0,
+            finishedAt: null,
+            updatedAt: 10,
+            currentStepIndex: null,
+          },
+          {
+            id: "run-blocked",
+            workspaceId: "workspace-1",
+            taskId: "task-blocked",
+            state: "running",
+            title: "Blocked route",
+            summary: "Route is blocked.",
+            taskSource: null,
+            startedAt: 0,
+            finishedAt: null,
+            updatedAt: 1,
+            currentStepIndex: null,
+            placement: {
+              resolvedBackendId: null,
+              requestedBackendIds: [],
+              resolutionSource: "unresolved",
+              lifecycleState: "requested",
+              readiness: "blocked",
+              healthSummary: "blocked",
+              attentionReasons: [],
+              summary: "Blocked by routing readiness.",
+              rationale: null,
+            },
+          },
+        ],
+      }),
+      "workspace-1"
+    );
+
+    expect(summary.missionItems[0]?.title).toBe("Blocked route");
+    expect(summary.missionItems[1]?.title).toBe("Active run");
+  });
+
+  it("orders failed or blocked review packs before newer ready review packs", () => {
+    const summary = buildSharedMissionControlSummary(
+      createSnapshot({
+        reviewPacks: [
+          {
+            id: "review-ready",
+            runId: "run-ready",
+            taskId: "task-ready",
+            workspaceId: "workspace-1",
+            summary: "Ready review",
+            reviewStatus: "ready",
+            evidenceState: "confirmed",
+            validationOutcome: "passed",
+            warningCount: 0,
+            warnings: [],
+            validations: [],
+            artifacts: [],
+            checksPerformed: [],
+            recommendedNextAction: "Open the review pack.",
+            createdAt: 20,
+          },
+          {
+            id: "review-failed",
+            runId: "run-failed",
+            taskId: "task-failed",
+            workspaceId: "workspace-1",
+            summary: "Failed review",
+            reviewStatus: "ready",
+            evidenceState: "confirmed",
+            validationOutcome: "failed",
+            warningCount: 0,
+            warnings: [],
+            validations: [],
+            artifacts: [],
+            checksPerformed: [],
+            recommendedNextAction: "Fix the failing validation.",
+            createdAt: 10,
+          },
+        ],
+      }),
+      "workspace-1"
+    );
+
+    expect(summary.reviewItems[0]?.title).toBe("Failed review");
+    expect(summary.reviewItems[0]?.tone).toBe("blocked");
+    expect(summary.reviewItems[1]?.title).toBe("Ready review");
+  });
 });

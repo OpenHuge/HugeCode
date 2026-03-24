@@ -240,6 +240,8 @@ function HomeOverviewSection({
 }) {
   const missionSummaryPending =
     state.missionLoadState === "idle" || state.missionLoadState === "loading";
+  const topMissionItem = state.missionSummary.missionItems[0] ?? null;
+  const topReviewItem = state.missionSummary.reviewItems[0] ?? null;
 
   return (
     <section className={styles.sectionStack}>
@@ -260,7 +262,9 @@ function HomeOverviewSection({
           <span className={styles.body}>
             {missionSummaryPending
               ? "Runtime activity is loading in the background."
-              : `${state.missionSummary.runsCount} runs, ${state.missionSummary.approvalCount} approvals pending.`}
+              : topMissionItem
+                ? `${topMissionItem.statusLabel}: ${topMissionItem.title}`
+                : `${state.missionSummary.runsCount} runs, ${state.missionSummary.approvalCount} approvals pending.`}
           </span>
         </button>
         <button
@@ -272,7 +276,9 @@ function HomeOverviewSection({
           <span className={styles.body}>
             {missionSummaryPending
               ? "Review signals load after the shell becomes interactive."
-              : `${state.missionSummary.reviewPacksCount} review packs published with shared status grammar.`}
+              : topReviewItem
+                ? `${topReviewItem.reviewStatusLabel}: ${topReviewItem.title}`
+                : `${state.missionSummary.reviewPacksCount} review packs published with shared status grammar.`}
           </span>
         </button>
         <button
