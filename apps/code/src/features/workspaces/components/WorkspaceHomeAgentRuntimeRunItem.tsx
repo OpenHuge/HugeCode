@@ -7,7 +7,10 @@ import { projectAgentTaskStatusToRunState } from "../../../application/runtime/f
 import { useRuntimeRunRecordTruth } from "../../../application/runtime/facades/runtimeRunRecordTruth";
 import type { RuntimeTaskLauncherInterventionIntent } from "../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
 import type { RuntimeContinuityReadinessItem } from "../../../application/runtime/facades/runtimeContinuityReadiness";
-import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
+import type {
+  RuntimeAgentTaskInterventionInput,
+  RuntimeAgentTaskSummary,
+} from "../../../application/runtime/types/webMcpBridge";
 import {
   ReviewActionRail,
   ReviewLoopSection,
@@ -42,9 +45,63 @@ type WorkspaceHomeAgentRuntimeRunItemProps = {
   onRefresh: () => Promise<void> | void;
   onInterrupt: (reason: string) => Promise<void> | void;
   onResume: () => Promise<void> | void;
+  onIntervene: (input: Omit<RuntimeAgentTaskInterventionInput, "taskId">) => Promise<void> | void;
   onPrepareLauncher: (intent: RuntimeTaskLauncherInterventionIntent) => void;
   onApproval: (decision: "approved" | "rejected") => Promise<void> | void;
 };
+
+type MissionInterventionAction = Extract<
+  RuntimeAgentTaskInterventionInput["action"],
+  | "replan_scope"
+  | "drop_feature"
+  | "insert_feature"
+  | "change_validation_lane"
+  | "change_backend_preference"
+  | "mark_blocked_with_reason"
+>;
+
+const MISSION_INTERVENTION_ACTION_LABELS: Record<MissionInterventionAction, string> = {
+  replan_scope: "Replan scope",
+  drop_feature: "Drop feature",
+  insert_feature: "Insert feature",
+  change_validation_lane: "Change validation lane",
+  change_backend_preference: "Change backend preference",
+  mark_blocked_with_reason: "Mark blocked",
+};
+
+function buildMissionInterventionPatch(input: {
+  action: MissionInterventionAction;
+  instructionPatch: string;
+  validationLaneId: string | null;
+  backendIds: string[];
+}) {
+  const normalizedPatch = input.instructionPatch.trim();
+  const segments: string[] = [];
+  if (input.action === "change_validation_lane" && input.validationLaneId) {
+    segments.push(`Use validation lane ${input.validationLaneId}.`);
+  }
+  if (input.action === "change_backend_preference" && input.backendIds.length > 0) {
+    segments.push(`Preferred backends: ${input.backendIds.join(", ")}.`);
+  }
+  if (normalizedPatch.length > 0) {
+    segments.push(normalizedPatch);
+  }
+  return segments.length > 0 ? segments.join("\n") : null;
+}
+
+function parseBackendPreferenceInput(value: string): string[] {
+  const seen = new Set<string>();
+  const backendIds: string[] = [];
+  for (const entry of value.split(",")) {
+    const normalized = entry.trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    backendIds.push(normalized);
+  }
+  return backendIds;
+}
 
 function formatCompactLabel(value: string | null | undefined): string {
   if (!value) {
@@ -123,6 +180,7 @@ export function WorkspaceHomeAgentRuntimeRunItem({
   onRefresh,
   onInterrupt,
   onResume,
+  onIntervene,
   onPrepareLauncher,
   onApproval,
 }: WorkspaceHomeAgentRuntimeRunItemProps) {
@@ -135,6 +193,7 @@ export function WorkspaceHomeAgentRuntimeRunItem({
   const effectiveRun = runtimeRunTruth.record?.missionRun ?? run ?? task.runSummary ?? null;
   const effectiveReviewPack =
     runtimeRunTruth.record?.reviewPack ?? effectiveTask.reviewPackSummary ?? null;
+  const missionPlan = effectiveRun?.missionBrief ?? null;
   const effectiveTakeoverBundle =
     effectiveReviewPack?.takeoverBundle ??
     effectiveRun?.takeoverBundle ??
@@ -148,6 +207,12 @@ export function WorkspaceHomeAgentRuntimeRunItem({
     effectiveRun?.publishHandoff?.summary?.trim() ||
     effectiveTask.publishHandoff?.summary?.trim() ||
     null;
+  const currentMilestone =
+    missionPlan?.milestones?.find((milestone) => milestone.id === missionPlan.currentMilestoneId) ??
+    missionPlan?.milestones?.find((milestone) => milestone.status === "active") ??
+    null;
+  const completedMilestoneCount =
+    missionPlan?.milestones?.filter((milestone) => milestone.status === "completed").length ?? 0;
   const canInterrupt =
     effectiveTask.status === "queued" ||
     effectiveTask.status === "running" ||
@@ -203,6 +268,8 @@ export function WorkspaceHomeAgentRuntimeRunItem({
   const observabilityPanelId = useId();
   const edgeCountsByNodeId = buildNodeEdgeCounts(executionGraph);
   const blockingSubAgentLabel = resolveSubAgentSignalLabel(subAgents.map((agent) => agent.status));
+  const canUseMissionInterventions = effectiveRun !== null;
+  const validationLanes = missionPlan?.validationLanes ?? [];
   const observabilityHeadline =
     operatorSnapshot?.summary ??
     blockingSubAgentLabel ??
@@ -218,6 +285,31 @@ export function WorkspaceHomeAgentRuntimeRunItem({
     effectiveRun?.approval?.summary ??
     effectiveRun?.nextAction?.detail ??
     null;
+  const [interventionOpen, setInterventionOpen] = useState(false);
+  const [interventionAction, setInterventionAction] =
+    useState<MissionInterventionAction>("replan_scope");
+  const [interventionReason, setInterventionReason] = useState("");
+  const [interventionInstructionPatch, setInterventionInstructionPatch] = useState("");
+  const [interventionBackendDraft, setInterventionBackendDraft] = useState("");
+  const [interventionValidationLaneId, setInterventionValidationLaneId] = useState<string | null>(
+    null
+  );
+  const canSubmitMissionIntervention =
+    !runtimeLoading &&
+    !(
+      interventionAction === "change_backend_preference" &&
+      parseBackendPreferenceInput(interventionBackendDraft).length === 0
+    ) &&
+    !(interventionAction === "change_validation_lane" && !interventionValidationLaneId);
+
+  function resetMissionInterventionComposer() {
+    setInterventionOpen(false);
+    setInterventionAction("replan_scope");
+    setInterventionReason("");
+    setInterventionInstructionPatch("");
+    setInterventionBackendDraft("");
+    setInterventionValidationLaneId(validationLanes[0]?.id ?? null);
+  }
 
   useEffect(() => {
     if (observabilityAvailable && initialObservabilityOpen && !previousAutoOpenSignalRef.current) {
@@ -225,6 +317,14 @@ export function WorkspaceHomeAgentRuntimeRunItem({
     }
     previousAutoOpenSignalRef.current = initialObservabilityOpen;
   }, [initialObservabilityOpen, observabilityAvailable]);
+
+  useEffect(() => {
+    setInterventionValidationLaneId(validationLanes[0]?.id ?? null);
+  }, [validationLanes]);
+
+  useEffect(() => {
+    resetMissionInterventionComposer();
+  }, [effectiveTask.taskId, missionPlan?.planVersion]);
 
   return (
     <div className="workspace-home-code-runtime-item">
@@ -255,8 +355,36 @@ export function WorkspaceHomeAgentRuntimeRunItem({
             <span className={styles.runMetaChip}>Checkpoint {checkpointId}</span>
           ) : null}
           {traceId ? <span className={styles.runMetaChip}>Trace {traceId}</span> : null}
+          {missionPlan?.planVersion ? (
+            <span className={styles.runMetaChip}>Plan {missionPlan.planVersion}</span>
+          ) : null}
         </div>
         <div className={styles.runDetailStack}>
+          {missionPlan?.planSummary ? <span>Plan: {missionPlan.planSummary}</span> : null}
+          {currentMilestone ? (
+            <span>
+              Milestone: {currentMilestone.label} [{currentMilestone.status ?? "planned"}]
+            </span>
+          ) : null}
+          {missionPlan?.milestones?.length ? (
+            <span>
+              Milestones complete: {completedMilestoneCount}/{missionPlan.milestones.length}
+            </span>
+          ) : null}
+          {missionPlan?.validationLanes?.length ? (
+            <span>
+              Validation lanes:{" "}
+              {missionPlan.validationLanes
+                .map((lane) => `${lane.label} (${lane.trigger})`)
+                .join(" | ")}
+            </span>
+          ) : null}
+          {missionPlan?.skillPlan?.length ? (
+            <span>
+              Skill plan:{" "}
+              {missionPlan.skillPlan.map((skill) => `${skill.label} [${skill.state}]`).join(" | ")}
+            </span>
+          ) : null}
           {effectiveRun?.placement ? (
             <span>Placement: {effectiveRun.placement.summary}</span>
           ) : null}
@@ -410,6 +538,28 @@ export function WorkspaceHomeAgentRuntimeRunItem({
           <button
             type="button"
             className={styles.actionButtonSecondary}
+            onClick={() => {
+              setInterventionAction("replan_scope");
+              setInterventionOpen(true);
+            }}
+            disabled={!canUseMissionInterventions || runtimeLoading}
+          >
+            Replan
+          </button>
+          <button
+            type="button"
+            className={styles.actionButtonSecondary}
+            onClick={() => {
+              setInterventionAction("mark_blocked_with_reason");
+              setInterventionOpen(true);
+            }}
+            disabled={!canUseMissionInterventions || runtimeLoading}
+          >
+            Blocked
+          </button>
+          <button
+            type="button"
+            className={styles.actionButtonSecondary}
             onClick={() => void onInterrupt("ui:webmcp-runtime-interrupt")}
             disabled={!canInterrupt || runtimeLoading}
           >
@@ -439,8 +589,131 @@ export function WorkspaceHomeAgentRuntimeRunItem({
           >
             Switch profile
           </button>
+          <button
+            type="button"
+            className={styles.actionButtonSecondary}
+            onClick={() => setInterventionOpen((value) => !value)}
+            disabled={!canUseMissionInterventions || runtimeLoading}
+          >
+            {interventionOpen ? "Hide intervene" : "Mission intervene"}
+          </button>
         </div>
       </ReviewActionRail>
+      {interventionOpen && canUseMissionInterventions ? (
+        <div className={styles.interventionPanel}>
+          <div className={styles.interventionHeader}>
+            <strong>Mission intervention</strong>
+            <span>
+              Submit a structured runtime replan against the current mission truth
+              {missionPlan?.planVersion ? ` (${missionPlan.planVersion})` : ""}.
+            </span>
+          </div>
+          <div className={styles.interventionGrid}>
+            <label className={styles.interventionField}>
+              <span>Action</span>
+              <select
+                className={styles.interventionInput}
+                value={interventionAction}
+                onChange={(event) =>
+                  setInterventionAction(event.target.value as MissionInterventionAction)
+                }
+              >
+                {(Object.keys(MISSION_INTERVENTION_ACTION_LABELS) as MissionInterventionAction[])
+                  .filter(
+                    (action) => action !== "change_validation_lane" || validationLanes.length > 0
+                  )
+                  .map((action) => (
+                    <option key={action} value={action}>
+                      {MISSION_INTERVENTION_ACTION_LABELS[action]}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className={styles.interventionField}>
+              <span>Reason</span>
+              <input
+                className={styles.interventionInput}
+                type="text"
+                value={interventionReason}
+                onChange={(event) => setInterventionReason(event.target.value)}
+                placeholder="Why should runtime replan?"
+              />
+            </label>
+            {interventionAction === "change_validation_lane" ? (
+              <label className={styles.interventionField}>
+                <span>Validation lane</span>
+                <select
+                  className={styles.interventionInput}
+                  value={interventionValidationLaneId ?? ""}
+                  onChange={(event) => setInterventionValidationLaneId(event.target.value || null)}
+                >
+                  {validationLanes.map((lane) => (
+                    <option key={lane.id} value={lane.id}>
+                      {lane.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {interventionAction === "change_backend_preference" ? (
+              <label className={styles.interventionField}>
+                <span>Backend preference</span>
+                <input
+                  className={styles.interventionInput}
+                  type="text"
+                  value={interventionBackendDraft}
+                  onChange={(event) => setInterventionBackendDraft(event.target.value)}
+                  placeholder="backend-a, backend-b"
+                />
+              </label>
+            ) : null}
+          </div>
+          <label className={styles.interventionField}>
+            <span>Patch</span>
+            <textarea
+              className={styles.interventionTextarea}
+              value={interventionInstructionPatch}
+              onChange={(event) => setInterventionInstructionPatch(event.target.value)}
+              placeholder="Bound the change you want runtime to make to the current mission."
+            />
+          </label>
+          <div className={styles.actionGroup}>
+            <button
+              type="button"
+              className={styles.actionButtonAffirm}
+              onClick={() => {
+                void onIntervene({
+                  action: interventionAction,
+                  reason: interventionReason.trim() || null,
+                  instructionPatch: buildMissionInterventionPatch({
+                    action: interventionAction,
+                    instructionPatch: interventionInstructionPatch,
+                    validationLaneId: interventionValidationLaneId,
+                    backendIds: parseBackendPreferenceInput(interventionBackendDraft),
+                  }),
+                  preferredBackendIds:
+                    interventionAction === "change_backend_preference"
+                      ? parseBackendPreferenceInput(interventionBackendDraft)
+                      : null,
+                  approvedPlanVersion: missionPlan?.planVersion ?? null,
+                });
+                resetMissionInterventionComposer();
+              }}
+              disabled={!canSubmitMissionIntervention}
+            >
+              Submit intervention
+            </button>
+            <button
+              type="button"
+              className={styles.actionButtonSecondary}
+              onClick={() => resetMissionInterventionComposer()}
+              disabled={runtimeLoading}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
       {observabilityAvailable && observabilityOpen ? (
         <div
           className={styles.observabilityGrid}

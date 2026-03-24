@@ -403,6 +403,7 @@ export function CoreLoopClosureFixture() {
                   refreshRuntimeTasks={async () => undefined}
                   interruptRuntimeTaskById={async () => undefined}
                   resumeRuntimeTaskById={async () => undefined}
+                  interveneRuntimeTaskById={async () => undefined}
                   prepareRunLauncher={noop}
                   decideRuntimeApproval={async () => undefined}
                 />

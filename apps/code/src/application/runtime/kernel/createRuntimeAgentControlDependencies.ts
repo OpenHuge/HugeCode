@@ -341,6 +341,9 @@ export function createRuntimeAgentControlDependencies(
           : {}),
         ...(input.missionBrief !== undefined ? { missionBrief: input.missionBrief } : {}),
         ...(input.relaunchContext !== undefined ? { relaunchContext: input.relaunchContext } : {}),
+        ...(input.approvedPlanVersion !== undefined && input.approvedPlanVersion !== null
+          ? { approvedPlanVersion: input.approvedPlanVersion }
+          : {}),
         ...(input.autoDrive !== undefined ? { autoDrive: input.autoDrive } : {}),
         steps: [
           {
@@ -383,6 +386,9 @@ export function createRuntimeAgentControlDependencies(
           ? { preferredBackendIds: input.preferredBackendIds }
           : {}),
         ...(input.relaunchContext !== undefined ? { relaunchContext: input.relaunchContext } : {}),
+        ...(input.approvedPlanVersion !== undefined && input.approvedPlanVersion !== null
+          ? { approvedPlanVersion: input.approvedPlanVersion }
+          : {}),
       }).then((ack) => ({
         accepted: ack.accepted,
         action: ack.action,

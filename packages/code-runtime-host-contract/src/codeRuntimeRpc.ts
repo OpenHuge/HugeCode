@@ -325,6 +325,12 @@ export type AgentTaskInterventionAction =
   | "continue_with_clarification"
   | "narrow_scope"
   | "relax_validation"
+  | "replan_scope"
+  | "drop_feature"
+  | "insert_feature"
+  | "change_validation_lane"
+  | "change_backend_preference"
+  | "mark_blocked_with_reason"
   | "switch_profile_and_retry"
   | "escalate_to_pair_mode";
 
@@ -538,6 +544,37 @@ export type AgentTaskMissionEvaluationPlan = {
 
 export type AgentTaskMissionScenarioProfile = AgentTaskAutoDriveScenarioProfile;
 
+export type AgentTaskMissionPlanMilestoneStatus = "planned" | "active" | "completed" | "blocked";
+
+export type AgentTaskMissionValidationTrigger = "per_feature" | "per_milestone" | "pre_review";
+
+export type AgentTaskMissionPlanMilestone = {
+  id: string;
+  label: string;
+  summary: string;
+  status?: AgentTaskMissionPlanMilestoneStatus | null;
+  nodeIds?: string[] | null;
+  validationLaneIds?: string[] | null;
+  acceptanceCriteria?: string[] | null;
+};
+
+export type AgentTaskMissionValidationLane = {
+  id: string;
+  label: string;
+  summary: string;
+  trigger: AgentTaskMissionValidationTrigger;
+  commands?: string[] | null;
+};
+
+export type AgentTaskMissionSkillPlanItemState = "available" | "missing" | "recommended";
+
+export type AgentTaskMissionSkillPlanItem = {
+  skillId: string;
+  label: string;
+  state: AgentTaskMissionSkillPlanItemState;
+  summary?: string | null;
+};
+
 export type AgentTaskMissionBrief = {
   objective: string;
   doneDefinition?: string[] | null;
@@ -549,6 +586,16 @@ export type AgentTaskMissionBrief = {
   permissionSummary?: AgentTaskPermissionSummary | null;
   evaluationPlan?: AgentTaskMissionEvaluationPlan | null;
   scenarioProfile?: AgentTaskMissionScenarioProfile | null;
+  planVersion?: string | null;
+  planSummary?: string | null;
+  currentMilestoneId?: string | null;
+  estimatedDurationMinutes?: number | null;
+  estimatedWorkerRuns?: number | null;
+  parallelismHint?: string | null;
+  clarificationQuestions?: string[] | null;
+  milestones?: AgentTaskMissionPlanMilestone[] | null;
+  validationLanes?: AgentTaskMissionValidationLane[] | null;
+  skillPlan?: AgentTaskMissionSkillPlanItem[] | null;
 };
 
 export type AgentTaskFailureClass =
@@ -564,9 +611,11 @@ export type AgentTaskRelaunchContext = {
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
   sourceReviewPackId?: string | null;
+  sourcePlanVersion?: string | null;
   summary?: string | null;
   failureClass?: AgentTaskFailureClass | null;
   recommendedActions?: AgentTaskInterventionAction[] | null;
+  planChangeSummary?: string | null;
 };
 
 export type AgentTaskPublishHandoffReference = {
@@ -881,6 +930,7 @@ export type AgentTaskStartRequest = {
   defaultBackendId?: string | null;
   missionBrief?: AgentTaskMissionBrief | null;
   relaunchContext?: AgentTaskRelaunchContext | null;
+  approvedPlanVersion?: string | null;
   autoDrive?: AgentTaskAutoDriveState | null;
   autonomyRequest?: RuntimeAutonomyRequestV2 | null;
   steps: AgentTaskStepInput[];
@@ -1424,6 +1474,19 @@ export type RuntimeWakePolicySummaryV2 = {
   queueBudget?: RuntimeQueueBudgetV2 | null;
 };
 
+export type RuntimeMissionPlanV2 = {
+  planVersion: string;
+  summary: string;
+  currentMilestoneId: string | null;
+  estimatedDurationMinutes: number | null;
+  estimatedWorkerRuns: number | null;
+  parallelismHint: string;
+  clarifyingQuestions: string[];
+  milestones: AgentTaskMissionPlanMilestone[];
+  validationLanes: AgentTaskMissionValidationLane[];
+  skillPlan: AgentTaskMissionSkillPlanItem[];
+};
+
 export type RuntimeAutonomyRequestV2 = {
   autonomyProfile: RuntimeAutonomyProfileV2;
   wakePolicy: RuntimeWakePolicyV2;
@@ -1440,6 +1503,7 @@ export type RuntimeRunPrepareV2Response = {
   approvalBatches: RuntimeApprovalBatchV2[];
   validationPlan: RuntimeValidationPlanV2;
   reviewFocus: string[];
+  plan: RuntimeMissionPlanV2;
   autonomyProfile: RuntimeAutonomyProfileV2;
   wakePolicy: RuntimeWakePolicyV2;
   intentSnapshot: RuntimeIntentSnapshotV2;
@@ -1468,6 +1532,7 @@ export type RuntimeRunInterventionRequest = {
   reviewProfileId?: string | null;
   preferredBackendIds?: string[] | null;
   relaunchContext?: AgentTaskRelaunchContext | null;
+  approvedPlanVersion?: string | null;
 };
 
 export type RuntimeRunSubscribeRequest = {
@@ -4392,6 +4457,7 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
     access_mode?: AccessMode;
     execution_mode?: AgentTaskExecutionMode;
     preferred_backend_ids?: string[] | null;
+    approved_plan_version?: string | null;
     auto_drive?: AgentTaskAutoDriveState | null;
     steps: Array<
       AgentTaskStepInput & {
@@ -4410,6 +4476,7 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
     access_mode?: AccessMode;
     execution_mode?: AgentTaskExecutionMode;
     preferred_backend_ids?: string[] | null;
+    approved_plan_version?: string | null;
     auto_drive?: AgentTaskAutoDriveState | null;
     steps: Array<
       AgentTaskStepInput & {
@@ -4428,6 +4495,7 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
     access_mode?: AccessMode;
     execution_mode?: AgentTaskExecutionMode;
     preferred_backend_ids?: string[] | null;
+    approved_plan_version?: string | null;
     auto_drive?: AgentTaskAutoDriveState | null;
     steps: Array<
       AgentTaskStepInput & {
@@ -4451,12 +4519,14 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
     instruction_patch?: string | null;
     execution_profile_id?: string | null;
     preferred_backend_ids?: string[] | null;
+    approved_plan_version?: string | null;
   };
   [CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2]: RuntimeRunInterventionRequest & {
     run_id?: string;
     instruction_patch?: string | null;
     execution_profile_id?: string | null;
     preferred_backend_ids?: string[] | null;
+    approved_plan_version?: string | null;
   };
   [CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE]: RuntimeRunSubscribeRequest & {
     run_id?: string;
@@ -4482,6 +4552,7 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
     access_mode?: AccessMode;
     execution_mode?: AgentTaskExecutionMode;
     preferred_backend_ids?: string[] | null;
+    approved_plan_version?: string | null;
     auto_drive?: AgentTaskAutoDriveState | null;
     steps: Array<
       AgentTaskStepInput & {
@@ -4505,6 +4576,7 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
     instruction_patch?: string | null;
     execution_profile_id?: string | null;
     preferred_backend_ids?: string[] | null;
+    approved_plan_version?: string | null;
   };
   [CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_SUBSCRIBE_V3]: KernelJobSubscribeRequestV3 & {
     run_id?: string;

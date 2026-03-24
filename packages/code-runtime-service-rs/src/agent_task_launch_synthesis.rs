@@ -588,6 +588,17 @@ pub(crate) fn synthesize_agent_task_mission_brief(
         permission_summary: merge_permission_summary(explicit_ref, access_mode, auto_drive),
         evaluation_plan: merge_evaluation_plan(explicit_ref, context),
         scenario_profile: merge_scenario_profile(explicit_ref, auto_drive, context),
+        plan_version: explicit_ref.and_then(|brief| brief.plan_version.clone()),
+        plan_summary: explicit_ref.and_then(|brief| brief.plan_summary.clone()),
+        current_milestone_id: explicit_ref.and_then(|brief| brief.current_milestone_id.clone()),
+        estimated_duration_minutes: explicit_ref.and_then(|brief| brief.estimated_duration_minutes),
+        estimated_worker_runs: explicit_ref.and_then(|brief| brief.estimated_worker_runs),
+        parallelism_hint: explicit_ref.and_then(|brief| brief.parallelism_hint.clone()),
+        clarification_questions: explicit_ref
+            .and_then(|brief| brief.clarification_questions.clone()),
+        milestones: explicit_ref.and_then(|brief| brief.milestones.clone()),
+        validation_lanes: explicit_ref.and_then(|brief| brief.validation_lanes.clone()),
+        skill_plan: explicit_ref.and_then(|brief| brief.skill_plan.clone()),
     }
 }
 
@@ -924,6 +935,16 @@ mod tests {
                 source_signals: Some(vec!["e2e_map".to_string(), "test_command".to_string()]),
             }),
             scenario_profile: None,
+            plan_version: None,
+            plan_summary: None,
+            current_milestone_id: None,
+            estimated_duration_minutes: None,
+            estimated_worker_runs: None,
+            parallelism_hint: None,
+            clarification_questions: None,
+            milestones: None,
+            validation_lanes: None,
+            skill_plan: None,
         };
         let auto_drive = synthesize_agent_task_auto_drive_state(
             Some(sample_auto_drive(true)),

@@ -181,6 +181,84 @@ export const actionGroup = style({
   },
 });
 
+export const interventionPanel = style({
+  "@layer": {
+    [layers.features]: {
+      display: "grid",
+      gap: "10px",
+      border: "1px solid color-mix(in srgb, var(--status-warning) 18%, var(--ds-border-muted))",
+      borderRadius: "var(--ds-radius-md)",
+      background:
+        "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-card-base) 97%, var(--status-warning) 3%), color-mix(in srgb, var(--ds-surface-card-base) 90%, var(--ds-surface-muted)))",
+      padding: "10px",
+    },
+  },
+});
+
+export const interventionHeader = style({
+  "@layer": {
+    [layers.features]: {
+      display: "grid",
+      gap: "4px",
+      color: "var(--ds-text-muted)",
+      fontSize: "var(--font-size-meta)",
+    },
+  },
+});
+
+export const interventionGrid = style({
+  "@layer": {
+    [layers.features]: {
+      display: "grid",
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+      gap: "10px",
+      "@media": {
+        "(max-width: 960px)": {
+          gridTemplateColumns: "minmax(0, 1fr)",
+        },
+      },
+    },
+  },
+});
+
+export const interventionField = style({
+  "@layer": {
+    [layers.features]: {
+      display: "grid",
+      gap: "5px",
+      color: "var(--ds-text-muted)",
+      fontSize: "var(--font-size-fine)",
+      minInlineSize: 0,
+    },
+  },
+});
+
+export const interventionInput = style({
+  "@layer": {
+    [layers.features]: {
+      minWidth: 0,
+      borderRadius: "var(--ds-radius-sm)",
+      border: "1px solid var(--ds-border-muted)",
+      background: "var(--ds-surface-card-base)",
+      color: "var(--ds-text-strong)",
+      padding: "8px 10px",
+      fontSize: "var(--font-size-meta)",
+    },
+  },
+});
+
+export const interventionTextarea = style([
+  interventionInput,
+  {
+    "@layer": {
+      [layers.features]: {
+        minHeight: "76px",
+        resize: "vertical",
+      },
+    },
+  },
+]);
+
 export const actionButtonBase = style({
   "@layer": {
     [layers.features]: {

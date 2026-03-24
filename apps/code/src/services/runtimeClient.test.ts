@@ -321,6 +321,18 @@ describe("runtimeClient mode detection", () => {
         commands: [],
       },
       reviewFocus: [],
+      plan: {
+        planVersion: "plan-123",
+        summary: "prepared",
+        currentMilestoneId: null,
+        estimatedDurationMinutes: 5,
+        estimatedWorkerRuns: 1,
+        parallelismHint: "sequential",
+        clarifyingQuestions: [],
+        milestones: [],
+        validationLanes: [],
+        skillPlan: [],
+      },
     });
     await client.runtimeRunPrepareV2({
       workspaceId: "workspace-123",
@@ -390,12 +402,14 @@ describe("runtimeClient mode detection", () => {
       workspaceId: "workspace-123",
       accessMode: "on-request",
       executionMode: "single",
+      approvedPlanVersion: "plan-123",
       steps: [{ kind: "read", input: "Start runtime kernel v2" }],
     });
     expect(invokeMock).toHaveBeenLastCalledWith(
       "code_runtime_run_start_v2",
       expect.objectContaining({
         workspaceId: "workspace-123",
+        approvedPlanVersion: "plan-123",
         steps: expect.arrayContaining([
           expect.objectContaining({ kind: "read", input: "Start runtime kernel v2" }),
         ]),
