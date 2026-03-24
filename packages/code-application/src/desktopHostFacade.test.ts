@@ -12,6 +12,7 @@ import {
   resolveDesktopUpdateState,
   revealDesktopItemInDir,
   showDesktopNotification,
+  subscribeDesktopLaunchIntents,
 } from "./desktopHostFacade";
 
 describe("desktopHostFacade", () => {
@@ -105,6 +106,7 @@ describe("desktopHostFacade", () => {
           receivedAt: "2026-03-24T00:00:00.000Z",
           url: "hugecode://workspace/open?path=%2Fworkspace%2Falpha",
         }),
+        onIntent: vi.fn(() => () => undefined),
       },
       updater: {
         checkForUpdates,
@@ -140,6 +142,26 @@ describe("desktopHostFacade", () => {
     await expect(restartDesktopToApplyUpdate(desktopHostBridge)).resolves.toBe(true);
     expect(checkForUpdates).toHaveBeenCalledTimes(1);
     expect(restartToApplyUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("subscribes to live desktop launch intents when the bridge exposes them", () => {
+    const listener = vi.fn();
+    const unsubscribe = vi.fn();
+    const onIntent = vi.fn(() => unsubscribe);
+
+    const result = subscribeDesktopLaunchIntents(
+      {
+        kind: "electron",
+        launch: {
+          onIntent,
+        },
+      },
+      listener
+    );
+
+    expect(onIntent).toHaveBeenCalledWith(listener);
+    result();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
   it("returns safe null or idle fallbacks when the new desktop capabilities are unavailable", async () => {

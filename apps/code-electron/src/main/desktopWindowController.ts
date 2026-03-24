@@ -1,6 +1,8 @@
 import { BrowserWindow } from "electron";
 import type { BrowserWindowConstructorOptions } from "electron";
+import type { DesktopLaunchIntent } from "../shared/ipc.js";
 import type { OpenDesktopWindowInput } from "../shared/ipc.js";
+import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import {
   createDesktopShellState,
   resolveCloseBehavior,
@@ -32,6 +34,7 @@ type BrowserWindowLike = {
   restore(): void;
   show(): void;
   webContents: {
+    send(channel: string, payload: DesktopLaunchIntent): void;
     on(
       event: "will-navigate",
       listener: (event: { preventDefault(): void }, url: string) => void
@@ -74,6 +77,7 @@ export type CreateDesktopWindowControllerInput = {
 export type DesktopWindowController = {
   closeWindow(windowId: number): boolean;
   createWindowForSession(session: DesktopSessionDescriptor): DesktopWindowDescriptor | null;
+  deliverLaunchIntent(windowId: number, intent: DesktopLaunchIntent): boolean;
   focusWindow(windowId: number): boolean;
   hasWindowForWebContents(webContents: unknown): boolean;
   getSessionForWebContents(webContents: unknown): DesktopSessionDescriptor | null;
@@ -143,6 +147,16 @@ export function createDesktopWindowController(
     }
     targetWindow.show();
     targetWindow.focus();
+    return true;
+  }
+
+  function deliverLaunchIntent(windowId: number, intent: DesktopLaunchIntent) {
+    const targetWindow = activeWindows.get(windowId);
+    if (!targetWindow || targetWindow.isDestroyed()) {
+      return false;
+    }
+
+    targetWindow.webContents.send(DESKTOP_HOST_IPC_CHANNELS.pushLaunchIntent, intent);
     return true;
   }
 
@@ -261,6 +275,7 @@ export function createDesktopWindowController(
       return true;
     },
     createWindowForSession,
+    deliverLaunchIntent,
     focusWindow,
     hasWindowForWebContents,
     getSessionForWebContents,

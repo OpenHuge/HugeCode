@@ -21,11 +21,15 @@ HugeCode now serves packaged renderer content from `hugecode-app://app/...`. `hu
 
 - `hugecode://...` stays reserved for external deep links.
 - Workspace launches are a separate desktop contract:
+  - `hugecode://workspace/open?path=...` is the actionable workspace deep-link form and should normalize to a workspace launch before the renderer sees it
   - command-line folder paths open or focus the matching workspace session
   - command-line file paths normalize to the containing workspace directory while preserving the original file launch target in the desktop launch intent
   - macOS `open-file` events are normalized to the same workspace-launch behavior
+  - macOS `open-url` workspace deep links should also normalize to that same behavior
 - File-driven launches should be safe to surface in OS recent-documents integrations. Do not collapse them into a generic workspace launch before the main process records the original path.
 - Runtime/UI code should treat these as distinct intent kinds instead of parsing raw argv or conflating deep links with workspace opening.
+- Cold-start windows consume the pending launch intent through bootstrap. Already-running matching windows should receive the normalized launch intent over the live desktop bridge instead of relying on a reload.
+- Cold-start launch intents are queued and drained in order; repeated file or deep-link opens during startup must not overwrite earlier intents.
 
 ## Desktop Chrome Rules
 

@@ -111,6 +111,9 @@ export type DesktopLaunchCapability = {
     | DesktopLaunchIntent
     | null
     | undefined;
+  onIntent?: (
+    listener: (intent: DesktopLaunchIntent) => void
+  ) => (() => void) | void | Promise<() => void | void>;
 };
 
 export type DesktopSessionCapability = {
@@ -202,6 +205,7 @@ export type DesktopHostBridgeApi = {
   };
   launch: {
     consumePendingIntent(): Promise<DesktopLaunchIntent | null>;
+    onIntent(listener: (intent: DesktopLaunchIntent) => void): () => void;
   };
   session: {
     getCurrentSession(): Promise<DesktopSessionInfo | null>;

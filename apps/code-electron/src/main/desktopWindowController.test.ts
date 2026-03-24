@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDesktopShellState, type DesktopWindowBounds } from "./desktopShellState.js";
 import { createDesktopWindowController } from "./desktopWindowController.js";
+import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 
 type WindowEventMap = {
   close: (event: { preventDefault(): void }) => void;
@@ -31,6 +32,7 @@ function createFakeBrowserWindow(id: number, bounds: DesktopWindowBounds) {
         webContentsListeners[event]?.push(listener);
       }
     ),
+    send: vi.fn(),
     setWindowOpenHandler: vi.fn((handler: (details: { url: string }) => { action: "deny" }) => {
       windowOpenHandler = handler;
     }),
@@ -302,5 +304,62 @@ describe("desktopWindowController", () => {
 
     const trustedNavigationEvent = fakeWindow.emitWillNavigate("file:///tmp/index.html");
     expect(trustedNavigationEvent.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it("delivers live launch intents to an existing window", () => {
+    const shellState = createDesktopShellState({
+      now: () => "2026-03-23T10:00:00.000Z",
+      persistedState: {
+        sessions: [],
+        trayEnabled: false,
+      },
+    });
+    const fakeWindow = createFakeBrowserWindow(501, {
+      height: 900,
+      width: 1400,
+    });
+    const controller = createDesktopWindowController({
+      browserWindow: {
+        create: vi.fn(() => fakeWindow),
+        fromWebContents: vi.fn(() => fakeWindow),
+        getAllWindows: vi.fn(() => [fakeWindow]),
+      },
+      defaultWindowBounds: {
+        height: 960,
+        width: 1440,
+      },
+      isSafeExternalUrl: () => true,
+      isQuitting: () => false,
+      isTrustedRendererUrl: () => true,
+      loadRenderer: vi.fn(),
+      notifyWindowsChanged: vi.fn(),
+      openExternalUrl: vi.fn(),
+      persistState: vi.fn(),
+      preloadPath: "/tmp/preload.js",
+      shellState,
+    });
+
+    const descriptor = controller.openWindow({
+      workspaceLabel: "alpha",
+      workspacePath: "/workspace/alpha",
+    });
+
+    expect(
+      controller.deliverLaunchIntent(descriptor?.windowId ?? -1, {
+        kind: "workspace",
+        launchPath: "/workspace/alpha/src/main.ts",
+        launchPathKind: "file",
+        receivedAt: "2026-03-25T10:00:00.000Z",
+        workspaceLabel: "alpha",
+        workspacePath: "/workspace/alpha",
+      })
+    ).toBe(true);
+    expect(fakeWindow.webContents.send).toHaveBeenCalledWith(
+      DESKTOP_HOST_IPC_CHANNELS.pushLaunchIntent,
+      expect.objectContaining({
+        kind: "workspace",
+        launchPath: "/workspace/alpha/src/main.ts",
+      })
+    );
   });
 });

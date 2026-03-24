@@ -11,6 +11,15 @@ const desktopHostBridge: DesktopHostBridgeApi = {
   launch: {
     consumePendingIntent: () =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.consumePendingLaunchIntent),
+    onIntent: (listener) => {
+      const wrappedListener = (_event: Electron.IpcRendererEvent, intent: unknown) => {
+        listener(intent as Parameters<typeof listener>[0]);
+      };
+      ipcRenderer.on(DESKTOP_HOST_IPC_CHANNELS.pushLaunchIntent, wrappedListener);
+      return () => {
+        ipcRenderer.off(DESKTOP_HOST_IPC_CHANNELS.pushLaunchIntent, wrappedListener);
+      };
+    },
   },
   session: {
     getCurrentSession: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getCurrentSession),

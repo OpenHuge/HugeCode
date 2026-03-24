@@ -5,6 +5,9 @@ import { registerDesktopHostIpc } from "./registerDesktopHostIpc.js";
 describe("registerDesktopHostIpc", () => {
   it("registers all desktop host IPC handlers", () => {
     const handleMock = vi.fn();
+    const invokeChannels = Object.entries(DESKTOP_HOST_IPC_CHANNELS)
+      .filter(([channelName]) => channelName !== "pushLaunchIntent")
+      .map(([, channel]) => channel);
 
     registerDesktopHostIpc({
       channels: DESKTOP_HOST_IPC_CHANNELS,
@@ -35,10 +38,8 @@ describe("registerDesktopHostIpc", () => {
       isTrustedSender: () => true,
     });
 
-    expect(handleMock).toHaveBeenCalledTimes(Object.keys(DESKTOP_HOST_IPC_CHANNELS).length);
-    expect(handleMock.mock.calls.map(([channel]) => channel)).toEqual(
-      Object.values(DESKTOP_HOST_IPC_CHANNELS)
-    );
+    expect(handleMock).toHaveBeenCalledTimes(invokeChannels.length);
+    expect(handleMock.mock.calls.map(([channel]) => channel)).toEqual(invokeChannels);
   });
 
   it("blocks untrusted IPC senders before handler execution", async () => {

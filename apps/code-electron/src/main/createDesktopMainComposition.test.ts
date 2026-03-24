@@ -77,6 +77,7 @@ describe("createDesktopMainComposition", () => {
       show: vi.fn(),
       webContents: {
         on: vi.fn(),
+        send: vi.fn(),
         setWindowOpenHandler: vi.fn(),
       },
     };
@@ -239,6 +240,31 @@ describe("createDesktopMainComposition", () => {
     });
   });
 
+  it("treats actionable hugecode workspace deep links as workspace launches during startup", async () => {
+    const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
+    const input = createInput({
+      launchIntentDependencies: {
+        currentWorkingDirectory: () => "/workspace",
+        existsSync: vi.fn((path: string) => path === "/workspace/demo"),
+        statSync: vi.fn(() => ({
+          isDirectory: () => true,
+          isFile: () => false,
+        })),
+      },
+      processArgv: ["HugeCode", "hugecode://workspace/open?path=%2Fworkspace%2Fdemo"],
+    });
+
+    createDesktopMainComposition(input).start();
+    await input.app.whenReady.mock.results[0]?.value;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(input.browserWindow.create).toHaveBeenCalledTimes(1);
+    expect(input.browserWindow.create.mock.calls[0]?.[0]).toMatchObject({
+      title: "HugeCode - demo",
+    });
+  });
+
   it("preserves file launch targets and records them as recent documents during startup", async () => {
     const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
     const input = createInput({
@@ -262,5 +288,43 @@ describe("createDesktopMainComposition", () => {
     expect(input.browserWindow.create.mock.calls[0]?.[0]).toMatchObject({
       title: "HugeCode - src",
     });
+  });
+
+  it("delivers live macOS open-url workspace launches to an existing window", async () => {
+    const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
+    const input = createInput({
+      launchIntentDependencies: {
+        currentWorkingDirectory: () => "/workspace",
+        existsSync: vi.fn((path: string) => path === "/workspace/demo"),
+        statSync: vi.fn(() => ({
+          isDirectory: () => true,
+          isFile: () => false,
+        })),
+      },
+      processArgv: ["HugeCode", "demo"],
+    });
+
+    createDesktopMainComposition(input).start();
+    await input.app.whenReady.mock.results[0]?.value;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const openUrlListener = input.app.on.mock.calls.find(([event]) => event === "open-url")?.[1] as
+      | ((event: { preventDefault(): void }, url: string) => void)
+      | undefined;
+    const fakeWindow = input.browserWindow.create.mock.results[0]?.value;
+    const preventDefault = vi.fn();
+
+    openUrlListener?.({ preventDefault }, "hugecode://workspace/open?path=%2Fworkspace%2Fdemo");
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(fakeWindow.focus).toHaveBeenCalled();
+    expect(fakeWindow.webContents.send).toHaveBeenCalledWith(
+      "hugecode:desktop-host:push-launch-intent",
+      expect.objectContaining({
+        kind: "workspace",
+        workspacePath: "/workspace/demo",
+      })
+    );
   });
 });

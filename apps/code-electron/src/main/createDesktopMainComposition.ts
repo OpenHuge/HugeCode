@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import type { BrowserWindowConstructorOptions, IpcMainInvokeEvent } from "electron";
-import type { DesktopReleaseChannel } from "../shared/ipc.js";
+import type { DesktopLaunchIntent, DesktopReleaseChannel } from "../shared/ipc.js";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
 import {
@@ -50,6 +50,7 @@ type DesktopBrowserWindowLike = {
   restore(): void;
   show(): void;
   webContents: {
+    send(channel: string, payload: DesktopLaunchIntent): void;
     on(
       event: "will-navigate",
       listener: (event: { preventDefault(): void }, url: string) => void
@@ -155,6 +156,7 @@ export type CreateDesktopMainCompositionInput = {
 
 export function createDesktopMainComposition(input: CreateDesktopMainCompositionInput) {
   let isQuitting = false;
+  let desktopReady = false;
   const rendererRoot = join(input.sourceDirectory, "../renderer");
 
   const rendererTrust = createDesktopRendererTrust({
@@ -166,10 +168,73 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   const shellState = createDesktopShellState({
     persistedState: stateStore.read(),
   });
+  const windowController = createDesktopWindowController({
+    browserWindow: input.browserWindow,
+    defaultWindowBounds: DEFAULT_WINDOW_STATE,
+    isSafeExternalUrl: rendererTrust.isSafeExternalUrl,
+    isQuitting() {
+      return isQuitting;
+    },
+    isTrustedRendererUrl: rendererTrust.isTrustedRendererUrl,
+    loadRenderer(window) {
+      const rendererDevServerUrl = input.rendererDevServerUrl?.trim() ?? "";
+      if (rendererDevServerUrl.length > 0) {
+        void window.loadURL(rendererDevServerUrl);
+        return;
+      }
+
+      void window.loadURL(createDesktopAppRendererUrl());
+    },
+    notifyWindowsChanged() {
+      updateDesktopChrome();
+    },
+    openExternalUrl(url) {
+      return input.shell.openExternal(url);
+    },
+    persistState: persistDesktopState,
+    preloadPath: join(input.sourceDirectory, "../preload/preload.js"),
+    shellState,
+  });
   const launchIntentController = createDesktopLaunchIntentController({
     app: input.app,
     dependencies: input.launchIntentDependencies,
     initialArgv: input.processArgv,
+    onQueuedIntent(intent) {
+      if (!desktopReady) {
+        return;
+      }
+
+      const openWindowInput = launchIntentController.getOpenWindowInput(intent);
+      if (!openWindowInput) {
+        const focusedWindow = windowController.listWindows().find((window) => window.focused);
+        if (focusedWindow && windowController.deliverLaunchIntent(focusedWindow.windowId, intent)) {
+          launchIntentController.clearPendingIntent(intent);
+          return;
+        }
+
+        if (windowController.restoreVisibleWindow()) {
+          const visibleWindow = windowController.listWindows()[0];
+          if (
+            visibleWindow &&
+            windowController.deliverLaunchIntent(visibleWindow.windowId, intent)
+          ) {
+            launchIntentController.clearPendingIntent(intent);
+          }
+        }
+        return;
+      }
+
+      const targetSession = shellState.resolveSession(openWindowInput);
+      const existingWindow = windowController
+        .listWindows()
+        .find((window) => window.sessionId === targetSession.id);
+      const windowDescriptor = windowController.openWindow(openWindowInput);
+      if (existingWindow && windowDescriptor) {
+        if (windowController.deliverLaunchIntent(windowDescriptor.windowId, intent)) {
+          launchIntentController.clearPendingIntent(intent);
+        }
+      }
+    },
     platform: input.platform,
     protocol: "hugecode",
   });
@@ -207,33 +272,6 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     applicationMenuController.update();
   }
 
-  const windowController = createDesktopWindowController({
-    browserWindow: input.browserWindow,
-    defaultWindowBounds: DEFAULT_WINDOW_STATE,
-    isSafeExternalUrl: rendererTrust.isSafeExternalUrl,
-    isQuitting() {
-      return isQuitting;
-    },
-    isTrustedRendererUrl: rendererTrust.isTrustedRendererUrl,
-    loadRenderer(window) {
-      const rendererDevServerUrl = input.rendererDevServerUrl?.trim() ?? "";
-      if (rendererDevServerUrl.length > 0) {
-        void window.loadURL(rendererDevServerUrl);
-        return;
-      }
-
-      void window.loadURL(createDesktopAppRendererUrl());
-    },
-    notifyWindowsChanged() {
-      updateDesktopChrome();
-    },
-    openExternalUrl(url) {
-      return input.shell.openExternal(url);
-    },
-    persistState: persistDesktopState,
-    preloadPath: join(input.sourceDirectory, "../preload/preload.js"),
-    shellState,
-  });
   const notificationController = createDesktopNotificationController();
   const trayController = createDesktopTrayController({
     isSupported: input.platform === "darwin" || input.platform === "win32",
@@ -379,6 +417,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
           session: defaultSession,
         });
         registerDesktopSessionSecurity(defaultSession);
+        desktopReady = true;
         applicationMenuController.update();
       },
       onBeforeQuit() {

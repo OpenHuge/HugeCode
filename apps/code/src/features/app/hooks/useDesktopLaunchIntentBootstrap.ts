@@ -1,6 +1,9 @@
 import { useEffect } from "react";
 import type { DesktopLaunchIntent } from "@ku0/code-platform-interfaces";
-import { consumePendingDesktopLaunchIntent } from "../../../application/runtime/facades/desktopHostFacade";
+import {
+  consumePendingDesktopLaunchIntent,
+  subscribeToDesktopLaunchIntents,
+} from "../../../application/runtime/facades/desktopHostFacade";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type { DebugEntry } from "../../../types";
 
@@ -73,48 +76,62 @@ export function useDesktopLaunchIntentBootstrap({
     }
 
     let active = true;
-    void consumePendingDesktopLaunchIntent()
-      .then((intent) => {
-        if (!active || !intent) {
-          return;
-        }
+    const handleLaunchIntent = (intent: DesktopLaunchIntent) => {
+      if (!active) {
+        return;
+      }
 
-        onDebug({
-          id: `${Date.now()}-desktop-launch-intent`,
-          timestamp: Date.now(),
-          source: "client",
-          label: "desktop/launch-intent",
-          payload: formatLaunchIntentPayload(intent),
-        });
-
-        const toast = describeLaunchIntent(intent);
-        if (!toast) {
-          return;
-        }
-
-        pushErrorToast({
-          id: `desktop-launch-intent-${intent.kind}-${intent.receivedAt}`,
-          title: toast.title,
-          message: toast.message,
-          durationMs: 7000,
-        });
-      })
-      .catch((error) => {
-        if (!active) {
-          return;
-        }
-
-        onDebug({
-          id: `${Date.now()}-desktop-launch-intent-error`,
-          timestamp: Date.now(),
-          source: "error",
-          label: "desktop/launch-intent-error",
-          payload: error instanceof Error ? error.message : String(error),
-        });
+      onDebug({
+        id: `${Date.now()}-desktop-launch-intent`,
+        timestamp: Date.now(),
+        source: "client",
+        label: "desktop/launch-intent",
+        payload: formatLaunchIntentPayload(intent),
       });
+
+      const toast = describeLaunchIntent(intent);
+      if (!toast) {
+        return;
+      }
+
+      pushErrorToast({
+        id: `desktop-launch-intent-${intent.kind}-${intent.receivedAt}`,
+        title: toast.title,
+        message: toast.message,
+        durationMs: 7000,
+      });
+    };
+
+    const unsubscribe = subscribeToDesktopLaunchIntents((intent) => {
+      handleLaunchIntent(intent);
+    });
+
+    void (async () => {
+      while (active) {
+        const intent = await consumePendingDesktopLaunchIntent();
+        if (!intent) {
+          return;
+        }
+
+        handleLaunchIntent(intent);
+      }
+    })().catch((error) => {
+      if (!active) {
+        return;
+      }
+
+      onDebug({
+        id: `${Date.now()}-desktop-launch-intent-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "desktop/launch-intent-error",
+        payload: error instanceof Error ? error.message : String(error),
+      });
+    });
 
     return () => {
       active = false;
+      unsubscribe();
     };
   }, [enabled, onDebug]);
 }

@@ -28,6 +28,7 @@ export type CreateDesktopLaunchIntentControllerInput = {
   app: ElectronAppLike;
   dependencies?: LaunchIntentControllerDependencies;
   initialArgv?: string[];
+  onQueuedIntent?: (intent: DesktopLaunchIntent) => void;
   platform: NodeJS.Platform;
   protocol: string;
 };
@@ -42,6 +43,20 @@ function createProtocolLaunchIntent(url: string): DesktopLaunchIntent {
     receivedAt: new Date().toISOString(),
     url,
   };
+}
+
+function toProtocolPathCandidate(url: URL) {
+  const candidate =
+    url.searchParams.get("path") ??
+    url.searchParams.get("workspacePath") ??
+    url.searchParams.get("target") ??
+    null;
+  if (typeof candidate !== "string") {
+    return null;
+  }
+
+  const trimmedCandidate = candidate.trim();
+  return trimmedCandidate.length > 0 ? trimmedCandidate : null;
 }
 
 function createWorkspaceLaunchIntent(
@@ -84,9 +99,49 @@ export function createDesktopLaunchIntentController(
   const pathExists = input.dependencies?.existsSync ?? existsSync;
   const readPathStat = input.dependencies?.statSync ?? statSync;
 
+  function resolveWorkspaceIntentFromProtocolUrl(url: string) {
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol !== `${input.protocol}:`) {
+        return null;
+      }
+
+      const hostname = parsedUrl.hostname.trim().toLowerCase();
+      const pathname = parsedUrl.pathname.trim();
+      if (hostname !== "workspace" || pathname !== "/open") {
+        return null;
+      }
+
+      const pathCandidate = toProtocolPathCandidate(parsedUrl);
+      if (!pathCandidate) {
+        return null;
+      }
+
+      const workspaceTarget = resolveWorkspaceTarget(pathCandidate);
+      if (!workspaceTarget) {
+        return null;
+      }
+
+      return createWorkspaceLaunchIntent(
+        workspaceTarget.workspacePath,
+        toWorkspaceLabel(workspaceTarget.workspacePath),
+        workspaceTarget.launchPath,
+        workspaceTarget.launchPathKind
+      );
+    } catch {
+      return null;
+    }
+  }
+
   function resolveProtocolIntent(argv: string[] | undefined) {
     const protocolUrl = findProtocolUrl(argv, input.protocol);
-    return protocolUrl ? createProtocolLaunchIntent(protocolUrl) : null;
+    if (!protocolUrl) {
+      return null;
+    }
+
+    return (
+      resolveWorkspaceIntentFromProtocolUrl(protocolUrl) ?? createProtocolLaunchIntent(protocolUrl)
+    );
   }
 
   function resolveWorkspaceTarget(candidatePath: string) {
@@ -158,16 +213,59 @@ export function createDesktopLaunchIntentController(
     input.app.addRecentDocument?.(intent.launchPath);
   }
 
-  let pendingIntent = resolveInitialIntent(input.initialArgv);
-  rememberRecentDocument(pendingIntent);
+  const pendingIntents: DesktopLaunchIntent[] = [];
+  const initialIntent = resolveInitialIntent(input.initialArgv);
+  if (initialIntent) {
+    pendingIntents.push(initialIntent);
+    rememberRecentDocument(initialIntent);
+  }
+
+  function removePendingIntent(intent: DesktopLaunchIntent) {
+    const pendingIntentIndex = pendingIntents.indexOf(intent);
+    if (pendingIntentIndex >= 0) {
+      pendingIntents.splice(pendingIntentIndex, 1);
+      return true;
+    }
+
+    const matchingIndex = pendingIntents.findIndex((candidate) => {
+      return (
+        candidate.kind === intent.kind &&
+        candidate.receivedAt === intent.receivedAt &&
+        candidate.url === intent.url &&
+        candidate.workspacePath === intent.workspacePath &&
+        candidate.launchPath === intent.launchPath
+      );
+    });
+    if (matchingIndex < 0) {
+      return false;
+    }
+
+    pendingIntents.splice(matchingIndex, 1);
+    return true;
+  }
+
+  function toOpenWindowInput(intent: DesktopLaunchIntent | null) {
+    if (intent?.kind !== "workspace" || !intent.workspacePath) {
+      return null;
+    }
+
+    return {
+      launchPath: intent.launchPath ?? null,
+      launchPathKind: intent.launchPathKind ?? null,
+      workspaceLabel: intent.workspaceLabel ?? null,
+      workspacePath: intent.workspacePath,
+    };
+  }
 
   function queueProtocolUrl(url: string) {
     if (!url.toLowerCase().startsWith(buildProtocolPrefix(input.protocol))) {
       return null;
     }
 
-    const nextIntent = createProtocolLaunchIntent(url);
-    pendingIntent = nextIntent;
+    const nextIntent =
+      resolveWorkspaceIntentFromProtocolUrl(url) ?? createProtocolLaunchIntent(url);
+    pendingIntents.push(nextIntent);
+    input.onQueuedIntent?.(nextIntent);
     return nextIntent;
   }
 
@@ -184,29 +282,31 @@ export function createDesktopLaunchIntentController(
       workspaceTarget.launchPathKind
     );
     rememberRecentDocument(nextIntent);
-    pendingIntent = nextIntent;
+    pendingIntents.push(nextIntent);
+    input.onQueuedIntent?.(nextIntent);
     return nextIntent;
   }
 
   return {
     consumePendingIntent() {
-      const nextIntent = pendingIntent;
-      pendingIntent = null;
-      return nextIntent;
+      return pendingIntents.shift() ?? null;
     },
-    getPendingOpenWindowInput(): OpenDesktopWindowInput | null {
-      if (pendingIntent?.kind !== "workspace" || !pendingIntent.workspacePath) {
-        return null;
+    clearPendingIntent(intent?: DesktopLaunchIntent) {
+      if (intent) {
+        removePendingIntent(intent);
+        return;
       }
 
-      return {
-        launchPath: pendingIntent.launchPath ?? null,
-        launchPathKind: pendingIntent.launchPathKind ?? null,
-        workspaceLabel: pendingIntent.workspaceLabel ?? null,
-        workspacePath: pendingIntent.workspacePath,
-      };
+      pendingIntents.splice(0, pendingIntents.length);
+    },
+    getPendingOpenWindowInput(): OpenDesktopWindowInput | null {
+      return toOpenWindowInput(pendingIntents[0] ?? null);
+    },
+    getOpenWindowInput(intent: DesktopLaunchIntent | null): OpenDesktopWindowInput | null {
+      return toOpenWindowInput(intent);
     },
     peekPendingIntent() {
+      const pendingIntent = pendingIntents[0];
       return pendingIntent ? { ...pendingIntent } : null;
     },
     queueArgv(argv: string[]) {
@@ -216,7 +316,7 @@ export function createDesktopLaunchIntentController(
       }
 
       rememberRecentDocument(nextIntent);
-      pendingIntent = nextIntent;
+      pendingIntents.push(nextIntent);
       return nextIntent;
     },
     registerAppHandlers() {

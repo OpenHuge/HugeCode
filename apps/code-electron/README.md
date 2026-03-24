@@ -54,11 +54,18 @@ Linux desktop builds remain manual-update only.
 
 - `hugecode://...` remains the external deep-link scheme.
 - Packaged renderer content loads only from `hugecode-app://app/...`.
+- Actionable workspace deep links are first-class:
+  - `hugecode://workspace/open?path=...` is normalized to the same workspace launch flow as CLI and Finder opens
+  - directory targets open or focus the matching workspace window
+  - file targets preserve the original file path and normalize the workspace session to the containing directory
 - Command-line workspace launches follow modern desktop-editor behavior:
   - launching HugeCode with a folder path opens or focuses that workspace window
   - launching HugeCode with a file path opens the containing workspace directory while preserving the original file target in the launch intent
   - macOS `open-file` events are normalized to the same workspace-launch flow
+  - macOS `open-url` workspace deep links are also normalized to that flow
   - file-driven launches are added to the OS recent-documents surface when Electron exposes it
+- Already-running windows receive live launch intents over the desktop bridge; cold-start windows consume the same intent through the bootstrap path.
+- Cold-start launch intents are queued and drained in order so repeated file or deep-link opens are not overwritten during startup.
 
 ## Desktop Chrome
 

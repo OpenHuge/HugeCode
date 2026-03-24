@@ -11,6 +11,7 @@ import {
   restartDesktopToApplyUpdate,
   revealDesktopItemInDir,
   showDesktopNotification as showDesktopNotificationWithCapabilities,
+  subscribeDesktopLaunchIntents as subscribeDesktopLaunchIntentsWithCapabilities,
 } from "@ku0/code-application";
 import type {
   DesktopAppInfo,
@@ -67,6 +68,12 @@ export async function resolveCurrentDesktopSession(): Promise<DesktopSessionInfo
 
 export async function consumePendingDesktopLaunchIntent(): Promise<DesktopLaunchIntent | null> {
   return consumeDesktopLaunchIntent(getDesktopHostBridge());
+}
+
+export function subscribeToDesktopLaunchIntents(
+  listener: (intent: DesktopLaunchIntent) => void
+): () => void {
+  return subscribeDesktopLaunchIntentsWithCapabilities(getDesktopHostBridge(), listener);
 }
 
 export async function resolveDesktopUpdaterState(): Promise<DesktopUpdateState> {

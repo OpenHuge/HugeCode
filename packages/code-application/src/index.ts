@@ -11,6 +11,7 @@ export {
   restartDesktopToApplyUpdate,
   revealDesktopItemInDir,
   showDesktopNotification,
+  subscribeDesktopLaunchIntents,
 } from "./desktopHostFacade";
 export {
   applyBrowserRuntimeFlags,
