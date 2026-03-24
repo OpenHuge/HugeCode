@@ -21,6 +21,7 @@ const requiredEntries = [
   ".github/workflows",
   path.join("apps", "code", "package.json"),
   path.join("apps", "code-web"),
+  path.join("scripts", "config", "code-web-bundle-budget.config.mjs"),
   "scripts/check-repo-sot.mjs",
   path.join("scripts", "lib"),
   "scripts/workflow-list.mjs",
@@ -416,6 +417,39 @@ describe("check-repo-sot", () => {
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("apps/code-web/wrangler.jsonc");
       expect(result.stderr).toContain("open-fast-web");
+    },
+    repoSotTestTimeoutMs
+  );
+
+  it(
+    "fails when the web bundle budget config reintroduces desktop-only chunk baselines",
+    async () => {
+      const tempRoot = await mkdtemp(path.join(tmpdir(), "repo-sot-"));
+      tempRoots.push(tempRoot);
+      await createTrackedFixtureRepo(tempRoot);
+
+      const budgetConfigPath = path.join(
+        tempRoot,
+        "scripts",
+        "config",
+        "code-web-bundle-budget.config.mjs"
+      );
+      const budgetConfig = await readFile(budgetConfigPath, "utf8");
+      await writeFile(
+        budgetConfigPath,
+        budgetConfig.replace(
+          "knownLargeChunkPrefixes: {}",
+          'knownLargeChunkPrefixes: { "MainAppContainerCore-": 1450000 }'
+        ),
+        "utf8"
+      );
+      stageFixtureChanges(tempRoot);
+
+      const result = runRepoSot(tempRoot);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("scripts/config/code-web-bundle-budget.config.mjs");
+      expect(result.stderr).toContain("MainAppContainerCore-");
     },
     repoSotTestTimeoutMs
   );

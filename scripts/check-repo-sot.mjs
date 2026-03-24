@@ -163,6 +163,23 @@ const requiredChecks = [
     excludes: ['"./workspace-surface"'],
   },
   {
+    file: "scripts/config/code-web-bundle-budget.config.mjs",
+    includes: ["knownLargeChunkPrefixes: {}"],
+    excludes: [
+      "MainAppContainerCore-",
+      "MainApp-",
+      "Home-",
+      "SettingsView-",
+      "xterm-",
+      "GitDiffViewer-",
+      "emacs-lisp-",
+      "cpp-",
+      "wasm-",
+      "esm-",
+      "lib-",
+    ],
+  },
+  {
     file: "docs/development/ci-workflows.md",
     includes: [
       `# ${product} CI Workflow Map`,
