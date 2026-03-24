@@ -7,17 +7,18 @@
 - Static/CSR shell for the coding assistant workspace.
 - Composer/threads/model-pool placeholder surfaces.
 - Tauri IPC service entrypoint for Rust command integration.
-- Shared UI/runtime-safe modules that can be consumed by `apps/code-web` for
-  the client-only workspace shell.
-- The current repo-owned workspace client that `apps/code-web` reuses for the
-  client-only `/app` web entry.
+- Desktop host composition around the shared workspace client in
+  `packages/code-workspace-client`.
+- Runtime-bound desktop bootstrap and host bindings that the web shell does not
+  own.
 
 ## Target Boundary
 
 - Keep `apps/code` compatible with `tauri dev` and `tauri build`.
 - Do not introduce a Cloudflare Workers runtime dependency here.
 - TanStack Start and Cloudflare platform shell work live in `apps/code-web`,
-  which remains outside the default root workflows today.
+  while shared workspace behavior lives in `packages/code-workspace-client` and
+  `packages/code-application`.
 - Visual and deterministic fixtures now load through `fixtures.html`, not through the production app entry.
 - Browser/runtime-gateway support may live here, but that does not make this
   package the full Cloudflare web deployment shell.

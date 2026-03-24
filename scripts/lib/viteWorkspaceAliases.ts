@@ -33,9 +33,6 @@ export function createCodeWorkspaceAliases(
   const codeWorkspaceClientEntry = fileURLToPath(
     new URL("../../packages/code-workspace-client/src/index.ts", appRootUrl)
   );
-  const codeAppWorkspaceSurfaceEntry = fileURLToPath(
-    new URL("../../apps/code/src/MainAppContainerCore.tsx", appRootUrl)
-  );
   const codeWorkspaceClientSrc = fileURLToPath(
     new URL("../../packages/code-workspace-client/src", appRootUrl)
   );
@@ -113,10 +110,6 @@ export function createCodeWorkspaceAliases(
     {
       find: /^react-dom$/,
       replacement: reactDomEntry,
-    },
-    {
-      find: /^@ku0\/code\/workspace-surface$/,
-      replacement: codeAppWorkspaceSurfaceEntry,
     },
     {
       find: /^@ku0\/code-runtime-client$/,

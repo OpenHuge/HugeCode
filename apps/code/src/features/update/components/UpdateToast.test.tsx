@@ -57,6 +57,26 @@ describe("UpdateToast", () => {
     expect((progress as HTMLProgressElement).value).toBe(50);
   });
 
+  it("renders downloaded state and offers restart actions", () => {
+    const onUpdate = vi.fn();
+    const onDismiss = vi.fn();
+
+    const { container } = render(
+      <UpdateToast
+        state={{ stage: "downloaded", version: "1.2.4" }}
+        onUpdate={onUpdate}
+        onDismiss={onDismiss}
+      />
+    );
+    const scoped = within(container);
+
+    expect(scoped.getByText("Update ready. Restart HugeCode to apply it.")).toBeTruthy();
+    fireEvent.click(scoped.getByRole("button", { name: "Later" }));
+    fireEvent.click(scoped.getByRole("button", { name: "Restart Now" }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+  });
+
   it("renders error state and lets you dismiss or retry", () => {
     const onUpdate = vi.fn();
     const onDismiss = vi.fn();

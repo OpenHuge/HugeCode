@@ -17,6 +17,11 @@ on:
         type: string
         default: ""
 
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_API: ${{ vars.TURBO_API }}
+
 jobs:
   quality:
     name: Quality

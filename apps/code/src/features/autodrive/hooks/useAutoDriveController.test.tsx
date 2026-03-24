@@ -257,6 +257,18 @@ describe("useAutoDriveController", () => {
             researchMode: "live_when_allowed",
           }),
         }),
+        autonomyRequest: expect.objectContaining({
+          autonomyProfile: "night_operator",
+          sourceScope: "workspace_graph_and_public_web",
+          wakePolicy: expect.objectContaining({
+            mode: "auto_queue",
+            allowedActions: ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+          }),
+          researchPolicy: expect.objectContaining({
+            mode: "staged",
+            requireCitations: true,
+          }),
+        }),
       })
     );
     expect(trackProductAnalyticsEvent).toHaveBeenCalledWith(

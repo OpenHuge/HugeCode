@@ -103,6 +103,66 @@ export const controlSection = feature({
   gap: "8px",
 });
 
+export const disclosureSection = feature({
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
+  border: "1px solid var(--ds-border-subtle)",
+  borderRadius: "var(--ds-radius-md)",
+  background:
+    "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-card-base) 96%, transparent), color-mix(in srgb, var(--ds-surface-card-base) 100%, var(--ds-surface-canvas)))",
+});
+
+export const disclosureToggle = feature({
+  width: "100%",
+  border: "0",
+  background: "transparent",
+  color: "inherit",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: "12px",
+  padding: "12px",
+  textAlign: "left",
+});
+
+export const disclosureToggleExpanded = feature({
+  borderBottom: "1px solid var(--ds-border-subtle)",
+});
+
+export const disclosureCopy = feature({
+  display: "grid",
+  gap: "4px",
+  minWidth: 0,
+});
+
+export const disclosureTitle = feature({
+  fontSize: "var(--font-size-meta)",
+  fontWeight: 600,
+  color: "var(--ds-text-strong)",
+});
+
+export const disclosureSummary = feature({
+  fontSize: "var(--font-size-fine)",
+  color: "var(--ds-text-faint)",
+  lineHeight: 1.4,
+});
+
+export const disclosureAction = feature({
+  fontSize: "var(--font-size-fine)",
+  fontWeight: 600,
+  color: "var(--ds-text-muted)",
+  whiteSpace: "nowrap",
+});
+
+export const disclosureBody = feature({
+  padding: "0 12px 12px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
+});
+
 export const controlGrid = feature({
   display: "grid",
   gridTemplateColumns: "repeat(2, minmax(0, 1fr))",

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { renderHook, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { act, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceClientBindings } from "../index";
 import { WorkspaceClientBindingsProvider } from "../workspace/WorkspaceClientBindingsProvider";
@@ -215,11 +215,13 @@ describe("useSharedWorkspaceCatalogState", () => {
 
     const nextListener = listener;
     if (nextListener) {
-      nextListener({
-        scope: ["workspaces"],
-        reason: "workspaceUpsert",
-        eventWorkspaceId: "workspace-2",
-        paramsWorkspaceId: "workspace-2",
+      await act(async () => {
+        nextListener({
+          scope: ["workspaces"],
+          reason: "workspaceUpsert",
+          eventWorkspaceId: "workspace-2",
+          paramsWorkspaceId: "workspace-2",
+        });
       });
     }
 

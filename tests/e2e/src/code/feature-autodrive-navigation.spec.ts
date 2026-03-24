@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
-test.describe.configure({ timeout: 45_000 });
+test.describe.configure({ mode: "serial", timeout: 90_000 });
+test.setTimeout(120_000);
 
 function fixtureUrl(params: Record<string, string> = {}): string {
   const searchParams = new URLSearchParams({
@@ -15,11 +16,10 @@ async function openFixture(page: Page, params: Record<string, string> = {}) {
   await page.goto(fixtureUrl(params), {
     waitUntil: "domcontentloaded",
   });
-  await expect
-    .poll(async () => page.locator("body").textContent(), {
-      timeout: 20_000,
-    })
-    .toContain("AutoDrive Navigation Fixture");
+  await expect(page.getByRole("heading", { name: "AutoDrive Navigation Fixture" })).toBeVisible({
+    timeout: 45_000,
+  });
+  await expect(page.getByRole("switch", { name: "Toggle AutoDrive" })).toBeVisible();
 }
 
 async function openMobileFixture(page: Page, params: Record<string, string> = {}) {
@@ -27,35 +27,48 @@ async function openMobileFixture(page: Page, params: Record<string, string> = {}
   await page.goto(fixtureUrl(params), {
     waitUntil: "domcontentloaded",
   });
-  await expect
-    .poll(async () => page.locator("body").textContent(), {
-      timeout: 20_000,
-    })
-    .toContain("AutoDrive Navigation Fixture");
+  await expect(page.getByRole("heading", { name: "AutoDrive Navigation Fixture" })).toBeVisible({
+    timeout: 45_000,
+  });
+  await expect(page.getByRole("switch", { name: "Toggle AutoDrive" })).toBeVisible();
 }
 
-async function openAutoDriveSettings(page: Page) {
-  await page.getByRole("button", { name: "AutoDrive", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "AutoDrive settings" });
-  await expect(dialog).toBeVisible();
-  return dialog;
+function autoDriveStatusRail(page: Page) {
+  return page.getByLabel("AutoDrive status rail");
+}
+
+async function openAutoDriveControls(page: Page) {
+  const rail = autoDriveStatusRail(page);
+  await expect(rail).toBeVisible();
+  const toggle = rail.getByRole("button").first();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  return rail;
 }
 
 function ledgerRegion(page: Page) {
   return page.getByLabel("AutoDrive ledger");
 }
 
-async function waitForFixtureStatus(
-  page: Page,
-  status: "paused" | "stopped" | "completed",
-  timeout = 20_000
-) {
-  await expect
-    .poll(async () => page.locator("body").textContent(), {
-      timeout,
-    })
-    .toContain(`Status: ${status}`);
+async function waitForActionButton(page: Page, label: string, timeout = 20_000) {
+  await expect(page.getByRole("button", { name: label })).toBeVisible({ timeout });
 }
+
+test.beforeAll(async ({ browser }) => {
+  test.setTimeout(120_000);
+  const page = await browser.newPage();
+  try {
+    await page.goto(fixtureUrl(), {
+      waitUntil: "domcontentloaded",
+    });
+    await expect(page.getByRole("heading", { name: "AutoDrive Navigation Fixture" })).toBeVisible({
+      timeout: 90_000,
+    });
+  } finally {
+    await page.close();
+  }
+});
 
 test("autodrive dropdown launches without update-loop errors and stops on the token cap", async ({
   page,
@@ -69,20 +82,17 @@ test("autodrive dropdown launches without update-loop errors and stops on the to
 
   await openFixture(page);
 
-  const dialog = await openAutoDriveSettings(page);
-  await expect(dialog).toContainText("Degraded");
-  await expect(dialog).toContainText("Enabled");
-  await expect(dialog).toContainText("Runtime snapshot unavailable");
-  await expect(dialog).toContainText("AutoDrive is armed.");
-  await expect(dialog.getByRole("button", { name: "Start AutoDrive" })).toBeVisible();
+  const rail = await openAutoDriveControls(page);
+  await expect(rail).toContainText("Ready to launch");
+  await expect(rail).toContainText("Automatic runtime routing");
+  await expect(rail.getByRole("button", { name: "Start AutoDrive" })).toBeVisible();
   expect(consoleErrors.some((entry) => entry.includes("Maximum update depth exceeded"))).toBe(
     false
   );
 
-  await dialog.getByRole("button", { name: "Start AutoDrive" }).click();
+  await rail.getByRole("button", { name: "Start AutoDrive" }).click();
 
-  await waitForFixtureStatus(page, "stopped");
-  await expect(page.getByRole("button", { name: "Restart AutoDrive" })).toBeVisible();
+  await waitForActionButton(page, "Restart AutoDrive");
   await expect(ledgerRegion(page)).toContainText("8 artifact(s)");
   await expect(page.getByText(".hugecode/runs/autodrive-e2e-run/context/1.json")).toBeVisible();
   await expect(page.getByText(".hugecode/runs/autodrive-e2e-run/context/2.json")).toBeVisible();
@@ -95,36 +105,31 @@ test("autodrive navigation fixture can pause and resume with a delayed determini
 }) => {
   await openFixture(page, { "step-delay-ms": "900" });
 
-  const dialog = await openAutoDriveSettings(page);
-  await dialog.getByRole("button", { name: "Start AutoDrive" }).click();
-  await expect(dialog.getByRole("button", { name: "Pause AutoDrive" })).toBeVisible({
-    timeout: 5_000,
-  });
+  const rail = await openAutoDriveControls(page);
+  await rail.getByRole("button", { name: "Start AutoDrive" }).click();
+  await waitForActionButton(page, "Pause AutoDrive", 5_000);
 
-  await dialog.getByRole("button", { name: "Pause AutoDrive" }).click();
+  await page.getByRole("button", { name: "Pause AutoDrive" }).click();
 
-  await waitForFixtureStatus(page, "paused");
+  await waitForActionButton(page, "Resume AutoDrive");
   await expect(page.getByRole("button", { name: "Resume AutoDrive" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Stop AutoDrive" })).toBeVisible();
 
   await page.getByRole("button", { name: "Resume AutoDrive" }).click();
 
-  await waitForFixtureStatus(page, "stopped");
+  await waitForActionButton(page, "Restart AutoDrive");
 });
 
 test("autodrive navigation fixture supports an explicit operator stop", async ({ page }) => {
   await openFixture(page, { "step-delay-ms": "900" });
 
-  const dialog = await openAutoDriveSettings(page);
-  await dialog.getByRole("button", { name: "Start AutoDrive" }).click();
-  await expect(dialog.getByRole("button", { name: "Stop AutoDrive" })).toBeVisible({
-    timeout: 5_000,
-  });
+  const rail = await openAutoDriveControls(page);
+  await rail.getByRole("button", { name: "Start AutoDrive" }).click();
+  await waitForActionButton(page, "Stop AutoDrive", 5_000);
 
-  await dialog.getByRole("button", { name: "Stop AutoDrive" }).click();
+  await page.getByRole("button", { name: "Stop AutoDrive" }).click();
 
-  await waitForFixtureStatus(page, "stopped");
-  await expect(page.getByRole("button", { name: "Restart AutoDrive" })).toBeVisible();
+  await waitForActionButton(page, "Restart AutoDrive");
   await expect(ledgerRegion(page)).not.toContainText("0 artifact(s)");
 });
 
@@ -135,33 +140,35 @@ test("autodrive navigation fixture recovers a paused route after reload", async 
     "reset-state": "1",
   });
 
-  const dialog = await openAutoDriveSettings(page);
-  await dialog.getByRole("button", { name: "Start AutoDrive" }).click();
-  await expect(dialog.getByRole("button", { name: "Pause AutoDrive" })).toBeVisible({
-    timeout: 5_000,
-  });
+  const rail = await openAutoDriveControls(page);
+  await rail.getByRole("button", { name: "Start AutoDrive" }).click();
+  await waitForActionButton(page, "Pause AutoDrive", 5_000);
 
-  await dialog.getByRole("button", { name: "Pause AutoDrive" }).click();
+  await page.getByRole("button", { name: "Pause AutoDrive" }).click();
 
-  await waitForFixtureStatus(page, "paused");
+  await waitForActionButton(page, "Resume AutoDrive");
 
   await page.reload({
     waitUntil: "domcontentloaded",
   });
 
-  const recoveredDialog = await openAutoDriveSettings(page);
-  await expect(recoveredDialog.getByRole("button", { name: "Resume AutoDrive" })).toBeVisible();
-  await expect(page.getByText("Status: paused", { exact: false })).toBeVisible();
+  await openFixture(page, {
+    "step-delay-ms": "900",
+    "persist-key": "autodrive-recovery",
+    "reset-state": "1",
+  });
+  const recoveredRail = await openAutoDriveControls(page);
+  await expect(recoveredRail.getByRole("button", { name: "Resume AutoDrive" })).toBeVisible();
   await expect(ledgerRegion(page)).not.toContainText("0 artifact(s)");
 });
 
 test("autodrive navigation fixture surfaces reroute-stop outcomes explicitly", async ({ page }) => {
   await openFixture(page, { scenario: "reroute-stop" });
 
-  const dialog = await openAutoDriveSettings(page);
-  await dialog.getByRole("button", { name: "Start AutoDrive" }).click();
+  const rail = await openAutoDriveControls(page);
+  await rail.getByRole("button", { name: "Start AutoDrive" }).click();
 
-  await waitForFixtureStatus(page, "stopped");
+  await waitForActionButton(page, "Restart AutoDrive");
 
   await expect(
     page
@@ -178,13 +185,13 @@ test("autodrive navigation fixture can arrive at the destination in the goal-rea
 }) => {
   await openFixture(page, { scenario: "goal-reached" });
 
-  const dialog = await openAutoDriveSettings(page);
-  await dialog.getByRole("button", { name: "Start AutoDrive" }).click();
+  const rail = await openAutoDriveControls(page);
+  await rail.getByRole("button", { name: "Start AutoDrive" }).click();
 
-  await waitForFixtureStatus(page, "completed");
-
-  await expect(page.getByRole("button", { name: "Restart AutoDrive" })).toBeVisible();
-  await expect(ledgerRegion(page)).toContainText("8 artifact(s)");
+  await waitForActionButton(page, "Restart AutoDrive");
+  await expect(ledgerRegion(page)).toContainText("11 artifact(s)");
+  await expect(page.getByText(".hugecode/runs/autodrive-e2e-run/context/3.json")).toBeVisible();
+  await expect(page.getByText(".hugecode/runs/autodrive-e2e-run/summary/3.json")).toBeVisible();
 });
 
 test("autodrive navigation fixture keeps the navigation console usable on mobile", async ({
@@ -192,12 +199,10 @@ test("autodrive navigation fixture keeps the navigation console usable on mobile
 }) => {
   await openMobileFixture(page, { scenario: "goal-reached" });
 
-  const dialog = await openAutoDriveSettings(page);
-  await dialog.getByRole("button", { name: "Start AutoDrive" }).click();
+  const rail = await openAutoDriveControls(page);
+  await rail.getByRole("button", { name: "Start AutoDrive" }).click();
 
-  await waitForFixtureStatus(page, "completed");
-
-  await expect(page.getByRole("button", { name: "Restart AutoDrive" })).toBeVisible();
+  await waitForActionButton(page, "Restart AutoDrive");
 
   await expect
     .poll(

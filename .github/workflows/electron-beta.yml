@@ -1,0 +1,107 @@
+name: Desktop (Electron Beta)
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish prerelease assets to GitHub Releases.
+        type: boolean
+        required: false
+        default: false
+  pull_request:
+    paths:
+      - "apps/code-electron/**"
+      - "apps/code/**"
+      - "packages/code-application/**"
+      - "packages/code-platform-interfaces/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "scripts/electron-publish-dry-run.mjs"
+      - ".github/workflows/_reusable-electron-beta.yml"
+      - ".github/workflows/electron-beta.yml"
+      - ".github/actions/setup-node-pnpm/**"
+      - ".github/actions/upload-workflow-artifact/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/code-electron/**"
+      - "apps/code/**"
+      - "packages/code-application/**"
+      - "packages/code-platform-interfaces/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "scripts/electron-publish-dry-run.mjs"
+      - ".github/workflows/_reusable-electron-beta.yml"
+      - ".github/workflows/electron-beta.yml"
+      - ".github/actions/setup-node-pnpm/**"
+      - ".github/actions/upload-workflow-artifact/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: electron-beta-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify
+    uses: ./.github/workflows/_reusable-electron-beta.yml
+    with:
+      command: pnpm desktop:electron:verify
+      runner: ubuntu-latest
+
+  make-smoke:
+    name: Make Smoke (${{ matrix.name }})
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            id: macos
+            runner: macos-14
+            artifact_path: apps/code-electron/out/make/**/*
+          - name: Windows
+            id: windows
+            runner: windows-latest
+            artifact_path: apps/code-electron/out/make/**/*
+          - name: Linux
+            id: linux
+            runner: ubuntu-22.04
+            artifact_path: apps/code-electron/out/make/**/*
+    uses: ./.github/workflows/_reusable-electron-beta.yml
+    with:
+      artifact_name: electron-beta-${{ matrix.id }}
+      artifact_path: ${{ matrix.artifact_path }}
+      command: pnpm desktop:electron:make:smoke
+      runner: ${{ matrix.runner }}
+
+  publish-dry-run:
+    name: Publish Dry Run
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish != true }}
+    needs: make-smoke
+    uses: ./.github/workflows/_reusable-electron-beta.yml
+    with:
+      command: pnpm desktop:electron:publish:dry-run
+      runner: ubuntu-latest
+
+  publish:
+    name: Publish (${{ matrix.name }})
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == true }}
+    needs: make-smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            runner: macos-14
+          - name: Windows
+            runner: windows-latest
+          - name: Linux
+            runner: ubuntu-22.04
+    uses: ./.github/workflows/_reusable-electron-beta.yml
+    with:
+      command: pnpm desktop:electron:publish
+      runner: ${{ matrix.runner }}

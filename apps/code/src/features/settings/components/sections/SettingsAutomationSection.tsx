@@ -39,6 +39,11 @@ export type SettingsAutomationScheduleSummary = {
   triggerSourceLabel: string | null;
   blockingReason: string | null;
   safeFollowUp: boolean | null;
+  autonomyProfile: string | null;
+  sourceScope: string | null;
+  wakePolicy: string | null;
+  researchPolicy: string | null;
+  queueBudget: number | null;
 };
 
 export type SettingsAutomationScheduleDraft = {
@@ -49,6 +54,12 @@ export type SettingsAutomationScheduleDraft = {
   reviewProfileId: string;
   validationPresetId: string;
   enabled: boolean;
+  autonomyProfile: string;
+  sourceScope: string;
+  wakePolicy: string;
+  researchPolicy: string;
+  queueBudget: string;
+  safeFollowUp: boolean;
 };
 
 export type SettingsAutomationSectionProps = {
@@ -83,6 +94,12 @@ function createBlankDraft(
     reviewProfileId: "",
     validationPresetId: "",
     enabled: true,
+    autonomyProfile: "night_operator",
+    sourceScope: "workspace_graph",
+    wakePolicy: "auto_queue",
+    researchPolicy: "repository_only",
+    queueBudget: "2",
+    safeFollowUp: true,
   };
 }
 
@@ -98,6 +115,15 @@ function mapSummaryToDraft(
     reviewProfileId: summary.reviewProfileId ?? "",
     validationPresetId: summary.validationPresetId ?? "",
     enabled: summary.status !== "paused",
+    autonomyProfile: summary.autonomyProfile ?? "night_operator",
+    sourceScope: summary.sourceScope ?? "workspace_graph",
+    wakePolicy: summary.wakePolicy ?? "auto_queue",
+    researchPolicy: summary.researchPolicy ?? "repository_only",
+    queueBudget:
+      typeof summary.queueBudget === "number" && Number.isFinite(summary.queueBudget)
+        ? String(summary.queueBudget)
+        : "2",
+    safeFollowUp: summary.safeFollowUp ?? true,
   };
 }
 
@@ -285,6 +311,25 @@ export function SettingsAutomationSection({
     ],
     [backendOptions]
   );
+  const autonomyProfileOptions: SelectOption[] = [
+    { value: "night_operator", label: "Night Operator" },
+    { value: "supervised", label: "Supervised" },
+  ];
+  const sourceScopeOptions: SelectOption[] = [
+    { value: "workspace_graph", label: "Workspace graph" },
+    { value: "repository_only", label: "Repository only" },
+    { value: "workspace_graph_and_public_web", label: "Workspace + public web" },
+  ];
+  const wakePolicyOptions: SelectOption[] = [
+    { value: "auto_queue", label: "Auto Queue" },
+    { value: "review_queue", label: "Review Queue" },
+    { value: "hold", label: "Hold" },
+  ];
+  const researchPolicyOptions: SelectOption[] = [
+    { value: "repository_only", label: "Repository only" },
+    { value: "staged", label: "Staged research" },
+    { value: "public_web", label: "Public web first" },
+  ];
   const selectedScheduleLabel = selectedSchedule?.name ?? "No schedule selected";
   const selectedScheduleActionLabel =
     selectedSchedule?.status === "paused" ? "Resume schedule" : "Pause schedule";
@@ -388,6 +433,15 @@ export function SettingsAutomationSection({
                         {resolveFieldLabel(schedule.lastOutcomeLabel, "Awaiting runtime result")}
                       </div>
                       <div className={grammar.helpText}>Backend: {backendLabel}</div>
+                      <div className={grammar.helpText}>
+                        Autonomy: {resolveFieldLabel(schedule.autonomyProfile, "Night Operator")}
+                      </div>
+                      <div className={grammar.helpText}>
+                        Wake policy: {resolveFieldLabel(schedule.wakePolicy, "Auto Queue")}
+                      </div>
+                      <div className={grammar.helpText}>
+                        Source scope: {resolveFieldLabel(schedule.sourceScope, "Workspace graph")}
+                      </div>
                       <div className={grammar.helpText}>Review profile: {reviewProfileLabel}</div>
                       <div className={grammar.helpText}>
                         Validation preset: {validationPresetLabel}
@@ -516,6 +570,96 @@ export function SettingsAutomationSection({
         )}
 
         <SettingsField
+          label="Autonomy profile"
+          help="Night Operator keeps bounded unattended execution on the runtime side without creating a second scheduler in the UI."
+        >
+          <Select
+            {...compactSelectProps}
+            ariaLabel="Autonomy profile"
+            options={autonomyProfileOptions}
+            value={draft.autonomyProfile}
+            onValueChange={(value) =>
+              setDraft((previous) => ({ ...previous, autonomyProfile: value }))
+            }
+          />
+        </SettingsField>
+
+        <SettingsField
+          label="Source scope"
+          help="Control whether the runtime stays repo-local or may expand into public-web research."
+        >
+          <Select
+            {...compactSelectProps}
+            ariaLabel="Source scope"
+            options={sourceScopeOptions}
+            value={draft.sourceScope}
+            onValueChange={(value) => setDraft((previous) => ({ ...previous, sourceScope: value }))}
+          />
+        </SettingsField>
+
+        <SettingsField
+          label="Wake policy"
+          help="Auto Queue allows bounded follow-up chaining; hold pauses for operator review."
+        >
+          <Select
+            {...compactSelectProps}
+            ariaLabel="Wake policy"
+            options={wakePolicyOptions}
+            value={draft.wakePolicy}
+            onValueChange={(value) => setDraft((previous) => ({ ...previous, wakePolicy: value }))}
+          />
+        </SettingsField>
+
+        <SettingsField
+          label="Research policy"
+          help="Staged research keeps public-web work and private-context work separated."
+        >
+          <Select
+            {...compactSelectProps}
+            ariaLabel="Research policy"
+            options={researchPolicyOptions}
+            value={draft.researchPolicy}
+            onValueChange={(value) =>
+              setDraft((previous) => ({ ...previous, researchPolicy: value }))
+            }
+          />
+        </SettingsField>
+
+        <SettingsField
+          label="Queue budget"
+          htmlFor="schedule-queue-budget"
+          help="Maximum number of runtime-owned next actions that can be chained before waking the operator."
+        >
+          <Input
+            id="schedule-queue-budget"
+            fieldClassName={compactInputFieldClassName}
+            inputSize="sm"
+            value={draft.queueBudget}
+            onValueChange={(value) => setDraft((previous) => ({ ...previous, queueBudget: value }))}
+            placeholder="2"
+          />
+        </SettingsField>
+
+        <SettingsField
+          label="Safe follow-up"
+          help="Keeps follow-up chaining constrained to bounded, review-friendly continuation."
+        >
+          <SettingsControlRow
+            title="Allow safe follow-up"
+            subtitle="The runtime still decides whether continuation is eligible."
+            control={
+              <SettingsToggleControl
+                checked={draft.safeFollowUp}
+                ariaLabel="Toggle safe follow-up"
+                onCheckedChange={() =>
+                  setDraft((previous) => ({ ...previous, safeFollowUp: !previous.safeFollowUp }))
+                }
+              />
+            }
+          />
+        </SettingsField>
+
+        <SettingsField
           label="Review profile"
           htmlFor="schedule-review-profile"
           help="Optional review profile identifier. The runtime will use its own confirmed mapping."
@@ -600,6 +744,23 @@ export function SettingsAutomationSection({
               {resolveFieldLabel(selectedSchedule.lastOutcomeLabel, "Awaiting runtime result")}
             </div>
             <div className={grammar.helpText}>Backend: {selectedBackendLabel}</div>
+            <div className={grammar.helpText}>
+              Autonomy profile:{" "}
+              {resolveFieldLabel(selectedSchedule.autonomyProfile, "Night Operator")}
+            </div>
+            <div className={grammar.helpText}>
+              Wake policy: {resolveFieldLabel(selectedSchedule.wakePolicy, "Auto Queue")}
+            </div>
+            <div className={grammar.helpText}>
+              Source scope: {resolveFieldLabel(selectedSchedule.sourceScope, "Workspace graph")}
+            </div>
+            <div className={grammar.helpText}>
+              Research policy:{" "}
+              {resolveFieldLabel(selectedSchedule.researchPolicy, "Repository only")}
+            </div>
+            <div className={grammar.helpText}>
+              Queue budget: {selectedSchedule.queueBudget ?? "runtime default"}
+            </div>
             <div className={grammar.helpText}>
               Review profile:{" "}
               {resolveFieldLabel(

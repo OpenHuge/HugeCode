@@ -354,7 +354,9 @@ describe("SettingsView Codex accounts", () => {
       });
 
       const applyCallsBeforeSync = applyOAuthPoolMock.mock.calls.length;
-      fireEvent.click(screen.getByRole("button", { name: "Sync" }));
+      await actAndFlush(() => {
+        fireEvent.click(screen.getByRole("button", { name: "Sync" }));
+      });
 
       await waitFor(() => {
         expect(applyOAuthPoolMock.mock.calls.length).toBeGreaterThan(applyCallsBeforeSync);

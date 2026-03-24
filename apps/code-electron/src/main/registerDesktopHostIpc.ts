@@ -1,5 +1,11 @@
 import type { IpcMainInvokeEvent } from "electron";
-import type { DesktopNotificationInput, OpenDesktopWindowInput } from "../shared/ipc.js";
+import type {
+  DesktopAppInfo,
+  DesktopLaunchIntent,
+  DesktopNotificationInput,
+  DesktopUpdateState,
+  OpenDesktopWindowInput,
+} from "../shared/ipc.js";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 
 type IpcInvokeEventLike = IpcMainInvokeEvent;
@@ -27,10 +33,14 @@ type DesktopTrayState = {
 
 type DesktopHostIpcHandlers = {
   closeWindow(windowId: number): Promise<boolean> | boolean;
+  checkForUpdates(): Promise<DesktopUpdateState> | DesktopUpdateState;
+  consumePendingLaunchIntent(): Promise<DesktopLaunchIntent | null> | DesktopLaunchIntent | null;
   focusWindow(windowId: number): Promise<boolean> | boolean;
+  getAppInfo(): Promise<DesktopAppInfo | null> | DesktopAppInfo | null;
   getAppVersion(): Promise<string | null> | string | null;
   getCurrentSession(event: IpcInvokeEventLike): Promise<unknown> | unknown;
   getTrayState(): Promise<DesktopTrayState> | DesktopTrayState;
+  getUpdateState(): Promise<DesktopUpdateState> | DesktopUpdateState;
   getWindowLabel(event: IpcInvokeEventLike): Promise<string> | string;
   listRecentSessions(): Promise<unknown[]> | unknown[];
   listWindows(): Promise<DesktopWindowDescriptor[]> | DesktopWindowDescriptor[];
@@ -38,6 +48,7 @@ type DesktopHostIpcHandlers = {
   openWindow(input?: OpenDesktopWindowInput): Promise<unknown> | unknown;
   reopenSession(sessionId: string): Promise<boolean> | boolean;
   revealItemInDir(path: string): Promise<boolean> | boolean;
+  restartToApplyUpdate(): Promise<boolean> | boolean;
   setTrayEnabled(enabled: boolean): Promise<DesktopTrayState> | DesktopTrayState;
   showNotification(
     event: IpcInvokeEventLike,
@@ -68,8 +79,16 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
     });
   }
 
+  handleTrusted(channels.getAppInfo, async () => {
+    return handlers.getAppInfo();
+  });
+
   handleTrusted(channels.getAppVersion, async () => {
     return handlers.getAppVersion();
+  });
+
+  handleTrusted(channels.consumePendingLaunchIntent, async () => {
+    return handlers.consumePendingLaunchIntent();
   });
 
   handleTrusted(channels.getCurrentSession, async (event) => {
@@ -114,6 +133,18 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
 
   handleTrusted(channels.showNotification, async (event, notificationInput) => {
     return handlers.showNotification(event, notificationInput as DesktopNotificationInput);
+  });
+
+  handleTrusted(channels.getUpdateState, async () => {
+    return handlers.getUpdateState();
+  });
+
+  handleTrusted(channels.checkForUpdates, async () => {
+    return handlers.checkForUpdates();
+  });
+
+  handleTrusted(channels.restartToApplyUpdate, async () => {
+    return handlers.restartToApplyUpdate();
   });
 
   handleTrusted(channels.openExternalUrl, async (_event, url) => {

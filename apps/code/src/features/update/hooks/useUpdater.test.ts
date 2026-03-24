@@ -4,6 +4,12 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  checkForDesktopUpdates,
+  detectDesktopRuntimeHost,
+  resolveDesktopUpdaterState,
+  restartDesktopUpdate,
+} from "../../../application/runtime/facades/desktopHostFacade";
 import type { DebugEntry } from "../../../types";
 import { STORAGE_KEY_PENDING_POST_UPDATE_VERSION } from "../utils/postUpdateRelease";
 import { useUpdater } from "./useUpdater";
@@ -20,8 +26,22 @@ vi.mock("@tauri-apps/plugin-process", () => ({
   relaunch: vi.fn(),
 }));
 
+vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
+  checkForDesktopUpdates: vi.fn(),
+  detectDesktopRuntimeHost: vi.fn(async () => "tauri"),
+  resolveDesktopUpdaterState: vi.fn(async () => ({
+    capability: "unsupported",
+    stage: "idle",
+  })),
+  restartDesktopUpdate: vi.fn(async () => false),
+}));
+
 const checkMock = vi.mocked(check);
 const relaunchMock = vi.mocked(relaunch);
+const checkForDesktopUpdatesMock = vi.mocked(checkForDesktopUpdates);
+const detectDesktopRuntimeHostMock = vi.mocked(detectDesktopRuntimeHost);
+const resolveDesktopUpdaterStateMock = vi.mocked(resolveDesktopUpdaterState);
+const restartDesktopUpdateMock = vi.mocked(restartDesktopUpdate);
 const fetchMock = vi.fn();
 type CheckResult = Awaited<ReturnType<typeof check>>;
 const APP_VERSION = "1.2.3";
@@ -35,6 +55,17 @@ describe("useUpdater", () => {
     fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("__APP_VERSION__", APP_VERSION);
+    detectDesktopRuntimeHostMock.mockResolvedValue("tauri");
+    checkForDesktopUpdatesMock.mockResolvedValue({
+      capability: "automatic",
+      stage: "checking",
+      version: "2.0.0",
+    });
+    resolveDesktopUpdaterStateMock.mockResolvedValue({
+      capability: "unsupported",
+      stage: "idle",
+    });
+    restartDesktopUpdateMock.mockResolvedValue(false);
   });
 
   afterEach(() => {
@@ -223,6 +254,44 @@ describe("useUpdater", () => {
     expect(result.current.state.stage).toBe("idle");
     expect(result.current.state.error).toBeUndefined();
     expect(onDebug).not.toHaveBeenCalled();
+  });
+
+  it("uses the desktop bridge updater flow on electron and restarts after download", async () => {
+    detectDesktopRuntimeHostMock.mockResolvedValue("electron");
+    checkForDesktopUpdatesMock.mockResolvedValue({
+      capability: "automatic",
+      stage: "checking",
+      version: "2.0.0",
+    });
+    resolveDesktopUpdaterStateMock
+      .mockResolvedValueOnce({
+        capability: "automatic",
+        stage: "downloaded",
+        version: "2.0.0",
+      })
+      .mockResolvedValue({
+        capability: "automatic",
+        stage: "downloaded",
+        version: "2.0.0",
+      });
+    restartDesktopUpdateMock.mockResolvedValue(true);
+
+    const { result } = renderHook(() => useUpdater({}));
+
+    await act(async () => {
+      await result.current.checkForUpdates();
+    });
+
+    await waitFor(() => expect(result.current.state.stage).toBe("downloaded"));
+
+    await act(async () => {
+      await result.current.startUpdate();
+    });
+
+    expect(result.current.state.stage).toBe("restarting");
+    expect(checkForDesktopUpdatesMock).toHaveBeenCalledTimes(1);
+    expect(restartDesktopUpdateMock).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem(STORAGE_KEY_PENDING_POST_UPDATE_VERSION)).toBe("2.0.0");
   });
 
   it("loads post-update release notes after restart when marker matches current version", async () => {

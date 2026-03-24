@@ -89,7 +89,7 @@ describe("Select", () => {
         ariaLabel="Editor"
         options={[{ value: "vscode", label: "VS Code" }]}
         value="vscode"
-        renderTrigger={({ ref, selectionLabel, caret, ...triggerProps }) => (
+        renderTrigger={({ ref, triggerProps, selectionLabel, caret }) => (
           <button {...triggerProps} ref={ref} data-custom-select-trigger="true">
             <span>{selectionLabel}</span>
             {caret}

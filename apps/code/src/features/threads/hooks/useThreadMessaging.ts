@@ -135,6 +135,7 @@ async function invokeSteerTurnRequest(params: {
   codexBin: string | null;
   codexArgs: string[] | null;
   autoDrive?: ReturnType<typeof mapDraftToRuntimeAutoDriveState> | null;
+  autonomyRequest?: import("@ku0/code-runtime-host-contract").RuntimeAutonomyRequestV2 | null;
 }): Promise<Record<string, unknown>> {
   const serviceTier = params.fastMode ? "fast" : null;
   const steerOptions = {
@@ -150,6 +151,7 @@ async function invokeSteerTurnRequest(params: {
     codexBin: params.codexBin,
     codexArgs: params.codexArgs,
     ...(params.autoDrive ? { autoDrive: params.autoDrive } : {}),
+    ...(params.autonomyRequest ? { autonomyRequest: params.autonomyRequest } : {}),
   };
   if (params.contextPrefix) {
     return (await steerTurnService(

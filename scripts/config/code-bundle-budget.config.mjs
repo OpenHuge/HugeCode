@@ -1,10 +1,10 @@
 export const codeBundleBudgetConfig = {
-  entryMaxBytes: 1_000_000,
+  entryMaxBytes: 300_000,
   chunkMaxBytes: 350_000,
   growthTolerancePct: 3,
   knownLargeChunkPrefixes: {
-    "MainApp-": 1_468_133,
-    "MainAppContainerCore-": 1_468_133,
+    "MainApp-": 560_000,
+    "MainAppContainerCore-": 560_000,
     "emacs-lisp-": 779_847,
     "cpp-": 626_137,
     "wasm-": 622_325,

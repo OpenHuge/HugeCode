@@ -500,7 +500,7 @@ describe("useTerminalSession", () => {
       },
     };
 
-    const { result, rerender } = renderHook(
+    const { result, rerender, unmount } = renderHook(
       ({ isVisible }) =>
         useTerminalSession({
           activeWorkspace: workspace,
@@ -523,10 +523,14 @@ describe("useTerminalSession", () => {
     expect(result.current.message).toContain("initializing");
     expect(openTerminalSession).toHaveBeenCalledTimes(1);
 
-    resolveOpen({
-      id: "runtime-session-uninitialized-1",
-      initialLines: [],
-      state: "created",
+    await act(async () => {
+      resolveOpen({
+        id: "runtime-session-uninitialized-1",
+        initialLines: [],
+        state: "created",
+      });
+      await Promise.resolve();
+      unmount();
     });
   });
 });

@@ -6,12 +6,12 @@ export const Route = createFileRoute("/_public/")({
   head: () => ({
     meta: [
       {
-        title: "Open Fast Web",
+        title: "HugeCode Web",
       },
       {
         name: "description",
         content:
-          "Open Fast web runtime powered by TanStack Start with a Cloudflare-first deployment path.",
+          "HugeCode web shell powered by TanStack Start with a Cloudflare-first deployment path.",
       },
     ],
   }),

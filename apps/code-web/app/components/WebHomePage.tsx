@@ -55,8 +55,8 @@ const stackFacts = [
   },
   {
     label: "Shared layer",
-    value: "@ku0/shared",
-    copy: "Pure content and runtime-agnostic data only.",
+    value: "@ku0/code-workspace-client",
+    copy: "Shared workspace shell and bindings for the web and desktop hosts.",
   },
   {
     label: "Boundary rule",
@@ -70,7 +70,7 @@ export function WebHomePage() {
     <>
       <section className={heroSplit}>
         <div className={heroCard}>
-          <span className={eyebrow}>Open Fast Web Surface</span>
+          <span className={eyebrow}>HugeCode Web Surface</span>
           <h1 className={heroTitle}>
             A focused web shell on TanStack Start, without pulling Tauri into the server path.
           </h1>
