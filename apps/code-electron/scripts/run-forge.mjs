@@ -1,18 +1,12 @@
 import { access, cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildForgeEnvironment, resolveCommandInvocation } from "./run-forge-support.mjs";
+import { buildForgeEnvironment } from "./run-forge-support.mjs";
 import {
   createForgeStagePackageJson,
   shouldInstallForgeStageDependencies,
 } from "./forge-stage-package.mjs";
-
-const command = process.argv[2];
-if (!command || !["package", "make", "publish"].includes(command)) {
-  throw new Error("Usage: node ./scripts/run-forge.mjs <package|make|publish>");
-}
 
 const scriptDir = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const packageDir = resolve(scriptDir, "..");
@@ -22,24 +16,42 @@ const tempRootDir = resolve(packageDir, ".tmp");
 const packageJson = JSON.parse(await readFile(resolve(packageDir, "package.json"), "utf8"));
 const forgeConfigSource = resolve(packageDir, "forge.config.mjs");
 const workspaceRoot = resolve(packageDir, "../..");
-const requireFromWorkspace = createRequire(resolve(workspaceRoot, "package.json"));
-const electronForgeCli = requireFromWorkspace.resolve("@electron-forge/cli/dist/electron-forge.js");
 const localMakerDebSource = resolve(scriptDir, "maker-deb.cjs");
 
 let forgeStageDir = "";
 let forgePackageDir = "";
-const nodeExecDir = dirname(process.execPath);
 
-async function runCommand(commandName, args, cwd) {
-  const { argsPrefix, command } = await resolveCommandInvocation({
-    commandName,
-    nodeExecDir,
-  });
+function normalizeCommandPath(commandPath) {
+  return commandPath.replaceAll("\\", "/");
+}
 
+export function resolveForgeStageCommands(platform = process.platform) {
+  return {
+    electronForge: {
+      command: normalizeCommandPath(
+        platform === "win32"
+          ? resolve(workspaceRoot, "node_modules/.bin/electron-forge.cmd")
+          : resolve(workspaceRoot, "node_modules/.bin/electron-forge")
+      ),
+      shell: platform === "win32",
+    },
+    npm: {
+      command: platform === "win32" ? "npm.cmd" : "npm",
+      shell: platform === "win32",
+    },
+    pnpm: {
+      command: platform === "win32" ? "pnpm.cmd" : "pnpm",
+      shell: platform === "win32",
+    },
+  };
+}
+
+async function runCommand(invocation, args, cwd) {
   await new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(command, [...argsPrefix, ...args], {
+    const child = spawn(invocation.command, args, {
       cwd,
       env: process.env,
+      shell: invocation.shell,
       stdio: "inherit",
     });
 
@@ -50,9 +62,7 @@ async function runCommand(commandName, args, cwd) {
       }
 
       rejectPromise(
-        new Error(
-          `${command} ${[...argsPrefix, ...args].join(" ")} failed with exit code ${code ?? -1}`
-        )
+        new Error(`${invocation.command} ${args.join(" ")} failed with exit code ${code ?? -1}`)
       );
     });
     child.on("error", rejectPromise);
@@ -86,19 +96,21 @@ async function prepareStage() {
   await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
 
   if (shouldInstallForgeStageDependencies(stagedPackageJson)) {
+    const { npm } = resolveForgeStageCommands();
     await runCommand(
-      "npm",
+      npm,
       ["install", "--include=dev", "--ignore-scripts", "--no-package-lock"],
       forgePackageDir
     );
   }
 }
 
-async function ensureDarwinDmgNativeDependency() {
+async function ensureDarwinDmgNativeDependency(command) {
   if (process.platform !== "darwin" || (command !== "make" && command !== "publish")) {
     return;
   }
 
+  const { pnpm } = resolveForgeStageCommands();
   const pnpmStoreDir = resolve(workspaceRoot, "node_modules/.pnpm");
   const entries = await readdir(pnpmStoreDir, { withFileTypes: true });
   const nativePackages = [
@@ -134,12 +146,18 @@ async function ensureDarwinDmgNativeDependency() {
       // Fall through and rebuild the native addon explicitly.
     }
 
-    await runCommand("pnpm", ["exec", "node-gyp", "rebuild"], packageInstallDir);
+    await runCommand(pnpm, ["exec", "node-gyp", "rebuild"], packageInstallDir);
   }
 }
 
 async function runForge() {
-  await ensureDarwinDmgNativeDependency();
+  const command = process.argv[2];
+  if (!command || !["package", "make", "publish"].includes(command)) {
+    throw new Error("Usage: node ./scripts/run-forge.mjs <package|make|publish>");
+  }
+
+  const { electronForge } = resolveForgeStageCommands();
+  await ensureDarwinDmgNativeDependency(command);
   await createStagePaths();
 
   try {
@@ -148,13 +166,14 @@ async function runForge() {
     await mkdir(processTempDir, { recursive: true });
 
     await new Promise((resolvePromise, rejectPromise) => {
-      const child = spawn(process.execPath, [electronForgeCli, command], {
+      const child = spawn(electronForge.command, [command], {
         cwd: forgePackageDir,
         env: buildForgeEnvironment({
           baseEnv: process.env,
           command,
           processTempDir,
         }),
+        shell: electronForge.shell,
         stdio: "inherit",
       });
 
@@ -183,4 +202,6 @@ async function runForge() {
   }
 }
 
-await runForge();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  await runForge();
+}
