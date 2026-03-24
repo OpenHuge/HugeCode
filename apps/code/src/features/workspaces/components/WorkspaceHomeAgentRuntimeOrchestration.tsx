@@ -38,6 +38,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     runtimeLaunchPreparation,
     runtimeLaunchPreparationError,
     runtimeLaunchPreparationLoading,
+    runtimeLaunchPreparationTruthSourceLabel,
     runtimeDraftInstruction,
     runtimeDraftProfileId,
     runtimeDraftProfileTouched,
@@ -400,6 +401,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                 <span>Preparing runtime-owned launch plan...</span>
               ) : runtimeLaunchPreparation ? (
                 <>
+                  {runtimeLaunchPreparationTruthSourceLabel ? (
+                    <span>Truth source: {runtimeLaunchPreparationTruthSourceLabel}</span>
+                  ) : null}
                   <span>{runtimeLaunchPreparation.runIntent.summary}</span>
                   <span>
                     Clarified: {runtimeLaunchPreparation.runIntent.clarified ? "yes" : "needs work"}

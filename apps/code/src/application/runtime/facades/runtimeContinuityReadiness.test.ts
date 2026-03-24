@@ -74,6 +74,7 @@ describe("buildRuntimeContinuityReadiness", () => {
     expect(summary.state).toBe("ready");
     expect(summary.recoverableRunCount).toBe(1);
     expect(summary.items[0]?.pathKind).toBe("resume");
+    expect(summary.items[0]?.truthSourceLabel).toBe("Runtime checkpoint");
   });
 
   it("blocks when a recovered run lacks resume, handoff, and navigation truth", () => {
@@ -134,7 +135,7 @@ describe("buildRuntimeContinuityReadiness", () => {
     expect(summary.items[0]?.pathKind).toBe("review");
   });
 
-  it("uses execution graph checkpoint truth when run checkpoint fields are absent", () => {
+  it("does not reconstruct checkpoint truth from execution graph when runtime omits it", () => {
     const summary = buildRuntimeContinuityReadiness({
       candidates: [
         {
@@ -162,17 +163,14 @@ describe("buildRuntimeContinuityReadiness", () => {
               edges: [],
             },
           }),
-          task: buildTask({
-            status: "interrupted",
-            recovered: true,
-          }),
+          task: buildTask(),
         },
       ],
     });
 
     expect(summary.state).toBe("ready");
-    expect(summary.recoverableRunCount).toBe(1);
-    expect(summary.items[0]?.detail).toContain("checkpoint-graph-1");
+    expect(summary.recoverableRunCount).toBe(0);
+    expect(summary.items).toHaveLength(0);
   });
 
   it("keeps continuity at attention when review actionability is degraded", () => {
@@ -200,7 +198,7 @@ describe("buildRuntimeContinuityReadiness", () => {
     expect(summary.items[0]?.pathKind).toBe("review");
   });
 
-  it("uses execution graph review truth when review-ready run omits top-level actionability", () => {
+  it("requires runtime-published review actionability for review-ready runs", () => {
     const summary = buildRuntimeContinuityReadiness({
       candidates: [
         {
@@ -231,9 +229,13 @@ describe("buildRuntimeContinuityReadiness", () => {
       ],
     });
 
-    expect(summary.state).toBe("blocked");
-    expect(summary.blockingReason).toContain("graph-linked evidence");
-    expect(summary.reviewBlockedCount).toBe(1);
+    expect(summary.state).toBe("attention");
+    expect(summary.blockingReason).toBeNull();
+    expect(summary.reviewBlockedCount).toBe(0);
+    expect(summary.items[0]).toMatchObject({
+      pathKind: "missing",
+      truthSourceLabel: "Runtime truth unavailable",
+    });
   });
 
   it("recognizes canonical handoff when publish handoff or mission linkage is present", () => {
@@ -345,6 +347,7 @@ describe("buildRuntimeContinuityReadiness", () => {
       pathKind: "resume",
       detail: "Runtime takeover bundle published a canonical resume path.",
       recommendedAction: "Resume this run from takeover.",
+      truthSourceLabel: "Runtime takeover bundle",
     });
   });
 
@@ -386,6 +389,7 @@ describe("buildRuntimeContinuityReadiness", () => {
       pathKind: "review",
       detail: "Takeover review actionability is canonical.",
       recommendedAction: "Open Review Pack from takeover guidance.",
+      truthSourceLabel: "Runtime takeover bundle",
     });
   });
 

@@ -102,6 +102,7 @@ type ReviewPackContinuitySummary = {
   details: string[];
   recommendedAction: string;
   blockingReason: string | null;
+  truthSourceLabel: string;
 };
 
 type ReviewPackWithExtras = MissionControlProjection["reviewPacks"][number];
@@ -618,6 +619,7 @@ function buildReviewPackContinuity(input: {
     details,
     recommendedAction: continuationActionability.recommendedAction,
     blockingReason: continuationActionability.blockingReason,
+    truthSourceLabel: continuationActionability.truthSourceLabel,
   };
 }
 
