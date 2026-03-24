@@ -124,10 +124,15 @@ If no static feed root is configured, beta builds remain manual and point users 
 ## Native Menu Behavior
 
 - Electron exposes `Check for Updates...` through the native application menu.
+- Electron also exposes `Open Incident Log`, `Open Logs Folder`, and `Report Issue...` through the native Help surface.
 - That action is intentionally channel-aware:
   - automatic modes trigger the real main-process updater and push state changes to every live renderer window
   - manual beta mode opens GitHub Releases instead of advertising fake auto-update support
   - unsupported or misconfigured modes must never claim automatic update availability
+- Support actions must be driven from the same diagnostics truth as the renderer:
+  - `Open Incident Log` reveals the bounded desktop incident log when one exists
+  - otherwise it falls back to the logs directory instead of assuming a file is present
+  - `Report Issue...` opens a prefilled GitHub issue with version, channel, platform, update mode, and incident summary metadata
 
 ## Resilience Contract
 
@@ -140,6 +145,10 @@ If no static feed root is configured, beta builds remain manual and point users 
 - Recovery notifications must be native desktop notifications emitted from the main process.
 - Unresponsive-window notifications should be edge-triggered, not spammed repeatedly while the same window remains hung.
 - Structured incident logging should distinguish at least renderer crash recovery, child process exits, and temporary window unresponsiveness.
+- Desktop incident persistence must remain bounded and supportable:
+  - store incidents as local NDJSON under the Electron user-data logs directory
+  - cap retained incident history so repeated failures do not create unbounded log growth
+  - write logs from the main process with explicit local-file permissions instead of relying on console output alone
 
 ## Intentionally Unsupported
 

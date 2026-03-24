@@ -6,6 +6,7 @@ describe("desktopResilienceController", () => {
     const notificationController = {
       showDesktopNotification: vi.fn(() => true),
     };
+    const logIncident = vi.fn();
     const recoverWindow = vi.fn(() => ({
       focused: false,
       hidden: false,
@@ -16,6 +17,7 @@ describe("desktopResilienceController", () => {
     }));
     const controller = createDesktopResilienceController({
       isQuitting: () => false,
+      logIncident,
       logger: {
         info: vi.fn(),
         warn: vi.fn(),
@@ -54,12 +56,21 @@ describe("desktopResilienceController", () => {
         onClick: expect.any(Function),
       })
     );
+    expect(logIncident).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "desktop_render_process_gone",
+        level: "warn",
+        sessionId: "desktop-session-1",
+        windowId: 101,
+      })
+    );
   });
 
   it("does not attempt recovery while the app is quitting", () => {
     const recoverWindow = vi.fn();
     const controller = createDesktopResilienceController({
       isQuitting: () => true,
+      logIncident: vi.fn(),
       logger: {
         info: vi.fn(),
         warn: vi.fn(),
@@ -87,8 +98,10 @@ describe("desktopResilienceController", () => {
     const notificationController = {
       showDesktopNotification: vi.fn(() => true),
     };
+    const logIncident = vi.fn();
     const controller = createDesktopResilienceController({
       isQuitting: () => false,
+      logIncident,
       logger: {
         info: vi.fn(),
         warn: vi.fn(),
@@ -118,5 +131,21 @@ describe("desktopResilienceController", () => {
     });
 
     expect(notificationController.showDesktopNotification).toHaveBeenCalledTimes(1);
+    expect(logIncident).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        event: "desktop_window_unresponsive",
+        level: "warn",
+        windowId: 303,
+      })
+    );
+    expect(logIncident).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        event: "desktop_window_responsive",
+        level: "info",
+        windowId: 303,
+      })
+    );
   });
 });

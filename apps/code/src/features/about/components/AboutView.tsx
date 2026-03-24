@@ -7,11 +7,13 @@ import {
   ABOUT_TAGLINE,
   ABOUT_VERSION_PREFIX,
 } from "@ku0/shared/aboutContent";
-import type { DesktopAppInfo } from "@ku0/code-platform-interfaces";
+import type { DesktopAppInfo, DesktopDiagnosticsInfo } from "@ku0/code-platform-interfaces";
 import {
   openUrl,
   resolveAppInfo,
+  resolveDesktopDiagnosticsInfo,
   resolveAppVersion,
+  revealItemInDir,
 } from "../../../application/runtime/facades/desktopHostFacade";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import "./AboutView.global.css";
@@ -92,6 +94,7 @@ function describeUpdateCapability(appInfo: DesktopAppInfo | null) {
 export function AboutView() {
   const [version, setVersion] = useState<string | null>(null);
   const [appInfo, setAppInfo] = useState<DesktopAppInfo | null>(null);
+  const [diagnosticsInfo, setDiagnosticsInfo] = useState<DesktopDiagnosticsInfo | null>(null);
 
   const handleOpenGitHub = () => {
     void openExternalUrl(ABOUT_LINKS[0].href);
@@ -101,16 +104,50 @@ export function AboutView() {
     void openExternalUrl(ABOUT_LINKS[1].href);
   };
 
+  const handleOpenIncidentLog = () => {
+    if (!diagnosticsInfo) {
+      return;
+    }
+
+    const nextPath =
+      diagnosticsInfo.recentIncidentCount > 0
+        ? diagnosticsInfo.incidentLogPath
+        : diagnosticsInfo.logsDirectoryPath;
+    if (!nextPath) {
+      return;
+    }
+
+    void revealItemInDir(nextPath);
+  };
+
+  const handleOpenLogsFolder = () => {
+    if (!diagnosticsInfo?.logsDirectoryPath) {
+      return;
+    }
+
+    void revealItemInDir(diagnosticsInfo.logsDirectoryPath);
+  };
+
+  const handleReportIssue = () => {
+    if (!diagnosticsInfo?.reportIssueUrl) {
+      return;
+    }
+
+    void openExternalUrl(diagnosticsInfo.reportIssueUrl);
+  };
+
   useEffect(() => {
     let active = true;
     void (async () => {
       const info = await resolveAppInfo().catch(() => null);
+      const diagnostics = await resolveDesktopDiagnosticsInfo().catch(() => null);
       const fallbackVersion = info?.version ?? (await resolveAppVersion().catch(() => null));
       if (!active) {
         return;
       }
 
       setAppInfo(info);
+      setDiagnosticsInfo(diagnostics);
       setVersion(fallbackVersion);
     })();
 
@@ -142,6 +179,13 @@ export function AboutView() {
         {updateCapabilityMessage ? (
           <div className="about-update-capability">{updateCapabilityMessage}</div>
         ) : null}
+        {diagnosticsInfo ? (
+          <div className="about-update-capability" aria-label="Desktop diagnostics metadata">
+            {diagnosticsInfo.recentIncidentCount > 0
+              ? `${diagnosticsInfo.recentIncidentCount} recent desktop incident${diagnosticsInfo.recentIncidentCount === 1 ? "" : "s"} logged${diagnosticsInfo.lastIncidentAt ? `, last seen ${diagnosticsInfo.lastIncidentAt}` : ""}.`
+              : "No recent desktop incidents are currently logged."}
+          </div>
+        ) : null}
         <div className="about-divider" />
         <div className="about-links">
           <button type="button" className="about-link" onClick={handleOpenGitHub}>
@@ -152,6 +196,25 @@ export function AboutView() {
             {ABOUT_LINKS[1].label}
           </button>
         </div>
+        {diagnosticsInfo ? (
+          <div className="about-links" aria-label="Desktop support actions">
+            <button type="button" className="about-link" onClick={handleOpenIncidentLog}>
+              Open Incident Log
+            </button>
+            <span className="about-link-sep">|</span>
+            <button type="button" className="about-link" onClick={handleOpenLogsFolder}>
+              Open Logs Folder
+            </button>
+            {diagnosticsInfo.reportIssueUrl ? (
+              <>
+                <span className="about-link-sep">|</span>
+                <button type="button" className="about-link" onClick={handleReportIssue}>
+                  Report Issue
+                </button>
+              </>
+            ) : null}
+          </div>
+        ) : null}
         <div className="about-footer">{ABOUT_FOOTER}</div>
       </div>
     </div>

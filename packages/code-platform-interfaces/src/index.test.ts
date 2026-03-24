@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type DesktopAppInfo,
+  type DesktopDiagnosticsInfo,
   type DesktopLaunchIntent,
   type DesktopUpdateState,
   isElectronDesktopHostBridge,
@@ -48,11 +49,19 @@ describe("code-platform-interfaces", () => {
       stage: "available",
       version: "0.1.0-beta.2",
     };
+    const diagnosticsInfo: DesktopDiagnosticsInfo = {
+      incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
+      lastIncidentAt: "2026-03-24T00:05:00.000Z",
+      logsDirectoryPath: "/tmp/hugecode/logs",
+      recentIncidentCount: 2,
+      reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+    };
 
     expect(appInfo.channel).toBe("beta");
     expect(launchIntent.kind).toBe("protocol");
     expect(workspaceLaunchIntent.launchPathKind).toBe("file");
     expect(workspaceLaunchIntent.workspacePath).toBe("/workspace/alpha");
     expect(updateState.stage).toBe("available");
+    expect(diagnosticsInfo.recentIncidentCount).toBe(2);
   });
 });

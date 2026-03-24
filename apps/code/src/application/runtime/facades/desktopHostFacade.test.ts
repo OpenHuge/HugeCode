@@ -5,6 +5,7 @@ import {
   detectDesktopRuntimeHost,
   openUrl,
   resolveAppInfo,
+  resolveDesktopDiagnosticsInfo,
   resolveAppVersion,
   resolveCurrentDesktopSession,
   resolveDesktopUpdaterState,
@@ -74,6 +75,15 @@ describe("desktopHostFacade", () => {
         }),
         getVersion: async () => "41.0.3",
       },
+      diagnostics: {
+        getInfo: async () => ({
+          incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
+          lastIncidentAt: "2026-03-24T00:05:00.000Z",
+          logsDirectoryPath: "/tmp/hugecode/logs",
+          recentIncidentCount: 2,
+          reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+        }),
+      },
       launch: {
         consumePendingIntent: async () => ({
           kind: "protocol",
@@ -128,6 +138,10 @@ describe("desktopHostFacade", () => {
       updateMode: "enabled_beta_static_feed",
       version: "41.0.3",
     });
+    await expect(resolveDesktopDiagnosticsInfo()).resolves.toMatchObject({
+      recentIncidentCount: 2,
+      reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+    });
     await expect(resolveAppVersion()).resolves.toBe("41.0.3");
     await expect(consumePendingDesktopLaunchIntent()).resolves.toMatchObject({
       kind: "protocol",
@@ -163,6 +177,7 @@ describe("desktopHostFacade", () => {
 
     await expect(detectDesktopRuntimeHost()).resolves.toBe("tauri");
     await expect(resolveAppInfo()).resolves.toBeNull();
+    await expect(resolveDesktopDiagnosticsInfo()).resolves.toBeNull();
     await expect(resolveAppVersion()).resolves.toBe("9.9.9");
     await expect(consumePendingDesktopLaunchIntent()).resolves.toBeNull();
     await expect(resolveCurrentDesktopSession()).resolves.toBeNull();

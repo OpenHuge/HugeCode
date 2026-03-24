@@ -52,6 +52,14 @@ export type DesktopTrayState = {
   supported: boolean;
 };
 
+export type DesktopDiagnosticsInfo = {
+  incidentLogPath: string | null;
+  lastIncidentAt: string | null;
+  logsDirectoryPath: string | null;
+  recentIncidentCount: number;
+  reportIssueUrl: string | null;
+};
+
 export type DesktopAppInfo = {
   channel: DesktopReleaseChannel;
   platform: NodeJS.Platform;
@@ -162,6 +170,14 @@ export type DesktopNotificationCapability = {
   show?: (input: DesktopNotificationInput) => Promise<boolean | void> | boolean | void;
 };
 
+export type DesktopDiagnosticsCapability = {
+  getInfo?: () =>
+    | Promise<DesktopDiagnosticsInfo | null | undefined>
+    | DesktopDiagnosticsInfo
+    | null
+    | undefined;
+};
+
 export type DesktopUpdaterCapability = {
   checkForUpdates?: () =>
     | Promise<DesktopUpdateState | null | undefined>
@@ -191,6 +207,7 @@ export type DesktopHostCapabilities = {
   windowing?: DesktopWindowingCapability;
   tray?: DesktopTrayCapability;
   notifications?: DesktopNotificationCapability;
+  diagnostics?: DesktopDiagnosticsCapability;
   shell?: DesktopShellCapability;
 };
 
@@ -228,6 +245,9 @@ export type DesktopHostBridgeApi = {
   };
   notifications: {
     show(input: DesktopNotificationInput): Promise<boolean>;
+  };
+  diagnostics: {
+    getInfo(): Promise<DesktopDiagnosticsInfo | null>;
   };
   updater: {
     checkForUpdates(): Promise<DesktopUpdateState>;

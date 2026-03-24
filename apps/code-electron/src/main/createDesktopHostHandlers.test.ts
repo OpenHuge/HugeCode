@@ -18,6 +18,13 @@ describe("createDesktopHostHandlers", () => {
         updateMode: "enabled_beta_static_feed" as const,
         version: "1.2.3",
       })),
+      getDiagnosticsInfo: vi.fn(() => ({
+        incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
+        lastIncidentAt: "2026-03-25T11:00:00.000Z",
+        logsDirectoryPath: "/tmp/hugecode/logs",
+        recentIncidentCount: 2,
+        reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+      })),
       listRecentSessions: vi.fn(() => [{ id: "session-1" }]),
       notificationController: {
         showNotification: vi.fn(() => true),
@@ -68,6 +75,13 @@ describe("createDesktopHostHandlers", () => {
       version: "1.2.3",
     });
     expect(handlers.getCurrentSession({ sender: {} as never })).toEqual({ id: "session-1" });
+    expect(handlers.getDiagnosticsInfo()).toEqual({
+      incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
+      lastIncidentAt: "2026-03-25T11:00:00.000Z",
+      logsDirectoryPath: "/tmp/hugecode/logs",
+      recentIncidentCount: 2,
+      reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+    });
     expect(handlers.getWindowLabel({ sender: {} as never })).toBe("main");
     expect(handlers.consumePendingLaunchIntent()).toEqual({
       kind: "protocol",
@@ -117,6 +131,13 @@ describe("createDesktopHostHandlers", () => {
           "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
         updateMode: "disabled_beta_manual" as const,
         version: null,
+      })),
+      getDiagnosticsInfo: vi.fn(() => ({
+        incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
+        lastIncidentAt: null,
+        logsDirectoryPath: "/tmp/hugecode/logs",
+        recentIncidentCount: 0,
+        reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
       })),
       listRecentSessions: vi.fn(() => []),
       notificationController: {

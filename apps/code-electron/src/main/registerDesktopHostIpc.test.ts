@@ -5,11 +5,6 @@ import { registerDesktopHostIpc } from "./registerDesktopHostIpc.js";
 describe("registerDesktopHostIpc", () => {
   it("registers all desktop host IPC handlers", () => {
     const handleMock = vi.fn();
-    const invokeChannels = Object.entries(DESKTOP_HOST_IPC_CHANNELS)
-      .filter(
-        ([channelName]) => channelName !== "pushLaunchIntent" && channelName !== "pushUpdateState"
-      )
-      .map(([, channel]) => channel);
 
     registerDesktopHostIpc({
       channels: DESKTOP_HOST_IPC_CHANNELS,
@@ -19,6 +14,7 @@ describe("registerDesktopHostIpc", () => {
         consumePendingLaunchIntent: vi.fn(),
         focusWindow: vi.fn(),
         getAppInfo: vi.fn(),
+        getDiagnosticsInfo: vi.fn(),
         getAppVersion: vi.fn(),
         getCurrentSession: vi.fn(),
         getTrayState: vi.fn(),
@@ -40,8 +36,29 @@ describe("registerDesktopHostIpc", () => {
       isTrustedSender: () => true,
     });
 
-    expect(handleMock).toHaveBeenCalledTimes(invokeChannels.length);
-    expect(handleMock.mock.calls.map(([channel]) => channel)).toEqual(invokeChannels);
+    expect(handleMock).toHaveBeenCalledTimes(20);
+    expect(handleMock.mock.calls.map(([channel]) => channel)).toEqual([
+      DESKTOP_HOST_IPC_CHANNELS.getAppInfo,
+      DESKTOP_HOST_IPC_CHANNELS.getAppVersion,
+      DESKTOP_HOST_IPC_CHANNELS.getDiagnosticsInfo,
+      DESKTOP_HOST_IPC_CHANNELS.consumePendingLaunchIntent,
+      DESKTOP_HOST_IPC_CHANNELS.getCurrentSession,
+      DESKTOP_HOST_IPC_CHANNELS.listRecentSessions,
+      DESKTOP_HOST_IPC_CHANNELS.reopenSession,
+      DESKTOP_HOST_IPC_CHANNELS.getWindowLabel,
+      DESKTOP_HOST_IPC_CHANNELS.listWindows,
+      DESKTOP_HOST_IPC_CHANNELS.openWindow,
+      DESKTOP_HOST_IPC_CHANNELS.focusWindow,
+      DESKTOP_HOST_IPC_CHANNELS.closeWindow,
+      DESKTOP_HOST_IPC_CHANNELS.getTrayState,
+      DESKTOP_HOST_IPC_CHANNELS.setTrayEnabled,
+      DESKTOP_HOST_IPC_CHANNELS.showNotification,
+      DESKTOP_HOST_IPC_CHANNELS.getUpdateState,
+      DESKTOP_HOST_IPC_CHANNELS.checkForUpdates,
+      DESKTOP_HOST_IPC_CHANNELS.restartToApplyUpdate,
+      DESKTOP_HOST_IPC_CHANNELS.openExternalUrl,
+      DESKTOP_HOST_IPC_CHANNELS.revealItemInDir,
+    ]);
   });
 
   it("blocks untrusted IPC senders before handler execution", async () => {
@@ -56,6 +73,7 @@ describe("registerDesktopHostIpc", () => {
         consumePendingLaunchIntent: vi.fn(),
         focusWindow: vi.fn(),
         getAppInfo: vi.fn(),
+        getDiagnosticsInfo: vi.fn(),
         getAppVersion,
         getCurrentSession: vi.fn(),
         getTrayState: vi.fn(),

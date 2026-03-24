@@ -12,8 +12,11 @@ type ApplicationMenuHandlers = {
   onNewWindow(): void;
   onOpenFile(): void;
   onOpenFolder(): void;
+  onOpenIncidentLog(): void;
+  onOpenLogsFolder(): void;
   onOpenAbout(): void;
   onQuit(): void;
+  onReportIssue(): void;
   onReopenSession(sessionId: string): void;
 };
 
@@ -31,8 +34,11 @@ export type CreateDesktopApplicationMenuControllerInput = {
   onNewWindow(): void;
   onOpenFile(): void;
   onOpenFolder(): void;
+  onOpenIncidentLog(): void;
+  onOpenLogsFolder(): void;
   onOpenAbout(): void;
   onQuit(): void;
+  onReportIssue(): void;
   onReopenSession(sessionId: string): void;
   onCheckForUpdates(): void;
 };
@@ -128,6 +134,30 @@ export function buildApplicationMenuTemplate(
       label: "Check for Updates...",
       click: () => {
         handlers.onCheckForUpdates();
+      },
+    },
+    {
+      type: "separator",
+    },
+    {
+      label: "Open Incident Log",
+      click: () => {
+        handlers.onOpenIncidentLog();
+      },
+    },
+    {
+      label: "Open Logs Folder",
+      click: () => {
+        handlers.onOpenLogsFolder();
+      },
+    },
+    {
+      type: "separator",
+    },
+    {
+      label: "Report Issue...",
+      click: () => {
+        handlers.onReportIssue();
       },
     },
   ];
@@ -268,8 +298,11 @@ export function createDesktopApplicationMenuController(
           onCheckForUpdates: input.onCheckForUpdates,
           onOpenFile: input.onOpenFile,
           onOpenFolder: input.onOpenFolder,
+          onOpenIncidentLog: input.onOpenIncidentLog,
+          onOpenLogsFolder: input.onOpenLogsFolder,
           onOpenAbout: input.onOpenAbout,
           onQuit: input.onQuit,
+          onReportIssue: input.onReportIssue,
           onReopenSession: input.onReopenSession,
         })
       );

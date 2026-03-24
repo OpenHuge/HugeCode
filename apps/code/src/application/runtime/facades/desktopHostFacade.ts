@@ -4,6 +4,7 @@ import {
   detectDesktopRuntimeHost as detectDesktopRuntimeHostWithCapabilities,
   openDesktopExternalUrl,
   resolveDesktopAppInfo,
+  resolveDesktopDiagnosticsInfo as resolveDesktopDiagnosticsInfoWithCapabilities,
   resolveDesktopAppVersion,
   resolveDesktopSessionInfo,
   resolveDesktopUpdateState,
@@ -16,6 +17,7 @@ import {
 } from "@ku0/code-application";
 import type {
   DesktopAppInfo,
+  DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopNotificationInput,
   DesktopSessionInfo,
@@ -61,6 +63,12 @@ export async function resolveAppVersion() {
 
 export async function resolveAppInfo(): Promise<DesktopAppInfo | null> {
   return resolveDesktopAppInfo(getDesktopHostBridge());
+}
+
+export async function resolveDesktopDiagnosticsInfo(): Promise<DesktopDiagnosticsInfo | null> {
+  return resolveDesktopDiagnosticsInfoWithCapabilities({
+    desktopHostBridge: getDesktopHostBridge(),
+  });
 }
 
 export async function resolveCurrentDesktopSession(): Promise<DesktopSessionInfo | null> {

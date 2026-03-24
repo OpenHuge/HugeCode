@@ -82,6 +82,9 @@ Linux desktop builds remain manual-update only.
   - `Open Recent Session`
   - `Open Recent File` on macOS via the native recent-documents role
   - `Check for Updates...`
+  - `Open Incident Log`
+  - `Open Logs Folder`
+  - `Report Issue...`
 - The menu is rebuilt from the persisted desktop session state instead of hard-coded one-off actions in `main.ts`.
 - Native file and folder pickers normalize into the same launch-intent flow as CLI, Finder, and deep-link workspace opens.
 - `Check for Updates...` follows the same updater source of truth as the in-app update UI:
@@ -96,6 +99,11 @@ Linux desktop builds remain manual-update only.
 - When a renderer process exits unexpectedly, HugeCode recreates the affected session window and surfaces a native recovery notification.
 - Unresponsive windows raise a single native notification until the window becomes responsive again; repeat notifications are intentionally suppressed while the same incident is active.
 - Child-process failures are logged as structured desktop incidents so future diagnostics can distinguish renderer recovery from background-process churn.
+- Desktop incidents are persisted to a bounded NDJSON log under the Electron user-data logs directory, not only printed to the console.
+- `Open Incident Log`, `Open Logs Folder`, and `Report Issue...` all use the same diagnostics source of truth:
+  - the incident log is bounded and permissioned for local desktop support workflows
+  - the issue reporter opens a prefilled GitHub issue with current desktop environment and incident summary metadata
+  - if no incidents have been logged yet, the shell falls back to opening the logs directory instead of pretending a log file exists
 
 ## macOS Arm64 Packaging
 

@@ -15,6 +15,8 @@ import {
 import { createDesktopApplicationMenuController } from "./desktopApplicationMenu.js";
 import { createDesktopAutoUpdateConfigurator } from "./desktopAutoUpdateConfigurator.js";
 import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
+import { buildDesktopIssueReporterUrl } from "./desktopDiagnostics.js";
+import { createDesktopIncidentStore } from "./desktopIncidentStore.js";
 import { createDesktopLaunchIntentController } from "./desktopLaunchIntentController.js";
 import type { CreateDesktopLaunchIntentControllerInput } from "./desktopLaunchIntentController.js";
 import { createDesktopRendererTrust } from "./desktopRendererTrust.js";
@@ -212,12 +214,16 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   let isQuitting = false;
   let desktopReady = false;
   const rendererRoot = join(input.sourceDirectory, "../renderer");
+  const userDataPath = input.app.getPath("userData");
+  const incidentStore = createDesktopIncidentStore({
+    incidentLogPath: join(userDataPath, "logs", "desktop-incidents.ndjson"),
+  });
 
   const rendererTrust = createDesktopRendererTrust({
     rendererDevServerUrl: input.rendererDevServerUrl ?? null,
   });
   const stateStore = createDesktopStateStore({
-    statePath: join(input.app.getPath("userData"), "desktop-state.json"),
+    statePath: join(userDataPath, "desktop-state.json"),
   });
   const shellState = createDesktopShellState({
     persistedState: stateStore.read(),
@@ -231,6 +237,9 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   const resilienceController = createDesktopResilienceController({
     isQuitting() {
       return isQuitting;
+    },
+    logIncident(incident) {
+      incidentStore.record(incident);
     },
     logger: console,
     notificationController,
@@ -346,6 +355,23 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     return typeof version === "string" && version.length > 0 ? version : null;
   })();
 
+  function getDiagnosticsInfo() {
+    const diagnosticsSummary = incidentStore.getSummary();
+    return {
+      ...diagnosticsSummary,
+      reportIssueUrl:
+        buildDesktopIssueReporterUrl({
+          arch: input.arch,
+          channel: input.releaseChannel ?? "beta",
+          diagnosticsSummary,
+          platform: input.platform,
+          repoUrl: input.repositoryUrl ?? "https://github.com/OpenHuge/HugeCode",
+          updateMode: updaterController.getState().mode,
+          version: appVersion,
+        }) ?? null,
+    };
+  }
+
   async function openPathSelectionDialog(kind: "directory" | "file") {
     const result = await input.dialog.showOpenDialog({
       buttonLabel: kind === "file" ? "Open File" : "Open Folder",
@@ -420,6 +446,18 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     onOpenFolder: () => {
       void openPathSelectionDialog("directory");
     },
+    onOpenIncidentLog: () => {
+      const diagnosticsInfo = getDiagnosticsInfo();
+      input.shell.showItemInFolder(
+        diagnosticsInfo.recentIncidentCount > 0
+          ? diagnosticsInfo.incidentLogPath
+          : diagnosticsInfo.logsDirectoryPath
+      );
+    },
+    onOpenLogsFolder: () => {
+      const diagnosticsInfo = getDiagnosticsInfo();
+      input.shell.showItemInFolder(diagnosticsInfo.logsDirectoryPath);
+    },
     onOpenAbout: () => {
       windowController.openWindow({
         windowLabel: "about",
@@ -428,6 +466,12 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     onQuit: () => {
       isQuitting = true;
       input.app.quit();
+    },
+    onReportIssue: () => {
+      const diagnosticsInfo = getDiagnosticsInfo();
+      if (diagnosticsInfo.reportIssueUrl) {
+        void input.shell.openExternal(diagnosticsInfo.reportIssueUrl);
+      }
     },
     onReopenSession: windowController.reopenSession,
     platform: input.platform,
@@ -470,6 +514,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
         version: appVersion,
       };
     },
+    getDiagnosticsInfo,
     listRecentSessions() {
       return shellState.recentSessions;
     },

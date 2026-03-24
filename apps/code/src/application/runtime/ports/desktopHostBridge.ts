@@ -1,5 +1,6 @@
 import {
   type DesktopAppInfo,
+  type DesktopDiagnosticsInfo,
   isElectronDesktopHostBridge,
   type DesktopLaunchIntent,
   type DesktopHostBridge,
@@ -16,6 +17,7 @@ import {
 
 export type {
   DesktopAppInfo,
+  DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopHostBridge,
   DesktopHostKind,

@@ -4,6 +4,7 @@ export {
   detectDesktopRuntimeHost,
   openDesktopExternalUrl,
   resolveDesktopAppInfo,
+  resolveDesktopDiagnosticsInfo,
   resolveDesktopAppVersion,
   resolveDesktopSessionInfo,
   resolveDesktopUpdateState,
@@ -37,6 +38,7 @@ export type {
 } from "./workspaceClientBindings";
 export type {
   DesktopExternalUrlFallbacks,
+  DesktopDiagnosticsFallbacks,
   DesktopItemRevealFallbacks,
   DesktopNotificationFallbacks,
   DesktopRuntimeDetectionInput,

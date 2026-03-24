@@ -1,5 +1,6 @@
 import type {
   DesktopAppInfo,
+  DesktopDiagnosticsInfo,
   DesktopHostBridge,
   DesktopLaunchIntent,
   DesktopNotificationInput,
@@ -34,6 +35,10 @@ const DEFAULT_UNSUPPORTED_UPDATE_STATE: DesktopUpdateState = {
 };
 
 export type DesktopNotificationFallbacks = {
+  desktopHostBridge: DesktopHostBridge | null;
+};
+
+export type DesktopDiagnosticsFallbacks = {
   desktopHostBridge: DesktopHostBridge | null;
 };
 
@@ -120,6 +125,25 @@ export async function resolveDesktopAppInfo(
     }
   } catch {
     // App info is optional.
+  }
+
+  return null;
+}
+
+export async function resolveDesktopDiagnosticsInfo(
+  input: DesktopDiagnosticsFallbacks
+): Promise<DesktopDiagnosticsInfo | null> {
+  try {
+    const diagnosticsInfo = await input.desktopHostBridge?.diagnostics?.getInfo?.();
+    if (!diagnosticsInfo) {
+      return null;
+    }
+
+    if (typeof diagnosticsInfo.recentIncidentCount === "number") {
+      return diagnosticsInfo;
+    }
+  } catch {
+    // Diagnostics info is optional.
   }
 
   return null;

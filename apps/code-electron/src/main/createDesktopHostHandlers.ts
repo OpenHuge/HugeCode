@@ -1,5 +1,6 @@
 import type {
   DesktopAppInfo,
+  DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopNotificationInput,
   DesktopUpdateState,
@@ -35,6 +36,7 @@ export type CreateDesktopHostHandlersInput = {
   appVersion: string | null;
   consumePendingLaunchIntent(): DesktopLaunchIntent | null;
   getAppInfo(): DesktopAppInfo;
+  getDiagnosticsInfo(): DesktopDiagnosticsInfo;
   listRecentSessions(): unknown[];
   notificationController: NotificationController;
   openExternalUrl(url: string): Promise<boolean> | boolean;
@@ -57,6 +59,9 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
     focusWindow: input.windowController.focusWindow,
     getAppInfo() {
       return input.getAppInfo();
+    },
+    getDiagnosticsInfo() {
+      return input.getDiagnosticsInfo();
     },
     getAppVersion() {
       return input.appVersion;

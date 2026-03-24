@@ -26,8 +26,11 @@ describe("desktopApplicationMenu", () => {
         onNewWindow: vi.fn(),
         onOpenFile: vi.fn(),
         onOpenFolder: vi.fn(),
+        onOpenIncidentLog: vi.fn(),
+        onOpenLogsFolder: vi.fn(),
         onOpenAbout: vi.fn(),
         onQuit: vi.fn(),
+        onReportIssue: vi.fn(),
         onReopenSession: vi.fn(),
       }
     );
@@ -60,7 +63,14 @@ describe("desktopApplicationMenu", () => {
     );
     expect(template[2]).toMatchObject({
       label: "Help",
-      submenu: [expect.objectContaining({ label: "Check for Updates..." })],
+      submenu: [
+        expect.objectContaining({ label: "Check for Updates..." }),
+        expect.objectContaining({ type: "separator" }),
+        expect.objectContaining({ label: "Open Incident Log" }),
+        expect.objectContaining({ label: "Open Logs Folder" }),
+        expect.objectContaining({ type: "separator" }),
+        expect.objectContaining({ label: "Report Issue..." }),
+      ],
     });
   });
 
@@ -89,8 +99,11 @@ describe("desktopApplicationMenu", () => {
       onNewWindow: vi.fn(),
       onOpenFile: vi.fn(),
       onOpenFolder: vi.fn(),
+      onOpenIncidentLog: vi.fn(),
+      onOpenLogsFolder: vi.fn(),
       onOpenAbout: vi.fn(),
       onQuit: vi.fn(),
+      onReportIssue: vi.fn(),
       onReopenSession: vi.fn(),
       platform: "darwin",
       readState,

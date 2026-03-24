@@ -4,6 +4,7 @@ import {
   consumeDesktopLaunchIntent,
   detectDesktopRuntimeHost,
   resolveDesktopAppInfo,
+  resolveDesktopDiagnosticsInfo,
   openDesktopExternalUrl,
   resolveDesktopAppVersion,
   resolveDesktopSessionInfo,
@@ -101,6 +102,15 @@ describe("desktopHostFacade", () => {
           version: "0.1.0-beta.1",
         }),
       },
+      diagnostics: {
+        getInfo: async () => ({
+          incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
+          lastIncidentAt: "2026-03-24T00:05:00.000Z",
+          logsDirectoryPath: "/tmp/hugecode/logs",
+          recentIncidentCount: 2,
+          reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+        }),
+      },
       launch: {
         consumePendingIntent: async () => ({
           kind: "protocol" as const,
@@ -126,6 +136,14 @@ describe("desktopHostFacade", () => {
       channel: "beta",
       updateMode: "enabled_beta_static_feed",
       version: "0.1.0-beta.1",
+    });
+    await expect(
+      resolveDesktopDiagnosticsInfo({
+        desktopHostBridge,
+      })
+    ).resolves.toMatchObject({
+      recentIncidentCount: 2,
+      reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
     });
     await expect(consumeDesktopLaunchIntent(desktopHostBridge)).resolves.toMatchObject({
       kind: "protocol",
@@ -187,6 +205,7 @@ describe("desktopHostFacade", () => {
 
   it("returns safe null or idle fallbacks when the new desktop capabilities are unavailable", async () => {
     await expect(resolveDesktopAppInfo(null)).resolves.toBeNull();
+    await expect(resolveDesktopDiagnosticsInfo({ desktopHostBridge: null })).resolves.toBeNull();
     await expect(consumeDesktopLaunchIntent(null)).resolves.toBeNull();
     await expect(resolveDesktopUpdateState(null)).resolves.toEqual({
       capability: "unsupported",

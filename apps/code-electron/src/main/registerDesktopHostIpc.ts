@@ -1,6 +1,7 @@
 import type { IpcMainInvokeEvent } from "electron";
 import type {
   DesktopAppInfo,
+  DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopNotificationInput,
   DesktopUpdateState,
@@ -37,6 +38,7 @@ type DesktopHostIpcHandlers = {
   consumePendingLaunchIntent(): Promise<DesktopLaunchIntent | null> | DesktopLaunchIntent | null;
   focusWindow(windowId: number): Promise<boolean> | boolean;
   getAppInfo(): Promise<DesktopAppInfo | null> | DesktopAppInfo | null;
+  getDiagnosticsInfo(): Promise<DesktopDiagnosticsInfo | null> | DesktopDiagnosticsInfo | null;
   getAppVersion(): Promise<string | null> | string | null;
   getCurrentSession(event: IpcInvokeEventLike): Promise<unknown> | unknown;
   getTrayState(): Promise<DesktopTrayState> | DesktopTrayState;
@@ -85,6 +87,10 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
 
   handleTrusted(channels.getAppVersion, async () => {
     return handlers.getAppVersion();
+  });
+
+  handleTrusted(channels.getDiagnosticsInfo, async () => {
+    return handlers.getDiagnosticsInfo();
   });
 
   handleTrusted(channels.consumePendingLaunchIntent, async () => {

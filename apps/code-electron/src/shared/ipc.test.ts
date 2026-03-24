@@ -20,6 +20,7 @@ describe("desktopHostIpcChannels", () => {
       getTrayState: "hugecode:desktop-host:get-tray-state",
       setTrayEnabled: "hugecode:desktop-host:set-tray-enabled",
       showNotification: "hugecode:desktop-host:show-notification",
+      getDiagnosticsInfo: "hugecode:desktop-host:get-diagnostics-info",
       getUpdateState: "hugecode:desktop-host:get-update-state",
       checkForUpdates: "hugecode:desktop-host:check-for-updates",
       restartToApplyUpdate: "hugecode:desktop-host:restart-to-apply-update",
