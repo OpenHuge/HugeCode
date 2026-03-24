@@ -46,6 +46,8 @@ describe("code runtime rpc method consistency", () => {
   it("includes runtime kernel v2 methods in the canonical method list", () => {
     expect(CODE_RUNTIME_RPC_METHOD_LIST).toEqual(
       expect.arrayContaining([
+        CODE_RUNTIME_RPC_METHODS.TEXT_FILE_READ_V1,
+        CODE_RUNTIME_RPC_METHODS.TEXT_FILE_WRITE_V1,
         CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2,
         CODE_RUNTIME_RPC_METHODS.RUN_START_V2,
         CODE_RUNTIME_RPC_METHODS.RUN_GET_V2,
@@ -1362,7 +1364,7 @@ describe("agent and oauth rpc methods", () => {
 
 describe("rpc capability constants", () => {
   it("exposes contract version", () => {
-    expect(CODE_RUNTIME_RPC_CONTRACT_VERSION).toBe("2026-03-23");
+    expect(CODE_RUNTIME_RPC_CONTRACT_VERSION).toBe("2026-03-24");
   });
 
   it("exposes required feature flags", () => {
@@ -1418,8 +1420,8 @@ describe("rpc capability constants", () => {
         "runtime_codex_execpolicy_preflight_v1",
         "runtime_codex_unified_rpc_migration_v1",
         "runtime_host_deprecated",
-        "app_server_protocol_v2_2026_03_23",
-        "contract_frozen_2026_03_23",
+        "app_server_protocol_v2_2026_03_24",
+        "contract_frozen_2026_03_24",
       ])
     );
   });

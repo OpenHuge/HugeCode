@@ -1972,6 +1972,16 @@ export type WorkspaceFileContent = {
   content: string;
 };
 
+export type RuntimeTextFileScope = "workspace" | "global";
+
+export type RuntimeTextFileKind = "agents" | "config";
+
+export type RuntimeTextFileResponse = {
+  exists: boolean;
+  content: string;
+  truncated: boolean;
+};
+
 export type WorkspaceDiagnosticSeverity = "error" | "warning" | "info" | "hint";
 
 export type WorkspaceDiagnosticsProviderId = "native" | "cargo-check" | "oxlint" | "tsc";
@@ -3759,6 +3769,8 @@ export const CODE_RUNTIME_RPC_METHODS = {
   SETTINGS_SUMMARY: "code_settings_summary",
   APP_SETTINGS_GET: "code_app_settings_get",
   APP_SETTINGS_UPDATE: "code_app_settings_update",
+  TEXT_FILE_READ_V1: "code_text_file_read_v1",
+  TEXT_FILE_WRITE_V1: "code_text_file_write_v1",
   REMOTE_STATUS: "code_remote_status",
   TERMINAL_STATUS: "code_terminal_status",
   MODELS_POOL: "code_models_pool",
@@ -3927,8 +3939,8 @@ export const CODE_RUNTIME_RPC_METHOD_LIST = Object.freeze(
   Object.values(CODE_RUNTIME_RPC_METHODS)
 ) as readonly CodeRuntimeRpcMethod[];
 
-export const CODE_RUNTIME_RPC_CONTRACT_VERSION = "2026-03-23" as const;
-export const CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT = "2026-03-23" as const;
+export const CODE_RUNTIME_RPC_CONTRACT_VERSION = "2026-03-24" as const;
+export const CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT = "2026-03-24" as const;
 export const CODE_RUNTIME_RPC_CAPABILITY_PROFILES = Object.freeze({
   FULL_RUNTIME: "full-runtime",
   DESKTOP_CORE: "desktop-core",
@@ -3999,8 +4011,8 @@ export const CODE_RUNTIME_RPC_FEATURES = Object.freeze([
   "runtime_codex_execpolicy_preflight_v1",
   "runtime_codex_unified_rpc_migration_v1",
   "runtime_host_deprecated",
-  "app_server_protocol_v2_2026_03_23",
-  "contract_frozen_2026_03_23",
+  "app_server_protocol_v2_2026_03_24",
+  "contract_frozen_2026_03_24",
 ]) as readonly string[];
 
 export const CODE_RUNTIME_RPC_TRANSPORTS = Object.freeze({
@@ -4072,6 +4084,17 @@ export type RuntimeAppSettingsUpdateRequest = {
   payload: RuntimeAppSettingsRecord;
 };
 
+export type RuntimeTextFileReadRequest = {
+  scope: RuntimeTextFileScope;
+  kind: RuntimeTextFileKind;
+  workspaceId?: string | null;
+  workspace_id?: string | null;
+};
+
+export type RuntimeTextFileWriteRequest = RuntimeTextFileReadRequest & {
+  content: string;
+};
+
 export type TurnSendRequestCompat = TurnSendRequest & {
   workspace_id?: string;
   thread_id?: string | null;
@@ -4128,6 +4151,8 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.SETTINGS_SUMMARY]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.APP_SETTINGS_GET]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.APP_SETTINGS_UPDATE]: RuntimeAppSettingsUpdateRequest;
+  [CODE_RUNTIME_RPC_METHODS.TEXT_FILE_READ_V1]: RuntimeTextFileReadRequest;
+  [CODE_RUNTIME_RPC_METHODS.TEXT_FILE_WRITE_V1]: RuntimeTextFileWriteRequest;
   [CODE_RUNTIME_RPC_METHODS.REMOTE_STATUS]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.TERMINAL_STATUS]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.MODELS_POOL]: CodeRuntimeRpcEmptyParams;
@@ -4805,6 +4830,8 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.SETTINGS_SUMMARY]: SettingsSummary;
   [CODE_RUNTIME_RPC_METHODS.APP_SETTINGS_GET]: RuntimeAppSettingsRecord;
   [CODE_RUNTIME_RPC_METHODS.APP_SETTINGS_UPDATE]: RuntimeAppSettingsRecord;
+  [CODE_RUNTIME_RPC_METHODS.TEXT_FILE_READ_V1]: RuntimeTextFileResponse;
+  [CODE_RUNTIME_RPC_METHODS.TEXT_FILE_WRITE_V1]: boolean;
   [CODE_RUNTIME_RPC_METHODS.REMOTE_STATUS]: RemoteStatus;
   [CODE_RUNTIME_RPC_METHODS.TERMINAL_STATUS]: TerminalStatus;
   [CODE_RUNTIME_RPC_METHODS.MODELS_POOL]: ModelPoolEntry[];

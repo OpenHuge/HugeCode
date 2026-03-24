@@ -1,7 +1,7 @@
 /**
- * Compatibility behavior port for WebMCP bridge calls.
+ * App-facing behavior port for WebMCP bridge calls.
  *
- * New type-only consumers should prefer `application/runtime/types/webMcpBridge`.
+ * Type-only consumers should prefer `application/runtime/types/webMcpBridge`.
  */
 export type * from "../types/webMcpBridge";
 export {
@@ -18,4 +18,4 @@ export {
   WEB_MCP_ALL_TOOL_NAMES,
   WEB_MCP_RUNTIME_CONTROL_TOOL_NAMES,
   WebMcpInputSchemaValidationError,
-} from "../webMcpBridge";
+} from "../facades/runtimeWebMcpBridgeFacade";
