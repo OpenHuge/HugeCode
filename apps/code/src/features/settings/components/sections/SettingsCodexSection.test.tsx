@@ -464,6 +464,90 @@ describe("SettingsCodexSection", () => {
     );
   });
 
+  it("opens the default-model picker on the currently selected provider family", () => {
+    getProvidersCatalogMock.mockResolvedValue([
+      {
+        providerId: "anthropic",
+        displayName: "Claude Code",
+        pool: "claude",
+        oauthProviderId: "claude_code",
+        aliases: ["claude", "claude_code"],
+        defaultModelId: "anthropic::claude-sonnet-4-5",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        readinessKind: "ready",
+        readinessMessage: "Claude Code cloud routing is ready.",
+        executionKind: "cloud",
+        registryVersion: "test",
+      },
+      {
+        providerId: "claude_code_local",
+        displayName: "Claude Code Local",
+        pool: null,
+        oauthProviderId: null,
+        aliases: ["claude_code_local"],
+        defaultModelId: "claude_code_local::claude-sonnet-4-5",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: false,
+        readinessKind: "ready",
+        readinessMessage: "Local Claude Code is ready on this machine.",
+        executionKind: "local",
+        registryVersion: "test",
+      },
+    ]);
+
+    render(
+      <SettingsCodexSection
+        {...createProps({
+          appSettings: {
+            ...createProps().appSettings,
+            lastComposerModelId: "openai::gpt-5.1",
+            composerModelSelectionMode: "auto",
+            lastComposerProviderFamilyId: "claude",
+          },
+          defaultModels: [
+            createModelOption({
+              id: "openai::gpt-5.1",
+              model: "gpt-5.1",
+              displayName: "GPT-5.1",
+              provider: "openai",
+              pool: "codex",
+            }),
+            createModelOption({
+              id: "openai::gpt-5.4",
+              model: "gpt-5.4",
+              displayName: "GPT-5.4",
+              provider: "openai",
+              pool: "codex",
+            }),
+            createModelOption({
+              id: "anthropic::claude-sonnet-4-5",
+              model: "claude-sonnet-4-5",
+              displayName: "Claude Sonnet 4.5",
+              provider: "anthropic",
+              pool: "claude",
+            }),
+            createModelOption({
+              id: "claude_code_local::claude-sonnet-4-5",
+              model: "claude-sonnet-4-5",
+              displayName: "Claude Sonnet 4.5",
+              provider: "claude_code_local",
+              pool: "claude_code_local",
+            }),
+          ],
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Model" }));
+
+    expect(screen.getByRole("menu", { name: "Claude models" })).toBeTruthy();
+    expect(screen.getByRole("menuitemradio", { name: /Claude Sonnet 4\.5/i })).toBeTruthy();
+    expect(screen.queryByRole("menuitemradio", { name: /GPT-5\.4/i })).toBeNull();
+  });
+
   it("returns to the recommended route from the provider/model controls", () => {
     const onUpdateAppSettings = vi.fn(async () => undefined);
 

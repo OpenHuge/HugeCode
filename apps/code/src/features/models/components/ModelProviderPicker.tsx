@@ -262,6 +262,7 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
           if (disabled || providerOptions.length === 0) {
             return;
           }
+          setActiveProviderId(currentProvider?.id ?? selectedProviderId ?? null);
           setIsOpen((current) => !current);
         }}
       >
