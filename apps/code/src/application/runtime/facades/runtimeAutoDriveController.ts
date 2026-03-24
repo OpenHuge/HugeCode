@@ -14,6 +14,10 @@ import {
 } from "./runtimeAutoDriveExecution";
 import { extractLatestTaskOutput } from "./runtimeAutoDriveReviewParsing";
 import {
+  advanceContinuationState,
+  resolveStoppedContinuationState,
+} from "./runtimeAutoDriveContinuation";
+import {
   buildDefaultSummary,
   buildEmptyNavigation,
   buildNavigationFromContext,
@@ -43,9 +47,11 @@ import {
   shouldAutoRunChatgptResearchRouteLab,
 } from "./runtimeAutoDrivePolicy";
 import {
-  isBrowserReproFixVerifyScenario,
-  isResearchRouteDecideScenario,
-} from "./runtimeScenarioProfiles";
+  buildResearchFocusAreas,
+  buildResearchTrustedDomains,
+  buildRuntimeResearchSession,
+  resolveResearchRouteOutcome,
+} from "./runtimeAutoDriveResearchRoute";
 import { synthesizeAutoDriveContext } from "./runtimeAutoDriveContext";
 import type {
   AutoDriveConfidence,
@@ -73,104 +79,6 @@ function notifyAutoDriveRunListener(
   } catch (error) {
     logger.error("[AutoDriveRunController] listener failed", error);
   }
-}
-
-function buildContinuationReason(
-  run: AutoDriveRunRecord,
-  summary: AutoDriveIterationSummary
-): string {
-  const browserFixLoop = isBrowserReproFixVerifyScenario(run.runtimeScenarioProfile ?? null);
-  const researchRouteLoop = isResearchRouteDecideScenario(run.runtimeScenarioProfile ?? null);
-  const validationCommands = summary.validation.commands.join(" | ");
-  const browserGap = summary.waypoint.arrivalCriteriaMissed.find(
-    (criterion) =>
-      /browser|screenshot|repro|page|ui|visual/i.test(criterion) && !/validation/i.test(criterion)
-  );
-  if (browserFixLoop && browserGap) {
-    return `Browser verification gap remains: ${browserGap}`;
-  }
-  if (
-    researchRouteLoop &&
-    summary.waypoint.arrivalCriteriaMissed.some((criterion) =>
-      /source|research|official|route/i.test(criterion)
-    )
-  ) {
-    return `Research gap remains: ${summary.waypoint.arrivalCriteriaMissed.find((criterion) => /source|research|official|route/i.test(criterion))}`;
-  }
-  if (
-    (run.continuationPolicy?.requireValidationSuccessToStop ?? true) &&
-    summary.validation.success !== true
-  ) {
-    if (summary.validation.success === false) {
-      if (browserFixLoop) {
-        return `Browser verification gap remains: ${summary.validation.failures[0] ?? summary.validation.summary}`;
-      }
-      return `Validation is still failing: ${
-        summary.validation.failures[0] ?? summary.validation.summary
-      }`;
-    }
-    if (browserFixLoop) {
-      return validationCommands.length > 0
-        ? `Browser verification gap remains: rerun ${validationCommands} and confirm the real browser path.`
-        : `Browser verification gap remains: ${summary.validation.summary}`;
-    }
-    return validationCommands.length > 0
-      ? `Validation is still pending for ${validationCommands}.`
-      : `Validation is still pending: ${summary.validation.summary}`;
-  }
-  if (summary.waypoint.arrivalCriteriaMissed.length > 0) {
-    return `A required arrival criterion is still open: ${summary.waypoint.arrivalCriteriaMissed[0]}`;
-  }
-  if (summary.blockers.length > 0) {
-    return `An active blocker still needs resolution: ${summary.blockers[0]}`;
-  }
-  if (summary.routeHealth.offRoute || summary.routeHealth.rerouteRecommended) {
-    return `The route still needs re-anchoring: ${
-      summary.routeHealth.rerouteReason ?? summary.routeHealth.triggerSignals[0] ?? "route drift"
-    }`;
-  }
-  const minimumConfidence = run.continuationPolicy?.minimumConfidenceToStop ?? "high";
-  const confidenceRank: Record<AutoDriveConfidence, number> = {
-    low: 0,
-    medium: 1,
-    high: 2,
-  };
-  if (confidenceRank[summary.progress.arrivalConfidence] < confidenceRank[minimumConfidence]) {
-    return `Confidence is still below the stop target of ${minimumConfidence}.`;
-  }
-  return "The route needs one more verification pass before stopping.";
-}
-
-function advanceContinuationState(params: {
-  run: AutoDriveRunRecord;
-  summary: AutoDriveIterationSummary;
-  now: number;
-}): AutoDriveRunRecord {
-  const automaticFollowUpCount = (params.run.continuationState?.automaticFollowUpCount ?? 0) + 1;
-  return {
-    ...params.run,
-    continuationState: {
-      automaticFollowUpCount,
-      status: "continuing",
-      lastContinuationAt: params.now,
-      lastContinuationReason: buildContinuationReason(params.run, params.summary),
-    },
-  };
-}
-
-function resolveStoppedContinuationState(
-  run: AutoDriveRunRecord,
-  now: number
-): AutoDriveRunRecord["continuationState"] {
-  if (!run.continuationState && !run.continuationPolicy) {
-    return run.continuationState ?? null;
-  }
-  return {
-    automaticFollowUpCount: run.continuationState?.automaticFollowUpCount ?? 0,
-    status: "stopped",
-    lastContinuationAt: run.continuationState?.lastContinuationAt ?? now,
-    lastContinuationReason: run.continuationState?.lastContinuationReason ?? "finalized",
-  };
 }
 
 type AutoDriveControllerServices = {
@@ -623,6 +531,36 @@ export class AutoDriveRunController {
     }
 
     try {
+      const trustedDomains = buildResearchTrustedDomains({
+        run: this.run,
+        context,
+      });
+      const focusAreas = buildResearchFocusAreas({
+        run: this.run,
+        context,
+      });
+      this.run = {
+        ...this.run,
+        runtimeResearchTrace: {
+          status: "in_progress",
+          summary: "Research in progress: collecting trusted route evidence.",
+          blockingReason: null,
+        },
+        runtimeResearchSession: {
+          phase: "researching",
+          summary: "Research in progress: collecting trusted route evidence.",
+          blockingReason: null,
+          trustedSourceCount: 0,
+          totalSourceCount: 0,
+          sourceDomains: [],
+          trustedDomains,
+          focusAreas,
+          allowLiveWebResearch: this.run.riskPolicy.allowNetworkAnalysis,
+          coverageGaps: [],
+          recommendedCandidateId: null,
+        },
+      };
+      await this.persistRun();
       const result = await this.deps.runRuntimeBrowserDebug({
         workspaceId: this.run.workspaceId,
         operation: "chatgpt_research_route_lab",
@@ -641,16 +579,8 @@ export class AutoDriveRunController {
             ...this.run.destination.hardBoundaries,
             "Prefer official or trusted documentation.",
           ],
-          trustedDomains: [
-            "openai.com",
-            "platform.openai.com",
-            "developers.openai.com",
-            "react.dev",
-            "vite.dev",
-            "electronjs.org",
-            "tauri.app",
-            "developer.chrome.com",
-          ],
+          focusAreas,
+          trustedDomains,
           allowLiveWebResearch: this.run.riskPolicy.allowNetworkAnalysis,
           chatgptUrl: null,
         },
@@ -662,31 +592,49 @@ export class AutoDriveRunController {
           url: entry.url ?? null,
           domain: entry.domain ?? null,
         })) ?? [];
-      const summary =
-        research?.decisionMemo ??
-        research?.blockedReason ??
-        "Research route lab completed without a detailed rationale.";
+      const researchOutcome = resolveResearchRouteOutcome({
+        result,
+        context,
+        researchSources,
+      });
+      const runtimeResearchSession = buildRuntimeResearchSession({
+        result,
+        outcome: researchOutcome,
+        researchSources,
+        trustedDomains,
+        focusAreas,
+        allowLiveWebResearch: this.run.riskPolicy.allowNetworkAnalysis,
+      });
 
       this.run = {
         ...this.run,
         runtimeResearchTrace: {
-          status: research?.blockedReason
-            ? "blocked"
-            : researchSources.length === 0
-              ? "gap"
-              : "selected",
-          summary,
-          blockingReason: research?.blockedReason ?? null,
+          status: researchOutcome.status,
+          summary: researchOutcome.summary,
+          blockingReason: researchOutcome.blockingReason,
         },
+        runtimeResearchSession,
         runtimeResearchSources: researchSources,
         lastChatgptResearchRouteLab: research
           ? {
+              phase: research.phase ?? null,
               recommendedRoute: research.recommendedRoute ?? null,
               alternativeRoutes: research.alternativeRoutes ?? [],
               decisionMemo: research.decisionMemo ?? null,
+              recommendedRouteRationale: research.recommendedRouteRationale ?? null,
               sources: researchSources,
+              sourceAssessment: research.sourceAssessment
+                ? {
+                    status: research.sourceAssessment.status ?? null,
+                    trustedSourceCount: research.sourceAssessment.trustedSourceCount ?? 0,
+                    totalSourceCount:
+                      research.sourceAssessment.totalSourceCount ?? researchSources.length,
+                    domains: research.sourceAssessment.domains ?? [],
+                  }
+                : null,
               confidence: research.confidence ?? null,
               openQuestions: research.openQuestions ?? [],
+              coverageGaps: research.coverageGaps ?? [],
               blockedReason: research.blockedReason ?? null,
             }
           : null,
@@ -694,7 +642,7 @@ export class AutoDriveRunController {
       await this.persistRun();
 
       const recommendedCandidate = context.opportunities.candidates.find(
-        (candidate) => candidate.id === research?.recommendedRoute
+        (candidate) => candidate.id === researchOutcome.recommendedCandidateId
       );
       if (!recommendedCandidate) {
         return context;
@@ -702,7 +650,7 @@ export class AutoDriveRunController {
 
       const selectionSummary = [
         `Route ${recommendedCandidate.title} recommended by ChatGPT research route lab.`,
-        research?.decisionMemo ?? null,
+        research?.recommendedRouteRationale ?? research?.decisionMemo ?? null,
       ]
         .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
         .join(" ");

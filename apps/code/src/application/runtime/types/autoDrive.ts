@@ -268,13 +268,38 @@ export type AutoDriveRuntimeResearchTrace = {
   blockingReason: string | null;
 };
 
+export type AutoDriveResearchSourceAssessment = {
+  status: "trusted" | "mixed" | "insufficient" | null;
+  trustedSourceCount: number;
+  totalSourceCount: number;
+  domains: string[];
+};
+
+export type AutoDriveRuntimeResearchSession = {
+  phase: "queued" | "researching" | "synthesizing" | "selected" | "gap" | "blocked";
+  summary: string;
+  blockingReason: string | null;
+  trustedSourceCount: number;
+  totalSourceCount: number;
+  sourceDomains: string[];
+  trustedDomains: string[];
+  focusAreas: string[];
+  allowLiveWebResearch: boolean | null;
+  coverageGaps: string[];
+  recommendedCandidateId: string | null;
+};
+
 export type AutoDriveChatgptResearchRouteLabResult = {
+  phase: "queued" | "researching" | "synthesizing" | "selected" | "gap" | "blocked" | null;
   recommendedRoute: string | null;
   alternativeRoutes: string[];
   decisionMemo: string | null;
+  recommendedRouteRationale: string | null;
   sources: AutoDriveResearchSource[];
+  sourceAssessment: AutoDriveResearchSourceAssessment | null;
   confidence: AutoDriveConfidence | null;
   openQuestions: string[];
+  coverageGaps: string[];
   blockedReason: string | null;
 };
 
@@ -743,6 +768,7 @@ export type AutoDriveRunRecord = {
   runtimeAutonomyState?: AutoDriveRuntimeAutonomyState | null;
   runtimeContinuationState?: AutoDriveRuntimeContinuationState | null;
   lastChatgptDecisionLab?: AutoDriveChatgptDecisionLabResult | null;
+  runtimeResearchSession?: AutoDriveRuntimeResearchSession | null;
   runtimeResearchTrace?: AutoDriveRuntimeResearchTrace | null;
   runtimeResearchSources?: AutoDriveResearchSource[];
   lastChatgptResearchRouteLab?: AutoDriveChatgptResearchRouteLabResult | null;

@@ -98,6 +98,51 @@ type RenderAutoDriveOptions = {
       assumptions: string[];
       followUpQuestions: string[];
     } | null;
+    runtimeResearchTrace: {
+      status: "in_progress" | "selected" | "gap" | "blocked";
+      summary: string;
+      blockingReason: string | null;
+    } | null;
+    runtimeResearchSession: {
+      phase: "queued" | "researching" | "synthesizing" | "selected" | "gap" | "blocked";
+      summary: string;
+      blockingReason: string | null;
+      trustedSourceCount: number;
+      totalSourceCount: number;
+      sourceDomains: string[];
+      trustedDomains: string[];
+      focusAreas: string[];
+      allowLiveWebResearch: boolean | null;
+      coverageGaps: string[];
+      recommendedCandidateId: string | null;
+    } | null;
+    runtimeResearchSources: Array<{
+      label: string;
+      url: string | null;
+      domain: string | null;
+    }>;
+    lastChatgptResearchRouteLab: {
+      phase: "queued" | "researching" | "synthesizing" | "selected" | "gap" | "blocked" | null;
+      recommendedRoute: string | null;
+      alternativeRoutes: string[];
+      decisionMemo: string | null;
+      recommendedRouteRationale: string | null;
+      sources: Array<{
+        label: string;
+        url: string | null;
+        domain: string | null;
+      }>;
+      sourceAssessment: {
+        status: "trusted" | "mixed" | "insufficient" | null;
+        trustedSourceCount: number;
+        totalSourceCount: number;
+        domains: string[];
+      } | null;
+      confidence: "low" | "medium" | "high" | null;
+      openQuestions: string[];
+      coverageGaps: string[];
+      blockedReason: string | null;
+    } | null;
   }> | null;
 };
 
@@ -216,6 +261,10 @@ function buildAutoDrive(options: RenderAutoDriveOptions = {}) {
               runtimeAutonomyState: options.run?.runtimeAutonomyState ?? null,
               runtimeContinuationState: options.run?.runtimeContinuationState ?? null,
               lastChatgptDecisionLab: options.run?.lastChatgptDecisionLab ?? null,
+              runtimeResearchTrace: options.run?.runtimeResearchTrace ?? null,
+              runtimeResearchSession: options.run?.runtimeResearchSession ?? null,
+              runtimeResearchSources: options.run?.runtimeResearchSources ?? [],
+              lastChatgptResearchRouteLab: options.run?.lastChatgptResearchRouteLab ?? null,
               latestReroute: null,
             },
       onToggleEnabled,
@@ -615,6 +664,95 @@ describe("ComposerMetaBar AutoDrive", () => {
       screen.getAllByText("ChatGPT login required before the browser route can continue.").length
     ).toBeGreaterThan(0);
     expect(screen.getByText("Session blocked")).toBeTruthy();
+  });
+
+  it("surfaces research source quality and the leading coverage gap in the rail", () => {
+    renderComposerWithAutoDrive({
+      enabled: true,
+      controls: { canPause: true, canStop: true, canStart: false },
+      run: {
+        status: "running",
+        overallProgress: 52,
+        runtimeScenarioProfile: {
+          authorityScope: "workspace_graph",
+          authoritySources: ["repo_authority", "workspace_graph", "chatgpt_web"],
+          representativeCommands: [],
+          componentCommands: [],
+          endToEndCommands: [],
+          samplePaths: [],
+          heldOutGuidance: [],
+          sourceSignals: ["chatgpt_research_route_lab"],
+          scenarioKeys: ["research_route_decide"],
+          safeBackground: true,
+        },
+        runtimeResearchTrace: {
+          status: "gap",
+          summary: "Research gap remains: trusted evidence is still incomplete.",
+          blockingReason: "ChatGPT did not cite enough trusted sources.",
+        },
+        runtimeResearchSession: {
+          phase: "gap",
+          summary: "Research gap remains: trusted evidence is still incomplete.",
+          blockingReason: "ChatGPT did not cite enough trusted sources.",
+          trustedSourceCount: 2,
+          totalSourceCount: 3,
+          sourceDomains: ["react.dev", "playwright.dev", "example.com"],
+          trustedDomains: ["react.dev", "playwright.dev", "vitest.dev"],
+          focusAreas: ["Confirm the current Vitest migration guidance."],
+          allowLiveWebResearch: true,
+          coverageGaps: ["Confirm the current Vitest migration guidance."],
+          recommendedCandidateId: "stabilize_route",
+        },
+        runtimeResearchSources: [
+          {
+            label: "React 19 upgrade guide",
+            url: "https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
+            domain: "react.dev",
+          },
+        ],
+        lastChatgptResearchRouteLab: {
+          phase: "gap",
+          recommendedRoute: "stabilize_route",
+          alternativeRoutes: ["advance_primary_surface"],
+          decisionMemo: "The route is still plausible but needs better evidence.",
+          recommendedRouteRationale:
+            "React and Playwright official docs support the route, but Vitest coverage is still incomplete.",
+          sources: [
+            {
+              label: "React 19 upgrade guide",
+              url: "https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
+              domain: "react.dev",
+            },
+          ],
+          sourceAssessment: {
+            status: "mixed",
+            trustedSourceCount: 2,
+            totalSourceCount: 3,
+            domains: ["react.dev", "playwright.dev", "example.com"],
+          },
+          confidence: "medium",
+          openQuestions: [],
+          coverageGaps: ["Confirm the current Vitest migration guidance."],
+          blockedReason: "missing_trusted_sources",
+        },
+      },
+    });
+
+    expect(screen.getByText("52% route · Research gap")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /AutoDrive/ }));
+
+    expect(screen.getByText("Research lane")).toBeTruthy();
+    expect(screen.getByText("Research gap")).toBeTruthy();
+    expect(screen.getByText("Research policy")).toBeTruthy();
+    expect(screen.getByText("3 trusted domains · live web on")).toBeTruthy();
+    expect(screen.getByText("Research focus")).toBeTruthy();
+    expect(screen.getByText("Research review")).toBeTruthy();
+    expect(screen.getByText("Research evidence review required")).toBeTruthy();
+    expect(screen.getByText("Source quality")).toBeTruthy();
+    expect(screen.getByText("2 trusted of 3 sources · react.dev, playwright.dev")).toBeTruthy();
+    expect(screen.getByText("Coverage gap")).toBeTruthy();
+    expect(screen.getAllByText("Confirm the current Vitest migration guidance.").length).toBe(2);
   });
 
   it("surfaces runtime recovery summary instead of generic restore copy", () => {

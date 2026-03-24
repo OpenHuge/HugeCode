@@ -10,6 +10,7 @@ import type {
   AutoDriveControllerHookDraft,
   AutoDriveChatgptResearchRouteLabResult,
   AutoDriveContinuationPolicy,
+  AutoDriveResearchSourceAssessment,
   AutoDriveResearchSource,
   AutoDriveRiskPolicy,
   AutoDriveRoutePreference,
@@ -17,6 +18,7 @@ import type {
   AutoDriveRuntimeAutonomyState,
   AutoDriveRuntimeDecisionTrace,
   AutoDriveRuntimeOutcomeFeedback,
+  AutoDriveRuntimeResearchSession,
   AutoDriveRuntimeResearchTrace,
   AutoDriveRuntimeScenarioProfile,
   AutoDriveRunRecord,
@@ -425,6 +427,53 @@ function toRuntimeResearchSources(
     .filter((entry) => entry.label.length > 0);
 }
 
+function toRuntimeResearchSourceAssessment(
+  value: NonNullable<AgentTaskAutoDriveState["lastChatgptResearchRouteLab"]>["sourceAssessment"]
+): AutoDriveResearchSourceAssessment | null {
+  if (!value) {
+    return null;
+  }
+  return {
+    status:
+      value.status === "trusted" || value.status === "mixed" || value.status === "insufficient"
+        ? value.status
+        : null,
+    trustedSourceCount: value.trustedSourceCount ?? 0,
+    totalSourceCount: value.totalSourceCount ?? 0,
+    domains: normalizeStringArray(value.domains),
+  };
+}
+
+function toRuntimeResearchSession(
+  value: AgentTaskAutoDriveState["researchSession"]
+): AutoDriveRuntimeResearchSession | null {
+  if (!value) {
+    return null;
+  }
+  return {
+    phase:
+      value.phase === "queued" ||
+      value.phase === "researching" ||
+      value.phase === "synthesizing" ||
+      value.phase === "selected" ||
+      value.phase === "gap" ||
+      value.phase === "blocked"
+        ? value.phase
+        : "gap",
+    summary: value.summary ?? "",
+    blockingReason: value.blockingReason ?? null,
+    trustedSourceCount: value.trustedSourceCount ?? 0,
+    totalSourceCount: value.totalSourceCount ?? 0,
+    sourceDomains: normalizeStringArray(value.sourceDomains),
+    trustedDomains: normalizeStringArray(value.trustedDomains),
+    focusAreas: normalizeStringArray(value.focusAreas),
+    allowLiveWebResearch:
+      typeof value.allowLiveWebResearch === "boolean" ? value.allowLiveWebResearch : null,
+    coverageGaps: normalizeStringArray(value.coverageGaps),
+    recommendedCandidateId: value.recommendedCandidateId ?? null,
+  };
+}
+
 function toRuntimeResearchRouteLabResult(
   value: AgentTaskAutoDriveState["lastChatgptResearchRouteLab"]
 ): AutoDriveChatgptResearchRouteLabResult | null {
@@ -432,15 +481,27 @@ function toRuntimeResearchRouteLabResult(
     return null;
   }
   return {
+    phase:
+      value.phase === "queued" ||
+      value.phase === "researching" ||
+      value.phase === "synthesizing" ||
+      value.phase === "selected" ||
+      value.phase === "gap" ||
+      value.phase === "blocked"
+        ? value.phase
+        : null,
     recommendedRoute: value.recommendedRoute ?? null,
     alternativeRoutes: normalizeStringArray(value.alternativeRoutes),
     decisionMemo: value.decisionMemo ?? null,
+    recommendedRouteRationale: value.recommendedRouteRationale ?? null,
     sources: toRuntimeResearchSources(value.sources),
+    sourceAssessment: toRuntimeResearchSourceAssessment(value.sourceAssessment),
     confidence:
       value.confidence === "low" || value.confidence === "medium" || value.confidence === "high"
         ? value.confidence
         : null,
     openQuestions: normalizeStringArray(value.openQuestions),
+    coverageGaps: normalizeStringArray(value.coverageGaps),
     blockedReason: value.blockedReason ?? null,
   };
 }
@@ -494,6 +555,7 @@ function adaptRun(params: {
   const runtimeContinuationPolicy = toRuntimeContinuationPolicy(autoDrive.continuationPolicy);
   const runtimeContinuationState = toRuntimeContinuationState(autoDrive.continuationState);
   const runtimeResearchTrace = toRuntimeResearchTrace(autoDrive.researchTrace);
+  const runtimeResearchSession = toRuntimeResearchSession(autoDrive.researchSession);
   const runtimeResearchSources = toRuntimeResearchSources(autoDrive.researchSources);
   const lastChatgptResearchRouteLab = toRuntimeResearchRouteLabResult(
     autoDrive.lastChatgptResearchRouteLab
@@ -649,6 +711,7 @@ function adaptRun(params: {
     runtimeAutonomyState,
     runtimeContinuationState,
     runtimeResearchTrace,
+    runtimeResearchSession,
     runtimeResearchSources,
     lastChatgptResearchRouteLab,
   };

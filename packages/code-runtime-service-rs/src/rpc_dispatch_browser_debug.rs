@@ -113,6 +113,8 @@ struct BrowserDebugResearchRouteLabRequest {
     routes: Vec<BrowserDebugResearchRouteOptionRequest>,
     #[serde(default)]
     constraints: Option<Vec<String>>,
+    #[serde(default, alias = "focus_areas")]
+    focus_areas: Option<Vec<String>>,
     #[serde(default, alias = "trusted_domains")]
     trusted_domains: Option<Vec<String>>,
     #[serde(default, alias = "allow_live_web_research")]

@@ -866,7 +866,6 @@ export function ReviewPackSurface({
                 reviewPackDetail.emptySectionLabels.assumptions
               )}
             </ReviewDetailSection>
-
             <ReviewDetailSection
               title="Validation outcome"
               meta={
@@ -967,6 +966,16 @@ export function ReviewPackSurface({
                   <div className={styles.bodyText}>{reviewPackDetail.researchTrace.summary}</div>
                   {renderCopyList(
                     [
+                      reviewPackDetail.researchSourceQuality
+                        ? `Source Quality: ${reviewPackDetail.researchSourceQuality}`
+                        : null,
+                      reviewPackDetail.researchPolicySummary
+                        ? `Research Policy: ${reviewPackDetail.researchPolicySummary}`
+                        : null,
+                      ...(reviewPackDetail.researchPolicyDetails ?? []),
+                      ...(reviewPackDetail.researchCoverageGaps ?? []).map(
+                        (gap) => `Coverage Gap: ${gap}`
+                      ),
                       ...(reviewPackDetail.researchSources ?? []),
                       reviewPackDetail.researchTrace.blockingReason
                         ? `Blocked: ${reviewPackDetail.researchTrace.blockingReason}`

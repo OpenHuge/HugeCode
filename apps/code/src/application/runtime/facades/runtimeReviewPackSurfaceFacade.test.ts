@@ -422,6 +422,20 @@ describe("runtimeReviewPackSurfaceFacade", () => {
               status: "selected",
               summary: "Research route selected from official sources.",
             },
+            researchSession: {
+              phase: "selected",
+              summary:
+                "Research route selected from trusted sources across react.dev and vite.dev.",
+              blockingReason: null,
+              trustedSourceCount: 2,
+              totalSourceCount: 2,
+              sourceDomains: ["react.dev", "vite.dev"],
+              trustedDomains: ["react.dev", "vite.dev"],
+              focusAreas: ["Confirm deprecated test helpers before upgrading."],
+              allowLiveWebResearch: true,
+              coverageGaps: ["Confirm deprecated test helpers before upgrading."],
+              recommendedCandidateId: "incremental-react-19",
+            },
             researchSources: [
               {
                 label: "React 19 upgrade guide",
@@ -435,12 +449,22 @@ describe("runtimeReviewPackSurfaceFacade", () => {
               },
             ],
             lastChatgptResearchRouteLab: {
+              phase: "selected",
               recommendedRoute: "incremental-react-19",
               alternativeRoutes: ["full-refresh"],
               decisionMemo:
                 "Prefer the incremental path because it preserves the current runtime shell and aligns with official migration guidance.",
+              recommendedRouteRationale:
+                "The incremental route is the only path fully backed by the official React and Vite guidance.",
+              sourceAssessment: {
+                status: "trusted",
+                trustedSourceCount: 2,
+                totalSourceCount: 2,
+                domains: ["react.dev", "vite.dev"],
+              },
               confidence: "high",
               openQuestions: ["Confirm deprecated test helpers before upgrading."],
+              coverageGaps: ["Confirm deprecated test helpers before upgrading."],
             },
             stop: {
               reason: "completed",
@@ -490,8 +514,190 @@ describe("runtimeReviewPackSurfaceFacade", () => {
       "react.dev - React 19 upgrade guide - https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
       "vite.dev - Vite migration guide - https://vite.dev/guide/migration",
     ]);
+    expect(detail.researchSourceQuality).toBe("2 trusted sources · react.dev, vite.dev");
+    expect(detail.researchPolicySummary).toBe("2 trusted domains · live web on");
+    expect(detail.researchPolicyDetails).toEqual([
+      "Trusted domains: react.dev, vite.dev",
+      "Live web research: allowed",
+      "Review requirement: Human review required",
+      "Focus: Confirm deprecated test helpers before upgrading.",
+    ]);
+    expect(detail.researchReviewRequirement).toBe("Human review required");
+    expect(detail.researchCoverageGaps).toEqual([
+      "Confirm deprecated test helpers before upgrading.",
+    ]);
     expect(detail.decisionRationale).toContain(
-      "Prefer the incremental path because it preserves the current runtime shell"
+      "The incremental route is the only path fully backed by the official React and Vite guidance."
     );
+  });
+
+  it("formats mixed research source quality without overstating trusted-only evidence", () => {
+    const projection = asProjection({
+      source: "runtime_snapshot_v1" as const,
+      generatedAt: 10,
+      workspaces: [
+        {
+          id: "workspace-1",
+          name: "Workspace One",
+          rootPath: "/tmp/workspace-one",
+          connected: true,
+          defaultProfileId: null,
+        },
+      ],
+      tasks: [
+        {
+          id: "task-1",
+          workspaceId: "workspace-1",
+          title: "Plan the migration route",
+          objective: "Plan the migration route",
+          origin: {
+            kind: "thread" as const,
+            threadId: "thread-1",
+            runId: "run-1",
+            requestId: null,
+          },
+          mode: "pair" as const,
+          modeSource: "execution_profile" as const,
+          summary: "Select the safest migration route.",
+          status: "review_ready" as const,
+          createdAt: 1,
+          updatedAt: 1,
+          currentRunId: "run-1",
+          latestRunId: "run-1",
+          latestRunState: "review_ready" as const,
+          nextAction: null,
+        },
+      ],
+      runs: [
+        {
+          id: "run-1",
+          workspaceId: "workspace-1",
+          taskId: "task-1",
+          title: "Research route",
+          summary: "Research route run.",
+          state: "review_ready",
+          status: "completed",
+          startedAt: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          completedAt: 1,
+          currentStepIndex: 0,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          reviewPackId: "review-pack:1",
+          autoDrive: {
+            enabled: true,
+            destination: {
+              title: "Plan the migration route",
+              desiredEndState: ["Route selected"],
+            },
+            scenarioProfile: {
+              authorityScope: "workspace_graph",
+              authoritySources: ["repo_authority", "chatgpt_web"],
+              scenarioKeys: ["research_route_decide"],
+              safeBackground: true,
+            },
+            researchTrace: {
+              status: "gap",
+              summary: "Research gap remains: mixed evidence still needs operator review.",
+            },
+            researchSession: {
+              phase: "gap",
+              summary: "Research gap remains: mixed evidence still needs operator review.",
+              blockingReason:
+                "ChatGPT mixed trusted and untrusted evidence for the recommended route.",
+              trustedSourceCount: 1,
+              totalSourceCount: 2,
+              sourceDomains: ["react.dev", "example.com"],
+              trustedDomains: ["react.dev", "vite.dev"],
+              focusAreas: ["Confirm the Vitest compatibility note."],
+              allowLiveWebResearch: false,
+              coverageGaps: ["Confirm the Vitest compatibility note."],
+              recommendedCandidateId: "incremental-react-19",
+            },
+            researchSources: [
+              {
+                label: "React 19 upgrade guide",
+                url: "https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
+                domain: "react.dev",
+              },
+              {
+                label: "Community summary",
+                url: "https://example.com/react-summary",
+                domain: "example.com",
+              },
+            ],
+            lastChatgptResearchRouteLab: {
+              phase: "gap",
+              recommendedRoute: "incremental-react-19",
+              alternativeRoutes: [],
+              decisionMemo:
+                "The route is plausible, but the evidence mixes official guidance with an untrusted summary.",
+              recommendedRouteRationale: null,
+              sourceAssessment: {
+                status: "mixed",
+                trustedSourceCount: 1,
+                totalSourceCount: 2,
+                domains: ["react.dev", "example.com"],
+              },
+              confidence: "medium",
+              openQuestions: [],
+              coverageGaps: ["Confirm the Vitest compatibility note."],
+              blockedReason: "missing_trusted_sources",
+            },
+            stop: {
+              reason: "validation_failed",
+            },
+          },
+        },
+      ],
+      reviewPacks: [
+        {
+          id: "review-pack:1",
+          runId: "run-1",
+          taskId: "task-1",
+          workspaceId: "workspace-1",
+          summary: "Research route review pack.",
+          reviewStatus: "incomplete_evidence" as const,
+          evidenceState: "incomplete" as const,
+          validationOutcome: "unknown" as const,
+          warningCount: 0,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          checksPerformed: [],
+          recommendedNextAction: "Review the route memo and sources.",
+          createdAt: 10,
+        },
+      ],
+    });
+
+    const detail = buildReviewPackDetailModel({
+      projection,
+      selection: resolveReviewPackSelection({
+        projection,
+        workspaceId: "workspace-1",
+        request: {
+          workspaceId: "workspace-1",
+          reviewPackId: "review-pack:1",
+          source: "review_surface",
+        },
+      }),
+    });
+
+    expect(detail?.kind).toBe("review_pack");
+    if (!detail || detail.kind !== "review_pack") {
+      throw new Error("Expected review pack detail");
+    }
+    expect(detail.researchSourceQuality).toBe("1 trusted of 2 sources · react.dev, example.com");
+    expect(detail.researchPolicySummary).toBe("2 trusted domains · live web off");
+    expect(detail.researchPolicyDetails).toEqual([
+      "Trusted domains: react.dev, vite.dev",
+      "Live web research: disabled",
+      "Review requirement: Research evidence review required",
+      "Focus: Confirm the Vitest compatibility note.",
+    ]);
+    expect(detail.researchReviewRequirement).toBe("Research evidence review required");
   });
 });

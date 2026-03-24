@@ -105,6 +105,14 @@ pub(super) fn build_chatgpt_research_route_lab_prompt(
         .map(|entry| entry.trim().to_string())
         .filter(|entry| !entry.is_empty())
         .collect::<Vec<_>>();
+    let focus_areas = request
+        .focus_areas
+        .clone()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|entry| entry.trim().to_string())
+        .filter(|entry| !entry.is_empty())
+        .collect::<Vec<_>>();
     let research_rule = if request.allow_live_web_research.unwrap_or(false) {
         "You may use live web context, but cite only official or explicitly trusted sources."
     } else {
@@ -120,6 +128,11 @@ pub(super) fn build_chatgpt_research_route_lab_prompt(
     } else {
         trusted_domains.join(" | ")
     };
+    let focus_areas_text = if focus_areas.is_empty() {
+        "none".to_string()
+    } else {
+        focus_areas.join(" | ")
+    };
     [
         "Return exactly one fenced Markdown code block containing valid JSON only.",
         "Do not add any explanation before or after the code block.",
@@ -127,6 +140,7 @@ pub(super) fn build_chatgpt_research_route_lab_prompt(
         "Choose exactly one recommendedRoute from the supplied routes unless you must block the task.",
         research_rule,
         "Use only official or explicitly trusted sources. If you cannot satisfy that constraint, return blockedReason.",
+        "If you cannot justify a route from trusted sources, set recommendedRoute to null and explain the gap in blockedReason.",
         "Treat this as an isolated task. Ignore unrelated earlier chat history unless it is repeated in the current request.",
         "Use the following request id only as opaque context.",
         &format!("Research route request id: {request_id}"),
@@ -141,11 +155,14 @@ pub(super) fn build_chatgpt_research_route_lab_prompt(
         "Constraints:",
         constraints_text.as_str(),
         "",
+        "Focus areas:",
+        focus_areas_text.as_str(),
+        "",
         "Trusted source domains:",
         trusted_text.as_str(),
         "",
         "Return JSON with this exact shape:",
-        r#"{"recommendedRoute":"string|null","alternativeRoutes":[{"id":"string","label":"string","reason":"string"}],"decisionMemo":"string","sources":[{"label":"string","url":"string|null","domain":"string"}],"confidence":"low|medium|high|null","openQuestions":["string"],"blockedReason":"string|null"}"#,
+        r#"{"phase":"queued|researching|synthesizing|selected|gap|blocked|null","recommendedRoute":"string|null","alternativeRoutes":[{"id":"string","label":"string","reason":"string"}],"decisionMemo":"string|null","recommendedRouteRationale":"string|null","sources":[{"label":"string","url":"string|null","domain":"string"}],"sourceAssessment":{"status":"trusted|mixed|insufficient","trustedSourceCount":0,"totalSourceCount":0,"domains":["string"]},"confidence":"low|medium|high|null","openQuestions":["string"],"coverageGaps":["string"],"blockedReason":"string|null"}"#,
     ]
     .join("\n")
 }
@@ -784,6 +801,7 @@ pub(super) fn source_matches_trusted_domain(source_domain: &str, trusted_domains
 pub(super) fn normalize_research_route_lab_result_payload(
     value: &Value,
     trusted_domains: &[String],
+    allowed_route_ids: &[String],
 ) -> Option<Value> {
     let object = value.as_object()?;
     let confidence = object
@@ -791,6 +809,23 @@ pub(super) fn normalize_research_route_lab_result_payload(
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|value| matches!(*value, "low" | "medium" | "high"))
+        .map(ToOwned::to_owned);
+    let recommended_route = object
+        .get("recommendedRoute")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned);
+    let phase = object
+        .get("phase")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| {
+            matches!(
+                *value,
+                "queued" | "researching" | "synthesizing" | "selected" | "gap" | "blocked"
+            )
+        })
         .map(ToOwned::to_owned);
 
     let sources = object
@@ -836,6 +871,11 @@ pub(super) fn normalize_research_route_lab_result_payload(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
+    let source_domains = sources
+        .iter()
+        .filter_map(|entry| entry.get("domain").and_then(Value::as_str))
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
 
     let untrusted_sources = if trusted_domains.is_empty() {
         Vec::new()
@@ -847,6 +887,50 @@ pub(super) fn normalize_research_route_lab_result_payload(
             .map(ToOwned::to_owned)
             .collect::<Vec<_>>()
     };
+    let trusted_source_count = if trusted_domains.is_empty() {
+        sources.len()
+    } else {
+        sources
+            .iter()
+            .filter_map(|entry| entry.get("domain").and_then(Value::as_str))
+            .filter(|domain| source_matches_trusted_domain(domain, trusted_domains))
+            .count()
+    };
+    let total_source_count = sources.len();
+    let source_assessment_status = if total_source_count == 0 || trusted_source_count == 0 {
+        "insufficient"
+    } else if trusted_source_count < total_source_count {
+        "mixed"
+    } else {
+        "trusted"
+    };
+    let coverage_gaps = object
+        .get("coverageGaps")
+        .and_then(Value::as_array)
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| {
+            object
+                .get("openQuestions")
+                .and_then(Value::as_array)
+                .map(|entries| {
+                    entries
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::trim)
+                        .filter(|value| !value.is_empty())
+                        .map(ToOwned::to_owned)
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default()
+        });
 
     let blocked_reason = object
         .get("blockedReason")
@@ -855,7 +939,17 @@ pub(super) fn normalize_research_route_lab_result_payload(
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned)
         .or_else(|| {
-            if sources.is_empty() {
+            if recommended_route.is_none() {
+                Some("missing_recommended_route".to_string())
+            } else if !allowed_route_ids.is_empty()
+                && recommended_route
+                    .as_ref()
+                    .is_some_and(|route| !allowed_route_ids.iter().any(|candidate| candidate == route))
+            {
+                recommended_route
+                    .as_ref()
+                    .map(|route| format!("invalid_recommended_route:{route}"))
+            } else if sources.is_empty() {
                 Some("missing_trusted_sources".to_string())
             } else if !untrusted_sources.is_empty() {
                 Some(format!(
@@ -866,9 +960,19 @@ pub(super) fn normalize_research_route_lab_result_payload(
                 None
             }
         });
+    let normalized_phase = if blocked_reason.is_some() || source_assessment_status != "trusted" {
+        Some("gap".to_string())
+    } else if let Some(phase) = phase {
+        Some(phase)
+    } else if recommended_route.is_some() {
+        Some("selected".to_string())
+    } else {
+        Some("gap".to_string())
+    };
 
     Some(json!({
-        "recommendedRoute": object.get("recommendedRoute").and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty()),
+        "phase": normalized_phase,
+        "recommendedRoute": recommended_route,
         "alternativeRoutes": object.get("alternativeRoutes").and_then(Value::as_array).map(|entries| {
             entries.iter().filter_map(Value::as_object).map(|entry| {
                 json!({
@@ -879,11 +983,19 @@ pub(super) fn normalize_research_route_lab_result_payload(
             }).collect::<Vec<_>>()
         }).unwrap_or_default(),
         "decisionMemo": object.get("decisionMemo").and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty()),
+        "recommendedRouteRationale": object.get("recommendedRouteRationale").and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty()),
         "sources": sources,
+        "sourceAssessment": {
+            "status": source_assessment_status,
+            "trustedSourceCount": trusted_source_count,
+            "totalSourceCount": total_source_count,
+            "domains": source_domains,
+        },
         "confidence": confidence,
         "openQuestions": object.get("openQuestions").and_then(Value::as_array).map(|entries| {
             entries.iter().filter_map(Value::as_str).map(str::trim).filter(|value| !value.is_empty()).map(ToOwned::to_owned).collect::<Vec<_>>()
         }).unwrap_or_default(),
+        "coverageGaps": coverage_gaps,
         "blockedReason": blocked_reason,
     }))
 }
@@ -911,6 +1023,9 @@ pub(super) fn extract_decision_lab_step_error(result: &Value) -> Option<String> 
     }
     None
 }
+#[cfg(test)]
+#[path = "rpc_dispatch_browser_debug_chatgpt_lab_shared_tests.rs"]
+mod tests;
 
 pub(super) fn is_navigation_context_reset_error(error: &str) -> bool {
     let normalized = error.trim().to_ascii_lowercase();
@@ -1069,4 +1184,3 @@ pub(super) fn extract_any_chatgpt_page_id(result: &Value, chatgpt_url: &str) -> 
     }
     None
 }
-
