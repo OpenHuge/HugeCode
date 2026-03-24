@@ -4,6 +4,10 @@ import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildForgeEnvironment, resolveCommandInvocation } from "./run-forge-support.mjs";
+import {
+  createForgeStagePackageJson,
+  shouldInstallForgeStageDependencies,
+} from "./forge-stage-package.mjs";
 
 const command = process.argv[2];
 if (!command || !["package", "make", "publish"].includes(command)) {
@@ -72,32 +76,7 @@ async function prepareStage() {
   await cp(forgeConfigSource, resolve(forgePackageDir, "forge.config.mjs"));
   await cp(localMakerDebSource, resolve(forgePackageDir, "scripts/maker-deb.cjs"));
 
-  const stagedPackageJson = {
-    name: "hugecode",
-    productName: "HugeCode",
-    version: packageJson.version,
-    author: typeof packageJson.author === "string" ? packageJson.author : "OpenHuge",
-    description:
-      typeof packageJson.description === "string"
-        ? packageJson.description
-        : "HugeCode beta desktop shell",
-    productDescription: "HugeCode beta desktop shell",
-    type: "module",
-    main: "dist-electron/main/main.js",
-    repository: packageJson.repository,
-    config: {
-      forge: "./forge.config.mjs",
-    },
-    dependencies: Object.fromEntries(
-      Object.entries(packageJson.dependencies ?? {}).filter(
-        ([, version]) => typeof version === "string" && !version.startsWith("workspace:")
-      )
-    ),
-    devDependencies: {
-      "@electron-forge/maker-deb": "7.11.1",
-      electron: packageJson.devDependencies.electron,
-    },
-  };
+  const stagedPackageJson = createForgeStagePackageJson(packageJson);
 
   await writeFile(
     resolve(forgePackageDir, "package.json"),
@@ -106,7 +85,7 @@ async function prepareStage() {
   );
   await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
 
-  if (Object.keys(stagedPackageJson.dependencies ?? {}).length > 0) {
+  if (shouldInstallForgeStageDependencies(stagedPackageJson)) {
     await runCommand(
       "npm",
       ["install", "--include=dev", "--ignore-scripts", "--no-package-lock"],
@@ -193,7 +172,7 @@ async function runForge() {
     const stagedOutDir = resolve(forgePackageDir, "out");
     try {
       await access(stagedOutDir);
-      await cp(stagedOutDir, outDir, { recursive: true });
+      await cp(stagedOutDir, outDir, { recursive: true, dereference: true });
     } catch {
       // Some Forge commands may not emit an out directory.
     }

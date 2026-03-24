@@ -1,6 +1,7 @@
 import { access, readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { FuseV1Options, FuseVersion } from "@electron/fuses";
 
 async function listAsarPackageEntries(asarPath) {
   try {
@@ -82,6 +83,16 @@ export function normalizeElectronPackagedEntryPath(relativePath) {
   return relativePath.replaceAll("\\", "/");
 }
 
+function normalizeFuseBoolean(value) {
+  if (value === true || value === "1" || value === 49) {
+    return true;
+  }
+  if (value === false || value === "0" || value === 48) {
+    return false;
+  }
+  return null;
+}
+
 export function isElectronPackagedAppAsarPath(relativePath) {
   return /(?:^|\/)resources\/app\.asar$/iu.test(normalizeElectronPackagedEntryPath(relativePath));
 }
@@ -151,6 +162,45 @@ export async function verifyElectronPackagedUpdaterRuntime(repoRoot) {
     appAsarPath,
     bundledElectronPresent: false,
     packagedUpdaterRuntimePresent: true,
+  };
+}
+
+export async function verifyElectronPackagedAppIntegrity(repoRoot) {
+  const outDir = resolve(repoRoot, "apps/code-electron/out");
+
+  if (process.platform === "darwin") {
+    const macExecutableRelativePath = await findFirstRelativeFile(outDir, (relativePath) =>
+      /(?:^|\/)HugeCode\.app\/Contents\/MacOS\/HugeCode$/u.test(relativePath)
+    );
+    if (!macExecutableRelativePath) {
+      throw new Error("Missing packaged HugeCode macOS executable under apps/code-electron/out.");
+    }
+
+    const frameworkBinaryRelativePath = await findFirstRelativeFile(outDir, (relativePath) =>
+      /(?:^|\/)HugeCode\.app\/Contents\/Frameworks\/Electron Framework\.framework\/Electron Framework$/u.test(
+        relativePath
+      )
+    );
+    if (!frameworkBinaryRelativePath) {
+      throw new Error(
+        "Missing packaged Electron Framework binary under apps/code-electron/out. Forge stage copies must not leave broken framework symlinks behind."
+      );
+    }
+
+    return {
+      appPath: resolve(
+        outDir,
+        macExecutableRelativePath.replace(/\/Contents\/MacOS\/HugeCode$/u, "")
+      ),
+      executablePath: resolve(outDir, macExecutableRelativePath),
+      platform: "darwin",
+    };
+  }
+
+  return {
+    appPath: null,
+    executablePath: null,
+    platform: process.platform,
   };
 }
 
@@ -275,5 +325,56 @@ export function verifyElectronForgeUpdateContract(context) {
 
   return {
     expectedPublisherPrerelease,
+  };
+}
+
+export function verifyElectronForgeFuseContract(context) {
+  const requiredForgeConfigDependencies = ["@electron-forge/plugin-fuses", "@electron/fuses"];
+  for (const dependencyName of requiredForgeConfigDependencies) {
+    const version = context.packageJson.devDependencies?.[dependencyName];
+    if (typeof version !== "string" || version.startsWith("workspace:")) {
+      throw new Error(
+        `Electron Forge fuse support requires apps/code-electron/package.json devDependency ${dependencyName}.`
+      );
+    }
+  }
+
+  const fusesPlugin = (context.forgeConfig.plugins ?? []).find(
+    (plugin) => plugin?.constructor?.name === "FusesPlugin" || plugin?.name === "fuses"
+  );
+  if (!fusesPlugin) {
+    throw new Error("Missing Electron Forge fuses plugin in forge.config.mjs.");
+  }
+
+  const fuseConfig = fusesPlugin.fusesConfig ?? fusesPlugin.config ?? null;
+  if (!fuseConfig) {
+    throw new Error("Electron Forge fuses plugin is missing its fuse configuration payload.");
+  }
+
+  if (String(fuseConfig.version) !== String(FuseVersion.V1)) {
+    throw new Error(`Electron Forge fuses plugin must use FuseVersion.V1.`);
+  }
+
+  const expectedFuseBooleans = {
+    [FuseV1Options.RunAsNode]: false,
+    [FuseV1Options.EnableCookieEncryption]: true,
+    [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
+    [FuseV1Options.EnableNodeCliInspectArguments]: false,
+    [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
+    [FuseV1Options.OnlyLoadAppFromAsar]: true,
+    [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot]: true,
+  };
+
+  for (const [fuseKey, expectedValue] of Object.entries(expectedFuseBooleans)) {
+    const actualValue = normalizeFuseBoolean(fuseConfig[fuseKey]);
+    if (actualValue !== expectedValue) {
+      throw new Error(
+        `Electron Forge fuse ${fuseKey} must be ${String(expectedValue)}, got ${String(fuseConfig[fuseKey])}.`
+      );
+    }
+  }
+
+  return {
+    fuseConfig,
   };
 }

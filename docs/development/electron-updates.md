@@ -2,6 +2,20 @@
 
 This document describes the supported HugeCode Electron update modes and the release contract that keeps runtime behavior aligned with packaged artifacts.
 
+## Package-Time Security Contract
+
+HugeCode packages Electron with Forge fuse hardening enabled. The release contract currently requires:
+
+- `RunAsNode=false`
+- `EnableNodeOptionsEnvironmentVariable=false`
+- `EnableNodeCliInspectArguments=false`
+- `EnableEmbeddedAsarIntegrityValidation=true`
+- `OnlyLoadAppFromAsar=true`
+- `LoadBrowserProcessSpecificV8Snapshot=true`
+- `EnableCookieEncryption=true`
+
+`GrantFileProtocolExtraPrivileges` is intentionally not flipped yet. HugeCode still loads packaged renderer content with `loadFile(...)`, so disabling extra `file://` privileges would be premature until the shell moves to a custom local protocol.
+
 ## Channel Rules
 
 | Channel                                      | Default behavior | Automatic provider                                | Notes                                                                                        |
@@ -63,7 +77,7 @@ If no static feed root is configured, beta builds remain manual and point users 
 ## Verification Commands
 
 - `pnpm desktop:electron:verify`
-  Verifies package-time updater wiring and packaged runtime contents.
+  Verifies package-time updater wiring, packaged runtime contents, and configured fuse hardening.
 - `pnpm desktop:electron:make:smoke`
   Verifies current-platform release artifacts and update metadata shape.
 - `pnpm desktop:electron:publish:dry-run`

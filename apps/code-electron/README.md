@@ -14,6 +14,19 @@ Experimental Electron desktop shell for HugeCode.
 - `beta`: manual by default. Automatic beta updates are enabled only when `HUGECODE_ELECTRON_UPDATE_BASE_URL` points at an HTTP(S) static feed root containing per-platform update metadata.
 - unpackaged development builds never pretend to support real auto-updates.
 
+## Package-Time Hardening
+
+- Electron Forge flips package-time fuses for the distributed app.
+- Enabled hardening:
+  - `RunAsNode=false`
+  - `EnableNodeOptionsEnvironmentVariable=false`
+  - `EnableNodeCliInspectArguments=false`
+  - `EnableEmbeddedAsarIntegrityValidation=true`
+  - `OnlyLoadAppFromAsar=true`
+  - `LoadBrowserProcessSpecificV8Snapshot=true`
+  - `EnableCookieEncryption=true`
+- `GrantFileProtocolExtraPrivileges` is intentionally left unchanged for now because packaged HugeCode still loads the renderer via `loadFile(...)`. Do not disable that fuse until the app serves local content from a custom protocol instead of `file://`.
+
 ## Release Environment
 
 - `HUGECODE_ELECTRON_RELEASE_CHANNEL=beta|stable`
