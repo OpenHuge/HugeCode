@@ -76,7 +76,11 @@ async function prepareStage() {
     name: "hugecode",
     productName: "HugeCode",
     version: packageJson.version,
-    description: "HugeCode beta desktop shell",
+    author: typeof packageJson.author === "string" ? packageJson.author : "OpenHuge",
+    description:
+      typeof packageJson.description === "string"
+        ? packageJson.description
+        : "HugeCode beta desktop shell",
     productDescription: "HugeCode beta desktop shell",
     type: "module",
     main: "dist-electron/main/main.js",
