@@ -105,6 +105,14 @@ pub(super) fn build_chatgpt_research_route_lab_prompt(
         .map(|entry| entry.trim().to_string())
         .filter(|entry| !entry.is_empty())
         .collect::<Vec<_>>();
+    let focus_areas = request
+        .focus_areas
+        .clone()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|entry| entry.trim().to_string())
+        .filter(|entry| !entry.is_empty())
+        .collect::<Vec<_>>();
     let research_rule = if request.allow_live_web_research.unwrap_or(false) {
         "You may use live web context, but cite only official or explicitly trusted sources."
     } else {
@@ -119,6 +127,11 @@ pub(super) fn build_chatgpt_research_route_lab_prompt(
         "official framework or vendor documentation only".to_string()
     } else {
         trusted_domains.join(" | ")
+    };
+    let focus_areas_text = if focus_areas.is_empty() {
+        "none".to_string()
+    } else {
+        focus_areas.join(" | ")
     };
     [
         "Return exactly one fenced Markdown code block containing valid JSON only.",
@@ -142,11 +155,14 @@ pub(super) fn build_chatgpt_research_route_lab_prompt(
         "Constraints:",
         constraints_text.as_str(),
         "",
+        "Focus areas:",
+        focus_areas_text.as_str(),
+        "",
         "Trusted source domains:",
         trusted_text.as_str(),
         "",
         "Return JSON with this exact shape:",
-        r#"{"recommendedRoute":"string|null","alternativeRoutes":[{"id":"string","label":"string","reason":"string"}],"decisionMemo":"string","sources":[{"label":"string","url":"string|null","domain":"string"}],"confidence":"low|medium|high|null","openQuestions":["string"],"blockedReason":"string|null"}"#,
+        r#"{"phase":"queued|researching|synthesizing|selected|gap|blocked|null","recommendedRoute":"string|null","alternativeRoutes":[{"id":"string","label":"string","reason":"string"}],"decisionMemo":"string|null","recommendedRouteRationale":"string|null","sources":[{"label":"string","url":"string|null","domain":"string"}],"sourceAssessment":{"status":"trusted|mixed|insufficient","trustedSourceCount":0,"totalSourceCount":0,"domains":["string"]},"confidence":"low|medium|high|null","openQuestions":["string"],"coverageGaps":["string"],"blockedReason":"string|null"}"#,
     ]
     .join("\n")
 }
@@ -800,6 +816,17 @@ pub(super) fn normalize_research_route_lab_result_payload(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned);
+    let phase = object
+        .get("phase")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| {
+            matches!(
+                *value,
+                "queued" | "researching" | "synthesizing" | "selected" | "gap" | "blocked"
+            )
+        })
+        .map(ToOwned::to_owned);
 
     let sources = object
         .get("sources")
@@ -844,6 +871,11 @@ pub(super) fn normalize_research_route_lab_result_payload(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
+    let source_domains = sources
+        .iter()
+        .filter_map(|entry| entry.get("domain").and_then(Value::as_str))
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
 
     let untrusted_sources = if trusted_domains.is_empty() {
         Vec::new()
@@ -855,6 +887,50 @@ pub(super) fn normalize_research_route_lab_result_payload(
             .map(ToOwned::to_owned)
             .collect::<Vec<_>>()
     };
+    let trusted_source_count = if trusted_domains.is_empty() {
+        sources.len()
+    } else {
+        sources
+            .iter()
+            .filter_map(|entry| entry.get("domain").and_then(Value::as_str))
+            .filter(|domain| source_matches_trusted_domain(domain, trusted_domains))
+            .count()
+    };
+    let total_source_count = sources.len();
+    let source_assessment_status = if total_source_count == 0 || trusted_source_count == 0 {
+        "insufficient"
+    } else if trusted_source_count < total_source_count {
+        "mixed"
+    } else {
+        "trusted"
+    };
+    let coverage_gaps = object
+        .get("coverageGaps")
+        .and_then(Value::as_array)
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| {
+            object
+                .get("openQuestions")
+                .and_then(Value::as_array)
+                .map(|entries| {
+                    entries
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::trim)
+                        .filter(|value| !value.is_empty())
+                        .map(ToOwned::to_owned)
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default()
+        });
 
     let blocked_reason = object
         .get("blockedReason")
@@ -884,8 +960,18 @@ pub(super) fn normalize_research_route_lab_result_payload(
                 None
             }
         });
+    let normalized_phase = if blocked_reason.is_some() || source_assessment_status != "trusted" {
+        Some("gap".to_string())
+    } else if let Some(phase) = phase {
+        Some(phase)
+    } else if recommended_route.is_some() {
+        Some("selected".to_string())
+    } else {
+        Some("gap".to_string())
+    };
 
     Some(json!({
+        "phase": normalized_phase,
         "recommendedRoute": recommended_route,
         "alternativeRoutes": object.get("alternativeRoutes").and_then(Value::as_array).map(|entries| {
             entries.iter().filter_map(Value::as_object).map(|entry| {
@@ -897,11 +983,19 @@ pub(super) fn normalize_research_route_lab_result_payload(
             }).collect::<Vec<_>>()
         }).unwrap_or_default(),
         "decisionMemo": object.get("decisionMemo").and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty()),
+        "recommendedRouteRationale": object.get("recommendedRouteRationale").and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty()),
         "sources": sources,
+        "sourceAssessment": {
+            "status": source_assessment_status,
+            "trustedSourceCount": trusted_source_count,
+            "totalSourceCount": total_source_count,
+            "domains": source_domains,
+        },
         "confidence": confidence,
         "openQuestions": object.get("openQuestions").and_then(Value::as_array).map(|entries| {
             entries.iter().filter_map(Value::as_str).map(str::trim).filter(|value| !value.is_empty()).map(ToOwned::to_owned).collect::<Vec<_>>()
         }).unwrap_or_default(),
+        "coverageGaps": coverage_gaps,
         "blockedReason": blocked_reason,
     }))
 }
@@ -930,115 +1024,8 @@ pub(super) fn extract_decision_lab_step_error(result: &Value) -> Option<String> 
     None
 }
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn normalize_research_route_lab_result_payload_marks_missing_sources_as_blocked() {
-        let value = json!({
-            "recommendedRoute": "route-a",
-            "alternativeRoutes": [],
-            "decisionMemo": "Prefer route A.",
-            "sources": [],
-            "confidence": "high",
-            "openQuestions": [],
-            "blockedReason": null
-        });
-        let result = normalize_research_route_lab_result_payload(&value, &[], &[])
-            .expect("normalized research payload");
-        assert_eq!(
-            result.get("blockedReason"),
-            Some(&json!("missing_trusted_sources"))
-        );
-    }
-
-    #[test]
-    fn normalize_research_route_lab_result_payload_blocks_untrusted_sources() {
-        let value = json!({
-            "recommendedRoute": "route-a",
-            "alternativeRoutes": [],
-            "decisionMemo": "Prefer route A.",
-            "sources": [
-                {
-                    "label": "Random blog",
-                    "url": "https://example.com/post",
-                    "domain": "example.com"
-                }
-            ],
-            "confidence": "medium",
-            "openQuestions": [],
-            "blockedReason": null
-        });
-        let result = normalize_research_route_lab_result_payload(
-            &value,
-            &["react.dev".to_string(), "vite.dev".to_string()],
-            &["route-a".to_string()],
-        )
-        .expect("normalized research payload");
-        assert_eq!(
-            result.get("blockedReason"),
-            Some(&json!("untrusted_source_domains:example.com"))
-        );
-    }
-
-    #[test]
-    fn normalize_research_route_lab_result_payload_marks_missing_route_as_blocked() {
-        let value = json!({
-            "recommendedRoute": null,
-            "alternativeRoutes": [],
-            "decisionMemo": "Need more evidence.",
-            "sources": [
-                {
-                    "label": "React 19 upgrade guide",
-                    "url": "https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
-                    "domain": "react.dev"
-                }
-            ],
-            "confidence": "medium",
-            "openQuestions": [],
-            "blockedReason": null
-        });
-        let result = normalize_research_route_lab_result_payload(
-            &value,
-            &["react.dev".to_string()],
-            &["route-a".to_string()],
-        )
-        .expect("normalized research payload");
-        assert_eq!(
-            result.get("blockedReason"),
-            Some(&json!("missing_recommended_route"))
-        );
-    }
-
-    #[test]
-    fn normalize_research_route_lab_result_payload_blocks_routes_outside_candidate_set() {
-        let value = json!({
-            "recommendedRoute": "route-z",
-            "alternativeRoutes": [],
-            "decisionMemo": "Prefer route z.",
-            "sources": [
-                {
-                    "label": "React 19 upgrade guide",
-                    "url": "https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
-                    "domain": "react.dev"
-                }
-            ],
-            "confidence": "high",
-            "openQuestions": [],
-            "blockedReason": null
-        });
-        let result = normalize_research_route_lab_result_payload(
-            &value,
-            &["react.dev".to_string()],
-            &["route-a".to_string(), "route-b".to_string()],
-        )
-        .expect("normalized research payload");
-        assert_eq!(
-            result.get("blockedReason"),
-            Some(&json!("invalid_recommended_route:route-z"))
-        );
-    }
-}
+#[path = "rpc_dispatch_browser_debug_chatgpt_lab_shared_tests.rs"]
+mod tests;
 
 pub(super) fn is_navigation_context_reset_error(error: &str) -> bool {
     let normalized = error.trim().to_ascii_lowercase();

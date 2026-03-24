@@ -512,6 +512,7 @@ export type AgentTaskAutoDriveState = {
   recovery?: AgentTaskAutoDriveRecoveryMarker | null;
   stop?: AgentTaskAutoDriveStopState | null;
   researchTrace?: AgentTaskAutoDriveResearchTrace | null;
+  researchSession?: AgentTaskAutoDriveResearchSession | null;
   researchSources?: AgentTaskAutoDriveResearchSource[] | null;
   lastChatgptResearchRouteLab?: RuntimeBrowserDebugResearchRouteLabResult | null;
 };
@@ -526,6 +527,17 @@ export type AgentTaskAutoDriveResearchTrace = {
   status?: "in_progress" | "selected" | "gap" | "blocked" | null;
   summary?: string | null;
   blockingReason?: string | null;
+};
+
+export type AgentTaskAutoDriveResearchSession = {
+  phase?: "queued" | "researching" | "synthesizing" | "selected" | "gap" | "blocked" | null;
+  summary?: string | null;
+  blockingReason?: string | null;
+  trustedSourceCount?: number | null;
+  totalSourceCount?: number | null;
+  sourceDomains?: string[] | null;
+  coverageGaps?: string[] | null;
+  recommendedCandidateId?: string | null;
 };
 
 export type AgentTaskMissionRiskLevel = "low" | "medium" | "high";
@@ -3346,6 +3358,7 @@ export type RuntimeBrowserDebugResearchRouteLabRequest = {
   question: string;
   routes: RuntimeBrowserDebugResearchRouteOption[];
   constraints?: string[] | null;
+  focusAreas?: string[] | null;
   trustedDomains?: string[] | null;
   allowLiveWebResearch?: boolean | null;
   chatgptUrl?: string | null;
@@ -3357,13 +3370,24 @@ export type RuntimeBrowserDebugResearchRouteLabSource = {
   domain?: string | null;
 };
 
+export type RuntimeBrowserDebugResearchRouteLabSourceAssessment = {
+  status?: "trusted" | "mixed" | "insufficient" | null;
+  trustedSourceCount?: number | null;
+  totalSourceCount?: number | null;
+  domains?: string[] | null;
+};
+
 export type RuntimeBrowserDebugResearchRouteLabResult = {
+  phase?: "queued" | "researching" | "synthesizing" | "selected" | "gap" | "blocked" | null;
   recommendedRoute?: string | null;
   alternativeRoutes?: string[] | null;
   decisionMemo?: string | null;
+  recommendedRouteRationale?: string | null;
   sources?: RuntimeBrowserDebugResearchRouteLabSource[] | null;
+  sourceAssessment?: RuntimeBrowserDebugResearchRouteLabSourceAssessment | null;
   confidence?: "low" | "medium" | "high" | null;
   openQuestions?: string[] | null;
+  coverageGaps?: string[] | null;
   blockedReason?: string | null;
 };
 

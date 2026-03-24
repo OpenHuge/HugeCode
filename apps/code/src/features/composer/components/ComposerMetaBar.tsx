@@ -8,6 +8,7 @@ import type {
   AutoDriveRuntimeContinuationState,
   AutoDriveRuntimeDecisionTrace,
   AutoDriveRuntimeOutcomeFeedback,
+  AutoDriveRuntimeResearchSession,
   AutoDriveRuntimeResearchTrace,
   AutoDriveRuntimeScenarioProfile,
   AutoDriveStopReason,
@@ -178,6 +179,7 @@ type ComposerMetaBarProps = {
       runtimeAutonomyState?: AutoDriveRuntimeAutonomyState | null;
       runtimeContinuationState?: AutoDriveRuntimeContinuationState | null;
       lastChatgptDecisionLab?: AutoDriveChatgptDecisionLabResult | null;
+      runtimeResearchSession?: AutoDriveRuntimeResearchSession | null;
       runtimeResearchTrace?: AutoDriveRuntimeResearchTrace | null;
       runtimeResearchSources?: AutoDriveResearchSource[];
       lastChatgptResearchRouteLab?: AutoDriveChatgptResearchRouteLabResult | null;

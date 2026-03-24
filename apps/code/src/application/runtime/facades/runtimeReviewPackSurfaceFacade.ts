@@ -67,6 +67,8 @@ import {
 } from "./runtimeReviewPackDetailPresentation";
 import {
   buildBrowserEvidenceSummary,
+  buildResearchCoverageGaps,
+  buildResearchSourceQuality,
   buildResearchSourceList,
   buildResearchTraceSummary,
   type BrowserEvidenceSummary,
@@ -210,6 +212,8 @@ export type ReviewPackDetailModel = {
   browserEvidence?: BrowserEvidenceSummary | null;
   researchTrace?: ResearchTraceSummary | null;
   researchSources?: string[];
+  researchSourceQuality?: string | null;
+  researchCoverageGaps?: string[];
   decisionRationale?: string | null;
   reviewDecision: {
     status: HugeCodeReviewDecisionState;
@@ -1097,7 +1101,10 @@ export function buildReviewPackDetailModel(input: {
   });
   const researchTrace = buildResearchTraceSummary(run?.autoDrive ?? null);
   const researchSources = buildResearchSourceList(run?.autoDrive ?? null);
+  const researchSourceQuality = buildResearchSourceQuality(run?.autoDrive ?? null);
+  const researchCoverageGaps = buildResearchCoverageGaps(run?.autoDrive ?? null);
   const decisionRationale =
+    run?.autoDrive?.lastChatgptResearchRouteLab?.recommendedRouteRationale ??
     run?.autoDrive?.lastChatgptResearchRouteLab?.decisionMemo ??
     (researchTrace && researchTrace.status !== "blocked" ? researchTrace.summary : null);
   const backendAudit = reviewPack.backendAudit ?? {
@@ -1197,6 +1204,8 @@ export function buildReviewPackDetailModel(input: {
     browserEvidence,
     researchTrace,
     researchSources,
+    researchSourceQuality,
+    researchCoverageGaps,
     decisionRationale,
     reviewDecision,
     reviewIntelligence,

@@ -422,6 +422,17 @@ describe("runtimeReviewPackSurfaceFacade", () => {
               status: "selected",
               summary: "Research route selected from official sources.",
             },
+            researchSession: {
+              phase: "selected",
+              summary:
+                "Research route selected from trusted sources across react.dev and vite.dev.",
+              blockingReason: null,
+              trustedSourceCount: 2,
+              totalSourceCount: 2,
+              sourceDomains: ["react.dev", "vite.dev"],
+              coverageGaps: ["Confirm deprecated test helpers before upgrading."],
+              recommendedCandidateId: "incremental-react-19",
+            },
             researchSources: [
               {
                 label: "React 19 upgrade guide",
@@ -435,12 +446,22 @@ describe("runtimeReviewPackSurfaceFacade", () => {
               },
             ],
             lastChatgptResearchRouteLab: {
+              phase: "selected",
               recommendedRoute: "incremental-react-19",
               alternativeRoutes: ["full-refresh"],
               decisionMemo:
                 "Prefer the incremental path because it preserves the current runtime shell and aligns with official migration guidance.",
+              recommendedRouteRationale:
+                "The incremental route is the only path fully backed by the official React and Vite guidance.",
+              sourceAssessment: {
+                status: "trusted",
+                trustedSourceCount: 2,
+                totalSourceCount: 2,
+                domains: ["react.dev", "vite.dev"],
+              },
               confidence: "high",
               openQuestions: ["Confirm deprecated test helpers before upgrading."],
+              coverageGaps: ["Confirm deprecated test helpers before upgrading."],
             },
             stop: {
               reason: "completed",
@@ -490,8 +511,12 @@ describe("runtimeReviewPackSurfaceFacade", () => {
       "react.dev - React 19 upgrade guide - https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
       "vite.dev - Vite migration guide - https://vite.dev/guide/migration",
     ]);
+    expect(detail.researchSourceQuality).toBe("2 trusted sources · react.dev, vite.dev");
+    expect(detail.researchCoverageGaps).toEqual([
+      "Confirm deprecated test helpers before upgrading.",
+    ]);
     expect(detail.decisionRationale).toContain(
-      "Prefer the incremental path because it preserves the current runtime shell"
+      "The incremental route is the only path fully backed by the official React and Vite guidance."
     );
   });
 });

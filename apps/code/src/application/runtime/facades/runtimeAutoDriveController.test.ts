@@ -710,19 +710,34 @@ describe("AutoDriveRunController", () => {
       artifacts: [],
       warnings: [],
       researchRouteLab: {
+        phase: "selected",
         recommendedRoute: "stabilize_route",
         alternativeRoutes: ["advance_primary_surface"],
         decisionMemo:
           "The source-backed route favors stabilization before any broader upgrade work.",
+        recommendedRouteRationale:
+          "React and Playwright official guidance both favor stabilizing the route before widening scope.",
         sources: [
           {
             label: "React 19 upgrade guide",
             url: "https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
             domain: "react.dev",
           },
+          {
+            label: "Playwright actionability",
+            url: "https://playwright.dev/docs/actionability",
+            domain: "playwright.dev",
+          },
         ],
+        sourceAssessment: {
+          status: "trusted",
+          trustedSourceCount: 2,
+          totalSourceCount: 2,
+          domains: ["react.dev", "playwright.dev"],
+        },
         confidence: "high",
         openQuestions: ["Confirm test runner compatibility before widening scope."],
+        coverageGaps: ["Confirm the current test runner support."],
         blockedReason: null,
       },
     });
@@ -766,16 +781,17 @@ describe("AutoDriveRunController", () => {
       sourceSignals: ["chatgpt_research_route_lab"],
       scenarioKeys: ["research_route_decide"],
     };
+    const ledger = {
+      writeRun: vi.fn().mockResolvedValue(undefined),
+      writeContext: vi.fn().mockResolvedValue(undefined),
+      writeProposal: vi.fn().mockResolvedValue(undefined),
+      writeSummary: vi.fn().mockResolvedValue(undefined),
+      writeReroute: vi.fn().mockResolvedValue(undefined),
+      writeFinalReport: vi.fn().mockResolvedValue(undefined),
+    };
     const controller = new AutoDriveRunController({
       deps,
-      ledger: {
-        writeRun: vi.fn().mockResolvedValue(undefined),
-        writeContext: vi.fn().mockResolvedValue(undefined),
-        writeProposal: vi.fn().mockResolvedValue(undefined),
-        writeSummary: vi.fn().mockResolvedValue(undefined),
-        writeReroute: vi.fn().mockResolvedValue(undefined),
-        writeFinalReport: vi.fn().mockResolvedValue(undefined),
-      },
+      ledger,
       run: {
         ...createRun(),
         riskPolicy: {
@@ -841,6 +857,21 @@ describe("AutoDriveRunController", () => {
       status: "selected",
       summary: expect.stringContaining("react.dev"),
     });
+    expect(controller.getSnapshot().runtimeResearchSession).toMatchObject({
+      phase: "selected",
+      trustedSourceCount: 2,
+      totalSourceCount: 2,
+      sourceDomains: ["react.dev", "playwright.dev"],
+      coverageGaps: ["Confirm the current test runner support."],
+      recommendedCandidateId: "stabilize_route",
+    });
+    expect(
+      ledger.writeRun.mock.calls.some(
+        ([run]) =>
+          run.runtimeResearchSession?.phase === "researching" &&
+          run.runtimeResearchTrace?.status === "in_progress"
+      )
+    ).toBe(true);
   });
 
   it("records a research gap when ChatGPT returns a route outside the current candidate set", async () => {
@@ -1066,6 +1097,149 @@ describe("AutoDriveRunController", () => {
       status: "blocked",
       blockingReason: "ChatGPT login is required in the selected browser session.",
     });
+  });
+
+  it("keeps research as a gap when source assessment is insufficient even with a recommended route", async () => {
+    const deps = createDeps();
+    deps.runRuntimeBrowserDebug = vi.fn().mockResolvedValue({
+      workspaceId: "workspace-1",
+      available: true,
+      status: "completed",
+      mode: "mcp-chrome-devtools",
+      operation: "chatgpt_research_route_lab",
+      message: "ChatGPT research route lab completed.",
+      toolCalls: [{ toolName: "evaluate_script", ok: true }],
+      contentText: "research route lab raw response",
+      structuredContent: null,
+      artifacts: [],
+      warnings: [],
+      researchRouteLab: {
+        phase: "gap",
+        recommendedRoute: "stabilize_route",
+        alternativeRoutes: ["advance_primary_surface"],
+        decisionMemo: "The route is plausible, but the evidence quality is still insufficient.",
+        recommendedRouteRationale: "The route likely fits, but the source set is incomplete.",
+        sources: [
+          {
+            label: "Community summary",
+            url: "https://example.com/react-summary",
+            domain: "example.com",
+          },
+        ],
+        sourceAssessment: {
+          status: "insufficient",
+          trustedSourceCount: 0,
+          totalSourceCount: 1,
+          domains: ["example.com"],
+        },
+        confidence: "medium",
+        openQuestions: [],
+        coverageGaps: ["Need at least one trusted official source."],
+        blockedReason: "missing_trusted_sources",
+      },
+    });
+    const researchContext = createContext(1);
+    researchContext.opportunities.candidates = [
+      {
+        id: "advance_primary_surface",
+        title: "Advance the primary AutoDrive surface",
+        summary: "Continue the current implementation route.",
+        rationale: "Keeps momentum on the active surface.",
+        repoAreas: ["apps/code/src/features/composer/components/ComposerMetaBar.tsx"],
+        score: 90,
+        confidence: "medium",
+        risk: "low",
+      },
+      {
+        id: "stabilize_route",
+        title: "Stabilize the route before widening scope",
+        summary: "Use source-backed research to de-risk the next implementation step.",
+        rationale: "The external dependency surface suggests a documentation-first pass.",
+        repoAreas: ["apps/code/src/application/runtime/facades/runtimeAutoDrivePlanner.ts"],
+        score: 86,
+        confidence: "medium",
+        risk: "low",
+      },
+    ];
+    researchContext.repo.evaluation = {
+      ...(researchContext.repo.evaluation ?? {
+        representativeCommands: [],
+        componentCommands: [],
+        endToEndCommands: [],
+        samplePaths: [],
+        heldOutGuidance: [],
+        sourceSignals: [],
+        scenarioKeys: [],
+      }),
+      sourceSignals: ["chatgpt_research_route_lab"],
+      scenarioKeys: ["research_route_decide"],
+    };
+    const ledger = {
+      writeRun: vi.fn().mockResolvedValue(undefined),
+      writeContext: vi.fn().mockResolvedValue(undefined),
+      writeProposal: vi.fn().mockResolvedValue(undefined),
+      writeSummary: vi.fn().mockResolvedValue(undefined),
+      writeReroute: vi.fn().mockResolvedValue(undefined),
+      writeFinalReport: vi.fn().mockResolvedValue(undefined),
+    };
+    const controller = new AutoDriveRunController({
+      deps,
+      ledger,
+      run: {
+        ...createRun(),
+        riskPolicy: {
+          ...createRun().riskPolicy,
+          allowNetworkAnalysis: true,
+        },
+        runtimeScenarioProfile: {
+          authorityScope: "workspace_graph",
+          authoritySources: ["repo_authority", "chatgpt_web"],
+          representativeCommands: [],
+          componentCommands: [],
+          endToEndCommands: [],
+          samplePaths: [],
+          heldOutGuidance: [],
+          sourceSignals: ["chatgpt_research_route_lab"],
+          scenarioKeys: ["research_route_decide"],
+          safeBackground: true,
+        },
+        budget: {
+          ...createRun().budget,
+          maxIterations: 1,
+        },
+      },
+      synthesizeContext: async () => researchContext,
+      buildProposal: ({ context }) => createProposal(context.iteration),
+      reviewProposal: () => ({
+        approved: true,
+        issues: [],
+        confidence: "medium",
+        shouldReroute: false,
+        rerouteReason: null,
+      }),
+    });
+
+    await controller.start();
+
+    expect(controller.getSnapshot().runtimeResearchSession).toMatchObject({
+      phase: "gap",
+      trustedSourceCount: 0,
+      totalSourceCount: 1,
+      sourceDomains: ["example.com"],
+      coverageGaps: ["Need at least one trusted official source."],
+      recommendedCandidateId: "stabilize_route",
+    });
+    expect(controller.getSnapshot().runtimeResearchTrace).toMatchObject({
+      status: "gap",
+    });
+    expect(controller.getSnapshot().runtimeDecisionTrace?.selectionTags ?? []).not.toContain(
+      "chatgpt_research_route_lab_auto"
+    );
+    expect(
+      ledger.writeRun.mock.calls.some(
+        ([run]) => run.runtimeResearchSession?.phase === "researching"
+      )
+    ).toBe(true);
   });
 
   it("continues notifying remaining subscribers when one listener throws", async () => {

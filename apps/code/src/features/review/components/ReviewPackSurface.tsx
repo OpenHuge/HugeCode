@@ -967,6 +967,12 @@ export function ReviewPackSurface({
                   <div className={styles.bodyText}>{reviewPackDetail.researchTrace.summary}</div>
                   {renderCopyList(
                     [
+                      reviewPackDetail.researchSourceQuality
+                        ? `Source Quality: ${reviewPackDetail.researchSourceQuality}`
+                        : null,
+                      ...(reviewPackDetail.researchCoverageGaps ?? []).map(
+                        (gap) => `Coverage Gap: ${gap}`
+                      ),
                       ...(reviewPackDetail.researchSources ?? []),
                       reviewPackDetail.researchTrace.blockingReason
                         ? `Blocked: ${reviewPackDetail.researchTrace.blockingReason}`

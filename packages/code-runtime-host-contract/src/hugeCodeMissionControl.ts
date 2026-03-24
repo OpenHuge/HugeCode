@@ -332,6 +332,17 @@ export type HugeCodeAutoDriveResearchTrace = {
   blockingReason?: string | null;
 };
 
+export type HugeCodeAutoDriveResearchSession = {
+  phase?: "queued" | "researching" | "synthesizing" | "selected" | "gap" | "blocked" | null;
+  summary?: string | null;
+  blockingReason?: string | null;
+  trustedSourceCount?: number | null;
+  totalSourceCount?: number | null;
+  sourceDomains?: string[] | null;
+  coverageGaps?: string[] | null;
+  recommendedCandidateId?: string | null;
+};
+
 export type HugeCodeAutoDriveState = {
   enabled?: boolean | null;
   destination: HugeCodeAutoDriveDestination;
@@ -349,14 +360,24 @@ export type HugeCodeAutoDriveState = {
   recovery?: HugeCodeAutoDriveRecoveryMarker | null;
   stop?: HugeCodeAutoDriveStopState | null;
   researchTrace?: HugeCodeAutoDriveResearchTrace | null;
+  researchSession?: HugeCodeAutoDriveResearchSession | null;
   researchSources?: HugeCodeAutoDriveResearchSource[] | null;
   lastChatgptResearchRouteLab?: {
+    phase?: "queued" | "researching" | "synthesizing" | "selected" | "gap" | "blocked" | null;
     recommendedRoute?: string | null;
     alternativeRoutes?: string[] | null;
     decisionMemo?: string | null;
+    recommendedRouteRationale?: string | null;
     sources?: HugeCodeAutoDriveResearchSource[] | null;
+    sourceAssessment?: {
+      status?: "trusted" | "mixed" | "insufficient" | null;
+      trustedSourceCount?: number | null;
+      totalSourceCount?: number | null;
+      domains?: string[] | null;
+    } | null;
     confidence?: "low" | "medium" | "high" | null;
     openQuestions?: string[] | null;
+    coverageGaps?: string[] | null;
     blockedReason?: string | null;
   } | null;
 };

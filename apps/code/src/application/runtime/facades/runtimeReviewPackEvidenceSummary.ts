@@ -14,6 +14,36 @@ export type ResearchTraceSummary = {
   blockingReason: string | null;
 };
 
+export function buildResearchSourceQuality(
+  autoDrive: MissionControlProjection["runs"][number]["autoDrive"] | null | undefined
+): string | null {
+  const researchSession = autoDrive?.researchSession;
+  const sourceAssessment = autoDrive?.lastChatgptResearchRouteLab?.sourceAssessment;
+  const trustedSourceCount =
+    researchSession?.trustedSourceCount ?? sourceAssessment?.trustedSourceCount ?? 0;
+  const domains = (
+    researchSession?.sourceDomains ??
+    sourceAssessment?.domains ??
+    autoDrive?.researchSources?.map((source) => source.domain ?? "").filter(Boolean) ??
+    []
+  ).filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+  if (trustedSourceCount <= 0 && domains.length === 0) {
+    return null;
+  }
+  const trustedDomains = domains.slice(0, Math.max(trustedSourceCount, 0)).slice(0, 2);
+  return `${trustedSourceCount} trusted source${trustedSourceCount === 1 ? "" : "s"}${trustedDomains.length > 0 ? ` · ${trustedDomains.join(", ")}` : ""}`;
+}
+
+export function buildResearchCoverageGaps(
+  autoDrive: MissionControlProjection["runs"][number]["autoDrive"] | null | undefined
+): string[] {
+  return (
+    autoDrive?.researchSession?.coverageGaps ??
+    autoDrive?.lastChatgptResearchRouteLab?.coverageGaps ??
+    []
+  ).filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+}
+
 export function buildBrowserEvidenceSummary(input: {
   artifacts:
     | MissionControlProjection["reviewPacks"][number]["artifacts"]

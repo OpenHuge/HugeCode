@@ -1115,6 +1115,9 @@ done
                     },
                 ],
                 constraints: Some(vec!["Prefer official docs.".to_string()]),
+                focus_areas: Some(vec![
+                    "Confirm the official React and Vite migration guidance.".to_string(),
+                ]),
                 trusted_domains: Some(vec!["react.dev".to_string(), "vite.dev".to_string()]),
                 allow_live_web_research: Some(true),
                 chatgpt_url: None,

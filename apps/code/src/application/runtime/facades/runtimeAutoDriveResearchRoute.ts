@@ -1,5 +1,10 @@
 import type { RuntimeBrowserDebugRunResponse } from "@ku0/code-runtime-host-contract";
-import type { AutoDriveContextSnapshot, AutoDriveRunRecord } from "../types/autoDrive";
+import type {
+  AutoDriveContextSnapshot,
+  AutoDriveResearchSourceAssessment,
+  AutoDriveRunRecord,
+  AutoDriveRuntimeResearchSession,
+} from "../types/autoDrive";
 
 type ResearchSourceRecord = {
   label: string;
@@ -61,6 +66,22 @@ export type AutoDriveResearchRouteOutcome = {
   recommendedCandidateTitle: string | null;
 };
 
+function normalizeResearchPhase(
+  phase: string | null | undefined
+): AutoDriveRuntimeResearchSession["phase"] | null {
+  switch (phase) {
+    case "queued":
+    case "researching":
+    case "synthesizing":
+    case "selected":
+    case "gap":
+    case "blocked":
+      return phase;
+    default:
+      return null;
+  }
+}
+
 function dedupe(values: string[]): string[] {
   return [...new Set(values.filter((value) => value.trim().length > 0))];
 }
@@ -101,6 +122,61 @@ export function buildResearchTrustedDomains(params: {
     entry.keywords.some((keyword) => intentText.includes(keyword)) ? entry.domains : []
   );
   return dedupe([...BASE_TRUSTED_DOMAINS, ...hintedDomains]);
+}
+
+export function buildResearchFocusAreas(params: {
+  run: AutoDriveRunRecord;
+  context: AutoDriveContextSnapshot;
+}): string[] {
+  const { run, context } = params;
+  const rawFocusAreas = [
+    ...run.destination.doneDefinition.arrivalCriteria,
+    ...run.destination.doneDefinition.requiredValidation,
+    ...run.destination.doneDefinition.waypointIndicators,
+    ...run.destination.hardBoundaries,
+    ...context.opportunities.candidates
+      .slice(0, 3)
+      .flatMap((candidate) => [
+        candidate.title,
+        candidate.summary,
+        ...candidate.repoAreas.map((area) => `Repo area: ${area}`),
+      ]),
+  ]
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  return dedupe(rawFocusAreas).slice(0, 5);
+}
+
+export function normalizeResearchSourceAssessment(params: {
+  assessment:
+    | AutoDriveResearchSourceAssessment
+    | {
+        status?: AutoDriveResearchSourceAssessment["status"] | undefined;
+        trustedSourceCount?: number | null;
+        totalSourceCount?: number | null;
+        domains?: string[] | null;
+      }
+    | null
+    | undefined;
+  researchSources: ResearchSourceRecord[];
+}): AutoDriveResearchSourceAssessment | null {
+  const domainsFromSources = dedupe(
+    params.researchSources
+      .map((source) => source.domain?.trim() ?? "")
+      .filter((domain) => domain.length > 0)
+  );
+  if (!params.assessment && params.researchSources.length === 0) {
+    return null;
+  }
+  return {
+    status: params.assessment?.status ?? null,
+    trustedSourceCount: Math.max(0, params.assessment?.trustedSourceCount ?? 0),
+    totalSourceCount: Math.max(
+      params.assessment?.totalSourceCount ?? params.researchSources.length ?? 0,
+      params.researchSources.length
+    ),
+    domains: dedupe([...(params.assessment?.domains ?? []), ...domainsFromSources]),
+  };
 }
 
 function summarizeTrustedDomains(researchSources: ResearchSourceRecord[]): string {
@@ -169,6 +245,10 @@ export function resolveResearchRouteOutcome(params: {
 
   const research = result.researchRouteLab;
   const recommendedRoute = research?.recommendedRoute?.trim() || null;
+  const sourceAssessment = normalizeResearchSourceAssessment({
+    assessment: research?.sourceAssessment ?? null,
+    researchSources: params.researchSources,
+  });
   const normalizedBlockingReason = formatResearchRouteBlockingReason(
     research?.blockedReason ?? null
   );
@@ -204,11 +284,25 @@ export function resolveResearchRouteOutcome(params: {
       recommendedCandidateTitle: null,
     };
   }
+  if (sourceAssessment?.status !== "trusted") {
+    const blockingReason =
+      normalizedBlockingReason ??
+      (sourceAssessment?.status === "mixed"
+        ? "ChatGPT mixed trusted and untrusted evidence for the recommended route."
+        : "ChatGPT did not cite enough trusted sources.");
+    return {
+      status: "gap",
+      summary: `Research gap remains: ${blockingReason}`,
+      blockingReason,
+      recommendedCandidateId: null,
+      recommendedCandidateTitle: null,
+    };
+  }
 
   const trustedSourceSummary = `${researchSources.length} trusted source${researchSources.length === 1 ? "" : "s"}${summarizeTrustedDomains(researchSources)}`;
   const summary = [
     `Research selected route ${recommendedCandidate.title} from ${trustedSourceSummary}.`,
-    research?.decisionMemo?.trim() || null,
+    research?.recommendedRouteRationale?.trim() || research?.decisionMemo?.trim() || null,
   ]
     .filter((value): value is string => typeof value === "string" && value.length > 0)
     .join(" ");
@@ -219,5 +313,35 @@ export function resolveResearchRouteOutcome(params: {
     blockingReason: null,
     recommendedCandidateId: recommendedCandidate.id,
     recommendedCandidateTitle: recommendedCandidate.title,
+  };
+}
+
+export function buildRuntimeResearchSession(params: {
+  result: RuntimeBrowserDebugRunResponse;
+  outcome: AutoDriveResearchRouteOutcome;
+  researchSources: ResearchSourceRecord[];
+}): AutoDriveRuntimeResearchSession {
+  const research = params.result.researchRouteLab;
+  const sourceAssessment = normalizeResearchSourceAssessment({
+    assessment: research?.sourceAssessment ?? null,
+    researchSources: params.researchSources,
+  });
+  const fallbackDomains = dedupe(
+    params.researchSources
+      .map((source) => source.domain?.trim() ?? "")
+      .filter((domain) => domain.length > 0)
+  );
+  return {
+    phase:
+      normalizeResearchPhase(research?.phase ?? null) ??
+      (params.outcome.status === "in_progress" ? "researching" : params.outcome.status),
+    summary: params.outcome.summary,
+    blockingReason: params.outcome.blockingReason,
+    trustedSourceCount: sourceAssessment?.trustedSourceCount ?? 0,
+    totalSourceCount: sourceAssessment?.totalSourceCount ?? params.researchSources.length,
+    sourceDomains: sourceAssessment?.domains ?? fallbackDomains,
+    coverageGaps: dedupe(research?.coverageGaps ?? []),
+    recommendedCandidateId:
+      params.outcome.recommendedCandidateId ?? research?.recommendedRoute?.trim() ?? null,
   };
 }
