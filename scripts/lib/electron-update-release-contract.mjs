@@ -1,13 +1,12 @@
 import { access, readFile, readdir } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { FuseV1Options, FuseVersion } from "@electron/fuses";
 
-const requireFromHere = createRequire(import.meta.url);
-
-async function loadAsarModule() {
+async function listAsarPackageEntries(asarPath) {
   try {
-    return await import("@electron/asar");
+    const { listPackage } = await import("@electron/asar");
+    return listPackage(asarPath);
   } catch (error) {
     throw new Error(
       "Missing @electron/asar dependency required by Electron release-contract verification. Run pnpm install so root release scripts can inspect packaged app.asar outputs.",
@@ -16,72 +15,23 @@ async function loadAsarModule() {
   }
 }
 
-function loadElectronFuses() {
-  try {
-    return requireFromHere("@electron/fuses");
-  } catch (error) {
-    throw new Error(
-      "Missing @electron/fuses dependency required by Electron release-contract verification.",
-      { cause: error }
-    );
-  }
-}
-
-async function listAsarPackageEntries(asarPath) {
-  const { listPackage } = await loadAsarModule();
-  return listPackage(asarPath);
-}
-
-export function createAsarExtractionCandidates(relativePath) {
-  const normalizedPath = String(relativePath).replaceAll("\\", "/").replace(/^\/+/u, "");
-  return Array.from(
-    new Set([
-      normalizedPath,
-      `/${normalizedPath}`,
-      normalizedPath.replaceAll("/", "\\"),
-      `\\${normalizedPath.replaceAll("/", "\\")}`,
-    ])
-  );
-}
-
-async function resolveAsarArchiveEntryPath(asarPath, relativePath) {
-  const requestedPath = String(relativePath).replaceAll("\\", "/").replace(/^\/+/u, "");
-  const normalizedEntries = (await listAsarPackageEntries(asarPath)).map((entryPath) => ({
-    normalizedPath: normalizeAsarPackageEntryPath(entryPath),
-    rawPath: String(entryPath),
-  }));
-  const matchedEntry = normalizedEntries.find((entry) => {
-    const normalizedEntryPath = entry.normalizedPath.replace(/^\/+/u, "");
-    return normalizedEntryPath === requestedPath;
-  });
-
-  return matchedEntry?.rawPath ?? null;
-}
-
 async function extractAsarTextFile(asarPath, relativePath) {
-  const { extractFile } = await loadAsarModule();
-  const resolvedArchiveEntryPath = await resolveAsarArchiveEntryPath(asarPath, relativePath);
-  const extractionCandidates = [
-    ...createAsarExtractionCandidates(relativePath),
-    ...(resolvedArchiveEntryPath ? [resolvedArchiveEntryPath] : []),
-  ];
-  let lastError = null;
-
-  for (const candidatePath of extractionCandidates) {
-    try {
-      return extractFile(asarPath, candidatePath).toString("utf8");
-    } catch (error) {
-      lastError = error;
-    }
+  try {
+    const { extractFile } = await import("@electron/asar");
+    return extractFile(asarPath, relativePath).toString("utf8");
+  } catch (error) {
+    throw new Error(`Packaged Electron app.asar is missing ${relativePath}.`, { cause: error });
   }
-
-  throw new Error(`"${relativePath}" was not found in this archive`, {
-    cause: lastError,
-  });
 }
 
 export function normalizeAsarPackageEntryPath(entryPath) {
   return String(entryPath).replaceAll("\\", "/");
+}
+
+export const normalizeElectronPackagedEntryPath = normalizeAsarPackageEntryPath;
+
+function trimAsarPackageEntryPrefix(entryPath) {
+  return String(entryPath).replace(/^[\\/]+/u, "");
 }
 
 function normalizeStaticUpdateBaseUrlRoot(staticUpdateBaseUrl) {
@@ -141,17 +91,6 @@ async function findFirstRelativeFile(rootDir, matcher) {
   return relativeFiles.find((file) => matcher(file)) ?? null;
 }
 
-function isLocalDebMakerName(makerName) {
-  return (
-    makerName === "deb" ||
-    (typeof makerName === "string" && /(?:^|[\\/])scripts[\\/]maker-deb\.cjs$/u.test(makerName))
-  );
-}
-
-export function normalizeElectronPackagedEntryPath(relativePath) {
-  return normalizeAsarPackageEntryPath(relativePath);
-}
-
 async function findElectronPackagedAppAsarPath(repoRoot) {
   const outDir = resolve(repoRoot, "apps/code-electron/out");
   const appAsarRelativePath = await findFirstRelativeFile(outDir, isElectronPackagedAppAsarPath);
@@ -173,6 +112,13 @@ function normalizeFuseBoolean(value) {
     return false;
   }
   return null;
+}
+
+function isLocalDebMakerName(makerName) {
+  return (
+    makerName === "deb" ||
+    (typeof makerName === "string" && /(?:^|[\\/])scripts[\\/]maker-deb\.cjs$/u.test(makerName))
+  );
 }
 
 export function isElectronPackagedAppAsarPath(relativePath) {
@@ -241,19 +187,68 @@ export async function verifyElectronPackagedUpdaterRuntime(repoRoot) {
   };
 }
 
+export function resolvePackagedModuleArchivePath(entries, expectedRelativePath) {
+  const packageEntries = entries.map((entryPath) => ({
+    raw: String(entryPath),
+    normalized: normalizeAsarPackageEntryPath(entryPath),
+  }));
+  const normalizedExpectedPath = expectedRelativePath.replace(/^\/+/u, "");
+  const directMatch =
+    packageEntries.find((entry) => entry.normalized === `/${normalizedExpectedPath}`) ??
+    packageEntries.find((entry) => entry.normalized.endsWith(`/${normalizedExpectedPath}`));
+  if (directMatch) {
+    return trimAsarPackageEntryPrefix(directMatch.raw);
+  }
+
+  const fileName = normalizedExpectedPath.split("/").at(-1);
+  if (!fileName) {
+    throw new Error(`Invalid packaged module path ${expectedRelativePath}.`);
+  }
+
+  const suffixMatch = packageEntries.find(
+    (entry) =>
+      entry.normalized.endsWith(`/dist-electron/main/${fileName}`) ||
+      entry.normalized.endsWith(`/main/${fileName}`) ||
+      entry.normalized.endsWith(`/${fileName}`)
+  );
+  if (!suffixMatch) {
+    throw new Error(
+      `Packaged Electron app.asar is missing a main-module entry for ${normalizedExpectedPath}.`
+    );
+  }
+
+  return trimAsarPackageEntryPrefix(suffixMatch.raw);
+}
+
+async function resolvePackagedModulePath(appAsarPath, expectedRelativePath) {
+  return resolvePackagedModuleArchivePath(
+    await listAsarPackageEntries(appAsarPath),
+    expectedRelativePath
+  );
+}
+
 export async function verifyElectronPackagedRendererTransport(repoRoot) {
   const { appAsarPath } = await findElectronPackagedAppAsarPath(repoRoot);
-  const createDesktopMainCompositionModule = await extractAsarTextFile(
+  const createDesktopMainCompositionPath = await resolvePackagedModulePath(
     appAsarPath,
     "dist-electron/main/createDesktopMainComposition.js"
   );
-  const desktopAppProtocolModule = await extractAsarTextFile(
+  const desktopAppProtocolPath = await resolvePackagedModulePath(
     appAsarPath,
     "dist-electron/main/desktopAppProtocol.js"
   );
-  const desktopRendererTrustModule = await extractAsarTextFile(
+  const desktopRendererTrustPath = await resolvePackagedModulePath(
     appAsarPath,
     "dist-electron/main/desktopRendererTrust.js"
+  );
+  const createDesktopMainCompositionModule = await extractAsarTextFile(
+    appAsarPath,
+    createDesktopMainCompositionPath
+  );
+  const desktopAppProtocolModule = await extractAsarTextFile(appAsarPath, desktopAppProtocolPath);
+  const desktopRendererTrustModule = await extractAsarTextFile(
+    appAsarPath,
+    desktopRendererTrustPath
   );
 
   if (createDesktopMainCompositionModule.includes("loadFile(")) {
@@ -474,7 +469,6 @@ export function verifyElectronForgeUpdateContract(context) {
 }
 
 export function verifyElectronForgeFuseContract(context) {
-  const { FuseV1Options, FuseVersion } = loadElectronFuses();
   const requiredForgeConfigDependencies = ["@electron-forge/plugin-fuses", "@electron/fuses"];
   for (const dependencyName of requiredForgeConfigDependencies) {
     const version = context.packageJson.devDependencies?.[dependencyName];

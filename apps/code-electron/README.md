@@ -82,11 +82,6 @@ Linux desktop builds remain manual-update only.
   - `Open Recent Session`
   - `Open Recent File` on macOS via the native recent-documents role
   - `Check for Updates...`
-  - `Copy Support Snapshot`
-  - `Open Incident Log`
-  - `Open Logs Folder`
-  - `Open Crash Dumps Folder`
-  - `Report Issue...`
 - The menu is rebuilt from the persisted desktop session state instead of hard-coded one-off actions in `main.ts`.
 - Native file and folder pickers normalize into the same launch-intent flow as CLI, Finder, and deep-link workspace opens.
 - `Check for Updates...` follows the same updater source of truth as the in-app update UI:
@@ -94,26 +89,8 @@ Linux desktop builds remain manual-update only.
   - manual beta builds open GitHub Releases instead of pretending automatic update support
 - Electron pushes updater state changes to live renderer windows, so native menu-triggered checks and in-app checks stay in sync.
 
-## Resilience
-
-- HugeCode treats renderer crashes and unresponsive windows as first-class desktop incidents.
-- The shell listens for Electron `render-process-gone`, `child-process-gone`, `unresponsive`, and `responsive` signals in the main process instead of trying to infer failures from renderer state.
-- When a renderer process exits unexpectedly, HugeCode recreates the affected session window and surfaces a native recovery notification.
-- Unresponsive windows raise a single native notification until the window becomes responsive again; repeat notifications are intentionally suppressed while the same incident is active.
-- Child-process failures are logged as structured desktop incidents so future diagnostics can distinguish renderer recovery from background-process churn.
-- Desktop incidents are persisted to a bounded NDJSON log under Electron's canonical logs directory, not only printed to the console.
-- HugeCode also starts Electron's local crash reporter with `uploadToServer: false` so packaged desktop failures leave local crash dumps even before remote crash infrastructure exists.
-- `Copy Support Snapshot`, `Open Incident Log`, `Open Logs Folder`, `Open Crash Dumps Folder`, and `Report Issue...` all use the same diagnostics source of truth:
-  - the support snapshot is a canonical clipboard-ready summary of version, channel, platform, updater state, incident summary, and local support paths
-  - the incident log is bounded and permissioned for local desktop support workflows
-  - the issue reporter opens a prefilled GitHub issue with current desktop environment, incident summary metadata, and crash-dump path
-  - `Open Logs Folder` uses the host's path-opening primitive instead of misusing file-reveal behavior for directories
-  - `Open Crash Dumps Folder` opens the canonical local crash-dumps directory when Electron exposes one for the current build
-  - if no incidents have been logged yet, the shell falls back to opening the logs directory instead of pretending a log file exists
-
 ## macOS Arm64 Packaging
 
 - HugeCode disables Forge's fallback `codesign --deep` fuse re-sign path for unsigned Apple Silicon builds.
-- Unsigned CI smoke builds stay unsigned after fuse flipping; HugeCode does not attempt a fake post-package ad-hoc re-sign path on Apple Silicon.
-- Real macOS signing remains an explicit release concern driven by `packagerConfig.osxSign` and proper Apple credentials, not by CI-only repair hooks.
-- This keeps Apple Silicon smoke builds deterministic on GitHub macOS arm64 runners without pretending to emulate the final notarized release path.
+- Forge still flips package-time fuses, but post-package arm64 bundles are re-signed with explicit ad-hoc signing through `@electron/osx-sign`.
+- This matches Electron's normal deep-first signing model more closely and avoids the ambiguous-bundle failure that can surface on GitHub macOS arm64 runners.

@@ -29,13 +29,10 @@ describe("forge stage package helpers", () => {
       "update-electron-app": "3.1.2",
     });
     expect(stagedPackageJson.devDependencies).toEqual({
-      "@electron-forge/maker-deb": "7.11.1",
       "@electron-forge/plugin-fuses": "^7.10.2",
       "@electron/fuses": "^1.8.0",
       electron: "41.0.3",
     });
-    expect(stagedPackageJson.author).toBe("OpenHuge");
-    expect(stagedPackageJson.productDescription).toBe("HugeCode beta desktop shell");
     expect(FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES).toContain("@electron-forge/plugin-fuses");
   });
 
