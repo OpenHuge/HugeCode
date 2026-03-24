@@ -12,6 +12,7 @@ import {
   ToastViewport,
 } from "@ku0/design-system";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { deriveSharedWorkspaceOperatorAction } from "./sharedWorkspaceOperatorAction";
 import { useSharedWorkspaceShellState } from "./useSharedWorkspaceShellState";
 import * as styles from "./SharedWorkspaceShell.css";
 
@@ -72,6 +73,14 @@ function ReadinessSummary({ state }: { state: ReturnType<typeof useSharedWorkspa
   const missionSummaryPending =
     state.missionLoadState === "idle" || state.missionLoadState === "loading";
   const statValue = (value: number) => (missionSummaryPending ? "..." : String(value));
+  const operatorAction = useMemo(
+    () =>
+      deriveSharedWorkspaceOperatorAction({
+        loadState: state.missionLoadState,
+        summary: state.missionSummary,
+      }),
+    [state.missionLoadState, state.missionSummary]
+  );
 
   return (
     <>
@@ -85,26 +94,52 @@ function ReadinessSummary({ state }: { state: ReturnType<typeof useSharedWorkspa
               : "Runtime framing, launch readiness, and shared workspace routing stay aligned across desktop and web wrappers."}
           </p>
         </div>
-        <div className={styles.statGrid}>
-          <div className={styles.statRow}>
-            <span className={styles.statLabel}>Tasks</span>
-            <span className={styles.statValue}>{statValue(state.missionSummary.tasksCount)}</span>
-          </div>
-          <div className={styles.statRow}>
-            <span className={styles.statLabel}>Runs</span>
-            <span className={styles.statValue}>{statValue(state.missionSummary.runsCount)}</span>
-          </div>
-          <div className={styles.statRow}>
-            <span className={styles.statLabel}>Approvals</span>
-            <span className={styles.statValue}>
-              {statValue(state.missionSummary.approvalCount)}
-            </span>
-          </div>
-          <div className={styles.statRow}>
-            <span className={styles.statLabel}>Review packs</span>
-            <span className={styles.statValue}>
-              {statValue(state.missionSummary.reviewPacksCount)}
-            </span>
+        <div className={styles.heroAside}>
+          <section className={styles.operatorActionCard}>
+            <div className={styles.readinessHeader}>
+              <span
+                aria-hidden
+                className={`${styles.statusDot} ${styles.statusDotTone[operatorAction.tone]}`}
+              />
+              <span className={styles.readinessLabel}>Operator next</span>
+            </div>
+            <div className={styles.operatorActionCopy}>
+              <h3 className={styles.activityTitle}>{operatorAction.label}</h3>
+              <p className={styles.body}>{operatorAction.detail}</p>
+            </div>
+            {operatorAction.ctaLabel ? (
+              <div className={styles.operatorActionFooter}>
+                <button
+                  className={styles.button}
+                  onClick={() => state.navigateToSection(operatorAction.targetSection)}
+                  type="button"
+                >
+                  {operatorAction.ctaLabel}
+                </button>
+              </div>
+            ) : null}
+          </section>
+          <div className={styles.statGrid}>
+            <div className={styles.statRow}>
+              <span className={styles.statLabel}>Tasks</span>
+              <span className={styles.statValue}>{statValue(state.missionSummary.tasksCount)}</span>
+            </div>
+            <div className={styles.statRow}>
+              <span className={styles.statLabel}>Runs</span>
+              <span className={styles.statValue}>{statValue(state.missionSummary.runsCount)}</span>
+            </div>
+            <div className={styles.statRow}>
+              <span className={styles.statLabel}>Approvals</span>
+              <span className={styles.statValue}>
+                {statValue(state.missionSummary.approvalCount)}
+              </span>
+            </div>
+            <div className={styles.statRow}>
+              <span className={styles.statLabel}>Review packs</span>
+              <span className={styles.statValue}>
+                {statValue(state.missionSummary.reviewPacksCount)}
+              </span>
+            </div>
           </div>
         </div>
       </section>

@@ -261,6 +261,35 @@ export const heroCopy = style({
   alignContent: "start",
 });
 
+export const heroAside = style({
+  display: "grid",
+  gap: spacing[3],
+  alignContent: "start",
+});
+
+export const operatorActionCard = style({
+  display: "grid",
+  gap: spacing[3],
+  padding: spacing[4],
+  borderRadius: "18px",
+  border: `1px solid color-mix(in srgb, ${semanticColors.border} 60%, transparent)`,
+  background:
+    "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-card) 96%, transparent), color-mix(in srgb, var(--ds-brand-primary) 7%, var(--ds-surface-panel)))",
+  boxShadow: elevationValues.card,
+});
+
+export const operatorActionCopy = style({
+  display: "grid",
+  gap: spacing[2],
+});
+
+export const operatorActionFooter = style({
+  display: "flex",
+  alignItems: "center",
+  gap: spacing[2],
+  flexWrap: "wrap",
+});
+
 export const summaryGrid = style({
   display: "grid",
   gridTemplateColumns: "repeat(2, minmax(0, 1fr))",

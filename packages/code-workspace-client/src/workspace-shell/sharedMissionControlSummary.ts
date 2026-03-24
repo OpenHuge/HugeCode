@@ -47,6 +47,15 @@ function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+function pushUnique(values: string[], next: string | null | undefined) {
+  if (!next) {
+    return;
+  }
+  if (!values.includes(next)) {
+    values.push(next);
+  }
+}
+
 function hasRecoveryPath(run: HugeCodeMissionControlSnapshot["runs"][number]): boolean {
   return Boolean(run.publishHandoff || run.missionLinkage?.navigationTarget);
 }
@@ -269,6 +278,18 @@ function getMissionItemTone(
 }
 
 function getMissionStatusLabel(run: HugeCodeMissionControlSnapshot["runs"][number]) {
+  const takeoverBundle = run.takeoverBundle;
+  if (takeoverBundle?.state === "ready") {
+    if (takeoverBundle.pathKind === "resume") {
+      return "Resume ready";
+    }
+    if (takeoverBundle.pathKind === "handoff") {
+      return "Handoff ready";
+    }
+    if (takeoverBundle.pathKind === "review") {
+      return "Review ready";
+    }
+  }
   if (run.approval?.label) {
     return run.approval.label;
   }
@@ -284,6 +305,28 @@ function getMissionStatusLabel(run: HugeCodeMissionControlSnapshot["runs"][numbe
   return run.state.replace(/_/g, " ");
 }
 
+function resolveMissionItemDetail(run: HugeCodeMissionControlSnapshot["runs"][number]) {
+  return (
+    run.approval?.summary ??
+    run.nextAction?.detail ??
+    run.takeoverBundle?.recommendedAction ??
+    run.summary ??
+    run.placement?.summary ??
+    run.actionability?.summary ??
+    "Runtime-backed mission status is available for this run."
+  );
+}
+
+function buildMissionItemHighlights(run: HugeCodeMissionControlSnapshot["runs"][number]) {
+  const highlights: string[] = [];
+  pushUnique(highlights, run.nextAction?.label ? `Next: ${run.nextAction.label}` : null);
+  pushUnique(highlights, run.takeoverBundle?.summary ?? null);
+  pushUnique(highlights, run.checkpoint?.summary ?? null);
+  pushUnique(highlights, run.publishHandoff?.summary ?? null);
+  pushUnique(highlights, run.actionability?.summary ?? null);
+  return highlights.slice(0, 3);
+}
+
 function buildMissionActivityItems(
   workspaces: HugeCodeMissionControlSnapshot["workspaces"],
   runs: HugeCodeMissionControlSnapshot["runs"]
@@ -297,16 +340,8 @@ function buildMissionActivityItems(
       workspaceName: getWorkspaceName(workspaces, run.workspaceId),
       statusLabel: getMissionStatusLabel(run),
       tone: getMissionItemTone(run),
-      detail:
-        run.summary ??
-        run.approval?.summary ??
-        run.placement?.summary ??
-        "Runtime-backed mission status is available for this run.",
-      highlights: [
-        run.checkpoint?.summary ?? null,
-        run.publishHandoff?.summary ?? null,
-        run.actionability?.summary ?? null,
-      ].filter((value): value is string => typeof value === "string" && value.length > 0),
+      detail: resolveMissionItemDetail(run),
+      highlights: buildMissionItemHighlights(run),
     }));
 }
 
@@ -356,6 +391,9 @@ function buildReviewQueueItems(
       workspaceName: getWorkspaceName(workspaces, reviewPack.workspaceId),
       summary:
         reviewPack.recommendedNextAction ??
+        reviewPack.takeoverBundle?.recommendedAction ??
+        reviewPack.actionability?.summary ??
+        reviewPack.publishHandoff?.summary ??
         reviewPack.summary ??
         "Review-ready evidence is available.",
       reviewStatusLabel: formatReviewStatusLabel(reviewPack.reviewStatus),

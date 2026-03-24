@@ -356,6 +356,7 @@ describe("WorkspaceShellApp", () => {
     expect(screen.getByText("2 workspaces")).toBeTruthy();
     expect(screen.getByText("Launch readiness")).toBeTruthy();
     expect(screen.getByText("Continuity readiness")).toBeTruthy();
+    expect(screen.getByText("Operator next")).toBeTruthy();
     expect(screen.getByRole("navigation", { name: "Workspace sections" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Home" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Workspaces" })).toBeTruthy();
@@ -411,6 +412,22 @@ describe("WorkspaceShellApp", () => {
     expect(await screen.findByRole("heading", { level: 2, name: "Review queue" })).toBeTruthy();
     expect(screen.getAllByText("Ready for review").length).toBeGreaterThan(0);
     expect(screen.getByText("Passed")).toBeTruthy();
+  });
+
+  it("routes the operator-next card into the relevant shared section", async () => {
+    window.history.pushState({}, "", "/app");
+
+    render(
+      <WorkspaceClientBindingsProvider bindings={createBindings()}>
+        <WorkspaceShellApp />
+      </WorkspaceClientBindingsProvider>
+    );
+
+    await screen.findByRole("button", { name: "Open missions" });
+    fireEvent.click(screen.getByRole("button", { name: "Open missions" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Missions" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { level: 2, name: "Mission activity" })).toBeTruthy();
   });
 
   it("renders settings framing as a shared control-plane section", async () => {
