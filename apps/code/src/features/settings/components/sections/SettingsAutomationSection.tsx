@@ -180,6 +180,40 @@ function getStatusTone(
   return "warning";
 }
 
+function formatReviewActionabilityLabel(state: string | null): string | null {
+  if (!state) {
+    return null;
+  }
+  if (state === "ready") {
+    return "Review ready";
+  }
+  if (state === "degraded") {
+    return "Needs attention";
+  }
+  if (state === "blocked") {
+    return "Review blocked";
+  }
+  if (state === "pending") {
+    return "Review pending";
+  }
+  return state;
+}
+
+function getReviewActionabilityTone(
+  state: string | null
+): "default" | "success" | "warning" | "progress" {
+  if (state === "ready") {
+    return "success";
+  }
+  if (state === "pending") {
+    return "progress";
+  }
+  if (state === "degraded" || state === "blocked") {
+    return "warning";
+  }
+  return "default";
+}
+
 function resolveBackendLabel(
   backendId: string | null,
   backendLabel: string | null,
@@ -518,6 +552,13 @@ export function SettingsAutomationSection({
                   schedule.workspaceId,
                   workspaceOptions
                 );
+                const navigationTarget = resolveScheduleNavigationTarget(schedule);
+                const navigationLabel = navigationTarget
+                  ? resolveScheduleNavigationLabel(navigationTarget)
+                  : null;
+                const reviewActionabilityLabel = formatReviewActionabilityLabel(
+                  schedule.reviewActionabilityState
+                );
 
                 return (
                   <SettingsField
@@ -533,6 +574,13 @@ export function SettingsAutomationSection({
                           {formatStatusLabel(schedule.status)}
                         </StatusBadge>
                         {isSelected ? <StatusBadge tone="progress">Selected</StatusBadge> : null}
+                        {reviewActionabilityLabel ? (
+                          <StatusBadge
+                            tone={getReviewActionabilityTone(schedule.reviewActionabilityState)}
+                          >
+                            {reviewActionabilityLabel}
+                          </StatusBadge>
+                        ) : null}
                         {schedule.safeFollowUp ? (
                           <StatusBadge tone="success">Safe follow-up</StatusBadge>
                         ) : null}
@@ -560,6 +608,11 @@ export function SettingsAutomationSection({
                       <div className={grammar.helpText}>
                         Validation preset: {validationPresetLabel}
                       </div>
+                      {reviewActionabilityLabel ? (
+                        <div className={grammar.helpText}>
+                          Review actionability: {reviewActionabilityLabel}
+                        </div>
+                      ) : null}
                       {schedule.triggerSourceLabel ? (
                         <div className={grammar.helpText}>
                           Trigger source: {schedule.triggerSourceLabel}
@@ -574,6 +627,20 @@ export function SettingsAutomationSection({
                         <div className={grammar.helpText}>Review pack: {schedule.reviewPackId}</div>
                       ) : null}
                       <SettingsFooterBar>
+                        {navigationTarget && navigationLabel && onOpenMissionTarget ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="settings-button-compact"
+                            aria-label={`${navigationLabel} for ${schedule.name}`}
+                            onClick={() => {
+                              void onOpenMissionTarget(navigationTarget);
+                            }}
+                          >
+                            {navigationLabel}
+                          </Button>
+                        ) : null}
                         <Button
                           type="button"
                           variant="secondary"
@@ -881,6 +948,13 @@ export function SettingsAutomationSection({
               <StatusBadge tone={getStatusTone(selectedSchedule.status)}>
                 {formatStatusLabel(selectedSchedule.status)}
               </StatusBadge>
+              {selectedSchedule.reviewActionabilityState ? (
+                <StatusBadge
+                  tone={getReviewActionabilityTone(selectedSchedule.reviewActionabilityState)}
+                >
+                  {formatReviewActionabilityLabel(selectedSchedule.reviewActionabilityState)}
+                </StatusBadge>
+              ) : null}
               <StatusBadge tone="progress">{selectedScheduleLabel}</StatusBadge>
             </div>
             <div className={grammar.helpText}>Cadence: {selectedSchedule.cadenceLabel}</div>
@@ -984,6 +1058,7 @@ export function SettingsAutomationSection({
                   variant="secondary"
                   size="sm"
                   className="settings-button-compact"
+                  aria-label={`${selectedScheduleNavigationLabel} for ${selectedScheduleLabel}`}
                   onClick={() => {
                     void onOpenMissionTarget(selectedScheduleNavigationTarget);
                   }}

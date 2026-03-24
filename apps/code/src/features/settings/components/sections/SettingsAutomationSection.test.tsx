@@ -148,6 +148,8 @@ describe("SettingsAutomationSection", () => {
     expect(screen.getAllByText("Daily review sweep").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Nightly health check").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Resume schedule" })).toBeTruthy();
+    expect(screen.getAllByText("Review ready").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Review pending").length).toBeGreaterThan(0);
 
     await act(async () => {
       fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[1] as HTMLButtonElement);
@@ -179,13 +181,19 @@ describe("SettingsAutomationSection", () => {
     });
   });
 
-  it("opens the review surface from runtime lineage when a review pack is available", async () => {
+  it("opens the review surface from the schedule summary when a review pack is available", async () => {
     const onOpenMissionTarget = vi.fn(async () => undefined);
 
-    render(<SettingsAutomationSection {...createProps({ onOpenMissionTarget })} />);
+    const { container } = render(
+      <SettingsAutomationSection {...createProps({ onOpenMissionTarget })} />
+    );
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Open review" }));
+      fireEvent.click(
+        within(container).getAllByRole("button", {
+          name: "Open review for Daily review sweep",
+        })[0] as HTMLButtonElement
+      );
     });
 
     expect(onOpenMissionTarget).toHaveBeenCalledWith({
@@ -212,10 +220,12 @@ describe("SettingsAutomationSection", () => {
 
     expect(within(container).getByText("Active task: task-nightly-check (running)")).toBeTruthy();
 
-    const openMissionButton = within(container).getAllByRole("button", { name: "Open mission" });
-
     await act(async () => {
-      fireEvent.click(openMissionButton.at(-1) as HTMLButtonElement);
+      fireEvent.click(
+        within(container).getAllByRole("button", {
+          name: "Open mission for Nightly health check",
+        })[0] as HTMLButtonElement
+      );
     });
 
     expect(onOpenMissionTarget).toHaveBeenCalledWith({
