@@ -70,6 +70,23 @@ function isBuildSkipEligibleFile(file) {
   );
 }
 
+function isRepoGovernanceOnlyFile(file) {
+  return (
+    file.startsWith(".github/workflows/") ||
+    file.startsWith(".github/actions/") ||
+    file === "docs/development/ci-workflows.md" ||
+    file === "scripts/check-branch-policy.mjs" ||
+    file === "scripts/lib/branch-policy.mjs" ||
+    file === "scripts/check-repo-sot.mjs" ||
+    file === "scripts/check-workflow-governance.mjs" ||
+    file === "scripts/check-workspace-task-coverage.mjs" ||
+    file === "scripts/classify-ci-change-scope.mjs" ||
+    file === "scripts/classify-electron-beta-scope.mjs" ||
+    file === "scripts/codex-preflight.mjs" ||
+    file === "scripts/workflow-list.mjs"
+  );
+}
+
 const baseRef = process.env.CI_SCOPE_BASE_REF?.trim() || "HEAD^";
 const headRef = process.env.CI_SCOPE_HEAD_REF?.trim() || "HEAD";
 const diffArgs = resolveDiffArgs(baseRef, headRef);
@@ -83,6 +100,8 @@ const manifestFiles = nameOnly.filter(isManifestLikeFile);
 const manifestOnly = nameOnly.length > 0 && manifestFiles.length === nameOnly.length;
 const buildSkipEligibleOnly =
   nameOnly.length > 0 && nameOnly.every((file) => isBuildSkipEligibleFile(file));
+const repoGovernanceOnly =
+  nameOnly.length > 0 && nameOnly.every((file) => isRepoGovernanceOnlyFile(file));
 const manifestDiff = manifestFiles.length
   ? runGit(["diff", "--unified=0", ...diffArgs, "--", ...manifestFiles]).stdout
   : "";
@@ -113,5 +132,6 @@ const frontendManifestChanged =
 
 writeOutput("manifest_only", manifestOnly ? "true" : "false");
 writeOutput("build_skip_eligible_only", buildSkipEligibleOnly ? "true" : "false");
+writeOutput("repo_governance_only", repoGovernanceOnly ? "true" : "false");
 writeOutput("desktop_manifest_changed", desktopManifestChanged ? "true" : "false");
 writeOutput("frontend_manifest_changed", frontendManifestChanged ? "true" : "false");

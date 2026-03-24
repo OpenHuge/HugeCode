@@ -60,16 +60,12 @@ jobs:
               - "pnpm-lock.yaml"
               - "pnpm-workspace.yaml"
               - "turbo.json"
-              - ".github/workflows/codeql.yml"
-              - ".github/actions/setup-node-pnpm/**"
             rust:
               - "apps/code-tauri/**"
               - "packages/*-rs/**"
               - "internal/runtime-policy-rs/**"
               - "**/Cargo.toml"
               - "**/Cargo.lock"
-              - ".github/workflows/codeql.yml"
-              - ".github/actions/setup-rust-ci/**"
 
   analyze_javascript:
     name: Analyze (javascript-typescript)

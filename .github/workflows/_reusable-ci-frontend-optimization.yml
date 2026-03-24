@@ -20,15 +20,38 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Ensure PR base ref is available
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --prune --depth=1 origin \
+            +refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
+
+      - id: scope
+        name: Classify PR scope
+        if: github.event_name == 'pull_request'
+        env:
+          CI_SCOPE_BASE_REF: origin/${{ github.base_ref }}
+          CI_SCOPE_HEAD_REF: HEAD
+        run: node scripts/classify-ci-change-scope.mjs
+
+      - name: Skip repo-governance-only PR
+        if: github.event_name == 'pull_request' && steps.scope.outputs.repo_governance_only == 'true'
+        run: echo "Skipping frontend optimization for repo-governance-only pull request changes."
+
       - uses: ./.github/actions/setup-node-pnpm
+        if: github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true'
         with:
           install-command: pnpm install --offline --frozen-lockfile
 
       - uses: ./.github/actions/cache-turbo
+        if: github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true'
 
       - uses: ./.github/actions/install-linux-desktop-deps
+        if: github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true'
 
       - uses: ./.github/actions/setup-playwright
+        if: github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true'
 
       - name: Frontend optimization gate
+        if: github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true'
         run: pnpm validate:frontend-optimization
