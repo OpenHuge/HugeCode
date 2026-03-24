@@ -1,6 +1,7 @@
 import type {
   AgentTaskAutoDriveState,
   HugeCodeMissionControlSnapshot,
+  RuntimeAutonomyRequestV2,
 } from "@ku0/code-runtime-host-contract";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
@@ -96,6 +97,7 @@ type UseAutoDriveControllerOptions = {
     now?: () => number;
     missionControlProjection?: HugeCodeMissionControlSnapshot | null;
     runtimeControl?: RuntimeAutoDriveControl | null;
+    launchTaskThroughRuntimeControl?: boolean;
   };
 };
 
@@ -587,6 +589,53 @@ function normalizeReasonEffort(value: string | null): "low" | "medium" | "high" 
   return null;
 }
 
+function buildNightOperatorAutonomyRequest(
+  draft: AutoDriveControllerHookDraft
+): RuntimeAutonomyRequestV2 {
+  const maxAutomaticFollowUps =
+    draft.continuation?.maxAutomaticFollowUps ?? DEFAULT_CONTINUATION_POLICY.maxAutomaticFollowUps;
+  const maxRuntimeMinutes = sanitizeBudgetValue(
+    "maxDurationMinutes",
+    draft.budget.maxDurationMinutes
+  );
+  return {
+    autonomyProfile: "night_operator",
+    wakePolicy: {
+      mode: "auto_queue",
+      safeFollowUp: true,
+      allowAutomaticContinuation:
+        draft.continuation?.enabled ?? DEFAULT_CONTINUATION_POLICY.enabled,
+      allowedActions: ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+      stopGates: [
+        "destructive_change_requires_review",
+        "dependency_change_requires_review",
+        "validation_failure_requires_review",
+        "low_confidence_reroute_requires_review",
+        "approval_or_permission_change_required",
+      ],
+      queueBudget: {
+        maxQueuedActions: maxAutomaticFollowUps,
+        maxRuntimeMinutes,
+        maxAutoContinuations: maxAutomaticFollowUps,
+      },
+    },
+    sourceScope: draft.riskPolicy.allowNetworkAnalysis
+      ? "workspace_graph_and_public_web"
+      : "workspace_graph",
+    researchPolicy: {
+      mode: draft.riskPolicy.allowNetworkAnalysis ? "staged" : "repository_only",
+      allowNetworkAnalysis: draft.riskPolicy.allowNetworkAnalysis,
+      requireCitations: true,
+      allowPrivateContextStage: draft.riskPolicy.allowNetworkAnalysis,
+    },
+    queueBudget: {
+      maxQueuedActions: maxAutomaticFollowUps,
+      maxRuntimeMinutes,
+      maxAutoContinuations: maxAutomaticFollowUps,
+    },
+  };
+}
+
 export function useAutoDriveController({
   activeWorkspace,
   activeThreadId,
@@ -605,6 +654,8 @@ export function useAutoDriveController({
   const now = useMemo(() => runtimeOverrides?.now ?? Date.now, [runtimeOverrides?.now]);
   const runtimeProjection = runtimeOverrides?.missionControlProjection ?? missionControlProjection;
   const runtimeControlSource = runtimeOverrides?.runtimeControl ?? runtimeControl;
+  const launchTaskThroughRuntimeControl =
+    runtimeOverrides?.launchTaskThroughRuntimeControl === true;
   const [draft, setDraft] = useState<AutoDriveControllerHookDraft>(DEFAULT_DRAFT);
   const [busyAction, setBusyAction] = useState<AutoDriveBusyAction | null>(null);
   const [activity, setActivity] = useState<AutoDriveActivityEntry[]>([]);
@@ -777,6 +828,8 @@ export function useAutoDriveController({
         draft.continuation?.minimumConfidenceToStop ??
         DEFAULT_CONTINUATION_POLICY.minimumConfidenceToStop,
     };
+    const autonomyRequest = buildNightOperatorAutonomyRequest(draft);
+    const launchInstruction = buildAutoDriveInstruction(draft, launchControls);
 
     setBusyAction("starting");
     appendActivity({
@@ -798,16 +851,32 @@ export function useAutoDriveController({
         requestMode: "start",
         eventSource: "auto_drive",
       });
-      await launchAutoDriveThread({
-        workspaceId: activeWorkspace.id,
-        threadId: activeThreadId,
-        instruction: buildAutoDriveInstruction(draft, launchControls),
-        accessMode,
-        modelId: selectedModelId,
-        reasonEffort: normalizeReasonEffort(selectedEffort),
-        preferredBackendIds: preferredBackendIds ?? null,
-        autoDrive: autoDrivePayload,
-      });
+      if (launchTaskThroughRuntimeControl && runtimeControlSource?.startTask) {
+        await runtimeControlSource.startTask({
+          workspaceId: activeWorkspace.id,
+          threadId: activeThreadId,
+          title: draft.destination.title.trim() || "AutoDrive mission",
+          instruction: launchInstruction,
+          accessMode,
+          executionMode: "runtime",
+          reasonEffort: normalizeReasonEffort(selectedEffort),
+          modelId: selectedModelId,
+          preferredBackendIds: preferredBackendIds ?? null,
+          autoDrive: autoDrivePayload,
+        });
+      } else {
+        await launchAutoDriveThread({
+          workspaceId: activeWorkspace.id,
+          threadId: activeThreadId,
+          instruction: launchInstruction,
+          accessMode,
+          modelId: selectedModelId,
+          reasonEffort: normalizeReasonEffort(selectedEffort),
+          preferredBackendIds: preferredBackendIds ?? null,
+          autoDrive: autoDrivePayload,
+          autonomyRequest,
+        });
+      }
       await onRefreshMissionControl?.();
     } finally {
       setBusyAction(null);
@@ -823,6 +892,8 @@ export function useAutoDriveController({
     preferredBackendIds,
     readiness.readyToLaunch,
     run?.iteration,
+    runtimeControlSource,
+    launchTaskThroughRuntimeControl,
     runtimeOnlyControlsEnabled,
     selectedEffort,
     selectedModelId,

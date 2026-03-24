@@ -1,4 +1,7 @@
-import type { AgentTaskAutoDriveState } from "@ku0/code-runtime-host-contract";
+import type {
+  AgentTaskAutoDriveState,
+  RuntimeAutonomyRequestV2,
+} from "@ku0/code-runtime-host-contract";
 import { sendUserMessage } from "../ports/tauriThreads";
 import type { AccessMode } from "../../../types";
 
@@ -11,6 +14,7 @@ type LaunchAutoDriveThreadInput = {
   accessMode: AccessMode;
   preferredBackendIds?: string[] | null;
   autoDrive: AgentTaskAutoDriveState;
+  autonomyRequest?: RuntimeAutonomyRequestV2 | null;
 };
 
 export async function launchAutoDriveThread(params: LaunchAutoDriveThreadInput) {
@@ -22,5 +26,6 @@ export async function launchAutoDriveThread(params: LaunchAutoDriveThreadInput) 
     missionMode: "delegate",
     preferredBackendIds: params.preferredBackendIds ?? null,
     autoDrive: params.autoDrive,
+    autonomyRequest: params.autonomyRequest ?? null,
   });
 }

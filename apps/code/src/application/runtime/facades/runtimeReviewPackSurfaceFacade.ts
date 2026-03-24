@@ -355,6 +355,38 @@ function getSourceLabel(source: MissionControlProjection["source"]) {
     : "Mission-control snapshot unavailable";
 }
 
+function augmentDetailSection(
+  section: { summary: string; details: string[] } | undefined,
+  additions: Array<string | null | undefined>,
+  fallbackSummary: string
+) {
+  const details = [...(section?.details ?? [])];
+  for (const addition of additions) {
+    pushUnique(details, addition ?? null);
+  }
+  if (details.length === 0 && !section) {
+    return undefined;
+  }
+  return {
+    summary: section?.summary ?? fallbackSummary,
+    details,
+  };
+}
+
+function formatSourceCitationDetail(
+  citation:
+    | MissionControlProjection["runs"][number]["sourceCitations"][number]
+    | MissionControlProjection["reviewPacks"][number]["sourceCitations"][number]
+) {
+  const trustLabel =
+    citation.trustLevel === "primary"
+      ? "primary"
+      : citation.trustLevel === "runtime"
+        ? "runtime"
+        : "derived";
+  return `${citation.label}: ${citation.claimSummary} (${trustLabel})`;
+}
+
 function buildMissionRouteAudit(input: {
   routeLabel: string | null | undefined;
   routeHint: string | null | undefined;
@@ -871,6 +903,28 @@ export function buildReviewPackDetailModel(input: {
           "This run ended before a review pack was produced. Inspect the recorded route state before relaunching."
       );
     }
+    const lineage = augmentDetailSection(
+      buildMissionLineageDetail({
+        lineage: run.lineage ?? task.lineage ?? null,
+        taskSource: run.taskSource ?? task.taskSource ?? null,
+        fallbackObjective: task.objective,
+      }),
+      [
+        run.selectedOpportunityId ? `Selected opportunity: ${run.selectedOpportunityId}` : null,
+        ...(run.sourceCitations ?? []).map(formatSourceCitationDetail),
+      ],
+      "Runtime published mission direction and selection evidence for this run."
+    );
+    const relaunchContext = augmentDetailSection(
+      buildRelaunchContextDetail(run.relaunchContext ?? null),
+      [
+        run.wakeReason ? `Wake reason: ${run.wakeReason}` : null,
+        run.wakeState ? `Wake state: ${run.wakeState}` : null,
+        run.nextEligibleAction ? `Next eligible action: ${run.nextEligibleAction}` : null,
+        typeof run.queuePosition === "number" ? `Queue position: ${run.queuePosition}` : null,
+      ],
+      "Runtime recorded wake-up gates and the next eligible operator action."
+    );
     return {
       kind: "mission_run",
       workspaceId,
@@ -919,11 +973,7 @@ export function buildReviewPackDetailModel(input: {
       operatorSnapshot: buildOperatorSnapshotDetail(run.operatorSnapshot ?? null),
       placement: buildPlacementDetail(run.placement ?? null),
       workspaceEvidence: buildWorkspaceEvidenceDetail(run.workspaceEvidence ?? null),
-      lineage: buildMissionLineageDetail({
-        lineage: run.lineage ?? task.lineage ?? null,
-        taskSource: run.taskSource ?? task.taskSource ?? null,
-        fallbackObjective: task.objective,
-      }),
+      lineage,
       ledger: buildRunLedgerDetail({
         ledger: run.ledger ?? null,
         warningCount: run.warnings?.length ?? 0,
@@ -949,7 +999,7 @@ export function buildReviewPackDetailModel(input: {
           Boolean(run.nextAction),
       }),
       missionBrief: buildMissionBriefDetail(run.missionBrief ?? null),
-      relaunchContext: buildRelaunchContextDetail(run.relaunchContext ?? null),
+      relaunchContext,
       autoDriveSummary: buildAutoDriveSummary(run.autoDrive ?? null),
       subAgentSummary: normalizeSubAgentSummary(
         runExtra?.subAgents ?? runExtra?.subAgentSummary ?? null
@@ -1067,12 +1117,25 @@ export function buildReviewPackDetailModel(input: {
   const followUpDefaultsAvailable = followUpState.interventionActions.some(
     (action) => action.enabled
   );
-  const lineage = buildMissionLineageDetail({
-    lineage: reviewPack.lineage ?? run?.lineage ?? task?.lineage ?? null,
-    taskSource: reviewPack.taskSource ?? run?.taskSource ?? task?.taskSource ?? null,
-    fallbackObjective: task?.objective ?? reviewPack.summary,
-    fallbackReviewDecisionState: reviewDecision.status,
-  });
+  const lineage = augmentDetailSection(
+    buildMissionLineageDetail({
+      lineage: reviewPack.lineage ?? run?.lineage ?? task?.lineage ?? null,
+      taskSource: reviewPack.taskSource ?? run?.taskSource ?? task?.taskSource ?? null,
+      fallbackObjective: task?.objective ?? reviewPack.summary,
+      fallbackReviewDecisionState: reviewDecision.status,
+    }),
+    [
+      (reviewPack.selectedOpportunityId ?? run?.selectedOpportunityId)
+        ? `Selected opportunity: ${reviewPack.selectedOpportunityId ?? run?.selectedOpportunityId}`
+        : null,
+      ...(
+        (reviewPack.sourceCitations ?? run?.sourceCitations ?? []) as Array<
+          NonNullable<MissionControlProjection["reviewPacks"][number]["sourceCitations"]>[number]
+        >
+      ).map(formatSourceCitationDetail),
+    ],
+    "Runtime published mission direction and evidence citations for this review pack."
+  );
   const ledger = buildRunLedgerDetail({
     ledger: reviewPack.ledger ?? run?.ledger ?? null,
     warningCount: reviewPack.warningCount,
@@ -1099,6 +1162,24 @@ export function buildReviewPackDetailModel(input: {
     task,
     publishHandoff,
   });
+  const relaunchContext = augmentDetailSection(
+    buildRelaunchContextDetail(reviewPackExtra?.relaunchOptions ?? run?.relaunchContext ?? null),
+    [
+      (reviewPack.wakeReason ?? run?.wakeReason)
+        ? `Wake reason: ${reviewPack.wakeReason ?? run?.wakeReason}`
+        : null,
+      (reviewPack.wakeState ?? run?.wakeState)
+        ? `Wake state: ${reviewPack.wakeState ?? run?.wakeState}`
+        : null,
+      (reviewPack.nextEligibleAction ?? run?.nextEligibleAction)
+        ? `Next eligible action: ${reviewPack.nextEligibleAction ?? run?.nextEligibleAction}`
+        : null,
+      typeof (reviewPack.queuePosition ?? run?.queuePosition) === "number"
+        ? `Queue position: ${reviewPack.queuePosition ?? run?.queuePosition}`
+        : null,
+    ],
+    "Runtime recorded why this pack woke the operator and what can happen next."
+  );
   const reviewRecommendedNextAction =
     reviewPackExtra?.actionability?.summary ??
     run?.actionability?.summary ??
@@ -1183,9 +1264,7 @@ export function buildReviewPackDetailModel(input: {
       inheritFollowUpDefaults: followUpDefaultsAvailable,
     }),
     missionBrief: buildMissionBriefDetail(run?.missionBrief ?? null),
-    relaunchContext: buildRelaunchContextDetail(
-      reviewPackExtra?.relaunchOptions ?? run?.relaunchContext ?? null
-    ),
+    relaunchContext,
     decisionActions,
     relaunchOptions,
     subAgentSummary,
