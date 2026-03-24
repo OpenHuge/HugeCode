@@ -1,4 +1,5 @@
 import type {
+  AccessMode,
   AgentTaskMissionBrief,
   AgentTaskSourceSummary,
 } from "@ku0/code-runtime-host-contract";
@@ -9,16 +10,26 @@ import type {
   GitHubPullRequestDiff,
 } from "../../../types";
 import { buildAgentTaskMissionBrief } from "./runtimeMissionDraftFacade";
+import {
+  resolveRepositoryExecutionDefaults,
+  type RepositoryExecutionContract,
+} from "./runtimeRepositoryExecutionContract";
 
 export type GitHubSourceLaunchSummary = {
   title: string;
   instruction: string;
   missionBrief: AgentTaskMissionBrief;
   taskSource: AgentTaskSourceSummary;
+  executionProfileId: string | null;
+  reviewProfileId: string | null;
+  validationPresetId: string | null;
+  accessMode: AccessMode | null;
+  preferredBackendIds: string[] | null;
 };
 
 export type GitHubIssueSourceLaunchInput = {
   issue: Pick<GitHubIssue, "number" | "title" | "url" | "body" | "author" | "labels">;
+  repositoryExecutionContract?: RepositoryExecutionContract | null;
   preferredBackendIds?: string[] | null;
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
@@ -31,6 +42,7 @@ export type GitHubPullRequestFollowUpSourceLaunchInput = {
   >;
   diffs?: GitHubPullRequestDiff[] | null;
   comments?: GitHubPullRequestComment[] | null;
+  repositoryExecutionContract?: RepositoryExecutionContract | null;
   preferredBackendIds?: string[] | null;
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
@@ -206,29 +218,44 @@ function buildGitHubSourceLaunchSummary(input: {
   externalId: string;
   canonicalUrl: string;
   instruction: string;
+  repositoryExecutionContract?: RepositoryExecutionContract | null;
   preferredBackendIds?: string[] | null;
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
 }): GitHubSourceLaunchSummary {
   const title = readOptionalText(input.title) ?? input.label;
-  const preferredBackendIds = normalizeOptionalTextList(input.preferredBackendIds);
+  const explicitPreferredBackendIds = normalizeOptionalTextList(input.preferredBackendIds);
+  const taskSource = buildGitHubSourceTaskSource({
+    kind: input.kind,
+    label: input.label,
+    title,
+    externalId: input.externalId,
+    canonicalUrl: input.canonicalUrl,
+    sourceTaskId: input.sourceTaskId,
+    sourceRunId: input.sourceRunId,
+  });
+  const launchDefaults = resolveRepositoryExecutionDefaults({
+    contract: input.repositoryExecutionContract ?? null,
+    taskSource,
+    explicitLaunchInput: explicitPreferredBackendIds
+      ? { preferredBackendIds: explicitPreferredBackendIds }
+      : undefined,
+  });
+  const preferredBackendIds = launchDefaults.preferredBackendIds ?? null;
   return {
     title,
     instruction: input.instruction,
     missionBrief: buildAgentTaskMissionBrief({
       objective: title,
-      accessMode: null,
+      accessMode: launchDefaults.accessMode,
       preferredBackendIds,
     }),
-    taskSource: buildGitHubSourceTaskSource({
-      kind: input.kind,
-      label: input.label,
-      title,
-      externalId: input.externalId,
-      canonicalUrl: input.canonicalUrl,
-      sourceTaskId: input.sourceTaskId,
-      sourceRunId: input.sourceRunId,
-    }),
+    taskSource,
+    executionProfileId: launchDefaults.executionProfileId,
+    reviewProfileId: launchDefaults.reviewProfileId,
+    validationPresetId: launchDefaults.validationPresetId,
+    accessMode: launchDefaults.accessMode,
+    preferredBackendIds,
   };
 }
 
@@ -243,6 +270,7 @@ export function normalizeGitHubIssueLaunchInput(
     externalId: input.issue.url,
     canonicalUrl: input.issue.url,
     instruction: buildGitHubIssueInstruction(input.issue),
+    repositoryExecutionContract: input.repositoryExecutionContract,
     preferredBackendIds: input.preferredBackendIds,
     sourceTaskId: input.sourceTaskId,
     sourceRunId: input.sourceRunId,
@@ -261,6 +289,7 @@ export function normalizeGitHubPullRequestFollowUpLaunchInput(
     externalId: input.pullRequest.url,
     canonicalUrl: input.pullRequest.url,
     instruction: buildGitHubPullRequestFollowUpInstruction(input),
+    repositoryExecutionContract: input.repositoryExecutionContract,
     preferredBackendIds: input.preferredBackendIds,
     sourceTaskId: input.sourceTaskId,
     sourceRunId: input.sourceRunId,

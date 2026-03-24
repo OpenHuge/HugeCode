@@ -1,4 +1,5 @@
 import type {
+  AccessMode,
   AgentTaskMissionBrief,
   AgentTaskSourceSummary,
 } from "@ku0/code-runtime-host-contract";
@@ -8,6 +9,10 @@ type GitHubSourceDelegationStartInput = {
   title: string;
   instruction: string;
   missionBrief?: AgentTaskMissionBrief | null;
+  executionProfileId?: string | null;
+  reviewProfileId?: string | null;
+  validationPresetId?: string | null;
+  accessMode?: AccessMode | null;
   preferredBackendIds?: string[] | null;
   taskSource: AgentTaskSourceSummary;
 };
@@ -19,6 +24,10 @@ type GitHubSourceDelegationRuntimeControl = {
     instruction: string;
     stepKind: "read";
     missionBrief?: AgentTaskMissionBrief | null;
+    executionProfileId?: string | null;
+    reviewProfileId?: string | null;
+    validationPresetId?: string | null;
+    accessMode?: AccessMode | null;
     preferredBackendIds?: string[];
     taskSource: AgentTaskSourceSummary;
   }) => Promise<unknown>;
@@ -39,6 +48,14 @@ export async function launchGitHubSourceDelegation(input: {
     instruction: input.launch.instruction,
     stepKind: "read",
     ...(input.launch.missionBrief ? { missionBrief: input.launch.missionBrief } : {}),
+    ...(input.launch.executionProfileId
+      ? { executionProfileId: input.launch.executionProfileId }
+      : {}),
+    ...(input.launch.reviewProfileId ? { reviewProfileId: input.launch.reviewProfileId } : {}),
+    ...(input.launch.validationPresetId
+      ? { validationPresetId: input.launch.validationPresetId }
+      : {}),
+    ...(input.launch.accessMode ? { accessMode: input.launch.accessMode } : {}),
     ...(preferredBackendIds.length > 0 ? { preferredBackendIds } : {}),
     taskSource: input.launch.taskSource,
   });

@@ -321,7 +321,10 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
       try {
         const issueDetail =
           (await getGitHubIssueDetails(activeWorkspace.id, issue.number)) ?? issue;
-        const normalized = normalizeGitHubIssueLaunchInput({ issue: issueDetail });
+        const normalized = normalizeGitHubIssueLaunchInput({
+          issue: issueDetail,
+          repositoryExecutionContract: activeRepositoryExecutionContract,
+        });
         await launchGitHubSourceDelegation({
           runtimeControl: reviewRuntimeControl,
           onRefresh: homeState.refreshMissionControl,
@@ -330,6 +333,11 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
             title: normalized.title,
             instruction: normalized.instruction,
             missionBrief: normalized.missionBrief,
+            executionProfileId: normalized.executionProfileId,
+            reviewProfileId: normalized.reviewProfileId,
+            validationPresetId: normalized.validationPresetId,
+            accessMode: normalized.accessMode,
+            preferredBackendIds: normalized.preferredBackendIds,
             taskSource: normalized.taskSource,
           },
         });
@@ -343,6 +351,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
     },
     [
       activeWorkspace,
+      activeRepositoryExecutionContract,
       gitHubPanelState.gitIssues,
       homeState.refreshMissionControl,
       reviewRuntimeControl,
@@ -368,6 +377,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
           pullRequest,
           diffs,
           comments,
+          repositoryExecutionContract: activeRepositoryExecutionContract,
         });
         await launchGitHubSourceDelegation({
           runtimeControl: reviewRuntimeControl,
@@ -377,6 +387,11 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
             title: normalized.title,
             instruction: normalized.instruction,
             missionBrief: normalized.missionBrief,
+            executionProfileId: normalized.executionProfileId,
+            reviewProfileId: normalized.reviewProfileId,
+            validationPresetId: normalized.validationPresetId,
+            accessMode: normalized.accessMode,
+            preferredBackendIds: normalized.preferredBackendIds,
             taskSource: normalized.taskSource,
           },
         });
@@ -390,6 +405,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
     },
     [
       activeWorkspace,
+      activeRepositoryExecutionContract,
       gitHubPanelState.gitPullRequests,
       homeState.refreshMissionControl,
       reviewRuntimeControl,
