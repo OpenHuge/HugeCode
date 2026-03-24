@@ -92,11 +92,14 @@ if (mainBuildExitCode !== 0) {
   process.exit(mainBuildExitCode);
 }
 
+const electronEnv = {
+  ...process.env,
+  HUGECODE_ELECTRON_DEV_SERVER_URL: devServerUrl,
+};
+delete electronEnv.ELECTRON_RUN_AS_NODE;
+
 const electronProcess = spawnProcess(electronBinary, [electronEntrypoint], {
-  env: {
-    ...process.env,
-    HUGECODE_ELECTRON_DEV_SERVER_URL: devServerUrl,
-  },
+  env: electronEnv,
 });
 
 const electronExitCode = await new Promise((resolveExitCode) => {

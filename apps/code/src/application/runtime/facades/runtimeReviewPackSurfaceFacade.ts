@@ -65,6 +65,13 @@ import {
   type WorkspaceEvidenceSummary,
   pushUnique,
 } from "./runtimeReviewPackDetailPresentation";
+import {
+  buildBrowserEvidenceSummary,
+  buildResearchSourceList,
+  buildResearchTraceSummary,
+  type BrowserEvidenceSummary,
+  type ResearchTraceSummary,
+} from "./runtimeReviewPackEvidenceSummary";
 
 type RelaunchOption = {
   id: string;
@@ -200,6 +207,10 @@ export type ReviewPackDetailModel = {
   assumptions: string[];
   reproductionGuidance: string[];
   rollbackGuidance: string[];
+  browserEvidence?: BrowserEvidenceSummary | null;
+  researchTrace?: ResearchTraceSummary | null;
+  researchSources?: string[];
+  decisionRationale?: string | null;
   reviewDecision: {
     status: HugeCodeReviewDecisionState;
     reviewPackId: string;
@@ -262,6 +273,9 @@ export type ReviewPackDetailModel = {
     warnings: string;
     validations: string;
     artifacts: string;
+    browserEvidence?: string;
+    researchSources?: string;
+    decisionRationale?: string;
     reproduction: string;
     rollback: string;
   };
@@ -407,6 +421,24 @@ function buildAutoDriveSummary(
   const summary: string[] = [];
   if (!autoDrive?.enabled) {
     return summary;
+  }
+  const browserScenario = autoDrive.scenarioProfile?.scenarioKeys?.includes(
+    "browser_repro_fix_verify"
+  );
+  if (browserScenario) {
+    if (
+      autoDrive.continuationState?.lastContinuationReason &&
+      /browser/i.test(autoDrive.continuationState.lastContinuationReason)
+    ) {
+      pushUnique(
+        summary,
+        `Browser verification gap remains: ${autoDrive.continuationState.lastContinuationReason}`
+      );
+    } else if (autoDrive.stop?.reason === "completed") {
+      pushUnique(summary, "Browser verification passed");
+    } else if (autoDrive.navigation?.activeWaypoint) {
+      pushUnique(summary, "Browser repro confirmed");
+    }
   }
   pushUnique(summary, `Destination: ${autoDrive.destination.title}`);
   if (autoDrive.destination.desiredEndState.length > 0) {
@@ -1057,6 +1089,17 @@ export function buildReviewPackDetailModel(input: {
   const rollbackGuidance = Array.isArray(reviewPack.rollbackGuidance)
     ? reviewPack.rollbackGuidance
     : [];
+  const browserEvidence = buildBrowserEvidenceSummary({
+    artifacts: reviewPack.artifacts,
+    warnings: reviewPack.warnings,
+    reproductionGuidance,
+    autoDrive: run?.autoDrive ?? null,
+  });
+  const researchTrace = buildResearchTraceSummary(run?.autoDrive ?? null);
+  const researchSources = buildResearchSourceList(run?.autoDrive ?? null);
+  const decisionRationale =
+    run?.autoDrive?.lastChatgptResearchRouteLab?.decisionMemo ??
+    (researchTrace && researchTrace.status !== "blocked" ? researchTrace.summary : null);
   const backendAudit = reviewPack.backendAudit ?? {
     summary: "Runtime backend audit unavailable",
     details: [],
@@ -1151,6 +1194,10 @@ export function buildReviewPackDetailModel(input: {
     assumptions,
     reproductionGuidance,
     rollbackGuidance,
+    browserEvidence,
+    researchTrace,
+    researchSources,
+    decisionRationale,
     reviewDecision,
     reviewIntelligence,
     reviewProfileId: reviewIntelligence?.reviewProfileId ?? null,
@@ -1198,6 +1245,11 @@ export function buildReviewPackDetailModel(input: {
           ? "Validation evidence was not recorded for this run."
           : "No individual validation checks were recorded for this run.",
       artifacts: "No artifacts or evidence references were attached to this review pack.",
+      browserEvidence:
+        "The runtime did not publish browser evidence for this review pack. Re-open the browser lane or record a blocked browser reason before accepting the result.",
+      researchSources:
+        "The runtime did not publish explicit research sources for this review pack. Re-run the research lane or record a blocked research reason before accepting the route.",
+      decisionRationale: "The runtime did not publish a decision rationale for this review pack.",
       reproduction:
         "The runtime did not record reproduction guidance for this review pack. Re-run the linked validations or inspect attached evidence.",
       rollback:

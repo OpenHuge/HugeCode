@@ -100,8 +100,8 @@ describe("WorkspaceHomeAgentControl", () => {
     });
 
     expect(screen.getByTestId("intent-section-stub")).toBeTruthy();
-    expect(screen.getByTestId("runtime-section-stub")).toBeTruthy();
-    expect(screen.getByTestId("webmcp-console-stub")).toBeTruthy();
+    expect(await screen.findByTestId("runtime-section-stub")).toBeTruthy();
+    expect(await screen.findByTestId("webmcp-console-stub")).toBeTruthy();
     expect(screen.queryByText("Coordination")).toBeNull();
     expect(screen.queryByText("Execution Board")).toBeNull();
     expect(screen.queryByText("Governance")).toBeNull();

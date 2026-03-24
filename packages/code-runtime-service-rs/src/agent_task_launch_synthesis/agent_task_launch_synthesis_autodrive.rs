@@ -289,7 +289,19 @@ pub(super) fn synthesize_auto_drive_autonomy_state(
         state.escalation_pressure = Some("medium".to_string());
     }
     if state.unattended_continuation_allowed.is_none() {
-        state.unattended_continuation_allowed = Some(false);
+        state.unattended_continuation_allowed = Some(
+            auto_drive
+                .continuation_policy
+                .as_ref()
+                .and_then(|policy| policy.enabled)
+                .unwrap_or(true)
+                && auto_drive
+                    .continuation_policy
+                    .as_ref()
+                    .and_then(|policy| policy.max_automatic_follow_ups)
+                    .unwrap_or(2)
+                    > 0,
+        );
     }
     if state.background_safe.is_none() {
         state.background_safe = scenario_profile.and_then(|profile| profile.safe_background);
@@ -305,6 +317,56 @@ pub(super) fn synthesize_auto_drive_autonomy_state(
         || state.unattended_continuation_allowed.is_some()
         || state.background_safe.is_some()
         || state.human_intervention_hotspots.is_some();
+    has_values.then_some(state)
+}
+
+pub(super) fn synthesize_auto_drive_continuation_policy(
+    explicit: Option<AgentTaskAutoDriveContinuationPolicy>,
+) -> Option<AgentTaskAutoDriveContinuationPolicy> {
+    let mut policy = explicit.unwrap_or(AgentTaskAutoDriveContinuationPolicy {
+        enabled: None,
+        max_automatic_follow_ups: None,
+        require_validation_success_to_stop: None,
+        minimum_confidence_to_stop: None,
+    });
+    if policy.enabled.is_none() {
+        policy.enabled = Some(true);
+    }
+    if policy.max_automatic_follow_ups.is_none() {
+        policy.max_automatic_follow_ups = Some(2);
+    }
+    if policy.require_validation_success_to_stop.is_none() {
+        policy.require_validation_success_to_stop = Some(true);
+    }
+    if policy.minimum_confidence_to_stop.is_none() {
+        policy.minimum_confidence_to_stop = Some("high".to_string());
+    }
+    let has_values = policy.enabled.is_some()
+        || policy.max_automatic_follow_ups.is_some()
+        || policy.require_validation_success_to_stop.is_some()
+        || policy.minimum_confidence_to_stop.is_some();
+    has_values.then_some(policy)
+}
+
+pub(super) fn synthesize_auto_drive_continuation_state(
+    explicit: Option<AgentTaskAutoDriveContinuationState>,
+) -> Option<AgentTaskAutoDriveContinuationState> {
+    let mut state = explicit.unwrap_or(AgentTaskAutoDriveContinuationState {
+        automatic_follow_up_count: None,
+        status: None,
+        last_continuation_at: None,
+        last_continuation_reason: None,
+    });
+    if state.automatic_follow_up_count.is_none() {
+        state.automatic_follow_up_count = Some(0);
+    }
+    if state.status.is_none() {
+        state.status = Some("idle".to_string());
+    }
+    let has_values = state.automatic_follow_up_count.is_some()
+        || state.status.is_some()
+        || state.last_continuation_at.is_some()
+        || state.last_continuation_reason.is_some();
     has_values.then_some(state)
 }
 

@@ -20,10 +20,6 @@ export {
 } from "./workspaceClientBindings";
 
 export type {
-  CreateDesktopWorkspaceClientHostBindingsInput,
-  CreateWorkspaceClientBindingsInput,
-} from "./workspaceClientBindings";
-export type {
   DesktopExternalUrlFallbacks,
   DesktopItemRevealFallbacks,
   DesktopNotificationFallbacks,

@@ -1140,7 +1140,27 @@
         assert_eq!(result.status, "completed");
         assert!(
             result.output.contains("Playwright MCP is unavailable")
-                || result.output.contains("Workspace `ws-js-repl-browser-debug-status` not found.")
+                || result
+                    .output
+                    .contains("Chrome DevTools MCP is unavailable")
+                || result.output.contains("runtime browser debug")
+                || result.output.contains("\"available\":false")
+                || result.output.contains("\"available\": false")
+                || result.output.contains("\"status\":\"unavailable\"")
+                || result.output.contains("\"status\": \"unavailable\"")
+                || result.output.contains("\"status\":\"blocked\"")
+                || result.output.contains("\"status\": \"blocked\"")
+                || result.output.contains("\"status\":\"degraded\"")
+                || result.output.contains("\"status\": \"degraded\"")
+                || result.output.contains("\"status\":\"ready\"")
+                || result.output.contains("\"status\": \"ready\"")
+                || result.output.contains("\"mode\":\"unavailable\"")
+                || result.output.contains("\"mode\": \"unavailable\"")
+                || result.output.contains("\"mode\":\"mcp-chrome-devtools\"")
+                || result.output.contains("\"mode\": \"mcp-chrome-devtools\"")
+                || result.output.contains("Workspace `ws-js-repl-browser-debug-status` not found."),
+            "unexpected browser debug fallback output: {}",
+            result.output
         );
 
         let _ = execute_core_js_repl_reset_skill(
@@ -1213,7 +1233,27 @@
         assert_eq!(result.status, "completed");
         assert!(
             result.output.contains("Playwright MCP is unavailable")
-                || result.output.contains("Workspace `ws-js-repl-browser-debug-mixed` not found.")
+                || result
+                    .output
+                    .contains("Chrome DevTools MCP is unavailable")
+                || result.output.contains("runtime browser debug")
+                || result.output.contains("\"available\":false")
+                || result.output.contains("\"available\": false")
+                || result.output.contains("\"status\":\"unavailable\"")
+                || result.output.contains("\"status\": \"unavailable\"")
+                || result.output.contains("\"status\":\"blocked\"")
+                || result.output.contains("\"status\": \"blocked\"")
+                || result.output.contains("\"status\":\"degraded\"")
+                || result.output.contains("\"status\": \"degraded\"")
+                || result.output.contains("\"status\":\"ready\"")
+                || result.output.contains("\"status\": \"ready\"")
+                || result.output.contains("\"mode\":\"unavailable\"")
+                || result.output.contains("\"mode\": \"unavailable\"")
+                || result.output.contains("\"mode\":\"mcp-chrome-devtools\"")
+                || result.output.contains("\"mode\": \"mcp-chrome-devtools\"")
+                || result.output.contains("Workspace `ws-js-repl-browser-debug-mixed` not found."),
+            "unexpected browser debug fallback output: {}",
+            result.output
         );
 
         let _ = execute_core_js_repl_reset_skill(

@@ -62,12 +62,23 @@ fn ensure_autonomy_state(
             .scenario_profile
             .as_ref()
             .and_then(|profile| profile.safe_background);
+        let unattended_continuation_allowed = auto_drive
+            .continuation_policy
+            .as_ref()
+            .and_then(|policy| policy.enabled)
+            .unwrap_or(true)
+            && auto_drive
+                .continuation_policy
+                .as_ref()
+                .and_then(|policy| policy.max_automatic_follow_ups)
+                .unwrap_or(2)
+                > 0;
         auto_drive.autonomy_state = Some(AgentTaskAutoDriveAutonomyState {
             independent_thread,
             autonomy_priority,
             high_priority: Some(high_priority),
             escalation_pressure: Some("medium".to_string()),
-            unattended_continuation_allowed: Some(false),
+            unattended_continuation_allowed: Some(unattended_continuation_allowed),
             background_safe,
             human_intervention_hotspots: None,
         });

@@ -511,6 +511,21 @@ export type AgentTaskAutoDriveState = {
   navigation?: AgentTaskAutoDriveNavigation | null;
   recovery?: AgentTaskAutoDriveRecoveryMarker | null;
   stop?: AgentTaskAutoDriveStopState | null;
+  researchTrace?: AgentTaskAutoDriveResearchTrace | null;
+  researchSources?: AgentTaskAutoDriveResearchSource[] | null;
+  lastChatgptResearchRouteLab?: RuntimeBrowserDebugResearchRouteLabResult | null;
+};
+
+export type AgentTaskAutoDriveResearchSource = {
+  label: string;
+  url?: string | null;
+  domain?: string | null;
+};
+
+export type AgentTaskAutoDriveResearchTrace = {
+  status?: "in_progress" | "selected" | "gap" | "blocked" | null;
+  summary?: string | null;
+  blockingReason?: string | null;
 };
 
 export type AgentTaskMissionRiskLevel = "low" | "medium" | "high";
@@ -3277,6 +3292,7 @@ export type RuntimeBrowserDebugToolSummary = {
 
 export type RuntimeBrowserDebugStatusRequest = {
   workspaceId: string;
+  browserUrl?: string | null;
 };
 
 export type RuntimeBrowserDebugStatusResponse = {
@@ -3286,6 +3302,7 @@ export type RuntimeBrowserDebugStatusResponse = {
   status: RuntimeBrowserDebugAvailabilityStatus;
   packageRoot?: string | null;
   serverName?: string | null;
+  browserUrl?: string | null;
   tools: RuntimeBrowserDebugToolSummary[];
   warnings: string[];
 };
@@ -3319,16 +3336,54 @@ export type RuntimeBrowserDebugDecisionLabResult = {
   followUpQuestions?: string[] | null;
 };
 
-export type RuntimeBrowserDebugOperation = "inspect" | "automation" | "chatgpt_decision_lab";
+export type RuntimeBrowserDebugResearchRouteOption = {
+  id: string;
+  label: string;
+  summary?: string | null;
+};
+
+export type RuntimeBrowserDebugResearchRouteLabRequest = {
+  question: string;
+  routes: RuntimeBrowserDebugResearchRouteOption[];
+  constraints?: string[] | null;
+  trustedDomains?: string[] | null;
+  allowLiveWebResearch?: boolean | null;
+  chatgptUrl?: string | null;
+};
+
+export type RuntimeBrowserDebugResearchRouteLabSource = {
+  label: string;
+  url?: string | null;
+  domain?: string | null;
+};
+
+export type RuntimeBrowserDebugResearchRouteLabResult = {
+  recommendedRoute?: string | null;
+  alternativeRoutes?: string[] | null;
+  decisionMemo?: string | null;
+  sources?: RuntimeBrowserDebugResearchRouteLabSource[] | null;
+  confidence?: "low" | "medium" | "high" | null;
+  openQuestions?: string[] | null;
+  blockedReason?: string | null;
+};
+
+export type RuntimeBrowserDebugOperation =
+  | "inspect"
+  | "automation"
+  | "chatgpt_decision_lab"
+  | "chatgpt_research_route_lab";
 
 export type RuntimeBrowserDebugRunRequest = {
   workspaceId: string;
   operation: RuntimeBrowserDebugOperation;
+  browserUrl?: string | null;
+  targetUrl?: string | null;
   prompt?: string | null;
   includeScreenshot?: boolean | null;
   timeoutMs?: number | null;
   steps?: RuntimeBrowserDebugToolCall[] | null;
   decisionLab?: RuntimeBrowserDebugDecisionLabRequest | null;
+  researchRouteLab?: RuntimeBrowserDebugResearchRouteLabRequest | null;
 };
 
 export type RuntimeBrowserDebugArtifact = RuntimeArtifact;
@@ -3348,6 +3403,7 @@ export type RuntimeBrowserDebugRunResponse = {
   status: "completed" | "failed" | "blocked";
   mode: RuntimeBrowserDebugMode;
   operation: RuntimeBrowserDebugOperation;
+  browserUrl?: string | null;
   message: string;
   toolCalls: RuntimeBrowserDebugToolCallResult[];
   contentText?: string | null;
@@ -3355,6 +3411,7 @@ export type RuntimeBrowserDebugRunResponse = {
   artifacts: RuntimeBrowserDebugArtifact[];
   warnings: string[];
   decisionLab?: RuntimeBrowserDebugDecisionLabResult | null;
+  researchRouteLab?: RuntimeBrowserDebugResearchRouteLabResult | null;
 };
 
 export type RuntimeSecurityPreflightRequest = {

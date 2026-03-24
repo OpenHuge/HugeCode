@@ -148,6 +148,32 @@ struct AgentTaskAutoDriveDecisionPolicy {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct AgentTaskAutoDriveContinuationPolicy {
+    #[serde(default)]
+    enabled: Option<bool>,
+    #[serde(default)]
+    max_automatic_follow_ups: Option<u32>,
+    #[serde(default)]
+    require_validation_success_to_stop: Option<bool>,
+    #[serde(default)]
+    minimum_confidence_to_stop: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AgentTaskAutoDriveContinuationState {
+    #[serde(default)]
+    automatic_follow_up_count: Option<u32>,
+    #[serde(default)]
+    status: Option<String>,
+    #[serde(default)]
+    last_continuation_at: Option<u64>,
+    #[serde(default)]
+    last_continuation_reason: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct AgentTaskAutoDriveDecisionScore {
     reason_code: String,
     label: String,
@@ -300,6 +326,10 @@ struct AgentTaskAutoDriveState {
     context_policy: Option<AgentTaskAutoDriveContextPolicy>,
     #[serde(default)]
     decision_policy: Option<AgentTaskAutoDriveDecisionPolicy>,
+    #[serde(default)]
+    continuation_policy: Option<AgentTaskAutoDriveContinuationPolicy>,
+    #[serde(default)]
+    continuation_state: Option<AgentTaskAutoDriveContinuationState>,
     #[serde(default)]
     scenario_profile: Option<AgentTaskAutoDriveScenarioProfile>,
     #[serde(default)]

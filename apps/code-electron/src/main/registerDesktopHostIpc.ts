@@ -1,5 +1,10 @@
 import type { IpcMainInvokeEvent } from "electron";
-import type { DesktopNotificationInput, OpenDesktopWindowInput } from "../shared/ipc.js";
+import type {
+  DesktopBrowserDebugSessionInfo,
+  DesktopBrowserDebugSessionInput,
+  DesktopNotificationInput,
+  OpenDesktopWindowInput,
+} from "../shared/ipc.js";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 
 type IpcInvokeEventLike = IpcMainInvokeEvent;
@@ -29,9 +34,16 @@ type DesktopHostIpcHandlers = {
   closeWindow(windowId: number): Promise<boolean> | boolean;
   focusWindow(windowId: number): Promise<boolean> | boolean;
   getAppVersion(): Promise<string | null> | string | null;
+  getBrowserDebugSession():
+    | Promise<DesktopBrowserDebugSessionInfo | null>
+    | DesktopBrowserDebugSessionInfo
+    | null;
   getCurrentSession(event: IpcInvokeEventLike): Promise<unknown> | unknown;
   getTrayState(): Promise<DesktopTrayState> | DesktopTrayState;
   getWindowLabel(event: IpcInvokeEventLike): Promise<string> | string;
+  ensureBrowserDebugSession(
+    input?: DesktopBrowserDebugSessionInput
+  ): Promise<DesktopBrowserDebugSessionInfo | null> | DesktopBrowserDebugSessionInfo | null;
   listRecentSessions(): Promise<unknown[]> | unknown[];
   listWindows(): Promise<DesktopWindowDescriptor[]> | DesktopWindowDescriptor[];
   openExternalUrl(url: string): Promise<boolean> | boolean;
@@ -72,6 +84,10 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
     return handlers.getAppVersion();
   });
 
+  handleTrusted(channels.getBrowserDebugSession, async () => {
+    return handlers.getBrowserDebugSession();
+  });
+
   handleTrusted(channels.getCurrentSession, async (event) => {
     return handlers.getCurrentSession(event);
   });
@@ -86,6 +102,12 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
 
   handleTrusted(channels.getWindowLabel, async (event) => {
     return handlers.getWindowLabel(event);
+  });
+
+  handleTrusted(channels.ensureBrowserDebugSession, async (_event, sessionInput) => {
+    return handlers.ensureBrowserDebugSession(
+      sessionInput as DesktopBrowserDebugSessionInput | undefined
+    );
   });
 
   handleTrusted(channels.listWindows, async () => {

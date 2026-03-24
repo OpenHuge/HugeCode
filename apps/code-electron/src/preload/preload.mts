@@ -1,6 +1,9 @@
-import { contextBridge, ipcRenderer } from "electron";
-import type { DesktopHostBridgeApi } from "../shared/ipc.js";
+import { createRequire } from "node:module";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
+import type { DesktopHostBridgeApi } from "../shared/ipc.js";
+
+const require = createRequire(import.meta.url);
+const { contextBridge, ipcRenderer } = require("electron");
 
 const desktopHostBridge: DesktopHostBridgeApi = {
   kind: "electron",
@@ -37,6 +40,11 @@ const desktopHostBridge: DesktopHostBridgeApi = {
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.openExternalUrl, url),
     revealItemInDir: (path: string) =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.revealItemInDir, path),
+  },
+  browserDebug: {
+    getSession: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getBrowserDebugSession),
+    ensureSession: (input) =>
+      ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.ensureBrowserDebugSession, input),
   },
 };
 

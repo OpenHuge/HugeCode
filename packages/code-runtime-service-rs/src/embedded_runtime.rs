@@ -93,6 +93,8 @@ pub struct EmbeddedRuntimeTurnSendRequest {
     pub attachments: Vec<EmbeddedRuntimeTurnSendAttachment>,
     #[serde(alias = "collaboration_mode")]
     pub collaboration_mode: Option<Value>,
+    #[serde(alias = "auto_drive")]
+    pub auto_drive: Option<Value>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -803,6 +805,7 @@ mod tests {
                         "reasoning_effort": "high"
                     }
                 })),
+                auto_drive: None,
             })
             .await
             .expect("embedded send turn should accept request");
@@ -847,6 +850,7 @@ mod tests {
                 queue: false,
                 attachments: Vec::new(),
                 collaboration_mode: None,
+                auto_drive: None,
             })
             .await
             .expect("embedded send turn should accept request");

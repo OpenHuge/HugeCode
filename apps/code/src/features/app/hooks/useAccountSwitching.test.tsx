@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { openUrl } from "../../../application/runtime/facades/desktopHostFacade";
 import { subscribeAppServerEvents } from "../../../application/runtime/ports/events";
 import {
   subscribeScopedRuntimeUpdatedEvents,
@@ -32,7 +32,7 @@ vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   subscribeScopedRuntimeUpdatedEvents: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
+vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
   openUrl: vi.fn(),
 }));
 

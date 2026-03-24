@@ -8,18 +8,22 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import type {
   AutoDriveControllerHookDraft,
+  AutoDriveChatgptResearchRouteLabResult,
   AutoDriveContinuationPolicy,
+  AutoDriveResearchSource,
   AutoDriveRiskPolicy,
   AutoDriveRoutePreference,
   AutoDriveRuntimeContinuationState,
   AutoDriveRuntimeAutonomyState,
   AutoDriveRuntimeDecisionTrace,
   AutoDriveRuntimeOutcomeFeedback,
+  AutoDriveRuntimeResearchTrace,
   AutoDriveRuntimeScenarioProfile,
   AutoDriveRunRecord,
   AutoDriveRunStage,
   AutoDriveStopReason,
 } from "../../../application/runtime/types/autoDrive";
+import { buildMissionScenarioProfile } from "../../../application/runtime/facades/runtimeScenarioProfiles";
 
 const DEFAULT_BUDGET: AutoDriveControllerHookDraft["budget"] = {
   maxTokens: 6000,
@@ -95,6 +99,7 @@ export function fromRuntimeRoutePreference(
 export function mapDraftToRuntimeAutoDriveState(
   draft: AutoDriveControllerHookDraft
 ): AgentTaskAutoDriveState {
+  const scenarioProfile = buildMissionScenarioProfile(draft.scenarioProfile);
   return {
     enabled: true,
     destination: {
@@ -151,6 +156,7 @@ export function mapDraftToRuntimeAutoDriveState(
         draft.continuation?.minimumConfidenceToStop ??
         DEFAULT_CONTINUATION_POLICY.minimumConfidenceToStop,
     },
+    scenarioProfile,
   };
 }
 
@@ -385,6 +391,60 @@ function toRuntimeContinuationState(
   };
 }
 
+function toRuntimeResearchTrace(
+  trace: AgentTaskAutoDriveState["researchTrace"]
+): AutoDriveRuntimeResearchTrace | null {
+  if (!trace) {
+    return null;
+  }
+  return {
+    status:
+      trace.status === "in_progress" ||
+      trace.status === "selected" ||
+      trace.status === "gap" ||
+      trace.status === "blocked"
+        ? trace.status
+        : "gap",
+    summary: trace.summary ?? "",
+    blockingReason: trace.blockingReason ?? null,
+  };
+}
+
+function toRuntimeResearchSources(
+  sources: AgentTaskAutoDriveState["researchSources"]
+): AutoDriveResearchSource[] {
+  return (sources ?? [])
+    .map((entry) => ({
+      label: typeof entry.label === "string" ? entry.label.trim() : "",
+      url: typeof entry.url === "string" && entry.url.trim().length > 0 ? entry.url.trim() : null,
+      domain:
+        typeof entry.domain === "string" && entry.domain.trim().length > 0
+          ? entry.domain.trim()
+          : null,
+    }))
+    .filter((entry) => entry.label.length > 0);
+}
+
+function toRuntimeResearchRouteLabResult(
+  value: AgentTaskAutoDriveState["lastChatgptResearchRouteLab"]
+): AutoDriveChatgptResearchRouteLabResult | null {
+  if (!value) {
+    return null;
+  }
+  return {
+    recommendedRoute: value.recommendedRoute ?? null,
+    alternativeRoutes: normalizeStringArray(value.alternativeRoutes),
+    decisionMemo: value.decisionMemo ?? null,
+    sources: toRuntimeResearchSources(value.sources),
+    confidence:
+      value.confidence === "low" || value.confidence === "medium" || value.confidence === "high"
+        ? value.confidence
+        : null,
+    openQuestions: normalizeStringArray(value.openQuestions),
+    blockedReason: value.blockedReason ?? null,
+  };
+}
+
 function adaptRun(params: {
   run: HugeCodeRunSummary;
   task: HugeCodeTaskSummary;
@@ -433,6 +493,11 @@ function adaptRun(params: {
   const runtimeAutonomyState = toRuntimeAutonomyState(autoDrive.autonomyState);
   const runtimeContinuationPolicy = toRuntimeContinuationPolicy(autoDrive.continuationPolicy);
   const runtimeContinuationState = toRuntimeContinuationState(autoDrive.continuationState);
+  const runtimeResearchTrace = toRuntimeResearchTrace(autoDrive.researchTrace);
+  const runtimeResearchSources = toRuntimeResearchSources(autoDrive.researchSources);
+  const lastChatgptResearchRouteLab = toRuntimeResearchRouteLabResult(
+    autoDrive.lastChatgptResearchRouteLab
+  );
   const status = mapRuntimeRunStateToStatus(params.run.state);
   const overallProgress = computeOverallProgress({
     completedWaypoints,
@@ -583,6 +648,9 @@ function adaptRun(params: {
     runtimeOutcomeFeedback,
     runtimeAutonomyState,
     runtimeContinuationState,
+    runtimeResearchTrace,
+    runtimeResearchSources,
+    lastChatgptResearchRouteLab,
   };
 }
 

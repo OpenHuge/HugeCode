@@ -1,11 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "allowJs": true,
     "baseUrl": ".",
     "lib": ["ES2022", "DOM"],
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["scripts/**/*.mjs", "src/**/*.ts"],
+  "include": ["scripts/**/*.mjs", "src/**/*.ts", "src/**/*.mts"],
   "exclude": ["src/**/*.test.ts"]
 }

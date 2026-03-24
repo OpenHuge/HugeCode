@@ -10,8 +10,10 @@ describe("registerDesktopHostIpc", () => {
       channels: DESKTOP_HOST_IPC_CHANNELS,
       handlers: {
         closeWindow: vi.fn(),
+        ensureBrowserDebugSession: vi.fn(),
         focusWindow: vi.fn(),
         getAppVersion: vi.fn(),
+        getBrowserDebugSession: vi.fn(),
         getCurrentSession: vi.fn(),
         getTrayState: vi.fn(),
         getWindowLabel: vi.fn(),
@@ -31,8 +33,8 @@ describe("registerDesktopHostIpc", () => {
     });
 
     expect(handleMock).toHaveBeenCalledTimes(Object.keys(DESKTOP_HOST_IPC_CHANNELS).length);
-    expect(handleMock.mock.calls.map(([channel]) => channel)).toEqual(
-      Object.values(DESKTOP_HOST_IPC_CHANNELS)
+    expect(handleMock.mock.calls.map(([channel]) => channel).sort()).toEqual(
+      [...Object.values(DESKTOP_HOST_IPC_CHANNELS)].sort()
     );
   });
 
@@ -44,8 +46,10 @@ describe("registerDesktopHostIpc", () => {
       channels: DESKTOP_HOST_IPC_CHANNELS,
       handlers: {
         closeWindow: vi.fn(),
+        ensureBrowserDebugSession: vi.fn(),
         focusWindow: vi.fn(),
         getAppVersion,
+        getBrowserDebugSession: vi.fn(),
         getCurrentSession: vi.fn(),
         getTrayState: vi.fn(),
         getWindowLabel: vi.fn(),

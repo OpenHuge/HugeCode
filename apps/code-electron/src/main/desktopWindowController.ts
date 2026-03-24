@@ -69,6 +69,7 @@ export type CreateDesktopWindowControllerInput = {
   persistState(): void;
   preloadPath: string;
   shellState: DesktopShellStateLike;
+  webPreferences?: BrowserWindowConstructorOptions["webPreferences"];
 };
 
 export type DesktopWindowController = {
@@ -172,6 +173,7 @@ export function createDesktopWindowController(
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        ...input.webPreferences,
       },
     });
 

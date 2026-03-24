@@ -131,6 +131,48 @@ export function shouldAutoRunChatgptDecisionLab(params: {
   );
 }
 
+export function shouldAutoRunChatgptResearchRouteLab(params: {
+  run: AutoDriveRunRecord;
+  context: AutoDriveContextSnapshot;
+}): boolean {
+  const { run, context } = params;
+  if (run.riskPolicy.allowNetworkAnalysis === false) {
+    return false;
+  }
+  const scenarioKeys = [
+    ...(run.runtimeScenarioProfile?.scenarioKeys ?? []),
+    ...(context.repo.evaluation?.scenarioKeys ?? []),
+  ];
+  const sourceSignals = [
+    ...(run.runtimeScenarioProfile?.sourceSignals ?? []),
+    ...(context.repo.evaluation?.sourceSignals ?? []),
+  ];
+  const researchScenario =
+    scenarioKeys.includes("research_route_decide") ||
+    sourceSignals.includes("chatgpt_research_route_lab");
+  if (!researchScenario) {
+    return false;
+  }
+
+  const [selected, fallbackSecond] = context.opportunities.candidates;
+  const currentSelection =
+    context.opportunities.candidates.find(
+      (candidate) => candidate.id === context.opportunities.selectedCandidateId
+    ) ?? selected;
+  const competingCandidate =
+    context.opportunities.candidates.find((candidate) => candidate.id !== currentSelection?.id) ??
+    fallbackSecond ??
+    null;
+  if (!currentSelection || !competingCandidate) {
+    return false;
+  }
+  const scoreGap = Math.abs(currentSelection.score - competingCandidate.score);
+  if (scoreGap > resolveChatgptDecisionLabMaxScoreGap(run)) {
+    return false;
+  }
+  return true;
+}
+
 export function decideAutoDriveNextStep(params: {
   run: AutoDriveRunRecord;
   latestSummary: AutoDriveIterationSummary;

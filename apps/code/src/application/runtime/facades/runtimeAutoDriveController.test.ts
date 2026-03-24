@@ -695,6 +695,139 @@ describe("AutoDriveRunController", () => {
     expect(deps.runRuntimeBrowserDebug).not.toHaveBeenCalled();
   });
 
+  it("runs the ChatGPT research route lab for research_route_decide scenarios and records the result", async () => {
+    const deps = createDeps();
+    deps.runRuntimeBrowserDebug = vi.fn().mockResolvedValue({
+      workspaceId: "workspace-1",
+      available: true,
+      status: "completed",
+      mode: "mcp-chrome-devtools",
+      operation: "chatgpt_research_route_lab",
+      message: "ChatGPT research route lab completed.",
+      toolCalls: [{ toolName: "evaluate_script", ok: true }],
+      contentText: "research route lab raw response",
+      structuredContent: null,
+      artifacts: [],
+      warnings: [],
+      researchRouteLab: {
+        recommendedRoute: "stabilize_route",
+        alternativeRoutes: ["advance_primary_surface"],
+        decisionMemo:
+          "The source-backed route favors stabilization before any broader upgrade work.",
+        sources: [
+          {
+            label: "React 19 upgrade guide",
+            url: "https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
+            domain: "react.dev",
+          },
+        ],
+        confidence: "high",
+        openQuestions: ["Confirm test runner compatibility before widening scope."],
+        blockedReason: null,
+      },
+    });
+    const buildProposal = vi.fn(({ context }: { context: AutoDriveContextSnapshot }) =>
+      createProposal(context.iteration)
+    );
+    const researchContext = createContext(1);
+    researchContext.opportunities.candidates = [
+      {
+        id: "advance_primary_surface",
+        title: "Advance the primary AutoDrive surface",
+        summary: "Continue the current implementation route.",
+        rationale: "Keeps momentum on the active surface.",
+        repoAreas: ["apps/code/src/features/composer/components/ComposerMetaBar.tsx"],
+        score: 90,
+        confidence: "medium",
+        risk: "low",
+      },
+      {
+        id: "stabilize_route",
+        title: "Stabilize the route before widening scope",
+        summary: "Use source-backed research to de-risk the next implementation step.",
+        rationale: "The external dependency surface suggests a documentation-first pass.",
+        repoAreas: ["apps/code/src/application/runtime/facades/runtimeAutoDrivePlanner.ts"],
+        score: 86,
+        confidence: "medium",
+        risk: "low",
+      },
+    ];
+    researchContext.repo.evaluation = {
+      ...(researchContext.repo.evaluation ?? {
+        representativeCommands: [],
+        componentCommands: [],
+        endToEndCommands: [],
+        samplePaths: [],
+        heldOutGuidance: [],
+        sourceSignals: [],
+        scenarioKeys: [],
+      }),
+      sourceSignals: ["chatgpt_research_route_lab"],
+      scenarioKeys: ["research_route_decide"],
+    };
+    const controller = new AutoDriveRunController({
+      deps,
+      ledger: {
+        writeRun: vi.fn().mockResolvedValue(undefined),
+        writeContext: vi.fn().mockResolvedValue(undefined),
+        writeProposal: vi.fn().mockResolvedValue(undefined),
+        writeSummary: vi.fn().mockResolvedValue(undefined),
+        writeReroute: vi.fn().mockResolvedValue(undefined),
+        writeFinalReport: vi.fn().mockResolvedValue(undefined),
+      },
+      run: {
+        ...createRun(),
+        riskPolicy: {
+          ...createRun().riskPolicy,
+          allowNetworkAnalysis: true,
+        },
+        runtimeScenarioProfile: {
+          authorityScope: "workspace_graph",
+          authoritySources: ["repo_authority", "chatgpt_web"],
+          representativeCommands: [],
+          componentCommands: [],
+          endToEndCommands: [],
+          samplePaths: [],
+          heldOutGuidance: [],
+          sourceSignals: ["chatgpt_research_route_lab"],
+          scenarioKeys: ["research_route_decide"],
+          safeBackground: true,
+        },
+        budget: {
+          ...createRun().budget,
+          maxIterations: 1,
+        },
+      },
+      synthesizeContext: async () => researchContext,
+      buildProposal,
+      reviewProposal: () => ({
+        approved: true,
+        issues: [],
+        confidence: "medium",
+        shouldReroute: false,
+        rerouteReason: null,
+      }),
+    });
+
+    await controller.start();
+
+    expect(deps.runRuntimeBrowserDebug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: "workspace-1",
+        operation: "chatgpt_research_route_lab",
+      })
+    );
+    expect(buildProposal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          opportunities: expect.objectContaining({
+            selectedCandidateId: "stabilize_route",
+          }),
+        }),
+      })
+    );
+  });
+
   it("continues notifying remaining subscribers when one listener throws", async () => {
     const controller = new AutoDriveRunController({
       deps: createDeps(),
@@ -2761,5 +2894,116 @@ describe("AutoDriveRunController", () => {
     expect(writeSummary).not.toHaveBeenCalled();
     expect(deps.interruptSubAgentSession).toHaveBeenCalledTimes(1);
     expect(writeFinalReport).toHaveBeenCalledTimes(1);
+  });
+
+  it("prefers a browser-specific continuation reason when real-browser verification is still open", async () => {
+    const deps = createDeps();
+    const controller = new AutoDriveRunController({
+      deps,
+      ledger: {
+        writeRun: vi.fn().mockResolvedValue(undefined),
+        writeContext: vi.fn().mockResolvedValue(undefined),
+        writeProposal: vi.fn().mockResolvedValue(undefined),
+        writeSummary: vi.fn().mockResolvedValue(undefined),
+        writeReroute: vi.fn().mockResolvedValue(undefined),
+        writeFinalReport: vi.fn().mockResolvedValue(undefined),
+      },
+      run: {
+        ...createRun(),
+        budget: {
+          ...createRun().budget,
+          maxIterations: 2,
+        },
+        runtimeScenarioProfile: {
+          authorityScope: "workspace_graph",
+          authoritySources: ["repo_authority", "browser_runtime"],
+          representativeCommands: [],
+          componentCommands: [],
+          endToEndCommands: [],
+          samplePaths: [],
+          heldOutGuidance: [],
+          sourceSignals: ["browser_debug"],
+          scenarioKeys: ["browser_repro_fix_verify"],
+          safeBackground: false,
+        },
+      },
+      synthesizeContext: async ({ iteration }) => createContext(iteration),
+      buildProposal: ({ iteration }) => createProposal(iteration),
+      reviewProposal: () => ({
+        approved: true,
+        issues: [],
+        confidence: "high",
+        shouldReroute: false,
+        rerouteReason: null,
+      }),
+      summarizeIteration: async ({ iteration, task, validation }) => ({
+        schemaVersion: "autodrive-summary/v2",
+        runId: "run-123",
+        iteration,
+        status: "success",
+        taskTitle: `Waypoint ${iteration}`,
+        summaryText: "Validation is green, but browser evidence is still missing.",
+        changedFiles: ["apps/code/src/features/review/components/ReviewPackSurface.tsx"],
+        blockers: [],
+        completedSubgoals: ["destination_reached"],
+        unresolvedItems: [],
+        suggestedNextAreas: [],
+        validation,
+        progress: {
+          currentMilestone: "Validate the route and decide whether to arrive or reroute",
+          currentWaypointTitle: `Waypoint ${iteration}`,
+          completedWaypoints: 3,
+          totalWaypoints: 3,
+          waypointCompletion: 100,
+          overallProgress: 100,
+          remainingMilestones: [],
+          remainingBlockers: [],
+          remainingDistance: "Browser verification remains.",
+          arrivalConfidence: "high",
+          stopRisk: "low",
+        },
+        routeHealth: {
+          offRoute: false,
+          noProgressLoop: false,
+          rerouteRecommended: false,
+          rerouteReason: null,
+          triggerSignals: [],
+        },
+        waypoint: {
+          id: `waypoint-${iteration}`,
+          title: "Verify browser evidence",
+          status: "arrived",
+          arrivalCriteriaMet: ["Validation passed"],
+          arrivalCriteriaMissed: ["Confirm the target UI in the real browser."],
+        },
+        goalReached: true,
+        task: {
+          taskId: task.taskId,
+          status: task.status,
+          outputExcerpt: "Goal reached",
+        },
+        reroute: null,
+        createdAt: iteration,
+      }),
+      validateIteration: async () => ({
+        ran: true,
+        commands: ["pnpm validate:fast"],
+        success: true,
+        failures: [],
+        summary: "validate:fast passed",
+      }),
+      decideNextStep: ({ run }) => ({
+        action: (run.continuationState?.automaticFollowUpCount ?? 0) > 0 ? "stop" : "continue",
+        reason: null,
+        reroute: null,
+      }),
+      buildFinalReport: ({ run }) => `# Final Report\n\nRun ${run.runId} arrived.\n`,
+    });
+
+    const snapshot = await controller.start();
+
+    expect(snapshot.continuationState?.lastContinuationReason).toBe(
+      "Browser verification gap remains: Confirm the target UI in the real browser."
+    );
   });
 });

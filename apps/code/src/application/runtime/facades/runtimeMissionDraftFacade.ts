@@ -7,6 +7,7 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import type { AutoDriveControllerHookDraft } from "../types/autoDrive";
 import type { AccessMode } from "../../../types";
+import { buildMissionScenarioProfile } from "./runtimeScenarioProfiles";
 
 export type MissionDraft = {
   objective: string;
@@ -242,6 +243,8 @@ export function buildAgentTaskMissionBrief(
   const preferredBackendIds = normalizePreferredBackendIds(input.preferredBackendIds);
   const permissionSummary = buildMissionPermissionSummary(input);
 
+  const scenarioProfile = buildMissionScenarioProfile(input.autoDriveDraft?.scenarioProfile);
+
   return {
     objective: input.objective,
     doneDefinition,
@@ -251,6 +254,7 @@ export function buildAgentTaskMissionBrief(
     maxSubtasks: launchControls.maxSubtasks,
     preferredBackendIds,
     permissionSummary,
+    ...(scenarioProfile ? { scenarioProfile } : {}),
   };
 }
 

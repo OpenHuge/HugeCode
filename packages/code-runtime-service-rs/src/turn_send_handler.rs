@@ -1,4 +1,7 @@
 use super::*;
+use crate::agent_task_launch_synthesis::{
+    build_auto_drive_turn_guidance, read_workspace_launch_context,
+};
 use crate::provider_query::query_provider_with_delta;
 use crate::turn_failure_codes::resolve_turn_failure_code;
 
@@ -103,13 +106,41 @@ fn parse_turn_execution_mode(
     }
 }
 
-fn build_turn_contents(content: &str, context_prefix: Option<&str>) -> (String, String) {
-    let provider_content = match context_prefix {
-        Some(prefix) => format!("{prefix}\n\n{content}"),
-        None => content.to_string(),
-    };
-    let local_exec_content = content.to_string();
+fn build_turn_contents(
+    content: &str,
+    context_prefix: Option<&str>,
+    shared_guidance: Option<&str>,
+) -> (String, String) {
+    let provider_content = [context_prefix, shared_guidance, Some(content)]
+        .into_iter()
+        .flatten()
+        .filter(|entry| !entry.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    let local_exec_content = [shared_guidance, Some(content)]
+        .into_iter()
+        .flatten()
+        .filter(|entry| !entry.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n\n");
     (provider_content, local_exec_content)
+}
+
+fn parse_turn_auto_drive(
+    payload: &serde_json::Map<String, Value>,
+) -> Result<Option<AgentTaskAutoDriveState>, RpcError> {
+    let Some(value) = payload
+        .get("autoDrive")
+        .or_else(|| payload.get("auto_drive"))
+        .filter(|value| !value.is_null())
+    else {
+        return Ok(None);
+    };
+    serde_json::from_value::<AgentTaskAutoDriveState>(value.clone())
+        .map(Some)
+        .map_err(|error| {
+            RpcError::invalid_params(format!("Invalid turn autoDrive payload: {error}"))
+        })
 }
 
 async fn query_provider_with_local_exec_fallback(
@@ -619,8 +650,6 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
     let content = read_required_string(payload, "content")?;
     let context_prefix = read_optional_string(payload, "contextPrefix")
         .or_else(|| read_optional_string(payload, "context_prefix"));
-    let (provider_content, local_exec_content) =
-        build_turn_contents(content, context_prefix.as_deref());
     let provider_hint = read_optional_string(payload, "provider");
     let provider_hint_core = provider_hint
         .as_deref()
@@ -739,6 +768,7 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
     let collaboration_mode = parse_requested_collaboration_mode(payload);
     let preferred_backend_ids =
         read_optional_string_array(payload, "preferredBackendIds", "preferred_backend_ids");
+    let auto_drive = parse_turn_auto_drive(payload)?;
     let requested_codex_bin = read_optional_string(payload, "codexBin")
         .or_else(|| read_optional_string(payload, "codex_bin"));
     let requested_codex_args = read_optional_string_array(payload, "codexArgs", "codex_args");
@@ -828,6 +858,21 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
         }
         workspace_path
     };
+    let workspace_launch_context = read_workspace_launch_context(ctx, workspace_id).await;
+    let shared_turn_guidance = auto_drive.as_ref().map(|auto_drive| {
+        build_auto_drive_turn_guidance(
+            content,
+            access_mode.as_str(),
+            preferred_backend_ids.as_slice(),
+            auto_drive.clone(),
+            &workspace_launch_context,
+        )
+    });
+    let (provider_content, local_exec_content) = build_turn_contents(
+        content,
+        context_prefix.as_deref(),
+        shared_turn_guidance.as_deref(),
+    );
     publish_thread_live_update_events(
         ctx,
         workspace_id,
@@ -1149,7 +1194,7 @@ mod tests {
 
     #[test]
     fn build_turn_contents_keeps_raw_content_without_prefix() {
-        let (provider_content, local_exec_content) = build_turn_contents("hello", None);
+        let (provider_content, local_exec_content) = build_turn_contents("hello", None, None);
         assert_eq!(provider_content, "hello");
         assert_eq!(local_exec_content, "hello");
     }
@@ -1158,12 +1203,29 @@ mod tests {
     fn build_turn_contents_prefixes_provider_content_but_keeps_local_exec_raw() {
         let context_prefix = "[ATLAS_CONTEXT v1]\n1. plan: noop\n[/ATLAS_CONTEXT]";
         let (provider_content, local_exec_content) =
-            build_turn_contents("show current workspace info", Some(context_prefix));
+            build_turn_contents("show current workspace info", Some(context_prefix), None);
         assert_eq!(
             provider_content,
             "[ATLAS_CONTEXT v1]\n1. plan: noop\n[/ATLAS_CONTEXT]\n\nshow current workspace info"
         );
         assert_eq!(local_exec_content, "show current workspace info");
+    }
+
+    #[test]
+    fn build_turn_contents_applies_shared_guidance_to_both_paths() {
+        let (provider_content, local_exec_content) = build_turn_contents(
+            "ship the feature",
+            Some("[ATLAS_CONTEXT v1]\n1. plan: noop\n[/ATLAS_CONTEXT]"),
+            Some("AutoDrive launch capsule"),
+        );
+        assert_eq!(
+            provider_content,
+            "[ATLAS_CONTEXT v1]\n1. plan: noop\n[/ATLAS_CONTEXT]\n\nAutoDrive launch capsule\n\nship the feature"
+        );
+        assert_eq!(
+            local_exec_content,
+            "AutoDrive launch capsule\n\nship the feature"
+        );
     }
 
     #[test]

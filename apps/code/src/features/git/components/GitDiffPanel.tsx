@@ -334,14 +334,23 @@ export function GitDiffPanel({
             text: "Open on GitHub",
             action: async () => {
               try {
-                await openUrl(`${githubBaseUrl}/commit/${entry.sha}`);
+                const opened = await openUrl(`${githubBaseUrl}/commit/${entry.sha}`);
+                if (opened) {
+                  return;
+                }
               } catch (openError) {
                 pushErrorToast({
                   title: "Couldn't open commit on GitHub",
                   message:
                     openError instanceof Error ? openError.message : "Unable to open commit link.",
                 });
+                return;
               }
+
+              pushErrorToast({
+                title: "Couldn't open commit on GitHub",
+                message: "Unable to open commit link.",
+              });
             },
           });
           items.push(openItem);
@@ -373,7 +382,10 @@ export function GitDiffPanel({
           text: "Open on GitHub",
           action: async () => {
             try {
-              await openUrl(pullRequest.url);
+              const opened = await openUrl(pullRequest.url);
+              if (opened) {
+                return;
+              }
             } catch (openError) {
               pushErrorToast({
                 title: "Couldn't open pull request on GitHub",
@@ -382,7 +394,13 @@ export function GitDiffPanel({
                     ? openError.message
                     : "Unable to open pull request link.",
               });
+              return;
             }
+
+            pushErrorToast({
+              title: "Couldn't open pull request on GitHub",
+              message: "Unable to open pull request link.",
+            });
           },
         });
 

@@ -1,44 +1,67 @@
-type TauriOpenerModule = {
-  openUrl: (url: string) => Promise<void>;
-  revealItemInDir: (path: string) => Promise<void>;
+import { toSafeExternalUrl } from "@ku0/shared";
+
+export type TauriOpenerModule = {
+  openUrl: (url: string) => Promise<unknown> | unknown;
+  revealItemInDir: (path: string) => Promise<unknown> | unknown;
 };
 
 type TauriOpenerLoader = () => Promise<TauriOpenerModule>;
 
 async function defaultTauriOpenerLoader(): Promise<TauriOpenerModule> {
-  return import("@tauri-apps/plugin-opener");
+  const opener = await import("@tauri-apps/plugin-opener");
+  return {
+    openUrl: opener.openUrl,
+    revealItemInDir: opener.revealItemInDir,
+  };
 }
 
-let cachedTauriOpenerPromise: Promise<TauriOpenerModule | null> | null = null;
+let cachedTauriOpenerPromise: Promise<TauriOpenerModule> | null = null;
 let tauriOpenerLoader: TauriOpenerLoader = defaultTauriOpenerLoader;
 
 async function loadTauriOpener() {
   if (cachedTauriOpenerPromise) {
     return cachedTauriOpenerPromise;
   }
-
-  cachedTauriOpenerPromise = tauriOpenerLoader().catch(() => null);
+  cachedTauriOpenerPromise = tauriOpenerLoader();
   return cachedTauriOpenerPromise;
 }
 
-export async function openTauriUrl(url: string) {
-  const opener = await loadTauriOpener();
-  if (opener?.openUrl) {
-    await opener.openUrl(url);
-    return true;
-  }
-
-  return false;
-}
-
 export async function revealTauriItemInDir(path: string) {
-  const opener = await loadTauriOpener();
-  if (opener?.revealItemInDir) {
+  try {
+    const opener = await loadTauriOpener();
     await opener.revealItemInDir(path);
     return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function openTauriUrl(url: string) {
+  const safeUrl = toSafeExternalUrl(url);
+  if (!safeUrl) {
+    return false;
   }
 
-  return false;
+  try {
+    const opener = await loadTauriOpener();
+    await opener.openUrl(safeUrl);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function openUrl(url: string) {
+  const safeUrl = toSafeExternalUrl(url);
+  if (!safeUrl) {
+    throw new Error("Blocked unsafe external URL.");
+  }
+
+  const opened = await openTauriUrl(safeUrl);
+  if (!opened) {
+    throw new Error("Tauri opener is unavailable.");
+  }
+  return true;
 }
 
 export function __setTauriOpenerLoaderForTests(loader: TauriOpenerLoader) {

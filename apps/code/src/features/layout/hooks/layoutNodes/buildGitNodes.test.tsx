@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createLayoutNodesOptions,
   type LayoutNodesFieldRegistry,
@@ -8,6 +8,21 @@ import {
 } from "./types";
 
 const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 20_000;
+
+class WorkerStub {
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  postMessage() {}
+  addEventListener() {}
+  removeEventListener() {}
+  terminate() {}
+}
+
+const originalWorker = globalThis.Worker;
+
+Object.defineProperty(globalThis, "Worker", {
+  value: WorkerStub,
+  configurable: true,
+});
 
 function mockGitDiffViewerChunk() {
   vi.doMock("../../../utils/diffsWorker", () => ({
@@ -165,6 +180,13 @@ async function importBuildGitNodes() {
 describe("buildGitNodes diff lazy boundary", () => {
   beforeEach(() => {
     vi.resetModules();
+  });
+
+  afterAll(() => {
+    Object.defineProperty(globalThis, "Worker", {
+      value: originalWorker,
+      configurable: true,
+    });
   });
 
   afterEach(() => {

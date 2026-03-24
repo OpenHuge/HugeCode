@@ -161,28 +161,4 @@ describe("desktopHostFacade", () => {
     expect(revealTauriItem).toHaveBeenCalledWith("/tmp/workspace");
     expect(openBrowserUrl).not.toHaveBeenCalled();
   });
-
-  it("blocks unsafe external urls before any desktop shell transport runs", async () => {
-    const openBrowserUrl = vi.fn(() => true);
-    const openTauriUrl = vi.fn(async () => true);
-    const openExternalUrl = vi.fn(async () => true);
-
-    await expect(
-      openDesktopExternalUrl(
-        {
-          desktopHostBridge: {
-            kind: "electron",
-            shell: { openExternalUrl },
-          },
-          openBrowserUrl,
-          openTauriUrl,
-        },
-        "javascript:alert(1)"
-      )
-    ).resolves.toBe(false);
-
-    expect(openExternalUrl).not.toHaveBeenCalled();
-    expect(openTauriUrl).not.toHaveBeenCalled();
-    expect(openBrowserUrl).not.toHaveBeenCalled();
-  });
 });

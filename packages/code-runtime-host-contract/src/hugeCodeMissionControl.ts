@@ -320,6 +320,18 @@ export type HugeCodeAutoDriveStopState = {
   at?: number | null;
 };
 
+export type HugeCodeAutoDriveResearchSource = {
+  label: string;
+  url?: string | null;
+  domain?: string | null;
+};
+
+export type HugeCodeAutoDriveResearchTrace = {
+  status?: "in_progress" | "selected" | "gap" | "blocked" | null;
+  summary?: string | null;
+  blockingReason?: string | null;
+};
+
 export type HugeCodeAutoDriveState = {
   enabled?: boolean | null;
   destination: HugeCodeAutoDriveDestination;
@@ -336,6 +348,17 @@ export type HugeCodeAutoDriveState = {
   navigation?: HugeCodeAutoDriveNavigation | null;
   recovery?: HugeCodeAutoDriveRecoveryMarker | null;
   stop?: HugeCodeAutoDriveStopState | null;
+  researchTrace?: HugeCodeAutoDriveResearchTrace | null;
+  researchSources?: HugeCodeAutoDriveResearchSource[] | null;
+  lastChatgptResearchRouteLab?: {
+    recommendedRoute?: string | null;
+    alternativeRoutes?: string[] | null;
+    decisionMemo?: string | null;
+    sources?: HugeCodeAutoDriveResearchSource[] | null;
+    confidence?: "low" | "medium" | "high" | null;
+    openQuestions?: string[] | null;
+    blockedReason?: string | null;
+  } | null;
 };
 
 export type HugeCodeInterventionAvailability = {

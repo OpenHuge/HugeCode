@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  RuntimeBrowserDebugStatusRequest,
   RuntimeBrowserDebugRunRequest,
   RuntimeBrowserDebugRunResponse,
   RuntimeBrowserDebugStatusResponse,
@@ -125,9 +126,9 @@ export async function listMcpServerStatus(
 }
 
 export async function getRuntimeBrowserDebugStatus(
-  workspaceId: string
+  request: RuntimeBrowserDebugStatusRequest
 ): Promise<RuntimeBrowserDebugStatusResponse> {
-  return getRuntimeClient().browserDebugStatusV1({ workspaceId });
+  return getRuntimeClient().browserDebugStatusV1(request);
 }
 
 export async function applyWorkspacePatch(

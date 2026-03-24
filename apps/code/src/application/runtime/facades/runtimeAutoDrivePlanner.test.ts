@@ -471,6 +471,136 @@ describe("runtimeAutoDrivePlanner", () => {
     expect(proposal.promptText).toContain("Execution rule:");
   });
 
+  it("switches to a browser verification loop when the runtime scenario requires real-browser evidence", () => {
+    const previousSummary = createPreviousSummary({
+      goalReached: true,
+      validation: {
+        ran: true,
+        commands: ["pnpm validate:fast"],
+        success: true,
+        failures: [],
+        summary: "Validation passed but browser verification still needs evidence.",
+      },
+      waypoint: {
+        id: "waypoint-browser",
+        title: "Verify the browser path",
+        status: "arrived",
+        arrivalCriteriaMet: ["Target code path updated"],
+        arrivalCriteriaMissed: ["Confirm the target UI in the real browser."],
+      },
+    });
+    const context = createContext(previousSummary);
+    context.repo.evaluation = {
+      representativeCommands: context.repo.evaluation?.representativeCommands ?? [
+        "pnpm validate:fast",
+      ],
+      componentCommands: context.repo.evaluation?.componentCommands ?? [],
+      endToEndCommands: context.repo.evaluation?.endToEndCommands ?? [],
+      samplePaths: context.repo.evaluation?.samplePaths ?? [],
+      heldOutGuidance: context.repo.evaluation?.heldOutGuidance ?? [],
+      sourceSignals: context.repo.evaluation?.sourceSignals ?? [],
+      scenarioKeys: ["browser_repro_fix_verify"],
+    };
+    const proposal = buildNextTaskProposal({
+      run: {
+        ...createRun(),
+        runtimeScenarioProfile: {
+          authorityScope: "workspace_graph",
+          authoritySources: ["repo_authority", "browser_runtime"],
+          representativeCommands: [],
+          componentCommands: [],
+          endToEndCommands: [],
+          samplePaths: [],
+          heldOutGuidance: [],
+          sourceSignals: ["browser_debug"],
+          scenarioKeys: ["browser_repro_fix_verify"],
+          safeBackground: false,
+        },
+      },
+      context,
+      previousSummary,
+    });
+
+    expect(proposal.currentWaypoint.title).toContain("browser verification gap");
+    expect(proposal.currentWaypoint.arrivalCriteria).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("real browser"),
+        expect.stringContaining("browser evidence"),
+      ])
+    );
+    expect(proposal.promptText).toContain("Browser scenario: browser_repro_fix_verify");
+    expect(proposal.promptText).toContain("Browser execution rule:");
+  });
+
+  it("switches to a research route loop when the runtime scenario requires source-backed route selection", () => {
+    const previousSummary = createPreviousSummary({
+      goalReached: false,
+      validation: {
+        ran: false,
+        commands: ["pnpm validate:fast"],
+        success: null,
+        failures: [],
+        summary: "Research route still needs source-backed evidence.",
+      },
+      waypoint: {
+        id: "waypoint-research",
+        title: "Select the migration route",
+        status: "active",
+        arrivalCriteriaMet: [],
+        arrivalCriteriaMissed: [
+          "Return a source-backed route recommendation with official references.",
+        ],
+      },
+    });
+    const context = createContext(previousSummary);
+    context.repo.evaluation = {
+      representativeCommands: ["pnpm validate:fast"],
+      componentCommands: [],
+      endToEndCommands: [],
+      samplePaths: ["docs/migrations/react-19.md"],
+      heldOutGuidance: ["Prefer official framework and runtime documentation."],
+      sourceSignals: ["chatgpt_research_route_lab"],
+      scenarioKeys: ["research_route_decide"],
+    };
+    context.externalResearch = [
+      {
+        query: "React 19 upgrade path",
+        summary: "Initial external research exists but still needs a route decision.",
+        sources: ["https://react.dev/"],
+      },
+    ];
+
+    const proposal = buildNextTaskProposal({
+      run: {
+        ...createRun(),
+        runtimeScenarioProfile: {
+          authorityScope: "workspace_graph",
+          authoritySources: ["repo_authority", "chatgpt_web"],
+          representativeCommands: [],
+          componentCommands: [],
+          endToEndCommands: [],
+          samplePaths: [],
+          heldOutGuidance: [],
+          sourceSignals: ["chatgpt_research_route_lab"],
+          scenarioKeys: ["research_route_decide"],
+          safeBackground: true,
+        },
+      },
+      context,
+      previousSummary,
+    });
+
+    expect(proposal.currentWaypoint.title).toContain("research route");
+    expect(proposal.currentWaypoint.arrivalCriteria).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/source-backed|official/i),
+        expect.stringMatching(/route recommendation|decision rationale/i),
+      ])
+    );
+    expect(proposal.promptText).toContain("Research scenario: research_route_decide");
+    expect(proposal.promptText).toContain("Research execution rule:");
+  });
+
   it("biases route selection toward publish preparation when adaptive tuning requests it", () => {
     const previousSummary = createPreviousSummary();
     const context = createContext(previousSummary);

@@ -81,6 +81,15 @@ function createFakeBrowserWindow(id: number, bounds: DesktopWindowBounds) {
       visible = true;
     }),
     webContents,
+    emitWindowOpen(url: string) {
+      return windowOpenHandler?.({ url }) ?? null;
+    },
+    emitWillNavigate(url: string, event = { preventDefault: vi.fn() }) {
+      webContentsListeners["will-navigate"]?.forEach((listener) => {
+        listener(event, url);
+      });
+      return event;
+    },
     emitClose(event: { preventDefault(): void }) {
       listeners.close?.forEach((listener) => {
         listener(event);
@@ -95,15 +104,6 @@ function createFakeBrowserWindow(id: number, bounds: DesktopWindowBounds) {
       listeners.focus?.forEach((listener) => {
         listener();
       });
-    },
-    emitWindowOpen(url: string) {
-      return windowOpenHandler?.({ url }) ?? null;
-    },
-    emitWillNavigate(url: string, event = { preventDefault: vi.fn() }) {
-      webContentsListeners["will-navigate"]?.forEach((listener) => {
-        listener(event, url);
-      });
-      return event;
     },
   };
 }

@@ -350,12 +350,17 @@ function toCompatMcpServerStatusListPayload(payload: RuntimeMcpServerStatusListR
 }
 
 function toCompatBrowserDebugStatusPayload(payload: RuntimeBrowserDebugStatusRequest) {
-  return withCanonicalPayload({ ...payload });
+  return withCanonicalPayload({
+    ...payload,
+    browserUrl: payload.browserUrl ?? null,
+  });
 }
 
 function toCompatBrowserDebugRunPayload(payload: RuntimeBrowserDebugRunRequest) {
   return withCanonicalPayload({
     ...payload,
+    browserUrl: payload.browserUrl ?? null,
+    targetUrl: payload.targetUrl ?? null,
     includeScreenshot: payload.includeScreenshot ?? null,
   });
 }

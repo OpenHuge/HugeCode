@@ -14,7 +14,8 @@ type RuntimeBrowserControl = RuntimeAgentControl & {
   getRuntimeBrowserDebugStatus?: (input: { workspaceId: string }) => Promise<unknown>;
   runRuntimeBrowserDebug?: (input: {
     workspaceId: string;
-    operation: "inspect" | "automation" | "chatgpt_decision_lab";
+    operation: "inspect" | "automation" | "chatgpt_decision_lab" | "chatgpt_research_route_lab";
+    targetUrl?: string | null;
     prompt?: string | null;
     includeScreenshot?: boolean | null;
     timeoutMs?: number | null;
@@ -30,6 +31,18 @@ type RuntimeBrowserControl = RuntimeAgentControl & {
         summary?: string | null;
       }>;
       constraints?: string[] | null;
+      allowLiveWebResearch?: boolean | null;
+      chatgptUrl?: string | null;
+    } | null;
+    researchRouteLab?: {
+      question: string;
+      routes: Array<{
+        id: string;
+        label: string;
+        summary?: string | null;
+      }>;
+      constraints?: string[] | null;
+      trustedDomains?: string[] | null;
       allowLiveWebResearch?: boolean | null;
       chatgptUrl?: string | null;
     } | null;
@@ -135,6 +148,14 @@ function normalizeDecisionLabOptions(value: unknown): Array<{
   });
 }
 
+function normalizeResearchRouteOptions(value: unknown): Array<{
+  id: string;
+  label: string;
+  summary?: string | null;
+}> {
+  return normalizeDecisionLabOptions(value);
+}
+
 export function buildRuntimeBrowserTools(
   options: Pick<
     BuildRuntimeToolsOptions,
@@ -180,6 +201,8 @@ export function buildRuntimeBrowserTools(
           workspaceId: { type: "string" },
           prompt: { type: "string" },
           query: { type: "string" },
+          targetUrl: { type: "string" },
+          url: { type: "string" },
           includeScreenshot: { type: "boolean" },
           timeoutMs: { type: "number" },
         },
@@ -199,12 +222,15 @@ export function buildRuntimeBrowserTools(
         const workspaceId = resolveWorkspaceId(input, snapshot, helpers);
         const prompt =
           helpers.toNonEmptyString(input.prompt) ?? helpers.toNonEmptyString(input.query);
+        const targetUrl =
+          helpers.toNonEmptyString(input.targetUrl) ?? helpers.toNonEmptyString(input.url);
         const timeoutMs = helpers.toPositiveInteger(input.timeoutMs);
         const includeScreenshot =
           typeof input.includeScreenshot === "boolean" ? input.includeScreenshot : false;
         const result = await runRuntimeBrowserDebug({
           workspaceId,
           operation: "inspect",
+          ...(targetUrl ? { targetUrl } : {}),
           prompt,
           includeScreenshot,
           timeoutMs,
@@ -224,6 +250,7 @@ export function buildRuntimeBrowserTools(
         type: "object",
         properties: {
           workspaceId: { type: "string" },
+          targetUrl: { type: "string" },
           timeoutMs: { type: "number" },
           steps: {
             type: "array",
@@ -255,6 +282,7 @@ export function buildRuntimeBrowserTools(
         if (!steps || steps.length === 0) {
           throw requiredInputError("steps is required.");
         }
+        const targetUrl = helpers.toNonEmptyString(input.targetUrl);
         const timeoutMs = helpers.toPositiveInteger(input.timeoutMs);
         await helpers.confirmWriteAction(
           agent,
@@ -265,6 +293,7 @@ export function buildRuntimeBrowserTools(
         const result = await runRuntimeBrowserDebug({
           workspaceId,
           operation: "automation",
+          ...(targetUrl ? { targetUrl } : {}),
           prompt: null,
           includeScreenshot: false,
           timeoutMs,
@@ -353,6 +382,93 @@ export function buildRuntimeBrowserTools(
           },
         });
         return helpers.buildResponse("ChatGPT decision lab completed.", {
+          workspaceId,
+          result,
+        });
+      },
+    },
+    {
+      name: "run-chatgpt-research-route-lab",
+      description:
+        "Use Chrome DevTools MCP against an authenticated ChatGPT web session to return a source-backed route recommendation with trusted-domain constraints.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          workspaceId: { type: "string" },
+          question: { type: "string" },
+          routes: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                label: { type: "string" },
+                summary: { type: "string" },
+              },
+              required: ["id", "label"],
+            },
+          },
+          constraints: {
+            oneOf: [{ type: "array", items: { type: "string" } }, { type: "string" }],
+          },
+          trustedDomains: {
+            oneOf: [{ type: "array", items: { type: "string" } }, { type: "string" }],
+          },
+          allowLiveWebResearch: { type: "boolean" },
+          chatgptUrl: { type: "string" },
+          timeoutMs: { type: "number" },
+        },
+        required: ["question", "routes"],
+      },
+      annotations: {
+        openWorldHint: true,
+        title: "Run ChatGPT Research Route Lab",
+        taskSupport: "partial",
+      },
+      execute: async (input, agent) => {
+        const runRuntimeBrowserDebug = requireBrowserControlMethod(
+          control,
+          "runRuntimeBrowserDebug",
+          "run-chatgpt-research-route-lab"
+        );
+        const workspaceId = resolveWorkspaceId(input, snapshot, helpers);
+        const question = helpers.toNonEmptyString(input.question);
+        if (!question) {
+          throw requiredInputError("question is required.");
+        }
+        const routes = normalizeResearchRouteOptions(input.routes);
+        if (routes.length === 0) {
+          throw requiredInputError("routes is required.");
+        }
+        const timeoutMs = helpers.toPositiveInteger(input.timeoutMs);
+        const constraints = helpers.toStringArray(input.constraints);
+        const trustedDomains = helpers.toStringArray(input.trustedDomains);
+        const chatgptUrl = helpers.toNonEmptyString(input.chatgptUrl);
+        const allowLiveWebResearch =
+          typeof input.allowLiveWebResearch === "boolean" ? input.allowLiveWebResearch : false;
+        await helpers.confirmWriteAction(
+          agent,
+          requireUserApproval,
+          `Run ChatGPT research route lab in workspace ${snapshot.workspaceName}?`,
+          onApprovalRequest
+        );
+        const result = await runRuntimeBrowserDebug({
+          workspaceId,
+          operation: "chatgpt_research_route_lab",
+          prompt: null,
+          includeScreenshot: false,
+          timeoutMs,
+          steps: null,
+          researchRouteLab: {
+            question,
+            routes,
+            constraints,
+            trustedDomains,
+            allowLiveWebResearch,
+            chatgptUrl,
+          },
+        });
+        return helpers.buildResponse("ChatGPT research route lab completed.", {
           workspaceId,
           result,
         });

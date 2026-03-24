@@ -1,4 +1,6 @@
 import {
+  type DesktopBrowserDebugSessionInfo,
+  type DesktopBrowserDebugSessionInput,
   isElectronDesktopHostBridge,
   type DesktopHostBridge,
   type DesktopHostKind,
@@ -14,6 +16,8 @@ import {
 export type {
   DesktopHostBridge,
   DesktopHostKind,
+  DesktopBrowserDebugSessionInfo,
+  DesktopBrowserDebugSessionInput,
   DesktopNotificationInput,
   DesktopRuntimeMode,
   DesktopSessionInfo,

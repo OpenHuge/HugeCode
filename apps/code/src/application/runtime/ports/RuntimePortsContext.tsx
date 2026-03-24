@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { PropsWithChildren } from "react";
 import { createContext } from "react";
 import { RuntimeKernelProvider } from "../kernel/RuntimeKernelContext";
 import type { RuntimeKernel } from "../kernel/runtimeKernelTypes";
@@ -6,11 +6,10 @@ import { type RuntimePorts, runtimePorts } from "./runtimePorts";
 
 export const RuntimePortsContext = createContext<RuntimePorts>(runtimePorts);
 
-type RuntimePortsProviderProps = {
-  children?: ReactNode;
+type RuntimePortsProviderProps = PropsWithChildren<{
   kernel?: RuntimeKernel;
   value?: RuntimePorts;
-};
+}>;
 
 export function RuntimePortsProvider({ children, kernel, value }: RuntimePortsProviderProps) {
   return (

@@ -83,6 +83,21 @@ type RenderAutoDriveOptions = {
       backgroundSafe: boolean | null;
       humanInterventionHotspots: string[];
     } | null;
+    runtimeContinuationState: {
+      automaticFollowUpCount: number;
+      status: "idle" | "continuing" | "stopped";
+      lastContinuationAt: number | null;
+      lastContinuationReason: string | null;
+    } | null;
+    lastChatgptDecisionLab: {
+      recommendedOptionId: string | null;
+      recommendedOption: string | null;
+      alternativeOptionIds: string[];
+      decisionMemo: string | null;
+      confidence: "low" | "medium" | "high" | null;
+      assumptions: string[];
+      followUpQuestions: string[];
+    } | null;
   }> | null;
 };
 
@@ -199,6 +214,8 @@ function buildAutoDrive(options: RenderAutoDriveOptions = {}) {
               runtimeDecisionTrace: options.run?.runtimeDecisionTrace ?? null,
               runtimeOutcomeFeedback: options.run?.runtimeOutcomeFeedback ?? null,
               runtimeAutonomyState: options.run?.runtimeAutonomyState ?? null,
+              runtimeContinuationState: options.run?.runtimeContinuationState ?? null,
+              lastChatgptDecisionLab: options.run?.lastChatgptDecisionLab ?? null,
               latestReroute: null,
             },
       onToggleEnabled,
@@ -500,6 +517,104 @@ describe("ComposerMetaBar AutoDrive", () => {
     ).toBeTruthy();
     expect(screen.getByText("Runtime feedback")).toBeTruthy();
     expect(screen.getByText("Runtime prepared AutoDrive launch context.")).toBeTruthy();
+  });
+
+  it("surfaces browser-fix-loop status and decision-lab guidance inside the rail", () => {
+    renderComposerWithAutoDrive({
+      enabled: true,
+      controls: { canPause: true, canStop: true, canStart: false },
+      run: {
+        status: "paused",
+        overallProgress: 66,
+        stopReason:
+          "Browser verification gap remains: rerun pnpm validate:fast and confirm the real browser path.",
+        runtimeScenarioProfile: {
+          authorityScope: "workspace_graph",
+          authoritySources: ["repo_authority", "workspace_graph", "browser_runtime"],
+          representativeCommands: ["pnpm validate:fast"],
+          componentCommands: [],
+          endToEndCommands: [],
+          samplePaths: [],
+          heldOutGuidance: [],
+          sourceSignals: ["browser_debug", "chatgpt_decision_lab"],
+          scenarioKeys: ["browser_repro_fix_verify"],
+          safeBackground: false,
+        },
+        runtimeContinuationState: {
+          automaticFollowUpCount: 1,
+          status: "continuing",
+          lastContinuationAt: 1,
+          lastContinuationReason:
+            "Browser verification gap remains: rerun pnpm validate:fast and confirm the real browser path.",
+        },
+        lastChatgptDecisionLab: {
+          recommendedOptionId: "option-a",
+          recommendedOption: "Re-run the browser verification path after the code change.",
+          alternativeOptionIds: ["option-b"],
+          decisionMemo: "The browser path is still the only unresolved gate.",
+          confidence: "high",
+          assumptions: [],
+          followUpQuestions: [],
+        },
+      },
+    });
+
+    expect(screen.getByText("66% route · Browser verification gap remains")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /AutoDrive/ }));
+
+    expect(screen.getByText("Browser verification gap remains")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Browser verification gap remains: rerun pnpm validate:fast and confirm the real browser path."
+      )
+    ).toBeTruthy();
+    expect(screen.getByText("Browser lane")).toBeTruthy();
+    expect(screen.getByText("Verification gap")).toBeTruthy();
+    expect(screen.getByText("Decision lab")).toBeTruthy();
+    expect(screen.getByText("option-a · High confidence")).toBeTruthy();
+  });
+
+  it("surfaces blocked browser sessions instead of generic route copy", () => {
+    renderComposerWithAutoDrive({
+      enabled: true,
+      controls: { canPause: true, canStop: true, canStart: false },
+      run: {
+        status: "failed",
+        overallProgress: 41,
+        runtimeScenarioProfile: {
+          authorityScope: "workspace_graph",
+          authoritySources: ["repo_authority", "workspace_graph", "browser_runtime"],
+          representativeCommands: [],
+          componentCommands: [],
+          endToEndCommands: [],
+          samplePaths: [],
+          heldOutGuidance: [],
+          sourceSignals: ["browser_debug", "chatgpt_decision_lab"],
+          scenarioKeys: ["browser_repro_fix_verify"],
+          safeBackground: false,
+        },
+        runtimeOutcomeFeedback: {
+          status: "blocked",
+          summary: "ChatGPT login required before the browser route can continue.",
+          failureClass: "browser_session_blocked",
+          validationCommands: [],
+          humanInterventionRequired: true,
+          heldOutPreserved: null,
+          at: null,
+        },
+      },
+    });
+
+    expect(screen.getByText("41% route · Browser session blocked")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /AutoDrive/ }));
+
+    expect(screen.getByText("Browser session blocked")).toBeTruthy();
+    expect(
+      screen.getAllByText("ChatGPT login required before the browser route can continue.").length
+    ).toBeGreaterThan(0);
+    expect(screen.getByText("Session blocked")).toBeTruthy();
   });
 
   it("surfaces runtime recovery summary instead of generic restore copy", () => {

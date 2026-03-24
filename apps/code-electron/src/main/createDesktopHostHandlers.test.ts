@@ -5,6 +5,10 @@ describe("createDesktopHostHandlers", () => {
   it("delegates session, tray, and window handlers to the injected controllers", () => {
     const input = {
       appVersion: "1.2.3",
+      browserDebugController: {
+        ensureBrowserDebugSession: vi.fn(() => ({ browserUrl: "http://127.0.0.1:9333" })),
+        getBrowserDebugSession: vi.fn(() => ({ browserUrl: "http://127.0.0.1:9333" })),
+      },
       listRecentSessions: vi.fn(() => [{ id: "session-1" }]),
       notificationController: {
         showNotification: vi.fn(() => true),
@@ -30,6 +34,8 @@ describe("createDesktopHostHandlers", () => {
     const handlers = createDesktopHostHandlers(input);
 
     expect(handlers.getAppVersion()).toBe("1.2.3");
+    expect(handlers.getBrowserDebugSession()).toEqual({ browserUrl: "http://127.0.0.1:9333" });
+    expect(handlers.ensureBrowserDebugSession()).toEqual({ browserUrl: "http://127.0.0.1:9333" });
     expect(handlers.getCurrentSession({ sender: {} as never })).toEqual({ id: "session-1" });
     expect(handlers.getWindowLabel({ sender: {} as never })).toBe("main");
     expect(handlers.listRecentSessions()).toEqual([{ id: "session-1" }]);
@@ -52,6 +58,10 @@ describe("createDesktopHostHandlers", () => {
     };
     const handlers = createDesktopHostHandlers({
       appVersion: null,
+      browserDebugController: {
+        ensureBrowserDebugSession: vi.fn(() => null),
+        getBrowserDebugSession: vi.fn(() => null),
+      },
       listRecentSessions: vi.fn(() => []),
       notificationController: {
         showNotification: vi.fn(() => false),
