@@ -37,6 +37,7 @@ const CI_FILTER_EXCLUDED_REQUIREMENTS = new Map([
       ".github/actions/install-linux-desktop-deps/action.yml",
       ".github/actions/setup-node-pnpm/action.yml",
       ".github/actions/setup-playwright/action.yml",
+      "scripts/classify-ci-change-scope.mjs",
     ]),
   ],
 ]);

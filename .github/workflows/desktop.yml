@@ -69,8 +69,8 @@ jobs:
     name: Detect desktop-relevant changes
     runs-on: ubuntu-latest
     outputs:
-      desktop_required: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.desktop == 'true' || steps.filter.outputs.desktop_frontend == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
-      desktop_full_pr_matrix_required: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.desktop_host == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
+      desktop_required: ${{ github.event_name == 'workflow_dispatch' || (steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.desktop == 'true' || steps.filter.outputs.desktop_frontend == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true')) }}
+      desktop_full_pr_matrix_required: ${{ github.event_name == 'workflow_dispatch' || (steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.desktop_host == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true')) }}
     steps:
       - uses: actions/checkout@v6
         with:
