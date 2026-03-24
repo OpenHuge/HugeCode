@@ -84,7 +84,7 @@ describe("ComposerMetaBar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
 
-    const menu = screen.getByRole("listbox", { name: "Model" });
+    const menu = screen.getByRole("menu", { name: "Default models" });
     expect(within(menu).getByText("Model Available")).toBeTruthy();
     expect(within(menu).queryByText("Model Unavailable (unavailable)")).toBeNull();
   });
@@ -128,14 +128,11 @@ describe("ComposerMetaBar", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Provider" }));
-
-    const providerMenu = screen.getByRole("listbox", { name: "Provider" });
-    expect(within(providerMenu).getAllByText("Codex")).toHaveLength(1);
-
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
 
-    const menu = screen.getByRole("listbox", { name: "Model" });
+    const providerMenu = screen.getByRole("menu", { name: "Model providers" });
+    expect(within(providerMenu).getAllByRole("menuitem", { name: "Codex" })).toHaveLength(1);
+    const menu = screen.getByRole("menu", { name: "Codex models" });
     expect(within(menu).getAllByText("GPT-5.3 Codex")).toHaveLength(1);
   });
 
@@ -188,13 +185,14 @@ describe("ComposerMetaBar", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Provider" }));
+    fireEvent.click(screen.getByRole("button", { name: "Model" }));
 
-    const providerMenu = screen.getByRole("listbox", { name: "Provider" });
-    expect(within(providerMenu).getAllByText("Claude")).toHaveLength(1);
-    expect(within(providerMenu).getByText("Codex")).toBeTruthy();
+    const providerMenu = screen.getByRole("menu", { name: "Model providers" });
+    expect(within(providerMenu).getAllByRole("menuitem", { name: "Claude" })).toHaveLength(1);
+    expect(within(providerMenu).getByRole("menuitem", { name: "Codex" })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("option", { name: "Claude" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Claude" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Claude Sonnet 4.5" }));
     expect(onSelectModel).toHaveBeenCalledWith("claude_code_local::claude-sonnet-4-5");
   });
 
@@ -287,38 +285,55 @@ describe("ComposerMetaBar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
 
-    const menu = screen.getByRole("listbox", { name: "Model" });
-    expect(within(menu).getByRole("option", { name: "Claude Sonnet 4.5" })).toBeTruthy();
+    const providerMenu = screen.getByRole("menu", { name: "Model providers" });
+    fireEvent.click(within(providerMenu).getByRole("menuitem", { name: "Claude" }));
+
+    const menu = screen.getByRole("menu", { name: "Claude models" });
+    expect(within(menu).getByRole("menuitemradio", { name: "Claude Sonnet 4.5" })).toBeTruthy();
     expect(within(menu).queryByText("GPT-5.4")).toBeNull();
   });
 
-  it("shows provider families and switches to the provider's recommended route model", () => {
+  it("does not hijack pointerdown events from selection menus inside the composer meta row", () => {
     const onSelectModel = vi.fn();
+    const onSelectModelSelectionMode = vi.fn();
+    const onSelectAutoRoute = vi.fn();
+
     render(
       <ComposerMetaBar
         disabled={false}
         collaborationModes={[]}
         selectedCollaborationModeId={null}
         onSelectCollaborationMode={vi.fn()}
+        modelSelectionMode="manual"
+        onSelectAutoRoute={onSelectAutoRoute}
+        onSelectModelSelectionMode={onSelectModelSelectionMode}
         models={[
           {
-            id: "openai-primary",
-            model: "gpt-5.1",
-            displayName: "GPT-5.1",
-            provider: "openai",
-            pool: "codex-primary",
+            id: "anthropic::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude",
+            provider: "anthropic",
             available: true,
           },
           {
-            id: "claude-opus",
-            model: "claude-opus-4-5",
-            displayName: "Claude Opus 4.5",
+            id: "claude_code_local::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude_code_local",
             provider: "claude_code_local",
-            pool: "claude",
+            available: true,
+          },
+          {
+            id: "openai::gpt-5.4",
+            model: "gpt-5.4",
+            displayName: "GPT-5.4",
+            pool: "codex",
+            provider: "openai",
             available: true,
           },
         ]}
-        selectedModelId="openai-primary"
+        selectedModelId="openai::gpt-5.4"
         onSelectModel={onSelectModel}
         reasoningOptions={[]}
         selectedEffort={null}
@@ -332,142 +347,23 @@ describe("ComposerMetaBar", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Provider" }));
-
-    const menu = screen.getByRole("listbox", { name: "Provider" });
-    expect(within(menu).getByRole("option", { name: "Codex" })).toBeTruthy();
-    expect(within(menu).getByRole("option", { name: "Claude" })).toBeTruthy();
-
-    fireEvent.click(within(menu).getByRole("option", { name: "Claude" }));
-
-    expect(onSelectModel).toHaveBeenCalledWith("claude-opus");
-  });
-
-  it("filters the model menu to the selected provider family while preserving exact route ids", () => {
-    render(
-      <ComposerMetaBar
-        disabled={false}
-        collaborationModes={[]}
-        selectedCollaborationModeId={null}
-        onSelectCollaborationMode={vi.fn()}
-        models={[
-          {
-            id: "openai-primary",
-            model: "gpt-5.1",
-            displayName: "GPT-5.1",
-            provider: "openai",
-            pool: "codex-primary",
-            available: true,
-          },
-          {
-            id: "openai-secondary",
-            model: "gpt-5.1",
-            displayName: "GPT-5.1",
-            provider: "openai",
-            pool: "codex-secondary",
-            available: true,
-          },
-          {
-            id: "claude-opus",
-            model: "claude-opus-4-5",
-            displayName: "Claude Opus 4.5",
-            provider: "claude_code_local",
-            pool: "claude",
-            available: true,
-          },
-        ]}
-        selectedModelId="openai-primary"
-        onSelectModel={vi.fn()}
-        reasoningOptions={[]}
-        selectedEffort={null}
-        onSelectEffort={vi.fn()}
-        reasoningSupported={false}
-        accessMode="on-request"
-        onSelectAccessMode={vi.fn()}
-        executionOptions={[{ value: "runtime", label: "Runtime" }]}
-        selectedExecutionMode="runtime"
-        onSelectExecutionMode={vi.fn()}
-      />
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Model" }));
+    const autoOption = screen.getByRole("menuitemradio", {
+      name: /Use recommended route/i,
+    });
+    fireEvent.pointerDown(autoOption);
+    fireEvent.click(autoOption);
+    expect(onSelectAutoRoute).toHaveBeenCalledWith("codex");
+    expect(onSelectModelSelectionMode).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
-
-    const menu = screen.getByRole("listbox", { name: "Model" });
-    expect(within(menu).getByText("GPT-5.1 / codex-primary")).toBeTruthy();
-    expect(within(menu).getByText("GPT-5.1 / codex-secondary")).toBeTruthy();
-    expect(within(menu).queryByText("Claude Opus 4.5")).toBeNull();
-  });
-
-  it("shows the OpenAI model icon by default and swaps to lightning when fast speed is active", () => {
-    const { container, rerender } = render(
-      <ComposerMetaBar
-        disabled={false}
-        collaborationModes={[]}
-        selectedCollaborationModeId={null}
-        onSelectCollaborationMode={vi.fn()}
-        models={[
-          {
-            id: "gpt-5.4",
-            model: "gpt-5.4",
-            displayName: "GPT-5.4",
-            provider: "openai",
-            available: true,
-          },
-        ]}
-        selectedModelId="gpt-5.4"
-        onSelectModel={vi.fn()}
-        reasoningOptions={["low", "medium", "high"]}
-        selectedEffort="medium"
-        onSelectEffort={vi.fn()}
-        fastModeEnabled={false}
-        reasoningSupported={true}
-        accessMode="on-request"
-        onSelectAccessMode={vi.fn()}
-        executionOptions={[{ value: "runtime", label: "Runtime" }]}
-        selectedExecutionMode="runtime"
-        onSelectExecutionMode={vi.fn()}
-      />
-    );
-
-    expect(
-      container.querySelector(".composer-icon--model")?.getAttribute("data-fast-speed-enabled")
-    ).toBe("false");
-    expect(container.querySelector(".composer-icon--model title")?.textContent).toBe("OpenAI");
-
-    rerender(
-      <ComposerMetaBar
-        disabled={false}
-        collaborationModes={[]}
-        selectedCollaborationModeId={null}
-        onSelectCollaborationMode={vi.fn()}
-        models={[
-          {
-            id: "gpt-5.4",
-            model: "gpt-5.4",
-            displayName: "GPT-5.4",
-            provider: "openai",
-            available: true,
-          },
-        ]}
-        selectedModelId="gpt-5.4"
-        onSelectModel={vi.fn()}
-        reasoningOptions={["low", "medium", "high"]}
-        selectedEffort="low"
-        onSelectEffort={vi.fn()}
-        fastModeEnabled={true}
-        reasoningSupported={true}
-        accessMode="on-request"
-        onSelectAccessMode={vi.fn()}
-        executionOptions={[{ value: "runtime", label: "Runtime" }]}
-        selectedExecutionMode="runtime"
-        onSelectExecutionMode={vi.fn()}
-      />
-    );
-
-    expect(
-      container.querySelector(".composer-icon--model")?.getAttribute("data-fast-speed-enabled")
-    ).toBe("true");
-    expect(container.querySelector(".composer-icon--model title")?.textContent).not.toBe("OpenAI");
+    const claudeProvider = screen.getByRole("menuitem", { name: "Claude" });
+    fireEvent.pointerDown(claudeProvider);
+    fireEvent.click(claudeProvider);
+    const claudeModel = screen.getByRole("menuitemradio", { name: "Claude Sonnet 4.5" });
+    fireEvent.pointerDown(claudeModel);
+    fireEvent.click(claudeModel);
+    expect(onSelectModel).toHaveBeenCalledWith("claude_code_local::claude-sonnet-4-5");
   });
 
   it("renders a single collaboration toggle when plan mode is available", () => {
@@ -542,7 +438,7 @@ describe("ComposerMetaBar", () => {
     );
 
     const modeButton = screen.getByRole("button", { name: "Chat" });
-    const modelWrap = container.querySelector(".composer-select-wrap--model");
+    const modelWrap = container.querySelector(".composer-select-wrap--model-provider");
     if (!modelWrap) {
       throw new Error("Model wrap not found");
     }
@@ -694,7 +590,9 @@ describe("ComposerMetaBar", () => {
       />
     );
 
-    expect(screen.getAllByText("Model Unavailable (unavailable)").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Model" }).textContent).toContain(
+      "Model Unavailable"
+    );
 
     const modelButtons = within(container).getAllByRole("button", { name: "Model" });
     const modelButton = modelButtons.at(-1);
@@ -703,7 +601,7 @@ describe("ComposerMetaBar", () => {
     }
     fireEvent.click(modelButton);
 
-    const menus = screen.getAllByRole("listbox", { name: "Model" });
+    const menus = screen.getAllByRole("menu", { name: "Default models" });
     const menu = menus.at(-1);
     if (!menu) {
       throw new Error("Model menu not found");

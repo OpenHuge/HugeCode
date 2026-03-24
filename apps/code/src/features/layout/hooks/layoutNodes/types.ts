@@ -532,6 +532,7 @@ export type LayoutNodesFieldRegistry = {
   modelSelectionMode?: ComposerModelSelectionMode;
   selectedProviderId?: string | null;
   onSelectProvider?: (providerId: string) => void;
+  onSelectAutoRoute?: (providerId: string | null) => void;
   onSelectModelSelectionMode?: (mode: ComposerModelSelectionMode) => void;
   models: ModelOption[];
   selectedModelId: string | null;
@@ -903,6 +904,11 @@ const LAYOUT_CONVERSATION_NODE_KEYS = [
   "composerAccountOptions",
   "selectedAccountIds",
   "onSelectAccountIds",
+  "modelSelectionMode",
+  "selectedProviderId",
+  "onSelectProvider",
+  "onSelectAutoRoute",
+  "onSelectModelSelectionMode",
   "models",
   "selectedModelId",
   "onSelectModel",

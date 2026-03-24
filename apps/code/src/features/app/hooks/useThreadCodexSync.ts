@@ -112,6 +112,8 @@ export function useThreadCodexSync({
   selectedCollaborationModeId,
   executionMode,
 }: UseThreadCodexSyncOptions) {
+  // Local composer interactions should not immediately retrigger hydration from stored
+  // thread params. We only resync when the active scope or backing persisted inputs change.
   useLayoutEffect(() => {
     void threadCodexParamsVersion;
     const workspaceId = activeWorkspaceId ?? null;
@@ -167,16 +169,6 @@ export function useThreadCodexSync({
     lastComposerFastMode,
     lastComposerExecutionMode,
     pendingNewThreadSeedRef,
-    threadCodexSelectionKey,
-    selectedModelId,
-    resolvedModel,
-    resolvedEffort,
-    selectionMode,
-    preferredProviderFamilyId,
-    accessMode,
-    fastModeEnabled,
-    selectedCollaborationModeId,
-    executionMode,
     setAccessMode,
     setPreferredCollabModeId,
     setPreferredEffort,

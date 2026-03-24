@@ -152,6 +152,7 @@ type ModelProviderPickerProps<TModel extends ProviderSelectableModel = ProviderS
   selectionMode?: ComposerModelSelectionMode;
   selectedProviderId: string | null;
   selectedModelId: string | null;
+  onSelectAutoRoute?: (providerId: string | null) => void;
   onSelectProvider?: (providerId: string) => void;
   onSelectModel: (modelId: string) => void;
   disabled?: boolean;
@@ -166,6 +167,7 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
   selectionMode = "manual",
   selectedProviderId,
   selectedModelId,
+  onSelectAutoRoute,
   onSelectProvider,
   onSelectModel,
   disabled = false,
@@ -291,6 +293,7 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
             className={joinClassNames(styles.panel, styles.providerPanel)}
             role="menu"
             aria-label={`${ariaLabel} providers`}
+            data-ui-select-menu="true"
           >
             <div className={styles.list}>
               {providerOptions.map((providerOption) => {
@@ -351,8 +354,53 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
             className={joinClassNames(styles.panel, styles.modelPanel)}
             role="menu"
             aria-label={`${activeProvider?.label ?? "Selected"} models`}
+            data-ui-select-menu="true"
           >
             <div className={styles.list}>
+              {onSelectAutoRoute ? (
+                <button
+                  key="auto-route"
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={selectionMode === "auto"}
+                  className={joinClassNames(
+                    styles.item,
+                    selectionMode === "auto" && styles.itemSelected
+                  )}
+                  onClick={() => {
+                    onSelectAutoRoute(activeProvider?.id ?? selectedProviderId ?? null);
+                    setIsOpen(false);
+                  }}
+                  title={activeProvider?.readinessMessage ?? undefined}
+                >
+                  <span className={styles.itemIcon} aria-hidden>
+                    {selectionMode === "auto" ? <Check size={14} strokeWidth={2} /> : null}
+                  </span>
+                  <span className={styles.itemText}>
+                    <span className={styles.itemLabel}>Use recommended route</span>
+                    <span className={styles.itemMetaRow}>
+                      <span className={styles.itemBadge}>Auto</span>
+                      {resolveExecutionBadgeLabel(activeProvider?.executionKind ?? null) ? (
+                        <span className={styles.itemBadge}>
+                          {resolveExecutionBadgeLabel(activeProvider?.executionKind ?? null)}
+                        </span>
+                      ) : null}
+                      {resolveReadinessBadgeLabel(
+                        activeProvider?.readinessKind ?? null,
+                        activeProvider?.hasAvailableModels
+                      ) ? (
+                        <span className={styles.itemBadgeMuted}>
+                          {resolveReadinessBadgeLabel(
+                            activeProvider?.readinessKind ?? null,
+                            activeProvider?.hasAvailableModels
+                          )}
+                        </span>
+                      ) : null}
+                    </span>
+                  </span>
+                  <span className={styles.itemAffordance} aria-hidden />
+                </button>
+              ) : null}
               {activeProviderModels.map((model) => {
                 const isSelected = model.id === selectedModelId || model.model === selectedModelId;
                 return (

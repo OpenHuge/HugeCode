@@ -153,6 +153,72 @@ function resolveProviderRoutePriority(model: ProviderSelectableModel): number {
   return 10;
 }
 
+function tokenizeModelIdentity(model: ProviderSelectableModel): string {
+  return (
+    normalizeValue(model.model) ??
+    normalizeValue(model.displayName) ??
+    normalizeValue(model.id) ??
+    ""
+  ).toLowerCase();
+}
+
+function extractModelVersion(identity: string): number[] {
+  const versionMatch =
+    identity.match(/(?:gpt|claude|gemini|o\d|o4|o3|grok)[^\d]*(\d+(?:[._-]\d+)*)/) ??
+    identity.match(/(\d+(?:[._-]\d+)*)/);
+  if (!versionMatch?.[1]) {
+    return [];
+  }
+  return versionMatch[1]
+    .split(/[._-]/g)
+    .map((part) => Number.parseInt(part, 10))
+    .filter((part) => Number.isFinite(part));
+}
+
+function compareVersionParts(left: number[], right: number[]): number {
+  const maxLength = Math.max(left.length, right.length);
+  for (let index = 0; index < maxLength; index += 1) {
+    const leftPart = left[index] ?? -1;
+    const rightPart = right[index] ?? -1;
+    if (leftPart !== rightPart) {
+      return rightPart - leftPart;
+    }
+  }
+  return 0;
+}
+
+function resolveModelTierPriority(identity: string): number {
+  return Object.entries(MODEL_TIER_PRIORITY).reduce((best, [token, priority]) => {
+    if (!identity.includes(token)) {
+      return best;
+    }
+    return Math.max(best, priority);
+  }, -1);
+}
+
+function resolveModelPreferenceOrder(
+  left: ProviderSelectableModel,
+  right: ProviderSelectableModel
+): number {
+  const leftIdentity = tokenizeModelIdentity(left);
+  const rightIdentity = tokenizeModelIdentity(right);
+  const versionDelta = compareVersionParts(
+    extractModelVersion(leftIdentity),
+    extractModelVersion(rightIdentity)
+  );
+  if (versionDelta !== 0) {
+    return versionDelta;
+  }
+  const tierDelta =
+    resolveModelTierPriority(rightIdentity) - resolveModelTierPriority(leftIdentity);
+  if (tierDelta !== 0) {
+    return tierDelta;
+  }
+  const leftLabel = normalizeValue(left.displayName) ?? normalizeValue(left.model) ?? left.id;
+  const rightLabel = normalizeValue(right.displayName) ?? normalizeValue(right.model) ?? right.id;
+  return leftLabel.localeCompare(rightLabel);
+}
+
 function pickRepresentativeModel<TModel extends ProviderSelectableModel>(
   models: ReadonlyArray<TModel>,
   selectedModelId: string | null

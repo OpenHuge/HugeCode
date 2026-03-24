@@ -189,6 +189,7 @@ describe("SettingsCodexSection", () => {
     expect(modelRow).not.toBeNull();
     expect(effortRow).not.toBeNull();
     expect(accessRow).not.toBeNull();
+    expect(screen.queryByText("Routing")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     fireEvent.click(screen.getByRole("button", { name: "Run doctor" }));
@@ -460,6 +461,60 @@ describe("SettingsCodexSection", () => {
 
     expect(screen.getByRole("button", { name: "Model" }).textContent).toContain(
       "Claude Sonnet 4.5"
+    );
+  });
+
+  it("returns to the recommended route from the provider/model controls", () => {
+    const onUpdateAppSettings = vi.fn(async () => undefined);
+
+    getProvidersCatalogMock.mockResolvedValue([
+      {
+        providerId: "claude_code_local",
+        displayName: "Claude Code Local",
+        pool: null,
+        oauthProviderId: null,
+        aliases: ["claude_code_local"],
+        defaultModelId: "claude_code_local::claude-sonnet-4-5",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: false,
+        readinessKind: "ready",
+        readinessMessage: "Local Claude Code is ready on this machine.",
+        executionKind: "local",
+        registryVersion: "test",
+      },
+    ]);
+
+    render(
+      <SettingsCodexSection
+        {...createProps({
+          appSettings: {
+            ...createProps().appSettings,
+            lastComposerModelId: "claude_code_local::claude-sonnet-4-5",
+            composerModelSelectionMode: "manual",
+            lastComposerProviderFamilyId: "claude",
+          },
+          onUpdateAppSettings,
+          defaultModels: [
+            createModelOption({
+              id: "claude_code_local::claude-sonnet-4-5",
+              model: "claude-sonnet-4-5",
+              displayName: "Claude Sonnet 4.5",
+              provider: "claude_code_local",
+              pool: "claude_code_local",
+            }),
+          ],
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Use recommended route" }));
+
+    expect(onUpdateAppSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        composerModelSelectionMode: "auto",
+        lastComposerProviderFamilyId: "claude",
+      })
     );
   });
 

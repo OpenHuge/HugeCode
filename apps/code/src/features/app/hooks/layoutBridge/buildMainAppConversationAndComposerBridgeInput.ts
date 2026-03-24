@@ -186,6 +186,7 @@ export function buildMainAppConversationAndComposerBridgeInput(
     modelSelectionMode: threadCodexState.selectionMode,
     selectedProviderId: threadCodexState.selectedProviderId,
     onSelectProvider: threadCodexState.handleSelectProviderFamily,
+    onSelectAutoRoute: threadCodexState.handleSelectAutoRoute,
     onSelectModelSelectionMode: threadCodexState.handleSelectModelSelectionMode,
     models: threadCodexState.models,
     selectedModelId: threadCodexState.selectedModelId,

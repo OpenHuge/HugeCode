@@ -90,6 +90,7 @@ type ComposerMetaBarControlsProps = {
   modelSelectionMode: ComposerModelSelectionMode;
   providerOptions: ModelProviderOption<ProviderSelectableModel>[];
   selectedProviderId: string | null;
+  onSelectAutoRoute?: (providerId: string | null) => void;
   onSelectModelSelectionMode: (mode: ComposerModelSelectionMode) => void;
   onSelectProvider: (providerId: string) => void;
   selectedModelId: string | null;
@@ -129,6 +130,7 @@ export function ComposerMetaBarControls({
   modelSelectionMode,
   providerOptions,
   selectedProviderId,
+  onSelectAutoRoute,
   onSelectModelSelectionMode,
   onSelectProvider,
   selectedModelId,
@@ -177,6 +179,9 @@ export function ComposerMetaBarControls({
       }
       const target = event.target as HTMLElement | null;
       if (!target) {
+        return;
+      }
+      if (target.closest("[data-ui-select-menu]")) {
         return;
       }
       const wrap = target.closest<HTMLElement>(".composer-select-wrap[data-ui-select-anchor]");
@@ -238,41 +243,6 @@ export function ComposerMetaBarControls({
       <div
         className={joinClassNames(
           styles.selectWrap,
-          "composer-select-wrap composer-select-wrap--selection-mode"
-        )}
-        data-ds-select-anchor
-        data-ui-select-anchor
-      >
-        <span className={joinClassNames(styles.selectCaption, "composer-select-caption")}>
-          Routing
-        </span>
-        <Select
-          className={joinClassNames(
-            styles.selectControl,
-            styles.selectControlWidth.effort,
-            "composer-select-control composer-select-control--selection-mode"
-          )}
-          triggerDensity="compact"
-          triggerClassName={joinClassNames(styles.selectTrigger, "composer-select-trigger")}
-          menuClassName={joinClassNames(styles.selectMenu, "composer-select-menu")}
-          optionClassName={joinClassNames(styles.selectOption, "composer-select-option")}
-          menuWidthMode="trigger"
-          minMenuWidth={160}
-          maxMenuWidth={META_MENU_MAX_WIDTH}
-          menuGap={COMPOSER_MENU_GAP}
-          ariaLabel="Model routing mode"
-          options={[
-            { value: "auto", label: "Auto" },
-            { value: "manual", label: "Manual" },
-          ]}
-          value={modelSelectionMode}
-          onValueChange={(value) => onSelectModelSelectionMode(value as ComposerModelSelectionMode)}
-          disabled={disabled}
-        />
-      </div>
-      <div
-        className={joinClassNames(
-          styles.selectWrap,
           "composer-select-wrap composer-select-wrap--model-provider"
         )}
         data-ds-select-anchor
@@ -286,6 +256,16 @@ export function ComposerMetaBarControls({
           providerOptions={providerOptions}
           selectionMode={modelSelectionMode}
           selectedProviderId={selectedProviderId}
+          onSelectAutoRoute={
+            onSelectAutoRoute
+              ? onSelectAutoRoute
+              : (providerId) => {
+                  if (providerId) {
+                    onSelectProvider(providerId);
+                  }
+                  onSelectModelSelectionMode("auto");
+                }
+          }
           onSelectProvider={onSelectProvider}
           selectedModelId={selectedModelId}
           onSelectModel={onSelectModel}

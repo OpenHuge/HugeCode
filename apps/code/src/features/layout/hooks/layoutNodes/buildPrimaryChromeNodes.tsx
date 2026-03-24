@@ -156,6 +156,7 @@ export function buildPrimaryChromeNodes(options: LayoutNodesOptions): PrimaryChr
         modelSelectionMode={input.modelSelectionMode}
         selectedProviderId={input.selectedProviderId}
         onSelectProvider={input.onSelectProvider}
+        onSelectAutoRoute={input.onSelectAutoRoute}
         onSelectModelSelectionMode={input.onSelectModelSelectionMode}
         models={input.models}
         selectedModelId={input.selectedModelId}

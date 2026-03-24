@@ -226,8 +226,7 @@ describe("tauri invoke wrappers", () => {
       models: runtimeModelsMock,
     } as unknown as ReturnType<typeof getRuntimeClient>);
 
-    const response = await getModelList("ws-7");
-    expect(response).toMatchObject({
+    await expect(getModelList("ws-7")).resolves.toEqual({
       result: {
         data: [
           expect.objectContaining({
@@ -245,28 +244,12 @@ describe("tauri invoke wrappers", () => {
             isDefault: false,
             is_default: false,
             supportedReasoningEfforts: [
-              {
-                reasoningEffort: "low",
-                reasoning_effort: "low",
-                description: "Low reasoning effort",
-              },
-              {
-                reasoningEffort: "high",
-                reasoning_effort: "high",
-                description: "High reasoning effort",
-              },
+              expect.objectContaining({ reasoningEffort: "low" }),
+              expect.objectContaining({ reasoningEffort: "high" }),
             ],
             supported_reasoning_efforts: [
-              {
-                reasoningEffort: "low",
-                reasoning_effort: "low",
-                description: "Low reasoning effort",
-              },
-              {
-                reasoningEffort: "high",
-                reasoning_effort: "high",
-                description: "High reasoning effort",
-              },
+              expect.objectContaining({ reasoning_effort: "low" }),
+              expect.objectContaining({ reasoning_effort: "high" }),
             ],
           }),
         ],

@@ -61,6 +61,7 @@ type ComposerMetaBarProps = {
   models: ModelOption[];
   selectedProviderId?: string | null;
   onSelectProvider: (providerId: string) => void;
+  onSelectAutoRoute?: (providerId: string | null) => void;
   onSelectModelSelectionMode: (mode: ComposerModelSelectionMode) => void;
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;
@@ -247,6 +248,7 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
   models,
   selectedProviderId: explicitSelectedProviderId = null,
   onSelectProvider,
+  onSelectAutoRoute,
   onSelectModelSelectionMode,
   selectedModelId,
   onSelectModel,
@@ -353,6 +355,7 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
             modelSelectionMode={modelSelectionMode}
             providerOptions={providerOptions}
             selectedProviderId={selectedProviderId}
+            onSelectAutoRoute={onSelectAutoRoute}
             onSelectModelSelectionMode={onSelectModelSelectionMode}
             onSelectProvider={onSelectProvider}
             selectedModelId={selectedModelId}

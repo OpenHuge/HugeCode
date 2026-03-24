@@ -120,6 +120,7 @@ export function buildComposerNode(
           modelSelectionMode={input.modelSelectionMode}
           selectedProviderId={input.selectedProviderId}
           onSelectProvider={input.onSelectProvider}
+          onSelectAutoRoute={input.onSelectAutoRoute}
           onSelectModelSelectionMode={input.onSelectModelSelectionMode}
           models={input.models}
           selectedModelId={input.selectedModelId}

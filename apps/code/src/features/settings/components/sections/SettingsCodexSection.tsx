@@ -8,7 +8,6 @@ import type {
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
-  ComposerModelSelectionMode,
   ModelOption,
   WorkspaceInfo,
 } from "../../../../types";
@@ -112,11 +111,6 @@ const reviewModeOptions: SelectOption[] = [
   { value: "inline", label: "Inline (same thread)" },
   { value: "detached", label: "Detached (new review thread)" },
 ];
-const selectionModeOptions: SelectOption[] = [
-  { value: "auto", label: "Auto" },
-  { value: "manual", label: "Manual" },
-];
-
 function coerceSavedModelSelectionId(value: string | null, models: ModelOption[]): string | null {
   const trimmed = (value ?? "").trim();
   if (!trimmed) {
@@ -205,7 +199,6 @@ export function SettingsCodexSection({
     () => mergeModelsWithProviderCatalogMetadata(defaultModels, providerCatalog),
     [defaultModels, providerCatalog]
   );
-  const latestModelId = modelsWithProviderMetadata[0]?.id ?? null;
   const savedModelId = useMemo(
     () => coerceSavedModelSelectionId(appSettings.lastComposerModelId, modelsWithProviderMetadata),
     [appSettings.lastComposerModelId, modelsWithProviderMetadata]
@@ -214,7 +207,16 @@ export function SettingsCodexSection({
     () => buildModelProviderOptions(modelsWithProviderMetadata),
     [modelsWithProviderMetadata]
   );
-  const fallbackSelectedModelId = savedModelId ?? latestModelId ?? null;
+  const recommendedSelection = useMemo(
+    () =>
+      resolveAutoModelProviderSelection(
+        providerOptions,
+        appSettings.lastComposerProviderFamilyId ?? null,
+        null
+      ),
+    [appSettings.lastComposerProviderFamilyId, providerOptions]
+  );
+  const fallbackSelectedModelId = savedModelId ?? recommendedSelection.modelId ?? null;
   const autoSelection = useMemo(
     () =>
       resolveAutoModelProviderSelection(
@@ -516,32 +518,6 @@ export function SettingsCodexSection({
         subtitle="Choose the model, reasoning, and access defaults used when threads do not override them."
       >
         <SettingsControlRow
-          title="Routing"
-          subtitle="Auto follows runtime readiness inside the selected provider family. Manual keeps an exact model pin."
-          control={
-            <Select
-              className={styles.selectRoot}
-              triggerClassName={styles.selectTrigger}
-              menuClassName={styles.selectMenu}
-              optionClassName={styles.selectOption}
-              ariaLabel="Model routing mode"
-              options={selectionModeOptions}
-              value={selectionMode}
-              onValueChange={(value) =>
-                void onUpdateAppSettings({
-                  ...appSettings,
-                  composerModelSelectionMode: value as ComposerModelSelectionMode,
-                  lastComposerProviderFamilyId:
-                    appSettings.lastComposerProviderFamilyId ??
-                    (resolvedModelProviderId as AppSettings["lastComposerProviderFamilyId"]) ??
-                    null,
-                })
-              }
-            />
-          }
-        />
-
-        <SettingsControlRow
           title="Provider / Model"
           subtitle={
             defaultModelsConnectedWorkspaceCount === 0
@@ -562,6 +538,17 @@ export function SettingsCodexSection({
                 selectionMode={selectionMode}
                 selectedProviderId={selectedProviderId}
                 selectedModelId={selectedModelId}
+                onSelectAutoRoute={(providerId) =>
+                  void onUpdateAppSettings({
+                    ...appSettings,
+                    composerModelSelectionMode: "auto",
+                    lastComposerProviderFamilyId:
+                      (providerId as AppSettings["lastComposerProviderFamilyId"]) ??
+                      appSettings.lastComposerProviderFamilyId ??
+                      (resolvedModelProviderId as AppSettings["lastComposerProviderFamilyId"]) ??
+                      null,
+                  })
+                }
                 onSelectProvider={(providerId) =>
                   void onUpdateAppSettings({
                     ...appSettings,
@@ -601,6 +588,24 @@ export function SettingsCodexSection({
               >
                 Refresh
               </Button>
+              {selectionMode === "manual" ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    void onUpdateAppSettings({
+                      ...appSettings,
+                      composerModelSelectionMode: "auto",
+                      lastComposerProviderFamilyId:
+                        appSettings.lastComposerProviderFamilyId ??
+                        (resolvedModelProviderId as AppSettings["lastComposerProviderFamilyId"]) ??
+                        null,
+                    })
+                  }
+                >
+                  Use recommended route
+                </Button>
+              ) : null}
             </div>
           }
         />

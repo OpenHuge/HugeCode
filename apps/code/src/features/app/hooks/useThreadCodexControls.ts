@@ -440,6 +440,66 @@ export function useThreadCodexControls({
     ]
   );
 
+  const handleSelectAutoRoute = useCallback(
+    (providerFamilyId: ModelProviderFamilyId | string | null) => {
+      const normalizedProviderFamilyId = normalizeProviderFamilyId(
+        providerFamilyId ??
+          preferredProviderFamilyId ??
+          (selectedModel ? (resolveModelProviderId(selectedModel) as ModelProviderFamilyId) : null)
+      );
+      setSelectionMode("auto");
+      setPreferredProviderFamilyId(normalizedProviderFamilyId);
+      if (!appSettingsLoading && !isThreadScopedSelection) {
+        setAppSettings((current) => {
+          if (
+            current.composerModelSelectionMode === "auto" &&
+            current.lastComposerProviderFamilyId === normalizedProviderFamilyId
+          ) {
+            return current;
+          }
+          const nextSettings = {
+            ...current,
+            composerModelSelectionMode: "auto" as const,
+            lastComposerProviderFamilyId: normalizedProviderFamilyId,
+          };
+          void queueSaveSettings(nextSettings);
+          return nextSettings;
+        });
+      }
+      if (isThreadScopedSelection) {
+        persistThreadCodexParams({
+          selectionMode: "auto",
+          providerFamilyId: normalizedProviderFamilyId,
+        });
+      }
+      void trackProductAnalyticsEvent("provider_family_switched", {
+        workspaceId: activeWorkspace?.id ?? null,
+        threadId: activeThreadIdRef.current,
+        eventSource: "composer",
+        requestMode: normalizedProviderFamilyId,
+      });
+      void trackProductAnalyticsEvent("model_selection_mode_changed", {
+        workspaceId: activeWorkspace?.id ?? null,
+        threadId: activeThreadIdRef.current,
+        eventSource: "composer",
+        requestMode: "auto",
+      });
+    },
+    [
+      activeThreadIdRef,
+      activeWorkspace?.id,
+      appSettingsLoading,
+      isThreadScopedSelection,
+      persistThreadCodexParams,
+      preferredProviderFamilyId,
+      queueSaveSettings,
+      selectedModel,
+      setAppSettings,
+      setPreferredProviderFamilyId,
+      setSelectionMode,
+    ]
+  );
+
   const handleSelectEffort = useCallback(
     (raw: string | null) => {
       const next = typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : null;
@@ -937,6 +997,7 @@ export function useThreadCodexControls({
     handleSelectExecutionMode,
     handleSelectEffort,
     handleSelectModel,
+    handleSelectAutoRoute,
     handleSelectModelSelectionMode,
     handleSelectProviderFamily,
     handleSelectRemoteBackendId,

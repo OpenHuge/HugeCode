@@ -48,6 +48,7 @@ export type ComposerProps = {
   modelSelectionMode?: ComposerModelSelectionMode;
   selectedProviderId?: string | null;
   onSelectProvider?: (providerId: string) => void;
+  onSelectAutoRoute?: (providerId: string | null) => void;
   onSelectModelSelectionMode?: (mode: ComposerModelSelectionMode) => void;
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;

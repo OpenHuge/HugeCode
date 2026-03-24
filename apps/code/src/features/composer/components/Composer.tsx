@@ -117,6 +117,7 @@ export const Composer = memo(function Composer({
   modelSelectionMode = "manual",
   selectedProviderId = null,
   onSelectProvider = () => undefined,
+  onSelectAutoRoute = () => undefined,
   onSelectModelSelectionMode = () => undefined,
   selectedModelId,
   onSelectModel,
@@ -1248,6 +1249,7 @@ export const Composer = memo(function Composer({
             models={models}
             selectedProviderId={selectedProviderId}
             onSelectProvider={onSelectProvider}
+            onSelectAutoRoute={onSelectAutoRoute}
             onSelectModelSelectionMode={onSelectModelSelectionMode}
             selectedModelId={selectedModelId}
             onSelectModel={onSelectModel}

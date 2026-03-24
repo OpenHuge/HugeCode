@@ -160,6 +160,7 @@ type HomeProps = {
   modelSelectionMode?: ComposerModelSelectionMode;
   selectedProviderId?: string | null;
   onSelectProvider?: (providerId: string) => void;
+  onSelectAutoRoute?: (providerId: string | null) => void;
   onSelectModelSelectionMode?: (mode: ComposerModelSelectionMode) => void;
   models?: ModelOption[];
   selectedModelId?: string | null;
@@ -245,6 +246,7 @@ export function Home({
   modelSelectionMode = "manual",
   selectedProviderId = null,
   onSelectProvider = () => undefined,
+  onSelectAutoRoute = () => undefined,
   onSelectModelSelectionMode = () => undefined,
   models = [],
   selectedModelId = null,
@@ -849,6 +851,7 @@ export function Home({
             modelSelectionMode={modelSelectionMode}
             selectedProviderId={selectedProviderId}
             onSelectProvider={onSelectProvider}
+            onSelectAutoRoute={onSelectAutoRoute}
             onSelectModelSelectionMode={onSelectModelSelectionMode}
             models={models}
             selectedModelId={selectedModelId}
