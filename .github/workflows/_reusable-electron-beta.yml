@@ -32,7 +32,7 @@ jobs:
   electron-beta:
     runs-on: ${{ inputs.runner }}
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4

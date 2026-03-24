@@ -114,6 +114,8 @@ jobs:
     name: Publish (${{ matrix.name }})
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true' }}
     needs: make-smoke
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
