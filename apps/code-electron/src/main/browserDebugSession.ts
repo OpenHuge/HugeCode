@@ -9,6 +9,8 @@ export {
   setBrowserWorkspaceAgentAttached,
   setBrowserWorkspaceDevtoolsOpen,
   setBrowserWorkspaceHost,
+  setBrowserWorkspacePaneState,
   setBrowserWorkspacePreviewServerStatus,
   setBrowserWorkspaceProfileMode,
+  reportBrowserWorkspaceVerification,
 } from "./browserWorkspaceSessions.js";

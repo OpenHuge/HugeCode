@@ -1,4 +1,5 @@
 import type {
+  DesktopBrowserWorkspaceReportVerificationInput,
   DesktopBrowserWorkspaceSessionInfo,
   DesktopBrowserWorkspaceSessionInput,
   DesktopBrowserWorkspaceSessionKind,
@@ -6,6 +7,7 @@ import type {
   DesktopBrowserWorkspaceSetAgentAttachedInput,
   DesktopBrowserWorkspaceSetDevtoolsOpenInput,
   DesktopBrowserWorkspaceSetHostInput,
+  DesktopBrowserWorkspaceSetPaneStateInput,
   DesktopBrowserWorkspaceSetPreviewServerStatusInput,
   DesktopBrowserWorkspaceSetProfileModeInput,
 } from "./desktopHostBridge";
@@ -49,6 +51,12 @@ function normalizeBrowserWorkspaceSession(
   if (!sessionId || !kind || !host || !browserUrl || !partitionId || !previewServerStatus) {
     return null;
   }
+  const loadingState =
+    value.loadingState === "loading" ||
+    value.loadingState === "ready" ||
+    value.loadingState === "failed"
+      ? value.loadingState
+      : "idle";
   return {
     sessionId,
     kind,
@@ -74,6 +82,33 @@ function normalizeBrowserWorkspaceSession(
     agentAttached: value.agentAttached === true,
     devtoolsOpen: value.devtoolsOpen === true,
     previewServerStatus,
+    paneWindowId:
+      typeof value.paneWindowId === "number" && Number.isFinite(value.paneWindowId)
+        ? value.paneWindowId
+        : null,
+    paneVisible: value.paneVisible === true,
+    loadingState,
+    lastError:
+      typeof value.lastError === "string" && value.lastError.trim().length > 0
+        ? value.lastError.trim()
+        : null,
+    crashCount:
+      typeof value.crashCount === "number" && Number.isFinite(value.crashCount)
+        ? Math.max(0, Math.trunc(value.crashCount))
+        : 0,
+    consoleTail: Array.isArray(value.consoleTail)
+      ? value.consoleTail
+          .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+          .filter((entry) => entry.length > 0)
+      : [],
+    lastVerifiedTarget:
+      typeof value.lastVerifiedTarget === "string" && value.lastVerifiedTarget.trim().length > 0
+        ? value.lastVerifiedTarget.trim()
+        : null,
+    lastVerifiedAt:
+      typeof value.lastVerifiedAt === "string" && value.lastVerifiedAt.trim().length > 0
+        ? value.lastVerifiedAt.trim()
+        : null,
   };
 }
 
@@ -176,6 +211,28 @@ export async function setDesktopBrowserWorkspaceDevtoolsOpen(
   const bridge = getDesktopHostBridge();
   try {
     return readSessionResult(await bridge?.browserWorkspace?.setDevtoolsOpen?.(input));
+  } catch {
+    return null;
+  }
+}
+
+export async function setDesktopBrowserWorkspacePaneState(
+  input: DesktopBrowserWorkspaceSetPaneStateInput
+): Promise<DesktopBrowserWorkspaceSessionInfo | null> {
+  const bridge = getDesktopHostBridge();
+  try {
+    return readSessionResult(await bridge?.browserWorkspace?.setPaneState?.(input));
+  } catch {
+    return null;
+  }
+}
+
+export async function reportDesktopBrowserWorkspaceVerification(
+  input: DesktopBrowserWorkspaceReportVerificationInput
+): Promise<DesktopBrowserWorkspaceSessionInfo | null> {
+  const bridge = getDesktopHostBridge();
+  try {
+    return readSessionResult(await bridge?.browserWorkspace?.reportVerification?.(input));
   } catch {
     return null;
   }

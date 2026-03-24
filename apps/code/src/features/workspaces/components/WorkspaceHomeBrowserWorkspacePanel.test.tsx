@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   setDesktopBrowserWorkspaceProfileMode: vi.fn(),
   setDesktopBrowserWorkspaceAgentAttached: vi.fn(),
   setDesktopBrowserWorkspaceDevtoolsOpen: vi.fn(),
+  setDesktopBrowserWorkspacePaneState: vi.fn(),
+  reportDesktopBrowserWorkspaceVerification: vi.fn(),
   setDesktopBrowserWorkspacePreviewServerStatus: vi.fn(),
   readWorkspaceFile: vi.fn(),
   bootManagedPreview: vi.fn(),
@@ -22,6 +24,8 @@ vi.mock("../../../application/runtime/ports/desktopBrowserWorkspace", () => ({
   setDesktopBrowserWorkspaceProfileMode: mocks.setDesktopBrowserWorkspaceProfileMode,
   setDesktopBrowserWorkspaceAgentAttached: mocks.setDesktopBrowserWorkspaceAgentAttached,
   setDesktopBrowserWorkspaceDevtoolsOpen: mocks.setDesktopBrowserWorkspaceDevtoolsOpen,
+  setDesktopBrowserWorkspacePaneState: mocks.setDesktopBrowserWorkspacePaneState,
+  reportDesktopBrowserWorkspaceVerification: mocks.reportDesktopBrowserWorkspaceVerification,
   setDesktopBrowserWorkspacePreviewServerStatus:
     mocks.setDesktopBrowserWorkspacePreviewServerStatus,
 }));
@@ -67,8 +71,18 @@ describe("WorkspaceHomeBrowserWorkspacePanel", () => {
         agentAttached: false,
         devtoolsOpen: false,
         previewServerStatus: "ready",
+        paneWindowId: 1,
+        paneVisible: true,
+        loadingState: "ready",
+        lastError: null,
+        crashCount: 0,
+        consoleTail: [],
+        lastVerifiedTarget: "http://127.0.0.1:5173/",
+        lastVerifiedAt: "2026-03-25T00:00:00.000Z",
       },
     ]);
+    mocks.setDesktopBrowserWorkspacePaneState.mockResolvedValue(null);
+    mocks.reportDesktopBrowserWorkspaceVerification.mockResolvedValue(null);
     mocks.readWorkspaceFile.mockResolvedValue({
       content: JSON.stringify({
         packageManager: "pnpm@10.0.0",
@@ -89,7 +103,7 @@ describe("WorkspaceHomeBrowserWorkspacePanel", () => {
     cleanup();
   });
 
-  it("renders current preview workspace state and embedded iframe", async () => {
+  it("renders current preview workspace state and native pane telemetry", async () => {
     render(<WorkspaceHomeBrowserWorkspacePanel workspaceId="workspace-1" />);
 
     await waitFor(() => {
@@ -97,7 +111,10 @@ describe("WorkspaceHomeBrowserWorkspacePanel", () => {
     });
 
     expect(screen.getByText("Current URL")).toBeTruthy();
-    expect(screen.getByTitle("Project preview").getAttribute("src")).toBe("http://127.0.0.1:5173/");
+    expect(screen.getByText("Native preview pane")).toBeTruthy();
+    await waitFor(() => {
+      expect(mocks.setDesktopBrowserWorkspacePaneState).toHaveBeenCalled();
+    });
     expect(screen.getByText("Session policy")).toBeTruthy();
   });
 

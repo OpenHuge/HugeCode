@@ -2,8 +2,11 @@ export type {
   DesktopBrowserDebugSessionInfo,
   DesktopBrowserDebugSessionInput,
   DesktopBrowserWorkspaceHost,
+  DesktopBrowserWorkspaceLoadingState,
+  DesktopBrowserWorkspacePaneBounds,
   DesktopBrowserWorkspacePreviewServerStatus,
   DesktopBrowserWorkspaceProfileMode,
+  DesktopBrowserWorkspaceReportVerificationInput,
   DesktopBrowserWorkspaceSessionInfo,
   DesktopBrowserWorkspaceSessionInput,
   DesktopBrowserWorkspaceSessionKind,
@@ -11,6 +14,7 @@ export type {
   DesktopBrowserWorkspaceSetAgentAttachedInput,
   DesktopBrowserWorkspaceSetDevtoolsOpenInput,
   DesktopBrowserWorkspaceSetHostInput,
+  DesktopBrowserWorkspaceSetPaneStateInput,
   DesktopBrowserWorkspaceSetPreviewServerStatusInput,
   DesktopBrowserWorkspaceSetProfileModeInput,
   DesktopHostBridgeApi,
@@ -47,6 +51,8 @@ export const DESKTOP_HOST_IPC_CHANNELS = {
   setBrowserWorkspacePreviewServerStatus:
     "hugecode:desktop-host:set-browser-workspace-preview-server-status",
   setBrowserWorkspaceDevtoolsOpen: "hugecode:desktop-host:set-browser-workspace-devtools-open",
+  setBrowserWorkspacePaneState: "hugecode:desktop-host:set-browser-workspace-pane-state",
+  reportBrowserWorkspaceVerification: "hugecode:desktop-host:report-browser-workspace-verification",
   getBrowserDebugSession: "hugecode:desktop-host:get-browser-debug-session",
   ensureBrowserDebugSession: "hugecode:desktop-host:ensure-browser-debug-session",
 } as const;

@@ -15,6 +15,7 @@ describe("createDesktopHostHandlers", () => {
         listBrowserWorkspaceSessions: vi.fn(() => [{ sessionId: "ws-1" }]),
         setBrowserWorkspaceAgentAttached: vi.fn(() => ({ sessionId: "ws-1", agentAttached: true })),
         setBrowserWorkspaceDevtoolsOpen: vi.fn(() => ({ sessionId: "ws-1", devtoolsOpen: true })),
+        setBrowserWorkspacePaneState: vi.fn(() => ({ sessionId: "ws-1", paneVisible: true })),
         setBrowserWorkspaceHost: vi.fn(() => ({ sessionId: "ws-1", host: "window" })),
         setBrowserWorkspacePreviewServerStatus: vi.fn(() => ({
           sessionId: "ws-1",
@@ -23,6 +24,10 @@ describe("createDesktopHostHandlers", () => {
         setBrowserWorkspaceProfileMode: vi.fn(() => ({
           sessionId: "ws-1",
           profileMode: "shared",
+        })),
+        reportBrowserWorkspaceVerification: vi.fn(() => ({
+          sessionId: "ws-1",
+          lastVerifiedTarget: "http://127.0.0.1:5173/",
         })),
       },
       listRecentSessions: vi.fn(() => [{ id: "session-1" }]),
@@ -91,9 +96,11 @@ describe("createDesktopHostHandlers", () => {
         listBrowserWorkspaceSessions: vi.fn(() => []),
         setBrowserWorkspaceAgentAttached: vi.fn(() => null),
         setBrowserWorkspaceDevtoolsOpen: vi.fn(() => null),
+        setBrowserWorkspacePaneState: vi.fn(() => null),
         setBrowserWorkspaceHost: vi.fn(() => null),
         setBrowserWorkspacePreviewServerStatus: vi.fn(() => null),
         setBrowserWorkspaceProfileMode: vi.fn(() => null),
+        reportBrowserWorkspaceVerification: vi.fn(() => null),
       },
       listRecentSessions: vi.fn(() => []),
       notificationController: {
