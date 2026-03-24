@@ -211,6 +211,16 @@ fn collect_text_blocks(value: &Value, fragments: &mut Vec<String>) {
     }
 }
 
+fn should_collect_local_claude_output_text(value: &Value) -> bool {
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+    matches!(
+        object.get("type").and_then(Value::as_str),
+        Some("assistant") | Some("result")
+    )
+}
+
 fn extract_final_message_from_stream_event(value: &Value) -> Option<String> {
     let object = value.as_object()?;
     for key in ["result", "message", "output_text", "text"] {
@@ -432,17 +442,19 @@ async fn run_local_claude_exec_turn_once(
             continue;
         }
 
-        let mut fragments = Vec::new();
-        collect_text_blocks(&parsed, &mut fragments);
-        for fragment in fragments {
-            emit_assistant_delta(
-                fragment.as_str(),
-                &mut emitted_text,
-                delta_callback.as_ref(),
-            );
-        }
-        if final_message.is_none() {
-            final_message = extract_final_message_from_stream_event(&parsed);
+        if should_collect_local_claude_output_text(&parsed) {
+            let mut fragments = Vec::new();
+            collect_text_blocks(&parsed, &mut fragments);
+            for fragment in fragments {
+                emit_assistant_delta(
+                    fragment.as_str(),
+                    &mut emitted_text,
+                    delta_callback.as_ref(),
+                );
+            }
+            if final_message.is_none() {
+                final_message = extract_final_message_from_stream_event(&parsed);
+            }
         }
     }
 
@@ -655,7 +667,7 @@ mod tests {
         classify_local_claude_error, extract_final_message_from_stream_event,
         extract_init_event_probe, permission_mode_for_local_claude, probe_local_claude_cli,
         query_local_claude_exec_turn, resolve_local_claude_exec_command_args,
-        LocalClaudeExecTurnInput,
+        should_collect_local_claude_output_text, LocalClaudeExecTurnInput,
     };
     use serde_json::json;
 
@@ -750,6 +762,28 @@ mod tests {
             classify_local_claude_error("", r#"{"apiKeySource":"none"}"#),
             None
         );
+    }
+
+    #[test]
+    fn should_collect_local_claude_output_text_ignores_system_hook_events() {
+        assert!(!should_collect_local_claude_output_text(&json!({
+            "type": "system",
+            "subtype": "hook",
+            "hookSpecificOutput": {
+                "hookEventName": "SessionStart",
+                "additionalContext": "Injected hook context"
+            }
+        })));
+        assert!(should_collect_local_claude_output_text(&json!({
+            "type": "assistant",
+            "message": {
+                "content": [{"type": "text", "text": "hello"}]
+            }
+        })));
+        assert!(should_collect_local_claude_output_text(&json!({
+            "type": "result",
+            "result": "hello"
+        })));
     }
 
     #[cfg(target_os = "macos")]
