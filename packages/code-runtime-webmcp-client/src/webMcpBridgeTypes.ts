@@ -918,6 +918,8 @@ export type WebMcpSyncResult = {
   registeredTools: number;
   registeredResources: number;
   registeredPrompts: number;
+  toolExposureMode?: "minimal" | "slim" | "full" | null;
+  toolExposureReasonCodes?: string[];
   capabilities: WebMcpCapabilityMatrix;
   error: string | null;
 };

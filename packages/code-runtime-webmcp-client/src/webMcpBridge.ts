@@ -31,6 +31,8 @@ type WebMcpSyncResultOptions = {
   registeredTools?: number;
   registeredResources?: number;
   registeredPrompts?: number;
+  toolExposureMode?: WebMcpToolExposureDecision["mode"] | null;
+  toolExposureReasonCodes?: string[];
 };
 
 type WebMcpContextDescriptorOptions = {
@@ -199,6 +201,8 @@ function createWebMcpSyncResult(options: WebMcpSyncResultOptions): WebMcpSyncRes
     registeredTools: options.registeredTools ?? 0,
     registeredResources: options.registeredResources ?? 0,
     registeredPrompts: options.registeredPrompts ?? 0,
+    toolExposureMode: options.toolExposureMode ?? null,
+    toolExposureReasonCodes: options.toolExposureReasonCodes ?? [],
     capabilities: options.capabilities,
     error: options.error,
   };
@@ -307,6 +311,8 @@ export async function syncWebMcpAgentControl<
         registeredTools: tools.length,
         registeredResources: resources.length,
         registeredPrompts: prompts.length,
+        toolExposureMode: toolExposureDecision.mode,
+        toolExposureReasonCodes: toolExposureDecision.reasonCodes,
         capabilities,
         error: null,
       });
@@ -340,6 +346,8 @@ export async function syncWebMcpAgentControl<
         registeredTools: tools.length,
         registeredResources: resources.length,
         registeredPrompts: prompts.length,
+        toolExposureMode: toolExposureDecision.mode,
+        toolExposureReasonCodes: toolExposureDecision.reasonCodes,
         capabilities,
         error: null,
       });

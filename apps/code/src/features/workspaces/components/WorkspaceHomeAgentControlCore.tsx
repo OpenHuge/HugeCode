@@ -13,6 +13,7 @@ import {
   teardownWebMcpAgentControl,
 } from "../../../application/runtime/ports/webMcpBridge";
 import { useWorkspaceRuntimeAgentControl } from "../../../application/runtime/ports/runtimeAgentControl";
+import { useRuntimeWebMcpContextPolicy } from "../../../application/runtime/facades/runtimeWebMcpContextPolicy";
 import type { ApprovalRequest, RequestUserInputRequest } from "../../../types";
 import { WorkspaceHomeAgentIntentSection } from "./WorkspaceHomeAgentIntentSection";
 import {
@@ -176,10 +177,46 @@ export function WorkspaceHomeAgentControl({
   );
 
   const runtimeControl = useWorkspaceRuntimeAgentControl(workspace.id);
+  const runtimeWebMcpContextPolicy = useRuntimeWebMcpContextPolicy({
+    workspaceId: workspace.id,
+    enabled: webMcpEnabled && controlPreferencesReady,
+    intent,
+  });
   const responseRequiredState = useMemo(
     () => ({ approvals, userInputRequests }),
     [approvals, userInputRequests]
   );
+  const runtimePolicyStatus = useMemo(() => {
+    if (!webMcpEnabled) {
+      return "Disabled";
+    }
+    if (!controlPreferencesReady) {
+      return "Waiting for persisted controls";
+    }
+    if (!intent.objective.trim()) {
+      return "Waiting for objective";
+    }
+    if (runtimeWebMcpContextPolicy.loading) {
+      return "Resolving in runtime kernel...";
+    }
+    if (runtimeWebMcpContextPolicy.selectionPolicy) {
+      const toolProfile =
+        runtimeWebMcpContextPolicy.selectionPolicy.toolExposureProfile ?? "default";
+      return `${runtimeWebMcpContextPolicy.truthSourceLabel ?? "Runtime policy"}: ${runtimeWebMcpContextPolicy.selectionPolicy.strategy}/${toolProfile}`;
+    }
+    if (runtimeWebMcpContextPolicy.error) {
+      return "Using provider heuristics";
+    }
+    return "Waiting for runtime policy";
+  }, [
+    controlPreferencesReady,
+    intent.objective,
+    runtimeWebMcpContextPolicy.error,
+    runtimeWebMcpContextPolicy.loading,
+    runtimeWebMcpContextPolicy.selectionPolicy,
+    runtimeWebMcpContextPolicy.truthSourceLabel,
+    webMcpEnabled,
+  ]);
 
   useEffect(() => {
     let disposed = false;
@@ -206,6 +243,7 @@ export function WorkspaceHomeAgentControl({
       snapshot,
       actions,
       activeModelContext,
+      toolExposureProfile: runtimeWebMcpContextPolicy.selectionPolicy?.toolExposureProfile ?? null,
       runtimeControl,
       responseRequiredState,
       onApprovalRequest: async (message) => {
@@ -233,8 +271,9 @@ export function WorkspaceHomeAgentControl({
         setBridgeStatus("WebMCP disabled");
         return;
       }
+      const exposureLabel = result.toolExposureMode ? `, ${result.toolExposureMode} catalog` : "";
       setBridgeStatus(
-        `${result.registeredTools} tool${result.registeredTools === 1 ? "" : "s"} synced (${result.mode})`
+        `${result.registeredTools} tool${result.registeredTools === 1 ? "" : "s"} synced (${result.mode}${exposureLabel})`
       );
     });
 
@@ -250,6 +289,7 @@ export function WorkspaceHomeAgentControl({
     readOnlyMode,
     requireUserApproval,
     responseRequiredState,
+    runtimeWebMcpContextPolicy.selectionPolicy?.toolExposureProfile,
     runtimeControl,
     snapshot,
     webMcpEnabled,
@@ -336,7 +376,17 @@ export function WorkspaceHomeAgentControl({
         </span>
         <span className={controlStyles.controlStatusValue}>{bridgeStatus}</span>
       </div>
+      <div className={controlStyles.controlStatusRow}>
+        <span className={controlStyles.controlStatusLabel}>Context policy</span>
+        <span className={controlStyles.controlStatusValue}>{runtimePolicyStatus}</span>
+      </div>
       {bridgeError && <div className={controlStyles.error}>{bridgeError}</div>}
+      {runtimeWebMcpContextPolicy.error && webMcpEnabled && controlPreferencesReady ? (
+        <div className={controlStyles.warning}>
+          Runtime WebMCP context policy is unavailable. Falling back to provider heuristics until
+          runtime prepare recovers. {runtimeWebMcpContextPolicy.error}
+        </div>
+      ) : null}
       {controlPreferences.error && controlPreferences.status !== "error" ? (
         <div className={controlStyles.error}>
           Persisted workspace agent controls did not save. The last confirmed runtime state remains
@@ -363,7 +413,7 @@ export function WorkspaceHomeAgentControl({
         surface="agent_runtime_orchestration"
         open={runtimeSectionOpen}
         onToggle={() => setRuntimeSectionOpen((current) => !current)}
-        testId="workspace-home-agent-runtime-section"
+        testId="workspace-home-runtime-section"
       >
         <Suspense fallback={null}>
           <LazyWorkspaceHomeAgentRuntimeOrchestration workspaceId={workspace.id} />

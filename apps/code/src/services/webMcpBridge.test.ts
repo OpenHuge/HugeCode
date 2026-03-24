@@ -320,7 +320,7 @@ describe("webMcpBridge", () => {
       },
     });
 
-    await syncWebMcpAgentControl({
+    const result = await syncWebMcpAgentControl({
       enabled: true,
       readOnlyMode: false,
       requireUserApproval: true,
@@ -352,6 +352,8 @@ describe("webMcpBridge", () => {
       },
     });
 
+    expect(result.toolExposureMode).toBe("slim");
+    expect(result.toolExposureReasonCodes).toContain("provider-prefers-slim-tool-catalog");
     expect(registeredTools.some((tool) => tool.name === "read-workspace-file")).toBe(true);
     expect(registeredTools.some((tool) => tool.name === "run-runtime-live-skill")).toBe(true);
     expect(registeredTools.some((tool) => tool.name === "get-runtime-settings")).toBe(false);
@@ -376,7 +378,7 @@ describe("webMcpBridge", () => {
       },
     });
 
-    await syncWebMcpAgentControl({
+    const result = await syncWebMcpAgentControl({
       enabled: true,
       readOnlyMode: false,
       requireUserApproval: true,
@@ -408,6 +410,8 @@ describe("webMcpBridge", () => {
       },
     });
 
+    expect(result.toolExposureMode).toBe("full");
+    expect(result.toolExposureReasonCodes).toContain("provider-keeps-full-tool-catalog");
     expect(registeredTools.some((tool) => tool.name === "get-runtime-settings")).toBe(true);
     expect(registeredResources.some((resource) => resource.name === "runtime-tool-discovery")).toBe(
       false
@@ -430,7 +434,7 @@ describe("webMcpBridge", () => {
       },
     });
 
-    await syncWebMcpAgentControl({
+    const result = await syncWebMcpAgentControl({
       enabled: true,
       readOnlyMode: false,
       requireUserApproval: true,
@@ -463,6 +467,8 @@ describe("webMcpBridge", () => {
       },
     });
 
+    expect(result.toolExposureMode).toBe("minimal");
+    expect(result.toolExposureReasonCodes).toContain("runtime-prefers-minimal-tool-catalog");
     expect(registeredTools.some((tool) => tool.name === "get-runtime-settings")).toBe(false);
     expect(registeredResources.some((resource) => resource.name === "runtime-tool-discovery")).toBe(
       true

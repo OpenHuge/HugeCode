@@ -413,7 +413,7 @@ describe("useThreadMessaging telemetry", () => {
       await result.current.sendUserMessageToThread(workspace, "thread-1", "hello", []);
     });
 
-    expect(recordSentryMetric).toHaveBeenCalledTimes(1);
+    expect(recordSentryMetric).toHaveBeenCalledTimes(2);
     expect(recordSentryMetric).toHaveBeenCalledWith(
       "prompt_sent",
       1,
@@ -1504,6 +1504,17 @@ describe("useThreadMessaging telemetry", () => {
     });
 
     expect(prepareRuntimeRunV2Service).toHaveBeenCalled();
+    expect(recordSentryMetric).toHaveBeenCalledWith(
+      "runtime_context_prepare",
+      1,
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          result: "runtime",
+          strategy: "balanced",
+          tool_profile: "slim",
+        }),
+      })
+    );
     expect(sendUserMessageService).toHaveBeenCalledWith(
       "ws-1",
       "thread-1",
@@ -1566,6 +1577,24 @@ describe("useThreadMessaging telemetry", () => {
       "hello",
       expect.objectContaining({
         contextPrefix: expect.stringContaining("Memory digest"),
+      })
+    );
+    expect(recordSentryMetric).toHaveBeenCalledWith(
+      "runtime_context_prepare",
+      1,
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          result: "fallback",
+        }),
+      })
+    );
+    expect(recordSentryMetric).toHaveBeenCalledWith(
+      "runtime_context_prepare",
+      1,
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          result: "atlas_fallback",
+        }),
       })
     );
   });

@@ -472,7 +472,28 @@ export function useThreadMessaging({
           try {
             const runtimePreparation = await prepareRuntimeRunV2Service(runtimePrepareRequest);
             runtimeContextPrefix = buildRuntimeContextPrefix(runtimePreparation.contextWorkingSet);
+            recordSentryMetric("runtime_context_prepare", 1, {
+              attributes: {
+                workspace_id: workspace.id,
+                thread_id: threadId,
+                result: runtimeContextPrefix ? "runtime" : "empty",
+                execution_mode: resolvedExecutionMode,
+                strategy:
+                  runtimePreparation.contextWorkingSet.selectionPolicy?.strategy ?? "unknown",
+                tool_profile:
+                  runtimePreparation.contextWorkingSet.selectionPolicy?.toolExposureProfile ??
+                  "unknown",
+              },
+            });
           } catch (error) {
+            recordSentryMetric("runtime_context_prepare", 1, {
+              attributes: {
+                workspace_id: workspace.id,
+                thread_id: threadId,
+                result: "fallback",
+                execution_mode: resolvedExecutionMode,
+              },
+            });
             onDebug?.({
               id: `${Date.now()}-runtime-context-prepare-fallback`,
               timestamp: Date.now(),
@@ -502,6 +523,16 @@ export function useThreadMessaging({
       const attachmentContextPrefix = runtimeContextPrefix
         ? null
         : buildAttachmentContextPrefix(images);
+      if (!runtimeContextPrefix && atlasContextPrefix) {
+        recordSentryMetric("runtime_context_prepare", 1, {
+          attributes: {
+            workspace_id: workspace.id,
+            thread_id: threadId,
+            result: "atlas_fallback",
+            execution_mode: resolvedExecutionMode,
+          },
+        });
+      }
       const contextPrefix =
         runtimeContextPrefix ??
         ([atlasContextPrefix, attachmentContextPrefix]
