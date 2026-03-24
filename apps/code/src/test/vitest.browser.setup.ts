@@ -1,7 +1,11 @@
+import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
 afterEach(async () => {
+  cleanup();
   await vi.dynamicImportSettled();
+  cleanup();
+  vi.useRealTimers();
 });
 
 if (!("IS_REACT_ACT_ENVIRONMENT" in globalThis)) {

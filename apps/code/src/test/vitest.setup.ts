@@ -1,3 +1,4 @@
+import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
 const IGNORED_CONSOLE_WARN_SNIPPETS = [
@@ -83,7 +84,10 @@ process.stderr.write = ((
 }) as typeof process.stderr.write;
 
 afterEach(async () => {
+  cleanup();
   await vi.dynamicImportSettled();
+  cleanup();
+  vi.useRealTimers();
 });
 
 if (!("IS_REACT_ACT_ENVIRONMENT" in globalThis)) {

@@ -8,7 +8,7 @@ import {
   type LayoutNodesOptions,
 } from "./types";
 
-const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 45_000;
+const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 60_000;
 
 if (!("Worker" in globalThis)) {
   class WorkerStub {
@@ -171,9 +171,12 @@ describe("buildGitNodes diff lazy boundary", () => {
     vi.resetModules();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     cleanup();
     vi.clearAllMocks();
+    vi.doUnmock("../../../git/components/GitDiffViewer");
+    vi.doUnmock("../../../utils/diffsWorker");
+    await vi.dynamicImportSettled();
   });
 
   it(

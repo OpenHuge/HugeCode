@@ -395,7 +395,7 @@ function listFromGit(args) {
   }
 }
 
-function collectChangedFiles() {
+function collectLocalChangedFiles() {
   const tracked = listFromGit(["diff", "--name-only", "--diff-filter=ACMR", "--relative", "HEAD"]);
   const untracked = listFromGit(["ls-files", "--others", "--exclude-standard"]);
   return [...new Set([...tracked, ...untracked])]
@@ -403,6 +403,79 @@ function collectChangedFiles() {
       (filePath) => !LOCAL_EPHEMERAL_PATH_PREFIXES.some((prefix) => filePath.startsWith(prefix))
     )
     .sort((left, right) => left.localeCompare(right));
+}
+
+function gitRefExists(ref) {
+  const result = spawnSync("git", ["rev-parse", "--verify", "--quiet", ref], {
+    cwd: repoRoot,
+    stdio: "ignore",
+  });
+  return result.status === 0;
+}
+
+function resolveBranchDiffBaseRef(currentBranch) {
+  const candidates = ["origin/main", "main"];
+  for (const candidate of candidates) {
+    if (!gitRefExists(candidate)) {
+      continue;
+    }
+    const candidateBranchName = candidate.includes("/")
+      ? candidate.slice(candidate.lastIndexOf("/") + 1)
+      : candidate;
+    if (candidateBranchName === currentBranch) {
+      continue;
+    }
+    return candidate;
+  }
+  return null;
+}
+
+function tryReadGitStdout(args) {
+  const result = spawnSync("git", args, {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (result.status !== 0) {
+    return null;
+  }
+  return result.stdout.trim();
+}
+
+function collectCommittedBranchDiffFiles() {
+  const currentBranch = tryReadGitStdout(["branch", "--show-current"]);
+  if (!currentBranch) {
+    return [];
+  }
+
+  const baseRef = resolveBranchDiffBaseRef(currentBranch);
+  if (!baseRef) {
+    return [];
+  }
+
+  const mergeBase = tryReadGitStdout(["merge-base", "HEAD", baseRef]);
+  if (!mergeBase) {
+    return [];
+  }
+
+  return listFromGit([
+    "diff",
+    "--name-only",
+    "--diff-filter=ACMR",
+    "--relative",
+    mergeBase,
+    "HEAD",
+  ]).filter(
+    (filePath) => !LOCAL_EPHEMERAL_PATH_PREFIXES.some((prefix) => filePath.startsWith(prefix))
+  );
+}
+
+function collectChangedFiles() {
+  const localChangedFiles = collectLocalChangedFiles();
+  if (localChangedFiles.length > 0) {
+    return localChangedFiles;
+  }
+  return collectCommittedBranchDiffFiles();
 }
 
 function fileExists(repoRelativePath) {

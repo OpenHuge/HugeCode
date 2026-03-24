@@ -170,7 +170,7 @@ describe("ReviewQueuePanel", () => {
     expect(within(panel!).getAllByText("Relaunch available").length).toBeGreaterThan(0);
     expect(within(panel!).getByRole("button", { name: "Selected" })).toBeTruthy();
 
-    fireEvent.click(screen.getAllByRole("button", { name: /Fallback routing/ })[1]!);
+    fireEvent.click(within(panel!).getByRole("button", { name: /Fallback routing/ }));
 
     expect(screen.getByText("Fallback routing review")).toBeTruthy();
     expect(screen.queryByText("Blocked runtime mission")).toBeNull();
