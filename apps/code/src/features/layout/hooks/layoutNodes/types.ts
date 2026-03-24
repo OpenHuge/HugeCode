@@ -43,6 +43,7 @@ import type {
   TurnPlan,
   WorkspaceInfo,
 } from "../../../../types";
+import type { RuntimeReviewGetV2Response } from "@ku0/code-runtime-host-contract";
 import type { WorkspaceLaunchScriptsState } from "../../../app/hooks/useWorkspaceLaunchScripts";
 import type { AccountCenterState } from "../../../app/hooks/useAccountCenterState";
 import type { BranchSwitcherSelection } from "../../../git/types/branchWorkflow";
@@ -258,7 +259,7 @@ export type LayoutNodesFieldRegistry = {
   } | null;
   onRefreshMissionControl?: () => void | Promise<void>;
   reviewPackSelection: ReviewPackSelectionState;
-  runtimeReviewPack?: MissionControlProjection["reviewPacks"][number] | null;
+  runtimeReviewPack?: RuntimeReviewGetV2Response;
   onOpenReviewPack: (selection: ReviewPackSelectionRequest) => void;
   reviewPackDecisionSubmission?: ReviewPackDecisionSubmissionState | null;
   onSubmitReviewPackDecision?: (input: {

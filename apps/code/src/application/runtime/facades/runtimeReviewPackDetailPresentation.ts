@@ -1,4 +1,8 @@
-import type { HugeCodeReviewDecisionState } from "@ku0/code-runtime-host-contract";
+import type {
+  HugeCodeReviewDecisionState,
+  RuntimeAutonomyProfileV2,
+  RuntimeWakePolicyV2,
+} from "@ku0/code-runtime-host-contract";
 import type { MissionControlProjection } from "./runtimeMissionControlFacade";
 import { buildTaskSourceLineageDetails } from "./runtimeMissionControlTaskSourceProjector";
 import type {
@@ -70,6 +74,8 @@ export function pushUnique(target: string[], value: string | null | undefined) {
 
 export function buildExecutionContext(input: {
   executionProfileName: string | null | undefined;
+  autonomyProfile?: RuntimeAutonomyProfileV2 | null | undefined;
+  wakePolicy?: RuntimeWakePolicyV2 | null | undefined;
   reviewProfileId?: string | null | undefined;
   validationPresetId: string | null | undefined;
   backendId: string | null | undefined;
@@ -80,6 +86,9 @@ export function buildExecutionContext(input: {
   inheritFollowUpDefaults: boolean;
 }) {
   const profileName = input.executionProfileName?.trim() || null;
+  const autonomyProfileLabel = formatAutonomyProfileLabel(input.autonomyProfile);
+  const wakePolicyLabel = formatWakePolicyLabel(input.wakePolicy?.mode);
+  const queueBudgetSummary = formatQueueBudgetSummary(input.wakePolicy?.queueBudget);
   const reviewProfileId = input.reviewProfileId?.trim() || null;
   const validationPresetId = input.validationPresetId?.trim() || null;
   const backendId = input.backendId?.trim() || null;
@@ -88,6 +97,10 @@ export function buildExecutionContext(input: {
   const sourceMappingKind = input.sourceMappingKind?.trim() || null;
   if (
     !profileName &&
+    !autonomyProfileLabel &&
+    !wakePolicyLabel &&
+    queueBudgetSummary === null &&
+    input.wakePolicy?.safeFollowUp === undefined &&
     !reviewProfileId &&
     !validationPresetId &&
     !backendId &&
@@ -99,13 +112,28 @@ export function buildExecutionContext(input: {
   }
 
   const routeLabel = backendId ?? providerLabel;
+  const primaryLabel = profileName ?? autonomyProfileLabel;
   const summary =
-    profileName && routeLabel
-      ? `${profileName} via ${routeLabel}`
-      : (profileName ?? routeLabel ?? "Execution context available");
+    primaryLabel && routeLabel
+      ? `${primaryLabel} via ${routeLabel}`
+      : (primaryLabel ?? routeLabel ?? "Execution context available");
   const details: string[] = [];
   if (profileName) {
     pushUnique(details, `Execution profile: ${profileName}`);
+  }
+  if (autonomyProfileLabel) {
+    pushUnique(details, `Autonomy profile: ${autonomyProfileLabel}`);
+  }
+  if (wakePolicyLabel) {
+    pushUnique(details, `Wake policy: ${wakePolicyLabel}`);
+  }
+  if (input.wakePolicy?.safeFollowUp === true) {
+    pushUnique(details, "Safe follow-up: enabled");
+  } else if (input.wakePolicy?.safeFollowUp === false) {
+    pushUnique(details, "Safe follow-up: disabled");
+  }
+  if (queueBudgetSummary) {
+    pushUnique(details, `Queue budget: ${queueBudgetSummary}`);
   }
   if (validationPresetId) {
     pushUnique(details, `Validation preset: ${validationPresetId}`);
@@ -151,6 +179,53 @@ export function buildExecutionContext(input: {
     summary,
     details,
   };
+}
+
+function formatAutonomyProfileLabel(
+  autonomyProfile: RuntimeAutonomyProfileV2 | null | undefined
+): string | null {
+  switch (autonomyProfile) {
+    case "night_operator":
+      return "Night Operator";
+    case "supervised":
+      return "Supervised";
+    default:
+      return null;
+  }
+}
+
+function formatWakePolicyLabel(
+  wakePolicyMode: RuntimeWakePolicyV2["mode"] | null | undefined
+): string | null {
+  switch (wakePolicyMode) {
+    case "auto_queue":
+      return "Auto Queue";
+    case "review_queue":
+      return "Review Queue";
+    case "hold":
+      return "Hold";
+    default:
+      return null;
+  }
+}
+
+function formatQueueBudgetSummary(
+  queueBudget: RuntimeWakePolicyV2["queueBudget"] | null | undefined
+): string | null {
+  if (!queueBudget) {
+    return null;
+  }
+  const limits: string[] = [];
+  if (typeof queueBudget.maxQueuedActions === "number") {
+    limits.push(`${queueBudget.maxQueuedActions} queued actions`);
+  }
+  if (typeof queueBudget.maxAutoContinuations === "number") {
+    limits.push(`${queueBudget.maxAutoContinuations} auto continuations`);
+  }
+  if (typeof queueBudget.maxRuntimeMinutes === "number") {
+    limits.push(`${queueBudget.maxRuntimeMinutes} runtime minutes`);
+  }
+  return limits.length > 0 ? limits.join(", ") : null;
 }
 
 function formatContinuationOrigin(
