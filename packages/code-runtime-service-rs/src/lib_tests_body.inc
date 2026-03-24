@@ -14647,7 +14647,9 @@
         assert!(
             payload["error"]["message"]
                 .as_str()
-                .is_some_and(|message| message.contains("Unsupported turn provider `deepseek`")),
+                .is_some_and(|message| {
+                    message.contains("Selected extension provider is not configured with API key.")
+                }),
             "unexpected error message: {}",
             payload["error"]["message"]
         );
