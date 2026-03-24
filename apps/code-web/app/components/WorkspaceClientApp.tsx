@@ -18,7 +18,7 @@ export function WorkspaceBootFallback() {
       role="status"
     >
       <div className={workspaceFallbackCard}>
-        <span className={workspaceFallbackEyebrow}>Open Fast</span>
+        <span className={workspaceFallbackEyebrow}>HugeCode</span>
         <strong className={workspaceFallbackTitle}>Launching workspace</strong>
         <span className={workspaceFallbackDetail}>
           Preparing the client-only workspace shell and runtime connection path.

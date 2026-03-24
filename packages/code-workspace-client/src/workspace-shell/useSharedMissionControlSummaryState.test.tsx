@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { renderHook, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { act, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceClientBindings } from "../index";
 import { WorkspaceClientBindingsProvider } from "../workspace/WorkspaceClientBindingsProvider";
@@ -278,11 +278,13 @@ describe("useSharedMissionControlSummaryState", () => {
 
     const nextListener = listener;
     if (nextListener) {
-      nextListener({
-        scope: ["agents"],
-        reason: "runUpsert",
-        eventWorkspaceId: "workspace-1",
-        paramsWorkspaceId: "workspace-1",
+      await act(async () => {
+        nextListener({
+          scope: ["agents"],
+          reason: "runUpsert",
+          eventWorkspaceId: "workspace-1",
+          paramsWorkspaceId: "workspace-1",
+        });
       });
     }
 

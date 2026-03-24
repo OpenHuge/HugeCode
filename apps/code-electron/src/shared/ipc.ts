@@ -1,16 +1,22 @@
 export type {
+  DesktopAppInfo,
+  DesktopLaunchIntent,
+  DesktopReleaseChannel,
   DesktopHostBridgeApi,
   DesktopNotificationInput,
   DesktopRuntimeMode,
   DesktopSessionInfo,
   DesktopTrayState,
+  DesktopUpdateState,
   DesktopWindowInfo,
   DesktopWindowLabel,
   OpenDesktopWindowInput,
 } from "@ku0/code-platform-interfaces";
 
 export const DESKTOP_HOST_IPC_CHANNELS = {
+  getAppInfo: "hugecode:desktop-host:get-app-info",
   getAppVersion: "hugecode:desktop-host:get-app-version",
+  consumePendingLaunchIntent: "hugecode:desktop-host:consume-pending-launch-intent",
   getCurrentSession: "hugecode:desktop-host:get-current-session",
   listRecentSessions: "hugecode:desktop-host:list-recent-sessions",
   reopenSession: "hugecode:desktop-host:reopen-session",
@@ -22,6 +28,9 @@ export const DESKTOP_HOST_IPC_CHANNELS = {
   getTrayState: "hugecode:desktop-host:get-tray-state",
   setTrayEnabled: "hugecode:desktop-host:set-tray-enabled",
   showNotification: "hugecode:desktop-host:show-notification",
+  getUpdateState: "hugecode:desktop-host:get-update-state",
+  checkForUpdates: "hugecode:desktop-host:check-for-updates",
+  restartToApplyUpdate: "hugecode:desktop-host:restart-to-apply-update",
   openExternalUrl: "hugecode:desktop-host:open-external-url",
   revealItemInDir: "hugecode:desktop-host:reveal-item-in-dir",
 } as const;

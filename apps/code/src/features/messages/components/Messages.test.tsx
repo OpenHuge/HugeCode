@@ -543,18 +543,21 @@ describe("Messages", () => {
   });
 
   it("keeps markdown paragraph rhythm compact enough for chat-style reading", () => {
-    const markdownSource = readFileSync(
-      resolve(import.meta.dirname, "Markdown.styles.css.ts"),
+    const richContentSource = readFileSync(
+      resolve(
+        import.meta.dirname,
+        "../../../../../../packages/design-system/src/components/RichContent.css.ts"
+      ),
       "utf8"
     );
 
-    expect(markdownSource).toContain('margin: "12px 0"');
-    expect(markdownSource).toContain("globalStyle(`.${markdown} p`, {");
-    expect(markdownSource).toContain('marginBottom: "12px"');
-    expect(markdownSource).toContain("globalStyle(`.${markdown} ul, .${markdown} ol`, {");
-    expect(markdownSource).toContain("globalStyle(`.${markdown} li`, {");
-    expect(markdownSource).toContain('lineHeight: "var(--line-height-content)"');
-    expect(markdownSource).not.toContain('marginBottom: "24px"');
+    expect(richContentSource).toContain("globalStyle(`${root} p`, {");
+    expect(richContentSource).toContain('marginBottom: "12px"');
+    expect(richContentSource).toContain("globalStyle(`${root} ul, ${root} ol`, {");
+    expect(richContentSource).toContain("globalStyle(`${root} li`, {");
+    expect(richContentSource).toContain('lineHeight: dsVar("--line-height-content", "1.6")');
+    expect(richContentSource).toContain('margin: "12px 0"');
+    expect(richContentSource).not.toContain('marginBottom: "24px"');
   });
 
   it("exposes thread history loading state for restore-aware tests", () => {

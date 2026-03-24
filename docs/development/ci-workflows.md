@@ -21,6 +21,7 @@ Key reusable mappings currently in use:
 - `.github/workflows/_reusable-desktop-prepare-frontend.yml`
 - `.github/workflows/_reusable-desktop-build-pr.yml`
 - `.github/workflows/_reusable-desktop-build-release.yml`
+- `.github/workflows/_reusable-electron-beta.yml`
 
 Public workflow entrypoints currently include:
 
@@ -29,6 +30,7 @@ Public workflow entrypoints currently include:
 - `.github/workflows/codex-nightly.yml`
 - `.github/workflows/dependabot-auto-merge.yml`
 - `.github/workflows/desktop.yml`
+- `.github/workflows/electron-beta.yml`
 - `.github/workflows/nightly.yml`
 - `.github/workflows/release.yml`
 
@@ -53,5 +55,6 @@ Public workflow entrypoints currently include:
 - The desktop PR workflow should keep a reduced matrix for renderer-only `apps/code/**` changes and reserve the full macOS + Windows + Linux matrix for Tauri/Electron host, desktop workflow, or desktop-manifest changes.
 - The desktop PR workflow should also skip desktop build lanes for renderer test-only, fixture-only, story-only, or markdown-only edits; keep those changes on the cheap governance and affected-test paths instead of queueing even the reduced Linux desktop build.
 - The `CI` workflow should apply the same rule to `desktop:verify:fast`: PRs should only run that fast desktop gate for desktop-owned surfaces, while root dependency and lockfile churn stays covered by the dedicated desktop workflow on `push` to `main`.
+- Electron beta lanes should run the staged Forge entrypoints (`desktop:electron:verify`, `desktop:electron:make:smoke`, `desktop:electron:publish:dry-run`, `desktop:electron:publish`) instead of calling Forge directly from the workspace package root.
 - Dependabot auto-merge must stay selective: only low-risk grouped updates such as `devcontainers-safe` and `github-actions-safe` should auto-enable merge after checks pass; runtime, frontend, and Rust dependency bumps remain manual-review lanes.
 - npm Dependabot updates should prefer grouped low-risk development-version bumps to reduce queue pressure and redundant CI fan-out, while keeping higher-risk dependency changes in manual-review lanes.

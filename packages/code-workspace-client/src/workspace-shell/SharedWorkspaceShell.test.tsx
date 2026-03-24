@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { SettingsShellFraming, WorkspaceClientBindings } from "../index";
 import { WorkspaceClientBindingsProvider } from "../workspace/WorkspaceClientBindingsProvider";
@@ -303,27 +304,38 @@ function createBindings(options?: {
 
 describe("WorkspaceShellApp", () => {
   it("shows loading copy instead of misleading zeroed mission counts while runtime summary is deferred", () => {
-    render(
-      <WorkspaceClientBindingsProvider
-        bindings={createBindings({
-          readMissionControlSnapshot: vi.fn(
-            () => new Promise<MissionControlSnapshot>(() => undefined)
-          ),
-        })}
-      >
-        <WorkspaceShellApp />
-      </WorkspaceClientBindingsProvider>
-    );
+    vi.useFakeTimers();
 
-    expect(
-      screen.getByText(
-        "Runtime summary is loading in the background so the shared shell can render immediately."
-      )
-    ).toBeTruthy();
-    expect(screen.getByText("Runtime activity is loading in the background.")).toBeTruthy();
-    expect(
-      screen.getByText("Review signals load after the shell becomes interactive.")
-    ).toBeTruthy();
+    try {
+      const { unmount } = render(
+        <WorkspaceClientBindingsProvider
+          bindings={createBindings({
+            readMissionControlSnapshot: vi.fn(
+              () => new Promise<MissionControlSnapshot>(() => undefined)
+            ),
+          })}
+        >
+          <WorkspaceShellApp />
+        </WorkspaceClientBindingsProvider>
+      );
+
+      expect(
+        screen.getByText(
+          "Runtime summary is loading in the background so the shared shell can render immediately."
+        )
+      ).toBeTruthy();
+      expect(screen.getByText("Runtime activity is loading in the background.")).toBeTruthy();
+      expect(
+        screen.getByText("Review signals load after the shell becomes interactive.")
+      ).toBeTruthy();
+
+      act(() => {
+        unmount();
+      });
+      vi.clearAllTimers();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("renders workspace catalog and mission summary from shared bindings", async () => {

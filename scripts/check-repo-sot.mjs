@@ -107,6 +107,76 @@ const requiredChecks = [
       "pnpm dev",
       "pnpm check:workflow-governance",
       "pnpm check:runtime-contract",
+      "pnpm web:*",
+      "Root build, lint, and",
+      "typecheck include the Cloudflare web shell",
+    ],
+  },
+  {
+    file: "apps/code-web/README.md",
+    includes: [
+      "`apps/code-web` is the current Cloudflare-platform web implementation for",
+      "packages/code-workspace-client",
+      "packages/code-application",
+      "pnpm web:*",
+    ],
+    excludes: [
+      "Open Fast",
+      "reuses the existing `apps/code` workspace shell",
+      "excluded from the root default dev/build/validate workflows",
+    ],
+  },
+  {
+    file: "apps/code-web/wrangler.jsonc",
+    includes: ['"name": "hugecode-web"'],
+    excludes: ['"name": "open-fast-web"'],
+  },
+  {
+    file: "apps/code-web/app/routes/_public.index.tsx",
+    includes: ['title: "HugeCode Web"'],
+    excludes: ['title: "Open Fast Web"', "Open Fast web runtime"],
+  },
+  {
+    file: "apps/code-web/app/components/WebChrome.tsx",
+    includes: ["<span className={chromeBrandMeta}>HugeCode Web</span>"],
+    excludes: ["Open Fast Web", ">OF<"],
+  },
+  {
+    file: "apps/code-web/app/components/WebAboutPage.tsx",
+    includes: ['aria-label="About HugeCode"'],
+    excludes: ['aria-label="About Open Fast"'],
+  },
+  {
+    file: "apps/code-web/tsconfig.json",
+    excludes: ["@ku0/code/workspace-surface"],
+  },
+  {
+    file: "scripts/lib/viteWorkspaceAliases.ts",
+    excludes: ["@ku0/code/workspace-surface"],
+  },
+  {
+    file: "vitest.aliases.ts",
+    excludes: ["@ku0/code/workspace-surface"],
+  },
+  {
+    file: "apps/code/package.json",
+    excludes: ['"./workspace-surface"'],
+  },
+  {
+    file: "scripts/config/code-web-bundle-budget.config.mjs",
+    includes: ["knownLargeChunkPrefixes: {}"],
+    excludes: [
+      "MainAppContainerCore-",
+      "MainApp-",
+      "Home-",
+      "SettingsView-",
+      "xterm-",
+      "GitDiffViewer-",
+      "emacs-lisp-",
+      "cpp-",
+      "wasm-",
+      "esm-",
+      "lib-",
     ],
   },
   {
@@ -310,6 +380,10 @@ const internalIdentityChecks = [
   {
     file: "docs/specs/agentic/README.md",
     includes: ["Owner: HugeCode (Code Runtime Support Contracts)"],
+  },
+  {
+    file: "package.json",
+    forbids: ["open_fast_web"],
   },
   {
     file: "scripts/verify_pr.sh",

@@ -34,7 +34,8 @@ type SelectComputedLayout = {
   style: CSSProperties;
 };
 
-export type SelectTriggerRenderProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
+export type SelectTriggerRenderProps = {
+  triggerProps: Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children">;
   ref: Ref<HTMLButtonElement>;
   open: boolean;
   hasSelection: boolean;
@@ -788,7 +789,7 @@ export function Select({
       >
         {renderTrigger ? (
           renderTrigger({
-            ...triggerProps,
+            triggerProps,
             ref: triggerRef,
             open,
             hasSelection,

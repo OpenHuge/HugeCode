@@ -173,6 +173,21 @@ export function UpdateToast({
             </div>
           </>
         )}
+        {state.stage === "downloaded" && (
+          <>
+            <ToastBody className="update-toast-body">
+              Update ready. Restart HugeCode to apply it.
+            </ToastBody>
+            <ToastActions className="update-toast-actions">
+              <Button variant="secondary" size="sm" onClick={onDismiss}>
+                Later
+              </Button>
+              <Button variant="primary" size="sm" onClick={onUpdate}>
+                Restart Now
+              </Button>
+            </ToastActions>
+          </>
+        )}
         {state.stage === "installing" && (
           <ToastBody className="update-toast-body">Installing update...</ToastBody>
         )}

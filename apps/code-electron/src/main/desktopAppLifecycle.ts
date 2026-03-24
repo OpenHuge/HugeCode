@@ -14,7 +14,7 @@ type BrowserWindowFacade = {
 type ElectronAppLike = {
   on(event: "activate", listener: () => void): void;
   on(event: "before-quit", listener: () => void): void;
-  on(event: "second-instance", listener: () => void): void;
+  on(event: "second-instance", listener: (_event: unknown, argv: string[]) => void): void;
   on(event: "window-all-closed", listener: () => void): void;
   quit(): void;
   requestSingleInstanceLock(): boolean;
@@ -29,6 +29,7 @@ export type RegisterDesktopAppLifecycleInput = {
   getPersistedSessions(): DesktopSessionDescriptor[];
   isTrayEnabled(): boolean;
   onBeforeQuit(): void;
+  onSecondInstance?(argv: string[]): void;
   openWindow(): unknown;
   platform?: NodeJS.Platform;
   updateTray(): void;
@@ -43,7 +44,9 @@ export function registerDesktopAppLifecycle(input: RegisterDesktopAppLifecycleIn
     return false;
   }
 
-  input.app.on("second-instance", () => {
+  input.app.on("second-instance", (_event, argv) => {
+    input.onSecondInstance?.(argv);
+
     const nextWindow = input.browserWindow.getAllWindows()[0];
     if (!nextWindow) {
       input.openWindow();
