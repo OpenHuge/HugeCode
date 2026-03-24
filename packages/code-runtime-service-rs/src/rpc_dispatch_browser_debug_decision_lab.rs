@@ -611,6 +611,12 @@ pub(super) async fn run_chatgpt_research_route_lab_operation(
         .trusted_domains
         .clone()
         .unwrap_or_default();
+    let allowed_route_ids = research_route_request
+        .routes
+        .iter()
+        .map(|route| route.id.trim().to_string())
+        .filter(|route| !route.is_empty())
+        .collect::<Vec<_>>();
     let result = timeout(
         Duration::from_millis(timeout_ms),
         execute_chatgpt_json_lab_flow(
@@ -694,7 +700,11 @@ pub(super) async fn run_chatgpt_research_route_lab_operation(
                 }
             };
             let research_route_lab =
-                normalize_research_route_lab_result_payload(&parsed_json, trusted_domains.as_slice());
+                normalize_research_route_lab_result_payload(
+                    &parsed_json,
+                    trusted_domains.as_slice(),
+                    allowed_route_ids.as_slice(),
+                );
             if let Some(blocked_reason) = research_route_lab
                 .as_ref()
                 .and_then(|value| value.get("blockedReason"))
@@ -850,53 +860,6 @@ mod tests {
         assert_eq!(
             extract_any_chatgpt_page_id(&result, "https://chatgpt.com/"),
             Some(2)
-        );
-    }
-
-    #[test]
-    fn normalize_research_route_lab_result_payload_marks_missing_sources_as_blocked() {
-        let value = json!({
-            "recommendedRoute": "route-a",
-            "alternativeRoutes": [],
-            "decisionMemo": "Prefer route A.",
-            "sources": [],
-            "confidence": "high",
-            "openQuestions": [],
-            "blockedReason": null
-        });
-        let result = normalize_research_route_lab_result_payload(&value, &[])
-            .expect("normalized research payload");
-        assert_eq!(
-            result.get("blockedReason"),
-            Some(&json!("missing_trusted_sources"))
-        );
-    }
-
-    #[test]
-    fn normalize_research_route_lab_result_payload_blocks_untrusted_sources() {
-        let value = json!({
-            "recommendedRoute": "route-a",
-            "alternativeRoutes": [],
-            "decisionMemo": "Prefer route A.",
-            "sources": [
-                {
-                    "label": "Random blog",
-                    "url": "https://example.com/post",
-                    "domain": "example.com"
-                }
-            ],
-            "confidence": "medium",
-            "openQuestions": [],
-            "blockedReason": null
-        });
-        let result = normalize_research_route_lab_result_payload(
-            &value,
-            &["react.dev".to_string(), "vite.dev".to_string()],
-        )
-        .expect("normalized research payload");
-        assert_eq!(
-            result.get("blockedReason"),
-            Some(&json!("untrusted_source_domains:example.com"))
         );
     }
 

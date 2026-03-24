@@ -43,6 +43,10 @@ import {
   shouldAutoRunChatgptResearchRouteLab,
 } from "./runtimeAutoDrivePolicy";
 import {
+  buildResearchTrustedDomains,
+  resolveResearchRouteOutcome,
+} from "./runtimeAutoDriveResearchRoute";
+import {
   isBrowserReproFixVerifyScenario,
   isResearchRouteDecideScenario,
 } from "./runtimeScenarioProfiles";
@@ -623,6 +627,10 @@ export class AutoDriveRunController {
     }
 
     try {
+      const trustedDomains = buildResearchTrustedDomains({
+        run: this.run,
+        context,
+      });
       const result = await this.deps.runRuntimeBrowserDebug({
         workspaceId: this.run.workspaceId,
         operation: "chatgpt_research_route_lab",
@@ -641,16 +649,7 @@ export class AutoDriveRunController {
             ...this.run.destination.hardBoundaries,
             "Prefer official or trusted documentation.",
           ],
-          trustedDomains: [
-            "openai.com",
-            "platform.openai.com",
-            "developers.openai.com",
-            "react.dev",
-            "vite.dev",
-            "electronjs.org",
-            "tauri.app",
-            "developer.chrome.com",
-          ],
+          trustedDomains,
           allowLiveWebResearch: this.run.riskPolicy.allowNetworkAnalysis,
           chatgptUrl: null,
         },
@@ -662,21 +661,18 @@ export class AutoDriveRunController {
           url: entry.url ?? null,
           domain: entry.domain ?? null,
         })) ?? [];
-      const summary =
-        research?.decisionMemo ??
-        research?.blockedReason ??
-        "Research route lab completed without a detailed rationale.";
+      const researchOutcome = resolveResearchRouteOutcome({
+        result,
+        context,
+        researchSources,
+      });
 
       this.run = {
         ...this.run,
         runtimeResearchTrace: {
-          status: research?.blockedReason
-            ? "blocked"
-            : researchSources.length === 0
-              ? "gap"
-              : "selected",
-          summary,
-          blockingReason: research?.blockedReason ?? null,
+          status: researchOutcome.status,
+          summary: researchOutcome.summary,
+          blockingReason: researchOutcome.blockingReason,
         },
         runtimeResearchSources: researchSources,
         lastChatgptResearchRouteLab: research
@@ -694,7 +690,7 @@ export class AutoDriveRunController {
       await this.persistRun();
 
       const recommendedCandidate = context.opportunities.candidates.find(
-        (candidate) => candidate.id === research?.recommendedRoute
+        (candidate) => candidate.id === researchOutcome.recommendedCandidateId
       );
       if (!recommendedCandidate) {
         return context;

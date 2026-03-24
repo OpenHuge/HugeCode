@@ -127,6 +127,7 @@ pub(super) fn build_chatgpt_research_route_lab_prompt(
         "Choose exactly one recommendedRoute from the supplied routes unless you must block the task.",
         research_rule,
         "Use only official or explicitly trusted sources. If you cannot satisfy that constraint, return blockedReason.",
+        "If you cannot justify a route from trusted sources, set recommendedRoute to null and explain the gap in blockedReason.",
         "Treat this as an isolated task. Ignore unrelated earlier chat history unless it is repeated in the current request.",
         "Use the following request id only as opaque context.",
         &format!("Research route request id: {request_id}"),
@@ -784,6 +785,7 @@ pub(super) fn source_matches_trusted_domain(source_domain: &str, trusted_domains
 pub(super) fn normalize_research_route_lab_result_payload(
     value: &Value,
     trusted_domains: &[String],
+    allowed_route_ids: &[String],
 ) -> Option<Value> {
     let object = value.as_object()?;
     let confidence = object
@@ -791,6 +793,12 @@ pub(super) fn normalize_research_route_lab_result_payload(
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|value| matches!(*value, "low" | "medium" | "high"))
+        .map(ToOwned::to_owned);
+    let recommended_route = object
+        .get("recommendedRoute")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned);
 
     let sources = object
@@ -855,7 +863,17 @@ pub(super) fn normalize_research_route_lab_result_payload(
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned)
         .or_else(|| {
-            if sources.is_empty() {
+            if recommended_route.is_none() {
+                Some("missing_recommended_route".to_string())
+            } else if !allowed_route_ids.is_empty()
+                && recommended_route
+                    .as_ref()
+                    .is_some_and(|route| !allowed_route_ids.iter().any(|candidate| candidate == route))
+            {
+                recommended_route
+                    .as_ref()
+                    .map(|route| format!("invalid_recommended_route:{route}"))
+            } else if sources.is_empty() {
                 Some("missing_trusted_sources".to_string())
             } else if !untrusted_sources.is_empty() {
                 Some(format!(
@@ -868,7 +886,7 @@ pub(super) fn normalize_research_route_lab_result_payload(
         });
 
     Some(json!({
-        "recommendedRoute": object.get("recommendedRoute").and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty()),
+        "recommendedRoute": recommended_route,
         "alternativeRoutes": object.get("alternativeRoutes").and_then(Value::as_array).map(|entries| {
             entries.iter().filter_map(Value::as_object).map(|entry| {
                 json!({
@@ -910,6 +928,116 @@ pub(super) fn extract_decision_lab_step_error(result: &Value) -> Option<String> 
         }
     }
     None
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_research_route_lab_result_payload_marks_missing_sources_as_blocked() {
+        let value = json!({
+            "recommendedRoute": "route-a",
+            "alternativeRoutes": [],
+            "decisionMemo": "Prefer route A.",
+            "sources": [],
+            "confidence": "high",
+            "openQuestions": [],
+            "blockedReason": null
+        });
+        let result = normalize_research_route_lab_result_payload(&value, &[], &[])
+            .expect("normalized research payload");
+        assert_eq!(
+            result.get("blockedReason"),
+            Some(&json!("missing_trusted_sources"))
+        );
+    }
+
+    #[test]
+    fn normalize_research_route_lab_result_payload_blocks_untrusted_sources() {
+        let value = json!({
+            "recommendedRoute": "route-a",
+            "alternativeRoutes": [],
+            "decisionMemo": "Prefer route A.",
+            "sources": [
+                {
+                    "label": "Random blog",
+                    "url": "https://example.com/post",
+                    "domain": "example.com"
+                }
+            ],
+            "confidence": "medium",
+            "openQuestions": [],
+            "blockedReason": null
+        });
+        let result = normalize_research_route_lab_result_payload(
+            &value,
+            &["react.dev".to_string(), "vite.dev".to_string()],
+            &["route-a".to_string()],
+        )
+        .expect("normalized research payload");
+        assert_eq!(
+            result.get("blockedReason"),
+            Some(&json!("untrusted_source_domains:example.com"))
+        );
+    }
+
+    #[test]
+    fn normalize_research_route_lab_result_payload_marks_missing_route_as_blocked() {
+        let value = json!({
+            "recommendedRoute": null,
+            "alternativeRoutes": [],
+            "decisionMemo": "Need more evidence.",
+            "sources": [
+                {
+                    "label": "React 19 upgrade guide",
+                    "url": "https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
+                    "domain": "react.dev"
+                }
+            ],
+            "confidence": "medium",
+            "openQuestions": [],
+            "blockedReason": null
+        });
+        let result = normalize_research_route_lab_result_payload(
+            &value,
+            &["react.dev".to_string()],
+            &["route-a".to_string()],
+        )
+        .expect("normalized research payload");
+        assert_eq!(
+            result.get("blockedReason"),
+            Some(&json!("missing_recommended_route"))
+        );
+    }
+
+    #[test]
+    fn normalize_research_route_lab_result_payload_blocks_routes_outside_candidate_set() {
+        let value = json!({
+            "recommendedRoute": "route-z",
+            "alternativeRoutes": [],
+            "decisionMemo": "Prefer route z.",
+            "sources": [
+                {
+                    "label": "React 19 upgrade guide",
+                    "url": "https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
+                    "domain": "react.dev"
+                }
+            ],
+            "confidence": "high",
+            "openQuestions": [],
+            "blockedReason": null
+        });
+        let result = normalize_research_route_lab_result_payload(
+            &value,
+            &["react.dev".to_string()],
+            &["route-a".to_string(), "route-b".to_string()],
+        )
+        .expect("normalized research payload");
+        assert_eq!(
+            result.get("blockedReason"),
+            Some(&json!("invalid_recommended_route:route-z"))
+        );
+    }
 }
 
 pub(super) fn is_navigation_context_reset_error(error: &str) -> bool {
@@ -1069,4 +1197,3 @@ pub(super) fn extract_any_chatgpt_page_id(result: &Value, chatgpt_url: &str) -> 
     }
     None
 }
-
