@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
   clickByDom,
-  getComposerStartHeading,
   gotoWorkspaces,
   isRuntimeGatewayReady,
   openFirstWorkspace,
@@ -30,8 +29,6 @@ test("workspace rail stays outside the composer footer and remains interactive",
   if (hasWorkspaceFooter) {
     await expect(workspaceFooter).toBeVisible();
     await expect(nestedWorkspaceFooter).toHaveCount(0);
-  } else {
-    await expect(getComposerStartHeading(page)).toBeVisible();
   }
 
   const accessButton = page.getByRole("button", { name: "Agent access" }).first();

@@ -4,7 +4,6 @@ import {
   clickUserMenuAction,
   gotoWorkspaces,
   isRuntimeGatewayReady,
-  openFirstWorkspace,
   waitForWorkspaceShell,
 } from "./helpers";
 
@@ -18,7 +17,6 @@ test("settings dialog reopens cleanly after reload", async ({ page }) => {
   await gotoWorkspaces(page);
   const shellReady = await waitForWorkspaceShell(page);
   test.skip(!shellReady, "Workspace shell is not ready in this environment.");
-  await openFirstWorkspace(page);
 
   const settingsDialog = page.getByRole("dialog", { name: "Settings" });
 
@@ -42,7 +40,6 @@ test("debug panel remains interactive across repeated open and escape cycles", a
   await gotoWorkspaces(page);
   const shellReady = await waitForWorkspaceShell(page);
   test.skip(!shellReady, "Workspace shell is not ready in this environment.");
-  await openFirstWorkspace(page);
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     await clickUserMenuAction(page, "Open debug log");

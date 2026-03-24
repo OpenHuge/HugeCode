@@ -110,6 +110,30 @@ export const composerDock = style({
   padding: "0 0 8px var(--main-panel-padding)",
 });
 
+const shellOverlayToggleBase = style({
+  position: "absolute",
+  top: "calc(var(--shell-chrome-inset-top, 10px) + 6px)",
+  zIndex: 5,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  pointerEvents: "auto",
+});
+
+export const sidebarExpandToggle = style([
+  shellOverlayToggleBase,
+  {
+    left: "calc(var(--main-panel-padding, 12px) - 2px)",
+  },
+]);
+
+export const rightPanelExpandToggle = style([
+  shellOverlayToggleBase,
+  {
+    right: "calc(var(--main-panel-padding, 12px) + var(--main-header-right-overlay-gutter, 0px))",
+  },
+]);
+
 export const rightRail = style({
   gridColumn: "3",
   gridRow: "1 / -1",

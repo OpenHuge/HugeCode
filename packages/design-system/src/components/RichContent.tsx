@@ -4,6 +4,10 @@ import * as styles from "./RichContent.css";
 
 export interface RichContentProps extends HTMLAttributes<HTMLDivElement> {}
 
+type TableDataAttributes = {
+  [key: `data-${string}`]: string | number | boolean | undefined;
+};
+
 export function RichContent({ className, ...props }: RichContentProps) {
   return <div {...props} className={cx(styles.root, className)} data-rich-content="true" />;
 }
@@ -34,7 +38,7 @@ export function CodeBlockSurface({
 }
 
 export interface DataTableSurfaceProps extends HTMLAttributes<HTMLDivElement> {
-  tableProps?: TableHTMLAttributes<HTMLTableElement>;
+  tableProps?: TableHTMLAttributes<HTMLTableElement> & TableDataAttributes;
 }
 
 export function DataTableSurface({
