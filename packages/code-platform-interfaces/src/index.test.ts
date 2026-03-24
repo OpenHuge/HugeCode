@@ -31,6 +31,14 @@ describe("code-platform-interfaces", () => {
       receivedAt: "2026-03-24T00:00:00.000Z",
       url: "hugecode://workspace/open?path=%2Fworkspace%2Falpha",
     };
+    const workspaceLaunchIntent: DesktopLaunchIntent = {
+      kind: "workspace",
+      launchPath: "/workspace/alpha/src/main.ts",
+      launchPathKind: "file",
+      receivedAt: "2026-03-24T00:00:00.000Z",
+      workspaceLabel: "alpha",
+      workspacePath: "/workspace/alpha",
+    };
     const updateState: DesktopUpdateState = {
       capability: "automatic",
       message: "Automatic beta updates are enabled from the configured static feed.",
@@ -43,6 +51,8 @@ describe("code-platform-interfaces", () => {
 
     expect(appInfo.channel).toBe("beta");
     expect(launchIntent.kind).toBe("protocol");
+    expect(workspaceLaunchIntent.launchPathKind).toBe("file");
+    expect(workspaceLaunchIntent.workspacePath).toBe("/workspace/alpha");
     expect(updateState.stage).toBe("available");
   });
 });

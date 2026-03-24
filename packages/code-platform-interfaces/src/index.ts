@@ -13,7 +13,12 @@ export type DesktopUpdateMode =
   | "misconfigured"
   | "unsupported_platform";
 export type DesktopUpdateProvider = "none" | "public-github" | "static-storage";
-export type DesktopLaunchIntentKind = "launch" | "protocol" | "post-install" | "post-update";
+export type DesktopLaunchIntentKind =
+  | "launch"
+  | "protocol"
+  | "workspace"
+  | "post-install"
+  | "post-update";
 export type DesktopUpdateStage =
   | "idle"
   | "checking"
@@ -58,8 +63,12 @@ export type DesktopAppInfo = {
 
 export type DesktopLaunchIntent = {
   kind: DesktopLaunchIntentKind;
+  launchPath?: string | null;
+  launchPathKind?: "directory" | "file" | null;
   receivedAt: string;
   url?: string | null;
+  workspaceLabel?: string | null;
+  workspacePath?: string | null;
 };
 
 export type DesktopUpdateState = {
@@ -77,6 +86,8 @@ export type DesktopUpdateState = {
 
 export type OpenDesktopWindowInput = {
   duplicate?: boolean;
+  launchPath?: string | null;
+  launchPathKind?: "directory" | "file" | null;
   preferredBackendId?: string | null;
   runtimeMode?: DesktopRuntimeMode;
   windowLabel?: DesktopWindowLabel;

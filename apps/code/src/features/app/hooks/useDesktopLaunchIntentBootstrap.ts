@@ -17,6 +17,20 @@ function describeLaunchIntent(intent: DesktopLaunchIntent) {
           "HugeCode received a hugecode:// link. This beta records the link, but in-app deep-link routing is still limited.",
         title: "Deep link received",
       };
+    case "workspace":
+      if (intent.launchPathKind === "file" && intent.launchPath) {
+        return {
+          message: `HugeCode opened the containing workspace for ${intent.launchPath}.`,
+          title: "File opened in workspace",
+        };
+      }
+
+      return {
+        message: intent.workspacePath
+          ? `HugeCode opened the requested workspace at ${intent.workspacePath}.`
+          : "HugeCode opened the requested workspace.",
+        title: "Workspace opened",
+      };
     case "post-install":
       return {
         message: "HugeCode finished installing and desktop integrations are ready.",
@@ -31,6 +45,22 @@ function describeLaunchIntent(intent: DesktopLaunchIntent) {
     default:
       return null;
   }
+}
+
+function formatLaunchIntentPayload(intent: DesktopLaunchIntent) {
+  if (intent.url) {
+    return `${intent.kind}: ${intent.url}`;
+  }
+
+  if (intent.workspacePath) {
+    if (intent.launchPath && intent.launchPath !== intent.workspacePath) {
+      return `${intent.kind}: ${intent.launchPath} -> ${intent.workspacePath}`;
+    }
+
+    return `${intent.kind}: ${intent.workspacePath}`;
+  }
+
+  return intent.kind;
 }
 
 export function useDesktopLaunchIntentBootstrap({
@@ -54,7 +84,7 @@ export function useDesktopLaunchIntentBootstrap({
           timestamp: Date.now(),
           source: "client",
           label: "desktop/launch-intent",
-          payload: intent.url ? `${intent.kind}: ${intent.url}` : intent.kind,
+          payload: formatLaunchIntentPayload(intent),
         });
 
         const toast = describeLaunchIntent(intent);

@@ -49,3 +49,22 @@ Linux desktop builds remain manual-update only.
 - `pnpm desktop:electron:make:smoke`
 - `pnpm desktop:electron:publish:dry-run`
 - `pnpm desktop:electron:verify`
+
+## Launch Behavior
+
+- `hugecode://...` remains the external deep-link scheme.
+- Packaged renderer content loads only from `hugecode-app://app/...`.
+- Command-line workspace launches follow modern desktop-editor behavior:
+  - launching HugeCode with a folder path opens or focuses that workspace window
+  - launching HugeCode with a file path opens the containing workspace directory while preserving the original file target in the launch intent
+  - macOS `open-file` events are normalized to the same workspace-launch flow
+  - file-driven launches are added to the OS recent-documents surface when Electron exposes it
+
+## Desktop Chrome
+
+- HugeCode now maintains both a tray menu and a state-driven application menu.
+- The application menu exposes:
+  - `New Window`
+  - `About HugeCode`
+  - `Open Recent Session`
+- The menu is rebuilt from the persisted desktop session state instead of hard-coded one-off actions in `main.ts`.

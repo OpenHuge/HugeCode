@@ -8,9 +8,11 @@ import {
   registerDesktopAppProtocolHandler,
   registerDesktopAppProtocolScheme,
 } from "./desktopAppProtocol.js";
+import { createDesktopApplicationMenuController } from "./desktopApplicationMenu.js";
 import { createDesktopAutoUpdateConfigurator } from "./desktopAutoUpdateConfigurator.js";
 import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
 import { createDesktopLaunchIntentController } from "./desktopLaunchIntentController.js";
+import type { CreateDesktopLaunchIntentControllerInput } from "./desktopLaunchIntentController.js";
 import { createDesktopRendererTrust } from "./desktopRendererTrust.js";
 import { registerDesktopSessionSecurity } from "./desktopSessionSecurity.js";
 import { createDesktopShellState, type DesktopWindowBounds } from "./desktopShellState.js";
@@ -64,12 +66,17 @@ type DesktopBrowserWindowFacade = {
 
 export type CreateDesktopMainCompositionInput = {
   app: {
+    addRecentDocument?(path: string): void;
     enableSandbox(): void;
     getPath(name: "userData"): string;
     getVersion(): string;
     isPackaged: boolean;
     on(event: "activate", listener: () => void): void;
     on(event: "before-quit", listener: () => void): void;
+    on(
+      event: "open-file",
+      listener: (event: { preventDefault(): void }, path: string) => void
+    ): void;
     on(event: "open-url", listener: (event: { preventDefault(): void }, url: string) => void): void;
     on(event: "second-instance", listener: (_event: unknown, argv: string[]) => void): void;
     on(event: "window-all-closed", listener: () => void): void;
@@ -92,6 +99,7 @@ export type CreateDesktopMainCompositionInput = {
     ): void;
   };
   platform: NodeJS.Platform;
+  launchIntentDependencies?: CreateDesktopLaunchIntentControllerInput["dependencies"];
   protocol: {
     registerSchemesAsPrivileged(
       customSchemes: Array<{
@@ -160,6 +168,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   });
   const launchIntentController = createDesktopLaunchIntentController({
     app: input.app,
+    dependencies: input.launchIntentDependencies,
     initialArgv: input.processArgv,
     platform: input.platform,
     protocol: "hugecode",
@@ -193,6 +202,11 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     stateStore.write(shellState.toPersistedState());
   }
 
+  function updateDesktopChrome() {
+    trayController.update();
+    applicationMenuController.update();
+  }
+
   const windowController = createDesktopWindowController({
     browserWindow: input.browserWindow,
     defaultWindowBounds: DEFAULT_WINDOW_STATE,
@@ -211,7 +225,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       void window.loadURL(createDesktopAppRendererUrl());
     },
     notifyWindowsChanged() {
-      trayController.update();
+      updateDesktopChrome();
     },
     openExternalUrl(url) {
       return input.shell.openExternal(url);
@@ -246,6 +260,27 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     },
     restoreVisibleWindow: windowController.restoreVisibleWindow,
     trayIconDataUrl: input.trayIconDataUrl ?? DEFAULT_TRAY_ICON_DATA_URL,
+  });
+  const applicationMenuController = createDesktopApplicationMenuController({
+    onNewWindow: () => {
+      windowController.openWindow();
+    },
+    onOpenAbout: () => {
+      windowController.openWindow({
+        windowLabel: "about",
+      });
+    },
+    onQuit: () => {
+      isQuitting = true;
+      input.app.quit();
+    },
+    onReopenSession: windowController.reopenSession,
+    platform: input.platform,
+    readState() {
+      return {
+        recentSessions: shellState.recentSessions,
+      };
+    },
   });
 
   const desktopHostHandlers = createDesktopHostHandlers({
@@ -327,6 +362,9 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       getPersistedSessions() {
         return shellState.recentSessions;
       },
+      getInitialOpenWindowInput() {
+        return launchIntentController.getPendingOpenWindowInput();
+      },
       isTrayEnabled() {
         return shellState.trayEnabled;
       },
@@ -341,17 +379,20 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
           session: defaultSession,
         });
         registerDesktopSessionSecurity(defaultSession);
+        applicationMenuController.update();
       },
       onBeforeQuit() {
         isQuitting = true;
+        applicationMenuController.dispose();
         trayController.dispose();
       },
       onSecondInstance(argv) {
         launchIntentController.queueArgv(argv);
+        return launchIntentController.getPendingOpenWindowInput();
       },
       openWindow: windowController.openWindow,
       updateTray() {
-        trayController.update();
+        updateDesktopChrome();
       },
     });
   }

@@ -59,4 +59,34 @@ describe("useDesktopLaunchIntentBootstrap", () => {
     expect(onDebug).not.toHaveBeenCalled();
     expect(pushErrorToastMock).not.toHaveBeenCalled();
   });
+
+  it("surfaces workspace launch intents with the resolved workspace path", async () => {
+    consumePendingDesktopLaunchIntentMock.mockResolvedValue({
+      kind: "workspace",
+      launchPath: "/workspace/demo/src/main.ts",
+      launchPathKind: "file",
+      receivedAt: "2026-03-24T10:00:00.000Z",
+      workspaceLabel: "demo",
+      workspacePath: "/workspace/demo",
+    });
+    const onDebug = vi.fn();
+
+    renderHook(() => useDesktopLaunchIntentBootstrap({ onDebug }));
+
+    await waitFor(() => {
+      expect(onDebug).toHaveBeenCalledWith(
+        expect.objectContaining({
+          label: "desktop/launch-intent",
+          payload: "workspace: /workspace/demo/src/main.ts -> /workspace/demo",
+        })
+      );
+    });
+    expect(pushErrorToastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "desktop-launch-intent-workspace-2026-03-24T10:00:00.000Z",
+        title: "File opened in workspace",
+        message: "HugeCode opened the containing workspace for /workspace/demo/src/main.ts.",
+      })
+    );
+  });
 });

@@ -17,6 +17,22 @@ HugeCode packages Electron with Forge fuse hardening enabled. The release contra
 
 HugeCode now serves packaged renderer content from `hugecode-app://app/...`. `hugecode://` remains reserved for external launch intents and deep links.
 
+## Launch Intent Rules
+
+- `hugecode://...` stays reserved for external deep links.
+- Workspace launches are a separate desktop contract:
+  - command-line folder paths open or focus the matching workspace session
+  - command-line file paths normalize to the containing workspace directory while preserving the original file launch target in the desktop launch intent
+  - macOS `open-file` events are normalized to the same workspace-launch behavior
+- File-driven launches should be safe to surface in OS recent-documents integrations. Do not collapse them into a generic workspace launch before the main process records the original path.
+- Runtime/UI code should treat these as distinct intent kinds instead of parsing raw argv or conflating deep links with workspace opening.
+
+## Desktop Chrome Rules
+
+- The Electron shell owns both tray and application-menu state.
+- `Recent Sessions` in tray and in the application menu must derive from the same persisted desktop session model.
+- Do not bolt new desktop actions directly into `main.ts`; add them through the menu/tray controller layer so session-driven desktop chrome stays in sync.
+
 ## Channel Rules
 
 | Channel                                      | Default behavior | Automatic provider                                | Notes                                                                                        |

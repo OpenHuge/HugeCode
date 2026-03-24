@@ -1,10 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { rmSync } from "node:fs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const updateElectronApp = vi.fn();
 
 vi.mock("electron", () => ({
   Menu: {
     buildFromTemplate: vi.fn(() => ({ popup: vi.fn() })),
+    setApplicationMenu: vi.fn(),
   },
   nativeImage: {
     createFromDataURL: vi.fn(() => ({
@@ -33,11 +35,20 @@ vi.mock("update-electron-app", () => ({
 }));
 
 describe("createDesktopMainComposition", () => {
+  const createdUserDataPaths = new Set<string>();
+
   beforeEach(async () => {
     updateElectronApp.mockReset();
     const { resetDesktopAppProtocolSchemeRegistrationForTests } =
       await import("./desktopAppProtocol.js");
     resetDesktopAppProtocolSchemeRegistrationForTests();
+  });
+
+  afterEach(() => {
+    for (const userDataPath of createdUserDataPaths) {
+      rmSync(userDataPath, { force: true, recursive: true });
+    }
+    createdUserDataPaths.clear();
   });
 
   function createFakeWindow() {
@@ -77,11 +88,16 @@ describe("createDesktopMainComposition", () => {
     > = {}
   ) {
     const fakeWindow = createFakeWindow();
+    const userDataPath = `${process.cwd()}/node_modules/.cache/hugecode-electron-tests-${Math.random()
+      .toString(36)
+      .slice(2)}`;
+    createdUserDataPaths.add(userDataPath);
 
     return {
       app: {
+        addRecentDocument: vi.fn(),
         enableSandbox: vi.fn(),
-        getPath: vi.fn(() => "/tmp/hugecode-electron-tests"),
+        getPath: vi.fn(() => userDataPath),
         getVersion: vi.fn(() => "0.1.0"),
         isPackaged: true,
         on: vi.fn(),
@@ -103,6 +119,11 @@ describe("createDesktopMainComposition", () => {
       },
       ipcMain: {
         handle: vi.fn(),
+      },
+      launchIntentDependencies: {
+        currentWorkingDirectory: () => "/workspace",
+        existsSync: vi.fn(() => false),
+        statSync: vi.fn(),
       },
       platform: "darwin" as const,
       protocol: {
@@ -191,5 +212,55 @@ describe("createDesktopMainComposition", () => {
     expect(input.session.defaultSession.protocol.handle).toHaveBeenCalledTimes(1);
     expect(fakeWindow.loadURL).toHaveBeenCalledWith("hugecode-app://app/index.html");
     expect(fakeWindow.loadFile).not.toHaveBeenCalled();
+  });
+
+  it("opens startup workspace launches through the window controller when argv contains a workspace path", async () => {
+    const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
+    const input = createInput({
+      launchIntentDependencies: {
+        currentWorkingDirectory: () => "/workspace",
+        existsSync: vi.fn((path: string) => path === "/workspace/demo"),
+        statSync: vi.fn(() => ({
+          isDirectory: () => true,
+          isFile: () => false,
+        })),
+      },
+      processArgv: ["HugeCode", "demo"],
+    });
+
+    createDesktopMainComposition(input).start();
+    await input.app.whenReady.mock.results[0]?.value;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(input.browserWindow.create).toHaveBeenCalledTimes(1);
+    expect(input.browserWindow.create.mock.calls[0]?.[0]).toMatchObject({
+      title: "HugeCode - demo",
+    });
+  });
+
+  it("preserves file launch targets and records them as recent documents during startup", async () => {
+    const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
+    const input = createInput({
+      launchIntentDependencies: {
+        currentWorkingDirectory: () => "/workspace",
+        existsSync: vi.fn((path: string) => path === "/workspace/demo/src/main.ts"),
+        statSync: vi.fn(() => ({
+          isDirectory: () => false,
+          isFile: () => true,
+        })),
+      },
+      processArgv: ["HugeCode", "demo/src/main.ts"],
+    });
+
+    createDesktopMainComposition(input).start();
+    await input.app.whenReady.mock.results[0]?.value;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(input.app.addRecentDocument).toHaveBeenCalledWith("/workspace/demo/src/main.ts");
+    expect(input.browserWindow.create.mock.calls[0]?.[0]).toMatchObject({
+      title: "HugeCode - src",
+    });
   });
 });
