@@ -512,7 +512,7 @@ describe("WorkspaceShellApp", () => {
     expect(screen.getByText("Validation failed: Failed review")).toBeTruthy();
   });
 
-  it("renders an operator triage queue on home and routes entries into their section", async () => {
+  it("renders an operator triage queue on home and focuses the selected mission entry", async () => {
     window.history.pushState({}, "", "/app");
 
     render(
@@ -597,6 +597,8 @@ describe("WorkspaceShellApp", () => {
     fireEvent.click(triageEntry);
 
     expect(await screen.findByRole("heading", { level: 1, name: "Missions" })).toBeTruthy();
+    expect(screen.getByText("Operator focus")).toBeTruthy();
+    expect(screen.getByText("Await approval")).toBeTruthy();
   });
 
   it("prioritizes blocked review items ahead of lower-severity mission activity in the home triage queue", async () => {
@@ -696,9 +698,15 @@ describe("WorkspaceShellApp", () => {
 
     expect(triageButtons[0]?.textContent).toContain("Lint failure");
     expect(triageButtons[1]?.textContent).toContain("Long compile");
+
+    fireEvent.click(triageButtons[0] as HTMLElement);
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Review" })).toBeTruthy();
+    expect(screen.getByText("Operator focus")).toBeTruthy();
+    expect(screen.getByText("Lint failure")).toBeTruthy();
   });
 
-  it("routes the operator-next card into the relevant shared section", async () => {
+  it("routes the operator-next card into the relevant shared section and focuses the top item", async () => {
     window.history.pushState({}, "", "/app");
 
     render(
@@ -712,6 +720,8 @@ describe("WorkspaceShellApp", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "Missions" })).toBeTruthy();
     expect(await screen.findByRole("heading", { level: 2, name: "Mission activity" })).toBeTruthy();
+    expect(screen.getByText("Operator focus")).toBeTruthy();
+    expect(screen.getByText("Launch")).toBeTruthy();
   });
 
   it("renders settings framing as a shared control-plane section", async () => {

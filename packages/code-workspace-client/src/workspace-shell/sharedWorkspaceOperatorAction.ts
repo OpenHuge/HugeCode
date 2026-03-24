@@ -7,6 +7,7 @@ export type SharedWorkspaceOperatorAction = {
   label: string;
   detail: string;
   targetSection: SharedWorkspaceShellSection;
+  targetItemId: string | null;
   ctaLabel: string | null;
 };
 
@@ -60,6 +61,7 @@ export function deriveSharedWorkspaceOperatorAction(input: {
       label: "Loading runtime next action",
       detail: "Mission, review, and routing signals are still hydrating in the background.",
       targetSection: "home",
+      targetItemId: null,
       ctaLabel: null,
     };
   }
@@ -70,6 +72,7 @@ export function deriveSharedWorkspaceOperatorAction(input: {
       label: "Fix launch routing",
       detail: summary.launchReadiness.detail,
       targetSection: "workspaces",
+      targetItemId: null,
       ctaLabel: buildSectionCtaLabel("workspaces"),
     };
   }
@@ -80,6 +83,7 @@ export function deriveSharedWorkspaceOperatorAction(input: {
       label: "Review pending approval",
       detail: formatMissionDetail(summary),
       targetSection: "missions",
+      targetItemId: summary.missionItems[0]?.id ?? null,
       ctaLabel: buildSectionCtaLabel("missions"),
     };
   }
@@ -91,6 +95,7 @@ export function deriveSharedWorkspaceOperatorAction(input: {
       label: "Inspect failed review pack",
       detail: `${blockedReviewItem.title}: ${blockedReviewItem.summary}`,
       targetSection: "review",
+      targetItemId: blockedReviewItem.id,
       ctaLabel: buildSectionCtaLabel("review"),
     };
   }
@@ -101,6 +106,7 @@ export function deriveSharedWorkspaceOperatorAction(input: {
       label: "Recover blocked continuity",
       detail: summary.continuityReadiness.detail,
       targetSection: "review",
+      targetItemId: null,
       ctaLabel: buildSectionCtaLabel("review"),
     };
   }
@@ -111,6 +117,7 @@ export function deriveSharedWorkspaceOperatorAction(input: {
       label: "Resolve routing attention",
       detail: summary.launchReadiness.detail,
       targetSection: "missions",
+      targetItemId: summary.missionItems[0]?.id ?? null,
       ctaLabel: buildSectionCtaLabel("missions"),
     };
   }
@@ -125,6 +132,7 @@ export function deriveSharedWorkspaceOperatorAction(input: {
           ? "Runtime is reachable, but no runs have been published yet for the current shell scope."
           : "Connect a workspace to inspect launch readiness, continuity truth, and review evidence.",
       targetSection: "workspaces",
+      targetItemId: null,
       ctaLabel: buildSectionCtaLabel("workspaces"),
     };
   }
@@ -135,6 +143,7 @@ export function deriveSharedWorkspaceOperatorAction(input: {
       label: "Inspect continuity attention",
       detail: summary.continuityReadiness.detail,
       targetSection: "review",
+      targetItemId: summary.reviewItems[0]?.id ?? null,
       ctaLabel: buildSectionCtaLabel("review"),
     };
   }
@@ -146,6 +155,7 @@ export function deriveSharedWorkspaceOperatorAction(input: {
       label: "Open ready review pack",
       detail: `${readyReviewItem.title}: ${readyReviewItem.summary}`,
       targetSection: "review",
+      targetItemId: readyReviewItem.id,
       ctaLabel: buildSectionCtaLabel("review"),
     };
   }
@@ -159,6 +169,7 @@ export function deriveSharedWorkspaceOperatorAction(input: {
       label: "Resolve mission attention",
       detail: `${attentionMissionItem.title}: ${attentionMissionItem.detail}`,
       targetSection: "missions",
+      targetItemId: attentionMissionItem.id,
       ctaLabel: buildSectionCtaLabel("missions"),
     };
   }
@@ -170,6 +181,7 @@ export function deriveSharedWorkspaceOperatorAction(input: {
       label: "Supervise active mission",
       detail: `${activeMissionItem.title}: ${activeMissionItem.detail}`,
       targetSection: "missions",
+      targetItemId: activeMissionItem.id,
       ctaLabel: buildSectionCtaLabel("missions"),
     };
   }
@@ -180,6 +192,7 @@ export function deriveSharedWorkspaceOperatorAction(input: {
       label: "Review published evidence",
       detail: formatReviewDetail(summary),
       targetSection: "review",
+      targetItemId: summary.reviewItems[0]?.id ?? null,
       ctaLabel: buildSectionCtaLabel("review"),
     };
   }
@@ -189,6 +202,7 @@ export function deriveSharedWorkspaceOperatorAction(input: {
     label: "Monitor mission activity",
     detail: formatMissionDetail(summary),
     targetSection: "missions",
+    targetItemId: summary.missionItems[0]?.id ?? null,
     ctaLabel: buildSectionCtaLabel("missions"),
   };
 }

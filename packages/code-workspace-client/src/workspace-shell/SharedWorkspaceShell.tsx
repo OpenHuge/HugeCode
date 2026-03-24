@@ -20,6 +20,13 @@ type SharedWorkspaceShellProps = {
   children?: ReactNode;
 };
 
+type FocusableSection = "missions" | "review";
+
+type ShellFocusTarget = {
+  section: FocusableSection;
+  itemId: string;
+};
+
 const shellSections = [
   {
     id: "home",
@@ -57,6 +64,14 @@ function getSectionMeta(section: (typeof shellSections)[number]["id"]) {
   return shellSections.find((entry) => entry.id === section) ?? shellSections[0];
 }
 
+function buildMissionActivityDomId(itemId: string) {
+  return `shared-workspace-mission-${itemId}`;
+}
+
+function buildReviewActivityDomId(itemId: string) {
+  return `shared-workspace-review-${itemId}`;
+}
+
 function ShellContentFallback() {
   return (
     <section className={styles.emptyCard}>
@@ -69,7 +84,15 @@ function ShellContentFallback() {
   );
 }
 
-function ReadinessSummary({ state }: { state: ReturnType<typeof useSharedWorkspaceShellState> }) {
+function ReadinessSummary({
+  state,
+  onOpenFocusTarget,
+  onNavigateSection,
+}: {
+  state: ReturnType<typeof useSharedWorkspaceShellState>;
+  onOpenFocusTarget: (target: ShellFocusTarget) => void;
+  onNavigateSection: (section: (typeof shellSections)[number]["id"]) => void;
+}) {
   const missionSummaryPending =
     state.missionLoadState === "idle" || state.missionLoadState === "loading";
   const statValue = (value: number) => (missionSummaryPending ? "..." : String(value));
@@ -111,7 +134,20 @@ function ReadinessSummary({ state }: { state: ReturnType<typeof useSharedWorkspa
               <div className={styles.operatorActionFooter}>
                 <button
                   className={styles.button}
-                  onClick={() => state.navigateToSection(operatorAction.targetSection)}
+                  onClick={() => {
+                    if (
+                      operatorAction.targetItemId &&
+                      (operatorAction.targetSection === "missions" ||
+                        operatorAction.targetSection === "review")
+                    ) {
+                      onOpenFocusTarget({
+                        section: operatorAction.targetSection,
+                        itemId: operatorAction.targetItemId,
+                      });
+                      return;
+                    }
+                    onNavigateSection(operatorAction.targetSection);
+                  }}
                   type="button"
                 >
                   {operatorAction.ctaLabel}
@@ -181,8 +217,10 @@ function ReadinessSummary({ state }: { state: ReturnType<typeof useSharedWorkspa
 
 function WorkspaceRosterSection({
   state,
+  onSelectWorkspace,
 }: {
   state: ReturnType<typeof useSharedWorkspaceShellState>;
+  onSelectWorkspace: (workspaceId: string | null) => void;
 }) {
   return (
     <section className={styles.workspaceSection}>
@@ -200,7 +238,7 @@ function WorkspaceRosterSection({
           className={`${styles.workspaceButton} ${
             state.activeWorkspaceId === null ? styles.workspaceButtonActive : ""
           }`}
-          onClick={() => state.selectWorkspace(null)}
+          onClick={() => onSelectWorkspace(null)}
           type="button"
         >
           <span className={styles.workspaceName}>Home</span>
@@ -214,7 +252,7 @@ function WorkspaceRosterSection({
                 state.activeWorkspaceId === workspace.id ? styles.workspaceButtonActive : ""
               }`}
               key={workspace.id}
-              onClick={() => state.selectWorkspace(workspace.id)}
+              onClick={() => onSelectWorkspace(workspace.id)}
               type="button"
             >
               <span className={styles.workspaceName}>{workspace.name}</span>
@@ -252,6 +290,7 @@ function getHomeTriagePriority(tone: "blocked" | "attention" | "ready" | "active
 type HomeTriageItem = {
   id: string;
   scopeLabel: "Mission" | "Review";
+  targetItemId: string;
   title: string;
   detail: string;
   tone: "blocked" | "attention" | "ready" | "active";
@@ -262,8 +301,14 @@ type HomeTriageItem = {
 
 function HomeOverviewSection({
   state,
+  onNavigateSection,
+  onOpenFocusTarget,
+  onSelectWorkspace,
 }: {
   state: ReturnType<typeof useSharedWorkspaceShellState>;
+  onNavigateSection: (section: (typeof shellSections)[number]["id"]) => void;
+  onOpenFocusTarget: (target: ShellFocusTarget) => void;
+  onSelectWorkspace: (workspaceId: string | null) => void;
 }) {
   const missionSummaryPending =
     state.missionLoadState === "idle" || state.missionLoadState === "loading";
@@ -279,6 +324,7 @@ function HomeOverviewSection({
                 {
                   id: `mission:${item.id}`,
                   scopeLabel: "Mission",
+                  targetItemId: item.id,
                   title: item.title,
                   detail: item.detail,
                   tone: item.tone,
@@ -295,6 +341,7 @@ function HomeOverviewSection({
                 {
                   id: `review:${item.id}`,
                   scopeLabel: "Review",
+                  targetItemId: item.id,
                   title: item.title,
                   detail: item.summary,
                   tone: item.tone,
@@ -326,7 +373,7 @@ function HomeOverviewSection({
       <div className={styles.overviewGrid}>
         <button
           className={styles.overviewButton}
-          onClick={() => state.navigateToSection("missions")}
+          onClick={() => onNavigateSection("missions")}
           type="button"
         >
           <span className={styles.workspaceName}>Missions</span>
@@ -340,7 +387,7 @@ function HomeOverviewSection({
         </button>
         <button
           className={styles.overviewButton}
-          onClick={() => state.navigateToSection("review")}
+          onClick={() => onNavigateSection("review")}
           type="button"
         >
           <span className={styles.workspaceName}>Review</span>
@@ -354,7 +401,7 @@ function HomeOverviewSection({
         </button>
         <button
           className={styles.overviewButton}
-          onClick={() => state.navigateToSection("settings")}
+          onClick={() => onNavigateSection("settings")}
           type="button"
         >
           <span className={styles.workspaceName}>Settings</span>
@@ -383,7 +430,12 @@ function HomeOverviewSection({
               <button
                 className={styles.triageCard}
                 key={item.id}
-                onClick={() => state.navigateToSection(item.targetSection)}
+                onClick={() =>
+                  onOpenFocusTarget({
+                    section: item.targetSection,
+                    itemId: item.targetItemId,
+                  })
+                }
                 type="button"
               >
                 <div className={styles.activityHeader}>
@@ -409,16 +461,27 @@ function HomeOverviewSection({
           </p>
         )}
       </section>
-      <WorkspaceRosterSection state={state} />
+      <WorkspaceRosterSection onSelectWorkspace={onSelectWorkspace} state={state} />
     </section>
   );
 }
 
 function MissionActivitySection({
   state,
+  focusedMissionId,
 }: {
   state: ReturnType<typeof useSharedWorkspaceShellState>;
+  focusedMissionId: string | null;
 }) {
+  useEffect(() => {
+    if (!focusedMissionId) {
+      return;
+    }
+    const focusedCard = document.getElementById(buildMissionActivityDomId(focusedMissionId));
+    focusedCard?.scrollIntoView?.({ block: "nearest" });
+    focusedCard?.focus?.({ preventScroll: true });
+  }, [focusedMissionId]);
+
   if (state.missionLoadState === "idle" || state.missionLoadState === "loading") {
     return (
       <section className={styles.emptyCard}>
@@ -445,39 +508,64 @@ function MissionActivitySection({
         <p className={styles.sectionMeta}>Live runs, approvals, and continuity highlights</p>
       </div>
       <div className={styles.activityList}>
-        {state.missionSummary.missionItems.map((item) => (
-          <article className={styles.activityCard} key={item.id}>
-            <div className={styles.activityHeader}>
-              <div className={styles.activityCopy}>
-                <h3 className={styles.activityTitle}>{item.title}</h3>
-                <p className={styles.activityMeta}>{item.workspaceName}</p>
+        {state.missionSummary.missionItems.map((item) => {
+          const isFocused = item.id === focusedMissionId;
+
+          return (
+            <article
+              className={`${styles.activityCard} ${isFocused ? styles.focusedActivityCard : ""}`}
+              id={buildMissionActivityDomId(item.id)}
+              key={item.id}
+              tabIndex={isFocused ? -1 : undefined}
+            >
+              <div className={styles.activityHeader}>
+                <div className={styles.activityCopy}>
+                  {isFocused ? <span className={styles.focusBadge}>Operator focus</span> : null}
+                  <h3 className={styles.activityTitle}>{item.title}</h3>
+                  <p className={styles.activityMeta}>{item.workspaceName}</p>
+                </div>
+                <div className={styles.activityStatus}>
+                  <span
+                    aria-hidden
+                    className={`${styles.statusDot} ${styles.activityTone[item.tone]}`}
+                  />
+                  <span className={styles.readinessLabel}>{item.statusLabel}</span>
+                </div>
               </div>
-              <div className={styles.activityStatus}>
-                <span
-                  aria-hidden
-                  className={`${styles.statusDot} ${styles.activityTone[item.tone]}`}
-                />
-                <span className={styles.readinessLabel}>{item.statusLabel}</span>
-              </div>
-            </div>
-            <p className={styles.body}>{item.detail}</p>
-            {item.highlights.length > 0 ? (
-              <div className={styles.highlightRow}>
-                {item.highlights.map((highlight) => (
-                  <span className={styles.highlightChip} key={`${item.id}:${highlight}`}>
-                    {highlight}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </article>
-        ))}
+              <p className={styles.body}>{item.detail}</p>
+              {item.highlights.length > 0 ? (
+                <div className={styles.highlightRow}>
+                  {item.highlights.map((highlight) => (
+                    <span className={styles.highlightChip} key={`${item.id}:${highlight}`}>
+                      {highlight}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
       </div>
     </section>
   );
 }
 
-function ReviewQueueSection({ state }: { state: ReturnType<typeof useSharedWorkspaceShellState> }) {
+function ReviewQueueSection({
+  state,
+  focusedReviewId,
+}: {
+  state: ReturnType<typeof useSharedWorkspaceShellState>;
+  focusedReviewId: string | null;
+}) {
+  useEffect(() => {
+    if (!focusedReviewId) {
+      return;
+    }
+    const focusedCard = document.getElementById(buildReviewActivityDomId(focusedReviewId));
+    focusedCard?.scrollIntoView?.({ block: "nearest" });
+    focusedCard?.focus?.({ preventScroll: true });
+  }, [focusedReviewId]);
+
   if (state.missionLoadState === "idle" || state.missionLoadState === "loading") {
     return (
       <section className={styles.emptyCard}>
@@ -504,32 +592,42 @@ function ReviewQueueSection({ state }: { state: ReturnType<typeof useSharedWorks
         <p className={styles.sectionMeta}>Review Packs remain the default finish line</p>
       </div>
       <div className={styles.activityList}>
-        {state.missionSummary.reviewItems.map((item) => (
-          <article className={styles.activityCard} key={item.id}>
-            <div className={styles.activityHeader}>
-              <div className={styles.activityCopy}>
-                <h3 className={styles.activityTitle}>{item.title}</h3>
-                <p className={styles.activityMeta}>{item.workspaceName}</p>
+        {state.missionSummary.reviewItems.map((item) => {
+          const isFocused = item.id === focusedReviewId;
+
+          return (
+            <article
+              className={`${styles.activityCard} ${isFocused ? styles.focusedActivityCard : ""}`}
+              id={buildReviewActivityDomId(item.id)}
+              key={item.id}
+              tabIndex={isFocused ? -1 : undefined}
+            >
+              <div className={styles.activityHeader}>
+                <div className={styles.activityCopy}>
+                  {isFocused ? <span className={styles.focusBadge}>Operator focus</span> : null}
+                  <h3 className={styles.activityTitle}>{item.title}</h3>
+                  <p className={styles.activityMeta}>{item.workspaceName}</p>
+                </div>
+                <div className={styles.activityStatus}>
+                  <span
+                    aria-hidden
+                    className={`${styles.statusDot} ${styles.activityTone[item.tone]}`}
+                  />
+                  <span className={styles.readinessLabel}>{item.reviewStatusLabel}</span>
+                </div>
               </div>
-              <div className={styles.activityStatus}>
-                <span
-                  aria-hidden
-                  className={`${styles.statusDot} ${styles.activityTone[item.tone]}`}
-                />
-                <span className={styles.readinessLabel}>{item.reviewStatusLabel}</span>
+              <p className={styles.body}>{item.summary}</p>
+              <div className={styles.highlightRow}>
+                <span className={styles.highlightChip}>{item.validationLabel}</span>
+                {item.warningCount > 0 ? (
+                  <span className={styles.highlightChip}>
+                    {item.warningCount} warning{item.warningCount === 1 ? "" : "s"}
+                  </span>
+                ) : null}
               </div>
-            </div>
-            <p className={styles.body}>{item.summary}</p>
-            <div className={styles.highlightRow}>
-              <span className={styles.highlightChip}>{item.validationLabel}</span>
-              {item.warningCount > 0 ? (
-                <span className={styles.highlightChip}>
-                  {item.warningCount} warning{item.warningCount === 1 ? "" : "s"}
-                </span>
-              ) : null}
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </div>
     </section>
   );
@@ -593,6 +691,7 @@ function SettingsSection({ state }: { state: ReturnType<typeof useSharedWorkspac
 export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
   const state = useSharedWorkspaceShellState();
   const [dismissedErrors, setDismissedErrors] = useState<string[]>([]);
+  const [focusTarget, setFocusTarget] = useState<ShellFocusTarget | null>(null);
   const activeSectionMeta = getSectionMeta(state.activeSection);
   const workspaceSelectOptions = useMemo<SelectOption[]>(
     () => [
@@ -639,6 +738,24 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
     );
   }, [shellErrors]);
 
+  const handleNavigateSection = (section: (typeof shellSections)[number]["id"]) => {
+    setFocusTarget(null);
+    state.navigateToSection(section);
+  };
+
+  const handleOpenFocusTarget = (target: ShellFocusTarget) => {
+    setFocusTarget(target);
+    state.navigateToSection(target.section);
+  };
+
+  const handleSelectWorkspace = (workspaceId: string | null) => {
+    setFocusTarget(null);
+    state.selectWorkspace(workspaceId);
+  };
+
+  const focusedMissionId = focusTarget?.section === "missions" ? focusTarget.itemId : null;
+  const focusedReviewId = focusTarget?.section === "review" ? focusTarget.itemId : null;
+
   return (
     <div className={styles.shell} data-workspace-shell={state.platformHint}>
       {visibleErrors.length ? (
@@ -675,7 +792,7 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
             optionClassName={styles.workspaceSelectOption}
             options={workspaceSelectOptions}
             value={workspaceSelectValue}
-            onValueChange={(value) => state.selectWorkspace(value === "__home__" ? null : value)}
+            onValueChange={(value) => handleSelectWorkspace(value === "__home__" ? null : value)}
             placeholder="Select workspace"
           />
           <div className={styles.headerIdentity}>
@@ -719,7 +836,7 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
               className={`${styles.sectionNavButton} ${
                 state.activeSection === section.id ? styles.sectionNavButtonActive : ""
               }`}
-              onClick={() => state.navigateToSection(section.id)}
+              onClick={() => handleNavigateSection(section.id)}
               type="button"
             >
               {section.label}
@@ -727,12 +844,29 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
           ))}
         </nav>
 
-        <ReadinessSummary state={state} />
+        <ReadinessSummary
+          state={state}
+          onNavigateSection={handleNavigateSection}
+          onOpenFocusTarget={handleOpenFocusTarget}
+        />
 
-        {state.activeSection === "home" ? <HomeOverviewSection state={state} /> : null}
-        {state.activeSection === "workspaces" ? <WorkspaceRosterSection state={state} /> : null}
-        {state.activeSection === "missions" ? <MissionActivitySection state={state} /> : null}
-        {state.activeSection === "review" ? <ReviewQueueSection state={state} /> : null}
+        {state.activeSection === "home" ? (
+          <HomeOverviewSection
+            state={state}
+            onNavigateSection={handleNavigateSection}
+            onOpenFocusTarget={handleOpenFocusTarget}
+            onSelectWorkspace={handleSelectWorkspace}
+          />
+        ) : null}
+        {state.activeSection === "workspaces" ? (
+          <WorkspaceRosterSection onSelectWorkspace={handleSelectWorkspace} state={state} />
+        ) : null}
+        {state.activeSection === "missions" ? (
+          <MissionActivitySection focusedMissionId={focusedMissionId} state={state} />
+        ) : null}
+        {state.activeSection === "review" ? (
+          <ReviewQueueSection focusedReviewId={focusedReviewId} state={state} />
+        ) : null}
         {state.activeSection === "settings" ? <SettingsSection state={state} /> : null}
 
         {children}

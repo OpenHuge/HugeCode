@@ -53,6 +53,7 @@ describe("deriveSharedWorkspaceOperatorAction", () => {
 
     expect(action.label).toBe("Fix launch routing");
     expect(action.targetSection).toBe("workspaces");
+    expect(action.targetItemId).toBeNull();
     expect(action.tone).toBe("blocked");
   });
 
@@ -85,6 +86,7 @@ describe("deriveSharedWorkspaceOperatorAction", () => {
 
     expect(action.label).toBe("Open ready review pack");
     expect(action.targetSection).toBe("review");
+    expect(action.targetItemId).toBe("review-1");
     expect(action.detail).toContain("Inspect the evidence");
   });
 
@@ -96,6 +98,7 @@ describe("deriveSharedWorkspaceOperatorAction", () => {
 
     expect(action.label).toBe("Launch the first mission");
     expect(action.targetSection).toBe("workspaces");
+    expect(action.targetItemId).toBeNull();
     expect(action.tone).toBe("attention");
   });
 });

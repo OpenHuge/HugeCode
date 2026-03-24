@@ -524,6 +524,14 @@ export const activityCard = style({
   background:
     "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-card) 96%, transparent), color-mix(in srgb, var(--ds-surface-panel) 94%, transparent))",
   boxShadow: elevationValues.card,
+  scrollMarginTop: spacing[5],
+});
+
+export const focusedActivityCard = style({
+  borderColor: "color-mix(in srgb, var(--ds-brand-primary) 54%, transparent)",
+  background:
+    "linear-gradient(180deg, color-mix(in srgb, var(--ds-brand-primary) 10%, var(--ds-surface-card)), color-mix(in srgb, var(--ds-surface-panel) 94%, transparent))",
+  boxShadow: elevationValues.floating,
 });
 
 export const activityHeader = style({
@@ -543,6 +551,22 @@ export const activityCopy = style({
   display: "grid",
   gap: spacing[1],
   minWidth: 0,
+});
+
+export const focusBadge = style({
+  display: "inline-flex",
+  alignItems: "center",
+  width: "fit-content",
+  minHeight: "22px",
+  padding: "0 8px",
+  borderRadius: "999px",
+  background: "color-mix(in srgb, var(--ds-brand-primary) 14%, var(--ds-surface-item))",
+  color: semanticColors.foreground,
+  fontSize: typographyValues.micro.fontSize,
+  lineHeight: typographyValues.micro.lineHeight,
+  fontWeight: 650,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
 });
 
 export const activityTitle = style({
