@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -114,5 +114,69 @@ describe("cargo target cache guard race handling", () => {
 
     expect(releaseLock.waitedForLock).toBe(false);
     releaseLock();
+  });
+
+  it("does not delete a live lock acquired by another process after an ENOENT write race", async () => {
+    const workspaceRoot = createTempWorkspace();
+    const targetDir = path.join(workspaceRoot, ".cache", "cargo-target");
+    const lockPath = path.join(workspaceRoot, ".cache", "cargo-target.lock");
+
+    vi.doMock("node:fs", async () => {
+      const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
+      let injectedCompetingLock = false;
+
+      return {
+        ...actual,
+        writeFileSync(
+          ...args: Parameters<typeof actual.writeFileSync>
+        ): ReturnType<typeof actual.writeFileSync> {
+          const [filePath] = args;
+          if (
+            !injectedCompetingLock &&
+            typeof filePath === "string" &&
+            filePath.endsWith(path.join("cargo-target.lock", "owner.json"))
+          ) {
+            actual.rmSync(lockPath, { recursive: true, force: true });
+            actual.mkdirSync(lockPath, { recursive: true });
+            actual.writeFileSync(
+              path.join(lockPath, "owner.json"),
+              JSON.stringify({
+                pid: process.pid,
+                acquiredAtMs: Date.now(),
+                targetDir,
+              }),
+              "utf8"
+            );
+            injectedCompetingLock = true;
+
+            const error = new Error(
+              "lock directory disappeared before metadata was written"
+            ) as NodeJS.ErrnoException;
+            error.code = "ENOENT";
+            throw error;
+          }
+          return Reflect.apply(actual.writeFileSync, actual, args);
+        },
+      };
+    });
+
+    const moduleUrl = new URL(
+      `${pathToFileURL(path.join(import.meta.dirname, "..", "..", "scripts", "lib", "cargo-target-cache.mjs")).href}?lock-holder-race=${Date.now()}`
+    ).href;
+    const { acquireCargoTargetGuardLock } = await import(moduleUrl);
+
+    expect(() =>
+      acquireCargoTargetGuardLock({
+        targetDir,
+        timeoutMs: 20,
+        pollMs: 1,
+        staleAfterMs: 5_000,
+      })
+    ).toThrowError(/Timed out waiting for cargo target guard lock/);
+
+    expect(JSON.parse(readFileSync(path.join(lockPath, "owner.json"), "utf8"))).toMatchObject({
+      pid: process.pid,
+      targetDir,
+    });
   });
 });

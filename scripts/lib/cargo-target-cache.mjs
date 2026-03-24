@@ -258,7 +258,6 @@ export function acquireCargoTargetGuardLock({
         );
       } catch (error) {
         if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-          rmSync(lockPath, { recursive: true, force: true });
           continue;
         }
         throw error;

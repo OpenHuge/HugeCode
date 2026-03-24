@@ -49,9 +49,9 @@ function formatAttachmentLabel(value: string) {
 }
 
 function mapComposerExecutionModeToTaskExecutionMode(
-  _value: ComposerExecutionMode | null | undefined
+  value: ComposerExecutionMode | null | undefined
 ): "single" | "distributed" {
-  return "single";
+  return value === "runtime" ? "distributed" : "single";
 }
 
 function buildContextHintSteps(hints: string[]): AgentTaskStepInput[] {

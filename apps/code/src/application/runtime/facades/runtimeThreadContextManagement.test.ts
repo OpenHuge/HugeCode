@@ -23,6 +23,7 @@ describe("runtimeThreadContextManagement", () => {
       workspaceId: "ws-1",
       threadId: "thread-1",
       title: "Context drift",
+      executionMode: "distributed",
       executionProfileId: "balanced-delegate",
       preferredBackendIds: ["backend-a", "backend-b"],
       steps: expect.arrayContaining([
@@ -40,6 +41,19 @@ describe("runtimeThreadContextManagement", () => {
           path: "/tmp/spec.md",
         }),
       ]),
+    });
+  });
+
+  it("keeps hybrid prepares on single execution mode", () => {
+    const request = buildRuntimeThreadContextPrepareRequest({
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      prompt: "Review local workspace changes",
+      executionMode: "hybrid",
+    });
+
+    expect(request).toMatchObject({
+      executionMode: "single",
     });
   });
 
