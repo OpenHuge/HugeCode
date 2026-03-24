@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   isElectronPackagedAppAsarPath,
@@ -93,5 +95,17 @@ describe("normalizeAsarPackageEntryPath", () => {
     expect(normalizeAsarPackageEntryPath("/node_modules/update-electron-app/package.json")).toBe(
       "/node_modules/update-electron-app/package.json"
     );
+  });
+});
+
+describe("Electron Forge fuse contract", () => {
+  it("disables extra file:// privileges for packaged renderer content", async () => {
+    const forgeConfigSource = await readFile(
+      fileURLToPath(new URL("../../apps/code-electron/forge.config.mjs", import.meta.url)),
+      "utf8"
+    );
+
+    expect(forgeConfigSource).toContain("FuseV1Options.GrantFileProtocolExtraPrivileges");
+    expect(forgeConfigSource).toContain("[FuseV1Options.GrantFileProtocolExtraPrivileges]: false");
   });
 });

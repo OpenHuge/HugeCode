@@ -28,6 +28,18 @@ function loadElectronFuses() {
   }
 }
 
+async function extractAsarTextFile(asarPath, relativePath) {
+  try {
+    const { extractFile } = await import("@electron/asar");
+    return extractFile(asarPath, relativePath).toString("utf8");
+  } catch (error) {
+    throw new Error(
+      "Missing @electron/asar dependency required by Electron release-contract verification. Run pnpm install so root release scripts can inspect packaged app.asar outputs.",
+      { cause: error }
+    );
+  }
+}
+
 export function normalizeAsarPackageEntryPath(entryPath) {
   return String(entryPath).replaceAll("\\", "/");
 }
@@ -100,6 +112,19 @@ export function normalizeElectronPackagedEntryPath(relativePath) {
   return normalizeAsarPackageEntryPath(relativePath);
 }
 
+async function findElectronPackagedAppAsarPath(repoRoot) {
+  const outDir = resolve(repoRoot, "apps/code-electron/out");
+  const appAsarRelativePath = await findFirstRelativeFile(outDir, isElectronPackagedAppAsarPath);
+  if (!appAsarRelativePath) {
+    throw new Error("Missing packaged Electron app.asar output under apps/code-electron/out.");
+  }
+
+  return {
+    appAsarPath: resolve(outDir, appAsarRelativePath),
+    appAsarRelativePath,
+  };
+}
+
 function normalizeFuseBoolean(value) {
   if (value === true || value === "1" || value === 49) {
     return true;
@@ -152,13 +177,7 @@ export async function loadElectronReleaseContract(repoRoot) {
 }
 
 export async function verifyElectronPackagedUpdaterRuntime(repoRoot) {
-  const outDir = resolve(repoRoot, "apps/code-electron/out");
-  const appAsarRelativePath = await findFirstRelativeFile(outDir, isElectronPackagedAppAsarPath);
-  if (!appAsarRelativePath) {
-    throw new Error("Missing packaged Electron app.asar output under apps/code-electron/out.");
-  }
-
-  const appAsarPath = resolve(outDir, appAsarRelativePath);
+  const { appAsarPath } = await findElectronPackagedAppAsarPath(repoRoot);
   const packageEntries = (await listAsarPackageEntries(appAsarPath)).map(
     normalizeAsarPackageEntryPath
   );
@@ -179,6 +198,53 @@ export async function verifyElectronPackagedUpdaterRuntime(repoRoot) {
     appAsarPath,
     bundledElectronPresent: false,
     packagedUpdaterRuntimePresent: true,
+  };
+}
+
+export async function verifyElectronPackagedRendererTransport(repoRoot) {
+  const { appAsarPath } = await findElectronPackagedAppAsarPath(repoRoot);
+  const createDesktopMainCompositionModule = await extractAsarTextFile(
+    appAsarPath,
+    "dist-electron/main/createDesktopMainComposition.js"
+  );
+  const desktopAppProtocolModule = await extractAsarTextFile(
+    appAsarPath,
+    "dist-electron/main/desktopAppProtocol.js"
+  );
+  const desktopRendererTrustModule = await extractAsarTextFile(
+    appAsarPath,
+    "dist-electron/main/desktopRendererTrust.js"
+  );
+
+  if (createDesktopMainCompositionModule.includes("loadFile(")) {
+    throw new Error(
+      "Packaged Electron main composition still references loadFile(...). HugeCode must load packaged renderer content through hugecode-app://."
+    );
+  }
+  if (!createDesktopMainCompositionModule.includes("createDesktopAppRendererUrl(")) {
+    throw new Error(
+      "Packaged Electron main composition must build packaged renderer entry URLs through createDesktopAppRendererUrl()."
+    );
+  }
+  if (!desktopAppProtocolModule.includes('DESKTOP_APP_PROTOCOL_SCHEME = "hugecode-app"')) {
+    throw new Error(
+      "Packaged Electron app.asar is missing the internal hugecode-app protocol scheme constant."
+    );
+  }
+  if (!desktopAppProtocolModule.includes("registerSchemesAsPrivileged")) {
+    throw new Error(
+      "Packaged Electron app.asar is missing privileged renderer protocol registration."
+    );
+  }
+  if (desktopRendererTrustModule.includes('parsedUrl.protocol === "file:"')) {
+    throw new Error(
+      "Packaged Electron renderer trust must not treat file:// origins as trusted renderer content."
+    );
+  }
+
+  return {
+    appAsarPath,
+    rendererTransport: "hugecode-app://app/index.html",
   };
 }
 
@@ -401,6 +467,7 @@ export function verifyElectronForgeFuseContract(context) {
     [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
     [FuseV1Options.OnlyLoadAppFromAsar]: true,
     [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot]: true,
+    [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
   };
 
   for (const [fuseKey, expectedValue] of Object.entries(expectedFuseBooleans)) {

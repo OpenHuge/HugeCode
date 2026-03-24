@@ -25,7 +25,9 @@ Experimental Electron desktop shell for HugeCode.
   - `OnlyLoadAppFromAsar=true`
   - `LoadBrowserProcessSpecificV8Snapshot=true`
   - `EnableCookieEncryption=true`
-- `GrantFileProtocolExtraPrivileges` is intentionally left unchanged for now because packaged HugeCode still loads the renderer via `loadFile(...)`. Do not disable that fuse until the app serves local content from a custom protocol instead of `file://`.
+  - `GrantFileProtocolExtraPrivileges=false`
+- Packaged HugeCode serves renderer content from `hugecode-app://app/...`, not `file://`.
+- `hugecode://` remains the external deep-link scheme. Do not reuse it for internal renderer asset loading.
 
 ## Release Environment
 

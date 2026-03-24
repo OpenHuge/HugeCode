@@ -25,6 +25,7 @@ function buildStaticUpdateBaseUrl(rootBaseUrl, platform, arch) {
 }
 
 const releaseChannel = process.env.HUGECODE_ELECTRON_RELEASE_CHANNEL?.trim() || "beta";
+const electronZipDir = process.env.HUGECODE_ELECTRON_ZIP_DIR?.trim() || null;
 const staticUpdateBaseUrlRoot = normalizeStaticUpdateBaseUrlRoot(
   process.env.HUGECODE_ELECTRON_UPDATE_BASE_URL
 );
@@ -38,6 +39,11 @@ export default {
   packagerConfig: {
     appBundleId: "com.openhuge.hugecode",
     asar: true,
+    ...(electronZipDir
+      ? {
+          electronZipDir,
+        }
+      : {}),
     executableName: "HugeCode",
     name: "HugeCode",
     protocols: [
@@ -57,6 +63,7 @@ export default {
       [FuseV1Options.OnlyLoadAppFromAsar]: true,
       [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot]: true,
       [FuseV1Options.EnableCookieEncryption]: true,
+      [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
     }),
   ],
   makers: [

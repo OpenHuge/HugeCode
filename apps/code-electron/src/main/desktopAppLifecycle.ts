@@ -28,6 +28,7 @@ export type RegisterDesktopAppLifecycleInput = {
   getLatestSession(): DesktopSessionDescriptor | null;
   getPersistedSessions(): DesktopSessionDescriptor[];
   isTrayEnabled(): boolean;
+  onReady?(): Promise<void> | void;
   onBeforeQuit(): void;
   onSecondInstance?(argv: string[]): void;
   openWindow(): unknown;
@@ -60,7 +61,9 @@ export function registerDesktopAppLifecycle(input: RegisterDesktopAppLifecycleIn
     nextWindow.focus();
   });
 
-  void input.app.whenReady().then(() => {
+  void input.app.whenReady().then(async () => {
+    await input.onReady?.();
+
     const persistedSessions = input.getPersistedSessions();
     if (persistedSessions.length > 0) {
       for (const session of persistedSessions) {

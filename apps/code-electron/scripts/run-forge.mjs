@@ -20,6 +20,7 @@ const localMakerDebSource = resolve(scriptDir, "maker-deb.cjs");
 
 let forgeStageDir = "";
 let forgePackageDir = "";
+let forgeStageElectronZipDir = "";
 
 function normalizeCommandPath(commandPath) {
   return commandPath.replaceAll("\\", "/");
@@ -69,6 +70,29 @@ export function createForgeStageEnv(baseEnv = process.env) {
   return env;
 }
 
+export function resolveLocalElectronZipArtifactName(
+  version = packageJson.devDependencies?.electron ?? packageJson.dependencies?.electron,
+  platform = process.platform,
+  arch = process.arch
+) {
+  return `electron-v${String(version).replace(/^v/u, "")}-${platform}-${arch}.zip`;
+}
+
+export function createForgeExecutionEnv(baseEnv = process.env, electronZipDir = "") {
+  const env = {
+    ...createForgeStageEnv(baseEnv),
+    ELECTRON_FORGE_DISABLE_PUBLISH_SANDBOX_WARNING: "true",
+  };
+
+  if (electronZipDir) {
+    env.HUGECODE_ELECTRON_ZIP_DIR = electronZipDir;
+  } else {
+    delete env.HUGECODE_ELECTRON_ZIP_DIR;
+  }
+
+  return env;
+}
+
 async function runCommand(invocation, args, cwd, env = process.env) {
   await new Promise((resolvePromise, rejectPromise) => {
     const child = spawn(invocation.command, args, {
@@ -97,6 +121,7 @@ async function createStagePaths() {
   await mkdir(forgeTempDir, { recursive: true });
   forgeStageDir = await mkdtemp(resolve(forgeTempDir, "stage-"));
   forgePackageDir = resolve(forgeStageDir, "app");
+  forgeStageElectronZipDir = resolve(forgeStageDir, "electron-zips");
 }
 
 async function prepareStage() {
@@ -131,6 +156,61 @@ async function prepareStage() {
   // Electron Forge's pnpm integration checks node-linker in the staged project,
   // but npm itself should not consume pnpm-only project config during install.
   await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
+}
+
+async function createLocalElectronZip() {
+  const electronVersion =
+    packageJson.devDependencies?.electron ?? packageJson.dependencies?.electron ?? "";
+  const normalizedVersion = String(electronVersion).replace(/^v/u, "");
+  if (!normalizedVersion) {
+    throw new Error("Missing electron version in apps/code-electron/package.json.");
+  }
+
+  const electronDistDir = resolve(workspaceRoot, "node_modules/electron/dist");
+  await access(electronDistDir);
+  await mkdir(forgeStageElectronZipDir, { recursive: true });
+
+  const artifactName = resolveLocalElectronZipArtifactName(normalizedVersion);
+  const artifactPath = resolve(forgeStageElectronZipDir, artifactName);
+
+  if (process.platform === "darwin") {
+    await runCommand(
+      {
+        command: "ditto",
+        shell: false,
+      },
+      ["-c", "-k", "--sequesterRsrc", ".", artifactPath],
+      electronDistDir
+    );
+    return forgeStageElectronZipDir;
+  }
+
+  if (process.platform === "win32") {
+    await runCommand(
+      {
+        command: "powershell.exe",
+        shell: true,
+      },
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        `Compress-Archive -Path * -DestinationPath '${artifactPath.replace(/'/gu, "''")}' -Force`,
+      ],
+      electronDistDir
+    );
+    return forgeStageElectronZipDir;
+  }
+
+  await runCommand(
+    {
+      command: "zip",
+      shell: false,
+    },
+    ["-qry", artifactPath, "."],
+    electronDistDir
+  );
+  return forgeStageElectronZipDir;
 }
 
 async function ensureDarwinDmgNativeDependency(command) {
@@ -192,16 +272,15 @@ async function runForge() {
     await prepareStage();
     const processTempDir = resolve(tempRootDir, "process");
     await mkdir(processTempDir, { recursive: true });
-
-    const forgeEnv = {
-      ...createForgeStageEnv(
-        buildForgeEnvironment({
-          baseEnv: process.env,
-          command,
-          processTempDir,
-        })
-      ),
-    };
+    const electronZipDir = await createLocalElectronZip();
+    const forgeEnv = createForgeExecutionEnv(
+      buildForgeEnvironment({
+        baseEnv: process.env,
+        command,
+        processTempDir,
+      }),
+      electronZipDir
+    );
 
     await new Promise((resolvePromise, rejectPromise) => {
       const child = spawn(electronForge.command, [command], {

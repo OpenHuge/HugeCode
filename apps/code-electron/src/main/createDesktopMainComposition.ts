@@ -1,12 +1,18 @@
 import { join } from "node:path";
-import type { IpcMainInvokeEvent } from "electron";
+import type { BrowserWindowConstructorOptions, IpcMainInvokeEvent } from "electron";
 import type { DesktopReleaseChannel } from "../shared/ipc.js";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
+import {
+  createDesktopAppRendererUrl,
+  registerDesktopAppProtocolHandler,
+  registerDesktopAppProtocolScheme,
+} from "./desktopAppProtocol.js";
 import { createDesktopAutoUpdateConfigurator } from "./desktopAutoUpdateConfigurator.js";
 import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
 import { createDesktopLaunchIntentController } from "./desktopLaunchIntentController.js";
 import { createDesktopRendererTrust } from "./desktopRendererTrust.js";
+import { registerDesktopSessionSecurity } from "./desktopSessionSecurity.js";
 import { createDesktopShellState, type DesktopWindowBounds } from "./desktopShellState.js";
 import { createDesktopNotificationController } from "./desktopNotificationController.js";
 import { createDesktopStateStore } from "./desktopStateStore.js";
@@ -22,6 +28,39 @@ const DEFAULT_WINDOW_STATE: DesktopWindowBounds = {
 
 const DEFAULT_TRAY_ICON_DATA_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAK0lEQVR42mP8z8AARMBEw0AEYBxVSFUBQwqGQYQmGmKagjYwNAxMDAwMDAwAAABEgQJkzJYGQAAAABJRU5ErkJggg==";
+
+type DesktopBrowserWindowLike = {
+  close(): void;
+  focus(): void;
+  getBounds(): DesktopWindowBounds;
+  hide(): void;
+  id: number;
+  isDestroyed(): boolean;
+  isFocused(): boolean;
+  isMinimized(): boolean;
+  isVisible(): boolean;
+  loadFile(path: string): Promise<unknown> | unknown;
+  loadURL(url: string): Promise<unknown> | unknown;
+  once(event: "ready-to-show", listener: () => void): void;
+  on(event: "focus", listener: () => void): void;
+  on(event: "closed", listener: () => void): void;
+  on(event: "close", listener: (event: { preventDefault(): void }) => void): void;
+  restore(): void;
+  show(): void;
+  webContents: {
+    on(
+      event: "will-navigate",
+      listener: (event: { preventDefault(): void }, url: string) => void
+    ): void;
+    setWindowOpenHandler(handler: (details: { url: string }) => { action: "deny" }): void;
+  };
+};
+
+type DesktopBrowserWindowFacade = {
+  create(options: BrowserWindowConstructorOptions): DesktopBrowserWindowLike;
+  fromWebContents(webContents: unknown): DesktopBrowserWindowLike | null;
+  getAllWindows(): DesktopBrowserWindowLike[];
+};
 
 export type CreateDesktopMainCompositionInput = {
   app: {
@@ -45,15 +84,7 @@ export type CreateDesktopMainCompositionInput = {
     quitAndInstall(): void;
   };
   arch: NodeJS.Architecture;
-  browserWindow: {
-    getAllWindows(): Array<{
-      focus(): void;
-      isDestroyed(): boolean;
-      isMinimized(): boolean;
-      restore(): void;
-      show(): void;
-    }>;
-  };
+  browserWindow: DesktopBrowserWindowFacade;
   ipcMain: {
     handle(
       channel: string,
@@ -61,10 +92,50 @@ export type CreateDesktopMainCompositionInput = {
     ): void;
   };
   platform: NodeJS.Platform;
+  protocol: {
+    registerSchemesAsPrivileged(
+      customSchemes: Array<{
+        privileges: {
+          secure: boolean;
+          standard: boolean;
+          stream: boolean;
+          supportFetchAPI: boolean;
+        };
+        scheme: string;
+      }>
+    ): void;
+  };
   processArgv?: string[];
   releaseChannel?: DesktopReleaseChannel;
   rendererDevServerUrl?: string | null;
   repositoryUrl?: string;
+  session: {
+    defaultSession: {
+      protocol: {
+        handle(
+          scheme: string,
+          handler: (request: { url: string }) => Promise<Response> | Response
+        ): void;
+        isProtocolHandled?(scheme: string): boolean;
+      };
+      setPermissionCheckHandler(
+        handler: (
+          webContents: unknown,
+          permission: string,
+          requestingOrigin: string,
+          details?: unknown
+        ) => boolean
+      ): void;
+      setPermissionRequestHandler(
+        handler: (
+          webContents: unknown,
+          permission: string,
+          callback: (granted: boolean) => void,
+          details?: unknown
+        ) => void
+      ): void;
+    } | null;
+  };
   shell: {
     openExternal(url: string): Promise<void>;
     showItemInFolder(path: string): void;
@@ -76,6 +147,7 @@ export type CreateDesktopMainCompositionInput = {
 
 export function createDesktopMainComposition(input: CreateDesktopMainCompositionInput) {
   let isQuitting = false;
+  const rendererRoot = join(input.sourceDirectory, "../renderer");
 
   const rendererTrust = createDesktopRendererTrust({
     rendererDevServerUrl: input.rendererDevServerUrl ?? null,
@@ -122,6 +194,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   }
 
   const windowController = createDesktopWindowController({
+    browserWindow: input.browserWindow,
     defaultWindowBounds: DEFAULT_WINDOW_STATE,
     isSafeExternalUrl: rendererTrust.isSafeExternalUrl,
     isQuitting() {
@@ -135,7 +208,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
         return;
       }
 
-      void window.loadFile(join(input.sourceDirectory, "../renderer/index.html"));
+      void window.loadURL(createDesktopAppRendererUrl());
     },
     notifyWindowsChanged() {
       trayController.update();
@@ -228,6 +301,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
 
   function start() {
     input.app.enableSandbox();
+    registerDesktopAppProtocolScheme(input.protocol);
     updaterController.initialize();
     launchIntentController.registerAppHandlers();
     launchIntentController.registerProtocolClient();
@@ -255,6 +329,18 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       },
       isTrayEnabled() {
         return shellState.trayEnabled;
+      },
+      onReady() {
+        const defaultSession = input.session.defaultSession;
+        if (!defaultSession) {
+          throw new Error("Electron defaultSession is unavailable for HugeCode desktop startup.");
+        }
+
+        registerDesktopAppProtocolHandler({
+          rendererRoot,
+          session: defaultSession,
+        });
+        registerDesktopSessionSecurity(defaultSession);
       },
       onBeforeQuit() {
         isQuitting = true;

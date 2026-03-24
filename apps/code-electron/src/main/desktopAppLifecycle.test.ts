@@ -2,6 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { DesktopSessionDescriptor } from "./desktopShellState.js";
 import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
 
+async function flushLifecycleReady() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 type AppEventMap = {
   activate: () => void;
   "before-quit": () => void;
@@ -61,6 +66,7 @@ describe("desktopAppLifecycle", () => {
       updateTray,
     });
     await app.whenReady.mock.results[0]?.value;
+    await flushLifecycleReady();
 
     expect(createWindowForSession).toHaveBeenCalledWith(sessions[0]);
     expect(openWindow).not.toHaveBeenCalled();
@@ -86,8 +92,38 @@ describe("desktopAppLifecycle", () => {
       updateTray: vi.fn(),
     });
     await app.whenReady.mock.results[0]?.value;
+    await flushLifecycleReady();
 
     expect(openWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it("awaits the startup hook before opening windows", async () => {
+    const app = createFakeApp();
+    const onReady = vi.fn(async () => undefined);
+    const openWindow = vi.fn();
+
+    registerDesktopAppLifecycle({
+      app,
+      browserWindow: {
+        getAllWindows: vi.fn(() => []),
+      },
+      createWindowForSession: vi.fn(),
+      getLatestSession: () => null,
+      getPersistedSessions: () => [],
+      isTrayEnabled: () => false,
+      onBeforeQuit: vi.fn(),
+      onReady,
+      openWindow,
+      updateTray: vi.fn(),
+    });
+    await app.whenReady.mock.results[0]?.value;
+    await flushLifecycleReady();
+
+    expect(onReady).toHaveBeenCalledTimes(1);
+    expect(openWindow).toHaveBeenCalledTimes(1);
+    expect(onReady.mock.invocationCallOrder[0]).toBeLessThan(
+      openWindow.mock.invocationCallOrder[0]
+    );
   });
 
   it("focuses the first existing window on second-instance", () => {
@@ -179,6 +215,7 @@ describe("desktopAppLifecycle", () => {
       updateTray: vi.fn(),
     });
     await app.whenReady.mock.results[0]?.value;
+    await flushLifecycleReady();
 
     app.trigger("activate");
 

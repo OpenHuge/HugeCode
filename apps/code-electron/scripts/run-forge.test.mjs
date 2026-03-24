@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createForgeStageEnv, resolveForgeStageCommands } from "./run-forge.mjs";
+import {
+  createForgeExecutionEnv,
+  createForgeStageEnv,
+  resolveForgeStageCommands,
+  resolveLocalElectronZipArtifactName,
+} from "./run-forge.mjs";
 
 describe("run-forge invocation resolution", () => {
   it("uses shell-backed cmd entrypoints on Windows", () => {
@@ -52,6 +57,35 @@ describe("createForgeStageEnv", () => {
       HOME: "/tmp/home",
       npm_config_registry: "https://registry.npmjs.org/",
       npm_config_user_agent: "pnpm/10.0.0",
+    });
+  });
+});
+
+describe("resolveLocalElectronZipArtifactName", () => {
+  it("builds the local packager cache artifact name from version, platform, and arch", () => {
+    expect(resolveLocalElectronZipArtifactName("41.0.3", "darwin", "x64")).toBe(
+      "electron-v41.0.3-darwin-x64.zip"
+    );
+    expect(resolveLocalElectronZipArtifactName("v41.0.3", "win32", "arm64")).toBe(
+      "electron-v41.0.3-win32-arm64.zip"
+    );
+  });
+});
+
+describe("createForgeExecutionEnv", () => {
+  it("injects the staged local electron zip directory for Forge packaging", () => {
+    const env = createForgeExecutionEnv(
+      {
+        KEEP_ME: "1",
+        npm_config_verify_deps_before_run: "error",
+      },
+      "/tmp/hugecode-electron-zips"
+    );
+
+    expect(env).toEqual({
+      ELECTRON_FORGE_DISABLE_PUBLISH_SANDBOX_WARNING: "true",
+      HUGECODE_ELECTRON_ZIP_DIR: "/tmp/hugecode-electron-zips",
+      KEEP_ME: "1",
     });
   });
 });

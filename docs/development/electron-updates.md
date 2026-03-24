@@ -13,8 +13,9 @@ HugeCode packages Electron with Forge fuse hardening enabled. The release contra
 - `OnlyLoadAppFromAsar=true`
 - `LoadBrowserProcessSpecificV8Snapshot=true`
 - `EnableCookieEncryption=true`
+- `GrantFileProtocolExtraPrivileges=false`
 
-`GrantFileProtocolExtraPrivileges` is intentionally not flipped yet. HugeCode still loads packaged renderer content with `loadFile(...)`, so disabling extra `file://` privileges would be premature until the shell moves to a custom local protocol.
+HugeCode now serves packaged renderer content from `hugecode-app://app/...`. `hugecode://` remains reserved for external launch intents and deep links.
 
 ## Channel Rules
 
