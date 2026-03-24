@@ -84,7 +84,100 @@ fn summarize_command_output(bytes: &[u8], max_chars: usize) -> String {
     if trimmed.is_empty() {
         return "<empty>".to_string();
     }
-    truncate_text_for_error(trimmed, max_chars)
+    truncate_text_for_error(
+        redact_local_claude_sensitive_text(trimmed).as_str(),
+        max_chars,
+    )
+}
+
+fn redact_delimited_secret(text: &str, needle: &str, delimiter: char) -> String {
+    let mut result = String::with_capacity(text.len());
+    let mut cursor = 0usize;
+
+    while let Some(relative_start) = text[cursor..].find(needle) {
+        let start = cursor + relative_start;
+        let value_start = start + needle.len();
+        result.push_str(&text[cursor..value_start]);
+
+        let mut chars = text[value_start..].char_indices();
+        let mut value_end = text.len();
+        let mut escaped = false;
+        while let Some((offset, ch)) = chars.next() {
+            if delimiter == '"' {
+                if escaped {
+                    escaped = false;
+                    continue;
+                }
+                if ch == '\\' {
+                    escaped = true;
+                    continue;
+                }
+            }
+            if ch == delimiter {
+                value_end = value_start + offset;
+                break;
+            }
+        }
+
+        if value_end > value_start {
+            result.push_str("<redacted>");
+        }
+        cursor = value_end;
+    }
+
+    result.push_str(&text[cursor..]);
+    result
+}
+
+fn redact_flag_secret(text: &str, flag: &str) -> String {
+    let mut result = String::with_capacity(text.len());
+    let mut index = 0usize;
+
+    while let Some(relative_start) = text[index..].find(flag) {
+        let start = index + relative_start;
+        let after_flag = start + flag.len();
+        result.push_str(&text[index..after_flag]);
+
+        let whitespace_len = text[after_flag..]
+            .chars()
+            .take_while(|ch| ch.is_whitespace())
+            .map(char::len_utf8)
+            .sum::<usize>();
+        let value_start = after_flag + whitespace_len;
+        result.push_str(&text[after_flag..value_start]);
+
+        let value_len = text[value_start..]
+            .chars()
+            .take_while(|ch| !ch.is_whitespace())
+            .map(char::len_utf8)
+            .sum::<usize>();
+        if value_len == 0 {
+            index = value_start;
+            continue;
+        }
+
+        result.push_str("<redacted>");
+        index = value_start + value_len;
+    }
+
+    result.push_str(&text[index..]);
+    result
+}
+
+fn redact_local_claude_sensitive_text(text: &str) -> String {
+    let mut redacted = text.to_string();
+    for needle in [
+        "\"session_id\":\"",
+        "\"session_id\": \"",
+        "\"sessionId\":\"",
+        "\"sessionId\": \"",
+    ] {
+        redacted = redact_delimited_secret(redacted.as_str(), needle, '"');
+    }
+    for needle in ["session_id=", "sessionId="] {
+        redacted = redact_delimited_secret(redacted.as_str(), needle, ' ');
+    }
+    redact_flag_secret(redacted.as_str(), "--resume")
 }
 
 fn read_string_field(object: &serde_json::Map<String, Value>, key: &str) -> Option<String> {
@@ -476,7 +569,10 @@ async fn run_local_claude_exec_turn_once(
             "`claude --print` failed (status {:?}): stderr={}, stdout={}",
             status.code(),
             summarize_command_output(stderr_bytes.as_slice(), 600),
-            truncate_text_for_error(stdout_buffer.as_str(), 600)
+            truncate_text_for_error(
+                redact_local_claude_sensitive_text(stdout_buffer.as_str()).as_str(),
+                600
+            )
         ));
     }
 
@@ -719,8 +815,8 @@ mod tests {
         check_local_claude_cli_readiness, classify_local_claude_error,
         extract_final_message_from_stream_event, extract_init_event_probe,
         permission_mode_for_local_claude, probe_local_claude_cli, query_local_claude_exec_turn,
-        resolve_local_claude_exec_command_args, should_collect_local_claude_output_text,
-        LocalClaudeExecTurnInput,
+        redact_local_claude_sensitive_text, resolve_local_claude_exec_command_args,
+        should_collect_local_claude_output_text, LocalClaudeExecTurnInput,
     };
     use serde_json::json;
 
@@ -815,6 +911,19 @@ mod tests {
             classify_local_claude_error("", r#"{"apiKeySource":"none"}"#),
             None
         );
+    }
+
+    #[test]
+    fn redact_local_claude_sensitive_text_hides_session_identifiers() {
+        let original = r#"stderr=session_id=session-123 command=claude --resume abc123 payload={"session_id":"session-123","sessionId":"session-456"}"#;
+        let redacted = redact_local_claude_sensitive_text(original);
+        assert!(!redacted.contains("session-123"));
+        assert!(!redacted.contains("session-456"));
+        assert!(!redacted.contains("abc123"));
+        assert!(redacted.contains("session_id=<redacted>"));
+        assert!(redacted.contains(r#""session_id":"<redacted>""#));
+        assert!(redacted.contains(r#""sessionId":"<redacted>""#));
+        assert!(redacted.contains("--resume <redacted>"));
     }
 
     #[test]
