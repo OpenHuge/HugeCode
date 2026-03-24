@@ -122,6 +122,18 @@ If no static feed root is configured, beta builds remain manual and point users 
   - manual beta mode opens GitHub Releases instead of advertising fake auto-update support
   - unsupported or misconfigured modes must never claim automatic update availability
 
+## Resilience Contract
+
+- Electron desktop resilience belongs in the main process, not in renderer heuristics.
+- HugeCode treats these Electron signals as canonical desktop incidents:
+  - `render-process-gone` for renderer crashes and abnormal exits
+  - `child-process-gone` for GPU / utility / helper process exits
+  - `unresponsive` and `responsive` for BrowserWindow responsiveness transitions
+- Renderer crashes should recreate the affected session window instead of leaving a dead shell behind.
+- Recovery notifications must be native desktop notifications emitted from the main process.
+- Unresponsive-window notifications should be edge-triggered, not spammed repeatedly while the same window remains hung.
+- Structured incident logging should distinguish at least renderer crash recovery, child process exits, and temporary window unresponsiveness.
+
 ## Intentionally Unsupported
 
 - automatic Linux updates

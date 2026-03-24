@@ -89,6 +89,14 @@ Linux desktop builds remain manual-update only.
   - manual beta builds open GitHub Releases instead of pretending automatic update support
 - Electron pushes updater state changes to live renderer windows, so native menu-triggered checks and in-app checks stay in sync.
 
+## Resilience
+
+- HugeCode treats renderer crashes and unresponsive windows as first-class desktop incidents.
+- The shell listens for Electron `render-process-gone`, `child-process-gone`, `unresponsive`, and `responsive` signals in the main process instead of trying to infer failures from renderer state.
+- When a renderer process exits unexpectedly, HugeCode recreates the affected session window and surfaces a native recovery notification.
+- Unresponsive windows raise a single native notification until the window becomes responsive again; repeat notifications are intentionally suppressed while the same incident is active.
+- Child-process failures are logged as structured desktop incidents so future diagnostics can distinguish renderer recovery from background-process churn.
+
 ## macOS Arm64 Packaging
 
 - HugeCode disables Forge's fallback `codesign --deep` fuse re-sign path for unsigned Apple Silicon builds.

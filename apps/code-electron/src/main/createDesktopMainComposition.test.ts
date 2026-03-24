@@ -224,6 +224,54 @@ describe("createDesktopMainComposition", () => {
     expect(fakeWindow.loadFile).not.toHaveBeenCalled();
   });
 
+  it("registers child-process resilience handling during startup", async () => {
+    const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
+    const childProcessGoneListeners: Array<
+      (
+        _event: unknown,
+        details: {
+          exitCode: number;
+          name?: string;
+          reason: string;
+          serviceName?: string;
+          type: string;
+        }
+      ) => void
+    > = [];
+    const input = createInput();
+    input.app.on = vi.fn((event: string, listener: (...args: unknown[]) => void) => {
+      if (event === "child-process-gone") {
+        childProcessGoneListeners.push(
+          listener as (
+            _event: unknown,
+            details: {
+              exitCode: number;
+              name?: string;
+              reason: string;
+              serviceName?: string;
+              type: string;
+            }
+          ) => void
+        );
+      }
+    });
+
+    createDesktopMainComposition(input).start();
+
+    expect(childProcessGoneListeners).toHaveLength(1);
+    expect(() =>
+      childProcessGoneListeners[0]?.(
+        {},
+        {
+          exitCode: 9,
+          reason: "crashed",
+          serviceName: "GPU",
+          type: "GPU",
+        }
+      )
+    ).not.toThrow();
+  });
+
   it("opens startup workspace launches through the window controller when argv contains a workspace path", async () => {
     const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
     const input = createInput({

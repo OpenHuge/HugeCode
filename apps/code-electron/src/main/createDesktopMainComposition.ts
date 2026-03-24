@@ -22,6 +22,7 @@ import { registerDesktopSessionSecurity } from "./desktopSessionSecurity.js";
 import { createDesktopShellState, type DesktopWindowBounds } from "./desktopShellState.js";
 import { createDesktopNotificationController } from "./desktopNotificationController.js";
 import { createDesktopPlatformLauncherController } from "./desktopPlatformLauncherController.js";
+import { createDesktopResilienceController } from "./desktopResilienceController.js";
 import { createDesktopStateStore } from "./desktopStateStore.js";
 import { createDesktopTrayController } from "./desktopTrayController.js";
 import { createDesktopUpdaterController } from "./desktopUpdaterController.js";
@@ -38,6 +39,7 @@ const DEFAULT_TRAY_ICON_DATA_URL =
 
 type DesktopBrowserWindowLike = {
   close(): void;
+  destroy?(): void;
   focus(): void;
   getBounds(): DesktopWindowBounds;
   hide(): void;
@@ -52,10 +54,22 @@ type DesktopBrowserWindowLike = {
   on(event: "focus", listener: () => void): void;
   on(event: "closed", listener: () => void): void;
   on(event: "close", listener: (event: { preventDefault(): void }) => void): void;
+  on(event: "responsive", listener: () => void): void;
+  on(event: "unresponsive", listener: () => void): void;
   restore(): void;
   show(): void;
   webContents: {
     send(channel: string, payload: DesktopLaunchIntent | DesktopUpdateState): void;
+    on(
+      event: "render-process-gone",
+      listener: (
+        _event: unknown,
+        details: {
+          exitCode: number;
+          reason: string;
+        }
+      ) => void
+    ): void;
     on(
       event: "will-navigate",
       listener: (event: { preventDefault(): void }, url: string) => void
@@ -90,6 +104,19 @@ export type CreateDesktopMainCompositionInput = {
     isPackaged: boolean;
     on(event: "activate", listener: () => void): void;
     on(event: "before-quit", listener: () => void): void;
+    on(
+      event: "child-process-gone",
+      listener: (
+        _event: unknown,
+        details: {
+          exitCode: number;
+          name?: string;
+          reason: string;
+          serviceName?: string;
+          type: string;
+        }
+      ) => void
+    ): void;
     on(
       event: "open-file",
       listener: (event: { preventDefault(): void }, path: string) => void
@@ -195,6 +222,22 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   const shellState = createDesktopShellState({
     persistedState: stateStore.read(),
   });
+  const notificationController = createDesktopNotificationController();
+  const windowControllerRef: {
+    current: ReturnType<typeof createDesktopWindowController> | null;
+  } = {
+    current: null,
+  };
+  const resilienceController = createDesktopResilienceController({
+    isQuitting() {
+      return isQuitting;
+    },
+    logger: console,
+    notificationController,
+    recoverWindow(windowId) {
+      return windowControllerRef.current?.recoverWindow(windowId) ?? null;
+    },
+  });
   const windowController = createDesktopWindowController({
     browserWindow: input.browserWindow,
     defaultWindowBounds: DEFAULT_WINDOW_STATE,
@@ -215,6 +258,15 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     notifyWindowsChanged() {
       updateDesktopChrome();
     },
+    onRenderProcessGone(payload) {
+      resilienceController.handleRenderProcessGone(payload);
+    },
+    onWindowResponsive(payload) {
+      resilienceController.handleWindowResponsive(payload);
+    },
+    onWindowUnresponsive(payload) {
+      resilienceController.handleWindowUnresponsive(payload);
+    },
     openExternalUrl(url) {
       return input.shell.openExternal(url);
     },
@@ -222,6 +274,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     preloadPath: join(input.sourceDirectory, "../preload/preload.js"),
     shellState,
   });
+  windowControllerRef.current = windowController;
   const launchIntentController = createDesktopLaunchIntentController({
     app: input.app,
     dependencies: input.launchIntentDependencies,
@@ -321,7 +374,6 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     applicationMenuController.update();
   }
 
-  const notificationController = createDesktopNotificationController();
   const trayController = createDesktopTrayController({
     isSupported: input.platform === "darwin" || input.platform === "win32",
     onFocusWindow: windowController.focusWindow,
@@ -461,6 +513,9 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     updaterController.initialize();
     launchIntentController.registerAppHandlers();
     launchIntentController.registerProtocolClient();
+    input.app.on("child-process-gone", (_event, details) => {
+      resilienceController.handleChildProcessGone(details);
+    });
 
     registerDesktopHostIpc({
       channels: DESKTOP_HOST_IPC_CHANNELS,
