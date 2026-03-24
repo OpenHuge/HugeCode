@@ -94,7 +94,15 @@ async function isLocatorActionable(locator: Locator): Promise<boolean> {
 }
 
 async function isWorkspaceSurfaceVisible(page: Page): Promise<boolean> {
-  const [homeVisible, composerVisible, composerStartVisible, thinkingVisible] = await Promise.all([
+  const [
+    homeVisible,
+    composerVisible,
+    composerStartVisible,
+    thinkingVisible,
+    goHomeVisible,
+    primaryNavVisible,
+    activeWorkspaceRowVisible,
+  ] = await Promise.all([
     page
       .locator('[data-home-page="true"], [data-home-content="true"]')
       .first()
@@ -111,8 +119,34 @@ async function isWorkspaceSurfaceVisible(page: Page): Promise<boolean> {
       .first()
       .isVisible()
       .catch(() => false),
+    page
+      .getByRole("button", { name: "Go to Home" })
+      .first()
+      .isVisible()
+      .catch(() => false),
+    page
+      .getByRole("navigation", { name: "Primary" })
+      .first()
+      .isVisible()
+      .catch(() => false),
+    page
+      .locator(".workspace-row.active")
+      .first()
+      .isVisible()
+      .catch(() => false),
   ]);
-  return homeVisible || composerVisible || composerStartVisible || thinkingVisible;
+
+  const routeWorkspaceVisible =
+    isWorkspaceRoute(page.url()) &&
+    (goHomeVisible || primaryNavVisible || activeWorkspaceRowVisible);
+
+  return (
+    homeVisible ||
+    composerVisible ||
+    composerStartVisible ||
+    thinkingVisible ||
+    routeWorkspaceVisible
+  );
 }
 
 function isWorkspaceRoute(url: string): boolean {
@@ -270,40 +304,55 @@ export async function gotoWorkspace(page: Page, workspaceId: string): Promise<vo
     );
   };
 
-  const clickedWorkspaceHomeButton = await pollBoolean(
-    () =>
-      page.evaluate(
-        (pattern) => {
-          const regex = new RegExp(pattern, "i");
-          const buttons = Array.from(
-            document.querySelectorAll<HTMLElement>('main button, main [role="button"]')
-          );
-          const target = buttons.find((button) => regex.test(button.textContent ?? ""));
-          if (!target) {
-            return false;
-          }
-          target.click();
-          return true;
-        },
-        workspaceId === "workspace-web" ? "Web Workspace" : workspaceId
-      ),
-    { timeoutMs: 15_000 }
-  );
-  const hasWorkspaceRow = await workspaceRow.isVisible({ timeout: 15_000 }).catch(() => false);
-  if (clickedWorkspaceHomeButton) {
-    await assertPageResponsive(page);
-    if (
-      workspaceId === "workspace-web" &&
-      (await pollBoolean(() => isWorkspaceSurfaceVisible(page), { timeoutMs: 20_000 }))
-    ) {
-      return;
+  // The sidebar row can represent collapse/expand state without being the actual
+  // workspace selection control. Prefer the canonical route when it is available,
+  // and only fall back to sidebar heuristics if the route bootstrap fails.
+  let usedDirectWorkspaceRoute = false;
+  if (!page.url().includes(`/workspaces/${workspaceId}`)) {
+    try {
+      await openWorkspaceRoute();
+      usedDirectWorkspaceRoute = true;
+    } catch {
+      await gotoWorkspaces(page);
     }
-  } else if (hasWorkspaceRow) {
-    await clickByDom(workspaceRow);
-  } else if (await workspaceTreeItem.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await clickByUser(page, workspaceTreeItem);
-  } else {
-    await openWorkspaceRoute();
+  }
+
+  if (!usedDirectWorkspaceRoute) {
+    const clickedWorkspaceHomeButton = await pollBoolean(
+      () =>
+        page.evaluate(
+          (pattern) => {
+            const regex = new RegExp(pattern, "i");
+            const buttons = Array.from(
+              document.querySelectorAll<HTMLElement>('main button, main [role="button"]')
+            );
+            const target = buttons.find((button) => regex.test(button.textContent ?? ""));
+            if (!target) {
+              return false;
+            }
+            target.click();
+            return true;
+          },
+          workspaceId === "workspace-web" ? "Web Workspace" : workspaceId
+        ),
+      { timeoutMs: 15_000 }
+    );
+    const hasWorkspaceRow = await workspaceRow.isVisible({ timeout: 15_000 }).catch(() => false);
+    if (clickedWorkspaceHomeButton) {
+      await assertPageResponsive(page);
+      if (
+        workspaceId === "workspace-web" &&
+        (await pollBoolean(() => isWorkspaceSurfaceVisible(page), { timeoutMs: 20_000 }))
+      ) {
+        return;
+      }
+    } else if (hasWorkspaceRow) {
+      await clickByDom(workspaceRow);
+    } else if (await workspaceTreeItem.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await clickByUser(page, workspaceTreeItem);
+    } else {
+      await openWorkspaceRoute();
+    }
   }
 
   let shellReady = await waitForWorkspaceShell(page, 20_000);
