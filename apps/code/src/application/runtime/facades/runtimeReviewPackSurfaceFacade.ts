@@ -375,8 +375,8 @@ function augmentDetailSection(
 
 function formatSourceCitationDetail(
   citation:
-    | MissionControlProjection["runs"][number]["sourceCitations"][number]
-    | MissionControlProjection["reviewPacks"][number]["sourceCitations"][number]
+    | NonNullable<MissionControlProjection["runs"][number]["sourceCitations"]>[number]
+    | NonNullable<MissionControlProjection["reviewPacks"][number]["sourceCitations"]>[number]
 ) {
   const trustLabel =
     citation.trustLevel === "primary"

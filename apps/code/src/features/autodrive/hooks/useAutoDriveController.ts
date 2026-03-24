@@ -858,10 +858,10 @@ export function useAutoDriveController({
           title: draft.destination.title.trim() || "AutoDrive mission",
           instruction: launchInstruction,
           accessMode,
-          executionMode: "runtime",
+          executionMode: "distributed",
           reasonEffort: normalizeReasonEffort(selectedEffort),
           modelId: selectedModelId,
-          preferredBackendIds: preferredBackendIds ?? null,
+          preferredBackendIds: preferredBackendIds ?? undefined,
           autoDrive: autoDrivePayload,
         });
       } else {

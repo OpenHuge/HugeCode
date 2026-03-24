@@ -823,65 +823,29 @@ export function AutoDriveNavigationFixture() {
           <ComposerAutoDriveStatusBar
             autoDrive={{
               enabled: autoDrive.enabled,
-              destination: autoDrive.draft.destination,
               budget: autoDrive.draft.budget,
               riskPolicy: autoDrive.draft.riskPolicy,
               preset: autoDrive.preset,
               controls: autoDrive.controls,
               recovering: autoDrive.recovering,
               recoverySummary: autoDrive.recoverySummary,
-              activity: autoDrive.activity,
               readiness: autoDrive.readiness,
               run: autoDrive.run
                 ? {
                     status: autoDrive.run.status,
                     stage: autoDrive.run.stage,
-                    iteration: autoDrive.run.iteration,
-                    consumedTokensEstimate: autoDrive.run.totals.consumedTokensEstimate,
-                    maxTokens: autoDrive.run.budget.maxTokens,
-                    maxIterations: autoDrive.run.budget.maxIterations,
-                    startStateSummary: autoDrive.run.navigation.startStateSummary,
-                    destinationSummary: autoDrive.run.navigation.destinationSummary,
-                    routeSummary: autoDrive.run.navigation.routeSummary,
-                    currentMilestone: autoDrive.run.navigation.currentMilestone,
-                    currentWaypointTitle: autoDrive.run.navigation.currentWaypointTitle,
-                    currentWaypointObjective: autoDrive.run.navigation.currentWaypointObjective,
-                    currentWaypointArrivalCriteria:
-                      autoDrive.run.navigation.currentWaypointArrivalCriteria,
-                    remainingMilestones: autoDrive.run.navigation.remainingMilestones,
                     offRoute: autoDrive.run.navigation.offRoute,
                     rerouting: autoDrive.run.navigation.rerouting,
-                    rerouteReason: autoDrive.run.navigation.rerouteReason,
                     overallProgress: autoDrive.run.navigation.overallProgress,
-                    waypointCompletion: autoDrive.run.navigation.waypointCompletion,
-                    stopRisk: autoDrive.run.navigation.stopRisk,
-                    arrivalConfidence: autoDrive.run.navigation.arrivalConfidence,
-                    remainingTokens: autoDrive.run.navigation.remainingTokens,
-                    remainingIterations: autoDrive.run.navigation.remainingIterations,
-                    remainingDurationMs: autoDrive.run.navigation.remainingDurationMs,
-                    remainingBlockers: autoDrive.run.navigation.remainingBlockers,
                     lastValidationSummary: autoDrive.run.lastValidationSummary ?? null,
                     stopReason: autoDrive.run.lastStopReason?.detail ?? null,
-                    lastDecision: autoDrive.run.navigation.lastDecision,
                     runtimeScenarioProfile: autoDrive.run.runtimeScenarioProfile ?? null,
                     runtimeDecisionTrace: autoDrive.run.runtimeDecisionTrace ?? null,
                     runtimeOutcomeFeedback: autoDrive.run.runtimeOutcomeFeedback ?? null,
                     runtimeAutonomyState: autoDrive.run.runtimeAutonomyState ?? null,
-                    latestReroute: autoDrive.run.latestReroute
-                      ? {
-                          mode: autoDrive.run.latestReroute.mode,
-                          reason: autoDrive.run.latestReroute.reason,
-                          trigger: autoDrive.run.latestReroute.trigger,
-                          previousRouteSummary: autoDrive.run.latestReroute.previousRouteSummary,
-                          nextRouteSummary: autoDrive.run.latestReroute.nextRouteSummary,
-                        }
-                      : null,
                   }
                 : null,
               onToggleEnabled: autoDrive.setEnabled,
-              onChangeDestination: autoDrive.setDestinationValue,
-              onChangeBudget: autoDrive.setBudgetValue,
-              onChangeRiskPolicy: autoDrive.setRiskPolicyValue,
             }}
             autoDriveBackendLabel="Automatic runtime routing"
             disabled={false}
