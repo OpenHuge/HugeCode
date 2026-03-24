@@ -37,6 +37,10 @@
       "types": "./src/runtimeClientRpcFactory.ts",
       "default": "./src/runtimeClientRpcFactory.ts"
     },
+    "./runtimeClientRpcExtensionsFactory": {
+      "types": "./src/runtimeClientRpcExtensionsFactory.ts",
+      "default": "./src/runtimeClientRpcExtensionsFactory.ts"
+    },
     "./runtimeClientRpcPayloads": {
       "types": "./src/runtimeClientRpcPayloads.ts",
       "default": "./src/runtimeClientRpcPayloads.ts"
