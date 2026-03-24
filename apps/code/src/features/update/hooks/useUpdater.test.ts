@@ -12,7 +12,7 @@ import {
 } from "../../../application/runtime/facades/desktopHostFacade";
 import type { DebugEntry } from "../../../types";
 import { STORAGE_KEY_PENDING_POST_UPDATE_VERSION } from "../utils/postUpdateRelease";
-import { useUpdater } from "./useUpdater";
+import { resolveInitialUpdaterStartupAction, useUpdater } from "./useUpdater";
 
 vi.mock("@tauri-apps/api/core", () => ({
   isTauri: vi.fn(() => true),
@@ -169,6 +169,101 @@ describe("useUpdater", () => {
       version: "2.0.0-beta.3",
     });
     expect(resolveDesktopUpdaterStateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces the Windows first-run lock guidance during electron startup resolution", () => {
+    expect(
+      resolveInitialUpdaterStartupAction({
+        desktopState: {
+          capability: "manual",
+          message:
+            "Automatic desktop updates are temporarily disabled while the Windows installer finishes first-run setup.",
+          mode: "disabled_first_run_lock",
+          provider: "none",
+          releaseUrl: "https://github.com/OpenHuge/HugeCode/releases",
+          stage: "idle",
+          version: "2.0.0",
+        },
+        runtimeHost: "electron",
+      })
+    ).toEqual({
+      nextState: {
+        message:
+          "Automatic desktop updates are temporarily disabled while the Windows installer finishes first-run setup.",
+        releaseUrl: "https://github.com/OpenHuge/HugeCode/releases",
+        stage: "manual",
+        version: "2.0.0",
+      },
+      shouldAutoCheck: false,
+    });
+  });
+
+  it("surfaces misconfigured electron updater guidance during startup resolution", () => {
+    expect(
+      resolveInitialUpdaterStartupAction({
+        desktopState: {
+          capability: "manual",
+          message:
+            "Automatic desktop updates are unavailable because the updater provider could not be initialized for this build.",
+          mode: "misconfigured",
+          provider: "none",
+          releaseUrl: "https://github.com/OpenHuge/HugeCode/releases",
+          stage: "idle",
+          version: "2.0.0",
+        },
+        runtimeHost: "electron",
+      })
+    ).toEqual({
+      nextState: {
+        message:
+          "Automatic desktop updates are unavailable because the updater provider could not be initialized for this build.",
+        releaseUrl: "https://github.com/OpenHuge/HugeCode/releases",
+        stage: "manual",
+        version: "2.0.0",
+      },
+      shouldAutoCheck: false,
+    });
+  });
+
+  it("keeps intentionally manual electron beta builds quiet on startup", () => {
+    expect(
+      resolveInitialUpdaterStartupAction({
+        desktopState: {
+          capability: "manual",
+          message:
+            "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
+          mode: "disabled_beta_manual",
+          provider: "none",
+          releaseUrl: "https://github.com/OpenHuge/HugeCode/releases",
+          stage: "idle",
+          version: "2.0.0-beta.3",
+        },
+        runtimeHost: "electron",
+      })
+    ).toEqual({
+      nextState: null,
+      shouldAutoCheck: false,
+    });
+  });
+
+  it("keeps automatic electron updater startup on the background-check path", () => {
+    expect(
+      resolveInitialUpdaterStartupAction({
+        desktopState: {
+          capability: "automatic",
+          message:
+            "Automatic stable updates are enabled through the public Electron update service.",
+          mode: "enabled_stable_public_service",
+          provider: "public-github",
+          stage: "idle",
+          version: "2.0.0",
+        },
+        runtimeHost: "electron",
+      })
+    ).toEqual({
+      nextState: null,
+      shouldAutoCheck: true,
+    });
   });
 
   it("downloads and restarts when update is available", async () => {
