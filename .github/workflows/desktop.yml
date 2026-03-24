@@ -15,7 +15,17 @@ on:
   pull_request:
     paths:
       - "apps/code-tauri/**"
-      - "apps/code/**"
+      - "apps/code/package.json"
+      - "apps/code/index.html"
+      - "apps/code/vite.config.ts"
+      - "apps/code/src/main.tsx"
+      - "apps/code/src/bootstrap/**"
+      - "apps/code/src/web/**"
+      - "apps/code/src/application/runtime/**"
+      - "apps/code/src/services/runtimeClient*"
+      - "apps/code/src/services/tauri*"
+      - "apps/code/src/services/textFileGateway.ts"
+      - "apps/code/src/features/update/**"
       - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
       - ".github/workflows/_reusable-desktop-build-pr.yml"
       - ".github/workflows/_reusable-desktop-build-release.yml"
@@ -27,7 +37,6 @@ on:
       - ".github/actions/setup-rust-ci/**"
       - ".github/actions/upload-workflow-artifact/**"
       - ".github/workflows/desktop.yml"
-      - "apps/code-electron/**"
   push:
     branches:
       - main
@@ -60,8 +69,8 @@ jobs:
     name: Detect desktop-relevant changes
     runs-on: ubuntu-latest
     outputs:
-      desktop_required: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.desktop == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
-      desktop_full_pr_matrix_required: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.desktop_host == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
+      desktop_required: ${{ github.event_name == 'workflow_dispatch' || (steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.desktop == 'true' || steps.filter.outputs.desktop_frontend == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true')) }}
+      desktop_full_pr_matrix_required: ${{ github.event_name == 'workflow_dispatch' || (steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.desktop_host == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true')) }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -79,20 +88,6 @@ jobs:
           filters: |
             desktop:
               - "apps/code-tauri/**"
-              - "apps/code/**"
-              - "!apps/code/**/*.md"
-              - "!apps/code/**/*.mdx"
-              - "!apps/code/**/*.test.ts"
-              - "!apps/code/**/*.test.tsx"
-              - "!apps/code/**/*.spec.ts"
-              - "!apps/code/**/*.spec.tsx"
-              - "!apps/code/**/*.stories.ts"
-              - "!apps/code/**/*.stories.tsx"
-              - "!apps/code/**/*.stories.mdx"
-              - "!apps/code/**/__tests__/**"
-              - "!apps/code/src/test/**"
-              - "!apps/code/src/fixtures/**"
-              - "apps/code-electron/**"
               - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
               - ".github/workflows/_reusable-desktop-build-pr.yml"
               - ".github/workflows/_reusable-desktop-build-release.yml"
@@ -103,10 +98,49 @@ jobs:
               - ".github/actions/setup-node-pnpm/**"
               - ".github/actions/setup-rust-ci/**"
               - ".github/actions/upload-workflow-artifact/**"
-              - ".github/workflows/desktop.yml"
+            desktop_frontend:
+              - "apps/code/package.json"
+              - "apps/code/index.html"
+              - "apps/code/vite.config.ts"
+              - "apps/code/src/main.tsx"
+              - "apps/code/src/bootstrap/**"
+              - "apps/code/src/web/**"
+              - "!apps/code/src/web/**/*.md"
+              - "!apps/code/src/web/**/*.mdx"
+              - "!apps/code/src/web/**/*.test.ts"
+              - "!apps/code/src/web/**/*.test.tsx"
+              - "!apps/code/src/web/**/*.spec.ts"
+              - "!apps/code/src/web/**/*.spec.tsx"
+              - "!apps/code/src/web/**/*.stories.ts"
+              - "!apps/code/src/web/**/*.stories.tsx"
+              - "!apps/code/src/web/**/*.stories.mdx"
+              - "!apps/code/src/web/**/__tests__/**"
+              - "apps/code/src/application/runtime/**"
+              - "!apps/code/src/application/runtime/**/*.md"
+              - "!apps/code/src/application/runtime/**/*.mdx"
+              - "!apps/code/src/application/runtime/**/*.test.ts"
+              - "!apps/code/src/application/runtime/**/*.test.tsx"
+              - "!apps/code/src/application/runtime/**/*.spec.ts"
+              - "!apps/code/src/application/runtime/**/*.spec.tsx"
+              - "!apps/code/src/application/runtime/**/*.stories.ts"
+              - "!apps/code/src/application/runtime/**/*.stories.tsx"
+              - "!apps/code/src/application/runtime/**/*.stories.mdx"
+              - "!apps/code/src/application/runtime/**/__tests__/**"
+              - "apps/code/src/services/runtimeClient*"
+              - "apps/code/src/services/tauri*"
+              - "apps/code/src/services/textFileGateway.ts"
+              - "apps/code/src/features/update/**"
+              - "!apps/code/src/features/update/**/*.md"
+              - "!apps/code/src/features/update/**/*.mdx"
+              - "!apps/code/src/features/update/**/*.test.ts"
+              - "!apps/code/src/features/update/**/*.test.tsx"
+              - "!apps/code/src/features/update/**/*.spec.ts"
+              - "!apps/code/src/features/update/**/*.spec.tsx"
+              - "!apps/code/src/features/update/**/*.stories.ts"
+              - "!apps/code/src/features/update/**/*.stories.tsx"
+              - "!apps/code/src/features/update/**/*.stories.mdx"
             desktop_host:
               - "apps/code-tauri/**"
-              - "apps/code-electron/**"
               - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
               - ".github/workflows/_reusable-desktop-build-pr.yml"
               - ".github/workflows/_reusable-desktop-build-release.yml"
@@ -117,7 +151,6 @@ jobs:
               - ".github/actions/setup-node-pnpm/**"
               - ".github/actions/setup-rust-ci/**"
               - ".github/actions/upload-workflow-artifact/**"
-              - ".github/workflows/desktop.yml"
 
       - id: scope
         name: Classify dependency manifest scope

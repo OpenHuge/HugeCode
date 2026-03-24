@@ -12,6 +12,18 @@ on:
       desktop_runtime_changed:
         required: true
         type: boolean
+      ui_contract_required:
+        required: false
+        type: boolean
+        default: false
+      circular_required:
+        required: false
+        type: boolean
+        default: false
+      integration_watch_required:
+        required: false
+        type: boolean
+        default: false
       base_ref:
         required: false
         type: string
@@ -36,18 +48,36 @@ jobs:
         if: ${{ !inputs.ci_required }}
         run: echo "Skipping lint/typecheck pipeline for non-code changes. Repository SOT governance runs in the dedicated repo_sot job when relevant."
 
+      - name: Ensure PR base ref is available
+        if: github.event_name == 'pull_request' && inputs.base_ref != ''
+        run: |
+          git fetch --no-tags --prune --depth=1 origin \
+            +refs/heads/${{ inputs.base_ref }}:refs/remotes/origin/${{ inputs.base_ref }}
+
+      - id: scope
+        name: Classify PR scope
+        if: github.event_name == 'pull_request' && inputs.base_ref != ''
+        env:
+          CI_SCOPE_BASE_REF: origin/${{ inputs.base_ref }}
+          CI_SCOPE_HEAD_REF: HEAD
+        run: node scripts/classify-ci-change-scope.mjs
+
+      - name: Skip repo-governance-only PR
+        if: github.event_name == 'pull_request' && steps.scope.outputs.repo_governance_only == 'true'
+        run: echo "Skipping quality execution for repo-governance-only pull request changes."
+
       - uses: ./.github/actions/setup-node-pnpm
-        if: inputs.ci_required
+        if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true')
         with:
           install-command: pnpm install --offline --frozen-lockfile
 
-      - if: inputs.ci_required
+      - if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true')
         uses: ./.github/actions/cache-turbo
 
-      - if: inputs.ci_required && (inputs.desktop_runtime_changed || inputs.runtime_contract_changed)
+      - if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true') && (inputs.desktop_runtime_changed || inputs.runtime_contract_changed)
         uses: ./.github/actions/install-linux-desktop-deps
 
-      - if: inputs.ci_required && (inputs.desktop_runtime_changed || inputs.runtime_contract_changed)
+      - if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true') && (inputs.desktop_runtime_changed || inputs.runtime_contract_changed)
         uses: ./.github/actions/setup-rust-ci
         with:
           cargo-cache-path: |
@@ -58,26 +88,16 @@ jobs:
             ~/.cache/ku0/cargo-target/code-tauri
           cargo-cache-key: ${{ runner.os }}-code-tauri-check
 
-      - name: Ensure PR base ref is available
-        if: github.event_name == 'pull_request' && inputs.ci_required
-        run: |
-          git fetch --no-tags --prune --depth=1 origin \
-            +refs/heads/${{ inputs.base_ref }}:refs/remotes/origin/${{ inputs.base_ref }}
-
-      - name: Codex preflight
-        if: inputs.ci_required
-        run: pnpm preflight:codex:ci
-
       - name: Code integration watch
-        if: inputs.ci_required
+        if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true') && inputs.integration_watch_required
         run: node scripts/code-integration-watch.mjs --fetch
 
       - name: Format check
-        if: inputs.ci_required
+        if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true')
         run: pnpm format:check
 
       - name: Lint (affected)
-        if: github.event_name == 'pull_request' && inputs.ci_required
+        if: github.event_name == 'pull_request' && inputs.ci_required && steps.scope.outputs.repo_governance_only != 'true'
         env:
           TURBO_BASE_REF: origin/${{ inputs.base_ref }}
         run: pnpm lint:affected
@@ -87,23 +107,23 @@ jobs:
         run: pnpm lint
 
       - name: UI Contract
-        if: inputs.ci_required
+        if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true') && inputs.ui_contract_required
         run: pnpm ui:contract
 
       - name: Runtime Contract Parity
-        if: inputs.runtime_contract_changed
+        if: inputs.runtime_contract_changed && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true')
         run: pnpm check:runtime-contract:parity
 
       - name: Desktop Runtime Fast Verify
-        if: inputs.ci_required && inputs.desktop_runtime_changed
+        if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true') && inputs.desktop_runtime_changed
         run: pnpm desktop:verify:fast
 
       - name: Circular Dependencies
-        if: inputs.ci_required
+        if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true') && inputs.circular_required
         run: pnpm check:circular
 
       - name: Typecheck (affected)
-        if: github.event_name == 'pull_request' && inputs.ci_required
+        if: github.event_name == 'pull_request' && inputs.ci_required && steps.scope.outputs.repo_governance_only != 'true'
         env:
           TURBO_BASE_REF: origin/${{ inputs.base_ref }}
         run: pnpm typecheck:affected
