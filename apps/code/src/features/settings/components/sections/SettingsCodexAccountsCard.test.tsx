@@ -33,7 +33,10 @@ import {
 } from "../../../../application/runtime/ports/tauriOauth";
 import { listWorkspaces } from "../../../../application/runtime/ports/tauriWorkspaceCatalog";
 import type { AppServerEvent } from "../../../../types";
-import { setActiveOauthPopupLoginId } from "./settings-codex-accounts-card/oauthHelpers";
+import {
+  readActiveOauthPopupLoginId,
+  setActiveOauthPopupLoginId,
+} from "./settings-codex-accounts-card/oauthHelpers";
 import { SettingsCodexAccountsCard } from "./SettingsCodexAccountsCard";
 
 vi.mock("../../../../application/runtime/ports/events", () => ({
@@ -739,7 +742,6 @@ describe("SettingsCodexAccountsCard", () => {
   it(
     "shows callback verification error when oauth popup posts failure message",
     async () => {
-      setActiveOauthPopupLoginId("login-popup-2");
       render(<SettingsCodexAccountsCard />);
 
       await waitFor(
@@ -753,16 +755,20 @@ describe("SettingsCodexAccountsCard", () => {
         expect(screen.getByRole("button", { name: "Refresh" })).toBeTruthy();
       });
       setActiveOauthPopupLoginId("login-popup-2");
+      expect(readActiveOauthPopupLoginId()).toBe("login-popup-2");
 
-      await flushEffectTurn();
+      await act(async () => {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 0);
+        });
+      });
 
       act(() => {
-        window.dispatchEvent(
-          new window.MessageEvent("message", {
-            data: { type: "fastcode:oauth:codex", success: false, loginId: "login-popup-2" },
-            origin: window.location.origin,
-          })
-        );
+        emitOauthPopupMessage("login-popup-2", false);
+      });
+
+      await waitFor(() => {
+        expect(readActiveOauthPopupLoginId()).toBeNull();
       });
 
       expect(
