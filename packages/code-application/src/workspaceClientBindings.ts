@@ -1,3 +1,24 @@
+import type { ComponentType } from "react";
+import {
+  createBrowserWorkspaceClientHostBindings,
+  createBrowserWorkspaceClientRuntimeBindings,
+  createBrowserWorkspaceClientRuntimeGatewayBindings,
+} from "@ku0/code-workspace-client/workspace-browser-bindings";
+import type {
+  WorkspaceClientBindings,
+  WorkspaceClientRuntimeBindings,
+  WorkspaceClientRuntimeGatewayBindings,
+} from "@ku0/code-workspace-client/workspace-bindings";
+import { WorkspaceRuntimeShell } from "@ku0/code-workspace-client/runtime-shell";
+import type { SettingsShellFraming } from "@ku0/code-workspace-client/settings-shell-types";
+import type { WorkspaceNavigationAdapter } from "@ku0/code-workspace-client/workspace-navigation";
+import {
+  BrowserRuntimeBootstrapEffects,
+  createWorkspaceHostRenderer,
+  type WorkspaceHostEffect,
+  type WorkspaceHostProvider,
+} from "./workspaceHostRenderer";
+
 export type WorkspaceClientHostPlatform = "desktop" | "web";
 
 export type WorkspaceClientHostIntentBindings = {
@@ -24,6 +45,14 @@ export type WorkspaceClientHostBindings = {
 
 export type CreateWorkspaceClientBindingsInput<TBindings> = TBindings;
 
+type CreateWorkspaceClientPlatformUiInput = {
+  WorkspaceApp: ComponentType;
+  WorkspaceRuntimeShell?: ComponentType;
+  settingsShellFraming: SettingsShellFraming;
+  hostEffects?: readonly WorkspaceHostEffect[];
+  hostProviders?: readonly WorkspaceHostProvider[];
+};
+
 export type CreateDesktopWorkspaceClientHostBindingsInput = {
   openExternalUrl: (url: string) => Promise<unknown> | unknown;
   waitForOauthBinding: (workspaceId: string, baselineUpdatedAt: number) => Promise<boolean>;
@@ -34,33 +63,21 @@ export type CreateDesktopWorkspaceClientHostBindingsInput = {
   testSound?: () => void;
 };
 
-export type CreateDesktopWorkspaceClientBindingsInput<
-  TBindings extends { host: CreateDesktopWorkspaceClientHostBindingsInput },
-> = TBindings;
-
-export type CreateDesktopWorkspaceClientBindingsResult<
-  TBindings extends { host: CreateDesktopWorkspaceClientHostBindingsInput },
-> = Omit<TBindings, "host"> & {
-  host: WorkspaceClientHostBindings;
+export type CreateWebWorkspaceClientBindingsInput = CreateWorkspaceClientPlatformUiInput & {
+  navigation: WorkspaceNavigationAdapter;
 };
+
+export type CreateDesktopWorkspaceClientBindingsInput = CreateWorkspaceClientPlatformUiInput &
+  CreateDesktopWorkspaceClientHostBindingsInput & {
+    navigation: WorkspaceNavigationAdapter;
+    runtimeGateway: WorkspaceClientRuntimeGatewayBindings;
+    runtime: WorkspaceClientRuntimeBindings;
+  };
 
 export function createWorkspaceClientBindings<TBindings extends Record<string, unknown>>(
   input: CreateWorkspaceClientBindingsInput<TBindings>
 ) {
   return input;
-}
-
-export function createDesktopWorkspaceClientBindings<
-  TBindings extends Record<string, unknown> & {
-    host: CreateDesktopWorkspaceClientHostBindingsInput;
-  },
->(
-  input: CreateDesktopWorkspaceClientBindingsInput<TBindings>
-): CreateDesktopWorkspaceClientBindingsResult<TBindings> {
-  return createWorkspaceClientBindings({
-    ...input,
-    host: createDesktopWorkspaceClientHostBindings(input.host),
-  }) as CreateDesktopWorkspaceClientBindingsResult<TBindings>;
 }
 
 export function createDesktopWorkspaceClientHostBindings(
@@ -83,4 +100,43 @@ export function createDesktopWorkspaceClientHostBindings(
       platformHint: input.platformHint ?? "desktop",
     },
   };
+}
+
+function createPlatformUiBindings(
+  input: CreateWorkspaceClientPlatformUiInput,
+  bootstrapEffects: readonly WorkspaceHostEffect[] = []
+) {
+  return {
+    WorkspaceRuntimeShell: input.WorkspaceRuntimeShell ?? WorkspaceRuntimeShell,
+    WorkspaceApp: input.WorkspaceApp,
+    renderWorkspaceHost: createWorkspaceHostRenderer({
+      effects: [...bootstrapEffects, ...(input.hostEffects ?? [])],
+      providers: input.hostProviders,
+    }),
+    settingsShellFraming: input.settingsShellFraming,
+  };
+}
+
+export function createWebWorkspaceClientBindings(
+  input: CreateWebWorkspaceClientBindingsInput
+): WorkspaceClientBindings {
+  return createWorkspaceClientBindings({
+    navigation: input.navigation,
+    runtimeGateway: createBrowserWorkspaceClientRuntimeGatewayBindings(),
+    runtime: createBrowserWorkspaceClientRuntimeBindings(),
+    host: createBrowserWorkspaceClientHostBindings(),
+    platformUi: createPlatformUiBindings(input, [BrowserRuntimeBootstrapEffects]),
+  });
+}
+
+export function createDesktopWorkspaceClientBindings(
+  input: CreateDesktopWorkspaceClientBindingsInput
+): WorkspaceClientBindings {
+  return createWorkspaceClientBindings({
+    navigation: input.navigation,
+    runtimeGateway: input.runtimeGateway,
+    runtime: input.runtime,
+    host: createDesktopWorkspaceClientHostBindings(input),
+    platformUi: createPlatformUiBindings(input),
+  });
 }

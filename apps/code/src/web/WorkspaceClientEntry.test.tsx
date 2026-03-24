@@ -3,12 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceClientEntry } from "./WorkspaceClientEntry";
 
 const {
-  createWorkspaceHostRendererMock,
   createRuntimeKernelMock,
   createDesktopWorkspaceClientBindingsMock,
   workspaceClientBootMock,
 } = vi.hoisted(() => ({
-  createWorkspaceHostRendererMock: vi.fn(() => (children: unknown) => children),
   createRuntimeKernelMock: vi.fn(() => ({
     workspaceClientRuntimeGateway: {},
     workspaceClientRuntime: {
@@ -36,7 +34,6 @@ vi.mock("@ku0/code-workspace-client", () => ({
 }));
 
 vi.mock("@ku0/code-application", () => ({
-  createWorkspaceHostRenderer: createWorkspaceHostRendererMock,
   createDesktopWorkspaceClientBindings: createDesktopWorkspaceClientBindingsMock,
 }));
 
@@ -80,7 +77,6 @@ describe("WorkspaceClientEntry", () => {
     render(<WorkspaceClientEntry />);
 
     expect(createRuntimeKernelMock).toHaveBeenCalledTimes(1);
-    expect(createWorkspaceHostRendererMock).toHaveBeenCalledTimes(1);
     expect(createDesktopWorkspaceClientBindingsMock).toHaveBeenCalledTimes(1);
     expect(workspaceClientBootMock).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("workspace-client-boot")).toBeTruthy();

@@ -1,9 +1,5 @@
-import {
-  createDesktopWorkspaceClientBindings,
-  createWorkspaceHostRenderer,
-} from "@ku0/code-application";
-import type { WorkspaceClientBindings } from "@ku0/code-workspace-client";
-import { WorkspaceClientBoot, WorkspaceRuntimeShell } from "@ku0/code-workspace-client";
+import { createDesktopWorkspaceClientBindings } from "@ku0/code-application";
+import { WorkspaceClientBoot } from "@ku0/code-workspace-client";
 import { openUrl, showDesktopNotification } from "../application/runtime/facades/desktopHostFacade";
 import { createRuntimeKernel } from "../application/runtime/kernel/createRuntimeKernel";
 import { RuntimePortsProvider } from "../application/runtime/ports";
@@ -14,40 +10,32 @@ import { desktopWorkspaceNavigation } from "../features/workspaces/hooks/workspa
 import DesktopWorkspaceSurface from "./DesktopWorkspaceSurface";
 
 const runtimeKernel = createRuntimeKernel();
-const renderWorkspaceHost = createWorkspaceHostRenderer({
-  effects: [RuntimeBootstrapEffects],
-  providers: [RuntimePortsProvider],
-});
 
-const workspaceClientBindings: WorkspaceClientBindings = createDesktopWorkspaceClientBindings({
+const workspaceClientBindings = createDesktopWorkspaceClientBindings({
   navigation: desktopWorkspaceNavigation,
   runtimeGateway: runtimeKernel.workspaceClientRuntimeGateway,
   runtime: runtimeKernel.workspaceClientRuntime,
-  host: {
-    openExternalUrl: openUrl,
-    waitForOauthBinding: (workspaceId, baselineUpdatedAt) =>
-      waitForCodexOauthBinding(
-        {
-          getAccountInfo: runtimeKernel.workspaceClientRuntime.oauth.getAccountInfo,
-          readCodexAccountsForOauthSync: () =>
-            runtimeKernel.workspaceClientRuntime.oauth.listAccounts("codex"),
-        },
-        workspaceId,
-        baselineUpdatedAt
-      ),
-    testSystemNotification: () => {
-      void showDesktopNotification({
-        title: "HugeCode desktop notifications",
-        body: "Electron desktop notifications are connected.",
-      });
-    },
+  openExternalUrl: openUrl,
+  waitForOauthBinding: (workspaceId, baselineUpdatedAt) =>
+    waitForCodexOauthBinding(
+      {
+        getAccountInfo: runtimeKernel.workspaceClientRuntime.oauth.getAccountInfo,
+        readCodexAccountsForOauthSync: () =>
+          runtimeKernel.workspaceClientRuntime.oauth.listAccounts("codex"),
+      },
+      workspaceId,
+      baselineUpdatedAt
+    ),
+  testSystemNotification: () => {
+    void showDesktopNotification({
+      title: "HugeCode desktop notifications",
+      body: "Electron desktop notifications are connected.",
+    });
   },
-  platformUi: {
-    WorkspaceRuntimeShell,
-    WorkspaceApp: DesktopWorkspaceSurface,
-    renderWorkspaceHost,
-    settingsShellFraming: desktopSettingsShellFraming,
-  },
+  WorkspaceApp: DesktopWorkspaceSurface,
+  settingsShellFraming: desktopSettingsShellFraming,
+  hostEffects: [RuntimeBootstrapEffects],
+  hostProviders: [RuntimePortsProvider],
 });
 
 export function WorkspaceClientEntry() {
