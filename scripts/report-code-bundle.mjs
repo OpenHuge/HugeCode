@@ -55,7 +55,7 @@ async function listAssetStats() {
 }
 
 function findEntryChunk(assets) {
-  return assets.find((asset) => /^index-[\w-]+\.js$/.test(asset.name)) ?? null;
+  return assets.find((asset) => /^(?:index|main)(?:-[\w-]+)?\.js$/u.test(asset.name)) ?? null;
 }
 
 function pickTopAssets(assets, limit) {
