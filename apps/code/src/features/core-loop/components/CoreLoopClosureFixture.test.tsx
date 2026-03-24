@@ -1,8 +1,16 @@
 /** @vitest-environment jsdom */
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { flushBrowserMicrotasks } from "../../../test/asyncTestUtils";
 import { CoreLoopClosureFixture } from "./CoreLoopClosureFixture";
+
+vi.mock("../../../application/runtime/facades/runtimeRunRecordTruth", () => ({
+  useRuntimeRunRecordTruth: () => ({
+    record: null,
+    loading: false,
+    error: null,
+  }),
+}));
 
 describe("CoreLoopClosureFixture", () => {
   it("renders the core loop acceptance surface", async () => {

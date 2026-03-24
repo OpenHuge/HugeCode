@@ -1,5 +1,4 @@
 import { Button, WorkspaceChromePill } from "../../../design-system";
-import { WorkspaceChromeHeader, type WorkspaceChromeHeaderProps } from "@ku0/code-application";
 import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
 import Check from "lucide-react/dist/esm/icons/check";
 import Copy from "lucide-react/dist/esm/icons/copy";
@@ -16,14 +15,13 @@ import type { WorkspaceLaunchScriptsState } from "../hooks/useWorkspaceLaunchScr
 import { MainHeaderRightActions } from "./MainHeaderRightActions";
 import type { RecentThreadItem } from "./RecentThreadStrip";
 import { formatHeaderBranchLabel } from "../utils/headerBranchLabel";
+import { MainHeaderShell, type MainHeaderShellProps } from "./MainHeaderShell";
 
 const MainHeaderBranchMenu = lazy(() =>
   import("./MainHeaderBranchMenu").then((module) => ({
     default: module.MainHeaderBranchMenu,
   }))
 );
-
-export type MainHeaderShellProps = WorkspaceChromeHeaderProps;
 
 type MainHeaderProps = {
   leadingNode?: ReactNode;
@@ -81,7 +79,8 @@ type MainHeaderProps = {
   };
 };
 
-export const MainHeaderShell = WorkspaceChromeHeader;
+export type { MainHeaderShellProps };
+export { MainHeaderShell };
 
 export function MainHeader({
   leadingNode,
