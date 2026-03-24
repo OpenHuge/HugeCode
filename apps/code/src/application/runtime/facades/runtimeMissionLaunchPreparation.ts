@@ -28,6 +28,7 @@ export type RuntimeMissionLaunchRequestInput = {
 export type RuntimeMissionLaunchPreviewState = {
   request: RuntimeRunPrepareV2Request | null;
   preparation: RuntimeRunPrepareV2Response | null;
+  truthSourceLabel: string | null;
   loading: boolean;
   error: string | null;
 };
@@ -202,6 +203,7 @@ export function useRuntimeMissionLaunchPreview(
   return {
     request,
     preparation,
+    truthSourceLabel: preparation ? "Runtime kernel v2 prepare" : null,
     loading,
     error,
   };

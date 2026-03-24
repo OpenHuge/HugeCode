@@ -65,6 +65,11 @@ export function renderControlDeviceHandoff(detail: ReviewPackDetailModel) {
       {detail.continuity?.summary ? (
         <div className={styles.bodyText}>{detail.continuity.summary}</div>
       ) : null}
+      {detail.continuity?.truthSourceLabel ? (
+        <div className={styles.bodyText}>
+          Follow-up source: {detail.continuity.truthSourceLabel}
+        </div>
+      ) : null}
       {detail.continuity?.blockingReason &&
       detail.continuity.blockingReason !== detail.continuity.summary ? (
         <div className={styles.bodyText}>{detail.continuity.blockingReason}</div>
