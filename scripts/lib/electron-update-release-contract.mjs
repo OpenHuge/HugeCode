@@ -193,14 +193,18 @@ export function verifyElectronForgeUpdateContract(context) {
     throw new Error("Missing GitHub publisher in Electron Forge config.");
   }
 
-  for (const makerName of [
-    "@electron-forge/maker-zip",
-    "@electron-forge/maker-dmg",
-    "@electron-forge/maker-squirrel",
-    "@electron-forge/maker-deb",
-  ]) {
-    if (!makerNames.has(makerName)) {
-      throw new Error(`Missing required Electron Forge maker: ${makerName}`);
+  const requiredMakerGroups = [
+    ["@electron-forge/maker-zip"],
+    ["@electron-forge/maker-dmg"],
+    ["@electron-forge/maker-squirrel"],
+    ["@electron-forge/maker-deb", "./scripts/maker-deb.cjs"],
+  ];
+
+  for (const acceptedMakerNames of requiredMakerGroups) {
+    if (!acceptedMakerNames.some((makerName) => makerNames.has(makerName))) {
+      throw new Error(
+        `Missing required Electron Forge maker. Expected one of: ${acceptedMakerNames.join(", ")}`
+      );
     }
   }
 

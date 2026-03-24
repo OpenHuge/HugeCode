@@ -68,10 +68,10 @@ export default {
       },
     },
     {
-      name: "@electron-forge/maker-deb",
+      name: "./scripts/maker-deb.cjs",
       config: {
+        bin: "HugeCode",
         options: {
-          bin: "HugeCode",
           categories: ["Development"],
           maintainer: "OpenHuge",
           mimeType: ["x-scheme-handler/hugecode"],
