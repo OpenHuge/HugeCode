@@ -3,6 +3,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { setTimeout as delay } from "node:timers/promises";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -286,6 +287,18 @@ function isPidAlive(pid: number) {
   } catch {
     return false;
   }
+}
+
+async function waitForPidExit(pid: number, timeoutMs = 1_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!isPidAlive(pid)) {
+      return true;
+    }
+    await delay(25);
+  }
+
+  return !isPidAlive(pid);
 }
 
 const VALIDATE_SCRIPT_TEST_TIMEOUT_MS = 60_000;
@@ -1274,6 +1287,6 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     expect(result.status).toBe(1);
     expect(commandLog).toContain("spawned-child");
     expect(Number.isInteger(childPid)).toBe(true);
-    expect(isPidAlive(childPid)).toBe(false);
+    expect(await waitForPidExit(childPid)).toBe(true);
   });
 });

@@ -27,6 +27,21 @@ const CI_FILTER_EXTRA_REQUIREMENTS = new Map([
     ]),
   ],
 ]);
+const CI_FILTER_EXCLUDED_REQUIREMENTS = new Map([
+  [
+    "frontend_optimization",
+    new Set([
+      // Workflow-governance-only CI plumbing should not force the frontend optimization lane.
+      ".github/workflows/ci.yml",
+      ".github/workflows/_reusable-ci-frontend-optimization.yml",
+      ".github/actions/cache-turbo/action.yml",
+      ".github/actions/install-linux-desktop-deps/action.yml",
+      ".github/actions/setup-node-pnpm/action.yml",
+      ".github/actions/setup-playwright/action.yml",
+      "scripts/classify-ci-change-scope.mjs",
+    ]),
+  ],
+]);
 const errors = [];
 const actionRequirementCache = new Map();
 const workflowRequirementCache = new Map();
@@ -900,12 +915,16 @@ function checkCiWorkflowGovernance() {
 
   for (const [filterName, requiredPaths] of requirements) {
     const patterns = filters.get(filterName);
+    const excludedRequirements = CI_FILTER_EXCLUDED_REQUIREMENTS.get(filterName) ?? new Set();
     if (!patterns) {
       errors.push(`${ciWorkflowRepoPath}: missing dorny/paths-filter entry "${filterName}".`);
       continue;
     }
 
     for (const requiredPath of requiredPaths) {
+      if (excludedRequirements.has(requiredPath)) {
+        continue;
+      }
       if (!hasPathCoverage(patterns, requiredPath)) {
         errors.push(
           `${ciWorkflowRepoPath}: filter "${filterName}" is missing coverage for ${requiredPath}.`
