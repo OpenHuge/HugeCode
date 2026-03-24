@@ -739,7 +739,7 @@ describe("ComposerMetaBar AutoDrive", () => {
     expect(screen.getByText("Research lane")).toBeTruthy();
     expect(screen.getByText("Research gap")).toBeTruthy();
     expect(screen.getByText("Source quality")).toBeTruthy();
-    expect(screen.getByText("2 trusted sources · react.dev, playwright.dev")).toBeTruthy();
+    expect(screen.getByText("2 trusted of 3 sources · react.dev, playwright.dev")).toBeTruthy();
     expect(screen.getByText("Coverage gap")).toBeTruthy();
     expect(screen.getByText("Confirm the current Vitest migration guidance.")).toBeTruthy();
   });

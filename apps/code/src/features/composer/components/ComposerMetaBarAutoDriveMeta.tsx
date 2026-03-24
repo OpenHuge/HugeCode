@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { formatResearchSourceQualitySummary } from "../../../application/runtime/facades/runtimeReviewPackEvidenceSummary";
 import { joinClassNames } from "../../../utils/classNames";
 import { formatCompactTokens } from "./ComposerContextUsage";
 import * as autoDriveStyles from "./ComposerMetaBarAutoDriveMeta.styles.css";
@@ -641,22 +642,18 @@ function formatResearchSourceQualityLabel(run: NonNullable<AutoDriveView["run"]>
     return null;
   }
   const sourceAssessment = run.lastChatgptResearchRouteLab?.sourceAssessment;
-  const trustedSourceCount =
-    run.runtimeResearchSession?.trustedSourceCount ?? sourceAssessment?.trustedSourceCount ?? 0;
-  const domains =
-    run.runtimeResearchSession?.sourceDomains ??
-    sourceAssessment?.domains ??
-    run.runtimeResearchSources?.map((source) => source.domain ?? "").filter(Boolean) ??
-    [];
-  const uniqueDomains = [...new Set(domains.filter((value) => value.trim().length > 0))];
-  if (trustedSourceCount <= 0 && uniqueDomains.length === 0) {
-    return null;
-  }
-  const domainSummary = uniqueDomains
-    .slice(0, Math.max(trustedSourceCount, 0))
-    .slice(0, 2)
-    .join(", ");
-  return `${trustedSourceCount} trusted source${trustedSourceCount === 1 ? "" : "s"}${domainSummary ? ` · ${domainSummary}` : ""}`;
+  return formatResearchSourceQualitySummary({
+    status: sourceAssessment?.status ?? null,
+    trustedSourceCount:
+      run.runtimeResearchSession?.trustedSourceCount ?? sourceAssessment?.trustedSourceCount ?? 0,
+    totalSourceCount:
+      run.runtimeResearchSession?.totalSourceCount ?? sourceAssessment?.totalSourceCount ?? 0,
+    domains:
+      run.runtimeResearchSession?.sourceDomains ??
+      sourceAssessment?.domains ??
+      run.runtimeResearchSources?.map((source) => source.domain ?? "").filter(Boolean) ??
+      [],
+  });
 }
 
 function formatResearchCoverageGap(run: NonNullable<AutoDriveView["run"]>): string | null {

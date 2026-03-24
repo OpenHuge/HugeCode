@@ -1,5 +1,7 @@
 import type { MissionControlProjection } from "./runtimeMissionControlFacade";
 
+type ResearchSourceAssessmentStatus = "trusted" | "mixed" | "insufficient";
+
 export type BrowserEvidenceSummary = {
   status: "passed" | "gap" | "blocked" | "unavailable";
   targetUrl: string | null;
@@ -14,24 +16,83 @@ export type ResearchTraceSummary = {
   blockingReason: string | null;
 };
 
+function dedupeDomains(domains: string[]): string[] {
+  return [...new Set(domains.map((value) => value.trim()).filter((value) => value.length > 0))];
+}
+
+function inferResearchSourceQualityStatus(params: {
+  status: ResearchSourceAssessmentStatus | null | undefined;
+  trustedSourceCount: number;
+  totalSourceCount: number;
+}): ResearchSourceAssessmentStatus | null {
+  if (
+    params.status === "trusted" ||
+    params.status === "mixed" ||
+    params.status === "insufficient"
+  ) {
+    return params.status;
+  }
+  if (params.totalSourceCount <= 0) {
+    return null;
+  }
+  if (params.trustedSourceCount <= 0) {
+    return "insufficient";
+  }
+  if (params.trustedSourceCount >= params.totalSourceCount) {
+    return "trusted";
+  }
+  return "mixed";
+}
+
+export function formatResearchSourceQualitySummary(input: {
+  status?: ResearchSourceAssessmentStatus | null;
+  trustedSourceCount?: number | null;
+  totalSourceCount?: number | null;
+  domains?: string[] | null;
+}): string | null {
+  const trustedSourceCount = Math.max(0, input.trustedSourceCount ?? 0);
+  const totalSourceCount = Math.max(
+    input.totalSourceCount ?? trustedSourceCount,
+    trustedSourceCount
+  );
+  const domains = dedupeDomains(input.domains ?? []);
+  const status = inferResearchSourceQualityStatus({
+    status: input.status ?? null,
+    trustedSourceCount,
+    totalSourceCount,
+  });
+  if (!status && domains.length === 0) {
+    return null;
+  }
+  const domainSummary = domains.slice(0, 2).join(", ");
+  if (status === "trusted") {
+    return `${trustedSourceCount} trusted source${trustedSourceCount === 1 ? "" : "s"}${domainSummary ? ` · ${domainSummary}` : ""}`;
+  }
+  if (status === "mixed") {
+    return `${trustedSourceCount} trusted of ${totalSourceCount} sources${domainSummary ? ` · ${domainSummary}` : ""}`;
+  }
+  if (status === "insufficient") {
+    return `${trustedSourceCount} trusted of ${totalSourceCount} source${totalSourceCount === 1 ? "" : "s"}${domainSummary ? ` · ${domainSummary}` : ""}`;
+  }
+  return domainSummary.length > 0 ? domainSummary : null;
+}
+
 export function buildResearchSourceQuality(
   autoDrive: MissionControlProjection["runs"][number]["autoDrive"] | null | undefined
 ): string | null {
   const researchSession = autoDrive?.researchSession;
   const sourceAssessment = autoDrive?.lastChatgptResearchRouteLab?.sourceAssessment;
-  const trustedSourceCount =
-    researchSession?.trustedSourceCount ?? sourceAssessment?.trustedSourceCount ?? 0;
-  const domains = (
-    researchSession?.sourceDomains ??
-    sourceAssessment?.domains ??
-    autoDrive?.researchSources?.map((source) => source.domain ?? "").filter(Boolean) ??
-    []
-  ).filter((value): value is string => typeof value === "string" && value.trim().length > 0);
-  if (trustedSourceCount <= 0 && domains.length === 0) {
-    return null;
-  }
-  const trustedDomains = domains.slice(0, Math.max(trustedSourceCount, 0)).slice(0, 2);
-  return `${trustedSourceCount} trusted source${trustedSourceCount === 1 ? "" : "s"}${trustedDomains.length > 0 ? ` · ${trustedDomains.join(", ")}` : ""}`;
+  return formatResearchSourceQualitySummary({
+    status: sourceAssessment?.status ?? null,
+    trustedSourceCount:
+      researchSession?.trustedSourceCount ?? sourceAssessment?.trustedSourceCount ?? 0,
+    totalSourceCount: researchSession?.totalSourceCount ?? sourceAssessment?.totalSourceCount ?? 0,
+    domains:
+      researchSession?.sourceDomains ??
+      sourceAssessment?.domains ??
+      autoDrive?.researchSources?.map((source) => source.domain ?? "").filter(Boolean) ??
+      [],
+  });
 }
 
 export function buildResearchCoverageGaps(

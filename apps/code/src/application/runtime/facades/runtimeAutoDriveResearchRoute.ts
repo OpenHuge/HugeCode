@@ -86,6 +86,30 @@ function dedupe(values: string[]): string[] {
   return [...new Set(values.filter((value) => value.trim().length > 0))];
 }
 
+function inferResearchSourceAssessmentStatus(params: {
+  status: AutoDriveResearchSourceAssessment["status"] | null | undefined;
+  trustedSourceCount: number;
+  totalSourceCount: number;
+}): AutoDriveResearchSourceAssessment["status"] {
+  if (
+    params.status === "trusted" ||
+    params.status === "mixed" ||
+    params.status === "insufficient"
+  ) {
+    return params.status;
+  }
+  if (params.totalSourceCount <= 0) {
+    return null;
+  }
+  if (params.trustedSourceCount <= 0) {
+    return "insufficient";
+  }
+  if (params.trustedSourceCount >= params.totalSourceCount) {
+    return "trusted";
+  }
+  return "mixed";
+}
+
 function collectResearchIntentText(params: {
   run: AutoDriveRunRecord;
   context: AutoDriveContextSnapshot;
@@ -168,13 +192,20 @@ export function normalizeResearchSourceAssessment(params: {
   if (!params.assessment && params.researchSources.length === 0) {
     return null;
   }
+  const trustedSourceCount = Math.max(0, params.assessment?.trustedSourceCount ?? 0);
+  const totalSourceCount = Math.max(
+    params.assessment?.totalSourceCount ?? params.researchSources.length ?? 0,
+    params.researchSources.length,
+    trustedSourceCount
+  );
   return {
-    status: params.assessment?.status ?? null,
-    trustedSourceCount: Math.max(0, params.assessment?.trustedSourceCount ?? 0),
-    totalSourceCount: Math.max(
-      params.assessment?.totalSourceCount ?? params.researchSources.length ?? 0,
-      params.researchSources.length
-    ),
+    status: inferResearchSourceAssessmentStatus({
+      status: params.assessment?.status ?? null,
+      trustedSourceCount,
+      totalSourceCount,
+    }),
+    trustedSourceCount,
+    totalSourceCount,
     domains: dedupe([...(params.assessment?.domains ?? []), ...domainsFromSources]),
   };
 }
