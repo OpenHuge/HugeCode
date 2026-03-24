@@ -866,7 +866,6 @@ export function ReviewPackSurface({
                 reviewPackDetail.emptySectionLabels.assumptions
               )}
             </ReviewDetailSection>
-
             <ReviewDetailSection
               title="Validation outcome"
               meta={
@@ -970,6 +969,10 @@ export function ReviewPackSurface({
                       reviewPackDetail.researchSourceQuality
                         ? `Source Quality: ${reviewPackDetail.researchSourceQuality}`
                         : null,
+                      reviewPackDetail.researchPolicySummary
+                        ? `Research Policy: ${reviewPackDetail.researchPolicySummary}`
+                        : null,
+                      ...(reviewPackDetail.researchPolicyDetails ?? []),
                       ...(reviewPackDetail.researchCoverageGaps ?? []).map(
                         (gap) => `Coverage Gap: ${gap}`
                       ),

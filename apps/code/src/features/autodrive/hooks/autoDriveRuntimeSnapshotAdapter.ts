@@ -465,6 +465,10 @@ function toRuntimeResearchSession(
     trustedSourceCount: value.trustedSourceCount ?? 0,
     totalSourceCount: value.totalSourceCount ?? 0,
     sourceDomains: normalizeStringArray(value.sourceDomains),
+    trustedDomains: normalizeStringArray(value.trustedDomains),
+    focusAreas: normalizeStringArray(value.focusAreas),
+    allowLiveWebResearch:
+      typeof value.allowLiveWebResearch === "boolean" ? value.allowLiveWebResearch : null,
     coverageGaps: normalizeStringArray(value.coverageGaps),
     recommendedCandidateId: value.recommendedCandidateId ?? null,
   };

@@ -68,6 +68,9 @@ import {
 import {
   buildBrowserEvidenceSummary,
   buildResearchCoverageGaps,
+  buildResearchPolicyDetails,
+  buildResearchPolicySummary,
+  buildResearchReviewRequirement,
   buildResearchSourceQuality,
   buildResearchSourceList,
   buildResearchTraceSummary,
@@ -212,6 +215,9 @@ export type ReviewPackDetailModel = {
   browserEvidence?: BrowserEvidenceSummary | null;
   researchTrace?: ResearchTraceSummary | null;
   researchSources?: string[];
+  researchPolicySummary?: string | null;
+  researchPolicyDetails?: string[];
+  researchReviewRequirement?: string | null;
   researchSourceQuality?: string | null;
   researchCoverageGaps?: string[];
   decisionRationale?: string | null;
@@ -1101,6 +1107,9 @@ export function buildReviewPackDetailModel(input: {
   });
   const researchTrace = buildResearchTraceSummary(run?.autoDrive ?? null);
   const researchSources = buildResearchSourceList(run?.autoDrive ?? null);
+  const researchPolicySummary = buildResearchPolicySummary(run?.autoDrive ?? null);
+  const researchPolicyDetails = buildResearchPolicyDetails(run?.autoDrive ?? null);
+  const researchReviewRequirement = buildResearchReviewRequirement(run?.autoDrive ?? null);
   const researchSourceQuality = buildResearchSourceQuality(run?.autoDrive ?? null);
   const researchCoverageGaps = buildResearchCoverageGaps(run?.autoDrive ?? null);
   const decisionRationale =
@@ -1204,6 +1213,9 @@ export function buildReviewPackDetailModel(input: {
     browserEvidence,
     researchTrace,
     researchSources,
+    researchPolicySummary,
+    researchPolicyDetails,
+    researchReviewRequirement,
     researchSourceQuality,
     researchCoverageGaps,
     decisionRationale,

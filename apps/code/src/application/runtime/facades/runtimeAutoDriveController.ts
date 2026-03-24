@@ -553,6 +553,9 @@ export class AutoDriveRunController {
           trustedSourceCount: 0,
           totalSourceCount: 0,
           sourceDomains: [],
+          trustedDomains,
+          focusAreas,
+          allowLiveWebResearch: this.run.riskPolicy.allowNetworkAnalysis,
           coverageGaps: [],
           recommendedCandidateId: null,
         },
@@ -598,6 +601,9 @@ export class AutoDriveRunController {
         result,
         outcome: researchOutcome,
         researchSources,
+        trustedDomains,
+        focusAreas,
+        allowLiveWebResearch: this.run.riskPolicy.allowNetworkAnalysis,
       });
 
       this.run = {

@@ -351,6 +351,9 @@ export function buildRuntimeResearchSession(params: {
   result: RuntimeBrowserDebugRunResponse;
   outcome: AutoDriveResearchRouteOutcome;
   researchSources: ResearchSourceRecord[];
+  trustedDomains?: string[] | null;
+  focusAreas?: string[] | null;
+  allowLiveWebResearch?: boolean | null;
 }): AutoDriveRuntimeResearchSession {
   const research = params.result.researchRouteLab;
   const sourceAssessment = normalizeResearchSourceAssessment({
@@ -371,6 +374,10 @@ export function buildRuntimeResearchSession(params: {
     trustedSourceCount: sourceAssessment?.trustedSourceCount ?? 0,
     totalSourceCount: sourceAssessment?.totalSourceCount ?? params.researchSources.length,
     sourceDomains: sourceAssessment?.domains ?? fallbackDomains,
+    trustedDomains: dedupe(params.trustedDomains ?? []),
+    focusAreas: dedupe(params.focusAreas ?? []),
+    allowLiveWebResearch:
+      typeof params.allowLiveWebResearch === "boolean" ? params.allowLiveWebResearch : null,
     coverageGaps: dedupe(research?.coverageGaps ?? []),
     recommendedCandidateId:
       params.outcome.recommendedCandidateId ?? research?.recommendedRoute?.trim() ?? null,

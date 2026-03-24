@@ -1,5 +1,8 @@
 import { useId, useState } from "react";
-import { formatResearchSourceQualitySummary } from "../../../application/runtime/facades/runtimeReviewPackEvidenceSummary";
+import {
+  formatResearchReviewRequirement,
+  formatResearchSourceQualitySummary,
+} from "../../../application/runtime/facades/runtimeReviewPackEvidenceSummary";
 import { joinClassNames } from "../../../utils/classNames";
 import { formatCompactTokens } from "./ComposerContextUsage";
 import * as autoDriveStyles from "./ComposerMetaBarAutoDriveMeta.styles.css";
@@ -123,6 +126,9 @@ type AutoDriveView = {
       trustedSourceCount: number;
       totalSourceCount: number;
       sourceDomains: string[];
+      trustedDomains: string[];
+      focusAreas: string[];
+      allowLiveWebResearch: boolean | null;
       coverageGaps: string[];
       recommendedCandidateId: string | null;
     } | null;
@@ -187,6 +193,9 @@ type AutoDrivePresentation = {
   browserLaneLabel: string | null;
   decisionLabLabel: string | null;
   researchLaneLabel: string | null;
+  researchPolicyLabel: string | null;
+  researchFocusLabel: string | null;
+  researchReviewLabel: string | null;
   researchSourceQualityLabel: string | null;
   researchCoverageGap: string | null;
 };
@@ -667,6 +676,47 @@ function formatResearchCoverageGap(run: NonNullable<AutoDriveView["run"]>): stri
   );
 }
 
+function formatResearchPolicyLabel(run: NonNullable<AutoDriveView["run"]>): string | null {
+  if (!isResearchRouteDecideScenario(run)) {
+    return null;
+  }
+  const session = run.runtimeResearchSession;
+  if (!session) {
+    return null;
+  }
+  const parts: string[] = [];
+  if (session.trustedDomains.length > 0) {
+    parts.push(
+      `${session.trustedDomains.length} trusted domain${session.trustedDomains.length === 1 ? "" : "s"}`
+    );
+  }
+  if (typeof session.allowLiveWebResearch === "boolean") {
+    parts.push(session.allowLiveWebResearch ? "live web on" : "live web off");
+  }
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+function formatResearchFocusLabel(run: NonNullable<AutoDriveView["run"]>): string | null {
+  if (!isResearchRouteDecideScenario(run)) {
+    return null;
+  }
+  return run.runtimeResearchSession?.focusAreas[0] ?? null;
+}
+
+function formatResearchReviewLabel(run: NonNullable<AutoDriveView["run"]>): string | null {
+  if (!isResearchRouteDecideScenario(run)) {
+    return null;
+  }
+  const sourceAssessment = run.lastChatgptResearchRouteLab?.sourceAssessment;
+  return formatResearchReviewRequirement({
+    phase: run.runtimeResearchSession?.phase ?? run.lastChatgptResearchRouteLab?.phase ?? null,
+    blockingReason:
+      run.runtimeResearchSession?.blockingReason ?? run.lastChatgptResearchRouteLab?.blockedReason,
+    sourceAssessmentStatus: sourceAssessment?.status ?? null,
+    allowLiveWebResearch: run.runtimeResearchSession?.allowLiveWebResearch ?? null,
+  });
+}
+
 function formatAutoDriveRailHeadline(autoDrive: AutoDriveView): string {
   if (autoDrive.controls.busyAction) {
     return formatBusyActionLabel(autoDrive.controls.busyAction);
@@ -818,6 +868,9 @@ function buildAutoDrivePresentation(autoDrive: AutoDriveView): AutoDrivePresenta
     browserLaneLabel: browserFixLoopPresentation?.browserLaneLabel ?? null,
     decisionLabLabel: autoDrive.run ? formatDecisionLabLabel(autoDrive.run) : null,
     researchLaneLabel: autoDrive.run ? formatResearchLaneLabel(autoDrive.run) : null,
+    researchPolicyLabel: autoDrive.run ? formatResearchPolicyLabel(autoDrive.run) : null,
+    researchFocusLabel: autoDrive.run ? formatResearchFocusLabel(autoDrive.run) : null,
+    researchReviewLabel: autoDrive.run ? formatResearchReviewLabel(autoDrive.run) : null,
     researchSourceQualityLabel: autoDrive.run
       ? formatResearchSourceQualityLabel(autoDrive.run)
       : null,
@@ -972,6 +1025,30 @@ export function ComposerAutoDriveStatusBar({
                         <span className={autoDriveStyles.summaryLabel}>Research lane</span>
                         <span className={autoDriveStyles.summaryValue}>
                           {presentation.researchLaneLabel}
+                        </span>
+                      </div>
+                    ) : null}
+                    {presentation.researchPolicyLabel ? (
+                      <div className={autoDriveStyles.summaryItem}>
+                        <span className={autoDriveStyles.summaryLabel}>Research policy</span>
+                        <span className={autoDriveStyles.summaryValue}>
+                          {presentation.researchPolicyLabel}
+                        </span>
+                      </div>
+                    ) : null}
+                    {presentation.researchFocusLabel ? (
+                      <div className={autoDriveStyles.summaryItem}>
+                        <span className={autoDriveStyles.summaryLabel}>Research focus</span>
+                        <span className={autoDriveStyles.summaryValue}>
+                          {presentation.researchFocusLabel}
+                        </span>
+                      </div>
+                    ) : null}
+                    {presentation.researchReviewLabel ? (
+                      <div className={autoDriveStyles.summaryItem}>
+                        <span className={autoDriveStyles.summaryLabel}>Research review</span>
+                        <span className={autoDriveStyles.summaryValue}>
+                          {presentation.researchReviewLabel}
                         </span>
                       </div>
                     ) : null}

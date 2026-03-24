@@ -16,6 +16,49 @@ export type ResearchTraceSummary = {
   blockingReason: string | null;
 };
 
+export function buildResearchPolicySummary(
+  autoDrive: MissionControlProjection["runs"][number]["autoDrive"] | null | undefined
+): string | null {
+  const session = autoDrive?.researchSession;
+  if (!session) {
+    return null;
+  }
+  const policyParts: string[] = [];
+  const trustedDomainCount = session.trustedDomains?.length ?? 0;
+  if (trustedDomainCount > 0) {
+    policyParts.push(`${trustedDomainCount} trusted domain${trustedDomainCount === 1 ? "" : "s"}`);
+  }
+  if (typeof session.allowLiveWebResearch === "boolean") {
+    policyParts.push(session.allowLiveWebResearch ? "live web on" : "live web off");
+  }
+  return policyParts.length > 0 ? policyParts.join(" · ") : null;
+}
+
+export function buildResearchPolicyDetails(
+  autoDrive: MissionControlProjection["runs"][number]["autoDrive"] | null | undefined
+): string[] {
+  const session = autoDrive?.researchSession;
+  if (!session) {
+    return [];
+  }
+  const details: string[] = [];
+  const trustedDomains = dedupeDomains(session.trustedDomains ?? []);
+  if (trustedDomains.length > 0) {
+    details.push(`Trusted domains: ${trustedDomains.join(", ")}`);
+  }
+  if (typeof session.allowLiveWebResearch === "boolean") {
+    details.push(`Live web research: ${session.allowLiveWebResearch ? "allowed" : "disabled"}`);
+  }
+  const reviewRequirement = buildResearchReviewRequirement(autoDrive);
+  if (reviewRequirement) {
+    details.push(`Review requirement: ${reviewRequirement}`);
+  }
+  for (const focusArea of (session.focusAreas ?? []).filter((value) => value.trim().length > 0)) {
+    details.push(`Focus: ${focusArea}`);
+  }
+  return details;
+}
+
 function dedupeDomains(domains: string[]): string[] {
   return [...new Set(domains.map((value) => value.trim()).filter((value) => value.length > 0))];
 }
@@ -103,6 +146,56 @@ export function buildResearchCoverageGaps(
     autoDrive?.lastChatgptResearchRouteLab?.coverageGaps ??
     []
   ).filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+}
+
+export function formatResearchReviewRequirement(input: {
+  phase?: string | null;
+  blockingReason?: string | null;
+  sourceAssessmentStatus?: ResearchSourceAssessmentStatus | null;
+  allowLiveWebResearch?: boolean | null;
+}): string | null {
+  if (input.phase === "blocked") {
+    return "Operator unblock required";
+  }
+  if (input.phase === "gap" || input.sourceAssessmentStatus === "insufficient") {
+    return "Research evidence review required";
+  }
+  if (input.sourceAssessmentStatus === "mixed") {
+    return "Human review required";
+  }
+  if (input.allowLiveWebResearch === true) {
+    return "Human review required";
+  }
+  if (input.phase === "selected" && input.sourceAssessmentStatus === "trusted") {
+    return "Ready for execution";
+  }
+  if (input.phase === "queued" || input.phase === "researching" || input.phase === "synthesizing") {
+    return "Research in progress";
+  }
+  if (input.phase === "selected") {
+    return "Review before execution";
+  }
+  return null;
+}
+
+export function buildResearchReviewRequirement(
+  autoDrive: MissionControlProjection["runs"][number]["autoDrive"] | null | undefined
+): string | null {
+  const researchSession = autoDrive?.researchSession;
+  const sourceAssessment = autoDrive?.lastChatgptResearchRouteLab?.sourceAssessment;
+  return formatResearchReviewRequirement({
+    phase: researchSession?.phase ?? autoDrive?.lastChatgptResearchRouteLab?.phase ?? null,
+    blockingReason:
+      researchSession?.blockingReason ?? autoDrive?.lastChatgptResearchRouteLab?.blockedReason,
+    sourceAssessmentStatus: inferResearchSourceQualityStatus({
+      status: sourceAssessment?.status ?? null,
+      trustedSourceCount:
+        researchSession?.trustedSourceCount ?? sourceAssessment?.trustedSourceCount ?? 0,
+      totalSourceCount:
+        researchSession?.totalSourceCount ?? sourceAssessment?.totalSourceCount ?? 0,
+    }),
+    allowLiveWebResearch: researchSession?.allowLiveWebResearch ?? null,
+  });
 }
 
 export function buildBrowserEvidenceSummary(input: {

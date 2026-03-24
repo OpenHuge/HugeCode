@@ -339,6 +339,9 @@ export type HugeCodeAutoDriveResearchSession = {
   trustedSourceCount?: number | null;
   totalSourceCount?: number | null;
   sourceDomains?: string[] | null;
+  trustedDomains?: string[] | null;
+  focusAreas?: string[] | null;
+  allowLiveWebResearch?: boolean | null;
   coverageGaps?: string[] | null;
   recommendedCandidateId?: string | null;
 };

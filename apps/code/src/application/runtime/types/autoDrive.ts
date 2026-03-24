@@ -282,6 +282,9 @@ export type AutoDriveRuntimeResearchSession = {
   trustedSourceCount: number;
   totalSourceCount: number;
   sourceDomains: string[];
+  trustedDomains: string[];
+  focusAreas: string[];
+  allowLiveWebResearch: boolean | null;
   coverageGaps: string[];
   recommendedCandidateId: string | null;
 };

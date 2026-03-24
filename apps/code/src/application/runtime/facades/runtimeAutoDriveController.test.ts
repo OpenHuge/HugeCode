@@ -862,6 +862,21 @@ describe("AutoDriveRunController", () => {
       trustedSourceCount: 2,
       totalSourceCount: 2,
       sourceDomains: ["react.dev", "playwright.dev"],
+      trustedDomains: expect.arrayContaining([
+        "developer.chrome.com",
+        "openai.com",
+        "platform.openai.com",
+        "developers.openai.com",
+        "playwright.dev",
+        "react.dev",
+      ]),
+      focusAreas: expect.arrayContaining([
+        "Render route summary",
+        "Write run journal entries",
+        "pnpm validate:fast",
+        "Waypoint Status",
+      ]),
+      allowLiveWebResearch: true,
       coverageGaps: ["Confirm the current test runner support."],
       recommendedCandidateId: "stabilize_route",
     });

@@ -110,6 +110,9 @@ type RenderAutoDriveOptions = {
       trustedSourceCount: number;
       totalSourceCount: number;
       sourceDomains: string[];
+      trustedDomains: string[];
+      focusAreas: string[];
+      allowLiveWebResearch: boolean | null;
       coverageGaps: string[];
       recommendedCandidateId: string | null;
     } | null;
@@ -694,6 +697,9 @@ describe("ComposerMetaBar AutoDrive", () => {
           trustedSourceCount: 2,
           totalSourceCount: 3,
           sourceDomains: ["react.dev", "playwright.dev", "example.com"],
+          trustedDomains: ["react.dev", "playwright.dev", "vitest.dev"],
+          focusAreas: ["Confirm the current Vitest migration guidance."],
+          allowLiveWebResearch: true,
           coverageGaps: ["Confirm the current Vitest migration guidance."],
           recommendedCandidateId: "stabilize_route",
         },
@@ -738,10 +744,15 @@ describe("ComposerMetaBar AutoDrive", () => {
 
     expect(screen.getByText("Research lane")).toBeTruthy();
     expect(screen.getByText("Research gap")).toBeTruthy();
+    expect(screen.getByText("Research policy")).toBeTruthy();
+    expect(screen.getByText("3 trusted domains · live web on")).toBeTruthy();
+    expect(screen.getByText("Research focus")).toBeTruthy();
+    expect(screen.getByText("Research review")).toBeTruthy();
+    expect(screen.getByText("Research evidence review required")).toBeTruthy();
     expect(screen.getByText("Source quality")).toBeTruthy();
     expect(screen.getByText("2 trusted of 3 sources · react.dev, playwright.dev")).toBeTruthy();
     expect(screen.getByText("Coverage gap")).toBeTruthy();
-    expect(screen.getByText("Confirm the current Vitest migration guidance.")).toBeTruthy();
+    expect(screen.getAllByText("Confirm the current Vitest migration guidance.").length).toBe(2);
   });
 
   it("surfaces runtime recovery summary instead of generic restore copy", () => {

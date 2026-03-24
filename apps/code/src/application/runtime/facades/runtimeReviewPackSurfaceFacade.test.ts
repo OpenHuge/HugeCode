@@ -430,6 +430,9 @@ describe("runtimeReviewPackSurfaceFacade", () => {
               trustedSourceCount: 2,
               totalSourceCount: 2,
               sourceDomains: ["react.dev", "vite.dev"],
+              trustedDomains: ["react.dev", "vite.dev"],
+              focusAreas: ["Confirm deprecated test helpers before upgrading."],
+              allowLiveWebResearch: true,
               coverageGaps: ["Confirm deprecated test helpers before upgrading."],
               recommendedCandidateId: "incremental-react-19",
             },
@@ -512,6 +515,14 @@ describe("runtimeReviewPackSurfaceFacade", () => {
       "vite.dev - Vite migration guide - https://vite.dev/guide/migration",
     ]);
     expect(detail.researchSourceQuality).toBe("2 trusted sources · react.dev, vite.dev");
+    expect(detail.researchPolicySummary).toBe("2 trusted domains · live web on");
+    expect(detail.researchPolicyDetails).toEqual([
+      "Trusted domains: react.dev, vite.dev",
+      "Live web research: allowed",
+      "Review requirement: Human review required",
+      "Focus: Confirm deprecated test helpers before upgrading.",
+    ]);
+    expect(detail.researchReviewRequirement).toBe("Human review required");
     expect(detail.researchCoverageGaps).toEqual([
       "Confirm deprecated test helpers before upgrading.",
     ]);
@@ -599,6 +610,9 @@ describe("runtimeReviewPackSurfaceFacade", () => {
               trustedSourceCount: 1,
               totalSourceCount: 2,
               sourceDomains: ["react.dev", "example.com"],
+              trustedDomains: ["react.dev", "vite.dev"],
+              focusAreas: ["Confirm the Vitest compatibility note."],
+              allowLiveWebResearch: false,
               coverageGaps: ["Confirm the Vitest compatibility note."],
               recommendedCandidateId: "incremental-react-19",
             },
@@ -677,5 +691,13 @@ describe("runtimeReviewPackSurfaceFacade", () => {
       throw new Error("Expected review pack detail");
     }
     expect(detail.researchSourceQuality).toBe("1 trusted of 2 sources · react.dev, example.com");
+    expect(detail.researchPolicySummary).toBe("2 trusted domains · live web off");
+    expect(detail.researchPolicyDetails).toEqual([
+      "Trusted domains: react.dev, vite.dev",
+      "Live web research: disabled",
+      "Review requirement: Research evidence review required",
+      "Focus: Confirm the Vitest compatibility note.",
+    ]);
+    expect(detail.researchReviewRequirement).toBe("Research evidence review required");
   });
 });
