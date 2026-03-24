@@ -177,8 +177,9 @@ use distributed_runtime::{
     resolve_cached_distributed_readiness_snapshot, truncate_chars_with_ellipsis,
 };
 use local_claude_exec_turn::{
-    clear_local_claude_thread_session, persist_local_claude_thread_session, probe_local_claude_cli,
-    query_local_claude_exec_turn, read_local_claude_thread_session, LocalClaudeExecTurnInput,
+    check_local_claude_cli_readiness, clear_local_claude_thread_session,
+    persist_local_claude_thread_session, query_local_claude_exec_turn,
+    read_local_claude_thread_session, LocalClaudeExecTurnInput,
 };
 use local_codex_account_sync::{
     classify_oauth_api_key_resolution_error, import_cockpit_tools_codex_accounts,

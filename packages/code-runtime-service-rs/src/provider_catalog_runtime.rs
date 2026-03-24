@@ -233,7 +233,7 @@ async fn provider_is_available(
     provider: RuntimeProvider,
 ) -> bool {
     if provider == RuntimeProvider::ClaudeCodeLocal {
-        return probe_local_claude_cli().await.is_ok();
+        return check_local_claude_cli_readiness().await.is_ok();
     }
     provider.has_api_key(&ctx.config)
         || has_available_oauth_account(ctx, provider)

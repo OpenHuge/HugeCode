@@ -24,6 +24,15 @@
         MaybeTlsStream, WebSocketStream,
     };
     use tower::ServiceExt;
+    #[cfg(target_os = "macos")]
+    use {
+        super::local_claude_exec_path::{
+            local_claude_exec_env_lock, reset_local_claude_exec_binary_cache,
+            CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV,
+        },
+        std::os::unix::fs::PermissionsExt,
+        tempfile::TempDir,
+    };
 
     fn test_sqlite_db_path(prefix: &str) -> String {
         let dir = std::env::temp_dir().join(format!(
@@ -3778,6 +3787,85 @@
                 && entry["oauthProviderId"] == Value::Null
                 && entry["supportsOpenaiCompat"] == Value::Bool(false)
         }));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    async fn rpc_providers_catalog_keeps_local_claude_available_when_install_and_auth_are_ready() {
+        let _guard = local_claude_exec_env_lock()
+            .lock()
+            .expect("local claude exec env lock poisoned");
+        let previous_override = std::env::var_os(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV);
+        let temp = TempDir::new().expect("create temp dir");
+        let script_path = temp.path().join("fake-claude.sh");
+        let script = r#"#!/bin/sh
+if [ "$1" = "-v" ] || [ "$1" = "--version" ]; then
+  printf 'claude 2.1.81\n'
+  exit 0
+fi
+
+if [ "$1" = "auth" ] && [ "$2" = "status" ] && [ "$3" = "--json" ]; then
+  printf '{"loggedIn":true,"authMethod":"oauth_token","apiProvider":"firstParty"}\n'
+  exit 0
+fi
+
+if [ "$1" = "--print" ]; then
+  sleep 6
+  printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-123","apiKeySource":"none","model":"claude-sonnet-4-5"}'
+  exit 0
+fi
+
+printf 'unexpected args: %s\n' "$*" >&2
+exit 1
+"#;
+        fs::write(&script_path, script).expect("write fake claude script");
+        let mut permissions = fs::metadata(&script_path)
+            .expect("fake claude metadata")
+            .permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&script_path, permissions).expect("set fake claude permissions");
+
+        unsafe {
+            std::env::set_var(
+                CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV,
+                script_path.as_os_str(),
+            );
+        }
+        reset_local_claude_exec_binary_cache();
+
+        let app = test_router();
+        let request = Request::builder()
+            .method("POST")
+            .uri("/rpc")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{"method":"code_providers_catalog","params":{}}"#,
+            ))
+            .expect("build request");
+        let response = app.oneshot(request).await.expect("rpc response");
+
+        unsafe {
+            match previous_override {
+                Some(value) => std::env::set_var(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV, value),
+                None => std::env::remove_var(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV),
+            }
+        }
+        reset_local_claude_exec_binary_cache();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("read body");
+        let payload: Value = serde_json::from_slice(&bytes).expect("parse json");
+        assert_eq!(payload["ok"], Value::Bool(true));
+        let providers = payload["result"]
+            .as_array()
+            .expect("providers catalog should be an array");
+        let local_claude = providers
+            .iter()
+            .find(|entry| entry["providerId"] == Value::String("claude_code_local".to_string()))
+            .expect("local claude provider entry should exist");
+        assert_eq!(local_claude["available"], Value::Bool(true));
     }
 
     #[tokio::test]
