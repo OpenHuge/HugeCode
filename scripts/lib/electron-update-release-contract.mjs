@@ -71,6 +71,13 @@ async function findFirstRelativeFile(rootDir, matcher) {
   return relativeFiles.find((file) => matcher(file)) ?? null;
 }
 
+function isLocalDebMakerName(makerName) {
+  return (
+    makerName === "deb" ||
+    (typeof makerName === "string" && /(?:^|[\\/])scripts[\\/]maker-deb\.cjs$/u.test(makerName))
+  );
+}
+
 export function isElectronPackagedAppAsarPath(relativePath) {
   return /(?:^|\/)resources\/app\.asar$/iu.test(relativePath);
 }
@@ -197,11 +204,16 @@ export function verifyElectronForgeUpdateContract(context) {
     ["@electron-forge/maker-zip"],
     ["@electron-forge/maker-dmg"],
     ["@electron-forge/maker-squirrel"],
-    ["@electron-forge/maker-deb", "./scripts/maker-deb.cjs"],
+    ["@electron-forge/maker-deb", "local-maker-deb"],
   ];
 
   for (const acceptedMakerNames of requiredMakerGroups) {
-    if (!acceptedMakerNames.some((makerName) => makerNames.has(makerName))) {
+    const hasAcceptedMaker = acceptedMakerNames.some((makerName) =>
+      makerName === "local-maker-deb"
+        ? [...makerNames].some((configuredMakerName) => isLocalDebMakerName(configuredMakerName))
+        : makerNames.has(makerName)
+    );
+    if (!hasAcceptedMaker) {
       throw new Error(
         `Missing required Electron Forge maker. Expected one of: ${acceptedMakerNames.join(", ")}`
       );

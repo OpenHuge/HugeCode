@@ -3,7 +3,11 @@
 const path = require("node:path");
 const { chmod, stat } = require("node:fs/promises");
 const { createRequire } = require("node:module");
-const { MakerBase } = require("@electron-forge/maker-base");
+
+const requireFromSelf = createRequire(__filename);
+const makerDebPackageJsonPath = requireFromSelf.resolve("@electron-forge/maker-deb/package.json");
+const requireFromMakerDebPackage = createRequire(makerDebPackageJsonPath);
+const { MakerBase } = requireFromMakerDebPackage("@electron-forge/maker-base");
 
 function debianArch(nodeArch) {
   switch (nodeArch) {
@@ -73,8 +77,7 @@ function patchDebianInstallerModule(installerModule) {
 }
 
 function loadPatchedDebianInstaller() {
-  const requireFromMaker = createRequire(__filename);
-  const debianInstallerPackageJsonPath = requireFromMaker.resolve(
+  const debianInstallerPackageJsonPath = requireFromMakerDebPackage.resolve(
     "electron-installer-debian/package.json"
   );
   const requireFromDebianInstaller = createRequire(debianInstallerPackageJsonPath);

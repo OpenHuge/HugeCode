@@ -1,3 +1,5 @@
+import MakerDeb from "./scripts/maker-deb.cjs";
+
 function normalizeStaticUpdateBaseUrlRoot(staticUpdateBaseUrl) {
   const trimmed = staticUpdateBaseUrl?.trim();
   if (!trimmed) {
@@ -28,7 +30,6 @@ const betaStaticUpdateBaseUrl =
   releaseChannel === "beta" && staticUpdateBaseUrlRoot
     ? buildStaticUpdateBaseUrl(staticUpdateBaseUrlRoot, process.platform, process.arch)
     : null;
-
 export default {
   packagerConfig: {
     appBundleId: "com.openhuge.hugecode",
@@ -67,19 +68,16 @@ export default {
         setupExe: "HugeCodeSetup.exe",
       },
     },
-    {
-      name: "./scripts/maker-deb.cjs",
-      config: {
-        bin: "HugeCode",
-        options: {
-          categories: ["Development"],
-          maintainer: "OpenHuge",
-          mimeType: ["x-scheme-handler/hugecode"],
-          productDescription: "HugeCode beta desktop shell",
-          section: "devel",
-        },
+    new MakerDeb({
+      bin: "HugeCode",
+      options: {
+        categories: ["Development"],
+        maintainer: "OpenHuge",
+        mimeType: ["x-scheme-handler/hugecode"],
+        productDescription: "HugeCode beta desktop shell",
+        section: "devel",
       },
-    },
+    }),
   ],
   publishers: [
     {

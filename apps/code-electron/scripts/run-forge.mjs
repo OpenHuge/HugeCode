@@ -1,5 +1,6 @@
 import { access, cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildForgeEnvironment, resolveCommandInvocation } from "./run-forge-support.mjs";
@@ -17,10 +18,8 @@ const tempRootDir = resolve(packageDir, ".tmp");
 const packageJson = JSON.parse(await readFile(resolve(packageDir, "package.json"), "utf8"));
 const forgeConfigSource = resolve(packageDir, "forge.config.mjs");
 const workspaceRoot = resolve(packageDir, "../..");
-const electronForgeBin =
-  process.platform === "win32"
-    ? resolve(workspaceRoot, "node_modules/.bin/electron-forge.cmd")
-    : resolve(workspaceRoot, "node_modules/.bin/electron-forge");
+const requireFromWorkspace = createRequire(resolve(workspaceRoot, "package.json"));
+const electronForgeCli = requireFromWorkspace.resolve("@electron-forge/cli/dist/electron-forge.js");
 const localMakerDebSource = resolve(scriptDir, "maker-deb.cjs");
 
 let forgeStageDir = "";
@@ -91,6 +90,7 @@ async function prepareStage() {
       )
     ),
     devDependencies: {
+      "@electron-forge/maker-deb": "7.11.1",
       electron: packageJson.devDependencies.electron,
     },
   };
@@ -165,7 +165,7 @@ async function runForge() {
     await mkdir(processTempDir, { recursive: true });
 
     await new Promise((resolvePromise, rejectPromise) => {
-      const child = spawn(electronForgeBin, [command], {
+      const child = spawn(process.execPath, [electronForgeCli, command], {
         cwd: forgePackageDir,
         env: buildForgeEnvironment({
           baseEnv: process.env,

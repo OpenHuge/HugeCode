@@ -38,7 +38,7 @@ describe("verifyElectronForgeUpdateContract", () => {
             { name: "@electron-forge/maker-zip" },
             { name: "@electron-forge/maker-dmg" },
             { name: "@electron-forge/maker-squirrel" },
-            { name: "./scripts/maker-deb.cjs" },
+            { name: "deb" },
           ],
           publishers: [
             {
