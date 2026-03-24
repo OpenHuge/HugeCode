@@ -78,8 +78,12 @@ function isLocalDebMakerName(makerName) {
   );
 }
 
+export function normalizeElectronPackagedEntryPath(relativePath) {
+  return relativePath.replaceAll("\\", "/");
+}
+
 export function isElectronPackagedAppAsarPath(relativePath) {
-  return /(?:^|\/)resources\/app\.asar$/iu.test(relativePath);
+  return /(?:^|\/)resources\/app\.asar$/iu.test(normalizeElectronPackagedEntryPath(relativePath));
 }
 
 export async function loadElectronReleaseContract(repoRoot) {
@@ -127,7 +131,9 @@ export async function verifyElectronPackagedUpdaterRuntime(repoRoot) {
   }
 
   const appAsarPath = resolve(outDir, appAsarRelativePath);
-  const packageEntries = await listAsarPackageEntries(appAsarPath);
+  const packageEntries = (await listAsarPackageEntries(appAsarPath)).map(
+    normalizeElectronPackagedEntryPath
+  );
   const hasUpdateElectronApp = packageEntries.includes(
     "/node_modules/update-electron-app/package.json"
   );
