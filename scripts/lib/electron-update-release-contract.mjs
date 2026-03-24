@@ -71,6 +71,10 @@ async function findFirstRelativeFile(rootDir, matcher) {
   return relativeFiles.find((file) => matcher(file)) ?? null;
 }
 
+export function isElectronPackagedAppAsarPath(relativePath) {
+  return /(?:^|\/)resources\/app\.asar$/iu.test(relativePath);
+}
+
 export async function loadElectronReleaseContract(repoRoot) {
   const forgeConfigPath = resolve(repoRoot, "apps/code-electron/forge.config.mjs");
   const packageJsonPath = resolve(repoRoot, "apps/code-electron/package.json");
@@ -110,9 +114,7 @@ export async function loadElectronReleaseContract(repoRoot) {
 
 export async function verifyElectronPackagedUpdaterRuntime(repoRoot) {
   const outDir = resolve(repoRoot, "apps/code-electron/out");
-  const appAsarRelativePath = await findFirstRelativeFile(outDir, (file) =>
-    file.endsWith("/Resources/app.asar")
-  );
+  const appAsarRelativePath = await findFirstRelativeFile(outDir, isElectronPackagedAppAsarPath);
   if (!appAsarRelativePath) {
     throw new Error("Missing packaged Electron app.asar output under apps/code-electron/out.");
   }
