@@ -364,6 +364,7 @@ async fn run_browser_debug_operation_executes_multiple_steps_and_collects_artifa
             },
         ]),
         decision_lab: None,
+        research_route_lab: None,
     };
 
     let result = run_browser_debug_operation(temp.path(), &request).await;
@@ -402,6 +403,7 @@ async fn run_browser_debug_operation_uses_chrome_devtools_for_inspect_when_brows
         timeout_ms: Some(5_000),
         steps: None,
         decision_lab: None,
+        research_route_lab: None,
     };
 
     let result = run_browser_debug_operation(temp.path(), &request).await;

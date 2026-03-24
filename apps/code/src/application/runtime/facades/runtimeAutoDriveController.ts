@@ -37,8 +37,15 @@ import {
   shouldAvoidAutomaticPushFromHistory,
 } from "./runtimeAutoDrivePublishRecovery";
 import { renderAutoDriveFinalReport } from "./runtimeAutoDriveReport";
-import { decideAutoDriveNextStep, shouldAutoRunChatgptDecisionLab } from "./runtimeAutoDrivePolicy";
-import { isBrowserReproFixVerifyScenario } from "./runtimeScenarioProfiles";
+import {
+  decideAutoDriveNextStep,
+  shouldAutoRunChatgptDecisionLab,
+  shouldAutoRunChatgptResearchRouteLab,
+} from "./runtimeAutoDrivePolicy";
+import {
+  isBrowserReproFixVerifyScenario,
+  isResearchRouteDecideScenario,
+} from "./runtimeScenarioProfiles";
 import { synthesizeAutoDriveContext } from "./runtimeAutoDriveContext";
 import type {
   AutoDriveConfidence,
@@ -73,6 +80,7 @@ function buildContinuationReason(
   summary: AutoDriveIterationSummary
 ): string {
   const browserFixLoop = isBrowserReproFixVerifyScenario(run.runtimeScenarioProfile ?? null);
+  const researchRouteLoop = isResearchRouteDecideScenario(run.runtimeScenarioProfile ?? null);
   const validationCommands = summary.validation.commands.join(" | ");
   const browserGap = summary.waypoint.arrivalCriteriaMissed.find(
     (criterion) =>
@@ -80,6 +88,14 @@ function buildContinuationReason(
   );
   if (browserFixLoop && browserGap) {
     return `Browser verification gap remains: ${browserGap}`;
+  }
+  if (
+    researchRouteLoop &&
+    summary.waypoint.arrivalCriteriaMissed.some((criterion) =>
+      /source|research|official|route/i.test(criterion)
+    )
+  ) {
+    return `Research gap remains: ${summary.waypoint.arrivalCriteriaMissed.find((criterion) => /source|research|official|route/i.test(criterion))}`;
   }
   if (
     (run.continuationPolicy?.requireValidationSuccessToStop ?? true) &&
@@ -596,6 +612,130 @@ export class AutoDriveRunController {
     }
   }
 
+  private async maybeApplyChatgptResearchRouteLab(
+    context: AutoDriveContextSnapshot
+  ): Promise<AutoDriveContextSnapshot> {
+    if (
+      typeof this.deps.runRuntimeBrowserDebug !== "function" ||
+      !shouldAutoRunChatgptResearchRouteLab({ run: this.run, context })
+    ) {
+      return context;
+    }
+
+    try {
+      const result = await this.deps.runRuntimeBrowserDebug({
+        workspaceId: this.run.workspaceId,
+        operation: "chatgpt_research_route_lab",
+        prompt: null,
+        includeScreenshot: false,
+        timeoutMs: 45_000,
+        steps: null,
+        researchRouteLab: {
+          question: `Which route should AutoDrive choose for iteration ${context.iteration}? Prefer official or trusted sources and return the strongest route recommendation.`,
+          routes: context.opportunities.candidates.map((candidate) => ({
+            id: candidate.id,
+            label: candidate.title,
+            summary: candidate.summary,
+          })),
+          constraints: [
+            ...this.run.destination.hardBoundaries,
+            "Prefer official or trusted documentation.",
+          ],
+          trustedDomains: [
+            "openai.com",
+            "platform.openai.com",
+            "developers.openai.com",
+            "react.dev",
+            "vite.dev",
+            "electronjs.org",
+            "tauri.app",
+            "developer.chrome.com",
+          ],
+          allowLiveWebResearch: this.run.riskPolicy.allowNetworkAnalysis,
+          chatgptUrl: null,
+        },
+      });
+      const research = result.researchRouteLab;
+      const researchSources =
+        research?.sources?.map((entry) => ({
+          label: entry.label,
+          url: entry.url ?? null,
+          domain: entry.domain ?? null,
+        })) ?? [];
+      const summary =
+        research?.decisionMemo ??
+        research?.blockedReason ??
+        "Research route lab completed without a detailed rationale.";
+
+      this.run = {
+        ...this.run,
+        runtimeResearchTrace: {
+          status: research?.blockedReason
+            ? "blocked"
+            : researchSources.length === 0
+              ? "gap"
+              : "selected",
+          summary,
+          blockingReason: research?.blockedReason ?? null,
+        },
+        runtimeResearchSources: researchSources,
+        lastChatgptResearchRouteLab: research
+          ? {
+              recommendedRoute: research.recommendedRoute ?? null,
+              alternativeRoutes: research.alternativeRoutes ?? [],
+              decisionMemo: research.decisionMemo ?? null,
+              sources: researchSources,
+              confidence: research.confidence ?? null,
+              openQuestions: research.openQuestions ?? [],
+              blockedReason: research.blockedReason ?? null,
+            }
+          : null,
+      };
+      await this.persistRun();
+
+      const recommendedCandidate = context.opportunities.candidates.find(
+        (candidate) => candidate.id === research?.recommendedRoute
+      );
+      if (!recommendedCandidate) {
+        return context;
+      }
+
+      const selectionSummary = [
+        `Route ${recommendedCandidate.title} recommended by ChatGPT research route lab.`,
+        research?.decisionMemo ?? null,
+      ]
+        .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+        .join(" ");
+
+      this.run = {
+        ...this.run,
+        runtimeDecisionTrace: {
+          phase: "progress",
+          summary: selectionSummary,
+          selectedCandidateId: recommendedCandidate.id,
+          selectedCandidateSummary: recommendedCandidate.summary,
+          selectionTags: ["chatgpt_research_route_lab_auto"],
+          representativeCommand: null,
+          authoritySources: ["chatgpt_web", "chrome_devtools_mcp"],
+          heldOutGuidance: [],
+        },
+      };
+      await this.persistRun();
+
+      return {
+        ...context,
+        opportunities: {
+          ...context.opportunities,
+          selectedCandidateId: recommendedCandidate.id,
+          selectionSummary,
+        },
+      };
+    } catch (error) {
+      logger.error("[AutoDriveRunController] chatgpt research route lab failed", error);
+      return context;
+    }
+  }
+
   private async finalize(
     status: AutoDriveRunRecord["status"],
     stage: AutoDriveRunRecord["stage"],
@@ -871,6 +1011,7 @@ export class AutoDriveRunController {
         iteration,
         previousSummary,
       });
+      context = await this.maybeApplyChatgptResearchRouteLab(context);
       context = await this.maybeApplyChatgptDecisionLab(context);
       await this.ledger.writeContext(context);
       this.run = {

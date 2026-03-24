@@ -133,6 +133,7 @@ pub(super) async fn run_chrome_devtools_inspect(
                 artifacts,
                 warnings,
                 decision_lab: None,
+                research_route_lab: None,
             }
         }
         Ok(Err(error)) => BrowserDebugRunSnapshot {
@@ -147,6 +148,7 @@ pub(super) async fn run_chrome_devtools_inspect(
             artifacts: Vec::new(),
             warnings: vec![error],
             decision_lab: None,
+            research_route_lab: None,
         },
         Err(_) => BrowserDebugRunSnapshot {
             available: false,
@@ -160,6 +162,7 @@ pub(super) async fn run_chrome_devtools_inspect(
             artifacts: Vec::new(),
             warnings: vec!["Timed out while running browser debug operation.".to_string()],
             decision_lab: None,
+            research_route_lab: None,
         },
     }
 }

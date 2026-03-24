@@ -65,7 +65,8 @@ function sanitizeAutoDriveDraft(value: unknown): AutoDriveControllerHookDraft | 
   return {
     enabled: entry.enabled === true,
     scenarioProfile:
-      entry.scenarioProfile === "browser_repro_fix_verify"
+      entry.scenarioProfile === "browser_repro_fix_verify" ||
+      entry.scenarioProfile === "research_route_decide"
         ? entry.scenarioProfile
         : "browser_repro_fix_verify",
     destination: {

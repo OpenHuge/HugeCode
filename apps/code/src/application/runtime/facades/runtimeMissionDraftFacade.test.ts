@@ -132,6 +132,63 @@ describe("runtimeMissionDraftFacade", () => {
     });
   });
 
+  it("preserves the research_route_decide scenario profile in mission drafts and launch briefs", () => {
+    const draft = buildMissionDraftFromThreadState({
+      objective: "Plan the React 19 migration lane",
+      accessMode: "on-request",
+      autoDriveDraft: {
+        enabled: true,
+        scenarioProfile: "research_route_decide",
+        destination: {
+          title: "Plan the React 19 migration lane",
+          endState: "Choose the safest migration route",
+          doneDefinition: "Review-ready research memo",
+          avoid: "Do not mutate the code yet",
+          routePreference: "validation_first",
+        },
+        budget: {
+          maxTokens: 6000,
+          maxIterations: 3,
+          maxDurationMinutes: 10,
+          maxFilesPerIteration: 6,
+          maxNoProgressIterations: 2,
+          maxValidationFailures: 2,
+          maxReroutes: 2,
+        },
+        riskPolicy: {
+          pauseOnDestructiveChange: true,
+          pauseOnDependencyChange: true,
+          pauseOnLowConfidence: true,
+          pauseOnHumanCheckpoint: true,
+          allowNetworkAnalysis: true,
+          allowValidationCommands: true,
+          minimumConfidence: "medium",
+        },
+      },
+    });
+
+    expect(draft.autoDrive?.scenarioProfile).toBe("research_route_decide");
+
+    expect(
+      buildAgentTaskMissionBrief({
+        objective: "Plan the React 19 migration lane",
+        accessMode: "on-request",
+        autoDriveDraft: draft.autoDrive,
+      })
+    ).toEqual(
+      expect.objectContaining({
+        scenarioProfile: expect.objectContaining({
+          scenarioKeys: expect.arrayContaining([
+            "research_route_decide",
+            "source_backed",
+            "research_sources_required",
+          ]),
+          sourceSignals: expect.arrayContaining(["chatgpt_research_route_lab"]),
+        }),
+      })
+    );
+  });
+
   it("infers stronger launch capabilities and bounded subtasks for autodrive when not supplied", () => {
     expect(
       buildAgentTaskMissionBrief({

@@ -67,6 +67,14 @@
 - `decisionTrace`
 - `outcomeFeedback`
 - `autonomyState`
+- `researchTrace`
+- `researchSources`
+- `trustedDomains`
+- `recommendedRoute`
+- `alternativeRoutes`
+- `decisionMemo`
+- `openQuestions`
+- `blockedReason`
 - `autonomyPriority`
 - `promptStrategy`
 - `researchMode`

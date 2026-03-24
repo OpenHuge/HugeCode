@@ -65,6 +65,13 @@ import {
   type WorkspaceEvidenceSummary,
   pushUnique,
 } from "./runtimeReviewPackDetailPresentation";
+import {
+  buildBrowserEvidenceSummary,
+  buildResearchSourceList,
+  buildResearchTraceSummary,
+  type BrowserEvidenceSummary,
+  type ResearchTraceSummary,
+} from "./runtimeReviewPackEvidenceSummary";
 
 type RelaunchOption = {
   id: string;
@@ -94,14 +101,6 @@ type PublishHandoffSummary = {
   reviewChecklist?: string[] | null;
   operatorCommands?: string[] | null;
   details?: string[] | null;
-};
-
-type BrowserEvidenceSummary = {
-  status: "passed" | "gap" | "blocked" | "unavailable";
-  targetUrl: string | null;
-  summary: string;
-  artifacts: string[];
-  blockingReason: string | null;
 };
 
 type ReviewPackContinuitySummary = {
@@ -209,6 +208,9 @@ export type ReviewPackDetailModel = {
   reproductionGuidance: string[];
   rollbackGuidance: string[];
   browserEvidence?: BrowserEvidenceSummary | null;
+  researchTrace?: ResearchTraceSummary | null;
+  researchSources?: string[];
+  decisionRationale?: string | null;
   reviewDecision: {
     status: HugeCodeReviewDecisionState;
     reviewPackId: string;
@@ -272,6 +274,8 @@ export type ReviewPackDetailModel = {
     validations: string;
     artifacts: string;
     browserEvidence?: string;
+    researchSources?: string;
+    decisionRationale?: string;
     reproduction: string;
     rollback: string;
   };
@@ -461,72 +465,6 @@ function buildAutoDriveSummary(
     pushUnique(summary, `Stop reason: ${autoDrive.stop.reason}`);
   }
   return summary;
-}
-
-function buildBrowserEvidenceSummary(input: {
-  artifacts:
-    | MissionControlProjection["reviewPacks"][number]["artifacts"]
-    | MissionControlProjection["runs"][number]["artifacts"];
-  warnings: string[];
-  reproductionGuidance?: string[];
-  autoDrive?: MissionControlProjection["runs"][number]["autoDrive"] | null;
-}): BrowserEvidenceSummary | null {
-  const artifacts = input.artifacts ?? [];
-  const browserArtifacts = artifacts
-    .filter(
-      (artifact) =>
-        artifact.kind === "evidence" &&
-        /browser|screenshot|chatgpt|inspect|page|ui/i.test(
-          `${artifact.label} ${artifact.uri ?? ""}`
-        )
-    )
-    .map((artifact) => artifact.label);
-  const targetUrl =
-    artifacts.find(
-      (artifact) => artifact.kind === "evidence" && /^https?:\/\//i.test(artifact.uri ?? "")
-    )?.uri ?? null;
-  const blockingReason =
-    input.warnings.find((warning) =>
-      /browser session blocked|chatgpt login|browser unavailable/i.test(warning)
-    ) ??
-    (input.autoDrive?.continuationState?.lastContinuationReason &&
-    /browser/i.test(input.autoDrive.continuationState.lastContinuationReason)
-      ? input.autoDrive.continuationState.lastContinuationReason
-      : null);
-
-  if (browserArtifacts.length === 0 && !blockingReason && !input.reproductionGuidance?.length) {
-    return null;
-  }
-
-  if (blockingReason) {
-    return {
-      status: "blocked",
-      targetUrl,
-      summary:
-        "Browser session blocked before the runtime could publish complete browser evidence.",
-      artifacts: browserArtifacts,
-      blockingReason,
-    };
-  }
-
-  if (browserArtifacts.length === 0) {
-    return {
-      status: "gap",
-      targetUrl,
-      summary:
-        "Browser verification is still required before this result can be treated as complete.",
-      artifacts: [],
-      blockingReason: null,
-    };
-  }
-
-  return {
-    status: "passed",
-    targetUrl,
-    summary: "Runtime attached browser evidence for the target repro and final verification path.",
-    artifacts: browserArtifacts,
-    blockingReason: null,
-  };
 }
 
 function normalizeSubAgentSummary(
@@ -1157,6 +1095,11 @@ export function buildReviewPackDetailModel(input: {
     reproductionGuidance,
     autoDrive: run?.autoDrive ?? null,
   });
+  const researchTrace = buildResearchTraceSummary(run?.autoDrive ?? null);
+  const researchSources = buildResearchSourceList(run?.autoDrive ?? null);
+  const decisionRationale =
+    run?.autoDrive?.lastChatgptResearchRouteLab?.decisionMemo ??
+    (researchTrace && researchTrace.status !== "blocked" ? researchTrace.summary : null);
   const backendAudit = reviewPack.backendAudit ?? {
     summary: "Runtime backend audit unavailable",
     details: [],
@@ -1252,6 +1195,9 @@ export function buildReviewPackDetailModel(input: {
     reproductionGuidance,
     rollbackGuidance,
     browserEvidence,
+    researchTrace,
+    researchSources,
+    decisionRationale,
     reviewDecision,
     reviewIntelligence,
     reviewProfileId: reviewIntelligence?.reviewProfileId ?? null,
@@ -1301,6 +1247,9 @@ export function buildReviewPackDetailModel(input: {
       artifacts: "No artifacts or evidence references were attached to this review pack.",
       browserEvidence:
         "The runtime did not publish browser evidence for this review pack. Re-open the browser lane or record a blocked browser reason before accepting the result.",
+      researchSources:
+        "The runtime did not publish explicit research sources for this review pack. Re-run the research lane or record a blocked research reason before accepting the route.",
+      decisionRationale: "The runtime did not publish a decision rationale for this review pack.",
       reproduction:
         "The runtime did not record reproduction guidance for this review pack. Re-run the linked validations or inspect attached evidence.",
       rollback:

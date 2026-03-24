@@ -110,6 +110,29 @@ type AutoDriveView = {
       assumptions: string[];
       followUpQuestions: string[];
     } | null;
+    runtimeResearchTrace?: {
+      status: "in_progress" | "selected" | "gap" | "blocked";
+      summary: string;
+      blockingReason: string | null;
+    } | null;
+    runtimeResearchSources?: Array<{
+      label: string;
+      url: string | null;
+      domain: string | null;
+    }>;
+    lastChatgptResearchRouteLab?: {
+      recommendedRoute: string | null;
+      alternativeRoutes: string[];
+      decisionMemo: string | null;
+      sources: Array<{
+        label: string;
+        url: string | null;
+        domain: string | null;
+      }>;
+      confidence: "low" | "medium" | "high" | null;
+      openQuestions: string[];
+      blockedReason: string | null;
+    } | null;
   } | null;
   onToggleEnabled: (enabled: boolean) => void;
 };
@@ -143,6 +166,7 @@ type AutoDrivePresentation = {
   isBreathing: boolean;
   browserLaneLabel: string | null;
   decisionLabLabel: string | null;
+  researchLaneLabel: string | null;
 };
 
 function isRuntimeManagedAutoDriveSource(source: string | null | undefined): boolean {
@@ -259,6 +283,10 @@ function formatRouteStateLabel(run: NonNullable<AutoDriveView["run"]>): string {
 
 function isBrowserReproFixVerifyScenario(run: NonNullable<AutoDriveView["run"]>): boolean {
   return run.runtimeScenarioProfile?.scenarioKeys.includes("browser_repro_fix_verify") ?? false;
+}
+
+function isResearchRouteDecideScenario(run: NonNullable<AutoDriveView["run"]>): boolean {
+  return run.runtimeScenarioProfile?.scenarioKeys.includes("research_route_decide") ?? false;
 }
 
 function matchesBrowserBlockedSignal(value: string | null | undefined): boolean {
@@ -548,6 +576,25 @@ function formatDecisionLabLabel(run: NonNullable<AutoDriveView["run"]>): string 
   return parts.length > 0 ? parts.join(" · ") : "Decision recorded";
 }
 
+function formatResearchLaneLabel(run: NonNullable<AutoDriveView["run"]>): string | null {
+  if (!isResearchRouteDecideScenario(run)) {
+    return null;
+  }
+  if (run.runtimeResearchTrace?.status === "blocked") {
+    return "Research blocked";
+  }
+  if (run.runtimeResearchTrace?.status === "gap") {
+    return "Research gap";
+  }
+  if (run.runtimeResearchTrace?.status === "selected") {
+    return "Research selected";
+  }
+  if (run.runtimeResearchTrace?.status === "in_progress") {
+    return "Research in progress";
+  }
+  return null;
+}
+
 function formatAutoDriveRailHeadline(autoDrive: AutoDriveView): string {
   if (autoDrive.controls.busyAction) {
     return formatBusyActionLabel(autoDrive.controls.busyAction);
@@ -688,6 +735,7 @@ function buildAutoDrivePresentation(autoDrive: AutoDriveView): AutoDrivePresenta
       autoDrive.run?.status === "created",
     browserLaneLabel: browserFixLoopPresentation?.browserLaneLabel ?? null,
     decisionLabLabel: autoDrive.run ? formatDecisionLabLabel(autoDrive.run) : null,
+    researchLaneLabel: autoDrive.run ? formatResearchLaneLabel(autoDrive.run) : null,
   };
 }
 
@@ -830,6 +878,14 @@ export function ComposerAutoDriveStatusBar({
                         <span className={autoDriveStyles.summaryLabel}>Decision lab</span>
                         <span className={autoDriveStyles.summaryValue}>
                           {presentation.decisionLabLabel}
+                        </span>
+                      </div>
+                    ) : null}
+                    {presentation.researchLaneLabel ? (
+                      <div className={autoDriveStyles.summaryItem}>
+                        <span className={autoDriveStyles.summaryLabel}>Research lane</span>
+                        <span className={autoDriveStyles.summaryValue}>
+                          {presentation.researchLaneLabel}
                         </span>
                       </div>
                     ) : null}

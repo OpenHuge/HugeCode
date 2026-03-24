@@ -359,6 +359,59 @@ describe("autoDriveRuntimeSnapshotAdapter", () => {
     expect(selected.adaptedRun?.totals.validationFailureCount).toBe(2);
   });
 
+  it("maps research_route_decide drafts into runtime scenario profile keys", () => {
+    const payload = mapDraftToRuntimeAutoDriveState({
+      enabled: true,
+      scenarioProfile: "research_route_decide",
+      destination: {
+        title: "Research the Electron 38 migration route",
+        endState: "Select the migration approach",
+        doneDefinition: "Source-backed recommendation",
+        avoid: "Do not modify runtime code yet",
+        routePreference: "validation_first",
+      },
+      budget: {
+        maxTokens: 6000,
+        maxIterations: 3,
+        maxDurationMinutes: 10,
+        maxFilesPerIteration: 6,
+        maxNoProgressIterations: 2,
+        maxValidationFailures: 2,
+        maxReroutes: 2,
+      },
+      riskPolicy: {
+        pauseOnDestructiveChange: true,
+        pauseOnDependencyChange: true,
+        pauseOnLowConfidence: true,
+        pauseOnHumanCheckpoint: true,
+        allowNetworkAnalysis: true,
+        allowValidationCommands: true,
+        allowChatgptDecisionLab: true,
+        autoRunChatgptDecisionLab: true,
+        chatgptDecisionLabMinConfidence: "medium",
+        chatgptDecisionLabMaxScoreGap: 8,
+        minimumConfidence: "medium",
+      },
+      continuation: {
+        enabled: true,
+        maxAutomaticFollowUps: 2,
+        requireValidationSuccessToStop: true,
+        minimumConfidenceToStop: "high",
+      },
+    });
+
+    expect(payload.scenarioProfile).toEqual(
+      expect.objectContaining({
+        scenarioKeys: expect.arrayContaining([
+          "research_route_decide",
+          "source_backed",
+          "research_sources_required",
+        ]),
+        sourceSignals: expect.arrayContaining(["chatgpt_research_route_lab"]),
+      })
+    );
+  });
+
   it("surfaces runtime recovery markers without reconstructing local recovery state", () => {
     const snapshot = createSnapshot({
       runs: [

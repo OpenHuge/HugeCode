@@ -79,6 +79,7 @@ describe("webMcpBridgeRuntimeBrowserTools", () => {
       "inspect-runtime-browser",
       "run-runtime-browser-automation",
       "run-chatgpt-decision-lab",
+      "run-chatgpt-research-route-lab",
     ]);
 
     const statusTool = tools.find((tool) => tool.name === "get-runtime-browser-debug-status");
@@ -217,6 +218,145 @@ describe("webMcpBridgeRuntimeBrowserTools", () => {
             { toolName: "browser_navigate", ok: true },
             { toolName: "browser_snapshot", ok: true },
           ],
+        }),
+      },
+    });
+  });
+
+  it("forwards chatgpt research route lab requests with trusted sources", async () => {
+    const runRuntimeBrowserDebug = vi.fn(
+      async (): Promise<RuntimeBrowserDebugRunResponse> => ({
+        workspaceId: "ws-browser",
+        available: true,
+        status: "completed",
+        mode: "mcp-chrome-devtools",
+        operation: "chatgpt_research_route_lab",
+        message: "ChatGPT research route lab completed.",
+        toolCalls: [],
+        contentText: null,
+        structuredContent: null,
+        artifacts: [],
+        warnings: [],
+        researchRouteLab: {
+          recommendedRoute: "incremental-react-19",
+          alternativeRoutes: ["full-refresh"],
+          decisionMemo: "Prefer the incremental route.",
+          sources: [
+            {
+              label: "React 19 upgrade guide",
+              url: "https://react.dev/blog/2024/04/25/react-19-upgrade-guide",
+              domain: "react.dev",
+            },
+          ],
+          confidence: "high",
+          openQuestions: [],
+          blockedReason: null,
+        },
+      })
+    );
+    const confirmWriteAction = vi.fn(async () => undefined);
+    const tools = buildRuntimeBrowserTools({
+      snapshot: createSnapshot(),
+      runtimeControl: {
+        listTasks: vi.fn(),
+        getTaskStatus: vi.fn(),
+        startTask: vi.fn(),
+        interruptTask: vi.fn(),
+        submitTaskApprovalDecision: vi.fn(),
+        getRuntimeBrowserDebugStatus: vi.fn(async () => ({
+          workspaceId: "ws-browser",
+          available: true,
+          mode: "mcp-chrome-devtools",
+          status: "ready",
+          tools: [],
+          warnings: [],
+        })),
+        runRuntimeBrowserDebug,
+      },
+      requireUserApproval: true,
+      helpers: {
+        buildResponse: (message, data) => ({ ok: true, message, data }),
+        toNonEmptyString: (value) =>
+          typeof value === "string" && value.trim().length > 0 ? value.trim() : null,
+        toStringArray: (value) =>
+          Array.isArray(value)
+            ? value.filter(
+                (entry): entry is string => typeof entry === "string" && entry.length > 0
+              )
+            : [],
+        toPositiveInteger: (value) =>
+          typeof value === "number" && Number.isFinite(value) && value > 0
+            ? Math.trunc(value)
+            : null,
+        normalizeRuntimeTaskStatus: () => null,
+        normalizeRuntimeStepKind: () => "read",
+        normalizeRuntimeExecutionMode: () => "single",
+        normalizeRuntimeAccessMode: () => "on-request",
+        normalizeRuntimeReasonEffort: () => null,
+        confirmWriteAction,
+      },
+    });
+
+    const researchTool = tools.find((tool) => tool.name === "run-chatgpt-research-route-lab");
+    const response = await researchTool?.execute(
+      {
+        question: "Which React 19 migration route should we choose?",
+        routes: [
+          {
+            id: "incremental-react-19",
+            label: "Incremental React 19 route",
+            summary: "Preserve the current runtime shell and migrate in place.",
+          },
+          {
+            id: "full-refresh",
+            label: "Full refresh",
+            summary: "Rebuild the runtime shell first.",
+          },
+        ],
+        trustedDomains: ["react.dev", "vite.dev"],
+        constraints: ["Prefer official documentation", "Do not recommend untrusted blogs"],
+        allowLiveWebResearch: true,
+      },
+      null
+    );
+
+    expect(confirmWriteAction).toHaveBeenCalledTimes(1);
+    expect(runRuntimeBrowserDebug).toHaveBeenCalledWith({
+      workspaceId: "ws-browser",
+      operation: "chatgpt_research_route_lab",
+      prompt: null,
+      includeScreenshot: false,
+      timeoutMs: null,
+      steps: null,
+      researchRouteLab: {
+        question: "Which React 19 migration route should we choose?",
+        routes: [
+          {
+            id: "incremental-react-19",
+            label: "Incremental React 19 route",
+            summary: "Preserve the current runtime shell and migrate in place.",
+          },
+          {
+            id: "full-refresh",
+            label: "Full refresh",
+            summary: "Rebuild the runtime shell first.",
+          },
+        ],
+        trustedDomains: ["react.dev", "vite.dev"],
+        constraints: ["Prefer official documentation", "Do not recommend untrusted blogs"],
+        allowLiveWebResearch: true,
+        chatgptUrl: null,
+      },
+    });
+    expect(response).toMatchObject({
+      ok: true,
+      message: "ChatGPT research route lab completed.",
+      data: {
+        result: expect.objectContaining({
+          operation: "chatgpt_research_route_lab",
+          researchRouteLab: expect.objectContaining({
+            recommendedRoute: "incremental-react-19",
+          }),
         }),
       },
     });

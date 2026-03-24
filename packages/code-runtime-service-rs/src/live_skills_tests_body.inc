@@ -1146,7 +1146,17 @@
                 || result.output.contains("runtime browser debug")
                 || result.output.contains("\"available\":false")
                 || result.output.contains("\"available\": false")
-                || result.output.contains("Workspace `ws-js-repl-browser-debug-status` not found.")
+                || result.output.contains("\"status\":\"unavailable\"")
+                || result.output.contains("\"status\": \"unavailable\"")
+                || result.output.contains("\"status\":\"blocked\"")
+                || result.output.contains("\"status\": \"blocked\"")
+                || result.output.contains("\"status\":\"degraded\"")
+                || result.output.contains("\"status\": \"degraded\"")
+                || result.output.contains("\"mode\":\"unavailable\"")
+                || result.output.contains("\"mode\": \"unavailable\"")
+                || result.output.contains("Workspace `ws-js-repl-browser-debug-status` not found."),
+            "unexpected browser debug fallback output: {}",
+            result.output
         );
 
         let _ = execute_core_js_repl_reset_skill(
@@ -1225,7 +1235,17 @@
                 || result.output.contains("runtime browser debug")
                 || result.output.contains("\"available\":false")
                 || result.output.contains("\"available\": false")
-                || result.output.contains("Workspace `ws-js-repl-browser-debug-mixed` not found.")
+                || result.output.contains("\"status\":\"unavailable\"")
+                || result.output.contains("\"status\": \"unavailable\"")
+                || result.output.contains("\"status\":\"blocked\"")
+                || result.output.contains("\"status\": \"blocked\"")
+                || result.output.contains("\"status\":\"degraded\"")
+                || result.output.contains("\"status\": \"degraded\"")
+                || result.output.contains("\"mode\":\"unavailable\"")
+                || result.output.contains("\"mode\": \"unavailable\"")
+                || result.output.contains("Workspace `ws-js-repl-browser-debug-mixed` not found."),
+            "unexpected browser debug fallback output: {}",
+            result.output
         );
 
         let _ = execute_core_js_repl_reset_skill(

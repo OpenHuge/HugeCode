@@ -955,6 +955,44 @@ export function ReviewPackSurface({
             </ReviewDetailSection>
 
             <ReviewDetailSection
+              title="Research Sources"
+              meta={
+                reviewPackDetail.researchSources && reviewPackDetail.researchSources.length > 0
+                  ? `${reviewPackDetail.researchSources.length} item${reviewPackDetail.researchSources.length === 1 ? "" : "s"}`
+                  : reviewPackDetail.researchTrace?.status
+              }
+            >
+              {reviewPackDetail.researchTrace ? (
+                <>
+                  <div className={styles.bodyText}>{reviewPackDetail.researchTrace.summary}</div>
+                  {renderCopyList(
+                    [
+                      ...(reviewPackDetail.researchSources ?? []),
+                      reviewPackDetail.researchTrace.blockingReason
+                        ? `Blocked: ${reviewPackDetail.researchTrace.blockingReason}`
+                        : null,
+                    ].filter((value): value is string => Boolean(value)),
+                    reviewPackDetail.emptySectionLabels.researchSources ??
+                      "The runtime did not publish explicit research sources for this review pack."
+                  )}
+                </>
+              ) : (
+                <div className={styles.bodyText}>
+                  {reviewPackDetail.emptySectionLabels.researchSources ??
+                    "The runtime did not publish explicit research sources for this review pack."}
+                </div>
+              )}
+            </ReviewDetailSection>
+
+            <ReviewDetailSection title="Decision Rationale">
+              <div className={styles.bodyText}>
+                {reviewPackDetail.decisionRationale ??
+                  reviewPackDetail.emptySectionLabels.decisionRationale ??
+                  "The runtime did not publish a decision rationale for this review pack."}
+              </div>
+            </ReviewDetailSection>
+
+            <ReviewDetailSection
               title="Reproduction guidance"
               meta={
                 reviewPackDetail.reproductionGuidance.length > 0

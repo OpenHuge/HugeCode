@@ -190,6 +190,12 @@ export type AutoDriveExternalResearchEntry = {
   sources: string[];
 };
 
+export type AutoDriveResearchSource = {
+  label: string;
+  url: string | null;
+  domain: string | null;
+};
+
 export type AutoDriveRepoEvaluationProfile = {
   representativeCommands: string[];
   componentCommands: string[];
@@ -254,6 +260,22 @@ export type AutoDriveChatgptDecisionLabResult = {
   confidence: AutoDriveConfidence | null;
   assumptions: string[];
   followUpQuestions: string[];
+};
+
+export type AutoDriveRuntimeResearchTrace = {
+  status: "in_progress" | "selected" | "gap" | "blocked";
+  summary: string;
+  blockingReason: string | null;
+};
+
+export type AutoDriveChatgptResearchRouteLabResult = {
+  recommendedRoute: string | null;
+  alternativeRoutes: string[];
+  decisionMemo: string | null;
+  sources: AutoDriveResearchSource[];
+  confidence: AutoDriveConfidence | null;
+  openQuestions: string[];
+  blockedReason: string | null;
 };
 
 export type AutoDriveIntentSignalKind =
@@ -721,6 +743,9 @@ export type AutoDriveRunRecord = {
   runtimeAutonomyState?: AutoDriveRuntimeAutonomyState | null;
   runtimeContinuationState?: AutoDriveRuntimeContinuationState | null;
   lastChatgptDecisionLab?: AutoDriveChatgptDecisionLabResult | null;
+  runtimeResearchTrace?: AutoDriveRuntimeResearchTrace | null;
+  runtimeResearchSources?: AutoDriveResearchSource[];
+  lastChatgptResearchRouteLab?: AutoDriveChatgptResearchRouteLabResult | null;
 };
 
 export type AutoDriveNextDecision = {
@@ -819,7 +844,7 @@ export type AutoDriveLedger = {
 
 export type AutoDriveControllerHookDraft = {
   enabled: boolean;
-  scenarioProfile?: "browser_repro_fix_verify" | null;
+  scenarioProfile?: "browser_repro_fix_verify" | "research_route_decide" | null;
   destination: {
     title: string;
     endState: string;

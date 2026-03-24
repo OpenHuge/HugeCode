@@ -78,14 +78,17 @@ import { getAccountRateLimits } from "../ports/tauriThreads";
 
 export function buildRuntimeDiscoveryControl(workspaceId: string) {
   const resolveBrowserDebugTarget = async (input?: {
-    operation?: "inspect" | "automation" | "chatgpt_decision_lab";
+    operation?: "inspect" | "automation" | "chatgpt_decision_lab" | "chatgpt_research_route_lab";
     targetUrl?: string | null;
     decisionLab?: { chatgptUrl?: string | null } | null;
+    researchRouteLab?: { chatgptUrl?: string | null } | null;
   }) => {
     const targetUrl =
       input?.operation === "chatgpt_decision_lab"
         ? (input.decisionLab?.chatgptUrl ?? input.targetUrl ?? null)
-        : (input?.targetUrl ?? null);
+        : input?.operation === "chatgpt_research_route_lab"
+          ? (input.researchRouteLab?.chatgptUrl ?? input.targetUrl ?? null)
+          : (input?.targetUrl ?? null);
     return targetUrl
       ? ensureDesktopBrowserDebugSession({ targetUrl, focus: true })
       : getDesktopBrowserDebugSession();
@@ -328,7 +331,7 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
     },
     runRuntimeBrowserDebug: async (input: {
       workspaceId: string;
-      operation: "inspect" | "automation" | "chatgpt_decision_lab";
+      operation: "inspect" | "automation" | "chatgpt_decision_lab" | "chatgpt_research_route_lab";
       targetUrl?: string | null;
       prompt?: string | null;
       includeScreenshot?: boolean | null;
@@ -348,11 +351,24 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
         allowLiveWebResearch?: boolean | null;
         chatgptUrl?: string | null;
       } | null;
+      researchRouteLab?: {
+        question: string;
+        routes: Array<{
+          id: string;
+          label: string;
+          summary?: string | null;
+        }>;
+        constraints?: string[] | null;
+        trustedDomains?: string[] | null;
+        allowLiveWebResearch?: boolean | null;
+        chatgptUrl?: string | null;
+      } | null;
     }) => {
       const browserSession = await resolveBrowserDebugTarget({
         operation: input.operation,
         targetUrl: input.targetUrl ?? null,
         decisionLab: input.decisionLab ?? null,
+        researchRouteLab: input.researchRouteLab ?? null,
       });
       return runRuntimeBrowserDebug({
         workspaceId: input.workspaceId,
@@ -364,6 +380,7 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
         timeoutMs: input.timeoutMs ?? null,
         steps: input.steps ?? null,
         decisionLab: input.decisionLab ?? null,
+        researchRouteLab: input.researchRouteLab ?? null,
       });
     },
     listRuntimeExtensions: async (targetWorkspaceId?: string | null) =>

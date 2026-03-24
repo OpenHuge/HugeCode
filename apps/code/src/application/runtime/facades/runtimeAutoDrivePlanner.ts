@@ -11,6 +11,8 @@ import type {
 import {
   getBrowserReproFixVerifyGuidance,
   isBrowserReproFixVerifyScenario,
+  getResearchRouteDecideGuidance,
+  isResearchRouteDecideScenario,
 } from "./runtimeScenarioProfiles";
 
 function dedupe(values: string[], limit = values.length): string[] {
@@ -26,6 +28,16 @@ function isBrowserFixLoop(input: {
   return (
     isBrowserReproFixVerifyScenario(input.run.runtimeScenarioProfile ?? null) ||
     (input.context.repo.evaluation?.scenarioKeys ?? []).includes("browser_repro_fix_verify")
+  );
+}
+
+function isResearchRouteLoop(input: {
+  run: AutoDriveRunRecord;
+  context: AutoDriveContextSnapshot;
+}): boolean {
+  return (
+    isResearchRouteDecideScenario(input.run.runtimeScenarioProfile ?? null) ||
+    (input.context.repo.evaluation?.scenarioKeys ?? []).includes("research_route_decide")
   );
 }
 
@@ -296,6 +308,10 @@ function buildWaypoint(params: {
   const lowBudget =
     remainingIterations <= 1 || (remainingTokens !== null && remainingTokens <= 1200);
   const previousSummary = params.context.previousSummary;
+  const researchRouteLoop = isResearchRouteLoop({
+    run: params.run,
+    context: params.context,
+  });
   const priorFailedValidation = previousSummary?.validation.success === false;
   const priorOffRoute = params.context.startState.routeHealth.offRoute;
   const continuationFocus = buildContinuationFocus({
@@ -386,10 +402,14 @@ function buildWaypoint(params: {
   if (needsContinuationFollowUp) {
     title = browserFixLoop
       ? "Close the remaining browser verification gap"
-      : "Close the remaining verification gap";
+      : researchRouteLoop
+        ? "Close the remaining research route gap"
+        : "Close the remaining verification gap";
     objective = browserFixLoop
       ? "Reuse the current route, avoid repeating already completed work, and close the highest-priority remaining real-browser verification or blocker gap."
-      : "Reuse the current route, avoid repeating already completed work, and close the highest-priority remaining validation or blocker gap.";
+      : researchRouteLoop
+        ? "Reuse the current route, avoid repeating already completed work, and close the highest-priority remaining source-backed research or route-selection gap."
+        : "Reuse the current route, avoid repeating already completed work, and close the highest-priority remaining validation or blocker gap.";
     whyNow =
       continuationFocus[0] ??
       "The destination is close, but the route still needs stronger verification before arrival.";
@@ -400,7 +420,12 @@ function buildWaypoint(params: {
             "Confirm the target repro or final assertion in the real browser.",
             "Attach screenshot or browser evidence before declaring arrival.",
           ]
-        : []),
+        : researchRouteLoop
+          ? [
+              "Cite official or trusted sources for the selected route.",
+              "Leave behind a clear decision rationale before declaring arrival.",
+            ]
+          : []),
       "Leave behind explicit verification evidence or a concrete blocker for the next decision.",
     ]);
     rerouteTriggers = dedupe([
@@ -432,6 +457,25 @@ function buildWaypoint(params: {
       "The browser session is unavailable, blocked, or no longer matches the target repro path.",
     ]);
     samplePaths = dedupe(samplePaths, samplePaths.length);
+  }
+
+  if (researchRouteLoop) {
+    heldOutGuidance = dedupe([...heldOutGuidance, ...getResearchRouteDecideGuidance()]);
+    scenarioKeys = dedupe([...scenarioKeys, "research_route_decide"]);
+    if (!needsContinuationFollowUp) {
+      title = "Select the source-backed research route";
+      objective =
+        "Use the current repo context and trusted sources to choose the strongest route before implementation widens scope.";
+      arrivalCriteria = dedupe([
+        ...arrivalCriteria,
+        "Return a source-backed route recommendation with official or trusted references.",
+        "Record the decision rationale and any open questions before moving to execution.",
+      ]);
+    }
+    rerouteTriggers = dedupe([
+      ...rerouteTriggers,
+      "Trusted-source evidence is unavailable, blocked, or contradictory.",
+    ]);
   }
 
   return {
@@ -476,6 +520,10 @@ function buildPromptText(params: {
   milestones: AutoDriveRouteMilestone[];
 }) {
   const browserFixLoop = isBrowserFixLoop({
+    run: params.run,
+    context: params.context,
+  });
+  const researchRouteLoop = isResearchRouteLoop({
     run: params.run,
     context: params.context,
   });
@@ -537,6 +585,7 @@ function buildPromptText(params: {
       : null,
     continuationFocus.length > 0 ? `Continuation focus: ${continuationFocus.join(" | ")}` : null,
     browserFixLoop ? "Browser scenario: browser_repro_fix_verify" : null,
+    researchRouteLoop ? "Research scenario: research_route_decide" : null,
     `Latest verification gap: ${latestGapSummary}`,
     `Route summary: ${params.routeSummary}`,
     `Current waypoint: ${params.waypoint.title}`,
@@ -547,6 +596,9 @@ function buildPromptText(params: {
     `Held-out guidance: ${params.waypoint.heldOutGuidance.join(" | ") || "none"}`,
     browserFixLoop
       ? "Browser execution rule: Confirm the repro in the real browser before editing, then return for final verification and screenshot evidence."
+      : null,
+    researchRouteLoop
+      ? "Research execution rule: Prefer official or trusted documentation, keep the browser lane read-only, and do not declare arrival without cited sources and a route rationale."
       : null,
     `Arrival criteria: ${params.waypoint.arrivalCriteria.join(" | ")}`,
     `Reroute triggers: ${params.waypoint.rerouteTriggers.join(" | ")}`,

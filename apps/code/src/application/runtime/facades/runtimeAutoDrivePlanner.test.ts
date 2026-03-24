@@ -532,6 +532,75 @@ describe("runtimeAutoDrivePlanner", () => {
     expect(proposal.promptText).toContain("Browser execution rule:");
   });
 
+  it("switches to a research route loop when the runtime scenario requires source-backed route selection", () => {
+    const previousSummary = createPreviousSummary({
+      goalReached: false,
+      validation: {
+        ran: false,
+        commands: ["pnpm validate:fast"],
+        success: null,
+        failures: [],
+        summary: "Research route still needs source-backed evidence.",
+      },
+      waypoint: {
+        id: "waypoint-research",
+        title: "Select the migration route",
+        status: "active",
+        arrivalCriteriaMet: [],
+        arrivalCriteriaMissed: [
+          "Return a source-backed route recommendation with official references.",
+        ],
+      },
+    });
+    const context = createContext(previousSummary);
+    context.repo.evaluation = {
+      representativeCommands: ["pnpm validate:fast"],
+      componentCommands: [],
+      endToEndCommands: [],
+      samplePaths: ["docs/migrations/react-19.md"],
+      heldOutGuidance: ["Prefer official framework and runtime documentation."],
+      sourceSignals: ["chatgpt_research_route_lab"],
+      scenarioKeys: ["research_route_decide"],
+    };
+    context.externalResearch = [
+      {
+        query: "React 19 upgrade path",
+        summary: "Initial external research exists but still needs a route decision.",
+        sources: ["https://react.dev/"],
+      },
+    ];
+
+    const proposal = buildNextTaskProposal({
+      run: {
+        ...createRun(),
+        runtimeScenarioProfile: {
+          authorityScope: "workspace_graph",
+          authoritySources: ["repo_authority", "chatgpt_web"],
+          representativeCommands: [],
+          componentCommands: [],
+          endToEndCommands: [],
+          samplePaths: [],
+          heldOutGuidance: [],
+          sourceSignals: ["chatgpt_research_route_lab"],
+          scenarioKeys: ["research_route_decide"],
+          safeBackground: true,
+        },
+      },
+      context,
+      previousSummary,
+    });
+
+    expect(proposal.currentWaypoint.title).toContain("research route");
+    expect(proposal.currentWaypoint.arrivalCriteria).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/source-backed|official/i),
+        expect.stringMatching(/route recommendation|decision rationale/i),
+      ])
+    );
+    expect(proposal.promptText).toContain("Research scenario: research_route_decide");
+    expect(proposal.promptText).toContain("Research execution rule:");
+  });
+
   it("biases route selection toward publish preparation when adaptive tuning requests it", () => {
     const previousSummary = createPreviousSummary();
     const context = createContext(previousSummary);

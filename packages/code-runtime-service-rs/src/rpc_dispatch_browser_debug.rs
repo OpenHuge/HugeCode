@@ -8,6 +8,8 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio::time::{timeout, Duration};
 
+#[path = "rpc_dispatch_browser_debug_chatgpt_lab_shared.rs"]
+mod chatgpt_lab_shared;
 #[path = "rpc_dispatch_browser_debug_decision_lab.rs"]
 mod decision_lab;
 #[path = "rpc_dispatch_browser_debug_chrome.rs"]
@@ -60,6 +62,8 @@ struct BrowserDebugRunRequest {
     steps: Option<Vec<BrowserDebugToolCallRequest>>,
     #[serde(default, alias = "decision_lab")]
     decision_lab: Option<BrowserDebugDecisionLabRequest>,
+    #[serde(default, alias = "research_route_lab")]
+    research_route_lab: Option<BrowserDebugResearchRouteLabRequest>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -87,6 +91,30 @@ struct BrowserDebugDecisionLabRequest {
     options: Vec<BrowserDebugDecisionLabOptionRequest>,
     #[serde(default)]
     constraints: Option<Vec<String>>,
+    #[serde(default, alias = "allow_live_web_research")]
+    allow_live_web_research: Option<bool>,
+    #[serde(default, alias = "chatgpt_url")]
+    chatgpt_url: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BrowserDebugResearchRouteOptionRequest {
+    id: String,
+    label: String,
+    #[serde(default)]
+    summary: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BrowserDebugResearchRouteLabRequest {
+    question: String,
+    routes: Vec<BrowserDebugResearchRouteOptionRequest>,
+    #[serde(default)]
+    constraints: Option<Vec<String>>,
+    #[serde(default, alias = "trusted_domains")]
+    trusted_domains: Option<Vec<String>>,
     #[serde(default, alias = "allow_live_web_research")]
     allow_live_web_research: Option<bool>,
     #[serde(default, alias = "chatgpt_url")]
@@ -126,6 +154,7 @@ struct BrowserDebugRunSnapshot {
     artifacts: Vec<Value>,
     warnings: Vec<String>,
     decision_lab: Option<Value>,
+    research_route_lab: Option<Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -862,6 +891,10 @@ async fn run_browser_debug_operation(
     if request.operation.trim() == "chatgpt_decision_lab" {
         return decision_lab::run_chatgpt_decision_lab_operation(workspace_path, request).await;
     }
+    if request.operation.trim() == "chatgpt_research_route_lab" {
+        return decision_lab::run_chatgpt_research_route_lab_operation(workspace_path, request)
+            .await;
+    }
     let timeout_ms = request
         .timeout_ms
         .unwrap_or(BROWSER_DEBUG_DEFAULT_TIMEOUT_MS)
@@ -887,6 +920,7 @@ async fn run_browser_debug_operation(
                     "Chrome DevTools MCP is unavailable. Install Node/npx and provide a connectable browser debug target.".to_string(),
                 ],
                 decision_lab: None,
+                research_route_lab: None,
             };
         };
         return chrome::run_chrome_devtools_inspect(&config, request, timeout_ms).await;
@@ -907,6 +941,7 @@ async fn run_browser_debug_operation(
                 "Playwright MCP is unavailable. Add @playwright/mcp to the workspace and ensure node/pnpm are installed.".to_string(),
             ],
             decision_lab: None,
+            research_route_lab: None,
         };
     };
 
@@ -994,6 +1029,7 @@ async fn run_browser_debug_operation(
                 artifacts,
                 warnings,
                 decision_lab: None,
+                research_route_lab: None,
             }
         }
         Ok(Err(error)) => BrowserDebugRunSnapshot {
@@ -1008,6 +1044,7 @@ async fn run_browser_debug_operation(
             artifacts: Vec::new(),
             warnings: vec![error],
             decision_lab: None,
+            research_route_lab: None,
         },
         Err(_) => BrowserDebugRunSnapshot {
             available: false,
@@ -1021,6 +1058,7 @@ async fn run_browser_debug_operation(
             artifacts: Vec::new(),
             warnings: vec!["Timed out while running browser debug operation.".to_string()],
             decision_lab: None,
+            research_route_lab: None,
         },
     }
 }
@@ -1080,6 +1118,7 @@ pub(super) async fn handle_browser_debug_run_v1(
         "structuredContent": result.structured_content,
         "artifacts": result.artifacts,
         "decisionLab": result.decision_lab,
+        "researchRouteLab": result.research_route_lab,
         "warnings": result.warnings,
     }))
 }

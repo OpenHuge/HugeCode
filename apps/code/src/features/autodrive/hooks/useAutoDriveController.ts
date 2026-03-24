@@ -22,7 +22,10 @@ import {
   type AutoDriveRuntimeRunRecord,
   selectAutoDriveSnapshot,
 } from "./autoDriveRuntimeSnapshotAdapter";
-import { BROWSER_REPRO_FIX_VERIFY_SCENARIO_PROFILE } from "../../../application/runtime/facades/runtimeScenarioProfiles";
+import {
+  BROWSER_REPRO_FIX_VERIFY_SCENARIO_PROFILE,
+  RESEARCH_ROUTE_DECIDE_SCENARIO_PROFILE,
+} from "../../../application/runtime/facades/runtimeScenarioProfiles";
 
 const DEFAULT_RISK_POLICY: AutoDriveRiskPolicy = {
   pauseOnDestructiveChange: true,
@@ -219,7 +222,8 @@ function normalizeDraft(
   return {
     enabled: value.enabled === true,
     scenarioProfile:
-      value.scenarioProfile === "browser_repro_fix_verify"
+      value.scenarioProfile === "browser_repro_fix_verify" ||
+      value.scenarioProfile === RESEARCH_ROUTE_DECIDE_SCENARIO_PROFILE
         ? value.scenarioProfile
         : DEFAULT_DRAFT.scenarioProfile,
     destination: migratePersistedDraftShape(value),
