@@ -701,6 +701,7 @@ function validateTurnCompletedEventPayload(
   errors: string[]
 ): void {
   validateRequiredPayloadString(payload, "turnId", errors);
+  validateOptionalStringField(payload, "responseModelId", errors);
 }
 
 function validateTurnFailedEventPayload(payload: Record<string, unknown>, errors: string[]): void {

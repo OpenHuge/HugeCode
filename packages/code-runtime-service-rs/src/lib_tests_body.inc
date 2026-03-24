@@ -1560,6 +1560,7 @@
                                 Json(json!({
                                     "id": "chatcmpl-test",
                                     "object": "chat.completion",
+                                    "model": model_id,
                                     "choices": [{
                                         "index": 0,
                                         "message": {
@@ -1781,55 +1782,72 @@
                                 .and_then(|message| message.get("content"))
                                 .and_then(Value::as_str)
                                 .unwrap_or_default();
-                            let assistant_content =
+                            let model_id = payload
+                                .get("model")
+                                .and_then(Value::as_str)
+                                .unwrap_or("unknown-model");
+                            let (assistant_content, response_model_id) =
                                 if content.contains("Return STRICT JSON only (no markdown).") {
                                     if let Some(delay) = planner_response_delay {
                                         tokio::time::sleep(delay).await;
                                     }
                                     if content.contains("force runtime step failure") {
-                                        json!({
-                                            "plan": ["run failing command"],
-                                            "steps": [
-                                                {
-                                                    "kind": "bash",
-                                                    "command": "exit 7"
-                                                }
-                                            ]
-                                        })
-                                        .to_string()
+                                        (
+                                            json!({
+                                                "plan": ["run failing command"],
+                                                "steps": [
+                                                    {
+                                                        "kind": "bash",
+                                                        "command": "exit 7"
+                                                    }
+                                                ]
+                                            })
+                                            .to_string(),
+                                            model_id.to_string(),
+                                        )
                                     } else {
-                                        json!({
-                                            "plan": [
-                                                "create runtime plan proof file",
-                                                "list workspace files"
-                                            ],
-                                            "steps": [
-                                                {
-                                                    "kind": "write",
-                                                    "path": "runtime-plan-events.txt",
-                                                    "content": "runtime-plan-content"
-                                                },
-                                                {
-                                                    "kind": "bash",
-                                                    "command": "ls -la"
-                                                }
-                                            ]
-                                        })
-                                        .to_string()
+                                        (
+                                            json!({
+                                                "plan": [
+                                                    "create runtime plan proof file",
+                                                    "list workspace files"
+                                                ],
+                                                "steps": [
+                                                    {
+                                                        "kind": "write",
+                                                        "path": "runtime-plan-events.txt",
+                                                        "content": "runtime-plan-content"
+                                                    },
+                                                    {
+                                                        "kind": "bash",
+                                                        "command": "echo runtime-plan-proof"
+                                                    }
+                                                ]
+                                            })
+                                            .to_string(),
+                                            model_id.to_string(),
+                                        )
                                     }
                                 } else if content.contains("Runtime execution results JSON:") {
                                     if let Some(delay) = final_response_delay {
                                         tokio::time::sleep(delay).await;
                                     }
-                                    "runtime plan executed".to_string()
+                                    (
+                                        "runtime plan executed".to_string(),
+                                        "gpt-5.4-2026-03-01".to_string(),
+                                    )
                                 } else {
-                                    "unexpected prompt branch".to_string()
+                                    (
+                                        "unexpected prompt branch".to_string(),
+                                        model_id.to_string(),
+                                    )
                                 };
                             (
                                 StatusCode::OK,
                                 Json(json!({
                                     "id": "chatcmpl-runtime-plan",
                                     "object": "chat.completion",
+                                    "model": response_model_id,
                                     "choices": [{
                                         "index": 0,
                                         "message": {
@@ -10871,6 +10889,10 @@
             turn_events.last().expect("turn.completed event")["payload"]["output"],
             Value::String("ok:gpt-5.3-codex".to_string())
         );
+        assert_eq!(
+            turn_events.last().expect("turn.completed event")["payload"]["responseModelId"],
+            Value::String("gpt-5.3-codex".to_string())
+        );
         for event in &turn_events {
             let emitted_at = event["emittedAt"]
                 .as_str()
@@ -11154,6 +11176,65 @@
         let _ = fs::remove_dir_all(workspace_path.as_path());
         compat_handle.abort();
         service_handle.abort();
+    }
+
+    #[tokio::test]
+    async fn refusal_recovery_keeps_runtime_plan_response_model_metadata() {
+        let workspace_path = PathBuf::from(format!(
+            "/tmp/workspace-runtime-plan-refusal-recovery-{}",
+            rand::random::<u64>()
+        ));
+        let _ = fs::remove_dir_all(workspace_path.as_path());
+        fs::create_dir_all(workspace_path.as_path()).expect("create refusal recovery workspace");
+
+        let (compat_base_url, compat_handle) =
+            spawn_openai_compat_runtime_plan_mock_server(Some("compat-test-key")).await;
+        let config = test_service_config_with_openai_compat(compat_base_url.as_str());
+        let state = create_initial_state("gpt-5.3-codex");
+        let native_state_store = Arc::new(crate::native_state_store::NativeStateStore::new(
+            workspace_path.join("native-state.sqlite3"),
+        ));
+        let ctx = build_app_context(state, config, native_state_store);
+
+        let recovered = maybe_recover_provider_local_access_refusal(
+            &ctx,
+            crate::provider_requests::ProviderQueryResult {
+                output: "I cannot directly access your local computer.".to_string(),
+                response_model_id: Some("gpt-5.3-codex".to_string()),
+            },
+            false,
+            "full-access",
+            false,
+            &TurnProviderRoute::Core(RuntimeProvider::OpenAI),
+            "workspace-web",
+            "thread-runtime-plan-recovery",
+            workspace_path.to_string_lossy().as_ref(),
+            "turn-runtime-plan-recovery",
+            Some("request-runtime-plan-recovery"),
+            "create and list files",
+            "gpt-5.3-codex",
+            Some("high"),
+            None,
+            Some(compat_base_url.as_str()),
+            Some("compat-test-key"),
+            None,
+            None,
+            None,
+            false,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+        assert_eq!(recovered.output, "runtime plan executed".to_string());
+        assert_eq!(
+            recovered.response_model_id,
+            Some("gpt-5.4-2026-03-01".to_string())
+        );
+
+        let _ = fs::remove_dir_all(workspace_path.as_path());
+        compat_handle.abort();
     }
 
     #[tokio::test]
