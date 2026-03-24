@@ -23,13 +23,17 @@ jobs:
     name: Detect CI-relevant changes
     runs-on: ubuntu-latest
     outputs:
-      code_changed: ${{ steps.filter.outputs.code }}
+      code_changed: ${{ steps.filter.outputs.quality_core }}
       runtime_contract_changed: ${{ steps.filter.outputs.runtime_contract }}
-      desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
+      desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime }}
       repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
       frontend_optimization_changed: ${{ steps.filter.outputs.frontend_optimization == 'true' || steps.scope.outputs.frontend_manifest_changed == 'true' }}
+      ui_contract_required: ${{ steps.filter.outputs.ui_contract }}
+      circular_required: ${{ steps.filter.outputs.app_circular }}
+      integration_watch_required: ${{ steps.filter.outputs.code_integration_watch }}
       pr_affected_build_required: ${{ steps.scope.outputs.build_skip_eligible_only != 'true' }}
-      ci_required: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.runtime_contract == 'true' }}
+      pr_affected_required: ${{ steps.filter.outputs.quality_core == 'true' || steps.filter.outputs.runtime_contract == 'true' }}
+      ci_required: ${{ steps.filter.outputs.quality_core == 'true' || steps.filter.outputs.runtime_contract == 'true' || steps.filter.outputs.ui_contract == 'true' || steps.filter.outputs.app_circular == 'true' || steps.filter.outputs.code_integration_watch == 'true' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -45,11 +49,18 @@ jobs:
         uses: dorny/paths-filter@v4
         with:
           filters: |
-            code:
-              - '**'
+            quality_core:
+              - 'apps/**'
+              - 'packages/**'
+              - 'tests/**'
+              - 'patches/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
               - '!docs/**'
-              - '!.agent/**'
               - '!**/*.md'
+              - '!**/*.mdx'
             runtime_contract:
               - 'packages/code-runtime-host-contract/**'
               - 'packages/native-runtime-host-contract/**'
@@ -93,6 +104,62 @@ jobs:
               - 'scripts/codex-preflight.mjs'
               - 'scripts/workflow-list.mjs'
               - 'apps/deskt*/README.md'
+            ui_contract:
+              - 'apps/code/**'
+              - '!apps/code/**/*.md'
+              - '!apps/code/**/*.mdx'
+              - '!apps/code/**/*.test.ts'
+              - '!apps/code/**/*.test.tsx'
+              - '!apps/code/**/*.spec.ts'
+              - '!apps/code/**/*.spec.tsx'
+              - '!apps/code/**/*.stories.ts'
+              - '!apps/code/**/*.stories.tsx'
+              - '!apps/code/**/*.stories.mdx'
+              - '!apps/code/**/__tests__/**'
+              - '!apps/code/src/test/**'
+              - '!apps/code/src/fixtures/**'
+              - 'apps/code-web/**'
+              - '!apps/code-web/**/*.md'
+              - '!apps/code-web/**/*.mdx'
+              - '!apps/code-web/**/*.test.ts'
+              - '!apps/code-web/**/*.test.tsx'
+              - '!apps/code-web/**/*.spec.ts'
+              - '!apps/code-web/**/*.spec.tsx'
+              - '!apps/code-web/**/*.stories.ts'
+              - '!apps/code-web/**/*.stories.tsx'
+              - '!apps/code-web/**/*.stories.mdx'
+              - '!apps/code-web/**/__tests__/**'
+              - '!apps/code-web/src/test/**'
+              - '!apps/code-web/src/fixtures/**'
+              - 'packages/code-application/**'
+              - '!packages/code-application/**/*.md'
+              - '!packages/code-application/**/*.mdx'
+              - 'packages/code-platform-interfaces/**'
+              - '!packages/code-platform-interfaces/**/*.md'
+              - '!packages/code-platform-interfaces/**/*.mdx'
+              - 'packages/code-workspace-client/**'
+              - '!packages/code-workspace-client/**/*.md'
+              - '!packages/code-workspace-client/**/*.mdx'
+              - 'scripts/check-ui-service-boundary.mjs'
+              - 'scripts/check-app-source-boundary.mjs'
+              - 'scripts/check-platform-boundaries.mjs'
+              - 'scripts/lib/ui-service-boundary.mjs'
+            app_circular:
+              - 'apps/code/src/**'
+              - '!apps/code/src/**/*.test.ts'
+              - '!apps/code/src/**/*.test.tsx'
+              - '!apps/code/src/**/*.spec.ts'
+              - '!apps/code/src/**/*.spec.tsx'
+              - '!apps/code/src/**/*.stories.ts'
+              - '!apps/code/src/**/*.stories.tsx'
+              - '!apps/code/src/**/*.stories.mdx'
+              - '!apps/code/src/**/__tests__/**'
+              - '!apps/code/src/test/**'
+              - '!apps/code/src/fixtures/**'
+              - 'scripts/check-circular-deps.mjs'
+            code_integration_watch:
+              - '.codex/code-integration-watch.json'
+              - 'scripts/code-integration-watch.mjs'
             frontend_optimization:
               - 'apps/code/**'
               - '!apps/code/**/*.md'
@@ -185,8 +252,7 @@ jobs:
         run: |
           node scripts/check-repo-sot.mjs
           node scripts/check-workflow-governance.mjs
-          node scripts/check-workspace-task-coverage.mjs
-          node scripts/codex-preflight.mjs
+          pnpm preflight:codex:ci
 
   # Combined quality checks (lint + typecheck) - saves ~60s by eliminating duplicate setup
   quality:
@@ -198,6 +264,9 @@ jobs:
       ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
       runtime_contract_changed: ${{ needs.changes.outputs.runtime_contract_changed == 'true' }}
       desktop_runtime_changed: ${{ needs.changes.outputs.desktop_runtime_changed == 'true' }}
+      ui_contract_required: ${{ needs.changes.outputs.ui_contract_required == 'true' }}
+      circular_required: ${{ needs.changes.outputs.circular_required == 'true' }}
+      integration_watch_required: ${{ needs.changes.outputs.integration_watch_required == 'true' }}
       base_ref: ${{ github.base_ref }}
 
   # PR fast path (affected build + tests)
@@ -208,7 +277,7 @@ jobs:
     uses: ./.github/workflows/_reusable-ci-pr-affected.yml
     secrets: inherit
     with:
-      ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
+      ci_required: ${{ needs.changes.outputs.pr_affected_required == 'true' }}
       base_ref: ${{ github.base_ref }}
       skip_expensive_checks: ${{ needs.dependabot_policy.outputs.skip_pr_affected == 'true' }}
       affected_build_required: ${{ needs.changes.outputs.pr_affected_build_required == 'true' }}

@@ -62,8 +62,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect electron-beta-relevant changes
+    runs-on: ubuntu-latest
+    outputs:
+      electron_required: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.electron == 'true' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Ensure diff base is available
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --prune --depth=1 origin \
+            +refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
+
+      - id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            electron:
+              - "apps/code-electron/**"
+              - "!apps/code-electron/**/*.md"
+              - "!apps/code-electron/**/*.mdx"
+              - "apps/code/package.json"
+              - "packages/code-application/**"
+              - "!packages/code-application/**/*.md"
+              - "!packages/code-application/**/*.mdx"
+              - "packages/code-platform-interfaces/**"
+              - "!packages/code-platform-interfaces/**/*.md"
+              - "!packages/code-platform-interfaces/**/*.mdx"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
+              - "patches/electron-*.patch"
+              - "scripts/electron-publish-dry-run.mjs"
+              - "scripts/electron-verify-release-contract.mjs"
+              - "scripts/lib/electron-update-release-contract.mjs"
+              - ".github/workflows/_reusable-electron-beta.yml"
+              - ".github/workflows/electron-beta.yml"
+              - ".github/actions/setup-node-pnpm/**"
+              - ".github/actions/upload-workflow-artifact/**"
+
   verify:
     name: Verify
+    needs: [changes]
+    if: needs.changes.outputs.electron_required == 'true'
     uses: ./.github/workflows/_reusable-electron-beta.yml
     with:
       command: pnpm desktop:electron:verify
@@ -73,7 +118,8 @@ jobs:
 
   make-smoke:
     name: Make Smoke (${{ matrix.name }})
-    needs: verify
+    needs: [changes, verify]
+    if: needs.changes.outputs.electron_required == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -101,8 +147,8 @@ jobs:
 
   publish-dry-run:
     name: Publish Dry Run
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.publish != 'true' }}
-    needs: make-smoke
+    if: ${{ needs.changes.outputs.electron_required == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.publish != 'true') }}
+    needs: [changes, make-smoke]
     uses: ./.github/workflows/_reusable-electron-beta.yml
     with:
       command: pnpm desktop:electron:publish:dry-run
@@ -112,8 +158,8 @@ jobs:
 
   publish:
     name: Publish (${{ matrix.name }})
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true' }}
-    needs: make-smoke
+    if: ${{ needs.changes.outputs.electron_required == 'true' && github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true' }}
+    needs: [changes, make-smoke]
     permissions:
       contents: write
     strategy:

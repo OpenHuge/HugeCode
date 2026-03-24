@@ -12,6 +12,18 @@ on:
       desktop_runtime_changed:
         required: true
         type: boolean
+      ui_contract_required:
+        required: false
+        type: boolean
+        default: false
+      circular_required:
+        required: false
+        type: boolean
+        default: false
+      integration_watch_required:
+        required: false
+        type: boolean
+        default: false
       base_ref:
         required: false
         type: string
@@ -64,12 +76,8 @@ jobs:
           git fetch --no-tags --prune --depth=1 origin \
             +refs/heads/${{ inputs.base_ref }}:refs/remotes/origin/${{ inputs.base_ref }}
 
-      - name: Codex preflight
-        if: inputs.ci_required
-        run: pnpm preflight:codex:ci
-
       - name: Code integration watch
-        if: inputs.ci_required
+        if: inputs.ci_required && inputs.integration_watch_required
         run: node scripts/code-integration-watch.mjs --fetch
 
       - name: Format check
@@ -87,7 +95,7 @@ jobs:
         run: pnpm lint
 
       - name: UI Contract
-        if: inputs.ci_required
+        if: inputs.ci_required && inputs.ui_contract_required
         run: pnpm ui:contract
 
       - name: Runtime Contract Parity
@@ -99,7 +107,7 @@ jobs:
         run: pnpm desktop:verify:fast
 
       - name: Circular Dependencies
-        if: inputs.ci_required
+        if: inputs.ci_required && inputs.circular_required
         run: pnpm check:circular
 
       - name: Typecheck (affected)
