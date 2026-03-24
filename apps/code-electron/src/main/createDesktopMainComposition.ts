@@ -4,6 +4,14 @@ import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import type {
   DesktopBrowserDebugSessionInfo,
   DesktopBrowserDebugSessionInput,
+  DesktopBrowserWorkspaceSessionInfo,
+  DesktopBrowserWorkspaceSessionInput,
+  DesktopBrowserWorkspaceSessionQuery,
+  DesktopBrowserWorkspaceSetAgentAttachedInput,
+  DesktopBrowserWorkspaceSetDevtoolsOpenInput,
+  DesktopBrowserWorkspaceSetHostInput,
+  DesktopBrowserWorkspaceSetPreviewServerStatusInput,
+  DesktopBrowserWorkspaceSetProfileModeInput,
 } from "../shared/ipc.js";
 import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
 import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
@@ -33,6 +41,33 @@ type BrowserDebugController = {
     | null;
 };
 
+type BrowserWorkspaceController = {
+  ensureBrowserWorkspaceSession(
+    input?: DesktopBrowserWorkspaceSessionInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  getBrowserWorkspaceSession(
+    query?: DesktopBrowserWorkspaceSessionQuery
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  listBrowserWorkspaceSessions():
+    | Promise<DesktopBrowserWorkspaceSessionInfo[]>
+    | DesktopBrowserWorkspaceSessionInfo[];
+  setBrowserWorkspaceAgentAttached(
+    input: DesktopBrowserWorkspaceSetAgentAttachedInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  setBrowserWorkspaceDevtoolsOpen(
+    input: DesktopBrowserWorkspaceSetDevtoolsOpenInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  setBrowserWorkspaceHost(
+    input: DesktopBrowserWorkspaceSetHostInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  setBrowserWorkspacePreviewServerStatus(
+    input: DesktopBrowserWorkspaceSetPreviewServerStatusInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  setBrowserWorkspaceProfileMode(
+    input: DesktopBrowserWorkspaceSetProfileModeInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+};
+
 export type CreateDesktopMainCompositionInput = {
   app: {
     enableSandbox(): void;
@@ -47,6 +82,7 @@ export type CreateDesktopMainCompositionInput = {
     whenReady(): Promise<unknown>;
   };
   browserDebugController: BrowserDebugController;
+  browserWorkspaceController: BrowserWorkspaceController;
   browserWindow: {
     getAllWindows(): Array<{
       focus(): void;
@@ -155,6 +191,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       return typeof version === "string" && version.length > 0 ? version : null;
     })(),
     browserDebugController: input.browserDebugController,
+    browserWorkspaceController: input.browserWorkspaceController,
     listRecentSessions() {
       return shellState.recentSessions;
     },

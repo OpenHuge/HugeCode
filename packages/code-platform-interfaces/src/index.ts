@@ -54,6 +54,79 @@ export type DesktopBrowserDebugSessionInfo = {
   windowId: number;
 };
 
+export type DesktopBrowserWorkspaceSessionKind = "preview" | "debug" | "research";
+export type DesktopBrowserWorkspaceHost = "pane" | "window";
+export type DesktopBrowserWorkspaceProfileMode = "isolated" | "shared";
+export type DesktopBrowserWorkspacePreviewServerStatus =
+  | "unknown"
+  | "starting"
+  | "ready"
+  | "failed";
+
+export type DesktopBrowserWorkspaceSessionQuery = {
+  kind?: DesktopBrowserWorkspaceSessionKind | null;
+  sessionId?: string | null;
+  workspaceId?: string | null;
+};
+
+export type DesktopBrowserWorkspaceSessionInput = {
+  kind?: DesktopBrowserWorkspaceSessionKind | null;
+  sessionId?: string | null;
+  host?: DesktopBrowserWorkspaceHost | null;
+  workspaceId?: string | null;
+  targetUrl?: string | null;
+  focus?: boolean;
+  reset?: boolean;
+  profileMode?: DesktopBrowserWorkspaceProfileMode | null;
+  canAgentAttach?: boolean | null;
+  agentAttached?: boolean | null;
+  devtoolsOpen?: boolean | null;
+  previewServerStatus?: DesktopBrowserWorkspacePreviewServerStatus | null;
+};
+
+export type DesktopBrowserWorkspaceSessionInfo = {
+  sessionId: string;
+  kind: DesktopBrowserWorkspaceSessionKind;
+  host: DesktopBrowserWorkspaceHost;
+  browserUrl: string;
+  currentUrl: string | null;
+  targetUrl: string | null;
+  workspaceId: string | null;
+  windowId: number | null;
+  partitionId: string;
+  profileMode: DesktopBrowserWorkspaceProfileMode;
+  canAgentAttach: boolean;
+  agentAttached: boolean;
+  devtoolsOpen: boolean;
+  previewServerStatus: DesktopBrowserWorkspacePreviewServerStatus;
+};
+
+export type DesktopBrowserWorkspaceSetHostInput = {
+  focus?: boolean;
+  host: DesktopBrowserWorkspaceHost;
+  sessionId: string;
+};
+
+export type DesktopBrowserWorkspaceSetProfileModeInput = {
+  profileMode: DesktopBrowserWorkspaceProfileMode;
+  sessionId: string;
+};
+
+export type DesktopBrowserWorkspaceSetAgentAttachedInput = {
+  attached: boolean;
+  sessionId: string;
+};
+
+export type DesktopBrowserWorkspaceSetPreviewServerStatusInput = {
+  previewServerStatus: DesktopBrowserWorkspacePreviewServerStatus;
+  sessionId: string;
+};
+
+export type DesktopBrowserWorkspaceSetDevtoolsOpenInput = {
+  open: boolean;
+  sessionId: string;
+};
+
 export type DesktopAppCapability = {
   getVersion?: () => Promise<string | null | undefined> | string | null | undefined;
 };
@@ -124,8 +197,66 @@ export type DesktopBrowserDebugCapability = {
     | undefined;
 };
 
+export type DesktopBrowserWorkspaceCapability = {
+  ensureSession?: (
+    input?: DesktopBrowserWorkspaceSessionInput
+  ) =>
+    | Promise<DesktopBrowserWorkspaceSessionInfo | null | undefined>
+    | DesktopBrowserWorkspaceSessionInfo
+    | null
+    | undefined;
+  getSession?: (
+    query?: DesktopBrowserWorkspaceSessionQuery
+  ) =>
+    | Promise<DesktopBrowserWorkspaceSessionInfo | null | undefined>
+    | DesktopBrowserWorkspaceSessionInfo
+    | null
+    | undefined;
+  listSessions?: () =>
+    | Promise<DesktopBrowserWorkspaceSessionInfo[] | null | undefined>
+    | DesktopBrowserWorkspaceSessionInfo[]
+    | null
+    | undefined;
+  setAgentAttached?: (
+    input: DesktopBrowserWorkspaceSetAgentAttachedInput
+  ) =>
+    | Promise<DesktopBrowserWorkspaceSessionInfo | null | undefined>
+    | DesktopBrowserWorkspaceSessionInfo
+    | null
+    | undefined;
+  setDevtoolsOpen?: (
+    input: DesktopBrowserWorkspaceSetDevtoolsOpenInput
+  ) =>
+    | Promise<DesktopBrowserWorkspaceSessionInfo | null | undefined>
+    | DesktopBrowserWorkspaceSessionInfo
+    | null
+    | undefined;
+  setHost?: (
+    input: DesktopBrowserWorkspaceSetHostInput
+  ) =>
+    | Promise<DesktopBrowserWorkspaceSessionInfo | null | undefined>
+    | DesktopBrowserWorkspaceSessionInfo
+    | null
+    | undefined;
+  setPreviewServerStatus?: (
+    input: DesktopBrowserWorkspaceSetPreviewServerStatusInput
+  ) =>
+    | Promise<DesktopBrowserWorkspaceSessionInfo | null | undefined>
+    | DesktopBrowserWorkspaceSessionInfo
+    | null
+    | undefined;
+  setProfileMode?: (
+    input: DesktopBrowserWorkspaceSetProfileModeInput
+  ) =>
+    | Promise<DesktopBrowserWorkspaceSessionInfo | null | undefined>
+    | DesktopBrowserWorkspaceSessionInfo
+    | null
+    | undefined;
+};
+
 export type DesktopHostCapabilities = {
   app?: DesktopAppCapability;
+  browserWorkspace?: DesktopBrowserWorkspaceCapability;
   session?: DesktopSessionCapability;
   window?: DesktopWindowCapability;
   windowing?: DesktopWindowingCapability;
@@ -143,6 +274,30 @@ export type DesktopHostBridgeApi = {
   kind: DesktopHostKind;
   app: {
     getVersion(): Promise<string | null>;
+  };
+  browserWorkspace: {
+    ensureSession(
+      input?: DesktopBrowserWorkspaceSessionInput
+    ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
+    getSession(
+      query?: DesktopBrowserWorkspaceSessionQuery
+    ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
+    listSessions(): Promise<DesktopBrowserWorkspaceSessionInfo[]>;
+    setAgentAttached(
+      input: DesktopBrowserWorkspaceSetAgentAttachedInput
+    ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
+    setDevtoolsOpen(
+      input: DesktopBrowserWorkspaceSetDevtoolsOpenInput
+    ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
+    setHost(
+      input: DesktopBrowserWorkspaceSetHostInput
+    ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
+    setPreviewServerStatus(
+      input: DesktopBrowserWorkspaceSetPreviewServerStatusInput
+    ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
+    setProfileMode(
+      input: DesktopBrowserWorkspaceSetProfileModeInput
+    ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
   };
   session: {
     getCurrentSession(): Promise<DesktopSessionInfo | null>;

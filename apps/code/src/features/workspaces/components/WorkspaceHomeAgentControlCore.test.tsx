@@ -35,6 +35,10 @@ vi.mock("./WorkspaceHomeAgentRuntimeOrchestration", () => ({
   WorkspaceHomeAgentRuntimeOrchestration: () => <div data-testid="runtime-section-stub" />,
 }));
 
+vi.mock("./WorkspaceHomeBrowserWorkspacePanel", () => ({
+  WorkspaceHomeBrowserWorkspacePanel: () => <div data-testid="browser-workspace-panel-stub" />,
+}));
+
 vi.mock("./WorkspaceHomeAgentWebMcpConsoleSection", () => ({
   WorkspaceHomeAgentWebMcpConsoleSection: () => <div data-testid="webmcp-console-stub" />,
 }));

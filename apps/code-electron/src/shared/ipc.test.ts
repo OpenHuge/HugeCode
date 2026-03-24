@@ -18,6 +18,16 @@ describe("desktopHostIpcChannels", () => {
       showNotification: "hugecode:desktop-host:show-notification",
       openExternalUrl: "hugecode:desktop-host:open-external-url",
       revealItemInDir: "hugecode:desktop-host:reveal-item-in-dir",
+      getBrowserWorkspaceSession: "hugecode:desktop-host:get-browser-workspace-session",
+      ensureBrowserWorkspaceSession: "hugecode:desktop-host:ensure-browser-workspace-session",
+      listBrowserWorkspaceSessions: "hugecode:desktop-host:list-browser-workspace-sessions",
+      setBrowserWorkspaceHost: "hugecode:desktop-host:set-browser-workspace-host",
+      setBrowserWorkspaceProfileMode: "hugecode:desktop-host:set-browser-workspace-profile-mode",
+      setBrowserWorkspaceAgentAttached:
+        "hugecode:desktop-host:set-browser-workspace-agent-attached",
+      setBrowserWorkspacePreviewServerStatus:
+        "hugecode:desktop-host:set-browser-workspace-preview-server-status",
+      setBrowserWorkspaceDevtoolsOpen: "hugecode:desktop-host:set-browser-workspace-devtools-open",
       getBrowserDebugSession: "hugecode:desktop-host:get-browser-debug-session",
       ensureBrowserDebugSession: "hugecode:desktop-host:ensure-browser-debug-session",
     });

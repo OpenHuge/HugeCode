@@ -2,9 +2,17 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import {
+  ensureBrowserWorkspaceSession,
   ensureBrowserDebugSession,
+  getBrowserWorkspaceSession,
   getBrowserDebugSession,
+  listBrowserWorkspaceSessions,
   resolveBrowserDebugPort,
+  setBrowserWorkspaceAgentAttached,
+  setBrowserWorkspaceDevtoolsOpen,
+  setBrowserWorkspaceHost,
+  setBrowserWorkspacePreviewServerStatus,
+  setBrowserWorkspaceProfileMode,
 } from "./browserDebugSession.js";
 import { createDesktopMainComposition } from "./createDesktopMainComposition.js";
 
@@ -20,6 +28,16 @@ createDesktopMainComposition({
   browserDebugController: {
     ensureBrowserDebugSession,
     getBrowserDebugSession,
+  },
+  browserWorkspaceController: {
+    ensureBrowserWorkspaceSession,
+    getBrowserWorkspaceSession,
+    listBrowserWorkspaceSessions,
+    setBrowserWorkspaceAgentAttached,
+    setBrowserWorkspaceDevtoolsOpen,
+    setBrowserWorkspaceHost,
+    setBrowserWorkspacePreviewServerStatus,
+    setBrowserWorkspaceProfileMode,
   },
   browserWindow: BrowserWindow,
   enableAppSandbox,
