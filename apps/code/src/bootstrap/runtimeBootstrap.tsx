@@ -109,6 +109,39 @@ function installStartupLongTaskObserver() {
   };
 }
 
+function installStartupLongTaskObserver() {
+  if (typeof window === "undefined" || typeof PerformanceObserver === "undefined") {
+    return noop;
+  }
+
+  const supportedEntryTypes = PerformanceObserver.supportedEntryTypes ?? [];
+  if (!supportedEntryTypes.includes("longtask")) {
+    return noop;
+  }
+
+  const observer = new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      const duration = Math.round(entry.duration);
+      void recordSentryMetricIfAvailable("startup_long_task", 1, {
+        attributes: {
+          duration_bucket: duration >= 250 ? "250_plus" : duration >= 100 ? "100_249" : "50_99",
+        },
+      });
+    }
+  });
+
+  observer.observe({ type: "longtask", buffered: true });
+
+  const timeoutHandle = window.setTimeout(() => {
+    observer.disconnect();
+  }, STARTUP_LONG_TASK_OBSERVER_WINDOW_MS);
+
+  return () => {
+    window.clearTimeout(timeoutHandle);
+    observer.disconnect();
+  };
+}
+
 export function installMobileZoomGesturePrevention() {
   if (!isMobilePlatform() || typeof document === "undefined") {
     return noop;

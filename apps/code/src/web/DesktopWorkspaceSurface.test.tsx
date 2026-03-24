@@ -3,53 +3,55 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { clearWorkspaceRouteRestoreSelection } from "../features/workspaces/hooks/workspaceRoute";
 import DesktopWorkspaceSurface from "./DesktopWorkspaceSurface";
 
-const { mainAppMock, sharedShellMock, lazyDesktopMainAppControl } = vi.hoisted(() => {
-  let shouldSuspend = false;
-  let resolveRender: (() => void) | null = null;
-  let renderPromise: Promise<void> | null = null;
+const { mainAppMock, mainAppModuleFactoryMock, sharedShellMock, lazyDesktopMainAppControl } =
+  vi.hoisted(() => {
+    let shouldSuspend = false;
+    let resolveRender: (() => void) | null = null;
+    let renderPromise: Promise<void> | null = null;
 
-  const getRenderPromise = () => {
-    if (renderPromise !== null) {
-      return renderPromise;
-    }
-    renderPromise = new Promise<void>((resolve) => {
-      resolveRender = () => {
-        shouldSuspend = false;
-        renderPromise = null;
-        resolveRender = null;
-        resolve();
-      };
-    });
-    return renderPromise;
-  };
-
-  return {
-    mainAppMock: vi.fn(() => {
-      if (shouldSuspend) {
-        throw getRenderPromise();
+    const getRenderPromise = () => {
+      if (renderPromise !== null) {
+        return renderPromise;
       }
-      return <div data-testid="desktop-main-app">Main app</div>;
-    }),
-    sharedShellMock: vi.fn(() => <div data-testid="desktop-shared-shell">Shared shell</div>),
-    lazyDesktopMainAppControl: {
-      suspend() {
-        shouldSuspend = true;
-      },
-      resolve() {
-        resolveRender?.();
-      },
-      reset() {
-        shouldSuspend = false;
-        renderPromise = null;
-        resolveRender = null;
-      },
-    },
-  };
-});
+      renderPromise = new Promise<void>((resolve) => {
+        resolveRender = () => {
+          shouldSuspend = false;
+          renderPromise = null;
+          resolveRender = null;
+          resolve();
+        };
+      });
+      return renderPromise;
+    };
 
-vi.mock("../MainAppContainerCore", () => ({
-  default: mainAppMock,
-}));
+    return {
+      mainAppMock: vi.fn(() => {
+        if (shouldSuspend) {
+          throw getRenderPromise();
+        }
+        return <div data-testid="desktop-main-app">Main app</div>;
+      }),
+      mainAppModuleFactoryMock: vi.fn(() => ({
+        default: mainAppMock,
+      })),
+      sharedShellMock: vi.fn(() => <div data-testid="desktop-shared-shell">Shared shell</div>),
+      lazyDesktopMainAppControl: {
+        suspend() {
+          shouldSuspend = true;
+        },
+        resolve() {
+          resolveRender?.();
+        },
+        reset() {
+          shouldSuspend = false;
+          renderPromise = null;
+          resolveRender = null;
+        },
+      },
+    };
+  });
+
+vi.mock("../MainAppContainerCore", () => mainAppModuleFactoryMock());
 
 vi.mock("@ku0/code-workspace-client/workspace-shell", async () => {
   const actual = await vi.importActual<typeof import("@ku0/code-workspace-client/workspace-shell")>(
@@ -65,6 +67,7 @@ describe("DesktopWorkspaceSurface", () => {
   afterEach(() => {
     cleanup();
     lazyDesktopMainAppControl.reset();
+    mainAppModuleFactoryMock.mockClear();
     clearWorkspaceRouteRestoreSelection();
     window.history.pushState({}, "", "/");
   });
@@ -109,5 +112,14 @@ describe("DesktopWorkspaceSurface", () => {
     render(<DesktopWorkspaceSurface />);
 
     expect(screen.getByTestId("desktop-shared-shell")).toBeTruthy();
+  });
+
+  it("does not preload the desktop main app chunk on shared-shell routes", () => {
+    window.history.pushState({}, "", "/workspaces?section=settings");
+
+    render(<DesktopWorkspaceSurface />);
+
+    expect(screen.getByTestId("desktop-shared-shell")).toBeTruthy();
+    expect(mainAppModuleFactoryMock).not.toHaveBeenCalled();
   });
 });

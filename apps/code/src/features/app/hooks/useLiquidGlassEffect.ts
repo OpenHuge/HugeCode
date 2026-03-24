@@ -13,14 +13,19 @@ import {
 import type { DebugEntry } from "../../../types";
 
 type Params = {
+  enabled?: boolean;
   reduceTransparency: boolean;
   onDebug?: (entry: DebugEntry) => void;
 };
 
-export function useLiquidGlassEffect({ reduceTransparency, onDebug }: Params) {
+export function useLiquidGlassEffect({ enabled = true, reduceTransparency, onDebug }: Params) {
   const supportedRef = useRef<boolean | null>(null);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     let cancelled = false;
 
     const apply = async () => {
@@ -86,5 +91,5 @@ export function useLiquidGlassEffect({ reduceTransparency, onDebug }: Params) {
     return () => {
       cancelled = true;
     };
-  }, [onDebug, reduceTransparency]);
+  }, [enabled, onDebug, reduceTransparency]);
 }
