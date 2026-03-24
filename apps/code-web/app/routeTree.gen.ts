@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as PublicRouteImport } from './routes/_public'
 import { Route as PublicIndexRouteImport } from './routes/_public.index'
+import { Route as PublicOfflineRouteImport } from './routes/_public.offline'
 import { Route as PublicAboutRouteImport } from './routes/_public.about'
 
 const AppRoute = AppRouteImport.update({
@@ -34,6 +35,11 @@ const PublicIndexRoute = PublicIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PublicRoute,
 } as any)
+const PublicOfflineRoute = PublicOfflineRouteImport.update({
+  id: '/offline',
+  path: '/offline',
+  getParentRoute: () => PublicRoute,
+} as any)
 const PublicAboutRoute = PublicAboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -45,11 +51,13 @@ export interface FileRoutesByFullPath {
   '/account': typeof AccountRoute
   '/app': typeof AppRoute
   '/about': typeof PublicAboutRoute
+  '/offline': typeof PublicOfflineRoute
 }
 export interface FileRoutesByTo {
   '/account': typeof AccountRoute
   '/app': typeof AppRoute
   '/about': typeof PublicAboutRoute
+  '/offline': typeof PublicOfflineRoute
   '/': typeof PublicIndexRoute
 }
 export interface FileRoutesById {
@@ -58,19 +66,21 @@ export interface FileRoutesById {
   '/account': typeof AccountRoute
   '/app': typeof AppRoute
   '/_public/about': typeof PublicAboutRoute
+  '/_public/offline': typeof PublicOfflineRoute
   '/_public/': typeof PublicIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/account' | '/app' | '/about'
+  fullPaths: '/' | '/account' | '/app' | '/about' | '/offline'
   fileRoutesByTo: FileRoutesByTo
-  to: '/account' | '/app' | '/about' | '/'
+  to: '/account' | '/app' | '/about' | '/offline' | '/'
   id:
     | '__root__'
     | '/_public'
     | '/account'
     | '/app'
     | '/_public/about'
+    | '/_public/offline'
     | '/_public/'
   fileRoutesById: FileRoutesById
 }
@@ -110,6 +120,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicIndexRouteImport
       parentRoute: typeof PublicRoute
     }
+    '/_public/offline': {
+      id: '/_public/offline'
+      path: '/offline'
+      fullPath: '/offline'
+      preLoaderRoute: typeof PublicOfflineRouteImport
+      parentRoute: typeof PublicRoute
+    }
     '/_public/about': {
       id: '/_public/about'
       path: '/about'
@@ -122,11 +139,13 @@ declare module '@tanstack/react-router' {
 
 interface PublicRouteChildren {
   PublicAboutRoute: typeof PublicAboutRoute
+  PublicOfflineRoute: typeof PublicOfflineRoute
   PublicIndexRoute: typeof PublicIndexRoute
 }
 
 const PublicRouteChildren: PublicRouteChildren = {
   PublicAboutRoute: PublicAboutRoute,
+  PublicOfflineRoute: PublicOfflineRoute,
   PublicIndexRoute: PublicIndexRoute,
 }
 
