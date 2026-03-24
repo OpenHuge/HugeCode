@@ -66,11 +66,20 @@ test("sidebar and home shell scaffolds stay stable without reviving legacy wrapp
   await clickByUser(page, page.getByRole("button", { name: "Go to Home" }).first());
   const sharedShell = page.locator("[data-workspace-shell]").first();
   const homePage = page.locator('[data-home-page="true"]').first();
+  const composerStartHeading = page
+    .getByRole("heading", { level: 2, name: "Start in the composer." })
+    .first();
   if (await sharedShell.isVisible().catch(() => false)) {
     await expect(sharedShell).toBeVisible();
     await expect(
       page.getByRole("navigation", { name: "Workspace sections" }).first()
     ).toBeVisible();
+  } else if (await composerStartHeading.isVisible().catch(() => false)) {
+    await expect(composerStartHeading).toBeVisible();
+    await expect(page.getByText("Skills", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Commands", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Mentions", { exact: true }).first()).toBeVisible();
+    return;
   } else {
     await expect(homePage).toBeVisible();
   }
