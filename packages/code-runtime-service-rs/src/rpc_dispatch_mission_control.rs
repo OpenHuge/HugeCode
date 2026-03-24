@@ -153,6 +153,18 @@ pub(crate) struct MissionRunProjection {
     sub_agents: Vec<MissionRunSubAgentSummary>,
     #[serde(skip_serializing_if = "Option::is_none")]
     publish_handoff: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    selected_opportunity_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    wake_reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    wake_state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_citations: Option<Vec<Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    queue_position: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_eligible_action: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -247,6 +259,18 @@ pub(crate) struct MissionReviewPackProjection {
     placement: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     workspace_evidence: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    selected_opportunity_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    wake_reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    wake_state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_citations: Option<Vec<Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    queue_position: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_eligible_action: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]

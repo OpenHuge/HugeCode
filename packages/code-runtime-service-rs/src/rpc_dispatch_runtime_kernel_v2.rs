@@ -286,6 +286,383 @@ fn build_validation_plan(workspace_context: &WorkspaceLaunchContext) -> Value {
     })
 }
 
+fn resolve_autonomy_request_value(
+    params: &Value,
+    auto_drive: Option<&AgentTaskAutoDriveState>,
+) -> Value {
+    let provided = as_object(params)
+        .ok()
+        .and_then(|record| {
+            record
+                .get("autonomyRequest")
+                .or_else(|| record.get("autonomy_request"))
+        })
+        .and_then(Value::as_object)
+        .cloned();
+    if let Some(mut autonomy_request) = provided {
+        autonomy_request
+            .entry("autonomyProfile".to_string())
+            .or_insert_with(|| Value::String("night_operator".to_string()));
+        autonomy_request.entry("sourceScope".to_string()).or_insert_with(|| {
+            Value::String(
+                auto_drive
+                    .and_then(|entry| entry.context_policy.as_ref())
+                    .and_then(|policy| policy.scope.clone())
+                    .unwrap_or_else(|| "workspace_graph".to_string()),
+            )
+        });
+        autonomy_request.entry("queueBudget".to_string()).or_insert_with(|| {
+            json!({
+                "maxQueuedActions": 2,
+                "maxAutoContinuations": 2,
+            })
+        });
+        autonomy_request.entry("wakePolicy".to_string()).or_insert_with(|| {
+            json!({
+                "mode": "auto_queue",
+                "safeFollowUp": true,
+                "allowAutomaticContinuation": true,
+                "allowedActions": ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+                "stopGates": [
+                    "destructive_change_requires_review",
+                    "dependency_change_requires_review",
+                    "validation_failure_requires_review",
+                ],
+            })
+        });
+        autonomy_request
+            .entry("researchPolicy".to_string())
+            .or_insert_with(|| {
+                json!({
+                    "mode": if auto_drive
+                        .and_then(|entry| entry.risk_policy.as_ref())
+                        .and_then(|policy| policy.allow_network_analysis)
+                        .unwrap_or(false)
+                    {
+                        "staged"
+                    } else {
+                        "repository_only"
+                    },
+                    "allowNetworkAnalysis": auto_drive
+                        .and_then(|entry| entry.risk_policy.as_ref())
+                        .and_then(|policy| policy.allow_network_analysis)
+                        .unwrap_or(false),
+                    "requireCitations": true,
+                    "allowPrivateContextStage": auto_drive
+                        .and_then(|entry| entry.risk_policy.as_ref())
+                        .and_then(|policy| policy.allow_network_analysis)
+                        .unwrap_or(false),
+                })
+            });
+        return Value::Object(autonomy_request);
+    }
+
+    let allow_network_analysis = auto_drive
+        .and_then(|entry| entry.risk_policy.as_ref())
+        .and_then(|policy| policy.allow_network_analysis)
+        .unwrap_or(false);
+    let max_runtime_minutes = auto_drive
+        .and_then(|entry| entry.budget.as_ref())
+        .and_then(|budget| budget.max_duration_ms)
+        .map(|value| ((value + 59_999) / 60_000) as u64);
+    json!({
+        "autonomyProfile": "night_operator",
+        "sourceScope": auto_drive
+            .and_then(|entry| entry.context_policy.as_ref())
+            .and_then(|policy| policy.scope.clone())
+            .unwrap_or_else(|| {
+                if allow_network_analysis {
+                    "workspace_graph_and_public_web".to_string()
+                } else {
+                    "workspace_graph".to_string()
+                }
+            }),
+        "queueBudget": {
+            "maxQueuedActions": 2,
+            "maxRuntimeMinutes": max_runtime_minutes,
+            "maxAutoContinuations": 2,
+        },
+        "wakePolicy": {
+            "mode": "auto_queue",
+            "safeFollowUp": true,
+            "allowAutomaticContinuation": true,
+            "allowedActions": ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+            "stopGates": [
+                "destructive_change_requires_review",
+                "dependency_change_requires_review",
+                "validation_failure_requires_review",
+                "low_confidence_reroute_requires_review",
+            ],
+        },
+        "researchPolicy": {
+            "mode": if allow_network_analysis { "staged" } else { "repository_only" },
+            "allowNetworkAnalysis": allow_network_analysis,
+            "requireCitations": true,
+            "allowPrivateContextStage": allow_network_analysis,
+        },
+    })
+}
+
+fn build_intent_snapshot(
+    objective: Option<&str>,
+    task_source: Option<&AgentTaskSourceSummary>,
+    workspace_context: &WorkspaceLaunchContext,
+    missing_context: &[String],
+) -> Value {
+    let mut signals = Vec::new();
+    if let Some(objective) = objective {
+        signals.push(json!({
+            "kind": "operator_intent",
+            "summary": format!("Operator objective centers on `{objective}`."),
+            "source": "request.title_or_steps",
+            "confidence": "high",
+        }));
+    }
+    if let Some(source) = task_source {
+        signals.push(json!({
+            "kind": "task_source",
+            "summary": source
+                .label
+                .clone()
+                .or(source.title.clone())
+                .or(source.reference.clone())
+                .unwrap_or_else(|| "Runtime received an external task source.".to_string()),
+            "source": source.kind.clone(),
+            "confidence": "medium",
+        }));
+    }
+    if workspace_context.has_agents_md {
+        signals.push(json!({
+            "kind": "repo_rule",
+            "summary": "Workspace publishes AGENTS.md, so runtime should respect repo-owned execution rules.",
+            "source": "AGENTS.md",
+            "confidence": "high",
+        }));
+    }
+    if !missing_context.is_empty() {
+        signals.push(json!({
+            "kind": "validation_debt",
+            "summary": format!(
+                "Runtime still needs {} before it can fully clarify the next unattended step.",
+                missing_context.join(", ")
+            ),
+            "source": "prepare_v2",
+            "confidence": "medium",
+        }));
+    }
+    json!({
+        "summary": objective
+            .map(|value| format!("Runtime synthesized a bounded intent model for `{value}`."))
+            .unwrap_or_else(|| "Runtime synthesized a bounded intent model from the incoming request.".to_string()),
+        "primaryGoal": objective,
+        "dominantDirection": objective
+            .map(|value| format!("Advance `{value}` while preserving repo and validation guardrails.")),
+        "confidence": if missing_context.is_empty() { "high" } else { "medium" },
+        "signals": signals,
+    })
+}
+
+fn build_opportunity_queue(
+    objective: Option<&str>,
+    validation_plan: &Value,
+    missing_context: &[String],
+) -> Value {
+    let objective_label = objective.unwrap_or("the mission objective");
+    let has_validation = validation_plan
+        .get("required")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let mut candidates = vec![json!({
+        "id": "opportunity-primary",
+        "title": format!("Advance {objective_label}"),
+        "summary": "Start with the narrowest repo-grounded step that can move the mission forward tonight.",
+        "whySelected": "It is the closest bounded opportunity to the operator objective.",
+        "whyNow": if missing_context.is_empty() {
+            "Context is sufficiently clarified for bounded execution."
+        } else {
+            "Runtime can still make progress while surfacing the remaining ambiguity."
+        },
+        "evidence": [
+            "operator objective",
+            "repo instructions",
+            "runtime prepare graph",
+        ],
+        "risk": if missing_context.is_empty() { "low" } else { "medium" },
+        "stopGates": [
+            "destructive_change_requires_review",
+            "dependency_change_requires_review",
+            "approval_or_permission_change_required",
+        ],
+        "nextWakeAction": if missing_context.is_empty() { "continue" } else { "clarify" },
+        "score": if missing_context.is_empty() { 92 } else { 78 },
+        "confidence": if missing_context.is_empty() { "high" } else { "medium" },
+    })];
+    if has_validation {
+        candidates.push(json!({
+            "id": "opportunity-validation",
+            "title": "Tighten validation confidence",
+            "summary": "Keep the queue anchored to the narrowest real validation lane before wake-up.",
+            "whySelected": "Night Operator should preserve runtime-owned evidence quality.",
+            "whyNow": "Validation debt compounds quickly during unattended execution.",
+            "evidence": [
+                "workspace validation defaults",
+                "runtime validation plan",
+            ],
+            "risk": "low",
+            "stopGates": [
+                "validation_failure_requires_review",
+                "approval_or_permission_change_required",
+            ],
+            "nextWakeAction": "approve",
+            "score": 71,
+            "confidence": "medium",
+        }));
+    }
+    json!({
+        "selectedOpportunityId": "opportunity-primary",
+        "selectionSummary": "Runtime selected the closest bounded opportunity and kept a validation follow-up queued behind it.",
+        "candidates": candidates,
+    })
+}
+
+fn build_source_citations(
+    task_source: Option<&AgentTaskSourceSummary>,
+    workspace_context: &WorkspaceLaunchContext,
+) -> Vec<Value> {
+    let mut citations = Vec::new();
+    if workspace_context.has_agents_md {
+        citations.push(json!({
+            "id": "repo-agents-md",
+            "label": "AGENTS.md",
+            "url": Value::Null,
+            "sourceKind": "repo_doc",
+            "trustLevel": "primary",
+            "claimSummary": "Repo instructions remain a primary authority surface for unattended execution.",
+        }));
+    }
+    if let Some(source) = task_source {
+        citations.push(json!({
+            "id": "task-source",
+            "label": source
+                .label
+                .clone()
+                .or(source.title.clone())
+                .unwrap_or_else(|| "Task source".to_string()),
+            "url": source.url.clone(),
+            "sourceKind": "task_source",
+            "trustLevel": if source.url.is_some() { "primary" } else { "runtime" },
+            "claimSummary": source
+                .reference
+                .clone()
+                .or(source.title.clone())
+                .unwrap_or_else(|| "Task source provided the initial mission prompt.".to_string()),
+        }));
+    }
+    citations
+}
+
+fn build_research_trace(
+    autonomy_request: &Value,
+    task_source: Option<&AgentTaskSourceSummary>,
+    workspace_context: &WorkspaceLaunchContext,
+) -> Value {
+    let research_policy = autonomy_request
+        .get("researchPolicy")
+        .or_else(|| autonomy_request.get("research_policy"))
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let mode = research_policy
+        .get("mode")
+        .and_then(Value::as_str)
+        .unwrap_or("repository_only");
+    json!({
+        "mode": mode,
+        "stage": if mode == "staged" {
+            "repository"
+        } else if mode == "public_web" {
+            "public_web"
+        } else {
+            "repository"
+        },
+        "summary": if mode == "staged" {
+            "AutoResearch is staged: runtime starts from repo truth before expanding into public-web sources."
+        } else if mode == "public_web" {
+            "Research policy allows public-web lookups, but citations remain required."
+        } else {
+            "Research remains repository-only until runtime explicitly promotes the lane."
+        },
+        "citations": build_source_citations(task_source, workspace_context),
+        "sensitiveContextMixed": false,
+    })
+}
+
+fn build_execution_eligibility(
+    missing_context: &[String],
+    approval_batches: &[Value],
+) -> Value {
+    let blocking_reasons = if missing_context.is_empty() {
+        Vec::new()
+    } else {
+        missing_context
+            .iter()
+            .map(|entry| format!("Missing {entry}"))
+            .collect::<Vec<_>>()
+    };
+    json!({
+        "eligible": blocking_reasons.is_empty(),
+        "summary": if blocking_reasons.is_empty() {
+            "Runtime can begin bounded Night Operator execution without waking the operator first."
+        } else {
+            "Runtime should clarify missing context before chaining beyond the first bounded opportunity."
+        },
+        "wakeState": if blocking_reasons.is_empty() {
+            "ready"
+        } else if approval_batches.is_empty() {
+            "attention"
+        } else {
+            "blocked"
+        },
+        "nextEligibleAction": if blocking_reasons.is_empty() { "continue" } else { "clarify" },
+        "blockingReasons": blocking_reasons,
+    })
+}
+
+fn build_wake_policy_summary(wake_policy: &Value) -> Value {
+    let mode = wake_policy
+        .get("mode")
+        .and_then(Value::as_str)
+        .unwrap_or("auto_queue");
+    let safe_follow_up = wake_policy
+        .get("safeFollowUp")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let allowed_actions = wake_policy
+        .get("allowedActions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_else(|| {
+            vec![
+                Value::String("continue".to_string()),
+                Value::String("approve".to_string()),
+                Value::String("clarify".to_string()),
+                Value::String("reroute".to_string()),
+                Value::String("pair".to_string()),
+                Value::String("hold".to_string()),
+            ]
+        });
+    json!({
+        "summary": match mode {
+            "hold" => "Runtime will stop at the next wake gate and wait for explicit review.",
+            "review_queue" => "Runtime will queue review-ready wake actions without continuing blindly.",
+            _ => "Runtime will use Auto Queue and stop only at explicit wake gates.",
+        },
+        "safeFollowUp": safe_follow_up,
+        "allowedActions": allowed_actions,
+        "queueBudget": wake_policy.get("queueBudget").cloned().unwrap_or(Value::Null),
+    })
+}
+
 fn parse_run_id(params: &Value) -> Result<String, RpcError> {
     let params = as_object(params)?;
     read_optional_string(params, "runId")
@@ -376,6 +753,23 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
     );
     let validation_plan = build_validation_plan(&workspace_context);
     let missing_context = build_missing_context(objective.as_deref(), &request);
+    let autonomy_request = resolve_autonomy_request_value(params, auto_drive.as_ref());
+    let wake_policy = autonomy_request
+        .get("wakePolicy")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let intent_snapshot = build_intent_snapshot(
+        objective.as_deref(),
+        task_source.as_ref(),
+        &workspace_context,
+        missing_context.as_slice(),
+    );
+    let opportunity_queue =
+        build_opportunity_queue(objective.as_deref(), &validation_plan, missing_context.as_slice());
+    let research_trace =
+        build_research_trace(&autonomy_request, task_source.as_ref(), &workspace_context);
+    let execution_eligibility =
+        build_execution_eligibility(missing_context.as_slice(), approval_batches.as_slice());
 
     Ok(json!({
         "preparedAt": now_ms(),
@@ -419,6 +813,16 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
             "Run the narrowest validation that proves the change under current workspace rules.",
             "Keep blast radius low and preserve backend routing inspectability."
         ],
+        "autonomyProfile": autonomy_request
+            .get("autonomyProfile")
+            .cloned()
+            .unwrap_or_else(|| Value::String("night_operator".to_string())),
+        "wakePolicy": wake_policy.clone(),
+        "intentSnapshot": intent_snapshot,
+        "opportunityQueue": opportunity_queue,
+        "researchTrace": research_trace,
+        "executionEligibility": execution_eligibility,
+        "wakePolicySummary": build_wake_policy_summary(&wake_policy),
     }))
 }
 
@@ -428,10 +832,107 @@ async fn build_run_record_v2(ctx: &AppContext, run_id: &str) -> Result<Value, Rp
         .await
         .ok_or_else(|| RpcError::invalid_params(format!("Run `{run_id}` was not found.")))?;
     let review_pack = build_review_pack_projection_by_run_id(ctx, run_id).await;
+    let mission_run_value = serde_json::to_value(&mission_run)
+        .map_err(|error| RpcError::internal(format!("failed to serialize mission run: {error}")))?;
+    let review_pack_value = review_pack
+        .as_ref()
+        .map(serde_json::to_value)
+        .transpose()
+        .map_err(|error| RpcError::internal(format!("failed to serialize review pack: {error}")))?;
+    let selected_opportunity_id = mission_run_value
+        .get("selectedOpportunityId")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .or_else(|| {
+            review_pack_value
+                .as_ref()
+                .and_then(|entry| entry.get("selectedOpportunityId"))
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+        });
+    let wake_reason = mission_run_value
+        .get("wakeReason")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .or_else(|| {
+            review_pack_value
+                .as_ref()
+                .and_then(|entry| entry.get("wakeReason"))
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+        });
+    let wake_policy = json!({
+        "mode": "auto_queue",
+        "safeFollowUp": true,
+        "allowAutomaticContinuation": true,
+        "allowedActions": ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+        "stopGates": [
+            "destructive_change_requires_review",
+            "dependency_change_requires_review",
+            "validation_failure_requires_review",
+        ],
+    });
+    let source_citations = mission_run_value
+        .get("sourceCitations")
+        .and_then(Value::as_array)
+        .cloned()
+        .or_else(|| {
+            review_pack_value
+                .as_ref()
+                .and_then(|entry| entry.get("sourceCitations"))
+                .and_then(Value::as_array)
+                .cloned()
+        })
+        .unwrap_or_default();
+    let wake_state = mission_run_value
+        .get("wakeState")
+        .and_then(Value::as_str)
+        .unwrap_or("attention");
+    let next_eligible_action = mission_run_value
+        .get("nextEligibleAction")
+        .and_then(Value::as_str)
+        .unwrap_or("hold");
     Ok(json!({
         "run": run,
-        "missionRun": mission_run,
-        "reviewPack": review_pack,
+        "missionRun": mission_run_value,
+        "reviewPack": review_pack_value,
+        "autonomyProfile": "night_operator",
+        "wakePolicy": wake_policy,
+        "intentSnapshot": {
+            "summary": "Runtime preserved the current mission intent for bounded unattended continuation.",
+            "primaryGoal": mission_run_value.get("title").cloned().unwrap_or(Value::Null),
+            "dominantDirection": mission_run_value.get("summary").cloned().unwrap_or(Value::Null),
+            "confidence": if wake_reason.is_some() { "medium" } else { "high" },
+            "signals": [],
+        },
+        "opportunityQueue": {
+            "selectedOpportunityId": selected_opportunity_id,
+            "selectionSummary": "Runtime kept the active opportunity aligned with the current mission run.",
+            "candidates": [],
+        },
+        "researchTrace": {
+            "mode": "repository_only",
+            "stage": "repository",
+            "summary": "Mission-control snapshot currently preserves runtime and repo citations for wake-up context.",
+            "citations": source_citations,
+            "sensitiveContextMixed": false,
+        },
+        "executionEligibility": {
+            "eligible": wake_state != "blocked",
+            "summary": if wake_state == "blocked" {
+                "Runtime reached a wake gate and should not continue unattended."
+            } else {
+                "Runtime can continue within the current bounded opportunity."
+            },
+            "wakeState": wake_state,
+            "nextEligibleAction": next_eligible_action,
+            "blockingReasons": wake_reason
+                .as_ref()
+                .map(|entry| vec![entry.clone()])
+                .unwrap_or_default(),
+        },
+        "wakeReason": wake_reason,
+        "selectedOpportunityId": selected_opportunity_id,
     }))
 }
 

@@ -161,6 +161,7 @@ export type TurnSendRequest = {
   attachments: TurnSendAttachment[];
   collaborationMode?: Record<string, unknown> | null;
   autoDrive?: AgentTaskAutoDriveState | null;
+  autonomyRequest?: RuntimeAutonomyRequestV2 | null;
 };
 
 export type TurnInterruptRequest = {
@@ -874,6 +875,7 @@ export type AgentTaskStartRequest = {
   missionBrief?: AgentTaskMissionBrief | null;
   relaunchContext?: AgentTaskRelaunchContext | null;
   autoDrive?: AgentTaskAutoDriveState | null;
+  autonomyRequest?: RuntimeAutonomyRequestV2 | null;
   steps: AgentTaskStepInput[];
 };
 
@@ -1289,6 +1291,126 @@ export type RuntimeValidationPlanV2 = {
   commands: string[];
 };
 
+export type RuntimeAutonomyProfileV2 = "supervised" | "night_operator";
+
+export type RuntimeWakeActionV2 = "continue" | "approve" | "clarify" | "reroute" | "pair" | "hold";
+
+export type RuntimeWakeStateV2 = "ready" | "attention" | "blocked";
+
+export type RuntimeSourceScopeV2 =
+  | "repository_only"
+  | "workspace_graph"
+  | "workspace_graph_and_public_web";
+
+export type RuntimeResearchModeV2 = "repository_only" | "public_web" | "staged";
+
+export type RuntimeQueueBudgetV2 = {
+  maxQueuedActions?: number | null;
+  maxRuntimeMinutes?: number | null;
+  maxAutoContinuations?: number | null;
+};
+
+export type RuntimeWakePolicyV2 = {
+  mode: "auto_queue" | "review_queue" | "hold";
+  safeFollowUp: boolean;
+  allowAutomaticContinuation: boolean;
+  allowedActions: RuntimeWakeActionV2[];
+  stopGates: string[];
+  queueBudget?: RuntimeQueueBudgetV2 | null;
+};
+
+export type RuntimeResearchPolicyV2 = {
+  mode: RuntimeResearchModeV2;
+  allowNetworkAnalysis: boolean;
+  requireCitations: boolean;
+  allowPrivateContextStage: boolean;
+};
+
+export type RuntimeIntentSignalKindV2 =
+  | "operator_intent"
+  | "thread_history"
+  | "repo_rule"
+  | "task_source"
+  | "recent_commit"
+  | "validation_debt"
+  | "review_debt"
+  | "research";
+
+export type RuntimeIntentSignalV2 = {
+  kind: RuntimeIntentSignalKindV2;
+  summary: string;
+  source: string | null;
+  confidence: "low" | "medium" | "high";
+};
+
+export type RuntimeIntentSnapshotV2 = {
+  summary: string;
+  primaryGoal: string | null;
+  dominantDirection: string | null;
+  confidence: "low" | "medium" | "high";
+  signals: RuntimeIntentSignalV2[];
+};
+
+export type RuntimeOpportunityCandidateV2 = {
+  id: string;
+  title: string;
+  summary: string;
+  whySelected: string;
+  whyNow: string;
+  evidence: string[];
+  risk: RuntimeRunRiskLevelV2;
+  stopGates: string[];
+  nextWakeAction: RuntimeWakeActionV2;
+  score: number;
+  confidence: "low" | "medium" | "high";
+};
+
+export type RuntimeOpportunityQueueV2 = {
+  selectedOpportunityId: string | null;
+  selectionSummary: string | null;
+  candidates: RuntimeOpportunityCandidateV2[];
+};
+
+export type RuntimeResearchCitationV2 = {
+  id: string;
+  label: string;
+  url?: string | null;
+  sourceKind: "repo_doc" | "task_source" | "public_web" | "runtime_log";
+  trustLevel: "primary" | "runtime" | "derived";
+  claimSummary: string;
+};
+
+export type RuntimeResearchTraceV2 = {
+  mode: RuntimeResearchModeV2;
+  stage: "repository" | "public_web" | "private_context";
+  summary: string;
+  citations: RuntimeResearchCitationV2[];
+  sensitiveContextMixed: boolean;
+};
+
+export type RuntimeExecutionEligibilityV2 = {
+  eligible: boolean;
+  summary: string;
+  wakeState: RuntimeWakeStateV2;
+  nextEligibleAction: RuntimeWakeActionV2;
+  blockingReasons: string[];
+};
+
+export type RuntimeWakePolicySummaryV2 = {
+  summary: string;
+  safeFollowUp: boolean;
+  allowedActions: RuntimeWakeActionV2[];
+  queueBudget?: RuntimeQueueBudgetV2 | null;
+};
+
+export type RuntimeAutonomyRequestV2 = {
+  autonomyProfile: RuntimeAutonomyProfileV2;
+  wakePolicy: RuntimeWakePolicyV2;
+  sourceScope: RuntimeSourceScopeV2;
+  researchPolicy: RuntimeResearchPolicyV2;
+  queueBudget: RuntimeQueueBudgetV2;
+};
+
 export type RuntimeRunPrepareV2Response = {
   preparedAt: number;
   runIntent: RuntimeRunIntentBriefV2;
@@ -1297,6 +1419,13 @@ export type RuntimeRunPrepareV2Response = {
   approvalBatches: RuntimeApprovalBatchV2[];
   validationPlan: RuntimeValidationPlanV2;
   reviewFocus: string[];
+  autonomyProfile: RuntimeAutonomyProfileV2;
+  wakePolicy: RuntimeWakePolicyV2;
+  intentSnapshot: RuntimeIntentSnapshotV2;
+  opportunityQueue: RuntimeOpportunityQueueV2;
+  researchTrace: RuntimeResearchTraceV2;
+  executionEligibility: RuntimeExecutionEligibilityV2;
+  wakePolicySummary: RuntimeWakePolicySummaryV2;
 };
 
 export type RuntimeRunCancelRequest = {
@@ -1391,6 +1520,14 @@ export type RuntimeRunRecordV2 = {
   run: RuntimeRunSummary;
   missionRun: HugeCodeRunSummary;
   reviewPack: HugeCodeReviewPackSummary | null;
+  autonomyProfile?: RuntimeAutonomyProfileV2 | null;
+  wakePolicy?: RuntimeWakePolicyV2 | null;
+  intentSnapshot?: RuntimeIntentSnapshotV2 | null;
+  opportunityQueue?: RuntimeOpportunityQueueV2 | null;
+  researchTrace?: RuntimeResearchTraceV2 | null;
+  executionEligibility?: RuntimeExecutionEligibilityV2 | null;
+  wakeReason?: string | null;
+  selectedOpportunityId?: string | null;
 };
 
 export type RuntimeRunStartV2Response = RuntimeRunRecordV2;
@@ -1403,7 +1540,18 @@ export type RuntimeRunResumeV2Response = RuntimeRunRecordV2;
 
 export type RuntimeRunInterventionV2Response = RuntimeRunRecordV2;
 
-export type RuntimeReviewGetV2Response = HugeCodeReviewPackSummary | null;
+export type RuntimeReviewGetV2Response =
+  | (HugeCodeReviewPackSummary & {
+      autonomyProfile?: RuntimeAutonomyProfileV2 | null;
+      wakePolicy?: RuntimeWakePolicyV2 | null;
+      intentSnapshot?: RuntimeIntentSnapshotV2 | null;
+      opportunityQueue?: RuntimeOpportunityQueueV2 | null;
+      researchTrace?: RuntimeResearchTraceV2 | null;
+      executionEligibility?: RuntimeExecutionEligibilityV2 | null;
+      wakeReason?: string | null;
+      selectedOpportunityId?: string | null;
+    })
+  | null;
 
 export type RuntimeRunCancelAck = {
   accepted: boolean;
