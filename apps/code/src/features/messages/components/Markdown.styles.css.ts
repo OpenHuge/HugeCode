@@ -3,111 +3,6 @@ import { layers } from "../../../styles/system/layers.css";
 
 export const markdown = "markdown";
 export const markdownLinkblock = "markdown-linkblock";
-export const markdownTableScroll = style({
-  "@layer": {
-    [layers.features]: {
-      width: "100%",
-      maxWidth: "100%",
-      minWidth: "0",
-      margin: "12px 0",
-      overflowX: "auto",
-      overflowY: "hidden",
-      scrollbarWidth: "thin",
-      scrollbarGutter: "stable both-edges",
-      borderRadius: "12px",
-      border: "1px solid color-mix(in srgb, var(--ds-border-subtle) 40%, transparent)",
-      background: "color-mix(in srgb, var(--ds-surface-card-base) 92%, var(--ds-surface-muted) 8%)",
-      selectors: {
-        [`.${markdown} &:first-child`]: {
-          marginTop: 0,
-        },
-        [`.${markdown} &:last-child`]: {
-          marginBottom: 0,
-        },
-      },
-    },
-  },
-});
-export const markdownTable = style({
-  "@layer": {
-    [layers.features]: {
-      width: "max-content",
-      minWidth: "100%",
-      borderCollapse: "separate",
-      borderSpacing: "0",
-      tableLayout: "auto",
-      color: "var(--ds-text-primary)",
-      fontSize: "var(--font-size-meta)",
-      lineHeight: "var(--line-height-content)",
-    },
-  },
-});
-export const markdownTableHead = style({
-  "@layer": {
-    [layers.features]: {
-      background: "color-mix(in srgb, var(--ds-surface-card) 76%, var(--ds-surface-control) 24%)",
-    },
-  },
-});
-export const markdownTableBody = style({});
-export const markdownTableRow = style({
-  "@layer": {
-    [layers.features]: {
-      selectors: {
-        "&:nth-child(even)": {
-          background:
-            "color-mix(in srgb, var(--ds-surface-muted) 46%, var(--ds-surface-card-base) 54%)",
-        },
-      },
-    },
-  },
-});
-export const markdownTableHeaderCell = style({
-  "@layer": {
-    [layers.features]: {
-      padding: "10px 12px",
-      borderBottom: "1px solid color-mix(in srgb, var(--ds-border-subtle) 48%, transparent)",
-      fontSize: "var(--font-size-fine)",
-      fontWeight: "650",
-      letterSpacing: "0.01em",
-      textAlign: "left",
-      whiteSpace: "nowrap",
-      color: "var(--ds-text-strong)",
-      background: "inherit",
-      selectors: {
-        '&[data-markdown-align="center"]': {
-          textAlign: "center",
-        },
-        '&[data-markdown-align="right"]': {
-          textAlign: "right",
-        },
-      },
-    },
-  },
-});
-export const markdownTableCell = style({
-  "@layer": {
-    [layers.features]: {
-      padding: "10px 12px",
-      borderBottom: "1px solid color-mix(in srgb, var(--ds-border-subtle) 24%, transparent)",
-      color: "var(--ds-text-primary)",
-      verticalAlign: "top",
-      overflowWrap: "anywhere",
-      wordBreak: "break-word",
-      selectors: {
-        '&[data-markdown-align="center"]': {
-          textAlign: "center",
-        },
-        '&[data-markdown-align="right"]': {
-          textAlign: "right",
-        },
-        [`${markdownTableRow}:last-child &`]: {
-          borderBottom: "0",
-        },
-      },
-    },
-  },
-});
 
 export const messageFileLink = "message-file-link";
 export const messageFileLinkName = "message-file-link-name";
@@ -127,32 +22,6 @@ export const skillReferenceCardDescription = "message-skill-card-description";
 export const skillReferenceCardMeta = "message-skill-card-meta";
 export const skillReferenceCardMetaChip = "message-skill-card-meta-chip";
 export const skillReferenceCardMetaChipWarning = "message-skill-card-meta-chip-warning";
-
-export const markdownCodeblock = style({
-  "@layer": {
-    [layers.features]: {
-      margin: "12px 0",
-      borderRadius: "8px",
-      border: "1px solid color-mix(in srgb, var(--ds-border-subtle) 40%, transparent)",
-      background:
-        "color-mix(in srgb, var(--ds-surface-card-base) 92%, var(--ds-surface-panel, var(--ds-surface-card)) 8%)",
-      overflow: "hidden",
-    },
-  },
-});
-
-export const markdownCodeblockHeader = style({
-  "@layer": {
-    [layers.features]: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "7px 14px",
-      backgroundColor: "var(--ds-surface-card)", // Charcoal header
-      borderBottom: "1px solid color-mix(in srgb, var(--ds-border-subtle) 30%, transparent)",
-    },
-  },
-});
 
 export const markdownCodeblockLanguage = style({
   "@layer": {
@@ -217,34 +86,6 @@ export const markdownCodeblockPre = style({
 });
 
 export const stateCopied = "is-copied";
-
-globalStyle(`.${markdown}`, {
-  fontSize: "var(--font-size-title)",
-  lineHeight: "var(--line-height-content)",
-});
-
-globalStyle(`.${markdown} p`, {
-  marginBottom: "12px",
-  lineHeight: "var(--line-height-content)",
-});
-
-globalStyle(`.${markdown} ul, .${markdown} ol`, {
-  marginBottom: "12px",
-  paddingLeft: "20px",
-});
-
-globalStyle(`.${markdown} li`, {
-  marginBottom: "4px",
-  lineHeight: "var(--line-height-content)",
-});
-
-globalStyle(`.${markdown} p:first-child`, {
-  marginTop: 0,
-});
-
-globalStyle(`.${markdown} p:last-child, .${markdown} ul:last-child, .${markdown} ol:last-child`, {
-  marginBottom: 0,
-});
 
 globalStyle(`.${messageFileLink}`, {
   display: "inline-flex",
