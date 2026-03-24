@@ -971,6 +971,34 @@ describe("tauri invoke wrappers", () => {
     );
   });
 
+  it("forwards explicit provider routes to the runtime turn client", async () => {
+    const runtimeSendTurnMock = vi.fn().mockResolvedValue({
+      accepted: true,
+      turnId: "turn-provider",
+      threadId: "thread-1",
+      routedProvider: "claude_code_local",
+      routedModelId: "claude-sonnet-4-5",
+      routedPool: "claude_code_local",
+      routedSource: "explicit_provider",
+      message: "ok",
+    });
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      sendTurn: runtimeSendTurnMock,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
+
+    await sendUserMessage("ws-4", "thread-1", "hello", {
+      provider: "claude_code_local",
+      model: "claude-sonnet-4-5",
+    });
+
+    expect(runtimeSendTurnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "claude_code_local",
+        modelId: "claude-sonnet-4-5",
+      })
+    );
+  });
+
   it("forwards collaborationMode only when explicitly provided", async () => {
     const runtimeSendTurnMock = vi.fn().mockResolvedValue({
       accepted: true,

@@ -707,6 +707,7 @@ export function useThreadCodexControls({
 
   const effectiveExecutionMode: ComposerExecutionMode =
     localCliAvailable || executionMode === "runtime" ? executionMode : "runtime";
+  const resolvedProvider = selectedModel?.provider ?? null;
   const resolvedModel = selectedModel?.model ?? null;
   const selectedProviderId =
     preferredProviderFamilyId ??
@@ -1012,6 +1013,7 @@ export function useThreadCodexControls({
     reasoningOptions,
     reasoningSupported,
     resolvedEffort,
+    resolvedProvider,
     resolvedModel,
     missionMode: missionDraft.mode,
     executionProfileId: missionDraft.executionProfileId,
