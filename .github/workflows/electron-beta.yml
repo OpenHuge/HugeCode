@@ -33,6 +33,7 @@ on:
       - "patches/electron-*.patch"
       - "scripts/electron-publish-dry-run.mjs"
       - "scripts/electron-verify-release-contract.mjs"
+      - "scripts/classify-electron-beta-scope.mjs"
       - "scripts/lib/electron-update-release-contract.mjs"
       - ".github/workflows/_reusable-electron-beta.yml"
       - ".github/workflows/electron-beta.yml"
@@ -48,8 +49,10 @@ on:
       - "packages/code-platform-interfaces/**"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - "scripts/electron-publish-dry-run.mjs"
       - "scripts/electron-verify-release-contract.mjs"
+      - "scripts/classify-electron-beta-scope.mjs"
       - "scripts/lib/electron-update-release-contract.mjs"
       - ".github/workflows/_reusable-electron-beta.yml"
       - ".github/workflows/electron-beta.yml"
@@ -68,8 +71,8 @@ jobs:
     name: Detect electron-beta-relevant changes
     runs-on: ubuntu-latest
     outputs:
-      electron_verify_required: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.electron_package == 'true' || steps.filter.outputs.electron_verify == 'true' }}
-      electron_package_required: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.electron_package == 'true' }}
+      electron_verify_required: ${{ github.event_name == 'workflow_dispatch' || steps.scope.outputs.electron_verify_required == 'true' }}
+      electron_package_required: ${{ github.event_name == 'workflow_dispatch' || steps.scope.outputs.electron_package_required == 'true' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -81,33 +84,12 @@ jobs:
           git fetch --no-tags --prune --depth=1 origin \
             +refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
 
-      - id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          filters: |
-            electron_package:
-              - "apps/code-electron/**"
-              - "!apps/code-electron/**/*.md"
-              - "!apps/code-electron/**/*.mdx"
-              - "apps/code/package.json"
-              - "packages/code-application/**"
-              - "!packages/code-application/**/*.md"
-              - "!packages/code-application/**/*.mdx"
-              - "packages/code-platform-interfaces/**"
-              - "!packages/code-platform-interfaces/**/*.md"
-              - "!packages/code-platform-interfaces/**/*.mdx"
-              - "package.json"
-              - "pnpm-lock.yaml"
-              - "pnpm-workspace.yaml"
-              - "patches/electron-*.patch"
-              - "scripts/electron-publish-dry-run.mjs"
-              - "scripts/electron-verify-release-contract.mjs"
-              - "scripts/lib/electron-update-release-contract.mjs"
-            electron_verify:
-              - ".github/workflows/_reusable-electron-beta.yml"
-              - ".github/workflows/electron-beta.yml"
-              - ".github/actions/setup-node-pnpm/**"
-              - ".github/actions/upload-workflow-artifact/**"
+      - id: scope
+        name: Classify electron-beta scope
+        env:
+          CI_SCOPE_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD^' }}
+          CI_SCOPE_HEAD_REF: HEAD
+        run: node scripts/classify-electron-beta-scope.mjs
 
   verify:
     name: Verify

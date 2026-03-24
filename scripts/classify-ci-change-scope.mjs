@@ -81,6 +81,7 @@ function isRepoGovernanceOnlyFile(file) {
     file === "scripts/check-workflow-governance.mjs" ||
     file === "scripts/check-workspace-task-coverage.mjs" ||
     file === "scripts/classify-ci-change-scope.mjs" ||
+    file === "scripts/classify-electron-beta-scope.mjs" ||
     file === "scripts/codex-preflight.mjs" ||
     file === "scripts/workflow-list.mjs"
   );
