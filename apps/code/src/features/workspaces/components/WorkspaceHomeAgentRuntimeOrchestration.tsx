@@ -94,6 +94,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
   const launchReadiness = missionControlProjection.launchReadiness;
   const activeRuntimeCount = missionControlProjection.runList.activeRuntimeCount;
+  const projectedRunsByTaskId = missionControlProjection.runList.projectedRunsByTaskId;
   const visibleRuntimeRuns = missionControlProjection.runList.visibleRuntimeRuns;
   const checkpointFailureSummary =
     runtimeDurabilityWarning &&
@@ -121,6 +122,19 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         .map((dependency) => `${dependency} -> ${task.taskKey}`)
     );
   }, [runtimeBatchPreview.tasks]);
+  const continuityPriorityItems = useMemo(
+    () =>
+      continuityReadiness.items.slice(0, 3).map((item) => ({
+        ...item,
+        title:
+          projectedRunsByTaskId.get(item.taskId)?.title?.trim() ||
+          visibleRuntimeRuns
+            .find((entry) => entry.task.taskId === item.taskId)
+            ?.task.title?.trim() ||
+          item.taskId,
+      })),
+    [continuityReadiness.items, projectedRunsByTaskId, visibleRuntimeRuns]
+  );
   const repositoryPolicyLabel = formatPolicyValue(
     repositoryExecutionContract?.metadata?.label,
     "Repository policy defaults"
@@ -300,6 +314,43 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             <div className={controlStyles.warning}>{continuityReadiness.blockingReason}</div>
           ) : null}
         </div>
+        {continuityPriorityItems.length > 0 ? (
+          <div className="workspace-home-code-runtime-item">
+            <div className="workspace-home-code-runtime-item-main">
+              <strong>Priority continuity queue</strong>
+              <span>
+                Runtime already published {continuityReadiness.items.length} continuity path
+                {continuityReadiness.items.length === 1 ? "" : "s"} across resume, handoff, and
+                review follow-up.
+              </span>
+              {continuityPriorityItems.map((item) => (
+                <div
+                  key={`${item.runId}:${item.taskId}`}
+                  className="workspace-home-code-runtime-item"
+                >
+                  <div className="workspace-home-code-runtime-item-main">
+                    <strong>{item.title}</strong>
+                    <span>
+                      Path: {item.pathKind} via {item.truthSourceLabel}
+                    </span>
+                    <span>{item.detail}</span>
+                    <span>Next step: {item.recommendedAction}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {continuityReadiness.items.length > continuityPriorityItems.length ? (
+              <div className={controlStyles.sectionMeta}>
+                +{continuityReadiness.items.length - continuityPriorityItems.length} more continuity
+                path
+                {continuityReadiness.items.length - continuityPriorityItems.length === 1
+                  ? ""
+                  : "s"}{" "}
+                remain in the run list.
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {resumeReadyRuntimeTasks.length > 0 ? (
           <div className="workspace-home-code-runtime-item">
             <div className="workspace-home-code-runtime-item-main">

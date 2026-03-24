@@ -203,6 +203,9 @@ describe("runtimeWebMcpContextPolicy", () => {
     });
 
     expect(result.current.contextFingerprint).toBe("ctx-123");
+    expect(result.current.resolutionKind).toBe("runtime");
+    expect(result.current.resolvedAt).not.toBeNull();
+    expect(result.current.expiresAt).not.toBeNull();
     expect(result.current.truthSourceLabel).toBe("Runtime kernel v2 prepare");
     expect(recordSentryMetric).toHaveBeenCalledWith(
       "runtime_webmcp_context_policy",
@@ -330,6 +333,7 @@ describe("runtimeWebMcpContextPolicy", () => {
     });
 
     expect(vi.mocked(prepareRuntimeRunV2)).toHaveBeenCalledTimes(1);
+    expect(second.result.current.resolutionKind).toBe("cache");
     expect(second.result.current.truthSourceLabel).toBe("Runtime kernel v2 prepare (cached)");
     expect(recordSentryMetric).toHaveBeenCalledWith(
       "runtime_webmcp_context_policy",
@@ -385,6 +389,80 @@ describe("runtimeWebMcpContextPolicy", () => {
     });
 
     expect(vi.mocked(prepareRuntimeRunV2)).toHaveBeenCalledTimes(2);
+    expect(result.current.resolutionKind).toBe("runtime");
     expect(result.current.truthSourceLabel).toBe("Runtime kernel v2 prepare");
+  });
+
+  it("revalidates cached WebMCP policy truth after the freshness window expires", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-03-24T00:00:00Z"));
+      vi.mocked(prepareRuntimeRunV2)
+        .mockResolvedValueOnce(buildPrepareResponse("full"))
+        .mockResolvedValueOnce(buildPrepareResponse("minimal"));
+
+      const first = renderHook(() =>
+        useRuntimeWebMcpContextPolicy({
+          workspaceId: "ws-1",
+          enabled: true,
+          activeModelContext: {
+            provider: "anthropic",
+            modelId: "claude-sonnet-4-5",
+          },
+          intent: {
+            objective: "Plan runtime work",
+            constraints: "",
+            successCriteria: "",
+            deadline: null,
+            priority: "medium",
+            managerNotes: "",
+          },
+        })
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+
+      expect(first.result.current.selectionPolicy?.toolExposureProfile).toBe("full");
+      first.unmount();
+
+      const second = renderHook(() =>
+        useRuntimeWebMcpContextPolicy({
+          workspaceId: "ws-1",
+          enabled: true,
+          activeModelContext: {
+            provider: "anthropic",
+            modelId: "claude-sonnet-4-5",
+          },
+          intent: {
+            objective: "Plan runtime work",
+            constraints: "",
+            successCriteria: "",
+            deadline: null,
+            priority: "medium",
+            managerNotes: "",
+          },
+        })
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+
+      expect(second.result.current.selectionPolicy?.toolExposureProfile).toBe("full");
+      expect(second.result.current.resolutionKind).toBe("cache");
+      expect(vi.mocked(prepareRuntimeRunV2)).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_001);
+      });
+
+      expect(second.result.current.selectionPolicy?.toolExposureProfile).toBe("minimal");
+      expect(second.result.current.resolutionKind).toBe("runtime");
+      expect(vi.mocked(prepareRuntimeRunV2)).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

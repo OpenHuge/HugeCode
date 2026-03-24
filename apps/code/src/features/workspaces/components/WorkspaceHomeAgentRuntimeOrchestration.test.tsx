@@ -1083,7 +1083,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     expect(
       screen.getByText(/completed run moves? into Review Pack as the primary finish-line surface/i)
     ).toBeTruthy();
-    expect(screen.getByText("Reviewable task")).toBeTruthy();
+    expect(screen.getAllByText("Reviewable task").length).toBeGreaterThan(0);
     expect(screen.getByText("Review Pack is ready for control-device review.")).toBeTruthy();
     expect(
       screen.getByText("Checkpoint checkpoint-1 is ready for resume or handoff.")
@@ -1443,7 +1443,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Recovered task")).toBeTruthy();
+      expect(screen.getAllByText("Recovered task").length).toBeGreaterThan(0);
       expect(screen.getByText("Recovered")).toBeTruthy();
       expect(screen.getByText("Checkpoint checkpoint-row-1")).toBeTruthy();
       expect(screen.getByText("Trace agent-task:runtime-recovered-1")).toBeTruthy();
@@ -1494,7 +1494,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Resume recoverable runs (1)" })).toBeTruthy();
-      expect(screen.getByText("Recovered dot-case")).toBeTruthy();
+      expect(screen.getAllByText("Recovered dot-case").length).toBeGreaterThan(0);
     });
   });
 
@@ -1593,7 +1593,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Rejected recovery")).toBeTruthy();
+      expect(screen.getAllByText("Rejected recovery").length).toBeGreaterThan(0);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Resume" }));
@@ -1746,8 +1746,15 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     await waitFor(() => {
       expect(screen.getByText("Continuity readiness blocked")).toBeTruthy();
       expect(screen.getByText(/Review blocked: 1/)).toBeTruthy();
+      expect(screen.getByText("Priority continuity queue")).toBeTruthy();
+      expect(screen.getByText("Path: review via Runtime review actionability")).toBeTruthy();
       expect(
-        screen.getByText("Review cannot continue until runtime evidence is restored.")
+        screen.getAllByText("Review cannot continue until runtime evidence is restored.").length
+      ).toBeGreaterThan(0);
+      expect(
+        screen.getByText(
+          "Next step: Open Review Pack and resolve the runtime-blocked follow-up before continuing."
+        )
       ).toBeTruthy();
     });
   });
@@ -1794,6 +1801,14 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     await waitFor(() => {
       const continuity = within(screen.getByTestId("workspace-runtime-continuity"));
       expect(continuity.getByText(/Handoff ready: 1/)).toBeTruthy();
+      expect(screen.getByText("Priority continuity queue")).toBeTruthy();
+      expect(screen.getAllByText("Handoff only").length).toBeGreaterThan(0);
+      expect(screen.getByText("Path: handoff via Runtime mission linkage")).toBeTruthy();
+      expect(
+        screen.getByText(
+          "Next step: Use the runtime-published handoff or navigation target instead of rebuilding recovery locally."
+        )
+      ).toBeTruthy();
       expect(screen.getByRole("button", { name: "Resume recoverable runs (0)" })).toBeTruthy();
       expect(
         screen.getByText(

@@ -85,6 +85,31 @@ function formatToolExposureReasonCode(reasonCode: string): string {
   }
 }
 
+function buildRuntimePolicyFreshnessSummary(input: {
+  resolutionKind: "cache" | "runtime" | null;
+  contextFingerprint: string | null;
+  expiresAt: number | null;
+}): string | null {
+  if (!input.resolutionKind && !input.contextFingerprint) {
+    return null;
+  }
+
+  const parts: string[] = [];
+  if (input.resolutionKind === "runtime") {
+    parts.push("Source: live runtime truth");
+  } else if (input.resolutionKind === "cache") {
+    parts.push("Source: cached runtime truth");
+  }
+  if (input.contextFingerprint) {
+    parts.push(`Context fingerprint: ${input.contextFingerprint}`);
+  }
+  if (input.resolutionKind === "cache" && input.expiresAt !== null) {
+    const refreshInSeconds = Math.max(1, Math.ceil((input.expiresAt - Date.now()) / 1000));
+    parts.push(`Auto-refresh in about ${refreshInSeconds}s`);
+  }
+  return parts.length > 0 ? parts.join(" | ") : null;
+}
+
 export function WorkspaceHomeAgentControl({
   workspace,
   activeModelContext,
@@ -242,6 +267,19 @@ export function WorkspaceHomeAgentControl({
     }
     return bridgeToolExposureReasonCodes.map(formatToolExposureReasonCode).join(" | ");
   }, [bridgeToolExposureReasonCodes]);
+  const runtimePolicyFreshnessSummary = useMemo(
+    () =>
+      buildRuntimePolicyFreshnessSummary({
+        resolutionKind: runtimeWebMcpContextPolicy.resolutionKind,
+        contextFingerprint: runtimeWebMcpContextPolicy.contextFingerprint,
+        expiresAt: runtimeWebMcpContextPolicy.expiresAt,
+      }),
+    [
+      runtimeWebMcpContextPolicy.contextFingerprint,
+      runtimeWebMcpContextPolicy.expiresAt,
+      runtimeWebMcpContextPolicy.resolutionKind,
+    ]
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -409,6 +447,9 @@ export function WorkspaceHomeAgentControl({
         <span className={controlStyles.controlStatusLabel}>Context policy</span>
         <span className={controlStyles.controlStatusValue}>{runtimePolicyStatus}</span>
       </div>
+      {runtimePolicyFreshnessSummary ? (
+        <div className={controlStyles.sectionMeta}>{runtimePolicyFreshnessSummary}</div>
+      ) : null}
       {toolExposureReasonSummary ? (
         <div className={controlStyles.sectionMeta}>
           Catalog reasoning: {toolExposureReasonSummary}

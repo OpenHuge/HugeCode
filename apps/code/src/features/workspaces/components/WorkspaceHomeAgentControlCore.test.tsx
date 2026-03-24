@@ -41,6 +41,9 @@ vi.mock("../../../application/runtime/facades/runtimeWebMcpContextPolicy", () =>
       preferColdFetch: true,
     },
     contextFingerprint: "ctx-123",
+    resolutionKind: "runtime",
+    resolvedAt: 1_711_238_400_000,
+    expiresAt: 1_711_238_430_000,
     loading: false,
     error: null,
     truthSourceLabel: "Runtime kernel v2 prepare",
@@ -121,6 +124,9 @@ describe("WorkspaceHomeAgentControl", () => {
         preferColdFetch: true,
       },
       contextFingerprint: "ctx-123",
+      resolutionKind: "runtime",
+      resolvedAt: 1_711_238_400_000,
+      expiresAt: 1_711_238_430_000,
       loading: false,
       error: null,
       truthSourceLabel: "Runtime kernel v2 prepare",
@@ -209,6 +215,9 @@ describe("WorkspaceHomeAgentControl", () => {
     expect(screen.getByText(/4 tools synced \(provideContext, slim catalog\)/i)).toBeTruthy();
     expect(screen.getByText(/Runtime kernel v2 prepare: balanced\/slim/i)).toBeTruthy();
     expect(
+      screen.getByText(/Source: live runtime truth \| Context fingerprint: ctx-123/i)
+    ).toBeTruthy();
+    expect(
       screen.getByText(/Catalog reasoning: Runtime policy slimmed runtime-only tools/i)
     ).toBeTruthy();
   });
@@ -252,6 +261,9 @@ describe("WorkspaceHomeAgentControl", () => {
     vi.mocked(useRuntimeWebMcpContextPolicy).mockReturnValue({
       selectionPolicy: null,
       contextFingerprint: null,
+      resolutionKind: null,
+      resolvedAt: null,
+      expiresAt: null,
       loading: false,
       error: "runtime prepare unavailable",
       truthSourceLabel: null,

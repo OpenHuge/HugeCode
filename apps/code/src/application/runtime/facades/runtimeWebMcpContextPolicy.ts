@@ -20,6 +20,9 @@ type RuntimeWebMcpContextPolicyInput = {
 export type RuntimeWebMcpContextPolicyState = {
   selectionPolicy: RuntimeContextSelectionPolicyV2 | null;
   contextFingerprint: string | null;
+  resolutionKind: "cache" | "runtime" | null;
+  resolvedAt: number | null;
+  expiresAt: number | null;
   loading: boolean;
   error: string | null;
   truthSourceLabel: string | null;
@@ -28,6 +31,9 @@ export type RuntimeWebMcpContextPolicyState = {
 type RuntimeWebMcpContextPolicyResolution = {
   selectionPolicy: RuntimeContextSelectionPolicyV2;
   contextFingerprint: string;
+  resolutionKind: "cache" | "runtime";
+  resolvedAt: number;
+  expiresAt: number;
   truthSourceLabel: string;
   result: "cache" | "runtime";
 };
@@ -152,6 +158,9 @@ async function resolveRuntimeWebMcpContextPolicy(
     touchRuntimeWebMcpContextPolicyCacheEntry(cacheKey, cached);
     return {
       ...cached,
+      resolutionKind: "cache",
+      resolvedAt: cached.cachedAt,
+      expiresAt: cached.cachedAt + WEBMCP_CONTEXT_POLICY_CACHE_TTL_MS,
       truthSourceLabel: "Runtime kernel v2 prepare (cached)",
       result: "cache",
     };
@@ -167,12 +176,16 @@ async function resolveRuntimeWebMcpContextPolicy(
 
   const nextRequest = prepareRuntimeRunV2(request)
     .then((preparation) => {
+      const cachedAt = Date.now();
       const resolution = {
         selectionPolicy: preparation.contextWorkingSet.selectionPolicy,
         contextFingerprint: preparation.contextWorkingSet.contextFingerprint,
+        resolutionKind: "runtime" as const,
+        resolvedAt: cachedAt,
+        expiresAt: cachedAt + WEBMCP_CONTEXT_POLICY_CACHE_TTL_MS,
         truthSourceLabel: "Runtime kernel v2 prepare",
         result: "runtime" as const,
-        cachedAt: Date.now(),
+        cachedAt,
       };
       touchRuntimeWebMcpContextPolicyCacheEntry(cacheKey, resolution);
       return resolution;
@@ -236,6 +249,9 @@ export function useRuntimeWebMcpContextPolicy(
     null
   );
   const [contextFingerprint, setContextFingerprint] = useState<string | null>(null);
+  const [resolutionKind, setResolutionKind] = useState<"cache" | "runtime" | null>(null);
+  const [resolvedAt, setResolvedAt] = useState<number | null>(null);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [truthSourceLabel, setTruthSourceLabel] = useState<string | null>(null);
@@ -244,6 +260,9 @@ export function useRuntimeWebMcpContextPolicy(
     if (!policyEnabled || !debouncedRequest || !requestCacheKey) {
       setSelectionPolicy(null);
       setContextFingerprint(null);
+      setResolutionKind(null);
+      setResolvedAt(null);
+      setExpiresAt(null);
       setLoading(false);
       setError(null);
       setTruthSourceLabel(null);
@@ -260,6 +279,9 @@ export function useRuntimeWebMcpContextPolicy(
         }
         setSelectionPolicy(resolution.selectionPolicy);
         setContextFingerprint(resolution.contextFingerprint);
+        setResolutionKind(resolution.resolutionKind);
+        setResolvedAt(resolution.resolvedAt);
+        setExpiresAt(resolution.expiresAt);
         setError(null);
         setTruthSourceLabel(resolution.truthSourceLabel);
         recordSentryMetric("runtime_webmcp_context_policy", 1, {
@@ -279,6 +301,9 @@ export function useRuntimeWebMcpContextPolicy(
         }
         setSelectionPolicy(null);
         setContextFingerprint(null);
+        setResolutionKind(null);
+        setResolvedAt(null);
+        setExpiresAt(null);
         setTruthSourceLabel(null);
         setError(nextError instanceof Error ? nextError.message : String(nextError));
         recordSentryMetric("runtime_webmcp_context_policy", 1, {
@@ -309,9 +334,27 @@ export function useRuntimeWebMcpContextPolicy(
     runtimeContextRevision,
   ]);
 
+  useEffect(() => {
+    if (!policyEnabled || resolutionKind !== "cache" || expiresAt === null) {
+      return () => undefined;
+    }
+
+    const refreshDelayMs = Math.max(0, expiresAt - Date.now()) + 1;
+    const timeoutId = window.setTimeout(() => {
+      setRuntimeContextRevision((current) => current + 1);
+    }, refreshDelayMs);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [expiresAt, policyEnabled, resolutionKind]);
+
   return {
     selectionPolicy,
     contextFingerprint,
+    resolutionKind,
+    resolvedAt,
+    expiresAt,
     loading,
     error,
     truthSourceLabel,
