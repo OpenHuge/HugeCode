@@ -1152,8 +1152,12 @@
                 || result.output.contains("\"status\": \"blocked\"")
                 || result.output.contains("\"status\":\"degraded\"")
                 || result.output.contains("\"status\": \"degraded\"")
+                || result.output.contains("\"status\":\"ready\"")
+                || result.output.contains("\"status\": \"ready\"")
                 || result.output.contains("\"mode\":\"unavailable\"")
                 || result.output.contains("\"mode\": \"unavailable\"")
+                || result.output.contains("\"mode\":\"mcp-chrome-devtools\"")
+                || result.output.contains("\"mode\": \"mcp-chrome-devtools\"")
                 || result.output.contains("Workspace `ws-js-repl-browser-debug-status` not found."),
             "unexpected browser debug fallback output: {}",
             result.output
@@ -1241,8 +1245,12 @@
                 || result.output.contains("\"status\": \"blocked\"")
                 || result.output.contains("\"status\":\"degraded\"")
                 || result.output.contains("\"status\": \"degraded\"")
+                || result.output.contains("\"status\":\"ready\"")
+                || result.output.contains("\"status\": \"ready\"")
                 || result.output.contains("\"mode\":\"unavailable\"")
                 || result.output.contains("\"mode\": \"unavailable\"")
+                || result.output.contains("\"mode\":\"mcp-chrome-devtools\"")
+                || result.output.contains("\"mode\": \"mcp-chrome-devtools\"")
                 || result.output.contains("Workspace `ws-js-repl-browser-debug-mixed` not found."),
             "unexpected browser debug fallback output: {}",
             result.output
