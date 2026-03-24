@@ -4,6 +4,7 @@ import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import {
   hasForgeOsxSignConfig,
   repairDarwinArm64Signature,
+  resolveDarwinAppBundlePath,
   shouldRepairDarwinArm64Signature,
 } from "./scripts/darwin-ad-hoc-sign.mjs";
 
@@ -71,7 +72,9 @@ export default {
       }
 
       for (const outputPath of packageResult.outputPaths) {
-        await repairDarwinArm64Signature(outputPath);
+        await repairDarwinArm64Signature(
+          resolveDarwinAppBundlePath(outputPath, packagerConfig.name)
+        );
       }
     },
   },

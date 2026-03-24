@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { join } from "node:path";
 
 const requireFromHere = createRequire(import.meta.url);
 
@@ -19,6 +20,14 @@ export function hasForgeOsxSignConfig(packagerConfig = {}) {
 
 export function shouldRepairDarwinArm64Signature({ arch, hasOsxSignConfig = false, platform }) {
   return platform === "darwin" && arch === "arm64" && !hasOsxSignConfig;
+}
+
+export function resolveDarwinAppBundlePath(packageOutputPath, appName = "HugeCode") {
+  if (packageOutputPath.endsWith(".app")) {
+    return packageOutputPath.replaceAll("\\", "/");
+  }
+
+  return join(packageOutputPath, `${appName}.app`).replaceAll("\\", "/");
 }
 
 export async function repairDarwinArm64Signature(appPath, dependencies = {}) {
