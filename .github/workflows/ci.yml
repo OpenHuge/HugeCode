@@ -27,7 +27,7 @@ jobs:
       runtime_contract_changed: ${{ steps.filter.outputs.runtime_contract }}
       desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime }}
       repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
-      frontend_optimization_changed: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.frontend_optimization == 'true' || steps.scope.outputs.frontend_manifest_changed == 'true') }}
+      frontend_optimization_changed: ${{ steps.filter.outputs.frontend_optimization == 'true' || steps.scope.outputs.frontend_manifest_changed == 'true' }}
       ui_contract_required: ${{ steps.filter.outputs.ui_contract }}
       circular_required: ${{ steps.filter.outputs.app_circular }}
       integration_watch_required: ${{ steps.filter.outputs.code_integration_watch }}
@@ -189,6 +189,7 @@ jobs:
               - '.codex/e2e-map.json'
               - 'scripts/lib/e2e-map.mjs'
               - '.github/workflows/ci.yml'
+              - '.github/workflows/_reusable-ci-frontend-optimization.yml'
               - '.github/actions/cache-turbo/**'
               - '.github/actions/install-linux-desktop-deps/**'
               - '.github/actions/setup-node-pnpm/**'
@@ -282,7 +283,7 @@ jobs:
 
   frontend_optimization:
     name: frontend_optimization
-    if: github.event_name == 'pull_request' && needs.changes.outputs.ci_required == 'true' && needs.changes.outputs.frontend_optimization_changed == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.frontend_optimization_changed == 'true'
     needs: [changes]
     uses: ./.github/workflows/_reusable-ci-frontend-optimization.yml
     secrets: inherit
