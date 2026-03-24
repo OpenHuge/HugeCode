@@ -184,7 +184,7 @@ describe("SettingsCodexSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Update" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
-    fireEvent.click(screen.getByRole("option", { name: "GPT-5.1" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "GPT-5.1" }));
     fireEvent.click(screen.getByRole("button", { name: "Access mode" }));
     fireEvent.click(screen.getByRole("option", { name: "Read only" }));
 
@@ -329,9 +329,10 @@ describe("SettingsCodexSection", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Provider" }));
-    expect(screen.getAllByRole("option", { name: "Claude" })).toHaveLength(1);
-    fireEvent.click(screen.getByRole("option", { name: "Claude" }));
+    fireEvent.click(screen.getByRole("button", { name: "Model" }));
+    expect(screen.getAllByRole("menuitem", { name: "Claude" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Claude" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Claude Sonnet 4.5" }));
 
     expect(onUpdateAppSettings).toHaveBeenCalledWith(
       expect.objectContaining({
