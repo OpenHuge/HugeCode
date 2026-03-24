@@ -15,6 +15,8 @@ use super::{
 
 const LOCAL_CLAUDE_THREAD_SESSION_STORE_KEY: &str = "claude_code_local_thread_sessions_v1";
 const LOCAL_CLAUDE_PROBE_TIMEOUT_MS: u64 = 5_000;
+const LOCAL_CLAUDE_NOT_AUTHENTICATED_ERROR: &str =
+    "Local Claude CLI is installed but not authenticated. Run `claude` to sign in and retry.";
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct LocalClaudeProbeResult {
@@ -28,6 +30,17 @@ pub(crate) struct LocalClaudeExecTurnResult {
     pub(crate) output: String,
     pub(crate) response_model_id: Option<String>,
     pub(crate) session_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+struct LocalClaudeAuthStatus {
+    #[serde(default)]
+    logged_in: bool,
+    #[serde(default)]
+    auth_method: Option<String>,
+    #[serde(default)]
+    api_provider: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -235,16 +248,11 @@ fn emit_assistant_delta(
 
 fn classify_local_claude_error(stderr: &str, stdout: &str) -> Option<String> {
     let combined = format!("{stderr}\n{stdout}").to_ascii_lowercase();
-    if combined.contains("api key source\":\"none")
-        || combined.contains("api key source: none")
-        || combined.contains("sign in")
+    if combined.contains("sign in")
         || combined.contains("login")
         || combined.contains("authenticated")
     {
-        return Some(
-            "Local Claude CLI is installed but not authenticated. Run `claude` to sign in and retry."
-                .to_string(),
-        );
+        return Some(LOCAL_CLAUDE_NOT_AUTHENTICATED_ERROR.to_string());
     }
     None
 }
@@ -262,6 +270,7 @@ async fn run_local_claude_probe_once() -> Result<LocalClaudeProbeResult, String>
     if !local_claude_supported_platform() {
         return Err("Claude Code Local is only supported on macOS in this build.".to_string());
     }
+    ensure_local_claude_authenticated().await?;
 
     let claude_exec_path = resolve_local_claude_exec_binary(None);
     let display_binary = format_local_claude_command(claude_exec_path.as_str());
@@ -303,40 +312,37 @@ async fn run_local_claude_probe_once() -> Result<LocalClaudeProbeResult, String>
         buffer
     });
     let mut reader = BufReader::new(stdout).lines();
-    let first_line = tokio::time::timeout(
+    let probe = tokio::time::timeout(
         Duration::from_millis(LOCAL_CLAUDE_PROBE_TIMEOUT_MS),
-        reader.next_line(),
+        async {
+            loop {
+                let Some(line) = reader.next_line().await.map_err(|error| {
+                    format!("Failed to read local Claude readiness probe output: {error}")
+                })?
+                else {
+                    return Err("Local Claude readiness probe produced no init event.".to_string());
+                };
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                let Ok(parsed) = serde_json::from_str::<Value>(trimmed) else {
+                    continue;
+                };
+                if let Some(probe) = extract_init_event_probe(&parsed) {
+                    return Ok(probe);
+                }
+            }
+        },
     )
     .await
     .map_err(|_| {
         "Local Claude readiness probe timed out before emitting an init event.".to_string()
-    })?
-    .map_err(|error| format!("Failed to read local Claude readiness probe output: {error}"))?;
+    })??;
 
     let _ = child.kill().await;
     let _ = child.wait().await;
-    let stderr_bytes = stderr_task.await.unwrap_or_default();
-    let stderr_summary = summarize_command_output(stderr_bytes.as_slice(), 600);
-
-    let Some(first_line) = first_line else {
-        return Err(format!(
-            "Local Claude readiness probe produced no init event. stderr={stderr_summary}"
-        ));
-    };
-    let parsed = serde_json::from_str::<Value>(first_line.as_str()).map_err(|error| {
-        format!(
-            "Local Claude readiness probe returned invalid JSON: {error}. stderr={stderr_summary}"
-        )
-    })?;
-    let probe = extract_init_event_probe(&parsed).ok_or_else(|| {
-        format!("Local Claude readiness probe did not emit a system init event. stderr={stderr_summary}")
-    })?;
-    if probe.api_key_source.as_deref() == Some("none") {
-        return Err(
-            "Local Claude CLI is installed but not authenticated. Run `claude` to sign in and retry."
-                .to_string(),
-        );
-    }
+    let _ = stderr_task.await;
     Ok(probe)
 }
 
@@ -347,6 +353,7 @@ async fn run_local_claude_exec_turn_once(
     if !local_claude_supported_platform() {
         return Err("Claude Code Local is only supported on macOS in this build.".to_string());
     }
+    ensure_local_claude_authenticated().await?;
 
     let workspace = input.workspace_path.trim();
     if workspace.is_empty() {
@@ -422,12 +429,6 @@ async fn run_local_claude_exec_turn_once(
             if response_model_id.is_none() {
                 response_model_id = probe.model;
             }
-            if probe.api_key_source.as_deref() == Some("none") {
-                return Err(
-                    "Local Claude CLI is installed but not authenticated. Run `claude` to sign in and retry."
-                        .to_string(),
-                );
-            }
             continue;
         }
 
@@ -477,6 +478,62 @@ async fn run_local_claude_exec_turn_once(
         response_model_id,
         session_id,
     })
+}
+
+async fn read_local_claude_auth_status() -> Result<LocalClaudeAuthStatus, String> {
+    let claude_exec_path = resolve_local_claude_exec_binary(None);
+    let display_binary = format_local_claude_command(claude_exec_path.as_str());
+    let mut command = new_local_claude_command(claude_exec_path.as_str());
+    command
+        .arg("auth")
+        .arg("status")
+        .arg("--json")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .stdin(Stdio::null())
+        .kill_on_drop(true);
+
+    let output = tokio::time::timeout(
+        Duration::from_millis(LOCAL_CLAUDE_PROBE_TIMEOUT_MS),
+        command.output(),
+    )
+    .await
+    .map_err(|_| "Local Claude auth status probe timed out.".to_string())?
+    .map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            return format!(
+                "failed to run `{}` (not found). Install Claude Code or set {} to a valid executable path.",
+                display_binary, CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV
+            );
+        }
+        format!("failed to run `{}`: {error}", display_binary)
+    })?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "`{} auth status --json` failed (status {:?}): stderr={}, stdout={}",
+            display_binary,
+            output.status.code(),
+            summarize_command_output(output.stderr.as_slice(), 600),
+            summarize_command_output(output.stdout.as_slice(), 600)
+        ));
+    }
+
+    serde_json::from_slice::<LocalClaudeAuthStatus>(output.stdout.as_slice()).map_err(|error| {
+        format!(
+            "Local Claude auth status probe returned invalid JSON: {error}. stdout={}, stderr={}",
+            summarize_command_output(output.stdout.as_slice(), 600),
+            summarize_command_output(output.stderr.as_slice(), 600)
+        )
+    })
+}
+
+async fn ensure_local_claude_authenticated() -> Result<(), String> {
+    let auth_status = read_local_claude_auth_status().await?;
+    if !auth_status.logged_in {
+        return Err(LOCAL_CLAUDE_NOT_AUTHENTICATED_ERROR.to_string());
+    }
+    Ok(())
 }
 
 pub(crate) async fn probe_local_claude_cli() -> Result<LocalClaudeProbeResult, String> {
@@ -595,11 +652,25 @@ pub(crate) async fn query_local_claude_exec_turn(
 #[cfg(test)]
 mod tests {
     use super::{
-        extract_final_message_from_stream_event, extract_init_event_probe,
-        permission_mode_for_local_claude, resolve_local_claude_exec_command_args,
+        classify_local_claude_error, extract_final_message_from_stream_event,
+        extract_init_event_probe, permission_mode_for_local_claude, probe_local_claude_cli,
+        query_local_claude_exec_turn, resolve_local_claude_exec_command_args,
         LocalClaudeExecTurnInput,
     };
     use serde_json::json;
+
+    #[cfg(target_os = "macos")]
+    use super::super::local_claude_exec_path::{
+        local_claude_exec_env_lock, reset_local_claude_exec_binary_cache,
+        CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV,
+    };
+    #[cfg(target_os = "macos")]
+    use std::fs;
+    #[cfg(target_os = "macos")]
+    use tempfile::TempDir;
+
+    #[cfg(target_os = "macos")]
+    use std::os::unix::fs::PermissionsExt;
 
     #[test]
     fn permission_mode_maps_access_and_plan_modes() {
@@ -671,5 +742,115 @@ mod tests {
             .as_deref(),
             Some("Hello from Claude")
         );
+    }
+
+    #[test]
+    fn classify_local_claude_error_does_not_treat_api_key_source_none_as_auth_failure() {
+        assert_eq!(
+            classify_local_claude_error("", r#"{"apiKeySource":"none"}"#),
+            None
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    fn write_fake_local_claude_script(temp: &TempDir) -> std::path::PathBuf {
+        let script_path = temp.path().join("fake-claude.sh");
+        let script = r#"#!/bin/sh
+if [ "$1" = "auth" ] && [ "$2" = "status" ]; then
+  printf '{"loggedIn":true,"authMethod":"oauth_token","apiProvider":"firstParty"}\n'
+  exit 0
+fi
+
+printf '%s\n' '{"type":"system","subtype":"hook","hook_event_name":"SessionStart"}'
+printf '%s\n' '{"type":"system","subtype":"init","session_id":"session-123","apiKeySource":"none","model":"claude-sonnet-4-5"}'
+printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"LOCAL_RUNTIME_CLAUDE_OK"}]}}'
+printf '%s\n' '{"type":"result","subtype":"success","result":"LOCAL_RUNTIME_CLAUDE_OK"}'
+"#;
+        fs::write(&script_path, script).expect("write fake claude script");
+        let mut permissions = fs::metadata(&script_path)
+            .expect("fake claude metadata")
+            .permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&script_path, permissions).expect("set fake claude permissions");
+        script_path
+    }
+
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    async fn probe_local_claude_cli_accepts_oauth_login_when_init_reports_none() {
+        let _guard = local_claude_exec_env_lock()
+            .lock()
+            .expect("local claude exec env lock poisoned");
+        let previous_override = std::env::var_os(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV);
+        let temp = TempDir::new().expect("create temp dir");
+        let script_path = write_fake_local_claude_script(&temp);
+
+        unsafe {
+            std::env::set_var(
+                CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV,
+                script_path.as_os_str(),
+            );
+        }
+        reset_local_claude_exec_binary_cache();
+
+        let result = probe_local_claude_cli().await;
+
+        unsafe {
+            match previous_override {
+                Some(value) => std::env::set_var(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV, value),
+                None => std::env::remove_var(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV),
+            }
+        }
+        reset_local_claude_exec_binary_cache();
+
+        let probe = result.expect("probe should succeed for logged-in oauth cli");
+        assert_eq!(probe.session_id.as_deref(), Some("session-123"));
+        assert_eq!(probe.api_key_source.as_deref(), Some("none"));
+        assert_eq!(probe.model.as_deref(), Some("claude-sonnet-4-5"));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    async fn query_local_claude_exec_turn_accepts_oauth_login_when_init_reports_none() {
+        let _guard = local_claude_exec_env_lock()
+            .lock()
+            .expect("local claude exec env lock poisoned");
+        let previous_override = std::env::var_os(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV);
+        let temp = TempDir::new().expect("create temp dir");
+        let script_path = write_fake_local_claude_script(&temp);
+
+        unsafe {
+            std::env::set_var(
+                CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV,
+                script_path.as_os_str(),
+            );
+        }
+        reset_local_claude_exec_binary_cache();
+
+        let result = query_local_claude_exec_turn(
+            LocalClaudeExecTurnInput {
+                workspace_path: temp.path().to_string_lossy().to_string(),
+                prompt: "Reply with exactly LOCAL_RUNTIME_CLAUDE_OK".to_string(),
+                model_id: None,
+                access_mode: "on-request".to_string(),
+                collaboration_mode_is_plan: false,
+                resume_session_id: None,
+            },
+            None,
+        )
+        .await;
+
+        unsafe {
+            match previous_override {
+                Some(value) => std::env::set_var(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV, value),
+                None => std::env::remove_var(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV),
+            }
+        }
+        reset_local_claude_exec_binary_cache();
+
+        let turn = result.expect("turn should succeed for logged-in oauth cli");
+        assert_eq!(turn.output, "LOCAL_RUNTIME_CLAUDE_OK");
+        assert_eq!(turn.response_model_id.as_deref(), Some("claude-sonnet-4-5"));
+        assert_eq!(turn.session_id.as_deref(), Some("session-123"));
     }
 }
