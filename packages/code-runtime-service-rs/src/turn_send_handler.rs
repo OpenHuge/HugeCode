@@ -667,16 +667,14 @@ async fn complete_turn_send(
         Some("code_turn_send"),
     )
     .await;
-
     match completion {
         Ok(outcome) => {
-            let response_model_id = outcome.message.response_model_id.clone();
-            let completion_message = if use_runtime_plan_flow {
-                outcome.message.output
+            let provider_result = if use_runtime_plan_flow {
+                outcome.message.clone()
             } else {
                 maybe_recover_provider_local_access_refusal(
                     &ctx,
-                    outcome.message.output,
+                    outcome.message,
                     task.collaboration_mode.suppress_runtime_plan_delta(),
                     task.access_mode.as_str(),
                     local_exec_preferred,
@@ -704,6 +702,8 @@ async fn complete_turn_send(
                 )
                 .await
             };
+            let response_model_id = provider_result.response_model_id.clone();
+            let completion_message = provider_result.output;
             maybe_report_oauth_account_outcome(
                 &ctx,
                 task.oauth_account_id.as_deref(),

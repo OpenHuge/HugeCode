@@ -64,6 +64,21 @@ function normalizeComposerExecutionMode(
   return null;
 }
 
+function normalizeComposerModelSelectionMode(
+  value: unknown
+): Exclude<AppSettings["composerModelSelectionMode"], undefined> {
+  return value === "manual" ? "manual" : "auto";
+}
+
+function normalizeModelProviderFamilyId(
+  value: unknown
+): Exclude<AppSettings["lastComposerProviderFamilyId"], undefined> {
+  if (value === "codex" || value === "claude" || value === "gemini" || value === "antigravity") {
+    return value;
+  }
+  return null;
+}
+
 function normalizeLastActiveWorkspaceId(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
@@ -321,6 +336,8 @@ function buildDefaultSettings(): AppSettings {
     cycleWorkspacePrevShortcut: isMac ? "cmd+shift+up" : "ctrl+alt+shift+up",
     lastComposerModelId: null,
     lastComposerReasoningEffort: null,
+    composerModelSelectionMode: "auto",
+    lastComposerProviderFamilyId: null,
     lastComposerFastMode: null,
     lastComposerExecutionMode: null,
     uiScale: UI_SCALE_DEFAULT,
@@ -418,6 +435,12 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     codeFontSize: clampCodeFontSize(settings.codeFontSize),
     personality: allowedPersonality.has(settings.personality) ? settings.personality : "friendly",
     defaultAccessMode: normalizeDefaultAccessMode(settings.defaultAccessMode),
+    composerModelSelectionMode: normalizeComposerModelSelectionMode(
+      settings.composerModelSelectionMode
+    ),
+    lastComposerProviderFamilyId: normalizeModelProviderFamilyId(
+      settings.lastComposerProviderFamilyId
+    ),
     lastComposerFastMode: normalizeOptionalBoolean(settings.lastComposerFastMode),
     lastComposerExecutionMode: normalizeComposerExecutionMode(settings.lastComposerExecutionMode),
     reviewDeliveryMode: settings.reviewDeliveryMode === "detached" ? "detached" : "inline",

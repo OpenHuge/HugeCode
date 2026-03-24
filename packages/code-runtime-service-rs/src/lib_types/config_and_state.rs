@@ -653,6 +653,12 @@ struct RuntimeProviderCatalogEntry {
     supports_native: bool,
     supports_openai_compat: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
+    readiness_kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    readiness_message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    execution_kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     registry_version: Option<String>,
 }
 

@@ -660,7 +660,8 @@ describe("ComposerMetaBar", () => {
     if (!menu) {
       throw new Error("Model menu not found");
     }
-    expect(within(menu).getByText("Model Unavailable (unavailable)")).toBeTruthy();
+    expect(within(menu).getByText("Model Unavailable")).toBeTruthy();
+    expect(within(menu).getByText("Unavailable")).toBeTruthy();
     expect(within(menu).getByText("Model Available")).toBeTruthy();
   });
 

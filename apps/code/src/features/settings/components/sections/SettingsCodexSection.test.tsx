@@ -2,8 +2,9 @@
 
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppSettings, ModelOption, WorkspaceInfo } from "../../../../types";
+import { getProvidersCatalog } from "../../../../application/runtime/ports/tauriOauth";
 
 vi.mock("../../../shared/components/FileEditorCard", () => ({
   FileEditorCard: ({ title }: { title: string }) => (
@@ -15,7 +16,13 @@ vi.mock("./SettingsCodexAccountsCard", () => ({
   SettingsCodexAccountsCard: () => <div data-testid="codex-accounts-card">Codex accounts card</div>,
 }));
 
+vi.mock("../../../../application/runtime/ports/tauriOauth", () => ({
+  getProvidersCatalog: vi.fn(),
+}));
+
 import { SettingsCodexSection } from "./SettingsCodexSection";
+
+const getProvidersCatalogMock = vi.mocked(getProvidersCatalog);
 
 function createModelOption(overrides: Partial<ModelOption> = {}): ModelOption {
   return {
@@ -121,6 +128,10 @@ function createProps(
 }
 
 describe("SettingsCodexSection", () => {
+  beforeEach(() => {
+    getProvidersCatalogMock.mockResolvedValue([]);
+  });
+
   it("renders through the shared settings grammar and keeps codex actions working", () => {
     const onSaveCodexSettings = vi.fn(async () => undefined);
     const onRunDoctor = vi.fn(async () => undefined);
@@ -162,7 +173,7 @@ describe("SettingsCodexSection", () => {
     ).toBeTruthy();
 
     const modelRow = screen
-      .getByText("Model")
+      .getByText("Provider / Model")
       .closest('[data-settings-field-row="toggle"]') as HTMLElement | null;
     const providerRow = screen
       .queryByText("Provider")
@@ -184,7 +195,7 @@ describe("SettingsCodexSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Update" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "GPT-5.1" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /GPT-5\.1/i }));
     fireEvent.click(screen.getByRole("button", { name: "Access mode" }));
     fireEvent.click(screen.getByRole("option", { name: "Read only" }));
 
@@ -294,12 +305,46 @@ describe("SettingsCodexSection", () => {
   it("groups Claude routes under one provider and persists the resolved Claude Code model id", () => {
     const onUpdateAppSettings = vi.fn(async () => undefined);
 
+    getProvidersCatalogMock.mockResolvedValue([
+      {
+        providerId: "anthropic",
+        displayName: "Claude Code",
+        pool: "claude",
+        oauthProviderId: "claude_code",
+        aliases: ["claude", "claude_code"],
+        defaultModelId: "anthropic::claude-sonnet-4-5",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        readinessKind: "ready",
+        readinessMessage: null,
+        executionKind: "cloud",
+        registryVersion: "test",
+      },
+      {
+        providerId: "claude_code_local",
+        displayName: "Claude Code Local",
+        pool: null,
+        oauthProviderId: null,
+        aliases: ["claude_code_local"],
+        defaultModelId: "claude_code_local::claude-sonnet-4-5",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: false,
+        readinessKind: "ready",
+        readinessMessage: "Local Claude Code is ready on this machine.",
+        executionKind: "local",
+        registryVersion: "test",
+      },
+    ]);
+
     render(
       <SettingsCodexSection
         {...createProps({
           appSettings: {
             ...createProps().appSettings,
             lastComposerModelId: "openai::gpt-5.1",
+            composerModelSelectionMode: "manual",
           },
           onUpdateAppSettings,
           defaultModels: [
@@ -332,11 +377,13 @@ describe("SettingsCodexSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
     expect(screen.getAllByRole("menuitem", { name: "Claude" })).toHaveLength(1);
     fireEvent.click(screen.getByRole("menuitem", { name: "Claude" }));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "Claude Sonnet 4.5" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Claude Sonnet 4\.5/i }));
 
     expect(onUpdateAppSettings).toHaveBeenCalledWith(
       expect.objectContaining({
         lastComposerModelId: "claude_code_local::claude-sonnet-4-5",
+        composerModelSelectionMode: "manual",
+        lastComposerProviderFamilyId: "claude",
       })
     );
   });

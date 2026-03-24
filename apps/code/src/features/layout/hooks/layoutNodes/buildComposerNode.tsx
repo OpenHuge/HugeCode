@@ -117,6 +117,10 @@ export function buildComposerNode(
           accountOptions={input.composerAccountOptions}
           selectedAccountIds={input.selectedAccountIds}
           onSelectAccountIds={input.onSelectAccountIds}
+          modelSelectionMode={input.modelSelectionMode}
+          selectedProviderId={input.selectedProviderId}
+          onSelectProvider={input.onSelectProvider}
+          onSelectModelSelectionMode={input.onSelectModelSelectionMode}
           models={input.models}
           selectedModelId={input.selectedModelId}
           onSelectModel={input.onSelectModel}

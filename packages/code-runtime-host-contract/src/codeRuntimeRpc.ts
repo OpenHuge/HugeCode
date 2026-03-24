@@ -2172,6 +2172,15 @@ export type CanonicalModelProvider =
 
 export type CanonicalModelPool = "codex" | "claude" | "gemini" | "auto";
 
+export type RuntimeProviderReadinessKind =
+  | "ready"
+  | "not_installed"
+  | "not_authenticated"
+  | "unsupported_platform"
+  | "degraded";
+
+export type RuntimeProviderExecutionKind = "local" | "cloud";
+
 export type RuntimeProviderCatalogEntry = {
   providerId: CanonicalModelProvider | (string & {});
   displayName: string;
@@ -2182,6 +2191,9 @@ export type RuntimeProviderCatalogEntry = {
   available: boolean;
   supportsNative: boolean;
   supportsOpenaiCompat: boolean;
+  readinessKind?: RuntimeProviderReadinessKind | null;
+  readinessMessage?: string | null;
+  executionKind?: RuntimeProviderExecutionKind | null;
   registryVersion?: string | null;
 };
 

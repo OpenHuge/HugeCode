@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getConfigModel, getModelList } from "../../../application/runtime/ports/tauriModels";
-import type { DebugEntry, ModelOption, WorkspaceInfo } from "../../../types";
+import { getProvidersCatalog } from "../../../application/runtime/ports/tauriOauth";
+import type {
+  ComposerModelSelectionMode,
+  DebugEntry,
+  ModelOption,
+  ModelProviderFamilyId,
+  WorkspaceInfo,
+} from "../../../types";
 import { useRuntimeUpdatedRefresh } from "../../app/hooks/useRuntimeUpdatedRefresh";
 import { expandComposerModelBrandOptions } from "../../app/utils/antiGravityBranding";
 import { parseModelListResponse } from "../utils/modelListResponse";
@@ -10,12 +17,20 @@ import {
   normalizeModelOption,
   supportsModelReasoning,
 } from "../utils/modelOptionCapabilities";
+import {
+  buildModelProviderOptions,
+  resolveAutoProviderId,
+  resolveProviderModelId,
+} from "../utils/modelProviderSelection";
+import { mergeModelsWithProviderCatalogMetadata } from "../utils/providerCatalogMetadata";
 
 type UseModelsOptions = {
   activeWorkspace: WorkspaceInfo | null;
   onDebug?: (entry: DebugEntry) => void;
   preferredModelId?: string | null;
   preferredEffort?: string | null;
+  selectionMode?: ComposerModelSelectionMode | null;
+  preferredProviderId?: ModelProviderFamilyId | string | null;
   selectionKey?: string | null;
 };
 
@@ -156,6 +171,8 @@ export function useModels({
   onDebug,
   preferredModelId = null,
   preferredEffort = null,
+  selectionMode = "manual",
+  preferredProviderId = null,
   selectionKey = null,
 }: UseModelsOptions) {
   const [models, setModels] = useState<ModelOption[]>(() => createBootstrapModelOptions());
@@ -286,10 +303,13 @@ export function useModels({
       payload: { workspaceId, scopeId: fetchScopeId },
     });
     try {
-      const [modelListResult, configModelResult] = await Promise.allSettled([
-        getModelList(fetchScopeId),
-        workspaceId ? getConfigModel(workspaceId) : Promise.resolve(null),
-      ]);
+      const [modelListResult, configModelResult, providersCatalogResult] = await Promise.allSettled(
+        [
+          getModelList(fetchScopeId),
+          workspaceId ? getConfigModel(workspaceId) : Promise.resolve(null),
+          getProvidersCatalog(),
+        ]
+      );
       const configModelFromConfig =
         configModelResult.status === "fulfilled" ? configModelResult.value : null;
       if (configModelResult.status === "rejected") {
@@ -317,6 +337,18 @@ export function useModels({
               : String(modelListResult.reason),
         });
       }
+      if (providersCatalogResult.status === "rejected") {
+        onDebug?.({
+          id: `${Date.now()}-client-providers-catalog-error`,
+          timestamp: Date.now(),
+          source: "error",
+          label: "providers/catalog error",
+          payload:
+            providersCatalogResult.reason instanceof Error
+              ? providersCatalogResult.reason.message
+              : String(providersCatalogResult.reason),
+        });
+      }
       onDebug?.({
         id: `${Date.now()}-server-model-list`,
         timestamp: Date.now(),
@@ -339,7 +371,11 @@ export function useModels({
           modelRefreshRetryTimer.current = null;
         }
       }
-      const resolvedModels = prioritizeComposerModels(data);
+      const providerCatalogEntries =
+        providersCatalogResult.status === "fulfilled" ? providersCatalogResult.value : [];
+      const resolvedModels = prioritizeComposerModels(
+        mergeModelsWithProviderCatalogMetadata(data, providerCatalogEntries)
+      );
       setModels(resolvedModels);
       lastFetchedWorkspaceId.current = scopeIdAtRequest;
       const defaultModel = pickDefaultModel(resolvedModels, configModelFromConfig);
@@ -357,13 +393,29 @@ export function useModels({
         preferredSelection && (isModelAvailable(preferredSelection) || !hasAvailableModel)
           ? preferredSelection
           : null;
-      const shouldKeepExisting = hasUserSelectedModel.current && existingSelectionUsable !== null;
+      const providerOptions = buildModelProviderOptions(resolvedModels);
+      const shouldKeepExisting =
+        selectionMode !== "auto" &&
+        hasUserSelectedModel.current &&
+        existingSelectionUsable !== null;
       const nextSelection =
-        (shouldKeepExisting ? existingSelectionUsable : null) ??
-        preferredSelectionUsable ??
-        defaultModel ??
-        existingSelectionUsable ??
-        existingSelection;
+        selectionMode === "auto"
+          ? (() => {
+              const autoProviderId = resolveAutoProviderId(providerOptions, preferredProviderId);
+              const autoModelId = resolveProviderModelId(providerOptions, autoProviderId, null);
+              return (
+                findModelByIdOrModel(resolvedModels, autoModelId) ??
+                preferredSelectionUsable ??
+                defaultModel ??
+                existingSelectionUsable ??
+                existingSelection
+              );
+            })()
+          : ((shouldKeepExisting ? existingSelectionUsable : null) ??
+            preferredSelectionUsable ??
+            defaultModel ??
+            existingSelectionUsable ??
+            existingSelection);
       if (nextSelection) {
         if (nextSelection.id !== selectedModelId) {
           setSelectedModelIdState(nextSelection.id);
@@ -400,6 +452,8 @@ export function useModels({
     fetchScopeId,
     onDebug,
     preferredModelId,
+    preferredProviderId,
+    selectionMode,
     selectedEffort,
     selectedModelId,
     resolveEffort,
@@ -477,12 +531,32 @@ export function useModels({
         ? existingSelection
         : null;
     const shouldKeepUserSelection =
-      hasUserSelectedModel.current && existingSelectionUsable !== null;
+      selectionMode !== "auto" && hasUserSelectedModel.current && existingSelectionUsable !== null;
     if (shouldKeepUserSelection) {
       return;
     }
     const nextSelection =
-      preferredSelection ?? defaultModel ?? existingSelectionUsable ?? existingSelection ?? null;
+      selectionMode === "auto"
+        ? (() => {
+            const providerOptions = buildModelProviderOptions(models);
+            const autoProviderId = resolveAutoProviderId(providerOptions, preferredProviderId);
+            return (
+              findModelByIdOrModel(
+                models,
+                resolveProviderModelId(providerOptions, autoProviderId, null)
+              ) ??
+              preferredSelection ??
+              defaultModel ??
+              existingSelectionUsable ??
+              existingSelection ??
+              null
+            );
+          })()
+        : (preferredSelection ??
+          defaultModel ??
+          existingSelectionUsable ??
+          existingSelection ??
+          null);
     if (!nextSelection) {
       return;
     }
@@ -493,7 +567,16 @@ export function useModels({
     if (nextEffort !== selectedEffort) {
       setSelectedEffortState(nextEffort);
     }
-  }, [configModel, models, preferredModelId, selectedEffort, selectedModelId, resolveEffort]);
+  }, [
+    configModel,
+    models,
+    preferredModelId,
+    preferredProviderId,
+    selectedEffort,
+    selectedModelId,
+    selectionMode,
+    resolveEffort,
+  ]);
 
   return {
     models,

@@ -26,6 +26,7 @@ import type {
   ApprovalRequest,
   CollaborationModeOption,
   ComposerExecutionMode,
+  ComposerModelSelectionMode,
   CustomPromptOption,
   LocalUsageSnapshot,
   ModelOption,
@@ -156,6 +157,10 @@ type HomeProps = {
   collaborationModes?: CollaborationModeOption[];
   selectedCollaborationModeId?: string | null;
   onSelectCollaborationMode?: (id: string | null) => void;
+  modelSelectionMode?: ComposerModelSelectionMode;
+  selectedProviderId?: string | null;
+  onSelectProvider?: (providerId: string) => void;
+  onSelectModelSelectionMode?: (mode: ComposerModelSelectionMode) => void;
   models?: ModelOption[];
   selectedModelId?: string | null;
   onSelectModel?: (id: string) => void;
@@ -237,6 +242,10 @@ export function Home({
   collaborationModes = [],
   selectedCollaborationModeId = null,
   onSelectCollaborationMode = () => undefined,
+  modelSelectionMode = "manual",
+  selectedProviderId = null,
+  onSelectProvider = () => undefined,
+  onSelectModelSelectionMode = () => undefined,
   models = [],
   selectedModelId = null,
   onSelectModel = () => undefined,
@@ -837,6 +846,10 @@ export function Home({
             collaborationModes={collaborationModes}
             selectedCollaborationModeId={selectedCollaborationModeId}
             onSelectCollaborationMode={onSelectCollaborationMode}
+            modelSelectionMode={modelSelectionMode}
+            selectedProviderId={selectedProviderId}
+            onSelectProvider={onSelectProvider}
+            onSelectModelSelectionMode={onSelectModelSelectionMode}
             models={models}
             selectedModelId={selectedModelId}
             onSelectModel={onSelectModel}

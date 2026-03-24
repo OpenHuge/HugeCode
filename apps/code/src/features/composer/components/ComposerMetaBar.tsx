@@ -8,12 +8,15 @@ import type {
   AutoDriveStopReason,
   AutoDriveWaypointStatus,
 } from "../../../application/runtime/types/autoDrive";
-import type { AccessMode, CollaborationModeOption, ComposerExecutionMode } from "../../../types";
+import type {
+  AccessMode,
+  CollaborationModeOption,
+  ComposerExecutionMode,
+  ComposerModelSelectionMode,
+} from "../../../types";
 import { joinClassNames } from "../../../utils/classNames";
 import {
   buildModelProviderOptions,
-  buildProviderModelEntries,
-  resolveProviderModelId,
   resolveSelectedProviderId,
 } from "../../models/utils/modelProviderSelection";
 import { ComposerMetaBarAutoDriveMeta } from "./ComposerMetaBarAutoDriveMeta";
@@ -30,6 +33,9 @@ type ModelOption = {
   pool?: string | null;
   source?: string | null;
   available?: boolean;
+  providerReadinessKind?: string | null;
+  providerReadinessMessage?: string | null;
+  executionKind?: "local" | "cloud" | null;
 };
 
 type ExecutionOption = {
@@ -50,7 +56,11 @@ type ComposerMetaBarProps = {
   collaborationModes: CollaborationModeOption[];
   selectedCollaborationModeId: string | null;
   onSelectCollaborationMode: (id: string | null) => void;
+  modelSelectionMode: ComposerModelSelectionMode;
   models: ModelOption[];
+  selectedProviderId?: string | null;
+  onSelectProvider: (providerId: string) => void;
+  onSelectModelSelectionMode: (mode: ComposerModelSelectionMode) => void;
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;
   reasoningOptions: string[];
@@ -227,33 +237,21 @@ function formatModeLabel(label: string | null | undefined): string {
   return label;
 }
 
-function formatModelQualifier(model: ModelOption): string | null {
-  const candidates = [model.pool, model.provider, model.source, model.id];
-  for (const candidate of candidates) {
-    if (typeof candidate !== "string") {
-      continue;
-    }
-    const normalized = candidate.trim();
-    if (normalized.length === 0) {
-      continue;
-    }
-    return normalized;
-  }
-  return null;
-}
-
 export const ComposerMetaBar = memo(function ComposerMetaBar({
   disabled,
   collaborationModes,
   selectedCollaborationModeId,
   onSelectCollaborationMode,
+  modelSelectionMode,
   models,
+  selectedProviderId: explicitSelectedProviderId = null,
+  onSelectProvider,
+  onSelectModelSelectionMode,
   selectedModelId,
   onSelectModel,
   reasoningOptions,
   selectedEffort,
   onSelectEffort,
-  fastModeEnabled = false,
   reasoningSupported,
   executionOptions,
   selectedExecutionMode,
@@ -265,70 +263,9 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
 }: ComposerMetaBarProps) {
   const providerOptions = useMemo(() => buildModelProviderOptions(models), [models]);
   const selectedProviderId = useMemo(
-    () => resolveSelectedProviderId(providerOptions, selectedModelId),
-    [providerOptions, selectedModelId]
+    () => explicitSelectedProviderId ?? resolveSelectedProviderId(providerOptions, selectedModelId),
+    [explicitSelectedProviderId, providerOptions, selectedModelId]
   );
-  const duplicateModelKeys = useMemo(() => {
-    const counts = new Map<string, number>();
-    const selectedProviderModels =
-      providerOptions.find((provider) => provider.id === selectedProviderId)?.models ?? models;
-    for (const model of selectedProviderModels) {
-      const key = `${model.displayName || model.model}::${model.model}`;
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-    return counts;
-  }, [models, providerOptions, selectedProviderId]);
-  const renderModelLabel = useCallback(
-    (model: ModelOption) => {
-      const base = model.displayName || model.model;
-      const duplicateKey = `${base}::${model.model}`;
-      const qualifier =
-        (duplicateModelKeys.get(duplicateKey) ?? 0) > 1 ? formatModelQualifier(model) : null;
-      const withQualifier = qualifier ? `${base} / ${qualifier}` : base;
-      if (model.available === false) {
-        return `${withQualifier} (unavailable)`;
-      }
-      return withQualifier;
-    },
-    [duplicateModelKeys]
-  );
-  const selectedModel = useMemo(
-    () =>
-      models.find((model) => model.id === selectedModelId) ??
-      models.find((model) => model.model === selectedModelId) ??
-      null,
-    [models, selectedModelId]
-  );
-  const selectedProvider = useMemo(
-    () => providerOptions.find((provider) => provider.id === selectedProviderId) ?? null,
-    [providerOptions, selectedProviderId]
-  );
-  const providerSelectOptions = useMemo<SelectOption[]>(
-    () =>
-      providerOptions.map((provider) => ({
-        value: provider.id,
-        label: provider.label,
-        disabled: !provider.hasAvailableModels,
-      })),
-    [providerOptions]
-  );
-  const providerModels = useMemo(
-    () => buildProviderModelEntries(selectedProvider?.models ?? models, selectedModelId),
-    [models, selectedModelId, selectedProvider]
-  );
-  const modelSelectOptions: SelectOption[] = useMemo(() => {
-    const availableModels = providerModels.filter((model) => model.available !== false);
-    const visibleModels = availableModels.length > 0 ? availableModels : providerModels;
-    const modelOptions =
-      selectedModel && !visibleModels.some((model) => model.id === selectedModel.id)
-        ? [selectedModel, ...visibleModels]
-        : visibleModels;
-    return modelOptions.map((model) => ({
-      value: model.id,
-      label: renderModelLabel(model),
-      disabled: model.available === false,
-    }));
-  }, [providerModels, renderModelLabel, selectedModel]);
   const effortSelectOptions: SelectOption[] = useMemo(
     () =>
       reasoningOptions.map((effort) => ({
@@ -371,7 +308,6 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
     executionSelectOptions.length > 1 ||
     selectedExecutionMode !== "runtime" ||
     selectedExecutionLabel !== "Runtime";
-  const shouldShowProviderControl = providerSelectOptions.length > 1;
   const shouldShowRemoteBackendControl =
     remoteBackendSelectOptions.length > 0 ||
     (typeof selectedRemoteBackendId === "string" && selectedRemoteBackendId.trim().length > 0);
@@ -402,16 +338,6 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
     }
     onSelectCollaborationMode(planMode.id);
   }, [disabled, isPlanActive, onSelectCollaborationMode, planMode]);
-  const handleProviderSelect = useCallback(
-    (providerId: string) => {
-      const nextModelId = resolveProviderModelId(providerOptions, providerId, selectedModelId);
-      if (!nextModelId) {
-        return;
-      }
-      onSelectModel(nextModelId);
-    },
-    [onSelectModel, providerOptions, selectedModelId]
-  );
 
   return (
     <div className="composer-bar">
@@ -423,17 +349,16 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
           <ComposerMetaBarControls
             controlsRef={metaControlsRef}
             disabled={disabled}
-            shouldShowProviderControl={shouldShowProviderControl}
-            providerSelectOptions={providerSelectOptions}
+            modelSelectionMode={modelSelectionMode}
+            providerOptions={providerOptions}
             selectedProviderId={selectedProviderId}
-            onSelectProvider={handleProviderSelect}
-            modelSelectOptions={modelSelectOptions}
+            onSelectModelSelectionMode={onSelectModelSelectionMode}
+            onSelectProvider={onSelectProvider}
             selectedModelId={selectedModelId}
             onSelectModel={onSelectModel}
             effortSelectOptions={effortSelectOptions}
             selectedEffort={selectedEffort}
             onSelectEffort={onSelectEffort}
-            fastModeEnabled={fastModeEnabled}
             reasoningSupported={reasoningSupported}
             shouldShowExecutionControl={shouldShowExecutionControl}
             executionSelectOptions={executionSelectOptions}

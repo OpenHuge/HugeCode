@@ -137,6 +137,15 @@ export type ReviewTarget =
 
 export type AccessMode = "read-only" | "on-request" | "full-access";
 export type ComposerExecutionMode = "runtime" | "local-cli" | "hybrid";
+export type ComposerModelSelectionMode = "auto" | "manual";
+export type ModelProviderFamilyId = "codex" | "claude" | "gemini" | "antigravity";
+export type RuntimeProviderReadinessKind =
+  | "ready"
+  | "not_installed"
+  | "not_authenticated"
+  | "unsupported_platform"
+  | "degraded";
+export type RuntimeProviderExecutionKind = "local" | "cloud";
 export type BackendMode = "local" | "remote";
 export type RemoteBackendProvider = "tcp" | "orbit";
 export type RemoteTcpOverlay = "tailscale" | "netbird";
@@ -229,6 +238,8 @@ export type AppSettings = {
   cycleWorkspacePrevShortcut: string | null;
   lastComposerModelId: string | null;
   lastComposerReasoningEffort: string | null;
+  composerModelSelectionMode?: ComposerModelSelectionMode | null;
+  lastComposerProviderFamilyId?: ModelProviderFamilyId | null;
   lastComposerFastMode?: boolean | null;
   lastComposerExecutionMode?: ComposerExecutionMode | null;
   uiScale: number;
@@ -803,6 +814,9 @@ export type ModelOption = {
   pool?: string | null;
   source?: string | null;
   available?: boolean;
+  providerReadinessKind?: RuntimeProviderReadinessKind | null;
+  providerReadinessMessage?: string | null;
+  executionKind?: RuntimeProviderExecutionKind | null;
   supportedReasoningEfforts: { reasoningEffort: string; description: string }[];
   defaultReasoningEffort: string | null;
   isDefault: boolean;

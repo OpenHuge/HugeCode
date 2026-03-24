@@ -1,16 +1,21 @@
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import type { Dispatch, SetStateAction } from "react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Input, Select, type SelectOption } from "../../../../design-system";
+import { getProvidersCatalog } from "../../../../application/runtime/ports/tauriOauth";
+import type { RuntimeProviderCatalogEntry } from "../../../../contracts/runtime";
 import type {
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
+  ComposerModelSelectionMode,
   ModelOption,
   WorkspaceInfo,
 } from "../../../../types";
 import { normalizePathForDisplay } from "../../../../utils/platformPaths";
 import { FileEditorCard } from "../../../shared/components/FileEditorCard";
+import { ModelProviderPicker } from "../../../models/components/ModelProviderPicker";
+import { mergeModelsWithProviderCatalogMetadata } from "../../../models/utils/providerCatalogMetadata";
 import {
   getModelReasoningOptions,
   normalizeEffortValue,
@@ -18,8 +23,8 @@ import {
 } from "../../../models/utils/modelOptionCapabilities";
 import {
   buildModelProviderOptions,
-  buildProviderModelEntries,
-  resolveProviderModelId,
+  resolveAutoProviderId,
+  resolveModelProviderId,
   resolveSelectedProviderId,
 } from "../../../models/utils/modelProviderSelection";
 import {
@@ -107,21 +112,10 @@ const reviewModeOptions: SelectOption[] = [
   { value: "inline", label: "Inline (same thread)" },
   { value: "detached", label: "Detached (new review thread)" },
 ];
-
-function formatModelQualifier(model: ModelOption): string | null {
-  const candidates = [model.pool, model.provider, model.source, model.id];
-  for (const candidate of candidates) {
-    if (typeof candidate !== "string") {
-      continue;
-    }
-    const normalized = candidate.trim();
-    if (normalized.length === 0) {
-      continue;
-    }
-    return normalized;
-  }
-  return null;
-}
+const selectionModeOptions: SelectOption[] = [
+  { value: "auto", label: "Auto" },
+  { value: "manual", label: "Manual" },
+];
 
 function coerceSavedModelSelectionId(value: string | null, models: ModelOption[]): string | null {
   const trimmed = (value ?? "").trim();
@@ -186,65 +180,69 @@ export function SettingsCodexSection({
   onUpdateWorkspaceCodexBin,
   onUpdateWorkspaceSettings,
 }: SettingsCodexSectionProps) {
-  const latestModelId = defaultModels[0]?.id ?? null;
-  const providerOptions = useMemo(() => buildModelProviderOptions(defaultModels), [defaultModels]);
+  const [providerCatalog, setProviderCatalog] = useState<RuntimeProviderCatalogEntry[]>([]);
+  const selectionMode = appSettings.composerModelSelectionMode ?? "auto";
+
+  useEffect(() => {
+    let cancelled = false;
+    void getProvidersCatalog()
+      .then((entries) => {
+        if (!cancelled) {
+          setProviderCatalog(entries);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProviderCatalog([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const modelsWithProviderMetadata = useMemo(
+    () => mergeModelsWithProviderCatalogMetadata(defaultModels, providerCatalog),
+    [defaultModels, providerCatalog]
+  );
+  const latestModelId = modelsWithProviderMetadata[0]?.id ?? null;
   const savedModelId = useMemo(
-    () => coerceSavedModelSelectionId(appSettings.lastComposerModelId, defaultModels),
-    [appSettings.lastComposerModelId, defaultModels]
+    () => coerceSavedModelSelectionId(appSettings.lastComposerModelId, modelsWithProviderMetadata),
+    [appSettings.lastComposerModelId, modelsWithProviderMetadata]
   );
   const selectedModelId = savedModelId ?? latestModelId ?? "";
-  const selectedProviderId = useMemo(
-    () => resolveSelectedProviderId(providerOptions, selectedModelId),
-    [providerOptions, selectedModelId]
-  );
-  const selectedProvider = useMemo(
-    () => providerOptions.find((provider) => provider.id === selectedProviderId) ?? null,
-    [providerOptions, selectedProviderId]
-  );
   const selectedModel = useMemo(
     () =>
-      defaultModels.find((model) => model.id === selectedModelId) ??
-      defaultModels.find((model) => model.model === selectedModelId) ??
+      modelsWithProviderMetadata.find((model) => model.id === selectedModelId) ??
+      modelsWithProviderMetadata.find((model) => model.model === selectedModelId) ??
       null,
-    [defaultModels, selectedModelId]
+    [modelsWithProviderMetadata, selectedModelId]
   );
-  const providerModels = useMemo(
-    () => buildProviderModelEntries(selectedProvider?.models ?? defaultModels, selectedModelId),
-    [defaultModels, selectedModelId, selectedProvider]
+  const providerOptions = useMemo(
+    () => buildModelProviderOptions(modelsWithProviderMetadata),
+    [modelsWithProviderMetadata]
+  );
+  const resolvedModelProviderId = selectedModel
+    ? resolveModelProviderId(selectedModel)
+    : resolveSelectedProviderId(providerOptions, selectedModelId);
+  const selectedProviderId = useMemo(
+    () =>
+      selectionMode === "auto"
+        ? resolveAutoProviderId(providerOptions, appSettings.lastComposerProviderFamilyId ?? null)
+        : (appSettings.lastComposerProviderFamilyId ?? resolvedModelProviderId),
+    [
+      appSettings.lastComposerProviderFamilyId,
+      providerOptions,
+      resolvedModelProviderId,
+      selectionMode,
+    ]
+  );
+  const selectedProvider = useMemo(
+    () => providerOptions.find((option) => option.id === selectedProviderId) ?? null,
+    [providerOptions, selectedProviderId]
   );
   const reasoningSupported = useMemo(() => supportsModelReasoning(selectedModel), [selectedModel]);
   const reasoningOptions = useMemo(() => getModelReasoningOptions(selectedModel), [selectedModel]);
-  const modelSelectOptions = useMemo<SelectOption[]>(() => {
-    const availableModels = providerModels.filter((model) => model.available !== false);
-    const visibleModels = availableModels.length > 0 ? availableModels : providerModels;
-    const optionModels =
-      selectedModel && !visibleModels.some((model) => model.id === selectedModel.id)
-        ? [selectedModel, ...visibleModels]
-        : visibleModels;
-    const counts = new Map<string, number>();
-    for (const model of optionModels) {
-      const key = `${model.displayName || model.model}::${model.model}`;
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-    return optionModels.map((model) => {
-      const base = model.displayName?.trim() || model.model;
-      const duplicateKey = `${base}::${model.model}`;
-      const qualifier = (counts.get(duplicateKey) ?? 0) > 1 ? formatModelQualifier(model) : null;
-      return {
-        value: model.id,
-        label: qualifier ? `${base} / ${qualifier}` : base,
-      };
-    });
-  }, [providerModels, selectedModel]);
-  const providerSelectOptions = useMemo<SelectOption[]>(
-    () =>
-      providerOptions.map((provider) => ({
-        value: provider.id,
-        label: provider.label,
-        disabled: !provider.hasAvailableModels,
-      })),
-    [providerOptions]
-  );
   const reasoningSelectOptions = useMemo<SelectOption[]>(
     () => reasoningOptions.map((effort) => ({ value: effort, label: effort })),
     [reasoningOptions]
@@ -275,18 +273,28 @@ export function SettingsCodexSection({
     if (didNormalizeDefaultsRef.current) {
       return;
     }
-    if (!defaultModels.length) {
+    if (!modelsWithProviderMetadata.length) {
       return;
     }
     const savedRawModel = (appSettings.lastComposerModelId ?? "").trim();
     const savedRawEffort = (appSettings.lastComposerReasoningEffort ?? "").trim();
     const shouldNormalizeModel = savedRawModel.length === 0 || savedModelId === null;
+    const shouldNormalizeSelectionMode =
+      appSettings.composerModelSelectionMode !== "auto" &&
+      appSettings.composerModelSelectionMode !== "manual";
+    const shouldNormalizeProviderFamily =
+      typeof appSettings.lastComposerProviderFamilyId !== "string" && selectedProviderId !== null;
     const shouldNormalizeEffort =
       reasoningSupported &&
       (savedRawEffort.length === 0 ||
         savedEffort === null ||
         !reasoningOptions.includes(savedEffort));
-    if (!shouldNormalizeModel && !shouldNormalizeEffort) {
+    if (
+      !shouldNormalizeModel &&
+      !shouldNormalizeEffort &&
+      !shouldNormalizeSelectionMode &&
+      !shouldNormalizeProviderFamily
+    ) {
       didNormalizeDefaultsRef.current = true;
       return;
     }
@@ -297,12 +305,20 @@ export function SettingsCodexSection({
       lastComposerReasoningEffort: shouldNormalizeEffort
         ? selectedEffort
         : appSettings.lastComposerReasoningEffort,
+      composerModelSelectionMode: shouldNormalizeSelectionMode
+        ? "auto"
+        : appSettings.composerModelSelectionMode,
+      lastComposerProviderFamilyId: shouldNormalizeProviderFamily
+        ? (selectedProviderId as AppSettings["lastComposerProviderFamilyId"])
+        : appSettings.lastComposerProviderFamilyId,
     };
     didNormalizeDefaultsRef.current = true;
     void onUpdateAppSettings(next).catch(() => undefined);
   }, [
     appSettings,
-    defaultModels.length,
+    appSettings.composerModelSelectionMode,
+    appSettings.lastComposerProviderFamilyId,
+    modelsWithProviderMetadata.length,
     onUpdateAppSettings,
     reasoningOptions,
     reasoningSupported,
@@ -310,6 +326,7 @@ export function SettingsCodexSection({
     savedModelId,
     selectedModelId,
     selectedEffort,
+    selectedProviderId,
   ]);
 
   return (
@@ -486,42 +503,34 @@ export function SettingsCodexSection({
         title="Default parameters"
         subtitle="Choose the model, reasoning, and access defaults used when threads do not override them."
       >
-        {providerSelectOptions.length > 1 ? (
-          <SettingsControlRow
-            title="Provider"
-            subtitle="Choose the default provider family before narrowing to a route-specific model."
-            control={
-              <Select
-                className={styles.selectRoot}
-                triggerClassName={styles.selectTrigger}
-                menuClassName={styles.selectMenu}
-                optionClassName={styles.selectOption}
-                ariaLabel="Provider"
-                options={providerSelectOptions}
-                value={selectedProviderId}
-                disabled={!providerOptions.length || defaultModelsLoading}
-                onValueChange={(providerId) => {
-                  const nextModelId = resolveProviderModelId(
-                    providerOptions,
-                    providerId,
-                    selectedModelId
-                  );
-                  if (!nextModelId) {
-                    return;
-                  }
-                  void onUpdateAppSettings({
-                    ...appSettings,
-                    lastComposerModelId: nextModelId,
-                  });
-                }}
-                placeholder="No providers"
-              />
-            }
-          />
-        ) : null}
+        <SettingsControlRow
+          title="Routing"
+          subtitle="Auto follows runtime readiness inside the selected provider family. Manual keeps an exact model pin."
+          control={
+            <Select
+              className={styles.selectRoot}
+              triggerClassName={styles.selectTrigger}
+              menuClassName={styles.selectMenu}
+              optionClassName={styles.selectOption}
+              ariaLabel="Model routing mode"
+              options={selectionModeOptions}
+              value={selectionMode}
+              onValueChange={(value) =>
+                void onUpdateAppSettings({
+                  ...appSettings,
+                  composerModelSelectionMode: value as ComposerModelSelectionMode,
+                  lastComposerProviderFamilyId:
+                    appSettings.lastComposerProviderFamilyId ??
+                    (resolvedModelProviderId as AppSettings["lastComposerProviderFamilyId"]) ??
+                    null,
+                })
+              }
+            />
+          }
+        />
 
         <SettingsControlRow
-          title="Model"
+          title="Provider / Model"
           subtitle={
             defaultModelsConnectedWorkspaceCount === 0
               ? "Connect a project to load available models."
@@ -529,28 +538,48 @@ export function SettingsCodexSection({
                 ? "Loading models…"
                 : defaultModelsError
                   ? `Couldn’t load models: ${defaultModelsError}`
-                  : providerSelectOptions.length > 1
-                    ? "Used when there is no thread-specific override. Route ids stay pinned inside the selected provider family."
-                    : "Used when there is no thread-specific override."
+                  : selectedProvider?.readinessMessage
+                    ? selectedProvider.readinessMessage
+                    : "Choose provider and model together when there is no thread-specific override."
           }
           control={
             <div className={styles.controlRow}>
-              <Select
-                className={styles.selectRoot}
-                triggerClassName={styles.selectTrigger}
-                menuClassName={styles.selectMenu}
-                optionClassName={styles.selectOption}
+              <ModelProviderPicker
                 ariaLabel="Model"
-                options={modelSelectOptions}
-                value={selectedModelId}
-                disabled={!defaultModels.length || defaultModelsLoading}
-                onValueChange={(model) =>
+                providerOptions={providerOptions}
+                selectionMode={selectionMode}
+                selectedProviderId={selectedProviderId}
+                selectedModelId={selectedModelId}
+                onSelectProvider={(providerId) =>
                   void onUpdateAppSettings({
                     ...appSettings,
-                    lastComposerModelId: model,
+                    lastComposerProviderFamilyId:
+                      providerId as AppSettings["lastComposerProviderFamilyId"],
                   })
                 }
-                placeholder="No models"
+                disabled={!providerOptions.length || defaultModelsLoading}
+                fullWidth
+                className={styles.selectRoot}
+                triggerClassName={styles.selectTrigger}
+                onSelectModel={(modelId) =>
+                  void onUpdateAppSettings({
+                    ...appSettings,
+                    lastComposerModelId: modelId,
+                    composerModelSelectionMode: "manual",
+                    lastComposerProviderFamilyId:
+                      (resolveModelProviderId(
+                        modelsWithProviderMetadata.find((model) => model.id === modelId) ?? {
+                          id: modelId,
+                          model: modelId,
+                          displayName: modelId,
+                          description: "",
+                          supportedReasoningEfforts: [],
+                          defaultReasoningEffort: null,
+                          isDefault: false,
+                        }
+                      ) as AppSettings["lastComposerProviderFamilyId"]) ?? null,
+                  })
+                }
               />
               <Button
                 variant="ghost"

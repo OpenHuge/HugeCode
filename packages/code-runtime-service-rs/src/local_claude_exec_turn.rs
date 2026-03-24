@@ -43,6 +43,33 @@ struct LocalClaudeAuthStatus {
     api_provider: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LocalClaudeReadinessKind {
+    Ready,
+    NotInstalled,
+    NotAuthenticated,
+    UnsupportedPlatform,
+    Degraded,
+}
+
+impl LocalClaudeReadinessKind {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Ready => "ready",
+            Self::NotInstalled => "not_installed",
+            Self::NotAuthenticated => "not_authenticated",
+            Self::UnsupportedPlatform => "unsupported_platform",
+            Self::Degraded => "degraded",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct LocalClaudeReadiness {
+    pub(crate) kind: LocalClaudeReadinessKind,
+    pub(crate) message: String,
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct LocalClaudeThreadSessionStore {
@@ -162,6 +189,17 @@ fn redact_flag_secret(text: &str, flag: &str) -> String {
 
     result.push_str(&text[index..]);
     result
+}
+
+fn append_redacted_log_line(buffer: &mut String, line: &str) {
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+    if !buffer.is_empty() {
+        buffer.push('\n');
+    }
+    buffer.push_str(redact_local_claude_sensitive_text(trimmed).as_str());
 }
 
 fn redact_local_claude_sensitive_text(text: &str) -> String {
@@ -507,7 +545,7 @@ async fn run_local_claude_exec_turn_once(
     let mut response_model_id: Option<String> = None;
     let mut final_message: Option<String> = None;
     let mut emitted_text = String::new();
-    let mut stdout_buffer = String::new();
+    let mut stdout_log_buffer = String::new();
 
     while let Some(line) = reader
         .next_line()
@@ -518,10 +556,7 @@ async fn run_local_claude_exec_turn_once(
         if trimmed.is_empty() {
             continue;
         }
-        if !stdout_buffer.is_empty() {
-            stdout_buffer.push('\n');
-        }
-        stdout_buffer.push_str(trimmed);
+        append_redacted_log_line(&mut stdout_log_buffer, trimmed);
         let parsed = match serde_json::from_str::<Value>(trimmed) {
             Ok(value) => value,
             Err(_) => continue,
@@ -561,7 +596,7 @@ async fn run_local_claude_exec_turn_once(
 
     if !status.success() {
         if let Some(classified) =
-            classify_local_claude_error(stderr_text.as_str(), stdout_buffer.as_str())
+            classify_local_claude_error(stderr_text.as_str(), stdout_log_buffer.as_str())
         {
             return Err(classified);
         }
@@ -569,10 +604,7 @@ async fn run_local_claude_exec_turn_once(
             "`claude --print` failed (status {:?}): stderr={}, stdout={}",
             status.code(),
             summarize_command_output(stderr_bytes.as_slice(), 600),
-            truncate_text_for_error(
-                redact_local_claude_sensitive_text(stdout_buffer.as_str()).as_str(),
-                600
-            )
+            truncate_text_for_error(stdout_log_buffer.as_str(), 600)
         ));
     }
 
@@ -690,9 +722,54 @@ async fn verify_local_claude_cli_installation() -> Result<(), String> {
 }
 
 pub(crate) async fn check_local_claude_cli_readiness() -> Result<(), String> {
-    verify_local_claude_cli_installation().await?;
-    ensure_local_claude_authenticated().await?;
-    Ok(())
+    let readiness = read_local_claude_cli_readiness().await;
+    if readiness.kind == LocalClaudeReadinessKind::Ready {
+        Ok(())
+    } else {
+        Err(readiness.message)
+    }
+}
+
+pub(crate) async fn read_local_claude_cli_readiness() -> LocalClaudeReadiness {
+    if !local_claude_supported_platform() {
+        return LocalClaudeReadiness {
+            kind: LocalClaudeReadinessKind::UnsupportedPlatform,
+            message: "Local Claude Code is currently supported on macOS only.".to_string(),
+        };
+    }
+
+    if let Err(error) = verify_local_claude_cli_installation().await {
+        let kind = if error.contains("(not found)")
+            || error.contains("valid executable path")
+            || error.contains("timed out")
+        {
+            LocalClaudeReadinessKind::NotInstalled
+        } else {
+            LocalClaudeReadinessKind::Degraded
+        };
+        return LocalClaudeReadiness {
+            kind,
+            message: error,
+        };
+    }
+
+    match ensure_local_claude_authenticated().await {
+        Ok(()) => LocalClaudeReadiness {
+            kind: LocalClaudeReadinessKind::Ready,
+            message: "Local Claude Code is ready on this machine.".to_string(),
+        },
+        Err(error) => {
+            let kind = if error == LOCAL_CLAUDE_NOT_AUTHENTICATED_ERROR {
+                LocalClaudeReadinessKind::NotAuthenticated
+            } else {
+                LocalClaudeReadinessKind::Degraded
+            };
+            LocalClaudeReadiness {
+                kind,
+                message: error,
+            }
+        }
+    }
 }
 
 #[cfg(test)]

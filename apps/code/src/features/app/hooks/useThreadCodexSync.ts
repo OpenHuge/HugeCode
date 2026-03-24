@@ -1,5 +1,10 @@
 import { type MutableRefObject, useEffect, useLayoutEffect, useRef } from "react";
-import type { AccessMode, ComposerExecutionMode } from "../../../types";
+import type {
+  AccessMode,
+  ComposerExecutionMode,
+  ComposerModelSelectionMode,
+  ModelProviderFamilyId,
+} from "../../../types";
 import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
 import {
   buildThreadCodexSeedPatch,
@@ -15,6 +20,8 @@ type UseThreadCodexSyncOptions = {
   appDefaultAccessMode: AccessMode;
   lastComposerModelId: string | null;
   lastComposerReasoningEffort: string | null;
+  composerModelSelectionMode?: ComposerModelSelectionMode | null;
+  lastComposerProviderFamilyId?: ModelProviderFamilyId | null;
   lastComposerFastMode: boolean | null | undefined;
   lastComposerExecutionMode: ComposerExecutionMode | null | undefined;
   threadCodexParamsVersion: number;
@@ -24,6 +31,8 @@ type UseThreadCodexSyncOptions = {
   ) => {
     modelId: string | null;
     effort: string | null;
+    selectionMode?: ComposerModelSelectionMode | null;
+    providerFamilyId?: ModelProviderFamilyId | null;
     fastMode?: boolean | null;
     accessMode: AccessMode | null;
     collaborationModeId: string | null;
@@ -37,6 +46,8 @@ type UseThreadCodexSyncOptions = {
     patch: {
       modelId?: string | null;
       effort?: string | null;
+      selectionMode?: ComposerModelSelectionMode | null;
+      providerFamilyId?: ModelProviderFamilyId | null;
       fastMode?: boolean | null;
       accessMode?: AccessMode | null;
       collaborationModeId?: string | null;
@@ -48,6 +59,8 @@ type UseThreadCodexSyncOptions = {
   setAccessMode: (mode: AccessMode) => void;
   setPreferredModelId: (id: string | null) => void;
   setPreferredEffort: (effort: string | null) => void;
+  setSelectionMode: (mode: ComposerModelSelectionMode) => void;
+  setPreferredProviderFamilyId: (providerFamilyId: ModelProviderFamilyId | null) => void;
   setPreferredFastMode: (enabled: boolean) => void;
   setPreferredCollabModeId: (id: string | null) => void;
   setExecutionMode: (mode: ComposerExecutionMode) => void;
@@ -55,6 +68,8 @@ type UseThreadCodexSyncOptions = {
   selectedModelId: string | null;
   resolvedModel: string | null;
   resolvedEffort: string | null;
+  selectionMode: ComposerModelSelectionMode;
+  preferredProviderFamilyId: ModelProviderFamilyId | null;
   threadCodexSelectionKey: string | null;
   accessMode: AccessMode;
   fastModeEnabled: boolean;
@@ -69,6 +84,8 @@ export function useThreadCodexSync({
   appDefaultAccessMode,
   lastComposerModelId,
   lastComposerReasoningEffort,
+  composerModelSelectionMode,
+  lastComposerProviderFamilyId,
   lastComposerFastMode,
   lastComposerExecutionMode,
   threadCodexParamsVersion,
@@ -78,6 +95,8 @@ export function useThreadCodexSync({
   setAccessMode,
   setPreferredModelId,
   setPreferredEffort,
+  setSelectionMode,
+  setPreferredProviderFamilyId,
   setPreferredFastMode,
   setPreferredCollabModeId,
   setExecutionMode,
@@ -85,6 +104,8 @@ export function useThreadCodexSync({
   selectedModelId,
   resolvedModel,
   resolvedEffort,
+  selectionMode,
+  preferredProviderFamilyId,
   threadCodexSelectionKey,
   accessMode,
   fastModeEnabled,
@@ -108,6 +129,8 @@ export function useThreadCodexSync({
       defaultAccessMode: appDefaultAccessMode,
       lastComposerModelId,
       lastComposerReasoningEffort,
+      composerModelSelectionMode,
+      lastComposerProviderFamilyId,
       lastComposerFastMode,
       lastComposerExecutionMode,
       stored,
@@ -115,6 +138,8 @@ export function useThreadCodexSync({
       currentScopeKey: threadCodexSelectionKey,
       currentModelId: selectedModelId,
       currentReasoningEffort: resolvedEffort,
+      currentSelectionMode: selectionMode,
+      currentProviderFamilyId: preferredProviderFamilyId,
       currentAccessMode: accessMode,
       currentFastMode: fastModeEnabled,
       currentCollaborationModeId: selectedCollaborationModeId,
@@ -125,6 +150,8 @@ export function useThreadCodexSync({
     setAccessMode(resolved.accessMode);
     setPreferredModelId(resolved.preferredModelId);
     setPreferredEffort(resolved.preferredEffort);
+    setSelectionMode(resolved.selectionMode);
+    setPreferredProviderFamilyId(resolved.providerFamilyId);
     setPreferredFastMode(resolved.preferredFastMode);
     setPreferredCollabModeId(resolved.preferredCollabModeId);
     setExecutionMode(resolved.executionMode);
@@ -135,6 +162,8 @@ export function useThreadCodexSync({
     getThreadCodexParams,
     lastComposerModelId,
     lastComposerReasoningEffort,
+    composerModelSelectionMode,
+    lastComposerProviderFamilyId,
     lastComposerFastMode,
     lastComposerExecutionMode,
     pendingNewThreadSeedRef,
@@ -142,6 +171,8 @@ export function useThreadCodexSync({
     selectedModelId,
     resolvedModel,
     resolvedEffort,
+    selectionMode,
+    preferredProviderFamilyId,
     accessMode,
     fastModeEnabled,
     selectedCollaborationModeId,
@@ -149,6 +180,8 @@ export function useThreadCodexSync({
     setAccessMode,
     setPreferredCollabModeId,
     setPreferredEffort,
+    setSelectionMode,
+    setPreferredProviderFamilyId,
     setPreferredFastMode,
     setPreferredModelId,
     setExecutionMode,
@@ -186,6 +219,8 @@ export function useThreadCodexSync({
         selectedModelId,
         resolvedModel,
         resolvedEffort,
+        selectionMode,
+        providerFamilyId: preferredProviderFamilyId,
         fastMode: fastModeEnabled,
         accessMode,
         selectedCollaborationModeId,
@@ -206,6 +241,8 @@ export function useThreadCodexSync({
     selectedModelId,
     resolvedModel,
     resolvedEffort,
+    selectionMode,
+    preferredProviderFamilyId,
     fastModeEnabled,
     selectedCollaborationModeId,
     executionMode,

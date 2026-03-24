@@ -9,6 +9,13 @@ struct CompatCatalogResolutionAttempt {
     api_key_override: Option<String>,
 }
 
+struct ProviderCatalogReadinessSummary {
+    available: bool,
+    readiness_kind: &'static str,
+    readiness_message: Option<String>,
+    execution_kind: &'static str,
+}
+
 pub(super) async fn build_models_pool(ctx: &AppContext) -> Vec<Value> {
     let compat_catalog = resolve_compat_catalog_with_recovery(ctx).await;
     let local_codex_cached_models = load_local_codex_cached_model_slugs();
@@ -123,7 +130,7 @@ pub(super) async fn build_providers_catalog(ctx: &AppContext) -> Vec<RuntimeProv
     let provider_extensions = list_runtime_provider_extensions(ctx).await;
     let mut entries = Vec::new();
     for provider in RuntimeProvider::all() {
-        let available = provider_is_available(ctx, &compat_catalog, provider).await;
+        let readiness = provider_catalog_readiness_summary(ctx, &compat_catalog, provider).await;
         entries.push(RuntimeProviderCatalogEntry {
             provider_id: provider.routed_provider().to_string(),
             display_name: provider.display_name().to_string(),
@@ -143,10 +150,13 @@ pub(super) async fn build_providers_catalog(ctx: &AppContext) -> Vec<RuntimeProv
                 .map(|alias| alias.to_string())
                 .collect(),
             default_model_id: Some(provider.default_model_id().to_string()),
-            available,
+            available: readiness.available,
             supports_native: true,
             supports_openai_compat: provider != RuntimeProvider::ClaudeCodeLocal
                 && supports_openai_compat,
+            readiness_kind: Some(readiness.readiness_kind.to_string()),
+            readiness_message: readiness.readiness_message,
+            execution_kind: Some(readiness.execution_kind.to_string()),
             registry_version: Some(CODE_RUNTIME_RPC_CONTRACT_VERSION.to_string()),
         });
     }
@@ -163,6 +173,15 @@ pub(super) async fn build_providers_catalog(ctx: &AppContext) -> Vec<RuntimeProv
                 available: provider_extension_spec_is_available(extension),
                 supports_native: false,
                 supports_openai_compat: true,
+                readiness_kind: Some(if provider_extension_spec_is_available(extension) {
+                    "ready".to_string()
+                } else {
+                    "degraded".to_string()
+                }),
+                readiness_message: (!provider_extension_spec_is_available(extension)).then_some(
+                    "Extension provider is disabled or blocked by its lifecycle state.".to_string(),
+                ),
+                execution_kind: Some("cloud".to_string()),
                 registry_version: Some(CODE_RUNTIME_RPC_CONTRACT_VERSION.to_string()),
             }),
     );
@@ -232,12 +251,40 @@ async fn provider_is_available(
     compat_catalog: &CompatModelCatalog,
     provider: RuntimeProvider,
 ) -> bool {
+    provider_catalog_readiness_summary(ctx, compat_catalog, provider)
+        .await
+        .available
+}
+
+async fn provider_catalog_readiness_summary(
+    ctx: &AppContext,
+    compat_catalog: &CompatModelCatalog,
+    provider: RuntimeProvider,
+) -> ProviderCatalogReadinessSummary {
     if provider == RuntimeProvider::ClaudeCodeLocal {
-        return check_local_claude_cli_readiness().await.is_ok();
+        let readiness = read_local_claude_cli_readiness().await;
+        return ProviderCatalogReadinessSummary {
+            available: readiness.kind == LocalClaudeReadinessKind::Ready,
+            readiness_kind: readiness.kind.as_str(),
+            readiness_message: Some(readiness.message),
+            execution_kind: "local",
+        };
     }
-    provider.has_api_key(&ctx.config)
+
+    let available = provider.has_api_key(&ctx.config)
         || has_available_oauth_account(ctx, provider)
-        || compat_catalog.has_provider_models(provider)
+        || compat_catalog.has_provider_models(provider);
+
+    ProviderCatalogReadinessSummary {
+        available,
+        readiness_kind: if available { "ready" } else { "degraded" },
+        readiness_message: if available {
+            None
+        } else {
+            Some("No active account routing, API key, or discovered model catalog is available for this provider.".to_string())
+        },
+        execution_kind: "cloud",
+    }
 }
 
 async fn list_runtime_provider_extensions(
