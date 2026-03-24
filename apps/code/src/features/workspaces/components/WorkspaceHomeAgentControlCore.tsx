@@ -68,6 +68,23 @@ const EMPTY_GOVERNANCE_CYCLE: AgentGovernanceCycleReport = {
   notes: [],
 };
 
+function formatToolExposureReasonCode(reasonCode: string): string {
+  switch (reasonCode) {
+    case "runtime-prefers-minimal-tool-catalog":
+      return "Runtime policy requested the smallest safe tool catalog";
+    case "runtime-prefers-slim-tool-catalog":
+      return "Runtime policy slimmed runtime-only tools";
+    case "runtime-keeps-full-tool-catalog":
+      return "Runtime policy kept the full runtime catalog";
+    case "provider-prefers-slim-tool-catalog":
+      return "Provider heuristics slimmed runtime-only tools";
+    case "provider-keeps-full-tool-catalog":
+      return "Provider heuristics kept the full runtime catalog";
+    default:
+      return reasonCode;
+  }
+}
+
 export function WorkspaceHomeAgentControl({
   workspace,
   activeModelContext,
@@ -81,6 +98,7 @@ export function WorkspaceHomeAgentControl({
   const [webMcpConsoleOpen, setWebMcpConsoleOpen] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState<string>("Checking WebMCP support...");
   const [bridgeError, setBridgeError] = useState<string | null>(null);
+  const [bridgeToolExposureReasonCodes, setBridgeToolExposureReasonCodes] = useState<string[]>([]);
   const controlPreferences = useWorkspaceAgentControlPreferences(workspace.id);
   const readOnlyMode = controlPreferences.controls.readOnlyMode;
   const requireUserApproval = controlPreferences.controls.requireUserApproval;
@@ -218,6 +236,12 @@ export function WorkspaceHomeAgentControl({
     runtimeWebMcpContextPolicy.truthSourceLabel,
     webMcpEnabled,
   ]);
+  const toolExposureReasonSummary = useMemo(() => {
+    if (bridgeToolExposureReasonCodes.length === 0) {
+      return null;
+    }
+    return bridgeToolExposureReasonCodes.map(formatToolExposureReasonCode).join(" | ");
+  }, [bridgeToolExposureReasonCodes]);
 
   useEffect(() => {
     let disposed = false;
@@ -231,6 +255,7 @@ export function WorkspaceHomeAgentControl({
             : "Persisted agent controls unavailable"
       );
       setBridgeError(controlPreferences.status === "error" ? controlPreferences.error : null);
+      setBridgeToolExposureReasonCodes([]);
       void teardownWebMcpAgentControl();
       return () => {
         disposed = true;
@@ -258,6 +283,7 @@ export function WorkspaceHomeAgentControl({
         return;
       }
       if (!result.supported) {
+        setBridgeToolExposureReasonCodes([]);
         if (!result.capabilities.modelContext) {
           setBridgeStatus("WebMCP browser API unavailable");
           setBridgeError(null);
@@ -269,9 +295,11 @@ export function WorkspaceHomeAgentControl({
       }
       setBridgeError(result.error);
       if (!result.enabled) {
+        setBridgeToolExposureReasonCodes([]);
         setBridgeStatus("WebMCP disabled");
         return;
       }
+      setBridgeToolExposureReasonCodes(result.toolExposureReasonCodes ?? []);
       const exposureLabel = result.toolExposureMode ? `, ${result.toolExposureMode} catalog` : "";
       setBridgeStatus(
         `${result.registeredTools} tool${result.registeredTools === 1 ? "" : "s"} synced (${result.mode}${exposureLabel})`
@@ -381,6 +409,11 @@ export function WorkspaceHomeAgentControl({
         <span className={controlStyles.controlStatusLabel}>Context policy</span>
         <span className={controlStyles.controlStatusValue}>{runtimePolicyStatus}</span>
       </div>
+      {toolExposureReasonSummary ? (
+        <div className={controlStyles.sectionMeta}>
+          Catalog reasoning: {toolExposureReasonSummary}
+        </div>
+      ) : null}
       {bridgeError && <div className={controlStyles.error}>{bridgeError}</div>}
       {runtimeWebMcpContextPolicy.error && webMcpEnabled && controlPreferencesReady ? (
         <div className={controlStyles.warning}>

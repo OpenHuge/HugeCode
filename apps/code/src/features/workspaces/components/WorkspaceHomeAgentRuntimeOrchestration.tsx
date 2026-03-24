@@ -18,6 +18,21 @@ type WorkspaceHomeAgentRuntimeOrchestrationProps = {
   workspaceId: string;
 };
 
+function formatPolicyValue(value: string | null | undefined, fallback: string): string {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : fallback;
+}
+
+function formatPolicyList(values: string[] | undefined, fallback: string): string {
+  if (!values || values.length === 0) {
+    return fallback;
+  }
+  return values.join(", ");
+}
+
 export function WorkspaceHomeAgentRuntimeOrchestration({
   workspaceId,
 }: WorkspaceHomeAgentRuntimeOrchestrationProps) {
@@ -106,6 +121,38 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         .map((dependency) => `${dependency} -> ${task.taskKey}`)
     );
   }, [runtimeBatchPreview.tasks]);
+  const repositoryPolicyLabel = formatPolicyValue(
+    repositoryExecutionContract?.metadata?.label,
+    "Repository policy defaults"
+  );
+  const repositoryPolicyDescription = repositoryExecutionContract?.metadata?.description ?? null;
+  const launchExecutionProfileId =
+    formatPolicyValue(runtimeSourceDraft?.profileId, "") || selectedExecutionProfile.id;
+  const launchAccessMode =
+    runtimeSourceDraft?.accessMode ??
+    repositoryLaunchDefaults.accessMode ??
+    selectedExecutionProfile.accessMode;
+  const launchValidationPresetLabel = formatPolicyValue(
+    runtimeSourceDraft?.validationPresetId ??
+      repositoryLaunchDefaults.validationPresetLabel ??
+      repositoryLaunchDefaults.validationPresetId ??
+      selectedExecutionProfile.validationPresetId,
+    "runtime default"
+  );
+  const launchReviewProfileLabel = repositoryLaunchDefaults.reviewProfile
+    ? `${repositoryLaunchDefaults.reviewProfile.label} (${repositoryLaunchDefaults.reviewProfile.id})`
+    : formatPolicyValue(repositoryLaunchDefaults.reviewProfileId, "none");
+  const launchBackendPreferenceLabel = formatPolicyList(
+    runtimeSourceDraft?.preferredBackendIds ?? repositoryLaunchDefaults.preferredBackendIds,
+    "app/runtime fallback"
+  );
+  const repositoryReviewProfileLabel = repositoryLaunchDefaults.reviewProfile
+    ? `${repositoryLaunchDefaults.reviewProfile.label} (${repositoryLaunchDefaults.reviewProfile.id})`
+    : formatPolicyValue(repositoryLaunchDefaults.reviewProfileId, "none declared");
+  const launcherOverridesRepositoryProfile =
+    runtimeDraftProfileTouched &&
+    Boolean(repositoryLaunchDefaults.executionProfileId) &&
+    repositoryLaunchDefaults.executionProfileId !== runtimeDraftProfileId;
 
   useEffect(() => {
     for (const entry of visibleRuntimeRuns.slice(0, 8)) {
@@ -622,42 +669,87 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             <span>Supervision: {selectedExecutionProfile.supervisionLabel}</span>
             <span>Routing: {selectedProviderRoute?.label ?? "Automatic workspace routing"}</span>
             <span>Approval posture: {selectedExecutionProfile.approvalSensitivity}</span>
-            <span>
-              Validation preset: {selectedExecutionProfile.validationPresetId ?? "runtime default"}
-            </span>
-            {repositoryExecutionContract ? (
-              <>
-                <span>
-                  Repo source mapping: {repositoryLaunchDefaults.sourceMappingKind ?? "defaults"}
-                </span>
-                <span>
-                  Repo profile default:{" "}
-                  {repositoryLaunchDefaults.executionProfileId ?? "runtime fallback"}
-                </span>
-                <span>
-                  Repo backend preference:{" "}
-                  {repositoryLaunchDefaults.preferredBackendIds?.join(", ") ??
-                    "app/runtime fallback"}
-                </span>
-                <span>
-                  Repo validation preset:{" "}
-                  {repositoryLaunchDefaults.validationPresetId ?? "runtime fallback"}
-                </span>
-                {runtimeDraftProfileTouched &&
-                repositoryLaunchDefaults.executionProfileId &&
-                repositoryLaunchDefaults.executionProfileId !== runtimeDraftProfileId ? (
-                  <span>
-                    Launcher profile overrides repo default{" "}
-                    {repositoryLaunchDefaults.executionProfileId}.
-                  </span>
-                ) : null}
-              </>
-            ) : null}
+            <span>Launch execution profile: {launchExecutionProfileId}</span>
+            <span>Launch access mode: {launchAccessMode ?? "runtime fallback"}</span>
+            <span>Launch backend preference: {launchBackendPreferenceLabel}</span>
+            <span>Launch review profile: {launchReviewProfileLabel}</span>
+            <span>Launch validation preset: {launchValidationPresetLabel}</span>
           </div>
           <div className={controlStyles.sectionMeta}>
             {selectedProviderRoute?.detail ?? "Routing details unavailable."}
           </div>
         </div>
+        {repositoryExecutionContract ? (
+          <div className="workspace-home-code-runtime-item">
+            <div className="workspace-home-code-runtime-item-main">
+              <strong>{repositoryPolicyLabel}</strong>
+              <span>
+                {repositoryPolicyDescription ??
+                  "Repository-scoped launch policy is merged into runtime preparation before the run starts."}
+              </span>
+              <span>
+                Repo source mapping: {repositoryLaunchDefaults.sourceMappingKind ?? "defaults"}
+              </span>
+              <span>
+                Repo profile default:{" "}
+                {formatPolicyValue(
+                  repositoryLaunchDefaults.executionProfileId,
+                  "runtime/profile fallback"
+                )}
+              </span>
+              <span>
+                Repo access mode:{" "}
+                {formatPolicyValue(
+                  repositoryLaunchDefaults.accessMode,
+                  "selected profile fallback"
+                )}
+              </span>
+              <span>
+                Repo backend preference:{" "}
+                {formatPolicyList(
+                  repositoryLaunchDefaults.preferredBackendIds,
+                  "app/runtime fallback"
+                )}
+              </span>
+              <span>Repo review profile: {repositoryReviewProfileLabel}</span>
+              {repositoryLaunchDefaults.reviewProfile ? (
+                <span>
+                  Review posture: autofix {repositoryLaunchDefaults.reviewProfile.autofixPolicy} |
+                  GitHub mirror {repositoryLaunchDefaults.reviewProfile.githubMirrorPolicy}
+                </span>
+              ) : null}
+              <span>
+                Repo validation preset:{" "}
+                {formatPolicyValue(
+                  repositoryLaunchDefaults.validationPresetLabel ??
+                    repositoryLaunchDefaults.validationPresetId,
+                  "selected profile fallback"
+                )}
+              </span>
+              <span>
+                Validation commands:{" "}
+                {formatPolicyList(
+                  repositoryLaunchDefaults.validationCommands,
+                  "No repository validation commands declared."
+                )}
+              </span>
+              {launcherOverridesRepositoryProfile ? (
+                <span>
+                  Launcher profile override: {runtimeDraftProfileId} replaces repo default{" "}
+                  {repositoryLaunchDefaults.executionProfileId}.
+                </span>
+              ) : (
+                <span>Launcher profile is aligned with repository policy defaults.</span>
+              )}
+            </div>
+            {launcherOverridesRepositoryProfile ? (
+              <div className={controlStyles.sectionMeta}>
+                Repository policy still controls access mode, backend preference, review profile,
+                and validation preset unless a source-linked relaunch draft overrides them.
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {repositoryExecutionContractError ? (
           <div className={controlStyles.warning}>{repositoryExecutionContractError}</div>
         ) : null}

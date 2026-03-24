@@ -11,12 +11,32 @@ import {
 import { prepareRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
 import { recordSentryMetric } from "../../../features/shared/sentry";
 
+const { runtimeUpdatedListeners, subscribeScopedRuntimeUpdatedEventsMock } = vi.hoisted(() => {
+  const listeners: Array<(event: unknown) => void> = [];
+  return {
+    runtimeUpdatedListeners: listeners,
+    subscribeScopedRuntimeUpdatedEventsMock: vi.fn((_options, listener) => {
+      listeners.push(listener as (event: unknown) => void);
+      return () => {
+        const index = listeners.indexOf(listener as (event: unknown) => void);
+        if (index >= 0) {
+          listeners.splice(index, 1);
+        }
+      };
+    }),
+  };
+});
+
 vi.mock("../ports/tauriRuntimeJobs", () => ({
   prepareRuntimeRunV2: vi.fn(),
 }));
 
 vi.mock("../../../features/shared/sentry", () => ({
   recordSentryMetric: vi.fn(),
+}));
+
+vi.mock("../ports/runtimeUpdatedEvents", () => ({
+  subscribeScopedRuntimeUpdatedEvents: subscribeScopedRuntimeUpdatedEventsMock,
 }));
 
 function buildPrepareResponse(
@@ -116,6 +136,7 @@ describe("runtimeWebMcpContextPolicy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     __resetRuntimeWebMcpContextPolicyCacheForTests();
+    runtimeUpdatedListeners.splice(0, runtimeUpdatedListeners.length);
   });
 
   it("builds runtime prepare requests from command-center intent", () => {
@@ -321,5 +342,49 @@ describe("runtimeWebMcpContextPolicy", () => {
         }),
       })
     );
+  });
+
+  it("invalidates cached WebMCP policy truth after relevant runtime updates", async () => {
+    vi.mocked(prepareRuntimeRunV2)
+      .mockResolvedValueOnce(buildPrepareResponse("full"))
+      .mockResolvedValueOnce(buildPrepareResponse("minimal"));
+
+    const { result } = renderHook(() =>
+      useRuntimeWebMcpContextPolicy({
+        workspaceId: "ws-1",
+        enabled: true,
+        activeModelContext: {
+          provider: "anthropic",
+          modelId: "claude-sonnet-4-5",
+        },
+        intent: {
+          objective: "Plan runtime work",
+          constraints: "",
+          successCriteria: "",
+          deadline: null,
+          priority: "medium",
+          managerNotes: "",
+        },
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectionPolicy?.toolExposureProfile).toBe("full");
+    });
+
+    expect(vi.mocked(prepareRuntimeRunV2)).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      for (const listener of runtimeUpdatedListeners) {
+        listener({});
+      }
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectionPolicy?.toolExposureProfile).toBe("minimal");
+    });
+
+    expect(vi.mocked(prepareRuntimeRunV2)).toHaveBeenCalledTimes(2);
+    expect(result.current.truthSourceLabel).toBe("Runtime kernel v2 prepare");
   });
 });

@@ -208,6 +208,9 @@ describe("WorkspaceHomeAgentControl", () => {
     );
     expect(screen.getByText(/4 tools synced \(provideContext, slim catalog\)/i)).toBeTruthy();
     expect(screen.getByText(/Runtime kernel v2 prepare: balanced\/slim/i)).toBeTruthy();
+    expect(
+      screen.getByText(/Catalog reasoning: Runtime policy slimmed runtime-only tools/i)
+    ).toBeTruthy();
   });
 
   it("locks control toggles when persisted controls failed to load", async () => {

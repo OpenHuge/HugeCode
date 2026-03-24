@@ -606,10 +606,15 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       parseRepositoryExecutionContract(
         JSON.stringify({
           version: 1,
+          metadata: {
+            label: "Workspace Launch Policy",
+            description: "Keep review, validation, and backend posture visible before launch.",
+          },
           defaults: {
             executionProfileId: "operator-review",
             validationPresetId: "review-first",
             preferredBackendIds: ["backend-policy-a"],
+            reviewProfileId: "review-gate",
           },
           sourceMappings: {
             manual: {
@@ -620,7 +625,18 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
           validationPresets: [
             {
               id: "review-first",
+              label: "Review First",
               commands: ["pnpm validate:fast"],
+            },
+          ],
+          reviewProfiles: [
+            {
+              id: "review-gate",
+              label: "Review Gate",
+              allowedSkillIds: ["code-review"],
+              validationPresetId: "review-first",
+              autofixPolicy: "bounded",
+              githubMirrorPolicy: "summary",
             },
           ],
         })
@@ -630,13 +646,50 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
+      expect(screen.getByText("Workspace Launch Policy")).toBeTruthy();
+      expect(
+        screen.getByText("Keep review, validation, and backend posture visible before launch.")
+      ).toBeTruthy();
       expect(screen.getByText("Repo source mapping: manual")).toBeTruthy();
       expect(screen.getByText("Repo profile default: operator-review")).toBeTruthy();
+      expect(screen.getByText("Repo access mode: read-only")).toBeTruthy();
       expect(screen.getByText("Repo backend preference: backend-policy-a")).toBeTruthy();
-      expect(screen.getByText("Repo validation preset: review-first")).toBeTruthy();
+      expect(screen.getByText("Repo review profile: Review Gate (review-gate)")).toBeTruthy();
+      expect(
+        screen.getByText("Review posture: autofix bounded | GitHub mirror summary")
+      ).toBeTruthy();
+      expect(screen.getByText("Repo validation preset: Review First")).toBeTruthy();
+      expect(screen.getByText("Validation commands: pnpm validate:fast")).toBeTruthy();
+      expect(screen.getByText("Launch execution profile: operator-review")).toBeTruthy();
+      expect(screen.getByText("Launch access mode: read-only")).toBeTruthy();
+      expect(screen.getByText("Launch review profile: Review Gate (review-gate)")).toBeTruthy();
+      expect(screen.getByText("Launch validation preset: Review First")).toBeTruthy();
+      expect(
+        screen.getByText("Launcher profile is aligned with repository policy defaults.")
+      ).toBeTruthy();
       expect((screen.getByLabelText("Execution profile") as HTMLSelectElement).value).toBe(
         "operator-review"
       );
+    });
+
+    fireEvent.change(screen.getByLabelText("Execution profile"), {
+      target: { value: "balanced-delegate" },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Launcher profile override: balanced-delegate replaces repo default operator-review."
+        )
+      ).toBeTruthy();
+      expect(
+        screen.getByText(
+          "Repository policy still controls access mode, backend preference, review profile, and validation preset unless a source-linked relaunch draft overrides them."
+        )
+      ).toBeTruthy();
+      expect(screen.getByText("Launch execution profile: balanced-delegate")).toBeTruthy();
+      expect(screen.getByText("Launch access mode: read-only")).toBeTruthy();
+      expect(screen.getByText("Launch validation preset: Review First")).toBeTruthy();
     });
   });
 

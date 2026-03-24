@@ -6,6 +6,7 @@ import type {
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { recordSentryMetric } from "../../../features/shared/sentry";
 import type { AgentIntentState, WebMcpActiveModelContext } from "../types/webMcpBridge";
+import { subscribeScopedRuntimeUpdatedEvents } from "../ports/runtimeUpdatedEvents";
 import { prepareRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
 import { buildAgentTaskMissionBrief } from "./runtimeMissionDraftFacade";
 
@@ -31,9 +32,15 @@ type RuntimeWebMcpContextPolicyResolution = {
   result: "cache" | "runtime";
 };
 
-const WEBMCP_CONTEXT_POLICY_CACHE_LIMIT = 16;
+type RuntimeWebMcpContextPolicyCacheEntry = RuntimeWebMcpContextPolicyResolution & {
+  cachedAt: number;
+};
 
-const runtimeWebMcpContextPolicyCache = new Map<string, RuntimeWebMcpContextPolicyResolution>();
+const WEBMCP_CONTEXT_POLICY_CACHE_LIMIT = 16;
+const WEBMCP_CONTEXT_POLICY_CACHE_TTL_MS = 30_000;
+const WEBMCP_CONTEXT_POLICY_INVALIDATION_SCOPES = ["bootstrap", "workspaces", "models", "skills"];
+
+const runtimeWebMcpContextPolicyCache = new Map<string, RuntimeWebMcpContextPolicyCacheEntry>();
 const runtimeWebMcpContextPolicyInflight = new Map<
   string,
   Promise<RuntimeWebMcpContextPolicyResolution>
@@ -111,13 +118,19 @@ export function buildRuntimeWebMcpContextPrepareRequest(
   };
 }
 
-function buildRuntimeWebMcpContextPolicyCacheKey(request: RuntimeRunPrepareV2Request): string {
-  return JSON.stringify(request);
+function buildRuntimeWebMcpContextPolicyCacheKey(
+  request: RuntimeRunPrepareV2Request,
+  runtimeContextRevision: number
+): string {
+  return JSON.stringify({
+    request,
+    runtimeContextRevision,
+  });
 }
 
 function touchRuntimeWebMcpContextPolicyCacheEntry(
   cacheKey: string,
-  entry: RuntimeWebMcpContextPolicyResolution
+  entry: RuntimeWebMcpContextPolicyCacheEntry
 ): void {
   runtimeWebMcpContextPolicyCache.delete(cacheKey);
   runtimeWebMcpContextPolicyCache.set(cacheKey, entry);
@@ -135,13 +148,16 @@ async function resolveRuntimeWebMcpContextPolicy(
   cacheKey: string
 ): Promise<RuntimeWebMcpContextPolicyResolution> {
   const cached = runtimeWebMcpContextPolicyCache.get(cacheKey);
-  if (cached) {
+  if (cached && Date.now() - cached.cachedAt <= WEBMCP_CONTEXT_POLICY_CACHE_TTL_MS) {
     touchRuntimeWebMcpContextPolicyCacheEntry(cacheKey, cached);
     return {
       ...cached,
       truthSourceLabel: "Runtime kernel v2 prepare (cached)",
       result: "cache",
     };
+  }
+  if (cached) {
+    runtimeWebMcpContextPolicyCache.delete(cacheKey);
   }
 
   const inflight = runtimeWebMcpContextPolicyInflight.get(cacheKey);
@@ -156,6 +172,7 @@ async function resolveRuntimeWebMcpContextPolicy(
         contextFingerprint: preparation.contextWorkingSet.contextFingerprint,
         truthSourceLabel: "Runtime kernel v2 prepare",
         result: "runtime" as const,
+        cachedAt: Date.now(),
       };
       touchRuntimeWebMcpContextPolicyCacheEntry(cacheKey, resolution);
       return resolution;
@@ -176,6 +193,8 @@ export function __resetRuntimeWebMcpContextPolicyCacheForTests(): void {
 export function useRuntimeWebMcpContextPolicy(
   input: RuntimeWebMcpContextPolicyInput
 ): RuntimeWebMcpContextPolicyState {
+  const [runtimeContextRevision, setRuntimeContextRevision] = useState(0);
+  const policyEnabled = input.enabled ?? true;
   const request = useMemo(
     () => buildRuntimeWebMcpContextPrepareRequest(input),
     [
@@ -186,9 +205,32 @@ export function useRuntimeWebMcpContextPolicy(
     ]
   );
   const debouncedRequest = useDebouncedValue(request, 250);
+
+  useEffect(() => {
+    setRuntimeContextRevision(0);
+  }, [input.workspaceId]);
+
+  useEffect(() => {
+    if (!policyEnabled) {
+      return () => undefined;
+    }
+    return subscribeScopedRuntimeUpdatedEvents(
+      {
+        workspaceId: input.workspaceId,
+        scopes: WEBMCP_CONTEXT_POLICY_INVALIDATION_SCOPES,
+      },
+      () => {
+        setRuntimeContextRevision((current) => current + 1);
+      }
+    );
+  }, [input.workspaceId, policyEnabled]);
+
   const requestCacheKey = useMemo(
-    () => (debouncedRequest ? buildRuntimeWebMcpContextPolicyCacheKey(debouncedRequest) : null),
-    [debouncedRequest]
+    () =>
+      debouncedRequest
+        ? buildRuntimeWebMcpContextPolicyCacheKey(debouncedRequest, runtimeContextRevision)
+        : null,
+    [debouncedRequest, runtimeContextRevision]
   );
   const [selectionPolicy, setSelectionPolicy] = useState<RuntimeContextSelectionPolicyV2 | null>(
     null
@@ -197,7 +239,6 @@ export function useRuntimeWebMcpContextPolicy(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [truthSourceLabel, setTruthSourceLabel] = useState<string | null>(null);
-  const policyEnabled = input.enabled ?? true;
 
   useEffect(() => {
     if (!policyEnabled || !debouncedRequest || !requestCacheKey) {
@@ -265,6 +306,7 @@ export function useRuntimeWebMcpContextPolicy(
     input.workspaceId,
     policyEnabled,
     requestCacheKey,
+    runtimeContextRevision,
   ]);
 
   return {
