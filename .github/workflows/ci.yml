@@ -128,6 +128,7 @@ jobs:
               - '.github/actions/cache-turbo/**'
               - '.github/actions/install-linux-desktop-deps/**'
               - '.github/actions/setup-node-pnpm/**'
+              - '.github/actions/setup-rust-ci/**'
               - '.github/actions/setup-playwright/**'
 
       - id: scope
