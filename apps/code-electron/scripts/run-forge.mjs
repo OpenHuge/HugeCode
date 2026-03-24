@@ -49,6 +49,11 @@ async function prepareStage() {
     config: {
       forge: "./forge.config.mjs",
     },
+    dependencies: Object.fromEntries(
+      Object.entries(packageJson.dependencies ?? {}).filter(
+        ([, version]) => typeof version === "string" && !version.startsWith("workspace:")
+      )
+    ),
     devDependencies: {
       electron: packageJson.devDependencies.electron,
       "@electron-forge/cli": workspacePackageJson.devDependencies["@electron-forge/cli"],

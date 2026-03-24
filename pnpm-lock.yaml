@@ -261,6 +261,9 @@ importers:
       '@ku0/code-platform-interfaces':
         specifier: workspace:*
         version: link:../../packages/code-platform-interfaces
+      update-electron-app:
+        specifier: 3.1.2
+        version: 3.1.2
     devDependencies:
       electron:
         specifier: 41.0.3
@@ -4358,6 +4361,9 @@ packages:
   get-tsconfig@4.13.0:
     resolution: {integrity: sha512-1VKTZJCwBrvbd+Wn3AOgQP/2Av+TfTCOlE4AcRJE72W1ksZXbAx8PPBR9RzgTeSPzlPMHrbANMH3LbltH73wxQ==}
 
+  github-url-to-object@4.0.6:
+    resolution: {integrity: sha512-NaqbYHMUAlPcmWFdrAB7bcxrNIiiJWJe8s/2+iOc9vlcHlwHqSGrPk+Yi3nu6ebTwgsZEa7igz+NH2vEq3gYwQ==}
+
   glob-parent@5.1.2:
     resolution: {integrity: sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow==}
     engines: {node: '>= 6'}
@@ -6540,6 +6546,9 @@ packages:
     hasBin: true
     peerDependencies:
       browserslist: '>= 4.21.0'
+
+  update-electron-app@3.1.2:
+    resolution: {integrity: sha512-htLyPJv7mEoCpaSzCg0W3Hxz7ID0GC7BIhhpK32/ITG7McrWak4aOkLEOjJheKAI94AxtBVTjCk4EFIvyttw2w==}
 
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
@@ -11093,6 +11102,10 @@ snapshots:
     dependencies:
       resolve-pkg-maps: 1.0.0
 
+  github-url-to-object@4.0.6:
+    dependencies:
+      is-url: 1.2.4
+
   glob-parent@5.1.2:
     dependencies:
       is-glob: 4.0.3
@@ -13591,6 +13604,11 @@ snapshots:
       browserslist: 4.28.1
       escalade: 3.2.0
       picocolors: 1.1.1
+
+  update-electron-app@3.1.2:
+    dependencies:
+      github-url-to-object: 4.0.6
+      ms: 2.1.3
 
   uri-js@4.4.1:
     dependencies:

@@ -42,7 +42,7 @@ if (
 
 if (!process.env.HUGECODE_ELECTRON_UPDATE_BASE_URL) {
   writeLine(
-    "Electron publish dry-run: static beta update feed is not configured; desktop updater remains manual until HUGECODE_ELECTRON_UPDATE_BASE_URL is set."
+    "Electron publish dry-run: beta auto-update remains manual unless HUGECODE_ELECTRON_UPDATE_BASE_URL is set, because the public Electron update service ignores GitHub prereleases."
   );
 } else {
   writeLine(

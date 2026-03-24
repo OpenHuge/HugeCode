@@ -20,8 +20,8 @@ describe("desktopUpdaterController", () => {
   it("falls back to manual updates when no beta update feed is configured", () => {
     const controller = createDesktopUpdaterController({
       appVersion: "0.1.0-beta.1",
+      autoUpdateAvailable: false,
       autoUpdater: createFakeAutoUpdater(),
-      channel: "beta",
       isPackaged: true,
       platform: "darwin",
       repoUrl: "https://github.com/OpenHuge/HugeCode",
@@ -46,13 +46,12 @@ describe("desktopUpdaterController", () => {
     const configureAutoUpdates = vi.fn();
     const controller = createDesktopUpdaterController({
       appVersion: "0.1.0-beta.1",
+      autoUpdateAvailable: true,
       autoUpdater,
-      channel: "beta",
       configureAutoUpdates,
       isPackaged: true,
       platform: "win32",
       repoUrl: "https://github.com/OpenHuge/HugeCode",
-      staticUpdateBaseUrl: "https://downloads.example.com/hugecode/beta",
     });
 
     expect(controller.getState()).toEqual({
@@ -62,16 +61,21 @@ describe("desktopUpdaterController", () => {
       version: "0.1.0-beta.1",
     });
 
+    expect(controller.initialize()).toEqual({
+      capability: "automatic",
+      releaseUrl: "https://github.com/OpenHuge/HugeCode/releases",
+      stage: "idle",
+      version: "0.1.0-beta.1",
+    });
+    expect(configureAutoUpdates).toHaveBeenCalledTimes(1);
+
     expect(controller.checkForUpdates()).toEqual({
       capability: "automatic",
       releaseUrl: "https://github.com/OpenHuge/HugeCode/releases",
       stage: "checking",
       version: "0.1.0-beta.1",
     });
-    expect(configureAutoUpdates).toHaveBeenCalledWith({
-      baseUrl: "https://downloads.example.com/hugecode/beta",
-      channel: "beta",
-    });
+    expect(configureAutoUpdates).toHaveBeenCalledTimes(1);
     expect(autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1);
 
     autoUpdater.trigger("update-available", { version: "0.1.0-beta.2" });

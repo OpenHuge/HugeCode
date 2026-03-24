@@ -3,6 +3,7 @@ import type { IpcMainInvokeEvent } from "electron";
 import type { DesktopReleaseChannel } from "../shared/ipc.js";
 import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
+import { createDesktopAutoUpdateConfigurator } from "./desktopAutoUpdateConfigurator.js";
 import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
 import { createDesktopLaunchIntentController } from "./desktopLaunchIntentController.js";
 import { createDesktopRendererTrust } from "./desktopRendererTrust.js";
@@ -90,17 +91,22 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     platform: input.platform,
     protocol: "hugecode",
   });
+  const autoUpdateConfigurator = createDesktopAutoUpdateConfigurator({
+    channel: input.releaseChannel ?? "beta",
+    repoUrl: input.repositoryUrl ?? "https://github.com/OpenHuge/HugeCode",
+    staticUpdateBaseUrl: input.staticUpdateBaseUrl ?? null,
+  });
   const updaterController = createDesktopUpdaterController({
     appVersion: (() => {
       const version = input.app.getVersion();
       return typeof version === "string" && version.length > 0 ? version : null;
     })(),
+    autoUpdateAvailable: autoUpdateConfigurator.isAvailable,
     autoUpdater: input.autoUpdater,
-    channel: input.releaseChannel ?? "beta",
+    configureAutoUpdates: autoUpdateConfigurator.initialize,
     isPackaged: input.app.isPackaged,
     platform: input.platform,
     repoUrl: input.repositoryUrl ?? "https://github.com/OpenHuge/HugeCode",
-    staticUpdateBaseUrl: input.staticUpdateBaseUrl ?? null,
   });
 
   function persistDesktopState() {
@@ -215,6 +221,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
 
   function start() {
     input.app.enableSandbox();
+    updaterController.initialize();
     launchIntentController.registerAppHandlers();
     launchIntentController.registerProtocolClient();
 

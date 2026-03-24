@@ -1,4 +1,4 @@
-import type { DesktopReleaseChannel, DesktopUpdateState } from "../shared/ipc.js";
+import type { DesktopUpdateState } from "../shared/ipc.js";
 
 type AutoUpdaterInfo = {
   version?: string;
@@ -17,13 +17,12 @@ type AutoUpdaterLike = {
 
 export type CreateDesktopUpdaterControllerInput = {
   appVersion: string | null;
+  autoUpdateAvailable?: boolean;
   autoUpdater: AutoUpdaterLike;
-  channel: DesktopReleaseChannel;
-  configureAutoUpdates?: (input: { baseUrl: string; channel: DesktopReleaseChannel }) => void;
+  configureAutoUpdates?: () => boolean | void;
   isPackaged: boolean;
   platform: NodeJS.Platform;
   repoUrl: string;
-  staticUpdateBaseUrl?: string | null;
 };
 
 function createReleaseUrl(repoUrl: string) {
@@ -34,22 +33,16 @@ function createReleaseUrl(repoUrl: string) {
 function resolveUpdateCapability(
   input: Pick<
     CreateDesktopUpdaterControllerInput,
-    "channel" | "configureAutoUpdates" | "isPackaged" | "platform" | "staticUpdateBaseUrl"
+    "autoUpdateAvailable" | "isPackaged" | "platform"
   >
 ) {
   if (input.platform !== "darwin" && input.platform !== "win32") {
     return "manual" as const;
   }
 
-  if (input.channel === "beta") {
-    return input.configureAutoUpdates &&
-      input.isPackaged &&
-      (input.staticUpdateBaseUrl?.trim().length ?? 0) > 0
-      ? ("automatic" as const)
-      : ("manual" as const);
-  }
-
-  return input.isPackaged ? ("automatic" as const) : ("manual" as const);
+  return input.isPackaged && input.autoUpdateAvailable
+    ? ("automatic" as const)
+    : ("manual" as const);
 }
 
 export function createDesktopUpdaterController(input: CreateDesktopUpdaterControllerInput) {
@@ -112,16 +105,14 @@ export function createDesktopUpdaterController(input: CreateDesktopUpdaterContro
     }
 
     configured = true;
-    const baseUrl = input.staticUpdateBaseUrl?.trim();
-    if (input.channel === "beta" && baseUrl) {
-      input.configureAutoUpdates?.({
-        baseUrl,
-        channel: input.channel,
-      });
-    }
+    input.configureAutoUpdates?.();
   }
 
   return {
+    initialize() {
+      ensureConfigured();
+      return state;
+    },
     checkForUpdates() {
       if (capability !== "automatic") {
         return state;
