@@ -565,6 +565,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Launch readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Continuity readiness" })).toBeTruthy();
+      expect(screen.getByRole("heading", { name: "Delegated attention" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Approval pressure" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Run list" })).toBeTruthy();
     });
@@ -1115,7 +1116,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Need approval")).toBeTruthy();
+      expect(screen.queryAllByText("Need approval").length).toBeGreaterThan(0);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
@@ -1322,9 +1323,114 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Delegated runtime task")).toBeTruthy();
+      expect(screen.queryAllByText("Delegated runtime task").length).toBeGreaterThan(0);
       expect(screen.getByText("Runs: 1")).toBeTruthy();
       expect(screen.getByText("Running: 1")).toBeTruthy();
+      expect(
+        screen.getAllByText("Two delegated sessions are active under this run.").length
+      ).toBeGreaterThan(0);
+      expect(
+        screen.getByText("Delegated sessions: active 1 | attention 1 | resume ready 1")
+      ).toBeTruthy();
+      expect(
+        screen.getAllByText("Current activity: Waiting on delegated review").length
+      ).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText("Blocker: A reviewer session is awaiting approval.").length
+      ).toBeGreaterThan(0);
+      expect(
+        screen.getByText(
+          "Open the matching run below for full delegated-session observability and intervention controls."
+        )
+      ).toBeTruthy();
+    });
+  });
+
+  it("keeps delegated attention visible even when the run list filter hides the matching run", async () => {
+    mockRuntimeTasks([
+      {
+        ...buildTask("runtime-running-3", "running", "Delegated hidden task"),
+        runSummary: {
+          id: "runtime-running-3",
+          taskId: "runtime-running-3",
+          workspaceId: "ws-approval",
+          state: "running",
+          currentStepIndex: 0,
+          title: "Delegated hidden task",
+          summary: "Runtime is coordinating delegated work.",
+          startedAt: 1,
+          finishedAt: null,
+          updatedAt: 2,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          changedPaths: [],
+          nextAction: null,
+          approval: null,
+          operatorSnapshot: {
+            summary: "A delegated reviewer still needs attention.",
+            runtimeLabel: "Codex runtime",
+            provider: "openai",
+            modelId: "gpt-5.4",
+            reasoningEffort: "medium",
+            backendId: "backend-primary",
+            machineId: "machine-1",
+            machineSummary: "Primary backend",
+            workspaceRoot: "/tmp/workspace",
+            currentActivity: "Waiting on reviewer handoff",
+            blocker: "Reviewer session is paused for approval.",
+            recentEvents: [],
+          },
+          subAgents: [
+            {
+              sessionId: "session-review",
+              status: "awaiting_approval",
+              scopeProfile: "review",
+              summary: "Reviewer session is paused for approval.",
+              approvalState: {
+                status: "pending",
+                approvalId: "approval-review-hidden",
+                reason: "Approve reviewer escalation to continue.",
+                at: 1_700_000_100_000,
+              },
+              checkpointState: {
+                state: "active",
+                lifecycleState: "requested",
+                checkpointId: "checkpoint-review-hidden",
+                traceId: "trace-review-hidden",
+                recovered: false,
+                updatedAt: 1_700_000_100_000,
+                resumeReady: true,
+                summary: "Checkpoint checkpoint-review-hidden is ready for resume.",
+              },
+              takeoverBundle: {
+                state: "ready",
+                pathKind: "resume",
+                primaryAction: "resume",
+                summary: "Resume is ready once approval is granted.",
+                recommendedAction: "Resume delegated review",
+              },
+            },
+          ],
+        },
+      } as MockAgentTaskSummary,
+    ]);
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await waitFor(() => {
+      expect(screen.queryAllByText("Delegated hidden task").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Run state" }), {
+      target: { value: "completed" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("No mission runs match this filter.")).toBeTruthy();
+      expect(screen.getByText("A delegated reviewer still needs attention.")).toBeTruthy();
+      expect(screen.getByText("Current activity: Waiting on reviewer handoff")).toBeTruthy();
+      expect(screen.getByText("Blocker: Reviewer session is paused for approval.")).toBeTruthy();
     });
   });
 
