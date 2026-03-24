@@ -62,6 +62,7 @@ export function createDebugRuntimeProbeState(
     runTerminalStatusProbe: vi.fn(),
     runSettingsProbe: vi.fn(),
     runBootstrapProbe: vi.fn(),
+    runToolLifecycleProbe: vi.fn(),
     runLiveSkillProbe: vi.fn(),
     isRuntimeProbeBusy: false,
     ...overrides,

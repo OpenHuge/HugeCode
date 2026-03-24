@@ -81,6 +81,7 @@ export function createDebugPanelBodyProps(
     onRunTerminalStatusProbe: vi.fn(),
     onRunSettingsProbe: vi.fn(),
     onRunBootstrapProbe: vi.fn(),
+    onRunToolLifecycleProbe: vi.fn(),
     onRunLiveSkillProbe: vi.fn(),
     ...overrides,
   };

@@ -6,6 +6,7 @@ import {
   getRuntimeHealth,
   runRuntimeLiveSkill,
 } from "../../../application/runtime/ports/tauriRuntime";
+import { getRuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import { useDebugRuntimeProbe } from "./useDebugRuntimeProbe";
 
 vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
@@ -17,12 +18,36 @@ vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
   runRuntimeLiveSkill: vi.fn(),
 }));
 
+vi.mock("../../../application/runtime/ports/runtimeToolLifecycle", () => ({
+  getRuntimeToolLifecycleSnapshot: vi.fn(),
+}));
+
 const getRuntimeHealthMock = vi.mocked(getRuntimeHealth);
+const getRuntimeToolLifecycleSnapshotMock = vi.mocked(getRuntimeToolLifecycleSnapshot);
 const runRuntimeLiveSkillMock = vi.mocked(runRuntimeLiveSkill);
 
 describe("useDebugRuntimeProbe", () => {
   beforeEach(() => {
     getRuntimeHealthMock.mockResolvedValue({ status: "ok", app: "code", version: "1.0.0" });
+    getRuntimeToolLifecycleSnapshotMock.mockReturnValue({
+      revision: 2,
+      lastEvent: {
+        id: "tool-completed-1",
+        kind: "tool",
+        phase: "completed",
+        source: "telemetry",
+        workspaceId: "workspace-1",
+        threadId: null,
+        turnId: "turn-1",
+        toolCallId: "tool-call-1",
+        toolName: "bash",
+        scope: "write",
+        status: "success",
+        at: 1_770_000_000_000,
+        errorCode: null,
+      },
+      recentEvents: [],
+    });
     runRuntimeLiveSkillMock.mockResolvedValue({
       runId: "run-1",
       skillId: "core-bash",
@@ -49,6 +74,20 @@ describe("useDebugRuntimeProbe", () => {
     expect(result.current.runtimeProbeError).toBeNull();
     expect(result.current.runtimeProbeBusyLabel).toBeNull();
     expect(result.current.runtimeProbeResult).toContain('"status": "ok"');
+  });
+
+  it("runs runtime lifecycle probe and formats the snapshot", async () => {
+    const { result } = renderHook(() => useDebugRuntimeProbe());
+
+    await act(async () => {
+      await result.current.runToolLifecycleProbe();
+    });
+
+    expect(getRuntimeToolLifecycleSnapshotMock).toHaveBeenCalledTimes(1);
+    expect(result.current.runtimeProbeError).toBeNull();
+    expect(result.current.runtimeProbeBusyLabel).toBeNull();
+    expect(result.current.runtimeProbeResult).toContain('"revision": 2');
+    expect(result.current.runtimeProbeResult).toContain('"toolName": "bash"');
   });
 
   it("runs core-tree live skill with structured options", async () => {

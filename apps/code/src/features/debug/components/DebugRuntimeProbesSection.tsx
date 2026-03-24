@@ -16,6 +16,7 @@ export function DebugRuntimeProbesSection(props: DebugRuntimeProbesSectionProps)
         onRunTerminalStatusProbe={props.onRunTerminalStatusProbe}
         onRunSettingsProbe={props.onRunSettingsProbe}
         onRunBootstrapProbe={props.onRunBootstrapProbe}
+        onRunToolLifecycleProbe={props.onRunToolLifecycleProbe}
       />
       <DebugRuntimeLiveSkillForm
         isRuntimeProbeBusy={props.isRuntimeProbeBusy}

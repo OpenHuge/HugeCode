@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { getRuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import {
   getRuntimeBootstrapSnapshot,
   getRuntimeHealth,
@@ -70,6 +71,10 @@ export function useDebugRuntimeProbe() {
   );
   const runBootstrapProbe = useCallback(
     () => runRuntimeProbe("bootstrap", getRuntimeBootstrapSnapshot),
+    [runRuntimeProbe]
+  );
+  const runToolLifecycleProbe = useCallback(
+    () => runRuntimeProbe("tool lifecycle", async () => getRuntimeToolLifecycleSnapshot()),
     [runRuntimeProbe]
   );
 
@@ -151,6 +156,7 @@ export function useDebugRuntimeProbe() {
     runTerminalStatusProbe,
     runSettingsProbe,
     runBootstrapProbe,
+    runToolLifecycleProbe,
     runLiveSkillProbe,
     isRuntimeProbeBusy: runtimeProbeBusyLabel !== null,
   };

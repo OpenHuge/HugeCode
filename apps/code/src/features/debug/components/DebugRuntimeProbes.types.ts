@@ -31,6 +31,7 @@ export type DebugRuntimeProbeActionsProps = {
   onRunTerminalStatusProbe: () => void;
   onRunSettingsProbe: () => void;
   onRunBootstrapProbe: () => void;
+  onRunToolLifecycleProbe: () => void;
 };
 
 export type DebugRuntimeProbesSectionProps = DebugRuntimeLiveSkillFormProps &

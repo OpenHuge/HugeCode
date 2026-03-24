@@ -91,6 +91,7 @@ export function createDebugPanelViewModel({
     runTerminalStatusProbe,
     runSettingsProbe,
     runBootstrapProbe,
+    runToolLifecycleProbe,
     runLiveSkillProbe,
     isRuntimeProbeBusy,
   } = runtimeProbe;
@@ -146,6 +147,7 @@ export function createDebugPanelViewModel({
       onRunTerminalStatusProbe: runTerminalStatusProbe,
       onRunSettingsProbe: runSettingsProbe,
       onRunBootstrapProbe: runBootstrapProbe,
+      onRunToolLifecycleProbe: runToolLifecycleProbe,
       onRunLiveSkillProbe: runLiveSkillProbe,
     },
   };

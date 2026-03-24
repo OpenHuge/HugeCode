@@ -44,6 +44,14 @@ export function DebugRuntimeProbeActions(props: DebugRuntimeProbeActionsProps) {
       >
         Bootstrap
       </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={props.onRunToolLifecycleProbe}
+        disabled={props.isRuntimeProbeBusy}
+      >
+        Lifecycle
+      </Button>
     </div>
   );
 }

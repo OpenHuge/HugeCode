@@ -1,4 +1,8 @@
 import { useCallback, useState } from "react";
+import {
+  getRuntimeToolLifecycleSnapshot,
+  runtimeToolLifecycleEventMatchesWorkspace,
+} from "../../../application/runtime/ports/runtimeToolLifecycle";
 import { runtimeDiagnosticsExportV1 } from "../../../application/runtime/ports/tauriRuntime";
 
 type UseRuntimeDiagnosticsExportOptions = {
@@ -6,6 +10,26 @@ type UseRuntimeDiagnosticsExportOptions = {
 };
 
 type RuntimeDiagnosticsExportMode = "full" | "metadata";
+type DiagnosticsMetadataArtifact = {
+  schemaVersion: string;
+  exportedAt: number;
+  workspaceId: string | null;
+  runtimeDiagnostics: {
+    schemaVersion: string;
+    filename: string;
+    source: string;
+    redactionLevel: string;
+    sizeBytes: number;
+    sections: string[];
+    warnings: string[];
+    redactionStats: unknown;
+  };
+  lifecycle: {
+    revision: number;
+    lastEvent: unknown;
+    recentEvents: unknown[];
+  };
+};
 
 function decodeBase64ToBytes(value: string): Uint8Array {
   const normalized = value.replace(/\s+/g, "");
@@ -18,14 +42,11 @@ function decodeBase64ToBytes(value: string): Uint8Array {
 }
 
 function triggerDiagnosticsExportDownload(
-  zipBase64: string,
+  payload: BlobPart,
   filename: string,
   mimeType: string
 ): void {
-  const bytes = decodeBase64ToBytes(zipBase64);
-  const arrayBuffer = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(arrayBuffer).set(bytes);
-  const blob = new Blob([arrayBuffer], { type: mimeType });
+  const blob = new Blob([payload], { type: mimeType });
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = objectUrl;
@@ -35,6 +56,59 @@ function triggerDiagnosticsExportDownload(
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(objectUrl);
+}
+
+function triggerDiagnosticsZipDownload(
+  zipBase64: string,
+  filename: string,
+  mimeType: string
+): void {
+  const bytes = decodeBase64ToBytes(zipBase64);
+  const arrayBuffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(arrayBuffer).set(bytes);
+  triggerDiagnosticsExportDownload(arrayBuffer, filename, mimeType);
+}
+
+function toMetadataArtifactFilename(filename: string): string {
+  return filename.endsWith(".zip")
+    ? `${filename.slice(0, -4)}.metadata.json`
+    : `${filename}.metadata.json`;
+}
+
+function createDiagnosticsMetadataArtifact(input: {
+  exported: NonNullable<Awaited<ReturnType<typeof runtimeDiagnosticsExportV1>>>;
+  workspaceId: string | null;
+}): DiagnosticsMetadataArtifact {
+  const lifecycleSnapshot = getRuntimeToolLifecycleSnapshot();
+  const recentEvents = lifecycleSnapshot.recentEvents.filter((event) =>
+    runtimeToolLifecycleEventMatchesWorkspace(event, input.workspaceId)
+  );
+  const lastEvent =
+    lifecycleSnapshot.lastEvent &&
+    runtimeToolLifecycleEventMatchesWorkspace(lifecycleSnapshot.lastEvent, input.workspaceId)
+      ? lifecycleSnapshot.lastEvent
+      : ([...recentEvents].pop() ?? null);
+
+  return {
+    schemaVersion: "runtime-diagnostics-metadata/v1",
+    exportedAt: Date.now(),
+    workspaceId: input.workspaceId,
+    runtimeDiagnostics: {
+      schemaVersion: input.exported.schemaVersion,
+      filename: input.exported.filename,
+      source: input.exported.source,
+      redactionLevel: input.exported.redactionLevel,
+      sizeBytes: input.exported.sizeBytes,
+      sections: input.exported.sections,
+      warnings: input.exported.warnings,
+      redactionStats: input.exported.redactionStats,
+    },
+    lifecycle: {
+      revision: lifecycleSnapshot.revision,
+      lastEvent,
+      recentEvents,
+    },
+  };
 }
 
 function formatDiagnosticsExportStatus(options: {
@@ -84,16 +158,22 @@ export function useRuntimeDiagnosticsExport({
             );
             return;
           }
-          triggerDiagnosticsExportDownload(
-            exported.zipBase64,
-            exported.filename,
-            exported.mimeType
-          );
+          triggerDiagnosticsZipDownload(exported.zipBase64, exported.filename, exported.mimeType);
         } else if (exported.zipBase64 !== null) {
           setDiagnosticsExportError(
             "Diagnostics metadata export returned unexpected zip payload; expected zipBase64=null."
           );
           return;
+        } else {
+          const metadataArtifact = createDiagnosticsMetadataArtifact({
+            exported,
+            workspaceId,
+          });
+          triggerDiagnosticsExportDownload(
+            JSON.stringify(metadataArtifact, null, 2),
+            toMetadataArtifactFilename(exported.filename),
+            "application/json"
+          );
         }
         setDiagnosticsExportStatus(
           formatDiagnosticsExportStatus({

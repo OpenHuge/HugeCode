@@ -16,6 +16,7 @@ describe("DebugRuntimeProbeActions", () => {
     const onRunTerminalStatusProbe = vi.fn();
     const onRunSettingsProbe = vi.fn();
     const onRunBootstrapProbe = vi.fn();
+    const onRunToolLifecycleProbe = vi.fn();
 
     render(
       <DebugRuntimeProbeActions
@@ -25,6 +26,7 @@ describe("DebugRuntimeProbeActions", () => {
         onRunTerminalStatusProbe={onRunTerminalStatusProbe}
         onRunSettingsProbe={onRunSettingsProbe}
         onRunBootstrapProbe={onRunBootstrapProbe}
+        onRunToolLifecycleProbe={onRunToolLifecycleProbe}
       />
     );
 
@@ -33,12 +35,14 @@ describe("DebugRuntimeProbeActions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Terminal" }));
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Bootstrap" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lifecycle" }));
 
     expect(onRunHealthProbe).toHaveBeenCalledTimes(1);
     expect(onRunRemoteStatusProbe).toHaveBeenCalledTimes(1);
     expect(onRunTerminalStatusProbe).toHaveBeenCalledTimes(1);
     expect(onRunSettingsProbe).toHaveBeenCalledTimes(1);
     expect(onRunBootstrapProbe).toHaveBeenCalledTimes(1);
+    expect(onRunToolLifecycleProbe).toHaveBeenCalledTimes(1);
   });
 
   it("disables all action buttons while a probe is running", () => {
@@ -50,6 +54,7 @@ describe("DebugRuntimeProbeActions", () => {
         onRunTerminalStatusProbe={vi.fn()}
         onRunSettingsProbe={vi.fn()}
         onRunBootstrapProbe={vi.fn()}
+        onRunToolLifecycleProbe={vi.fn()}
       />
     );
 
@@ -63,6 +68,9 @@ describe("DebugRuntimeProbeActions", () => {
     ).not.toBeNull();
     expect(
       screen.getByRole("button", { name: "Bootstrap" }).getAttribute("disabled")
+    ).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Lifecycle" }).getAttribute("disabled")
     ).not.toBeNull();
   });
 });
