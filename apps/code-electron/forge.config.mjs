@@ -1,3 +1,34 @@
+function normalizeStaticUpdateBaseUrlRoot(staticUpdateBaseUrl) {
+  const trimmed = staticUpdateBaseUrl?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      return null;
+    }
+
+    return trimmed.replace(/\/+$/u, "");
+  } catch {
+    return null;
+  }
+}
+
+function buildStaticUpdateBaseUrl(rootBaseUrl, platform, arch) {
+  return `${rootBaseUrl.replace(/\/+$/u, "")}/${platform}/${arch}`;
+}
+
+const releaseChannel = process.env.HUGECODE_ELECTRON_RELEASE_CHANNEL?.trim() || "beta";
+const staticUpdateBaseUrlRoot = normalizeStaticUpdateBaseUrlRoot(
+  process.env.HUGECODE_ELECTRON_UPDATE_BASE_URL
+);
+const betaStaticUpdateBaseUrl =
+  releaseChannel === "beta" && staticUpdateBaseUrlRoot
+    ? buildStaticUpdateBaseUrl(staticUpdateBaseUrlRoot, process.platform, process.arch)
+    : null;
+
 export default {
   packagerConfig: {
     appBundleId: "com.openhuge.hugecode",
@@ -14,6 +45,11 @@ export default {
   makers: [
     {
       name: "@electron-forge/maker-zip",
+      config: betaStaticUpdateBaseUrl
+        ? {
+            macUpdateManifestBaseUrl: betaStaticUpdateBaseUrl,
+          }
+        : undefined,
       platforms: ["darwin"],
     },
     {
@@ -23,6 +59,11 @@ export default {
       name: "@electron-forge/maker-squirrel",
       config: {
         name: "HugeCode",
+        ...(betaStaticUpdateBaseUrl
+          ? {
+              remoteReleases: betaStaticUpdateBaseUrl,
+            }
+          : {}),
         setupExe: "HugeCodeSetup.exe",
       },
     },
@@ -44,7 +85,7 @@ export default {
       name: "@electron-forge/publisher-github",
       config: {
         draft: false,
-        prerelease: true,
+        prerelease: releaseChannel !== "stable",
         repository: {
           name: "HugeCode",
           owner: "OpenHuge",

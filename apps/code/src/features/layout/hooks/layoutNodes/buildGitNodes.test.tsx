@@ -10,23 +10,28 @@ import {
 
 const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 60_000;
 
-if (!("Worker" in globalThis)) {
-  class WorkerStub {
-    addEventListener() {
-      return;
-    }
-    removeEventListener() {
-      return;
-    }
-    postMessage() {
-      return;
-    }
-    terminate() {
-      return;
-    }
-  }
+function createMockWorker() {
+  return {
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    postMessage: vi.fn(),
+    terminate: vi.fn(),
+  } satisfies Partial<Worker>;
+}
 
-  Object.defineProperty(globalThis, "Worker", { value: WorkerStub });
+function mockGitDiffViewerRuntime() {
+  const MockWorker = function MockWorker() {
+    return createMockWorker();
+  };
+
+  vi.stubGlobal("Worker", MockWorker as unknown as typeof Worker);
+
+  vi.doMock("../../../../utils/diffsWorker", () => ({
+    workerFactory: () => createMockWorker(),
+  }));
+  vi.doMock("../../../git/components/GitDiffViewer", () => ({
+    GitDiffViewer: () => <div data-testid="git-diff-viewer-chunk" />,
+  }));
 }
 
 function createGitOptions(overrides: Partial<LayoutNodesFieldRegistry> = {}): LayoutNodesOptions {
@@ -177,6 +182,7 @@ describe("buildGitNodes diff lazy boundary", () => {
     vi.doUnmock("../../../git/components/GitDiffViewer");
     vi.doUnmock("../../../utils/diffsWorker");
     await vi.dynamicImportSettled();
+    vi.unstubAllGlobals();
   });
 
   it(
@@ -197,6 +203,8 @@ describe("buildGitNodes diff lazy boundary", () => {
   it(
     "loads the viewer chunk once actual diff payload exists",
     async () => {
+      mockGitDiffViewerRuntime();
+
       const buildGitNodesImpl = await importBuildGitNodes();
       const nodes = buildGitNodesImpl(
         createGitOptions({
@@ -216,8 +224,7 @@ describe("buildGitNodes diff lazy boundary", () => {
 
       await flushLazyBoundary();
 
-      expect(screen.getByText("Modified")).toBeTruthy();
-      expect(screen.getByTitle("src/app.ts")).toBeTruthy();
+      expect(screen.getByTestId("git-diff-viewer-chunk")).toBeTruthy();
     },
     GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS
   );

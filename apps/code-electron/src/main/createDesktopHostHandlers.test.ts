@@ -4,17 +4,19 @@ import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
 describe("createDesktopHostHandlers", () => {
   it("delegates session, tray, and window handlers to the injected controllers", () => {
     const input = {
-      appInfo: {
-        channel: "beta" as const,
-        platform: "darwin" as const,
-        updateCapability: "automatic" as const,
-        version: "1.2.3",
-      },
       appVersion: "1.2.3",
       consumePendingLaunchIntent: vi.fn(() => ({
         kind: "protocol" as const,
         receivedAt: "2026-03-24T00:00:00.000Z",
         url: "hugecode://workspace/open?path=%2Fworkspace%2Falpha",
+      })),
+      getAppInfo: vi.fn(() => ({
+        channel: "beta" as const,
+        platform: "darwin" as const,
+        updateCapability: "automatic" as const,
+        updateMessage: "Automatic beta updates are enabled from the configured static feed.",
+        updateMode: "enabled_beta_static_feed" as const,
+        version: "1.2.3",
       })),
       listRecentSessions: vi.fn(() => [{ id: "session-1" }]),
       notificationController: {
@@ -30,10 +32,14 @@ describe("createDesktopHostHandlers", () => {
       updaterController: {
         checkForUpdates: vi.fn(() => ({
           capability: "automatic" as const,
+          mode: "enabled_beta_static_feed" as const,
+          provider: "static-storage" as const,
           stage: "checking" as const,
         })),
         getState: vi.fn(() => ({
           capability: "automatic" as const,
+          mode: "enabled_beta_static_feed" as const,
+          provider: "static-storage" as const,
           stage: "available" as const,
           version: "1.2.4",
         })),
@@ -57,6 +63,8 @@ describe("createDesktopHostHandlers", () => {
       channel: "beta",
       platform: "darwin",
       updateCapability: "automatic",
+      updateMessage: "Automatic beta updates are enabled from the configured static feed.",
+      updateMode: "enabled_beta_static_feed",
       version: "1.2.3",
     });
     expect(handlers.getCurrentSession({ sender: {} as never })).toEqual({ id: "session-1" });
@@ -75,11 +83,15 @@ describe("createDesktopHostHandlers", () => {
     expect(handlers.getTrayState()).toEqual({ enabled: true, supported: true });
     expect(handlers.getUpdateState()).toEqual({
       capability: "automatic",
+      mode: "enabled_beta_static_feed",
+      provider: "static-storage",
       stage: "available",
       version: "1.2.4",
     });
     expect(handlers.checkForUpdates()).toEqual({
       capability: "automatic",
+      mode: "enabled_beta_static_feed",
+      provider: "static-storage",
       stage: "checking",
     });
     expect(handlers.restartToApplyUpdate()).toBe(true);
@@ -95,14 +107,17 @@ describe("createDesktopHostHandlers", () => {
       update: vi.fn(),
     };
     const handlers = createDesktopHostHandlers({
-      appInfo: {
-        channel: "beta",
-        platform: "darwin",
-        updateCapability: "automatic",
-        version: null,
-      },
       appVersion: null,
       consumePendingLaunchIntent: vi.fn(() => null),
+      getAppInfo: vi.fn(() => ({
+        channel: "beta" as const,
+        platform: "darwin" as const,
+        updateCapability: "manual" as const,
+        updateMessage:
+          "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
+        updateMode: "disabled_beta_manual" as const,
+        version: null,
+      })),
       listRecentSessions: vi.fn(() => []),
       notificationController: {
         showNotification: vi.fn(() => false),
@@ -112,8 +127,22 @@ describe("createDesktopHostHandlers", () => {
       revealItemInDir: vi.fn(() => true),
       trayController,
       updaterController: {
-        checkForUpdates: vi.fn(() => ({ capability: "automatic", stage: "idle" })),
-        getState: vi.fn(() => ({ capability: "automatic", stage: "idle" })),
+        checkForUpdates: vi.fn(() => ({
+          capability: "manual",
+          message:
+            "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
+          mode: "disabled_beta_manual",
+          provider: "none",
+          stage: "idle",
+        })),
+        getState: vi.fn(() => ({
+          capability: "manual",
+          message:
+            "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
+          mode: "disabled_beta_manual",
+          provider: "none",
+          stage: "idle",
+        })),
         restartToApplyUpdate: vi.fn(() => false),
       },
       windowController: {

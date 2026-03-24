@@ -27,6 +27,9 @@ export type DesktopVersionFallbacks = {
 
 const DEFAULT_UNSUPPORTED_UPDATE_STATE: DesktopUpdateState = {
   capability: "unsupported",
+  message: "Automatic desktop updates are unavailable in this environment.",
+  mode: "unsupported_platform",
+  provider: "none",
   stage: "idle",
 };
 

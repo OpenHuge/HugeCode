@@ -22,6 +22,8 @@ describe("code-platform-interfaces", () => {
       channel: "beta",
       platform: "darwin",
       updateCapability: "automatic",
+      updateMessage: "Automatic beta updates are enabled from the configured static feed.",
+      updateMode: "enabled_beta_static_feed",
       version: "0.1.0-beta.1",
     };
     const launchIntent: DesktopLaunchIntent = {
@@ -31,6 +33,9 @@ describe("code-platform-interfaces", () => {
     };
     const updateState: DesktopUpdateState = {
       capability: "automatic",
+      message: "Automatic beta updates are enabled from the configured static feed.",
+      mode: "enabled_beta_static_feed",
+      provider: "static-storage",
       releaseUrl: "https://github.com/OpenHuge/HugeCode/releases/tag/v0.1.0-beta.2",
       stage: "available",
       version: "0.1.0-beta.2",

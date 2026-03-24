@@ -7,6 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 createDesktopMainComposition({
   app,
+  arch: process.arch,
   autoUpdater,
   browserWindow: BrowserWindow,
   ipcMain,

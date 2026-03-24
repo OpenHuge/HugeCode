@@ -44,6 +44,7 @@ export type CreateDesktopMainCompositionInput = {
     on(event: string, listener: (...args: unknown[]) => void): void;
     quitAndInstall(): void;
   };
+  arch: NodeJS.Architecture;
   browserWindow: {
     getAllWindows(): Array<{
       focus(): void;
@@ -92,7 +93,12 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     protocol: "hugecode",
   });
   const autoUpdateConfigurator = createDesktopAutoUpdateConfigurator({
+    arch: input.arch,
     channel: input.releaseChannel ?? "beta",
+    isPackaged: input.app.isPackaged,
+    logger: console,
+    platform: input.platform,
+    processArgv: input.processArgv,
     repoUrl: input.repositoryUrl ?? "https://github.com/OpenHuge/HugeCode",
     staticUpdateBaseUrl: input.staticUpdateBaseUrl ?? null,
   });
@@ -101,13 +107,15 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       const version = input.app.getVersion();
       return typeof version === "string" && version.length > 0 ? version : null;
     })(),
-    autoUpdateAvailable: autoUpdateConfigurator.isAvailable,
     autoUpdater: input.autoUpdater,
     configureAutoUpdates: autoUpdateConfigurator.initialize,
-    isPackaged: input.app.isPackaged,
-    platform: input.platform,
     repoUrl: input.repositoryUrl ?? "https://github.com/OpenHuge/HugeCode",
+    strategy: autoUpdateConfigurator.strategy,
   });
+  const appVersion = (() => {
+    const version = input.app.getVersion();
+    return typeof version === "string" && version.length > 0 ? version : null;
+  })();
 
   function persistDesktopState() {
     stateStore.write(shellState.toPersistedState());
@@ -168,20 +176,19 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   });
 
   const desktopHostHandlers = createDesktopHostHandlers({
-    appInfo: {
-      channel: input.releaseChannel ?? "beta",
-      platform: input.platform,
-      updateCapability: updaterController.getState().capability,
-      version: (() => {
-        const version = input.app.getVersion();
-        return typeof version === "string" && version.length > 0 ? version : null;
-      })(),
-    },
-    appVersion: (() => {
-      const version = input.app.getVersion();
-      return typeof version === "string" && version.length > 0 ? version : null;
-    })(),
+    appVersion,
     consumePendingLaunchIntent: launchIntentController.consumePendingIntent,
+    getAppInfo() {
+      const updateState = updaterController.getState();
+      return {
+        channel: input.releaseChannel ?? "beta",
+        platform: input.platform,
+        updateCapability: updateState.capability,
+        updateMessage: updateState.message ?? null,
+        updateMode: updateState.mode,
+        version: appVersion,
+      };
+    },
     listRecentSessions() {
       return shellState.recentSessions;
     },

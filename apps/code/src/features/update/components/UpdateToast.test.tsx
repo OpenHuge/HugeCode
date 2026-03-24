@@ -111,6 +111,32 @@ describe("UpdateToast", () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
+  it("renders manual update guidance with a release link", () => {
+    const onDismiss = vi.fn();
+    const state: UpdateState = {
+      message:
+        "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
+      releaseUrl: "https://github.com/OpenHuge/HugeCode/releases",
+      stage: "manual",
+      version: "2.0.0-beta.3",
+    };
+
+    const { container } = render(
+      <UpdateToast state={state} onUpdate={vi.fn()} onDismiss={onDismiss} />
+    );
+    const scoped = within(container);
+
+    expect(
+      scoped.getByText(
+        "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured."
+      )
+    ).toBeTruthy();
+    fireEvent.click(scoped.getByRole("button", { name: "View Releases" }));
+    expect(openUrlMock).toHaveBeenCalledWith("https://github.com/OpenHuge/HugeCode/releases");
+    fireEvent.click(scoped.getByRole("button", { name: "Dismiss" }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
   it("renders post-update loading notice and dismisses", () => {
     const onDismissPostUpdateNotice = vi.fn();
     const state: UpdateState = { stage: "idle" };

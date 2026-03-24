@@ -155,6 +155,29 @@ export function UpdateToast({
             </Button>
           </div>
         )}
+        {state.stage === "manual" && (
+          <>
+            <ToastBody className="update-toast-body">
+              {state.message ?? "Automatic desktop updates are unavailable for this build."}
+            </ToastBody>
+            <ToastActions className="update-toast-actions">
+              {state.releaseUrl ? (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    void openExternalUrl(state.releaseUrl ?? "");
+                  }}
+                >
+                  View Releases
+                </Button>
+              ) : null}
+              <Button variant="secondary" size="sm" onClick={onDismiss}>
+                Dismiss
+              </Button>
+            </ToastActions>
+          </>
+        )}
         {state.stage === "downloading" && (
           <>
             <ToastBody className="update-toast-body">Downloading update...</ToastBody>

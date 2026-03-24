@@ -81,6 +81,8 @@ describe("desktopHostFacade", () => {
   it("resolves app info, launch intent, and updater state from the desktop bridge", async () => {
     const checkForUpdates = vi.fn(async () => ({
       capability: "automatic" as const,
+      mode: "enabled_stable_public_service" as const,
+      provider: "public-github" as const,
       stage: "checking" as const,
     }));
     const restartToApplyUpdate = vi.fn(async () => true);
@@ -92,6 +94,8 @@ describe("desktopHostFacade", () => {
           channel: "beta" as const,
           platform: "darwin" as const,
           updateCapability: "automatic" as const,
+          updateMessage: "Automatic beta updates are enabled from the configured static feed.",
+          updateMode: "enabled_beta_static_feed" as const,
           version: "0.1.0-beta.1",
         }),
       },
@@ -106,6 +110,8 @@ describe("desktopHostFacade", () => {
         checkForUpdates,
         getState: async () => ({
           capability: "automatic" as const,
+          mode: "enabled_beta_static_feed" as const,
+          provider: "static-storage" as const,
           stage: "available" as const,
           version: "0.1.0-beta.2",
         }),
@@ -115,15 +121,20 @@ describe("desktopHostFacade", () => {
 
     await expect(resolveDesktopAppInfo(desktopHostBridge)).resolves.toMatchObject({
       channel: "beta",
+      updateMode: "enabled_beta_static_feed",
       version: "0.1.0-beta.1",
     });
     await expect(consumeDesktopLaunchIntent(desktopHostBridge)).resolves.toMatchObject({
       kind: "protocol",
     });
     await expect(resolveDesktopUpdateState(desktopHostBridge)).resolves.toMatchObject({
+      mode: "enabled_beta_static_feed",
+      provider: "static-storage",
       stage: "available",
     });
     await expect(checkDesktopForUpdates(desktopHostBridge)).resolves.toMatchObject({
+      mode: "enabled_stable_public_service",
+      provider: "public-github",
       stage: "checking",
     });
     await expect(restartDesktopToApplyUpdate(desktopHostBridge)).resolves.toBe(true);
@@ -136,10 +147,16 @@ describe("desktopHostFacade", () => {
     await expect(consumeDesktopLaunchIntent(null)).resolves.toBeNull();
     await expect(resolveDesktopUpdateState(null)).resolves.toEqual({
       capability: "unsupported",
+      message: "Automatic desktop updates are unavailable in this environment.",
+      mode: "unsupported_platform",
+      provider: "none",
       stage: "idle",
     });
     await expect(checkDesktopForUpdates(null)).resolves.toEqual({
       capability: "unsupported",
+      message: "Automatic desktop updates are unavailable in this environment.",
+      mode: "unsupported_platform",
+      provider: "none",
       stage: "idle",
     });
     await expect(restartDesktopToApplyUpdate(null)).resolves.toBe(false);

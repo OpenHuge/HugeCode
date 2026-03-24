@@ -54,6 +54,29 @@ function formatPlatform(platform: DesktopAppInfo["platform"]) {
 }
 
 function describeUpdateCapability(appInfo: DesktopAppInfo | null) {
+  if (appInfo?.updateMessage) {
+    return appInfo.updateMessage;
+  }
+
+  switch (appInfo?.updateMode) {
+    case "enabled_stable_public_service":
+      return "Automatic stable updates are enabled through the public Electron update service.";
+    case "enabled_beta_static_feed":
+      return "Automatic beta updates are enabled from the configured static feed.";
+    case "disabled_beta_manual":
+      return "Beta builds update manually from GitHub Releases unless a static beta feed is configured.";
+    case "disabled_unpacked":
+      return "Automatic desktop updates are disabled in unpackaged development builds.";
+    case "disabled_first_run_lock":
+      return "Automatic desktop updates resume after the Windows installer finishes first-run setup.";
+    case "misconfigured":
+      return "Desktop update configuration is invalid for this build.";
+    case "unsupported_platform":
+      return "Automatic desktop updates are unavailable on this platform.";
+    default:
+      break;
+  }
+
   switch (appInfo?.updateCapability) {
     case "automatic":
       return "Automatic desktop updates are enabled for this build.";

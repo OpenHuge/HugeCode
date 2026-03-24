@@ -1,4 +1,5 @@
 import type { DesktopUpdateState } from "../shared/ipc.js";
+import type { DesktopAutoUpdateStrategy } from "./desktopAutoUpdateConfigurator.js";
 
 type AutoUpdaterInfo = {
   version?: string;
@@ -17,12 +18,10 @@ type AutoUpdaterLike = {
 
 export type CreateDesktopUpdaterControllerInput = {
   appVersion: string | null;
-  autoUpdateAvailable?: boolean;
   autoUpdater: AutoUpdaterLike;
   configureAutoUpdates?: () => boolean | void;
-  isPackaged: boolean;
-  platform: NodeJS.Platform;
   repoUrl: string;
+  strategy: DesktopAutoUpdateStrategy;
 };
 
 function createReleaseUrl(repoUrl: string) {
@@ -30,27 +29,14 @@ function createReleaseUrl(repoUrl: string) {
   return trimmedRepoUrl.length > 0 ? `${trimmedRepoUrl}/releases` : null;
 }
 
-function resolveUpdateCapability(
-  input: Pick<
-    CreateDesktopUpdaterControllerInput,
-    "autoUpdateAvailable" | "isPackaged" | "platform"
-  >
-) {
-  if (input.platform !== "darwin" && input.platform !== "win32") {
-    return "manual" as const;
-  }
-
-  return input.isPackaged && input.autoUpdateAvailable
-    ? ("automatic" as const)
-    : ("manual" as const);
-}
-
 export function createDesktopUpdaterController(input: CreateDesktopUpdaterControllerInput) {
   const releaseUrl = createReleaseUrl(input.repoUrl);
-  const capability = resolveUpdateCapability(input);
   let configured = false;
   let state: DesktopUpdateState = {
-    capability,
+    capability: input.strategy.capability,
+    message: input.strategy.message,
+    mode: input.strategy.mode,
+    provider: input.strategy.provider,
     releaseUrl,
     stage: "idle",
     version: input.appVersion,
@@ -100,12 +86,36 @@ export function createDesktopUpdaterController(input: CreateDesktopUpdaterContro
   });
 
   function ensureConfigured() {
-    if (configured || capability !== "automatic") {
+    if (configured || state.capability !== "automatic") {
       return;
     }
 
     configured = true;
-    input.configureAutoUpdates?.();
+    try {
+      const configuredResult = input.configureAutoUpdates?.();
+      if (configuredResult === false) {
+        state = {
+          ...state,
+          capability: "manual",
+          message:
+            "Automatic desktop updates are unavailable because the updater provider could not be initialized for this build.",
+          mode: "misconfigured",
+          provider: "none",
+          stage: "idle",
+        };
+      }
+    } catch (error) {
+      state = {
+        ...state,
+        capability: "manual",
+        message:
+          "Automatic desktop updates are unavailable because the updater provider could not be initialized for this build.",
+        mode: "misconfigured",
+        provider: "none",
+        error: error instanceof Error ? error.message : String(error),
+        stage: "idle",
+      };
+    }
   }
 
   return {
@@ -114,7 +124,7 @@ export function createDesktopUpdaterController(input: CreateDesktopUpdaterContro
       return state;
     },
     checkForUpdates() {
-      if (capability !== "automatic") {
+      if (state.capability !== "automatic") {
         return state;
       }
 

@@ -37,6 +37,9 @@ describe("AboutView", () => {
       channel: "beta",
       platform: "darwin",
       updateCapability: "manual",
+      updateMessage:
+        "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
+      updateMode: "disabled_beta_manual",
     });
 
     render(<AboutView />);
@@ -47,7 +50,9 @@ describe("AboutView", () => {
     expect(screen.getByLabelText("Desktop release metadata").textContent).toContain("Beta channel");
     expect(screen.getByLabelText("Desktop release metadata").textContent).toContain("macOS");
     expect(
-      screen.getByText("Updates are delivered manually through GitHub Releases for this build.")
+      screen.getByText(
+        "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured."
+      )
     ).toBeTruthy();
   });
 

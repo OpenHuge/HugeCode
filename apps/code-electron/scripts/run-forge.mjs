@@ -14,9 +14,6 @@ const packageDir = resolve(scriptDir, "..");
 const distDir = resolve(packageDir, "dist-electron");
 const outDir = resolve(packageDir, "out");
 const packageJson = JSON.parse(await readFile(resolve(packageDir, "package.json"), "utf8"));
-const workspacePackageJson = JSON.parse(
-  await readFile(resolve(packageDir, "../../package.json"), "utf8")
-);
 const forgeConfigSource = resolve(packageDir, "forge.config.mjs");
 const workspaceRoot = resolve(packageDir, "../..");
 const electronForgeBin =
@@ -27,14 +24,37 @@ const electronForgeBin =
 let forgeStageDir = "";
 let forgePackageDir = "";
 
+async function runCommand(commandName, args, cwd) {
+  await new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(commandName, args, {
+      cwd,
+      env: process.env,
+      stdio: "inherit",
+    });
+
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolvePromise();
+        return;
+      }
+
+      rejectPromise(
+        new Error(`${commandName} ${args.join(" ")} failed with exit code ${code ?? -1}`)
+      );
+    });
+    child.on("error", rejectPromise);
+  });
+}
+
 async function createStagePaths() {
   forgeStageDir = await mkdtemp(resolve(tmpdir(), "hugecode-electron-forge-"));
   forgePackageDir = resolve(forgeStageDir, "app");
 }
 
 async function prepareStage() {
-  await rm(resolve(packageDir, ".forge-stage"), { force: true, recursive: true });
+  await rm(forgePackageDir, { force: true, recursive: true });
   await rm(outDir, { force: true, recursive: true });
+  await mkdir(forgePackageDir, { recursive: true });
   await mkdir(resolve(forgePackageDir, "dist-electron"), { recursive: true });
   await cp(distDir, resolve(forgePackageDir, "dist-electron"), { recursive: true });
   await cp(forgeConfigSource, resolve(forgePackageDir, "forge.config.mjs"));
@@ -56,17 +76,6 @@ async function prepareStage() {
     ),
     devDependencies: {
       electron: packageJson.devDependencies.electron,
-      "@electron-forge/cli": workspacePackageJson.devDependencies["@electron-forge/cli"],
-      "@electron-forge/maker-deb":
-        workspacePackageJson.devDependencies["@electron-forge/maker-deb"],
-      "@electron-forge/maker-dmg":
-        workspacePackageJson.devDependencies["@electron-forge/maker-dmg"],
-      "@electron-forge/maker-squirrel":
-        workspacePackageJson.devDependencies["@electron-forge/maker-squirrel"],
-      "@electron-forge/maker-zip":
-        workspacePackageJson.devDependencies["@electron-forge/maker-zip"],
-      "@electron-forge/publisher-github":
-        workspacePackageJson.devDependencies["@electron-forge/publisher-github"],
     },
   };
 
@@ -76,6 +85,14 @@ async function prepareStage() {
     "utf8"
   );
   await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
+
+  if (Object.keys(stagedPackageJson.dependencies ?? {}).length > 0) {
+    await runCommand(
+      "npm",
+      ["install", "--include=dev", "--ignore-scripts", "--no-package-lock"],
+      forgePackageDir
+    );
+  }
 }
 
 async function ensureDarwinDmgNativeDependency() {
@@ -118,27 +135,7 @@ async function ensureDarwinDmgNativeDependency() {
       // Fall through and rebuild the native addon explicitly.
     }
 
-    await new Promise((resolvePromise, rejectPromise) => {
-      const child = spawn("pnpm", ["exec", "node-gyp", "rebuild"], {
-        cwd: packageInstallDir,
-        env: process.env,
-        stdio: "inherit",
-      });
-
-      child.on("exit", (code) => {
-        if (code === 0) {
-          resolvePromise();
-          return;
-        }
-
-        rejectPromise(
-          new Error(
-            `node-gyp rebuild for ${nativePackage.packageName} failed with exit code ${code ?? -1}`
-          )
-        );
-      });
-      child.on("error", rejectPromise);
-    });
+    await runCommand("pnpm", ["exec", "node-gyp", "rebuild"], packageInstallDir);
   }
 }
 

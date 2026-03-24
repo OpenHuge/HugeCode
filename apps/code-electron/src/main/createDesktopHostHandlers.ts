@@ -32,9 +32,9 @@ type UpdaterController = {
 };
 
 export type CreateDesktopHostHandlersInput = {
-  appInfo: DesktopAppInfo;
   appVersion: string | null;
   consumePendingLaunchIntent(): DesktopLaunchIntent | null;
+  getAppInfo(): DesktopAppInfo;
   listRecentSessions(): unknown[];
   notificationController: NotificationController;
   openExternalUrl(url: string): Promise<boolean> | boolean;
@@ -56,7 +56,7 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
     },
     focusWindow: input.windowController.focusWindow,
     getAppInfo() {
-      return input.appInfo;
+      return input.getAppInfo();
     },
     getAppVersion() {
       return input.appVersion;

@@ -29,6 +29,7 @@ type UpdateStage =
   | "downloading"
   | "downloaded"
   | "installing"
+  | "manual"
   | "restarting"
   | "latest"
   | "error";
@@ -39,6 +40,8 @@ type UpdateProgress = {
 };
 
 export type UpdateState = {
+  message?: string;
+  releaseUrl?: string;
   stage: UpdateStage;
   version?: string;
   progress?: UpdateProgress;
@@ -74,6 +77,19 @@ function mapDesktopUpdateStateToUiState(
   updateState: DesktopUpdateState,
   options?: { announceNoUpdate?: boolean }
 ): UpdateState {
+  if (updateState.capability !== "automatic") {
+    if (options?.announceNoUpdate) {
+      return {
+        message: updateState.message ?? "Automatic desktop updates are unavailable for this build.",
+        releaseUrl: updateState.releaseUrl ?? undefined,
+        stage: "manual",
+        version: updateState.version ?? undefined,
+      };
+    }
+
+    return { stage: "idle", version: updateState.version ?? undefined };
+  }
+
   switch (updateState.stage) {
     case "checking":
       return { stage: "checking", version: updateState.version ?? undefined };
@@ -95,14 +111,12 @@ function mapDesktopUpdateStateToUiState(
     case "error":
       return {
         error: updateState.error ?? "Unable to check for updates.",
+        releaseUrl: updateState.releaseUrl ?? undefined,
         stage: "error",
         version: updateState.version ?? undefined,
       };
     case "idle":
     default:
-      if (updateState.capability !== "automatic") {
-        return options?.announceNoUpdate ? { stage: "latest" } : { stage: "idle" };
-      }
       return { stage: "idle", version: updateState.version ?? undefined };
   }
 }

@@ -31,6 +31,9 @@ vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
   detectDesktopRuntimeHost: vi.fn(async () => "tauri"),
   resolveDesktopUpdaterState: vi.fn(async () => ({
     capability: "unsupported",
+    message: "Automatic desktop updates are unavailable in this environment.",
+    mode: "unsupported_platform",
+    provider: "none",
     stage: "idle",
   })),
   restartDesktopUpdate: vi.fn(async () => false),
@@ -58,11 +61,16 @@ describe("useUpdater", () => {
     detectDesktopRuntimeHostMock.mockResolvedValue("tauri");
     checkForDesktopUpdatesMock.mockResolvedValue({
       capability: "automatic",
+      mode: "enabled_stable_public_service",
+      provider: "public-github",
       stage: "checking",
       version: "2.0.0",
     });
     resolveDesktopUpdaterStateMock.mockResolvedValue({
       capability: "unsupported",
+      message: "Automatic desktop updates are unavailable in this environment.",
+      mode: "unsupported_platform",
+      provider: "none",
       stage: "idle",
     });
     restartDesktopUpdateMock.mockResolvedValue(false);
@@ -122,6 +130,45 @@ describe("useUpdater", () => {
     });
 
     expect(result.current.state.stage).toBe("idle");
+  });
+
+  it("surfaces explicit manual-update messaging for electron beta builds without auto-update", async () => {
+    detectDesktopRuntimeHostMock.mockResolvedValue("electron");
+    checkForDesktopUpdatesMock.mockResolvedValue({
+      capability: "manual",
+      message:
+        "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
+      mode: "disabled_beta_manual",
+      provider: "none",
+      releaseUrl: "https://github.com/OpenHuge/HugeCode/releases",
+      stage: "idle",
+      version: "2.0.0-beta.3",
+    });
+    resolveDesktopUpdaterStateMock.mockResolvedValue({
+      capability: "manual",
+      message:
+        "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
+      mode: "disabled_beta_manual",
+      provider: "none",
+      releaseUrl: "https://github.com/OpenHuge/HugeCode/releases",
+      stage: "idle",
+      version: "2.0.0-beta.3",
+    });
+
+    const { result } = renderHook(() => useUpdater({}));
+
+    await act(async () => {
+      await result.current.checkForUpdates({ announceNoUpdate: true });
+    });
+
+    expect(result.current.state).toEqual({
+      message:
+        "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
+      releaseUrl: "https://github.com/OpenHuge/HugeCode/releases",
+      stage: "manual",
+      version: "2.0.0-beta.3",
+    });
+    expect(resolveDesktopUpdaterStateMock).toHaveBeenCalledTimes(1);
   });
 
   it("downloads and restarts when update is available", async () => {
@@ -260,17 +307,23 @@ describe("useUpdater", () => {
     detectDesktopRuntimeHostMock.mockResolvedValue("electron");
     checkForDesktopUpdatesMock.mockResolvedValue({
       capability: "automatic",
+      mode: "enabled_beta_static_feed",
+      provider: "static-storage",
       stage: "checking",
       version: "2.0.0",
     });
     resolveDesktopUpdaterStateMock
       .mockResolvedValueOnce({
         capability: "automatic",
+        mode: "enabled_beta_static_feed",
+        provider: "static-storage",
         stage: "downloaded",
         version: "2.0.0",
       })
       .mockResolvedValue({
         capability: "automatic",
+        mode: "enabled_beta_static_feed",
+        provider: "static-storage",
         stage: "downloaded",
         version: "2.0.0",
       });

@@ -65,6 +65,8 @@ describe("desktopHostFacade", () => {
           channel: "beta",
           platform: "darwin",
           updateCapability: "automatic",
+          updateMessage: "Automatic beta updates are enabled from the configured static feed.",
+          updateMode: "enabled_beta_static_feed",
           version: "41.0.3",
         }),
         getVersion: async () => "41.0.3",
@@ -96,11 +98,15 @@ describe("desktopHostFacade", () => {
       updater: {
         checkForUpdates: async () => ({
           capability: "automatic",
+          mode: "enabled_beta_static_feed",
+          provider: "static-storage",
           stage: "checking",
           version: "41.0.4",
         }),
         getState: async () => ({
           capability: "automatic",
+          mode: "enabled_beta_static_feed",
+          provider: "static-storage",
           stage: "downloaded",
           version: "41.0.4",
         }),
@@ -115,6 +121,7 @@ describe("desktopHostFacade", () => {
     await expect(detectDesktopRuntimeHost()).resolves.toBe("electron");
     await expect(resolveAppInfo()).resolves.toMatchObject({
       channel: "beta",
+      updateMode: "enabled_beta_static_feed",
       version: "41.0.3",
     });
     await expect(resolveAppVersion()).resolves.toBe("41.0.3");
@@ -153,10 +160,16 @@ describe("desktopHostFacade", () => {
     await expect(resolveCurrentDesktopSession()).resolves.toBeNull();
     await expect(resolveDesktopUpdaterState()).resolves.toEqual({
       capability: "unsupported",
+      message: "Automatic desktop updates are unavailable in this environment.",
+      mode: "unsupported_platform",
+      provider: "none",
       stage: "idle",
     });
     await expect(checkForDesktopUpdates()).resolves.toEqual({
       capability: "unsupported",
+      message: "Automatic desktop updates are unavailable in this environment.",
+      mode: "unsupported_platform",
+      provider: "none",
       stage: "idle",
     });
     await expect(restartDesktopUpdate()).resolves.toBe(false);

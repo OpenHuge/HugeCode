@@ -59,6 +59,7 @@ describe("createDesktopMainComposition", () => {
         on: vi.fn(),
         quitAndInstall: vi.fn(),
       },
+      arch: "x64" as const,
       browserWindow: {
         getAllWindows: vi.fn(() => []),
       },
@@ -86,6 +87,25 @@ describe("createDesktopMainComposition", () => {
     createDesktopMainComposition(createInput()).start();
 
     expect(updateElectronApp).not.toHaveBeenCalled();
+  });
+
+  it("initializes the static beta update feed when configured", async () => {
+    const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
+
+    createDesktopMainComposition(
+      createInput({
+        releaseChannel: "beta",
+        staticUpdateBaseUrl: "https://downloads.example.com/hugecode/beta",
+      })
+    ).start();
+
+    expect(updateElectronApp).toHaveBeenCalledWith({
+      notifyUser: false,
+      updateSource: {
+        baseUrl: "https://downloads.example.com/hugecode/beta/darwin/x64",
+        type: "StaticStorage",
+      },
+    });
   });
 
   it("initializes the public GitHub update service for stable builds during startup", async () => {

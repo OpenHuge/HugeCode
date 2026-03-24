@@ -4,6 +4,15 @@ export type DesktopWindowLabel = "main" | "about";
 export type DesktopRuntimeMode = "local" | "remote";
 export type DesktopReleaseChannel = "stable" | "beta" | "dev";
 export type DesktopUpdateCapability = "automatic" | "manual" | "unsupported";
+export type DesktopUpdateMode =
+  | "disabled_beta_manual"
+  | "disabled_first_run_lock"
+  | "disabled_unpacked"
+  | "enabled_beta_static_feed"
+  | "enabled_stable_public_service"
+  | "misconfigured"
+  | "unsupported_platform";
+export type DesktopUpdateProvider = "none" | "public-github" | "static-storage";
 export type DesktopLaunchIntentKind = "launch" | "protocol" | "post-install" | "post-update";
 export type DesktopUpdateStage =
   | "idle"
@@ -42,6 +51,8 @@ export type DesktopAppInfo = {
   channel: DesktopReleaseChannel;
   platform: NodeJS.Platform;
   updateCapability: DesktopUpdateCapability;
+  updateMessage?: string | null;
+  updateMode: DesktopUpdateMode;
   version: string | null;
 };
 
@@ -55,6 +66,9 @@ export type DesktopUpdateState = {
   capability: DesktopUpdateCapability;
   downloadedBytes?: number;
   error?: string | null;
+  message?: string | null;
+  mode: DesktopUpdateMode;
+  provider: DesktopUpdateProvider;
   releaseUrl?: string | null;
   stage: DesktopUpdateStage;
   totalBytes?: number;
