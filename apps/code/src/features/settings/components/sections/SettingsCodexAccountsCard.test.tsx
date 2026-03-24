@@ -121,6 +121,15 @@ async function flushEffectTurn() {
   });
 }
 
+function emitOauthPopupMessage(loginId: string, success: boolean) {
+  window.dispatchEvent(
+    new window.MessageEvent("message", {
+      data: { type: "fastcode:oauth:codex", success, loginId },
+      origin: window.location.origin,
+    })
+  );
+}
+
 async function selectAccountOption(label: string, optionName: string) {
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: label }));
