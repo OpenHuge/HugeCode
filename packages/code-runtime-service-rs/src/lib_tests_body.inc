@@ -3772,6 +3772,12 @@
                     aliases.contains(&Value::String("antigravity".to_string()))
                 })
         }));
+        assert!(result.iter().any(|entry| {
+            entry["providerId"] == Value::String("claude_code_local".to_string())
+                && entry["pool"] == Value::Null
+                && entry["oauthProviderId"] == Value::Null
+                && entry["supportsOpenaiCompat"] == Value::Bool(false)
+        }));
     }
 
     #[tokio::test]
@@ -13289,6 +13295,47 @@
             payload["result"]["routedPool"],
             Value::String("claude".to_string())
         );
+    }
+
+    #[tokio::test]
+    async fn turn_send_accepts_explicit_local_claude_provider() {
+        let app = test_router();
+        let request = Request::builder()
+            .method("POST")
+            .uri("/rpc")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{
+                  "method":"code_turn_send",
+                  "params":{
+                    "payload":{
+                      "workspaceId":"workspace-web",
+                      "threadId":"thread-claude-local",
+                      "content":"Ping local Claude",
+                      "provider":"claude_code_local",
+                      "modelId":"claude-sonnet-4-5",
+                      "reasonEffort":"high",
+                      "accessMode":"on-request",
+                      "queue":false,
+                      "attachments":[]
+                    }
+                  }
+                }"#,
+            ))
+            .expect("build request");
+
+        let response = app.oneshot(request).await.expect("rpc response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("read body");
+        let payload: Value = serde_json::from_slice(&bytes).expect("parse json");
+        assert_eq!(payload["ok"], Value::Bool(true));
+        assert_eq!(
+            payload["result"]["routedProvider"],
+            Value::String("claude_code_local".to_string())
+        );
+        assert_eq!(payload["result"]["routedPool"], Value::Null);
     }
 
     #[tokio::test]

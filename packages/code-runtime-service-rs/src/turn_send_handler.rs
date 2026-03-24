@@ -30,6 +30,12 @@ enum RequestedCollaborationMode {
     Plan,
 }
 
+#[derive(Clone, Debug, Default)]
+struct TurnQueryOutcome {
+    message: provider_requests::ProviderQueryResult,
+    local_claude_session_id: Option<String>,
+}
+
 fn parse_requested_collaboration_mode(
     payload: &serde_json::Map<String, Value>,
 ) -> RequestedCollaborationMode {
@@ -132,6 +138,7 @@ async fn query_provider_with_local_exec_fallback(
     codex_bin_override: Option<&str>,
     codex_args: &[String],
     model_id: &str,
+    requested_model_id: Option<&str>,
     reason_effort: Option<&str>,
     service_tier: Option<&str>,
     compat_base_url_override: Option<&str>,
@@ -144,9 +151,37 @@ async fn query_provider_with_local_exec_fallback(
     oauth_credential_source_override: Option<&str>,
     oauth_auth_mode_override: Option<&str>,
     oauth_external_account_id_override: Option<&str>,
+    collaboration_mode_is_plan: bool,
     error_prefix: Option<&str>,
     delta_callback: Option<provider_requests::ProviderDeltaCallback>,
-) -> Result<provider_requests::ProviderQueryResult, String> {
+) -> Result<TurnQueryOutcome, String> {
+    if routed_provider_route.is_core_claude_code_local() {
+        let resume_session_id =
+            read_local_claude_thread_session(ctx, workspace_id, thread_id).await;
+        let result = query_local_claude_exec_turn(
+            LocalClaudeExecTurnInput {
+                workspace_path: workspace_path_for_turn.to_string(),
+                prompt: content.to_string(),
+                model_id: requested_model_id
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(ToOwned::to_owned),
+                access_mode: access_mode.to_string(),
+                collaboration_mode_is_plan,
+                resume_session_id,
+            },
+            delta_callback,
+        )
+        .await?;
+        return Ok(TurnQueryOutcome {
+            message: provider_requests::ProviderQueryResult {
+                output: result.output,
+                response_model_id: result.response_model_id,
+            },
+            local_claude_session_id: result.session_id,
+        });
+    }
+
     let query_provider_direct = || async {
         query_provider_with_delta(
             &ctx.client,
@@ -168,6 +203,10 @@ async fn query_provider_with_local_exec_fallback(
             delta_callback.clone(),
         )
         .await
+        .map(|message| TurnQueryOutcome {
+            message,
+            local_claude_session_id: None,
+        })
     };
 
     if !matches!(
@@ -192,7 +231,10 @@ async fn query_provider_with_local_exec_fallback(
     )
     .await
     {
-        Ok(message) => Ok(provider_requests::ProviderQueryResult::from_output(message)),
+        Ok(message) => Ok(TurnQueryOutcome {
+            message: provider_requests::ProviderQueryResult::from_output(message),
+            local_claude_session_id: None,
+        }),
         Err(local_exec_error) => {
             warn!(
                 workspace_id = workspace_id,
@@ -264,6 +306,39 @@ async fn complete_turn_send(
         }
         result = async {
             if task.collaboration_mode == RequestedCollaborationMode::Plan {
+                if task.routed_provider_route.is_core_claude_code_local() {
+                    return query_provider_with_local_exec_fallback(
+                        &ctx,
+                        &task.routed_provider_route,
+                        task.workspace_id.as_str(),
+                        task.thread_id.as_str(),
+                        task.turn_id.as_str(),
+                        task.workspace_path_for_turn.as_str(),
+                        task.local_exec_content.as_str(),
+                        task.access_mode.as_str(),
+                        task.requested_codex_bin.as_deref(),
+                        task.requested_codex_args.as_slice(),
+                        task.model_id.as_str(),
+                        task.requested_model_id.as_deref(),
+                        task.reason_effort.as_deref(),
+                        task.service_tier.as_deref(),
+                        task.oauth_compat_base_url.as_deref(),
+                        task.oauth_api_key.as_deref(),
+                        task.extension_api_key.as_deref(),
+                        task.oauth_fallback_api_key.as_deref(),
+                        task.oauth_local_codex_id_token.as_deref(),
+                        task.oauth_local_codex_refresh_token.as_deref(),
+                        task.oauth_persist_local_codex_auth_updates,
+                        task.oauth_credential_source.as_deref(),
+                        task.oauth_auth_mode.as_deref(),
+                        task.oauth_external_account_id.as_deref(),
+                        true,
+                        None,
+                        stream_delta_callback.clone(),
+                    )
+                    .await
+                    .map_err(RpcError::internal);
+                }
                 return query_provider_via_runtime_plan_only(
                     &ctx,
                     &task.routed_provider_route,
@@ -289,6 +364,10 @@ async fn complete_turn_send(
                     task.oauth_external_account_id.as_deref(),
                 )
                 .await
+                .map(|message| TurnQueryOutcome {
+                    message,
+                    local_claude_session_id: None,
+                })
                 .map_err(RpcError::internal);
             }
             match task.execution_mode {
@@ -305,6 +384,7 @@ async fn complete_turn_send(
                         task.requested_codex_bin.as_deref(),
                         task.requested_codex_args.as_slice(),
                         task.model_id.as_str(),
+                        task.requested_model_id.as_deref(),
                         task.reason_effort.as_deref(),
                         task.service_tier.as_deref(),
                         task.oauth_compat_base_url.as_deref(),
@@ -317,13 +397,45 @@ async fn complete_turn_send(
                         task.oauth_credential_source.as_deref(),
                         task.oauth_auth_mode.as_deref(),
                         task.oauth_external_account_id.as_deref(),
+                        false,
                         None,
                         stream_delta_callback.clone(),
                     )
                     .await
                 }
                 TurnExecutionMode::Runtime => {
-                    if use_runtime_plan_flow {
+                    if task.routed_provider_route.is_core_claude_code_local() {
+                        query_provider_with_local_exec_fallback(
+                            &ctx,
+                            &task.routed_provider_route,
+                            task.workspace_id.as_str(),
+                            task.thread_id.as_str(),
+                            task.turn_id.as_str(),
+                            task.workspace_path_for_turn.as_str(),
+                            task.local_exec_content.as_str(),
+                            task.access_mode.as_str(),
+                            task.requested_codex_bin.as_deref(),
+                            task.requested_codex_args.as_slice(),
+                            task.model_id.as_str(),
+                            task.requested_model_id.as_deref(),
+                            task.reason_effort.as_deref(),
+                            task.service_tier.as_deref(),
+                            task.oauth_compat_base_url.as_deref(),
+                            task.oauth_api_key.as_deref(),
+                            task.extension_api_key.as_deref(),
+                            task.oauth_fallback_api_key.as_deref(),
+                            task.oauth_local_codex_id_token.as_deref(),
+                            task.oauth_local_codex_refresh_token.as_deref(),
+                            task.oauth_persist_local_codex_auth_updates,
+                            task.oauth_credential_source.as_deref(),
+                            task.oauth_auth_mode.as_deref(),
+                            task.oauth_external_account_id.as_deref(),
+                            false,
+                            None,
+                            stream_delta_callback.clone(),
+                        )
+                        .await
+                    } else if use_runtime_plan_flow {
                         query_provider_via_runtime_plan(
                             &ctx,
                             &task.routed_provider_route,
@@ -351,6 +463,10 @@ async fn complete_turn_send(
                             task.oauth_external_account_id.as_deref(),
                         )
                         .await
+                        .map(|message| TurnQueryOutcome {
+                            message,
+                            local_claude_session_id: None,
+                        })
                     } else {
                         query_provider_with_delta(
                             &ctx.client,
@@ -374,10 +490,45 @@ async fn complete_turn_send(
                             stream_delta_callback.clone(),
                         )
                         .await
+                        .map(|message| TurnQueryOutcome {
+                            message,
+                            local_claude_session_id: None,
+                        })
                     }
                 }
                 TurnExecutionMode::Hybrid => {
-                    if use_runtime_plan_flow {
+                    if task.routed_provider_route.is_core_claude_code_local() {
+                        query_provider_with_local_exec_fallback(
+                            &ctx,
+                            &task.routed_provider_route,
+                            task.workspace_id.as_str(),
+                            task.thread_id.as_str(),
+                            task.turn_id.as_str(),
+                            task.workspace_path_for_turn.as_str(),
+                            task.local_exec_content.as_str(),
+                            task.access_mode.as_str(),
+                            task.requested_codex_bin.as_deref(),
+                            task.requested_codex_args.as_slice(),
+                            task.model_id.as_str(),
+                            task.requested_model_id.as_deref(),
+                            task.reason_effort.as_deref(),
+                            task.service_tier.as_deref(),
+                            task.oauth_compat_base_url.as_deref(),
+                            task.oauth_api_key.as_deref(),
+                            task.extension_api_key.as_deref(),
+                            task.oauth_fallback_api_key.as_deref(),
+                            task.oauth_local_codex_id_token.as_deref(),
+                            task.oauth_local_codex_refresh_token.as_deref(),
+                            task.oauth_persist_local_codex_auth_updates,
+                            task.oauth_credential_source.as_deref(),
+                            task.oauth_auth_mode.as_deref(),
+                            task.oauth_external_account_id.as_deref(),
+                            false,
+                            None,
+                            stream_delta_callback.clone(),
+                        )
+                        .await
+                    } else if use_runtime_plan_flow {
                         match query_provider_via_runtime_plan(
                             &ctx,
                             &task.routed_provider_route,
@@ -406,7 +557,10 @@ async fn complete_turn_send(
                         )
                         .await
                         {
-                            Ok(message) => Ok(message),
+                            Ok(message) => Ok(TurnQueryOutcome {
+                                message,
+                                local_claude_session_id: None,
+                            }),
                             Err(runtime_plan_error) => {
                                 warn!(
                                     workspace_id = task.workspace_id.as_str(),
@@ -427,6 +581,7 @@ async fn complete_turn_send(
                                     task.requested_codex_bin.as_deref(),
                                     task.requested_codex_args.as_slice(),
                                     task.model_id.as_str(),
+                                    task.requested_model_id.as_deref(),
                                     task.reason_effort.as_deref(),
                                     task.service_tier.as_deref(),
                                     task.oauth_compat_base_url.as_deref(),
@@ -439,6 +594,7 @@ async fn complete_turn_send(
                                     task.oauth_credential_source.as_deref(),
                                     task.oauth_auth_mode.as_deref(),
                                     task.oauth_external_account_id.as_deref(),
+                                    false,
                                     Some(runtime_plan_error.as_str()),
                                     stream_delta_callback.clone(),
                                 )
@@ -458,6 +614,7 @@ async fn complete_turn_send(
                             task.requested_codex_bin.as_deref(),
                             task.requested_codex_args.as_slice(),
                             task.model_id.as_str(),
+                            task.requested_model_id.as_deref(),
                             task.reason_effort.as_deref(),
                             task.service_tier.as_deref(),
                             task.oauth_compat_base_url.as_deref(),
@@ -470,6 +627,7 @@ async fn complete_turn_send(
                             task.oauth_credential_source.as_deref(),
                             task.oauth_auth_mode.as_deref(),
                             task.oauth_external_account_id.as_deref(),
+                            false,
                             None,
                             stream_delta_callback.clone(),
                         )
@@ -481,6 +639,10 @@ async fn complete_turn_send(
         } => result
     };
     clear_turn_interrupt_waiter(&ctx, task.turn_id.as_str()).await;
+    let completion_response_model_id = completion
+        .as_ref()
+        .ok()
+        .and_then(|outcome| outcome.message.response_model_id.clone());
 
     {
         let mut state = ctx.state.write().await;
@@ -490,7 +652,9 @@ async fn complete_turn_send(
                 existing.running = false;
                 existing.updated_at = updated_at;
                 existing.provider = task.routed_provider_route.routed_provider().to_string();
-                existing.model_id = Some(task.model_id.clone());
+                existing.model_id = completion_response_model_id
+                    .clone()
+                    .or_else(|| task.display_model_id.clone());
                 existing.status = Some("idle".to_string());
                 existing.last_activity_at = Some(updated_at);
             }
@@ -505,13 +669,14 @@ async fn complete_turn_send(
     .await;
 
     match completion {
-        Ok(message) => {
-            let completion = if use_runtime_plan_flow {
-                message
+        Ok(outcome) => {
+            let response_model_id = outcome.message.response_model_id.clone();
+            let completion_message = if use_runtime_plan_flow {
+                outcome.message.output
             } else {
                 maybe_recover_provider_local_access_refusal(
                     &ctx,
-                    message,
+                    outcome.message.output,
                     task.collaboration_mode.suppress_runtime_plan_delta(),
                     task.access_mode.as_str(),
                     local_exec_preferred,
@@ -539,14 +704,34 @@ async fn complete_turn_send(
                 )
                 .await
             };
-            let response_model_id = completion.response_model_id.clone();
-            let completion_message = completion.output;
             maybe_report_oauth_account_outcome(
                 &ctx,
                 task.oauth_account_id.as_deref(),
                 task.model_id.as_str(),
                 None,
             );
+            if let Some(session_id) = outcome
+                .local_claude_session_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
+                if let Err(error) = persist_local_claude_thread_session(
+                    &ctx,
+                    task.workspace_id.as_str(),
+                    task.thread_id.as_str(),
+                    session_id,
+                )
+                .await
+                {
+                    warn!(
+                        workspace_id = task.workspace_id.as_str(),
+                        thread_id = task.thread_id.as_str(),
+                        error = error.as_str(),
+                        "failed to persist local Claude thread session"
+                    );
+                }
+            }
             if let Some(turn_delta_pipeline) = turn_delta_pipeline.as_ref() {
                 turn_delta_pipeline.flush_final().await;
             }
@@ -584,6 +769,14 @@ async fn complete_turn_send(
             let failure_code = resolve_turn_failure_code(failure_message.as_str());
             if let Some(turn_delta_pipeline) = turn_delta_pipeline.as_ref() {
                 turn_delta_pipeline.flush_final().await;
+            }
+            if task.routed_provider_route.is_core_claude_code_local() {
+                let _ = clear_local_claude_thread_session(
+                    &ctx,
+                    task.workspace_id.as_str(),
+                    task.thread_id.as_str(),
+                )
+                .await;
             }
             if failure_message.contains("STREAM_SSE_FRAME_LIMIT")
                 || failure_message.contains("STREAM_DELTA_OVERFLOW")
@@ -696,7 +889,9 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
         if let (Some(hint_provider), Some(model_provider)) =
             (provider_from_hint, provider_from_model)
         {
-            if hint_provider != model_provider {
+            let local_claude_match = hint_provider == RuntimeProvider::ClaudeCodeLocal
+                && model_provider == RuntimeProvider::Anthropic;
+            if hint_provider != model_provider && !local_claude_match {
                 return Err(RpcError::invalid_params(format!(
                     "Turn provider `{provider_value}` does not match model `{model_id_value}`."
                 )));
@@ -721,19 +916,24 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
         .unwrap_or_else(|| new_id("thread"));
     let oauth_routing = match &routed_provider_route {
         TurnProviderRoute::Core(routed_provider) => {
-            refresh_local_codex_cli_account_for_turn(ctx, *routed_provider);
-            let model_hint_for_routing = requested_model_id
-                .as_deref()
-                .unwrap_or("<provider-default>");
-            resolve_oauth_routing_credentials(
-                ctx,
-                *routed_provider,
-                requested_thread_id.as_deref(),
-                model_hint_for_routing,
-            )
+            if *routed_provider == RuntimeProvider::ClaudeCodeLocal {
+                None
+            } else {
+                refresh_local_codex_cli_account_for_turn(ctx, *routed_provider);
+                let model_hint_for_routing = requested_model_id
+                    .as_deref()
+                    .unwrap_or("<provider-default>");
+                resolve_oauth_routing_credentials(
+                    ctx,
+                    *routed_provider,
+                    requested_thread_id.as_deref(),
+                    model_hint_for_routing,
+                )
+            }
         }
         TurnProviderRoute::Extension(_) => None,
     };
+    let requested_model_id_for_task = requested_model_id.clone();
     let model_id_raw = if let Some(requested) = requested_model_id {
         requested
     } else if provider_hint.is_some() {
@@ -754,6 +954,13 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
         ctx.config.default_model_id.clone()
     };
     let model_id = normalize_model_id(model_id_raw.as_str());
+    let display_model_id = if routed_provider_route.is_core_claude_code_local()
+        && requested_model_id_for_task.is_none()
+    {
+        None
+    } else {
+        Some(model_id.clone())
+    };
     let reason_effort = read_optional_string(payload, "reasonEffort");
     let service_tier = read_optional_string(payload, "serviceTier")
         .or_else(|| read_optional_string(payload, "service_tier"));
@@ -798,6 +1005,8 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
     }
     let routed_source = if oauth_api_key.is_some() {
         "oauth-account"
+    } else if routed_provider_route.is_core_claude_code_local() {
+        "workspace-default"
     } else if routed_provider_route.is_core_openai() {
         "local-codex"
     } else if matches!(routed_provider_route, TurnProviderRoute::Extension(_)) {
@@ -825,7 +1034,7 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
             existing.running = true;
             existing.updated_at = now;
             existing.provider = routed_provider_route.routed_provider().to_string();
-            existing.model_id = Some(model_id.clone());
+            existing.model_id = display_model_id.clone();
             existing.status = Some("active".to_string());
             existing.last_activity_at = Some(now);
             existing.archived = false;
@@ -841,7 +1050,7 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
                     created_at: now,
                     updated_at: now,
                     provider: routed_provider_route.routed_provider().to_string(),
-                    model_id: Some(model_id.clone()),
+                    model_id: display_model_id.clone(),
                     status: Some("active".to_string()),
                     archived: false,
                     last_activity_at: Some(now),
@@ -892,6 +1101,8 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
                 local_exec_content,
                 routed_provider_route: routed_provider_route.clone(),
                 model_id: model_id.clone(),
+                display_model_id: display_model_id.clone(),
+                requested_model_id: requested_model_id_for_task,
                 reason_effort,
                 service_tier,
                 access_mode,
@@ -923,8 +1134,12 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
         "turnId": turn_id,
         "threadId": thread_id,
         "routedProvider": routed_provider_route.routed_provider(),
-        "routedModelId": model_id,
-        "routedPool": routed_provider_route.routed_pool(),
+        "routedModelId": display_model_id,
+        "routedPool": if routed_provider_route.is_core_claude_code_local() {
+            Value::Null
+        } else {
+            Value::String(routed_provider_route.routed_pool().to_string())
+        },
         "routedSource": routed_source_response,
         "backendId": response_backend_id,
         "message": "Turn accepted."

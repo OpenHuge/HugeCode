@@ -387,7 +387,7 @@ export type AutoDriveThreadContext = {
 };
 
 export type AutoDriveExternalResearchPolicy = {
-  provider: "openai" | "anthropic" | "google" | "local" | "unknown";
+  provider: "openai" | "anthropic" | "claude_code_local" | "google" | "local" | "unknown";
   enabled: boolean;
   strategy: "disabled" | "search-only" | "search+content";
   fetchPageContent: boolean;

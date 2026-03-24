@@ -42,6 +42,7 @@ pub struct RuntimeResolvedProviderExtension {
 enum RuntimeProvider {
     OpenAI,
     Anthropic,
+    ClaudeCodeLocal,
     Google,
 }
 
@@ -76,6 +77,15 @@ const RUNTIME_PROVIDER_SPECS: &[RuntimeProviderSpec] = &[
         aliases: &["anthropic", "claude", "claude_code", "claude-code"],
     },
     RuntimeProviderSpec {
+        provider: RuntimeProvider::ClaudeCodeLocal,
+        routed_provider: "claude_code_local",
+        routed_pool: "claude_code_local",
+        oauth_provider: "",
+        default_model_id: DEFAULT_ANTHROPIC_MODEL_ID,
+        display_name: "Claude Code Local",
+        aliases: &["claude_code_local"],
+    },
+    RuntimeProviderSpec {
         provider: RuntimeProvider::Google,
         routed_provider: "google",
         routed_pool: "gemini",
@@ -105,7 +115,8 @@ impl RuntimeProvider {
         match self {
             Self::OpenAI => &RUNTIME_PROVIDER_SPECS[0],
             Self::Anthropic => &RUNTIME_PROVIDER_SPECS[1],
-            Self::Google => &RUNTIME_PROVIDER_SPECS[2],
+            Self::ClaudeCodeLocal => &RUNTIME_PROVIDER_SPECS[2],
+            Self::Google => &RUNTIME_PROVIDER_SPECS[3],
         }
     }
 
@@ -148,6 +159,7 @@ impl RuntimeProvider {
         let endpoint = match self {
             Self::OpenAI => config.openai_endpoint.as_str(),
             Self::Anthropic => config.anthropic_endpoint.as_str(),
+            Self::ClaudeCodeLocal => return true,
             Self::Google => config.gemini_endpoint.as_str(),
         };
         reqwest::Url::parse(endpoint.trim()).is_ok()
@@ -157,6 +169,7 @@ impl RuntimeProvider {
         match self {
             Self::OpenAI => has_non_empty(config.openai_api_key.as_deref()),
             Self::Anthropic => has_non_empty(config.anthropic_api_key.as_deref()),
+            Self::ClaudeCodeLocal => false,
             Self::Google => has_non_empty(config.gemini_api_key.as_deref()),
         }
     }
@@ -666,6 +679,10 @@ impl TurnProviderRoute {
 
     fn is_core_openai(&self) -> bool {
         matches!(self, Self::Core(RuntimeProvider::OpenAI))
+    }
+
+    fn is_core_claude_code_local(&self) -> bool {
+        matches!(self, Self::Core(RuntimeProvider::ClaudeCodeLocal))
     }
 }
 

@@ -14,6 +14,8 @@ mod distributed_runtime;
 mod extensions_runtime;
 mod instruction_skills;
 pub mod live_skills;
+mod local_claude_exec_path;
+mod local_claude_exec_turn;
 mod local_codex_account_sync;
 mod local_codex_cli_sessions;
 mod local_codex_exec_path;
@@ -173,6 +175,10 @@ use distributed_runtime::{
 use distributed_runtime::{
     normalize_distributed_dispatch_error_message, normalize_distributed_dispatch_error_source,
     resolve_cached_distributed_readiness_snapshot, truncate_chars_with_ellipsis,
+};
+use local_claude_exec_turn::{
+    clear_local_claude_thread_session, persist_local_claude_thread_session, probe_local_claude_cli,
+    query_local_claude_exec_turn, read_local_claude_thread_session, LocalClaudeExecTurnInput,
 };
 use local_codex_account_sync::{
     classify_oauth_api_key_resolution_error, import_cockpit_tools_codex_accounts,

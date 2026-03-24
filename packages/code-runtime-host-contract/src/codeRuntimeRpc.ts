@@ -25,6 +25,7 @@ export type RuntimeMode = "local" | "remote";
 export type ModelProvider =
   | "openai"
   | "anthropic"
+  | "claude_code_local"
   | "google"
   | "antigravity"
   | "anti-gravity"
@@ -2161,7 +2162,13 @@ export type PromptLibraryEntry = {
 
 export type OAuthProviderId = "codex" | "gemini" | "claude_code";
 
-export type CanonicalModelProvider = "openai" | "anthropic" | "google" | "local" | "unknown";
+export type CanonicalModelProvider =
+  | "openai"
+  | "anthropic"
+  | "claude_code_local"
+  | "google"
+  | "local"
+  | "unknown";
 
 export type CanonicalModelPool = "codex" | "claude" | "gemini" | "auto";
 
