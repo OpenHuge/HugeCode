@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@ku0/code-platform-interfaces": "workspace:*",
+    "@ku0/code-workspace-client": "workspace:*",
     "@ku0/shared": "workspace:*"
   },
   "devDependencies": {

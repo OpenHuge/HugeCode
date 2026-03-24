@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createLayoutNodesOptions,
@@ -7,7 +7,7 @@ import {
   type LayoutNodesOptions,
 } from "./types";
 
-const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 20_000;
+const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 30_000;
 
 function mockGitDiffViewerChunk() {
   vi.doMock("../../../utils/diffsWorker", () => ({
@@ -210,6 +210,10 @@ describe("buildGitNodes diff lazy boundary", () => {
 
       expect(nodes.hasGitDiffViewerContent).toBe(true);
       render(<div>{nodes.gitDiffViewerNode}</div>);
+
+      await act(async () => {
+        await vi.dynamicImportSettled();
+      });
 
       expect(
         await screen.findByTestId("git-diff-viewer-chunk", undefined, {

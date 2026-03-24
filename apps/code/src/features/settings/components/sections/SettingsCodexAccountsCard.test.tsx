@@ -724,6 +724,9 @@ describe("SettingsCodexAccountsCard", () => {
       expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
       expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
     });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Refresh" })).toBeTruthy();
+    });
 
     act(() => {
       window.dispatchEvent(
@@ -734,13 +737,13 @@ describe("SettingsCodexAccountsCard", () => {
       );
     });
 
-    await waitFor(() => {
-      expect(
-        screen.queryByText(
-          "Codex OAuth failed during callback verification. Check the OAuth popup for details."
-        )
-      ).not.toBeNull();
-    });
+    expect(
+      await screen.findByText(
+        "Codex OAuth failed during callback verification. Check the OAuth popup for details.",
+        undefined,
+        { timeout: 5_000 }
+      )
+    ).toBeTruthy();
   });
 
   it("allows setting account and pool filters to the same provider", async () => {

@@ -35,6 +35,90 @@ export const aliases: AliasEntry[] = [
     replacement: path.resolve(__dirname, "packages/code-runtime-webmcp-client/src/$1"),
   },
   {
+    find: "@ku0/code-workspace-client/account-center",
+    replacement: path.resolve(
+      __dirname,
+      "packages/code-workspace-client/src/account-center/AccountCenterDashboard.tsx"
+    ),
+  },
+  {
+    find: "@ku0/code-workspace-client/runtime-shell",
+    replacement: path.resolve(
+      __dirname,
+      "packages/code-workspace-client/src/runtime-shell/WorkspaceRuntimeShell.tsx"
+    ),
+  },
+  {
+    find: "@ku0/code-workspace-client/workspace-bindings",
+    replacement: path.resolve(
+      __dirname,
+      "packages/code-workspace-client/src/workspace/bindings.ts"
+    ),
+  },
+  {
+    find: "@ku0/code-workspace-client/workspace-browser-bindings",
+    replacement: path.resolve(
+      __dirname,
+      "packages/code-workspace-client/src/workspace/browserBindings.ts"
+    ),
+  },
+  {
+    find: "@ku0/code-workspace-client/workspace-app",
+    replacement: path.resolve(
+      __dirname,
+      "packages/code-workspace-client/src/workspace-app/index.ts"
+    ),
+  },
+  {
+    find: "@ku0/code-workspace-client/workspace-navigation",
+    replacement: path.resolve(
+      __dirname,
+      "packages/code-workspace-client/src/workspace-shell/workspaceNavigation.ts"
+    ),
+  },
+  {
+    find: "@ku0/code-workspace-client/workspace-shell",
+    replacement: path.resolve(
+      __dirname,
+      "packages/code-workspace-client/src/workspace-shell/index.ts"
+    ),
+  },
+  {
+    find: "@ku0/code-workspace-client/settings-shell-types",
+    replacement: path.resolve(
+      __dirname,
+      "packages/code-workspace-client/src/settings-shell/settingsShellTypes.ts"
+    ),
+  },
+  {
+    find: "@ku0/code-workspace-client/settings-shell/SettingsModalChrome.global.css",
+    replacement: path.resolve(
+      __dirname,
+      "packages/code-workspace-client/src/settings-shell/SettingsModalChrome.global.css.ts"
+    ),
+  },
+  {
+    find: "@ku0/code-workspace-client/settings-shell",
+    replacement: path.resolve(
+      __dirname,
+      "packages/code-workspace-client/src/settings-shell/index.ts"
+    ),
+  },
+  {
+    find: "@ku0/code-workspace-client/settings-state",
+    replacement: path.resolve(
+      __dirname,
+      "packages/code-workspace-client/src/settings-state/index.ts"
+    ),
+  },
+  {
+    find: "@ku0/code-workspace-client/account-center-state",
+    replacement: path.resolve(
+      __dirname,
+      "packages/code-workspace-client/src/account-center/accountCenterState.ts"
+    ),
+  },
+  {
     find: /^@ku0\/code-workspace-client\/(.+)$/,
     replacement: path.resolve(__dirname, "packages/code-workspace-client/src/$1"),
   },
