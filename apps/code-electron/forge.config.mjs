@@ -71,6 +71,7 @@ export default {
       name: "@electron-forge/maker-deb",
       config: {
         options: {
+          bin: "HugeCode",
           categories: ["Development"],
           maintainer: "OpenHuge",
           mimeType: ["x-scheme-handler/hugecode"],

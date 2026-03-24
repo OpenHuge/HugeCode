@@ -16,10 +16,10 @@ const outDir = resolve(packageDir, "out");
 const packageJson = JSON.parse(await readFile(resolve(packageDir, "package.json"), "utf8"));
 const forgeConfigSource = resolve(packageDir, "forge.config.mjs");
 const workspaceRoot = resolve(packageDir, "../..");
-const electronForgeBin =
-  process.platform === "win32"
-    ? resolve(workspaceRoot, "node_modules/.bin/electron-forge.cmd")
-    : resolve(workspaceRoot, "node_modules/.bin/electron-forge");
+const electronForgeCli = resolve(
+  workspaceRoot,
+  "node_modules/@electron-forge/cli/dist/electron-forge.js"
+);
 
 let forgeStageDir = "";
 let forgePackageDir = "";
@@ -147,11 +147,12 @@ async function runForge() {
     await prepareStage();
 
     await new Promise((resolvePromise, rejectPromise) => {
-      const child = spawn(electronForgeBin, [command], {
+      const child = spawn(process.execPath, [electronForgeCli, command, forgePackageDir], {
         cwd: forgePackageDir,
         env: {
           ...process.env,
           ELECTRON_FORGE_DISABLE_PUBLISH_SANDBOX_WARNING: "true",
+          NODE_INSTALLER: "pnpm",
         },
         stdio: "inherit",
       });
