@@ -21,12 +21,16 @@ export {
 } from "./workspaceHostRenderer";
 export { WorkspaceChromeHeader, WorkspaceChromeLayout } from "./workspaceChrome";
 export {
+  createDesktopWorkspaceClientBindings,
   createDesktopWorkspaceClientHostBindings,
+  createWebWorkspaceClientBindings,
   createWorkspaceClientBindings,
 } from "./workspaceClientBindings";
 
 export type {
+  CreateDesktopWorkspaceClientBindingsInput,
   CreateDesktopWorkspaceClientHostBindingsInput,
+  CreateWebWorkspaceClientBindingsInput,
   CreateWorkspaceClientBindingsInput,
 } from "./workspaceClientBindings";
 export type {

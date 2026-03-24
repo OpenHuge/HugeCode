@@ -25,6 +25,14 @@
       "types": "./src/workspace/index.ts",
       "default": "./src/workspace/index.ts"
     },
+    "./workspace-bindings": {
+      "types": "./src/workspace/bindings.ts",
+      "default": "./src/workspace/bindings.ts"
+    },
+    "./workspace-browser-bindings": {
+      "types": "./src/workspace/browserBindings.ts",
+      "default": "./src/workspace/browserBindings.ts"
+    },
     "./settings-state": {
       "types": "./src/settings-state/index.ts",
       "default": "./src/settings-state/index.ts"
@@ -33,9 +41,21 @@
       "types": "./src/workspace-app/index.ts",
       "default": "./src/workspace-app/index.ts"
     },
+    "./workspace-navigation": {
+      "types": "./src/workspace-shell/workspaceNavigation.ts",
+      "default": "./src/workspace-shell/workspaceNavigation.ts"
+    },
     "./workspace-shell": {
       "types": "./src/workspace-shell/index.ts",
       "default": "./src/workspace-shell/index.ts"
+    },
+    "./settings-shell-types": {
+      "types": "./src/settings-shell/settingsShellTypes.ts",
+      "default": "./src/settings-shell/settingsShellTypes.ts"
+    },
+    "./settings-shell/SettingsModalChrome.global.css": {
+      "types": "./src/settings-shell/SettingsModalChrome.global.css.ts",
+      "default": "./src/settings-shell/SettingsModalChrome.global.css.ts"
     },
     "./settings-shell": {
       "types": "./src/settings-shell/index.ts",
