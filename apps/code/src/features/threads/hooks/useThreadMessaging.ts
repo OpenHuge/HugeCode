@@ -180,10 +180,10 @@ async function invokeSteerTurnRequest(
     threadId: params.threadId,
     turnId: params.activeTurnId,
     text: params.text,
-    images: params.images,
-    options: steerOptions,
-  })) as Record<string, unknown>;
-}
+      images: params.images,
+      options: steerOptions,
+    })) as Record<string, unknown>;
+  }
 
 function resolveInterruptFailureMessage(response: unknown): string {
   if (response && typeof response === "object") {
