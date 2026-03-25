@@ -129,7 +129,7 @@ describe("runtimeOperatorLoopParity", () => {
     });
 
     expect(reviewEntry?.recommendedNextAction).toBe(
-      "Runtime blocked follow-up until validation evidence is repaired."
+      "Open the mission run and resolve the runtime-blocked follow-up."
     );
     expect(reviewEntry?.operatorActionLabel).toBe("Open review");
     expect(reviewEntry?.operatorActionTarget).toEqual({
@@ -145,9 +145,7 @@ describe("runtimeOperatorLoopParity", () => {
     if (!reviewDetail || reviewDetail.kind !== "review_pack") {
       throw new Error("Expected review pack detail");
     }
-    expect(reviewDetail.recommendedNextAction).toBe(
-      "Open Review Pack and resolve the runtime-blocked follow-up before continuing."
-    );
+    expect(reviewDetail.recommendedNextAction).toBe(reviewEntry?.recommendedNextAction);
     expect(reviewDetail.navigationTarget).toEqual({
       kind: "mission",
       workspaceId: "workspace-1",
@@ -157,9 +155,7 @@ describe("runtimeOperatorLoopParity", () => {
       threadId: "thread-legacy",
       limitation: null,
     });
-    expect(reviewDetail.continuity?.recommendedAction).toBe(
-      "Open Review Pack and resolve the runtime-blocked follow-up before continuing."
-    );
+    expect(reviewDetail.continuity?.recommendedAction).toBe(reviewEntry?.recommendedNextAction);
   });
 
   it("keeps takeover-first review actions aligned between Mission Control and Review Pack", () => {
@@ -268,7 +264,7 @@ describe("runtimeOperatorLoopParity", () => {
       }),
     });
 
-    expect(reviewEntry?.recommendedNextAction).toBe("Continue from Review Pack.");
+    expect(reviewEntry?.recommendedNextAction).toBe("Open Review Pack");
     expect(reviewEntry?.operatorActionLabel).toBe("Open review");
     expect(reviewEntry?.operatorActionTarget).toEqual({
       kind: "review",
@@ -283,7 +279,7 @@ describe("runtimeOperatorLoopParity", () => {
     if (!reviewDetail || reviewDetail.kind !== "review_pack") {
       throw new Error("Expected review pack detail");
     }
-    expect(reviewDetail.recommendedNextAction).toBe("Open Review Pack");
-    expect(reviewDetail.continuity?.recommendedAction).toBe("Open Review Pack");
+    expect(reviewDetail.recommendedNextAction).toBe(reviewEntry?.recommendedNextAction);
+    expect(reviewDetail.continuity?.recommendedAction).toBe(reviewEntry?.recommendedNextAction);
   });
 });
