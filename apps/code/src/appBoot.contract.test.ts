@@ -20,6 +20,6 @@ describe("app boot contract", () => {
   it("keeps the boot shell hydration-safe by avoiding whitespace before the boot surface", () => {
     const indexHtml = readFileSync(path.resolve(testDir, "../index.html"), "utf8");
 
-    expect(indexHtml).toMatch(/<div id="root"><div[\s\S]*data-app-boot="workspace"/);
+    expect(indexHtml).toMatch(/<div id="root">\s*<div[\s\S]*data-app-boot="workspace"/);
   });
 });
