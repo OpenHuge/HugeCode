@@ -105,6 +105,9 @@ Internal parity helpers such as `internal/runtime-policy-rs` may support tooling
   Account-pool and provider-routing domain guidance.
 - [runtime-launch-readiness.md](./runtime-launch-readiness.md)
   Launch-scoped operator preflight guidance over existing runtime truth surfaces.
+- [runtime-operator-loop.md](./runtime-operator-loop.md)
+  Shared continuation, takeover, and review-action semantics for Mission Control
+  and Review Pack.
 - [runtime-kernel-v2.md](./runtime-kernel-v2.md)
   Truth-first lifecycle direction for run preparation, execution, review, and
   the current v1-to-v2 compatibility bridge.

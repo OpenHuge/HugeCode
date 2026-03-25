@@ -278,7 +278,7 @@ describe("missionControlPresentation", () => {
     expect(item.attentionSignals).toContain(
       "Runtime recovered the run from a checkpoint. Resume to continue."
     );
-    expect(item.operatorActionLabel).toBe("Open review");
+    expect(item.operatorActionLabel).toBe("Resume run");
     expect(item.operatorActionDetail).toBe(
       "Runtime recovered the run from a checkpoint. Resume to continue."
     );

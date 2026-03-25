@@ -9,13 +9,12 @@ import type {
   HugeCodeTakeoverBundle,
 } from "@ku0/code-runtime-host-contract";
 import { resolveRuntimeContinuation } from "@ku0/code-runtime-host-contract";
+import type { HugeCodeOperatorTruthSource } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
+import { summarizeHugeCodeOperatorContinuation } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
 import { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
 import {
   formatRuntimeContinuationTruthSourceLabel,
   resolveContinuationPathLabel,
-  resolveContinuationTruthSource,
-  resolvePreferredPublishHandoff,
-  resolvePreferredReviewActionability,
   type RuntimeContinuationTruthSource,
 } from "./runtimeContinuationTruth";
 import {
@@ -88,6 +87,10 @@ export type ReviewContinuationActionabilitySummary = {
   truthSource: RuntimeContinuationTruthSource;
   truthSourceLabel: string;
 };
+
+function mapTruthSource(source: HugeCodeOperatorTruthSource): RuntimeContinuationTruthSource {
+  return source;
+}
 
 type RuntimeRecordedContinuationDefaults = {
   sourceTaskId: string;
@@ -243,23 +246,6 @@ export function resolveRuntimeFollowUpPreferredBackendIds(
     : undefined;
 }
 
-function buildRecommendedAction(input: {
-  state: ReviewContinuationActionabilitySummary["state"];
-  continuePathLabel: ReviewContinuationActionabilitySummary["continuePathLabel"];
-}): string {
-  const pathLabel = input.continuePathLabel.toLowerCase();
-  switch (input.state) {
-    case "blocked":
-      return `Open the ${pathLabel} and resolve the runtime-blocked follow-up.`;
-    case "degraded":
-      return `Open the ${pathLabel} and inspect the degraded runtime follow-up guidance.`;
-    case "ready":
-      return `Continue from the ${pathLabel} using the runtime-published follow-up actions.`;
-    default:
-      return `Inspect the ${pathLabel} before continuing this follow-up.`;
-  }
-}
-
 function mapTakeoverStateToReviewContinuationState(
   state: HugeCodeTakeoverBundle["state"] | null | undefined
 ): ReviewContinuationActionabilitySummary["state"] {
@@ -299,7 +285,7 @@ export function summarizeReviewContinuationActionability(input: {
   actionability?: HugeCodeReviewActionabilitySummary | null;
   missionLinkage?: HugeCodeMissionLinkageSummary | null;
   publishHandoff?: HugeCodePublishHandoffReference | null;
-  continuation?: import("@ku0/code-runtime-host-contract").HugeCodeContinuationSummary | null;
+  continuation?: HugeCodeContinuationSummary | null;
 }): ReviewContinuationActionabilitySummary {
   const publishedContinuation = resolveRuntimeContinuation({
     takeoverBundle: input.takeoverBundle ?? null,
@@ -354,63 +340,28 @@ export function summarizeReviewContinuationActionability(input: {
       truthSourceLabel,
     };
   }
-  const actionability = resolvePreferredReviewActionability({
+  const shared = summarizeHugeCodeOperatorContinuation({
     takeoverBundle: input.takeoverBundle ?? null,
-    actionability: input.actionability ?? null,
-  });
-  const publishHandoff = resolvePreferredPublishHandoff({
-    takeoverBundle: input.takeoverBundle ?? null,
-    publishHandoff: input.publishHandoff ?? null,
-  });
-  const continuePathLabel = fallbackContinuePathLabel;
-  const truthSource = resolveContinuationTruthSource({
-    takeoverBundle: input.takeoverBundle ?? null,
-    actionability: input.actionability ?? null,
+    reviewActionability: input.actionability ?? null,
     missionLinkage: input.missionLinkage ?? null,
     publishHandoff: input.publishHandoff ?? null,
   });
-  const truthSourceLabel = formatRuntimeContinuationTruthSourceLabel(truthSource);
-  const details: string[] = [];
-  if (input.takeoverBundle?.summary) {
-    details.push(input.takeoverBundle.summary);
-  }
-  if (input.missionLinkage?.summary) {
-    details.push(input.missionLinkage.summary);
-  }
-  details.push(`Canonical continue path: ${continuePathLabel}.`);
-  details.push(`Follow-up source: ${truthSourceLabel}.`);
-  if (publishHandoff?.summary) {
-    details.push(publishHandoff.summary);
-  }
-  for (const degradedReason of actionability?.degradedReasons ?? []) {
-    if (!details.includes(degradedReason)) {
-      details.push(degradedReason);
-    }
-  }
-  const summary =
-    actionability?.summary ??
-    input.takeoverBundle?.summary ??
-    input.missionLinkage?.summary ??
-    publishHandoff?.summary ??
-    "Runtime continuation guidance is unavailable.";
-  const state =
-    actionability?.state ??
-    mapTakeoverStateToReviewContinuationState(input.takeoverBundle?.state) ??
-    "missing";
   return {
-    state,
-    summary,
-    details,
-    blockingReason: state === "blocked" ? summary : null,
-    recommendedAction:
-      input.takeoverBundle?.recommendedAction ??
-      buildRecommendedAction({
-        state,
-        continuePathLabel,
-      }),
-    continuePathLabel,
-    truthSource,
-    truthSourceLabel,
+    state:
+      shared.state === "ready"
+        ? "ready"
+        : shared.state === "blocked"
+          ? "blocked"
+          : shared.state === "degraded"
+            ? "degraded"
+            : mapTakeoverStateToReviewContinuationState(input.takeoverBundle?.state),
+    summary: shared.summary,
+    details: shared.details,
+    blockingReason: shared.blockingReason,
+    recommendedAction: shared.recommendedAction,
+    continuePathLabel: shared.continuePathLabel,
+    truthSource: mapTruthSource(shared.truthSource),
+    truthSourceLabel: shared.truthSourceLabel,
   };
 }
 

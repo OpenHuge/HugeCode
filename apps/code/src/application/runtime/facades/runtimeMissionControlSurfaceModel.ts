@@ -13,6 +13,11 @@ import { summarizeReviewContinuationActionability } from "./runtimeReviewContinu
 import { resolveReviewIntelligenceSummary } from "./runtimeReviewIntelligenceSummary";
 import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
 import { resolveRuntimeRecommendedAction } from "./runtimeOperatorActionPresentation";
+import {
+  buildMissionNavigationTarget,
+  buildReviewNavigationTarget,
+} from "./runtimeMissionNavigationTarget";
+import type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
 import type { RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import { formatMissionReviewEvidenceLabel } from "../../../utils/reviewPackLabels";
 import { formatReviewFailureClassLabel } from "../../../utils/reviewFailureClass";
@@ -41,29 +46,7 @@ export function formatMissionOverviewStateLabel(state: MissionOverviewState): st
   }
 }
 
-export type MissionNavigationTarget =
-  | {
-      kind: "thread";
-      workspaceId: string;
-      threadId: string;
-    }
-  | {
-      kind: "mission";
-      workspaceId: string;
-      taskId: string;
-      runId: string | null;
-      reviewPackId: string | null;
-      threadId: string | null;
-      limitation: "thread_unavailable" | null;
-    }
-  | {
-      kind: "review";
-      workspaceId: string;
-      taskId: string;
-      runId: string | null;
-      reviewPackId: string | null;
-      limitation: "thread_unavailable" | null;
-    };
+export type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
 
 export type MissionOverviewCounts = {
   active: number;
@@ -152,6 +135,7 @@ export type MissionReviewEntry = {
   continuationState?: "ready" | "degraded" | "blocked" | "missing" | null;
   continuationLabel?: string | null;
   continuePathLabel?: string | null;
+  continuationTruthSourceLabel?: string | null;
 };
 
 export type MissionControlFreshnessState = {
@@ -196,41 +180,6 @@ function resolveTaskTimestamp(
     }
   }
   return task.updatedAt;
-}
-
-function buildMissionNavigationTarget(
-  task: HugeCodeTaskSummary,
-  options?: {
-    runId?: string | null;
-    reviewPackId?: string | null;
-  }
-): MissionNavigationTarget {
-  return {
-    kind: "mission",
-    workspaceId: task.workspaceId,
-    taskId: task.id,
-    runId: options?.runId ?? task.latestRunId ?? null,
-    reviewPackId: options?.reviewPackId ?? null,
-    threadId: task.origin.threadId ?? null,
-    limitation: task.origin.threadId ? null : "thread_unavailable",
-  };
-}
-
-function buildReviewNavigationTarget(
-  task: HugeCodeTaskSummary,
-  options?: {
-    runId?: string | null;
-    reviewPackId?: string | null;
-  }
-): MissionNavigationTarget {
-  return {
-    kind: "review",
-    workspaceId: task.workspaceId,
-    taskId: task.id,
-    runId: options?.runId ?? task.latestRunId ?? null,
-    reviewPackId: options?.reviewPackId ?? null,
-    limitation: task.origin.threadId ? null : "thread_unavailable",
-  };
 }
 
 function mapRuntimeOperatorActionTarget(input: {
@@ -280,7 +229,6 @@ function mapRuntimeOperatorActionTarget(input: {
     limitation: input.task.origin.threadId ? null : "thread_unavailable",
   };
 }
-
 function resolveMissionSecondaryLabel(task: HugeCodeTaskSummary): string | null {
   const labels: string[] = [];
   if (isRuntimeManagedMissionTaskId(task.id)) {
@@ -1217,6 +1165,8 @@ export function buildMissionReviewEntriesFromProjection(
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
       continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
+      continuationTruthSourceLabel:
+        continuation.state !== "missing" ? continuation.truthSourceLabel : null,
       triagePriority: resolveTriagePriority({
         reviewPack,
         run,
@@ -1362,6 +1312,8 @@ export function buildMissionReviewEntriesFromProjection(
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
       continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
+      continuationTruthSourceLabel:
+        continuation.state !== "missing" ? continuation.truthSourceLabel : null,
       triagePriority: resolveTriagePriority({
         reviewPack: null,
         run,

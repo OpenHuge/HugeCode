@@ -5,7 +5,7 @@ import type {
   HugeCodeMissionControlSummary as SharedMissionControlSummary,
   HugeCodeReviewQueueItem as SharedReviewQueueItem,
 } from "@ku0/code-runtime-host-contract";
-import { resolveRuntimeContinuation } from "@ku0/code-runtime-host-contract";
+import { summarizeHugeCodeOperatorContinuation } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
 
 export type {
   SharedMissionActivityItem,
@@ -48,80 +48,41 @@ function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function hasRecoveryPath(run: HugeCodeMissionControlSnapshot["runs"][number]): boolean {
-  return Boolean(run.publishHandoff || run.missionLinkage?.navigationTarget);
-}
-
 function analyzeRunContinuitySignal(
   run: HugeCodeMissionControlSnapshot["runs"][number]
 ): keyof ContinuitySignalCounts | null {
-  const continuation = resolveRuntimeContinuation({
-    workspaceId: run.workspaceId,
-    taskId: run.taskId,
-    runId: run.id,
-    reviewPackId: run.reviewPackId ?? null,
-    state: run.state,
+  const continuation = summarizeHugeCodeOperatorContinuation({
+    runState: run.state,
     checkpoint: run.checkpoint ?? null,
-    missionLinkage: run.missionLinkage ?? null,
-    actionability: run.actionability ?? null,
-    publishHandoff: run.publishHandoff ?? null,
     takeoverBundle: run.takeoverBundle ?? null,
-    sessionBoundary: run.sessionBoundary ?? null,
-    continuation: run.continuation ?? null,
+    reviewActionability: run.actionability ?? null,
+    missionLinkage: run.missionLinkage ?? null,
+    publishHandoff: run.publishHandoff ?? null,
   });
-  if (continuation) {
-    if (continuation.state === "blocked") {
-      return "blockedCount";
-    }
-    if (continuation.pathKind === "resume" && continuation.state === "ready") {
-      return "readyResumeCount";
-    }
-    if (continuation.pathKind === "handoff" && continuation.state === "ready") {
-      return "readyHandoffCount";
-    }
-    if (continuation.pathKind === "review" && continuation.state === "ready") {
-      return "readyReviewCount";
-    }
-    if (continuation.state === "attention" || continuation.state === "missing") {
-      return "attentionCount";
-    }
-  }
-  const takeoverBundle = run.takeoverBundle;
-  if (takeoverBundle) {
-    if (takeoverBundle.state === "blocked") {
-      return "blockedCount";
-    }
-    if (takeoverBundle.pathKind === "resume" && takeoverBundle.state === "ready") {
-      return "readyResumeCount";
-    }
-    if (takeoverBundle.pathKind === "handoff" && takeoverBundle.state === "ready") {
-      return "readyHandoffCount";
-    }
-    if (takeoverBundle.pathKind === "review" && takeoverBundle.state === "ready") {
-      return "readyReviewCount";
-    }
-    return "attentionCount";
-  }
 
-  if (run.actionability?.state === "blocked") {
+  if (continuation.state === "blocked") {
     return "blockedCount";
   }
-  if (run.checkpoint?.resumeReady) {
+  if (continuation.pathKind === "resume" && continuation.state === "ready") {
     return "readyResumeCount";
   }
-  if (hasRecoveryPath(run)) {
+  if (continuation.pathKind === "handoff" && continuation.state === "ready") {
     return "readyHandoffCount";
   }
-  if (run.actionability?.state === "ready") {
+  if (continuation.pathKind === "review" && continuation.state === "ready") {
     return "readyReviewCount";
   }
-  if (run.actionability?.state === "degraded") {
+  if (continuation.state === "degraded") {
     return "attentionCount";
   }
-  if (run.reviewPackId) {
+  if (
+    continuation.pathKind === "missing" &&
+    continuation.truthSource === "missing" &&
+    run.reviewPackId
+  ) {
     return "reviewPackOnlyCount";
   }
-  if (run.checkpoint || run.missionLinkage || run.publishHandoff) {
+  if (continuation.truthSource !== "missing") {
     return "attentionCount";
   }
   return null;

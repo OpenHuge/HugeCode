@@ -1,0 +1,108 @@
+name: _reusable-ci-quality-baseline
+
+on:
+  workflow_call:
+    inputs:
+      affected_mode:
+        required: false
+        type: boolean
+        default: false
+      ci_required:
+        required: true
+        type: boolean
+      desktop_runtime_changed:
+        required: true
+        type: boolean
+      ui_contract_required:
+        required: false
+        type: boolean
+        default: false
+      circular_required:
+        required: false
+        type: boolean
+        default: false
+      integration_watch_required:
+        required: false
+        type: boolean
+        default: false
+      repo_governance_only:
+        required: false
+        type: boolean
+        default: false
+      diff_base:
+        required: false
+        type: string
+        default: ""
+
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_API: ${{ vars.TURBO_API }}
+
+jobs:
+  quality_baseline:
+    name: baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: inputs.ci_required && (!inputs.affected_mode || !inputs.repo_governance_only)
+    env:
+      TURBO_CACHE_DIR: .turbo
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Ensure diff base ref is available
+        if: inputs.affected_mode && startsWith(inputs.diff_base, 'origin/')
+        run: |
+          base_ref="${{ inputs.diff_base }}"
+          base_ref="${base_ref#origin/}"
+          git fetch --no-tags --prune --depth=1 origin \
+            "+refs/heads/${base_ref}:refs/remotes/${{ inputs.diff_base }}"
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm install --offline --frozen-lockfile
+
+      - uses: ./.github/actions/cache-turbo
+
+      - if: inputs.desktop_runtime_changed
+        uses: ./.github/actions/install-linux-desktop-deps
+
+      - if: inputs.desktop_runtime_changed
+        uses: ./.github/actions/setup-rust-ci
+        with:
+          cargo-cache-path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ~/.cache/ku0/cargo-target/code-tauri
+          cargo-cache-key: ${{ runner.os }}-code-tauri-check
+
+      - name: Code integration watch
+        if: inputs.integration_watch_required
+        run: node scripts/code-integration-watch.mjs --fetch
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Lint (affected)
+        if: inputs.affected_mode
+        env:
+          TURBO_BASE_REF: ${{ inputs.diff_base }}
+        run: pnpm lint:affected
+
+      - name: Lint (full)
+        if: ${{ !inputs.affected_mode }}
+        run: pnpm lint
+
+      - name: UI Contract
+        if: inputs.ui_contract_required
+        run: pnpm ui:contract
+
+      - name: Desktop Runtime Fast Verify
+        if: inputs.desktop_runtime_changed
+        run: pnpm desktop:verify:fast
+
+      - name: Circular Dependencies
+        if: inputs.circular_required
+        run: pnpm check:circular

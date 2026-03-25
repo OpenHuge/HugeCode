@@ -40,6 +40,7 @@ import {
 } from "./runtimeReviewIntelligenceSummary";
 import {
   buildRuntimeReviewPackFollowUpState,
+  type RuntimeReviewPackDecisionActionabilitySummary,
   type RuntimeReviewPackDecisionActionModel,
 } from "./runtimeReviewPackDecisionActionsFacade";
 import {
@@ -222,6 +223,7 @@ export type ReviewPackDetailModel = {
     details: string[];
     missingReason: string | null;
   };
+  decisionActionability?: RuntimeReviewPackDecisionActionabilitySummary;
   governance?: {
     summary: string;
     details: string[];
@@ -1112,6 +1114,7 @@ export function buildReviewPackDetailModel(input: {
     nextActionDetail: run?.nextAction?.detail,
     title: run?.title ?? taskTitle,
     instruction: interventionInstruction,
+    reviewActionability: reviewPackExtra?.actionability ?? run?.actionability ?? null,
     actions: run?.intervention?.actions,
     reviewDecision: {
       status: reviewDecision.status,
@@ -1139,6 +1142,7 @@ export function buildReviewPackDetailModel(input: {
     missingReason: "The runtime did not publish backend audit details for this review pack.",
   };
   const reviewContinuationDefaults = followUpState.continuationDefaults;
+  const decisionActionability = followUpState.decisionActionability;
   const decisionActions = followUpState.decisionActions;
   const followUpDefaultsAvailable = followUpState.interventionActions.some(
     (action) => action.enabled
@@ -1204,9 +1208,9 @@ export function buildReviewPackDetailModel(input: {
   const reviewRecommendedNextAction = resolveRuntimeRecommendedAction({
     operatorAction: reviewPackExtra?.nextOperatorAction ?? run?.nextOperatorAction ?? null,
     fallbacks: [
+      continuity?.recommendedAction,
       reviewPackExtra?.actionability?.summary,
       run?.actionability?.summary,
-      continuity?.recommendedAction,
       reviewPack.recommendedNextAction,
     ],
   });
@@ -1265,6 +1269,7 @@ export function buildReviewPackDetailModel(input: {
     skillUsage: reviewIntelligence?.skillUsage ?? [],
     autofixCandidate: reviewIntelligence?.autofixCandidate ?? null,
     backendAudit,
+    decisionActionability,
     governance: buildGovernanceDetail(reviewPack.governance ?? run?.governance ?? null),
     operatorSnapshot: buildOperatorSnapshotDetail(run?.operatorSnapshot ?? null),
     placement: buildPlacementDetail(reviewPack.placement ?? run?.placement ?? null),

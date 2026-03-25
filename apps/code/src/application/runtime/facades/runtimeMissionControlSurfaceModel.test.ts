@@ -109,6 +109,7 @@ describe("runtimeMissionControlSurfaceModel", () => {
     expect(latestRuns[0]?.statusKind).toBe("review_ready");
     expect(reviewEntries[0]?.recommendedNextAction).toBe("Open Review Pack on this device.");
     expect(reviewEntries[0]?.continuePathLabel).toBe("Review Pack");
+    expect(reviewEntries[0]?.continuationTruthSourceLabel).toBe("Runtime takeover bundle");
     expect(signals.reviewReadyCount).toBe(1);
   });
 
