@@ -2,7 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import { resolveGitComparisonBase } from "./lib/git-base-ref.mjs";
-import { resolveLocalBinaryCommand } from "./lib/local-bin.mjs";
+import { resolveCommandInvocation } from "./lib/local-bin.mjs";
 
 const isCi = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 
@@ -41,8 +41,8 @@ function runTurbo(task, additionalArgs) {
 
   args.push(...forwardedArgs);
 
-  const turboCommand = resolveLocalBinaryCommand("turbo");
-  const result = spawnSync(turboCommand, args, {
+  const turboInvocation = resolveCommandInvocation("turbo", args);
+  const result = spawnSync(turboInvocation.command, turboInvocation.args, {
     stdio: "inherit",
     env,
   });

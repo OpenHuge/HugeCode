@@ -7,7 +7,7 @@ import path from "node:path";
 import process from "node:process";
 import { loadE2EMapConfig, recommendE2ECategoriesFromPaths } from "./lib/e2e-map.mjs";
 import { resolveGitComparisonBase, tryReadGitStdout } from "./lib/git-base-ref.mjs";
-import { resolveLocalBinaryCommand } from "./lib/local-bin.mjs";
+import { resolveCommandInvocation } from "./lib/local-bin.mjs";
 import { formatProcessTree, terminateProcessTree } from "./lib/process-tree.mjs";
 import { createValidateTempManager } from "./lib/validate-temp-config.mjs";
 import {
@@ -626,37 +626,6 @@ function shouldSkipOxcTarget(filePath) {
     return true;
   }
   return filePath.endsWith(".min.js") || filePath.endsWith(".min.css");
-}
-
-function resolveCommandInvocation(command, args) {
-  const localBinaryCommand = resolveLocalBinaryCommand(command);
-  if (localBinaryCommand) {
-    return {
-      command: localBinaryCommand,
-      args,
-      display: [command, ...args],
-    };
-  }
-
-  if (process.platform === "win32" && command === "pnpm") {
-    return {
-      command: "cmd.exe",
-      args: ["/d", "/s", "/c", "pnpm", ...args],
-      display: ["pnpm", ...args],
-    };
-  }
-  if (process.platform === "win32" && command === "node") {
-    return {
-      command: "cmd.exe",
-      args: ["/d", "/s", "/c", "node", ...args],
-      display: ["node", ...args],
-    };
-  }
-  return {
-    command,
-    args,
-    display: [command, ...args],
-  };
 }
 
 function buildCommandEnv(extraEnv = {}) {

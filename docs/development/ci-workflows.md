@@ -18,8 +18,9 @@ Treat the CI check names as explicit requests for missing local proof:
   local gate before opening the PR.
 - `PR Affected Checks / PR Affected Checks`
   This lane validates affected builds and tests. If it fails, the usual fix is
-  to reproduce with `pnpm test:affected` or the narrower suite that covers the
-  changed surface, not to rerun unrelated repo-wide validation.
+  to reproduce with `pnpm build:affected` and `pnpm test:affected` or the
+  narrower build/test commands that cover the changed surface, not to rerun
+  unrelated repo-wide validation.
 - `frontend_optimization / frontend_optimization`
   This is the expensive browser/build/startup proof. Treat failures here as a
   sign that the PR changed shell startup, runtime readiness, bundle-sensitive
