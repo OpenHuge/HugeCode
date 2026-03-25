@@ -23,6 +23,10 @@
     "./hugeCodeMissionControl": {
       "types": "./src/hugeCodeMissionControl.ts",
       "default": "./src/hugeCodeMissionControl.ts"
+    },
+    "./hugeCodeOperatorLoop": {
+      "types": "./src/hugeCodeOperatorLoop.ts",
+      "default": "./src/hugeCodeOperatorLoop.ts"
     }
   },
   "scripts": {

@@ -18,10 +18,11 @@ describe("ReviewLoopClosureFixture", () => {
     await flushBrowserMicrotasks();
 
     expect(screen.getAllByText(/Mission triage/i).length).toBeGreaterThan(0);
-    expect(screen.getByText("Fallback routing review")).toBeTruthy();
-    expect(screen.getByText("Blocking sub-agent observability")).toBeTruthy();
-    expect(screen.getByText("Review decision rail")).toBeTruthy();
-    expect(screen.getByText("Runtime continuity and handoff")).toBeTruthy();
-    expect(screen.getByText("Inspector compatibility")).toBeTruthy();
+    expect(screen.getByText("Shared operator loop")).toBeTruthy();
+    expect(screen.getByTestId("operator-loop-row-resume")).toBeTruthy();
+    expect(screen.getByTestId("operator-loop-row-takeover")).toBeTruthy();
+    expect(screen.getByText("Blocked review detail")).toBeTruthy();
+    expect(screen.getByText("Takeover review detail")).toBeTruthy();
+    expect(screen.getByText("Fallback boundary")).toBeTruthy();
   });
 });

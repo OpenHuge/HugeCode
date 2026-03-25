@@ -5,6 +5,7 @@ import type {
   HugeCodeMissionControlSummary as SharedMissionControlSummary,
   HugeCodeReviewQueueItem as SharedReviewQueueItem,
 } from "@ku0/code-runtime-host-contract";
+import { summarizeHugeCodeOperatorContinuation } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
 
 export type {
   SharedMissionActivityItem,
@@ -55,50 +56,41 @@ function pushUnique(values: string[], next: string | null | undefined) {
     values.push(next);
   }
 }
-
-function hasRecoveryPath(run: HugeCodeMissionControlSnapshot["runs"][number]): boolean {
-  return Boolean(run.publishHandoff || run.missionLinkage?.navigationTarget);
-}
-
 function analyzeRunContinuitySignal(
   run: HugeCodeMissionControlSnapshot["runs"][number]
 ): keyof ContinuitySignalCounts | null {
-  const takeoverBundle = run.takeoverBundle;
-  if (takeoverBundle) {
-    if (takeoverBundle.state === "blocked") {
-      return "blockedCount";
-    }
-    if (takeoverBundle.pathKind === "resume" && takeoverBundle.state === "ready") {
-      return "readyResumeCount";
-    }
-    if (takeoverBundle.pathKind === "handoff" && takeoverBundle.state === "ready") {
-      return "readyHandoffCount";
-    }
-    if (takeoverBundle.pathKind === "review" && takeoverBundle.state === "ready") {
-      return "readyReviewCount";
-    }
-    return "attentionCount";
-  }
+  const continuation = summarizeHugeCodeOperatorContinuation({
+    runState: run.state,
+    checkpoint: run.checkpoint ?? null,
+    takeoverBundle: run.takeoverBundle ?? null,
+    reviewActionability: run.actionability ?? null,
+    missionLinkage: run.missionLinkage ?? null,
+    publishHandoff: run.publishHandoff ?? null,
+  });
 
-  if (run.actionability?.state === "blocked") {
+  if (continuation.state === "blocked") {
     return "blockedCount";
   }
-  if (run.checkpoint?.resumeReady) {
+  if (continuation.pathKind === "resume" && continuation.state === "ready") {
     return "readyResumeCount";
   }
-  if (hasRecoveryPath(run)) {
+  if (continuation.pathKind === "handoff" && continuation.state === "ready") {
     return "readyHandoffCount";
   }
-  if (run.actionability?.state === "ready") {
+  if (continuation.pathKind === "review" && continuation.state === "ready") {
     return "readyReviewCount";
   }
-  if (run.actionability?.state === "degraded") {
+  if (continuation.state === "degraded") {
     return "attentionCount";
   }
-  if (run.reviewPackId) {
+  if (
+    continuation.pathKind === "missing" &&
+    continuation.truthSource === "missing" &&
+    run.reviewPackId
+  ) {
     return "reviewPackOnlyCount";
   }
-  if (run.checkpoint || run.missionLinkage || run.publishHandoff) {
+  if (continuation.truthSource !== "missing") {
     return "attentionCount";
   }
   return null;

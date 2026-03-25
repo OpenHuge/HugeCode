@@ -56,3 +56,44 @@ export const rail = style({
     },
   },
 });
+
+export const parityGrid = style({
+  "@layer": {
+    [layers.features]: {
+      display: "grid",
+      gap: "12px",
+    },
+  },
+});
+
+export const parityCard = style({
+  "@layer": {
+    [layers.features]: {
+      display: "grid",
+      gap: "10px",
+      border: "1px solid color-mix(in srgb, var(--ds-border-default) 78%, transparent)",
+      background:
+        "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-raised) 92%, transparent), color-mix(in srgb, var(--ds-surface-base) 97%, transparent))",
+    },
+  },
+});
+
+export const parityHeader = style({
+  "@layer": {
+    [layers.features]: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "12px",
+    },
+  },
+});
+
+export const parityDetails = style({
+  "@layer": {
+    [layers.features]: {
+      display: "grid",
+      gap: "6px",
+    },
+  },
+});
