@@ -13,6 +13,7 @@ import {
   buildRuntimeDelegationContract,
   buildRuntimeTriageSummary,
 } from "./runtimeContextTruth";
+import { buildMissionProvenanceSummary } from "./runtimeMissionControlProvenance";
 import { summarizeReviewContinuationActionability } from "./runtimeReviewContinuationFacade";
 import { resolveReviewIntelligenceSummary } from "./runtimeReviewIntelligenceSummary";
 import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
@@ -46,7 +47,6 @@ export function formatMissionOverviewStateLabel(state: MissionOverviewState): st
     }
   }
 }
-
 export type MissionNavigationTarget =
   | {
       kind: "thread";
@@ -77,7 +77,6 @@ export type MissionOverviewCounts = {
   reviewReady: number;
   ready: number;
 };
-
 export type MissionOverviewEntry = {
   threadId: string;
   title: string;
@@ -95,7 +94,6 @@ export type MissionOverviewEntry = {
   navigationTarget: MissionNavigationTarget;
   secondaryLabel: string | null;
 };
-
 export type MissionLatestRunEntry = {
   threadId: string;
   runId: string | null;
@@ -115,7 +113,6 @@ export type MissionLatestRunEntry = {
   navigationTarget: MissionNavigationTarget;
   secondaryLabel: string | null;
 };
-
 export type MissionReviewEntry = {
   id: string;
   kind?: "review_pack" | "mission_run";
@@ -156,6 +153,7 @@ export type MissionReviewEntry = {
   secondaryLabel: string | null;
   evidenceLabel: string;
   contextSummary?: string | null;
+  provenanceSummary?: string | null;
   triageSummary?: string | null;
   delegationSummary?: string | null;
   continuationState?: "ready" | "degraded" | "blocked" | "missing" | null;
@@ -169,7 +167,6 @@ export type MissionControlFreshnessState = {
   error: string | null;
   lastUpdatedAt: number | null;
 };
-
 const ACTIVE_RUN_STATES = new Set<HugeCodeRunState>([
   "queued",
   "preparing",
@@ -181,19 +178,15 @@ const NEEDS_ACTION_RUN_STATES = new Set<HugeCodeRunState>(["needs_input", "faile
 function buildRunIndex(projection: MissionControlProjection) {
   return new Map(projection.runs.map((run) => [run.id, run]));
 }
-
 function buildReviewPackIndex(projection: MissionControlProjection) {
   return new Map(projection.reviewPacks.map((reviewPack) => [reviewPack.runId, reviewPack]));
 }
-
 function buildWorkspaceIndex(projection: MissionControlProjection) {
   return new Map(projection.workspaces.map((workspace) => [workspace.id, workspace]));
 }
-
 function buildTaskIndex(projection: MissionControlProjection) {
   return new Map(projection.tasks.map((task) => [task.id, task]));
 }
-
 function resolveTaskTimestamp(
   task: HugeCodeTaskSummary,
   runById: ReadonlyMap<string, MissionControlProjection["runs"][number]>
@@ -1134,6 +1127,9 @@ export function buildMissionReviewEntriesFromProjection(
       recommendedNextAction,
       continuationState: continuation.state,
     });
+    const provenanceSummary = buildMissionProvenanceSummary(
+      reviewPack.sourceCitations ?? run?.sourceCitations ?? null
+    );
 
     entries.push({
       id: reviewPack.id,
@@ -1213,6 +1209,7 @@ export function buildMissionReviewEntriesFromProjection(
       secondaryLabel: resolveMissionSecondaryLabel(task),
       evidenceLabel: resolveReviewEvidenceLabel(reviewPack, task),
       contextSummary: contextAndDelegation.contextSummary,
+      provenanceSummary,
       triageSummary: contextAndDelegation.triageSummary,
       delegationSummary: contextAndDelegation.delegationSummary,
       continuationState: continuation.state,
@@ -1296,6 +1293,7 @@ export function buildMissionReviewEntriesFromProjection(
       recommendedNextAction,
       continuationState: continuation.state,
     });
+    const provenanceSummary = buildMissionProvenanceSummary(run.sourceCitations ?? null);
     entries.push({
       id: run.id,
       kind: "mission_run",
@@ -1376,6 +1374,7 @@ export function buildMissionReviewEntriesFromProjection(
       secondaryLabel: resolveMissionSecondaryLabel(task),
       evidenceLabel: "Runtime evidence only",
       contextSummary: contextAndDelegation.contextSummary,
+      provenanceSummary,
       triageSummary: contextAndDelegation.triageSummary,
       delegationSummary: contextAndDelegation.delegationSummary,
       continuationState: continuation.state,

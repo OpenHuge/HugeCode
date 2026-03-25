@@ -40,6 +40,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     runtimeLaunchPreparationGuidanceStack,
     runtimeLaunchPreparationTriageSummary,
     runtimeLaunchPreparationDelegationContract,
+    runtimeLaunchPreparationRepoGuidanceSummary,
     runtimeLaunchPreparationError,
     runtimeLaunchPreparationLoading,
     runtimeLaunchPreparationTruthSourceLabel,
@@ -425,6 +426,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   ) : null}
                   {runtimeLaunchPreparationGuidanceStack ? (
                     <span>Guidance: {runtimeLaunchPreparationGuidanceStack.summary}</span>
+                  ) : null}
+                  {runtimeLaunchPreparationRepoGuidanceSummary ? (
+                    <span>{runtimeLaunchPreparationRepoGuidanceSummary}</span>
                   ) : null}
                   {runtimeLaunchPreparationTriageSummary ? (
                     <span>Triage: {runtimeLaunchPreparationTriageSummary.summary}</span>
