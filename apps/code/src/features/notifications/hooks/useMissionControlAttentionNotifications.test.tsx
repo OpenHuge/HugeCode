@@ -339,6 +339,63 @@ describe("useMissionControlAttentionNotifications", () => {
     });
   });
 
+  it("uses canonical continuation guidance when rejected review detail lacks a summary", async () => {
+    const { rerender } = renderHook(
+      ({ projection }: { projection: HugeCodeMissionControlSnapshot | null }) =>
+        useMissionControlAttentionNotifications({
+          enabled: true,
+          isWindowFocused: false,
+          missionControlProjection: projection,
+          getWorkspaceName: () => "Workspace One",
+        }),
+      {
+        initialProps: {
+          projection: createSnapshot({
+            reviewPacks: [createReviewPack()],
+          }),
+        },
+      }
+    );
+
+    rerender({
+      projection: createSnapshot({
+        run: createRun({
+          state: "review_ready",
+          takeoverBundle: {
+            pathKind: "review",
+            primaryAction: "open_review_pack",
+            state: "blocked",
+            summary: "Runtime blocked continuation until the review pack is resolved.",
+            recommendedAction: "Open the review pack and resolve the runtime-blocked follow-up.",
+            reviewPackId: "review-pack:run-1",
+          },
+        }),
+        reviewPacks: [
+          createReviewPack({
+            reviewDecision: {
+              status: "rejected",
+              reviewPackId: "review-pack:run-1",
+              label: "Changes requested",
+              summary: "",
+              decidedAt: Date.now(),
+            },
+            recommendedNextAction: "Legacy rejected follow-up.",
+          }),
+        ],
+      }),
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(sendNotification).toHaveBeenCalledWith(
+      "Changes requested — Workspace One",
+      "Open the review pack and resolve the runtime-blocked follow-up.",
+      expect.any(Object)
+    );
+  });
+
   it("suppresses attention notifications while the window is focused", async () => {
     const { rerender } = renderHook(
       ({ projection }: { projection: HugeCodeMissionControlSnapshot | null }) =>

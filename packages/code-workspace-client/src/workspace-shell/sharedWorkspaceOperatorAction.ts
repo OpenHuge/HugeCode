@@ -33,6 +33,18 @@ function formatReviewDetail(summary: SharedMissionControlSummary) {
   return "No review packs are waiting in the current shell scope.";
 }
 
+function formatMissionItemDetail(item: SharedMissionControlSummary["missionItems"][number]) {
+  return `${item.title}: ${item.detail}`;
+}
+
+function findApprovalMissionItem(summary: SharedMissionControlSummary) {
+  return summary.missionItems.find(
+    (item) =>
+      item.tone === "attention" &&
+      (item.statusLabel === "Needs input" || /approval/iu.test(item.statusLabel))
+  );
+}
+
 function buildSectionCtaLabel(section: SharedWorkspaceShellSection) {
   if (section === "workspaces") {
     return "Open workspaces";
@@ -78,12 +90,15 @@ export function deriveSharedWorkspaceOperatorAction(input: {
   }
 
   if (summary.approvalCount > 0) {
+    const approvalMissionItem = findApprovalMissionItem(summary);
     return {
       tone: "attention",
       label: "Review pending approval",
-      detail: formatMissionDetail(summary),
+      detail: approvalMissionItem
+        ? formatMissionItemDetail(approvalMissionItem)
+        : formatMissionDetail(summary),
       targetSection: "missions",
-      targetItemId: summary.missionItems[0]?.id ?? null,
+      targetItemId: approvalMissionItem?.id ?? summary.missionItems[0]?.id ?? null,
       ctaLabel: buildSectionCtaLabel("missions"),
     };
   }

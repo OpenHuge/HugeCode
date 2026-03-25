@@ -5,6 +5,7 @@ import type {
   HugeCodeTaskSummary,
 } from "@ku0/code-runtime-host-contract";
 import { useCallback, useEffect, useRef } from "react";
+import { summarizeReviewContinuationActionability } from "../../../application/runtime/facades/runtimeReviewContinuationFacade";
 import { sendNotification } from "../../../application/runtime/ports/tauriNotifications";
 import type { DebugEntry } from "../../../types";
 import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
@@ -77,9 +78,19 @@ function resolveAttentionBody(type: AttentionType, run: HugeCodeRunSummary): str
   );
 }
 
-function resolveRejectedBody(reviewPack: HugeCodeReviewPackSummary): string {
+function resolveRejectedBody(
+  reviewPack: HugeCodeReviewPackSummary,
+  run: HugeCodeRunSummary | null | undefined
+): string {
+  const continuation = summarizeReviewContinuationActionability({
+    takeoverBundle: reviewPack.takeoverBundle ?? run?.takeoverBundle ?? null,
+    actionability: reviewPack.actionability ?? run?.actionability ?? null,
+    missionLinkage: reviewPack.missionLinkage ?? run?.missionLinkage ?? null,
+    publishHandoff: reviewPack.publishHandoff ?? run?.publishHandoff ?? null,
+  });
   return (
     reviewPack.reviewDecision?.summary?.trim() ||
+    (continuation.state !== "missing" ? continuation.recommendedAction : null) ||
     reviewPack.recommendedNextAction?.trim() ||
     reviewPack.summary.trim() ||
     "Reviewer requested changes before this run can be accepted."
@@ -206,7 +217,7 @@ export function useMissionControlAttentionNotifications({
       const workspaceName = getWorkspaceName?.(reviewPack.workspaceId);
       void notify(
         `Changes requested${workspaceName ? ` — ${workspaceName}` : ""}`,
-        resolveRejectedBody(reviewPack),
+        resolveRejectedBody(reviewPack, run),
         {
           kind: "mission_attention",
           type: "review_rejected",
