@@ -12,6 +12,7 @@ import {
 import { summarizeReviewContinuationActionability } from "./runtimeReviewContinuationFacade";
 import { resolveReviewIntelligenceSummary } from "./runtimeReviewIntelligenceSummary";
 import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
+import { resolveRuntimeRecommendedAction } from "./runtimeOperatorActionPresentation";
 import type { RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import { formatMissionReviewEvidenceLabel } from "../../../utils/reviewPackLabels";
 import { formatReviewFailureClassLabel } from "../../../utils/reviewFailureClass";
@@ -549,8 +550,7 @@ function resolveMissionOperatorAction(input: {
           task: input.task,
           target: runtimeAction.target ?? null,
           reviewPackId: input.reviewPack?.id ?? input.run?.reviewPackId ?? null,
-        }) ??
-        (runtimeAction.action === "open_review_pack" ? reviewTarget : missionTarget),
+        }) ?? (runtimeAction.action === "open_review_pack" ? reviewTarget : missionTarget),
     };
   }
   if (
@@ -1114,26 +1114,27 @@ export function buildMissionReviewEntriesFromProjection(
     if (hasBlockedSubAgents(reviewPack, run)) {
       filterTags.push("sub_agent_blocked");
     }
-    const operatorAction = resolveMissionOperatorAction({
-      task,
-      reviewPack,
-      run,
-    });
+    const operatorAction = resolveMissionOperatorAction({ task, reviewPack, run });
     const continuation = summarizeReviewContinuationActionability({
       takeoverBundle: reviewPack.takeoverBundle ?? run?.takeoverBundle ?? null,
       actionability: reviewPack.actionability ?? run?.actionability ?? null,
       missionLinkage: reviewPack.missionLinkage ?? run?.missionLinkage ?? null,
       publishHandoff: reviewPack.publishHandoff ?? run?.publishHandoff ?? null,
+      continuation: reviewPack.continuation ?? run?.continuation ?? null,
+    });
+    const recommendedNextAction = resolveRuntimeRecommendedAction({
+      operatorAction,
+      fallbacks: [
+        continuation.state !== "missing" ? continuation.recommendedAction : null,
+        reviewPack.recommendedNextAction,
+      ],
     });
     const reviewIntelligence = resolveReviewIntelligenceSummary({
       contract: options?.repositoryExecutionContract ?? null,
       taskSource: reviewPack.taskSource ?? run?.taskSource ?? task.taskSource ?? null,
       run,
       reviewPack,
-      recommendedNextAction:
-        continuation.state !== "missing"
-          ? continuation.recommendedAction
-          : reviewPack.recommendedNextAction,
+      recommendedNextAction,
     });
 
     entries.push({
@@ -1157,11 +1158,7 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       validationOutcome: reviewPack.validationOutcome,
       warningCount: reviewPack.warningCount,
-      recommendedNextAction:
-        reviewIntelligence?.nextRecommendedAction ??
-        (continuation.state !== "missing"
-          ? continuation.recommendedAction
-          : reviewPack.recommendedNextAction),
+      recommendedNextAction: reviewIntelligence?.nextRecommendedAction ?? recommendedNextAction,
       accountabilityLifecycle: task.accountability?.lifecycle ?? null,
       queueEnteredAt:
         task.accountability?.lifecycle === "in_review"
@@ -1262,25 +1259,26 @@ export function buildMissionReviewEntriesFromProjection(
     if (hasBlockedSubAgents(null, run)) {
       filterTags.push("sub_agent_blocked");
     }
-    const operatorAction = resolveMissionOperatorAction({
-      task,
-      reviewPack: null,
-      run,
-    });
+    const operatorAction = resolveMissionOperatorAction({ task, reviewPack: null, run });
     const continuation = summarizeReviewContinuationActionability({
       takeoverBundle: run.takeoverBundle ?? null,
       actionability: run.actionability ?? null,
       missionLinkage: run.missionLinkage ?? null,
       publishHandoff: run.publishHandoff ?? null,
+      continuation: run.continuation ?? null,
+    });
+    const recommendedNextAction = resolveRuntimeRecommendedAction({
+      operatorAction,
+      fallbacks: [
+        continuation.state !== "missing" ? continuation.recommendedAction : null,
+        run.nextAction?.detail ?? null,
+      ],
     });
     const reviewIntelligence = resolveReviewIntelligenceSummary({
       contract: options?.repositoryExecutionContract ?? null,
       taskSource: run.taskSource ?? task.taskSource ?? null,
       run,
-      recommendedNextAction:
-        continuation.state !== "missing"
-          ? continuation.recommendedAction
-          : (run.nextAction?.detail ?? null),
+      recommendedNextAction,
     });
     entries.push({
       id: run.id,
@@ -1305,11 +1303,7 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       validationOutcome: "unknown",
       warningCount: run.warnings?.length ?? 0,
-      recommendedNextAction:
-        reviewIntelligence?.nextRecommendedAction ??
-        (continuation.state !== "missing"
-          ? continuation.recommendedAction
-          : (run.nextAction?.detail ?? null)),
+      recommendedNextAction: reviewIntelligence?.nextRecommendedAction ?? recommendedNextAction,
       accountabilityLifecycle: task.accountability?.lifecycle ?? null,
       queueEnteredAt:
         task.accountability?.lifecycle === "in_review"
