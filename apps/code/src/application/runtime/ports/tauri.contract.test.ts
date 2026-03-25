@@ -38,12 +38,10 @@ import {
   getRuntimeRunV2,
   subscribeRuntimeRunV2,
   submitRuntimeJobApprovalDecision,
-  getRuntimeJob,
   interveneRuntimeJob,
   listRuntimeJobs,
   resumeRuntimeJob,
   startRuntimeRunV2,
-  startRuntimeJob,
   subscribeRuntimeJob,
 } from "./tauriRuntimeJobs";
 import { getInstructionSkill, getSkillsList } from "./tauriSkills";
@@ -105,12 +103,10 @@ import {
   getRuntimeRunV2 as getRuntimeRunV2Bridge,
   subscribeRuntimeRunV2 as subscribeRuntimeRunV2Bridge,
   submitRuntimeJobApprovalDecision as submitRuntimeJobApprovalDecisionBridge,
-  getRuntimeJob as getRuntimeJobBridge,
   interveneRuntimeJob as interveneRuntimeJobBridge,
   listRuntimeJobs as listRuntimeJobsBridge,
   resumeRuntimeJob as resumeRuntimeJobBridge,
   startRuntimeRunV2 as startRuntimeRunV2Bridge,
-  startRuntimeJob as startRuntimeJobBridge,
   subscribeRuntimeJob as subscribeRuntimeJobBridge,
 } from "../../../services/tauriRuntimeJobsBridge";
 import { openRuntimeTerminalSession as openRuntimeTerminalSessionBridge } from "../../../services/tauriRuntimeSessionTerminalBridge";
@@ -132,8 +128,6 @@ import {
 describe("tauri runtime port contract", () => {
   it("re-exports critical runtime functions from narrow runtime ports", () => {
     const runtimePortExports = [
-      ["startRuntimeJob", startRuntimeJob, startRuntimeJobBridge],
-      ["getRuntimeJob", getRuntimeJob, getRuntimeJobBridge],
       ["interveneRuntimeJob", interveneRuntimeJob, interveneRuntimeJobBridge],
       ["cancelRuntimeJob", cancelRuntimeJob, cancelRuntimeJobBridge],
       ["resumeRuntimeJob", resumeRuntimeJob, resumeRuntimeJobBridge],

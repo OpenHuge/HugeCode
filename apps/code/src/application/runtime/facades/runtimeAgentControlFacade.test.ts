@@ -9,7 +9,6 @@ import { getMissionControlSnapshot } from "../ports/tauriMissionControl";
 import {
   cancelRuntimeJob,
   submitRuntimeJobApprovalDecision,
-  getRuntimeJob,
   interveneRuntimeJob,
   listRuntimeJobs,
   resumeRuntimeJob,
@@ -28,7 +27,6 @@ vi.mock("../ports/tauriMissionControl", () => ({
 vi.mock("../ports/tauriRuntimeJobs", () => ({
   cancelRuntimeJob: vi.fn(),
   submitRuntimeJobApprovalDecision: vi.fn(),
-  getRuntimeJob: vi.fn(),
   interveneRuntimeJob: vi.fn(),
   listRuntimeJobs: vi.fn(),
   resumeRuntimeJob: vi.fn(),
@@ -38,7 +36,6 @@ const startRuntimeRunWithRemoteSelectionMock = vi.mocked(startRuntimeRunWithRemo
 const getMissionControlSnapshotMock = vi.mocked(getMissionControlSnapshot);
 const cancelRuntimeJobMock = vi.mocked(cancelRuntimeJob);
 const submitRuntimeJobApprovalDecisionMock = vi.mocked(submitRuntimeJobApprovalDecision);
-const getRuntimeJobMock = vi.mocked(getRuntimeJob);
 const interveneRuntimeJobMock = vi.mocked(interveneRuntimeJob);
 const listRuntimeJobsMock = vi.mocked(listRuntimeJobs);
 const resumeRuntimeJobMock = vi.mocked(resumeRuntimeJob);
@@ -355,7 +352,6 @@ describe("runtimeAgentControlFacade", () => {
 
     expect(getMissionControlSnapshotMock).toHaveBeenCalledOnce();
     expect(listRuntimeJobsMock).not.toHaveBeenCalled();
-    expect(getRuntimeJobMock).not.toHaveBeenCalled();
   });
 
   it("prefers kernel projection job truth before legacy runtime job listing", async () => {
@@ -454,7 +450,6 @@ describe("runtimeAgentControlFacade", () => {
       title: "Projection status",
       status: "paused",
     });
-    expect(getRuntimeJobMock).not.toHaveBeenCalled();
   });
 
   it("routes control-plane mutations through kernel jobs v3 ports", async () => {

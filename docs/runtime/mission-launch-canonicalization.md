@@ -44,6 +44,9 @@ Anything outside that chain is either thread-only or compatibility-only.
   no longer wires retry actions.
 - `apps/code/src/application/runtime/facades/runtimeRemoteExecutionFacade.ts`
   now performs `prepare_v2` before `start_v2`.
+- `apps/code/src/application/runtime/ports/tauriRuntimeJobs.ts`
+  no longer re-exports direct legacy job launch/get entry points into the app
+  runtime port surface.
 
 ## PR Expectations
 

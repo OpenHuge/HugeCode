@@ -84,6 +84,18 @@ describe("runtime launch path governance", () => {
     expect(source).not.toMatch(/kernelJobStartV3/);
   });
 
+  it("does not re-export direct legacy job launch through the app runtime port", () => {
+    const source = readFileSync(
+      path.resolve(repoRoot, "apps/code/src/application/runtime/ports/tauriRuntimeJobs.ts"),
+      "utf8"
+    );
+
+    expect(source).not.toMatch(/\bstartRuntimeJob\b/);
+    expect(source).not.toMatch(/\bgetRuntimeJob\b/);
+    expect(source).not.toMatch(/\bKernelJobStartRequestV3\b/);
+    expect(source).not.toMatch(/\bKernelJobGetRequestV3\b/);
+  });
+
   it("rejects non-canonical product launch entry points in product-facing sources", () => {
     const legacyHelperHits = grepProductLaunchSources(
       "startRuntimeJobWithRemoteSelection|resolvePreferredBackendIdsForRuntimeJobStart"
