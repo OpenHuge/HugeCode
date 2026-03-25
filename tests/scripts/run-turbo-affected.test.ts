@@ -90,7 +90,7 @@ function runGit(targetRoot: string, args: string[]) {
   }
 }
 
-function runAffected(targetRoot: string, args: string[]) {
+function runAffected(targetRoot: string, args: string[], extraEnv: NodeJS.ProcessEnv = {}) {
   const commandLogPath = path.join(targetRoot, "command-invocations.log");
   return spawnSync(
     process.execPath,
@@ -100,6 +100,7 @@ function runAffected(targetRoot: string, args: string[]) {
       encoding: "utf8",
       env: {
         ...process.env,
+        ...extraEnv,
         COMMAND_LOG_PATH: commandLogPath,
         PATH: `${path.join(targetRoot, "node_modules", ".bin")}${path.delimiter}${process.env.PATH ?? ""}`,
       },
@@ -136,5 +137,26 @@ describe("run-turbo-affected.mjs", () => {
     expect(result.stdout).toContain("Using affected base ref (sibling-local): feature/parent");
     expect(invocation.args).toEqual(["run", "build", "--affected"]);
     expect(invocation.turboScmBase).toBe("feature/parent");
+  });
+
+  it("prefers an explicit TURBO_BASE_REF override over the inferred sibling branch", async () => {
+    const tempRoot = await createFixtureRepo();
+    runGit(tempRoot, ["checkout", "-b", "feature/parent"]);
+    await writeRepoFile(tempRoot, "packages/demo/src/example.ts", "export const value = 1;\n");
+    runGit(tempRoot, ["add", "-A"]);
+    runGit(tempRoot, ["commit", "-m", "parent change"]);
+    runGit(tempRoot, ["checkout", "-b", "feature/stacked-worktree"]);
+
+    const result = runAffected(tempRoot, ["build"], { TURBO_BASE_REF: "main" });
+    const commandLog = await readFile(path.join(tempRoot, "command-invocations.log"), "utf8");
+    const invocation = JSON.parse(commandLog.trim()) as {
+      args: string[];
+      turboScmBase: string | null;
+    };
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Using affected base ref (explicit): main");
+    expect(invocation.args).toEqual(["run", "build", "--affected"]);
+    expect(invocation.turboScmBase).toBe("main");
   });
 });

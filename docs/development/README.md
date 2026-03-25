@@ -33,6 +33,8 @@ Targeted validation and affected Turbo tasks also prefer the branch upstream as 
 When a new stacked worktree branch has no upstream yet, the repo scripts infer a sibling branch already
 pointing at `HEAD` before falling back to the default branch. This keeps clean worktrees from
 revalidating inherited parent-branch commits.
+`pnpm repo:doctor` now reports the inferred comparison base so the branch scope is visible before you
+run validation, and `TURBO_BASE_REF` remains the explicit override for exceptional cases.
 
 Root build, lint, and typecheck include the Cloudflare web shell through the
 default workspace graph. Use the explicit `pnpm web:*` commands when you need

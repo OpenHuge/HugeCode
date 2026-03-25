@@ -32,6 +32,10 @@ async function copyDiagnoseFixture(targetRoot: string): Promise<void> {
     path.join(repoRoot, "scripts", "lib", "check-output.mjs"),
     path.join(targetRoot, "scripts", "lib", "check-output.mjs")
   );
+  await cp(
+    path.join(repoRoot, "scripts", "lib", "git-base-ref.mjs"),
+    path.join(targetRoot, "scripts", "lib", "git-base-ref.mjs")
+  );
 }
 
 function runGit(cwd: string, args: string[]) {
@@ -196,8 +200,29 @@ describe("diagnose-project", () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("Branch policy");
+    expect(result.stdout).toContain("Comparison base");
     expect(result.stdout).toContain("Workflow scripts");
     expect(result.stdout).toContain('Branch "main" is exempt');
+  });
+
+  it("reports the sibling branch as the comparison base for a clean stacked branch", async () => {
+    const tempRoot = await createFixtureRepo("diagnose-project-stacked-");
+    runGit(tempRoot, ["checkout", "-b", "feat/parent"]);
+    await writeFile(
+      path.join(tempRoot, "packages", "code-runtime-service-rs", "src", "parent.rs"),
+      "// parent\n",
+      "utf8"
+    );
+    runGit(tempRoot, ["add", "-A"]);
+    runGit(tempRoot, ["commit", "-m", "parent change"]);
+    runGit(tempRoot, ["checkout", "-b", "feat/stacked-worktree"]);
+
+    const result = runDiagnose(tempRoot);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Comparison base");
+    expect(result.stdout).toContain("feat/parent");
+    expect(result.stdout).toContain("sibling-local");
   });
 
   it("fails when pnpm store status reports mutated packages", async () => {
