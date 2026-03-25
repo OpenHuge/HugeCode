@@ -13,7 +13,7 @@ inputs:
   playwright-install-command:
     description: Command used to install Playwright browsers when enabled
     required: false
-    default: "pnpm -C tests/e2e exec playwright install --with-deps chromium"
+    default: "pnpm -C tests/e2e exec playwright install --with-deps --only-shell chromium"
   build-command:
     description: Optional workspace build command to run after setup
     required: false
