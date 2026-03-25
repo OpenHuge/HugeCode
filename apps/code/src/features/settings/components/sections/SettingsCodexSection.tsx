@@ -1,8 +1,9 @@
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import type { Dispatch, SetStateAction } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Input, Select, type SelectOption } from "../../../../design-system";
 import { getProvidersCatalog } from "../../../../application/runtime/ports/tauriOauth";
+import { useRuntimeUpdatedRefresh } from "../../../app/hooks/useRuntimeUpdatedRefresh";
 import type { RuntimeProviderCatalogEntry } from "../../../../contracts/runtime";
 import type {
   AppSettings,
@@ -177,23 +178,24 @@ export function SettingsCodexSection({
   const [providerCatalog, setProviderCatalog] = useState<RuntimeProviderCatalogEntry[]>([]);
   const selectionMode = appSettings.composerModelSelectionMode ?? "auto";
 
-  useEffect(() => {
-    let cancelled = false;
-    void getProvidersCatalog()
-      .then((entries) => {
-        if (!cancelled) {
-          setProviderCatalog(entries);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setProviderCatalog([]);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
+  const refreshProviderCatalog = useCallback(async () => {
+    try {
+      setProviderCatalog(await getProvidersCatalog());
+    } catch {
+      setProviderCatalog([]);
+    }
   }, []);
+
+  useEffect(() => {
+    void refreshProviderCatalog();
+  }, [refreshProviderCatalog]);
+
+  useRuntimeUpdatedRefresh({
+    scopes: ["bootstrap", "models", "oauth"],
+    onRefresh: () => {
+      void refreshProviderCatalog();
+    },
+  });
 
   const modelsWithProviderMetadata = useMemo(
     () => mergeModelsWithProviderCatalogMetadata(defaultModels, providerCatalog),
@@ -255,6 +257,8 @@ export function SettingsCodexSection({
     () => providerOptions.find((option) => option.id === selectedProviderId) ?? null,
     [providerOptions, selectedProviderId]
   );
+  const selectedRouteReadinessMessage =
+    selectedModel?.providerReadinessMessage ?? selectedProvider?.readinessMessage ?? null;
   const reasoningSupported = useMemo(() => supportsModelReasoning(selectedModel), [selectedModel]);
   const reasoningOptions = useMemo(() => getModelReasoningOptions(selectedModel), [selectedModel]);
   const reasoningSelectOptions = useMemo<SelectOption[]>(
@@ -526,8 +530,8 @@ export function SettingsCodexSection({
                 ? "Loading models…"
                 : defaultModelsError
                   ? `Couldn’t load models: ${defaultModelsError}`
-                  : selectedProvider?.readinessMessage
-                    ? selectedProvider.readinessMessage
+                  : selectedRouteReadinessMessage
+                    ? selectedRouteReadinessMessage
                     : "Choose provider and model together when there is no thread-specific override."
           }
           control={
@@ -588,24 +592,6 @@ export function SettingsCodexSection({
               >
                 Refresh
               </Button>
-              {selectionMode === "manual" ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    void onUpdateAppSettings({
-                      ...appSettings,
-                      composerModelSelectionMode: "auto",
-                      lastComposerProviderFamilyId:
-                        appSettings.lastComposerProviderFamilyId ??
-                        (resolvedModelProviderId as AppSettings["lastComposerProviderFamilyId"]) ??
-                        null,
-                    })
-                  }
-                >
-                  Use recommended route
-                </Button>
-              ) : null}
             </div>
           }
         />

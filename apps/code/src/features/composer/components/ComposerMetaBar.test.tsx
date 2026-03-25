@@ -256,6 +256,65 @@ describe("ComposerMetaBar", () => {
     ).toBe("false");
   });
 
+  it("prefers the selected route metadata over family-level badges", () => {
+    render(
+      <ComposerMetaBar
+        disabled={false}
+        collaborationModes={[]}
+        selectedCollaborationModeId={null}
+        onSelectCollaborationMode={vi.fn()}
+        modelSelectionMode="manual"
+        models={[
+          {
+            id: "anthropic::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude",
+            provider: "anthropic",
+            available: true,
+            providerReadinessKind: "ready",
+            providerReadinessMessage: "Claude Code cloud routing is ready.",
+            executionKind: "cloud",
+          },
+          {
+            id: "claude_code_local::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude_code_local",
+            provider: "claude_code_local",
+            available: true,
+            providerReadinessKind: "ready",
+            providerReadinessMessage: "Local Claude Code is ready on this machine.",
+            executionKind: "local",
+          },
+        ]}
+        selectedProviderId="claude"
+        selectedModelId="anthropic::claude-sonnet-4-5"
+        onSelectProvider={vi.fn()}
+        onSelectModelSelectionMode={vi.fn()}
+        onSelectModel={vi.fn()}
+        reasoningOptions={[]}
+        selectedEffort={null}
+        onSelectEffort={vi.fn()}
+        reasoningSupported={false}
+        accessMode="on-request"
+        onSelectAccessMode={vi.fn()}
+        executionOptions={[{ value: "runtime", label: "Runtime" }]}
+        selectedExecutionMode="runtime"
+        onSelectExecutionMode={vi.fn()}
+      />
+    );
+
+    const modelButton = screen.getByRole("button", { name: "Model" });
+    expect(modelButton.textContent).toContain("Manual");
+    expect(modelButton.textContent).toContain("Cloud");
+    expect(modelButton.textContent).not.toContain("Local");
+    expect(modelButton.getAttribute("title")).toContain("Claude Code cloud routing is ready.");
+    expect(modelButton.getAttribute("title")).not.toContain(
+      "Local Claude Code is ready on this machine."
+    );
+  });
+
   it("lists only the deduplicated models for the selected provider family", () => {
     render(
       <ComposerMetaBar

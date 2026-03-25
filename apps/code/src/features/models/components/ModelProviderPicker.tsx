@@ -12,6 +12,7 @@ import {
   buildProviderModelEntries,
   type ModelProviderOption,
   type ProviderSelectableModel,
+  resolveProviderModelId,
 } from "../utils/modelProviderSelection";
 import * as styles from "./ModelProviderPicker.css";
 
@@ -126,24 +127,58 @@ function resolveReadinessBadgeLabel(
   return null;
 }
 
-function resolveTriggerBadges<TModel extends ProviderSelectableModel>(
+function resolveTriggerBadges(
   selectionMode: ComposerModelSelectionMode,
-  provider: ModelProviderOption<TModel> | null
+  route: {
+    executionKind: ProviderSelectableModel["executionKind"];
+    readinessKind: ProviderSelectableModel["providerReadinessKind"];
+    available: boolean | undefined;
+  } | null
 ): string[] {
   const badges: string[] = [];
   badges.push(selectionMode === "auto" ? "Auto" : "Manual");
-  const executionBadge = resolveExecutionBadgeLabel(provider?.executionKind ?? null);
+  const executionBadge = resolveExecutionBadgeLabel(route?.executionKind ?? null);
   if (executionBadge) {
     badges.push(executionBadge);
   }
-  const readinessBadge = resolveReadinessBadgeLabel(
-    provider?.readinessKind ?? null,
-    provider?.hasAvailableModels
-  );
+  const readinessBadge = resolveReadinessBadgeLabel(route?.readinessKind ?? null, route?.available);
   if (readinessBadge) {
     badges.push(readinessBadge);
   }
   return badges;
+}
+
+function resolveRouteState<TModel extends ProviderSelectableModel>(
+  routeModel: TModel | null,
+  provider: ModelProviderOption<TModel> | null
+): {
+  executionKind: ProviderSelectableModel["executionKind"];
+  readinessKind: ProviderSelectableModel["providerReadinessKind"];
+  readinessMessage: string | null;
+  available: boolean | undefined;
+} {
+  return {
+    executionKind: routeModel?.executionKind ?? provider?.executionKind ?? null,
+    readinessKind: routeModel?.providerReadinessKind ?? provider?.readinessKind ?? null,
+    readinessMessage: routeModel?.providerReadinessMessage ?? provider?.readinessMessage ?? null,
+    available: routeModel?.available ?? provider?.hasAvailableModels,
+  };
+}
+
+function resolveProviderExecutionBadge<TModel extends ProviderSelectableModel>(
+  provider: ModelProviderOption<TModel>
+): string | null {
+  const executionKinds = new Set(
+    provider.models
+      .map((model) => model.executionKind)
+      .filter((value): value is NonNullable<ProviderSelectableModel["executionKind"]> =>
+        Boolean(value)
+      )
+  );
+  if (executionKinds.size > 1) {
+    return null;
+  }
+  return resolveExecutionBadgeLabel(provider.executionKind);
 }
 
 type ModelProviderPickerProps<TModel extends ProviderSelectableModel = ProviderSelectableModel> = {
@@ -211,6 +246,15 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
   const activeProvider =
     providerOptions.find((providerOption) => providerOption.id === activeProviderId) ??
     currentProvider;
+  const recommendedRouteModelId = resolveProviderModelId(
+    providerOptions,
+    activeProvider?.id ?? null,
+    null
+  );
+  const recommendedRouteModel = useMemo(
+    () => resolveSelectedModel(providerOptions, recommendedRouteModelId),
+    [providerOptions, recommendedRouteModelId]
+  );
   const activeProviderModels = useMemo(() => {
     const dedupedModels = buildProviderModelEntries(activeProvider?.models ?? [], selectedModelId);
     const availableModels = dedupedModels.filter((model) => model.available !== false);
@@ -226,18 +270,20 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
     selectedModel?.model ||
     currentProvider?.label ||
     "Choose model";
+  const selectedRouteState = resolveRouteState(selectedModel, currentProvider);
+  const recommendedRouteState = resolveRouteState(recommendedRouteModel, activeProvider);
   const triggerTitle =
     currentProvider && selectedModel
       ? [
           selectionMode === "auto" ? "Auto route" : "Pinned model",
           currentProvider.label,
           selectedModel.displayName?.trim() || selectedModel.model,
-          currentProvider.readinessMessage,
+          selectedRouteState.readinessMessage,
         ]
           .filter((value): value is string => Boolean(value?.trim()))
           .join(" · ")
       : triggerLabel;
-  const triggerBadges = resolveTriggerBadges(selectionMode, currentProvider);
+  const triggerBadges = resolveTriggerBadges(selectionMode, selectedRouteState);
 
   return (
     <div
@@ -325,9 +371,9 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
                     <span className={styles.itemText}>
                       <span className={styles.itemLabel}>{providerOption.label}</span>
                       <span className={styles.itemMetaRow}>
-                        {resolveExecutionBadgeLabel(providerOption.executionKind) ? (
+                        {resolveProviderExecutionBadge(providerOption) ? (
                           <span className={styles.itemBadge}>
-                            {resolveExecutionBadgeLabel(providerOption.executionKind)}
+                            {resolveProviderExecutionBadge(providerOption)}
                           </span>
                         ) : null}
                         {resolveReadinessBadgeLabel(
@@ -372,7 +418,7 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
                     onSelectAutoRoute(activeProvider?.id ?? selectedProviderId ?? null);
                     setIsOpen(false);
                   }}
-                  title={activeProvider?.readinessMessage ?? undefined}
+                  title={recommendedRouteState.readinessMessage ?? undefined}
                 >
                   <span className={styles.itemIcon} aria-hidden>
                     {selectionMode === "auto" ? <Check size={14} strokeWidth={2} /> : null}
@@ -381,19 +427,19 @@ export function ModelProviderPicker<TModel extends ProviderSelectableModel>({
                     <span className={styles.itemLabel}>Use recommended route</span>
                     <span className={styles.itemMetaRow}>
                       <span className={styles.itemBadge}>Auto</span>
-                      {resolveExecutionBadgeLabel(activeProvider?.executionKind ?? null) ? (
+                      {resolveExecutionBadgeLabel(recommendedRouteState.executionKind) ? (
                         <span className={styles.itemBadge}>
-                          {resolveExecutionBadgeLabel(activeProvider?.executionKind ?? null)}
+                          {resolveExecutionBadgeLabel(recommendedRouteState.executionKind)}
                         </span>
                       ) : null}
                       {resolveReadinessBadgeLabel(
-                        activeProvider?.readinessKind ?? null,
-                        activeProvider?.hasAvailableModels
+                        recommendedRouteState.readinessKind,
+                        recommendedRouteState.available
                       ) ? (
                         <span className={styles.itemBadgeMuted}>
                           {resolveReadinessBadgeLabel(
-                            activeProvider?.readinessKind ?? null,
-                            activeProvider?.hasAvailableModels
+                            recommendedRouteState.readinessKind,
+                            recommendedRouteState.available
                           )}
                         </span>
                       ) : null}

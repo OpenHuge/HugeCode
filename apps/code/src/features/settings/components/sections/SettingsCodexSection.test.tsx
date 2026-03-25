@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppSettings, ModelOption, WorkspaceInfo } from "../../../../types";
@@ -548,7 +548,7 @@ describe("SettingsCodexSection", () => {
     expect(screen.queryByRole("menuitemradio", { name: /GPT-5\.4/i })).toBeNull();
   });
 
-  it("returns to the recommended route from the provider/model controls", () => {
+  it("returns to the recommended route from the provider/model menu", async () => {
     const onUpdateAppSettings = vi.fn(async () => undefined);
 
     getProvidersCatalogMock.mockResolvedValue([
@@ -592,14 +592,84 @@ describe("SettingsCodexSection", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Use recommended route" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Model" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Use recommended route/i }));
 
-    expect(onUpdateAppSettings).toHaveBeenCalledWith(
-      expect.objectContaining({
-        composerModelSelectionMode: "auto",
-        lastComposerProviderFamilyId: "claude",
-      })
+    await waitFor(() =>
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          composerModelSelectionMode: "auto",
+          lastComposerProviderFamilyId: "claude",
+        })
+      )
     );
+  });
+
+  it("shows the selected route readiness message instead of the family aggregate", async () => {
+    getProvidersCatalogMock.mockResolvedValue([
+      {
+        providerId: "anthropic",
+        displayName: "Claude Code",
+        pool: "claude",
+        oauthProviderId: "claude_code",
+        aliases: ["claude", "claude_code"],
+        defaultModelId: "anthropic::claude-sonnet-4-5",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        readinessKind: "ready",
+        readinessMessage: "Claude Code cloud routing is ready.",
+        executionKind: "cloud",
+        registryVersion: "test",
+      },
+      {
+        providerId: "claude_code_local",
+        displayName: "Claude Code Local",
+        pool: null,
+        oauthProviderId: null,
+        aliases: ["claude_code_local"],
+        defaultModelId: "claude_code_local::claude-sonnet-4-5",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: false,
+        readinessKind: "ready",
+        readinessMessage: "Local Claude Code is ready on this machine.",
+        executionKind: "local",
+        registryVersion: "test",
+      },
+    ]);
+
+    render(
+      <SettingsCodexSection
+        {...createProps({
+          appSettings: {
+            ...createProps().appSettings,
+            lastComposerModelId: "anthropic::claude-sonnet-4-5",
+            composerModelSelectionMode: "manual",
+            lastComposerProviderFamilyId: "claude",
+          },
+          defaultModels: [
+            createModelOption({
+              id: "anthropic::claude-sonnet-4-5",
+              model: "claude-sonnet-4-5",
+              displayName: "Claude Sonnet 4.5",
+              provider: "anthropic",
+              pool: "claude",
+            }),
+            createModelOption({
+              id: "claude_code_local::claude-sonnet-4-5",
+              model: "claude-sonnet-4-5",
+              displayName: "Claude Sonnet 4.5",
+              provider: "claude_code_local",
+              pool: "claude_code_local",
+            }),
+          ],
+        })}
+      />
+    );
+
+    expect(await screen.findByText("Claude Code cloud routing is ready.")).toBeTruthy();
+    expect(screen.queryByText("Local Claude Code is ready on this machine.")).toBeNull();
   });
 
   it("does not render legacy section shell, toggle, or action wrappers directly", () => {
