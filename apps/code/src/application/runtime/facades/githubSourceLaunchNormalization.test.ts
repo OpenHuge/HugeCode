@@ -95,6 +95,10 @@ describe("githubSourceLaunchNormalization", () => {
           canonicalUrl: issue.url,
           sourceTaskId: issue.url,
           sourceRunId: issue.url,
+          repo: expect.objectContaining({
+            fullName: "acme/hugecode",
+            remoteUrl: "https://github.com/acme/hugecode",
+          }),
         }),
         executionProfileId: "autonomous-delegate",
         reviewProfileId: "issue-review",
@@ -187,6 +191,10 @@ describe("githubSourceLaunchNormalization", () => {
           canonicalUrl: pullRequest.url,
           sourceTaskId: pullRequest.url,
           sourceRunId: pullRequest.url,
+          repo: expect.objectContaining({
+            fullName: "acme/hugecode",
+            remoteUrl: "https://github.com/acme/hugecode",
+          }),
         }),
         executionProfileId: "balanced-delegate",
         reviewProfileId: "pr-followup-review",
