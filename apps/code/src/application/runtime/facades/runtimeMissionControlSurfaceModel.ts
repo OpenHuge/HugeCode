@@ -8,10 +8,14 @@ import {
   isRuntimeManagedMissionTaskId,
   type MissionControlProjection,
 } from "./runtimeMissionControlFacade";
+import { buildRuntimeContextTruth, buildRuntimeDelegationContract } from "./runtimeContextTruth";
 import { summarizeReviewContinuationActionability } from "./runtimeReviewContinuationFacade";
 import { resolveReviewIntelligenceSummary } from "./runtimeReviewIntelligenceSummary";
 import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
-import type { RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
+import {
+  resolveRepositoryExecutionDefaults,
+  type RepositoryExecutionContract,
+} from "./runtimeRepositoryExecutionContract";
 import { formatMissionReviewEvidenceLabel } from "../../../utils/reviewPackLabels";
 import { formatReviewFailureClassLabel } from "../../../utils/reviewFailureClass";
 import {
@@ -147,6 +151,8 @@ export type MissionReviewEntry = {
   navigationTarget: MissionNavigationTarget;
   secondaryLabel: string | null;
   evidenceLabel: string;
+  contextSummary?: string | null;
+  delegationSummary?: string | null;
   continuationState?: "ready" | "degraded" | "blocked" | "missing" | null;
   continuationLabel?: string | null;
   continuePathLabel?: string | null;
@@ -194,6 +200,52 @@ function resolveTaskTimestamp(
     }
   }
   return task.updatedAt;
+}
+
+function buildEntryContextAndDelegationSummary(input: {
+  contract: RepositoryExecutionContract | null;
+  taskSource:
+    | MissionControlProjection["tasks"][number]["taskSource"]
+    | MissionControlProjection["runs"][number]["taskSource"]
+    | MissionControlProjection["reviewPacks"][number]["taskSource"]
+    | null
+    | undefined;
+  executionProfileId: string | null | undefined;
+  reviewProfileId: string | null | undefined;
+  validationPresetId: string | null | undefined;
+  continuationLabel: string | null;
+  continuePathLabel: string | null;
+  recommendedNextAction: string | null;
+  continuationState: "ready" | "degraded" | "blocked" | "missing" | null;
+}): Pick<MissionReviewEntry, "contextSummary" | "delegationSummary"> {
+  const repositoryDefaults = resolveRepositoryExecutionDefaults({
+    contract: input.contract,
+    taskSource: input.taskSource ?? null,
+    explicitLaunchInput: {
+      executionProfileId: input.executionProfileId ?? null,
+      reviewProfileId: input.reviewProfileId ?? null,
+      validationPresetId: input.validationPresetId ?? null,
+    },
+  });
+  const contextTruth = buildRuntimeContextTruth({
+    taskSource: input.taskSource ?? null,
+    repositoryDefaults,
+    contractLabel: input.contract?.metadata?.label ?? null,
+    hasRepoInstructions: true,
+  });
+  const delegationContract = buildRuntimeDelegationContract({
+    contextTruth,
+    continuationSummary: input.continuationLabel,
+    continuePathLabel: input.continuePathLabel,
+    nextOperatorAction: input.recommendedNextAction,
+    blocked: input.continuationState === "blocked",
+  });
+  return {
+    contextSummary: contextTruth.canonicalTaskSource
+      ? `${contextTruth.canonicalTaskSource.label} · ${contextTruth.reviewIntent}`
+      : contextTruth.summary,
+    delegationSummary: delegationContract.nextOperatorAction,
+  };
 }
 
 function buildMissionNavigationTarget(
@@ -1053,6 +1105,22 @@ export function buildMissionReviewEntriesFromProjection(
           ? continuation.recommendedAction
           : reviewPack.recommendedNextAction,
     });
+    const recommendedNextAction =
+      reviewIntelligence?.nextRecommendedAction ??
+      (continuation.state !== "missing"
+        ? continuation.recommendedAction
+        : reviewPack.recommendedNextAction);
+    const contextAndDelegation = buildEntryContextAndDelegationSummary({
+      contract: options?.repositoryExecutionContract ?? null,
+      taskSource: reviewPack.taskSource ?? run?.taskSource ?? task.taskSource ?? null,
+      executionProfileId: run?.executionProfile?.id ?? null,
+      reviewProfileId: reviewIntelligence?.reviewProfileId ?? run?.reviewProfileId ?? null,
+      validationPresetId: run?.executionProfile?.validationPresetId ?? null,
+      continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
+      continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
+      recommendedNextAction,
+      continuationState: continuation.state,
+    });
 
     entries.push({
       id: reviewPack.id,
@@ -1075,11 +1143,7 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       validationOutcome: reviewPack.validationOutcome,
       warningCount: reviewPack.warningCount,
-      recommendedNextAction:
-        reviewIntelligence?.nextRecommendedAction ??
-        (continuation.state !== "missing"
-          ? continuation.recommendedAction
-          : reviewPack.recommendedNextAction),
+      recommendedNextAction,
       accountabilityLifecycle: task.accountability?.lifecycle ?? null,
       queueEnteredAt:
         task.accountability?.lifecycle === "in_review"
@@ -1135,6 +1199,8 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       secondaryLabel: resolveMissionSecondaryLabel(task),
       evidenceLabel: resolveReviewEvidenceLabel(reviewPack, task),
+      contextSummary: contextAndDelegation.contextSummary,
+      delegationSummary: contextAndDelegation.delegationSummary,
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
       continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
@@ -1200,6 +1266,22 @@ export function buildMissionReviewEntriesFromProjection(
           ? continuation.recommendedAction
           : (run.nextAction?.detail ?? null),
     });
+    const recommendedNextAction =
+      reviewIntelligence?.nextRecommendedAction ??
+      (continuation.state !== "missing"
+        ? continuation.recommendedAction
+        : (run.nextAction?.detail ?? null));
+    const contextAndDelegation = buildEntryContextAndDelegationSummary({
+      contract: options?.repositoryExecutionContract ?? null,
+      taskSource: run.taskSource ?? task.taskSource ?? null,
+      executionProfileId: run.executionProfile?.id ?? null,
+      reviewProfileId: reviewIntelligence?.reviewProfileId ?? run.reviewProfileId ?? null,
+      validationPresetId: run.executionProfile?.validationPresetId ?? null,
+      continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
+      continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
+      recommendedNextAction,
+      continuationState: continuation.state,
+    });
     entries.push({
       id: run.id,
       kind: "mission_run",
@@ -1223,11 +1305,7 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       validationOutcome: "unknown",
       warningCount: run.warnings?.length ?? 0,
-      recommendedNextAction:
-        reviewIntelligence?.nextRecommendedAction ??
-        (continuation.state !== "missing"
-          ? continuation.recommendedAction
-          : (run.nextAction?.detail ?? null)),
+      recommendedNextAction,
       accountabilityLifecycle: task.accountability?.lifecycle ?? null,
       queueEnteredAt:
         task.accountability?.lifecycle === "in_review"
@@ -1283,6 +1361,8 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       secondaryLabel: resolveMissionSecondaryLabel(task),
       evidenceLabel: "Runtime evidence only",
+      contextSummary: contextAndDelegation.contextSummary,
+      delegationSummary: contextAndDelegation.delegationSummary,
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
       continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,

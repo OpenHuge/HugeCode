@@ -195,10 +195,19 @@ fn parse_repository_execution_contract(raw: &str) -> Result<RepositoryExecutionC
     for (kind, policy) in parsed.source_mappings {
         if !matches!(
             kind.as_str(),
-            "manual" | "github_issue" | "github_pr_followup" | "schedule"
+            "manual"
+                | "github_issue"
+                | "github_pr_followup"
+                | "github_discussion"
+                | "note"
+                | "customer_feedback"
+                | "doc"
+                | "call_summary"
+                | "external_ref"
+                | "schedule"
         ) {
             return Err(format!(
-                "sourceMappings supports only manual, github_issue, github_pr_followup, or schedule kinds"
+                "sourceMappings supports only manual, github_issue, github_pr_followup, github_discussion, note, customer_feedback, doc, call_summary, external_ref, or schedule kinds"
             ));
         }
         let normalized_policy = normalize_policy(policy);
@@ -256,6 +265,12 @@ fn resolve_task_source_mapping_kind(
         "manual" | "manual_thread" => Some("manual".to_string()),
         "github_issue" => Some("github_issue".to_string()),
         "github_pr_followup" => Some("github_pr_followup".to_string()),
+        "github_discussion" => Some("github_discussion".to_string()),
+        "note" => Some("note".to_string()),
+        "customer_feedback" => Some("customer_feedback".to_string()),
+        "doc" => Some("doc".to_string()),
+        "call_summary" => Some("call_summary".to_string()),
+        "external_ref" => Some("external_ref".to_string()),
         "schedule" => Some("schedule".to_string()),
         _ => None,
     }
@@ -594,6 +609,87 @@ mod tests {
         assert_eq!(
             resolved.preferred_backend_ids,
             vec!["backend-schedule".to_string()]
+        );
+    }
+
+    #[test]
+    fn repository_execution_contract_accepts_context_driven_source_kinds() {
+        let contract = parse_contract(
+            json!({
+                "version": 1,
+                "defaults": {
+                    "executionProfileId": "balanced-delegate",
+                    "validationPresetId": "standard"
+                },
+                "sourceMappings": {
+                    "github_discussion": {
+                        "executionProfileId": "balanced-delegate"
+                    },
+                    "customer_feedback": {
+                        "executionProfileId": "balanced-delegate",
+                        "validationPresetId": "standard"
+                    }
+                },
+                "validationPresets": [{ "id": "standard", "label": "Standard" }]
+            })
+            .to_string()
+            .as_str(),
+        );
+
+        let discussion = resolve_repository_execution_defaults_from_contract(
+            &contract,
+            Some(&AgentTaskSourceSummary {
+                kind: "github_discussion".to_string(),
+                label: None,
+                short_label: None,
+                title: Some("Clarify delegation contract".to_string()),
+                reference: Some("#12".to_string()),
+                url: None,
+                issue_number: None,
+                pull_request_number: None,
+                repo: None,
+                workspace_id: Some("ws-1".to_string()),
+                workspace_root: None,
+                external_id: None,
+                canonical_url: None,
+                thread_id: None,
+                request_id: None,
+                source_task_id: None,
+                source_run_id: None,
+            }),
+            &RepositoryExecutionExplicitLaunchInput::default(),
+        );
+        let feedback = resolve_repository_execution_defaults_from_contract(
+            &contract,
+            Some(&AgentTaskSourceSummary {
+                kind: "customer_feedback".to_string(),
+                label: None,
+                short_label: None,
+                title: Some("Review is too expensive".to_string()),
+                reference: None,
+                url: None,
+                issue_number: None,
+                pull_request_number: None,
+                repo: None,
+                workspace_id: Some("ws-1".to_string()),
+                workspace_root: None,
+                external_id: None,
+                canonical_url: None,
+                thread_id: None,
+                request_id: None,
+                source_task_id: None,
+                source_run_id: None,
+            }),
+            &RepositoryExecutionExplicitLaunchInput::default(),
+        );
+
+        assert_eq!(
+            discussion.source_mapping_kind.as_deref(),
+            Some("github_discussion")
+        );
+        assert_eq!(
+            feedback.source_mapping_kind.as_deref(),
+            Some("customer_feedback")
         );
     }
 

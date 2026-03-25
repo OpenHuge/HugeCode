@@ -14,7 +14,16 @@ const KNOWN_ACCESS_MODES = new Set<AccessMode>(["read-only", "on-request", "full
 
 type SupportedRepositoryTaskSourceKind = Extract<
   AgentTaskSourceSummary["kind"],
-  "manual" | "github_issue" | "github_pr_followup" | "schedule"
+  | "manual"
+  | "github_issue"
+  | "github_pr_followup"
+  | "github_discussion"
+  | "note"
+  | "customer_feedback"
+  | "doc"
+  | "call_summary"
+  | "external_ref"
+  | "schedule"
 >;
 
 type RepositoryExecutionContractPolicy = {
@@ -296,6 +305,12 @@ function readSourceMappingKind(value: string): SupportedRepositoryTaskSourceKind
     case "manual":
     case "github_issue":
     case "github_pr_followup":
+    case "github_discussion":
+    case "note":
+    case "customer_feedback":
+    case "doc":
+    case "call_summary":
+    case "external_ref":
     case "schedule":
       return value;
     default:

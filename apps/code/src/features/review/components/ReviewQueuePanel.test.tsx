@@ -54,6 +54,8 @@ describe("ReviewQueuePanel", () => {
             subAgentSignal: "Sub-agent awaiting approval",
             publishHandoffLabel: "Publish handoff ready",
             relaunchLabel: "Relaunch available",
+            contextSummary: "GitHub issue · triage",
+            delegationSummary: "Open Review Pack",
           },
         ]}
       />
@@ -68,6 +70,7 @@ describe("ReviewQueuePanel", () => {
     expect(screen.getByText("Sub-agent awaiting approval")).toBeTruthy();
     expect(screen.getByText("Publish handoff ready")).toBeTruthy();
     expect(screen.getByText("Relaunch available")).toBeTruthy();
+    expect(screen.getByText("GitHub issue · triage | Open Review Pack")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     expect(onRefresh).toHaveBeenCalledTimes(1);

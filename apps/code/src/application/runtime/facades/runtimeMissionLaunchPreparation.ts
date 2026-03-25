@@ -14,6 +14,11 @@ import {
 } from "./runtimeMissionDraftFacade";
 import type { ResolvedRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionContract";
 import type { RuntimeTaskLauncherSourceDraft } from "./runtimeTaskInterventionDraftFacade";
+import {
+  buildRuntimeContextTruth,
+  buildRuntimeDelegationContract,
+  buildRuntimeGuidanceStack,
+} from "./runtimeContextTruth";
 
 export type RuntimeMissionLaunchRequestInput = {
   workspaceId: string;
@@ -28,6 +33,9 @@ export type RuntimeMissionLaunchRequestInput = {
 export type RuntimeMissionLaunchPreviewState = {
   request: RuntimeRunPrepareV2Request | null;
   preparation: RuntimeRunPrepareV2Response | null;
+  contextTruth: RuntimeRunPrepareV2Response["contextTruth"] | null;
+  guidanceStack: RuntimeRunPrepareV2Response["guidanceStack"] | null;
+  delegationContract: RuntimeRunPrepareV2Response["delegationContract"] | null;
   truthSourceLabel: string | null;
   loading: boolean;
   error: string | null;
@@ -200,9 +208,59 @@ export function useRuntimeMissionLaunchPreview(
     };
   }, [debouncedRequest]);
 
+  const contextTruth = useMemo(() => {
+    if (preparation?.contextTruth) {
+      return preparation.contextTruth;
+    }
+    if (!request) {
+      return null;
+    }
+    return buildRuntimeContextTruth({
+      taskSource: request.taskSource ?? null,
+      repositoryDefaults: input.repositoryLaunchDefaults,
+      contractLabel: input.repositoryLaunchDefaults.contract?.metadata?.label ?? null,
+      hasRepoInstructions: true,
+      explicitInstruction: input.draftInstruction,
+    });
+  }, [input.draftInstruction, input.repositoryLaunchDefaults, preparation, request]);
+
+  const guidanceStack = useMemo(() => {
+    if (preparation?.guidanceStack) {
+      return preparation.guidanceStack;
+    }
+    if (!request) {
+      return null;
+    }
+    return buildRuntimeGuidanceStack({
+      taskSource: request.taskSource ?? null,
+      repositoryDefaults: input.repositoryLaunchDefaults,
+      contractLabel: input.repositoryLaunchDefaults.contract?.metadata?.label ?? null,
+      hasRepoInstructions: true,
+      explicitInstruction: input.draftInstruction,
+    });
+  }, [input.draftInstruction, input.repositoryLaunchDefaults, preparation, request]);
+
+  const delegationContract = useMemo(() => {
+    if (preparation?.delegationContract) {
+      return preparation.delegationContract;
+    }
+    if (!contextTruth) {
+      return null;
+    }
+    return buildRuntimeDelegationContract({
+      contextTruth,
+      missingContext:
+        preparation?.runIntent.missingContext ?? request?.missionBrief?.constraints ?? [],
+      approvalBatchCount: preparation?.approvalBatches.length ?? 0,
+    });
+  }, [contextTruth, preparation, request]);
+
   return {
     request,
     preparation,
+    contextTruth,
+    guidanceStack,
+    delegationContract,
     truthSourceLabel: preparation ? "Runtime kernel v2 prepare" : null,
     loading,
     error,

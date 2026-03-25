@@ -201,6 +201,12 @@ export type AgentTaskSourceKind =
   | "manual_thread"
   | "github_issue"
   | "github_pr_followup"
+  | "github_discussion"
+  | "note"
+  | "customer_feedback"
+  | "doc"
+  | "call_summary"
+  | "external_ref"
   | "schedule"
   | "external_runtime"
   | (string & {});
@@ -1250,6 +1256,82 @@ export type RuntimeContextWorkingSetV2 = {
   layers: RuntimeContextLayerV2[];
 };
 
+export type RuntimeContextSourceFamilyV2 =
+  | "manual"
+  | "github"
+  | "discussion"
+  | "note"
+  | "feedback"
+  | "doc"
+  | "call"
+  | "external"
+  | "schedule"
+  | "runtime";
+
+export type RuntimeContextConsumerV2 = "run" | "review_pack" | "takeover" | "follow_up";
+
+export type RuntimeReviewIntentV2 = "execute" | "review" | "triage";
+
+export type RuntimeContextTruthSourceV2 = {
+  kind: string;
+  family: RuntimeContextSourceFamilyV2;
+  label: string;
+  summary: string;
+  source: string | null;
+  reference: string | null;
+  canonicalUrl: string | null;
+  primary: boolean;
+};
+
+export type RuntimeContextTruthV2 = {
+  summary: string;
+  canonicalTaskSource: RuntimeContextTruthSourceV2 | null;
+  sources: RuntimeContextTruthSourceV2[];
+  executionProfileId: string | null;
+  reviewProfileId: string | null;
+  validationPresetId: string | null;
+  reviewIntent: RuntimeReviewIntentV2;
+  ownerSummary: string;
+  sourceMetadata: string[];
+  consumers: RuntimeContextConsumerV2[];
+};
+
+export type RuntimeGuidanceLayerScopeV2 = "repo" | "source" | "review_profile" | "launch";
+
+export type RuntimeGuidanceLayerV2 = {
+  id: string;
+  scope: RuntimeGuidanceLayerScopeV2;
+  summary: string;
+  source: string;
+  priority: number;
+  instructions: string[];
+  skillIds: string[];
+};
+
+export type RuntimeGuidanceStackV2 = {
+  summary: string;
+  precedence: string[];
+  layers: RuntimeGuidanceLayerV2[];
+};
+
+export type RuntimeDelegationStateV2 =
+  | "launch_ready"
+  | "needs_clarification"
+  | "review"
+  | "resume"
+  | "handoff"
+  | "blocked";
+
+export type RuntimeDelegationContractV2 = {
+  summary: string;
+  state: RuntimeDelegationStateV2;
+  humanOwner: string;
+  agentExecutor: string;
+  accountability: string;
+  nextOperatorAction: string;
+  continueVia: string | null;
+};
+
 export type RuntimeExecutionNodeKindV2 =
   | "clarify"
   | "read"
@@ -1415,6 +1497,9 @@ export type RuntimeRunPrepareV2Response = {
   preparedAt: number;
   runIntent: RuntimeRunIntentBriefV2;
   contextWorkingSet: RuntimeContextWorkingSetV2;
+  contextTruth: RuntimeContextTruthV2;
+  guidanceStack: RuntimeGuidanceStackV2;
+  delegationContract: RuntimeDelegationContractV2;
   executionGraph: RuntimeExecutionGraphV2;
   approvalBatches: RuntimeApprovalBatchV2[];
   validationPlan: RuntimeValidationPlanV2;
