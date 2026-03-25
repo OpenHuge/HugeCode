@@ -39,6 +39,7 @@ import {
 } from "./runtimeReviewIntelligenceSummary";
 import {
   buildRuntimeReviewPackFollowUpState,
+  type RuntimeReviewPackDecisionActionabilitySummary,
   type RuntimeReviewPackDecisionActionModel,
 } from "./runtimeReviewPackDecisionActionsFacade";
 import {
@@ -220,6 +221,7 @@ export type ReviewPackDetailModel = {
     details: string[];
     missingReason: string | null;
   };
+  decisionActionability?: RuntimeReviewPackDecisionActionabilitySummary;
   governance?: {
     summary: string;
     details: string[];
@@ -1116,6 +1118,7 @@ export function buildReviewPackDetailModel(input: {
     missingReason: "The runtime did not publish backend audit details for this review pack.",
   };
   const reviewContinuationDefaults = followUpState.continuationDefaults;
+  const decisionActionability = followUpState.decisionActionability;
   const decisionActions = followUpState.decisionActions;
   const followUpDefaultsAvailable = followUpState.interventionActions.some(
     (action) => action.enabled
@@ -1244,6 +1247,7 @@ export function buildReviewPackDetailModel(input: {
     skillUsage: reviewIntelligence?.skillUsage ?? [],
     autofixCandidate: reviewIntelligence?.autofixCandidate ?? null,
     backendAudit,
+    decisionActionability,
     governance: buildGovernanceDetail(reviewPack.governance ?? run?.governance ?? null),
     operatorSnapshot: buildOperatorSnapshotDetail(run?.operatorSnapshot ?? null),
     placement: buildPlacementDetail(reviewPack.placement ?? run?.placement ?? null),

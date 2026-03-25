@@ -17,6 +17,7 @@ test("review-loop fixture keeps operator-loop actions aligned across continuatio
   await expect(resumeRow).toContainText(
     "Recommended step: Resume this run from the runtime takeover bundle."
   );
+  await expect(resumeRow).toContainText("Truth source: takeover_bundle");
   await expect(resumeRow).toContainText("Target: run:run-resume");
 
   const takeoverRow = page.getByTestId("operator-loop-row-takeover");
@@ -24,11 +25,13 @@ test("review-loop fixture keeps operator-loop actions aligned across continuatio
   await expect(takeoverRow).toContainText(
     "Recommended step: Use the runtime-published handoff target."
   );
+  await expect(takeoverRow).toContainText("Truth source: takeover_bundle");
   await expect(takeoverRow).toContainText("Target: thread:thread-handoff");
 
   const reviewRow = page.getByTestId("operator-loop-row-review");
   await expect(reviewRow).toContainText("Mission Control next step: Open Review Pack");
   await expect(reviewRow).toContainText("Review Pack next step: Open Review Pack");
+  await expect(reviewRow).toContainText("Truth source: Runtime takeover bundle");
   await expect(reviewRow).toContainText("Target: review:review-pack:review");
 
   const followUpRow = page.getByTestId("operator-loop-row-follow-up");
@@ -38,5 +41,6 @@ test("review-loop fixture keeps operator-loop actions aligned across continuatio
   await expect(followUpRow).toContainText(
     "Review Pack next step: Open the mission run and resolve the runtime-blocked follow-up."
   );
+  await expect(followUpRow).toContainText("Truth source: Runtime review actionability");
   await expect(followUpRow).toContainText("Target: review:review-pack:blocked");
 });

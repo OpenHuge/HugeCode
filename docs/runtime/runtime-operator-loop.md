@@ -76,6 +76,42 @@ Shared copy expectations:
 - blocked reason text must come from runtime truth
 - review-ready fallback copy must not replace runtime-published continuation copy
 
+## Operator Provenance
+
+Top-tier operator surfaces must expose not only the recommendation, but also the
+source of that recommendation.
+
+Required presentation rules:
+
+- Mission Control review entries must show the follow-up source label from the
+  shared continuation summary
+- Review Pack must show the decision-availability source for accept, reject,
+  and follow-up actions
+- page components must not invent canonical-vs-fallback wording on their own;
+  they render the shared facade output
+
+Current source labels:
+
+- `Runtime takeover bundle`
+- `Runtime review actionability`
+- `Runtime mission linkage`
+- `Runtime publish handoff`
+- `Runtime checkpoint`
+- `Controlled legacy follow-up fallback`
+- `Runtime routing gate`
+- `Default review policy`
+
+Interpretation guidance:
+
+- `Runtime takeover bundle` and `Runtime review actionability` are the preferred
+  operator sources
+- `Controlled legacy follow-up fallback` is the only intentionally retained
+  non-canonical actionability path
+- `Runtime routing gate` means decisions are intentionally read-only until
+  routing is confirmed
+- `Default review policy` is a temporary safety net when runtime has not yet
+  published explicit decision actionability
+
 ## Controlled Fallback
 
 Exactly one controlled fallback remains in Phase 1:
@@ -116,4 +152,5 @@ Changes to the operator loop should include:
 - contract helper unit tests
 - Mission Control and Review Pack parity tests
 - continuity readiness and blocked-state tests
+- provenance visibility tests for Mission Control and Review Pack
 - targeted e2e verification for resume, takeover, review, and blocked follow-up

@@ -44,6 +44,13 @@ export type RuntimeReviewPackDecisionActionModel<TNavigationTarget> = {
   actionTarget: RuntimeReviewPackDecisionActionTarget | null;
 };
 
+export type RuntimeReviewPackDecisionActionabilitySummary = {
+  summary: string;
+  details: string[];
+  sourceLabel: string;
+  usesFallback: boolean;
+};
+
 export type ReviewPackDecisionState = {
   status: "pending" | "accepted" | "rejected";
   reviewPackId: string;
@@ -104,6 +111,7 @@ export type RuntimeReviewPackFollowUpState<TNavigationTarget> = {
   runtimeInterventionsSupported: boolean;
   preferredBackendIds: string[] | undefined;
   continuationDefaults: ReviewContinuationDefaults | null;
+  decisionActionability: RuntimeReviewPackDecisionActionabilitySummary;
   interventionActions: RuntimeReviewPackDecisionActionModel<TNavigationTarget>[];
   decisionActions: RuntimeReviewPackDecisionActionModel<TNavigationTarget>[];
 };
@@ -201,6 +209,60 @@ function createReviewDecisionActionTarget(
     kind: "review_decision",
     requestId,
     status,
+  };
+}
+
+function buildRuntimeReviewPackDecisionActionability(input: {
+  readOnlyReason: string | null;
+  reviewActionability?: HugeCodeReviewActionabilitySummary | null;
+  actions: ReviewInterventionAvailability[] | null | undefined;
+}): RuntimeReviewPackDecisionActionabilitySummary {
+  if (input.readOnlyReason) {
+    return {
+      summary: input.readOnlyReason,
+      details: [
+        "Decision source: Runtime routing gate.",
+        "Review decisions and follow-up actions stay read-only until runtime routing confirms the placement.",
+      ],
+      sourceLabel: "Runtime routing gate",
+      usesFallback: false,
+    };
+  }
+
+  if ((input.reviewActionability?.actions.length ?? 0) > 0) {
+    return {
+      summary: "Decision availability is backed by canonical runtime review actionability.",
+      details: [
+        "Decision source: Canonical runtime review actionability.",
+        "Accept, reject, and follow-up availability are coming from the runtime-published review action set.",
+      ],
+      sourceLabel: "Canonical runtime review actionability",
+      usesFallback: false,
+    };
+  }
+
+  if ((input.actions?.length ?? 0) > 0) {
+    return {
+      summary:
+        "Decision availability is using the controlled fallback until canonical runtime review actionability is published.",
+      details: [
+        "Decision source: Controlled legacy follow-up fallback.",
+        "Canonical runtime review actionability has not been published for this run yet.",
+      ],
+      sourceLabel: "Controlled legacy follow-up fallback",
+      usesFallback: true,
+    };
+  }
+
+  return {
+    summary:
+      "Decision availability is using the default review policy until canonical runtime review actionability is published.",
+    details: [
+      "Decision source: Default review policy.",
+      "Canonical runtime review actionability has not been published for this run yet.",
+    ],
+    sourceLabel: "Default review policy",
+    usesFallback: true,
   };
 }
 
@@ -390,12 +452,18 @@ export function buildRuntimeReviewPackFollowUpState<TNavigationTarget>(
     reviewActionability: input.reviewActionability ?? null,
     interventionActions,
   });
+  const decisionActionability = buildRuntimeReviewPackDecisionActionability({
+    readOnlyReason,
+    reviewActionability: input.reviewActionability ?? null,
+    actions: input.actions,
+  });
 
   return {
     readOnlyReason,
     runtimeInterventionsSupported,
     preferredBackendIds,
     continuationDefaults,
+    decisionActionability,
     interventionActions,
     decisionActions,
   };
