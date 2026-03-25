@@ -29,6 +29,11 @@ When working from multiple git worktrees, `pnpm run` / `pnpm exec` now warn inst
 `node_modules` looks stale for the current branch metadata. Treat the warning as a prompt to run
 `pnpm install` when dependencies, lockfile contents, or workspace package manifests actually changed.
 
+Targeted validation and affected Turbo tasks also prefer the branch upstream as their comparison base.
+When a new stacked worktree branch has no upstream yet, the repo scripts infer a sibling branch already
+pointing at `HEAD` before falling back to the default branch. This keeps clean worktrees from
+revalidating inherited parent-branch commits.
+
 Root build, lint, and typecheck include the Cloudflare web shell through the
 default workspace graph. Use the explicit `pnpm web:*` commands when you need
 to run or deploy the Cloudflare shell directly.
