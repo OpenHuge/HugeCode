@@ -51,6 +51,7 @@ import {
   normalizeReviewPackPublishHandoff,
   normalizeReviewPackRelaunchOptions,
 } from "./runtimeReviewPackSurfaceNormalization";
+import { resolveRuntimeRecommendedAction } from "./runtimeOperatorActionPresentation";
 import {
   buildExecutionContext,
   buildCheckpointDetail,
@@ -969,7 +970,8 @@ export function buildReviewPackDetailModel(input: {
       operatorDetail: run.operatorState?.detail ?? null,
       approvalLabel: run.approval?.label ?? null,
       approvalSummary: run.approval?.summary ?? null,
-      nextActionLabel: runtimeOperatorAction?.label ?? run.nextAction?.label ?? "Inspect mission detail",
+      nextActionLabel:
+        runtimeOperatorAction?.label ?? run.nextAction?.label ?? "Inspect mission detail",
       nextActionDetail:
         runtimeOperatorAction?.detail ??
         run.nextAction?.detail ??
@@ -1180,12 +1182,7 @@ export function buildReviewPackDetailModel(input: {
   const publishHandoff = normalizeReviewPackPublishHandoff(
     reviewPackExtra?.publishHandoff ?? run?.publishHandoff ?? null
   );
-  const continuity = buildReviewPackContinuity({
-    reviewPack,
-    run,
-    task,
-    publishHandoff,
-  });
+  const continuity = buildReviewPackContinuity({ reviewPack, run, task, publishHandoff });
   const relaunchContext = augmentDetailSection(
     buildRelaunchContextDetail(reviewPackExtra?.relaunchOptions ?? run?.relaunchContext ?? null),
     [
@@ -1204,12 +1201,15 @@ export function buildReviewPackDetailModel(input: {
     ],
     "Runtime recorded why this pack woke the operator and what can happen next."
   );
-  const reviewRecommendedNextAction =
-    reviewPackExtra?.actionability?.summary ??
-    run?.actionability?.summary ??
-    continuity?.recommendedAction ??
-    reviewPack.recommendedNextAction ??
-    null;
+  const reviewRecommendedNextAction = resolveRuntimeRecommendedAction({
+    operatorAction: reviewPackExtra?.nextOperatorAction ?? run?.nextOperatorAction ?? null,
+    fallbacks: [
+      reviewPackExtra?.actionability?.summary,
+      run?.actionability?.summary,
+      continuity?.recommendedAction,
+      reviewPack.recommendedNextAction,
+    ],
+  });
   const reviewIntelligence = resolveReviewIntelligenceSummary({
     contract: input.repositoryExecutionContract ?? null,
     taskSource: reviewPack.taskSource ?? run?.taskSource ?? task?.taskSource ?? null,
