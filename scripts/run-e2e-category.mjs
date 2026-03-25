@@ -2,7 +2,10 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { loadLocalRuntimeContractFingerprint } from "./dev-code-runtime-gateway-web-all.mjs";
-import { buildCodeE2EStartupEnv } from "./lib/e2e-runtime-budgets.mjs";
+import {
+  buildCodeE2EStartupEnv,
+  resolveCodeRuntimeServicePrewarmPolicy,
+} from "./lib/e2e-runtime-budgets.mjs";
 import { loadE2EMapConfig, ruleMatchesPath } from "./lib/e2e-map.mjs";
 import { isPortAvailable } from "./lib/ports.mjs";
 import { spawnPnpm, spawnPnpmSync } from "./lib/spawn-pnpm.mjs";
@@ -94,6 +97,10 @@ const e2eRoot = path.join(repoRoot, "tests", "e2e");
 const e2eSrc = path.join(e2eRoot, "src");
 const e2eConfig = loadE2EMapConfig({ repoRoot });
 const categoryRules = e2eConfig.rules.filter((rule) => rule.category === category);
+const runtimePrewarmPolicy = resolveCodeRuntimeServicePrewarmPolicy({
+  category,
+  env: process.env,
+});
 
 if (!e2eConfig.categories.includes(category)) {
   process.exit(1);
@@ -119,6 +126,10 @@ if (matchingSpecs.length === 0) {
 
 const runsByTarget = groupSpecsByTarget(matchingSpecs, e2eSrc);
 const resolvedPlaywrightArgs = resolvePlaywrightArgsForCategory(category, playwrightArgs);
+ensureCodeRuntimeServicePrewarm({
+  repoRoot,
+  policy: runtimePrewarmPolicy,
+});
 for (const [target, specs] of runsByTarget) {
   await ensureCodeE2EPrerequisites();
 
@@ -190,6 +201,35 @@ for (const [target, specs] of runsByTarget) {
 }
 
 process.exit(0);
+
+function ensureCodeRuntimeServicePrewarm(input) {
+  if (!input.policy?.enabled) {
+    return;
+  }
+  process.stderr.write(`[e2e] Prewarming code runtime service: ${input.policy.reason}.\n`);
+  const prewarmResult = spawnSync(
+    process.execPath,
+    [
+      path.join(input.repoRoot, "scripts", "run-cargo-with-target-guard.mjs"),
+      "--cwd",
+      "packages/code-runtime-service-rs",
+      "build",
+      "--manifest-path",
+      "Cargo.toml",
+    ],
+    {
+      cwd: input.repoRoot,
+      env: process.env,
+      stdio: "inherit",
+    }
+  );
+  if (prewarmResult.error) {
+    throw prewarmResult.error;
+  }
+  if ((prewarmResult.status ?? 1) !== 0) {
+    process.exit(prewarmResult.status ?? 1);
+  }
+}
 
 async function ensureCodeE2EPrerequisites() {
   const fingerprint = await loadLocalRuntimeContractFingerprint();
