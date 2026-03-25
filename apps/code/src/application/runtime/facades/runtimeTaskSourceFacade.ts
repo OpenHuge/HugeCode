@@ -23,32 +23,80 @@ function stripDotGitSegment(value: string): string {
   return value.endsWith(".git") ? value.slice(0, -4) : value;
 }
 
-function parseRepoFromUrl(value: string | null): HugeCodeTaskSourceSummary["repo"] {
-  if (!value) {
+function normalizeRepoPathSegments(pathname: string): { owner: string; name: string } | null {
+  const segments = pathname
+    .split("/")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (segments.length < 2) {
+    return null;
+  }
+  const owner = stripDotGitSegment(segments[0] ?? "");
+  const name = stripDotGitSegment(segments[1] ?? "");
+  if (!owner || !name) {
+    return null;
+  }
+  return {
+    owner,
+    name,
+  };
+}
+
+function parseScpLikeGitRemote(
+  value: string
+): { host: string; owner: string; name: string } | null {
+  const match = /^(?:[^@]+@)?([^:]+):([^/]+)\/(.+?)(?:\.git)?$/u.exec(value);
+  if (!match) {
+    return null;
+  }
+  const host = readOptionalText(match[1]);
+  const owner = readOptionalText(match[2]);
+  const name = readOptionalText(match[3]);
+  if (!host || !owner || !name) {
+    return null;
+  }
+  return {
+    host,
+    owner,
+    name,
+  };
+}
+
+function parseRepoFromUrl(
+  value: string | null,
+  options?: {
+    preserveRemoteUrl?: boolean;
+  }
+): HugeCodeTaskSourceSummary["repo"] {
+  const normalizedValue = readOptionalText(value);
+  if (!normalizedValue) {
     return null;
   }
   try {
-    const url = new URL(value);
-    const segments = url.pathname
-      .split("/")
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-    if (segments.length < 2) {
-      return null;
-    }
-    const owner = stripDotGitSegment(segments[0] ?? "");
-    const name = stripDotGitSegment(segments[1] ?? "");
-    if (!owner || !name) {
+    const url = new URL(normalizedValue);
+    const repoSegments = normalizeRepoPathSegments(url.pathname);
+    if (!repoSegments) {
       return null;
     }
     return {
-      owner,
-      name,
-      fullName: `${owner}/${name}`,
-      remoteUrl: value,
+      owner: repoSegments.owner,
+      name: repoSegments.name,
+      fullName: `${repoSegments.owner}/${repoSegments.name}`,
+      remoteUrl: options?.preserveRemoteUrl
+        ? normalizedValue
+        : `${url.protocol}//${url.host}/${repoSegments.owner}/${repoSegments.name}`,
     };
   } catch {
-    return null;
+    const scpRemote = parseScpLikeGitRemote(normalizedValue);
+    if (!scpRemote) {
+      return null;
+    }
+    return {
+      owner: scpRemote.owner,
+      name: scpRemote.name,
+      fullName: `${scpRemote.owner}/${scpRemote.name}`,
+      remoteUrl: normalizedValue,
+    };
   }
 }
 
@@ -56,8 +104,12 @@ export function resolveRepoContext(input: {
   sourceUrl?: string | null;
   gitRemoteUrl?: string | null;
 }): HugeCodeTaskSourceSummary["repo"] {
-  const issueOrPrRepo = parseRepoFromUrl(input.sourceUrl ?? null);
-  const gitRemoteRepo = parseRepoFromUrl(input.gitRemoteUrl ?? null);
+  const issueOrPrRepo = parseRepoFromUrl(input.sourceUrl ?? null, {
+    preserveRemoteUrl: false,
+  });
+  const gitRemoteRepo = parseRepoFromUrl(input.gitRemoteUrl ?? null, {
+    preserveRemoteUrl: true,
+  });
   if (!issueOrPrRepo && !gitRemoteRepo) {
     return null;
   }
