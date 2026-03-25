@@ -54,6 +54,14 @@ function formatCompactLabel(value: string | null | undefined): string {
   return normalized.length > 0 ? normalized[0]!.toUpperCase() + normalized.slice(1) : "Unknown";
 }
 
+function readOptionalText(value: string | null | undefined): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function mapSubAgentToneToBadgeTone(
   tone: ReturnType<typeof getSubAgentTone> | null | undefined
 ): StatusBadgeTone {
@@ -185,12 +193,40 @@ export function WorkspaceHomeAgentRuntimeRunItem({
     (agent) =>
       agent.checkpointState?.resumeReady === true || agent.takeoverBundle?.pathKind === "resume"
   ).length;
+  const runtimeAutonomyProfile = readOptionalText(runtimeRunTruth.record?.autonomyProfile ?? null);
+  const runtimeWakePolicy = runtimeRunTruth.record?.wakePolicy ?? null;
+  const runtimeIntentSnapshot = runtimeRunTruth.record?.intentSnapshot ?? null;
+  const runtimeOpportunityQueue = runtimeRunTruth.record?.opportunityQueue ?? null;
+  const runtimeResearchTrace = runtimeRunTruth.record?.researchTrace ?? null;
+  const runtimeExecutionEligibility = runtimeRunTruth.record?.executionEligibility ?? null;
+  const runtimeSelectedOpportunityId = readOptionalText(
+    runtimeRunTruth.record?.selectedOpportunityId ?? null
+  );
+  const runtimeWakeReason = readOptionalText(runtimeRunTruth.record?.wakeReason ?? null);
+  const runtimeGuidanceAvailable =
+    runtimeAutonomyProfile !== null ||
+    runtimeWakePolicy !== null ||
+    runtimeIntentSnapshot !== null ||
+    runtimeOpportunityQueue !== null ||
+    runtimeResearchTrace !== null ||
+    runtimeExecutionEligibility !== null ||
+    runtimeSelectedOpportunityId !== null ||
+    runtimeWakeReason !== null;
+  const runtimeWakePolicySummary =
+    runtimeWakePolicy === null
+      ? null
+      : `Wake policy: ${formatCompactLabel(runtimeWakePolicy.mode)}${runtimeWakePolicy.safeFollowUp ? " with safe follow-up" : ""}`;
+  const runtimeResearchSummary =
+    runtimeResearchTrace === null
+      ? null
+      : `Research: ${runtimeResearchTrace.summary}${runtimeResearchTrace.stage ? ` (${formatCompactLabel(runtimeResearchTrace.stage)})` : ""}`;
   const observabilityAvailable =
     subAgents.length > 0 ||
     graphNodes.length > 0 ||
     Boolean(operatorSnapshot?.currentActivity) ||
     Boolean(operatorSnapshot?.blocker) ||
-    recentEvents.length > 0;
+    recentEvents.length > 0 ||
+    runtimeGuidanceAvailable;
   const richObservabilityAvailable =
     subAgents.length > 0 ||
     Boolean(operatorSnapshot?.currentActivity) ||
@@ -271,6 +307,14 @@ export function WorkspaceHomeAgentRuntimeRunItem({
           ) : null}
           {reviewSummary ? <span>Review: {reviewSummary}</span> : null}
           {publishHandoffSummary ? <span>Publish handoff: {publishHandoffSummary}</span> : null}
+          {runtimeExecutionEligibility?.summary ? (
+            <span>Execution eligibility: {runtimeExecutionEligibility.summary}</span>
+          ) : null}
+          {runtimeWakePolicySummary ? <span>{runtimeWakePolicySummary}</span> : null}
+          {runtimeOpportunityQueue?.selectionSummary ? (
+            <span>Opportunity queue: {runtimeOpportunityQueue.selectionSummary}</span>
+          ) : null}
+          {runtimeResearchSummary ? <span>{runtimeResearchSummary}</span> : null}
           {executionGraph && !richObservabilityAvailable ? (
             <span>
               Graph: {executionGraph.nodes.length} node(s), {executionGraph.edges.length} edge(s)
@@ -450,6 +494,48 @@ export function WorkspaceHomeAgentRuntimeRunItem({
           data-testid="workspace-runtime-subagent-observability"
           data-review-loop-panel="runtime-observability"
         >
+          <ReviewLoopSection
+            className={styles.observabilityCard}
+            framed={false}
+            title="Runtime wake and planning"
+            meta={
+              runtimeAutonomyProfile ? (
+                <StatusBadge tone="progress">
+                  {formatCompactLabel(runtimeAutonomyProfile)}
+                </StatusBadge>
+              ) : undefined
+            }
+          >
+            {runtimeGuidanceAvailable ? (
+              <ul className={styles.detailList}>
+                {runtimeIntentSnapshot?.summary ? (
+                  <li>Intent: {runtimeIntentSnapshot.summary}</li>
+                ) : null}
+                {runtimeExecutionEligibility?.summary ? (
+                  <li>Execution eligibility: {runtimeExecutionEligibility.summary}</li>
+                ) : null}
+                {runtimeExecutionEligibility?.nextEligibleAction ? (
+                  <li>
+                    Next eligible action:{" "}
+                    {formatCompactLabel(runtimeExecutionEligibility.nextEligibleAction)}
+                  </li>
+                ) : null}
+                {runtimeWakePolicySummary ? <li>{runtimeWakePolicySummary}</li> : null}
+                {runtimeOpportunityQueue?.selectionSummary ? (
+                  <li>Opportunity queue: {runtimeOpportunityQueue.selectionSummary}</li>
+                ) : null}
+                {runtimeSelectedOpportunityId ? (
+                  <li>Selected opportunity: {runtimeSelectedOpportunityId}</li>
+                ) : null}
+                {runtimeResearchSummary ? <li>{runtimeResearchSummary}</li> : null}
+                {runtimeWakeReason ? <li>Wake reason: {runtimeWakeReason}</li> : null}
+              </ul>
+            ) : (
+              <div className={controlStyles.sectionMeta}>
+                Runtime has not published wake or planning truth for this run yet.
+              </div>
+            )}
+          </ReviewLoopSection>
           <ReviewLoopSection
             className={styles.observabilityCard}
             framed={false}
