@@ -38,6 +38,14 @@ export function resolveCliCommand(commandName, platform = process.platform) {
   return commandName;
 }
 
+export function resolveCliInvocation(commandName, platform = process.platform) {
+  const command = resolveCliCommand(commandName, platform);
+  return {
+    command,
+    shell: platform === "win32" && command.toLowerCase().endsWith(".cmd"),
+  };
+}
+
 export function createStagedPackageJson(packageJson) {
   return {
     name: "hugecode",

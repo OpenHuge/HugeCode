@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createStagedPackageJson, parseForgeCommand, resolveCliCommand } from "./run-forge.mjs";
+import {
+  createStagedPackageJson,
+  parseForgeCommand,
+  resolveCliCommand,
+  resolveCliInvocation,
+} from "./run-forge.mjs";
 
 describe("run-forge helpers", () => {
   it("parses supported forge commands", () => {
@@ -19,6 +24,21 @@ describe("run-forge helpers", () => {
     expect(resolveCliCommand("C:/tooling/electron-forge.cmd", "win32")).toBe(
       "C:/tooling/electron-forge.cmd"
     );
+  });
+
+  it("runs Windows cmd shims through the shell", () => {
+    expect(resolveCliInvocation("npm", "win32")).toEqual({
+      command: "npm.cmd",
+      shell: true,
+    });
+    expect(resolveCliInvocation("C:/tooling/electron-forge.cmd", "win32")).toEqual({
+      command: "C:/tooling/electron-forge.cmd",
+      shell: true,
+    });
+    expect(resolveCliInvocation("node", "linux")).toEqual({
+      command: "node",
+      shell: false,
+    });
   });
 
   it("filters workspace dependencies from the staged package manifest", () => {
