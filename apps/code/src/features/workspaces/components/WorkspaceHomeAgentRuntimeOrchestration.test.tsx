@@ -385,6 +385,14 @@ function createRuntimeLaunchPreparationFixture() {
           summary: "Immediate launch context",
           entries: [
             {
+              id: "repo-instruction-surfaces",
+              label: "Repo instruction surfaces",
+              kind: "repo_rule" as const,
+              detail:
+                "Runtime detected AGENTS.md, CLAUDE.md, .github/copilot-instructions.md as hot repo guidance surfaces.",
+              source: "repo_guidance",
+            },
+            {
               id: "workspace",
               label: "HugeCode workspace",
               kind: "workspace" as const,
@@ -707,6 +715,9 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
         screen.getByText(/Validation: Run the standard validation lane before review\./)
       ).toBeTruthy();
       expect(screen.getByText(/Review focus: runtime truth \| approval batching/)).toBeTruthy();
+      expect(
+        screen.getByText("Repo guidance: AGENTS.md, CLAUDE.md, .github/copilot-instructions.md")
+      ).toBeTruthy();
     });
   });
 

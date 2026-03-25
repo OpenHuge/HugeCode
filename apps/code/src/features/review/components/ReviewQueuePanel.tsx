@@ -288,6 +288,9 @@ export function ReviewQueuePanel({
                             .join(" | ")}
                         </span>
                       ) : null}
+                      {entry.provenanceSummary ? (
+                        <span className={styles.footerCopy}>{entry.provenanceSummary}</span>
+                      ) : null}
                       <ReviewActionRail className={styles.actionRow}>
                         {(() => {
                           const operatorActionTarget =

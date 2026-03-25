@@ -493,6 +493,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimeLaunchPreparationGuidanceStack: runtimeLaunchPreview.guidanceStack,
     runtimeLaunchPreparationTriageSummary: runtimeLaunchPreview.triageSummary,
     runtimeLaunchPreparationDelegationContract: runtimeLaunchPreview.delegationContract,
+    runtimeLaunchPreparationRepoGuidanceSummary: runtimeLaunchPreview.repoGuidanceSummary,
     runtimeLaunchPreparationError: runtimeLaunchPreview.error,
     runtimeLaunchPreparationLoading: runtimeLaunchPreview.loading,
     runtimeLaunchPlanApprovalRequired,

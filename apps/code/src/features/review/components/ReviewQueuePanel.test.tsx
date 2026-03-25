@@ -55,6 +55,8 @@ describe("ReviewQueuePanel", () => {
             publishHandoffLabel: "Publish handoff ready",
             relaunchLabel: "Relaunch available",
             contextSummary: "GitHub issue · triage",
+            provenanceSummary:
+              "Repo guidance: AGENTS.md, .github/copilot-instructions.md | Source evidence: GitHub issue #42",
             triageSummary: "Owner Issue Desk · Priority high · Risk high",
             delegationSummary: "Open Review Pack",
           },
@@ -74,6 +76,11 @@ describe("ReviewQueuePanel", () => {
     expect(
       screen.getByText(
         "GitHub issue · triage | Owner Issue Desk · Priority high · Risk high | Open Review Pack"
+      )
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Repo guidance: AGENTS.md, .github/copilot-instructions.md | Source evidence: GitHub issue #42"
       )
     ).toBeTruthy();
 
