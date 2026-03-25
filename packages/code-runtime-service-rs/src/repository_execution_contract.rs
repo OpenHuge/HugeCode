@@ -23,6 +23,14 @@ pub(crate) struct RepositoryExecutionResolvedDefaults {
     pub(crate) access_mode: Option<String>,
     pub(crate) preferred_backend_ids: Vec<String>,
     pub(crate) default_backend_id: Option<String>,
+    pub(crate) repo_instructions: Vec<String>,
+    pub(crate) repo_skill_ids: Vec<String>,
+    pub(crate) source_instructions: Vec<String>,
+    pub(crate) source_skill_ids: Vec<String>,
+    pub(crate) triage_owner: Option<String>,
+    pub(crate) triage_priority: Option<String>,
+    pub(crate) triage_risk_level: Option<String>,
+    pub(crate) triage_tags: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -54,6 +62,32 @@ struct RepositoryExecutionPolicy {
     review_profile_id: Option<String>,
     #[serde(default)]
     validation_preset_id: Option<String>,
+    #[serde(default)]
+    guidance: RepositoryExecutionGuidance,
+    #[serde(default)]
+    triage: RepositoryExecutionTriagePolicy,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RepositoryExecutionGuidance {
+    #[serde(default)]
+    instructions: Vec<String>,
+    #[serde(default)]
+    skill_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RepositoryExecutionTriagePolicy {
+    #[serde(default)]
+    owner: Option<String>,
+    #[serde(default)]
+    priority: Option<String>,
+    #[serde(default)]
+    risk_level: Option<String>,
+    #[serde(default)]
+    tags: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -119,6 +153,36 @@ fn normalize_policy(policy: RepositoryExecutionPolicy) -> RepositoryExecutionPol
         access_mode: normalize_optional_text(policy.access_mode),
         review_profile_id: normalize_optional_text(policy.review_profile_id),
         validation_preset_id: normalize_optional_text(policy.validation_preset_id),
+        guidance: RepositoryExecutionGuidance {
+            instructions: normalize_text_list(Some(policy.guidance.instructions)),
+            skill_ids: normalize_text_list(Some(policy.guidance.skill_ids)),
+        },
+        triage: RepositoryExecutionTriagePolicy {
+            owner: normalize_optional_text(policy.triage.owner),
+            priority: normalize_optional_text(policy.triage.priority),
+            risk_level: normalize_optional_text(policy.triage.risk_level),
+            tags: normalize_text_list(Some(policy.triage.tags)),
+        },
+    }
+}
+
+fn normalize_triage_priority(value: Option<String>) -> Result<Option<String>, String> {
+    match normalize_optional_text(value) {
+        None => Ok(None),
+        Some(normalized) if matches!(normalized.as_str(), "low" | "medium" | "high" | "urgent") => {
+            Ok(Some(normalized))
+        }
+        Some(_) => Err("triage priority must be low, medium, high, or urgent".to_string()),
+    }
+}
+
+fn normalize_risk_level(value: Option<String>) -> Result<Option<String>, String> {
+    match normalize_optional_text(value) {
+        None => Ok(None),
+        Some(normalized) if matches!(normalized.as_str(), "low" | "medium" | "high") => {
+            Ok(Some(normalized))
+        }
+        Some(_) => Err("triage riskLevel must be low, medium, or high".to_string()),
     }
 }
 
@@ -185,6 +249,10 @@ fn parse_repository_execution_contract(raw: &str) -> Result<RepositoryExecutionC
                     ));
                 }
             }
+            normalize_triage_priority(policy.triage.priority.clone())
+                .map_err(|error| format!("{context}.{error}"))?;
+            normalize_risk_level(policy.triage.risk_level.clone())
+                .map_err(|error| format!("{context}.{error}"))?;
             Ok(())
         };
 
@@ -363,6 +431,27 @@ fn resolve_repository_execution_defaults_from_contract(
         access_mode,
         preferred_backend_ids,
         default_backend_id: explicit.default_backend_id.clone(),
+        repo_instructions: contract.defaults.guidance.instructions.clone(),
+        repo_skill_ids: contract.defaults.guidance.skill_ids.clone(),
+        source_instructions: source_mapping
+            .map(|policy| policy.guidance.instructions.clone())
+            .unwrap_or_default(),
+        source_skill_ids: source_mapping
+            .map(|policy| policy.guidance.skill_ids.clone())
+            .unwrap_or_default(),
+        triage_owner: source_mapping
+            .and_then(|policy| policy.triage.owner.clone())
+            .or_else(|| contract.defaults.triage.owner.clone()),
+        triage_priority: source_mapping
+            .and_then(|policy| policy.triage.priority.clone())
+            .or_else(|| contract.defaults.triage.priority.clone()),
+        triage_risk_level: source_mapping
+            .and_then(|policy| policy.triage.risk_level.clone())
+            .or_else(|| contract.defaults.triage.risk_level.clone()),
+        triage_tags: source_mapping
+            .map(|policy| policy.triage.tags.clone())
+            .filter(|tags| !tags.is_empty())
+            .unwrap_or_else(|| contract.defaults.triage.tags.clone()),
     }
 }
 
@@ -419,14 +508,34 @@ mod tests {
                 "defaults": {
                     "executionProfileId": "balanced-delegate",
                     "reviewProfileId": "default-review",
-                    "validationPresetId": "standard"
+                    "validationPresetId": "standard",
+                    "guidance": {
+                        "instructions": ["Use repo-owned context truth."],
+                        "skillIds": ["repo-baseline"]
+                    },
+                    "triage": {
+                        "owner": "Platform Runtime",
+                        "priority": "medium",
+                        "riskLevel": "medium",
+                        "tags": ["runtime"]
+                    }
                 },
                 "defaultReviewProfileId": "default-review",
                 "sourceMappings": {
                     "github_issue": {
                         "executionProfileId": "autonomous-delegate",
                         "reviewProfileId": "issue-review",
-                        "preferredBackendIds": ["backend-issue"]
+                        "preferredBackendIds": ["backend-issue"],
+                        "guidance": {
+                            "instructions": ["Treat GitHub issues as triage-first intake."],
+                            "skillIds": ["issue-triage"]
+                        },
+                        "triage": {
+                            "owner": "Issue Desk",
+                            "priority": "high",
+                            "riskLevel": "high",
+                            "tags": ["customer-facing"]
+                        }
                     },
                     "schedule": {
                         "executionProfileId": "balanced-delegate",
@@ -511,6 +620,18 @@ mod tests {
             resolved.preferred_backend_ids,
             vec!["backend-issue".to_string()]
         );
+        assert_eq!(
+            resolved.repo_instructions,
+            vec!["Use repo-owned context truth.".to_string()]
+        );
+        assert_eq!(
+            resolved.source_instructions,
+            vec!["Treat GitHub issues as triage-first intake.".to_string()]
+        );
+        assert_eq!(resolved.triage_owner.as_deref(), Some("Issue Desk"));
+        assert_eq!(resolved.triage_priority.as_deref(), Some("high"));
+        assert_eq!(resolved.triage_risk_level.as_deref(), Some("high"));
+        assert_eq!(resolved.triage_tags, vec!["customer-facing".to_string()]);
         assert_eq!(
             contract.review_profiles[1].allowed_skill_ids,
             vec!["review-agent".to_string(), "repo-policy-check".to_string()]

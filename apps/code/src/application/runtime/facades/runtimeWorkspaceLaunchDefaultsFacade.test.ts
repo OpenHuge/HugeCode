@@ -26,12 +26,32 @@ function createContract() {
       defaults: {
         executionProfileId: "balanced-delegate",
         validationPresetId: "standard",
+        guidance: {
+          instructions: ["Use repo defaults before local overrides."],
+          skillIds: ["repo-baseline"],
+        },
+        triage: {
+          owner: "Runtime Platform",
+          priority: "medium",
+          riskLevel: "medium",
+          tags: ["runtime"],
+        },
       },
       sourceMappings: {
         manual: {
           executionProfileId: "operator-review",
           validationPresetId: "review-first",
           preferredBackendIds: ["backend-policy-a"],
+          guidance: {
+            instructions: ["Manual launches should stay review-first."],
+            skillIds: ["manual-review"],
+          },
+          triage: {
+            owner: "Operator Desk",
+            priority: "high",
+            riskLevel: "low",
+            tags: ["manual"],
+          },
         },
       },
       validationPresets: [
@@ -59,6 +79,12 @@ describe("runtimeWorkspaceLaunchDefaultsFacade", () => {
       executionProfileId: "operator-review",
       validationPresetId: "review-first",
       preferredBackendIds: ["backend-policy-a"],
+      repoInstructions: ["Use repo defaults before local overrides."],
+      sourceInstructions: ["Manual launches should stay review-first."],
+      owner: "Operator Desk",
+      triagePriority: "high",
+      triageRiskLevel: "low",
+      triageTags: ["manual"],
     });
   });
 
@@ -83,6 +109,8 @@ describe("runtimeWorkspaceLaunchDefaultsFacade", () => {
       executionProfileId: "operator-review",
       validationPresetId: "review-first",
       preferredBackendIds: ["backend-policy-a"],
+      sourceSkillIds: ["manual-review"],
+      owner: "Operator Desk",
     });
   });
 

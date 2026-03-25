@@ -384,6 +384,74 @@ function createRuntimeLaunchPreparationFixture() {
         },
       ],
     },
+    contextTruth: {
+      summary: "Runtime normalized manual context into the canonical governed run path.",
+      canonicalTaskSource: {
+        kind: "manual",
+        family: "manual",
+        label: "Inspect runtime launch path",
+        summary: "Inspect runtime launch path",
+        source: "manual",
+        reference: null,
+        canonicalUrl: null,
+        primary: true,
+      },
+      sources: [
+        {
+          kind: "manual",
+          family: "manual",
+          label: "Inspect runtime launch path",
+          summary: "Inspect runtime launch path",
+          source: "manual",
+          reference: null,
+          canonicalUrl: null,
+          primary: true,
+        },
+      ],
+      executionProfileId: "balanced-delegate",
+      reviewProfileId: null,
+      validationPresetId: "standard",
+      reviewIntent: "execute",
+      ownerSummary: "Human owner stays accountable; the runtime agent executes the delegated work.",
+      sourceMetadata: [],
+      consumers: ["run", "review_pack", "takeover", "follow_up"],
+    },
+    guidanceStack: {
+      summary: "Guidance resolves through launch -> repo.",
+      precedence: ["launch", "repo"],
+      layers: [
+        {
+          id: "repo-instructions",
+          scope: "repo",
+          summary:
+            "Repo instructions remain the baseline contract for launch, review, and follow-up.",
+          source: "AGENTS.md",
+          priority: 10,
+          instructions: ["Prefer runtime-owned truth over page-local heuristics."],
+          skillIds: [],
+        },
+      ],
+    },
+    triageSummary: {
+      owner: "Operator",
+      priority: "medium",
+      riskLevel: "medium",
+      tags: ["manual"],
+      dedupeKey: "manual::inspect runtime launch path",
+      summary: "Owner Operator · Priority medium · Risk medium · Tags manual",
+    },
+    delegationContract: {
+      summary:
+        "Delegate the work, then review a compact evidence artifact instead of supervising the full transcript.",
+      state: "launch_ready",
+      humanOwner: "Operator",
+      agentExecutor: "Runtime agent",
+      accountability:
+        "Human owner stays accountable; the runtime agent executes the delegated work.",
+      nextOperatorAction:
+        "Launch the run and review the resulting Review Pack before accepting outcomes.",
+      continueVia: null,
+    },
     executionGraph: {
       graphId: "graph-1",
       summary: "Read, validate, then review.",

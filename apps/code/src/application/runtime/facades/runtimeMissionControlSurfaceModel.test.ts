@@ -143,6 +143,7 @@ describe("runtimeMissionControlSurfaceModel", () => {
     expect(reviewEntries[0]?.recommendedNextAction).toBe("Open Review Pack");
     expect(reviewEntries[0]?.continuePathLabel).toBe("Review Pack");
     expect(reviewEntries[0]?.contextSummary).toBe("GitHub issue · triage");
+    expect(reviewEntries[0]?.triageSummary).toContain("Owner unassigned");
     expect(reviewEntries[0]?.delegationSummary).toBe("Open Review Pack");
     expect(signals.reviewReadyCount).toBe(1);
   });

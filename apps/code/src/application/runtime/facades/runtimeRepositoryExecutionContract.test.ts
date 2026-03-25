@@ -19,6 +19,16 @@ function createContract() {
         executionProfileId: "balanced-delegate",
         reviewProfileId: "default-review",
         validationPresetId: "standard",
+        guidance: {
+          instructions: ["Always start from repo-owned context truth."],
+          skillIds: ["repo-baseline"],
+        },
+        triage: {
+          owner: "Platform Runtime",
+          priority: "medium",
+          riskLevel: "medium",
+          tags: ["runtime", "baseline"],
+        },
       },
       defaultReviewProfileId: "default-review",
       sourceMappings: {
@@ -27,6 +37,16 @@ function createContract() {
           reviewProfileId: "issue-review",
           validationPresetId: "review-first",
           preferredBackendIds: ["backend-issue"],
+          guidance: {
+            instructions: ["Treat GitHub issues as triage-first intake."],
+            skillIds: ["issue-triage"],
+          },
+          triage: {
+            owner: "Issue Desk",
+            priority: "high",
+            riskLevel: "high",
+            tags: ["customer-facing"],
+          },
         },
         schedule: {
           executionProfileId: "autonomous-delegate",
@@ -101,11 +121,31 @@ describe("runtimeRepositoryExecutionContract", () => {
       executionProfileId: "balanced-delegate",
       reviewProfileId: "default-review",
       validationPresetId: "standard",
+      guidance: {
+        instructions: ["Always start from repo-owned context truth."],
+        skillIds: ["repo-baseline"],
+      },
+      triage: {
+        owner: "Platform Runtime",
+        priority: "medium",
+        riskLevel: "medium",
+        tags: ["runtime", "baseline"],
+      },
     });
     expect(contract.sourceMappings.github_issue).toMatchObject({
       executionProfileId: "autonomous-delegate",
       reviewProfileId: "issue-review",
       preferredBackendIds: ["backend-issue"],
+      guidance: {
+        instructions: ["Treat GitHub issues as triage-first intake."],
+        skillIds: ["issue-triage"],
+      },
+      triage: {
+        owner: "Issue Desk",
+        priority: "high",
+        riskLevel: "high",
+        tags: ["customer-facing"],
+      },
     });
     expect(contract.sourceMappings.schedule).toMatchObject({
       executionProfileId: "autonomous-delegate",
@@ -200,6 +240,34 @@ describe("runtimeRepositoryExecutionContract", () => {
     ).toThrow(/must reference a declared review profile/u);
   });
 
+  it("rejects malformed guidance and triage payloads", () => {
+    expect(() =>
+      parseRepositoryExecutionContract(
+        JSON.stringify({
+          version: 1,
+          defaults: {
+            guidance: "repo-rules",
+          },
+          validationPresets: [{ id: "standard", commands: ["pnpm validate"] }],
+        })
+      )
+    ).toThrow(/defaults\.guidance must be an object/u);
+
+    expect(() =>
+      parseRepositoryExecutionContract(
+        JSON.stringify({
+          version: 1,
+          defaults: {
+            triage: {
+              priority: "p0",
+            },
+          },
+          validationPresets: [{ id: "standard", commands: ["pnpm validate"] }],
+        })
+      )
+    ).toThrow(/defaults\.triage\.priority must be low, medium, high, or urgent/u);
+  });
+
   it("degrades to no contract when runtime file reads are unavailable", async () => {
     const runtimeClientSpy = vi.spyOn(runtimeClientPort, "getRuntimeClient").mockReturnValue({
       workspaceFileRead: vi
@@ -229,6 +297,14 @@ describe("runtimeRepositoryExecutionContract", () => {
       reviewProfileId: "issue-review",
       validationPresetId: "standard",
       preferredBackendIds: ["backend-explicit"],
+      repoInstructions: ["Always start from repo-owned context truth."],
+      repoSkillIds: ["repo-baseline"],
+      sourceInstructions: ["Treat GitHub issues as triage-first intake."],
+      sourceSkillIds: ["issue-triage"],
+      owner: "Issue Desk",
+      triagePriority: "high",
+      triageRiskLevel: "high",
+      triageTags: ["customer-facing"],
     });
   });
 

@@ -230,9 +230,7 @@ fn infer_review_intent(
 
 fn build_context_truth(
     task_source: Option<&AgentTaskSourceSummary>,
-    execution_profile_id: Option<&str>,
-    review_profile_id: Option<&str>,
-    validation_preset_id: Option<&str>,
+    repository_defaults: &RepositoryExecutionResolvedDefaults,
 ) -> Value {
     let canonical_task_source = task_source.map(|source| {
         let label = trim_optional_string(source.label.clone())
@@ -261,7 +259,7 @@ fn build_context_truth(
             "primary": true,
         })
     });
-    let source_metadata = task_source
+    let mut source_metadata = task_source
         .map(|source| {
             [
                 source
@@ -270,12 +268,20 @@ fn build_context_truth(
                     .and_then(|repo| trim_optional_string(repo.full_name.clone())),
                 trim_optional_string(source.reference.clone()),
                 trim_optional_string(source.canonical_url.clone()),
+                repository_defaults.triage_owner.clone(),
+                repository_defaults.triage_priority.clone(),
+                repository_defaults.triage_risk_level.clone(),
             ]
             .into_iter()
             .flatten()
             .collect::<Vec<_>>()
         })
         .unwrap_or_default();
+    source_metadata.extend(repository_defaults.triage_tags.clone());
+    let owner = repository_defaults
+        .triage_owner
+        .clone()
+        .unwrap_or_else(|| "Human owner".to_string());
     json!({
         "summary": canonical_task_source
             .as_ref()
@@ -291,11 +297,11 @@ fn build_context_truth(
             .clone()
             .map(|source| vec![source])
             .unwrap_or_default(),
-        "executionProfileId": execution_profile_id,
-        "reviewProfileId": review_profile_id,
-        "validationPresetId": validation_preset_id,
-        "reviewIntent": infer_review_intent(task_source, review_profile_id),
-        "ownerSummary": "Human owner stays accountable; the runtime agent executes the delegated work.",
+        "executionProfileId": repository_defaults.execution_profile_id.clone(),
+        "reviewProfileId": repository_defaults.review_profile_id.clone(),
+        "validationPresetId": repository_defaults.validation_preset_id.clone(),
+        "reviewIntent": infer_review_intent(task_source, repository_defaults.review_profile_id.as_deref()),
+        "ownerSummary": format!("{owner} stays accountable; the runtime agent executes the delegated work."),
         "sourceMetadata": source_metadata,
         "consumers": ["run", "review_pack", "takeover", "follow_up"],
     })
@@ -309,30 +315,38 @@ fn build_guidance_stack(
 ) -> Value {
     let mut layers = Vec::new();
     if workspace_context.has_agents_md {
+        let repo_instructions = if repository_defaults.repo_instructions.is_empty() {
+            vec![
+                "Prefer runtime-owned truth over page-local heuristics.".to_string(),
+                "Keep launch, review, and continuation semantics aligned.".to_string(),
+            ]
+        } else {
+            repository_defaults.repo_instructions.clone()
+        };
         layers.push(json!({
             "id": "repo-instructions",
             "scope": "repo",
             "summary": "Repo instructions remain the baseline contract for launch, review, and follow-up.",
             "source": "AGENTS.md",
             "priority": 10,
-            "instructions": [
-                "Prefer runtime-owned truth over page-local heuristics.",
-                "Keep launch, review, and continuation semantics aligned."
-            ],
-            "skillIds": []
+            "instructions": repo_instructions,
+            "skillIds": repository_defaults.repo_skill_ids.clone()
         }));
     }
     if let Some(source_mapping_kind) = repository_defaults.source_mapping_kind.as_ref() {
+        let source_instructions = if repository_defaults.source_instructions.is_empty() {
+            vec!["Normalize source-linked work into canonical task/run/review semantics.".to_string()]
+        } else {
+            repository_defaults.source_instructions.clone()
+        };
         layers.push(json!({
             "id": "source-guidance",
             "scope": "source",
             "summary": format!("Source kind {source_mapping_kind} enters the same governed run path as manual work."),
             "source": source_mapping_kind,
             "priority": 40,
-            "instructions": [
-                "Normalize source-linked work into canonical task/run/review semantics."
-            ],
-            "skillIds": []
+            "instructions": source_instructions,
+            "skillIds": repository_defaults.source_skill_ids.clone()
         }));
     } else if let Some(task_source) = task_source {
         layers.push(json!({
@@ -388,7 +402,61 @@ fn build_guidance_stack(
     })
 }
 
+fn build_triage_summary(
+    task_source: Option<&AgentTaskSourceSummary>,
+    repository_defaults: &RepositoryExecutionResolvedDefaults,
+) -> Value {
+    let dedupe_key = task_source.and_then(|source| {
+        let parts = [
+            Some(source.kind.clone()),
+            trim_optional_string(source.canonical_url.clone()),
+            trim_optional_string(source.url.clone()),
+            trim_optional_string(source.reference.clone()),
+            trim_optional_string(source.external_id.clone()),
+            trim_optional_string(source.title.clone()),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+        if parts.is_empty() {
+            None
+        } else {
+            Some(parts.join("::").to_ascii_lowercase())
+        }
+    });
+    let summary_parts = [
+        repository_defaults
+            .triage_owner
+            .clone()
+            .map(|owner| format!("Owner {owner}"))
+            .or_else(|| Some("Owner unassigned".to_string())),
+        repository_defaults
+            .triage_priority
+            .clone()
+            .map(|priority| format!("Priority {priority}")),
+        repository_defaults
+            .triage_risk_level
+            .clone()
+            .map(|risk| format!("Risk {risk}")),
+        (!repository_defaults.triage_tags.is_empty())
+            .then(|| format!("Tags {}", repository_defaults.triage_tags.join(", "))),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+    json!({
+        "owner": repository_defaults.triage_owner.clone(),
+        "priority": repository_defaults.triage_priority.clone(),
+        "riskLevel": repository_defaults.triage_risk_level.clone(),
+        "tags": repository_defaults.triage_tags.clone(),
+        "dedupeKey": dedupe_key,
+        "summary": summary_parts.join(" · "),
+    })
+}
+
 fn build_delegation_contract(
+    triage_summary: &Value,
+    accountability: &str,
     missing_context: &[String],
     approval_batches: &[Value],
 ) -> Value {
@@ -415,9 +483,9 @@ fn build_delegation_contract(
             "Delegation remains governed: the human owner decides, the agent executes, and the next operator action is explicit."
         },
         "state": state,
-        "humanOwner": "Operator",
+        "humanOwner": triage_summary.get("owner").and_then(Value::as_str).unwrap_or("Operator"),
         "agentExecutor": "Runtime agent",
-        "accountability": "Human owner stays accountable; the runtime agent executes the delegated work.",
+        "accountability": accountability,
         "nextOperatorAction": next_operator_action,
         "continueVia": Value::Null,
     })
@@ -1008,6 +1076,13 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
         .as_deref()
         .or(repository_defaults.validation_preset_id.as_deref());
 
+    let context_truth = build_context_truth(task_source.as_ref(), &repository_defaults);
+    let triage_summary = build_triage_summary(task_source.as_ref(), &repository_defaults);
+    let accountability = context_truth
+        .get("ownerSummary")
+        .and_then(Value::as_str)
+        .unwrap_or("Human owner stays accountable; the runtime agent executes the delegated work.");
+
     Ok(json!({
         "preparedAt": now_ms(),
         "runIntent": {
@@ -1042,19 +1117,17 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
             explicit_preferred_backend_ids.as_slice(),
             synthesized_steps.as_slice(),
         ),
-        "contextTruth": build_context_truth(
-            task_source.as_ref(),
-            resolved_execution_profile_id,
-            resolved_review_profile_id,
-            resolved_validation_preset_id,
-        ),
+        "contextTruth": context_truth,
         "guidanceStack": build_guidance_stack(
             &workspace_context,
             task_source.as_ref(),
             &repository_defaults,
             missing_context.as_slice(),
         ),
+        "triageSummary": triage_summary,
         "delegationContract": build_delegation_contract(
+            &triage_summary,
+            accountability,
             missing_context.as_slice(),
             approval_batches.as_slice(),
         ),

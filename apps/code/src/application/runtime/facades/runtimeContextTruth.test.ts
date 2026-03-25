@@ -3,6 +3,7 @@ import {
   buildRuntimeContextTruth,
   buildRuntimeDelegationContract,
   buildRuntimeGuidanceStack,
+  buildRuntimeTriageSummary,
   classifyRuntimeContextSourceFamily,
   inferRuntimeReviewIntent,
 } from "./runtimeContextTruth";
@@ -22,6 +23,15 @@ describe("runtimeContextTruth", () => {
           executionProfileId: "autonomous-delegate",
           reviewProfileId: null,
           validationPresetId: "review-first",
+          owner: null,
+          triagePriority: null,
+          triageRiskLevel: null,
+          triageTags: [],
+          repoInstructions: [],
+          repoSkillIds: [],
+          sourceInstructions: [],
+          sourceSkillIds: [],
+          reviewProfile: null,
         },
       })
     ).toBe("review");
@@ -33,6 +43,15 @@ describe("runtimeContextTruth", () => {
           executionProfileId: "balanced-delegate",
           reviewProfileId: null,
           validationPresetId: "standard",
+          owner: null,
+          triagePriority: null,
+          triageRiskLevel: null,
+          triageTags: [],
+          repoInstructions: [],
+          repoSkillIds: [],
+          sourceInstructions: [],
+          sourceSkillIds: [],
+          reviewProfile: null,
         },
       })
     ).toBe("triage");
@@ -52,6 +71,23 @@ describe("runtimeContextTruth", () => {
         executionProfileId: "balanced-delegate",
         reviewProfileId: "issue-review",
         validationPresetId: "review-first",
+        owner: "Issue Desk",
+        triagePriority: "high",
+        triageRiskLevel: "high",
+        triageTags: ["customer-facing"],
+        repoInstructions: ["Prefer repo-owned context truth."],
+        repoSkillIds: ["repo-baseline"],
+        sourceInstructions: ["Treat discussions as governed triage intake."],
+        sourceSkillIds: ["discussion-triage"],
+        reviewProfile: {
+          id: "issue-review",
+          label: "Issue Review",
+          description: null,
+          allowedSkillIds: ["review-agent"],
+          validationPresetId: "review-first",
+          autofixPolicy: "manual",
+          githubMirrorPolicy: "summary",
+        },
       },
       contractLabel: "Workspace defaults",
       hasRepoInstructions: true,
@@ -68,6 +104,23 @@ describe("runtimeContextTruth", () => {
         executionProfileId: "balanced-delegate",
         reviewProfileId: "issue-review",
         validationPresetId: "review-first",
+        owner: "Issue Desk",
+        triagePriority: "high",
+        triageRiskLevel: "high",
+        triageTags: ["customer-facing"],
+        repoInstructions: ["Prefer repo-owned context truth."],
+        repoSkillIds: ["repo-baseline"],
+        sourceInstructions: ["Treat discussions as governed triage intake."],
+        sourceSkillIds: ["discussion-triage"],
+        reviewProfile: {
+          id: "issue-review",
+          label: "Issue Review",
+          description: null,
+          allowedSkillIds: ["review-agent"],
+          validationPresetId: "review-first",
+          autofixPolicy: "manual",
+          githubMirrorPolicy: "summary",
+        },
       },
       contractLabel: "Workspace defaults",
       hasRepoInstructions: true,
@@ -82,13 +135,20 @@ describe("runtimeContextTruth", () => {
     });
     expect(contextTruth.summary).toContain("canonical governed run path");
     expect(contextTruth.canonicalTaskSource?.family).toBe("discussion");
+    expect(contextTruth.ownerSummary).toContain("Issue Desk");
     expect(guidanceStack.precedence[0]).toBe("launch");
     expect(guidanceStack.layers.map((layer) => layer.scope)).toEqual(
       expect.arrayContaining(["repo", "review_profile", "source", "launch"])
     );
+    expect(guidanceStack.layers.find((layer) => layer.scope === "repo")?.instructions).toEqual([
+      "Prefer repo-owned context truth.",
+    ]);
+    expect(guidanceStack.layers.find((layer) => layer.scope === "source")?.skillIds).toEqual([
+      "discussion-triage",
+    ]);
   });
 
-  it("builds a governed delegation contract with a single next operator action", () => {
+  it("builds triage and delegation summaries with a single next operator action", () => {
     const contextTruth = buildRuntimeContextTruth({
       taskSource: {
         kind: "github_issue",
@@ -100,20 +160,56 @@ describe("runtimeContextTruth", () => {
         executionProfileId: "autonomous-delegate",
         reviewProfileId: null,
         validationPresetId: "standard",
+        owner: "Core Runtime",
+        triagePriority: "urgent",
+        triageRiskLevel: "high",
+        triageTags: ["hotfix", "customer"],
+        repoInstructions: [],
+        repoSkillIds: [],
+        sourceInstructions: [],
+        sourceSkillIds: [],
+        reviewProfile: null,
+      },
+    });
+    const triageSummary = buildRuntimeTriageSummary({
+      taskSource: {
+        kind: "github_issue",
+        label: "GitHub issue #42",
+        title: "Fix follow-up semantics",
+        reference: "#42",
+        canonicalUrl: "https://github.com/acme/hugecode/issues/42",
+      },
+      repositoryDefaults: {
+        executionProfileId: "autonomous-delegate",
+        reviewProfileId: null,
+        validationPresetId: "standard",
+        owner: "Core Runtime",
+        triagePriority: "urgent",
+        triageRiskLevel: "high",
+        triageTags: ["hotfix", "customer"],
+        repoInstructions: [],
+        repoSkillIds: [],
+        sourceInstructions: [],
+        sourceSkillIds: [],
+        reviewProfile: null,
       },
     });
 
     const contract = buildRuntimeDelegationContract({
       contextTruth,
+      triageSummary,
       missingContext: ["objective"],
       approvalBatchCount: 2,
       continuePathLabel: "Review Pack",
     });
 
+    expect(triageSummary.summary).toContain("Owner Core Runtime");
+    expect(triageSummary.priority).toBe("urgent");
+    expect(triageSummary.dedupeKey).toContain("github_issue");
     expect(contract.state).toBe("needs_clarification");
-    expect(contract.humanOwner).toBe("Operator");
+    expect(contract.humanOwner).toBe("Core Runtime");
     expect(contract.agentExecutor).toBe("Runtime agent");
-    expect(contract.accountability).toContain("Human owner stays accountable");
+    expect(contract.accountability).toContain("Core Runtime stays accountable");
     expect(contract.nextOperatorAction).toContain("objective");
   });
 });

@@ -7,6 +7,8 @@ import type {
   RuntimeGuidanceLayerV2,
   RuntimeGuidanceStackV2,
   RuntimeReviewIntentV2,
+  RuntimeRunPrepareV2Response,
+  RuntimeTriageSummaryV2,
 } from "@ku0/code-runtime-host-contract";
 import type { ResolvedRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionContract";
 
@@ -14,7 +16,18 @@ type BuildRuntimeContextTruthInput = {
   taskSource: AgentTaskSourceSummary | null | undefined;
   repositoryDefaults: Pick<
     ResolvedRepositoryExecutionDefaults,
-    "executionProfileId" | "reviewProfileId" | "validationPresetId"
+    | "executionProfileId"
+    | "reviewProfileId"
+    | "validationPresetId"
+    | "owner"
+    | "triagePriority"
+    | "triageRiskLevel"
+    | "triageTags"
+    | "repoInstructions"
+    | "repoSkillIds"
+    | "sourceInstructions"
+    | "sourceSkillIds"
+    | "reviewProfile"
   >;
   contractLabel?: string | null;
   hasRepoInstructions?: boolean;
@@ -23,6 +36,7 @@ type BuildRuntimeContextTruthInput = {
 
 type BuildRuntimeDelegationContractInput = {
   contextTruth: RuntimeContextTruthV2;
+  triageSummary?: RuntimeTriageSummaryV2 | null;
   missingContext?: string[] | null;
   approvalBatchCount?: number;
   continuationSummary?: string | null;
@@ -51,6 +65,22 @@ function readNonEmptyList(value: Array<string | null | undefined>): string[] {
     items.push(normalized);
   }
   return items;
+}
+
+function buildDedupeKey(taskSource: AgentTaskSourceSummary | null | undefined): string | null {
+  if (!taskSource) {
+    return null;
+  }
+  return readNonEmptyList([
+    taskSource.kind,
+    taskSource.canonicalUrl ?? null,
+    taskSource.url ?? null,
+    taskSource.reference ?? null,
+    taskSource.externalId ?? null,
+    taskSource.title ?? null,
+  ])
+    .join("::")
+    .toLowerCase();
 }
 
 export function classifyRuntimeContextSourceFamily(
@@ -145,11 +175,13 @@ export function buildRuntimeGuidanceStack(
       summary: "Repo instructions remain the baseline contract for launch, review, and follow-up.",
       source: "AGENTS.md",
       priority: 10,
-      instructions: [
-        "Prefer runtime-owned truth over page-local heuristics.",
-        "Keep launch, review, and continuation semantics aligned.",
-      ],
-      skillIds: [],
+      instructions: input.repositoryDefaults.repoInstructions.length
+        ? input.repositoryDefaults.repoInstructions
+        : [
+            "Prefer runtime-owned truth over page-local heuristics.",
+            "Keep launch, review, and continuation semantics aligned.",
+          ],
+      skillIds: input.repositoryDefaults.repoSkillIds,
     });
   }
   if (readOptionalText(input.contractLabel)) {
@@ -165,15 +197,30 @@ export function buildRuntimeGuidanceStack(
       skillIds: [],
     });
   }
-  if (input.taskSource) {
+  if (input.taskSource || input.repositoryDefaults.sourceInstructions.length > 0) {
     layers.push({
       id: "source-guidance",
       scope: "source",
-      summary: `Source kind ${input.taskSource.kind} enters the same governed run path as manual work.`,
-      source: input.taskSource.kind,
+      summary: input.taskSource
+        ? `Source kind ${input.taskSource.kind} enters the same governed run path as manual work.`
+        : "Source-linked launch guidance refines repo defaults for this intake path.",
+      source: input.taskSource?.kind ?? "source_mapping",
       priority: 40,
-      instructions: ["Normalize source-linked work into canonical task/run/review semantics."],
-      skillIds: [],
+      instructions: input.repositoryDefaults.sourceInstructions.length
+        ? input.repositoryDefaults.sourceInstructions
+        : ["Normalize source-linked work into canonical task/run/review semantics."],
+      skillIds: input.repositoryDefaults.sourceSkillIds,
+    });
+  }
+  if (input.repositoryDefaults.reviewProfile) {
+    layers.push({
+      id: "review-profile-skills",
+      scope: "review_profile",
+      summary: `Review profile ${input.repositoryDefaults.reviewProfile.label} contributes reusable review skills.`,
+      source: input.repositoryDefaults.reviewProfile.id,
+      priority: 60,
+      instructions: [],
+      skillIds: input.repositoryDefaults.reviewProfile.allowedSkillIds,
     });
   }
   if (readOptionalText(input.explicitInstruction)) {
@@ -204,6 +251,32 @@ export function buildRuntimeGuidanceStack(
   };
 }
 
+export function buildRuntimeTriageSummary(
+  input: BuildRuntimeContextTruthInput
+): RuntimeRunPrepareV2Response["triageSummary"] {
+  const owner = readOptionalText(input.repositoryDefaults.owner);
+  const priority = input.repositoryDefaults.triagePriority ?? null;
+  const riskLevel = input.repositoryDefaults.triageRiskLevel ?? null;
+  const tags = readNonEmptyList(input.repositoryDefaults.triageTags);
+  const dedupeKey = buildDedupeKey(input.taskSource);
+  const summary = [
+    owner ? `Owner ${owner}` : "Owner unassigned",
+    priority ? `Priority ${priority}` : null,
+    riskLevel ? `Risk ${riskLevel}` : null,
+    tags.length > 0 ? `Tags ${tags.join(", ")}` : null,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" · ");
+  return {
+    owner,
+    priority,
+    riskLevel,
+    tags,
+    dedupeKey,
+    summary,
+  };
+}
+
 export function buildRuntimeContextTruth(
   input: BuildRuntimeContextTruthInput
 ): RuntimeContextTruthV2 {
@@ -213,7 +286,12 @@ export function buildRuntimeContextTruth(
     input.taskSource?.repo?.fullName ?? null,
     input.taskSource?.reference ?? null,
     input.taskSource?.canonicalUrl ?? null,
+    input.repositoryDefaults.owner ?? null,
+    input.repositoryDefaults.triagePriority ?? null,
+    input.repositoryDefaults.triageRiskLevel ?? null,
+    ...input.repositoryDefaults.triageTags,
   ]);
+  const ownerSummary = readOptionalText(input.repositoryDefaults.owner) ?? "Human owner";
   return {
     summary:
       source === null
@@ -225,7 +303,7 @@ export function buildRuntimeContextTruth(
     reviewProfileId: readOptionalText(input.repositoryDefaults.reviewProfileId),
     validationPresetId: readOptionalText(input.repositoryDefaults.validationPresetId),
     reviewIntent,
-    ownerSummary: "Human owner stays accountable; the runtime agent executes the delegated work.",
+    ownerSummary: `${ownerSummary} stays accountable; the runtime agent executes the delegated work.`,
     sourceMetadata,
     consumers: ["run", "review_pack", "takeover", "follow_up"],
   };
@@ -262,7 +340,7 @@ export function buildRuntimeDelegationContract(
         ? "Delegate the work, then review a compact evidence artifact instead of supervising the full transcript."
         : "Delegation remains governed: the human owner decides, the agent executes, and the next operator action is explicit.",
     state,
-    humanOwner: "Operator",
+    humanOwner: readOptionalText(input.triageSummary?.owner) ?? "Operator",
     agentExecutor: "Runtime agent",
     accountability: input.contextTruth.ownerSummary,
     nextOperatorAction,

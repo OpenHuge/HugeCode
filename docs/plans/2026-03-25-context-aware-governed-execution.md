@@ -17,7 +17,9 @@ semantics:
 2. `guidance stack`
    One precedence-ordered summary of repo, source, review-profile, and
    launch-time guidance.
-3. `delegation contract`
+3. `triage summary`
+   One source-aware summary of owner, priority, risk, tags, and dedupe hints.
+4. `delegation contract`
    One operator-facing summary of who stays accountable, who executes, and what
    the next action is.
 
@@ -33,6 +35,7 @@ Implemented in this slice:
 - runtime kernel v2 prepare response now publishes:
   - `contextTruth`
   - `guidanceStack`
+  - `triageSummary`
   - `delegationContract`
 - app runtime facades now rebuild the same semantics for review and follow-up
   surfaces so launch and review stay aligned
@@ -82,6 +85,7 @@ Out of scope for this slice:
 ## Follow-Up
 
 - persist `contextTruth` / `guidanceStack` / `delegationContract` deeper into
+- persist `triageSummary` deeper into
   runtime run and review records so review/takeover surfaces can consume the
   runtime-published object directly instead of rebuilding from current truth
 - add non-GitHub source launch UI once the intake policy and ownership model are

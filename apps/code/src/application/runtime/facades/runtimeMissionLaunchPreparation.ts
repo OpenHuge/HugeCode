@@ -18,6 +18,7 @@ import {
   buildRuntimeContextTruth,
   buildRuntimeDelegationContract,
   buildRuntimeGuidanceStack,
+  buildRuntimeTriageSummary,
 } from "./runtimeContextTruth";
 
 export type RuntimeMissionLaunchRequestInput = {
@@ -35,6 +36,7 @@ export type RuntimeMissionLaunchPreviewState = {
   preparation: RuntimeRunPrepareV2Response | null;
   contextTruth: RuntimeRunPrepareV2Response["contextTruth"] | null;
   guidanceStack: RuntimeRunPrepareV2Response["guidanceStack"] | null;
+  triageSummary: RuntimeRunPrepareV2Response["triageSummary"] | null;
   delegationContract: RuntimeRunPrepareV2Response["delegationContract"] | null;
   truthSourceLabel: string | null;
   loading: boolean;
@@ -240,6 +242,22 @@ export function useRuntimeMissionLaunchPreview(
     });
   }, [input.draftInstruction, input.repositoryLaunchDefaults, preparation, request]);
 
+  const triageSummary = useMemo(() => {
+    if (preparation?.triageSummary) {
+      return preparation.triageSummary;
+    }
+    if (!request) {
+      return null;
+    }
+    return buildRuntimeTriageSummary({
+      taskSource: request.taskSource ?? null,
+      repositoryDefaults: input.repositoryLaunchDefaults,
+      contractLabel: input.repositoryLaunchDefaults.contract?.metadata?.label ?? null,
+      hasRepoInstructions: true,
+      explicitInstruction: input.draftInstruction,
+    });
+  }, [input.draftInstruction, input.repositoryLaunchDefaults, preparation, request]);
+
   const delegationContract = useMemo(() => {
     if (preparation?.delegationContract) {
       return preparation.delegationContract;
@@ -249,17 +267,19 @@ export function useRuntimeMissionLaunchPreview(
     }
     return buildRuntimeDelegationContract({
       contextTruth,
+      triageSummary,
       missingContext:
         preparation?.runIntent.missingContext ?? request?.missionBrief?.constraints ?? [],
       approvalBatchCount: preparation?.approvalBatches.length ?? 0,
     });
-  }, [contextTruth, preparation, request]);
+  }, [contextTruth, preparation, request, triageSummary]);
 
   return {
     request,
     preparation,
     contextTruth,
     guidanceStack,
+    triageSummary,
     delegationContract,
     truthSourceLabel: preparation ? "Runtime kernel v2 prepare" : null,
     loading,

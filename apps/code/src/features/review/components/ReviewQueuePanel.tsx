@@ -281,9 +281,9 @@ export function ReviewQueuePanel({
                             .join(" ")}
                         </span>
                       ) : null}
-                      {entry.contextSummary || entry.delegationSummary ? (
+                      {entry.contextSummary || entry.triageSummary || entry.delegationSummary ? (
                         <span className={styles.footerCopy}>
-                          {[entry.contextSummary, entry.delegationSummary]
+                          {[entry.contextSummary, entry.triageSummary, entry.delegationSummary]
                             .filter((value): value is string => Boolean(value))
                             .join(" | ")}
                         </span>

@@ -1,4 +1,8 @@
-import type { AccessMode, AgentTaskSourceSummary } from "@ku0/code-runtime-host-contract";
+import type {
+  AccessMode,
+  AgentTaskSourceSummary,
+  RuntimeRunRiskLevelV2,
+} from "@ku0/code-runtime-host-contract";
 import { RuntimeUnavailableError } from "../ports/runtimeClient";
 import { readWorkspaceFile } from "../ports/tauriWorkspaceFiles";
 import { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
@@ -32,6 +36,22 @@ type RepositoryExecutionContractPolicy = {
   accessMode?: AccessMode | null;
   reviewProfileId?: string | null;
   validationPresetId?: string | null;
+  guidance?: RepositoryExecutionContractGuidance;
+  triage?: RepositoryExecutionContractTriagePolicy;
+};
+
+export type RepositoryExecutionContractGuidance = {
+  instructions: string[];
+  skillIds: string[];
+};
+
+export type RepositoryExecutionContractTriagePriority = "low" | "medium" | "high" | "urgent";
+
+export type RepositoryExecutionContractTriagePolicy = {
+  owner: string | null;
+  priority: RepositoryExecutionContractTriagePriority | null;
+  riskLevel: RuntimeRunRiskLevelV2 | null;
+  tags: string[];
 };
 
 export type RepositoryExecutionValidationPreset = {
@@ -92,6 +112,14 @@ export type ResolvedRepositoryExecutionDefaults = {
   validationPresetId: string | null;
   validationPresetLabel: string | null;
   validationCommands: string[];
+  repoInstructions: string[];
+  repoSkillIds: string[];
+  sourceInstructions: string[];
+  sourceSkillIds: string[];
+  owner: string | null;
+  triagePriority: RepositoryExecutionContractTriagePriority | null;
+  triageRiskLevel: RuntimeRunRiskLevelV2 | null;
+  triageTags: string[];
 };
 
 function readOptionalText(value: unknown): string | null {
@@ -117,6 +145,91 @@ function normalizeBackendIds(value: unknown): string[] | undefined {
     ids.push(normalized);
   }
   return ids.length > 0 ? ids : undefined;
+}
+
+function normalizeStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const items: string[] = [];
+  for (const entry of value) {
+    const normalized = readOptionalText(entry);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    items.push(normalized);
+  }
+  return items;
+}
+
+function readGuidance(value: unknown, context: string): RepositoryExecutionContractGuidance {
+  if (value === null || value === undefined) {
+    return {
+      instructions: [],
+      skillIds: [],
+    };
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${context} must be an object.`);
+  }
+  const record = value as Record<string, unknown>;
+  return {
+    instructions: normalizeStringList(record.instructions),
+    skillIds: normalizeStringList(record.skillIds),
+  };
+}
+
+function readTriagePriority(
+  value: unknown,
+  context: string
+): RepositoryExecutionContractTriagePriority | null {
+  const normalized = readOptionalText(value);
+  if (normalized === null) {
+    return null;
+  }
+  if (
+    normalized === "low" ||
+    normalized === "medium" ||
+    normalized === "high" ||
+    normalized === "urgent"
+  ) {
+    return normalized;
+  }
+  throw new Error(`${context} must be low, medium, high, or urgent.`);
+}
+
+function readRiskLevel(value: unknown, context: string): RuntimeRunRiskLevelV2 | null {
+  const normalized = readOptionalText(value);
+  if (normalized === null) {
+    return null;
+  }
+  if (normalized === "low" || normalized === "medium" || normalized === "high") {
+    return normalized;
+  }
+  throw new Error(`${context} must be low, medium, or high.`);
+}
+
+function readTriage(value: unknown, context: string): RepositoryExecutionContractTriagePolicy {
+  if (value === null || value === undefined) {
+    return {
+      owner: null,
+      priority: null,
+      riskLevel: null,
+      tags: [],
+    };
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${context} must be an object.`);
+  }
+  const record = value as Record<string, unknown>;
+  return {
+    owner: readOptionalText(record.owner),
+    priority: readTriagePriority(record.priority, `${context}.priority`),
+    riskLevel: readRiskLevel(record.riskLevel, `${context}.riskLevel`),
+    tags: normalizeStringList(record.tags),
+  };
 }
 
 function readPolicy(
@@ -162,6 +275,8 @@ function readPolicy(
     ...(accessMode ? { accessMode } : {}),
     ...(reviewProfileId ? { reviewProfileId } : {}),
     ...(validationPresetId ? { validationPresetId } : {}),
+    guidance: readGuidance(record.guidance, `${context}.guidance`),
+    triage: readTriage(record.triage, `${context}.triage`),
   };
 }
 
@@ -496,6 +611,14 @@ export function resolveRepositoryExecutionDefaults(input: {
     validationPresetId,
     validationPresetLabel: validationPreset?.label ?? validationPresetId,
     validationCommands: validationPreset?.commands ?? [],
+    repoInstructions: defaults.guidance?.instructions ?? [],
+    repoSkillIds: defaults.guidance?.skillIds ?? [],
+    sourceInstructions: sourceMapping?.guidance?.instructions ?? [],
+    sourceSkillIds: sourceMapping?.guidance?.skillIds ?? [],
+    owner: sourceMapping?.triage?.owner ?? defaults.triage?.owner ?? null,
+    triagePriority: sourceMapping?.triage?.priority ?? defaults.triage?.priority ?? null,
+    triageRiskLevel: sourceMapping?.triage?.riskLevel ?? defaults.triage?.riskLevel ?? null,
+    triageTags: sourceMapping?.triage?.tags ?? defaults.triage?.tags ?? [],
   };
 }
 
