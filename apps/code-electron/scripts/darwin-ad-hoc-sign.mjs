@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { access } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 
 export function hasForgeOsxSignConfig(packagerConfig = {}) {
   const osxSignConfig = packagerConfig.osxSign;
@@ -22,15 +22,15 @@ export function resolveDarwinAppBundlePath(packageOutputPath, appName = "HugeCod
 export async function resolveDarwinCodesignTargetPaths(appPath, dependencies = {}) {
   const accessImpl = dependencies.accessImpl ?? access;
   const normalizedAppPath = appPath.replaceAll("\\", "/");
-  const frameworkBundlePath = `${normalizedAppPath}/Contents/Frameworks/Electron Framework.framework`;
+  const frameworkExecutablePath = `${normalizedAppPath}/Contents/Frameworks/Electron Framework.framework/Electron Framework`;
 
   try {
-    await accessImpl(frameworkBundlePath);
+    await accessImpl(frameworkExecutablePath);
   } catch {
     return [normalizedAppPath];
   }
 
-  return [frameworkBundlePath, normalizedAppPath];
+  return [frameworkExecutablePath, normalizedAppPath];
 }
 
 async function runCodesign(arguments_, dependencies = {}) {

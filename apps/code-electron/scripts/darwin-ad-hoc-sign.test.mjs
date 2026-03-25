@@ -47,9 +47,9 @@ describe("darwin ad-hoc signing helpers", () => {
     expect(resolveDarwinAppBundlePath("/tmp/HugeCode.app", "HugeCode")).toBe("/tmp/HugeCode.app");
   });
 
-  it("prefers signing the framework bundle before the app bundle when present", async () => {
+  it("prefers signing the framework executable before the app bundle when present", async () => {
     const accessImpl = vi.fn(async (path) => {
-      if (path.endsWith("Electron Framework.framework")) {
+      if (path.endsWith("Electron Framework.framework/Electron Framework")) {
         return;
       }
       throw new Error("unexpected path");
@@ -60,7 +60,7 @@ describe("darwin ad-hoc signing helpers", () => {
         accessImpl,
       })
     ).resolves.toEqual([
-      "/tmp/HugeCode.app/Contents/Frameworks/Electron Framework.framework",
+      "/tmp/HugeCode.app/Contents/Frameworks/Electron Framework.framework/Electron Framework",
       "/tmp/HugeCode.app",
     ]);
   });
@@ -77,7 +77,7 @@ describe("darwin ad-hoc signing helpers", () => {
     ).resolves.toEqual(["/tmp/HugeCode.app"]);
   });
 
-  it("uses explicit ad-hoc codesign for framework and bundle targets", async () => {
+  it("uses explicit ad-hoc codesign for framework executable and bundle targets", async () => {
     const spawnImpl = vi.fn((_command, _args) => {
       const listeners = new Map();
 
@@ -106,7 +106,7 @@ describe("darwin ad-hoc signing helpers", () => {
       "Re-signing packaged macOS arm64 app bundle: /tmp/HugeCode.app"
     );
     expect(logger.info).toHaveBeenCalledWith(
-      "Re-signing targets: /tmp/HugeCode.app/Contents/Frameworks/Electron Framework.framework, /tmp/HugeCode.app"
+      "Re-signing targets: /tmp/HugeCode.app/Contents/Frameworks/Electron Framework.framework/Electron Framework, /tmp/HugeCode.app"
     );
     expect(spawnImpl.mock.calls).toEqual([
       [
@@ -116,7 +116,7 @@ describe("darwin ad-hoc signing helpers", () => {
           "--sign",
           "-",
           "--timestamp=none",
-          "/tmp/HugeCode.app/Contents/Frameworks/Electron Framework.framework",
+          "/tmp/HugeCode.app/Contents/Frameworks/Electron Framework.framework/Electron Framework",
         ],
         {
           shell: false,
