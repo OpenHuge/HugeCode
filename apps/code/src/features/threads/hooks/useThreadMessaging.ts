@@ -315,6 +315,7 @@ export function useThreadMessaging({
         resolvedPreferredBackendIds,
         resolvedCodexBin,
         resolvedCodexArgs,
+        appMentions,
       } = resolveSendMessageSettings(options, {
         provider,
         model,
@@ -562,6 +563,7 @@ export function useThreadMessaging({
             activeTurnId,
             text: finalText,
             images,
+            appMentions,
             contextPrefix,
             provider: resolvedProvider,
             model: resolvedModel,

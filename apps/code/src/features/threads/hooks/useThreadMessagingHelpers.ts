@@ -252,6 +252,7 @@ export function resolveSendMessageSettings(
     resolvedPreferredBackendIds,
     resolvedCodexBin,
     resolvedCodexArgs,
+    appMentions: options?.appMentions ?? [],
   };
 }
 
