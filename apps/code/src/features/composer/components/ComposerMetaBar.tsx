@@ -348,7 +348,6 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
   const shouldShowRemoteBackendControl =
     remoteBackendSelectOptions.length > 0 ||
     (typeof selectedRemoteBackendId === "string" && selectedRemoteBackendId.trim().length > 0);
-  const shouldShowProviderRoute = Boolean(providerRoute);
   const selectedRemoteBackendLabel = useMemo(() => {
     const normalizedSelectedBackendId = selectedRemoteBackendId?.trim() || null;
     if (!normalizedSelectedBackendId) {
@@ -415,7 +414,7 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
               disabled={autoDriveControlsDisabled}
             />
           ) : null}
-          {shouldShowProviderRoute ? (
+          {providerRoute ? (
             <div
               className={joinClassNames(
                 summaryStyles.context,
