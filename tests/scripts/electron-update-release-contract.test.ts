@@ -175,6 +175,17 @@ describe("verifyElectronForgeUpdateContract", () => {
       })
     ).not.toThrow();
   });
+
+  it("keeps the actual electron forge deb maker bin under options.bin", async () => {
+    const forgeConfigSource = await readFile(
+      fileURLToPath(new URL("../../apps/code-electron/forge.config.mjs", import.meta.url)),
+      "utf8"
+    );
+
+    expect(forgeConfigSource).toContain("new MakerDeb({");
+    expect(forgeConfigSource).toContain("options: {");
+    expect(forgeConfigSource).toContain('bin: "HugeCode"');
+  });
 });
 
 describe("normalizeAsarPackageEntryPath", () => {

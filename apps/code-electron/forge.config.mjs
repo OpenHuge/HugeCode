@@ -96,8 +96,8 @@ export default {
       },
     },
     new MakerDeb({
-      bin: "HugeCode",
       options: {
+        bin: "HugeCode",
         categories: ["Development"],
         maintainer: "OpenHuge",
         mimeType: ["x-scheme-handler/hugecode"],
