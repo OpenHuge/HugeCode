@@ -71,8 +71,19 @@ async function findFirstRelativeFile(rootDir, matcher) {
   return relativeFiles.find((file) => matcher(file)) ?? null;
 }
 
+function isLocalDebMakerName(makerName) {
+  return (
+    makerName === "deb" ||
+    (typeof makerName === "string" && /(?:^|[\\/])scripts[\\/]maker-deb\.cjs$/u.test(makerName))
+  );
+}
+
+export function normalizeElectronPackagedEntryPath(relativePath) {
+  return relativePath.replaceAll("\\", "/");
+}
+
 export function isElectronPackagedAppAsarPath(relativePath) {
-  return /(?:^|\/)resources\/app\.asar$/iu.test(relativePath);
+  return /(?:^|\/)resources\/app\.asar$/iu.test(normalizeElectronPackagedEntryPath(relativePath));
 }
 
 export async function loadElectronReleaseContract(repoRoot) {
@@ -120,7 +131,9 @@ export async function verifyElectronPackagedUpdaterRuntime(repoRoot) {
   }
 
   const appAsarPath = resolve(outDir, appAsarRelativePath);
-  const packageEntries = await listAsarPackageEntries(appAsarPath);
+  const packageEntries = (await listAsarPackageEntries(appAsarPath)).map(
+    normalizeElectronPackagedEntryPath
+  );
   const hasUpdateElectronApp = packageEntries.includes(
     "/node_modules/update-electron-app/package.json"
   );
@@ -193,14 +206,23 @@ export function verifyElectronForgeUpdateContract(context) {
     throw new Error("Missing GitHub publisher in Electron Forge config.");
   }
 
-  for (const makerName of [
-    "@electron-forge/maker-zip",
-    "@electron-forge/maker-dmg",
-    "@electron-forge/maker-squirrel",
-    "@electron-forge/maker-deb",
-  ]) {
-    if (!makerNames.has(makerName)) {
-      throw new Error(`Missing required Electron Forge maker: ${makerName}`);
+  const requiredMakerGroups = [
+    ["@electron-forge/maker-zip"],
+    ["@electron-forge/maker-dmg"],
+    ["@electron-forge/maker-squirrel"],
+    ["@electron-forge/maker-deb", "local-maker-deb"],
+  ];
+
+  for (const acceptedMakerNames of requiredMakerGroups) {
+    const hasAcceptedMaker = acceptedMakerNames.some((makerName) =>
+      makerName === "local-maker-deb"
+        ? [...makerNames].some((configuredMakerName) => isLocalDebMakerName(configuredMakerName))
+        : makerNames.has(makerName)
+    );
+    if (!hasAcceptedMaker) {
+      throw new Error(
+        `Missing required Electron Forge maker. Expected one of: ${acceptedMakerNames.join(", ")}`
+      );
     }
   }
 

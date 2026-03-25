@@ -1,16 +1,8 @@
 import type { HugeCodeTaskMode } from "@ku0/code-runtime-host-contract";
 import type { Dispatch, MutableRefObject } from "react";
 import { useCallback } from "react";
-import {
-  REVIEW_START_DESKTOP_ONLY_MESSAGE,
-  compactThread as compactThreadService,
-  interruptTurn as interruptTurnService,
-  listMcpServerStatus as listMcpServerStatusService,
-  sendUserMessage as sendUserMessageService,
-  startReview as startReviewService,
-  steerTurn as steerTurnService,
-} from "../../../application/runtime/ports/tauriThreads";
-import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
+import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
+import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/ports/runtimeSessionCommands";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type {
   AccessMode,
@@ -116,29 +108,31 @@ type UseThreadMessagingOptions = {
   getThreadCodexParams?: ReturnType<typeof useThreadCodexParams>["getThreadCodexParams"];
 };
 
-async function invokeSteerTurnRequest(params: {
-  workspaceId: string;
-  threadId: string;
-  activeTurnId: string;
-  text: string;
-  images: string[];
-  appMentions: AppMention[];
-  contextPrefix: string | null;
-  provider: string | null | undefined;
-  model: string | null | undefined;
-  effort: string | null | undefined;
-  fastMode: boolean;
-  collaborationMode: Record<string, unknown> | null;
-  accessMode: AccessMode | undefined;
-  executionMode: ComposerExecutionMode;
-  missionMode: HugeCodeTaskMode | null;
-  executionProfileId: string | null;
-  preferredBackendIds: string[] | null;
-  codexBin: string | null;
-  codexArgs: string[] | null;
-  autoDrive?: ReturnType<typeof mapDraftToRuntimeAutoDriveState> | null;
-  autonomyRequest?: import("@ku0/code-runtime-host-contract").RuntimeAutonomyRequestV2 | null;
-}): Promise<Record<string, unknown>> {
+async function invokeSteerTurnRequest(
+  runtimeSessionCommands: RuntimeSessionCommandFacade,
+  params: {
+    threadId: string;
+    activeTurnId: string;
+    text: string;
+    images: string[];
+    appMentions: AppMention[];
+    contextPrefix: string | null;
+    provider: string | null | undefined;
+    model: string | null | undefined;
+    effort: string | null | undefined;
+    fastMode: boolean;
+    collaborationMode: Record<string, unknown> | null;
+    accessMode: AccessMode | undefined;
+    executionMode: ComposerExecutionMode;
+    missionMode: HugeCodeTaskMode | null;
+    executionProfileId: string | null;
+    preferredBackendIds: string[] | null;
+    codexBin: string | null;
+    codexArgs: string[] | null;
+    autoDrive?: ReturnType<typeof mapDraftToRuntimeAutoDriveState> | null;
+    autonomyRequest?: import("@ku0/code-runtime-host-contract").RuntimeAutonomyRequestV2 | null;
+  }
+): Promise<Record<string, unknown>> {
   const serviceTier = params.fastMode ? "fast" : null;
   const steerOptions = {
     provider: params.provider,
@@ -157,43 +151,33 @@ async function invokeSteerTurnRequest(params: {
     ...(params.autonomyRequest ? { autonomyRequest: params.autonomyRequest } : {}),
   };
   if (params.contextPrefix) {
-    return (await steerTurnService(
-      params.workspaceId,
-      params.threadId,
-      params.activeTurnId,
-      params.text,
-      params.images,
-      params.appMentions.length > 0 ? params.appMentions : undefined,
-      params.contextPrefix,
-      steerOptions
-    )) as Record<string, unknown>;
+    return (await runtimeSessionCommands.steerTurn({
+      threadId: params.threadId,
+      turnId: params.activeTurnId,
+      text: params.text,
+      images: params.images,
+      appMentions: params.appMentions.length > 0 ? params.appMentions : undefined,
+      contextPrefix: params.contextPrefix,
+      options: steerOptions,
+    })) as Record<string, unknown>;
   }
   if (params.appMentions.length > 0) {
-    return (await steerTurnService(
-      params.workspaceId,
-      params.threadId,
-      params.activeTurnId,
-      params.text,
-      params.images,
-      params.appMentions,
-      undefined,
-      steerOptions
-    )) as Record<string, unknown>;
+    return (await runtimeSessionCommands.steerTurn({
+      threadId: params.threadId,
+      turnId: params.activeTurnId,
+      text: params.text,
+      images: params.images,
+      appMentions: params.appMentions,
+      options: steerOptions,
+    })) as Record<string, unknown>;
   }
-  return (await steerTurnService(
-    params.workspaceId,
-    params.threadId,
-    params.activeTurnId,
-    params.text,
-    params.images,
-    undefined,
-    undefined,
-    steerOptions
-  )) as Record<string, unknown>;
-}
-
-function canStartReviewInCurrentHost() {
-  return detectRuntimeMode() === "tauri";
+  return (await runtimeSessionCommands.steerTurn({
+    threadId: params.threadId,
+    turnId: params.activeTurnId,
+    text: params.text,
+    images: params.images,
+    options: steerOptions,
+  })) as Record<string, unknown>;
 }
 
 function resolveInterruptFailureMessage(response: unknown): string {
@@ -265,28 +249,39 @@ export function useThreadMessaging({
   getAtlasLongTermMemoryDigest,
   getThreadCodexParams,
 }: UseThreadMessagingOptions) {
+  const resolveRuntimeSessionCommands = useRuntimeSessionCommandsResolver();
+
   const reportReviewUnavailable = useCallback(() => {
-    const runtimeMode = detectRuntimeMode();
+    const reviewUnavailableMessage = activeWorkspace
+      ? resolveRuntimeSessionCommands(activeWorkspace.id).reviewStartDesktopOnlyMessage
+      : "Review start is only available in the desktop app.";
     onDebug?.({
       id: `${Date.now()}-client-review-start-unavailable`,
       timestamp: Date.now(),
       source: "client",
       label: "review/start unavailable",
       payload: {
-        runtimeMode,
+        reviewAvailable: false,
         activeThreadId,
       },
     });
     if (activeThreadId) {
-      pushThreadErrorMessage(activeThreadId, REVIEW_START_DESKTOP_ONLY_MESSAGE);
+      pushThreadErrorMessage(activeThreadId, reviewUnavailableMessage);
       safeMessageActivity();
       return;
     }
     pushErrorToast({
       title: "Desktop review only",
-      message: REVIEW_START_DESKTOP_ONLY_MESSAGE,
+      message: reviewUnavailableMessage,
     });
-  }, [activeThreadId, onDebug, pushThreadErrorMessage, safeMessageActivity]);
+  }, [
+    activeThreadId,
+    activeWorkspace,
+    onDebug,
+    pushThreadErrorMessage,
+    resolveRuntimeSessionCommands,
+    safeMessageActivity,
+  ]);
 
   const sendMessageToThread = useCallback(
     async (
@@ -296,6 +291,7 @@ export function useThreadMessaging({
       images: string[] = [],
       options?: SendMessageOptions
     ) => {
+      const runtimeSessionCommands = resolveRuntimeSessionCommands(workspace.id);
       const messageText = text.trim();
       if (!messageText && images.length === 0) {
         return;
@@ -494,12 +490,15 @@ export function useThreadMessaging({
           autoDrive,
         });
         const startTurn = () =>
-          sendUserMessageService(workspace.id, threadId, finalText, startPayload);
+          runtimeSessionCommands.sendMessage({
+            threadId,
+            text: finalText,
+            options: startPayload,
+          });
 
         let response: Record<string, unknown>;
         if (requestMode === "steer" && activeTurnId) {
-          response = await invokeSteerTurnRequest({
-            workspaceId: workspace.id,
+          response = await invokeSteerTurnRequest(runtimeSessionCommands, {
             threadId,
             activeTurnId,
             text: finalText,
@@ -607,6 +606,7 @@ export function useThreadMessaging({
       onUserMessageCreated,
       preferredBackendIds,
       pushThreadErrorMessage,
+      resolveRuntimeSessionCommands,
       recordThreadActivity,
       safeMessageActivity,
       setActiveTurnId,
@@ -731,7 +731,10 @@ export function useThreadMessaging({
       },
     });
     try {
-      const response = await interruptTurnService(activeWorkspace.id, activeThreadId, turnId);
+      const response = await resolveRuntimeSessionCommands(activeWorkspace.id).interruptTurn({
+        threadId: activeThreadId,
+        turnId,
+      });
       const interruptAccepted = isInterruptRequestSuccessful(response);
       onDebug?.({
         id: `${Date.now()}-server-turn-interrupt`,
@@ -795,6 +798,7 @@ export function useThreadMessaging({
     onDebug,
     pendingInterruptsRef,
     pushThreadErrorMessage,
+    resolveRuntimeSessionCommands,
     safeMessageActivity,
     setActiveTurnId,
     syncPendingInterruptPersistence,
@@ -802,12 +806,13 @@ export function useThreadMessaging({
 
   const startReviewTarget = useCallback(
     async (target: ReviewTarget, workspaceIdOverride?: string): Promise<boolean> => {
-      if (!canStartReviewInCurrentHost()) {
-        reportReviewUnavailable();
-        return false;
-      }
       const workspaceId = workspaceIdOverride ?? activeWorkspace?.id ?? null;
       if (!workspaceId) {
+        return false;
+      }
+      const runtimeSessionCommands = resolveRuntimeSessionCommands(workspaceId);
+      if (!runtimeSessionCommands.canStartReviewInCurrentHost()) {
+        reportReviewUnavailable();
         return false;
       }
       const threadId = workspaceIdOverride
@@ -835,12 +840,11 @@ export function useThreadMessaging({
         },
       });
       try {
-        const response = await startReviewService(
-          workspaceId,
+        const response = await runtimeSessionCommands.startReview({
           threadId,
           target,
-          reviewDeliveryMode
-        );
+          delivery: reviewDeliveryMode,
+        });
         onDebug?.({
           id: `${Date.now()}-server-review-start`,
           timestamp: Date.now(),
@@ -893,6 +897,7 @@ export function useThreadMessaging({
       onDebug,
       pushThreadErrorMessage,
       reportReviewUnavailable,
+      resolveRuntimeSessionCommands,
       safeMessageActivity,
       setActiveTurnId,
       reviewDeliveryMode,
@@ -934,7 +939,7 @@ export function useThreadMessaging({
       if (!activeWorkspace || !text.trim()) {
         return;
       }
-      if (!canStartReviewInCurrentHost()) {
+      if (!resolveRuntimeSessionCommands(activeWorkspace.id).canStartReviewInCurrentHost()) {
         reportReviewUnavailable();
         return false;
       }
@@ -949,7 +954,13 @@ export function useThreadMessaging({
       const started = await startReviewTarget(target);
       return started === false ? false : undefined;
     },
-    [activeWorkspace, openReviewPrompt, reportReviewUnavailable, startReviewTarget]
+    [
+      activeWorkspace,
+      openReviewPrompt,
+      reportReviewUnavailable,
+      resolveRuntimeSessionCommands,
+      startReviewTarget,
+    ]
   );
 
   const appendImmediateAssistantMessage = useCallback(
@@ -1058,11 +1069,9 @@ export function useThreadMessaging({
       }
 
       try {
-        const response = (await listMcpServerStatusService(
-          activeWorkspace.id,
-          null,
-          null
-        )) as Record<string, unknown> | null;
+        const response = (await resolveRuntimeSessionCommands(
+          activeWorkspace.id
+        ).listMcpServerStatus()) as Record<string, unknown> | null;
         const result = (response?.result ?? response) as Record<string, unknown> | null;
         const data = Array.isArray(result?.data)
           ? (result?.data as Array<Record<string, unknown>>)
@@ -1116,7 +1125,12 @@ export function useThreadMessaging({
         appendImmediateAssistantMessage(activeWorkspace.id, threadId, `MCP tools:\n- ${message}`);
       }
     },
-    [activeWorkspace, appendImmediateAssistantMessage, ensureThreadForActiveWorkspace]
+    [
+      activeWorkspace,
+      appendImmediateAssistantMessage,
+      ensureThreadForActiveWorkspace,
+      resolveRuntimeSessionCommands,
+    ]
   );
 
   const startFork = useCallback(
@@ -1179,7 +1193,7 @@ export function useThreadMessaging({
         return;
       }
       try {
-        await compactThreadService(activeWorkspace.id, threadId);
+        await resolveRuntimeSessionCommands(activeWorkspace.id).compactThread({ threadId });
       } catch (error) {
         pushThreadErrorMessage(
           threadId,
@@ -1194,6 +1208,7 @@ export function useThreadMessaging({
       activeWorkspace,
       ensureThreadForActiveWorkspace,
       pushThreadErrorMessage,
+      resolveRuntimeSessionCommands,
       safeMessageActivity,
     ]
   );

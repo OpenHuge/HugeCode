@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { interruptTurn } from "../../../application/runtime/ports/tauriThreads";
 import type { ConversationItem, RateLimitSnapshot, TurnPlan } from "../../../types";
 import {
   normalizePlanUpdate,
@@ -10,8 +9,13 @@ import {
 } from "../utils/threadNormalize";
 import { useThreadTurnEvents } from "./useThreadTurnEvents";
 
-vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
-  interruptTurn: vi.fn(),
+const interruptTurn = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
+  useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
+    interruptTurn: ({ threadId, turnId }: Record<string, unknown>) =>
+      interruptTurn(workspaceId, threadId, turnId),
+  }),
 }));
 
 vi.mock("../utils/threadNormalize", () => ({
