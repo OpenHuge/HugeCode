@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AppMention, QueuedMessage, WorkspaceInfo } from "../../../types";
+import type { QueuedMessage, WorkspaceInfo } from "../../../types";
 import { parseBuiltInSlashCommand } from "../../../utils/slashCommands";
 
 type UseQueuedSendOptions = {
@@ -15,7 +15,7 @@ type UseQueuedSendOptions = {
     workspaceId: string,
     options?: { activate?: boolean }
   ) => Promise<string | null>;
-  sendUserMessage: (text: string, images?: string[], appMentions?: AppMention[]) => Promise<void>;
+  sendUserMessage: (text: string, images?: string[]) => Promise<void>;
   sendUserMessageToThread: (
     workspace: WorkspaceInfo,
     threadId: string,
@@ -34,12 +34,8 @@ type UseQueuedSendOptions = {
 type UseQueuedSendResult = {
   queuedByThread: Record<string, QueuedMessage[]>;
   activeQueue: QueuedMessage[];
-  handleSend: (
-    text: string,
-    images?: string[],
-    appMentions?: AppMention[]
-  ) => Promise<void | false>;
-  queueMessage: (text: string, images?: string[], appMentions?: AppMention[]) => Promise<void>;
+  handleSend: (text: string, images?: string[]) => Promise<void | false>;
+  queueMessage: (text: string, images?: string[]) => Promise<void>;
   removeQueuedMessage: (threadId: string, messageId: string) => void;
 };
 
@@ -157,11 +153,10 @@ export function useQueuedSend({
   );
 
   const handleSend = useCallback(
-    async (text: string, images: string[] = [], appMentions: AppMention[] = []) => {
+    async (text: string, images: string[] = []) => {
       const trimmed = text.trim();
       const command = parseSlashCommand(trimmed);
       const nextImages = command ? [] : images;
-      const nextMentions = command ? [] : appMentions;
       if (!trimmed && nextImages.length === 0) {
         return;
       }
@@ -177,7 +172,6 @@ export function useQueuedSend({
           text: trimmed,
           createdAt: Date.now(),
           images: nextImages,
-          ...(nextMentions.length > 0 ? { appMentions: nextMentions } : {}),
         };
         enqueueMessage(activeThreadId, item);
         clearActiveImages();
@@ -204,7 +198,6 @@ export function useQueuedSend({
             text: trimmed,
             createdAt: Date.now(),
             images: nextImages,
-            ...(nextMentions.length > 0 ? { appMentions: nextMentions } : {}),
           },
         }));
         setHasStartedByThread((prev) => ({
@@ -213,11 +206,7 @@ export function useQueuedSend({
         }));
       }
       try {
-        if (nextMentions.length > 0) {
-          await sendUserMessage(trimmed, nextImages, nextMentions);
-        } else {
-          await sendUserMessage(trimmed, nextImages);
-        }
+        await sendUserMessage(trimmed, nextImages);
       } catch (error) {
         if (directSendThreadId) {
           clearInFlight(directSendThreadId);
@@ -242,11 +231,10 @@ export function useQueuedSend({
   );
 
   const queueMessage = useCallback(
-    async (text: string, images: string[] = [], appMentions: AppMention[] = []) => {
+    async (text: string, images: string[] = []) => {
       const trimmed = text.trim();
       const command = parseSlashCommand(trimmed);
       const nextImages = command ? [] : images;
-      const nextMentions = command ? [] : appMentions;
       if (!trimmed && nextImages.length === 0) {
         return;
       }
@@ -261,7 +249,6 @@ export function useQueuedSend({
         text: trimmed,
         createdAt: Date.now(),
         images: nextImages,
-        ...(nextMentions.length > 0 ? { appMentions: nextMentions } : {}),
       };
       enqueueMessage(activeThreadId, item);
       clearActiveImages();
@@ -326,12 +313,7 @@ export function useQueuedSend({
         if (command) {
           await runSlashCommand(command, trimmed);
         } else {
-          const queuedMentions = nextItem.appMentions ?? [];
-          if (queuedMentions.length > 0) {
-            await sendUserMessage(nextItem.text, nextItem.images ?? [], queuedMentions);
-          } else {
-            await sendUserMessage(nextItem.text, nextItem.images ?? []);
-          }
+          await sendUserMessage(nextItem.text, nextItem.images ?? []);
         }
       } catch {
         setInFlightByThread((prev) => ({ ...prev, [threadId]: null }));

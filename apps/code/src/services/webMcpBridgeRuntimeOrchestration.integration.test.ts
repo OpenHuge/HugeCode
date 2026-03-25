@@ -1072,9 +1072,6 @@ describe("webMcpBridge runtime orchestration integration", () => {
       false
     );
     expect(registeredTools.some((tool) => tool.name === "list-runtime-approval-queue")).toBe(false);
-    expect(registeredTools.some((tool) => tool.name === "list-runtime-extension-ui-apps")).toBe(
-      false
-    );
 
     const listTool = registeredTools.find((tool) => tool.name === "list-runtime-runs");
     expect(listTool).toBeTruthy();

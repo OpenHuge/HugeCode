@@ -481,16 +481,6 @@ export function createExtendedRpcRuntimeClient<
         })
       );
     },
-    extensionUiAppsListV2(request = {}) {
-      return invokeRuntimeExtensionRpc(
-        invokeRpc,
-        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_UI_APPS_LIST_V2,
-        withCanonicalFields({
-          workspaceId: request.workspaceId ?? null,
-          extensionId: request.extensionId ?? null,
-        })
-      );
-    },
     workspacePatchApplyV1(request) {
       return invokeRuntimeExtensionRpc(
         invokeRpc,

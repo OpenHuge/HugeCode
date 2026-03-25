@@ -1072,20 +1072,14 @@ describe("useThreadMessaging telemetry", () => {
     );
 
     await act(async () => {
-      await result.current.sendUserMessage(
-        "hello $calendar",
-        [],
-        [{ name: "Calendar App", path: "app://connector_calendar" }]
-      );
+      await result.current.sendUserMessage("hello $calendar", []);
     });
 
     expect(sendUserMessageService).toHaveBeenCalledWith(
       "ws-1",
       "thread-1",
       "hello $calendar",
-      expect.not.objectContaining({
-        appMentions: expect.anything(),
-      })
+      expect.any(Object)
     );
   });
 
@@ -1216,9 +1210,7 @@ describe("useThreadMessaging telemetry", () => {
     );
 
     await act(async () => {
-      await result.current.sendUserMessageToThread(workspace, "thread-1", "steer this", [], {
-        appMentions: [{ name: "Calendar App", path: "app://connector_calendar" }],
-      });
+      await result.current.sendUserMessageToThread(workspace, "thread-1", "steer this", []);
     });
 
     expect(steerTurnService).toHaveBeenCalledWith(

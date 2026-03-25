@@ -8,7 +8,6 @@ import type {
   RuntimeExtensionInstallRequest,
   RuntimeExtensionPermissionsEvaluateRequest,
   RuntimeExtensionSetStateRequest,
-  RuntimeExtensionUiAppsListRequest,
   RuntimeExtensionUpdateRequest,
 } from "@ku0/code-runtime-host-contract";
 import {
@@ -26,7 +25,6 @@ import {
   installRuntimeExtension,
   listRuntimeExtensionRegistrySources,
   listRuntimeExtensionTools,
-  listRuntimeExtensionUiApps,
   listRuntimeExtensions,
   readRuntimeExtensionResource,
   readRuntimeExtensionHealth,
@@ -420,11 +418,6 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
       readRuntimeExtensionHealth({
         workspaceId: input.workspaceId ?? workspaceId,
         extensionId: input.extensionId,
-      }),
-    listRuntimeExtensionUiApps: async (input?: RuntimeExtensionUiAppsListRequest) =>
-      listRuntimeExtensionUiApps({
-        workspaceId: input?.workspaceId ?? workspaceId,
-        extensionId: input?.extensionId ?? null,
       }),
     listRuntimeMcpServerStatus: async (input: {
       workspaceId: string;

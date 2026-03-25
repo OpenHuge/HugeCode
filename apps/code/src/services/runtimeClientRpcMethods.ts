@@ -60,8 +60,6 @@ export const RUNTIME_EXTENSION_RPC_METHODS = {
     "code_extension_permissions_evaluate_v2",
   EXTENSION_HEALTH_READ_V2:
     CODE_RUNTIME_RPC_METHODS.EXTENSION_HEALTH_READ_V2 ?? "code_extension_health_read_v2",
-  EXTENSION_UI_APPS_LIST_V2:
-    CODE_RUNTIME_RPC_METHODS.EXTENSION_UI_APPS_LIST_V2 ?? "code_extension_ui_apps_list_v2",
   EXTENSION_TOOLS_LIST_V2:
     CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V2 ?? "code_extension_tools_list_v2",
   EXTENSION_RESOURCE_READ_V2:

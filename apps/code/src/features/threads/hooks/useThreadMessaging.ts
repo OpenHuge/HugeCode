@@ -7,7 +7,6 @@ import { prepareRuntimeRunV2 as prepareRuntimeRunV2Service } from "../../../appl
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type {
   AccessMode,
-  AppMention,
   ComposerExecutionMode,
   ConversationItem,
   CustomPromptOption,
@@ -333,7 +332,6 @@ export function useThreadMessaging({
         resolvedPreferredBackendIds,
         resolvedCodexBin,
         resolvedCodexArgs,
-        appMentions,
       } = resolveSendMessageSettings(options, {
         provider,
         model,
@@ -581,7 +579,6 @@ export function useThreadMessaging({
             activeTurnId,
             text: finalText,
             images,
-            appMentions,
             contextPrefix,
             provider: resolvedProvider,
             model: resolvedModel,
@@ -702,7 +699,7 @@ export function useThreadMessaging({
   );
 
   const sendUserMessage = useCallback(
-    async (text: string, images: string[] = [], appMentions: AppMention[] = []) => {
+    async (text: string, images: string[] = []) => {
       if (!activeWorkspace) {
         return;
       }
@@ -749,7 +746,6 @@ export function useThreadMessaging({
       try {
         await sendMessageToThread(activeWorkspace, threadId, finalText, images, {
           skipPromptExpansion: true,
-          appMentions,
           optimisticMessageId: shouldUsePendingDraftMessage ? pendingDraftMessage.id : undefined,
         });
       } finally {

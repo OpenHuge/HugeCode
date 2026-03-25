@@ -25,6 +25,10 @@ single canonical path.
   - Tauri codex command surface
   - frozen runtime spec snapshots and tauri gap allowlists
 - Removed legacy native-plugin backfill into the runtime extension catalog.
+- Removed `code_extension_ui_apps_list_v2`; callers now read `uiApps` from the
+  canonical extension catalog / extension record.
+- Removed frontend `AppMention` / `appMentions` connector-state compatibility
+  from compose, queue, home, and PR flows.
 - Removed duplicate root aliases:
   - `experimental:web:dev`
   - `experimental:web:build`
@@ -36,27 +40,17 @@ single canonical path.
   - Why: workspace and bundled instruction skills are still an active extension
     source and still need to appear in the unified extension catalog until their
     storage path is fully runtime-native.
-- Retained `code_extension_ui_apps_list_v2` and `ui_apps` on extension records.
-  - Why: these are still part of the active extension metadata shape used for
-    internal inspection and should not be conflated with the retired product
-    `/apps` surface.
-- Retained frontend `AppMention` compatibility types locally where they still
-  participate in compose/draft state.
-  - Why: removing the stored shape in the same change would expand scope into a
-    cross-feature terminology migration; this cleanup only stops propagating
-    those mentions into active runtime turn requests.
+- Retained `uiApps` on extension records.
+  - Why: these descriptors are still part of the active extension metadata
+    shape and now live only on the canonical extension record path.
 
 ## Exit Conditions And Removal Window
 
 - Instruction-skill overlay import should be removed when runtime-owned skill
   records are the only remaining source for bundled/workspace instruction skills
   and no caller depends on native-skill overlay backfill.
-- Local `AppMention` compatibility should be removed when compose/draft state is
-  migrated to the canonical extension/tool reference shape and no runtime turn
-  path accepts or expects app mention payloads.
-- `code_extension_ui_apps_list_v2` can be renamed or folded into a narrower
-  extension-inspection surface once all callers stop presenting it as a
-  user-facing product capability.
+- `uiApps` can be renamed or folded into a narrower extension-inspection field
+  only if the runtime extension metadata contract itself is revised.
 - Target deletion window for retained compat in this note:
   - remove in the first frozen-contract refresh after the exit conditions are
     met
