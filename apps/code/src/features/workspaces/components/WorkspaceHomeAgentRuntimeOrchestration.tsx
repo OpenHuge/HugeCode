@@ -38,6 +38,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     runtimeLaunchPreparation,
     runtimeLaunchPreparationContextTruth,
     runtimeLaunchPreparationGuidanceStack,
+    runtimeLaunchPreparationTriageSummary,
     runtimeLaunchPreparationDelegationContract,
     runtimeLaunchPreparationError,
     runtimeLaunchPreparationLoading,
@@ -459,6 +460,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   {runtimeLaunchPreparationGuidanceStack ? (
                     <span>Guidance: {runtimeLaunchPreparationGuidanceStack.summary}</span>
                   ) : null}
+                  {runtimeLaunchPreparationTriageSummary ? (
+                    <span>Triage: {runtimeLaunchPreparationTriageSummary.summary}</span>
+                  ) : null}
                   <span>{runtimeLaunchPreparation.executionGraph.summary}</span>
                   <span>
                     Approval batches:{" "}
@@ -526,6 +530,26 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   `owner: ${runtimeLaunchPreparationContextTruth.ownerSummary}`,
                   runtimeLaunchPreparationContextTruth.canonicalTaskSource
                     ? `source: ${runtimeLaunchPreparationContextTruth.canonicalTaskSource.label}`
+                    : null,
+                ]
+                  .filter((value): value is string => Boolean(value))
+                  .join(" | ")}
+              </div>
+            ) : null}
+            {runtimeLaunchPreparationTriageSummary ? (
+              <div className={controlStyles.sectionMeta}>
+                {[
+                  runtimeLaunchPreparationTriageSummary.owner
+                    ? `triage owner: ${runtimeLaunchPreparationTriageSummary.owner}`
+                    : "triage owner: unassigned",
+                  runtimeLaunchPreparationTriageSummary.priority
+                    ? `priority: ${runtimeLaunchPreparationTriageSummary.priority}`
+                    : null,
+                  runtimeLaunchPreparationTriageSummary.riskLevel
+                    ? `risk: ${runtimeLaunchPreparationTriageSummary.riskLevel}`
+                    : null,
+                  runtimeLaunchPreparationTriageSummary.tags.length > 0
+                    ? `tags: ${runtimeLaunchPreparationTriageSummary.tags.join(", ")}`
                     : null,
                 ]
                   .filter((value): value is string => Boolean(value))

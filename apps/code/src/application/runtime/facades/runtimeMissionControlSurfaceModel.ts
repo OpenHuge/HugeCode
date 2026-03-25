@@ -9,7 +9,11 @@ import {
   isRuntimeManagedMissionTaskId,
   type MissionControlProjection,
 } from "./runtimeMissionControlFacade";
-import { buildRuntimeContextTruth, buildRuntimeDelegationContract } from "./runtimeContextTruth";
+import {
+  buildRuntimeContextTruth,
+  buildRuntimeDelegationContract,
+  buildRuntimeTriageSummary,
+} from "./runtimeContextTruth";
 import { summarizeReviewContinuationActionability } from "./runtimeReviewContinuationFacade";
 import { resolveReviewIntelligenceSummary } from "./runtimeReviewIntelligenceSummary";
 import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
@@ -133,6 +137,7 @@ export type MissionReviewEntry = {
   secondaryLabel: string | null;
   evidenceLabel: string;
   contextSummary?: string | null;
+  triageSummary?: string | null;
   delegationSummary?: string | null;
   continuationState?: "ready" | "degraded" | "blocked" | "missing" | null;
   continuationLabel?: string | null;
@@ -193,7 +198,7 @@ function buildEntryContextAndDelegationSummary(input: {
   continuePathLabel: string | null;
   recommendedNextAction: string | null;
   continuationState: "ready" | "degraded" | "blocked" | "missing" | null;
-}): Pick<MissionReviewEntry, "contextSummary" | "delegationSummary"> {
+}): Pick<MissionReviewEntry, "contextSummary" | "triageSummary" | "delegationSummary"> {
   const repositoryDefaults = resolveRepositoryExecutionDefaults({
     contract: input.contract,
     taskSource: input.taskSource ?? null,
@@ -209,8 +214,15 @@ function buildEntryContextAndDelegationSummary(input: {
     contractLabel: input.contract?.metadata?.label ?? null,
     hasRepoInstructions: true,
   });
+  const triageSummary = buildRuntimeTriageSummary({
+    taskSource: input.taskSource ?? null,
+    repositoryDefaults,
+    contractLabel: input.contract?.metadata?.label ?? null,
+    hasRepoInstructions: true,
+  });
   const delegationContract = buildRuntimeDelegationContract({
     contextTruth,
+    triageSummary,
     continuationSummary: input.continuationLabel,
     continuePathLabel: input.continuePathLabel,
     nextOperatorAction: input.recommendedNextAction,
@@ -220,6 +232,7 @@ function buildEntryContextAndDelegationSummary(input: {
     contextSummary: contextTruth.canonicalTaskSource
       ? `${contextTruth.canonicalTaskSource.label} · ${contextTruth.reviewIntent}`
       : contextTruth.summary,
+    triageSummary: triageSummary.summary,
     delegationSummary: delegationContract.nextOperatorAction,
   };
 }
@@ -1053,6 +1066,7 @@ export function buildMissionReviewEntriesFromProjection(
       secondaryLabel: resolveMissionSecondaryLabel(task),
       evidenceLabel: resolveReviewEvidenceLabel(reviewPack, task),
       contextSummary: contextAndDelegation.contextSummary,
+      triageSummary: contextAndDelegation.triageSummary,
       delegationSummary: contextAndDelegation.delegationSummary,
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
@@ -1223,6 +1237,7 @@ export function buildMissionReviewEntriesFromProjection(
       secondaryLabel: resolveMissionSecondaryLabel(task),
       evidenceLabel: "Runtime evidence only",
       contextSummary: contextAndDelegation.contextSummary,
+      triageSummary: contextAndDelegation.triageSummary,
       delegationSummary: contextAndDelegation.delegationSummary,
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,

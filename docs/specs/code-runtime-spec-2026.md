@@ -128,6 +128,7 @@ It returns runtime-owned preparation truth for:
 - context shaping (`contextWorkingSet`)
 - canonical context truth (`contextTruth`)
 - precedence-ordered launch guidance (`guidanceStack`)
+- source-aware triage ownership, priority, risk, and dedupe summary (`triageSummary`)
 - governed owner/executor semantics (`delegationContract`)
 - execution structure (`executionGraph`)
 - approval grouping (`approvalBatches`)
@@ -137,10 +138,10 @@ It returns runtime-owned preparation truth for:
 New control-plane work should consume these runtime-owned summaries directly
 instead of rebuilding intent clarity, repo context, approval grouping, or
 validation scope in UI facades.
-The same rule now applies to source normalization, launch guidance, and next-step
-semantics: Mission Control, Review Pack, and follow-up flows should prefer the
-shared `contextTruth`, `guidanceStack`, and `delegationContract` surfaces over
-page-local copies.
+The same rule now applies to source normalization, triage, launch guidance, and
+next-step semantics: Mission Control, Review Pack, and follow-up flows should
+prefer the shared `contextTruth`, `guidanceStack`, `triageSummary`, and
+`delegationContract` surfaces over page-local copies.
 
 Legacy run methods may remain during migration, but they are compatibility
 surfaces. New product meaning should land in the v2 contract rather than

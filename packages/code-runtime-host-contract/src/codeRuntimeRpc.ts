@@ -1403,6 +1403,17 @@ export type RuntimeDelegationContractV2 = {
   continueVia: string | null;
 };
 
+export type RuntimeTriagePriorityV2 = "low" | "medium" | "high" | "urgent";
+
+export type RuntimeTriageSummaryV2 = {
+  owner: string | null;
+  priority: RuntimeTriagePriorityV2 | null;
+  riskLevel: RuntimeRunRiskLevelV2 | null;
+  tags: string[];
+  dedupeKey: string | null;
+  summary: string;
+};
+
 export type RuntimeExecutionNodeKindV2 =
   | "clarify"
   | "read"
@@ -1583,6 +1594,7 @@ export type RuntimeRunPrepareV2Response = {
   contextWorkingSet: RuntimeContextWorkingSetV2;
   contextTruth: RuntimeContextTruthV2;
   guidanceStack: RuntimeGuidanceStackV2;
+  triageSummary: RuntimeTriageSummaryV2;
   delegationContract: RuntimeDelegationContractV2;
   executionGraph: RuntimeExecutionGraphV2;
   approvalBatches: RuntimeApprovalBatchV2[];
