@@ -2867,10 +2867,13 @@
             snapshot_payload["result"]["plugins"][0]["extensionId"],
             Value::String("plugin-a".to_string())
         );
-        assert_eq!(
-            snapshot_payload["result"]["skills"].as_array().map(Vec::len),
-            Some(0)
-        );
+        let skills = snapshot_payload["result"]["skills"]
+            .as_array()
+            .expect("native management snapshot should include a skills array");
+        assert!(skills.iter().all(|entry| {
+            entry["kind"] == Value::String("instruction".to_string())
+                && entry["extensionId"] != Value::String("plugin-a".to_string())
+        }));
     }
 
     #[tokio::test]
@@ -8446,13 +8449,54 @@
 
     #[tokio::test]
     async fn compat_model_catalog_refresh_serves_stale_while_refresh_is_inflight() {
-        let (compat_base_url, models_counter, compat_handle) =
-            spawn_openai_compat_mock_server_with_counter(
-                vec!["gpt-4.1-mini", "claude-3-7-sonnet-latest", "gemini-3-flash"],
-                Some("compat-test-key"),
-                Some(Duration::from_millis(120)),
-            )
-            .await;
+        let models_counter = Arc::new(AtomicUsize::new(0));
+        let refresh_started = Arc::new(tokio::sync::Notify::new());
+        let allow_refresh_complete = Arc::new(tokio::sync::Notify::new());
+        let refresh_started_handle = Arc::clone(&refresh_started);
+        let allow_refresh_complete_handle = Arc::clone(&allow_refresh_complete);
+        let models_counter_handle = Arc::clone(&models_counter);
+        let compat_app = Router::new().route(
+            "/v1/models",
+            get(move |headers: axum::http::HeaderMap| {
+                let refresh_started = Arc::clone(&refresh_started_handle);
+                let allow_refresh_complete = Arc::clone(&allow_refresh_complete_handle);
+                let models_counter = Arc::clone(&models_counter_handle);
+                async move {
+                    let request_number =
+                        models_counter.fetch_add(1, AtomicOrdering::Relaxed) + 1;
+                    if request_number >= 2 {
+                        refresh_started.notify_one();
+                        allow_refresh_complete.notified().await;
+                    }
+                    let actual_header = headers
+                        .get("authorization")
+                        .and_then(|value| value.to_str().ok());
+                    assert_eq!(actual_header, Some("Bearer compat-test-key"));
+                    (
+                        StatusCode::OK,
+                        Json(json!({
+                            "object": "list",
+                            "data": [
+                                { "id": "gpt-4.1-mini", "object": "model" },
+                                { "id": "claude-3-7-sonnet-latest", "object": "model" },
+                                { "id": "gemini-3-flash", "object": "model" }
+                            ],
+                        })),
+                    )
+                }
+            }),
+        );
+        let compat_listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind compat model catalog listener");
+        let compat_address = compat_listener
+            .local_addr()
+            .expect("resolve compat model catalog listener");
+        let compat_handle = tokio::spawn(async move {
+            let _ = axum::serve(compat_listener, compat_app).await;
+        });
+
+        let compat_base_url = format!("http://{compat_address}/v1");
         let mut config = test_service_config_with_openai_compat(compat_base_url.as_str());
         config.openai_compat_model_cache_ttl_ms = 1;
         let app = test_router_with_config(config);
@@ -8476,19 +8520,12 @@
             .await
         });
 
-        tokio::time::timeout(Duration::from_millis(80), async {
-            loop {
-                if models_counter.load(AtomicOrdering::Relaxed) >= 2 {
-                    break;
-                }
-                tokio::time::sleep(Duration::from_millis(2)).await;
-            }
-        })
-        .await
-        .expect("refresh request should start before stale read");
+        tokio::time::timeout(Duration::from_secs(2), refresh_started.notified())
+            .await
+            .expect("refresh request should start before stale read");
 
         let stale_payload = tokio::time::timeout(
-            Duration::from_millis(40),
+            Duration::from_secs(1),
             send_rpc_request(
                 app.clone(),
                 json!({"method":"code_models_pool","params":{}}),
@@ -8497,6 +8534,13 @@
         .await
         .expect("stale read should not wait on in-flight refresh");
         assert_eq!(stale_payload["ok"], Value::Bool(true));
+        assert_eq!(
+            models_counter.load(AtomicOrdering::Relaxed),
+            2,
+            "stale read should reuse the cached catalog while the refresh is still blocked"
+        );
+
+        allow_refresh_complete.notify_one();
 
         let refreshed_payload = refresh_request.await.expect("join refresh request");
         assert_eq!(refreshed_payload["ok"], Value::Bool(true));
@@ -10907,6 +10951,10 @@
 
     #[tokio::test]
     async fn turn_send_rpc_returns_ack_before_provider_completion() {
+        let provider_request_started = Arc::new(tokio::sync::Notify::new());
+        let allow_provider_response = Arc::new(tokio::sync::Notify::new());
+        let provider_request_started_handle = Arc::clone(&provider_request_started);
+        let allow_provider_response_handle = Arc::clone(&allow_provider_response);
         let delayed_provider = Router::new()
             .route(
                 "/v1/models",
@@ -10922,26 +10970,31 @@
             )
             .route(
                 "/v1/chat/completions",
-                post(|Json(payload): Json<Value>| async move {
-                    tokio::time::sleep(Duration::from_millis(750)).await;
+                post(move |Json(payload): Json<Value>| {
+                    let provider_request_started = Arc::clone(&provider_request_started_handle);
+                    let allow_provider_response = Arc::clone(&allow_provider_response_handle);
+                    async move {
+                        provider_request_started.notify_one();
+                        allow_provider_response.notified().await;
                     let model_id = payload
                         .get("model")
                         .and_then(Value::as_str)
                         .unwrap_or("unknown-model");
-                    (
-                        StatusCode::OK,
-                        Json(json!({
-                            "id": "chatcmpl-test-delayed",
-                            "object": "chat.completion",
-                            "choices": [{
-                                "index": 0,
-                                "message": {
-                                    "role": "assistant",
-                                    "content": format!("ok:{model_id}")
-                                }
-                            }]
-                        })),
-                    )
+                        (
+                            StatusCode::OK,
+                            Json(json!({
+                                "id": "chatcmpl-test-delayed",
+                                "object": "chat.completion",
+                                "choices": [{
+                                    "index": 0,
+                                    "message": {
+                                        "role": "assistant",
+                                        "content": format!("ok:{model_id}")
+                                    }
+                                }]
+                            })),
+                        )
+                    }
                 }),
             );
         let delayed_provider_listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -10984,16 +11037,28 @@
             }
         });
 
-        let turn_response = tokio::time::timeout(
-            Duration::from_millis(250),
-            client
-                .post(format!("{service_base_url}/rpc"))
-                .json(&turn_request)
-                .send(),
-        )
-        .await
-        .expect("turn ack should return before delayed provider completion")
-        .expect("send delayed turn request");
+        let turn_request_task = tokio::spawn({
+            let client = client.clone();
+            let service_base_url = service_base_url.clone();
+            let turn_request = turn_request.clone();
+            async move {
+                client
+                    .post(format!("{service_base_url}/rpc"))
+                    .json(&turn_request)
+                    .send()
+                    .await
+            }
+        });
+
+        tokio::time::timeout(Duration::from_secs(2), provider_request_started.notified())
+            .await
+            .expect("provider request should start before waiting on the rpc ack");
+
+        let turn_response = tokio::time::timeout(Duration::from_secs(1), turn_request_task)
+            .await
+            .expect("turn ack should return before provider completion")
+            .expect("join delayed turn request task")
+            .expect("send delayed turn request");
         assert_eq!(turn_response.status(), reqwest::StatusCode::OK);
         let turn_payload: Value = turn_response
             .json()
@@ -11025,6 +11090,8 @@
                 > 0,
             "turn send root task should be tracked by the runtime task supervisor"
         );
+
+        allow_provider_response.notify_one();
 
         let events = read_sse_events_until_turn_completed(&mut events_response, turn_id.as_str()).await;
         let turn_events = events
