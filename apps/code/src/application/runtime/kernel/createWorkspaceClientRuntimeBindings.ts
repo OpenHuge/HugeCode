@@ -113,19 +113,17 @@ export function createWorkspaceClientRuntimeBindings(
           ? (missionControl as HugeCodeMissionControlSnapshot)
           : input.readMissionControlSnapshot();
       },
-      readMissionControlSummary: async (activeWorkspaceId) =>
-        buildSharedMissionControlSummary(
-          await (async () => {
-            const bootstrap = await input.bootstrapKernelProjection({
-              scopes: ["mission_control"],
-            });
-            const missionControl = bootstrap.slices.mission_control;
-            return missionControl && typeof missionControl === "object"
-              ? (missionControl as HugeCodeMissionControlSnapshot)
-              : input.readMissionControlSnapshot();
-          })(),
-          activeWorkspaceId
-        ),
+      readMissionControlSummary: async (activeWorkspaceId) => {
+        const bootstrap = await input.bootstrapKernelProjection({
+          scopes: ["mission_control"],
+        });
+        const missionControl = bootstrap.slices.mission_control;
+        const snapshot =
+          missionControl && typeof missionControl === "object"
+            ? (missionControl as HugeCodeMissionControlSnapshot)
+            : await input.readMissionControlSnapshot();
+        return buildSharedMissionControlSummary(snapshot, activeWorkspaceId);
+      },
     },
     kernelProjection: {
       bootstrap: input.bootstrapKernelProjection,

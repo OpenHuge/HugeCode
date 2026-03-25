@@ -1257,8 +1257,14 @@ export {
   listCodeRuntimeRpcMethodCandidates,
   resolveCodeRuntimeRpcMethod,
 } from "./codeRuntimeRpcCompat.js";
+export type * from "./runtimeContinuationFacade.js";
 export {
-  resolveRuntimeContinuation,
-  resolveRuntimeNextOperatorAction,
-  resolveRuntimeSessionBoundary,
-} from "./runtimeTruthCompat.js";
+  buildRuntimeContinuationAggregate,
+  buildRuntimeContinuationDescriptor,
+  formatRuntimeContinuationTruthSourceLabel,
+  projectTakeoverBundleToContinuation,
+  resolveContinuationPathLabel,
+  resolveContinuationTruthSource,
+  resolvePreferredPublishHandoff,
+  resolvePreferredReviewActionability,
+} from "./runtimeContinuationFacade.js";

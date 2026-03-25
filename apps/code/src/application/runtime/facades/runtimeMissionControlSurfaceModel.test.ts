@@ -107,7 +107,9 @@ describe("runtimeMissionControlSurfaceModel", () => {
     const signals = summarizeMissionControlSignals(projection);
 
     expect(latestRuns[0]?.statusKind).toBe("review_ready");
-    expect(reviewEntries[0]?.recommendedNextAction).toBe("Open Review Pack on this device.");
+    expect(latestRuns[0]?.operatorActionLabel).toBe("Open review");
+    expect(reviewEntries[0]?.recommendedNextAction).toBe("Open Review Pack");
+    expect(reviewEntries[0]?.operatorActionLabel).toBe("Open review");
     expect(reviewEntries[0]?.continuePathLabel).toBe("Review Pack");
     expect(reviewEntries[0]?.continuationTruthSourceLabel).toBe("Runtime takeover bundle");
     expect(signals.reviewReadyCount).toBe(1);
