@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { loadLocalRuntimeContractFingerprint } from "./dev-code-runtime-gateway-web-all.mjs";
+import { buildCodeE2EStartupEnv } from "./lib/e2e-runtime-budgets.mjs";
 import { loadE2EMapConfig, ruleMatchesPath } from "./lib/e2e-map.mjs";
 import { isPortAvailable } from "./lib/ports.mjs";
 import { spawnPnpm, spawnPnpmSync } from "./lib/spawn-pnpm.mjs";
@@ -131,7 +132,7 @@ for (const [target, specs] of runsByTarget) {
     ...specs.map((filePath) => toPosixPath(path.relative(e2eRoot, filePath))),
   ];
   const env = {
-    ...process.env,
+    ...buildCodeE2EStartupEnv({ category, env: process.env }),
     WEB_E2E_APP: target,
   };
   let releasePortReservation = null;

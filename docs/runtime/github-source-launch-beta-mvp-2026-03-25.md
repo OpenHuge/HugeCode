@@ -72,6 +72,7 @@ The desktop-side changes in this slice are limited to support the Phase 1 loop:
 
 - GitHub source launches now fail earlier during `prepare_v2`, before execution begins, instead of relying on a thin start-only path.
 - Electron restored session state now de-duplicates repeated sessions by session id and workspace fingerprint during startup hydration.
+- `pnpm test:e2e:smoke` now applies a higher default runtime-ready and web-server startup budget for the `smoke` category so cold Rust runtime compiles do not routinely fail the beta smoke lane.
 - No new desktop-only product surface, platform-specific workflow, or independent shell roadmap was added in this slice.
 
 ## Validation And Smoke Results
@@ -110,8 +111,7 @@ Validation for this slice was run on 2026-03-25. Update this section if later ru
 ## Core Blockers And Risks
 
 - No functional blocker remains on the GitHub source governed path itself after the final validation run.
-- Cold-start e2e environments remain sensitive to Rust runtime compile time. On this machine the first `pnpm test:e2e:smoke` attempt timed out at the default 240000 ms runtime-ready budget before the runtime service finished building. The standard smoke command passed once the runtime service had been prebuilt and warm.
-- That startup-budget sensitivity is a beta operational risk, not a GitHub ingress contract failure. If cold-cache CI lanes become a regular beta gate, increase the runtime ready budget or add an explicit runtime-service prewarm step.
+- Cold-start e2e environments remain sensitive to Rust runtime compile time, but the smoke lane now mitigates that with a higher default startup budget. If cold-cache CI lanes still regress, the next lever is an explicit runtime-service prewarm step.
 
 ## Known Limitations
 
