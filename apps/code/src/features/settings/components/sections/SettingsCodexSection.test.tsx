@@ -164,6 +164,9 @@ describe("SettingsCodexSection", () => {
     const modelRow = screen
       .getByText("Model")
       .closest('[data-settings-field-row="toggle"]') as HTMLElement | null;
+    const providerRow = screen
+      .queryByText("Provider")
+      ?.closest('[data-settings-field-row="toggle"]') as HTMLElement | null;
     const effortRow = screen
       .getByText("Reasoning effort")
       .closest('[data-settings-field-row="toggle"]') as HTMLElement | null;
@@ -171,6 +174,7 @@ describe("SettingsCodexSection", () => {
       .getByText("Access mode")
       .closest('[data-settings-field-row="toggle"]') as HTMLElement | null;
 
+    expect(providerRow).toBeUndefined();
     expect(modelRow).not.toBeNull();
     expect(effortRow).not.toBeNull();
     expect(accessRow).not.toBeNull();
@@ -229,11 +233,52 @@ describe("SettingsCodexSection", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
-    fireEvent.click(screen.getAllByRole("option", { name: "GPT-5.1" })[0]!);
+    fireEvent.click(screen.getByRole("option", { name: "GPT-5.1 / codex-primary" }));
 
     expect(screen.getByRole("button", { name: "Model" }).textContent).toContain("GPT-5.1");
     expect(onUpdateAppSettings).toHaveBeenCalledWith(
       expect.objectContaining({ lastComposerModelId: "openai-primary" })
+    );
+  });
+
+  it("switching provider picks that provider family's recommended default model route", () => {
+    const onUpdateAppSettings = vi.fn(async () => undefined);
+
+    render(
+      <SettingsCodexSection
+        {...createProps({
+          appSettings: {
+            lastComposerModelId: "openai-primary",
+            lastComposerReasoningEffort: "high",
+            defaultAccessMode: "full-access",
+            reviewDeliveryMode: "inline",
+          } as AppSettings,
+          onUpdateAppSettings,
+          defaultModels: [
+            createModelOption({
+              id: "openai-primary",
+              model: "gpt-5.1",
+              displayName: "GPT-5.1",
+              provider: "openai",
+              pool: "codex-primary",
+            }),
+            createModelOption({
+              id: "claude-opus",
+              model: "claude-opus-4-5",
+              displayName: "Claude Opus 4.5",
+              provider: "claude_code_local",
+              pool: "claude",
+            }),
+          ],
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Provider" }));
+    fireEvent.click(screen.getByRole("option", { name: "Claude" }));
+
+    expect(onUpdateAppSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ lastComposerModelId: "claude-opus" })
     );
   });
 
