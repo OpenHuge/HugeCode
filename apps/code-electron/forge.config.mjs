@@ -55,11 +55,16 @@ export default {
     },
     {
       name: "@electron-forge/maker-dmg",
+      config: {
+        title: "HugeCode Beta",
+      },
     },
     {
       name: "@electron-forge/maker-squirrel",
       config: {
         name: "HugeCode",
+        authors: "OpenHuge",
+        description: "HugeCode beta desktop shell",
         ...(betaStaticUpdateBaseUrl
           ? {
               remoteReleases: betaStaticUpdateBaseUrl,

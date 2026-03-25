@@ -9,4 +9,13 @@ describe("forge config", () => {
     expect(debMaker?.config?.options?.bin).toBe(forgeConfig.packagerConfig.executableName);
     expect(debMaker?.config?.options?.productName).toBe("HugeCode");
   });
+
+  it("publishes Windows squirrel metadata required by electron-winstaller", () => {
+    const squirrelMaker = forgeConfig.makers.find(
+      (maker) => maker.name === "@electron-forge/maker-squirrel"
+    );
+
+    expect(squirrelMaker?.config?.authors).toBe("OpenHuge");
+    expect(squirrelMaker?.config?.description).toBe("HugeCode beta desktop shell");
+  });
 });
