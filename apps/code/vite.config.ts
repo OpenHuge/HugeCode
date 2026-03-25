@@ -124,8 +124,35 @@ function workspaceEntryRedirectPlugin(): Plugin {
   };
 }
 
+function lucideBrokenAliasCompatPlugin(): Plugin {
+  const lucideIconModulePattern =
+    /[/\\]node_modules[/\\]\.pnpm[/\\]lucide-react@[^/\\]+[/\\]node_modules[/\\]lucide-react[/\\]dist[/\\]esm[/\\]icons[/\\][^/\\]+\.js$/;
+
+  return {
+    name: "lucide-broken-alias-compat",
+    async resolveId(source, importer, options) {
+      if (
+        !importer ||
+        !lucideIconModulePattern.test(importer) ||
+        !source.startsWith("../") ||
+        !source.endsWith(".ts")
+      ) {
+        return null;
+      }
+
+      const correctedSource = `./${source.slice(3, -3)}.js`;
+      return this.resolve(correctedSource, importer, { ...options, skipSelf: true });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [workspaceEntryRedirectPlugin(), vanillaExtractPlugin(), react()],
+  plugins: [
+    workspaceEntryRedirectPlugin(),
+    lucideBrokenAliasCompatPlugin(),
+    vanillaExtractPlugin(),
+    react(),
+  ],
   resolve: {
     alias: createCodeWorkspaceAliases(new URL("./", import.meta.url)),
   },
