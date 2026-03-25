@@ -184,6 +184,13 @@ export async function verifyElectronMakeArtifacts(repoRoot) {
   };
 }
 
+function isLocalDebMakerName(makerName) {
+  return (
+    makerName === "deb" ||
+    (typeof makerName === "string" && /(?:^|[\\/])scripts[\\/]maker-deb\.cjs$/u.test(makerName))
+  );
+}
+
 export function verifyElectronForgeUpdateContract(context) {
   const makerNames = new Set((context.forgeConfig.makers ?? []).map((maker) => maker.name));
   const githubPublisher = (context.forgeConfig.publishers ?? []).find(
@@ -193,13 +200,18 @@ export function verifyElectronForgeUpdateContract(context) {
     throw new Error("Missing GitHub publisher in Electron Forge config.");
   }
 
-  for (const makerName of [
-    "@electron-forge/maker-zip",
-    "@electron-forge/maker-dmg",
-    "@electron-forge/maker-squirrel",
-    "@electron-forge/maker-deb",
+  for (const [makerName, errorLabel] of [
+    ["@electron-forge/maker-zip", "@electron-forge/maker-zip"],
+    ["@electron-forge/maker-dmg", "@electron-forge/maker-dmg"],
+    ["@electron-forge/maker-squirrel", "@electron-forge/maker-squirrel"],
+    ["@electron-forge/maker-deb", "local-maker-deb"],
   ]) {
-    if (!makerNames.has(makerName)) {
+    const present =
+      errorLabel === "local-maker-deb"
+        ? makerNames.has(makerName) ||
+          [...makerNames].some((configuredMakerName) => isLocalDebMakerName(configuredMakerName))
+        : makerNames.has(makerName);
+    if (!present) {
       throw new Error(`Missing required Electron Forge maker: ${makerName}`);
     }
   }
@@ -226,6 +238,9 @@ export function verifyElectronForgeUpdateContract(context) {
   const squirrelMaker = context.forgeConfig.makers?.find(
     (maker) => maker.name === "@electron-forge/maker-squirrel"
   );
+  const debMaker = context.forgeConfig.makers?.find(
+    (maker) => maker.name === "@electron-forge/maker-deb" || isLocalDebMakerName(maker.name)
+  );
 
   if (context.updateMode === "enabled_beta_static_feed") {
     if (zipMaker?.config?.macUpdateManifestBaseUrl !== context.betaStaticFeedUrl) {
@@ -249,6 +264,13 @@ export function verifyElectronForgeUpdateContract(context) {
         "Squirrel remoteReleases must not be configured outside beta static-feed mode."
       );
     }
+  }
+
+  const debMakerConfig = debMaker?.config ?? debMaker?.configOrConfigFetcher ?? null;
+  const debMakerOptions = debMakerConfig?.options ?? debMakerConfig;
+  const debMakerBin = debMakerConfig?.bin ?? debMakerOptions?.bin ?? null;
+  if (debMakerBin !== "HugeCode") {
+    throw new Error('Deb maker options.bin must be "HugeCode" to match the packaged executable.');
   }
 
   return {

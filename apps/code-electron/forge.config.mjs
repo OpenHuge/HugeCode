@@ -1,3 +1,5 @@
+import MakerDeb from "./scripts/maker-deb.cjs";
+
 function normalizeStaticUpdateBaseUrlRoot(staticUpdateBaseUrl) {
   const trimmed = staticUpdateBaseUrl?.trim();
   if (!trimmed) {
@@ -54,6 +56,9 @@ export default {
     },
     {
       name: "@electron-forge/maker-dmg",
+      config: {
+        title: "HugeCode Beta",
+      },
     },
     {
       name: "@electron-forge/maker-squirrel",
@@ -67,18 +72,16 @@ export default {
         setupExe: "HugeCodeSetup.exe",
       },
     },
-    {
-      name: "@electron-forge/maker-deb",
-      config: {
-        options: {
-          categories: ["Development"],
-          maintainer: "OpenHuge",
-          mimeType: ["x-scheme-handler/hugecode"],
-          productDescription: "HugeCode beta desktop shell",
-          section: "devel",
-        },
+    new MakerDeb({
+      bin: "HugeCode",
+      options: {
+        categories: ["Development"],
+        maintainer: "OpenHuge",
+        mimeType: ["x-scheme-handler/hugecode"],
+        productDescription: "HugeCode beta desktop shell",
+        section: "devel",
       },
-    },
+    }),
   ],
   publishers: [
     {
