@@ -168,10 +168,13 @@ pub(crate) fn current_rpc_methods(methods: &[&str]) -> Vec<String> {
 }
 
 pub(crate) fn current_rpc_features() -> Vec<String> {
-    CODE_RUNTIME_RPC_FEATURES
+    let mut features: Vec<String> = CODE_RUNTIME_RPC_FEATURES
         .iter()
         .map(|feature| (*feature).to_string())
-        .collect()
+        .collect();
+    features.sort_unstable();
+    features.dedup();
+    features
 }
 
 #[tauri::command]
