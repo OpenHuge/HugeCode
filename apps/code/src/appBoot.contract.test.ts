@@ -16,4 +16,10 @@ describe("app boot contract", () => {
     expect(indexHtml).toContain(workspaceBootState.title);
     expect(indexHtml).toContain(workspaceBootState.detail);
   });
+
+  it("keeps the boot shell hydration-safe by avoiding whitespace before the boot surface", () => {
+    const indexHtml = readFileSync(path.resolve(testDir, "../index.html"), "utf8");
+
+    expect(indexHtml).toMatch(/<div id="root"><div[\s\S]*data-app-boot="workspace"/);
+  });
 });
