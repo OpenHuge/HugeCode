@@ -25,6 +25,7 @@
     "build": "tsx scripts/build-native.ts --release && tsc",
     "build:debug": "tsx scripts/build-native.ts && tsc",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix --fix-suggestions . && oxfmt --write ."
   },
