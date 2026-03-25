@@ -120,7 +120,6 @@ async function invokeSteerTurnRequest(
     activeTurnId: string;
     text: string;
     images: string[];
-    appMentions: AppMention[];
     contextPrefix: string | null;
     provider: string | null | undefined;
     model: string | null | undefined;
@@ -155,35 +154,19 @@ async function invokeSteerTurnRequest(
     ...(params.autoDrive ? { autoDrive: params.autoDrive } : {}),
     ...(params.autonomyRequest ? { autonomyRequest: params.autonomyRequest } : {}),
   };
-  if (params.contextPrefix) {
-    return (await runtimeSessionCommands.steerTurn({
-      threadId: params.threadId,
-      turnId: params.activeTurnId,
-      text: params.text,
-      images: params.images,
-      appMentions: params.appMentions.length > 0 ? params.appMentions : undefined,
-      contextPrefix: params.contextPrefix,
-      options: steerOptions,
-    })) as Record<string, unknown>;
-  }
-  if (params.appMentions.length > 0) {
-    return (await runtimeSessionCommands.steerTurn({
-      threadId: params.threadId,
-      turnId: params.activeTurnId,
-      text: params.text,
-      images: params.images,
-      appMentions: params.appMentions,
-      options: steerOptions,
-    })) as Record<string, unknown>;
-  }
-  return (await runtimeSessionCommands.steerTurn({
+  const steerInput = {
     threadId: params.threadId,
     turnId: params.activeTurnId,
     text: params.text,
-      images: params.images,
-      options: steerOptions,
-    })) as Record<string, unknown>;
-  }
+    images: params.images,
+    options: steerOptions,
+    ...(params.appMentions.length > 0 ? { appMentions: params.appMentions } : {}),
+    ...(params.contextPrefix ? { contextPrefix: params.contextPrefix } : {}),
+  };
+  return (await runtimeSessionCommands.steerTurn({
+    ...steerInput,
+  })) as Record<string, unknown>;
+}
 
 function resolveInterruptFailureMessage(response: unknown): string {
   if (response && typeof response === "object") {

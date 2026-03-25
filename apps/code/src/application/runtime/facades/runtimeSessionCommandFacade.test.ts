@@ -35,7 +35,6 @@ describe("createRuntimeSessionCommandFacade", () => {
       turnId: "turn-1",
       text: "continue",
       images: ["img-1"],
-      appMentions: [{ name: "Editor", path: "/tmp/editor" }],
       contextPrefix: "ctx",
       options: { executionMode: "runtime" },
     });
@@ -67,7 +66,6 @@ describe("createRuntimeSessionCommandFacade", () => {
       "turn-1",
       "continue",
       ["img-1"],
-      [{ name: "Editor", path: "/tmp/editor" }],
       "ctx",
       { executionMode: "runtime" }
     );
