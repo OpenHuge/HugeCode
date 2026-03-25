@@ -104,7 +104,6 @@ import { subscribeScopedRuntimeUpdatedEvents } from "../../../application/runtim
 import { getMissionControlSnapshot } from "../../../application/runtime/ports/tauriMissionControl";
 import {
   cancelRuntimeJob as interruptAgentTask,
-  getRuntimeRunV2,
   submitRuntimeJobApprovalDecision as submitTaskApprovalDecision,
   listRuntimeJobs,
   resumeRuntimeJob as resumeAgentTask,
@@ -165,7 +164,7 @@ beforeEach(() => {
     };
   });
   startRuntimeJobWithRemoteSelectionMock.mockResolvedValue({});
-  vi.mocked(getRuntimeRunV2).mockResolvedValue(null);
+  getRuntimeRunV2Mock.mockResolvedValue(null);
   subscribeRuntimeRunV2Mock.mockResolvedValue(null);
   prepareRuntimeRunV2Mock.mockResolvedValue(createRuntimeLaunchPreparationFixture());
   startRuntimeRunV2Mock.mockResolvedValue({
@@ -425,6 +424,53 @@ function createRuntimeLaunchPreparationFixture() {
       commands: ["pnpm validate:fast"],
     },
     reviewFocus: ["runtime truth", "approval batching"],
+    autonomyProfile: "night_operator" as const,
+    wakePolicy: {
+      mode: "auto_queue" as const,
+      safeFollowUp: true,
+      allowAutomaticContinuation: true,
+      allowedActions: ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+      stopGates: ["validation_failure_requires_review"],
+      queueBudget: {
+        maxQueuedActions: 2,
+        maxAutoContinuations: 2,
+      },
+    },
+    intentSnapshot: {
+      summary: "Runtime synthesized a bounded launch intent.",
+      primaryGoal: "Inspect runtime launch path",
+      dominantDirection: "Inspect runtime launch path",
+      confidence: "high" as const,
+      signals: [],
+    },
+    opportunityQueue: {
+      selectedOpportunityId: "opportunity-primary",
+      selectionSummary: "Runtime selected the closest bounded opportunity.",
+      candidates: [],
+    },
+    researchTrace: {
+      mode: "repository_only" as const,
+      stage: "repository" as const,
+      summary: "Research remains repository-only until runtime explicitly widens the lane.",
+      citations: [],
+      sensitiveContextMixed: false,
+    },
+    executionEligibility: {
+      eligible: true,
+      summary: "Runtime can begin bounded execution without waking the operator first.",
+      wakeState: "ready" as const,
+      nextEligibleAction: "continue" as const,
+      blockingReasons: [],
+    },
+    wakePolicySummary: {
+      summary: "Runtime will use Auto Queue and stop only at explicit wake gates.",
+      safeFollowUp: true,
+      allowedActions: ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+      queueBudget: {
+        maxQueuedActions: 2,
+        maxAutoContinuations: 2,
+      },
+    },
   };
 }
 
@@ -583,11 +629,57 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(
         screen.getByText("Runtime clarified the mission and built a native execution plan.")
       ).toBeTruthy();
+      expect(screen.getByText(/Autonomy: night operator/)).toBeTruthy();
+      expect(
+        screen.getByText(
+          /Launch eligibility: Runtime can begin bounded execution without waking the operator first\./
+        )
+      ).toBeTruthy();
+      expect(
+        screen.getByText(/Opportunity queue: Runtime selected the closest bounded opportunity\./)
+      ).toBeTruthy();
       expect(
         screen.getByText(/Validation: Run the standard validation lane before review\./)
       ).toBeTruthy();
       expect(screen.getByText(/Review focus: runtime truth \| approval batching/)).toBeTruthy();
     });
+  });
+
+  it("blocks mission start when runtime launch preparation says the run is not eligible", async () => {
+    mockRuntimeTasks([]);
+    prepareRuntimeRunV2Mock.mockResolvedValue({
+      ...createRuntimeLaunchPreparationFixture(),
+      runIntent: {
+        ...createRuntimeLaunchPreparationFixture().runIntent,
+        clarified: false,
+        missingContext: ["execution_profile"],
+      },
+      executionEligibility: {
+        eligible: false,
+        summary: "Runtime should clarify missing context before chaining further.",
+        wakeState: "blocked",
+        nextEligibleAction: "clarify",
+        blockingReasons: ["Missing execution_profile"],
+      },
+    });
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    fireEvent.change(screen.getByPlaceholderText("Mission brief for agent"), {
+      target: { value: "Inspect runtime launch path" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Launch readiness blocked")).toBeTruthy();
+      expect(screen.getByText(/Runtime launch plan: Missing execution_profile/)).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Start mission run" })).toHaveProperty(
+        "disabled",
+        true
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Start mission run" }));
+    expect(startRuntimeRunV2Mock).not.toHaveBeenCalled();
   });
 
   it("shows repo-derived launch defaults and uses the repo default profile when untouched", async () => {
@@ -2057,6 +2149,10 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     });
 
     await waitFor(() => {
+      expect(prepareRuntimeRunV2Mock).toHaveBeenCalled();
+      expect(
+        screen.getByText("Runtime clarified the mission and built a native execution plan.")
+      ).toBeTruthy();
       expect(screen.getByRole("button", { name: "Start mission run" })).toHaveProperty(
         "disabled",
         false

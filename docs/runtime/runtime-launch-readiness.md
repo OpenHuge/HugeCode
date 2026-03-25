@@ -36,6 +36,9 @@ The intended source inputs are:
 
 - runtime capabilities summary from the current transport
 - runtime health / liveness
+- runtime kernel v2 launch preparation when a concrete mission brief exists,
+  especially `executionEligibility`, `runIntent.clarified`, and the bounded
+  next-action signal from `code_runtime_run_prepare_v2`
 - provider routing health derived from provider catalog, OAuth accounts, and OAuth pools
 - operator pressure such as pending approvals or stale approval backlog
 - execution reliability derived from existing runtime diagnostics such as
@@ -89,6 +92,9 @@ The shipped implementation remains conservative:
 - the summary is still derived in app runtime facades rather than emitted as canonical runtime task truth
 - execution reliability reuse should come from the same app-runtime summary used by
   Mission Control and WebMCP diagnostics, not from duplicated page-local gate logic
+- once Mission Control has a concrete launch brief, `prepare_v2` should stop
+  being informational-only; the start surface should respect runtime-published
+  execution eligibility instead of bypassing it with a UI-side launch guess
 - the current shipped reliability gate is moderately conservative:
   diagnostics channel `unavailable`, any open runtime-tool circuit breaker, or
   an overall success gate below `0.95` block launch; degraded channels or

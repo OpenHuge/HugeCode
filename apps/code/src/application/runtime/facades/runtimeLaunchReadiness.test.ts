@@ -1,8 +1,10 @@
 import type { HealthResponse } from "../../../contracts/runtime";
+import type { RuntimeRunPrepareV2Response } from "@ku0/code-runtime-host-contract";
 import type { RuntimeCapabilitiesSummary } from "@ku0/code-runtime-client/runtimeClientTypes";
 import { describe, expect, it } from "vitest";
 import {
   buildRuntimeLaunchReadiness,
+  mergeRuntimeLaunchPreparationIntoLaunchReadiness,
   type RuntimeLaunchReadinessRoute,
 } from "./runtimeLaunchReadiness";
 import type { RuntimeExecutionReliabilitySummary } from "./runtimeExecutionReliability";
@@ -64,6 +66,95 @@ function buildExecutionReliability(
     blockedTotal: 0,
     topFailedReason: null,
     circuitBreakers: [],
+    ...overrides,
+  };
+}
+
+function buildPreparation(
+  overrides: Partial<RuntimeRunPrepareV2Response> = {}
+): RuntimeRunPrepareV2Response {
+  return {
+    preparedAt: 1_700_000_000_000,
+    runIntent: {
+      title: "Inspect runtime launch path",
+      objective: "Inspect runtime launch path",
+      summary: "Runtime clarified the launch objective.",
+      taskSource: null,
+      accessMode: "on-request",
+      executionMode: "single",
+      executionProfileId: "balanced-delegate",
+      reviewProfileId: null,
+      validationPresetId: "standard",
+      preferredBackendIds: [],
+      requiredCapabilities: [],
+      riskLevel: "medium",
+      clarified: true,
+      missingContext: [],
+    },
+    contextWorkingSet: {
+      summary: "Runtime prepared the working set.",
+      workspaceRoot: "/workspaces/HugeCode",
+      layers: [],
+    },
+    executionGraph: {
+      graphId: "graph-1",
+      summary: "Inspect, validate, review.",
+      nodes: [],
+    },
+    approvalBatches: [],
+    validationPlan: {
+      required: true,
+      summary: "Run the narrow validation lane.",
+      commands: ["pnpm validate:fast"],
+    },
+    reviewFocus: ["runtime truth"],
+    autonomyProfile: "night_operator",
+    wakePolicy: {
+      mode: "auto_queue",
+      safeFollowUp: true,
+      allowAutomaticContinuation: true,
+      allowedActions: ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+      stopGates: ["validation_failure_requires_review"],
+      queueBudget: {
+        maxQueuedActions: 2,
+        maxAutoContinuations: 2,
+      },
+    },
+    intentSnapshot: {
+      summary: "Runtime synthesized the launch intent.",
+      primaryGoal: "Inspect runtime launch path",
+      dominantDirection: "Inspect runtime launch path",
+      confidence: "high",
+      signals: [],
+    },
+    opportunityQueue: {
+      selectedOpportunityId: "opportunity-primary",
+      selectionSummary: "Runtime selected the closest bounded opportunity.",
+      candidates: [],
+    },
+    researchTrace: {
+      mode: "repository_only",
+      stage: "repository",
+      summary: "Research remains repository-only at launch.",
+      citations: [],
+      sensitiveContextMixed: false,
+    },
+    executionEligibility: {
+      eligible: true,
+      summary: "Runtime can begin bounded execution without waking the operator first.",
+      wakeState: "ready",
+      nextEligibleAction: "continue",
+      blockingReasons: [],
+    },
+    wakePolicySummary: {
+      summary: "Runtime will use Auto Queue and stop only at explicit wake gates.",
+      safeFollowUp: true,
+      allowedActions: ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+      queueBudget: {
+        maxQueuedActions: 2,
+        maxAutoContinuations: 2,
+      },
+    },
     ...overrides,
   };
 }
@@ -210,5 +301,69 @@ describe("buildRuntimeLaunchReadiness", () => {
 
     expect(summary.state).toBe("blocked");
     expect(summary.blockingReason).toBe("Enable at least one pool for this provider.");
+  });
+
+  it("blocks launch when runtime prepare_v2 says execution is not eligible", () => {
+    const summary = mergeRuntimeLaunchPreparationIntoLaunchReadiness(
+      buildRuntimeLaunchReadiness({
+        capabilities: buildCapabilitiesSummary(),
+        health: buildHealthResponse(),
+        healthError: null,
+        selectedRoute: buildRoute(),
+        executionReliability: buildExecutionReliability(),
+        pendingApprovalCount: 0,
+        stalePendingApprovalCount: 0,
+      }),
+      {
+        hasLaunchRequest: true,
+        preparation: buildPreparation({
+          runIntent: {
+            ...buildPreparation().runIntent,
+            clarified: false,
+            missingContext: ["execution_profile"],
+          },
+          executionEligibility: {
+            eligible: false,
+            summary: "Runtime should clarify missing context before chaining further.",
+            wakeState: "blocked",
+            nextEligibleAction: "clarify",
+            blockingReasons: ["Missing execution_profile"],
+          },
+        }),
+        preparationLoading: false,
+        preparationError: null,
+      }
+    );
+
+    expect(summary.state).toBe("blocked");
+    expect(summary.launchAllowed).toBe(false);
+    expect(summary.blockingReason).toBe("Missing execution_profile");
+    expect(summary.preparation.state).toBe("blocked");
+    expect(summary.recommendedAction).toContain("execution_profile");
+  });
+
+  it("keeps launch at attention while runtime is still preparing the launch plan", () => {
+    const summary = mergeRuntimeLaunchPreparationIntoLaunchReadiness(
+      buildRuntimeLaunchReadiness({
+        capabilities: buildCapabilitiesSummary(),
+        health: buildHealthResponse(),
+        healthError: null,
+        selectedRoute: buildRoute(),
+        executionReliability: buildExecutionReliability(),
+        pendingApprovalCount: 0,
+        stalePendingApprovalCount: 0,
+      }),
+      {
+        hasLaunchRequest: true,
+        preparation: null,
+        preparationLoading: true,
+        preparationError: null,
+      }
+    );
+
+    expect(summary.state).toBe("attention");
+    expect(summary.launchAllowed).toBe(true);
+    expect(summary.preparation.loading).toBe(true);
+    expect(summary.recommendedAction).toContain("launch plan");
   });
 });

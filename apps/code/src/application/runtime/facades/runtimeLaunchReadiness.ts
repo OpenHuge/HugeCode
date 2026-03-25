@@ -1,6 +1,7 @@
 import type { HealthResponse } from "../../../contracts/runtime";
 import type { RuntimeExecutionReliabilitySummary } from "./runtimeExecutionReliability";
 import type { RuntimeCapabilitiesSummary } from "@ku0/code-runtime-client/runtimeClientTypes";
+import type { RuntimeRunPrepareV2Response } from "@ku0/code-runtime-host-contract";
 
 export type RuntimeLaunchReadinessState = "ready" | "attention" | "blocked";
 
@@ -15,6 +16,15 @@ export type RuntimeLaunchReadinessSignal = {
   state: RuntimeLaunchReadinessState;
   label: string;
   detail: string;
+};
+
+export type RuntimeLaunchPreparationReadinessSignal = RuntimeLaunchReadinessSignal & {
+  clarified: boolean | null;
+  eligible: boolean | null;
+  loading: boolean;
+  missingContext: string[];
+  nextEligibleAction: string | null;
+  autonomyProfile: string | null;
 };
 
 export type RuntimeLaunchReadinessSummary = {
@@ -35,6 +45,7 @@ export type RuntimeLaunchReadinessSummary = {
     gatePassed: boolean | null;
     channelStatus: RuntimeExecutionReliabilitySummary["channelHealth"]["status"];
   };
+  preparation: RuntimeLaunchPreparationReadinessSignal;
 };
 
 type BuildRuntimeLaunchReadinessOptions = {
@@ -45,6 +56,13 @@ type BuildRuntimeLaunchReadinessOptions = {
   executionReliability: RuntimeExecutionReliabilitySummary;
   pendingApprovalCount: number;
   stalePendingApprovalCount: number;
+};
+
+type MergeRuntimeLaunchPreparationReadinessOptions = {
+  hasLaunchRequest: boolean;
+  preparation: RuntimeRunPrepareV2Response | null;
+  preparationLoading: boolean;
+  preparationError: string | null;
 };
 
 function isRuntimeCapabilitiesSummary(value: unknown): value is RuntimeCapabilitiesSummary {
@@ -181,6 +199,145 @@ function buildExecutionReliabilitySignal(
   };
 }
 
+function createPreparationSignal(
+  overrides: Partial<RuntimeLaunchPreparationReadinessSignal> = {}
+): RuntimeLaunchPreparationReadinessSignal {
+  return {
+    state: "ready",
+    label: "Runtime launch plan",
+    detail: "Enter a mission brief to evaluate runtime-owned launch planning.",
+    clarified: null,
+    eligible: null,
+    loading: false,
+    missingContext: [],
+    nextEligibleAction: null,
+    autonomyProfile: null,
+    ...overrides,
+  };
+}
+
+function formatRuntimeLaunchPlanDetail(preparation: RuntimeRunPrepareV2Response): string {
+  const summary = preparation.executionEligibility.summary.trim();
+  const selectionSummary = preparation.opportunityQueue.selectionSummary?.trim() ?? "";
+  if (summary.length > 0 && selectionSummary.length > 0) {
+    return `${summary} ${selectionSummary}`;
+  }
+  if (summary.length > 0) {
+    return summary;
+  }
+  if (selectionSummary.length > 0) {
+    return selectionSummary;
+  }
+  return preparation.runIntent.summary;
+}
+
+function buildRuntimeLaunchPreparationSignal({
+  hasLaunchRequest,
+  preparation,
+  preparationLoading,
+  preparationError,
+}: MergeRuntimeLaunchPreparationReadinessOptions): RuntimeLaunchPreparationReadinessSignal {
+  if (!hasLaunchRequest) {
+    return createPreparationSignal();
+  }
+
+  if (preparationLoading) {
+    return createPreparationSignal({
+      state: "attention",
+      detail: "Runtime is preparing the launch plan for this mission brief.",
+      loading: true,
+    });
+  }
+
+  const trimmedError = preparationError?.trim() ?? "";
+  if (trimmedError.length > 0) {
+    return createPreparationSignal({
+      state: "blocked",
+      detail: trimmedError,
+    });
+  }
+
+  if (!preparation) {
+    return createPreparationSignal({
+      state: "attention",
+      detail: "Runtime launch planning has not finished publishing preflight truth yet.",
+    });
+  }
+
+  const blockingReason =
+    preparation.executionEligibility.blockingReasons.find((reason) => reason.trim().length > 0) ??
+    null;
+
+  if (!preparation.executionEligibility.eligible) {
+    return createPreparationSignal({
+      state: "blocked",
+      detail: blockingReason ?? preparation.executionEligibility.summary,
+      clarified: preparation.runIntent.clarified,
+      eligible: false,
+      missingContext: preparation.runIntent.missingContext,
+      nextEligibleAction: preparation.executionEligibility.nextEligibleAction,
+      autonomyProfile: preparation.autonomyProfile,
+    });
+  }
+
+  if (!preparation.runIntent.clarified) {
+    return createPreparationSignal({
+      state: "attention",
+      detail:
+        preparation.runIntent.missingContext.length > 0
+          ? `Runtime still needs ${preparation.runIntent.missingContext.join(", ")} before the launch brief is fully clarified.`
+          : formatRuntimeLaunchPlanDetail(preparation),
+      clarified: false,
+      eligible: true,
+      missingContext: preparation.runIntent.missingContext,
+      nextEligibleAction: preparation.executionEligibility.nextEligibleAction,
+      autonomyProfile: preparation.autonomyProfile,
+    });
+  }
+
+  return createPreparationSignal({
+    state: "ready",
+    detail: formatRuntimeLaunchPlanDetail(preparation),
+    clarified: true,
+    eligible: true,
+    missingContext: preparation.runIntent.missingContext,
+    nextEligibleAction: preparation.executionEligibility.nextEligibleAction,
+    autonomyProfile: preparation.autonomyProfile,
+  });
+}
+
+function buildPreparationRecommendedAction(
+  signal: RuntimeLaunchPreparationReadinessSignal
+): string | null {
+  if (signal.loading) {
+    return "Wait for the runtime-owned launch plan before starting this mission.";
+  }
+  if (signal.state === "blocked") {
+    if (signal.missingContext.length > 0) {
+      return `Clarify ${signal.missingContext.join(", ")} before starting this mission.`;
+    }
+    if (signal.detail.trim().length > 0) {
+      return `Resolve the runtime launch-plan block before starting: ${signal.detail}`;
+    }
+    return "Resolve the runtime launch-plan block before starting this mission.";
+  }
+  if (signal.state === "attention") {
+    if (signal.missingContext.length > 0) {
+      return `Clarify ${signal.missingContext.join(", ")} so the runtime launch plan is fully aligned.`;
+    }
+    return "Review the runtime-owned launch plan before starting this mission.";
+  }
+  return null;
+}
+
+function toLaunchReadinessHeadline(state: RuntimeLaunchReadinessState): string {
+  return state === "ready"
+    ? "Launch readiness confirmed"
+    : state === "blocked"
+      ? "Launch readiness blocked"
+      : "Launch readiness needs attention";
+}
+
 export function buildRuntimeLaunchReadiness({
   capabilities,
   health,
@@ -228,12 +385,7 @@ export function buildRuntimeLaunchReadiness({
 
   return {
     state,
-    headline:
-      state === "ready"
-        ? "Launch readiness confirmed"
-        : state === "blocked"
-          ? "Launch readiness blocked"
-          : "Launch readiness needs attention",
+    headline: toLaunchReadinessHeadline(state),
     blockingReason,
     recommendedAction,
     launchAllowed: state !== "blocked",
@@ -241,5 +393,34 @@ export function buildRuntimeLaunchReadiness({
     route,
     approvalPressure,
     executionReliability: executionReliabilitySignal,
+    preparation: createPreparationSignal(),
+  };
+}
+
+export function mergeRuntimeLaunchPreparationIntoLaunchReadiness(
+  summary: RuntimeLaunchReadinessSummary,
+  options: MergeRuntimeLaunchPreparationReadinessOptions
+): RuntimeLaunchReadinessSummary {
+  const preparation = buildRuntimeLaunchPreparationSignal(options);
+  const state = maxState(summary.state, preparation.state);
+  const blockingReason =
+    summary.state === "blocked"
+      ? summary.blockingReason
+      : preparation.state === "blocked"
+        ? preparation.detail
+        : summary.blockingReason;
+  const recommendedAction =
+    summary.state === "blocked"
+      ? summary.recommendedAction
+      : (buildPreparationRecommendedAction(preparation) ?? summary.recommendedAction);
+
+  return {
+    ...summary,
+    state,
+    headline: toLaunchReadinessHeadline(state),
+    blockingReason,
+    recommendedAction,
+    launchAllowed: state !== "blocked",
+    preparation,
   };
 }

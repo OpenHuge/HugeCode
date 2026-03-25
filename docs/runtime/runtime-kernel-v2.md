@@ -68,6 +68,8 @@ This means:
   primary run/review source
 - Mission Control, Review Pack, and launch surfaces should prefer runtime-owned
   v2 summaries over UI-side reconstruction
+- when a launch brief exists, Mission Control should treat `prepare_v2`
+  execution eligibility as launch truth rather than as a decorative preview
 
 ## Migration direction
 

@@ -41,6 +41,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     runtimeLaunchPreparationTruthSourceLabel,
     runtimeDraftInstruction,
     runtimeDraftProfileId,
+    launchReadiness,
     runtimeDraftProfileTouched,
     runtimeDraftProviderRoute,
     runtimeDraftTitle,
@@ -77,7 +78,6 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const stalePendingApprovalTasks = missionControlProjection.approvalPressure.staleTasks;
   const oldestPendingApprovalTask = missionControlProjection.approvalPressure.oldestPendingTask;
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
-  const launchReadiness = missionControlProjection.launchReadiness;
   const activeRuntimeCount = missionControlProjection.runList.activeRuntimeCount;
   const visibleRuntimeRuns = missionControlProjection.runList.visibleRuntimeRuns;
   const checkpointFailureSummary =
@@ -376,6 +376,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
               {launchReadiness.executionReliability.label}:{" "}
               {launchReadiness.executionReliability.detail}
             </span>
+            <span>
+              {launchReadiness.preparation.label}: {launchReadiness.preparation.detail}
+            </span>
           </div>
           {launchReadiness.blockingReason ? (
             <div className={controlStyles.warning}>{launchReadiness.blockingReason}</div>
@@ -425,6 +428,17 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                       ? ` | ${runtimeLaunchPreparation.validationPlan.commands.join(" | ")}`
                       : ""}
                   </span>
+                  <span>
+                    Autonomy: {runtimeLaunchPreparation.autonomyProfile.replaceAll("_", " ")}
+                  </span>
+                  <span>Wake policy: {runtimeLaunchPreparation.wakePolicySummary.summary}</span>
+                  <span>
+                    Launch eligibility: {runtimeLaunchPreparation.executionEligibility.summary}
+                  </span>
+                  <span>
+                    Opportunity queue: {runtimeLaunchPreparation.opportunityQueue.selectionSummary}
+                  </span>
+                  <span>Research trace: {runtimeLaunchPreparation.researchTrace.summary}</span>
                   <span>
                     Review focus:{" "}
                     {runtimeLaunchPreparation.reviewFocus.length > 0
@@ -595,6 +609,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             onClick={() => void startRuntimeManagedTask()}
             disabled={
               runtimeLoading ||
+              (runtimeDraftInstruction.trim().length > 0 && runtimeLaunchPreparationLoading) ||
               runtimeDraftInstruction.trim().length === 0 ||
               selectedProviderRoute?.ready === false ||
               !launchReadiness.launchAllowed

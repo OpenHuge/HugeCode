@@ -8,6 +8,7 @@ import {
   buildRuntimeMissionLaunchPrepareRequest,
   useRuntimeMissionLaunchPreview,
 } from "./runtimeMissionLaunchPreparation";
+import { mergeRuntimeLaunchPreparationIntoLaunchReadiness } from "./runtimeLaunchReadiness";
 import { buildWorkspaceRuntimeMissionControlProjection } from "./runtimeWorkspaceMissionControlProjection";
 import { useRuntimeWorkspaceLaunchDefaults } from "./runtimeWorkspaceLaunchDefaultsFacade";
 import {
@@ -119,6 +120,22 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimeSourceDraft: draft.runtimeSourceDraft,
     routedProvider,
   });
+  const launchReadiness = useMemo(
+    () =>
+      mergeRuntimeLaunchPreparationIntoLaunchReadiness(missionControlProjection.launchReadiness, {
+        hasLaunchRequest: runtimeLaunchPreview.request !== null,
+        preparation: runtimeLaunchPreview.preparation,
+        preparationLoading: runtimeLaunchPreview.loading,
+        preparationError: runtimeLaunchPreview.error,
+      }),
+    [
+      missionControlProjection.launchReadiness,
+      runtimeLaunchPreview.error,
+      runtimeLaunchPreview.loading,
+      runtimeLaunchPreview.preparation,
+      runtimeLaunchPreview.request,
+    ]
+  );
 
   const setRuntimeError = useCallback((value: string | null) => {
     setRuntimeActionError(value);
@@ -140,6 +157,30 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
         routedProvider,
       });
     if (!launchRequest) {
+      return;
+    }
+    if (runtimeLaunchPreview.loading) {
+      setRuntimeError(null);
+      setRuntimeInfo("Runtime is still preparing the launch plan for this mission.");
+      return;
+    }
+    if (runtimeLaunchPreview.error?.trim()) {
+      setRuntimeInfo(null);
+      setRuntimeError(`Runtime launch plan unavailable: ${runtimeLaunchPreview.error.trim()}`);
+      return;
+    }
+    if (!runtimeLaunchPreview.preparation) {
+      setRuntimeInfo(null);
+      setRuntimeError("Runtime launch plan is not ready yet. Wait for prepare_v2 to finish.");
+      return;
+    }
+    if (!runtimeLaunchPreview.preparation.executionEligibility.eligible) {
+      const blockingReason =
+        runtimeLaunchPreview.preparation.executionEligibility.blockingReasons.find(
+          (entry) => entry.trim().length > 0
+        ) ?? runtimeLaunchPreview.preparation.executionEligibility.summary;
+      setRuntimeInfo(null);
+      setRuntimeError(blockingReason);
       return;
     }
     setRuntimeActionLoading(true);
@@ -398,6 +439,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimeLaunchPreparationTruthSourceLabel: runtimeLaunchPreview.truthSourceLabel,
     resumeRecoverableTasks,
     runtimeDraftInstruction: draft.runtimeDraftInstruction,
+    launchReadiness,
     setRuntimeDraftInstruction: draft.setRuntimeDraftInstruction,
     runtimeDraftProfileId: draft.runtimeDraftProfileId,
     runtimeDraftProfileTouched: draft.runtimeDraftProfileTouched,
