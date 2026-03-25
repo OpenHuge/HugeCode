@@ -7,6 +7,29 @@ This document is the source of truth for how HugeCode maps public workflows to i
 - `pnpm check:workflow-governance`
   Use this guard whenever `.github/workflows/*.yml`, workflow-facing docs, or reusable workflow wiring changes.
 
+## PR Author Guide
+
+Treat the CI check names as explicit requests for missing local proof:
+
+- `Quality / Quality`
+  This lane is where `format`, `lint`, `ui:contract`, `check:circular`, and
+  affected typecheck fail. If a PR changes TypeScript behavior, runtime/UI
+  boundaries, or import shape, the author should already have run the matching
+  local gate before opening the PR.
+- `PR Affected Checks / PR Affected Checks`
+  This lane validates affected builds and tests. If it fails, the usual fix is
+  to reproduce with `pnpm test:affected` or the narrower suite that covers the
+  changed surface, not to rerun unrelated repo-wide validation.
+- `frontend_optimization / frontend_optimization`
+  This is the expensive browser/build/startup proof. Treat failures here as a
+  sign that the PR changed shell startup, runtime readiness, bundle-sensitive
+  code, or frontend-owning dependencies without running
+  `pnpm validate:frontend-optimization` locally first.
+
+When documenting or reviewing PR process, point authors to the local command
+that corresponds to the failing gate instead of telling them to "wait for CI and
+fix whatever fails next".
+
 ## Public Workflows vs Internal Reusable Workflows
 
 Public entry workflows live under `.github/workflows/*.yml` and are the only workflows that should be treated as user-facing automation entrypoints.
