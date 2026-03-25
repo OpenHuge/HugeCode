@@ -565,7 +565,6 @@ export function useThreadMessaging({
           codexArgs: resolvedExecutionMode === "runtime" ? null : resolvedCodexArgs,
           contextPrefix,
           images,
-          appMentions,
           autoDrive,
         });
         const startTurn = () =>

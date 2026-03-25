@@ -113,6 +113,9 @@ Internal parity helpers such as `internal/runtime-policy-rs` may support tooling
 - [runtime-kernel-v2.md](./runtime-kernel-v2.md)
   Truth-first lifecycle direction for run preparation, execution, review, and
   the current v1-to-v2 compatibility bridge.
+- [runtime-compat-cleanup-2026-03-25.md](./runtime-compat-cleanup-2026-03-25.md)
+  Cleanup note for retiring `apps/connectors` compatibility paths, keeping the
+  extension v2 contract canonical, and documenting retained compat exit windows.
 - [pi-mono-runtime-source-deep-dive-2026-03-22.md](./pi-mono-runtime-source-deep-dive-2026-03-22.md)
   Runtime 主线源码解剖，解释宿主装配、shared bindings、projection fabric、frozen contract 与 Rust 真相源如何闭环。
 - [runtime-borrowing-blueprint-2026-03-22.md](./runtime-borrowing-blueprint-2026-03-22.md)

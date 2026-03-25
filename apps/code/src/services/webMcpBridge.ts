@@ -266,6 +266,7 @@ function buildRuntimeControlTools(options: WebMcpSyncOptions): WebMcpToolDescrip
     return [];
   }
 
+  const allowedRuntimeToolNames = new Set<string>(AGENT_RUNTIME_CONTROL_TOOL_NAMES);
   const runtimeTools = buildRuntimeTools({
     snapshot: options.snapshot,
     runtimeControl: options.runtimeControl,
@@ -285,10 +286,13 @@ function buildRuntimeControlTools(options: WebMcpSyncOptions): WebMcpToolDescrip
       confirmWriteAction,
     },
   });
+  const canonicalRuntimeTools = runtimeTools.filter((tool) =>
+    allowedRuntimeToolNames.has(tool.name)
+  );
 
   return options.readOnlyMode
-    ? runtimeTools.filter((tool) => tool.annotations?.readOnlyHint === true)
-    : runtimeTools;
+    ? canonicalRuntimeTools.filter((tool) => tool.annotations?.readOnlyHint === true)
+    : canonicalRuntimeTools;
 }
 
 function toContextDescriptorOptions(options?: {

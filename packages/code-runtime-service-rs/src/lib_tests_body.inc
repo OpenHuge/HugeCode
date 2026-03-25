@@ -2577,7 +2577,6 @@
                     | "code_codex_config_path_get_v1"
                     | "code_codex_doctor_v1"
                     | "code_codex_update_v1"
-                    | "code_apps_list_v1"
                     | "code_mcp_server_status_list_v1"
                     | "code_runtime_diagnostics_export_v1"
             ) {
@@ -2880,6 +2879,51 @@
             snapshot_payload["result"]["skills"].as_array().map(Vec::len),
             Some(0)
         );
+    }
+
+    #[tokio::test]
+    async fn extension_catalog_ignores_legacy_native_plugin_rows() {
+        let db_path = temp_sqlite_db_path("runtime-legacy-plugin-catalog");
+        cleanup_sqlite_db(db_path.as_path());
+        let native_state_store =
+            crate::native_state_store::NativeStateStore::new(db_path.to_path_buf());
+        native_state_store.initialize_blocking();
+        native_state_store
+            .upsert_entity(
+                crate::native_state_store::TABLE_NATIVE_PLUGINS,
+                "plugin-a",
+                Some(true),
+                json!({
+                    "name": "Plugin A",
+                    "version": "1.0.0",
+                    "publisher": "legacy-native"
+                }),
+            )
+            .await
+            .expect("insert legacy plugin row");
+
+        let app = test_router_with_native_state_db_path(test_service_config(), db_path.as_path());
+        let payload = send_rpc_request(
+            app,
+            json!({
+                "method": "code_extension_catalog_list_v2",
+                "params": {}
+            }),
+        )
+        .await;
+
+        assert_eq!(payload["ok"], Value::Bool(true));
+        let extensions = payload["result"]
+            .as_array()
+            .expect("extension catalog response should be an array");
+        assert!(
+            !extensions
+                .iter()
+                .any(|entry| entry["extensionId"] == Value::String("plugin-a".to_string())),
+            "legacy native plugin rows should not backfill the extension catalog"
+        );
+
+        cleanup_sqlite_db(db_path.as_path());
     }
 
     #[tokio::test]
