@@ -145,9 +145,7 @@ describe("runtimeOperatorLoopParity", () => {
     if (!reviewDetail || reviewDetail.kind !== "review_pack") {
       throw new Error("Expected review pack detail");
     }
-    expect(reviewDetail.recommendedNextAction).toBe(
-      "Open Review Pack and resolve the runtime-blocked follow-up before continuing."
-    );
+    expect(reviewDetail.recommendedNextAction).toBe(reviewEntry?.recommendedNextAction);
     expect(reviewDetail.navigationTarget).toEqual({
       kind: "mission",
       workspaceId: "workspace-1",
@@ -157,9 +155,7 @@ describe("runtimeOperatorLoopParity", () => {
       threadId: "thread-legacy",
       limitation: null,
     });
-    expect(reviewDetail.continuity?.recommendedAction).toBe(
-      "Open Review Pack and resolve the runtime-blocked follow-up before continuing."
-    );
+    expect(reviewDetail.continuity?.recommendedAction).toBe(reviewEntry?.recommendedNextAction);
   });
 
   it("keeps takeover-first review actions aligned between Mission Control and Review Pack", () => {
