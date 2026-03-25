@@ -340,13 +340,14 @@ export function summarizeReviewContinuationActionability(input: {
         : publishedContinuation.state === "missing"
           ? "missing"
           : publishedContinuation.state;
-    const truthSourceLabel = formatRuntimeContinuationTruthSourceLabel(publishedContinuation.source);
+    const truthSourceLabel = formatRuntimeContinuationTruthSourceLabel(
+      publishedContinuation.source
+    );
     return {
       state,
       summary: publishedSummary,
       details,
-      blockingReason:
-        publishedContinuation.state === "blocked" ? publishedDetail : null,
+      blockingReason: publishedContinuation.state === "blocked" ? publishedDetail : null,
       recommendedAction: publishedContinuation.recommendedAction,
       continuePathLabel,
       truthSource: publishedContinuation.source,

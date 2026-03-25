@@ -294,7 +294,8 @@ describe("runtimeReviewContinuationFacade", () => {
       summary: "Runtime blocked follow-up until validation evidence is repaired.",
       blockingReason: "Runtime blocked follow-up until validation evidence is repaired.",
       continuePathLabel: "Review Pack",
-      recommendedAction: "Open Review Pack and resolve the runtime-blocked follow-up before continuing.",
+      recommendedAction:
+        "Open Review Pack and resolve the runtime-blocked follow-up before continuing.",
       truthSource: "review_actionability",
       truthSourceLabel: "Runtime review actionability",
     });

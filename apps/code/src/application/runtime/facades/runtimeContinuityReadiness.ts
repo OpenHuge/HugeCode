@@ -336,8 +336,7 @@ function buildCandidateItem(
     return {
       runId: input.run.id,
       taskId: runtimeTaskId,
-      state:
-        publishedContinuation.state === "missing" ? "attention" : publishedContinuation.state,
+      state: publishedContinuation.state === "missing" ? "attention" : publishedContinuation.state,
       pathKind: publishedContinuation.pathKind,
       detail: publishedContinuation.detail ?? publishedContinuation.summary,
       recommendedAction: publishedContinuation.recommendedAction,

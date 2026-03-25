@@ -301,12 +301,12 @@ export function projectCompletedRunToReviewPackSummary(
         ? "Accepted in review. No further action is required unless follow-up work is needed."
         : reviewDecision?.status === "rejected"
           ? "Rejected in review. Open the mission thread to retry or reroute with operator feedback."
-          : run.nextAction?.label ??
+          : (run.nextAction?.label ??
             (reviewStatus === "ready"
               ? "Review the evidence and accept or retry."
               : reviewStatus === "action_required"
                 ? "Inspect warnings or failures before retrying."
-                : "Review the available evidence before accepting this run.")),
+                : "Review the available evidence before accepting this run."))),
     fileChanges,
     evidenceRefs,
     assumptions,

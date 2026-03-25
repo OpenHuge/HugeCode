@@ -132,10 +132,7 @@ describe("code runtime rpc compatibility helpers", () => {
       "sessionBoundary",
       "session_boundary"
     );
-    expect(CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES).toHaveProperty(
-      "continuation",
-      "continuation"
-    );
+    expect(CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES).toHaveProperty("continuation", "continuation");
     expect(CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES).toHaveProperty(
       "nextOperatorAction",
       "next_operator_action"
