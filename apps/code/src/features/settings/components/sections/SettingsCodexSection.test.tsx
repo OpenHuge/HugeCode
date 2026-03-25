@@ -211,7 +211,7 @@ describe("SettingsCodexSection", () => {
     );
   });
 
-  it("preserves route-specific model ids when duplicate model slugs are available", () => {
+  it("preserves route-specific model ids when duplicate model slugs are available", async () => {
     const onUpdateAppSettings = vi.fn(async () => undefined);
 
     render(
@@ -244,16 +244,22 @@ describe("SettingsCodexSection", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Model" }));
-    fireEvent.click(screen.getByRole("option", { name: "GPT-5.1 / codex-primary" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Model" }));
+    expect(await screen.findByRole("menu", { name: "Model providers" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "GPT-5.1" }));
 
-    expect(screen.getByRole("button", { name: "Model" }).textContent).toContain("GPT-5.1");
-    expect(onUpdateAppSettings).toHaveBeenCalledWith(
-      expect.objectContaining({ lastComposerModelId: "openai-primary" })
+    await waitFor(() =>
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lastComposerModelId: "openai-primary",
+          composerModelSelectionMode: "manual",
+          lastComposerProviderFamilyId: "codex",
+        })
+      )
     );
   });
 
-  it("switching provider picks that provider family's recommended default model route", () => {
+  it("switching provider updates the preferred provider family for auto routing", async () => {
     const onUpdateAppSettings = vi.fn(async () => undefined);
 
     render(
@@ -286,11 +292,15 @@ describe("SettingsCodexSection", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Provider" }));
-    fireEvent.click(screen.getByRole("option", { name: "Claude" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Model" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Claude" }));
 
-    expect(onUpdateAppSettings).toHaveBeenCalledWith(
-      expect.objectContaining({ lastComposerModelId: "claude-opus" })
+    await waitFor(() =>
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lastComposerProviderFamilyId: "claude",
+        })
+      )
     );
   });
 
