@@ -10,6 +10,10 @@ This document is the source of truth for how HugeCode maps public workflows to i
   `checks_requested` activity so workflow runs stay aligned with GitHub's
   required-check contract and do not widen accidentally if new activity types
   are added later.
+- Required workflows that run on `merge_group` should not use unconditional
+  `cancel-in-progress: true`. Keep cancellation limited to PR churn so merge
+  queue and `push` to `main` still complete their post-merge proof instead of
+  burning runner time on partially executed runs that GitHub cancels mid-flight.
 
 ## PR Author Guide
 
@@ -74,6 +78,9 @@ Public workflow entrypoints currently include:
 - Internal or tooling-only lanes should not be reintroduced as product-facing workflow entrypoints.
 - Workflow docs must stay aligned with `scripts/check-workflow-governance.mjs`.
 - Required merge-queue checks must trigger on `merge_group` as well as `pull_request`, or queued PRs will block waiting for checks that never report.
+- Required workflows that protect merge queue or `main` should scope
+  `cancel-in-progress` to PR events instead of cancelling all newer `push` or
+  `merge_group` runs by default.
 - Required checks that protect `main` should keep a stable aggregate check name even when the underlying reusable workflow fans out into parallel sub-jobs. This lets branch protection and merge queue wait on `Quality / Quality` and `PR Affected Checks / PR Affected Checks` while still shrinking wall-clock time.
 - Shared Node/pnpm bootstrap should stay lockfile-first: prefetch with `pnpm fetch --frozen-lockfile`, then install with `pnpm install --offline --frozen-lockfile` unless a workflow has a documented reason to require a different install path.
 - PR workflow gates may classify manifest-only dependency bumps before deciding whether expensive desktop or frontend lanes are needed; keep that classification script-backed and explicit instead of scattering ad hoc shell heuristics across workflows.
