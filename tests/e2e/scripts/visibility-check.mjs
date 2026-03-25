@@ -1,33 +1,15 @@
 import { chromium } from "@playwright/test";
+import {
+  runVisibilityCheckWithTimeout,
+  resolveVisibilityCheckExitCode,
+  summarizeVisibilityCheckResult,
+} from "./visibility-check.shared.mjs";
 
 const url = process.env.CHECK_URL ?? "http://localhost:5187/workspaces";
 const useCdp = process.env.CHECK_CDP === "1";
 const useTrace = process.env.CHECK_TRACE === "1";
 const useInit = process.env.CHECK_INIT === "1";
 const headless = process.env.CHECK_HEADLESS !== "0";
-
-function withTimeout(label, fn, timeoutMs = 10000) {
-  const timeoutSentinel = Symbol("timeout");
-  const wrapped = Promise.resolve()
-    .then(fn)
-    .then(
-      (value) => ({ kind: "ok", value }),
-      (error) => ({ kind: "error", error })
-    );
-  const timeoutPromise = new Promise((resolve) => {
-    setTimeout(() => resolve(timeoutSentinel), timeoutMs);
-  });
-
-  return Promise.race([wrapped, timeoutPromise]).then((outcome) => {
-    if (outcome === timeoutSentinel) {
-      throw new Error(`timeout:${label}:${timeoutMs}`);
-    }
-    if (outcome.kind === "error") {
-      throw outcome.error;
-    }
-    return outcome.value;
-  });
-}
 
 const browser = await chromium.launch({ headless });
 const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -67,7 +49,7 @@ const result = {
 const step = async (label, fn, timeoutMs = 10000) => {
   const t0 = Date.now();
   try {
-    const value = await withTimeout(label, fn, timeoutMs);
+    const value = await runVisibilityCheckWithTimeout(label, fn, timeoutMs);
     result.steps.push({ label, ok: true, ms: Date.now() - t0, value });
     return value;
   } catch (error) {
@@ -127,3 +109,7 @@ if (useTrace) {
 }
 
 await browser.close();
+
+const summary = summarizeVisibilityCheckResult(result);
+process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
+process.exitCode = resolveVisibilityCheckExitCode(summary);
