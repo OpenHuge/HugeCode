@@ -15,7 +15,8 @@ Treat the CI check names as explicit requests for missing local proof:
   This lane is where `format`, `lint`, `ui:contract`, `check:circular`, and
   affected typecheck fail. If a PR changes TypeScript behavior, runtime/UI
   boundaries, or import shape, the author should already have run the matching
-  local gate before opening the PR.
+  local gate before opening the PR. PR desktop packaging proof stays in the
+  dedicated `Desktop (Tauri)` workflow instead of being duplicated here.
 - `PR Affected Checks / PR Affected Checks`
   This lane validates affected builds and tests. If it fails, the usual fix is
   to reproduce with `pnpm test:affected` or the narrower suite that covers the
@@ -24,7 +25,9 @@ Treat the CI check names as explicit requests for missing local proof:
   This is the expensive browser/build/startup proof. Treat failures here as a
   sign that the PR changed shell startup, runtime readiness, bundle-sensitive
   code, or frontend-owning dependencies without running
-  `pnpm validate:frontend-optimization` locally first.
+  `pnpm validate:frontend-optimization` locally first. Workflow-only CI
+  plumbing edits should stay in repository-governance lanes and not wake this
+  browser/build gate by themselves.
 
 When documenting or reviewing PR process, point authors to the local command
 that corresponds to the failing gate instead of telling them to "wait for CI and

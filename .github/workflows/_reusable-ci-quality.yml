@@ -74,10 +74,10 @@ jobs:
       - if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true')
         uses: ./.github/actions/cache-turbo
 
-      - if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true') && (inputs.desktop_runtime_changed || inputs.runtime_contract_changed)
+      - if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true') && (inputs.runtime_contract_changed || (github.event_name != 'pull_request' && inputs.desktop_runtime_changed))
         uses: ./.github/actions/install-linux-desktop-deps
 
-      - if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true') && (inputs.desktop_runtime_changed || inputs.runtime_contract_changed)
+      - if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true') && (inputs.runtime_contract_changed || (github.event_name != 'pull_request' && inputs.desktop_runtime_changed))
         uses: ./.github/actions/setup-rust-ci
         with:
           cargo-cache-path: |
@@ -115,7 +115,7 @@ jobs:
         run: pnpm check:runtime-contract:parity
 
       - name: Desktop Runtime Fast Verify
-        if: inputs.ci_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true') && inputs.desktop_runtime_changed
+        if: github.event_name != 'pull_request' && inputs.ci_required && inputs.desktop_runtime_changed
         run: pnpm desktop:verify:fast
 
       - name: Circular Dependencies
