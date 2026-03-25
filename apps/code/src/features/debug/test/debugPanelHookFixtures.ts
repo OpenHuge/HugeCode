@@ -35,6 +35,27 @@ export function createDebugRuntimeEventChannelsState(
   };
 }
 
+export function createDebugRuntimeToolExecutionMetricsState(
+  overrides: Partial<CreateDebugPanelViewModelParams["runtimeToolExecutionMetrics"]> = {}
+): CreateDebugPanelViewModelParams["runtimeToolExecutionMetrics"] {
+  return {
+    updatedAt: 0,
+    totals: {
+      attemptedTotal: 0,
+      startedTotal: 0,
+      completedTotal: 0,
+      successTotal: 0,
+      validationFailedTotal: 0,
+      runtimeFailedTotal: 0,
+      timeoutTotal: 0,
+      blockedTotal: 0,
+      truncatedTotal: 0,
+    },
+    recentExecutions: [],
+    ...overrides,
+  };
+}
+
 export function createDebugRuntimeProbeState(
   overrides: Partial<CreateDebugPanelViewModelParams["runtimeProbe"]> = {}
 ): CreateDebugPanelViewModelParams["runtimeProbe"] {
@@ -95,6 +116,7 @@ export function createDebugPanelViewModelBuilderParams(
     runtimeCapabilities: createDebugRuntimeCapabilitiesState(),
     diagnosticsExport: createRuntimeDiagnosticsExportState(),
     runtimeEventChannels: createDebugRuntimeEventChannelsState(),
+    runtimeToolExecutionMetrics: createDebugRuntimeToolExecutionMetricsState(),
     runtimeToolLifecycle: {
       revision: 0,
       lastEvent: null,

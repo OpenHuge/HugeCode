@@ -14,6 +14,7 @@ import { useDebugEntryDiagnostics } from "./useDebugEntryDiagnostics";
 import { useDebugPanelViewModelInputs } from "./useDebugPanelViewModelInputs";
 import { useDebugRuntimeCapabilities } from "./useDebugRuntimeCapabilities";
 import { useDebugRuntimeEventChannels } from "./useDebugRuntimeEventChannels";
+import { useDebugRuntimeToolExecutionMetrics } from "./useDebugRuntimeToolExecutionMetrics";
 import { useDebugRuntimeToolLifecycle } from "./useDebugRuntimeToolLifecycle";
 import { useDebugRuntimeProbe } from "./useDebugRuntimeProbe";
 import { useFormattedDebugEntries } from "./useFormattedDebugEntries";
@@ -35,6 +36,10 @@ vi.mock("./useDebugRuntimeToolLifecycle", () => ({
   useDebugRuntimeToolLifecycle: vi.fn(),
 }));
 
+vi.mock("./useDebugRuntimeToolExecutionMetrics", () => ({
+  useDebugRuntimeToolExecutionMetrics: vi.fn(),
+}));
+
 vi.mock("./useDebugRuntimeProbe", () => ({
   useDebugRuntimeProbe: vi.fn(),
 }));
@@ -50,6 +55,7 @@ vi.mock("./useRuntimeDiagnosticsExport", () => ({
 const useDebugEntryDiagnosticsMock = vi.mocked(useDebugEntryDiagnostics);
 const useDebugRuntimeCapabilitiesMock = vi.mocked(useDebugRuntimeCapabilities);
 const useDebugRuntimeEventChannelsMock = vi.mocked(useDebugRuntimeEventChannels);
+const useDebugRuntimeToolExecutionMetricsMock = vi.mocked(useDebugRuntimeToolExecutionMetrics);
 const useDebugRuntimeToolLifecycleMock = vi.mocked(useDebugRuntimeToolLifecycle);
 const useDebugRuntimeProbeMock = vi.mocked(useDebugRuntimeProbe);
 const useFormattedDebugEntriesMock = vi.mocked(useFormattedDebugEntries);
@@ -60,6 +66,21 @@ describe("useDebugPanelViewModelInputs", () => {
     useDebugRuntimeCapabilitiesMock.mockReturnValue(createDebugRuntimeCapabilitiesState());
     useRuntimeDiagnosticsExportMock.mockReturnValue(createRuntimeDiagnosticsExportState());
     useDebugRuntimeEventChannelsMock.mockReturnValue(createDebugRuntimeEventChannelsState());
+    useDebugRuntimeToolExecutionMetricsMock.mockReturnValue({
+      updatedAt: 0,
+      totals: {
+        attemptedTotal: 0,
+        startedTotal: 0,
+        completedTotal: 0,
+        successTotal: 0,
+        validationFailedTotal: 0,
+        runtimeFailedTotal: 0,
+        timeoutTotal: 0,
+        blockedTotal: 0,
+        truncatedTotal: 0,
+      },
+      recentExecutions: [],
+    });
     useDebugRuntimeToolLifecycleMock.mockReturnValue({
       revision: 0,
       lastEvent: null,
@@ -87,6 +108,7 @@ describe("useDebugPanelViewModelInputs", () => {
       runtimeCapabilities,
       diagnosticsExport,
       runtimeEventChannels,
+      runtimeToolExecutionMetrics,
       runtimeToolLifecycle,
       runtimeProbe,
       entryDiagnostics,
@@ -95,6 +117,7 @@ describe("useDebugPanelViewModelInputs", () => {
     useDebugRuntimeCapabilitiesMock.mockReturnValue(runtimeCapabilities);
     useRuntimeDiagnosticsExportMock.mockReturnValue(diagnosticsExport);
     useDebugRuntimeEventChannelsMock.mockReturnValue(runtimeEventChannels);
+    useDebugRuntimeToolExecutionMetricsMock.mockReturnValue(runtimeToolExecutionMetrics);
     useDebugRuntimeToolLifecycleMock.mockReturnValue(runtimeToolLifecycle);
     useDebugRuntimeProbeMock.mockReturnValue(runtimeProbe);
     useFormattedDebugEntriesMock.mockReturnValue([]);
@@ -115,6 +138,9 @@ describe("useDebugPanelViewModelInputs", () => {
     expect(useRuntimeDiagnosticsExportMock).toHaveBeenCalledWith({ workspaceId: "workspace-1" });
     expect(useDebugRuntimeToolLifecycleMock).toHaveBeenCalledWith({
       workspaceId: "workspace-1",
+      enabled: true,
+    });
+    expect(useDebugRuntimeToolExecutionMetricsMock).toHaveBeenCalledWith({
       enabled: true,
     });
     expect(useDebugRuntimeProbeMock).toHaveBeenCalledWith({ workspaceId: "workspace-1" });
@@ -148,6 +174,9 @@ describe("useDebugPanelViewModelInputs", () => {
       workspaceId: null,
       enabled: true,
     });
+    expect(useDebugRuntimeToolExecutionMetricsMock).toHaveBeenCalledWith({
+      enabled: true,
+    });
     expect(useDebugRuntimeProbeMock).toHaveBeenCalledWith({ workspaceId: null });
     expect(useFormattedDebugEntriesMock).toHaveBeenCalledWith(entries, true);
     expect(useDebugEntryDiagnosticsMock).toHaveBeenCalledWith(entries, false, true);
@@ -173,6 +202,9 @@ describe("useDebugPanelViewModelInputs", () => {
 
     expect(useDebugRuntimeToolLifecycleMock).toHaveBeenCalledWith({
       workspaceId: null,
+      enabled: false,
+    });
+    expect(useDebugRuntimeToolExecutionMetricsMock).toHaveBeenCalledWith({
       enabled: false,
     });
     expect(useDebugRuntimeProbeMock).toHaveBeenCalledWith({ workspaceId: null });
