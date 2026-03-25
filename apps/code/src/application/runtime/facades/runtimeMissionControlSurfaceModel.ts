@@ -4,6 +4,7 @@ import type {
   HugeCodeRunState,
   HugeCodeTaskSummary,
 } from "@ku0/code-runtime-host-contract";
+import { resolveRuntimeNextOperatorAction } from "@ku0/code-runtime-host-contract";
 import {
   isRuntimeManagedMissionTaskId,
   type MissionControlProjection,
@@ -228,6 +229,54 @@ function buildReviewNavigationTarget(
     runId: options?.runId ?? task.latestRunId ?? null,
     reviewPackId: options?.reviewPackId ?? null,
     limitation: task.origin.threadId ? null : "thread_unavailable",
+  };
+}
+
+function mapRuntimeOperatorActionTarget(input: {
+  task: HugeCodeTaskSummary;
+  target: import("@ku0/code-runtime-host-contract").HugeCodeTakeoverTarget | null;
+  reviewPackId?: string | null;
+}): MissionNavigationTarget | null {
+  const target = input.target;
+  if (!target) {
+    return null;
+  }
+  if (target.kind === "thread") {
+    return {
+      kind: "thread",
+      workspaceId: target.workspaceId,
+      threadId: target.threadId,
+    };
+  }
+  if (target.kind === "review_pack") {
+    return {
+      kind: "review",
+      workspaceId: target.workspaceId,
+      taskId: target.taskId,
+      runId: target.runId,
+      reviewPackId: target.reviewPackId,
+      limitation: input.task.origin.threadId ? null : "thread_unavailable",
+    };
+  }
+  if (target.kind === "run") {
+    return {
+      kind: "mission",
+      workspaceId: target.workspaceId,
+      taskId: target.taskId,
+      runId: target.runId,
+      reviewPackId: target.reviewPackId ?? input.reviewPackId ?? null,
+      threadId: input.task.origin.threadId ?? null,
+      limitation: input.task.origin.threadId ? null : "thread_unavailable",
+    };
+  }
+  return {
+    kind: "mission",
+    workspaceId: input.task.workspaceId,
+    taskId: input.task.id,
+    runId: input.task.latestRunId ?? null,
+    reviewPackId: input.reviewPackId ?? null,
+    threadId: input.task.origin.threadId ?? null,
+    limitation: input.task.origin.threadId ? null : "thread_unavailable",
   };
 }
 
@@ -471,6 +520,39 @@ function resolveMissionOperatorAction(input: {
     runId: input.run?.id ?? null,
     reviewPackId: input.reviewPack?.id ?? null,
   });
+  const runtimeAction = resolveRuntimeNextOperatorAction({
+    workspaceId: input.run?.workspaceId ?? input.reviewPack?.workspaceId ?? input.task.workspaceId,
+    taskId: input.run?.taskId ?? input.reviewPack?.taskId ?? input.task.id,
+    runId: input.run?.id ?? input.reviewPack?.runId ?? input.task.latestRunId ?? null,
+    reviewPackId: input.reviewPack?.id ?? input.run?.reviewPackId ?? null,
+    state: input.run?.state ?? input.task.latestRunState ?? null,
+    reviewStatus: input.reviewPack?.reviewStatus ?? null,
+    approval: input.run?.approval ?? null,
+    reviewDecision: input.reviewPack?.reviewDecision ?? input.run?.reviewDecision ?? null,
+    nextAction: input.run?.nextAction ?? null,
+    checkpoint: input.reviewPack?.checkpoint ?? input.run?.checkpoint ?? null,
+    missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,
+    actionability: input.reviewPack?.actionability ?? input.run?.actionability ?? null,
+    publishHandoff: input.reviewPack?.publishHandoff ?? input.run?.publishHandoff ?? null,
+    takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run?.takeoverBundle ?? null,
+    sessionBoundary: input.reviewPack?.sessionBoundary ?? input.run?.sessionBoundary ?? null,
+    continuation: input.reviewPack?.continuation ?? input.run?.continuation ?? null,
+    nextOperatorAction:
+      input.reviewPack?.nextOperatorAction ?? input.run?.nextOperatorAction ?? null,
+  });
+  if (runtimeAction) {
+    return {
+      label: runtimeAction.label,
+      detail: runtimeAction.detail,
+      target:
+        mapRuntimeOperatorActionTarget({
+          task: input.task,
+          target: runtimeAction.target ?? null,
+          reviewPackId: input.reviewPack?.id ?? input.run?.reviewPackId ?? null,
+        }) ??
+        (runtimeAction.action === "open_review_pack" ? reviewTarget : missionTarget),
+    };
+  }
   if (
     input.reviewPack &&
     (input.reviewPack.reviewStatus === "ready" ||

@@ -939,11 +939,13 @@ pub(super) async fn query_provider_via_runtime_plan(
                                     error = error.as_str(),
                                     "runtime tool-call final response request failed; returning execution fallback"
                                 );
-                                return Ok(crate::provider_requests::ProviderQueryResult::from_output(
-                                    build_provider_runtime_execution_fallback(
-                                        execution_outcome.step_results.as_slice(),
+                                return Ok(
+                                    crate::provider_requests::ProviderQueryResult::from_output(
+                                        build_provider_runtime_execution_fallback(
+                                            execution_outcome.step_results.as_slice(),
+                                        ),
                                     ),
-                                ));
+                                );
                             }
                         }
                     }
@@ -1158,7 +1160,9 @@ pub(super) async fn query_provider_via_runtime_plan(
                 "runtime plan final response request failed; returning execution fallback"
             );
             Ok(crate::provider_requests::ProviderQueryResult::from_output(
-                build_provider_runtime_execution_fallback(execution_outcome.step_results.as_slice()),
+                build_provider_runtime_execution_fallback(
+                    execution_outcome.step_results.as_slice(),
+                ),
             ))
         }
     }

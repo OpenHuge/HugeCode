@@ -40,7 +40,9 @@ fn extract_chatgpt_sse_model_id(event: &Value) -> Option<String> {
         event.get("modelId"),
         event.get("model_slug"),
         event.get("active_model"),
-        event.get("response").and_then(|response| response.get("model")),
+        event
+            .get("response")
+            .and_then(|response| response.get("model")),
         event
             .get("response")
             .and_then(|response| response.get("model_slug")),
@@ -375,11 +377,8 @@ pub(super) async fn query_chatgpt_codex_responses_with_endpoint(
                 || buffer
                     .lines()
                     .any(|line| line.trim_start().starts_with("data:"));
-            match parse_chatgpt_sse_frame(
-                buffer.as_str(),
-                &mut output_text,
-                &mut response_model_id,
-            ) {
+            match parse_chatgpt_sse_frame(buffer.as_str(), &mut output_text, &mut response_model_id)
+            {
                 ChatgptSseFrameParse::Ignore => {}
                 ChatgptSseFrameParse::Delta(delta) => {
                     if let Some(callback) = delta_callback.as_ref() {

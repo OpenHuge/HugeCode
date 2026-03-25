@@ -112,9 +112,7 @@ fn build_turn_contents(content: &str, context_prefix: Option<&str>) -> (String, 
     (provider_content, local_exec_content)
 }
 
-fn extension_provider_unavailable_error(
-    extension: &RuntimeResolvedProviderExtension,
-) -> RpcError {
+fn extension_provider_unavailable_error(extension: &RuntimeResolvedProviderExtension) -> RpcError {
     if extension.api_key.is_none() {
         RpcError::invalid_params("Selected extension provider is not configured with API key.")
     } else {
