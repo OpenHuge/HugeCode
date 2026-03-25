@@ -94,6 +94,8 @@ Public workflow entrypoints currently include:
   CI stays on the default headless Chromium lane without a `channel` override;
   this keeps browser downloads aligned with current Playwright guidance and
   avoids shipping unused headed binaries into every CI run.
+- Shared Playwright bootstrap should cache browser binaries by OS and lockfile
+  so repeated frontend/browser gates do not redownload Chromium on every run.
 - Frontend optimization classification should stay focused on runtime or build-affecting frontend dependencies; pure type-package bumps should normally be covered by quality/typecheck instead of forcing bundle and browser lanes.
 - Frontend optimization should not fan out for generic CI plumbing edits. Workflow-governance and shared action changes belong in repository governance lanes unless they also touch runtime-owning frontend or bundle-budget surfaces.
 - Frontend optimization reusable-workflow edits should stay covered by workflow governance and validation, not by forcing the full browser and bundle lane on infrastructure-only pull requests.
