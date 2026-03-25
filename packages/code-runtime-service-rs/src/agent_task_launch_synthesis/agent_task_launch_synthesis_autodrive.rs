@@ -414,8 +414,8 @@ fn build_default_auto_drive_workspace_read_paths(
     let mut paths = Vec::new();
     if let Some(root) = read_optional_text(context.workspace_root_path.as_deref()) {
         push_unique(&mut paths, root.clone());
-        if context.has_agents_md {
-            push_unique(&mut paths, format!("{root}/AGENTS.md"));
+        for relative in context.repo_instruction_sources.iter() {
+            push_unique(&mut paths, format!("{root}/{relative}"));
         }
         if context.has_readme {
             push_unique(&mut paths, format!("{root}/README.md"));
@@ -438,8 +438,8 @@ fn build_default_auto_drive_workspace_context_paths(
 ) -> Option<Vec<String>> {
     let mut paths = Vec::new();
     if let Some(root) = read_optional_text(context.workspace_root_path.as_deref()) {
-        if context.has_agents_md {
-            push_unique(&mut paths, format!("{root}/AGENTS.md"));
+        for relative in context.repo_instruction_sources.iter() {
+            push_unique(&mut paths, format!("{root}/{relative}"));
         }
         if context.has_readme {
             push_unique(&mut paths, format!("{root}/README.md"));
@@ -467,7 +467,10 @@ fn build_default_auto_drive_authority_sources(
     context: &WorkspaceLaunchContext,
 ) -> Option<Vec<String>> {
     let mut sources = Vec::new();
-    if context.has_agents_md || context.has_readme || context.has_repository_execution_contract {
+    if has_repo_instruction_sources(context)
+        || context.has_readme
+        || context.has_repository_execution_contract
+    {
         push_unique(&mut sources, "repo_authority".to_string());
     }
     if !context.peer_workspaces.is_empty() {

@@ -13,7 +13,7 @@ pub(crate) struct WorkspaceGraphMember {
     pub(crate) display_name: String,
     pub(crate) root_path: String,
     pub(crate) connected: bool,
-    pub(crate) has_agents_md: bool,
+    pub(crate) repo_instruction_sources: Vec<String>,
     pub(crate) has_readme: bool,
     pub(crate) has_repository_execution_contract: bool,
 }
@@ -24,6 +24,7 @@ pub(crate) struct WorkspaceLaunchContext {
     pub(crate) workspace_name: Option<String>,
     pub(crate) workspace_root_path: Option<String>,
     pub(crate) has_agents_md: bool,
+    pub(crate) repo_instruction_sources: Vec<String>,
     pub(crate) has_readme: bool,
     pub(crate) has_repository_execution_contract: bool,
     pub(crate) has_cargo_toml: bool,
@@ -73,6 +74,83 @@ fn push_unique(items: &mut Vec<String>, value: impl Into<String>) {
     let value = value.into();
     if !items.iter().any(|existing| existing == &value) {
         items.push(value);
+    }
+}
+
+fn normalize_relative_display_path(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+fn collect_repo_instruction_directory_paths(
+    root: &Path,
+    directory: &Path,
+    paths: &mut Vec<String>,
+) {
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+    let mut nested_directories = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            nested_directories.push(path);
+            continue;
+        }
+        let Some(file_name) = path.file_name().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        if !file_name.ends_with(".instructions.md") {
+            continue;
+        }
+        let Ok(relative) = path.strip_prefix(root) else {
+            continue;
+        };
+        push_unique(paths, normalize_relative_display_path(relative));
+    }
+    nested_directories.sort();
+    for nested in nested_directories {
+        collect_repo_instruction_directory_paths(root, nested.as_path(), paths);
+    }
+}
+
+fn detect_repo_instruction_sources(root: &Path) -> Vec<String> {
+    let mut sources = Vec::new();
+    for relative in [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md",
+        ".github/copilot-instructions.md",
+    ] {
+        if root.join(relative).exists() {
+            push_unique(&mut sources, relative.to_string());
+        }
+    }
+    let github_instructions_root = root.join(".github/instructions");
+    if github_instructions_root.is_dir() {
+        collect_repo_instruction_directory_paths(
+            root,
+            github_instructions_root.as_path(),
+            &mut sources,
+        );
+    }
+    sources.sort();
+    sources
+}
+
+fn has_repo_instruction_sources(context: &WorkspaceLaunchContext) -> bool {
+    !context.repo_instruction_sources.is_empty()
+}
+
+fn summarize_repo_instruction_sources(sources: &[String], max_items: usize) -> String {
+    if sources.is_empty() {
+        return "No repo instruction surfaces".to_string();
+    }
+    let shown = sources.iter().take(max_items).cloned().collect::<Vec<_>>();
+    let remaining = sources.len().saturating_sub(shown.len());
+    if remaining == 0 {
+        shown.join(", ")
+    } else {
+        format!("{} (+{} more)", shown.join(", "), remaining)
     }
 }
 
@@ -189,7 +267,10 @@ pub(crate) async fn read_workspace_launch_context(
 
     for workspace in workspaces {
         let root = PathBuf::from(workspace.path.clone());
-        let has_agents_md = root.join("AGENTS.md").exists();
+        let repo_instruction_sources = detect_repo_instruction_sources(root.as_path());
+        let has_agents_md = repo_instruction_sources
+            .iter()
+            .any(|path| path == "AGENTS.md");
         let has_readme = root.join("README.md").exists();
         let has_repository_execution_contract = root
             .join(".hugecode/repository-execution-contract.json")
@@ -201,6 +282,7 @@ pub(crate) async fn read_workspace_launch_context(
             context.workspace_name = Some(workspace.display_name.clone());
             context.workspace_root_path = Some(workspace.path.clone());
             context.has_agents_md = has_agents_md;
+            context.repo_instruction_sources = repo_instruction_sources.clone();
             context.has_readme = has_readme;
             context.has_repository_execution_contract = has_repository_execution_contract;
             context.has_cargo_toml = has_cargo_toml;
@@ -217,7 +299,7 @@ pub(crate) async fn read_workspace_launch_context(
             display_name: workspace.display_name,
             root_path: workspace.path,
             connected: workspace.connected,
-            has_agents_md,
+            repo_instruction_sources: repo_instruction_sources.clone(),
             has_readme,
             has_repository_execution_contract,
         });
@@ -275,7 +357,7 @@ fn infer_required_capabilities(
     {
         push_unique(&mut capabilities, "validation");
     }
-    if context.has_agents_md || context.has_repository_execution_contract {
+    if has_repo_instruction_sources(context) || context.has_repository_execution_contract {
         push_unique(&mut capabilities, "repo_policy");
     }
     if auto_drive
@@ -353,7 +435,7 @@ fn merge_constraints(
                 .and_then(|state| state.destination.hard_boundaries.clone())
                 .unwrap_or_default()
         });
-    if context.has_agents_md || context.has_readme {
+    if has_repo_instruction_sources(context) || context.has_readme {
         push_unique(
             &mut constraints,
             "Follow repository authority docs before widening scope.",
@@ -624,6 +706,12 @@ fn build_workspace_graph_guidance(context: &WorkspaceLaunchContext) -> Vec<Strin
             "Active workspace: {name} ({workspace_id}) at {root}."
         ));
     }
+    if has_repo_instruction_sources(context) {
+        guidance.push(format!(
+            "Repository instruction surfaces: {}.",
+            summarize_repo_instruction_sources(context.repo_instruction_sources.as_slice(), 4)
+        ));
+    }
     if context.total_workspace_count > 0 {
         guidance.push(format!(
             "Connected workspaces in app: {}/{}.",
@@ -635,8 +723,14 @@ fn build_workspace_graph_guidance(context: &WorkspaceLaunchContext) -> Vec<Strin
         if peer.connected {
             signals.push("connected");
         }
-        if peer.has_agents_md {
-            signals.push("AGENTS.md");
+        let repo_guidance_signal = (!peer.repo_instruction_sources.is_empty()).then(|| {
+            format!(
+                "repo-guidance: {}",
+                summarize_repo_instruction_sources(peer.repo_instruction_sources.as_slice(), 2)
+            )
+        });
+        if let Some(signal) = repo_guidance_signal.as_deref() {
+            signals.push(signal);
         }
         if peer.has_readme {
             signals.push("README.md");
@@ -741,10 +835,10 @@ fn build_auto_drive_launch_instruction(
         .and_then(|policy| policy.allow_network_analysis)
         .unwrap_or(false);
     let repo_guidance = [
-        context.has_agents_md.then_some(
-            "Read AGENTS.md and follow repository-specific authority before widening scope."
-                .to_string(),
-        ),
+        has_repo_instruction_sources(context).then_some(format!(
+            "Read repository instruction files first: {}.",
+            summarize_repo_instruction_sources(context.repo_instruction_sources.as_slice(), 4)
+        )),
         context.has_readme
             .then_some("Use README.md as current repo orientation context.".to_string()),
         context.has_repository_execution_contract.then_some(
@@ -882,6 +976,12 @@ mod tests {
             workspace_name: Some("Workspace".to_string()),
             workspace_root_path: Some("/repo".to_string()),
             has_agents_md: true,
+            repo_instruction_sources: vec![
+                "AGENTS.md".to_string(),
+                "CLAUDE.md".to_string(),
+                ".github/copilot-instructions.md".to_string(),
+                ".github/instructions/review.instructions.md".to_string(),
+            ],
             has_readme: true,
             has_repository_execution_contract: true,
             has_cargo_toml: true,
@@ -903,7 +1003,7 @@ mod tests {
                 display_name: "Peer Workspace".to_string(),
                 root_path: "/peer".to_string(),
                 connected: true,
-                has_agents_md: true,
+                repo_instruction_sources: vec!["GEMINI.md".to_string()],
                 has_readme: false,
                 has_repository_execution_contract: false,
             }],
@@ -962,6 +1062,7 @@ mod tests {
         assert!(instruction.contains("independent, operator-priority AutoDrive mission"));
         assert!(instruction.contains("App workspace graph"));
         assert!(instruction.contains("Peer workspace: Peer Workspace"));
+        assert!(instruction.contains(".github/copilot-instructions.md"));
         assert!(instruction.contains("Context policy"));
         assert!(instruction.contains("Decision policy"));
         assert!(instruction.contains("Evaluation strategy"));
@@ -1064,15 +1165,21 @@ mod tests {
                 "evaluation".to_string(),
             ])
         );
-        assert!(constraints
-            .iter()
-            .any(|entry| entry.contains("other connected workspaces")));
-        assert!(constraints
-            .iter()
-            .any(|entry| entry.contains("held-out fixtures")));
-        assert!(done_definition
-            .iter()
-            .any(|entry| entry.contains("representative automated test lane")));
+        assert!(
+            constraints
+                .iter()
+                .any(|entry| entry.contains("other connected workspaces"))
+        );
+        assert!(
+            constraints
+                .iter()
+                .any(|entry| entry.contains("held-out fixtures"))
+        );
+        assert!(
+            done_definition
+                .iter()
+                .any(|entry| entry.contains("representative automated test lane"))
+        );
         assert_eq!(
             evaluation_plan.representative_commands,
             Some(vec![
@@ -1089,16 +1196,20 @@ mod tests {
             evaluation_plan.end_to_end_commands,
             Some(vec!["pnpm test:e2e:smoke".to_string()])
         );
-        assert!(evaluation_plan
-            .sample_paths
-            .unwrap_or_default()
-            .iter()
-            .any(|path| path.contains(".codex/e2e-map.json")));
-        assert!(evaluation_plan
-            .source_signals
-            .unwrap_or_default()
-            .iter()
-            .any(|signal| signal == "e2e_map"));
+        assert!(
+            evaluation_plan
+                .sample_paths
+                .unwrap_or_default()
+                .iter()
+                .any(|path| path.contains(".codex/e2e-map.json"))
+        );
+        assert!(
+            evaluation_plan
+                .source_signals
+                .unwrap_or_default()
+                .iter()
+                .any(|signal| signal == "e2e_map")
+        );
         assert_eq!(
             mission_brief
                 .scenario_profile
@@ -1106,12 +1217,44 @@ mod tests {
                 .and_then(|profile| profile.authority_scope.as_deref()),
             Some("workspace_graph")
         );
-        assert!(mission_brief
-            .scenario_profile
-            .as_ref()
-            .and_then(|profile| profile.scenario_keys.clone())
-            .unwrap_or_default()
-            .iter()
-            .any(|key| key == "workspace_graph_launch"));
+        assert!(
+            mission_brief
+                .scenario_profile
+                .as_ref()
+                .and_then(|profile| profile.scenario_keys.clone())
+                .unwrap_or_default()
+                .iter()
+                .any(|key| key == "workspace_graph_launch")
+        );
+    }
+
+    #[test]
+    fn detect_repo_instruction_sources_discovers_multi_surface_guidance_files() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        fs::write(temp.path().join("AGENTS.md"), "repo rules").expect("write agents");
+        fs::write(temp.path().join("CLAUDE.md"), "claude rules").expect("write claude");
+        fs::create_dir_all(temp.path().join(".github/instructions/review"))
+            .expect("create github instructions");
+        fs::write(
+            temp.path().join(".github/copilot-instructions.md"),
+            "copilot rules",
+        )
+        .expect("write copilot instructions");
+        fs::write(
+            temp.path()
+                .join(".github/instructions/review/runtime.instructions.md"),
+            "review rules",
+        )
+        .expect("write github instruction file");
+
+        assert_eq!(
+            detect_repo_instruction_sources(temp.path()),
+            vec![
+                ".github/copilot-instructions.md".to_string(),
+                ".github/instructions/review/runtime.instructions.md".to_string(),
+                "AGENTS.md".to_string(),
+                "CLAUDE.md".to_string(),
+            ]
+        );
     }
 }

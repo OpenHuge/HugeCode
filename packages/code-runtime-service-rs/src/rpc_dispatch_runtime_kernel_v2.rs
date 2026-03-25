@@ -1,7 +1,6 @@
 use super::mission_control_dispatch::{
     build_mission_run_projection_by_run_id, build_review_pack_projection_by_run_id,
 };
-use super::runtime_kernel_v2_plan::{build_prepare_plan, build_validation_lanes};
 use super::*;
 use crate::agent_policy::{
     normalize_access_mode, normalize_agent_profile, normalize_reason_effort,
@@ -9,13 +8,10 @@ use crate::agent_policy::{
     validate_agent_task_steps,
 };
 use crate::agent_task_launch_synthesis::{
-    read_workspace_launch_context, synthesize_agent_task_auto_drive_state,
-    synthesize_agent_task_mission_brief, synthesize_agent_task_steps, WorkspaceLaunchContext,
+    WorkspaceLaunchContext, read_workspace_launch_context, synthesize_agent_task_auto_drive_state,
+    synthesize_agent_task_mission_brief, synthesize_agent_task_steps,
 };
 use crate::repository_execution_contract::RepositoryExecutionResolvedDefaults;
-use super::mission_control_dispatch::{
-    build_mission_run_projection_by_run_id, build_review_pack_projection_by_run_id,
-};
 use crate::runtime_helpers::normalize_agent_task_source_summary;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -70,6 +66,31 @@ fn build_missing_context(
     missing
 }
 
+fn has_repo_instruction_sources(workspace_context: &WorkspaceLaunchContext) -> bool {
+    !workspace_context.repo_instruction_sources.is_empty()
+}
+
+fn summarize_repo_instruction_sources(sources: &[String], max_items: usize) -> String {
+    if sources.is_empty() {
+        return "No repo instruction surfaces".to_string();
+    }
+    let shown = sources.iter().take(max_items).cloned().collect::<Vec<_>>();
+    let remaining = sources.len().saturating_sub(shown.len());
+    if remaining == 0 {
+        shown.join(", ")
+    } else {
+        format!("{} (+{} more)", shown.join(", "), remaining)
+    }
+}
+
+fn resolve_repo_instruction_source_marker(workspace_context: &WorkspaceLaunchContext) -> String {
+    if workspace_context.repo_instruction_sources.len() == 1 {
+        workspace_context.repo_instruction_sources[0].clone()
+    } else {
+        "repo_guidance".to_string()
+    }
+}
+
 fn build_context_working_set(
     workspace_context: &WorkspaceLaunchContext,
     task_source: Option<&AgentTaskSourceSummary>,
@@ -88,13 +109,16 @@ fn build_context_working_set(
                 "source": root,
             })
         }),
-        workspace_context.has_agents_md.then(|| {
+        has_repo_instruction_sources(workspace_context).then(|| {
             json!({
-                "id": "agents-md",
-                "label": "Repo instructions",
+                "id": "repo-instruction-surfaces",
+                "label": "Repo instruction surfaces",
                 "kind": "repo_rule",
-                "detail": "AGENTS.md is present and should be treated as a hot rule surface.",
-                "source": "AGENTS.md",
+                "detail": format!(
+                    "Runtime detected {} as hot repo guidance surfaces.",
+                    summarize_repo_instruction_sources(workspace_context.repo_instruction_sources.as_slice(), 4)
+                ),
+                "source": resolve_repo_instruction_source_marker(workspace_context),
             })
         }),
         workspace_context.validate_command.as_ref().map(|command| {
@@ -253,7 +277,10 @@ fn infer_review_intent(
     if review_profile_id.is_some() {
         return "review";
     }
-    match task_source.map(|source| source.kind.as_str()).unwrap_or_default() {
+    match task_source
+        .map(|source| source.kind.as_str())
+        .unwrap_or_default()
+    {
         "github_pr_followup" => "review",
         "github_issue" | "github_discussion" | "customer_feedback" | "call_summary" => "triage",
         _ => "execute",
@@ -347,7 +374,7 @@ fn build_guidance_stack(
     has_explicit_instruction: bool,
 ) -> Value {
     let mut layers = Vec::new();
-    if workspace_context.has_agents_md {
+    if has_repo_instruction_sources(workspace_context) {
         let repo_instructions = if repository_defaults.repo_instructions.is_empty() {
             vec![
                 "Prefer runtime-owned truth over page-local heuristics.".to_string(),
@@ -359,8 +386,8 @@ fn build_guidance_stack(
         layers.push(json!({
             "id": "repo-instructions",
             "scope": "repo",
-            "summary": "Repo instructions remain the baseline contract for launch, review, and follow-up.",
-            "source": "AGENTS.md",
+            "summary": "Repository instruction surfaces remain the baseline contract for launch, review, and follow-up.",
+            "source": resolve_repo_instruction_source_marker(workspace_context),
             "priority": 10,
             "instructions": repo_instructions,
             "skillIds": repository_defaults.repo_skill_ids.clone()
@@ -368,7 +395,10 @@ fn build_guidance_stack(
     }
     if let Some(source_mapping_kind) = repository_defaults.source_mapping_kind.as_ref() {
         let source_instructions = if repository_defaults.source_instructions.is_empty() {
-            vec!["Normalize source-linked work into canonical task/run/review semantics.".to_string()]
+            vec![
+                "Normalize source-linked work into canonical task/run/review semantics."
+                    .to_string(),
+            ]
         } else {
             repository_defaults.source_instructions.clone()
         };
@@ -536,8 +566,7 @@ fn build_delegation_contract(
     } else if !approval_batches.is_empty() {
         "Launch the run and expect approval checkpoints on mutation steps.".to_string()
     } else {
-        "Launch the run and review the resulting Review Pack before accepting outcomes."
-            .to_string()
+        "Launch the run and review the resulting Review Pack before accepting outcomes.".to_string()
     };
     json!({
         "summary": if state == "launch_ready" {
@@ -793,11 +822,14 @@ fn build_intent_snapshot(
             "confidence": "medium",
         }));
     }
-    if workspace_context.has_agents_md {
+    if has_repo_instruction_sources(workspace_context) {
         signals.push(json!({
             "kind": "repo_rule",
-            "summary": "Workspace publishes AGENTS.md, so runtime should respect repo-owned execution rules.",
-            "source": "AGENTS.md",
+            "summary": format!(
+                "Workspace publishes repository guidance surfaces ({}) and runtime should respect them as authority.",
+                summarize_repo_instruction_sources(workspace_context.repo_instruction_sources.as_slice(), 3)
+            ),
+            "source": resolve_repo_instruction_source_marker(workspace_context),
             "confidence": "high",
         }));
     }
@@ -892,15 +924,17 @@ fn build_source_citations(
     workspace_context: &WorkspaceLaunchContext,
 ) -> Vec<Value> {
     let mut citations = Vec::new();
-    if workspace_context.has_agents_md {
-        citations.push(json!({
-            "id": "repo-agents-md",
-            "label": "AGENTS.md",
-            "url": Value::Null,
-            "sourceKind": "repo_doc",
-            "trustLevel": "primary",
-            "claimSummary": "Repo instructions remain a primary authority surface for unattended execution.",
-        }));
+    if has_repo_instruction_sources(workspace_context) {
+        for source in workspace_context.repo_instruction_sources.iter().take(4) {
+            citations.push(json!({
+                "id": format!("repo-instruction-{}", source.replace(['/', '.'], "-")),
+                "label": source,
+                "url": Value::Null,
+                "sourceKind": "repo_doc",
+                "trustLevel": "primary",
+                "claimSummary": "Repository instruction surfaces remain primary authority for unattended execution.",
+            }));
+        }
     }
     if let Some(source) = task_source {
         citations.push(json!({
@@ -1531,10 +1565,47 @@ mod tests {
     }
 
     #[test]
+    fn build_context_working_set_surfaces_multi_source_repo_guidance() {
+        let working_set = build_context_working_set(
+            &WorkspaceLaunchContext {
+                workspace_root_path: Some("/repo".to_string()),
+                repo_instruction_sources: vec![
+                    "AGENTS.md".to_string(),
+                    ".github/copilot-instructions.md".to_string(),
+                    ".github/instructions/runtime.instructions.md".to_string(),
+                ],
+                ..WorkspaceLaunchContext::default()
+            },
+            None,
+            &[],
+            &[],
+        );
+
+        let repo_entry = working_set["layers"][0]["entries"]
+            .as_array()
+            .and_then(|entries| {
+                entries
+                    .iter()
+                    .find(|entry| entry["id"] == "repo-instruction-surfaces")
+            })
+            .expect("repo instruction entry");
+        assert_eq!(repo_entry["source"], json!("repo_guidance"));
+        assert!(
+            repo_entry["detail"]
+                .as_str()
+                .is_some_and(|detail| detail.contains(".github/copilot-instructions.md"))
+        );
+    }
+
+    #[test]
     fn build_guidance_stack_prioritizes_explicit_launch_and_review_profile_skills() {
         let guidance = build_guidance_stack(
             &WorkspaceLaunchContext {
                 has_agents_md: true,
+                repo_instruction_sources: vec![
+                    "AGENTS.md".to_string(),
+                    ".github/copilot-instructions.md".to_string(),
+                ],
                 ..WorkspaceLaunchContext::default()
             },
             Some(&AgentTaskSourceSummary {
@@ -1578,12 +1649,20 @@ mod tests {
 
         assert_eq!(
             guidance["precedence"],
-            json!(["launch", "review_profile", "source", "review_profile", "repo"])
+            json!([
+                "launch",
+                "review_profile",
+                "source",
+                "review_profile",
+                "repo"
+            ])
         );
         assert_eq!(
             guidance["layers"]
                 .as_array()
-                .and_then(|layers| layers.iter().find(|layer| layer["id"] == "review-profile-skills"))
+                .and_then(|layers| layers
+                    .iter()
+                    .find(|layer| layer["id"] == "review-profile-skills"))
                 .and_then(|layer| layer.get("skillIds")),
             Some(&json!(["review-agent", "repo-policy-check"]))
         );
@@ -1593,6 +1672,15 @@ mod tests {
                 .and_then(|layers| layers.iter().find(|layer| layer["id"] == "launch-guidance"))
                 .and_then(|layer| layer.get("source")),
             Some(&json!("launch_instruction"))
+        );
+        assert_eq!(
+            guidance["layers"]
+                .as_array()
+                .and_then(|layers| layers
+                    .iter()
+                    .find(|layer| layer["id"] == "repo-instructions"))
+                .and_then(|layer| layer.get("source")),
+            Some(&json!("repo_guidance"))
         );
     }
 }
