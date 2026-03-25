@@ -29,9 +29,6 @@ function mockGitDiffViewerRuntime() {
   vi.doMock("../../../../utils/diffsWorker", () => ({
     workerFactory: () => createMockWorker(),
   }));
-  vi.doMock("../../../git/components/GitDiffViewer", () => ({
-    GitDiffViewer: () => <div data-testid="git-diff-viewer-chunk" />,
-  }));
 }
 
 function createGitOptions(overrides: Partial<LayoutNodesFieldRegistry> = {}): LayoutNodesOptions {
@@ -179,7 +176,6 @@ describe("buildGitNodes diff lazy boundary", () => {
   afterEach(async () => {
     cleanup();
     vi.clearAllMocks();
-    vi.doUnmock("../../../git/components/GitDiffViewer");
     vi.doUnmock("../../../utils/diffsWorker");
     await vi.dynamicImportSettled();
     vi.unstubAllGlobals();
@@ -224,7 +220,7 @@ describe("buildGitNodes diff lazy boundary", () => {
 
       await flushLazyBoundary();
 
-      expect(screen.getByTestId("git-diff-viewer-chunk")).toBeTruthy();
+      expect(screen.getByTitle("src/app.ts")).toBeTruthy();
     },
     GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS
   );

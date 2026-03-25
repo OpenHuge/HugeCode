@@ -4,7 +4,7 @@ import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Connect, type Plugin } from "vite";
 // @boundaries-ignore shared workspace test/dev config
-import { createCodeWorkspaceAliases } from "../../scripts/lib/viteWorkspaceAliases";
+import { createCodeWorkspaceAliases } from "../../scripts/lib/viteWorkspaceAliases.ts";
 
 const packageJson = JSON.parse(
   readFileSync(new URL("./package.json", import.meta.url), "utf-8")
