@@ -44,10 +44,12 @@ import {
   extractSteeredTurnId,
   isInterruptRequestSuccessful,
   parseCodexArgs,
+  resolveProviderRouteBlockMessage,
   resolveExpandedMessageText,
   resolveSendMessageSettings,
   resolveTurnRequestRouting,
   type SendMessageOptions,
+  type SendProviderRouteSummary,
 } from "./useThreadMessagingHelpers";
 import { mapDraftToRuntimeAutoDriveState } from "../../autodrive/hooks/autoDriveRuntimeSnapshotAdapter";
 import type { useThreadCodexParams } from "./useThreadCodexParams";
@@ -58,6 +60,7 @@ type UseThreadMessagingOptions = {
   activeThreadId: string | null;
   activeThreadIdRef?: MutableRefObject<string | null>;
   hasAvailableModel?: boolean;
+  providerRoute?: SendProviderRouteSummary | null;
   accessMode?: AccessMode;
   provider?: string | null;
   model?: string | null;
@@ -219,6 +222,7 @@ export function useThreadMessaging({
   activeThreadId,
   activeThreadIdRef,
   hasAvailableModel = true,
+  providerRoute = null,
   accessMode,
   provider,
   model,
@@ -347,6 +351,17 @@ export function useThreadMessaging({
         codexArgs: localCliCodexArgs,
       });
       const hasExplicitModel = typeof resolvedModel === "string" && resolvedModel.trim().length > 0;
+      const providerRouteBlockMessage = resolveProviderRouteBlockMessage({
+        providerRoute,
+        executionMode: resolvedExecutionMode,
+        hasExplicitProviderOverride: options?.provider !== undefined,
+        hasExplicitModelOverride: options?.model !== undefined,
+      });
+      if (providerRouteBlockMessage) {
+        pushThreadErrorMessage(threadId, providerRouteBlockMessage);
+        safeMessageActivity();
+        return;
+      }
       if (!hasAvailableModel && !hasExplicitModel) {
         pushThreadErrorMessage(
           threadId,
@@ -598,6 +613,7 @@ export function useThreadMessaging({
       executionProfileId,
       executionMode,
       provider,
+      providerRoute,
       activeTurnIdByThread,
       getCustomName,
       hasAvailableModel,

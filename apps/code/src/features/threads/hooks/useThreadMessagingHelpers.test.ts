@@ -3,6 +3,7 @@ import {
   buildAttachmentContextPrefix,
   buildStartTurnPayload,
   parseCodexArgs,
+  resolveProviderRouteBlockMessage,
   resolveExpandedMessageText,
   resolveSendMessageSettings,
 } from "./useThreadMessagingHelpers";
@@ -152,6 +153,62 @@ describe("resolveSendMessageSettings", () => {
         }
       ).resolvedFastMode
     ).toBe(true);
+  });
+});
+
+describe("resolveProviderRouteBlockMessage", () => {
+  it("blocks runtime sends when the selected provider route is blocked", () => {
+    expect(
+      resolveProviderRouteBlockMessage({
+        providerRoute: {
+          label: "Claude Code",
+          ready: false,
+          readiness: "blocked",
+          detail: "No enabled credential-ready pool is available.",
+        },
+        executionMode: "runtime",
+      })
+    ).toBe("Claude Code route is blocked. No enabled credential-ready pool is available.");
+  });
+
+  it("does not block local-cli or hybrid sends on the runtime route summary alone", () => {
+    expect(
+      resolveProviderRouteBlockMessage({
+        providerRoute: {
+          label: "Claude Code",
+          ready: false,
+          readiness: "blocked",
+          detail: "No enabled credential-ready pool is available.",
+        },
+        executionMode: "local-cli",
+      })
+    ).toBeNull();
+    expect(
+      resolveProviderRouteBlockMessage({
+        providerRoute: {
+          label: "Claude Code",
+          ready: false,
+          readiness: "blocked",
+          detail: "No enabled credential-ready pool is available.",
+        },
+        executionMode: "hybrid",
+      })
+    ).toBeNull();
+  });
+
+  it("skips blocking when the send carries an explicit provider or model override", () => {
+    expect(
+      resolveProviderRouteBlockMessage({
+        providerRoute: {
+          label: "Claude Code",
+          ready: false,
+          readiness: "blocked",
+          detail: "No enabled credential-ready pool is available.",
+        },
+        executionMode: "runtime",
+        hasExplicitModelOverride: true,
+      })
+    ).toBeNull();
   });
 });
 

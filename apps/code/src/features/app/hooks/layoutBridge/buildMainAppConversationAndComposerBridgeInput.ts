@@ -197,6 +197,14 @@ export function buildMainAppConversationAndComposerBridgeInput(
     executionOptions: threadCodexState.executionOptions,
     selectedExecutionMode: threadCodexState.executionMode,
     onSelectExecutionMode: threadCodexState.handleSelectExecutionMode,
+    providerRoute: threadCodexState.selectedProviderRoute
+      ? {
+          label: threadCodexState.selectedProviderRoute.label,
+          ready: threadCodexState.selectedProviderRoute.ready,
+          readiness: threadCodexState.selectedProviderRoute.readiness,
+          detail: threadCodexState.selectedProviderRoute.detail,
+        }
+      : null,
     remoteBackendOptions: threadCodexState.remoteBackendOptions,
     selectedRemoteBackendId: threadCodexState.selectedRemoteBackendId,
     onSelectRemoteBackendId: threadCodexState.handleSelectRemoteBackendId,

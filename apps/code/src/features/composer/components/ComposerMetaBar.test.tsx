@@ -783,6 +783,53 @@ describe("ComposerMetaBar", () => {
     expect(screen.queryByLabelText("Latest runtime placement")).toBeNull();
   });
 
+  it("surfaces provider route readiness alongside backend preference", () => {
+    render(
+      <ComposerMetaBar
+        disabled={false}
+        collaborationModes={[]}
+        selectedCollaborationModeId={null}
+        onSelectCollaborationMode={vi.fn()}
+        models={[
+          {
+            id: "claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            available: true,
+          },
+        ]}
+        selectedModelId="claude-sonnet-4-5"
+        onSelectModel={vi.fn()}
+        reasoningOptions={["medium"]}
+        selectedEffort="medium"
+        onSelectEffort={vi.fn()}
+        reasoningSupported={true}
+        accessMode="on-request"
+        onSelectAccessMode={vi.fn()}
+        executionOptions={[{ value: "runtime", label: "Runtime" }]}
+        selectedExecutionMode="runtime"
+        onSelectExecutionMode={vi.fn()}
+        providerRoute={{
+          label: "Claude Code",
+          ready: false,
+          readiness: "blocked",
+          detail: "No enabled credential-ready pool is available.",
+        }}
+        remoteBackendOptions={[{ value: "backend-remote-a", label: "Remote A" }]}
+        selectedRemoteBackendId="backend-remote-a"
+        onSelectRemoteBackendId={vi.fn()}
+      />
+    );
+
+    const providerRoute = screen.getByLabelText("Provider route");
+    expect(providerRoute.getAttribute("data-route-readiness")).toBe("blocked");
+    expect(within(providerRoute).getByText("Claude Code")).toBeTruthy();
+    expect(providerRoute.getAttribute("title")).toContain(
+      "No enabled credential-ready pool is available."
+    );
+    expect(screen.getByLabelText("Backend preference")).toBeTruthy();
+  });
+
   it("keeps core controls visible instead of hiding them behind More", () => {
     render(
       <ComposerMetaBar

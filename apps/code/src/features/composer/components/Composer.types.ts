@@ -60,6 +60,12 @@ export type ComposerProps = {
   remoteBackendOptions?: Array<{ value: string; label: string }>;
   selectedRemoteBackendId?: string | null;
   onSelectRemoteBackendId?: (backendId: string | null) => void;
+  providerRoute?: {
+    label: string;
+    ready: boolean;
+    readiness: "ready" | "attention" | "blocked";
+    detail: string;
+  } | null;
   resolvedRemotePlacement?: {
     summary: string;
     detail: string | null;

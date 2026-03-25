@@ -43,6 +43,13 @@ export type ResolvedSendMessageSettings = {
   appMentions: AppMention[];
 };
 
+export type SendProviderRouteSummary = {
+  label: string;
+  ready: boolean;
+  readiness: "ready" | "attention" | "blocked";
+  detail: string;
+};
+
 export type TurnRequestMode = "start" | "steer";
 export type TurnRoutingReason =
   | "steer_active_turn"
@@ -196,6 +203,27 @@ export function resolveExpandedMessageText(
     return { finalText: messageText, errorMessage: promptExpansion.error };
   }
   return { finalText: promptExpansion?.expanded ?? messageText, errorMessage: null };
+}
+
+export function resolveProviderRouteBlockMessage(input: {
+  providerRoute?: SendProviderRouteSummary | null;
+  executionMode: ComposerExecutionMode;
+  hasExplicitProviderOverride?: boolean;
+  hasExplicitModelOverride?: boolean;
+}): string | null {
+  if (input.executionMode !== "runtime") {
+    return null;
+  }
+  if (input.hasExplicitProviderOverride || input.hasExplicitModelOverride) {
+    return null;
+  }
+  if (!input.providerRoute || input.providerRoute.readiness !== "blocked") {
+    return null;
+  }
+  const detail = sanitizeOptionalString(input.providerRoute.detail);
+  return detail
+    ? `${input.providerRoute.label} route is blocked. ${detail}`
+    : `${input.providerRoute.label} route is blocked.`;
 }
 
 export function resolveSendMessageSettings(

@@ -1,4 +1,4 @@
-import { style } from "@vanilla-extract/css";
+import { style, styleVariants } from "@vanilla-extract/css";
 
 export const metaShell = style({
   display: "grid",
@@ -102,6 +102,18 @@ export const context = style({
   color: "var(--ds-text-muted)",
 });
 
+export const contextTone = styleVariants({
+  ready: {},
+  attention: {
+    borderColor: "color-mix(in srgb, var(--color-status-warning) 24%, var(--ds-border-subtle))",
+    background: "color-mix(in srgb, var(--color-status-warning) 10%, var(--ds-surface-hover))",
+  },
+  blocked: {
+    borderColor: "color-mix(in srgb, var(--color-status-danger) 24%, var(--ds-border-subtle))",
+    background: "color-mix(in srgb, var(--color-status-danger) 10%, var(--ds-surface-hover))",
+  },
+});
+
 export const contextRing = style({
   width: "8px",
   height: "8px",
@@ -133,6 +145,16 @@ export const contextRing = style({
       border: "1px solid color-mix(in srgb, var(--ds-border-subtle) 74%, transparent)",
     },
     "&:hover::after": { opacity: 1, transform: "translateY(0)" },
+  },
+});
+
+export const contextRingTone = styleVariants({
+  ready: {},
+  attention: {
+    background: "color-mix(in srgb, var(--color-status-warning) 78%, var(--color-primary))",
+  },
+  blocked: {
+    background: "color-mix(in srgb, var(--color-status-danger) 78%, var(--color-primary))",
   },
 });
 

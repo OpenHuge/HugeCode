@@ -23,7 +23,9 @@ The shared control-plane outputs are:
 
 - normalized provider route selection
 - launch-readiness route status
+- composer-visible provider route status
 - send-turn provider field
+- runtime send-block guard for blocked provider routes
 - relaunch/review backend inheritance
 - operator-facing routing diagnostics
 
@@ -60,7 +62,9 @@ Provider-route readiness uses one shared mapping:
   provider family
 
 Mission Control `launch readiness`, composer/provider send flow, and explicit
-provider-route selection all consume this same readiness shape.
+provider-route selection all consume this same readiness shape. Composer should
+surface the selected route and its readiness before send, and runtime-thread
+send should fail fast when the selected runtime route is already known blocked.
 
 ## Truth Sources
 
@@ -121,6 +125,9 @@ Targeted regression samples now live in tests:
   - default-backend fallback and explicit backend precedence stay centralized
 - `useThreadMessagingHelpers.test.ts`
   - provider-aware send payload keeps provider/model/service-tier aligned
+  - blocked runtime provider routes fail fast before turn start
+- `ComposerMetaBar.test.tsx`
+  - composer surfaces provider route readiness next to backend preference
 
 ## Rollout Guidance
 

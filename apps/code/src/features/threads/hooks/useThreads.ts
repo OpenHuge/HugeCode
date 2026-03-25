@@ -42,6 +42,12 @@ type UseThreadsOptions = {
   onWorkspaceConnected: (id: string) => void;
   onDebug?: (entry: DebugEntry) => void;
   hasAvailableModel?: boolean;
+  providerRoute?: {
+    label: string;
+    ready: boolean;
+    readiness: "ready" | "attention" | "blocked";
+    detail: string;
+  } | null;
   provider?: string | null;
   model?: string | null;
   effort?: string | null;
@@ -80,6 +86,7 @@ export function useThreads({
   onWorkspaceConnected,
   onDebug,
   hasAvailableModel = true,
+  providerRoute = null,
   provider,
   model,
   effort,
@@ -629,6 +636,7 @@ export function useThreads({
     activeWorkspace,
     activeThreadId,
     hasAvailableModel,
+    providerRoute,
     accessMode,
     provider,
     model,

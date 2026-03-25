@@ -127,6 +127,7 @@ export const Composer = memo(function Composer({
   executionOptions,
   selectedExecutionMode,
   onSelectExecutionMode,
+  providerRoute = null,
   remoteBackendOptions = [],
   selectedRemoteBackendId = null,
   onSelectRemoteBackendId,
@@ -1253,6 +1254,7 @@ export const Composer = memo(function Composer({
             executionOptions={executionOptions}
             selectedExecutionMode={selectedExecutionMode}
             onSelectExecutionMode={onSelectExecutionMode}
+            providerRoute={providerRoute}
             remoteBackendOptions={remoteBackendOptions}
             selectedRemoteBackendId={selectedRemoteBackendId}
             onSelectRemoteBackendId={onSelectRemoteBackendId}

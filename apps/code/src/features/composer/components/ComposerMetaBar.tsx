@@ -57,6 +57,12 @@ type ComposerMetaBarProps = {
   executionOptions: ExecutionOption[];
   selectedExecutionMode: ComposerExecutionMode;
   onSelectExecutionMode: (mode: ComposerExecutionMode) => void;
+  providerRoute?: {
+    label: string;
+    ready: boolean;
+    readiness: "ready" | "attention" | "blocked";
+    detail: string;
+  } | null;
   remoteBackendOptions?: RemoteBackendOption[];
   selectedRemoteBackendId?: string | null;
   onSelectRemoteBackendId?: (backendId: string | null) => void;
@@ -252,6 +258,7 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
   executionOptions,
   selectedExecutionMode,
   onSelectExecutionMode,
+  providerRoute = null,
   remoteBackendOptions = [],
   selectedRemoteBackendId = null,
   onSelectRemoteBackendId,
@@ -341,6 +348,7 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
   const shouldShowRemoteBackendControl =
     remoteBackendSelectOptions.length > 0 ||
     (typeof selectedRemoteBackendId === "string" && selectedRemoteBackendId.trim().length > 0);
+  const shouldShowProviderRoute = Boolean(providerRoute);
   const selectedRemoteBackendLabel = useMemo(() => {
     const normalizedSelectedBackendId = selectedRemoteBackendId?.trim() || null;
     if (!normalizedSelectedBackendId) {
@@ -406,6 +414,31 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
               autoDrive={autoDrive}
               disabled={autoDriveControlsDisabled}
             />
+          ) : null}
+          {shouldShowProviderRoute ? (
+            <div
+              className={joinClassNames(
+                summaryStyles.context,
+                summaryStyles.contextTone[providerRoute.readiness],
+                "composer-provider-route"
+              )}
+              aria-label="Provider route"
+              data-route-readiness={providerRoute.readiness}
+              title={providerRoute.detail}
+            >
+              <span
+                className={joinClassNames(
+                  summaryStyles.contextRing,
+                  summaryStyles.contextRingTone[providerRoute.readiness]
+                )}
+                data-tooltip={providerRoute.detail}
+                data-readiness={providerRoute.readiness}
+              />
+              <span className={summaryStyles.contextCopy}>
+                <span className={summaryStyles.contextLabel}>Provider route</span>
+                <span className={summaryStyles.contextTokens}>{providerRoute.label}</span>
+              </span>
+            </div>
           ) : null}
           {shouldShowRemoteBackendControl ? (
             <div
