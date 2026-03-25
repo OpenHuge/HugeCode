@@ -1,6 +1,8 @@
 import type { HugeCodeTaskSummary } from "@ku0/code-runtime-host-contract";
 import type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
 
+export type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
+
 export function buildMissionNavigationTarget(
   task: HugeCodeTaskSummary,
   options?: {
