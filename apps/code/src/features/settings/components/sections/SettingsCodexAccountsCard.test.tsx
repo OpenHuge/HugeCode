@@ -704,6 +704,43 @@ describe("SettingsCodexAccountsCard", () => {
   it(
     "refreshes when oauth popup posts success message",
     async () => {
+      let popupRefreshEnabled = false;
+      listOAuthAccountsMock.mockImplementation(async () =>
+        popupRefreshEnabled
+          ? [
+              {
+                accountId: "codex-popup-1",
+                provider: "codex",
+                externalAccountId: null,
+                email: "popup@example.com",
+                displayName: "Popup Success Account",
+                status: "enabled",
+                disabledReason: null,
+                metadata: {},
+                createdAt: 100,
+                updatedAt: 200,
+              },
+            ]
+          : []
+      );
+      listOAuthPoolsMock.mockImplementation(async () =>
+        popupRefreshEnabled
+          ? [
+              {
+                poolId: "pool-popup-1",
+                provider: "codex",
+                name: "Popup Success Pool",
+                strategy: "round_robin",
+                stickyMode: "cache_first",
+                preferredAccountId: "codex-popup-1",
+                enabled: true,
+                metadata: {},
+                createdAt: 100,
+                updatedAt: 200,
+              },
+            ]
+          : []
+      );
       setActiveOauthPopupLoginId("login-popup-1");
       render(<SettingsCodexAccountsCard />);
 
@@ -711,11 +748,14 @@ describe("SettingsCodexAccountsCard", () => {
         expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
         expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
       });
-      const accountCallsBeforePopup = listOAuthAccountsMock.mock.calls.length;
-      const poolCallsBeforePopup = listOAuthPoolsMock.mock.calls.length;
+      const accountsTab = screen.getByRole("tab", { name: /Accounts/i });
+      const poolsTab = screen.getByRole("tab", { name: /Pools/i });
+      expect(accountsTab.textContent ?? "").toContain("0");
+      expect(poolsTab.textContent ?? "").toContain("0");
 
       await flushEffectTurn();
 
+      popupRefreshEnabled = true;
       act(() => {
         window.dispatchEvent(
           new window.MessageEvent("message", {
@@ -727,8 +767,8 @@ describe("SettingsCodexAccountsCard", () => {
 
       await waitFor(
         () => {
-          expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThan(accountCallsBeforePopup);
-          expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThan(poolCallsBeforePopup);
+          expect(accountsTab.textContent ?? "").toContain("1");
+          expect(poolsTab.textContent ?? "").toContain("1");
         },
         { timeout: SETTINGS_CODEX_ACCOUNTS_ASYNC_TIMEOUT_MS }
       );
