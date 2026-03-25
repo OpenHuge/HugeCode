@@ -316,7 +316,6 @@ macro_rules! code_tauri_command_entries {
                 commands::codex::code_collaboration_modes_list_v1,
                 "code_collaboration_modes_list_v1"
             ),
-            (commands::codex::code_apps_list_v1, "code_apps_list_v1"),
             (
                 commands::codex::code_mcp_server_status_list_v1,
                 "code_mcp_server_status_list_v1"

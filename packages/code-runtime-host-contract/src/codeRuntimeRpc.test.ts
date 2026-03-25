@@ -1394,9 +1394,6 @@ describe("agent and oauth rpc methods", () => {
     expect(
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.COLLABORATION_MODES_LIST_V1)
     ).toEqual(["code_collaboration_modes_list_v1"]);
-    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.APPS_LIST_V1)).toEqual([
-      "code_apps_list_v1",
-    ]);
     expect(
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.MCP_SERVER_STATUS_LIST_V1)
     ).toEqual(["code_mcp_server_status_list_v1"]);

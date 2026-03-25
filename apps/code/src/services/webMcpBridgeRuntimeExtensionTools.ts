@@ -614,7 +614,8 @@ export function buildRuntimeExtensionTools(
     },
     {
       name: "list-runtime-extension-ui-apps",
-      description: "List UI apps contributed by runtime extensions or a specific extension.",
+      description:
+        "Inspect internal UI app descriptors contributed by runtime extensions or a specific extension.",
       inputSchema: {
         type: "object",
         properties: {
@@ -638,7 +639,7 @@ export function buildRuntimeExtensionTools(
           })
         );
         const apps = asObjectArray(response?.apps);
-        return helpers.buildResponse("Runtime extension UI apps retrieved.", {
+        return helpers.buildResponse("Runtime extension UI app descriptors retrieved.", {
           workspaceId,
           extensionId,
           total: apps.length,

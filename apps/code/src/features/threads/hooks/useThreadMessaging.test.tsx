@@ -1083,8 +1083,8 @@ describe("useThreadMessaging telemetry", () => {
       "ws-1",
       "thread-1",
       "hello $calendar",
-      expect.objectContaining({
-        appMentions: [{ name: "Calendar App", path: "app://connector_calendar" }],
+      expect.not.objectContaining({
+        appMentions: expect.anything(),
       })
     );
   });
@@ -1227,7 +1227,7 @@ describe("useThreadMessaging telemetry", () => {
       "turn-1",
       "steer this",
       [],
-      [{ name: "Calendar App", path: "app://connector_calendar" }],
+      undefined,
       undefined,
       {
         accessMode: "full-access",
