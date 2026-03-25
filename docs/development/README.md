@@ -60,12 +60,12 @@ Recent PR failures have repeated in a small set of gates. Use the mapping below
 before opening the PR so CI is confirming work you already checked locally
 instead of discovering the first missed requirement.
 
-| CI gate                                              | Typical local miss                                                                                                                                               | Run before PR                                  |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `Quality / Typecheck (affected)`                     | Type unions, status enums, facade return shapes, or cross-package TS drift compile locally in one package but fail in the affected graph.                        | `pnpm typecheck:affected`                      |
-| `PR Affected Checks / PR Affected Checks`            | Build output, UI copy, rendered states, settings/account flows, or browser-visible interactions changed without updating the affected build/test proof.          | `pnpm build:affected` and `pnpm test:affected` |
-| `frontend_optimization / Frontend optimization gate` | Frontend startup, runtime readiness on `127.0.0.1:8788`, shell bootstrap, bundle-sensitive changes, or dependency churn breaks the expensive browser/build lane. | `pnpm validate:frontend-optimization`          |
-| `Workflow governance`                                | Workflow YAML, shared action wiring, or workflow-facing docs drift from the scripted governance rules.                                                           | `pnpm check:workflow-governance`               |
+| CI gate                                              | Typical local miss                                                                                                                                               | Run before PR                                            |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `Quality / Quality`                                  | Format, lint, UI/runtime boundaries, runtime-contract parity, circular imports, or affected typecheck drift fail inside the shared quality gate.                 | `pnpm typecheck:affected` and other matching local gates |
+| `PR Affected Checks / PR Affected Checks`            | Build output, UI copy, rendered states, settings/account flows, or browser-visible interactions changed without updating the affected build/test proof.          | `pnpm build:affected` and `pnpm test:affected`           |
+| `frontend_optimization / Frontend optimization gate` | Frontend startup, runtime readiness on `127.0.0.1:8788`, shell bootstrap, bundle-sensitive changes, or dependency churn breaks the expensive browser/build lane. | `pnpm validate:frontend-optimization`                    |
+| `Workflow governance`                                | Workflow YAML, shared action wiring, or workflow-facing docs drift from the scripted governance rules.                                                           | `pnpm check:workflow-governance`                         |
 
 Practical usage:
 
@@ -89,6 +89,7 @@ Practical usage:
 - Required CI lanes that protect `main` must run on `merge_group` as well as
   `pull_request`; otherwise merge queue cannot get the required `Quality` and
   `PR Affected Checks` results for queued entries.
+- Those required lanes may fan out internally into parallel build/test or lint/typecheck sub-jobs, but the aggregate gate names must stay stable so branch protection and merge queue do not lose their required check targets.
 - Repo-authored PRs default to approval-driven auto-merge once required reviews,
   required checks, and conversation resolution are satisfied.
 - Add the `manual-merge` label to keep an approved PR out of auto-merge and the

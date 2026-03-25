@@ -40,7 +40,12 @@ Internal reusable workflows live under `.github/workflows/_reusable-*.yml`.
 Key reusable mappings currently in use:
 
 - `.github/workflows/_reusable-ci-quality.yml`
+- `.github/workflows/_reusable-ci-quality-baseline.yml`
+- `.github/workflows/_reusable-ci-quality-typecheck.yml`
+- `.github/workflows/_reusable-ci-runtime-contract-parity.yml`
 - `.github/workflows/_reusable-ci-pr-affected.yml`
+- `.github/workflows/_reusable-ci-pr-affected-build.yml`
+- `.github/workflows/_reusable-ci-pr-affected-tests.yml`
 - `.github/workflows/_reusable-ci-frontend-optimization.yml`
 - `.github/workflows/_reusable-desktop-prepare-frontend.yml`
 - `.github/workflows/_reusable-desktop-build-pr.yml`
@@ -65,6 +70,7 @@ Public workflow entrypoints currently include:
 - Internal or tooling-only lanes should not be reintroduced as product-facing workflow entrypoints.
 - Workflow docs must stay aligned with `scripts/check-workflow-governance.mjs`.
 - Required merge-queue checks must trigger on `merge_group` as well as `pull_request`, or queued PRs will block waiting for checks that never report.
+- Required checks that protect `main` should keep a stable aggregate check name even when the underlying reusable workflow fans out into parallel sub-jobs. This lets branch protection and merge queue wait on `Quality / Quality` and `PR Affected Checks / PR Affected Checks` while still shrinking wall-clock time.
 - Shared Node/pnpm bootstrap should stay lockfile-first: prefetch with `pnpm fetch --frozen-lockfile`, then install with `pnpm install --offline --frozen-lockfile` unless a workflow has a documented reason to require a different install path.
 - PR workflow gates may classify manifest-only dependency bumps before deciding whether expensive desktop or frontend lanes are needed; keep that classification script-backed and explicit instead of scattering ad hoc shell heuristics across workflows.
 - Low-risk Dependabot development-version bumps may skip the expensive affected build/test lane when the remaining quality, frontend, or desktop gates already cover the touched risk surface.

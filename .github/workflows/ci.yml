@@ -32,6 +32,7 @@ jobs:
       runtime_contract_changed: ${{ steps.filter.outputs.runtime_contract }}
       desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime }}
       repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
+      repo_governance_only: ${{ steps.scope.outputs.repo_governance_only }}
       frontend_optimization_changed: ${{ steps.filter.outputs.frontend_optimization == 'true' || steps.scope.outputs.frontend_manifest_changed == 'true' }}
       ui_contract_required: ${{ steps.filter.outputs.ui_contract }}
       circular_required: ${{ steps.filter.outputs.app_circular }}
@@ -89,6 +90,11 @@ jobs:
               - 'docs/runtime/spec/**'
               - 'docs/specs/code-runtime-spec-2026.md'
               - 'docs/specs/code-runtime/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/_reusable-ci-runtime-contract-parity.yml'
+              - '.github/actions/setup-node-pnpm/**'
+              - '.github/actions/install-linux-desktop-deps/**'
+              - '.github/actions/setup-rust-ci/**'
               - 'scripts/check-runtime-sot.mjs'
             desktop_runtime:
               - 'apps/code-tauri/**'
@@ -271,34 +277,90 @@ jobs:
           node scripts/check-workflow-governance.mjs
           pnpm preflight:codex:ci
 
-  # Combined quality checks (lint + typecheck) - saves ~60s by eliminating duplicate setup
-  quality:
-    name: Quality
+  quality_baseline:
+    name: Quality Baseline
     needs: [changes]
-    uses: ./.github/workflows/_reusable-ci-quality.yml
+    uses: ./.github/workflows/_reusable-ci-quality-baseline.yml
     secrets: inherit
     with:
       affected_mode: ${{ needs.changes.outputs.affected_mode == 'true' }}
       ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
-      runtime_contract_changed: ${{ needs.changes.outputs.runtime_contract_changed == 'true' }}
       desktop_runtime_changed: ${{ needs.changes.outputs.desktop_runtime_changed == 'true' }}
       ui_contract_required: ${{ needs.changes.outputs.ui_contract_required == 'true' }}
       circular_required: ${{ needs.changes.outputs.circular_required == 'true' }}
       integration_watch_required: ${{ needs.changes.outputs.integration_watch_required == 'true' }}
+      repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
       diff_base: ${{ needs.changes.outputs.diff_base }}
 
-  # PR fast path (affected build + tests)
-  pr_affected:
-    name: PR Affected Checks
+  quality_runtime_contract_parity:
+    name: Runtime Contract Parity
+    if: needs.changes.outputs.runtime_contract_changed == 'true' && (needs.changes.outputs.affected_mode != 'true' || needs.changes.outputs.repo_governance_only != 'true')
+    needs: [changes]
+    uses: ./.github/workflows/_reusable-ci-runtime-contract-parity.yml
+    secrets: inherit
+
+  quality_typecheck:
+    name: Quality Typecheck
+    needs: [changes]
+    uses: ./.github/workflows/_reusable-ci-quality-typecheck.yml
+    secrets: inherit
+    with:
+      affected_mode: ${{ needs.changes.outputs.affected_mode == 'true' }}
+      ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
+      repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
+      diff_base: ${{ needs.changes.outputs.diff_base }}
+
+  quality:
+    name: Quality
+    if: always()
+    needs: [changes, quality_baseline, quality_runtime_contract_parity, quality_typecheck]
+    uses: ./.github/workflows/_reusable-ci-quality.yml
+    secrets: inherit
+    with:
+      ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
+      repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
+      baseline_result: ${{ needs.quality_baseline.result }}
+      runtime_contract_parity_result: ${{ needs.quality_runtime_contract_parity.result }}
+      typecheck_result: ${{ needs.quality_typecheck.result }}
+
+  pr_affected_build:
+    name: PR Affected Build
     if: github.event_name != 'push'
     needs: [changes, dependabot_policy]
-    uses: ./.github/workflows/_reusable-ci-pr-affected.yml
+    uses: ./.github/workflows/_reusable-ci-pr-affected-build.yml
     secrets: inherit
     with:
       ci_required: ${{ needs.changes.outputs.pr_affected_required == 'true' }}
       diff_base: ${{ needs.changes.outputs.diff_base }}
+      repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
       skip_expensive_checks: ${{ github.event_name == 'pull_request' && needs.dependabot_policy.outputs.skip_pr_affected == 'true' }}
       affected_build_required: ${{ needs.changes.outputs.pr_affected_build_required == 'true' }}
+
+  pr_affected_tests:
+    name: PR Affected Tests
+    if: github.event_name != 'push'
+    needs: [changes, dependabot_policy]
+    uses: ./.github/workflows/_reusable-ci-pr-affected-tests.yml
+    secrets: inherit
+    with:
+      ci_required: ${{ needs.changes.outputs.pr_affected_required == 'true' }}
+      diff_base: ${{ needs.changes.outputs.diff_base }}
+      repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
+      skip_expensive_checks: ${{ github.event_name == 'pull_request' && needs.dependabot_policy.outputs.skip_pr_affected == 'true' }}
+
+  # PR fast path (affected build + tests)
+  pr_affected:
+    name: PR Affected Checks
+    if: always() && github.event_name != 'push'
+    needs: [changes, dependabot_policy, pr_affected_build, pr_affected_tests]
+    uses: ./.github/workflows/_reusable-ci-pr-affected.yml
+    secrets: inherit
+    with:
+      ci_required: ${{ needs.changes.outputs.pr_affected_required == 'true' }}
+      repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
+      skip_expensive_checks: ${{ github.event_name == 'pull_request' && needs.dependabot_policy.outputs.skip_pr_affected == 'true' }}
+      build_result: ${{ needs.pr_affected_build.result }}
+      tests_result: ${{ needs.pr_affected_tests.result }}
 
   frontend_optimization:
     name: frontend_optimization

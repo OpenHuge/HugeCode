@@ -294,15 +294,48 @@ const requiredChecks = [
       "name: CI",
       "name: Repository SOT",
       "uses: ./.github/workflows/_reusable-ci-quality.yml",
+      "uses: ./.github/workflows/_reusable-ci-quality-baseline.yml",
+      "uses: ./.github/workflows/_reusable-ci-quality-typecheck.yml",
+      "uses: ./.github/workflows/_reusable-ci-runtime-contract-parity.yml",
+      "uses: ./.github/workflows/_reusable-ci-pr-affected-build.yml",
+      "uses: ./.github/workflows/_reusable-ci-pr-affected-tests.yml",
     ],
   },
   {
     file: ".github/workflows/_reusable-ci-quality.yml",
-    includes: ["name: _reusable-ci-quality", "name: Quality", "name: Runtime Contract Parity"],
+    includes: ["name: _reusable-ci-quality", "name: Quality", "Quality sub-jobs did not all pass."],
   },
   {
     file: ".github/workflows/_reusable-ci-pr-affected.yml",
-    includes: ["name: _reusable-ci-pr-affected", "name: PR Affected Checks"],
+    includes: [
+      "name: _reusable-ci-pr-affected",
+      "name: PR Affected Checks",
+      "Affected build/test sub-jobs did not all pass.",
+    ],
+  },
+  {
+    file: ".github/workflows/_reusable-ci-quality-baseline.yml",
+    includes: ["name: _reusable-ci-quality-baseline", "name: baseline"],
+  },
+  {
+    file: ".github/workflows/_reusable-ci-quality-typecheck.yml",
+    includes: ["name: _reusable-ci-quality-typecheck", "name: typecheck"],
+  },
+  {
+    file: ".github/workflows/_reusable-ci-runtime-contract-parity.yml",
+    includes: [
+      "name: _reusable-ci-runtime-contract-parity",
+      "name: runtime_contract_parity",
+      "name: Runtime Contract Parity",
+    ],
+  },
+  {
+    file: ".github/workflows/_reusable-ci-pr-affected-build.yml",
+    includes: ["name: _reusable-ci-pr-affected-build", "name: build"],
+  },
+  {
+    file: ".github/workflows/_reusable-ci-pr-affected-tests.yml",
+    includes: ["name: _reusable-ci-pr-affected-tests", "name: tests"],
   },
   {
     file: ".github/workflows/_reusable-ci-frontend-optimization.yml",
