@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildRuntimeContinuityReadiness } from "./runtimeContinuityReadiness";
-import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
+import {
+  buildRuntimeContinuationAggregate,
+  type HugeCodeRunSummary,
+} from "@ku0/code-runtime-host-contract";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 
 function buildRun(overrides: Partial<HugeCodeRunSummary> = {}): HugeCodeRunSummary {
@@ -350,8 +353,9 @@ describe("buildRuntimeContinuityReadiness", () => {
       ],
     });
 
-    expect(summary.state).toBe("ready");
+    expect(summary.state).toBe("attention");
     expect(summary.handoffReadyCount).toBe(1);
+    expect(summary.items[0]?.state).toBe("attention");
     expect(summary.items[0]?.pathKind).toBe("handoff");
     expect(summary.missingPathCount).toBe(0);
   });
@@ -462,6 +466,51 @@ describe("buildRuntimeContinuityReadiness", () => {
       recommendedAction: "Open Review Pack from takeover guidance.",
       truthSourceLabel: "Runtime takeover bundle",
     });
+  });
+
+  it("stays in parity with the shared canonical continuation aggregate", () => {
+    const run = buildRun({
+      state: "review_ready",
+      takeoverBundle: {
+        state: "ready",
+        pathKind: "review",
+        primaryAction: "open_review_pack",
+        summary: "Takeover bundle published the canonical review path.",
+        recommendedAction: "Open Review Pack from takeover truth.",
+        reviewPackId: "review-pack:run-1",
+      },
+      actionability: {
+        state: "blocked",
+        summary: "Stale top-level actionability should not win.",
+        degradedReasons: [],
+        actions: [],
+      },
+    });
+
+    const summary = buildRuntimeContinuityReadiness({
+      candidates: [{ run, task: buildTask({ status: "completed" }) }],
+    });
+    const aggregate = buildRuntimeContinuationAggregate({
+      candidates: [
+        {
+          runId: run.id,
+          taskId: run.taskId,
+          runState: run.state,
+          checkpoint: run.checkpoint ?? null,
+          missionLinkage: run.missionLinkage ?? null,
+          actionability: run.actionability ?? null,
+          publishHandoff: run.publishHandoff ?? null,
+          takeoverBundle: run.takeoverBundle ?? null,
+          nextAction: run.nextAction ?? null,
+          reviewPackId: "review-pack:run-1",
+        },
+      ],
+    });
+
+    expect(summary.state).toBe(aggregate.state);
+    expect(summary.items[0]?.pathKind).toBe(aggregate.items[0]?.pathKind);
+    expect(summary.items[0]?.detail).toBe(aggregate.items[0]?.summary);
+    expect(summary.items[0]?.recommendedAction).toBe(aggregate.items[0]?.recommendedAction);
   });
 
   it("keeps continuity at attention when checkpoint durability degraded recently", () => {

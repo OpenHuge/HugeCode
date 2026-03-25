@@ -226,7 +226,7 @@ describe("runtimeReviewPackSurfaceFacade", () => {
     expect(detail.recommendedNextAction).toBe("Runtime follow-up");
   });
 
-  it("prefers canonical next operator action over stale review-pack recommendation text", () => {
+  it("uses canonical continuation next action for mission-run detail", () => {
     const projection = asProjection({
       source: "runtime_snapshot_v1" as const,
       generatedAt: 10,
@@ -243,8 +243,8 @@ describe("runtimeReviewPackSurfaceFacade", () => {
         {
           id: "task-1",
           workspaceId: "workspace-1",
-          title: "Review continuation",
-          objective: "Review continuation",
+          title: "Canonical continuation",
+          objective: "Canonical continuation",
           origin: {
             kind: "thread" as const,
             threadId: "thread-1",
@@ -253,13 +253,17 @@ describe("runtimeReviewPackSurfaceFacade", () => {
           },
           mode: "pair" as const,
           modeSource: "execution_profile" as const,
-          status: "review_ready" as const,
+          status: "paused" as const,
           createdAt: 1,
           updatedAt: 10,
-          currentRunId: null,
+          currentRunId: "run-1",
           latestRunId: "run-1",
-          latestRunState: "review_ready" as const,
-          nextAction: null,
+          latestRunState: "paused" as const,
+          nextAction: {
+            label: "Legacy next action",
+            action: "review" as const,
+            detail: "Legacy next action detail",
+          },
         },
       ],
       runs: [
@@ -267,110 +271,32 @@ describe("runtimeReviewPackSurfaceFacade", () => {
           id: "run-1",
           taskId: "task-1",
           workspaceId: "workspace-1",
-          state: "review_ready" as const,
-          title: "Review continuation",
-          summary: "Ready for review.",
+          state: "paused" as const,
+          title: "Canonical continuation",
+          summary: "Paused with canonical runtime continuation.",
           startedAt: 2,
-          finishedAt: 9,
+          finishedAt: null,
           updatedAt: 10,
           currentStepIndex: 0,
           warnings: [],
           validations: [],
           artifacts: [],
-          reviewPackId: "review-pack:1",
-          nextOperatorAction: {
-            action: "open_review_pack",
-            label: "Open Review Pack",
-            detail: "Canonical runtime next step.",
-            source: "continuation",
-            target: {
-              kind: "review_pack",
-              workspaceId: "workspace-1",
-              taskId: "task-1",
-              runId: "run-1",
-              reviewPackId: "review-pack:1",
-              checkpointId: null,
-              traceId: null,
-            },
-            sessionBoundary: {
-              workspaceId: "workspace-1",
-              taskId: "task-1",
-              runId: "run-1",
-              missionTaskId: "task-1",
-              sessionKind: "run",
-              threadId: null,
-              requestId: null,
-              reviewPackId: "review-pack:1",
-              checkpointId: null,
-              traceId: null,
-              navigationTarget: {
-                kind: "run",
-                workspaceId: "workspace-1",
-                taskId: "task-1",
-                runId: "run-1",
-                reviewPackId: "review-pack:1",
-                checkpointId: null,
-                traceId: null,
-              },
-            },
+          nextAction: {
+            label: "Legacy next action",
+            action: "review" as const,
+            detail: "Legacy next action detail",
+          },
+          takeoverBundle: {
+            pathKind: "resume",
+            primaryAction: "resume",
+            state: "ready",
+            summary: "Resume from the takeover bundle.",
+            recommendedAction: "Resume this run from the takeover bundle.",
+            checkpointId: "checkpoint-1",
           },
         },
       ],
-      reviewPacks: [
-        {
-          id: "review-pack:1",
-          runId: "run-1",
-          taskId: "task-1",
-          workspaceId: "workspace-1",
-          summary: "Ready for review.",
-          reviewStatus: "ready" as const,
-          evidenceState: "confirmed" as const,
-          validationOutcome: "passed" as const,
-          warningCount: 0,
-          warnings: [],
-          validations: [],
-          artifacts: [],
-          checksPerformed: [],
-          recommendedNextAction: "Stale projection follow-up",
-          createdAt: 10,
-          nextOperatorAction: {
-            action: "open_review_pack",
-            label: "Open Review Pack",
-            detail: "Canonical runtime next step.",
-            source: "continuation",
-            target: {
-              kind: "review_pack",
-              workspaceId: "workspace-1",
-              taskId: "task-1",
-              runId: "run-1",
-              reviewPackId: "review-pack:1",
-              checkpointId: null,
-              traceId: null,
-            },
-            sessionBoundary: {
-              workspaceId: "workspace-1",
-              taskId: "task-1",
-              runId: "run-1",
-              missionTaskId: "task-1",
-              sessionKind: "run",
-              threadId: null,
-              requestId: null,
-              reviewPackId: "review-pack:1",
-              checkpointId: null,
-              traceId: null,
-              navigationTarget: {
-                kind: "run",
-                workspaceId: "workspace-1",
-                taskId: "task-1",
-                runId: "run-1",
-                reviewPackId: "review-pack:1",
-                checkpointId: null,
-                traceId: null,
-              },
-            },
-          },
-        },
-      ],
+      reviewPacks: [],
     });
 
     const detail = buildReviewPackDetailModel({
@@ -380,17 +306,18 @@ describe("runtimeReviewPackSurfaceFacade", () => {
         workspaceId: "workspace-1",
         request: {
           workspaceId: "workspace-1",
-          reviewPackId: "review-pack:1",
-          source: "review_surface",
+          runId: "run-1",
+          source: "missions",
         },
       }),
     });
 
-    expect(detail?.kind).toBe("review_pack");
-    if (!detail || detail.kind !== "review_pack") {
-      throw new Error("Expected review pack detail");
+    expect(detail?.kind).toBe("mission_run");
+    if (!detail || detail.kind !== "mission_run") {
+      throw new Error("Expected mission run detail");
     }
-    expect(detail.recommendedNextAction).toBe("Canonical runtime next step.");
+    expect(detail.nextActionLabel).toBe("Resume mission");
+    expect(detail.nextActionDetail).toBe("Resume this run from the takeover bundle.");
   });
 
   it("includes runtime autonomy and wake policy detail in review execution context", () => {

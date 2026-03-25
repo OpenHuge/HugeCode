@@ -83,6 +83,22 @@ Updated: 2026-03-22
   must prefer it over reconstructing approval, resume, handoff, or review
   follow-up semantics from separate runtime fields when it is present.
 
+## Continuation Summary Compatibility Boundary
+
+- First-party UI surfaces must derive readiness / continuation / review
+  follow-up semantics from the canonical continuation facade in
+  `packages/code-runtime-host-contract/src/runtimeContinuationFacade.ts`.
+- `code_mission_control_summary_v1` remains a compatibility projection for
+  external or lagging callers, not a canonical first-party semantic source.
+- Workspace shell, Mission Control, and Review Pack must consume mission-control
+  snapshot truth plus the canonical continuation facade instead of reading
+  summary semantics from the compatibility RPC.
+- Compat projections may preserve transport shape, but they must not keep
+  growing new product-semantic precedence rules.
+- The summary RPC should be deleted in the next explicit runtime compat prune
+  window after external callers have migrated and first-party clients no longer
+  depend on it.
+
 ## Runtime Kernel v2 Compatibility Rule
 
 - New planning and review semantics belong in the v2 lifecycle methods, not in

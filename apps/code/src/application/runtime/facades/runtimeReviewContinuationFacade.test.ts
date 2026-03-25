@@ -293,13 +293,12 @@ describe("runtimeReviewContinuationFacade", () => {
       state: "blocked",
       summary: "Runtime blocked follow-up until validation evidence is repaired.",
       blockingReason: "Runtime blocked follow-up until validation evidence is repaired.",
-      continuePathLabel: "Review Pack",
-      recommendedAction:
-        "Open Review Pack and resolve the runtime-blocked follow-up before continuing.",
+      continuePathLabel: "Mission thread",
+      recommendedAction: "Open the mission thread and resolve the runtime-blocked follow-up.",
       truthSource: "review_actionability",
       truthSourceLabel: "Runtime review actionability",
     });
-    expect(summary.details).toContain("Canonical continue path: Review Pack.");
+    expect(summary.details).toContain("Canonical continue path: Mission thread.");
     expect(summary.details).toContain("Follow-up source: Runtime review actionability.");
     expect(summary.details).toContain("Publish handoff is ready.");
   });
