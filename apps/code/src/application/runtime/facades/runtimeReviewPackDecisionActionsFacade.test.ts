@@ -145,4 +145,63 @@ describe("runtimeReviewPackDecisionActionsFacade", () => {
     expect(state.interventionActions[0]?.id).toBe("retry");
     expect(state.decisionActions[0]?.enabled).toBe(true);
   });
+
+  it("surfaces when decision availability is running on the controlled legacy fallback", () => {
+    const state = buildRuntimeReviewPackFollowUpState({
+      source: "runtime_snapshot_v1",
+      placement: {
+        requestedBackendIds: ["backend-1"],
+        lifecycleState: "confirmed",
+        readiness: "ready",
+      },
+      routingBackendId: "backend-fallback",
+      contract: null,
+      taskSource: {
+        kind: "manual",
+        title: "Mission",
+      },
+      runtimeDefaults: {
+        sourceTaskId: "task-1",
+        sourceRunId: "run-1",
+        sourceReviewPackId: "review-pack-1",
+        executionProfileId: "balanced-delegate",
+      },
+      navigationTarget: {
+        kind: "review",
+        workspaceId: "workspace-1",
+        taskId: "task-1",
+        runId: "run-1",
+        reviewPackId: "review-pack-1",
+      },
+      nextActionDetail: null,
+      title: "Retry run",
+      instruction: "Investigate the failure and continue.",
+      actions: [
+        {
+          action: "retry",
+          enabled: true,
+          supported: true,
+          reason: null,
+        },
+      ],
+      reviewDecision: {
+        status: "pending",
+        reviewPackId: "review-pack-1",
+        summary: "",
+      },
+      evidenceState: "complete",
+      reviewStatus: "ready",
+    });
+
+    expect(state.decisionActionability).toEqual({
+      summary:
+        "Decision availability is using the controlled fallback until canonical runtime review actionability is published.",
+      details: [
+        "Decision source: Controlled legacy follow-up fallback.",
+        "Canonical runtime review actionability has not been published for this run yet.",
+      ],
+      sourceLabel: "Controlled legacy follow-up fallback",
+      usesFallback: true,
+    });
+  });
 });

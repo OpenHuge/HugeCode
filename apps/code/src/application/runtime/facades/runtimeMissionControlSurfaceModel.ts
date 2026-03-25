@@ -4,6 +4,7 @@ import type {
   HugeCodeRunState,
   HugeCodeTaskSummary,
 } from "@ku0/code-runtime-host-contract";
+import { resolveHugeCodeOperatorAction } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
 import {
   isRuntimeManagedMissionTaskId,
   type MissionControlProjection,
@@ -11,6 +12,11 @@ import {
 import { summarizeReviewContinuationActionability } from "./runtimeReviewContinuationFacade";
 import { resolveReviewIntelligenceSummary } from "./runtimeReviewIntelligenceSummary";
 import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
+import {
+  buildMissionNavigationTarget,
+  buildReviewNavigationTarget,
+} from "./runtimeMissionNavigationTarget";
+import type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
 import type { RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import { formatMissionReviewEvidenceLabel } from "../../../utils/reviewPackLabels";
 import { formatReviewFailureClassLabel } from "../../../utils/reviewFailureClass";
@@ -39,29 +45,7 @@ export function formatMissionOverviewStateLabel(state: MissionOverviewState): st
   }
 }
 
-export type MissionNavigationTarget =
-  | {
-      kind: "thread";
-      workspaceId: string;
-      threadId: string;
-    }
-  | {
-      kind: "mission";
-      workspaceId: string;
-      taskId: string;
-      runId: string | null;
-      reviewPackId: string | null;
-      threadId: string | null;
-      limitation: "thread_unavailable" | null;
-    }
-  | {
-      kind: "review";
-      workspaceId: string;
-      taskId: string;
-      runId: string | null;
-      reviewPackId: string | null;
-      limitation: "thread_unavailable" | null;
-    };
+export type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
 
 export type MissionOverviewCounts = {
   active: number;
@@ -150,6 +134,7 @@ export type MissionReviewEntry = {
   continuationState?: "ready" | "degraded" | "blocked" | "missing" | null;
   continuationLabel?: string | null;
   continuePathLabel?: string | null;
+  continuationTruthSourceLabel?: string | null;
 };
 
 export type MissionControlFreshnessState = {
@@ -196,41 +181,6 @@ function resolveTaskTimestamp(
   return task.updatedAt;
 }
 
-function buildMissionNavigationTarget(
-  task: HugeCodeTaskSummary,
-  options?: {
-    runId?: string | null;
-    reviewPackId?: string | null;
-  }
-): MissionNavigationTarget {
-  return {
-    kind: "mission",
-    workspaceId: task.workspaceId,
-    taskId: task.id,
-    runId: options?.runId ?? task.latestRunId ?? null,
-    reviewPackId: options?.reviewPackId ?? null,
-    threadId: task.origin.threadId ?? null,
-    limitation: task.origin.threadId ? null : "thread_unavailable",
-  };
-}
-
-function buildReviewNavigationTarget(
-  task: HugeCodeTaskSummary,
-  options?: {
-    runId?: string | null;
-    reviewPackId?: string | null;
-  }
-): MissionNavigationTarget {
-  return {
-    kind: "review",
-    workspaceId: task.workspaceId,
-    taskId: task.id,
-    runId: options?.runId ?? task.latestRunId ?? null,
-    reviewPackId: options?.reviewPackId ?? null,
-    limitation: task.origin.threadId ? null : "thread_unavailable",
-  };
-}
-
 function resolveMissionSecondaryLabel(task: HugeCodeTaskSummary): string | null {
   const labels: string[] = [];
   if (isRuntimeManagedMissionTaskId(task.id)) {
@@ -241,6 +191,63 @@ function resolveMissionSecondaryLabel(task: HugeCodeTaskSummary): string | null 
     labels.push(taskSourceLabel);
   }
   return labels.length > 0 ? labels.join(" | ") : null;
+}
+
+function mapSharedOperatorTarget(input: {
+  task: HugeCodeTaskSummary;
+  run: MissionControlProjection["runs"][number] | null;
+  reviewPack: HugeCodeReviewPackSummary | null;
+  actionId: ReturnType<typeof resolveHugeCodeOperatorAction>["actionId"];
+  target: ReturnType<typeof resolveHugeCodeOperatorAction>["target"];
+}): MissionNavigationTarget {
+  const { task, run, reviewPack, actionId, target } = input;
+  if (target?.kind === "thread") {
+    return {
+      kind: "thread",
+      workspaceId: target.workspaceId,
+      threadId: target.threadId,
+    };
+  }
+  if (target?.kind === "review_pack") {
+    return buildReviewNavigationTarget(task, {
+      runId: target.runId,
+      reviewPackId: target.reviewPackId,
+    });
+  }
+  if (target?.kind === "run") {
+    return buildMissionNavigationTarget(task, {
+      runId: target.runId,
+      reviewPackId: target.reviewPackId ?? reviewPack?.id ?? null,
+    });
+  }
+  if (target?.kind === "sub_agent_session") {
+    return buildMissionNavigationTarget(task, {
+      runId: target.parentRunId ?? run?.id ?? null,
+      reviewPackId: reviewPack?.id ?? null,
+    });
+  }
+  if (actionId === "resume_run" || actionId === "open_approval") {
+    return buildMissionNavigationTarget(task, {
+      runId: run?.id ?? reviewPack?.runId ?? null,
+      reviewPackId: reviewPack?.id ?? null,
+    });
+  }
+  if (actionId === "open_review") {
+    return buildReviewNavigationTarget(task, {
+      runId: run?.id ?? reviewPack?.runId ?? null,
+      reviewPackId: reviewPack?.id ?? null,
+    });
+  }
+  if (reviewPack) {
+    return buildReviewNavigationTarget(task, {
+      runId: run?.id ?? reviewPack.runId,
+      reviewPackId: reviewPack.id,
+    });
+  }
+  return buildMissionNavigationTarget(task, {
+    runId: run?.id ?? null,
+    reviewPackId: null,
+  });
 }
 
 function resolveReviewEvidenceLabel(
@@ -463,88 +470,46 @@ function resolveMissionOperatorAction(input: {
   detail: string | null;
   target: MissionNavigationTarget;
 } {
-  const missionTarget = buildMissionNavigationTarget(input.task, {
-    runId: input.run?.id ?? null,
-    reviewPackId: input.reviewPack?.id ?? null,
-  });
-  const reviewTarget = buildReviewNavigationTarget(input.task, {
-    runId: input.run?.id ?? null,
-    reviewPackId: input.reviewPack?.id ?? null,
-  });
-  if (
-    input.reviewPack &&
-    (input.reviewPack.reviewStatus === "ready" ||
-      input.reviewPack.reviewStatus === "incomplete_evidence" ||
-      input.reviewPack.reviewStatus === "action_required" ||
-      input.reviewPack.reviewDecision?.status === "pending")
-  ) {
-    return {
-      label:
-        input.reviewPack.reviewStatus === "incomplete_evidence"
-          ? "Inspect evidence"
-          : input.reviewPack.reviewStatus === "action_required"
-            ? "Resolve review"
-            : "Open review",
-      detail:
-        resolveCheckpointHandoffLabel(input) ||
-        input.reviewPack.recommendedNextAction?.trim() ||
-        input.reviewPack.governance?.summary?.trim() ||
-        null,
-      target: reviewTarget,
-    };
-  }
-  if (input.run?.approval?.status === "pending_decision") {
-    return {
-      label: "Open approval",
-      detail: input.run.approval.summary?.trim() || null,
-      target: missionTarget,
-    };
-  }
-  if (input.run?.state === "failed" || input.run?.state === "cancelled") {
-    return {
-      label: "View failure",
-      detail:
-        input.run.relaunchContext?.summary?.trim() ||
-        input.run.completionReason?.trim() ||
-        input.run.governance?.summary?.trim() ||
-        null,
-      target: missionTarget,
-    };
-  }
-  if (input.run?.checkpoint?.resumeReady || input.run?.checkpoint?.recovered) {
-    return {
-      label: "Resume mission",
-      detail:
-        input.run.checkpoint.summary?.trim() ||
-        input.run.nextAction?.detail?.trim() ||
-        input.run.governance?.summary?.trim() ||
-        null,
-      target: missionTarget,
-    };
-  }
-  if (input.run?.state === "needs_input") {
-    return {
-      label: "Resume mission",
-      detail: input.run.nextAction?.detail?.trim() || input.run.governance?.summary?.trim() || null,
-      target: missionTarget,
-    };
-  }
-  if (isMissionRunActive(input.run?.state ?? null)) {
-    return {
-      label: "Open mission",
-      detail:
-        input.run?.nextAction?.detail?.trim() || input.run?.governance?.summary?.trim() || null,
-      target: missionTarget,
-    };
-  }
-  return {
-    label: input.task.origin.threadId ? "Open mission" : "Open action center",
-    detail:
-      input.run?.nextAction?.detail?.trim() ||
+  const sharedAction = resolveHugeCodeOperatorAction({
+    runState: input.run?.state ?? null,
+    reviewStatus: input.reviewPack?.reviewStatus ?? null,
+    approvalStatus: input.run?.approval?.status ?? null,
+    approvalSummary: input.run?.approval?.summary ?? null,
+    checkpoint: input.reviewPack?.checkpoint ?? input.run?.checkpoint ?? null,
+    takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run?.takeoverBundle ?? null,
+    reviewActionability: input.reviewPack?.actionability ?? input.run?.actionability ?? null,
+    missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,
+    publishHandoff: input.reviewPack?.publishHandoff ?? input.run?.publishHandoff ?? null,
+    fallbackDetail:
+      resolveCheckpointHandoffLabel(input) ||
       input.reviewPack?.recommendedNextAction?.trim() ||
+      input.run?.nextAction?.detail?.trim() ||
+      input.run?.relaunchContext?.summary?.trim() ||
+      input.run?.completionReason?.trim() ||
+      input.reviewPack?.governance?.summary?.trim() ||
       input.run?.governance?.summary?.trim() ||
       null,
-    target: missionTarget,
+  });
+  const target = mapSharedOperatorTarget({
+    task: input.task,
+    run: input.run,
+    reviewPack: input.reviewPack,
+    actionId: sharedAction.actionId,
+    target: sharedAction.target,
+  });
+
+  if (sharedAction.label.trim().length > 0) {
+    return {
+      label: sharedAction.label,
+      detail: sharedAction.detail,
+      target,
+    };
+  }
+
+  return {
+    label: input.task.origin.threadId ? "Open mission" : "Open action center",
+    detail: sharedAction.detail,
+    target,
   };
 }
 
@@ -1138,6 +1103,8 @@ export function buildMissionReviewEntriesFromProjection(
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
       continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
+      continuationTruthSourceLabel:
+        continuation.state !== "missing" ? continuation.truthSourceLabel : null,
       triagePriority: resolveTriagePriority({
         reviewPack,
         run,
@@ -1286,6 +1253,8 @@ export function buildMissionReviewEntriesFromProjection(
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
       continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
+      continuationTruthSourceLabel:
+        continuation.state !== "missing" ? continuation.truthSourceLabel : null,
       triagePriority: resolveTriagePriority({
         reviewPack: null,
         run,
