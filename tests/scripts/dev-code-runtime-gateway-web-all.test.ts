@@ -58,8 +58,12 @@ describe("dev-code-runtime-gateway-web-all", () => {
   });
 
   it("defaults runtime readiness timeout high enough for cold Rust builds", () => {
-    expect(parseRuntimeReadyTimeout(undefined)).toBe(240_000);
-    expect(parseRuntimeReadyTimeout("9")).toBe(240_000);
+    expect(parseRuntimeReadyTimeout(undefined)).toBe(480_000);
+    expect(parseRuntimeReadyTimeout("9")).toBe(480_000);
+  });
+
+  it("preserves explicit runtime readiness timeout overrides", () => {
+    expect(parseRuntimeReadyTimeout("540000")).toBe(540_000);
   });
 
   it("derives runtime reuse fingerprint from the canonical frozen contract", async () => {
