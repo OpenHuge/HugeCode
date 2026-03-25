@@ -4,7 +4,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import { createCodeWorkspaceAliases } from "../../scripts/lib/viteWorkspaceAliases";
+import { createCodeWorkspaceAliases } from "../../scripts/lib/viteWorkspaceAliases.ts";
 
 const packageJson = JSON.parse(
   readFileSync(new URL("./package.json", import.meta.url), "utf-8")
