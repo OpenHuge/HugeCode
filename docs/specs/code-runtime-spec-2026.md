@@ -106,7 +106,7 @@ Representative method families include:
 Method names, payloads, and compatibility rules come from `packages/code-runtime-host-contract`, not client-local copies or narrative docs.
 
 For this specification phase, canonical task payloads should carry an additive task-source summary wherever task start, task status/list/summary, or review-linkage payloads need to preserve upstream intake context.
-That summary is source-agnostic and currently covers manual-thread, GitHub-issue, GitHub-PR-follow-up, schedule, and external-runtime cases without introducing tracker-specific workflow behavior.
+That summary is source-agnostic and currently covers manual-thread, GitHub-issue, GitHub-PR-follow-up, GitHub-discussion, notes, customer feedback, docs, call summaries, external references, schedule, and external-runtime cases without introducing tracker-specific workflow behavior.
 
 ### 6.1 Runtime Kernel v2
 
@@ -126,6 +126,9 @@ It returns runtime-owned preparation truth for:
 
 - normalized intent (`runIntent`)
 - context shaping (`contextWorkingSet`)
+- canonical context truth (`contextTruth`)
+- precedence-ordered launch guidance (`guidanceStack`)
+- governed owner/executor semantics (`delegationContract`)
 - execution structure (`executionGraph`)
 - approval grouping (`approvalBatches`)
 - validation scope (`validationPlan`)
@@ -134,6 +137,10 @@ It returns runtime-owned preparation truth for:
 New control-plane work should consume these runtime-owned summaries directly
 instead of rebuilding intent clarity, repo context, approval grouping, or
 validation scope in UI facades.
+The same rule now applies to source normalization, launch guidance, and next-step
+semantics: Mission Control, Review Pack, and follow-up flows should prefer the
+shared `contextTruth`, `guidanceStack`, and `delegationContract` surfaces over
+page-local copies.
 
 Legacy run methods may remain during migration, but they are compatibility
 surfaces. New product meaning should land in the v2 contract rather than

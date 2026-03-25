@@ -25,6 +25,17 @@ function createProjection(): HugeCodeMissionControlSnapshot {
         workspaceId: "ws-1",
         title: "Refactor review routing",
         objective: "Refactor review routing",
+        taskSource: {
+          kind: "github_issue",
+          label: "GitHub issue",
+          title: "Refactor review routing",
+          reference: "#42",
+          repo: {
+            owner: "ku0",
+            name: "hugecode",
+            fullName: "ku0/hugecode",
+          },
+        },
         origin: {
           kind: "thread",
           threadId: "thread-1",
@@ -51,6 +62,17 @@ function createProjection(): HugeCodeMissionControlSnapshot {
         id: "run-1",
         taskId: "task-1",
         workspaceId: "ws-1",
+        taskSource: {
+          kind: "github_issue",
+          label: "GitHub issue",
+          title: "Refactor review routing",
+          reference: "#42",
+          repo: {
+            owner: "ku0",
+            name: "hugecode",
+            fullName: "ku0/hugecode",
+          },
+        },
         state: "review_ready",
         title: "Refactor review routing",
         summary: "Runtime evidence is ready for review.",
@@ -78,6 +100,17 @@ function createProjection(): HugeCodeMissionControlSnapshot {
         runId: "run-1",
         taskId: "task-1",
         workspaceId: "ws-1",
+        taskSource: {
+          kind: "github_issue",
+          label: "GitHub issue",
+          title: "Refactor review routing",
+          reference: "#42",
+          repo: {
+            owner: "ku0",
+            name: "hugecode",
+            fullName: "ku0/hugecode",
+          },
+        },
         summary: "Runtime evidence is ready for review.",
         reviewStatus: "ready",
         evidenceState: "confirmed",
@@ -111,7 +144,8 @@ describe("runtimeMissionControlSurfaceModel", () => {
     expect(reviewEntries[0]?.recommendedNextAction).toBe("Open Review Pack");
     expect(reviewEntries[0]?.operatorActionLabel).toBe("Open review");
     expect(reviewEntries[0]?.continuePathLabel).toBe("Review Pack");
-    expect(reviewEntries[0]?.continuationTruthSourceLabel).toBe("Runtime takeover bundle");
+    expect(reviewEntries[0]?.contextSummary).toBe("GitHub issue · triage");
+    expect(reviewEntries[0]?.delegationSummary).toBe("Open Review Pack");
     expect(signals.reviewReadyCount).toBe(1);
   });
 

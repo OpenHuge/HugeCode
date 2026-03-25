@@ -36,6 +36,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     repositoryLaunchDefaults,
     resumeRecoverableTasks,
     runtimeLaunchPreparation,
+    runtimeLaunchPreparationContextTruth,
+    runtimeLaunchPreparationGuidanceStack,
+    runtimeLaunchPreparationDelegationContract,
     runtimeLaunchPreparationError,
     runtimeLaunchPreparationLoading,
     runtimeLaunchPlanApprovalRequired,
@@ -444,6 +447,18 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   </span>
                   <span>Risk: {runtimeLaunchPreparation.runIntent.riskLevel}</span>
                   <span>{runtimeLaunchPreparation.contextWorkingSet.summary}</span>
+                  {runtimeLaunchPreparationContextTruth ? (
+                    <span>Context truth: {runtimeLaunchPreparationContextTruth.summary}</span>
+                  ) : null}
+                  {runtimeLaunchPreparationDelegationContract ? (
+                    <span>
+                      Delegation: {runtimeLaunchPreparationDelegationContract.summary} Next:{" "}
+                      {runtimeLaunchPreparationDelegationContract.nextOperatorAction}
+                    </span>
+                  ) : null}
+                  {runtimeLaunchPreparationGuidanceStack ? (
+                    <span>Guidance: {runtimeLaunchPreparationGuidanceStack.summary}</span>
+                  ) : null}
                   <span>{runtimeLaunchPreparation.executionGraph.summary}</span>
                   <span>
                     Approval batches:{" "}
@@ -501,6 +516,28 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                     const entries = layer.entries.map((entry) => entry.label).join(", ");
                     return `${layer.tier}: ${entries || layer.summary}`;
                   })
+                  .join(" | ")}
+              </div>
+            ) : null}
+            {runtimeLaunchPreparationContextTruth ? (
+              <div className={controlStyles.sectionMeta}>
+                {[
+                  `intent: ${runtimeLaunchPreparationContextTruth.reviewIntent}`,
+                  `owner: ${runtimeLaunchPreparationContextTruth.ownerSummary}`,
+                  runtimeLaunchPreparationContextTruth.canonicalTaskSource
+                    ? `source: ${runtimeLaunchPreparationContextTruth.canonicalTaskSource.label}`
+                    : null,
+                ]
+                  .filter((value): value is string => Boolean(value))
+                  .join(" | ")}
+              </div>
+            ) : null}
+            {runtimeLaunchPreparationGuidanceStack?.layers.length ? (
+              <div className={controlStyles.sectionMeta}>
+                {runtimeLaunchPreparationGuidanceStack.layers
+                  .slice()
+                  .sort((left, right) => right.priority - left.priority)
+                  .map((layer) => `${layer.scope}: ${layer.summary}`)
                   .join(" | ")}
               </div>
             ) : null}

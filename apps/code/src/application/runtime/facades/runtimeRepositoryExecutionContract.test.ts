@@ -35,6 +35,14 @@ function createContract() {
           preferredBackendIds: ["backend-schedule"],
           accessMode: "on-request",
         },
+        github_discussion: {
+          executionProfileId: "balanced-delegate",
+          reviewProfileId: "issue-review",
+        },
+        customer_feedback: {
+          executionProfileId: "balanced-delegate",
+          validationPresetId: "standard",
+        },
       },
       validationPresets: [
         {
@@ -238,6 +246,28 @@ describe("runtimeRepositoryExecutionContract", () => {
       validationCommands: ["pnpm validate:fast"],
       preferredBackendIds: ["backend-schedule"],
       accessMode: "on-request",
+    });
+  });
+
+  it("accepts expanded source mapping kinds for context-driven intake", () => {
+    const resolvedDiscussion = resolveRepositoryExecutionDefaults({
+      contract: createContract(),
+      taskSource: createTaskSource("github_discussion"),
+    });
+    const resolvedFeedback = resolveRepositoryExecutionDefaults({
+      contract: createContract(),
+      taskSource: createTaskSource("customer_feedback"),
+    });
+
+    expect(resolvedDiscussion).toMatchObject({
+      sourceMappingKind: "github_discussion",
+      executionProfileId: "balanced-delegate",
+      reviewProfileId: "issue-review",
+    });
+    expect(resolvedFeedback).toMatchObject({
+      sourceMappingKind: "customer_feedback",
+      executionProfileId: "balanced-delegate",
+      validationPresetId: "standard",
     });
   });
 });

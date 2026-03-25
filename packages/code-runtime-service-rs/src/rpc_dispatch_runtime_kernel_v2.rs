@@ -12,6 +12,10 @@ use crate::agent_task_launch_synthesis::{
     read_workspace_launch_context, synthesize_agent_task_auto_drive_state,
     synthesize_agent_task_mission_brief, synthesize_agent_task_steps, WorkspaceLaunchContext,
 };
+use crate::repository_execution_contract::RepositoryExecutionResolvedDefaults;
+use super::mission_control_dispatch::{
+    build_mission_run_projection_by_run_id, build_review_pack_projection_by_run_id,
+};
 use crate::runtime_helpers::normalize_agent_task_source_summary;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -227,51 +231,228 @@ fn build_context_working_set(
     })
 }
 
-fn build_context_selection_policy(
-    access_mode: &str,
-    execution_mode: &str,
-    preferred_backend_ids: &[String],
-    synthesized_steps: &[AgentTaskStepInput],
-) -> Value {
-    let strategy = if access_mode == "read-only" {
-        "minimal"
-    } else if execution_mode == "distributed"
-        || preferred_backend_ids.len() > 1
-        || synthesized_steps.len() >= 4
-    {
-        "deep"
-    } else {
-        "balanced"
-    };
-    let token_budget_target = match strategy {
-        "minimal" => 900,
-        "deep" => 2200,
-        _ => 1500,
-    };
-    let tool_exposure_profile = match access_mode {
-        "read-only" => "minimal",
-        "full-access" => "full",
-        _ => "slim",
-    };
+fn classify_context_source_family(kind: Option<&str>) -> &'static str {
+    match kind.unwrap_or_default() {
+        "github_issue" | "github_pr_followup" => "github",
+        "github_discussion" => "discussion",
+        "note" => "note",
+        "customer_feedback" => "feedback",
+        "doc" => "doc",
+        "call_summary" => "call",
+        "external_ref" => "external",
+        "schedule" => "schedule",
+        "external_runtime" => "runtime",
+        _ => "manual",
+    }
+}
 
+fn infer_review_intent(
+    task_source: Option<&AgentTaskSourceSummary>,
+    review_profile_id: Option<&str>,
+) -> &'static str {
+    if review_profile_id.is_some() {
+        return "review";
+    }
+    match task_source.map(|source| source.kind.as_str()).unwrap_or_default() {
+        "github_pr_followup" => "review",
+        "github_issue" | "github_discussion" | "customer_feedback" | "call_summary" => "triage",
+        _ => "execute",
+    }
+}
+
+fn build_context_truth(
+    task_source: Option<&AgentTaskSourceSummary>,
+    execution_profile_id: Option<&str>,
+    review_profile_id: Option<&str>,
+    validation_preset_id: Option<&str>,
+) -> Value {
+    let canonical_task_source = task_source.map(|source| {
+        let label = trim_optional_string(source.label.clone())
+            .or_else(|| trim_optional_string(source.title.clone()))
+            .or_else(|| trim_optional_string(source.reference.clone()))
+            .unwrap_or_else(|| "Task source".to_string());
+        let summary_parts = [
+            trim_optional_string(source.title.clone()),
+            trim_optional_string(source.reference.clone()),
+            source
+                .repo
+                .as_ref()
+                .and_then(|repo| trim_optional_string(repo.full_name.clone())),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+        json!({
+            "kind": source.kind,
+            "family": classify_context_source_family(Some(source.kind.as_str())),
+            "label": label,
+            "summary": if summary_parts.is_empty() { label.clone() } else { summary_parts.join(" · ") },
+            "source": source.kind,
+            "reference": source.reference,
+            "canonicalUrl": source.canonical_url.clone().or(source.url.clone()).or(source.external_id.clone()),
+            "primary": true,
+        })
+    });
+    let source_metadata = task_source
+        .map(|source| {
+            [
+                source
+                    .repo
+                    .as_ref()
+                    .and_then(|repo| trim_optional_string(repo.full_name.clone())),
+                trim_optional_string(source.reference.clone()),
+                trim_optional_string(source.canonical_url.clone()),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     json!({
-        "strategy": strategy,
-        "tokenBudgetTarget": token_budget_target,
-        "toolExposureProfile": tool_exposure_profile,
-        "preferColdFetch": strategy != "deep",
+        "summary": canonical_task_source
+            .as_ref()
+            .map(|source| {
+                format!(
+                    "Runtime normalized {} context into the canonical governed run path.",
+                    source.get("family").and_then(Value::as_str).unwrap_or("manual")
+                )
+            })
+            .unwrap_or_else(|| "Runtime will treat this launch as a manual context pack.".to_string()),
+        "canonicalTaskSource": canonical_task_source,
+        "sources": canonical_task_source
+            .clone()
+            .map(|source| vec![source])
+            .unwrap_or_default(),
+        "executionProfileId": execution_profile_id,
+        "reviewProfileId": review_profile_id,
+        "validationPresetId": validation_preset_id,
+        "reviewIntent": infer_review_intent(task_source, review_profile_id),
+        "ownerSummary": "Human owner stays accountable; the runtime agent executes the delegated work.",
+        "sourceMetadata": source_metadata,
+        "consumers": ["run", "review_pack", "takeover", "follow_up"],
     })
 }
 
-fn compute_context_entries_fingerprint<'a>(
-    namespace: &str,
-    entries: impl IntoIterator<Item = &'a Value>,
-) -> String {
-    let mut hasher = DefaultHasher::new();
-    namespace.hash(&mut hasher);
-    for entry in entries {
-        entry.to_string().hash(&mut hasher);
+fn build_guidance_stack(
+    workspace_context: &WorkspaceLaunchContext,
+    task_source: Option<&AgentTaskSourceSummary>,
+    repository_defaults: &RepositoryExecutionResolvedDefaults,
+    missing_context: &[String],
+) -> Value {
+    let mut layers = Vec::new();
+    if workspace_context.has_agents_md {
+        layers.push(json!({
+            "id": "repo-instructions",
+            "scope": "repo",
+            "summary": "Repo instructions remain the baseline contract for launch, review, and follow-up.",
+            "source": "AGENTS.md",
+            "priority": 10,
+            "instructions": [
+                "Prefer runtime-owned truth over page-local heuristics.",
+                "Keep launch, review, and continuation semantics aligned."
+            ],
+            "skillIds": []
+        }));
     }
-    format!("{:016x}", hasher.finish())
+    if let Some(source_mapping_kind) = repository_defaults.source_mapping_kind.as_ref() {
+        layers.push(json!({
+            "id": "source-guidance",
+            "scope": "source",
+            "summary": format!("Source kind {source_mapping_kind} enters the same governed run path as manual work."),
+            "source": source_mapping_kind,
+            "priority": 40,
+            "instructions": [
+                "Normalize source-linked work into canonical task/run/review semantics."
+            ],
+            "skillIds": []
+        }));
+    } else if let Some(task_source) = task_source {
+        layers.push(json!({
+            "id": "source-guidance",
+            "scope": "source",
+            "summary": format!("Source kind {} enters the same governed run path as manual work.", task_source.kind),
+            "source": task_source.kind,
+            "priority": 40,
+            "instructions": [
+                "Normalize source-linked work into canonical task/run/review semantics."
+            ],
+            "skillIds": []
+        }));
+    }
+    if repository_defaults.review_profile_id.is_some() {
+        layers.push(json!({
+            "id": "review-profile",
+            "scope": "review_profile",
+            "summary": "Repository execution defaults resolve review and validation policy before launch.",
+            "source": ".hugecode/repository-execution-contract.json",
+            "priority": 30,
+            "instructions": [
+                "Apply repo defaults before inventing source-local routing or validation policy."
+            ],
+            "skillIds": []
+        }));
+    }
+    if !missing_context.is_empty() {
+        layers.push(json!({
+            "id": "launch-guidance",
+            "scope": "launch",
+            "summary": "Launch-time clarification still has the highest precedence over queued autonomous work.",
+            "source": "prepare_v2",
+            "priority": 100,
+            "instructions": [
+                "Clarify missing context before widening unattended execution."
+            ],
+            "skillIds": []
+        }));
+    }
+    let precedence = layers
+        .iter()
+        .filter_map(|layer| layer.get("scope").and_then(Value::as_str))
+        .collect::<Vec<_>>();
+    json!({
+        "summary": if precedence.is_empty() {
+            "No guidance layers were inferred.".to_string()
+        } else {
+            format!("Guidance resolves through {}.", precedence.join(" -> "))
+        },
+        "precedence": precedence,
+        "layers": layers,
+    })
+}
+
+fn build_delegation_contract(
+    missing_context: &[String],
+    approval_batches: &[Value],
+) -> Value {
+    let blocked = false;
+    let state = if blocked {
+        "blocked"
+    } else if !missing_context.is_empty() {
+        "needs_clarification"
+    } else {
+        "launch_ready"
+    };
+    let next_operator_action = if !missing_context.is_empty() {
+        format!("Clarify missing context: {}.", missing_context.join(", "))
+    } else if !approval_batches.is_empty() {
+        "Launch the run and expect approval checkpoints on mutation steps.".to_string()
+    } else {
+        "Launch the run and review the resulting Review Pack before accepting outcomes."
+            .to_string()
+    };
+    json!({
+        "summary": if state == "launch_ready" {
+            "Delegate the work, then review a compact evidence artifact instead of supervising the full transcript."
+        } else {
+            "Delegation remains governed: the human owner decides, the agent executes, and the next operator action is explicit."
+        },
+        "state": state,
+        "humanOwner": "Operator",
+        "agentExecutor": "Runtime agent",
+        "accountability": "Human owner stays accountable; the runtime agent executes the delegated work.",
+        "nextOperatorAction": next_operator_action,
+        "continueVia": Value::Null,
+    })
 }
 
 fn step_kind_to_kernel_kind(step: &AgentTaskStepInput) -> &'static str {
@@ -865,6 +1046,18 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
         build_research_trace(&autonomy_request, task_source.as_ref(), &workspace_context);
     let execution_eligibility =
         build_execution_eligibility(missing_context.as_slice(), approval_batches.as_slice());
+    let resolved_execution_profile_id = explicit_launch_input
+        .execution_profile_id
+        .as_deref()
+        .or(repository_defaults.execution_profile_id.as_deref());
+    let resolved_review_profile_id = explicit_launch_input
+        .review_profile_id
+        .as_deref()
+        .or(repository_defaults.review_profile_id.as_deref());
+    let resolved_validation_preset_id = explicit_launch_input
+        .validation_preset_id
+        .as_deref()
+        .or(repository_defaults.validation_preset_id.as_deref());
 
     Ok(json!({
         "preparedAt": now_ms(),
@@ -878,13 +1071,13 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
             "taskSource": task_source,
             "accessMode": access_mode,
             "executionMode": execution_mode,
-            "executionProfileId": explicit_launch_input.execution_profile_id.or(repository_defaults.execution_profile_id),
-            "reviewProfileId": explicit_launch_input.review_profile_id.or(repository_defaults.review_profile_id),
-            "validationPresetId": explicit_launch_input.validation_preset_id.or(repository_defaults.validation_preset_id),
+            "executionProfileId": resolved_execution_profile_id,
+            "reviewProfileId": resolved_review_profile_id,
+            "validationPresetId": resolved_validation_preset_id,
             "preferredBackendIds": if !explicit_preferred_backend_ids.is_empty() {
                 explicit_preferred_backend_ids.clone()
             } else {
-                repository_defaults.preferred_backend_ids
+                repository_defaults.preferred_backend_ids.clone()
             },
             "requiredCapabilities": required_capabilities,
             "riskLevel": mission_brief
@@ -901,6 +1094,22 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
             execution_mode,
             explicit_preferred_backend_ids.as_slice(),
             synthesized_steps.as_slice(),
+        ),
+        "contextTruth": build_context_truth(
+            task_source.as_ref(),
+            resolved_execution_profile_id,
+            resolved_review_profile_id,
+            resolved_validation_preset_id,
+        ),
+        "guidanceStack": build_guidance_stack(
+            &workspace_context,
+            task_source.as_ref(),
+            &repository_defaults,
+            missing_context.as_slice(),
+        ),
+        "delegationContract": build_delegation_contract(
+            missing_context.as_slice(),
+            approval_batches.as_slice(),
         ),
         "executionGraph": execution_graph,
         "approvalBatches": approval_batches,

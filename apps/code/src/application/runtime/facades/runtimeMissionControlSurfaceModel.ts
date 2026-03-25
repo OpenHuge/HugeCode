@@ -9,23 +9,14 @@ import {
   isRuntimeManagedMissionTaskId,
   type MissionControlProjection,
 } from "./runtimeMissionControlFacade";
-import {
-  buildMissionOverviewOperatorSignal,
-  resolveCheckpointHandoffLabel,
-  resolveMissionOperatorAction,
-} from "./runtimeMissionControlOperatorAction";
-import type { MissionNavigationTarget } from "./runtimeMissionNavigationTarget";
+import { buildRuntimeContextTruth, buildRuntimeDelegationContract } from "./runtimeContextTruth";
 import { summarizeReviewContinuationActionability } from "./runtimeReviewContinuationFacade";
 import { resolveReviewIntelligenceSummary } from "./runtimeReviewIntelligenceSummary";
 import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
-import { resolveRuntimeRecommendedAction } from "./runtimeOperatorActionPresentation";
 import {
-  buildMissionNavigationTarget,
-  buildReviewNavigationTarget,
-} from "./runtimeMissionNavigationTarget";
-import type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
-import type { RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
-import { resolveMissionTakeoverOperatorAction } from "./runtimeMissionControlTakeoverAction";
+  resolveRepositoryExecutionDefaults,
+  type RepositoryExecutionContract,
+} from "./runtimeRepositoryExecutionContract";
 import { formatMissionReviewEvidenceLabel } from "../../../utils/reviewPackLabels";
 import { formatReviewFailureClassLabel } from "../../../utils/reviewFailureClass";
 import {
@@ -141,6 +132,8 @@ export type MissionReviewEntry = {
   navigationTarget: MissionNavigationTarget;
   secondaryLabel: string | null;
   evidenceLabel: string;
+  contextSummary?: string | null;
+  delegationSummary?: string | null;
   continuationState?: "ready" | "degraded" | "blocked" | "missing" | null;
   continuationLabel?: string | null;
   continuePathLabel?: string | null;
@@ -185,42 +178,57 @@ function resolveTaskTimestamp(
   return task.updatedAt;
 }
 
-function mapRuntimeOperatorActionTarget(input: {
-  task: HugeCodeTaskSummary;
-  target: import("@ku0/code-runtime-host-contract").HugeCodeTakeoverTarget | null;
-  reviewPackId?: string | null;
-}): MissionNavigationTarget | null {
-  const target = input.target;
-  if (!target) {
-    return null;
-  }
-  if (target.kind === "thread") {
-    return {
-      kind: "thread",
-      workspaceId: target.workspaceId,
-      threadId: target.threadId,
-    };
-  }
-  if (target.kind === "review_pack") {
-    return {
-      kind: "review",
-      workspaceId: target.workspaceId,
-      taskId: target.taskId,
-      runId: target.runId,
-      reviewPackId: target.reviewPackId,
-      limitation: input.task.origin.threadId ? null : "thread_unavailable",
-    };
-  }
-  if (target.kind === "run") {
-    return {
-      kind: "mission",
-      workspaceId: target.workspaceId,
-      taskId: target.taskId,
-      runId: target.runId,
-      reviewPackId: target.reviewPackId ?? input.reviewPackId ?? null,
-      threadId: input.task.origin.threadId ?? null,
-      limitation: input.task.origin.threadId ? null : "thread_unavailable",
-    };
+function buildEntryContextAndDelegationSummary(input: {
+  contract: RepositoryExecutionContract | null;
+  taskSource:
+    | MissionControlProjection["tasks"][number]["taskSource"]
+    | MissionControlProjection["runs"][number]["taskSource"]
+    | MissionControlProjection["reviewPacks"][number]["taskSource"]
+    | null
+    | undefined;
+  executionProfileId: string | null | undefined;
+  reviewProfileId: string | null | undefined;
+  validationPresetId: string | null | undefined;
+  continuationLabel: string | null;
+  continuePathLabel: string | null;
+  recommendedNextAction: string | null;
+  continuationState: "ready" | "degraded" | "blocked" | "missing" | null;
+}): Pick<MissionReviewEntry, "contextSummary" | "delegationSummary"> {
+  const repositoryDefaults = resolveRepositoryExecutionDefaults({
+    contract: input.contract,
+    taskSource: input.taskSource ?? null,
+    explicitLaunchInput: {
+      executionProfileId: input.executionProfileId ?? null,
+      reviewProfileId: input.reviewProfileId ?? null,
+      validationPresetId: input.validationPresetId ?? null,
+    },
+  });
+  const contextTruth = buildRuntimeContextTruth({
+    taskSource: input.taskSource ?? null,
+    repositoryDefaults,
+    contractLabel: input.contract?.metadata?.label ?? null,
+    hasRepoInstructions: true,
+  });
+  const delegationContract = buildRuntimeDelegationContract({
+    contextTruth,
+    continuationSummary: input.continuationLabel,
+    continuePathLabel: input.continuePathLabel,
+    nextOperatorAction: input.recommendedNextAction,
+    blocked: input.continuationState === "blocked",
+  });
+  return {
+    contextSummary: contextTruth.canonicalTaskSource
+      ? `${contextTruth.canonicalTaskSource.label} · ${contextTruth.reviewIntent}`
+      : contextTruth.summary,
+    delegationSummary: delegationContract.nextOperatorAction,
+  };
+}
+
+function buildMissionNavigationTarget(
+  task: HugeCodeTaskSummary,
+  options?: {
+    runId?: string | null;
+    reviewPackId?: string | null;
   }
   return {
     kind: "mission",
@@ -950,6 +958,22 @@ export function buildMissionReviewEntriesFromProjection(
       reviewPack,
       recommendedNextAction,
     });
+    const recommendedNextAction =
+      reviewIntelligence?.nextRecommendedAction ??
+      (continuation.state !== "missing"
+        ? continuation.recommendedAction
+        : reviewPack.recommendedNextAction);
+    const contextAndDelegation = buildEntryContextAndDelegationSummary({
+      contract: options?.repositoryExecutionContract ?? null,
+      taskSource: reviewPack.taskSource ?? run?.taskSource ?? task.taskSource ?? null,
+      executionProfileId: run?.executionProfile?.id ?? null,
+      reviewProfileId: reviewIntelligence?.reviewProfileId ?? run?.reviewProfileId ?? null,
+      validationPresetId: run?.executionProfile?.validationPresetId ?? null,
+      continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
+      continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
+      recommendedNextAction,
+      continuationState: continuation.state,
+    });
 
     entries.push({
       id: reviewPack.id,
@@ -972,7 +996,7 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       validationOutcome: reviewPack.validationOutcome,
       warningCount: reviewPack.warningCount,
-      recommendedNextAction: reviewIntelligence?.nextRecommendedAction ?? recommendedNextAction,
+      recommendedNextAction,
       accountabilityLifecycle: task.accountability?.lifecycle ?? null,
       queueEnteredAt:
         task.accountability?.lifecycle === "in_review"
@@ -1028,6 +1052,8 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       secondaryLabel: resolveMissionSecondaryLabel(task),
       evidenceLabel: resolveReviewEvidenceLabel(reviewPack, task),
+      contextSummary: contextAndDelegation.contextSummary,
+      delegationSummary: contextAndDelegation.delegationSummary,
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
       continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
@@ -1101,6 +1127,22 @@ export function buildMissionReviewEntriesFromProjection(
       run,
       recommendedNextAction,
     });
+    const recommendedNextAction =
+      reviewIntelligence?.nextRecommendedAction ??
+      (continuation.state !== "missing"
+        ? continuation.recommendedAction
+        : (run.nextAction?.detail ?? null));
+    const contextAndDelegation = buildEntryContextAndDelegationSummary({
+      contract: options?.repositoryExecutionContract ?? null,
+      taskSource: run.taskSource ?? task.taskSource ?? null,
+      executionProfileId: run.executionProfile?.id ?? null,
+      reviewProfileId: reviewIntelligence?.reviewProfileId ?? run.reviewProfileId ?? null,
+      validationPresetId: run.executionProfile?.validationPresetId ?? null,
+      continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
+      continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
+      recommendedNextAction,
+      continuationState: continuation.state,
+    });
     entries.push({
       id: run.id,
       kind: "mission_run",
@@ -1124,7 +1166,7 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       validationOutcome: "unknown",
       warningCount: run.warnings?.length ?? 0,
-      recommendedNextAction: reviewIntelligence?.nextRecommendedAction ?? recommendedNextAction,
+      recommendedNextAction,
       accountabilityLifecycle: task.accountability?.lifecycle ?? null,
       queueEnteredAt:
         task.accountability?.lifecycle === "in_review"
@@ -1180,6 +1222,8 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       secondaryLabel: resolveMissionSecondaryLabel(task),
       evidenceLabel: "Runtime evidence only",
+      contextSummary: contextAndDelegation.contextSummary,
+      delegationSummary: contextAndDelegation.delegationSummary,
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
       continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
