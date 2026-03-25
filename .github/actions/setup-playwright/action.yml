@@ -10,6 +10,14 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Cache Playwright browsers
+      uses: actions/cache@v5
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ hashFiles('tests/e2e/package.json', 'pnpm-lock.yaml', '.github/actions/setup-playwright/action.yml') }}
+        restore-keys: |
+          playwright-${{ runner.os }}-
+
     - name: Install Playwright browsers
       shell: bash
       run: ${{ inputs.install-command }}
