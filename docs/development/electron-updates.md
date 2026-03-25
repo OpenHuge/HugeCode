@@ -130,9 +130,10 @@ If no static feed root is configured, beta builds remain manual and point users 
   - manual beta mode opens GitHub Releases instead of advertising fake auto-update support
   - unsupported or misconfigured modes must never claim automatic update availability
 - Support actions must be driven from the same diagnostics truth as the renderer:
-  - `Open Incident Log` reveals the bounded desktop incident log when one exists
+  - `Open Incident Log` opens the bounded desktop incident log when one exists and only falls back to file reveal if direct path opening fails
   - otherwise it falls back to the logs directory instead of assuming a file is present
-  - `Report Issue...` opens a prefilled GitHub issue with version, channel, platform, update mode, and incident summary metadata
+  - `Open Logs Folder` must open the canonical logs directory via the host path-opening primitive rather than using file-reveal APIs on a directory target
+  - `Report Issue...` opens a prefilled GitHub issue with version, channel, platform, update mode, incident summary metadata, and crash-dump location
 
 ## Resilience Contract
 
@@ -146,9 +147,12 @@ If no static feed root is configured, beta builds remain manual and point users 
 - Unresponsive-window notifications should be edge-triggered, not spammed repeatedly while the same window remains hung.
 - Structured incident logging should distinguish at least renderer crash recovery, child process exits, and temporary window unresponsiveness.
 - Desktop incident persistence must remain bounded and supportable:
-  - store incidents as local NDJSON under the Electron user-data logs directory
+  - store incidents as local NDJSON under Electron's canonical logs directory
   - cap retained incident history so repeated failures do not create unbounded log growth
   - write logs from the main process with explicit local-file permissions instead of relying on console output alone
+- Local crash support should exist even before remote crash infrastructure:
+  - start Electron's crash reporter with `uploadToServer: false`
+  - keep crash dumps local and include the crash-dumps directory in desktop diagnostics surfaces
 
 ## Intentionally Unsupported
 

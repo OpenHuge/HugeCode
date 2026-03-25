@@ -9,6 +9,7 @@ import {
 } from "@ku0/shared/aboutContent";
 import type { DesktopAppInfo, DesktopDiagnosticsInfo } from "@ku0/code-platform-interfaces";
 import {
+  openPath,
   openUrl,
   resolveAppInfo,
   resolveDesktopDiagnosticsInfo,
@@ -117,7 +118,24 @@ export function AboutView() {
       return;
     }
 
-    void revealItemInDir(nextPath);
+    void (async () => {
+      const opened = await openPath(nextPath);
+      if (opened) {
+        return;
+      }
+
+      if (diagnosticsInfo.recentIncidentCount > 0 && diagnosticsInfo.incidentLogPath) {
+        const revealed = await revealItemInDir(diagnosticsInfo.incidentLogPath);
+        if (revealed) {
+          return;
+        }
+      }
+
+      pushErrorToast({
+        title: "Couldn’t open diagnostics",
+        message: "Unable to open the requested desktop diagnostics path.",
+      });
+    })();
   };
 
   const handleOpenLogsFolder = () => {
@@ -125,7 +143,18 @@ export function AboutView() {
       return;
     }
 
-    void revealItemInDir(diagnosticsInfo.logsDirectoryPath);
+    const logsDirectoryPath = diagnosticsInfo.logsDirectoryPath;
+    void (async () => {
+      const opened = await openPath(logsDirectoryPath);
+      if (opened) {
+        return;
+      }
+
+      pushErrorToast({
+        title: "Couldn’t open diagnostics",
+        message: "Unable to open the requested desktop diagnostics path.",
+      });
+    })();
   };
 
   const handleReportIssue = () => {

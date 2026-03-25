@@ -15,7 +15,11 @@ import {
 import { createDesktopApplicationMenuController } from "./desktopApplicationMenu.js";
 import { createDesktopAutoUpdateConfigurator } from "./desktopAutoUpdateConfigurator.js";
 import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
-import { buildDesktopIssueReporterUrl } from "./desktopDiagnostics.js";
+import {
+  buildDesktopIssueReporterUrl,
+  resolveDesktopDiagnosticsPaths,
+  startDesktopLocalCrashReporter,
+} from "./desktopDiagnostics.js";
 import { createDesktopIncidentStore } from "./desktopIncidentStore.js";
 import { createDesktopLaunchIntentController } from "./desktopLaunchIntentController.js";
 import type { CreateDesktopLaunchIntentControllerInput } from "./desktopLaunchIntentController.js";
@@ -93,7 +97,7 @@ export type CreateDesktopMainCompositionInput = {
       setMenu(menu: object | null): void;
     } | null;
     enableSandbox(): void;
-    getPath(name: "userData"): string;
+    getPath(name: "crashDumps" | "logs" | "userData"): string;
     getJumpListSettings?(): {
       minItems: number;
       removedItems: Array<{
@@ -129,6 +133,7 @@ export type CreateDesktopMainCompositionInput = {
     quit(): void;
     requestSingleInstanceLock(): boolean;
     setAsDefaultProtocolClient(protocol: string): boolean;
+    setAppLogsPath?(path?: string): void;
     setJumpList?(categories: unknown[] | null): string;
     whenReady(): Promise<unknown>;
   };
@@ -137,6 +142,16 @@ export type CreateDesktopMainCompositionInput = {
     on(event: string, listener: (...args: unknown[]) => void): void;
     quitAndInstall(): void;
   };
+  crashReporter?: {
+    start(options: {
+      companyName?: string;
+      compress?: boolean;
+      ignoreSystemCrashHandler?: boolean;
+      productName?: string;
+      submitURL?: string;
+      uploadToServer: boolean;
+    }): void;
+  } | null;
   arch: NodeJS.Architecture;
   browserWindow: DesktopBrowserWindowFacade;
   dialog: {
@@ -202,6 +217,7 @@ export type CreateDesktopMainCompositionInput = {
     } | null;
   };
   shell: {
+    openPath(path: string): Promise<string>;
     openExternal(url: string): Promise<void>;
     showItemInFolder(path: string): void;
   };
@@ -215,8 +231,12 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   let desktopReady = false;
   const rendererRoot = join(input.sourceDirectory, "../renderer");
   const userDataPath = input.app.getPath("userData");
+  const diagnosticsPaths = resolveDesktopDiagnosticsPaths({
+    app: input.app,
+    logger: console,
+  });
   const incidentStore = createDesktopIncidentStore({
-    incidentLogPath: join(userDataPath, "logs", "desktop-incidents.ndjson"),
+    incidentLogPath: diagnosticsPaths.incidentLogPath,
   });
 
   const rendererTrust = createDesktopRendererTrust({
@@ -355,14 +375,36 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     return typeof version === "string" && version.length > 0 ? version : null;
   })();
 
+  if (
+    !startDesktopLocalCrashReporter({
+      channel: input.releaseChannel ?? "beta",
+      crashReporter: input.crashReporter ?? null,
+      logger: console,
+      version: appVersion,
+    }) &&
+    input.crashReporter
+  ) {
+    incidentStore.record({
+      details: {
+        channel: input.releaseChannel ?? "beta",
+        version: appVersion,
+      },
+      event: "desktop_crash_reporter_init_failed",
+      level: "warn",
+      message: "HugeCode desktop could not start the local crash reporter.",
+    });
+  }
+
   function getDiagnosticsInfo() {
     const diagnosticsSummary = incidentStore.getSummary();
     return {
+      crashDumpsDirectoryPath: diagnosticsPaths.crashDumpsDirectoryPath,
       ...diagnosticsSummary,
       reportIssueUrl:
         buildDesktopIssueReporterUrl({
           arch: input.arch,
           channel: input.releaseChannel ?? "beta",
+          crashDumpsDirectoryPath: diagnosticsPaths.crashDumpsDirectoryPath,
           diagnosticsSummary,
           platform: input.platform,
           repoUrl: input.repositoryUrl ?? "https://github.com/OpenHuge/HugeCode",
@@ -370,6 +412,60 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
           version: appVersion,
         }) ?? null,
     };
+  }
+
+  async function openDesktopPath(
+    path: string | null,
+    options?: {
+      failureEvent: string;
+      failureMessage: string;
+      notificationBody: string;
+      notificationTitle: string;
+      revealFallbackPath?: string | null;
+    }
+  ) {
+    if (!path) {
+      return false;
+    }
+
+    try {
+      const error = await input.shell.openPath(path);
+      if (error === "") {
+        return true;
+      }
+
+      incidentStore.record({
+        details: {
+          error,
+          path,
+        },
+        event: options?.failureEvent ?? "desktop_open_path_failed",
+        level: "warn",
+        message: options?.failureMessage ?? "HugeCode desktop could not open a local path.",
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      incidentStore.record({
+        details: {
+          error: errorMessage,
+          path,
+        },
+        event: options?.failureEvent ?? "desktop_open_path_failed",
+        level: "warn",
+        message: options?.failureMessage ?? "HugeCode desktop could not open a local path.",
+      });
+    }
+
+    if (options?.revealFallbackPath) {
+      input.shell.showItemInFolder(options.revealFallbackPath);
+      return true;
+    }
+
+    notificationController.showDesktopNotification({
+      body: options?.notificationBody ?? "HugeCode could not open the requested path.",
+      title: options?.notificationTitle ?? "HugeCode Couldn’t Open a Path",
+    });
+    return false;
   }
 
   async function openPathSelectionDialog(kind: "directory" | "file") {
@@ -448,15 +544,35 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     },
     onOpenIncidentLog: () => {
       const diagnosticsInfo = getDiagnosticsInfo();
-      input.shell.showItemInFolder(
+      void openDesktopPath(
         diagnosticsInfo.recentIncidentCount > 0
           ? diagnosticsInfo.incidentLogPath
-          : diagnosticsInfo.logsDirectoryPath
+          : diagnosticsInfo.logsDirectoryPath,
+        diagnosticsInfo.recentIncidentCount > 0
+          ? {
+              failureEvent: "desktop_open_incident_log_failed",
+              failureMessage: "HugeCode desktop could not open the incident log.",
+              notificationBody:
+                "HugeCode could not open the incident log directly. The file was revealed in the logs folder instead.",
+              notificationTitle: "HugeCode Couldn’t Open the Incident Log",
+              revealFallbackPath: diagnosticsInfo.incidentLogPath,
+            }
+          : {
+              failureEvent: "desktop_open_logs_directory_failed",
+              failureMessage: "HugeCode desktop could not open the logs directory.",
+              notificationBody: "HugeCode could not open the logs directory.",
+              notificationTitle: "HugeCode Couldn’t Open the Logs Folder",
+            }
       );
     },
     onOpenLogsFolder: () => {
       const diagnosticsInfo = getDiagnosticsInfo();
-      input.shell.showItemInFolder(diagnosticsInfo.logsDirectoryPath);
+      void openDesktopPath(diagnosticsInfo.logsDirectoryPath, {
+        failureEvent: "desktop_open_logs_directory_failed",
+        failureMessage: "HugeCode desktop could not open the logs directory.",
+        notificationBody: "HugeCode could not open the logs directory.",
+        notificationTitle: "HugeCode Couldn’t Open the Logs Folder",
+      });
     },
     onOpenAbout: () => {
       windowController.openWindow({
@@ -522,6 +638,14 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     openExternalUrl: async (url) => {
       await input.shell.openExternal(url);
       return true;
+    },
+    openPath(path) {
+      return openDesktopPath(path, {
+        failureEvent: "desktop_open_path_failed",
+        failureMessage: "HugeCode desktop could not open a local path.",
+        notificationBody: "HugeCode could not open the requested path.",
+        notificationTitle: "HugeCode Couldn’t Open a Path",
+      });
     },
     persistTrayEnabled(enabled) {
       shellState.setTrayEnabled(enabled);

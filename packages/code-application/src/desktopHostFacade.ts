@@ -53,6 +53,11 @@ export type DesktopItemRevealFallbacks = {
   revealTauriItem?: (path: string) => Promise<boolean>;
 };
 
+export type DesktopPathOpenFallbacks = {
+  desktopHostBridge: DesktopHostBridge | null;
+  openTauriPath?: (path: string) => Promise<boolean>;
+};
+
 export function detectDesktopRuntimeHost(input: DesktopRuntimeDetectionInput): DesktopRuntimeHost {
   if (input.desktopHostBridge) {
     return input.desktopHostBridge.kind;
@@ -309,6 +314,26 @@ export async function revealDesktopItemInDir(
 
   try {
     return (await input.revealTauriItem?.(path)) === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function openDesktopPath(
+  input: DesktopPathOpenFallbacks,
+  path: string
+): Promise<boolean> {
+  try {
+    const openResult = await input.desktopHostBridge?.shell?.openPath?.(path);
+    if (input.desktopHostBridge?.shell?.openPath) {
+      return openResult !== false;
+    }
+  } catch {
+    // Fall through to Tauri fallback.
+  }
+
+  try {
+    return (await input.openTauriPath?.(path)) === true;
   } catch {
     return false;
   }

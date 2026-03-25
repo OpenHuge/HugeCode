@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  openPath,
   openUrl,
   resolveAppInfo,
   resolveDesktopDiagnosticsInfo,
@@ -11,6 +12,7 @@ import {
 import { AboutView } from "./AboutView";
 
 vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
+  openPath: vi.fn(async () => true),
   openUrl: vi.fn(async () => true),
   resolveAppInfo: vi.fn(async () => null),
   resolveDesktopDiagnosticsInfo: vi.fn(async () => null),
@@ -22,6 +24,7 @@ vi.mock("../../../application/runtime/ports/toasts", () => ({
   pushErrorToast: vi.fn(),
 }));
 
+const openPathMock = vi.mocked(openPath);
 const openUrlMock = vi.mocked(openUrl);
 const resolveAppInfoMock = vi.mocked(resolveAppInfo);
 const resolveDesktopDiagnosticsInfoMock = vi.mocked(resolveDesktopDiagnosticsInfo);
@@ -48,6 +51,7 @@ describe("AboutView", () => {
       updateMode: "disabled_beta_manual",
     });
     resolveDesktopDiagnosticsInfoMock.mockResolvedValue({
+      crashDumpsDirectoryPath: "/tmp/hugecode/crash-dumps",
       incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
       lastIncidentAt: "2026-03-25T10:00:00.000Z",
       logsDirectoryPath: "/tmp/hugecode/logs",
@@ -71,9 +75,12 @@ describe("AboutView", () => {
       "2 recent desktop incidents logged"
     );
     fireEvent.click(screen.getByRole("button", { name: "Open Incident Log" }));
-    expect(revealItemInDirMock).toHaveBeenCalledWith("/tmp/hugecode/logs/desktop-incidents.ndjson");
+    await waitFor(() => {
+      expect(openPathMock).toHaveBeenCalledWith("/tmp/hugecode/logs/desktop-incidents.ndjson");
+    });
     fireEvent.click(screen.getByRole("button", { name: "Report Issue" }));
     expect(openUrlMock).toHaveBeenCalledWith("https://github.com/OpenHuge/HugeCode/issues/new");
+    expect(revealItemInDirMock).not.toHaveBeenCalled();
   });
 
   it("falls back to the app version surface and opens external links", async () => {
@@ -89,5 +96,33 @@ describe("AboutView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "GitHub" }));
     expect(openUrlMock).toHaveBeenCalled();
+  });
+
+  it("reveals the incident log when direct path opening fails", async () => {
+    openPathMock.mockResolvedValue(false);
+    resolveAppInfoMock.mockResolvedValue(null);
+    resolveAppVersionMock.mockResolvedValue("9.9.9");
+    resolveDesktopDiagnosticsInfoMock.mockResolvedValue({
+      crashDumpsDirectoryPath: "/tmp/hugecode/crash-dumps",
+      incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
+      lastIncidentAt: "2026-03-25T10:00:00.000Z",
+      logsDirectoryPath: "/tmp/hugecode/logs",
+      recentIncidentCount: 1,
+      reportIssueUrl: null,
+    });
+
+    render(<AboutView />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Version 9.9.9")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Incident Log" }));
+
+    await waitFor(() => {
+      expect(revealItemInDirMock).toHaveBeenCalledWith(
+        "/tmp/hugecode/logs/desktop-incidents.ndjson"
+      );
+    });
   });
 });

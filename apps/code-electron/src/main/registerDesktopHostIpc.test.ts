@@ -23,6 +23,7 @@ describe("registerDesktopHostIpc", () => {
         listRecentSessions: vi.fn(),
         listWindows: vi.fn(),
         openExternalUrl: vi.fn(),
+        openPath: vi.fn(),
         openWindow: vi.fn(),
         reopenSession: vi.fn(),
         revealItemInDir: vi.fn(),
@@ -36,7 +37,7 @@ describe("registerDesktopHostIpc", () => {
       isTrustedSender: () => true,
     });
 
-    expect(handleMock).toHaveBeenCalledTimes(20);
+    expect(handleMock).toHaveBeenCalledTimes(21);
     expect(handleMock.mock.calls.map(([channel]) => channel)).toEqual([
       DESKTOP_HOST_IPC_CHANNELS.getAppInfo,
       DESKTOP_HOST_IPC_CHANNELS.getAppVersion,
@@ -57,6 +58,7 @@ describe("registerDesktopHostIpc", () => {
       DESKTOP_HOST_IPC_CHANNELS.checkForUpdates,
       DESKTOP_HOST_IPC_CHANNELS.restartToApplyUpdate,
       DESKTOP_HOST_IPC_CHANNELS.openExternalUrl,
+      DESKTOP_HOST_IPC_CHANNELS.openPath,
       DESKTOP_HOST_IPC_CHANNELS.revealItemInDir,
     ]);
   });
@@ -82,6 +84,7 @@ describe("registerDesktopHostIpc", () => {
         listRecentSessions: vi.fn(),
         listWindows: vi.fn(),
         openExternalUrl: vi.fn(),
+        openPath: vi.fn(),
         openWindow: vi.fn(),
         reopenSession: vi.fn(),
         revealItemInDir: vi.fn(),

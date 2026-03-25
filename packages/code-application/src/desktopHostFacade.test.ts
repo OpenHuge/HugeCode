@@ -3,14 +3,15 @@ import {
   checkDesktopForUpdates,
   consumeDesktopLaunchIntent,
   detectDesktopRuntimeHost,
+  openDesktopExternalUrl,
+  openDesktopPath,
   resolveDesktopAppInfo,
   resolveDesktopDiagnosticsInfo,
-  openDesktopExternalUrl,
   resolveDesktopAppVersion,
   resolveDesktopSessionInfo,
   resolveDesktopWindowLabel,
-  restartDesktopToApplyUpdate,
   resolveDesktopUpdateState,
+  restartDesktopToApplyUpdate,
   revealDesktopItemInDir,
   showDesktopNotification,
   subscribeDesktopLaunchIntents,
@@ -104,6 +105,7 @@ describe("desktopHostFacade", () => {
       },
       diagnostics: {
         getInfo: async () => ({
+          crashDumpsDirectoryPath: "/tmp/hugecode/crash-dumps",
           incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
           lastIncidentAt: "2026-03-24T00:05:00.000Z",
           logsDirectoryPath: "/tmp/hugecode/logs",
@@ -248,13 +250,14 @@ describe("desktopHostFacade", () => {
 
   it("runs notification and shell orchestration through the bridge first", async () => {
     const openExternalUrl = vi.fn(async () => true);
+    const openPath = vi.fn(async () => true);
     const revealItemInDir = vi.fn(async () => true);
     const show = vi.fn(async () => true);
 
     const desktopHostBridge = {
       kind: "electron" as const,
       notifications: { show },
-      shell: { openExternalUrl, revealItemInDir },
+      shell: { openExternalUrl, openPath, revealItemInDir },
     };
 
     await expect(
@@ -275,6 +278,14 @@ describe("desktopHostFacade", () => {
       )
     ).resolves.toBe(true);
     await expect(
+      openDesktopPath(
+        {
+          desktopHostBridge,
+        },
+        "/tmp/hugecode/logs"
+      )
+    ).resolves.toBe(true);
+    await expect(
       revealDesktopItemInDir(
         {
           desktopHostBridge,
@@ -287,6 +298,7 @@ describe("desktopHostFacade", () => {
   it("falls back to tauri and browser shell helpers when the bridge is unavailable", async () => {
     const openBrowserUrl = vi.fn(() => true);
     const openTauriUrl = vi.fn(async () => true);
+    const openTauriPath = vi.fn(async () => true);
     const revealTauriItem = vi.fn(async () => true);
 
     await expect(
@@ -300,6 +312,15 @@ describe("desktopHostFacade", () => {
       )
     ).resolves.toBe(true);
     await expect(
+      openDesktopPath(
+        {
+          desktopHostBridge: null,
+          openTauriPath,
+        },
+        "/tmp/hugecode/logs"
+      )
+    ).resolves.toBe(true);
+    await expect(
       revealDesktopItemInDir(
         {
           desktopHostBridge: null,
@@ -309,6 +330,7 @@ describe("desktopHostFacade", () => {
       )
     ).resolves.toBe(true);
     expect(openTauriUrl).toHaveBeenCalledWith("https://example.com");
+    expect(openTauriPath).toHaveBeenCalledWith("/tmp/hugecode/logs");
     expect(revealTauriItem).toHaveBeenCalledWith("/tmp/workspace");
     expect(openBrowserUrl).not.toHaveBeenCalled();
   });

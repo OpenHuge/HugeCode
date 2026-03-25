@@ -50,6 +50,7 @@ describe("code-platform-interfaces", () => {
       version: "0.1.0-beta.2",
     };
     const diagnosticsInfo: DesktopDiagnosticsInfo = {
+      crashDumpsDirectoryPath: "/tmp/hugecode/crash-dumps",
       incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
       lastIncidentAt: "2026-03-24T00:05:00.000Z",
       logsDirectoryPath: "/tmp/hugecode/logs",

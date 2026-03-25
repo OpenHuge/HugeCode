@@ -36,5 +36,6 @@ export const DESKTOP_HOST_IPC_CHANNELS = {
   checkForUpdates: "hugecode:desktop-host:check-for-updates",
   restartToApplyUpdate: "hugecode:desktop-host:restart-to-apply-update",
   openExternalUrl: "hugecode:desktop-host:open-external-url",
+  openPath: "hugecode:desktop-host:open-path",
   revealItemInDir: "hugecode:desktop-host:reveal-item-in-dir",
 } as const;

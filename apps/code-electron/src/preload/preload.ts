@@ -66,6 +66,7 @@ const desktopHostBridge: DesktopHostBridgeApi = {
   shell: {
     openExternalUrl: (url: string) =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.openExternalUrl, url),
+    openPath: (path: string) => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.openPath, path),
     revealItemInDir: (path: string) =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.revealItemInDir, path),
   },

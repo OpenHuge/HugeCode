@@ -4,6 +4,7 @@ import {
   app,
   autoUpdater,
   BrowserWindow,
+  crashReporter,
   dialog,
   ipcMain,
   protocol,
@@ -29,6 +30,7 @@ createDesktopMainComposition({
       return BrowserWindow.getAllWindows();
     },
   },
+  crashReporter,
   dialog,
   ipcMain,
   platform: process.platform,

@@ -3,6 +3,7 @@ import {
   checkForDesktopUpdates,
   consumePendingDesktopLaunchIntent,
   detectDesktopRuntimeHost,
+  openPath,
   openUrl,
   resolveAppInfo,
   resolveDesktopDiagnosticsInfo,
@@ -19,6 +20,7 @@ import {
 const {
   detectTauriRuntimeMock,
   getDesktopHostBridgeMock,
+  openTauriPathMock,
   openTauriUrlMock,
   readTauriAppVersionMock,
   readTauriWindowLabelMock,
@@ -26,6 +28,7 @@ const {
 } = vi.hoisted(() => ({
   detectTauriRuntimeMock: vi.fn(),
   getDesktopHostBridgeMock: vi.fn(),
+  openTauriPathMock: vi.fn(),
   openTauriUrlMock: vi.fn(),
   readTauriAppVersionMock: vi.fn(),
   readTauriWindowLabelMock: vi.fn(),
@@ -43,6 +46,7 @@ vi.mock("../ports/tauriEnvironment", () => ({
 }));
 
 vi.mock("../ports/tauriOpener", () => ({
+  openTauriPath: openTauriPathMock,
   openTauriUrl: openTauriUrlMock,
   revealTauriItemInDir: revealTauriItemInDirMock,
 }));
@@ -54,6 +58,7 @@ describe("desktopHostFacade", () => {
     detectTauriRuntimeMock.mockResolvedValue(false);
     readTauriWindowLabelMock.mockResolvedValue(null);
     readTauriAppVersionMock.mockResolvedValue(null);
+    openTauriPathMock.mockResolvedValue(false);
     openTauriUrlMock.mockResolvedValue(false);
     revealTauriItemInDirMock.mockResolvedValue(false);
     window.open = vi.fn(() => window) as typeof window.open;
@@ -77,6 +82,7 @@ describe("desktopHostFacade", () => {
       },
       diagnostics: {
         getInfo: async () => ({
+          crashDumpsDirectoryPath: "/tmp/hugecode/crash-dumps",
           incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
           lastIncidentAt: "2026-03-24T00:05:00.000Z",
           logsDirectoryPath: "/tmp/hugecode/logs",
@@ -128,6 +134,7 @@ describe("desktopHostFacade", () => {
       },
       shell: {
         openExternalUrl: async () => true,
+        openPath: async () => true,
         revealItemInDir: async () => true,
       },
     });
@@ -160,6 +167,7 @@ describe("desktopHostFacade", () => {
     await expect(resolveWindowLabel("main")).resolves.toBe("review");
     await expect(showDesktopNotification({ title: "Build complete" })).resolves.toBe(true);
     await expect(openUrl("https://example.com")).resolves.toBe(true);
+    await expect(openPath("/tmp/hugecode/logs")).resolves.toBe(true);
     await expect(revealItemInDir("/tmp/workspace")).resolves.toBe(true);
     const unsubscribe = subscribeToDesktopUpdateState(vi.fn());
     expect(updaterStateListener).toHaveBeenCalledTimes(1);
@@ -172,6 +180,7 @@ describe("desktopHostFacade", () => {
     detectTauriRuntimeMock.mockResolvedValue(true);
     readTauriWindowLabelMock.mockResolvedValue("about");
     readTauriAppVersionMock.mockResolvedValue("9.9.9");
+    openTauriPathMock.mockResolvedValue(true);
     openTauriUrlMock.mockResolvedValue(true);
     revealTauriItemInDirMock.mockResolvedValue(true);
 
@@ -199,6 +208,7 @@ describe("desktopHostFacade", () => {
     await expect(resolveWindowLabel("main")).resolves.toBe("about");
     await expect(showDesktopNotification({ title: "No bridge" })).resolves.toBe(false);
     await expect(openUrl("https://example.com")).resolves.toBe(true);
+    await expect(openPath("/tmp/hugecode/logs")).resolves.toBe(true);
     await expect(revealItemInDir("/tmp/workspace")).resolves.toBe(true);
     expect(window.open).not.toHaveBeenCalled();
   });

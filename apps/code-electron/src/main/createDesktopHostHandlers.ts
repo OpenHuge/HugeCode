@@ -40,6 +40,7 @@ export type CreateDesktopHostHandlersInput = {
   listRecentSessions(): unknown[];
   notificationController: NotificationController;
   openExternalUrl(url: string): Promise<boolean> | boolean;
+  openPath(path: string): Promise<boolean> | boolean;
   persistTrayEnabled(enabled: boolean): void;
   revealItemInDir(path: string): Promise<boolean> | boolean;
   trayController: TrayController;
@@ -83,6 +84,7 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
     },
     listWindows: input.windowController.listWindows,
     openExternalUrl: input.openExternalUrl,
+    openPath: input.openPath,
     openWindow: input.windowController.openWindow,
     reopenSession: input.windowController.reopenSession,
     revealItemInDir: input.revealItemInDir,

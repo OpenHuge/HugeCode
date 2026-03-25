@@ -3,6 +3,7 @@ import {
   consumeDesktopLaunchIntent,
   detectDesktopRuntimeHost as detectDesktopRuntimeHostWithCapabilities,
   openDesktopExternalUrl,
+  openDesktopPath as openDesktopPathWithCapabilities,
   resolveDesktopAppInfo,
   resolveDesktopDiagnosticsInfo as resolveDesktopDiagnosticsInfoWithCapabilities,
   resolveDesktopAppVersion,
@@ -29,7 +30,7 @@ import {
   readTauriAppVersion,
   readTauriWindowLabel,
 } from "../ports/tauriEnvironment";
-import { openTauriUrl, revealTauriItemInDir } from "../ports/tauriOpener";
+import { openTauriPath, openTauriUrl, revealTauriItemInDir } from "../ports/tauriOpener";
 
 function openBrowserUrl(url: string) {
   if (typeof window === "undefined" || typeof window.open !== "function") {
@@ -111,6 +112,16 @@ export async function openUrl(url: string) {
       openTauriUrl,
     },
     url
+  );
+}
+
+export async function openPath(path: string) {
+  return openDesktopPathWithCapabilities(
+    {
+      desktopHostBridge: getDesktopHostBridge(),
+      openTauriPath,
+    },
+    path
   );
 }
 

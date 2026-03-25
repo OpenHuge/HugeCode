@@ -47,6 +47,7 @@ type DesktopHostIpcHandlers = {
   listRecentSessions(): Promise<unknown[]> | unknown[];
   listWindows(): Promise<DesktopWindowDescriptor[]> | DesktopWindowDescriptor[];
   openExternalUrl(url: string): Promise<boolean> | boolean;
+  openPath(path: string): Promise<boolean> | boolean;
   openWindow(input?: OpenDesktopWindowInput): Promise<unknown> | unknown;
   reopenSession(sessionId: string): Promise<boolean> | boolean;
   revealItemInDir(path: string): Promise<boolean> | boolean;
@@ -155,6 +156,10 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
 
   handleTrusted(channels.openExternalUrl, async (_event, url) => {
     return handlers.openExternalUrl(url as string);
+  });
+
+  handleTrusted(channels.openPath, async (_event, path) => {
+    return handlers.openPath(path as string);
   });
 
   handleTrusted(channels.revealItemInDir, async (_event, path) => {

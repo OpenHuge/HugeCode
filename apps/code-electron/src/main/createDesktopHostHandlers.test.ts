@@ -1,8 +1,10 @@
+import type { DesktopUpdateState } from "@ku0/code-platform-interfaces";
 import { describe, expect, it, vi } from "vitest";
 import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
+import type { DesktopWindowDescriptor } from "./desktopShellState.js";
 
 describe("createDesktopHostHandlers", () => {
-  it("delegates session, tray, and window handlers to the injected controllers", () => {
+  it("delegates session, tray, and window handlers to the injected controllers", async () => {
     const input = {
       appVersion: "1.2.3",
       consumePendingLaunchIntent: vi.fn(() => ({
@@ -19,6 +21,7 @@ describe("createDesktopHostHandlers", () => {
         version: "1.2.3",
       })),
       getDiagnosticsInfo: vi.fn(() => ({
+        crashDumpsDirectoryPath: "/tmp/hugecode/crash-dumps",
         incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
         lastIncidentAt: "2026-03-25T11:00:00.000Z",
         logsDirectoryPath: "/tmp/hugecode/logs",
@@ -30,6 +33,7 @@ describe("createDesktopHostHandlers", () => {
         showNotification: vi.fn(() => true),
       },
       openExternalUrl: vi.fn(async () => true),
+      openPath: vi.fn(async () => true),
       persistTrayEnabled: vi.fn(),
       revealItemInDir: vi.fn(() => true),
       trayController: {
@@ -57,7 +61,18 @@ describe("createDesktopHostHandlers", () => {
         focusWindow: vi.fn(() => true),
         getSessionForWebContents: vi.fn(() => ({ id: "session-1" })),
         getWindowLabelForWebContents: vi.fn(() => "main"),
-        listWindows: vi.fn(() => [{ windowId: 1 }]),
+        listWindows: vi.fn(
+          () =>
+            [
+              {
+                focused: true,
+                sessionId: "session-1",
+                windowId: 1,
+                windowLabel: "main",
+                workspaceLabel: "alpha",
+              },
+            ] satisfies DesktopWindowDescriptor[]
+        ),
         openWindow: vi.fn(() => ({ windowId: 1 })),
         reopenSession: vi.fn(() => true),
       },
@@ -76,6 +91,7 @@ describe("createDesktopHostHandlers", () => {
     });
     expect(handlers.getCurrentSession({ sender: {} as never })).toEqual({ id: "session-1" });
     expect(handlers.getDiagnosticsInfo()).toEqual({
+      crashDumpsDirectoryPath: "/tmp/hugecode/crash-dumps",
       incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
       lastIncidentAt: "2026-03-25T11:00:00.000Z",
       logsDirectoryPath: "/tmp/hugecode/logs",
@@ -89,11 +105,20 @@ describe("createDesktopHostHandlers", () => {
       url: "hugecode://workspace/open?path=%2Fworkspace%2Falpha",
     });
     expect(handlers.listRecentSessions()).toEqual([{ id: "session-1" }]);
-    expect(handlers.listWindows()).toEqual([{ windowId: 1 }]);
+    expect(handlers.listWindows()).toEqual([
+      {
+        focused: true,
+        sessionId: "session-1",
+        windowId: 1,
+        windowLabel: "main",
+        workspaceLabel: "alpha",
+      },
+    ]);
     expect(handlers.openWindow()).toEqual({ windowId: 1 });
     expect(handlers.reopenSession("session-1")).toBe(true);
     expect(handlers.closeWindow(1)).toBe(true);
     expect(handlers.focusWindow(1)).toBe(true);
+    await expect(handlers.openPath("/tmp/hugecode/logs")).resolves.toBe(true);
     expect(handlers.getTrayState()).toEqual({ enabled: true, supported: true });
     expect(handlers.getUpdateState()).toEqual({
       capability: "automatic",
@@ -133,6 +158,7 @@ describe("createDesktopHostHandlers", () => {
         version: null,
       })),
       getDiagnosticsInfo: vi.fn(() => ({
+        crashDumpsDirectoryPath: "/tmp/hugecode/crash-dumps",
         incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
         lastIncidentAt: null,
         logsDirectoryPath: "/tmp/hugecode/logs",
@@ -144,26 +170,33 @@ describe("createDesktopHostHandlers", () => {
         showNotification: vi.fn(() => false),
       },
       openExternalUrl: vi.fn(async () => true),
+      openPath: vi.fn(async () => true),
       persistTrayEnabled,
       revealItemInDir: vi.fn(() => true),
       trayController,
       updaterController: {
-        checkForUpdates: vi.fn(() => ({
-          capability: "manual",
-          message:
-            "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
-          mode: "disabled_beta_manual",
-          provider: "none",
-          stage: "idle",
-        })),
-        getState: vi.fn(() => ({
-          capability: "manual",
-          message:
-            "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
-          mode: "disabled_beta_manual",
-          provider: "none",
-          stage: "idle",
-        })),
+        checkForUpdates: vi.fn(
+          () =>
+            ({
+              capability: "manual",
+              message:
+                "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
+              mode: "disabled_beta_manual",
+              provider: "none",
+              stage: "idle",
+            }) satisfies DesktopUpdateState
+        ),
+        getState: vi.fn(
+          () =>
+            ({
+              capability: "manual",
+              message:
+                "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
+              mode: "disabled_beta_manual",
+              provider: "none",
+              stage: "idle",
+            }) satisfies DesktopUpdateState
+        ),
         restartToApplyUpdate: vi.fn(() => false),
       },
       windowController: {

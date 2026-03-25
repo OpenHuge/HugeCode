@@ -1,5 +1,7 @@
 import { rmSync } from "node:fs";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PathLike } from "node:fs";
+import type { MenuItemConstructorOptions } from "electron";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 const updateElectronApp = vi.fn();
 
@@ -101,19 +103,33 @@ describe("createDesktopMainComposition", () => {
       app: {
         addRecentDocument: vi.fn(),
         enableSandbox: vi.fn(),
-        getPath: vi.fn(() => userDataPath),
+        getPath: vi.fn((name: "crashDumps" | "logs" | "userData") => {
+          switch (name) {
+            case "logs":
+              return `${userDataPath}/logs`;
+            case "crashDumps":
+              return `${userDataPath}/crashDumps`;
+            case "userData":
+            default:
+              return userDataPath;
+          }
+        }),
         getVersion: vi.fn(() => "0.1.0"),
         isPackaged: true,
         on: vi.fn(),
         quit: vi.fn(),
         requestSingleInstanceLock: vi.fn(() => true),
         setAsDefaultProtocolClient: vi.fn(() => true),
+        setAppLogsPath: vi.fn(),
         whenReady: vi.fn(() => Promise.resolve()),
       },
       autoUpdater: {
         checkForUpdates: vi.fn(),
         on: vi.fn(),
         quitAndInstall: vi.fn(),
+      },
+      crashReporter: {
+        start: vi.fn(),
       },
       arch: "x64" as const,
       browserWindow: {
@@ -154,6 +170,7 @@ describe("createDesktopMainComposition", () => {
         },
       },
       shell: {
+        openPath: vi.fn(async () => ""),
         openExternal: vi.fn(async () => undefined),
         showItemInFolder: vi.fn(),
       },
@@ -161,6 +178,54 @@ describe("createDesktopMainComposition", () => {
       staticUpdateBaseUrl: null,
       ...overrides,
     };
+  }
+
+  function getWhenReadyMock(input: ReturnType<typeof createInput>) {
+    return input.app.whenReady as Mock<() => Promise<unknown>>;
+  }
+
+  function getAppOnMock(input: ReturnType<typeof createInput>) {
+    return input.app.on as Mock;
+  }
+
+  function getWindowCreateMock(input: ReturnType<typeof createInput>) {
+    return input.browserWindow.create as Mock;
+  }
+
+  function getDefaultSession(input: ReturnType<typeof createInput>) {
+    return input.session.defaultSession!;
+  }
+
+  function createDirectoryStatMock() {
+    return vi.fn(
+      (_path: PathLike) =>
+        ({
+          isDirectory: () => true,
+          isFile: () => false,
+        }) as unknown as import("node:fs").Stats
+    ) as unknown as NonNullable<
+      NonNullable<ReturnType<typeof createInput>["launchIntentDependencies"]>["statSync"]
+    >;
+  }
+
+  function createFileStatMock() {
+    return vi.fn(
+      (_path: PathLike) =>
+        ({
+          isDirectory: () => false,
+          isFile: () => true,
+        }) as unknown as import("node:fs").Stats
+    ) as unknown as NonNullable<
+      NonNullable<ReturnType<typeof createInput>["launchIntentDependencies"]>["statSync"]
+    >;
+  }
+
+  function getMenuSubmenuItems(menuItem: MenuItemConstructorOptions | undefined) {
+    return Array.isArray(menuItem?.submenu) ? menuItem.submenu : [];
+  }
+
+  function clickMenuItem(menuItem: MenuItemConstructorOptions | undefined) {
+    menuItem?.click?.(undefined as never, undefined as never, undefined as never);
   }
 
   it("does not initialize beta public auto-updates without a static feed", async () => {
@@ -208,18 +273,34 @@ describe("createDesktopMainComposition", () => {
     });
   });
 
+  it("starts local crash reporting and resolves canonical logs paths during startup", async () => {
+    const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
+    const input = createInput();
+
+    createDesktopMainComposition(input).start();
+
+    expect(input.app.setAppLogsPath).toHaveBeenCalledTimes(1);
+    expect(input.crashReporter?.start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companyName: "OpenHuge",
+        productName: "HugeCode",
+        uploadToServer: false,
+      })
+    );
+  });
+
   it("loads packaged renderer windows from the internal app protocol instead of file urls", async () => {
     const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
     const input = createInput();
 
     createDesktopMainComposition(input).start();
-    await input.app.whenReady.mock.results[0]?.value;
+    await getWhenReadyMock(input).mock.results[0]?.value;
     await Promise.resolve();
     await Promise.resolve();
 
-    const fakeWindow = input.browserWindow.create.mock.results[0]?.value;
+    const fakeWindow = getWindowCreateMock(input).mock.results[0]?.value;
     expect(input.protocol.registerSchemesAsPrivileged).toHaveBeenCalledTimes(1);
-    expect(input.session.defaultSession.protocol.handle).toHaveBeenCalledTimes(1);
+    expect(getDefaultSession(input).protocol.handle).toHaveBeenCalledTimes(1);
     expect(fakeWindow.loadURL).toHaveBeenCalledWith("hugecode-app://app/index.html");
     expect(fakeWindow.loadFile).not.toHaveBeenCalled();
   });
@@ -277,22 +358,19 @@ describe("createDesktopMainComposition", () => {
     const input = createInput({
       launchIntentDependencies: {
         currentWorkingDirectory: () => "/workspace",
-        existsSync: vi.fn((path: string) => path === "/workspace/demo"),
-        statSync: vi.fn(() => ({
-          isDirectory: () => true,
-          isFile: () => false,
-        })),
+        existsSync: vi.fn((path: PathLike) => String(path) === "/workspace/demo"),
+        statSync: createDirectoryStatMock(),
       },
       processArgv: ["HugeCode", "demo"],
     });
 
     createDesktopMainComposition(input).start();
-    await input.app.whenReady.mock.results[0]?.value;
+    await getWhenReadyMock(input).mock.results[0]?.value;
     await Promise.resolve();
     await Promise.resolve();
 
     expect(input.browserWindow.create).toHaveBeenCalledTimes(1);
-    expect(input.browserWindow.create.mock.calls[0]?.[0]).toMatchObject({
+    expect(getWindowCreateMock(input).mock.calls[0]?.[0]).toMatchObject({
       title: "HugeCode - demo",
     });
   });
@@ -302,22 +380,19 @@ describe("createDesktopMainComposition", () => {
     const input = createInput({
       launchIntentDependencies: {
         currentWorkingDirectory: () => "/workspace",
-        existsSync: vi.fn((path: string) => path === "/workspace/demo"),
-        statSync: vi.fn(() => ({
-          isDirectory: () => true,
-          isFile: () => false,
-        })),
+        existsSync: vi.fn((path: PathLike) => String(path) === "/workspace/demo"),
+        statSync: createDirectoryStatMock(),
       },
       processArgv: ["HugeCode", "hugecode://workspace/open?path=%2Fworkspace%2Fdemo"],
     });
 
     createDesktopMainComposition(input).start();
-    await input.app.whenReady.mock.results[0]?.value;
+    await getWhenReadyMock(input).mock.results[0]?.value;
     await Promise.resolve();
     await Promise.resolve();
 
     expect(input.browserWindow.create).toHaveBeenCalledTimes(1);
-    expect(input.browserWindow.create.mock.calls[0]?.[0]).toMatchObject({
+    expect(getWindowCreateMock(input).mock.calls[0]?.[0]).toMatchObject({
       title: "HugeCode - demo",
     });
   });
@@ -333,25 +408,25 @@ describe("createDesktopMainComposition", () => {
       },
       launchIntentDependencies: {
         currentWorkingDirectory: () => "/workspace",
-        existsSync: vi.fn((path: string) => path === "/workspace/demo/src/main.ts"),
-        statSync: vi.fn(() => ({
-          isDirectory: () => false,
-          isFile: () => true,
-        })),
+        existsSync: vi.fn((path: PathLike) => String(path) === "/workspace/demo/src/main.ts"),
+        statSync: createFileStatMock(),
       },
     });
 
     createDesktopMainComposition(input).start();
-    await input.app.whenReady.mock.results[0]?.value;
+    await getWhenReadyMock(input).mock.results[0]?.value;
     await Promise.resolve();
     await Promise.resolve();
 
     const { Menu } = await import("electron");
-    const lastTemplate = vi.mocked(Menu.buildFromTemplate).mock.calls.at(-1)?.[0] ?? [];
+    const lastTemplate = (vi.mocked(Menu.buildFromTemplate).mock.calls.at(-1)?.[0] ??
+      []) as MenuItemConstructorOptions[];
     const fileMenu = lastTemplate.find((item) => item.label === "File");
-    const openFileItem = fileMenu?.submenu?.find((item) => item.label === "Open File...");
+    const openFileItem = getMenuSubmenuItems(fileMenu).find(
+      (item: MenuItemConstructorOptions) => item.label === "Open File..."
+    );
 
-    openFileItem?.click?.();
+    clickMenuItem(openFileItem);
     await Promise.resolve();
     await Promise.resolve();
 
@@ -361,7 +436,7 @@ describe("createDesktopMainComposition", () => {
       title: "Open File",
     });
     expect(input.browserWindow.create).toHaveBeenCalledTimes(2);
-    expect(input.browserWindow.create.mock.calls[1]?.[0]).toMatchObject({
+    expect(getWindowCreateMock(input).mock.calls[1]?.[0]).toMatchObject({
       title: "HugeCode - src",
     });
   });
@@ -377,25 +452,25 @@ describe("createDesktopMainComposition", () => {
       },
       launchIntentDependencies: {
         currentWorkingDirectory: () => "/workspace",
-        existsSync: vi.fn((path: string) => path === "/workspace/demo"),
-        statSync: vi.fn(() => ({
-          isDirectory: () => true,
-          isFile: () => false,
-        })),
+        existsSync: vi.fn((path: PathLike) => String(path) === "/workspace/demo"),
+        statSync: createDirectoryStatMock(),
       },
     });
 
     createDesktopMainComposition(input).start();
-    await input.app.whenReady.mock.results[0]?.value;
+    await getWhenReadyMock(input).mock.results[0]?.value;
     await Promise.resolve();
     await Promise.resolve();
 
     const { Menu } = await import("electron");
-    const lastTemplate = vi.mocked(Menu.buildFromTemplate).mock.calls.at(-1)?.[0] ?? [];
+    const lastTemplate = (vi.mocked(Menu.buildFromTemplate).mock.calls.at(-1)?.[0] ??
+      []) as MenuItemConstructorOptions[];
     const fileMenu = lastTemplate.find((item) => item.label === "File");
-    const openFolderItem = fileMenu?.submenu?.find((item) => item.label === "Open Folder...");
+    const openFolderItem = getMenuSubmenuItems(fileMenu).find(
+      (item: MenuItemConstructorOptions) => item.label === "Open Folder..."
+    );
 
-    openFolderItem?.click?.();
+    clickMenuItem(openFolderItem);
     await Promise.resolve();
     await Promise.resolve();
 
@@ -405,7 +480,7 @@ describe("createDesktopMainComposition", () => {
       title: "Open Folder",
     });
     expect(input.browserWindow.create).toHaveBeenCalledTimes(2);
-    expect(input.browserWindow.create.mock.calls[1]?.[0]).toMatchObject({
+    expect(getWindowCreateMock(input).mock.calls[1]?.[0]).toMatchObject({
       title: "HugeCode - demo",
     });
   });
@@ -415,22 +490,19 @@ describe("createDesktopMainComposition", () => {
     const input = createInput({
       launchIntentDependencies: {
         currentWorkingDirectory: () => "/workspace",
-        existsSync: vi.fn((path: string) => path === "/workspace/demo/src/main.ts"),
-        statSync: vi.fn(() => ({
-          isDirectory: () => false,
-          isFile: () => true,
-        })),
+        existsSync: vi.fn((path: PathLike) => String(path) === "/workspace/demo/src/main.ts"),
+        statSync: createFileStatMock(),
       },
       processArgv: ["HugeCode", "demo/src/main.ts"],
     });
 
     createDesktopMainComposition(input).start();
-    await input.app.whenReady.mock.results[0]?.value;
+    await getWhenReadyMock(input).mock.results[0]?.value;
     await Promise.resolve();
     await Promise.resolve();
 
     expect(input.app.addRecentDocument).toHaveBeenCalledWith("/workspace/demo/src/main.ts");
-    expect(input.browserWindow.create.mock.calls[0]?.[0]).toMatchObject({
+    expect(getWindowCreateMock(input).mock.calls[0]?.[0]).toMatchObject({
       title: "HugeCode - src",
     });
   });
@@ -440,24 +512,21 @@ describe("createDesktopMainComposition", () => {
     const input = createInput({
       launchIntentDependencies: {
         currentWorkingDirectory: () => "/workspace",
-        existsSync: vi.fn((path: string) => path === "/workspace/demo"),
-        statSync: vi.fn(() => ({
-          isDirectory: () => true,
-          isFile: () => false,
-        })),
+        existsSync: vi.fn((path: PathLike) => String(path) === "/workspace/demo"),
+        statSync: createDirectoryStatMock(),
       },
       processArgv: ["HugeCode", "demo"],
     });
 
     createDesktopMainComposition(input).start();
-    await input.app.whenReady.mock.results[0]?.value;
+    await getWhenReadyMock(input).mock.results[0]?.value;
     await Promise.resolve();
     await Promise.resolve();
 
-    const openUrlListener = input.app.on.mock.calls.find(([event]) => event === "open-url")?.[1] as
-      | ((event: { preventDefault(): void }, url: string) => void)
-      | undefined;
-    const fakeWindow = input.browserWindow.create.mock.results[0]?.value;
+    const openUrlListener = getAppOnMock(input).mock.calls.find(
+      ([event]) => event === "open-url"
+    )?.[1] as ((event: { preventDefault(): void }, url: string) => void) | undefined;
+    const fakeWindow = getWindowCreateMock(input).mock.results[0]?.value;
     const preventDefault = vi.fn();
 
     openUrlListener?.({ preventDefault }, "hugecode://workspace/open?path=%2Fworkspace%2Fdemo");
@@ -481,17 +550,20 @@ describe("createDesktopMainComposition", () => {
     });
 
     createDesktopMainComposition(input).start();
-    await input.app.whenReady.mock.results[0]?.value;
+    await getWhenReadyMock(input).mock.results[0]?.value;
     await Promise.resolve();
     await Promise.resolve();
 
-    const menuTemplate = vi.mocked(Menu.buildFromTemplate).mock.calls.at(-1)?.[0];
+    const menuTemplate = vi.mocked(Menu.buildFromTemplate).mock.calls.at(-1)?.[0] as
+      | MenuItemConstructorOptions[]
+      | undefined;
     const helpMenu = menuTemplate?.find((item) => item.label === "Help");
-    const checkForUpdatesItem = helpMenu?.submenu?.find(
-      (item) => "label" in item && item.label === "Check for Updates..."
+    const helpMenuItems = getMenuSubmenuItems(helpMenu);
+    const checkForUpdatesItem = helpMenuItems.find(
+      (item: MenuItemConstructorOptions) => item.label === "Check for Updates..."
     );
 
-    checkForUpdatesItem?.click?.();
+    clickMenuItem(checkForUpdatesItem);
 
     expect(input.autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1);
   });
@@ -505,17 +577,20 @@ describe("createDesktopMainComposition", () => {
     });
 
     createDesktopMainComposition(input).start();
-    await input.app.whenReady.mock.results[0]?.value;
+    await getWhenReadyMock(input).mock.results[0]?.value;
     await Promise.resolve();
     await Promise.resolve();
 
-    const menuTemplate = vi.mocked(Menu.buildFromTemplate).mock.calls.at(-1)?.[0];
+    const menuTemplate = vi.mocked(Menu.buildFromTemplate).mock.calls.at(-1)?.[0] as
+      | MenuItemConstructorOptions[]
+      | undefined;
     const helpMenu = menuTemplate?.find((item) => item.label === "Help");
-    const checkForUpdatesItem = helpMenu?.submenu?.find(
-      (item) => "label" in item && item.label === "Check for Updates..."
+    const helpMenuItems = getMenuSubmenuItems(helpMenu);
+    const checkForUpdatesItem = helpMenuItems.find(
+      (item: MenuItemConstructorOptions) => item.label === "Check for Updates..."
     );
 
-    checkForUpdatesItem?.click?.();
+    clickMenuItem(checkForUpdatesItem);
 
     expect(input.autoUpdater.checkForUpdates).not.toHaveBeenCalled();
     expect(input.shell.openExternal).toHaveBeenCalledWith(

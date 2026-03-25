@@ -53,6 +53,7 @@ export type DesktopTrayState = {
 };
 
 export type DesktopDiagnosticsInfo = {
+  crashDumpsDirectoryPath: string | null;
   incidentLogPath: string | null;
   lastIncidentAt: string | null;
   logsDirectoryPath: string | null;
@@ -195,6 +196,7 @@ export type DesktopUpdaterCapability = {
 
 export type DesktopShellCapability = {
   openExternalUrl?: (url: string) => Promise<boolean | void> | boolean | void;
+  openPath?: (path: string) => Promise<boolean | void> | boolean | void;
   revealItemInDir?: (path: string) => Promise<boolean | void> | boolean | void;
 };
 
@@ -257,6 +259,7 @@ export type DesktopHostBridgeApi = {
   };
   shell: {
     openExternalUrl(url: string): Promise<boolean>;
+    openPath(path: string): Promise<boolean>;
     revealItemInDir(path: string): Promise<boolean>;
   };
 };

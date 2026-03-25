@@ -3,6 +3,7 @@ export {
   consumeDesktopLaunchIntent,
   detectDesktopRuntimeHost,
   openDesktopExternalUrl,
+  openDesktopPath,
   resolveDesktopAppInfo,
   resolveDesktopDiagnosticsInfo,
   resolveDesktopAppVersion,
