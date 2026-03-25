@@ -84,6 +84,33 @@ function normalizeLifecycleStatus(value: unknown): RuntimeToolLifecycleStatus | 
   }
 }
 
+function isApprovalLifecycleStatus(
+  status: RuntimeToolLifecycleStatus | null
+): status is RuntimeApprovalLifecycleEvent["status"] {
+  return (
+    status === "pending" ||
+    status === "approved" ||
+    status === "rejected" ||
+    status === "interrupted"
+  );
+}
+
+function isGuardrailLifecycleStatus(
+  status: RuntimeToolLifecycleStatus | null
+): status is Extract<
+  RuntimeToolLifecycleEvent["status"],
+  "allowed" | "blocked" | "runtime_failed" | "success" | "timeout" | "validation_failed"
+> {
+  return (
+    status === "allowed" ||
+    status === "blocked" ||
+    status === "runtime_failed" ||
+    status === "success" ||
+    status === "timeout" ||
+    status === "validation_failed"
+  );
+}
+
 function readEventAt(params: Record<string, unknown>, fallbackAt: number): number {
   return (
     readNumber(params.at) ??
@@ -207,7 +234,7 @@ function createApprovalLifecycleEvent(
     method === "runtime/requestApproval"
       ? "pending"
       : (normalizeLifecycleStatus(params.status) ?? normalizeLifecycleStatus(params.decision));
-  if (!status || !["pending", "approved", "rejected", "interrupted"].includes(status)) {
+  if (!isApprovalLifecycleStatus(status)) {
     return null;
   }
 
@@ -312,10 +339,7 @@ function normalizeRuntimeToolLifecycleTelemetryEvent(
   }
   if (event.kind === "guardrail_outcome") {
     const status = normalizeLifecycleStatus(event.status);
-    if (
-      !status ||
-      !["success", "validation_failed", "runtime_failed", "timeout", "blocked"].includes(status)
-    ) {
+    if (!isGuardrailLifecycleStatus(status)) {
       return null;
     }
     return {

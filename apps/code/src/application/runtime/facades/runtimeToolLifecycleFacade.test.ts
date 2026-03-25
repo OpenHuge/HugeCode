@@ -277,4 +277,42 @@ describe("runtimeToolLifecycleFacade", () => {
 
     unsubscribe();
   });
+
+  it("drops approval and guardrail statuses that are outside the narrowed lifecycle subsets", async () => {
+    const facade = await import("./runtimeToolLifecycleFacade");
+    const events = (await import("../ports/events")) as unknown as EventsTestApi;
+    const telemetry =
+      (await import("../ports/runtimeToolExecutionTelemetry")) as unknown as TelemetryTestApi;
+
+    const lifecycleListener = vi.fn();
+    const unsubscribe = facade.subscribeRuntimeToolLifecycleEvents(lifecycleListener);
+
+    events.__emitAppServerEvent({
+      workspace_id: "workspace-3",
+      message: {
+        id: "approval-3",
+        method: "runtime/approvalResolved",
+        params: {
+          threadId: "thread-3",
+          turnId: "turn-3",
+          approvalId: "approval-3",
+          status: "failed",
+        },
+      },
+    });
+    telemetry.__emitRuntimeToolExecutionTelemetryEvent({
+      kind: "guardrail_outcome",
+      toolName: "bash",
+      scope: "write",
+      at: 400,
+      workspaceId: "workspace-3",
+      status: "failed",
+      requestId: "req-turn-3",
+      errorCode: "runtime.tool.failed",
+    });
+
+    expect(lifecycleListener).not.toHaveBeenCalled();
+
+    unsubscribe();
+  });
 });
