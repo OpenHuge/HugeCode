@@ -5,11 +5,6 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildForgeEnvironment, resolveCommandInvocation } from "./run-forge-support.mjs";
 
-const command = process.argv[2];
-if (!command || !["package", "make", "publish"].includes(command)) {
-  throw new Error("Usage: node ./scripts/run-forge.mjs <package|make|publish>");
-}
-
 const scriptDir = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const packageDir = resolve(scriptDir, "..");
 const distDir = resolve(packageDir, "dist-electron");
@@ -25,6 +20,52 @@ const localMakerDebSource = resolve(scriptDir, "maker-deb.cjs");
 let forgeStageDir = "";
 let forgePackageDir = "";
 const nodeExecDir = dirname(process.execPath);
+
+export function parseForgeCommand(argv = process.argv) {
+  const command = argv[2];
+  if (!command || !["package", "make", "publish"].includes(command)) {
+    throw new Error("Usage: node ./scripts/run-forge.mjs <package|make|publish>");
+  }
+
+  return command;
+}
+
+export function resolveCliCommand(commandName, platform = process.platform) {
+  if (platform === "win32" && !commandName.includes(".")) {
+    return `${commandName}.cmd`;
+  }
+
+  return commandName;
+}
+
+export function createStagedPackageJson(packageJson) {
+  return {
+    name: "hugecode",
+    author: typeof packageJson.author === "string" ? packageJson.author : "OpenHuge",
+    description:
+      typeof packageJson.description === "string"
+        ? packageJson.description
+        : "HugeCode beta desktop shell",
+    productDescription: "HugeCode beta desktop shell",
+    productName: "HugeCode",
+    version: packageJson.version,
+    type: "module",
+    main: "dist-electron/main/main.js",
+    repository: packageJson.repository,
+    config: {
+      forge: "./forge.config.mjs",
+    },
+    dependencies: Object.fromEntries(
+      Object.entries(packageJson.dependencies ?? {}).filter(
+        ([, version]) => typeof version === "string" && !version.startsWith("workspace:")
+      )
+    ),
+    devDependencies: {
+      "@electron-forge/maker-deb": "7.11.1",
+      electron: packageJson.devDependencies.electron,
+    },
+  };
+}
 
 async function runCommand(commandName, args, cwd) {
   const { argsPrefix, command } = await resolveCommandInvocation({
@@ -72,32 +113,7 @@ async function prepareStage() {
   await cp(forgeConfigSource, resolve(forgePackageDir, "forge.config.mjs"));
   await cp(localMakerDebSource, resolve(forgePackageDir, "scripts/maker-deb.cjs"));
 
-  const stagedPackageJson = {
-    name: "hugecode",
-    productName: "HugeCode",
-    version: packageJson.version,
-    author: typeof packageJson.author === "string" ? packageJson.author : "OpenHuge",
-    description:
-      typeof packageJson.description === "string"
-        ? packageJson.description
-        : "HugeCode beta desktop shell",
-    productDescription: "HugeCode beta desktop shell",
-    type: "module",
-    main: "dist-electron/main/main.js",
-    repository: packageJson.repository,
-    config: {
-      forge: "./forge.config.mjs",
-    },
-    dependencies: Object.fromEntries(
-      Object.entries(packageJson.dependencies ?? {}).filter(
-        ([, version]) => typeof version === "string" && !version.startsWith("workspace:")
-      )
-    ),
-    devDependencies: {
-      "@electron-forge/maker-deb": "7.11.1",
-      electron: packageJson.devDependencies.electron,
-    },
-  };
+  const stagedPackageJson = createStagedPackageJson(packageJson);
 
   await writeFile(
     resolve(forgePackageDir, "package.json"),
@@ -116,6 +132,7 @@ async function prepareStage() {
 }
 
 async function ensureDarwinDmgNativeDependency() {
+  const command = parseForgeCommand();
   if (process.platform !== "darwin" || (command !== "make" && command !== "publish")) {
     return;
   }
@@ -160,6 +177,7 @@ async function ensureDarwinDmgNativeDependency() {
 }
 
 async function runForge() {
+  const command = parseForgeCommand();
   await ensureDarwinDmgNativeDependency();
   await createStagePaths();
 
@@ -204,4 +222,6 @@ async function runForge() {
   }
 }
 
-await runForge();
+if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
+  await runForge();
+}
