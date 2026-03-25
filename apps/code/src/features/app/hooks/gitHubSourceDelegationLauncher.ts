@@ -12,7 +12,7 @@ type GitHubSourceDelegationStartInput = {
   executionProfileId?: string | null;
   reviewProfileId?: string | null;
   validationPresetId?: string | null;
-  accessMode?: AccessMode | null;
+  accessMode?: AccessMode;
   preferredBackendIds?: string[] | null;
   taskSource: AgentTaskSourceSummary;
 };
@@ -27,7 +27,7 @@ type GitHubSourceDelegationRuntimeControl = {
     executionProfileId?: string | null;
     reviewProfileId?: string | null;
     validationPresetId?: string | null;
-    accessMode?: AccessMode | null;
+    accessMode?: AccessMode;
     preferredBackendIds?: string[];
     taskSource: AgentTaskSourceSummary;
   }) => Promise<unknown>;
