@@ -1,9 +1,9 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-03-26T10:26:54.557Z`
+- Generated at: `2026-03-25T13:45:11.466Z`
 - Contract version: `2026-03-25`
 - Freeze effective at: `2026-03-25`
-- Method-set hash: `c31017c91fe296d5`
+- Method-set hash: `673aa3c3d875eefd`
 
 ## Features
 
@@ -215,7 +215,6 @@
 - `code_codex_doctor_v1`
 - `code_codex_update_v1`
 - `code_collaboration_modes_list_v1`
-- `code_apps_list_v1`
 - `code_mcp_server_status_list_v1`
 - `code_browser_debug_status_v1`
 - `code_browser_debug_run_v1`
@@ -229,7 +228,6 @@
 - `code_extension_registry_sources_v2`
 - `code_extension_permissions_evaluate_v2`
 - `code_extension_health_read_v2`
-- `code_extension_ui_apps_list_v2`
 - `code_extension_tools_list_v2`
 - `code_extension_resource_read_v2`
 - `code_session_export_v1`
@@ -251,7 +249,6 @@
 - `code_action_required_submit_v2`
 - `code_app_settings_get`
 - `code_app_settings_update`
-- `code_apps_list_v1`
 - `code_bootstrap_snapshot`
 - `code_browser_debug_run_v1`
 - `code_browser_debug_status_v1`
@@ -274,7 +271,6 @@
 - `code_extension_resource_read_v2`
 - `code_extension_set_state_v2`
 - `code_extension_tools_list_v2`
-- `code_extension_ui_apps_list_v2`
 - `code_extension_update_v2`
 - `code_git_branch_checkout`
 - `code_git_branch_create`

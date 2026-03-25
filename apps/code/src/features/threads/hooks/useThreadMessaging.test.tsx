@@ -70,7 +70,6 @@ vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
       turnId,
       text,
       images,
-      appMentions,
       contextPrefix,
       options,
     }: Record<string, unknown>) =>
@@ -80,7 +79,6 @@ vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
         turnId,
         text,
         images,
-        appMentions,
         contextPrefix,
         options
       ),

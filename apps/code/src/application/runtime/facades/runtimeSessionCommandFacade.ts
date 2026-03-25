@@ -18,7 +18,6 @@ import {
 } from "../ports/tauriThreads";
 import type {
   AccessMode,
-  AppMention,
   ComposerExecutionMode,
   DynamicToolCallResponse,
   ReviewTarget,
@@ -45,7 +44,6 @@ export type RuntimeSessionTurnOptions = {
   contextPrefix?: string | null;
   images?: string[];
   collaborationMode?: Record<string, unknown> | null;
-  appMentions?: AppMention[];
   autoDrive?: AgentTaskAutoDriveState | null;
   autonomyRequest?: RuntimeAutonomyRequestV2 | null;
 };
@@ -61,12 +59,8 @@ export type SteerTurnInput = {
   turnId: RuntimeTurnId;
   text: string;
   images?: string[];
-  appMentions?: AppMention[];
   contextPrefix?: string | null;
-  options?: Omit<
-    RuntimeSessionTurnOptions,
-    "requestId" | "contextPrefix" | "images" | "appMentions"
-  >;
+  options?: Omit<RuntimeSessionTurnOptions, "requestId" | "contextPrefix" | "images">;
 };
 
 export type InterruptTurnInput = {
@@ -155,8 +149,8 @@ export function createRuntimeSessionCommandFacade(
   return {
     sendMessage: ({ threadId, text, options }) =>
       deps.sendUserMessage(workspaceId, threadId, text, options),
-    steerTurn: ({ threadId, turnId, text, images, appMentions, contextPrefix, options }) =>
-      deps.steerTurn(workspaceId, threadId, turnId, text, images, appMentions, contextPrefix, {
+    steerTurn: ({ threadId, turnId, text, images, contextPrefix, options }) =>
+      deps.steerTurn(workspaceId, threadId, turnId, text, images, contextPrefix, {
         model: options?.model,
         effort: options?.effort,
         serviceTier: options?.serviceTier,
