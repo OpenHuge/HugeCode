@@ -5,6 +5,7 @@ export const codeBundleBudgetConfig = {
   knownLargeChunkPrefixes: {
     "MainApp-": 560_000,
     "MainAppContainerCore-": 560_000,
+    "app-bootstrap-": 361_263,
     "emacs-lisp-": 779_847,
     "cpp-": 626_137,
     "wasm-": 622_325,
