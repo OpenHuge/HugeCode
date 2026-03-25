@@ -1137,7 +1137,6 @@ describe("useThreadMessaging telemetry", () => {
       "steer this",
       [],
       undefined,
-      undefined,
       {
         accessMode: "on-request",
         collaborationMode: null,
@@ -1219,7 +1218,6 @@ describe("useThreadMessaging telemetry", () => {
       "turn-1",
       "steer this",
       [],
-      undefined,
       undefined,
       {
         accessMode: "full-access",
@@ -1891,7 +1889,6 @@ describe("useThreadMessaging telemetry", () => {
       "turn-1",
       "steer this",
       [],
-      undefined,
       expect.stringContaining("execution_state"),
       {
         accessMode: "on-request",
