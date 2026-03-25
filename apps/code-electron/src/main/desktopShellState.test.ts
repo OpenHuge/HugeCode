@@ -46,6 +46,64 @@ describe("desktopShellState", () => {
     });
   });
 
+  it("dedupes restored sessions by session id and workspace fingerprint", () => {
+    const state = createDesktopShellState({
+      persistedState: {
+        trayEnabled: false,
+        sessions: [
+          {
+            id: "session-a",
+            windowLabel: "main",
+            workspacePath: "/workspace/alpha",
+            workspaceLabel: "alpha",
+            preferredBackendId: null,
+            runtimeMode: "local",
+            lastActiveAt: "2026-03-23T02:00:00.000Z",
+          },
+          {
+            id: "session-a",
+            windowLabel: "main",
+            workspacePath: "/workspace/other",
+            workspaceLabel: "other",
+            preferredBackendId: null,
+            runtimeMode: "local",
+            lastActiveAt: "2026-03-23T01:00:00.000Z",
+          },
+          {
+            id: "session-b",
+            windowLabel: "main",
+            workspacePath: "/workspace/alpha",
+            workspaceLabel: "alpha duplicate",
+            preferredBackendId: "backend-b",
+            runtimeMode: "remote",
+            lastActiveAt: "2026-03-23T00:00:00.000Z",
+          },
+          {
+            id: "session-c",
+            windowLabel: "about",
+            workspacePath: null,
+            workspaceLabel: null,
+            preferredBackendId: null,
+            runtimeMode: "local",
+            lastActiveAt: "2026-03-22T23:00:00.000Z",
+          },
+        ],
+      },
+      now: () => "2026-03-23T03:00:00.000Z",
+    });
+
+    expect(state.recentSessions).toEqual([
+      expect.objectContaining({
+        id: "session-a",
+        workspacePath: "/workspace/alpha",
+      }),
+      expect.objectContaining({
+        id: "session-c",
+        windowLabel: "about",
+      }),
+    ]);
+  });
+
   it("reuses an existing workspace session unless a duplicate is requested", () => {
     const state = createDesktopShellState({
       persistedState: {

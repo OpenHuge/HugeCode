@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useSettingsModalState } from "./useSettingsModalState";
 
@@ -21,9 +21,8 @@ describe("useSettingsModalState", () => {
     act(() => {
       result.current.openSettings();
     });
-    await vi.dynamicImportSettled();
+    await waitFor(() => expect(preloadSettingsViewMock).toHaveBeenCalledTimes(1));
 
-    expect(preloadSettingsViewMock).toHaveBeenCalledTimes(1);
     expect(result.current.settingsOpen).toBe(true);
   });
 
@@ -67,7 +66,7 @@ describe("useSettingsModalState", () => {
       result.current.openSettings("codex");
       result.current.openSettings();
     });
-    await vi.dynamicImportSettled();
+    await waitFor(() => expect(result.current.settingsSection).toBe("codex"));
 
     expect(result.current.settingsOpen).toBe(true);
     expect(result.current.settingsSection).toBe("codex");
@@ -83,7 +82,7 @@ describe("useSettingsModalState", () => {
       }
       result.current.openSettings("server");
     });
-    await vi.dynamicImportSettled();
+    await waitFor(() => expect(result.current.settingsSection).toBe("server"));
 
     expect(result.current.settingsOpen).toBe(true);
     expect(result.current.settingsSection).toBe("server");
