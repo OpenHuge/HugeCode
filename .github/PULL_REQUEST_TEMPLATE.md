@@ -8,13 +8,25 @@
 
 ## Testing
 
-- [ ] Not run (docs-only)
-- [ ] `pnpm typecheck` - No type errors
-- [ ] `pnpm lint` - No lint errors
-- [ ] `pnpm format:check` - Formatting is clean
-- [ ] `pnpm test` - All tests pass
-- [ ] `pnpm build` - Build succeeds
-- [ ] Other (specify):
+- [ ] Not run (`docs-only, no runtime impact`)
+- [ ] `pnpm validate:fast`
+- [ ] `pnpm validate`
+- [ ] `pnpm validate:full`
+- [ ] `pnpm typecheck:affected`
+- [ ] `pnpm test:affected`
+- [ ] `pnpm test:component`
+- [ ] `pnpm validate:frontend-optimization`
+- [ ] `pnpm check:workflow-governance`
+- [ ] Other (specify exact commands)
+
+## Validation Notes
+
+<!-- Record the exact commands you ran and why they matched the change risk.
+Use targeted gates when possible instead of broad generic "pnpm test/build". -->
+
+- Commands run:
+- Why these checks were sufficient:
+- Checks intentionally skipped:
 
 ## Risks / Known Issues
 
