@@ -4,17 +4,20 @@ import type {
   HugeCodeReviewActionabilitySummary,
   HugeCodeTakeoverBundle,
 } from "@ku0/code-runtime-host-contract";
+import type { HugeCodeOperatorTruthSource } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
+import {
+  formatHugeCodeOperatorTruthSourceLabel as formatSharedTruthSourceLabel,
+  resolveHugeCodeOperatorContinuePathLabel,
+  resolveHugeCodeOperatorTruthSource,
+  resolvePreferredHugeCodePublishHandoff,
+  resolvePreferredHugeCodeReviewActionability,
+  summarizeHugeCodeOperatorContinuation,
+} from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
 
 export type RuntimeContinuationPathLabel = "Mission thread" | "Mission run" | "Review Pack";
 export type RuntimeContinuationState = "ready" | "attention" | "blocked" | "missing";
 export type RuntimeContinuationPathKind = "resume" | "handoff" | "review" | "missing";
-export type RuntimeContinuationTruthSource =
-  | "takeover_bundle"
-  | "review_actionability"
-  | "mission_linkage"
-  | "publish_handoff"
-  | "checkpoint"
-  | "missing";
+export type RuntimeContinuationTruthSource = HugeCodeOperatorTruthSource;
 
 export type RuntimeContinuationProjection = {
   state: RuntimeContinuationState;
@@ -32,52 +35,39 @@ type RuntimeContinuationSourceInput = {
   publishHandoff?: HugeCodePublishHandoffReference | null;
 };
 
-function mapActionabilityState(
-  state: HugeCodeReviewActionabilitySummary["state"] | null | undefined
+function mapSharedState(
+  state: "ready" | "degraded" | "blocked" | "missing"
 ): RuntimeContinuationState {
-  if (state === "ready") {
-    return "ready";
-  }
   if (state === "degraded") {
     return "attention";
   }
-  if (state === "blocked") {
-    return "blocked";
-  }
-  return "missing";
+  return state;
 }
 
 export function resolvePreferredReviewActionability({
   takeoverBundle,
   actionability,
 }: Pick<RuntimeContinuationSourceInput, "takeoverBundle" | "actionability">) {
-  return takeoverBundle?.reviewActionability ?? actionability ?? null;
+  return resolvePreferredHugeCodeReviewActionability({
+    takeoverBundle,
+    reviewActionability: actionability,
+  });
 }
 
 export function resolvePreferredPublishHandoff({
   takeoverBundle,
   publishHandoff,
 }: Pick<RuntimeContinuationSourceInput, "takeoverBundle" | "publishHandoff">) {
-  return takeoverBundle?.publishHandoff ?? publishHandoff ?? null;
+  return resolvePreferredHugeCodePublishHandoff({
+    takeoverBundle,
+    publishHandoff,
+  });
 }
 
 export function formatRuntimeContinuationTruthSourceLabel(
   source: RuntimeContinuationTruthSource
 ): string {
-  switch (source) {
-    case "takeover_bundle":
-      return "Runtime takeover bundle";
-    case "review_actionability":
-      return "Runtime review actionability";
-    case "mission_linkage":
-      return "Runtime mission linkage";
-    case "publish_handoff":
-      return "Runtime publish handoff";
-    case "checkpoint":
-      return "Runtime checkpoint";
-    default:
-      return "Runtime truth unavailable";
-  }
+  return formatSharedTruthSourceLabel(source);
 }
 
 export function resolveContinuationTruthSource({
@@ -86,19 +76,12 @@ export function resolveContinuationTruthSource({
   missionLinkage,
   publishHandoff,
 }: RuntimeContinuationSourceInput): RuntimeContinuationTruthSource {
-  if (takeoverBundle) {
-    return "takeover_bundle";
-  }
-  if (actionability) {
-    return "review_actionability";
-  }
-  if (missionLinkage) {
-    return "mission_linkage";
-  }
-  if (publishHandoff) {
-    return "publish_handoff";
-  }
-  return "missing";
+  return resolveHugeCodeOperatorTruthSource({
+    takeoverBundle,
+    reviewActionability: actionability,
+    missionLinkage,
+    publishHandoff,
+  });
 }
 
 export function resolveContinuationPathLabel({
@@ -108,26 +91,10 @@ export function resolveContinuationPathLabel({
   RuntimeContinuationSourceInput,
   "takeoverBundle" | "missionLinkage"
 >): RuntimeContinuationPathLabel {
-  const takeoverTargetKind = takeoverBundle?.target?.kind;
-  if (takeoverTargetKind === "thread") {
-    return "Mission thread";
-  }
-  if (takeoverTargetKind === "run") {
-    return "Mission run";
-  }
-  if (takeoverTargetKind === "review_pack") {
-    return "Review Pack";
-  }
-  if (takeoverBundle?.pathKind === "review") {
-    return "Review Pack";
-  }
-  if (missionLinkage?.navigationTarget.kind === "thread") {
-    return "Mission thread";
-  }
-  if (missionLinkage?.navigationTarget.kind === "run" || missionLinkage?.recoveryPath === "run") {
-    return "Mission run";
-  }
-  return "Review Pack";
+  return resolveHugeCodeOperatorContinuePathLabel({
+    takeoverBundle,
+    missionLinkage,
+  });
 }
 
 export function projectTakeoverBundleToContinuation(
@@ -136,40 +103,15 @@ export function projectTakeoverBundleToContinuation(
   if (!takeoverBundle) {
     return null;
   }
-
-  if (takeoverBundle.pathKind === "resume" || takeoverBundle.pathKind === "handoff") {
-    return {
-      state: takeoverBundle.state,
-      pathKind: takeoverBundle.pathKind,
-      detail: takeoverBundle.summary,
-      recommendedAction: takeoverBundle.recommendedAction,
-      truthSource: "takeover_bundle",
-      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("takeover_bundle"),
-    };
-  }
-
-  if (takeoverBundle.pathKind === "review") {
-    const actionability = resolvePreferredReviewActionability({
-      takeoverBundle,
-      actionability: null,
-    });
-    return {
-      state:
-        actionability !== null ? mapActionabilityState(actionability.state) : takeoverBundle.state,
-      pathKind: "review",
-      detail: actionability?.summary ?? takeoverBundle.summary,
-      recommendedAction: takeoverBundle.recommendedAction,
-      truthSource: "takeover_bundle",
-      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("takeover_bundle"),
-    };
-  }
-
+  const shared = summarizeHugeCodeOperatorContinuation({
+    takeoverBundle,
+  });
   return {
-    state: takeoverBundle.state,
-    pathKind: "missing",
-    detail: takeoverBundle.blockingReason ?? takeoverBundle.summary,
-    recommendedAction: takeoverBundle.recommendedAction,
-    truthSource: "takeover_bundle",
-    truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("takeover_bundle"),
+    state: mapSharedState(shared.state),
+    pathKind: shared.pathKind,
+    detail: shared.summary,
+    recommendedAction: shared.recommendedAction,
+    truthSource: shared.truthSource,
+    truthSourceLabel: shared.truthSourceLabel,
   };
 }

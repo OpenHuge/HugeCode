@@ -1,0 +1,119 @@
+import { spawnSync } from "node:child_process";
+import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
+import { afterEach, describe, expect, it } from "vitest";
+
+const repoRoot = path.resolve(import.meta.dirname, "..", "..");
+const tempRoots: string[] = [];
+
+function runGit(targetRoot: string, args: string[]) {
+  const result = spawnSync("git", args, {
+    cwd: targetRoot,
+    encoding: "utf8",
+  });
+
+  if (result.status !== 0) {
+    throw new Error(`git ${args.join(" ")} failed: ${result.stderr || result.stdout}`);
+  }
+}
+
+async function writeFixtureFile(targetRoot: string, relativePath: string, content: string) {
+  const absolutePath = path.join(targetRoot, relativePath);
+  await mkdir(path.dirname(absolutePath), { recursive: true });
+  await writeFile(absolutePath, content, "utf8");
+}
+
+async function createFixtureRepo(): Promise<string> {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), "classify-ci-scope-"));
+  tempRoots.push(tempRoot);
+
+  await mkdir(path.join(tempRoot, "scripts"), { recursive: true });
+  await cp(
+    path.join(repoRoot, "scripts", "classify-ci-change-scope.mjs"),
+    path.join(tempRoot, "scripts", "classify-ci-change-scope.mjs")
+  );
+
+  await writeFixtureFile(tempRoot, ".github/workflows/ci.yml", "name: CI\n");
+  await writeFixtureFile(tempRoot, "docs/development/README.md", "# Development\n");
+  await writeFixtureFile(tempRoot, "docs/development/ci-workflows.md", "# CI Workflows\n");
+
+  runGit(tempRoot, ["init", "--initial-branch=main"]);
+  runGit(tempRoot, ["add", "-A"]);
+  runGit(tempRoot, [
+    "-c",
+    "user.name=Codex",
+    "-c",
+    "user.email=codex@example.com",
+    "commit",
+    "-m",
+    "baseline",
+  ]);
+
+  return tempRoot;
+}
+
+function commitAll(targetRoot: string, message: string) {
+  runGit(targetRoot, ["add", "-A"]);
+  runGit(targetRoot, [
+    "-c",
+    "user.name=Codex",
+    "-c",
+    "user.email=codex@example.com",
+    "commit",
+    "-m",
+    message,
+  ]);
+}
+
+function runClassifier(targetRoot: string) {
+  return spawnSync(
+    process.execPath,
+    [path.join(targetRoot, "scripts", "classify-ci-change-scope.mjs")],
+    {
+      cwd: targetRoot,
+      encoding: "utf8",
+    }
+  );
+}
+
+function parseOutputs(stdout: string) {
+  return new Map(
+    stdout
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const separatorIndex = line.indexOf("=");
+        return [line.slice(0, separatorIndex), line.slice(separatorIndex + 1)];
+      })
+  );
+}
+
+describe("classify-ci-change-scope", () => {
+  afterEach(async () => {
+    await Promise.all(
+      tempRoots.map(async (rootPath) => {
+        await rm(rootPath, { recursive: true, force: true });
+      })
+    );
+    tempRoots.length = 0;
+  });
+
+  it("treats workflow plus development guide changes as repo-governance-only", async () => {
+    const tempRoot = await createFixtureRepo();
+
+    await writeFixtureFile(tempRoot, ".github/workflows/ci.yml", "name: CI\n# updated\n");
+    await writeFixtureFile(tempRoot, "docs/development/README.md", "# Development\nUpdated.\n");
+    commitAll(tempRoot, "governance update");
+
+    const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(outputs.get("repo_governance_only")).toBe("true");
+    expect(outputs.get("manifest_only")).toBe("false");
+    expect(outputs.get("build_skip_eligible_only")).toBe("false");
+  });
+});

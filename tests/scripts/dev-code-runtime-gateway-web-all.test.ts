@@ -9,6 +9,7 @@ import {
   loadLocalRuntimeContractFingerprint,
   normalizeWorkspacePathForReuse,
   parseRuntimeReadyTimeout,
+  resolveDefaultRuntimeReadyTimeout,
   resolveCodeAppViteEntryPath,
   runtimeDefaultWorkspaceMatchesExpected,
 } from "../../scripts/dev-code-runtime-gateway-web-all.mjs";
@@ -58,8 +59,11 @@ describe("dev-code-runtime-gateway-web-all", () => {
   });
 
   it("defaults runtime readiness timeout high enough for cold Rust builds", () => {
-    expect(parseRuntimeReadyTimeout(undefined)).toBe(240_000);
-    expect(parseRuntimeReadyTimeout("9")).toBe(240_000);
+    expect(resolveDefaultRuntimeReadyTimeout({})).toBe(240_000);
+    expect(resolveDefaultRuntimeReadyTimeout({ CI: "true" })).toBe(900_000);
+    expect(parseRuntimeReadyTimeout(undefined, {})).toBe(240_000);
+    expect(parseRuntimeReadyTimeout(undefined, { CI: "true" })).toBe(900_000);
+    expect(parseRuntimeReadyTimeout("9", { CI: "true" })).toBe(900_000);
   });
 
   it("derives runtime reuse fingerprint from the canonical frozen contract", async () => {

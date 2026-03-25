@@ -1,0 +1,60 @@
+name: _reusable-ci-quality-typecheck
+
+on:
+  workflow_call:
+    inputs:
+      affected_mode:
+        required: false
+        type: boolean
+        default: false
+      ci_required:
+        required: true
+        type: boolean
+      repo_governance_only:
+        required: false
+        type: boolean
+        default: false
+      diff_base:
+        required: false
+        type: string
+        default: ""
+
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_API: ${{ vars.TURBO_API }}
+
+jobs:
+  quality_typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: inputs.ci_required && (!inputs.affected_mode || !inputs.repo_governance_only)
+    env:
+      TURBO_CACHE_DIR: .turbo
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Ensure diff base ref is available
+        if: inputs.affected_mode && startsWith(inputs.diff_base, 'origin/')
+        run: |
+          base_ref="${{ inputs.diff_base }}"
+          base_ref="${base_ref#origin/}"
+          git fetch --no-tags --prune --depth=1 origin \
+            "+refs/heads/${base_ref}:refs/remotes/${{ inputs.diff_base }}"
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm install --offline --frozen-lockfile
+
+      - uses: ./.github/actions/cache-turbo
+
+      - name: Typecheck (affected)
+        if: inputs.affected_mode
+        env:
+          TURBO_BASE_REF: ${{ inputs.diff_base }}
+        run: pnpm typecheck:affected
+
+      - name: Typecheck (full)
+        if: ${{ !inputs.affected_mode }}
+        run: pnpm typecheck
