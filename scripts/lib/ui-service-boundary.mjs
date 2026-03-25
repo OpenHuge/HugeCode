@@ -208,6 +208,16 @@ const VIOLATION_RULES = [
     appliesTo: (filePath) => isUiBoundaryFile(filePath) && !isUiTestFile(filePath),
   },
   {
+    id: "runtime-thread-session-command-port",
+    description:
+      "threads/composer feature code must use workspace-scoped runtime session command facades instead of importing tauri thread command ports directly",
+    pattern:
+      /import\s*\{[^}]*\b(?:compactThread|interruptTurn|listMcpServerStatus|respondToServerRequest|respondToToolCallRequest|respondToUserInputRequest|sendUserMessage|startReview|steerTurn)\b[^}]*\}\s*from\s+["'][^"']*\/application\/runtime\/ports\/tauriThreads["']/u,
+    appliesTo: (filePath) =>
+      !isUiTestFile(filePath) &&
+      /^apps\/code\/src\/features\/(?:threads|composer)\//u.test(filePath),
+  },
+  {
     id: "runtime-legacy-bridge-app",
     description:
       "non-UI product code must not import retired runtime bridge ports (`tauriSettings`, `tauriWorkspaces`, `tauriSkills`, `tauriRuntimeSkills`, or raw `tauri`)",

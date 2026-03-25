@@ -1,8 +1,9 @@
 import { access, cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { resolve } from "node:path";
-import { tmpdir } from "node:os";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildForgeEnvironment, resolveCommandInvocation } from "./run-forge-support.mjs";
 
 const command = process.argv[2];
 if (!command || !["package", "make", "publish"].includes(command)) {
@@ -13,20 +14,26 @@ const scriptDir = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const packageDir = resolve(scriptDir, "..");
 const distDir = resolve(packageDir, "dist-electron");
 const outDir = resolve(packageDir, "out");
+const tempRootDir = resolve(packageDir, ".tmp");
 const packageJson = JSON.parse(await readFile(resolve(packageDir, "package.json"), "utf8"));
 const forgeConfigSource = resolve(packageDir, "forge.config.mjs");
 const workspaceRoot = resolve(packageDir, "../..");
-const electronForgeBin =
-  process.platform === "win32"
-    ? resolve(workspaceRoot, "node_modules/.bin/electron-forge.cmd")
-    : resolve(workspaceRoot, "node_modules/.bin/electron-forge");
+const requireFromWorkspace = createRequire(resolve(workspaceRoot, "package.json"));
+const electronForgeCli = requireFromWorkspace.resolve("@electron-forge/cli/dist/electron-forge.js");
+const localMakerDebSource = resolve(scriptDir, "maker-deb.cjs");
 
 let forgeStageDir = "";
 let forgePackageDir = "";
+const nodeExecDir = dirname(process.execPath);
 
 async function runCommand(commandName, args, cwd) {
+  const { argsPrefix, command } = await resolveCommandInvocation({
+    commandName,
+    nodeExecDir,
+  });
+
   await new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(commandName, args, {
+    const child = spawn(command, [...argsPrefix, ...args], {
       cwd,
       env: process.env,
       stdio: "inherit",
@@ -39,7 +46,9 @@ async function runCommand(commandName, args, cwd) {
       }
 
       rejectPromise(
-        new Error(`${commandName} ${args.join(" ")} failed with exit code ${code ?? -1}`)
+        new Error(
+          `${command} ${[...argsPrefix, ...args].join(" ")} failed with exit code ${code ?? -1}`
+        )
       );
     });
     child.on("error", rejectPromise);
@@ -47,7 +56,9 @@ async function runCommand(commandName, args, cwd) {
 }
 
 async function createStagePaths() {
-  forgeStageDir = await mkdtemp(resolve(tmpdir(), "hugecode-electron-forge-"));
+  const forgeTempDir = resolve(tempRootDir, "forge");
+  await mkdir(forgeTempDir, { recursive: true });
+  forgeStageDir = await mkdtemp(resolve(forgeTempDir, "stage-"));
   forgePackageDir = resolve(forgeStageDir, "app");
 }
 
@@ -56,13 +67,21 @@ async function prepareStage() {
   await rm(outDir, { force: true, recursive: true });
   await mkdir(forgePackageDir, { recursive: true });
   await mkdir(resolve(forgePackageDir, "dist-electron"), { recursive: true });
+  await mkdir(resolve(forgePackageDir, "scripts"), { recursive: true });
   await cp(distDir, resolve(forgePackageDir, "dist-electron"), { recursive: true });
   await cp(forgeConfigSource, resolve(forgePackageDir, "forge.config.mjs"));
+  await cp(localMakerDebSource, resolve(forgePackageDir, "scripts/maker-deb.cjs"));
 
   const stagedPackageJson = {
     name: "hugecode",
     productName: "HugeCode",
     version: packageJson.version,
+    author: typeof packageJson.author === "string" ? packageJson.author : "OpenHuge",
+    description:
+      typeof packageJson.description === "string"
+        ? packageJson.description
+        : "HugeCode beta desktop shell",
+    productDescription: "HugeCode beta desktop shell",
     type: "module",
     main: "dist-electron/main/main.js",
     repository: packageJson.repository,
@@ -75,6 +94,7 @@ async function prepareStage() {
       )
     ),
     devDependencies: {
+      "@electron-forge/maker-deb": "7.11.1",
       electron: packageJson.devDependencies.electron,
     },
   };
@@ -145,14 +165,17 @@ async function runForge() {
 
   try {
     await prepareStage();
+    const processTempDir = resolve(tempRootDir, "process");
+    await mkdir(processTempDir, { recursive: true });
 
     await new Promise((resolvePromise, rejectPromise) => {
-      const child = spawn(electronForgeBin, [command], {
+      const child = spawn(process.execPath, [electronForgeCli, command], {
         cwd: forgePackageDir,
-        env: {
-          ...process.env,
-          ELECTRON_FORGE_DISABLE_PUBLISH_SANDBOX_WARNING: "true",
-        },
+        env: buildForgeEnvironment({
+          baseEnv: process.env,
+          command,
+          processTempDir,
+        }),
         stdio: "inherit",
       });
 
