@@ -364,7 +364,7 @@ jobs:
 
   frontend_optimization:
     name: frontend_optimization
-    if: github.event_name == 'pull_request' && needs.changes.outputs.frontend_optimization_changed == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.frontend_optimization_changed == 'true' && needs.changes.outputs.repo_governance_only != 'true'
     needs: [changes]
     uses: ./.github/workflows/_reusable-ci-frontend-optimization.yml
     secrets: inherit
