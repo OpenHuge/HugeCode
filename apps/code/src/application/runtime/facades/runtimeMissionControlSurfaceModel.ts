@@ -16,6 +16,7 @@ import {
   buildMissionNavigationTarget,
   buildReviewNavigationTarget,
 } from "./runtimeMissionNavigationTarget";
+import type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
 import type { RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import { formatMissionReviewEvidenceLabel } from "../../../utils/reviewPackLabels";
 import { formatReviewFailureClassLabel } from "../../../utils/reviewFailureClass";
@@ -44,29 +45,7 @@ export function formatMissionOverviewStateLabel(state: MissionOverviewState): st
   }
 }
 
-export type MissionNavigationTarget =
-  | {
-      kind: "thread";
-      workspaceId: string;
-      threadId: string;
-    }
-  | {
-      kind: "mission";
-      workspaceId: string;
-      taskId: string;
-      runId: string | null;
-      reviewPackId: string | null;
-      threadId: string | null;
-      limitation: "thread_unavailable" | null;
-    }
-  | {
-      kind: "review";
-      workspaceId: string;
-      taskId: string;
-      runId: string | null;
-      reviewPackId: string | null;
-      limitation: "thread_unavailable" | null;
-    };
+export type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
 
 export type MissionOverviewCounts = {
   active: number;
