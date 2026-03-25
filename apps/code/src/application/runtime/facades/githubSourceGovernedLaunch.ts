@@ -29,6 +29,7 @@ import {
   resolveRepositoryExecutionDefaults,
   type RepositoryExecutionContract,
 } from "./runtimeRepositoryExecutionContract";
+import type { RuntimeWorkspaceExecutionPolicyStatus } from "./runtimeWorkspaceExecutionPolicyFacade";
 
 type GitHubSourceWorkspaceContext = {
   workspaceId: string;
@@ -46,6 +47,11 @@ export type GovernedGitHubRunLaunchAck = {
   response: RuntimeRunStartV2Response;
   request: RuntimeRunPrepareV2Request;
   launch: GitHubSourceLaunchSummary;
+};
+
+export type GovernedGitHubLaunchPreflight = {
+  state: "ready" | "blocked";
+  reason: string | null;
 };
 
 function readOptionalText(value: unknown): string | null {
@@ -116,6 +122,51 @@ function buildGitHubSourceAutonomyRequest(): RuntimeAutonomyRequestV2 {
   };
 }
 
+function buildGitHubSourceMissionConstraints(input: {
+  launch: GitHubSourceLaunchSummary;
+}): string[] {
+  const sourceLabel = summarizeGovernedGitHubLaunchSource(input.launch.taskSource);
+  return [
+    `Stay within the linked workspace and repository context for ${sourceLabel} unless an operator explicitly expands scope.`,
+    "Keep continuation operator-supervised and do not auto-continue past review, approval, or validation gates.",
+    "Cite repository evidence for findings, recommendations, and follow-up actions instead of relying on broad network research.",
+  ];
+}
+
+export function evaluateGovernedGitHubLaunchPreflight(input: {
+  policyStatus: RuntimeWorkspaceExecutionPolicyStatus;
+  policyError?: string | null;
+}): GovernedGitHubLaunchPreflight {
+  switch (input.policyStatus) {
+    case "loading":
+      return {
+        state: "blocked",
+        reason:
+          "GitHub source launch is waiting for repository execution defaults to finish loading.",
+      };
+    case "error":
+      return {
+        state: "blocked",
+        reason: `GitHub source launch is blocked until repository execution policy loads cleanly.${input.policyError ? ` ${input.policyError}` : ""}`,
+      };
+    default:
+      return {
+        state: "ready",
+        reason: null,
+      };
+  }
+}
+
+export function assertGovernedGitHubLaunchReady(input: {
+  policyStatus: RuntimeWorkspaceExecutionPolicyStatus;
+  policyError?: string | null;
+}) {
+  const preflight = evaluateGovernedGitHubLaunchPreflight(input);
+  if (preflight.state === "blocked") {
+    throw new Error(preflight.reason ?? "GitHub source launch preflight blocked.");
+  }
+}
+
 function buildGovernedGitHubMissionBrief(input: {
   launch: GitHubSourceLaunchSummary;
   accessMode: AccessMode | null;
@@ -127,6 +178,9 @@ function buildGovernedGitHubMissionBrief(input: {
     objective: input.launch.title,
     accessMode: input.accessMode,
     preferredBackendIds: input.preferredBackendIds,
+    constraints: buildGitHubSourceMissionConstraints({
+      launch: input.launch,
+    }),
     requiredCapabilities: input.requiredCapabilities ?? null,
     maxSubtasks: input.maxSubtasks ?? null,
     allowNetwork: false,

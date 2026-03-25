@@ -5,6 +5,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { useGitHubRuntimeTaskLaunchers } from "./useGitHubRuntimeTaskLaunchers";
 import { useRuntimeWorkspaceExecutionPolicy } from "../../../application/runtime/facades/runtimeWorkspaceExecutionPolicyFacade";
 import {
+  assertGovernedGitHubLaunchReady,
   buildGovernedGitHubIssueLaunchRequest,
   buildGovernedGitHubPullRequestLaunchRequest,
   launchGovernedGitHubRun,
@@ -18,6 +19,7 @@ vi.mock("../../../application/runtime/facades/runtimeWorkspaceExecutionPolicyFac
 }));
 
 vi.mock("../../../application/runtime/facades/githubSourceGovernedLaunch", () => ({
+  assertGovernedGitHubLaunchReady: vi.fn(),
   buildGovernedGitHubIssueLaunchRequest: vi.fn(),
   buildGovernedGitHubPullRequestLaunchRequest: vi.fn(),
   launchGovernedGitHubRun: vi.fn(),
@@ -47,6 +49,7 @@ describe("useGitHubRuntimeTaskLaunchers", () => {
     vi.mocked(useRuntimeWorkspaceExecutionPolicy).mockReturnValue({
       repositoryExecutionContract,
       repositoryExecutionContractError: null,
+      repositoryExecutionContractStatus: "ready",
     });
   });
 
@@ -94,6 +97,10 @@ describe("useGitHubRuntimeTaskLaunchers", () => {
       launch,
       request,
       onRefresh: refreshMissionControl,
+    });
+    expect(assertGovernedGitHubLaunchReady).toHaveBeenCalledWith({
+      policyStatus: "ready",
+      policyError: null,
     });
   });
 
@@ -148,6 +155,10 @@ describe("useGitHubRuntimeTaskLaunchers", () => {
       request,
       onRefresh: refreshMissionControl,
     });
+    expect(assertGovernedGitHubLaunchReady).toHaveBeenCalledWith({
+      policyStatus: "ready",
+      policyError: null,
+    });
   });
 
   it("surfaces GitHub launch failures through shared toasts", async () => {
@@ -180,6 +191,94 @@ describe("useGitHubRuntimeTaskLaunchers", () => {
     expect(pushErrorToast).toHaveBeenCalledWith({
       title: "Couldn't start issue task",
       message: "prepare failed",
+    });
+  });
+
+  it("fails fast while repository execution defaults are still loading", async () => {
+    const issue: GitHubIssue = {
+      number: 10,
+      title: "Block until policy loads",
+      url: "https://github.com/ku0/hugecode/issues/10",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+    };
+    vi.mocked(useRuntimeWorkspaceExecutionPolicy).mockReturnValue({
+      repositoryExecutionContract,
+      repositoryExecutionContractError: null,
+      repositoryExecutionContractStatus: "loading",
+    });
+    vi.mocked(assertGovernedGitHubLaunchReady).mockImplementation(() => {
+      throw new Error(
+        "GitHub source launch is waiting for repository execution defaults to finish loading."
+      );
+    });
+
+    const { result } = renderHook(() =>
+      useGitHubRuntimeTaskLaunchers({
+        activeWorkspace: { id: "ws-1", path: "/workspace/hugecode", connected: true } as never,
+        activeWorkspaceId: "ws-1",
+        gitRemoteUrl: "https://github.com/ku0/hugecode.git",
+        selectedRemoteBackendId: null,
+        refreshMissionControl,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleStartTaskFromGitHubIssue(issue);
+    });
+
+    expect(buildGovernedGitHubIssueLaunchRequest).not.toHaveBeenCalled();
+    expect(launchGovernedGitHubRun).not.toHaveBeenCalled();
+    expect(pushErrorToast).toHaveBeenCalledWith({
+      title: "Couldn't start issue task",
+      message:
+        "GitHub source launch is waiting for repository execution defaults to finish loading.",
+    });
+  });
+
+  it("fails fast when repository execution policy is unavailable", async () => {
+    const pullRequest: GitHubPullRequest = {
+      number: 11,
+      title: "Block on policy error",
+      url: "https://github.com/ku0/hugecode/pull/11",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+      createdAt: "2026-03-24T00:00:00.000Z",
+      body: "",
+      headRefName: "feature/block-policy-error",
+      baseRefName: "main",
+      isDraft: false,
+      author: null,
+    };
+    vi.mocked(useRuntimeWorkspaceExecutionPolicy).mockReturnValue({
+      repositoryExecutionContract,
+      repositoryExecutionContractError: "contract parse failed",
+      repositoryExecutionContractStatus: "error",
+    });
+    vi.mocked(assertGovernedGitHubLaunchReady).mockImplementation(() => {
+      throw new Error(
+        "GitHub source launch is blocked until repository execution policy loads cleanly. contract parse failed"
+      );
+    });
+
+    const { result } = renderHook(() =>
+      useGitHubRuntimeTaskLaunchers({
+        activeWorkspace: { id: "ws-1", path: "/workspace/hugecode", connected: true } as never,
+        activeWorkspaceId: "ws-1",
+        gitRemoteUrl: "https://github.com/ku0/hugecode.git",
+        selectedRemoteBackendId: null,
+        refreshMissionControl,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleStartTaskFromGitHubPullRequest(pullRequest);
+    });
+
+    expect(buildGovernedGitHubPullRequestLaunchRequest).not.toHaveBeenCalled();
+    expect(launchGovernedGitHubRun).not.toHaveBeenCalled();
+    expect(pushErrorToast).toHaveBeenCalledWith({
+      title: "Couldn't start PR follow-up task",
+      message:
+        "GitHub source launch is blocked until repository execution policy loads cleanly. contract parse failed",
     });
   });
 });

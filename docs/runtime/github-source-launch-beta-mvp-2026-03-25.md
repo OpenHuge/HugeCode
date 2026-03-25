@@ -55,6 +55,10 @@ GitHub source launch currently applies a conservative beta policy through `auton
 
 The intent is containment. GitHub source runs must stay reviewable, repo-first, and operator-supervised during beta validation instead of expanding into broad external-context automation.
 
+The same guardrails are also written into the governed mission brief constraints so review and continuation surfaces can explain the policy without re-deriving it from launch-only request state.
+
+GitHub source launch now also fails fast before request assembly when repository execution policy is still loading or failed to parse. That prevents issue and PR delegation from silently bypassing repo defaults during workspace switches or malformed policy states.
+
 ## Review And Continuation Unification
 
 GitHub source runs now terminate in the same review and continuation model as manual runs:

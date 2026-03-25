@@ -52,11 +52,46 @@ describe("runtimeWorkspaceExecutionPolicyFacade", () => {
 
     const { result } = renderHook(() => useRuntimeWorkspaceExecutionPolicy("ws-1"));
 
+    expect(result.current.repositoryExecutionContractStatus).toBe("loading");
+
     await waitFor(() => {
       expect(result.current.repositoryExecutionContract).not.toBeNull();
     });
 
     expect(result.current.repositoryExecutionContractError).toBeNull();
+    expect(result.current.repositoryExecutionContractStatus).toBe("ready");
+  });
+
+  it("marks missing workspace execution policy after a clean null read", async () => {
+    vi.mocked(readRepositoryExecutionContract).mockResolvedValue(null);
+
+    const { result } = renderHook(() => useRuntimeWorkspaceExecutionPolicy("ws-1"));
+
+    expect(result.current.repositoryExecutionContractStatus).toBe("loading");
+
+    await waitFor(() => {
+      expect(result.current.repositoryExecutionContractStatus).toBe("missing");
+    });
+
+    expect(result.current.repositoryExecutionContract).toBeNull();
+    expect(result.current.repositoryExecutionContractError).toBeNull();
+  });
+
+  it("marks execution policy failures as errors", async () => {
+    vi.mocked(readRepositoryExecutionContract).mockRejectedValue(
+      new Error("contract parse failed")
+    );
+
+    const { result } = renderHook(() => useRuntimeWorkspaceExecutionPolicy("ws-1"));
+
+    expect(result.current.repositoryExecutionContractStatus).toBe("loading");
+
+    await waitFor(() => {
+      expect(result.current.repositoryExecutionContractStatus).toBe("error");
+    });
+
+    expect(result.current.repositoryExecutionContract).toBeNull();
+    expect(result.current.repositoryExecutionContractError).toBe("contract parse failed");
   });
 
   it("clears execution policy state when no workspace is active", () => {
@@ -64,5 +99,6 @@ describe("runtimeWorkspaceExecutionPolicyFacade", () => {
 
     expect(result.current.repositoryExecutionContract).toBeNull();
     expect(result.current.repositoryExecutionContractError).toBeNull();
+    expect(result.current.repositoryExecutionContractStatus).toBe("idle");
   });
 });

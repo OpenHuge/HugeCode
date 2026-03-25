@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useRuntimeWorkspaceExecutionPolicy } from "../../../application/runtime/facades/runtimeWorkspaceExecutionPolicyFacade";
 import {
+  assertGovernedGitHubLaunchReady,
   buildGovernedGitHubIssueLaunchRequest,
   buildGovernedGitHubPullRequestLaunchRequest,
   launchGovernedGitHubRun,
@@ -23,7 +24,11 @@ export function useGitHubRuntimeTaskLaunchers({
   selectedRemoteBackendId,
   refreshMissionControl,
 }: UseGitHubRuntimeTaskLaunchersParams) {
-  const { repositoryExecutionContract } = useRuntimeWorkspaceExecutionPolicy(activeWorkspaceId);
+  const {
+    repositoryExecutionContract,
+    repositoryExecutionContractError,
+    repositoryExecutionContractStatus,
+  } = useRuntimeWorkspaceExecutionPolicy(activeWorkspaceId);
 
   const handleStartTaskFromGitHubIssue = useCallback(
     async (issue: GitHubIssue) => {
@@ -31,6 +36,10 @@ export function useGitHubRuntimeTaskLaunchers({
         return;
       }
       try {
+        assertGovernedGitHubLaunchReady({
+          policyStatus: repositoryExecutionContractStatus,
+          policyError: repositoryExecutionContractError,
+        });
         const { launch, request } = buildGovernedGitHubIssueLaunchRequest({
           issue,
           workspace: {
@@ -62,6 +71,8 @@ export function useGitHubRuntimeTaskLaunchers({
       activeWorkspace,
       gitRemoteUrl,
       repositoryExecutionContract,
+      repositoryExecutionContractError,
+      repositoryExecutionContractStatus,
       refreshMissionControl,
       selectedRemoteBackendId,
     ]
@@ -73,6 +84,10 @@ export function useGitHubRuntimeTaskLaunchers({
         return;
       }
       try {
+        assertGovernedGitHubLaunchReady({
+          policyStatus: repositoryExecutionContractStatus,
+          policyError: repositoryExecutionContractError,
+        });
         const { launch, request } = buildGovernedGitHubPullRequestLaunchRequest({
           pullRequest,
           workspace: {
@@ -104,6 +119,8 @@ export function useGitHubRuntimeTaskLaunchers({
       activeWorkspace,
       gitRemoteUrl,
       repositoryExecutionContract,
+      repositoryExecutionContractError,
+      repositoryExecutionContractStatus,
       refreshMissionControl,
       selectedRemoteBackendId,
     ]

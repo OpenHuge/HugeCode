@@ -7,8 +7,10 @@ import type { GitHubIssue, GitHubPullRequest } from "../../../types";
 import * as runtimeJobsPort from "../ports/tauriRuntimeJobs";
 import { parseRepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import {
+  assertGovernedGitHubLaunchReady,
   buildGovernedGitHubIssueLaunchRequest,
   buildGovernedGitHubPullRequestLaunchRequest,
+  evaluateGovernedGitHubLaunchPreflight,
   launchGovernedGitHubRun,
 } from "./githubSourceGovernedLaunch";
 
@@ -75,6 +77,39 @@ function createContract() {
 }
 
 describe("githubSourceGovernedLaunch", () => {
+  it("blocks launch preflight while repository execution defaults are still loading", () => {
+    expect(
+      evaluateGovernedGitHubLaunchPreflight({
+        policyStatus: "loading",
+      })
+    ).toEqual({
+      state: "blocked",
+      reason:
+        "GitHub source launch is waiting for repository execution defaults to finish loading.",
+    });
+  });
+
+  it("blocks launch preflight when repository execution policy failed to load", () => {
+    expect(
+      evaluateGovernedGitHubLaunchPreflight({
+        policyStatus: "error",
+        policyError: "contract parse failed",
+      })
+    ).toEqual({
+      state: "blocked",
+      reason:
+        "GitHub source launch is blocked until repository execution policy loads cleanly. contract parse failed",
+    });
+    expect(() =>
+      assertGovernedGitHubLaunchReady({
+        policyStatus: "error",
+        policyError: "contract parse failed",
+      })
+    ).toThrow(
+      "GitHub source launch is blocked until repository execution policy loads cleanly. contract parse failed"
+    );
+  });
+
   it("builds a governed GitHub issue launch request with repo defaults and canonical task source", () => {
     const issue: GitHubIssue = {
       number: 42,
@@ -127,6 +162,13 @@ describe("githubSourceGovernedLaunch", () => {
         taskSource: expect.objectContaining({
           kind: "github_issue",
           workspaceId: "ws-1",
+        }),
+        missionBrief: expect.objectContaining({
+          constraints: expect.arrayContaining([
+            "Stay within the linked workspace and repository context for GitHub issue #42 · #42 · openai/hugecode unless an operator explicitly expands scope.",
+            "Keep continuation operator-supervised and do not auto-continue past review, approval, or validation gates.",
+            "Cite repository evidence for findings, recommendations, and follow-up actions instead of relying on broad network research.",
+          ]),
         }),
         autonomyRequest: expect.objectContaining({
           sourceScope: "workspace_graph",
@@ -199,6 +241,13 @@ describe("githubSourceGovernedLaunch", () => {
           kind: "github_pr_followup",
           pullRequestNumber: 17,
           workspaceId: "ws-1",
+        }),
+        missionBrief: expect.objectContaining({
+          constraints: expect.arrayContaining([
+            "Stay within the linked workspace and repository context for GitHub PR follow-up #17 · #17 · openai/hugecode unless an operator explicitly expands scope.",
+            "Keep continuation operator-supervised and do not auto-continue past review, approval, or validation gates.",
+            "Cite repository evidence for findings, recommendations, and follow-up actions instead of relying on broad network research.",
+          ]),
         }),
       })
     );
