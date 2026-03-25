@@ -341,6 +341,11 @@ export function ReviewQueuePanel({
                       {entry.operatorActionDetail ? ` · ${entry.operatorActionDetail}` : ""}
                     </div>
                   ) : null}
+                  {entry.continuationTruthSourceLabel ? (
+                    <div className={styles.footerCopy}>
+                      Follow-up source: {entry.continuationTruthSourceLabel}
+                    </div>
+                  ) : null}
                   {entry.reviewProfileId || entry.highestReviewSeverity ? (
                     <div className={styles.footerCopy}>
                       {[

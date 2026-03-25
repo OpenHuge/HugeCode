@@ -172,10 +172,11 @@ test("review-loop closure fixture smoke renders the unified review grammar", asy
           .getByTestId("mission-overview-panel")
           .getByRole("heading", { name: "Mission triage" })
       ).toBeVisible();
-      await expect(currentPage.getByText("Blocking sub-agent observability")).toBeVisible();
-      await expect(currentPage.getByText("Review decision rail")).toBeVisible();
-      await expect(currentPage.getByText("Runtime continuity and handoff")).toBeVisible();
-      await expect(currentPage.getByText("Inspector compatibility")).toBeVisible();
+      await expect(currentPage.getByText("Shared operator loop")).toBeVisible();
+      await expect(currentPage.getByTestId("operator-loop-row-resume")).toBeVisible();
+      await expect(currentPage.getByTestId("operator-loop-row-takeover")).toBeVisible();
+      await expect(currentPage.getByText("Blocked review detail")).toBeVisible();
+      await expect(currentPage.getByText("Takeover review detail")).toBeVisible();
     },
   });
 });

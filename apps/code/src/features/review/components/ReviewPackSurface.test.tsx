@@ -129,6 +129,16 @@ describe("ReviewPackSurface", () => {
             details: ["Provider: OpenAI", "Routing health: ready"],
             missingReason: null,
           },
+          decisionActionability: {
+            summary:
+              "Decision availability is using the controlled fallback until canonical runtime review actionability is published.",
+            details: [
+              "Decision source: Controlled legacy follow-up fallback.",
+              "Canonical runtime review actionability has not been published for this run yet.",
+            ],
+            sourceLabel: "Controlled legacy follow-up fallback",
+            usesFallback: true,
+          },
           governance: {
             summary:
               "Awaiting review decision: Accept or reject this result from the review surface.",
@@ -400,6 +410,12 @@ describe("ReviewPackSurface", () => {
     expect(screen.getByText("Review decision")).toBeTruthy();
     expect(screen.getByText("Review decisions and follow-up")).toBeTruthy();
     expect(screen.getByText("Remote provider route")).toBeTruthy();
+    expect(screen.getByText("Decision source: Controlled legacy follow-up fallback")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Decision availability is using the controlled fallback until canonical runtime review actionability is published."
+      )
+    ).toBeTruthy();
     expect(screen.getAllByText("Decision pending").length).toBeGreaterThan(0);
     expect(screen.getByText("Accept or reject this result from the review surface.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Prepare retry draft" })).toBeTruthy();

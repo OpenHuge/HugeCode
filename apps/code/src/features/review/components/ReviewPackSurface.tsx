@@ -1116,6 +1116,22 @@ export function ReviewPackSurface({
                 title="Review decisions and follow-up"
                 meta={`${reviewPackDetail.decisionActions.filter((action) => action.enabled).length}/${reviewPackDetail.decisionActions.length} available`}
               >
+                {reviewPackDetail.decisionActionability ? (
+                  <div className={styles.section}>
+                    <div className={styles.bodyText}>
+                      Decision source: {reviewPackDetail.decisionActionability.sourceLabel}
+                    </div>
+                    <div className={styles.bodyText}>
+                      {reviewPackDetail.decisionActionability.summary}
+                    </div>
+                    {reviewPackDetail.decisionActionability.details.length > 0
+                      ? renderCopyList(
+                          reviewPackDetail.decisionActionability.details,
+                          "Decision availability detail was not published."
+                        )
+                      : null}
+                  </div>
+                ) : null}
                 {renderDecisionActions(
                   reviewPackDetail,
                   onOpenMissionTarget,

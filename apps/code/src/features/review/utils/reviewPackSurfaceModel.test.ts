@@ -3200,7 +3200,7 @@ describe("reviewPackSurfaceModel", () => {
       limitation: null,
     });
     expect(detail.recommendedNextAction).toBe(
-      "Runtime blocked follow-up until validation evidence is repaired."
+      "Open the mission run and resolve the runtime-blocked follow-up."
     );
     expect(detail.continuity).toMatchObject({
       state: "blocked",
