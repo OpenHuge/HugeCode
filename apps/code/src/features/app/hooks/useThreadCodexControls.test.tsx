@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useWorkspaceRuntimeAgentControl } from "../../../application/runtime/ports/runtimeAgentControl";
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import {
+  getProvidersCatalog,
   getOAuthPrimaryAccount,
   listOAuthAccounts,
   listOAuthPools,
@@ -29,6 +30,7 @@ vi.mock("../../../application/runtime/ports/tauriCodexOperations", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/tauriOauth", () => ({
+  getProvidersCatalog: vi.fn(),
   getOAuthPrimaryAccount: vi.fn(),
   listOAuthAccounts: vi.fn(),
   listOAuthPools: vi.fn(),
@@ -50,6 +52,7 @@ vi.mock("../../../application/runtime/ports/runtimeAgentControl", () => ({
 }));
 
 const detectRuntimeModeMock = vi.mocked(detectRuntimeMode);
+const getProvidersCatalogMock = vi.mocked(getProvidersCatalog);
 const getOAuthPrimaryAccountMock = vi.mocked(getOAuthPrimaryAccount);
 const listOAuthAccountsMock = vi.mocked(listOAuthAccounts);
 const listOAuthPoolsMock = vi.mocked(listOAuthPools);
@@ -184,6 +187,7 @@ describe("useThreadCodexControls", () => {
       setSelectedCollaborationModeId: vi.fn(),
       refreshCollaborationModes: vi.fn(),
     });
+    getProvidersCatalogMock.mockReset();
     getOAuthPrimaryAccountMock.mockReset();
     listOAuthAccountsMock.mockReset();
     listOAuthPoolsMock.mockReset();
@@ -211,6 +215,32 @@ describe("useThreadCodexControls", () => {
       createdAt: 1,
       updatedAt: 1,
     });
+    getProvidersCatalogMock.mockResolvedValue([
+      {
+        providerId: "openai",
+        displayName: "OpenAI",
+        pool: "codex",
+        oauthProviderId: "codex",
+        aliases: ["openai", "codex"],
+        defaultModelId: "gpt-5.3-codex",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        registryVersion: "1",
+      },
+      {
+        providerId: "gemini",
+        displayName: "Gemini",
+        pool: "gemini",
+        oauthProviderId: "gemini",
+        aliases: ["gemini", "google", "antigravity"],
+        defaultModelId: "gemini-3.1-pro",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        registryVersion: "1",
+      },
+    ]);
     upsertOAuthPoolMock.mockResolvedValue({
       poolId: "pool-codex",
       provider: "codex",
