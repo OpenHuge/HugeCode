@@ -12,6 +12,7 @@ import type {
   HugeCodeValidationOutcome,
   RuntimeReviewGetV2Response,
 } from "@ku0/code-runtime-host-contract";
+import { resolveRuntimeContinuation } from "@ku0/code-runtime-host-contract";
 import { type RuntimeContinuityReadinessState } from "./runtimeContinuityReadiness";
 import { formatHugeCodeRunStateLabel } from "./runtimeMissionControlRunState";
 import {
@@ -30,7 +31,10 @@ import {
   resolveReviewContinuationDefaults,
   resolveRuntimeFollowUpPreferredBackendIds,
 } from "./runtimeReviewContinuationFacade";
-import { buildRuntimeContinuationDescriptor } from "./runtimeContinuationTruth";
+import {
+  buildRuntimeContinuationDescriptor,
+  formatRuntimeContinuationTruthSourceLabel,
+} from "./runtimeContinuationTruth";
 import {
   resolveReviewIntelligenceSummary,
   type ReviewIntelligenceSummary,
@@ -604,10 +608,6 @@ function buildReviewPackContinuity(input: {
   const checkpoint = input.reviewPack.checkpoint ?? input.run?.checkpoint ?? null;
   const rawPublishHandoff = input.reviewPack.publishHandoff ?? input.run?.publishHandoff ?? null;
   const takeoverBundle = input.reviewPack.takeoverBundle ?? input.run?.takeoverBundle ?? null;
-
-  if (!missionLinkage && !actionability && !checkpoint && !rawPublishHandoff && !takeoverBundle) {
-    return null;
-  }
   const descriptor = buildRuntimeContinuationDescriptor({
     runState: input.run?.state ?? "review_ready",
     checkpoint,
@@ -617,6 +617,48 @@ function buildReviewPackContinuity(input: {
     takeoverBundle,
     reviewPackId: input.reviewPack.id,
   });
+  const projectedContinuation =
+    input.reviewPack.continuation ??
+    input.run?.continuation ??
+    resolveRuntimeContinuation({
+      workspaceId: input.reviewPack.workspaceId,
+      taskId: input.reviewPack.taskId,
+      runId: input.reviewPack.runId,
+      reviewPackId: input.reviewPack.id,
+      state: input.run?.state ?? "review_ready",
+      checkpoint,
+      missionLinkage,
+      actionability,
+      publishHandoff: rawPublishHandoff,
+      takeoverBundle,
+    });
+
+  if (!projectedContinuation && !descriptor) {
+    return null;
+  }
+  if (projectedContinuation) {
+    const details: string[] = descriptor ? [...descriptor.details] : [];
+    if (projectedContinuation.detail) {
+      pushUnique(details, projectedContinuation.detail);
+    }
+    if (input.publishHandoff?.branchName) {
+      pushUnique(details, `Publish branch: ${input.publishHandoff.branchName}`);
+    }
+    if (checkpoint?.summary) {
+      pushUnique(details, checkpoint.summary);
+    }
+    return {
+      state: projectedContinuation.state === "missing" ? "attention" : projectedContinuation.state,
+      summary: projectedContinuation.summary,
+      details,
+      recommendedAction: projectedContinuation.recommendedAction,
+      blockingReason:
+        projectedContinuation.state === "blocked"
+          ? (projectedContinuation.detail ?? projectedContinuation.summary)
+          : null,
+      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel(projectedContinuation.source),
+    };
+  }
   if (!descriptor) {
     return null;
   }
