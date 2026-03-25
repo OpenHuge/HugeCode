@@ -36,6 +36,28 @@ describe("ui service boundary guard", () => {
     ]);
   });
 
+  it("rejects direct tauri thread session command imports in thread and composer features", () => {
+    const threadViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/threads/hooks/useThreadMessaging.ts",
+      'import { sendUserMessage } from "../../../application/runtime/ports/tauriThreads";\n'
+    );
+    const composerViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/composer/hooks/useComposerActions.ts",
+      'import { interruptTurn } from "../../../application/runtime/ports/tauriThreads";\n'
+    );
+
+    expect(threadViolations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-thread-session-command-port",
+      }),
+    ]);
+    expect(composerViolations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-thread-session-command-port",
+      }),
+    ]);
+  });
+
   it("rejects direct tauri imports in shared workspace client files", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "packages/code-workspace-client/src/workspace/WorkspaceClientApp.tsx",

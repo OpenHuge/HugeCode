@@ -34,11 +34,18 @@ export function useRuntimeMissionControlDraftState(input: {
 }) {
   const [runtimeDraftTitle, setRuntimeDraftTitle] = useState("");
   const [runtimeDraftInstruction, setRuntimeDraftInstruction] = useState("");
-  const [runtimeDraftProfileId, setRuntimeDraftProfileId] = useState("balanced-delegate");
+  const [runtimeDraftProfileIdState, setRuntimeDraftProfileIdState] = useState("balanced-delegate");
   const [runtimeDraftProfileTouched, setRuntimeDraftProfileTouched] = useState(false);
   const [runtimeDraftProviderRoute, setRuntimeDraftProviderRoute] = useState("auto");
   const [runtimeSourceDraft, setRuntimeSourceDraft] =
     useState<RuntimeTaskLauncherSourceDraft | null>(null);
+
+  const runtimeDraftProfileId = resolveMissionControlDraftProfileId({
+    currentProfileId: runtimeDraftProfileIdState,
+    repositoryExecutionProfileId: input.repositoryExecutionProfileId,
+    sourceDraft: runtimeSourceDraft,
+    draftProfileTouched: runtimeDraftProfileTouched,
+  });
 
   const selectedExecutionProfile = useMemo<HugeCodeExecutionProfile>(
     () =>
@@ -53,23 +60,6 @@ export function useRuntimeMissionControlDraftState(input: {
   }, [input.workspaceId]);
 
   useEffect(() => {
-    const nextProfileId = resolveMissionControlDraftProfileId({
-      currentProfileId: runtimeDraftProfileId,
-      repositoryExecutionProfileId: input.repositoryExecutionProfileId,
-      sourceDraft: runtimeSourceDraft,
-      draftProfileTouched: runtimeDraftProfileTouched,
-    });
-    if (nextProfileId !== runtimeDraftProfileId) {
-      setRuntimeDraftProfileId(nextProfileId);
-    }
-  }, [
-    input.repositoryExecutionProfileId,
-    runtimeDraftProfileId,
-    runtimeDraftProfileTouched,
-    runtimeSourceDraft,
-  ]);
-
-  useEffect(() => {
     if (
       input.normalizedProviderRoute &&
       input.normalizedProviderRoute !== runtimeDraftProviderRoute
@@ -80,7 +70,7 @@ export function useRuntimeMissionControlDraftState(input: {
 
   function selectRuntimeDraftProfile(profileId: string) {
     setRuntimeDraftProfileTouched(true);
-    setRuntimeDraftProfileId(profileId);
+    setRuntimeDraftProfileIdState(profileId);
   }
 
   function prepareRunLauncher(input: {
@@ -105,7 +95,7 @@ export function useRuntimeMissionControlDraftState(input: {
     }
     setRuntimeDraftTitle(nextDraft.draft.title);
     setRuntimeDraftInstruction(nextDraft.draft.instruction);
-    setRuntimeDraftProfileId(nextDraft.draft.profileId);
+    setRuntimeDraftProfileIdState(nextDraft.draft.profileId);
     setRuntimeDraftProfileTouched(true);
     setRuntimeSourceDraft(nextDraft.draft.sourceDraft);
     return {

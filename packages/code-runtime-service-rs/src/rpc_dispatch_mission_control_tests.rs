@@ -617,6 +617,9 @@ fn build_review_pack_emits_file_changes_and_evidence_refs() {
                 {"action": "reject_result", "enabled": true, "supported": true, "reason": Value::Null}
             ],
         })),
+        session_boundary: None,
+        continuation: None,
+        next_operator_action: None,
         execution_graph: None,
         takeover_bundle: None,
         governance: None,
@@ -777,6 +780,9 @@ fn build_review_pack_marks_incomplete_evidence_and_resumable_checkpoint_runs() {
                 {"action": "reject_result", "enabled": true, "supported": true, "reason": Value::Null}
             ],
         })),
+        session_boundary: None,
+        continuation: None,
+        next_operator_action: None,
         execution_graph: None,
         takeover_bundle: None,
         governance: None,
@@ -898,6 +904,9 @@ fn build_review_pack_includes_relaunch_metadata_and_sub_agents() {
                 {"action": "retry", "enabled": true, "supported": true, "reason": Value::Null}
             ],
         })),
+        session_boundary: None,
+        continuation: None,
+        next_operator_action: None,
         execution_graph: None,
         takeover_bundle: None,
         governance: None,

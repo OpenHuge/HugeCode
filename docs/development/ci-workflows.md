@@ -6,6 +6,10 @@ This document is the source of truth for how HugeCode maps public workflows to i
 
 - `pnpm check:workflow-governance`
   Use this guard whenever `.github/workflows/*.yml`, workflow-facing docs, or reusable workflow wiring changes.
+- Required merge-queue checks should scope `merge_group` to the
+  `checks_requested` activity so workflow runs stay aligned with GitHub's
+  required-check contract and do not widen accidentally if new activity types
+  are added later.
 
 ## PR Author Guide
 
@@ -79,6 +83,10 @@ Public workflow entrypoints currently include:
 - The shared `Quality` lane should reserve global governance checks for `repo_sot`-class changes. On normal product PRs, only run `ui:contract`, `check:circular`, and code-integration watch when their owned surfaces changed.
 - Desktop build lanes must install both `@ku0/code...` and `@ku0/code-tauri...` so Tauri `beforeBuildCommand` can build the frontend app without relying on a full workspace install.
 - Expensive frontend optimization lanes should restore Turbo cache before rebuilding so bundle-budget and targeted browser gates keep their coverage without recompiling from a cold local cache on every PR.
+- Shared Playwright bootstrap should install Chromium with `--only-shell` when
+  CI stays on the default headless Chromium lane without a `channel` override;
+  this keeps browser downloads aligned with current Playwright guidance and
+  avoids shipping unused headed binaries into every CI run.
 - Frontend optimization classification should stay focused on runtime or build-affecting frontend dependencies; pure type-package bumps should normally be covered by quality/typecheck instead of forcing bundle and browser lanes.
 - Frontend optimization should not fan out for generic CI plumbing edits. Workflow-governance and shared action changes belong in repository governance lanes unless they also touch runtime-owning frontend or bundle-budget surfaces.
 - Frontend optimization reusable-workflow edits should stay covered by workflow governance and validation, not by forcing the full browser and bundle lane on infrastructure-only pull requests.

@@ -400,11 +400,14 @@ pub(crate) fn build_agent_task_runtime_response_payload(
         &sub_agents_by_run,
         &workspace_roots_by_id,
     );
-    object.insert(
-        "runSummary".to_string(),
-        serde_json::to_value(&run_summary)
-            .map_err(|error| RpcError::internal(format!("Serialize run summary: {error}")))?,
-    );
+    let run_summary_value = serde_json::to_value(&run_summary)
+        .map_err(|error| RpcError::internal(format!("Serialize run summary: {error}")))?;
+    for field in ["sessionBoundary", "continuation", "nextOperatorAction"] {
+        if let Some(value) = run_summary_value.get(field).cloned() {
+            object.insert(field.to_string(), value);
+        }
+    }
+    object.insert("runSummary".to_string(), run_summary_value);
     if object.get("reviewPackId").and_then(Value::as_str).is_some() {
         let review_pack_summary = build_review_pack(&run_summary);
         object.insert(

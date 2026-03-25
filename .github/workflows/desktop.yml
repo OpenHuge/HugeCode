@@ -20,7 +20,6 @@ on:
       - "apps/code/vite.config.ts"
       - "apps/code/src/main.tsx"
       - "apps/code/src/bootstrap/**"
-      - "apps/code/src/web/**"
       - "apps/code/src/application/runtime/**"
       - "apps/code/src/services/runtimeClient*"
       - "apps/code/src/services/tauri*"

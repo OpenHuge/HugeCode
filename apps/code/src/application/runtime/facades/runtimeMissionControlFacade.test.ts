@@ -77,6 +77,7 @@ describe("runtimeMissionControlFacade", () => {
         toolPosture: "read_only",
         approvalSensitivity: "heightened",
         identitySource: "workspace-routing",
+        validationPresetId: null,
       },
       steps: [],
     } satisfies AgentTaskSummary);
@@ -683,7 +684,7 @@ describe("runtimeMissionControlFacade", () => {
     ).toMatchObject({
       taskId: resolveMissionTaskId("run-1", null),
       validationOutcome: "unknown",
-      recommendedNextAction: "Review the result",
+      recommendedNextAction: "The run finished and is ready for operator review.",
     });
   });
 
@@ -959,8 +960,7 @@ describe("runtimeMissionControlFacade", () => {
         status: "rejected",
         reviewPackId: "review-pack:run-2",
       },
-      recommendedNextAction:
-        "Rejected in review. Open the mission thread to retry or reroute with operator feedback.",
+      recommendedNextAction: "Validation warnings still need a narrower rerun.",
     });
   });
 
@@ -1745,28 +1745,35 @@ describe("runtimeMissionControlFacade", () => {
               autonomy: "bounded_delegate",
               supervisionLabel: "Review before merge",
               accessMode: "on-request",
-              routingStrategy: "preferred_backend",
-              toolPosture: "workspace_write_scoped",
-              approvalSensitivity: "balanced",
+              networkPolicy: "restricted",
+              routingStrategy: "provider_route",
+              toolPosture: "workspace_safe",
+              approvalSensitivity: "standard",
               validationPresetId: "validate-runtime",
               identitySource: "repo_execution_contract",
             },
             reviewProfileId: "review-runtime",
             profileReadiness: {
-              state: "ready",
-              label: "Ready",
+              ready: true,
+              health: "ready",
               summary: "Runtime resolved execution profile defaults before launch.",
+              issues: [],
             },
             routing: {
               backendId: "backend-runtime",
+              provider: "openai",
               routeLabel: "backend-runtime",
               providerLabel: "openai",
               pool: "codex",
               routeHint: "Runtime confirmed backend placement.",
-              health: "healthy",
+              health: "ready",
+              enabledAccountCount: 1,
+              readyAccountCount: 1,
+              enabledPoolCount: 1,
             },
             approval: {
               status: "not_required",
+              approvalId: null,
               label: "No approval required",
               summary: "Runtime recorded no approval wait.",
             },
@@ -1778,9 +1785,7 @@ describe("runtimeMissionControlFacade", () => {
               decidedAt: null,
             },
             intervention: {
-              primaryAction: "review",
-              label: "Review",
-              detail: "Review the native artifact.",
+              primaryAction: null,
               actions: [],
             },
             operatorState: {
@@ -1804,7 +1809,9 @@ describe("runtimeMissionControlFacade", () => {
               objective: "Runtime truth wins",
               desiredEndState: [],
               hardBoundaries: [],
-              doneDefinition: "Use runtime-published review truth.",
+              doneDefinition: {
+                arrivalCriteria: ["Use runtime-published review truth."],
+              },
               riskPolicy: null,
               taskMode: "pair",
               executionProfileId: "balanced-delegate",
@@ -1854,7 +1861,7 @@ describe("runtimeMissionControlFacade", () => {
             },
             missionLinkage: null,
             actionability: {
-              state: "review_ready",
+              state: "ready",
               summary: "Runtime published the next review step.",
               actions: [],
               degradedReasons: [],
@@ -1866,33 +1873,22 @@ describe("runtimeMissionControlFacade", () => {
             autofixCandidate: null,
             governance: {
               state: "awaiting_review",
+              label: "Awaiting review",
               summary: "Awaiting review on runtime truth.",
-              nextStep: "Review the runtime summary.",
               blocking: true,
-              blockedReasons: [],
-              degradedReasons: [],
-              availableActions: ["accept", "reject"],
-              approval: {
-                posture: "not_required",
-                summary: "No approval required.",
-              },
-              reviewReadiness: {
-                state: "ready",
-                summary: "Review pack is ready.",
-              },
+              suggestedAction: "review_result",
+              availableActions: ["accept_result", "reject_result"],
             },
             placement: {
               requestedBackendIds: ["backend-runtime"],
               resolvedBackendId: "backend-runtime",
               resolutionSource: "explicit_preference",
+              readiness: "ready",
+              healthSummary: "placement_ready",
+              attentionReasons: [],
+              summary: "Runtime resolved backend placement before execution.",
               rationale: "Runtime resolved backend placement before execution.",
               lifecycleState: "confirmed",
-              capabilitySnapshot: {
-                supportsMutations: true,
-                supportsNetwork: false,
-              },
-              degradedReason: null,
-              schedulingReadiness: "ready",
             },
             operatorSnapshot: null,
             workspaceEvidence: {
@@ -1975,7 +1971,9 @@ describe("runtimeMissionControlFacade", () => {
               objective: "Runtime truth wins",
               desiredEndState: [],
               hardBoundaries: [],
-              doneDefinition: "Use runtime-published review truth.",
+              doneDefinition: {
+                arrivalCriteria: ["Use runtime-published review truth."],
+              },
               riskPolicy: null,
               taskMode: "pair",
               executionProfileId: "balanced-delegate",
@@ -2025,7 +2023,7 @@ describe("runtimeMissionControlFacade", () => {
             },
             missionLinkage: null,
             actionability: {
-              state: "review_ready",
+              state: "ready",
               summary: "Runtime published the next review step.",
               actions: [],
               degradedReasons: [],
@@ -2038,33 +2036,22 @@ describe("runtimeMissionControlFacade", () => {
             autofixCandidate: null,
             governance: {
               state: "awaiting_review",
+              label: "Awaiting review",
               summary: "Awaiting review on runtime truth.",
-              nextStep: "Review the runtime summary.",
               blocking: true,
-              blockedReasons: [],
-              degradedReasons: [],
-              availableActions: ["accept", "reject"],
-              approval: {
-                posture: "not_required",
-                summary: "No approval required.",
-              },
-              reviewReadiness: {
-                state: "ready",
-                summary: "Review pack is ready.",
-              },
+              suggestedAction: "review_result",
+              availableActions: ["accept_result", "reject_result"],
             },
             placement: {
               requestedBackendIds: ["backend-runtime"],
               resolvedBackendId: "backend-runtime",
               resolutionSource: "explicit_preference",
+              readiness: "ready",
+              healthSummary: "placement_ready",
+              attentionReasons: [],
+              summary: "Runtime resolved backend placement before execution.",
               rationale: "Runtime resolved backend placement before execution.",
               lifecycleState: "confirmed",
-              capabilitySnapshot: {
-                supportsMutations: true,
-                supportsNetwork: false,
-              },
-              degradedReason: null,
-              schedulingReadiness: "ready",
             },
             workspaceEvidence: {
               summary: "Runtime already published workspace evidence.",
