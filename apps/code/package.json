@@ -25,7 +25,7 @@
     "@ku0/native-runtime-host-contract": "workspace:*",
     "@ku0/shared": "workspace:*",
     "@ku0/ui": "workspace:*",
-    "@pierre/diffs": "^1.0.11",
+    "@pierre/diffs": "^1.1.3",
     "@sentry/react": "^10.45.0",
     "@shikijs/engine-javascript": "^4.0.2",
     "@tanstack/react-virtual": "^3.13.23",
