@@ -59,6 +59,7 @@ type UseThreadMessagingOptions = {
   activeThreadIdRef?: MutableRefObject<string | null>;
   hasAvailableModel?: boolean;
   accessMode?: AccessMode;
+  provider?: string | null;
   model?: string | null;
   effort?: string | null;
   fastMode?: boolean;
@@ -123,6 +124,7 @@ async function invokeSteerTurnRequest(params: {
   images: string[];
   appMentions: AppMention[];
   contextPrefix: string | null;
+  provider: string | null | undefined;
   model: string | null | undefined;
   effort: string | null | undefined;
   fastMode: boolean;
@@ -139,6 +141,7 @@ async function invokeSteerTurnRequest(params: {
 }): Promise<Record<string, unknown>> {
   const serviceTier = params.fastMode ? "fast" : null;
   const steerOptions = {
+    provider: params.provider,
     model: params.model,
     effort: params.effort,
     serviceTier,
@@ -217,6 +220,7 @@ export function useThreadMessaging({
   activeThreadIdRef,
   hasAvailableModel = true,
   accessMode,
+  provider,
   model,
   effort,
   fastMode = false,
@@ -315,6 +319,7 @@ export function useThreadMessaging({
         workspace.settings.codexArgs ?? defaultCodexArgs ?? null
       );
       const {
+        resolvedProvider,
         resolvedModel,
         resolvedEffort,
         resolvedFastMode,
@@ -328,6 +333,7 @@ export function useThreadMessaging({
         resolvedCodexArgs,
         appMentions,
       } = resolveSendMessageSettings(options, {
+        provider,
         model,
         effort,
         fastMode,
@@ -395,6 +401,7 @@ export function useThreadMessaging({
           workspace_id: workspace.id,
           thread_id: threadId,
           has_images: images.length > 0 ? "true" : "false",
+          provider: resolvedProvider ?? "unknown",
           text_length: String(finalText.length),
           model: resolvedModel ?? "unknown",
           effort: resolvedEffort ?? "unknown",
@@ -423,6 +430,7 @@ export function useThreadMessaging({
           workspaceId: workspace.id,
           threadId,
           turnId: activeTurnId,
+          provider: resolvedProvider,
           text: finalText,
           images,
           model: resolvedModel,
@@ -468,6 +476,7 @@ export function useThreadMessaging({
       try {
         void trackProductAnalyticsEvent("delegate_started", analyticsAttributes);
         const startPayload = buildStartTurnPayload({
+          provider: resolvedProvider,
           model: resolvedModel,
           effort: resolvedEffort,
           fastMode: resolvedFastMode,
@@ -497,6 +506,7 @@ export function useThreadMessaging({
             images,
             appMentions,
             contextPrefix,
+            provider: resolvedProvider,
             model: resolvedModel,
             effort: resolvedEffort,
             fastMode: resolvedFastMode,
@@ -587,6 +597,7 @@ export function useThreadMessaging({
       fastMode,
       executionProfileId,
       executionMode,
+      provider,
       activeTurnIdByThread,
       getCustomName,
       hasAvailableModel,
