@@ -60,20 +60,20 @@ Recent PR failures have repeated in a small set of gates. Use the mapping below
 before opening the PR so CI is confirming work you already checked locally
 instead of discovering the first missed requirement.
 
-| CI gate                                              | Typical local miss                                                                                                                                               | Run before PR                         |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `Quality / Typecheck (affected)`                     | Type unions, status enums, facade return shapes, or cross-package TS drift compile locally in one package but fail in the affected graph.                        | `pnpm typecheck:affected`             |
-| `PR Affected Checks / Tests (affected)`              | UI copy, rendered states, settings/account flows, and browser-visible interactions changed without updating the affected tests.                                  | `pnpm test:affected`                  |
-| `frontend_optimization / Frontend optimization gate` | Frontend startup, runtime readiness on `127.0.0.1:8788`, shell bootstrap, bundle-sensitive changes, or dependency churn breaks the expensive browser/build lane. | `pnpm validate:frontend-optimization` |
-| `Workflow governance`                                | Workflow YAML, shared action wiring, or workflow-facing docs drift from the scripted governance rules.                                                           | `pnpm check:workflow-governance`      |
+| CI gate                                              | Typical local miss                                                                                                                                               | Run before PR                                  |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `Quality / Typecheck (affected)`                     | Type unions, status enums, facade return shapes, or cross-package TS drift compile locally in one package but fail in the affected graph.                        | `pnpm typecheck:affected`                      |
+| `PR Affected Checks / PR Affected Checks`            | Build output, UI copy, rendered states, settings/account flows, or browser-visible interactions changed without updating the affected build/test proof.          | `pnpm build:affected` and `pnpm test:affected` |
+| `frontend_optimization / Frontend optimization gate` | Frontend startup, runtime readiness on `127.0.0.1:8788`, shell bootstrap, bundle-sensitive changes, or dependency churn breaks the expensive browser/build lane. | `pnpm validate:frontend-optimization`          |
+| `Workflow governance`                                | Workflow YAML, shared action wiring, or workflow-facing docs drift from the scripted governance rules.                                                           | `pnpm check:workflow-governance`               |
 
 Practical usage:
 
 - If the change is mostly TypeScript correctness, run `pnpm validate` or at
   least `pnpm typecheck:affected`.
 - If the change is visible in the browser, especially `apps/code` settings,
-  auth, or copy, run `pnpm test:affected` and add `pnpm test:component` when
-  the risk is interaction-heavy.
+  auth, or copy, run `pnpm build:affected` and `pnpm test:affected`, then add
+  `pnpm test:component` when the risk is interaction-heavy.
 - If the change can alter startup timing, browser boot, runtime service
   readiness, or bundle output, run `pnpm validate:frontend-optimization` before
   pushing.
