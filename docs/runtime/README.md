@@ -96,6 +96,8 @@ Internal parity helpers such as `internal/runtime-policy-rs` may support tooling
   Client/runtime boundary notes for `apps/code`.
 - [code-runtime-provider-catalog.md](./code-runtime-provider-catalog.md)
   Runtime provider catalog and backend-facing capability notes.
+- [provider-routing-control-plane.md](./provider-routing-control-plane.md)
+  Shared provider/backend routing matrix, readiness semantics, and rollout guidance.
 - [code-runtime-oauth-account-pool.md](./code-runtime-oauth-account-pool.md)
   Account-pool and provider-routing domain guidance.
 - [runtime-launch-readiness.md](./runtime-launch-readiness.md)

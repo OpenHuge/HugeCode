@@ -16,6 +16,7 @@ import {
 } from "./tauriRuntimeTurnHelpers";
 
 type RuntimeTurnOptions = {
+  provider?: string | null;
   model?: string | null;
   effort?: string | null;
   serviceTier?: string | null;
@@ -50,6 +51,7 @@ export async function sendUserMessage(
   text: string,
   options?: {
     requestId?: string | null;
+    provider?: string | null;
     model?: string | null;
     effort?: string | null;
     serviceTier?: string | null;
@@ -80,7 +82,7 @@ export async function sendUserMessage(
     requestId,
     content: text,
     contextPrefix: options?.contextPrefix ?? null,
-    provider: null,
+    provider: options?.provider ?? null,
     modelId: options?.model ?? null,
     reasonEffort: normalizeRuntimeReasonEffort(options?.effort ?? null),
     serviceTier: options?.serviceTier ?? null,
@@ -152,7 +154,7 @@ export async function steerTurn(
     threadId,
     content: text,
     contextPrefix: contextPrefix ?? null,
-    provider: null,
+    provider: options?.provider ?? null,
     modelId: options?.model ?? null,
     reasonEffort: normalizeRuntimeReasonEffort(options?.effort ?? null),
     serviceTier: options?.serviceTier ?? null,
