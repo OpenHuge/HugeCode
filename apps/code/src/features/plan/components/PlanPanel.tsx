@@ -3,7 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 import { StatusBadge } from "../../../design-system";
 import { distributedTaskGraph } from "../../../application/runtime/ports/tauriThreads";
 import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/tauriRuntime";
-import { cancelRuntimeJob } from "../../../application/runtime/ports/tauriRuntimeJobs";
+import {
+  cancelRuntimeJob,
+  interveneRuntimeJob,
+} from "../../../application/runtime/ports/tauriRuntimeJobs";
 import type { TurnPlan } from "../../../types";
 import type { ResolvedPlanArtifact } from "../../messages/utils/planArtifact";
 import {
@@ -141,6 +144,7 @@ function collectSubtreeTaskIds(
 export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPanelProps) {
   const [distributedGraphCapabilityEnabled, setDistributedGraphCapabilityEnabled] = useState(false);
   const [distributedGraphInterruptEnabled, setDistributedGraphInterruptEnabled] = useState(false);
+  const [distributedGraphRetryEnabled, setDistributedGraphRetryEnabled] = useState(false);
   const [distributedGraphActionsEnabled, setDistributedGraphActionsEnabled] = useState(false);
   const [distributedGraphSnapshot, setDistributedGraphSnapshot] =
     useState<DistributedTaskGraphSnapshot | null>(null);
@@ -167,12 +171,16 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
       const supportsInterruptMethod = summary.methods.includes(
         CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3
       );
+      const supportsRetryMethod = summary.methods.includes(
+        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_INTERVENE_V3
+      );
       setDistributedGraphCapabilityEnabled(hasCapability && supportsGraphMethod);
       setDistributedGraphInterruptEnabled(
         hasCapability && supportsGraphMethod && supportsInterruptMethod
       );
+      setDistributedGraphRetryEnabled(hasCapability && supportsGraphMethod && supportsRetryMethod);
       setDistributedGraphActionsEnabled(
-        hasCapability && supportsGraphMethod && supportsInterruptMethod
+        hasCapability && supportsGraphMethod && (supportsInterruptMethod || supportsRetryMethod)
       );
       if (!hasCapability) {
         setDistributedGraphReadOnlyReason(null);
@@ -184,7 +192,7 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
         setDistributedGraphReadOnlyReason(
           "Distributed graph RPC is unavailable in current runtime."
         );
-      } else if (!supportsInterruptMethod) {
+      } else if (!supportsInterruptMethod && !supportsRetryMethod) {
         setDistributedGraphReadOnlyReason(
           "Distributed graph control RPC is unavailable in current runtime."
         );
@@ -288,6 +296,23 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
     [graph, interruptTasks]
   );
 
+  const handleRetryNode = useCallback(
+    async (nodeId: string) => {
+      const ack = await interveneRuntimeJob({
+        runId: nodeId,
+        action: "retry",
+        reason: "ui:distributed_control_retry",
+      });
+      if (!ack.accepted) {
+        throw new Error(`Runtime declined retry for node '${nodeId}'.`);
+      }
+      const refreshTaskId = graphId || ack.spawnedRunId || nodeId;
+      const nextSnapshot = await readDistributedTaskGraphSnapshot(refreshTaskId);
+      setDistributedGraphSnapshot(nextSnapshot);
+    },
+    [graphId, readDistributedTaskGraphSnapshot]
+  );
+
   const progress = plan ? formatProgress(plan) : "";
   const steps = plan?.steps ?? [];
   const showEmpty = !steps.length && !plan?.explanation && !activeArtifact;
@@ -370,6 +395,7 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
         actionsEnabled={distributedGraphActionsEnabled}
         disabledReason={disabledReason}
         diagnosticsMessage={distributedDiagnosticsMessage}
+        onRetryNode={distributedGraphRetryEnabled ? handleRetryNode : undefined}
         onInterruptNode={distributedGraphInterruptEnabled ? handleInterruptNode : undefined}
         onInterruptSubtree={distributedGraphInterruptEnabled ? handleInterruptSubtree : undefined}
       />
