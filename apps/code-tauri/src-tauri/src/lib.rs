@@ -511,6 +511,24 @@ mod tests {
     }
 
     #[test]
+    fn rpc_capabilities_features_are_stably_sorted_and_unique() {
+        let _guard = rpc_capability_env_lock()
+            .lock()
+            .expect("rpc capability env lock poisoned");
+        reset_rpc_capability_env();
+        let capabilities = code_rpc_capabilities();
+
+        let mut expected_features = capabilities.features.clone();
+        expected_features.sort_unstable();
+        expected_features.dedup();
+
+        assert_eq!(capabilities.features, expected_features);
+
+        let unique: HashSet<&str> = capabilities.features.iter().map(String::as_str).collect();
+        assert_eq!(unique.len(), capabilities.features.len());
+    }
+
+    #[test]
     fn rpc_capabilities_hide_high_risk_methods_by_default() {
         let _guard = rpc_capability_env_lock()
             .lock()
