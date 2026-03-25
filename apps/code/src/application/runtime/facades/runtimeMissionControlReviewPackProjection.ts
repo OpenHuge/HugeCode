@@ -9,6 +9,11 @@ import type {
   HugeCodeTaskMode,
   HugeCodeValidationOutcome,
 } from "@ku0/code-runtime-host-contract";
+import {
+  resolveRuntimeContinuation,
+  resolveRuntimeNextOperatorAction,
+  resolveRuntimeSessionBoundary,
+} from "@ku0/code-runtime-host-contract";
 import { buildGovernanceSummary } from "./runtimeMissionControlRunState";
 import {
   buildReviewPackAssumptions,
@@ -187,6 +192,52 @@ export function projectCompletedRunToReviewPackSummary(
           decidedAt: null,
         }
       : null);
+  const sessionBoundary =
+    run.sessionBoundary ??
+    resolveRuntimeSessionBoundary({
+      workspaceId: run.workspaceId,
+      taskId: run.taskId,
+      runId: run.id,
+      reviewPackId: run.reviewPackId ?? null,
+      checkpoint: run.checkpoint ?? null,
+      missionLinkage: run.missionLinkage ?? null,
+      sessionBoundary: null,
+    });
+  const continuation =
+    run.continuation ??
+    resolveRuntimeContinuation({
+      workspaceId: run.workspaceId,
+      taskId: run.taskId,
+      runId: run.id,
+      reviewPackId: run.reviewPackId ?? null,
+      state: run.state,
+      checkpoint: run.checkpoint ?? null,
+      missionLinkage: run.missionLinkage ?? null,
+      actionability: run.actionability ?? null,
+      publishHandoff: run.publishHandoff ?? null,
+      takeoverBundle: run.takeoverBundle ?? null,
+      sessionBoundary,
+    });
+  const nextOperatorAction =
+    run.nextOperatorAction ??
+    resolveRuntimeNextOperatorAction({
+      workspaceId: run.workspaceId,
+      taskId: run.taskId,
+      runId: run.id,
+      reviewPackId: run.reviewPackId ?? null,
+      state: run.state,
+      reviewStatus,
+      approval: run.approval ?? null,
+      reviewDecision,
+      nextAction: run.nextAction ?? null,
+      checkpoint: run.checkpoint ?? null,
+      missionLinkage: run.missionLinkage ?? null,
+      actionability: run.actionability ?? null,
+      publishHandoff: run.publishHandoff ?? null,
+      takeoverBundle: run.takeoverBundle ?? null,
+      sessionBoundary,
+      continuation,
+    });
   const checksPerformed = validations.map((validation) => validation.label);
   const fileChanges = buildReviewPackFileChanges(changedPaths);
   const assumptions = buildReviewPackAssumptions(run, reviewStatus);
@@ -243,7 +294,10 @@ export function projectCompletedRunToReviewPackSummary(
     artifacts,
     checksPerformed,
     recommendedNextAction:
-      reviewDecision?.status === "accepted"
+      nextOperatorAction?.detail ??
+      nextOperatorAction?.label ??
+      continuation?.recommendedAction ??
+      (reviewDecision?.status === "accepted"
         ? "Accepted in review. No further action is required unless follow-up work is needed."
         : reviewDecision?.status === "rejected"
           ? "Rejected in review. Open the mission thread to retry or reroute with operator feedback."
@@ -252,7 +306,7 @@ export function projectCompletedRunToReviewPackSummary(
               ? "Review the evidence and accept or retry."
               : reviewStatus === "action_required"
                 ? "Inspect warnings or failures before retrying."
-                : "Review the available evidence before accepting this run.")),
+                : "Review the available evidence before accepting this run."))),
     fileChanges,
     evidenceRefs,
     assumptions,
@@ -276,6 +330,9 @@ export function projectCompletedRunToReviewPackSummary(
     checkpoint: run.checkpoint ?? null,
     missionLinkage: run.missionLinkage ?? null,
     actionability: run.actionability ?? null,
+    sessionBoundary,
+    continuation,
+    nextOperatorAction,
     reviewProfileId: run.reviewProfileId ?? null,
     reviewGate: run.reviewGate ?? null,
     reviewFindings: run.reviewFindings ?? null,

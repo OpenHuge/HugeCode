@@ -42,6 +42,7 @@ type UseThreadsOptions = {
   onWorkspaceConnected: (id: string) => void;
   onDebug?: (entry: DebugEntry) => void;
   hasAvailableModel?: boolean;
+  provider?: string | null;
   model?: string | null;
   effort?: string | null;
   fastMode?: boolean;
@@ -79,6 +80,7 @@ export function useThreads({
   onWorkspaceConnected,
   onDebug,
   hasAvailableModel = true,
+  provider,
   model,
   effort,
   fastMode = false,
@@ -628,6 +630,7 @@ export function useThreads({
     activeThreadId,
     hasAvailableModel,
     accessMode,
+    provider,
     model,
     effort,
     fastMode,

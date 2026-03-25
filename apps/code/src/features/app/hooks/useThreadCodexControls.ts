@@ -1,17 +1,20 @@
-import {
-  canonicalizeModelPool,
-  canonicalizeOAuthProviderId,
-} from "@ku0/code-runtime-host-contract/codeRuntimeRpcCompat";
+import { canonicalizeModelPool } from "@ku0/code-runtime-host-contract/codeRuntimeRpcCompat";
+import type { RuntimeProviderCatalogEntry } from "@ku0/code-runtime-host-contract";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildMissionDraftFromThreadState } from "../../../application/runtime/facades/runtimeMissionDraftFacade";
+import {
+  resolveRuntimeModelProviderRoute,
+  type RuntimeResolvedProviderRoute,
+} from "../../../application/runtime/facades/runtimeProviderRouting";
+import { resolveRuntimePreferredBackendIdsInput } from "../../../application/runtime/facades/runtimeRemoteExecutionFacade";
 import { useWorkspaceRuntimeAgentControl } from "../../../application/runtime/ports/runtimeAgentControl";
 import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import {
   type OAuthAccountSummary,
-  type OAuthProviderId,
   getOAuthPrimaryAccount,
+  getProvidersCatalog,
   listOAuthAccounts,
   listOAuthPools,
   replaceOAuthPoolMembers,
@@ -176,6 +179,13 @@ export function useThreadCodexControls({
   const [localCliAvailable, setLocalCliAvailable] = useState(false);
   const [localCliVersion, setLocalCliVersion] = useState<string | null>(null);
   const [remoteBackendOptions, setRemoteBackendOptions] = useState<RemoteBackendOption[]>([]);
+  const [runtimeProviders, setRuntimeProviders] = useState<RuntimeProviderCatalogEntry[]>([]);
+  const [selectedProviderAccounts, setSelectedProviderAccounts] = useState<OAuthAccountSummary[]>(
+    []
+  );
+  const [selectedProviderPools, setSelectedProviderPools] = useState<
+    Array<Awaited<ReturnType<typeof listOAuthPools>>[number]>
+  >([]);
   const runtimeMode = detectRuntimeMode();
   const runtimeControl = useWorkspaceRuntimeAgentControl(
     (activeWorkspace?.id ?? DEFAULT_RUNTIME_WORKSPACE_ID) as Parameters<
@@ -240,7 +250,7 @@ export function useThreadCodexControls({
         models.find((model) => model.id === normalizedId) ??
         models.find((model) => model.model === normalizedId) ??
         null;
-      return matchedModel?.model ?? normalizedId;
+      return matchedModel?.id ?? normalizedId;
     },
     [models]
   );
@@ -509,41 +519,74 @@ export function useThreadCodexControls({
     [localCliAvailable, localCliVersion]
   );
   const hasAvailableModel = models.some((model) => model.available !== false);
-  const selectedOAuthProviderId = useMemo<OAuthProviderId | null>(() => {
-    const fromProvider = canonicalizeOAuthProviderId(selectedModel?.provider ?? null);
-    if (fromProvider) {
-      return fromProvider;
-    }
-    const fromPool = canonicalizeOAuthProviderId(selectedModel?.pool ?? null);
-    if (fromPool) {
-      return fromPool;
-    }
-    return canonicalizeOAuthProviderId(selectedModel?.model ?? null);
-  }, [selectedModel?.model, selectedModel?.pool, selectedModel?.provider]);
+  const selectedProviderRoute = useMemo<RuntimeResolvedProviderRoute | null>(
+    () =>
+      resolveRuntimeModelProviderRoute({
+        model: selectedModel,
+        providers: runtimeProviders,
+        accounts: selectedProviderAccounts,
+        pools: selectedProviderPools,
+      }),
+    [runtimeProviders, selectedModel, selectedProviderAccounts, selectedProviderPools]
+  );
+  const selectedOAuthProviderId = selectedProviderRoute?.oauthProviderId ?? null;
   const selectedRoutingPoolId = useMemo(() => {
     const canonicalPool =
+      selectedProviderRoute?.pool ??
       canonicalizeModelPool(selectedModel?.pool ?? null) ??
       canonicalizeModelPool(selectedModel?.provider ?? null) ??
       canonicalizeModelPool(selectedModel?.model ?? null);
     return canonicalPool ? `pool-${canonicalPool}` : null;
-  }, [selectedModel?.model, selectedModel?.pool, selectedModel?.provider]);
+  }, [
+    selectedModel?.model,
+    selectedModel?.pool,
+    selectedModel?.provider,
+    selectedProviderRoute?.pool,
+  ]);
+
+  useEffect(() => {
+    let canceled = false;
+    if (runtimeMode === "unavailable") {
+      setRuntimeProviders([]);
+      return;
+    }
+    void getProvidersCatalog()
+      .then((providers) => {
+        if (!canceled) {
+          setRuntimeProviders(providers);
+        }
+      })
+      .catch(() => {
+        if (!canceled) {
+          setRuntimeProviders([]);
+        }
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [activeWorkspace?.id, runtimeMode]);
 
   useEffect(() => {
     let canceled = false;
     if (runtimeMode === "unavailable") {
       setComposerAccountOptions([]);
       setSelectedAccountIds([]);
+      setSelectedProviderAccounts([]);
+      setSelectedProviderPools([]);
       return;
     }
     if (!selectedOAuthProviderId) {
       setComposerAccountOptions([]);
       setSelectedAccountIds([]);
+      setSelectedProviderAccounts([]);
+      setSelectedProviderPools([]);
       return;
     }
     const loadAccounts = async () => {
       try {
-        const [accounts, primaryAccount] = await Promise.all([
+        const [accounts, pools, primaryAccount] = await Promise.all([
           listOAuthAccounts(selectedOAuthProviderId),
+          listOAuthPools(selectedOAuthProviderId),
           selectedOAuthProviderId === "codex"
             ? getOAuthPrimaryAccount("codex").catch(() => null)
             : Promise.resolve(null),
@@ -551,6 +594,8 @@ export function useThreadCodexControls({
         if (canceled) {
           return;
         }
+        setSelectedProviderAccounts(accounts);
+        setSelectedProviderPools(pools);
         const options = accounts.map((account) => ({
           id: account.accountId,
           label: formatComposerAccountLabel(account),
@@ -584,6 +629,8 @@ export function useThreadCodexControls({
         }
         setComposerAccountOptions([]);
         setSelectedAccountIds([]);
+        setSelectedProviderAccounts([]);
+        setSelectedProviderPools([]);
       }
     };
     void loadAccounts();
@@ -704,10 +751,10 @@ export function useThreadCodexControls({
       collaborationModeId: stored?.collaborationModeId ?? selectedCollaborationModeId,
       executionProfileId: stored?.executionProfileId ?? null,
       preferredBackendIds:
-        stored?.preferredBackendIds ??
-        (typeof appSettings.defaultRemoteExecutionBackendId === "string"
-          ? [appSettings.defaultRemoteExecutionBackendId]
-          : null),
+        resolveRuntimePreferredBackendIdsInput({
+          preferredBackendIds: stored?.preferredBackendIds ?? null,
+          fallbackDefaultBackendId: appSettings.defaultRemoteExecutionBackendId,
+        }) ?? null,
       autoDriveDraft: stored?.autoDriveDraft ?? null,
     });
   }, [
@@ -746,6 +793,8 @@ export function useThreadCodexControls({
     missionMode: missionDraft.mode,
     executionProfileId: missionDraft.executionProfileId,
     preferredBackendIds: missionDraft.preferredBackendIds,
+    resolvedProvider: selectedProviderRoute?.providerId ?? null,
+    selectedProviderRoute,
     remoteBackendOptions,
     selectedCollaborationMode,
     selectedCollaborationModeId,

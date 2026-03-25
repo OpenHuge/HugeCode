@@ -8446,11 +8446,14 @@
 
     #[tokio::test]
     async fn compat_model_catalog_refresh_serves_stale_while_refresh_is_inflight() {
+        // Keep a wide margin between the in-flight refresh latency and the stale-read timeout.
+        // The original 40ms assertion window was too tight for loaded Linux CI runners even
+        // though the stale-while-refresh behavior was still correct.
         let (compat_base_url, models_counter, compat_handle) =
             spawn_openai_compat_mock_server_with_counter(
                 vec!["gpt-4.1-mini", "claude-3-7-sonnet-latest", "gemini-3-flash"],
                 Some("compat-test-key"),
-                Some(Duration::from_millis(120)),
+                Some(Duration::from_millis(300)),
             )
             .await;
         let mut config = test_service_config_with_openai_compat(compat_base_url.as_str());
@@ -8476,7 +8479,7 @@
             .await
         });
 
-        tokio::time::timeout(Duration::from_millis(80), async {
+        tokio::time::timeout(Duration::from_millis(200), async {
             loop {
                 if models_counter.load(AtomicOrdering::Relaxed) >= 2 {
                     break;
@@ -8488,7 +8491,7 @@
         .expect("refresh request should start before stale read");
 
         let stale_payload = tokio::time::timeout(
-            Duration::from_millis(40),
+            Duration::from_millis(180),
             send_rpc_request(
                 app.clone(),
                 json!({"method":"code_models_pool","params":{}}),

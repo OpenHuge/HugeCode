@@ -11,6 +11,7 @@ import { asString } from "../utils/threadNormalize";
 
 export type SendMessageOptions = {
   skipPromptExpansion?: boolean;
+  provider?: string | null;
   model?: string | null;
   effort?: string | null;
   fastMode?: boolean;
@@ -27,6 +28,7 @@ export type SendMessageOptions = {
 };
 
 export type ResolvedSendMessageSettings = {
+  resolvedProvider: string | null | undefined;
   resolvedModel: string | null | undefined;
   resolvedEffort: string | null | undefined;
   resolvedFastMode: boolean;
@@ -54,6 +56,7 @@ export type TurnRequestRouting = {
 };
 
 export type StartTurnPayload = {
+  provider?: string | null;
   model?: string | null;
   effort?: string | null;
   serviceTier?: string | null;
@@ -198,6 +201,7 @@ export function resolveExpandedMessageText(
 export function resolveSendMessageSettings(
   options: SendMessageOptions | undefined,
   defaults: {
+    provider: string | null | undefined;
     model: string | null | undefined;
     effort: string | null | undefined;
     fastMode?: boolean | null;
@@ -211,6 +215,7 @@ export function resolveSendMessageSettings(
     codexArgs?: string[] | null;
   }
 ): ResolvedSendMessageSettings {
+  const resolvedProvider = options?.provider !== undefined ? options.provider : defaults.provider;
   const resolvedModel = options?.model !== undefined ? options.model : defaults.model;
   const resolvedEffort = options?.effort !== undefined ? options.effort : defaults.effort;
   const resolvedFastMode =
@@ -243,6 +248,7 @@ export function resolveSendMessageSettings(
   const resolvedCodexArgs =
     options?.codexArgs !== undefined ? (options.codexArgs ?? null) : (defaults.codexArgs ?? null);
   return {
+    resolvedProvider,
     resolvedModel,
     resolvedEffort,
     resolvedFastMode,
@@ -287,6 +293,7 @@ export function resolveTurnRequestRouting(params: {
 }
 
 export function buildStartTurnPayload(params: {
+  provider: string | null | undefined;
   model: string | null | undefined;
   effort: string | null | undefined;
   fastMode: boolean;
@@ -304,6 +311,7 @@ export function buildStartTurnPayload(params: {
   autoDrive?: AgentTaskAutoDriveState | null;
 }): StartTurnPayload {
   const payload: StartTurnPayload = {
+    provider: params.provider,
     model: params.model,
     effort: params.effort,
     serviceTier: params.fastMode ? "fast" : null,

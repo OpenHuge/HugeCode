@@ -129,10 +129,26 @@ describe("runtimeOperatorLoopParity", () => {
     });
 
     expect(reviewEntry?.recommendedNextAction).toBe(
-      "Open the mission run and resolve the runtime-blocked follow-up."
+      "Runtime blocked follow-up until validation evidence is repaired."
     );
-    expect(reviewEntry?.operatorActionLabel).toBe("Open action center");
+    expect(reviewEntry?.operatorActionLabel).toBe("Open review");
     expect(reviewEntry?.operatorActionTarget).toEqual({
+      kind: "review",
+      workspaceId: "workspace-1",
+      taskId: "runtime-task:run-9",
+      runId: "run-9",
+      reviewPackId: "review-pack:run-9",
+      limitation: null,
+    });
+
+    expect(reviewDetail?.kind).toBe("review_pack");
+    if (!reviewDetail || reviewDetail.kind !== "review_pack") {
+      throw new Error("Expected review pack detail");
+    }
+    expect(reviewDetail.recommendedNextAction).toBe(
+      "Open Review Pack and resolve the runtime-blocked follow-up before continuing."
+    );
+    expect(reviewDetail.navigationTarget).toEqual({
       kind: "mission",
       workspaceId: "workspace-1",
       taskId: "runtime-task:run-9",
@@ -141,14 +157,9 @@ describe("runtimeOperatorLoopParity", () => {
       threadId: "thread-legacy",
       limitation: null,
     });
-
-    expect(reviewDetail?.kind).toBe("review_pack");
-    if (!reviewDetail || reviewDetail.kind !== "review_pack") {
-      throw new Error("Expected review pack detail");
-    }
-    expect(reviewDetail.recommendedNextAction).toBe(reviewEntry?.recommendedNextAction);
-    expect(reviewDetail.navigationTarget).toEqual(reviewEntry?.operatorActionTarget);
-    expect(reviewDetail.continuity?.recommendedAction).toBe(reviewEntry?.recommendedNextAction);
+    expect(reviewDetail.continuity?.recommendedAction).toBe(
+      "Open Review Pack and resolve the runtime-blocked follow-up before continuing."
+    );
   });
 
   it("keeps takeover-first review actions aligned between Mission Control and Review Pack", () => {
@@ -257,7 +268,7 @@ describe("runtimeOperatorLoopParity", () => {
       }),
     });
 
-    expect(reviewEntry?.recommendedNextAction).toBe("Open Review Pack");
+    expect(reviewEntry?.recommendedNextAction).toBe("Continue from Review Pack.");
     expect(reviewEntry?.operatorActionLabel).toBe("Open review");
     expect(reviewEntry?.operatorActionTarget).toEqual({
       kind: "review",
@@ -272,7 +283,7 @@ describe("runtimeOperatorLoopParity", () => {
     if (!reviewDetail || reviewDetail.kind !== "review_pack") {
       throw new Error("Expected review pack detail");
     }
-    expect(reviewDetail.recommendedNextAction).toBe(reviewEntry?.recommendedNextAction);
-    expect(reviewDetail.continuity?.recommendedAction).toBe(reviewEntry?.recommendedNextAction);
+    expect(reviewDetail.recommendedNextAction).toBe("Open Review Pack");
+    expect(reviewDetail.continuity?.recommendedAction).toBe("Open Review Pack");
   });
 });

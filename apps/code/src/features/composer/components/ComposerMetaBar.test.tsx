@@ -135,6 +135,112 @@ describe("ComposerMetaBar", () => {
     expect(within(menu).getByText("GPT-5.3 Codex / codex-secondary")).toBeTruthy();
   });
 
+  it("shows provider families and switches to the provider's recommended route model", () => {
+    const onSelectModel = vi.fn();
+    render(
+      <ComposerMetaBar
+        disabled={false}
+        collaborationModes={[]}
+        selectedCollaborationModeId={null}
+        onSelectCollaborationMode={vi.fn()}
+        models={[
+          {
+            id: "openai-primary",
+            model: "gpt-5.1",
+            displayName: "GPT-5.1",
+            provider: "openai",
+            pool: "codex-primary",
+            available: true,
+          },
+          {
+            id: "claude-opus",
+            model: "claude-opus-4-5",
+            displayName: "Claude Opus 4.5",
+            provider: "claude_code_local",
+            pool: "claude",
+            available: true,
+          },
+        ]}
+        selectedModelId="openai-primary"
+        onSelectModel={onSelectModel}
+        reasoningOptions={[]}
+        selectedEffort={null}
+        onSelectEffort={vi.fn()}
+        reasoningSupported={false}
+        accessMode="on-request"
+        onSelectAccessMode={vi.fn()}
+        executionOptions={[{ value: "runtime", label: "Runtime" }]}
+        selectedExecutionMode="runtime"
+        onSelectExecutionMode={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Provider" }));
+
+    const menu = screen.getByRole("listbox", { name: "Provider" });
+    expect(within(menu).getByRole("option", { name: "Codex" })).toBeTruthy();
+    expect(within(menu).getByRole("option", { name: "Claude" })).toBeTruthy();
+
+    fireEvent.click(within(menu).getByRole("option", { name: "Claude" }));
+
+    expect(onSelectModel).toHaveBeenCalledWith("claude-opus");
+  });
+
+  it("filters the model menu to the selected provider family while preserving exact route ids", () => {
+    render(
+      <ComposerMetaBar
+        disabled={false}
+        collaborationModes={[]}
+        selectedCollaborationModeId={null}
+        onSelectCollaborationMode={vi.fn()}
+        models={[
+          {
+            id: "openai-primary",
+            model: "gpt-5.1",
+            displayName: "GPT-5.1",
+            provider: "openai",
+            pool: "codex-primary",
+            available: true,
+          },
+          {
+            id: "openai-secondary",
+            model: "gpt-5.1",
+            displayName: "GPT-5.1",
+            provider: "openai",
+            pool: "codex-secondary",
+            available: true,
+          },
+          {
+            id: "claude-opus",
+            model: "claude-opus-4-5",
+            displayName: "Claude Opus 4.5",
+            provider: "claude_code_local",
+            pool: "claude",
+            available: true,
+          },
+        ]}
+        selectedModelId="openai-primary"
+        onSelectModel={vi.fn()}
+        reasoningOptions={[]}
+        selectedEffort={null}
+        onSelectEffort={vi.fn()}
+        reasoningSupported={false}
+        accessMode="on-request"
+        onSelectAccessMode={vi.fn()}
+        executionOptions={[{ value: "runtime", label: "Runtime" }]}
+        selectedExecutionMode="runtime"
+        onSelectExecutionMode={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Model" }));
+
+    const menu = screen.getByRole("listbox", { name: "Model" });
+    expect(within(menu).getByText("GPT-5.1 / codex-primary")).toBeTruthy();
+    expect(within(menu).getByText("GPT-5.1 / codex-secondary")).toBeTruthy();
+    expect(within(menu).queryByText("Claude Opus 4.5")).toBeNull();
+  });
+
   it("shows the OpenAI model icon by default and swaps to lightning when fast speed is active", () => {
     const { container, rerender } = render(
       <ComposerMetaBar

@@ -3,9 +3,9 @@ use crate::CODE_TAURI_REGISTERED_RPC_COMMANDS;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
-pub(crate) const CODE_RUNTIME_RPC_CONTRACT_VERSION: &str = "2026-03-23";
-pub(crate) const CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT: &str = "2026-03-23";
-pub(crate) const CODE_RUNTIME_RPC_FROZEN_FEATURE: &str = "contract_frozen_2026_03_23";
+pub(crate) const CODE_RUNTIME_RPC_CONTRACT_VERSION: &str = "2026-03-25";
+pub(crate) const CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT: &str = "2026-03-25";
+pub(crate) const CODE_RUNTIME_RPC_FROZEN_FEATURE: &str = "contract_frozen_2026_03_25";
 pub(crate) const CODE_RUNTIME_RPC_CAPABILITY_PROFILE: &str = "desktop-core";
 pub(crate) const CODE_RUNTIME_RPC_FEATURES: &[&str] = &[
     "method_not_found_error_code",
@@ -26,7 +26,7 @@ pub(crate) const CODE_RUNTIME_RPC_FEATURES: &[&str] = &[
     "runtime_kernel_jobs_v3",
     "oauth_codex_login_control_v1",
     "runtime_host_deprecated",
-    "app_server_protocol_v2_2026_03_23",
+    "app_server_protocol_v2_2026_03_25",
     CODE_RUNTIME_RPC_FROZEN_FEATURE,
 ];
 pub(crate) const CODE_RUNTIME_RPC_ERROR_CODES: &[(&str, &str)] = &[
