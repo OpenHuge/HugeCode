@@ -337,7 +337,7 @@ describe("tauri runtime port contract", () => {
     );
 
     expect(source).toMatch(/from\s+["']\.\.\/ports\/tauriRuntimeJobs["']/);
-    expect(source).toMatch(/startRuntimeJobWithRemoteSelection/);
+    expect(source).toMatch(/startRuntimeRunWithRemoteSelection/);
   });
 
   it("removes legacy run-first approval names from shared and app-facing control surfaces", () => {

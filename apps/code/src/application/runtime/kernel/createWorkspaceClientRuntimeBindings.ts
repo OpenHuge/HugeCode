@@ -22,11 +22,12 @@ import { listWorkspaces } from "../ports/tauriWorkspaceCatalog";
 import { subscribeScopedRuntimeUpdatedEvents } from "../ports/runtimeUpdatedEvents";
 import {
   cancelRuntimeJob,
+  prepareRuntimeRunV2,
   submitRuntimeJobApprovalDecision,
   interveneRuntimeJob,
   listRuntimeJobs,
   resumeRuntimeJob,
-  startRuntimeJob,
+  startRuntimeRunV2,
   subscribeRuntimeJob,
 } from "../ports/tauriRuntimeJobs";
 import {
@@ -142,7 +143,8 @@ export function createWorkspaceClientRuntimeBindings(
         ),
     },
     agentControl: {
-      startRuntimeJob,
+      prepareRuntimeRun: prepareRuntimeRunV2,
+      startRuntimeRun: startRuntimeRunV2,
       cancelRuntimeJob,
       resumeRuntimeJob,
       interveneRuntimeJob,

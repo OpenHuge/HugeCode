@@ -4,11 +4,7 @@ import { CODE_RUNTIME_RPC_METHODS } from "@ku0/code-runtime-host-contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { distributedTaskGraph } from "../../../application/runtime/ports/tauriThreads";
 import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/tauriRuntime";
-import {
-  cancelRuntimeJob,
-  getRuntimeJob,
-} from "../../../application/runtime/ports/tauriRuntimeJobs";
-import { startRuntimeJobWithRemoteSelection } from "../../../application/runtime/facades/runtimeRemoteExecutionFacade";
+import { cancelRuntimeJob } from "../../../application/runtime/ports/tauriRuntimeJobs";
 import { PlanPanel } from "./PlanPanel";
 
 vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
@@ -21,11 +17,6 @@ vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
 
 vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
   cancelRuntimeJob: vi.fn(),
-  getRuntimeJob: vi.fn(),
-}));
-
-vi.mock("../../../application/runtime/facades/runtimeRemoteExecutionFacade", () => ({
-  startRuntimeJobWithRemoteSelection: vi.fn(),
 }));
 
 vi.mock("../../../application/runtime/ports/tauriAppSettings", () => ({
@@ -75,8 +66,6 @@ vi.mock("./DistributedTaskGraphPanel", () => ({
 const getRuntimeCapabilitiesSummaryMock = vi.mocked(getRuntimeCapabilitiesSummary);
 const distributedTaskGraphMock = vi.mocked(distributedTaskGraph);
 const cancelRuntimeJobMock = vi.mocked(cancelRuntimeJob);
-const getRuntimeJobMock = vi.mocked(getRuntimeJob);
-const startAgentTaskMock = vi.mocked(startRuntimeJobWithRemoteSelection);
 
 describe("PlanPanel", () => {
   afterEach(() => {
@@ -98,60 +87,6 @@ describe("PlanPanel", () => {
       runId: "task-node-1",
       status: "interrupted",
       message: "ok",
-    });
-    getRuntimeJobMock.mockResolvedValue({
-      id: "task-node-1",
-      workspaceId: "ws-1",
-      threadId: "thread-1",
-      title: "Investigate issue",
-      status: "running",
-      provider: "openai",
-      modelId: "gpt-5.3-codex",
-      backendId: null,
-      preferredBackendIds: null,
-      executionProfile: {
-        placement: "local",
-        interactivity: "interactive",
-        isolation: "host",
-        network: "default",
-        authority: "user",
-      },
-      createdAt: 1,
-      updatedAt: 1,
-      startedAt: 1,
-      completedAt: null,
-      continuation: {
-        resumeSupported: true,
-        recovered: false,
-      },
-      metadata: null,
-    });
-    startAgentTaskMock.mockResolvedValue({
-      id: "task-node-retry-1",
-      workspaceId: "ws-1",
-      threadId: "thread-1",
-      title: "Investigate issue (retry)",
-      status: "queued",
-      provider: "openai",
-      modelId: "gpt-5.3-codex",
-      backendId: null,
-      preferredBackendIds: null,
-      executionProfile: {
-        placement: "local",
-        interactivity: "interactive",
-        isolation: "host",
-        network: "default",
-        authority: "user",
-      },
-      createdAt: 2,
-      updatedAt: 2,
-      startedAt: null,
-      completedAt: null,
-      continuation: {
-        resumeSupported: true,
-        recovered: false,
-      },
-      metadata: null,
     });
   });
 
@@ -345,7 +280,7 @@ describe("PlanPanel", () => {
     });
   });
 
-  it("routes retry controls to task status and start rpc", async () => {
+  it("does not wire legacy direct retry controls even when kernel job start methods exist", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
       mode: "tauri",
       methods: [
@@ -382,16 +317,10 @@ describe("PlanPanel", () => {
     fireEvent.click(screen.getByText("retry-node-1"));
 
     await waitFor(() => {
-      expect(getRuntimeJobMock).toHaveBeenCalledWith({ jobId: "task-node-1" });
-    });
-    await waitFor(() => {
-      expect(startAgentTaskMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          workspaceId: "ws-1",
-          threadId: "thread-1",
-          steps: [{ kind: "read", path: "AGENTS.md" }],
-        })
-      );
+      expect(cancelRuntimeJobMock).not.toHaveBeenCalledWith({
+        runId: "task-node-1",
+        reason: "ui:distributed_control_interrupt",
+      });
     });
   });
 

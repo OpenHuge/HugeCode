@@ -7,7 +7,30 @@ const runtimeMocks = vi.hoisted(() => ({
   getRuntimeClient: vi.fn(() => {
     throw new Error("createRuntimeKernel should not access getRuntimeClient directly");
   }),
-  startRuntimeJob: vi.fn(async (input) => ({ id: "run-1", ...input })),
+  prepareRuntimeRun: vi.fn(async () => ({
+    preparedAt: 1,
+  })),
+  startRuntimeRun: vi.fn(async (input) => ({
+    run: {
+      taskId: "run-1",
+      workspaceId: input.workspaceId,
+      threadId: input.threadId ?? null,
+      requestId: input.requestId ?? null,
+      title: input.title ?? null,
+      status: "queued",
+      accessMode: input.accessMode ?? "on-request",
+      currentStep: null,
+      createdAt: 1,
+      updatedAt: 1,
+      startedAt: null,
+      completedAt: null,
+      errorCode: null,
+      errorMessage: null,
+      pendingApprovalId: null,
+    },
+    missionRun: {} as never,
+    reviewPack: null,
+  })),
   cancelRuntimeJob: vi.fn(async (input) => ({
     accepted: true,
     runId: input.runId,
@@ -125,7 +148,8 @@ vi.mock("../ports/runtimeUpdatedEvents", () => ({
 }));
 
 vi.mock("../ports/tauriRuntimeJobs", () => ({
-  startRuntimeJob: runtimeMocks.startRuntimeJob,
+  prepareRuntimeRunV2: runtimeMocks.prepareRuntimeRun,
+  startRuntimeRunV2: runtimeMocks.startRuntimeRun,
   cancelRuntimeJob: runtimeMocks.cancelRuntimeJob,
   resumeRuntimeJob: runtimeMocks.resumeRuntimeJob,
   interveneRuntimeJob: runtimeMocks.interveneRuntimeJob,
@@ -198,11 +222,17 @@ describe("createRuntimeKernel", () => {
     const kernel = createRuntimeKernel();
 
     await expect(
-      kernel.workspaceClientRuntime.agentControl.startRuntimeJob({
+      kernel.workspaceClientRuntime.agentControl.prepareRuntimeRun({
         workspaceId: "workspace-1",
         steps: [],
       })
-    ).resolves.toMatchObject({ id: "run-1" });
+    ).resolves.toMatchObject({ preparedAt: 1 });
+    await expect(
+      kernel.workspaceClientRuntime.agentControl.startRuntimeRun({
+        workspaceId: "workspace-1",
+        steps: [],
+      })
+    ).resolves.toMatchObject({ run: { taskId: "run-1" } });
     await expect(
       kernel.workspaceClientRuntime.agentControl.cancelRuntimeJob({ runId: "run-1" })
     ).resolves.toMatchObject({ runId: "run-1", accepted: true });
@@ -319,7 +349,8 @@ describe("createRuntimeKernel", () => {
     ).resolves.toMatchObject({ content: "hello" });
 
     expect(runtimeMocks.getRuntimeClient).not.toHaveBeenCalled();
-    expect(runtimeMocks.startRuntimeJob).toHaveBeenCalledOnce();
+    expect(runtimeMocks.prepareRuntimeRun).toHaveBeenCalledOnce();
+    expect(runtimeMocks.startRuntimeRun).toHaveBeenCalledOnce();
     expect(runtimeMocks.listThreads).toHaveBeenCalledOnce();
     expect(runtimeMocks.getGitStatus).toHaveBeenCalledOnce();
     expect(runtimeMocks.listWorkspaceFileEntries).toHaveBeenCalledOnce();
