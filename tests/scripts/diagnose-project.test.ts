@@ -64,13 +64,17 @@ function withPrependedPath(env: NodeJS.ProcessEnv, prependDir: string): NodeJS.P
   return nextEnv;
 }
 
-function runDiagnose(targetRoot: string) {
+function runDiagnose(targetRoot: string, args: string[] = []) {
   const pnpmBinDir = path.join(targetRoot, ".test-bin");
-  return spawnSync(process.execPath, [path.join(targetRoot, "scripts", "diagnose-project.mjs")], {
-    cwd: targetRoot,
-    encoding: "utf8",
-    env: withPrependedPath(process.env, pnpmBinDir),
-  });
+  return spawnSync(
+    process.execPath,
+    [path.join(targetRoot, "scripts", "diagnose-project.mjs"), ...args],
+    {
+      cwd: targetRoot,
+      encoding: "utf8",
+      env: withPrependedPath(process.env, pnpmBinDir),
+    }
+  );
 }
 
 async function installFakePnpm(targetRoot: string, mode: "clean" | "mutated") {
@@ -225,14 +229,43 @@ describe("diagnose-project", () => {
     expect(result.stdout).toContain("sibling-local");
   });
 
-  it("fails when pnpm store status reports mutated packages", async () => {
+  it("uses the configured upstream ref for sync checks when the local and remote branch names differ", async () => {
+    const tempRoot = await createFixtureRepo("diagnose-project-upstream-");
+    const remotePath = path.join(tempRoot, "remote.git");
+
+    runGit(tempRoot, ["init", "--bare", "remote.git"]);
+    runGit(tempRoot, ["remote", "add", "origin", remotePath]);
+    runGit(tempRoot, ["push", "origin", "main"]);
+    runGit(tempRoot, ["checkout", "-b", "chore/local-doctor-branch"]);
+    runGit(tempRoot, ["push", "-u", "origin", "HEAD:refs/heads/codex/doctor-upstream"]);
+
+    const result = runDiagnose(tempRoot);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Branch sync");
+    expect(result.stdout).toContain("origin/codex/doctor-upstream");
+    expect(result.stdout).not.toContain("Remote tracking");
+  });
+
+  it("warns when pnpm store status reports mutated packages during the default doctor pass", async () => {
     const tempRoot = await createFixtureRepo("diagnose-project-mutated-", "mutated");
 
     const result = runDiagnose(tempRoot);
 
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(0);
     expect(result.stdout).toContain("pnpm store");
     expect(result.stdout).toContain("mutated");
     expect(result.stdout).toContain("pnpm install --force");
+    expect(result.stdout).toContain("repo:doctor:strict");
+  });
+
+  it("fails in strict mode when pnpm store status reports mutated packages", async () => {
+    const tempRoot = await createFixtureRepo("diagnose-project-mutated-strict-", "mutated");
+
+    const result = runDiagnose(tempRoot, ["--strict"]);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("pnpm store");
+    expect(result.stdout).toContain("mutated");
   });
 });

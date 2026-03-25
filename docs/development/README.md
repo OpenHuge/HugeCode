@@ -22,6 +22,9 @@ pnpm install --force
 pnpm repo:doctor
 ```
 
+`pnpm repo:doctor` reports pnpm-store mutations as a warning with remediation because the store is shared
+across repos and worktrees. Use `pnpm repo:doctor:strict` when you want mutated store entries to fail the run.
+
 If multiple repos keep hitting the same error after a forced install, clean the global pnpm store before
 continuing local debugging.
 

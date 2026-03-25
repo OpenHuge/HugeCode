@@ -99,6 +99,10 @@ function runGit(gitArgs, allowFailure = false) {
   }
 }
 
+function resolveUpstreamRef() {
+  return runGit(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"], true);
+}
+
 function checkPnpmStoreHealth() {
   try {
     const result = runCommand("pnpm", ["store", "status"]);
@@ -122,9 +126,9 @@ function checkPnpmStoreHealth() {
       combinedOutput.includes("Packages in the store have been mutated")
     ) {
       pushCheck(
-        "FAIL",
+        strict ? "FAIL" : "WARN",
         "pnpm store",
-        "pnpm store contains mutated packages. Run `pnpm install --force` to refetch damaged entries. If this keeps happening across repos, clean the global pnpm store."
+        "pnpm store contains mutated packages. Run `pnpm install --force` to refetch damaged entries. If this keeps happening across repos, clean the global pnpm store. Use `repo:doctor:strict` when you want this condition to fail the run."
       );
       return;
     }
@@ -215,7 +219,7 @@ function checkGitSync() {
     }
   }
 
-  const syncRef = `origin/${branch}`;
+  const syncRef = resolveUpstreamRef() || `origin/${branch}`;
   const syncRefSha = runGit(["rev-parse", "--verify", syncRef], true);
   if (!syncRefSha) {
     pushCheck(
