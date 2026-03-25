@@ -33,7 +33,10 @@ import {
 } from "../../../../application/runtime/ports/tauriOauth";
 import { listWorkspaces } from "../../../../application/runtime/ports/tauriWorkspaceCatalog";
 import type { AppServerEvent } from "../../../../types";
-import { setActiveOauthPopupLoginId } from "./settings-codex-accounts-card/oauthHelpers";
+import {
+  readActiveOauthPopupLoginId,
+  setActiveOauthPopupLoginId,
+} from "./settings-codex-accounts-card/oauthHelpers";
 import { SettingsCodexAccountsCard } from "./SettingsCodexAccountsCard";
 
 vi.mock("../../../../application/runtime/ports/events", () => ({
@@ -702,51 +705,52 @@ describe("SettingsCodexAccountsCard", () => {
   });
 
   it(
-    "refreshes when oauth popup posts success message",
+    "queues a refresh when oauth popup posts success during an in-flight refresh",
     async () => {
-      let popupRefreshEnabled = false;
-      listOAuthAccountsMock.mockImplementation(async () =>
-        popupRefreshEnabled
-          ? [
-              {
-                accountId: "codex-popup-1",
-                provider: "codex",
-                externalAccountId: null,
-                email: "popup@example.com",
-                displayName: "Popup Success Account",
-                status: "enabled",
-                disabledReason: null,
-                metadata: {},
-                createdAt: 100,
-                updatedAt: 200,
-              },
-            ]
-          : []
+      let resolveAccounts: ((value: Awaited<ReturnType<typeof listOAuthAccounts>>) => void) | null =
+        null;
+      const firstAccounts = new Promise<Awaited<ReturnType<typeof listOAuthAccounts>>>(
+        (resolve) => {
+          resolveAccounts = resolve;
+        }
       );
-      listOAuthPoolsMock.mockImplementation(async () =>
-        popupRefreshEnabled
-          ? [
-              {
-                poolId: "pool-popup-1",
-                provider: "codex",
-                name: "Popup Success Pool",
-                strategy: "round_robin",
-                stickyMode: "cache_first",
-                preferredAccountId: "codex-popup-1",
-                enabled: true,
-                metadata: {},
-                createdAt: 100,
-                updatedAt: 200,
-              },
-            ]
-          : []
-      );
+      listOAuthAccountsMock
+        .mockImplementationOnce(() => firstAccounts)
+        .mockResolvedValueOnce([
+          {
+            accountId: "codex-popup-1",
+            provider: "codex",
+            externalAccountId: null,
+            email: "popup@example.com",
+            displayName: "Popup Success Account",
+            status: "enabled",
+            disabledReason: null,
+            metadata: {},
+            createdAt: 100,
+            updatedAt: 200,
+          },
+        ]);
+      listOAuthPoolsMock.mockResolvedValueOnce([]).mockResolvedValueOnce([
+        {
+          poolId: "pool-popup-1",
+          provider: "codex",
+          name: "Popup Success Pool",
+          strategy: "round_robin",
+          stickyMode: "cache_first",
+          preferredAccountId: "codex-popup-1",
+          enabled: true,
+          metadata: {},
+          createdAt: 100,
+          updatedAt: 200,
+        },
+      ]);
       setActiveOauthPopupLoginId("login-popup-1");
+
       render(<SettingsCodexAccountsCard />);
 
       await waitFor(() => {
-        expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
-        expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+        expect(listOAuthAccountsMock).toHaveBeenCalledTimes(1);
+        expect(listOAuthPoolsMock).toHaveBeenCalledTimes(0);
       });
       const accountsTab = screen.getByRole("tab", { name: /Accounts/i });
       const poolsTab = screen.getByRole("tab", { name: /Pools/i });
@@ -755,7 +759,6 @@ describe("SettingsCodexAccountsCard", () => {
 
       await flushEffectTurn();
 
-      popupRefreshEnabled = true;
       act(() => {
         window.dispatchEvent(
           new window.MessageEvent("message", {
@@ -765,13 +768,18 @@ describe("SettingsCodexAccountsCard", () => {
         );
       });
 
-      await waitFor(
-        () => {
-          expect(accountsTab.textContent ?? "").toContain("1");
-          expect(poolsTab.textContent ?? "").toContain("1");
-        },
-        { timeout: SETTINGS_CODEX_ACCOUNTS_ASYNC_TIMEOUT_MS }
-      );
+      expect(readActiveOauthPopupLoginId()).toBeNull();
+
+      await act(async () => {
+        resolveAccounts?.([]);
+      });
+
+      await waitFor(() => {
+        expect(listOAuthAccountsMock).toHaveBeenCalledTimes(2);
+        expect(listOAuthPoolsMock).toHaveBeenCalledTimes(2);
+        expect(accountsTab.textContent ?? "").toContain("1");
+        expect(poolsTab.textContent ?? "").toContain("1");
+      });
     },
     SETTINGS_CODEX_ACCOUNTS_TEST_TIMEOUT_MS
   );

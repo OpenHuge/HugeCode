@@ -29,7 +29,7 @@
   "devDependencies": {
     "@electron-forge/plugin-fuses": "^7.10.2",
     "@electron/fuses": "^1.8.0",
-    "electron": "41.0.3",
-    "vitest": "^4.1.0"
+    "electron": "41.0.4",
+    "vitest": "^4.1.1"
   }
 }

@@ -38,6 +38,47 @@ const incompatibleForgeStageConfigEnvKeys = new Set([
   "pnpm_config_verify_deps_before_run",
 ]);
 
+export function parseForgeCommand(argv = process.argv) {
+  const command = argv[2];
+  if (!command || !["package", "make", "publish"].includes(command)) {
+    throw new Error("Usage: node ./scripts/run-forge.mjs <package|make|publish>");
+  }
+
+  return command;
+}
+
+export function resolveCliCommand(commandName, platform = process.platform) {
+  if (platform === "win32" && !commandName.includes(".")) {
+    return `${commandName}.cmd`;
+  }
+
+  return commandName;
+}
+
+function quoteWindowsShellSegment(segment) {
+  if (!/[\s"&|<>^()]/u.test(segment)) {
+    return segment;
+  }
+
+  return `"${segment.replace(/"/gu, '""')}"`;
+}
+
+export function createCliInvocation(commandName, args, platform = process.platform) {
+  const resolvedCommand = resolveCliCommand(commandName, platform);
+  if (platform === "win32") {
+    const shellCommand = [resolvedCommand, ...args].map(quoteWindowsShellSegment).join(" ");
+    return {
+      command: process.env.ComSpec || "cmd.exe",
+      args: ["/d", "/s", "/c", shellCommand],
+    };
+  }
+
+  return {
+    command: resolvedCommand,
+    args,
+  };
+}
+
 export function resolveForgeStageCommands(platform = process.platform) {
   return {
     electronForge: {
@@ -57,6 +98,10 @@ export function resolveForgeStageCommands(platform = process.platform) {
       shell: platform === "win32",
     },
   };
+}
+
+export function createStagedPackageJson(packageMetadata) {
+  return createForgeStagePackageJson(packageMetadata);
 }
 
 export function createForgeStageEnv(baseEnv = process.env) {
@@ -146,6 +191,7 @@ async function prepareStage() {
   await rm(outDir, { force: true, recursive: true });
   await mkdir(forgePackageDir, { recursive: true });
   await mkdir(resolve(forgePackageDir, "dist-electron"), { recursive: true });
+  await mkdir(resolve(forgePackageDir, "scripts"), { recursive: true });
   await cp(distDir, resolve(forgePackageDir, "dist-electron"), { recursive: true });
   await cp(forgeConfigSource, resolve(forgePackageDir, "forge.config.mjs"));
   await cp(localMakerDebSource, resolve(forgePackageDir, "scripts/maker-deb.cjs"));
@@ -229,7 +275,7 @@ async function createLocalElectronZip() {
   return forgeStageElectronZipDir;
 }
 
-async function ensureDarwinDmgNativeDependency(command) {
+async function ensureDarwinDmgNativeDependency(command = parseForgeCommand()) {
   if (process.platform !== "darwin" || (command !== "make" && command !== "publish")) {
     return;
   }
@@ -275,11 +321,7 @@ async function ensureDarwinDmgNativeDependency(command) {
 }
 
 async function runForge() {
-  const command = process.argv[2];
-  if (!command || !["package", "make", "publish"].includes(command)) {
-    throw new Error("Usage: node ./scripts/run-forge.mjs <package|make|publish>");
-  }
-
+  const command = parseForgeCommand();
   const { electronForge } = resolveForgeStageCommands();
   await ensureDarwinDmgNativeDependency(command);
   await createStagePaths();
@@ -330,6 +372,6 @@ async function runForge() {
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   await runForge();
 }
