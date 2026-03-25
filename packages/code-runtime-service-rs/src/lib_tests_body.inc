@@ -8585,8 +8585,8 @@ exit 1
     #[tokio::test]
     async fn compat_model_catalog_refresh_serves_stale_while_refresh_is_inflight() {
         // Keep a wide margin between the in-flight refresh latency and the stale-read timeout.
-        // The original 40ms assertion window was too tight for loaded Linux CI runners even
-        // though the stale-while-refresh behavior was still correct.
+        // The original assertion window was too tight for loaded CI runners even when stale
+        // reads behaved correctly, so use a wider deterministic envelope here.
         let (compat_base_url, models_counter, compat_handle) =
             spawn_openai_compat_mock_server_with_counter(
                 vec!["gpt-4.1-mini", "claude-3-7-sonnet-latest", "gemini-3-flash"],
