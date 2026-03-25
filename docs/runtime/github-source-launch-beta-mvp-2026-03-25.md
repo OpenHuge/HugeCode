@@ -77,6 +77,7 @@ The desktop-side changes in this slice are limited to support the Phase 1 loop:
 - GitHub source launches now fail earlier during `prepare_v2`, before execution begins, instead of relying on a thin start-only path.
 - Electron restored session state now de-duplicates repeated sessions by session id and workspace fingerprint during startup hydration.
 - `pnpm test:e2e:smoke` now applies a higher default runtime-ready and web-server startup budget for the `smoke` category so cold Rust runtime compiles do not routinely fail the beta smoke lane.
+- `scripts/run-e2e-category.mjs` now prewarms `code-runtime-service-rs` before smoke runs by default, and before CI-backed e2e runs unless explicitly disabled, so cold-cache compile variance is reduced before the runtime readiness budget starts counting.
 - No new desktop-only product surface, platform-specific workflow, or independent shell roadmap was added in this slice.
 
 ## Validation And Smoke Results
