@@ -3,10 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { StatusBadge } from "../../../design-system";
 import { distributedTaskGraph } from "../../../application/runtime/ports/tauriThreads";
 import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/tauriRuntime";
-import {
-  cancelRuntimeJob,
-  interveneRuntimeJob,
-} from "../../../application/runtime/ports/tauriRuntimeJobs";
+import { cancelRuntimeJob } from "../../../application/runtime/ports/tauriRuntimeJobs";
 import type { TurnPlan } from "../../../types";
 import type { ResolvedPlanArtifact } from "../../messages/utils/planArtifact";
 import {
@@ -242,13 +239,17 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
 
   const graph = distributedGraphSnapshot ?? plan?.distributedGraph ?? null;
   const graphId = plan?.distributedGraph?.graphId?.trim() ?? "";
-  const refreshDistributedGraph = useCallback(async () => {
-    if (!graphId) {
-      return;
-    }
-    const nextSnapshot = await readDistributedTaskGraphSnapshot(graphId);
-    setDistributedGraphSnapshot(nextSnapshot);
-  }, [graphId, readDistributedTaskGraphSnapshot]);
+  const refreshDistributedGraph = useCallback(
+    async (taskIdOverride?: string) => {
+      const refreshTaskId = taskIdOverride?.trim() || graphId;
+      if (!refreshTaskId) {
+        return;
+      }
+      const nextSnapshot = await readDistributedTaskGraphSnapshot(refreshTaskId);
+      setDistributedGraphSnapshot(nextSnapshot);
+    },
+    [graphId, readDistributedTaskGraphSnapshot]
+  );
 
   const interruptTasks = useCallback(
     async (taskIds: string[]) => {
@@ -294,23 +295,6 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
       await interruptTasks(subtreeTaskIds.length > 0 ? subtreeTaskIds : [nodeId]);
     },
     [graph, interruptTasks]
-  );
-
-  const handleRetryNode = useCallback(
-    async (nodeId: string) => {
-      const ack = await interveneRuntimeJob({
-        runId: nodeId,
-        action: "retry",
-        reason: "ui:distributed_control_retry",
-      });
-      if (!ack.accepted) {
-        throw new Error(`Runtime declined retry for node '${nodeId}'.`);
-      }
-      const refreshTaskId = graphId || ack.spawnedRunId || nodeId;
-      const nextSnapshot = await readDistributedTaskGraphSnapshot(refreshTaskId);
-      setDistributedGraphSnapshot(nextSnapshot);
-    },
-    [graphId, readDistributedTaskGraphSnapshot]
   );
 
   const progress = plan ? formatProgress(plan) : "";
@@ -393,9 +377,10 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
         graph={distributedGraphCapabilityEnabled ? graph : null}
         capabilityEnabled={distributedGraphCapabilityEnabled}
         actionsEnabled={distributedGraphActionsEnabled}
+        retryEnabled={distributedGraphRetryEnabled}
         disabledReason={disabledReason}
         diagnosticsMessage={distributedDiagnosticsMessage}
-        onRetryNode={distributedGraphRetryEnabled ? handleRetryNode : undefined}
+        onRefreshGraph={refreshDistributedGraph}
         onInterruptNode={distributedGraphInterruptEnabled ? handleInterruptNode : undefined}
         onInterruptSubtree={distributedGraphInterruptEnabled ? handleInterruptSubtree : undefined}
       />

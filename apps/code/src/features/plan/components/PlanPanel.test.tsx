@@ -4,10 +4,7 @@ import { CODE_RUNTIME_RPC_METHODS } from "@ku0/code-runtime-host-contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { distributedTaskGraph } from "../../../application/runtime/ports/tauriThreads";
 import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/tauriRuntime";
-import {
-  cancelRuntimeJob,
-  interveneRuntimeJob,
-} from "../../../application/runtime/ports/tauriRuntimeJobs";
+import { cancelRuntimeJob } from "../../../application/runtime/ports/tauriRuntimeJobs";
 import { PlanPanel } from "./PlanPanel";
 
 vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
@@ -20,7 +17,6 @@ vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
 
 vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
   cancelRuntimeJob: vi.fn(),
-  interveneRuntimeJob: vi.fn(),
 }));
 
 vi.mock("../../../application/runtime/ports/tauriAppSettings", () => ({
@@ -32,20 +28,23 @@ vi.mock("./DistributedTaskGraphPanel", () => ({
     capabilityEnabled,
     graph,
     actionsEnabled,
+    retryEnabled,
     onInterruptNode,
-    onRetryNode,
   }: {
     capabilityEnabled: boolean;
     graph: unknown;
     actionsEnabled?: boolean;
+    retryEnabled?: boolean;
     onInterruptNode?: (nodeId: string) => Promise<void>;
-    onRetryNode?: (nodeId: string) => Promise<void>;
   }) =>
     capabilityEnabled ? (
       <div>
         <div data-testid="distributed-graph-slot">{graph ? "graph-present" : "graph-empty"}</div>
         <div data-testid="distributed-graph-actions">
           {actionsEnabled ? "actions-enabled" : "actions-disabled"}
+        </div>
+        <div data-testid="distributed-graph-retry">
+          {retryEnabled ? "retry-enabled" : "retry-disabled"}
         </div>
         <button
           type="button"
@@ -55,14 +54,6 @@ vi.mock("./DistributedTaskGraphPanel", () => ({
         >
           interrupt-node-1
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            void onRetryNode?.("task-node-1");
-          }}
-        >
-          retry-node-1
-        </button>
       </div>
     ) : null,
 }));
@@ -70,7 +61,6 @@ vi.mock("./DistributedTaskGraphPanel", () => ({
 const getRuntimeCapabilitiesSummaryMock = vi.mocked(getRuntimeCapabilitiesSummary);
 const distributedTaskGraphMock = vi.mocked(distributedTaskGraph);
 const cancelRuntimeJobMock = vi.mocked(cancelRuntimeJob);
-const interveneRuntimeJobMock = vi.mocked(interveneRuntimeJob);
 
 describe("PlanPanel", () => {
   afterEach(() => {
@@ -92,15 +82,6 @@ describe("PlanPanel", () => {
       runId: "task-node-1",
       status: "interrupted",
       message: "ok",
-    });
-    interveneRuntimeJobMock.mockResolvedValue({
-      accepted: true,
-      action: "retry",
-      runId: "task-node-1",
-      status: "queued",
-      outcome: "spawned",
-      spawnedRunId: "task-node-retry-1",
-      checkpointId: null,
     });
   });
 
@@ -294,7 +275,7 @@ describe("PlanPanel", () => {
     });
   });
 
-  it("routes retry controls through runtime intervention when retry capability is available", async () => {
+  it("exposes retry capability to the graph surface when runtime intervention is available", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
       mode: "tauri",
       methods: [
@@ -323,23 +304,7 @@ describe("PlanPanel", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("distributed-graph-actions")).toBeTruthy();
-    });
-
-    fireEvent.click(screen.getByText("retry-node-1"));
-
-    await waitFor(() => {
-      expect(interveneRuntimeJobMock).toHaveBeenCalledWith({
-        runId: "task-node-1",
-        action: "retry",
-        reason: "ui:distributed_control_retry",
-      });
-    });
-    await waitFor(() => {
-      expect(distributedTaskGraphMock).toHaveBeenCalledWith({
-        taskId: "task-root-1",
-        includeDiagnostics: false,
-      });
+      expect(screen.getByTestId("distributed-graph-retry").textContent).toBe("retry-enabled");
     });
   });
 
