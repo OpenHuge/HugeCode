@@ -114,6 +114,6 @@ Linux desktop builds remain manual-update only.
 ## macOS Arm64 Packaging
 
 - HugeCode disables Forge's fallback `codesign --deep` fuse re-sign path for unsigned Apple Silicon builds.
-- Forge still flips package-time fuses, but post-package arm64 bundles are repaired with an explicit `codesign` pass that signs the `Electron Framework` executable first and then the `.app` bundle.
-- HugeCode verifies the repaired bundle with `codesign --verify --deep --strict` before the staged Forge output is accepted.
-- This keeps unsigned Apple Silicon smoke builds deterministic on GitHub macOS arm64 runners without pretending to be the final notarized signing path.
+- Unsigned CI smoke builds stay unsigned after fuse flipping; HugeCode does not attempt a fake post-package ad-hoc re-sign path on Apple Silicon.
+- Real macOS signing remains an explicit release concern driven by `packagerConfig.osxSign` and proper Apple credentials, not by CI-only repair hooks.
+- This keeps Apple Silicon smoke builds deterministic on GitHub macOS arm64 runners without pretending to emulate the final notarized release path.

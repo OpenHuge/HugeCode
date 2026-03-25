@@ -3,7 +3,6 @@ const FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES = [
   "@electron-forge/maker-deb",
   "@electron-forge/plugin-fuses",
   "@electron/fuses",
-  "@electron/osx-sign",
 ];
 
 function isStageInstallableVersion(version) {

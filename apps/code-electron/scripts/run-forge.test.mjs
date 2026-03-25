@@ -92,10 +92,15 @@ describe("createForgeExecutionEnv", () => {
 });
 
 describe("forge stage dependencies", () => {
-  it("keeps darwin ad-hoc signing support available inside the staged package", async () => {
+  it("keeps only forge config-time dependencies in the staged package", async () => {
     const { FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES } = await import("./forge-stage-package.mjs");
 
-    expect(FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES).toContain("@electron/osx-sign");
+    expect(FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES).toEqual([
+      "electron",
+      "@electron-forge/maker-deb",
+      "@electron-forge/plugin-fuses",
+      "@electron/fuses",
+    ]);
   });
 });
 
