@@ -6,7 +6,6 @@ import {
   installRuntimeExtensionWithFallback,
   listRuntimeExtensionRegistrySourcesWithFallback,
   listRuntimeExtensionToolsWithFallback,
-  listRuntimeExtensionUiAppsWithFallback,
   listRuntimeExtensionsWithFallback,
   readRuntimeExtensionHealthWithFallback,
   readRuntimeExtensionResourceWithFallback,
@@ -90,7 +89,7 @@ describe("runtimeClientExtensions", () => {
     ).resolves.toBe(true);
   });
 
-  it("routes registry, permissions, health, ui apps, tools, and resources through v2 methods", async () => {
+  it("routes registry, permissions, health, tools, and resources through v2 methods", async () => {
     const extension = createExtensionRecord({
       uiApps: [{ appId: "app-1", title: "App One", route: "/extensions/app-one" }],
     });
@@ -138,11 +137,6 @@ describe("runtimeClientExtensions", () => {
         warnings: [],
         checkedAt: 123,
       })),
-      extensionUiAppsListV2: vi.fn(async () => ({
-        workspaceId: "ws-1",
-        extensionId: "ext-1",
-        apps: extension.uiApps,
-      })),
       extensionToolsListV2: vi.fn(async () => [tool]),
       extensionResourceReadV2: vi.fn(async () => resource),
     });
@@ -182,16 +176,6 @@ describe("runtimeClientExtensions", () => {
       healthy: true,
       warnings: [],
       checkedAt: 123,
-    });
-    await expect(
-      listRuntimeExtensionUiAppsWithFallback(client, {
-        workspaceId: "ws-1",
-        extensionId: "ext-1",
-      })
-    ).resolves.toEqual({
-      workspaceId: "ws-1",
-      extensionId: "ext-1",
-      apps: extension.uiApps,
     });
     await expect(
       listRuntimeExtensionToolsWithFallback(client, {

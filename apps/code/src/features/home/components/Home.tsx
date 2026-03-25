@@ -22,7 +22,6 @@ import { StatusBadge } from "../../../design-system";
 import { WorkspaceHeaderAction } from "../../../design-system";
 import type {
   AccessMode,
-  AppMention,
   ApprovalRequest,
   CollaborationModeOption,
   ComposerExecutionMode,
@@ -95,7 +94,6 @@ type PendingHomeSubmit = {
   workspaceId: string;
   text: string;
   images: string[];
-  appMentions?: AppMention[];
 };
 
 type HomeProps = {
@@ -128,27 +126,17 @@ type HomeProps = {
     runId?: string | null,
     reviewPackId?: string | null
   ) => void;
-  onSend?: (
-    text: string,
-    images: string[],
-    appMentions?: AppMention[]
-  ) => void | false | Promise<void | false>;
-  onQueue?: (
-    text: string,
-    images: string[],
-    appMentions?: AppMention[]
-  ) => void | false | Promise<void | false>;
+  onSend?: (text: string, images: string[]) => void | false | Promise<void | false>;
+  onQueue?: (text: string, images: string[]) => void | false | Promise<void | false>;
   onSendToWorkspace?: (
     workspaceId: string,
     text: string,
-    images: string[],
-    appMentions?: AppMention[]
+    images: string[]
   ) => void | false | Promise<void | false>;
   onQueueToWorkspace?: (
     workspaceId: string,
     text: string,
-    images: string[],
-    appMentions?: AppMention[]
+    images: string[]
   ) => void | false | Promise<void | false>;
   workspaces?: WorkspaceOption[];
   activeWorkspaceId?: string | null;
@@ -510,27 +498,20 @@ export function Home({
     }
     activePendingSubmitRef.current = nextSubmit.id;
     const run = nextSubmit.mode === "queue" ? onQueue : onSend;
-    void Promise.resolve(run(nextSubmit.text, nextSubmit.images, nextSubmit.appMentions)).finally(
-      () => {
-        setPendingHomeSubmits((current) => {
-          if (current[0]?.id === nextSubmit.id) {
-            return current.slice(1);
-          }
-          return current.filter((entry) => entry.id !== nextSubmit.id);
-        });
-        if (activePendingSubmitRef.current === nextSubmit.id) {
-          activePendingSubmitRef.current = null;
+    void Promise.resolve(run(nextSubmit.text, nextSubmit.images)).finally(() => {
+      setPendingHomeSubmits((current) => {
+        if (current[0]?.id === nextSubmit.id) {
+          return current.slice(1);
         }
+        return current.filter((entry) => entry.id !== nextSubmit.id);
+      });
+      if (activePendingSubmitRef.current === nextSubmit.id) {
+        activePendingSubmitRef.current = null;
       }
-    );
+    });
   }, [activeWorkspaceId, onQueue, onSend, pendingHomeSubmits]);
 
-  const handleHomeSubmit = (
-    mode: "send" | "queue",
-    text: string,
-    images: string[],
-    appMentions?: AppMention[]
-  ) => {
+  const handleHomeSubmit = (mode: "send" | "queue", text: string, images: string[]) => {
     if (isReviewSlashCommand(text) && detectRuntimeMode() !== "tauri") {
       pushErrorToast({
         title: "Desktop review only",
@@ -549,7 +530,7 @@ export function Home({
         : (onSendToWorkspace ?? null);
     if (activeWorkspaceId !== targetWorkspaceId && directRun) {
       onSelectWorkspace(targetWorkspaceId);
-      void directRun(targetWorkspaceId, text, images, appMentions);
+      void directRun(targetWorkspaceId, text, images);
       return;
     }
     const nextSubmit: PendingHomeSubmit = {
@@ -558,7 +539,6 @@ export function Home({
       workspaceId: targetWorkspaceId,
       text,
       images: [...images],
-      appMentions,
     };
     if (activeWorkspaceId !== targetWorkspaceId || pendingHomeSubmits.length > 0) {
       setPendingHomeSubmits((current) => [...current, nextSubmit]);
@@ -568,7 +548,7 @@ export function Home({
       return;
     }
     const run = mode === "queue" ? onQueue : onSend;
-    void run(text, images, appMentions);
+    void run(text, images);
   };
 
   const handleSelectHomeWorkspace = (workspaceId: string) => {
@@ -834,12 +814,8 @@ export function Home({
         >
           <Composer
             variant="home"
-            onSend={(text, images, appMentions) =>
-              handleHomeSubmit("send", text, images, appMentions)
-            }
-            onQueue={(text, images, appMentions) =>
-              handleHomeSubmit("queue", text, images, appMentions)
-            }
+            onSend={(text, images) => handleHomeSubmit("send", text, images)}
+            onQueue={(text, images) => handleHomeSubmit("queue", text, images)}
             onStop={() => undefined}
             canStop={false}
             disabled={false}

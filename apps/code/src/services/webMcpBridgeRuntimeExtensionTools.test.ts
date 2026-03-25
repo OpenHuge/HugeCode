@@ -43,10 +43,6 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
       warnings: [],
       checkedAt: 1,
     }));
-    const listRuntimeExtensionUiApps = vi.fn(async () => ({
-      workspaceId: "ws-1",
-      apps: [{ appId: "app-1", title: "App One", route: "/extensions/app-one" }],
-    }));
     const tools = buildRuntimeExtensionTools({
       snapshot: createAgentCommandCenterSnapshot(),
       runtimeControl: {
@@ -67,7 +63,6 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
         evaluateRuntimeExtensionPermissions,
         readRuntimeExtensionResource: vi.fn(async () => null),
         readRuntimeExtensionHealth,
-        listRuntimeExtensionUiApps,
         getRuntimeExtensionsConfig: vi.fn(async () => ({ extensions: [], warnings: [] })),
       },
       requireUserApproval: true,
@@ -92,7 +87,6 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
       "evaluate-runtime-extension-permissions",
       "read-runtime-extension-resource",
       "get-runtime-extension-health",
-      "list-runtime-extension-ui-apps",
       "get-runtime-extensions-config",
     ]);
 
@@ -181,20 +175,6 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
       ok: true,
       message: "Runtime extension health retrieved.",
     });
-
-    const uiAppsTool = tools.find((tool) => tool.name === "list-runtime-extension-ui-apps");
-    const uiAppsResponse = await uiAppsTool?.execute({}, null);
-    expect(listRuntimeExtensionUiApps).toHaveBeenCalledWith({
-      workspaceId: "ws-1",
-      extensionId: null,
-    });
-    expect(uiAppsResponse).toMatchObject({
-      ok: true,
-      message: "Runtime extension UI app descriptors retrieved.",
-      data: {
-        total: 1,
-      },
-    });
   });
 
   it("raises resource-not-found when an extension resource is unavailable", async () => {
@@ -233,7 +213,6 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
           warnings: [],
           checkedAt: 1,
         })),
-        listRuntimeExtensionUiApps: vi.fn(async () => ({ workspaceId: "ws-1", apps: [] })),
         getRuntimeExtensionsConfig: vi.fn(async () => ({ extensions: [], warnings: [] })),
       },
       requireUserApproval: true,
@@ -306,7 +285,6 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
           warnings: [],
           checkedAt: 1,
         })),
-        listRuntimeExtensionUiApps: vi.fn(async () => ({ workspaceId: "ws-1", apps: [] })),
         getRuntimeExtensionsConfig: vi.fn(async () => ({ extensions: [], warnings: [] })),
       },
       requireUserApproval: false,

@@ -191,7 +191,6 @@ pub(super) const RPC_METHOD_REGISTRY: &[RpcMethodEntry] = &[
     RpcMethodEntry::new("code_extension_registry_sources_v2"),
     RpcMethodEntry::new("code_extension_permissions_evaluate_v2"),
     RpcMethodEntry::new("code_extension_health_read_v2"),
-    RpcMethodEntry::new("code_extension_ui_apps_list_v2"),
     RpcMethodEntry::new("code_extension_tools_list_v2"),
     RpcMethodEntry::new("code_extension_resource_read_v2"),
     RpcMethodEntry::new("code_session_export_v1"),
