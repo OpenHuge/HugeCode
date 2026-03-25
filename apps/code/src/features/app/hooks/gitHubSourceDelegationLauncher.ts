@@ -13,13 +13,25 @@ type GitHubSourceDelegationStartInput = {
   executionProfileId?: string | null;
   reviewProfileId?: string | null;
   validationPresetId?: string | null;
-  accessMode?: AccessMode | null;
+  accessMode?: AccessMode;
   preferredBackendIds?: string[] | null;
   taskSource: AgentTaskSourceSummary;
 };
 
 type GitHubSourceDelegationRuntimeControl = {
-  startTask: (input: RuntimeAgentTaskStartInput) => Promise<unknown>;
+  startTask: (input: {
+    workspaceId: string;
+    title: string;
+    instruction: string;
+    stepKind: "read";
+    missionBrief?: AgentTaskMissionBrief | null;
+    executionProfileId?: string | null;
+    reviewProfileId?: string | null;
+    validationPresetId?: string | null;
+    accessMode?: AccessMode;
+    preferredBackendIds?: string[];
+    taskSource: AgentTaskSourceSummary;
+  }) => Promise<unknown>;
 };
 
 export async function launchGitHubSourceDelegation(input: {
