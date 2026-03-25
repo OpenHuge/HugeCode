@@ -18,8 +18,9 @@ Treat the CI check names as explicit requests for missing local proof:
   local gate before opening the PR.
 - `PR Affected Checks / PR Affected Checks`
   This lane validates affected builds and tests. If it fails, the usual fix is
-  to reproduce with `pnpm test:affected` or the narrower suite that covers the
-  changed surface, not to rerun unrelated repo-wide validation.
+  to reproduce with `pnpm build:affected` and `pnpm test:affected` or the
+  narrower build/test commands that cover the changed surface, not to rerun
+  unrelated repo-wide validation.
 - `frontend_optimization / frontend_optimization`
   This is the expensive browser/build/startup proof. Treat failures here as a
   sign that the PR changed shell startup, runtime readiness, bundle-sensitive
@@ -55,6 +56,7 @@ Public workflow entrypoints currently include:
 - `.github/workflows/desktop.yml`
 - `.github/workflows/electron-beta.yml`
 - `.github/workflows/nightly.yml`
+- `.github/workflows/pr-auto-merge.yml`
 - `.github/workflows/release.yml`
 
 ## Rules
@@ -62,6 +64,7 @@ Public workflow entrypoints currently include:
 - Public workflows should compose reusable workflows instead of duplicating job definitions.
 - Internal or tooling-only lanes should not be reintroduced as product-facing workflow entrypoints.
 - Workflow docs must stay aligned with `scripts/check-workflow-governance.mjs`.
+- Required merge-queue checks must trigger on `merge_group` as well as `pull_request`, or queued PRs will block waiting for checks that never report.
 - Shared Node/pnpm bootstrap should stay lockfile-first: prefetch with `pnpm fetch --frozen-lockfile`, then install with `pnpm install --offline --frozen-lockfile` unless a workflow has a documented reason to require a different install path.
 - PR workflow gates may classify manifest-only dependency bumps before deciding whether expensive desktop or frontend lanes are needed; keep that classification script-backed and explicit instead of scattering ad hoc shell heuristics across workflows.
 - Low-risk Dependabot development-version bumps may skip the expensive affected build/test lane when the remaining quality, frontend, or desktop gates already cover the touched risk surface.
@@ -83,4 +86,5 @@ Public workflow entrypoints currently include:
 - Repo-governance-only pull requests should keep repository governance and required workflow visibility, but they should not wake up product-facing `Quality`, `frontend_optimization`, affected-build/test execution, or Tauri desktop builds when no product-owned surface changed.
 - Public desktop, electron, and CodeQL workflows may still trigger for workflow-governance edits so syntax and required check names stay visible, but workflow-only changes should fast-skip heavyweight packaging or language-analysis lanes unless the owned product or build-runtime surfaces changed.
 - Dependabot auto-merge must stay selective: only low-risk grouped updates such as `devcontainers-safe` and `github-actions-safe` should auto-enable merge after checks pass; runtime, frontend, and Rust dependency bumps remain manual-review lanes.
+- Auto-merge for non-Dependabot PRs should stay repo-branch-only and review-gated; the default path is "approved with no unresolved conversations means `gh pr merge --auto` is enabled unless the PR carries the opt-out `manual-merge` label."
 - npm Dependabot updates should prefer grouped low-risk development-version bumps to reduce queue pressure and redundant CI fan-out, while keeping higher-risk dependency changes in manual-review lanes.

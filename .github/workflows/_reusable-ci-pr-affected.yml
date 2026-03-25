@@ -14,7 +14,7 @@ on:
         required: false
         type: boolean
         default: true
-      base_ref:
+      diff_base:
         required: false
         type: string
         default: ""
@@ -38,48 +38,50 @@ jobs:
         if: ${{ !inputs.ci_required }}
         run: echo "Skipping affected build/tests for non-code changes."
 
-      - name: Ensure PR base ref is available
-        if: github.event_name == 'pull_request' && inputs.base_ref != ''
+      - name: Ensure diff base ref is available
+        if: startsWith(inputs.diff_base, 'origin/')
         run: |
+          base_ref="${{ inputs.diff_base }}"
+          base_ref="${base_ref#origin/}"
           git fetch --no-tags --prune --depth=1 origin \
-            +refs/heads/${{ inputs.base_ref }}:refs/remotes/origin/${{ inputs.base_ref }}
+            "+refs/heads/${base_ref}:refs/remotes/${{ inputs.diff_base }}"
 
       - id: scope
-        name: Classify PR scope
-        if: github.event_name == 'pull_request' && inputs.base_ref != ''
+        name: Classify affected scope
+        if: inputs.diff_base != ''
         env:
-          CI_SCOPE_BASE_REF: origin/${{ inputs.base_ref }}
+          CI_SCOPE_BASE_REF: ${{ inputs.diff_base }}
           CI_SCOPE_HEAD_REF: HEAD
         run: node scripts/classify-ci-change-scope.mjs
 
-      - name: Skip repo-governance-only PR
-        if: github.event_name == 'pull_request' && steps.scope.outputs.repo_governance_only == 'true'
-        run: echo "Skipping affected build/tests for repo-governance-only pull request changes."
+      - name: Skip repo-governance-only affected run
+        if: steps.scope.outputs.repo_governance_only == 'true'
+        run: echo "Skipping affected build/tests for repo-governance-only changes."
 
       - name: Skip affected build/tests for low-risk Dependabot update
         if: ${{ inputs.ci_required && inputs.skip_expensive_checks }}
         run: echo "Skipping affected build/tests for low-risk Dependabot dependency update."
 
       - uses: ./.github/actions/setup-node-pnpm
-        if: inputs.ci_required && !inputs.skip_expensive_checks && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true')
+        if: inputs.ci_required && !inputs.skip_expensive_checks && steps.scope.outputs.repo_governance_only != 'true'
         with:
           install-command: pnpm install --offline --frozen-lockfile
 
-      - if: inputs.ci_required && !inputs.skip_expensive_checks && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true')
+      - if: inputs.ci_required && !inputs.skip_expensive_checks && steps.scope.outputs.repo_governance_only != 'true'
         uses: ./.github/actions/cache-turbo
 
       - name: Build (affected)
-        if: inputs.ci_required && !inputs.skip_expensive_checks && inputs.affected_build_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true')
+        if: inputs.ci_required && !inputs.skip_expensive_checks && inputs.affected_build_required && steps.scope.outputs.repo_governance_only != 'true'
         env:
-          TURBO_BASE_REF: origin/${{ inputs.base_ref }}
+          TURBO_BASE_REF: ${{ inputs.diff_base }}
         run: pnpm build:affected -- --filter=!@ku0/code-tauri
 
       - name: Skip affected build for test-only scope
-        if: inputs.ci_required && !inputs.skip_expensive_checks && !inputs.affected_build_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true')
+        if: inputs.ci_required && !inputs.skip_expensive_checks && !inputs.affected_build_required && steps.scope.outputs.repo_governance_only != 'true'
         run: echo "Skipping affected build because the PR only changes tests, fixtures, stories, or markdown-like frontend surfaces."
 
       - name: Tests (affected)
-        if: inputs.ci_required && !inputs.skip_expensive_checks && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true')
+        if: inputs.ci_required && !inputs.skip_expensive_checks && steps.scope.outputs.repo_governance_only != 'true'
         env:
-          TURBO_BASE_REF: origin/${{ inputs.base_ref }}
+          TURBO_BASE_REF: ${{ inputs.diff_base }}
         run: pnpm test:affected -- --filter=!@ku0/code-tauri
