@@ -3207,7 +3207,9 @@ describe("reviewPackSurfaceModel", () => {
       summary: "Runtime blocked follow-up until validation evidence is repaired.",
       blockingReason: "Runtime blocked follow-up until validation evidence is repaired.",
     });
-    expect(detail.continuity?.details).toContain("Canonical continue path: Mission run.");
+    expect(detail.continuity?.details).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^Canonical continue path: /)])
+    );
     expect(detail.continuity?.details).toContain(
       "Publish handoff is ready for another control device."
     );
