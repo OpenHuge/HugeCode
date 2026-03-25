@@ -312,6 +312,7 @@ fn build_guidance_stack(
     task_source: Option<&AgentTaskSourceSummary>,
     repository_defaults: &RepositoryExecutionResolvedDefaults,
     missing_context: &[String],
+    has_explicit_instruction: bool,
 ) -> Value {
     let mut layers = Vec::new();
     if workspace_context.has_agents_md {
@@ -374,7 +375,30 @@ fn build_guidance_stack(
             "skillIds": []
         }));
     }
-    if !missing_context.is_empty() {
+    if let Some(review_profile) = repository_defaults.review_profile.as_ref() {
+        layers.push(json!({
+            "id": "review-profile-skills",
+            "scope": "review_profile",
+            "summary": format!("Review profile {} contributes reusable review skills.", review_profile.label),
+            "source": review_profile.id,
+            "priority": 60,
+            "instructions": [],
+            "skillIds": review_profile.allowed_skill_ids
+        }));
+    }
+    if has_explicit_instruction {
+        layers.push(json!({
+            "id": "launch-guidance",
+            "scope": "launch",
+            "summary": "The explicit task instruction is the highest-precedence launch guidance.",
+            "source": "launch_instruction",
+            "priority": 100,
+            "instructions": [
+                "Favor the operator's explicit objective when guidance layers conflict."
+            ],
+            "skillIds": []
+        }));
+    } else if !missing_context.is_empty() {
         layers.push(json!({
             "id": "launch-guidance",
             "scope": "launch",
@@ -387,8 +411,15 @@ fn build_guidance_stack(
             "skillIds": []
         }));
     }
-    let precedence = layers
-        .iter()
+    let mut precedence_layers = layers.iter().collect::<Vec<_>>();
+    precedence_layers.sort_by(|left, right| {
+        right
+            .get("priority")
+            .and_then(Value::as_i64)
+            .cmp(&left.get("priority").and_then(Value::as_i64))
+    });
+    let precedence = precedence_layers
+        .into_iter()
         .filter_map(|layer| layer.get("scope").and_then(Value::as_str))
         .collect::<Vec<_>>();
     json!({
@@ -1123,6 +1154,7 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
             task_source.as_ref(),
             &repository_defaults,
             missing_context.as_slice(),
+            objective.is_some(),
         ),
         "triageSummary": triage_summary,
         "delegationContract": build_delegation_contract(
@@ -1414,5 +1446,71 @@ mod tests {
             json!(["pnpm validate:fast", "pnpm test:component"])
         );
         assert_eq!(plan["required"], json!(true));
+    }
+
+    #[test]
+    fn build_guidance_stack_prioritizes_explicit_launch_and_review_profile_skills() {
+        let guidance = build_guidance_stack(
+            &WorkspaceLaunchContext {
+                has_agents_md: true,
+                ..WorkspaceLaunchContext::default()
+            },
+            Some(&AgentTaskSourceSummary {
+                kind: "github_issue".to_string(),
+                label: None,
+                short_label: None,
+                title: Some("Fix governed execution guidance".to_string()),
+                reference: None,
+                url: None,
+                issue_number: Some(94),
+                pull_request_number: None,
+                repo: None,
+                workspace_id: Some("ws-1".to_string()),
+                workspace_root: None,
+                external_id: None,
+                canonical_url: None,
+                thread_id: None,
+                request_id: None,
+                source_task_id: None,
+                source_run_id: None,
+            }),
+            &RepositoryExecutionResolvedDefaults {
+                source_mapping_kind: Some("github_issue".to_string()),
+                review_profile_id: Some("issue-review".to_string()),
+                repo_instructions: vec!["Prefer repo-owned context truth.".to_string()],
+                repo_skill_ids: vec!["repo-baseline".to_string()],
+                source_instructions: vec!["Treat GitHub issues as governed triage intake.".to_string()],
+                source_skill_ids: vec!["issue-triage".to_string()],
+                review_profile: Some(
+                    crate::repository_execution_contract::RepositoryExecutionResolvedReviewProfile {
+                        id: "issue-review".to_string(),
+                        label: "Issue Review".to_string(),
+                        allowed_skill_ids: vec!["review-agent".to_string(), "repo-policy-check".to_string()],
+                    }
+                ),
+                ..RepositoryExecutionResolvedDefaults::default()
+            },
+            &[],
+            true,
+        );
+
+        assert_eq!(
+            guidance["precedence"],
+            json!(["launch", "review_profile", "source", "review_profile", "repo"])
+        );
+        assert_eq!(
+            guidance["layers"]
+                .as_array()
+                .and_then(|layers| layers.iter().find(|layer| layer["id"] == "review-profile-skills"))
+                .and_then(|layer| layer.get("skillIds")),
+            Some(&json!(["review-agent", "repo-policy-check"]))
+        );
+        assert_eq!(
+            guidance["layers"]
+                .as_array()
+                .and_then(|layers| layers.iter().find(|layer| layer["id"] == "launch-guidance"))
+                .and_then(|layer| layer.get("source")),
+            Some(&json!("launch_instruction"))
+        );
     }
 }

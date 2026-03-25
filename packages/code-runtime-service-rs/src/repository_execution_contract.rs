@@ -14,6 +14,13 @@ pub(crate) struct RepositoryExecutionExplicitLaunchInput {
 }
 
 #[derive(Clone, Debug, Default)]
+pub(crate) struct RepositoryExecutionResolvedReviewProfile {
+    pub(crate) id: String,
+    pub(crate) label: String,
+    pub(crate) allowed_skill_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default)]
 pub(crate) struct RepositoryExecutionResolvedDefaults {
     #[allow(dead_code)]
     pub(crate) source_mapping_kind: Option<String>,
@@ -27,6 +34,7 @@ pub(crate) struct RepositoryExecutionResolvedDefaults {
     pub(crate) repo_skill_ids: Vec<String>,
     pub(crate) source_instructions: Vec<String>,
     pub(crate) source_skill_ids: Vec<String>,
+    pub(crate) review_profile: Option<RepositoryExecutionResolvedReviewProfile>,
     pub(crate) triage_owner: Option<String>,
     pub(crate) triage_priority: Option<String>,
     pub(crate) triage_risk_level: Option<String>,
@@ -391,6 +399,17 @@ fn resolve_repository_execution_defaults_from_contract(
         .or_else(|| source_mapping.and_then(|policy| policy.review_profile_id.clone()))
         .or_else(|| contract.defaults.review_profile_id.clone())
         .or_else(|| contract.default_review_profile_id.clone());
+    let review_profile = review_profile_id.as_deref().and_then(|review_profile_id| {
+        contract
+            .review_profiles
+            .iter()
+            .find(|profile| profile.id == review_profile_id)
+            .map(|profile| RepositoryExecutionResolvedReviewProfile {
+                id: profile.id.clone(),
+                label: profile.label.clone(),
+                allowed_skill_ids: profile.allowed_skill_ids.clone(),
+            })
+    });
     let review_profile_validation_preset =
         review_profile_id.as_deref().and_then(|review_profile_id| {
             contract
@@ -439,6 +458,7 @@ fn resolve_repository_execution_defaults_from_contract(
         source_skill_ids: source_mapping
             .map(|policy| policy.guidance.skill_ids.clone())
             .unwrap_or_default(),
+        review_profile,
         triage_owner: source_mapping
             .and_then(|policy| policy.triage.owner.clone())
             .or_else(|| contract.defaults.triage.owner.clone()),
@@ -614,6 +634,16 @@ mod tests {
             Some("autonomous-delegate")
         );
         assert_eq!(resolved.review_profile_id.as_deref(), Some("issue-review"));
+        assert_eq!(
+            resolved
+                .review_profile
+                .as_ref()
+                .map(|profile| profile.allowed_skill_ids.clone()),
+            Some(vec![
+                "review-agent".to_string(),
+                "repo-policy-check".to_string()
+            ])
+        );
         assert_eq!(resolved.validation_preset_id.as_deref(), Some("standard"));
         assert_eq!(resolved.access_mode.as_deref(), Some("full-access"));
         assert_eq!(
@@ -721,6 +751,13 @@ mod tests {
         assert_eq!(
             resolved.review_profile_id.as_deref(),
             Some("schedule-review")
+        );
+        assert_eq!(
+            resolved
+                .review_profile
+                .as_ref()
+                .map(|profile| profile.label.as_str()),
+            Some("Schedule review")
         );
         assert_eq!(
             resolved.validation_preset_id.as_deref(),
