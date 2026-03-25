@@ -59,6 +59,9 @@ describe("run-forge helpers", () => {
       })
     ).toEqual({
       name: "hugecode",
+      author: "OpenHuge",
+      description: "HugeCode beta desktop shell",
+      productDescription: "HugeCode beta desktop shell",
       productName: "HugeCode",
       version: "1.2.3",
       type: "module",
@@ -74,6 +77,7 @@ describe("run-forge helpers", () => {
         "update-electron-app": "3.1.2",
       },
       devDependencies: {
+        "@electron-forge/maker-deb": "7.11.1",
         electron: "41.0.3",
       },
     });
