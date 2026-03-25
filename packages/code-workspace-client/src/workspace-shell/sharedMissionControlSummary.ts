@@ -5,6 +5,7 @@ import type {
   HugeCodeMissionControlSummary as SharedMissionControlSummary,
   HugeCodeReviewQueueItem as SharedReviewQueueItem,
 } from "@ku0/code-runtime-host-contract";
+import { resolveRuntimeContinuation } from "@ku0/code-runtime-host-contract";
 
 export type {
   SharedMissionActivityItem,
@@ -54,6 +55,37 @@ function hasRecoveryPath(run: HugeCodeMissionControlSnapshot["runs"][number]): b
 function analyzeRunContinuitySignal(
   run: HugeCodeMissionControlSnapshot["runs"][number]
 ): keyof ContinuitySignalCounts | null {
+  const continuation = resolveRuntimeContinuation({
+    workspaceId: run.workspaceId,
+    taskId: run.taskId,
+    runId: run.id,
+    reviewPackId: run.reviewPackId ?? null,
+    state: run.state,
+    checkpoint: run.checkpoint ?? null,
+    missionLinkage: run.missionLinkage ?? null,
+    actionability: run.actionability ?? null,
+    publishHandoff: run.publishHandoff ?? null,
+    takeoverBundle: run.takeoverBundle ?? null,
+    sessionBoundary: run.sessionBoundary ?? null,
+    continuation: run.continuation ?? null,
+  });
+  if (continuation) {
+    if (continuation.state === "blocked") {
+      return "blockedCount";
+    }
+    if (continuation.pathKind === "resume" && continuation.state === "ready") {
+      return "readyResumeCount";
+    }
+    if (continuation.pathKind === "handoff" && continuation.state === "ready") {
+      return "readyHandoffCount";
+    }
+    if (continuation.pathKind === "review" && continuation.state === "ready") {
+      return "readyReviewCount";
+    }
+    if (continuation.state === "attention" || continuation.state === "missing") {
+      return "attentionCount";
+    }
+  }
   const takeoverBundle = run.takeoverBundle;
   if (takeoverBundle) {
     if (takeoverBundle.state === "blocked") {

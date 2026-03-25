@@ -1,13 +1,16 @@
 import type {
   HugeCodeCheckpointSummary,
+  HugeCodeContinuationSummary,
   HugeCodeMissionControlSnapshot,
   HugeCodeMissionControlSummary,
   HugeCodeMissionLinkageSummary,
+  HugeCodeNextOperatorAction,
   HugeCodePlacementLifecycleState,
   HugeCodePlacementResolutionSource,
   HugeCodePublishHandoffReference,
   HugeCodeReviewActionabilitySummary,
   HugeCodeReviewPackSummary,
+  HugeCodeRuntimeSessionBoundary,
   HugeCodeRunSummary,
   HugeCodeTakeoverBundle,
   HugeCodeTaskMode,
@@ -835,6 +838,9 @@ export type AgentTaskSummary = {
   reviewRunId?: string | null;
   skillUsage?: RuntimeSkillUsageSummary[] | null;
   autofixCandidate?: RuntimeAutofixCandidate | null;
+  sessionBoundary?: HugeCodeRuntimeSessionBoundary | null;
+  continuation?: HugeCodeContinuationSummary | null;
+  nextOperatorAction?: HugeCodeNextOperatorAction | null;
   takeoverBundle?: RuntimeTakeoverBundle | null;
   executionGraph?: RuntimeExecutionGraphSummary | null;
   backendId?: string | null;
@@ -3927,8 +3933,8 @@ export const CODE_RUNTIME_RPC_METHOD_LIST = Object.freeze(
   Object.values(CODE_RUNTIME_RPC_METHODS)
 ) as readonly CodeRuntimeRpcMethod[];
 
-export const CODE_RUNTIME_RPC_CONTRACT_VERSION = "2026-03-23" as const;
-export const CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT = "2026-03-23" as const;
+export const CODE_RUNTIME_RPC_CONTRACT_VERSION = "2026-03-25" as const;
+export const CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT = "2026-03-25" as const;
 export const CODE_RUNTIME_RPC_CAPABILITY_PROFILES = Object.freeze({
   FULL_RUNTIME: "full-runtime",
   DESKTOP_CORE: "desktop-core",
@@ -3981,6 +3987,7 @@ export const CODE_RUNTIME_RPC_FEATURES = Object.freeze([
   "runtime_acp_readiness_probe_v1",
   "runtime_review_actionability_v1",
   "runtime_review_linkage_v1",
+  "runtime_truth_contract_core_v1",
   "runtime_mission_control_summary_v1",
   "runtime_task_normalization_v1",
   "runtime_task_native_run_review_v1",
@@ -3999,8 +4006,8 @@ export const CODE_RUNTIME_RPC_FEATURES = Object.freeze([
   "runtime_codex_execpolicy_preflight_v1",
   "runtime_codex_unified_rpc_migration_v1",
   "runtime_host_deprecated",
-  "app_server_protocol_v2_2026_03_23",
-  "contract_frozen_2026_03_23",
+  "app_server_protocol_v2_2026_03_25",
+  "contract_frozen_2026_03_25",
 ]) as readonly string[];
 
 export const CODE_RUNTIME_RPC_TRANSPORTS = Object.freeze({

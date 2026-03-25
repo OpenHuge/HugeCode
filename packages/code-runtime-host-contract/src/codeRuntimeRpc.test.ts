@@ -128,6 +128,18 @@ describe("code runtime rpc compatibility helpers", () => {
       "reviewActionability",
       "review_actionability"
     );
+    expect(CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES).toHaveProperty(
+      "sessionBoundary",
+      "session_boundary"
+    );
+    expect(CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES).toHaveProperty(
+      "continuation",
+      "continuation"
+    );
+    expect(CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES).toHaveProperty(
+      "nextOperatorAction",
+      "next_operator_action"
+    );
     expect(CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES).toHaveProperty("trustTier", "trust_tier");
     expect(CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES).toHaveProperty(
       "dataSensitivity",
@@ -1064,6 +1076,90 @@ describe("code runtime rpc compatibility helpers", () => {
           actions: [],
         },
       },
+      sessionBoundary: {
+        workspaceId: "ws-1",
+        taskId: "task-1",
+        runId: "run-1",
+        missionTaskId: "task-1",
+        sessionKind: "run",
+        threadId: null,
+        requestId: null,
+        reviewPackId: "review-pack:task-1",
+        checkpointId: "checkpoint-1",
+        traceId: "trace-1",
+        navigationTarget: {
+          kind: "run",
+          workspaceId: "ws-1",
+          taskId: "task-1",
+          runId: "run-1",
+        },
+      },
+      continuation: {
+        state: "ready",
+        pathKind: "review",
+        source: "takeover_bundle",
+        summary: "Open Review Pack to continue.",
+        detail: "Open Review Pack to continue.",
+        recommendedAction: "Open Review Pack and continue from runtime truth.",
+        target: {
+          kind: "review_pack",
+          workspaceId: "ws-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:task-1",
+        },
+        reviewPackId: "review-pack:task-1",
+        reviewActionability: null,
+        sessionBoundary: {
+          workspaceId: "ws-1",
+          taskId: "task-1",
+          runId: "run-1",
+          missionTaskId: "task-1",
+          sessionKind: "run",
+          threadId: null,
+          requestId: null,
+          reviewPackId: "review-pack:task-1",
+          checkpointId: "checkpoint-1",
+          traceId: "trace-1",
+          navigationTarget: {
+            kind: "run",
+            workspaceId: "ws-1",
+            taskId: "task-1",
+            runId: "run-1",
+          },
+        },
+      },
+      nextOperatorAction: {
+        action: "open_review_pack",
+        label: "Open review",
+        detail: "Open Review Pack to continue.",
+        source: "continuation",
+        target: {
+          kind: "review_pack",
+          workspaceId: "ws-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:task-1",
+        },
+        sessionBoundary: {
+          workspaceId: "ws-1",
+          taskId: "task-1",
+          runId: "run-1",
+          missionTaskId: "task-1",
+          sessionKind: "run",
+          threadId: null,
+          requestId: null,
+          reviewPackId: "review-pack:task-1",
+          checkpointId: "checkpoint-1",
+          traceId: "trace-1",
+          navigationTarget: {
+            kind: "run",
+            workspaceId: "ws-1",
+            taskId: "task-1",
+            runId: "run-1",
+          },
+        },
+      },
     });
     const payloadRecord = runtimePayload as Record<string, unknown>;
 
@@ -1073,8 +1169,13 @@ describe("code runtime rpc compatibility helpers", () => {
     expect(payloadRecord.mission_linkage).toBe(runtimePayload.missionLinkage);
     expect(payloadRecord.reviewActionability).toBe(runtimePayload.reviewActionability);
     expect(payloadRecord.review_actionability).toBe(runtimePayload.reviewActionability);
+    expect(payloadRecord.sessionBoundary).toBe(runtimePayload.sessionBoundary);
+    expect(payloadRecord.session_boundary).toBe(runtimePayload.sessionBoundary);
+    expect(payloadRecord.continuation).toBe(runtimePayload.continuation);
     expect(payloadRecord.takeoverBundle).toBe(runtimePayload.takeoverBundle);
     expect(payloadRecord.takeover_bundle).toBe(runtimePayload.takeoverBundle);
+    expect(payloadRecord.nextOperatorAction).toBe(runtimePayload.nextOperatorAction);
+    expect(payloadRecord.next_operator_action).toBe(runtimePayload.nextOperatorAction);
   });
 });
 
@@ -1362,7 +1463,7 @@ describe("agent and oauth rpc methods", () => {
 
 describe("rpc capability constants", () => {
   it("exposes contract version", () => {
-    expect(CODE_RUNTIME_RPC_CONTRACT_VERSION).toBe("2026-03-23");
+    expect(CODE_RUNTIME_RPC_CONTRACT_VERSION).toBe("2026-03-25");
   });
 
   it("exposes required feature flags", () => {
@@ -1405,6 +1506,7 @@ describe("rpc capability constants", () => {
         "runtime_acp_readiness_probe_v1",
         "runtime_review_actionability_v1",
         "runtime_review_linkage_v1",
+        "runtime_truth_contract_core_v1",
         "runtime_fault_injection_test_v1",
         "oauth_chatgpt_auth_tokens_refresh_v1",
         "oauth_codex_login_control_v1",
@@ -1418,8 +1520,8 @@ describe("rpc capability constants", () => {
         "runtime_codex_execpolicy_preflight_v1",
         "runtime_codex_unified_rpc_migration_v1",
         "runtime_host_deprecated",
-        "app_server_protocol_v2_2026_03_23",
-        "contract_frozen_2026_03_23",
+        "app_server_protocol_v2_2026_03_25",
+        "contract_frozen_2026_03_25",
       ])
     );
   });

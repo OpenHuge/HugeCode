@@ -2,11 +2,13 @@ import type {
   AccessMode,
   AgentTaskRelaunchContext,
   AgentTaskSourceSummary,
+  HugeCodeContinuationSummary,
   HugeCodeMissionLinkageSummary,
   HugeCodePublishHandoffReference,
   HugeCodeReviewActionabilitySummary,
   HugeCodeTakeoverBundle,
 } from "@ku0/code-runtime-host-contract";
+import { resolveRuntimeContinuation } from "@ku0/code-runtime-host-contract";
 import { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
 import {
   formatRuntimeContinuationTruthSourceLabel,
@@ -273,16 +275,84 @@ function mapTakeoverStateToReviewContinuationState(
   return "missing";
 }
 
+function resolvePublishedContinuationPathLabel(
+  continuation: HugeCodeContinuationSummary,
+  fallbackLabel: ReviewContinuationActionabilitySummary["continuePathLabel"]
+): ReviewContinuationActionabilitySummary["continuePathLabel"] {
+  if (continuation.pathKind === "review") {
+    return "Review Pack";
+  }
+  if (continuation.target?.kind === "thread") {
+    return "Mission thread";
+  }
+  if (continuation.target?.kind === "run") {
+    return "Mission run";
+  }
+  if (continuation.target?.kind === "review_pack") {
+    return "Review Pack";
+  }
+  return fallbackLabel;
+}
+
 export function summarizeReviewContinuationActionability(input: {
   takeoverBundle?: HugeCodeTakeoverBundle | null;
   actionability?: HugeCodeReviewActionabilitySummary | null;
   missionLinkage?: HugeCodeMissionLinkageSummary | null;
   publishHandoff?: HugeCodePublishHandoffReference | null;
+  continuation?: import("@ku0/code-runtime-host-contract").HugeCodeContinuationSummary | null;
 }): ReviewContinuationActionabilitySummary {
-  const continuePathLabel = resolveContinuationPathLabel({
+  const publishedContinuation = resolveRuntimeContinuation({
+    takeoverBundle: input.takeoverBundle ?? null,
+    actionability: input.actionability ?? null,
+    missionLinkage: input.missionLinkage ?? null,
+    publishHandoff: input.publishHandoff ?? null,
+    continuation: input.continuation ?? null,
+    sessionBoundary: null,
+  });
+  const fallbackContinuePathLabel = resolveContinuationPathLabel({
     takeoverBundle: input.takeoverBundle ?? null,
     missionLinkage: input.missionLinkage ?? null,
   });
+  if (publishedContinuation) {
+    const continuePathLabel = resolvePublishedContinuationPathLabel(
+      publishedContinuation,
+      fallbackContinuePathLabel
+    );
+    const publishedSummary =
+      (publishedContinuation.pathKind === "review"
+        ? publishedContinuation.reviewActionability?.summary
+        : null) ?? publishedContinuation.summary;
+    const publishedDetail = publishedContinuation.detail ?? publishedSummary;
+    const details = [
+      publishedDetail,
+      `Canonical continue path: ${continuePathLabel}.`,
+      `Follow-up source: ${formatRuntimeContinuationTruthSourceLabel(publishedContinuation.source)}.`,
+    ];
+    if (input.missionLinkage?.summary && !details.includes(input.missionLinkage.summary)) {
+      details.push(input.missionLinkage.summary);
+    }
+    if (input.publishHandoff?.summary && !details.includes(input.publishHandoff.summary)) {
+      details.push(input.publishHandoff.summary);
+    }
+    const state =
+      publishedContinuation.state === "attention"
+        ? "degraded"
+        : publishedContinuation.state === "missing"
+          ? "missing"
+          : publishedContinuation.state;
+    const truthSourceLabel = formatRuntimeContinuationTruthSourceLabel(publishedContinuation.source);
+    return {
+      state,
+      summary: publishedSummary,
+      details,
+      blockingReason:
+        publishedContinuation.state === "blocked" ? publishedDetail : null,
+      recommendedAction: publishedContinuation.recommendedAction,
+      continuePathLabel,
+      truthSource: publishedContinuation.source,
+      truthSourceLabel,
+    };
+  }
   const actionability = resolvePreferredReviewActionability({
     takeoverBundle: input.takeoverBundle ?? null,
     actionability: input.actionability ?? null,
@@ -291,6 +361,7 @@ export function summarizeReviewContinuationActionability(input: {
     takeoverBundle: input.takeoverBundle ?? null,
     publishHandoff: input.publishHandoff ?? null,
   });
+  const continuePathLabel = fallbackContinuePathLabel;
   const truthSource = resolveContinuationTruthSource({
     takeoverBundle: input.takeoverBundle ?? null,
     actionability: input.actionability ?? null,

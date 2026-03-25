@@ -20,8 +20,8 @@ This directory is the canonical entrypoint for runtime transport, contract, and 
 - Native parity layer: `packages/native-runtime-host-contract`
 - Tauri bridge surface: `apps/code-tauri/src-tauri`
 - Current frozen contract baseline:
-  - `contractVersion = "2026-03-22"`
-  - `freezeEffectiveAt = "2026-03-22"`
+  - `contractVersion = "2026-03-25"`
+  - `freezeEffectiveAt = "2026-03-25"`
 - Runtime kernel v2 is now the preferred truth-first lifecycle for new run
   preparation, execution, and review work:
   - `code_runtime_run_prepare_v2`
@@ -52,6 +52,9 @@ This directory is the canonical entrypoint for runtime transport, contract, and 
   - `intervention`
   - `operatorState`
   - `nextAction`
+  - `sessionBoundary`
+  - `continuation`
+  - `nextOperatorAction`
   - `reviewDecision`
   - `publishHandoff`
   - `takeoverBundle`
@@ -111,6 +114,8 @@ Internal parity helpers such as `internal/runtime-policy-rs` may support tooling
   Migration-first borrowing blueprint for runtime truth, kernel projection, backend preference, and review continuation.
 - [runtime-takeover-bundle.md](./runtime-takeover-bundle.md)
   Canonical runtime-owned continuation object for post-launch operator takeover.
+- [runtime-truth-contract-freeze-2026-03-25.md](./runtime-truth-contract-freeze-2026-03-25.md)
+  Canonical freeze for session boundary, continuation precedence, and next-operator-action truth.
 - [spec/README.md](./spec/README.md)
   Current frozen JSON and Markdown runtime specs.
 - [runtime-truth-2026-03-17.md](./runtime-truth-2026-03-17.md)

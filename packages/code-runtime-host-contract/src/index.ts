@@ -1068,6 +1068,7 @@ export function parseCodeRuntimeHostEventEnvelope(
 export type * from "./codeRuntimeRpc.js";
 export type * from "./codeRuntimeRpcCompat.js";
 export type * from "./hugeCodeMissionControl.js";
+export type * from "./runtimeTruthCompat.js";
 export { HUGECODE_INTERVENTION_ACTIONS, HUGECODE_RUN_STATES } from "./hugeCodeMissionControl.js";
 export {
   buildCodeRuntimeRpcSpec,
@@ -1100,3 +1101,8 @@ export {
   listCodeRuntimeRpcMethodCandidates,
   resolveCodeRuntimeRpcMethod,
 } from "./codeRuntimeRpcCompat.js";
+export {
+  resolveRuntimeContinuation,
+  resolveRuntimeNextOperatorAction,
+  resolveRuntimeSessionBoundary,
+} from "./runtimeTruthCompat.js";
