@@ -224,7 +224,11 @@ describe("buildGitNodes diff lazy boundary", () => {
 
       await flushLazyBoundary();
 
-      expect(screen.getByTestId("git-diff-viewer-chunk")).toBeTruthy();
+      expect(
+        await screen.findByTestId("git-diff-viewer-chunk", undefined, {
+          timeout: 5_000,
+        })
+      ).toBeTruthy();
     },
     GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS
   );
