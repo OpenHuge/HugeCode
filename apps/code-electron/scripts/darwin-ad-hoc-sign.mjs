@@ -22,15 +22,15 @@ export function resolveDarwinAppBundlePath(packageOutputPath, appName = "HugeCod
 export async function resolveDarwinCodesignTargetPaths(appPath, dependencies = {}) {
   const accessImpl = dependencies.accessImpl ?? access;
   const normalizedAppPath = appPath.replaceAll("\\", "/");
-  const frameworkBinaryPath = `${normalizedAppPath}/Contents/Frameworks/Electron Framework.framework/Electron Framework`;
+  const frameworkBundlePath = `${normalizedAppPath}/Contents/Frameworks/Electron Framework.framework`;
 
   try {
-    await accessImpl(frameworkBinaryPath);
+    await accessImpl(frameworkBundlePath);
   } catch {
     return [normalizedAppPath];
   }
 
-  return [frameworkBinaryPath, normalizedAppPath];
+  return [frameworkBundlePath, normalizedAppPath];
 }
 
 async function runCodesign(arguments_, dependencies = {}) {

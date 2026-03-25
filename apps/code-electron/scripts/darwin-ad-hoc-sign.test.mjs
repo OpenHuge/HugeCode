@@ -47,9 +47,9 @@ describe("darwin ad-hoc signing helpers", () => {
     expect(resolveDarwinAppBundlePath("/tmp/HugeCode.app", "HugeCode")).toBe("/tmp/HugeCode.app");
   });
 
-  it("prefers signing the framework binary before the bundle when present", async () => {
+  it("prefers signing the framework bundle before the app bundle when present", async () => {
     const accessImpl = vi.fn(async (path) => {
-      if (path.endsWith("Electron Framework.framework/Electron Framework")) {
+      if (path.endsWith("Electron Framework.framework")) {
         return;
       }
       throw new Error("unexpected path");
@@ -60,7 +60,7 @@ describe("darwin ad-hoc signing helpers", () => {
         accessImpl,
       })
     ).resolves.toEqual([
-      "/tmp/HugeCode.app/Contents/Frameworks/Electron Framework.framework/Electron Framework",
+      "/tmp/HugeCode.app/Contents/Frameworks/Electron Framework.framework",
       "/tmp/HugeCode.app",
     ]);
   });
@@ -106,7 +106,7 @@ describe("darwin ad-hoc signing helpers", () => {
       "Re-signing packaged macOS arm64 app bundle: /tmp/HugeCode.app"
     );
     expect(logger.info).toHaveBeenCalledWith(
-      "Re-signing targets: /tmp/HugeCode.app/Contents/Frameworks/Electron Framework.framework/Electron Framework, /tmp/HugeCode.app"
+      "Re-signing targets: /tmp/HugeCode.app/Contents/Frameworks/Electron Framework.framework, /tmp/HugeCode.app"
     );
     expect(spawnImpl.mock.calls).toEqual([
       [
@@ -116,7 +116,7 @@ describe("darwin ad-hoc signing helpers", () => {
           "--sign",
           "-",
           "--timestamp=none",
-          "/tmp/HugeCode.app/Contents/Frameworks/Electron Framework.framework/Electron Framework",
+          "/tmp/HugeCode.app/Contents/Frameworks/Electron Framework.framework",
         ],
         {
           shell: false,
