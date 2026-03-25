@@ -4,7 +4,7 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import type { MissionControlProjection } from "./runtimeMissionControlFacade";
 import { buildRuntimeContinuationDescriptor } from "./runtimeContinuationTruth";
-import type { MissionNavigationTarget } from "./runtimeMissionControlSurfaceModel";
+import type { MissionNavigationTarget } from "./runtimeMissionNavigationTarget";
 
 type MissionOperatorActionInput = {
   reviewPack: HugeCodeReviewPackSummary | null;

@@ -14,6 +14,7 @@ import {
   resolveCheckpointHandoffLabel,
   resolveMissionOperatorAction,
 } from "./runtimeMissionControlOperatorAction";
+import type { MissionNavigationTarget } from "./runtimeMissionNavigationTarget";
 import { summarizeReviewContinuationActionability } from "./runtimeReviewContinuationFacade";
 import { resolveReviewIntelligenceSummary } from "./runtimeReviewIntelligenceSummary";
 import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
@@ -52,7 +53,7 @@ export function formatMissionOverviewStateLabel(state: MissionOverviewState): st
   }
 }
 
-export type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
+export type { MissionNavigationTarget } from "./runtimeMissionNavigationTarget";
 
 export type MissionOverviewCounts = {
   active: number;
