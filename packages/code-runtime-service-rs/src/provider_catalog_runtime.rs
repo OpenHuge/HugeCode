@@ -23,14 +23,13 @@ pub(super) async fn build_models_pool(ctx: &AppContext) -> Vec<Value> {
     let mut pool = Vec::new();
 
     for provider in RuntimeProvider::all() {
-        let available = provider_is_available(ctx, &compat_catalog, provider).await;
         pool.push(json!({
             "id": provider.default_model_id(),
             "displayName": provider_default_model_display_name(provider),
             "provider": provider.routed_provider(),
             "pool": provider.routed_pool(),
             "source": provider_default_model_source(provider),
-            "available": available,
+            "available": provider_is_available(ctx, &compat_catalog, provider),
             "supportsReasoning": true,
             "supportsVision": true,
             "reasoningEfforts": provider_reasoning_efforts(provider),
@@ -246,14 +245,14 @@ fn is_missing_compat_catalog_api_key_error(error: &str) -> bool {
     error == OPENAI_COMPAT_MISSING_API_KEY_ERROR
 }
 
-async fn provider_is_available(
+fn provider_is_available(
     ctx: &AppContext,
     compat_catalog: &CompatModelCatalog,
     provider: RuntimeProvider,
 ) -> bool {
-    provider_catalog_readiness_summary(ctx, compat_catalog, provider)
-        .await
-        .available
+    provider.has_api_key(&ctx.config)
+        || has_available_oauth_account(ctx, provider)
+        || compat_catalog.has_provider_models(provider)
 }
 
 async fn provider_catalog_readiness_summary(
