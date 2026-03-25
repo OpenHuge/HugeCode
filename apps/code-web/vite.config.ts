@@ -4,6 +4,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+// @ts-expect-error Node ESM requires the explicit .ts extension when config loaders import this file directly.
 import { createCodeWorkspaceAliases } from "../../scripts/lib/viteWorkspaceAliases.ts";
 
 const packageJson = JSON.parse(
