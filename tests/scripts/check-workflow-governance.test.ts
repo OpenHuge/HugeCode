@@ -158,6 +158,43 @@ jobs:
     expect(result.stderr).toContain("scripts/fuzz-gate.sh");
   });
 
+  it("fails when a merge-group workflow uses unconditional cancel-in-progress", async () => {
+    const tempRoot = await createBaseRepo();
+
+    await writeFile(
+      path.join(tempRoot, ".github", "workflows", "queue.yml"),
+      `name: Queue Guard
+
+on:
+  pull_request:
+  merge_group:
+    types:
+      - checks_requested
+
+permissions:
+  contents: read
+
+concurrency:
+  group: queue-\${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
+`,
+      "utf8"
+    );
+
+    const result = runWorkflowGovernance(tempRoot);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(".github/workflows/queue.yml");
+    expect(result.stderr).toContain("merge_group");
+    expect(result.stderr).toContain("cancel-in-progress: true");
+  });
+
   it("fails when a workflow installs Playwright without selecting a workspace", async () => {
     const tempRoot = await createBaseRepo();
 
