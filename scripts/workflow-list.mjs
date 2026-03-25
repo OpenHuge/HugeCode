@@ -25,6 +25,10 @@ const WORKFLOW_SECTIONS = [
       ["pnpm dev", "Start the code workspace with the runtime gateway."],
       ["pnpm dev:code:ui", "Run only the code UI dev server."],
       ["pnpm dev:code:service", "Run only the code runtime service."],
+      [
+        "pnpm prewarm:code-runtime-service",
+        "Prebuild the Rust runtime service for cold-start lanes.",
+      ],
       ["pnpm desktop:prepare:fast", "Prepare desktop assets for local Tauri work."],
       ["pnpm dev:desktop", "Run the code Tauri app in development mode."],
     ],

@@ -110,7 +110,7 @@ Practical usage:
 - `pnpm check:runtime-contract`
   Required when runtime host contracts or frozen runtime specs change.
 - `pnpm desktop:verify:fast`
-  Default desktop verification gate for Tauri/runtime integration work.
+  Default desktop verification gate for Tauri/runtime integration work. This now prewarms `code-runtime-service-rs` before the fast desktop check.
 - `pnpm desktop:verify`
   Use when packaging or full desktop build risk is in scope.
 
