@@ -141,7 +141,6 @@ const RUNTIME_PHASE_ONE_TOOL_NAMES = [
   "evaluate-runtime-extension-permissions",
   "read-runtime-extension-resource",
   "get-runtime-extension-health",
-  "list-runtime-extension-ui-apps",
   "get-runtime-extensions-config",
 ] as const;
 
@@ -1073,6 +1072,9 @@ describe("webMcpBridge runtime orchestration integration", () => {
       false
     );
     expect(registeredTools.some((tool) => tool.name === "list-runtime-approval-queue")).toBe(false);
+    expect(registeredTools.some((tool) => tool.name === "list-runtime-extension-ui-apps")).toBe(
+      false
+    );
 
     const listTool = registeredTools.find((tool) => tool.name === "list-runtime-runs");
     expect(listTool).toBeTruthy();

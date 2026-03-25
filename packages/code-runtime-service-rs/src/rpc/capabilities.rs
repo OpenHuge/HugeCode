@@ -178,7 +178,6 @@ pub(super) const RPC_METHOD_REGISTRY: &[RpcMethodEntry] = &[
     RpcMethodEntry::new("code_codex_doctor_v1"),
     RpcMethodEntry::new("code_codex_update_v1"),
     RpcMethodEntry::new("code_collaboration_modes_list_v1"),
-    RpcMethodEntry::new("code_apps_list_v1"),
     RpcMethodEntry::new("code_mcp_server_status_list_v1"),
     RpcMethodEntry::new("code_browser_debug_status_v1"),
     RpcMethodEntry::new("code_browser_debug_run_v1"),

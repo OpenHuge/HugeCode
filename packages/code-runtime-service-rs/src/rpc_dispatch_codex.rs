@@ -20,7 +20,6 @@ const CODEX_CONFIG_PATH_GET_METHOD: &str = "code_codex_config_path_get_v1";
 const CODEX_DOCTOR_METHOD: &str = "code_codex_doctor_v1";
 const CODEX_UPDATE_METHOD: &str = "code_codex_update_v1";
 const COLLABORATION_MODES_LIST_METHOD: &str = "code_collaboration_modes_list_v1";
-const APPS_LIST_METHOD: &str = "code_apps_list_v1";
 const MCP_SERVER_STATUS_LIST_METHOD: &str = "code_mcp_server_status_list_v1";
 
 const CODE_RUNTIME_CODEX_UNIFIED_RPC_MIGRATION_ENABLED_ENV: &str =
@@ -94,7 +93,6 @@ pub(super) async fn handle_codex_rpc_method(
         "code_codex_doctor_v1" => handle_codex_doctor_v1(ctx, params).await,
         "code_codex_update_v1" => handle_codex_update_v1(ctx, params).await,
         "code_collaboration_modes_list_v1" => handle_collaboration_modes_list_v1(ctx, params).await,
-        "code_apps_list_v1" => handle_apps_list_v1(ctx, params).await,
         "code_mcp_server_status_list_v1" => handle_mcp_server_status_list_v1(ctx, params).await,
         _ => Err(RpcError::method_not_found(method)),
     }
@@ -851,24 +849,6 @@ fn built_in_collaboration_modes_list_response() -> Value {
         ],
         "warnings": ["Using built-in collaboration mode defaults from runtime service."],
     })
-}
-
-pub(super) async fn handle_apps_list_v1(
-    _ctx: &AppContext,
-    params: &Value,
-) -> Result<Value, RpcError> {
-    if !codex_unified_rpc_migration_enabled() {
-        return Err(method_not_enabled(APPS_LIST_METHOD));
-    }
-
-    let params = as_object(params)?;
-    let _workspace_id = read_required_string(params, "workspaceId")?;
-
-    Ok(json!({
-        "data": [],
-        "nextCursor": Value::Null,
-        "warnings": ["Runtime service app catalog is not configured; returning an empty list."],
-    }))
 }
 
 pub(super) async fn handle_mcp_server_status_list_v1(

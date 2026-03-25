@@ -3631,28 +3631,6 @@ export type RuntimeCollaborationModesListResponse = {
   warnings: string[];
 };
 
-export type RuntimeAppsListRequest = {
-  workspaceId: string;
-  cursor?: string | null;
-  limit?: number | null;
-  threadId?: string | null;
-};
-
-export type RuntimeAppInfo = {
-  id: string;
-  name: string;
-  description?: string;
-  isAccessible: boolean;
-  installUrl?: string | null;
-  distributionChannel?: string | null;
-};
-
-export type RuntimeAppsListResponse = {
-  data: RuntimeAppInfo[];
-  nextCursor: string | null;
-  warnings: string[];
-};
-
 export type RuntimeMcpServerStatusListRequest = {
   workspaceId: string;
   cursor?: string | null;
@@ -4014,7 +3992,6 @@ export const CODE_RUNTIME_RPC_METHODS = {
   CODEX_DOCTOR_V1: "code_codex_doctor_v1",
   CODEX_UPDATE_V1: "code_codex_update_v1",
   COLLABORATION_MODES_LIST_V1: "code_collaboration_modes_list_v1",
-  APPS_LIST_V1: "code_apps_list_v1",
   MCP_SERVER_STATUS_LIST_V1: "code_mcp_server_status_list_v1",
   BROWSER_DEBUG_STATUS_V1: "code_browser_debug_status_v1",
   BROWSER_DEBUG_RUN_V1: "code_browser_debug_run_v1",
@@ -4856,10 +4833,6 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
     workspaceId: string;
     workspace_id?: string;
   };
-  [CODE_RUNTIME_RPC_METHODS.APPS_LIST_V1]: RuntimeAppsListRequest & {
-    workspace_id?: string;
-    thread_id?: string | null;
-  };
   [CODE_RUNTIME_RPC_METHODS.MCP_SERVER_STATUS_LIST_V1]: RuntimeMcpServerStatusListRequest & {
     workspace_id?: string;
   };
@@ -5099,7 +5072,6 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.CODEX_DOCTOR_V1]: RuntimeCodexDoctorResponse;
   [CODE_RUNTIME_RPC_METHODS.CODEX_UPDATE_V1]: RuntimeCodexUpdateResponse;
   [CODE_RUNTIME_RPC_METHODS.COLLABORATION_MODES_LIST_V1]: RuntimeCollaborationModesListResponse;
-  [CODE_RUNTIME_RPC_METHODS.APPS_LIST_V1]: RuntimeAppsListResponse;
   [CODE_RUNTIME_RPC_METHODS.MCP_SERVER_STATUS_LIST_V1]: RuntimeMcpServerStatusListResponse;
   [CODE_RUNTIME_RPC_METHODS.BROWSER_DEBUG_STATUS_V1]: RuntimeBrowserDebugStatusResponse;
   [CODE_RUNTIME_RPC_METHODS.BROWSER_DEBUG_RUN_V1]: RuntimeBrowserDebugRunResponse;
