@@ -111,9 +111,9 @@ If no static feed root is configured, beta builds remain manual and point users 
 ## macOS Arm64 Signing Rule
 
 - Forge fuse hardening must not rely on a blanket `codesign --deep` fallback for unsigned Apple Silicon packages.
-- HugeCode uses explicit post-package ad-hoc signing for unsigned `darwin/arm64` bundles instead.
-- The repair flow signs the Electron framework binary first, then the app bundle, then verifies the final `.app` with `codesign --verify --deep --strict`.
-- If a future maintainer adds real `packagerConfig.osxSign`, this fallback should stay disabled and the explicit Forge signing config becomes the source of truth.
+- HugeCode does not run a CI-only post-package ad-hoc re-sign repair for unsigned `darwin/arm64` smoke builds.
+- Smoke verification stays focused on packaging and release-contract truth; real macOS signing remains an explicit `packagerConfig.osxSign` release concern backed by proper Apple credentials.
+- If a future maintainer adds real `packagerConfig.osxSign`, that explicit Forge signing config becomes the only source of truth for signed macOS artifacts.
 
 ## Windows Release-Contract Rule
 
