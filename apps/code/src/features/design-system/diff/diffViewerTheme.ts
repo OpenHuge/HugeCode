@@ -73,7 +73,16 @@ const DIFF_VIEWER_PRELOAD_LANGS = [
   "rust",
 ] as const;
 
+// @pierre/diffs@1.1.3 loads Pierre JSON themes via bare dynamic imports without
+// import attributes. Browsers handle that through Vite, but Vitest's Node ESM
+// runner rejects the upstream JSON imports. Keep runtime Pierre themes in app
+// builds and use bundled Shiki themes only under test.
+const DIFF_VIEWER_THEME =
+  import.meta.env.MODE === "test"
+    ? { dark: "github-dark", light: "github-light" }
+    : { dark: "pierre-dark", light: "pierre-light" };
+
 export const DIFF_VIEWER_HIGHLIGHTER_OPTIONS: WorkerInitializationRenderOptions = {
-  theme: { dark: "pierre-dark", light: "pierre-light" },
+  theme: DIFF_VIEWER_THEME,
   langs: [...DIFF_VIEWER_PRELOAD_LANGS],
 };
