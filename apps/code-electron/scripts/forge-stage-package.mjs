@@ -21,7 +21,7 @@ export function createForgeStagePackageJson(packageJson) {
     FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES.map((dependencyName) => {
       const version =
         dependencyName === "@electron-forge/maker-deb"
-          ? packageJson.devDependencies?.[dependencyName] ?? "7.11.1"
+          ? (packageJson.devDependencies?.[dependencyName] ?? "7.11.1")
           : packageJson.devDependencies?.[dependencyName];
       return [dependencyName, version];
     }).filter(([, version]) => isStageInstallableVersion(version))

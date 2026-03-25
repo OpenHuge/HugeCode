@@ -83,6 +83,98 @@ describe("verifyElectronForgeUpdateContract", () => {
       })
     ).not.toThrow();
   });
+
+  it("accepts a repo-local deb maker config when bin is declared at the top level", () => {
+    expect(() =>
+      verifyElectronForgeUpdateContract({
+        forgeConfig: {
+          makers: [
+            { name: "@electron-forge/maker-zip", config: {} },
+            { name: "@electron-forge/maker-dmg" },
+            {
+              name: "@electron-forge/maker-squirrel",
+              config: {
+                authors: "OpenHuge",
+                description: "HugeCode beta desktop shell",
+              },
+            },
+            {
+              name: "deb",
+              config: {
+                bin: "HugeCode",
+                options: {
+                  section: "devel",
+                },
+              },
+            },
+          ],
+          publishers: [
+            {
+              config: {
+                prerelease: true,
+              },
+              name: "@electron-forge/publisher-github",
+            },
+          ],
+        },
+        packageJson: {
+          author: "OpenHuge",
+          description: "HugeCode beta desktop shell",
+          repository: {
+            url: "https://github.com/OpenHuge/HugeCode.git",
+          },
+        },
+        releaseChannel: "beta",
+        updateMode: "disabled_beta_manual",
+      })
+    ).not.toThrow();
+  });
+
+  it("accepts a repo-local deb maker instance when config is stored on configOrConfigFetcher", () => {
+    expect(() =>
+      verifyElectronForgeUpdateContract({
+        forgeConfig: {
+          makers: [
+            { name: "@electron-forge/maker-zip", config: {} },
+            { name: "@electron-forge/maker-dmg" },
+            {
+              name: "@electron-forge/maker-squirrel",
+              config: {
+                authors: "OpenHuge",
+                description: "HugeCode beta desktop shell",
+              },
+            },
+            {
+              configOrConfigFetcher: {
+                bin: "HugeCode",
+                options: {
+                  section: "devel",
+                },
+              },
+              name: "deb",
+            },
+          ],
+          publishers: [
+            {
+              config: {
+                prerelease: true,
+              },
+              name: "@electron-forge/publisher-github",
+            },
+          ],
+        },
+        packageJson: {
+          author: "OpenHuge",
+          description: "HugeCode beta desktop shell",
+          repository: {
+            url: "https://github.com/OpenHuge/HugeCode.git",
+          },
+        },
+        releaseChannel: "beta",
+        updateMode: "disabled_beta_manual",
+      })
+    ).not.toThrow();
+  });
 });
 
 describe("normalizeAsarPackageEntryPath", () => {

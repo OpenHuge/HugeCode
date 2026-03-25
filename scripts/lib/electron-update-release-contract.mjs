@@ -455,8 +455,10 @@ export function verifyElectronForgeUpdateContract(context) {
     }
   }
 
-  const debMakerOptions = debMaker?.config?.options ?? debMaker?.config ?? null;
-  if (debMakerOptions?.bin !== "HugeCode") {
+  const debMakerConfig = debMaker?.config ?? debMaker?.configOrConfigFetcher ?? null;
+  const debMakerOptions = debMakerConfig?.options ?? debMakerConfig;
+  const debMakerBin = debMakerConfig?.bin ?? debMakerOptions?.bin ?? null;
+  if (debMakerBin !== "HugeCode") {
     throw new Error('Deb maker options.bin must be "HugeCode" to match the packaged executable.');
   }
   if (squirrelMaker?.config?.authors !== "OpenHuge") {
