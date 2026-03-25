@@ -33,7 +33,10 @@ import {
 } from "../../../../application/runtime/ports/tauriOauth";
 import { listWorkspaces } from "../../../../application/runtime/ports/tauriWorkspaceCatalog";
 import type { AppServerEvent } from "../../../../types";
-import { setActiveOauthPopupLoginId } from "./settings-codex-accounts-card/oauthHelpers";
+import {
+  readActiveOauthPopupLoginId,
+  setActiveOauthPopupLoginId,
+} from "./settings-codex-accounts-card/oauthHelpers";
 import { SettingsCodexAccountsCard } from "./SettingsCodexAccountsCard";
 
 vi.mock("../../../../application/runtime/ports/events", () => ({
@@ -702,7 +705,7 @@ describe("SettingsCodexAccountsCard", () => {
   });
 
   it(
-    "refreshes when oauth popup posts success message",
+    "consumes oauth popup success messages without surfacing callback errors",
     async () => {
       setActiveOauthPopupLoginId("login-popup-1");
       render(<SettingsCodexAccountsCard />);
@@ -725,13 +728,14 @@ describe("SettingsCodexAccountsCard", () => {
         );
       });
 
-      await waitFor(
-        () => {
-          expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThan(accountCallsBeforePopup);
-          expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThan(poolCallsBeforePopup);
-        },
-        { timeout: SETTINGS_CODEX_ACCOUNTS_ASYNC_TIMEOUT_MS }
+      await waitFor(() => {
+        expect(readActiveOauthPopupLoginId()).toBeNull();
+      });
+      expect(screen.queryByText(/callback verification/i)).toBeNull();
+      expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(
+        accountCallsBeforePopup
       );
+      expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(poolCallsBeforePopup);
     },
     SETTINGS_CODEX_ACCOUNTS_TEST_TIMEOUT_MS
   );
