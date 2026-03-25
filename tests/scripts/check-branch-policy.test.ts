@@ -71,6 +71,16 @@ describe("check-branch-policy", () => {
     expect(result.stdout).toContain("feat/git-workflow-hardening");
   });
 
+  it("passes for codex-generated worktree branches", async () => {
+    const tempRoot = await createTempRoot("branch-policy-codex-");
+    await copyBranchPolicyFixture(tempRoot);
+
+    const result = runBranchPolicy(tempRoot, ["--branch", "codex/my-new-feature"]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("codex/my-new-feature");
+  });
+
   it("fails for invalid working branch prefixes", async () => {
     const tempRoot = await createTempRoot("branch-policy-invalid-");
     await copyBranchPolicyFixture(tempRoot);
@@ -79,7 +89,7 @@ describe("check-branch-policy", () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("feature/git-workflow-hardening");
-    expect(result.stderr).toContain("feat|fix|docs|chore|refactor|test|perf|hotfix");
+    expect(result.stderr).toContain("feat|fix|docs|chore|refactor|test|perf|hotfix|codex");
   });
 
   it("emits structured json for invalid branches", async () => {
