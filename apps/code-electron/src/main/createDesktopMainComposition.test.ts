@@ -15,10 +15,17 @@ vi.mock("electron", () => ({
       resize: vi.fn(() => ({})),
     })),
   },
-  Notification: vi.fn(() => ({
-    on: vi.fn(),
-    show: vi.fn(),
-  })),
+  Notification: Object.assign(
+    vi.fn(function NotificationMock() {
+      return {
+        on: vi.fn(),
+        show: vi.fn(),
+      };
+    }),
+    {
+      isSupported: vi.fn(() => true),
+    }
+  ),
   Tray: vi.fn(() => ({
     destroy: vi.fn(),
     on: vi.fn(),
@@ -127,6 +134,9 @@ describe("createDesktopMainComposition", () => {
         checkForUpdates: vi.fn(),
         on: vi.fn(),
         quitAndInstall: vi.fn(),
+      },
+      clipboard: {
+        writeText: vi.fn(),
       },
       crashReporter: {
         start: vi.fn(),
@@ -596,5 +606,56 @@ describe("createDesktopMainComposition", () => {
     expect(input.shell.openExternal).toHaveBeenCalledWith(
       "https://github.com/OpenHuge/HugeCode/releases"
     );
+  });
+
+  it("copies a canonical support snapshot through the trusted desktop IPC handler", async () => {
+    const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
+    const input = createInput();
+
+    createDesktopMainComposition(input).start();
+    await getWhenReadyMock(input).mock.results[0]?.value;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const registeredHandler = (input.ipcMain.handle as Mock).mock.calls.find(
+      ([channel]) => channel === "hugecode:desktop-host:copy-support-snapshot"
+    )?.[1] as (event: { sender: unknown; senderFrame?: { url?: string } }) => Promise<boolean>;
+
+    await expect(
+      registeredHandler({
+        sender: getWindowCreateMock(input).mock.results[0]?.value?.webContents,
+        senderFrame: {
+          url: "hugecode-app://app/index.html",
+        },
+      })
+    ).resolves.toBe(true);
+
+    expect(input.clipboard.writeText).toHaveBeenCalledWith(
+      expect.stringContaining("HugeCode Desktop Support Snapshot")
+    );
+  });
+
+  it("opens the crash-dumps folder from the native Help menu", async () => {
+    const { Menu } = await import("electron");
+    const { createDesktopMainComposition } = await import("./createDesktopMainComposition.js");
+    const input = createInput();
+
+    createDesktopMainComposition(input).start();
+    await getWhenReadyMock(input).mock.results[0]?.value;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const menuTemplate = vi.mocked(Menu.buildFromTemplate).mock.calls.at(-1)?.[0] as
+      | MenuItemConstructorOptions[]
+      | undefined;
+    const helpMenu = menuTemplate?.find((item) => item.label === "Help");
+    const helpMenuItems = getMenuSubmenuItems(helpMenu);
+    const openCrashDumpsItem = helpMenuItems.find(
+      (item: MenuItemConstructorOptions) => item.label === "Open Crash Dumps Folder"
+    );
+
+    clickMenuItem(openCrashDumpsItem);
+
+    expect(input.shell.openPath).toHaveBeenCalledWith(expect.stringContaining("/crashDumps"));
   });
 });

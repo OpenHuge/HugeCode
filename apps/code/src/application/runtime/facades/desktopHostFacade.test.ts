@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   checkForDesktopUpdates,
+  copyDesktopSupportSnapshot,
   consumePendingDesktopLaunchIntent,
   detectDesktopRuntimeHost,
   openPath,
@@ -81,6 +82,7 @@ describe("desktopHostFacade", () => {
         getVersion: async () => "41.0.3",
       },
       diagnostics: {
+        copySupportSnapshot: async () => true,
         getInfo: async () => ({
           crashDumpsDirectoryPath: "/tmp/hugecode/crash-dumps",
           incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
@@ -88,6 +90,7 @@ describe("desktopHostFacade", () => {
           logsDirectoryPath: "/tmp/hugecode/logs",
           recentIncidentCount: 2,
           reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+          supportSnapshotText: "HugeCode Desktop Support Snapshot",
         }),
       },
       launch: {
@@ -149,6 +152,7 @@ describe("desktopHostFacade", () => {
       recentIncidentCount: 2,
       reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
     });
+    await expect(copyDesktopSupportSnapshot()).resolves.toBe(true);
     await expect(resolveAppVersion()).resolves.toBe("41.0.3");
     await expect(consumePendingDesktopLaunchIntent()).resolves.toMatchObject({
       kind: "protocol",
@@ -187,6 +191,7 @@ describe("desktopHostFacade", () => {
     await expect(detectDesktopRuntimeHost()).resolves.toBe("tauri");
     await expect(resolveAppInfo()).resolves.toBeNull();
     await expect(resolveDesktopDiagnosticsInfo()).resolves.toBeNull();
+    await expect(copyDesktopSupportSnapshot()).resolves.toBe(false);
     await expect(resolveAppVersion()).resolves.toBe("9.9.9");
     await expect(consumePendingDesktopLaunchIntent()).resolves.toBeNull();
     await expect(resolveCurrentDesktopSession()).resolves.toBeNull();

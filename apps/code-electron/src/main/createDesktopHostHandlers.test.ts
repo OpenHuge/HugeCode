@@ -7,6 +7,7 @@ describe("createDesktopHostHandlers", () => {
   it("delegates session, tray, and window handlers to the injected controllers", async () => {
     const input = {
       appVersion: "1.2.3",
+      copySupportSnapshot: vi.fn(() => true),
       consumePendingLaunchIntent: vi.fn(() => ({
         kind: "protocol" as const,
         receivedAt: "2026-03-24T00:00:00.000Z",
@@ -27,6 +28,7 @@ describe("createDesktopHostHandlers", () => {
         logsDirectoryPath: "/tmp/hugecode/logs",
         recentIncidentCount: 2,
         reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+        supportSnapshotText: "HugeCode Desktop Support Snapshot",
       })),
       listRecentSessions: vi.fn(() => [{ id: "session-1" }]),
       notificationController: {
@@ -81,6 +83,7 @@ describe("createDesktopHostHandlers", () => {
     const handlers = createDesktopHostHandlers(input);
 
     expect(handlers.getAppVersion()).toBe("1.2.3");
+    expect(handlers.copySupportSnapshot()).toBe(true);
     expect(handlers.getAppInfo()).toEqual({
       channel: "beta",
       platform: "darwin",
@@ -97,6 +100,7 @@ describe("createDesktopHostHandlers", () => {
       logsDirectoryPath: "/tmp/hugecode/logs",
       recentIncidentCount: 2,
       reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+      supportSnapshotText: "HugeCode Desktop Support Snapshot",
     });
     expect(handlers.getWindowLabel({ sender: {} as never })).toBe("main");
     expect(handlers.consumePendingLaunchIntent()).toEqual({
@@ -147,6 +151,7 @@ describe("createDesktopHostHandlers", () => {
     };
     const handlers = createDesktopHostHandlers({
       appVersion: null,
+      copySupportSnapshot: vi.fn(() => false),
       consumePendingLaunchIntent: vi.fn(() => null),
       getAppInfo: vi.fn(() => ({
         channel: "beta" as const,
@@ -164,6 +169,7 @@ describe("createDesktopHostHandlers", () => {
         logsDirectoryPath: "/tmp/hugecode/logs",
         recentIncidentCount: 0,
         reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+        supportSnapshotText: "HugeCode Desktop Support Snapshot",
       })),
       listRecentSessions: vi.fn(() => []),
       notificationController: {

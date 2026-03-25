@@ -35,6 +35,7 @@ type DesktopTrayState = {
 type DesktopHostIpcHandlers = {
   closeWindow(windowId: number): Promise<boolean> | boolean;
   checkForUpdates(): Promise<DesktopUpdateState> | DesktopUpdateState;
+  copySupportSnapshot(): Promise<boolean> | boolean;
   consumePendingLaunchIntent(): Promise<DesktopLaunchIntent | null> | DesktopLaunchIntent | null;
   focusWindow(windowId: number): Promise<boolean> | boolean;
   getAppInfo(): Promise<DesktopAppInfo | null> | DesktopAppInfo | null;
@@ -92,6 +93,10 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
 
   handleTrusted(channels.getDiagnosticsInfo, async () => {
     return handlers.getDiagnosticsInfo();
+  });
+
+  handleTrusted(channels.copySupportSnapshot, async () => {
+    return handlers.copySupportSnapshot();
   });
 
   handleTrusted(channels.consumePendingLaunchIntent, async () => {

@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { DesktopReleaseChannel, DesktopUpdateMode } from "@ku0/code-platform-interfaces";
+import type { DesktopReleaseChannel, DesktopUpdateState } from "@ku0/code-platform-interfaces";
 import type { DesktopIncidentSummary } from "./desktopIncidentStore.js";
 
 type DesktopLogsPathApp = {
@@ -33,7 +33,23 @@ export type BuildDesktopIssueReporterUrlInput = {
   diagnosticsSummary: DesktopIncidentSummary;
   platform: NodeJS.Platform;
   repoUrl: string;
-  updateMode: DesktopUpdateMode;
+  updateState: Pick<
+    DesktopUpdateState,
+    "capability" | "message" | "mode" | "provider" | "stage" | "version"
+  >;
+  version: string | null;
+};
+
+export type BuildDesktopSupportSnapshotTextInput = {
+  arch: NodeJS.Architecture;
+  channel: DesktopReleaseChannel;
+  crashDumpsDirectoryPath: string | null;
+  diagnosticsSummary: DesktopIncidentSummary;
+  platform: NodeJS.Platform;
+  updateState: Pick<
+    DesktopUpdateState,
+    "capability" | "message" | "mode" | "provider" | "stage" | "version"
+  >;
   version: string | null;
 };
 
@@ -130,32 +146,55 @@ export function startDesktopLocalCrashReporter(input: StartDesktopLocalCrashRepo
   }
 }
 
+export function buildDesktopSupportSnapshotText(input: BuildDesktopSupportSnapshotTextInput) {
+  const lines = [
+    "HugeCode Desktop Support Snapshot",
+    `Version: ${input.version ?? "unknown"}`,
+    `Channel: ${input.channel}`,
+    `Platform: ${input.platform}`,
+    `Architecture: ${input.arch}`,
+    `Update capability: ${input.updateState.capability}`,
+    `Update mode: ${input.updateState.mode}`,
+    `Update provider: ${input.updateState.provider}`,
+    `Update stage: ${input.updateState.stage}`,
+    `Update target version: ${input.updateState.version ?? "unknown"}`,
+    `Update message: ${input.updateState.message ?? "none"}`,
+    `Recent desktop incidents: ${String(input.diagnosticsSummary.recentIncidentCount)}`,
+    `Last desktop incident: ${input.diagnosticsSummary.lastIncidentAt ?? "none"}`,
+    `Incident log path: ${input.diagnosticsSummary.incidentLogPath}`,
+    `Logs directory: ${input.diagnosticsSummary.logsDirectoryPath}`,
+    `Crash dumps directory: ${input.crashDumpsDirectoryPath ?? "unknown"}`,
+  ];
+
+  return lines.join("\n");
+}
+
 export function buildDesktopIssueReporterUrl(input: BuildDesktopIssueReporterUrlInput) {
   const issueUrl = normalizeRepositoryIssuesUrl(input.repoUrl);
   if (!issueUrl) {
     return null;
   }
 
+  const supportSnapshotText = buildDesktopSupportSnapshotText({
+    arch: input.arch,
+    channel: input.channel,
+    crashDumpsDirectoryPath: input.crashDumpsDirectoryPath,
+    diagnosticsSummary: input.diagnosticsSummary,
+    platform: input.platform,
+    updateState: input.updateState,
+    version: input.version,
+  });
+
   const issueBodyLines = [
-    "### HugeCode Desktop Environment",
-    "",
-    `- Version: ${input.version ?? "unknown"}`,
-    `- Channel: ${input.channel}`,
-    `- Platform: ${input.platform}`,
-    `- Architecture: ${input.arch}`,
-    `- Update mode: ${input.updateMode}`,
-    `- Recent desktop incidents: ${String(input.diagnosticsSummary.recentIncidentCount)}`,
-    `- Last desktop incident: ${input.diagnosticsSummary.lastIncidentAt ?? "none"}`,
-    "",
     "### What happened?",
     "",
     "<!-- Describe the bug, reproduction steps, and expected behavior. -->",
     "",
-    "### Diagnostics",
+    "### Support Snapshot",
     "",
-    `- Incident log path: ${input.diagnosticsSummary.incidentLogPath}`,
-    `- Logs directory: ${input.diagnosticsSummary.logsDirectoryPath}`,
-    `- Crash dumps directory: ${input.crashDumpsDirectoryPath ?? "unknown"}`,
+    "```text",
+    supportSnapshotText,
+    "```",
     "",
     "<!-- Attach the incident log if it helps reproduce the problem. -->",
   ];

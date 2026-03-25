@@ -17,6 +17,7 @@ import { createDesktopAutoUpdateConfigurator } from "./desktopAutoUpdateConfigur
 import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
 import {
   buildDesktopIssueReporterUrl,
+  buildDesktopSupportSnapshotText,
   resolveDesktopDiagnosticsPaths,
   startDesktopLocalCrashReporter,
 } from "./desktopDiagnostics.js";
@@ -141,6 +142,9 @@ export type CreateDesktopMainCompositionInput = {
     checkForUpdates(): void;
     on(event: string, listener: (...args: unknown[]) => void): void;
     quitAndInstall(): void;
+  };
+  clipboard: {
+    writeText(text: string): void;
   };
   crashReporter?: {
     start(options: {
@@ -397,6 +401,16 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
 
   function getDiagnosticsInfo() {
     const diagnosticsSummary = incidentStore.getSummary();
+    const updateState = updaterController.getState();
+    const supportSnapshotText = buildDesktopSupportSnapshotText({
+      arch: input.arch,
+      channel: input.releaseChannel ?? "beta",
+      crashDumpsDirectoryPath: diagnosticsPaths.crashDumpsDirectoryPath,
+      diagnosticsSummary,
+      platform: input.platform,
+      updateState,
+      version: appVersion,
+    });
     return {
       crashDumpsDirectoryPath: diagnosticsPaths.crashDumpsDirectoryPath,
       ...diagnosticsSummary,
@@ -408,10 +422,53 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
           diagnosticsSummary,
           platform: input.platform,
           repoUrl: input.repositoryUrl ?? "https://github.com/OpenHuge/HugeCode",
-          updateMode: updaterController.getState().mode,
+          updateState,
           version: appVersion,
         }) ?? null,
+      supportSnapshotText,
     };
+  }
+
+  function copySupportSnapshot() {
+    const diagnosticsInfo = getDiagnosticsInfo();
+    if (!diagnosticsInfo.supportSnapshotText) {
+      incidentStore.record({
+        details: {
+          version: appVersion,
+        },
+        event: "desktop_support_snapshot_unavailable",
+        level: "warn",
+        message: "HugeCode desktop could not build a support snapshot for clipboard copy.",
+      });
+      notificationController.showDesktopNotification({
+        body: "HugeCode could not prepare desktop support details for copying.",
+        title: "HugeCode Couldn’t Copy Support Snapshot",
+      });
+      return false;
+    }
+
+    try {
+      input.clipboard.writeText(diagnosticsInfo.supportSnapshotText);
+      notificationController.showDesktopNotification({
+        body: "Desktop support details were copied to the clipboard.",
+        title: "Support Snapshot Copied",
+      });
+      return true;
+    } catch (error) {
+      incidentStore.record({
+        details: {
+          error: error instanceof Error ? error.message : String(error),
+        },
+        event: "desktop_support_snapshot_copy_failed",
+        level: "warn",
+        message: "HugeCode desktop could not copy the support snapshot to the clipboard.",
+      });
+      notificationController.showDesktopNotification({
+        body: "HugeCode could not copy desktop support details to the clipboard.",
+        title: "HugeCode Couldn’t Copy Support Snapshot",
+      });
+      return false;
+    }
   }
 
   async function openDesktopPath(
@@ -523,6 +580,9 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     trayIconDataUrl: input.trayIconDataUrl ?? DEFAULT_TRAY_ICON_DATA_URL,
   });
   const applicationMenuController = createDesktopApplicationMenuController({
+    onCopySupportSnapshot: () => {
+      copySupportSnapshot();
+    },
     onCheckForUpdates: () => {
       const updateState = updaterController.checkForUpdates();
       if (updateState.capability === "automatic") {
@@ -541,6 +601,23 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     },
     onOpenFolder: () => {
       void openPathSelectionDialog("directory");
+    },
+    onOpenCrashDumpsFolder: () => {
+      const diagnosticsInfo = getDiagnosticsInfo();
+      if (!diagnosticsInfo.crashDumpsDirectoryPath) {
+        notificationController.showDesktopNotification({
+          body: "No local crash-dumps directory is currently available for this build.",
+          title: "Crash Dumps Unavailable",
+        });
+        return;
+      }
+
+      void openDesktopPath(diagnosticsInfo.crashDumpsDirectoryPath, {
+        failureEvent: "desktop_open_crash_dumps_failed",
+        failureMessage: "HugeCode desktop could not open the crash-dumps directory.",
+        notificationBody: "HugeCode could not open the local crash-dumps directory.",
+        notificationTitle: "HugeCode Couldn’t Open Crash Dumps",
+      });
     },
     onOpenIncidentLog: () => {
       const diagnosticsInfo = getDiagnosticsInfo();
@@ -618,6 +695,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
 
   const desktopHostHandlers = createDesktopHostHandlers({
     appVersion,
+    copySupportSnapshot,
     consumePendingLaunchIntent: launchIntentController.consumePendingIntent,
     getAppInfo() {
       const updateState = updaterController.getState();

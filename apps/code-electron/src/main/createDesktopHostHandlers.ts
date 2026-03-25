@@ -34,6 +34,7 @@ type UpdaterController = {
 
 export type CreateDesktopHostHandlersInput = {
   appVersion: string | null;
+  copySupportSnapshot(): boolean;
   consumePendingLaunchIntent(): DesktopLaunchIntent | null;
   getAppInfo(): DesktopAppInfo;
   getDiagnosticsInfo(): DesktopDiagnosticsInfo;
@@ -54,6 +55,9 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
       return input.updaterController.checkForUpdates();
     },
     closeWindow: input.windowController.closeWindow,
+    copySupportSnapshot() {
+      return input.copySupportSnapshot();
+    },
     consumePendingLaunchIntent() {
       return input.consumePendingLaunchIntent();
     },

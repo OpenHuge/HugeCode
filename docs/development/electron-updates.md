@@ -124,15 +124,17 @@ If no static feed root is configured, beta builds remain manual and point users 
 ## Native Menu Behavior
 
 - Electron exposes `Check for Updates...` through the native application menu.
-- Electron also exposes `Open Incident Log`, `Open Logs Folder`, and `Report Issue...` through the native Help surface.
+- Electron also exposes `Copy Support Snapshot`, `Open Incident Log`, `Open Logs Folder`, `Open Crash Dumps Folder`, and `Report Issue...` through the native Help surface.
 - That action is intentionally channel-aware:
   - automatic modes trigger the real main-process updater and push state changes to every live renderer window
   - manual beta mode opens GitHub Releases instead of advertising fake auto-update support
   - unsupported or misconfigured modes must never claim automatic update availability
 - Support actions must be driven from the same diagnostics truth as the renderer:
+  - `Copy Support Snapshot` must copy a canonical support summary built from the same updater state and incident summary used by the issue reporter; pages must not rebuild their own clipboard text
   - `Open Incident Log` opens the bounded desktop incident log when one exists and only falls back to file reveal if direct path opening fails
   - otherwise it falls back to the logs directory instead of assuming a file is present
   - `Open Logs Folder` must open the canonical logs directory via the host path-opening primitive rather than using file-reveal APIs on a directory target
+  - `Open Crash Dumps Folder` must open the canonical local crash-dumps directory when Electron exposes one; if no crash-dumps directory is available, the shell should fail soft with a clear user-visible message instead of opening an unrelated path
   - `Report Issue...` opens a prefilled GitHub issue with version, channel, platform, update mode, incident summary metadata, and crash-dump location
 
 ## Resilience Contract

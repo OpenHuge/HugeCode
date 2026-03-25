@@ -59,6 +59,7 @@ export type DesktopDiagnosticsInfo = {
   logsDirectoryPath: string | null;
   recentIncidentCount: number;
   reportIssueUrl: string | null;
+  supportSnapshotText: string | null;
 };
 
 export type DesktopAppInfo = {
@@ -172,6 +173,7 @@ export type DesktopNotificationCapability = {
 };
 
 export type DesktopDiagnosticsCapability = {
+  copySupportSnapshot?: () => Promise<boolean | void> | boolean | void;
   getInfo?: () =>
     | Promise<DesktopDiagnosticsInfo | null | undefined>
     | DesktopDiagnosticsInfo
@@ -249,6 +251,7 @@ export type DesktopHostBridgeApi = {
     show(input: DesktopNotificationInput): Promise<boolean>;
   };
   diagnostics: {
+    copySupportSnapshot(): Promise<boolean>;
     getInfo(): Promise<DesktopDiagnosticsInfo | null>;
   };
   updater: {

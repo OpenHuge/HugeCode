@@ -11,6 +11,7 @@ describe("registerDesktopHostIpc", () => {
       handlers: {
         closeWindow: vi.fn(),
         checkForUpdates: vi.fn(),
+        copySupportSnapshot: vi.fn(),
         consumePendingLaunchIntent: vi.fn(),
         focusWindow: vi.fn(),
         getAppInfo: vi.fn(),
@@ -37,11 +38,12 @@ describe("registerDesktopHostIpc", () => {
       isTrustedSender: () => true,
     });
 
-    expect(handleMock).toHaveBeenCalledTimes(21);
+    expect(handleMock).toHaveBeenCalledTimes(22);
     expect(handleMock.mock.calls.map(([channel]) => channel)).toEqual([
       DESKTOP_HOST_IPC_CHANNELS.getAppInfo,
       DESKTOP_HOST_IPC_CHANNELS.getAppVersion,
       DESKTOP_HOST_IPC_CHANNELS.getDiagnosticsInfo,
+      DESKTOP_HOST_IPC_CHANNELS.copySupportSnapshot,
       DESKTOP_HOST_IPC_CHANNELS.consumePendingLaunchIntent,
       DESKTOP_HOST_IPC_CHANNELS.getCurrentSession,
       DESKTOP_HOST_IPC_CHANNELS.listRecentSessions,
@@ -72,6 +74,7 @@ describe("registerDesktopHostIpc", () => {
       handlers: {
         closeWindow: vi.fn(),
         checkForUpdates: vi.fn(),
+        copySupportSnapshot: vi.fn(),
         consumePendingLaunchIntent: vi.fn(),
         focusWindow: vi.fn(),
         getAppInfo: vi.fn(),

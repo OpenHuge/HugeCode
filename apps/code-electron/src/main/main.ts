@@ -4,6 +4,7 @@ import {
   app,
   autoUpdater,
   BrowserWindow,
+  clipboard,
   crashReporter,
   dialog,
   ipcMain,
@@ -30,6 +31,7 @@ createDesktopMainComposition({
       return BrowserWindow.getAllWindows();
     },
   },
+  clipboard,
   crashReporter,
   dialog,
   ipcMain,

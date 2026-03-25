@@ -47,6 +47,7 @@ const desktopHostBridge: DesktopHostBridgeApi = {
     show: (input) => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.showNotification, input),
   },
   diagnostics: {
+    copySupportSnapshot: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.copySupportSnapshot),
     getInfo: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getDiagnosticsInfo),
   },
   updater: {

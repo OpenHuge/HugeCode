@@ -1,5 +1,6 @@
 export {
   checkDesktopForUpdates,
+  copyDesktopSupportSnapshot,
   consumeDesktopLaunchIntent,
   detectDesktopRuntimeHost,
   openDesktopExternalUrl,

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   checkDesktopForUpdates,
+  copyDesktopSupportSnapshot,
   consumeDesktopLaunchIntent,
   detectDesktopRuntimeHost,
   openDesktopExternalUrl,
@@ -104,6 +105,7 @@ describe("desktopHostFacade", () => {
         }),
       },
       diagnostics: {
+        copySupportSnapshot: vi.fn(async () => true),
         getInfo: async () => ({
           crashDumpsDirectoryPath: "/tmp/hugecode/crash-dumps",
           incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
@@ -111,6 +113,7 @@ describe("desktopHostFacade", () => {
           logsDirectoryPath: "/tmp/hugecode/logs",
           recentIncidentCount: 2,
           reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+          supportSnapshotText: "HugeCode Desktop Support Snapshot",
         }),
       },
       launch: {
@@ -147,6 +150,7 @@ describe("desktopHostFacade", () => {
       recentIncidentCount: 2,
       reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
     });
+    await expect(copyDesktopSupportSnapshot({ desktopHostBridge })).resolves.toBe(true);
     await expect(consumeDesktopLaunchIntent(desktopHostBridge)).resolves.toMatchObject({
       kind: "protocol",
     });
@@ -208,6 +212,7 @@ describe("desktopHostFacade", () => {
   it("returns safe null or idle fallbacks when the new desktop capabilities are unavailable", async () => {
     await expect(resolveDesktopAppInfo(null)).resolves.toBeNull();
     await expect(resolveDesktopDiagnosticsInfo({ desktopHostBridge: null })).resolves.toBeNull();
+    await expect(copyDesktopSupportSnapshot({ desktopHostBridge: null })).resolves.toBe(false);
     await expect(consumeDesktopLaunchIntent(null)).resolves.toBeNull();
     await expect(resolveDesktopUpdateState(null)).resolves.toEqual({
       capability: "unsupported",

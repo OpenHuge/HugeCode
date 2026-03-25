@@ -752,6 +752,8 @@ describe("SettingsCodexAccountsCard", () => {
       await waitFor(() => {
         expect(screen.getByRole("button", { name: "Refresh" })).toBeTruthy();
       });
+      const accountCallsBeforePopupFailure = listOAuthAccountsMock.mock.calls.length;
+      const poolCallsBeforePopupFailure = listOAuthPoolsMock.mock.calls.length;
       setActiveOauthPopupLoginId("login-popup-2");
 
       await flushEffectTurn();
@@ -765,13 +767,21 @@ describe("SettingsCodexAccountsCard", () => {
         );
       });
 
-      expect(
-        await screen.findByText(
-          "Codex OAuth failed during callback verification. Check the OAuth popup for details.",
-          undefined,
-          { timeout: SETTINGS_CODEX_ACCOUNTS_ASYNC_TIMEOUT_MS }
-        )
-      ).toBeTruthy();
+      await waitFor(
+        () => {
+          expect(
+            screen.getByText(
+              "Codex OAuth failed during callback verification. Check the OAuth popup for details.",
+              {
+                selector: ".apm-error",
+              }
+            )
+          ).toBeTruthy();
+        },
+        { timeout: SETTINGS_CODEX_ACCOUNTS_ASYNC_TIMEOUT_MS }
+      );
+      expect(listOAuthAccountsMock.mock.calls.length).toBe(accountCallsBeforePopupFailure);
+      expect(listOAuthPoolsMock.mock.calls.length).toBe(poolCallsBeforePopupFailure);
     },
     SETTINGS_CODEX_ACCOUNTS_TEST_TIMEOUT_MS
   );

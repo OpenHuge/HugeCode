@@ -82,8 +82,10 @@ Linux desktop builds remain manual-update only.
   - `Open Recent Session`
   - `Open Recent File` on macOS via the native recent-documents role
   - `Check for Updates...`
+  - `Copy Support Snapshot`
   - `Open Incident Log`
   - `Open Logs Folder`
+  - `Open Crash Dumps Folder`
   - `Report Issue...`
 - The menu is rebuilt from the persisted desktop session state instead of hard-coded one-off actions in `main.ts`.
 - Native file and folder pickers normalize into the same launch-intent flow as CLI, Finder, and deep-link workspace opens.
@@ -101,10 +103,12 @@ Linux desktop builds remain manual-update only.
 - Child-process failures are logged as structured desktop incidents so future diagnostics can distinguish renderer recovery from background-process churn.
 - Desktop incidents are persisted to a bounded NDJSON log under Electron's canonical logs directory, not only printed to the console.
 - HugeCode also starts Electron's local crash reporter with `uploadToServer: false` so packaged desktop failures leave local crash dumps even before remote crash infrastructure exists.
-- `Open Incident Log`, `Open Logs Folder`, and `Report Issue...` all use the same diagnostics source of truth:
+- `Copy Support Snapshot`, `Open Incident Log`, `Open Logs Folder`, `Open Crash Dumps Folder`, and `Report Issue...` all use the same diagnostics source of truth:
+  - the support snapshot is a canonical clipboard-ready summary of version, channel, platform, updater state, incident summary, and local support paths
   - the incident log is bounded and permissioned for local desktop support workflows
   - the issue reporter opens a prefilled GitHub issue with current desktop environment, incident summary metadata, and crash-dump path
   - `Open Logs Folder` uses the host's path-opening primitive instead of misusing file-reveal behavior for directories
+  - `Open Crash Dumps Folder` opens the canonical local crash-dumps directory when Electron exposes one for the current build
   - if no incidents have been logged yet, the shell falls back to opening the logs directory instead of pretending a log file exists
 
 ## macOS Arm64 Packaging

@@ -154,6 +154,21 @@ export async function resolveDesktopDiagnosticsInfo(
   return null;
 }
 
+export async function copyDesktopSupportSnapshot(
+  input: DesktopDiagnosticsFallbacks
+): Promise<boolean> {
+  try {
+    const copyResult = await input.desktopHostBridge?.diagnostics?.copySupportSnapshot?.();
+    if (input.desktopHostBridge?.diagnostics?.copySupportSnapshot) {
+      return copyResult !== false;
+    }
+  } catch {
+    // Support snapshot copy is optional.
+  }
+
+  return false;
+}
+
 export async function resolveDesktopSessionInfo(
   desktopHostBridge: DesktopHostBridge | null
 ): Promise<DesktopSessionInfo | null> {

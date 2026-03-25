@@ -1,5 +1,6 @@
 import {
   checkDesktopForUpdates,
+  copyDesktopSupportSnapshot as copyDesktopSupportSnapshotWithCapabilities,
   consumeDesktopLaunchIntent,
   detectDesktopRuntimeHost as detectDesktopRuntimeHostWithCapabilities,
   openDesktopExternalUrl,
@@ -68,6 +69,12 @@ export async function resolveAppInfo(): Promise<DesktopAppInfo | null> {
 
 export async function resolveDesktopDiagnosticsInfo(): Promise<DesktopDiagnosticsInfo | null> {
   return resolveDesktopDiagnosticsInfoWithCapabilities({
+    desktopHostBridge: getDesktopHostBridge(),
+  });
+}
+
+export async function copyDesktopSupportSnapshot(): Promise<boolean> {
+  return copyDesktopSupportSnapshotWithCapabilities({
     desktopHostBridge: getDesktopHostBridge(),
   });
 }

@@ -56,6 +56,7 @@ describe("code-platform-interfaces", () => {
       logsDirectoryPath: "/tmp/hugecode/logs",
       recentIncidentCount: 2,
       reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+      supportSnapshotText: "HugeCode Desktop Support Snapshot",
     };
 
     expect(appInfo.channel).toBe("beta");

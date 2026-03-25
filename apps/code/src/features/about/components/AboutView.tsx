@@ -9,6 +9,7 @@ import {
 } from "@ku0/shared/aboutContent";
 import type { DesktopAppInfo, DesktopDiagnosticsInfo } from "@ku0/code-platform-interfaces";
 import {
+  copyDesktopSupportSnapshot,
   openPath,
   openUrl,
   resolveAppInfo,
@@ -157,6 +158,39 @@ export function AboutView() {
     })();
   };
 
+  const handleOpenCrashDumpsFolder = () => {
+    if (!diagnosticsInfo?.crashDumpsDirectoryPath) {
+      return;
+    }
+
+    const crashDumpsDirectoryPath = diagnosticsInfo.crashDumpsDirectoryPath;
+    void (async () => {
+      const opened = await openPath(crashDumpsDirectoryPath);
+      if (opened) {
+        return;
+      }
+
+      pushErrorToast({
+        title: "Couldn’t open diagnostics",
+        message: "Unable to open the requested desktop diagnostics path.",
+      });
+    })();
+  };
+
+  const handleCopySupportSnapshot = () => {
+    void (async () => {
+      const copied = await copyDesktopSupportSnapshot();
+      if (copied) {
+        return;
+      }
+
+      pushErrorToast({
+        title: "Couldn’t copy support info",
+        message: "Unable to copy the desktop support snapshot.",
+      });
+    })();
+  };
+
   const handleReportIssue = () => {
     if (!diagnosticsInfo?.reportIssueUrl) {
       return;
@@ -234,6 +268,22 @@ export function AboutView() {
             <button type="button" className="about-link" onClick={handleOpenLogsFolder}>
               Open Logs Folder
             </button>
+            {diagnosticsInfo.crashDumpsDirectoryPath ? (
+              <>
+                <span className="about-link-sep">|</span>
+                <button type="button" className="about-link" onClick={handleOpenCrashDumpsFolder}>
+                  Open Crash Dumps Folder
+                </button>
+              </>
+            ) : null}
+            {diagnosticsInfo.supportSnapshotText ? (
+              <>
+                <span className="about-link-sep">|</span>
+                <button type="button" className="about-link" onClick={handleCopySupportSnapshot}>
+                  Copy Support Snapshot
+                </button>
+              </>
+            ) : null}
             {diagnosticsInfo.reportIssueUrl ? (
               <>
                 <span className="about-link-sep">|</span>

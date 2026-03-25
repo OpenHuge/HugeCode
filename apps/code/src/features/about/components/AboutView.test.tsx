@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  copyDesktopSupportSnapshot,
   openPath,
   openUrl,
   resolveAppInfo,
@@ -12,6 +13,7 @@ import {
 import { AboutView } from "./AboutView";
 
 vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
+  copyDesktopSupportSnapshot: vi.fn(async () => true),
   openPath: vi.fn(async () => true),
   openUrl: vi.fn(async () => true),
   resolveAppInfo: vi.fn(async () => null),
@@ -26,6 +28,7 @@ vi.mock("../../../application/runtime/ports/toasts", () => ({
 
 const openPathMock = vi.mocked(openPath);
 const openUrlMock = vi.mocked(openUrl);
+const copyDesktopSupportSnapshotMock = vi.mocked(copyDesktopSupportSnapshot);
 const resolveAppInfoMock = vi.mocked(resolveAppInfo);
 const resolveDesktopDiagnosticsInfoMock = vi.mocked(resolveDesktopDiagnosticsInfo);
 const resolveAppVersionMock = vi.mocked(resolveAppVersion);
@@ -57,6 +60,7 @@ describe("AboutView", () => {
       logsDirectoryPath: "/tmp/hugecode/logs",
       recentIncidentCount: 2,
       reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+      supportSnapshotText: "HugeCode Desktop Support Snapshot",
     });
 
     render(<AboutView />);
@@ -80,6 +84,14 @@ describe("AboutView", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Report Issue" }));
     expect(openUrlMock).toHaveBeenCalledWith("https://github.com/OpenHuge/HugeCode/issues/new");
+    fireEvent.click(screen.getByRole("button", { name: "Copy Support Snapshot" }));
+    await waitFor(() => {
+      expect(copyDesktopSupportSnapshotMock).toHaveBeenCalledTimes(1);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Open Crash Dumps Folder" }));
+    await waitFor(() => {
+      expect(openPathMock).toHaveBeenCalledWith("/tmp/hugecode/crash-dumps");
+    });
     expect(revealItemInDirMock).not.toHaveBeenCalled();
   });
 
@@ -109,6 +121,7 @@ describe("AboutView", () => {
       logsDirectoryPath: "/tmp/hugecode/logs",
       recentIncidentCount: 1,
       reportIssueUrl: null,
+      supportSnapshotText: "HugeCode Desktop Support Snapshot",
     });
 
     render(<AboutView />);

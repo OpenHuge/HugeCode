@@ -9,9 +9,11 @@ type ApplicationMenuState = {
 
 type ApplicationMenuHandlers = {
   onCheckForUpdates(): void;
+  onCopySupportSnapshot(): void;
   onNewWindow(): void;
   onOpenFile(): void;
   onOpenFolder(): void;
+  onOpenCrashDumpsFolder(): void;
   onOpenIncidentLog(): void;
   onOpenLogsFolder(): void;
   onOpenAbout(): void;
@@ -31,9 +33,11 @@ export type CreateDesktopApplicationMenuControllerInput = {
   dependencies?: DesktopApplicationMenuControllerDependencies;
   platform: NodeJS.Platform;
   readState(): Pick<ApplicationMenuState, "recentSessions">;
+  onCopySupportSnapshot(): void;
   onNewWindow(): void;
   onOpenFile(): void;
   onOpenFolder(): void;
+  onOpenCrashDumpsFolder(): void;
   onOpenIncidentLog(): void;
   onOpenLogsFolder(): void;
   onOpenAbout(): void;
@@ -140,6 +144,12 @@ export function buildApplicationMenuTemplate(
       type: "separator",
     },
     {
+      label: "Copy Support Snapshot",
+      click: () => {
+        handlers.onCopySupportSnapshot();
+      },
+    },
+    {
       label: "Open Incident Log",
       click: () => {
         handlers.onOpenIncidentLog();
@@ -149,6 +159,12 @@ export function buildApplicationMenuTemplate(
       label: "Open Logs Folder",
       click: () => {
         handlers.onOpenLogsFolder();
+      },
+    },
+    {
+      label: "Open Crash Dumps Folder",
+      click: () => {
+        handlers.onOpenCrashDumpsFolder();
       },
     },
     {
@@ -294,10 +310,12 @@ export function createDesktopApplicationMenuController(
 
       menu = createMenuFromTemplate(
         buildApplicationMenuTemplate(state, {
-          onNewWindow: input.onNewWindow,
           onCheckForUpdates: input.onCheckForUpdates,
+          onCopySupportSnapshot: input.onCopySupportSnapshot,
+          onNewWindow: input.onNewWindow,
           onOpenFile: input.onOpenFile,
           onOpenFolder: input.onOpenFolder,
+          onOpenCrashDumpsFolder: input.onOpenCrashDumpsFolder,
           onOpenIncidentLog: input.onOpenIncidentLog,
           onOpenLogsFolder: input.onOpenLogsFolder,
           onOpenAbout: input.onOpenAbout,

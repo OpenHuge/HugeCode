@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   buildDesktopIssueReporterUrl,
+  buildDesktopSupportSnapshotText,
   resolveDesktopDiagnosticsPaths,
   startDesktopLocalCrashReporter,
 } from "./desktopDiagnostics.js";
@@ -69,7 +70,15 @@ describe("desktopDiagnostics", () => {
       },
       platform: "darwin",
       repoUrl: "https://github.com/OpenHuge/HugeCode",
-      updateMode: "disabled_beta_manual",
+      updateState: {
+        capability: "manual",
+        message:
+          "Beta builds update manually from GitHub Releases unless HUGECODE_ELECTRON_UPDATE_BASE_URL is configured.",
+        mode: "disabled_beta_manual",
+        provider: "none",
+        stage: "idle",
+        version: null,
+      },
       version: "41.0.3-beta.2",
     });
 
@@ -77,7 +86,37 @@ describe("desktopDiagnostics", () => {
     expect(issueReporterUrl).toContain("Version%3A+41.0.3-beta.2");
     expect(issueReporterUrl).toContain("Recent+desktop+incidents%3A+3");
     expect(issueReporterUrl).toContain("Update+mode%3A+disabled_beta_manual");
+    expect(issueReporterUrl).toContain("Update+provider%3A+none");
     expect(issueReporterUrl).toContain("Crash+dumps+directory%3A+%2FUsers%2Ftest");
+  });
+
+  it("builds a canonical support snapshot text from updater and diagnostics truth", () => {
+    const snapshot = buildDesktopSupportSnapshotText({
+      arch: "x64",
+      channel: "stable",
+      crashDumpsDirectoryPath: "/tmp/hugecode/crash-dumps",
+      diagnosticsSummary: {
+        incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
+        lastIncidentAt: "2026-03-25T10:00:00.000Z",
+        logsDirectoryPath: "/tmp/hugecode/logs",
+        recentIncidentCount: 1,
+      },
+      platform: "darwin",
+      updateState: {
+        capability: "automatic",
+        message: "Stable updates are enabled.",
+        mode: "enabled_stable_public_service",
+        provider: "public-github",
+        stage: "available",
+        version: "41.0.4",
+      },
+      version: "41.0.3",
+    });
+
+    expect(snapshot).toContain("HugeCode Desktop Support Snapshot");
+    expect(snapshot).toContain("Update mode: enabled_stable_public_service");
+    expect(snapshot).toContain("Update provider: public-github");
+    expect(snapshot).toContain("Crash dumps directory: /tmp/hugecode/crash-dumps");
   });
 
   it("returns null when the repository URL is invalid", () => {
@@ -94,7 +133,14 @@ describe("desktopDiagnostics", () => {
         },
         platform: "linux",
         repoUrl: "not a url",
-        updateMode: "enabled_stable_public_service",
+        updateState: {
+          capability: "automatic",
+          message: "Stable updates are enabled.",
+          mode: "enabled_stable_public_service",
+          provider: "public-github",
+          stage: "idle",
+          version: null,
+        },
         version: "1.0.0",
       })
     ).toBeNull();
