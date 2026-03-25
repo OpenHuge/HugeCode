@@ -102,17 +102,17 @@ const reviewModeOptions: SelectOption[] = [
   { value: "detached", label: "Detached (new review thread)" },
 ];
 
-function coerceSavedModelSlug(value: string | null, models: ModelOption[]): string | null {
+function coerceSavedModelSelectionId(value: string | null, models: ModelOption[]): string | null {
   const trimmed = (value ?? "").trim();
   if (!trimmed) {
     return null;
   }
-  const bySlug = models.find((model) => model.model === trimmed);
-  if (bySlug) {
-    return bySlug.model;
-  }
   const byId = models.find((model) => model.id === trimmed);
-  return byId ? byId.model : null;
+  if (byId) {
+    return byId.id;
+  }
+  const bySlug = models.find((model) => model.model === trimmed);
+  return bySlug ? bySlug.id : null;
 }
 
 export function SettingsCodexSection({
@@ -165,22 +165,25 @@ export function SettingsCodexSection({
   onUpdateWorkspaceCodexBin,
   onUpdateWorkspaceSettings,
 }: SettingsCodexSectionProps) {
-  const latestModelSlug = defaultModels[0]?.model ?? null;
-  const savedModelSlug = useMemo(
-    () => coerceSavedModelSlug(appSettings.lastComposerModelId, defaultModels),
+  const latestModelId = defaultModels[0]?.id ?? null;
+  const savedModelId = useMemo(
+    () => coerceSavedModelSelectionId(appSettings.lastComposerModelId, defaultModels),
     [appSettings.lastComposerModelId, defaultModels]
   );
-  const selectedModelSlug = savedModelSlug ?? latestModelSlug ?? "";
+  const selectedModelId = savedModelId ?? latestModelId ?? "";
   const selectedModel = useMemo(
-    () => defaultModels.find((model) => model.model === selectedModelSlug) ?? null,
-    [defaultModels, selectedModelSlug]
+    () =>
+      defaultModels.find((model) => model.id === selectedModelId) ??
+      defaultModels.find((model) => model.model === selectedModelId) ??
+      null,
+    [defaultModels, selectedModelId]
   );
   const reasoningSupported = useMemo(() => supportsModelReasoning(selectedModel), [selectedModel]);
   const reasoningOptions = useMemo(() => getModelReasoningOptions(selectedModel), [selectedModel]);
   const modelSelectOptions = useMemo<SelectOption[]>(
     () =>
       defaultModels.map((model) => ({
-        value: model.model,
+        value: model.id,
         label: model.displayName?.trim() || model.model,
       })),
     [defaultModels]
@@ -220,7 +223,7 @@ export function SettingsCodexSection({
     }
     const savedRawModel = (appSettings.lastComposerModelId ?? "").trim();
     const savedRawEffort = (appSettings.lastComposerReasoningEffort ?? "").trim();
-    const shouldNormalizeModel = savedRawModel.length === 0 || savedModelSlug === null;
+    const shouldNormalizeModel = savedRawModel.length === 0 || savedModelId === null;
     const shouldNormalizeEffort =
       reasoningSupported &&
       (savedRawEffort.length === 0 ||
@@ -233,9 +236,7 @@ export function SettingsCodexSection({
 
     const next: AppSettings = {
       ...appSettings,
-      lastComposerModelId: shouldNormalizeModel
-        ? selectedModelSlug
-        : appSettings.lastComposerModelId,
+      lastComposerModelId: shouldNormalizeModel ? selectedModelId : appSettings.lastComposerModelId,
       lastComposerReasoningEffort: shouldNormalizeEffort
         ? selectedEffort
         : appSettings.lastComposerReasoningEffort,
@@ -249,8 +250,8 @@ export function SettingsCodexSection({
     reasoningOptions,
     reasoningSupported,
     savedEffort,
-    savedModelSlug,
-    selectedModelSlug,
+    savedModelId,
+    selectedModelId,
     selectedEffort,
   ]);
 
@@ -448,7 +449,7 @@ export function SettingsCodexSection({
                 optionClassName={styles.selectOption}
                 ariaLabel="Model"
                 options={modelSelectOptions}
-                value={selectedModelSlug}
+                value={selectedModelId}
                 disabled={!defaultModels.length || defaultModelsLoading}
                 onValueChange={(model) =>
                   void onUpdateAppSettings({

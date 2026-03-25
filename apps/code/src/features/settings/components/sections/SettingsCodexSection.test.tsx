@@ -195,6 +195,48 @@ describe("SettingsCodexSection", () => {
     );
   });
 
+  it("preserves route-specific model ids when duplicate model slugs are available", () => {
+    const onUpdateAppSettings = vi.fn(async () => undefined);
+
+    render(
+      <SettingsCodexSection
+        {...createProps({
+          appSettings: {
+            lastComposerModelId: "openai-primary",
+            lastComposerReasoningEffort: "high",
+            defaultAccessMode: "full-access",
+            reviewDeliveryMode: "inline",
+          } as AppSettings,
+          onUpdateAppSettings,
+          defaultModels: [
+            createModelOption({
+              id: "openai-primary",
+              model: "gpt-5.1",
+              displayName: "GPT-5.1",
+              provider: "openai",
+              pool: "codex-primary",
+            }),
+            createModelOption({
+              id: "openai-secondary",
+              model: "gpt-5.1",
+              displayName: "GPT-5.1",
+              provider: "openai",
+              pool: "codex-secondary",
+            }),
+          ],
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Model" }));
+    fireEvent.click(screen.getAllByRole("option", { name: "GPT-5.1" })[0]!);
+
+    expect(screen.getByRole("button", { name: "Model" }).textContent).toContain("GPT-5.1");
+    expect(onUpdateAppSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ lastComposerModelId: "openai-primary" })
+    );
+  });
+
   it("keeps the accounts card and file editors embedded as child surfaces", () => {
     const { container } = render(<SettingsCodexSection {...createProps()} />);
 

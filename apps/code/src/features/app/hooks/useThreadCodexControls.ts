@@ -250,7 +250,7 @@ export function useThreadCodexControls({
         models.find((model) => model.id === normalizedId) ??
         models.find((model) => model.model === normalizedId) ??
         null;
-      return matchedModel?.model ?? normalizedId;
+      return matchedModel?.id ?? normalizedId;
     },
     [models]
   );
