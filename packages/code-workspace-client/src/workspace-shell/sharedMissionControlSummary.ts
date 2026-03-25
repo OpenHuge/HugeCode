@@ -48,6 +48,55 @@ function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+function pushUnique(values: string[], next: string | null | undefined) {
+  if (!next) {
+    return;
+  }
+  if (!values.includes(next)) {
+    values.push(next);
+  }
+}
+
+function analyzeRunContinuitySignal(
+  run: HugeCodeMissionControlSnapshot["runs"][number]
+): keyof ContinuitySignalCounts | null {
+  const continuation = summarizeHugeCodeOperatorContinuation({
+    runState: run.state,
+    checkpoint: run.checkpoint ?? null,
+    takeoverBundle: run.takeoverBundle ?? null,
+    reviewActionability: run.actionability ?? null,
+    missionLinkage: run.missionLinkage ?? null,
+    publishHandoff: run.publishHandoff ?? null,
+  });
+
+  if (continuation.state === "blocked") {
+    return "blockedCount";
+  }
+  if (continuation.pathKind === "resume" && continuation.state === "ready") {
+    return "readyResumeCount";
+  }
+  if (continuation.pathKind === "handoff" && continuation.state === "ready") {
+    return "readyHandoffCount";
+  }
+  if (continuation.pathKind === "review" && continuation.state === "ready") {
+    return "readyReviewCount";
+  }
+  if (continuation.state === "degraded") {
+    return "attentionCount";
+  }
+  if (
+    continuation.pathKind === "missing" &&
+    continuation.truthSource === "missing" &&
+    run.reviewPackId
+  ) {
+    return "reviewPackOnlyCount";
+  }
+  if (continuation.truthSource !== "missing") {
+    return "attentionCount";
+  }
+  return null;
+}
+
 function countContinuitySignals(
   runs: HugeCodeMissionControlSnapshot["runs"]
 ): ContinuitySignalCounts {

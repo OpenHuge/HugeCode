@@ -160,7 +160,6 @@ async function invokeSteerTurnRequest(
     text: params.text,
     images: params.images,
     options: steerOptions,
-    ...(params.appMentions.length > 0 ? { appMentions: params.appMentions } : {}),
     ...(params.contextPrefix ? { contextPrefix: params.contextPrefix } : {}),
   };
   return (await runtimeSessionCommands.steerTurn({
@@ -315,7 +314,6 @@ export function useThreadMessaging({
         resolvedPreferredBackendIds,
         resolvedCodexBin,
         resolvedCodexArgs,
-        appMentions,
       } = resolveSendMessageSettings(options, {
         provider,
         model,
@@ -563,7 +561,6 @@ export function useThreadMessaging({
             activeTurnId,
             text: finalText,
             images,
-            appMentions,
             contextPrefix,
             provider: resolvedProvider,
             model: resolvedModel,
