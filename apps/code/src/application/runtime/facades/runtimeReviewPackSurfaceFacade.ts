@@ -1088,6 +1088,7 @@ export function buildReviewPackDetailModel(input: {
     nextActionDetail: run?.nextAction?.detail,
     title: run?.title ?? taskTitle,
     instruction: interventionInstruction,
+    reviewActionability: reviewPackExtra?.actionability ?? run?.actionability ?? null,
     actions: run?.intervention?.actions,
     reviewDecision: {
       status: reviewDecision.status,
@@ -1183,9 +1184,9 @@ export function buildReviewPackDetailModel(input: {
     "Runtime recorded why this pack woke the operator and what can happen next."
   );
   const reviewRecommendedNextAction =
+    continuity?.recommendedAction ??
     reviewPackExtra?.actionability?.summary ??
     run?.actionability?.summary ??
-    continuity?.recommendedAction ??
     reviewPack.recommendedNextAction ??
     null;
   const reviewIntelligence = resolveReviewIntelligenceSummary({

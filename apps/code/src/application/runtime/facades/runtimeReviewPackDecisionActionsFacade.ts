@@ -1,5 +1,10 @@
-import type { HugeCodeEvidenceState, HugeCodeReviewStatus } from "@ku0/code-runtime-host-contract";
+import type {
+  HugeCodeEvidenceState,
+  HugeCodeReviewActionabilitySummary,
+  HugeCodeReviewStatus,
+} from "@ku0/code-runtime-host-contract";
 import type { AgentTaskSummary } from "@ku0/code-runtime-host-contract";
+import { getHugeCodeReviewActionAvailability } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
 import {
   prepareMissionInterventionDraft,
   type MissionInterventionDraft,
@@ -81,6 +86,7 @@ type RuntimeReviewPackInterventionDecisionActionsInput<TNavigationTarget> = {
   validationPresetId?: string | null;
   accessMode?: AgentTaskSummary["accessMode"] | null;
   repositoryExecutionContract?: RepositoryExecutionContract | null;
+  reviewActionability?: HugeCodeReviewActionabilitySummary | null;
   actions: ReviewInterventionAvailability[] | null | undefined;
 };
 
@@ -89,6 +95,7 @@ type RuntimeReviewPackDecisionActionsInput<TNavigationTarget> = {
   evidenceState: HugeCodeEvidenceState;
   reviewStatus: HugeCodeReviewStatus;
   readOnlyReason: string | null;
+  reviewActionability?: HugeCodeReviewActionabilitySummary | null;
   interventionActions: RuntimeReviewPackDecisionActionModel<TNavigationTarget>[];
 };
 
@@ -122,6 +129,7 @@ type RuntimeReviewPackFollowUpStateInput<TNavigationTarget> = {
   title: string;
   instruction: string | null;
   actions: ReviewInterventionAvailability[] | null | undefined;
+  reviewActionability?: HugeCodeReviewActionabilitySummary | null;
   reviewDecision: ReviewPackDecisionState;
   evidenceState: HugeCodeEvidenceState;
   reviewStatus: HugeCodeReviewStatus;
@@ -197,16 +205,15 @@ function createReviewDecisionActionTarget(
 }
 
 export function getInterventionAvailability(
+  reviewActionability: HugeCodeReviewActionabilitySummary | null | undefined,
   actions: ReviewInterventionAvailability[] | null | undefined,
   actionIds: string[]
 ) {
-  return (
-    actions?.find(
-      (action) => actionIds.includes(action.action) && action.supported && action.enabled
-    ) ??
-    actions?.find((action) => actionIds.includes(action.action) && action.supported) ??
-    null
-  );
+  return getHugeCodeReviewActionAvailability({
+    reviewActionability,
+    legacyFallbackActions: actions ?? null,
+    actionIds,
+  });
 }
 
 export function buildRuntimeReviewPackInterventionDecisionActions<TNavigationTarget>(
@@ -220,7 +227,11 @@ export function buildRuntimeReviewPackInterventionDecisionActions<TNavigationTar
       : null;
 
   return REVIEW_PACK_INTERVENTION_ACTIONS.map((config) => {
-    const availability = getInterventionAvailability(input.actions, config.actionIds);
+    const availability = getInterventionAvailability(
+      input.reviewActionability,
+      input.actions,
+      config.actionIds
+    );
     const draft =
       input.runtimeInterventionsSupported && baseInstruction.length > 0
         ? prepareMissionInterventionDraft({
@@ -260,6 +271,14 @@ export function buildRuntimeReviewPackDecisionActions<TNavigationTarget>(
   input: RuntimeReviewPackDecisionActionsInput<TNavigationTarget>
 ): RuntimeReviewPackDecisionActionModel<TNavigationTarget>[] {
   const reviewDecisionPending = input.reviewDecision.status === "pending";
+  const acceptAvailability = getHugeCodeReviewActionAvailability({
+    reviewActionability: input.reviewActionability ?? null,
+    actionIds: ["accept_result"],
+  });
+  const rejectAvailability = getHugeCodeReviewActionAvailability({
+    reviewActionability: input.reviewActionability ?? null,
+    actionIds: ["reject_result"],
+  });
   const acceptedReason =
     input.reviewDecision.status === "accepted"
       ? input.reviewDecision.summary || "This result was already accepted in review."
@@ -273,10 +292,21 @@ export function buildRuntimeReviewPackDecisionActions<TNavigationTarget>(
       ? "Runtime evidence is incomplete. Collect the missing review pack evidence before accepting or rejecting this result."
       : null;
   const reviewDecisionEnabled =
-    reviewDecisionPending && evidenceIncompleteReason === null && input.readOnlyReason === null;
+    reviewDecisionPending &&
+    evidenceIncompleteReason === null &&
+    input.readOnlyReason === null &&
+    (acceptAvailability?.enabled ?? true);
   const reviewDecisionDisabledReason = !reviewDecisionPending
     ? (acceptedReason ?? rejectedReason)
-    : (evidenceIncompleteReason ?? input.readOnlyReason);
+    : (evidenceIncompleteReason ?? input.readOnlyReason ?? acceptAvailability?.reason ?? null);
+  const rejectDecisionEnabled =
+    reviewDecisionPending &&
+    evidenceIncompleteReason === null &&
+    input.readOnlyReason === null &&
+    (rejectAvailability?.enabled ?? true);
+  const rejectDecisionDisabledReason = !reviewDecisionPending
+    ? (acceptedReason ?? rejectedReason)
+    : (evidenceIncompleteReason ?? input.readOnlyReason ?? rejectAvailability?.reason ?? null);
 
   return [
     {
@@ -296,11 +326,11 @@ export function buildRuntimeReviewPackDecisionActions<TNavigationTarget>(
       label: "Reject result",
       detail:
         "Reject this result and send it back for another pass with explicit operator feedback.",
-      enabled: reviewDecisionEnabled,
-      disabledReason: reviewDecisionDisabledReason,
+      enabled: rejectDecisionEnabled,
+      disabledReason: rejectDecisionDisabledReason,
       navigationTarget: null,
       interventionDraft: null,
-      actionTarget: reviewDecisionEnabled
+      actionTarget: rejectDecisionEnabled
         ? createReviewDecisionActionTarget(input.reviewDecision.reviewPackId, "rejected")
         : null,
     },
@@ -348,6 +378,7 @@ export function buildRuntimeReviewPackFollowUpState<TNavigationTarget>(
         accessMode: input.runtimeDefaults.accessMode ?? null,
         validationPresetId: input.runtimeDefaults.validationPresetId ?? null,
         repositoryExecutionContract: input.contract,
+        reviewActionability: input.reviewActionability ?? null,
         actions: input.actions,
       })
     : [];
@@ -356,6 +387,7 @@ export function buildRuntimeReviewPackFollowUpState<TNavigationTarget>(
     evidenceState: input.evidenceState,
     reviewStatus: input.reviewStatus,
     readOnlyReason,
+    reviewActionability: input.reviewActionability ?? null,
     interventionActions,
   });
 
