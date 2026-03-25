@@ -7,16 +7,48 @@ import type {
   WorkspaceInfo,
 } from "../../../types";
 import { joinClassNames } from "../../../utils/classNames";
+import {
+  buildModelProviderOptions,
+  resolveProviderModelId,
+  resolveSelectedProviderId,
+} from "../../models/utils/modelProviderSelection";
 import { ComposerAccessDropdown } from "./ComposerAccessDropdown";
 import { ComposerMetaBarControls } from "./ComposerMetaBarControls";
 import { ComposerWorkspaceBar } from "./ComposerWorkspaceBar";
 import * as styles from "./ComposerSelectFixture.css";
 
-const MODEL_OPTIONS: SelectOption[] = [
-  { value: "gpt-5.4", label: "GPT-5.4" },
-  { value: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
-  { value: "o4-mini", label: "o4-mini" },
+const FIXTURE_MODELS = [
+  {
+    id: "openai::gpt-5.4",
+    value: "openai::gpt-5.4",
+    label: "GPT-5.4",
+    model: "gpt-5.4",
+    provider: "openai",
+  },
+  {
+    id: "openai::gpt-5.4-mini",
+    value: "openai::gpt-5.4-mini",
+    label: "GPT-5.4 Mini",
+    model: "gpt-5.4-mini",
+    provider: "openai",
+  },
+  {
+    id: "claude::claude-sonnet-4-5",
+    value: "claude::claude-sonnet-4-5",
+    label: "Claude Sonnet 4.5",
+    model: "claude-sonnet-4-5",
+    provider: "claude_code_local",
+  },
 ];
+const PROVIDER_OPTIONS = buildModelProviderOptions(
+  FIXTURE_MODELS.map((model) => ({
+    id: model.id,
+    model: model.model,
+    displayName: model.label,
+    provider: model.provider,
+    available: true,
+  }))
+);
 
 const REASONING_OPTIONS: SelectOption[] = [
   { value: "low", label: "low" },
@@ -61,12 +93,20 @@ const FIXTURE_CONTEXT_USAGE: ThreadTokenUsage = {
 
 export function ComposerSelectFixture() {
   const controlsRef = useRef<HTMLDivElement | null>(null);
-  const [selectedModelId, setSelectedModelId] = useState<string>("gpt-5.4");
+  const [selectedModelId, setSelectedModelId] = useState<string>("openai::gpt-5.4");
   const [selectedEffort, setSelectedEffort] = useState<string>("medium");
   const [selectedExecutionMode, setSelectedExecutionMode] =
     useState<ComposerExecutionMode>("runtime");
   const [accessMode, setAccessMode] = useState<AccessMode>("on-request");
   const [isPlanActive, setIsPlanActive] = useState(false);
+
+  const selectedProviderId = resolveSelectedProviderId(PROVIDER_OPTIONS, selectedModelId);
+  const modelOptions = FIXTURE_MODELS.filter(
+    (model) => resolveSelectedProviderId(PROVIDER_OPTIONS, model.id) === selectedProviderId
+  ).map<SelectOption>((model) => ({
+    value: model.value,
+    label: model.label,
+  }));
 
   return (
     <main className={styles.shell} data-visual-fixture="composer-select">
@@ -138,7 +178,23 @@ export function ComposerSelectFixture() {
               <ComposerMetaBarControls
                 controlsRef={controlsRef}
                 disabled={false}
-                modelSelectOptions={MODEL_OPTIONS}
+                shouldShowProviderControl={true}
+                providerSelectOptions={PROVIDER_OPTIONS.map((provider) => ({
+                  value: provider.id,
+                  label: provider.label,
+                }))}
+                selectedProviderId={selectedProviderId}
+                onSelectProvider={(providerId) => {
+                  const nextModelId = resolveProviderModelId(
+                    PROVIDER_OPTIONS,
+                    providerId,
+                    selectedModelId
+                  );
+                  if (nextModelId) {
+                    setSelectedModelId(nextModelId);
+                  }
+                }}
+                modelSelectOptions={modelOptions}
                 selectedModelId={selectedModelId}
                 onSelectModel={setSelectedModelId}
                 effortSelectOptions={REASONING_OPTIONS}

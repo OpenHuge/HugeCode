@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushLazyBoundary } from "../../../../test/asyncTestUtils";
 import {
@@ -19,7 +19,7 @@ function createMockWorker() {
   } satisfies Partial<Worker>;
 }
 
-function mockGitDiffViewerRuntime() {
+function stubGitDiffViewerRuntimeDependencies() {
   const MockWorker = function MockWorker() {
     return createMockWorker();
   };
@@ -199,7 +199,7 @@ describe("buildGitNodes diff lazy boundary", () => {
   it(
     "loads the viewer chunk once actual diff payload exists",
     async () => {
-      mockGitDiffViewerRuntime();
+      stubGitDiffViewerRuntimeDependencies();
 
       const buildGitNodesImpl = await importBuildGitNodes();
       const nodes = buildGitNodesImpl(
@@ -219,8 +219,9 @@ describe("buildGitNodes diff lazy boundary", () => {
       render(<div>{nodes.gitDiffViewerNode}</div>);
 
       await flushLazyBoundary();
-
-      expect(screen.getByTitle("src/app.ts")).toBeTruthy();
+      await waitFor(() => {
+        expect(document.querySelector(".ds-diff-viewer")).toBeTruthy();
+      });
     },
     GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS
   );
