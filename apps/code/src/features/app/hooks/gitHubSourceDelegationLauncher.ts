@@ -3,6 +3,7 @@ import type {
   AgentTaskMissionBrief,
   AgentTaskSourceSummary,
 } from "@ku0/code-runtime-host-contract";
+import type { RuntimeAgentTaskStartInput } from "../../../application/runtime/types/webMcpBridge";
 
 type GitHubSourceDelegationStartInput = {
   workspaceId: string;
@@ -12,25 +13,13 @@ type GitHubSourceDelegationStartInput = {
   executionProfileId?: string | null;
   reviewProfileId?: string | null;
   validationPresetId?: string | null;
-  accessMode?: AccessMode;
+  accessMode?: AccessMode | null;
   preferredBackendIds?: string[] | null;
   taskSource: AgentTaskSourceSummary;
 };
 
 type GitHubSourceDelegationRuntimeControl = {
-  startTask: (input: {
-    workspaceId: string;
-    title: string;
-    instruction: string;
-    stepKind: "read";
-    missionBrief?: AgentTaskMissionBrief | null;
-    executionProfileId?: string | null;
-    reviewProfileId?: string | null;
-    validationPresetId?: string | null;
-    accessMode?: AccessMode;
-    preferredBackendIds?: string[];
-    taskSource: AgentTaskSourceSummary;
-  }) => Promise<unknown>;
+  startTask: (input: RuntimeAgentTaskStartInput) => Promise<unknown>;
 };
 
 export async function launchGitHubSourceDelegation(input: {
