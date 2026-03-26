@@ -1,6 +1,11 @@
 {
   "name": "@ku0/shared",
   "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OpenHuge/HugeCode.git",
+    "directory": "packages/shared"
+  },
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -13,7 +18,8 @@
     "./ui/chat": "./src/ui/chat/index.ts"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "tsc",

@@ -3,7 +3,7 @@ name = "discovery-rs"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-description = "mDNS discovery bindings for HypeCode."
+description = "mDNS discovery bindings for HugeCode."
 publish = false
 build = "build.rs"
 
