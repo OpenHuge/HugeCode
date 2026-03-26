@@ -14,8 +14,8 @@ import {
   type RepositoryExecutionReviewProfileAutofixPolicy,
   type RepositoryExecutionReviewProfileGithubMirrorPolicy,
   type SupportedRepositoryTaskSourceKind,
-  resolveRepositoryExecutionDefaults,
 } from "./runtimeRepositoryExecutionContract";
+import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
 
 export type ReviewProfileFieldOrigin =
   | "explicit_override"

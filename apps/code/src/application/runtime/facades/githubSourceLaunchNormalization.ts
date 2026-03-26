@@ -1,9 +1,7 @@
 import type { AccessMode, AgentTaskMissionBrief } from "@ku0/code-runtime-host-contract";
 import { buildAgentTaskMissionBrief } from "./runtimeMissionDraftFacade";
-import {
-  resolveRepositoryExecutionDefaults,
-  type RepositoryExecutionContract,
-} from "./runtimeRepositoryExecutionContract";
+import { type RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
+import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
 import {
   normalizeGitHubIssueSourceLaunchInput,
   normalizeGitHubPullRequestFollowUpSourceLaunchInput,

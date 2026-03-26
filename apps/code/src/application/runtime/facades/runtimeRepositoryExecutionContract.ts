@@ -433,30 +433,6 @@ function readSourceMappingKind(value: string): SupportedRepositoryTaskSourceKind
   }
 }
 
-function normalizeTaskSourceKind(
-  taskSource: AgentTaskSourceSummary | null | undefined
-): SupportedRepositoryTaskSourceKind {
-  const kind = readSourceMappingKind(taskSource?.kind ?? "manual");
-  return kind ?? "manual";
-}
-
-function profileValidationPresetId(profileId: string | null): string | null {
-  if (!profileId) {
-    return null;
-  }
-  return (
-    listRunExecutionProfiles().find((profile) => profile.id === profileId)?.validationPresetId ??
-    null
-  );
-}
-
-function profileAccessMode(profileId: string | null): AccessMode | null {
-  if (!profileId) {
-    return null;
-  }
-  return listRunExecutionProfiles().find((profile) => profile.id === profileId)?.accessMode ?? null;
-}
-
 export function parseRepositoryExecutionContract(raw: string): RepositoryExecutionContract {
   let parsed: unknown;
   try {
@@ -548,82 +524,9 @@ export async function readRepositoryExecutionContract(
   return parseRepositoryExecutionContract(content);
 }
 
-export function resolveRepositoryExecutionDefaults(input: {
-  contract: RepositoryExecutionContract | null;
-  taskSource: AgentTaskSourceSummary | null | undefined;
-  explicitLaunchInput?: RepositoryExecutionExplicitLaunchInput;
-}): ResolvedRepositoryExecutionDefaults {
-  const sourceMappingKind = normalizeTaskSourceKind(input.taskSource);
-  const sourceMapping = input.contract?.sourceMappings[sourceMappingKind];
-  const defaults = input.contract?.defaults ?? {};
-  const explicit = input.explicitLaunchInput ?? {};
-  const explicitExecutionProfileId = readOptionalText(explicit.executionProfileId);
-  const explicitValidationPresetId = readOptionalText(explicit.validationPresetId);
-  const explicitBackendIds = normalizeBackendIds(explicit.preferredBackendIds);
-  const explicitAccessMode = readOptionalText(explicit.accessMode) as AccessMode | null;
-
-  const executionProfileId =
-    explicitExecutionProfileId ??
-    sourceMapping?.executionProfileId ??
-    defaults.executionProfileId ??
-    null;
-  const explicitReviewProfileId = readOptionalText(explicit.reviewProfileId);
-  const reviewProfileId =
-    explicitReviewProfileId ??
-    sourceMapping?.reviewProfileId ??
-    defaults.reviewProfileId ??
-    input.contract?.defaultReviewProfileId ??
-    null;
-  const reviewProfile =
-    reviewProfileId === null
-      ? null
-      : (input.contract?.reviewProfiles.find((profile) => profile.id === reviewProfileId) ?? null);
-  const validationPresetId =
-    explicitValidationPresetId ??
-    sourceMapping?.validationPresetId ??
-    defaults.validationPresetId ??
-    reviewProfile?.validationPresetId ??
-    profileValidationPresetId(executionProfileId);
-  const preferredBackendIds =
-    explicitBackendIds ??
-    sourceMapping?.preferredBackendIds ??
-    defaults.preferredBackendIds ??
-    undefined;
-  const accessMode =
-    explicitAccessMode ??
-    sourceMapping?.accessMode ??
-    defaults.accessMode ??
-    profileAccessMode(executionProfileId);
-  const validationPreset =
-    validationPresetId === null
-      ? null
-      : (input.contract?.validationPresets.find((preset) => preset.id === validationPresetId) ??
-        null);
-
-  return {
-    contract: input.contract,
-    sourceMappingKind: input.contract?.sourceMappings[sourceMappingKind] ? sourceMappingKind : null,
-    executionProfileId,
-    ...(preferredBackendIds ? { preferredBackendIds } : {}),
-    accessMode,
-    reviewProfileId,
-    reviewProfile,
-    validationPresetId,
-    validationPresetLabel: validationPreset?.label ?? validationPresetId,
-    validationCommands: validationPreset?.commands ?? [],
-    repoInstructions: defaults.guidance?.instructions ?? [],
-    repoSkillIds: defaults.guidance?.skillIds ?? [],
-    sourceInstructions: sourceMapping?.guidance?.instructions ?? [],
-    sourceSkillIds: sourceMapping?.guidance?.skillIds ?? [],
-    owner: sourceMapping?.triage?.owner ?? defaults.triage?.owner ?? null,
-    triagePriority: sourceMapping?.triage?.priority ?? defaults.triage?.priority ?? null,
-    triageRiskLevel: sourceMapping?.triage?.riskLevel ?? defaults.triage?.riskLevel ?? null,
-    triageTags: sourceMapping?.triage?.tags ?? defaults.triage?.tags ?? [],
-  };
-}
-
 export {
   REPOSITORY_EXECUTION_CONTRACT_PATH,
   type RepositoryExecutionContractPolicy,
   type SupportedRepositoryTaskSourceKind,
 };
+export { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";

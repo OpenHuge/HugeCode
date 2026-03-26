@@ -24,10 +24,8 @@ import {
   buildReviewNavigationTarget,
 } from "./runtimeMissionNavigationTarget";
 import type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
-import {
-  resolveRepositoryExecutionDefaults,
-  type RepositoryExecutionContract,
-} from "./runtimeRepositoryExecutionContract";
+import { type RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
+import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
 import { formatMissionReviewEvidenceLabel } from "../../../utils/reviewPackLabels";
 import { formatReviewFailureClassLabel } from "../../../utils/reviewFailureClass";
 import {
