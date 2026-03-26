@@ -10,7 +10,7 @@ on:
       ci_required:
         required: true
         type: boolean
-      desktop_runtime_changed:
+      desktop_fast_verify_required:
         required: true
         type: boolean
       ui_contract_required:
@@ -64,10 +64,10 @@ jobs:
 
       - uses: ./.github/actions/cache-turbo
 
-      - if: ${{ !inputs.affected_mode && inputs.desktop_runtime_changed }}
+      - if: ${{ !inputs.affected_mode && inputs.desktop_fast_verify_required }}
         uses: ./.github/actions/install-linux-desktop-deps
 
-      - if: ${{ !inputs.affected_mode && inputs.desktop_runtime_changed }}
+      - if: ${{ !inputs.affected_mode && inputs.desktop_fast_verify_required }}
         uses: ./.github/actions/setup-rust-ci
         with:
           cargo-cache-path: |
@@ -100,7 +100,7 @@ jobs:
         run: pnpm ui:contract
 
       - name: Desktop Runtime Fast Verify
-        if: ${{ !inputs.affected_mode && inputs.desktop_runtime_changed }}
+        if: ${{ !inputs.affected_mode && inputs.desktop_fast_verify_required }}
         run: pnpm desktop:verify:fast
 
       - name: Circular Dependencies
