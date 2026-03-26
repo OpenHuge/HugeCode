@@ -79,11 +79,14 @@ pub(super) const RPC_METHOD_REGISTRY: &[RpcMethodEntry] = &[
     RpcMethodEntry::new("code_thread_archive"),
     RpcMethodEntry::new("code_thread_live_subscribe"),
     RpcMethodEntry::new("code_thread_live_unsubscribe"),
+    // Thread-only conversation path.
     RpcMethodEntry::new("code_turn_send"),
     RpcMethodEntry::new("code_turn_interrupt"),
+    // Canonical Mission Control launch path.
     RpcMethodEntry::new("code_runtime_run_prepare_v2"),
-    RpcMethodEntry::new("code_runtime_run_start"),
     RpcMethodEntry::new("code_runtime_run_start_v2"),
+    // Legacy runtime-run compatibility surface. Not a product launch path.
+    RpcMethodEntry::new("code_runtime_run_start"),
     RpcMethodEntry::new("code_runtime_run_cancel"),
     RpcMethodEntry::new("code_runtime_run_resume"),
     RpcMethodEntry::new("code_runtime_run_resume_v2"),
@@ -94,6 +97,7 @@ pub(super) const RPC_METHOD_REGISTRY: &[RpcMethodEntry] = &[
     RpcMethodEntry::new("code_runtime_run_subscribe_v2"),
     RpcMethodEntry::new("code_runtime_review_get_v2"),
     RpcMethodEntry::new("code_runtime_runs_list"),
+    // Kernel-job compatibility surface. Not a product launch path.
     RpcMethodEntry::new("code_kernel_job_start_v3"),
     RpcMethodEntry::new("code_kernel_job_get_v3"),
     RpcMethodEntry::new("code_kernel_job_cancel_v3"),

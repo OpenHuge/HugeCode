@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { KernelJob, KernelJobStartRequestV3 } from "../ports/runtimeClient";
+import type { RuntimeRunStartRequest, RuntimeRunStartV2Response } from "../ports/runtimeClient";
 import { getAppSettings } from "../ports/tauriAppSettings";
-import { startRuntimeJob } from "../ports/tauriRuntimeJobs";
+import { prepareRuntimeRunV2, startRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
 import {
   resolveRuntimePreferredBackendIdsInput,
-  resolvePreferredBackendIdsForRuntimeJobStart,
-  startRuntimeJobWithRemoteSelection,
+  resolvePreferredBackendIdsForRuntimeRunLaunch,
+  startRuntimeRunWithRemoteSelection,
 } from "./runtimeRemoteExecutionFacade";
 
 vi.mock("../ports/tauriAppSettings", () => ({
@@ -13,45 +13,84 @@ vi.mock("../ports/tauriAppSettings", () => ({
 }));
 
 vi.mock("../ports/tauriRuntimeJobs", () => ({
-  startRuntimeJob: vi.fn(),
+  prepareRuntimeRunV2: vi.fn(),
+  startRuntimeRunV2: vi.fn(),
 }));
 
 const getAppSettingsMock = vi.mocked(getAppSettings);
-const startRuntimeJobMock = vi.mocked(startRuntimeJob);
+const prepareRuntimeRunV2Mock = vi.mocked(prepareRuntimeRunV2);
+const startRuntimeRunV2Mock = vi.mocked(startRuntimeRunV2);
 
-function createKernelJob(overrides: Partial<KernelJob> = {}): KernelJob {
+function createRuntimeRunRecord(
+  overrides: Partial<RuntimeRunStartV2Response["run"]> = {}
+): RuntimeRunStartV2Response {
   return {
-    id: "job-1",
-    workspaceId: "ws-1",
-    threadId: null,
-    title: "Run task",
-    status: "queued",
-    provider: null,
-    modelId: null,
-    backendId: null,
-    preferredBackendIds: null,
-    executionProfile: {
-      placement: "local",
-      interactivity: "interactive",
-      isolation: "host",
-      network: "default",
-      authority: "user",
+    run: {
+      taskId: "run-1",
+      workspaceId: "ws-1",
+      threadId: null,
+      requestId: null,
+      title: "Run task",
+      status: "queued",
+      accessMode: "on-request",
+      provider: null,
+      modelId: null,
+      routedProvider: null,
+      routedModelId: null,
+      routedPool: null,
+      routedSource: null,
+      backendId: null,
+      preferredBackendIds: null,
+      currentStep: null,
+      createdAt: 1,
+      updatedAt: 1,
+      startedAt: null,
+      completedAt: null,
+      errorCode: null,
+      errorMessage: null,
+      pendingApprovalId: null,
+      steps: [],
+      ...overrides,
     },
-    createdAt: 1,
-    updatedAt: 1,
-    startedAt: null,
-    completedAt: null,
-    continuation: {
-      resumeSupported: true,
-      recovered: false,
-      summary: "Ready",
+    missionRun: {
+      id: "run-1",
+      taskId: "runtime-task:run-1",
+      workspaceId: "ws-1",
+      state: "queued",
+      title: "Run task",
+      summary: null,
+      taskSource: null,
+      startedAt: null,
+      finishedAt: null,
+      updatedAt: 1,
+      currentStepIndex: null,
+      pendingIntervention: null,
+      executionProfile: null,
+      reviewProfileId: null,
+      profileReadiness: null,
+      routing: null,
+      approval: null,
+      reviewDecision: null,
+      intervention: null,
+      operatorState: null,
+      nextAction: null,
+      warnings: [],
+      validations: [],
+      artifacts: [],
+      changedPaths: [],
+      autoDrive: null,
+      takeoverBundle: null,
+      publishHandoff: null,
+      checkpoint: null,
+      missionLinkage: null,
+      actionability: null,
+      completionReason: null,
     },
-    metadata: null,
-    ...overrides,
+    reviewPack: null,
   };
 }
 
-function createStartRequest(): KernelJobStartRequestV3 {
+function createStartRequest(): RuntimeRunStartRequest {
   return {
     workspaceId: "ws-1",
     title: "Run task",
@@ -75,7 +114,7 @@ describe("runtimeRemoteExecutionFacade", () => {
       defaultRemoteExecutionBackendId: "backend-remote-a",
     } as Awaited<ReturnType<typeof getAppSettings>>);
 
-    await expect(resolvePreferredBackendIdsForRuntimeJobStart(undefined)).resolves.toEqual([
+    await expect(resolvePreferredBackendIdsForRuntimeRunLaunch(undefined)).resolves.toEqual([
       "backend-remote-a",
     ]);
   });
@@ -86,7 +125,7 @@ describe("runtimeRemoteExecutionFacade", () => {
     } as Awaited<ReturnType<typeof getAppSettings>>);
 
     await expect(
-      resolvePreferredBackendIdsForRuntimeJobStart(["backend-explicit", "backend-explicit"])
+      resolvePreferredBackendIdsForRuntimeRunLaunch(["backend-explicit", "backend-explicit"])
     ).resolves.toEqual(["backend-explicit"]);
   });
 
@@ -96,7 +135,7 @@ describe("runtimeRemoteExecutionFacade", () => {
     } as Awaited<ReturnType<typeof getAppSettings>>);
 
     await expect(
-      resolvePreferredBackendIdsForRuntimeJobStart(undefined, "backend-workspace-default")
+      resolvePreferredBackendIdsForRuntimeRunLaunch(undefined, "backend-workspace-default")
     ).resolves.toEqual(["backend-workspace-default"]);
   });
 
@@ -117,18 +156,19 @@ describe("runtimeRemoteExecutionFacade", () => {
   });
 
   it("keeps single-run launches free of implicit remote backend preferences", async () => {
-    const summary = createKernelJob();
+    const summary = createRuntimeRunRecord();
 
     getAppSettingsMock.mockResolvedValue({
       defaultRemoteExecutionBackendId: "backend-remote-a",
     } as Awaited<ReturnType<typeof getAppSettings>>);
-    startRuntimeJobMock.mockResolvedValue(summary);
+    prepareRuntimeRunV2Mock.mockResolvedValue({} as never);
+    startRuntimeRunV2Mock.mockResolvedValue(summary);
 
-    await expect(startRuntimeJobWithRemoteSelection(createStartRequest())).resolves.toEqual(
+    await expect(startRuntimeRunWithRemoteSelection(createStartRequest())).resolves.toEqual(
       summary
     );
 
-    expect(startRuntimeJobMock).toHaveBeenCalledWith(
+    expect(prepareRuntimeRunV2Mock).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId: "ws-1",
         executionMode: "single",
@@ -136,51 +176,52 @@ describe("runtimeRemoteExecutionFacade", () => {
         steps: [{ kind: "read", input: "inspect repo" }],
       })
     );
-    expect(startRuntimeJobMock.mock.calls[0]?.[0]).not.toHaveProperty("missionBrief");
+    expect(startRuntimeRunV2Mock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: "ws-1",
+        executionMode: "single",
+      })
+    );
+    expect(startRuntimeRunV2Mock.mock.calls[0]?.[0]).not.toHaveProperty("missionBrief");
   });
 
   it("threads the resolved backend preference into distributed task starts", async () => {
-    const summary = createKernelJob({
+    const summary = createRuntimeRunRecord({
       preferredBackendIds: ["backend-remote-a"],
-      executionProfile: {
-        placement: "remote",
-        interactivity: "background",
-        isolation: "container_sandbox",
-        network: "default",
-        authority: "service",
-      },
     });
 
     getAppSettingsMock.mockResolvedValue({
       defaultRemoteExecutionBackendId: "backend-remote-a",
     } as Awaited<ReturnType<typeof getAppSettings>>);
-    startRuntimeJobMock.mockResolvedValue(summary);
+    prepareRuntimeRunV2Mock.mockResolvedValue({} as never);
+    startRuntimeRunV2Mock.mockResolvedValue(summary);
 
     await expect(
-      startRuntimeJobWithRemoteSelection({
+      startRuntimeRunWithRemoteSelection({
         ...createStartRequest(),
         executionMode: "distributed",
       })
     ).resolves.toEqual(summary);
 
-    expect(startRuntimeJobMock).toHaveBeenCalledWith(
+    expect(startRuntimeRunV2Mock).toHaveBeenCalledWith(
       expect.objectContaining({
         preferredBackendIds: ["backend-remote-a"],
         executionMode: "distributed",
       })
     );
-    expect(startRuntimeJobMock.mock.calls[0]?.[0]).not.toHaveProperty("missionBrief");
+    expect(startRuntimeRunV2Mock.mock.calls[0]?.[0]).not.toHaveProperty("missionBrief");
   });
 
   it("preserves explicit mission brief fields when the caller already provided one", async () => {
-    const summary = createKernelJob({
-      id: "job-2",
+    const summary = createRuntimeRunRecord({
+      taskId: "run-2",
     });
 
     getAppSettingsMock.mockResolvedValue({} as Awaited<ReturnType<typeof getAppSettings>>);
-    startRuntimeJobMock.mockResolvedValue(summary);
+    prepareRuntimeRunV2Mock.mockResolvedValue({} as never);
+    startRuntimeRunV2Mock.mockResolvedValue(summary);
 
-    await startRuntimeJobWithRemoteSelection({
+    await startRuntimeRunWithRemoteSelection({
       ...createStartRequest(),
       missionBrief: {
         objective: "Explicit objective",
@@ -188,7 +229,7 @@ describe("runtimeRemoteExecutionFacade", () => {
       },
     });
 
-    expect(startRuntimeJobMock).toHaveBeenCalledWith(
+    expect(startRuntimeRunV2Mock).toHaveBeenCalledWith(
       expect.objectContaining({
         missionBrief: {
           objective: "Explicit objective",

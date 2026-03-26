@@ -191,7 +191,7 @@ describe("ui service boundary guard", () => {
   it("allows application runtime facades but still rejects runtime implementation imports", () => {
     const allowed = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/workspaces/components/WorkspaceHomeAgentRuntimeOrchestration.tsx",
-      'import { startRuntimeJobWithRemoteSelection } from "../../../application/runtime/facades/runtimeRemoteExecutionFacade";\n'
+      'import { startRuntimeRunWithRemoteSelection } from "../../../application/runtime/facades/runtimeRemoteExecutionFacade";\n'
     );
     expect(allowed).toEqual([]);
 

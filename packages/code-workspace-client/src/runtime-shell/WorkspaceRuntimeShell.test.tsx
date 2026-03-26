@@ -71,7 +71,10 @@ function createBindings(): WorkspaceClientBindings {
         }),
       },
       agentControl: {
-        startRuntimeJob: async () => {
+        prepareRuntimeRun: async () => {
+          throw new Error("not implemented");
+        },
+        startRuntimeRun: async () => {
           throw new Error("not implemented");
         },
         cancelRuntimeJob: async () => {

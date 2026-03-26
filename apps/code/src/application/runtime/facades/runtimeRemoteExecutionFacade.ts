@@ -1,8 +1,8 @@
-import type { KernelJob, KernelJobStartRequestV3 } from "../ports/runtimeClient";
+import type { RuntimeRunStartRequest, RuntimeRunStartV2Response } from "../ports/runtimeClient";
 import { getAppSettings } from "../ports/tauriAppSettings";
-import { startRuntimeJob } from "../ports/tauriRuntimeJobs";
+import { prepareRuntimeRunV2, startRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
 
-type RuntimeJobStartRequestWithRemoteSelection = KernelJobStartRequestV3;
+type RuntimeRunStartRequestWithRemoteSelection = RuntimeRunStartRequest;
 
 export function normalizeRuntimePreferredBackendIds(
   value: string[] | undefined | null
@@ -52,13 +52,13 @@ export async function resolvePreferredBackendIdsForTurnSend(
   preferredBackendIds?: string[] | null,
   defaultBackendId?: string | null
 ): Promise<string[] | undefined> {
-  return resolvePreferredBackendIdsForRuntimeJobStart(
+  return resolvePreferredBackendIdsForRuntimeRunLaunch(
     preferredBackendIds ?? undefined,
     defaultBackendId
   );
 }
 
-export async function resolvePreferredBackendIdsForRuntimeJobStart(
+export async function resolvePreferredBackendIdsForRuntimeRunLaunch(
   preferredBackendIds?: string[],
   defaultBackendId?: string | null
 ): Promise<string[] | undefined> {
@@ -79,18 +79,20 @@ export async function resolvePreferredBackendIdsForRuntimeJobStart(
   });
 }
 
-export async function startRuntimeJobWithRemoteSelection(
-  request: RuntimeJobStartRequestWithRemoteSelection
-): Promise<KernelJob> {
+export async function startRuntimeRunWithRemoteSelection(
+  request: RuntimeRunStartRequestWithRemoteSelection
+): Promise<RuntimeRunStartV2Response> {
   const preferredBackendIds =
     request.executionMode === "distributed"
-      ? await resolvePreferredBackendIdsForRuntimeJobStart(
+      ? await resolvePreferredBackendIdsForRuntimeRunLaunch(
           request.preferredBackendIds,
           request.defaultBackendId ?? undefined
         )
       : undefined;
-  return startRuntimeJob({
+  const launchRequest = {
     ...request,
     ...(preferredBackendIds ? { preferredBackendIds } : {}),
-  });
+  };
+  await prepareRuntimeRunV2(launchRequest);
+  return startRuntimeRunV2(launchRequest);
 }
