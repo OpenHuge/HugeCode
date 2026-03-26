@@ -25,9 +25,7 @@ describe("App boot fallback", () => {
     window.history.replaceState({}, "", "/");
   });
 
-  function installBaseAppMocks(
-    workspaceClientEntryModule: Promise<{ default: () => JSX.Element }>
-  ) {
+  function installBaseAppMocks(workspaceClientEntryModule: Promise<{ default: () => ReactNode }>) {
     vi.doMock("./features/layout/hooks/useWindowLabel", () => ({
       useWindowLabel: () => null,
     }));
@@ -42,7 +40,7 @@ describe("App boot fallback", () => {
 
   it("renders a visible boot fallback while the main app chunk is still loading", async () => {
     const workspaceClientEntryModule = createDeferredModule<{
-      default: () => JSX.Element;
+      default: () => ReactNode;
     }>();
 
     installBaseAppMocks(workspaceClientEntryModule.promise);
@@ -69,7 +67,7 @@ describe("App boot fallback", () => {
 
   it("ignores fixture query params and still resolves the main app shell", async () => {
     const workspaceClientEntryModule = createDeferredModule<{
-      default: () => JSX.Element;
+      default: () => ReactNode;
     }>();
 
     window.history.replaceState({}, "", "/?e2e-fixture=execution-detail");
@@ -94,6 +92,34 @@ describe("App boot fallback", () => {
     expect(await screen.findByText("Loaded main app from fixture query")).toBeTruthy();
     expect(screen.queryByText("Unexpected fixture render")).toBeNull();
   }, 10000);
+
+  it("does not preload the workspace shell when rendering the about window", async () => {
+    const workspaceClientEntryModuleFactory = vi.fn(async () => ({
+      default: () => <div>Unexpected workspace shell</div>,
+    }));
+
+    vi.doMock("./features/layout/hooks/useWindowLabel", () => ({
+      useWindowLabel: () => "about",
+    }));
+    vi.doMock("./features/about/components/AboutView", () => ({
+      AboutView: () => <div>About window</div>,
+    }));
+    vi.doMock("./application/runtime/ports", () => ({
+      RuntimePortsProvider: ({ children }: { children: ReactNode }) => children,
+    }));
+    vi.doMock("@ku0/code-application", () => ({
+      ErrorBoundary: ({ children }: { children: ReactNode }) => children,
+    }));
+    vi.doMock("./web/WorkspaceClientEntry", workspaceClientEntryModuleFactory);
+
+    const { default: App } = await import("./App");
+
+    render(<App />);
+
+    expect(await screen.findByText("About window")).toBeTruthy();
+    expect(workspaceClientEntryModuleFactory).not.toHaveBeenCalled();
+    expect(screen.queryByText("Unexpected workspace shell")).toBeNull();
+  });
 
   it("keeps the app boot shell background neutral", () => {
     expect(appBootStyleSource).not.toContain("radial-gradient(circle at 20% 0%");

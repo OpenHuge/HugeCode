@@ -791,8 +791,16 @@ describe("SettingsCodexAccountsCard", () => {
             accountCallsBeforeQueuedRefresh + 1
           );
           expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(
-            poolCallsBeforeQueuedRefresh + 2
+            poolCallsBeforeQueuedRefresh + 1
           );
+        },
+        { timeout: SETTINGS_CODEX_ACCOUNTS_ASYNC_TIMEOUT_MS }
+      );
+
+      fireEvent.click(poolsTab);
+      await screen.findByText("Popup Success Pool");
+      await waitFor(
+        () => {
           expect(accountsTab.textContent ?? "").toContain("1");
           expect(poolsTab.textContent ?? "").toContain("1");
         },

@@ -1,8 +1,10 @@
 import { access, cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { resolve } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildForgeEnvironment } from "./run-forge-support.mjs";
+import { sanitizeSpawnEnv } from "./run-forge-env.mjs";
+import { buildForgeEnvironment, resolveCommandInvocation } from "./run-forge-support.mjs";
 import {
   createForgeStagePackageJson,
   shouldInstallForgeStageDependencies,
@@ -16,11 +18,14 @@ const tempRootDir = resolve(packageDir, ".tmp");
 const packageJson = JSON.parse(await readFile(resolve(packageDir, "package.json"), "utf8"));
 const forgeConfigSource = resolve(packageDir, "forge.config.mjs");
 const workspaceRoot = resolve(packageDir, "../..");
+const requireFromWorkspace = createRequire(resolve(workspaceRoot, "package.json"));
+const electronForgeCli = requireFromWorkspace.resolve("@electron-forge/cli/dist/electron-forge.js");
 const localMakerDebSource = resolve(scriptDir, "maker-deb.cjs");
 
 let forgeStageDir = "";
 let forgePackageDir = "";
 let forgeStageElectronZipDir = "";
+const nodeExecDir = dirname(process.execPath);
 
 function normalizeCommandPath(commandPath) {
   return commandPath.replaceAll("\\", "/");
@@ -154,13 +159,45 @@ export async function copyForgeOutDir(
     recursive: true,
   });
 }
+export function createStageDependencyInstallInvocation({
+  npmCommand,
+  argsPrefix,
+  forgeCommand,
+  forgePackageDir: installCwd,
+  processTempDir,
+  baseEnv,
+  platform = process.platform,
+}) {
+  return {
+    command: npmCommand,
+    args: [...argsPrefix, "install", "--include=dev", "--ignore-scripts", "--no-package-lock"],
+    options: {
+      cwd: installCwd,
+      env: sanitizeSpawnEnv(
+        createForgeStageEnv(
+          buildForgeEnvironment({
+            baseEnv,
+            command: forgeCommand,
+            platform,
+            processTempDir,
+          })
+        )
+      ),
+      stdio: "inherit",
+    },
+  };
+}
 
-async function runCommand(invocation, args, cwd, env = process.env) {
+async function runCommand(commandName, args, cwd, env = process.env) {
+  const { argsPrefix, command } = await resolveCommandInvocation({
+    commandName,
+    nodeExecDir,
+  });
+
   await new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(invocation.command, args, {
+    const child = spawn(command, [...argsPrefix, ...args], {
       cwd,
-      env,
-      shell: invocation.shell,
+      env: sanitizeSpawnEnv(env),
       stdio: "inherit",
     });
 
@@ -171,7 +208,9 @@ async function runCommand(invocation, args, cwd, env = process.env) {
       }
 
       rejectPromise(
-        new Error(`${invocation.command} ${args.join(" ")} failed with exit code ${code ?? -1}`)
+        new Error(
+          `${command} ${[...argsPrefix, ...args].join(" ")} failed with exit code ${code ?? -1}`
+        )
       );
     });
     child.on("error", rejectPromise);
@@ -203,16 +242,39 @@ async function prepareStage() {
     `${JSON.stringify(stagedPackageJson, null, 2)}\n`,
     "utf8"
   );
+  await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
 
+  return stagedPackageJson;
+}
+
+async function installStageDependencies(stagedPackageJson, processTempDir, forgeCommand) {
   if (shouldInstallForgeStageDependencies(stagedPackageJson)) {
-    const { npm } = resolveForgeStageCommands();
-    const stageEnv = createForgeStageEnv();
-    await runCommand(
-      npm,
-      ["install", "--include=dev", "--ignore-scripts", "--no-package-lock"],
+    const { argsPrefix, command: npmCommand } = await resolveCommandInvocation({
+      commandName: "npm",
+      nodeExecDir,
+    });
+    const invocation = createStageDependencyInstallInvocation({
+      npmCommand,
+      argsPrefix,
+      forgeCommand,
       forgePackageDir,
-      stageEnv
-    );
+      processTempDir,
+      baseEnv: process.env,
+    });
+
+    await new Promise((resolvePromise, rejectPromise) => {
+      const child = spawn(invocation.command, invocation.args, invocation.options);
+
+      child.on("exit", (code) => {
+        if (code === 0) {
+          resolvePromise();
+          return;
+        }
+
+        rejectPromise(new Error(`stage dependency install failed with exit code ${code ?? -1}`));
+      });
+      child.on("error", rejectPromise);
+    });
   }
 
   // Electron Forge's pnpm integration checks node-linker in the staged project,
@@ -236,23 +298,13 @@ async function createLocalElectronZip() {
   const artifactPath = resolve(forgeStageElectronZipDir, artifactName);
 
   if (process.platform === "darwin") {
-    await runCommand(
-      {
-        command: "ditto",
-        shell: false,
-      },
-      ["-c", "-k", "--sequesterRsrc", ".", artifactPath],
-      electronDistDir
-    );
+    await runCommand("ditto", ["-c", "-k", "--sequesterRsrc", ".", artifactPath], electronDistDir);
     return forgeStageElectronZipDir;
   }
 
   if (process.platform === "win32") {
     await runCommand(
-      {
-        command: "powershell.exe",
-        shell: true,
-      },
+      "powershell.exe",
       [
         "-NoProfile",
         "-NonInteractive",
@@ -264,14 +316,7 @@ async function createLocalElectronZip() {
     return forgeStageElectronZipDir;
   }
 
-  await runCommand(
-    {
-      command: "zip",
-      shell: false,
-    },
-    ["-qry", artifactPath, "."],
-    electronDistDir
-  );
+  await runCommand("zip", ["-qry", artifactPath, "."], electronDistDir);
   return forgeStageElectronZipDir;
 }
 
@@ -280,7 +325,6 @@ async function ensureDarwinDmgNativeDependency(command = parseForgeCommand()) {
     return;
   }
 
-  const { pnpm } = resolveForgeStageCommands();
   const pnpmStoreDir = resolve(workspaceRoot, "node_modules/.pnpm");
   const entries = await readdir(pnpmStoreDir, { withFileTypes: true });
   const nativePackages = [
@@ -316,20 +360,20 @@ async function ensureDarwinDmgNativeDependency(command = parseForgeCommand()) {
       // Fall through and rebuild the native addon explicitly.
     }
 
-    await runCommand(pnpm, ["exec", "node-gyp", "rebuild"], packageInstallDir);
+    await runCommand("pnpm", ["exec", "node-gyp", "rebuild"], packageInstallDir);
   }
 }
 
 async function runForge() {
   const command = parseForgeCommand();
-  const { electronForge } = resolveForgeStageCommands();
   await ensureDarwinDmgNativeDependency(command);
   await createStagePaths();
 
   try {
-    await prepareStage();
+    const stagedPackageJson = await prepareStage();
     const processTempDir = resolve(tempRootDir, "process");
     await mkdir(processTempDir, { recursive: true });
+    await installStageDependencies(stagedPackageJson, processTempDir, command);
     const electronZipDir = await createLocalElectronZip();
     const forgeEnv = createForgeExecutionEnv(
       buildForgeEnvironment({
@@ -341,10 +385,9 @@ async function runForge() {
     );
 
     await new Promise((resolvePromise, rejectPromise) => {
-      const child = spawn(electronForge.command, [command], {
+      const child = spawn(process.execPath, [electronForgeCli, command], {
         cwd: forgePackageDir,
-        env: forgeEnv,
-        shell: electronForge.shell,
+        env: sanitizeSpawnEnv(forgeEnv),
         stdio: "inherit",
       });
 

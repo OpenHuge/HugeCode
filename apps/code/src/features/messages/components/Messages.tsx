@@ -77,6 +77,7 @@ import {
   resolveTimelineStatusBanner,
 } from "../utils/timelineSurface";
 import { resolveMessagesEmptyState } from "../utils/messagesEmptyState";
+import { markFeatureVisible } from "../../shared/featurePerformance";
 
 const loadMessagesDeferredPanels = () => import("./MessagesDeferredPanels");
 const DeferredPlanReadyFollowupMessage = lazy(() =>
@@ -359,6 +360,15 @@ export const Messages = memo(function Messages({
     () => resolveCurrentTurnMeta(items, lastUserMessageIndex, visibleItemIndexById),
     [items, lastUserMessageIndex, visibleItemIndexById]
   );
+
+  useEffect(() => {
+    const frameHandle = window.requestAnimationFrame(() => {
+      markFeatureVisible("messages_timeline");
+    });
+    return () => {
+      window.cancelAnimationFrame(frameHandle);
+    };
+  }, []);
 
   useEffect(() => {
     return () => {

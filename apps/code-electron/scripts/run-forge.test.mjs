@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   copyForgeOutDir,
+  createStageDependencyInstallInvocation,
   createCliInvocation,
   createForgeExecutionEnv,
   createForgeStageEnv,
@@ -206,6 +207,42 @@ describe("run-forge helpers", () => {
       devDependencies: {
         "@electron-forge/maker-deb": "7.11.1",
         electron: "41.0.3",
+      },
+    });
+  });
+
+  it("builds stage dependency install env from the forge command", () => {
+    const invocation = createStageDependencyInstallInvocation({
+      npmCommand: process.execPath,
+      argsPrefix: ["/node/npm-cli.js"],
+      forgeCommand: "make",
+      forgePackageDir: "/tmp/forge-stage/app",
+      processTempDir: "/tmp/forge-process",
+      baseEnv: {
+        HOME: "/home/tester",
+      },
+      platform: "linux",
+    });
+
+    expect(invocation).toMatchObject({
+      command: process.execPath,
+      args: [
+        "/node/npm-cli.js",
+        "install",
+        "--include=dev",
+        "--ignore-scripts",
+        "--no-package-lock",
+      ],
+      options: {
+        cwd: "/tmp/forge-stage/app",
+        stdio: "inherit",
+        env: {
+          HOME: "/home/tester",
+          TEMP: "/tmp/forge-process",
+          TMP: "/tmp/forge-process",
+          TMPDIR: "/tmp/forge-process",
+          ELECTRON_FORGE_DISABLE_PUBLISH_SANDBOX_WARNING: "true",
+        },
       },
     });
   });

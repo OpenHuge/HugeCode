@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { detectDesktopRuntimeHost } from "../application/runtime/facades/desktopHostFacade";
+import { recordSentryMetricIfAvailable } from "../features/shared/sentry";
 import {
   getDesktopArchitectureTag,
   getDesktopPlatformArchitectureTag,
@@ -9,6 +10,7 @@ import {
 
 const appVersion = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "dev";
 const SENTRY_FALLBACK_INITIALIZATION_DELAY_MS = 5_000;
+const STARTUP_LONG_TASK_OBSERVER_WINDOW_MS = 15_000;
 
 let sentryInitializationPromise: Promise<void> | null = null;
 
@@ -112,6 +114,39 @@ function scheduleSentryInitialization() {
     window.removeEventListener("keydown", onFirstInteraction, true);
     window.clearTimeout(timeoutHandle);
     cleanupIdleCallback();
+  };
+}
+
+function installStartupLongTaskObserver() {
+  if (typeof window === "undefined" || typeof PerformanceObserver === "undefined") {
+    return noop;
+  }
+
+  const supportedEntryTypes = PerformanceObserver.supportedEntryTypes ?? [];
+  if (!supportedEntryTypes.includes("longtask")) {
+    return noop;
+  }
+
+  const observer = new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      const duration = Math.round(entry.duration);
+      void recordSentryMetricIfAvailable("startup_long_task", 1, {
+        attributes: {
+          duration_bucket: duration >= 250 ? "250_plus" : duration >= 100 ? "100_249" : "50_99",
+        },
+      });
+    }
+  });
+
+  observer.observe({ type: "longtask", buffered: true });
+
+  const timeoutHandle = window.setTimeout(() => {
+    observer.disconnect();
+  }, STARTUP_LONG_TASK_OBSERVER_WINDOW_MS);
+
+  return () => {
+    window.clearTimeout(timeoutHandle);
+    observer.disconnect();
   };
 }
 
@@ -221,8 +256,10 @@ export function RuntimeBootstrapEffects() {
     const cleanupZoom = installMobileZoomGesturePrevention();
     const cleanupViewport = installMobileViewportHeightSync();
     const cleanupSentry = scheduleSentryInitialization();
+    const cleanupLongTaskObserver = installStartupLongTaskObserver();
 
     return () => {
+      cleanupLongTaskObserver();
       cleanupSentry();
       cleanupViewport();
       cleanupZoom();

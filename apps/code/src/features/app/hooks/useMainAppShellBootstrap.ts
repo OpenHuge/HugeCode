@@ -11,6 +11,7 @@ import { useGitPanelController } from "./useGitPanelController";
 import { useLiquidGlassEffect } from "./useLiquidGlassEffect";
 import { useSidebarToggleProps } from "./useSidebarToggleProps";
 import { useDesktopLaunchIntentBootstrap } from "./useDesktopLaunchIntentBootstrap";
+import { useDeferredStartupActivation } from "./useDeferredStartupActivation";
 import { useSettingsModalState } from "./useSettingsModalState";
 import { useUpdaterController } from "./useUpdaterController";
 import { useWorkspaceController } from "./useWorkspaceController";
@@ -46,8 +47,10 @@ export function useMainAppShellBootstrap({
   useCodeCssVars(appSettings);
 
   const debugState = useDebugLog();
+  const deferredStartupReady = useDeferredStartupActivation();
   const shouldReduceTransparency = reduceTransparency || isMobilePlatform();
   useLiquidGlassEffect({
+    enabled: deferredStartupReady,
     reduceTransparency: shouldReduceTransparency,
     onDebug: debugState.addDebugEntry,
   });
@@ -73,7 +76,7 @@ export function useMainAppShellBootstrap({
     refreshWorkspaces,
   });
   useDesktopLaunchIntentBootstrap({
-    enabled: !mobileState.isMobileRuntime,
+    enabled: !mobileState.isMobileRuntime && deferredStartupReady,
     onDebug: debugState.addDebugEntry,
   });
 
@@ -128,7 +131,7 @@ export function useMainAppShellBootstrap({
   );
 
   const updaterController = useUpdaterController({
-    enabled: !mobileState.isMobileRuntime,
+    enabled: !mobileState.isMobileRuntime && deferredStartupReady,
     notificationSoundsEnabled: appSettings.notificationSoundsEnabled,
     systemNotificationsEnabled: appSettings.systemNotificationsEnabled,
     getWorkspaceName,
