@@ -1,4 +1,5 @@
 export const EXEMPT_BRANCH_NAMES = new Set(["main", "fastcode"]);
+export const EXEMPT_BRANCH_PATTERNS = [/^gh-readonly-queue\//u];
 export const ALLOWED_BRANCH_PREFIXES = [
   "feat",
   "fix",
@@ -39,6 +40,16 @@ export function evaluateBranchPolicy(branchName) {
       status: "pass",
       branch,
       detail: `Branch "${branch}" is exempt from working-branch naming policy.`,
+      kind: "exempt",
+    };
+  }
+
+  if (EXEMPT_BRANCH_PATTERNS.some((pattern) => pattern.test(branch))) {
+    return {
+      ok: true,
+      status: "pass",
+      branch,
+      detail: `Branch "${branch}" is an exempt merge-queue branch.`,
       kind: "exempt",
     };
   }
