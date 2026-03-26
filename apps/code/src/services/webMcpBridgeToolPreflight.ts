@@ -21,6 +21,13 @@ import {
 import type { WebMcpAgent } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 import { WebMcpInputSchemaValidationError } from "@ku0/code-runtime-client/webMcpInputSchemaValidationError";
 import { validateToolInputAgainstSchema } from "@ku0/code-runtime-client/webMcpToolInputSchemaValidation";
+import {
+  createDefaultRuntimeToolExecutionHooks,
+  mergeRuntimeToolExecutionAnnotationCodes,
+  runRuntimeToolExecutionFailureHooks,
+  runRuntimeToolExecutionPreflightHooks,
+  runRuntimeToolExecutionSuccessHooks,
+} from "../application/runtime/facades/runtimeToolExecutionHooks";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -40,6 +47,8 @@ type RuntimeToolEventMetadata = {
   workspaceId?: string | null;
   capabilityProfile?: "default" | "solo-max" | null;
 };
+
+const DEFAULT_RUNTIME_TOOL_EXECUTION_HOOKS = [createDefaultRuntimeToolExecutionHooks()];
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -160,6 +169,13 @@ function buildGuardrailEffectiveLimitsSuffix(decision: {
   return ` (effective limits: payload<=${payloadLimit}B, computer_observe<=${computerObserveRateLimit}/min)`;
 }
 
+function toGuardrailRequired(
+  isMetricsGateExemptTool: boolean,
+  isWorkspaceDryRun: boolean
+): boolean {
+  return !isMetricsGateExemptTool && !isWorkspaceDryRun;
+}
+
 async function reportToolAttempted(input: {
   toolName: string;
   scope: RuntimeToolExecutionScope;
@@ -243,6 +259,7 @@ export function wrapToolsWithInputSchemaPreflight<TTool extends WebMcpToolDescri
       const workspaceId = toOptionalWorkspaceId(input);
       const isMetricsGateExemptTool = isRuntimeMetricsDiagnosticsTool(tool.name);
       const isWorkspaceDryRun = isRuntimeWorkspaceDryRun(tool.name, input);
+      const guardrailRequired = toGuardrailRequired(isMetricsGateExemptTool, isWorkspaceDryRun);
       await reportToolAttempted({
         toolName: tool.name,
         scope: metricScope,
@@ -250,7 +267,7 @@ export function wrapToolsWithInputSchemaPreflight<TTool extends WebMcpToolDescri
         exempt: isMetricsGateExemptTool,
       });
       recordRuntimeToolExecutionAttempt(tool.name, metricScope);
-      if (!isMetricsGateExemptTool && !isWorkspaceDryRun) {
+      if (guardrailRequired) {
         const guardrailDecision = await evaluateRuntimeToolGuardrail({
           toolName: tool.name,
           scope: metricScope,
@@ -259,6 +276,19 @@ export function wrapToolsWithInputSchemaPreflight<TTool extends WebMcpToolDescri
           metadata,
         });
         if (!guardrailDecision.allowed) {
+          const preflightAnnotations = await runRuntimeToolExecutionPreflightHooks(
+            DEFAULT_RUNTIME_TOOL_EXECUTION_HOOKS,
+            {
+              toolName: tool.name,
+              scope: metricScope,
+              workspaceId,
+              isMetricsDiagnosticsTool: isMetricsGateExemptTool,
+              isWorkspaceDryRun,
+              guardrailRequired,
+              validationWarnings: [],
+              validationExtraFields: [],
+            }
+          );
           const guardrailCode =
             typeof guardrailDecision.errorCode === "string" &&
             guardrailDecision.errorCode.trim().length > 0
@@ -272,6 +302,21 @@ export function wrapToolsWithInputSchemaPreflight<TTool extends WebMcpToolDescri
           const guardrailMessageWithLimits = `${guardrailMessage}${buildGuardrailEffectiveLimitsSuffix(
             guardrailDecision
           )}`;
+          const failureAnnotations = await runRuntimeToolExecutionFailureHooks(
+            DEFAULT_RUNTIME_TOOL_EXECUTION_HOOKS,
+            {
+              toolName: tool.name,
+              scope: metricScope,
+              workspaceId,
+              status: "blocked",
+              errorCode: guardrailCode,
+              durationMs: 0,
+            }
+          );
+          const annotations = mergeRuntimeToolExecutionAnnotationCodes(
+            preflightAnnotations,
+            failureAnnotations
+          );
           await reportToolCompleted({
             toolName: tool.name,
             scope: metricScope,
@@ -287,6 +332,7 @@ export function wrapToolsWithInputSchemaPreflight<TTool extends WebMcpToolDescri
             status: "blocked",
             errorCode: guardrailCode,
             durationMs: 0,
+            annotations,
           });
           await reportRuntimeToolGuardrailOutcome({
             toolName: tool.name,
@@ -304,6 +350,19 @@ export function wrapToolsWithInputSchemaPreflight<TTool extends WebMcpToolDescri
         }
       }
       const validation = validateToolInputAgainstSchema(input, tool.inputSchema);
+      const preflightAnnotations = await runRuntimeToolExecutionPreflightHooks(
+        DEFAULT_RUNTIME_TOOL_EXECUTION_HOOKS,
+        {
+          toolName: tool.name,
+          scope: metricScope,
+          workspaceId,
+          isMetricsDiagnosticsTool: isMetricsGateExemptTool,
+          isWorkspaceDryRun,
+          guardrailRequired,
+          validationWarnings: validation.warnings,
+          validationExtraFields: validation.extraFields,
+        }
+      );
       if (validation.extraFields.length > 0) {
         logger.warn(
           `[webmcp][${scope}] ${tool.name} received unexpected input fields: ${validation.extraFields.join(
@@ -327,6 +386,21 @@ export function wrapToolsWithInputSchemaPreflight<TTool extends WebMcpToolDescri
         );
       }
       if (validation.errors.length > 0) {
+        const failureAnnotations = await runRuntimeToolExecutionFailureHooks(
+          DEFAULT_RUNTIME_TOOL_EXECUTION_HOOKS,
+          {
+            toolName: tool.name,
+            scope: metricScope,
+            workspaceId,
+            status: "validation_failed",
+            errorCode: "INPUT_SCHEMA_VALIDATION_FAILED",
+            durationMs: 0,
+          }
+        );
+        const annotations = mergeRuntimeToolExecutionAnnotationCodes(
+          preflightAnnotations,
+          failureAnnotations
+        );
         await reportToolCompleted({
           toolName: tool.name,
           scope: metricScope,
@@ -342,6 +416,7 @@ export function wrapToolsWithInputSchemaPreflight<TTool extends WebMcpToolDescri
           status: "validation_failed",
           errorCode: "INPUT_SCHEMA_VALIDATION_FAILED",
           durationMs: 0,
+          annotations,
         });
         if (!isMetricsGateExemptTool) {
           await reportRuntimeToolGuardrailOutcome({
@@ -371,6 +446,20 @@ export function wrapToolsWithInputSchemaPreflight<TTool extends WebMcpToolDescri
       try {
         const result = await tool.execute(input, agent);
         const truncatedOutput = readToolOutputTruncatedFlag(result);
+        const successAnnotations = await runRuntimeToolExecutionSuccessHooks(
+          DEFAULT_RUNTIME_TOOL_EXECUTION_HOOKS,
+          {
+            toolName: tool.name,
+            scope: metricScope,
+            workspaceId,
+            truncatedOutput,
+            durationMs: Date.now() - startedAt,
+          }
+        );
+        const annotations = mergeRuntimeToolExecutionAnnotationCodes(
+          preflightAnnotations,
+          successAnnotations
+        );
         await reportToolCompleted({
           toolName: tool.name,
           scope: metricScope,
@@ -385,6 +474,7 @@ export function wrapToolsWithInputSchemaPreflight<TTool extends WebMcpToolDescri
           status: "success",
           durationMs: Date.now() - startedAt,
           truncatedOutput,
+          annotations,
         });
         if (!isMetricsGateExemptTool) {
           await reportRuntimeToolGuardrailOutcome({
@@ -399,6 +489,21 @@ export function wrapToolsWithInputSchemaPreflight<TTool extends WebMcpToolDescri
         return result;
       } catch (error) {
         const failure = toRuntimeFailureStatus(error);
+        const failureAnnotations = await runRuntimeToolExecutionFailureHooks(
+          DEFAULT_RUNTIME_TOOL_EXECUTION_HOOKS,
+          {
+            toolName: tool.name,
+            scope: metricScope,
+            workspaceId,
+            status: failure.status,
+            errorCode: failure.errorCode,
+            durationMs: Date.now() - startedAt,
+          }
+        );
+        const annotations = mergeRuntimeToolExecutionAnnotationCodes(
+          preflightAnnotations,
+          failureAnnotations
+        );
         await reportToolCompleted({
           toolName: tool.name,
           scope: metricScope,
@@ -414,6 +519,7 @@ export function wrapToolsWithInputSchemaPreflight<TTool extends WebMcpToolDescri
           status: failure.status,
           errorCode: failure.errorCode,
           durationMs: Date.now() - startedAt,
+          annotations,
         });
         if (!isMetricsGateExemptTool) {
           await reportRuntimeToolGuardrailOutcome({

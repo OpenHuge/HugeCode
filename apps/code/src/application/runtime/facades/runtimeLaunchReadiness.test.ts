@@ -176,6 +176,8 @@ describe("buildRuntimeLaunchReadiness", () => {
         blockingReason: "Runtime tool success rate is 80.0%, below the 95.0% launch threshold.",
         recommendedAction:
           "Inspect runtime tool metrics and recover top failed tools before launching.",
+        blockedTotal: 2,
+        topFailedReason: "REQUEST_TIMEOUT (1)",
       }),
       pendingApprovalCount: 0,
       stalePendingApprovalCount: 0,
@@ -185,6 +187,40 @@ describe("buildRuntimeLaunchReadiness", () => {
     expect(summary.launchAllowed).toBe(false);
     expect(summary.blockingReason).toContain("80.0%");
     expect(summary.recommendedAction).toContain("recover top failed tools");
+    expect(summary.executionReliability.blockedTotal).toBe(2);
+    expect(summary.executionReliability.topFailedReason).toBe("REQUEST_TIMEOUT (1)");
+  });
+
+  it("carries circuit breaker scopes into the execution reliability signal", () => {
+    const summary = buildRuntimeLaunchReadiness({
+      capabilities: buildCapabilitiesSummary(),
+      health: buildHealthResponse(),
+      healthError: null,
+      selectedRoute: buildRoute(),
+      executionReliability: buildExecutionReliability({
+        state: "blocked",
+        blockingReason: "The runtime runtime tool circuit breaker is open.",
+        recommendedAction: "Wait for the runtime tool circuit breaker to close before launching.",
+        circuitBreakers: [
+          {
+            scope: "runtime",
+            state: "open",
+            openedAt: 1_700_000_000_000,
+            updatedAt: 1_700_000_000_000,
+          },
+          {
+            scope: "write",
+            state: "closed",
+            openedAt: null,
+            updatedAt: 1_700_000_000_001,
+          },
+        ],
+      }),
+      pendingApprovalCount: 0,
+      stalePendingApprovalCount: 0,
+    });
+
+    expect(summary.executionReliability.openCircuitBreakerScopes).toEqual(["runtime"]);
   });
 
   it("keeps selected route as the first blocking reason when route and reliability both block", () => {
