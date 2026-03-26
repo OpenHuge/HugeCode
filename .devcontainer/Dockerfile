@@ -22,6 +22,8 @@ RUN apt-get update \
     libcups2 \
     libdbus-1-3 \
     libdbus-1-dev \
+    libevent-2.1-7 \
+    libgstreamer-plugins-bad1.0-0 \
     libdrm2 \
     libfontconfig1 \
     libfreetype6 \
@@ -35,6 +37,7 @@ RUN apt-get update \
     libpango-1.0-0 \
     libssl-dev \
     libwebkit2gtk-4.1-dev \
+    libx264-164 \
     libx11-6 \
     libxcb1 \
     libxcomposite1 \

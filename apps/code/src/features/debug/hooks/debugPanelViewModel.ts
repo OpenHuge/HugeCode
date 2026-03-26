@@ -2,6 +2,8 @@ import type { DebugPanelViewModel, DebugPanelViewModelParams } from "./debugPane
 import type { useDebugEntryDiagnostics } from "./useDebugEntryDiagnostics";
 import type { useDebugRuntimeCapabilities } from "./useDebugRuntimeCapabilities";
 import type { useDebugRuntimeEventChannels } from "./useDebugRuntimeEventChannels";
+import type { useDebugRuntimeToolExecutionMetrics } from "./useDebugRuntimeToolExecutionMetrics";
+import type { useDebugRuntimeToolLifecycle } from "./useDebugRuntimeToolLifecycle";
 import type { useDebugRuntimeProbe } from "./useDebugRuntimeProbe";
 import type { useFormattedDebugEntries } from "./useFormattedDebugEntries";
 import type { useRuntimeDiagnosticsExport } from "./useRuntimeDiagnosticsExport";
@@ -16,6 +18,8 @@ export type {
 type DebugRuntimeCapabilitiesState = ReturnType<typeof useDebugRuntimeCapabilities>;
 type RuntimeDiagnosticsExportState = ReturnType<typeof useRuntimeDiagnosticsExport>;
 type DebugRuntimeEventChannelsState = ReturnType<typeof useDebugRuntimeEventChannels>;
+type DebugRuntimeToolExecutionMetricsState = ReturnType<typeof useDebugRuntimeToolExecutionMetrics>;
+type DebugRuntimeToolLifecycleState = ReturnType<typeof useDebugRuntimeToolLifecycle>;
 type DebugRuntimeProbeState = ReturnType<typeof useDebugRuntimeProbe>;
 type DebugEntryDiagnosticsState = ReturnType<typeof useDebugEntryDiagnostics>;
 type FormattedEntries = ReturnType<typeof useFormattedDebugEntries>;
@@ -24,6 +28,8 @@ export type CreateDebugPanelViewModelParams = DebugPanelViewModelParams & {
   runtimeCapabilities: DebugRuntimeCapabilitiesState;
   diagnosticsExport: RuntimeDiagnosticsExportState;
   runtimeEventChannels: DebugRuntimeEventChannelsState;
+  runtimeToolExecutionMetrics: DebugRuntimeToolExecutionMetricsState;
+  runtimeToolLifecycle: DebugRuntimeToolLifecycleState;
   runtimeProbe: DebugRuntimeProbeState;
   formattedEntries: FormattedEntries;
   entryDiagnostics: DebugEntryDiagnosticsState;
@@ -45,6 +51,8 @@ export function createDebugPanelViewModel({
   runtimeCapabilities,
   diagnosticsExport,
   runtimeEventChannels,
+  runtimeToolExecutionMetrics,
+  runtimeToolLifecycle,
   runtimeProbe,
   formattedEntries,
   entryDiagnostics,
@@ -62,6 +70,10 @@ export function createDebugPanelViewModel({
     exportDiagnostics,
   } = diagnosticsExport;
   const { eventChannelDiagnostics, runtimeEventBridgePath } = runtimeEventChannels;
+  const { updatedAt: runtimeToolExecutionMetricsUpdatedAt, totals: runtimeToolExecutionTotals } =
+    runtimeToolExecutionMetrics;
+  const { recentExecutions: runtimeToolExecutionRecentExecutions } = runtimeToolExecutionMetrics;
+  const { lifecycleEvents: runtimeToolLifecycleEvents } = runtimeToolLifecycle;
   const {
     runtimeProbeBusyLabel,
     runtimeProbeError,
@@ -82,10 +94,12 @@ export function createDebugPanelViewModel({
     setLiveSkillIncludeHidden,
     isCoreTreeSkillSelected,
     runHealthProbe,
+    runToolMetricsProbe,
     runRemoteStatusProbe,
     runTerminalStatusProbe,
     runSettingsProbe,
     runBootstrapProbe,
+    runToolLifecycleProbe,
     runLiveSkillProbe,
     isRuntimeProbeBusy,
   } = runtimeProbe;
@@ -114,6 +128,10 @@ export function createDebugPanelViewModel({
       hasRemoteExecutionDiagnostics,
       agentTaskDurabilityDiagnostics,
       eventChannelDiagnostics,
+      runtimeToolExecutionMetricsUpdatedAt,
+      runtimeToolExecutionTotals,
+      runtimeToolExecutionRecentExecutions,
+      runtimeToolLifecycleEvents,
       runtimeEventBridgePath,
       formattedEntries,
       isRuntimeProbeBusy,
@@ -136,10 +154,12 @@ export function createDebugPanelViewModel({
       onLiveSkillMaxResultsChange: setLiveSkillMaxResults,
       onLiveSkillIncludeHiddenChange: setLiveSkillIncludeHidden,
       onRunHealthProbe: runHealthProbe,
+      onRunToolMetricsProbe: runToolMetricsProbe,
       onRunRemoteStatusProbe: runRemoteStatusProbe,
       onRunTerminalStatusProbe: runTerminalStatusProbe,
       onRunSettingsProbe: runSettingsProbe,
       onRunBootstrapProbe: runBootstrapProbe,
+      onRunToolLifecycleProbe: runToolLifecycleProbe,
       onRunLiveSkillProbe: runLiveSkillProbe,
     },
   };

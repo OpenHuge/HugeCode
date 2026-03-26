@@ -193,6 +193,16 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     () => parseRuntimeBatchPreviewState(runtimeDraftBatchConfig),
     [runtimeDraftBatchConfig]
   );
+  const launchExecutionGateLabel =
+    launchReadiness.executionReliability.gatePassed === null
+      ? "n/a"
+      : launchReadiness.executionReliability.gatePassed
+        ? "pass"
+        : "fail";
+  const launchExecutionCircuitBreakerText =
+    launchReadiness.executionReliability.openCircuitBreakerScopes.length > 0
+      ? launchReadiness.executionReliability.openCircuitBreakerScopes.join(", ")
+      : "none";
   const runtimeBatchPreviewEdges = useMemo(() => {
     const taskKeys = new Set(runtimeBatchPreview.tasks.map((task) => task.taskKey));
     return runtimeBatchPreview.tasks.flatMap((task) =>
@@ -686,6 +696,13 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
               {launchReadiness.executionReliability.label}:{" "}
               {launchReadiness.executionReliability.detail}
             </span>
+            <span>Execution gate: {launchExecutionGateLabel}</span>
+            <span>Execution channel: {launchReadiness.executionReliability.channelStatus}</span>
+            <span>Tool blocks: {launchReadiness.executionReliability.blockedTotal}</span>
+            <span>
+              Top failed reason: {launchReadiness.executionReliability.topFailedReason ?? "none"}
+            </span>
+            <span>Open circuit breakers: {launchExecutionCircuitBreakerText}</span>
           </div>
           {launchReadiness.blockingReason ? (
             <div className={controlStyles.warning}>{launchReadiness.blockingReason}</div>
