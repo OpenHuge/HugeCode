@@ -136,5 +136,11 @@ Public workflow entrypoints currently include:
   report-only mode for `BEHIND` PRs. In queue mode, GitHub owns latest-base
   refresh and the maintenance workflow should only surface real conflicts or
   policy skips.
+- When `MERGE_QUEUE_ENABLED=true`, keep the PR fast path intentionally narrow:
+  `pull_request` should prefer quick lint/typecheck/build proof, while heavy
+  latest-base integration lanes such as runtime contract parity, affected test
+  execution, and frontend optimization move to `merge_group`. Required
+  aggregate check names stay stable; the queue run provides the final
+  integration proof before merge.
 - Auto-merge for non-Dependabot PRs should stay repo-branch-only and review-gated; the default path is "approved with no unresolved conversations means `gh pr merge --auto` is enabled unless the PR carries the opt-out `manual-merge` label."
 - npm Dependabot updates should prefer grouped low-risk development-version bumps to reduce queue pressure and redundant CI fan-out, while keeping higher-risk dependency changes in manual-review lanes.

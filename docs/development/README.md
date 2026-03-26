@@ -94,6 +94,10 @@ Practical usage:
   so `PR Branch Maintenance` stops calling `update branch` on healthy `BEHIND`
   PRs. Queue mode should only leave manual handling for true merge conflicts or
   opt-out PRs.
+- In the same queue mode, keep `pull_request` checks fast for agent iteration.
+  Heavy integration proof belongs on `merge_group`, while the PR path should
+  stay focused on quick failures that help an agent correct course without
+  waiting through the full latest-base suite.
 - Repo-authored PRs default to approval-driven auto-merge once required reviews,
   required checks, and conversation resolution are satisfied.
 - Add the `manual-merge` label to keep an approved PR out of auto-merge and the
