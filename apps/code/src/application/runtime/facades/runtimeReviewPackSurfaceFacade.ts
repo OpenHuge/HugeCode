@@ -636,7 +636,7 @@ function buildReviewPackContinuity(input: {
     return null;
   }
   if (projectedContinuation && !descriptor) {
-    const details: string[] = descriptor ? [...descriptor.details] : [];
+    const details: string[] = [];
     if (projectedContinuation.detail) {
       pushUnique(details, projectedContinuation.detail);
     }
