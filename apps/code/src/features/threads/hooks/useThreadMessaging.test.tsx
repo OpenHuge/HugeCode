@@ -1227,7 +1227,7 @@ describe("useThreadMessaging telemetry", () => {
       "turn-1",
       "steer this",
       [],
-      undefined,
+      [{ name: "Calendar App", path: "app://connector_calendar" }],
       undefined,
       {
         accessMode: "full-access",
@@ -1246,6 +1246,7 @@ describe("useThreadMessaging telemetry", () => {
         missionMode: null,
         model: "gpt-5.3-codex",
         preferredBackendIds: null,
+        provider: undefined,
         serviceTier: "fast",
       }
     );
