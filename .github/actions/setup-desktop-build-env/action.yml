@@ -25,6 +25,10 @@ inputs:
     description: Destination path for the restored frontend artifact
     required: false
     default: "apps/code/dist"
+  restore-artifact:
+    description: Whether the shared frontend artifact should be restored
+    required: false
+    default: "true"
 
 runs:
   using: composite
@@ -51,6 +55,7 @@ runs:
       run: ${{ inputs.install-command }}
 
     - uses: ./.github/actions/restore-artifact
+      if: ${{ inputs.restore-artifact == 'true' }}
       with:
         name: ${{ inputs.artifact-name }}
         path: ${{ inputs.artifact-path }}
