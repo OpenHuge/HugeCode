@@ -34,6 +34,9 @@ export type RuntimeLaunchReadinessSummary = {
   executionReliability: RuntimeLaunchReadinessSignal & {
     gatePassed: boolean | null;
     channelStatus: RuntimeExecutionReliabilitySummary["channelHealth"]["status"];
+    blockedTotal: number;
+    topFailedReason: string | null;
+    openCircuitBreakerScopes: RuntimeExecutionReliabilitySummary["circuitBreakers"][number]["scope"][];
   };
 };
 
@@ -178,6 +181,11 @@ function buildExecutionReliabilitySignal(
         : executionReliability.recommendedAction),
     gatePassed: executionReliability.gate.passed,
     channelStatus: executionReliability.channelHealth.status,
+    blockedTotal: executionReliability.blockedTotal,
+    topFailedReason: executionReliability.topFailedReason,
+    openCircuitBreakerScopes: executionReliability.circuitBreakers
+      .filter((entry) => entry.state === "open")
+      .map((entry) => entry.scope),
   };
 }
 
