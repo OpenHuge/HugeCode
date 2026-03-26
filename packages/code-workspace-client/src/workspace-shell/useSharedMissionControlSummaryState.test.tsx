@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { renderHook, waitFor } from "@testing-library/react";
 import { act, type ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceClientBindings } from "../index";
 import { WorkspaceClientBindingsProvider } from "../workspace/WorkspaceClientBindingsProvider";
 import { useSharedMissionControlSummaryState } from "./useSharedMissionControlSummaryState";
@@ -16,7 +16,8 @@ function createBindings(
     reviewPacks: [],
   })),
   subscribeScopedRuntimeUpdatedEvents = vi.fn((_options, _listener) => () => undefined),
-  kernelProjection: WorkspaceClientBindings["runtime"]["kernelProjection"] = undefined
+  kernelProjection: WorkspaceClientBindings["runtime"]["kernelProjection"] = undefined,
+  readMissionControlSummary?: WorkspaceClientBindings["runtime"]["missionControl"]["readMissionControlSummary"]
 ): WorkspaceClientBindings {
   return {
     navigation: {
@@ -62,6 +63,7 @@ function createBindings(
       },
       missionControl: {
         readMissionControlSnapshot,
+        readMissionControlSummary,
       },
       kernelProjection,
       runtimeUpdated: {
@@ -172,6 +174,10 @@ function wrapper(bindings: WorkspaceClientBindings) {
 }
 
 describe("useSharedMissionControlSummaryState", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("skips the runtime snapshot read until the shell explicitly enables mission data", () => {
     const readMissionControlSnapshot = vi.fn(async () => ({
       source: "runtime_snapshot_v1" as const,
@@ -295,6 +301,198 @@ describe("useSharedMissionControlSummaryState", () => {
       expect(result.current.summary.tasksCount).toBe(1);
     });
     expect(readMissionControlSnapshot).toHaveBeenCalledTimes(2);
+  });
+
+  it("debounces repeated runtime-updated events into one shared refresh", async () => {
+    vi.useFakeTimers();
+    const readMissionControlSnapshot = vi
+      .fn()
+      .mockResolvedValueOnce({
+        source: "runtime_snapshot_v1" as const,
+        generatedAt: 0,
+        workspaces: [],
+        tasks: [],
+        runs: [],
+        reviewPacks: [],
+      })
+      .mockResolvedValueOnce({
+        source: "runtime_snapshot_v1" as const,
+        generatedAt: 1,
+        workspaces: [],
+        tasks: [
+          {
+            id: "task-1",
+            workspaceId: "workspace-1",
+            title: "Task",
+            objective: null,
+            origin: { kind: "run", runId: "run-1", threadId: null, requestId: null },
+            taskSource: null,
+            mode: null,
+            modeSource: "missing",
+            status: "running",
+            createdAt: 0,
+            updatedAt: 0,
+            currentRunId: "run-1",
+            latestRunId: "run-1",
+            latestRunState: "running",
+          },
+        ],
+        runs: [],
+        reviewPacks: [],
+      });
+
+    let listener:
+      | ((event: {
+          scope: string[];
+          reason: string;
+          eventWorkspaceId: string;
+          paramsWorkspaceId: string | null;
+        }) => void)
+      | undefined;
+    const subscribeScopedRuntimeUpdatedEvents = vi.fn((_options, nextListener) => {
+      listener = nextListener;
+      return () => {
+        listener = undefined;
+        return undefined;
+      };
+    });
+
+    const { result } = renderHook(() => useSharedMissionControlSummaryState("workspace-1"), {
+      wrapper: wrapper(
+        createBindings(readMissionControlSnapshot, subscribeScopedRuntimeUpdatedEvents)
+      ),
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.loadState).toBe("ready");
+    expect(readMissionControlSnapshot).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      listener?.({
+        scope: ["agents"],
+        reason: "runUpsert",
+        eventWorkspaceId: "workspace-1",
+        paramsWorkspaceId: "workspace-1",
+      });
+      listener?.({
+        scope: ["agents"],
+        reason: "runUpsert",
+        eventWorkspaceId: "workspace-1",
+        paramsWorkspaceId: "workspace-1",
+      });
+    });
+
+    expect(readMissionControlSnapshot).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      vi.advanceTimersByTime(160);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.loadState).toBe("ready");
+    expect(result.current.summary.tasksCount).toBe(1);
+    expect(readMissionControlSnapshot).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears pending refresh timeouts when the active workspace changes", async () => {
+    vi.useFakeTimers();
+    const readMissionControlSummary = vi.fn(async (workspaceId: string | null) => ({
+      workspaceLabel: workspaceId === "workspace-2" ? "Beta" : "Alpha",
+      tasksCount: workspaceId === "workspace-2" ? 2 : 1,
+      runsCount: 0,
+      approvalCount: 0,
+      reviewPacksCount: 0,
+      connectedWorkspaceCount: 1,
+      launchReadiness: {
+        tone: "ready" as const,
+        label: "Launch readiness",
+        detail: "Ready",
+      },
+      continuityReadiness: {
+        tone: "ready" as const,
+        label: "Continuity readiness",
+        detail: "Ready",
+      },
+      missionItems: [],
+      reviewItems: [],
+    }));
+
+    let listener:
+      | ((event: {
+          scope: string[];
+          reason: string;
+          eventWorkspaceId: string;
+          paramsWorkspaceId: string | null;
+        }) => void)
+      | undefined;
+    const subscribeScopedRuntimeUpdatedEvents = vi.fn((_options, nextListener) => {
+      listener = nextListener;
+      return () => {
+        listener = undefined;
+        return undefined;
+      };
+    });
+
+    const { result, rerender } = renderHook(
+      ({ activeWorkspaceId }) => useSharedMissionControlSummaryState(activeWorkspaceId),
+      {
+        initialProps: { activeWorkspaceId: "workspace-1" },
+        wrapper: wrapper(
+          createBindings(
+            vi.fn(async () => ({
+              source: "runtime_snapshot_v1" as const,
+              generatedAt: 0,
+              workspaces: [],
+              tasks: [],
+              runs: [],
+              reviewPacks: [],
+            })),
+            subscribeScopedRuntimeUpdatedEvents,
+            undefined,
+            readMissionControlSummary
+          )
+        ),
+      }
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.summary.tasksCount).toBe(1);
+
+    await act(async () => {
+      listener?.({
+        scope: ["agents"],
+        reason: "runUpsert",
+        eventWorkspaceId: "workspace-1",
+        paramsWorkspaceId: "workspace-1",
+      });
+    });
+
+    rerender({ activeWorkspaceId: "workspace-2" });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.summary.tasksCount).toBe(2);
+
+    await act(async () => {
+      vi.advanceTimersByTime(160);
+      await Promise.resolve();
+    });
+
+    expect(readMissionControlSummary.mock.calls).toEqual([["workspace-1"], ["workspace-2"]]);
+    expect(result.current.summary.workspaceLabel).toBe("Beta");
+    expect(result.current.summary.tasksCount).toBe(2);
   });
 
   it("prefers the lightweight mission summary binding over the full mission snapshot", async () => {

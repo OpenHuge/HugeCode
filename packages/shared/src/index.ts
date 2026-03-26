@@ -51,4 +51,5 @@ export type * from "./ui/chat";
 export { ChatComposer, ChatMessageRow, useAutosizeTextArea } from "./ui/chat";
 export type * from "./ui/nav";
 export { NavGroup, NavItem, NavSection } from "./ui/nav";
+export { scheduleDeferredActivation, useDeferredActivation } from "./ui/deferredActivation";
 export * as utils from "./utils";

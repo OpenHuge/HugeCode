@@ -1,56 +1,13 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { useDeferredActivation } from "@ku0/shared";
 import {
   useWorkspaceClientBindings,
   useWorkspaceClientRuntimeMode,
 } from "../workspace/WorkspaceClientBindingsProvider";
 import type { SharedWorkspaceShellSection } from "./workspaceNavigation";
+import { useSharedHostStartupStatusState } from "./useSharedHostStartupStatusState";
 import { useSharedMissionControlSummaryState } from "./useSharedMissionControlSummaryState";
 import { useSharedWorkspaceCatalogState } from "./useSharedWorkspaceCatalogState";
-
-type IdleCallbackHandle = number;
-
-type IdleCallbackOptions = {
-  timeout?: number;
-};
-
-type IdleCallback = (deadline: { didTimeout: boolean; timeRemaining: () => number }) => void;
-
-function scheduleMissionSummaryLoad(listener: () => void) {
-  if (typeof window === "undefined") {
-    listener();
-    return () => undefined;
-  }
-
-  const idleWindow = window as Window & {
-    requestIdleCallback?: (
-      callback: IdleCallback,
-      options?: IdleCallbackOptions
-    ) => IdleCallbackHandle;
-    cancelIdleCallback?: (handle: IdleCallbackHandle) => void;
-  };
-
-  if (
-    typeof idleWindow.requestIdleCallback === "function" &&
-    typeof idleWindow.cancelIdleCallback === "function"
-  ) {
-    const handle = idleWindow.requestIdleCallback(
-      () => {
-        listener();
-      },
-      { timeout: 250 }
-    );
-    return () => {
-      idleWindow.cancelIdleCallback?.(handle);
-    };
-  }
-
-  const handle = window.setTimeout(() => {
-    listener();
-  }, 250);
-  return () => {
-    window.clearTimeout(handle);
-  };
-}
 
 export function useSharedWorkspaceShellState() {
   const bindings = useWorkspaceClientBindings();
@@ -71,11 +28,24 @@ export function useSharedWorkspaceShellState() {
       : routeSelection.kind === "workspace"
         ? "workspaces"
         : routeSelection.kind;
-  const [missionSummaryEnabled, setMissionSummaryEnabled] = useState(
+  const [shellBackgroundActivationRequested, setShellBackgroundActivationRequested] = useState(
     () => activeSection === "missions" || activeSection === "review"
   );
+  const shellBackgroundActivated = useDeferredActivation({
+    enabled: !shellBackgroundActivationRequested,
+    idleTimeoutMs: 250,
+    fallbackDelayMs: 250,
+  });
+  const shellBackgroundEnabled =
+    shellBackgroundActivationRequested ||
+    activeSection === "missions" ||
+    activeSection === "review" ||
+    shellBackgroundActivated;
   const missionControlState = useSharedMissionControlSummaryState(catalogState.activeWorkspaceId, {
-    enabled: missionSummaryEnabled,
+    enabled: shellBackgroundEnabled,
+  });
+  const hostStartupState = useSharedHostStartupStatusState(bindings.host, {
+    enabled: shellBackgroundEnabled,
   });
   const navigateToSection = useCallback(
     (section: SharedWorkspaceShellSection) => {
@@ -88,22 +58,13 @@ export function useSharedWorkspaceShellState() {
     [bindings.navigation]
   );
   const refreshMissionSummary = useCallback(() => {
-    setMissionSummaryEnabled(true);
+    setShellBackgroundActivationRequested(true);
     return missionControlState.refresh();
   }, [missionControlState.refresh]);
-
-  useEffect(() => {
-    if (missionSummaryEnabled) {
-      return;
-    }
-    if (activeSection === "missions" || activeSection === "review") {
-      setMissionSummaryEnabled(true);
-      return;
-    }
-    return scheduleMissionSummaryLoad(() => {
-      setMissionSummaryEnabled(true);
-    });
-  }, [activeSection, missionSummaryEnabled]);
+  const refreshHostStartupStatus = useCallback(() => {
+    setShellBackgroundActivationRequested(true);
+    return hostStartupState.refresh();
+  }, [hostStartupState.refresh]);
 
   return {
     runtimeMode,
@@ -113,6 +74,7 @@ export function useSharedWorkspaceShellState() {
     workspaces: catalogState.workspaces,
     activeWorkspaceId: catalogState.activeWorkspaceId,
     activeWorkspace: catalogState.activeWorkspace,
+    hasPendingWorkspaceSelection: catalogState.hasPendingWorkspaceSelection,
     workspaceLoadState: catalogState.loadState,
     workspaceError: catalogState.error,
     refreshWorkspaces: catalogState.refresh,
@@ -123,6 +85,10 @@ export function useSharedWorkspaceShellState() {
     missionLoadState: missionControlState.loadState,
     missionError: missionControlState.error,
     refreshMissionSummary,
+    hostStartupStatus: hostStartupState.status,
+    hostStartupLoadState: hostStartupState.loadState,
+    hostStartupError: hostStartupState.error,
+    refreshHostStartupStatus,
     accountHref,
     settingsFraming: bindings.platformUi.settingsShellFraming,
   };

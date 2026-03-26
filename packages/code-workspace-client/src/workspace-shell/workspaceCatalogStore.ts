@@ -4,7 +4,7 @@ import {
   readMissionControlProjectionSlice,
 } from "./kernelProjectionStore";
 
-export type WorkspaceCatalogLoadState = "idle" | "loading" | "ready" | "error";
+export type WorkspaceCatalogLoadState = "idle" | "loading" | "refreshing" | "ready" | "error";
 
 export type WorkspaceCatalogSnapshot = {
   workspaces: WorkspaceCatalogEntry[];
@@ -45,7 +45,12 @@ class WorkspaceCatalogStore {
     };
   };
 
-  refresh = async () => {
+  refresh = async (
+    loadState: Extract<WorkspaceCatalogLoadState, "loading" | "refreshing"> = this.snapshot
+      .workspaces.length > 0
+      ? "refreshing"
+      : "loading"
+  ) => {
     if (this.runtime.kernelProjection) {
       const kernelProjectionStore = getKernelProjectionStore(this.runtime);
       kernelProjectionStore.ensureScopes(["mission_control"]);
@@ -57,7 +62,7 @@ class WorkspaceCatalogStore {
     const requestId = this.requestId;
     this.updateSnapshot({
       workspaces: this.snapshot.workspaces,
-      loadState: "loading",
+      loadState,
       error: null,
     });
     try {
@@ -88,7 +93,7 @@ class WorkspaceCatalogStore {
       kernelProjectionStore.ensureScopes(["mission_control"]);
       if (!this.hasStarted) {
         this.hasStarted = true;
-        void this.refresh();
+        void this.refresh("loading");
       }
       if (this.unsubscribeKernelProjection) {
         return;
@@ -101,7 +106,7 @@ class WorkspaceCatalogStore {
     }
     if (!this.hasStarted) {
       this.hasStarted = true;
-      void this.refresh();
+      void this.refresh("loading");
     }
     if (this.unsubscribeRuntimeUpdated || !this.runtime.runtimeUpdated) {
       return;
@@ -110,7 +115,7 @@ class WorkspaceCatalogStore {
       this.runtime.runtimeUpdated.subscribeScopedRuntimeUpdatedEvents(
         { scopes: ["bootstrap", "workspaces"] },
         () => {
-          void this.refresh();
+          void this.refresh("refreshing");
         }
       );
   }

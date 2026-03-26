@@ -10,15 +10,34 @@ import type { SharedWorkspaceRouteSelection } from "./workspaceNavigation";
 function createBindings(
   selection: SharedWorkspaceRouteSelection,
   listWorkspaces = vi.fn(async () => []),
-  subscribeScopedRuntimeUpdatedEvents = vi.fn((_options, _listener) => () => undefined)
+  subscribeScopedRuntimeUpdatedEvents = vi.fn((_options, _listener) => () => undefined),
+  navigationOverrides?: Partial<WorkspaceClientBindings["navigation"]>
 ): WorkspaceClientBindings {
+  const listeners = new Set<() => void>();
   return {
     navigation: {
       readRouteSelection: () => selection,
-      subscribeRouteSelection: () => () => undefined,
-      navigateToWorkspace: () => undefined,
-      navigateToSection: () => undefined,
-      navigateHome: () => undefined,
+      subscribeRouteSelection: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      navigateToWorkspace: (workspaceId, options) => {
+        selection = { kind: "workspace", workspaceId };
+        listeners.forEach((listener) => listener());
+        return navigationOverrides?.navigateToWorkspace?.(workspaceId, options);
+      },
+      navigateToSection: (section, options) => {
+        selection = { kind: section };
+        listeners.forEach((listener) => listener());
+        return navigationOverrides?.navigateToSection?.(section, options);
+      },
+      navigateHome: (options) => {
+        selection = { kind: "home" };
+        listeners.forEach((listener) => listener());
+        return navigationOverrides?.navigateHome?.(options);
+      },
     },
     runtimeGateway: {
       readRuntimeMode: () => "connected",
@@ -172,13 +191,80 @@ function wrapper(bindings: WorkspaceClientBindings) {
 }
 
 describe("useSharedWorkspaceCatalogState", () => {
+  it("preserves an explicit workspace route while the catalog is still hydrating", async () => {
+    let resolveCatalog:
+      | ((value: { id: string; name: string; connected: boolean }[]) => void)
+      | null = null;
+    const listWorkspaces = vi.fn(
+      () =>
+        new Promise<{ id: string; name: string; connected: boolean }[]>((resolve) => {
+          resolveCatalog = resolve;
+        })
+    );
+
+    const { result } = renderHook(() => useSharedWorkspaceCatalogState(), {
+      wrapper: wrapper(
+        createBindings({ kind: "workspace", workspaceId: "workspace-2" }, listWorkspaces)
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe("loading");
+    });
+    expect(result.current.activeWorkspaceId).toBe("workspace-2");
+    expect(result.current.activeWorkspace).toBeNull();
+    expect(result.current.hasPendingWorkspaceSelection).toBe(true);
+
+    await act(async () => {
+      resolveCatalog?.([{ id: "workspace-1", name: "Alpha", connected: true }]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe("ready");
+    });
+    expect(result.current.activeWorkspaceId).toBeNull();
+    expect(result.current.hasPendingWorkspaceSelection).toBe(false);
+  });
+
+  it("canonicalizes an invalid workspace route back to home once the catalog is ready", async () => {
+    const navigateHome = vi.fn();
+    const listWorkspaces = vi.fn(async () => [
+      { id: "workspace-1", name: "Alpha", connected: true },
+    ]);
+
+    const { result } = renderHook(() => useSharedWorkspaceCatalogState(), {
+      wrapper: wrapper(
+        createBindings(
+          { kind: "workspace", workspaceId: "workspace-2" },
+          listWorkspaces,
+          undefined,
+          { navigateHome }
+        )
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe("ready");
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeWorkspaceId).toBeNull();
+    });
+
+    expect(navigateHome).toHaveBeenCalledWith({ replace: true });
+  });
+
   it("refreshes workspace catalog from runtime-updated events and derives active workspace from route state", async () => {
     const listWorkspaces = vi
       .fn()
-      .mockResolvedValueOnce([{ id: "workspace-1", name: "Alpha", connected: true }])
       .mockResolvedValueOnce([
         { id: "workspace-1", name: "Alpha", connected: true },
         { id: "workspace-2", name: "Beta", connected: false },
+      ])
+      .mockResolvedValueOnce([
+        { id: "workspace-1", name: "Alpha", connected: true },
+        { id: "workspace-2", name: "Beta Prime", connected: true },
       ]);
 
     let listener:
@@ -208,9 +294,11 @@ describe("useSharedWorkspaceCatalogState", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.workspaces).toHaveLength(1);
+      expect(result.current.workspaces).toHaveLength(2);
+      expect(result.current.activeWorkspaceId).toBe("workspace-2");
+      expect(result.current.activeWorkspace?.name).toBe("Beta");
     });
-    expect(result.current.activeWorkspaceId).toBeNull();
+    expect(result.current.hasPendingWorkspaceSelection).toBe(false);
     expect(subscribeScopedRuntimeUpdatedEvents).toHaveBeenCalledWith(
       { scopes: ["bootstrap", "workspaces"] },
       expect.any(Function)
@@ -231,7 +319,80 @@ describe("useSharedWorkspaceCatalogState", () => {
     await waitFor(() => {
       expect(result.current.workspaces).toHaveLength(2);
       expect(result.current.activeWorkspaceId).toBe("workspace-2");
-      expect(result.current.activeWorkspace?.name).toBe("Beta");
+      expect(result.current.activeWorkspace?.name).toBe("Beta Prime");
+      expect(result.current.hasPendingWorkspaceSelection).toBe(false);
+    });
+  });
+
+  it("preserves the current workspace roster while a runtime-triggered refresh is in flight", async () => {
+    let resolveRefresh:
+      | ((value: { id: string; name: string; connected: boolean }[]) => void)
+      | null = null;
+    const listWorkspaces = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: "workspace-1", name: "Alpha", connected: true }])
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ id: string; name: string; connected: boolean }[]>((resolve) => {
+            resolveRefresh = resolve;
+          })
+      );
+
+    let listener:
+      | ((event: {
+          scope: string[];
+          reason: string;
+          eventWorkspaceId: string;
+          paramsWorkspaceId: string | null;
+        }) => void)
+      | undefined;
+    const subscribeScopedRuntimeUpdatedEvents = vi.fn((_options, nextListener) => {
+      listener = nextListener;
+      return () => {
+        listener = undefined;
+        return undefined;
+      };
+    });
+
+    const { result } = renderHook(() => useSharedWorkspaceCatalogState(), {
+      wrapper: wrapper(
+        createBindings({ kind: "home" }, listWorkspaces, subscribeScopedRuntimeUpdatedEvents)
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe("ready");
+    });
+    expect(result.current.workspaces).toEqual([
+      { id: "workspace-1", name: "Alpha", connected: true },
+    ]);
+
+    await act(async () => {
+      listener?.({
+        scope: ["workspaces"],
+        reason: "workspaceUpsert",
+        eventWorkspaceId: "workspace-2",
+        paramsWorkspaceId: "workspace-2",
+      });
+      await Promise.resolve();
+    });
+
+    expect(result.current.loadState).toBe("refreshing");
+    expect(result.current.workspaces).toEqual([
+      { id: "workspace-1", name: "Alpha", connected: true },
+    ]);
+
+    await act(async () => {
+      resolveRefresh?.([
+        { id: "workspace-1", name: "Alpha", connected: true },
+        { id: "workspace-2", name: "Beta", connected: false },
+      ]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe("ready");
+      expect(result.current.workspaces).toHaveLength(2);
     });
   });
 });

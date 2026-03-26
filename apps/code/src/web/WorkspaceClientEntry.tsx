@@ -1,6 +1,10 @@
 import { createDesktopWorkspaceClientBindings } from "@ku0/code-application";
 import { WorkspaceClientBoot } from "@ku0/code-workspace-client";
-import { openUrl, showDesktopNotification } from "../application/runtime/facades/desktopHostFacade";
+import {
+  openUrl,
+  resolveDesktopShellStartupStatus,
+  showDesktopNotification,
+} from "../application/runtime/facades/desktopHostFacade";
 import { createRuntimeKernel } from "../application/runtime/kernel/createRuntimeKernel";
 import { RuntimePortsProvider } from "../application/runtime/ports";
 import { RuntimeBootstrapEffects } from "../bootstrap/runtimeBootstrap";
@@ -16,6 +20,7 @@ const workspaceClientBindings = createDesktopWorkspaceClientBindings({
   runtimeGateway: runtimeKernel.workspaceClientRuntimeGateway,
   runtime: runtimeKernel.workspaceClientRuntime,
   openExternalUrl: openUrl,
+  readShellStartupStatus: resolveDesktopShellStartupStatus,
   waitForOauthBinding: (workspaceId, baselineUpdatedAt) =>
     waitForCodexOauthBinding(
       {

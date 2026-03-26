@@ -27,9 +27,13 @@ function createBindings(options?: {
   workspaceCatalogError?: string;
   missionControlError?: string;
   readMissionControlSnapshot?: () => Promise<MissionControlSnapshot>;
+  hostPlatform?: WorkspaceClientBindings["host"]["platform"];
+  readStartupStatus?: WorkspaceClientBindings["host"]["shell"]["readStartupStatus"];
+  initialSelection?: SharedWorkspaceRouteSelection;
+  listWorkspaces?: WorkspaceClientBindings["runtime"]["workspaceCatalog"]["listWorkspaces"];
 }): WorkspaceClientBindings {
   const listeners = new Set<() => void>();
-  let selection: SharedWorkspaceRouteSelection = { kind: "home" };
+  let selection: SharedWorkspaceRouteSelection = options?.initialSelection ?? { kind: "home" };
 
   return {
     navigation: {
@@ -87,6 +91,9 @@ function createBindings(options?: {
       },
       workspaceCatalog: {
         listWorkspaces: async () => {
+          if (options?.listWorkspaces) {
+            return options.listWorkspaces();
+          }
           if (options?.workspaceCatalogError) {
             throw new Error(options.workspaceCatalogError);
           }
@@ -278,7 +285,7 @@ function createBindings(options?: {
       },
     },
     host: {
-      platform: "web",
+      platform: options?.hostPlatform ?? "web",
       intents: {
         openOauthAuthorizationUrl: async () => undefined,
         createOauthPopupWindow: () => null,
@@ -289,7 +296,8 @@ function createBindings(options?: {
         testSystemNotification: () => undefined,
       },
       shell: {
-        platformHint: "web",
+        platformHint: options?.hostPlatform ?? "web",
+        readStartupStatus: options?.readStartupStatus,
       },
     },
     platformUi: {
@@ -327,6 +335,10 @@ describe("WorkspaceShellApp", () => {
           "Runtime summary is loading in the background so the shared shell can render immediately."
         )
       ).toBeTruthy();
+      expect(screen.getByText("Hydrating shell")).toBeTruthy();
+      expect(
+        (screen.getByRole("button", { name: "Refreshing..." }) as HTMLButtonElement).disabled
+      ).toBe(true);
       expect(screen.getByText("Runtime activity is loading in the background.")).toBeTruthy();
       expect(
         screen.getByText("Review signals load after the shell becomes interactive.")
@@ -367,6 +379,78 @@ describe("WorkspaceShellApp", () => {
     expect(screen.getByRole("button", { name: "Review" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Settings" })).toBeTruthy();
   }, 15_000);
+
+  it("keeps an explicit workspace route scoped while the roster is still hydrating", async () => {
+    vi.useFakeTimers();
+
+    try {
+      render(
+        <WorkspaceClientBindingsProvider
+          bindings={createBindings({
+            initialSelection: { kind: "workspace", workspaceId: "workspace-2" },
+            listWorkspaces: vi.fn(
+              () => new Promise<{ id: string; name: string; connected: boolean }[]>(() => undefined)
+            ),
+          })}
+        >
+          <WorkspaceShellApp />
+        </WorkspaceClientBindingsProvider>
+      );
+
+      expect(screen.getByText("Loading selected workspace...")).toBeTruthy();
+
+      await act(async () => {
+        vi.advanceTimersByTime(250);
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(screen.getByRole("heading", { level: 2, name: "Beta" })).toBeTruthy();
+      expect(
+        screen.getAllByText("The selected workspace is not connected to the runtime.").length
+      ).toBeGreaterThan(0);
+      expect(screen.getByRole("heading", { level: 1, name: "Workspaces" })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns to home when an explicit workspace route resolves as invalid", async () => {
+    let resolveCatalog:
+      | ((value: { id: string; name: string; connected: boolean }[]) => void)
+      | null = null;
+
+    render(
+      <WorkspaceClientBindingsProvider
+        bindings={createBindings({
+          initialSelection: { kind: "workspace", workspaceId: "workspace-2" },
+          listWorkspaces: vi.fn(
+            () =>
+              new Promise<{ id: string; name: string; connected: boolean }[]>((resolve) => {
+                resolveCatalog = resolve;
+              })
+          ),
+        })}
+      >
+        <WorkspaceShellApp />
+      </WorkspaceClientBindingsProvider>
+    );
+
+    expect(screen.getByText("Loading selected workspace...")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: "Workspaces" })).toBeTruthy();
+
+    await act(async () => {
+      resolveCatalog?.([{ id: "workspace-1", name: "Alpha", connected: true }]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { level: 1, name: "Home" })).toBeTruthy();
+      expect(screen.getByText("Home overview")).toBeTruthy();
+    });
+  });
 
   it("updates the mission summary when selecting another workspace", async () => {
     window.history.pushState({}, "", "/app");
@@ -746,6 +830,82 @@ describe("WorkspaceShellApp", () => {
       screen.getByText("Appearance, projects, runtime, and Codex defaults for this app.")
     ).toBeTruthy();
     expect(screen.getByText("Desktop app")).toBeTruthy();
+  });
+
+  it("surfaces deferred desktop host startup status once the shared shell hydrates", async () => {
+    render(
+      <WorkspaceClientBindingsProvider
+        bindings={createBindings({
+          hostPlatform: "desktop",
+          readStartupStatus: vi.fn(async () => ({
+            tone: "attention",
+            label: "Electron updates need attention",
+            detail: "Manual updates are required for this build.",
+          })),
+        })}
+      >
+        <WorkspaceShellApp />
+      </WorkspaceClientBindingsProvider>
+    );
+
+    expect(
+      screen.getByText("Desktop host capabilities are hydrating after shell startup.")
+    ).toBeTruthy();
+    expect(await screen.findByText("Electron updates need attention")).toBeTruthy();
+    expect(screen.getByText("Manual updates are required for this build.")).toBeTruthy();
+  });
+
+  it("keeps the workspace roster visible while a manual refresh is in flight", async () => {
+    let resolveWorkspaceRefresh:
+      | ((value: { id: string; name: string; connected: boolean }[]) => void)
+      | null = null;
+    const listWorkspaces = vi
+      .fn()
+      .mockResolvedValueOnce([
+        { id: "workspace-1", name: "Alpha", connected: true },
+        { id: "workspace-2", name: "Beta", connected: false },
+      ])
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ id: string; name: string; connected: boolean }[]>((resolve) => {
+            resolveWorkspaceRefresh = resolve;
+          })
+      );
+
+    render(
+      <WorkspaceClientBindingsProvider bindings={createBindings({ listWorkspaces })}>
+        <WorkspaceShellApp />
+      </WorkspaceClientBindingsProvider>
+    );
+
+    expect(await screen.findByRole("button", { name: /Alpha/i })).toBeTruthy();
+    expect(screen.getByText("2 workspaces")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Refresh" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+
+    expect(screen.getByText("Refreshing shell")).toBeTruthy();
+    expect(screen.getByText("Refreshing workspace roster")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Refreshing..." })).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: "Refreshing..." }) as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(screen.getByRole("button", { name: /Alpha/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Beta/i })).toBeTruthy();
+
+    await act(async () => {
+      resolveWorkspaceRefresh?.([
+        { id: "workspace-1", name: "Alpha", connected: true },
+        { id: "workspace-2", name: "Beta", connected: false },
+        { id: "workspace-3", name: "Gamma", connected: true },
+      ]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("3 workspaces")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Refresh" })).toBeTruthy();
+    });
   });
 
   it("surfaces shared-shell load failures through toast cards instead of inline copy", async () => {

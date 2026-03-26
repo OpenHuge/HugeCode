@@ -39,6 +39,7 @@ vi.mock("@ku0/code-application", () => ({
 
 vi.mock("../application/runtime/facades/desktopHostFacade", () => ({
   openUrl: vi.fn(),
+  resolveDesktopShellStartupStatus: vi.fn(async () => null),
   showDesktopNotification: vi.fn(),
 }));
 
