@@ -90,6 +90,10 @@ Practical usage:
   `pull_request`; otherwise merge queue cannot get the required `Quality` and
   `PR Affected Checks` results for queued entries.
 - Those required lanes may fan out internally into parallel build/test or lint/typecheck sub-jobs, but the aggregate gate names must stay stable so branch protection and merge queue do not lose their required check targets.
+- If `main` uses merge queue, set the repo variable `MERGE_QUEUE_ENABLED=true`
+  so `PR Branch Maintenance` stops calling `update branch` on healthy `BEHIND`
+  PRs. Queue mode should only leave manual handling for true merge conflicts or
+  opt-out PRs.
 - Repo-authored PRs default to approval-driven auto-merge once required reviews,
   required checks, and conversation resolution are satisfied.
 - Add the `manual-merge` label to keep an approved PR out of auto-merge and the

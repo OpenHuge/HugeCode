@@ -131,5 +131,10 @@ Public workflow entrypoints currently include:
   behavior when they are behind `main`, but the automation must leave `DIRTY`
   merge-conflict cases for manual resolution instead of attempting local merge
   or rebase repair.
+- When the repository switches `main` to merge queue semantics, set the repo
+  variable `MERGE_QUEUE_ENABLED=true` and keep branch-maintenance automation in
+  report-only mode for `BEHIND` PRs. In queue mode, GitHub owns latest-base
+  refresh and the maintenance workflow should only surface real conflicts or
+  policy skips.
 - Auto-merge for non-Dependabot PRs should stay repo-branch-only and review-gated; the default path is "approved with no unresolved conversations means `gh pr merge --auto` is enabled unless the PR carries the opt-out `manual-merge` label."
 - npm Dependabot updates should prefer grouped low-risk development-version bumps to reduce queue pressure and redundant CI fan-out, while keeping higher-risk dependency changes in manual-review lanes.
