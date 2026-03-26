@@ -6,6 +6,8 @@ describe("desktopHostIpcChannels", () => {
     expect(DESKTOP_HOST_IPC_CHANNELS).toEqual({
       getAppInfo: "hugecode:desktop-host:get-app-info",
       getAppVersion: "hugecode:desktop-host:get-app-version",
+      getDiagnosticsInfo: "hugecode:desktop-host:get-diagnostics-info",
+      copySupportSnapshot: "hugecode:desktop-host:copy-support-snapshot",
       consumePendingLaunchIntent: "hugecode:desktop-host:consume-pending-launch-intent",
       pushLaunchIntent: "hugecode:desktop-host:push-launch-intent",
       pushUpdateState: "hugecode:desktop-host:push-update-state",
@@ -24,6 +26,7 @@ describe("desktopHostIpcChannels", () => {
       checkForUpdates: "hugecode:desktop-host:check-for-updates",
       restartToApplyUpdate: "hugecode:desktop-host:restart-to-apply-update",
       openExternalUrl: "hugecode:desktop-host:open-external-url",
+      openPath: "hugecode:desktop-host:open-path",
       revealItemInDir: "hugecode:desktop-host:reveal-item-in-dir",
     });
   });

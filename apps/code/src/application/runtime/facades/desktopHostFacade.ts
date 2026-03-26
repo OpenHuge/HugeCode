@@ -1,9 +1,12 @@
 import {
   checkDesktopForUpdates,
+  copyDesktopSupportSnapshot as copyDesktopSupportSnapshotWithCapabilities,
   consumeDesktopLaunchIntent,
   detectDesktopRuntimeHost as detectDesktopRuntimeHostWithCapabilities,
   openDesktopExternalUrl,
+  openDesktopPath as openDesktopPathWithCapabilities,
   resolveDesktopAppInfo,
+  resolveDesktopDiagnosticsInfo as resolveDesktopDiagnosticsInfoWithCapabilities,
   resolveDesktopAppVersion,
   resolveDesktopSessionInfo,
   resolveDesktopUpdateState,
@@ -16,6 +19,7 @@ import {
 } from "@ku0/code-application";
 import type {
   DesktopAppInfo,
+  DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopNotificationInput,
   DesktopSessionInfo,
@@ -27,7 +31,7 @@ import {
   readTauriAppVersion,
   readTauriWindowLabel,
 } from "../ports/tauriEnvironment";
-import { openTauriUrl, revealTauriItemInDir } from "../ports/tauriOpener";
+import { openTauriPath, openTauriUrl, revealTauriItemInDir } from "../ports/tauriOpener";
 
 function openBrowserUrl(url: string) {
   if (typeof window === "undefined" || typeof window.open !== "function") {
@@ -61,6 +65,18 @@ export async function resolveAppVersion() {
 
 export async function resolveAppInfo(): Promise<DesktopAppInfo | null> {
   return resolveDesktopAppInfo(getDesktopHostBridge());
+}
+
+export async function resolveDesktopDiagnosticsInfo(): Promise<DesktopDiagnosticsInfo | null> {
+  return resolveDesktopDiagnosticsInfoWithCapabilities({
+    desktopHostBridge: getDesktopHostBridge(),
+  });
+}
+
+export async function copyDesktopSupportSnapshot(): Promise<boolean> {
+  return copyDesktopSupportSnapshotWithCapabilities({
+    desktopHostBridge: getDesktopHostBridge(),
+  });
 }
 
 export async function resolveCurrentDesktopSession(): Promise<DesktopSessionInfo | null> {
@@ -103,6 +119,16 @@ export async function openUrl(url: string) {
       openTauriUrl,
     },
     url
+  );
+}
+
+export async function openPath(path: string) {
+  return openDesktopPathWithCapabilities(
+    {
+      desktopHostBridge: getDesktopHostBridge(),
+      openTauriPath,
+    },
+    path
   );
 }
 

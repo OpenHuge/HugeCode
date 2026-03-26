@@ -1,5 +1,6 @@
 export type {
   DesktopAppInfo,
+  DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopReleaseChannel,
   DesktopHostBridgeApi,
@@ -30,9 +31,12 @@ export const DESKTOP_HOST_IPC_CHANNELS = {
   getTrayState: "hugecode:desktop-host:get-tray-state",
   setTrayEnabled: "hugecode:desktop-host:set-tray-enabled",
   showNotification: "hugecode:desktop-host:show-notification",
+  getDiagnosticsInfo: "hugecode:desktop-host:get-diagnostics-info",
+  copySupportSnapshot: "hugecode:desktop-host:copy-support-snapshot",
   getUpdateState: "hugecode:desktop-host:get-update-state",
   checkForUpdates: "hugecode:desktop-host:check-for-updates",
   restartToApplyUpdate: "hugecode:desktop-host:restart-to-apply-update",
   openExternalUrl: "hugecode:desktop-host:open-external-url",
+  openPath: "hugecode:desktop-host:open-path",
   revealItemInDir: "hugecode:desktop-host:reveal-item-in-dir",
 } as const;

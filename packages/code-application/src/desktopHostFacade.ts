@@ -1,5 +1,6 @@
 import type {
   DesktopAppInfo,
+  DesktopDiagnosticsInfo,
   DesktopHostBridge,
   DesktopLaunchIntent,
   DesktopNotificationInput,
@@ -37,6 +38,10 @@ export type DesktopNotificationFallbacks = {
   desktopHostBridge: DesktopHostBridge | null;
 };
 
+export type DesktopDiagnosticsFallbacks = {
+  desktopHostBridge: DesktopHostBridge | null;
+};
+
 export type DesktopExternalUrlFallbacks = {
   desktopHostBridge: DesktopHostBridge | null;
   openBrowserUrl?: (url: string) => boolean;
@@ -46,6 +51,11 @@ export type DesktopExternalUrlFallbacks = {
 export type DesktopItemRevealFallbacks = {
   desktopHostBridge: DesktopHostBridge | null;
   revealTauriItem?: (path: string) => Promise<boolean>;
+};
+
+export type DesktopPathOpenFallbacks = {
+  desktopHostBridge: DesktopHostBridge | null;
+  openTauriPath?: (path: string) => Promise<boolean>;
 };
 
 export function detectDesktopRuntimeHost(input: DesktopRuntimeDetectionInput): DesktopRuntimeHost {
@@ -123,6 +133,40 @@ export async function resolveDesktopAppInfo(
   }
 
   return null;
+}
+
+export async function resolveDesktopDiagnosticsInfo(
+  input: DesktopDiagnosticsFallbacks
+): Promise<DesktopDiagnosticsInfo | null> {
+  try {
+    const diagnosticsInfo = await input.desktopHostBridge?.diagnostics?.getInfo?.();
+    if (!diagnosticsInfo) {
+      return null;
+    }
+
+    if (typeof diagnosticsInfo.recentIncidentCount === "number") {
+      return diagnosticsInfo;
+    }
+  } catch {
+    // Diagnostics info is optional.
+  }
+
+  return null;
+}
+
+export async function copyDesktopSupportSnapshot(
+  input: DesktopDiagnosticsFallbacks
+): Promise<boolean> {
+  try {
+    const copyResult = await input.desktopHostBridge?.diagnostics?.copySupportSnapshot?.();
+    if (input.desktopHostBridge?.diagnostics?.copySupportSnapshot) {
+      return copyResult !== false;
+    }
+  } catch {
+    // Support snapshot copy is optional.
+  }
+
+  return false;
 }
 
 export async function resolveDesktopSessionInfo(
@@ -285,6 +329,26 @@ export async function revealDesktopItemInDir(
 
   try {
     return (await input.revealTauriItem?.(path)) === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function openDesktopPath(
+  input: DesktopPathOpenFallbacks,
+  path: string
+): Promise<boolean> {
+  try {
+    const openResult = await input.desktopHostBridge?.shell?.openPath?.(path);
+    if (input.desktopHostBridge?.shell?.openPath) {
+      return openResult !== false;
+    }
+  } catch {
+    // Fall through to Tauri fallback.
+  }
+
+  try {
+    return (await input.openTauriPath?.(path)) === true;
   } catch {
     return false;
   }

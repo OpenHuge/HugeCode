@@ -16,17 +16,20 @@ describe("registerDesktopHostIpc", () => {
       handlers: {
         closeWindow: vi.fn(),
         checkForUpdates: vi.fn(),
+        copySupportSnapshot: vi.fn(),
         consumePendingLaunchIntent: vi.fn(),
         focusWindow: vi.fn(),
         getAppInfo: vi.fn(),
         getAppVersion: vi.fn(),
         getCurrentSession: vi.fn(),
+        getDiagnosticsInfo: vi.fn(),
         getTrayState: vi.fn(),
         getUpdateState: vi.fn(),
         getWindowLabel: vi.fn(),
         listRecentSessions: vi.fn(),
         listWindows: vi.fn(),
         openExternalUrl: vi.fn(),
+        openPath: vi.fn(),
         openWindow: vi.fn(),
         reopenSession: vi.fn(),
         revealItemInDir: vi.fn(),
@@ -41,7 +44,9 @@ describe("registerDesktopHostIpc", () => {
     });
 
     expect(handleMock).toHaveBeenCalledTimes(invokeChannels.length);
-    expect(handleMock.mock.calls.map(([channel]) => channel)).toEqual(invokeChannels);
+    expect(handleMock.mock.calls.map(([channel]) => channel).toSorted()).toEqual(
+      invokeChannels.toSorted()
+    );
   });
 
   it("blocks untrusted IPC senders before handler execution", async () => {
@@ -53,17 +58,20 @@ describe("registerDesktopHostIpc", () => {
       handlers: {
         closeWindow: vi.fn(),
         checkForUpdates: vi.fn(),
+        copySupportSnapshot: vi.fn(),
         consumePendingLaunchIntent: vi.fn(),
         focusWindow: vi.fn(),
         getAppInfo: vi.fn(),
         getAppVersion,
         getCurrentSession: vi.fn(),
+        getDiagnosticsInfo: vi.fn(),
         getTrayState: vi.fn(),
         getUpdateState: vi.fn(),
         getWindowLabel: vi.fn(),
         listRecentSessions: vi.fn(),
         listWindows: vi.fn(),
         openExternalUrl: vi.fn(),
+        openPath: vi.fn(),
         openWindow: vi.fn(),
         reopenSession: vi.fn(),
         revealItemInDir: vi.fn(),
