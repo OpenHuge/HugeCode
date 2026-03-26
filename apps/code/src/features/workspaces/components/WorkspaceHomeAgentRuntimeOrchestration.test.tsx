@@ -36,6 +36,7 @@ vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
 
 vi.mock("../../../application/runtime/facades/runtimeRemoteExecutionFacade", () => ({
   startRuntimeJobWithRemoteSelection: startRuntimeJobWithRemoteSelectionMock,
+  startRuntimeRunWithRemoteSelection: startRuntimeJobWithRemoteSelectionMock,
 }));
 
 vi.mock("../../../application/runtime/facades/runtimeRepositoryExecutionContract", async () => {
@@ -72,12 +73,20 @@ vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
   resumeRuntimeJob: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
-  distributedTaskGraph: vi.fn(),
-  respondToServerRequest: vi.fn(),
-  respondToServerRequestResult: vi.fn(),
-  respondToUserInputRequest: vi.fn(),
-}));
+vi.mock("../../../application/runtime/ports/tauriThreads", async () => {
+  const actual = await vi.importActual<
+    typeof import("../../../application/runtime/ports/tauriThreads")
+  >("../../../application/runtime/ports/tauriThreads");
+  return {
+    ...actual,
+    distributedTaskGraph: vi.fn(),
+    respondToServerRequest: vi.fn(),
+    respondToServerRequestResult: vi.fn(),
+    respondToUserInputRequest: vi.fn(),
+    sendUserMessage: vi.fn(),
+    steerTurn: vi.fn(),
+  };
+});
 
 vi.mock("../../../application/runtime/ports/tauriAppSettings", () => ({
   getAppSettings: vi.fn().mockResolvedValue({}),
@@ -2118,7 +2127,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start mission run" }));
 
     await waitFor(() => {
-      expect(startRuntimeRunV2Mock).toHaveBeenCalledWith({
+      expect(startRuntimeJobWithRemoteSelectionMock).toHaveBeenCalledWith({
         workspaceId: "ws-approval",
         taskSource: {
           kind: "manual",
