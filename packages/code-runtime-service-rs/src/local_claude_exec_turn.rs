@@ -87,7 +87,6 @@ pub(crate) struct LocalClaudeExecTurnInput {
     pub(crate) model_id: Option<String>,
     pub(crate) access_mode: String,
     pub(crate) collaboration_mode_is_plan: bool,
-    pub(crate) resume_session_id: Option<String>,
 }
 
 fn default_local_claude_store_version() -> u32 {
@@ -267,16 +266,7 @@ fn resolve_local_claude_exec_command_args(input: &LocalClaudeExecTurnInput) -> V
         args.push(model_id.to_string());
     }
 
-    if let Some(session_id) = input
-        .resume_session_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        args.push("--resume".to_string());
-        args.push(session_id.to_string());
-    }
-
+    // Stored Claude session ids are sensitive and must not be exposed via argv.
     args.push(input.prompt.clone());
     args
 }
@@ -397,15 +387,6 @@ fn classify_local_claude_error(stderr: &str, stdout: &str) -> Option<String> {
         return Some(LOCAL_CLAUDE_NOT_AUTHENTICATED_ERROR.to_string());
     }
     None
-}
-
-fn looks_like_missing_resume_session(error: &str) -> bool {
-    let normalized = error.to_ascii_lowercase();
-    normalized.contains("resume")
-        && (normalized.contains("not found")
-            || normalized.contains("no session")
-            || normalized.contains("invalid session")
-            || normalized.contains("unknown session"))
 }
 
 #[cfg(test)]
@@ -779,29 +760,6 @@ pub(crate) async fn probe_local_claude_cli() -> Result<LocalClaudeProbeResult, S
     run_local_claude_probe_once().await
 }
 
-pub(crate) async fn read_local_claude_thread_session(
-    ctx: &AppContext,
-    workspace_id: &str,
-    thread_id: &str,
-) -> Option<String> {
-    let key = local_claude_thread_session_key(workspace_id, thread_id);
-    let stored = ctx
-        .native_state_store
-        .get_setting_value(
-            TABLE_NATIVE_RUNTIME_STATE_KV,
-            LOCAL_CLAUDE_THREAD_SESSION_STORE_KEY,
-        )
-        .await
-        .ok()??;
-    let store = serde_json::from_value::<LocalClaudeThreadSessionStore>(stored).ok()?;
-    store
-        .sessions
-        .get(key.as_str())
-        .map(|value| value.trim())
-        .filter(|value| !value.is_empty())
-        .map(ToOwned::to_owned)
-}
-
 async fn write_local_claude_thread_sessions(
     ctx: &AppContext,
     store: LocalClaudeThreadSessionStore,
@@ -874,31 +832,20 @@ pub(crate) async fn query_local_claude_exec_turn(
     input: LocalClaudeExecTurnInput,
     delta_callback: Option<provider_requests::ProviderDeltaCallback>,
 ) -> Result<LocalClaudeExecTurnResult, String> {
-    match run_local_claude_exec_turn_once(&input, delta_callback.clone()).await {
-        Ok(result) => Ok(result),
-        Err(error)
-            if input.resume_session_id.is_some()
-                && looks_like_missing_resume_session(error.as_str()) =>
-        {
-            let mut retry_input = input.clone();
-            retry_input.resume_session_id = None;
-            let mut recovered =
-                run_local_claude_exec_turn_once(&retry_input, delta_callback).await?;
-            recovered.recovered_from_stale_resume = true;
-            Ok(recovered)
-        }
-        Err(error) => Err(error),
-    }
+    run_local_claude_exec_turn_once(&input, delta_callback).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        check_local_claude_cli_readiness, classify_local_claude_error,
-        extract_final_message_from_stream_event, extract_init_event_probe,
-        permission_mode_for_local_claude, probe_local_claude_cli, query_local_claude_exec_turn,
+        classify_local_claude_error, extract_final_message_from_stream_event,
+        extract_init_event_probe, permission_mode_for_local_claude,
         redact_local_claude_sensitive_text, resolve_local_claude_exec_command_args,
         should_collect_local_claude_output_text, LocalClaudeExecTurnInput,
+    };
+    #[cfg(target_os = "macos")]
+    use super::{
+        check_local_claude_cli_readiness, probe_local_claude_cli, query_local_claude_exec_turn,
     };
     use serde_json::json;
 
@@ -930,14 +877,13 @@ mod tests {
     }
 
     #[test]
-    fn resolve_local_claude_exec_command_args_includes_resume_and_model() {
+    fn resolve_local_claude_exec_command_args_includes_model() {
         let args = resolve_local_claude_exec_command_args(&LocalClaudeExecTurnInput {
             workspace_path: "/tmp/workspace".to_string(),
             prompt: "Ping Claude".to_string(),
             model_id: Some("claude-sonnet-4-5".to_string()),
             access_mode: "on-request".to_string(),
             collaboration_mode_is_plan: false,
-            resume_session_id: Some("session-123".to_string()),
         });
 
         assert_eq!(
@@ -952,8 +898,6 @@ mod tests {
                 "default".to_string(),
                 "--model".to_string(),
                 "claude-sonnet-4-5".to_string(),
-                "--resume".to_string(),
-                "session-123".to_string(),
                 "Ping Claude".to_string(),
             ]
         );
@@ -1163,7 +1107,6 @@ exit 1
                 model_id: None,
                 access_mode: "on-request".to_string(),
                 collaboration_mode_is_plan: false,
-                resume_session_id: None,
             },
             None,
         )
@@ -1184,80 +1127,4 @@ exit 1
         assert!(!turn.recovered_from_stale_resume);
     }
 
-    #[cfg(target_os = "macos")]
-    #[tokio::test]
-    async fn query_local_claude_exec_turn_retries_without_stale_resume_session() {
-        let _guard = local_claude_exec_env_lock()
-            .lock()
-            .expect("local claude exec env lock poisoned");
-        let previous_override = std::env::var_os(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV);
-        let temp = TempDir::new().expect("create temp dir");
-        let script_path = temp.path().join("fake-claude-stale-resume.sh");
-        let script = r#"#!/bin/sh
-if [ "$1" = "auth" ] && [ "$2" = "status" ] && [ "$3" = "--json" ]; then
-  printf '{"loggedIn":true,"authMethod":"oauth_token","apiProvider":"firstParty"}\n'
-  exit 0
-fi
-
-if [ "$1" = "--print" ]; then
-  previous=""
-  for arg in "$@"; do
-    if [ "$previous" = "--resume" ]; then
-      printf 'resume session not found\n' >&2
-      exit 1
-    fi
-    previous="$arg"
-  done
-
-  printf '%s\n' '{"type":"system","subtype":"init","model":"claude-sonnet-4-5"}'
-  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"RECOVERED_LOCAL_CLAUDE_OK"}]}}'
-  printf '%s\n' '{"type":"result","subtype":"success","result":"RECOVERED_LOCAL_CLAUDE_OK"}'
-  exit 0
-fi
-
-printf 'unexpected args: %s\n' "$*" >&2
-exit 1
-"#;
-        fs::write(&script_path, script).expect("write fake claude script");
-        let mut permissions = fs::metadata(&script_path)
-            .expect("fake claude metadata")
-            .permissions();
-        permissions.set_mode(0o755);
-        fs::set_permissions(&script_path, permissions).expect("set fake claude permissions");
-
-        unsafe {
-            std::env::set_var(
-                CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV,
-                script_path.as_os_str(),
-            );
-        }
-        reset_local_claude_exec_binary_cache();
-
-        let result = query_local_claude_exec_turn(
-            LocalClaudeExecTurnInput {
-                workspace_path: temp.path().to_string_lossy().to_string(),
-                prompt: "Recover local Claude".to_string(),
-                model_id: Some("claude-sonnet-4-5".to_string()),
-                access_mode: "on-request".to_string(),
-                collaboration_mode_is_plan: false,
-                resume_session_id: Some("expired-session-123".to_string()),
-            },
-            None,
-        )
-        .await;
-
-        unsafe {
-            match previous_override {
-                Some(value) => std::env::set_var(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV, value),
-                None => std::env::remove_var(CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV),
-            }
-        }
-        reset_local_claude_exec_binary_cache();
-
-        let turn = result.expect("turn should recover by retrying without resume");
-        assert_eq!(turn.output, "RECOVERED_LOCAL_CLAUDE_OK");
-        assert_eq!(turn.response_model_id.as_deref(), Some("claude-sonnet-4-5"));
-        assert_eq!(turn.session_id, None);
-        assert!(turn.recovered_from_stale_resume);
-    }
 }

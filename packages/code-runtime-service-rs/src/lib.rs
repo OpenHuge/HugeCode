@@ -179,7 +179,7 @@ use distributed_runtime::{
 use local_claude_exec_turn::{
     clear_local_claude_thread_session, persist_local_claude_thread_session,
     query_local_claude_exec_turn, read_local_claude_cli_readiness,
-    read_local_claude_thread_session, LocalClaudeExecTurnInput, LocalClaudeReadinessKind,
+    LocalClaudeExecTurnInput, LocalClaudeReadinessKind,
 };
 use local_codex_account_sync::{
     classify_oauth_api_key_resolution_error, import_cockpit_tools_codex_accounts,

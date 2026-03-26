@@ -157,8 +157,6 @@ async fn query_provider_with_local_exec_fallback(
     delta_callback: Option<provider_requests::ProviderDeltaCallback>,
 ) -> Result<TurnQueryOutcome, String> {
     if routed_provider_route.is_core_claude_code_local() {
-        let resume_session_id =
-            read_local_claude_thread_session(ctx, workspace_id, thread_id).await;
         let result = query_local_claude_exec_turn(
             LocalClaudeExecTurnInput {
                 workspace_path: workspace_path_for_turn.to_string(),
@@ -169,7 +167,6 @@ async fn query_provider_with_local_exec_fallback(
                     .map(ToOwned::to_owned),
                 access_mode: access_mode.to_string(),
                 collaboration_mode_is_plan,
-                resume_session_id,
             },
             delta_callback,
         )
