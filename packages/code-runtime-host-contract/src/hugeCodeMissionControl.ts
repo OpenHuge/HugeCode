@@ -572,6 +572,20 @@ export type HugeCodeMissionNavigationTarget =
       traceId?: string | null;
     };
 
+export type HugeCodeRuntimeSessionBoundary = {
+  workspaceId: string;
+  taskId: string;
+  runId: string;
+  missionTaskId: string;
+  sessionKind: "thread" | "run";
+  threadId?: string | null;
+  requestId?: string | null;
+  reviewPackId?: string | null;
+  checkpointId?: string | null;
+  traceId?: string | null;
+  navigationTarget: HugeCodeMissionNavigationTarget;
+};
+
 export type HugeCodeTakeoverTarget =
   | HugeCodeMissionNavigationTarget
   | {
@@ -609,6 +623,51 @@ export type HugeCodeMissionLinkageSummary = {
   recoveryPath: "thread" | "run";
   navigationTarget: HugeCodeMissionNavigationTarget;
   summary: string;
+};
+
+export type HugeCodeContinuationTruthSource =
+  | "takeover_bundle"
+  | "review_actionability"
+  | "mission_linkage"
+  | "publish_handoff"
+  | "checkpoint"
+  | "missing";
+
+export type HugeCodeContinuationState = "ready" | "attention" | "blocked" | "missing";
+
+export type HugeCodeContinuationSummary = {
+  state: HugeCodeContinuationState;
+  pathKind: HugeCodeTakeoverPathKind;
+  source: HugeCodeContinuationTruthSource;
+  summary: string;
+  detail: string | null;
+  recommendedAction: string;
+  target?: HugeCodeTakeoverTarget | null;
+  reviewPackId?: string | null;
+  reviewActionability?: HugeCodeReviewActionabilitySummary | null;
+  sessionBoundary: HugeCodeRuntimeSessionBoundary;
+};
+
+export type HugeCodeNextOperatorActionSource =
+  | "review_pack"
+  | "approval"
+  | "continuation"
+  | "run_failure"
+  | "run_activity"
+  | "runtime_fallback";
+
+export type HugeCodeNextOperatorAction = {
+  action:
+    | HugeCodeTakeoverPrimaryAction
+    | HugeCodeInterventionAction
+    | "review"
+    | "open_mission"
+    | "view_failure";
+  label: string;
+  detail: string | null;
+  source: HugeCodeNextOperatorActionSource;
+  target?: HugeCodeTakeoverTarget | null;
+  sessionBoundary: HugeCodeRuntimeSessionBoundary;
 };
 
 export type HugeCodeExecutionNodeSummary = {
@@ -955,6 +1014,9 @@ export type HugeCodeRun = {
   reviewRunId?: string | null;
   skillUsage?: HugeCodeRuntimeSkillUsageSummary[] | null;
   autofixCandidate?: HugeCodeRuntimeAutofixCandidate | null;
+  sessionBoundary?: HugeCodeRuntimeSessionBoundary | null;
+  continuation?: HugeCodeContinuationSummary | null;
+  nextOperatorAction?: HugeCodeNextOperatorAction | null;
   governance?: HugeCodeRunGovernanceSummary | null;
   placement?: HugeCodeRunPlacementEvidence | null;
   operatorSnapshot?: HugeCodeRunOperatorSnapshot | null;
@@ -1104,6 +1166,9 @@ export type HugeCodeReviewPack = {
   reviewRunId?: string | null;
   skillUsage?: HugeCodeRuntimeSkillUsageSummary[] | null;
   autofixCandidate?: HugeCodeRuntimeAutofixCandidate | null;
+  sessionBoundary?: HugeCodeRuntimeSessionBoundary | null;
+  continuation?: HugeCodeContinuationSummary | null;
+  nextOperatorAction?: HugeCodeNextOperatorAction | null;
   governance?: HugeCodeRunGovernanceSummary | null;
   placement?: HugeCodeRunPlacementEvidence | null;
   workspaceEvidence?: HugeCodeWorkspaceEvidence | null;
@@ -1183,6 +1248,9 @@ export type HugeCodeRunSummary = Pick<
   | "reviewRunId"
   | "skillUsage"
   | "autofixCandidate"
+  | "sessionBoundary"
+  | "continuation"
+  | "nextOperatorAction"
   | "governance"
   | "placement"
   | "operatorSnapshot"
@@ -1238,6 +1306,9 @@ export type HugeCodeReviewPackSummary = Pick<
   | "reviewRunId"
   | "skillUsage"
   | "autofixCandidate"
+  | "sessionBoundary"
+  | "continuation"
+  | "nextOperatorAction"
   | "governance"
   | "placement"
   | "workspaceEvidence"

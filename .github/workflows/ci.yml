@@ -8,6 +8,8 @@ on:
   merge_group:
     branches:
       - main
+    types:
+      - checks_requested
 
 permissions:
   contents: read
@@ -19,7 +21,7 @@ env:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
@@ -364,7 +366,7 @@ jobs:
 
   frontend_optimization:
     name: frontend_optimization
-    if: github.event_name == 'pull_request' && needs.changes.outputs.frontend_optimization_changed == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.frontend_optimization_changed == 'true' && needs.changes.outputs.repo_governance_only != 'true'
     needs: [changes]
     uses: ./.github/workflows/_reusable-ci-frontend-optimization.yml
     secrets: inherit

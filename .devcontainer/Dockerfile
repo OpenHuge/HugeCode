@@ -4,14 +4,51 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     build-essential \
     clang \
+    dpkg \
+    fakeroot \
+    fonts-freefont-ttf \
+    fonts-ipafont-gothic \
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    fonts-tlwg-loma-otf \
+    fonts-unifont \
+    fonts-wqy-zenhei \
+    libasound2 \
     libayatana-appindicator3-dev \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
     libdbus-1-dev \
+    libdrm2 \
+    libfontconfig1 \
+    libfreetype6 \
+    libgbm1 \
+    libglib2.0-0 \
     libglib2.0-dev \
     librsvg2-dev \
     libgtk-3-dev \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
     libssl-dev \
     libwebkit2gtk-4.1-dev \
+    libx11-6 \
+    libxcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
     patchelf \
     pkg-config \
+    ripgrep \
+    unzip \
+    xfonts-scalable \
     xdg-utils \
+    xvfb \
+    zip \
   && rm -rf /var/lib/apt/lists/*

@@ -5,12 +5,14 @@ import type {
 import type { DesktopHostAdapter } from "../adapters/DesktopHostAdapter";
 import type { RuntimeGateway } from "../facades/RuntimeGateway";
 import type { RuntimeAgentControlFacade } from "../facades/runtimeAgentControlFacade";
+import type { RuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
 import type { RuntimeWorkspaceId } from "../types/runtimeIds";
 
 export type WorkspaceRuntimeScope = {
   workspaceId: RuntimeWorkspaceId;
   runtimeGateway: RuntimeGateway;
   runtimeAgentControl: RuntimeAgentControlFacade;
+  runtimeSessionCommands: RuntimeSessionCommandFacade;
 };
 
 export type RuntimeKernel = {

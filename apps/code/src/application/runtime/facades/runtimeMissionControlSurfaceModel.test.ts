@@ -163,15 +163,99 @@ describe("runtimeMissionControlSurfaceModel", () => {
     const signals = summarizeMissionControlSignals(projection);
 
     expect(latestRuns[0]?.statusKind).toBe("review_ready");
-    expect(reviewEntries[0]?.recommendedNextAction).toBe("Open Review Pack");
+    expect(reviewEntries[0]?.recommendedNextAction).toBe("Open Review Pack on this device.");
     expect(reviewEntries[0]?.continuePathLabel).toBe("Review Pack");
     expect(reviewEntries[0]?.contextSummary).toBe("GitHub issue · triage");
     expect(reviewEntries[0]?.provenanceSummary).toBe(
       "Repo guidance: AGENTS.md, .github/copilot-instructions.md | Source evidence: GitHub issue #42"
     );
     expect(reviewEntries[0]?.triageSummary).toContain("Owner unassigned");
-    expect(reviewEntries[0]?.delegationSummary).toBe("Open Review Pack");
+    expect(reviewEntries[0]?.delegationSummary).toBe("Open Review Pack on this device.");
     expect(reviewEntries[0]?.continuationTruthSourceLabel).toBe("Runtime takeover bundle");
     expect(signals.reviewReadyCount).toBe(1);
+  });
+
+  it("prefers canonical continuation and next operator action over stale review-pack text", () => {
+    const projection = createProjection();
+    const run = projection.runs[0];
+    const reviewPack = projection.reviewPacks[0];
+    if (!run || !reviewPack) {
+      throw new Error("Expected seeded run and review pack");
+    }
+
+    run.takeoverBundle = undefined;
+    run.continuation = {
+      state: "ready",
+      pathKind: "review",
+      source: "review_actionability",
+      summary: "Canonical review path is ready.",
+      detail: "Open the canonical review pack path.",
+      recommendedAction: "Open Review Pack",
+      target: {
+        kind: "review_pack",
+        workspaceId: "ws-1",
+        taskId: "task-1",
+        runId: "run-1",
+        reviewPackId: "review-pack:run-1",
+        checkpointId: null,
+        traceId: null,
+      },
+      reviewPackId: "review-pack:run-1",
+      reviewActionability: {
+        state: "ready",
+        summary: "Canonical review follow-up is ready.",
+        degradedReasons: [],
+        actions: [],
+      },
+      sessionBoundary: {
+        workspaceId: "ws-1",
+        taskId: "task-1",
+        runId: "run-1",
+        missionTaskId: "task-1",
+        sessionKind: "run",
+        threadId: null,
+        requestId: null,
+        reviewPackId: "review-pack:run-1",
+        checkpointId: null,
+        traceId: null,
+        navigationTarget: {
+          kind: "run",
+          workspaceId: "ws-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:run-1",
+          checkpointId: null,
+          traceId: null,
+        },
+      },
+    };
+    run.nextOperatorAction = {
+      action: "open_review_pack",
+      label: "Open Review Pack",
+      detail: "Canonical operator next step for this run.",
+      source: "continuation",
+      target: {
+        kind: "review_pack",
+        workspaceId: "ws-1",
+        taskId: "task-1",
+        runId: "run-1",
+        reviewPackId: "review-pack:run-1",
+        checkpointId: null,
+        traceId: null,
+      },
+      sessionBoundary: run.continuation.sessionBoundary,
+    };
+    reviewPack.recommendedNextAction = "Stale projection follow-up";
+    reviewPack.continuation = run.continuation;
+    reviewPack.nextOperatorAction = run.nextOperatorAction;
+
+    const reviewEntries = buildMissionReviewEntriesFromProjection(projection, {
+      workspaceId: "ws-1",
+    });
+
+    expect(reviewEntries[0]?.recommendedNextAction).toBe(
+      "Canonical operator next step for this run."
+    );
+    expect(reviewEntries[0]?.continuePathLabel).toBe("Review Pack");
   });
 });

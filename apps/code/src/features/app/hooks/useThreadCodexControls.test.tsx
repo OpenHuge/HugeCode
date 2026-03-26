@@ -6,6 +6,7 @@ import { useWorkspaceRuntimeAgentControl } from "../../../application/runtime/po
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import {
   getOAuthPrimaryAccount,
+  getProvidersCatalog,
   listOAuthAccounts,
   listOAuthPools,
   replaceOAuthPoolMembers,
@@ -30,6 +31,7 @@ vi.mock("../../../application/runtime/ports/tauriCodexOperations", () => ({
 
 vi.mock("../../../application/runtime/ports/tauriOauth", () => ({
   getOAuthPrimaryAccount: vi.fn(),
+  getProvidersCatalog: vi.fn(),
   listOAuthAccounts: vi.fn(),
   listOAuthPools: vi.fn(),
   replaceOAuthPoolMembers: vi.fn(),
@@ -51,6 +53,7 @@ vi.mock("../../../application/runtime/ports/runtimeAgentControl", () => ({
 
 const detectRuntimeModeMock = vi.mocked(detectRuntimeMode);
 const getOAuthPrimaryAccountMock = vi.mocked(getOAuthPrimaryAccount);
+const getProvidersCatalogMock = vi.mocked(getProvidersCatalog);
 const listOAuthAccountsMock = vi.mocked(listOAuthAccounts);
 const listOAuthPoolsMock = vi.mocked(listOAuthPools);
 const replaceOAuthPoolMembersMock = vi.mocked(replaceOAuthPoolMembers);
@@ -185,6 +188,7 @@ describe("useThreadCodexControls", () => {
       refreshCollaborationModes: vi.fn(),
     });
     getOAuthPrimaryAccountMock.mockReset();
+    getProvidersCatalogMock.mockReset();
     listOAuthAccountsMock.mockReset();
     listOAuthPoolsMock.mockReset();
     replaceOAuthPoolMembersMock.mockReset();
@@ -200,6 +204,21 @@ describe("useThreadCodexControls", () => {
       createdAt: 1,
       updatedAt: 1,
     });
+    getProvidersCatalogMock.mockResolvedValue([
+      {
+        providerId: "codex",
+        displayName: "Codex",
+        oauthProviderId: "codex",
+        aliases: ["openai"],
+        available: true,
+        readinessKind: "ready",
+        readinessMessage: "Codex is ready.",
+        executionKind: "cloud",
+        pool: "codex",
+        defaultModelId: "openai::gpt-5.3-codex",
+        supportedRouteIds: ["codex", "openai"],
+      },
+    ] as never);
     replaceOAuthPoolMembersMock.mockResolvedValue([]);
     setOAuthPrimaryAccountMock.mockResolvedValue({
       provider: "codex",
@@ -376,7 +395,7 @@ describe("useThreadCodexControls", () => {
     expect(patchThreadCodexParams).not.toHaveBeenCalled();
   });
 
-  it("persists the stable model slug for home composer defaults", async () => {
+  it("persists the exact routed model id for home composer defaults", async () => {
     detectRuntimeModeMock.mockReturnValue("runtime-gateway-web");
     runCodexDoctorMock.mockResolvedValue({
       ok: true,
@@ -403,13 +422,13 @@ describe("useThreadCodexControls", () => {
     expect(setAppSettings).toHaveBeenCalledTimes(1);
     const update = setAppSettings.mock.calls[0]?.[0] as (current: AppSettings) => AppSettings;
     const next = update(appSettings);
-    expect(next.lastComposerModelId).toBe("gpt-5.3-codex");
+    expect(next.lastComposerModelId).toBe("openai::gpt-5.3-codex");
     expect(queueSaveSettings).toHaveBeenCalledWith(
-      expect.objectContaining({ lastComposerModelId: "gpt-5.3-codex" })
+      expect.objectContaining({ lastComposerModelId: "openai::gpt-5.3-codex" })
     );
   });
 
-  it("persists the stable model slug for thread-scoped overrides", async () => {
+  it("persists the exact routed model id for thread-scoped overrides", async () => {
     detectRuntimeModeMock.mockReturnValue("runtime-gateway-web");
     runCodexDoctorMock.mockResolvedValue({
       ok: true,
@@ -442,7 +461,7 @@ describe("useThreadCodexControls", () => {
     result.current.handleSelectModel("openai::gpt-5.3-codex");
 
     expect(patchThreadCodexParams).toHaveBeenCalledWith("workspace-1", "thread-1", {
-      modelId: "gpt-5.3-codex",
+      modelId: "openai::gpt-5.3-codex",
     });
   });
 
@@ -935,6 +954,21 @@ describe("useThreadCodexControls", () => {
       },
     ]);
     listOAuthPoolsMock.mockResolvedValue([]);
+    getProvidersCatalogMock.mockResolvedValue([
+      {
+        providerId: "antigravity",
+        displayName: "Antigravity",
+        oauthProviderId: "gemini",
+        aliases: ["gemini", "google", "antigravity"],
+        available: true,
+        readinessKind: "ready",
+        readinessMessage: "Antigravity is ready.",
+        executionKind: "cloud",
+        pool: "gemini",
+        defaultModelId: "google::gemini-3.1-pro::brand:antigravity",
+        supportedRouteIds: ["antigravity", "gemini"],
+      },
+    ] as never);
 
     createHook();
 

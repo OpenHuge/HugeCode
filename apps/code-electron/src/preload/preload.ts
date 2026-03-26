@@ -11,6 +11,15 @@ const desktopHostBridge: DesktopHostBridgeApi = {
   launch: {
     consumePendingIntent: () =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.consumePendingLaunchIntent),
+    onIntent: (listener) => {
+      const wrappedListener = (_event: Electron.IpcRendererEvent, intent: unknown) => {
+        listener(intent as Parameters<typeof listener>[0]);
+      };
+      ipcRenderer.on(DESKTOP_HOST_IPC_CHANNELS.pushLaunchIntent, wrappedListener);
+      return () => {
+        ipcRenderer.off(DESKTOP_HOST_IPC_CHANNELS.pushLaunchIntent, wrappedListener);
+      };
+    },
   },
   session: {
     getCurrentSession: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getCurrentSession),
@@ -37,14 +46,28 @@ const desktopHostBridge: DesktopHostBridgeApi = {
   notifications: {
     show: (input) => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.showNotification, input),
   },
+  diagnostics: {
+    copySupportSnapshot: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.copySupportSnapshot),
+    getInfo: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getDiagnosticsInfo),
+  },
   updater: {
     checkForUpdates: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.checkForUpdates),
     getState: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getUpdateState),
+    onState: (listener) => {
+      const wrappedListener = (_event: Electron.IpcRendererEvent, state: unknown) => {
+        listener(state as Parameters<typeof listener>[0]);
+      };
+      ipcRenderer.on(DESKTOP_HOST_IPC_CHANNELS.pushUpdateState, wrappedListener);
+      return () => {
+        ipcRenderer.off(DESKTOP_HOST_IPC_CHANNELS.pushUpdateState, wrappedListener);
+      };
+    },
     restartToApplyUpdate: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.restartToApplyUpdate),
   },
   shell: {
     openExternalUrl: (url: string) =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.openExternalUrl, url),
+    openPath: (path: string) => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.openPath, path),
     revealItemInDir: (path: string) =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.revealItemInDir, path),
   },

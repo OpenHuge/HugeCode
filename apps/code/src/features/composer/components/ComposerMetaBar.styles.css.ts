@@ -209,6 +209,11 @@ export const selectControlBlock = style({
   flexShrink: 1,
 });
 export const selectControlWidth = styleVariants({
+  provider: {
+    width: "auto",
+    maxWidth: "92px",
+    "@media": { "(max-width: 820px)": { width: "auto", maxWidth: "88px" } },
+  },
   model: { width: "auto", maxWidth: "105px" },
   accounts: { width: "auto", maxWidth: "128px" },
   effort: {

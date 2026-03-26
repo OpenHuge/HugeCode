@@ -9,6 +9,11 @@ import type {
   HugeCodeTaskModeSource,
   HugeCodeTaskSourceSummary,
 } from "@ku0/code-runtime-host-contract";
+import {
+  resolveRuntimeContinuation,
+  resolveRuntimeNextOperatorAction,
+  resolveRuntimeSessionBoundary,
+} from "@ku0/code-runtime-host-contract";
 import { resolveExecutionProfile } from "./runtimeMissionControlExecutionProfiles";
 import { buildProfileReadiness, buildRoutingSummary } from "./runtimeMissionControlRouting";
 import type { RunProjectionRoutingContext } from "./runtimeMissionControlRouting";
@@ -157,7 +162,7 @@ export function projectAgentTaskSummaryToRunSummary(
     workspaceRoot: options?.workspaceRoot ?? null,
   });
 
-  const run: HugeCodeRunSummary = {
+  const baseRun: HugeCodeRunSummary = {
     id: task.taskId,
     taskId: options?.taskId ?? helpers.resolveMissionTaskId(task.taskId, task.threadId),
     workspaceId: task.workspaceId,
@@ -208,6 +213,52 @@ export function projectAgentTaskSummaryToRunSummary(
     publishHandoff: helpers.buildRunPublishHandoff(task),
     executionGraph: projectRuntimeExecutionGraphSummary(task.executionGraph),
   };
+
+  const run: HugeCodeRunSummary = {
+    ...baseRun,
+    sessionBoundary: resolveRuntimeSessionBoundary({
+      workspaceId: baseRun.workspaceId,
+      taskId: baseRun.taskId,
+      runId: baseRun.id,
+      reviewPackId: baseRun.reviewPackId ?? null,
+      checkpoint: baseRun.checkpoint ?? null,
+      missionLinkage: baseRun.missionLinkage ?? null,
+      sessionBoundary: task.sessionBoundary ?? null,
+    }),
+  };
+
+  run.continuation = resolveRuntimeContinuation({
+    workspaceId: run.workspaceId,
+    taskId: run.taskId,
+    runId: run.id,
+    reviewPackId: run.reviewPackId ?? null,
+    state: run.state,
+    checkpoint: run.checkpoint ?? null,
+    missionLinkage: run.missionLinkage ?? null,
+    actionability: run.actionability ?? null,
+    publishHandoff: run.publishHandoff ?? null,
+    takeoverBundle: run.takeoverBundle ?? null,
+    sessionBoundary: run.sessionBoundary ?? null,
+    continuation: task.continuation ?? null,
+  });
+  run.nextOperatorAction = resolveRuntimeNextOperatorAction({
+    workspaceId: run.workspaceId,
+    taskId: run.taskId,
+    runId: run.id,
+    reviewPackId: run.reviewPackId ?? null,
+    state: run.state,
+    approval: run.approval ?? null,
+    reviewDecision: run.reviewDecision ?? null,
+    nextAction: run.nextAction ?? null,
+    checkpoint: run.checkpoint ?? null,
+    missionLinkage: run.missionLinkage ?? null,
+    actionability: run.actionability ?? null,
+    publishHandoff: run.publishHandoff ?? null,
+    takeoverBundle: run.takeoverBundle ?? null,
+    sessionBoundary: run.sessionBoundary ?? null,
+    continuation: run.continuation ?? null,
+    nextOperatorAction: task.nextOperatorAction ?? null,
+  });
 
   return {
     ...run,

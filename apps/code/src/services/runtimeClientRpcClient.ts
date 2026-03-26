@@ -231,6 +231,25 @@ export function createRpcRuntimeClient(invokeRpc: RuntimeRpcInvoker): RuntimeCli
         }
       );
     },
+    textFileReadV1(request) {
+      return invokeRuntimeExtensionRpc(invokeRpc, CODE_RUNTIME_RPC_METHODS.TEXT_FILE_READ_V1, {
+        scope: request.scope,
+        kind: request.kind,
+        ...withCanonicalFields({
+          workspaceId: request.workspaceId ?? null,
+        }),
+      });
+    },
+    textFileWriteV1(request) {
+      return invokeRuntimeExtensionRpc(invokeRpc, CODE_RUNTIME_RPC_METHODS.TEXT_FILE_WRITE_V1, {
+        scope: request.scope,
+        kind: request.kind,
+        content: request.content,
+        ...withCanonicalFields({
+          workspaceId: request.workspaceId ?? null,
+        }),
+      });
+    },
   };
 
   return client;

@@ -38,6 +38,14 @@ macro_rules! code_tauri_command_entries {
                 commands::files::code_workspace_file_read,
                 "code_workspace_file_read"
             ),
+            (
+                commands::files::code_text_file_read_v1,
+                "code_text_file_read_v1"
+            ),
+            (
+                commands::files::code_text_file_write_v1,
+                "code_text_file_write_v1"
+            ),
             (commands::threads::code_threads_list, "code_threads_list"),
             (commands::threads::code_thread_create, "code_thread_create"),
             (commands::threads::code_thread_resume, "code_thread_resume"),
@@ -339,8 +347,6 @@ macro_rules! command_handler_from_entries {
             commands::state_fabric::native_state_fabric_snapshot,
             commands::state_fabric::native_state_fabric_delta,
             commands::state_fabric::native_state_fabric_diagnostics,
-            commands::settings::get_app_settings,
-            commands::settings::update_app_settings,
             commands::settings::is_mobile_runtime,
             commands::settings::orbit_connect_test,
             commands::settings::orbit_sign_in_start,
@@ -439,6 +445,14 @@ mod tests {
             );
             assert!(CODE_TAURI_REGISTERED_RPC_COMMANDS.contains(command));
         }
+    }
+
+    #[test]
+    fn registry_includes_canonical_text_file_commands_and_excludes_retired_settings_aliases() {
+        assert!(CODE_TAURI_REGISTERED_RPC_COMMANDS.contains(&"code_text_file_read_v1"));
+        assert!(CODE_TAURI_REGISTERED_RPC_COMMANDS.contains(&"code_text_file_write_v1"));
+        assert!(!CODE_TAURI_REGISTERED_RPC_COMMANDS.contains(&"get_app_settings"));
+        assert!(!CODE_TAURI_REGISTERED_RPC_COMMANDS.contains(&"update_app_settings"));
     }
 
     #[test]

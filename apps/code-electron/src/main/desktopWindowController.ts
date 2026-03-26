@@ -1,6 +1,8 @@
 import { BrowserWindow } from "electron";
 import type { BrowserWindowConstructorOptions } from "electron";
+import type { DesktopLaunchIntent, DesktopUpdateState } from "../shared/ipc.js";
 import type { OpenDesktopWindowInput } from "../shared/ipc.js";
+import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
 import {
   createDesktopShellState,
   resolveCloseBehavior,
@@ -15,6 +17,7 @@ type WindowOpenHandlerResult = {
 
 type BrowserWindowLike = {
   close(): void;
+  destroy?(): void;
   focus(): void;
   getBounds(): DesktopWindowBounds;
   hide(): void;
@@ -29,9 +32,22 @@ type BrowserWindowLike = {
   on(event: "focus", listener: () => void): void;
   on(event: "closed", listener: () => void): void;
   on(event: "close", listener: (event: { preventDefault(): void }) => void): void;
+  on(event: "responsive", listener: () => void): void;
+  on(event: "unresponsive", listener: () => void): void;
   restore(): void;
   show(): void;
   webContents: {
+    send(channel: string, payload: DesktopLaunchIntent | DesktopUpdateState): void;
+    on(
+      event: "render-process-gone",
+      listener: (
+        _event: unknown,
+        details: {
+          exitCode: number;
+          reason: string;
+        }
+      ) => void
+    ): void;
     on(
       event: "will-navigate",
       listener: (event: { preventDefault(): void }, url: string) => void
@@ -65,6 +81,23 @@ export type CreateDesktopWindowControllerInput = {
   isTrustedRendererUrl(url: string): boolean;
   loadRenderer(window: BrowserWindowLike): void;
   notifyWindowsChanged(): void;
+  onRenderProcessGone?(payload: {
+    details: {
+      exitCode: number;
+      reason: string;
+    };
+    session: DesktopSessionDescriptor | null;
+    windowId: number;
+  }): void;
+  onWindowResponsive?(payload: {
+    session: DesktopSessionDescriptor | null;
+    windowId: number;
+  }): void;
+  onWindowUnresponsive?(payload: {
+    focusWindow(): boolean;
+    session: DesktopSessionDescriptor | null;
+    windowId: number;
+  }): void;
   openExternalUrl(url: string): Promise<void> | void;
   persistState(): void;
   preloadPath: string;
@@ -72,14 +105,17 @@ export type CreateDesktopWindowControllerInput = {
 };
 
 export type DesktopWindowController = {
+  broadcastUpdateState(state: DesktopUpdateState): number;
   closeWindow(windowId: number): boolean;
   createWindowForSession(session: DesktopSessionDescriptor): DesktopWindowDescriptor | null;
+  deliverLaunchIntent(windowId: number, intent: DesktopLaunchIntent): boolean;
   focusWindow(windowId: number): boolean;
   hasWindowForWebContents(webContents: unknown): boolean;
   getSessionForWebContents(webContents: unknown): DesktopSessionDescriptor | null;
   getWindowLabelForWebContents(webContents: unknown): DesktopSessionDescriptor["windowLabel"];
   listWindows(): DesktopWindowDescriptor[];
   openWindow(input?: OpenDesktopWindowInput): DesktopWindowDescriptor | null;
+  recoverWindow(windowId: number): DesktopWindowDescriptor | null;
   reopenSession(sessionId: string): boolean;
   restoreVisibleWindow(): boolean;
 };
@@ -146,6 +182,30 @@ export function createDesktopWindowController(
     return true;
   }
 
+  function deliverLaunchIntent(windowId: number, intent: DesktopLaunchIntent) {
+    const targetWindow = activeWindows.get(windowId);
+    if (!targetWindow || targetWindow.isDestroyed()) {
+      return false;
+    }
+
+    targetWindow.webContents.send(DESKTOP_HOST_IPC_CHANNELS.pushLaunchIntent, intent);
+    return true;
+  }
+
+  function broadcastUpdateState(state: DesktopUpdateState) {
+    let deliveredCount = 0;
+    for (const targetWindow of activeWindows.values()) {
+      if (targetWindow.isDestroyed()) {
+        continue;
+      }
+
+      targetWindow.webContents.send(DESKTOP_HOST_IPC_CHANNELS.pushUpdateState, state);
+      deliveredCount += 1;
+    }
+
+    return deliveredCount;
+  }
+
   function findWindowBySessionId(sessionId: string) {
     for (const [windowId] of activeWindows) {
       const session = input.shellState.getSessionByWindowId(windowId);
@@ -155,6 +215,25 @@ export function createDesktopWindowController(
     }
 
     return null;
+  }
+
+  function discardWindow(windowId: number, strategy: "destroy" | "detach" = "destroy") {
+    const targetWindow = activeWindows.get(windowId);
+    const session = input.shellState.getSessionByWindowId(windowId);
+    if (!targetWindow || !session) {
+      return session;
+    }
+
+    input.shellState.detachWindow(windowId, targetWindow.getBounds());
+    input.persistState();
+    activeWindows.delete(windowId);
+    notifyWindowsChanged();
+
+    if (strategy === "destroy" && !targetWindow.isDestroyed()) {
+      targetWindow.destroy?.();
+    }
+
+    return session;
   }
 
   function createWindowForSession(session: DesktopSessionDescriptor) {
@@ -190,6 +269,23 @@ export function createDesktopWindowController(
       notifyWindowsChanged();
     });
 
+    nextWindow.on("unresponsive", () => {
+      input.onWindowUnresponsive?.({
+        focusWindow() {
+          return focusWindow(nextWindow.id);
+        },
+        session: input.shellState.getSessionByWindowId(nextWindow.id),
+        windowId: nextWindow.id,
+      });
+    });
+
+    nextWindow.on("responsive", () => {
+      input.onWindowResponsive?.({
+        session: input.shellState.getSessionByWindowId(nextWindow.id),
+        windowId: nextWindow.id,
+      });
+    });
+
     nextWindow.webContents.setWindowOpenHandler(({ url }) => {
       if (input.isSafeExternalUrl(url) && !input.isTrustedRendererUrl(url)) {
         void input.openExternalUrl(url);
@@ -206,6 +302,14 @@ export function createDesktopWindowController(
       if (input.isSafeExternalUrl(url)) {
         void input.openExternalUrl(url);
       }
+    });
+
+    nextWindow.webContents.on("render-process-gone", (_event, details) => {
+      input.onRenderProcessGone?.({
+        details,
+        session: input.shellState.getSessionByWindowId(nextWindow.id),
+        windowId: nextWindow.id,
+      });
     });
 
     input.loadRenderer(nextWindow);
@@ -251,6 +355,7 @@ export function createDesktopWindowController(
   }
 
   return {
+    broadcastUpdateState,
     closeWindow(windowId) {
       const targetWindow = activeWindows.get(windowId);
       if (!targetWindow || targetWindow.isDestroyed()) {
@@ -261,6 +366,7 @@ export function createDesktopWindowController(
       return true;
     },
     createWindowForSession,
+    deliverLaunchIntent,
     focusWindow,
     hasWindowForWebContents,
     getSessionForWebContents,
@@ -280,6 +386,14 @@ export function createDesktopWindowController(
       if (existingWindow) {
         focusWindow(existingWindow.id);
         return describeWindow(existingWindow.id);
+      }
+
+      return createWindowForSession(session);
+    },
+    recoverWindow(windowId) {
+      const session = discardWindow(windowId);
+      if (!session) {
+        return null;
       }
 
       return createWindowForSession(session);

@@ -9,6 +9,7 @@ import {
   loadLocalRuntimeContractFingerprint,
   normalizeWorkspacePathForReuse,
   parseRuntimeReadyTimeout,
+  resolveDefaultRuntimeReadyTimeout,
   resolveCodeAppViteEntryPath,
   runtimeDefaultWorkspaceMatchesExpected,
 } from "../../scripts/dev-code-runtime-gateway-web-all.mjs";
@@ -58,8 +59,12 @@ describe("dev-code-runtime-gateway-web-all", () => {
   });
 
   it("defaults runtime readiness timeout high enough for cold Rust builds", () => {
-    expect(parseRuntimeReadyTimeout(undefined)).toBe(480_000);
-    expect(parseRuntimeReadyTimeout("9")).toBe(480_000);
+    expect(resolveDefaultRuntimeReadyTimeout({})).toBe(480_000);
+    expect(resolveDefaultRuntimeReadyTimeout({ CI: "true" })).toBe(900_000);
+    expect(parseRuntimeReadyTimeout(undefined, {})).toBe(480_000);
+    expect(parseRuntimeReadyTimeout(undefined, { CI: "true" })).toBe(900_000);
+    expect(parseRuntimeReadyTimeout("9", {})).toBe(480_000);
+    expect(parseRuntimeReadyTimeout("9", { CI: "true" })).toBe(900_000);
   });
 
   it("preserves explicit runtime readiness timeout overrides", () => {

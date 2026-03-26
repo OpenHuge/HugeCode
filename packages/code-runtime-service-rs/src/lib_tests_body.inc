@@ -8449,54 +8449,16 @@
 
     #[tokio::test]
     async fn compat_model_catalog_refresh_serves_stale_while_refresh_is_inflight() {
-        let models_counter = Arc::new(AtomicUsize::new(0));
-        let refresh_started = Arc::new(tokio::sync::Notify::new());
-        let allow_refresh_complete = Arc::new(tokio::sync::Notify::new());
-        let refresh_started_handle = Arc::clone(&refresh_started);
-        let allow_refresh_complete_handle = Arc::clone(&allow_refresh_complete);
-        let models_counter_handle = Arc::clone(&models_counter);
-        let compat_app = Router::new().route(
-            "/v1/models",
-            get(move |headers: axum::http::HeaderMap| {
-                let refresh_started = Arc::clone(&refresh_started_handle);
-                let allow_refresh_complete = Arc::clone(&allow_refresh_complete_handle);
-                let models_counter = Arc::clone(&models_counter_handle);
-                async move {
-                    let request_number =
-                        models_counter.fetch_add(1, AtomicOrdering::Relaxed) + 1;
-                    if request_number >= 2 {
-                        refresh_started.notify_one();
-                        allow_refresh_complete.notified().await;
-                    }
-                    let actual_header = headers
-                        .get("authorization")
-                        .and_then(|value| value.to_str().ok());
-                    assert_eq!(actual_header, Some("Bearer compat-test-key"));
-                    (
-                        StatusCode::OK,
-                        Json(json!({
-                            "object": "list",
-                            "data": [
-                                { "id": "gpt-4.1-mini", "object": "model" },
-                                { "id": "claude-3-7-sonnet-latest", "object": "model" },
-                                { "id": "gemini-3-flash", "object": "model" }
-                            ],
-                        })),
-                    )
-                }
-            }),
-        );
-        let compat_listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("bind compat model catalog listener");
-        let compat_address = compat_listener
-            .local_addr()
-            .expect("resolve compat model catalog listener");
-        let compat_handle = tokio::spawn(async move {
-            let _ = axum::serve(compat_listener, compat_app).await;
-        });
-
-        let compat_base_url = format!("http://{compat_address}/v1");
+        // Keep a wide margin between the in-flight refresh latency and the stale-read timeout.
+        // The original 40ms assertion window was too tight for loaded Linux CI runners even
+        // though the stale-while-refresh behavior was still correct.
+        let (compat_base_url, models_counter, compat_handle) =
+            spawn_openai_compat_mock_server_with_counter(
+                vec!["gpt-4.1-mini", "claude-3-7-sonnet-latest", "gemini-3-flash"],
+                Some("compat-test-key"),
+                Some(Duration::from_millis(300)),
+            )
+            .await;
         let mut config = test_service_config_with_openai_compat(compat_base_url.as_str());
         config.openai_compat_model_cache_ttl_ms = 1;
         let app = test_router_with_config(config);
@@ -8520,12 +8482,19 @@
             .await
         });
 
-        tokio::time::timeout(Duration::from_secs(2), refresh_started.notified())
-            .await
-            .expect("refresh request should start before stale read");
+        tokio::time::timeout(Duration::from_millis(200), async {
+            loop {
+                if models_counter.load(AtomicOrdering::Relaxed) >= 2 {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(2)).await;
+            }
+        })
+        .await
+        .expect("refresh request should start before stale read");
 
         let stale_payload = tokio::time::timeout(
-            Duration::from_secs(1),
+            Duration::from_millis(180),
             send_rpc_request(
                 app.clone(),
                 json!({"method":"code_models_pool","params":{}}),
@@ -8539,8 +8508,6 @@
             2,
             "stale read should reuse the cached catalog while the refresh is still blocked"
         );
-
-        allow_refresh_complete.notify_one();
 
         let refreshed_payload = refresh_request.await.expect("join refresh request");
         assert_eq!(refreshed_payload["ok"], Value::Bool(true));

@@ -6,6 +6,7 @@ const RPC_BATCH_READ_ONLY_METHODS: &[&str] = &[
     "code_health",
     "code_settings_summary",
     "code_app_settings_get",
+    "code_text_file_read_v1",
     "code_remote_status",
     "code_terminal_status",
     "code_models_pool",
@@ -108,7 +109,7 @@ pub(super) async fn handle_rpc_batch(ctx: &AppContext, params: &Value) -> Result
             )));
         }
 
-        match handle_read_only_batch_method(ctx, resolved_method, method).await {
+        match handle_read_only_batch_method(ctx, resolved_method, method, &request_params).await {
             Ok(result) => responses.push(json!({
                 "method": method,
                 "ok": true,
@@ -136,6 +137,7 @@ async fn handle_read_only_batch_method(
     ctx: &AppContext,
     method: &str,
     requested_method: &str,
+    params: &Value,
 ) -> Result<Value, RpcError> {
     match method {
         "code_rpc_capabilities" => Ok(rpc_capabilities_payload_for_requested_method(
@@ -144,6 +146,7 @@ async fn handle_read_only_batch_method(
         "code_health" => Ok(health_response_payload()),
         "code_settings_summary" => Ok(settings_summary_payload()),
         "code_app_settings_get" => super::app_settings_dispatch::handle_app_settings_get(ctx).await,
+        "code_text_file_read_v1" => super::text_files_dispatch::handle_text_file_read_v1(ctx, params).await,
         "code_remote_status" => Ok(remote_status_payload()),
         "code_terminal_status" => Ok(terminal_status_payload(ctx).await),
         "code_models_pool" => Ok(json!(build_models_pool(ctx).await)),

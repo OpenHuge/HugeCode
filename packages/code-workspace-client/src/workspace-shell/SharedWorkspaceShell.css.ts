@@ -261,6 +261,35 @@ export const heroCopy = style({
   alignContent: "start",
 });
 
+export const heroAside = style({
+  display: "grid",
+  gap: spacing[3],
+  alignContent: "start",
+});
+
+export const operatorActionCard = style({
+  display: "grid",
+  gap: spacing[3],
+  padding: spacing[4],
+  borderRadius: "18px",
+  border: `1px solid color-mix(in srgb, ${semanticColors.border} 60%, transparent)`,
+  background:
+    "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-card) 96%, transparent), color-mix(in srgb, var(--ds-brand-primary) 7%, var(--ds-surface-panel)))",
+  boxShadow: elevationValues.card,
+});
+
+export const operatorActionCopy = style({
+  display: "grid",
+  gap: spacing[2],
+});
+
+export const operatorActionFooter = style({
+  display: "flex",
+  alignItems: "center",
+  gap: spacing[2],
+  flexWrap: "wrap",
+});
+
 export const summaryGrid = style({
   display: "grid",
   gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
@@ -448,6 +477,44 @@ export const activityList = style({
   gap: spacing[3],
 });
 
+export const triageList = style({
+  display: "grid",
+  gap: spacing[3],
+});
+
+export const triageCard = style({
+  display: "grid",
+  gap: spacing[2],
+  width: "100%",
+  padding: spacing[4],
+  borderRadius: "18px",
+  border: `1px solid color-mix(in srgb, ${semanticColors.border} 64%, transparent)`,
+  background:
+    "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-item) 92%, transparent), color-mix(in srgb, var(--ds-surface-panel) 94%, transparent))",
+  color: semanticColors.foreground,
+  textAlign: "left",
+  cursor: "pointer",
+  transition: motionValues.interactive,
+  selectors: {
+    "&:hover:not(:disabled), &:focus-visible": {
+      borderColor: "color-mix(in srgb, var(--ds-border-subtle) 68%, transparent)",
+      background:
+        "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-hover) 76%, var(--ds-surface-item)), color-mix(in srgb, var(--ds-surface-panel) 94%, transparent))",
+      outline: "none",
+      transform: "translateY(-1px)",
+    },
+  },
+});
+
+export const triageScope = style({
+  color: semanticColors.mutedForeground,
+  fontSize: typographyValues.meta.fontSize,
+  lineHeight: typographyValues.meta.lineHeight,
+  textTransform: "uppercase",
+  letterSpacing: "0.08em",
+  fontWeight: 650,
+});
+
 export const activityCard = style({
   display: "grid",
   gap: spacing[3],
@@ -457,6 +524,14 @@ export const activityCard = style({
   background:
     "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-card) 96%, transparent), color-mix(in srgb, var(--ds-surface-panel) 94%, transparent))",
   boxShadow: elevationValues.card,
+  scrollMarginTop: spacing[5],
+});
+
+export const focusedActivityCard = style({
+  borderColor: "color-mix(in srgb, var(--ds-brand-primary) 54%, transparent)",
+  background:
+    "linear-gradient(180deg, color-mix(in srgb, var(--ds-brand-primary) 10%, var(--ds-surface-card)), color-mix(in srgb, var(--ds-surface-panel) 94%, transparent))",
+  boxShadow: elevationValues.floating,
 });
 
 export const activityHeader = style({
@@ -476,6 +551,22 @@ export const activityCopy = style({
   display: "grid",
   gap: spacing[1],
   minWidth: 0,
+});
+
+export const focusBadge = style({
+  display: "inline-flex",
+  alignItems: "center",
+  width: "fit-content",
+  minHeight: "22px",
+  padding: "0 8px",
+  borderRadius: "999px",
+  background: "color-mix(in srgb, var(--ds-brand-primary) 14%, var(--ds-surface-item))",
+  color: semanticColors.foreground,
+  fontSize: typographyValues.micro.fontSize,
+  lineHeight: typographyValues.micro.lineHeight,
+  fontWeight: 650,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
 });
 
 export const activityTitle = style({

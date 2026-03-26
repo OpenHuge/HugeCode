@@ -1,6 +1,9 @@
 import { useEffect } from "react";
 import type { DesktopLaunchIntent } from "@ku0/code-platform-interfaces";
-import { consumePendingDesktopLaunchIntent } from "../../../application/runtime/facades/desktopHostFacade";
+import {
+  consumePendingDesktopLaunchIntent,
+  subscribeToDesktopLaunchIntents,
+} from "../../../application/runtime/facades/desktopHostFacade";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type { DebugEntry } from "../../../types";
 
@@ -16,6 +19,20 @@ function describeLaunchIntent(intent: DesktopLaunchIntent) {
         message:
           "HugeCode received a hugecode:// link. This beta records the link, but in-app deep-link routing is still limited.",
         title: "Deep link received",
+      };
+    case "workspace":
+      if (intent.launchPathKind === "file" && intent.launchPath) {
+        return {
+          message: `HugeCode opened the containing workspace for ${intent.launchPath}.`,
+          title: "File opened in workspace",
+        };
+      }
+
+      return {
+        message: intent.workspacePath
+          ? `HugeCode opened the requested workspace at ${intent.workspacePath}.`
+          : "HugeCode opened the requested workspace.",
+        title: "Workspace opened",
       };
     case "post-install":
       return {
@@ -33,6 +50,22 @@ function describeLaunchIntent(intent: DesktopLaunchIntent) {
   }
 }
 
+function formatLaunchIntentPayload(intent: DesktopLaunchIntent) {
+  if (intent.url) {
+    return `${intent.kind}: ${intent.url}`;
+  }
+
+  if (intent.workspacePath) {
+    if (intent.launchPath && intent.launchPath !== intent.workspacePath) {
+      return `${intent.kind}: ${intent.launchPath} -> ${intent.workspacePath}`;
+    }
+
+    return `${intent.kind}: ${intent.workspacePath}`;
+  }
+
+  return intent.kind;
+}
+
 export function useDesktopLaunchIntentBootstrap({
   enabled = true,
   onDebug,
@@ -43,48 +76,62 @@ export function useDesktopLaunchIntentBootstrap({
     }
 
     let active = true;
-    void consumePendingDesktopLaunchIntent()
-      .then((intent) => {
-        if (!active || !intent) {
-          return;
-        }
+    const handleLaunchIntent = (intent: DesktopLaunchIntent) => {
+      if (!active) {
+        return;
+      }
 
-        onDebug({
-          id: `${Date.now()}-desktop-launch-intent`,
-          timestamp: Date.now(),
-          source: "client",
-          label: "desktop/launch-intent",
-          payload: intent.url ? `${intent.kind}: ${intent.url}` : intent.kind,
-        });
-
-        const toast = describeLaunchIntent(intent);
-        if (!toast) {
-          return;
-        }
-
-        pushErrorToast({
-          id: `desktop-launch-intent-${intent.kind}-${intent.receivedAt}`,
-          title: toast.title,
-          message: toast.message,
-          durationMs: 7000,
-        });
-      })
-      .catch((error) => {
-        if (!active) {
-          return;
-        }
-
-        onDebug({
-          id: `${Date.now()}-desktop-launch-intent-error`,
-          timestamp: Date.now(),
-          source: "error",
-          label: "desktop/launch-intent-error",
-          payload: error instanceof Error ? error.message : String(error),
-        });
+      onDebug({
+        id: `${Date.now()}-desktop-launch-intent`,
+        timestamp: Date.now(),
+        source: "client",
+        label: "desktop/launch-intent",
+        payload: formatLaunchIntentPayload(intent),
       });
+
+      const toast = describeLaunchIntent(intent);
+      if (!toast) {
+        return;
+      }
+
+      pushErrorToast({
+        id: `desktop-launch-intent-${intent.kind}-${intent.receivedAt}`,
+        title: toast.title,
+        message: toast.message,
+        durationMs: 7000,
+      });
+    };
+
+    const unsubscribe = subscribeToDesktopLaunchIntents((intent) => {
+      handleLaunchIntent(intent);
+    });
+
+    void (async () => {
+      while (active) {
+        const intent = await consumePendingDesktopLaunchIntent();
+        if (!intent) {
+          return;
+        }
+
+        handleLaunchIntent(intent);
+      }
+    })().catch((error) => {
+      if (!active) {
+        return;
+      }
+
+      onDebug({
+        id: `${Date.now()}-desktop-launch-intent-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "desktop/launch-intent-error",
+        payload: error instanceof Error ? error.message : String(error),
+      });
+    });
 
     return () => {
       active = false;
+      unsubscribe();
     };
   }, [enabled, onDebug]);
 }

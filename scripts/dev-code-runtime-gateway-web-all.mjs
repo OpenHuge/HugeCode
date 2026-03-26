@@ -19,6 +19,7 @@ const DEFAULT_WEB_PORT = 5187;
 // before the health endpoint exists. Match the higher smoke-test budget so the
 // default interactive boot path survives a pruned target cache.
 const DEFAULT_RUNTIME_READY_TIMEOUT_MS = 480_000;
+const CI_DEFAULT_RUNTIME_READY_TIMEOUT_MS = 900_000;
 const MAX_PORT_SCAN = 200;
 const HEALTHCHECK_TIMEOUT_MS = 1_200;
 const RUNTIME_CAPABILITIES_TIMEOUT_MS = 1_500;
@@ -48,6 +49,13 @@ export function resolveCodeAppViteEntryPath() {
 
 loadRootEnvLocal(import.meta.url);
 
+export function resolveDefaultRuntimeReadyTimeout(env = process.env) {
+  const ciValue = env.CI?.trim().toLowerCase();
+  return ciValue && ciValue !== "0" && ciValue !== "false"
+    ? CI_DEFAULT_RUNTIME_READY_TIMEOUT_MS
+    : DEFAULT_RUNTIME_READY_TIMEOUT_MS;
+}
+
 function parseRuntimePort(rawPort) {
   const parsed = Number(rawPort ?? DEFAULT_RUNTIME_PORT);
   if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65_535) {
@@ -56,10 +64,11 @@ function parseRuntimePort(rawPort) {
   return parsed;
 }
 
-export function parseRuntimeReadyTimeout(rawTimeoutMs) {
-  const parsed = Number(rawTimeoutMs ?? DEFAULT_RUNTIME_READY_TIMEOUT_MS);
+export function parseRuntimeReadyTimeout(rawTimeoutMs, env = process.env) {
+  const defaultTimeoutMs = resolveDefaultRuntimeReadyTimeout(env);
+  const parsed = Number(rawTimeoutMs ?? defaultTimeoutMs);
   if (!Number.isInteger(parsed) || parsed < 10_000 || parsed > 10 * 60_000) {
-    return DEFAULT_RUNTIME_READY_TIMEOUT_MS;
+    return defaultTimeoutMs;
   }
   return parsed;
 }
