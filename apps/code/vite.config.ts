@@ -50,12 +50,14 @@ const WORKSPACE_CHROME_DOMAIN_CHUNK_PATTERNS = [
 ] as const;
 const WORKSPACE_CONVERSATION_DOMAIN_CHUNK_PATTERNS = [
   "/src/features/app/composition/useDesktopWorkspaceConversationDomain.ts",
+  "/src/features/app/hooks/useSyncSelectedDiffPath.ts",
 ] as const;
 const WORKSPACE_MISSION_DOMAIN_CHUNK_PATTERNS = [
   "/src/features/app/composition/useDesktopWorkspaceMissionDomain.ts",
 ] as const;
 const WORKSPACE_PROJECT_DOMAIN_CHUNK_PATTERNS = [
   "/src/features/app/composition/useDesktopWorkspaceProjectDomain.ts",
+  "/src/features/app/hooks/useGitRootSelection.ts",
 ] as const;
 const WORKSPACE_THREAD_DOMAIN_CHUNK_PATTERNS = [
   "/src/features/app/composition/useDesktopWorkspaceThreadDomain.ts",

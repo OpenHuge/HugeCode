@@ -621,7 +621,7 @@ describe("tauri invoke wrappers", () => {
 
     await readAgentMd("ws-agent");
 
-    expect(invokeMock).toHaveBeenCalledWith("file_read", {
+    expect(invokeMock).toHaveBeenCalledWith("code_text_file_read_v1", {
       scope: "workspace",
       kind: "agents",
       workspaceId: "ws-agent",
@@ -634,7 +634,7 @@ describe("tauri invoke wrappers", () => {
 
     await writeAgentMd("ws-agent", "# Agent");
 
-    expect(invokeMock).toHaveBeenCalledWith("file_write", {
+    expect(invokeMock).toHaveBeenCalledWith("code_text_file_write_v1", {
       scope: "workspace",
       kind: "agents",
       workspaceId: "ws-agent",
@@ -648,7 +648,7 @@ describe("tauri invoke wrappers", () => {
 
     await readGlobalAgentsMd();
 
-    expect(invokeMock).toHaveBeenCalledWith("file_read", {
+    expect(invokeMock).toHaveBeenCalledWith("code_text_file_read_v1", {
       scope: "global",
       kind: "agents",
       workspaceId: undefined,
@@ -661,7 +661,7 @@ describe("tauri invoke wrappers", () => {
 
     await writeGlobalAgentsMd("# Global");
 
-    expect(invokeMock).toHaveBeenCalledWith("file_write", {
+    expect(invokeMock).toHaveBeenCalledWith("code_text_file_write_v1", {
       scope: "global",
       kind: "agents",
       workspaceId: undefined,
@@ -679,7 +679,7 @@ describe("tauri invoke wrappers", () => {
 
     await readGlobalCodexConfigToml();
 
-    expect(invokeMock).toHaveBeenCalledWith("file_read", {
+    expect(invokeMock).toHaveBeenCalledWith("code_text_file_read_v1", {
       scope: "global",
       kind: "config",
       workspaceId: undefined,
@@ -692,7 +692,7 @@ describe("tauri invoke wrappers", () => {
 
     await writeGlobalCodexConfigToml('model = "gpt-5"');
 
-    expect(invokeMock).toHaveBeenCalledWith("file_write", {
+    expect(invokeMock).toHaveBeenCalledWith("code_text_file_write_v1", {
       scope: "global",
       kind: "config",
       workspaceId: undefined,
@@ -796,14 +796,14 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
-  it("falls back to local text-file storage when file_read/file_write commands are unavailable", async () => {
+  it("falls back to local text-file storage when canonical text-file commands are unavailable", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "file_read") {
-        throw new Error("unknown command `file_read`");
+      if (command === "code_text_file_read_v1") {
+        throw new Error("unknown command `code_text_file_read_v1`");
       }
-      if (command === "file_write") {
-        throw new Error("unknown command `file_write`");
+      if (command === "code_text_file_write_v1") {
+        throw new Error("unknown command `code_text_file_write_v1`");
       }
       return undefined;
     });

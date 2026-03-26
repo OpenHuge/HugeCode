@@ -129,7 +129,6 @@ export {
   setThreadName,
 } from "./tauriDesktopRpc";
 export {
-  getAppSettings,
   getBackendPoolBootstrapPreview,
   getBackendPoolDiagnostics,
   isMobileRuntime,
@@ -151,8 +150,8 @@ export {
   tailscaleDaemonStatus,
   tailscaleDaemonStop,
   tailscaleStatus,
-  updateAppSettings,
 } from "./tauriDesktopRuntimeOps";
+export { getAppSettings, updateAppSettings } from "../application/runtime/ports/tauriAppSettings";
 export type { WorktreeSetupStatus } from "./tauriDesktopWorkspace";
 export type { RuntimeCockpitToolsCodexImportResponse } from "./runtimeClient";
 export {
