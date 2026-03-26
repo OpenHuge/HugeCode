@@ -6,7 +6,7 @@ import type {
 
 type SharedHostStartupStatusState = {
   status: WorkspaceClientHostStartupStatus | null;
-  loadState: "idle" | "loading" | "ready" | "error";
+  loadState: "idle" | "loading" | "refreshing" | "ready" | "error";
   error: string | null;
 };
 
@@ -69,7 +69,7 @@ export function useSharedHostStartupStatusState(
     [enabled, host.shell]
   );
 
-  const refresh = useCallback(() => loadStatus("loading"), [loadStatus]);
+  const refresh = useCallback(() => loadStatus("refreshing"), [loadStatus]);
 
   useEffect(() => {
     if (!enabled) {

@@ -327,6 +327,10 @@ describe("WorkspaceShellApp", () => {
           "Runtime summary is loading in the background so the shared shell can render immediately."
         )
       ).toBeTruthy();
+      expect(screen.getByText("Hydrating shell")).toBeTruthy();
+      expect(
+        (screen.getByRole("button", { name: "Refreshing..." }) as HTMLButtonElement).disabled
+      ).toBe(true);
       expect(screen.getByText("Runtime activity is loading in the background.")).toBeTruthy();
       expect(
         screen.getByText("Review signals load after the shell becomes interactive.")
