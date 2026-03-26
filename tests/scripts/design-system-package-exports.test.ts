@@ -24,7 +24,7 @@ describe("design-system package exports", () => {
       types: "./src/shell-theme-values.ts",
     });
     expect(viteConfigText).toContain(
-      '"shell-theme-values": resolve(__dirname, "src/shell-theme-values.ts")'
+      '"shell-theme-values": resolve(packageDir, "src/shell-theme-values.ts")'
     );
     await expect(fs.access(shellThemeSourcePath)).resolves.toBeUndefined();
   });

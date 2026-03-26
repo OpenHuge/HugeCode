@@ -409,16 +409,24 @@ const requiredChecks = [
     includes: [
       "name: _reusable-desktop-prepare-frontend",
       "name: Prepare frontend dist",
-      "pnpm desktop:prepare",
+      "Skip frontend dist preparation while Tauri retires",
     ],
   },
   {
     file: ".github/workflows/_reusable-desktop-build-pr.yml",
-    includes: ["name: _reusable-desktop-build-pr", "name: Build PR", "run build -- --target"],
+    includes: [
+      "name: _reusable-desktop-build-pr",
+      "name: Build PR",
+      "Skip Tauri PR build while runtime retires",
+    ],
   },
   {
     file: ".github/workflows/_reusable-desktop-build-release.yml",
-    includes: ["name: _reusable-desktop-build-release", "name: Build", "name: Show sccache stats"],
+    includes: [
+      "name: _reusable-desktop-build-release",
+      "name: Build",
+      "Skip Tauri release build while runtime retires",
+    ],
   },
   {
     file: releaseWorkflowRelativePath,
