@@ -480,6 +480,12 @@ export function createUnavailableRuntimeClient(
     appSettingsUpdate() {
       return rejectUnavailable("update app settings");
     },
+    textFileReadV1() {
+      return rejectUnavailable("read text file");
+    },
+    textFileWriteV1() {
+      return rejectUnavailable("write text file");
+    },
     settings() {
       return rejectUnavailable("read settings");
     },
