@@ -4,7 +4,6 @@ import type {
   HugeCodeReviewActionabilitySummary,
   HugeCodeTakeoverBundle,
 } from "@ku0/code-runtime-host-contract";
-import type { HugeCodeOperatorTruthSource } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
 import {
   formatHugeCodeOperatorTruthSourceLabel as formatSharedTruthSourceLabel,
   resolveHugeCodeOperatorContinuePathLabel,
@@ -16,8 +15,14 @@ import {
 
 export type RuntimeContinuationPathLabel = "Mission thread" | "Mission run" | "Review Pack";
 export type RuntimeContinuationState = "ready" | "attention" | "blocked" | "missing";
-export type RuntimeContinuationPathKind = "resume" | "handoff" | "review" | "missing";
-export type RuntimeContinuationTruthSource = HugeCodeOperatorTruthSource;
+export type RuntimeContinuationPathKind = "approval" | "resume" | "handoff" | "review" | "missing";
+export type RuntimeContinuationTruthSource =
+  | "takeover_bundle"
+  | "review_actionability"
+  | "mission_linkage"
+  | "publish_handoff"
+  | "checkpoint"
+  | "missing";
 
 export type RuntimeContinuationProjection = {
   state: RuntimeContinuationState;
@@ -102,6 +107,17 @@ export function projectTakeoverBundleToContinuation(
 ): RuntimeContinuationProjection | null {
   if (!takeoverBundle) {
     return null;
+  }
+
+  if (takeoverBundle.pathKind === "approval") {
+    return {
+      state: takeoverBundle.state === "ready" ? "attention" : takeoverBundle.state,
+      pathKind: "approval",
+      detail: takeoverBundle.blockingReason ?? takeoverBundle.summary,
+      recommendedAction: takeoverBundle.recommendedAction,
+      truthSource: "takeover_bundle",
+      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("takeover_bundle"),
+    };
   }
   const shared = summarizeHugeCodeOperatorContinuation({
     takeoverBundle,

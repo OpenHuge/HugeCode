@@ -206,6 +206,8 @@ describe("missionControlPresentation", () => {
             resolutionSource: "runtime_fallback",
             lifecycleState: "fallback",
             readiness: "ready",
+            healthSummary: "placement_attention",
+            attentionReasons: ["fallback_backend_selected"],
             summary: "Runtime confirmed fallback placement on backend backend-review-b.",
             rationale: "Fallback route.",
           },
@@ -284,6 +286,64 @@ describe("missionControlPresentation", () => {
     );
   });
 
+  it("prefers takeover approval truth for mission overview actions and continuation copy", () => {
+    const projection: HugeCodeMissionControlSnapshot = {
+      ...createProjection(),
+      tasks: [
+        {
+          ...createProjection().tasks[0],
+          id: "task-approval",
+          title: "Approve review continuation",
+          latestRunId: "run-approval",
+          latestRunState: "review_ready",
+        },
+      ],
+      runs: [
+        {
+          ...createProjection().runs[0],
+          id: "run-approval",
+          taskId: "task-approval",
+          state: "review_ready",
+          reviewPackId: "review-pack:run-approval",
+          takeoverBundle: {
+            pathKind: "approval",
+            primaryAction: "approve",
+            state: "ready",
+            summary: "Approval is the first required continuation step.",
+            recommendedAction: "Open the pending approval before reopening review.",
+            target: {
+              kind: "run",
+              workspaceId: "ws-1",
+              taskId: "task-approval",
+              runId: "run-approval",
+              reviewPackId: "review-pack:run-approval",
+            },
+          },
+        },
+      ],
+      reviewPacks: [
+        {
+          ...createProjection().reviewPacks[0],
+          id: "review-pack:run-approval",
+          runId: "run-approval",
+          taskId: "task-approval",
+          recommendedNextAction: "Legacy review follow-up",
+        },
+      ],
+    };
+
+    const [item] = buildMissionOverviewItemsFromProjection(projection, {
+      workspaceId: "ws-1",
+      activeThreadId: null,
+      limit: 6,
+    });
+
+    expect(item.operatorActionLabel).toBe("Open approval");
+    expect(item.operatorActionDetail).toBe("Open the pending approval before reopening review.");
+    expect(item.continuationLabel).toBe("Approval is the first required continuation step.");
+    expect(item.continuePathLabel).toBe("Mission run");
+  });
+
   it("builds latest mission entries that open review-pack detail for thread-backed review packs", () => {
     const [entry] = buildLatestMissionRunsFromProjection(createProjection(), {
       getWorkspaceGroupName: () => null,
@@ -316,6 +376,61 @@ describe("missionControlPresentation", () => {
     });
   });
 
+  it("prefers takeover handoff truth for latest mission actions", () => {
+    const projection: HugeCodeMissionControlSnapshot = {
+      ...createProjection(),
+      tasks: [
+        {
+          ...createProjection().tasks[0],
+          id: "task-handoff",
+          title: "Cross-device handoff",
+          latestRunId: "run-handoff",
+          latestRunState: "review_ready",
+        },
+      ],
+      runs: [
+        {
+          ...createProjection().runs[0],
+          id: "run-handoff",
+          taskId: "task-handoff",
+          reviewPackId: "review-pack:run-handoff",
+          takeoverBundle: {
+            pathKind: "handoff",
+            primaryAction: "open_handoff",
+            state: "ready",
+            summary: "Continue from the mission thread on another control device.",
+            recommendedAction: "Open the handoff target on the mission thread.",
+            target: {
+              kind: "thread",
+              workspaceId: "ws-1",
+              threadId: "thread-1",
+            },
+          },
+        },
+      ],
+      reviewPacks: [
+        {
+          ...createProjection().reviewPacks[0],
+          id: "review-pack:run-handoff",
+          runId: "run-handoff",
+          taskId: "task-handoff",
+        },
+      ],
+    };
+
+    const [entry] = buildLatestMissionRunsFromProjection(projection, {
+      getWorkspaceGroupName: () => null,
+      limit: 3,
+    });
+
+    expect(entry.operatorActionLabel).toBe("Open handoff");
+    expect(entry.operatorActionDetail).toBe("Open the handoff target on the mission thread.");
+    expect(entry.operatorActionTarget).toEqual({
+      kind: "thread",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+    });
+  });
   it("uses runtime-inspection language for runtime-managed latest mission fallbacks", () => {
     const projection: HugeCodeMissionControlSnapshot = {
       ...createProjection(),
@@ -325,13 +440,13 @@ describe("missionControlPresentation", () => {
           id: "runtime-task:task-2",
           title: "Runtime-only approval flow",
           origin: {
-            kind: "runtime_task",
+            kind: "run",
             threadId: null,
             runId: "run-2",
             requestId: null,
           },
           latestRunId: "run-2",
-          latestRunState: "completed",
+          latestRunState: "paused",
         },
       ],
       runs: [
@@ -339,7 +454,7 @@ describe("missionControlPresentation", () => {
           ...createProjection().runs[0],
           id: "run-2",
           taskId: "runtime-task:task-2",
-          state: "completed",
+          state: "paused",
           reviewPackId: null,
         },
       ],
@@ -416,6 +531,8 @@ describe("missionControlPresentation", () => {
             resolutionSource: "runtime_fallback",
             lifecycleState: "fallback",
             readiness: "ready",
+            healthSummary: "placement_attention",
+            attentionReasons: ["fallback_backend_selected"],
             summary: "Runtime confirmed fallback placement on backend backend-b.",
             rationale: "Fallback route.",
           },
@@ -462,6 +579,8 @@ describe("missionControlPresentation", () => {
             resolutionSource: "runtime_fallback",
             lifecycleState: "fallback",
             readiness: "ready",
+            healthSummary: "placement_attention",
+            attentionReasons: ["fallback_backend_selected"],
             summary: "Runtime confirmed fallback placement on backend backend-b.",
             rationale: "Fallback route.",
           },
@@ -576,9 +695,10 @@ describe("missionControlPresentation", () => {
             },
           ],
           publishHandoff: {
+            jsonPath: ".hugecode/runs/task-publish/publish/handoff.json",
+            markdownPath: ".hugecode/runs/task-publish/publish/handoff.md",
             summary: "Publish handoff ready",
             details: [],
-            handoff: null,
           },
         },
         {

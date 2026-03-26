@@ -345,4 +345,57 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
       expect(screen.getAllByText(/Checkpoint checkpoint-runtime-1/).length).toBeGreaterThan(0);
     });
   });
+
+  it("shows runtime autonomy and wake policy context for delegated runs", async () => {
+    const noop = vi.fn();
+    getRuntimeRunV2Mock.mockResolvedValue({
+      run: buildTask(),
+      missionRun: buildRun(),
+      reviewPack: null,
+      autonomyProfile: "night_operator",
+      wakePolicy: {
+        mode: "review_queue",
+        safeFollowUp: true,
+        allowAutomaticContinuation: false,
+        allowedActions: ["approve", "clarify"],
+        stopGates: ["review_gate"],
+        queueBudget: {
+          maxQueuedActions: 3,
+          maxRuntimeMinutes: 45,
+          maxAutoContinuations: 1,
+        },
+      },
+      wakeReason: "review_ready",
+    } satisfies RuntimeRunGetV2Response);
+
+    render(
+      <WorkspaceHomeAgentRuntimeRunItem
+        task={buildTask()}
+        run={buildRun({
+          queuePosition: 2,
+        })}
+        continuityItem={null}
+        runtimeLoading={false}
+        onRefresh={noop}
+        onInterrupt={noop}
+        onResume={noop}
+        onPrepareLauncher={noop}
+        onApproval={noop}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Autonomy profile: Night Operator")).toBeTruthy();
+      expect(screen.getByText("Wake policy: Review Queue")).toBeTruthy();
+      expect(screen.getByText("Safe follow-up: enabled")).toBeTruthy();
+      expect(screen.getByText("Automatic continuation: disabled")).toBeTruthy();
+      expect(
+        screen.getByText(
+          "Queue budget: 3 queued actions / 45 runtime minutes / 1 auto continuations"
+        )
+      ).toBeTruthy();
+      expect(screen.getByText("Wake reason: Review ready")).toBeTruthy();
+      expect(screen.getByText("Queue position: 2")).toBeTruthy();
+    });
+  });
 });

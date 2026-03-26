@@ -1,6 +1,12 @@
-import MakerDeb from "./scripts/maker-deb.cjs";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
+import {
+  hasForgeOsxSignConfig,
+  repairDarwinArm64Signature,
+  resolveDarwinAppBundlePath,
+  shouldRepairDarwinArm64Signature,
+} from "./scripts/darwin-ad-hoc-sign.mjs";
+import MakerDeb from "./scripts/maker-deb.cjs";
 
 function normalizeStaticUpdateBaseUrlRoot(staticUpdateBaseUrl) {
   const trimmed = staticUpdateBaseUrl?.trim();
@@ -53,6 +59,25 @@ const packagerConfig = {
   ],
 };
 export default {
+  hooks: {
+    async postPackage(_forgeConfig, packageResult) {
+      if (
+        !shouldRepairDarwinArm64Signature({
+          arch: packageResult.arch,
+          hasOsxSignConfig: hasForgeOsxSignConfig(packagerConfig),
+          platform: packageResult.platform,
+        })
+      ) {
+        return;
+      }
+
+      for (const outputPath of packageResult.outputPaths) {
+        await repairDarwinArm64Signature(
+          resolveDarwinAppBundlePath(outputPath, packagerConfig.name)
+        );
+      }
+    },
+  },
   packagerConfig,
   plugins: [
     new FusesPlugin({
@@ -80,9 +105,6 @@ export default {
     },
     {
       name: "@electron-forge/maker-dmg",
-      config: {
-        title: "HugeCode Beta",
-      },
     },
     {
       name: "@electron-forge/maker-squirrel",
@@ -99,12 +121,11 @@ export default {
       },
     },
     new MakerDeb({
+      bin: "HugeCode",
       options: {
-        bin: "HugeCode",
         categories: ["Development"],
         maintainer: "OpenHuge",
         mimeType: ["x-scheme-handler/hugecode"],
-        productName: "HugeCode",
         productDescription: "HugeCode beta desktop shell",
         section: "devel",
       },

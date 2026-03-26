@@ -2,10 +2,9 @@ import { describe, expect, it } from "vitest";
 import forgeConfig from "../forge.config.mjs";
 
 describe("forge.config", () => {
-  it("pins the deb maker binary to HugeCode", async () => {
+  it("pins the deb maker binary to HugeCode", () => {
     const debMaker = forgeConfig.makers.find((maker) => maker.name === "deb");
-    await debMaker?.prepareConfig?.("x64");
-    expect(debMaker?.config?.options?.bin).toBe("HugeCode");
+    expect(debMaker?.configOrConfigFetcher?.bin).toBe("HugeCode");
   });
 
   it("publishes Windows squirrel metadata required by electron-winstaller", () => {

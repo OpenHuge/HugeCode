@@ -232,7 +232,7 @@ describe("runtimeTaskInterventionDraftFacade", () => {
       draft: expect.objectContaining({
         profileId: "balanced-delegate",
         infoMessage:
-          "Run task-1 loaded into the launcher. Choose a new execution profile, then relaunch.",
+          "Run task-1 loaded into the launcher. Choose a new execution profile, then relaunch with the recorded source context.",
       }),
     });
   });
@@ -286,7 +286,8 @@ describe("runtimeTaskInterventionDraftFacade", () => {
         intent: "pair_mode",
         instruction: "Investigate runtime issue\n\nInspect runtime orchestration state.",
         profileId: "balanced-delegate",
-        infoMessage: "Run task-1 loaded into the launcher for pair-mode escalation.",
+        infoMessage:
+          "Run task-1 loaded into the launcher for pair-mode escalation with the recorded source context.",
         sourceRunId: "run-1",
         sourceReviewPackId: "review-pack:run-1",
       }),
