@@ -24,12 +24,6 @@ on:
   pull_request:
     paths:
       - "apps/code-electron/**"
-      - "apps/code/package.json"
-      - "packages/code-application/**"
-      - "packages/code-platform-interfaces/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
       - "patches/electron-*.patch"
       - "scripts/electron-publish-dry-run.mjs"
       - "scripts/electron-verify-release-contract.mjs"

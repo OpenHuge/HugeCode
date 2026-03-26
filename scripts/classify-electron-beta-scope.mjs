@@ -72,16 +72,6 @@ function isPackageOwnedChange(file) {
   );
 }
 
-function isVerifyOwnedChange(file) {
-  return (
-    file === ".github/workflows/_reusable-electron-beta.yml" ||
-    file === ".github/workflows/electron-beta.yml" ||
-    file === ".github/actions/setup-node-pnpm/action.yml" ||
-    file === ".github/actions/upload-workflow-artifact/action.yml" ||
-    file === "scripts/classify-electron-beta-scope.mjs"
-  );
-}
-
 const baseRef = process.env.CI_SCOPE_BASE_REF?.trim() || "HEAD^";
 const headRef = process.env.CI_SCOPE_HEAD_REF?.trim() || "HEAD";
 const diffArgs = resolveDiffArgs(baseRef, headRef);
@@ -91,8 +81,7 @@ const changedFiles = runGit(["diff", "--name-only", ...diffArgs])
   .filter(Boolean);
 
 const electronPackageRequired = changedFiles.some((file) => isPackageOwnedChange(file));
-const electronVerifyRequired =
-  electronPackageRequired || changedFiles.some((file) => isVerifyOwnedChange(file));
+const electronVerifyRequired = electronPackageRequired;
 
 writeOutput("electron_package_required", electronPackageRequired ? "true" : "false");
 writeOutput("electron_verify_required", electronVerifyRequired ? "true" : "false");
