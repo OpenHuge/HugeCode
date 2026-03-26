@@ -30,10 +30,18 @@ function runTurbo(task, additionalArgs) {
   const args = ["run", task];
   const forwardedArgs = additionalArgs[0] === "--" ? additionalArgs.slice(1) : additionalArgs;
   const env = { ...process.env };
+  const hasExplicitFilter = forwardedArgs.some(
+    (arg, index) =>
+      arg.startsWith("--filter=") || (arg === "--filter" && index < forwardedArgs.length - 1)
+  );
 
   if (baseRef) {
-    args.push("--affected");
-    env.TURBO_SCM_BASE = baseRef;
+    if (hasExplicitFilter) {
+      args.push(`--filter=...[${baseRef}]`);
+    } else {
+      args.push("--affected");
+      env.TURBO_SCM_BASE = baseRef;
+    }
     process.stdout.write(`Using affected base ref (${kind}): ${baseRef}\n`);
   } else {
     process.stdout.write("No affected base ref found; running Turbo without an affected filter.\n");

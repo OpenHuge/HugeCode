@@ -159,4 +159,30 @@ describe("run-turbo-affected.mjs", () => {
     expect(invocation.args).toEqual(["run", "build", "--affected"]);
     expect(invocation.turboScmBase).toBe("main");
   });
+
+  it("uses an affected filter instead of --affected when callers pass an explicit turbo filter", async () => {
+    const tempRoot = await createFixtureRepo();
+    runGit(tempRoot, ["checkout", "-b", "feature/parent"]);
+    await writeRepoFile(tempRoot, "packages/demo/src/example.ts", "export const value = 1;\n");
+    runGit(tempRoot, ["add", "-A"]);
+    runGit(tempRoot, ["commit", "-m", "parent change"]);
+    runGit(tempRoot, ["checkout", "-b", "feature/stacked-worktree"]);
+
+    const result = runAffected(tempRoot, ["build", "--", "--filter=!@ku0/code-tauri"]);
+    const commandLog = await readFile(path.join(tempRoot, "command-invocations.log"), "utf8");
+    const invocation = JSON.parse(commandLog.trim()) as {
+      args: string[];
+      turboScmBase: string | null;
+    };
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Using affected base ref (sibling-local): feature/parent");
+    expect(invocation.args).toEqual([
+      "run",
+      "build",
+      "--filter=...[feature/parent]",
+      "--filter=!@ku0/code-tauri",
+    ]);
+    expect(invocation.turboScmBase).toBeNull();
+  });
 });
