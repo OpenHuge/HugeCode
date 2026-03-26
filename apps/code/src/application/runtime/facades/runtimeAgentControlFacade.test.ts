@@ -9,16 +9,15 @@ import { getMissionControlSnapshot } from "../ports/tauriMissionControl";
 import {
   cancelRuntimeJob,
   submitRuntimeJobApprovalDecision,
-  getRuntimeJob,
   interveneRuntimeJob,
   listRuntimeJobs,
   resumeRuntimeJob,
 } from "../ports/tauriRuntimeJobs";
-import { startRuntimeJobWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
+import { startRuntimeRunWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
 import { createRuntimeAgentControlDependencies } from "../kernel/createRuntimeAgentControlDependencies";
 
 vi.mock("./runtimeRemoteExecutionFacade", () => ({
-  startRuntimeJobWithRemoteSelection: vi.fn(),
+  startRuntimeRunWithRemoteSelection: vi.fn(),
 }));
 
 vi.mock("../ports/tauriMissionControl", () => ({
@@ -28,17 +27,15 @@ vi.mock("../ports/tauriMissionControl", () => ({
 vi.mock("../ports/tauriRuntimeJobs", () => ({
   cancelRuntimeJob: vi.fn(),
   submitRuntimeJobApprovalDecision: vi.fn(),
-  getRuntimeJob: vi.fn(),
   interveneRuntimeJob: vi.fn(),
   listRuntimeJobs: vi.fn(),
   resumeRuntimeJob: vi.fn(),
 }));
 
-const startRuntimeJobWithRemoteSelectionMock = vi.mocked(startRuntimeJobWithRemoteSelection);
+const startRuntimeRunWithRemoteSelectionMock = vi.mocked(startRuntimeRunWithRemoteSelection);
 const getMissionControlSnapshotMock = vi.mocked(getMissionControlSnapshot);
 const cancelRuntimeJobMock = vi.mocked(cancelRuntimeJob);
 const submitRuntimeJobApprovalDecisionMock = vi.mocked(submitRuntimeJobApprovalDecision);
-const getRuntimeJobMock = vi.mocked(getRuntimeJob);
 const interveneRuntimeJobMock = vi.mocked(interveneRuntimeJob);
 const listRuntimeJobsMock = vi.mocked(listRuntimeJobs);
 const resumeRuntimeJobMock = vi.mocked(resumeRuntimeJob);
@@ -107,7 +104,8 @@ function createWorkspaceClientRuntimeBindings(
       subscribeScopedRuntimeUpdatedEvents: vi.fn(() => () => undefined),
     },
     agentControl: {
-      startRuntimeJob: vi.fn(async () => null),
+      prepareRuntimeRun: vi.fn(async () => null),
+      startRuntimeRun: vi.fn(async () => null),
       cancelRuntimeJob: vi.fn(async () => null),
       resumeRuntimeJob: vi.fn(async () => null),
       interveneRuntimeJob: vi.fn(async () => null),
@@ -215,8 +213,12 @@ describe("runtimeAgentControlFacade", () => {
   });
 
   it("normalizes startTask launch payloads in kernel-owned dependencies", async () => {
-    startRuntimeJobWithRemoteSelectionMock.mockResolvedValue({
-      taskId: "task-1",
+    startRuntimeRunWithRemoteSelectionMock.mockResolvedValue({
+      run: {
+        taskId: "task-1",
+      },
+      missionRun: {} as never,
+      reviewPack: null,
     } as never);
 
     const deps = createRuntimeAgentControlDependencies("ws-1");
@@ -239,7 +241,7 @@ describe("runtimeAgentControlFacade", () => {
       },
     } as never);
 
-    expect(startRuntimeJobWithRemoteSelectionMock).toHaveBeenCalledWith(
+    expect(startRuntimeRunWithRemoteSelectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId: "ws-1",
         reviewProfileId: "issue-review",
@@ -350,7 +352,6 @@ describe("runtimeAgentControlFacade", () => {
 
     expect(getMissionControlSnapshotMock).toHaveBeenCalledOnce();
     expect(listRuntimeJobsMock).not.toHaveBeenCalled();
-    expect(getRuntimeJobMock).not.toHaveBeenCalled();
   });
 
   it("prefers kernel projection job truth before legacy runtime job listing", async () => {
@@ -449,7 +450,6 @@ describe("runtimeAgentControlFacade", () => {
       title: "Projection status",
       status: "paused",
     });
-    expect(getRuntimeJobMock).not.toHaveBeenCalled();
   });
 
   it("routes control-plane mutations through kernel jobs v3 ports", async () => {

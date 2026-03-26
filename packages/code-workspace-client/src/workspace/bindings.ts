@@ -13,7 +13,6 @@ import type {
   KernelJobInterventionRequestV3,
   KernelJobsListRequest,
   KernelJobResumeRequestV3,
-  KernelJobStartRequestV3,
   KernelJobSubscribeRequestV3,
   KernelProjectionBootstrapRequest,
   KernelProjectionBootstrapResponse,
@@ -32,7 +31,11 @@ import type {
   RuntimeRunCheckpointApprovalAck,
   RuntimeRunCheckpointApprovalRequest,
   RuntimeRunInterventionAck,
+  RuntimeRunPrepareV2Request,
+  RuntimeRunPrepareV2Response,
   RuntimeRunResumeAck,
+  RuntimeRunStartRequest,
+  RuntimeRunStartV2Response,
   ThreadSummary,
   WorkspaceFileContent,
   WorkspaceFileSummary,
@@ -147,7 +150,8 @@ export type WorkspaceClientRuntimeUpdatedBindings = {
 };
 
 export type WorkspaceClientRuntimeAgentControlBindings = {
-  startRuntimeJob: (input: KernelJobStartRequestV3) => Promise<KernelJob>;
+  prepareRuntimeRun: (input: RuntimeRunPrepareV2Request) => Promise<RuntimeRunPrepareV2Response>;
+  startRuntimeRun: (input: RuntimeRunStartRequest) => Promise<RuntimeRunStartV2Response>;
   cancelRuntimeJob: (input: RuntimeRunCancelRequest) => Promise<RuntimeRunCancelAck>;
   resumeRuntimeJob: (input: KernelJobResumeRequestV3) => Promise<RuntimeRunResumeAck>;
   interveneRuntimeJob: (

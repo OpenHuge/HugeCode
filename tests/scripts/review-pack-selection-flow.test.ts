@@ -2,13 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AgentTaskSummary,
   AgentTaskStartRequest,
+  RuntimeRunStartV2Response,
 } from "../../apps/code/src/application/runtime/ports/runtimeClient";
 import { buildMissionControlProjection } from "../../apps/code/src/application/runtime/facades/runtimeMissionControlFacade";
 import { getAppSettings } from "../../apps/code/src/application/runtime/ports/tauriAppSettings";
-import { startRuntimeJob } from "../../apps/code/src/application/runtime/ports/tauriRuntimeJobs";
 import {
-  resolvePreferredBackendIdsForRuntimeJobStart,
-  startRuntimeJobWithRemoteSelection,
+  prepareRuntimeRunV2,
+  startRuntimeRunV2,
+} from "../../apps/code/src/application/runtime/ports/tauriRuntimeJobs";
+import {
+  resolvePreferredBackendIdsForRuntimeRunLaunch,
+  startRuntimeRunWithRemoteSelection,
 } from "../../apps/code/src/application/runtime/facades/runtimeRemoteExecutionFacade";
 import {
   buildReviewPackDetailModel,
@@ -20,11 +24,13 @@ vi.mock("../../apps/code/src/application/runtime/ports/tauriAppSettings", () => 
 }));
 
 vi.mock("../../apps/code/src/application/runtime/ports/tauriRuntimeJobs", () => ({
-  startRuntimeJob: vi.fn(),
+  prepareRuntimeRunV2: vi.fn(),
+  startRuntimeRunV2: vi.fn(),
 }));
 
 const getAppSettingsMock = vi.mocked(getAppSettings);
-const startRuntimeJobMock = vi.mocked(startRuntimeJob);
+const prepareRuntimeRunV2Mock = vi.mocked(prepareRuntimeRunV2);
+const startRuntimeRunV2Mock = vi.mocked(startRuntimeRunV2);
 
 function createStartRequest(): AgentTaskStartRequest {
   return {
@@ -118,6 +124,48 @@ function createCompletedRuntimeTask(): AgentTaskSummary {
   };
 }
 
+function createStartedRuntimeRun(task: AgentTaskSummary): RuntimeRunStartV2Response {
+  return {
+    run: task,
+    missionRun: {
+      id: task.taskId,
+      taskId: task.runSummary?.taskId ?? `runtime-task:${task.taskId}`,
+      workspaceId: task.workspaceId,
+      state: task.status === "completed" ? "review_ready" : "queued",
+      title: task.title ?? null,
+      summary: null,
+      taskSource: task.taskSource ?? null,
+      startedAt: task.startedAt,
+      finishedAt: task.completedAt,
+      updatedAt: task.updatedAt,
+      currentStepIndex: task.currentStep ?? null,
+      pendingIntervention: null,
+      executionProfile: task.runSummary?.executionProfile ?? null,
+      reviewProfileId: task.runSummary?.reviewProfileId ?? null,
+      profileReadiness: task.runSummary?.profileReadiness ?? null,
+      routing: task.routing ?? null,
+      approval: null,
+      reviewDecision: task.reviewDecision ?? null,
+      intervention: task.intervention ?? null,
+      operatorState: task.operatorState ?? null,
+      nextAction: task.nextAction ?? null,
+      warnings: [],
+      validations: [],
+      artifacts: [],
+      changedPaths: [],
+      autoDrive: task.autoDrive ?? null,
+      checkpoints: [],
+      takeoverBundle: task.takeoverBundle ?? null,
+      publishHandoff: task.publishHandoff ?? null,
+      checkpoint: task.checkpointState ?? null,
+      missionLinkage: task.missionLinkage ?? null,
+      reviewActionability: task.reviewActionability ?? null,
+      completionReason: null,
+    },
+    reviewPack: task.reviewPackSummary ?? null,
+  };
+}
+
 function createCompletedRuntimeTaskForBackend(
   backendId: string,
   routeLabel: string,
@@ -178,17 +226,17 @@ describe("review-pack selection flow", () => {
     } as Awaited<ReturnType<typeof getAppSettings>>);
 
     await expect(
-      resolvePreferredBackendIdsForRuntimeJobStart(
+      resolvePreferredBackendIdsForRuntimeRunLaunch(
         ["backend-explicit", "backend-explicit"],
         "backend-workspace-default"
       )
     ).resolves.toEqual(["backend-explicit"]);
 
     await expect(
-      resolvePreferredBackendIdsForRuntimeJobStart(undefined, "backend-workspace-default")
+      resolvePreferredBackendIdsForRuntimeRunLaunch(undefined, "backend-workspace-default")
     ).resolves.toEqual(["backend-workspace-default"]);
 
-    await expect(resolvePreferredBackendIdsForRuntimeJobStart()).resolves.toEqual([
+    await expect(resolvePreferredBackendIdsForRuntimeRunLaunch()).resolves.toEqual([
       "backend-global-fallback",
     ]);
   });
@@ -198,11 +246,13 @@ describe("review-pack selection flow", () => {
     getAppSettingsMock.mockResolvedValue({
       defaultRemoteExecutionBackendId: "backend-remote-a",
     } as Awaited<ReturnType<typeof getAppSettings>>);
-    startRuntimeJobMock.mockResolvedValue(runtimeTask);
+    prepareRuntimeRunV2Mock.mockResolvedValue({} as never);
+    startRuntimeRunV2Mock.mockResolvedValue(createStartedRuntimeRun(runtimeTask));
 
-    const startedTask = await startRuntimeJobWithRemoteSelection(createStartRequest());
+    const startedRun = await startRuntimeRunWithRemoteSelection(createStartRequest());
+    const startedTask = startedRun.run;
 
-    expect(startRuntimeJobMock).toHaveBeenCalledWith(
+    expect(startRuntimeRunV2Mock).toHaveBeenCalledWith(
       expect.objectContaining({
         preferredBackendIds: ["backend-remote-a"],
       })
@@ -299,32 +349,39 @@ describe("review-pack selection flow", () => {
     getAppSettingsMock.mockResolvedValue({
       defaultRemoteExecutionBackendId: "backend-global-fallback",
     } as Awaited<ReturnType<typeof getAppSettings>>);
-    startRuntimeJobMock.mockImplementation(async (request) => {
+    prepareRuntimeRunV2Mock.mockResolvedValue({} as never);
+    startRuntimeRunV2Mock.mockImplementation(async (request) => {
       const resolvedBackendId = request.preferredBackendIds?.[0] ?? "runtime-auto";
       if (resolvedBackendId === "backend-explicit") {
-        return createCompletedRuntimeTaskForBackend(
-          resolvedBackendId,
-          "Explicit backend route",
-          "anthropic",
-          "pool-explicit",
-          request.preferredBackendIds
+        return createStartedRuntimeRun(
+          createCompletedRuntimeTaskForBackend(
+            resolvedBackendId,
+            "Explicit backend route",
+            "anthropic",
+            "pool-explicit",
+            request.preferredBackendIds
+          )
         );
       }
       if (resolvedBackendId === "backend-workspace-default") {
-        return createCompletedRuntimeTaskForBackend(
-          resolvedBackendId,
-          "Workspace default backend",
-          "google",
-          "pool-workspace",
-          request.preferredBackendIds
+        return createStartedRuntimeRun(
+          createCompletedRuntimeTaskForBackend(
+            resolvedBackendId,
+            "Workspace default backend",
+            "google",
+            "pool-workspace",
+            request.preferredBackendIds
+          )
         );
       }
-      return createCompletedRuntimeTaskForBackend(
-        resolvedBackendId,
-        "Global fallback backend",
-        "openai",
-        "pool-global",
-        request.preferredBackendIds
+      return createStartedRuntimeRun(
+        createCompletedRuntimeTaskForBackend(
+          resolvedBackendId,
+          "Global fallback backend",
+          "openai",
+          "pool-global",
+          request.preferredBackendIds
+        )
       );
     });
 
@@ -359,24 +416,25 @@ describe("review-pack selection flow", () => {
     ] as const;
 
     for (const testCase of cases) {
-      const startedTask = await startRuntimeJobWithRemoteSelection(
+      const startedRun = await startRuntimeRunWithRemoteSelection(
         testCase.request as AgentTaskStartRequest & {
           defaultBackendId?: string;
         }
       );
+      const startedTask = startedRun.run;
 
-      expect(startRuntimeJobMock).toHaveBeenLastCalledWith(
+      expect(startRuntimeRunV2Mock).toHaveBeenLastCalledWith(
         expect.objectContaining({
           preferredBackendIds: [testCase.expectedBackendId],
         })
       );
       if (testCase.request.defaultBackendId) {
-        expect(startRuntimeJobMock.mock.lastCall?.[0]).toHaveProperty(
+        expect(startRuntimeRunV2Mock.mock.lastCall?.[0]).toHaveProperty(
           "defaultBackendId",
           testCase.request.defaultBackendId
         );
       } else {
-        expect(startRuntimeJobMock.mock.lastCall?.[0]).not.toHaveProperty("defaultBackendId");
+        expect(startRuntimeRunV2Mock.mock.lastCall?.[0]).not.toHaveProperty("defaultBackendId");
       }
 
       const projection = buildMissionControlProjection({

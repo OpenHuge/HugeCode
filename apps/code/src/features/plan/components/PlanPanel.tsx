@@ -2,12 +2,8 @@ import { CODE_RUNTIME_RPC_METHODS } from "@ku0/code-runtime-host-contract";
 import { useCallback, useEffect, useState } from "react";
 import { StatusBadge } from "../../../design-system";
 import { distributedTaskGraph } from "../../../application/runtime/ports/tauriThreads";
-import { startRuntimeJobWithRemoteSelection } from "../../../application/runtime/facades/runtimeRemoteExecutionFacade";
 import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/tauriRuntime";
-import {
-  cancelRuntimeJob,
-  getRuntimeJob,
-} from "../../../application/runtime/ports/tauriRuntimeJobs";
+import { cancelRuntimeJob } from "../../../application/runtime/ports/tauriRuntimeJobs";
 import type { TurnPlan } from "../../../types";
 import type { ResolvedPlanArtifact } from "../../messages/utils/planArtifact";
 import {
@@ -142,132 +138,6 @@ function collectSubtreeTaskIds(
   return [...visited];
 }
 
-type AgentTaskStepInput = Parameters<typeof startRuntimeJobWithRemoteSelection>[0]["steps"][number];
-type RetryableKernelJob = NonNullable<Awaited<ReturnType<typeof getRuntimeJob>>>;
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-  return value as Record<string, unknown>;
-}
-
-function asString(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function asNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function asBoolean(value: unknown): boolean | null {
-  if (typeof value === "boolean") {
-    return value;
-  }
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (["true", "1", "yes", "enabled", "on"].includes(normalized)) {
-      return true;
-    }
-    if (["false", "0", "no", "disabled", "off"].includes(normalized)) {
-      return false;
-    }
-  }
-  return null;
-}
-
-function toRetryStepInputFromMetadataSteps(steps: unknown): AgentTaskStepInput[] {
-  if (!Array.isArray(steps)) {
-    return [];
-  }
-
-  return steps
-    .map((step) => {
-      const stepRecord = asRecord(step);
-      if (!stepRecord) {
-        return null;
-      }
-      const metadata = asRecord(stepRecord.metadata);
-      const inputSource = asRecord(metadata?.stepInput) ?? metadata ?? stepRecord;
-      const kind = asString(stepRecord.kind);
-      if (kind === null) {
-        return null;
-      }
-      const input: AgentTaskStepInput = {
-        kind: kind as AgentTaskStepInput["kind"],
-      };
-      const inputText = asString(inputSource?.input);
-      const path = asString(inputSource?.path);
-      const content = asString(inputSource?.content);
-      const find = asString(inputSource?.find);
-      const replace = asString(inputSource?.replace);
-      const command = asString(inputSource?.command);
-      const timeoutMs = asNumber(inputSource?.timeoutMs ?? inputSource?.timeout_ms);
-      const requiresApproval = asBoolean(
-        inputSource?.requiresApproval ?? inputSource?.requires_approval
-      );
-      const approvalReason = asString(inputSource?.approvalReason ?? inputSource?.approval_reason);
-
-      if (inputText !== null) {
-        input.input = inputText;
-      }
-      if (path !== null) {
-        input.path = path;
-      }
-      if (content !== null) {
-        input.content = content;
-      }
-      if (find !== null) {
-        input.find = find;
-      }
-      if (replace !== null) {
-        input.replace = replace;
-      }
-      if (command !== null) {
-        input.command = command;
-      }
-      if (timeoutMs !== null) {
-        input.timeoutMs = timeoutMs;
-      }
-      if (requiresApproval !== null) {
-        input.requiresApproval = requiresApproval;
-      }
-      if (approvalReason !== null) {
-        input.approvalReason = approvalReason;
-      }
-
-      return input;
-    })
-    .filter((step): step is AgentTaskStepInput => step !== null);
-}
-
-function toRetryStepInput(job: RetryableKernelJob): AgentTaskStepInput[] {
-  const metadata = asRecord(job.metadata);
-  const normalizedSteps = toRetryStepInputFromMetadataSteps(metadata?.steps);
-
-  if (normalizedSteps.length > 0) {
-    return normalizedSteps;
-  }
-
-  return [
-    {
-      kind: "read",
-      path: "AGENTS.md",
-    },
-  ];
-}
-
 export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPanelProps) {
   const [distributedGraphCapabilityEnabled, setDistributedGraphCapabilityEnabled] = useState(false);
   const [distributedGraphInterruptEnabled, setDistributedGraphInterruptEnabled] = useState(false);
@@ -298,22 +168,16 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
       const supportsInterruptMethod = summary.methods.includes(
         CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3
       );
-      const supportsTaskStatusMethod = summary.methods.includes(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_GET_V3
+      const supportsRetryMethod = summary.methods.includes(
+        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_INTERVENE_V3
       );
-      const supportsTaskStartMethod = summary.methods.includes(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_START_V3
-      );
-      const supportsRetryMethodSet = supportsTaskStartMethod && supportsTaskStatusMethod;
       setDistributedGraphCapabilityEnabled(hasCapability && supportsGraphMethod);
       setDistributedGraphInterruptEnabled(
         hasCapability && supportsGraphMethod && supportsInterruptMethod
       );
-      setDistributedGraphRetryEnabled(
-        hasCapability && supportsGraphMethod && supportsRetryMethodSet
-      );
+      setDistributedGraphRetryEnabled(hasCapability && supportsGraphMethod && supportsRetryMethod);
       setDistributedGraphActionsEnabled(
-        hasCapability && supportsGraphMethod && (supportsInterruptMethod || supportsRetryMethodSet)
+        hasCapability && supportsGraphMethod && (supportsInterruptMethod || supportsRetryMethod)
       );
       if (!hasCapability) {
         setDistributedGraphReadOnlyReason(null);
@@ -325,15 +189,9 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
         setDistributedGraphReadOnlyReason(
           "Distributed graph RPC is unavailable in current runtime."
         );
-      } else if (!supportsInterruptMethod) {
+      } else if (!supportsInterruptMethod && !supportsRetryMethod) {
         setDistributedGraphReadOnlyReason(
-          supportsRetryMethodSet
-            ? "Distributed graph node interrupt RPC is unavailable in current runtime."
-            : "Distributed graph control RPC is unavailable in current runtime."
-        );
-      } else if (!supportsRetryMethodSet) {
-        setDistributedGraphReadOnlyReason(
-          "Distributed graph node retry RPC is unavailable in current runtime."
+          "Distributed graph control RPC is unavailable in current runtime."
         );
       } else {
         setDistributedGraphReadOnlyReason(null);
@@ -381,13 +239,17 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
 
   const graph = distributedGraphSnapshot ?? plan?.distributedGraph ?? null;
   const graphId = plan?.distributedGraph?.graphId?.trim() ?? "";
-  const refreshDistributedGraph = useCallback(async () => {
-    if (!graphId) {
-      return;
-    }
-    const nextSnapshot = await readDistributedTaskGraphSnapshot(graphId);
-    setDistributedGraphSnapshot(nextSnapshot);
-  }, [graphId, readDistributedTaskGraphSnapshot]);
+  const refreshDistributedGraph = useCallback(
+    async (taskIdOverride?: string) => {
+      const refreshTaskId = taskIdOverride?.trim() || graphId;
+      if (!refreshTaskId) {
+        return;
+      }
+      const nextSnapshot = await readDistributedTaskGraphSnapshot(refreshTaskId);
+      setDistributedGraphSnapshot(nextSnapshot);
+    },
+    [graphId, readDistributedTaskGraphSnapshot]
+  );
 
   const interruptTasks = useCallback(
     async (taskIds: string[]) => {
@@ -433,34 +295,6 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
       await interruptTasks(subtreeTaskIds.length > 0 ? subtreeTaskIds : [nodeId]);
     },
     [graph, interruptTasks]
-  );
-
-  const handleRetryNode = useCallback(
-    async (nodeId: string) => {
-      const job = await getRuntimeJob({ jobId: nodeId });
-      if (!job) {
-        throw new Error("Job not found for retry.");
-      }
-      const steps = toRetryStepInput(job);
-      const retryTask = await startRuntimeJobWithRemoteSelection({
-        workspaceId: job.workspaceId,
-        threadId: job.threadId ?? undefined,
-        title: job.title ? `${job.title} (retry)` : null,
-        provider: job.provider ?? undefined,
-        modelId: job.modelId ?? undefined,
-        accessMode: "on-request",
-        executionMode: graphId || graph ? "distributed" : "single",
-        preferredBackendIds:
-          job.preferredBackendIds ?? (job.backendId ? [job.backendId] : undefined),
-        steps,
-      });
-      if (graphId || retryTask.id) {
-        const refreshTaskId = graphId || retryTask.id;
-        const nextSnapshot = await readDistributedTaskGraphSnapshot(refreshTaskId);
-        setDistributedGraphSnapshot(nextSnapshot);
-      }
-    },
-    [graphId, readDistributedTaskGraphSnapshot]
   );
 
   const progress = plan ? formatProgress(plan) : "";
@@ -543,9 +377,10 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
         graph={distributedGraphCapabilityEnabled ? graph : null}
         capabilityEnabled={distributedGraphCapabilityEnabled}
         actionsEnabled={distributedGraphActionsEnabled}
+        retryEnabled={distributedGraphRetryEnabled}
         disabledReason={disabledReason}
         diagnosticsMessage={distributedDiagnosticsMessage}
-        onRetryNode={distributedGraphRetryEnabled ? handleRetryNode : undefined}
+        onRefreshGraph={refreshDistributedGraph}
         onInterruptNode={distributedGraphInterruptEnabled ? handleInterruptNode : undefined}
         onInterruptSubtree={distributedGraphInterruptEnabled ? handleInterruptSubtree : undefined}
       />

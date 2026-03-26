@@ -1,6 +1,6 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-03-25T14:38:15.691Z`
+- Generated at: `2026-03-26T03:40:28.771Z`
 - Contract version: `2026-03-25`
 - Freeze effective at: `2026-03-25`
 - Method-set hash: `c31017c91fe296d5`
@@ -122,9 +122,9 @@
 - `code_thread_live_unsubscribe`
 - `code_turn_send`
 - `code_turn_interrupt`
-- `code_runtime_run_start`
 - `code_runtime_run_prepare_v2`
 - `code_runtime_run_start_v2`
+- `code_runtime_run_start`
 - `code_runtime_run_cancel`
 - `code_runtime_run_resume`
 - `code_runtime_run_resume_v2`

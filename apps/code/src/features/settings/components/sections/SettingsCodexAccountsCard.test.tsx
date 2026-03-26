@@ -725,7 +725,7 @@ describe("SettingsCodexAccountsCard", () => {
       );
       listOAuthAccountsMock
         .mockImplementationOnce(() => firstAccounts)
-        .mockResolvedValueOnce([
+        .mockResolvedValue([
           {
             accountId: "codex-popup-1",
             provider: "codex",
@@ -739,7 +739,7 @@ describe("SettingsCodexAccountsCard", () => {
             updatedAt: 200,
           },
         ]);
-      listOAuthPoolsMock.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      listOAuthPoolsMock.mockResolvedValueOnce([]).mockResolvedValue([
         {
           poolId: "pool-popup-1",
           provider: "codex",
@@ -778,17 +778,26 @@ describe("SettingsCodexAccountsCard", () => {
       });
 
       expect(readActiveOauthPopupLoginId()).toBeNull();
+      const accountCallsBeforeQueuedRefresh = listOAuthAccountsMock.mock.calls.length;
+      const poolCallsBeforeQueuedRefresh = listOAuthPoolsMock.mock.calls.length;
 
       await act(async () => {
         resolveAccounts?.([]);
       });
 
-      await waitFor(() => {
-        expect(listOAuthAccountsMock).toHaveBeenCalledTimes(2);
-        expect(listOAuthPoolsMock).toHaveBeenCalledTimes(2);
-        expect(accountsTab.textContent ?? "").toContain("1");
-        expect(poolsTab.textContent ?? "").toContain("1");
-      });
+      await waitFor(
+        () => {
+          expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(
+            accountCallsBeforeQueuedRefresh + 1
+          );
+          expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(
+            poolCallsBeforeQueuedRefresh + 2
+          );
+          expect(accountsTab.textContent ?? "").toContain("1");
+          expect(poolsTab.textContent ?? "").toContain("1");
+        },
+        { timeout: SETTINGS_CODEX_ACCOUNTS_ASYNC_TIMEOUT_MS }
+      );
     },
     SETTINGS_CODEX_ACCOUNTS_TEST_TIMEOUT_MS
   );

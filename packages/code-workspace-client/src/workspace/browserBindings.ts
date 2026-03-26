@@ -470,8 +470,10 @@ export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRu
       subscribe: subscribeBrowserWorkspaceClientKernelProjection,
     },
     agentControl: {
-      startRuntimeJob: async (input) =>
-        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_START_V3, input),
+      prepareRuntimeRun: async (input) =>
+        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2, input),
+      startRuntimeRun: async (input) =>
+        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_START_V2, input),
       cancelRuntimeJob: async (input) =>
         await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3, input),
       resumeRuntimeJob: async (input) =>

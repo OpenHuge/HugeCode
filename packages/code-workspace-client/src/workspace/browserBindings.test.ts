@@ -38,7 +38,7 @@ describe("browser workspace bindings", () => {
     unsubscribe();
   });
 
-  it("routes browser agent control through kernel job v3 rpc methods", async () => {
+  it("routes browser agent control launch through canonical runtime run v2 rpc methods", async () => {
     process.env[WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY] = "http://127.0.0.1:8788/rpc";
     const fetchMock = vi.fn(async (_input: unknown, _init?: RequestInit) => ({
       ok: true,
@@ -54,15 +54,22 @@ describe("browser workspace bindings", () => {
 
     const runtime = createBrowserWorkspaceClientRuntimeBindings();
 
-    await runtime.agentControl.startRuntimeJob(
-      {} as Parameters<typeof runtime.agentControl.startRuntimeJob>[0]
+    await runtime.agentControl.prepareRuntimeRun(
+      {} as Parameters<typeof runtime.agentControl.prepareRuntimeRun>[0]
+    );
+    await runtime.agentControl.startRuntimeRun(
+      {} as Parameters<typeof runtime.agentControl.startRuntimeRun>[0]
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const request = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const prepareRequest = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
       method?: string;
     };
-    expect(request.method).toBe(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_START_V3);
+    const startRequest = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as {
+      method?: string;
+    };
+    expect(prepareRequest.method).toBe(CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2);
+    expect(startRequest.method).toBe(CODE_RUNTIME_RPC_METHODS.RUN_START_V2);
   });
 
   it("prefers kernel projection bootstrap truth for mission control", async () => {

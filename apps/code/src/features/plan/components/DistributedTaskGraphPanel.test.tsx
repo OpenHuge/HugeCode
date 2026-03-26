@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { retryDistributedTaskGraphNode } from "../../../application/runtime/facades/runtimeDistributedTaskGraphControlFacade";
 import type { DistributedTaskGraphSnapshot } from "../types/distributedGraph";
 import { DistributedTaskGraphPanel } from "./DistributedTaskGraphPanel";
+
+vi.mock("../../../application/runtime/facades/runtimeDistributedTaskGraphControlFacade", () => ({
+  retryDistributedTaskGraphNode: vi.fn(),
+}));
 
 function buildGraph(nodeCount = 4): DistributedTaskGraphSnapshot {
   return {
@@ -37,8 +41,23 @@ function buildGraph(nodeCount = 4): DistributedTaskGraphSnapshot {
 }
 
 describe("DistributedTaskGraphPanel", () => {
+  const retryDistributedTaskGraphNodeMock = vi.mocked(retryDistributedTaskGraphNode);
+
   afterEach(() => {
     cleanup();
+    vi.clearAllMocks();
+  });
+
+  beforeEach(() => {
+    retryDistributedTaskGraphNodeMock.mockResolvedValue({
+      accepted: true,
+      action: "retry",
+      runId: "node-2",
+      status: "queued",
+      outcome: "spawned",
+      spawnedRunId: "node-2-retry",
+      checkpointId: null,
+    });
   });
 
   it("renders grouped graph rows and summary", () => {
@@ -89,5 +108,29 @@ describe("DistributedTaskGraphPanel", () => {
     render(<DistributedTaskGraphPanel graph={null} capabilityEnabled actionsEnabled={false} />);
 
     expect(screen.getByText("No distributed subtask graph available yet.")).toBeTruthy();
+  });
+
+  it("routes retry through the runtime-owned control facade and refreshes the graph", async () => {
+    const onRefreshGraph = vi.fn(async () => undefined);
+
+    render(
+      <DistributedTaskGraphPanel
+        graph={buildGraph()}
+        capabilityEnabled
+        actionsEnabled
+        retryEnabled
+        onRefreshGraph={onRefreshGraph}
+      />
+    );
+
+    fireEvent.click(screen.getAllByLabelText("Open controls for Node 2")[0] as HTMLButtonElement);
+    fireEvent.click(screen.getByText("Retry"));
+
+    await waitFor(() => {
+      expect(retryDistributedTaskGraphNodeMock).toHaveBeenCalledWith("node-2");
+    });
+    await waitFor(() => {
+      expect(onRefreshGraph).toHaveBeenCalledWith("node-2-retry");
+    });
   });
 });
