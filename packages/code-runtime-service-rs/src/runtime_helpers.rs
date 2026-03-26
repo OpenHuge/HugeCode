@@ -336,6 +336,18 @@ pub(super) fn normalize_agent_task_mission_brief(
         scenario_profile: brief
             .scenario_profile
             .map(normalize_mission_scenario_profile),
+        plan_version: trim_optional_string(brief.plan_version),
+        plan_summary: trim_optional_string(brief.plan_summary),
+        current_milestone_id: trim_optional_string(brief.current_milestone_id),
+        estimated_duration_minutes: brief.estimated_duration_minutes,
+        estimated_worker_runs: brief.estimated_worker_runs,
+        parallelism_hint: trim_optional_string(brief.parallelism_hint),
+        clarification_questions: normalize_string_list(brief.clarification_questions),
+        milestones: brief.milestones.map(normalize_mission_plan_milestones),
+        validation_lanes: brief
+            .validation_lanes
+            .map(normalize_mission_validation_lanes),
+        skill_plan: brief.skill_plan.map(normalize_mission_skill_plan_items),
     })
 }
 
@@ -369,6 +381,77 @@ fn normalize_mission_scenario_profile(
     }
 }
 
+fn normalize_mission_plan_milestones(
+    milestones: Vec<AgentTaskMissionPlanMilestone>,
+) -> Vec<AgentTaskMissionPlanMilestoneRecord> {
+    milestones
+        .into_iter()
+        .filter_map(|milestone| {
+            let id = milestone.id.trim().to_string();
+            let label = milestone.label.trim().to_string();
+            let summary = milestone.summary.trim().to_string();
+            if id.is_empty() || label.is_empty() || summary.is_empty() {
+                return None;
+            }
+            Some(AgentTaskMissionPlanMilestoneRecord {
+                id,
+                label,
+                summary,
+                status: trim_optional_string(milestone.status),
+                node_ids: normalize_string_list(milestone.node_ids),
+                validation_lane_ids: normalize_string_list(milestone.validation_lane_ids),
+                acceptance_criteria: normalize_string_list(milestone.acceptance_criteria),
+            })
+        })
+        .collect()
+}
+
+fn normalize_mission_validation_lanes(
+    lanes: Vec<AgentTaskMissionValidationLane>,
+) -> Vec<AgentTaskMissionValidationLaneRecord> {
+    lanes
+        .into_iter()
+        .filter_map(|lane| {
+            let id = lane.id.trim().to_string();
+            let label = lane.label.trim().to_string();
+            let summary = lane.summary.trim().to_string();
+            let trigger = lane.trigger.trim().to_string();
+            if id.is_empty() || label.is_empty() || summary.is_empty() || trigger.is_empty() {
+                return None;
+            }
+            Some(AgentTaskMissionValidationLaneRecord {
+                id,
+                label,
+                summary,
+                trigger,
+                commands: normalize_string_list(lane.commands),
+            })
+        })
+        .collect()
+}
+
+fn normalize_mission_skill_plan_items(
+    items: Vec<AgentTaskMissionSkillPlanItem>,
+) -> Vec<AgentTaskMissionSkillPlanItemRecord> {
+    items
+        .into_iter()
+        .filter_map(|item| {
+            let skill_id = item.skill_id.trim().to_string();
+            let label = item.label.trim().to_string();
+            let state = item.state.trim().to_string();
+            if skill_id.is_empty() || label.is_empty() || state.is_empty() {
+                return None;
+            }
+            Some(AgentTaskMissionSkillPlanItemRecord {
+                skill_id,
+                label,
+                state,
+                summary: trim_optional_string(item.summary),
+            })
+        })
+        .collect()
+}
+
 pub(super) fn normalize_agent_task_relaunch_context(
     value: Option<AgentTaskRelaunchContext>,
 ) -> Option<AgentTaskRelaunchContextRecord> {
@@ -377,16 +460,20 @@ pub(super) fn normalize_agent_task_relaunch_context(
         source_task_id: trim_optional_string(context.source_task_id),
         source_run_id: trim_optional_string(context.source_run_id),
         source_review_pack_id: trim_optional_string(context.source_review_pack_id),
+        source_plan_version: trim_optional_string(context.source_plan_version),
         summary: trim_optional_string(context.summary),
         failure_class: trim_optional_string(context.failure_class),
         recommended_actions: normalize_string_list(context.recommended_actions),
+        plan_change_summary: trim_optional_string(context.plan_change_summary),
     };
     if normalized.source_task_id.is_none()
         && normalized.source_run_id.is_none()
         && normalized.source_review_pack_id.is_none()
+        && normalized.source_plan_version.is_none()
         && normalized.summary.is_none()
         && normalized.failure_class.is_none()
         && normalized.recommended_actions.is_none()
+        && normalized.plan_change_summary.is_none()
     {
         return None;
     }

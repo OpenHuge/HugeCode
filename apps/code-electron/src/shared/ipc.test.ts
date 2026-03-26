@@ -6,6 +6,8 @@ describe("desktopHostIpcChannels", () => {
     expect(DESKTOP_HOST_IPC_CHANNELS).toEqual({
       getAppInfo: "hugecode:desktop-host:get-app-info",
       getAppVersion: "hugecode:desktop-host:get-app-version",
+      getDiagnosticsInfo: "hugecode:desktop-host:get-diagnostics-info",
+      copySupportSnapshot: "hugecode:desktop-host:copy-support-snapshot",
       consumePendingLaunchIntent: "hugecode:desktop-host:consume-pending-launch-intent",
       pushLaunchIntent: "hugecode:desktop-host:push-launch-intent",
       pushUpdateState: "hugecode:desktop-host:push-update-state",
@@ -20,8 +22,6 @@ describe("desktopHostIpcChannels", () => {
       getTrayState: "hugecode:desktop-host:get-tray-state",
       setTrayEnabled: "hugecode:desktop-host:set-tray-enabled",
       showNotification: "hugecode:desktop-host:show-notification",
-      getDiagnosticsInfo: "hugecode:desktop-host:get-diagnostics-info",
-      copySupportSnapshot: "hugecode:desktop-host:copy-support-snapshot",
       getUpdateState: "hugecode:desktop-host:get-update-state",
       checkForUpdates: "hugecode:desktop-host:check-for-updates",
       restartToApplyUpdate: "hugecode:desktop-host:restart-to-apply-update",

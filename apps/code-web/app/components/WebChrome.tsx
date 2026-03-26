@@ -44,7 +44,7 @@ export function WebChrome({ children }: WebChromeProps) {
           <Link className={chromeNavLink} to="/app">
             Workspace
           </Link>
-          <span className={chromeStatusPill}>SSR public pages, CSR workspace</span>
+          <span className={chromeStatusPill}>Installable PWA, SSR public pages, CSR workspace</span>
         </nav>
       </header>
       {children}

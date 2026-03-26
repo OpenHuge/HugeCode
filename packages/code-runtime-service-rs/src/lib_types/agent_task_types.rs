@@ -38,6 +38,12 @@ enum AgentTaskInterventionAction {
     ContinueWithClarification,
     NarrowScope,
     RelaxValidation,
+    ReplanScope,
+    DropFeature,
+    InsertFeature,
+    ChangeValidationLane,
+    ChangeBackendPreference,
+    MarkBlockedWithReason,
     SwitchProfileAndRetry,
     EscalateToPairMode,
 }
@@ -52,6 +58,12 @@ impl AgentTaskInterventionAction {
             Self::ContinueWithClarification => "continue_with_clarification",
             Self::NarrowScope => "narrow_scope",
             Self::RelaxValidation => "relax_validation",
+            Self::ReplanScope => "replan_scope",
+            Self::DropFeature => "drop_feature",
+            Self::InsertFeature => "insert_feature",
+            Self::ChangeValidationLane => "change_validation_lane",
+            Self::ChangeBackendPreference => "change_backend_preference",
+            Self::MarkBlockedWithReason => "mark_blocked_with_reason",
             Self::SwitchProfileAndRetry => "switch_profile_and_retry",
             Self::EscalateToPairMode => "escalate_to_pair_mode",
         }
@@ -673,6 +685,26 @@ struct AgentTaskMissionBrief {
     evaluation_plan: Option<AgentTaskMissionEvaluationPlan>,
     #[serde(default, alias = "scenario_profile")]
     scenario_profile: Option<AgentTaskMissionScenarioProfile>,
+    #[serde(default, alias = "plan_version")]
+    plan_version: Option<String>,
+    #[serde(default, alias = "plan_summary")]
+    plan_summary: Option<String>,
+    #[serde(default, alias = "current_milestone_id")]
+    current_milestone_id: Option<String>,
+    #[serde(default, alias = "estimated_duration_minutes")]
+    estimated_duration_minutes: Option<u32>,
+    #[serde(default, alias = "estimated_worker_runs")]
+    estimated_worker_runs: Option<u32>,
+    #[serde(default, alias = "parallelism_hint")]
+    parallelism_hint: Option<String>,
+    #[serde(default, alias = "clarification_questions")]
+    clarification_questions: Option<Vec<String>>,
+    #[serde(default)]
+    milestones: Option<Vec<AgentTaskMissionPlanMilestone>>,
+    #[serde(default, alias = "validation_lanes")]
+    validation_lanes: Option<Vec<AgentTaskMissionValidationLane>>,
+    #[serde(default, alias = "skill_plan")]
+    skill_plan: Option<Vec<AgentTaskMissionSkillPlanItem>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -684,12 +716,16 @@ struct AgentTaskRelaunchContext {
     source_run_id: Option<String>,
     #[serde(default, alias = "source_review_pack_id")]
     source_review_pack_id: Option<String>,
+    #[serde(default, alias = "source_plan_version")]
+    source_plan_version: Option<String>,
     #[serde(default)]
     summary: Option<String>,
     #[serde(default, alias = "failure_class")]
     failure_class: Option<String>,
     #[serde(default, alias = "recommended_actions")]
     recommended_actions: Option<Vec<String>>,
+    #[serde(default, alias = "plan_change_summary")]
+    plan_change_summary: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -784,6 +820,8 @@ struct AgentTaskStartRequest {
     mission_brief: Option<AgentTaskMissionBrief>,
     #[serde(default, alias = "relaunch_context")]
     relaunch_context: Option<AgentTaskRelaunchContext>,
+    #[serde(default, alias = "approved_plan_version")]
+    approved_plan_version: Option<String>,
     #[serde(default, alias = "auto_drive")]
     auto_drive: Option<AgentTaskAutoDriveState>,
     steps: Vec<AgentTaskStepInput>,
@@ -805,6 +843,8 @@ struct AgentTaskInterventionRequest {
     preferred_backend_ids: Option<Vec<String>>,
     #[serde(default, alias = "relaunch_context")]
     relaunch_context: Option<AgentTaskRelaunchContext>,
+    #[serde(default, alias = "approved_plan_version")]
+    approved_plan_version: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -947,6 +987,26 @@ struct AgentTaskMissionBriefRecord {
     evaluation_plan: Option<AgentTaskMissionEvaluationPlanRecord>,
     #[serde(skip_serializing_if = "Option::is_none")]
     scenario_profile: Option<AgentTaskMissionScenarioProfileRecord>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    plan_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    plan_summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    current_milestone_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    estimated_duration_minutes: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    estimated_worker_runs: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parallelism_hint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    clarification_questions: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    milestones: Option<Vec<AgentTaskMissionPlanMilestoneRecord>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    validation_lanes: Option<Vec<AgentTaskMissionValidationLaneRecord>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    skill_plan: Option<Vec<AgentTaskMissionSkillPlanItemRecord>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1001,11 +1061,15 @@ struct AgentTaskRelaunchContextRecord {
     #[serde(skip_serializing_if = "Option::is_none")]
     source_review_pack_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    source_plan_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     summary: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     failure_class: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     recommended_actions: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    plan_change_summary: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

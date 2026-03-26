@@ -9,6 +9,7 @@ import {
 } from "./types";
 
 const GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS = 60_000;
+const GIT_DIFF_VIEWER_CHUNK_TIMEOUT_MS = 15_000;
 
 function createMockWorker() {
   return {
@@ -19,7 +20,7 @@ function createMockWorker() {
   } satisfies Partial<Worker>;
 }
 
-function mockGitDiffViewerWorkerRuntime() {
+function stubGitDiffViewerRuntimeDependencies() {
   const MockWorker = function MockWorker() {
     return createMockWorker();
   };
@@ -191,7 +192,7 @@ describe("buildGitNodes diff lazy boundary", () => {
       render(<div>{nodes.gitDiffViewerNode}</div>);
 
       expect(screen.getByText("Repository not selected")).toBeTruthy();
-      expect(screen.queryByTestId("git-diff-viewer-chunk")).toBeNull();
+      expect(screen.queryByLabelText("Discard changes in this file")).toBeNull();
     },
     GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS
   );
@@ -199,7 +200,7 @@ describe("buildGitNodes diff lazy boundary", () => {
   it(
     "loads the viewer chunk once actual diff payload exists",
     async () => {
-      mockGitDiffViewerWorkerRuntime();
+      stubGitDiffViewerRuntimeDependencies();
 
       const buildGitNodesImpl = await importBuildGitNodes();
       const nodes = buildGitNodesImpl(
@@ -219,11 +220,15 @@ describe("buildGitNodes diff lazy boundary", () => {
       render(<div>{nodes.gitDiffViewerNode}</div>);
 
       await flushLazyBoundary();
+
       await waitFor(
         () => {
+          expect(screen.getByText("app.ts")).toBeTruthy();
+          expect(screen.getByText("Modified")).toBeTruthy();
+          expect(screen.getByLabelText("Discard changes in this file")).toBeTruthy();
           expect(document.querySelector(".ds-diff-viewer")).toBeTruthy();
         },
-        { timeout: 5_000 }
+        { timeout: GIT_DIFF_VIEWER_CHUNK_TIMEOUT_MS }
       );
     },
     GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS

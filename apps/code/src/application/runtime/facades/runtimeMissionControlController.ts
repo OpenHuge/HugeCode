@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { RuntimeAgentTaskInterventionInput } from "../types/webMcpBridge";
 import { useWorkspaceRuntimeAgentControl } from "../ports/runtimeAgentControl";
 import { readRuntimeErrorCode, readRuntimeErrorMessage } from "../ports/runtimeErrorClassifier";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import { listRunExecutionProfiles } from "./runtimeMissionControlFacade";
 import { startRuntimeRunWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
 import {
+  buildRuntimeRunStartRequestFromPreparation,
   buildRuntimeMissionLaunchPrepareRequest,
   useRuntimeMissionLaunchPreview,
 } from "./runtimeMissionLaunchPreparation";
@@ -25,6 +27,28 @@ import {
 
 export type { RuntimeDurabilityWarningState };
 
+function buildMissionInterventionInfoMessage(
+  action: RuntimeAgentTaskInterventionInput["action"],
+  taskId: string
+) {
+  switch (action) {
+    case "replan_scope":
+      return `Mission replan requested for ${taskId}.`;
+    case "drop_feature":
+      return `Feature drop requested for ${taskId}.`;
+    case "insert_feature":
+      return `Feature insertion requested for ${taskId}.`;
+    case "change_validation_lane":
+      return `Validation lane change requested for ${taskId}.`;
+    case "change_backend_preference":
+      return `Backend preference change requested for ${taskId}.`;
+    case "mark_blocked_with_reason":
+      return `Blocked state recorded for ${taskId}.`;
+    default:
+      return `Mission intervention ${action} submitted for ${taskId}.`;
+  }
+}
+
 export function useWorkspaceRuntimeMissionControlController(workspaceId: string) {
   const runtimeControl = useWorkspaceRuntimeAgentControl(workspaceId);
   const executionProfiles = useMemo(() => [...listRunExecutionProfiles()], []);
@@ -35,6 +59,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
   const [runtimeActionLoading, setRuntimeActionLoading] = useState(false);
   const [runtimeActionError, setRuntimeActionError] = useState<string | null>(null);
   const [runtimeInfo, setRuntimeInfo] = useState<string | null>(null);
+  const [approvedRuntimePlanVersion, setApprovedRuntimePlanVersion] = useState<string | null>(null);
   const [repositoryExecutionProfileId, setRepositoryExecutionProfileId] = useState<string | null>(
     null
   );
@@ -119,17 +144,55 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimeSourceDraft: draft.runtimeSourceDraft,
     routedProvider,
   });
+  const runtimeLaunchPlanVersion = runtimeLaunchPreview.preparation?.plan?.planVersion ?? null;
+  const runtimeLaunchPlanApprovalRequired = runtimeLaunchPlanVersion !== null;
+  const runtimeLaunchPlanApproved =
+    runtimeLaunchPlanVersion !== null && approvedRuntimePlanVersion === runtimeLaunchPlanVersion;
+
+  useEffect(() => {
+    if (!runtimeLaunchPlanVersion) {
+      setApprovedRuntimePlanVersion(null);
+      return;
+    }
+    setApprovedRuntimePlanVersion((current) =>
+      current === runtimeLaunchPlanVersion ? current : null
+    );
+  }, [runtimeLaunchPlanVersion]);
 
   const setRuntimeError = useCallback((value: string | null) => {
     setRuntimeActionError(value);
+  }, []);
+
+  const approveRuntimeLaunchPlan = useCallback(() => {
+    if (!runtimeLaunchPlanVersion) {
+      return;
+    }
+    setApprovedRuntimePlanVersion(runtimeLaunchPlanVersion);
+    setRuntimeInfo(`Approved mission plan ${runtimeLaunchPlanVersion}.`);
+    setRuntimeError(null);
+  }, [runtimeLaunchPlanVersion, setRuntimeError]);
+
+  const clearRuntimeLaunchPlanApproval = useCallback(() => {
+    setApprovedRuntimePlanVersion(null);
   }, []);
 
   const startRuntimeManagedTask = useCallback(async () => {
     if (draft.runtimeDraftInstruction.trim().length === 0) {
       return;
     }
+    if (!runtimeLaunchPreview.preparation || !runtimeLaunchPreview.request) {
+      setRuntimeError("Review the runtime mission plan before starting the run.");
+      return;
+    }
+    if (runtimeLaunchPlanApprovalRequired && !runtimeLaunchPlanApproved) {
+      setRuntimeError("Approve the current mission plan before starting the run.");
+      return;
+    }
     const launchRequest =
-      runtimeLaunchPreview.request ??
+      buildRuntimeRunStartRequestFromPreparation({
+        request: runtimeLaunchPreview.request,
+        preparation: runtimeLaunchPreview.preparation,
+      }) ??
       buildRuntimeMissionLaunchPrepareRequest({
         workspaceId,
         draftTitle: draft.runtimeDraftTitle,
@@ -146,6 +209,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     try {
       await startRuntimeRunWithRemoteSelection(launchRequest);
       draft.resetRuntimeDraftState();
+      setApprovedRuntimePlanVersion(null);
       setRuntimeError(null);
       setRuntimeInfo(
         `Mission run started with ${selectedExecutionProfile.name}${routedProvider ? ` via ${selectedProviderRoute?.label ?? routedProvider}` : ""}.`
@@ -166,6 +230,9 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     workspaceId,
     setRuntimeError,
     routedProvider,
+    runtimeLaunchPlanApprovalRequired,
+    runtimeLaunchPlanApproved,
+    runtimeLaunchPreview.preparation,
     runtimeLaunchPreview.request,
   ]);
 
@@ -208,6 +275,35 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
           setRuntimeInfo(null);
           setRuntimeError(ack.message || `Run ${taskId} could not be resumed.`);
         }
+      } catch (error) {
+        setRuntimeError(formatRuntimeError(error));
+      } finally {
+        setRuntimeActionLoading(false);
+      }
+    },
+    [runtimeControl, setRuntimeError, snapshot]
+  );
+
+  const interveneRuntimeTaskById = useCallback(
+    async (taskId: string, input: Omit<RuntimeAgentTaskInterventionInput, "taskId">) => {
+      if (typeof runtimeControl.interveneTask !== "function") {
+        setRuntimeError("Runtime does not currently support mission interventions.");
+        return;
+      }
+      setRuntimeActionLoading(true);
+      try {
+        const result = await runtimeControl.interveneTask({
+          taskId,
+          ...input,
+        });
+        await snapshot.refreshRuntimeTasks();
+        if (result.accepted) {
+          setRuntimeError(null);
+          setRuntimeInfo(buildMissionInterventionInfoMessage(input.action, taskId));
+          return;
+        }
+        setRuntimeInfo(null);
+        setRuntimeError(`Mission intervention ${input.action} was not accepted for ${taskId}.`);
       } catch (error) {
         setRuntimeError(formatRuntimeError(error));
       } finally {
@@ -400,6 +496,11 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimeLaunchPreparationRepoGuidanceSummary: runtimeLaunchPreview.repoGuidanceSummary,
     runtimeLaunchPreparationError: runtimeLaunchPreview.error,
     runtimeLaunchPreparationLoading: runtimeLaunchPreview.loading,
+    runtimeLaunchPlanApprovalRequired,
+    runtimeLaunchPlanApproved,
+    runtimeLaunchPlanVersion,
+    approveRuntimeLaunchPlan,
+    clearRuntimeLaunchPlanApproval,
     runtimeLaunchPreparationTruthSourceLabel: runtimeLaunchPreview.truthSourceLabel,
     resumeRecoverableTasks,
     runtimeDraftInstruction: draft.runtimeDraftInstruction,
@@ -427,6 +528,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     interruptRuntimeTaskById,
     interruptStalePendingApprovals,
     resumeRuntimeTaskById,
+    interveneRuntimeTaskById,
     decideRuntimeApproval,
   };
 }

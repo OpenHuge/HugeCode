@@ -1,4 +1,5 @@
 import type { DragEvent, MouseEvent, ReactNode, RefObject } from "react";
+import type { RuntimeReviewGetV2Response } from "@ku0/code-runtime-host-contract";
 import type { ErrorToast } from "../../../../application/runtime/ports/toasts";
 import type { MissionControlProjection } from "../../../../application/runtime/facades/runtimeMissionControlFacade";
 import type { RepositoryExecutionContract } from "../../../../application/runtime/facades/runtimeRepositoryExecutionContract";
@@ -258,7 +259,7 @@ export type LayoutNodesFieldRegistry = {
   } | null;
   onRefreshMissionControl?: () => void | Promise<void>;
   reviewPackSelection: ReviewPackSelectionState;
-  runtimeReviewPack?: MissionControlProjection["reviewPacks"][number] | null;
+  runtimeReviewPack?: RuntimeReviewGetV2Response;
   onOpenReviewPack: (selection: ReviewPackSelectionRequest) => void;
   reviewPackDecisionSubmission?: ReviewPackDecisionSubmissionState | null;
   onSubmitReviewPackDecision?: (input: {

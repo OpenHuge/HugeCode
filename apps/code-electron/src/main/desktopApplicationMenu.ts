@@ -9,16 +9,11 @@ type ApplicationMenuState = {
 
 type ApplicationMenuHandlers = {
   onCheckForUpdates(): void;
-  onCopySupportSnapshot(): void;
   onNewWindow(): void;
   onOpenFile(): void;
   onOpenFolder(): void;
-  onOpenCrashDumpsFolder(): void;
-  onOpenIncidentLog(): void;
-  onOpenLogsFolder(): void;
   onOpenAbout(): void;
   onQuit(): void;
-  onReportIssue(): void;
   onReopenSession(sessionId: string): void;
 };
 
@@ -33,16 +28,11 @@ export type CreateDesktopApplicationMenuControllerInput = {
   dependencies?: DesktopApplicationMenuControllerDependencies;
   platform: NodeJS.Platform;
   readState(): Pick<ApplicationMenuState, "recentSessions">;
-  onCopySupportSnapshot(): void;
   onNewWindow(): void;
   onOpenFile(): void;
   onOpenFolder(): void;
-  onOpenCrashDumpsFolder(): void;
-  onOpenIncidentLog(): void;
-  onOpenLogsFolder(): void;
   onOpenAbout(): void;
   onQuit(): void;
-  onReportIssue(): void;
   onReopenSession(sessionId: string): void;
   onCheckForUpdates(): void;
 };
@@ -138,42 +128,6 @@ export function buildApplicationMenuTemplate(
       label: "Check for Updates...",
       click: () => {
         handlers.onCheckForUpdates();
-      },
-    },
-    {
-      type: "separator",
-    },
-    {
-      label: "Copy Support Snapshot",
-      click: () => {
-        handlers.onCopySupportSnapshot();
-      },
-    },
-    {
-      label: "Open Incident Log",
-      click: () => {
-        handlers.onOpenIncidentLog();
-      },
-    },
-    {
-      label: "Open Logs Folder",
-      click: () => {
-        handlers.onOpenLogsFolder();
-      },
-    },
-    {
-      label: "Open Crash Dumps Folder",
-      click: () => {
-        handlers.onOpenCrashDumpsFolder();
-      },
-    },
-    {
-      type: "separator",
-    },
-    {
-      label: "Report Issue...",
-      click: () => {
-        handlers.onReportIssue();
       },
     },
   ];
@@ -310,17 +264,12 @@ export function createDesktopApplicationMenuController(
 
       menu = createMenuFromTemplate(
         buildApplicationMenuTemplate(state, {
-          onCheckForUpdates: input.onCheckForUpdates,
-          onCopySupportSnapshot: input.onCopySupportSnapshot,
           onNewWindow: input.onNewWindow,
+          onCheckForUpdates: input.onCheckForUpdates,
           onOpenFile: input.onOpenFile,
           onOpenFolder: input.onOpenFolder,
-          onOpenCrashDumpsFolder: input.onOpenCrashDumpsFolder,
-          onOpenIncidentLog: input.onOpenIncidentLog,
-          onOpenLogsFolder: input.onOpenLogsFolder,
           onOpenAbout: input.onOpenAbout,
           onQuit: input.onQuit,
-          onReportIssue: input.onReportIssue,
           onReopenSession: input.onReopenSession,
         })
       );

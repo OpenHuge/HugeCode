@@ -80,6 +80,10 @@ export function WebAboutPage() {
               <span className={aboutMetaLabel}>Workspace path</span>
               <strong className={aboutMetaValue}>Client-only bridge</strong>
             </div>
+            <div className={aboutMetaItem}>
+              <span className={aboutMetaLabel}>PWA mode</span>
+              <strong className={aboutMetaValue}>Installable, offline-capable shell</strong>
+            </div>
           </div>
           <div>
             <div className={aboutLinkGroupTitle}>Project links</div>

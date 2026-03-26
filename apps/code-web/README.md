@@ -19,7 +19,21 @@ in `apps/code`.
 - Client-only `/app` entry that composes the shared workspace shell from
   `packages/code-workspace-client` and `packages/code-application` without
   changing the Tauri frontend contract.
+- Web PWA installability, update flow, offline fallback shell, and static
+  service worker ownership for the web host.
 - Web-platform ownership remains separate from the desktop host shell.
+
+## PWA Product Boundary
+
+- The web host ships as a single-scope PWA rooted at `/` and launches installed
+  sessions into `/app`.
+- Public routes can reopen from cache offline; the workspace route only
+  promises a cached shell and explicit runtime reconnect messaging.
+- Runtime gateway traffic such as `/rpc` and `/ws` is never cached or replayed
+  as fake offline state.
+- Installed-window behavior is optimized for a single active HugeCode session
+  where supported, so relaunching the app does not blindly duplicate workspace
+  windows.
 
 ## Current Interpretation
 
@@ -40,6 +54,7 @@ in `apps/code`.
 - `pnpm web:dev`
 - `pnpm web:build`
 - `pnpm web:typecheck`
+- `pnpm --filter @ku0/code-web run test`
 
 Legacy `pnpm experimental:web:*` aliases still resolve to the same workflow for
 compatibility, but `pnpm web:*` is the canonical command family.

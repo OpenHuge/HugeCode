@@ -489,6 +489,7 @@ export type RuntimeAgentTaskStartInput = {
   preferredBackendIds?: string[];
   missionBrief?: AgentTaskMissionBrief | null;
   relaunchContext?: AgentTaskRelaunchContext | null;
+  approvedPlanVersion?: string | null;
   autoDrive?: AgentTaskAutoDriveState | null;
   requiresApproval?: boolean;
   approvalReason?: string | null;
@@ -507,6 +508,12 @@ export type RuntimeAgentTaskInterventionAction =
   | "continue_with_clarification"
   | "narrow_scope"
   | "relax_validation"
+  | "replan_scope"
+  | "drop_feature"
+  | "insert_feature"
+  | "change_validation_lane"
+  | "change_backend_preference"
+  | "mark_blocked_with_reason"
   | "switch_profile_and_retry"
   | "escalate_to_pair_mode";
 
@@ -519,6 +526,7 @@ export type RuntimeAgentTaskInterventionInput = {
   reviewProfileId?: string | null;
   preferredBackendIds?: string[] | null;
   relaunchContext?: AgentTaskRelaunchContext | null;
+  approvedPlanVersion?: string | null;
 };
 
 export type RuntimeAgentTaskInterventionOutcome =

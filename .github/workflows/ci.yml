@@ -33,7 +33,9 @@ jobs:
       diff_base: ${{ steps.context.outputs.diff_base }}
       fast_pr_iteration_mode: ${{ github.event_name == 'pull_request' && vars.MERGE_QUEUE_ENABLED == 'true' }}
       runtime_contract_changed: ${{ steps.filter.outputs.runtime_contract }}
+      desktop_host_changed: ${{ steps.filter.outputs.desktop_host }}
       desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime }}
+      desktop_fast_verify_required: ${{ steps.filter.outputs.desktop_host == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
       repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
       repo_governance_only: ${{ steps.scope.outputs.repo_governance_only }}
       frontend_optimization_changed: ${{ steps.scope.outputs.frontend_optimization_changed }}
@@ -105,6 +107,8 @@ jobs:
               - 'turbo.json'
               - '.github/actions/setup-rust-ci/**'
               - '.github/actions/cache-turbo/**'
+            desktop_host:
+              - 'apps/code-tauri/**'
             repo_sot:
               - '.nvmrc'
               - '.devcontainer/devcontainer.json'
@@ -285,7 +289,7 @@ jobs:
     with:
       affected_mode: ${{ needs.changes.outputs.affected_mode == 'true' }}
       ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
-      desktop_runtime_changed: ${{ needs.changes.outputs.desktop_runtime_changed == 'true' }}
+      desktop_fast_verify_required: ${{ needs.changes.outputs.desktop_fast_verify_required == 'true' }}
       ui_contract_required: ${{ needs.changes.outputs.ui_contract_required == 'true' }}
       circular_required: ${{ needs.changes.outputs.circular_required == 'true' }}
       integration_watch_required: ${{ needs.changes.outputs.integration_watch_required == 'true' }}

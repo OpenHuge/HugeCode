@@ -21,6 +21,12 @@ export const HUGECODE_INTERVENTION_ACTIONS = [
   "continue_with_clarification",
   "narrow_scope",
   "relax_validation",
+  "replan_scope",
+  "drop_feature",
+  "insert_feature",
+  "change_validation_lane",
+  "change_backend_preference",
+  "mark_blocked_with_reason",
   "switch_profile_and_retry",
   "escalate_to_pair_mode",
 ] as const;
@@ -370,6 +376,37 @@ export type HugeCodeMissionBriefEvaluationPlan = {
 
 export type HugeCodeMissionBriefScenarioProfile = HugeCodeAutoDriveScenarioProfile;
 
+export type HugeCodeMissionPlanMilestoneStatus = "planned" | "active" | "completed" | "blocked";
+
+export type HugeCodeMissionValidationTrigger = "per_feature" | "per_milestone" | "pre_review";
+
+export type HugeCodeMissionPlanMilestone = {
+  id: string;
+  label: string;
+  summary: string;
+  status?: HugeCodeMissionPlanMilestoneStatus | null;
+  nodeIds?: string[] | null;
+  validationLaneIds?: string[] | null;
+  acceptanceCriteria?: string[] | null;
+};
+
+export type HugeCodeMissionValidationLane = {
+  id: string;
+  label: string;
+  summary: string;
+  trigger: HugeCodeMissionValidationTrigger;
+  commands?: string[] | null;
+};
+
+export type HugeCodeMissionSkillPlanItemState = "available" | "missing" | "recommended";
+
+export type HugeCodeMissionSkillPlanItem = {
+  skillId: string;
+  label: string;
+  state: HugeCodeMissionSkillPlanItemState;
+  summary?: string | null;
+};
+
 export type HugeCodeMissionBrief = {
   objective: string;
   doneDefinition?: string[] | null;
@@ -381,6 +418,16 @@ export type HugeCodeMissionBrief = {
   permissionSummary?: HugeCodeMissionBriefPermissionSummary | null;
   evaluationPlan?: HugeCodeMissionBriefEvaluationPlan | null;
   scenarioProfile?: HugeCodeMissionBriefScenarioProfile | null;
+  planVersion?: string | null;
+  planSummary?: string | null;
+  currentMilestoneId?: string | null;
+  estimatedDurationMinutes?: number | null;
+  estimatedWorkerRuns?: number | null;
+  parallelismHint?: string | null;
+  clarificationQuestions?: string[] | null;
+  milestones?: HugeCodeMissionPlanMilestone[] | null;
+  validationLanes?: HugeCodeMissionValidationLane[] | null;
+  skillPlan?: HugeCodeMissionSkillPlanItem[] | null;
 };
 
 export type HugeCodeFailureClass =
@@ -396,9 +443,11 @@ export type HugeCodeRelaunchContext = {
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
   sourceReviewPackId?: string | null;
+  sourcePlanVersion?: string | null;
   summary?: string | null;
   failureClass?: HugeCodeFailureClass | null;
   recommendedActions?: HugeCodeInterventionAction[] | null;
+  planChangeSummary?: string | null;
 };
 
 export type HugeCodeReviewPackRelaunchOptions = HugeCodeRelaunchContext & {

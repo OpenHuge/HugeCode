@@ -21,6 +21,8 @@ const strongText = semanticThemeVars.color.text.primary;
 const mutedText = `color-mix(in srgb, ${semanticThemeVars.color.text.secondary} 88%, transparent)`;
 const faintText = `color-mix(in srgb, ${semanticThemeVars.color.text.secondary} 68%, transparent)`;
 const accentGradient = `linear-gradient(135deg, color-mix(in srgb, ${semanticThemeVars.color.state.running} 88%, ${semanticThemeVars.color.bg.card} 12%), color-mix(in srgb, ${semanticThemeVars.color.state.success} 70%, ${semanticThemeVars.color.bg.card} 30%))`;
+const titlebarInsetTop = "env(titlebar-area-height, 0px)";
+const titlebarInsetLeft = "env(titlebar-area-x, 0px)";
 
 export const documentBody = style({
   margin: 0,
@@ -41,6 +43,11 @@ export const chromeContainer = style({
   display: "grid",
   gap: "28px",
   padding: "20px 0 72px",
+  selectors: {
+    'html[data-pwa-display-mode="window-controls-overlay"] &': {
+      paddingTop: `calc(${titlebarInsetTop} + 12px)`,
+    },
+  },
   "@media": {
     "(max-width: 960px)": {
       width: "min(100% - 24px, 1120px)",
@@ -61,6 +68,12 @@ export const chromeHeader = style({
   background: surfaceGlass,
   backdropFilter: "blur(18px)",
   boxShadow: elevationValues.card,
+  selectors: {
+    'html[data-pwa-display-mode="window-controls-overlay"] &': {
+      paddingLeft: `calc(16px + ${titlebarInsetLeft})`,
+      minHeight: `calc(48px + ${titlebarInsetTop})`,
+    },
+  },
   "@media": {
     "(max-width: 720px)": {
       padding: "14px",
@@ -530,6 +543,106 @@ export const aboutPrincipleCopy = style({
   lineHeight: typographyValues.content.lineHeight,
 });
 
+export const pwaBannerViewport = style({
+  position: "fixed",
+  right: "20px",
+  bottom: "20px",
+  zIndex: 20,
+  display: "grid",
+  gap: "12px",
+  width: "min(420px, calc(100vw - 24px))",
+  "@media": {
+    "(max-width: 720px)": {
+      right: "12px",
+      bottom: "12px",
+      width: "min(100vw - 24px, 420px)",
+    },
+  },
+});
+
+export const pwaBannerCard = style({
+  display: "grid",
+  gap: "12px",
+  padding: "18px",
+  borderRadius: "22px",
+  border: accentBorder,
+  background: surfaceGlassStrong,
+  boxShadow: elevationValues.overlay,
+  backdropFilter: "blur(18px)",
+});
+
+export const pwaBannerEyebrow = style({
+  fontSize: typographyValues.micro.fontSize,
+  lineHeight: typographyValues.micro.lineHeight,
+  letterSpacing: "0.14em",
+  textTransform: "uppercase",
+  color: faintText,
+});
+
+export const pwaBannerTitle = style({
+  fontSize: typographyValues.label.fontSize,
+  lineHeight: typographyValues.label.lineHeight,
+  fontWeight: 700,
+});
+
+export const pwaBannerCopy = style({
+  margin: 0,
+  color: mutedText,
+  lineHeight: typographyValues.content.lineHeight,
+});
+
+export const pwaBannerActions = style({
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "10px",
+  alignItems: "center",
+});
+
+export const pwaBannerPrimaryButton = style({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: "42px",
+  padding: "0 16px",
+  borderRadius: "999px",
+  border: "none",
+  background: semanticThemeVars.color.text.primary,
+  color: semanticThemeVars.color.text.inverse,
+  fontSize: typographyValues.chrome.fontSize,
+  lineHeight: typographyValues.chrome.lineHeight,
+  fontWeight: 600,
+  cursor: "pointer",
+});
+
+export const pwaBannerSecondaryButton = style({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: "42px",
+  padding: "0 16px",
+  borderRadius: "999px",
+  border: accentBorder,
+  background: surfaceMuted,
+  color: strongText,
+  fontSize: typographyValues.chrome.fontSize,
+  lineHeight: typographyValues.chrome.lineHeight,
+  textDecoration: "none",
+});
+
+export const pwaBannerDismissButton = style({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: "42px",
+  padding: "0 8px",
+  border: "none",
+  background: "transparent",
+  color: faintText,
+  fontSize: typographyValues.chrome.fontSize,
+  lineHeight: typographyValues.chrome.lineHeight,
+  cursor: "pointer",
+});
+
 globalStyle(`${documentBody} a`, {
   color: "inherit",
 });
@@ -539,8 +652,13 @@ globalStyle("html, body", {
 });
 
 globalStyle(
-  `${chromeNavLink}:hover, ${chromeNavLinkActive}:hover, ${aboutLink}:hover, ${primaryLink}:hover, ${secondaryLink}:hover`,
+  `${chromeNavLink}:hover, ${chromeNavLinkActive}:hover, ${aboutLink}:hover, ${primaryLink}:hover, ${secondaryLink}:hover, ${pwaBannerSecondaryButton}:hover`,
   {
     opacity: 0.92,
   }
 );
+
+globalStyle(`${pwaBannerPrimaryButton}:disabled`, {
+  cursor: "progress",
+  opacity: 0.82,
+});

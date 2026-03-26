@@ -184,6 +184,16 @@ export function MissionOverviewPanel({
                   {item.operatorActionDetail ? ` · ${item.operatorActionDetail}` : ""}
                 </div>
               ) : null}
+              {item.continuationLabel || item.continuePathLabel ? (
+                <div className={styles.missionDetail}>
+                  {[
+                    item.continuationLabel,
+                    item.continuePathLabel ? `Continue via ${item.continuePathLabel}.` : null,
+                  ]
+                    .filter((value): value is string => Boolean(value))
+                    .join(" ")}
+                </div>
+              ) : null}
               {item.attentionSignals.length > 0 ? (
                 <ReviewSignalGroup className={styles.attentionSignals}>
                   {item.attentionSignals.map((signal) => (

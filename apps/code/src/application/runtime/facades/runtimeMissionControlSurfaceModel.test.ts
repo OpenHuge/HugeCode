@@ -163,14 +163,14 @@ describe("runtimeMissionControlSurfaceModel", () => {
     const signals = summarizeMissionControlSignals(projection);
 
     expect(latestRuns[0]?.statusKind).toBe("review_ready");
-    expect(reviewEntries[0]?.recommendedNextAction).toBe("Open Review Pack on this device.");
+    expect(reviewEntries[0]?.recommendedNextAction).toBe("Open Review Pack");
     expect(reviewEntries[0]?.continuePathLabel).toBe("Review Pack");
     expect(reviewEntries[0]?.contextSummary).toBe("GitHub issue · triage");
     expect(reviewEntries[0]?.provenanceSummary).toBe(
       "Repo guidance: AGENTS.md, .github/copilot-instructions.md | Source evidence: GitHub issue #42"
     );
     expect(reviewEntries[0]?.triageSummary).toContain("Owner unassigned");
-    expect(reviewEntries[0]?.delegationSummary).toBe("Open Review Pack on this device.");
+    expect(reviewEntries[0]?.delegationSummary).toBe("Open Review Pack");
     expect(reviewEntries[0]?.continuationTruthSourceLabel).toBe("Runtime takeover bundle");
     expect(signals.reviewReadyCount).toBe(1);
   });

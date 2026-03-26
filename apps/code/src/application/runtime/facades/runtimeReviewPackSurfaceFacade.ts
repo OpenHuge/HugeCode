@@ -10,6 +10,7 @@ import type {
   HugeCodeRuntimeAutofixCandidate,
   HugeCodeRuntimeSkillUsageSummary,
   HugeCodeValidationOutcome,
+  RuntimeReviewGetV2Response,
 } from "@ku0/code-runtime-host-contract";
 import { resolveRuntimeNextOperatorAction } from "@ku0/code-runtime-host-contract";
 import {
@@ -801,7 +802,7 @@ export function buildReviewPackDetailModel(input: {
   projection: MissionControlProjection | null;
   selection: ReviewPackSelectionState;
   repositoryExecutionContract?: RepositoryExecutionContract | null;
-  runtimeReviewPack?: MissionControlProjection["reviewPacks"][number] | null;
+  runtimeReviewPack?: RuntimeReviewGetV2Response;
 }): MissionSurfaceDetailModel | null {
   const projection = input.projection;
   if (!projection) {
@@ -818,6 +819,8 @@ export function buildReviewPackDetailModel(input: {
       (taskId !== null && input.runtimeReviewPack.taskId === taskId))
       ? input.runtimeReviewPack
       : null;
+  const runtimeAutonomyProfile = runtimeReviewPack?.autonomyProfile ?? null;
+  const runtimeWakePolicy = runtimeReviewPack?.wakePolicy ?? null;
   const reviewPack =
     runtimeReviewPack ??
     (reviewPackId === null
@@ -1018,6 +1021,8 @@ export function buildReviewPackDetailModel(input: {
           missionRunContinuationDefaults.validationPresetId,
         backendId: run.routing?.backendId,
         providerLabel: run.routing?.providerLabel,
+        autonomyProfile: null,
+        wakePolicy: null,
         accessMode: missionRunContinuationDefaults.accessMode,
         sourceMappingKind: missionRunContinuationDefaults.sourceMappingKind,
         fieldOrigins: missionRunContinuationDefaults.fieldOrigins,
@@ -1281,6 +1286,8 @@ export function buildReviewPackDetailModel(input: {
     checkpoint,
     executionContext: buildExecutionContext({
       executionProfileName: run?.executionProfile?.name,
+      autonomyProfile: runtimeAutonomyProfile,
+      wakePolicy: runtimeWakePolicy,
       reviewProfileId:
         reviewIntelligence?.reviewProfileId ?? reviewContinuationDefaults?.reviewProfileId,
       validationPresetId:

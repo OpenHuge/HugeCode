@@ -135,6 +135,49 @@ describe("buildRuntimeContinuityReadiness", () => {
     expect(summary.items[0]?.pathKind).toBe("review");
   });
 
+  it("prefers takeover approval truth before review-ready continuation", () => {
+    const summary = buildRuntimeContinuityReadiness({
+      candidates: [
+        {
+          run: buildRun({
+            state: "review_ready",
+            actionability: {
+              state: "ready",
+              summary: "Review can continue from the Review Pack.",
+              degradedReasons: [],
+              actions: [],
+            },
+            takeoverBundle: {
+              pathKind: "approval",
+              primaryAction: "approve",
+              state: "ready",
+              summary: "Operator approval is required before the run can continue.",
+              recommendedAction: "Open the pending approval and decide before continuing.",
+              target: {
+                kind: "run",
+                workspaceId: "workspace-1",
+                taskId: "task-1",
+                runId: "run-1",
+              },
+            },
+          }),
+          task: buildTask({
+            status: "completed",
+          }),
+        },
+      ],
+    });
+
+    expect(summary.state).toBe("attention");
+    expect(summary.reviewBlockedCount).toBe(0);
+    expect(summary.items[0]).toMatchObject({
+      pathKind: "approval",
+      detail: "Operator approval is required before the run can continue.",
+      recommendedAction: "Open the pending approval and decide before continuing.",
+      truthSourceLabel: "Runtime takeover bundle",
+    });
+  });
+
   it("does not reconstruct checkpoint truth from execution graph when runtime omits it", () => {
     const summary = buildRuntimeContinuityReadiness({
       candidates: [
@@ -235,6 +278,34 @@ describe("buildRuntimeContinuityReadiness", () => {
     expect(summary.items[0]).toMatchObject({
       pathKind: "missing",
       truthSourceLabel: "Runtime truth unavailable",
+    });
+  });
+
+  it("accepts runtime review actionability even when the run state has not flipped to review_ready", () => {
+    const summary = buildRuntimeContinuityReadiness({
+      candidates: [
+        {
+          run: buildRun({
+            state: "validating",
+            actionability: {
+              state: "blocked",
+              summary: "Runtime blocked follow-up until validation evidence is repaired.",
+              degradedReasons: ["runtime_evidence_incomplete"],
+              actions: [],
+            },
+          }),
+          task: buildTask({
+            status: "running",
+          }),
+        },
+      ],
+    });
+
+    expect(summary.state).toBe("blocked");
+    expect(summary.reviewBlockedCount).toBe(1);
+    expect(summary.items[0]).toMatchObject({
+      pathKind: "review",
+      truthSourceLabel: "Runtime review actionability",
     });
   });
 

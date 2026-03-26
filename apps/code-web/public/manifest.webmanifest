@@ -1,0 +1,92 @@
+{
+  "id": "/app",
+  "name": "HugeCode",
+  "short_name": "HugeCode",
+  "description": "Install HugeCode Web to launch directly into the browser workspace while keeping public routes available offline.",
+  "scope": "/",
+  "start_url": "/app?source=pwa",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "theme_color": "#0d1117",
+  "background_color": "#0d1117",
+  "categories": ["productivity", "utilities", "developer tools"],
+  "lang": "en-US",
+  "icons": [
+    {
+      "src": "/pwa/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open Workspace",
+      "short_name": "Workspace",
+      "description": "Launch the HugeCode workspace shell",
+      "url": "/app",
+      "icons": [
+        {
+          "src": "/pwa/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Overview",
+      "short_name": "Overview",
+      "description": "Open the HugeCode web overview",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/pwa/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "About",
+      "short_name": "About",
+      "description": "Inspect HugeCode platform details",
+      "url": "/about",
+      "icons": [
+        {
+          "src": "/pwa/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/pwa/screenshot-desktop.png",
+      "sizes": "1440x1024",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "HugeCode desktop workspace shell"
+    },
+    {
+      "src": "/pwa/screenshot-mobile.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "HugeCode mobile install surface"
+    }
+  ]
+}

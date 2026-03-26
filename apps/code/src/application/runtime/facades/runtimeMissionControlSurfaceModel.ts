@@ -16,6 +16,7 @@ import {
 } from "./runtimeContextTruth";
 import { buildMissionProvenanceSummary } from "./runtimeMissionControlProvenance";
 import { summarizeReviewContinuationActionability } from "./runtimeReviewContinuationFacade";
+import { resolveMissionContinuationActionability } from "./runtimeMissionControlContinuation";
 import { resolveReviewIntelligenceSummary } from "./runtimeReviewIntelligenceSummary";
 import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
 import { resolveRuntimeRecommendedAction } from "./runtimeOperatorActionPresentation";
@@ -26,6 +27,7 @@ import {
 import type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
 import { type RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
+import { resolveMissionTakeoverOperatorAction } from "./runtimeMissionControlTakeoverAction";
 import { formatMissionReviewEvidenceLabel } from "../../../utils/reviewPackLabels";
 import { formatReviewFailureClassLabel } from "../../../utils/reviewFailureClass";
 import {
@@ -71,6 +73,8 @@ export type MissionOverviewEntry = {
   operatorActionLabel?: string | null;
   operatorActionDetail?: string | null;
   operatorActionTarget?: MissionNavigationTarget | null;
+  continuationLabel?: string | null;
+  continuePathLabel?: string | null;
   attentionSignals: string[];
   updatedAt: number;
   state: MissionOverviewState;
@@ -166,11 +170,8 @@ function buildRunIndex(projection: MissionControlProjection) {
 function buildReviewPackIndex(projection: MissionControlProjection) {
   return new Map(projection.reviewPacks.map((reviewPack) => [reviewPack.runId, reviewPack]));
 }
-function buildWorkspaceIndex(projection: MissionControlProjection) {
-  return new Map(projection.workspaces.map((workspace) => [workspace.id, workspace]));
-}
-function buildTaskIndex(projection: MissionControlProjection) {
-  return new Map(projection.tasks.map((task) => [task.id, task]));
+function buildIdIndex<TEntry extends { id: string }>(entries: TEntry[]) {
+  return new Map(entries.map((entry) => [entry.id, entry]));
 }
 function resolveTaskTimestamp(
   task: HugeCodeTaskSummary,
@@ -525,6 +526,15 @@ function resolveMissionOperatorAction(input: {
     runId: input.run?.id ?? null,
     reviewPackId: input.reviewPack?.id ?? null,
   });
+  const takeoverAction = resolveMissionTakeoverOperatorAction({
+    task: input.task,
+    takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run?.takeoverBundle ?? null,
+    missionTarget,
+    reviewTarget,
+  });
+  if (takeoverAction) {
+    return takeoverAction;
+  }
   const runtimeAction = resolveRuntimeNextOperatorAction({
     workspaceId: input.run?.workspaceId ?? input.reviewPack?.workspaceId ?? input.task.workspaceId,
     taskId: input.run?.taskId ?? input.reviewPack?.taskId ?? input.task.id,
@@ -546,8 +556,12 @@ function resolveMissionOperatorAction(input: {
       input.reviewPack?.nextOperatorAction ?? input.run?.nextOperatorAction ?? null,
   });
   if (runtimeAction) {
+    const runtimeActionLabel =
+      !input.task.origin.threadId && isRuntimeManagedMissionTaskId(input.task.id)
+        ? "Inspect runtime"
+        : runtimeAction.label;
     return {
-      label: runtimeAction.label,
+      label: runtimeActionLabel,
       detail: runtimeAction.detail,
       target:
         mapRuntimeOperatorActionTarget({
@@ -624,7 +638,7 @@ function resolveMissionOperatorAction(input: {
     };
   }
   return {
-    label: input.task.origin.threadId ? "Open mission" : "Open action center",
+    label: input.task.origin.threadId ? "Open mission" : "Inspect runtime",
     detail:
       input.run?.nextAction?.detail?.trim() ||
       input.reviewPack?.recommendedNextAction?.trim() ||
@@ -803,7 +817,6 @@ export function formatMissionControlFreshnessDetail(
 export function isMissionRunActive(state: HugeCodeRunState | null | undefined): boolean {
   return Boolean(state && ACTIVE_RUN_STATES.has(state));
 }
-
 export function isMissionRunNeedsAction(state: HugeCodeRunState | null | undefined): boolean {
   return Boolean(state && NEEDS_ACTION_RUN_STATES.has(state));
 }
@@ -901,7 +914,7 @@ export function buildLatestMissionRunsFromProjection(
 ): MissionLatestRunEntry[] {
   const runById = buildRunIndex(projection);
   const reviewPackByRunId = buildReviewPackIndex(projection);
-  const workspaceById = buildWorkspaceIndex(projection);
+  const workspaceById = buildIdIndex(projection.workspaces);
   const entries: MissionLatestRunEntry[] = [];
   for (const task of projection.tasks) {
     if (!task.latestRunId) {
@@ -1034,6 +1047,10 @@ export function buildMissionOverviewItemsFromProjection(
         reviewPack,
         run: latestRun,
       });
+      const continuation = resolveMissionContinuationActionability({
+        reviewPack,
+        run: latestRun,
+      });
       return {
         threadId,
         title: task.title,
@@ -1054,6 +1071,8 @@ export function buildMissionOverviewItemsFromProjection(
         operatorActionLabel: operatorAction.label,
         operatorActionDetail: operatorAction.detail,
         operatorActionTarget: operatorAction.target,
+        continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
+        continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
         attentionSignals: buildMissionOverviewAttentionSignals({
           reviewPack,
           run: latestRun,
@@ -1081,7 +1100,7 @@ export function buildMissionReviewEntriesFromProjection(
     repositoryExecutionContract?: RepositoryExecutionContract | null;
   }
 ): MissionReviewEntry[] {
-  const taskById = buildTaskIndex(projection);
+  const taskById = buildIdIndex(projection.tasks);
   const runById = buildRunIndex(projection);
   const reviewPackByRunId = buildReviewPackIndex(projection);
   const entries: Array<MissionReviewEntry & { triagePriority: number }> = [];

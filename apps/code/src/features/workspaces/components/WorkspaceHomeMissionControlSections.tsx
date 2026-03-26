@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
+import type { RuntimeAgentTaskInterventionInput } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeContinuityReadinessSummary } from "../../../application/runtime/facades/runtimeContinuityReadiness";
 import type { RuntimeTaskLauncherInterventionIntent } from "../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
@@ -60,6 +61,10 @@ type MissionControlRunListSectionProps = {
   refreshRuntimeTasks: () => Promise<void>;
   interruptRuntimeTaskById: (taskId: string, reason: string) => Promise<void>;
   resumeRuntimeTaskById: (taskId: string) => Promise<void>;
+  interveneRuntimeTaskById: (
+    taskId: string,
+    input: Omit<RuntimeAgentTaskInterventionInput, "taskId">
+  ) => Promise<void>;
   prepareRunLauncher: (
     task: RuntimeAgentTaskSummary,
     intent: RuntimeTaskLauncherInterventionIntent
@@ -77,6 +82,7 @@ export function MissionControlRunListSection({
   refreshRuntimeTasks,
   interruptRuntimeTaskById,
   resumeRuntimeTaskById,
+  interveneRuntimeTaskById,
   prepareRunLauncher,
   decideRuntimeApproval,
 }: MissionControlRunListSectionProps) {
@@ -120,6 +126,7 @@ export function MissionControlRunListSection({
                 onRefresh={refreshRuntimeTasks}
                 onInterrupt={(reason) => interruptRuntimeTaskById(task.taskId, reason)}
                 onResume={() => resumeRuntimeTaskById(task.taskId)}
+                onIntervene={(input) => interveneRuntimeTaskById(task.taskId, input)}
                 onPrepareLauncher={(intent) => prepareRunLauncher(task, intent)}
                 onApproval={(decision) => decideRuntimeApproval(task.pendingApprovalId!, decision)}
               />
