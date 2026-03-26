@@ -90,8 +90,6 @@ export default {
         authors: productAuthor,
         description: productDescription,
         name: "HugeCode",
-        authors: "OpenHuge",
-        description: "HugeCode beta desktop shell",
         ...(betaStaticUpdateBaseUrl
           ? {
               remoteReleases: betaStaticUpdateBaseUrl,

@@ -7,12 +7,15 @@ import {
 import { logRuntimeWarning } from "./tauriRuntimeTurnHelpers";
 import {
   THREAD_STORAGE_ACTIVE_THREAD_IDS_KEY,
+  THREAD_STORAGE_ATLAS_MEMORY_DIGESTS_KEY,
   normalizeLastActiveWorkspaceId,
+  normalizeThreadAtlasMemoryDigestMap,
   normalizeWorkspaceActiveThreadIdsMap,
   normalizeWorkspacePendingDraftMessagesMap,
   normalizeThreadSnapshotsMap,
   THREAD_STORAGE_LAST_ACTIVE_WORKSPACE_KEY,
   THREAD_STORAGE_PENDING_DRAFTS_KEY,
+  type ThreadAtlasMemoryDigestMap,
   type ThreadSnapshotsMap,
   type WorkspaceActiveThreadIdsMap,
   type WorkspacePendingDraftMessagesMap,
@@ -31,6 +34,7 @@ type OptionalThreadSnapshotFallback<Result> = {
 
 export type PersistedThreadStorageState = {
   snapshots: ThreadSnapshotsMap;
+  atlasMemoryDigests?: ThreadAtlasMemoryDigestMap;
   pendingDraftMessagesByWorkspace: WorkspacePendingDraftMessagesMap;
   lastActiveWorkspaceId?: string | null;
   lastActiveThreadIdByWorkspace?: WorkspaceActiveThreadIdsMap;
@@ -52,11 +56,23 @@ let persistedThreadStorageCache: PersistedThreadStorageState | null = null;
 let persistedThreadStorageCacheReady = false;
 let persistedThreadStorageWriteQueue: Promise<void> = Promise.resolve();
 
+function normalizeOptionalAtlasMemoryDigests(
+  value: ThreadAtlasMemoryDigestMap | null | undefined
+): ThreadAtlasMemoryDigestMap | undefined {
+  if (!value || Object.keys(value).length === 0) {
+    return undefined;
+  }
+  return value;
+}
+
 function clonePersistedThreadStorageState(
   state: PersistedThreadStorageState
 ): PersistedThreadStorageState {
   return {
     snapshots: { ...state.snapshots },
+    atlasMemoryDigests: normalizeOptionalAtlasMemoryDigests({
+      ...(state.atlasMemoryDigests ?? {}),
+    }),
     pendingDraftMessagesByWorkspace: {
       ...state.pendingDraftMessagesByWorkspace,
     },
@@ -145,8 +161,12 @@ function readSessionThreadStorageState(): PersistedThreadStorageState | null {
   }
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const atlasMemoryDigests = normalizeOptionalAtlasMemoryDigests(
+      normalizeThreadAtlasMemoryDigestMap(parsed.atlasMemoryDigests)
+    );
     return {
       snapshots: normalizeThreadSnapshotsMap(parsed.snapshots),
+      ...(atlasMemoryDigests ? { atlasMemoryDigests } : {}),
       pendingDraftMessagesByWorkspace: normalizeWorkspacePendingDraftMessagesMap(
         parsed.pendingDraftMessagesByWorkspace
       ),
@@ -165,6 +185,11 @@ function writeSessionThreadStorageState(state: PersistedThreadStorageState): voi
     SESSION_THREAD_STORAGE_STATE_KEY,
     JSON.stringify({
       snapshots: state.snapshots,
+      ...(normalizeOptionalAtlasMemoryDigests(state.atlasMemoryDigests ?? {})
+        ? {
+            atlasMemoryDigests: state.atlasMemoryDigests ?? {},
+          }
+        : {}),
       pendingDraftMessagesByWorkspace: state.pendingDraftMessagesByWorkspace,
       lastActiveWorkspaceId: state.lastActiveWorkspaceId ?? null,
       lastActiveThreadIdByWorkspace: state.lastActiveThreadIdByWorkspace ?? {},
@@ -180,11 +205,16 @@ function mergePersistedThreadStorageState(params: {
   if (!overlay) {
     return params.base;
   }
+  const atlasMemoryDigests = normalizeOptionalAtlasMemoryDigests({
+    ...(params.base.atlasMemoryDigests ?? {}),
+    ...(overlay.atlasMemoryDigests ?? {}),
+  });
   return {
     snapshots: {
       ...params.base.snapshots,
       ...overlay.snapshots,
     },
+    ...(atlasMemoryDigests ? { atlasMemoryDigests } : {}),
     pendingDraftMessagesByWorkspace: {
       ...params.base.pendingDraftMessagesByWorkspace,
       ...overlay.pendingDraftMessagesByWorkspace,
@@ -250,8 +280,12 @@ export async function readPersistedThreadSnapshots(): Promise<ThreadSnapshotsMap
 function buildPersistedThreadStorageState(
   rawSnapshots: Record<string, unknown>
 ): PersistedThreadStorageState {
+  const atlasMemoryDigests = normalizeOptionalAtlasMemoryDigests(
+    normalizeThreadAtlasMemoryDigestMap(rawSnapshots[THREAD_STORAGE_ATLAS_MEMORY_DIGESTS_KEY])
+  );
   return {
     snapshots: normalizeThreadSnapshotsMap(rawSnapshots),
+    ...(atlasMemoryDigests ? { atlasMemoryDigests } : {}),
     pendingDraftMessagesByWorkspace: normalizeWorkspacePendingDraftMessagesMap(
       rawSnapshots[THREAD_STORAGE_PENDING_DRAFTS_KEY]
     ),
@@ -270,6 +304,12 @@ function buildPersistedThreadStoragePayload(
   const payload: PersistedThreadStoragePayload = {
     ...(state.snapshots as Record<string, Record<string, unknown>>),
   };
+  if (Object.keys(state.atlasMemoryDigests ?? {}).length > 0) {
+    payload[THREAD_STORAGE_ATLAS_MEMORY_DIGESTS_KEY] = state.atlasMemoryDigests as Record<
+      string,
+      unknown
+    > as Record<string, Record<string, unknown>>;
+  }
   if (Object.keys(state.pendingDraftMessagesByWorkspace).length > 0) {
     payload[THREAD_STORAGE_PENDING_DRAFTS_KEY] = state.pendingDraftMessagesByWorkspace as Record<
       string,
@@ -379,11 +419,17 @@ export async function readPersistedThreadStorageState(): Promise<PersistedThread
   return loadPersistedThreadStorageState();
 }
 
+export async function readPersistedThreadAtlasMemoryDigests(): Promise<ThreadAtlasMemoryDigestMap> {
+  const state = await getPersistedThreadStorageStateCache();
+  return state.atlasMemoryDigests ?? {};
+}
+
 export async function writePersistedThreadSnapshots(
   snapshots: ThreadSnapshotsMap
 ): Promise<boolean> {
   return writePersistedThreadStorageState({
     snapshots,
+    atlasMemoryDigests: undefined,
     pendingDraftMessagesByWorkspace: {},
   });
 }
@@ -395,12 +441,20 @@ export async function writePersistedThreadStorageState(
     ? clonePersistedThreadStorageState(persistedThreadStorageCache)
     : readSessionThreadStorageState()) ?? {
     snapshots: {},
+    atlasMemoryDigests: {},
     pendingDraftMessagesByWorkspace: {},
     lastActiveWorkspaceId: readSessionActiveWorkspaceId(),
     lastActiveThreadIdByWorkspace: readSessionActiveThreadIds(),
   };
   const optimisticState: PersistedThreadStorageState = {
     snapshots: state.snapshots,
+    ...(normalizeOptionalAtlasMemoryDigests(
+      state.atlasMemoryDigests ?? currentState.atlasMemoryDigests ?? {}
+    )
+      ? {
+          atlasMemoryDigests: state.atlasMemoryDigests ?? currentState.atlasMemoryDigests ?? {},
+        }
+      : {}),
     pendingDraftMessagesByWorkspace: state.pendingDraftMessagesByWorkspace,
     lastActiveWorkspaceId:
       state.lastActiveWorkspaceId ?? currentState.lastActiveWorkspaceId ?? null,
@@ -414,11 +468,27 @@ export async function writePersistedThreadStorageState(
   writeSessionActiveThreadIds(optimisticState.lastActiveThreadIdByWorkspace ?? {});
   return enqueuePersistedThreadStorageWrite((currentState) => ({
     snapshots: state.snapshots,
+    ...(normalizeOptionalAtlasMemoryDigests(
+      state.atlasMemoryDigests ?? currentState.atlasMemoryDigests ?? {}
+    )
+      ? {
+          atlasMemoryDigests: state.atlasMemoryDigests ?? currentState.atlasMemoryDigests ?? {},
+        }
+      : {}),
     pendingDraftMessagesByWorkspace: state.pendingDraftMessagesByWorkspace,
     lastActiveWorkspaceId:
       state.lastActiveWorkspaceId ?? currentState.lastActiveWorkspaceId ?? null,
     lastActiveThreadIdByWorkspace:
       state.lastActiveThreadIdByWorkspace ?? currentState.lastActiveThreadIdByWorkspace ?? {},
+  }));
+}
+
+export async function writePersistedThreadAtlasMemoryDigests(
+  atlasMemoryDigests: ThreadAtlasMemoryDigestMap
+): Promise<boolean> {
+  return enqueuePersistedThreadStorageWrite((currentState) => ({
+    ...currentState,
+    atlasMemoryDigests,
   }));
 }
 

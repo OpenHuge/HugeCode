@@ -905,6 +905,7 @@ export type WebMcpSyncOptions = {
   snapshot: AgentCommandCenterSnapshot;
   actions: AgentCommandCenterActions;
   activeModelContext?: WebMcpActiveModelContext | null;
+  toolExposureProfile?: "minimal" | "slim" | "full" | null;
   runtimeControl?: RuntimeAgentControl | null;
   responseRequiredState?: WebMcpResponseRequiredState;
   onApprovalRequest?: (message: string) => Promise<boolean>;
@@ -917,6 +918,8 @@ export type WebMcpSyncResult = {
   registeredTools: number;
   registeredResources: number;
   registeredPrompts: number;
+  toolExposureMode?: "minimal" | "slim" | "full" | null;
+  toolExposureReasonCodes?: string[];
   capabilities: WebMcpCapabilityMatrix;
   error: string | null;
 };

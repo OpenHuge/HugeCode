@@ -13,6 +13,7 @@ import {
   teardownWebMcpAgentControl,
 } from "../../../application/runtime/ports/webMcpBridge";
 import { useWorkspaceRuntimeAgentControl } from "../../../application/runtime/ports/runtimeAgentControl";
+import { useRuntimeWebMcpContextPolicy } from "../../../application/runtime/facades/runtimeWebMcpContextPolicy";
 import type { ApprovalRequest, RequestUserInputRequest } from "../../../types";
 import { WorkspaceHomeAgentIntentSection } from "./WorkspaceHomeAgentIntentSection";
 import {
@@ -67,6 +68,48 @@ const EMPTY_GOVERNANCE_CYCLE: AgentGovernanceCycleReport = {
   notes: [],
 };
 
+function formatToolExposureReasonCode(reasonCode: string): string {
+  switch (reasonCode) {
+    case "runtime-prefers-minimal-tool-catalog":
+      return "Runtime policy requested the smallest safe tool catalog";
+    case "runtime-prefers-slim-tool-catalog":
+      return "Runtime policy slimmed runtime-only tools";
+    case "runtime-keeps-full-tool-catalog":
+      return "Runtime policy kept the full runtime catalog";
+    case "provider-prefers-slim-tool-catalog":
+      return "Provider heuristics slimmed runtime-only tools";
+    case "provider-keeps-full-tool-catalog":
+      return "Provider heuristics kept the full runtime catalog";
+    default:
+      return reasonCode;
+  }
+}
+
+function buildRuntimePolicyFreshnessSummary(input: {
+  resolutionKind: "cache" | "runtime" | null;
+  contextFingerprint: string | null;
+  expiresAt: number | null;
+}): string | null {
+  if (!input.resolutionKind && !input.contextFingerprint) {
+    return null;
+  }
+
+  const parts: string[] = [];
+  if (input.resolutionKind === "runtime") {
+    parts.push("Source: live runtime truth");
+  } else if (input.resolutionKind === "cache") {
+    parts.push("Source: cached runtime truth");
+  }
+  if (input.contextFingerprint) {
+    parts.push(`Context fingerprint: ${input.contextFingerprint}`);
+  }
+  if (input.resolutionKind === "cache" && input.expiresAt !== null) {
+    const refreshInSeconds = Math.max(1, Math.ceil((input.expiresAt - Date.now()) / 1000));
+    parts.push(`Auto-refresh in about ${refreshInSeconds}s`);
+  }
+  return parts.length > 0 ? parts.join(" | ") : null;
+}
+
 export function WorkspaceHomeAgentControl({
   workspace,
   activeModelContext,
@@ -80,6 +123,7 @@ export function WorkspaceHomeAgentControl({
   const [webMcpConsoleOpen, setWebMcpConsoleOpen] = useState(false);
   const [bridgeStatus, setBridgeStatus] = useState<string>("Checking WebMCP support...");
   const [bridgeError, setBridgeError] = useState<string | null>(null);
+  const [bridgeToolExposureReasonCodes, setBridgeToolExposureReasonCodes] = useState<string[]>([]);
   const controlPreferences = useWorkspaceAgentControlPreferences(workspace.id);
   const readOnlyMode = controlPreferences.controls.readOnlyMode;
   const requireUserApproval = controlPreferences.controls.requireUserApproval;
@@ -176,9 +220,65 @@ export function WorkspaceHomeAgentControl({
   );
 
   const runtimeControl = useWorkspaceRuntimeAgentControl(workspace.id);
+  const runtimeWebMcpContextPolicy = useRuntimeWebMcpContextPolicy({
+    workspaceId: workspace.id,
+    enabled: webMcpEnabled && controlPreferencesReady,
+    activeModelContext,
+    intent,
+  });
   const responseRequiredState = useMemo(
     () => ({ approvals, userInputRequests }),
     [approvals, userInputRequests]
+  );
+  const runtimePolicyStatus = useMemo(() => {
+    if (!webMcpEnabled) {
+      return "Disabled";
+    }
+    if (!controlPreferencesReady) {
+      return "Waiting for persisted controls";
+    }
+    if (!intent.objective.trim()) {
+      return "Waiting for objective";
+    }
+    if (runtimeWebMcpContextPolicy.loading) {
+      return "Resolving in runtime kernel...";
+    }
+    if (runtimeWebMcpContextPolicy.selectionPolicy) {
+      const toolProfile =
+        runtimeWebMcpContextPolicy.selectionPolicy.toolExposureProfile ?? "default";
+      return `${runtimeWebMcpContextPolicy.truthSourceLabel ?? "Runtime policy"}: ${runtimeWebMcpContextPolicy.selectionPolicy.strategy}/${toolProfile}`;
+    }
+    if (runtimeWebMcpContextPolicy.error) {
+      return "Using provider heuristics";
+    }
+    return "Waiting for runtime policy";
+  }, [
+    controlPreferencesReady,
+    intent.objective,
+    runtimeWebMcpContextPolicy.error,
+    runtimeWebMcpContextPolicy.loading,
+    runtimeWebMcpContextPolicy.selectionPolicy,
+    runtimeWebMcpContextPolicy.truthSourceLabel,
+    webMcpEnabled,
+  ]);
+  const toolExposureReasonSummary = useMemo(() => {
+    if (bridgeToolExposureReasonCodes.length === 0) {
+      return null;
+    }
+    return bridgeToolExposureReasonCodes.map(formatToolExposureReasonCode).join(" | ");
+  }, [bridgeToolExposureReasonCodes]);
+  const runtimePolicyFreshnessSummary = useMemo(
+    () =>
+      buildRuntimePolicyFreshnessSummary({
+        resolutionKind: runtimeWebMcpContextPolicy.resolutionKind,
+        contextFingerprint: runtimeWebMcpContextPolicy.contextFingerprint,
+        expiresAt: runtimeWebMcpContextPolicy.expiresAt,
+      }),
+    [
+      runtimeWebMcpContextPolicy.contextFingerprint,
+      runtimeWebMcpContextPolicy.expiresAt,
+      runtimeWebMcpContextPolicy.resolutionKind,
+    ]
   );
 
   useEffect(() => {
@@ -193,6 +293,7 @@ export function WorkspaceHomeAgentControl({
             : "Persisted agent controls unavailable"
       );
       setBridgeError(controlPreferences.status === "error" ? controlPreferences.error : null);
+      setBridgeToolExposureReasonCodes([]);
       void teardownWebMcpAgentControl();
       return () => {
         disposed = true;
@@ -206,6 +307,7 @@ export function WorkspaceHomeAgentControl({
       snapshot,
       actions,
       activeModelContext,
+      toolExposureProfile: runtimeWebMcpContextPolicy.selectionPolicy?.toolExposureProfile ?? null,
       runtimeControl,
       responseRequiredState,
       onApprovalRequest: async (message) => {
@@ -219,6 +321,7 @@ export function WorkspaceHomeAgentControl({
         return;
       }
       if (!result.supported) {
+        setBridgeToolExposureReasonCodes([]);
         if (!result.capabilities.modelContext) {
           setBridgeStatus("WebMCP browser API unavailable");
           setBridgeError(null);
@@ -230,11 +333,14 @@ export function WorkspaceHomeAgentControl({
       }
       setBridgeError(result.error);
       if (!result.enabled) {
+        setBridgeToolExposureReasonCodes([]);
         setBridgeStatus("WebMCP disabled");
         return;
       }
+      setBridgeToolExposureReasonCodes(result.toolExposureReasonCodes ?? []);
+      const exposureLabel = result.toolExposureMode ? `, ${result.toolExposureMode} catalog` : "";
       setBridgeStatus(
-        `${result.registeredTools} tool${result.registeredTools === 1 ? "" : "s"} synced (${result.mode})`
+        `${result.registeredTools} tool${result.registeredTools === 1 ? "" : "s"} synced (${result.mode}${exposureLabel})`
       );
     });
 
@@ -250,6 +356,7 @@ export function WorkspaceHomeAgentControl({
     readOnlyMode,
     requireUserApproval,
     responseRequiredState,
+    runtimeWebMcpContextPolicy.selectionPolicy?.toolExposureProfile,
     runtimeControl,
     snapshot,
     webMcpEnabled,
@@ -336,7 +443,25 @@ export function WorkspaceHomeAgentControl({
         </span>
         <span className={controlStyles.controlStatusValue}>{bridgeStatus}</span>
       </div>
+      <div className={controlStyles.controlStatusRow}>
+        <span className={controlStyles.controlStatusLabel}>Context policy</span>
+        <span className={controlStyles.controlStatusValue}>{runtimePolicyStatus}</span>
+      </div>
+      {runtimePolicyFreshnessSummary ? (
+        <div className={controlStyles.sectionMeta}>{runtimePolicyFreshnessSummary}</div>
+      ) : null}
+      {toolExposureReasonSummary ? (
+        <div className={controlStyles.sectionMeta}>
+          Catalog reasoning: {toolExposureReasonSummary}
+        </div>
+      ) : null}
       {bridgeError && <div className={controlStyles.error}>{bridgeError}</div>}
+      {runtimeWebMcpContextPolicy.error && webMcpEnabled && controlPreferencesReady ? (
+        <div className={controlStyles.warning}>
+          Runtime WebMCP context policy is unavailable. Falling back to provider heuristics until
+          runtime prepare recovers. {runtimeWebMcpContextPolicy.error}
+        </div>
+      ) : null}
       {controlPreferences.error && controlPreferences.status !== "error" ? (
         <div className={controlStyles.error}>
           Persisted workspace agent controls did not save. The last confirmed runtime state remains
@@ -363,7 +488,7 @@ export function WorkspaceHomeAgentControl({
         surface="agent_runtime_orchestration"
         open={runtimeSectionOpen}
         onToggle={() => setRuntimeSectionOpen((current) => !current)}
-        testId="workspace-home-agent-runtime-section"
+        testId="workspace-home-runtime-section"
       >
         <Suspense fallback={null}>
           <LazyWorkspaceHomeAgentRuntimeOrchestration workspaceId={workspace.id} />

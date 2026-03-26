@@ -35,6 +35,14 @@ describe("pr-branch-maintenance workflow", () => {
     expect(workflow).toContain("gh pr update-branch");
   });
 
+  it("stops updating behind pull requests when merge queue mode is enabled", () => {
+    const workflow = readWorkflow();
+
+    expect(workflow).toContain("MERGE_QUEUE_ENABLED");
+    expect(workflow).toContain('if [[ "$MERGE_QUEUE_ENABLED" == "true" ]]');
+    expect(workflow).toContain("merge queue will refresh latest-base validation");
+  });
+
   it("surfaces conflicted pull requests without trying to auto-resolve them", () => {
     const workflow = readWorkflow();
 

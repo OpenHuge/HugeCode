@@ -16,6 +16,7 @@ export {
 } from "../../../services/tauriDesktopReview";
 export { getGitLog, listGitBranches } from "../../../services/tauriRuntimeGitBridge";
 export { sendUserMessage, steerTurn } from "../../../services/tauriRuntimeTurnBridge";
+export { prepareRuntimeRunV2 } from "./tauriRuntimeJobs";
 export {
   archiveThread,
   interruptTurn,
