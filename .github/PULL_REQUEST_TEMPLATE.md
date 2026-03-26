@@ -2,13 +2,9 @@
 
 <!-- What changed and why -->
 
-## Changes
+## Validation
 
-<!-- List the files changed and what was modified -->
-
-## Testing
-
-- [ ] Not run (`docs-only, no runtime impact`)
+- [ ] Docs-only, no runtime impact
 - [ ] `pnpm validate:fast`
 - [ ] `pnpm validate`
 - [ ] `pnpm validate:full`
@@ -28,16 +24,20 @@ Use targeted gates when possible instead of broad generic "pnpm test/build". -->
 - Why these checks were sufficient:
 - Checks intentionally skipped:
 
+## Scope
+
+<!-- Call out the touched surfaces, contracts, docs, or workflows. -->
+
 ## Risks / Known Issues
 
 <!-- List risks, edge cases, or "None" -->
 
-## Spec Reference
+## Spec / Docs Impact
 
-<!-- Link to roadmap track document if applicable -->
+<!-- Link the authoritative spec/docs changed or confirm no doc updates were needed. -->
 
-- Track: [Track Name](docs/roadmap/phase-XX/track-XX.md)
-- Phase: [Phase Name](docs/roadmap/phase-XX/README.md)
+- Spec or docs:
+- Follow-up required:
 
 ## UI Evidence
 
