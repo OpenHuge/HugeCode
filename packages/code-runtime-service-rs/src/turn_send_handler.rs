@@ -112,9 +112,7 @@ fn build_turn_contents(content: &str, context_prefix: Option<&str>) -> (String, 
     (provider_content, local_exec_content)
 }
 
-fn extension_provider_unavailable_error(
-    extension: &RuntimeResolvedProviderExtension,
-) -> RpcError {
+fn extension_provider_unavailable_error(extension: &RuntimeResolvedProviderExtension) -> RpcError {
     if extension.api_key.is_none() {
         RpcError::invalid_params("Selected extension provider is not configured with API key.")
     } else {
@@ -508,13 +506,12 @@ async fn complete_turn_send(
 
     match completion {
         Ok(message) => {
-            let response_model_id = message.response_model_id.clone();
-            let completion_message = if use_runtime_plan_flow {
-                message.output
+            let completion = if use_runtime_plan_flow {
+                message
             } else {
                 maybe_recover_provider_local_access_refusal(
                     &ctx,
-                    message.output,
+                    message,
                     task.collaboration_mode.suppress_runtime_plan_delta(),
                     task.access_mode.as_str(),
                     local_exec_preferred,
@@ -542,6 +539,8 @@ async fn complete_turn_send(
                 )
                 .await
             };
+            let response_model_id = completion.response_model_id.clone();
+            let completion_message = completion.output;
             maybe_report_oauth_account_outcome(
                 &ctx,
                 task.oauth_account_id.as_deref(),

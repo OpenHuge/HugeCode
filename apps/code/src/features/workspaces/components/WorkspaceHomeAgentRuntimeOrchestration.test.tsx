@@ -72,12 +72,17 @@ vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
   resumeRuntimeJob: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
-  distributedTaskGraph: vi.fn(),
-  respondToServerRequest: vi.fn(),
-  respondToServerRequestResult: vi.fn(),
-  respondToUserInputRequest: vi.fn(),
-}));
+vi.mock("../../../application/runtime/ports/tauriThreads", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../../application/runtime/ports/tauriThreads")>();
+  return {
+    ...actual,
+    distributedTaskGraph: vi.fn(),
+    respondToServerRequest: vi.fn(),
+    respondToServerRequestResult: vi.fn(),
+    respondToUserInputRequest: vi.fn(),
+  };
+});
 
 vi.mock("../../../application/runtime/ports/tauriAppSettings", () => ({
   getAppSettings: vi.fn().mockResolvedValue({}),

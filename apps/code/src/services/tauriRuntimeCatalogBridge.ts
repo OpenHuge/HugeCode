@@ -322,7 +322,19 @@ function resolveModelSlugs(entry: Record<string, unknown>, index: number): strin
 }
 
 function resolveModelBaseId(entry: Record<string, unknown>, modelSlug: string): string {
-  return normalizeText(entry.id) ?? modelSlug;
+  const explicitId = normalizeText(entry.id);
+  if (explicitId && explicitId !== modelSlug) {
+    return explicitId;
+  }
+  const provider = normalizeText(entry.provider);
+  if (provider) {
+    return `${provider}::${modelSlug}`;
+  }
+  const pool = normalizeText(entry.pool);
+  if (pool) {
+    return `${pool}::${modelSlug}`;
+  }
+  return explicitId ?? modelSlug;
 }
 
 function resolveUniqueModelId(

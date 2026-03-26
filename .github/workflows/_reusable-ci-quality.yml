@@ -6,108 +6,56 @@ on:
       ci_required:
         required: true
         type: boolean
-      runtime_contract_changed:
-        required: true
+      repo_governance_only:
+        required: false
         type: boolean
-      desktop_runtime_changed:
-        required: true
-        type: boolean
-      base_ref:
+        default: false
+      baseline_result:
         required: false
         type: string
-        default: ""
-
-env:
-  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_API: ${{ vars.TURBO_API }}
+        default: "skipped"
+      runtime_contract_parity_result:
+        required: false
+        type: string
+        default: "skipped"
+      typecheck_result:
+        required: false
+        type: string
+        default: "skipped"
 
 jobs:
   quality:
     name: Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      TURBO_CACHE_DIR: .turbo
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Skip heavy checks for non-code change
-        if: ${{ !inputs.ci_required }}
-        run: echo "Skipping lint/typecheck pipeline for non-code changes. Repository SOT governance runs in the dedicated repo_sot job when relevant."
-
-      - uses: ./.github/actions/setup-node-pnpm
-        if: inputs.ci_required
-        with:
-          install-command: pnpm install --offline --frozen-lockfile
-
-      - if: inputs.ci_required
-        uses: ./.github/actions/cache-turbo
-
-      - if: inputs.ci_required && (inputs.desktop_runtime_changed || inputs.runtime_contract_changed)
-        uses: ./.github/actions/install-linux-desktop-deps
-
-      - if: inputs.ci_required && (inputs.desktop_runtime_changed || inputs.runtime_contract_changed)
-        uses: ./.github/actions/setup-rust-ci
-        with:
-          cargo-cache-path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            ~/.cache/ku0/cargo-target/code-tauri
-          cargo-cache-key: ${{ runner.os }}-code-tauri-check
-
-      - name: Ensure PR base ref is available
-        if: github.event_name == 'pull_request' && inputs.ci_required
+      - name: Summarize quality gate results
+        env:
+          BASELINE_RESULT: ${{ inputs.baseline_result }}
+          CI_REQUIRED: ${{ inputs.ci_required }}
+          REPO_GOVERNANCE_ONLY: ${{ inputs.repo_governance_only }}
+          RUNTIME_CONTRACT_PARITY_RESULT: ${{ inputs.runtime_contract_parity_result }}
+          TYPECHECK_RESULT: ${{ inputs.typecheck_result }}
         run: |
-          git fetch --no-tags --prune --depth=1 origin \
-            +refs/heads/${{ inputs.base_ref }}:refs/remotes/origin/${{ inputs.base_ref }}
+          if [[ "$CI_REQUIRED" != "true" ]]; then
+            echo "Skipping quality execution for non-code changes."
+            exit 0
+          fi
 
-      - name: Codex preflight
-        if: inputs.ci_required
-        run: pnpm preflight:codex:ci
+          if [[ "$REPO_GOVERNANCE_ONLY" == "true" ]]; then
+            echo "Skipping quality execution for repo-governance-only affected changes."
+            exit 0
+          fi
 
-      - name: Code integration watch
-        if: inputs.ci_required
-        run: node scripts/code-integration-watch.mjs --fetch
+          failed=0
+          for result in "$BASELINE_RESULT" "$RUNTIME_CONTRACT_PARITY_RESULT" "$TYPECHECK_RESULT"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              failed=1
+            fi
+          done
 
-      - name: Format check
-        if: inputs.ci_required
-        run: pnpm format:check
+          if [[ $failed -ne 0 ]]; then
+            echo "Quality sub-jobs did not all pass."
+            exit 1
+          fi
 
-      - name: Lint (affected)
-        if: github.event_name == 'pull_request' && inputs.ci_required
-        env:
-          TURBO_BASE_REF: origin/${{ inputs.base_ref }}
-        run: pnpm lint:affected
-
-      - name: Lint (full)
-        if: github.event_name != 'pull_request' && inputs.ci_required
-        run: pnpm lint
-
-      - name: UI Contract
-        if: inputs.ci_required
-        run: pnpm ui:contract
-
-      - name: Runtime Contract Parity
-        if: inputs.runtime_contract_changed
-        run: pnpm check:runtime-contract:parity
-
-      - name: Desktop Runtime Fast Verify
-        if: inputs.ci_required && inputs.desktop_runtime_changed
-        run: pnpm desktop:verify:fast
-
-      - name: Circular Dependencies
-        if: inputs.ci_required
-        run: pnpm check:circular
-
-      - name: Typecheck (affected)
-        if: github.event_name == 'pull_request' && inputs.ci_required
-        env:
-          TURBO_BASE_REF: origin/${{ inputs.base_ref }}
-        run: pnpm typecheck:affected
-
-      - name: Typecheck (full)
-        if: github.event_name != 'pull_request' && inputs.ci_required
-        run: pnpm typecheck
+          echo "Quality sub-jobs passed or were intentionally skipped."

@@ -30,7 +30,6 @@ const betaStaticUpdateBaseUrl =
   releaseChannel === "beta" && staticUpdateBaseUrlRoot
     ? buildStaticUpdateBaseUrl(staticUpdateBaseUrlRoot, process.platform, process.arch)
     : null;
-
 export default {
   packagerConfig: {
     appBundleId: "com.openhuge.hugecode",

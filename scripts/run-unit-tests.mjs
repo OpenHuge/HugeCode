@@ -2,7 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import process from "node:process";
-import { resolveLocalBinaryCommand } from "./lib/local-bin.mjs";
+import { resolveCommandInvocation } from "./lib/local-bin.mjs";
 
 const repoRoot = process.cwd();
 const forwardedArgs = process.argv.slice(2);
@@ -25,31 +25,6 @@ function shellQuote(token) {
     return token;
   }
   return `'${token.replace(/'/gu, "'\\''")}'`;
-}
-
-function resolveCommandInvocation(command, args) {
-  const localBinaryCommand = resolveLocalBinaryCommand(command);
-  if (localBinaryCommand) {
-    return {
-      command: localBinaryCommand,
-      args,
-      display: [command, ...args],
-    };
-  }
-
-  if (process.platform === "win32" && command === "pnpm") {
-    return {
-      command: "cmd.exe",
-      args: ["/d", "/s", "/c", "pnpm", ...args],
-      display: [command, ...args],
-    };
-  }
-
-  return {
-    command,
-    args,
-    display: [command, ...args],
-  };
 }
 
 function runCommand(command, args, label) {

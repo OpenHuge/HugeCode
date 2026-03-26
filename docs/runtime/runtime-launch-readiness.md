@@ -42,6 +42,11 @@ The intended source inputs are:
   `runtimeToolMetricsRead` and `runtimeToolGuardrailRead`
 - route intent from the current launch choice (`auto` or explicit provider route)
 
+Provider-route intent and readiness should come from the shared routing
+control-plane facade described in
+[`provider-routing-control-plane.md`](./provider-routing-control-plane.md),
+not from page-local provider/model heuristics.
+
 These inputs are advisory. The runtime still owns canonical task, run, approval, placement, and review truth.
 Post-launch recovery and handoff remain the job of continuity readiness over
 checkpoint, mission-linkage, publish-handoff, and review-actionability truth.

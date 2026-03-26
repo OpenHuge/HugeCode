@@ -33,6 +33,7 @@ const CI_FILTER_EXTRA_REQUIREMENTS = new Map([
     ]),
   ],
 ]);
+const CI_FILTER_EXCLUDED_REQUIREMENTS = new Map();
 const errors = [];
 const actionRequirementCache = new Map();
 const workflowRequirementCache = new Map();
@@ -527,6 +528,44 @@ function hasTopLevelKey(lines, key) {
   return lines.some((line) => countIndent(line) === 0 && line.startsWith(`${key}:`));
 }
 
+function getTopLevelBlock(lines, key) {
+  const block = [];
+  let inBlock = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const indent = countIndent(line);
+
+    if (!inBlock) {
+      if (indent === 0 && trimmed === `${key}:`) {
+        inBlock = true;
+        block.push(line);
+      }
+      continue;
+    }
+
+    if (indent === 0 && trimmed.length > 0) {
+      break;
+    }
+
+    block.push(line);
+  }
+
+  return block;
+}
+
+function hasUnconditionalCancelInProgress(lines) {
+  const concurrencyBlock = getTopLevelBlock(lines, "concurrency");
+  if (concurrencyBlock.length === 0) {
+    return false;
+  }
+
+  return concurrencyBlock.some((line) => {
+    const trimmed = line.trim();
+    return countIndent(line) === 2 && trimmed === "cancel-in-progress: true";
+  });
+}
+
 function findLegacyBrandMatches(lines) {
   const matches = [];
   lines.forEach((line, index) => {
@@ -819,6 +858,8 @@ function collectCiFilterRequirements(ciWorkflowRepoPath) {
 }
 
 function checkWorkflowMetadata(fileName, lines) {
+  const onKeys = parseOnKeys(lines);
+
   if (
     !isInternalReusableWorkflow(fileName) &&
     !WORKFLOW_PERMISSION_ALLOWLIST.has(fileName) &&
@@ -833,6 +874,16 @@ function checkWorkflowMetadata(fileName, lines) {
     !hasTopLevelKey(lines, "concurrency")
   ) {
     errors.push(`.github/workflows/${fileName}: missing top-level concurrency block.`);
+  }
+
+  if (
+    !isInternalReusableWorkflow(fileName) &&
+    onKeys.has("merge_group") &&
+    hasUnconditionalCancelInProgress(lines)
+  ) {
+    errors.push(
+      `.github/workflows/${fileName}: workflows triggered by merge_group must not use unconditional cancel-in-progress: true; scope cancellation to pull_request events instead.`
+    );
   }
 
   for (const match of findLegacyBrandMatches(lines)) {
@@ -906,12 +957,16 @@ function checkCiWorkflowGovernance() {
 
   for (const [filterName, requiredPaths] of requirements) {
     const patterns = filters.get(filterName);
+    const excludedRequirements = CI_FILTER_EXCLUDED_REQUIREMENTS.get(filterName) ?? new Set();
     if (!patterns) {
       errors.push(`${ciWorkflowRepoPath}: missing dorny/paths-filter entry "${filterName}".`);
       continue;
     }
 
     for (const requiredPath of requiredPaths) {
+      if (excludedRequirements.has(requiredPath)) {
+        continue;
+      }
       if (!hasPathCoverage(patterns, requiredPath)) {
         errors.push(
           `${ciWorkflowRepoPath}: filter "${filterName}" is missing coverage for ${requiredPath}.`

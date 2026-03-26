@@ -475,6 +475,55 @@ pub(crate) fn project_runtime_task_to_run(
             review_actionability.as_ref(),
         )
     }));
+    let session_boundary = Some(build_runtime_session_boundary(
+        summary.workspace_id.as_str(),
+        summary.task_id.as_str(),
+        mission_task_id.as_str(),
+        mission_linkage.as_ref(),
+        review_pack_id.as_deref(),
+        checkpoint.as_ref(),
+    ));
+    let continuation = Some(build_runtime_continuation_summary(
+        session_boundary
+            .as_ref()
+            .expect("session boundary should exist for runtime run projections"),
+        checkpoint.as_ref(),
+        mission_linkage.as_ref(),
+        publish_handoff.as_ref(),
+        review_actionability.as_ref(),
+        takeover_bundle.as_ref(),
+        review_pack_id.as_deref(),
+    ));
+    let next_operator_action = Some(build_runtime_next_operator_action(
+        run_state.as_str(),
+        &approval,
+        if is_terminal_run_state(run_state.as_str()) {
+            Some(if matches!(run_state.as_str(), "failed" | "cancelled")
+                || derive_review_validation_outcome(validations.as_slice()).as_str() == "failed"
+            {
+                "action_required"
+            } else if derive_review_evidence_state(
+                validations.as_slice(),
+                warnings.as_slice(),
+                artifacts.as_slice(),
+            ) == "incomplete"
+            {
+                "incomplete_evidence"
+            } else {
+                "ready"
+            })
+        } else {
+            None
+        },
+        review_decision.as_ref(),
+        &next_action,
+        continuation
+            .as_ref()
+            .expect("continuation should exist for runtime run projections"),
+        session_boundary
+            .as_ref()
+            .expect("session boundary should exist for runtime run projections"),
+    ));
     let mut execution_graph = runtime.execution_graph.clone().unwrap_or_else(|| {
         build_runtime_execution_graph_summary_with_runtime_truth(
             summary,
@@ -548,6 +597,9 @@ pub(crate) fn project_runtime_task_to_run(
         checkpoint,
         mission_linkage,
         review_actionability,
+        session_boundary,
+        continuation,
+        next_operator_action,
         execution_graph: serde_json::to_value(execution_graph).ok(),
         takeover_bundle,
         governance: Some(governance),
@@ -756,20 +808,53 @@ pub(crate) fn build_review_pack(run: &MissionRunProjection) -> MissionReviewPack
         .map(ToOwned::to_owned)
         .collect::<Vec<_>>();
     let recommended_next_action = run
-        .review_decision
+        .next_operator_action
         .as_ref()
-        .and_then(|decision| decision.get("status"))
-        .and_then(Value::as_str)
-        .and_then(|status| match status {
-            "accepted" => Some(
-                "Accepted in review. No further action is required unless follow-up work is needed."
-                    .to_string(),
-            ),
-            "rejected" => Some(
-                "Rejected in review. Open the mission thread to retry or reroute with operator feedback."
-                    .to_string(),
-            ),
-            _ => None,
+        .and_then(|action| action.get("detail").and_then(Value::as_str))
+        .map(ToOwned::to_owned)
+        .or_else(|| {
+            run.next_operator_action
+                .as_ref()
+                .and_then(|action| action.get("label").and_then(Value::as_str))
+                .map(ToOwned::to_owned)
+        })
+        .or_else(|| {
+            run.continuation
+                .as_ref()
+                .and_then(|continuation| continuation.get("recommendedAction"))
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+        })
+        .or_else(|| {
+            run.continuation
+                .as_ref()
+                .and_then(|continuation| continuation.get("detail"))
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+        })
+        .or_else(|| {
+            run.continuation
+                .as_ref()
+                .and_then(|continuation| continuation.get("summary"))
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+        })
+        .or_else(|| {
+            run.review_decision
+                .as_ref()
+                .and_then(|decision| decision.get("status"))
+                .and_then(Value::as_str)
+                .and_then(|status| match status {
+                    "accepted" => Some(
+                        "Accepted in review. No further action is required unless follow-up work is needed."
+                            .to_string(),
+                    ),
+                    "rejected" => Some(
+                        "Rejected in review. Open the mission thread to retry or reroute with operator feedback."
+                            .to_string(),
+                    ),
+                    _ => None,
+                })
         })
         .or_else(|| {
             run.next_action
@@ -875,6 +960,9 @@ pub(crate) fn build_review_pack(run: &MissionRunProjection) -> MissionReviewPack
         checkpoint: run.checkpoint.clone(),
         mission_linkage: run.mission_linkage.clone(),
         actionability: run.review_actionability.clone(),
+        session_boundary: run.session_boundary.clone(),
+        continuation: run.continuation.clone(),
+        next_operator_action: run.next_operator_action.clone(),
         takeover_bundle,
         governance: run.governance.clone(),
         placement: run.placement.clone(),

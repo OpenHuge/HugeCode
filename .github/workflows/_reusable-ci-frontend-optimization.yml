@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
+      CARGO_TARGET_DIR: .cache/cargo-target
       PW_WEBSERVER_TIMEOUT_MS: "900000"
       CODE_RUNTIME_SERVICE_READY_TIMEOUT_MS: "900000"
       TURBO_CACHE_DIR: .turbo
@@ -25,6 +26,17 @@ jobs:
           install-command: pnpm install --offline --frozen-lockfile
 
       - uses: ./.github/actions/cache-turbo
+
+      - uses: ./.github/actions/setup-rust-ci
+        with:
+          enable-sccache: "true"
+          cargo-cache-path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            .cache/cargo-target
+          cargo-cache-key: ${{ runner.os }}-code-runtime-service-dev
 
       - uses: ./.github/actions/install-linux-desktop-deps
 

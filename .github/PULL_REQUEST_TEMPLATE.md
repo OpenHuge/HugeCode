@@ -8,9 +8,21 @@
 - [ ] `pnpm validate:fast`
 - [ ] `pnpm validate`
 - [ ] `pnpm validate:full`
-- [ ] Targeted check(s) only:
+- [ ] `pnpm typecheck:affected`
+- [ ] `pnpm test:affected`
+- [ ] `pnpm test:component`
+- [ ] `pnpm validate:frontend-optimization`
+- [ ] `pnpm check:workflow-governance`
+- [ ] Other (specify exact commands)
 
-<!-- Add the exact commands you ran and the outcome. -->
+## Validation Notes
+
+<!-- Record the exact commands you ran and why they matched the change risk.
+Use targeted gates when possible instead of broad generic "pnpm test/build". -->
+
+- Commands run:
+- Why these checks were sufficient:
+- Checks intentionally skipped:
 
 ## Scope
 

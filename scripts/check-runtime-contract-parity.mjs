@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { resolveLocalBinaryCommand } from "./lib/local-bin.mjs";
+import { resolveCommandInvocation } from "./lib/local-bin.mjs";
 import { spawnPnpmSync } from "./lib/spawn-pnpm.mjs";
 
 /**
@@ -67,18 +67,18 @@ const steps = [
 
 function runStep(step) {
   process.stdout.write(`\n==> ${step.label}\n`);
-  const localBinaryCommand = resolveLocalBinaryCommand(step.command);
+  const invocation = resolveCommandInvocation(step.command, step.args);
   const result =
     step.command === "pnpm"
       ? spawnPnpmSync(step.args, {
           stdio: "inherit",
           env: process.env,
         })
-      : spawnSync(localBinaryCommand ?? step.command, step.args, {
+      : spawnSync(invocation.command, invocation.args, {
           cwd: step.cwd ?? process.cwd(),
           stdio: "inherit",
           env: process.env,
-          shell: localBinaryCommand ? false : process.platform === "win32",
+          shell: false,
         });
 
   if (result.error) {

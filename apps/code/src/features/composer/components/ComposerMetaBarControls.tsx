@@ -9,6 +9,7 @@ import * as styles from "./ComposerMetaBar.styles.css";
 import * as summaryStyles from "./ComposerMetaBarSummary.styles.css";
 
 const MODEL_MENU_MIN_WIDTH = 208;
+const PROVIDER_MENU_MIN_WIDTH = 156;
 const EFFORT_MENU_MIN_WIDTH = 164;
 const META_MENU_MAX_WIDTH = 260;
 const COMPOSER_MENU_GAP = 2;
@@ -98,6 +99,10 @@ function ExecutionModeIcon({ mode }: { mode: ComposerExecutionMode }) {
 type ComposerMetaBarControlsProps = {
   controlsRef: RefObject<HTMLDivElement | null>;
   disabled: boolean;
+  shouldShowProviderControl: boolean;
+  providerSelectOptions: SelectOption[];
+  selectedProviderId: string | null;
+  onSelectProvider: (providerId: string) => void;
   modelSelectOptions: SelectOption[];
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;
@@ -134,6 +139,10 @@ function formatExecutionSelectionLabel(selectedOptions: SelectOption[]): string 
 export function ComposerMetaBarControls({
   controlsRef,
   disabled,
+  shouldShowProviderControl,
+  providerSelectOptions,
+  selectedProviderId,
+  onSelectProvider,
   modelSelectOptions,
   selectedModelId,
   onSelectModel,
@@ -240,6 +249,53 @@ export function ComposerMetaBarControls({
         )}
         <span className={controlStyles.modeToggleLabel}>{activeModeLabel}</span>
       </button>
+      {shouldShowProviderControl ? (
+        <div
+          className={joinClassNames(
+            styles.selectWrap,
+            "composer-select-wrap composer-select-wrap--provider"
+          )}
+          data-ds-select-anchor
+          data-ui-select-anchor
+        >
+          <span className={joinClassNames(styles.selectCaption, "composer-select-caption")}>
+            Provider
+          </span>
+          <span className={joinClassNames(styles.icon, "composer-icon")} aria-hidden>
+            <Bot
+              className={styles.iconGraphic}
+              size={META_ICON_SIZE}
+              strokeWidth={META_ICON_STROKE_WIDTH}
+            />
+          </span>
+          <Select
+            className={joinClassNames(
+              styles.selectControl,
+              styles.selectControlWidth.provider,
+              "composer-select-control composer-select-control--provider"
+            )}
+            triggerDensity="compact"
+            triggerClassName={joinClassNames(styles.selectTrigger, "composer-select-trigger")}
+            menuClassName={joinClassNames(styles.selectMenu, "composer-select-menu")}
+            optionClassName={joinClassNames(styles.selectOption, "composer-select-option")}
+            menuWidthMode="trigger"
+            minMenuWidth={PROVIDER_MENU_MIN_WIDTH}
+            maxMenuWidth={META_MENU_MAX_WIDTH}
+            menuGap={COMPOSER_MENU_GAP}
+            ariaLabel="Provider"
+            options={providerSelectOptions}
+            value={selectedProviderId}
+            onValueChange={(value) => {
+              if (!value) {
+                return;
+              }
+              onSelectProvider(value);
+            }}
+            disabled={disabled}
+            placeholder="No providers"
+          />
+        </div>
+      ) : null}
       <div
         className={joinClassNames(
           styles.selectWrap,

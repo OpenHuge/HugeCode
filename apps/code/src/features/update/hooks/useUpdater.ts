@@ -73,7 +73,14 @@ type UseUpdaterOptions = {
   onDebug?: (entry: DebugEntry) => void;
 };
 
-function mapDesktopUpdateStateToUiState(
+export function shouldSurfaceInitialElectronUpdaterState(updateState: DesktopUpdateState) {
+  return (
+    updateState.capability !== "automatic" &&
+    (updateState.mode === "disabled_first_run_lock" || updateState.mode === "misconfigured")
+  );
+}
+
+export function mapDesktopUpdateStateToUiState(
   updateState: DesktopUpdateState,
   options?: { announceNoUpdate?: boolean }
 ): UpdateState {
@@ -137,6 +144,33 @@ function isUpdaterUnavailableError(error: unknown): boolean {
     (normalized.includes("process") &&
       (normalized.includes("not allowed") || normalized.includes("plugin")))
   );
+}
+
+export function resolveInitialUpdaterStartupAction(input: {
+  desktopState: DesktopUpdateState;
+  runtimeHost: "browser" | "electron" | "tauri";
+}): {
+  nextState: UpdateState | null;
+  shouldAutoCheck: boolean;
+} {
+  if (input.runtimeHost !== "electron") {
+    return {
+      nextState: null,
+      shouldAutoCheck: input.runtimeHost === "tauri",
+    };
+  }
+
+  if (shouldSurfaceInitialElectronUpdaterState(input.desktopState)) {
+    return {
+      nextState: mapDesktopUpdateStateToUiState(input.desktopState, { announceNoUpdate: true }),
+      shouldAutoCheck: false,
+    };
+  }
+
+  return {
+    nextState: null,
+    shouldAutoCheck: input.desktopState.capability === "automatic",
+  };
 }
 
 export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
@@ -373,6 +407,30 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
       }
 
       if (runtimeHost !== "electron" && runtimeHost !== "tauri") {
+        return;
+      }
+
+      if (runtimeHost === "electron") {
+        void resolveDesktopUpdaterState().then((desktopState) => {
+          if (cancelled) {
+            return;
+          }
+
+          const startupAction = resolveInitialUpdaterStartupAction({
+            desktopState,
+            runtimeHost,
+          });
+
+          if (startupAction.nextState) {
+            setState(startupAction.nextState);
+          }
+
+          if (!startupAction.shouldAutoCheck) {
+            return;
+          }
+
+          void checkForUpdates();
+        });
         return;
       }
 

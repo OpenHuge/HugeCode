@@ -5,18 +5,18 @@ import type {
   HugeCodeRunSummary,
   HugeCodeTakeoverBundle,
 } from "@ku0/code-runtime-host-contract";
+import { resolveRuntimeContinuation as resolvePublishedRuntimeContinuation } from "@ku0/code-runtime-host-contract";
+import { summarizeHugeCodeOperatorContinuation } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import { buildMissionRunCheckpoint } from "./runtimeMissionControlCheckpoint";
 import {
   formatRuntimeContinuationTruthSourceLabel,
-  projectTakeoverBundleToContinuation,
-  resolveContinuationTruthSource,
   resolvePreferredReviewActionability,
   type RuntimeContinuationTruthSource,
 } from "./runtimeContinuationTruth";
 
 export type RuntimeContinuityReadinessState = "ready" | "attention" | "blocked";
-export type RuntimeContinuityPathKind = "resume" | "handoff" | "review" | "missing";
+export type RuntimeContinuityPathKind = "approval" | "resume" | "handoff" | "review" | "missing";
 
 export type RuntimeContinuityReadinessItem = {
   runId: string;
@@ -45,11 +45,13 @@ export type RuntimeContinuityReadinessSummary = {
 type RuntimeContinuityCandidateRun = Pick<
   HugeCodeRunSummary,
   | "id"
+  | "workspaceId"
   | "taskId"
   | "state"
   | "updatedAt"
   | "checkpoint"
   | "executionGraph"
+  | "continuation"
   | "missionLinkage"
   | "actionability"
   | "publishHandoff"
@@ -99,12 +101,16 @@ function sortState(state: RuntimeContinuityReadinessState): number {
   return state === "blocked" ? 3 : state === "attention" ? 2 : 1;
 }
 
-function hasNavigationTarget(linkage: HugeCodeMissionLinkageSummary | null | undefined): boolean {
-  return Boolean(linkage?.navigationTarget);
-}
-
-function hasRecoveryPath(linkage: HugeCodeMissionLinkageSummary | null | undefined): boolean {
-  return Boolean(linkage?.recoveryPath) && hasNavigationTarget(linkage);
+function mapSharedContinuationState(
+  state: "ready" | "degraded" | "blocked" | "missing"
+): RuntimeContinuityReadinessState {
+  if (state === "blocked") {
+    return "blocked";
+  }
+  if (state === "ready") {
+    return "ready";
+  }
+  return "attention";
 }
 
 function resolveCheckpoint(
@@ -149,66 +155,22 @@ function buildReviewItem(
   actionability: HugeCodeReviewActionabilitySummary | null,
   takeoverBundle: HugeCodeTakeoverBundle | null | undefined
 ): RuntimeContinuityReadinessItem {
-  const takeoverProjection = projectTakeoverBundleToContinuation(takeoverBundle);
-  if (takeoverProjection?.pathKind === "review") {
-    return {
-      runId: run.id,
-      taskId,
-      state: takeoverProjection.state === "missing" ? "attention" : takeoverProjection.state,
-      pathKind: "review",
-      detail: takeoverProjection.detail,
-      recommendedAction: takeoverProjection.recommendedAction,
-      truthSource: takeoverProjection.truthSource,
-      truthSourceLabel: takeoverProjection.truthSourceLabel,
-    };
-  }
-  if (actionability?.state === "blocked") {
-    return {
-      runId: run.id,
-      taskId,
-      state: "blocked",
-      pathKind: "review",
-      detail: actionability.summary,
-      recommendedAction:
-        "Open Review Pack and resolve the runtime-blocked follow-up before continuing.",
-      truthSource: "review_actionability",
-      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("review_actionability"),
-    };
-  }
-  if (actionability?.state === "degraded") {
-    return {
-      runId: run.id,
-      taskId,
-      state: "attention",
-      pathKind: "review",
-      detail: actionability.summary,
-      recommendedAction:
-        "Open Review Pack and inspect the degraded runtime follow-up guidance before continuing.",
-      truthSource: "review_actionability",
-      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("review_actionability"),
-    };
-  }
-  if (actionability?.state === "ready") {
-    return {
-      runId: run.id,
-      taskId,
-      state: "ready",
-      pathKind: "review",
-      detail: actionability.summary,
-      recommendedAction: "Continue from Review Pack using the runtime-published follow-up actions.",
-      truthSource: "review_actionability",
-      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("review_actionability"),
-    };
-  }
+  const shared = summarizeHugeCodeOperatorContinuation({
+    runState: run.state,
+    takeoverBundle: takeoverBundle ?? null,
+    reviewActionability: actionability ?? null,
+    missionLinkage: run.missionLinkage ?? null,
+    publishHandoff: run.publishHandoff ?? null,
+  });
   return {
     runId: run.id,
     taskId,
-    state: "attention",
-    pathKind: "missing",
-    detail: "Runtime marked this run review-ready, but review actionability was not published.",
-    recommendedAction: "Inspect runtime review truth before continuing from this review-ready run.",
-    truthSource: "missing",
-    truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("missing"),
+    state: mapSharedContinuationState(shared.state),
+    pathKind: shared.pathKind,
+    detail: shared.summary,
+    recommendedAction: shared.recommendedAction,
+    truthSource: shared.truthSource,
+    truthSourceLabel: shared.truthSourceLabel,
   };
 }
 
@@ -220,106 +182,66 @@ function buildResumeOrHandoffItem(input: {
   missionLinkage: HugeCodeMissionLinkageSummary | null | undefined;
 }) {
   const { run, taskId, task, checkpoint, missionLinkage } = input;
-  const takeoverProjection = projectTakeoverBundleToContinuation(run.takeoverBundle);
-  if (takeoverProjection && takeoverProjection.pathKind !== "review") {
-    return {
-      runId: run.id,
-      taskId,
-      state: takeoverProjection.state === "missing" ? "attention" : takeoverProjection.state,
-      pathKind: takeoverProjection.pathKind,
-      detail: takeoverProjection.detail,
-      recommendedAction: takeoverProjection.recommendedAction,
-      truthSource: takeoverProjection.truthSource,
-      truthSourceLabel: takeoverProjection.truthSourceLabel,
-    };
-  }
-  const hasResume = checkpoint?.resumeReady === true;
-  const hasHandoff = Boolean(run.publishHandoff) || hasRecoveryPath(missionLinkage);
-  const recoverable =
-    hasResume ||
-    checkpoint?.recovered === true ||
-    task?.recovered === true ||
-    isRecoverableTaskStatus(task?.status);
-
-  if (hasResume) {
-    return {
-      runId: run.id,
-      taskId,
-      state: "ready" as const,
-      pathKind: "resume" as const,
-      detail:
-        checkpoint?.summary ??
-        "Runtime published a canonical checkpoint path and this run is ready to resume.",
-      recommendedAction: "Resume this run from its runtime-published checkpoint.",
-      truthSource: "checkpoint" as const,
-      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel("checkpoint"),
-    };
-  }
-
-  if (hasHandoff) {
-    const truthSource = resolveContinuationTruthSource({
-      missionLinkage: missionLinkage ?? null,
-      publishHandoff: run.publishHandoff ?? null,
-    });
-    const detail =
-      run.publishHandoff?.summary ??
-      missionLinkage?.summary ??
-      "Runtime published a canonical handoff path for this run.";
-    return {
-      runId: run.id,
-      taskId,
-      state: recoverable ? ("ready" as const) : ("attention" as const),
-      pathKind: "handoff" as const,
-      detail,
-      recommendedAction:
-        "Use the runtime-published handoff or navigation target instead of rebuilding recovery locally.",
-      truthSource,
-      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel(truthSource),
-    };
-  }
-
-  if (recoverable) {
-    const truthSource: RuntimeContinuationTruthSource = checkpoint ? "checkpoint" : "missing";
-    return {
-      runId: run.id,
-      taskId,
-      state: "blocked" as const,
-      pathKind: "missing" as const,
-      detail:
-        checkpoint?.summary ??
-        "This run looks recoverable, but runtime did not publish a canonical continue path.",
-      recommendedAction:
-        "Inspect runtime continuity truth and restore a canonical resume or handoff path before continuing.",
-      truthSource,
-      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel(truthSource),
-    };
-  }
-
-  const truthSource: RuntimeContinuationTruthSource = checkpoint ? "checkpoint" : "missing";
+  const shared = summarizeHugeCodeOperatorContinuation({
+    runState: run.state,
+    checkpoint,
+    takeoverBundle: run.takeoverBundle ?? null,
+    reviewActionability: run.actionability ?? null,
+    missionLinkage: missionLinkage ?? null,
+    publishHandoff: run.publishHandoff ?? null,
+    fallbackDetail:
+      checkpoint?.summary ??
+      (task?.recovered === true || isRecoverableTaskStatus(task?.status)
+        ? "This run looks recoverable, but runtime did not publish a canonical continue path."
+        : null),
+  });
   return {
     runId: run.id,
     taskId,
-    state: "attention" as const,
-    pathKind: "missing" as const,
-    detail:
-      checkpoint?.summary ??
-      "Continuity signals are incomplete for this run even though runtime published partial recovery truth.",
-    recommendedAction:
-      "Inspect runtime continuity truth before relying on this checkpoint or handoff state.",
-    truthSource,
-    truthSourceLabel: formatRuntimeContinuationTruthSourceLabel(truthSource),
+    state: mapSharedContinuationState(shared.state),
+    pathKind: shared.pathKind,
+    detail: shared.summary,
+    recommendedAction: shared.recommendedAction,
+    truthSource: shared.truthSource,
+    truthSourceLabel: shared.truthSourceLabel,
   };
 }
 
 function buildCandidateItem(
   input: RuntimeContinuityCandidate
 ): RuntimeContinuityReadinessItem | null {
+  const runtimeTaskId = input.task?.taskId ?? input.run.taskId;
+  const publishedContinuation = resolvePublishedRuntimeContinuation({
+    workspaceId: input.run.workspaceId ?? null,
+    taskId: input.run.taskId,
+    runId: input.run.id,
+    reviewPackId: null,
+    state: input.run.state,
+    checkpoint: input.run.checkpoint ?? null,
+    missionLinkage: input.run.missionLinkage ?? null,
+    actionability: input.run.actionability ?? null,
+    publishHandoff: input.run.publishHandoff ?? null,
+    takeoverBundle: input.run.takeoverBundle ?? null,
+    continuation: input.run.continuation ?? null,
+    sessionBoundary: null,
+  });
+  if (publishedContinuation) {
+    return {
+      runId: input.run.id,
+      taskId: runtimeTaskId,
+      state: publishedContinuation.state === "missing" ? "attention" : publishedContinuation.state,
+      pathKind: publishedContinuation.pathKind,
+      detail: publishedContinuation.detail ?? publishedContinuation.summary,
+      recommendedAction: publishedContinuation.recommendedAction,
+      truthSource: publishedContinuation.source,
+      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel(publishedContinuation.source),
+    };
+  }
   const checkpoint = resolveCheckpoint(input.run, input.task ?? null);
   const actionability = resolvePreferredReviewActionability({
     takeoverBundle: input.run.takeoverBundle ?? null,
     actionability: input.run.actionability ?? null,
   });
-  const runtimeTaskId = input.task?.taskId ?? input.run.id;
   if (!isCandidate({ run: input.run, task: input.task ?? null, checkpoint })) {
     return null;
   }

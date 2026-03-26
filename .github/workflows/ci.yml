@@ -5,6 +5,11 @@ on:
     branches:
       - main
   pull_request:
+  merge_group:
+    branches:
+      - main
+    types:
+      - checks_requested
 
 permissions:
   contents: read
@@ -16,20 +21,27 @@ env:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
     name: Detect CI-relevant changes
     runs-on: ubuntu-latest
     outputs:
-      code_changed: ${{ steps.filter.outputs.code }}
+      affected_mode: ${{ steps.context.outputs.affected_mode }}
+      code_changed: ${{ steps.filter.outputs.quality_core }}
+      diff_base: ${{ steps.context.outputs.diff_base }}
       runtime_contract_changed: ${{ steps.filter.outputs.runtime_contract }}
-      desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
+      desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime }}
       repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
+      repo_governance_only: ${{ steps.scope.outputs.repo_governance_only }}
       frontend_optimization_changed: ${{ steps.filter.outputs.frontend_optimization == 'true' || steps.scope.outputs.frontend_manifest_changed == 'true' }}
+      ui_contract_required: ${{ steps.filter.outputs.ui_contract }}
+      circular_required: ${{ steps.filter.outputs.app_circular }}
+      integration_watch_required: ${{ steps.filter.outputs.code_integration_watch }}
       pr_affected_build_required: ${{ steps.scope.outputs.build_skip_eligible_only != 'true' }}
-      ci_required: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.runtime_contract == 'true' }}
+      pr_affected_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.quality_core == 'true' || steps.filter.outputs.runtime_contract == 'true') }}
+      ci_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.quality_core == 'true' || steps.filter.outputs.runtime_contract == 'true' || steps.filter.outputs.ui_contract == 'true' || steps.filter.outputs.app_circular == 'true' || steps.filter.outputs.code_integration_watch == 'true') }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -41,15 +53,36 @@ jobs:
           git fetch --no-tags --prune --depth=1 origin \
             +refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
 
+      - id: context
+        name: Resolve diff base
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "affected_mode=true" >> "$GITHUB_OUTPUT"
+            echo "diff_base=origin/${{ github.base_ref }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event_name }}" == "merge_group" ]]; then
+            echo "affected_mode=true" >> "$GITHUB_OUTPUT"
+            echo "diff_base=HEAD^1" >> "$GITHUB_OUTPUT"
+          else
+            echo "affected_mode=false" >> "$GITHUB_OUTPUT"
+            echo "diff_base=HEAD^" >> "$GITHUB_OUTPUT"
+          fi
+
       - id: filter
         uses: dorny/paths-filter@v4
         with:
           filters: |
-            code:
-              - '**'
+            quality_core:
+              - 'apps/**'
+              - 'packages/**'
+              - 'tests/**'
+              - 'patches/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
               - '!docs/**'
-              - '!.agent/**'
               - '!**/*.md'
+              - '!**/*.mdx'
             runtime_contract:
               - 'packages/code-runtime-host-contract/**'
               - 'packages/native-runtime-host-contract/**'
@@ -59,6 +92,11 @@ jobs:
               - 'docs/runtime/spec/**'
               - 'docs/specs/code-runtime-spec-2026.md'
               - 'docs/specs/code-runtime/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/_reusable-ci-runtime-contract-parity.yml'
+              - '.github/actions/setup-node-pnpm/**'
+              - '.github/actions/install-linux-desktop-deps/**'
+              - '.github/actions/setup-rust-ci/**'
               - 'scripts/check-runtime-sot.mjs'
             desktop_runtime:
               - 'apps/code-tauri/**'
@@ -66,8 +104,6 @@ jobs:
               - 'turbo.json'
               - '.github/actions/setup-rust-ci/**'
               - '.github/actions/cache-turbo/**'
-              - '.github/workflows/ci.yml'
-              - '.github/workflows/_reusable-ci-quality.yml'
             repo_sot:
               - '.nvmrc'
               - '.devcontainer/devcontainer.json'
@@ -99,6 +135,62 @@ jobs:
               - 'scripts/codex-preflight.mjs'
               - 'scripts/workflow-list.mjs'
               - 'apps/deskt*/README.md'
+            ui_contract:
+              - 'apps/code/**'
+              - '!apps/code/**/*.md'
+              - '!apps/code/**/*.mdx'
+              - '!apps/code/**/*.test.ts'
+              - '!apps/code/**/*.test.tsx'
+              - '!apps/code/**/*.spec.ts'
+              - '!apps/code/**/*.spec.tsx'
+              - '!apps/code/**/*.stories.ts'
+              - '!apps/code/**/*.stories.tsx'
+              - '!apps/code/**/*.stories.mdx'
+              - '!apps/code/**/__tests__/**'
+              - '!apps/code/src/test/**'
+              - '!apps/code/src/fixtures/**'
+              - 'apps/code-web/**'
+              - '!apps/code-web/**/*.md'
+              - '!apps/code-web/**/*.mdx'
+              - '!apps/code-web/**/*.test.ts'
+              - '!apps/code-web/**/*.test.tsx'
+              - '!apps/code-web/**/*.spec.ts'
+              - '!apps/code-web/**/*.spec.tsx'
+              - '!apps/code-web/**/*.stories.ts'
+              - '!apps/code-web/**/*.stories.tsx'
+              - '!apps/code-web/**/*.stories.mdx'
+              - '!apps/code-web/**/__tests__/**'
+              - '!apps/code-web/src/test/**'
+              - '!apps/code-web/src/fixtures/**'
+              - 'packages/code-application/**'
+              - '!packages/code-application/**/*.md'
+              - '!packages/code-application/**/*.mdx'
+              - 'packages/code-platform-interfaces/**'
+              - '!packages/code-platform-interfaces/**/*.md'
+              - '!packages/code-platform-interfaces/**/*.mdx'
+              - 'packages/code-workspace-client/**'
+              - '!packages/code-workspace-client/**/*.md'
+              - '!packages/code-workspace-client/**/*.mdx'
+              - 'scripts/check-ui-service-boundary.mjs'
+              - 'scripts/check-app-source-boundary.mjs'
+              - 'scripts/check-platform-boundaries.mjs'
+              - 'scripts/lib/ui-service-boundary.mjs'
+            app_circular:
+              - 'apps/code/src/**'
+              - '!apps/code/src/**/*.test.ts'
+              - '!apps/code/src/**/*.test.tsx'
+              - '!apps/code/src/**/*.spec.ts'
+              - '!apps/code/src/**/*.spec.tsx'
+              - '!apps/code/src/**/*.stories.ts'
+              - '!apps/code/src/**/*.stories.tsx'
+              - '!apps/code/src/**/*.stories.mdx'
+              - '!apps/code/src/**/__tests__/**'
+              - '!apps/code/src/test/**'
+              - '!apps/code/src/fixtures/**'
+              - 'scripts/check-circular-deps.mjs'
+            code_integration_watch:
+              - '.codex/code-integration-watch.json'
+              - 'scripts/code-integration-watch.mjs'
             frontend_optimization:
               - 'apps/code/**'
               - '!apps/code/**/*.md'
@@ -124,28 +216,28 @@ jobs:
               - '!packages/design-system/**/*.stories.tsx'
               - '!packages/design-system/**/*.stories.mdx'
               - '!packages/design-system/**/__tests__/**'
-              - '.github/workflows/_reusable-ci-frontend-optimization.yml'
               - 'scripts/check-code-bundle-budget.mjs'
               - 'scripts/report-code-bundle.mjs'
               - 'scripts/config/code-bundle-budget.config.mjs'
               - '.codex/e2e-map.json'
               - 'scripts/lib/e2e-map.mjs'
               - '.github/workflows/ci.yml'
+              - '.github/workflows/_reusable-ci-frontend-optimization.yml'
               - '.github/actions/cache-turbo/**'
               - '.github/actions/install-linux-desktop-deps/**'
               - '.github/actions/setup-node-pnpm/**'
+              - '.github/actions/setup-rust-ci/**'
               - '.github/actions/setup-playwright/**'
 
       - id: scope
         name: Classify dependency manifest scope
         env:
-          CI_SCOPE_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'HEAD^' }}
+          CI_SCOPE_BASE_REF: ${{ steps.context.outputs.diff_base }}
           CI_SCOPE_HEAD_REF: HEAD
         run: node scripts/classify-ci-change-scope.mjs
 
   dependabot_policy:
     name: Dependabot policy
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       skip_pr_affected: ${{ steps.policy.outputs.skip_pr_affected }}
@@ -154,7 +246,7 @@ jobs:
         run: echo "skip_pr_affected=false" >> "$GITHUB_OUTPUT"
 
       - id: metadata
-        if: github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'app/dependabot'
+        if: github.event_name == 'pull_request' && (github.event.pull_request.user.login == 'dependabot[bot]' || github.event.pull_request.user.login == 'app/dependabot')
         uses: dependabot/fetch-metadata@v2
 
       - id: derive
@@ -191,44 +283,103 @@ jobs:
         run: |
           node scripts/check-repo-sot.mjs
           node scripts/check-workflow-governance.mjs
-          node scripts/check-workspace-task-coverage.mjs
-          node scripts/codex-preflight.mjs
+          pnpm preflight:codex:ci
 
-  # Combined quality checks (lint + typecheck) - saves ~60s by eliminating duplicate setup
+  quality_baseline:
+    name: Quality Baseline
+    needs: [changes]
+    uses: ./.github/workflows/_reusable-ci-quality-baseline.yml
+    secrets: inherit
+    with:
+      affected_mode: ${{ needs.changes.outputs.affected_mode == 'true' }}
+      ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
+      desktop_runtime_changed: ${{ needs.changes.outputs.desktop_runtime_changed == 'true' }}
+      ui_contract_required: ${{ needs.changes.outputs.ui_contract_required == 'true' }}
+      circular_required: ${{ needs.changes.outputs.circular_required == 'true' }}
+      integration_watch_required: ${{ needs.changes.outputs.integration_watch_required == 'true' }}
+      repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
+      diff_base: ${{ needs.changes.outputs.diff_base }}
+
+  quality_runtime_contract_parity:
+    name: Runtime Contract Parity
+    if: needs.changes.outputs.runtime_contract_changed == 'true' && (needs.changes.outputs.affected_mode != 'true' || needs.changes.outputs.repo_governance_only != 'true')
+    needs: [changes]
+    uses: ./.github/workflows/_reusable-ci-runtime-contract-parity.yml
+    secrets: inherit
+
+  quality_typecheck:
+    name: Quality Typecheck
+    needs: [changes]
+    uses: ./.github/workflows/_reusable-ci-quality-typecheck.yml
+    secrets: inherit
+    with:
+      affected_mode: ${{ needs.changes.outputs.affected_mode == 'true' }}
+      ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
+      repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
+      diff_base: ${{ needs.changes.outputs.diff_base }}
+
   quality:
     name: Quality
-    needs: [changes]
+    if: always()
+    needs: [changes, quality_baseline, quality_runtime_contract_parity, quality_typecheck]
     uses: ./.github/workflows/_reusable-ci-quality.yml
     secrets: inherit
     with:
       ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
-      runtime_contract_changed: ${{ needs.changes.outputs.runtime_contract_changed == 'true' }}
-      desktop_runtime_changed: ${{ needs.changes.outputs.desktop_runtime_changed == 'true' }}
-      base_ref: ${{ github.base_ref }}
+      repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
+      baseline_result: ${{ needs.quality_baseline.result }}
+      runtime_contract_parity_result: ${{ needs.quality_runtime_contract_parity.result }}
+      typecheck_result: ${{ needs.quality_typecheck.result }}
+
+  pr_affected_build:
+    name: PR Affected Build
+    if: github.event_name != 'push'
+    needs: [changes, dependabot_policy]
+    uses: ./.github/workflows/_reusable-ci-pr-affected-build.yml
+    secrets: inherit
+    with:
+      ci_required: ${{ needs.changes.outputs.pr_affected_required == 'true' }}
+      diff_base: ${{ needs.changes.outputs.diff_base }}
+      repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
+      skip_expensive_checks: ${{ github.event_name == 'pull_request' && needs.dependabot_policy.outputs.skip_pr_affected == 'true' }}
+      affected_build_required: ${{ needs.changes.outputs.pr_affected_build_required == 'true' }}
+
+  pr_affected_tests:
+    name: PR Affected Tests
+    if: github.event_name != 'push'
+    needs: [changes, dependabot_policy]
+    uses: ./.github/workflows/_reusable-ci-pr-affected-tests.yml
+    secrets: inherit
+    with:
+      ci_required: ${{ needs.changes.outputs.pr_affected_required == 'true' }}
+      diff_base: ${{ needs.changes.outputs.diff_base }}
+      repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
+      skip_expensive_checks: ${{ github.event_name == 'pull_request' && needs.dependabot_policy.outputs.skip_pr_affected == 'true' }}
 
   # PR fast path (affected build + tests)
   pr_affected:
     name: PR Affected Checks
-    if: github.event_name == 'pull_request'
-    needs: [changes, dependabot_policy]
+    if: always() && github.event_name != 'push'
+    needs: [changes, dependabot_policy, pr_affected_build, pr_affected_tests]
     uses: ./.github/workflows/_reusable-ci-pr-affected.yml
     secrets: inherit
     with:
-      ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
-      base_ref: ${{ github.base_ref }}
-      skip_expensive_checks: ${{ needs.dependabot_policy.outputs.skip_pr_affected == 'true' }}
-      affected_build_required: ${{ needs.changes.outputs.pr_affected_build_required == 'true' }}
+      ci_required: ${{ needs.changes.outputs.pr_affected_required == 'true' }}
+      repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
+      skip_expensive_checks: ${{ github.event_name == 'pull_request' && needs.dependabot_policy.outputs.skip_pr_affected == 'true' }}
+      build_result: ${{ needs.pr_affected_build.result }}
+      tests_result: ${{ needs.pr_affected_tests.result }}
 
   frontend_optimization:
     name: frontend_optimization
-    if: github.event_name == 'pull_request' && needs.changes.outputs.ci_required == 'true' && needs.changes.outputs.frontend_optimization_changed == 'true'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.frontend_optimization_changed == 'true' && needs.changes.outputs.repo_governance_only != 'true'
     needs: [changes]
     uses: ./.github/workflows/_reusable-ci-frontend-optimization.yml
     secrets: inherit
 
   # Build job with artifact upload
   build:
-    if: github.event_name != 'pull_request' && needs.changes.outputs.ci_required == 'true'
+    if: github.event_name == 'push' && needs.changes.outputs.ci_required == 'true'
     needs: [changes, quality]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -270,7 +421,7 @@ jobs:
 
   # Tests - downloads build artifacts instead of rebuilding
   test:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [build]
@@ -299,7 +450,7 @@ jobs:
 
   # Native Rust parity tests - verifies Rust bindings match TS implementations
   native-test:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [build]
@@ -337,7 +488,7 @@ jobs:
 
   # Core release gate - runs independently (small and fast)
   core_release_gate:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [build]
@@ -372,7 +523,7 @@ jobs:
 
   # UI gate - downloads build artifacts and shares Playwright cache
   ui_gate:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [build]
