@@ -43,4 +43,16 @@ describe("ci merge-queue fast PR path", () => {
       "github.event_name == 'pull_request' && needs.changes.outputs.frontend_optimization_changed == 'true'"
     );
   });
+
+  it("keeps desktop fast verify scoped to desktop host-owned changes", () => {
+    const workflow = readWorkflow();
+
+    expect(workflow).toContain("desktop_host_changed");
+    expect(workflow).toContain("desktop_host:");
+    expect(workflow).toContain("apps/code-tauri/**");
+    expect(workflow).toContain("desktop_fast_verify_required");
+    expect(workflow).toContain(
+      "desktop_fast_verify_required: ${{ needs.changes.outputs.desktop_fast_verify_required == 'true' }}"
+    );
+  });
 });

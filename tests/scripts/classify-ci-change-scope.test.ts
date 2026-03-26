@@ -176,4 +176,21 @@ describe("classify-ci-change-scope", () => {
     expect(outputs.get("repo_governance_only")).toBe("false");
     expect(outputs.get("ui_contract_required")).toBe("true");
   });
+
+  it("does not mark generic app frontend changes as desktop-manifest-driven work", async () => {
+    const tempRoot = await createFixtureRepo();
+    await commitChangedFile(
+      tempRoot,
+      "apps/code/src/features/update/banner.tsx",
+      "export const UpdateBanner = () => null;\n"
+    );
+
+    const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(outputs.get("desktop_manifest_changed")).toBe("false");
+    expect(outputs.get("quality_core_changed")).toBe("true");
+    expect(outputs.get("repo_governance_only")).toBe("false");
+  });
 });
