@@ -9,7 +9,6 @@ const scriptDir = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const packageDir = resolve(scriptDir, "..");
 const distDir = resolve(packageDir, "dist-electron");
 const outDir = resolve(packageDir, "out");
-const tempRootDir = resolve(packageDir, ".tmp");
 const packageJson = JSON.parse(await readFile(resolve(packageDir, "package.json"), "utf8"));
 const forgeConfigSource = resolve(packageDir, "forge.config.mjs");
 const workspaceRoot = resolve(packageDir, "../..");
