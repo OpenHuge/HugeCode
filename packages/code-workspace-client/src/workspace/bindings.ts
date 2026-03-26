@@ -232,8 +232,15 @@ export type WorkspaceClientHostIntentBindings = {
   waitForOauthBinding: (workspaceId: string, baselineUpdatedAt: number) => Promise<boolean>;
 };
 
+export type WorkspaceClientHostStartupStatus = {
+  tone: "ready" | "attention" | "blocked";
+  label: string;
+  detail: string;
+};
+
 export type WorkspaceClientHostShellBindings = {
   platformHint?: string | null;
+  readStartupStatus?: () => Promise<WorkspaceClientHostStartupStatus | null>;
 };
 
 export type WorkspaceClientHostBindings = {

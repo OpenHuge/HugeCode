@@ -1,5 +1,7 @@
 import { useEffect } from "react";
+import { scheduleDeferredActivation } from "@ku0/shared";
 import { detectDesktopRuntimeHost } from "../application/runtime/facades/desktopHostFacade";
+import { recordSentryMetricIfAvailable } from "../features/shared/sentry";
 import {
   getDesktopArchitectureTag,
   getDesktopPlatformArchitectureTag,
@@ -9,6 +11,7 @@ import {
 
 const appVersion = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "dev";
 const SENTRY_FALLBACK_INITIALIZATION_DELAY_MS = 5_000;
+const STARTUP_LONG_TASK_OBSERVER_WINDOW_MS = 15_000;
 
 let sentryInitializationPromise: Promise<void> | null = null;
 
@@ -62,56 +65,47 @@ export function ensureSentryInitialized() {
 }
 
 function scheduleSentryInitialization() {
-  if (typeof window === "undefined") {
-    void ensureSentryInitialized();
+  return scheduleDeferredActivation(
+    () => {
+      void ensureSentryInitialized();
+    },
+    {
+      idleTimeoutMs: 0,
+      fallbackDelayMs: SENTRY_FALLBACK_INITIALIZATION_DELAY_MS,
+    }
+  );
+}
+
+function installStartupLongTaskObserver() {
+  if (typeof window === "undefined" || typeof PerformanceObserver === "undefined") {
     return noop;
   }
 
-  let cleanupIdleCallback = noop;
-  let initialized = false;
+  const supportedEntryTypes = PerformanceObserver.supportedEntryTypes ?? [];
+  if (!supportedEntryTypes.includes("longtask")) {
+    return noop;
+  }
 
-  const scheduleIdleInitialization = () => {
-    if (initialized) {
-      return;
-    }
-    initialized = true;
-    if (typeof window.requestIdleCallback === "function") {
-      const idleHandle = window.requestIdleCallback(() => {
-        void ensureSentryInitialized();
+  const observer = new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) {
+      const duration = Math.round(entry.duration);
+      void recordSentryMetricIfAvailable("startup_long_task", 1, {
+        attributes: {
+          duration_bucket: duration >= 250 ? "250_plus" : duration >= 100 ? "100_249" : "50_99",
+        },
       });
-      cleanupIdleCallback = () => {
-        window.cancelIdleCallback?.(idleHandle);
-      };
-      return;
     }
-    const idleTimeoutHandle = window.setTimeout(() => {
-      void ensureSentryInitialized();
-    }, 0);
-    cleanupIdleCallback = () => {
-      window.clearTimeout(idleTimeoutHandle);
-    };
-  };
-
-  const onFirstInteraction = () => {
-    scheduleIdleInitialization();
-  };
-
-  const interactionEventOptions = { capture: true, passive: true, once: true } as const;
-  window.addEventListener("pointerdown", onFirstInteraction, interactionEventOptions);
-  window.addEventListener("keydown", onFirstInteraction, {
-    capture: true,
-    once: true,
   });
 
+  observer.observe({ type: "longtask", buffered: true });
+
   const timeoutHandle = window.setTimeout(() => {
-    scheduleIdleInitialization();
-  }, SENTRY_FALLBACK_INITIALIZATION_DELAY_MS);
+    observer.disconnect();
+  }, STARTUP_LONG_TASK_OBSERVER_WINDOW_MS);
 
   return () => {
-    window.removeEventListener("pointerdown", onFirstInteraction, true);
-    window.removeEventListener("keydown", onFirstInteraction, true);
     window.clearTimeout(timeoutHandle);
-    cleanupIdleCallback();
+    observer.disconnect();
   };
 }
 
@@ -221,8 +215,10 @@ export function RuntimeBootstrapEffects() {
     const cleanupZoom = installMobileZoomGesturePrevention();
     const cleanupViewport = installMobileViewportHeightSync();
     const cleanupSentry = scheduleSentryInitialization();
+    const cleanupLongTaskObserver = installStartupLongTaskObserver();
 
     return () => {
+      cleanupLongTaskObserver();
       cleanupSentry();
       cleanupViewport();
       cleanupZoom();

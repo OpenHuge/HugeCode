@@ -10,6 +10,7 @@ import {
   resolveDesktopDiagnosticsInfo,
   resolveAppVersion,
   resolveCurrentDesktopSession,
+  resolveDesktopShellStartupStatus,
   resolveDesktopUpdaterState,
   resolveWindowLabel,
   restartDesktopUpdate,
@@ -164,6 +165,11 @@ describe("desktopHostFacade", () => {
     await expect(resolveDesktopUpdaterState()).resolves.toMatchObject({
       stage: "downloaded",
     });
+    await expect(resolveDesktopShellStartupStatus()).resolves.toEqual({
+      tone: "attention",
+      label: "Electron host update active",
+      detail: "Desktop update checks are active while the shell stays interactive.",
+    });
     await expect(checkForDesktopUpdates()).resolves.toMatchObject({
       stage: "checking",
     });
@@ -202,6 +208,11 @@ describe("desktopHostFacade", () => {
       provider: "none",
       stage: "idle",
     });
+    await expect(resolveDesktopShellStartupStatus()).resolves.toEqual({
+      tone: "attention",
+      label: "Tauri host manual updates",
+      detail: "Automatic desktop updates are unavailable in this environment.",
+    });
     await expect(checkForDesktopUpdates()).resolves.toEqual({
       capability: "unsupported",
       message: "Automatic desktop updates are unavailable in this environment.",
@@ -223,5 +234,26 @@ describe("desktopHostFacade", () => {
     window.open = vi.fn(() => null) as typeof window.open;
 
     await expect(openUrl("https://example.com")).resolves.toBe(false);
+  });
+
+  it("surfaces blocked desktop host startup when electron updater config is broken", async () => {
+    getDesktopHostBridgeMock.mockReturnValue({
+      kind: "electron",
+      updater: {
+        getState: async () => ({
+          capability: "manual",
+          mode: "misconfigured",
+          provider: "none",
+          stage: "idle",
+          message: "Missing release feed configuration.",
+        }),
+      },
+    });
+
+    await expect(resolveDesktopShellStartupStatus()).resolves.toEqual({
+      tone: "blocked",
+      label: "Electron host startup blocked",
+      detail: "Missing release feed configuration.",
+    });
   });
 });

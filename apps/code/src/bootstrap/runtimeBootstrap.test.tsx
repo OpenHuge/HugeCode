@@ -8,11 +8,13 @@ const {
   sentryInitMock,
   sentryMetricsCountMock,
   isMobilePlatformMock,
+  recordSentryMetricIfAvailableMock,
 } = vi.hoisted(() => ({
   detectDesktopRuntimeHostMock: vi.fn(),
   sentryInitMock: vi.fn(),
   sentryMetricsCountMock: vi.fn(),
   isMobilePlatformMock: vi.fn(),
+  recordSentryMetricIfAvailableMock: vi.fn(async () => true),
 }));
 
 vi.mock("@sentry/react", () => ({
@@ -24,6 +26,10 @@ vi.mock("@sentry/react", () => ({
 
 vi.mock("../application/runtime/facades/desktopHostFacade", () => ({
   detectDesktopRuntimeHost: detectDesktopRuntimeHostMock,
+}));
+
+vi.mock("../features/shared/sentry", () => ({
+  recordSentryMetricIfAvailable: recordSentryMetricIfAvailableMock,
 }));
 
 vi.mock("../utils/platformPaths", () => ({
@@ -41,6 +47,7 @@ describe("RuntimeBootstrapEffects", () => {
     sentryInitMock.mockClear();
     sentryMetricsCountMock.mockClear();
     isMobilePlatformMock.mockReset();
+    recordSentryMetricIfAvailableMock.mockClear();
     detectDesktopRuntimeHostMock.mockResolvedValue("browser");
     isMobilePlatformMock.mockReturnValue(false);
     document.documentElement.removeAttribute("data-desktop-runtime");
@@ -53,6 +60,10 @@ describe("RuntimeBootstrapEffects", () => {
       value: undefined,
     });
     Object.defineProperty(window, "cancelIdleCallback", {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(window, "PerformanceObserver", {
       configurable: true,
       value: undefined,
     });
@@ -156,5 +167,56 @@ describe("RuntimeBootstrapEffects", () => {
     });
     expect(sentryInitMock).toHaveBeenCalledTimes(1);
     expect(sentryMetricsCountMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("records startup long tasks when the browser supports longtask observation", async () => {
+    vi.useFakeTimers();
+    const disconnectMock = vi.fn();
+    const observeMock = vi.fn();
+
+    class MockPerformanceObserver {
+      static supportedEntryTypes = ["longtask"];
+      constructor(
+        private readonly callback: (list: { getEntries: () => Array<{ duration: number }> }) => void
+      ) {}
+      observe = observeMock;
+      disconnect = disconnectMock;
+      emit(duration: number) {
+        this.callback({
+          getEntries: () => [{ duration }],
+        });
+      }
+    }
+
+    let observerInstance: MockPerformanceObserver | null = null;
+    Object.defineProperty(window, "PerformanceObserver", {
+      configurable: true,
+      value: class extends MockPerformanceObserver {
+        constructor(callback: (list: { getEntries: () => Array<{ duration: number }> }) => void) {
+          super(callback);
+          observerInstance = this;
+        }
+      },
+    });
+
+    const result = render(<RuntimeBootstrapEffects />);
+
+    expect(observeMock).toHaveBeenCalledWith({ type: "longtask", buffered: true });
+
+    await act(async () => {
+      observerInstance?.emit(180);
+      await Promise.resolve();
+    });
+
+    expect(recordSentryMetricIfAvailableMock).toHaveBeenCalledWith("startup_long_task", 1, {
+      attributes: { duration_bucket: "100_249" },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(15_000);
+    });
+
+    expect(disconnectMock).toHaveBeenCalled();
+    result.unmount();
   });
 });

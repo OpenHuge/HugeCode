@@ -5,7 +5,7 @@ import {
   readMissionControlProjectionSlice,
 } from "./kernelProjectionStore";
 
-export type MissionControlLoadState = "idle" | "loading" | "ready" | "error";
+export type MissionControlLoadState = "idle" | "loading" | "refreshing" | "ready" | "error";
 
 export type MissionControlSnapshotState = {
   snapshot: HugeCodeMissionControlSnapshot | null;
