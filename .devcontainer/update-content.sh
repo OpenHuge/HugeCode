@@ -7,4 +7,4 @@ export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-${WORKSPACE_DIR}/.c
 corepack enable
 corepack prepare pnpm@10.28.0 --activate
 pnpm install
-pnpm -C tests/e2e exec playwright install chromium
+pnpm -C tests/e2e exec playwright install --only-shell chromium
