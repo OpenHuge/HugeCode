@@ -58,6 +58,8 @@ export default {
     {
       name: "@electron-forge/maker-squirrel",
       config: {
+        authors: "OpenHuge",
+        description: "HugeCode beta desktop shell",
         name: "HugeCode",
         ...(betaStaticUpdateBaseUrl
           ? {
