@@ -466,7 +466,7 @@ describe("missionControlPresentation", () => {
       limit: 3,
     });
 
-    expect(entry.operatorActionLabel).toBe("Open action center");
+    expect(entry.operatorActionLabel).toBe("Inspect runtime");
   });
 
   it("orders review queue items by in-review entry time and excludes done items", () => {

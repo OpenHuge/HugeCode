@@ -171,7 +171,7 @@ describe("buildRuntimeContinuityReadiness", () => {
       ],
     });
 
-    expect(summary.state).toBe("attention");
+    expect(summary.state).toBe("ready");
     expect(summary.reviewBlockedCount).toBe(0);
     expect(summary.items[0]).toMatchObject({
       pathKind: "approval",

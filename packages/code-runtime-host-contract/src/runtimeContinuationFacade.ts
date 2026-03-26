@@ -207,15 +207,21 @@ function buildDefaultRecommendedAction(input: {
     return "Resume this run from its runtime-published checkpoint.";
   }
   if (input.pathKind === "review") {
+    const reviewPathActionLabel =
+      input.continuePathLabel === "Review Pack" ? "Review Pack" : `the ${pathLabel}`;
     switch (input.state) {
       case "blocked":
-        return `Open the ${pathLabel} and resolve the runtime-blocked follow-up.`;
+        return `Open ${reviewPathActionLabel} and resolve the runtime-blocked follow-up before continuing.`;
       case "attention":
-        return `Open the ${pathLabel} and inspect the degraded runtime follow-up guidance.`;
+        return `Open ${reviewPathActionLabel} and inspect the degraded runtime follow-up guidance before continuing.`;
       case "ready":
-        return `Continue from the ${pathLabel} using the runtime-published follow-up actions.`;
+        return input.continuePathLabel === "Review Pack"
+          ? "Continue from the Review Pack using the runtime-published follow-up actions."
+          : `Continue from the ${pathLabel} using the runtime-published follow-up actions.`;
       default:
-        return `Inspect the ${pathLabel} before continuing this follow-up.`;
+        return input.continuePathLabel === "Review Pack"
+          ? "Inspect Review Pack before continuing this follow-up."
+          : `Inspect the ${pathLabel} before continuing this follow-up.`;
     }
   }
   if (input.pathKind === "handoff") {
@@ -307,22 +313,26 @@ export function resolveContinuationTruthSource({
 export function resolveContinuationPathLabel({
   takeoverBundle,
   missionLinkage,
+  reviewPackId,
 }: Pick<
   RuntimeContinuationDescriptorInput,
-  "takeoverBundle" | "missionLinkage"
+  "takeoverBundle" | "missionLinkage" | "reviewPackId"
 >): RuntimeContinuationPathLabel {
   const takeoverTargetKind = takeoverBundle?.target?.kind;
+  if (takeoverTargetKind === "review_pack" || takeoverBundle?.pathKind === "review") {
+    return "Review Pack";
+  }
   if (takeoverTargetKind === "thread") {
     return "Mission thread";
   }
   if (takeoverTargetKind === "run") {
     return "Mission run";
   }
-  if (takeoverTargetKind === "review_pack" || takeoverBundle?.pathKind === "review") {
-    return "Review Pack";
-  }
   if (takeoverTargetKind === "sub_agent_session") {
     return "Sub-agent session";
+  }
+  if (reviewPackId) {
+    return "Review Pack";
   }
   if (missionLinkage?.navigationTarget.kind === "thread") {
     return "Mission thread";
@@ -469,6 +479,7 @@ export function buildRuntimeContinuationDescriptor(
   const continuePathLabel = resolveContinuationPathLabel({
     takeoverBundle: input.takeoverBundle ?? null,
     missionLinkage: input.missionLinkage ?? null,
+    reviewPackId: input.reviewPackId ?? null,
   });
   const actionability = input.actionability ?? null;
   const publishHandoff = resolvePreferredPublishHandoff({
