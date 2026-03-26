@@ -5,6 +5,9 @@ on:
     branches:
       - main
   pull_request:
+  merge_group:
+    types:
+      - checks_requested
 
 permissions:
   contents: read
@@ -23,17 +26,17 @@ jobs:
     name: Detect CI-relevant changes
     runs-on: ubuntu-latest
     outputs:
-      code_changed: ${{ steps.filter.outputs.quality_core }}
+      code_changed: ${{ steps.scope.outputs.quality_core_changed }}
       runtime_contract_changed: ${{ steps.filter.outputs.runtime_contract }}
       desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime }}
       repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
-      frontend_optimization_changed: ${{ steps.filter.outputs.frontend_optimization == 'true' || steps.scope.outputs.frontend_manifest_changed == 'true' }}
-      ui_contract_required: ${{ steps.filter.outputs.ui_contract }}
-      circular_required: ${{ steps.filter.outputs.app_circular }}
+      frontend_optimization_changed: ${{ steps.scope.outputs.frontend_optimization_changed }}
+      ui_contract_required: ${{ steps.scope.outputs.ui_contract_required }}
+      circular_required: ${{ steps.scope.outputs.circular_required }}
       integration_watch_required: ${{ steps.filter.outputs.code_integration_watch }}
       pr_affected_build_required: ${{ steps.scope.outputs.build_skip_eligible_only != 'true' }}
-      pr_affected_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.quality_core == 'true' || steps.filter.outputs.runtime_contract == 'true') }}
-      ci_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.quality_core == 'true' || steps.filter.outputs.runtime_contract == 'true' || steps.filter.outputs.ui_contract == 'true' || steps.filter.outputs.app_circular == 'true' || steps.filter.outputs.code_integration_watch == 'true') }}
+      pr_affected_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.scope.outputs.quality_core_changed == 'true' || steps.filter.outputs.runtime_contract == 'true') }}
+      ci_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.scope.outputs.quality_core_changed == 'true' || steps.filter.outputs.runtime_contract == 'true' || steps.scope.outputs.ui_contract_required == 'true' || steps.scope.outputs.circular_required == 'true' || steps.filter.outputs.code_integration_watch == 'true') }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -196,7 +199,7 @@ jobs:
 
   dependabot_policy:
     name: Dependabot policy
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     outputs:
       skip_pr_affected: ${{ steps.policy.outputs.skip_pr_affected }}
@@ -262,7 +265,7 @@ jobs:
   # PR fast path (affected build + tests)
   pr_affected:
     name: PR Affected Checks
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     needs: [changes, dependabot_policy]
     uses: ./.github/workflows/_reusable-ci-pr-affected.yml
     secrets: inherit

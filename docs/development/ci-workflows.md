@@ -6,6 +6,9 @@ This document is the source of truth for how HugeCode maps public workflows to i
 
 - `pnpm check:workflow-governance`
   Use this guard whenever `.github/workflows/*.yml`, workflow-facing docs, or reusable workflow wiring changes.
+- Required GitHub Actions checks that protect `main` must include `merge_group`
+  triggers when the repository uses a merge queue ruleset. Otherwise merge queue
+  entries will not receive the required check contexts.
 
 ## PR Author Guide
 
@@ -73,6 +76,12 @@ Public workflow entrypoints currently include:
 - The shared `Quality` lane should reserve global governance checks for `repo_sot`-class changes. On normal product PRs, only run `ui:contract`, `check:circular`, and code-integration watch when their owned surfaces changed.
 - Desktop build lanes must install both `@ku0/code...` and `@ku0/code-tauri...` so Tauri `beforeBuildCommand` can build the frontend app without relying on a full workspace install.
 - Expensive frontend optimization lanes should restore Turbo cache before rebuilding so bundle-budget and targeted browser gates keep their coverage without recompiling from a cold local cache on every PR.
+- Shared Playwright bootstrap should cache browser binaries by OS and lockfile
+  so repeated frontend/browser gates do not redownload Chromium on every run.
+- Exclude-heavy CI boundaries such as `quality_core`, `ui_contract`,
+  `app_circular`, and `frontend_optimization` should stay script-backed in
+  `scripts/classify-ci-change-scope.mjs` instead of relying on mixed positive
+  and negative `paths-filter` globs.
 - Frontend optimization classification should stay focused on runtime or build-affecting frontend dependencies; pure type-package bumps should normally be covered by quality/typecheck instead of forcing bundle and browser lanes.
 - Frontend optimization should not fan out for generic CI plumbing edits. Workflow-governance and shared action changes belong in repository governance lanes unless they also touch runtime-owning frontend or bundle-budget surfaces.
 - Frontend optimization reusable-workflow edits should stay covered by workflow governance and validation, not by forcing the full browser and bundle lane on infrastructure-only pull requests.

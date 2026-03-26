@@ -71,7 +71,7 @@ jobs:
       - name: Build (affected)
         if: inputs.ci_required && !inputs.skip_expensive_checks && inputs.affected_build_required && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true')
         env:
-          TURBO_BASE_REF: origin/${{ inputs.base_ref }}
+          TURBO_BASE_REF: ${{ inputs.base_ref != '' && format('origin/{0}', inputs.base_ref) || '' }}
         run: pnpm build:affected -- --filter=!@ku0/code-tauri
 
       - name: Skip affected build for test-only scope
@@ -81,5 +81,5 @@ jobs:
       - name: Tests (affected)
         if: inputs.ci_required && !inputs.skip_expensive_checks && (github.event_name != 'pull_request' || steps.scope.outputs.repo_governance_only != 'true')
         env:
-          TURBO_BASE_REF: origin/${{ inputs.base_ref }}
+          TURBO_BASE_REF: ${{ inputs.base_ref != '' && format('origin/{0}', inputs.base_ref) || '' }}
         run: pnpm test:affected -- --filter=!@ku0/code-tauri
