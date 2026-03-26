@@ -172,6 +172,9 @@ import type {
   RuntimeThreadSnapshotsGetResponse,
   RuntimeThreadSnapshotsSetRequest,
   RuntimeThreadSnapshotsSetResponse,
+  RuntimeTextFileReadRequest,
+  RuntimeTextFileResponse,
+  RuntimeTextFileWriteRequest,
   RuntimeToolExecutionEvent,
   RuntimeToolExecutionMetricsReadRequest,
   RuntimeToolExecutionMetricsSnapshot,
@@ -486,6 +489,8 @@ export type RuntimeClient<TAppSettings extends Record<string, unknown> = Record<
     runLiveSkill: (request: LiveSkillExecuteRequest) => Promise<LiveSkillExecutionResult>;
     appSettingsGet: () => Promise<TAppSettings>;
     appSettingsUpdate: (settings: TAppSettings) => Promise<TAppSettings>;
+    textFileReadV1: (request: RuntimeTextFileReadRequest) => Promise<RuntimeTextFileResponse>;
+    textFileWriteV1: (request: RuntimeTextFileWriteRequest) => Promise<boolean>;
     settings: () => Promise<SettingsSummary>;
     bootstrap: () => Promise<RuntimeBootstrapSnapshot>;
   };
