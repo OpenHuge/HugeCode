@@ -60,6 +60,14 @@ const WORKSPACE_PROJECT_DOMAIN_CHUNK_PATTERNS = [
 const WORKSPACE_THREAD_DOMAIN_CHUNK_PATTERNS = [
   "/src/features/app/composition/useDesktopWorkspaceThreadDomain.ts",
 ] as const;
+const RUNTIME_GOVERNED_CONTEXT_CHUNK_PATTERNS = [
+  "/src/application/runtime/facades/runtimeContextTruth.ts",
+  "/src/application/runtime/facades/runtimeMissionControlProvenance.ts",
+  "/src/application/runtime/facades/runtimeMissionControlSurfaceModel.ts",
+  "/src/application/runtime/facades/runtimeReviewContinuationFacade.ts",
+  "/src/application/runtime/facades/runtimeReviewIntelligenceSummary.ts",
+  "/src/application/runtime/facades/runtimeReviewPackSurfaceFacade.ts",
+] as const;
 const RUNTIME_APPLICATION_CHUNK_PATTERNS = ["/src/application/runtime/"] as const;
 const DESKTOP_SERVICES_CHUNK_PATTERNS = ["/src/services/"] as const;
 const DESKTOP_INTEGRATION_CHUNK_PATTERNS = [
@@ -174,6 +182,9 @@ export default defineConfig({
           }
           if (matchesChunkPattern(id, WORKSPACE_THREAD_DOMAIN_CHUNK_PATTERNS)) {
             return "workspace-thread";
+          }
+          if (matchesChunkPattern(id, RUNTIME_GOVERNED_CONTEXT_CHUNK_PATTERNS)) {
+            return "runtime-governed-context";
           }
           if (matchesChunkPattern(id, RUNTIME_APPLICATION_CHUNK_PATTERNS)) {
             return "runtime-application";

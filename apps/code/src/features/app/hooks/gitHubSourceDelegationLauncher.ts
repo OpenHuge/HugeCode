@@ -5,7 +5,7 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import type { RuntimeAgentTaskStartInput } from "../../../application/runtime/types/webMcpBridge";
 
-type GitHubSourceDelegationStartInput = {
+export type GitHubSourceDelegationStartInput = {
   workspaceId: string;
   title: string;
   instruction: string;
@@ -18,7 +18,7 @@ type GitHubSourceDelegationStartInput = {
   taskSource: AgentTaskSourceSummary;
 };
 
-type GitHubSourceDelegationRuntimeControl = {
+export type GitHubSourceDelegationRuntimeControl = {
   startTask: (input: RuntimeAgentTaskStartInput) => Promise<unknown>;
 };
 

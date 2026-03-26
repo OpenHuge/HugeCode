@@ -70,6 +70,7 @@ describe("ThreadList", () => {
 
     const rowButton = row.querySelector(".thread-row-main");
     expect(rowButton).toBeTruthy();
+    expect(within(row).getByRole("button", { name: "Open thread Alpha" })).toBeTruthy();
     fireEvent.click(rowButton as HTMLElement);
     expect(onSelectThread).toHaveBeenCalledWith("ws-1", "thread-1");
 
@@ -95,8 +96,8 @@ describe("ThreadList", () => {
       throw new Error("Missing thread row");
     }
 
-    fireEvent.click(within(row).getByRole("button", { name: "Archive thread" }));
-    fireEvent.click(within(row).getByRole("button", { name: "Confirm" }));
+    fireEvent.click(within(row).getByRole("button", { name: "Archive thread Alpha" }));
+    fireEvent.click(within(row).getByRole("button", { name: "Confirm archive thread Alpha" }));
 
     expect(onArchiveThread).toHaveBeenCalledWith("ws-1", "thread-1");
   });
@@ -112,7 +113,7 @@ describe("ThreadList", () => {
       throw new Error("Missing thread row");
     }
 
-    fireEvent.click(within(row).getByRole("button", { name: "Pin thread" }));
+    fireEvent.click(within(row).getByRole("button", { name: "Pin thread Alpha" }));
     expect(onPinThread).toHaveBeenCalledWith("ws-1", "thread-1");
   });
 
@@ -176,7 +177,7 @@ describe("ThreadList", () => {
   it("renders inline pin and archive actions on root rows", () => {
     const { container } = render(<ThreadList {...baseProps} />);
 
-    expect(container.querySelector('button[aria-label="Pin thread"]')).toBeTruthy();
-    expect(container.querySelector('button[aria-label="Archive thread"]')).toBeTruthy();
+    expect(container.querySelector('button[aria-label="Pin thread Alpha"]')).toBeTruthy();
+    expect(container.querySelector('button[aria-label="Archive thread Alpha"]')).toBeTruthy();
   });
 });

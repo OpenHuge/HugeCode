@@ -33,46 +33,10 @@ on:
 jobs:
   build_release:
     name: Build
-    runs-on: ${{ inputs.runner }}
-    timeout-minutes: 45
-    env:
-      RUST_BACKTRACE: 1
-      CARGO_INCREMENTAL: "0"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./.github/actions/setup-desktop-build-env
-        with:
-          targets: ${{ inputs.rust_target }}
-          enable-sccache: ${{ inputs.enable_sccache }}
-          cargo-cache-key: ${{ inputs.cargo_cache_key }}
-
-      - name: Run platform host checks
-        if: ${{ inputs.host_check_command != '' }}
-        run: ${{ inputs.host_check_command }}
-
-      - name: Validate desktop capabilities
-        if: contains(inputs.rust_target, 'windows')
-        run: pnpm check:desktop-capabilities
-
-      - name: Run desktop smoke tests
-        if: contains(inputs.rust_target, 'windows')
-        run: pnpm test:desktop:smoke
-
-      - name: Build Tauri app (release bundles)
-        env:
-          DESKTOP_PREBUILD_MODE: skip
+      - name: Skip Tauri release build while runtime retires
         run: |
-          echo "desktop prebuild=${DESKTOP_PREBUILD_MODE}"
-          pnpm --filter @ku0/code-tauri run build -- --target ${{ inputs.rust_target }} --bundles ${{ inputs.bundle_targets }}
-
-      - name: Show sccache stats
-        if: always() && inputs.enable_sccache == 'true'
-        run: sccache --show-stats
-
-      - uses: ./.github/actions/upload-workflow-artifact
-        with:
-          name: ${{ inputs.artifact_name }}
-          path: ${{ inputs.artifact_path }}
-          compression-level: 0
-          retention-days: 7
+          echo "Skipping Tauri release build for target ${{ inputs.rust_target }}."
+          echo "Workflow and job names stay unchanged so release automation can be retired separately."

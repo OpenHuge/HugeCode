@@ -71,6 +71,43 @@ function buildTaskSourceLabels(
                 : "PR follow-up",
         shortLabel: reference ? `PR ${reference}` : "PR follow-up",
       };
+    case "github_discussion":
+      return {
+        label:
+          reference && repo
+            ? `GitHub discussion ${reference} · ${repo}`
+            : reference
+              ? `GitHub discussion ${reference}`
+              : repo
+                ? `GitHub discussion · ${repo}`
+                : "GitHub discussion",
+        shortLabel: reference ? `Discussion ${reference}` : "Discussion",
+      };
+    case "note":
+      return {
+        label: "Operator note",
+        shortLabel: "Note",
+      };
+    case "customer_feedback":
+      return {
+        label: "Customer feedback",
+        shortLabel: "Feedback",
+      };
+    case "doc":
+      return {
+        label: "Document brief",
+        shortLabel: "Doc",
+      };
+    case "call_summary":
+      return {
+        label: "Call summary",
+        shortLabel: "Call",
+      };
+    case "external_ref":
+      return {
+        label: "External reference",
+        shortLabel: "Reference",
+      };
     case "manual":
       return {
         label: "Manual request",

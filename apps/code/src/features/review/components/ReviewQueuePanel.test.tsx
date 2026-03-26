@@ -54,6 +54,11 @@ describe("ReviewQueuePanel", () => {
             subAgentSignal: "Sub-agent awaiting approval",
             publishHandoffLabel: "Publish handoff ready",
             relaunchLabel: "Relaunch available",
+            contextSummary: "GitHub issue · triage",
+            provenanceSummary:
+              "Repo guidance: AGENTS.md, .github/copilot-instructions.md | Source evidence: GitHub issue #42",
+            triageSummary: "Owner Issue Desk · Priority high · Risk high",
+            delegationSummary: "Open Review Pack",
             continuationTruthSourceLabel: "Runtime takeover bundle",
           },
         ]}
@@ -69,6 +74,16 @@ describe("ReviewQueuePanel", () => {
     expect(screen.getByText("Sub-agent awaiting approval")).toBeTruthy();
     expect(screen.getByText("Publish handoff ready")).toBeTruthy();
     expect(screen.getByText("Relaunch available")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "GitHub issue · triage | Owner Issue Desk · Priority high · Risk high | Open Review Pack"
+      )
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Repo guidance: AGENTS.md, .github/copilot-instructions.md | Source evidence: GitHub issue #42"
+      )
+    ).toBeTruthy();
     expect(screen.getByText("Follow-up source: Runtime takeover bundle")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));

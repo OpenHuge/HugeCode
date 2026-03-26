@@ -51,6 +51,10 @@ export function SidebarThreadRow({
 }: SidebarThreadRowProps) {
   const [confirmArchive, setConfirmArchive] = useState(false);
   const subline = renderThreadSubline?.(thread) ?? null;
+  const openThreadLabel = `Open thread ${thread.name}`;
+  const pinThreadLabel = `${isPinned ? "Unpin" : "Pin"} thread ${thread.name}`;
+  const archiveThreadLabel = `Archive thread ${thread.name}`;
+  const confirmArchiveLabel = `Confirm archive thread ${thread.name}`;
 
   return (
     <SidebarRow
@@ -65,7 +69,7 @@ export function SidebarThreadRow({
         <button
           type="button"
           className={`thread-leading-control${isPinned ? " is-pinned" : ""}`}
-          aria-label={isPinned ? "Unpin thread" : "Pin thread"}
+          aria-label={pinThreadLabel}
           onClick={(event) => {
             event.stopPropagation();
             setConfirmArchive(false);
@@ -97,6 +101,7 @@ export function SidebarThreadRow({
       <button
         type="button"
         className="thread-row-main"
+        aria-label={openThreadLabel}
         onClick={() => onSelectThread(workspaceId, thread.id)}
       >
         <div className="thread-content">
@@ -110,6 +115,7 @@ export function SidebarThreadRow({
         <button
           type="button"
           className="thread-trailing-confirm"
+          aria-label={confirmArchiveLabel}
           onClick={(event) => {
             event.stopPropagation();
             onArchiveThread(workspaceId, thread.id);
@@ -122,7 +128,7 @@ export function SidebarThreadRow({
         <button
           type="button"
           className="thread-trailing-control"
-          aria-label="Archive thread"
+          aria-label={archiveThreadLabel}
           onClick={(event) => {
             event.stopPropagation();
             setConfirmArchive(true);

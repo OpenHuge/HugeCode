@@ -2875,10 +2875,13 @@
             snapshot_payload["result"]["plugins"][0]["extensionId"],
             Value::String("plugin-a".to_string())
         );
-        assert_eq!(
-            snapshot_payload["result"]["skills"].as_array().map(Vec::len),
-            Some(0)
-        );
+        let skills = snapshot_payload["result"]["skills"]
+            .as_array()
+            .expect("native management snapshot should include a skills array");
+        assert!(skills.iter().all(|entry| {
+            entry["kind"] == Value::String("instruction".to_string())
+                && entry["extensionId"] != Value::String("plugin-a".to_string())
+        }));
     }
 
     #[tokio::test]
@@ -8638,6 +8641,11 @@ exit 1
         .await
         .expect("stale read should not wait on in-flight refresh");
         assert_eq!(stale_payload["ok"], Value::Bool(true));
+        assert_eq!(
+            models_counter.load(AtomicOrdering::Relaxed),
+            2,
+            "stale read should reuse the cached catalog while the refresh is still blocked"
+        );
 
         let refreshed_payload = refresh_request.await.expect("join refresh request");
         assert_eq!(refreshed_payload["ok"], Value::Bool(true));
@@ -11048,6 +11056,10 @@ exit 1
 
     #[tokio::test]
     async fn turn_send_rpc_returns_ack_before_provider_completion() {
+        let provider_request_started = Arc::new(tokio::sync::Notify::new());
+        let allow_provider_response = Arc::new(tokio::sync::Notify::new());
+        let provider_request_started_handle = Arc::clone(&provider_request_started);
+        let allow_provider_response_handle = Arc::clone(&allow_provider_response);
         let delayed_provider = Router::new()
             .route(
                 "/v1/models",
@@ -11063,26 +11075,31 @@ exit 1
             )
             .route(
                 "/v1/chat/completions",
-                post(|Json(payload): Json<Value>| async move {
-                    tokio::time::sleep(Duration::from_millis(750)).await;
+                post(move |Json(payload): Json<Value>| {
+                    let provider_request_started = Arc::clone(&provider_request_started_handle);
+                    let allow_provider_response = Arc::clone(&allow_provider_response_handle);
+                    async move {
+                        provider_request_started.notify_one();
+                        allow_provider_response.notified().await;
                     let model_id = payload
                         .get("model")
                         .and_then(Value::as_str)
                         .unwrap_or("unknown-model");
-                    (
-                        StatusCode::OK,
-                        Json(json!({
-                            "id": "chatcmpl-test-delayed",
-                            "object": "chat.completion",
-                            "choices": [{
-                                "index": 0,
-                                "message": {
-                                    "role": "assistant",
-                                    "content": format!("ok:{model_id}")
-                                }
-                            }]
-                        })),
-                    )
+                        (
+                            StatusCode::OK,
+                            Json(json!({
+                                "id": "chatcmpl-test-delayed",
+                                "object": "chat.completion",
+                                "choices": [{
+                                    "index": 0,
+                                    "message": {
+                                        "role": "assistant",
+                                        "content": format!("ok:{model_id}")
+                                    }
+                                }]
+                            })),
+                        )
+                    }
                 }),
             );
         let delayed_provider_listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -11125,16 +11142,28 @@ exit 1
             }
         });
 
-        let turn_response = tokio::time::timeout(
-            Duration::from_millis(250),
-            client
-                .post(format!("{service_base_url}/rpc"))
-                .json(&turn_request)
-                .send(),
-        )
-        .await
-        .expect("turn ack should return before delayed provider completion")
-        .expect("send delayed turn request");
+        let turn_request_task = tokio::spawn({
+            let client = client.clone();
+            let service_base_url = service_base_url.clone();
+            let turn_request = turn_request.clone();
+            async move {
+                client
+                    .post(format!("{service_base_url}/rpc"))
+                    .json(&turn_request)
+                    .send()
+                    .await
+            }
+        });
+
+        tokio::time::timeout(Duration::from_secs(2), provider_request_started.notified())
+            .await
+            .expect("provider request should start before waiting on the rpc ack");
+
+        let turn_response = tokio::time::timeout(Duration::from_secs(1), turn_request_task)
+            .await
+            .expect("turn ack should return before provider completion")
+            .expect("join delayed turn request task")
+            .expect("send delayed turn request");
         assert_eq!(turn_response.status(), reqwest::StatusCode::OK);
         let turn_payload: Value = turn_response
             .json()
@@ -11166,6 +11195,8 @@ exit 1
                 > 0,
             "turn send root task should be tracked by the runtime task supervisor"
         );
+
+        allow_provider_response.notify_one();
 
         let events = read_sse_events_until_turn_completed(&mut events_response, turn_id.as_str()).await;
         let turn_events = events

@@ -18,11 +18,11 @@ import {
   type RuntimeContinuationTruthSource,
 } from "./runtimeContinuationTruth";
 import {
-  resolveRepositoryExecutionDefaults,
   type RepositoryExecutionContract,
   type RepositoryExecutionExplicitLaunchInput,
   type SupportedRepositoryTaskSourceKind,
 } from "./runtimeRepositoryExecutionContract";
+import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
 
 export type ReviewContinuationIntent = "retry" | "clarify" | "switch_profile" | "pair_mode";
 

@@ -68,12 +68,28 @@ describe("optional PR workflow scope", () => {
 
     expect(prepareJobSection).toContain("github.event_name != 'pull_request'");
     expect(prepareJobSection).toContain("desktop_full_pr_matrix_required == 'true'");
+    expect(workflow).toContain("vars.MERGE_QUEUE_ENABLED == 'false'");
+    expect(workflow).toContain("steps.filter.outputs.desktop_frontend == 'true'");
+    expect(workflow).toContain("desktop_pr_verification_mode");
     expect(buildPrFastSection).toContain("needs: [changes]");
     expect(buildPrFastSection).not.toContain("prepare-frontend]");
     expect(buildPrFastSection).toContain("prebuild_mode: auto");
-    expect(buildPrFastSection).toContain("verification_mode: check");
+    expect(buildPrFastSection).toContain(
+      "verification_mode: ${{ needs.changes.outputs.desktop_pr_verification_mode }}"
+    );
     expect(buildPrFastSection).toContain("check_base_branch: ${{ github.base_ref }}");
     expect(buildPrFastSection).toContain('restore_frontend_artifact: "false"');
+  });
+
+  it("keeps the cross-platform Tauri PR matrix disabled in merge-queue fast mode", () => {
+    const workflow = readWorkflow(desktopWorkflowPath);
+
+    expect(workflow).toContain(
+      "desktop_full_pr_matrix_required: ${{ github.event_name == 'workflow_dispatch' || ((github.event_name != 'pull_request' || vars.MERGE_QUEUE_ENABLED == 'false')"
+    );
+    expect(workflow).toContain(
+      "desktop_pr_verification_mode: ${{ (steps.filter.outputs.desktop_host == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true') && 'build' || 'check' }}"
+    );
   });
 
   it("keeps Electron beta pull_request triggers packaging-owned while preserving broader push coverage", () => {

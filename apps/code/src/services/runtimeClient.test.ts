@@ -309,6 +309,42 @@ describe("runtimeClient mode detection", () => {
         stablePrefixFingerprint: "stable-123",
         layers: [],
       },
+      contextTruth: {
+        summary: "manual context",
+        canonicalTaskSource: null,
+        sources: [],
+        executionProfileId: null,
+        reviewProfileId: null,
+        validationPresetId: null,
+        reviewIntent: "execute",
+        ownerSummary:
+          "Human owner stays accountable; the runtime agent executes the delegated work.",
+        sourceMetadata: [],
+        consumers: ["run", "review_pack", "takeover", "follow_up"],
+      },
+      guidanceStack: {
+        summary: "none",
+        precedence: [],
+        layers: [],
+      },
+      triageSummary: {
+        owner: null,
+        priority: null,
+        riskLevel: "low",
+        tags: [],
+        dedupeKey: null,
+        summary: "Owner unassigned · Risk low",
+      },
+      delegationContract: {
+        summary: "delegate",
+        state: "launch_ready",
+        humanOwner: "Operator",
+        agentExecutor: "Runtime agent",
+        accountability:
+          "Human owner stays accountable; the runtime agent executes the delegated work.",
+        nextOperatorAction: "Launch the run.",
+        continueVia: null,
+      },
       executionGraph: {
         graphId: "graph-1",
         summary: "graph",

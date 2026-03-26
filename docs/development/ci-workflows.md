@@ -117,9 +117,10 @@ Public workflow entrypoints currently include:
 - Frontend optimization should not fan out for generic CI plumbing edits. Workflow-governance and shared action changes belong in repository governance lanes unless they also touch runtime-owning frontend or bundle-budget surfaces.
 - Frontend optimization reusable-workflow edits should stay covered by workflow governance and validation, not by forcing the full browser and bundle lane on infrastructure-only pull requests.
 - PR-triggered desktop and CodeQL lanes should stay path-scoped so dependency-only or docs-only changes do not fan out into full desktop matrices or static-analysis runs before `main`; keep broader protection on `push` to `main` and scheduled scans.
-- PR-triggered Tauri desktop builds should stay host-owned in merge-queue mode: wake them for `apps/code-tauri/**`, not for generic `apps/code` frontend churn. Workflow or shared-action edits may still trigger the workflow for visibility, but those PRs should fast-skip `prepare-frontend` and packaging jobs unless host-owned surfaces also changed. Broader desktop coverage still belongs on `push` to `main`.
+- PR-triggered Tauri desktop builds should stay host-owned in merge-queue mode: wake them for `apps/code-tauri/**`, not for generic `apps/code` frontend churn. Workflow or shared-action edits may still trigger the workflow for visibility, but those PRs should fast-skip `prepare-frontend` and packaging jobs unless host-owned surfaces also changed. In queue mode, even host-owned PRs should stay on the Linux-only PR lane and leave the broader three-platform matrix to `push`/mainline coverage.
 - Linux-only PR Tauri fast paths should not pay a separate `Prepare frontend dist` job plus artifact round-trip. When the PR only needs the single Linux verify lane, prepare the frontend locally inside that build job and reserve the shared frontend artifact workflow for full PR matrices and non-PR release coverage.
 - Those Linux-only non host-owned PR fast paths should also avoid full `tauri build`. After the local frontend prebuild, use desktop capability checks plus `@ku0/code-tauri` fast-check logic, and let host-owned PRs plus mainline keep the full Tauri build proof.
+- In merge-queue mode, host-owned PRs may still keep a Linux-only full Tauri build on the fast lane, but they should not wake the cross-platform PR matrix before queue/mainline validation.
 - The `CI` workflow should apply the same rule to `desktop:verify:fast`: PRs should only run that fast desktop gate for desktop-owned surfaces, while root dependency, lockfile churn, and generic CI workflow plumbing stay covered by the dedicated desktop workflow or repository-governance validation instead of the shared `Quality` lane.
 - `Quality Baseline` on `push` to `main` should follow the same host-owned rule: keep `Desktop Runtime Fast Verify` for `apps/code-tauri/**` or desktop-manifest shifts, but do not make ordinary app/frontend churn pay that extra Tauri gate inside the required aggregate.
 - Electron beta lanes should run the staged Forge entrypoints (`desktop:electron:verify`, `desktop:electron:make:smoke`, `desktop:electron:publish:dry-run`, `desktop:electron:publish`) instead of calling Forge directly from the workspace package root.
@@ -135,12 +136,14 @@ Public workflow entrypoints currently include:
   behavior when they are behind `main`, but the automation must leave `DIRTY`
   merge-conflict cases for manual resolution instead of attempting local merge
   or rebase repair.
-- When the repository switches `main` to merge queue semantics, set the repo
-  variable `MERGE_QUEUE_ENABLED=true` and keep branch-maintenance automation in
+- This repository defaults PR workflows to merge-queue fast-path behavior.
+  Set the repo variable `MERGE_QUEUE_ENABLED=false` only when queue mode is
+  intentionally disabled; otherwise keep branch-maintenance automation in
   report-only mode for `BEHIND` PRs. In queue mode, GitHub owns latest-base
   refresh and the maintenance workflow should only surface real conflicts or
   policy skips.
-- When `MERGE_QUEUE_ENABLED=true`, keep the PR fast path intentionally narrow:
+- When `MERGE_QUEUE_ENABLED` is not `false`, keep the PR fast path
+  intentionally narrow:
   `pull_request` should prefer quick lint/typecheck/build proof, while heavy
   latest-base integration lanes such as runtime contract parity, affected test
   execution, and frontend optimization move to `merge_group`. Required

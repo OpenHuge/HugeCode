@@ -9,6 +9,13 @@ import {
   isRuntimeManagedMissionTaskId,
   type MissionControlProjection,
 } from "./runtimeMissionControlFacade";
+import {
+  buildRuntimeContextTruth,
+  buildRuntimeDelegationContract,
+  buildRuntimeTriageSummary,
+} from "./runtimeContextTruth";
+import { buildMissionProvenanceSummary } from "./runtimeMissionControlProvenance";
+import { summarizeReviewContinuationActionability } from "./runtimeReviewContinuationFacade";
 import { resolveMissionContinuationActionability } from "./runtimeMissionControlContinuation";
 import { resolveReviewIntelligenceSummary } from "./runtimeReviewIntelligenceSummary";
 import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
@@ -18,7 +25,8 @@ import {
   buildReviewNavigationTarget,
 } from "./runtimeMissionNavigationTarget";
 import type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
-import type { RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
+import { type RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
+import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
 import { resolveMissionTakeoverOperatorAction } from "./runtimeMissionControlTakeoverAction";
 import { formatMissionReviewEvidenceLabel } from "../../../utils/reviewPackLabels";
 import { formatReviewFailureClassLabel } from "../../../utils/reviewFailureClass";
@@ -55,7 +63,6 @@ export type MissionOverviewCounts = {
   reviewReady: number;
   ready: number;
 };
-
 export type MissionOverviewEntry = {
   threadId: string;
   title: string;
@@ -75,7 +82,6 @@ export type MissionOverviewEntry = {
   navigationTarget: MissionNavigationTarget;
   secondaryLabel: string | null;
 };
-
 export type MissionLatestRunEntry = {
   threadId: string;
   runId: string | null;
@@ -95,7 +101,6 @@ export type MissionLatestRunEntry = {
   navigationTarget: MissionNavigationTarget;
   secondaryLabel: string | null;
 };
-
 export type MissionReviewEntry = {
   id: string;
   kind?: "review_pack" | "mission_run";
@@ -135,6 +140,10 @@ export type MissionReviewEntry = {
   navigationTarget: MissionNavigationTarget;
   secondaryLabel: string | null;
   evidenceLabel: string;
+  contextSummary?: string | null;
+  provenanceSummary?: string | null;
+  triageSummary?: string | null;
+  delegationSummary?: string | null;
   continuationState?: "ready" | "degraded" | "blocked" | "missing" | null;
   continuationLabel?: string | null;
   continuePathLabel?: string | null;
@@ -147,7 +156,6 @@ export type MissionControlFreshnessState = {
   error: string | null;
   lastUpdatedAt: number | null;
 };
-
 const ACTIVE_RUN_STATES = new Set<HugeCodeRunState>([
   "queued",
   "preparing",
@@ -165,7 +173,6 @@ function buildReviewPackIndex(projection: MissionControlProjection) {
 function buildIdIndex<TEntry extends { id: string }>(entries: TEntry[]) {
   return new Map(entries.map((entry) => [entry.id, entry]));
 }
-
 function resolveTaskTimestamp(
   task: HugeCodeTaskSummary,
   runById: ReadonlyMap<string, MissionControlProjection["runs"][number]>
@@ -179,6 +186,59 @@ function resolveTaskTimestamp(
   return task.updatedAt;
 }
 
+function buildEntryContextAndDelegationSummary(input: {
+  contract: RepositoryExecutionContract | null;
+  taskSource:
+    | MissionControlProjection["tasks"][number]["taskSource"]
+    | MissionControlProjection["runs"][number]["taskSource"]
+    | MissionControlProjection["reviewPacks"][number]["taskSource"]
+    | null
+    | undefined;
+  executionProfileId: string | null | undefined;
+  reviewProfileId: string | null | undefined;
+  validationPresetId: string | null | undefined;
+  continuationLabel: string | null;
+  continuePathLabel: string | null;
+  recommendedNextAction: string | null;
+  continuationState: "ready" | "degraded" | "blocked" | "missing" | null;
+}): Pick<MissionReviewEntry, "contextSummary" | "triageSummary" | "delegationSummary"> {
+  const repositoryDefaults = resolveRepositoryExecutionDefaults({
+    contract: input.contract,
+    taskSource: input.taskSource ?? null,
+    explicitLaunchInput: {
+      executionProfileId: input.executionProfileId ?? null,
+      reviewProfileId: input.reviewProfileId ?? null,
+      validationPresetId: input.validationPresetId ?? null,
+    },
+  });
+  const contextTruth = buildRuntimeContextTruth({
+    taskSource: input.taskSource ?? null,
+    repositoryDefaults,
+    contractLabel: input.contract?.metadata?.label ?? null,
+    hasRepoInstructions: true,
+  });
+  const triageSummary = buildRuntimeTriageSummary({
+    taskSource: input.taskSource ?? null,
+    repositoryDefaults,
+    contractLabel: input.contract?.metadata?.label ?? null,
+    hasRepoInstructions: true,
+  });
+  const delegationContract = buildRuntimeDelegationContract({
+    contextTruth,
+    triageSummary,
+    continuationSummary: input.continuationLabel,
+    continuePathLabel: input.continuePathLabel,
+    nextOperatorAction: input.recommendedNextAction,
+    blocked: input.continuationState === "blocked",
+  });
+  return {
+    contextSummary: contextTruth.canonicalTaskSource
+      ? `${contextTruth.canonicalTaskSource.label} · ${contextTruth.reviewIntent}`
+      : contextTruth.summary,
+    triageSummary: triageSummary.summary,
+    delegationSummary: delegationContract.nextOperatorAction,
+  };
+}
 function mapRuntimeOperatorActionTarget(input: {
   task: HugeCodeTaskSummary;
   target: import("@ku0/code-runtime-host-contract").HugeCodeTakeoverTarget | null;
@@ -1078,8 +1138,14 @@ export function buildMissionReviewEntriesFromProjection(
       filterTags.push("sub_agent_blocked");
     }
     const operatorAction = resolveMissionOperatorAction({ task, reviewPack, run });
-    const continuation = resolveMissionContinuationActionability({ reviewPack, run });
-    const recommendedNextAction = resolveRuntimeRecommendedAction({
+    const continuation = summarizeReviewContinuationActionability({
+      takeoverBundle: reviewPack.takeoverBundle ?? run?.takeoverBundle ?? null,
+      actionability: reviewPack.actionability ?? run?.actionability ?? null,
+      missionLinkage: reviewPack.missionLinkage ?? run?.missionLinkage ?? null,
+      publishHandoff: reviewPack.publishHandoff ?? run?.publishHandoff ?? null,
+      continuation: reviewPack.continuation ?? run?.continuation ?? null,
+    });
+    const fallbackRecommendedNextAction = resolveRuntimeRecommendedAction({
       operatorAction,
       fallbacks: [
         continuation.state !== "missing" ? continuation.recommendedAction : null,
@@ -1091,8 +1157,24 @@ export function buildMissionReviewEntriesFromProjection(
       taskSource: reviewPack.taskSource ?? run?.taskSource ?? task.taskSource ?? null,
       run,
       reviewPack,
-      recommendedNextAction,
+      recommendedNextAction: fallbackRecommendedNextAction,
     });
+    const recommendedNextAction =
+      reviewIntelligence?.nextRecommendedAction ?? fallbackRecommendedNextAction;
+    const contextAndDelegation = buildEntryContextAndDelegationSummary({
+      contract: options?.repositoryExecutionContract ?? null,
+      taskSource: reviewPack.taskSource ?? run?.taskSource ?? task.taskSource ?? null,
+      executionProfileId: run?.executionProfile?.id ?? null,
+      reviewProfileId: reviewIntelligence?.reviewProfileId ?? run?.reviewProfileId ?? null,
+      validationPresetId: run?.executionProfile?.validationPresetId ?? null,
+      continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
+      continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
+      recommendedNextAction,
+      continuationState: continuation.state,
+    });
+    const provenanceSummary = buildMissionProvenanceSummary(
+      reviewPack.sourceCitations ?? run?.sourceCitations ?? null
+    );
 
     entries.push({
       id: reviewPack.id,
@@ -1115,7 +1197,7 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       validationOutcome: reviewPack.validationOutcome,
       warningCount: reviewPack.warningCount,
-      recommendedNextAction: reviewIntelligence?.nextRecommendedAction ?? recommendedNextAction,
+      recommendedNextAction,
       accountabilityLifecycle: task.accountability?.lifecycle ?? null,
       queueEnteredAt:
         task.accountability?.lifecycle === "in_review"
@@ -1171,6 +1253,10 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       secondaryLabel: resolveMissionSecondaryLabel(task),
       evidenceLabel: resolveReviewEvidenceLabel(reviewPack, task),
+      contextSummary: contextAndDelegation.contextSummary,
+      provenanceSummary,
+      triageSummary: contextAndDelegation.triageSummary,
+      delegationSummary: contextAndDelegation.delegationSummary,
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
       continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
@@ -1219,8 +1305,14 @@ export function buildMissionReviewEntriesFromProjection(
       filterTags.push("sub_agent_blocked");
     }
     const operatorAction = resolveMissionOperatorAction({ task, reviewPack: null, run });
-    const continuation = resolveMissionContinuationActionability({ reviewPack: null, run });
-    const recommendedNextAction = resolveRuntimeRecommendedAction({
+    const continuation = summarizeReviewContinuationActionability({
+      takeoverBundle: run.takeoverBundle ?? null,
+      actionability: run.actionability ?? null,
+      missionLinkage: run.missionLinkage ?? null,
+      publishHandoff: run.publishHandoff ?? null,
+      continuation: run.continuation ?? null,
+    });
+    const fallbackRecommendedNextAction = resolveRuntimeRecommendedAction({
       operatorAction,
       fallbacks: [
         continuation.state !== "missing" ? continuation.recommendedAction : null,
@@ -1231,8 +1323,22 @@ export function buildMissionReviewEntriesFromProjection(
       contract: options?.repositoryExecutionContract ?? null,
       taskSource: run.taskSource ?? task.taskSource ?? null,
       run,
-      recommendedNextAction,
+      recommendedNextAction: fallbackRecommendedNextAction,
     });
+    const recommendedNextAction =
+      reviewIntelligence?.nextRecommendedAction ?? fallbackRecommendedNextAction;
+    const contextAndDelegation = buildEntryContextAndDelegationSummary({
+      contract: options?.repositoryExecutionContract ?? null,
+      taskSource: run.taskSource ?? task.taskSource ?? null,
+      executionProfileId: run.executionProfile?.id ?? null,
+      reviewProfileId: reviewIntelligence?.reviewProfileId ?? run.reviewProfileId ?? null,
+      validationPresetId: run.executionProfile?.validationPresetId ?? null,
+      continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
+      continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
+      recommendedNextAction,
+      continuationState: continuation.state,
+    });
+    const provenanceSummary = buildMissionProvenanceSummary(run.sourceCitations ?? null);
     entries.push({
       id: run.id,
       kind: "mission_run",
@@ -1256,7 +1362,7 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       validationOutcome: "unknown",
       warningCount: run.warnings?.length ?? 0,
-      recommendedNextAction: reviewIntelligence?.nextRecommendedAction ?? recommendedNextAction,
+      recommendedNextAction,
       accountabilityLifecycle: task.accountability?.lifecycle ?? null,
       queueEnteredAt:
         task.accountability?.lifecycle === "in_review"
@@ -1312,6 +1418,10 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       secondaryLabel: resolveMissionSecondaryLabel(task),
       evidenceLabel: "Runtime evidence only",
+      contextSummary: contextAndDelegation.contextSummary,
+      provenanceSummary,
+      triageSummary: contextAndDelegation.triageSummary,
+      delegationSummary: contextAndDelegation.delegationSummary,
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
       continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,

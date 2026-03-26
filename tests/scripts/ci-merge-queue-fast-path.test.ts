@@ -23,7 +23,7 @@ describe("ci merge-queue fast PR path", () => {
 
     expect(workflow).toContain("fast_pr_iteration_mode");
     expect(workflow).toContain("github.event_name == 'pull_request'");
-    expect(workflow).toContain("vars.MERGE_QUEUE_ENABLED == 'true'");
+    expect(workflow).toContain("vars.MERGE_QUEUE_ENABLED != 'false'");
   });
 
   it("skips heavy runtime and test jobs on pull_request when merge queue mode is enabled", () => {
