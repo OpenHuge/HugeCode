@@ -31,6 +31,7 @@ jobs:
       affected_mode: ${{ steps.context.outputs.affected_mode }}
       code_changed: ${{ steps.scope.outputs.quality_core_changed }}
       diff_base: ${{ steps.context.outputs.diff_base }}
+      fast_pr_iteration_mode: ${{ github.event_name == 'pull_request' && vars.MERGE_QUEUE_ENABLED == 'true' }}
       runtime_contract_changed: ${{ steps.filter.outputs.runtime_contract }}
       desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime }}
       repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
@@ -293,7 +294,10 @@ jobs:
 
   quality_runtime_contract_parity:
     name: Runtime Contract Parity
-    if: needs.changes.outputs.runtime_contract_changed == 'true' && (needs.changes.outputs.affected_mode != 'true' || needs.changes.outputs.repo_governance_only != 'true')
+    if: >-
+      needs.changes.outputs.runtime_contract_changed == 'true' &&
+      (needs.changes.outputs.affected_mode != 'true' || needs.changes.outputs.repo_governance_only != 'true') &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.fast_pr_iteration_mode != 'true')
     needs: [changes]
     uses: ./.github/workflows/_reusable-ci-runtime-contract-parity.yml
     secrets: inherit
@@ -337,7 +341,7 @@ jobs:
 
   pr_affected_tests:
     name: PR Affected Tests
-    if: github.event_name != 'push'
+    if: github.event_name != 'push' && (github.event_name != 'pull_request' || needs.changes.outputs.fast_pr_iteration_mode != 'true')
     needs: [changes, dependabot_policy]
     uses: ./.github/workflows/_reusable-ci-pr-affected-tests.yml
     secrets: inherit
@@ -363,7 +367,13 @@ jobs:
 
   frontend_optimization:
     name: frontend_optimization
-    if: github.event_name == 'pull_request' && needs.changes.outputs.frontend_optimization_changed == 'true' && needs.changes.outputs.repo_governance_only != 'true'
+    if: >-
+      (
+        github.event_name == 'merge_group' ||
+        (github.event_name == 'pull_request' && needs.changes.outputs.fast_pr_iteration_mode != 'true')
+      ) &&
+      needs.changes.outputs.frontend_optimization_changed == 'true' &&
+      needs.changes.outputs.repo_governance_only != 'true'
     needs: [changes]
     uses: ./.github/workflows/_reusable-ci-frontend-optimization.yml
     secrets: inherit
