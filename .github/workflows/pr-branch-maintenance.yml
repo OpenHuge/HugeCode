@@ -34,7 +34,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MERGE_QUEUE_ENABLED: ${{ vars.MERGE_QUEUE_ENABLED || 'false' }}
+          MERGE_QUEUE_ENABLED: ${{ vars.MERGE_QUEUE_ENABLED == 'false' && 'false' || 'true' }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPOSITORY: ${{ github.repository }}
         run: |

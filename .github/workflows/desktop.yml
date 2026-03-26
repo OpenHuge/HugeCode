@@ -58,8 +58,9 @@ jobs:
     name: Detect desktop-relevant changes
     runs-on: ubuntu-latest
     outputs:
-      desktop_required: ${{ github.event_name == 'workflow_dispatch' || (steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.desktop == 'true' || steps.filter.outputs.desktop_frontend == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true')) }}
-      desktop_full_pr_matrix_required: ${{ github.event_name == 'workflow_dispatch' || (steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.desktop_host == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true')) }}
+      desktop_required: ${{ github.event_name == 'workflow_dispatch' || (steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.desktop == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' || ((github.event_name != 'pull_request' || vars.MERGE_QUEUE_ENABLED == 'false') && steps.filter.outputs.desktop_frontend == 'true'))) }}
+      desktop_full_pr_matrix_required: ${{ github.event_name == 'workflow_dispatch' || ((github.event_name != 'pull_request' || vars.MERGE_QUEUE_ENABLED == 'false') && steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.desktop_host == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true')) }}
+      desktop_pr_verification_mode: ${{ (steps.filter.outputs.desktop_host == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true') && 'build' || 'check' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -160,7 +161,7 @@ jobs:
       enable_sccache: ${{ matrix.enable_sccache }}
       host_check_command: ${{ matrix.host_check_command }}
       prebuild_mode: auto
-      verification_mode: check
+      verification_mode: ${{ needs.changes.outputs.desktop_pr_verification_mode }}
       check_base_branch: ${{ github.base_ref }}
       restore_frontend_artifact: "false"
 
