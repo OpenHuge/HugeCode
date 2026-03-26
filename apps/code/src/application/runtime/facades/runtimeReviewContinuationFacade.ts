@@ -8,20 +8,17 @@ import type {
   HugeCodeReviewActionabilitySummary,
   HugeCodeTakeoverBundle,
 } from "@ku0/code-runtime-host-contract";
-import { resolveRuntimeContinuation } from "@ku0/code-runtime-host-contract";
-import type { HugeCodeOperatorTruthSource } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
-import { summarizeHugeCodeOperatorContinuation } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
 import { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
 import {
   buildRuntimeContinuationDescriptor,
   type RuntimeContinuationTruthSource,
 } from "./runtimeContinuationTruth";
 import {
-  resolveRepositoryExecutionDefaults,
   type RepositoryExecutionContract,
   type RepositoryExecutionExplicitLaunchInput,
   type SupportedRepositoryTaskSourceKind,
 } from "./runtimeRepositoryExecutionContract";
+import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
 
 export type ReviewContinuationIntent = "retry" | "clarify" | "switch_profile" | "pair_mode";
 
@@ -86,10 +83,6 @@ export type ReviewContinuationActionabilitySummary = {
   truthSource: RuntimeContinuationTruthSource;
   truthSourceLabel: string;
 };
-
-function mapTruthSource(source: HugeCodeOperatorTruthSource): RuntimeContinuationTruthSource {
-  return source;
-}
 
 type RuntimeRecordedContinuationDefaults = {
   sourceTaskId: string;

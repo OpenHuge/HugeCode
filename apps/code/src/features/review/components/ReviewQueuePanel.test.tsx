@@ -59,6 +59,7 @@ describe("ReviewQueuePanel", () => {
               "Repo guidance: AGENTS.md, .github/copilot-instructions.md | Source evidence: GitHub issue #42",
             triageSummary: "Owner Issue Desk · Priority high · Risk high",
             delegationSummary: "Open Review Pack",
+            continuationTruthSourceLabel: "Runtime takeover bundle",
           },
         ]}
       />
@@ -83,6 +84,7 @@ describe("ReviewQueuePanel", () => {
         "Repo guidance: AGENTS.md, .github/copilot-instructions.md | Source evidence: GitHub issue #42"
       )
     ).toBeTruthy();
+    expect(screen.getByText("Follow-up source: Runtime takeover bundle")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     expect(onRefresh).toHaveBeenCalledTimes(1);

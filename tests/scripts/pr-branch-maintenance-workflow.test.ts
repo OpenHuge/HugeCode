@@ -39,6 +39,7 @@ describe("pr-branch-maintenance workflow", () => {
     const workflow = readWorkflow();
 
     expect(workflow).toContain("MERGE_QUEUE_ENABLED");
+    expect(workflow).toContain("vars.MERGE_QUEUE_ENABLED == 'false' && 'false' || 'true'");
     expect(workflow).toContain('if [[ "$MERGE_QUEUE_ENABLED" == "true" ]]');
     expect(workflow).toContain("merge queue will refresh latest-base validation");
   });

@@ -90,10 +90,11 @@ Practical usage:
   `pull_request`; otherwise merge queue cannot get the required `Quality` and
   `PR Affected Checks` results for queued entries.
 - Those required lanes may fan out internally into parallel build/test or lint/typecheck sub-jobs, but the aggregate gate names must stay stable so branch protection and merge queue do not lose their required check targets.
-- If `main` uses merge queue, set the repo variable `MERGE_QUEUE_ENABLED=true`
-  so `PR Branch Maintenance` stops calling `update branch` on healthy `BEHIND`
-  PRs. Queue mode should only leave manual handling for true merge conflicts or
-  opt-out PRs.
+- This repo treats `pull_request` CI as merge-queue fast path by default.
+  Set the repo variable `MERGE_QUEUE_ENABLED=false` only when merge queue is
+  intentionally disabled and PRs need the heavier pre-merge lanes again.
+  `PR Branch Maintenance` uses the same switch before calling `update branch`
+  on healthy `BEHIND` PRs.
 - In the same queue mode, keep `pull_request` checks fast for agent iteration.
   Heavy integration proof belongs on `merge_group`, while the PR path should
   stay focused on quick failures that help an agent correct course without

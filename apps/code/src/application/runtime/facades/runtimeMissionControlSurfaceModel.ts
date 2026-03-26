@@ -4,7 +4,6 @@ import type {
   HugeCodeRunState,
   HugeCodeTaskSummary,
 } from "@ku0/code-runtime-host-contract";
-import { resolveRuntimeNextOperatorAction } from "@ku0/code-runtime-host-contract";
 import {
   isRuntimeManagedMissionTaskId,
   type MissionControlProjection,
@@ -16,12 +15,17 @@ import {
 } from "./runtimeContextTruth";
 import { buildMissionProvenanceSummary } from "./runtimeMissionControlProvenance";
 import { summarizeReviewContinuationActionability } from "./runtimeReviewContinuationFacade";
+import { resolveMissionContinuationActionability } from "./runtimeMissionControlContinuation";
 import { resolveReviewIntelligenceSummary } from "./runtimeReviewIntelligenceSummary";
 import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
+import { resolveRuntimeRecommendedAction } from "./runtimeOperatorActionPresentation";
 import {
-  resolveRepositoryExecutionDefaults,
-  type RepositoryExecutionContract,
-} from "./runtimeRepositoryExecutionContract";
+  buildMissionNavigationTarget,
+  buildReviewNavigationTarget,
+} from "./runtimeMissionNavigationTarget";
+import type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
+import { type RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
+import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
 import { formatMissionReviewEvidenceLabel } from "../../../utils/reviewPackLabels";
 import { formatReviewFailureClassLabel } from "../../../utils/reviewFailureClass";
 import {
@@ -48,29 +52,8 @@ export function formatMissionOverviewStateLabel(state: MissionOverviewState): st
     }
   }
 }
-export type MissionNavigationTarget =
-  | {
-      kind: "thread";
-      workspaceId: string;
-      threadId: string;
-    }
-  | {
-      kind: "mission";
-      workspaceId: string;
-      taskId: string;
-      runId: string | null;
-      reviewPackId: string | null;
-      threadId: string | null;
-      limitation: "thread_unavailable" | null;
-    }
-  | {
-      kind: "review";
-      workspaceId: string;
-      taskId: string;
-      runId: string | null;
-      reviewPackId: string | null;
-      limitation: "thread_unavailable" | null;
-    };
+
+export type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
 
 export type MissionOverviewCounts = {
   active: number;
@@ -185,11 +168,8 @@ function buildRunIndex(projection: MissionControlProjection) {
 function buildReviewPackIndex(projection: MissionControlProjection) {
   return new Map(projection.reviewPacks.map((reviewPack) => [reviewPack.runId, reviewPack]));
 }
-function buildWorkspaceIndex(projection: MissionControlProjection) {
-  return new Map(projection.workspaces.map((workspace) => [workspace.id, workspace]));
-}
-function buildTaskIndex(projection: MissionControlProjection) {
-  return new Map(projection.tasks.map((task) => [task.id, task]));
+function buildIdIndex<TEntry extends { id: string }>(entries: TEntry[]) {
+  return new Map(entries.map((entry) => [entry.id, entry]));
 }
 function resolveTaskTimestamp(
   task: HugeCodeTaskSummary,
@@ -255,23 +235,6 @@ function buildEntryContextAndDelegationSummary(input: {
       : contextTruth.summary,
     triageSummary: triageSummary.summary,
     delegationSummary: delegationContract.nextOperatorAction,
-  };
-}
-
-function buildMissionNavigationTarget(
-  task: HugeCodeTaskSummary,
-  options?: {
-    runId?: string | null;
-    reviewPackId?: string | null;
-  }
-  return {
-    kind: "mission",
-    workspaceId: input.task.workspaceId,
-    taskId: input.task.id,
-    runId: input.task.latestRunId ?? null,
-    reviewPackId: input.reviewPackId ?? null,
-    threadId: input.task.origin.threadId ?? null,
-    limitation: input.task.origin.threadId ? null : "thread_unavailable",
   };
 }
 function resolveMissionSecondaryLabel(task: HugeCodeTaskSummary): string | null {
@@ -965,38 +928,30 @@ export function buildMissionReviewEntriesFromProjection(
     if (hasBlockedSubAgents(reviewPack, run)) {
       filterTags.push("sub_agent_blocked");
     }
-    const operatorAction = resolveMissionOperatorAction({
-      task,
-      reviewPack,
-      run,
-      missionTarget: buildMissionNavigationTarget(task, {
-        runId: run?.id ?? null,
-        reviewPackId: reviewPack.id,
-      }),
-      reviewTarget: buildReviewNavigationTarget(task, {
-        runId: run?.id ?? null,
-        reviewPackId: reviewPack.id,
-      }),
-      defaultActiveLabel: "Open mission",
-    });
+    const operatorAction = resolveMissionOperatorAction({ task, reviewPack, run });
     const continuation = summarizeReviewContinuationActionability({
       takeoverBundle: reviewPack.takeoverBundle ?? run?.takeoverBundle ?? null,
       actionability: reviewPack.actionability ?? run?.actionability ?? null,
       missionLinkage: reviewPack.missionLinkage ?? run?.missionLinkage ?? null,
       publishHandoff: reviewPack.publishHandoff ?? run?.publishHandoff ?? null,
+      continuation: reviewPack.continuation ?? run?.continuation ?? null,
+    });
+    const fallbackRecommendedNextAction = resolveRuntimeRecommendedAction({
+      operatorAction,
+      fallbacks: [
+        continuation.state !== "missing" ? continuation.recommendedAction : null,
+        reviewPack.recommendedNextAction,
+      ],
     });
     const reviewIntelligence = resolveReviewIntelligenceSummary({
       contract: options?.repositoryExecutionContract ?? null,
       taskSource: reviewPack.taskSource ?? run?.taskSource ?? task.taskSource ?? null,
       run,
       reviewPack,
-      recommendedNextAction,
+      recommendedNextAction: fallbackRecommendedNextAction,
     });
     const recommendedNextAction =
-      reviewIntelligence?.nextRecommendedAction ??
-      (continuation.state !== "missing"
-        ? continuation.recommendedAction
-        : reviewPack.recommendedNextAction);
+      reviewIntelligence?.nextRecommendedAction ?? fallbackRecommendedNextAction;
     const contextAndDelegation = buildEntryContextAndDelegationSummary({
       contract: options?.repositoryExecutionContract ?? null,
       taskSource: reviewPack.taskSource ?? run?.taskSource ?? task.taskSource ?? null,
@@ -1140,37 +1095,29 @@ export function buildMissionReviewEntriesFromProjection(
     if (hasBlockedSubAgents(null, run)) {
       filterTags.push("sub_agent_blocked");
     }
-    const operatorAction = resolveMissionOperatorAction({
-      task,
-      reviewPack: null,
-      run,
-      missionTarget: buildMissionNavigationTarget(task, {
-        runId: run.id,
-        reviewPackId: null,
-      }),
-      reviewTarget: buildReviewNavigationTarget(task, {
-        runId: run.id,
-        reviewPackId: null,
-      }),
-      defaultActiveLabel: "Open mission",
-    });
+    const operatorAction = resolveMissionOperatorAction({ task, reviewPack: null, run });
     const continuation = summarizeReviewContinuationActionability({
       takeoverBundle: run.takeoverBundle ?? null,
       actionability: run.actionability ?? null,
       missionLinkage: run.missionLinkage ?? null,
       publishHandoff: run.publishHandoff ?? null,
+      continuation: run.continuation ?? null,
+    });
+    const fallbackRecommendedNextAction = resolveRuntimeRecommendedAction({
+      operatorAction,
+      fallbacks: [
+        continuation.state !== "missing" ? continuation.recommendedAction : null,
+        run.nextAction?.detail ?? null,
+      ],
     });
     const reviewIntelligence = resolveReviewIntelligenceSummary({
       contract: options?.repositoryExecutionContract ?? null,
       taskSource: run.taskSource ?? task.taskSource ?? null,
       run,
-      recommendedNextAction,
+      recommendedNextAction: fallbackRecommendedNextAction,
     });
     const recommendedNextAction =
-      reviewIntelligence?.nextRecommendedAction ??
-      (continuation.state !== "missing"
-        ? continuation.recommendedAction
-        : (run.nextAction?.detail ?? null));
+      reviewIntelligence?.nextRecommendedAction ?? fallbackRecommendedNextAction;
     const contextAndDelegation = buildEntryContextAndDelegationSummary({
       contract: options?.repositoryExecutionContract ?? null,
       taskSource: run.taskSource ?? task.taskSource ?? null,

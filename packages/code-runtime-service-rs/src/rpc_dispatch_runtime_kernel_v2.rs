@@ -1,6 +1,7 @@
 use super::mission_control_dispatch::{
     build_mission_run_projection_by_run_id, build_review_pack_projection_by_run_id,
 };
+use super::runtime_kernel_v2_plan::{build_prepare_plan, build_validation_lanes};
 use super::*;
 use crate::agent_policy::{
     normalize_access_mode, normalize_agent_profile, normalize_reason_effort,
@@ -582,7 +583,52 @@ fn build_delegation_contract(
         "continueVia": Value::Null,
     })
 }
+fn build_context_selection_policy(
+    access_mode: &str,
+    execution_mode: &str,
+    preferred_backend_ids: &[String],
+    synthesized_steps: &[AgentTaskStepInput],
+) -> Value {
+    let strategy = if access_mode == "read-only" {
+        "minimal"
+    } else if execution_mode == "distributed"
+        || preferred_backend_ids.len() > 1
+        || synthesized_steps.len() >= 4
+    {
+        "deep"
+    } else {
+        "balanced"
+    };
+    let token_budget_target = match strategy {
+        "minimal" => 900,
+        "deep" => 2200,
+        _ => 1500,
+    };
+    let tool_exposure_profile = match access_mode {
+        "read-only" => "minimal",
+        "full-access" => "full",
+        _ => "slim",
+    };
 
+    json!({
+        "strategy": strategy,
+        "tokenBudgetTarget": token_budget_target,
+        "toolExposureProfile": tool_exposure_profile,
+        "preferColdFetch": strategy != "deep",
+    })
+}
+
+fn compute_context_entries_fingerprint<'a>(
+    namespace: &str,
+    entries: impl IntoIterator<Item = &'a Value>,
+) -> String {
+    let mut hasher = DefaultHasher::new();
+    namespace.hash(&mut hasher);
+    for entry in entries {
+        entry.to_string().hash(&mut hasher);
+    }
+    format!("{:016x}", hasher.finish())
+}
 fn step_kind_to_kernel_kind(step: &AgentTaskStepInput) -> &'static str {
     match step.kind {
         AgentStepKind::Read => "read",
@@ -1577,6 +1623,8 @@ mod tests {
                 ..WorkspaceLaunchContext::default()
             },
             None,
+            "on-request",
+            "single",
             &[],
             &[],
         );
@@ -1595,6 +1643,39 @@ mod tests {
                 .as_str()
                 .is_some_and(|detail| detail.contains(".github/copilot-instructions.md"))
         );
+    }
+
+    #[test]
+    fn build_context_working_set_adds_selection_policy_and_fingerprints() {
+        let context = WorkspaceLaunchContext {
+            workspace_root_path: Some("/workspaces/HugeCode".to_string()),
+            has_agents_md: true,
+            repo_instruction_sources: vec!["AGENTS.md".to_string()],
+            validate_command: Some("pnpm validate".to_string()),
+            ..WorkspaceLaunchContext::default()
+        };
+        let working_set = build_context_working_set(
+            &context,
+            None,
+            "on-request",
+            "distributed",
+            &["backend-a".to_string(), "backend-b".to_string()],
+            &[sample_step(
+                AgentStepKind::Read,
+                "Context digest: runtime recovered prior work.",
+                Some(false),
+            )],
+        );
+
+        assert_eq!(working_set["selectionPolicy"]["strategy"], json!("deep"));
+        assert_eq!(working_set["selectionPolicy"]["toolExposureProfile"], json!("slim"));
+        assert_eq!(working_set["selectionPolicy"]["preferColdFetch"], json!(false));
+        assert!(working_set["contextFingerprint"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()));
+        assert!(working_set["stablePrefixFingerprint"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()));
     }
 
     #[test]

@@ -433,30 +433,6 @@ function readSourceMappingKind(value: string): SupportedRepositoryTaskSourceKind
   }
 }
 
-function normalizeTaskSourceKind(
-  taskSource: AgentTaskSourceSummary | null | undefined
-): SupportedRepositoryTaskSourceKind {
-  const kind = readSourceMappingKind(taskSource?.kind ?? "manual");
-  return kind ?? "manual";
-}
-
-function profileValidationPresetId(profileId: string | null): string | null {
-  if (!profileId) {
-    return null;
-  }
-  return (
-    listRunExecutionProfiles().find((profile) => profile.id === profileId)?.validationPresetId ??
-    null
-  );
-}
-
-function profileAccessMode(profileId: string | null): AccessMode | null {
-  if (!profileId) {
-    return null;
-  }
-  return listRunExecutionProfiles().find((profile) => profile.id === profileId)?.accessMode ?? null;
-}
-
 export function parseRepositoryExecutionContract(raw: string): RepositoryExecutionContract {
   let parsed: unknown;
   try {
@@ -621,7 +597,6 @@ export function resolveRepositoryExecutionDefaults(input: {
     triageTags: sourceMapping?.triage?.tags ?? defaults.triage?.tags ?? [],
   };
 }
-
 export {
   REPOSITORY_EXECUTION_CONTRACT_PATH,
   type RepositoryExecutionContractPolicy,

@@ -24,7 +24,7 @@ describe("codeql merge-queue fast PR path", () => {
 
     expect(workflow).toContain("fast_pr_iteration_mode");
     expect(workflow).toContain(
-      "github.event_name == 'pull_request' && vars.MERGE_QUEUE_ENABLED == 'true'"
+      "github.event_name == 'pull_request' && vars.MERGE_QUEUE_ENABLED != 'false'"
     );
   });
 

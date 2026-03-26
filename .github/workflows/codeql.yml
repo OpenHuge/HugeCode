@@ -31,7 +31,7 @@ jobs:
     name: Detect CodeQL-relevant changes
     runs-on: ubuntu-latest
     outputs:
-      fast_pr_iteration_mode: ${{ github.event_name == 'pull_request' && vars.MERGE_QUEUE_ENABLED == 'true' }}
+      fast_pr_iteration_mode: ${{ github.event_name == 'pull_request' && vars.MERGE_QUEUE_ENABLED != 'false' }}
       javascript_required: ${{ github.event_name == 'schedule' || github.event_name == 'merge_group' || steps.filter.outputs.javascript == 'true' }}
       rust_required: ${{ github.event_name == 'schedule' || github.event_name == 'merge_group' || steps.filter.outputs.rust == 'true' }}
     steps:

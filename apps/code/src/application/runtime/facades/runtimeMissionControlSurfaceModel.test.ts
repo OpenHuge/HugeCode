@@ -173,6 +173,7 @@ describe("runtimeMissionControlSurfaceModel", () => {
     );
     expect(reviewEntries[0]?.triageSummary).toContain("Owner unassigned");
     expect(reviewEntries[0]?.delegationSummary).toBe("Open Review Pack");
+    expect(reviewEntries[0]?.continuationTruthSourceLabel).toBe("Runtime takeover bundle");
     expect(signals.reviewReadyCount).toBe(1);
   });
 

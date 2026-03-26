@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import type { AgentTaskSourceSummary } from "@ku0/code-runtime-host-contract";
 import {
-  resolveRepositoryExecutionDefaults,
   type RepositoryExecutionContract,
   type ResolvedRepositoryExecutionDefaults,
 } from "./runtimeRepositoryExecutionContract";
+import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
 import { useRuntimeWorkspaceExecutionPolicy } from "./runtimeWorkspaceExecutionPolicyFacade";
 
 export type RuntimeWorkspaceLaunchDefaultsState = {
