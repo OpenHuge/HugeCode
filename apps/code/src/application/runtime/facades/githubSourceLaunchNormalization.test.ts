@@ -5,63 +5,10 @@ import type {
   GitHubPullRequestComment,
   GitHubPullRequestDiff,
 } from "../../../types";
-import { parseRepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import {
   normalizeGitHubIssueLaunchInput,
   normalizeGitHubPullRequestFollowUpLaunchInput,
 } from "./githubSourceLaunchNormalization";
-
-function createContract() {
-  return parseRepositoryExecutionContract(
-    JSON.stringify({
-      version: 1,
-      defaults: {
-        executionProfileId: "balanced-delegate",
-        reviewProfileId: "default-review",
-        validationPresetId: "standard",
-      },
-      sourceMappings: {
-        github_issue: {
-          executionProfileId: "autonomous-delegate",
-          reviewProfileId: "issue-review",
-          validationPresetId: "fast-lane",
-          preferredBackendIds: ["backend-issue", "backend-fallback"],
-        },
-        github_pr_followup: {
-          executionProfileId: "balanced-delegate",
-          reviewProfileId: "pr-followup-review",
-          validationPresetId: "review-first",
-          accessMode: "on-request",
-        },
-      },
-      validationPresets: [
-        { id: "standard", commands: ["pnpm validate"] },
-        { id: "fast-lane", commands: ["pnpm validate:fast"] },
-        { id: "review-first", commands: ["pnpm validate:fast", "pnpm test:component"] },
-      ],
-      reviewProfiles: [
-        {
-          id: "default-review",
-          label: "Default Review",
-          allowedSkillIds: ["review-agent"],
-          validationPresetId: "standard",
-        },
-        {
-          id: "issue-review",
-          label: "Issue Review",
-          allowedSkillIds: ["review-agent"],
-          validationPresetId: "fast-lane",
-        },
-        {
-          id: "pr-followup-review",
-          label: "PR Follow-up Review",
-          allowedSkillIds: ["review-agent"],
-          validationPresetId: "review-first",
-        },
-      ],
-    })
-  );
-}
 
 describe("githubSourceLaunchNormalization", () => {
   it("normalizes GitHub issue launch inputs with issue detail context and repo defaults", () => {
@@ -77,7 +24,6 @@ describe("githubSourceLaunchNormalization", () => {
 
     const normalized = normalizeGitHubIssueLaunchInput({
       issue,
-      repositoryExecutionContract: createContract(),
     });
 
     expect(normalized).toEqual(
@@ -100,22 +46,14 @@ describe("githubSourceLaunchNormalization", () => {
             remoteUrl: "https://github.com/acme/hugecode",
           }),
         }),
-        executionProfileId: "autonomous-delegate",
-        reviewProfileId: "issue-review",
-        validationPresetId: "fast-lane",
-        accessMode: "full-access",
-        preferredBackendIds: ["backend-issue", "backend-fallback"],
       })
     );
     expect(normalized.instruction).toContain("Author: @octocat");
     expect(normalized.instruction).toContain("Labels: bug, launcher");
     expect(normalized.instruction).toContain("Issue body:");
     expect(normalized.instruction).toContain("Keep the launch flow desktop-only for now.");
-    expect(normalized.missionBrief.permissionSummary?.accessMode).toBe("full-access");
-    expect(normalized.missionBrief.preferredBackendIds).toEqual([
-      "backend-issue",
-      "backend-fallback",
-    ]);
+    expect(normalized.missionBrief.permissionSummary).toBeNull();
+    expect(normalized.missionBrief.preferredBackendIds).toBeNull();
   });
 
   it("falls back cleanly when GitHub issue body is missing", () => {
@@ -169,7 +107,6 @@ describe("githubSourceLaunchNormalization", () => {
       pullRequest,
       diffs,
       comments,
-      repositoryExecutionContract: createContract(),
       preferredBackendIds: ["backend-a", "backend-a", "backend-b"],
     });
 
@@ -196,11 +133,6 @@ describe("githubSourceLaunchNormalization", () => {
             remoteUrl: "https://github.com/acme/hugecode",
           }),
         }),
-        executionProfileId: "balanced-delegate",
-        reviewProfileId: "pr-followup-review",
-        validationPresetId: "review-first",
-        accessMode: "on-request",
-        preferredBackendIds: ["backend-a", "backend-b"],
       })
     );
     expect(normalized.instruction).toContain("Branches: main <- feature/task-source");
@@ -208,7 +140,8 @@ describe("githubSourceLaunchNormalization", () => {
     expect(normalized.instruction).toContain("- src/a.ts");
     expect(normalized.instruction).toContain("Discussion notes:");
     expect(normalized.instruction).toContain("@reviewer: Keep the wrapper fallback safe.");
-    expect(normalized.missionBrief.permissionSummary?.accessMode).toBe("on-request");
+    expect(normalized.missionBrief.permissionSummary).toBeNull();
+    expect(normalized.missionBrief.preferredBackendIds).toEqual(["backend-a", "backend-b"]);
   });
 
   it("falls back cleanly when GitHub PR follow-up diffs and comments are missing", () => {

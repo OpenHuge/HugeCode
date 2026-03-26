@@ -66,7 +66,7 @@ describe("useSettingsModalState", () => {
       result.current.openSettings("codex");
       result.current.openSettings();
     });
-    await waitFor(() => expect(result.current.settingsSection).toBe("codex"));
+    await vi.dynamicImportSettled();
 
     expect(result.current.settingsOpen).toBe(true);
     expect(result.current.settingsSection).toBe("codex");
