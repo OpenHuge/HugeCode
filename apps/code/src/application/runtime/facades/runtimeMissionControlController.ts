@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkspaceRuntimeAgentControl } from "../ports/runtimeAgentControl";
-import { startRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
 import { readRuntimeErrorCode, readRuntimeErrorMessage } from "../ports/runtimeErrorClassifier";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import { listRunExecutionProfiles } from "./runtimeMissionControlFacade";
+import { startRuntimeRunWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
 import {
   buildRuntimeMissionLaunchPrepareRequest,
   useRuntimeMissionLaunchPreview,
@@ -144,7 +144,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     }
     setRuntimeActionLoading(true);
     try {
-      await startRuntimeRunV2(launchRequest);
+      await startRuntimeRunWithRemoteSelection(launchRequest);
       draft.resetRuntimeDraftState();
       setRuntimeError(null);
       setRuntimeInfo(

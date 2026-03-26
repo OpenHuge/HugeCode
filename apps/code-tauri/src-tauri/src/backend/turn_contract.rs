@@ -61,6 +61,7 @@ fn canonicalize_provider_alias(value: Option<&str>) -> Option<String> {
     let canonical = match normalized.as_str() {
         "openai" | "codex" | "openai-codex" => "openai",
         "anthropic" | "claude" | "claude_code" | "claude-code" => "anthropic",
+        "claude_code_local" => "claude_code_local",
         "google" | "gemini" | "antigravity" | "anti-gravity" | "gemini-antigravity" => "google",
         _ => return None,
     };

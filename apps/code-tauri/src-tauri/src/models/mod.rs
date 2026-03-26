@@ -10,4 +10,4 @@ pub use contracts::{
     ThreadLiveUnsubscribeResult, ThreadSummary, TurnAck, TurnInterruptRequest, TurnSendRequest,
     WorkspaceSummary,
 };
-pub use pool::{ModelPoolResolver, ResolverContext};
+pub use pool::{ModelPoolResolver, ResolvedRoute, ResolverContext, RouteReason};

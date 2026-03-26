@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getConfigModel, getModelList } from "../../../application/runtime/ports/tauriModels";
+import { getProvidersCatalog } from "../../../application/runtime/ports/tauriOauth";
 import {
   subscribeScopedRuntimeUpdatedEvents,
   type ScopedRuntimeUpdatedEventSnapshot,
@@ -16,6 +17,10 @@ import { useModels } from "./useModels";
 vi.mock("../../../application/runtime/ports/tauriModels", () => ({
   getModelList: vi.fn(),
   getConfigModel: vi.fn(),
+}));
+
+vi.mock("../../../application/runtime/ports/tauriOauth", () => ({
+  getProvidersCatalog: vi.fn(),
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
@@ -56,6 +61,7 @@ const BOOTSTRAP_MODEL_SLUGS = [
 ] as const;
 
 describe("useModels", () => {
+  const getProvidersCatalogMock = vi.mocked(getProvidersCatalog);
   let listener: ((event: RuntimeUpdatedEvent) => void) | null = null;
   let runtimeUpdatedRevisionCounter = 0;
   const EMPTY_RUNTIME_UPDATED_SNAPSHOT: ScopedRuntimeUpdatedEventSnapshot = {
@@ -64,6 +70,7 @@ describe("useModels", () => {
   };
 
   beforeEach(() => {
+    getProvidersCatalogMock.mockResolvedValue([]);
     listener = null;
     runtimeUpdatedRevisionCounter = 0;
     vi.mocked(subscribeScopedRuntimeUpdatedEvents).mockImplementation((_options, cb) => {
@@ -363,6 +370,81 @@ describe("useModels", () => {
 
     await waitFor(() => expect(result.current.selectedModelId).toBe("available-fallback"));
     expect(result.current.selectedModel?.available).toBe(true);
+  });
+
+  it("auto-selects a healthy fallback family when the preferred provider family is unavailable", async () => {
+    vi.mocked(getModelList).mockResolvedValueOnce({
+      result: {
+        data: [
+          {
+            id: "openai::gpt-5.4",
+            model: "gpt-5.4",
+            displayName: "GPT-5.4",
+            provider: "openai",
+            pool: "codex",
+            available: true,
+            supportedReasoningEfforts: [{ reasoningEffort: "high", description: "High" }],
+            defaultReasoningEffort: "high",
+            isDefault: true,
+          },
+          {
+            id: "anthropic::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            provider: "anthropic",
+            pool: "claude",
+            available: true,
+            supportedReasoningEfforts: [{ reasoningEffort: "high", description: "High" }],
+            defaultReasoningEffort: "high",
+            isDefault: false,
+          },
+        ],
+      },
+    });
+    vi.mocked(getConfigModel).mockResolvedValueOnce(null);
+    getProvidersCatalogMock.mockResolvedValueOnce([
+      {
+        providerId: "anthropic",
+        displayName: "Claude Code",
+        pool: "claude",
+        oauthProviderId: "claude_code",
+        aliases: ["claude", "claude_code"],
+        defaultModelId: "anthropic::claude-sonnet-4-5",
+        available: false,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        readinessKind: "not_authenticated",
+        readinessMessage: "Sign in to Claude Code to use this route.",
+        executionKind: "cloud",
+        registryVersion: "test",
+      },
+      {
+        providerId: "openai",
+        displayName: "Codex",
+        pool: "codex",
+        oauthProviderId: "codex",
+        aliases: ["openai", "codex"],
+        defaultModelId: "openai::gpt-5.4",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        readinessKind: "ready",
+        readinessMessage: null,
+        executionKind: "cloud",
+        registryVersion: "test",
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useModels({
+        activeWorkspace: workspace,
+        preferredProviderId: "claude",
+        selectionMode: "auto",
+      })
+    );
+
+    await waitFor(() => expect(result.current.selectedModelId).toBe("openai::gpt-5.4"));
+    expect(result.current.selectedModel?.provider).toBe("openai");
   });
 
   it("keeps the selected reasoning effort when switching models", async () => {

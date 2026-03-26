@@ -2,7 +2,13 @@ import type { MutableRefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
 import { pickWorkspacePath } from "../../../application/runtime/ports/tauriWorkspaceDialogs";
-import type { AppMention, ComposerExecutionMode, WorkspaceInfo } from "../../../types";
+import type {
+  AppMention,
+  ComposerExecutionMode,
+  ComposerModelSelectionMode,
+  ModelProviderFamilyId,
+  WorkspaceInfo,
+} from "../../../types";
 import { usePullRequestComposer } from "../../git/hooks/usePullRequestComposer";
 import { useWindowDrag } from "../../layout/hooks/useWindowDrag";
 import type { AppTab } from "../../shell/types/shellRoute";
@@ -140,6 +146,8 @@ type UseMainAppHandlersParams = {
   queueMessage: PullRequestComposerParams["queueMessage"];
   pendingNewThreadSeedRef: MutableRefObject<PendingNewThreadSeed | null>;
   pendingNewThreadAutoDriveDraftRef: MutableRefObject<AutoDriveControllerHookDraft | null>;
+  selectionMode: ComposerModelSelectionMode;
+  preferredProviderFamilyId: ModelProviderFamilyId | null;
   selectedCollaborationModeId: string | null;
   accessMode: AccessMode;
   executionMode: ComposerExecutionMode;
@@ -240,6 +248,8 @@ export function useMainAppHandlers({
   queueMessage,
   pendingNewThreadSeedRef,
   pendingNewThreadAutoDriveDraftRef,
+  selectionMode,
+  preferredProviderFamilyId,
   selectedCollaborationModeId,
   accessMode,
   executionMode,
@@ -481,6 +491,8 @@ export function useMainAppHandlers({
     pendingNewThreadSeedRef.current = createPendingThreadSeed({
       activeThreadId: activeThreadId ?? null,
       activeWorkspaceId: activeWorkspaceId ?? null,
+      selectionMode,
+      providerFamilyId: preferredProviderFamilyId,
       selectedCollaborationModeId,
       accessMode,
       executionMode,
@@ -494,7 +506,9 @@ export function useMainAppHandlers({
     executionMode,
     fastModeEnabled,
     pendingNewThreadAutoDriveDraftRef,
+    preferredProviderFamilyId,
     selectedCollaborationModeId,
+    selectionMode,
     pendingNewThreadSeedRef,
   ]);
 

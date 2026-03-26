@@ -18,6 +18,7 @@ import type {
   CollaborationModeOption,
   ComposerEditorSettings,
   ComposerExecutionMode,
+  ComposerModelSelectionMode,
   ConversationItem,
   CustomPromptOption,
   DebugEntry,
@@ -528,6 +529,11 @@ export type LayoutNodesFieldRegistry = {
   composerAccountOptions?: ComposerAccountOption[];
   selectedAccountIds?: string[];
   onSelectAccountIds?: (ids: string[]) => void;
+  modelSelectionMode?: ComposerModelSelectionMode;
+  selectedProviderId?: string | null;
+  onSelectProvider?: (providerId: string) => void;
+  onSelectAutoRoute?: (providerId: string | null) => void;
+  onSelectModelSelectionMode?: (mode: ComposerModelSelectionMode) => void;
   models: ModelOption[];
   selectedModelId: string | null;
   onSelectModel: (id: string | null) => void;
@@ -898,6 +904,11 @@ const LAYOUT_CONVERSATION_NODE_KEYS = [
   "composerAccountOptions",
   "selectedAccountIds",
   "onSelectAccountIds",
+  "modelSelectionMode",
+  "selectedProviderId",
+  "onSelectProvider",
+  "onSelectAutoRoute",
+  "onSelectModelSelectionMode",
   "models",
   "selectedModelId",
   "onSelectModel",

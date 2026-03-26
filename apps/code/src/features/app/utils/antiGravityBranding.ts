@@ -234,6 +234,9 @@ export function resolveModelBrandLabel(
   if (!model) {
     return null;
   }
+  if ((model.provider ?? "").trim().toLowerCase() === "claude_code_local") {
+    return "Claude Code Local";
+  }
   if (
     isAntigravityAlias(model.provider) ||
     isAntigravityAlias(model.pool) ||

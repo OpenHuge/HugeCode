@@ -22,7 +22,6 @@ import {
 } from "../../../application/runtime/facades/runtimeMissionControlFacade";
 import { WorkspaceHomeAgentRuntimeOrchestration } from "./WorkspaceHomeAgentRuntimeOrchestration";
 
-const startRuntimeJobWithRemoteSelectionMock = vi.hoisted(() => vi.fn());
 const readRepositoryExecutionContractMock = vi.hoisted(() => vi.fn());
 const startAgentTask = vi.hoisted(() => vi.fn());
 const prepareRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
@@ -32,10 +31,6 @@ const startRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   subscribeScopedRuntimeUpdatedEvents: vi.fn(),
-}));
-
-vi.mock("../../../application/runtime/facades/runtimeRemoteExecutionFacade", () => ({
-  startRuntimeJobWithRemoteSelection: startRuntimeJobWithRemoteSelectionMock,
 }));
 
 vi.mock("../../../application/runtime/facades/runtimeRepositoryExecutionContract", async () => {
@@ -169,10 +164,7 @@ beforeEach(() => {
       runtimeUpdatedListeners.delete(listener);
     };
   });
-  startRuntimeJobWithRemoteSelectionMock.mockResolvedValue({});
-  vi.mocked(getRuntimeRunV2).mockResolvedValue(
-    null as unknown as Awaited<ReturnType<typeof getRuntimeRunV2>>
-  );
+  vi.mocked(getRuntimeRunV2).mockResolvedValue(null as never);
   subscribeRuntimeRunV2Mock.mockResolvedValue(null);
   prepareRuntimeRunV2Mock.mockResolvedValue(createRuntimeLaunchPreparationFixture());
   startRuntimeRunV2Mock.mockResolvedValue({
@@ -492,7 +484,8 @@ function createRuntimeKernelValue(): RuntimeKernel {
         readMissionControlSnapshot: vi.fn(() => getMissionControlSnapshot()),
       },
       agentControl: {
-        startRuntimeJob: vi.fn(),
+        prepareRuntimeRun: vi.fn(),
+        startRuntimeRun: vi.fn(),
         cancelRuntimeJob: vi.fn(),
         resumeRuntimeJob: vi.fn(),
         interveneRuntimeJob: vi.fn(),
@@ -1497,7 +1490,6 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       status: "running",
       message: "ok",
     });
-    startRuntimeJobWithRemoteSelectionMock.mockResolvedValue({});
     interruptAgentTaskMock.mockResolvedValue({
       accepted: true,
       taskId: "runtime-running-1",

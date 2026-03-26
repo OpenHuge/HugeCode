@@ -93,7 +93,7 @@ export function resolveRuntimeToolExposurePolicy(input: {
   const allowedRuntimeTools =
     explicitProfile === "minimal"
       ? MINIMAL_RUNTIME_INITIAL_TOOL_NAMES
-      : explicitProfile === "slim" || provider === "anthropic"
+      : explicitProfile === "slim" || provider === "anthropic" || provider === "claude_code_local"
         ? ANTHROPIC_RUNTIME_INITIAL_TOOL_NAMES
         : null;
 

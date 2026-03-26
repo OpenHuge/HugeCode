@@ -104,6 +104,7 @@ export default {
         categories: ["Development"],
         maintainer: "OpenHuge",
         mimeType: ["x-scheme-handler/hugecode"],
+        productName: "HugeCode",
         productDescription: "HugeCode beta desktop shell",
         section: "devel",
       },

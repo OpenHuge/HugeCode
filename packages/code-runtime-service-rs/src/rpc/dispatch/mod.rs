@@ -174,9 +174,11 @@ pub(crate) async fn handle_rpc(
         "code_thread_live_unsubscribe" => handle_thread_live_unsubscribe(ctx, params).await,
         "code_turn_send" => handle_turn_send(ctx, params).await,
         "code_turn_interrupt" => handle_turn_interrupt(ctx, params).await,
+        // Canonical Mission Control launch path.
         "code_runtime_run_prepare_v2" => handle_runtime_run_prepare_v2(ctx, params).await,
-        "code_runtime_run_start" => handle_agent_task_start(ctx, params).await,
         "code_runtime_run_start_v2" => handle_runtime_run_start_v2(ctx, params).await,
+        // Legacy runtime-run compatibility surface.
+        "code_runtime_run_start" => handle_agent_task_start(ctx, params).await,
         "code_runtime_run_cancel" => handle_agent_task_interrupt(ctx, params).await,
         "code_runtime_run_resume" => handle_agent_task_resume(ctx, params).await,
         "code_runtime_run_resume_v2" => handle_runtime_run_resume_v2(ctx, params).await,
@@ -187,6 +189,7 @@ pub(crate) async fn handle_rpc(
         "code_runtime_run_subscribe_v2" => handle_runtime_run_subscribe_v2(ctx, params).await,
         "code_runtime_review_get_v2" => handle_runtime_review_get_v2(ctx, params).await,
         "code_runtime_runs_list" => handle_agent_tasks_list(ctx, params).await,
+        // Kernel-job compatibility surface.
         "code_kernel_job_start_v3" => {
             let response = handle_agent_task_start(ctx, params).await?;
             let job_id = response

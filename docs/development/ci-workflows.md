@@ -6,6 +6,9 @@ This document is the source of truth for how HugeCode maps public workflows to i
 
 - `pnpm check:workflow-governance`
   Use this guard whenever `.github/workflows/*.yml`, workflow-facing docs, or reusable workflow wiring changes.
+- Required GitHub Actions checks that protect `main` must include `merge_group`
+  triggers when the repository uses a merge queue ruleset. Otherwise merge queue
+  entries will not receive the required check contexts.
 - Required merge-queue checks should scope `merge_group` to the
   `checks_requested` activity so workflow runs stay aligned with GitHub's
   required-check contract and do not widen accidentally if new activity types
@@ -23,7 +26,8 @@ Treat the CI check names as explicit requests for missing local proof:
   This lane is where `format`, `lint`, `ui:contract`, `check:circular`, and
   affected typecheck fail. If a PR changes TypeScript behavior, runtime/UI
   boundaries, or import shape, the author should already have run the matching
-  local gate before opening the PR.
+  local gate before opening the PR. PR desktop packaging proof stays in the
+  dedicated `Desktop (Tauri)` workflow instead of being duplicated here.
 - `PR Affected Checks / PR Affected Checks`
   This lane validates affected builds and tests. If it fails, the usual fix is
   to reproduce with `pnpm build:affected` and `pnpm test:affected` or the
@@ -33,7 +37,9 @@ Treat the CI check names as explicit requests for missing local proof:
   This is the expensive browser/build/startup proof. Treat failures here as a
   sign that the PR changed shell startup, runtime readiness, bundle-sensitive
   code, or frontend-owning dependencies without running
-  `pnpm validate:frontend-optimization` locally first.
+  `pnpm validate:frontend-optimization` locally first. Workflow-only CI
+  plumbing edits should stay in repository-governance lanes and not wake this
+  browser/build gate by themselves.
 
 When documenting or reviewing PR process, point authors to the local command
 that corresponds to the failing gate instead of telling them to "wait for CI and
@@ -70,6 +76,7 @@ Public workflow entrypoints currently include:
 - `.github/workflows/desktop.yml`
 - `.github/workflows/electron-beta.yml`
 - `.github/workflows/nightly.yml`
+- `.github/workflows/pr-branch-maintenance.yml`
 - `.github/workflows/pr-auto-merge.yml`
 - `.github/workflows/release.yml`
 
@@ -94,6 +101,12 @@ Public workflow entrypoints currently include:
 - The shared `Quality` lane should reserve global governance checks for `repo_sot`-class changes. On normal product PRs, only run `ui:contract`, `check:circular`, and code-integration watch when their owned surfaces changed.
 - Desktop build lanes must install both `@ku0/code...` and `@ku0/code-tauri...` so Tauri `beforeBuildCommand` can build the frontend app without relying on a full workspace install.
 - Expensive frontend optimization lanes should restore Turbo cache before rebuilding so bundle-budget and targeted browser gates keep their coverage without recompiling from a cold local cache on every PR.
+- Shared Playwright bootstrap should cache browser binaries by OS and lockfile
+  so repeated frontend/browser gates do not redownload Chromium on every run.
+- Exclude-heavy CI boundaries such as `quality_core`, `ui_contract`,
+  `app_circular`, and `frontend_optimization` should stay script-backed in
+  `scripts/classify-ci-change-scope.mjs` instead of relying on mixed positive
+  and negative `paths-filter` globs.
 - Shared Playwright bootstrap should install Chromium with `--only-shell` when
   CI stays on the default headless Chromium lane without a `channel` override;
   this keeps browser downloads aligned with current Playwright guidance and
@@ -114,5 +127,9 @@ Public workflow entrypoints currently include:
 - Public desktop, electron, and CodeQL workflows may still trigger for workflow-governance edits so syntax and required check names stay visible, but workflow-only changes should fast-skip heavyweight packaging or language-analysis lanes unless the owned product or build-runtime surfaces changed.
 - Dependabot auto-merge must stay selective: only low-risk grouped updates such as `devcontainers-safe` and `github-actions-safe` should auto-enable merge after checks pass; runtime, frontend, and Rust dependency bumps remain manual-review lanes.
 - Cross-directory Rust updates should prefer Dependabot `group-by: dependency-name` so the same crate bump lands in one PR across monorepo manifests instead of fan-out duplicates.
+- Approved repo-hosted PRs may be updated with GitHub-native branch-update
+  behavior when they are behind `main`, but the automation must leave `DIRTY`
+  merge-conflict cases for manual resolution instead of attempting local merge
+  or rebase repair.
 - Auto-merge for non-Dependabot PRs should stay repo-branch-only and review-gated; the default path is "approved with no unresolved conversations means `gh pr merge --auto` is enabled unless the PR carries the opt-out `manual-merge` label."
 - npm Dependabot updates should prefer grouped low-risk development-version bumps to reduce queue pressure and redundant CI fan-out, while keeping higher-risk dependency changes in manual-review lanes.

@@ -32,6 +32,48 @@ function truncateText(text: string, maxLength: number): string {
   return `${text.slice(0, maxLength - 1)}…`;
 }
 
+function formatTurnRouteSummary(payload: {
+  routedProvider?: string | null;
+  routedModelId?: string | null;
+  executionMode?: string | null;
+  recoveredFromStaleResume?: boolean | null;
+}): string | null {
+  const providerLabel = (() => {
+    switch ((payload.routedProvider ?? "").trim().toLowerCase()) {
+      case "claude_code_local":
+        return "Claude Code Local";
+      case "anthropic":
+      case "claude":
+      case "claude_code":
+        return "Claude";
+      case "openai":
+      case "codex":
+        return "Codex";
+      case "google":
+      case "gemini":
+        return "Gemini";
+      default:
+        return payload.routedProvider?.trim() || null;
+    }
+  })();
+
+  const locationLabel =
+    payload.routedProvider?.trim().toLowerCase() === "claude_code_local"
+      ? "Local"
+      : payload.executionMode === "local-cli"
+        ? "Local"
+        : "Cloud";
+
+  const fragments = [
+    providerLabel,
+    payload.routedModelId?.trim() || null,
+    locationLabel,
+    payload.recoveredFromStaleResume ? "session recreated" : null,
+  ].filter((value): value is string => Boolean(value));
+
+  return fragments.length > 0 ? fragments.join(" · ") : null;
+}
+
 export function useAgentSystemNotifications({
   enabled,
   isWindowFocused,
@@ -192,22 +234,39 @@ export function useAgentSystemNotifications({
   }, []);
 
   const handleTurnCompleted = useCallback(
-    (workspaceId: string, threadId: string, turnId: string) => {
+    (
+      workspaceId: string,
+      threadId: string,
+      turnId: string,
+      payload: {
+        routedProvider?: string | null;
+        routedModelId?: string | null;
+        executionMode?: string | null;
+        recoveredFromStaleResume?: boolean | null;
+      }
+    ) => {
       const durationMs = consumeDuration(workspaceId, threadId, turnId);
       const threadKey = buildThreadKey(workspaceId, threadId);
       if (!shouldNotify(durationMs, threadKey)) {
         return;
       }
+      const routeSummary = formatTurnRouteSummary(payload);
       const { title, body } = getNotificationContent(
         workspaceId,
         threadId,
-        "Your agent has finished its task."
+        routeSummary
+          ? `Your agent has finished its task via ${routeSummary}.`
+          : "Your agent has finished its task."
       );
       onThreadNotificationSent?.(workspaceId, threadId);
       void notify(title, body, "success", {
         kind: "thread",
         workspaceId,
         threadId,
+        routedProvider: payload.routedProvider ?? null,
+        routedModelId: payload.routedModelId ?? null,
+        executionMode: payload.executionMode ?? null,
+        recoveredFromStaleResume: payload.recoveredFromStaleResume ?? null,
       });
       lastMessageByThread.current.delete(threadKey);
     },
