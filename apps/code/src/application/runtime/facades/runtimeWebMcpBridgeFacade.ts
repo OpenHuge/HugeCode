@@ -12,10 +12,10 @@ import {
   supportsWebMcp as supportsWebMcpService,
 } from "@ku0/code-runtime-webmcp-client/webMcpBridgeModelContextApi";
 import {
-  invalidateCachedRuntimeLiveSkills as invalidateCachedRuntimeLiveSkillsService,
   syncWebMcpAgentControl as syncWebMcpAgentControlService,
   teardownWebMcpAgentControl as teardownWebMcpAgentControlService,
-} from "../ports/webMcpBridgeCompat";
+} from "../../../services/webMcpBridge";
+import { invalidateCachedRuntimeLiveSkills as invalidateCachedRuntimeLiveSkillsRuntimeWorkspaceTools } from "../../../services/webMcpBridgeRuntimeWorkspaceTools";
 
 /**
  * App-facing WebMCP adapter. Keep product consumers on this boundary instead of
@@ -58,9 +58,9 @@ export async function teardownWebMcpAgentControl(
 }
 
 export function invalidateCachedRuntimeLiveSkills(
-  ...args: Parameters<typeof invalidateCachedRuntimeLiveSkillsService>
+  ...args: Parameters<typeof invalidateCachedRuntimeLiveSkillsRuntimeWorkspaceTools>
 ) {
-  return invalidateCachedRuntimeLiveSkillsService(...args);
+  return invalidateCachedRuntimeLiveSkillsRuntimeWorkspaceTools(...args);
 }
 
 export const WEB_MCP_AGENT_CONTROL_TOOL_NAMES = [...AGENT_CONTROL_TOOL_NAMES];

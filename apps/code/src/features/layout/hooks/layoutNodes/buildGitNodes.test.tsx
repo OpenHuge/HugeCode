@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushLazyBoundary } from "../../../../test/asyncTestUtils";
 import {
@@ -19,7 +19,7 @@ function createMockWorker() {
   } satisfies Partial<Worker>;
 }
 
-function mockGitDiffViewerRuntime() {
+function mockGitDiffViewerWorkerRuntime() {
   const MockWorker = function MockWorker() {
     return createMockWorker();
   };
@@ -28,9 +28,6 @@ function mockGitDiffViewerRuntime() {
 
   vi.doMock("../../../../utils/diffsWorker", () => ({
     workerFactory: () => createMockWorker(),
-  }));
-  vi.doMock("../../../git/components/GitDiffViewer", () => ({
-    GitDiffViewer: () => <div data-testid="git-diff-viewer-chunk" />,
   }));
 }
 
@@ -179,7 +176,6 @@ describe("buildGitNodes diff lazy boundary", () => {
   afterEach(async () => {
     cleanup();
     vi.clearAllMocks();
-    vi.doUnmock("../../../git/components/GitDiffViewer");
     vi.doUnmock("../../../utils/diffsWorker");
     await vi.dynamicImportSettled();
     vi.unstubAllGlobals();
@@ -203,7 +199,7 @@ describe("buildGitNodes diff lazy boundary", () => {
   it(
     "loads the viewer chunk once actual diff payload exists",
     async () => {
-      mockGitDiffViewerRuntime();
+      mockGitDiffViewerWorkerRuntime();
 
       const buildGitNodesImpl = await importBuildGitNodes();
       const nodes = buildGitNodesImpl(
@@ -223,8 +219,13 @@ describe("buildGitNodes diff lazy boundary", () => {
       render(<div>{nodes.gitDiffViewerNode}</div>);
 
       await flushLazyBoundary();
-
-      expect(screen.getByTestId("git-diff-viewer-chunk")).toBeTruthy();
+      await waitFor(
+        () => {
+          expect(screen.getByText("Modified")).toBeTruthy();
+          expect(screen.getByTitle("src/app.ts")).toBeTruthy();
+        },
+        { timeout: 5_000 }
+      );
     },
     GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS
   );

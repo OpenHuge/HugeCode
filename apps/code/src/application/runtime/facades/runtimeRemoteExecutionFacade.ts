@@ -4,7 +4,9 @@ import { startRuntimeJob } from "../ports/tauriRuntimeJobs";
 
 type RuntimeJobStartRequestWithRemoteSelection = KernelJobStartRequestV3;
 
-function dedupeBackendIds(value: string[] | undefined): string[] | undefined {
+export function normalizeRuntimePreferredBackendIds(
+  value: string[] | undefined | null
+): string[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
   }
@@ -24,6 +26,28 @@ function dedupeBackendIds(value: string[] | undefined): string[] | undefined {
   return ids.length > 0 ? ids : undefined;
 }
 
+export function resolveRuntimePreferredBackendIdsInput(input: {
+  preferredBackendIds?: string[] | null;
+  defaultBackendId?: string | null;
+  fallbackDefaultBackendId?: string | null;
+}): string[] | undefined {
+  const explicitIds = normalizeRuntimePreferredBackendIds(input.preferredBackendIds);
+  if (explicitIds) {
+    return explicitIds;
+  }
+  const launchDefaultIds = normalizeRuntimePreferredBackendIds(
+    typeof input.defaultBackendId === "string" ? [input.defaultBackendId] : undefined
+  );
+  if (launchDefaultIds) {
+    return launchDefaultIds;
+  }
+  return normalizeRuntimePreferredBackendIds(
+    typeof input.fallbackDefaultBackendId === "string"
+      ? [input.fallbackDefaultBackendId]
+      : undefined
+  );
+}
+
 export async function resolvePreferredBackendIdsForTurnSend(
   preferredBackendIds?: string[] | null,
   defaultBackendId?: string | null
@@ -38,22 +62,21 @@ export async function resolvePreferredBackendIdsForRuntimeJobStart(
   preferredBackendIds?: string[],
   defaultBackendId?: string | null
 ): Promise<string[] | undefined> {
-  const explicitIds = dedupeBackendIds(preferredBackendIds);
-  if (explicitIds) {
-    return explicitIds;
-  }
-  const launchDefaultIds = dedupeBackendIds(
-    typeof defaultBackendId === "string" ? [defaultBackendId] : undefined
-  );
-  if (launchDefaultIds) {
-    return launchDefaultIds;
+  const resolved = resolveRuntimePreferredBackendIdsInput({
+    preferredBackendIds,
+    defaultBackendId,
+  });
+  if (resolved) {
+    return resolved;
   }
   const settings = await getAppSettings();
   const globalDefaultBackendId =
     typeof settings.defaultRemoteExecutionBackendId === "string"
       ? settings.defaultRemoteExecutionBackendId.trim()
       : "";
-  return globalDefaultBackendId ? [globalDefaultBackendId] : undefined;
+  return resolveRuntimePreferredBackendIdsInput({
+    fallbackDefaultBackendId: globalDefaultBackendId,
+  });
 }
 
 export async function startRuntimeJobWithRemoteSelection(

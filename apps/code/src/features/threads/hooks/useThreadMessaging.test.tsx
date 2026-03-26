@@ -2,21 +2,30 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  compactThread as compactThreadService,
-  interruptTurn as interruptTurnService,
-  listMcpServerStatus as listMcpServerStatusService,
-  REVIEW_START_DESKTOP_ONLY_MESSAGE,
-  sendUserMessage as sendUserMessageService,
-  startReview as startReviewService,
-  steerTurn as steerTurnService,
-} from "../../../application/runtime/ports/tauriThreads";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type { WorkspaceInfo } from "../../../types";
-import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
 import { recordSentryMetric } from "../../shared/sentry";
 import { useThreadMessaging } from "./useThreadMessaging";
+
+const runtimeSessionCommandMocks = vi.hoisted(() => ({
+  sendUserMessage: vi.fn(),
+  steerTurn: vi.fn(),
+  startReview: vi.fn(),
+  interruptTurn: vi.fn(),
+  listMcpServerStatus: vi.fn(),
+  compactThread: vi.fn(),
+  canStartReviewInCurrentHost: vi.fn(() => true),
+}));
+
+const sendUserMessageService = runtimeSessionCommandMocks.sendUserMessage;
+const steerTurnService = runtimeSessionCommandMocks.steerTurn;
+const startReviewService = runtimeSessionCommandMocks.startReview;
+const interruptTurnService = runtimeSessionCommandMocks.interruptTurn;
+const listMcpServerStatusService = runtimeSessionCommandMocks.listMcpServerStatus;
+const compactThreadService = runtimeSessionCommandMocks.compactThread;
+const canStartReviewInCurrentHost = runtimeSessionCommandMocks.canStartReviewInCurrentHost;
+const REVIEW_START_DESKTOP_ONLY_MESSAGE = "Review start is only available in the desktop app.";
 
 const openReviewPromptMock = vi.fn();
 const closeReviewPromptMock = vi.fn();
@@ -43,22 +52,48 @@ vi.mock("../../shared/productAnalytics", () => ({
   trackProductAnalyticsEvent: vi.fn(async () => undefined),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
-  sendUserMessage: vi.fn(),
-  steerTurn: vi.fn(),
-  startReview: vi.fn(),
-  interruptTurn: vi.fn(),
-  listMcpServerStatus: vi.fn(),
-  compactThread: vi.fn(),
-  REVIEW_START_DESKTOP_ONLY_MESSAGE: "Review start is only available in the desktop app.",
-}));
-
 vi.mock("../../../application/runtime/ports/toasts", () => ({
   pushErrorToast: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(),
+vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
+  useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
+    sendMessage: ({ threadId, text, options }: Record<string, unknown>) =>
+      runtimeSessionCommandMocks.sendUserMessage(workspaceId, threadId, text, options),
+    steerTurn: ({
+      threadId,
+      turnId,
+      text,
+      images,
+      appMentions,
+      contextPrefix,
+      options,
+    }: Record<string, unknown>) =>
+      runtimeSessionCommandMocks.steerTurn(
+        workspaceId,
+        threadId,
+        turnId,
+        text,
+        images,
+        appMentions,
+        contextPrefix,
+        options
+      ),
+    interruptTurn: ({ threadId, turnId }: Record<string, unknown>) =>
+      runtimeSessionCommandMocks.interruptTurn(workspaceId, threadId, turnId),
+    startReview: ({ threadId, target, delivery }: Record<string, unknown>) =>
+      runtimeSessionCommandMocks.startReview(workspaceId, threadId, target, delivery),
+    compactThread: ({ threadId }: Record<string, unknown>) =>
+      runtimeSessionCommandMocks.compactThread(workspaceId, threadId),
+    listMcpServerStatus: (input?: { cursor?: string | null; limit?: number | null }) =>
+      runtimeSessionCommandMocks.listMcpServerStatus(
+        workspaceId,
+        input?.cursor ?? null,
+        input?.limit ?? null
+      ),
+    canStartReviewInCurrentHost: runtimeSessionCommandMocks.canStartReviewInCurrentHost,
+    reviewStartDesktopOnlyMessage: REVIEW_START_DESKTOP_ONLY_MESSAGE,
+  }),
 }));
 
 vi.mock("./useReviewPrompt", () => ({
@@ -99,7 +134,7 @@ describe("useThreadMessaging telemetry", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(detectRuntimeMode).mockReturnValue("tauri");
+    vi.mocked(canStartReviewInCurrentHost).mockReturnValue(true);
     vi.mocked(sendUserMessageService).mockResolvedValue({
       result: {
         turn: { id: "turn-1" },
@@ -205,7 +240,7 @@ describe("useThreadMessaging telemetry", () => {
     });
 
     it("surfaces a thread error instead of opening review prompt in web mode", async () => {
-      vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
+      vi.mocked(canStartReviewInCurrentHost).mockReturnValue(false);
       const { result, ensureThreadForActiveWorkspace, pushThreadErrorMessage } =
         createReviewMessagingHarness();
       let reviewResult: Awaited<ReturnType<typeof result.current.startReview>> | undefined;
@@ -226,7 +261,7 @@ describe("useThreadMessaging telemetry", () => {
     });
 
     it("shows a toast instead of navigating into review prompt in web mode when no thread is active", async () => {
-      vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
+      vi.mocked(canStartReviewInCurrentHost).mockReturnValue(false);
 
       const ensureThreadForActiveWorkspace = vi.fn(async () => "thread-1");
       const ensureThreadForWorkspace = vi.fn(async () => "thread-1");
@@ -611,6 +646,15 @@ describe("useThreadMessaging telemetry", () => {
 
   it("forwards enabled autodrive draft into the runtime turn payload", async () => {
     const getThreadCodexParams = vi.fn(() => ({
+      modelId: null,
+      effort: null,
+      fastMode: null,
+      accessMode: null,
+      collaborationModeId: null,
+      executionMode: null,
+      missionMode: null,
+      executionProfileId: null,
+      preferredBackendIds: null,
       autoDriveDraft: {
         enabled: true,
         destination: {
@@ -649,6 +693,7 @@ describe("useThreadMessaging telemetry", () => {
           minimumConfidenceToStop: "high" as const,
         },
       },
+      updatedAt: 0,
     }));
 
     const { result } = renderHook(() =>

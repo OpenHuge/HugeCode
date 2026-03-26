@@ -24,6 +24,8 @@ const EMPTY_TEXT_FILE_RESPONSE: TextFileResponse = {
 type TextFileGatewayDeps = {
   isTauri: () => boolean;
   detectRuntimeMode: () => string;
+  readCommand: string;
+  writeCommand: string;
   invokeRead: (scope: FileScope, kind: FileKind, workspaceId?: string) => Promise<TextFileResponse>;
   invokeWrite: (
     scope: FileScope,
@@ -118,9 +120,9 @@ export function createTextFileGateway(deps: TextFileGatewayDeps) {
         });
         return readMockTextFile(scope, kind, workspaceId);
       }
-      if (deps.isMissingTauriCommandError(error, "file_read")) {
+      if (deps.isMissingTauriCommandError(error, deps.readCommand)) {
         deps.logRuntimeWarning(
-          "Tauri file_read command unavailable; using browser-local text-file fallback.",
+          `Tauri ${deps.readCommand} command unavailable; using browser-local text-file fallback.`,
           {
             capabilityState: "browser-local-only",
             scope,
@@ -163,9 +165,9 @@ export function createTextFileGateway(deps: TextFileGatewayDeps) {
         writeMockTextFile(scope, kind, content, workspaceId);
         return;
       }
-      if (deps.isMissingTauriCommandError(error, "file_write")) {
+      if (deps.isMissingTauriCommandError(error, deps.writeCommand)) {
         deps.logRuntimeWarning(
-          "Tauri file_write command unavailable; using browser-local text-file fallback.",
+          `Tauri ${deps.writeCommand} command unavailable; using browser-local text-file fallback.`,
           {
             capabilityState: "browser-local-only",
             scope,

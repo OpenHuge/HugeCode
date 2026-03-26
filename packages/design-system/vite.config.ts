@@ -1,6 +1,9 @@
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import { defineConfig } from "vite";
+
+const packageDir = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [vanillaExtractPlugin()],
@@ -13,14 +16,14 @@ export default defineConfig({
     rollupOptions: {
       preserveEntrySignatures: "exports-only",
       input: {
-        index: resolve(__dirname, "src/index.ts"),
-        styles: resolve(__dirname, "src/styles.ts"),
-        "theme-runtime": resolve(__dirname, "src/themeRuntime.ts"),
-        "theme-contract": resolve(__dirname, "src/theme-contract.ts"),
-        themes: resolve(__dirname, "src/themes.ts"),
-        tokens: resolve(__dirname, "src/tokens.ts"),
-        motion: resolve(__dirname, "src/motion.ts"),
-        "shell-theme-values": resolve(__dirname, "src/shell-theme-values.ts"),
+        index: resolve(packageDir, "src/index.ts"),
+        styles: resolve(packageDir, "src/styles.ts"),
+        "theme-runtime": resolve(packageDir, "src/themeRuntime.ts"),
+        "theme-contract": resolve(packageDir, "src/theme-contract.ts"),
+        themes: resolve(packageDir, "src/themes.ts"),
+        tokens: resolve(packageDir, "src/tokens.ts"),
+        motion: resolve(packageDir, "src/motion.ts"),
+        "shell-theme-values": resolve(packageDir, "src/shell-theme-values.ts"),
       },
       output: {
         dir: "dist",

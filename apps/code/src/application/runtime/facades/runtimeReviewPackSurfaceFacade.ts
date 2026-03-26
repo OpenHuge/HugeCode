@@ -11,6 +11,7 @@ import type {
   HugeCodeRuntimeSkillUsageSummary,
   HugeCodeValidationOutcome,
 } from "@ku0/code-runtime-host-contract";
+import { resolveRuntimeNextOperatorAction } from "@ku0/code-runtime-host-contract";
 import {
   buildRuntimeContinuityReadiness,
   type RuntimeContinuityReadinessState,
@@ -39,6 +40,7 @@ import {
 } from "./runtimeReviewIntelligenceSummary";
 import {
   buildRuntimeReviewPackFollowUpState,
+  type RuntimeReviewPackDecisionActionabilitySummary,
   type RuntimeReviewPackDecisionActionModel,
 } from "./runtimeReviewPackDecisionActionsFacade";
 import {
@@ -50,6 +52,7 @@ import {
   normalizeReviewPackPublishHandoff,
   normalizeReviewPackRelaunchOptions,
 } from "./runtimeReviewPackSurfaceNormalization";
+import { resolveRuntimeRecommendedAction } from "./runtimeOperatorActionPresentation";
 import {
   buildExecutionContext,
   buildCheckpointDetail,
@@ -220,6 +223,7 @@ export type ReviewPackDetailModel = {
     details: string[];
     missingReason: string | null;
   };
+  decisionActionability?: RuntimeReviewPackDecisionActionabilitySummary;
   governance?: {
     summary: string;
     details: string[];
@@ -612,6 +616,7 @@ function buildReviewPackContinuity(input: {
       {
         run: {
           id: input.reviewPack.runId,
+          workspaceId: input.reviewPack.workspaceId,
           taskId: input.reviewPack.taskId,
           state: input.run?.state ?? "review_ready",
           updatedAt: input.run?.updatedAt ?? input.reviewPack.createdAt,
@@ -630,6 +635,7 @@ function buildReviewPackContinuity(input: {
     actionability,
     missionLinkage,
     publishHandoff: rawPublishHandoff,
+    continuation: input.reviewPack.continuation ?? input.run?.continuation ?? null,
   });
   const details: string[] = [...continuationActionability.details];
   if (input.publishHandoff?.branchName) {
@@ -890,6 +896,24 @@ export function buildReviewPackDetailModel(input: {
       run,
       recommendedNextAction: run.nextAction?.detail ?? null,
     });
+    const runtimeOperatorAction = resolveRuntimeNextOperatorAction({
+      workspaceId,
+      taskId: task.id,
+      runId: run.id,
+      reviewPackId: run.reviewPackId ?? null,
+      state: run.state,
+      approval: run.approval ?? null,
+      reviewDecision: run.reviewDecision ?? null,
+      nextAction: run.nextAction ?? null,
+      checkpoint: run.checkpoint ?? null,
+      missionLinkage: run.missionLinkage ?? null,
+      actionability: run.actionability ?? null,
+      publishHandoff: run.publishHandoff ?? null,
+      takeoverBundle: run.takeoverBundle ?? null,
+      sessionBoundary: run.sessionBoundary ?? null,
+      continuation: run.continuation ?? null,
+      nextOperatorAction: run.nextOperatorAction ?? null,
+    });
     const limitations: string[] = [];
     if (isRuntimeManaged) {
       limitations.push(
@@ -948,8 +972,10 @@ export function buildReviewPackDetailModel(input: {
       operatorDetail: run.operatorState?.detail ?? null,
       approvalLabel: run.approval?.label ?? null,
       approvalSummary: run.approval?.summary ?? null,
-      nextActionLabel: run.nextAction?.label ?? "Inspect mission detail",
+      nextActionLabel:
+        runtimeOperatorAction?.label ?? run.nextAction?.label ?? "Inspect mission detail",
       nextActionDetail:
+        runtimeOperatorAction?.detail ??
         run.nextAction?.detail ??
         "Open the linked mission thread, review validations, or relaunch with a narrower follow-up.",
       navigationTarget,
@@ -1088,6 +1114,7 @@ export function buildReviewPackDetailModel(input: {
     nextActionDetail: run?.nextAction?.detail,
     title: run?.title ?? taskTitle,
     instruction: interventionInstruction,
+    reviewActionability: reviewPackExtra?.actionability ?? run?.actionability ?? null,
     actions: run?.intervention?.actions,
     reviewDecision: {
       status: reviewDecision.status,
@@ -1115,6 +1142,7 @@ export function buildReviewPackDetailModel(input: {
     missingReason: "The runtime did not publish backend audit details for this review pack.",
   };
   const reviewContinuationDefaults = followUpState.continuationDefaults;
+  const decisionActionability = followUpState.decisionActionability;
   const decisionActions = followUpState.decisionActions;
   const followUpDefaultsAvailable = followUpState.interventionActions.some(
     (action) => action.enabled
@@ -1158,12 +1186,7 @@ export function buildReviewPackDetailModel(input: {
   const publishHandoff = normalizeReviewPackPublishHandoff(
     reviewPackExtra?.publishHandoff ?? run?.publishHandoff ?? null
   );
-  const continuity = buildReviewPackContinuity({
-    reviewPack,
-    run,
-    task,
-    publishHandoff,
-  });
+  const continuity = buildReviewPackContinuity({ reviewPack, run, task, publishHandoff });
   const relaunchContext = augmentDetailSection(
     buildRelaunchContextDetail(reviewPackExtra?.relaunchOptions ?? run?.relaunchContext ?? null),
     [
@@ -1182,12 +1205,15 @@ export function buildReviewPackDetailModel(input: {
     ],
     "Runtime recorded why this pack woke the operator and what can happen next."
   );
-  const reviewRecommendedNextAction =
-    reviewPackExtra?.actionability?.summary ??
-    run?.actionability?.summary ??
-    continuity?.recommendedAction ??
-    reviewPack.recommendedNextAction ??
-    null;
+  const reviewRecommendedNextAction = resolveRuntimeRecommendedAction({
+    operatorAction: reviewPackExtra?.nextOperatorAction ?? run?.nextOperatorAction ?? null,
+    fallbacks: [
+      continuity?.recommendedAction,
+      reviewPackExtra?.actionability?.summary,
+      run?.actionability?.summary,
+      reviewPack.recommendedNextAction,
+    ],
+  });
   const reviewIntelligence = resolveReviewIntelligenceSummary({
     contract: input.repositoryExecutionContract ?? null,
     taskSource: reviewPack.taskSource ?? run?.taskSource ?? task?.taskSource ?? null,
@@ -1243,6 +1269,7 @@ export function buildReviewPackDetailModel(input: {
     skillUsage: reviewIntelligence?.skillUsage ?? [],
     autofixCandidate: reviewIntelligence?.autofixCandidate ?? null,
     backendAudit,
+    decisionActionability,
     governance: buildGovernanceDetail(reviewPack.governance ?? run?.governance ?? null),
     operatorSnapshot: buildOperatorSnapshotDetail(run?.operatorSnapshot ?? null),
     placement: buildPlacementDetail(reviewPack.placement ?? run?.placement ?? null),

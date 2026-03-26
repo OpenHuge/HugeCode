@@ -1,3 +1,10 @@
+import type {
+  HugeCodeContinuationSummary,
+  HugeCodeNextOperatorAction,
+  HugeCodeRuntimeSessionBoundary,
+} from "@ku0/code-runtime-host-contract";
+import type { RuntimeAgentTaskSummary as BaseRuntimeAgentTaskSummary } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
+
 /**
  * Type-only WebMCP surface for product consumers that should not depend on the
  * behavior port when they only need compile-time contracts.
@@ -43,7 +50,6 @@ export type {
   RuntimeAgentTaskStatus,
   RuntimeAgentTaskStepInput,
   RuntimeAgentTaskStepKind,
-  RuntimeAgentTaskSummary,
   RuntimeAllowedSkillResolution,
   RuntimeSkillIdResolution,
   RuntimeSubAgentCloseInput,
@@ -72,3 +78,9 @@ export type {
   WebMcpSyncOptions,
   WebMcpSyncResult,
 } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
+
+export type RuntimeAgentTaskSummary = BaseRuntimeAgentTaskSummary & {
+  sessionBoundary?: HugeCodeRuntimeSessionBoundary | null;
+  continuation?: HugeCodeContinuationSummary | null;
+  nextOperatorAction?: HugeCodeNextOperatorAction | null;
+};

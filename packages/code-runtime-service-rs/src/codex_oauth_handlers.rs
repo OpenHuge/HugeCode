@@ -184,7 +184,11 @@ pub(super) fn build_oauth_result_html(
                 serde_json::to_string(login_id).unwrap_or_else(|_| "\"\"".to_string());
             let serialized_origin =
                 serde_json::to_string(post_message_origin).unwrap_or_else(|_| "\"\"".to_string());
-            let close_statement = if success { "\n      window.close();" } else { "" };
+            let close_statement = if success {
+                "\n      window.close();"
+            } else {
+                ""
+            };
             format!(
                 r#"<script>
     try {{

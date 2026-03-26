@@ -7,6 +7,8 @@ const IGNORED_CONSOLE_WARN_SNIPPETS = [
   "Runtime oauth chatgpt auth token refresh RPC unavailable; falling back to oauth account metadata.",
   "Tauri invoke bridge unavailable; using local text-file fallback.",
   "Tauri invoke bridge unavailable; using local text-file fallback write.",
+  "Tauri code_text_file_read_v1 command unavailable; using local text-file fallback.",
+  "Tauri code_text_file_write_v1 command unavailable; using local text-file fallback.",
   "Tauri file_read command unavailable; using local text-file fallback.",
   "Tauri file_write command unavailable; using local text-file fallback.",
   "Web runtime backend pool list unavailable; using read-only fallback.",

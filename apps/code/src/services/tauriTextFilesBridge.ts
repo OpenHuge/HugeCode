@@ -12,14 +12,19 @@ export type GlobalAgentsResponse = TextFileResponse;
 export type GlobalCodexConfigResponse = TextFileResponse;
 export type AgentMdResponse = TextFileResponse;
 
+const TEXT_FILE_READ_COMMAND = "code_text_file_read_v1";
+const TEXT_FILE_WRITE_COMMAND = "code_text_file_write_v1";
+
 function getTextFileGateway() {
   return createTextFileGateway({
     isTauri: () => isTauri(),
     detectRuntimeMode,
+    readCommand: TEXT_FILE_READ_COMMAND,
+    writeCommand: TEXT_FILE_WRITE_COMMAND,
     invokeRead: async (scope, kind, workspaceId) =>
-      invoke<TextFileResponse>("file_read", { scope, kind, workspaceId }),
+      invoke<TextFileResponse>(TEXT_FILE_READ_COMMAND, { scope, kind, workspaceId }),
     invokeWrite: async (scope, kind, content, workspaceId) =>
-      invoke("file_write", { scope, kind, workspaceId, content }),
+      invoke(TEXT_FILE_WRITE_COMMAND, { scope, kind, workspaceId, content }),
     isMissingTextFileError,
     isMissingTauriInvokeError,
     isMissingTauriCommandError,

@@ -34,7 +34,9 @@ pub(crate) use execution_profile::build_task_execution_profile;
 use execution_profile::build_execution_profile;
 pub(crate) use support::{
     build_runtime_mission_linkage_summary, build_runtime_review_actionability_summary,
-    build_runtime_sub_agent_takeover_bundle, build_runtime_takeover_bundle,
+    build_runtime_continuation_summary, build_runtime_next_operator_action,
+    build_runtime_session_boundary, build_runtime_sub_agent_takeover_bundle,
+    build_runtime_takeover_bundle,
     derive_review_evidence_state, derive_review_validation_outcome,
 };
 pub(crate) use summary::handle_mission_control_summary_v1;
@@ -135,6 +137,12 @@ pub(crate) struct MissionRunProjection {
     mission_linkage: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     review_actionability: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    session_boundary: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    continuation: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_operator_action: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     execution_graph: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -255,6 +263,12 @@ pub(crate) struct MissionReviewPackProjection {
     mission_linkage: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     actionability: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    session_boundary: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    continuation: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_operator_action: Option<Value>,
     governance: Option<Value>,
     placement: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]

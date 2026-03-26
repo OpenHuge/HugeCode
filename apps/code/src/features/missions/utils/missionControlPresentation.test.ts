@@ -316,7 +316,7 @@ describe("missionControlPresentation", () => {
     });
   });
 
-  it("uses action-center language for runtime-managed latest mission fallbacks", () => {
+  it("uses runtime-inspection language for runtime-managed latest mission fallbacks", () => {
     const projection: HugeCodeMissionControlSnapshot = {
       ...createProjection(),
       tasks: [
@@ -351,7 +351,7 @@ describe("missionControlPresentation", () => {
       limit: 3,
     });
 
-    expect(entry.operatorActionLabel).toBe("Open action center");
+    expect(entry.operatorActionLabel).toBe("Inspect runtime");
   });
 
   it("orders review queue items by in-review entry time and excludes done items", () => {

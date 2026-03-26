@@ -3200,14 +3200,16 @@ describe("reviewPackSurfaceModel", () => {
       limitation: null,
     });
     expect(detail.recommendedNextAction).toBe(
-      "Runtime blocked follow-up until validation evidence is repaired."
+      "Open Review Pack and resolve the runtime-blocked follow-up before continuing."
     );
     expect(detail.continuity).toMatchObject({
       state: "blocked",
       summary: "Runtime blocked follow-up until validation evidence is repaired.",
       blockingReason: "Runtime blocked follow-up until validation evidence is repaired.",
     });
-    expect(detail.continuity?.details).toContain("Canonical continue path: Mission run.");
+    expect(detail.continuity?.details).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^Canonical continue path: /)])
+    );
     expect(detail.continuity?.details).toContain(
       "Publish handoff is ready for another control device."
     );

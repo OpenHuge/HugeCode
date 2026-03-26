@@ -42,7 +42,9 @@ type AppLocalRpcRuntimeClientKeys =
   | "oauthCodexLoginCancel"
   | "oauthCodexAccountsImportFromCockpitTools"
   | "appSettingsGet"
-  | "appSettingsUpdate";
+  | "appSettingsUpdate"
+  | "textFileReadV1"
+  | "textFileWriteV1";
 
 export function createExtendedRpcRuntimeClient<
   TAppSettings extends Record<string, unknown> = Record<string, unknown>,

@@ -1,5 +1,4 @@
 import {
-  getAppSettings,
   isMobileRuntime,
   orbitConnectTest,
   orbitRunnerStart,
@@ -13,8 +12,8 @@ import {
   tailscaleDaemonStatus,
   tailscaleDaemonStop,
   tailscaleStatus,
-  updateAppSettings,
 } from "../../../services/tauriDesktopRuntimeOps";
+import { getAppSettings, updateAppSettings } from "../ports/tauriAppSettings";
 
 export type DesktopHostAdapter = {
   getAppSettings: typeof getAppSettings;

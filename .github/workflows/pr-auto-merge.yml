@@ -1,0 +1,116 @@
+name: PR Auto Merge
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+      - labeled
+      - unlabeled
+  pull_request_review:
+    types:
+      - submitted
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: pr-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  enable_auto_merge:
+    name: Enable auto-merge for approved in-repo pull requests
+    if: >-
+      github.event.pull_request.state == 'open' &&
+      !github.event.pull_request.draft &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      github.event.pull_request.user.login != 'app/dependabot'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate merge readiness
+        id: readiness
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request_review" ]] && [[ "${{ github.event.review.state }}" != "approved" ]]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=Latest review was not an approval." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          pr_json="$(gh api graphql \
+            -F owner="${REPOSITORY%%/*}" \
+            -F repo="${REPOSITORY#*/}" \
+            -F number="$PR_NUMBER" \
+            -f query='query($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { autoMergeRequest { enabledAt } headRefOid headRepository { nameWithOwner } isDraft labels(first: 50) { nodes { name } } mergeStateStatus reviewDecision reviewThreads(first: 100) { nodes { isResolved } } } } }')"
+
+          review_decision="$(printf '%s' "$pr_json" | jq -r '.data.repository.pullRequest.reviewDecision // ""')"
+          merge_state="$(printf '%s' "$pr_json" | jq -r '.data.repository.pullRequest.mergeStateStatus // ""')"
+          auto_merge_enabled_at="$(printf '%s' "$pr_json" | jq -r '.data.repository.pullRequest.autoMergeRequest.enabledAt // ""')"
+          head_ref_oid="$(printf '%s' "$pr_json" | jq -r '.data.repository.pullRequest.headRefOid // ""')"
+          head_repository="$(printf '%s' "$pr_json" | jq -r '.data.repository.pullRequest.headRepository.nameWithOwner // ""')"
+          unresolved_threads="$(printf '%s' "$pr_json" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')"
+          has_manual_merge_label="$(printf '%s' "$pr_json" | jq -r '[.data.repository.pullRequest.labels.nodes[].name] | index("manual-merge") != null')"
+
+          if [[ "$head_repository" != "$REPOSITORY" ]]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=Head branch is not hosted in the base repository." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$has_manual_merge_label" == "true" ]]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=manual-merge label is present." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$review_decision" != "APPROVED" ]]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=Pull request is not currently approved." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$unresolved_threads" -gt 0 ]]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=Pull request still has unresolved review threads." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ -n "$auto_merge_enabled_at" ]]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=Auto-merge is already enabled." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$merge_state" == "DIRTY" ]]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=Pull request has merge conflicts." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          echo "head_ref_oid=$head_ref_oid" >> "$GITHUB_OUTPUT"
+          echo "reason=Ready to enable auto-merge." >> "$GITHUB_OUTPUT"
+
+      - name: Report skip reason
+        if: steps.readiness.outputs.eligible != 'true'
+        run: echo "${{ steps.readiness.outputs.reason }}"
+
+      - name: Enable auto-merge
+        if: steps.readiness.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr merge \
+            --auto \
+            --squash \
+            --match-head-commit "${{ steps.readiness.outputs.head_ref_oid }}" \
+            "$PR_URL"
