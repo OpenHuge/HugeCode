@@ -3,7 +3,10 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { delimiter, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createForgeStagePackageJson, shouldInstallForgeStageDependencies } from "./forge-stage-package.mjs";
+import {
+  createForgeStagePackageJson,
+  shouldInstallForgeStageDependencies,
+} from "./forge-stage-package.mjs";
 import { buildForgeEnvironment, resolveCommandInvocation } from "./run-forge-support.mjs";
 
 const scriptDir = resolve(fileURLToPath(new URL(".", import.meta.url)));
@@ -313,7 +316,12 @@ async function prepareStage() {
   await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
 
   if (shouldInstallForgeStageDependencies(stagedPackageJson)) {
-    await runCommand("pnpm", createForgeStageInstallArgs(workspaceRoot), forgePackageDir, process.env);
+    await runCommand(
+      "pnpm",
+      createForgeStageInstallArgs(workspaceRoot),
+      forgePackageDir,
+      process.env
+    );
   }
 }
 
