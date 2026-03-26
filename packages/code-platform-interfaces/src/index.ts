@@ -13,7 +13,12 @@ export type DesktopUpdateMode =
   | "misconfigured"
   | "unsupported_platform";
 export type DesktopUpdateProvider = "none" | "public-github" | "static-storage";
-export type DesktopLaunchIntentKind = "launch" | "protocol" | "post-install" | "post-update";
+export type DesktopLaunchIntentKind =
+  | "launch"
+  | "protocol"
+  | "workspace"
+  | "post-install"
+  | "post-update";
 export type DesktopUpdateStage =
   | "idle"
   | "checking"
@@ -47,6 +52,16 @@ export type DesktopTrayState = {
   supported: boolean;
 };
 
+export type DesktopDiagnosticsInfo = {
+  crashDumpsDirectoryPath: string | null;
+  incidentLogPath: string | null;
+  lastIncidentAt: string | null;
+  logsDirectoryPath: string | null;
+  recentIncidentCount: number;
+  reportIssueUrl: string | null;
+  supportSnapshotText: string | null;
+};
+
 export type DesktopAppInfo = {
   channel: DesktopReleaseChannel;
   platform: NodeJS.Platform;
@@ -58,8 +73,12 @@ export type DesktopAppInfo = {
 
 export type DesktopLaunchIntent = {
   kind: DesktopLaunchIntentKind;
+  launchPath?: string | null;
+  launchPathKind?: "directory" | "file" | null;
   receivedAt: string;
   url?: string | null;
+  workspaceLabel?: string | null;
+  workspacePath?: string | null;
 };
 
 export type DesktopUpdateState = {
@@ -77,6 +96,8 @@ export type DesktopUpdateState = {
 
 export type OpenDesktopWindowInput = {
   duplicate?: boolean;
+  launchPath?: string | null;
+  launchPathKind?: "directory" | "file" | null;
   preferredBackendId?: string | null;
   runtimeMode?: DesktopRuntimeMode;
   windowLabel?: DesktopWindowLabel;
@@ -100,6 +121,9 @@ export type DesktopLaunchCapability = {
     | DesktopLaunchIntent
     | null
     | undefined;
+  onIntent?: (
+    listener: (intent: DesktopLaunchIntent) => void
+  ) => (() => void) | void | Promise<() => void | void>;
 };
 
 export type DesktopSessionCapability = {
@@ -148,6 +172,15 @@ export type DesktopNotificationCapability = {
   show?: (input: DesktopNotificationInput) => Promise<boolean | void> | boolean | void;
 };
 
+export type DesktopDiagnosticsCapability = {
+  copySupportSnapshot?: () => Promise<boolean | void> | boolean | void;
+  getInfo?: () =>
+    | Promise<DesktopDiagnosticsInfo | null | undefined>
+    | DesktopDiagnosticsInfo
+    | null
+    | undefined;
+};
+
 export type DesktopUpdaterCapability = {
   checkForUpdates?: () =>
     | Promise<DesktopUpdateState | null | undefined>
@@ -159,11 +192,13 @@ export type DesktopUpdaterCapability = {
     | DesktopUpdateState
     | null
     | undefined;
+  onState?: (listener: (state: DesktopUpdateState) => void) => (() => void) | void;
   restartToApplyUpdate?: () => Promise<boolean | void> | boolean | void;
 };
 
 export type DesktopShellCapability = {
   openExternalUrl?: (url: string) => Promise<boolean | void> | boolean | void;
+  openPath?: (path: string) => Promise<boolean | void> | boolean | void;
   revealItemInDir?: (path: string) => Promise<boolean | void> | boolean | void;
 };
 
@@ -176,6 +211,7 @@ export type DesktopHostCapabilities = {
   windowing?: DesktopWindowingCapability;
   tray?: DesktopTrayCapability;
   notifications?: DesktopNotificationCapability;
+  diagnostics?: DesktopDiagnosticsCapability;
   shell?: DesktopShellCapability;
 };
 
@@ -191,6 +227,7 @@ export type DesktopHostBridgeApi = {
   };
   launch: {
     consumePendingIntent(): Promise<DesktopLaunchIntent | null>;
+    onIntent(listener: (intent: DesktopLaunchIntent) => void): () => void;
   };
   session: {
     getCurrentSession(): Promise<DesktopSessionInfo | null>;
@@ -213,13 +250,19 @@ export type DesktopHostBridgeApi = {
   notifications: {
     show(input: DesktopNotificationInput): Promise<boolean>;
   };
+  diagnostics: {
+    copySupportSnapshot(): Promise<boolean>;
+    getInfo(): Promise<DesktopDiagnosticsInfo | null>;
+  };
   updater: {
     checkForUpdates(): Promise<DesktopUpdateState>;
     getState(): Promise<DesktopUpdateState>;
+    onState(listener: (state: DesktopUpdateState) => void): () => void;
     restartToApplyUpdate(): Promise<boolean>;
   };
   shell: {
     openExternalUrl(url: string): Promise<boolean>;
+    openPath(path: string): Promise<boolean>;
     revealItemInDir(path: string): Promise<boolean>;
   };
 };

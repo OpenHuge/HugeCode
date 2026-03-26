@@ -1,6 +1,7 @@
 import type { IpcMainInvokeEvent } from "electron";
 import type {
   DesktopAppInfo,
+  DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopNotificationInput,
   DesktopUpdateState,
@@ -34,9 +35,11 @@ type DesktopTrayState = {
 type DesktopHostIpcHandlers = {
   closeWindow(windowId: number): Promise<boolean> | boolean;
   checkForUpdates(): Promise<DesktopUpdateState> | DesktopUpdateState;
+  copySupportSnapshot(): Promise<boolean> | boolean;
   consumePendingLaunchIntent(): Promise<DesktopLaunchIntent | null> | DesktopLaunchIntent | null;
   focusWindow(windowId: number): Promise<boolean> | boolean;
   getAppInfo(): Promise<DesktopAppInfo | null> | DesktopAppInfo | null;
+  getDiagnosticsInfo(): Promise<DesktopDiagnosticsInfo | null> | DesktopDiagnosticsInfo | null;
   getAppVersion(): Promise<string | null> | string | null;
   getCurrentSession(event: IpcInvokeEventLike): Promise<unknown> | unknown;
   getTrayState(): Promise<DesktopTrayState> | DesktopTrayState;
@@ -45,6 +48,7 @@ type DesktopHostIpcHandlers = {
   listRecentSessions(): Promise<unknown[]> | unknown[];
   listWindows(): Promise<DesktopWindowDescriptor[]> | DesktopWindowDescriptor[];
   openExternalUrl(url: string): Promise<boolean> | boolean;
+  openPath(path: string): Promise<boolean> | boolean;
   openWindow(input?: OpenDesktopWindowInput): Promise<unknown> | unknown;
   reopenSession(sessionId: string): Promise<boolean> | boolean;
   revealItemInDir(path: string): Promise<boolean> | boolean;
@@ -85,6 +89,14 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
 
   handleTrusted(channels.getAppVersion, async () => {
     return handlers.getAppVersion();
+  });
+
+  handleTrusted(channels.getDiagnosticsInfo, async () => {
+    return handlers.getDiagnosticsInfo();
+  });
+
+  handleTrusted(channels.copySupportSnapshot, async () => {
+    return handlers.copySupportSnapshot();
   });
 
   handleTrusted(channels.consumePendingLaunchIntent, async () => {
@@ -149,6 +161,10 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
 
   handleTrusted(channels.openExternalUrl, async (_event, url) => {
     return handlers.openExternalUrl(url as string);
+  });
+
+  handleTrusted(channels.openPath, async (_event, path) => {
+    return handlers.openPath(path as string);
   });
 
   handleTrusted(channels.revealItemInDir, async (_event, path) => {

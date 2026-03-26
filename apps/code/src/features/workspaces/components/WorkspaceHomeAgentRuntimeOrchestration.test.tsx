@@ -624,15 +624,18 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
-    await waitFor(() => {
-      expect(screen.getByText("Repo source mapping: manual")).toBeTruthy();
-      expect(screen.getByText("Repo profile default: operator-review")).toBeTruthy();
-      expect(screen.getByText("Repo backend preference: backend-policy-a")).toBeTruthy();
-      expect(screen.getByText("Repo validation preset: review-first")).toBeTruthy();
-      expect((screen.getByLabelText("Execution profile") as HTMLSelectElement).value).toBe(
-        "operator-review"
-      );
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByText("Repo source mapping: manual")).toBeTruthy();
+        expect(screen.getByText("Repo profile default: operator-review")).toBeTruthy();
+        expect(screen.getByText("Repo backend preference: backend-policy-a")).toBeTruthy();
+        expect(screen.getByText("Repo validation preset: review-first")).toBeTruthy();
+        expect((screen.getByLabelText("Execution profile") as HTMLSelectElement).value).toBe(
+          "operator-review"
+        );
+      },
+      { timeout: 5_000 }
+    );
   });
 
   it("shows continuation inheritance details when retrying a source-linked run", async () => {

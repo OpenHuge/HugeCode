@@ -2,9 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import type { DesktopSessionDescriptor } from "./desktopShellState.js";
 import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
 
+async function flushLifecycleReady() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 type AppEventMap = {
   activate: () => void;
   "before-quit": () => void;
+  "open-file": (event: { preventDefault(): void }, path: string) => void;
   "open-url": (event: { preventDefault(): void }, url: string) => void;
   "second-instance": (event: unknown, argv: string[]) => void;
   "window-all-closed": () => void;
@@ -61,6 +67,7 @@ describe("desktopAppLifecycle", () => {
       updateTray,
     });
     await app.whenReady.mock.results[0]?.value;
+    await flushLifecycleReady();
 
     expect(createWindowForSession).toHaveBeenCalledWith(sessions[0]);
     expect(openWindow).not.toHaveBeenCalled();
@@ -86,8 +93,68 @@ describe("desktopAppLifecycle", () => {
       updateTray: vi.fn(),
     });
     await app.whenReady.mock.results[0]?.value;
+    await flushLifecycleReady();
 
     expect(openWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the requested startup workspace when launch input is available", async () => {
+    const app = createFakeApp();
+    const openWindow = vi.fn();
+
+    registerDesktopAppLifecycle({
+      app,
+      browserWindow: {
+        getAllWindows: vi.fn(() => []),
+      },
+      createWindowForSession: vi.fn(),
+      getInitialOpenWindowInput: () => ({
+        workspaceLabel: "alpha",
+        workspacePath: "/workspace/alpha",
+      }),
+      getLatestSession: () => null,
+      getPersistedSessions: () => [],
+      isTrayEnabled: () => false,
+      onBeforeQuit: vi.fn(),
+      openWindow,
+      updateTray: vi.fn(),
+    });
+    await app.whenReady.mock.results[0]?.value;
+    await flushLifecycleReady();
+
+    expect(openWindow).toHaveBeenCalledWith({
+      workspaceLabel: "alpha",
+      workspacePath: "/workspace/alpha",
+    });
+  });
+
+  it("awaits the startup hook before opening windows", async () => {
+    const app = createFakeApp();
+    const onReady = vi.fn(async () => undefined);
+    const openWindow = vi.fn();
+
+    registerDesktopAppLifecycle({
+      app,
+      browserWindow: {
+        getAllWindows: vi.fn(() => []),
+      },
+      createWindowForSession: vi.fn(),
+      getLatestSession: () => null,
+      getPersistedSessions: () => [],
+      isTrayEnabled: () => false,
+      onBeforeQuit: vi.fn(),
+      onReady,
+      openWindow,
+      updateTray: vi.fn(),
+    });
+    await app.whenReady.mock.results[0]?.value;
+    await flushLifecycleReady();
+
+    expect(onReady).toHaveBeenCalledTimes(1);
+    expect(openWindow).toHaveBeenCalledTimes(1);
+    expect(onReady.mock.invocationCallOrder[0]).toBeLessThan(
+      openWindow.mock.invocationCallOrder[0]
+    );
   });
 
   it("focuses the first existing window on second-instance", () => {
@@ -119,6 +186,38 @@ describe("desktopAppLifecycle", () => {
     expect(firstWindow.restore).toHaveBeenCalledTimes(1);
     expect(firstWindow.show).toHaveBeenCalledTimes(1);
     expect(firstWindow.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the requested workspace on second-instance when the launch handler resolves one", () => {
+    const app = createFakeApp();
+    const openWindow = vi.fn();
+    const onSecondInstance = vi.fn(() => ({
+      workspaceLabel: "alpha",
+      workspacePath: "/workspace/alpha",
+    }));
+
+    registerDesktopAppLifecycle({
+      app,
+      browserWindow: {
+        getAllWindows: vi.fn(() => []),
+      },
+      createWindowForSession: vi.fn(),
+      getLatestSession: () => null,
+      getPersistedSessions: () => [],
+      isTrayEnabled: () => false,
+      onSecondInstance,
+      onBeforeQuit: vi.fn(),
+      openWindow,
+      updateTray: vi.fn(),
+    });
+
+    app.trigger("second-instance", {}, ["HugeCode", "/workspace/alpha"]);
+
+    expect(onSecondInstance).toHaveBeenCalledWith(["HugeCode", "/workspace/alpha"]);
+    expect(openWindow).toHaveBeenCalledWith({
+      workspaceLabel: "alpha",
+      workspacePath: "/workspace/alpha",
+    });
   });
 
   it("forwards second-instance argv to the injected launch-intent handler", () => {
@@ -179,6 +278,7 @@ describe("desktopAppLifecycle", () => {
       updateTray: vi.fn(),
     });
     await app.whenReady.mock.results[0]?.value;
+    await flushLifecycleReady();
 
     app.trigger("activate");
 
