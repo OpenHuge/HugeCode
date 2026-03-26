@@ -51,4 +51,37 @@ describe("runtimeToolExposurePolicy", () => {
     expect(decision.hiddenToolNames).toEqual([]);
     expect(decision.reasonCodes).toContain("provider-keeps-full-tool-catalog");
   });
+
+  it("honors an explicit minimal runtime profile even when the provider normally keeps full catalogs", () => {
+    const decision = resolveRuntimeToolExposurePolicy({
+      provider: "openai",
+      modelId: "gpt-5.4",
+      toolExposureProfile: "minimal",
+      toolNames: [
+        "read-workspace-file",
+        "search-workspace-files",
+        "get-runtime-settings",
+        "run-runtime-live-skill",
+        "start-runtime-run",
+      ],
+      runtimeToolNames: [
+        "read-workspace-file",
+        "search-workspace-files",
+        "get-runtime-settings",
+        "run-runtime-live-skill",
+        "start-runtime-run",
+      ],
+    });
+
+    expect(decision.provider).toBe("openai");
+    expect(decision.mode).toBe("minimal");
+    expect(decision.visibleToolNames).toEqual([
+      "read-workspace-file",
+      "search-workspace-files",
+      "run-runtime-live-skill",
+      "start-runtime-run",
+    ]);
+    expect(decision.hiddenToolNames).toEqual(["get-runtime-settings"]);
+    expect(decision.reasonCodes).toContain("runtime-prefers-minimal-tool-catalog");
+  });
 });

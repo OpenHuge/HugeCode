@@ -299,6 +299,14 @@ describe("runtimeClient mode detection", () => {
       contextWorkingSet: {
         summary: "working set",
         workspaceRoot: "/tmp/workspace",
+        selectionPolicy: {
+          strategy: "balanced",
+          tokenBudgetTarget: 1500,
+          toolExposureProfile: "slim",
+          preferColdFetch: true,
+        },
+        contextFingerprint: "work-123",
+        stablePrefixFingerprint: "stable-123",
         layers: [],
       },
       executionGraph: {

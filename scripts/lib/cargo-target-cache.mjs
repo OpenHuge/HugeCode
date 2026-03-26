@@ -242,19 +242,26 @@ export function acquireCargoTargetGuardLock({
   while (true) {
     try {
       mkdirSync(lockPath);
-      writeFileSync(
-        path.join(lockPath, LOCK_METADATA_FILE_NAME),
-        JSON.stringify(
-          {
-            pid: process.pid,
-            acquiredAtMs: now(),
-            targetDir,
-          },
-          null,
-          2
-        ),
-        "utf8"
-      );
+      try {
+        writeFileSync(
+          path.join(lockPath, LOCK_METADATA_FILE_NAME),
+          JSON.stringify(
+            {
+              pid: process.pid,
+              acquiredAtMs: now(),
+              targetDir,
+            },
+            null,
+            2
+          ),
+          "utf8"
+        );
+      } catch (error) {
+        if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+          continue;
+        }
+        throw error;
+      }
 
       const releaseLock = () => {
         try {

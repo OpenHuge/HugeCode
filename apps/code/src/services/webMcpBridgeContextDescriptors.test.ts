@@ -156,4 +156,40 @@ describe("webMcpBridgeContextDescriptors", () => {
       expect(messages.messages[0].content.text).toContain("run-runtime-live-skill");
     }
   });
+
+  it("keeps runtime discovery descriptors for minimal runtime catalogs", async () => {
+    const resources = buildWebMcpResources(snapshot, {
+      activeModelContext: {
+        provider: "openai",
+        modelId: "gpt-5.4",
+      },
+      toolExposureDecision: {
+        provider: "openai",
+        mode: "minimal",
+        visibleToolNames: [
+          "get-runtime-capabilities-summary",
+          "list-runtime-live-skills",
+          "read-workspace-file",
+          "start-runtime-run",
+        ],
+        hiddenToolNames: ["get-runtime-settings", "open-runtime-terminal-session"],
+        reasonCodes: ["runtime-prefers-minimal-tool-catalog"],
+      },
+      runtimeToolNames: [
+        "get-runtime-capabilities-summary",
+        "list-runtime-live-skills",
+        "read-workspace-file",
+        "start-runtime-run",
+        "get-runtime-settings",
+        "open-runtime-terminal-session",
+      ],
+    });
+
+    const discoveryResource = resources.find(
+      (resource) => resource.name === "runtime-tool-discovery"
+    );
+    const readResult = await discoveryResource?.read(new URL(discoveryResource.uri));
+    expect(readResult?.contents[0].text).toContain('"catalogMode": "minimal"');
+    expect(readResult?.contents[0].text).toContain('"runtime-prefers-minimal-tool-catalog"');
+  });
 });
