@@ -80,6 +80,9 @@ export default {
     },
     {
       name: "@electron-forge/maker-dmg",
+      config: {
+        title: "HugeCode Beta",
+      },
     },
     {
       name: "@electron-forge/maker-squirrel",
