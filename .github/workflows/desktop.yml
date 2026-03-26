@@ -15,16 +15,6 @@ on:
   pull_request:
     paths:
       - "apps/code-tauri/**"
-      - "apps/code/package.json"
-      - "apps/code/index.html"
-      - "apps/code/vite.config.ts"
-      - "apps/code/src/main.tsx"
-      - "apps/code/src/bootstrap/**"
-      - "apps/code/src/application/runtime/**"
-      - "apps/code/src/services/runtimeClient*"
-      - "apps/code/src/services/tauri*"
-      - "apps/code/src/services/textFileGateway.ts"
-      - "apps/code/src/features/update/**"
       - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
       - ".github/workflows/_reusable-desktop-build-pr.yml"
       - ".github/workflows/_reusable-desktop-build-release.yml"
