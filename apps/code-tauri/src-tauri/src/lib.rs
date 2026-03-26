@@ -405,7 +405,8 @@ mod tests {
         code_rpc_capabilities, compute_rpc_method_set_hash, current_rpc_features,
         current_rpc_methods, CODE_RUNTIME_RPC_CAPABILITY_PROFILE,
         CODE_RUNTIME_RPC_CONTRACT_VERSION, CODE_RUNTIME_RPC_ERROR_CODES,
-        CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT, CODE_RUNTIME_RPC_FROZEN_FEATURE,
+        CODE_RUNTIME_RPC_FEATURES, CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT,
+        CODE_RUNTIME_RPC_FROZEN_FEATURE,
     };
     use super::CODE_TAURI_REGISTERED_RPC_COMMANDS;
     use serde_json::Value;
@@ -511,16 +512,17 @@ mod tests {
     }
 
     #[test]
-    fn rpc_capabilities_features_are_stably_sorted_and_unique() {
+    fn rpc_capabilities_features_preserve_frozen_order_and_stay_unique() {
         let _guard = rpc_capability_env_lock()
             .lock()
             .expect("rpc capability env lock poisoned");
         reset_rpc_capability_env();
         let capabilities = code_rpc_capabilities();
 
-        let mut expected_features = capabilities.features.clone();
-        expected_features.sort_unstable();
-        expected_features.dedup();
+        let expected_features: Vec<String> = CODE_RUNTIME_RPC_FEATURES
+            .iter()
+            .map(|feature| (*feature).to_string())
+            .collect();
 
         assert_eq!(capabilities.features, expected_features);
 
