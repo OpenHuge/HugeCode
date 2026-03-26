@@ -41,6 +41,7 @@ import {
 } from "./runtimeReviewIntelligenceSummary";
 import {
   buildRuntimeReviewPackFollowUpState,
+  type RuntimeReviewPackDecisionActionabilitySummary,
   type RuntimeReviewPackDecisionActionModel,
 } from "./runtimeReviewPackDecisionActionsFacade";
 import {
@@ -256,6 +257,7 @@ export type ReviewPackDetailModel = {
     summary: string;
     details: string[];
   };
+  decisionActionability: RuntimeReviewPackDecisionActionabilitySummary;
   decisionActions: RuntimeReviewPackDecisionActionModel<MissionNavigationTarget>[];
   limitations: string[];
   relaunchOptions: RelaunchOption[];
@@ -1155,6 +1157,7 @@ export function buildReviewPackDetailModel(input: {
     missingReason: "The runtime did not publish backend audit details for this review pack.",
   };
   const reviewContinuationDefaults = followUpState.continuationDefaults;
+  const decisionActionability = followUpState.decisionActionability;
   const decisionActions = followUpState.decisionActions;
   const followUpDefaultsAvailable = followUpState.interventionActions.some(
     (action) => action.enabled
@@ -1309,6 +1312,7 @@ export function buildReviewPackDetailModel(input: {
     }),
     missionBrief: buildMissionBriefDetail(run?.missionBrief ?? null),
     relaunchContext,
+    decisionActionability,
     decisionActions,
     relaunchOptions,
     subAgentSummary,

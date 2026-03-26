@@ -223,7 +223,9 @@ describe("runtimeReviewPackSurfaceFacade", () => {
       throw new Error("Expected review pack detail");
     }
     expect(detail.summary).toBe("Runtime review summary.");
-    expect(detail.recommendedNextAction).toBe("Runtime follow-up");
+    expect(detail.recommendedNextAction).toBe(
+      "Inspect runtime review truth before continuing from this review-ready run."
+    );
   });
 
   it("uses canonical continuation next action for mission-run detail", () => {
