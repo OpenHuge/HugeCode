@@ -6,6 +6,7 @@ import {
 } from "@ku0/code-workspace-client/workspace-browser-bindings";
 import type {
   WorkspaceClientBindings,
+  WorkspaceClientHostStartupStatus,
   WorkspaceClientRuntimeBindings,
   WorkspaceClientRuntimeGatewayBindings,
 } from "@ku0/code-workspace-client/workspace-bindings";
@@ -34,6 +35,7 @@ export type WorkspaceClientHostNotificationBindings = {
 
 export type WorkspaceClientHostShellBindings = {
   platformHint?: string | null;
+  readStartupStatus?: () => Promise<WorkspaceClientHostStartupStatus | null>;
 };
 
 export type WorkspaceClientHostBindings = {
@@ -60,6 +62,7 @@ export type CreateDesktopWorkspaceClientHostBindingsInput = {
   createOauthPopupWindow?: () => Window | null;
   platform?: WorkspaceClientHostPlatform;
   platformHint?: string | null;
+  readShellStartupStatus?: () => Promise<WorkspaceClientHostStartupStatus | null>;
   testSound?: () => void;
 };
 
@@ -98,6 +101,7 @@ export function createDesktopWorkspaceClientHostBindings(
     },
     shell: {
       platformHint: input.platformHint ?? "desktop",
+      readStartupStatus: input.readShellStartupStatus,
     },
   };
 }

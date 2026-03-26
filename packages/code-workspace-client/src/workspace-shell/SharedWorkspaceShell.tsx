@@ -104,6 +104,10 @@ function ReadinessSummary({
       }),
     [state.missionLoadState, state.missionSummary]
   );
+  const showHostStartupCard =
+    state.platformHint !== "web" ||
+    state.hostStartupStatus !== null ||
+    state.hostStartupLoadState === "loading";
 
   return (
     <>
@@ -210,6 +214,34 @@ function ReadinessSummary({
           </div>
           <p className={styles.body}>{state.missionSummary.continuityReadiness.detail}</p>
         </article>
+        {showHostStartupCard ? (
+          <article className={styles.card}>
+            <div className={styles.readinessHeader}>
+              <span
+                aria-hidden
+                className={`${styles.statusDot} ${
+                  styles.statusDotTone[
+                    state.hostStartupStatus?.tone ??
+                      (state.hostStartupLoadState === "error"
+                        ? "attention"
+                        : state.hostStartupLoadState === "loading"
+                          ? "idle"
+                          : "ready")
+                  ]
+                }`}
+              />
+              <span className={styles.readinessLabel}>
+                {state.hostStartupStatus?.label ?? "Desktop host"}
+              </span>
+            </div>
+            <p className={styles.body}>
+              {state.hostStartupLoadState === "idle" || state.hostStartupLoadState === "loading"
+                ? "Desktop host capabilities are hydrating after shell startup."
+                : (state.hostStartupStatus?.detail ??
+                  "Desktop host status is available once the shared shell finishes startup hydration.")}
+            </p>
+          </article>
+        ) : null}
       </section>
     </>
   );
@@ -724,8 +756,15 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
               message: state.missionError,
             }
           : null,
+        state.hostStartupError
+          ? {
+              id: `host:${state.hostStartupError}`,
+              title: "Desktop host status unavailable",
+              message: state.hostStartupError,
+            }
+          : null,
       ].filter((error): error is { id: string; title: string; message: string } => error !== null),
-    [state.missionError, state.workspaceError]
+    [state.hostStartupError, state.missionError, state.workspaceError]
   );
   const visibleErrors = useMemo(
     () => shellErrors.filter((error) => !dismissedErrors.includes(error.id)),
@@ -813,6 +852,7 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
             onClick={() => {
               void state.refreshWorkspaces();
               void state.refreshMissionSummary();
+              void state.refreshHostStartupStatus();
             }}
             type="button"
           >

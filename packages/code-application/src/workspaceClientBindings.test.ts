@@ -64,12 +64,18 @@ describe("workspaceClientBindings", () => {
     const testSystemNotification = vi.fn();
     const createOauthPopupWindow = vi.fn(() => null);
     const testSound = vi.fn();
+    const readShellStartupStatus = vi.fn(async () => ({
+      tone: "ready" as const,
+      label: "Electron host ready",
+      detail: "Automatic desktop updates are available.",
+    }));
 
     const bindings = createDesktopWorkspaceClientHostBindings({
       openExternalUrl,
       waitForOauthBinding,
       testSystemNotification,
       createOauthPopupWindow,
+      readShellStartupStatus,
       testSound,
       platformHint: "electron",
     });
@@ -82,9 +88,15 @@ describe("workspaceClientBindings", () => {
 
     expect(bindings.platform).toBe("desktop");
     expect(bindings.shell.platformHint).toBe("electron");
+    await expect(bindings.shell.readStartupStatus?.()).resolves.toEqual({
+      tone: "ready",
+      label: "Electron host ready",
+      detail: "Automatic desktop updates are available.",
+    });
     expect(openExternalUrl).toHaveBeenCalledWith("https://example.com");
     expect(waitForOauthBinding).toHaveBeenCalledWith("workspace-a", 42);
     expect(createOauthPopupWindow).toHaveBeenCalledTimes(1);
+    expect(readShellStartupStatus).toHaveBeenCalledTimes(1);
     expect(testSound).toHaveBeenCalledTimes(1);
     expect(testSystemNotification).toHaveBeenCalledTimes(1);
   });
@@ -93,6 +105,11 @@ describe("workspaceClientBindings", () => {
     const openExternalUrl = vi.fn();
     const waitForOauthBinding = vi.fn(async () => true);
     const testSystemNotification = vi.fn();
+    const readShellStartupStatus = vi.fn(async () => ({
+      tone: "attention" as const,
+      label: "Electron updates need attention",
+      detail: "Manual updates are required for this build.",
+    }));
     const WorkspaceApp = () => null;
     const DesktopRuntimeShell = () => null;
     const Provider = ({ children }: PropsWithChildren) =>
@@ -191,6 +208,7 @@ describe("workspaceClientBindings", () => {
       openExternalUrl,
       waitForOauthBinding,
       testSystemNotification,
+      readShellStartupStatus,
       WorkspaceApp,
       WorkspaceRuntimeShell: DesktopRuntimeShell,
       settingsShellFraming: {
@@ -209,6 +227,11 @@ describe("workspaceClientBindings", () => {
     expect(bindings.runtime).toBe(runtime);
     expect(bindings.host.platform).toBe("desktop");
     expect(bindings.host.shell.platformHint).toBe("electron");
+    await expect(bindings.host.shell.readStartupStatus?.()).resolves.toEqual({
+      tone: "attention",
+      label: "Electron updates need attention",
+      detail: "Manual updates are required for this build.",
+    });
     expect(bindings.platformUi.WorkspaceApp).toBe(WorkspaceApp);
     expect(bindings.platformUi.WorkspaceRuntimeShell).toBe(DesktopRuntimeShell);
 

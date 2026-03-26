@@ -40,6 +40,7 @@ export function useSharedMissionControlSummaryState(
 
   const [state, setState] = useState<SharedMissionControlSummaryState>(IDLE_MISSION_CONTROL_STATE);
   const requestIdRef = useRef(0);
+  const refreshTimeoutRef = useRef<number | null>(null);
 
   const loadSummary = useCallback(
     async (loadState: MissionControlLoadState = "loading") => {
@@ -97,7 +98,7 @@ export function useSharedMissionControlSummaryState(
     [activeWorkspaceId, enabled, runtime]
   );
 
-  const refresh = useCallback(() => loadSummary("loading"), [loadSummary]);
+  const refresh = useCallback(() => loadSummary("refreshing"), [loadSummary]);
 
   useEffect(() => {
     if (!enabled) {
@@ -114,10 +115,30 @@ export function useSharedMissionControlSummaryState(
     return runtime.runtimeUpdated.subscribeScopedRuntimeUpdatedEvents(
       { scopes: ["bootstrap", "workspaces", "agents"] },
       () => {
-        void loadSummary("loading");
+        if (typeof window === "undefined") {
+          void loadSummary("loading");
+          return;
+        }
+        if (refreshTimeoutRef.current !== null) {
+          return;
+        }
+        refreshTimeoutRef.current = window.setTimeout(() => {
+          refreshTimeoutRef.current = null;
+          void loadSummary("refreshing");
+        }, 160);
       }
     );
   }, [enabled, loadSummary, runtime.runtimeUpdated]);
+
+  useEffect(
+    () => () => {
+      if (refreshTimeoutRef.current !== null) {
+        window.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+    },
+    []
+  );
 
   return {
     snapshot: enabled ? state.snapshot : null,

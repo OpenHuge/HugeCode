@@ -27,6 +27,8 @@ function createBindings(options?: {
   workspaceCatalogError?: string;
   missionControlError?: string;
   readMissionControlSnapshot?: () => Promise<MissionControlSnapshot>;
+  hostPlatform?: WorkspaceClientBindings["host"]["platform"];
+  readStartupStatus?: WorkspaceClientBindings["host"]["shell"]["readStartupStatus"];
 }): WorkspaceClientBindings {
   const listeners = new Set<() => void>();
   let selection: SharedWorkspaceRouteSelection = { kind: "home" };
@@ -275,7 +277,7 @@ function createBindings(options?: {
       },
     },
     host: {
-      platform: "web",
+      platform: options?.hostPlatform ?? "web",
       intents: {
         openOauthAuthorizationUrl: async () => undefined,
         createOauthPopupWindow: () => null,
@@ -286,7 +288,8 @@ function createBindings(options?: {
         testSystemNotification: () => undefined,
       },
       shell: {
-        platformHint: "web",
+        platformHint: options?.hostPlatform ?? "web",
+        readStartupStatus: options?.readStartupStatus,
       },
     },
     platformUi: {
@@ -743,6 +746,29 @@ describe("WorkspaceShellApp", () => {
       screen.getByText("Appearance, projects, runtime, and Codex defaults for this app.")
     ).toBeTruthy();
     expect(screen.getByText("Desktop app")).toBeTruthy();
+  });
+
+  it("surfaces deferred desktop host startup status once the shared shell hydrates", async () => {
+    render(
+      <WorkspaceClientBindingsProvider
+        bindings={createBindings({
+          hostPlatform: "desktop",
+          readStartupStatus: vi.fn(async () => ({
+            tone: "attention",
+            label: "Electron updates need attention",
+            detail: "Manual updates are required for this build.",
+          })),
+        })}
+      >
+        <WorkspaceShellApp />
+      </WorkspaceClientBindingsProvider>
+    );
+
+    expect(
+      screen.getByText("Desktop host capabilities are hydrating after shell startup.")
+    ).toBeTruthy();
+    expect(await screen.findByText("Electron updates need attention")).toBeTruthy();
+    expect(screen.getByText("Manual updates are required for this build.")).toBeTruthy();
   });
 
   it("surfaces shared-shell load failures through toast cards instead of inline copy", async () => {
