@@ -44,9 +44,42 @@ export function resolveStageInstallCommand() {
   };
 }
 
+export function resolveCliCommand(commandName, platform = process.platform) {
+  if (platform === "win32" && !commandName.includes(".")) {
+    return `${commandName}.cmd`;
+  }
+
+  return commandName;
+}
+
+function quoteWindowsShellSegment(segment) {
+  if (!/[\s"&|<>^()]/u.test(segment)) {
+    return segment;
+  }
+
+  return `"${segment.replace(/"/gu, '""')}"`;
+}
+
+export function createCliInvocation(commandName, args, platform = process.platform) {
+  const resolvedCommand = resolveCliCommand(commandName, platform);
+  if (platform === "win32") {
+    const shellCommand = [resolvedCommand, ...args].map(quoteWindowsShellSegment).join(" ");
+    return {
+      command: process.env.ComSpec || "cmd.exe",
+      args: ["/d", "/s", "/c", shellCommand],
+    };
+  }
+
+  return {
+    command: resolvedCommand,
+    args,
+  };
+}
+
 async function runCommand(commandName, args, cwd) {
+  const invocation = createCliInvocation(commandName, args);
   await new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(commandName, args, {
+    const child = spawn(invocation.command, invocation.args, {
       cwd,
       env: sanitizeSpawnEnv(process.env),
       stdio: "inherit",
