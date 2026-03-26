@@ -36,6 +36,7 @@ async function createFixtureRepo(): Promise<string> {
   );
 
   await writeFixtureFile(tempRoot, ".github/workflows/ci.yml", "name: CI\n");
+  await writeFixtureFile(tempRoot, "README.md", "# fixture\n");
   await writeFixtureFile(tempRoot, "docs/development/README.md", "# Development\n");
   await writeFixtureFile(tempRoot, "docs/development/ci-workflows.md", "# CI Workflows\n");
 
@@ -65,6 +66,11 @@ function commitAll(targetRoot: string, message: string) {
     "-m",
     message,
   ]);
+}
+
+async function commitChangedFile(targetRoot: string, relativePath: string, content: string) {
+  await writeFixtureFile(targetRoot, relativePath, content);
+  commitAll(targetRoot, `change ${relativePath}`);
 }
 
 function runClassifier(targetRoot: string) {
@@ -115,5 +121,59 @@ describe("classify-ci-change-scope", () => {
     expect(outputs.get("repo_governance_only")).toBe("true");
     expect(outputs.get("manifest_only")).toBe("false");
     expect(outputs.get("build_skip_eligible_only")).toBe("false");
+  });
+
+  it("does not classify devcontainer changes as frontend or UI-owned work", async () => {
+    const tempRoot = await createFixtureRepo();
+    await commitChangedFile(tempRoot, ".devcontainer/update-content.sh", "echo updated\n");
+
+    const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(outputs.get("build_skip_eligible_only")).toBe("false");
+    expect(outputs.get("circular_required")).toBe("false");
+    expect(outputs.get("frontend_optimization_changed")).toBe("false");
+    expect(outputs.get("quality_core_changed")).toBe("false");
+    expect(outputs.get("repo_governance_only")).toBe("false");
+    expect(outputs.get("ui_contract_required")).toBe("false");
+  });
+
+  it("keeps shared workflow-governance action edits out of frontend optimization", async () => {
+    const tempRoot = await createFixtureRepo();
+    await commitChangedFile(
+      tempRoot,
+      ".github/actions/setup-playwright/action.yml",
+      "name: Setup Playwright\n"
+    );
+
+    const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(outputs.get("circular_required")).toBe("false");
+    expect(outputs.get("frontend_optimization_changed")).toBe("false");
+    expect(outputs.get("quality_core_changed")).toBe("false");
+    expect(outputs.get("repo_governance_only")).toBe("true");
+    expect(outputs.get("ui_contract_required")).toBe("false");
+  });
+
+  it("still classifies real app source changes as frontend and UI work", async () => {
+    const tempRoot = await createFixtureRepo();
+    await commitChangedFile(
+      tempRoot,
+      "apps/code/src/app-shell.tsx",
+      "export const AppShell = () => null;\n"
+    );
+
+    const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(outputs.get("circular_required")).toBe("true");
+    expect(outputs.get("frontend_optimization_changed")).toBe("true");
+    expect(outputs.get("quality_core_changed")).toBe("true");
+    expect(outputs.get("repo_governance_only")).toBe("false");
+    expect(outputs.get("ui_contract_required")).toBe("true");
   });
 });

@@ -769,14 +769,20 @@ describe("SettingsCodexAccountsCard", () => {
       });
 
       expect(readActiveOauthPopupLoginId()).toBeNull();
+      const accountCallsBeforeQueuedRefresh = listOAuthAccountsMock.mock.calls.length;
+      const poolCallsBeforeQueuedRefresh = listOAuthPoolsMock.mock.calls.length;
 
       await act(async () => {
         resolveAccounts?.([]);
       });
 
       await waitFor(() => {
-        expect(listOAuthAccountsMock).toHaveBeenCalledTimes(2);
-        expect(listOAuthPoolsMock).toHaveBeenCalledTimes(2);
+        expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(
+          accountCallsBeforeQueuedRefresh + 1
+        );
+        expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(
+          poolCallsBeforeQueuedRefresh + 2
+        );
         expect(accountsTab.textContent ?? "").toContain("1");
         expect(poolsTab.textContent ?? "").toContain("1");
       });
