@@ -160,6 +160,8 @@ jobs:
       enable_sccache: ${{ matrix.enable_sccache }}
       host_check_command: ${{ matrix.host_check_command }}
       prebuild_mode: auto
+      verification_mode: check
+      check_base_branch: ${{ github.base_ref }}
       restore_frontend_artifact: "false"
 
   build-pr-full:

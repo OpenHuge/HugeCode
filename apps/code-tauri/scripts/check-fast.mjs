@@ -22,8 +22,58 @@ const workspaceRoot = join(appRoot, "..", "..");
 
 const trackedConfig = ["Cargo.toml", "Cargo.lock", "tauri.conf.json", "build.rs"];
 
+function normalizeGitPath(filePath) {
+  return filePath.replaceAll("\\", "/");
+}
+
 function log(message) {
   process.stdout.write(`[code-tauri check] ${message}\n`);
+}
+
+function runGit(args, { cwd = workspaceRoot, allowFailure = false } = {}) {
+  const result = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: process.platform === "win32",
+    windowsHide: true,
+  });
+
+  if (result.status !== 0 && !allowFailure) {
+    const rendered = result.stderr?.trim() || `git ${args.join(" ")} failed`;
+    throw new Error(rendered);
+  }
+
+  return result;
+}
+
+function resolveDiffArgs(baseRef, headRef) {
+  const candidates = [
+    ["diff", "--name-only", `${baseRef}...${headRef}`],
+    ["diff", "--name-only", baseRef, headRef],
+  ];
+
+  for (const candidate of candidates) {
+    const result = runGit(candidate, { allowFailure: true });
+    if (result.status === 0) {
+      return candidate.slice(2);
+    }
+  }
+
+  throw new Error(`Unable to diff ${baseRef} against ${headRef}`);
+}
+
+function hasRustInputChangesBetweenRefs(baseRef, headRef) {
+  const diffArgs = resolveDiffArgs(baseRef, headRef);
+  const changedFiles = runGit(["diff", "--name-only", ...diffArgs])
+    .stdout.split("\n")
+    .map((file) => normalizeGitPath(file.trim()))
+    .filter(Boolean);
+
+  const rustRootRelative = normalizeGitPath(relative(workspaceRoot, rustRoot));
+  return changedFiles.some(
+    (file) => file === rustRootRelative || file.startsWith(`${rustRootRelative}/`)
+  );
 }
 
 async function listRustFiles(root) {
@@ -115,8 +165,15 @@ function resolveTargetDir() {
 
 async function main() {
   const force = process.env.CODE_TAURI_CHECK_FORCE === "1";
+  const baseRef = process.env.CODE_TAURI_CHECK_BASE_REF?.trim();
+  const headRef = process.env.CODE_TAURI_CHECK_HEAD_REF?.trim() || "HEAD";
   const rustcVersion = resolveRustcVersion();
   const targetDir = resolveTargetDir();
+
+  if (!force && baseRef && !hasRustInputChangesBetweenRefs(baseRef, headRef)) {
+    log(`no Rust source/config change detected from ${baseRef} to ${headRef}, skip cargo check`);
+    return;
+  }
 
   const files = await listRustFiles(rustRoot);
   const signature = await hashFiles(files);

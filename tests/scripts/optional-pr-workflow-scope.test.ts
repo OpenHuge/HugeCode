@@ -71,6 +71,8 @@ describe("optional PR workflow scope", () => {
     expect(buildPrFastSection).toContain("needs: [changes]");
     expect(buildPrFastSection).not.toContain("prepare-frontend]");
     expect(buildPrFastSection).toContain("prebuild_mode: auto");
+    expect(buildPrFastSection).toContain("verification_mode: check");
+    expect(buildPrFastSection).toContain("check_base_branch: ${{ github.base_ref }}");
     expect(buildPrFastSection).toContain('restore_frontend_artifact: "false"');
   });
 

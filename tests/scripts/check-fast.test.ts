@@ -272,4 +272,43 @@ describe("code-tauri check-fast script", () => {
     expect(await readFile(cargoLogPath, "utf8")).toBe("");
     await lockHolderExit;
   });
+
+  it("skips cargo check when CI diff refs show no Rust input changes", async () => {
+    const workspaceRoot = await createFixtureWorkspace();
+    const appRoot = path.join(workspaceRoot, "apps", "code-tauri");
+    const cargoLogPath = path.join(workspaceRoot, "cargo.log");
+    const frontendFilePath = path.join(workspaceRoot, "apps", "code", "src", "main.tsx");
+
+    await mkdir(path.dirname(frontendFilePath), { recursive: true });
+    await writeFile(frontendFilePath, "export const app = 1;\n", "utf8");
+    await writeFile(cargoLogPath, "", "utf8");
+
+    spawnSync("git", ["init"], { cwd: workspaceRoot, stdio: "ignore" });
+    spawnSync("git", ["config", "user.email", "codex@example.com"], {
+      cwd: workspaceRoot,
+      stdio: "ignore",
+    });
+    spawnSync("git", ["config", "user.name", "Codex"], { cwd: workspaceRoot, stdio: "ignore" });
+    spawnSync("git", ["add", "."], { cwd: workspaceRoot, stdio: "ignore" });
+    spawnSync("git", ["commit", "-m", "base"], { cwd: workspaceRoot, stdio: "ignore" });
+
+    await writeFile(frontendFilePath, "export const app = 2;\n", "utf8");
+    spawnSync("git", ["add", frontendFilePath], { cwd: workspaceRoot, stdio: "ignore" });
+    spawnSync("git", ["commit", "-m", "frontend only"], { cwd: workspaceRoot, stdio: "ignore" });
+
+    const result = spawnSync(process.execPath, [path.join(appRoot, "scripts", "check-fast.mjs")], {
+      cwd: appRoot,
+      env: {
+        ...withPrependedPath(process.env, path.join(workspaceRoot, "bin")),
+        CARGO_LOG_PATH: cargoLogPath,
+        CODE_TAURI_CHECK_BASE_REF: "HEAD^",
+        CODE_TAURI_CHECK_HEAD_REF: "HEAD",
+      },
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/no Rust source\/config change detected/);
+    expect(await readFile(cargoLogPath, "utf8")).toBe("");
+  });
 });
