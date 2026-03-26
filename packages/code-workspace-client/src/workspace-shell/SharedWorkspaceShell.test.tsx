@@ -413,6 +413,42 @@ describe("WorkspaceShellApp", () => {
     }
   });
 
+  it("returns to home when an explicit workspace route resolves as invalid", async () => {
+    let resolveCatalog:
+      | ((value: { id: string; name: string; connected: boolean }[]) => void)
+      | null = null;
+
+    render(
+      <WorkspaceClientBindingsProvider
+        bindings={createBindings({
+          initialSelection: { kind: "workspace", workspaceId: "workspace-2" },
+          listWorkspaces: vi.fn(
+            () =>
+              new Promise<{ id: string; name: string; connected: boolean }[]>((resolve) => {
+                resolveCatalog = resolve;
+              })
+          ),
+        })}
+      >
+        <WorkspaceShellApp />
+      </WorkspaceClientBindingsProvider>
+    );
+
+    expect(screen.getByText("Loading selected workspace...")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: "Workspaces" })).toBeTruthy();
+
+    await act(async () => {
+      resolveCatalog?.([{ id: "workspace-1", name: "Alpha", connected: true }]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { level: 1, name: "Home" })).toBeTruthy();
+      expect(screen.getByText("Home overview")).toBeTruthy();
+    });
+  });
+
   it("updates the mission summary when selecting another workspace", async () => {
     window.history.pushState({}, "", "/app");
 

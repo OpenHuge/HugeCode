@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import {
   useWorkspaceClientNavigation,
   useWorkspaceClientRuntimeBindings,
@@ -57,6 +57,16 @@ export function useSharedWorkspaceCatalogState() {
     (catalogState.loadState === "idle" ||
       catalogState.loadState === "loading" ||
       catalogState.loadState === "refreshing");
+
+  useEffect(() => {
+    if (routeWorkspaceId === null || catalogState.loadState !== "ready") {
+      return;
+    }
+    if (catalogState.workspaces.some((entry) => entry.id === routeWorkspaceId)) {
+      return;
+    }
+    void navigation.navigateHome({ replace: true });
+  }, [catalogState.loadState, catalogState.workspaces, navigation, routeWorkspaceId]);
 
   return {
     workspaces: catalogState.workspaces,
