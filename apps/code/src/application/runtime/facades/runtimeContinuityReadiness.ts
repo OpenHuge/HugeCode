@@ -11,6 +11,7 @@ import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import { buildMissionRunCheckpoint } from "./runtimeMissionControlCheckpoint";
 import {
   formatRuntimeContinuationTruthSourceLabel,
+  projectTakeoverBundleToContinuation,
   resolvePreferredReviewActionability,
   type RuntimeContinuationTruthSource,
 } from "./runtimeContinuationTruth";
