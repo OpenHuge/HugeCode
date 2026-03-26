@@ -115,6 +115,7 @@ pub(crate) async fn schedule_run_state_update(
         Value::Number(serde_json::Number::from(now)),
     );
     if status == "running" {
+        ensure_schedule_has_no_active_run(ctx, schedule_id.as_str(), &object).await?;
         let launch_outcome =
             launch_native_schedule_run(ctx, params, schedule_id.as_str(), &object).await?;
         object.remove("blockingReason");
@@ -147,14 +148,59 @@ pub(crate) async fn schedule_run_state_update(
         remove_schedule_timestamp_fields(&mut object, &["nextRunAt", "nextRunAtMs"]);
     } else {
         if let Some(task_id) = read_schedule_text(&object, &["currentTaskId", "current_task_id"]) {
-            let _ = handle_agent_task_interrupt(
+            let interrupt_ack = handle_agent_task_interrupt(
                 ctx,
                 &json!({
                     "taskId": task_id,
                     "reason": "Scheduled run cancelled.",
                 }),
             )
-            .await;
+            .await?;
+            let accepted = interrupt_ack
+                .get("accepted")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            if !accepted {
+                let current_task_payload =
+                    read_agent_task_status_payload(ctx, Some(task_id.as_str())).await?;
+                if let Some(payload) = current_task_payload.as_ref() {
+                    if let Some(task_status) = payload.get("status").and_then(Value::as_str) {
+                        object.insert(
+                            "currentTaskStatus".to_string(),
+                            Value::String(task_status.to_string()),
+                        );
+                        if is_agent_task_terminal_status(task_status) {
+                            project_schedule_terminal_task_state(&mut object, Some(payload));
+                        } else {
+                            object.insert(
+                                "status".to_string(),
+                                Value::String("running".to_string()),
+                            );
+                            if let Some(message) = interrupt_ack
+                                .get("message")
+                                .and_then(Value::as_str)
+                                .map(str::trim)
+                                .filter(|value| !value.is_empty())
+                            {
+                                object.insert(
+                                    "lastOutcomeLabel".to_string(),
+                                    Value::String(message.to_string()),
+                                );
+                            }
+                        }
+                        return ctx
+                            .native_state_store
+                            .upsert_entity(
+                                TABLE_NATIVE_SCHEDULES,
+                                schedule_id.as_str(),
+                                object.get("enabled").and_then(Value::as_bool),
+                                Value::Object(object),
+                            )
+                            .await
+                            .map_err(RpcError::internal);
+                    }
+                }
+            }
         }
         let next_status = derive_schedule_status(
             object
@@ -291,14 +337,6 @@ async fn project_native_schedule_runtime_truth(
         .as_ref()
         .or(current_task_payload.as_ref())
     {
-        if let Some(workspace_id) = payload
-            .get("workspaceId")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-        {
-            object.insert("workspaceId".to_string(), Value::String(workspace_id.to_string()));
-        }
         if let Some(run_id) = payload
             .get("runSummary")
             .and_then(Value::as_object)
@@ -653,19 +691,71 @@ struct NativeScheduleLaunchOutcome {
     run_id: Option<String>,
 }
 
+pub(crate) fn reject_active_schedule_task(
+    schedule_id: &str,
+    current_task_id: &str,
+    task_status: &str,
+) -> Result<(), RpcError> {
+    if is_agent_task_terminal_status(task_status) {
+        return Ok(());
+    }
+    Err(RpcError::invalid_params(format!(
+        "native schedule `{schedule_id}` already has an active task `{current_task_id}`"
+    )))
+}
+
+async fn ensure_schedule_has_no_active_run(
+    ctx: &AppContext,
+    schedule_id: &str,
+    schedule: &serde_json::Map<String, Value>,
+) -> Result<(), RpcError> {
+    let Some(current_task_id) = read_schedule_text(schedule, &["currentTaskId", "current_task_id"])
+    else {
+        return Ok(());
+    };
+    let Some(payload) = read_agent_task_status_payload(ctx, Some(current_task_id.as_str())).await?
+    else {
+        return Ok(());
+    };
+    let status = payload
+        .get("status")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("running");
+    reject_active_schedule_task(schedule_id, current_task_id.as_str(), status)
+}
+
+fn resolve_schedule_workspace_id(
+    params: &serde_json::Map<String, Value>,
+    schedule_id: &str,
+    schedule: &serde_json::Map<String, Value>,
+) -> Result<String, RpcError> {
+    let schedule_workspace_id = read_schedule_text(schedule, &["workspaceId", "workspace_id"])
+        .ok_or_else(|| {
+            RpcError::invalid_params(
+                "native schedule run-now requires a workspaceId in the schedule payload.",
+            )
+        })?;
+    if let Some(request_workspace_id) =
+        read_optional_string_value(params, &["workspaceId", "workspace_id"])
+    {
+        if request_workspace_id != schedule_workspace_id {
+            return Err(RpcError::invalid_params(format!(
+                "native schedule `{schedule_id}` run-now workspaceId must match the persisted schedule workspace."
+            )));
+        }
+    }
+    Ok(schedule_workspace_id)
+}
+
 async fn launch_native_schedule_run(
     ctx: &AppContext,
     params: &serde_json::Map<String, Value>,
     schedule_id: &str,
     schedule: &serde_json::Map<String, Value>,
 ) -> Result<NativeScheduleLaunchOutcome, RpcError> {
-    let workspace_id = read_optional_string_value(params, &["workspaceId", "workspace_id"])
-        .or_else(|| read_schedule_text(schedule, &["workspaceId", "workspace_id"]))
-        .ok_or_else(|| {
-            RpcError::invalid_params(
-                "native schedule run-now requires a workspaceId in the schedule payload.",
-            )
-        })?;
+    let workspace_id = resolve_schedule_workspace_id(params, schedule_id, schedule)?;
     let prompt = read_schedule_text(schedule, &["prompt", "taskPrompt", "instructions"])
         .ok_or_else(|| {
             RpcError::invalid_params(

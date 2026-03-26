@@ -209,12 +209,25 @@ function sanitizeExistingScheduleRecord(
     return {};
   }
   const sanitized: Record<string, unknown> = { ...existing };
-  delete sanitized.currentTaskStatus;
-  delete sanitized.lastTriggeredTaskStatus;
-  delete sanitized.reviewActionability;
-  delete sanitized.reviewPackSummary;
-  delete sanitized.missionLinkage;
-  delete sanitized.taskSource;
+  for (const key of [
+    "currentTaskStatus",
+    "current_task_status",
+    "lastTriggeredTaskStatus",
+    "last_triggered_task_status",
+    "reviewActionability",
+    "review_actionability",
+    "reviewActionabilityState",
+    "reviewPackId",
+    "review_pack_id",
+    "reviewPackSummary",
+    "review_pack_summary",
+    "missionLinkage",
+    "mission_linkage",
+    "taskSource",
+    "task_source",
+  ]) {
+    delete sanitized[key];
+  }
   return sanitized;
 }
 

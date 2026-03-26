@@ -228,13 +228,14 @@ async fn native_schedule_create_run_cancel_derives_runtime_summary_fields() {
     );
     assert_eq!(
         cancel_payload["result"]["lastOutcomeLabel"],
-        Value::String("Cancelled current run".to_string())
+        Value::String("No workspace is available for core live skills.".to_string())
     );
     assert!(
         cancel_payload["result"]["nextRunAtMs"]
             .as_u64()
             .is_some_and(|value| value > 0)
     );
+    assert!(cancel_payload["result"]["currentTaskId"].is_null());
 }
 
 #[tokio::test]
@@ -384,6 +385,60 @@ async fn native_schedule_run_now_launches_task_when_schedule_has_workspace_conte
     );
 }
 
+#[test]
+fn native_schedule_run_now_rejects_second_active_launch() {
+    let error = crate::rpc_dispatch_native_schedules::reject_active_schedule_task(
+        "schedule-active-task-guard",
+        "agent-task-active",
+        "awaiting_approval",
+    )
+    .expect_err("non-terminal task should block schedule relaunch");
+
+    assert_eq!(error.code_str(), "INVALID_PARAMS");
+    assert!(error.message().contains("already has an active task"));
+}
+
+#[tokio::test]
+async fn native_schedule_run_now_rejects_workspace_override_mismatch() {
+    let app = test_router();
+
+    let create_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_create",
+            "params": {
+                "scheduleId": "schedule-workspace-guard",
+                "schedule": {
+                    "name": "Night Operator Workspace Guard",
+                    "workspaceId": "workspace-1",
+                    "prompt": "Use the persisted schedule workspace.",
+                    "enabled": true
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(create_payload["ok"], Value::Bool(true));
+
+    let run_payload = send_rpc_request(
+        app,
+        json!({
+            "method": "native_schedule_run_now",
+            "params": {
+                "scheduleId": "schedule-workspace-guard",
+                "workspaceId": "workspace-2"
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(run_payload["ok"], Value::Bool(false));
+    assert_eq!(
+        run_payload["error"]["code"],
+        Value::String("INVALID_PARAMS".to_string())
+    );
+}
+
 #[tokio::test]
 async fn native_schedules_list_projects_runtime_lineage_for_triggered_task() {
     let app = test_router();
@@ -454,6 +509,83 @@ async fn native_schedules_list_projects_runtime_lineage_for_triggered_task() {
 }
 
 #[tokio::test]
+async fn native_schedules_list_preserves_persisted_workspace_after_workspace_update() {
+    let app = test_router();
+
+    let create_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_create",
+            "params": {
+                "scheduleId": "schedule-workspace-projection",
+                "schedule": {
+                    "name": "Night Operator Workspace Projection",
+                    "workspaceId": "workspace-1",
+                    "prompt": "Project runtime lineage without clobbering the schedule workspace.",
+                    "enabled": true
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(create_payload["ok"], Value::Bool(true));
+
+    let run_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_run_now",
+            "params": {
+                "scheduleId": "schedule-workspace-projection"
+            }
+        }),
+    )
+    .await;
+    assert_eq!(run_payload["ok"], Value::Bool(true));
+
+    let update_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_update",
+            "params": {
+                "scheduleId": "schedule-workspace-projection",
+                "schedule": {
+                    "workspaceId": "workspace-2"
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(update_payload["ok"], Value::Bool(true));
+
+    let list_payload = send_rpc_request(
+        app,
+        json!({
+            "method": "native_schedules_list",
+            "params": {}
+        }),
+    )
+    .await;
+
+    assert_eq!(list_payload["ok"], Value::Bool(true));
+    let schedule_entry = list_payload["result"]
+        .as_array()
+        .and_then(|entries| {
+            entries
+                .iter()
+                .find(|entry| entry["id"] == Value::String("schedule-workspace-projection".to_string()))
+        })
+        .expect("projected schedule entry");
+    assert_eq!(
+        schedule_entry["workspaceId"],
+        Value::String("workspace-2".to_string())
+    );
+    assert_eq!(
+        schedule_entry["missionLinkage"]["workspaceId"],
+        Value::String("workspace-1".to_string())
+    );
+}
+
+#[tokio::test]
 async fn native_schedule_cancel_run_clears_active_task_linkage() {
     let app = test_router();
 
@@ -506,7 +638,7 @@ async fn native_schedule_cancel_run_clears_active_task_linkage() {
     assert_eq!(cancel_payload["result"]["status"], json!("idle"));
     assert_eq!(
         cancel_payload["result"]["lastOutcomeLabel"],
-        json!("Cancelled current run")
+        json!("No workspace is available for core live skills.")
     );
     assert!(cancel_payload["result"]["currentTaskId"].is_null());
     assert!(cancel_payload["result"]["currentRunId"].is_null());
@@ -524,16 +656,76 @@ async fn native_schedule_cancel_run_clears_active_task_linkage() {
 
     assert_eq!(task_payload["ok"], Value::Bool(true));
     assert_eq!(task_payload["result"]["taskId"], json!(task_id));
-    let task_status = task_payload["result"]["status"]
+    assert_eq!(task_payload["result"]["status"], json!("failed"));
+}
+
+#[tokio::test]
+async fn native_schedule_cancel_run_projects_terminal_task_state_when_interrupt_not_accepted() {
+    let app = test_router();
+
+    let create_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_create",
+            "params": {
+                "scheduleId": "schedule-terminal-cancel-guard",
+                "schedule": {
+                    "name": "Night Operator Terminal Cancel Guard",
+                    "workspaceId": "workspace-1",
+                    "prompt": "Finish before the cancel request lands.",
+                    "enabled": true
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(create_payload["ok"], Value::Bool(true));
+
+    let run_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_run_now",
+            "params": {
+                "scheduleId": "schedule-terminal-cancel-guard"
+            }
+        }),
+    )
+    .await;
+    assert_eq!(run_payload["ok"], Value::Bool(true));
+    let task_id = run_payload["result"]["currentTaskId"]
         .as_str()
-        .expect("task status after cancellation");
-    assert!(matches!(task_status, "interrupted" | "failed"));
-    if task_status == "interrupted" {
-        assert_eq!(
-            task_payload["result"]["errorMessage"],
-            json!("Scheduled run cancelled.")
-        );
-    }
+        .expect("scheduled run task id")
+        .to_string();
+
+    let _ = wait_for_agent_task_terminal_status(
+        app.clone(),
+        task_id.as_str(),
+        &["completed", "failed"],
+    )
+    .await;
+
+    let cancel_payload = send_rpc_request(
+        app,
+        json!({
+            "method": "native_schedule_cancel_run",
+            "params": {
+                "scheduleId": "schedule-terminal-cancel-guard"
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(cancel_payload["ok"], Value::Bool(true));
+    assert_eq!(cancel_payload["result"]["status"], json!("idle"));
+    assert!(cancel_payload["result"]["currentTaskId"].is_null());
+    assert!(cancel_payload["result"]["currentRunId"].is_null());
+    let last_outcome = cancel_payload["result"]["lastOutcomeLabel"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(matches!(
+        last_outcome,
+        "Completed" | "Review pack ready" | "No workspace is available for core live skills."
+    ));
 }
 
 #[tokio::test]

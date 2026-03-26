@@ -84,7 +84,7 @@ export function useSystemNotificationThreadLinks({
       }
 
       if (!workspace) {
-        return;
+        return false;
       }
 
       if (!workspace.connected) {
@@ -99,7 +99,7 @@ export function useSystemNotificationThreadLinks({
         setActiveTab("missions");
         setActiveWorkspaceId(target.workspaceId);
         setActiveThreadId(target.threadId, target.workspaceId);
-        return;
+        return true;
       }
 
       openReviewPack({
@@ -111,6 +111,7 @@ export function useSystemNotificationThreadLinks({
       });
       setActiveWorkspaceId(target.workspaceId);
       setActiveTab("review");
+      return true;
     },
     [
       connectWorkspace,
@@ -128,7 +129,14 @@ export function useSystemNotificationThreadLinks({
 
   const openMissionTarget = useCallback(
     async (target: MissionNavigationTarget) => {
-      await navigateToTarget(target);
+      pendingLinkRef.current = {
+        kind: "mission",
+        target,
+        notifiedAt: Date.now(),
+      };
+      if (await navigateToTarget(target)) {
+        pendingLinkRef.current = null;
+      }
     },
     [navigateToTarget]
   );
@@ -144,13 +152,15 @@ export function useSystemNotificationThreadLinks({
     }
 
     if (link.kind === "thread") {
-      await navigateToTarget(link);
-      pendingLinkRef.current = null;
+      if (await navigateToTarget(link)) {
+        pendingLinkRef.current = null;
+      }
       return;
     }
 
-    await navigateToTarget(link.target);
-    pendingLinkRef.current = null;
+    if (await navigateToTarget(link.target)) {
+      pendingLinkRef.current = null;
+    }
   }, [maxAgeMs, navigateToTarget]);
 
   const focusHandler = useMemo(() => () => void tryNavigateToLink(), [tryNavigateToLink]);
@@ -168,7 +178,7 @@ export function useSystemNotificationThreadLinks({
       return;
     }
     void tryNavigateToLink();
-  }, [hasLoadedWorkspaces, tryNavigateToLink]);
+  }, [hasLoadedWorkspaces, tryNavigateToLink, workspacesById]);
 
   return { recordPendingThreadLink, recordPendingMissionTarget, openMissionTarget };
 }
