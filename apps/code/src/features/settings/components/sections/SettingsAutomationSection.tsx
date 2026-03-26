@@ -13,6 +13,7 @@ import {
   SettingsFooterBar,
   SettingsControlRow,
 } from "../SettingsSectionGrammar";
+import type { MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";
 import * as controlStyles from "../SettingsFormControls.css";
 import * as grammar from "../SettingsSectionGrammar.css";
 import { SettingsToggleControl } from "../SettingsToggleControl";
@@ -25,6 +26,7 @@ export type SettingsAutomationScheduleSummary = {
   id: string;
   name: string;
   prompt: string;
+  workspaceId: string | null;
   cadenceLabel: string;
   status: SettingsAutomationScheduleStatus;
   nextRunAtMs: number | null;
@@ -44,11 +46,20 @@ export type SettingsAutomationScheduleSummary = {
   wakePolicy: string | null;
   researchPolicy: string | null;
   queueBudget: number | null;
+  currentTaskId: string | null;
+  currentTaskStatus: string | null;
+  currentRunId: string | null;
+  lastTriggeredTaskId: string | null;
+  lastTriggeredTaskStatus: string | null;
+  lastTriggeredRunId: string | null;
+  reviewPackId: string | null;
+  reviewActionabilityState: string | null;
 };
 
 export type SettingsAutomationScheduleDraft = {
   name: string;
   prompt: string;
+  workspaceId: string;
   cadence: string;
   backendId: string;
   reviewProfileId: string;
@@ -64,6 +75,7 @@ export type SettingsAutomationScheduleDraft = {
 
 export type SettingsAutomationSectionProps = {
   backendOptions?: Array<{ id: string; label: string }>;
+  workspaceOptions?: Array<{ id: string; label: string }>;
   defaultBackendId?: string | null;
   schedules?: SettingsAutomationScheduleSummary[];
   loading?: boolean;
@@ -79,16 +91,19 @@ export type SettingsAutomationSectionProps = {
     scheduleId: string;
     action: SettingsAutomationScheduleAction;
   }) => void | Promise<void>;
+  onOpenMissionTarget?: (target: MissionNavigationTarget) => void | Promise<void>;
 };
 
 type ScheduleFieldValue = string | number | null | undefined;
 
 function createBlankDraft(
-  defaultBackendId: string | null | undefined
+  defaultBackendId: string | null | undefined,
+  defaultWorkspaceId: string | null | undefined
 ): SettingsAutomationScheduleDraft {
   return {
     name: "",
     prompt: "",
+    workspaceId: defaultWorkspaceId ?? "",
     cadence: "",
     backendId: defaultBackendId ?? "",
     reviewProfileId: "",
@@ -105,11 +120,13 @@ function createBlankDraft(
 
 function mapSummaryToDraft(
   summary: SettingsAutomationScheduleSummary,
-  defaultBackendId: string | null | undefined
+  defaultBackendId: string | null | undefined,
+  defaultWorkspaceId: string | null | undefined
 ): SettingsAutomationScheduleDraft {
   return {
     name: summary.name,
     prompt: summary.prompt,
+    workspaceId: summary.workspaceId ?? defaultWorkspaceId ?? "",
     cadence: summary.cadenceLabel,
     backendId: summary.backendId ?? defaultBackendId ?? "",
     reviewProfileId: summary.reviewProfileId ?? "",
@@ -163,6 +180,40 @@ function getStatusTone(
   return "warning";
 }
 
+function formatReviewActionabilityLabel(state: string | null): string | null {
+  if (!state) {
+    return null;
+  }
+  if (state === "ready") {
+    return "Review ready";
+  }
+  if (state === "degraded") {
+    return "Needs attention";
+  }
+  if (state === "blocked") {
+    return "Review blocked";
+  }
+  if (state === "pending") {
+    return "Review pending";
+  }
+  return state;
+}
+
+function getReviewActionabilityTone(
+  state: string | null
+): "default" | "success" | "warning" | "progress" {
+  if (state === "ready") {
+    return "success";
+  }
+  if (state === "pending") {
+    return "progress";
+  }
+  if (state === "degraded" || state === "blocked") {
+    return "warning";
+  }
+  return "default";
+}
+
 function resolveBackendLabel(
   backendId: string | null,
   backendLabel: string | null,
@@ -176,6 +227,17 @@ function resolveBackendLabel(
     return backendOption?.label ?? backendId;
   }
   return "Automatic runtime routing";
+}
+
+function resolveWorkspaceLabel(
+  workspaceId: string | null,
+  workspaceOptions: Array<{ id: string; label: string }>
+): string {
+  if (!workspaceId) {
+    return "No workspace selected";
+  }
+  const workspaceOption = workspaceOptions.find((option) => option.id === workspaceId);
+  return workspaceOption?.label ?? workspaceId;
 }
 
 function resolveFieldLabel(value: string | null, fallback: string): string {
@@ -205,8 +267,64 @@ function resolveReadOnlyReason(
   return "Schedule facade is not wired yet.";
 }
 
+function readScheduleLinkageValue(value: string | null): string | null {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
+function resolveScheduleNavigationTarget(
+  summary: SettingsAutomationScheduleSummary
+): MissionNavigationTarget | null {
+  const workspaceId = readScheduleLinkageValue(summary.workspaceId);
+  if (!workspaceId) {
+    return null;
+  }
+
+  const reviewPackId = readScheduleLinkageValue(summary.reviewPackId);
+  const currentTaskId = readScheduleLinkageValue(summary.currentTaskId);
+  const currentRunId = readScheduleLinkageValue(summary.currentRunId);
+  const lastTriggeredTaskId = readScheduleLinkageValue(summary.lastTriggeredTaskId);
+  const lastTriggeredRunId = readScheduleLinkageValue(summary.lastTriggeredRunId);
+
+  if (reviewPackId) {
+    const taskId = lastTriggeredTaskId ?? currentTaskId;
+    if (!taskId) {
+      return null;
+    }
+
+    return {
+      kind: "review",
+      workspaceId,
+      taskId,
+      runId: lastTriggeredTaskId ? lastTriggeredRunId : currentRunId,
+      reviewPackId,
+      limitation: "thread_unavailable",
+    };
+  }
+
+  const taskId = currentTaskId ?? lastTriggeredTaskId;
+  if (!taskId) {
+    return null;
+  }
+
+  return {
+    kind: "mission",
+    workspaceId,
+    taskId,
+    runId: currentTaskId ? currentRunId : lastTriggeredRunId,
+    reviewPackId: null,
+    threadId: null,
+    limitation: "thread_unavailable",
+  };
+}
+
+function resolveScheduleNavigationLabel(target: MissionNavigationTarget): string {
+  return target.kind === "review" ? "Open review" : "Open mission";
+}
+
 export function SettingsAutomationSection({
   backendOptions = [],
+  workspaceOptions = [],
   defaultBackendId = null,
   schedules = [],
   loading = false,
@@ -216,6 +334,7 @@ export function SettingsAutomationSection({
   onCreateSchedule,
   onUpdateSchedule,
   onScheduleAction,
+  onOpenMissionTarget,
 }: SettingsAutomationSectionProps) {
   const compactInputFieldClassName = `${controlStyles.inputField} ${controlStyles.inputFieldCompact}`;
   const compactSelectProps = {
@@ -225,11 +344,13 @@ export function SettingsAutomationSection({
     optionClassName: controlStyles.selectOption,
     triggerDensity: "compact" as const,
   };
+  const defaultWorkspaceId =
+    workspaceOptions.length === 1 ? (workspaceOptions[0]?.id ?? null) : null;
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(
     () => schedules[0]?.id ?? null
   );
   const [draft, setDraft] = useState<SettingsAutomationScheduleDraft>(() =>
-    createBlankDraft(defaultBackendId)
+    createBlankDraft(defaultBackendId, defaultWorkspaceId)
   );
 
   const selectedSchedule = useMemo(
@@ -253,25 +374,25 @@ export function SettingsAutomationSection({
 
   useEffect(() => {
     if (selectedSchedule === null) {
-      setDraft(createBlankDraft(defaultBackendId));
+      setDraft(createBlankDraft(defaultBackendId, defaultWorkspaceId));
       return;
     }
 
-    setDraft(mapSummaryToDraft(selectedSchedule, defaultBackendId));
-  }, [defaultBackendId, selectedSchedule]);
+    setDraft(mapSummaryToDraft(selectedSchedule, defaultBackendId, defaultWorkspaceId));
+  }, [defaultBackendId, defaultWorkspaceId, selectedSchedule]);
 
   const handleCreateNew = () => {
     setSelectedScheduleId(null);
-    setDraft(createBlankDraft(defaultBackendId));
+    setDraft(createBlankDraft(defaultBackendId, defaultWorkspaceId));
   };
 
   const handleResetDraft = () => {
     if (selectedSchedule === null) {
-      setDraft(createBlankDraft(defaultBackendId));
+      setDraft(createBlankDraft(defaultBackendId, defaultWorkspaceId));
       return;
     }
 
-    setDraft(mapSummaryToDraft(selectedSchedule, defaultBackendId));
+    setDraft(mapSummaryToDraft(selectedSchedule, defaultBackendId, defaultWorkspaceId));
   };
 
   const handleSaveDraft = async () => {
@@ -311,6 +432,16 @@ export function SettingsAutomationSection({
     ],
     [backendOptions]
   );
+  const workspaceSelectOptions: SelectOption[] = useMemo(
+    () => [
+      { value: "", label: "Select workspace" },
+      ...workspaceOptions.map((workspace) => ({
+        value: workspace.id,
+        label: workspace.label,
+      })),
+    ],
+    [workspaceOptions]
+  );
   const autonomyProfileOptions: SelectOption[] = [
     { value: "night_operator", label: "Night Operator" },
     { value: "supervised", label: "Supervised" },
@@ -336,6 +467,8 @@ export function SettingsAutomationSection({
   const cancelDisabled =
     loading || selectedSchedule?.status !== "running" || onScheduleAction === undefined;
   const runNowDisabled = loading || onScheduleAction === undefined;
+  const selectedScheduleCanLaunch =
+    Boolean(selectedSchedule?.workspaceId) && Boolean(selectedSchedule?.prompt.trim().length);
   const pauseResumeDisabled =
     loading || selectedSchedule === null || onScheduleAction === undefined;
   const selectedBackendLabel = resolveBackendLabel(
@@ -343,6 +476,16 @@ export function SettingsAutomationSection({
     selectedSchedule?.backendLabel ?? null,
     backendOptions
   );
+  const selectedWorkspaceLabel = resolveWorkspaceLabel(
+    selectedSchedule?.workspaceId ?? draft.workspaceId ?? null,
+    workspaceOptions
+  );
+  const selectedScheduleNavigationTarget = selectedSchedule
+    ? resolveScheduleNavigationTarget(selectedSchedule)
+    : null;
+  const selectedScheduleNavigationLabel = selectedScheduleNavigationTarget
+    ? resolveScheduleNavigationLabel(selectedScheduleNavigationTarget)
+    : null;
 
   return (
     <>
@@ -405,6 +548,17 @@ export function SettingsAutomationSection({
                   schedule.validationPresetLabel ?? schedule.validationPresetId,
                   "Default validation preset"
                 );
+                const workspaceLabel = resolveWorkspaceLabel(
+                  schedule.workspaceId,
+                  workspaceOptions
+                );
+                const navigationTarget = resolveScheduleNavigationTarget(schedule);
+                const navigationLabel = navigationTarget
+                  ? resolveScheduleNavigationLabel(navigationTarget)
+                  : null;
+                const reviewActionabilityLabel = formatReviewActionabilityLabel(
+                  schedule.reviewActionabilityState
+                );
 
                 return (
                   <SettingsField
@@ -420,6 +574,13 @@ export function SettingsAutomationSection({
                           {formatStatusLabel(schedule.status)}
                         </StatusBadge>
                         {isSelected ? <StatusBadge tone="progress">Selected</StatusBadge> : null}
+                        {reviewActionabilityLabel ? (
+                          <StatusBadge
+                            tone={getReviewActionabilityTone(schedule.reviewActionabilityState)}
+                          >
+                            {reviewActionabilityLabel}
+                          </StatusBadge>
+                        ) : null}
                         {schedule.safeFollowUp ? (
                           <StatusBadge tone="success">Safe follow-up</StatusBadge>
                         ) : null}
@@ -432,6 +593,7 @@ export function SettingsAutomationSection({
                         Last outcome:{" "}
                         {resolveFieldLabel(schedule.lastOutcomeLabel, "Awaiting runtime result")}
                       </div>
+                      <div className={grammar.helpText}>Workspace: {workspaceLabel}</div>
                       <div className={grammar.helpText}>Backend: {backendLabel}</div>
                       <div className={grammar.helpText}>
                         Autonomy: {resolveFieldLabel(schedule.autonomyProfile, "Night Operator")}
@@ -446,6 +608,11 @@ export function SettingsAutomationSection({
                       <div className={grammar.helpText}>
                         Validation preset: {validationPresetLabel}
                       </div>
+                      {reviewActionabilityLabel ? (
+                        <div className={grammar.helpText}>
+                          Review actionability: {reviewActionabilityLabel}
+                        </div>
+                      ) : null}
                       {schedule.triggerSourceLabel ? (
                         <div className={grammar.helpText}>
                           Trigger source: {schedule.triggerSourceLabel}
@@ -456,7 +623,24 @@ export function SettingsAutomationSection({
                           Blocking reason: {schedule.blockingReason}
                         </div>
                       ) : null}
+                      {schedule.reviewPackId ? (
+                        <div className={grammar.helpText}>Review pack: {schedule.reviewPackId}</div>
+                      ) : null}
                       <SettingsFooterBar>
+                        {navigationTarget && navigationLabel && onOpenMissionTarget ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="settings-button-compact"
+                            aria-label={`${navigationLabel} for ${schedule.name}`}
+                            onClick={() => {
+                              void onOpenMissionTarget(navigationTarget);
+                            }}
+                          >
+                            {navigationLabel}
+                          </Button>
+                        ) : null}
                         <Button
                           type="button"
                           variant="secondary"
@@ -525,6 +709,40 @@ export function SettingsAutomationSection({
             textareaSize="lg"
           />
         </SettingsField>
+
+        {workspaceOptions.length > 0 ? (
+          <SettingsField
+            label="Workspace"
+            help="Schedules must target a workspace before Run now can launch a runtime task."
+          >
+            <Select
+              {...compactSelectProps}
+              ariaLabel="Workspace"
+              options={workspaceSelectOptions}
+              value={draft.workspaceId}
+              onValueChange={(value) =>
+                setDraft((previous) => ({ ...previous, workspaceId: value }))
+              }
+            />
+          </SettingsField>
+        ) : (
+          <SettingsField
+            label="Workspace"
+            htmlFor="schedule-workspace"
+            help="Enter the workspace ID that this schedule should launch against."
+          >
+            <Input
+              id="schedule-workspace"
+              fieldClassName={compactInputFieldClassName}
+              inputSize="sm"
+              value={draft.workspaceId}
+              onValueChange={(value) =>
+                setDraft((previous) => ({ ...previous, workspaceId: value }))
+              }
+              placeholder="workspace-1"
+            />
+          </SettingsField>
+        )}
 
         <SettingsField
           label="Cadence"
@@ -730,6 +948,13 @@ export function SettingsAutomationSection({
               <StatusBadge tone={getStatusTone(selectedSchedule.status)}>
                 {formatStatusLabel(selectedSchedule.status)}
               </StatusBadge>
+              {selectedSchedule.reviewActionabilityState ? (
+                <StatusBadge
+                  tone={getReviewActionabilityTone(selectedSchedule.reviewActionabilityState)}
+                >
+                  {formatReviewActionabilityLabel(selectedSchedule.reviewActionabilityState)}
+                </StatusBadge>
+              ) : null}
               <StatusBadge tone="progress">{selectedScheduleLabel}</StatusBadge>
             </div>
             <div className={grammar.helpText}>Cadence: {selectedSchedule.cadenceLabel}</div>
@@ -743,6 +968,7 @@ export function SettingsAutomationSection({
               Last outcome:{" "}
               {resolveFieldLabel(selectedSchedule.lastOutcomeLabel, "Awaiting runtime result")}
             </div>
+            <div className={grammar.helpText}>Workspace: {selectedWorkspaceLabel}</div>
             <div className={grammar.helpText}>Backend: {selectedBackendLabel}</div>
             <div className={grammar.helpText}>
               Autonomy profile:{" "}
@@ -780,6 +1006,38 @@ export function SettingsAutomationSection({
                 Trigger source: {selectedSchedule.triggerSourceLabel}
               </div>
             ) : null}
+            {selectedSchedule.currentTaskId ? (
+              <div className={grammar.helpText}>
+                Active task: {selectedSchedule.currentTaskId}
+                {selectedSchedule.currentTaskStatus
+                  ? ` (${selectedSchedule.currentTaskStatus})`
+                  : ""}
+              </div>
+            ) : null}
+            {selectedSchedule.currentRunId ? (
+              <div className={grammar.helpText}>Active run: {selectedSchedule.currentRunId}</div>
+            ) : null}
+            {selectedSchedule.lastTriggeredTaskId ? (
+              <div className={grammar.helpText}>
+                Last triggered task: {selectedSchedule.lastTriggeredTaskId}
+                {selectedSchedule.lastTriggeredTaskStatus
+                  ? ` (${selectedSchedule.lastTriggeredTaskStatus})`
+                  : ""}
+              </div>
+            ) : null}
+            {selectedSchedule.lastTriggeredRunId ? (
+              <div className={grammar.helpText}>
+                Last triggered run: {selectedSchedule.lastTriggeredRunId}
+              </div>
+            ) : null}
+            {selectedSchedule.reviewPackId ? (
+              <div className={grammar.helpText}>Review pack: {selectedSchedule.reviewPackId}</div>
+            ) : null}
+            {selectedSchedule.reviewActionabilityState ? (
+              <div className={grammar.helpText}>
+                Review actionability: {selectedSchedule.reviewActionabilityState}
+              </div>
+            ) : null}
             {selectedSchedule.blockingReason ? (
               <div className={grammar.errorText}>
                 Blocking reason: {selectedSchedule.blockingReason}
@@ -794,6 +1052,20 @@ export function SettingsAutomationSection({
                   : "unknown"}
             </div>
             <SettingsFooterBar>
+              {selectedScheduleNavigationTarget && onOpenMissionTarget ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="settings-button-compact"
+                  aria-label={`${selectedScheduleNavigationLabel} for ${selectedScheduleLabel}`}
+                  onClick={() => {
+                    void onOpenMissionTarget(selectedScheduleNavigationTarget);
+                  }}
+                >
+                  {selectedScheduleNavigationLabel}
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="secondary"
@@ -817,8 +1089,14 @@ export function SettingsAutomationSection({
                 onClick={() => {
                   void handleScheduleAction("run-now");
                 }}
-                disabled={runNowDisabled}
-                title={runNowDisabled ? (readOnlyStateReason ?? undefined) : undefined}
+                disabled={runNowDisabled || !selectedScheduleCanLaunch}
+                title={
+                  runNowDisabled
+                    ? (readOnlyStateReason ?? undefined)
+                    : !selectedScheduleCanLaunch
+                      ? "Select a workspace and prompt before launching."
+                      : undefined
+                }
               >
                 Run now
               </Button>

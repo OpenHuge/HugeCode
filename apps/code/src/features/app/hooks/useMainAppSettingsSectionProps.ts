@@ -30,6 +30,7 @@ type UseMainAppSettingsSectionPropsParams = {
   handleMobileConnectSuccess: Parameters<
     typeof useMainAppSettingsProps
   >[0]["onMobileConnectSuccess"];
+  onOpenMissionTarget: Parameters<typeof useMainAppSettingsProps>[0]["onOpenMissionTarget"];
 };
 
 export function useMainAppSettingsSectionProps({
@@ -59,6 +60,7 @@ export function useMainAppSettingsSectionProps({
   onTestNotificationSound,
   onTestSystemNotification,
   handleMobileConnectSuccess,
+  onOpenMissionTarget,
 }: UseMainAppSettingsSectionPropsParams) {
   return useMainAppSettingsProps({
     workspaceGroups,
@@ -95,5 +97,6 @@ export function useMainAppSettingsSectionProps({
     onTestNotificationSound,
     onTestSystemNotification,
     onMobileConnectSuccess: handleMobileConnectSuccess,
+    onOpenMissionTarget,
   });
 }

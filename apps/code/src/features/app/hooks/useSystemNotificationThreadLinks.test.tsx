@@ -161,4 +161,77 @@ describe("useSystemNotificationThreadLinks", () => {
     });
     expect(setActiveThreadId).not.toHaveBeenCalled();
   });
+
+  it("retries an explicit mission target after workspaces finish loading", async () => {
+    const workspace = makeWorkspace({ connected: true });
+    const refreshWorkspaces = vi.fn(async () => [workspace]);
+    const connectWorkspace = vi.fn(async () => undefined);
+    const setActiveTab = vi.fn();
+    const setCenterMode = vi.fn();
+    const setSelectedDiffPath = vi.fn();
+    const setActiveWorkspaceId = vi.fn();
+    const setActiveThreadId = vi.fn();
+    const openReviewPack = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({
+        hasLoadedWorkspaces,
+        workspacesById,
+      }: {
+        hasLoadedWorkspaces: boolean;
+        workspacesById: Map<string, WorkspaceInfo>;
+      }) =>
+        useSystemNotificationThreadLinks({
+          hasLoadedWorkspaces,
+          workspacesById,
+          refreshWorkspaces,
+          connectWorkspace,
+          setActiveTab,
+          setCenterMode,
+          setSelectedDiffPath,
+          setActiveWorkspaceId,
+          setActiveThreadId,
+          openReviewPack,
+        }),
+      {
+        initialProps: {
+          hasLoadedWorkspaces: false,
+          workspacesById: new Map<string, WorkspaceInfo>(),
+        },
+      }
+    );
+
+    await act(async () => {
+      await result.current.openMissionTarget({
+        kind: "mission",
+        workspaceId: "ws-1",
+        taskId: "task-1",
+        runId: "run-1",
+        reviewPackId: "review-pack:run-1",
+        threadId: "thread-1",
+        limitation: null,
+      });
+    });
+
+    expect(openReviewPack).not.toHaveBeenCalled();
+    expect(refreshWorkspaces).not.toHaveBeenCalled();
+
+    await act(async () => {
+      rerender({
+        hasLoadedWorkspaces: true,
+        workspacesById: new Map([[workspace.id, workspace]]),
+      });
+      await Promise.resolve();
+    });
+
+    expect(openReviewPack).toHaveBeenCalledWith({
+      workspaceId: "ws-1",
+      taskId: "task-1",
+      runId: "run-1",
+      reviewPackId: "review-pack:run-1",
+      source: "system",
+    });
+    expect(setActiveTab).toHaveBeenCalledWith("review");
+    expect(setActiveWorkspaceId).toHaveBeenCalledWith("ws-1");
+  });
 });

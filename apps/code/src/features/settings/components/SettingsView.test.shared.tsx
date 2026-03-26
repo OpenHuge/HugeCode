@@ -546,10 +546,11 @@ beforeEach(() => {
     id: "schedule-seed",
     enabled: true,
     name: "Seed automation",
-    status: "cancelled",
+    status: "idle",
     cron: "Every weekday at 09:00",
     updatedAt: Date.now(),
     lastActionAt: Date.now(),
+    lastOutcomeLabel: "Cancelled current run",
   });
   replaceOAuthPoolMembersMock.mockResolvedValue([]);
   setOAuthPrimaryAccountMock.mockResolvedValue({

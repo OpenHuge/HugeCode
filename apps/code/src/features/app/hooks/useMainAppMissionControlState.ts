@@ -142,18 +142,19 @@ export function useMainAppMissionControlState({
     refreshMissionControl
   );
 
-  const { recordPendingThreadLink, recordPendingMissionTarget } = useSystemNotificationThreadLinks({
-    hasLoadedWorkspaces,
-    workspacesById,
-    refreshWorkspaces,
-    connectWorkspace,
-    openReviewPack: (request) => openReviewPackRef.current(request),
-    setActiveTab,
-    setCenterMode,
-    setSelectedDiffPath,
-    setActiveWorkspaceId,
-    setActiveThreadId,
-  });
+  const { recordPendingThreadLink, recordPendingMissionTarget, openMissionTarget } =
+    useSystemNotificationThreadLinks({
+      hasLoadedWorkspaces,
+      workspacesById,
+      refreshWorkspaces,
+      connectWorkspace,
+      openReviewPack: (request) => openReviewPackRef.current(request),
+      setActiveTab,
+      setCenterMode,
+      setSelectedDiffPath,
+      setActiveWorkspaceId,
+      setActiveThreadId,
+    });
 
   useMissionControlCompletionNotificationsController({
     systemNotificationsEnabled,
@@ -260,6 +261,7 @@ export function useMainAppMissionControlState({
 
   return {
     autoDriveState,
+    openMissionTarget,
     onReviewPackControllerReady,
     onThreadNotificationSent: recordPendingThreadLink,
   };
