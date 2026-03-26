@@ -18,6 +18,7 @@ import {
 import {
   ensureDesktopBrowserWorkspaceSession,
   getDesktopBrowserWorkspaceSession,
+  reportDesktopBrowserWorkspaceVerification,
 } from "../ports/desktopBrowserWorkspace";
 import type { DesktopBrowserWorkspaceSessionKind } from "../ports/desktopHostBridge";
 import { getCollaborationModes } from "../ports/tauriCollaboration";
@@ -395,7 +396,7 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
         decisionLab: input.decisionLab ?? null,
         researchRouteLab: input.researchRouteLab ?? null,
       });
-      return runRuntimeBrowserDebug({
+      const result = await runRuntimeBrowserDebug({
         workspaceId: input.workspaceId,
         operation: input.operation,
         browserUrl: browserSession?.browserUrl ?? null,
@@ -407,6 +408,20 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
         decisionLab: input.decisionLab ?? null,
         researchRouteLab: input.researchRouteLab ?? null,
       });
+      if (browserSession && "sessionId" in browserSession) {
+        await reportDesktopBrowserWorkspaceVerification({
+          sessionId: browserSession.sessionId,
+          targetUrl:
+            input.targetUrl ??
+            input.decisionLab?.chatgptUrl ??
+            input.researchRouteLab?.chatgptUrl ??
+            browserSession.currentUrl ??
+            browserSession.targetUrl ??
+            null,
+          verifiedAt: new Date().toISOString(),
+        });
+      }
+      return result;
     },
     listRuntimeExtensions: async (targetWorkspaceId?: string | null) =>
       listRuntimeExtensions(targetWorkspaceId ?? workspaceId),

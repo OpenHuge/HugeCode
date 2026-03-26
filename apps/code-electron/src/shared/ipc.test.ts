@@ -28,6 +28,10 @@ describe("desktopHostIpcChannels", () => {
       setBrowserWorkspacePreviewServerStatus:
         "hugecode:desktop-host:set-browser-workspace-preview-server-status",
       setBrowserWorkspaceDevtoolsOpen: "hugecode:desktop-host:set-browser-workspace-devtools-open",
+      setBrowserWorkspacePaneState: "hugecode:desktop-host:set-browser-workspace-pane-state",
+      navigateBrowserWorkspaceSession: "hugecode:desktop-host:navigate-browser-workspace-session",
+      reportBrowserWorkspaceVerification:
+        "hugecode:desktop-host:report-browser-workspace-verification",
       getBrowserDebugSession: "hugecode:desktop-host:get-browser-debug-session",
       ensureBrowserDebugSession: "hugecode:desktop-host:ensure-browser-debug-session",
     });

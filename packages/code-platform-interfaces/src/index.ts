@@ -62,6 +62,15 @@ export type DesktopBrowserWorkspacePreviewServerStatus =
   | "starting"
   | "ready"
   | "failed";
+export type DesktopBrowserWorkspaceLoadingState = "idle" | "loading" | "ready" | "failed";
+export type DesktopBrowserWorkspaceNavigationAction = "back" | "forward" | "reload";
+
+export type DesktopBrowserWorkspacePaneBounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 export type DesktopBrowserWorkspaceSessionQuery = {
   kind?: DesktopBrowserWorkspaceSessionKind | null;
@@ -99,6 +108,17 @@ export type DesktopBrowserWorkspaceSessionInfo = {
   agentAttached: boolean;
   devtoolsOpen: boolean;
   previewServerStatus: DesktopBrowserWorkspacePreviewServerStatus;
+  pageTitle: string | null;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  paneWindowId: number | null;
+  paneVisible: boolean;
+  loadingState: DesktopBrowserWorkspaceLoadingState;
+  lastError: string | null;
+  crashCount: number;
+  consoleTail: string[];
+  lastVerifiedTarget: string | null;
+  lastVerifiedAt: string | null;
 };
 
 export type DesktopBrowserWorkspaceSetHostInput = {
@@ -125,6 +145,23 @@ export type DesktopBrowserWorkspaceSetPreviewServerStatusInput = {
 export type DesktopBrowserWorkspaceSetDevtoolsOpenInput = {
   open: boolean;
   sessionId: string;
+};
+
+export type DesktopBrowserWorkspaceSetPaneStateInput = {
+  bounds?: DesktopBrowserWorkspacePaneBounds | null;
+  sessionId: string;
+  visible: boolean;
+};
+
+export type DesktopBrowserWorkspaceNavigateInput = {
+  action: DesktopBrowserWorkspaceNavigationAction;
+  sessionId: string;
+};
+
+export type DesktopBrowserWorkspaceReportVerificationInput = {
+  sessionId: string;
+  targetUrl?: string | null;
+  verifiedAt?: string | null;
 };
 
 export type DesktopAppCapability = {
@@ -231,6 +268,20 @@ export type DesktopBrowserWorkspaceCapability = {
     | DesktopBrowserWorkspaceSessionInfo
     | null
     | undefined;
+  setPaneState?: (
+    input: DesktopBrowserWorkspaceSetPaneStateInput
+  ) =>
+    | Promise<DesktopBrowserWorkspaceSessionInfo | null | undefined>
+    | DesktopBrowserWorkspaceSessionInfo
+    | null
+    | undefined;
+  navigate?: (
+    input: DesktopBrowserWorkspaceNavigateInput
+  ) =>
+    | Promise<DesktopBrowserWorkspaceSessionInfo | null | undefined>
+    | DesktopBrowserWorkspaceSessionInfo
+    | null
+    | undefined;
   setHost?: (
     input: DesktopBrowserWorkspaceSetHostInput
   ) =>
@@ -247,6 +298,13 @@ export type DesktopBrowserWorkspaceCapability = {
     | undefined;
   setProfileMode?: (
     input: DesktopBrowserWorkspaceSetProfileModeInput
+  ) =>
+    | Promise<DesktopBrowserWorkspaceSessionInfo | null | undefined>
+    | DesktopBrowserWorkspaceSessionInfo
+    | null
+    | undefined;
+  reportVerification?: (
+    input: DesktopBrowserWorkspaceReportVerificationInput
   ) =>
     | Promise<DesktopBrowserWorkspaceSessionInfo | null | undefined>
     | DesktopBrowserWorkspaceSessionInfo
@@ -289,6 +347,12 @@ export type DesktopHostBridgeApi = {
     setDevtoolsOpen(
       input: DesktopBrowserWorkspaceSetDevtoolsOpenInput
     ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
+    setPaneState(
+      input: DesktopBrowserWorkspaceSetPaneStateInput
+    ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
+    navigate(
+      input: DesktopBrowserWorkspaceNavigateInput
+    ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
     setHost(
       input: DesktopBrowserWorkspaceSetHostInput
     ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
@@ -297,6 +361,9 @@ export type DesktopHostBridgeApi = {
     ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
     setProfileMode(
       input: DesktopBrowserWorkspaceSetProfileModeInput
+    ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
+    reportVerification(
+      input: DesktopBrowserWorkspaceReportVerificationInput
     ): Promise<DesktopBrowserWorkspaceSessionInfo | null>;
   };
   session: {

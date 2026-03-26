@@ -11,8 +11,11 @@ import {
   setBrowserWorkspaceAgentAttached,
   setBrowserWorkspaceDevtoolsOpen,
   setBrowserWorkspaceHost,
+  navigateBrowserWorkspaceSession,
+  setBrowserWorkspacePaneState,
   setBrowserWorkspacePreviewServerStatus,
   setBrowserWorkspaceProfileMode,
+  reportBrowserWorkspaceVerification,
 } from "./browserDebugSession.js";
 import { createDesktopMainComposition } from "./createDesktopMainComposition.js";
 
@@ -36,8 +39,11 @@ createDesktopMainComposition({
     setBrowserWorkspaceAgentAttached,
     setBrowserWorkspaceDevtoolsOpen,
     setBrowserWorkspaceHost,
+    navigateBrowserWorkspaceSession,
+    setBrowserWorkspacePaneState,
     setBrowserWorkspacePreviewServerStatus,
     setBrowserWorkspaceProfileMode,
+    reportBrowserWorkspaceVerification,
   },
   browserWindow: BrowserWindow,
   enableAppSandbox,

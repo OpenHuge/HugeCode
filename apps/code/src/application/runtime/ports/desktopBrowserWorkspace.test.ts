@@ -3,9 +3,12 @@ import {
   ensureDesktopBrowserWorkspaceSession,
   getDesktopBrowserWorkspaceSession,
   listDesktopBrowserWorkspaceSessions,
+  navigateDesktopBrowserWorkspaceSession,
+  reportDesktopBrowserWorkspaceVerification,
   setDesktopBrowserWorkspaceAgentAttached,
   setDesktopBrowserWorkspaceDevtoolsOpen,
   setDesktopBrowserWorkspaceHost,
+  setDesktopBrowserWorkspacePaneState,
   setDesktopBrowserWorkspacePreviewServerStatus,
   setDesktopBrowserWorkspaceProfileMode,
 } from "./desktopBrowserWorkspace";
@@ -37,6 +40,17 @@ describe("desktopBrowserWorkspace", () => {
       agentAttached: false,
       devtoolsOpen: false,
       previewServerStatus: "ready",
+      pageTitle: " Preview ",
+      canGoBack: true,
+      canGoForward: false,
+      paneWindowId: 9,
+      paneVisible: true,
+      loadingState: "ready",
+      lastError: null,
+      crashCount: 1,
+      consoleTail: ["[1] hello"],
+      lastVerifiedTarget: " http://127.0.0.1:5173/ ",
+      lastVerifiedAt: " 2026-03-25T00:00:00.000Z ",
     } as const;
 
     window.hugeCodeDesktopHost = {
@@ -50,6 +64,12 @@ describe("desktopBrowserWorkspace", () => {
         setAgentAttached: async () => ({ ...session, agentAttached: true }),
         setPreviewServerStatus: async () => ({ ...session, previewServerStatus: "starting" }),
         setDevtoolsOpen: async () => ({ ...session, devtoolsOpen: true }),
+        navigate: async () => ({ ...session, canGoBack: false, canGoForward: true }),
+        setPaneState: async () => ({ ...session, paneVisible: false }),
+        reportVerification: async () => ({
+          ...session,
+          lastVerifiedTarget: "http://127.0.0.1:5173/health",
+        }),
       },
     };
 
@@ -68,6 +88,17 @@ describe("desktopBrowserWorkspace", () => {
       agentAttached: false,
       devtoolsOpen: false,
       previewServerStatus: "ready",
+      pageTitle: "Preview",
+      canGoBack: true,
+      canGoForward: false,
+      paneWindowId: 9,
+      paneVisible: true,
+      loadingState: "ready",
+      lastError: null,
+      crashCount: 1,
+      consoleTail: ["[1] hello"],
+      lastVerifiedTarget: "http://127.0.0.1:5173/",
+      lastVerifiedAt: "2026-03-25T00:00:00.000Z",
     });
     await expect(listDesktopBrowserWorkspaceSessions()).resolves.toHaveLength(1);
     await expect(
@@ -88,6 +119,18 @@ describe("desktopBrowserWorkspace", () => {
     await expect(
       setDesktopBrowserWorkspaceDevtoolsOpen({ sessionId: "ws-1", open: true })
     ).resolves.toMatchObject({ devtoolsOpen: true });
+    await expect(
+      navigateDesktopBrowserWorkspaceSession({ sessionId: "ws-1", action: "reload" })
+    ).resolves.toMatchObject({ canGoForward: true });
+    await expect(
+      setDesktopBrowserWorkspacePaneState({ sessionId: "ws-1", visible: false, bounds: null })
+    ).resolves.toMatchObject({ paneVisible: false });
+    await expect(
+      reportDesktopBrowserWorkspaceVerification({
+        sessionId: "ws-1",
+        targetUrl: "http://127.0.0.1:5173/health",
+      })
+    ).resolves.toMatchObject({ lastVerifiedTarget: "http://127.0.0.1:5173/health" });
   });
 
   it("rejects malformed browser workspace payloads", async () => {
@@ -109,6 +152,9 @@ describe("desktopBrowserWorkspace", () => {
         setAgentAttached: async () => ({ sessionId: "x", kind: "invalid" }),
         setPreviewServerStatus: async () => ({ sessionId: "x", kind: "invalid" }),
         setDevtoolsOpen: async () => ({ sessionId: "x", kind: "invalid" }),
+        navigate: async () => ({ sessionId: "x", kind: "invalid" }),
+        setPaneState: async () => ({ sessionId: "x", kind: "invalid" }),
+        reportVerification: async () => ({ sessionId: "x", kind: "invalid" }),
       },
     };
 

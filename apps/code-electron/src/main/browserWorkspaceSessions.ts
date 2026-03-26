@@ -1,11 +1,21 @@
 import { createRequire } from "node:module";
-import type { BrowserWindow as ElectronBrowserWindow, HandlerDetails } from "electron";
+import type {
+  BrowserWindow as ElectronBrowserWindow,
+  HandlerDetails,
+  IpcMainInvokeEvent,
+  WebContents,
+  WebContentsView as ElectronWebContentsView,
+} from "electron";
 import type {
   DesktopBrowserDebugSessionInfo,
   DesktopBrowserDebugSessionInput,
   DesktopBrowserWorkspaceHost,
+  DesktopBrowserWorkspaceLoadingState,
+  DesktopBrowserWorkspaceNavigateInput,
+  DesktopBrowserWorkspacePaneBounds,
   DesktopBrowserWorkspacePreviewServerStatus,
   DesktopBrowserWorkspaceProfileMode,
+  DesktopBrowserWorkspaceReportVerificationInput,
   DesktopBrowserWorkspaceSessionInfo,
   DesktopBrowserWorkspaceSessionInput,
   DesktopBrowserWorkspaceSessionKind,
@@ -13,12 +23,16 @@ import type {
   DesktopBrowserWorkspaceSetAgentAttachedInput,
   DesktopBrowserWorkspaceSetDevtoolsOpenInput,
   DesktopBrowserWorkspaceSetHostInput,
+  DesktopBrowserWorkspaceSetPaneStateInput,
   DesktopBrowserWorkspaceSetPreviewServerStatusInput,
   DesktopBrowserWorkspaceSetProfileModeInput,
 } from "../shared/ipc.js";
 
 const require = createRequire(import.meta.url);
-const { BrowserWindow } = require("electron");
+const { BrowserWindow, WebContentsView } = require("electron") as {
+  BrowserWindow: typeof import("electron").BrowserWindow;
+  WebContentsView: typeof import("electron").WebContentsView;
+};
 
 const DEFAULT_BROWSER_DEBUG_PORT = 9333;
 const DEFAULT_RESEARCH_TARGET_URL = "https://chatgpt.com/";
@@ -27,18 +41,31 @@ const BROWSER_WORKSPACE_WINDOW_SIZE = {
   width: 1440,
   height: 960,
 };
+const DEFAULT_CONSOLE_TAIL_LIMIT = 8;
 
 type BrowserWorkspaceRecord = {
   agentAttached: boolean;
+  attachedPaneWindowId: number | null;
   canAgentAttach: boolean;
+  consoleTail: string[];
+  crashCount: number;
+  pageTitle: string | null;
   host: DesktopBrowserWorkspaceHost;
   kind: DesktopBrowserWorkspaceSessionKind;
+  lastError: string | null;
   lastKnownUrl: string | null;
+  lastVerifiedAt: string | null;
+  lastVerifiedTarget: string | null;
+  loadingState: DesktopBrowserWorkspaceLoadingState;
+  paneBounds: DesktopBrowserWorkspacePaneBounds | null;
+  paneVisible: boolean;
+  paneWindowId: number | null;
   partitionId: string;
   previewServerStatus: DesktopBrowserWorkspacePreviewServerStatus;
   profileMode: DesktopBrowserWorkspaceProfileMode;
   sessionId: string;
   targetUrl: string | null;
+  view: ElectronWebContentsView | null;
   window: ElectronBrowserWindow | null;
   workspaceId: string | null;
 };
@@ -77,6 +104,15 @@ function normalizePreviewServerStatus(
     return previewServerStatus;
   }
   return "unknown";
+}
+
+function normalizeLoadingState(
+  loadingState?: DesktopBrowserWorkspaceLoadingState | null
+): DesktopBrowserWorkspaceLoadingState {
+  if (loadingState === "loading" || loadingState === "ready" || loadingState === "failed") {
+    return loadingState;
+  }
+  return "idle";
 }
 
 function defaultTargetUrlForKind(kind: DesktopBrowserWorkspaceSessionKind): string | null {
@@ -175,32 +211,133 @@ function titleForKind(kind: DesktopBrowserWorkspaceSessionKind) {
   return "HugeCode Debug Browser";
 }
 
-function bindWorkspaceWindow(record: BrowserWorkspaceRecord, nextWindow: ElectronBrowserWindow) {
-  nextWindow.webContents.setWindowOpenHandler(({ url }: HandlerDetails) => {
+function appendConsoleTail(record: BrowserWorkspaceRecord, entry: string) {
+  const trimmed = entry.trim();
+  if (!trimmed) {
+    return;
+  }
+  record.consoleTail = [...record.consoleTail, trimmed].slice(-DEFAULT_CONSOLE_TAIL_LIMIT);
+}
+
+function updateLastKnownUrl(record: BrowserWorkspaceRecord, webContents: WebContents) {
+  const currentUrl = webContents.getURL().trim();
+  record.lastKnownUrl = currentUrl.length > 0 ? currentUrl : record.targetUrl;
+}
+
+function bindWorkspaceWebContents(record: BrowserWorkspaceRecord, webContents: WebContents) {
+  const syncCurrentUrl = () => {
+    updateLastKnownUrl(record, webContents);
+  };
+
+  webContents.setWindowOpenHandler(({ url }: HandlerDetails) => {
     if (record.kind === "preview" && !isLoopbackPreviewTarget(url)) {
+      record.lastError = `Blocked external preview popup: ${url}`;
       return { action: "deny" };
     }
-    void nextWindow.loadURL(url);
+    void webContents.loadURL(url);
     return { action: "deny" };
   });
 
-  const syncCurrentUrl = () => {
-    const currentUrl = nextWindow.webContents.getURL().trim();
-    record.lastKnownUrl = currentUrl.length > 0 ? currentUrl : record.targetUrl;
-  };
-
-  nextWindow.webContents.on("did-finish-load", syncCurrentUrl);
-  nextWindow.webContents.on("did-navigate", syncCurrentUrl);
-  nextWindow.webContents.on("did-navigate-in-page", syncCurrentUrl);
-  nextWindow.on("closed", () => {
-    if (record.window?.id === nextWindow.id) {
-      record.window = null;
+  webContents.on("did-start-loading", () => {
+    record.loadingState = "loading";
+    record.lastError = null;
+  });
+  webContents.on("page-title-updated", (event, title) => {
+    event.preventDefault();
+    record.pageTitle = title.trim().length > 0 ? title.trim() : null;
+  });
+  webContents.on("did-finish-load", () => {
+    record.loadingState = "ready";
+    record.lastError = null;
+    if (!record.pageTitle) {
+      const title = webContents.getTitle().trim();
+      record.pageTitle = title.length > 0 ? title : null;
     }
+    syncCurrentUrl();
+  });
+  webContents.on("did-navigate", syncCurrentUrl);
+  webContents.on("did-navigate-in-page", syncCurrentUrl);
+  webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedUrl) => {
+    if (errorCode === -3) {
+      return;
+    }
+    record.loadingState = "failed";
+    record.lastError = `${errorDescription} (${validatedUrl})`;
+  });
+  webContents.on("will-navigate", (event, url) => {
+    if (record.kind === "preview" && !isLoopbackPreviewTarget(url)) {
+      event.preventDefault();
+      record.lastError = `Blocked non-loopback preview navigation: ${url}`;
+    }
+  });
+  webContents.on("console-message", (_event, level, message) => {
+    appendConsoleTail(record, `[${level}] ${message}`);
+  });
+  webContents.on("render-process-gone", (_event, details) => {
+    record.crashCount += 1;
+    record.loadingState = "failed";
+    record.lastError = `Renderer exited: ${details.reason}`;
   });
 }
 
+function detachPaneView(record: BrowserWorkspaceRecord) {
+  if (!record.view) {
+    record.attachedPaneWindowId = null;
+    return;
+  }
+  const attachedWindow =
+    record.attachedPaneWindowId !== null ? BrowserWindow.fromId(record.attachedPaneWindowId) : null;
+  if (attachedWindow && !attachedWindow.isDestroyed()) {
+    attachedWindow.contentView.removeChildView(record.view);
+  }
+  record.attachedPaneWindowId = null;
+  record.view.setVisible(false);
+}
+
+function syncPaneHost(record: BrowserWorkspaceRecord) {
+  if (!record.view) {
+    return;
+  }
+  if (
+    record.host !== "pane" ||
+    record.paneVisible !== true ||
+    !record.paneBounds ||
+    record.paneWindowId === null
+  ) {
+    detachPaneView(record);
+    return;
+  }
+  const hostWindow = BrowserWindow.fromId(record.paneWindowId);
+  if (!hostWindow || hostWindow.isDestroyed()) {
+    detachPaneView(record);
+    record.lastError = "Preview pane host window is unavailable.";
+    return;
+  }
+  const alreadyAttached = hostWindow.contentView.children.includes(record.view);
+  if (!alreadyAttached) {
+    detachPaneView(record);
+    hostWindow.contentView.addChildView(record.view);
+  }
+  record.view.setBounds(record.paneBounds);
+  record.view.setVisible(true);
+}
+
+function createWorkspaceView(record: BrowserWorkspaceRecord): ElectronWebContentsView {
+  const nextView = new WebContentsView({
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      partition: record.partitionId,
+    },
+  });
+  bindWorkspaceWebContents(record, nextView.webContents);
+  record.view = nextView;
+  record.loadingState = "idle";
+  return nextView;
+}
+
 function createWorkspaceWindow(record: BrowserWorkspaceRecord): ElectronBrowserWindow {
-  const targetUrl = record.targetUrl ?? defaultTargetUrlForKind(record.kind) ?? "about:blank";
   const nextWindow = new BrowserWindow({
     ...BROWSER_WORKSPACE_WINDOW_SIZE,
     show: record.host === "window",
@@ -214,16 +351,62 @@ function createWorkspaceWindow(record: BrowserWorkspaceRecord): ElectronBrowserW
       partition: record.partitionId,
     },
   });
-
-  bindWorkspaceWindow(record, nextWindow);
-  void nextWindow.loadURL(targetUrl);
-  if (record.host === "window") {
-    nextWindow.once("ready-to-show", () => {
-      focusBrowserWorkspaceWindow(nextWindow);
-    });
-  }
+  bindWorkspaceWebContents(record, nextWindow.webContents);
+  nextWindow.on("closed", () => {
+    if (record.window?.id === nextWindow.id) {
+      record.window = null;
+    }
+  });
   record.window = nextWindow;
   return nextWindow;
+}
+
+function getHostWebContents(record: BrowserWorkspaceRecord): WebContents | null {
+  if (record.window && !record.window.isDestroyed()) {
+    return record.window.webContents;
+  }
+  if (record.view && !record.view.webContents.isDestroyed()) {
+    return record.view.webContents;
+  }
+  return null;
+}
+
+function destroyView(record: BrowserWorkspaceRecord) {
+  if (!record.view) {
+    return;
+  }
+  detachPaneView(record);
+  if (!record.view.webContents.isDestroyed()) {
+    record.view.webContents.close();
+  }
+  record.view = null;
+}
+
+function destroyWindow(record: BrowserWorkspaceRecord) {
+  if (!record.window || record.window.isDestroyed()) {
+    record.window = null;
+    return;
+  }
+  record.window.close();
+  record.window = null;
+}
+
+function resetHost(record: BrowserWorkspaceRecord) {
+  destroyWindow(record);
+  destroyView(record);
+}
+
+async function loadTarget(record: BrowserWorkspaceRecord, targetUrl: string | null) {
+  const webContents = getHostWebContents(record);
+  if (!webContents || !targetUrl) {
+    return;
+  }
+  if (webContents.getURL().trim() === targetUrl.trim()) {
+    record.lastKnownUrl = targetUrl;
+    return;
+  }
+  await webContents.loadURL(targetUrl);
+  record.lastKnownUrl = targetUrl;
 }
 
 async function waitForBrowserDebugEndpoint(timeoutMs = 5_000): Promise<string> {
@@ -250,9 +433,10 @@ async function waitForBrowserDebugEndpoint(timeoutMs = 5_000): Promise<string> {
 }
 
 function toSessionInfo(record: BrowserWorkspaceRecord): DesktopBrowserWorkspaceSessionInfo {
-  const currentUrl = record.window?.isDestroyed()
+  const hostWebContents = getHostWebContents(record);
+  const currentUrl = hostWebContents?.isDestroyed()
     ? record.lastKnownUrl
-    : record.window?.webContents.getURL().trim() || record.lastKnownUrl;
+    : hostWebContents?.getURL().trim() || record.lastKnownUrl;
   return {
     sessionId: record.sessionId,
     kind: record.kind,
@@ -266,8 +450,19 @@ function toSessionInfo(record: BrowserWorkspaceRecord): DesktopBrowserWorkspaceS
     profileMode: record.profileMode,
     canAgentAttach: record.canAgentAttach,
     agentAttached: record.agentAttached,
-    devtoolsOpen: record.window ? record.window.webContents.isDevToolsOpened() : false,
+    devtoolsOpen: hostWebContents ? hostWebContents.isDevToolsOpened() : false,
     previewServerStatus: record.previewServerStatus,
+    pageTitle: record.pageTitle,
+    canGoBack: hostWebContents ? hostWebContents.canGoBack() : false,
+    canGoForward: hostWebContents ? hostWebContents.canGoForward() : false,
+    paneWindowId: record.paneWindowId,
+    paneVisible: record.paneVisible,
+    loadingState: record.loadingState,
+    lastError: record.lastError,
+    crashCount: record.crashCount,
+    consoleTail: [...record.consoleTail],
+    lastVerifiedTarget: record.lastVerifiedTarget,
+    lastVerifiedAt: record.lastVerifiedAt,
   };
 }
 
@@ -305,29 +500,43 @@ async function ensureWorkspaceSessionInternal(
   const agentAttached = input.agentAttached === true;
   let record = sessionRegistry.get(sessionId) ?? null;
 
+  const nextPartitionId = derivePartitionId({ kind, profileMode, workspaceId });
   const requiresReset =
     input.reset === true ||
     !record ||
-    record.window?.isDestroyed() === true ||
-    record.partitionId !== derivePartitionId({ kind, profileMode, workspaceId });
+    record.partitionId !== nextPartitionId ||
+    record.host !== host ||
+    (host === "window" && record.window?.isDestroyed() === true) ||
+    (host === "pane" && record.view?.webContents.isDestroyed() === true);
 
-  if (record && requiresReset && record.window && !record.window.isDestroyed()) {
-    record.window.close();
-    record.window = null;
+  if (record && requiresReset) {
+    resetHost(record);
   }
 
-  if (!record || requiresReset) {
+  if (!record) {
     record = {
       agentAttached,
+      attachedPaneWindowId: null,
       canAgentAttach,
+      consoleTail: [],
+      crashCount: 0,
+      pageTitle: null,
       host,
       kind,
+      lastError: null,
       lastKnownUrl: targetUrl,
-      partitionId: derivePartitionId({ kind, profileMode, workspaceId }),
+      lastVerifiedAt: null,
+      lastVerifiedTarget: null,
+      loadingState: normalizeLoadingState(targetUrl ? "loading" : "idle"),
+      paneBounds: null,
+      paneVisible: false,
+      paneWindowId: null,
+      partitionId: nextPartitionId,
       previewServerStatus,
       profileMode,
       sessionId,
       targetUrl,
+      view: null,
       window: null,
       workspaceId,
     };
@@ -341,30 +550,37 @@ async function ensureWorkspaceSessionInternal(
     record.agentAttached = agentAttached;
     record.previewServerStatus = previewServerStatus;
     record.profileMode = profileMode;
-  }
-
-  const activeWindow =
-    record.window && !record.window.isDestroyed() ? record.window : createWorkspaceWindow(record);
-
-  if (targetUrl && activeWindow.webContents.getURL().trim() !== targetUrl) {
-    await activeWindow.loadURL(targetUrl);
-    record.lastKnownUrl = targetUrl;
+    record.partitionId = nextPartitionId;
+    if (requiresReset) {
+      record.loadingState = normalizeLoadingState(targetUrl ? "loading" : "idle");
+      record.lastError = null;
+    }
   }
 
   if (host === "window") {
+    const activeWindow =
+      record.window && !record.window.isDestroyed() ? record.window : createWorkspaceWindow(record);
+    await loadTarget(record, targetUrl);
     if (input.focus !== false) {
       focusBrowserWorkspaceWindow(activeWindow);
     } else {
       activeWindow.show();
     }
   } else {
-    activeWindow.hide();
+    const activeView =
+      record.view && !record.view.webContents.isDestroyed()
+        ? record.view
+        : createWorkspaceView(record);
+    await loadTarget(record, targetUrl);
+    activeView.setVisible(record.paneVisible);
+    syncPaneHost(record);
   }
 
+  const hostWebContents = getHostWebContents(record);
   if (input.devtoolsOpen === true) {
-    activeWindow.webContents.openDevTools({ mode: "detach" });
+    hostWebContents?.openDevTools({ mode: "detach" });
   } else if (input.devtoolsOpen === false) {
-    activeWindow.webContents.closeDevTools();
+    hostWebContents?.closeDevTools();
   }
 
   await waitForBrowserDebugEndpoint();
@@ -380,6 +596,9 @@ export async function getBrowserWorkspaceSession(
   }
   if (record.window?.isDestroyed()) {
     record.window = null;
+  }
+  if (record.view?.webContents.isDestroyed()) {
+    record.view = null;
   }
   try {
     await waitForBrowserDebugEndpoint();
@@ -422,11 +641,12 @@ export async function setBrowserWorkspaceHost(
     targetUrl: record.targetUrl,
     host: input.host,
     focus: input.focus,
+    reset: true,
     profileMode: record.profileMode,
     canAgentAttach: record.canAgentAttach,
     agentAttached: record.agentAttached,
     previewServerStatus: record.previewServerStatus,
-    devtoolsOpen: record.window?.webContents.isDevToolsOpened() ?? false,
+    devtoolsOpen: getHostWebContents(record)?.isDevToolsOpened() ?? false,
   });
 }
 
@@ -449,7 +669,7 @@ export async function setBrowserWorkspaceProfileMode(
     canAgentAttach: record.canAgentAttach,
     agentAttached: record.agentAttached,
     previewServerStatus: record.previewServerStatus,
-    devtoolsOpen: record.window?.webContents.isDevToolsOpened() ?? false,
+    devtoolsOpen: getHostWebContents(record)?.isDevToolsOpened() ?? false,
   });
 }
 
@@ -472,6 +692,9 @@ export async function setBrowserWorkspacePreviewServerStatus(
     return null;
   }
   record.previewServerStatus = normalizePreviewServerStatus(input.previewServerStatus);
+  if (record.previewServerStatus === "failed") {
+    record.loadingState = "failed";
+  }
   return toSessionInfo(record);
 }
 
@@ -482,7 +705,7 @@ export async function setBrowserWorkspaceDevtoolsOpen(
   if (!record) {
     return null;
   }
-  if (!record.window || record.window.isDestroyed()) {
+  if (!getHostWebContents(record)) {
     await ensureWorkspaceSessionInternal({
       sessionId: record.sessionId,
       kind: record.kind,
@@ -496,15 +719,93 @@ export async function setBrowserWorkspaceDevtoolsOpen(
       previewServerStatus: record.previewServerStatus,
     });
   }
-  const nextWindow = record.window;
-  if (!nextWindow || nextWindow.isDestroyed()) {
+  const hostWebContents = getHostWebContents(record);
+  if (!hostWebContents) {
     return toSessionInfo(record);
   }
   if (input.open) {
-    nextWindow.webContents.openDevTools({ mode: "detach" });
+    hostWebContents.openDevTools({ mode: "detach" });
   } else {
-    nextWindow.webContents.closeDevTools();
+    hostWebContents.closeDevTools();
   }
+  return toSessionInfo(record);
+}
+
+export async function navigateBrowserWorkspaceSession(
+  input: DesktopBrowserWorkspaceNavigateInput
+): Promise<DesktopBrowserWorkspaceSessionInfo | null> {
+  const record = getRecord({ sessionId: input.sessionId });
+  if (!record) {
+    return null;
+  }
+  const hostWebContents = getHostWebContents(record);
+  if (!hostWebContents) {
+    return toSessionInfo(record);
+  }
+  if (input.action === "back") {
+    if (hostWebContents.canGoBack()) {
+      hostWebContents.goBack();
+    }
+    return toSessionInfo(record);
+  }
+  if (input.action === "forward") {
+    if (hostWebContents.canGoForward()) {
+      hostWebContents.goForward();
+    }
+    return toSessionInfo(record);
+  }
+  hostWebContents.reload();
+  record.loadingState = "loading";
+  return toSessionInfo(record);
+}
+
+function normalizePaneBounds(
+  bounds?: DesktopBrowserWorkspacePaneBounds | null
+): DesktopBrowserWorkspacePaneBounds | null {
+  if (!bounds) {
+    return null;
+  }
+  const width = Math.max(0, Math.trunc(bounds.width));
+  const height = Math.max(0, Math.trunc(bounds.height));
+  const x = Math.trunc(bounds.x);
+  const y = Math.trunc(bounds.y);
+  if (width === 0 || height === 0) {
+    return null;
+  }
+  return { x, y, width, height };
+}
+
+export async function setBrowserWorkspacePaneState(
+  event: IpcMainInvokeEvent,
+  input: DesktopBrowserWorkspaceSetPaneStateInput
+): Promise<DesktopBrowserWorkspaceSessionInfo | null> {
+  const record = getRecord({ sessionId: input.sessionId });
+  if (!record) {
+    return null;
+  }
+  const hostWindow = BrowserWindow.fromWebContents(event.sender);
+  record.paneWindowId = hostWindow?.id ?? null;
+  record.paneVisible = input.visible === true;
+  record.paneBounds = normalizePaneBounds(input.bounds);
+  syncPaneHost(record);
+  return toSessionInfo(record);
+}
+
+export async function reportBrowserWorkspaceVerification(
+  input: DesktopBrowserWorkspaceReportVerificationInput
+): Promise<DesktopBrowserWorkspaceSessionInfo | null> {
+  const record = getRecord({ sessionId: input.sessionId });
+  if (!record) {
+    return null;
+  }
+  record.lastVerifiedTarget =
+    typeof input.targetUrl === "string" && input.targetUrl.trim().length > 0
+      ? input.targetUrl.trim()
+      : getHostWebContents(record)?.getURL().trim() || record.lastKnownUrl || record.targetUrl;
+  record.lastVerifiedAt =
+    typeof input.verifiedAt === "string" && input.verifiedAt.trim().length > 0
+      ? input.verifiedAt.trim()
+      : new Date().toISOString();
   return toSessionInfo(record);
 }
 
@@ -522,19 +823,22 @@ export async function getBrowserDebugSession(): Promise<DesktopBrowserDebugSessi
 }
 
 export async function ensureBrowserDebugSession(
-  input: DesktopBrowserDebugSessionInput = {}
-): Promise<DesktopBrowserDebugSessionInfo> {
-  const session = await ensureBrowserWorkspaceSession({
+  input?: DesktopBrowserDebugSessionInput
+): Promise<DesktopBrowserDebugSessionInfo | null> {
+  const session = await ensureWorkspaceSessionInternal({
     kind: "debug",
-    focus: input.focus,
-    reset: input.reset,
-    targetUrl: input.targetUrl ?? null,
+    focus: input?.focus,
     host: "window",
+    reset: input?.reset,
+    targetUrl: input?.targetUrl ?? null,
   });
+  if (!session.windowId) {
+    return null;
+  }
   return {
     browserUrl: session.browserUrl,
     currentUrl: session.currentUrl,
     targetUrl: session.targetUrl,
-    windowId: session.windowId ?? 0,
+    windowId: session.windowId,
   };
 }

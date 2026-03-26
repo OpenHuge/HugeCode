@@ -163,8 +163,21 @@ export const actionButton = feature({
 
 export const browserWorkspaceFrame = feature({
   width: "100%",
-  minHeight: "420px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
+  padding: "12px",
+  overflow: "hidden",
   borderRadius: "var(--ds-radius-sm)",
   border: "1px solid var(--ds-border-muted)",
   background: "var(--ds-surface-canvas)",
+});
+
+export const browserWorkspacePaneSurface = feature({
+  width: "100%",
+  minHeight: "420px",
+  borderRadius: "var(--ds-radius-sm)",
+  border: "1px solid var(--ds-border-muted)",
+  background:
+    "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-canvas) 84%, var(--ds-accent-soft)) 0%, var(--ds-surface-canvas) 100%)",
 });

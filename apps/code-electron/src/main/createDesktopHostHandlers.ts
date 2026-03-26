@@ -1,12 +1,15 @@
 import type {
   DesktopBrowserDebugSessionInfo,
   DesktopBrowserDebugSessionInput,
+  DesktopBrowserWorkspaceNavigateInput,
+  DesktopBrowserWorkspaceReportVerificationInput,
   DesktopBrowserWorkspaceSessionInfo,
   DesktopBrowserWorkspaceSessionInput,
   DesktopBrowserWorkspaceSessionQuery,
   DesktopBrowserWorkspaceSetAgentAttachedInput,
   DesktopBrowserWorkspaceSetDevtoolsOpenInput,
   DesktopBrowserWorkspaceSetHostInput,
+  DesktopBrowserWorkspaceSetPaneStateInput,
   DesktopBrowserWorkspaceSetPreviewServerStatusInput,
   DesktopBrowserWorkspaceSetProfileModeInput,
   DesktopNotificationInput,
@@ -58,6 +61,13 @@ type BrowserWorkspaceController = {
   setBrowserWorkspaceDevtoolsOpen(
     input: DesktopBrowserWorkspaceSetDevtoolsOpenInput
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  navigateBrowserWorkspaceSession(
+    input: DesktopBrowserWorkspaceNavigateInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  setBrowserWorkspacePaneState(
+    event: { sender: unknown },
+    input: DesktopBrowserWorkspaceSetPaneStateInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
   setBrowserWorkspaceHost(
     input: DesktopBrowserWorkspaceSetHostInput
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
@@ -66,6 +76,9 @@ type BrowserWorkspaceController = {
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
   setBrowserWorkspaceProfileMode(
     input: DesktopBrowserWorkspaceSetProfileModeInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  reportBrowserWorkspaceVerification(
+    input: DesktopBrowserWorkspaceReportVerificationInput
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
 };
 
@@ -115,10 +128,20 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
       input.browserWorkspaceController.setBrowserWorkspaceAgentAttached,
     setBrowserWorkspaceDevtoolsOpen:
       input.browserWorkspaceController.setBrowserWorkspaceDevtoolsOpen,
+    navigateBrowserWorkspaceSession:
+      input.browserWorkspaceController.navigateBrowserWorkspaceSession,
+    setBrowserWorkspacePaneState(
+      event: { sender: unknown },
+      paneInput: DesktopBrowserWorkspaceSetPaneStateInput
+    ) {
+      return input.browserWorkspaceController.setBrowserWorkspacePaneState(event, paneInput);
+    },
     setBrowserWorkspaceHost: input.browserWorkspaceController.setBrowserWorkspaceHost,
     setBrowserWorkspacePreviewServerStatus:
       input.browserWorkspaceController.setBrowserWorkspacePreviewServerStatus,
     setBrowserWorkspaceProfileMode: input.browserWorkspaceController.setBrowserWorkspaceProfileMode,
+    reportBrowserWorkspaceVerification:
+      input.browserWorkspaceController.reportBrowserWorkspaceVerification,
     setTrayEnabled(enabled: boolean) {
       input.persistTrayEnabled(enabled);
       input.trayController.update();

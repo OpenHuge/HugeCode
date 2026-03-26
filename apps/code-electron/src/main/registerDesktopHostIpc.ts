@@ -2,12 +2,15 @@ import type { IpcMainInvokeEvent } from "electron";
 import type {
   DesktopBrowserDebugSessionInfo,
   DesktopBrowserDebugSessionInput,
+  DesktopBrowserWorkspaceNavigateInput,
+  DesktopBrowserWorkspaceReportVerificationInput,
   DesktopBrowserWorkspaceSessionInfo,
   DesktopBrowserWorkspaceSessionInput,
   DesktopBrowserWorkspaceSessionQuery,
   DesktopBrowserWorkspaceSetAgentAttachedInput,
   DesktopBrowserWorkspaceSetDevtoolsOpenInput,
   DesktopBrowserWorkspaceSetHostInput,
+  DesktopBrowserWorkspaceSetPaneStateInput,
   DesktopBrowserWorkspaceSetPreviewServerStatusInput,
   DesktopBrowserWorkspaceSetProfileModeInput,
   DesktopNotificationInput,
@@ -73,6 +76,13 @@ type DesktopHostIpcHandlers = {
   setBrowserWorkspaceDevtoolsOpen(
     input: DesktopBrowserWorkspaceSetDevtoolsOpenInput
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  navigateBrowserWorkspaceSession(
+    input: DesktopBrowserWorkspaceNavigateInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  setBrowserWorkspacePaneState(
+    event: IpcInvokeEventLike,
+    input: DesktopBrowserWorkspaceSetPaneStateInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
   setBrowserWorkspaceHost(
     input: DesktopBrowserWorkspaceSetHostInput
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
@@ -81,6 +91,9 @@ type DesktopHostIpcHandlers = {
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
   setBrowserWorkspaceProfileMode(
     input: DesktopBrowserWorkspaceSetProfileModeInput
+  ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
+  reportBrowserWorkspaceVerification(
+    input: DesktopBrowserWorkspaceReportVerificationInput
   ): Promise<DesktopBrowserWorkspaceSessionInfo | null> | DesktopBrowserWorkspaceSessionInfo | null;
   setTrayEnabled(enabled: boolean): Promise<DesktopTrayState> | DesktopTrayState;
   showNotification(
@@ -186,8 +199,27 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
     );
   });
 
+  handleTrusted(channels.navigateBrowserWorkspaceSession, async (_event, navigateInput) => {
+    return handlers.navigateBrowserWorkspaceSession(
+      navigateInput as DesktopBrowserWorkspaceNavigateInput
+    );
+  });
+
+  handleTrusted(channels.setBrowserWorkspacePaneState, async (event, paneInput) => {
+    return handlers.setBrowserWorkspacePaneState(
+      event,
+      paneInput as DesktopBrowserWorkspaceSetPaneStateInput
+    );
+  });
+
   handleTrusted(channels.listWindows, async () => {
     return handlers.listWindows();
+  });
+
+  handleTrusted(channels.reportBrowserWorkspaceVerification, async (_event, verificationInput) => {
+    return handlers.reportBrowserWorkspaceVerification(
+      verificationInput as DesktopBrowserWorkspaceReportVerificationInput
+    );
   });
 
   handleTrusted(channels.openWindow, async (_event, openWindowInput) => {
