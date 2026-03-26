@@ -4,6 +4,7 @@ import {
   detectDesktopRuntimeHost,
   resolveDesktopUpdaterState,
   restartDesktopUpdate,
+  subscribeToDesktopUpdateState,
 } from "../../../application/runtime/facades/desktopHostFacade";
 import type { DesktopUpdateState } from "../../../application/runtime/ports/desktopHostBridge";
 import { relaunch } from "../../../application/runtime/ports/tauriProcess";
@@ -393,6 +394,41 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
       }));
     }
   }, [checkForUpdates, enabled, onDebug, resetToIdle]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
+    let active = true;
+    const unsubscribe = subscribeToDesktopUpdateState((nextState) => {
+      if (!active) {
+        return;
+      }
+
+      clearLatestTimeout();
+      setState(mapDesktopUpdateStateToUiState(nextState));
+    });
+
+    void resolveDesktopUpdaterState()
+      .then((nextState) => {
+        if (!active) {
+          return;
+        }
+
+        setState((currentState) =>
+          currentState.stage === "idle" ? mapDesktopUpdateStateToUiState(nextState) : currentState
+        );
+      })
+      .catch(() => {
+        // Ignore: desktop updater state is optional outside Electron.
+      });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [clearLatestTimeout, enabled]);
 
   useEffect(() => {
     if (!enabled || import.meta.env.DEV) {

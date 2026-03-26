@@ -3,6 +3,7 @@ import {
   loadElectronReleaseContract,
   verifyElectronForgeUpdateContract,
   verifyElectronMakeArtifacts,
+  verifyElectronPackagedRendererTransport,
   verifyElectronPackagedUpdaterRuntime,
 } from "./lib/electron-update-release-contract.mjs";
 
@@ -10,6 +11,7 @@ const repoRoot = resolve(import.meta.dirname, "..");
 const contract = await loadElectronReleaseContract(repoRoot);
 verifyElectronForgeUpdateContract(contract);
 const runtimeResult = await verifyElectronPackagedUpdaterRuntime(repoRoot);
+const rendererTransportResult = await verifyElectronPackagedRendererTransport(repoRoot);
 const makeResult = await verifyElectronMakeArtifacts(repoRoot);
 
 function writeLine(message) {
@@ -39,6 +41,9 @@ if (contract.updateMode === "enabled_stable_public_service") {
 
 writeLine(
   `Electron publish dry-run: packaged updater runtime present at ${runtimeResult.appAsarPath}.`
+);
+writeLine(
+  `Electron publish dry-run: packaged renderer transport verified at ${rendererTransportResult.rendererTransport}.`
 );
 writeLine(
   `Electron publish dry-run: verified ${makeResult.files.length} release artifact(s) for ${process.platform}/${process.arch}.`

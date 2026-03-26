@@ -61,10 +61,12 @@ describe("desktopUpdaterController", () => {
   it("tracks automatic update state transitions for configured providers", () => {
     const autoUpdater = createFakeAutoUpdater();
     const configureAutoUpdates = vi.fn();
+    const onStateChange = vi.fn();
     const controller = createDesktopUpdaterController({
       appVersion: "0.1.0-beta.1",
       autoUpdater,
       configureAutoUpdates,
+      onStateChange,
       repoUrl: "https://github.com/OpenHuge/HugeCode",
       strategy: {
         capability: "automatic",
@@ -122,6 +124,17 @@ describe("desktopUpdaterController", () => {
 
     expect(controller.restartToApplyUpdate()).toBe(true);
     expect(autoUpdater.quitAndInstall).toHaveBeenCalledTimes(1);
+    expect(onStateChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: "checking",
+      })
+    );
+    expect(onStateChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: "downloaded",
+        version: "0.1.0-beta.2",
+      })
+    );
   });
 
   it("degrades to misconfigured when provider initialization cannot complete", () => {

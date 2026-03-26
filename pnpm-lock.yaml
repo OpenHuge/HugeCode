@@ -47,6 +47,9 @@ importers:
       '@electron/asar':
         specifier: 4.1.1
         version: 4.1.1
+      '@electron/fuses':
+        specifier: ^1.8.0
+        version: 1.8.0
       '@playwright/mcp':
         specifier: ^0.0.68
         version: 0.0.68
@@ -268,6 +271,12 @@ importers:
         specifier: 3.1.2
         version: 3.1.2
     devDependencies:
+      '@electron-forge/plugin-fuses':
+        specifier: ^7.10.2
+        version: 7.11.1(@electron/fuses@1.8.0)
+      '@electron/fuses':
+        specifier: ^1.8.0
+        version: 1.8.0
       electron:
         specifier: 41.0.4
         version: 41.0.4
@@ -958,6 +967,12 @@ packages:
     resolution: {integrity: sha512-lKpSOV1GA3FoYiD9k05i6v4KaQVmojnRgCr7d6VL1bFp13QOtXSaAWhFI9mtSY7rGElOacX6Zt7P7rPoB8T9eQ==}
     engines: {node: '>= 16.4.0'}
 
+  '@electron-forge/plugin-fuses@7.11.1':
+    resolution: {integrity: sha512-Td517mHf+RjQAayFDM2kKb7NaGdRXrZfPbc7KOHlGbXthp5YTkFu2cCZGWokiqt1y1wsFaAodULhqBIg7vbbbw==}
+    engines: {node: '>= 16.4.0'}
+    peerDependencies:
+      '@electron/fuses': ^1.0.0
+
   '@electron-forge/publisher-base@7.11.1':
     resolution: {integrity: sha512-rXE9oMFGMtdQrixnumWYH5TTGsp99iPHZb3jI74YWq518ctCh6DlIgWlhf6ok2X0+lhWovcIb45KJucUFAQ13w==}
     engines: {node: '>= 16.4.0'}
@@ -1002,6 +1017,10 @@ packages:
   '@electron/asar@4.1.1':
     resolution: {integrity: sha512-grbomy1TPEauyu+N4UdRQqSjOhsm0ZoTbprLpvJWQGYeEIMVBwSPV3Rv3E3EfqU5iFSufd/k+2KZvTDbgfesnw==}
     engines: {node: '>=22.12.0'}
+    hasBin: true
+
+  '@electron/fuses@1.8.0':
+    resolution: {integrity: sha512-zx0EIq78WlY/lBb1uXlziZmDZI4ubcCXIMJ4uGjXzZW0nS19TjSPeXPAjzzTmKQlJUZm0SbmZhPKP7tuQ1SsEw==}
     hasBin: true
 
   '@electron/get@2.0.3':
@@ -7484,6 +7503,15 @@ snapshots:
       - bluebird
       - supports-color
 
+  '@electron-forge/plugin-fuses@7.11.1(@electron/fuses@1.8.0)':
+    dependencies:
+      '@electron-forge/plugin-base': 7.11.1
+      '@electron-forge/shared-types': 7.11.1
+      '@electron/fuses': 1.8.0
+    transitivePeerDependencies:
+      - bluebird
+      - supports-color
+
   '@electron-forge/publisher-base@7.11.1':
     dependencies:
       '@electron-forge/shared-types': 7.11.1
@@ -7590,6 +7618,12 @@ snapshots:
       glob: 13.0.6
       minimatch: 10.2.4
       plist: 3.1.0
+
+  '@electron/fuses@1.8.0':
+    dependencies:
+      chalk: 4.1.2
+      fs-extra: 9.1.0
+      minimist: 1.2.8
 
   '@electron/get@2.0.3':
     dependencies:
@@ -13813,7 +13847,7 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
       '@types/node': 25.5.0
-      '@vitest/browser-playwright': 4.1.1(playwright@1.59.0-alpha-1771104257000)(vite@8.0.2(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.1)
+      '@vitest/browser-playwright': 4.1.1(playwright@1.58.2)(vite@8.0.2(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.1)
       jsdom: 29.0.1
     transitivePeerDependencies:
       - msw

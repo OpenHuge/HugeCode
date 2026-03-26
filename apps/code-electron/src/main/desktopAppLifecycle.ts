@@ -1,4 +1,5 @@
 import type { DesktopSessionDescriptor } from "./desktopShellState.js";
+import type { OpenDesktopWindowInput } from "../shared/ipc.js";
 
 type BrowserWindowLike = {
   focus(): void;
@@ -14,6 +15,7 @@ type BrowserWindowFacade = {
 type ElectronAppLike = {
   on(event: "activate", listener: () => void): void;
   on(event: "before-quit", listener: () => void): void;
+  on(event: "open-file", listener: (event: { preventDefault(): void }, path: string) => void): void;
   on(event: "second-instance", listener: (_event: unknown, argv: string[]) => void): void;
   on(event: "window-all-closed", listener: () => void): void;
   quit(): void;
@@ -25,12 +27,14 @@ export type RegisterDesktopAppLifecycleInput = {
   app: ElectronAppLike;
   browserWindow: BrowserWindowFacade;
   createWindowForSession(session: DesktopSessionDescriptor): unknown;
+  getInitialOpenWindowInput?(): OpenDesktopWindowInput | null;
   getLatestSession(): DesktopSessionDescriptor | null;
   getPersistedSessions(): DesktopSessionDescriptor[];
   isTrayEnabled(): boolean;
+  onReady?(): Promise<void> | void;
   onBeforeQuit(): void;
-  onSecondInstance?(argv: string[]): void;
-  openWindow(): unknown;
+  onSecondInstance?(argv: string[]): OpenDesktopWindowInput | null | void;
+  openWindow(input?: OpenDesktopWindowInput): unknown;
   platform?: NodeJS.Platform;
   updateTray(): void;
 };
@@ -45,7 +49,11 @@ export function registerDesktopAppLifecycle(input: RegisterDesktopAppLifecycleIn
   }
 
   input.app.on("second-instance", (_event, argv) => {
-    input.onSecondInstance?.(argv);
+    const requestedWindowInput = input.onSecondInstance?.(argv);
+    if (requestedWindowInput) {
+      input.openWindow(requestedWindowInput);
+      return;
+    }
 
     const nextWindow = input.browserWindow.getAllWindows()[0];
     if (!nextWindow) {
@@ -60,14 +68,20 @@ export function registerDesktopAppLifecycle(input: RegisterDesktopAppLifecycleIn
     nextWindow.focus();
   });
 
-  void input.app.whenReady().then(() => {
+  void input.app.whenReady().then(async () => {
+    await input.onReady?.();
+
     const persistedSessions = input.getPersistedSessions();
+    const initialOpenWindowInput = input.getInitialOpenWindowInput?.() ?? null;
     if (persistedSessions.length > 0) {
       for (const session of persistedSessions) {
         input.createWindowForSession(session);
       }
+      if (initialOpenWindowInput) {
+        input.openWindow(initialOpenWindowInput);
+      }
     } else {
-      input.openWindow();
+      input.openWindow(initialOpenWindowInput ?? undefined);
     }
     input.updateTray();
 

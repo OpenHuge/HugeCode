@@ -19,7 +19,7 @@ function createMockWorker() {
   } satisfies Partial<Worker>;
 }
 
-function stubGitDiffViewerRuntimeDependencies() {
+function mockGitDiffViewerWorkerRuntime() {
   const MockWorker = function MockWorker() {
     return createMockWorker();
   };
@@ -199,7 +199,7 @@ describe("buildGitNodes diff lazy boundary", () => {
   it(
     "loads the viewer chunk once actual diff payload exists",
     async () => {
-      stubGitDiffViewerRuntimeDependencies();
+      mockGitDiffViewerWorkerRuntime();
 
       const buildGitNodesImpl = await importBuildGitNodes();
       const nodes = buildGitNodesImpl(
@@ -219,9 +219,13 @@ describe("buildGitNodes diff lazy boundary", () => {
       render(<div>{nodes.gitDiffViewerNode}</div>);
 
       await flushLazyBoundary();
-      await waitFor(() => {
-        expect(document.querySelector(".ds-diff-viewer")).toBeTruthy();
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByText("Modified")).toBeTruthy();
+          expect(screen.getByTitle("src/app.ts")).toBeTruthy();
+        },
+        { timeout: 5_000 }
+      );
     },
     GIT_NODES_LAZY_BOUNDARY_TIMEOUT_MS
   );
