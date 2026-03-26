@@ -3,13 +3,13 @@ import { useRef, useState } from "react";
 import type {
   AccessMode,
   ComposerExecutionMode,
+  ComposerModelSelectionMode,
   ThreadTokenUsage,
   WorkspaceInfo,
 } from "../../../types";
 import { joinClassNames } from "../../../utils/classNames";
 import {
   buildModelProviderOptions,
-  resolveProviderModelId,
   resolveSelectedProviderId,
 } from "../../models/utils/modelProviderSelection";
 import { ComposerAccessDropdown } from "./ComposerAccessDropdown";
@@ -20,35 +20,20 @@ import * as styles from "./ComposerSelectFixture.css";
 const FIXTURE_MODELS = [
   {
     id: "openai::gpt-5.4",
-    value: "openai::gpt-5.4",
-    label: "GPT-5.4",
     model: "gpt-5.4",
+    displayName: "GPT-5.4",
     provider: "openai",
+    available: true,
   },
   {
-    id: "openai::gpt-5.4-mini",
-    value: "openai::gpt-5.4-mini",
-    label: "GPT-5.4 Mini",
-    model: "gpt-5.4-mini",
-    provider: "openai",
-  },
-  {
-    id: "claude::claude-sonnet-4-5",
-    value: "claude::claude-sonnet-4-5",
-    label: "Claude Sonnet 4.5",
+    id: "claude_code_local::claude-sonnet-4-5",
     model: "claude-sonnet-4-5",
+    displayName: "Claude Sonnet 4.5",
     provider: "claude_code_local",
+    available: true,
   },
 ];
-const PROVIDER_OPTIONS = buildModelProviderOptions(
-  FIXTURE_MODELS.map((model) => ({
-    id: model.id,
-    model: model.model,
-    displayName: model.label,
-    provider: model.provider,
-    available: true,
-  }))
-);
+const PROVIDER_OPTIONS = buildModelProviderOptions(FIXTURE_MODELS);
 
 const REASONING_OPTIONS: SelectOption[] = [
   { value: "low", label: "low" },
@@ -93,20 +78,17 @@ const FIXTURE_CONTEXT_USAGE: ThreadTokenUsage = {
 
 export function ComposerSelectFixture() {
   const controlsRef = useRef<HTMLDivElement | null>(null);
+  const [modelSelectionMode, setModelSelectionMode] =
+    useState<ComposerModelSelectionMode>("manual");
   const [selectedModelId, setSelectedModelId] = useState<string>("openai::gpt-5.4");
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(() =>
+    resolveSelectedProviderId(PROVIDER_OPTIONS, selectedModelId)
+  );
   const [selectedEffort, setSelectedEffort] = useState<string>("medium");
   const [selectedExecutionMode, setSelectedExecutionMode] =
     useState<ComposerExecutionMode>("runtime");
   const [accessMode, setAccessMode] = useState<AccessMode>("on-request");
   const [isPlanActive, setIsPlanActive] = useState(false);
-
-  const selectedProviderId = resolveSelectedProviderId(PROVIDER_OPTIONS, selectedModelId);
-  const modelOptions = FIXTURE_MODELS.filter(
-    (model) => resolveSelectedProviderId(PROVIDER_OPTIONS, model.id) === selectedProviderId
-  ).map<SelectOption>((model) => ({
-    value: model.value,
-    label: model.label,
-  }));
 
   return (
     <main className={styles.shell} data-visual-fixture="composer-select">
@@ -178,23 +160,11 @@ export function ComposerSelectFixture() {
               <ComposerMetaBarControls
                 controlsRef={controlsRef}
                 disabled={false}
-                shouldShowProviderControl={true}
-                providerSelectOptions={PROVIDER_OPTIONS.map((provider) => ({
-                  value: provider.id,
-                  label: provider.label,
-                }))}
+                modelSelectionMode={modelSelectionMode}
+                providerOptions={PROVIDER_OPTIONS}
                 selectedProviderId={selectedProviderId}
-                onSelectProvider={(providerId) => {
-                  const nextModelId = resolveProviderModelId(
-                    PROVIDER_OPTIONS,
-                    providerId,
-                    selectedModelId
-                  );
-                  if (nextModelId) {
-                    setSelectedModelId(nextModelId);
-                  }
-                }}
-                modelSelectOptions={modelOptions}
+                onSelectModelSelectionMode={setModelSelectionMode}
+                onSelectProvider={setSelectedProviderId}
                 selectedModelId={selectedModelId}
                 onSelectModel={setSelectedModelId}
                 effortSelectOptions={REASONING_OPTIONS}

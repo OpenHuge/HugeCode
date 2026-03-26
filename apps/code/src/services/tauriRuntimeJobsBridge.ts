@@ -88,6 +88,7 @@ function toRuntimeJobInterventionOutcome(
   }
 }
 
+// Compat-only: product launches must call prepare/start v2 instead.
 export async function startRuntimeJob(request: KernelJobStartRequestV3): Promise<KernelJob> {
   return getRuntimeClient().kernelJobStartV3(request);
 }

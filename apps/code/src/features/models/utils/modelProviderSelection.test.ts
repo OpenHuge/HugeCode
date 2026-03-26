@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildModelProviderOptions,
   buildProviderModelEntries,
-  resolveProviderModelId,
-  resolveSelectedProviderId,
+  resolveAutoModelProviderSelection,
   type ProviderSelectableModel,
 } from "./modelProviderSelection";
 
@@ -25,63 +24,61 @@ function createModel(
 
 describe("modelProviderSelection", () => {
   it("orders stronger models ahead of weaker versions within a provider family", () => {
-    const entries = buildProviderModelEntries([
-      createModel({ id: "gpt-4.1", model: "gpt-4.1", displayName: "GPT-4.1" }),
-      createModel({ id: "gpt-5.1", model: "gpt-5.1", displayName: "GPT-5.1" }),
-    ]);
+    const entries = buildProviderModelEntries(
+      [
+        createModel({ id: "gpt-4.1", model: "gpt-4.1", displayName: "GPT-4.1" }),
+        createModel({ id: "gpt-5.1", model: "gpt-5.1", displayName: "GPT-5.1" }),
+      ],
+      null
+    );
 
     expect(entries.map((entry) => entry.id)).toEqual(["gpt-5.1", "gpt-4.1"]);
   });
 
-  it("preserves distinct route ids when the same model slug is exposed by multiple pools", () => {
-    const entries = buildProviderModelEntries([
-      createModel({
-        id: "openai-primary",
-        model: "gpt-5.1",
-        displayName: "GPT-5.1",
-        pool: "codex-primary",
-      }),
-      createModel({
-        id: "openai-secondary",
-        model: "gpt-5.1",
-        displayName: "GPT-5.1",
-        pool: "codex-secondary",
-      }),
-    ]);
+  it("prefers higher Claude tiers when versions match", () => {
+    const entries = buildProviderModelEntries(
+      [
+        createModel({
+          id: "claude-haiku-4-5",
+          model: "claude-haiku-4-5",
+          displayName: "Claude Haiku 4.5",
+          provider: "claude_code_local",
+          pool: "claude",
+        }),
+        createModel({
+          id: "claude-sonnet-4-5",
+          model: "claude-sonnet-4-5",
+          displayName: "Claude Sonnet 4.5",
+          provider: "claude_code_local",
+          pool: "claude",
+        }),
+        createModel({
+          id: "claude-opus-4-5",
+          model: "claude-opus-4-5",
+          displayName: "Claude Opus 4.5",
+          provider: "claude_code_local",
+          pool: "claude",
+        }),
+      ],
+      null
+    );
 
-    expect(entries.map((entry) => entry.id)).toEqual(["openai-primary", "openai-secondary"]);
+    expect(entries.map((entry) => entry.id)).toEqual([
+      "claude-opus-4-5",
+      "claude-sonnet-4-5",
+      "claude-haiku-4-5",
+    ]);
   });
 
-  it("groups provider families and resolves the selected provider from the current model route", () => {
-    const providerOptions = buildModelProviderOptions([
-      createModel({ id: "gpt-5.1", model: "gpt-5.1", displayName: "GPT-5.1" }),
-      createModel({
-        id: "claude-sonnet-4-5",
-        model: "claude-sonnet-4-5",
-        displayName: "Claude Sonnet 4.5",
-        provider: "claude_code_local",
-        pool: "claude",
-      }),
-    ]);
-
-    expect(providerOptions.map((provider) => provider.id)).toEqual(["codex", "claude"]);
-    expect(resolveSelectedProviderId(providerOptions, "claude-sonnet-4-5")).toBe("claude");
-  });
-
-  it("selecting a provider resolves to that provider's recommended model route", () => {
+  it("uses the strongest healthy model as the recommended auto route", () => {
     const providerOptions = buildModelProviderOptions([
       createModel({ id: "gpt-4.1", model: "gpt-4.1", displayName: "GPT-4.1" }),
       createModel({ id: "gpt-5.1", model: "gpt-5.1", displayName: "GPT-5.1" }),
-      createModel({
-        id: "claude-sonnet-4-5",
-        model: "claude-sonnet-4-5",
-        displayName: "Claude Sonnet 4.5",
-        provider: "claude_code_local",
-        pool: "claude",
-      }),
     ]);
 
-    expect(resolveProviderModelId(providerOptions, "codex", null)).toBe("gpt-5.1");
-    expect(resolveProviderModelId(providerOptions, "claude", null)).toBe("claude-sonnet-4-5");
+    expect(resolveAutoModelProviderSelection(providerOptions, null, null)).toMatchObject({
+      providerId: "codex",
+      modelId: "gpt-5.1",
+    });
   });
 });

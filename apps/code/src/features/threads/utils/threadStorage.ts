@@ -1,4 +1,10 @@
-import type { AccessMode, ComposerExecutionMode, ConversationItem } from "../../../types";
+import type {
+  AccessMode,
+  ComposerExecutionMode,
+  ComposerModelSelectionMode,
+  ConversationItem,
+  ModelProviderFamilyId,
+} from "../../../types";
 import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
 import type { HugeCodeTaskMode } from "@ku0/code-runtime-host-contract";
 import {
@@ -41,6 +47,8 @@ export type WorkspaceActiveThreadIdsMap = Record<string, string>;
 export type ThreadCodexParams = {
   modelId: string | null;
   effort: string | null;
+  selectionMode?: ComposerModelSelectionMode | null;
+  providerFamilyId?: ModelProviderFamilyId | null;
   fastMode?: boolean | null;
   accessMode: AccessMode | null;
   collaborationModeId: string | null;

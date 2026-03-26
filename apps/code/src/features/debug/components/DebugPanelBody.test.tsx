@@ -53,6 +53,7 @@ describe("DebugPanelBody", () => {
     expect(screen.getByTestId("debug-distributed-diagnostics")).toBeTruthy();
     expect(screen.getByTestId("debug-agent-task-durability-diagnostics")).toBeTruthy();
     expect(screen.getByTestId("debug-event-channel-diagnostics")).toBeTruthy();
+    expect(screen.getByTestId("debug-runtime-tool-lifecycle")).toBeTruthy();
     expect(screen.getByTestId("debug-runtime-probes")).toBeTruthy();
     expect(screen.getByText("runtime.updated")).toBeTruthy();
   });
@@ -76,6 +77,7 @@ describe("DebugPanelBody", () => {
 
     expect(screen.queryByText("runtime.updated")).toBeNull();
     expect(screen.getByTestId("debug-event-channel-diagnostics")).toBeTruthy();
+    expect(screen.getByTestId("debug-runtime-tool-lifecycle")).toBeTruthy();
     expect(screen.getByTestId("debug-runtime-probes")).toBeTruthy();
   });
 });

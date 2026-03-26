@@ -7,6 +7,7 @@ import {
   createDebugDiagnosticsEntries,
   createFormattedDebugEntries,
   createRuntimeEventChannelDiagnostics,
+  createRuntimeToolLifecycleEvent,
 } from "../test/debugDiagnosticsFixtures";
 import { createDebugPanelBodyProps } from "../test/debugPanelComponentFixtures";
 import { DebugPanelBody } from "./DebugPanelBody";
@@ -61,6 +62,7 @@ describe("DebugPanelBody integration", () => {
           hasRemoteExecutionDiagnostics: result.current.hasRemoteExecutionDiagnostics,
           agentTaskDurabilityDiagnostics: result.current.agentTaskDurabilityDiagnostics,
           eventChannelDiagnostics: createRuntimeEventChannelDiagnostics(),
+          runtimeToolLifecycleEvents: [createRuntimeToolLifecycleEvent()],
           runtimeEventBridgePath: "v2",
           formattedEntries: createFormattedDebugEntries(),
         })}
@@ -74,6 +76,7 @@ describe("DebugPanelBody integration", () => {
     expect(screen.getByText("agent_task_durability_degraded")).toBeTruthy();
     expect(screen.getByText("runtime event path: v2")).toBeTruthy();
     expect(screen.getByText("runtime bridge")).toBeTruthy();
+    expect(screen.getByText("tool/started")).toBeTruthy();
   });
 
   it("keeps durability diagnostics when hook disables distributed diagnostics", () => {
@@ -90,6 +93,7 @@ describe("DebugPanelBody integration", () => {
           hasRemoteExecutionDiagnostics: result.current.hasRemoteExecutionDiagnostics,
           agentTaskDurabilityDiagnostics: result.current.agentTaskDurabilityDiagnostics,
           eventChannelDiagnostics: [],
+          runtimeToolLifecycleEvents: [],
           runtimeEventBridgePath: "legacy",
           formattedEntries: createFormattedDebugEntries(),
         })}

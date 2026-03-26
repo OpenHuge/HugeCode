@@ -324,6 +324,7 @@ pub(super) fn resolve_openai_compat_api_key<'a>(
         .or_else(|| match provider {
             RuntimeProvider::OpenAI => config.openai_api_key.as_deref(),
             RuntimeProvider::Anthropic => config.anthropic_api_key.as_deref(),
+            RuntimeProvider::ClaudeCodeLocal => None,
             RuntimeProvider::Google => config.gemini_api_key.as_deref(),
         })
         .map(str::trim)

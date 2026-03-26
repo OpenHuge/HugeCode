@@ -1,4 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
+import { readRuntimeToolExecutionMetrics } from "../../../application/runtime/ports/runtimeToolExecutionMetrics";
+import {
+  filterRuntimeToolLifecycleSnapshot,
+  getRuntimeToolLifecycleSnapshot,
+} from "../../../application/runtime/ports/runtimeToolLifecycle";
 import {
   getRuntimeBootstrapSnapshot,
   getRuntimeHealth,
@@ -10,6 +15,10 @@ import {
 import { formatDebugPayload } from "../utils/formatDebugPayload";
 
 const CORE_TREE_SKILL_ALIASES = new Set(["core-tree", "tree", "file-tree", "file_tree", "ls"]);
+
+type UseDebugRuntimeProbeOptions = {
+  workspaceId?: string | null;
+};
 
 function parseOptionalInteger(value: string, label: string, min: number): number | null {
   const trimmed = value.trim();
@@ -26,7 +35,7 @@ function parseOptionalInteger(value: string, label: string, min: number): number
   return parsed;
 }
 
-export function useDebugRuntimeProbe() {
+export function useDebugRuntimeProbe({ workspaceId = null }: UseDebugRuntimeProbeOptions = {}) {
   const [runtimeProbeBusyLabel, setRuntimeProbeBusyLabel] = useState<string | null>(null);
   const [runtimeProbeError, setRuntimeProbeError] = useState<string | null>(null);
   const [runtimeProbeResult, setRuntimeProbeResult] = useState<string | null>(null);
@@ -56,6 +65,10 @@ export function useDebugRuntimeProbe() {
     () => runRuntimeProbe("health", getRuntimeHealth),
     [runRuntimeProbe]
   );
+  const runToolMetricsProbe = useCallback(
+    () => runRuntimeProbe("tool metrics", async () => readRuntimeToolExecutionMetrics()),
+    [runRuntimeProbe]
+  );
   const runRemoteStatusProbe = useCallback(
     () => runRuntimeProbe("remote status", getRuntimeRemoteStatus),
     [runRuntimeProbe]
@@ -71,6 +84,13 @@ export function useDebugRuntimeProbe() {
   const runBootstrapProbe = useCallback(
     () => runRuntimeProbe("bootstrap", getRuntimeBootstrapSnapshot),
     [runRuntimeProbe]
+  );
+  const runToolLifecycleProbe = useCallback(
+    () =>
+      runRuntimeProbe("tool lifecycle", async () =>
+        filterRuntimeToolLifecycleSnapshot(getRuntimeToolLifecycleSnapshot(), workspaceId)
+      ),
+    [runRuntimeProbe, workspaceId]
   );
 
   const isCoreTreeSkillSelected = useMemo(
@@ -147,10 +167,12 @@ export function useDebugRuntimeProbe() {
     setLiveSkillIncludeHidden,
     isCoreTreeSkillSelected,
     runHealthProbe,
+    runToolMetricsProbe,
     runRemoteStatusProbe,
     runTerminalStatusProbe,
     runSettingsProbe,
     runBootstrapProbe,
+    runToolLifecycleProbe,
     runLiveSkillProbe,
     isRuntimeProbeBusy: runtimeProbeBusyLabel !== null,
   };

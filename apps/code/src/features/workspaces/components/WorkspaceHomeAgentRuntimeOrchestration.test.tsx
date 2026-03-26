@@ -22,7 +22,6 @@ import {
 } from "../../../application/runtime/facades/runtimeMissionControlFacade";
 import { WorkspaceHomeAgentRuntimeOrchestration } from "./WorkspaceHomeAgentRuntimeOrchestration";
 
-const startRuntimeJobWithRemoteSelectionMock = vi.hoisted(() => vi.fn());
 const readRepositoryExecutionContractMock = vi.hoisted(() => vi.fn());
 const startAgentTask = vi.hoisted(() => vi.fn());
 const prepareRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
@@ -32,10 +31,6 @@ const startRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   subscribeScopedRuntimeUpdatedEvents: vi.fn(),
-}));
-
-vi.mock("../../../application/runtime/facades/runtimeRemoteExecutionFacade", () => ({
-  startRuntimeJobWithRemoteSelection: startRuntimeJobWithRemoteSelectionMock,
 }));
 
 vi.mock("../../../application/runtime/facades/runtimeRepositoryExecutionContract", async () => {
@@ -169,8 +164,7 @@ beforeEach(() => {
       runtimeUpdatedListeners.delete(listener);
     };
   });
-  startRuntimeJobWithRemoteSelectionMock.mockResolvedValue({});
-  vi.mocked(getRuntimeRunV2).mockResolvedValue(null);
+  vi.mocked(getRuntimeRunV2).mockResolvedValue(null as never);
   subscribeRuntimeRunV2Mock.mockResolvedValue(null);
   prepareRuntimeRunV2Mock.mockResolvedValue(createRuntimeLaunchPreparationFixture());
   startRuntimeRunV2Mock.mockResolvedValue({
@@ -558,7 +552,8 @@ function createRuntimeKernelValue(): RuntimeKernel {
         readMissionControlSnapshot: vi.fn(() => getMissionControlSnapshot()),
       },
       agentControl: {
-        startRuntimeJob: vi.fn(),
+        prepareRuntimeRun: vi.fn(),
+        startRuntimeRun: vi.fn(),
         cancelRuntimeJob: vi.fn(),
         resumeRuntimeJob: vi.fn(),
         interveneRuntimeJob: vi.fn(),
@@ -889,6 +884,10 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
           /Execution reliability: Runtime tool success rate is 80.0%, below the 95.0% launch threshold\./
         )
       ).toBeTruthy();
+      expect(screen.getByText("Execution gate: fail")).toBeTruthy();
+      expect(screen.getByText("Execution channel: healthy")).toBeTruthy();
+      expect(screen.getByText("Tool blocks: 1")).toBeTruthy();
+      expect(screen.getByText("Top failed reason: REQUEST_TIMEOUT (1)")).toBeTruthy();
     });
 
     fireEvent.change(screen.getByPlaceholderText("Mission brief for agent"), {
@@ -898,6 +897,48 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     expect(screen.getByRole("button", { name: "Start mission run" }).hasAttribute("disabled")).toBe(
       true
     );
+  });
+
+  it("surfaces open execution circuit breakers in launch readiness details", async () => {
+    mockRuntimeTasks([]);
+    vi.mocked(runtimeToolMetricsRead).mockResolvedValue({
+      totals: {
+        attemptedTotal: 3,
+        startedTotal: 3,
+        completedTotal: 3,
+        successTotal: 3,
+        validationFailedTotal: 0,
+        runtimeFailedTotal: 0,
+        timeoutTotal: 0,
+        blockedTotal: 0,
+      },
+      byTool: {},
+      recent: [],
+      updatedAt: 1_700_000_000_000,
+      windowSize: 500,
+      channelHealth: {
+        status: "healthy",
+        reason: null,
+        lastErrorCode: null,
+        updatedAt: 1_700_000_000_000,
+      },
+      errorCodeTopK: [],
+      circuitBreakers: [
+        {
+          scope: "runtime",
+          state: "open",
+          openedAt: 1_700_000_000_000,
+          updatedAt: 1_700_000_000_000,
+        },
+      ],
+    });
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Launch readiness blocked")).toBeTruthy();
+      expect(screen.getByText("Open circuit breakers: runtime")).toBeTruthy();
+    });
   });
 
   it("keeps auto launch available when local routing remains available", async () => {
@@ -1364,7 +1405,6 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       status: "running",
       message: "ok",
     });
-    startRuntimeJobWithRemoteSelectionMock.mockResolvedValue({});
     interruptAgentTaskMock.mockResolvedValue({
       accepted: true,
       taskId: "runtime-running-1",

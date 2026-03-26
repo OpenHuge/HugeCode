@@ -59,7 +59,7 @@ export function resolveRuntimeToolExposurePolicy(input: {
   });
   const runtimeToolNames = new Set(input.runtimeToolNames ?? []);
 
-  if (provider !== "anthropic") {
+  if (provider !== "anthropic" && provider !== "claude_code_local") {
     return {
       provider,
       mode: "full",

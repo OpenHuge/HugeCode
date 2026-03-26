@@ -15,6 +15,14 @@ export function DebugRuntimeProbeActions(props: DebugRuntimeProbeActionsProps) {
       <Button
         variant="ghost"
         size="sm"
+        onClick={props.onRunToolMetricsProbe}
+        disabled={props.isRuntimeProbeBusy}
+      >
+        Metrics
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={props.onRunRemoteStatusProbe}
         disabled={props.isRuntimeProbeBusy}
       >
@@ -43,6 +51,14 @@ export function DebugRuntimeProbeActions(props: DebugRuntimeProbeActionsProps) {
         disabled={props.isRuntimeProbeBusy}
       >
         Bootstrap
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={props.onRunToolLifecycleProbe}
+        disabled={props.isRuntimeProbeBusy}
+      >
+        Lifecycle
       </Button>
     </div>
   );

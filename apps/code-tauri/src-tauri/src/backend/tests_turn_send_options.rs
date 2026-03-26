@@ -100,6 +100,19 @@ fn send_turn_rejects_unknown_provider_with_invalid_params_message() {
 }
 
 #[test]
+fn send_turn_accepts_local_claude_provider_without_desktop_side_rejection() {
+    let backend = backend_with_local_and_oauth();
+    let mut request = base_turn_send_request();
+    request.provider = Some("claude_code_local".to_string());
+    request.model_id = Some("claude-sonnet-4-5".to_string());
+
+    let ack = backend.send_turn(request);
+
+    assert!(ack.accepted);
+    assert_eq!(ack.routed_provider.as_deref(), Some("claude_code_local"));
+}
+
+#[test]
 fn send_turn_rejects_provider_model_mismatch_with_invalid_params_message() {
     let backend = backend_with_local_and_oauth();
     let mut request = base_turn_send_request();

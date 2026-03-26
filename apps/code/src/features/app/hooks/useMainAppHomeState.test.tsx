@@ -75,7 +75,8 @@ function createRuntimeKernelValue(input?: {
         readMissionControlSnapshot,
       },
       agentControl: {
-        startRuntimeJob: vi.fn(),
+        prepareRuntimeRun: vi.fn(),
+        startRuntimeRun: vi.fn(),
         cancelRuntimeJob: vi.fn(),
         resumeRuntimeJob: vi.fn(),
         interveneRuntimeJob: vi.fn(),

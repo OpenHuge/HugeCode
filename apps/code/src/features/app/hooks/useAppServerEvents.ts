@@ -43,6 +43,15 @@ type ThreadCompactedPayload = {
   turnId: string;
 };
 
+type TurnCompletionPayload = {
+  routedProvider?: string | null;
+  routedModelId?: string | null;
+  routedPool?: string | null;
+  routedSource?: string | null;
+  executionMode?: string | null;
+  recoveredFromStaleResume?: boolean | null;
+};
+
 type McpServerOauthLoginCompletedPayload = {
   name: string;
   success: boolean;
@@ -209,7 +218,12 @@ type AppServerEventHandlers = {
   ) => void;
   onAppServerEvent?: (event: AppServerEvent) => void;
   onTurnStarted?: (workspaceId: string, threadId: string, turnId: string) => void;
-  onTurnCompleted?: (workspaceId: string, threadId: string, turnId: string) => void;
+  onTurnCompleted?: (
+    workspaceId: string,
+    threadId: string,
+    turnId: string,
+    payload: TurnCompletionPayload
+  ) => void;
   onTurnError?: (
     workspaceId: string,
     threadId: string,
@@ -646,11 +660,22 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
           params.threadId ?? params.thread_id ?? turn?.threadId ?? turn?.thread_id ?? ""
         );
         const turnId = String(turn?.id ?? params.turnId ?? params.turn_id ?? "").trim();
+        const completionPayload: TurnCompletionPayload = {
+          routedProvider: typeof params.routedProvider === "string" ? params.routedProvider : null,
+          routedModelId: typeof params.routedModelId === "string" ? params.routedModelId : null,
+          routedPool: typeof params.routedPool === "string" ? params.routedPool : null,
+          routedSource: typeof params.routedSource === "string" ? params.routedSource : null,
+          executionMode: typeof params.executionMode === "string" ? params.executionMode : null,
+          recoveredFromStaleResume:
+            typeof params.recoveredFromStaleResume === "boolean"
+              ? params.recoveredFromStaleResume
+              : null,
+        };
         if (threadId && turnId) {
           rememberTurnThreadContext(turnThreadContextRef.current, turnId, threadId);
         }
         if (threadId) {
-          currentHandlers.onTurnCompleted?.(workspace_id, threadId, turnId);
+          currentHandlers.onTurnCompleted?.(workspace_id, threadId, turnId, completionPayload);
         }
         if (turnId) {
           turnThreadContextRef.current.delete(turnId);

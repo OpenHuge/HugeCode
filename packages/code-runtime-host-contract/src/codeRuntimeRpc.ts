@@ -25,6 +25,7 @@ export type RuntimeMode = "local" | "remote";
 export type ModelProvider =
   | "openai"
   | "anthropic"
+  | "claude_code_local"
   | "google"
   | "antigravity"
   | "anti-gravity"
@@ -2268,9 +2269,24 @@ export type PromptLibraryEntry = {
 
 export type OAuthProviderId = "codex" | "gemini" | "claude_code";
 
-export type CanonicalModelProvider = "openai" | "anthropic" | "google" | "local" | "unknown";
+export type CanonicalModelProvider =
+  | "openai"
+  | "anthropic"
+  | "claude_code_local"
+  | "google"
+  | "local"
+  | "unknown";
 
 export type CanonicalModelPool = "codex" | "claude" | "gemini" | "auto";
+
+export type RuntimeProviderReadinessKind =
+  | "ready"
+  | "not_installed"
+  | "not_authenticated"
+  | "unsupported_platform"
+  | "degraded";
+
+export type RuntimeProviderExecutionKind = "local" | "cloud";
 
 export type RuntimeProviderCatalogEntry = {
   providerId: CanonicalModelProvider | (string & {});
@@ -2282,6 +2298,9 @@ export type RuntimeProviderCatalogEntry = {
   available: boolean;
   supportsNative: boolean;
   supportsOpenaiCompat: boolean;
+  readinessKind?: RuntimeProviderReadinessKind | null;
+  readinessMessage?: string | null;
+  executionKind?: RuntimeProviderExecutionKind | null;
   registryVersion?: string | null;
 };
 
@@ -3913,11 +3932,14 @@ export const CODE_RUNTIME_RPC_METHODS = {
   THREAD_ARCHIVE: "code_thread_archive",
   THREAD_LIVE_SUBSCRIBE: "code_thread_live_subscribe",
   THREAD_LIVE_UNSUBSCRIBE: "code_thread_live_unsubscribe",
+  // Thread-only conversation path. Not a Mission Control run launch surface.
   TURN_SEND: "code_turn_send",
   TURN_INTERRUPT: "code_turn_interrupt",
-  RUN_START: "code_runtime_run_start",
+  // Canonical Mission Control launch path.
   RUN_PREPARE_V2: "code_runtime_run_prepare_v2",
   RUN_START_V2: "code_runtime_run_start_v2",
+  // Legacy runtime-run compatibility surface. Not a product launch path.
+  RUN_START: "code_runtime_run_start",
   RUN_CANCEL: "code_runtime_run_cancel",
   RUN_RESUME: "code_runtime_run_resume",
   RUN_RESUME_V2: "code_runtime_run_resume_v2",
@@ -3928,6 +3950,7 @@ export const CODE_RUNTIME_RPC_METHODS = {
   RUN_SUBSCRIBE_V2: "code_runtime_run_subscribe_v2",
   REVIEW_GET_V2: "code_runtime_review_get_v2",
   RUNS_LIST: "code_runtime_runs_list",
+  // Kernel-job compatibility/control surface. Not a product launch path.
   KERNEL_JOB_START_V3: "code_kernel_job_start_v3",
   KERNEL_JOB_GET_V3: "code_kernel_job_get_v3",
   KERNEL_JOB_CANCEL_V3: "code_kernel_job_cancel_v3",
@@ -4034,6 +4057,23 @@ export const CODE_RUNTIME_RPC_METHODS = {
   SECURITY_PREFLIGHT_V1: "code_security_preflight_v1",
   RUNTIME_DIAGNOSTICS_EXPORT_V1: "code_runtime_diagnostics_export_v1",
 } as const;
+
+export const CODE_RUNTIME_CANONICAL_MISSION_LAUNCH_METHODS = [
+  CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2,
+  CODE_RUNTIME_RPC_METHODS.RUN_START_V2,
+] as const;
+
+export const CODE_RUNTIME_LEGACY_RUN_COMPAT_METHODS = [
+  CODE_RUNTIME_RPC_METHODS.RUN_START,
+  CODE_RUNTIME_RPC_METHODS.RUN_RESUME,
+  CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE,
+  CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE,
+] as const;
+
+export const CODE_RUNTIME_RETIRE_ONLY_PRODUCT_LAUNCH_METHODS = [
+  CODE_RUNTIME_RPC_METHODS.RUN_START,
+  CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_START_V3,
+] as const;
 
 export type CodeRuntimeRpcMethod =
   (typeof CODE_RUNTIME_RPC_METHODS)[keyof typeof CODE_RUNTIME_RPC_METHODS];

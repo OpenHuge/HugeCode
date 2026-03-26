@@ -131,7 +131,9 @@ describe("Home", () => {
       expect(screen.getByText("Recent missions")).toBeTruthy();
       expect(screen.getByText("Running")).toBeTruthy();
       expect(screen.getByRole("textbox", { name: "Composer draft" })).toBeTruthy();
-      expect(screen.getByText("Routing")).toBeTruthy();
+      const missionLaunchpad = container.querySelector('[data-testid="home-mission-launchpad"]');
+      expect(missionLaunchpad).toBeTruthy();
+      expect(within(missionLaunchpad as HTMLElement).getByText("Routing")).toBeTruthy();
       expect(container.querySelector("[data-home-dashboard-widgets='true']")).toBeTruthy();
       expect(
         container.querySelector(
@@ -153,7 +155,7 @@ describe("Home", () => {
           .querySelector('[data-testid="home-starter-section"]')
           ?.getAttribute("data-home-launchpad-layout")
       ).toBe("compact-grid");
-      expect(container.querySelector('[data-testid="home-mission-launchpad"]')).toBeTruthy();
+      expect(missionLaunchpad).toBeTruthy();
       expect(container.querySelector("[data-shell-slot='body']")).toBeTruthy();
       expect(container.querySelector('[data-home-frame="true"]')).toBeTruthy();
       expect(container.querySelector('[data-home-hero="true"]')).toBeNull();

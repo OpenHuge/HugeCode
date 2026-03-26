@@ -18,7 +18,13 @@ const CI_FILTER_EXTRA_REQUIREMENTS = new Map([
   [
     "repo_sot",
     new Set([
+      ".devcontainer/devcontainer.json",
+      ".github/PULL_REQUEST_TEMPLATE.md",
+      ".github/dependabot.yml",
+      ".github/dependency-review-config.yml",
       "docs/development/ci-workflows.md",
+      "pnpm-workspace.yaml",
+      "rust-toolchain.toml",
       "scripts/check-branch-policy.mjs",
       "scripts/lib/branch-policy.mjs",
       "scripts/check-repo-sot.mjs",
@@ -27,7 +33,20 @@ const CI_FILTER_EXTRA_REQUIREMENTS = new Map([
     ]),
   ],
 ]);
-const CI_FILTER_EXCLUDED_REQUIREMENTS = new Map();
+const CI_FILTER_EXCLUDED_REQUIREMENTS = new Map([
+  [
+    "frontend_optimization",
+    new Set([
+      ".github/workflows/ci.yml",
+      ".github/workflows/_reusable-ci-frontend-optimization.yml",
+      ".github/actions/setup-node-pnpm/action.yml",
+      ".github/actions/cache-turbo/action.yml",
+      ".github/actions/setup-rust-ci/action.yml",
+      ".github/actions/install-linux-desktop-deps/action.yml",
+      ".github/actions/setup-playwright/action.yml",
+    ]),
+  ],
+]);
 const errors = [];
 const actionRequirementCache = new Map();
 const workflowRequirementCache = new Map();

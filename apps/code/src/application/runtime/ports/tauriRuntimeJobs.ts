@@ -1,9 +1,9 @@
 /**
- * Narrow kernel-job bridge backed by the canonical kernel job v3 RPC contract.
+ * Runtime run bridge.
  *
- * Job identity is runtime-owned here. UI code should treat `jobId`/`runId` as
- * the stable control-plane handle and avoid rebuilding page-local background
- * orchestration around legacy transport aliases.
+ * `prepareRuntimeRunV2` + `startRuntimeRunV2` is the canonical product-facing
+ * launch path. Kernel job v3 helpers remain available here as compat/control
+ * shims and must not become fresh product launch entry points.
  */
 export type {
   KernelJob,
@@ -11,10 +11,8 @@ export type {
   KernelJobCallbackRegistrationV3,
   KernelJobCallbackRemoveAckV3,
   KernelJobCallbackRemoveRequestV3,
-  KernelJobGetRequestV3,
   KernelJobsListRequest,
   KernelJobResumeRequestV3,
-  KernelJobStartRequestV3,
   KernelJobSubscribeRequestV3,
   RuntimeRunPrepareV2Request,
   RuntimeRunPrepareV2Response,
@@ -40,7 +38,6 @@ export {
   getRuntimeRunV2,
   getRuntimeReviewV2,
   submitRuntimeJobApprovalDecision,
-  getRuntimeJob,
   interveneRuntimeJob,
   listRuntimeJobs,
   prepareRuntimeRunV2,
@@ -48,7 +45,6 @@ export {
   registerRuntimeJobCallback,
   removeRuntimeJobCallback,
   resumeRuntimeJob,
-  startRuntimeJob,
   subscribeRuntimeJob,
   subscribeRuntimeRunV2,
 } from "../../../services/tauriRuntimeJobsBridge";

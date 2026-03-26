@@ -80,6 +80,9 @@ export default {
     },
     {
       name: "@electron-forge/maker-dmg",
+      config: {
+        title: "HugeCode Beta",
+      },
     },
     {
       name: "@electron-forge/maker-squirrel",
@@ -87,6 +90,8 @@ export default {
         authors: productAuthor,
         description: productDescription,
         name: "HugeCode",
+        authors: "OpenHuge",
+        description: "HugeCode beta desktop shell",
         ...(betaStaticUpdateBaseUrl
           ? {
               remoteReleases: betaStaticUpdateBaseUrl,
@@ -101,6 +106,7 @@ export default {
         categories: ["Development"],
         maintainer: "OpenHuge",
         mimeType: ["x-scheme-handler/hugecode"],
+        productName: "HugeCode",
         productDescription: "HugeCode beta desktop shell",
         section: "devel",
       },

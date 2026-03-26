@@ -4,6 +4,7 @@ import type {
   HugeCodeRunSummary,
   HugeCodeTaskSummary,
   KernelJob,
+  RuntimeRunRecordV2,
 } from "@ku0/code-runtime-host-contract";
 import type { WorkspaceClientRuntimeBindings } from "@ku0/code-workspace-client";
 import {
@@ -49,7 +50,7 @@ import {
 import { listRuntimeLiveSkills } from "../ports/tauriRuntimeSkills";
 import { runtimeToolGuardrailRead, runtimeToolMetricsRead } from "../ports/tauriRuntimeDiagnostics";
 import { buildRuntimeDiscoveryControl } from "../facades/runtimeDiscoveryControl";
-import { startRuntimeJobWithRemoteSelection } from "../facades/runtimeRemoteExecutionFacade";
+import { startRuntimeRunWithRemoteSelection } from "../facades/runtimeRemoteExecutionFacade";
 import type { RuntimeAgentControlDependencies } from "../facades/runtimeAgentControlFacade";
 import type { RuntimeAgentTaskStatus, RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import type { RuntimeWorkspaceId } from "../types/runtimeIds";
@@ -178,6 +179,16 @@ function projectKernelJobToRuntimeTaskSummary(job: KernelJob): RuntimeAgentTaskS
   };
 }
 
+function projectRuntimeRunRecordToRuntimeTaskSummary(
+  record: RuntimeRunRecordV2
+): RuntimeAgentTaskSummary {
+  return {
+    ...record.run,
+    runSummary: record.missionRun,
+    reviewPackSummary: record.reviewPack,
+  };
+}
+
 function readKernelProjectionJobsSlice(
   runtime: Pick<WorkspaceClientRuntimeBindings, "kernelProjection"> | null | undefined
 ) {
@@ -296,7 +307,7 @@ export function createRuntimeAgentControlDependencies(
         (tasks) => tasks.find((task) => task.taskId === taskId) ?? null
       ),
     startTask: async (input) =>
-      startRuntimeJobWithRemoteSelection({
+      startRuntimeRunWithRemoteSelection({
         workspaceId: input.workspaceId,
         ...(input.threadId !== undefined ? { threadId: input.threadId } : {}),
         ...(input.requestId !== undefined ? { requestId: input.requestId } : {}),
@@ -343,32 +354,7 @@ export function createRuntimeAgentControlDependencies(
               : {}),
           },
         ],
-      }).then((job) => ({
-        taskId: job.id,
-        workspaceId: job.workspaceId,
-        threadId: job.threadId ?? null,
-        requestId: null,
-        title: job.title ?? null,
-        status: typeof job.status === "string" ? (job.status as RuntimeAgentTaskStatus) : "queued",
-        accessMode: "on-request",
-        provider: job.provider ?? null,
-        modelId: job.modelId ?? null,
-        routedProvider: null,
-        routedModelId: null,
-        routedPool: null,
-        routedSource: null,
-        currentStep: null,
-        createdAt: job.createdAt,
-        updatedAt: job.updatedAt,
-        startedAt: job.startedAt ?? null,
-        completedAt: job.completedAt ?? null,
-        errorCode: null,
-        errorMessage: null,
-        pendingApprovalId: null,
-        backendId: job.backendId ?? null,
-        preferredBackendIds: job.preferredBackendIds ?? null,
-        steps: [],
-      })),
+      }).then(projectRuntimeRunRecordToRuntimeTaskSummary),
     interruptTask: async (input) =>
       cancelRuntimeJob({
         runId: input.taskId,

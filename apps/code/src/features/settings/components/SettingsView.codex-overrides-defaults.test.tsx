@@ -613,7 +613,12 @@ describe("SettingsView Codex defaults", () => {
     });
 
     onUpdateAppSettings.mockClear();
-    await chooseSelectOption(screen, "Model", "GPT-4.1");
+    await act(async () => {
+      fireEvent.click(modelSelect);
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole("menuitemradio", { name: "GPT-4.1" }));
+    });
 
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(

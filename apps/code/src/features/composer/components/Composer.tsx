@@ -114,6 +114,11 @@ export const Composer = memo(function Composer({
   selectedCollaborationModeId,
   onSelectCollaborationMode,
   models,
+  modelSelectionMode = "manual",
+  selectedProviderId = null,
+  onSelectProvider = () => undefined,
+  onSelectAutoRoute = () => undefined,
+  onSelectModelSelectionMode = () => undefined,
   selectedModelId,
   onSelectModel,
   reasoningOptions,
@@ -1240,13 +1245,17 @@ export const Composer = memo(function Composer({
             collaborationModes={collaborationModes}
             selectedCollaborationModeId={selectedCollaborationModeId}
             onSelectCollaborationMode={onSelectCollaborationMode}
+            modelSelectionMode={modelSelectionMode}
             models={models}
+            selectedProviderId={selectedProviderId}
+            onSelectProvider={onSelectProvider}
+            onSelectAutoRoute={onSelectAutoRoute}
+            onSelectModelSelectionMode={onSelectModelSelectionMode}
             selectedModelId={selectedModelId}
             onSelectModel={onSelectModel}
             reasoningOptions={reasoningOptions}
             selectedEffort={selectedEffort}
             onSelectEffort={onSelectEffort}
-            fastModeEnabled={fastModeEnabled}
             reasoningSupported={reasoningSupported}
             accessMode={accessMode}
             onSelectAccessMode={onSelectAccessMode}

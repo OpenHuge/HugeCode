@@ -1730,6 +1730,7 @@ describe("provider and pool canonicalization helpers", () => {
     expect(canonicalizeOAuthProviderId("google")).toBe("gemini");
     expect(canonicalizeOAuthProviderId("openai")).toBe("codex");
     expect(canonicalizeOAuthProviderId("claude")).toBe("claude_code");
+    expect(canonicalizeOAuthProviderId("claude_code_local")).toBe(null);
     expect(canonicalizeOAuthProviderId("unsupported")).toBe(null);
   });
 
@@ -1738,6 +1739,7 @@ describe("provider and pool canonicalization helpers", () => {
     expect(canonicalizeModelProvider("anti-gravity")).toBe("google");
     expect(canonicalizeModelProvider("gemini")).toBe("google");
     expect(canonicalizeModelProvider("claude-code")).toBe("anthropic");
+    expect(canonicalizeModelProvider("claude_code_local")).toBe("claude_code_local");
     expect(canonicalizeModelProvider("codex")).toBe("openai");
     expect(canonicalizeModelProvider("local")).toBe("local");
     expect(canonicalizeModelProvider("unknown")).toBe("unknown");
@@ -1748,6 +1750,7 @@ describe("provider and pool canonicalization helpers", () => {
     expect(canonicalizeModelPool("antigravity")).toBe("gemini");
     expect(canonicalizeModelPool("anti-gravity")).toBe("gemini");
     expect(canonicalizeModelPool("gemini")).toBe("gemini");
+    expect(canonicalizeModelPool("claude_code_local")).toBe(null);
     expect(canonicalizeModelPool("codex")).toBe("codex");
     expect(canonicalizeModelPool("auto")).toBe("auto");
     expect(canonicalizeModelPool("unsupported")).toBe(null);

@@ -1,4 +1,9 @@
+import { readRuntimeToolExecutionMetrics } from "../../../application/runtime/ports/runtimeToolExecutionMetrics";
 import { useCallback, useState } from "react";
+import {
+  filterRuntimeToolLifecycleSnapshot,
+  getRuntimeToolLifecycleSnapshot,
+} from "../../../application/runtime/ports/runtimeToolLifecycle";
 import { runtimeDiagnosticsExportV1 } from "../../../application/runtime/ports/tauriRuntime";
 
 type UseRuntimeDiagnosticsExportOptions = {
@@ -6,6 +11,50 @@ type UseRuntimeDiagnosticsExportOptions = {
 };
 
 type RuntimeDiagnosticsExportMode = "full" | "metadata";
+type DiagnosticsMetadataArtifact = {
+  schemaVersion: string;
+  exportedAt: number;
+  workspaceId: string | null;
+  runtimeDiagnostics: {
+    schemaVersion: string;
+    filename: string;
+    source: string;
+    redactionLevel: string;
+    sizeBytes: number;
+    sections: string[];
+    warnings: string[];
+    redactionStats: unknown;
+  };
+  lifecycle: {
+    revision: number;
+    lastEvent: unknown;
+    recentEvents: unknown[];
+  };
+  toolExecutionMetrics: {
+    updatedAt: number;
+    totals: unknown;
+    byTool: unknown;
+    recent: unknown[];
+  };
+};
+
+function countLifecycleEvents(artifact: DiagnosticsMetadataArtifact): number {
+  const eventIds = new Set<string>();
+  if (
+    artifact.lifecycle.lastEvent &&
+    typeof artifact.lifecycle.lastEvent === "object" &&
+    "id" in artifact.lifecycle.lastEvent &&
+    typeof artifact.lifecycle.lastEvent.id === "string"
+  ) {
+    eventIds.add(artifact.lifecycle.lastEvent.id);
+  }
+  for (const event of artifact.lifecycle.recentEvents) {
+    if (event && typeof event === "object" && "id" in event && typeof event.id === "string") {
+      eventIds.add(event.id);
+    }
+  }
+  return eventIds.size;
+}
 
 function decodeBase64ToBytes(value: string): Uint8Array {
   const normalized = value.replace(/\s+/g, "");
@@ -18,14 +67,11 @@ function decodeBase64ToBytes(value: string): Uint8Array {
 }
 
 function triggerDiagnosticsExportDownload(
-  zipBase64: string,
+  payload: BlobPart,
   filename: string,
   mimeType: string
 ): void {
-  const bytes = decodeBase64ToBytes(zipBase64);
-  const arrayBuffer = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(arrayBuffer).set(bytes);
-  const blob = new Blob([arrayBuffer], { type: mimeType });
+  const blob = new Blob([payload], { type: mimeType });
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = objectUrl;
@@ -37,16 +83,73 @@ function triggerDiagnosticsExportDownload(
   URL.revokeObjectURL(objectUrl);
 }
 
+function triggerDiagnosticsZipDownload(
+  zipBase64: string,
+  filename: string,
+  mimeType: string
+): void {
+  const bytes = decodeBase64ToBytes(zipBase64);
+  const arrayBuffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(arrayBuffer).set(bytes);
+  triggerDiagnosticsExportDownload(arrayBuffer, filename, mimeType);
+}
+
+function toMetadataArtifactFilename(filename: string): string {
+  return filename.endsWith(".zip")
+    ? `${filename.slice(0, -4)}.metadata.json`
+    : `${filename}.metadata.json`;
+}
+
+function createDiagnosticsMetadataArtifact(input: {
+  exported: NonNullable<Awaited<ReturnType<typeof runtimeDiagnosticsExportV1>>>;
+  workspaceId: string | null;
+}): DiagnosticsMetadataArtifact {
+  const lifecycleSnapshot = filterRuntimeToolLifecycleSnapshot(
+    getRuntimeToolLifecycleSnapshot(),
+    input.workspaceId
+  );
+  const toolExecutionMetricsSnapshot = readRuntimeToolExecutionMetrics();
+
+  return {
+    schemaVersion: "runtime-diagnostics-metadata/v1",
+    exportedAt: Date.now(),
+    workspaceId: input.workspaceId,
+    runtimeDiagnostics: {
+      schemaVersion: input.exported.schemaVersion,
+      filename: input.exported.filename,
+      source: input.exported.source,
+      redactionLevel: input.exported.redactionLevel,
+      sizeBytes: input.exported.sizeBytes,
+      sections: input.exported.sections,
+      warnings: input.exported.warnings,
+      redactionStats: input.exported.redactionStats,
+    },
+    lifecycle: {
+      revision: lifecycleSnapshot.revision,
+      lastEvent: lifecycleSnapshot.lastEvent,
+      recentEvents: lifecycleSnapshot.recentEvents,
+    },
+    toolExecutionMetrics: {
+      updatedAt: toolExecutionMetricsSnapshot.updatedAt,
+      totals: toolExecutionMetricsSnapshot.totals,
+      byTool: toolExecutionMetricsSnapshot.byTool,
+      recent: toolExecutionMetricsSnapshot.recent,
+    },
+  };
+}
+
 function formatDiagnosticsExportStatus(options: {
   includeZipBase64: boolean;
-  filename: string;
+  artifactFilename: string;
   sizeBytes: number;
   sectionCount: number;
+  lifecycleEventCount: number;
+  toolExecutionRecentCount: number;
   warnings: string[];
 }): string {
   const statusPrefix = options.includeZipBase64
-    ? `Exported ${options.filename} (${options.sizeBytes} bytes).`
-    : `Exported diagnostics metadata for ${options.filename} (${options.sectionCount} sections).`;
+    ? `Exported ${options.artifactFilename} (${options.sizeBytes} bytes).`
+    : `Exported ${options.artifactFilename} (${options.sectionCount} sections, ${options.lifecycleEventCount} lifecycle events, ${options.toolExecutionRecentCount} tool metric entries).`;
   const warningsSuffix =
     options.warnings.length > 0 ? ` Warnings: ${options.warnings.join(" | ")}` : "";
   return `${statusPrefix}${warningsSuffix}`;
@@ -77,6 +180,9 @@ export function useRuntimeDiagnosticsExport({
           setDiagnosticsExportError("Runtime does not support diagnostics export v1.");
           return;
         }
+        let artifactFilename = exported.filename;
+        let lifecycleEventCount = 0;
+        let toolExecutionRecentCount = 0;
         if (includeZipBase64) {
           if (typeof exported.zipBase64 !== "string" || exported.zipBase64.trim().length === 0) {
             setDiagnosticsExportError(
@@ -84,23 +190,34 @@ export function useRuntimeDiagnosticsExport({
             );
             return;
           }
-          triggerDiagnosticsExportDownload(
-            exported.zipBase64,
-            exported.filename,
-            exported.mimeType
-          );
+          triggerDiagnosticsZipDownload(exported.zipBase64, exported.filename, exported.mimeType);
         } else if (exported.zipBase64 !== null) {
           setDiagnosticsExportError(
             "Diagnostics metadata export returned unexpected zip payload; expected zipBase64=null."
           );
           return;
+        } else {
+          artifactFilename = toMetadataArtifactFilename(exported.filename);
+          const metadataArtifact = createDiagnosticsMetadataArtifact({
+            exported,
+            workspaceId,
+          });
+          lifecycleEventCount = countLifecycleEvents(metadataArtifact);
+          toolExecutionRecentCount = metadataArtifact.toolExecutionMetrics.recent.length;
+          triggerDiagnosticsExportDownload(
+            JSON.stringify(metadataArtifact, null, 2),
+            artifactFilename,
+            "application/json"
+          );
         }
         setDiagnosticsExportStatus(
           formatDiagnosticsExportStatus({
             includeZipBase64,
-            filename: exported.filename,
+            artifactFilename,
             sizeBytes: exported.sizeBytes,
             sectionCount: exported.sections.length,
+            lifecycleEventCount,
+            toolExecutionRecentCount,
             warnings: exported.warnings,
           })
         );

@@ -29,19 +29,19 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       affected_mode: ${{ steps.context.outputs.affected_mode }}
-      code_changed: ${{ steps.filter.outputs.quality_core }}
+      code_changed: ${{ steps.scope.outputs.quality_core_changed }}
       diff_base: ${{ steps.context.outputs.diff_base }}
       runtime_contract_changed: ${{ steps.filter.outputs.runtime_contract }}
       desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime }}
       repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
       repo_governance_only: ${{ steps.scope.outputs.repo_governance_only }}
-      frontend_optimization_changed: ${{ steps.filter.outputs.frontend_optimization == 'true' || steps.scope.outputs.frontend_manifest_changed == 'true' }}
-      ui_contract_required: ${{ steps.filter.outputs.ui_contract }}
-      circular_required: ${{ steps.filter.outputs.app_circular }}
+      frontend_optimization_changed: ${{ steps.scope.outputs.frontend_optimization_changed }}
+      ui_contract_required: ${{ steps.scope.outputs.ui_contract_required }}
+      circular_required: ${{ steps.scope.outputs.circular_required }}
       integration_watch_required: ${{ steps.filter.outputs.code_integration_watch }}
       pr_affected_build_required: ${{ steps.scope.outputs.build_skip_eligible_only != 'true' }}
-      pr_affected_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.quality_core == 'true' || steps.filter.outputs.runtime_contract == 'true') }}
-      ci_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.filter.outputs.quality_core == 'true' || steps.filter.outputs.runtime_contract == 'true' || steps.filter.outputs.ui_contract == 'true' || steps.filter.outputs.app_circular == 'true' || steps.filter.outputs.code_integration_watch == 'true') }}
+      pr_affected_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.scope.outputs.quality_core_changed == 'true' || steps.filter.outputs.runtime_contract == 'true') }}
+      ci_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.scope.outputs.quality_core_changed == 'true' || steps.filter.outputs.runtime_contract == 'true' || steps.scope.outputs.ui_contract_required == 'true' || steps.scope.outputs.circular_required == 'true' || steps.filter.outputs.code_integration_watch == 'true') }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -106,11 +106,17 @@ jobs:
               - '.github/actions/cache-turbo/**'
             repo_sot:
               - '.nvmrc'
+              - '.devcontainer/devcontainer.json'
               - 'package.json'
+              - 'pnpm-workspace.yaml'
               - 'README.md'
               - 'AGENTS.md'
               - 'CLAUDE.md'
               - 'CONTRIBUTING.md'
+              - 'rust-toolchain.toml'
+              - '.github/PULL_REQUEST_TEMPLATE.md'
+              - '.github/dependabot.yml'
+              - '.github/dependency-review-config.yml'
               - 'docs/README.md'
               - 'docs/architecture/README.md'
               - 'docs/architecture/frontend-style-governance.md'
@@ -213,15 +219,6 @@ jobs:
               - 'scripts/check-code-bundle-budget.mjs'
               - 'scripts/report-code-bundle.mjs'
               - 'scripts/config/code-bundle-budget.config.mjs'
-              - '.codex/e2e-map.json'
-              - 'scripts/lib/e2e-map.mjs'
-              - '.github/workflows/ci.yml'
-              - '.github/workflows/_reusable-ci-frontend-optimization.yml'
-              - '.github/actions/cache-turbo/**'
-              - '.github/actions/install-linux-desktop-deps/**'
-              - '.github/actions/setup-node-pnpm/**'
-              - '.github/actions/setup-rust-ci/**'
-              - '.github/actions/setup-playwright/**'
 
       - id: scope
         name: Classify dependency manifest scope
