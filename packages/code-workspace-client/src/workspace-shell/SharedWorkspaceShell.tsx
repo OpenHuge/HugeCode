@@ -261,6 +261,10 @@ function WorkspaceRosterSection({
   state: ReturnType<typeof useSharedWorkspaceShellState>;
   onSelectWorkspace: (workspaceId: string | null) => void;
 }) {
+  const workspaceRosterHydrating =
+    state.workspaceLoadState === "idle" || state.workspaceLoadState === "loading";
+  const workspaceRosterRefreshing = state.workspaceLoadState === "refreshing";
+
   return (
     <section className={styles.workspaceSection}>
       <div className={styles.sectionHeader}>
@@ -269,7 +273,11 @@ function WorkspaceRosterSection({
           <h2 className={styles.sectionTitle}>Browse the shared workspace roster</h2>
         </div>
         <p className={styles.sectionMeta}>
-          {state.workspaces.length} workspace{state.workspaces.length === 1 ? "" : "s"}
+          {workspaceRosterHydrating
+            ? "Hydrating workspace roster"
+            : workspaceRosterRefreshing
+              ? "Refreshing workspace roster"
+              : `${state.workspaces.length} workspace${state.workspaces.length === 1 ? "" : "s"}`}
         </p>
       </div>
       <div className={styles.workspaceGrid}>
@@ -824,7 +832,9 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
     state.hostStartupLoadState === "idle" ||
     state.hostStartupLoadState === "loading";
   const shellRefreshing =
-    state.missionLoadState === "refreshing" || state.hostStartupLoadState === "refreshing";
+    state.workspaceLoadState === "refreshing" ||
+    state.missionLoadState === "refreshing" ||
+    state.hostStartupLoadState === "refreshing";
   const refreshLabel = shellHydrating
     ? "Hydrating shell"
     : shellRefreshing

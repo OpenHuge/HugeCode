@@ -29,6 +29,7 @@ function createBindings(options?: {
   readMissionControlSnapshot?: () => Promise<MissionControlSnapshot>;
   hostPlatform?: WorkspaceClientBindings["host"]["platform"];
   readStartupStatus?: WorkspaceClientBindings["host"]["shell"]["readStartupStatus"];
+  listWorkspaces?: WorkspaceClientBindings["runtime"]["workspaceCatalog"]["listWorkspaces"];
 }): WorkspaceClientBindings {
   const listeners = new Set<() => void>();
   let selection: SharedWorkspaceRouteSelection = { kind: "home" };
@@ -89,6 +90,9 @@ function createBindings(options?: {
       },
       workspaceCatalog: {
         listWorkspaces: async () => {
+          if (options?.listWorkspaces) {
+            return options.listWorkspaces();
+          }
           if (options?.workspaceCatalogError) {
             throw new Error(options.workspaceCatalogError);
           }
@@ -773,6 +777,59 @@ describe("WorkspaceShellApp", () => {
     ).toBeTruthy();
     expect(await screen.findByText("Electron updates need attention")).toBeTruthy();
     expect(screen.getByText("Manual updates are required for this build.")).toBeTruthy();
+  });
+
+  it("keeps the workspace roster visible while a manual refresh is in flight", async () => {
+    let resolveWorkspaceRefresh:
+      | ((value: { id: string; name: string; connected: boolean }[]) => void)
+      | null = null;
+    const listWorkspaces = vi
+      .fn()
+      .mockResolvedValueOnce([
+        { id: "workspace-1", name: "Alpha", connected: true },
+        { id: "workspace-2", name: "Beta", connected: false },
+      ])
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ id: string; name: string; connected: boolean }[]>((resolve) => {
+            resolveWorkspaceRefresh = resolve;
+          })
+      );
+
+    render(
+      <WorkspaceClientBindingsProvider bindings={createBindings({ listWorkspaces })}>
+        <WorkspaceShellApp />
+      </WorkspaceClientBindingsProvider>
+    );
+
+    expect(await screen.findByRole("button", { name: /Alpha/i })).toBeTruthy();
+    expect(screen.getByText("2 workspaces")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Refresh" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+
+    expect(screen.getByText("Refreshing shell")).toBeTruthy();
+    expect(screen.getByText("Refreshing workspace roster")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Refreshing..." })).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: "Refreshing..." }) as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(screen.getByRole("button", { name: /Alpha/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Beta/i })).toBeTruthy();
+
+    await act(async () => {
+      resolveWorkspaceRefresh?.([
+        { id: "workspace-1", name: "Alpha", connected: true },
+        { id: "workspace-2", name: "Beta", connected: false },
+        { id: "workspace-3", name: "Gamma", connected: true },
+      ]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("3 workspaces")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Refresh" })).toBeTruthy();
+    });
   });
 
   it("surfaces shared-shell load failures through toast cards instead of inline copy", async () => {

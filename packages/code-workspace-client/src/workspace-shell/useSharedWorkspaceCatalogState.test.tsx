@@ -231,4 +231,76 @@ describe("useSharedWorkspaceCatalogState", () => {
       expect(result.current.activeWorkspace?.name).toBe("Beta");
     });
   });
+
+  it("preserves the current workspace roster while a runtime-triggered refresh is in flight", async () => {
+    let resolveRefresh:
+      | ((value: { id: string; name: string; connected: boolean }[]) => void)
+      | null = null;
+    const listWorkspaces = vi
+      .fn()
+      .mockResolvedValueOnce([{ id: "workspace-1", name: "Alpha", connected: true }])
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ id: string; name: string; connected: boolean }[]>((resolve) => {
+            resolveRefresh = resolve;
+          })
+      );
+
+    let listener:
+      | ((event: {
+          scope: string[];
+          reason: string;
+          eventWorkspaceId: string;
+          paramsWorkspaceId: string | null;
+        }) => void)
+      | undefined;
+    const subscribeScopedRuntimeUpdatedEvents = vi.fn((_options, nextListener) => {
+      listener = nextListener;
+      return () => {
+        listener = undefined;
+        return undefined;
+      };
+    });
+
+    const { result } = renderHook(() => useSharedWorkspaceCatalogState(), {
+      wrapper: wrapper(
+        createBindings({ kind: "home" }, listWorkspaces, subscribeScopedRuntimeUpdatedEvents)
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe("ready");
+    });
+    expect(result.current.workspaces).toEqual([
+      { id: "workspace-1", name: "Alpha", connected: true },
+    ]);
+
+    await act(async () => {
+      listener?.({
+        scope: ["workspaces"],
+        reason: "workspaceUpsert",
+        eventWorkspaceId: "workspace-2",
+        paramsWorkspaceId: "workspace-2",
+      });
+      await Promise.resolve();
+    });
+
+    expect(result.current.loadState).toBe("refreshing");
+    expect(result.current.workspaces).toEqual([
+      { id: "workspace-1", name: "Alpha", connected: true },
+    ]);
+
+    await act(async () => {
+      resolveRefresh?.([
+        { id: "workspace-1", name: "Alpha", connected: true },
+        { id: "workspace-2", name: "Beta", connected: false },
+      ]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe("ready");
+      expect(result.current.workspaces).toHaveLength(2);
+    });
+  });
 });
