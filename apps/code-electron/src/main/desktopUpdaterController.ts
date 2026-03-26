@@ -20,6 +20,7 @@ export type CreateDesktopUpdaterControllerInput = {
   appVersion: string | null;
   autoUpdater: AutoUpdaterLike;
   configureAutoUpdates?: () => boolean | void;
+  onStateChange?: (state: DesktopUpdateState) => void;
   repoUrl: string;
   strategy: DesktopAutoUpdateStrategy;
 };
@@ -42,47 +43,53 @@ export function createDesktopUpdaterController(input: CreateDesktopUpdaterContro
     version: input.appVersion,
   };
 
+  function setState(nextState: DesktopUpdateState) {
+    state = nextState;
+    input.onStateChange?.(state);
+    return state;
+  }
+
   input.autoUpdater.on("checking-for-update", () => {
-    state = { ...state, stage: "checking" };
+    setState({ ...state, stage: "checking" });
   });
   input.autoUpdater.on("update-available", (info) => {
     const updateInfo = (info ?? {}) as AutoUpdaterInfo;
-    state = {
+    setState({
       ...state,
       stage: "available",
       version: updateInfo.version ?? state.version ?? null,
-    };
+    });
   });
   input.autoUpdater.on("download-progress", (progress) => {
     const updateProgress = progress as AutoUpdaterProgress;
-    state = {
+    setState({
       ...state,
       downloadedBytes: updateProgress.transferred,
       stage: "downloading",
       totalBytes: updateProgress.total,
-    };
+    });
   });
   input.autoUpdater.on("update-downloaded", (info) => {
     const updateInfo = (info ?? {}) as AutoUpdaterInfo;
-    state = {
+    setState({
       ...state,
       stage: "downloaded",
       version: updateInfo.version ?? state.version ?? null,
-    };
+    });
   });
   input.autoUpdater.on("update-not-available", () => {
-    state = {
+    setState({
       ...state,
       stage: "latest",
-    };
+    });
   });
   input.autoUpdater.on("error", (error) => {
     const updateError = error instanceof Error ? error : new Error(String(error));
-    state = {
+    setState({
       ...state,
       error: updateError.message,
       stage: "error",
-    };
+    });
   });
 
   function ensureConfigured() {
@@ -94,7 +101,7 @@ export function createDesktopUpdaterController(input: CreateDesktopUpdaterContro
     try {
       const configuredResult = input.configureAutoUpdates?.();
       if (configuredResult === false) {
-        state = {
+        setState({
           ...state,
           capability: "manual",
           message:
@@ -102,10 +109,10 @@ export function createDesktopUpdaterController(input: CreateDesktopUpdaterContro
           mode: "misconfigured",
           provider: "none",
           stage: "idle",
-        };
+        });
       }
     } catch (error) {
-      state = {
+      setState({
         ...state,
         capability: "manual",
         message:
@@ -114,7 +121,7 @@ export function createDesktopUpdaterController(input: CreateDesktopUpdaterContro
         provider: "none",
         error: error instanceof Error ? error.message : String(error),
         stage: "idle",
-      };
+      });
     }
   }
 
@@ -129,10 +136,10 @@ export function createDesktopUpdaterController(input: CreateDesktopUpdaterContro
       }
 
       ensureConfigured();
-      state = {
+      setState({
         ...state,
         stage: "checking",
-      };
+      });
       input.autoUpdater.checkForUpdates();
       return state;
     },
