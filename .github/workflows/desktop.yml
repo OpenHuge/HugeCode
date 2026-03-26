@@ -77,16 +77,6 @@ jobs:
           filters: |
             desktop:
               - "apps/code-tauri/**"
-              - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
-              - ".github/workflows/_reusable-desktop-build-pr.yml"
-              - ".github/workflows/_reusable-desktop-build-release.yml"
-              - ".github/actions/cache-turbo/**"
-              - ".github/actions/install-linux-desktop-deps/**"
-              - ".github/actions/restore-artifact/**"
-              - ".github/actions/setup-desktop-build-env/**"
-              - ".github/actions/setup-node-pnpm/**"
-              - ".github/actions/setup-rust-ci/**"
-              - ".github/actions/upload-workflow-artifact/**"
             desktop_frontend:
               - "apps/code/package.json"
               - "apps/code/index.html"
@@ -130,16 +120,6 @@ jobs:
               - "!apps/code/src/features/update/**/*.stories.mdx"
             desktop_host:
               - "apps/code-tauri/**"
-              - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
-              - ".github/workflows/_reusable-desktop-build-pr.yml"
-              - ".github/workflows/_reusable-desktop-build-release.yml"
-              - ".github/actions/cache-turbo/**"
-              - ".github/actions/install-linux-desktop-deps/**"
-              - ".github/actions/restore-artifact/**"
-              - ".github/actions/setup-desktop-build-env/**"
-              - ".github/actions/setup-node-pnpm/**"
-              - ".github/actions/setup-rust-ci/**"
-              - ".github/actions/upload-workflow-artifact/**"
 
       - id: scope
         name: Classify dependency manifest scope

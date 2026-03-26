@@ -26,6 +26,16 @@ describe("optional PR workflow scope", () => {
     const workflow = readWorkflow(desktopWorkflowPath);
     const pullRequestSection = sliceBetween(workflow, "  pull_request:\n", "  push:\n");
     const pushSection = sliceBetween(workflow, "  push:\n", "\npermissions:\n");
+    const desktopFilterSection = sliceBetween(
+      workflow,
+      "            desktop:\n",
+      "            desktop_frontend:\n"
+    );
+    const desktopHostFilterSection = sliceBetween(
+      workflow,
+      "            desktop_host:\n",
+      "\n\n      - id: scope\n"
+    );
 
     expect(pullRequestSection).toContain('"apps/code-tauri/**"');
     expect(pullRequestSection).toContain('".github/workflows/desktop.yml"');
@@ -35,6 +45,16 @@ describe("optional PR workflow scope", () => {
 
     expect(pushSection).toContain('"apps/code/**"');
     expect(pushSection).toContain('"apps/code-tauri/**"');
+    expect(desktopFilterSection).toContain('"apps/code-tauri/**"');
+    expect(desktopFilterSection).not.toContain(
+      '".github/workflows/_reusable-desktop-build-pr.yml"'
+    );
+    expect(desktopFilterSection).not.toContain('".github/actions/setup-node-pnpm/**"');
+    expect(desktopHostFilterSection).toContain('"apps/code-tauri/**"');
+    expect(desktopHostFilterSection).not.toContain(
+      '".github/workflows/_reusable-desktop-build-pr.yml"'
+    );
+    expect(desktopHostFilterSection).not.toContain('".github/actions/setup-rust-ci/**"');
   });
 
   it("keeps Electron beta pull_request triggers packaging-owned while preserving broader push coverage", () => {
