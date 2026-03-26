@@ -25,10 +25,8 @@ import {
   normalizeGitHubPullRequestFollowUpLaunchInput,
   type GitHubSourceLaunchSummary,
 } from "./githubSourceLaunchNormalization";
-import {
-  resolveRepositoryExecutionDefaults,
-  type RepositoryExecutionContract,
-} from "./runtimeRepositoryExecutionContract";
+import { type RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
+import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
 import type { RuntimeWorkspaceExecutionPolicyStatus } from "./runtimeWorkspaceExecutionPolicyFacade";
 
 type GitHubSourceWorkspaceContext = {
