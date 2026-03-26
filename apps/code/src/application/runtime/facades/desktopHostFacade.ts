@@ -1,9 +1,12 @@
 import {
   checkDesktopForUpdates,
+  copyDesktopSupportSnapshot as copyDesktopSupportSnapshotWithCapabilities,
   consumeDesktopLaunchIntent,
   detectDesktopRuntimeHost as detectDesktopRuntimeHostWithCapabilities,
   openDesktopExternalUrl,
+  openDesktopPath as openDesktopPathWithCapabilities,
   resolveDesktopAppInfo,
+  resolveDesktopDiagnosticsInfo as resolveDesktopDiagnosticsInfoWithCapabilities,
   resolveDesktopAppVersion,
   resolveDesktopSessionInfo,
   resolveDesktopUpdateState,
@@ -11,9 +14,12 @@ import {
   restartDesktopToApplyUpdate,
   revealDesktopItemInDir,
   showDesktopNotification as showDesktopNotificationWithCapabilities,
+  subscribeDesktopLaunchIntents as subscribeDesktopLaunchIntentsWithCapabilities,
+  subscribeDesktopUpdateState as subscribeDesktopUpdateStateWithCapabilities,
 } from "@ku0/code-application";
 import type {
   DesktopAppInfo,
+  DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopNotificationInput,
   DesktopRuntimeHost,
@@ -27,7 +33,7 @@ import {
   readTauriAppVersion,
   readTauriWindowLabel,
 } from "../ports/tauriEnvironment";
-import { openTauriUrl, revealTauriItemInDir } from "../ports/tauriOpener";
+import { openTauriPath, openTauriUrl, revealTauriItemInDir } from "../ports/tauriOpener";
 
 function openBrowserUrl(url: string) {
   if (typeof window === "undefined" || typeof window.open !== "function") {
@@ -63,12 +69,30 @@ export async function resolveAppInfo(): Promise<DesktopAppInfo | null> {
   return resolveDesktopAppInfo(getDesktopHostBridge());
 }
 
+export async function resolveDesktopDiagnosticsInfo(): Promise<DesktopDiagnosticsInfo | null> {
+  return resolveDesktopDiagnosticsInfoWithCapabilities({
+    desktopHostBridge: getDesktopHostBridge(),
+  });
+}
+
+export async function copyDesktopSupportSnapshot(): Promise<boolean> {
+  return copyDesktopSupportSnapshotWithCapabilities({
+    desktopHostBridge: getDesktopHostBridge(),
+  });
+}
+
 export async function resolveCurrentDesktopSession(): Promise<DesktopSessionInfo | null> {
   return resolveDesktopSessionInfo(getDesktopHostBridge());
 }
 
 export async function consumePendingDesktopLaunchIntent(): Promise<DesktopLaunchIntent | null> {
   return consumeDesktopLaunchIntent(getDesktopHostBridge());
+}
+
+export function subscribeToDesktopLaunchIntents(
+  listener: (intent: DesktopLaunchIntent) => void
+): () => void {
+  return subscribeDesktopLaunchIntentsWithCapabilities(getDesktopHostBridge(), listener);
 }
 
 export async function resolveDesktopUpdaterState(): Promise<DesktopUpdateState> {
@@ -162,6 +186,12 @@ export async function checkForDesktopUpdates(): Promise<DesktopUpdateState> {
   return checkDesktopForUpdates(getDesktopHostBridge());
 }
 
+export function subscribeToDesktopUpdateState(
+  listener: (state: DesktopUpdateState) => void
+): () => void {
+  return subscribeDesktopUpdateStateWithCapabilities(getDesktopHostBridge(), listener);
+}
+
 export async function restartDesktopUpdate(): Promise<boolean> {
   return restartDesktopToApplyUpdate(getDesktopHostBridge());
 }
@@ -174,6 +204,16 @@ export async function openUrl(url: string) {
       openTauriUrl,
     },
     url
+  );
+}
+
+export async function openPath(path: string) {
+  return openDesktopPathWithCapabilities(
+    {
+      desktopHostBridge: getDesktopHostBridge(),
+      openTauriPath,
+    },
+    path
   );
 }
 

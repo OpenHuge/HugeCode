@@ -2,6 +2,30 @@ import { describe, expect, it, vi } from "vitest";
 import { createDesktopNotificationController } from "./desktopNotificationController.js";
 
 describe("desktopNotificationController", () => {
+  it("shows a desktop notification without a source window", () => {
+    const show = vi.fn();
+    const on = vi.fn();
+    const controller = createDesktopNotificationController({
+      notification: {
+        create: vi.fn(() => ({
+          on,
+          show,
+        })),
+        isSupported: vi.fn(() => true),
+      },
+    });
+
+    expect(
+      controller.showDesktopNotification({
+        body: "HugeCode restored your session.",
+        title: "Recovery complete",
+      })
+    ).toBe(true);
+
+    expect(show).toHaveBeenCalledTimes(1);
+    expect(on).not.toHaveBeenCalled();
+  });
+
   it("returns false when notifications are not supported", () => {
     const controller = createDesktopNotificationController({
       browserWindow: {

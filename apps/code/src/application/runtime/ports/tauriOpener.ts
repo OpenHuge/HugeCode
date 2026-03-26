@@ -1,5 +1,6 @@
 type TauriOpenerModule = {
   openUrl: (url: string) => Promise<void>;
+  openPath?: (path: string) => Promise<void>;
   revealItemInDir: (path: string) => Promise<void>;
 };
 
@@ -35,6 +36,16 @@ export async function revealTauriItemInDir(path: string) {
   const opener = await loadTauriOpener();
   if (opener?.revealItemInDir) {
     await opener.revealItemInDir(path);
+    return true;
+  }
+
+  return false;
+}
+
+export async function openTauriPath(path: string) {
+  const opener = await loadTauriOpener();
+  if (opener?.openPath) {
+    await opener.openPath(path);
     return true;
   }
 

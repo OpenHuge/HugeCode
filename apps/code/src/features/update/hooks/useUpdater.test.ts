@@ -9,7 +9,9 @@ import {
   detectDesktopRuntimeHost,
   resolveDesktopUpdaterState,
   restartDesktopUpdate,
+  subscribeToDesktopUpdateState,
 } from "../../../application/runtime/facades/desktopHostFacade";
+import type { DesktopUpdateState } from "../../../application/runtime/ports/desktopHostBridge";
 import type { DebugEntry } from "../../../types";
 import { STORAGE_KEY_PENDING_POST_UPDATE_VERSION } from "../utils/postUpdateRelease";
 import { resolveInitialUpdaterStartupAction, useUpdater } from "./useUpdater";
@@ -37,6 +39,7 @@ vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
     stage: "idle",
   })),
   restartDesktopUpdate: vi.fn(async () => false),
+  subscribeToDesktopUpdateState: vi.fn(() => () => undefined),
 }));
 
 const checkMock = vi.mocked(check);
@@ -45,6 +48,7 @@ const checkForDesktopUpdatesMock = vi.mocked(checkForDesktopUpdates);
 const detectDesktopRuntimeHostMock = vi.mocked(detectDesktopRuntimeHost);
 const resolveDesktopUpdaterStateMock = vi.mocked(resolveDesktopUpdaterState);
 const restartDesktopUpdateMock = vi.mocked(restartDesktopUpdate);
+const subscribeToDesktopUpdateStateMock = vi.mocked(subscribeToDesktopUpdateState);
 const fetchMock = vi.fn();
 type CheckResult = Awaited<ReturnType<typeof check>>;
 const APP_VERSION = "1.2.3";
@@ -74,6 +78,7 @@ describe("useUpdater", () => {
       stage: "idle",
     });
     restartDesktopUpdateMock.mockResolvedValue(false);
+    subscribeToDesktopUpdateStateMock.mockReturnValue(() => undefined);
   });
 
   afterEach(() => {
@@ -168,7 +173,7 @@ describe("useUpdater", () => {
       stage: "manual",
       version: "2.0.0-beta.3",
     });
-    expect(resolveDesktopUpdaterStateMock).toHaveBeenCalledTimes(1);
+    expect(resolveDesktopUpdaterStateMock).toHaveBeenCalledTimes(2);
   });
 
   it("surfaces the Windows first-run lock guidance during electron startup resolution", () => {
@@ -440,6 +445,50 @@ describe("useUpdater", () => {
     expect(checkForDesktopUpdatesMock).toHaveBeenCalledTimes(1);
     expect(restartDesktopUpdateMock).toHaveBeenCalledTimes(1);
     expect(window.localStorage.getItem(STORAGE_KEY_PENDING_POST_UPDATE_VERSION)).toBe("2.0.0");
+  });
+
+  it("reacts to pushed desktop updater state changes from Electron", async () => {
+    detectDesktopRuntimeHostMock.mockResolvedValue("electron");
+    resolveDesktopUpdaterStateMock.mockResolvedValue({
+      capability: "automatic",
+      mode: "enabled_stable_public_service",
+      provider: "public-github",
+      stage: "idle",
+      version: "2.0.0",
+    });
+
+    let onStateListener: ((state: DesktopUpdateState) => void) | null = null;
+    subscribeToDesktopUpdateStateMock.mockImplementation((listener) => {
+      onStateListener = listener;
+      return () => {
+        onStateListener = null;
+      };
+    });
+
+    const { result } = renderHook(() => useUpdater({}));
+
+    await waitFor(() => expect(subscribeToDesktopUpdateStateMock).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      onStateListener?.({
+        capability: "automatic",
+        mode: "enabled_stable_public_service",
+        provider: "public-github",
+        stage: "downloading",
+        totalBytes: 100,
+        downloadedBytes: 55,
+        version: "2.0.1",
+      });
+    });
+
+    expect(result.current.state).toMatchObject({
+      stage: "downloading",
+      progress: {
+        downloadedBytes: 55,
+        totalBytes: 100,
+      },
+      version: "2.0.1",
+    });
   });
 
   it("loads post-update release notes after restart when marker matches current version", async () => {
