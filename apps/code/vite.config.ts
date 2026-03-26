@@ -4,7 +4,8 @@ import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Connect, type Plugin } from "vite";
 // @boundaries-ignore shared workspace test/dev config
-import { createCodeWorkspaceAliases } from "../../scripts/lib/viteWorkspaceAliases";
+// @ts-expect-error Node ESM requires the explicit .ts extension when config loaders import this file directly.
+import { createCodeWorkspaceAliases } from "../../scripts/lib/viteWorkspaceAliases.ts";
 
 const packageJson = JSON.parse(
   readFileSync(new URL("./package.json", import.meta.url), "utf-8")
@@ -49,12 +50,14 @@ const WORKSPACE_CHROME_DOMAIN_CHUNK_PATTERNS = [
 ] as const;
 const WORKSPACE_CONVERSATION_DOMAIN_CHUNK_PATTERNS = [
   "/src/features/app/composition/useDesktopWorkspaceConversationDomain.ts",
+  "/src/features/app/hooks/useSyncSelectedDiffPath.ts",
 ] as const;
 const WORKSPACE_MISSION_DOMAIN_CHUNK_PATTERNS = [
   "/src/features/app/composition/useDesktopWorkspaceMissionDomain.ts",
 ] as const;
 const WORKSPACE_PROJECT_DOMAIN_CHUNK_PATTERNS = [
   "/src/features/app/composition/useDesktopWorkspaceProjectDomain.ts",
+  "/src/features/app/hooks/useGitRootSelection.ts",
 ] as const;
 const WORKSPACE_THREAD_DOMAIN_CHUNK_PATTERNS = [
   "/src/features/app/composition/useDesktopWorkspaceThreadDomain.ts",

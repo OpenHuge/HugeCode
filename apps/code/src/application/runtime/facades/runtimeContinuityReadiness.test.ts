@@ -279,7 +279,7 @@ describe("buildRuntimeContinuityReadiness", () => {
       ],
     });
 
-    expect(summary.state).toBe("attention");
+    expect(summary.state).toBe("ready");
     expect(summary.handoffReadyCount).toBe(1);
     expect(summary.items[0]?.pathKind).toBe("handoff");
     expect(summary.missingPathCount).toBe(0);

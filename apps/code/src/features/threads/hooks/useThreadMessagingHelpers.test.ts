@@ -62,6 +62,7 @@ describe("resolveSendMessageSettings", () => {
           },
         },
         {
+          provider: null,
           model: null,
           effort: null,
           collaborationMode: null,
@@ -87,6 +88,7 @@ describe("resolveSendMessageSettings", () => {
           },
         },
         {
+          provider: null,
           model: null,
           effort: null,
           collaborationMode: null,
@@ -118,6 +120,7 @@ describe("resolveSendMessageSettings", () => {
           },
         },
         {
+          provider: null,
           model: "gpt-5.4",
           effort: "low",
           collaborationMode: null,
@@ -139,6 +142,7 @@ describe("resolveSendMessageSettings", () => {
           fastMode: true,
         },
         {
+          provider: null,
           model: "gpt-5.4",
           effort: "medium",
           fastMode: false,
@@ -178,6 +182,7 @@ describe("buildStartTurnPayload", () => {
   it("maps fast mode to the fast service tier", () => {
     expect(
       buildStartTurnPayload({
+        provider: "openai",
         model: "gpt-5.4",
         effort: "medium",
         fastMode: true,
@@ -194,6 +199,7 @@ describe("buildStartTurnPayload", () => {
         appMentions: [],
       })
     ).toMatchObject({
+      provider: "openai",
       model: "gpt-5.4",
       effort: "medium",
       serviceTier: "fast",

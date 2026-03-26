@@ -3,6 +3,7 @@ import type { KernelJob, KernelJobStartRequestV3 } from "../ports/runtimeClient"
 import { getAppSettings } from "../ports/tauriAppSettings";
 import { startRuntimeJob } from "../ports/tauriRuntimeJobs";
 import {
+  resolveRuntimePreferredBackendIdsInput,
   resolvePreferredBackendIdsForRuntimeJobStart,
   startRuntimeJobWithRemoteSelection,
 } from "./runtimeRemoteExecutionFacade";
@@ -97,6 +98,22 @@ describe("runtimeRemoteExecutionFacade", () => {
     await expect(
       resolvePreferredBackendIdsForRuntimeJobStart(undefined, "backend-workspace-default")
     ).resolves.toEqual(["backend-workspace-default"]);
+  });
+
+  it("shares the same synchronous backend-default resolution helper across UI call sites", () => {
+    expect(
+      resolveRuntimePreferredBackendIdsInput({
+        preferredBackendIds: null,
+        fallbackDefaultBackendId: "backend-global-default",
+      })
+    ).toEqual(["backend-global-default"]);
+
+    expect(
+      resolveRuntimePreferredBackendIdsInput({
+        preferredBackendIds: ["backend-explicit", "backend-explicit"],
+        fallbackDefaultBackendId: "backend-global-default",
+      })
+    ).toEqual(["backend-explicit"]);
   });
 
   it("keeps single-run launches free of implicit remote backend preferences", async () => {

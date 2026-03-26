@@ -1,10 +1,9 @@
 /**
  * Codex configuration file adapter.
  *
- * These file operations are still backed by legacy desktop commands rather
- * than the newer `code_*` runtime RPC surface. Keeping them in a dedicated
- * adapter makes the boundary explicit and avoids routing new settings code
- * through the retired `tauriSettings` bridge.
+ * These file operations now use canonical `code_*` runtime RPC commands while
+ * remaining behind a dedicated adapter so UI code stays inside the approved
+ * application/runtime boundary.
  */
 export { getCodexConfigPath } from "../../../services/tauriDesktopRpc";
 export {

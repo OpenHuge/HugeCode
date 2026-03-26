@@ -108,3 +108,7 @@ The intended implementation remains conservative:
 This keeps the enhancement aligned with the product direction:
 more runtime-owned continuation truth, less UI-side reconstruction, and clearer
 operator action after interruption or handoff.
+
+For the shared next-action and takeover-first interpretation used by Mission
+Control and Review Pack, see
+[`runtime-operator-loop.md`](./runtime-operator-loop.md).

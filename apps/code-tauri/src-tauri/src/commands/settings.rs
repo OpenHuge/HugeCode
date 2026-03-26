@@ -11,16 +11,6 @@ pub async fn code_app_settings_update(payload: Value) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub async fn get_app_settings() -> Result<Value, String> {
-    code_app_settings_get().await
-}
-
-#[tauri::command]
-pub async fn update_app_settings(settings: Value) -> Result<Value, String> {
-    code_app_settings_update(json!({ "payload": settings })).await
-}
-
-#[tauri::command]
 pub fn is_mobile_runtime() -> bool {
     cfg!(target_os = "ios") || cfg!(target_os = "android")
 }

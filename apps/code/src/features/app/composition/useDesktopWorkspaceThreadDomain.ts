@@ -97,6 +97,7 @@ export function useDesktopWorkspaceThreadDomain({
     onWorkspaceConnected: markWorkspaceConnected,
     onDebug: debugState.addDebugEntry,
     hasAvailableModel: threadCodexState.hasAvailableModel,
+    provider: threadCodexState.resolvedProvider,
     model: threadCodexState.resolvedModel,
     effort: threadCodexState.resolvedEffort,
     fastMode: threadCodexState.fastModeEnabled,

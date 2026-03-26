@@ -41,7 +41,7 @@ describe("tauriRuntimeCatalogBridge.getModelList", () => {
     const result = await getModelList("ws-1");
     const data = ((result.result as { data: unknown[] }).data as Array<Record<string, unknown>>)[0];
     expect(data).toMatchObject({
-      id: "gpt-5.3-codex",
+      id: "openai::gpt-5.3-codex",
       model: "gpt-5.3-codex",
       displayName: "GPT-5.3 Codex",
       provider: "openai",
@@ -106,12 +106,41 @@ describe("tauriRuntimeCatalogBridge.getModelList", () => {
     const result = await getModelList("ws-1");
     const data = ((result.result as { data: unknown[] }).data as Array<Record<string, unknown>>)[0];
     expect(data).toMatchObject({
-      id: "gpt-5.3-codex",
+      id: "openai::gpt-5.3-codex",
       model: "gpt-5.3-codex",
       provider: "openai",
       available: true,
     });
     expect(invokeWebRuntimeDirectRpcMock).toHaveBeenCalledWith("code_models_pool", {});
+  });
+
+  it("derives distinct route ids when multiple providers expose the same model slug", async () => {
+    modelsMock.mockResolvedValueOnce([
+      {
+        id: "gpt-5.3-codex",
+        displayName: "GPT-5.3 Codex",
+        provider: "openai",
+        pool: "codex",
+        source: "oauth-account",
+        available: true,
+      },
+      {
+        id: "gpt-5.3-codex",
+        displayName: "GPT-5.3 Codex",
+        provider: "google",
+        pool: "gemini",
+        source: "oauth-account",
+        available: true,
+      },
+    ]);
+
+    const result = await getModelList("ws-1");
+    const data = (result.result as { data: Array<Record<string, unknown>> }).data;
+
+    expect(data.map((entry) => entry.id)).toEqual([
+      "openai::gpt-5.3-codex",
+      "google::gpt-5.3-codex",
+    ]);
   });
 
   it("rethrows runtime error when fallback endpoint is unavailable", async () => {

@@ -1,5 +1,6 @@
 import type { RuntimeGateway } from "../facades/RuntimeGateway";
 import { createRuntimeAgentControlFacade } from "../facades/runtimeAgentControlFacade";
+import { createRuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
 import type { RuntimeWorkspaceId } from "../types/runtimeIds";
 import type { WorkspaceRuntimeScope } from "./runtimeKernelTypes";
 import type { RuntimeAgentControlDependencies } from "../facades/runtimeAgentControlFacade";
@@ -22,5 +23,6 @@ export function createWorkspaceRuntimeScope({
       workspaceId,
       runtimeAgentControlDependencies
     ),
+    runtimeSessionCommands: createRuntimeSessionCommandFacade(workspaceId),
   };
 }

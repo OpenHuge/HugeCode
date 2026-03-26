@@ -58,6 +58,42 @@ Additional targeted checks:
 - `pnpm repo:doctor`
   Repo-wide source-of-truth, governance, and readiness checks.
 
+## PR Preflight
+
+Before opening a pull request, run the narrowest local checks that match the
+surfaces you changed instead of waiting for CI to tell you which gate you
+missed.
+
+Use this checklist:
+
+- TypeScript, React state, runtime facade, or shared contract changes:
+  run `pnpm typecheck:affected` at minimum, and prefer `pnpm validate` for the
+  default pre-PR gate.
+- `apps/code` behavior, UI copy, OAuth/account flows, settings flows, or other
+  browser-visible interaction changes:
+  run `pnpm test:affected`; add `pnpm test:component` when the regression risk
+  is centered in rendered browser behavior.
+- Frontend startup, runtime bootstrap, shell wiring, bundle-sensitive UI,
+  `apps/code` build behavior, or dependency changes that can affect browser
+  startup:
+  run `pnpm validate:frontend-optimization` before asking CI to run the same
+  expensive lane.
+- `.github/workflows/**`, shared GitHub actions, workflow-facing docs, or
+  reusable workflow wiring:
+  run `pnpm check:workflow-governance` and treat the change as
+  `pnpm validate:full` scope.
+- Docs-only changes with no runtime, workflow, or contract impact:
+  note `docs-only, no runtime impact` in the PR summary instead of implying
+  product validation was run.
+
+Recent CI failures have clustered around `Typecheck (affected)`,
+`Tests (affected)`, and `Frontend optimization gate`. The checklist above is
+intended to catch those locally before the PR enters the queue.
+
+When you open the PR, copy the exact commands you ran into the PR body instead
+of checking a generic "tests passed" box. The PR template now expects targeted
+validation evidence that matches the changed surface.
+
 ## Working Rules
 
 - Do not introduce `any`, unused imports, or non-semantic clickable elements.

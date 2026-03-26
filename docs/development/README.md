@@ -54,6 +54,47 @@ Validation gates are engineering checks, not product-health promises. In particu
 - `pnpm desktop:verify:fast` is the narrow desktop/Tauri confidence pass; it does not replace full packaging or release verification.
 - operator-facing docs and UI copy should describe the actual supported execution, review, and degraded paths rather than implying that a single script guarantees product-wide readiness.
 
+## Common PR CI Failures
+
+Recent PR failures have repeated in a small set of gates. Use the mapping below
+before opening the PR so CI is confirming work you already checked locally
+instead of discovering the first missed requirement.
+
+| CI gate                                              | Typical local miss                                                                                                                                               | Run before PR                                            |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `Quality / Quality`                                  | Format, lint, UI/runtime boundaries, runtime-contract parity, circular imports, or affected typecheck drift fail inside the shared quality gate.                 | `pnpm typecheck:affected` and other matching local gates |
+| `PR Affected Checks / PR Affected Checks`            | Build output, UI copy, rendered states, settings/account flows, or browser-visible interactions changed without updating the affected build/test proof.          | `pnpm build:affected` and `pnpm test:affected`           |
+| `frontend_optimization / Frontend optimization gate` | Frontend startup, runtime readiness on `127.0.0.1:8788`, shell bootstrap, bundle-sensitive changes, or dependency churn breaks the expensive browser/build lane. | `pnpm validate:frontend-optimization`                    |
+| `Workflow governance`                                | Workflow YAML, shared action wiring, or workflow-facing docs drift from the scripted governance rules.                                                           | `pnpm check:workflow-governance`                         |
+
+Practical usage:
+
+- If the change is mostly TypeScript correctness, run `pnpm validate` or at
+  least `pnpm typecheck:affected`.
+- If the change is visible in the browser, especially `apps/code` settings,
+  auth, or copy, run `pnpm build:affected` and `pnpm test:affected`, then add
+  `pnpm test:component` when the risk is interaction-heavy.
+- If the change can alter startup timing, browser boot, runtime service
+  readiness, or bundle output, run `pnpm validate:frontend-optimization` before
+  pushing.
+- If the change only touches workflow docs or CI plumbing, do not guess:
+  run `pnpm check:workflow-governance` and classify it as workflow/governance
+  work in the PR notes.
+- In the PR body, list the exact commands you ran. Prefer targeted commands
+  such as `pnpm typecheck:affected` or `pnpm validate:frontend-optimization`
+  over vague statements like "tested locally".
+
+## Merge Queue And Auto-Merge
+
+- Required CI lanes that protect `main` must run on `merge_group` as well as
+  `pull_request`; otherwise merge queue cannot get the required `Quality` and
+  `PR Affected Checks` results for queued entries.
+- Those required lanes may fan out internally into parallel build/test or lint/typecheck sub-jobs, but the aggregate gate names must stay stable so branch protection and merge queue do not lose their required check targets.
+- Repo-authored PRs default to approval-driven auto-merge once required reviews,
+  required checks, and conversation resolution are satisfied.
+- Add the `manual-merge` label to keep an approved PR out of auto-merge and the
+  merge queue until a human explicitly merges it.
+
 ## Runtime And Desktop Checks
 
 - `pnpm ui:contract`
