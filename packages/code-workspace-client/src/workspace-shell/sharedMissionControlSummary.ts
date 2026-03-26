@@ -48,6 +48,15 @@ function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+function pushUnique(values: string[], next: string | null | undefined) {
+  if (!next) {
+    return;
+  }
+  if (!values.includes(next)) {
+    values.push(next);
+  }
+}
+
 function countContinuitySignals(
   runs: HugeCodeMissionControlSnapshot["runs"]
 ): ContinuitySignalCounts {
@@ -227,22 +236,47 @@ function getWorkspaceName(
 function getMissionItemTone(
   run: HugeCodeMissionControlSnapshot["runs"][number]
 ): SharedMissionActivityItem["tone"] {
+  if (
+    run.placement?.readiness === "blocked" ||
+    run.takeoverBundle?.state === "blocked" ||
+    run.actionability?.state === "blocked"
+  ) {
+    return "blocked";
+  }
   if (run.approval?.status === "pending_decision" || run.state === "needs_input") {
     return "attention";
   }
-  if (run.placement?.readiness === "blocked") {
-    return "blocked";
+  if (run.placement?.readiness === "attention" || run.actionability?.state === "degraded") {
+    return "attention";
   }
   if (run.state === "running") {
     return "active";
   }
-  if (run.reviewPackId) {
+  if (run.reviewPackId || run.takeoverBundle?.state === "ready") {
     return "ready";
   }
   return "neutral";
 }
 
 function getMissionStatusLabel(run: HugeCodeMissionControlSnapshot["runs"][number]) {
+  const takeoverBundle = run.takeoverBundle;
+  if (run.placement?.readiness === "blocked") {
+    return "Routing blocked";
+  }
+  if (takeoverBundle?.state === "blocked" || run.actionability?.state === "blocked") {
+    return "Continuation blocked";
+  }
+  if (takeoverBundle?.state === "ready") {
+    if (takeoverBundle.pathKind === "resume") {
+      return "Resume ready";
+    }
+    if (takeoverBundle.pathKind === "handoff") {
+      return "Handoff ready";
+    }
+    if (takeoverBundle.pathKind === "review") {
+      return "Review ready";
+    }
+  }
   if (run.approval?.label) {
     return run.approval.label;
   }
@@ -258,12 +292,61 @@ function getMissionStatusLabel(run: HugeCodeMissionControlSnapshot["runs"][numbe
   return run.state.replace(/_/g, " ");
 }
 
+function resolveMissionItemDetail(run: HugeCodeMissionControlSnapshot["runs"][number]) {
+  return (
+    run.approval?.summary ??
+    run.nextAction?.detail ??
+    run.takeoverBundle?.recommendedAction ??
+    run.summary ??
+    run.placement?.summary ??
+    run.actionability?.summary ??
+    "Runtime-backed mission status is available for this run."
+  );
+}
+
+function buildMissionItemHighlights(run: HugeCodeMissionControlSnapshot["runs"][number]) {
+  const highlights: string[] = [];
+  pushUnique(highlights, run.nextAction?.label ? `Next: ${run.nextAction.label}` : null);
+  pushUnique(highlights, run.takeoverBundle?.summary ?? null);
+  pushUnique(highlights, run.checkpoint?.summary ?? null);
+  pushUnique(highlights, run.publishHandoff?.summary ?? null);
+  pushUnique(highlights, run.actionability?.summary ?? null);
+  return highlights.slice(0, 3);
+}
+
+function getMissionActivityPriority(run: HugeCodeMissionControlSnapshot["runs"][number]) {
+  if (
+    run.placement?.readiness === "blocked" ||
+    run.takeoverBundle?.state === "blocked" ||
+    run.actionability?.state === "blocked"
+  ) {
+    return 600;
+  }
+  if (run.approval?.status === "pending_decision" || run.state === "needs_input") {
+    return 520;
+  }
+  if (run.placement?.readiness === "attention" || run.actionability?.state === "degraded") {
+    return 440;
+  }
+  if (run.state === "running") {
+    return 360;
+  }
+  if (run.reviewPackId || run.takeoverBundle?.state === "ready") {
+    return 280;
+  }
+  return 120;
+}
+
 function buildMissionActivityItems(
   workspaces: HugeCodeMissionControlSnapshot["workspaces"],
   runs: HugeCodeMissionControlSnapshot["runs"]
 ): SharedMissionActivityItem[] {
   return [...runs]
-    .sort((left, right) => right.updatedAt - left.updatedAt)
+    .sort(
+      (left, right) =>
+        getMissionActivityPriority(right) - getMissionActivityPriority(left) ||
+        right.updatedAt - left.updatedAt
+    )
     .slice(0, 6)
     .map((run) => ({
       id: run.id,
@@ -271,16 +354,8 @@ function buildMissionActivityItems(
       workspaceName: getWorkspaceName(workspaces, run.workspaceId),
       statusLabel: getMissionStatusLabel(run),
       tone: getMissionItemTone(run),
-      detail:
-        run.summary ??
-        run.approval?.summary ??
-        run.placement?.summary ??
-        "Runtime-backed mission status is available for this run.",
-      highlights: [
-        run.checkpoint?.summary ?? null,
-        run.publishHandoff?.summary ?? null,
-        run.actionability?.summary ?? null,
-      ].filter((value): value is string => typeof value === "string" && value.length > 0),
+      detail: resolveMissionItemDetail(run),
+      highlights: buildMissionItemHighlights(run),
     }));
 }
 
@@ -289,6 +364,28 @@ function formatReviewStatusLabel(reviewStatus: string) {
     return "Ready";
   }
   return reviewStatus.replace(/_/g, " ");
+}
+
+function getReviewStatusLabel(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
+  if (
+    reviewPack.validationOutcome === "failed" ||
+    reviewPack.takeoverBundle?.state === "blocked" ||
+    reviewPack.actionability?.state === "blocked"
+  ) {
+    return "Validation failed";
+  }
+  if (
+    reviewPack.reviewStatus === "action_required" ||
+    reviewPack.reviewStatus === "incomplete_evidence" ||
+    reviewPack.validationOutcome === "warning" ||
+    reviewPack.actionability?.state === "degraded"
+  ) {
+    return "Needs attention";
+  }
+  if (reviewPack.takeoverBundle?.state === "ready" && reviewPack.reviewStatus !== "ready") {
+    return "Review path ready";
+  }
+  return formatReviewStatusLabel(reviewPack.reviewStatus);
 }
 
 function formatValidationLabel(validationOutcome: string) {
@@ -302,19 +399,52 @@ function formatValidationLabel(validationOutcome: string) {
 }
 
 function getReviewItemTone(
-  reviewStatus: string,
-  validationOutcome: string
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
 ): SharedReviewQueueItem["tone"] {
-  if (validationOutcome === "failed") {
+  if (
+    reviewPack.validationOutcome === "failed" ||
+    reviewPack.takeoverBundle?.state === "blocked" ||
+    reviewPack.actionability?.state === "blocked"
+  ) {
     return "blocked";
   }
-  if (reviewStatus === "ready") {
-    return "ready";
-  }
-  if (reviewStatus === "needs_input" || validationOutcome === "warning") {
+  if (
+    reviewPack.reviewStatus === "action_required" ||
+    reviewPack.reviewStatus === "incomplete_evidence" ||
+    reviewPack.validationOutcome === "warning" ||
+    reviewPack.actionability?.state === "degraded"
+  ) {
     return "attention";
   }
+  if (reviewPack.reviewStatus === "ready" || reviewPack.takeoverBundle?.state === "ready") {
+    return "ready";
+  }
   return "neutral";
+}
+
+function getReviewQueuePriority(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
+  if (
+    reviewPack.validationOutcome === "failed" ||
+    reviewPack.takeoverBundle?.state === "blocked" ||
+    reviewPack.actionability?.state === "blocked"
+  ) {
+    return 600;
+  }
+  if (
+    reviewPack.reviewStatus === "action_required" ||
+    reviewPack.reviewStatus === "incomplete_evidence" ||
+    reviewPack.validationOutcome === "warning" ||
+    reviewPack.actionability?.state === "degraded"
+  ) {
+    return 460;
+  }
+  if (reviewPack.reviewStatus === "ready" || reviewPack.takeoverBundle?.state === "ready") {
+    return 320;
+  }
+  if (reviewPack.publishHandoff || reviewPack.recommendedNextAction) {
+    return 240;
+  }
+  return 120;
 }
 
 function buildReviewQueueItems(
@@ -322,7 +452,11 @@ function buildReviewQueueItems(
   reviewPacks: HugeCodeMissionControlSnapshot["reviewPacks"]
 ): SharedReviewQueueItem[] {
   return [...reviewPacks]
-    .sort((left, right) => right.createdAt - left.createdAt)
+    .sort(
+      (left, right) =>
+        getReviewQueuePriority(right) - getReviewQueuePriority(left) ||
+        right.createdAt - left.createdAt
+    )
     .slice(0, 6)
     .map((reviewPack) => ({
       id: reviewPack.id,
@@ -330,11 +464,14 @@ function buildReviewQueueItems(
       workspaceName: getWorkspaceName(workspaces, reviewPack.workspaceId),
       summary:
         reviewPack.recommendedNextAction ??
+        reviewPack.takeoverBundle?.recommendedAction ??
+        reviewPack.actionability?.summary ??
+        reviewPack.publishHandoff?.summary ??
         reviewPack.summary ??
         "Review-ready evidence is available.",
-      reviewStatusLabel: formatReviewStatusLabel(reviewPack.reviewStatus),
+      reviewStatusLabel: getReviewStatusLabel(reviewPack),
       validationLabel: formatValidationLabel(reviewPack.validationOutcome),
-      tone: getReviewItemTone(reviewPack.reviewStatus, reviewPack.validationOutcome),
+      tone: getReviewItemTone(reviewPack),
       warningCount: reviewPack.warningCount,
     }));
 }
