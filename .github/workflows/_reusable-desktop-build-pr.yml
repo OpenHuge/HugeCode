@@ -28,6 +28,14 @@ on:
         required: false
         type: string
         default: "true"
+      verification_mode:
+        required: false
+        type: string
+        default: "build"
+      check_base_branch:
+        required: false
+        type: string
+        default: ""
 
 jobs:
   build_pr:
@@ -39,6 +47,12 @@ jobs:
       CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@v6
+
+      - name: Ensure diff base is available
+        if: ${{ inputs.verification_mode == 'check' && inputs.check_base_branch != '' }}
+        run: |
+          git fetch --no-tags --prune --depth=1 origin \
+            +refs/heads/${{ inputs.check_base_branch }}:refs/remotes/origin/${{ inputs.check_base_branch }}
 
       - uses: ./.github/actions/setup-desktop-build-env
         with:
@@ -67,7 +81,17 @@ jobs:
           echo "desktop prebuild=${DESKTOP_PREBUILD_MODE}"
           pnpm desktop:prepare
 
+      - name: Run desktop fast checks
+        if: ${{ inputs.verification_mode == 'check' }}
+        env:
+          CODE_TAURI_CHECK_BASE_REF: ${{ inputs.check_base_branch != '' && format('origin/{0}', inputs.check_base_branch) || '' }}
+          CODE_TAURI_CHECK_HEAD_REF: HEAD
+        run: |
+          pnpm check:desktop-capabilities
+          pnpm --filter @ku0/code-tauri run check
+
       - name: Build Tauri app (fast verify)
+        if: ${{ inputs.verification_mode != 'check' }}
         env:
           DESKTOP_PREBUILD_MODE: skip
         run: |
