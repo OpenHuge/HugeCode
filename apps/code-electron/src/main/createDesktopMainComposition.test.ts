@@ -154,6 +154,7 @@ describe("createDesktopMainComposition", () => {
         },
       },
       shell: {
+        openPath: vi.fn(async () => ""),
         openExternal: vi.fn(async () => undefined),
         showItemInFolder: vi.fn(),
       },

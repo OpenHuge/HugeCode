@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import type { BrowserWindowConstructorOptions, IpcMainInvokeEvent } from "electron";
 import type {
+  DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopReleaseChannel,
   DesktopUpdateState,
@@ -173,6 +174,7 @@ export type CreateDesktopMainCompositionInput = {
     } | null;
   };
   shell: {
+    openPath(path: string): Promise<string>;
     openExternal(url: string): Promise<void>;
     showItemInFolder(path: string): void;
   };
@@ -404,8 +406,25 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     },
   });
 
+  function getDiagnosticsInfo(): DesktopDiagnosticsInfo {
+    return {
+      crashDumpsDirectoryPath: null,
+      incidentLogPath: null,
+      lastIncidentAt: null,
+      logsDirectoryPath: null,
+      recentIncidentCount: 0,
+      reportIssueUrl: null,
+      supportSnapshotText: null,
+    };
+  }
+
+  function copySupportSnapshot() {
+    return false;
+  }
+
   const desktopHostHandlers = createDesktopHostHandlers({
     appVersion,
+    copySupportSnapshot,
     consumePendingLaunchIntent: launchIntentController.consumePendingIntent,
     getAppInfo() {
       const updateState = updaterController.getState();
@@ -418,6 +437,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
         version: appVersion,
       };
     },
+    getDiagnosticsInfo,
     listRecentSessions() {
       return shellState.recentSessions;
     },
@@ -425,6 +445,10 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     openExternalUrl: async (url) => {
       await input.shell.openExternal(url);
       return true;
+    },
+    async openPath(path) {
+      const errorMessage = await input.shell.openPath(path);
+      return errorMessage.length === 0;
     },
     persistTrayEnabled(enabled) {
       shellState.setTrayEnabled(enabled);
