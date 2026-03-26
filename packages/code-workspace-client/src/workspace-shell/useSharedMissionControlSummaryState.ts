@@ -137,7 +137,7 @@ export function useSharedMissionControlSummaryState(
         refreshTimeoutRef.current = null;
       }
     },
-    []
+    [enabled, loadSummary]
   );
 
   return {
