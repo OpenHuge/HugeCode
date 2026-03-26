@@ -98,6 +98,14 @@ export function useSharedMissionControlSummaryState(
     [activeWorkspaceId, enabled, runtime]
   );
 
+  // Prevent stale closure capture in delayed refresh callbacks.
+  // Even if a workspace switch happens between scheduling and execution,
+  // the timer will always call the latest loader.
+  const latestLoadSummaryRef = useRef(loadSummary);
+  useEffect(() => {
+    latestLoadSummaryRef.current = loadSummary;
+  }, [loadSummary]);
+
   const refresh = useCallback(() => loadSummary("refreshing"), [loadSummary]);
 
   useEffect(() => {
@@ -124,7 +132,7 @@ export function useSharedMissionControlSummaryState(
         }
         refreshTimeoutRef.current = window.setTimeout(() => {
           refreshTimeoutRef.current = null;
-          void loadSummary("refreshing");
+          void latestLoadSummaryRef.current("refreshing");
         }, 160);
       }
     );
