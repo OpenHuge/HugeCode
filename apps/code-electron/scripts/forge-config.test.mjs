@@ -6,7 +6,9 @@ describe("forge config", () => {
     const debMaker = forgeConfig.makers.find((maker) => maker.name === "deb");
 
     expect(forgeConfig.packagerConfig.executableName).toBe("HugeCode");
-    expect(debMaker?.configOrConfigFetcher?.bin).toBe(forgeConfig.packagerConfig.executableName);
+    expect(debMaker?.configOrConfigFetcher?.options?.bin).toBe(
+      forgeConfig.packagerConfig.executableName
+    );
     expect(debMaker?.configOrConfigFetcher?.options?.productName).toBe("HugeCode");
   });
 
