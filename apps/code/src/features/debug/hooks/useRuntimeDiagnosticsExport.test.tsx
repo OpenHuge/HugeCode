@@ -2,14 +2,57 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readRuntimeToolExecutionMetrics } from "../../../application/runtime/ports/runtimeToolExecutionMetrics";
 import { runtimeDiagnosticsExportV1 } from "../../../application/runtime/ports/tauriRuntime";
+import {
+  filterRuntimeToolLifecycleSnapshot,
+  getRuntimeToolLifecycleSnapshot,
+} from "../../../application/runtime/ports/runtimeToolLifecycle";
 import { useRuntimeDiagnosticsExport } from "./useRuntimeDiagnosticsExport";
 
 vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
   runtimeDiagnosticsExportV1: vi.fn(),
 }));
 
+vi.mock("../../../application/runtime/ports/runtimeToolExecutionMetrics", () => ({
+  readRuntimeToolExecutionMetrics: vi.fn(),
+}));
+
+vi.mock("../../../application/runtime/ports/runtimeToolLifecycle", () => ({
+  filterRuntimeToolLifecycleSnapshot: vi.fn(
+    (
+      snapshot: {
+        recentEvents: Array<{ workspaceId: string | null }>;
+        lastEvent: { workspaceId: string | null } | null;
+        revision: number;
+      },
+      workspaceId: string | null
+    ) => {
+      const recentEvents = snapshot.recentEvents.filter(
+        (event) => !workspaceId || event.workspaceId === workspaceId
+      );
+      const lastEvent =
+        snapshot.lastEvent && (!workspaceId || snapshot.lastEvent.workspaceId === workspaceId)
+          ? snapshot.lastEvent
+          : (recentEvents.at(-1) ?? null);
+      return {
+        revision: snapshot.revision,
+        lastEvent,
+        recentEvents,
+      };
+    }
+  ),
+  getRuntimeToolLifecycleSnapshot: vi.fn(),
+  runtimeToolLifecycleEventMatchesWorkspace: vi.fn(
+    (event: { workspaceId: string | null }, workspaceId: string | null) =>
+      !workspaceId || event.workspaceId === workspaceId
+  ),
+}));
+
+const filterRuntimeToolLifecycleSnapshotMock = vi.mocked(filterRuntimeToolLifecycleSnapshot);
+const readRuntimeToolExecutionMetricsMock = vi.mocked(readRuntimeToolExecutionMetrics);
 const runtimeDiagnosticsExportV1Mock = vi.mocked(runtimeDiagnosticsExportV1);
+const getRuntimeToolLifecycleSnapshotMock = vi.mocked(getRuntimeToolLifecycleSnapshot);
 
 describe("useRuntimeDiagnosticsExport", () => {
   afterEach(() => {
@@ -18,6 +61,71 @@ describe("useRuntimeDiagnosticsExport", () => {
   });
 
   beforeEach(() => {
+    getRuntimeToolLifecycleSnapshotMock.mockReturnValue({
+      revision: 1,
+      lastEvent: {
+        id: "tool-started-1",
+        kind: "tool",
+        phase: "started",
+        source: "app-event",
+        workspaceId: "workspace-debug-meta",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        toolCallId: "tool-call-1",
+        toolName: "bash",
+        scope: "write",
+        status: "in_progress",
+        at: 1_770_000_000_000,
+        errorCode: null,
+      },
+      recentEvents: [],
+    });
+    readRuntimeToolExecutionMetricsMock.mockReturnValue({
+      totals: {
+        attemptedTotal: 2,
+        startedTotal: 1,
+        completedTotal: 1,
+        successTotal: 1,
+        validationFailedTotal: 0,
+        runtimeFailedTotal: 0,
+        timeoutTotal: 0,
+        blockedTotal: 0,
+        truncatedTotal: 0,
+      },
+      byTool: {
+        "runtime:execute-workspace-command": {
+          toolName: "execute-workspace-command",
+          scope: "runtime",
+          attemptedTotal: 2,
+          startedTotal: 1,
+          completedTotal: 1,
+          successTotal: 1,
+          validationFailedTotal: 0,
+          runtimeFailedTotal: 0,
+          timeoutTotal: 0,
+          blockedTotal: 0,
+          truncatedTotal: 0,
+          lastStatus: "success",
+          lastErrorCode: null,
+          lastDurationMs: 42,
+          lastAnnotations: ["workspace-dry-run", "guardrail-skipped"],
+          updatedAt: 1_770_000_000_100,
+        },
+      },
+      recent: [
+        {
+          toolName: "execute-workspace-command",
+          scope: "runtime",
+          status: "success",
+          errorCode: null,
+          durationMs: 42,
+          truncatedOutput: false,
+          annotations: ["workspace-dry-run", "guardrail-skipped"],
+          at: 1_770_000_000_100,
+        },
+      ],
+      updatedAt: 1_770_000_000_100,
+    });
     runtimeDiagnosticsExportV1Mock.mockResolvedValue({
       schemaVersion: "runtime-diagnostics-export/v1",
       exportedAt: 1_770_000_000_000,
@@ -95,7 +203,7 @@ describe("useRuntimeDiagnosticsExport", () => {
     });
   });
 
-  it("exports metadata without triggering zip download", async () => {
+  it("exports metadata as a downloadable JSON artifact with lifecycle context", async () => {
     runtimeDiagnosticsExportV1Mock.mockResolvedValue({
       schemaVersion: "runtime-diagnostics-export/v1",
       exportedAt: 1_770_000_000_100,
@@ -115,12 +223,21 @@ describe("useRuntimeDiagnosticsExport", () => {
         hashedSecrets: 0,
       },
     });
-    const createObjectUrlMock = vi.fn(() => "blob:runtime-diagnostics");
+    const createObjectUrlMock = vi.fn(() => "blob:runtime-diagnostics-metadata");
+    const revokeObjectUrlMock = vi.fn();
     const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: createObjectUrlMock,
     });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: revokeObjectUrlMock,
+    });
+    const anchorClickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
 
     const { result } = renderHook(() =>
       useRuntimeDiagnosticsExport({ workspaceId: "workspace-debug-meta" })
@@ -139,14 +256,40 @@ describe("useRuntimeDiagnosticsExport", () => {
         includeZipBase64: false,
       });
     });
-    expect(createObjectUrlMock).not.toHaveBeenCalled();
-    expect(result.current.diagnosticsExportStatus).toContain("Exported diagnostics metadata");
+    expect(getRuntimeToolLifecycleSnapshotMock).toHaveBeenCalledTimes(1);
+    expect(readRuntimeToolExecutionMetricsMock).toHaveBeenCalledTimes(1);
+    expect(filterRuntimeToolLifecycleSnapshotMock).toHaveBeenCalledWith(
+      expect.objectContaining({ revision: 1 }),
+      "workspace-debug-meta"
+    );
+    expect(createObjectUrlMock).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrlMock).toHaveBeenCalledTimes(1);
+    expect(anchorClickSpy).toHaveBeenCalledTimes(1);
+    const metadataBlob = createObjectUrlMock.mock.calls[0]?.[0];
+    expect(metadataBlob).toBeInstanceOf(Blob);
+    await expect(metadataBlob.text()).resolves.toContain(
+      '"schemaVersion": "runtime-diagnostics-export/v1"'
+    );
+    await expect(metadataBlob.text()).resolves.toContain('"lifecycle"');
+    await expect(metadataBlob.text()).resolves.toContain('"tool-started-1"');
+    await expect(metadataBlob.text()).resolves.toContain('"toolExecutionMetrics"');
+    await expect(metadataBlob.text()).resolves.toContain('"lastAnnotations"');
+    expect(result.current.diagnosticsExportStatus).toContain(
+      "Exported runtime-diagnostics.metadata.json"
+    );
+    expect(result.current.diagnosticsExportStatus).toContain("1 lifecycle events");
+    expect(result.current.diagnosticsExportStatus).toContain("1 tool metric entries");
     expect(result.current.diagnosticsExportError).toBeNull();
     expect(result.current.diagnosticsExportBusy).toBe(false);
 
+    anchorClickSpy.mockRestore();
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: originalCreateObjectURL,
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: originalRevokeObjectURL,
     });
   });
 

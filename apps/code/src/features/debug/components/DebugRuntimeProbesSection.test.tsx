@@ -29,10 +29,12 @@ function createProps(overrides: Partial<DebugRuntimeProbesSectionProps> = {}) {
     onLiveSkillMaxResultsChange: vi.fn(),
     onLiveSkillIncludeHiddenChange: vi.fn(),
     onRunHealthProbe: vi.fn(),
+    onRunToolMetricsProbe: vi.fn(),
     onRunRemoteStatusProbe: vi.fn(),
     onRunTerminalStatusProbe: vi.fn(),
     onRunSettingsProbe: vi.fn(),
     onRunBootstrapProbe: vi.fn(),
+    onRunToolLifecycleProbe: vi.fn(),
     onRunLiveSkillProbe: vi.fn(),
     ...overrides,
   };
@@ -69,6 +71,8 @@ describe("DebugRuntimeProbesSection", () => {
     render(<DebugRuntimeProbesSection {...props} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Health" }));
+    fireEvent.click(screen.getByRole("button", { name: "Metrics" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lifecycle" }));
     fireEvent.click(screen.getByRole("button", { name: "Run skill" }));
     fireEvent.change(screen.getByLabelText("Live skill id"), { target: { value: "core-tree" } });
     fireEvent.change(screen.getByLabelText("Live skill input"), { target: { value: "list" } });
@@ -79,6 +83,8 @@ describe("DebugRuntimeProbesSection", () => {
     fireEvent.click(screen.getByLabelText("Live skill include hidden"));
 
     expect(props.onRunHealthProbe).toHaveBeenCalledTimes(1);
+    expect(props.onRunToolMetricsProbe).toHaveBeenCalledTimes(1);
+    expect(props.onRunToolLifecycleProbe).toHaveBeenCalledTimes(1);
     expect(props.onRunLiveSkillProbe).toHaveBeenCalledTimes(1);
     expect(props.onLiveSkillIdChange).toHaveBeenCalledWith("core-tree");
     expect(props.onLiveSkillInputChange).toHaveBeenCalledWith("list");

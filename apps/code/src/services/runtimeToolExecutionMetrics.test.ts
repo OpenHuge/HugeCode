@@ -145,4 +145,30 @@ describe("runtimeToolExecutionMetrics", () => {
       }),
     ]);
   });
+
+  it("stores end-of-execution annotations for recent entries and by-tool state", () => {
+    __resetRuntimeToolExecutionMetricsForTests();
+
+    recordRuntimeToolExecutionAttempt("execute-workspace-command", "runtime");
+    recordRuntimeToolExecutionStart("execute-workspace-command", "runtime");
+    recordRuntimeToolExecutionEnd({
+      toolName: "execute-workspace-command",
+      scope: "runtime",
+      status: "success",
+      durationMs: 42,
+      annotations: ["workspace-dry-run", "guardrail-skipped", "workspace-dry-run"],
+    });
+
+    const snapshot = readRuntimeToolExecutionMetrics();
+    expect(snapshot.recent[0]).toMatchObject({
+      toolName: "execute-workspace-command",
+      annotations: ["workspace-dry-run", "guardrail-skipped"],
+    });
+    expect(Object.values(snapshot.byTool)).toEqual([
+      expect.objectContaining({
+        toolName: "execute-workspace-command",
+        lastAnnotations: ["workspace-dry-run", "guardrail-skipped"],
+      }),
+    ]);
+  });
 });

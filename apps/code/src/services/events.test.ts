@@ -549,12 +549,16 @@ describe("events subscriptions", () => {
           method: "item/started",
           params: expect.objectContaining({
             threadId: "thread-tool-1",
+            turnId: "turn-tool-1",
             itemId: "tool-call-1",
             item: expect.objectContaining({
               id: "tool-call-1",
               type: "mcpToolCall",
               tool: "bash",
               status: "inProgress",
+              arguments: expect.objectContaining({
+                command: "echo runtime",
+              }),
             }),
           }),
         }),
@@ -569,9 +573,11 @@ describe("events subscriptions", () => {
           method: "item/completed",
           params: expect.objectContaining({
             threadId: "thread-tool-1",
+            turnId: "turn-tool-1",
             item: expect.objectContaining({
               id: "tool-call-1",
               type: "mcpToolCall",
+              tool: "bash",
               status: "completed",
             }),
           }),
