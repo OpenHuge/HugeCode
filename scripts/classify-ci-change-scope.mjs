@@ -43,6 +43,10 @@ function isManifestLikeFile(file) {
   );
 }
 
+function isMarkdownLikeFile(file) {
+  return file.endsWith(".md") || file.endsWith(".mdx");
+}
+
 function writeOutput(name, value) {
   const rendered = `${name}=${value}\n`;
   if (process.env.GITHUB_OUTPUT) {
@@ -55,8 +59,7 @@ function writeOutput(name, value) {
 
 function isBuildSkipEligibleFile(file) {
   return (
-    file.endsWith(".md") ||
-    file.endsWith(".mdx") ||
+    isMarkdownLikeFile(file) ||
     file.endsWith(".test.ts") ||
     file.endsWith(".test.tsx") ||
     file.endsWith(".spec.ts") ||
@@ -68,6 +71,104 @@ function isBuildSkipEligibleFile(file) {
     file.includes("/src/test/") ||
     file.includes("/src/fixtures/")
   );
+}
+
+function isUiTestLikeFile(file) {
+  return (
+    file.endsWith(".test.ts") ||
+    file.endsWith(".test.tsx") ||
+    file.endsWith(".spec.ts") ||
+    file.endsWith(".spec.tsx") ||
+    file.endsWith(".stories.ts") ||
+    file.endsWith(".stories.tsx") ||
+    file.endsWith(".stories.mdx") ||
+    file.includes("/__tests__/") ||
+    file.includes("/src/test/") ||
+    file.includes("/src/fixtures/")
+  );
+}
+
+function isDesignSystemExcludedFile(file) {
+  return (
+    isMarkdownLikeFile(file) ||
+    file.endsWith(".test.ts") ||
+    file.endsWith(".test.tsx") ||
+    file.endsWith(".spec.ts") ||
+    file.endsWith(".spec.tsx") ||
+    file.endsWith(".stories.ts") ||
+    file.endsWith(".stories.tsx") ||
+    file.endsWith(".stories.mdx") ||
+    file.includes("/__tests__/")
+  );
+}
+
+function isQualityCoreFile(file) {
+  if (file.startsWith("docs/") || isMarkdownLikeFile(file)) {
+    return false;
+  }
+
+  return (
+    file.startsWith("apps/") ||
+    file.startsWith("packages/") ||
+    file.startsWith("tests/") ||
+    file.startsWith("patches/") ||
+    file === "package.json" ||
+    file === "pnpm-lock.yaml" ||
+    file === "pnpm-workspace.yaml" ||
+    file === "turbo.json"
+  );
+}
+
+function isUiContractFile(file) {
+  if (
+    file === "scripts/check-ui-service-boundary.mjs" ||
+    file === "scripts/check-app-source-boundary.mjs" ||
+    file === "scripts/check-platform-boundaries.mjs" ||
+    file === "scripts/lib/ui-service-boundary.mjs"
+  ) {
+    return true;
+  }
+
+  if (file.startsWith("apps/code/") || file.startsWith("apps/code-web/")) {
+    return !isMarkdownLikeFile(file) && !isUiTestLikeFile(file);
+  }
+
+  if (
+    file.startsWith("packages/code-application/") ||
+    file.startsWith("packages/code-platform-interfaces/") ||
+    file.startsWith("packages/code-workspace-client/")
+  ) {
+    return !isMarkdownLikeFile(file);
+  }
+
+  return false;
+}
+
+function isAppCircularFile(file) {
+  return file.startsWith("apps/code/src/") && !isUiTestLikeFile(file) && !isMarkdownLikeFile(file);
+}
+
+function isFrontendOptimizationFile(file) {
+  if (
+    file === "scripts/check-code-bundle-budget.mjs" ||
+    file === "scripts/report-code-bundle.mjs" ||
+    file === "scripts/config/code-bundle-budget.config.mjs" ||
+    file === ".codex/e2e-map.json" ||
+    file === "scripts/lib/e2e-map.mjs" ||
+    file === ".github/workflows/_reusable-ci-frontend-optimization.yml"
+  ) {
+    return true;
+  }
+
+  if (file.startsWith("apps/code/")) {
+    return !isMarkdownLikeFile(file) && !isUiTestLikeFile(file);
+  }
+
+  if (file.startsWith("packages/design-system/")) {
+    return !isDesignSystemExcludedFile(file);
+  }
+
+  return false;
 }
 
 function isRepoGovernanceOnlyFile(file) {
@@ -113,6 +214,9 @@ const buildSkipEligibleOnly =
   nameOnly.length > 0 && nameOnly.every((file) => isBuildSkipEligibleFile(file));
 const repoGovernanceOnly =
   nameOnly.length > 0 && nameOnly.every((file) => isRepoGovernanceOnlyFile(file));
+const qualityCoreChanged = nameOnly.some((file) => isQualityCoreFile(file));
+const uiContractRequired = nameOnly.some((file) => isUiContractFile(file));
+const circularRequired = nameOnly.some((file) => isAppCircularFile(file));
 const manifestDiff = manifestFiles.length
   ? runGit(["diff", "--unified=0", ...diffArgs, "--", ...manifestFiles]).stdout
   : "";
@@ -140,9 +244,15 @@ const desktopManifestChanged =
 const frontendManifestChanged =
   frontendFileSignals.some((file) => changedFiles.has(file)) ||
   frontendManifestPattern.test(manifestDiff);
+const frontendOptimizationChanged =
+  frontendManifestChanged || nameOnly.some((file) => isFrontendOptimizationFile(file));
 
 writeOutput("manifest_only", manifestOnly ? "true" : "false");
 writeOutput("build_skip_eligible_only", buildSkipEligibleOnly ? "true" : "false");
 writeOutput("repo_governance_only", repoGovernanceOnly ? "true" : "false");
+writeOutput("quality_core_changed", qualityCoreChanged ? "true" : "false");
+writeOutput("ui_contract_required", uiContractRequired ? "true" : "false");
+writeOutput("circular_required", circularRequired ? "true" : "false");
 writeOutput("desktop_manifest_changed", desktopManifestChanged ? "true" : "false");
 writeOutput("frontend_manifest_changed", frontendManifestChanged ? "true" : "false");
+writeOutput("frontend_optimization_changed", frontendOptimizationChanged ? "true" : "false");

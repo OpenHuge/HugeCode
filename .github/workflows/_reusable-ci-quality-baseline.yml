@@ -64,10 +64,10 @@ jobs:
 
       - uses: ./.github/actions/cache-turbo
 
-      - if: inputs.desktop_runtime_changed
+      - if: ${{ !inputs.affected_mode && inputs.desktop_runtime_changed }}
         uses: ./.github/actions/install-linux-desktop-deps
 
-      - if: inputs.desktop_runtime_changed
+      - if: ${{ !inputs.affected_mode && inputs.desktop_runtime_changed }}
         uses: ./.github/actions/setup-rust-ci
         with:
           cargo-cache-path: |
@@ -100,7 +100,7 @@ jobs:
         run: pnpm ui:contract
 
       - name: Desktop Runtime Fast Verify
-        if: inputs.desktop_runtime_changed
+        if: ${{ !inputs.affected_mode && inputs.desktop_runtime_changed }}
         run: pnpm desktop:verify:fast
 
       - name: Circular Dependencies
