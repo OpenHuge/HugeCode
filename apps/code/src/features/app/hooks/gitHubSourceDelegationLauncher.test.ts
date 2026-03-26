@@ -54,4 +54,33 @@ describe("launchGitHubSourceDelegation", () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ taskId: "task-42" });
   });
+
+  it("omits access mode when the launch normalization leaves it unset", async () => {
+    const startTask = vi.fn().mockResolvedValue({ taskId: "task-43" });
+
+    await launchGitHubSourceDelegation({
+      runtimeControl: { startTask },
+      launch: {
+        workspaceId: "ws-1",
+        title: "Inspect GitHub issue #43",
+        instruction: "Read the linked GitHub issue and summarize the next step.",
+        accessMode: undefined,
+        taskSource: {
+          kind: "github_issue",
+          label: "GitHub issue #43",
+          title: "Inspect GitHub issue #43",
+          externalId: "openai/hugecode#43",
+          canonicalUrl: "https://github.com/openai/hugecode/issues/43",
+          sourceTaskId: "issue-43",
+          sourceRunId: null,
+        },
+      },
+    });
+
+    expect(startTask).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        accessMode: expect.anything(),
+      })
+    );
+  });
 });
