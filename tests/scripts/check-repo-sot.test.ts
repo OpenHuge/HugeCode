@@ -12,15 +12,33 @@ const repoSotTestTimeoutMs = 30_000;
 
 const requiredEntries = [
   ".nvmrc",
+  ".devcontainer/devcontainer.json",
+  ".github/actions/setup-node-pnpm",
+  ".github/dependabot.yml",
+  ".github/dependency-review-config.yml",
+  ".github/PULL_REQUEST_TEMPLATE.md",
   "package.json",
+  "pnpm-workspace.yaml",
   "README.md",
   "AGENTS.md",
   "CLAUDE.md",
   "CONTRIBUTING.md",
+  "rust-toolchain.toml",
   "docs",
   ".github/workflows",
   path.join("apps", "code", "package.json"),
+  path.join("apps", "code-tauri", "src-tauri", "Cargo.toml"),
   path.join("apps", "code-web"),
+  path.join("internal", "runtime-policy-rs", "Cargo.toml"),
+  path.join("packages", "code-runtime-service-rs", "Cargo.toml"),
+  path.join("packages", "discovery-rs", "Cargo.toml"),
+  path.join("packages", "discovery-rs", "package.json"),
+  path.join("packages", "model-fabric-rs", "Cargo.toml"),
+  path.join("packages", "runtime-diagnostics-export-core-rs", "Cargo.toml"),
+  path.join("packages", "runtime-shell-core-rs", "Cargo.toml"),
+  path.join("packages", "sandbox-rs", "Cargo.toml"),
+  path.join("packages", "shared", "package.json"),
+  path.join("packages", "tokenizer-rs", "native", "Cargo.toml"),
   path.join("scripts", "config", "code-web-bundle-budget.config.mjs"),
   "scripts/check-repo-sot.mjs",
   path.join("scripts", "lib"),
@@ -221,6 +239,81 @@ describe("check-repo-sot", () => {
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("tracked content contains a banned legacy token");
       expect(result.stderr).toContain(bannedLegacyToken);
+    },
+    repoSotTestTimeoutMs
+  );
+
+  it(
+    "fails when pnpm workspace supply-chain guardrails drift from the repo baseline",
+    async () => {
+      const tempRoot = await mkdtemp(path.join(tmpdir(), "repo-sot-"));
+      tempRoots.push(tempRoot);
+      await createTrackedFixtureRepo(tempRoot);
+
+      const workspacePath = path.join(tempRoot, "pnpm-workspace.yaml");
+      const workspaceContent = await readFile(workspacePath, "utf8");
+      await writeFile(
+        workspacePath,
+        workspaceContent.replace("blockExoticSubdeps: true", "blockExoticSubdeps: false"),
+        "utf8"
+      );
+      stageFixtureChanges(tempRoot);
+
+      const result = runRepoSot(tempRoot);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("pnpm-workspace.yaml: blockExoticSubdeps must be true");
+    },
+    repoSotTestTimeoutMs
+  );
+
+  it(
+    "fails when the release workflow loses npm provenance configuration",
+    async () => {
+      const tempRoot = await mkdtemp(path.join(tmpdir(), "repo-sot-"));
+      tempRoots.push(tempRoot);
+      await createTrackedFixtureRepo(tempRoot);
+
+      const releaseWorkflowPath = path.join(tempRoot, ".github", "workflows", "release.yml");
+      const releaseWorkflow = await readFile(releaseWorkflowPath, "utf8");
+      await writeFile(
+        releaseWorkflowPath,
+        releaseWorkflow.replace('NPM_CONFIG_PROVENANCE: "true"\n', ""),
+        "utf8"
+      );
+      stageFixtureChanges(tempRoot);
+
+      const result = runRepoSot(tempRoot);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(".github/workflows/release.yml");
+      expect(result.stderr).toContain("NPM_CONFIG_PROVENANCE");
+    },
+    repoSotTestTimeoutMs
+  );
+
+  it(
+    "fails when public package provenance metadata drifts",
+    async () => {
+      const tempRoot = await mkdtemp(path.join(tmpdir(), "repo-sot-"));
+      tempRoots.push(tempRoot);
+      await createTrackedFixtureRepo(tempRoot);
+
+      const sharedPackagePath = path.join(tempRoot, "packages", "shared", "package.json");
+      const sharedPackage = await readFile(sharedPackagePath, "utf8");
+      await writeFile(
+        sharedPackagePath,
+        sharedPackage.replace('"provenance": true', '"provenance": false'),
+        "utf8"
+      );
+      stageFixtureChanges(tempRoot);
+
+      const result = runRepoSot(tempRoot);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "packages/shared/package.json: publishConfig.provenance must be true"
+      );
     },
     repoSotTestTimeoutMs
   );

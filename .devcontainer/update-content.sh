@@ -6,5 +6,8 @@ export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-${WORKSPACE_DIR}/.c
 
 corepack enable
 corepack prepare pnpm@10.28.0 --activate
-pnpm install
-pnpm -C tests/e2e exec playwright install --only-shell chromium
+pnpm install --frozen-lockfile
+
+while IFS= read -r playwright_cli; do
+  node "${playwright_cli}" install --only-shell chromium
+done < <(find "${WORKSPACE_DIR}/node_modules/.pnpm" -path "*/node_modules/playwright/cli.js" | sort -u)
