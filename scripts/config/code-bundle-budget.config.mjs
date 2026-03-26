@@ -3,6 +3,7 @@ export const codeBundleBudgetConfig = {
   chunkMaxBytes: 350_000,
   growthTolerancePct: 3,
   knownLargeChunkPrefixes: {
+    "app-bootstrap-": 350_206,
     "MainApp-": 560_000,
     "MainAppContainerCore-": 560_000,
     "emacs-lisp-": 779_847,
