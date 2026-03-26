@@ -84,12 +84,12 @@ describe("ComposerMetaBar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
 
-    const menu = screen.getByRole("listbox", { name: "Model" });
+    const menu = screen.getByRole("menu", { name: "Default models" });
     expect(within(menu).getByText("Model Available")).toBeTruthy();
     expect(within(menu).queryByText("Model Unavailable (unavailable)")).toBeNull();
   });
 
-  it("disambiguates duplicate model labels when multiple runtime routes expose the same model", () => {
+  it("deduplicates duplicate routes inside the same provider and keeps provider selection separate", () => {
     render(
       <ComposerMetaBar
         disabled={false}
@@ -130,13 +130,15 @@ describe("ComposerMetaBar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
 
-    const menu = screen.getByRole("listbox", { name: "Model" });
-    expect(within(menu).getByText("GPT-5.3 Codex / codex-primary")).toBeTruthy();
-    expect(within(menu).getByText("GPT-5.3 Codex / codex-secondary")).toBeTruthy();
+    const providerMenu = screen.getByRole("menu", { name: "Model providers" });
+    expect(within(providerMenu).getAllByRole("menuitem", { name: "Codex" })).toHaveLength(1);
+    const menu = screen.getByRole("menu", { name: "Codex models" });
+    expect(within(menu).getAllByText("GPT-5.3 Codex")).toHaveLength(1);
   });
 
-  it("shows provider families and switches to the provider's recommended route model", () => {
+  it("groups Claude routes under one provider and prefers local Claude Code for the family default", () => {
     const onSelectModel = vi.fn();
+
     render(
       <ComposerMetaBar
         disabled={false}
@@ -145,23 +147,31 @@ describe("ComposerMetaBar", () => {
         onSelectCollaborationMode={vi.fn()}
         models={[
           {
-            id: "openai-primary",
-            model: "gpt-5.1",
-            displayName: "GPT-5.1",
-            provider: "openai",
-            pool: "codex-primary",
+            id: "anthropic::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude",
+            provider: "anthropic",
             available: true,
           },
           {
-            id: "claude-opus",
-            model: "claude-opus-4-5",
-            displayName: "Claude Opus 4.5",
+            id: "claude_code_local::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude_code_local",
             provider: "claude_code_local",
-            pool: "claude",
+            available: true,
+          },
+          {
+            id: "openai::gpt-5.4",
+            model: "gpt-5.4",
+            displayName: "GPT-5.4",
+            pool: "codex",
+            provider: "openai",
             available: true,
           },
         ]}
-        selectedModelId="openai-primary"
+        selectedModelId="openai::gpt-5.4"
         onSelectModel={onSelectModel}
         reasoningOptions={[]}
         selectedEffort={null}
@@ -175,18 +185,137 @@ describe("ComposerMetaBar", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Provider" }));
+    fireEvent.click(screen.getByRole("button", { name: "Model" }));
 
-    const menu = screen.getByRole("listbox", { name: "Provider" });
-    expect(within(menu).getByRole("option", { name: "Codex" })).toBeTruthy();
-    expect(within(menu).getByRole("option", { name: "Claude" })).toBeTruthy();
+    const providerMenu = screen.getByRole("menu", { name: "Model providers" });
+    expect(within(providerMenu).getAllByRole("menuitem", { name: "Claude" })).toHaveLength(1);
+    expect(within(providerMenu).getByRole("menuitem", { name: "Codex" })).toBeTruthy();
 
-    fireEvent.click(within(menu).getByRole("option", { name: "Claude" }));
-
-    expect(onSelectModel).toHaveBeenCalledWith("claude-opus");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Claude" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Claude Sonnet 4.5" }));
+    expect(onSelectModel).toHaveBeenCalledWith("claude_code_local::claude-sonnet-4-5");
   });
 
-  it("filters the model menu to the selected provider family while preserving exact route ids", () => {
+  it("shows collapsed routing badges for the selected provider route", () => {
+    render(
+      <ComposerMetaBar
+        disabled={false}
+        collaborationModes={[]}
+        selectedCollaborationModeId={null}
+        onSelectCollaborationMode={vi.fn()}
+        modelSelectionMode="auto"
+        models={[
+          {
+            id: "claude_code_local::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude_code_local",
+            provider: "claude_code_local",
+            available: true,
+            providerReadinessKind: "ready",
+            providerReadinessMessage: "Local Claude Code is ready on this machine.",
+            executionKind: "local",
+          },
+        ]}
+        selectedModelId="claude_code_local::claude-sonnet-4-5"
+        onSelectProvider={vi.fn()}
+        onSelectModelSelectionMode={vi.fn()}
+        onSelectModel={vi.fn()}
+        reasoningOptions={[]}
+        selectedEffort={null}
+        onSelectEffort={vi.fn()}
+        reasoningSupported={false}
+        accessMode="on-request"
+        onSelectAccessMode={vi.fn()}
+        executionOptions={[{ value: "runtime", label: "Runtime" }]}
+        selectedExecutionMode="runtime"
+        onSelectExecutionMode={vi.fn()}
+      />
+    );
+
+    const modelButton = screen.getByRole("button", { name: "Model" });
+    expect(modelButton.textContent).toContain("Claude Sonnet 4.5");
+    expect(modelButton.textContent).toContain("Auto");
+    expect(modelButton.textContent).toContain("Local");
+    expect(modelButton.textContent).toContain("Ready");
+    expect(modelButton.getAttribute("title")).toContain("Auto route");
+    expect(modelButton.getAttribute("title")).toContain(
+      "Local Claude Code is ready on this machine."
+    );
+
+    fireEvent.click(modelButton);
+    expect(
+      screen
+        .getByRole("menuitemradio", { name: /Use recommended route/i })
+        .getAttribute("aria-checked")
+    ).toBe("true");
+    expect(
+      screen
+        .getByRole("menuitemradio", { name: /Claude Sonnet 4\.5/i })
+        .getAttribute("aria-checked")
+    ).toBe("false");
+  });
+
+  it("prefers the selected route metadata over family-level badges", () => {
+    render(
+      <ComposerMetaBar
+        disabled={false}
+        collaborationModes={[]}
+        selectedCollaborationModeId={null}
+        onSelectCollaborationMode={vi.fn()}
+        modelSelectionMode="manual"
+        models={[
+          {
+            id: "anthropic::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude",
+            provider: "anthropic",
+            available: true,
+            providerReadinessKind: "ready",
+            providerReadinessMessage: "Claude Code cloud routing is ready.",
+            executionKind: "cloud",
+          },
+          {
+            id: "claude_code_local::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude_code_local",
+            provider: "claude_code_local",
+            available: true,
+            providerReadinessKind: "ready",
+            providerReadinessMessage: "Local Claude Code is ready on this machine.",
+            executionKind: "local",
+          },
+        ]}
+        selectedProviderId="claude"
+        selectedModelId="anthropic::claude-sonnet-4-5"
+        onSelectProvider={vi.fn()}
+        onSelectModelSelectionMode={vi.fn()}
+        onSelectModel={vi.fn()}
+        reasoningOptions={[]}
+        selectedEffort={null}
+        onSelectEffort={vi.fn()}
+        reasoningSupported={false}
+        accessMode="on-request"
+        onSelectAccessMode={vi.fn()}
+        executionOptions={[{ value: "runtime", label: "Runtime" }]}
+        selectedExecutionMode="runtime"
+        onSelectExecutionMode={vi.fn()}
+      />
+    );
+
+    const modelButton = screen.getByRole("button", { name: "Model" });
+    expect(modelButton.textContent).toContain("Manual");
+    expect(modelButton.textContent).toContain("Cloud");
+    expect(modelButton.textContent).not.toContain("Local");
+    expect(modelButton.getAttribute("title")).toContain("Claude Code cloud routing is ready.");
+    expect(modelButton.getAttribute("title")).not.toContain(
+      "Local Claude Code is ready on this machine."
+    );
+  });
+
+  it("lists only the deduplicated models for the selected provider family", () => {
     render(
       <ComposerMetaBar
         disabled={false}
@@ -195,31 +324,23 @@ describe("ComposerMetaBar", () => {
         onSelectCollaborationMode={vi.fn()}
         models={[
           {
-            id: "openai-primary",
-            model: "gpt-5.1",
-            displayName: "GPT-5.1",
-            provider: "openai",
-            pool: "codex-primary",
-            available: true,
-          },
-          {
-            id: "openai-secondary",
-            model: "gpt-5.1",
-            displayName: "GPT-5.1",
-            provider: "openai",
-            pool: "codex-secondary",
-            available: true,
-          },
-          {
-            id: "claude-opus",
-            model: "claude-opus-4-5",
-            displayName: "Claude Opus 4.5",
-            provider: "claude_code_local",
+            id: "anthropic::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
             pool: "claude",
+            provider: "anthropic",
+            available: true,
+          },
+          {
+            id: "claude_code_local::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude_code_local",
+            provider: "claude_code_local",
             available: true,
           },
         ]}
-        selectedModelId="openai-primary"
+        selectedModelId="claude_code_local::claude-sonnet-4-5"
         onSelectModel={vi.fn()}
         reasoningOptions={[]}
         selectedEffort={null}
@@ -235,35 +356,60 @@ describe("ComposerMetaBar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Model" }));
 
-    const menu = screen.getByRole("listbox", { name: "Model" });
-    expect(within(menu).getByText("GPT-5.1 / codex-primary")).toBeTruthy();
-    expect(within(menu).getByText("GPT-5.1 / codex-secondary")).toBeTruthy();
-    expect(within(menu).queryByText("Claude Opus 4.5")).toBeNull();
+    const providerMenu = screen.getByRole("menu", { name: "Model providers" });
+    fireEvent.click(within(providerMenu).getByRole("menuitem", { name: "Claude" }));
+
+    const menu = screen.getByRole("menu", { name: "Claude models" });
+    expect(within(menu).getByRole("menuitemradio", { name: "Claude Sonnet 4.5" })).toBeTruthy();
+    expect(within(menu).queryByText("GPT-5.4")).toBeNull();
   });
 
-  it("shows the OpenAI model icon by default and swaps to lightning when fast speed is active", () => {
-    const { container, rerender } = render(
+  it("does not hijack pointerdown events from selection menus inside the composer meta row", () => {
+    const onSelectModel = vi.fn();
+    const onSelectModelSelectionMode = vi.fn();
+    const onSelectAutoRoute = vi.fn();
+
+    render(
       <ComposerMetaBar
         disabled={false}
         collaborationModes={[]}
         selectedCollaborationModeId={null}
         onSelectCollaborationMode={vi.fn()}
+        modelSelectionMode="manual"
+        onSelectAutoRoute={onSelectAutoRoute}
+        onSelectModelSelectionMode={onSelectModelSelectionMode}
         models={[
           {
-            id: "gpt-5.4",
+            id: "anthropic::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude",
+            provider: "anthropic",
+            available: true,
+          },
+          {
+            id: "claude_code_local::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            pool: "claude_code_local",
+            provider: "claude_code_local",
+            available: true,
+          },
+          {
+            id: "openai::gpt-5.4",
             model: "gpt-5.4",
             displayName: "GPT-5.4",
+            pool: "codex",
             provider: "openai",
             available: true,
           },
         ]}
-        selectedModelId="gpt-5.4"
-        onSelectModel={vi.fn()}
-        reasoningOptions={["low", "medium", "high"]}
-        selectedEffort="medium"
+        selectedModelId="openai::gpt-5.4"
+        onSelectModel={onSelectModel}
+        reasoningOptions={[]}
+        selectedEffort={null}
         onSelectEffort={vi.fn()}
-        fastModeEnabled={false}
-        reasoningSupported={true}
+        reasoningSupported={false}
         accessMode="on-request"
         onSelectAccessMode={vi.fn()}
         executionOptions={[{ value: "runtime", label: "Runtime" }]}
@@ -272,45 +418,27 @@ describe("ComposerMetaBar", () => {
       />
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Model" }));
+    const autoOption = screen.getByRole("menuitemradio", {
+      name: /Use recommended route/i,
+    });
+    expect(autoOption.getAttribute("aria-checked")).toBe("false");
     expect(
-      container.querySelector(".composer-icon--model")?.getAttribute("data-fast-speed-enabled")
-    ).toBe("false");
-    expect(container.querySelector(".composer-icon--model title")?.textContent).toBe("OpenAI");
-
-    rerender(
-      <ComposerMetaBar
-        disabled={false}
-        collaborationModes={[]}
-        selectedCollaborationModeId={null}
-        onSelectCollaborationMode={vi.fn()}
-        models={[
-          {
-            id: "gpt-5.4",
-            model: "gpt-5.4",
-            displayName: "GPT-5.4",
-            provider: "openai",
-            available: true,
-          },
-        ]}
-        selectedModelId="gpt-5.4"
-        onSelectModel={vi.fn()}
-        reasoningOptions={["low", "medium", "high"]}
-        selectedEffort="low"
-        onSelectEffort={vi.fn()}
-        fastModeEnabled={true}
-        reasoningSupported={true}
-        accessMode="on-request"
-        onSelectAccessMode={vi.fn()}
-        executionOptions={[{ value: "runtime", label: "Runtime" }]}
-        selectedExecutionMode="runtime"
-        onSelectExecutionMode={vi.fn()}
-      />
-    );
-
-    expect(
-      container.querySelector(".composer-icon--model")?.getAttribute("data-fast-speed-enabled")
+      screen.getByRole("menuitemradio", { name: "GPT-5.4" }).getAttribute("aria-checked")
     ).toBe("true");
-    expect(container.querySelector(".composer-icon--model title")?.textContent).not.toBe("OpenAI");
+    fireEvent.pointerDown(autoOption);
+    fireEvent.click(autoOption);
+    expect(onSelectAutoRoute).toHaveBeenCalledWith("codex");
+    expect(onSelectModelSelectionMode).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Model" }));
+    const claudeProvider = screen.getByRole("menuitem", { name: "Claude" });
+    fireEvent.pointerDown(claudeProvider);
+    fireEvent.click(claudeProvider);
+    const claudeModel = screen.getByRole("menuitemradio", { name: "Claude Sonnet 4.5" });
+    fireEvent.pointerDown(claudeModel);
+    fireEvent.click(claudeModel);
+    expect(onSelectModel).toHaveBeenCalledWith("claude_code_local::claude-sonnet-4-5");
   });
 
   it("renders a single collaboration toggle when plan mode is available", () => {
@@ -385,7 +513,7 @@ describe("ComposerMetaBar", () => {
     );
 
     const modeButton = screen.getByRole("button", { name: "Chat" });
-    const modelWrap = container.querySelector(".composer-select-wrap--model");
+    const modelWrap = container.querySelector(".composer-select-wrap--model-provider");
     if (!modelWrap) {
       throw new Error("Model wrap not found");
     }
@@ -537,7 +665,9 @@ describe("ComposerMetaBar", () => {
       />
     );
 
-    expect(screen.getAllByText("Model Unavailable (unavailable)").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Model" }).textContent).toContain(
+      "Model Unavailable"
+    );
 
     const modelButtons = within(container).getAllByRole("button", { name: "Model" });
     const modelButton = modelButtons.at(-1);
@@ -546,12 +676,13 @@ describe("ComposerMetaBar", () => {
     }
     fireEvent.click(modelButton);
 
-    const menus = screen.getAllByRole("listbox", { name: "Model" });
+    const menus = screen.getAllByRole("menu", { name: "Default models" });
     const menu = menus.at(-1);
     if (!menu) {
       throw new Error("Model menu not found");
     }
-    expect(within(menu).getByText("Model Unavailable (unavailable)")).toBeTruthy();
+    expect(within(menu).getByText("Model Unavailable")).toBeTruthy();
+    expect(within(menu).getByText("Unavailable")).toBeTruthy();
     expect(within(menu).getByText("Model Available")).toBeTruthy();
   });
 

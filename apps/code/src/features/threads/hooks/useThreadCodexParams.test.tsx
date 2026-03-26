@@ -35,6 +35,8 @@ describe("useThreadCodexParams", () => {
         missionMode: "delegate",
         executionProfileId: "balanced-delegate",
         preferredBackendIds: ["backend-a", "backend-b"],
+        providerFamilyId: null,
+        selectionMode: null,
       })
     );
 
@@ -74,6 +76,8 @@ describe("useThreadCodexParams", () => {
       missionMode: null,
       executionProfileId: null,
       preferredBackendIds: ["backend-a"],
+      providerFamilyId: null,
+      selectionMode: null,
       autoDriveDraft: null,
       updatedAt: 0,
     });
@@ -118,6 +122,8 @@ describe("useThreadCodexParams", () => {
       missionMode: "pair",
       executionProfileId: "operator-review",
       preferredBackendIds: ["backend-c"],
+      providerFamilyId: null,
+      selectionMode: null,
       autoDriveDraft: null,
       updatedAt: 1,
     });

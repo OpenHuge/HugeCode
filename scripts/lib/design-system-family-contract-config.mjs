@@ -405,7 +405,7 @@ export const DESIGN_SYSTEM_FAMILY_CONTRACTS = [
       type: "representative_app_surface",
       evidence: [
         {
-          relativePath: "apps/code/src/features/home/components/Home.tsx",
+          relativePath: "apps/code/src/features/home/components/HomeMissionLaunchpadSection.tsx",
           importSource: "app_design_system",
           requiredImports: ["SectionHeader"],
           requiredUsageSnippets: ["<SectionHeader"],
@@ -519,8 +519,14 @@ export const DESIGN_SYSTEM_FAMILY_CONTRACTS = [
         {
           relativePath: "apps/code/src/features/home/components/Home.tsx",
           importSource: "app_design_system",
-          requiredImports: ["EmptySurface", "ShellFrame", "ShellSection"],
-          requiredUsageSnippets: ["<EmptySurface", "<ShellFrame", "<ShellSection"],
+          requiredImports: ["ShellFrame", "ShellSection"],
+          requiredUsageSnippets: ["<ShellFrame", "<ShellSection"],
+        },
+        {
+          relativePath: "apps/code/src/features/home/components/HomeRecentMissionsSection.tsx",
+          importSource: "app_design_system",
+          requiredImports: ["EmptySurface"],
+          requiredUsageSnippets: ["<EmptySurface"],
         },
         {
           relativePath: "apps/code/src/features/composer/components/ComposerShell.tsx",
@@ -581,7 +587,7 @@ export const DESIGN_SYSTEM_FAMILY_CONTRACTS = [
       type: "representative_app_surface",
       evidence: [
         {
-          relativePath: "apps/code/src/features/home/components/Home.tsx",
+          relativePath: "apps/code/src/features/home/components/HomeMissionLaunchpadSection.tsx",
           importSource: "app_design_system",
           requiredImports: ["Surface"],
           requiredUsageSnippets: ["<Surface"],

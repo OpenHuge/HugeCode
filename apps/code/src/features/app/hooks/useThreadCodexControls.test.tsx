@@ -458,10 +458,14 @@ describe("useThreadCodexControls", () => {
       );
     });
 
-    result.current.handleSelectModel("openai::gpt-5.3-codex");
+    act(() => {
+      result.current.handleSelectModel("openai::gpt-5.3-codex");
+    });
 
     expect(patchThreadCodexParams).toHaveBeenCalledWith("workspace-1", "thread-1", {
       modelId: "openai::gpt-5.3-codex",
+      selectionMode: "manual",
+      providerFamilyId: "codex",
     });
   });
 

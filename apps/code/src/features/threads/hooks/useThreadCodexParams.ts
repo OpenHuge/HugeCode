@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { HugeCodeTaskMode } from "@ku0/code-runtime-host-contract";
-import type { AccessMode, ComposerExecutionMode } from "../../../types";
+import type {
+  AccessMode,
+  ComposerExecutionMode,
+  ComposerModelSelectionMode,
+  ModelProviderFamilyId,
+} from "../../../types";
 import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
 import { normalizePreferredBackendIds } from "../../../application/runtime/facades/runtimeMissionDraftFacade";
 import {
@@ -17,6 +22,8 @@ export type ThreadCodexParamsPatch = Partial<
     ThreadCodexParams,
     | "modelId"
     | "effort"
+    | "selectionMode"
+    | "providerFamilyId"
     | "fastMode"
     | "accessMode"
     | "collaborationModeId"
@@ -42,6 +49,8 @@ type UseThreadCodexParamsResult = {
 const DEFAULT_ENTRY: ThreadCodexParams = {
   modelId: null,
   effort: null,
+  selectionMode: null,
+  providerFamilyId: null,
   fastMode: null,
   accessMode: null,
   collaborationModeId: null,
@@ -184,6 +193,20 @@ function coerceOptionalBoolean(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
 
+function coerceSelectionMode(value: unknown): ComposerModelSelectionMode | null {
+  if (value === "auto" || value === "manual") {
+    return value;
+  }
+  return null;
+}
+
+function coerceProviderFamilyId(value: unknown): ModelProviderFamilyId | null {
+  if (value === "codex" || value === "claude" || value === "gemini" || value === "antigravity") {
+    return value;
+  }
+  return null;
+}
+
 function sanitizeEntry(value: unknown): ThreadCodexParams | null {
   if (!value || typeof value !== "object") {
     return null;
@@ -192,6 +215,8 @@ function sanitizeEntry(value: unknown): ThreadCodexParams | null {
   return {
     modelId: typeof entry.modelId === "string" ? entry.modelId : null,
     effort: typeof entry.effort === "string" ? entry.effort : null,
+    selectionMode: coerceSelectionMode(entry.selectionMode),
+    providerFamilyId: coerceProviderFamilyId(entry.providerFamilyId),
     fastMode: coerceOptionalBoolean(entry.fastMode),
     accessMode: coerceAccessMode(entry.accessMode),
     collaborationModeId:

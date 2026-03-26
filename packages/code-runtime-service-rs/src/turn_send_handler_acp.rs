@@ -10,6 +10,8 @@ pub(super) struct TurnSendTaskInput {
     pub(super) local_exec_content: String,
     pub(super) routed_provider_route: TurnProviderRoute,
     pub(super) model_id: String,
+    pub(super) display_model_id: Option<String>,
+    pub(super) requested_model_id: Option<String>,
     pub(super) reason_effort: Option<String>,
     pub(super) service_tier: Option<String>,
     pub(super) access_mode: String,
