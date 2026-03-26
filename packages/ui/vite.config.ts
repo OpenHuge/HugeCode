@@ -1,10 +1,11 @@
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
 import preserveDirectives from "rollup-preserve-directives";
 import { defineConfig } from "vite";
 
+const packageDir = dirname(fileURLToPath(import.meta.url));
 const designSystemStylesEntry = fileURLToPath(
   new URL("../design-system/src/styles.ts", import.meta.url)
 );
@@ -52,9 +53,9 @@ export default defineConfig({
       plugins: [preserveDirectives()],
       preserveEntrySignatures: "exports-only",
       input: {
-        index: resolve(__dirname, "src/index.ts"),
-        "styles/globals": resolve(__dirname, "src/styles/globals.ts"),
-        "styles/tokens": resolve(__dirname, "src/styles/tokens.ts"),
+        index: resolve(packageDir, "src/index.ts"),
+        "styles/globals": resolve(packageDir, "src/styles/globals.ts"),
+        "styles/tokens": resolve(packageDir, "src/styles/tokens.ts"),
       },
       external: isExternal,
       output: {

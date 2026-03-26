@@ -1,0 +1,55 @@
+name: _reusable-ci-pr-affected-tests
+
+on:
+  workflow_call:
+    inputs:
+      ci_required:
+        required: true
+        type: boolean
+      skip_expensive_checks:
+        required: false
+        type: boolean
+        default: false
+      repo_governance_only:
+        required: false
+        type: boolean
+        default: false
+      diff_base:
+        required: false
+        type: string
+        default: ""
+
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_API: ${{ vars.TURBO_API }}
+
+jobs:
+  pr_affected_tests:
+    name: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: inputs.ci_required && !inputs.skip_expensive_checks && !inputs.repo_governance_only
+    env:
+      TURBO_CACHE_DIR: .turbo
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Ensure diff base ref is available
+        if: startsWith(inputs.diff_base, 'origin/')
+        run: |
+          base_ref="${{ inputs.diff_base }}"
+          base_ref="${base_ref#origin/}"
+          git fetch --no-tags --prune --depth=1 origin \
+            "+refs/heads/${base_ref}:refs/remotes/${{ inputs.diff_base }}"
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm install --offline --frozen-lockfile
+
+      - uses: ./.github/actions/cache-turbo
+
+      - name: Tests (affected)
+        env:
+          TURBO_BASE_REF: ${{ inputs.diff_base }}
+        run: pnpm test:affected -- --filter=!@ku0/code-tauri

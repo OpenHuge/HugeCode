@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -7,132 +7,173 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "..", "..");
 const tempRoots: string[] = [];
-const classifierScriptPath = path.join(repoRoot, "scripts", "classify-ci-change-scope.mjs");
 
-function runGit(tempRoot: string, args: string[]) {
+function runGit(targetRoot: string, args: string[]) {
   const result = spawnSync("git", args, {
-    cwd: tempRoot,
+    cwd: targetRoot,
     encoding: "utf8",
   });
 
   if (result.status !== 0) {
-    throw new Error(result.stderr || `git ${args.join(" ")} failed`);
+    throw new Error(`git ${args.join(" ")} failed: ${result.stderr || result.stdout}`);
   }
 }
 
-async function writeRepoFile(tempRoot: string, relativePath: string, content: string) {
-  const targetPath = path.join(tempRoot, relativePath);
-  await mkdir(path.dirname(targetPath), { recursive: true });
-  await writeFile(targetPath, content, "utf8");
+async function writeFixtureFile(targetRoot: string, relativePath: string, content: string) {
+  const absolutePath = path.join(targetRoot, relativePath);
+  await mkdir(path.dirname(absolutePath), { recursive: true });
+  await writeFile(absolutePath, content, "utf8");
 }
 
-async function createFixtureRepo() {
-  const tempRoot = await mkdtemp(path.join(tmpdir(), "ci-change-scope-"));
+async function createFixtureRepo(): Promise<string> {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), "classify-ci-scope-"));
   tempRoots.push(tempRoot);
 
   await mkdir(path.join(tempRoot, "scripts"), { recursive: true });
-  await cp(classifierScriptPath, path.join(tempRoot, "scripts", "classify-ci-change-scope.mjs"));
-  await writeRepoFile(tempRoot, "README.md", "# fixture\n");
+  await cp(
+    path.join(repoRoot, "scripts", "classify-ci-change-scope.mjs"),
+    path.join(tempRoot, "scripts", "classify-ci-change-scope.mjs")
+  );
+
+  await writeFixtureFile(tempRoot, ".github/workflows/ci.yml", "name: CI\n");
+  await writeFixtureFile(tempRoot, "README.md", "# fixture\n");
+  await writeFixtureFile(tempRoot, "docs/development/README.md", "# Development\n");
+  await writeFixtureFile(tempRoot, "docs/development/ci-workflows.md", "# CI Workflows\n");
 
   runGit(tempRoot, ["init", "--initial-branch=main"]);
-  runGit(tempRoot, ["config", "user.name", "Codex"]);
-  runGit(tempRoot, ["config", "user.email", "codex@example.com"]);
   runGit(tempRoot, ["add", "-A"]);
-  runGit(tempRoot, ["commit", "-m", "fixture"]);
+  runGit(tempRoot, [
+    "-c",
+    "user.name=Codex",
+    "-c",
+    "user.email=codex@example.com",
+    "commit",
+    "-m",
+    "baseline",
+  ]);
 
   return tempRoot;
 }
 
-async function commitChange(tempRoot: string, relativePath: string) {
-  const targetPath = path.join(tempRoot, relativePath);
-  let nextContent = `changed ${relativePath}\n`;
-
-  try {
-    const existingContent = await readFile(targetPath, "utf8");
-    nextContent = `${existingContent}\n// changed ${relativePath}\n`;
-  } catch {}
-
-  await writeRepoFile(tempRoot, relativePath, nextContent);
-  runGit(tempRoot, ["add", "-A"]);
-  runGit(tempRoot, ["commit", "-m", `change ${relativePath}`]);
+function commitAll(targetRoot: string, message: string) {
+  runGit(targetRoot, ["add", "-A"]);
+  runGit(targetRoot, [
+    "-c",
+    "user.name=Codex",
+    "-c",
+    "user.email=codex@example.com",
+    "commit",
+    "-m",
+    message,
+  ]);
 }
 
-function runClassifier(tempRoot: string) {
+async function commitChangedFile(targetRoot: string, relativePath: string, content: string) {
+  await writeFixtureFile(targetRoot, relativePath, content);
+  commitAll(targetRoot, `change ${relativePath}`);
+}
+
+function runClassifier(targetRoot: string) {
   return spawnSync(
     process.execPath,
-    [path.join(tempRoot, "scripts", "classify-ci-change-scope.mjs")],
+    [path.join(targetRoot, "scripts", "classify-ci-change-scope.mjs")],
     {
-      cwd: tempRoot,
+      cwd: targetRoot,
       encoding: "utf8",
     }
   );
 }
 
-function parseOutput(stdout: string) {
-  return Object.fromEntries(
+function parseOutputs(stdout: string) {
+  return new Map(
     stdout
-      .trim()
       .split(/\r?\n/u)
+      .map((line) => line.trim())
       .filter(Boolean)
       .map((line) => {
-        const [key, value] = line.split("=", 2);
-        return [key, value];
+        const separatorIndex = line.indexOf("=");
+        return [line.slice(0, separatorIndex), line.slice(separatorIndex + 1)];
       })
   );
 }
 
 describe("classify-ci-change-scope", () => {
   afterEach(async () => {
-    await Promise.all(tempRoots.map((tempRoot) => rm(tempRoot, { recursive: true, force: true })));
+    await Promise.all(
+      tempRoots.map(async (rootPath) => {
+        await rm(rootPath, { recursive: true, force: true });
+      })
+    );
     tempRoots.length = 0;
+  });
+
+  it("treats workflow plus development guide changes as repo-governance-only", async () => {
+    const tempRoot = await createFixtureRepo();
+
+    await writeFixtureFile(tempRoot, ".github/workflows/ci.yml", "name: CI\n# updated\n");
+    await writeFixtureFile(tempRoot, "docs/development/README.md", "# Development\nUpdated.\n");
+    commitAll(tempRoot, "governance update");
+
+    const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(outputs.get("repo_governance_only")).toBe("true");
+    expect(outputs.get("manifest_only")).toBe("false");
+    expect(outputs.get("build_skip_eligible_only")).toBe("false");
   });
 
   it("does not classify devcontainer changes as frontend or UI-owned work", async () => {
     const tempRoot = await createFixtureRepo();
-    await commitChange(tempRoot, ".devcontainer/update-content.sh");
+    await commitChangedFile(tempRoot, ".devcontainer/update-content.sh", "echo updated\n");
 
     const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
 
     expect(result.status).toBe(0);
-    expect(parseOutput(result.stdout)).toMatchObject({
-      build_skip_eligible_only: "false",
-      circular_required: "false",
-      frontend_optimization_changed: "false",
-      quality_core_changed: "false",
-      repo_governance_only: "false",
-      ui_contract_required: "false",
-    });
+    expect(outputs.get("build_skip_eligible_only")).toBe("false");
+    expect(outputs.get("circular_required")).toBe("false");
+    expect(outputs.get("frontend_optimization_changed")).toBe("false");
+    expect(outputs.get("quality_core_changed")).toBe("false");
+    expect(outputs.get("repo_governance_only")).toBe("false");
+    expect(outputs.get("ui_contract_required")).toBe("false");
   });
 
   it("keeps shared workflow-governance action edits out of frontend optimization", async () => {
     const tempRoot = await createFixtureRepo();
-    await commitChange(tempRoot, ".github/actions/setup-playwright/action.yml");
+    await commitChangedFile(
+      tempRoot,
+      ".github/actions/setup-playwright/action.yml",
+      "name: Setup Playwright\n"
+    );
 
     const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
 
     expect(result.status).toBe(0);
-    expect(parseOutput(result.stdout)).toMatchObject({
-      circular_required: "false",
-      frontend_optimization_changed: "false",
-      quality_core_changed: "false",
-      repo_governance_only: "true",
-      ui_contract_required: "false",
-    });
+    expect(outputs.get("circular_required")).toBe("false");
+    expect(outputs.get("frontend_optimization_changed")).toBe("false");
+    expect(outputs.get("quality_core_changed")).toBe("false");
+    expect(outputs.get("repo_governance_only")).toBe("true");
+    expect(outputs.get("ui_contract_required")).toBe("false");
   });
 
   it("still classifies real app source changes as frontend and UI work", async () => {
     const tempRoot = await createFixtureRepo();
-    await commitChange(tempRoot, "apps/code/src/app-shell.tsx");
+    await commitChangedFile(
+      tempRoot,
+      "apps/code/src/app-shell.tsx",
+      "export const AppShell = () => null;\n"
+    );
 
     const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
 
     expect(result.status).toBe(0);
-    expect(parseOutput(result.stdout)).toMatchObject({
-      circular_required: "true",
-      frontend_optimization_changed: "true",
-      quality_core_changed: "true",
-      repo_governance_only: "false",
-      ui_contract_required: "true",
-    });
+    expect(outputs.get("circular_required")).toBe("true");
+    expect(outputs.get("frontend_optimization_changed")).toBe("true");
+    expect(outputs.get("quality_core_changed")).toBe("true");
+    expect(outputs.get("repo_governance_only")).toBe("false");
+    expect(outputs.get("ui_contract_required")).toBe("true");
   });
 });

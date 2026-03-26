@@ -1,13 +1,17 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { respondToServerRequest } from "../../../application/runtime/ports/tauriThreads";
 import type { ApprovalRequest } from "../../../types";
 import { getApprovalCommandInfo, matchesCommandPrefix } from "../../../utils/approvalRules";
 import { useThreadApprovalEvents } from "./useThreadApprovalEvents";
 
-vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
-  respondToServerRequest: vi.fn(),
+const respondToServerRequest = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
+  useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
+    respondToApproval: ({ requestId, decision }: Record<string, unknown>) =>
+      respondToServerRequest(workspaceId, requestId, decision),
+  }),
 }));
 
 vi.mock("../../../utils/approvalRules", () => ({

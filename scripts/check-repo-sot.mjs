@@ -14,9 +14,19 @@ const nodeVersion = baselines.node ?? "24.11.1";
 const nodeEngineRange = `>=${nodeVersion} <25`;
 const pnpmVersion = baselines.pnpm ?? "10.28.0";
 const rustVersion = baselines.rust ?? "1.93.1";
+const pnpmMinimumReleaseAgeMinutes = "60";
 const bannedLegacyToken = String.fromCharCode(99, 111, 119, 111, 114, 107);
 const bannedLegacyTokenPattern = new RegExp(bannedLegacyToken, "iu");
 const archiveRoot = path.join(repoRoot, "docs", "archive");
+const pnpmWorkspaceRelativePath = "pnpm-workspace.yaml";
+const devcontainerRelativePath = ".devcontainer/devcontainer.json";
+const setupNodePnpmActionRelativePath = ".github/actions/setup-node-pnpm/action.yml";
+const rustToolchainRelativePath = "rust-toolchain.toml";
+const dependabotRelativePath = ".github/dependabot.yml";
+const dependencyReviewWorkflowRelativePath = ".github/workflows/dependency-review.yml";
+const dependencyReviewConfigRelativePath = ".github/dependency-review-config.yml";
+const pullRequestTemplateRelativePath = ".github/PULL_REQUEST_TEMPLATE.md";
+const releaseWorkflowRelativePath = ".github/workflows/release.yml";
 const activeBiomeCompatibilityFiles = new Set([
   "scripts/check-repo-sot.mjs",
   "tests/scripts/check-repo-sot.test.ts",
@@ -186,7 +196,41 @@ const requiredChecks = [
       "pnpm check:workflow-governance",
       "Public Workflows vs Internal Reusable Workflows",
       "`.github/workflows/_reusable-*.yml`",
+      ".github/workflows/dependency-review.yml",
+      ".github/dependency-review-config.yml",
+      "release.yml",
+      "id-token: write",
+      "publishConfig.provenance: true",
       "_reusable-desktop-prepare-frontend.yml",
+    ],
+  },
+  {
+    file: dependencyReviewWorkflowRelativePath,
+    includes: [
+      "name: Dependency Review",
+      "pull_request:",
+      "permissions:",
+      "concurrency:",
+      "uses: actions/dependency-review-action@v4",
+      "config-file: ./.github/dependency-review-config.yml",
+    ],
+  },
+  {
+    file: dependencyReviewConfigRelativePath,
+    includes: ["fail-on-severity: high", "fail-on-scopes:", "- runtime", "- unknown"],
+  },
+  {
+    file: pullRequestTemplateRelativePath,
+    includes: [
+      "## Summary",
+      "## Validation",
+      "`pnpm validate:fast`",
+      "`pnpm validate`",
+      "`pnpm validate:full`",
+      "## Scope",
+      "## Risks / Known Issues",
+      "## Spec / Docs Impact",
+      "## UI Evidence",
     ],
   },
   {
@@ -216,6 +260,16 @@ const requiredChecks = [
       "pnpm check:runtime-contract",
       "Policy-domain package names, fixtures, and examples use the neutral `runtime-policy` family; removed product-branded policy names must not return in tracked runtime docs or code examples.",
     ],
+  },
+  {
+    file: "packages/discovery-rs/package.json",
+    includes: ['"description": "Rust mDNS discovery bindings for HugeCode."'],
+    excludes: ["HypeCode"],
+  },
+  {
+    file: "packages/discovery-rs/Cargo.toml",
+    includes: ['description = "mDNS discovery bindings for HugeCode."'],
+    excludes: ["HypeCode"],
   },
   {
     file: "docs/specs/README.md",
@@ -294,15 +348,48 @@ const requiredChecks = [
       "name: CI",
       "name: Repository SOT",
       "uses: ./.github/workflows/_reusable-ci-quality.yml",
+      "uses: ./.github/workflows/_reusable-ci-quality-baseline.yml",
+      "uses: ./.github/workflows/_reusable-ci-quality-typecheck.yml",
+      "uses: ./.github/workflows/_reusable-ci-runtime-contract-parity.yml",
+      "uses: ./.github/workflows/_reusable-ci-pr-affected-build.yml",
+      "uses: ./.github/workflows/_reusable-ci-pr-affected-tests.yml",
     ],
   },
   {
     file: ".github/workflows/_reusable-ci-quality.yml",
-    includes: ["name: _reusable-ci-quality", "name: Quality", "name: Runtime Contract Parity"],
+    includes: ["name: _reusable-ci-quality", "name: Quality", "Quality sub-jobs did not all pass."],
   },
   {
     file: ".github/workflows/_reusable-ci-pr-affected.yml",
-    includes: ["name: _reusable-ci-pr-affected", "name: PR Affected Checks"],
+    includes: [
+      "name: _reusable-ci-pr-affected",
+      "name: PR Affected Checks",
+      "Affected build/test sub-jobs did not all pass.",
+    ],
+  },
+  {
+    file: ".github/workflows/_reusable-ci-quality-baseline.yml",
+    includes: ["name: _reusable-ci-quality-baseline", "name: baseline"],
+  },
+  {
+    file: ".github/workflows/_reusable-ci-quality-typecheck.yml",
+    includes: ["name: _reusable-ci-quality-typecheck", "name: typecheck"],
+  },
+  {
+    file: ".github/workflows/_reusable-ci-runtime-contract-parity.yml",
+    includes: [
+      "name: _reusable-ci-runtime-contract-parity",
+      "name: runtime_contract_parity",
+      "name: Runtime Contract Parity",
+    ],
+  },
+  {
+    file: ".github/workflows/_reusable-ci-pr-affected-build.yml",
+    includes: ["name: _reusable-ci-pr-affected-build", "name: build"],
+  },
+  {
+    file: ".github/workflows/_reusable-ci-pr-affected-tests.yml",
+    includes: ["name: _reusable-ci-pr-affected-tests", "name: tests"],
   },
   {
     file: ".github/workflows/_reusable-ci-frontend-optimization.yml",
@@ -332,6 +419,15 @@ const requiredChecks = [
   {
     file: ".github/workflows/_reusable-desktop-build-release.yml",
     includes: ["name: _reusable-desktop-build-release", "name: Build", "name: Show sccache stats"],
+  },
+  {
+    file: releaseWorkflowRelativePath,
+    includes: [
+      "name: Release",
+      "id-token: write",
+      'NPM_CONFIG_PROVENANCE: "true"',
+      "publish: pnpm release",
+    ],
   },
 ];
 
@@ -467,6 +563,151 @@ function readTrackedTextFile(file) {
   return trackedTextFileCache.get(file);
 }
 
+function readRepoJsonFile(relativePath) {
+  const content = readRepoTextFile(relativePath);
+  if (content === null) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+
+function checkPublicPackagePublishMetadata(relativePath, expectedDirectory) {
+  const packageJson = readRepoJsonFile(relativePath);
+  if (packageJson === null) {
+    errors.push(`${relativePath}: file is missing or invalid JSON`);
+    return;
+  }
+
+  const repository = packageJson.repository;
+  if (
+    !repository ||
+    repository.type !== "git" ||
+    repository.url !== "https://github.com/OpenHuge/HugeCode.git" ||
+    repository.directory !== expectedDirectory
+  ) {
+    errors.push(
+      `${relativePath}: repository must target https://github.com/OpenHuge/HugeCode.git with directory ${expectedDirectory}`
+    );
+  }
+
+  if (packageJson.publishConfig?.access !== "public") {
+    errors.push(`${relativePath}: publishConfig.access must be public`);
+  }
+
+  if (packageJson.publishConfig?.provenance !== true) {
+    errors.push(`${relativePath}: publishConfig.provenance must be true`);
+  }
+}
+
+function readSingleLineYamlScalar(content, key) {
+  const match = content.match(new RegExp(`^${key}:\\s*([^#\\n]+)`, "mu"));
+  return match?.[1]?.trim() ?? null;
+}
+
+function readActionInputDefault(content, inputName) {
+  const lines = content.split(/\r?\n/u);
+  let inInputs = false;
+  let inTargetInput = false;
+  let targetIndent = 0;
+
+  for (const line of lines) {
+    const indent = line.match(/^ */u)?.[0].length ?? 0;
+    const trimmed = line.trim();
+
+    if (!inInputs) {
+      if (trimmed === "inputs:") {
+        inInputs = true;
+      }
+      continue;
+    }
+
+    if (indent === 0 && trimmed.length > 0) {
+      break;
+    }
+
+    if (indent === 2 && trimmed === `${inputName}:`) {
+      inTargetInput = true;
+      targetIndent = indent;
+      continue;
+    }
+
+    if (inTargetInput && indent <= targetIndent && trimmed.length > 0) {
+      inTargetInput = false;
+    }
+
+    if (!inTargetInput) {
+      continue;
+    }
+
+    if (trimmed.startsWith("default:")) {
+      const rawValue = trimmed.slice("default:".length).trim();
+      return rawValue.replace(/^"(.*)"$/u, "$1");
+    }
+  }
+
+  return null;
+}
+
+function collectTrackedCargoManifestDirectories() {
+  return new Set(
+    listTrackedFiles()
+      .filter((file) => file.endsWith("/Cargo.toml") || file === "Cargo.toml")
+      .map((file) => `/${path.posix.dirname(file)}`)
+      .sort()
+  );
+}
+
+function collectDependabotCargoDirectories(content) {
+  const cargoDirs = new Set();
+  const lines = content.split(/\r?\n/u);
+  let inCargoBlock = false;
+  let collectingDirectories = false;
+
+  for (const line of lines) {
+    const indent = line.match(/^ */u)?.[0].length ?? 0;
+    const trimmed = line.trim();
+
+    if (indent === 2 && trimmed.startsWith("- package-ecosystem:")) {
+      inCargoBlock = trimmed === '- package-ecosystem: "cargo"';
+      collectingDirectories = false;
+      continue;
+    }
+
+    if (!inCargoBlock || trimmed.length === 0) {
+      continue;
+    }
+
+    if (trimmed.startsWith("directory:")) {
+      cargoDirs.add(trimmed.slice("directory:".length).trim());
+      collectingDirectories = false;
+      continue;
+    }
+
+    if (trimmed === "directories:") {
+      collectingDirectories = true;
+      continue;
+    }
+
+    if (collectingDirectories) {
+      if (indent >= 6 && trimmed.startsWith("- ")) {
+        cargoDirs.add(trimmed.slice(2).trim());
+        continue;
+      }
+
+      if (indent <= 4) {
+        collectingDirectories = false;
+      }
+    }
+  }
+
+  return cargoDirs;
+}
+
 function findTrackedFilesWithBannedLegacyToken() {
   return listTrackedFiles().filter((file) => bannedLegacyTokenPattern.test(file));
 }
@@ -561,6 +802,102 @@ if (nvmrc === null) {
 } else if (nvmrc.trim() !== nodeVersion) {
   errors.push(`.nvmrc must be ${nodeVersion}`);
 }
+
+const pnpmWorkspace = readRepoTextFile(pnpmWorkspaceRelativePath);
+if (pnpmWorkspace === null) {
+  errors.push(`${pnpmWorkspaceRelativePath}: file is missing`);
+} else {
+  if (readSingleLineYamlScalar(pnpmWorkspace, "nodeVersion") !== nodeVersion) {
+    errors.push(`${pnpmWorkspaceRelativePath}: nodeVersion must be ${nodeVersion}`);
+  }
+
+  if (readSingleLineYamlScalar(pnpmWorkspace, "engineStrict") !== "true") {
+    errors.push(`${pnpmWorkspaceRelativePath}: engineStrict must be true`);
+  }
+
+  if (
+    readSingleLineYamlScalar(pnpmWorkspace, "minimumReleaseAge") !== pnpmMinimumReleaseAgeMinutes
+  ) {
+    errors.push(
+      `${pnpmWorkspaceRelativePath}: minimumReleaseAge must be ${pnpmMinimumReleaseAgeMinutes}`
+    );
+  }
+
+  if (readSingleLineYamlScalar(pnpmWorkspace, "blockExoticSubdeps") !== "true") {
+    errors.push(`${pnpmWorkspaceRelativePath}: blockExoticSubdeps must be true`);
+  }
+
+  if (readSingleLineYamlScalar(pnpmWorkspace, "strictDepBuilds") !== "true") {
+    errors.push(`${pnpmWorkspaceRelativePath}: strictDepBuilds must be true`);
+  }
+
+  if (readSingleLineYamlScalar(pnpmWorkspace, "verifyDepsBeforeRun") !== "warn") {
+    errors.push(`${pnpmWorkspaceRelativePath}: verifyDepsBeforeRun must be warn`);
+  }
+}
+
+const devcontainerConfig = readRepoJsonFile(devcontainerRelativePath);
+if (devcontainerConfig === null) {
+  errors.push(`${devcontainerRelativePath}: file is missing or invalid JSON`);
+} else {
+  const devcontainerNodeVersion =
+    devcontainerConfig.features?.["ghcr.io/devcontainers/features/node:1"]?.version;
+  if (devcontainerNodeVersion !== nodeVersion) {
+    errors.push(`${devcontainerRelativePath}: Node feature version must be ${nodeVersion}`);
+  }
+
+  const devcontainerRustVersion =
+    devcontainerConfig.features?.["ghcr.io/devcontainers/features/rust:1"]?.version;
+  if (devcontainerRustVersion !== rustVersion) {
+    errors.push(`${devcontainerRelativePath}: Rust feature version must be ${rustVersion}`);
+  }
+}
+
+const setupNodePnpmAction = readRepoTextFile(setupNodePnpmActionRelativePath);
+if (setupNodePnpmAction === null) {
+  errors.push(`${setupNodePnpmActionRelativePath}: file is missing`);
+} else {
+  if (readActionInputDefault(setupNodePnpmAction, "pnpm-version") !== pnpmVersion) {
+    errors.push(`${setupNodePnpmActionRelativePath}: pnpm-version default must be ${pnpmVersion}`);
+  }
+
+  if (readActionInputDefault(setupNodePnpmAction, "node-version-file") !== ".nvmrc") {
+    errors.push(`${setupNodePnpmActionRelativePath}: node-version-file default must be .nvmrc`);
+  }
+}
+
+const rustToolchain = readRepoTextFile(rustToolchainRelativePath);
+if (rustToolchain === null) {
+  errors.push(`${rustToolchainRelativePath}: file is missing`);
+} else {
+  const rustChannelMatch = rustToolchain.match(/^channel\s*=\s*"([^"]+)"/mu);
+  if (rustChannelMatch?.[1] !== rustVersion) {
+    errors.push(`${rustToolchainRelativePath}: toolchain channel must be ${rustVersion}`);
+  }
+}
+
+const dependabotConfig = readRepoTextFile(dependabotRelativePath);
+if (dependabotConfig === null) {
+  errors.push(`${dependabotRelativePath}: file is missing`);
+} else {
+  const trackedCargoManifestDirs = collectTrackedCargoManifestDirectories();
+  const dependabotCargoDirs = collectDependabotCargoDirectories(dependabotConfig);
+
+  for (const manifestDir of trackedCargoManifestDirs) {
+    if (!dependabotCargoDirs.has(manifestDir)) {
+      errors.push(`${dependabotRelativePath}: missing cargo directory ${manifestDir}`);
+    }
+  }
+
+  for (const dependabotDir of dependabotCargoDirs) {
+    if (!trackedCargoManifestDirs.has(dependabotDir)) {
+      errors.push(`${dependabotRelativePath}: cargo directory does not exist: ${dependabotDir}`);
+    }
+  }
+}
+
+checkPublicPackagePublishMetadata("packages/shared/package.json", "packages/shared");
+checkPublicPackagePublishMetadata("packages/discovery-rs/package.json", "packages/discovery-rs");
 
 for (const check of requiredChecks) {
   const content = readRepoTextFile(check.file);

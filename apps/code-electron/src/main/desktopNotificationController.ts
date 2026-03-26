@@ -27,6 +27,12 @@ export type CreateDesktopNotificationControllerInput = {
 };
 
 export type DesktopNotificationController = {
+  showDesktopNotification(
+    input: DesktopNotificationInput,
+    options?: {
+      onClick?: () => void;
+    }
+  ): boolean;
   showNotification(event: { sender: unknown }, input: DesktopNotificationInput): boolean;
 };
 
@@ -48,24 +54,35 @@ export function createDesktopNotificationController(
   };
 
   return {
+    showDesktopNotification(notificationInput, options = {}) {
+      if (!notification.isSupported()) {
+        return false;
+      }
+
+      const desktopNotification = notification.create({
+        title: notificationInput.title,
+        body: notificationInput.body ?? "",
+      });
+      if (options.onClick) {
+        desktopNotification.on("click", options.onClick);
+      }
+      desktopNotification.show();
+      return true;
+    },
     showNotification(event, notificationInput) {
       if (!notification.isSupported()) {
         return false;
       }
 
       const sourceWindow = browserWindow.fromWebContents(event.sender);
-      const desktopNotification = notification.create({
-        title: notificationInput.title,
-        body: notificationInput.body ?? "",
+      return this.showDesktopNotification(notificationInput, {
+        onClick: () => {
+          if (sourceWindow && !sourceWindow.isDestroyed()) {
+            sourceWindow.show();
+            sourceWindow.focus();
+          }
+        },
       });
-      desktopNotification.on("click", () => {
-        if (sourceWindow && !sourceWindow.isDestroyed()) {
-          sourceWindow.show();
-          sourceWindow.focus();
-        }
-      });
-      desktopNotification.show();
-      return true;
     },
   };
 }

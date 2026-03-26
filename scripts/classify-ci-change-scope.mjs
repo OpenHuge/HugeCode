@@ -173,9 +173,20 @@ function isFrontendOptimizationFile(file) {
 
 function isRepoGovernanceOnlyFile(file) {
   return (
+    file === "README.md" ||
+    file === "AGENTS.md" ||
+    file === "CLAUDE.md" ||
+    file === "CONTRIBUTING.md" ||
     file.startsWith(".github/workflows/") ||
     file.startsWith(".github/actions/") ||
+    file === "docs/README.md" ||
+    file === "docs/architecture/README.md" ||
+    file === "docs/architecture/frontend-style-governance.md" ||
+    file === "docs/development/README.md" ||
     file === "docs/development/ci-workflows.md" ||
+    file === "docs/workspace-map.md" ||
+    file === "docs/runtime/README.md" ||
+    file.startsWith("docs/adr/") ||
     file === "scripts/check-branch-policy.mjs" ||
     file === "scripts/lib/branch-policy.mjs" ||
     file === "scripts/check-repo-sot.mjs" ||

@@ -1,12 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppSettings } from "../types";
 import { getRuntimeClient } from "./runtimeClient";
 import { runCodexDoctorWithFallback, runCodexUpdateWithFallback } from "./runtimeClientCodex";
 import {
   getBackendPoolBootstrapPreview,
   getBackendPoolDiagnostics,
-  getAppSettings,
   isMobileRuntime,
   orbitConnectTest,
   orbitRunnerStart,
@@ -27,7 +25,6 @@ import {
   tailscaleDaemonStatus,
   tailscaleDaemonStop,
   tailscaleStatus,
-  updateAppSettings,
 } from "./tauriDesktopRuntimeOps";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -55,23 +52,12 @@ beforeEach(() => {
 });
 
 describe("tauriDesktopRuntimeOps", () => {
-  it("maps app settings wrappers", async () => {
-    const settings = {
-      codexBin: "/usr/local/bin/codex",
-      codexArgs: null,
-    } as AppSettings;
-    invokeMock
-      .mockResolvedValueOnce(settings)
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(settings);
+  it("maps runtime environment wrappers", async () => {
+    invokeMock.mockResolvedValueOnce(false);
 
-    await expect(getAppSettings()).resolves.toEqual(settings);
     await expect(isMobileRuntime()).resolves.toBe(false);
-    await expect(updateAppSettings(settings)).resolves.toEqual(settings);
 
-    expect(invokeMock).toHaveBeenCalledWith("get_app_settings");
     expect(invokeMock).toHaveBeenCalledWith("is_mobile_runtime");
-    expect(invokeMock).toHaveBeenCalledWith("update_app_settings", { settings });
   });
 
   it("maps orbit wrappers", async () => {

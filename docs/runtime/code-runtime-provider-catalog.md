@@ -42,6 +42,11 @@ UI/bridge clients should:
 2. check feature `provider_catalog`
 3. call `code_providers_catalog`
 4. drive provider displays and routing hints from service payload
+5. route explicit provider launch, model-derived send flow, and readiness
+   summaries through one app/runtime facade instead of page-local heuristics
+
+See [`provider-routing-control-plane.md`](./provider-routing-control-plane.md)
+for the current HugeCode launch/send/review control-plane rules.
 
 ## Onboarding a New Provider
 

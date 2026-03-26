@@ -5,7 +5,7 @@ inputs:
   install-command:
     description: Command used to install Playwright browsers
     required: false
-    default: "pnpm -C tests/e2e exec playwright install chromium"
+    default: "pnpm -C tests/e2e exec playwright install --only-shell chromium"
 
 runs:
   using: composite

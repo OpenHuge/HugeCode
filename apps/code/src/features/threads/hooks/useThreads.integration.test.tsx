@@ -3,15 +3,21 @@ import { useEffect, useState } from "react";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  compactThread,
   interruptTurn,
   listThreads,
+  listMcpServerStatus,
   resolveChatgptAuthTokensRefreshResponse,
+  respondToServerRequest,
   respondToServerRequestResult,
+  respondToToolCallRequest,
+  respondToUserInputRequest,
   resumeThread,
   sendUserMessage as sendUserMessageService,
   setThreadName,
   startReview,
   startThread,
+  steerTurn,
 } from "../../../application/runtime/ports/tauriThreads";
 import {
   subscribeScopedRuntimeUpdatedEvents,
@@ -117,6 +123,48 @@ vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
   detectRuntimeMode: vi.fn(() => "tauri"),
 }));
 
+vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
+  useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
+    sendMessage: ({ threadId, text, options }: Record<string, unknown>) =>
+      sendUserMessageService(workspaceId, String(threadId), String(text), options as never),
+    steerTurn: ({
+      threadId,
+      turnId,
+      text,
+      images,
+      appMentions,
+      contextPrefix,
+      options,
+    }: Record<string, unknown>) =>
+      steerTurn(
+        workspaceId,
+        String(threadId),
+        String(turnId),
+        String(text),
+        images as string[] | undefined,
+        appMentions as never,
+        (contextPrefix as string | null | undefined) ?? undefined,
+        options as never
+      ),
+    interruptTurn: ({ threadId, turnId }: Record<string, unknown>) =>
+      interruptTurn(workspaceId, String(threadId), String(turnId)),
+    startReview: ({ threadId, target, delivery }: Record<string, unknown>) =>
+      startReview(workspaceId, String(threadId), target as never, delivery as never),
+    compactThread: ({ threadId }: Record<string, unknown>) =>
+      compactThread(workspaceId, String(threadId)),
+    listMcpServerStatus: (input?: { cursor?: string | null; limit?: number | null }) =>
+      listMcpServerStatus(workspaceId, input?.cursor ?? null, input?.limit ?? null),
+    respondToApproval: ({ requestId, decision }: Record<string, unknown>) =>
+      respondToServerRequest(workspaceId, requestId as never, decision as never),
+    respondToUserInput: ({ requestId, answers }: Record<string, unknown>) =>
+      respondToUserInputRequest(workspaceId, requestId as never, answers as never),
+    respondToToolCall: ({ requestId, response }: Record<string, unknown>) =>
+      respondToToolCallRequest(workspaceId, requestId as never, response as never),
+    canStartReviewInCurrentHost: () => true,
+    reviewStartDesktopOnlyMessage: "Review start is only available in the desktop app.",
+  }),
+}));
+
 vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
   REVIEW_START_DESKTOP_ONLY_MESSAGE: "Review start is only available in the desktop app.",
   respondToServerRequest: vi.fn(),
@@ -127,11 +175,14 @@ vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
   resolveChatgptAuthTokensRefreshResponse: vi.fn(),
   rememberApprovalRule: vi.fn(),
   sendUserMessage: vi.fn(),
+  steerTurn: vi.fn(),
   startReview: vi.fn(),
   startThread: vi.fn(),
   listThreads: vi.fn(),
+  listMcpServerStatus: vi.fn(),
   resumeThread: vi.fn(),
   archiveThread: vi.fn(),
+  compactThread: vi.fn(),
   setThreadName: vi.fn(),
   getAccountRateLimits: vi.fn(),
   getAccountInfo: vi.fn(),

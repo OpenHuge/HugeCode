@@ -1,0 +1,31 @@
+name: _reusable-ci-runtime-contract-parity
+
+on:
+  workflow_call:
+
+jobs:
+  runtime_contract_parity:
+    name: runtime_contract_parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install-command: pnpm install --offline --frozen-lockfile
+
+      - uses: ./.github/actions/install-linux-desktop-deps
+
+      - uses: ./.github/actions/setup-rust-ci
+        with:
+          cargo-cache-path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ~/.cache/ku0/cargo-target/code-tauri
+          cargo-cache-key: ${{ runner.os }}-code-tauri-check
+
+      - name: Runtime Contract Parity
+        run: pnpm check:runtime-contract:parity

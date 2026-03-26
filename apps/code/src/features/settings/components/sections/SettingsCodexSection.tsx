@@ -17,6 +17,12 @@ import {
   supportsModelReasoning,
 } from "../../../models/utils/modelOptionCapabilities";
 import {
+  buildModelProviderOptions,
+  buildProviderModelEntries,
+  resolveProviderModelId,
+  resolveSelectedProviderId,
+} from "../../../models/utils/modelProviderSelection";
+import {
   SettingsControlRow,
   SettingsField,
   SettingsFieldGroup,
@@ -102,17 +108,32 @@ const reviewModeOptions: SelectOption[] = [
   { value: "detached", label: "Detached (new review thread)" },
 ];
 
-function coerceSavedModelSlug(value: string | null, models: ModelOption[]): string | null {
+function formatModelQualifier(model: ModelOption): string | null {
+  const candidates = [model.pool, model.provider, model.source, model.id];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") {
+      continue;
+    }
+    const normalized = candidate.trim();
+    if (normalized.length === 0) {
+      continue;
+    }
+    return normalized;
+  }
+  return null;
+}
+
+function coerceSavedModelSelectionId(value: string | null, models: ModelOption[]): string | null {
   const trimmed = (value ?? "").trim();
   if (!trimmed) {
     return null;
   }
-  const bySlug = models.find((model) => model.model === trimmed);
-  if (bySlug) {
-    return bySlug.model;
-  }
   const byId = models.find((model) => model.id === trimmed);
-  return byId ? byId.model : null;
+  if (byId) {
+    return byId.id;
+  }
+  const bySlug = models.find((model) => model.model === trimmed);
+  return bySlug ? bySlug.id : null;
 }
 
 export function SettingsCodexSection({
@@ -165,25 +186,61 @@ export function SettingsCodexSection({
   onUpdateWorkspaceCodexBin,
   onUpdateWorkspaceSettings,
 }: SettingsCodexSectionProps) {
-  const latestModelSlug = defaultModels[0]?.model ?? null;
-  const savedModelSlug = useMemo(
-    () => coerceSavedModelSlug(appSettings.lastComposerModelId, defaultModels),
+  const latestModelId = defaultModels[0]?.id ?? null;
+  const providerOptions = useMemo(() => buildModelProviderOptions(defaultModels), [defaultModels]);
+  const savedModelId = useMemo(
+    () => coerceSavedModelSelectionId(appSettings.lastComposerModelId, defaultModels),
     [appSettings.lastComposerModelId, defaultModels]
   );
-  const selectedModelSlug = savedModelSlug ?? latestModelSlug ?? "";
+  const selectedModelId = savedModelId ?? latestModelId ?? "";
+  const selectedProviderId = useMemo(
+    () => resolveSelectedProviderId(providerOptions, selectedModelId),
+    [providerOptions, selectedModelId]
+  );
+  const selectedProvider = useMemo(
+    () => providerOptions.find((provider) => provider.id === selectedProviderId) ?? null,
+    [providerOptions, selectedProviderId]
+  );
   const selectedModel = useMemo(
-    () => defaultModels.find((model) => model.model === selectedModelSlug) ?? null,
-    [defaultModels, selectedModelSlug]
+    () =>
+      defaultModels.find((model) => model.id === selectedModelId) ??
+      defaultModels.find((model) => model.model === selectedModelId) ??
+      null,
+    [defaultModels, selectedModelId]
   );
   const reasoningSupported = useMemo(() => supportsModelReasoning(selectedModel), [selectedModel]);
   const reasoningOptions = useMemo(() => getModelReasoningOptions(selectedModel), [selectedModel]);
-  const modelSelectOptions = useMemo<SelectOption[]>(
+  const modelSelectOptions = useMemo<SelectOption[]>(() => {
+    const scopedModels = buildProviderModelEntries(selectedProvider?.models ?? defaultModels);
+    const availableModels = scopedModels.filter((model) => model.available !== false);
+    const visibleModels = availableModels.length > 0 ? availableModels : scopedModels;
+    const optionModels =
+      selectedModel && !visibleModels.some((model) => model.id === selectedModel.id)
+        ? [selectedModel, ...visibleModels]
+        : visibleModels;
+    const counts = new Map<string, number>();
+    for (const model of optionModels) {
+      const key = `${model.displayName || model.model}::${model.model}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return optionModels.map((model) => {
+      const base = model.displayName?.trim() || model.model;
+      const duplicateKey = `${base}::${model.model}`;
+      const qualifier = (counts.get(duplicateKey) ?? 0) > 1 ? formatModelQualifier(model) : null;
+      return {
+        value: model.id,
+        label: qualifier ? `${base} / ${qualifier}` : base,
+      };
+    });
+  }, [defaultModels, selectedModel, selectedProvider]);
+  const providerSelectOptions = useMemo<SelectOption[]>(
     () =>
-      defaultModels.map((model) => ({
-        value: model.model,
-        label: model.displayName?.trim() || model.model,
+      providerOptions.map((provider) => ({
+        value: provider.id,
+        label: provider.label,
+        disabled: !provider.hasAvailableModels,
       })),
-    [defaultModels]
+    [providerOptions]
   );
   const reasoningSelectOptions = useMemo<SelectOption[]>(
     () => reasoningOptions.map((effort) => ({ value: effort, label: effort })),
@@ -220,7 +277,7 @@ export function SettingsCodexSection({
     }
     const savedRawModel = (appSettings.lastComposerModelId ?? "").trim();
     const savedRawEffort = (appSettings.lastComposerReasoningEffort ?? "").trim();
-    const shouldNormalizeModel = savedRawModel.length === 0 || savedModelSlug === null;
+    const shouldNormalizeModel = savedRawModel.length === 0 || savedModelId === null;
     const shouldNormalizeEffort =
       reasoningSupported &&
       (savedRawEffort.length === 0 ||
@@ -233,9 +290,7 @@ export function SettingsCodexSection({
 
     const next: AppSettings = {
       ...appSettings,
-      lastComposerModelId: shouldNormalizeModel
-        ? selectedModelSlug
-        : appSettings.lastComposerModelId,
+      lastComposerModelId: shouldNormalizeModel ? selectedModelId : appSettings.lastComposerModelId,
       lastComposerReasoningEffort: shouldNormalizeEffort
         ? selectedEffort
         : appSettings.lastComposerReasoningEffort,
@@ -249,8 +304,8 @@ export function SettingsCodexSection({
     reasoningOptions,
     reasoningSupported,
     savedEffort,
-    savedModelSlug,
-    selectedModelSlug,
+    savedModelId,
+    selectedModelId,
     selectedEffort,
   ]);
 
@@ -428,6 +483,40 @@ export function SettingsCodexSection({
         title="Default parameters"
         subtitle="Choose the model, reasoning, and access defaults used when threads do not override them."
       >
+        {providerSelectOptions.length > 1 ? (
+          <SettingsControlRow
+            title="Provider"
+            subtitle="Choose the default provider family before narrowing to a route-specific model."
+            control={
+              <Select
+                className={styles.selectRoot}
+                triggerClassName={styles.selectTrigger}
+                menuClassName={styles.selectMenu}
+                optionClassName={styles.selectOption}
+                ariaLabel="Provider"
+                options={providerSelectOptions}
+                value={selectedProviderId}
+                disabled={!providerOptions.length || defaultModelsLoading}
+                onValueChange={(providerId) => {
+                  const nextModelId = resolveProviderModelId(
+                    providerOptions,
+                    providerId,
+                    selectedModelId
+                  );
+                  if (!nextModelId) {
+                    return;
+                  }
+                  void onUpdateAppSettings({
+                    ...appSettings,
+                    lastComposerModelId: nextModelId,
+                  });
+                }}
+                placeholder="No providers"
+              />
+            }
+          />
+        ) : null}
+
         <SettingsControlRow
           title="Model"
           subtitle={
@@ -437,7 +526,9 @@ export function SettingsCodexSection({
                 ? "Loading models…"
                 : defaultModelsError
                   ? `Couldn’t load models: ${defaultModelsError}`
-                  : "Used when there is no thread-specific override."
+                  : providerSelectOptions.length > 1
+                    ? "Used when there is no thread-specific override. Route ids stay pinned inside the selected provider family."
+                    : "Used when there is no thread-specific override."
           }
           control={
             <div className={styles.controlRow}>
@@ -448,7 +539,7 @@ export function SettingsCodexSection({
                 optionClassName={styles.selectOption}
                 ariaLabel="Model"
                 options={modelSelectOptions}
-                value={selectedModelSlug}
+                value={selectedModelId}
                 disabled={!defaultModels.length || defaultModelsLoading}
                 onValueChange={(model) =>
                   void onUpdateAppSettings({

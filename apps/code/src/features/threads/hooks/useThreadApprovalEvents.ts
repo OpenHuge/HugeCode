@@ -1,6 +1,6 @@
 import type { Dispatch, MutableRefObject } from "react";
 import { useCallback } from "react";
-import { respondToServerRequest } from "../../../application/runtime/ports/tauriThreads";
+import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/ports/runtimeSessionCommands";
 import type { ApprovalRequest } from "../../../types";
 import { getApprovalCommandInfo, matchesCommandPrefix } from "../../../utils/approvalRules";
 import type { ThreadAction } from "./useThreadsReducer";
@@ -14,16 +14,21 @@ export function useThreadApprovalEvents({
   dispatch,
   approvalAllowlistRef,
 }: UseThreadApprovalEventsOptions) {
+  const resolveRuntimeSessionCommands = useRuntimeSessionCommandsResolver();
+
   return useCallback(
     (approval: ApprovalRequest) => {
       const commandInfo = getApprovalCommandInfo(approval.params ?? {});
       const allowlist = approvalAllowlistRef.current[approval.workspace_id] ?? [];
       if (commandInfo && matchesCommandPrefix(commandInfo.tokens, allowlist)) {
-        void respondToServerRequest(approval.workspace_id, approval.request_id, "accept");
+        void resolveRuntimeSessionCommands(approval.workspace_id).respondToApproval({
+          requestId: approval.request_id,
+          decision: "accept",
+        });
         return;
       }
       dispatch({ type: "addApproval", approval });
     },
-    [approvalAllowlistRef, dispatch]
+    [approvalAllowlistRef, dispatch, resolveRuntimeSessionCommands]
   );
 }

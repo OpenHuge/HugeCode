@@ -290,6 +290,10 @@ function buildRuntimePublishedReviewPackSummary(input: {
     checkpoint: runtimeReviewPack.checkpoint ?? input.run.checkpoint ?? null,
     missionLinkage: runtimeReviewPack.missionLinkage ?? input.run.missionLinkage ?? null,
     actionability: runtimeReviewPack.actionability ?? input.run.actionability ?? null,
+    sessionBoundary: runtimeReviewPack.sessionBoundary ?? input.run.sessionBoundary ?? null,
+    continuation: runtimeReviewPack.continuation ?? input.run.continuation ?? null,
+    nextOperatorAction:
+      runtimeReviewPack.nextOperatorAction ?? input.run.nextOperatorAction ?? null,
     reviewProfileId: runtimeReviewPack.reviewProfileId ?? input.run.reviewProfileId ?? null,
     reviewGate: runtimeReviewPack.reviewGate ?? input.run.reviewGate ?? null,
     reviewFindings: runtimeReviewPack.reviewFindings ?? input.run.reviewFindings ?? [],

@@ -1,6 +1,6 @@
 import type { Dispatch, MutableRefObject } from "react";
 import { useCallback, useEffect, useRef } from "react";
-import { interruptTurn as interruptTurnService } from "../../../application/runtime/ports/tauriThreads";
+import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/ports/runtimeSessionCommands";
 import type { ConversationItem, RateLimitSnapshot, TurnPlan } from "../../../types";
 import { resolveRateLimitsSnapshot } from "../../../utils/rateLimits";
 import { getThreadTimestamp } from "../../../utils/threadItems";
@@ -119,6 +119,7 @@ export function useThreadTurnEvents({
   safeMessageActivity,
   recordThreadActivity,
 }: UseThreadTurnEventsOptions) {
+  const resolveRuntimeSessionCommands = useRuntimeSessionCommandsResolver();
   const pendingVisibleOutputChecksRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map()
   );
@@ -228,7 +229,9 @@ export function useThreadTurnEvents({
         pendingInterruptsRef.current.delete(threadId);
         syncPendingInterruptPersistence?.();
         if (turnId) {
-          void interruptTurnService(workspaceId, threadId, turnId).catch(() => undefined);
+          void resolveRuntimeSessionCommands(workspaceId)
+            .interruptTurn({ threadId, turnId })
+            .catch(() => undefined);
         }
         return;
       }
@@ -242,6 +245,7 @@ export function useThreadTurnEvents({
       dispatch,
       markProcessing,
       pendingInterruptsRef,
+      resolveRuntimeSessionCommands,
       setActiveTurnId,
       syncPendingInterruptPersistence,
     ]

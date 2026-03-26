@@ -422,6 +422,441 @@ fn build_review_pack_takeover_target(
     }))
 }
 
+pub(crate) fn build_runtime_session_boundary(
+    workspace_id: &str,
+    run_id: &str,
+    mission_task_id: &str,
+    mission_linkage: Option<&Value>,
+    review_pack_id: Option<&str>,
+    checkpoint: Option<&Value>,
+) -> Value {
+    let navigation_target = mission_linkage
+        .and_then(|entry| entry.get("navigationTarget"))
+        .cloned()
+        .unwrap_or_else(|| {
+            json!({
+                "kind": "run",
+                "workspaceId": workspace_id,
+                "taskId": mission_task_id,
+                "runId": run_id,
+                "reviewPackId": review_pack_id,
+                "checkpointId": checkpoint
+                    .and_then(|entry| entry.get("checkpointId"))
+                    .and_then(Value::as_str),
+                "traceId": checkpoint
+                    .and_then(|entry| entry.get("traceId"))
+                    .and_then(Value::as_str),
+            })
+        });
+    json!({
+        "workspaceId": workspace_id,
+        "taskId": mission_task_id,
+        "runId": run_id,
+        "missionTaskId": mission_linkage
+            .and_then(|entry| entry.get("missionTaskId"))
+            .and_then(Value::as_str)
+            .unwrap_or(mission_task_id),
+        "sessionKind": mission_linkage
+            .and_then(|entry| entry.get("taskEntityKind"))
+            .and_then(Value::as_str)
+            .unwrap_or("run"),
+        "threadId": mission_linkage
+            .and_then(|entry| entry.get("threadId"))
+            .and_then(Value::as_str),
+        "requestId": mission_linkage
+            .and_then(|entry| entry.get("requestId"))
+            .and_then(Value::as_str),
+        "reviewPackId": review_pack_id
+            .or_else(|| mission_linkage
+                .and_then(|entry| entry.get("reviewPackId"))
+                .and_then(Value::as_str)),
+        "checkpointId": checkpoint
+            .and_then(|entry| entry.get("checkpointId"))
+            .and_then(Value::as_str)
+            .or_else(|| mission_linkage
+                .and_then(|entry| entry.get("checkpointId"))
+                .and_then(Value::as_str)),
+        "traceId": checkpoint
+            .and_then(|entry| entry.get("traceId"))
+            .and_then(Value::as_str)
+            .or_else(|| mission_linkage
+                .and_then(|entry| entry.get("traceId"))
+                .and_then(Value::as_str)),
+        "navigationTarget": navigation_target,
+    })
+}
+
+fn map_takeover_state_to_continuation_state(state: Option<&str>) -> &'static str {
+    match state {
+        Some("ready") => "ready",
+        Some("attention") => "attention",
+        Some("blocked") => "blocked",
+        _ => "missing",
+    }
+}
+
+fn map_review_state_to_continuation_state(state: Option<&str>) -> &'static str {
+    match state {
+        Some("ready") => "ready",
+        Some("degraded") => "attention",
+        Some("blocked") => "blocked",
+        _ => "missing",
+    }
+}
+
+fn clone_mission_target(session_boundary: Option<&Value>) -> Option<Value> {
+    session_boundary.and_then(|entry| entry.get("navigationTarget")).cloned()
+}
+
+pub(crate) fn build_runtime_continuation_summary(
+    session_boundary: &Value,
+    checkpoint: Option<&Value>,
+    mission_linkage: Option<&Value>,
+    publish_handoff: Option<&Value>,
+    review_actionability: Option<&Value>,
+    takeover_bundle: Option<&Value>,
+    review_pack_id: Option<&str>,
+) -> Value {
+    let boundary_target = clone_mission_target(Some(session_boundary));
+    if let Some(bundle) = takeover_bundle {
+        let bundle_review_actionability = bundle
+            .get("reviewActionability")
+            .cloned()
+            .or_else(|| review_actionability.cloned());
+        let bundle_detail = bundle
+            .get("blockingReason")
+            .cloned()
+            .or_else(|| {
+                if bundle.get("pathKind").and_then(Value::as_str) == Some("review") {
+                    bundle_review_actionability
+                        .as_ref()
+                        .and_then(|entry| entry.get("summary"))
+                        .cloned()
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| bundle.get("summary").cloned().unwrap_or(Value::Null));
+        let target = bundle.get("target").cloned().or_else(|| {
+            let path_kind = bundle.get("pathKind").and_then(Value::as_str);
+            if path_kind == Some("review") {
+                build_review_pack_takeover_target(mission_linkage, review_pack_id)
+            } else {
+                boundary_target.clone()
+            }
+        });
+        return json!({
+            "state": map_takeover_state_to_continuation_state(
+                bundle.get("state").and_then(Value::as_str),
+            ),
+            "pathKind": bundle.get("pathKind").cloned().unwrap_or(Value::String("missing".to_string())),
+            "source": "takeover_bundle",
+            "summary": bundle.get("summary").cloned().unwrap_or(Value::String(
+                "Runtime published continuation truth through takeover bundle.".to_string(),
+            )),
+            "detail": bundle_detail,
+            "recommendedAction": bundle
+                .get("recommendedAction")
+                .cloned()
+                .unwrap_or(Value::String(
+                    "Continue from the runtime-published takeover path.".to_string(),
+                )),
+            "target": target.unwrap_or(Value::Null),
+            "reviewPackId": review_pack_id,
+            "reviewActionability": bundle_review_actionability.unwrap_or(Value::Null),
+            "sessionBoundary": session_boundary,
+        });
+    }
+
+    if let Some(actionability) = review_actionability {
+        let state = actionability.get("state").and_then(Value::as_str);
+        return json!({
+            "state": map_review_state_to_continuation_state(state),
+            "pathKind": "review",
+            "source": "review_actionability",
+            "summary": actionability
+                .get("summary")
+                .cloned()
+                .unwrap_or(Value::String("Runtime review actionability is available.".to_string())),
+            "detail": actionability.get("summary").cloned().unwrap_or(Value::Null),
+            "recommendedAction": match state {
+                Some("blocked") => Value::String(
+                    "Open Review Pack and resolve the runtime-blocked follow-up before continuing."
+                        .to_string(),
+                ),
+                Some("degraded") => Value::String(
+                    "Open Review Pack and inspect the degraded runtime follow-up guidance before continuing."
+                        .to_string(),
+                ),
+                _ => Value::String(
+                    "Continue from Review Pack using the runtime-published follow-up actions."
+                        .to_string(),
+                ),
+            },
+            "target": build_review_pack_takeover_target(mission_linkage, review_pack_id)
+                .or(boundary_target.clone())
+                .unwrap_or(Value::Null),
+            "reviewPackId": review_pack_id,
+            "reviewActionability": actionability,
+            "sessionBoundary": session_boundary,
+        });
+    }
+
+    if publish_handoff.is_some() || mission_linkage.is_some() {
+        return json!({
+            "state": "ready",
+            "pathKind": "handoff",
+            "source": if publish_handoff.is_some() {
+                "publish_handoff"
+            } else {
+                "mission_linkage"
+            },
+            "summary": publish_handoff
+                .and_then(|entry| entry.get("summary"))
+                .cloned()
+                .or_else(|| mission_linkage
+                    .and_then(|entry| entry.get("summary"))
+                    .cloned())
+                .unwrap_or(Value::String(
+                    "Runtime published a canonical handoff path for this run.".to_string(),
+                )),
+            "detail": publish_handoff
+                .and_then(|entry| entry.get("summary"))
+                .cloned()
+                .or_else(|| mission_linkage
+                    .and_then(|entry| entry.get("summary"))
+                    .cloned())
+                .unwrap_or(Value::Null),
+            "recommendedAction": "Use the runtime-published handoff or navigation target instead of rebuilding recovery locally.",
+            "target": boundary_target.clone().unwrap_or(Value::Null),
+            "reviewPackId": review_pack_id,
+            "reviewActionability": Value::Null,
+            "sessionBoundary": session_boundary,
+        });
+    }
+
+    if checkpoint
+        .and_then(|entry| entry.get("resumeReady"))
+        .and_then(Value::as_bool)
+        == Some(true)
+    {
+        return json!({
+            "state": "ready",
+            "pathKind": "resume",
+            "source": "checkpoint",
+            "summary": checkpoint
+                .and_then(|entry| entry.get("summary"))
+                .cloned()
+                .unwrap_or(Value::String(
+                    "Runtime published a canonical checkpoint path and this run is ready to resume."
+                        .to_string(),
+                )),
+            "detail": checkpoint.and_then(|entry| entry.get("summary")).cloned().unwrap_or(Value::Null),
+            "recommendedAction": "Resume this run from its runtime-published checkpoint.",
+            "target": boundary_target.clone().unwrap_or(Value::Null),
+            "reviewPackId": review_pack_id,
+            "reviewActionability": Value::Null,
+            "sessionBoundary": session_boundary,
+        });
+    }
+
+    if let Some(checkpoint) = checkpoint {
+        return json!({
+            "state": if checkpoint.get("recovered").and_then(Value::as_bool) == Some(true) {
+                "blocked"
+            } else {
+                "attention"
+            },
+            "pathKind": "missing",
+            "source": "checkpoint",
+            "summary": checkpoint.get("summary").cloned().unwrap_or(Value::String(
+                "Runtime published checkpoint truth, but no canonical continuation path is ready yet."
+                    .to_string(),
+            )),
+            "detail": checkpoint.get("summary").cloned().unwrap_or(Value::Null),
+            "recommendedAction": "Inspect runtime continuity truth and restore a canonical resume or handoff path before continuing.",
+            "target": boundary_target.unwrap_or(Value::Null),
+            "reviewPackId": review_pack_id,
+            "reviewActionability": Value::Null,
+            "sessionBoundary": session_boundary,
+        });
+    }
+
+    json!({
+        "state": "missing",
+        "pathKind": "missing",
+        "source": "missing",
+        "summary": "Runtime did not publish canonical continuation truth for this run.",
+        "detail": Value::Null,
+        "recommendedAction": "Inspect runtime continuity truth before relying on local recovery heuristics.",
+        "target": boundary_target.unwrap_or(Value::Null),
+        "reviewPackId": review_pack_id,
+        "reviewActionability": Value::Null,
+        "sessionBoundary": session_boundary,
+    })
+}
+
+pub(crate) fn build_runtime_next_operator_action(
+    run_state: &str,
+    approval: &Value,
+    review_status: Option<&str>,
+    _review_decision: Option<&Value>,
+    next_action: &Value,
+    continuation: &Value,
+    session_boundary: &Value,
+) -> Value {
+    let mission_target = clone_mission_target(Some(session_boundary)).unwrap_or(Value::Null);
+    let continuation_target = continuation
+        .get("target")
+        .cloned()
+        .unwrap_or_else(|| mission_target.clone());
+    let continuation_path = continuation.get("pathKind").and_then(Value::as_str);
+    let continuation_state = continuation.get("state").and_then(Value::as_str);
+    let review_pack_id = session_boundary
+        .get("reviewPackId")
+        .and_then(Value::as_str)
+        .or_else(|| continuation.get("reviewPackId").and_then(Value::as_str));
+    let review_target =
+        build_review_pack_takeover_target(Some(session_boundary), review_pack_id).unwrap_or_else(
+            || continuation_target.clone(),
+        );
+
+    if review_pack_id.is_some()
+        && matches!(
+            review_status,
+            Some("ready" | "action_required" | "incomplete_evidence")
+        )
+    {
+        return json!({
+            "action": "open_review_pack",
+            "label": match review_status {
+                Some("incomplete_evidence") => "Inspect evidence",
+                Some("action_required") => "Resolve review",
+                _ => "Open review",
+            },
+            "detail": continuation
+                .get("detail")
+                .cloned()
+                .or_else(|| continuation.get("summary").cloned())
+                .unwrap_or_else(|| next_action.get("detail").cloned().unwrap_or(Value::Null)),
+            "source": "review_pack",
+            "target": review_target,
+            "sessionBoundary": session_boundary,
+        });
+    }
+
+    if approval.get("status").and_then(Value::as_str) == Some("pending_decision") {
+        return json!({
+            "action": "approve",
+            "label": "Open approval",
+            "detail": approval.get("summary").cloned().unwrap_or(Value::Null),
+            "source": "approval",
+            "target": continuation_target,
+            "sessionBoundary": session_boundary,
+        });
+    }
+
+    if continuation_path == Some("review") {
+        return json!({
+            "action": "open_review_pack",
+            "label": match continuation_state {
+                Some("blocked") => "Resolve review",
+                Some("attention") => "Inspect review",
+                _ => "Open review",
+            },
+            "detail": continuation
+                .get("detail")
+                .cloned()
+                .or_else(|| continuation.get("summary").cloned())
+                .unwrap_or(Value::Null),
+            "source": "continuation",
+            "target": review_target,
+            "sessionBoundary": session_boundary,
+        });
+    }
+
+    if matches!(run_state, "failed" | "cancelled") {
+        return json!({
+            "action": "view_failure",
+            "label": "View failure",
+            "detail": next_action
+                .get("detail")
+                .cloned()
+                .or_else(|| continuation.get("detail").cloned())
+                .or_else(|| continuation.get("summary").cloned())
+                .unwrap_or(Value::Null),
+            "source": "run_failure",
+            "target": continuation_target,
+            "sessionBoundary": session_boundary,
+        });
+    }
+
+    if continuation_path == Some("resume") {
+        return json!({
+            "action": "resume",
+            "label": "Resume mission",
+            "detail": continuation
+                .get("detail")
+                .cloned()
+                .or_else(|| continuation.get("summary").cloned())
+                .unwrap_or(Value::Null),
+            "source": "continuation",
+            "target": continuation_target,
+            "sessionBoundary": session_boundary,
+        });
+    }
+
+    if continuation_path == Some("handoff") {
+        return json!({
+            "action": "open_handoff",
+            "label": "Open handoff",
+            "detail": continuation
+                .get("detail")
+                .cloned()
+                .or_else(|| continuation.get("summary").cloned())
+                .unwrap_or(Value::Null),
+            "source": "continuation",
+            "target": continuation_target,
+            "sessionBoundary": session_boundary,
+        });
+    }
+
+    if matches!(
+        run_state,
+        "queued" | "preparing" | "running" | "validating" | "needs_input" | "paused"
+    ) {
+        return json!({
+            "action": "open_mission",
+            "label": "Open mission",
+            "detail": next_action
+                .get("detail")
+                .cloned()
+                .or_else(|| continuation.get("detail").cloned())
+                .or_else(|| continuation.get("summary").cloned())
+                .unwrap_or(Value::Null),
+            "source": "run_activity",
+            "target": mission_target,
+            "sessionBoundary": session_boundary,
+        });
+    }
+
+    let fallback_action = next_action
+        .get("action")
+        .and_then(Value::as_str)
+        .unwrap_or("inspect_runtime");
+    json!({
+        "action": fallback_action,
+        "label": next_action
+            .get("label")
+            .cloned()
+            .unwrap_or(Value::String("Inspect runtime".to_string())),
+        "detail": next_action.get("detail").cloned().unwrap_or(Value::Null),
+        "source": "runtime_fallback",
+        "target": mission_target,
+        "sessionBoundary": session_boundary,
+    })
+}
+
 pub(crate) fn build_runtime_takeover_bundle(
     run_state: &str,
     approval: &Value,
