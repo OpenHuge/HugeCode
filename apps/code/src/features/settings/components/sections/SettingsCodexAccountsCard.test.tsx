@@ -121,6 +121,15 @@ async function flushEffectTurn() {
   });
 }
 
+function emitOauthPopupMessage(loginId: string, success: boolean) {
+  window.dispatchEvent(
+    new window.MessageEvent("message", {
+      data: { type: "fastcode:oauth:codex", success, loginId },
+      origin: window.location.origin,
+    })
+  );
+}
+
 async function selectAccountOption(label: string, optionName: string) {
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: label }));
@@ -796,7 +805,6 @@ describe("SettingsCodexAccountsCard", () => {
   it(
     "shows callback verification error when oauth popup posts failure message",
     async () => {
-      setActiveOauthPopupLoginId("login-popup-2");
       render(<SettingsCodexAccountsCard />);
 
       await waitFor(
@@ -812,16 +820,20 @@ describe("SettingsCodexAccountsCard", () => {
       const accountCallsBeforePopupFailure = listOAuthAccountsMock.mock.calls.length;
       const poolCallsBeforePopupFailure = listOAuthPoolsMock.mock.calls.length;
       setActiveOauthPopupLoginId("login-popup-2");
+      expect(readActiveOauthPopupLoginId()).toBe("login-popup-2");
 
-      await flushEffectTurn();
+      await act(async () => {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 0);
+        });
+      });
 
       act(() => {
-        window.dispatchEvent(
-          new window.MessageEvent("message", {
-            data: { type: "fastcode:oauth:codex", success: false, loginId: "login-popup-2" },
-            origin: window.location.origin,
-          })
-        );
+        emitOauthPopupMessage("login-popup-2", false);
+      });
+
+      await waitFor(() => {
+        expect(readActiveOauthPopupLoginId()).toBeNull();
       });
 
       await waitFor(

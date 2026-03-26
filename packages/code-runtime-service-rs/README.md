@@ -28,6 +28,7 @@ Default address: `http://127.0.0.1:8788`
 - `CODE_RUNTIME_SERVICE_ANTHROPIC_ENDPOINT` (default `https://api.anthropic.com/v1/messages`)
 - `CODE_RUNTIME_SERVICE_ANTHROPIC_VERSION` (default `2023-06-01`)
 - `ANTHROPIC_API_KEY` (for Claude/Anthropic models)
+- `CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH` (optional explicit path to the local `claude` CLI used by `claude_code_local`)
 - `CODE_RUNTIME_SERVICE_GEMINI_ENDPOINT` (default `https://generativelanguage.googleapis.com/v1beta/models`)
 - `GEMINI_API_KEY` (for Gemini/Google models)
 - `CODE_RUNTIME_SERVICE_OPENAI_TIMEOUT_MS` (default `45000`)
@@ -126,13 +127,19 @@ Default address: `http://127.0.0.1:8788`
 ## Turn routing contract (anti-rollback)
 
 - `code_turn_send` accepts explicit `provider` and `modelId`.
-- Supported provider values: `openai | anthropic | google`.
+- Supported provider values: `openai | anthropic | claude_code_local | google`.
+- `claude_code_local` is a first-class native provider:
+  - macOS-first in v1
+  - requires a locally installed, already authenticated `claude` CLI
+  - runs via `claude --print --verbose --output-format stream-json`
+  - never falls back to cloud `anthropic` automatically
 - Validation is strict:
   - unknown provider -> `INVALID_PARAMS`
   - provider/model mismatch -> `INVALID_PARAMS`
 - Routing behavior:
   - provider + model -> route by explicit pair when consistent
-  - provider only -> use provider default model (`gpt-5.3-codex` / `claude-sonnet-4-5` / `gemini-3.1-pro`), and in OpenAI-compat mode prefer provider models discovered from `/models`
+  - provider only -> use provider default model (`gpt-5.3-codex` / `claude-sonnet-4-5` / `gemini-3.1-pro`)
+  - `claude_code_local` uses the local Claude CLI default when no explicit model is selected
   - model only -> infer provider from model id
   - neither -> fallback to `CODE_RUNTIME_SERVICE_DEFAULT_MODEL`
 
@@ -150,6 +157,10 @@ Default address: `http://127.0.0.1:8788`
 
 - `/health=200` and `/ready=503`:
   - usually missing `OPENAI_API_KEY` or invalid endpoint/default model.
+- `claude_code_local` unavailable in provider catalog:
+  - install Claude Code locally or set `CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH`
+  - run `claude` once to sign in before retrying
+  - non-macOS hosts remain unavailable in v1 by design
 - Frequent upstream timeout errors:
   - increase `CODE_RUNTIME_SERVICE_OPENAI_TIMEOUT_MS`
   - tune `CODE_RUNTIME_SERVICE_OPENAI_MAX_RETRIES` and `...RETRY_BASE_MS`

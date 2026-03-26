@@ -88,6 +88,40 @@ describe("tauriRuntimeCatalogBridge.getModelList", () => {
     ]);
   });
 
+  it("keeps provider-scoped entries when multiple routes expose the same model slug", async () => {
+    modelsMock.mockResolvedValueOnce([
+      {
+        id: "claude-sonnet-4-5",
+        displayName: "Claude Sonnet 4.5",
+        provider: "anthropic",
+        pool: "claude",
+        source: "oauth-account",
+        available: true,
+        capabilities: ["chat", "coding"],
+        reasoningEfforts: ["low", "medium", "high"],
+      },
+      {
+        id: "claude-sonnet-4-5",
+        displayName: "Claude Sonnet 4.5",
+        provider: "claude_code_local",
+        pool: "claude_code_local",
+        source: "workspace-default",
+        available: true,
+        capabilities: ["chat", "coding"],
+        reasoningEfforts: ["low", "medium", "high"],
+      },
+    ]);
+
+    const result = await getModelList("ws-1");
+    const data = (result.result as { data: Array<Record<string, unknown>> }).data;
+    expect(data).toHaveLength(2);
+    expect(data.map((entry) => entry.id)).toEqual([
+      "anthropic::claude-sonnet-4-5",
+      "claude_code_local::claude-sonnet-4-5",
+    ]);
+    expect(data.map((entry) => entry.provider)).toEqual(["anthropic", "claude_code_local"]);
+  });
+
   it("falls back to direct web gateway rpc when runtime client models fail", async () => {
     modelsMock.mockRejectedValueOnce(new Error("Runtime RPC compatFieldAliases mismatch"));
     invokeWebRuntimeDirectRpcMock.mockResolvedValueOnce([

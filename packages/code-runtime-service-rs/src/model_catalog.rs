@@ -59,6 +59,7 @@ impl CompatModelCatalog {
         match provider {
             RuntimeProvider::OpenAI => !self.openai_models.is_empty(),
             RuntimeProvider::Anthropic => !self.anthropic_models.is_empty(),
+            RuntimeProvider::ClaudeCodeLocal => false,
             RuntimeProvider::Google => !self.google_models.is_empty(),
         }
     }
@@ -67,6 +68,7 @@ impl CompatModelCatalog {
         match provider {
             RuntimeProvider::OpenAI => self.openai_models.as_slice(),
             RuntimeProvider::Anthropic => self.anthropic_models.as_slice(),
+            RuntimeProvider::ClaudeCodeLocal => &[],
             RuntimeProvider::Google => self.google_models.as_slice(),
         }
     }
@@ -128,6 +130,7 @@ pub(crate) fn parse_openai_compat_model_catalog(payload: &Value) -> CompatModelC
         match detect_provider_from_model_id(Some(canonical.as_str())) {
             Some(RuntimeProvider::OpenAI) => catalog.openai_models.push(canonical),
             Some(RuntimeProvider::Anthropic) => catalog.anthropic_models.push(canonical),
+            Some(RuntimeProvider::ClaudeCodeLocal) => {}
             Some(RuntimeProvider::Google) => catalog.google_models.push(canonical),
             None => {}
         }
@@ -197,6 +200,21 @@ fn score_model_for_provider_default(provider: RuntimeProvider, model_id: &str) -
                 score += 580;
             } else if normalized.contains("claude-3-5-sonnet") {
                 score += 540;
+            } else if normalized.contains("claude-haiku") || normalized.contains("claude-3-haiku") {
+                score += 420;
+            }
+        }
+        RuntimeProvider::ClaudeCodeLocal => {
+            if normalized == DEFAULT_ANTHROPIC_MODEL_ID {
+                score += 680;
+            } else if normalized.contains("claude-sonnet-4-5") {
+                score += 660;
+            } else if normalized.contains("claude-opus-4-6") {
+                score += 640;
+            } else if normalized.contains("claude-opus") {
+                score += 620;
+            } else if normalized.contains("claude-sonnet") {
+                score += 580;
             } else if normalized.contains("claude-haiku") || normalized.contains("claude-3-haiku") {
                 score += 420;
             }

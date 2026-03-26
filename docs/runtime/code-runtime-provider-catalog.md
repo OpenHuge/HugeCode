@@ -12,6 +12,7 @@ Keep provider routing semantics in the runtime service, not in UI clients, so `w
 - Canonical provider IDs:
   - `openai` (pool: `codex`, oauth: `codex`)
   - `anthropic` (pool: `claude`, oauth: `claude_code`)
+  - `claude_code_local` (pool: `null`, oauth: `null`)
   - `google` (pool: `gemini`, oauth: `gemini`)
 
 The service returns provider metadata (aliases/default model/availability) through one endpoint. Clients should render and route by this payload instead of local hardcoded provider maps.
@@ -27,6 +28,13 @@ The service returns provider metadata (aliases/default model/availability) throu
 - provider catalog assembly
 
 This removes scattered alias logic in multiple paths and reduces drift when provider names evolve (for example `antigravity -> google/gemini`).
+
+`claude_code_local` is the exception to the OAuth/OpenAI-compatible rule:
+
+- it is a built-in native provider, not an extension
+- availability is gated by local CLI readiness, not OAuth pool state
+- v1 is macOS-first and requires an already authenticated local `claude` install
+- failures stay local and do not auto-fallback to cloud `anthropic`
 
 ## Client Responsibilities
 
@@ -80,6 +88,6 @@ Use `CODE_RUNTIME_SERVICE_PROVIDER_EXTENSIONS_JSON` to register non-core provide
 
 Notes:
 
-- Core built-ins remain fixed: `openai`, `anthropic`, `google`.
+- Core built-ins remain fixed: `openai`, `anthropic`, `claude_code_local`, `google`.
 - Extension providers are routed via OpenAI-compatible `chat/completions`.
 - If extension `apiKey` is missing, provider remains visible in catalog but marked unavailable.

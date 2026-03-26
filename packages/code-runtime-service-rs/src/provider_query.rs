@@ -398,6 +398,10 @@ pub(super) async fn query_provider_with_delta(
                     )
                     .await
                 }
+                RuntimeProvider::ClaudeCodeLocal => Err(
+                    "Claude Code Local must be executed through the local Claude CLI transport."
+                        .to_string(),
+                ),
                 RuntimeProvider::Google => {
                     provider_requests::query_google(
                         client,

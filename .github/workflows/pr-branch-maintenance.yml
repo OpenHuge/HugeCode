@@ -1,0 +1,161 @@
+name: PR Branch Maintenance
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+      - labeled
+      - unlabeled
+  pull_request_review:
+    types:
+      - submitted
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: pr-branch-maintenance-${{ github.event.pull_request.number || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  maintain_pr_branches:
+    name: Update approved PR branches when behind
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate pull requests and update eligible branches
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          owner="${REPOSITORY%%/*}"
+          repo="${REPOSITORY#*/}"
+          updated_file="$(mktemp)"
+          conflicted_file="$(mktemp)"
+          skipped_file="$(mktemp)"
+
+          append_summary_section() {
+            local title="$1"
+            local file_path="$2"
+
+            if [[ ! -s "$file_path" ]]; then
+              return
+            fi
+
+            {
+              echo "### $title"
+              cat "$file_path"
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+          }
+
+          process_pr_json() {
+            local pr_json="$1"
+            local number
+            local review_decision
+            local merge_state
+            local head_repository
+            local unresolved_threads
+            local has_manual_merge_label
+            local is_draft
+            local reason
+
+            number="$(printf '%s' "$pr_json" | jq -r '.number')"
+            review_decision="$(printf '%s' "$pr_json" | jq -r '.reviewDecision // ""')"
+            merge_state="$(printf '%s' "$pr_json" | jq -r '.mergeStateStatus // ""')"
+            head_repository="$(printf '%s' "$pr_json" | jq -r '.headRepository.nameWithOwner // ""')"
+            unresolved_threads="$(
+              printf '%s' "$pr_json" | jq '[.reviewThreads.nodes[] | select(.isResolved == false)] | length'
+            )"
+            has_manual_merge_label="$(
+              printf '%s' "$pr_json" | jq -r '[.labels.nodes[].name] | index("manual-merge") != null'
+            )"
+            is_draft="$(printf '%s' "$pr_json" | jq -r '.isDraft')"
+
+            if [[ "$is_draft" == "true" ]]; then
+              echo "- PR #$number: draft pull request." >> "$skipped_file"
+              return
+            fi
+
+            if [[ "$head_repository" != "$REPOSITORY" ]]; then
+              echo "reason=Head branch is not hosted in the base repository."
+              echo "- PR #$number: Head branch is not hosted in the base repository." >> "$skipped_file"
+              return
+            fi
+
+            if [[ "$has_manual_merge_label" == "true" ]]; then
+              echo "reason=manual-merge label is present."
+              echo "- PR #$number: manual-merge label is present." >> "$skipped_file"
+              return
+            fi
+
+            if [[ "$review_decision" != "APPROVED" ]]; then
+              echo "reason=Pull request is not currently approved."
+              echo "- PR #$number: Pull request is not currently approved." >> "$skipped_file"
+              return
+            fi
+
+            if [[ "$unresolved_threads" -gt 0 ]]; then
+              echo "reason=Pull request still has unresolved review threads."
+              echo "- PR #$number: Pull request still has unresolved review threads." >> "$skipped_file"
+              return
+            fi
+
+            if [[ "$merge_state" == "DIRTY" ]]; then
+              echo "- PR #$number: merge conflicts require manual resolution." >> "$conflicted_file"
+              return
+            fi
+
+            if [[ "$merge_state" == "BEHIND" ]]; then
+              if gh pr update-branch "$number" --repo "$REPOSITORY"; then
+                echo "- PR #$number: branch updated with latest base changes." >> "$updated_file"
+              else
+                echo "- PR #$number: update-branch failed; check PR state manually." >> "$conflicted_file"
+              fi
+              return
+            fi
+
+            reason="No update needed for merge state ${merge_state:-UNKNOWN}."
+            echo "- PR #$number: $reason" >> "$skipped_file"
+          }
+
+          if [[ "$EVENT_NAME" == "pull_request_target" || "$EVENT_NAME" == "pull_request_review" ]]; then
+            pr_json="$(
+              gh api graphql \
+                -F owner="$owner" \
+                -F repo="$repo" \
+                -F number="$PR_NUMBER" \
+                -f query='query($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { number isDraft labels(first: 50) { nodes { name } } mergeStateStatus reviewDecision headRepository { nameWithOwner } reviewThreads(first: 100) { nodes { isResolved } } } } }'
+            )"
+
+            pull_request_node="$(printf '%s' "$pr_json" | jq -c '.data.repository.pullRequest')"
+            if [[ "$pull_request_node" != "null" && -n "$pull_request_node" ]]; then
+              process_pr_json "$pull_request_node"
+            fi
+          else
+            pr_json="$(
+              gh api graphql \
+                -F owner="$owner" \
+                -F repo="$repo" \
+                -f query='query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { pullRequests(first: 100, states: OPEN, orderBy: { field: UPDATED_AT, direction: DESC }) { nodes { number isDraft labels(first: 50) { nodes { name } } mergeStateStatus reviewDecision headRepository { nameWithOwner } reviewThreads(first: 100) { nodes { isResolved } } } } } }'
+            )"
+
+            while IFS= read -r pr_node; do
+              process_pr_json "$pr_node"
+            done < <(printf '%s' "$pr_json" | jq -c '.data.repository.pullRequests.nodes[]')
+          fi
+
+          append_summary_section "Updated pull requests" "$updated_file"
+          append_summary_section "Conflicted pull requests" "$conflicted_file"
+          append_summary_section "Skipped pull requests" "$skipped_file"

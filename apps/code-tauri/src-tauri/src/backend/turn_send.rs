@@ -11,6 +11,7 @@ use super::turn_contract::{
     invalid_turn_ack, is_supported_turn_provider, normalize_model_id, normalize_provider_hint,
 };
 use super::RuntimeBackend;
+use crate::models::{ResolvedRoute, RouteReason};
 
 fn normalize_optional_text(value: Option<&str>) -> Option<String> {
     value
@@ -225,7 +226,7 @@ impl RuntimeBackend {
                 payload.provider.clone(),
                 payload.model_id.clone(),
                 format!(
-                    "INVALID_PARAMS: unsupported provider '{}'. Allowed: openai, anthropic, google.",
+                    "INVALID_PARAMS: unsupported provider '{}'. Allowed: openai, anthropic, claude_code_local, google.",
                     requested_provider.unwrap_or_default()
                 ),
             );
@@ -237,7 +238,7 @@ impl RuntimeBackend {
                     payload.provider.clone(),
                     payload.model_id.clone(),
                     format!(
-                        "INVALID_PARAMS: unsupported provider '{}'. Allowed: openai, anthropic, google.",
+                        "INVALID_PARAMS: unsupported provider '{}'. Allowed: openai, anthropic, claude_code_local, google.",
                         provider
                     ),
                 );
@@ -255,7 +256,9 @@ impl RuntimeBackend {
             (explicit_provider.as_deref(), explicit_model_id.as_deref())
         {
             if let Some(inferred_provider) = infer_provider_from_model_id(model_id) {
-                if inferred_provider != provider {
+                let local_claude_match =
+                    provider == "claude_code_local" && inferred_provider == "anthropic";
+                if inferred_provider != provider && !local_claude_match {
                     return invalid_turn_ack(
                         payload.thread_id.clone(),
                         payload.provider.clone(),
@@ -339,10 +342,30 @@ impl RuntimeBackend {
         });
 
         let requested_model_id = explicit_model_id.or(provider_hint_model_id);
-        let candidate_routes = self.resolver.resolve_turn_candidates(
-            requested_model_id.as_deref(),
-            workspace_default_model_id.as_deref(),
-        );
+        let explicit_local_claude_route = explicit_provider
+            .as_deref()
+            .filter(|provider| *provider == "claude_code_local")
+            .map(|provider| ResolvedRoute {
+                model_id: requested_model_id
+                    .clone()
+                    .unwrap_or_else(|| "claude-sonnet-4-5".to_string()),
+                provider: provider.to_string(),
+                pool: "claude_code_local".to_string(),
+                source: "workspace-default".to_string(),
+                reason: if payload.model_id.is_some() {
+                    RouteReason::ExplicitModel
+                } else {
+                    RouteReason::WorkspaceDefault
+                },
+            });
+        let candidate_routes = explicit_local_claude_route
+            .map(|route| vec![route])
+            .unwrap_or_else(|| {
+                self.resolver.resolve_turn_candidates(
+                    requested_model_id.as_deref(),
+                    workspace_default_model_id.as_deref(),
+                )
+            });
         if candidate_routes.is_empty() {
             sync_resolver_circuits_to_state(&self.resolver, &mut state);
             self.persist_locked_state(&state);
@@ -364,7 +387,9 @@ impl RuntimeBackend {
             let provider = candidate.provider.to_ascii_lowercase();
             let mut route_error = None;
 
-            if !self.resolver.route_metadata_matches_catalog(&candidate) {
+            if provider != "claude_code_local"
+                && !self.resolver.route_metadata_matches_catalog(&candidate)
+            {
                 route_error = Some(format!(
                     "route/provider mismatch for {}",
                     candidate.model_id
@@ -476,7 +501,11 @@ impl RuntimeBackend {
             thread_id: Some(thread_id),
             routed_provider: Some(route.provider.clone()),
             routed_model_id: Some(route.model_id.clone()),
-            routed_pool: Some(route.pool.clone()),
+            routed_pool: if route.provider == "claude_code_local" {
+                None
+            } else {
+                Some(route.pool.clone())
+            },
             routed_source: Some(route.source.clone()),
             message: format!(
                 "Turn accepted via {} (execution: {}, reason: {}, source: {}, effort: {}, access: {}, attachments: {} [{}], bytes: {}{}{}{}).",

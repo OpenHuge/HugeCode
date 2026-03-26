@@ -76,6 +76,7 @@ Public workflow entrypoints currently include:
 - `.github/workflows/desktop.yml`
 - `.github/workflows/electron-beta.yml`
 - `.github/workflows/nightly.yml`
+- `.github/workflows/pr-branch-maintenance.yml`
 - `.github/workflows/pr-auto-merge.yml`
 - `.github/workflows/release.yml`
 
@@ -126,5 +127,9 @@ Public workflow entrypoints currently include:
 - Public desktop, electron, and CodeQL workflows may still trigger for workflow-governance edits so syntax and required check names stay visible, but workflow-only changes should fast-skip heavyweight packaging or language-analysis lanes unless the owned product or build-runtime surfaces changed.
 - Dependabot auto-merge must stay selective: only low-risk grouped updates such as `devcontainers-safe` and `github-actions-safe` should auto-enable merge after checks pass; runtime, frontend, and Rust dependency bumps remain manual-review lanes.
 - Cross-directory Rust updates should prefer Dependabot `group-by: dependency-name` so the same crate bump lands in one PR across monorepo manifests instead of fan-out duplicates.
+- Approved repo-hosted PRs may be updated with GitHub-native branch-update
+  behavior when they are behind `main`, but the automation must leave `DIRTY`
+  merge-conflict cases for manual resolution instead of attempting local merge
+  or rebase repair.
 - Auto-merge for non-Dependabot PRs should stay repo-branch-only and review-gated; the default path is "approved with no unresolved conversations means `gh pr merge --auto` is enabled unless the PR carries the opt-out `manual-merge` label."
 - npm Dependabot updates should prefer grouped low-risk development-version bumps to reduce queue pressure and redundant CI fan-out, while keeping higher-risk dependency changes in manual-review lanes.

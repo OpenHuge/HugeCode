@@ -25,6 +25,7 @@ export type RuntimeMode = "local" | "remote";
 export type ModelProvider =
   | "openai"
   | "anthropic"
+  | "claude_code_local"
   | "google"
   | "antigravity"
   | "anti-gravity"
@@ -2171,9 +2172,24 @@ export type PromptLibraryEntry = {
 
 export type OAuthProviderId = "codex" | "gemini" | "claude_code";
 
-export type CanonicalModelProvider = "openai" | "anthropic" | "google" | "local" | "unknown";
+export type CanonicalModelProvider =
+  | "openai"
+  | "anthropic"
+  | "claude_code_local"
+  | "google"
+  | "local"
+  | "unknown";
 
 export type CanonicalModelPool = "codex" | "claude" | "gemini" | "auto";
+
+export type RuntimeProviderReadinessKind =
+  | "ready"
+  | "not_installed"
+  | "not_authenticated"
+  | "unsupported_platform"
+  | "degraded";
+
+export type RuntimeProviderExecutionKind = "local" | "cloud";
 
 export type RuntimeProviderCatalogEntry = {
   providerId: CanonicalModelProvider | (string & {});
@@ -2185,6 +2201,9 @@ export type RuntimeProviderCatalogEntry = {
   available: boolean;
   supportsNative: boolean;
   supportsOpenaiCompat: boolean;
+  readinessKind?: RuntimeProviderReadinessKind | null;
+  readinessMessage?: string | null;
+  executionKind?: RuntimeProviderExecutionKind | null;
   registryVersion?: string | null;
 };
 

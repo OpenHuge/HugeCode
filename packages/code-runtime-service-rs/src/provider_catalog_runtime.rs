@@ -9,6 +9,13 @@ struct CompatCatalogResolutionAttempt {
     api_key_override: Option<String>,
 }
 
+struct ProviderCatalogReadinessSummary {
+    available: bool,
+    readiness_kind: &'static str,
+    readiness_message: Option<String>,
+    execution_kind: &'static str,
+}
+
 pub(super) async fn build_models_pool(ctx: &AppContext) -> Vec<Value> {
     let compat_catalog = resolve_compat_catalog_with_recovery(ctx).await;
     let local_codex_cached_models = load_local_codex_cached_model_slugs();
@@ -120,24 +127,38 @@ pub(super) async fn build_providers_catalog(ctx: &AppContext) -> Vec<RuntimeProv
     let compat_catalog = resolve_compat_catalog_with_recovery(ctx).await;
     let supports_openai_compat = has_openai_compat_mode(&ctx.config);
     let provider_extensions = list_runtime_provider_extensions(ctx).await;
-    let mut entries = RuntimeProvider::all()
-        .map(|provider| RuntimeProviderCatalogEntry {
+    let mut entries = Vec::new();
+    for provider in RuntimeProvider::all() {
+        let readiness = provider_catalog_readiness_summary(ctx, &compat_catalog, provider).await;
+        entries.push(RuntimeProviderCatalogEntry {
             provider_id: provider.routed_provider().to_string(),
             display_name: provider.display_name().to_string(),
-            pool: Some(provider.routed_pool().to_string()),
-            oauth_provider_id: Some(provider.oauth_provider().to_string()),
+            pool: if provider == RuntimeProvider::ClaudeCodeLocal {
+                None
+            } else {
+                Some(provider.routed_pool().to_string())
+            },
+            oauth_provider_id: if provider.oauth_provider().trim().is_empty() {
+                None
+            } else {
+                Some(provider.oauth_provider().to_string())
+            },
             aliases: provider
                 .aliases()
                 .iter()
                 .map(|alias| alias.to_string())
                 .collect(),
             default_model_id: Some(provider.default_model_id().to_string()),
-            available: provider_is_available(ctx, &compat_catalog, provider),
+            available: readiness.available,
             supports_native: true,
-            supports_openai_compat,
+            supports_openai_compat: provider != RuntimeProvider::ClaudeCodeLocal
+                && supports_openai_compat,
+            readiness_kind: Some(readiness.readiness_kind.to_string()),
+            readiness_message: readiness.readiness_message,
+            execution_kind: Some(readiness.execution_kind.to_string()),
             registry_version: Some(CODE_RUNTIME_RPC_CONTRACT_VERSION.to_string()),
-        })
-        .collect::<Vec<_>>();
+        });
+    }
     entries.extend(
         provider_extensions
             .iter()
@@ -151,6 +172,15 @@ pub(super) async fn build_providers_catalog(ctx: &AppContext) -> Vec<RuntimeProv
                 available: provider_extension_spec_is_available(extension),
                 supports_native: false,
                 supports_openai_compat: true,
+                readiness_kind: Some(if provider_extension_spec_is_available(extension) {
+                    "ready".to_string()
+                } else {
+                    "degraded".to_string()
+                }),
+                readiness_message: (!provider_extension_spec_is_available(extension)).then_some(
+                    "Extension provider is disabled or blocked by its lifecycle state.".to_string(),
+                ),
+                execution_kind: Some("cloud".to_string()),
                 registry_version: Some(CODE_RUNTIME_RPC_CONTRACT_VERSION.to_string()),
             }),
     );
@@ -225,6 +255,37 @@ fn provider_is_available(
         || compat_catalog.has_provider_models(provider)
 }
 
+async fn provider_catalog_readiness_summary(
+    ctx: &AppContext,
+    compat_catalog: &CompatModelCatalog,
+    provider: RuntimeProvider,
+) -> ProviderCatalogReadinessSummary {
+    if provider == RuntimeProvider::ClaudeCodeLocal {
+        let readiness = read_local_claude_cli_readiness().await;
+        return ProviderCatalogReadinessSummary {
+            available: readiness.kind == LocalClaudeReadinessKind::Ready,
+            readiness_kind: readiness.kind.as_str(),
+            readiness_message: Some(readiness.message),
+            execution_kind: "local",
+        };
+    }
+
+    let available = provider.has_api_key(&ctx.config)
+        || has_available_oauth_account(ctx, provider)
+        || compat_catalog.has_provider_models(provider);
+
+    ProviderCatalogReadinessSummary {
+        available,
+        readiness_kind: if available { "ready" } else { "degraded" },
+        readiness_message: if available {
+            None
+        } else {
+            Some("No active account routing, API key, or discovered model catalog is available for this provider.".to_string())
+        },
+        execution_kind: "cloud",
+    }
+}
+
 async fn list_runtime_provider_extensions(
     ctx: &AppContext,
 ) -> Vec<extensions_runtime::RuntimeExtensionSpecPayload> {
@@ -288,10 +349,10 @@ fn provider_extension_aliases(
 }
 
 fn provider_default_model_source(provider: RuntimeProvider) -> &'static str {
-    if provider == RuntimeProvider::OpenAI {
-        "local-codex"
-    } else {
-        "oauth-account"
+    match provider {
+        RuntimeProvider::OpenAI => "local-codex",
+        RuntimeProvider::ClaudeCodeLocal => "workspace-default",
+        RuntimeProvider::Anthropic | RuntimeProvider::Google => "oauth-account",
     }
 }
 
@@ -299,6 +360,7 @@ fn provider_default_model_display_name(provider: RuntimeProvider) -> &'static st
     match provider {
         RuntimeProvider::OpenAI => "GPT-5.4",
         RuntimeProvider::Anthropic => "Claude Sonnet 4.5",
+        RuntimeProvider::ClaudeCodeLocal => "Claude Sonnet 4.5",
         RuntimeProvider::Google => "Gemini 2.5 Pro",
     }
 }
@@ -306,11 +368,16 @@ fn provider_default_model_display_name(provider: RuntimeProvider) -> &'static st
 fn provider_reasoning_efforts(provider: RuntimeProvider) -> &'static [&'static str] {
     match provider {
         RuntimeProvider::OpenAI => &["low", "medium", "high", "xhigh"],
-        RuntimeProvider::Anthropic | RuntimeProvider::Google => &["low", "medium", "high"],
+        RuntimeProvider::Anthropic | RuntimeProvider::ClaudeCodeLocal | RuntimeProvider::Google => {
+            &["low", "medium", "high"]
+        }
     }
 }
 
 fn has_available_oauth_account(ctx: &AppContext, provider: RuntimeProvider) -> bool {
+    if provider == RuntimeProvider::ClaudeCodeLocal {
+        return false;
+    }
     peek_strict_pool_routing_credentials(ctx, provider).is_some()
 }
 
@@ -318,6 +385,9 @@ fn peek_strict_pool_routing_credentials(
     ctx: &AppContext,
     provider: RuntimeProvider,
 ) -> Option<OAuthRoutingCredentials> {
+    if provider == RuntimeProvider::ClaudeCodeLocal {
+        return None;
+    }
     let pool_id = format!("pool-{}", provider.routed_pool());
     let selection = match ctx
         .oauth_pool
