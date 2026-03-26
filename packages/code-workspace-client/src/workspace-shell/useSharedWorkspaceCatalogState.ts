@@ -20,15 +20,21 @@ export function useSharedWorkspaceCatalogState() {
     navigation.readRouteSelection
   );
   const refresh = useCallback(() => catalogStore.refresh(), [catalogStore]);
+  const routeWorkspaceId = routeSelection.kind === "workspace" ? routeSelection.workspaceId : null;
 
   const activeWorkspaceId = useMemo(() => {
-    if (routeSelection.kind !== "workspace") {
+    if (routeWorkspaceId === null) {
       return null;
     }
-    return catalogState.workspaces.some((entry) => entry.id === routeSelection.workspaceId)
-      ? routeSelection.workspaceId
+    if (catalogState.workspaces.some((entry) => entry.id === routeWorkspaceId)) {
+      return routeWorkspaceId;
+    }
+    return catalogState.loadState === "idle" ||
+      catalogState.loadState === "loading" ||
+      catalogState.loadState === "refreshing"
+      ? routeWorkspaceId
       : null;
-  }, [catalogState.workspaces, routeSelection]);
+  }, [catalogState.loadState, catalogState.workspaces, routeWorkspaceId]);
 
   const selectWorkspace = useCallback(
     (workspaceId: string | null) => {
@@ -45,11 +51,18 @@ export function useSharedWorkspaceCatalogState() {
     () => catalogState.workspaces.find((entry) => entry.id === activeWorkspaceId) ?? null,
     [activeWorkspaceId, catalogState.workspaces]
   );
+  const hasPendingWorkspaceSelection =
+    activeWorkspaceId !== null &&
+    activeWorkspace === null &&
+    (catalogState.loadState === "idle" ||
+      catalogState.loadState === "loading" ||
+      catalogState.loadState === "refreshing");
 
   return {
     workspaces: catalogState.workspaces,
     activeWorkspaceId,
     activeWorkspace,
+    hasPendingWorkspaceSelection,
     loadState: catalogState.loadState,
     error: catalogState.error,
     refresh,

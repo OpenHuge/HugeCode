@@ -169,6 +169,42 @@ function wrapper(bindings: WorkspaceClientBindings) {
 }
 
 describe("useSharedWorkspaceCatalogState", () => {
+  it("preserves an explicit workspace route while the catalog is still hydrating", async () => {
+    let resolveCatalog:
+      | ((value: { id: string; name: string; connected: boolean }[]) => void)
+      | null = null;
+    const listWorkspaces = vi.fn(
+      () =>
+        new Promise<{ id: string; name: string; connected: boolean }[]>((resolve) => {
+          resolveCatalog = resolve;
+        })
+    );
+
+    const { result } = renderHook(() => useSharedWorkspaceCatalogState(), {
+      wrapper: wrapper(
+        createBindings({ kind: "workspace", workspaceId: "workspace-2" }, listWorkspaces)
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe("loading");
+    });
+    expect(result.current.activeWorkspaceId).toBe("workspace-2");
+    expect(result.current.activeWorkspace).toBeNull();
+    expect(result.current.hasPendingWorkspaceSelection).toBe(true);
+
+    await act(async () => {
+      resolveCatalog?.([{ id: "workspace-1", name: "Alpha", connected: true }]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe("ready");
+    });
+    expect(result.current.activeWorkspaceId).toBeNull();
+    expect(result.current.hasPendingWorkspaceSelection).toBe(false);
+  });
+
   it("refreshes workspace catalog from runtime-updated events and derives active workspace from route state", async () => {
     const listWorkspaces = vi
       .fn()
@@ -208,6 +244,7 @@ describe("useSharedWorkspaceCatalogState", () => {
       expect(result.current.workspaces).toHaveLength(1);
     });
     expect(result.current.activeWorkspaceId).toBeNull();
+    expect(result.current.hasPendingWorkspaceSelection).toBe(false);
     expect(subscribeScopedRuntimeUpdatedEvents).toHaveBeenCalledWith(
       { scopes: ["bootstrap", "workspaces"] },
       expect.any(Function)
@@ -229,6 +266,7 @@ describe("useSharedWorkspaceCatalogState", () => {
       expect(result.current.workspaces).toHaveLength(2);
       expect(result.current.activeWorkspaceId).toBe("workspace-2");
       expect(result.current.activeWorkspace?.name).toBe("Beta");
+      expect(result.current.hasPendingWorkspaceSelection).toBe(false);
     });
   });
 

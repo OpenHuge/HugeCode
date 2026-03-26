@@ -74,6 +74,7 @@ export function useSharedWorkspaceShellState() {
     workspaces: catalogState.workspaces,
     activeWorkspaceId: catalogState.activeWorkspaceId,
     activeWorkspace: catalogState.activeWorkspace,
+    hasPendingWorkspaceSelection: catalogState.hasPendingWorkspaceSelection,
     workspaceLoadState: catalogState.loadState,
     workspaceError: catalogState.error,
     refreshWorkspaces: catalogState.refresh,

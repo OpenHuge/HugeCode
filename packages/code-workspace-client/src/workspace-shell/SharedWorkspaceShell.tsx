@@ -761,12 +761,29 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
         value: "__home__",
         label: "Home overview",
       },
+      ...(state.hasPendingWorkspaceSelection && state.activeWorkspaceId
+        ? [
+            {
+              value: state.activeWorkspaceId,
+              label:
+                state.workspaceLoadState === "refreshing"
+                  ? "Refreshing selected workspace..."
+                  : "Loading selected workspace...",
+              disabled: true,
+            },
+          ]
+        : []),
       ...state.workspaces.map((workspace) => ({
         value: workspace.id,
         label: workspace.name,
       })),
     ],
-    [state.workspaces]
+    [
+      state.activeWorkspaceId,
+      state.hasPendingWorkspaceSelection,
+      state.workspaceLoadState,
+      state.workspaces,
+    ]
   );
   const workspaceSelectValue = state.activeWorkspaceId ?? "__home__";
   const shellErrors = useMemo(

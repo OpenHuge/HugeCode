@@ -29,10 +29,11 @@ function createBindings(options?: {
   readMissionControlSnapshot?: () => Promise<MissionControlSnapshot>;
   hostPlatform?: WorkspaceClientBindings["host"]["platform"];
   readStartupStatus?: WorkspaceClientBindings["host"]["shell"]["readStartupStatus"];
+  initialSelection?: SharedWorkspaceRouteSelection;
   listWorkspaces?: WorkspaceClientBindings["runtime"]["workspaceCatalog"]["listWorkspaces"];
 }): WorkspaceClientBindings {
   const listeners = new Set<() => void>();
-  let selection: SharedWorkspaceRouteSelection = { kind: "home" };
+  let selection: SharedWorkspaceRouteSelection = options?.initialSelection ?? { kind: "home" };
 
   return {
     navigation: {
@@ -375,6 +376,42 @@ describe("WorkspaceShellApp", () => {
     expect(screen.getByRole("button", { name: "Review" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Settings" })).toBeTruthy();
   }, 15_000);
+
+  it("keeps an explicit workspace route scoped while the roster is still hydrating", async () => {
+    vi.useFakeTimers();
+
+    try {
+      render(
+        <WorkspaceClientBindingsProvider
+          bindings={createBindings({
+            initialSelection: { kind: "workspace", workspaceId: "workspace-2" },
+            listWorkspaces: vi.fn(
+              () => new Promise<{ id: string; name: string; connected: boolean }[]>(() => undefined)
+            ),
+          })}
+        >
+          <WorkspaceShellApp />
+        </WorkspaceClientBindingsProvider>
+      );
+
+      expect(screen.getByText("Loading selected workspace...")).toBeTruthy();
+
+      await act(async () => {
+        vi.advanceTimersByTime(250);
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(screen.getByRole("heading", { level: 2, name: "Beta" })).toBeTruthy();
+      expect(
+        screen.getAllByText("The selected workspace is not connected to the runtime.").length
+      ).toBeGreaterThan(0);
+      expect(screen.getByRole("heading", { level: 1, name: "Workspaces" })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   it("updates the mission summary when selecting another workspace", async () => {
     window.history.pushState({}, "", "/app");
