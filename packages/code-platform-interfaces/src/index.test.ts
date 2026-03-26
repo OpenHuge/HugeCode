@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type DesktopAppInfo,
+  type DesktopDiagnosticsInfo,
   type DesktopLaunchIntent,
   type DesktopUpdateState,
   isElectronDesktopHostBridge,
@@ -31,6 +32,14 @@ describe("code-platform-interfaces", () => {
       receivedAt: "2026-03-24T00:00:00.000Z",
       url: "hugecode://workspace/open?path=%2Fworkspace%2Falpha",
     };
+    const workspaceLaunchIntent: DesktopLaunchIntent = {
+      kind: "workspace",
+      launchPath: "/workspace/alpha/src/main.ts",
+      launchPathKind: "file",
+      receivedAt: "2026-03-24T00:00:00.000Z",
+      workspaceLabel: "alpha",
+      workspacePath: "/workspace/alpha",
+    };
     const updateState: DesktopUpdateState = {
       capability: "automatic",
       message: "Automatic beta updates are enabled from the configured static feed.",
@@ -40,9 +49,21 @@ describe("code-platform-interfaces", () => {
       stage: "available",
       version: "0.1.0-beta.2",
     };
+    const diagnosticsInfo: DesktopDiagnosticsInfo = {
+      crashDumpsDirectoryPath: "/tmp/hugecode/crash-dumps",
+      incidentLogPath: "/tmp/hugecode/logs/desktop-incidents.ndjson",
+      lastIncidentAt: "2026-03-24T00:05:00.000Z",
+      logsDirectoryPath: "/tmp/hugecode/logs",
+      recentIncidentCount: 2,
+      reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
+      supportSnapshotText: "HugeCode Desktop Support Snapshot",
+    };
 
     expect(appInfo.channel).toBe("beta");
     expect(launchIntent.kind).toBe("protocol");
+    expect(workspaceLaunchIntent.launchPathKind).toBe("file");
+    expect(workspaceLaunchIntent.workspacePath).toBe("/workspace/alpha");
     expect(updateState.stage).toBe("available");
+    expect(diagnosticsInfo.recentIncidentCount).toBe(2);
   });
 });
