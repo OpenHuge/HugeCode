@@ -1,11 +1,15 @@
 import { Outlet, createFileRoute } from "@tanstack/react-router";
 import { WebChrome } from "../components/WebChrome";
+import { WebPwaLifecycleMount } from "../pwa/WebPwaLifecycleMount";
 
 function PublicRouteLayout() {
   return (
-    <WebChrome>
-      <Outlet />
-    </WebChrome>
+    <>
+      <WebPwaLifecycleMount />
+      <WebChrome>
+        <Outlet />
+      </WebChrome>
+    </>
   );
 }
 

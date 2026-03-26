@@ -24,6 +24,8 @@ mod runtime_backends_dispatch;
 mod runtime_backends_native_store;
 #[path = "../../rpc_dispatch_runtime_kernel_v2.rs"]
 mod runtime_kernel_v2_dispatch;
+#[path = "../../rpc_dispatch_runtime_kernel_v2_plan.rs"]
+mod runtime_kernel_v2_plan;
 #[path = "../../rpc_dispatch_runtime_tool_guardrails.rs"]
 mod runtime_tool_guardrails_dispatch;
 #[path = "../../rpc_dispatch_runtime_tool_metrics.rs"]

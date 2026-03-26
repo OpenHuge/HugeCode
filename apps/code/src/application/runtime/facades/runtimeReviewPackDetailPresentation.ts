@@ -285,6 +285,51 @@ export function buildMissionBriefDetail(
   if ((missionBrief.preferredBackendIds?.length ?? 0) > 0) {
     pushUnique(details, `Preferred backends: ${missionBrief.preferredBackendIds?.join(", ")}`);
   }
+  if (missionBrief.planVersion) {
+    pushUnique(details, `Plan version: ${missionBrief.planVersion}`);
+  }
+  if (missionBrief.planSummary) {
+    pushUnique(details, `Plan summary: ${missionBrief.planSummary}`);
+  }
+  if (missionBrief.currentMilestoneId) {
+    pushUnique(details, `Current milestone: ${missionBrief.currentMilestoneId}`);
+  }
+  if (typeof missionBrief.estimatedWorkerRuns === "number") {
+    pushUnique(details, `Estimated worker runs: ${missionBrief.estimatedWorkerRuns}`);
+  }
+  if (typeof missionBrief.estimatedDurationMinutes === "number") {
+    pushUnique(details, `Estimated duration: ${missionBrief.estimatedDurationMinutes} min`);
+  }
+  if (missionBrief.parallelismHint) {
+    pushUnique(details, `Parallelism: ${missionBrief.parallelismHint}`);
+  }
+  if ((missionBrief.clarificationQuestions?.length ?? 0) > 0) {
+    pushUnique(details, `Clarifying questions: ${missionBrief.clarificationQuestions?.join("; ")}`);
+  }
+  if ((missionBrief.milestones?.length ?? 0) > 0) {
+    pushUnique(
+      details,
+      `Milestones: ${missionBrief.milestones
+        ?.map((milestone) => `${milestone.label} [${milestone.status ?? "planned"}]`)
+        .join("; ")}`
+    );
+  }
+  if ((missionBrief.validationLanes?.length ?? 0) > 0) {
+    pushUnique(
+      details,
+      `Validation lanes: ${missionBrief.validationLanes
+        ?.map((lane) => `${lane.label} (${lane.trigger})`)
+        .join("; ")}`
+    );
+  }
+  if ((missionBrief.skillPlan?.length ?? 0) > 0) {
+    pushUnique(
+      details,
+      `Skill plan: ${missionBrief.skillPlan
+        ?.map((skill) => `${skill.label} [${skill.state}]`)
+        .join("; ")}`
+    );
+  }
   if (missionBrief.permissionSummary?.accessMode) {
     pushUnique(details, `Access mode: ${missionBrief.permissionSummary.accessMode}`);
   }
@@ -334,11 +379,17 @@ export function buildRelaunchContextDetail(
   if (relaunchContext.sourceReviewPackId) {
     pushUnique(details, `Source review pack: ${relaunchContext.sourceReviewPackId}`);
   }
+  if (relaunchContext.sourcePlanVersion) {
+    pushUnique(details, `Source plan version: ${relaunchContext.sourcePlanVersion}`);
+  }
   if (relaunchContext.failureClass) {
     pushUnique(details, `Failure class: ${relaunchContext.failureClass}`);
   }
   if ((relaunchContext.recommendedActions?.length ?? 0) > 0) {
     pushUnique(details, `Recommended actions: ${relaunchContext.recommendedActions?.join(", ")}`);
+  }
+  if (relaunchContext.planChangeSummary) {
+    pushUnique(details, `Plan change: ${relaunchContext.planChangeSummary}`);
   }
   if (details.length === 0 && !relaunchContext.summary) {
     return undefined;

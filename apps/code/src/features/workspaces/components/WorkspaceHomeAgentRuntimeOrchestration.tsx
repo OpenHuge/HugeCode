@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
-import { resolveContinuationPathLabel } from "../../../application/runtime/facades/runtimeContinuationTruth";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
 import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
@@ -15,102 +13,10 @@ import {
   parseRuntimeBatchPreviewState,
 } from "./WorkspaceHomeAgentRuntimeOrchestration.helpers";
 import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";
-import { isBlockingSubAgentStatus } from "../../../utils/subAgentStatus";
 
 type WorkspaceHomeAgentRuntimeOrchestrationProps = {
   workspaceId: string;
 };
-
-function formatPolicyValue(value: string | null | undefined, fallback: string): string {
-  if (typeof value !== "string") {
-    return fallback;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : fallback;
-}
-
-function formatPolicyList(values: string[] | undefined, fallback: string): string {
-  if (!values || values.length === 0) {
-    return fallback;
-  }
-  return values.join(", ");
-}
-
-function buildContinuityRouteTargetLabel(run: HugeCodeRunSummary | undefined): string | null {
-  const takeoverTarget = run?.takeoverBundle?.target ?? null;
-  if (takeoverTarget?.kind === "thread") {
-    return `Thread ${takeoverTarget.threadId}`;
-  }
-  if (takeoverTarget?.kind === "review_pack") {
-    return `Review Pack ${takeoverTarget.reviewPackId}`;
-  }
-  if (takeoverTarget?.kind === "run") {
-    return `Run ${takeoverTarget.runId}`;
-  }
-  if (takeoverTarget?.kind === "sub_agent_session") {
-    return `Sub-agent session ${takeoverTarget.sessionId}`;
-  }
-
-  const navigationTarget = run?.missionLinkage?.navigationTarget ?? null;
-  if (navigationTarget?.kind === "thread") {
-    return `Thread ${navigationTarget.threadId}`;
-  }
-  if (navigationTarget?.kind === "run") {
-    return `Run ${navigationTarget.runId}`;
-  }
-
-  const reviewPackId =
-    run?.takeoverBundle?.reviewPackId ??
-    run?.reviewPackId ??
-    run?.missionLinkage?.reviewPackId ??
-    null;
-  if (reviewPackId) {
-    return `Review Pack ${reviewPackId}`;
-  }
-
-  return null;
-}
-
-function buildContinuityEvidenceSummary(run: HugeCodeRunSummary | undefined): string | null {
-  const evidence: string[] = [];
-  const checkpointId =
-    run?.takeoverBundle?.checkpointId ??
-    run?.checkpoint?.checkpointId ??
-    run?.missionLinkage?.checkpointId;
-  const traceId =
-    run?.takeoverBundle?.traceId ?? run?.checkpoint?.traceId ?? run?.missionLinkage?.traceId;
-  const reviewPackId =
-    run?.takeoverBundle?.reviewPackId ??
-    run?.reviewPackId ??
-    run?.missionLinkage?.reviewPackId ??
-    null;
-  const publishBranch =
-    run?.publishHandoff?.branchName ?? run?.takeoverBundle?.publishHandoff?.branchName;
-
-  if (checkpointId) {
-    evidence.push(`Checkpoint ${checkpointId}`);
-  }
-  if (traceId) {
-    evidence.push(`Trace ${traceId}`);
-  }
-  if (reviewPackId) {
-    evidence.push(`Review Pack ${reviewPackId}`);
-  }
-  if (publishBranch) {
-    evidence.push(`Publish branch ${publishBranch}`);
-  }
-
-  return evidence.length > 0 ? evidence.join(" | ") : null;
-}
-
-function hasDelegatedSessionObservability(run: HugeCodeRunSummary): boolean {
-  return Boolean(
-    (run.subAgents?.length ?? 0) > 0 ||
-    run.operatorSnapshot?.currentActivity ||
-    run.operatorSnapshot?.blocker ||
-    (run.operatorSnapshot?.recentEvents?.length ?? 0) > 0
-  );
-}
 
 export function WorkspaceHomeAgentRuntimeOrchestration({
   workspaceId,
@@ -132,6 +38,11 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     runtimeLaunchPreparation,
     runtimeLaunchPreparationError,
     runtimeLaunchPreparationLoading,
+    runtimeLaunchPlanApprovalRequired,
+    runtimeLaunchPlanApproved,
+    runtimeLaunchPlanVersion,
+    approveRuntimeLaunchPlan,
+    clearRuntimeLaunchPlanApproval,
     runtimeLaunchPreparationTruthSourceLabel,
     runtimeDraftInstruction,
     runtimeDraftProfileId,
@@ -158,6 +69,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     interruptRuntimeTaskById,
     interruptStalePendingApprovals,
     resumeRuntimeTaskById,
+    interveneRuntimeTaskById,
     decideRuntimeApproval,
   } = useWorkspaceRuntimeMissionControlController(workspaceId);
 
@@ -173,7 +85,6 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
   const launchReadiness = missionControlProjection.launchReadiness;
   const activeRuntimeCount = missionControlProjection.runList.activeRuntimeCount;
-  const projectedRunsByTaskId = missionControlProjection.runList.projectedRunsByTaskId;
   const visibleRuntimeRuns = missionControlProjection.runList.visibleRuntimeRuns;
   const checkpointFailureSummary =
     runtimeDurabilityWarning &&
@@ -193,16 +104,6 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     () => parseRuntimeBatchPreviewState(runtimeDraftBatchConfig),
     [runtimeDraftBatchConfig]
   );
-  const launchExecutionGateLabel =
-    launchReadiness.executionReliability.gatePassed === null
-      ? "n/a"
-      : launchReadiness.executionReliability.gatePassed
-        ? "pass"
-        : "fail";
-  const launchExecutionCircuitBreakerText =
-    launchReadiness.executionReliability.openCircuitBreakerScopes.length > 0
-      ? launchReadiness.executionReliability.openCircuitBreakerScopes.join(", ")
-      : "none";
   const runtimeBatchPreviewEdges = useMemo(() => {
     const taskKeys = new Set(runtimeBatchPreview.tasks.map((task) => task.taskKey));
     return runtimeBatchPreview.tasks.flatMap((task) =>
@@ -211,114 +112,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         .map((dependency) => `${dependency} -> ${task.taskKey}`)
     );
   }, [runtimeBatchPreview.tasks]);
-  const continuityPriorityItems = useMemo(
-    () =>
-      continuityReadiness.items.slice(0, 3).map((item) => {
-        const run = projectedRunsByTaskId.get(item.taskId);
-        return {
-          ...item,
-          run,
-          title:
-            run?.title?.trim() ||
-            visibleRuntimeRuns
-              .find((entry) => entry.task.taskId === item.taskId)
-              ?.task.title?.trim() ||
-            item.taskId,
-          pathLabel: resolveContinuationPathLabel({
-            takeoverBundle: run?.takeoverBundle ?? null,
-            missionLinkage: run?.missionLinkage ?? null,
-          }),
-          routeTargetLabel: buildContinuityRouteTargetLabel(run),
-          evidenceSummary: buildContinuityEvidenceSummary(run),
-        };
-      }),
-    [continuityReadiness.items, projectedRunsByTaskId, visibleRuntimeRuns]
-  );
-  const delegatedAttentionItems = useMemo(
-    () =>
-      Array.from(projectedRunsByTaskId.values())
-        .filter(hasDelegatedSessionObservability)
-        .map((run) => {
-          const subAgents = run.subAgents ?? [];
-          const activeSessionCount = subAgents.filter((agent) =>
-            ["running", "pending", "waiting"].includes(agent.status)
-          ).length;
-          const attentionSessionCount = subAgents.filter((agent) =>
-            isBlockingSubAgentStatus(agent.status)
-          ).length;
-          const resumeReadySessionCount = subAgents.filter(
-            (agent) =>
-              agent.checkpointState?.resumeReady === true ||
-              agent.takeoverBundle?.pathKind === "resume"
-          ).length;
-          return {
-            runId: run.id,
-            title: run.title?.trim() || run.taskId,
-            summary:
-              run.operatorSnapshot?.summary ??
-              (subAgents.length > 0
-                ? `${subAgents.length} delegated session${subAgents.length === 1 ? "" : "s"} are publishing runtime state.`
-                : "Runtime published delegated-session trajectory for this run."),
-            activeSessionCount,
-            attentionSessionCount,
-            resumeReadySessionCount,
-            currentActivity: run.operatorSnapshot?.currentActivity ?? null,
-            blocker:
-              run.operatorSnapshot?.blocker ??
-              subAgents.find((agent) => isBlockingSubAgentStatus(agent.status))?.summary ??
-              null,
-            updatedAt: run.updatedAt,
-          };
-        })
-        .sort(
-          (left, right) =>
-            right.attentionSessionCount - left.attentionSessionCount ||
-            right.activeSessionCount - left.activeSessionCount ||
-            right.updatedAt - left.updatedAt
-        )
-        .slice(0, 3),
-    [projectedRunsByTaskId]
-  );
-  const delegatedAttentionRunCount = delegatedAttentionItems.length;
-  const delegatedAttentionActiveSessions = delegatedAttentionItems.reduce(
-    (total, item) => total + item.activeSessionCount,
-    0
-  );
-  const delegatedAttentionBlockingRuns = delegatedAttentionItems.filter(
-    (item) => item.attentionSessionCount > 0 || item.blocker
-  ).length;
-  const repositoryPolicyLabel = formatPolicyValue(
-    repositoryExecutionContract?.metadata?.label,
-    "Repository policy defaults"
-  );
-  const repositoryPolicyDescription = repositoryExecutionContract?.metadata?.description ?? null;
-  const launchExecutionProfileId =
-    formatPolicyValue(runtimeSourceDraft?.profileId, "") || selectedExecutionProfile.id;
-  const launchAccessMode =
-    runtimeSourceDraft?.accessMode ??
-    repositoryLaunchDefaults.accessMode ??
-    selectedExecutionProfile.accessMode;
-  const launchValidationPresetLabel = formatPolicyValue(
-    runtimeSourceDraft?.validationPresetId ??
-      repositoryLaunchDefaults.validationPresetLabel ??
-      repositoryLaunchDefaults.validationPresetId ??
-      selectedExecutionProfile.validationPresetId,
-    "runtime default"
-  );
-  const launchReviewProfileLabel = repositoryLaunchDefaults.reviewProfile
-    ? `${repositoryLaunchDefaults.reviewProfile.label} (${repositoryLaunchDefaults.reviewProfile.id})`
-    : formatPolicyValue(repositoryLaunchDefaults.reviewProfileId, "none");
-  const launchBackendPreferenceLabel = formatPolicyList(
-    runtimeSourceDraft?.preferredBackendIds ?? repositoryLaunchDefaults.preferredBackendIds,
-    "app/runtime fallback"
-  );
-  const repositoryReviewProfileLabel = repositoryLaunchDefaults.reviewProfile
-    ? `${repositoryLaunchDefaults.reviewProfile.label} (${repositoryLaunchDefaults.reviewProfile.id})`
-    : formatPolicyValue(repositoryLaunchDefaults.reviewProfileId, "none declared");
-  const launcherOverridesRepositoryProfile =
-    runtimeDraftProfileTouched &&
-    Boolean(repositoryLaunchDefaults.executionProfileId) &&
-    repositoryLaunchDefaults.executionProfileId !== runtimeDraftProfileId;
+  const runtimePlan = runtimeLaunchPreparation?.plan ?? null;
+  const runtimePlanNeedsApproval =
+    runtimeLaunchPlanApprovalRequired && runtimeLaunchPlanVersion !== null;
 
   useEffect(() => {
     for (const entry of visibleRuntimeRuns.slice(0, 8)) {
@@ -466,50 +262,6 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             <div className={controlStyles.warning}>{continuityReadiness.blockingReason}</div>
           ) : null}
         </div>
-        {continuityPriorityItems.length > 0 ? (
-          <div className="workspace-home-code-runtime-item">
-            <div className="workspace-home-code-runtime-item-main">
-              <strong>Priority continuity queue</strong>
-              <span>
-                Runtime already published {continuityReadiness.items.length} continuity path
-                {continuityReadiness.items.length === 1 ? "" : "s"} across resume, handoff, and
-                review follow-up.
-              </span>
-              {continuityPriorityItems.map((item) => (
-                <div
-                  key={`${item.runId}:${item.taskId}`}
-                  className="workspace-home-code-runtime-item"
-                >
-                  <div className="workspace-home-code-runtime-item-main">
-                    <strong>{item.title}</strong>
-                    <span>
-                      Path: {item.pathKind} via {item.truthSourceLabel}
-                    </span>
-                    <span>Continue in: {item.pathLabel}</span>
-                    {item.routeTargetLabel ? (
-                      <span>Route target: {item.routeTargetLabel}</span>
-                    ) : null}
-                    {item.evidenceSummary ? (
-                      <span>Runtime evidence: {item.evidenceSummary}</span>
-                    ) : null}
-                    <span>{item.detail}</span>
-                    <span>Next step: {item.recommendedAction}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {continuityReadiness.items.length > continuityPriorityItems.length ? (
-              <div className={controlStyles.sectionMeta}>
-                +{continuityReadiness.items.length - continuityPriorityItems.length} more continuity
-                path
-                {continuityReadiness.items.length - continuityPriorityItems.length === 1
-                  ? ""
-                  : "s"}{" "}
-                remain in the run list.
-              </div>
-            ) : null}
-          </div>
-        ) : null}
         {resumeReadyRuntimeTasks.length > 0 ? (
           <div className="workspace-home-code-runtime-item">
             <div className="workspace-home-code-runtime-item-main">
@@ -604,69 +356,6 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
       {runtimeInfo && <div className={controlStyles.sectionMeta}>{runtimeInfo}</div>}
 
       <MissionControlSectionCard
-        title="Delegated attention"
-        statusLabel={
-          delegatedAttentionBlockingRuns > 0
-            ? "Attention"
-            : delegatedAttentionRunCount > 0
-              ? "Active"
-              : "Clear"
-        }
-        statusTone={
-          delegatedAttentionBlockingRuns > 0
-            ? "warning"
-            : delegatedAttentionRunCount > 0
-              ? "running"
-              : "success"
-        }
-        meta={
-          <>
-            <ToolCallChip tone="neutral">Runs {delegatedAttentionRunCount}</ToolCallChip>
-            <ToolCallChip tone="neutral">
-              Active sessions {delegatedAttentionActiveSessions}
-            </ToolCallChip>
-          </>
-        }
-      >
-        {delegatedAttentionItems.length > 0 ? (
-          <div className="workspace-home-code-runtime-list">
-            {delegatedAttentionItems.map((item) => (
-              <div
-                key={`delegated-attention:${item.runId}`}
-                className="workspace-home-code-runtime-item"
-              >
-                <div className="workspace-home-code-runtime-item-main">
-                  <strong>{item.title}</strong>
-                  <span>{item.summary}</span>
-                  <span>
-                    Delegated sessions: active {item.activeSessionCount} | attention{" "}
-                    {item.attentionSessionCount} | resume ready {item.resumeReadySessionCount}
-                  </span>
-                  {item.currentActivity ? (
-                    <span>Current activity: {item.currentActivity}</span>
-                  ) : null}
-                  {item.blocker ? <span>Blocker: {item.blocker}</span> : null}
-                  <span>
-                    Open the matching run below for full delegated-session observability and
-                    intervention controls.
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="workspace-home-code-runtime-item">
-            <div className="workspace-home-code-runtime-item-main">
-              <strong>No delegated-session attention right now.</strong>
-              <span>
-                Runs that publish sub-agent snapshots, blockers, or delegated trajectory events will
-                appear here ahead of the filtered run list.
-              </span>
-            </div>
-          </div>
-        )}
-      </MissionControlSectionCard>
-      <MissionControlSectionCard
         title="Launch readiness"
         statusLabel={launchReadiness.launchAllowed ? "Ready" : "Blocked"}
         statusTone={launchReadiness.launchAllowed ? "success" : "danger"}
@@ -696,13 +385,6 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
               {launchReadiness.executionReliability.label}:{" "}
               {launchReadiness.executionReliability.detail}
             </span>
-            <span>Execution gate: {launchExecutionGateLabel}</span>
-            <span>Execution channel: {launchReadiness.executionReliability.channelStatus}</span>
-            <span>Tool blocks: {launchReadiness.executionReliability.blockedTotal}</span>
-            <span>
-              Top failed reason: {launchReadiness.executionReliability.topFailedReason ?? "none"}
-            </span>
-            <span>Open circuit breakers: {launchExecutionCircuitBreakerText}</span>
           </div>
           {launchReadiness.blockingReason ? (
             <div className={controlStyles.warning}>{launchReadiness.blockingReason}</div>
@@ -723,7 +405,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         {runtimeDraftInstruction.trim().length > 0 ? (
           <div className="workspace-home-code-runtime-item">
             <div className="workspace-home-code-runtime-item-main">
-              <strong>Runtime launch plan</strong>
+              <strong>Mission planning</strong>
               {runtimeLaunchPreparationLoading ? (
                 <span>Preparing runtime-owned launch plan...</span>
               ) : runtimeLaunchPreparation ? (
@@ -731,23 +413,37 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   {runtimeLaunchPreparationTruthSourceLabel ? (
                     <span>Truth source: {runtimeLaunchPreparationTruthSourceLabel}</span>
                   ) : null}
+                  {runtimePlan ? (
+                    <>
+                      <span>Plan version: {runtimePlan.planVersion}</span>
+                      <span>
+                        Plan approval: {runtimeLaunchPlanApproved ? "approved" : "pending"}
+                      </span>
+                      <span>{runtimePlan.summary}</span>
+                      <span>
+                        Milestones: {runtimePlan.milestones.length} | Validation lanes:{" "}
+                        {runtimePlan.validationLanes.length} | Skill plan:{" "}
+                        {runtimePlan.skillPlan.length}
+                      </span>
+                      <span>
+                        Estimated worker runs:{" "}
+                        {runtimePlan.estimatedWorkerRuns ?? "runtime did not estimate"}
+                        {typeof runtimePlan.estimatedDurationMinutes === "number"
+                          ? ` | Duration: ${runtimePlan.estimatedDurationMinutes} min`
+                          : ""}
+                      </span>
+                      <span>Parallelism: {runtimePlan.parallelismHint}</span>
+                      {runtimePlan.clarifyingQuestions.length > 0 ? (
+                        <span>Clarify first: {runtimePlan.clarifyingQuestions.join(" | ")}</span>
+                      ) : null}
+                    </>
+                  ) : null}
                   <span>{runtimeLaunchPreparation.runIntent.summary}</span>
                   <span>
                     Clarified: {runtimeLaunchPreparation.runIntent.clarified ? "yes" : "needs work"}
                   </span>
                   <span>Risk: {runtimeLaunchPreparation.runIntent.riskLevel}</span>
                   <span>{runtimeLaunchPreparation.contextWorkingSet.summary}</span>
-                  <span>
-                    Context strategy:{" "}
-                    {runtimeLaunchPreparation.contextWorkingSet.selectionPolicy?.strategy ??
-                      "balanced"}{" "}
-                    | budget{" "}
-                    {runtimeLaunchPreparation.contextWorkingSet.selectionPolicy
-                      ?.tokenBudgetTarget ?? 1500}{" "}
-                    | tools{" "}
-                    {runtimeLaunchPreparation.contextWorkingSet.selectionPolicy
-                      ?.toolExposureProfile ?? "slim"}
-                  </span>
                   <span>{runtimeLaunchPreparation.executionGraph.summary}</span>
                   <span>
                     Approval batches:{" "}
@@ -780,6 +476,24 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                 <span>Runtime launch plan unavailable.</span>
               )}
             </div>
+            {runtimePlanNeedsApproval ? (
+              <div className="workspace-home-code-runtime-item-actions">
+                <button
+                  type="button"
+                  onClick={() => approveRuntimeLaunchPlan()}
+                  disabled={runtimeLaunchPlanApproved}
+                >
+                  {runtimeLaunchPlanApproved ? "Plan approved" : "Approve current plan"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => clearRuntimeLaunchPlanApproval()}
+                  disabled={!runtimeLaunchPlanApproved}
+                >
+                  Reset approval
+                </button>
+              </div>
+            ) : null}
             {runtimeLaunchPreparation?.contextWorkingSet.layers.length ? (
               <div className={controlStyles.sectionMeta}>
                 {runtimeLaunchPreparation.contextWorkingSet.layers
@@ -795,6 +509,38 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                 {runtimeLaunchPreparation.executionGraph.nodes
                   .map((node) => `${node.label} [${node.kind}]`)
                   .join(" -> ")}
+              </div>
+            ) : null}
+            {runtimePlan?.milestones.length ? (
+              <div className={controlStyles.sectionMeta}>
+                {runtimePlan.milestones
+                  .map((milestone) => {
+                    const criteria =
+                      milestone.acceptanceCriteria && milestone.acceptanceCriteria.length > 0
+                        ? ` | ${milestone.acceptanceCriteria.join(" / ")}`
+                        : "";
+                    return `${milestone.label} [${milestone.status ?? "planned"}]${criteria}`;
+                  })
+                  .join(" | ")}
+              </div>
+            ) : null}
+            {runtimePlan?.validationLanes.length ? (
+              <div className={controlStyles.sectionMeta}>
+                {runtimePlan.validationLanes
+                  .map(
+                    (lane) =>
+                      `${lane.label} (${lane.trigger})${
+                        lane.commands?.length ? `: ${lane.commands.join(", ")}` : ""
+                      }`
+                  )
+                  .join(" | ")}
+              </div>
+            ) : null}
+            {runtimePlan?.skillPlan.length ? (
+              <div className={controlStyles.sectionMeta}>
+                {runtimePlan.skillPlan
+                  .map((skill) => `${skill.label} [${skill.state}]`)
+                  .join(" | ")}
               </div>
             ) : null}
             {runtimeLaunchPreparationError ? (
@@ -955,10 +701,13 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
               runtimeLoading ||
               runtimeDraftInstruction.trim().length === 0 ||
               selectedProviderRoute?.ready === false ||
-              !launchReadiness.launchAllowed
+              !launchReadiness.launchAllowed ||
+              (runtimePlanNeedsApproval && !runtimeLaunchPlanApproved)
             }
           >
-            Start mission run
+            {runtimePlanNeedsApproval && !runtimeLaunchPlanApproved
+              ? "Approve plan to start"
+              : "Start mission run"}
           </button>
         </div>
         <div className="workspace-home-code-runtime-item">
@@ -969,87 +718,42 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             <span>Supervision: {selectedExecutionProfile.supervisionLabel}</span>
             <span>Routing: {selectedProviderRoute?.label ?? "Automatic workspace routing"}</span>
             <span>Approval posture: {selectedExecutionProfile.approvalSensitivity}</span>
-            <span>Launch execution profile: {launchExecutionProfileId}</span>
-            <span>Launch access mode: {launchAccessMode ?? "runtime fallback"}</span>
-            <span>Launch backend preference: {launchBackendPreferenceLabel}</span>
-            <span>Launch review profile: {launchReviewProfileLabel}</span>
-            <span>Launch validation preset: {launchValidationPresetLabel}</span>
+            <span>
+              Validation preset: {selectedExecutionProfile.validationPresetId ?? "runtime default"}
+            </span>
+            {repositoryExecutionContract ? (
+              <>
+                <span>
+                  Repo source mapping: {repositoryLaunchDefaults.sourceMappingKind ?? "defaults"}
+                </span>
+                <span>
+                  Repo profile default:{" "}
+                  {repositoryLaunchDefaults.executionProfileId ?? "runtime fallback"}
+                </span>
+                <span>
+                  Repo backend preference:{" "}
+                  {repositoryLaunchDefaults.preferredBackendIds?.join(", ") ??
+                    "app/runtime fallback"}
+                </span>
+                <span>
+                  Repo validation preset:{" "}
+                  {repositoryLaunchDefaults.validationPresetId ?? "runtime fallback"}
+                </span>
+                {runtimeDraftProfileTouched &&
+                repositoryLaunchDefaults.executionProfileId &&
+                repositoryLaunchDefaults.executionProfileId !== runtimeDraftProfileId ? (
+                  <span>
+                    Launcher profile overrides repo default{" "}
+                    {repositoryLaunchDefaults.executionProfileId}.
+                  </span>
+                ) : null}
+              </>
+            ) : null}
           </div>
           <div className={controlStyles.sectionMeta}>
             {selectedProviderRoute?.detail ?? "Routing details unavailable."}
           </div>
         </div>
-        {repositoryExecutionContract ? (
-          <div className="workspace-home-code-runtime-item">
-            <div className="workspace-home-code-runtime-item-main">
-              <strong>{repositoryPolicyLabel}</strong>
-              <span>
-                {repositoryPolicyDescription ??
-                  "Repository-scoped launch policy is merged into runtime preparation before the run starts."}
-              </span>
-              <span>
-                Repo source mapping: {repositoryLaunchDefaults.sourceMappingKind ?? "defaults"}
-              </span>
-              <span>
-                Repo profile default:{" "}
-                {formatPolicyValue(
-                  repositoryLaunchDefaults.executionProfileId,
-                  "runtime/profile fallback"
-                )}
-              </span>
-              <span>
-                Repo access mode:{" "}
-                {formatPolicyValue(
-                  repositoryLaunchDefaults.accessMode,
-                  "selected profile fallback"
-                )}
-              </span>
-              <span>
-                Repo backend preference:{" "}
-                {formatPolicyList(
-                  repositoryLaunchDefaults.preferredBackendIds,
-                  "app/runtime fallback"
-                )}
-              </span>
-              <span>Repo review profile: {repositoryReviewProfileLabel}</span>
-              {repositoryLaunchDefaults.reviewProfile ? (
-                <span>
-                  Review posture: autofix {repositoryLaunchDefaults.reviewProfile.autofixPolicy} |
-                  GitHub mirror {repositoryLaunchDefaults.reviewProfile.githubMirrorPolicy}
-                </span>
-              ) : null}
-              <span>
-                Repo validation preset:{" "}
-                {formatPolicyValue(
-                  repositoryLaunchDefaults.validationPresetLabel ??
-                    repositoryLaunchDefaults.validationPresetId,
-                  "selected profile fallback"
-                )}
-              </span>
-              <span>
-                Validation commands:{" "}
-                {formatPolicyList(
-                  repositoryLaunchDefaults.validationCommands,
-                  "No repository validation commands declared."
-                )}
-              </span>
-              {launcherOverridesRepositoryProfile ? (
-                <span>
-                  Launcher profile override: {runtimeDraftProfileId} replaces repo default{" "}
-                  {repositoryLaunchDefaults.executionProfileId}.
-                </span>
-              ) : (
-                <span>Launcher profile is aligned with repository policy defaults.</span>
-              )}
-            </div>
-            {launcherOverridesRepositoryProfile ? (
-              <div className={controlStyles.sectionMeta}>
-                Repository policy still controls access mode, backend preference, review profile,
-                and validation preset unless a source-linked relaunch draft overrides them.
-              </div>
-            ) : null}
-          </div>
-        ) : null}
         {repositoryExecutionContractError ? (
           <div className={controlStyles.warning}>{repositoryExecutionContractError}</div>
         ) : null}
@@ -1065,6 +769,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         refreshRuntimeTasks={refreshRuntimeTasks}
         interruptRuntimeTaskById={interruptRuntimeTaskById}
         resumeRuntimeTaskById={resumeRuntimeTaskById}
+        interveneRuntimeTaskById={interveneRuntimeTaskById}
         prepareRunLauncher={prepareRunLauncher}
         decideRuntimeApproval={decideRuntimeApproval}
       />

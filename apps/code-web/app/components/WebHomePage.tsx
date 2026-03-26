@@ -36,9 +36,9 @@ const routeCards = [
     copy: "The interactive workspace still loads through a controlled client bridge. That keeps Tauri assumptions out of Web SSR and avoids forced runtime unification.",
   },
   {
-    title: "Cloudflare-first deploy path",
-    kicker: "Runtime strategy",
-    copy: "Workers remains the default web host. The Start app can expand into selective SSR or prerender later without dragging the desktop runtime along.",
+    title: "Installable shell with explicit offline boundaries",
+    kicker: "PWA support",
+    copy: "HugeCode can now install as a single web app, reopen the cached shell offline, and still keep runtime truth behind the same gateway and desktop boundaries.",
   },
 ] as const;
 
@@ -59,6 +59,11 @@ const stackFacts = [
     copy: "Shared workspace shell and bindings for the web and desktop hosts.",
   },
   {
+    label: "PWA mode",
+    value: "Single app at /",
+    copy: "Install once, launch into /app, and keep public routes available offline.",
+  },
+  {
     label: "Boundary rule",
     value: "No Tauri in SSR",
     copy: "Server routes stay clear of desktop-only modules.",
@@ -77,7 +82,7 @@ export function WebHomePage() {
           <p className={heroCopy}>
             This web target is optimized for Cloudflare Workers, public SSR, and deliberate runtime
             boundaries. The desktop app continues to run from its own CSR build, while the web layer
-            stays fast, legible, and operationally clean.
+            stays fast, installable, and operationally clean.
           </p>
           <div className={ctaRow}>
             <Link className={primaryLink} to="/app">

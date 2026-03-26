@@ -239,6 +239,7 @@ export function WorkspaceHomeSubAgentObservabilityFixture() {
               onRefresh={() => undefined}
               onInterrupt={() => undefined}
               onResume={() => undefined}
+              onIntervene={() => undefined}
               onPrepareLauncher={() => undefined}
               onApproval={() => undefined}
             />

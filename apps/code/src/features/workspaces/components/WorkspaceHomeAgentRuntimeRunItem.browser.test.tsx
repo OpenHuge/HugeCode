@@ -103,6 +103,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
         onRefresh={noop}
         onInterrupt={noop}
         onResume={noop}
+        onIntervene={noop}
         onPrepareLauncher={noop}
         onApproval={noop}
       />
@@ -140,6 +141,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
         onRefresh={noop}
         onInterrupt={noop}
         onResume={noop}
+        onIntervene={noop}
         onPrepareLauncher={noop}
         onApproval={noop}
       />
@@ -184,6 +186,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
         onRefresh={noop}
         onInterrupt={noop}
         onResume={noop}
+        onIntervene={noop}
         onPrepareLauncher={noop}
         onApproval={noop}
       />
@@ -240,6 +243,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
         onRefresh={noop}
         onInterrupt={noop}
         onResume={noop}
+        onIntervene={noop}
         onPrepareLauncher={noop}
         onApproval={noop}
       />
@@ -259,6 +263,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
         onRefresh={noop}
         onInterrupt={noop}
         onResume={noop}
+        onIntervene={noop}
         onPrepareLauncher={noop}
         onApproval={noop}
       />
@@ -330,6 +335,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
         onRefresh={noop}
         onInterrupt={noop}
         onResume={noop}
+        onIntervene={noop}
         onPrepareLauncher={noop}
         onApproval={noop}
       />
@@ -343,6 +349,75 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
         screen.getByText("Publish handoff: Runtime handoff is ready for another control device.")
       ).toBeTruthy();
       expect(screen.getAllByText(/Checkpoint checkpoint-runtime-1/).length).toBeGreaterThan(0);
+    });
+  });
+
+  it("submits structured mission interventions with approved plan version", () => {
+    const noop = vi.fn();
+    const onIntervene = vi.fn();
+
+    render(
+      <WorkspaceHomeAgentRuntimeRunItem
+        task={buildTask()}
+        run={buildRun({
+          missionBrief: {
+            objective: "Stabilize runtime mission control.",
+            planVersion: "plan-2026",
+            planSummary: "Replan, validate, and hand off.",
+            currentMilestoneId: "milestone-execute",
+            milestones: [
+              {
+                id: "milestone-execute",
+                label: "Execute fixes",
+                summary: "Apply the runtime fix.",
+                status: "active",
+              },
+            ],
+            validationLanes: [
+              {
+                id: "lane-fast",
+                label: "Fast lane",
+                summary: "Run validate:fast.",
+                trigger: "per_feature",
+                commands: ["pnpm validate:fast"],
+              },
+            ],
+          },
+        })}
+        continuityItem={null}
+        runtimeLoading={false}
+        onRefresh={noop}
+        onInterrupt={noop}
+        onResume={noop}
+        onIntervene={onIntervene}
+        onPrepareLauncher={noop}
+        onApproval={noop}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Mission intervene" }));
+    fireEvent.change(screen.getByLabelText("Action"), {
+      target: { value: "change_backend_preference" },
+    });
+    fireEvent.change(screen.getByLabelText("Reason"), {
+      target: { value: "Route this run to healthier backends." },
+    });
+    fireEvent.change(screen.getByLabelText("Backend preference"), {
+      target: { value: "backend-b, backend-c" },
+    });
+    fireEvent.change(screen.getByLabelText("Patch"), {
+      target: { value: "Keep scope fixed and preserve the current validation lane." },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit intervention" }));
+
+    expect(onIntervene).toHaveBeenCalledWith({
+      action: "change_backend_preference",
+      reason: "Route this run to healthier backends.",
+      instructionPatch:
+        "Preferred backends: backend-b, backend-c.\nKeep scope fixed and preserve the current validation lane.",
+      preferredBackendIds: ["backend-b", "backend-c"],
+      approvedPlanVersion: "plan-2026",
     });
   });
 
@@ -379,6 +454,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
         onRefresh={noop}
         onInterrupt={noop}
         onResume={noop}
+        onIntervene={noop}
         onPrepareLauncher={noop}
         onApproval={noop}
       />

@@ -1,3 +1,7 @@
+use super::mission_control_dispatch::{
+    build_mission_run_projection_by_run_id, build_review_pack_projection_by_run_id,
+};
+use super::runtime_kernel_v2_plan::{build_prepare_plan, build_validation_lanes};
 use super::*;
 use crate::agent_policy::{
     normalize_access_mode, normalize_agent_profile, normalize_reason_effort,
@@ -7,9 +11,6 @@ use crate::agent_policy::{
 use crate::agent_task_launch_synthesis::{
     read_workspace_launch_context, synthesize_agent_task_auto_drive_state,
     synthesize_agent_task_mission_brief, synthesize_agent_task_steps, WorkspaceLaunchContext,
-};
-use super::mission_control_dispatch::{
-    build_mission_run_projection_by_run_id, build_review_pack_projection_by_run_id,
 };
 use crate::runtime_helpers::normalize_agent_task_source_summary;
 use std::collections::hash_map::DefaultHasher;
@@ -48,7 +49,10 @@ fn infer_mission_objective_v2(request: &AgentTaskStartRequest) -> Option<String>
         })
 }
 
-fn build_missing_context(run_objective: Option<&str>, request: &AgentTaskStartRequest) -> Vec<String> {
+fn build_missing_context(
+    run_objective: Option<&str>,
+    request: &AgentTaskStartRequest,
+) -> Vec<String> {
     let mut missing = Vec::new();
     if run_objective.is_none() {
         missing.push("objective".to_string());
@@ -375,33 +379,39 @@ fn resolve_autonomy_request_value(
         autonomy_request
             .entry("autonomyProfile".to_string())
             .or_insert_with(|| Value::String("night_operator".to_string()));
-        autonomy_request.entry("sourceScope".to_string()).or_insert_with(|| {
-            Value::String(
-                auto_drive
-                    .and_then(|entry| entry.context_policy.as_ref())
-                    .and_then(|policy| policy.scope.clone())
-                    .unwrap_or_else(|| "workspace_graph".to_string()),
-            )
-        });
-        autonomy_request.entry("queueBudget".to_string()).or_insert_with(|| {
-            json!({
-                "maxQueuedActions": 2,
-                "maxAutoContinuations": 2,
-            })
-        });
-        autonomy_request.entry("wakePolicy".to_string()).or_insert_with(|| {
-            json!({
-                "mode": "auto_queue",
-                "safeFollowUp": true,
-                "allowAutomaticContinuation": true,
-                "allowedActions": ["continue", "approve", "clarify", "reroute", "pair", "hold"],
-                "stopGates": [
-                    "destructive_change_requires_review",
-                    "dependency_change_requires_review",
-                    "validation_failure_requires_review",
-                ],
-            })
-        });
+        autonomy_request
+            .entry("sourceScope".to_string())
+            .or_insert_with(|| {
+                Value::String(
+                    auto_drive
+                        .and_then(|entry| entry.context_policy.as_ref())
+                        .and_then(|policy| policy.scope.clone())
+                        .unwrap_or_else(|| "workspace_graph".to_string()),
+                )
+            });
+        autonomy_request
+            .entry("queueBudget".to_string())
+            .or_insert_with(|| {
+                json!({
+                    "maxQueuedActions": 2,
+                    "maxAutoContinuations": 2,
+                })
+            });
+        autonomy_request
+            .entry("wakePolicy".to_string())
+            .or_insert_with(|| {
+                json!({
+                    "mode": "auto_queue",
+                    "safeFollowUp": true,
+                    "allowAutomaticContinuation": true,
+                    "allowedActions": ["continue", "approve", "clarify", "reroute", "pair", "hold"],
+                    "stopGates": [
+                        "destructive_change_requires_review",
+                        "dependency_change_requires_review",
+                        "validation_failure_requires_review",
+                    ],
+                })
+            });
         autonomy_request
             .entry("researchPolicy".to_string())
             .or_insert_with(|| {
@@ -669,10 +679,7 @@ fn build_research_trace(
     })
 }
 
-fn build_execution_eligibility(
-    missing_context: &[String],
-    approval_batches: &[Value],
-) -> Value {
+fn build_execution_eligibility(missing_context: &[String], approval_batches: &[Value]) -> Value {
     let blocking_reasons = if missing_context.is_empty() {
         Vec::new()
     } else {
@@ -778,21 +785,17 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
             .as_deref()
             .or(repository_defaults.access_mode.as_deref()),
     )?;
-    let execution_mode = normalize_execution_mode_v2(
-        request
-            .execution_mode
-            .as_deref()
-            .or_else(|| profile_execution_mode(explicit_launch_input.execution_profile_id.as_deref())),
-    )?;
+    let execution_mode =
+        normalize_execution_mode_v2(request.execution_mode.as_deref().or_else(|| {
+            profile_execution_mode(explicit_launch_input.execution_profile_id.as_deref())
+        }))?;
     let _reason_effort = normalize_reason_effort(request.reason_effort.as_deref())?;
     let agent_profile = normalize_agent_profile(request.agent_profile.as_deref())?;
     validate_agent_task_steps(&request.steps, access_mode.as_str(), agent_profile.as_str())?;
 
     let workspace_context = read_workspace_launch_context(ctx, workspace_id.as_str()).await;
-    let auto_drive = synthesize_agent_task_auto_drive_state(
-        request.auto_drive.clone(),
-        &workspace_context,
-    );
+    let auto_drive =
+        synthesize_agent_task_auto_drive_state(request.auto_drive.clone(), &workspace_context);
     let objective = infer_mission_objective_v2(&request);
     let explicit_mission_brief =
         crate::runtime_helpers::normalize_agent_task_mission_brief(request.mission_brief.clone());
@@ -824,7 +827,24 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
         agent_profile.as_str(),
     );
     let validation_plan = build_validation_plan(&workspace_context);
+    let validation_lanes = build_validation_lanes(&workspace_context);
     let missing_context = build_missing_context(objective.as_deref(), &request);
+    let required_capabilities = request.required_capabilities.clone().unwrap_or_default();
+    let allow_network_analysis = auto_drive
+        .as_ref()
+        .and_then(|entry| entry.risk_policy.as_ref())
+        .and_then(|policy| policy.allow_network_analysis)
+        .unwrap_or(false);
+    let plan = build_prepare_plan(
+        objective.as_deref(),
+        missing_context.as_slice(),
+        &execution_graph,
+        validation_lanes.as_slice(),
+        required_capabilities.as_slice(),
+        allow_network_analysis,
+        execution_mode,
+        explicit_preferred_backend_ids.as_slice(),
+    );
     let autonomy_request = resolve_autonomy_request_value(params, auto_drive.as_ref());
     let wake_policy = autonomy_request
         .get("wakePolicy")
@@ -836,8 +856,11 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
         &workspace_context,
         missing_context.as_slice(),
     );
-    let opportunity_queue =
-        build_opportunity_queue(objective.as_deref(), &validation_plan, missing_context.as_slice());
+    let opportunity_queue = build_opportunity_queue(
+        objective.as_deref(),
+        &validation_plan,
+        missing_context.as_slice(),
+    );
     let research_trace =
         build_research_trace(&autonomy_request, task_source.as_ref(), &workspace_context);
     let execution_eligibility =
@@ -863,7 +886,7 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
             } else {
                 repository_defaults.preferred_backend_ids
             },
-            "requiredCapabilities": request.required_capabilities.clone().unwrap_or_default(),
+            "requiredCapabilities": required_capabilities,
             "riskLevel": mission_brief
                 .as_ref()
                 .and_then(|brief| brief.risk_level.clone())
@@ -887,6 +910,7 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
             "Run the narrowest validation that proves the change under current workspace rules.",
             "Keep blast radius low and preserve backend routing inspectability."
         ],
+        "plan": plan,
         "autonomyProfile": autonomy_request
             .get("autonomyProfile")
             .cloned()
@@ -1021,6 +1045,23 @@ pub(crate) async fn handle_runtime_run_start_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
+    let request = parse_agent_task_start_request(params)?;
+    let approved_plan_version = trim_optional_string(request.approved_plan_version.clone())
+        .ok_or_else(|| {
+            RpcError::invalid_params("approvedPlanVersion is required for runtime run start v2.")
+        })?;
+    let prepare = build_prepare_response(ctx, params).await?;
+    let expected_plan_version = prepare
+        .get("plan")
+        .and_then(Value::as_object)
+        .and_then(|plan| plan.get("planVersion"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| RpcError::internal("runtime run prepare v2 did not publish planVersion"))?;
+    if approved_plan_version != expected_plan_version {
+        return Err(RpcError::invalid_params(format!(
+            "approvedPlanVersion `{approved_plan_version}` does not match runtime plan `{expected_plan_version}`."
+        )));
+    }
     let start = handle_agent_task_start(ctx, params).await?;
     let run_id = start
         .get("taskId")
@@ -1051,7 +1092,9 @@ pub(crate) async fn handle_runtime_review_get_v2(
     params: &Value,
 ) -> Result<Value, RpcError> {
     let run_id = parse_run_id(params)?;
-    Ok(json!(build_review_pack_projection_by_run_id(ctx, run_id.as_str()).await))
+    Ok(json!(
+        build_review_pack_projection_by_run_id(ctx, run_id.as_str()).await
+    ))
 }
 
 pub(crate) async fn handle_runtime_run_resume_v2(
@@ -1085,7 +1128,11 @@ pub(crate) async fn handle_runtime_run_intervene_v2(
 mod tests {
     use super::*;
 
-    fn sample_step(kind: AgentStepKind, input: &str, requires_approval: Option<bool>) -> AgentTaskStepInput {
+    fn sample_step(
+        kind: AgentStepKind,
+        input: &str,
+        requires_approval: Option<bool>,
+    ) -> AgentTaskStepInput {
         AgentTaskStepInput {
             kind,
             path: None,
@@ -1123,10 +1170,15 @@ mod tests {
             required_capabilities: None,
             preferred_backend_ids: None,
             default_backend_id: None,
+            approved_plan_version: None,
             mission_brief: None,
             relaunch_context: None,
             auto_drive: None,
-            steps: vec![sample_step(AgentStepKind::Read, "Inspect the runtime boundary", Some(false))],
+            steps: vec![sample_step(
+                AgentStepKind::Read,
+                "Inspect the runtime boundary",
+                Some(false),
+            )],
         };
         assert_eq!(
             build_missing_context(None, &request),

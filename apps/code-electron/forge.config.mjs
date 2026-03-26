@@ -58,6 +58,7 @@ const packagerConfig = {
     },
   ],
 };
+
 export default {
   hooks: {
     async postPackage(_forgeConfig, packageResult) {

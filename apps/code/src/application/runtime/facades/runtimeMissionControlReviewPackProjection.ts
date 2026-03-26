@@ -79,7 +79,10 @@ function deriveFailureClass(input: {
 }
 
 function buildReviewPackRelaunchOptions(
-  run: Pick<HugeCodeRunSummary, "id" | "taskId" | "relaunchContext" | "intervention">
+  run: Pick<
+    HugeCodeRunSummary,
+    "id" | "taskId" | "missionBrief" | "relaunchContext" | "intervention"
+  >
 ): HugeCodeReviewPackSummary["relaunchOptions"] {
   const availableActions = (run.intervention?.actions ?? []).filter((action) =>
     [
@@ -125,6 +128,8 @@ function buildReviewPackRelaunchOptions(
     sourceTaskId: run.relaunchContext?.sourceTaskId ?? run.taskId,
     sourceRunId: run.relaunchContext?.sourceRunId ?? run.id,
     sourceReviewPackId: run.relaunchContext?.sourceReviewPackId ?? `review-pack:${run.id}`,
+    sourcePlanVersion:
+      run.relaunchContext?.sourcePlanVersion ?? run.missionBrief?.planVersion ?? null,
     summary:
       run.relaunchContext?.summary ??
       (availableActions.length > 0
@@ -132,6 +137,7 @@ function buildReviewPackRelaunchOptions(
         : null),
     failureClass: run.relaunchContext?.failureClass ?? null,
     recommendedActions: recommendedActions.length > 0 ? recommendedActions : null,
+    planChangeSummary: run.relaunchContext?.planChangeSummary ?? null,
     primaryAction,
     availableActions: availableActions.length > 0 ? availableActions : null,
   };

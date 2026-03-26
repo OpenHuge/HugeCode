@@ -13,5 +13,7 @@ describe("forge.config", () => {
     );
     expect(squirrelMaker?.config?.authors).toBe("OpenHuge");
     expect(squirrelMaker?.config?.description).toBe("HugeCode beta desktop shell");
+    expect(squirrelMaker?.config?.name).toBe("HugeCode");
+    expect(squirrelMaker?.config?.setupExe).toBe("HugeCodeSetup.exe");
   });
 });

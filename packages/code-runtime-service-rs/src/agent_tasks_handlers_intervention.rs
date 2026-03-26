@@ -40,6 +40,24 @@ fn build_intervention_instruction(request: &AgentTaskInterventionRequest) -> Opt
         AgentTaskInterventionAction::RelaxValidation => {
             "Relax validation scope while preserving correctness."
         }
+        AgentTaskInterventionAction::ReplanScope => {
+            "Replan the remaining scope before continuing implementation."
+        }
+        AgentTaskInterventionAction::DropFeature => {
+            "Drop the blocked or de-prioritized feature from the remaining scope."
+        }
+        AgentTaskInterventionAction::InsertFeature => {
+            "Insert the requested feature into the remaining mission plan and continue."
+        }
+        AgentTaskInterventionAction::ChangeValidationLane => {
+            "Switch to the requested validation lane and realign the remaining plan."
+        }
+        AgentTaskInterventionAction::ChangeBackendPreference => {
+            "Re-plan against the requested backend preference and continue."
+        }
+        AgentTaskInterventionAction::MarkBlockedWithReason => {
+            "Mark the current path as blocked, preserve evidence, and explain the blocker."
+        }
         AgentTaskInterventionAction::SwitchProfileAndRetry => {
             "Retry with the requested execution profile."
         }
@@ -60,6 +78,48 @@ fn build_intervention_instruction(request: &AgentTaskInterventionRequest) -> Opt
         request.action.as_str(),
         patch
     ))
+}
+
+fn build_intervention_plan_change_summary(
+    request: &AgentTaskInterventionRequest,
+) -> Option<String> {
+    let action_summary = match request.action {
+        AgentTaskInterventionAction::ReplanScope => "Mission Control requested a scoped replan.",
+        AgentTaskInterventionAction::DropFeature => {
+            "Mission Control removed a feature from the remaining plan."
+        }
+        AgentTaskInterventionAction::InsertFeature => {
+            "Mission Control inserted a new feature into the remaining plan."
+        }
+        AgentTaskInterventionAction::ChangeValidationLane => {
+            "Mission Control switched the validation lane for the remaining work."
+        }
+        AgentTaskInterventionAction::ChangeBackendPreference => {
+            "Mission Control changed the preferred backend for the remaining work."
+        }
+        AgentTaskInterventionAction::MarkBlockedWithReason => {
+            "Mission Control recorded the current route as blocked."
+        }
+        _ => return None,
+    };
+    let patch = request
+        .instruction_patch
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let approved_plan_version = request
+        .approved_plan_version
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let summary = match patch {
+        Some(patch) => format!("{action_summary} {patch}"),
+        None => action_summary.to_string(),
+    };
+    Some(match approved_plan_version {
+        Some(plan_version) => format!("{summary} Approved plan version: {plan_version}."),
+        None => summary,
+    })
 }
 
 fn build_child_steps_from_intervention(
@@ -304,6 +364,12 @@ pub(crate) async fn handle_agent_task_intervene(
         | AgentTaskInterventionAction::ContinueWithClarification
         | AgentTaskInterventionAction::NarrowScope
         | AgentTaskInterventionAction::RelaxValidation
+        | AgentTaskInterventionAction::ReplanScope
+        | AgentTaskInterventionAction::DropFeature
+        | AgentTaskInterventionAction::InsertFeature
+        | AgentTaskInterventionAction::ChangeValidationLane
+        | AgentTaskInterventionAction::ChangeBackendPreference
+        | AgentTaskInterventionAction::MarkBlockedWithReason
         | AgentTaskInterventionAction::SwitchProfileAndRetry
         | AgentTaskInterventionAction::EscalateToPairMode => {
             let source_runtime = {
@@ -346,9 +412,48 @@ pub(crate) async fn handle_agent_task_intervene(
                 source_runtime.summary.auto_drive.clone(),
                 request.action,
             );
-            let relaunch_context =
+            let mut relaunch_context =
                 normalize_agent_task_relaunch_context(request.relaunch_context.clone())
                     .or_else(|| source_runtime.summary.relaunch_context.clone());
+            if let Some(context) = relaunch_context.as_mut() {
+                if context.source_plan_version.is_none() {
+                    context.source_plan_version = source_runtime
+                        .summary
+                        .mission_brief
+                        .as_ref()
+                        .and_then(|brief| brief.plan_version.clone());
+                }
+                if context.plan_change_summary.is_none() {
+                    context.plan_change_summary = build_intervention_plan_change_summary(&request);
+                }
+            } else if let Some(plan_change_summary) =
+                build_intervention_plan_change_summary(&request)
+            {
+                relaunch_context = Some(AgentTaskRelaunchContextRecord {
+                    source_task_id: Some(source_runtime.summary.task_id.clone()),
+                    source_run_id: Some(source_runtime.summary.task_id.clone()),
+                    source_review_pack_id: None,
+                    source_plan_version: source_runtime
+                        .summary
+                        .mission_brief
+                        .as_ref()
+                        .and_then(|brief| brief.plan_version.clone()),
+                    summary: None,
+                    failure_class: None,
+                    recommended_actions: None,
+                    plan_change_summary: Some(plan_change_summary),
+                });
+            }
+            let mut mission_brief = source_runtime.summary.mission_brief.clone();
+            if request.action == AgentTaskInterventionAction::ChangeBackendPreference {
+                if let Some(brief) = mission_brief.as_mut() {
+                    brief.preferred_backend_ids = if preferred_backend_ids.is_empty() {
+                        None
+                    } else {
+                        Some(preferred_backend_ids.clone())
+                    };
+                }
+            }
             let (child_task_id, child_payload) = launch_agent_task(
                 ctx,
                 LaunchAgentTaskSpec {
@@ -372,7 +477,7 @@ pub(crate) async fn handle_agent_task_intervene(
                     required_capabilities: Vec::new(),
                     preferred_backend_ids,
                     max_subtasks: None,
-                    mission_brief: source_runtime.summary.mission_brief.clone(),
+                    mission_brief,
                     relaunch_context,
                     steps,
                     auto_drive: child_auto_drive,
