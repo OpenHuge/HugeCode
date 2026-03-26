@@ -14,20 +14,26 @@ on:
       - "scripts/**"
       - ".github/actions/**"
       - ".github/workflows/codeql.yml"
+  merge_group:
+    branches:
+      - main
+    types:
+      - checks_requested
   schedule:
     - cron: "20 3 * * 1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
     name: Detect CodeQL-relevant changes
     runs-on: ubuntu-latest
     outputs:
-      javascript_required: ${{ github.event_name == 'schedule' || steps.filter.outputs.javascript == 'true' }}
-      rust_required: ${{ github.event_name == 'schedule' || steps.filter.outputs.rust == 'true' }}
+      fast_pr_iteration_mode: ${{ github.event_name == 'pull_request' && vars.MERGE_QUEUE_ENABLED == 'true' }}
+      javascript_required: ${{ github.event_name == 'schedule' || github.event_name == 'merge_group' || steps.filter.outputs.javascript == 'true' }}
+      rust_required: ${{ github.event_name == 'schedule' || github.event_name == 'merge_group' || steps.filter.outputs.rust == 'true' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -82,11 +88,15 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Skip untouched JavaScript/TypeScript lane
-        if: needs.changes.outputs.javascript_required != 'true'
+        if: needs.changes.outputs.fast_pr_iteration_mode == 'true'
+        run: echo "Skipping JavaScript/TypeScript CodeQL lane because PR fast mode is enabled."
+
+      - name: Skip untouched JavaScript/TypeScript lane
+        if: needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.javascript_required != 'true'
         run: echo "Skipping JavaScript/TypeScript CodeQL lane because no relevant files changed."
 
       - name: Initialize CodeQL
-        if: needs.changes.outputs.javascript_required == 'true'
+        if: needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.javascript_required == 'true'
         uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
@@ -94,7 +104,7 @@ jobs:
           queries: security-extended,security-and-quality
 
       - name: Analyze
-        if: needs.changes.outputs.javascript_required == 'true'
+        if: needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.javascript_required == 'true'
         uses: github/codeql-action/analyze@v3
 
   analyze_rust:
@@ -112,11 +122,15 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Skip untouched Rust lane
-        if: needs.changes.outputs.rust_required != 'true'
+        if: needs.changes.outputs.fast_pr_iteration_mode == 'true'
+        run: echo "Skipping Rust CodeQL lane because PR fast mode is enabled."
+
+      - name: Skip untouched Rust lane
+        if: needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.rust_required != 'true'
         run: echo "Skipping Rust CodeQL lane because no relevant files changed."
 
       - name: Initialize CodeQL
-        if: needs.changes.outputs.rust_required == 'true'
+        if: needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.rust_required == 'true'
         uses: github/codeql-action/init@v3
         with:
           languages: rust
@@ -124,5 +138,5 @@ jobs:
           queries: security-extended,security-and-quality
 
       - name: Analyze
-        if: needs.changes.outputs.rust_required == 'true'
+        if: needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.rust_required == 'true'
         uses: github/codeql-action/analyze@v3

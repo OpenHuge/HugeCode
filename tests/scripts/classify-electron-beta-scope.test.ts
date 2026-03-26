@@ -90,7 +90,7 @@ describe("classify-electron-beta-scope", () => {
     tempRoots.length = 0;
   });
 
-  it("treats workflow-wrapper changes as verify-only", async () => {
+  it("fast-skips workflow-wrapper changes", async () => {
     const tempRoot = await createFixtureRepo();
     await commitChange(tempRoot, ".github/workflows/electron-beta.yml");
 
@@ -99,7 +99,7 @@ describe("classify-electron-beta-scope", () => {
     expect(result.status).toBe(0);
     expect(parseOutput(result.stdout)).toEqual({
       electron_package_required: "false",
-      electron_verify_required: "true",
+      electron_verify_required: "false",
     });
   });
 
@@ -116,7 +116,7 @@ describe("classify-electron-beta-scope", () => {
     });
   });
 
-  it("treats classifier script edits as verify-only governance changes", async () => {
+  it("fast-skips classifier script edits", async () => {
     const tempRoot = await createFixtureRepo();
     await commitChange(tempRoot, "scripts/classify-electron-beta-scope.mjs");
 
@@ -125,7 +125,7 @@ describe("classify-electron-beta-scope", () => {
     expect(result.status).toBe(0);
     expect(parseOutput(result.stdout)).toEqual({
       electron_package_required: "false",
-      electron_verify_required: "true",
+      electron_verify_required: "false",
     });
   });
 });

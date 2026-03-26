@@ -96,7 +96,7 @@ Public workflow entrypoints currently include:
 - `dependency-review.yml` should stay as the PR-time supply-chain gate for newly introduced vulnerable dependencies, with repo-owned policy living in `.github/dependency-review-config.yml`.
 - `release.yml` should stay on the staged hybrid npm path until npm trusted publisher setup is complete: keep `id-token: write` and provenance enabled in GitHub Actions, but retain token auth as the temporary fallback release path.
 - Public npm packages should publish with repo-owned `repository` metadata and `publishConfig.provenance: true` so npm provenance resolves back to the correct package directory in this monorepo.
-- CodeQL remains a required security guardrail, but its language lanes should be scoped to the languages actually touched by the change so npm-only updates do not queue Rust analysis and Rust-only updates do not queue JavaScript analysis.
+- CodeQL should stay language-scoped and merge-queue-aware: npm-only updates should not queue Rust analysis, Rust-only updates should not queue JavaScript analysis, and when `MERGE_QUEUE_ENABLED=true` the PR path should fast-skip long CodeQL analysis in favor of `merge_group`, `push`, and scheduled scans.
 - When a required workflow lane is intentionally idle, prefer a fast explicit skip inside the job over removing the check name entirely; this keeps branch protection stable while still reducing runner time.
 - The shared `Quality` lane should reserve global governance checks for `repo_sot`-class changes. On normal product PRs, only run `ui:contract`, `check:circular`, and code-integration watch when their owned surfaces changed.
 - Desktop build lanes must install both `@ku0/code...` and `@ku0/code-tauri...` so Tauri `beforeBuildCommand` can build the frontend app without relying on a full workspace install.
@@ -122,7 +122,7 @@ Public workflow entrypoints currently include:
 - Electron beta lanes should run the staged Forge entrypoints (`desktop:electron:verify`, `desktop:electron:make:smoke`, `desktop:electron:publish:dry-run`, `desktop:electron:publish`) instead of calling Forge directly from the workspace package root.
 - Electron beta change classification should stay script-backed (`scripts/classify-electron-beta-scope.mjs`) so workflow-wrapper edits can keep a lightweight verification lane without accidentally waking the three-platform packaging matrix.
 - Electron beta PR lanes should keep stable check names, but internal changes detection should fast-skip the full verify/make/publish chain when a PR does not touch electron-owned packaging surfaces.
-- Electron beta wrapper or workflow-only changes may still run the lightweight `verify` lane, but they should not fan out into the three-platform `make-smoke` matrix unless packaging-owned surfaces changed.
+- Electron beta wrapper or workflow-only changes should now stop at the detection job; keep heavy verify and packaging work for electron-owned product surfaces or broader `push` to `main` coverage.
 - Electron beta PR triggers should stay packaging-owned as well: `apps/code-electron/**`, electron release scripts, and workflow wrappers may run on PRs, while shared package churn stays on the broader `push` to `main` workflow.
 - Repo-governance-only pull requests should keep repository governance and required workflow visibility, but they should not wake up product-facing `Quality`, `frontend_optimization`, affected-build/test execution, or Tauri desktop builds when no product-owned surface changed.
 - Public desktop, electron, and CodeQL workflows may still trigger for workflow-governance edits so syntax and required check names stay visible, but workflow-only changes should fast-skip heavyweight packaging or language-analysis lanes unless the owned product or build-runtime surfaces changed.
@@ -143,5 +143,9 @@ Public workflow entrypoints currently include:
   execution, and frontend optimization move to `merge_group`. Required
   aggregate check names stay stable; the queue run provides the final
   integration proof before merge.
+- Apply the same principle to optional long-running security lanes: in
+  merge-queue mode, PR-triggered CodeQL should remain visible but fast-skip
+  analysis jobs, while `merge_group`, `push`, and scheduled runs carry the
+  expensive scans.
 - Auto-merge for non-Dependabot PRs should stay repo-branch-only and review-gated; the default path is "approved with no unresolved conversations means `gh pr merge --auto` is enabled unless the PR carries the opt-out `manual-merge` label."
 - npm Dependabot updates should prefer grouped low-risk development-version bumps to reduce queue pressure and redundant CI fan-out, while keeping higher-risk dependency changes in manual-review lanes.
