@@ -252,7 +252,7 @@ export function useThreadTurnEvents({
   );
 
   const onTurnCompleted = useCallback(
-    (workspaceId: string, threadId: string, turnId: string) => {
+    (workspaceId: string, threadId: string, turnId: string, _payload?: Record<string, unknown>) => {
       clearPendingVisibleOutputCheck(threadId);
       markProcessing(threadId, false, "idle");
       setActiveTurnId(threadId, null);

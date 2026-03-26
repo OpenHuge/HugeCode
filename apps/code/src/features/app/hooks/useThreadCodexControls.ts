@@ -26,17 +26,21 @@ import type {
   AccessMode,
   AppSettings,
   ComposerExecutionMode,
+  ComposerModelSelectionMode,
   DebugEntry,
+  ModelProviderFamilyId,
   WorkspaceInfo,
 } from "../../../types";
 import { useCollaborationModes } from "../../collaboration/hooks/useCollaborationModes";
 import { useComposerMenuActions } from "../../composer/hooks/useComposerMenuActions";
 import { useComposerShortcuts } from "../../composer/hooks/useComposerShortcuts";
 import { useModels } from "../../models/hooks/useModels";
+import { resolveModelProviderId } from "../../models/utils/modelProviderSelection";
 import { resolveModelBrandLabel } from "../utils/antiGravityBranding";
 import { NO_THREAD_SCOPE_SUFFIX } from "../../threads/utils/threadCodexParamsSeed";
 import type { ThreadCodexParamsPatch } from "../../threads/hooks/useThreadCodexParams";
 import { DEFAULT_RUNTIME_WORKSPACE_ID } from "../../../utils/runtimeWorkspaceIds";
+import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
 
 type ComposerAccountOption = {
   id: string;
@@ -65,6 +69,24 @@ function normalizeModelSelectionId(value: string | null): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeProviderFamilyId(value: string | null): ModelProviderFamilyId | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  switch (value.trim().toLowerCase()) {
+    case "codex":
+      return "codex";
+    case "claude":
+      return "claude";
+    case "gemini":
+      return "gemini";
+    case "antigravity":
+      return "antigravity";
+    default:
+      return null;
+  }
 }
 
 function formatComposerAccountLabel(account: OAuthAccountSummary): string {
@@ -140,6 +162,10 @@ type UseThreadCodexControlsOptions = {
     workspaceId: string,
     threadId: string
   ) => {
+    modelId: string | null;
+    effort: string | null;
+    selectionMode?: ComposerModelSelectionMode | null;
+    providerFamilyId?: ModelProviderFamilyId | null;
     accessMode: AccessMode | null;
     collaborationModeId: string | null;
     executionProfileId?: string | null;
@@ -170,6 +196,9 @@ export function useThreadCodexControls({
   const [accessMode, setAccessMode] = useState<AccessMode>("full-access");
   const [preferredModelId, setPreferredModelId] = useState<string | null>(null);
   const [preferredEffort, setPreferredEffort] = useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = useState<ComposerModelSelectionMode>("auto");
+  const [preferredProviderFamilyId, setPreferredProviderFamilyId] =
+    useState<ModelProviderFamilyId | null>(null);
   const [preferredFastMode, setPreferredFastMode] = useState(false);
   const [preferredCollabModeId, setPreferredCollabModeId] = useState<string | null>(null);
   const [threadCodexSelectionKey, setThreadCodexSelectionKey] = useState<string | null>(null);
@@ -207,6 +236,8 @@ export function useThreadCodexControls({
     onDebug: addDebugEntry,
     preferredModelId,
     preferredEffort,
+    selectionMode,
+    preferredProviderId: preferredProviderFamilyId,
     selectionKey: threadCodexSelectionKey,
   });
 
@@ -240,7 +271,7 @@ export function useThreadCodexControls({
       ? !threadCodexSelectionKey.endsWith(NO_THREAD_SCOPE_SUFFIX)
       : Boolean(visibleActiveThreadIdRef.current);
 
-  const resolvePersistedModelId = useCallback(
+  const resolvePersistedModelSelectionId = useCallback(
     (id: string | null) => {
       const normalizedId = normalizeModelSelectionId(id);
       if (!normalizedId) {
@@ -258,30 +289,214 @@ export function useThreadCodexControls({
   const handleSelectModel = useCallback(
     (id: string | null) => {
       const normalizedId = normalizeModelSelectionId(id);
-      const persistedModelId = resolvePersistedModelId(normalizedId);
+      const persistedModelId = resolvePersistedModelSelectionId(normalizedId);
+      const nextProviderFamilyId =
+        (models.find(
+          (model) => model.id === persistedModelId || model.model === persistedModelId
+        ) ?? null)
+          ? (resolveModelProviderId(
+              models.find(
+                (model) => model.id === persistedModelId || model.model === persistedModelId
+              )!
+            ) as ModelProviderFamilyId)
+          : preferredProviderFamilyId;
+      setSelectionMode("manual");
+      setPreferredProviderFamilyId(nextProviderFamilyId ?? null);
       setSelectedModelId(normalizedId);
       if (!appSettingsLoading && !isThreadScopedSelection) {
         setAppSettings((current) => {
-          if (current.lastComposerModelId === persistedModelId) {
+          if (
+            current.lastComposerModelId === persistedModelId &&
+            current.composerModelSelectionMode === "manual" &&
+            current.lastComposerProviderFamilyId === (nextProviderFamilyId ?? null)
+          ) {
             return current;
           }
-          const nextSettings = { ...current, lastComposerModelId: persistedModelId };
+          const nextSettings = {
+            ...current,
+            lastComposerModelId: persistedModelId,
+            composerModelSelectionMode: "manual" as const,
+            lastComposerProviderFamilyId: nextProviderFamilyId ?? null,
+          };
           void queueSaveSettings(nextSettings);
           return nextSettings;
         });
       }
       if (isThreadScopedSelection) {
-        persistThreadCodexParams({ modelId: persistedModelId });
+        persistThreadCodexParams({
+          modelId: persistedModelId,
+          selectionMode: "manual",
+          providerFamilyId: nextProviderFamilyId ?? null,
+        });
       }
+      void trackProductAnalyticsEvent("provider_family_switched", {
+        workspaceId: activeWorkspace?.id ?? null,
+        threadId: activeThreadIdRef.current,
+        eventSource: "composer",
+        requestMode: nextProviderFamilyId ?? null,
+      });
     },
     [
+      activeThreadIdRef,
+      activeWorkspace?.id,
+      appSettingsLoading,
+      isThreadScopedSelection,
+      models,
+      persistThreadCodexParams,
+      preferredProviderFamilyId,
+      queueSaveSettings,
+      resolvePersistedModelSelectionId,
+      setAppSettings,
+      setPreferredProviderFamilyId,
+      setSelectedModelId,
+      setSelectionMode,
+    ]
+  );
+
+  const handleSelectModelSelectionMode = useCallback(
+    (mode: ComposerModelSelectionMode) => {
+      setSelectionMode(mode);
+      const nextProviderFamilyId =
+        preferredProviderFamilyId ??
+        (selectedModel ? (resolveModelProviderId(selectedModel) as ModelProviderFamilyId) : null);
+      if (!appSettingsLoading && !isThreadScopedSelection) {
+        setAppSettings((current) => {
+          if (
+            current.composerModelSelectionMode === mode &&
+            current.lastComposerProviderFamilyId === nextProviderFamilyId
+          ) {
+            return current;
+          }
+          const nextSettings = {
+            ...current,
+            composerModelSelectionMode: mode,
+            lastComposerProviderFamilyId: nextProviderFamilyId,
+          };
+          void queueSaveSettings(nextSettings);
+          return nextSettings;
+        });
+      }
+      if (isThreadScopedSelection) {
+        persistThreadCodexParams({
+          selectionMode: mode,
+          providerFamilyId: nextProviderFamilyId,
+        });
+      }
+      void trackProductAnalyticsEvent("model_selection_mode_changed", {
+        workspaceId: activeWorkspace?.id ?? null,
+        threadId: activeThreadIdRef.current,
+        eventSource: "composer",
+        requestMode: mode,
+      });
+    },
+    [
+      activeThreadIdRef,
+      activeWorkspace?.id,
+      appSettingsLoading,
+      isThreadScopedSelection,
+      persistThreadCodexParams,
+      preferredProviderFamilyId,
+      queueSaveSettings,
+      selectedModel,
+      setAppSettings,
+    ]
+  );
+
+  const handleSelectProviderFamily = useCallback(
+    (providerFamilyId: ModelProviderFamilyId | string | null) => {
+      const normalizedProviderFamilyId = normalizeProviderFamilyId(providerFamilyId);
+      setPreferredProviderFamilyId(normalizedProviderFamilyId);
+      if (!appSettingsLoading && !isThreadScopedSelection) {
+        setAppSettings((current) => {
+          if (current.lastComposerProviderFamilyId === normalizedProviderFamilyId) {
+            return current;
+          }
+          const nextSettings = {
+            ...current,
+            lastComposerProviderFamilyId: normalizedProviderFamilyId,
+          };
+          void queueSaveSettings(nextSettings);
+          return nextSettings;
+        });
+      }
+      if (isThreadScopedSelection) {
+        persistThreadCodexParams({ providerFamilyId: normalizedProviderFamilyId });
+      }
+      void trackProductAnalyticsEvent("provider_family_switched", {
+        workspaceId: activeWorkspace?.id ?? null,
+        threadId: activeThreadIdRef.current,
+        eventSource: "composer",
+        requestMode: normalizedProviderFamilyId,
+      });
+    },
+    [
+      activeThreadIdRef,
+      activeWorkspace?.id,
       appSettingsLoading,
       isThreadScopedSelection,
       persistThreadCodexParams,
       queueSaveSettings,
-      resolvePersistedModelId,
       setAppSettings,
-      setSelectedModelId,
+    ]
+  );
+
+  const handleSelectAutoRoute = useCallback(
+    (providerFamilyId: ModelProviderFamilyId | string | null) => {
+      const normalizedProviderFamilyId = normalizeProviderFamilyId(
+        providerFamilyId ??
+          preferredProviderFamilyId ??
+          (selectedModel ? (resolveModelProviderId(selectedModel) as ModelProviderFamilyId) : null)
+      );
+      setSelectionMode("auto");
+      setPreferredProviderFamilyId(normalizedProviderFamilyId);
+      if (!appSettingsLoading && !isThreadScopedSelection) {
+        setAppSettings((current) => {
+          if (
+            current.composerModelSelectionMode === "auto" &&
+            current.lastComposerProviderFamilyId === normalizedProviderFamilyId
+          ) {
+            return current;
+          }
+          const nextSettings = {
+            ...current,
+            composerModelSelectionMode: "auto" as const,
+            lastComposerProviderFamilyId: normalizedProviderFamilyId,
+          };
+          void queueSaveSettings(nextSettings);
+          return nextSettings;
+        });
+      }
+      if (isThreadScopedSelection) {
+        persistThreadCodexParams({
+          selectionMode: "auto",
+          providerFamilyId: normalizedProviderFamilyId,
+        });
+      }
+      void trackProductAnalyticsEvent("provider_family_switched", {
+        workspaceId: activeWorkspace?.id ?? null,
+        threadId: activeThreadIdRef.current,
+        eventSource: "composer",
+        requestMode: normalizedProviderFamilyId,
+      });
+      void trackProductAnalyticsEvent("model_selection_mode_changed", {
+        workspaceId: activeWorkspace?.id ?? null,
+        threadId: activeThreadIdRef.current,
+        eventSource: "composer",
+        requestMode: "auto",
+      });
+    },
+    [
+      activeThreadIdRef,
+      activeWorkspace?.id,
+      appSettingsLoading,
+      isThreadScopedSelection,
+      persistThreadCodexParams,
+      preferredProviderFamilyId,
+      queueSaveSettings,
+      selectedModel,
+      setAppSettings,
+      setPreferredProviderFamilyId,
+      setSelectionMode,
     ]
   );
 
@@ -493,6 +708,9 @@ export function useThreadCodexControls({
   const effectiveExecutionMode: ComposerExecutionMode =
     localCliAvailable || executionMode === "runtime" ? executionMode : "runtime";
   const resolvedModel = selectedModel?.model ?? null;
+  const selectedProviderId =
+    preferredProviderFamilyId ??
+    (selectedModel ? (resolveModelProviderId(selectedModel) as ModelProviderFamilyId) : null);
   const resolvedEffort = reasoningSupported ? selectedEffort : null;
   const executionOptions = useMemo<ComposerExecutionOption[]>(
     () =>
@@ -768,6 +986,7 @@ export function useThreadCodexControls({
 
   return {
     accessMode,
+    selectionMode,
     composerAccountOptions,
     collaborationModes,
     executionMode: effectiveExecutionMode,
@@ -778,6 +997,9 @@ export function useThreadCodexControls({
     handleSelectExecutionMode,
     handleSelectEffort,
     handleSelectModel,
+    handleSelectAutoRoute,
+    handleSelectModelSelectionMode,
+    handleSelectProviderFamily,
     handleSelectRemoteBackendId,
     handleToggleFastMode,
     hasAvailableModel,
@@ -786,6 +1008,7 @@ export function useThreadCodexControls({
     preferredEffort,
     preferredFastMode,
     preferredModelId,
+    preferredProviderFamilyId,
     reasoningOptions,
     reasoningSupported,
     resolvedEffort,
@@ -802,12 +1025,15 @@ export function useThreadCodexControls({
     fastModeEnabled: preferredFastMode,
     selectedAccountIds,
     selectedModelId,
+    selectedProviderId,
     selectedRemoteBackendId: missionDraft.preferredBackendIds?.[0] ?? null,
     setAccessMode,
     setPreferredCollabModeId,
     setPreferredEffort,
     setPreferredFastMode,
     setPreferredModelId,
+    setPreferredProviderFamilyId,
+    setSelectionMode,
     setSelectedCollaborationModeId,
     setSelectedEffort,
     setExecutionMode,

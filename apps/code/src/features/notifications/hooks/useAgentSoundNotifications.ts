@@ -101,7 +101,7 @@ export function useAgentSoundNotifications({
   }, []);
 
   const handleTurnCompleted = useCallback(
-    (workspaceId: string, threadId: string, turnId: string) => {
+    (workspaceId: string, threadId: string, turnId: string, _payload?: Record<string, unknown>) => {
       const durationMs = consumeDuration(workspaceId, threadId, turnId);
       const threadKey = buildThreadKey(workspaceId, threadId);
       if (!shouldPlaySound(durationMs, threadKey)) {

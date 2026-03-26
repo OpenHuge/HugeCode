@@ -11,6 +11,8 @@ describe("threadCodexParamsSeed", () => {
       createPendingThreadSeed({
         activeThreadId: "thread-1",
         activeWorkspaceId: "ws-1",
+        selectionMode: "manual",
+        providerFamilyId: "codex",
         selectedCollaborationModeId: "plan",
         fastMode: true,
         accessMode: "full-access",
@@ -23,6 +25,8 @@ describe("threadCodexParamsSeed", () => {
       createPendingThreadSeed({
         activeThreadId: null,
         activeWorkspaceId: null,
+        selectionMode: "manual",
+        providerFamilyId: "codex",
         selectedCollaborationModeId: "plan",
         fastMode: true,
         accessMode: "full-access",
@@ -35,6 +39,8 @@ describe("threadCodexParamsSeed", () => {
       createPendingThreadSeed({
         activeThreadId: null,
         activeWorkspaceId: "ws-1",
+        selectionMode: "manual",
+        providerFamilyId: "claude",
         selectedCollaborationModeId: "plan",
         fastMode: true,
         accessMode: "full-access",
@@ -80,6 +86,8 @@ describe("threadCodexParamsSeed", () => {
       })
     ).toEqual({
       workspaceId: "ws-1",
+      selectionMode: "manual",
+      providerFamilyId: "claude",
       collaborationModeId: "plan",
       fastMode: true,
       accessMode: "full-access",
@@ -98,11 +106,15 @@ describe("threadCodexParamsSeed", () => {
       defaultAccessMode: "full-access",
       lastComposerModelId: "gpt-5",
       lastComposerReasoningEffort: "medium",
+      composerModelSelectionMode: "auto",
+      lastComposerProviderFamilyId: null,
       lastComposerFastMode: true,
       lastComposerExecutionMode: "runtime",
       stored: {
         modelId: "gpt-4.1",
         effort: "low",
+        selectionMode: "manual",
+        providerFamilyId: "codex",
         fastMode: false,
         accessMode: "read-only",
         collaborationModeId: "default",
@@ -111,6 +123,8 @@ describe("threadCodexParamsSeed", () => {
       },
       pendingSeed: {
         workspaceId: "ws-1",
+        selectionMode: "manual",
+        providerFamilyId: "claude",
         collaborationModeId: "plan",
         fastMode: true,
         accessMode: "full-access",
@@ -124,6 +138,8 @@ describe("threadCodexParamsSeed", () => {
       accessMode: "read-only",
       preferredModelId: "gpt-4.1",
       preferredEffort: "low",
+      selectionMode: "manual",
+      providerFamilyId: "codex",
       preferredFastMode: false,
       preferredCollabModeId: "default",
       executionMode: "local-cli",
@@ -135,11 +151,15 @@ describe("threadCodexParamsSeed", () => {
       defaultAccessMode: "full-access",
       lastComposerModelId: "gpt-5",
       lastComposerReasoningEffort: "medium",
+      composerModelSelectionMode: "auto",
+      lastComposerProviderFamilyId: "claude",
       lastComposerFastMode: false,
       lastComposerExecutionMode: "runtime",
       stored: null,
       pendingSeed: {
         workspaceId: "ws-1",
+        selectionMode: "manual",
+        providerFamilyId: "claude",
         collaborationModeId: "plan",
         fastMode: true,
         accessMode: "full-access",
@@ -153,6 +173,8 @@ describe("threadCodexParamsSeed", () => {
       accessMode: "full-access",
       preferredModelId: "gpt-5",
       preferredEffort: "medium",
+      selectionMode: "manual",
+      providerFamilyId: "claude",
       preferredFastMode: true,
       preferredCollabModeId: "plan",
       executionMode: "hybrid",
@@ -166,6 +188,8 @@ describe("threadCodexParamsSeed", () => {
       defaultAccessMode: "full-access",
       lastComposerModelId: "gpt-5.4",
       lastComposerReasoningEffort: "medium",
+      composerModelSelectionMode: "auto",
+      lastComposerProviderFamilyId: "codex",
       lastComposerFastMode: false,
       lastComposerExecutionMode: "runtime",
       stored: null,
@@ -173,6 +197,8 @@ describe("threadCodexParamsSeed", () => {
       currentScopeKey: "ws-1:__no_thread__",
       currentModelId: "gpt-5.3-codex",
       currentReasoningEffort: "low",
+      currentSelectionMode: "manual",
+      currentProviderFamilyId: "claude",
       currentAccessMode: "read-only",
       currentFastMode: true,
       currentCollaborationModeId: "plan",
@@ -184,6 +210,8 @@ describe("threadCodexParamsSeed", () => {
       accessMode: "read-only",
       preferredModelId: "gpt-5.3-codex",
       preferredEffort: "low",
+      selectionMode: "manual",
+      providerFamilyId: "claude",
       preferredFastMode: true,
       preferredCollabModeId: "plan",
       executionMode: "hybrid",
@@ -194,14 +222,19 @@ describe("threadCodexParamsSeed", () => {
     expect(
       buildThreadCodexSeedPatch({
         workspaceId: "ws-1",
+        selectedModelId: "openai::gpt-5",
         resolvedModel: "gpt-5",
         resolvedEffort: "high",
+        selectionMode: "auto",
+        providerFamilyId: "codex",
         fastMode: false,
         accessMode: "full-access",
         selectedCollaborationModeId: "default",
         executionMode: "runtime",
         pendingSeed: {
           workspaceId: "ws-1",
+          selectionMode: "manual",
+          providerFamilyId: "claude",
           collaborationModeId: "plan",
           fastMode: true,
           accessMode: "full-access",
@@ -247,8 +280,10 @@ describe("threadCodexParamsSeed", () => {
         },
       })
     ).toEqual({
-      modelId: "gpt-5",
+      modelId: "openai::gpt-5",
       effort: "high",
+      selectionMode: "manual",
+      providerFamilyId: "claude",
       fastMode: true,
       accessMode: "full-access",
       collaborationModeId: "plan",
@@ -262,14 +297,19 @@ describe("threadCodexParamsSeed", () => {
     expect(
       buildThreadCodexSeedPatch({
         workspaceId: "ws-1",
+        selectedModelId: "openai::gpt-5",
         resolvedModel: "gpt-5",
         resolvedEffort: "high",
+        selectionMode: "auto",
+        providerFamilyId: "codex",
         fastMode: false,
         accessMode: "full-access",
         selectedCollaborationModeId: "default",
         executionMode: "runtime",
         pendingSeed: {
           workspaceId: "ws-other",
+          selectionMode: "manual",
+          providerFamilyId: "claude",
           collaborationModeId: "plan",
           fastMode: true,
           accessMode: "full-access",
@@ -278,8 +318,10 @@ describe("threadCodexParamsSeed", () => {
         },
       })
     ).toEqual({
-      modelId: "gpt-5",
+      modelId: "openai::gpt-5",
       effort: "high",
+      selectionMode: "auto",
+      providerFamilyId: "codex",
       fastMode: false,
       accessMode: "full-access",
       collaborationModeId: "default",
@@ -288,12 +330,15 @@ describe("threadCodexParamsSeed", () => {
     });
   });
 
-  it("builds first-message seed patch from stable model slug instead of transient option id", () => {
+  it("builds first-message seed patch from the selected model id while preserving the runtime slug separately", () => {
     expect(
       buildThreadCodexSeedPatch({
         workspaceId: "ws-1",
-        resolvedModel: "gpt-5.4",
+        selectedModelId: "claude_code_local::claude-sonnet-4-5",
+        resolvedModel: "claude-sonnet-4-5",
         resolvedEffort: "high",
+        selectionMode: "manual",
+        providerFamilyId: "claude",
         fastMode: true,
         accessMode: "full-access",
         selectedCollaborationModeId: null,
@@ -301,8 +346,10 @@ describe("threadCodexParamsSeed", () => {
         pendingSeed: null,
       })
     ).toEqual({
-      modelId: "gpt-5.4",
+      modelId: "claude_code_local::claude-sonnet-4-5",
       effort: "high",
+      selectionMode: "manual",
+      providerFamilyId: "claude",
       fastMode: true,
       accessMode: "full-access",
       collaborationModeId: null,

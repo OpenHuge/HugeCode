@@ -734,6 +734,7 @@ export function AutoDriveNavigationFixture() {
           collaborationModes={[]}
           selectedCollaborationModeId={null}
           onSelectCollaborationMode={() => undefined}
+          modelSelectionMode="manual"
           models={[
             {
               id: "gpt-5",
@@ -742,6 +743,9 @@ export function AutoDriveNavigationFixture() {
               available: true,
             },
           ]}
+          selectedProviderId="codex"
+          onSelectProvider={() => undefined}
+          onSelectModelSelectionMode={() => undefined}
           selectedModelId="gpt-5"
           onSelectModel={() => undefined}
           reasoningOptions={["medium"]}

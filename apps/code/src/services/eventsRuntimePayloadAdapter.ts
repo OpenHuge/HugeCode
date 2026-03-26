@@ -776,7 +776,14 @@ function adaptRuntimeHostEventToAppServerEvent(
   } else if (event.kind === "turn.completed") {
     const accessMode = readFieldString(payload, ["accessMode", "access_mode"]);
     const routedProvider = readFieldString(payload, ["routedProvider", "routed_provider"]);
+    const routedModelId = readFieldString(payload, ["routedModelId", "routed_model_id"]);
+    const routedPool = readFieldString(payload, ["routedPool", "routed_pool"]);
+    const routedSource = readFieldString(payload, ["routedSource", "routed_source"]);
     const executionMode = readFieldExecutionMode(payload, ["executionMode", "execution_mode"]);
+    const recoveredFromStaleResume = readFieldBoolean(payload, [
+      "recoveredFromStaleResume",
+      "recovered_from_stale_resume",
+    ]);
     method = "turn/completed";
     params = {
       threadId,
@@ -793,8 +800,20 @@ function adaptRuntimeHostEventToAppServerEvent(
     if (routedProvider) {
       params.routedProvider = routedProvider;
     }
+    if (routedModelId) {
+      params.routedModelId = routedModelId;
+    }
+    if (routedPool) {
+      params.routedPool = routedPool;
+    }
+    if (routedSource) {
+      params.routedSource = routedSource;
+    }
     if (executionMode !== null) {
       params.executionMode = executionMode;
+    }
+    if (recoveredFromStaleResume !== null) {
+      params.recoveredFromStaleResume = recoveredFromStaleResume;
     }
   } else if (event.kind === "turn.failed") {
     const error = readRecordField(payload, "error") ?? {};

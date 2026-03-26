@@ -229,6 +229,8 @@ export function useDesktopWorkspaceConversationDomain({
     queueMessage: conversationState.composerState.queueMessage,
     pendingNewThreadSeedRef,
     pendingNewThreadAutoDriveDraftRef,
+    selectionMode: threadCodexState.selectionMode,
+    preferredProviderFamilyId: threadCodexState.preferredProviderFamilyId,
     selectedCollaborationModeId: threadCodexState.selectedCollaborationModeId,
     accessMode: threadCodexState.accessMode,
     executionMode: threadCodexState.executionMode,

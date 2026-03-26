@@ -177,6 +177,8 @@ export function useDesktopWorkspaceThreadDomain({
     appDefaultAccessMode: appSettings.defaultAccessMode,
     lastComposerModelId: appSettings.lastComposerModelId,
     lastComposerReasoningEffort: appSettings.lastComposerReasoningEffort,
+    composerModelSelectionMode: appSettings.composerModelSelectionMode,
+    lastComposerProviderFamilyId: appSettings.lastComposerProviderFamilyId,
     lastComposerFastMode: appSettings.lastComposerFastMode,
     lastComposerExecutionMode: appSettings.lastComposerExecutionMode,
     threadCodexParamsVersion,

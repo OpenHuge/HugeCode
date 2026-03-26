@@ -369,6 +369,12 @@ export const CODE_RUNTIME_PROVIDER_ALIAS_REGISTRY = Object.freeze([
     aliases: ["anthropic", "claude", "claude_code", "claude-code"],
   },
   {
+    providerId: "claude_code_local",
+    pool: null,
+    oauthProviderId: null,
+    aliases: ["claude_code_local"],
+  },
+  {
     providerId: "google",
     pool: "gemini",
     oauthProviderId: "gemini",

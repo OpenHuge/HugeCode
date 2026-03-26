@@ -1,6 +1,12 @@
 import { canonicalizeModelProvider } from "@ku0/code-runtime-host-contract/codeRuntimeRpcCompat";
 
-export type RuntimeExecutionProvider = "openai" | "anthropic" | "google" | "local" | "unknown";
+export type RuntimeExecutionProvider =
+  | "openai"
+  | "anthropic"
+  | "claude_code_local"
+  | "google"
+  | "local"
+  | "unknown";
 
 export type RuntimeExecutionPolicyReasonCode =
   | "requested-sequential"
@@ -89,6 +95,7 @@ export function normalizeRuntimeExecutionProvider(input: {
   if (
     canonicalProvider === "openai" ||
     canonicalProvider === "anthropic" ||
+    canonicalProvider === "claude_code_local" ||
     canonicalProvider === "google"
   ) {
     return canonicalProvider;
@@ -148,6 +155,19 @@ export function resolveRuntimeSubAgentBatchPolicy(input: {
       effectiveExecutionMode: "parallel",
       effectiveMaxParallel: Math.min(normalizedRequestedMaxParallel, ANTHROPIC_MAX_PARALLEL),
       parallelToolCallsAllowed: true,
+      reasonCodes,
+    };
+  }
+
+  if (provider === "claude_code_local") {
+    reasonCodes.push("provider-unsupported-for-parallel");
+    return {
+      provider,
+      requestedExecutionMode: input.requestedExecutionMode,
+      requestedMaxParallel,
+      effectiveExecutionMode: "sequential",
+      effectiveMaxParallel: 1,
+      parallelToolCallsAllowed: false,
       reasonCodes,
     };
   }
