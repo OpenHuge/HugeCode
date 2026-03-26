@@ -10,6 +10,10 @@ This document is the source of truth for how HugeCode maps public workflows to i
   `checks_requested` activity so workflow runs stay aligned with GitHub's
   required-check contract and do not widen accidentally if new activity types
   are added later.
+- Required workflows that run on `merge_group` should not use unconditional
+  `cancel-in-progress: true`. Keep cancellation limited to PR churn so merge
+  queue and `push` to `main` still complete their post-merge proof instead of
+  burning runner time on partially executed runs that GitHub cancels mid-flight.
 
 ## PR Author Guide
 
@@ -74,6 +78,9 @@ Public workflow entrypoints currently include:
 - Internal or tooling-only lanes should not be reintroduced as product-facing workflow entrypoints.
 - Workflow docs must stay aligned with `scripts/check-workflow-governance.mjs`.
 - Required merge-queue checks must trigger on `merge_group` as well as `pull_request`, or queued PRs will block waiting for checks that never report.
+- Required workflows that protect merge queue or `main` should scope
+  `cancel-in-progress` to PR events instead of cancelling all newer `push` or
+  `merge_group` runs by default.
 - Required checks that protect `main` should keep a stable aggregate check name even when the underlying reusable workflow fans out into parallel sub-jobs. This lets branch protection and merge queue wait on `Quality / Quality` and `PR Affected Checks / PR Affected Checks` while still shrinking wall-clock time.
 - Shared Node/pnpm bootstrap should stay lockfile-first: prefetch with `pnpm fetch --frozen-lockfile`, then install with `pnpm install --offline --frozen-lockfile` unless a workflow has a documented reason to require a different install path.
 - PR workflow gates may classify manifest-only dependency bumps before deciding whether expensive desktop or frontend lanes are needed; keep that classification script-backed and explicit instead of scattering ad hoc shell heuristics across workflows.
@@ -87,6 +94,8 @@ Public workflow entrypoints currently include:
   CI stays on the default headless Chromium lane without a `channel` override;
   this keeps browser downloads aligned with current Playwright guidance and
   avoids shipping unused headed binaries into every CI run.
+- Shared Playwright bootstrap should cache browser binaries by OS and lockfile
+  so repeated frontend/browser gates do not redownload Chromium on every run.
 - Frontend optimization classification should stay focused on runtime or build-affecting frontend dependencies; pure type-package bumps should normally be covered by quality/typecheck instead of forcing bundle and browser lanes.
 - Frontend optimization should not fan out for generic CI plumbing edits. Workflow-governance and shared action changes belong in repository governance lanes unless they also touch runtime-owning frontend or bundle-budget surfaces.
 - Frontend optimization reusable-workflow edits should stay covered by workflow governance and validation, not by forcing the full browser and bundle lane on infrastructure-only pull requests.

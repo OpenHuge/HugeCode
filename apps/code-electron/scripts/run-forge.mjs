@@ -38,39 +38,55 @@ export function resolveCliCommand(commandName, platform = process.platform) {
   return commandName;
 }
 
-export function resolveCliInvocation(commandName, platform = process.platform) {
-  const command = resolveCliCommand(commandName, platform);
+function quoteWindowsShellSegment(segment) {
+  if (!/[\s"&|<>^()]/u.test(segment)) {
+    return segment;
+  }
+
+  return `"${segment.replace(/"/gu, '""')}"`;
+}
+
+export function createCliInvocation(commandName, args, platform = process.platform) {
+  const resolvedCommand = resolveCliCommand(commandName, platform);
+  if (platform === "win32") {
+    const shellCommand = [resolvedCommand, ...args].map(quoteWindowsShellSegment).join(" ");
+    return {
+      command: process.env.ComSpec || "cmd.exe",
+      args: ["/d", "/s", "/c", shellCommand],
+    };
+  }
+
   return {
-    command,
-    shell: platform === "win32" && command.toLowerCase().endsWith(".cmd"),
+    command: resolvedCommand,
+    args,
   };
 }
 
-export function createStagedPackageJson(packageJson) {
+export function createStagedPackageJson(packageMetadata) {
   return {
     name: "hugecode",
-    author: typeof packageJson.author === "string" ? packageJson.author : "OpenHuge",
+    productName: "HugeCode",
+    version: packageMetadata.version,
+    author: typeof packageMetadata.author === "string" ? packageMetadata.author : "OpenHuge",
     description:
-      typeof packageJson.description === "string"
-        ? packageJson.description
+      typeof packageMetadata.description === "string"
+        ? packageMetadata.description
         : "HugeCode beta desktop shell",
     productDescription: "HugeCode beta desktop shell",
-    productName: "HugeCode",
-    version: packageJson.version,
     type: "module",
     main: "dist-electron/main/main.js",
-    repository: packageJson.repository,
+    repository: packageMetadata.repository,
     config: {
       forge: "./forge.config.mjs",
     },
     dependencies: Object.fromEntries(
-      Object.entries(packageJson.dependencies ?? {}).filter(
+      Object.entries(packageMetadata.dependencies ?? {}).filter(
         ([, version]) => typeof version === "string" && !version.startsWith("workspace:")
       )
     ),
     devDependencies: {
       "@electron-forge/maker-deb": "7.11.1",
-      electron: packageJson.devDependencies.electron,
+      electron: packageMetadata.devDependencies.electron,
     },
   };
 }

@@ -32,6 +32,8 @@ mod runtime_tool_metrics_dispatch;
 mod security_preflight_dispatch;
 #[path = "../../rpc_dispatch_sessions.rs"]
 mod sessions_dispatch;
+#[path = "../../rpc_dispatch_text_files.rs"]
+mod text_files_dispatch;
 #[path = "../../rpc_dispatch_thread_live.rs"]
 mod thread_live;
 #[path = "../../rpc_dispatch_workspace_diagnostics.rs"]
@@ -117,6 +119,7 @@ use sessions_dispatch::{
     handle_session_delete_v1, handle_session_export_v1, handle_session_import_v1,
     handle_thread_snapshots_get_v1, handle_thread_snapshots_set_v1,
 };
+use text_files_dispatch::{handle_text_file_read_v1, handle_text_file_write_v1};
 use thread_live::{
     detach_thread_live_subscriptions_for_workspace, handle_thread_archive, handle_thread_create,
     handle_thread_live_subscribe, handle_thread_live_unsubscribe, handle_thread_resume,
@@ -148,6 +151,8 @@ pub(crate) async fn handle_rpc(
         "code_settings_summary" => Ok(settings_summary_payload()),
         "code_app_settings_get" => handle_app_settings_get(ctx).await,
         "code_app_settings_update" => handle_app_settings_update(ctx, params).await,
+        "code_text_file_read_v1" => handle_text_file_read_v1(ctx, params).await,
+        "code_text_file_write_v1" => handle_text_file_write_v1(ctx, params).await,
         "code_remote_status" => Ok(remote_status_payload()),
         "code_terminal_status" => Ok(terminal_status_payload(ctx).await),
         "code_models_pool" => Ok(json!(build_models_pool(ctx).await)),

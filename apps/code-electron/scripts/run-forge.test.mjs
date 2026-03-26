@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  createCliInvocation,
   createStagedPackageJson,
   parseForgeCommand,
   resolveCliCommand,
-  resolveCliInvocation,
 } from "./run-forge.mjs";
 
 describe("run-forge helpers", () => {
@@ -26,18 +26,14 @@ describe("run-forge helpers", () => {
     );
   });
 
-  it("runs Windows cmd shims through the shell", () => {
-    expect(resolveCliInvocation("npm", "win32")).toEqual({
-      command: "npm.cmd",
-      shell: true,
+  it("wraps Windows CLI invocations through cmd.exe", () => {
+    expect(createCliInvocation("npm", ["install"], "win32")).toEqual({
+      command: process.env.ComSpec || "cmd.exe",
+      args: ["/d", "/s", "/c", "npm.cmd install"],
     });
-    expect(resolveCliInvocation("C:/tooling/electron-forge.cmd", "win32")).toEqual({
-      command: "C:/tooling/electron-forge.cmd",
-      shell: true,
-    });
-    expect(resolveCliInvocation("node", "linux")).toEqual({
+    expect(createCliInvocation("node", ["scripts/run.js"], "linux")).toEqual({
       command: "node",
-      shell: false,
+      args: ["scripts/run.js"],
     });
   });
 
@@ -59,11 +55,11 @@ describe("run-forge helpers", () => {
       })
     ).toEqual({
       name: "hugecode",
+      productName: "HugeCode",
+      version: "1.2.3",
       author: "OpenHuge",
       description: "HugeCode beta desktop shell",
       productDescription: "HugeCode beta desktop shell",
-      productName: "HugeCode",
-      version: "1.2.3",
       type: "module",
       main: "dist-electron/main/main.js",
       repository: {

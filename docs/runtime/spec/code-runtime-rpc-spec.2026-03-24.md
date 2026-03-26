@@ -1,8 +1,8 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-03-26T03:40:28.771Z`
-- Contract version: `2026-03-25`
-- Freeze effective at: `2026-03-25`
+- Generated at: `2026-03-24T12:04:15.525Z`
+- Contract version: `2026-03-24`
+- Freeze effective at: `2026-03-24`
 - Method-set hash: `c31017c91fe296d5`
 
 ## Features
@@ -50,7 +50,6 @@
 - `runtime_acp_readiness_probe_v1`
 - `runtime_review_actionability_v1`
 - `runtime_review_linkage_v1`
-- `runtime_truth_contract_core_v1`
 - `runtime_mission_control_summary_v1`
 - `runtime_task_normalization_v1`
 - `runtime_task_native_run_review_v1`
@@ -69,8 +68,8 @@
 - `runtime_codex_execpolicy_preflight_v1`
 - `runtime_codex_unified_rpc_migration_v1`
 - `runtime_host_deprecated`
-- `app_server_protocol_v2_2026_03_25`
-- `contract_frozen_2026_03_25`
+- `app_server_protocol_v2_2026_03_24`
+- `contract_frozen_2026_03_24`
 
 ## RPC Methods (canonical)
 
@@ -122,9 +121,9 @@
 - `code_thread_live_unsubscribe`
 - `code_turn_send`
 - `code_turn_interrupt`
+- `code_runtime_run_start`
 - `code_runtime_run_prepare_v2`
 - `code_runtime_run_start_v2`
-- `code_runtime_run_start`
 - `code_runtime_run_cancel`
 - `code_runtime_run_resume`
 - `code_runtime_run_resume_v2`

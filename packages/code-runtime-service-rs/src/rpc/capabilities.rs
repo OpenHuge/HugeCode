@@ -38,6 +38,8 @@ pub(super) const RPC_METHOD_REGISTRY: &[RpcMethodEntry] = &[
     RpcMethodEntry::new("code_settings_summary"),
     RpcMethodEntry::new("code_app_settings_get"),
     RpcMethodEntry::new("code_app_settings_update"),
+    RpcMethodEntry::new("code_text_file_read_v1"),
+    RpcMethodEntry::new("code_text_file_write_v1"),
     RpcMethodEntry::new("code_remote_status"),
     RpcMethodEntry::new("code_terminal_status"),
     RpcMethodEntry::new("code_models_pool"),
