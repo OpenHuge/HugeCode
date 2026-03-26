@@ -14,6 +14,13 @@ pub(crate) struct RepositoryExecutionExplicitLaunchInput {
 }
 
 #[derive(Clone, Debug, Default)]
+pub(crate) struct RepositoryExecutionResolvedReviewProfile {
+    pub(crate) id: String,
+    pub(crate) label: String,
+    pub(crate) allowed_skill_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default)]
 pub(crate) struct RepositoryExecutionResolvedDefaults {
     #[allow(dead_code)]
     pub(crate) source_mapping_kind: Option<String>,
@@ -23,6 +30,15 @@ pub(crate) struct RepositoryExecutionResolvedDefaults {
     pub(crate) access_mode: Option<String>,
     pub(crate) preferred_backend_ids: Vec<String>,
     pub(crate) default_backend_id: Option<String>,
+    pub(crate) repo_instructions: Vec<String>,
+    pub(crate) repo_skill_ids: Vec<String>,
+    pub(crate) source_instructions: Vec<String>,
+    pub(crate) source_skill_ids: Vec<String>,
+    pub(crate) review_profile: Option<RepositoryExecutionResolvedReviewProfile>,
+    pub(crate) triage_owner: Option<String>,
+    pub(crate) triage_priority: Option<String>,
+    pub(crate) triage_risk_level: Option<String>,
+    pub(crate) triage_tags: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -54,6 +70,32 @@ struct RepositoryExecutionPolicy {
     review_profile_id: Option<String>,
     #[serde(default)]
     validation_preset_id: Option<String>,
+    #[serde(default)]
+    guidance: RepositoryExecutionGuidance,
+    #[serde(default)]
+    triage: RepositoryExecutionTriagePolicy,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RepositoryExecutionGuidance {
+    #[serde(default)]
+    instructions: Vec<String>,
+    #[serde(default)]
+    skill_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RepositoryExecutionTriagePolicy {
+    #[serde(default)]
+    owner: Option<String>,
+    #[serde(default)]
+    priority: Option<String>,
+    #[serde(default)]
+    risk_level: Option<String>,
+    #[serde(default)]
+    tags: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -119,6 +161,36 @@ fn normalize_policy(policy: RepositoryExecutionPolicy) -> RepositoryExecutionPol
         access_mode: normalize_optional_text(policy.access_mode),
         review_profile_id: normalize_optional_text(policy.review_profile_id),
         validation_preset_id: normalize_optional_text(policy.validation_preset_id),
+        guidance: RepositoryExecutionGuidance {
+            instructions: normalize_text_list(Some(policy.guidance.instructions)),
+            skill_ids: normalize_text_list(Some(policy.guidance.skill_ids)),
+        },
+        triage: RepositoryExecutionTriagePolicy {
+            owner: normalize_optional_text(policy.triage.owner),
+            priority: normalize_optional_text(policy.triage.priority),
+            risk_level: normalize_optional_text(policy.triage.risk_level),
+            tags: normalize_text_list(Some(policy.triage.tags)),
+        },
+    }
+}
+
+fn normalize_triage_priority(value: Option<String>) -> Result<Option<String>, String> {
+    match normalize_optional_text(value) {
+        None => Ok(None),
+        Some(normalized) if matches!(normalized.as_str(), "low" | "medium" | "high" | "urgent") => {
+            Ok(Some(normalized))
+        }
+        Some(_) => Err("triage priority must be low, medium, high, or urgent".to_string()),
+    }
+}
+
+fn normalize_risk_level(value: Option<String>) -> Result<Option<String>, String> {
+    match normalize_optional_text(value) {
+        None => Ok(None),
+        Some(normalized) if matches!(normalized.as_str(), "low" | "medium" | "high") => {
+            Ok(Some(normalized))
+        }
+        Some(_) => Err("triage riskLevel must be low, medium, or high".to_string()),
     }
 }
 
@@ -185,6 +257,10 @@ fn parse_repository_execution_contract(raw: &str) -> Result<RepositoryExecutionC
                     ));
                 }
             }
+            normalize_triage_priority(policy.triage.priority.clone())
+                .map_err(|error| format!("{context}.{error}"))?;
+            normalize_risk_level(policy.triage.risk_level.clone())
+                .map_err(|error| format!("{context}.{error}"))?;
             Ok(())
         };
 
@@ -195,10 +271,19 @@ fn parse_repository_execution_contract(raw: &str) -> Result<RepositoryExecutionC
     for (kind, policy) in parsed.source_mappings {
         if !matches!(
             kind.as_str(),
-            "manual" | "github_issue" | "github_pr_followup" | "schedule"
+            "manual"
+                | "github_issue"
+                | "github_pr_followup"
+                | "github_discussion"
+                | "note"
+                | "customer_feedback"
+                | "doc"
+                | "call_summary"
+                | "external_ref"
+                | "schedule"
         ) {
             return Err(format!(
-                "sourceMappings supports only manual, github_issue, github_pr_followup, or schedule kinds"
+                "sourceMappings supports only manual, github_issue, github_pr_followup, github_discussion, note, customer_feedback, doc, call_summary, external_ref, or schedule kinds"
             ));
         }
         let normalized_policy = normalize_policy(policy);
@@ -256,6 +341,12 @@ fn resolve_task_source_mapping_kind(
         "manual" | "manual_thread" => Some("manual".to_string()),
         "github_issue" => Some("github_issue".to_string()),
         "github_pr_followup" => Some("github_pr_followup".to_string()),
+        "github_discussion" => Some("github_discussion".to_string()),
+        "note" => Some("note".to_string()),
+        "customer_feedback" => Some("customer_feedback".to_string()),
+        "doc" => Some("doc".to_string()),
+        "call_summary" => Some("call_summary".to_string()),
+        "external_ref" => Some("external_ref".to_string()),
         "schedule" => Some("schedule".to_string()),
         _ => None,
     }
@@ -308,6 +399,17 @@ fn resolve_repository_execution_defaults_from_contract(
         .or_else(|| source_mapping.and_then(|policy| policy.review_profile_id.clone()))
         .or_else(|| contract.defaults.review_profile_id.clone())
         .or_else(|| contract.default_review_profile_id.clone());
+    let review_profile = review_profile_id.as_deref().and_then(|review_profile_id| {
+        contract
+            .review_profiles
+            .iter()
+            .find(|profile| profile.id == review_profile_id)
+            .map(|profile| RepositoryExecutionResolvedReviewProfile {
+                id: profile.id.clone(),
+                label: profile.label.clone(),
+                allowed_skill_ids: profile.allowed_skill_ids.clone(),
+            })
+    });
     let review_profile_validation_preset =
         review_profile_id.as_deref().and_then(|review_profile_id| {
             contract
@@ -348,6 +450,28 @@ fn resolve_repository_execution_defaults_from_contract(
         access_mode,
         preferred_backend_ids,
         default_backend_id: explicit.default_backend_id.clone(),
+        repo_instructions: contract.defaults.guidance.instructions.clone(),
+        repo_skill_ids: contract.defaults.guidance.skill_ids.clone(),
+        source_instructions: source_mapping
+            .map(|policy| policy.guidance.instructions.clone())
+            .unwrap_or_default(),
+        source_skill_ids: source_mapping
+            .map(|policy| policy.guidance.skill_ids.clone())
+            .unwrap_or_default(),
+        review_profile,
+        triage_owner: source_mapping
+            .and_then(|policy| policy.triage.owner.clone())
+            .or_else(|| contract.defaults.triage.owner.clone()),
+        triage_priority: source_mapping
+            .and_then(|policy| policy.triage.priority.clone())
+            .or_else(|| contract.defaults.triage.priority.clone()),
+        triage_risk_level: source_mapping
+            .and_then(|policy| policy.triage.risk_level.clone())
+            .or_else(|| contract.defaults.triage.risk_level.clone()),
+        triage_tags: source_mapping
+            .map(|policy| policy.triage.tags.clone())
+            .filter(|tags| !tags.is_empty())
+            .unwrap_or_else(|| contract.defaults.triage.tags.clone()),
     }
 }
 
@@ -404,14 +528,34 @@ mod tests {
                 "defaults": {
                     "executionProfileId": "balanced-delegate",
                     "reviewProfileId": "default-review",
-                    "validationPresetId": "standard"
+                    "validationPresetId": "standard",
+                    "guidance": {
+                        "instructions": ["Use repo-owned context truth."],
+                        "skillIds": ["repo-baseline"]
+                    },
+                    "triage": {
+                        "owner": "Platform Runtime",
+                        "priority": "medium",
+                        "riskLevel": "medium",
+                        "tags": ["runtime"]
+                    }
                 },
                 "defaultReviewProfileId": "default-review",
                 "sourceMappings": {
                     "github_issue": {
                         "executionProfileId": "autonomous-delegate",
                         "reviewProfileId": "issue-review",
-                        "preferredBackendIds": ["backend-issue"]
+                        "preferredBackendIds": ["backend-issue"],
+                        "guidance": {
+                            "instructions": ["Treat GitHub issues as triage-first intake."],
+                            "skillIds": ["issue-triage"]
+                        },
+                        "triage": {
+                            "owner": "Issue Desk",
+                            "priority": "high",
+                            "riskLevel": "high",
+                            "tags": ["customer-facing"]
+                        }
                     },
                     "schedule": {
                         "executionProfileId": "balanced-delegate",
@@ -490,12 +634,34 @@ mod tests {
             Some("autonomous-delegate")
         );
         assert_eq!(resolved.review_profile_id.as_deref(), Some("issue-review"));
+        assert_eq!(
+            resolved
+                .review_profile
+                .as_ref()
+                .map(|profile| profile.allowed_skill_ids.clone()),
+            Some(vec![
+                "review-agent".to_string(),
+                "repo-policy-check".to_string()
+            ])
+        );
         assert_eq!(resolved.validation_preset_id.as_deref(), Some("standard"));
         assert_eq!(resolved.access_mode.as_deref(), Some("full-access"));
         assert_eq!(
             resolved.preferred_backend_ids,
             vec!["backend-issue".to_string()]
         );
+        assert_eq!(
+            resolved.repo_instructions,
+            vec!["Use repo-owned context truth.".to_string()]
+        );
+        assert_eq!(
+            resolved.source_instructions,
+            vec!["Treat GitHub issues as triage-first intake.".to_string()]
+        );
+        assert_eq!(resolved.triage_owner.as_deref(), Some("Issue Desk"));
+        assert_eq!(resolved.triage_priority.as_deref(), Some("high"));
+        assert_eq!(resolved.triage_risk_level.as_deref(), Some("high"));
+        assert_eq!(resolved.triage_tags, vec!["customer-facing".to_string()]);
         assert_eq!(
             contract.review_profiles[1].allowed_skill_ids,
             vec!["review-agent".to_string(), "repo-policy-check".to_string()]
@@ -587,6 +753,13 @@ mod tests {
             Some("schedule-review")
         );
         assert_eq!(
+            resolved
+                .review_profile
+                .as_ref()
+                .map(|profile| profile.label.as_str()),
+            Some("Schedule review")
+        );
+        assert_eq!(
             resolved.validation_preset_id.as_deref(),
             Some("review-first")
         );
@@ -594,6 +767,87 @@ mod tests {
         assert_eq!(
             resolved.preferred_backend_ids,
             vec!["backend-schedule".to_string()]
+        );
+    }
+
+    #[test]
+    fn repository_execution_contract_accepts_context_driven_source_kinds() {
+        let contract = parse_contract(
+            json!({
+                "version": 1,
+                "defaults": {
+                    "executionProfileId": "balanced-delegate",
+                    "validationPresetId": "standard"
+                },
+                "sourceMappings": {
+                    "github_discussion": {
+                        "executionProfileId": "balanced-delegate"
+                    },
+                    "customer_feedback": {
+                        "executionProfileId": "balanced-delegate",
+                        "validationPresetId": "standard"
+                    }
+                },
+                "validationPresets": [{ "id": "standard", "label": "Standard" }]
+            })
+            .to_string()
+            .as_str(),
+        );
+
+        let discussion = resolve_repository_execution_defaults_from_contract(
+            &contract,
+            Some(&AgentTaskSourceSummary {
+                kind: "github_discussion".to_string(),
+                label: None,
+                short_label: None,
+                title: Some("Clarify delegation contract".to_string()),
+                reference: Some("#12".to_string()),
+                url: None,
+                issue_number: None,
+                pull_request_number: None,
+                repo: None,
+                workspace_id: Some("ws-1".to_string()),
+                workspace_root: None,
+                external_id: None,
+                canonical_url: None,
+                thread_id: None,
+                request_id: None,
+                source_task_id: None,
+                source_run_id: None,
+            }),
+            &RepositoryExecutionExplicitLaunchInput::default(),
+        );
+        let feedback = resolve_repository_execution_defaults_from_contract(
+            &contract,
+            Some(&AgentTaskSourceSummary {
+                kind: "customer_feedback".to_string(),
+                label: None,
+                short_label: None,
+                title: Some("Review is too expensive".to_string()),
+                reference: None,
+                url: None,
+                issue_number: None,
+                pull_request_number: None,
+                repo: None,
+                workspace_id: Some("ws-1".to_string()),
+                workspace_root: None,
+                external_id: None,
+                canonical_url: None,
+                thread_id: None,
+                request_id: None,
+                source_task_id: None,
+                source_run_id: None,
+            }),
+            &RepositoryExecutionExplicitLaunchInput::default(),
+        );
+
+        assert_eq!(
+            discussion.source_mapping_kind.as_deref(),
+            Some("github_discussion")
+        );
+        assert_eq!(
+            feedback.source_mapping_kind.as_deref(),
+            Some("customer_feedback")
         );
     }
 

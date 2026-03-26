@@ -17,6 +17,12 @@ import {
 } from "./runtimeMissionDraftFacade";
 import type { ResolvedRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionContract";
 import type { RuntimeTaskLauncherSourceDraft } from "./runtimeTaskInterventionDraftFacade";
+import {
+  buildRuntimeContextTruth,
+  buildRuntimeDelegationContract,
+  buildRuntimeGuidanceStack,
+  buildRuntimeTriageSummary,
+} from "./runtimeContextTruth";
 
 export type RuntimeMissionLaunchRequestInput = {
   workspaceId: string;
@@ -31,6 +37,11 @@ export type RuntimeMissionLaunchRequestInput = {
 export type RuntimeMissionLaunchPreviewState = {
   request: RuntimeRunPrepareV2Request | null;
   preparation: RuntimeRunPrepareV2Response | null;
+  contextTruth: RuntimeRunPrepareV2Response["contextTruth"] | null;
+  guidanceStack: RuntimeRunPrepareV2Response["guidanceStack"] | null;
+  triageSummary: RuntimeRunPrepareV2Response["triageSummary"] | null;
+  delegationContract: RuntimeRunPrepareV2Response["delegationContract"] | null;
+  repoGuidanceSummary: string | null;
   truthSourceLabel: string | null;
   loading: boolean;
   error: string | null;
@@ -96,6 +107,42 @@ function normalizeBackendIds(value: string[] | null | undefined): string[] | und
     ids.push(normalized);
   }
   return ids.length > 0 ? ids : undefined;
+}
+
+function formatRepoInstructionDetail(detail: string | null | undefined): string | null {
+  const normalized = readOptionalText(detail);
+  if (!normalized) {
+    return null;
+  }
+  const prefix = "Runtime detected ";
+  const suffix = " as hot repo guidance surfaces.";
+  if (normalized.startsWith(prefix) && normalized.endsWith(suffix)) {
+    return `Repo guidance: ${normalized.slice(prefix.length, normalized.length - suffix.length)}`;
+  }
+  return normalized;
+}
+
+function summarizeLaunchPreparationRepoGuidance(
+  preparation: RuntimeRunPrepareV2Response | null,
+  guidanceStack: RuntimeRunPrepareV2Response["guidanceStack"] | null
+): string | null {
+  const workingSetSummary = preparation?.contextWorkingSet.layers
+    .flatMap((layer) => layer.entries)
+    .find((entry) => entry.id === "repo-instruction-surfaces");
+  const detailedSummary = formatRepoInstructionDetail(workingSetSummary?.detail);
+  if (detailedSummary) {
+    return detailedSummary;
+  }
+
+  const repoLayer = guidanceStack?.layers.find((layer) => layer.scope === "repo") ?? null;
+  if (!repoLayer) {
+    return null;
+  }
+  const sourceLabel =
+    repoLayer.source.trim().length > 0 && repoLayer.source !== "repo_guidance"
+      ? repoLayer.source
+      : "repository instruction surfaces";
+  return `Repo guidance: ${sourceLabel}`;
 }
 
 function buildWorkspaceLaunchTaskSource(input: {
@@ -240,9 +287,83 @@ export function useRuntimeMissionLaunchPreview(
     };
   }, [debouncedRequest]);
 
+  const contextTruth = useMemo(() => {
+    if (preparation?.contextTruth) {
+      return preparation.contextTruth;
+    }
+    if (!request) {
+      return null;
+    }
+    return buildRuntimeContextTruth({
+      taskSource: request.taskSource ?? null,
+      repositoryDefaults: input.repositoryLaunchDefaults,
+      contractLabel: input.repositoryLaunchDefaults.contract?.metadata?.label ?? null,
+      hasRepoInstructions: true,
+      explicitInstruction: input.draftInstruction,
+    });
+  }, [input.draftInstruction, input.repositoryLaunchDefaults, preparation, request]);
+
+  const guidanceStack = useMemo(() => {
+    if (preparation?.guidanceStack) {
+      return preparation.guidanceStack;
+    }
+    if (!request) {
+      return null;
+    }
+    return buildRuntimeGuidanceStack({
+      taskSource: request.taskSource ?? null,
+      repositoryDefaults: input.repositoryLaunchDefaults,
+      contractLabel: input.repositoryLaunchDefaults.contract?.metadata?.label ?? null,
+      hasRepoInstructions: true,
+      explicitInstruction: input.draftInstruction,
+    });
+  }, [input.draftInstruction, input.repositoryLaunchDefaults, preparation, request]);
+
+  const triageSummary = useMemo(() => {
+    if (preparation?.triageSummary) {
+      return preparation.triageSummary;
+    }
+    if (!request) {
+      return null;
+    }
+    return buildRuntimeTriageSummary({
+      taskSource: request.taskSource ?? null,
+      repositoryDefaults: input.repositoryLaunchDefaults,
+      contractLabel: input.repositoryLaunchDefaults.contract?.metadata?.label ?? null,
+      hasRepoInstructions: true,
+      explicitInstruction: input.draftInstruction,
+    });
+  }, [input.draftInstruction, input.repositoryLaunchDefaults, preparation, request]);
+
+  const delegationContract = useMemo(() => {
+    if (preparation?.delegationContract) {
+      return preparation.delegationContract;
+    }
+    if (!contextTruth) {
+      return null;
+    }
+    return buildRuntimeDelegationContract({
+      contextTruth,
+      triageSummary,
+      missingContext:
+        preparation?.runIntent.missingContext ?? request?.missionBrief?.constraints ?? [],
+      approvalBatchCount: preparation?.approvalBatches.length ?? 0,
+    });
+  }, [contextTruth, preparation, request, triageSummary]);
+
+  const repoGuidanceSummary = useMemo(
+    () => summarizeLaunchPreparationRepoGuidance(preparation, guidanceStack),
+    [guidanceStack, preparation]
+  );
+
   return {
     request,
     preparation,
+    contextTruth,
+    guidanceStack,
+    triageSummary,
+    delegationContract,
+    repoGuidanceSummary,
     truthSourceLabel: preparation ? "Runtime kernel v2 prepare" : null,
     loading,
     error,

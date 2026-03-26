@@ -36,6 +36,11 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     repositoryLaunchDefaults,
     resumeRecoverableTasks,
     runtimeLaunchPreparation,
+    runtimeLaunchPreparationContextTruth,
+    runtimeLaunchPreparationGuidanceStack,
+    runtimeLaunchPreparationTriageSummary,
+    runtimeLaunchPreparationDelegationContract,
+    runtimeLaunchPreparationRepoGuidanceSummary,
     runtimeLaunchPreparationError,
     runtimeLaunchPreparationLoading,
     runtimeLaunchPlanApprovalRequired,
@@ -444,6 +449,35 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   </span>
                   <span>Risk: {runtimeLaunchPreparation.runIntent.riskLevel}</span>
                   <span>{runtimeLaunchPreparation.contextWorkingSet.summary}</span>
+                  {runtimeLaunchPreparationContextTruth ? (
+                    <span>Context truth: {runtimeLaunchPreparationContextTruth.summary}</span>
+                  ) : null}
+                  {runtimeLaunchPreparationDelegationContract ? (
+                    <span>
+                      Delegation: {runtimeLaunchPreparationDelegationContract.summary} Next:{" "}
+                      {runtimeLaunchPreparationDelegationContract.nextOperatorAction}
+                    </span>
+                  ) : null}
+                  {runtimeLaunchPreparationGuidanceStack ? (
+                    <span>Guidance: {runtimeLaunchPreparationGuidanceStack.summary}</span>
+                  ) : null}
+                  {runtimeLaunchPreparationRepoGuidanceSummary ? (
+                    <span>{runtimeLaunchPreparationRepoGuidanceSummary}</span>
+                  ) : null}
+                  {runtimeLaunchPreparationTriageSummary ? (
+                    <span>Triage: {runtimeLaunchPreparationTriageSummary.summary}</span>
+                  ) : null}
+                  <span>
+                    Context strategy:{" "}
+                    {runtimeLaunchPreparation.contextWorkingSet.selectionPolicy?.strategy ??
+                      "balanced"}{" "}
+                    | budget{" "}
+                    {runtimeLaunchPreparation.contextWorkingSet.selectionPolicy
+                      ?.tokenBudgetTarget ?? 1500}{" "}
+                    | tools{" "}
+                    {runtimeLaunchPreparation.contextWorkingSet.selectionPolicy
+                      ?.toolExposureProfile ?? "slim"}
+                  </span>
                   <span>{runtimeLaunchPreparation.executionGraph.summary}</span>
                   <span>
                     Approval batches:{" "}
@@ -501,6 +535,48 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                     const entries = layer.entries.map((entry) => entry.label).join(", ");
                     return `${layer.tier}: ${entries || layer.summary}`;
                   })
+                  .join(" | ")}
+              </div>
+            ) : null}
+            {runtimeLaunchPreparationContextTruth ? (
+              <div className={controlStyles.sectionMeta}>
+                {[
+                  `intent: ${runtimeLaunchPreparationContextTruth.reviewIntent}`,
+                  `owner: ${runtimeLaunchPreparationContextTruth.ownerSummary}`,
+                  runtimeLaunchPreparationContextTruth.canonicalTaskSource
+                    ? `source: ${runtimeLaunchPreparationContextTruth.canonicalTaskSource.label}`
+                    : null,
+                ]
+                  .filter((value): value is string => Boolean(value))
+                  .join(" | ")}
+              </div>
+            ) : null}
+            {runtimeLaunchPreparationTriageSummary ? (
+              <div className={controlStyles.sectionMeta}>
+                {[
+                  runtimeLaunchPreparationTriageSummary.owner
+                    ? `triage owner: ${runtimeLaunchPreparationTriageSummary.owner}`
+                    : "triage owner: unassigned",
+                  runtimeLaunchPreparationTriageSummary.priority
+                    ? `priority: ${runtimeLaunchPreparationTriageSummary.priority}`
+                    : null,
+                  runtimeLaunchPreparationTriageSummary.riskLevel
+                    ? `risk: ${runtimeLaunchPreparationTriageSummary.riskLevel}`
+                    : null,
+                  runtimeLaunchPreparationTriageSummary.tags.length > 0
+                    ? `tags: ${runtimeLaunchPreparationTriageSummary.tags.join(", ")}`
+                    : null,
+                ]
+                  .filter((value): value is string => Boolean(value))
+                  .join(" | ")}
+              </div>
+            ) : null}
+            {runtimeLaunchPreparationGuidanceStack?.layers.length ? (
+              <div className={controlStyles.sectionMeta}>
+                {runtimeLaunchPreparationGuidanceStack.layers
+                  .slice()
+                  .sort((left, right) => right.priority - left.priority)
+                  .map((layer) => `${layer.scope}: ${layer.summary}`)
                   .join(" | ")}
               </div>
             ) : null}

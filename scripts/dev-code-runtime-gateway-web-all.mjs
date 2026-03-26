@@ -16,8 +16,9 @@ const DEFAULT_RUNTIME_PORT = 8788;
 const DEFAULT_WEB_HOST = "::";
 const DEFAULT_WEB_PORT = 5187;
 // Cold Rust builds can spend most of the initial budget compiling the runtime
-// before the health endpoint exists. Give the first launch more headroom by default.
-const DEFAULT_RUNTIME_READY_TIMEOUT_MS = 240_000;
+// before the health endpoint exists. Match the higher smoke-test budget so the
+// default interactive boot path survives a pruned target cache.
+const DEFAULT_RUNTIME_READY_TIMEOUT_MS = 480_000;
 const CI_DEFAULT_RUNTIME_READY_TIMEOUT_MS = 900_000;
 const MAX_PORT_SCAN = 200;
 const HEALTHCHECK_TIMEOUT_MS = 1_200;
@@ -406,7 +407,9 @@ async function waitForRuntimeReady(port, runtimeProcess) {
     await delay(RUNTIME_READY_POLL_MS);
   }
   throw new Error(
-    `Runtime service did not become ready on ${HOST}:${port} within ${RUNTIME_READY_TIMEOUT_MS}ms.`
+    `Runtime service did not become ready on ${HOST}:${port} within ${RUNTIME_READY_TIMEOUT_MS}ms. ` +
+      "Cold Rust builds can consume most of this budget before the health endpoint exists. " +
+      "Set CODE_RUNTIME_SERVICE_READY_TIMEOUT_MS if this environment needs a longer startup window."
   );
 }
 

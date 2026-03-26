@@ -203,6 +203,29 @@ fn build_task_source_labels(
                 .map(|value| format!("PR {value}"))
                 .unwrap_or_else(|| "PR follow-up".to_string()),
         ),
+        "github_discussion" => (
+            match (reference.as_deref(), repo_full_name.as_deref()) {
+                (Some(reference), Some(repo)) => format!("GitHub discussion {reference} · {repo}"),
+                (Some(reference), None) => format!("GitHub discussion {reference}"),
+                (None, Some(repo)) => format!("GitHub discussion · {repo}"),
+                (None, None) => "GitHub discussion".to_string(),
+            },
+            reference
+                .as_ref()
+                .map(|value| format!("Discussion {value}"))
+                .unwrap_or_else(|| "GitHub discussion".to_string()),
+        ),
+        "note" => ("Operator note".to_string(), "Note".to_string()),
+        "customer_feedback" => (
+            "Customer feedback".to_string(),
+            "Feedback".to_string(),
+        ),
+        "doc" => ("Document brief".to_string(), "Doc".to_string()),
+        "call_summary" => ("Call summary".to_string(), "Call".to_string()),
+        "external_ref" => (
+            "External reference".to_string(),
+            "Reference".to_string(),
+        ),
         "schedule" => ("Scheduled task".to_string(), "Schedule".to_string()),
         "external_runtime" => ("External runtime".to_string(), "External".to_string()),
         _ => return None,
@@ -466,6 +489,12 @@ fn canonicalize_agent_task_source_kind(value: &str) -> Option<&'static str> {
         "autodrive" => Some("autodrive"),
         "github_issue" => Some("github_issue"),
         "github_pr_followup" => Some("github_pr_followup"),
+        "github_discussion" => Some("github_discussion"),
+        "note" => Some("note"),
+        "customer_feedback" => Some("customer_feedback"),
+        "doc" => Some("doc"),
+        "call_summary" => Some("call_summary"),
+        "external_ref" => Some("external_ref"),
         "schedule" => Some("schedule"),
         "external_runtime" => Some("external_runtime"),
         _ => Some("external_runtime"),

@@ -99,6 +99,12 @@ export type HugeCodeTaskSourceKind =
   | "manual_thread"
   | "github_issue"
   | "github_pr_followup"
+  | "github_discussion"
+  | "note"
+  | "customer_feedback"
+  | "doc"
+  | "call_summary"
+  | "external_ref"
   | "schedule"
   | "external_runtime"
   | (string & {});

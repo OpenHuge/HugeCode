@@ -1,4 +1,8 @@
-import type { AccessMode, AgentTaskSourceSummary } from "@ku0/code-runtime-host-contract";
+import type {
+  AccessMode,
+  AgentTaskSourceSummary,
+  RuntimeRunRiskLevelV2,
+} from "@ku0/code-runtime-host-contract";
 import { RuntimeUnavailableError } from "../ports/runtimeClient";
 import { readWorkspaceFile } from "../ports/tauriWorkspaceFiles";
 import { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
@@ -14,7 +18,16 @@ const KNOWN_ACCESS_MODES = new Set<AccessMode>(["read-only", "on-request", "full
 
 type SupportedRepositoryTaskSourceKind = Extract<
   AgentTaskSourceSummary["kind"],
-  "manual" | "github_issue" | "github_pr_followup" | "schedule"
+  | "manual"
+  | "github_issue"
+  | "github_pr_followup"
+  | "github_discussion"
+  | "note"
+  | "customer_feedback"
+  | "doc"
+  | "call_summary"
+  | "external_ref"
+  | "schedule"
 >;
 
 type RepositoryExecutionContractPolicy = {
@@ -23,6 +36,22 @@ type RepositoryExecutionContractPolicy = {
   accessMode?: AccessMode | null;
   reviewProfileId?: string | null;
   validationPresetId?: string | null;
+  guidance?: RepositoryExecutionContractGuidance;
+  triage?: RepositoryExecutionContractTriagePolicy;
+};
+
+export type RepositoryExecutionContractGuidance = {
+  instructions: string[];
+  skillIds: string[];
+};
+
+export type RepositoryExecutionContractTriagePriority = "low" | "medium" | "high" | "urgent";
+
+export type RepositoryExecutionContractTriagePolicy = {
+  owner: string | null;
+  priority: RepositoryExecutionContractTriagePriority | null;
+  riskLevel: RuntimeRunRiskLevelV2 | null;
+  tags: string[];
 };
 
 export type RepositoryExecutionValidationPreset = {
@@ -83,6 +112,14 @@ export type ResolvedRepositoryExecutionDefaults = {
   validationPresetId: string | null;
   validationPresetLabel: string | null;
   validationCommands: string[];
+  repoInstructions: string[];
+  repoSkillIds: string[];
+  sourceInstructions: string[];
+  sourceSkillIds: string[];
+  owner: string | null;
+  triagePriority: RepositoryExecutionContractTriagePriority | null;
+  triageRiskLevel: RuntimeRunRiskLevelV2 | null;
+  triageTags: string[];
 };
 
 function readOptionalText(value: unknown): string | null {
@@ -108,6 +145,91 @@ function normalizeBackendIds(value: unknown): string[] | undefined {
     ids.push(normalized);
   }
   return ids.length > 0 ? ids : undefined;
+}
+
+function normalizeStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const items: string[] = [];
+  for (const entry of value) {
+    const normalized = readOptionalText(entry);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    items.push(normalized);
+  }
+  return items;
+}
+
+function readGuidance(value: unknown, context: string): RepositoryExecutionContractGuidance {
+  if (value === null || value === undefined) {
+    return {
+      instructions: [],
+      skillIds: [],
+    };
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${context} must be an object.`);
+  }
+  const record = value as Record<string, unknown>;
+  return {
+    instructions: normalizeStringList(record.instructions),
+    skillIds: normalizeStringList(record.skillIds),
+  };
+}
+
+function readTriagePriority(
+  value: unknown,
+  context: string
+): RepositoryExecutionContractTriagePriority | null {
+  const normalized = readOptionalText(value);
+  if (normalized === null) {
+    return null;
+  }
+  if (
+    normalized === "low" ||
+    normalized === "medium" ||
+    normalized === "high" ||
+    normalized === "urgent"
+  ) {
+    return normalized;
+  }
+  throw new Error(`${context} must be low, medium, high, or urgent.`);
+}
+
+function readRiskLevel(value: unknown, context: string): RuntimeRunRiskLevelV2 | null {
+  const normalized = readOptionalText(value);
+  if (normalized === null) {
+    return null;
+  }
+  if (normalized === "low" || normalized === "medium" || normalized === "high") {
+    return normalized;
+  }
+  throw new Error(`${context} must be low, medium, or high.`);
+}
+
+function readTriage(value: unknown, context: string): RepositoryExecutionContractTriagePolicy {
+  if (value === null || value === undefined) {
+    return {
+      owner: null,
+      priority: null,
+      riskLevel: null,
+      tags: [],
+    };
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${context} must be an object.`);
+  }
+  const record = value as Record<string, unknown>;
+  return {
+    owner: readOptionalText(record.owner),
+    priority: readTriagePriority(record.priority, `${context}.priority`),
+    riskLevel: readRiskLevel(record.riskLevel, `${context}.riskLevel`),
+    tags: normalizeStringList(record.tags),
+  };
 }
 
 function readPolicy(
@@ -153,6 +275,8 @@ function readPolicy(
     ...(accessMode ? { accessMode } : {}),
     ...(reviewProfileId ? { reviewProfileId } : {}),
     ...(validationPresetId ? { validationPresetId } : {}),
+    guidance: readGuidance(record.guidance, `${context}.guidance`),
+    triage: readTriage(record.triage, `${context}.triage`),
   };
 }
 
@@ -296,35 +420,17 @@ function readSourceMappingKind(value: string): SupportedRepositoryTaskSourceKind
     case "manual":
     case "github_issue":
     case "github_pr_followup":
+    case "github_discussion":
+    case "note":
+    case "customer_feedback":
+    case "doc":
+    case "call_summary":
+    case "external_ref":
     case "schedule":
       return value;
     default:
       return null;
   }
-}
-
-function normalizeTaskSourceKind(
-  taskSource: AgentTaskSourceSummary | null | undefined
-): SupportedRepositoryTaskSourceKind {
-  const kind = readSourceMappingKind(taskSource?.kind ?? "manual");
-  return kind ?? "manual";
-}
-
-function profileValidationPresetId(profileId: string | null): string | null {
-  if (!profileId) {
-    return null;
-  }
-  return (
-    listRunExecutionProfiles().find((profile) => profile.id === profileId)?.validationPresetId ??
-    null
-  );
-}
-
-function profileAccessMode(profileId: string | null): AccessMode | null {
-  if (!profileId) {
-    return null;
-  }
-  return listRunExecutionProfiles().find((profile) => profile.id === profileId)?.accessMode ?? null;
 }
 
 export function parseRepositoryExecutionContract(raw: string): RepositoryExecutionContract {
@@ -416,72 +522,6 @@ export async function readRepositoryExecutionContract(
     return null;
   }
   return parseRepositoryExecutionContract(content);
-}
-
-export function resolveRepositoryExecutionDefaults(input: {
-  contract: RepositoryExecutionContract | null;
-  taskSource: AgentTaskSourceSummary | null | undefined;
-  explicitLaunchInput?: RepositoryExecutionExplicitLaunchInput;
-}): ResolvedRepositoryExecutionDefaults {
-  const sourceMappingKind = normalizeTaskSourceKind(input.taskSource);
-  const sourceMapping = input.contract?.sourceMappings[sourceMappingKind];
-  const defaults = input.contract?.defaults ?? {};
-  const explicit = input.explicitLaunchInput ?? {};
-  const explicitExecutionProfileId = readOptionalText(explicit.executionProfileId);
-  const explicitValidationPresetId = readOptionalText(explicit.validationPresetId);
-  const explicitBackendIds = normalizeBackendIds(explicit.preferredBackendIds);
-  const explicitAccessMode = readOptionalText(explicit.accessMode) as AccessMode | null;
-
-  const executionProfileId =
-    explicitExecutionProfileId ??
-    sourceMapping?.executionProfileId ??
-    defaults.executionProfileId ??
-    null;
-  const explicitReviewProfileId = readOptionalText(explicit.reviewProfileId);
-  const reviewProfileId =
-    explicitReviewProfileId ??
-    sourceMapping?.reviewProfileId ??
-    defaults.reviewProfileId ??
-    input.contract?.defaultReviewProfileId ??
-    null;
-  const reviewProfile =
-    reviewProfileId === null
-      ? null
-      : (input.contract?.reviewProfiles.find((profile) => profile.id === reviewProfileId) ?? null);
-  const validationPresetId =
-    explicitValidationPresetId ??
-    sourceMapping?.validationPresetId ??
-    defaults.validationPresetId ??
-    reviewProfile?.validationPresetId ??
-    profileValidationPresetId(executionProfileId);
-  const preferredBackendIds =
-    explicitBackendIds ??
-    sourceMapping?.preferredBackendIds ??
-    defaults.preferredBackendIds ??
-    undefined;
-  const accessMode =
-    explicitAccessMode ??
-    sourceMapping?.accessMode ??
-    defaults.accessMode ??
-    profileAccessMode(executionProfileId);
-  const validationPreset =
-    validationPresetId === null
-      ? null
-      : (input.contract?.validationPresets.find((preset) => preset.id === validationPresetId) ??
-        null);
-
-  return {
-    contract: input.contract,
-    sourceMappingKind: input.contract?.sourceMappings[sourceMappingKind] ? sourceMappingKind : null,
-    executionProfileId,
-    ...(preferredBackendIds ? { preferredBackendIds } : {}),
-    accessMode,
-    reviewProfileId,
-    reviewProfile,
-    validationPresetId,
-    validationPresetLabel: validationPreset?.label ?? validationPresetId,
-    validationCommands: validationPreset?.commands ?? [],
-  };
 }
 
 export {

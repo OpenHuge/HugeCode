@@ -281,6 +281,16 @@ export function ReviewQueuePanel({
                             .join(" ")}
                         </span>
                       ) : null}
+                      {entry.contextSummary || entry.triageSummary || entry.delegationSummary ? (
+                        <span className={styles.footerCopy}>
+                          {[entry.contextSummary, entry.triageSummary, entry.delegationSummary]
+                            .filter((value): value is string => Boolean(value))
+                            .join(" | ")}
+                        </span>
+                      ) : null}
+                      {entry.provenanceSummary ? (
+                        <span className={styles.footerCopy}>{entry.provenanceSummary}</span>
+                      ) : null}
                       <ReviewActionRail className={styles.actionRow}>
                         {(() => {
                           const operatorActionTarget =

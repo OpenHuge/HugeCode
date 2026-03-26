@@ -55,12 +55,13 @@ describe("PinnedThreadList", () => {
     }
     expect(row.classList.contains("active")).toBe(true);
     expect(row.querySelector(".thread-status")?.className).toContain("reviewing");
-    expect(screen.getByRole("button", { name: "Unpin thread" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Unpin thread Pinned Alpha" })).toBeTruthy();
     expect(container.querySelector('[data-sidebar-section="pinned-threads"]')).toBeTruthy();
     expect(row.getAttribute("data-sidebar-row")).toBe("true");
 
     const rowButton = row.querySelector(".thread-row-main");
     expect(rowButton).toBeTruthy();
+    expect(within(row).getByRole("button", { name: "Open thread Pinned Alpha" })).toBeTruthy();
     fireEvent.click(rowButton as HTMLElement);
     expect(onSelectThread).toHaveBeenCalledWith("ws-1", "thread-1");
 
@@ -128,7 +129,7 @@ describe("PinnedThreadList", () => {
       throw new Error("Missing pinned row");
     }
 
-    fireEvent.click(within(row).getByRole("button", { name: "Unpin thread" }));
+    fireEvent.click(within(row).getByRole("button", { name: "Unpin thread Pinned Alpha" }));
     expect(onUnpinThread).toHaveBeenCalledWith("ws-1", "thread-1");
   });
 });
