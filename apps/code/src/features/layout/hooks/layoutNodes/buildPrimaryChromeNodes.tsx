@@ -153,6 +153,11 @@ export function buildPrimaryChromeNodes(options: LayoutNodesOptions): PrimaryChr
         collaborationModes={input.collaborationModes}
         selectedCollaborationModeId={input.selectedCollaborationModeId}
         onSelectCollaborationMode={input.onSelectCollaborationMode}
+        modelSelectionMode={input.modelSelectionMode}
+        selectedProviderId={input.selectedProviderId}
+        onSelectProvider={input.onSelectProvider}
+        onSelectAutoRoute={input.onSelectAutoRoute}
+        onSelectModelSelectionMode={input.onSelectModelSelectionMode}
         models={input.models}
         selectedModelId={input.selectedModelId}
         onSelectModel={(modelId) => input.onSelectModel(modelId)}

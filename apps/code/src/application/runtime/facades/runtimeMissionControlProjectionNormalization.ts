@@ -1,7 +1,9 @@
 import type {
   AgentTaskDistributedStatus,
   AgentTaskSummary,
+  RuntimeProviderExecutionKind,
   RuntimeProviderCatalogEntry,
+  RuntimeProviderReadinessKind,
 } from "@ku0/code-runtime-host-contract";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 
@@ -27,6 +29,34 @@ function toDistributedStatus(value: unknown): AgentTaskDistributedStatus | null 
     : null;
 }
 
+const RUNTIME_PROVIDER_READINESS_KINDS = new Set<RuntimeProviderReadinessKind>([
+  "ready",
+  "not_installed",
+  "not_authenticated",
+  "unsupported_platform",
+  "degraded",
+]);
+
+const RUNTIME_PROVIDER_EXECUTION_KINDS = new Set<RuntimeProviderExecutionKind>(["local", "cloud"]);
+
+function toReadinessKind(value: unknown): RuntimeProviderReadinessKind | null {
+  if (!isNonEmptyString(value)) {
+    return null;
+  }
+  return RUNTIME_PROVIDER_READINESS_KINDS.has(value as RuntimeProviderReadinessKind)
+    ? (value as RuntimeProviderReadinessKind)
+    : null;
+}
+
+function toExecutionKind(value: unknown): RuntimeProviderExecutionKind | null {
+  if (!isNonEmptyString(value)) {
+    return null;
+  }
+  return RUNTIME_PROVIDER_EXECUTION_KINDS.has(value as RuntimeProviderExecutionKind)
+    ? (value as RuntimeProviderExecutionKind)
+    : null;
+}
+
 export function normalizeRuntimeProviderCatalogEntry(
   entry: RuntimeProviderCatalogEntry
 ): RuntimeProviderCatalogEntry {
@@ -40,6 +70,9 @@ export function normalizeRuntimeProviderCatalogEntry(
     available: entry.available === true,
     supportsNative: entry.supportsNative === true,
     supportsOpenaiCompat: entry.supportsOpenaiCompat === true,
+    readinessKind: toReadinessKind(entry.readinessKind),
+    readinessMessage: isNonEmptyString(entry.readinessMessage) ? entry.readinessMessage : null,
+    executionKind: toExecutionKind(entry.executionKind),
     registryVersion: entry.registryVersion ?? null,
   };
 }

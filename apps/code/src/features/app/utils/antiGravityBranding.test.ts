@@ -8,6 +8,7 @@ import {
   canonicalizeProviderBrandId,
   expandComposerModelBrandOptions,
   matchesProviderBrand,
+  resolveModelBrandLabel,
 } from "./antiGravityBranding";
 
 function createCatalogEntry(
@@ -109,5 +110,16 @@ describe("antiGravityBranding", () => {
         })
       ).displayName
     ).toBe("Antigravity");
+  });
+
+  it("labels local claude distinctly from cloud anthropic routing", () => {
+    expect(
+      resolveModelBrandLabel({
+        displayName: "Claude Sonnet 4.5",
+        provider: "claude_code_local",
+        pool: null,
+        model: "claude-sonnet-4-5",
+      })
+    ).toBe("Claude Code Local");
   });
 });

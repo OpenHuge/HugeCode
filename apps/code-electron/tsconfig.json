@@ -7,6 +7,6 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["scripts/**/*.mjs", "src/**/*.ts"],
+  "include": ["scripts/**/*.mjs", "src/**/*.ts", "src/**/*.d.ts"],
   "exclude": ["src/**/*.test.ts"]
 }

@@ -337,6 +337,7 @@ export function CoreLoopClosureFixture() {
                     ]}
                     selectedCollaborationModeId="default"
                     onSelectCollaborationMode={noop}
+                    modelSelectionMode="manual"
                     models={[
                       {
                         id: "gpt-5.4",
@@ -345,6 +346,9 @@ export function CoreLoopClosureFixture() {
                         available: true,
                       },
                     ]}
+                    selectedProviderId="codex"
+                    onSelectProvider={noop}
+                    onSelectModelSelectionMode={noop}
                     selectedModelId="gpt-5.4"
                     onSelectModel={noop}
                     reasoningOptions={["low", "medium"]}

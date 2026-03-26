@@ -6,6 +6,7 @@ import type {
   CollaborationModeOption,
   ComposerEditorSettings,
   ComposerExecutionMode,
+  ComposerModelSelectionMode,
   CustomPromptOption,
   DynamicToolCallRequest,
   DynamicToolCallResponse,
@@ -44,6 +45,11 @@ export type ComposerProps = {
   selectedAccountIds?: string[];
   onSelectAccountIds?: (ids: string[]) => void;
   models: { id: string; displayName: string; model: string; available?: boolean }[];
+  modelSelectionMode?: ComposerModelSelectionMode;
+  selectedProviderId?: string | null;
+  onSelectProvider?: (providerId: string) => void;
+  onSelectAutoRoute?: (providerId: string | null) => void;
+  onSelectModelSelectionMode?: (mode: ComposerModelSelectionMode) => void;
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;
   reasoningOptions: string[];

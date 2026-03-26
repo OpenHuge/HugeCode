@@ -11,6 +11,8 @@ export const PRODUCT_ANALYTICS_EVENT_NAMES = [
   "manual_rescue_invoked",
   "review_agent_requested",
   "review_autofix_requested",
+  "model_selection_mode_changed",
+  "provider_family_switched",
 ] as const;
 
 export type ProductAnalyticsEventName = (typeof PRODUCT_ANALYTICS_EVENT_NAMES)[number];
