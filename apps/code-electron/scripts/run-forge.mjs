@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { delimiter, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createForgeStagePackageJson, shouldInstallForgeStageDependencies } from "./forge-stage-package.mjs";
 import { buildForgeEnvironment, resolveCommandInvocation } from "./run-forge-support.mjs";
 
 const scriptDir = resolve(fileURLToPath(new URL(".", import.meta.url)));
@@ -101,7 +102,7 @@ export function createCliInvocation(commandName, args, platform = process.platfo
   if (platform === "win32") {
     const shellCommand = [resolvedCommand, ...args].map(quoteWindowsShellSegment).join(" ");
     return {
-      command: process.env.ComSpec || "cmd.exe",
+      command: "cmd.exe",
       args: ["/d", "/s", "/c", shellCommand],
     };
   }
@@ -113,43 +114,26 @@ export function createCliInvocation(commandName, args, platform = process.platfo
 }
 
 export function createStagedPackageJson(packageMetadata) {
-  const stagedDevDependencies = {};
-  for (const dependencyName of [
-    "@electron-forge/maker-deb",
-    "@electron-forge/plugin-fuses",
-    "@electron/fuses",
-    "@electron/osx-sign",
-    "electron",
-  ]) {
-    const version = packageMetadata.devDependencies?.[dependencyName];
-    if (typeof version === "string" && !version.startsWith("workspace:")) {
-      stagedDevDependencies[dependencyName] = version;
-    }
-  }
-
   return {
-    name: "hugecode",
-    productName: "HugeCode",
-    version: packageMetadata.version,
     author: typeof packageMetadata.author === "string" ? packageMetadata.author : "OpenHuge",
     description:
       typeof packageMetadata.description === "string"
         ? packageMetadata.description
         : "HugeCode beta desktop shell",
     productDescription: "HugeCode beta desktop shell",
-    type: "module",
-    main: "dist-electron/main/main.js",
-    repository: packageMetadata.repository,
-    config: {
-      forge: "./forge.config.mjs",
-    },
-    dependencies: Object.fromEntries(
-      Object.entries(packageMetadata.dependencies ?? {}).filter(
-        ([, version]) => typeof version === "string" && !version.startsWith("workspace:")
-      )
-    ),
-    devDependencies: stagedDevDependencies,
+    ...createForgeStagePackageJson(packageMetadata),
   };
+}
+
+export function createForgeStageInstallArgs(lockfileDir = workspaceRoot) {
+  return [
+    "install",
+    "--frozen-lockfile",
+    "--ignore-scripts",
+    "--ignore-workspace",
+    "--lockfile-dir",
+    lockfileDir,
+  ];
 }
 
 export function resolveForgeHostBinaryRequirements(command, platform = process.platform) {
@@ -328,16 +312,8 @@ async function prepareStage() {
   );
   await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
 
-  if (
-    Object.keys(stagedPackageJson.dependencies ?? {}).length > 0 ||
-    Object.keys(stagedPackageJson.devDependencies ?? {}).length > 0
-  ) {
-    await runCommand(
-      "npm",
-      ["install", "--include=dev", "--ignore-scripts", "--no-package-lock"],
-      forgePackageDir,
-      process.env
-    );
+  if (shouldInstallForgeStageDependencies(stagedPackageJson)) {
+    await runCommand("pnpm", createForgeStageInstallArgs(workspaceRoot), forgePackageDir, process.env);
   }
 }
 
