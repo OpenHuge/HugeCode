@@ -3,12 +3,14 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildForgeEnvironment, resolveCommandInvocation } from "./run-forge-support.mjs";
+import {
+  buildForgeEnvironment,
+  parseRunForgeArgs,
+  resolveCommandInvocation,
+  shouldReusePackagedOutput,
+} from "./run-forge-support.mjs";
 
-const command = process.argv[2];
-if (!command || !["package", "make", "publish"].includes(command)) {
-  throw new Error("Usage: node ./scripts/run-forge.mjs <package|make|publish>");
-}
+const { command, forgeArgs } = parseRunForgeArgs(process.argv.slice(2));
 
 const scriptDir = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const packageDir = resolve(scriptDir, "..");
@@ -64,7 +66,13 @@ async function createStagePaths() {
 
 async function prepareStage() {
   await rm(forgePackageDir, { force: true, recursive: true });
-  await rm(outDir, { force: true, recursive: true });
+  const reusePackagedOutput = shouldReusePackagedOutput({
+    command,
+    forgeArgs,
+  });
+  if (!reusePackagedOutput) {
+    await rm(outDir, { force: true, recursive: true });
+  }
   await mkdir(forgePackageDir, { recursive: true });
   await mkdir(resolve(forgePackageDir, "dist-electron"), { recursive: true });
   await mkdir(resolve(forgePackageDir, "scripts"), { recursive: true });
@@ -113,6 +121,20 @@ async function prepareStage() {
       forgePackageDir
     );
   }
+
+  if (!reusePackagedOutput) {
+    return;
+  }
+
+  try {
+    await access(outDir);
+  } catch {
+    throw new Error(
+      "Cannot use --skip-package without an existing apps/code-electron/out package run."
+    );
+  }
+
+  await cp(outDir, resolve(forgePackageDir, "out"), { recursive: true });
 }
 
 async function ensureDarwinDmgNativeDependency() {
@@ -169,7 +191,7 @@ async function runForge() {
     await mkdir(processTempDir, { recursive: true });
 
     await new Promise((resolvePromise, rejectPromise) => {
-      const child = spawn(process.execPath, [electronForgeCli, command], {
+      const child = spawn(process.execPath, [electronForgeCli, command, ...forgeArgs], {
         cwd: forgePackageDir,
         env: buildForgeEnvironment({
           baseEnv: process.env,
@@ -193,6 +215,7 @@ async function runForge() {
     const stagedOutDir = resolve(forgePackageDir, "out");
     try {
       await access(stagedOutDir);
+      await rm(outDir, { force: true, recursive: true });
       await cp(stagedOutDir, outDir, { recursive: true });
     } catch {
       // Some Forge commands may not emit an out directory.

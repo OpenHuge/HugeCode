@@ -66,7 +66,7 @@
     "desktop:electron:build": "pnpm --filter @ku0/code-electron run build",
     "desktop:electron:package": "pnpm --filter @ku0/code-electron run package",
     "desktop:electron:make": "pnpm --filter @ku0/code-electron run make",
-    "desktop:electron:make:smoke": "pnpm --filter @ku0/code-electron run make && node scripts/electron-verify-release-contract.mjs --require-make",
+    "desktop:electron:make:smoke": "pnpm --filter @ku0/code-electron run package && node scripts/electron-verify-release-contract.mjs && pnpm --filter @ku0/code-electron exec node ./scripts/run-forge.mjs make --skip-package && node scripts/electron-verify-release-contract.mjs --require-make",
     "desktop:electron:publish:dry-run": "pnpm desktop:electron:make:smoke && node scripts/electron-publish-dry-run.mjs",
     "desktop:electron:publish": "pnpm --filter @ku0/code-electron run publish",
     "desktop:electron:verify": "pnpm --filter @ku0/code-electron run typecheck && pnpm --filter @ku0/code-electron run test && pnpm --filter @ku0/code-electron run package && node scripts/electron-verify-release-contract.mjs",

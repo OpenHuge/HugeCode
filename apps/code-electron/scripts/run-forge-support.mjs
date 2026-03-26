@@ -1,6 +1,24 @@
 import { access } from "node:fs/promises";
 import { resolve } from "node:path";
 
+const FORGE_COMMANDS = new Set(["package", "make", "publish"]);
+
+export function parseRunForgeArgs(argv = process.argv.slice(2)) {
+  const [command, ...forgeArgs] = argv;
+  if (!command || !FORGE_COMMANDS.has(command)) {
+    throw new Error("Usage: node ./scripts/run-forge.mjs <package|make|publish> [forge args]");
+  }
+
+  return {
+    command,
+    forgeArgs,
+  };
+}
+
+export function shouldReusePackagedOutput({ command, forgeArgs = [] } = {}) {
+  return (command === "make" || command === "publish") && forgeArgs.includes("--skip-package");
+}
+
 export function shouldUseLinuxDebianPackagingEnv({ command, platform = process.platform } = {}) {
   return platform === "linux" && (command === "make" || command === "publish");
 }
