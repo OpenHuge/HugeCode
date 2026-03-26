@@ -11,6 +11,7 @@ import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import { buildMissionRunCheckpoint } from "./runtimeMissionControlCheckpoint";
 import {
   formatRuntimeContinuationTruthSourceLabel,
+  projectTakeoverBundleToContinuation,
   resolvePreferredReviewActionability,
   type RuntimeContinuationTruthSource,
 } from "./runtimeContinuationTruth";
@@ -174,6 +175,26 @@ function buildReviewItem(
   };
 }
 
+function buildTakeoverItem(input: {
+  run: RuntimeContinuityCandidateRun;
+  taskId: string;
+}): RuntimeContinuityReadinessItem | null {
+  const takeoverProjection = projectTakeoverBundleToContinuation(input.run.takeoverBundle);
+  if (!takeoverProjection) {
+    return null;
+  }
+  return {
+    runId: input.run.id,
+    taskId: input.taskId,
+    state: takeoverProjection.state === "missing" ? "attention" : takeoverProjection.state,
+    pathKind: takeoverProjection.pathKind,
+    detail: takeoverProjection.detail,
+    recommendedAction: takeoverProjection.recommendedAction,
+    truthSource: takeoverProjection.truthSource,
+    truthSourceLabel: takeoverProjection.truthSourceLabel,
+  };
+}
+
 function buildResumeOrHandoffItem(input: {
   run: RuntimeContinuityCandidateRun;
   taskId: string;
@@ -245,7 +266,14 @@ function buildCandidateItem(
   if (!isCandidate({ run: input.run, task: input.task ?? null, checkpoint })) {
     return null;
   }
-  if (input.run.state === "review_ready") {
+  const takeoverItem = buildTakeoverItem({
+    run: input.run,
+    taskId: runtimeTaskId,
+  });
+  if (takeoverItem) {
+    return takeoverItem;
+  }
+  if (input.run.state === "review_ready" || actionability !== null) {
     return buildReviewItem(input.run, runtimeTaskId, actionability, input.run.takeoverBundle);
   }
   return buildResumeOrHandoffItem({

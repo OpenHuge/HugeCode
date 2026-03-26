@@ -1,10 +1,10 @@
-import type { HugeCodeReviewPackSummary } from "@ku0/code-runtime-host-contract";
+import type { RuntimeReviewGetV2Response } from "@ku0/code-runtime-host-contract";
 import type { MissionControlProjection } from "./runtimeMissionControlFacade";
 import type { ReviewPackSelectionState } from "./runtimeReviewPackSurfaceFacade";
 import { useRuntimeReviewTruth } from "./runtimeRunTruthStore";
 
 export type RuntimeReviewPackRuntimeTruthState = {
-  reviewPack: HugeCodeReviewPackSummary | null;
+  reviewPack: RuntimeReviewGetV2Response;
   loading: boolean;
   error: string | null;
 };

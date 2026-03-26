@@ -618,14 +618,26 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                 Intervention draft from {runtimeSourceDraft.title || runtimeSourceDraft.taskId}
               </strong>
               <span>Intent: {runtimeSourceDraft.intent.replaceAll("_", " ")}</span>
+              {runtimeSourceDraft.taskSource?.label ? (
+                <span>Source-linked launch: {runtimeSourceDraft.taskSource.label}</span>
+              ) : null}
               {runtimeSourceDraft.sourceMappingKind ? (
                 <span>Repo source mapping: {runtimeSourceDraft.sourceMappingKind}</span>
+              ) : null}
+              {runtimeSourceDraft.reviewProfileId ? (
+                <span>Review profile: {runtimeSourceDraft.reviewProfileId}</span>
               ) : null}
               {runtimeSourceDraft.validationPresetId ? (
                 <span>Validation preset: {runtimeSourceDraft.validationPresetId}</span>
               ) : null}
+              {runtimeSourceDraft.preferredBackendIds?.length ? (
+                <span>Preferred backends: {runtimeSourceDraft.preferredBackendIds.join(", ")}</span>
+              ) : null}
               {runtimeSourceDraft.accessMode ? (
                 <span>Access mode: {runtimeSourceDraft.accessMode}</span>
+              ) : null}
+              {runtimeSourceDraft.relaunchContext?.summary ? (
+                <span>Relaunch context: {runtimeSourceDraft.relaunchContext.summary}</span>
               ) : null}
               <span>
                 Profile source:{" "}
@@ -634,6 +646,14 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
               <span>
                 Backend source:{" "}
                 {runtimeSourceDraft.fieldOrigins.preferredBackendIds.replaceAll("_", " ")}
+              </span>
+              <span>
+                Review profile source:{" "}
+                {runtimeSourceDraft.fieldOrigins.reviewProfileId.replaceAll("_", " ")}
+              </span>
+              <span>
+                Validation source:{" "}
+                {runtimeSourceDraft.fieldOrigins.validationPresetId.replaceAll("_", " ")}
               </span>
               <span>
                 Access source: {runtimeSourceDraft.fieldOrigins.accessMode.replaceAll("_", " ")}

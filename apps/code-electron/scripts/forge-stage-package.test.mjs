@@ -33,8 +33,6 @@ describe("forge stage package helpers", () => {
       "@electron/fuses": "^1.8.0",
       electron: "41.0.3",
     });
-    expect(stagedPackageJson.author).toBe("OpenHuge");
-    expect(stagedPackageJson.productDescription).toBe("HugeCode beta desktop shell");
     expect(FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES).toContain("@electron-forge/plugin-fuses");
   });
 

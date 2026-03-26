@@ -2,6 +2,7 @@ const FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES = [
   "electron",
   "@electron-forge/plugin-fuses",
   "@electron/fuses",
+  "@electron/osx-sign",
 ];
 
 function isStageInstallableVersion(version) {
@@ -27,12 +28,6 @@ export function createForgeStagePackageJson(packageJson) {
     name: "hugecode",
     productName: "HugeCode",
     version: packageJson.version,
-    author: typeof packageJson.author === "string" ? packageJson.author : "OpenHuge",
-    description:
-      typeof packageJson.description === "string"
-        ? packageJson.description
-        : "HugeCode beta desktop shell",
-    productDescription: "HugeCode beta desktop shell",
     type: "module",
     main: "dist-electron/main/main.js",
     repository: packageJson.repository,

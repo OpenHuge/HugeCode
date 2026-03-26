@@ -1,47 +1,83 @@
 import { access, cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { resolve } from "node:path";
-import { tmpdir } from "node:os";
+import { createRequire } from "node:module";
+import { delimiter, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  createForgeStagePackageJson,
-  shouldInstallForgeStageDependencies,
-} from "./forge-stage-package.mjs";
+import { buildForgeEnvironment, resolveCommandInvocation } from "./run-forge-support.mjs";
 
-const SUPPORTED_COMMANDS = new Set(["package", "make", "publish"]);
 const scriptDir = resolve(fileURLToPath(new URL(".", import.meta.url)));
-const scriptPath = fileURLToPath(import.meta.url);
 const packageDir = resolve(scriptDir, "..");
 const distDir = resolve(packageDir, "dist-electron");
 const outDir = resolve(packageDir, "out");
+const tempRootDir = resolve(packageDir, ".tmp");
 const packageJson = JSON.parse(await readFile(resolve(packageDir, "package.json"), "utf8"));
 const forgeConfigSource = resolve(packageDir, "forge.config.mjs");
 const workspaceRoot = resolve(packageDir, "../..");
-const electronForgeBin =
-  process.platform === "win32"
-    ? resolve(workspaceRoot, "node_modules/.bin/electron-forge.cmd")
-    : resolve(workspaceRoot, "node_modules/.bin/electron-forge");
+const requireFromWorkspace = createRequire(resolve(workspaceRoot, "package.json"));
+const electronForgeCli = requireFromWorkspace.resolve("@electron-forge/cli/dist/electron-forge.js");
+const darwinAdHocSignSource = resolve(scriptDir, "darwin-ad-hoc-sign.mjs");
+const localMakerDebSource = resolve(scriptDir, "maker-deb.cjs");
 
 let forgeStageDir = "";
 let forgePackageDir = "";
+const nodeExecDir = dirname(process.execPath);
 
-export function sanitizeSpawnEnv(env) {
-  return Object.fromEntries(
-    Object.entries(env).filter(
-      ([key, value]) =>
-        !key.startsWith("=") &&
-        !key.includes("\u0000") &&
-        typeof value === "string" &&
-        !value.includes("\u0000")
-    )
-  );
+const incompatibleForgeStageConfigEnvKeys = new Set([
+  "npm_config__jsr_registry",
+  "npm_config_minimum_release_age",
+  "npm_config_node_linker",
+  "npm_config_npm_globalconfig",
+  "npm_config_overrides",
+  "npm_config_recursive",
+  "npm_config_strict_dep_builds",
+  "npm_config_verify_deps_before_run",
+  "pnpm_config_verify_deps_before_run",
+]);
+
+function parseForgeInvocation(argv = process.argv) {
+  const [first, second] = argv.slice(2);
+  if (first === "preflight") {
+    return {
+      mode: "preflight",
+      command: second,
+    };
+  }
+
+  return {
+    mode: "forge",
+    command: first,
+  };
 }
 
-export function resolveStageInstallCommand() {
-  return {
-    commandName: process.platform === "win32" ? "npm.cmd" : "npm",
-    args: ["install", "--include=dev", "--ignore-scripts", "--no-package-lock"],
-  };
+export function parseForgeCommand(argv = process.argv) {
+  const { command } = parseForgeInvocation(argv);
+  if (!command || !["package", "make", "publish"].includes(command)) {
+    throw new Error(
+      "Usage: node ./scripts/run-forge.mjs <package|make|publish> | node ./scripts/run-forge.mjs preflight <package|make|publish>"
+    );
+  }
+
+  return command;
+}
+
+export function sanitizeSpawnEnv(baseEnv = process.env) {
+  const sanitized = {};
+
+  for (const [key, value] of Object.entries(baseEnv)) {
+    if (key.startsWith("=") || key.includes("\u0000")) {
+      continue;
+    }
+    if (incompatibleForgeStageConfigEnvKeys.has(key.toLowerCase())) {
+      continue;
+    }
+    if (typeof value !== "string" || value.includes("\u0000")) {
+      continue;
+    }
+
+    sanitized[key] = value;
+  }
+
+  return sanitized;
 }
 
 export function resolveCliCommand(commandName, platform = process.platform) {
@@ -76,12 +112,177 @@ export function createCliInvocation(commandName, args, platform = process.platfo
   };
 }
 
-async function runCommand(commandName, args, cwd) {
-  const invocation = createCliInvocation(commandName, args);
+export function createStagedPackageJson(packageMetadata) {
+  const stagedDevDependencies = {};
+  for (const dependencyName of [
+    "@electron-forge/maker-deb",
+    "@electron-forge/plugin-fuses",
+    "@electron/fuses",
+    "@electron/osx-sign",
+    "electron",
+  ]) {
+    const version = packageMetadata.devDependencies?.[dependencyName];
+    if (typeof version === "string" && !version.startsWith("workspace:")) {
+      stagedDevDependencies[dependencyName] = version;
+    }
+  }
+
+  return {
+    name: "hugecode",
+    productName: "HugeCode",
+    version: packageMetadata.version,
+    author: typeof packageMetadata.author === "string" ? packageMetadata.author : "OpenHuge",
+    description:
+      typeof packageMetadata.description === "string"
+        ? packageMetadata.description
+        : "HugeCode beta desktop shell",
+    productDescription: "HugeCode beta desktop shell",
+    type: "module",
+    main: "dist-electron/main/main.js",
+    repository: packageMetadata.repository,
+    config: {
+      forge: "./forge.config.mjs",
+    },
+    dependencies: Object.fromEntries(
+      Object.entries(packageMetadata.dependencies ?? {}).filter(
+        ([, version]) => typeof version === "string" && !version.startsWith("workspace:")
+      )
+    ),
+    devDependencies: stagedDevDependencies,
+  };
+}
+
+export function resolveForgeHostBinaryRequirements(command, platform = process.platform) {
+  if (!["package", "make", "publish"].includes(command) || platform !== "linux") {
+    return [];
+  }
+
+  const requirements = [
+    {
+      binary: "zip",
+      rationale: "HugeCode stages a local Electron zip before invoking Forge packaging.",
+    },
+  ];
+
+  if (command === "make" || command === "publish") {
+    requirements.push(
+      {
+        binary: "dpkg",
+        rationale: "Electron Forge's Debian maker needs dpkg to produce .deb artifacts.",
+      },
+      {
+        binary: "fakeroot",
+        rationale: "Electron Forge's Debian maker needs fakeroot to package .deb artifacts.",
+      }
+    );
+  }
+
+  return requirements;
+}
+
+async function canAccessExecutable(pathname, accessImpl) {
+  try {
+    await accessImpl(pathname);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function resolveMissingForgeHostBinaries(
+  command,
+  options = {},
+  dependencies = {
+    accessImpl: access,
+  }
+) {
+  const platform = options.platform ?? process.platform;
+  const env = options.env ?? process.env;
+  const requirements = resolveForgeHostBinaryRequirements(command, platform);
+  if (requirements.length === 0) {
+    return [];
+  }
+
+  const pathValue = env.PATH ?? "";
+  const pathEntries = pathValue.split(delimiter).filter(Boolean);
+  const pathExts =
+    platform === "win32"
+      ? (env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM")
+          .split(";")
+          .filter(Boolean)
+          .map((extension) => extension.toLowerCase())
+      : [""];
+
+  const missing = [];
+
+  for (const requirement of requirements) {
+    const hasBinary = await pathEntries.reduce(async (foundPromise, entry) => {
+      if (await foundPromise) {
+        return true;
+      }
+
+      for (const extension of pathExts) {
+        const candidate =
+          platform === "win32"
+            ? resolve(
+                entry,
+                requirement.binary.endsWith(extension)
+                  ? requirement.binary
+                  : `${requirement.binary}${extension}`
+              )
+            : resolve(entry, requirement.binary);
+        if (await canAccessExecutable(candidate, dependencies.accessImpl)) {
+          return true;
+        }
+      }
+
+      return false;
+    }, Promise.resolve(false));
+
+    if (!hasBinary) {
+      missing.push(requirement);
+    }
+  }
+
+  return missing;
+}
+
+export function formatForgeHostPreflightError(command, missing, platform = process.platform) {
+  const names = missing.map((entry) => entry.binary).join(", ");
+  const lines = [
+    `Missing required host binaries for electron-forge ${command} on ${platform}: ${names}.`,
+    "HugeCode now fails fast before build so release commands stop before expensive packaging work.",
+  ];
+
+  for (const requirement of missing) {
+    lines.push(`- ${requirement.binary}: ${requirement.rationale}`);
+  }
+
+  if (platform === "linux") {
+    lines.push("Install on Debian/Ubuntu: sudo apt-get install zip dpkg fakeroot");
+  }
+
+  return lines.join("\n");
+}
+
+export async function assertForgeHostBinaryRequirements(command, options = {}, dependencies) {
+  const platform = options.platform ?? process.platform;
+  const missing = await resolveMissingForgeHostBinaries(command, options, dependencies);
+  if (missing.length > 0) {
+    throw new Error(formatForgeHostPreflightError(command, missing, platform));
+  }
+}
+
+async function runCommand(commandName, args, cwd, env = process.env) {
+  const { argsPrefix, command } = await resolveCommandInvocation({
+    commandName,
+    nodeExecDir,
+  });
+
   await new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(invocation.command, invocation.args, {
+    const child = spawn(command, [...argsPrefix, ...args], {
       cwd,
-      env: sanitizeSpawnEnv(process.env),
+      env: sanitizeSpawnEnv(env),
       stdio: "inherit",
     });
 
@@ -92,7 +293,9 @@ async function runCommand(commandName, args, cwd) {
       }
 
       rejectPromise(
-        new Error(`${commandName} ${args.join(" ")} failed with exit code ${code ?? -1}`)
+        new Error(
+          `${command} ${[...argsPrefix, ...args].join(" ")} failed with exit code ${code ?? -1}`
+        )
       );
     });
     child.on("error", rejectPromise);
@@ -100,7 +303,9 @@ async function runCommand(commandName, args, cwd) {
 }
 
 async function createStagePaths() {
-  forgeStageDir = await mkdtemp(resolve(tmpdir(), "hugecode-electron-forge-"));
+  const forgeTempDir = resolve(tempRootDir, "forge");
+  await mkdir(forgeTempDir, { recursive: true });
+  forgeStageDir = await mkdtemp(resolve(forgeTempDir, "stage-"));
   forgePackageDir = resolve(forgeStageDir, "app");
 }
 
@@ -109,10 +314,13 @@ async function prepareStage() {
   await rm(outDir, { force: true, recursive: true });
   await mkdir(forgePackageDir, { recursive: true });
   await mkdir(resolve(forgePackageDir, "dist-electron"), { recursive: true });
+  await mkdir(resolve(forgePackageDir, "scripts"), { recursive: true });
   await cp(distDir, resolve(forgePackageDir, "dist-electron"), { recursive: true });
   await cp(forgeConfigSource, resolve(forgePackageDir, "forge.config.mjs"));
+  await cp(darwinAdHocSignSource, resolve(forgePackageDir, "scripts/darwin-ad-hoc-sign.mjs"));
+  await cp(localMakerDebSource, resolve(forgePackageDir, "scripts/maker-deb.cjs"));
 
-  const stagedPackageJson = createForgeStagePackageJson(packageJson);
+  const stagedPackageJson = createStagedPackageJson(packageJson);
 
   await writeFile(
     resolve(forgePackageDir, "package.json"),
@@ -121,9 +329,16 @@ async function prepareStage() {
   );
   await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
 
-  if (shouldInstallForgeStageDependencies(stagedPackageJson)) {
-    const installCommand = resolveStageInstallCommand();
-    await runCommand(installCommand.commandName, installCommand.args, forgePackageDir);
+  if (
+    Object.keys(stagedPackageJson.dependencies ?? {}).length > 0 ||
+    Object.keys(stagedPackageJson.devDependencies ?? {}).length > 0
+  ) {
+    await runCommand(
+      "npm",
+      ["install", "--include=dev", "--ignore-scripts", "--no-package-lock"],
+      forgePackageDir,
+      process.env
+    );
   }
 }
 
@@ -171,20 +386,35 @@ async function ensureDarwinDmgNativeDependency(command) {
   }
 }
 
-async function runForge(command) {
+async function runForge() {
+  const invocation = parseForgeInvocation();
+  const command = parseForgeCommand();
+
+  await assertForgeHostBinaryRequirements(command, {
+    env: sanitizeSpawnEnv(process.env),
+  });
+  if (invocation.mode === "preflight") {
+    return;
+  }
+
   await ensureDarwinDmgNativeDependency(command);
   await createStagePaths();
 
   try {
     await prepareStage();
+    const processTempDir = resolve(tempRootDir, "process");
+    await mkdir(processTempDir, { recursive: true });
 
     await new Promise((resolvePromise, rejectPromise) => {
-      const child = spawn(electronForgeBin, [command], {
+      const child = spawn(process.execPath, [electronForgeCli, command], {
         cwd: forgePackageDir,
-        env: sanitizeSpawnEnv({
-          ...process.env,
-          ELECTRON_FORGE_DISABLE_PUBLISH_SANDBOX_WARNING: "true",
-        }),
+        env: sanitizeSpawnEnv(
+          buildForgeEnvironment({
+            baseEnv: process.env,
+            command,
+            processTempDir,
+          })
+        ),
         stdio: "inherit",
       });
 
@@ -213,14 +443,6 @@ async function runForge(command) {
   }
 }
 
-export async function runForgeCli(command = process.argv[2]) {
-  if (!command || !SUPPORTED_COMMANDS.has(command)) {
-    throw new Error("Usage: node ./scripts/run-forge.mjs <package|make|publish>");
-  }
-
-  await runForge(command);
-}
-
-if (process.argv[1] && resolve(process.argv[1]) === scriptPath) {
-  await runForgeCli();
+if (resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
+  await runForge();
 }

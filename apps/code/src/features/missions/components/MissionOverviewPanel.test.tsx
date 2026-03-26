@@ -179,6 +179,60 @@ describe("MissionOverviewPanel", () => {
     expect(within(panel!).getByText("Fallback route")).toBeTruthy();
   });
 
+  it("renders continuation guidance alongside the next action", () => {
+    render(
+      <MissionOverviewPanel
+        workspaceName="Workspace One"
+        counts={{
+          active: 0,
+          needsAction: 1,
+          reviewReady: 0,
+          ready: 0,
+        }}
+        items={[
+          {
+            threadId: "runtime-task:task-approval",
+            title: "Approve review continuation",
+            summary: "Approval is required before review can continue.",
+            updatedAt: Date.now() - 30_000,
+            state: "needsAction",
+            isActive: false,
+            navigationTarget: {
+              kind: "mission",
+              workspaceId: "workspace-1",
+              taskId: "runtime-task:task-approval",
+              runId: "run-approval",
+              reviewPackId: "review-pack:approval",
+              threadId: null,
+              limitation: "thread_unavailable",
+            },
+            secondaryLabel: "Runtime-managed mission",
+            operatorActionLabel: "Open approval",
+            operatorActionDetail: "Open the pending approval before reopening review.",
+            continuationLabel: "Approval is the first required continuation step.",
+            continuePathLabel: "Mission run",
+            operatorSignal: null,
+            attentionSignals: [],
+          } as MissionOverviewItem,
+        ]}
+        onSelectMission={() => undefined}
+      />
+    );
+
+    const panel = screen.getAllByTestId("mission-overview-panel").at(-1);
+    expect(panel).toBeTruthy();
+    expect(
+      within(panel!).getByText(
+        "Next action: Open approval · Open the pending approval before reopening review."
+      )
+    ).toBeTruthy();
+    expect(
+      within(panel!).getByText(
+        "Approval is the first required continuation step. Continue via Mission run."
+      )
+    ).toBeTruthy();
+  });
+
   it("shows supervision-oriented mission summaries for relaunch and publish states", () => {
     render(
       <MissionOverviewPanel

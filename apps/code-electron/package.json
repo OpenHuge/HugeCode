@@ -15,9 +15,9 @@
     "build:renderer": "pnpm -C ../code exec vite build && node ./scripts/prepare-renderer.mjs",
     "dev": "node ./scripts/dev.mjs",
     "build": "pnpm run build:main && pnpm run build:renderer",
-    "package": "pnpm run build && node ./scripts/run-forge.mjs package",
-    "make": "pnpm run build && node ./scripts/run-forge.mjs make",
-    "publish": "pnpm run build && node ./scripts/run-forge.mjs publish",
+    "package": "node ./scripts/run-forge.mjs preflight package && pnpm run build && node ./scripts/run-forge.mjs package",
+    "make": "node ./scripts/run-forge.mjs preflight make && pnpm run build && node ./scripts/run-forge.mjs make",
+    "publish": "node ./scripts/run-forge.mjs preflight publish && pnpm run build && node ./scripts/run-forge.mjs publish",
     "lint": "pnpm -C ../.. exec oxlint apps/code-electron/src apps/code-electron/scripts",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit"
@@ -29,6 +29,7 @@
   "devDependencies": {
     "@electron-forge/plugin-fuses": "^7.10.2",
     "@electron/fuses": "^1.8.0",
+    "@electron/osx-sign": "^1.3.3",
     "electron": "41.0.4",
     "vitest": "^4.1.1"
   }

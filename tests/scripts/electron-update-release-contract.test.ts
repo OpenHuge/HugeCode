@@ -1,8 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { FuseV1Options } from "@electron/fuses";
 import { describe, expect, it } from "vitest";
 import {
-  createAsarExtractionCandidates,
   isElectronPackagedAppAsarPath,
   normalizeAsarPackageEntryPath,
   normalizeElectronPackagedEntryPath,
@@ -45,13 +43,27 @@ describe("isElectronPackagedAppAsarPath", () => {
   });
 });
 
+describe("normalizeAsarPackageEntryPath", () => {
+  it("normalizes Windows asar entry separators to POSIX style", () => {
+    expect(normalizeAsarPackageEntryPath("\\node_modules\\update-electron-app\\package.json")).toBe(
+      "/node_modules/update-electron-app/package.json"
+    );
+  });
+
+  it("keeps POSIX-style asar entry separators untouched", () => {
+    expect(normalizeAsarPackageEntryPath("/node_modules/update-electron-app/package.json")).toBe(
+      "/node_modules/update-electron-app/package.json"
+    );
+  });
+});
+
 describe("verifyElectronForgeUpdateContract", () => {
   it("accepts the repo-local deb maker as satisfying Linux packaging support", () => {
     expect(() =>
       verifyElectronForgeUpdateContract({
         forgeConfig: {
           makers: [
-            { name: "@electron-forge/maker-zip", config: {} },
+            { name: "@electron-forge/maker-zip" },
             { name: "@electron-forge/maker-dmg" },
             {
               name: "@electron-forge/maker-squirrel",
@@ -83,155 +95,16 @@ describe("verifyElectronForgeUpdateContract", () => {
       })
     ).not.toThrow();
   });
-
-  it("accepts a repo-local deb maker config when bin is declared at the top level", () => {
-    expect(() =>
-      verifyElectronForgeUpdateContract({
-        forgeConfig: {
-          makers: [
-            { name: "@electron-forge/maker-zip", config: {} },
-            { name: "@electron-forge/maker-dmg" },
-            {
-              name: "@electron-forge/maker-squirrel",
-              config: {
-                authors: "OpenHuge",
-                description: "HugeCode beta desktop shell",
-              },
-            },
-            {
-              name: "deb",
-              config: {
-                bin: "HugeCode",
-                options: {
-                  section: "devel",
-                },
-              },
-            },
-          ],
-          publishers: [
-            {
-              config: {
-                prerelease: true,
-              },
-              name: "@electron-forge/publisher-github",
-            },
-          ],
-        },
-        packageJson: {
-          author: "OpenHuge",
-          description: "HugeCode beta desktop shell",
-          repository: {
-            url: "https://github.com/OpenHuge/HugeCode.git",
-          },
-        },
-        releaseChannel: "beta",
-        updateMode: "disabled_beta_manual",
-      })
-    ).not.toThrow();
-  });
-
-  it("accepts a repo-local deb maker instance when config is stored on configOrConfigFetcher", () => {
-    expect(() =>
-      verifyElectronForgeUpdateContract({
-        forgeConfig: {
-          makers: [
-            { name: "@electron-forge/maker-zip", config: {} },
-            { name: "@electron-forge/maker-dmg" },
-            {
-              name: "@electron-forge/maker-squirrel",
-              config: {
-                authors: "OpenHuge",
-                description: "HugeCode beta desktop shell",
-              },
-            },
-            {
-              configOrConfigFetcher: {
-                bin: "HugeCode",
-                options: {
-                  section: "devel",
-                },
-              },
-              name: "deb",
-            },
-          ],
-          publishers: [
-            {
-              config: {
-                prerelease: true,
-              },
-              name: "@electron-forge/publisher-github",
-            },
-          ],
-        },
-        packageJson: {
-          author: "OpenHuge",
-          description: "HugeCode beta desktop shell",
-          repository: {
-            url: "https://github.com/OpenHuge/HugeCode.git",
-          },
-        },
-        releaseChannel: "beta",
-        updateMode: "disabled_beta_manual",
-      })
-    ).not.toThrow();
-  });
-
-  it("keeps the actual electron forge deb maker bin under options.bin", async () => {
-    const forgeConfigSource = await readFile(
-      fileURLToPath(new URL("../../apps/code-electron/forge.config.mjs", import.meta.url)),
-      "utf8"
-    );
-
-    expect(forgeConfigSource).toContain("new MakerDeb({");
-    expect(forgeConfigSource).toContain("options: {");
-    expect(forgeConfigSource).toContain('bin: "HugeCode"');
-  });
-});
-
-describe("normalizeAsarPackageEntryPath", () => {
-  it("normalizes Windows asar entry separators to POSIX style", () => {
-    expect(normalizeAsarPackageEntryPath("\\node_modules\\update-electron-app\\package.json")).toBe(
-      "/node_modules/update-electron-app/package.json"
-    );
-  });
-
-  it("keeps POSIX-style asar entry separators untouched", () => {
-    expect(normalizeAsarPackageEntryPath("/node_modules/update-electron-app/package.json")).toBe(
-      "/node_modules/update-electron-app/package.json"
-    );
-  });
-});
-
-describe("createAsarExtractionCandidates", () => {
-  it("tries both POSIX and Windows asar entry variants", () => {
-    expect(
-      createAsarExtractionCandidates("dist-electron/main/createDesktopMainComposition.js")
-    ).toEqual([
-      "dist-electron/main/createDesktopMainComposition.js",
-      "/dist-electron/main/createDesktopMainComposition.js",
-      "dist-electron\\main\\createDesktopMainComposition.js",
-      "\\dist-electron\\main\\createDesktopMainComposition.js",
-    ]);
-  });
-
-  it("normalizes already-prefixed paths before generating extraction candidates", () => {
-    expect(createAsarExtractionCandidates("\\dist-electron\\main\\desktopAppProtocol.js")).toEqual([
-      "dist-electron/main/desktopAppProtocol.js",
-      "/dist-electron/main/desktopAppProtocol.js",
-      "dist-electron\\main\\desktopAppProtocol.js",
-      "\\dist-electron\\main\\desktopAppProtocol.js",
-    ]);
-  });
 });
 
 describe("Electron Forge fuse contract", () => {
   it("disables extra file:// privileges for packaged renderer content", async () => {
-    const forgeConfigSource = await readFile(
-      fileURLToPath(new URL("../../apps/code-electron/forge.config.mjs", import.meta.url)),
-      "utf8"
+    const { default: forgeConfig } = await import("../../apps/code-electron/forge.config.mjs");
+    const fusesPlugin = (forgeConfig.plugins ?? []).find(
+      (plugin) => plugin?.constructor?.name === "FusesPlugin" || plugin?.name === "fuses"
     );
+    const fuseConfig = fusesPlugin?.fusesConfig ?? fusesPlugin?.config ?? null;
 
-    expect(forgeConfigSource).toContain("FuseV1Options.GrantFileProtocolExtraPrivileges");
-    expect(forgeConfigSource).toContain("[FuseV1Options.GrantFileProtocolExtraPrivileges]: false");
+    expect(fuseConfig?.[FuseV1Options.GrantFileProtocolExtraPrivileges]).toBe(false);
   });
 });

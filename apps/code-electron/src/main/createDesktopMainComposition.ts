@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import type { BrowserWindowConstructorOptions, IpcMainInvokeEvent } from "electron";
 import type {
+  DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopReleaseChannel,
   DesktopUpdateState,
@@ -15,13 +16,6 @@ import {
 import { createDesktopApplicationMenuController } from "./desktopApplicationMenu.js";
 import { createDesktopAutoUpdateConfigurator } from "./desktopAutoUpdateConfigurator.js";
 import { registerDesktopAppLifecycle } from "./desktopAppLifecycle.js";
-import {
-  buildDesktopIssueReporterUrl,
-  buildDesktopSupportSnapshotText,
-  resolveDesktopDiagnosticsPaths,
-  startDesktopLocalCrashReporter,
-} from "./desktopDiagnostics.js";
-import { createDesktopIncidentStore } from "./desktopIncidentStore.js";
 import { createDesktopLaunchIntentController } from "./desktopLaunchIntentController.js";
 import type { CreateDesktopLaunchIntentControllerInput } from "./desktopLaunchIntentController.js";
 import { createDesktopRendererTrust } from "./desktopRendererTrust.js";
@@ -29,7 +23,6 @@ import { registerDesktopSessionSecurity } from "./desktopSessionSecurity.js";
 import { createDesktopShellState, type DesktopWindowBounds } from "./desktopShellState.js";
 import { createDesktopNotificationController } from "./desktopNotificationController.js";
 import { createDesktopPlatformLauncherController } from "./desktopPlatformLauncherController.js";
-import { createDesktopResilienceController } from "./desktopResilienceController.js";
 import { createDesktopStateStore } from "./desktopStateStore.js";
 import { createDesktopTrayController } from "./desktopTrayController.js";
 import { createDesktopUpdaterController } from "./desktopUpdaterController.js";
@@ -46,7 +39,6 @@ const DEFAULT_TRAY_ICON_DATA_URL =
 
 type DesktopBrowserWindowLike = {
   close(): void;
-  destroy?(): void;
   focus(): void;
   getBounds(): DesktopWindowBounds;
   hide(): void;
@@ -61,22 +53,10 @@ type DesktopBrowserWindowLike = {
   on(event: "focus", listener: () => void): void;
   on(event: "closed", listener: () => void): void;
   on(event: "close", listener: (event: { preventDefault(): void }) => void): void;
-  on(event: "responsive", listener: () => void): void;
-  on(event: "unresponsive", listener: () => void): void;
   restore(): void;
   show(): void;
   webContents: {
     send(channel: string, payload: DesktopLaunchIntent | DesktopUpdateState): void;
-    on(
-      event: "render-process-gone",
-      listener: (
-        _event: unknown,
-        details: {
-          exitCode: number;
-          reason: string;
-        }
-      ) => void
-    ): void;
     on(
       event: "will-navigate",
       listener: (event: { preventDefault(): void }, url: string) => void
@@ -98,7 +78,7 @@ export type CreateDesktopMainCompositionInput = {
       setMenu(menu: object | null): void;
     } | null;
     enableSandbox(): void;
-    getPath(name: "crashDumps" | "logs" | "userData"): string;
+    getPath(name: "userData"): string;
     getJumpListSettings?(): {
       minItems: number;
       removedItems: Array<{
@@ -112,19 +92,6 @@ export type CreateDesktopMainCompositionInput = {
     on(event: "activate", listener: () => void): void;
     on(event: "before-quit", listener: () => void): void;
     on(
-      event: "child-process-gone",
-      listener: (
-        _event: unknown,
-        details: {
-          exitCode: number;
-          name?: string;
-          reason: string;
-          serviceName?: string;
-          type: string;
-        }
-      ) => void
-    ): void;
-    on(
       event: "open-file",
       listener: (event: { preventDefault(): void }, path: string) => void
     ): void;
@@ -134,7 +101,6 @@ export type CreateDesktopMainCompositionInput = {
     quit(): void;
     requestSingleInstanceLock(): boolean;
     setAsDefaultProtocolClient(protocol: string): boolean;
-    setAppLogsPath?(path?: string): void;
     setJumpList?(categories: unknown[] | null): string;
     whenReady(): Promise<unknown>;
   };
@@ -143,19 +109,6 @@ export type CreateDesktopMainCompositionInput = {
     on(event: string, listener: (...args: unknown[]) => void): void;
     quitAndInstall(): void;
   };
-  clipboard: {
-    writeText(text: string): void;
-  };
-  crashReporter?: {
-    start(options: {
-      companyName?: string;
-      compress?: boolean;
-      ignoreSystemCrashHandler?: boolean;
-      productName?: string;
-      submitURL?: string;
-      uploadToServer: boolean;
-    }): void;
-  } | null;
   arch: NodeJS.Architecture;
   browserWindow: DesktopBrowserWindowFacade;
   dialog: {
@@ -234,42 +187,15 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   let isQuitting = false;
   let desktopReady = false;
   const rendererRoot = join(input.sourceDirectory, "../renderer");
-  const userDataPath = input.app.getPath("userData");
-  const diagnosticsPaths = resolveDesktopDiagnosticsPaths({
-    app: input.app,
-    logger: console,
-  });
-  const incidentStore = createDesktopIncidentStore({
-    incidentLogPath: diagnosticsPaths.incidentLogPath,
-  });
 
   const rendererTrust = createDesktopRendererTrust({
     rendererDevServerUrl: input.rendererDevServerUrl ?? null,
   });
   const stateStore = createDesktopStateStore({
-    statePath: join(userDataPath, "desktop-state.json"),
+    statePath: join(input.app.getPath("userData"), "desktop-state.json"),
   });
   const shellState = createDesktopShellState({
     persistedState: stateStore.read(),
-  });
-  const notificationController = createDesktopNotificationController();
-  const windowControllerRef: {
-    current: ReturnType<typeof createDesktopWindowController> | null;
-  } = {
-    current: null,
-  };
-  const resilienceController = createDesktopResilienceController({
-    isQuitting() {
-      return isQuitting;
-    },
-    logIncident(incident) {
-      incidentStore.record(incident);
-    },
-    logger: console,
-    notificationController,
-    recoverWindow(windowId) {
-      return windowControllerRef.current?.recoverWindow(windowId) ?? null;
-    },
   });
   const windowController = createDesktopWindowController({
     browserWindow: input.browserWindow,
@@ -291,15 +217,6 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     notifyWindowsChanged() {
       updateDesktopChrome();
     },
-    onRenderProcessGone(payload) {
-      resilienceController.handleRenderProcessGone(payload);
-    },
-    onWindowResponsive(payload) {
-      resilienceController.handleWindowResponsive(payload);
-    },
-    onWindowUnresponsive(payload) {
-      resilienceController.handleWindowUnresponsive(payload);
-    },
     openExternalUrl(url) {
       return input.shell.openExternal(url);
     },
@@ -307,7 +224,6 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     preloadPath: join(input.sourceDirectory, "../preload/preload.js"),
     shellState,
   });
-  windowControllerRef.current = windowController;
   const launchIntentController = createDesktopLaunchIntentController({
     app: input.app,
     dependencies: input.launchIntentDependencies,
@@ -379,152 +295,6 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     return typeof version === "string" && version.length > 0 ? version : null;
   })();
 
-  if (
-    !startDesktopLocalCrashReporter({
-      channel: input.releaseChannel ?? "beta",
-      crashReporter: input.crashReporter ?? null,
-      logger: console,
-      version: appVersion,
-    }) &&
-    input.crashReporter
-  ) {
-    incidentStore.record({
-      details: {
-        channel: input.releaseChannel ?? "beta",
-        version: appVersion,
-      },
-      event: "desktop_crash_reporter_init_failed",
-      level: "warn",
-      message: "HugeCode desktop could not start the local crash reporter.",
-    });
-  }
-
-  function getDiagnosticsInfo() {
-    const diagnosticsSummary = incidentStore.getSummary();
-    const updateState = updaterController.getState();
-    const supportSnapshotText = buildDesktopSupportSnapshotText({
-      arch: input.arch,
-      channel: input.releaseChannel ?? "beta",
-      crashDumpsDirectoryPath: diagnosticsPaths.crashDumpsDirectoryPath,
-      diagnosticsSummary,
-      platform: input.platform,
-      updateState,
-      version: appVersion,
-    });
-    return {
-      crashDumpsDirectoryPath: diagnosticsPaths.crashDumpsDirectoryPath,
-      ...diagnosticsSummary,
-      reportIssueUrl:
-        buildDesktopIssueReporterUrl({
-          arch: input.arch,
-          channel: input.releaseChannel ?? "beta",
-          crashDumpsDirectoryPath: diagnosticsPaths.crashDumpsDirectoryPath,
-          diagnosticsSummary,
-          platform: input.platform,
-          repoUrl: input.repositoryUrl ?? "https://github.com/OpenHuge/HugeCode",
-          updateState,
-          version: appVersion,
-        }) ?? null,
-      supportSnapshotText,
-    };
-  }
-
-  function copySupportSnapshot() {
-    const diagnosticsInfo = getDiagnosticsInfo();
-    if (!diagnosticsInfo.supportSnapshotText) {
-      incidentStore.record({
-        details: {
-          version: appVersion,
-        },
-        event: "desktop_support_snapshot_unavailable",
-        level: "warn",
-        message: "HugeCode desktop could not build a support snapshot for clipboard copy.",
-      });
-      notificationController.showDesktopNotification({
-        body: "HugeCode could not prepare desktop support details for copying.",
-        title: "HugeCode Couldn’t Copy Support Snapshot",
-      });
-      return false;
-    }
-
-    try {
-      input.clipboard.writeText(diagnosticsInfo.supportSnapshotText);
-      notificationController.showDesktopNotification({
-        body: "Desktop support details were copied to the clipboard.",
-        title: "Support Snapshot Copied",
-      });
-      return true;
-    } catch (error) {
-      incidentStore.record({
-        details: {
-          error: error instanceof Error ? error.message : String(error),
-        },
-        event: "desktop_support_snapshot_copy_failed",
-        level: "warn",
-        message: "HugeCode desktop could not copy the support snapshot to the clipboard.",
-      });
-      notificationController.showDesktopNotification({
-        body: "HugeCode could not copy desktop support details to the clipboard.",
-        title: "HugeCode Couldn’t Copy Support Snapshot",
-      });
-      return false;
-    }
-  }
-
-  async function openDesktopPath(
-    path: string | null,
-    options?: {
-      failureEvent: string;
-      failureMessage: string;
-      notificationBody: string;
-      notificationTitle: string;
-      revealFallbackPath?: string | null;
-    }
-  ) {
-    if (!path) {
-      return false;
-    }
-
-    try {
-      const error = await input.shell.openPath(path);
-      if (error === "") {
-        return true;
-      }
-
-      incidentStore.record({
-        details: {
-          error,
-          path,
-        },
-        event: options?.failureEvent ?? "desktop_open_path_failed",
-        level: "warn",
-        message: options?.failureMessage ?? "HugeCode desktop could not open a local path.",
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      incidentStore.record({
-        details: {
-          error: errorMessage,
-          path,
-        },
-        event: options?.failureEvent ?? "desktop_open_path_failed",
-        level: "warn",
-        message: options?.failureMessage ?? "HugeCode desktop could not open a local path.",
-      });
-    }
-
-    if (options?.revealFallbackPath) {
-      input.shell.showItemInFolder(options.revealFallbackPath);
-      return true;
-    }
-
-    notificationController.showDesktopNotification({
-      body: options?.notificationBody ?? "HugeCode could not open the requested path.",
-      title: options?.notificationTitle ?? "HugeCode Couldn’t Open a Path",
-    });
-    return false;
-  }
-
   async function openPathSelectionDialog(kind: "directory" | "file") {
     const result = await input.dialog.showOpenDialog({
       buttonLabel: kind === "file" ? "Open File" : "Open Folder",
@@ -553,6 +323,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     applicationMenuController.update();
   }
 
+  const notificationController = createDesktopNotificationController();
   const trayController = createDesktopTrayController({
     isSupported: input.platform === "darwin" || input.platform === "win32",
     onFocusWindow: windowController.focusWindow,
@@ -580,9 +351,6 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     trayIconDataUrl: input.trayIconDataUrl ?? DEFAULT_TRAY_ICON_DATA_URL,
   });
   const applicationMenuController = createDesktopApplicationMenuController({
-    onCopySupportSnapshot: () => {
-      copySupportSnapshot();
-    },
     onCheckForUpdates: () => {
       const updateState = updaterController.checkForUpdates();
       if (updateState.capability === "automatic") {
@@ -602,55 +370,6 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     onOpenFolder: () => {
       void openPathSelectionDialog("directory");
     },
-    onOpenCrashDumpsFolder: () => {
-      const diagnosticsInfo = getDiagnosticsInfo();
-      if (!diagnosticsInfo.crashDumpsDirectoryPath) {
-        notificationController.showDesktopNotification({
-          body: "No local crash-dumps directory is currently available for this build.",
-          title: "Crash Dumps Unavailable",
-        });
-        return;
-      }
-
-      void openDesktopPath(diagnosticsInfo.crashDumpsDirectoryPath, {
-        failureEvent: "desktop_open_crash_dumps_failed",
-        failureMessage: "HugeCode desktop could not open the crash-dumps directory.",
-        notificationBody: "HugeCode could not open the local crash-dumps directory.",
-        notificationTitle: "HugeCode Couldn’t Open Crash Dumps",
-      });
-    },
-    onOpenIncidentLog: () => {
-      const diagnosticsInfo = getDiagnosticsInfo();
-      void openDesktopPath(
-        diagnosticsInfo.recentIncidentCount > 0
-          ? diagnosticsInfo.incidentLogPath
-          : diagnosticsInfo.logsDirectoryPath,
-        diagnosticsInfo.recentIncidentCount > 0
-          ? {
-              failureEvent: "desktop_open_incident_log_failed",
-              failureMessage: "HugeCode desktop could not open the incident log.",
-              notificationBody:
-                "HugeCode could not open the incident log directly. The file was revealed in the logs folder instead.",
-              notificationTitle: "HugeCode Couldn’t Open the Incident Log",
-              revealFallbackPath: diagnosticsInfo.incidentLogPath,
-            }
-          : {
-              failureEvent: "desktop_open_logs_directory_failed",
-              failureMessage: "HugeCode desktop could not open the logs directory.",
-              notificationBody: "HugeCode could not open the logs directory.",
-              notificationTitle: "HugeCode Couldn’t Open the Logs Folder",
-            }
-      );
-    },
-    onOpenLogsFolder: () => {
-      const diagnosticsInfo = getDiagnosticsInfo();
-      void openDesktopPath(diagnosticsInfo.logsDirectoryPath, {
-        failureEvent: "desktop_open_logs_directory_failed",
-        failureMessage: "HugeCode desktop could not open the logs directory.",
-        notificationBody: "HugeCode could not open the logs directory.",
-        notificationTitle: "HugeCode Couldn’t Open the Logs Folder",
-      });
-    },
     onOpenAbout: () => {
       windowController.openWindow({
         windowLabel: "about",
@@ -659,12 +378,6 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     onQuit: () => {
       isQuitting = true;
       input.app.quit();
-    },
-    onReportIssue: () => {
-      const diagnosticsInfo = getDiagnosticsInfo();
-      if (diagnosticsInfo.reportIssueUrl) {
-        void input.shell.openExternal(diagnosticsInfo.reportIssueUrl);
-      }
     },
     onReopenSession: windowController.reopenSession,
     platform: input.platform,
@@ -693,6 +406,22 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     },
   });
 
+  function getDiagnosticsInfo(): DesktopDiagnosticsInfo {
+    return {
+      crashDumpsDirectoryPath: null,
+      incidentLogPath: null,
+      lastIncidentAt: null,
+      logsDirectoryPath: null,
+      recentIncidentCount: 0,
+      reportIssueUrl: null,
+      supportSnapshotText: null,
+    };
+  }
+
+  function copySupportSnapshot() {
+    return false;
+  }
+
   const desktopHostHandlers = createDesktopHostHandlers({
     appVersion,
     copySupportSnapshot,
@@ -717,13 +446,9 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       await input.shell.openExternal(url);
       return true;
     },
-    openPath(path) {
-      return openDesktopPath(path, {
-        failureEvent: "desktop_open_path_failed",
-        failureMessage: "HugeCode desktop could not open a local path.",
-        notificationBody: "HugeCode could not open the requested path.",
-        notificationTitle: "HugeCode Couldn’t Open a Path",
-      });
+    async openPath(path) {
+      const errorMessage = await input.shell.openPath(path);
+      return errorMessage.length === 0;
     },
     persistTrayEnabled(enabled) {
       shellState.setTrayEnabled(enabled);
@@ -760,9 +485,6 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     updaterController.initialize();
     launchIntentController.registerAppHandlers();
     launchIntentController.registerProtocolClient();
-    input.app.on("child-process-gone", (_event, details) => {
-      resilienceController.handleChildProcessGone(details);
-    });
 
     registerDesktopHostIpc({
       channels: DESKTOP_HOST_IPC_CHANNELS,

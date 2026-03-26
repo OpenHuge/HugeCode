@@ -111,12 +111,24 @@ export function buildRuntimeTaskReplayBrief(task: AgentTaskSummary): string {
   return sections.join("\n\n").trim();
 }
 
-function buildInfoMessage(taskId: string, intent: RuntimeTaskLauncherInterventionIntent): string {
+function buildInfoMessage(
+  task: AgentTaskSummary,
+  intent: RuntimeTaskLauncherInterventionIntent
+): string {
+  const taskId = task.taskId;
   if (intent === "switch_profile") {
-    return `Run ${taskId} loaded into the launcher. Choose a new execution profile, then relaunch.`;
+    return `Run ${taskId} loaded into the launcher. Choose a new execution profile, then relaunch with the recorded source context.`;
   }
   if (intent === "pair_mode") {
-    return `Run ${taskId} loaded into the launcher for pair-mode escalation.`;
+    return `Run ${taskId} loaded into the launcher for pair-mode escalation with the recorded source context.`;
+  }
+  const sourceLabel = readString(task.taskSource?.label);
+  const relaunchSummary = readString(task.relaunchContext?.summary);
+  const suffix = [sourceLabel ? `Source-linked launch: ${sourceLabel}.` : null, relaunchSummary]
+    .filter((entry): entry is string => entry !== null)
+    .join(" ");
+  if (suffix.length > 0) {
+    return `Run ${taskId} loaded into the launcher for ${intent.replaceAll("_", " ")}. ${suffix}`;
   }
   return `Run ${taskId} loaded into the launcher for ${intent.replaceAll("_", " ")}.`;
 }
@@ -217,7 +229,7 @@ export function prepareRuntimeTaskLauncherDraft(
           : {}),
         fieldOrigins: interventionDraft.fieldOrigins,
       },
-      infoMessage: buildInfoMessage(input.task.taskId, input.intent),
+      infoMessage: buildInfoMessage(input.task, input.intent),
     },
   };
 }

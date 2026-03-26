@@ -108,53 +108,31 @@ If no static feed root is configured, beta builds remain manual and point users 
 - `pnpm desktop:electron:publish:dry-run`
   Reports the effective channel/update mode and fails on artifact or config mismatches.
 
+HugeCode now runs a host-binary preflight before Electron `package`, `make`, and `publish`.
+On Linux this fails fast before the expensive renderer build when required tools are absent.
+
+- `package` requires `zip`
+- `make` and `publish` require `zip`, `dpkg`, and `fakeroot`
+
+For Debian/Ubuntu hosts:
+
+```bash
+sudo apt-get install zip dpkg fakeroot
+```
+
 ## macOS Arm64 Signing Rule
 
 - Forge fuse hardening must not rely on a blanket `codesign --deep` fallback for unsigned Apple Silicon packages.
-- HugeCode does not run a CI-only post-package ad-hoc re-sign repair for unsigned `darwin/arm64` smoke builds.
-- Smoke verification stays focused on packaging and release-contract truth; real macOS signing remains an explicit `packagerConfig.osxSign` release concern backed by proper Apple credentials.
-- If a future maintainer adds real `packagerConfig.osxSign`, that explicit Forge signing config becomes the only source of truth for signed macOS artifacts.
-
-## Windows Release-Contract Rule
-
-- Release verification must treat Windows `app.asar` entry paths as platform-variant archive paths, not as POSIX-only strings.
-- The verifier must never collapse a path-resolution mismatch into a fake "missing @electron/asar dependency" error.
-- If Windows package layout changes, update the release-contract extraction candidates and tests before relaxing the verification step.
+- HugeCode uses explicit post-package ad-hoc signing for unsigned `darwin/arm64` bundles instead.
+- If a future maintainer adds real `packagerConfig.osxSign`, this fallback should stay disabled and the explicit Forge signing config becomes the source of truth.
 
 ## Native Menu Behavior
 
 - Electron exposes `Check for Updates...` through the native application menu.
-- Electron also exposes `Copy Support Snapshot`, `Open Incident Log`, `Open Logs Folder`, `Open Crash Dumps Folder`, and `Report Issue...` through the native Help surface.
 - That action is intentionally channel-aware:
   - automatic modes trigger the real main-process updater and push state changes to every live renderer window
   - manual beta mode opens GitHub Releases instead of advertising fake auto-update support
   - unsupported or misconfigured modes must never claim automatic update availability
-- Support actions must be driven from the same diagnostics truth as the renderer:
-  - `Copy Support Snapshot` must copy a canonical support summary built from the same updater state and incident summary used by the issue reporter; pages must not rebuild their own clipboard text
-  - `Open Incident Log` opens the bounded desktop incident log when one exists and only falls back to file reveal if direct path opening fails
-  - otherwise it falls back to the logs directory instead of assuming a file is present
-  - `Open Logs Folder` must open the canonical logs directory via the host path-opening primitive rather than using file-reveal APIs on a directory target
-  - `Open Crash Dumps Folder` must open the canonical local crash-dumps directory when Electron exposes one; if no crash-dumps directory is available, the shell should fail soft with a clear user-visible message instead of opening an unrelated path
-  - `Report Issue...` opens a prefilled GitHub issue with version, channel, platform, update mode, incident summary metadata, and crash-dump location
-
-## Resilience Contract
-
-- Electron desktop resilience belongs in the main process, not in renderer heuristics.
-- HugeCode treats these Electron signals as canonical desktop incidents:
-  - `render-process-gone` for renderer crashes and abnormal exits
-  - `child-process-gone` for GPU / utility / helper process exits
-  - `unresponsive` and `responsive` for BrowserWindow responsiveness transitions
-- Renderer crashes should recreate the affected session window instead of leaving a dead shell behind.
-- Recovery notifications must be native desktop notifications emitted from the main process.
-- Unresponsive-window notifications should be edge-triggered, not spammed repeatedly while the same window remains hung.
-- Structured incident logging should distinguish at least renderer crash recovery, child process exits, and temporary window unresponsiveness.
-- Desktop incident persistence must remain bounded and supportable:
-  - store incidents as local NDJSON under Electron's canonical logs directory
-  - cap retained incident history so repeated failures do not create unbounded log growth
-  - write logs from the main process with explicit local-file permissions instead of relying on console output alone
-- Local crash support should exist even before remote crash infrastructure:
-  - start Electron's crash reporter with `uploadToServer: false`
-  - keep crash dumps local and include the crash-dumps directory in desktop diagnostics surfaces
 
 ## Intentionally Unsupported
 

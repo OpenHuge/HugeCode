@@ -1,5 +1,12 @@
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
+import {
+  hasForgeOsxSignConfig,
+  repairDarwinArm64Signature,
+  resolveDarwinAppBundlePath,
+  shouldRepairDarwinArm64Signature,
+} from "./scripts/darwin-ad-hoc-sign.mjs";
+import MakerDeb from "./scripts/maker-deb.cjs";
 
 function normalizeStaticUpdateBaseUrlRoot(staticUpdateBaseUrl) {
   const trimmed = staticUpdateBaseUrl?.trim();
@@ -24,6 +31,7 @@ function buildStaticUpdateBaseUrl(rootBaseUrl, platform, arch) {
 }
 
 const releaseChannel = process.env.HUGECODE_ELECTRON_RELEASE_CHANNEL?.trim() || "beta";
+const electronZipDir = process.env.HUGECODE_ELECTRON_ZIP_DIR?.trim() || null;
 const staticUpdateBaseUrlRoot = normalizeStaticUpdateBaseUrlRoot(
   process.env.HUGECODE_ELECTRON_UPDATE_BASE_URL
 );
@@ -33,20 +41,45 @@ const betaStaticUpdateBaseUrl =
   releaseChannel === "beta" && staticUpdateBaseUrlRoot
     ? buildStaticUpdateBaseUrl(staticUpdateBaseUrlRoot, process.platform, process.arch)
     : null;
+const packagerConfig = {
+  appBundleId: "com.openhuge.hugecode",
+  asar: true,
+  ...(electronZipDir
+    ? {
+        electronZipDir,
+      }
+    : {}),
+  executableName: "HugeCode",
+  name: "HugeCode",
+  protocols: [
+    {
+      name: "HugeCode",
+      schemes: ["hugecode"],
+    },
+  ],
+};
 
 export default {
-  packagerConfig: {
-    appBundleId: "com.openhuge.hugecode",
-    asar: true,
-    executableName: "HugeCode",
-    name: "HugeCode",
-    protocols: [
-      {
-        name: "HugeCode",
-        schemes: ["hugecode"],
-      },
-    ],
+  hooks: {
+    async postPackage(_forgeConfig, packageResult) {
+      if (
+        !shouldRepairDarwinArm64Signature({
+          arch: packageResult.arch,
+          hasOsxSignConfig: hasForgeOsxSignConfig(packagerConfig),
+          platform: packageResult.platform,
+        })
+      ) {
+        return;
+      }
+
+      for (const outputPath of packageResult.outputPaths) {
+        await repairDarwinArm64Signature(
+          resolveDarwinAppBundlePath(outputPath, packagerConfig.name)
+        );
+      }
+    },
   },
+  packagerConfig,
   plugins: [
     new FusesPlugin({
       version: FuseVersion.V1,
@@ -88,19 +121,16 @@ export default {
         setupExe: "HugeCodeSetup.exe",
       },
     },
-    {
-      name: "@electron-forge/maker-deb",
-      config: {
-        options: {
-          bin: "HugeCode",
-          categories: ["Development"],
-          maintainer: productAuthor,
-          mimeType: ["x-scheme-handler/hugecode"],
-          productDescription,
-          section: "devel",
-        },
+    new MakerDeb({
+      bin: "HugeCode",
+      options: {
+        categories: ["Development"],
+        maintainer: "OpenHuge",
+        mimeType: ["x-scheme-handler/hugecode"],
+        productDescription: "HugeCode beta desktop shell",
+        section: "devel",
       },
-    },
+    }),
   ],
   publishers: [
     {
