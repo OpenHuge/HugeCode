@@ -3,6 +3,10 @@ import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
+import {
+  createForgeStagePackageJson,
+  shouldInstallForgeStageDependencies,
+} from "./forge-stage-package.mjs";
 
 const SUPPORTED_COMMANDS = new Set(["package", "make", "publish"]);
 const scriptDir = resolve(fileURLToPath(new URL(".", import.meta.url)));
@@ -33,18 +37,10 @@ export function sanitizeSpawnEnv(env) {
   );
 }
 
-export function resolveStageInstallCommand(env = process.env) {
-  const packageManagerEntrypoint = env.npm_execpath?.trim();
-  if (packageManagerEntrypoint) {
-    return {
-      commandName: process.execPath,
-      args: [packageManagerEntrypoint, "install", "--ignore-scripts"],
-    };
-  }
-
+export function resolveStageInstallCommand() {
   return {
     commandName: process.platform === "win32" ? "npm.cmd" : "npm",
-    args: ["install", "--ignore-scripts"],
+    args: ["install", "--include=dev", "--ignore-scripts", "--no-package-lock"],
   };
 }
 
@@ -83,25 +79,7 @@ async function prepareStage() {
   await cp(distDir, resolve(forgePackageDir, "dist-electron"), { recursive: true });
   await cp(forgeConfigSource, resolve(forgePackageDir, "forge.config.mjs"));
 
-  const stagedPackageJson = {
-    name: "hugecode",
-    productName: "HugeCode",
-    version: packageJson.version,
-    type: "module",
-    main: "dist-electron/main/main.js",
-    repository: packageJson.repository,
-    config: {
-      forge: "./forge.config.mjs",
-    },
-    dependencies: Object.fromEntries(
-      Object.entries(packageJson.dependencies ?? {}).filter(
-        ([, version]) => typeof version === "string" && !version.startsWith("workspace:")
-      )
-    ),
-    devDependencies: {
-      electron: packageJson.devDependencies.electron,
-    },
-  };
+  const stagedPackageJson = createForgeStagePackageJson(packageJson);
 
   await writeFile(
     resolve(forgePackageDir, "package.json"),
@@ -110,10 +88,7 @@ async function prepareStage() {
   );
   await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
 
-  const hasStageDependencies =
-    Object.keys(stagedPackageJson.dependencies ?? {}).length > 0 ||
-    Object.keys(stagedPackageJson.devDependencies ?? {}).length > 0;
-  if (hasStageDependencies) {
+  if (shouldInstallForgeStageDependencies(stagedPackageJson)) {
     const installCommand = resolveStageInstallCommand();
     await runCommand(installCommand.commandName, installCommand.args, forgePackageDir);
   }

@@ -29,7 +29,6 @@ describe("forge stage package helpers", () => {
       "update-electron-app": "3.1.2",
     });
     expect(stagedPackageJson.devDependencies).toEqual({
-      "@electron-forge/maker-deb": "7.11.1",
       "@electron-forge/plugin-fuses": "^7.10.2",
       "@electron/fuses": "^1.8.0",
       electron: "41.0.3",

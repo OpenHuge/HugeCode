@@ -1,3 +1,6 @@
+import { FusesPlugin } from "@electron-forge/plugin-fuses";
+import { FuseV1Options, FuseVersion } from "@electron/fuses";
+
 function normalizeStaticUpdateBaseUrlRoot(staticUpdateBaseUrl) {
   const trimmed = staticUpdateBaseUrl?.trim();
   if (!trimmed) {
@@ -24,6 +27,8 @@ const releaseChannel = process.env.HUGECODE_ELECTRON_RELEASE_CHANNEL?.trim() || 
 const staticUpdateBaseUrlRoot = normalizeStaticUpdateBaseUrlRoot(
   process.env.HUGECODE_ELECTRON_UPDATE_BASE_URL
 );
+const productAuthor = "OpenHuge";
+const productDescription = "HugeCode beta desktop shell";
 const betaStaticUpdateBaseUrl =
   releaseChannel === "beta" && staticUpdateBaseUrlRoot
     ? buildStaticUpdateBaseUrl(staticUpdateBaseUrlRoot, process.platform, process.arch)
@@ -42,6 +47,20 @@ export default {
       },
     ],
   },
+  plugins: [
+    new FusesPlugin({
+      version: FuseVersion.V1,
+      resetAdHocDarwinSignature: false,
+      [FuseV1Options.RunAsNode]: false,
+      [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
+      [FuseV1Options.EnableNodeCliInspectArguments]: false,
+      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
+      [FuseV1Options.OnlyLoadAppFromAsar]: true,
+      [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot]: true,
+      [FuseV1Options.EnableCookieEncryption]: true,
+      [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
+    }),
+  ],
   makers: [
     {
       name: "@electron-forge/maker-zip",
@@ -58,8 +77,8 @@ export default {
     {
       name: "@electron-forge/maker-squirrel",
       config: {
-        authors: "OpenHuge",
-        description: "HugeCode beta desktop shell",
+        authors: productAuthor,
+        description: productDescription,
         name: "HugeCode",
         ...(betaStaticUpdateBaseUrl
           ? {
@@ -75,9 +94,9 @@ export default {
         options: {
           bin: "HugeCode",
           categories: ["Development"],
-          maintainer: "OpenHuge",
+          maintainer: productAuthor,
           mimeType: ["x-scheme-handler/hugecode"],
-          productDescription: "HugeCode beta desktop shell",
+          productDescription,
           section: "devel",
         },
       },

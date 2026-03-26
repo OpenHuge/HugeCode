@@ -2,21 +2,10 @@ import { describe, expect, it } from "vitest";
 import { resolveStageInstallCommand, sanitizeSpawnEnv } from "./run-forge.mjs";
 
 describe("run-forge helpers", () => {
-  it("reuses the active package manager entrypoint when npm_execpath is available", () => {
-    expect(
-      resolveStageInstallCommand({
-        npm_execpath: "/tmp/pnpm.cjs",
-      })
-    ).toEqual({
-      commandName: process.execPath,
-      args: ["/tmp/pnpm.cjs", "install", "--ignore-scripts"],
-    });
-  });
-
-  it("falls back to npm-compatible commands when no package manager entrypoint is published", () => {
-    expect(resolveStageInstallCommand({})).toEqual({
+  it("uses npm for staged forge installs so config-time dependencies bypass pnpm subdependency policy", () => {
+    expect(resolveStageInstallCommand()).toEqual({
       commandName: process.platform === "win32" ? "npm.cmd" : "npm",
-      args: ["install", "--ignore-scripts"],
+      args: ["install", "--include=dev", "--ignore-scripts", "--no-package-lock"],
     });
   });
 

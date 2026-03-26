@@ -1,6 +1,5 @@
 const FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES = [
   "electron",
-  "@electron-forge/maker-deb",
   "@electron-forge/plugin-fuses",
   "@electron/fuses",
 ];
@@ -18,13 +17,10 @@ function pickStageDependencies(dependencies = {}) {
 export function createForgeStagePackageJson(packageJson) {
   const runtimeDependencies = pickStageDependencies(packageJson.dependencies);
   const stagedDevDependencies = Object.fromEntries(
-    FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES.map((dependencyName) => {
-      const version =
-        dependencyName === "@electron-forge/maker-deb"
-          ? (packageJson.devDependencies?.[dependencyName] ?? "7.11.1")
-          : packageJson.devDependencies?.[dependencyName];
-      return [dependencyName, version];
-    }).filter(([, version]) => isStageInstallableVersion(version))
+    FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES.map((dependencyName) => [
+      dependencyName,
+      packageJson.devDependencies?.[dependencyName],
+    ]).filter(([, version]) => isStageInstallableVersion(version))
   );
 
   return {
