@@ -1,101 +1,47 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
+import { resolveGitComparisonBase } from "./lib/git-base-ref.mjs";
 import { resolveCommandInvocation } from "./lib/local-bin.mjs";
 
 const isCi = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 
-function hasCommitRef(ref) {
-  const result = spawnSync("git", ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], {
-    stdio: "ignore",
-  });
-  return result.status === 0;
-}
-
-function resolveUpstreamRef() {
-  const result = spawnSync(
-    "git",
-    ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
-    {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }
-  );
-  if (result.status !== 0) {
-    return null;
-  }
-  const upstream = result.stdout?.trim();
-  return upstream ? upstream : null;
-}
-
-function resolveBaseCandidates() {
-  const explicit = process.env.TURBO_BASE_REF?.trim();
-  const githubBaseRef = process.env.GITHUB_BASE_REF?.trim();
-  const upstreamRef = resolveUpstreamRef();
-  const explicitCandidates = [];
-  const fallbackCandidates = [];
-
-  if (explicit) {
-    explicitCandidates.push(explicit);
-  }
-
-  if (githubBaseRef) {
-    explicitCandidates.push(`origin/${githubBaseRef}`, githubBaseRef);
-  }
-
-  if (upstreamRef) {
-    explicitCandidates.push(upstreamRef);
-  }
-
-  fallbackCandidates.push(
-    "origin/main",
-    "main",
-    "origin/master",
-    "master",
-    "origin/fastcode",
-    "fastcode",
-    "HEAD~1"
-  );
-
-  return {
-    explicit: [...new Set(explicitCandidates.filter(Boolean))],
-    fallback: [...new Set(fallbackCandidates.filter(Boolean))],
-  };
-}
-
 function resolveBaseRef() {
-  const { explicit, fallback } = resolveBaseCandidates();
+  const explicitCandidates = [
+    process.env.TURBO_BASE_REF?.trim(),
+    process.env.GITHUB_BASE_REF?.trim() ? `origin/${process.env.GITHUB_BASE_REF.trim()}` : null,
+    process.env.GITHUB_BASE_REF?.trim() ?? null,
+  ].filter(Boolean);
+  const baseRef = resolveGitComparisonBase({ repoRoot: process.cwd(), includeHeadFallback: true });
 
-  for (const candidate of explicit) {
-    if (hasCommitRef(candidate)) {
-      return { ref: candidate, kind: "explicit" };
-    }
-  }
-
-  if (isCi && explicit.length > 0) {
-    const rendered = explicit.join(", ");
+  if (isCi && explicitCandidates.length > 0 && baseRef.ref === null) {
+    const rendered = explicitCandidates.join(", ");
     process.stderr.write(
       `Failed to resolve an affected base ref in CI. Checked: ${rendered}. Ensure the base ref was fetched before running affected tasks.\n`
     );
     process.exit(1);
   }
 
-  for (const candidate of fallback) {
-    if (hasCommitRef(candidate)) {
-      return { ref: candidate, kind: "fallback" };
-    }
-  }
-
-  return { ref: null, kind: "none" };
+  return baseRef;
 }
 
 function runTurbo(task, additionalArgs) {
   const { ref: baseRef, kind } = resolveBaseRef();
   const args = ["run", task];
   const forwardedArgs = additionalArgs[0] === "--" ? additionalArgs.slice(1) : additionalArgs;
+  const env = { ...process.env };
+  const hasExplicitFilter = forwardedArgs.some(
+    (arg, index) =>
+      arg.startsWith("--filter=") || (arg === "--filter" && index < forwardedArgs.length - 1)
+  );
 
   if (baseRef) {
-    args.push(`--filter=...[${baseRef}]`);
+    if (hasExplicitFilter) {
+      args.push(`--filter=...[${baseRef}]`);
+    } else {
+      args.push("--affected");
+      env.TURBO_SCM_BASE = baseRef;
+    }
     process.stdout.write(`Using affected base ref (${kind}): ${baseRef}\n`);
   } else {
     process.stdout.write("No affected base ref found; running Turbo without an affected filter.\n");
@@ -106,7 +52,7 @@ function runTurbo(task, additionalArgs) {
   const turboInvocation = resolveCommandInvocation("turbo", args);
   const result = spawnSync(turboInvocation.command, turboInvocation.args, {
     stdio: "inherit",
-    env: process.env,
+    env,
   });
 
   if (result.error) {

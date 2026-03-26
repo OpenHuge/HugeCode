@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { loadE2EMapConfig, recommendE2ECategoriesFromPaths } from "./lib/e2e-map.mjs";
+import { resolveGitComparisonBase, tryReadGitStdout } from "./lib/git-base-ref.mjs";
 import { resolveCommandInvocation } from "./lib/local-bin.mjs";
 import { formatProcessTree, terminateProcessTree } from "./lib/process-tree.mjs";
 import { createValidateTempManager } from "./lib/validate-temp-config.mjs";
@@ -405,55 +406,18 @@ function collectLocalChangedFiles() {
     .sort((left, right) => left.localeCompare(right));
 }
 
-function gitRefExists(ref) {
-  const result = spawnSync("git", ["rev-parse", "--verify", "--quiet", ref], {
-    cwd: repoRoot,
-    stdio: "ignore",
-  });
-  return result.status === 0;
-}
-
-function resolveBranchDiffBaseRef(currentBranch) {
-  const candidates = ["origin/main", "main"];
-  for (const candidate of candidates) {
-    if (!gitRefExists(candidate)) {
-      continue;
-    }
-    const candidateBranchName = candidate.includes("/")
-      ? candidate.slice(candidate.lastIndexOf("/") + 1)
-      : candidate;
-    if (candidateBranchName === currentBranch) {
-      continue;
-    }
-    return candidate;
-  }
-  return null;
-}
-
-function tryReadGitStdout(args) {
-  const result = spawnSync("git", args, {
-    cwd: repoRoot,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  if (result.status !== 0) {
-    return null;
-  }
-  return result.stdout.trim();
-}
-
 function collectCommittedBranchDiffFiles() {
-  const currentBranch = tryReadGitStdout(["branch", "--show-current"]);
+  const currentBranch = tryReadGitStdout(repoRoot, ["branch", "--show-current"]);
   if (!currentBranch) {
     return [];
   }
 
-  const baseRef = resolveBranchDiffBaseRef(currentBranch);
+  const { ref: baseRef } = resolveGitComparisonBase({ repoRoot });
   if (!baseRef) {
     return [];
   }
 
-  const mergeBase = tryReadGitStdout(["merge-base", "HEAD", baseRef]);
+  const mergeBase = tryReadGitStdout(repoRoot, ["merge-base", "HEAD", baseRef]);
   if (!mergeBase) {
     return [];
   }

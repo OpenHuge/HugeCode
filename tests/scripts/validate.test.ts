@@ -34,6 +34,10 @@ async function createFixtureRepo(): Promise<string> {
     path.join(tempRoot, "scripts", "lib", "e2e-map.mjs")
   );
   await cp(
+    path.join(repoRoot, "scripts", "lib", "git-base-ref.mjs"),
+    path.join(tempRoot, "scripts", "lib", "git-base-ref.mjs")
+  );
+  await cp(
     path.join(repoRoot, "scripts", "lib", "validate-temp-config.mjs"),
     path.join(tempRoot, "scripts", "lib", "validate-temp-config.mjs")
   );
@@ -428,6 +432,27 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
       "vitest run --config vitest.config.ts --passWithNoTests --maxWorkers=75% src/example.test.ts"
     );
     expect(commandLog).not.toBe("");
+  });
+
+  it("treats a clean stacked worktree-style branch as unchanged when its sibling branch points at the same commit", async () => {
+    const tempRoot = await createFixtureRepo();
+    runGit(tempRoot, ["checkout", "-b", "feature/parent"]);
+    await writeRepoFile(tempRoot, "apps/code/src/example.test.ts", "export {};\n");
+    runGit(tempRoot, ["add", "-A"]);
+    runGit(tempRoot, ["commit", "-m", "parent change"]);
+    runGit(tempRoot, ["checkout", "-b", "feature/stacked-worktree"]);
+
+    const result = runValidate(tempRoot, []);
+    const commandLogPath = path.join(tempRoot, "command-invocations.log");
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe("");
+    expect(
+      await readFile(commandLogPath, "utf8").catch((error: NodeJS.ErrnoException) =>
+        error.code === "ENOENT" ? "" : Promise.reject(error)
+      )
+    ).toBe("");
   });
 
   it("uses dedicated validate guard coverage for validate-script-only changes", async () => {

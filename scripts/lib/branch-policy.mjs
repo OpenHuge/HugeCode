@@ -8,6 +8,7 @@ export const ALLOWED_BRANCH_PREFIXES = [
   "test",
   "perf",
   "hotfix",
+  "codex",
 ];
 
 const SLUG_SEGMENT = "[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*";

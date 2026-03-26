@@ -6,6 +6,7 @@ import path from "node:path";
 import process from "node:process";
 import { evaluateBranchPolicy } from "./lib/branch-policy.mjs";
 import { renderCheckMessage, writeCheckJson, writeLines } from "./lib/check-output.mjs";
+import { resolveGitComparisonBase } from "./lib/git-base-ref.mjs";
 
 import {
   collectPackagesWorkspaceHygiene,
@@ -98,6 +99,10 @@ function runGit(gitArgs, allowFailure = false) {
   }
 }
 
+function resolveUpstreamRef() {
+  return runGit(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"], true);
+}
+
 function checkPnpmStoreHealth() {
   try {
     const result = runCommand("pnpm", ["store", "status"]);
@@ -121,9 +126,9 @@ function checkPnpmStoreHealth() {
       combinedOutput.includes("Packages in the store have been mutated")
     ) {
       pushCheck(
-        "FAIL",
+        strict ? "FAIL" : "WARN",
         "pnpm store",
-        "pnpm store contains mutated packages. Run `pnpm install --force` to refetch damaged entries. If this keeps happening across repos, clean the global pnpm store."
+        "pnpm store contains mutated packages. Run `pnpm install --force` to refetch damaged entries. If this keeps happening across repos, clean the global pnpm store. Use `repo:doctor:strict` when you want this condition to fail the run."
       );
       return;
     }
@@ -214,7 +219,7 @@ function checkGitSync() {
     }
   }
 
-  const syncRef = `origin/${branch}`;
+  const syncRef = resolveUpstreamRef() || `origin/${branch}`;
   const syncRefSha = runGit(["rev-parse", "--verify", syncRef], true);
   if (!syncRefSha) {
     pushCheck(
@@ -268,6 +273,34 @@ function checkWorkingTree() {
     "WARN",
     "Working tree",
     `Detected ${tracked} tracked change(s) and ${untracked} untracked path(s).`
+  );
+}
+
+function checkComparisonBase() {
+  const branch = runGit(["rev-parse", "--abbrev-ref", "HEAD"], true);
+  if (!branch || branch === "HEAD") {
+    pushCheck(
+      "WARN",
+      "Comparison base",
+      "Current state is detached HEAD or branch is unavailable; comparison-base diagnostics are limited."
+    );
+    return;
+  }
+
+  const { ref, kind } = resolveGitComparisonBase({ repoRoot });
+  if (!ref) {
+    pushCheck(
+      "WARN",
+      "Comparison base",
+      "No comparison base resolved automatically. Targeted validation will rely on local changes only unless you configure an upstream or pass an explicit base ref."
+    );
+    return;
+  }
+
+  pushCheck(
+    "PASS",
+    "Comparison base",
+    `Affected/validation base resolves to ${ref} (${kind}). Use \`TURBO_BASE_REF\` when you need to override the inferred base.`
   );
 }
 
@@ -539,6 +572,7 @@ function printReport() {
 
 function main() {
   checkGitSync();
+  checkComparisonBase();
   checkWorkingTree();
   checkEphemeralArtifacts();
   checkPnpmStoreHealth();
