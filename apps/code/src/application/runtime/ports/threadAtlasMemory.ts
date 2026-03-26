@@ -1,1 +1,4 @@
-export { loadThreadAtlasMemoryDigests } from "../../../features/threads/utils/threadStorage";
+export {
+  readPersistedThreadAtlasMemoryDigests,
+  writePersistedThreadAtlasMemoryDigests,
+} from "./tauriThreadSnapshots";

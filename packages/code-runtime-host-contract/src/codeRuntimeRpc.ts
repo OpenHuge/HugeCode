@@ -1257,10 +1257,24 @@ export type RuntimeContextLayerV2 = {
   entries: RuntimeContextEntryV2[];
 };
 
+export type RuntimeContextSelectionStrategyV2 = "minimal" | "balanced" | "deep";
+
+export type RuntimeContextToolExposureProfileV2 = "minimal" | "slim" | "full";
+
+export type RuntimeContextSelectionPolicyV2 = {
+  strategy: RuntimeContextSelectionStrategyV2;
+  tokenBudgetTarget: number;
+  toolExposureProfile: RuntimeContextToolExposureProfileV2;
+  preferColdFetch: boolean;
+};
+
 export type RuntimeContextWorkingSetV2 = {
   summary: string;
   workspaceRoot: string | null;
   layers: RuntimeContextLayerV2[];
+  selectionPolicy: RuntimeContextSelectionPolicyV2;
+  contextFingerprint: string;
+  stablePrefixFingerprint: string;
 };
 
 export type RuntimeContextSourceFamilyV2 =

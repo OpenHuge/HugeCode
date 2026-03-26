@@ -9,11 +9,14 @@ import {
 import { logRuntimeWarning } from "./tauriRuntimeTurnHelpers";
 import {
   __resetPersistedThreadStorageCacheForTests,
+  type PersistedThreadStorageState,
   readPersistedThreadStorageState,
   readPersistedActiveThreadIdsByWorkspace,
+  readPersistedThreadAtlasMemoryDigests,
   readPersistedPendingInterruptThreadIds,
   readPersistedActiveWorkspaceId,
   writePersistedActiveWorkspaceId,
+  writePersistedThreadAtlasMemoryDigests,
   writePersistedPendingInterruptThreadIds,
   writePersistedThreadStorageState,
 } from "./tauriThreadSnapshotsBridge";
@@ -122,7 +125,7 @@ describe("tauriThreadSnapshotsBridge", () => {
   });
 
   it("serializes concurrent thread storage writes so active workspace updates are not reverted", async () => {
-    let releaseFirstWrite: (() => void) | null = null;
+    let releaseFirstWrite: VoidFunction = () => undefined;
     const writes: Array<Record<string, Record<string, unknown>>> = [];
     const threadSnapshotsGetV1 = vi.fn().mockResolvedValue({
       snapshots: {
@@ -182,7 +185,7 @@ describe("tauriThreadSnapshotsBridge", () => {
     await Promise.resolve();
     expect(threadSnapshotsSetV1).toHaveBeenCalledTimes(1);
 
-    releaseFirstWrite?.();
+    releaseFirstWrite();
     await activeWorkspaceWrite;
     await threadSnapshotWrite;
 
@@ -196,7 +199,7 @@ describe("tauriThreadSnapshotsBridge", () => {
   });
 
   it("mirrors active workspace writes into session storage before the native write resolves", async () => {
-    let releaseWrite: (() => void) | null = null;
+    let releaseWrite: VoidFunction = () => undefined;
     const threadSnapshotsGetV1 = vi.fn().mockResolvedValue({
       snapshots: {},
     });
@@ -218,13 +221,13 @@ describe("tauriThreadSnapshotsBridge", () => {
       expect(threadSnapshotsSetV1).toHaveBeenCalledTimes(1);
     });
 
-    releaseWrite?.();
+    releaseWrite();
     await expect(writePromise).resolves.toBe(true);
   });
 
   it("restores session-mirrored thread snapshots during a fast same-tab reload before native persistence resolves", async () => {
-    let releaseWrite: (() => void) | null = null;
-    const persistedState = {
+    let releaseWrite: VoidFunction = () => undefined;
+    const persistedState: PersistedThreadStorageState = {
       snapshots: {
         "workspace-web:thread-1": {
           workspaceId: "workspace-web",
@@ -247,7 +250,7 @@ describe("tauriThreadSnapshotsBridge", () => {
       lastActiveThreadIdByWorkspace: {
         "workspace-web": "thread-1",
       },
-    } as const;
+    };
     const threadSnapshotsGetV1 = vi.fn().mockResolvedValue({
       snapshots: {},
     });
@@ -271,7 +274,7 @@ describe("tauriThreadSnapshotsBridge", () => {
 
     await expect(readPersistedThreadStorageState()).resolves.toMatchObject(persistedState);
 
-    releaseWrite?.();
+    releaseWrite();
     await expect(writePromise).resolves.toBe(true);
   });
 
@@ -442,5 +445,53 @@ describe("tauriThreadSnapshotsBridge", () => {
 
     expect(readPersistedPendingInterruptThreadIds()).toEqual([]);
     expect(sessionStorage.getItem("codexmonitor.pendingInterruptThreadIdsSession")).toBeNull();
+  });
+
+  it("persists atlas memory digests through runtime-backed thread snapshots", async () => {
+    const threadSnapshotsGetV1 = vi.fn().mockResolvedValue({
+      snapshots: {
+        __atlas_memory_digests_v1: {
+          "workspace-web:thread-1": {
+            summary: "Runtime continuity summary",
+            updatedAt: 123,
+          },
+        },
+      },
+    });
+    const threadSnapshotsSetV1 = vi.fn().mockResolvedValue({
+      snapshotCount: 1,
+      updatedAt: 456,
+    });
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      threadSnapshotsGetV1,
+      threadSnapshotsSetV1,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
+
+    await expect(readPersistedThreadAtlasMemoryDigests()).resolves.toEqual({
+      "workspace-web:thread-1": {
+        summary: "Runtime continuity summary",
+        updatedAt: 123,
+      },
+    });
+
+    await expect(
+      writePersistedThreadAtlasMemoryDigests({
+        "workspace-web:thread-1": {
+          summary: "Updated runtime continuity summary",
+          updatedAt: 789,
+        },
+      })
+    ).resolves.toBe(true);
+
+    expect(threadSnapshotsSetV1).toHaveBeenCalledWith({
+      snapshots: {
+        __atlas_memory_digests_v1: {
+          "workspace-web:thread-1": {
+            summary: "Updated runtime continuity summary",
+            updatedAt: 789,
+          },
+        },
+      },
+    });
   });
 });

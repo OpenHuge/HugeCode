@@ -13,6 +13,8 @@ use crate::agent_task_launch_synthesis::{
 };
 use crate::repository_execution_contract::RepositoryExecutionResolvedDefaults;
 use crate::runtime_helpers::normalize_agent_task_source_summary;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 fn normalize_execution_mode_v2(value: Option<&str>) -> Result<&'static str, RpcError> {
     let normalized = value
@@ -92,6 +94,8 @@ fn resolve_repo_instruction_source_marker(workspace_context: &WorkspaceLaunchCon
 fn build_context_working_set(
     workspace_context: &WorkspaceLaunchContext,
     task_source: Option<&AgentTaskSourceSummary>,
+    access_mode: &str,
+    execution_mode: &str,
     preferred_backend_ids: &[String],
     synthesized_steps: &[AgentTaskStepInput],
 ) -> Value {
@@ -195,9 +199,30 @@ fn build_context_working_set(
         })
         .collect::<Vec<_>>();
 
+    let selection_policy = build_context_selection_policy(
+        access_mode,
+        execution_mode,
+        preferred_backend_ids,
+        synthesized_steps,
+    );
+    let stable_prefix_fingerprint = compute_context_entries_fingerprint(
+        "runtime-context-stable-prefix",
+        hot_entries.iter().chain(warm_entries.iter()),
+    );
+    let context_fingerprint = compute_context_entries_fingerprint(
+        "runtime-context-working-set",
+        hot_entries
+            .iter()
+            .chain(warm_entries.iter())
+            .chain(cold_entries.iter()),
+    );
+
     json!({
         "summary": "Runtime prepared a tiered working set so hot execution context stays compact and reviewable.",
         "workspaceRoot": workspace_context.workspace_root_path,
+        "selectionPolicy": selection_policy,
+        "contextFingerprint": context_fingerprint,
+        "stablePrefixFingerprint": stable_prefix_fingerprint,
         "layers": [
             {
                 "tier": "hot",
@@ -557,7 +582,52 @@ fn build_delegation_contract(
         "continueVia": Value::Null,
     })
 }
+fn build_context_selection_policy(
+    access_mode: &str,
+    execution_mode: &str,
+    preferred_backend_ids: &[String],
+    synthesized_steps: &[AgentTaskStepInput],
+) -> Value {
+    let strategy = if access_mode == "read-only" {
+        "minimal"
+    } else if execution_mode == "distributed"
+        || preferred_backend_ids.len() > 1
+        || synthesized_steps.len() >= 4
+    {
+        "deep"
+    } else {
+        "balanced"
+    };
+    let token_budget_target = match strategy {
+        "minimal" => 900,
+        "deep" => 2200,
+        _ => 1500,
+    };
+    let tool_exposure_profile = match access_mode {
+        "read-only" => "minimal",
+        "full-access" => "full",
+        _ => "slim",
+    };
 
+    json!({
+        "strategy": strategy,
+        "tokenBudgetTarget": token_budget_target,
+        "toolExposureProfile": tool_exposure_profile,
+        "preferColdFetch": strategy != "deep",
+    })
+}
+
+fn compute_context_entries_fingerprint<'a>(
+    namespace: &str,
+    entries: impl IntoIterator<Item = &'a Value>,
+) -> String {
+    let mut hasher = DefaultHasher::new();
+    namespace.hash(&mut hasher);
+    for entry in entries {
+        entry.to_string().hash(&mut hasher);
+    }
+    format!("{:016x}", hasher.finish())
+}
 fn step_kind_to_kernel_kind(step: &AgentTaskStepInput) -> &'static str {
     match step.kind {
         AgentStepKind::Read => "read",
@@ -1188,6 +1258,8 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
         "contextWorkingSet": build_context_working_set(
             &workspace_context,
             task_source.as_ref(),
+            access_mode.as_str(),
+            execution_mode,
             explicit_preferred_backend_ids.as_slice(),
             synthesized_steps.as_slice(),
         ),
@@ -1514,6 +1586,8 @@ mod tests {
                 ..WorkspaceLaunchContext::default()
             },
             None,
+            "on-request",
+            "single",
             &[],
             &[],
         );
@@ -1532,6 +1606,39 @@ mod tests {
                 .as_str()
                 .is_some_and(|detail| detail.contains(".github/copilot-instructions.md"))
         );
+    }
+
+    #[test]
+    fn build_context_working_set_adds_selection_policy_and_fingerprints() {
+        let context = WorkspaceLaunchContext {
+            workspace_root_path: Some("/workspaces/HugeCode".to_string()),
+            has_agents_md: true,
+            repo_instruction_sources: vec!["AGENTS.md".to_string()],
+            validate_command: Some("pnpm validate".to_string()),
+            ..WorkspaceLaunchContext::default()
+        };
+        let working_set = build_context_working_set(
+            &context,
+            None,
+            "on-request",
+            "distributed",
+            &["backend-a".to_string(), "backend-b".to_string()],
+            &[sample_step(
+                AgentStepKind::Read,
+                "Context digest: runtime recovered prior work.",
+                Some(false),
+            )],
+        );
+
+        assert_eq!(working_set["selectionPolicy"]["strategy"], json!("deep"));
+        assert_eq!(working_set["selectionPolicy"]["toolExposureProfile"], json!("slim"));
+        assert_eq!(working_set["selectionPolicy"]["preferColdFetch"], json!(false));
+        assert!(working_set["contextFingerprint"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()));
+        assert!(working_set["stablePrefixFingerprint"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty()));
     }
 
     #[test]

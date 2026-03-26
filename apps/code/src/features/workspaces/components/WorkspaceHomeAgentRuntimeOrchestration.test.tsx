@@ -367,6 +367,14 @@ function createRuntimeLaunchPreparationFixture() {
     contextWorkingSet: {
       summary: "Hot repo context plus validation defaults are loaded.",
       workspaceRoot: "/workspaces/HugeCode",
+      selectionPolicy: {
+        strategy: "balanced" as const,
+        tokenBudgetTarget: 1500,
+        toolExposureProfile: "slim" as const,
+        preferColdFetch: true,
+      },
+      contextFingerprint: "work-123",
+      stablePrefixFingerprint: "stable-123",
       layers: [
         {
           tier: "hot" as const,
@@ -631,6 +639,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Launch readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Continuity readiness" })).toBeTruthy();
+      expect(screen.getByRole("heading", { name: "Delegated attention" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Approval pressure" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Run list" })).toBeTruthy();
     });
@@ -675,10 +684,15 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       parseRepositoryExecutionContract(
         JSON.stringify({
           version: 1,
+          metadata: {
+            label: "Workspace Launch Policy",
+            description: "Keep review, validation, and backend posture visible before launch.",
+          },
           defaults: {
             executionProfileId: "operator-review",
             validationPresetId: "review-first",
             preferredBackendIds: ["backend-policy-a"],
+            reviewProfileId: "review-gate",
           },
           sourceMappings: {
             manual: {
@@ -689,7 +703,18 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
           validationPresets: [
             {
               id: "review-first",
+              label: "Review First",
               commands: ["pnpm validate:fast"],
+            },
+          ],
+          reviewProfiles: [
+            {
+              id: "review-gate",
+              label: "Review Gate",
+              allowedSkillIds: ["code-review"],
+              validationPresetId: "review-first",
+              autofixPolicy: "bounded",
+              githubMirrorPolicy: "summary",
             },
           ],
         })
@@ -698,18 +723,52 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
-    await waitFor(
-      () => {
-        expect(screen.getByText("Repo source mapping: manual")).toBeTruthy();
-        expect(screen.getByText("Repo profile default: operator-review")).toBeTruthy();
-        expect(screen.getByText("Repo backend preference: backend-policy-a")).toBeTruthy();
-        expect(screen.getByText("Repo validation preset: review-first")).toBeTruthy();
-        expect((screen.getByLabelText("Execution profile") as HTMLSelectElement).value).toBe(
-          "operator-review"
-        );
-      },
-      { timeout: 5_000 }
-    );
+    await waitFor(() => {
+      expect(screen.getByText("Workspace Launch Policy")).toBeTruthy();
+      expect(
+        screen.getByText("Keep review, validation, and backend posture visible before launch.")
+      ).toBeTruthy();
+      expect(screen.getByText("Repo source mapping: manual")).toBeTruthy();
+      expect(screen.getByText("Repo profile default: operator-review")).toBeTruthy();
+      expect(screen.getByText("Repo access mode: read-only")).toBeTruthy();
+      expect(screen.getByText("Repo backend preference: backend-policy-a")).toBeTruthy();
+      expect(screen.getByText("Repo review profile: Review Gate (review-gate)")).toBeTruthy();
+      expect(
+        screen.getByText("Review posture: autofix bounded | GitHub mirror summary")
+      ).toBeTruthy();
+      expect(screen.getByText("Repo validation preset: Review First")).toBeTruthy();
+      expect(screen.getByText("Validation commands: pnpm validate:fast")).toBeTruthy();
+      expect(screen.getByText("Launch execution profile: operator-review")).toBeTruthy();
+      expect(screen.getByText("Launch access mode: read-only")).toBeTruthy();
+      expect(screen.getByText("Launch review profile: Review Gate (review-gate)")).toBeTruthy();
+      expect(screen.getByText("Launch validation preset: Review First")).toBeTruthy();
+      expect(
+        screen.getByText("Launcher profile is aligned with repository policy defaults.")
+      ).toBeTruthy();
+      expect((screen.getByLabelText("Execution profile") as HTMLSelectElement).value).toBe(
+        "operator-review"
+      );
+    });
+
+    fireEvent.change(screen.getByLabelText("Execution profile"), {
+      target: { value: "balanced-delegate" },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Launcher profile override: balanced-delegate replaces repo default operator-review."
+        )
+      ).toBeTruthy();
+      expect(
+        screen.getByText(
+          "Repository policy still controls access mode, backend preference, review profile, and validation preset unless a source-linked relaunch draft overrides them."
+        )
+      ).toBeTruthy();
+      expect(screen.getByText("Launch execution profile: balanced-delegate")).toBeTruthy();
+      expect(screen.getByText("Launch access mode: read-only")).toBeTruthy();
+      expect(screen.getByText("Launch validation preset: Review First")).toBeTruthy();
+    });
   });
 
   it("shows continuation inheritance details when retrying a source-linked run", async () => {
@@ -1148,7 +1207,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     expect(
       screen.getByText(/completed run moves? into Review Pack as the primary finish-line surface/i)
     ).toBeTruthy();
-    expect(screen.getByText("Reviewable task")).toBeTruthy();
+    expect(screen.getAllByText("Reviewable task").length).toBeGreaterThan(0);
     expect(screen.getByText("Review Pack is ready for control-device review.")).toBeTruthy();
     expect(
       screen.getByText("Checkpoint checkpoint-1 is ready for resume or handoff.")
@@ -1180,7 +1239,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Need approval")).toBeTruthy();
+      expect(screen.queryAllByText("Need approval").length).toBeGreaterThan(0);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
@@ -1387,9 +1446,114 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Delegated runtime task")).toBeTruthy();
+      expect(screen.queryAllByText("Delegated runtime task").length).toBeGreaterThan(0);
       expect(screen.getByText("Runs: 1")).toBeTruthy();
       expect(screen.getByText("Running: 1")).toBeTruthy();
+      expect(
+        screen.getAllByText("Two delegated sessions are active under this run.").length
+      ).toBeGreaterThan(0);
+      expect(
+        screen.getByText("Delegated sessions: active 1 | attention 1 | resume ready 1")
+      ).toBeTruthy();
+      expect(
+        screen.getAllByText("Current activity: Waiting on delegated review").length
+      ).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText("Blocker: A reviewer session is awaiting approval.").length
+      ).toBeGreaterThan(0);
+      expect(
+        screen.getByText(
+          "Open the matching run below for full delegated-session observability and intervention controls."
+        )
+      ).toBeTruthy();
+    });
+  });
+
+  it("keeps delegated attention visible even when the run list filter hides the matching run", async () => {
+    mockRuntimeTasks([
+      {
+        ...buildTask("runtime-running-3", "running", "Delegated hidden task"),
+        runSummary: {
+          id: "runtime-running-3",
+          taskId: "runtime-running-3",
+          workspaceId: "ws-approval",
+          state: "running",
+          currentStepIndex: 0,
+          title: "Delegated hidden task",
+          summary: "Runtime is coordinating delegated work.",
+          startedAt: 1,
+          finishedAt: null,
+          updatedAt: 2,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          changedPaths: [],
+          nextAction: null,
+          approval: null,
+          operatorSnapshot: {
+            summary: "A delegated reviewer still needs attention.",
+            runtimeLabel: "Codex runtime",
+            provider: "openai",
+            modelId: "gpt-5.4",
+            reasoningEffort: "medium",
+            backendId: "backend-primary",
+            machineId: "machine-1",
+            machineSummary: "Primary backend",
+            workspaceRoot: "/tmp/workspace",
+            currentActivity: "Waiting on reviewer handoff",
+            blocker: "Reviewer session is paused for approval.",
+            recentEvents: [],
+          },
+          subAgents: [
+            {
+              sessionId: "session-review",
+              status: "awaiting_approval",
+              scopeProfile: "review",
+              summary: "Reviewer session is paused for approval.",
+              approvalState: {
+                status: "pending",
+                approvalId: "approval-review-hidden",
+                reason: "Approve reviewer escalation to continue.",
+                at: 1_700_000_100_000,
+              },
+              checkpointState: {
+                state: "active",
+                lifecycleState: "requested",
+                checkpointId: "checkpoint-review-hidden",
+                traceId: "trace-review-hidden",
+                recovered: false,
+                updatedAt: 1_700_000_100_000,
+                resumeReady: true,
+                summary: "Checkpoint checkpoint-review-hidden is ready for resume.",
+              },
+              takeoverBundle: {
+                state: "ready",
+                pathKind: "resume",
+                primaryAction: "resume",
+                summary: "Resume is ready once approval is granted.",
+                recommendedAction: "Resume delegated review",
+              },
+            },
+          ],
+        },
+      } as MockAgentTaskSummary,
+    ]);
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await waitFor(() => {
+      expect(screen.queryAllByText("Delegated hidden task").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Run state" }), {
+      target: { value: "completed" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("No mission runs match this filter.")).toBeTruthy();
+      expect(screen.getByText("A delegated reviewer still needs attention.")).toBeTruthy();
+      expect(screen.getByText("Current activity: Waiting on reviewer handoff")).toBeTruthy();
+      expect(screen.getByText("Blocker: Reviewer session is paused for approval.")).toBeTruthy();
     });
   });
 
@@ -1507,7 +1671,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Recovered task")).toBeTruthy();
+      expect(screen.getAllByText("Recovered task").length).toBeGreaterThan(0);
       expect(screen.getByText("Recovered")).toBeTruthy();
       expect(screen.getByText("Checkpoint checkpoint-row-1")).toBeTruthy();
       expect(screen.getByText("Trace agent-task:runtime-recovered-1")).toBeTruthy();
@@ -1558,7 +1722,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Resume recoverable runs (1)" })).toBeTruthy();
-      expect(screen.getByText("Recovered dot-case")).toBeTruthy();
+      expect(screen.getAllByText("Recovered dot-case").length).toBeGreaterThan(0);
     });
   });
 
@@ -1657,7 +1821,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Rejected recovery")).toBeTruthy();
+      expect(screen.getAllByText("Rejected recovery").length).toBeGreaterThan(0);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Resume" }));
@@ -1810,8 +1974,22 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     await waitFor(() => {
       expect(screen.getByText("Continuity readiness blocked")).toBeTruthy();
       expect(screen.getByText(/Review blocked: 1/)).toBeTruthy();
+      expect(screen.getByText("Priority continuity queue")).toBeTruthy();
+      expect(screen.getByText("Path: review via Runtime review actionability")).toBeTruthy();
+      expect(screen.getByText("Continue in: Mission run")).toBeTruthy();
       expect(
-        screen.getByText("Review cannot continue until runtime evidence is restored.")
+        screen.getByText("Route target: Review Pack review-pack:runtime-review-blocked")
+      ).toBeTruthy();
+      expect(
+        screen.getByText("Runtime evidence: Review Pack review-pack:runtime-review-blocked")
+      ).toBeTruthy();
+      expect(
+        screen.getAllByText("Review cannot continue until runtime evidence is restored.").length
+      ).toBeGreaterThan(0);
+      expect(
+        screen.getByText(
+          "Next step: Open Review Pack and resolve the runtime-blocked follow-up before continuing."
+        )
       ).toBeTruthy();
     });
   });
@@ -1858,6 +2036,19 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     await waitFor(() => {
       const continuity = within(screen.getByTestId("workspace-runtime-continuity"));
       expect(continuity.getByText(/Handoff ready: 1/)).toBeTruthy();
+      expect(screen.getByText("Priority continuity queue")).toBeTruthy();
+      expect(screen.getAllByText("Handoff only").length).toBeGreaterThan(0);
+      expect(screen.getByText("Path: handoff via Runtime mission linkage")).toBeTruthy();
+      expect(screen.getByText("Continue in: Mission thread")).toBeTruthy();
+      expect(screen.getByText("Route target: Thread thread-handoff-only")).toBeTruthy();
+      expect(
+        screen.getByText("Runtime evidence: Review Pack review-pack:runtime-handoff-only")
+      ).toBeTruthy();
+      expect(
+        screen.getByText(
+          "Next step: Use the runtime-published handoff or navigation target instead of rebuilding recovery locally."
+        )
+      ).toBeTruthy();
       expect(screen.getByRole("button", { name: "Resume recoverable runs (0)" })).toBeTruthy();
       expect(
         screen.getByText(

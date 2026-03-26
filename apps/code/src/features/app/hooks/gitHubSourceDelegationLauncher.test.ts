@@ -13,6 +13,10 @@ describe("launchGitHubSourceDelegation", () => {
         workspaceId: "ws-1",
         title: "Fix GitHub issue #42",
         instruction: "Resolve the linked GitHub issue and validate the change.",
+        executionProfileId: "autonomous-delegate",
+        reviewProfileId: "issue-review",
+        validationPresetId: "fast-lane",
+        accessMode: "full-access",
         preferredBackendIds: ["backend-a"],
         missionBrief: {
           objective: "Fix GitHub issue #42",
@@ -36,6 +40,10 @@ describe("launchGitHubSourceDelegation", () => {
         title: "Fix GitHub issue #42",
         instruction: "Resolve the linked GitHub issue and validate the change.",
         stepKind: "read",
+        executionProfileId: "autonomous-delegate",
+        reviewProfileId: "issue-review",
+        validationPresetId: "fast-lane",
+        accessMode: "full-access",
         preferredBackendIds: ["backend-a"],
         taskSource: expect.objectContaining({
           kind: "github_issue",
