@@ -1,0 +1,4 @@
+fail-on-severity: high
+fail-on-scopes:
+  - runtime
+  - unknown
