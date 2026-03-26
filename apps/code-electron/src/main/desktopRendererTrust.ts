@@ -1,3 +1,5 @@
+import { DESKTOP_APP_PROTOCOL_HOST, DESKTOP_APP_PROTOCOL_SCHEME } from "./desktopAppProtocol.js";
+
 const SAFE_EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 
 export type CreateDesktopRendererTrustInput = {
@@ -40,7 +42,10 @@ export function createDesktopRendererTrust(
         return false;
       }
 
-      if (parsedUrl.protocol === "file:") {
+      if (
+        parsedUrl.protocol === `${DESKTOP_APP_PROTOCOL_SCHEME}:` &&
+        parsedUrl.hostname === DESKTOP_APP_PROTOCOL_HOST
+      ) {
         return true;
       }
 

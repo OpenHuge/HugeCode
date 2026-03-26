@@ -276,7 +276,10 @@ export function resolveSessionDescriptor(
         : null,
     runtimeMode: input.runtimeMode === "remote" ? "remote" : "local",
     duplicate: input.duplicate === true,
-  } satisfies Required<Omit<OpenDesktopSessionInput, "workspacePath" | "workspaceLabel">> & {
+  } satisfies Pick<
+    OpenDesktopSessionInput,
+    "duplicate" | "preferredBackendId" | "runtimeMode" | "windowLabel"
+  > & {
     workspaceLabel: string | null;
     workspacePath: string | null;
   };

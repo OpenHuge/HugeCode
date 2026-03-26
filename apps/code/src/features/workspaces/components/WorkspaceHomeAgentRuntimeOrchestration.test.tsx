@@ -1859,7 +1859,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByText(/Review blocked: 1/)).toBeTruthy();
       expect(screen.getByText("Priority continuity queue")).toBeTruthy();
       expect(screen.getByText("Path: review via Runtime review actionability")).toBeTruthy();
-      expect(screen.getByText("Continue in: Review Pack")).toBeTruthy();
+      expect(screen.getByText("Continue in: Mission run")).toBeTruthy();
       expect(
         screen.getByText("Route target: Review Pack review-pack:runtime-review-blocked")
       ).toBeTruthy();

@@ -1,9 +1,12 @@
 export {
   checkDesktopForUpdates,
+  copyDesktopSupportSnapshot,
   consumeDesktopLaunchIntent,
   detectDesktopRuntimeHost,
   openDesktopExternalUrl,
+  openDesktopPath,
   resolveDesktopAppInfo,
+  resolveDesktopDiagnosticsInfo,
   resolveDesktopAppVersion,
   resolveDesktopSessionInfo,
   resolveDesktopUpdateState,
@@ -11,6 +14,8 @@ export {
   restartDesktopToApplyUpdate,
   revealDesktopItemInDir,
   showDesktopNotification,
+  subscribeDesktopUpdateState,
+  subscribeDesktopLaunchIntents,
 } from "./desktopHostFacade";
 export {
   applyBrowserRuntimeFlags,
@@ -35,6 +40,7 @@ export type {
 } from "./workspaceClientBindings";
 export type {
   DesktopExternalUrlFallbacks,
+  DesktopDiagnosticsFallbacks,
   DesktopItemRevealFallbacks,
   DesktopNotificationFallbacks,
   DesktopRuntimeDetectionInput,
