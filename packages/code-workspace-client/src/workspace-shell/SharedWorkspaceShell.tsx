@@ -93,9 +93,10 @@ function ReadinessSummary({
   onOpenFocusTarget: (target: ShellFocusTarget) => void;
   onNavigateSection: (section: (typeof shellSections)[number]["id"]) => void;
 }) {
-  const missionSummaryPending =
+  const missionSummaryHydrating =
     state.missionLoadState === "idle" || state.missionLoadState === "loading";
-  const statValue = (value: number) => (missionSummaryPending ? "..." : String(value));
+  const missionSummaryRefreshing = state.missionLoadState === "refreshing";
+  const statValue = (value: number) => (missionSummaryHydrating ? "..." : String(value));
   const operatorAction = useMemo(
     () =>
       deriveSharedWorkspaceOperatorAction({
@@ -104,6 +105,11 @@ function ReadinessSummary({
       }),
     [state.missionLoadState, state.missionSummary]
   );
+  const showHostStartupCard =
+    state.platformHint !== "web" ||
+    state.hostStartupStatus !== null ||
+    state.hostStartupLoadState === "loading" ||
+    state.hostStartupLoadState === "refreshing";
 
   return (
     <>
@@ -112,9 +118,11 @@ function ReadinessSummary({
           <p className={styles.kicker}>Mission control summary</p>
           <h2 className={styles.cardTitle}>{state.missionSummary.workspaceLabel}</h2>
           <p className={styles.body}>
-            {missionSummaryPending
+            {missionSummaryHydrating
               ? "Runtime summary is loading in the background so the shared shell can render immediately."
-              : "Runtime framing, launch readiness, and shared workspace routing stay aligned across desktop and web wrappers."}
+              : missionSummaryRefreshing
+                ? "Refreshing runtime summary while keeping the shared shell interactive."
+                : "Runtime framing, launch readiness, and shared workspace routing stay aligned across desktop and web wrappers."}
           </p>
         </div>
         <div className={styles.heroAside}>
@@ -210,6 +218,37 @@ function ReadinessSummary({
           </div>
           <p className={styles.body}>{state.missionSummary.continuityReadiness.detail}</p>
         </article>
+        {showHostStartupCard ? (
+          <article className={styles.card}>
+            <div className={styles.readinessHeader}>
+              <span
+                aria-hidden
+                className={`${styles.statusDot} ${
+                  styles.statusDotTone[
+                    state.hostStartupStatus?.tone ??
+                      (state.hostStartupLoadState === "error"
+                        ? "attention"
+                        : state.hostStartupLoadState === "loading" ||
+                            state.hostStartupLoadState === "refreshing"
+                          ? "idle"
+                          : "ready")
+                  ]
+                }`}
+              />
+              <span className={styles.readinessLabel}>
+                {state.hostStartupStatus?.label ?? "Desktop host"}
+              </span>
+            </div>
+            <p className={styles.body}>
+              {state.hostStartupLoadState === "idle" || state.hostStartupLoadState === "loading"
+                ? "Desktop host capabilities are hydrating after shell startup."
+                : state.hostStartupLoadState === "refreshing"
+                  ? "Refreshing desktop host startup status without blocking the shared shell."
+                  : (state.hostStartupStatus?.detail ??
+                    "Desktop host status is available once the shared shell finishes startup hydration.")}
+            </p>
+          </article>
+        ) : null}
       </section>
     </>
   );
@@ -222,6 +261,10 @@ function WorkspaceRosterSection({
   state: ReturnType<typeof useSharedWorkspaceShellState>;
   onSelectWorkspace: (workspaceId: string | null) => void;
 }) {
+  const workspaceRosterHydrating =
+    state.workspaceLoadState === "idle" || state.workspaceLoadState === "loading";
+  const workspaceRosterRefreshing = state.workspaceLoadState === "refreshing";
+
   return (
     <section className={styles.workspaceSection}>
       <div className={styles.sectionHeader}>
@@ -230,7 +273,11 @@ function WorkspaceRosterSection({
           <h2 className={styles.sectionTitle}>Browse the shared workspace roster</h2>
         </div>
         <p className={styles.sectionMeta}>
-          {state.workspaces.length} workspace{state.workspaces.length === 1 ? "" : "s"}
+          {workspaceRosterHydrating
+            ? "Hydrating workspace roster"
+            : workspaceRosterRefreshing
+              ? "Refreshing workspace roster"
+              : `${state.workspaces.length} workspace${state.workspaces.length === 1 ? "" : "s"}`}
         </p>
       </div>
       <div className={styles.workspaceGrid}>
@@ -310,8 +357,9 @@ function HomeOverviewSection({
   onOpenFocusTarget: (target: ShellFocusTarget) => void;
   onSelectWorkspace: (workspaceId: string | null) => void;
 }) {
-  const missionSummaryPending =
+  const missionSummaryHydrating =
     state.missionLoadState === "idle" || state.missionLoadState === "loading";
+  const missionSummaryRefreshing = state.missionLoadState === "refreshing";
   const topMissionItem = state.missionSummary.missionItems[0] ?? null;
   const topReviewItem = state.missionSummary.reviewItems[0] ?? null;
   const triageItems = useMemo(
@@ -378,11 +426,13 @@ function HomeOverviewSection({
         >
           <span className={styles.workspaceName}>Missions</span>
           <span className={styles.body}>
-            {missionSummaryPending
+            {missionSummaryHydrating
               ? "Runtime activity is loading in the background."
-              : topMissionItem
-                ? `${topMissionItem.statusLabel}: ${topMissionItem.title}`
-                : `${state.missionSummary.runsCount} runs, ${state.missionSummary.approvalCount} approvals pending.`}
+              : missionSummaryRefreshing
+                ? "Refreshing runtime activity while keeping the current shell summary visible."
+                : topMissionItem
+                  ? `${topMissionItem.statusLabel}: ${topMissionItem.title}`
+                  : `${state.missionSummary.runsCount} runs, ${state.missionSummary.approvalCount} approvals pending.`}
           </span>
         </button>
         <button
@@ -392,11 +442,13 @@ function HomeOverviewSection({
         >
           <span className={styles.workspaceName}>Review</span>
           <span className={styles.body}>
-            {missionSummaryPending
+            {missionSummaryHydrating
               ? "Review signals load after the shell becomes interactive."
-              : topReviewItem
-                ? `${topReviewItem.reviewStatusLabel}: ${topReviewItem.title}`
-                : `${state.missionSummary.reviewPacksCount} review packs published with shared status grammar.`}
+              : missionSummaryRefreshing
+                ? "Refreshing review signals while keeping the current queue visible."
+                : topReviewItem
+                  ? `${topReviewItem.reviewStatusLabel}: ${topReviewItem.title}`
+                  : `${state.missionSummary.reviewPacksCount} review packs published with shared status grammar.`}
           </span>
         </button>
         <button
@@ -415,12 +467,14 @@ function HomeOverviewSection({
             <h3 className={styles.activityTitle}>Operator triage</h3>
           </div>
           <p className={styles.sectionMeta}>
-            {missionSummaryPending
+            {missionSummaryHydrating
               ? "Hydrating mission and review priorities"
-              : "Blocked and attention items stay ahead of passive activity"}
+              : missionSummaryRefreshing
+                ? "Refreshing mission and review priorities"
+                : "Blocked and attention items stay ahead of passive activity"}
           </p>
         </div>
-        {missionSummaryPending ? (
+        {missionSummaryHydrating ? (
           <p className={styles.body}>
             Shared mission and review queues are still hydrating in the background.
           </p>
@@ -505,7 +559,11 @@ function MissionActivitySection({
           <p className={styles.kicker}>Missions</p>
           <h2 className={styles.sectionTitle}>Mission activity</h2>
         </div>
-        <p className={styles.sectionMeta}>Live runs, approvals, and continuity highlights</p>
+        <p className={styles.sectionMeta}>
+          {state.missionLoadState === "refreshing"
+            ? "Refreshing live runs while preserving the current mission list"
+            : "Live runs, approvals, and continuity highlights"}
+        </p>
       </div>
       <div className={styles.activityList}>
         {state.missionSummary.missionItems.map((item) => {
@@ -589,7 +647,11 @@ function ReviewQueueSection({
           <p className={styles.kicker}>Review</p>
           <h2 className={styles.sectionTitle}>Review queue</h2>
         </div>
-        <p className={styles.sectionMeta}>Review Packs remain the default finish line</p>
+        <p className={styles.sectionMeta}>
+          {state.missionLoadState === "refreshing"
+            ? "Refreshing review readiness while preserving the current queue"
+            : "Review Packs remain the default finish line"}
+        </p>
       </div>
       <div className={styles.activityList}>
         {state.missionSummary.reviewItems.map((item) => {
@@ -699,12 +761,29 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
         value: "__home__",
         label: "Home overview",
       },
+      ...(state.hasPendingWorkspaceSelection && state.activeWorkspaceId
+        ? [
+            {
+              value: state.activeWorkspaceId,
+              label:
+                state.workspaceLoadState === "refreshing"
+                  ? "Refreshing selected workspace..."
+                  : "Loading selected workspace...",
+              disabled: true,
+            },
+          ]
+        : []),
       ...state.workspaces.map((workspace) => ({
         value: workspace.id,
         label: workspace.name,
       })),
     ],
-    [state.workspaces]
+    [
+      state.activeWorkspaceId,
+      state.hasPendingWorkspaceSelection,
+      state.workspaceLoadState,
+      state.workspaces,
+    ]
   );
   const workspaceSelectValue = state.activeWorkspaceId ?? "__home__";
   const shellErrors = useMemo(
@@ -724,8 +803,15 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
               message: state.missionError,
             }
           : null,
+        state.hostStartupError
+          ? {
+              id: `host:${state.hostStartupError}`,
+              title: "Desktop host status unavailable",
+              message: state.hostStartupError,
+            }
+          : null,
       ].filter((error): error is { id: string; title: string; message: string } => error !== null),
-    [state.missionError, state.workspaceError]
+    [state.hostStartupError, state.missionError, state.workspaceError]
   );
   const visibleErrors = useMemo(
     () => shellErrors.filter((error) => !dismissedErrors.includes(error.id)),
@@ -755,6 +841,22 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
 
   const focusedMissionId = focusTarget?.section === "missions" ? focusTarget.itemId : null;
   const focusedReviewId = focusTarget?.section === "review" ? focusTarget.itemId : null;
+  const shellHydrating =
+    state.workspaceLoadState === "idle" ||
+    state.workspaceLoadState === "loading" ||
+    state.missionLoadState === "idle" ||
+    state.missionLoadState === "loading" ||
+    state.hostStartupLoadState === "idle" ||
+    state.hostStartupLoadState === "loading";
+  const shellRefreshing =
+    state.workspaceLoadState === "refreshing" ||
+    state.missionLoadState === "refreshing" ||
+    state.hostStartupLoadState === "refreshing";
+  const refreshLabel = shellHydrating
+    ? "Hydrating shell"
+    : shellRefreshing
+      ? "Refreshing shell"
+      : null;
 
   return (
     <div className={styles.shell} data-workspace-shell={state.platformHint}>
@@ -802,6 +904,11 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
           </div>
         </div>
         <div className={styles.headerActions}>
+          {refreshLabel ? (
+            <StatusBadge tone="progress" className={styles.runtimeBadge}>
+              {refreshLabel}
+            </StatusBadge>
+          ) : null}
           <StatusBadge tone="progress" className={styles.runtimeBadge}>
             {state.runtimeMode}
           </StatusBadge>
@@ -813,11 +920,13 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
             onClick={() => {
               void state.refreshWorkspaces();
               void state.refreshMissionSummary();
+              void state.refreshHostStartupStatus();
             }}
+            disabled={shellHydrating || shellRefreshing}
             type="button"
           >
             <RefreshCw aria-hidden size={16} />
-            Refresh
+            {shellHydrating || shellRefreshing ? "Refreshing..." : "Refresh"}
           </button>
           {state.accountHref ? (
             <a className={styles.subtleButton} href={state.accountHref}>

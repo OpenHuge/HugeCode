@@ -22,9 +22,11 @@ import type {
   DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopNotificationInput,
+  DesktopRuntimeHost,
   DesktopSessionInfo,
   DesktopUpdateState,
 } from "@ku0/code-platform-interfaces";
+import type { WorkspaceClientHostStartupStatus } from "@ku0/code-workspace-client/workspace-bindings";
 import { getDesktopHostBridge } from "../ports/desktopHostBridge";
 import {
   detectTauriRuntime,
@@ -95,6 +97,89 @@ export function subscribeToDesktopLaunchIntents(
 
 export async function resolveDesktopUpdaterState(): Promise<DesktopUpdateState> {
   return resolveDesktopUpdateState(getDesktopHostBridge());
+}
+
+function buildDesktopShellStartupStatus(input: {
+  runtimeHost: DesktopRuntimeHost;
+  updateState: DesktopUpdateState;
+}): WorkspaceClientHostStartupStatus | null {
+  const hostLabel =
+    input.runtimeHost === "electron"
+      ? "Electron host"
+      : input.runtimeHost === "tauri"
+        ? "Tauri host"
+        : null;
+
+  if (!hostLabel) {
+    return null;
+  }
+
+  if (input.updateState.capability === "automatic") {
+    if (
+      input.updateState.stage === "available" ||
+      input.updateState.stage === "downloading" ||
+      input.updateState.stage === "downloaded" ||
+      input.updateState.stage === "checking"
+    ) {
+      return {
+        tone: "attention",
+        label: `${hostLabel} update active`,
+        detail:
+          input.updateState.message ??
+          "Desktop update checks are active while the shell stays interactive.",
+      };
+    }
+
+    if (input.updateState.stage === "error") {
+      return {
+        tone: "attention",
+        label: `${hostLabel} update attention`,
+        detail: input.updateState.error ?? "The desktop updater reported an error.",
+      };
+    }
+
+    return {
+      tone: "ready",
+      label: `${hostLabel} ready`,
+      detail:
+        input.updateState.message ??
+        "Desktop startup completed and automatic update capability is available.",
+    };
+  }
+
+  if (
+    input.updateState.mode === "misconfigured" ||
+    input.updateState.mode === "disabled_first_run_lock"
+  ) {
+    return {
+      tone: "blocked",
+      label: `${hostLabel} startup blocked`,
+      detail:
+        input.updateState.message ??
+        "Resolve desktop updater configuration before relying on this host for managed updates.",
+    };
+  }
+
+  return {
+    tone: "attention",
+    label: `${hostLabel} manual updates`,
+    detail:
+      input.updateState.message ??
+      "Desktop startup completed, but this host requires manual update handling.",
+  };
+}
+
+export async function resolveDesktopShellStartupStatus(): Promise<WorkspaceClientHostStartupStatus | null> {
+  const runtimeHost = await detectDesktopRuntimeHost();
+  if (runtimeHost !== "electron" && runtimeHost !== "tauri") {
+    return null;
+  }
+
+  const updateState = await resolveDesktopUpdaterState();
+  return buildDesktopShellStartupStatus({
+    runtimeHost,
+    updateState,
+  });
 }
 
 export async function checkForDesktopUpdates(): Promise<DesktopUpdateState> {
