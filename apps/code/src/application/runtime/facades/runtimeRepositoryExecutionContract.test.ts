@@ -5,8 +5,8 @@ import * as runtimeClientPort from "../ports/runtimeClient";
 import {
   parseRepositoryExecutionContract,
   readRepositoryExecutionContract,
-  resolveRepositoryExecutionDefaults,
 } from "./runtimeRepositoryExecutionContract";
+import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
 
 function createContract() {
   return parseRepositoryExecutionContract(

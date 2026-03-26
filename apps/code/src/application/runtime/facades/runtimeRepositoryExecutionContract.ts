@@ -529,4 +529,3 @@ export {
   type RepositoryExecutionContractPolicy,
   type SupportedRepositoryTaskSourceKind,
 };
-export { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
