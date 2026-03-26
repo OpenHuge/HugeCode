@@ -295,7 +295,7 @@ function toContextDescriptorOptions(options?: {
   activeModelContext?: WebMcpSyncOptions["activeModelContext"];
   toolExposureDecision?: {
     provider: string;
-    mode: "full" | "slim";
+    mode: "minimal" | "full" | "slim";
     visibleToolNames: string[];
     hiddenToolNames: string[];
     reasonCodes: string[];

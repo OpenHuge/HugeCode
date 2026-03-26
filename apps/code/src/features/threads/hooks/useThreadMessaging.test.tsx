@@ -2,10 +2,12 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { prepareRuntimeRunV2 as prepareRuntimeRunV2Service } from "../../../application/runtime/ports/tauriRuntimeJobs";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type { WorkspaceInfo } from "../../../types";
 import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
 import { recordSentryMetric } from "../../shared/sentry";
+import type { ThreadCodexParams } from "../utils/threadStorage";
 import { useThreadMessaging } from "./useThreadMessaging";
 
 const runtimeSessionCommandMocks = vi.hoisted(() => ({
@@ -52,6 +54,9 @@ vi.mock("../../shared/productAnalytics", () => ({
   trackProductAnalyticsEvent: vi.fn(async () => undefined),
 }));
 
+vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
+  prepareRuntimeRunV2: vi.fn(),
+}));
 vi.mock("../../../application/runtime/ports/toasts", () => ({
   pushErrorToast: vi.fn(),
 }));
@@ -153,6 +158,9 @@ describe("useThreadMessaging telemetry", () => {
     );
     vi.mocked(listMcpServerStatusService).mockResolvedValue(
       {} as Awaited<ReturnType<typeof listMcpServerStatusService>>
+    );
+    vi.mocked(prepareRuntimeRunV2Service).mockRejectedValue(
+      new Error("runtime context unavailable")
     );
     vi.mocked(compactThreadService).mockResolvedValue(
       {} as Awaited<ReturnType<typeof compactThreadService>>
@@ -442,7 +450,7 @@ describe("useThreadMessaging telemetry", () => {
       await result.current.sendUserMessageToThread(workspace, "thread-1", "hello", []);
     });
 
-    expect(recordSentryMetric).toHaveBeenCalledTimes(1);
+    expect(recordSentryMetric).toHaveBeenCalledTimes(2);
     expect(recordSentryMetric).toHaveBeenCalledWith(
       "prompt_sent",
       1,
@@ -694,7 +702,9 @@ describe("useThreadMessaging telemetry", () => {
   });
 
   it("forwards enabled autodrive draft into the runtime turn payload", async () => {
-    const getThreadCodexParams = vi.fn(() => ({
+    const getThreadCodexParams = vi.fn<
+      (workspaceId: string, threadId: string) => ThreadCodexParams | null
+    >(() => ({
       modelId: null,
       effort: null,
       fastMode: null,
@@ -1445,6 +1455,165 @@ describe("useThreadMessaging telemetry", () => {
     );
   });
 
+  it("prefers runtime-owned context prefixes when runtime prepare succeeds", async () => {
+    vi.mocked(prepareRuntimeRunV2Service).mockResolvedValue({
+      preparedAt: 1_700_000_000_000,
+      runIntent: {
+        title: "hello",
+        objective: "hello",
+        summary: "runtime plan",
+        taskSource: null,
+        accessMode: "on-request",
+        executionMode: "single",
+        executionProfileId: null,
+        reviewProfileId: null,
+        validationPresetId: null,
+        preferredBackendIds: [],
+        requiredCapabilities: [],
+        riskLevel: "low",
+        clarified: true,
+        missingContext: [],
+      },
+      contextWorkingSet: {
+        summary: "Runtime prepared a compact working set.",
+        workspaceRoot: "/tmp/workspace",
+        selectionPolicy: {
+          strategy: "balanced",
+          tokenBudgetTarget: 1500,
+          toolExposureProfile: "slim",
+          preferColdFetch: true,
+        },
+        contextFingerprint: "work-123",
+        stablePrefixFingerprint: "stable-123",
+        layers: [
+          {
+            tier: "hot",
+            summary: "Immediate context",
+            entries: [
+              {
+                id: "workspace-root",
+                label: "Workspace root",
+                kind: "workspace",
+                detail: "/tmp/workspace",
+                source: "/tmp/workspace",
+              },
+            ],
+          },
+        ],
+      },
+      executionGraph: {
+        graphId: "graph-1",
+        summary: "graph",
+        nodes: [],
+      },
+      approvalBatches: [],
+      validationPlan: {
+        required: false,
+        summary: "none",
+        commands: [],
+      },
+      reviewFocus: [],
+      autonomyProfile: "night_operator",
+      wakePolicy: {
+        mode: "auto_queue",
+        safeFollowUp: true,
+        allowAutomaticContinuation: true,
+        allowedActions: ["continue"],
+        stopGates: [],
+        queueBudget: null,
+      },
+      intentSnapshot: {
+        summary: "intent",
+        primaryGoal: "hello",
+        dominantDirection: "hello",
+        confidence: "high",
+        signals: [],
+      },
+      opportunityQueue: {
+        selectedOpportunityId: null,
+        selectionSummary: "none",
+        candidates: [],
+      },
+      researchTrace: {
+        mode: "repository_only",
+        stage: "repository",
+        summary: "repo only",
+        citations: [],
+        sensitiveContextMixed: false,
+      },
+      executionEligibility: {
+        eligible: true,
+        summary: "ready",
+        wakeState: "ready",
+        nextEligibleAction: "continue",
+        blockingReasons: [],
+      },
+      wakePolicySummary: {
+        summary: "summary",
+        safeFollowUp: true,
+        allowedActions: ["continue"],
+        queueBudget: null,
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "on-request",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => "Thread title"),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      await result.current.sendUserMessageToThread(workspace, "thread-1", "hello", []);
+    });
+
+    expect(prepareRuntimeRunV2Service).toHaveBeenCalled();
+    expect(recordSentryMetric).toHaveBeenCalledWith(
+      "runtime_context_prepare",
+      1,
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          result: "runtime",
+          strategy: "balanced",
+          tool_profile: "slim",
+        }),
+      })
+    );
+    expect(sendUserMessageService).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "hello",
+      expect.objectContaining({
+        contextPrefix: expect.stringContaining("[RUNTIME_CONTEXT v2]"),
+      })
+    );
+  });
+
   it("injects atlas long-term memory digest when atlas resolver provides it", async () => {
     const { result } = renderHook(() =>
       useThreadMessaging({
@@ -1497,6 +1666,24 @@ describe("useThreadMessaging telemetry", () => {
       "hello",
       expect.objectContaining({
         contextPrefix: expect.stringContaining("Memory digest"),
+      })
+    );
+    expect(recordSentryMetric).toHaveBeenCalledWith(
+      "runtime_context_prepare",
+      1,
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          result: "fallback",
+        }),
+      })
+    );
+    expect(recordSentryMetric).toHaveBeenCalledWith(
+      "runtime_context_prepare",
+      1,
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          result: "atlas_fallback",
+        }),
       })
     );
   });

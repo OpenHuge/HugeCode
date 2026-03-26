@@ -16,7 +16,7 @@ import type {
 
 export type WebMcpToolExposureDecision = {
   provider: string;
-  mode: "full" | "slim";
+  mode: "minimal" | "slim" | "full";
   visibleToolNames: string[];
   hiddenToolNames: string[];
   reasonCodes: string[];
@@ -31,6 +31,8 @@ type WebMcpSyncResultOptions = {
   registeredTools?: number;
   registeredResources?: number;
   registeredPrompts?: number;
+  toolExposureMode?: WebMcpToolExposureDecision["mode"] | null;
+  toolExposureReasonCodes?: string[];
 };
 
 type WebMcpContextDescriptorOptions = {
@@ -73,6 +75,7 @@ export type WebMcpAgentControlSyncOptions<
   snapshot: TSnapshot;
   actions: TActions;
   activeModelContext?: WebMcpActiveModelContext | null;
+  toolExposureProfile?: "minimal" | "slim" | "full" | null;
   runtimeControl?: TRuntimeControl | null;
   responseRequiredState?: TResponseRequiredState;
   onApprovalRequest?: (message: string) => Promise<boolean>;
@@ -91,6 +94,7 @@ export type WebMcpAgentControlSyncOptions<
   resolveToolExposurePolicy: (input: {
     provider?: string | null;
     modelId?: string | null;
+    toolExposureProfile?: "minimal" | "slim" | "full" | null;
     toolNames: string[];
     runtimeToolNames?: readonly string[];
   }) => WebMcpToolExposureDecision;
@@ -197,6 +201,8 @@ function createWebMcpSyncResult(options: WebMcpSyncResultOptions): WebMcpSyncRes
     registeredTools: options.registeredTools ?? 0,
     registeredResources: options.registeredResources ?? 0,
     registeredPrompts: options.registeredPrompts ?? 0,
+    toolExposureMode: options.toolExposureMode ?? null,
+    toolExposureReasonCodes: options.toolExposureReasonCodes ?? [],
     capabilities: options.capabilities,
     error: options.error,
   };
@@ -274,6 +280,7 @@ export async function syncWebMcpAgentControl<
   const toolExposureDecision = options.resolveToolExposurePolicy({
     provider: options.activeModelContext?.provider ?? null,
     modelId: options.activeModelContext?.modelId ?? null,
+    toolExposureProfile: options.toolExposureProfile ?? null,
     toolNames: allTools.map((tool) => tool.name),
     runtimeToolNames: options.runtimeToolNames,
   });
@@ -304,6 +311,8 @@ export async function syncWebMcpAgentControl<
         registeredTools: tools.length,
         registeredResources: resources.length,
         registeredPrompts: prompts.length,
+        toolExposureMode: toolExposureDecision.mode,
+        toolExposureReasonCodes: toolExposureDecision.reasonCodes,
         capabilities,
         error: null,
       });
@@ -337,6 +346,8 @@ export async function syncWebMcpAgentControl<
         registeredTools: tools.length,
         registeredResources: resources.length,
         registeredPrompts: prompts.length,
+        toolExposureMode: toolExposureDecision.mode,
+        toolExposureReasonCodes: toolExposureDecision.reasonCodes,
         capabilities,
         error: null,
       });
