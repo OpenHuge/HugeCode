@@ -65,6 +65,7 @@ Public workflow entrypoints currently include:
 - `.github/workflows/ci.yml`
 - `.github/workflows/codeql.yml`
 - `.github/workflows/codex-nightly.yml`
+- `.github/workflows/dependency-review.yml`
 - `.github/workflows/dependabot-auto-merge.yml`
 - `.github/workflows/desktop.yml`
 - `.github/workflows/electron-beta.yml`
@@ -85,6 +86,9 @@ Public workflow entrypoints currently include:
 - Shared Node/pnpm bootstrap should stay lockfile-first: prefetch with `pnpm fetch --frozen-lockfile`, then install with `pnpm install --offline --frozen-lockfile` unless a workflow has a documented reason to require a different install path.
 - PR workflow gates may classify manifest-only dependency bumps before deciding whether expensive desktop or frontend lanes are needed; keep that classification script-backed and explicit instead of scattering ad hoc shell heuristics across workflows.
 - Low-risk Dependabot development-version bumps may skip the expensive affected build/test lane when the remaining quality, frontend, or desktop gates already cover the touched risk surface.
+- `dependency-review.yml` should stay as the PR-time supply-chain gate for newly introduced vulnerable dependencies, with repo-owned policy living in `.github/dependency-review-config.yml`.
+- `release.yml` should stay on the staged hybrid npm path until npm trusted publisher setup is complete: keep `id-token: write` and provenance enabled in GitHub Actions, but retain token auth as the temporary fallback release path.
+- Public npm packages should publish with repo-owned `repository` metadata and `publishConfig.provenance: true` so npm provenance resolves back to the correct package directory in this monorepo.
 - CodeQL remains a required security guardrail, but its language lanes should be scoped to the languages actually touched by the change so npm-only updates do not queue Rust analysis and Rust-only updates do not queue JavaScript analysis.
 - When a required workflow lane is intentionally idle, prefer a fast explicit skip inside the job over removing the check name entirely; this keeps branch protection stable while still reducing runner time.
 - The shared `Quality` lane should reserve global governance checks for `repo_sot`-class changes. On normal product PRs, only run `ui:contract`, `check:circular`, and code-integration watch when their owned surfaces changed.
@@ -109,5 +113,6 @@ Public workflow entrypoints currently include:
 - Repo-governance-only pull requests should keep repository governance and required workflow visibility, but they should not wake up product-facing `Quality`, `frontend_optimization`, affected-build/test execution, or Tauri desktop builds when no product-owned surface changed.
 - Public desktop, electron, and CodeQL workflows may still trigger for workflow-governance edits so syntax and required check names stay visible, but workflow-only changes should fast-skip heavyweight packaging or language-analysis lanes unless the owned product or build-runtime surfaces changed.
 - Dependabot auto-merge must stay selective: only low-risk grouped updates such as `devcontainers-safe` and `github-actions-safe` should auto-enable merge after checks pass; runtime, frontend, and Rust dependency bumps remain manual-review lanes.
+- Cross-directory Rust updates should prefer Dependabot `group-by: dependency-name` so the same crate bump lands in one PR across monorepo manifests instead of fan-out duplicates.
 - Auto-merge for non-Dependabot PRs should stay repo-branch-only and review-gated; the default path is "approved with no unresolved conversations means `gh pr merge --auto` is enabled unless the PR carries the opt-out `manual-merge` label."
 - npm Dependabot updates should prefer grouped low-risk development-version bumps to reduce queue pressure and redundant CI fan-out, while keeping higher-risk dependency changes in manual-review lanes.

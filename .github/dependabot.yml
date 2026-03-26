@@ -59,100 +59,30 @@ updates:
       - "dependencies"
 
   - package-ecosystem: "cargo"
-    directory: /apps/code-tauri/src-tauri
+    directories:
+      - /apps/code-tauri/src-tauri
+      - /internal/runtime-policy-rs
+      - /packages/code-runtime-service-rs
+      - /packages/discovery-rs
+      - /packages/model-fabric-rs
+      - /packages/runtime-diagnostics-export-core-rs
+      - /packages/runtime-shell-core-rs
+      - /packages/sandbox-rs
+      - /packages/tokenizer-rs/native
     schedule:
       interval: "weekly"
       day: "tuesday"
       time: "05:00"
       timezone: "UTC"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-
-  - package-ecosystem: "cargo"
-    directory: /packages/code-runtime-service-rs
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
-      time: "05:00"
-      timezone: "UTC"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-
-  - package-ecosystem: "cargo"
-    directory: /internal/runtime-policy-rs
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
-      time: "05:00"
-      timezone: "UTC"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-
-  - package-ecosystem: "cargo"
-    directory: /packages/discovery-rs
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
-      time: "05:00"
-      timezone: "UTC"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-
-  - package-ecosystem: "cargo"
-    directory: /packages/json-accel-rs/native
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
-      time: "05:00"
-      timezone: "UTC"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-
-  - package-ecosystem: "cargo"
-    directory: /packages/model-fabric-rs
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
-      time: "05:00"
-      timezone: "UTC"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-
-  - package-ecosystem: "cargo"
-    directory: /packages/runtime-diagnostics-export-core-rs
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
-      time: "05:00"
-      timezone: "UTC"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-
-  - package-ecosystem: "cargo"
-    directory: /packages/sandbox-rs
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
-      time: "05:00"
-      timezone: "UTC"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-
-  - package-ecosystem: "cargo"
-    directory: /packages/tokenizer-rs/native
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
-      time: "05:00"
-      timezone: "UTC"
-    open-pull-requests-limit: 5
+    groups:
+      cargo-cross-dir-safe:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        group-by: dependency-name
+        update-types:
+          - "minor"
+          - "patch"
     labels:
       - "dependencies"

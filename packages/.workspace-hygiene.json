@@ -1,0 +1,12 @@
+{
+  "topLevelDirectories": {
+    "tokenizer-rs": {
+      "kind": "native-container",
+      "status": "active"
+    },
+    "x-router-service": {
+      "kind": "incubating-shell",
+      "status": "incubating"
+    }
+  }
+}

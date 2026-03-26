@@ -15,6 +15,7 @@ const ARTIFACT_DIR_NAMES = new Set([
 const ARTIFACT_FILE_NAMES = new Set(["Cargo.lock", "tsconfig.tsbuildinfo"]);
 const IGNORED_TOP_LEVEL_DIR_NAMES = new Set(["skills"]);
 const README_FILE_NAMES = ["README.md", "readme.md"];
+const WORKSPACE_HYGIENE_CONFIG_RELATIVE_PATH = "packages/.workspace-hygiene.json";
 const CARGO_SCAN_IGNORED_DIR_NAMES = new Set([
   ...ARTIFACT_DIR_NAMES,
   ".git",
@@ -53,6 +54,14 @@ function hasPackageJson(absolutePath) {
  */
 function hasCargoToml(absolutePath) {
   return exists(path.join(absolutePath, "Cargo.toml"));
+}
+
+/**
+ * @param {string} absolutePath
+ * @returns {boolean}
+ */
+function hasReadmeFile(absolutePath) {
+  return README_FILE_NAMES.some((fileName) => exists(path.join(absolutePath, fileName)));
 }
 
 /**
@@ -215,12 +224,35 @@ function summarizeValues(values, maxItems = 4) {
 }
 
 /**
+ * @param {string} repoRoot
+ * @returns {{topLevelDirectories: Record<string, {kind?: string; status?: string}>}}
+ */
+function loadWorkspaceHygieneConfig(repoRoot) {
+  const absolutePath = path.join(repoRoot, WORKSPACE_HYGIENE_CONFIG_RELATIVE_PATH);
+  if (!exists(absolutePath)) {
+    return { topLevelDirectories: {} };
+  }
+
+  const parsed = JSON.parse(fs.readFileSync(absolutePath, "utf8"));
+  const topLevelDirectories =
+    parsed && typeof parsed === "object" && parsed.topLevelDirectories
+      ? parsed.topLevelDirectories
+      : {};
+
+  return {
+    topLevelDirectories:
+      topLevelDirectories && typeof topLevelDirectories === "object" ? topLevelDirectories : {},
+  };
+}
+
+/**
  * @returns {{
  *   workspacePackageDirs: string[];
  *   containerDirs: Array<{dir: string; nestedPackageDirs: string[]; unresolvedChildren: string[]}>;
  *   orphanCargoCrates: string[];
  *   staleArtifactDirs: string[];
  *   unresolvedTopLevelDirs: string[];
+ *   declaredTopLevelDirsMissingReadme: string[];
  *   publicPackagesMissingReadme: string[];
  *   publicPackagesMissingTest: string[];
  * }}
@@ -232,6 +264,7 @@ function createEmptyPackagesWorkspaceHygieneReport() {
     orphanCargoCrates: [],
     staleArtifactDirs: [],
     unresolvedTopLevelDirs: [],
+    declaredTopLevelDirsMissingReadme: [],
     publicPackagesMissingReadme: [],
     publicPackagesMissingTest: [],
   };
@@ -283,11 +316,13 @@ function collectPublicPackageGaps(repoRoot, workspacePackageDirs) {
  * @param {string} packagesRoot
  * @param {string} topLevelName
  * @param {Set<string>} workspacePackageDirSet
+ * @param {Record<string, {kind?: string; status?: string}>} declaredTopLevelDirs
  * @returns {{
  *   container?: {dir: string; nestedPackageDirs: string[]; unresolvedChildren: string[]};
  *   orphanCargoCrate?: string;
  *   staleArtifactDir?: string;
  *   unresolvedTopLevelDir?: string;
+ *   declaredTopLevelDirMissingReadme?: string;
  * } | null}
  */
 function classifyTopLevelPackagesEntry(
@@ -295,7 +330,8 @@ function classifyTopLevelPackagesEntry(
   packagesRoot,
   topLevelName,
   workspacePackageDirSet,
-  referencedCargoPathDirSet
+  referencedCargoPathDirSet,
+  declaredTopLevelDirs
 ) {
   if (IGNORED_TOP_LEVEL_DIR_NAMES.has(topLevelName)) {
     return null;
@@ -303,6 +339,7 @@ function classifyTopLevelPackagesEntry(
 
   const absoluteDir = path.join(packagesRoot, topLevelName);
   const relativeDir = toRepoPath(path.relative(repoRoot, absoluteDir));
+  const declaredTopLevelDir = declaredTopLevelDirs[topLevelName] ?? null;
   if (hasPackageJson(absoluteDir)) {
     return null;
   }
@@ -340,6 +377,14 @@ function classifyTopLevelPackagesEntry(
     return { staleArtifactDir: relativeDir };
   }
 
+  if (declaredTopLevelDir) {
+    if (!hasReadmeFile(absoluteDir)) {
+      return { declaredTopLevelDirMissingReadme: relativeDir };
+    }
+
+    return null;
+  }
+
   return { unresolvedTopLevelDir: relativeDir };
 }
 
@@ -351,6 +396,7 @@ function classifyTopLevelPackagesEntry(
  *   orphanCargoCrates: string[];
  *   staleArtifactDirs: string[];
  *   unresolvedTopLevelDirs: string[];
+ *   declaredTopLevelDirsMissingReadme: string[];
  *   publicPackagesMissingReadme: string[];
  *   publicPackagesMissingTest: string[];
  * }}
@@ -364,6 +410,7 @@ export function collectPackagesWorkspaceHygiene(repoRoot) {
   const workspacePackageDirs = collectWorkspacePackageDirs(repoRoot, packagesRoot);
   const workspacePackageDirSet = new Set(workspacePackageDirs);
   const referencedCargoPathDirSet = collectReferencedCargoPathDirs(repoRoot);
+  const workspaceHygieneConfig = loadWorkspaceHygieneConfig(repoRoot);
   /** @type {Array<{dir: string; nestedPackageDirs: string[]; unresolvedChildren: string[]}>} */
   const containerDirs = [];
   /** @type {string[]} */
@@ -372,6 +419,8 @@ export function collectPackagesWorkspaceHygiene(repoRoot) {
   const staleArtifactDirs = [];
   /** @type {string[]} */
   const unresolvedTopLevelDirs = [];
+  /** @type {string[]} */
+  const declaredTopLevelDirsMissingReadme = [];
   const publicPackageGaps = collectPublicPackageGaps(repoRoot, workspacePackageDirs);
 
   for (const topLevelName of listChildDirectories(packagesRoot)) {
@@ -380,7 +429,8 @@ export function collectPackagesWorkspaceHygiene(repoRoot) {
       packagesRoot,
       topLevelName,
       workspacePackageDirSet,
-      referencedCargoPathDirSet
+      referencedCargoPathDirSet,
+      workspaceHygieneConfig.topLevelDirectories
     );
     if (classification === null) {
       continue;
@@ -397,6 +447,9 @@ export function collectPackagesWorkspaceHygiene(repoRoot) {
     if (classification.unresolvedTopLevelDir) {
       unresolvedTopLevelDirs.push(classification.unresolvedTopLevelDir);
     }
+    if (classification.declaredTopLevelDirMissingReadme) {
+      declaredTopLevelDirsMissingReadme.push(classification.declaredTopLevelDirMissingReadme);
+    }
   }
 
   return {
@@ -405,6 +458,7 @@ export function collectPackagesWorkspaceHygiene(repoRoot) {
     orphanCargoCrates: orphanCargoCrates.sort(),
     staleArtifactDirs: staleArtifactDirs.sort(),
     unresolvedTopLevelDirs: unresolvedTopLevelDirs.sort(),
+    declaredTopLevelDirsMissingReadme: declaredTopLevelDirsMissingReadme.sort(),
     publicPackagesMissingReadme: publicPackageGaps.publicPackagesMissingReadme,
     publicPackagesMissingTest: publicPackageGaps.publicPackagesMissingTest,
   };
@@ -439,6 +493,11 @@ export function summarizePackagesWorkspaceHygiene(report) {
   if (report.unresolvedTopLevelDirs.length > 0) {
     parts.push(
       `unresolved dirs=${report.unresolvedTopLevelDirs.length} (${summarizeValues(report.unresolvedTopLevelDirs)})`
+    );
+  }
+  if (report.declaredTopLevelDirsMissingReadme.length > 0) {
+    parts.push(
+      `declared dirs missing README=${report.declaredTopLevelDirsMissingReadme.length} (${summarizeValues(report.declaredTopLevelDirsMissingReadme)})`
     );
   }
   if (report.publicPackagesMissingReadme.length > 0) {
