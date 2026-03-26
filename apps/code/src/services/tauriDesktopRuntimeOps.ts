@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  AppSettings,
   BackendPoolBootstrapPreview,
   BackendPoolDiagnostics,
   BackendPoolOnboardingPreflight,
@@ -30,16 +29,8 @@ function parseCodexArgs(value: string | null): string[] | null {
   return parsed.length > 0 ? parsed : null;
 }
 
-export async function getAppSettings(): Promise<AppSettings> {
-  return invoke<AppSettings>("get_app_settings");
-}
-
 export async function isMobileRuntime(): Promise<boolean> {
   return invoke<boolean>("is_mobile_runtime");
-}
-
-export async function updateAppSettings(settings: AppSettings): Promise<AppSettings> {
-  return invoke<AppSettings>("update_app_settings", { settings });
 }
 
 export async function orbitConnectTest(): Promise<OrbitConnectTestResult> {

@@ -46,6 +46,8 @@ describe("code runtime rpc method consistency", () => {
   it("includes runtime kernel v2 methods in the canonical method list", () => {
     expect(CODE_RUNTIME_RPC_METHOD_LIST).toEqual(
       expect.arrayContaining([
+        CODE_RUNTIME_RPC_METHODS.TEXT_FILE_READ_V1,
+        CODE_RUNTIME_RPC_METHODS.TEXT_FILE_WRITE_V1,
         CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2,
         CODE_RUNTIME_RPC_METHODS.RUN_START_V2,
         CODE_RUNTIME_RPC_METHODS.RUN_GET_V2,

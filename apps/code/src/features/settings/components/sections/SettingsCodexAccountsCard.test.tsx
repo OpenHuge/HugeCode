@@ -714,17 +714,25 @@ describe("SettingsCodexAccountsCard", () => {
   });
 
   it(
-    "refreshes when oauth popup posts success message",
+    "queues a refresh when oauth popup posts success during an in-flight refresh",
     async () => {
+      let resolveAccounts: ((value: Awaited<ReturnType<typeof listOAuthAccounts>>) => void) | null =
+        null;
+      const firstAccounts = new Promise<Awaited<ReturnType<typeof listOAuthAccounts>>>(
+        (resolve) => {
+          resolveAccounts = resolve;
+        }
+      );
+      listOAuthAccountsMock.mockImplementationOnce(() => firstAccounts).mockResolvedValue([]);
+      listOAuthPoolsMock.mockResolvedValue([]);
       setActiveOauthPopupLoginId("login-popup-1");
+
       render(<SettingsCodexAccountsCard />);
 
       await waitFor(() => {
-        expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
-        expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+        expect(listOAuthAccountsMock).toHaveBeenCalledTimes(1);
+        expect(listOAuthPoolsMock).toHaveBeenCalledTimes(0);
       });
-      const accountCallsBeforePopup = listOAuthAccountsMock.mock.calls.length;
-      const poolCallsBeforePopup = listOAuthPoolsMock.mock.calls.length;
 
       await flushEffectTurn();
 
@@ -737,13 +745,16 @@ describe("SettingsCodexAccountsCard", () => {
         );
       });
 
-      await waitFor(
-        () => {
-          expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThan(accountCallsBeforePopup);
-          expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThan(poolCallsBeforePopup);
-        },
-        { timeout: SETTINGS_CODEX_ACCOUNTS_ASYNC_TIMEOUT_MS }
-      );
+      expect(readActiveOauthPopupLoginId()).toBeNull();
+
+      await act(async () => {
+        resolveAccounts?.([]);
+      });
+
+      await waitFor(() => {
+        expect(listOAuthAccountsMock).toHaveBeenCalledTimes(2);
+        expect(listOAuthPoolsMock).toHaveBeenCalledTimes(2);
+      });
     },
     SETTINGS_CODEX_ACCOUNTS_TEST_TIMEOUT_MS
   );
