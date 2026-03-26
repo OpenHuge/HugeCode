@@ -1,5 +1,6 @@
 import type {
   DesktopAppInfo,
+  DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopNotificationInput,
   DesktopUpdateState,
@@ -33,11 +34,14 @@ type UpdaterController = {
 
 export type CreateDesktopHostHandlersInput = {
   appVersion: string | null;
+  copySupportSnapshot(): boolean;
   consumePendingLaunchIntent(): DesktopLaunchIntent | null;
   getAppInfo(): DesktopAppInfo;
+  getDiagnosticsInfo(): DesktopDiagnosticsInfo;
   listRecentSessions(): unknown[];
   notificationController: NotificationController;
   openExternalUrl(url: string): Promise<boolean> | boolean;
+  openPath(path: string): Promise<boolean> | boolean;
   persistTrayEnabled(enabled: boolean): void;
   revealItemInDir(path: string): Promise<boolean> | boolean;
   trayController: TrayController;
@@ -51,12 +55,18 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
       return input.updaterController.checkForUpdates();
     },
     closeWindow: input.windowController.closeWindow,
+    copySupportSnapshot() {
+      return input.copySupportSnapshot();
+    },
     consumePendingLaunchIntent() {
       return input.consumePendingLaunchIntent();
     },
     focusWindow: input.windowController.focusWindow,
     getAppInfo() {
       return input.getAppInfo();
+    },
+    getDiagnosticsInfo() {
+      return input.getDiagnosticsInfo();
     },
     getAppVersion() {
       return input.appVersion;
@@ -78,6 +88,7 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
     },
     listWindows: input.windowController.listWindows,
     openExternalUrl: input.openExternalUrl,
+    openPath: input.openPath,
     openWindow: input.windowController.openWindow,
     reopenSession: input.windowController.reopenSession,
     revealItemInDir: input.revealItemInDir,
