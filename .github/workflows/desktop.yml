@@ -131,7 +131,7 @@ jobs:
   prepare-frontend:
     name: Prepare frontend dist
     needs: changes
-    if: needs.changes.outputs.desktop_required == 'true'
+    if: needs.changes.outputs.desktop_required == 'true' && (github.event_name != 'pull_request' || needs.changes.outputs.desktop_full_pr_matrix_required == 'true')
     uses: ./.github/workflows/_reusable-desktop-prepare-frontend.yml
     secrets: inherit
     with:
@@ -140,7 +140,7 @@ jobs:
   build-pr-fast:
     name: Build PR (${{ matrix.name }})
     if: github.event_name == 'pull_request' && needs.changes.outputs.desktop_required == 'true' && needs.changes.outputs.desktop_full_pr_matrix_required != 'true'
-    needs: [changes, prepare-frontend]
+    needs: [changes]
     strategy:
       fail-fast: false
       matrix:
@@ -159,6 +159,8 @@ jobs:
       cargo_cache_key: ${{ matrix.id }}
       enable_sccache: ${{ matrix.enable_sccache }}
       host_check_command: ${{ matrix.host_check_command }}
+      prebuild_mode: auto
+      restore_frontend_artifact: "false"
 
   build-pr-full:
     name: Build PR (${{ matrix.name }})
