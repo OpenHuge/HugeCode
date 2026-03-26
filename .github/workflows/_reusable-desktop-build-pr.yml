@@ -20,6 +20,14 @@ on:
         required: false
         type: string
         default: ""
+      prebuild_mode:
+        required: false
+        type: string
+        default: "skip"
+      restore_frontend_artifact:
+        required: false
+        type: string
+        default: "true"
 
 jobs:
   build_pr:
@@ -37,6 +45,7 @@ jobs:
           targets: ${{ inputs.rust_target }}
           enable-sccache: ${{ inputs.enable_sccache }}
           cargo-cache-key: ${{ inputs.cargo_cache_key }}
+          restore-artifact: ${{ inputs.restore_frontend_artifact }}
 
       - name: Run platform host checks
         if: ${{ inputs.host_check_command != '' }}
@@ -49,6 +58,14 @@ jobs:
       - name: Run desktop smoke tests
         if: contains(inputs.rust_target, 'windows')
         run: pnpm test:desktop:smoke
+
+      - name: Prepare frontend dist locally
+        if: ${{ inputs.prebuild_mode != 'skip' }}
+        env:
+          DESKTOP_PREBUILD_MODE: ${{ inputs.prebuild_mode }}
+        run: |
+          echo "desktop prebuild=${DESKTOP_PREBUILD_MODE}"
+          pnpm desktop:prepare
 
       - name: Build Tauri app (fast verify)
         env:
