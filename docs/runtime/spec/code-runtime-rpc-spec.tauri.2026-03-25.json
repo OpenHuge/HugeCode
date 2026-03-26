@@ -177,6 +177,8 @@
       "code_settings_summary",
       "code_app_settings_get",
       "code_app_settings_update",
+      "code_text_file_read_v1",
+      "code_text_file_write_v1",
       "code_remote_status",
       "code_terminal_status",
       "code_models_pool",
