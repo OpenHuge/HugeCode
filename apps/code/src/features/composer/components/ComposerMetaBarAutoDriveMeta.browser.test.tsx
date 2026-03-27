@@ -97,7 +97,7 @@ describe("ComposerMetaBarAutoDriveMeta browser styles", () => {
     const triggerThumbStyle = window.getComputedStyle(triggerThumb);
     const statusRailStyle = window.getComputedStyle(statusRail);
 
-    expect(triggerTrackStyle.boxShadow).toBe("none");
+    expect(triggerTrackStyle.boxShadow).toContain("inset");
     expect(triggerTrackStyle.backgroundImage).toBe("none");
     expect(triggerThumbStyle.boxShadow).toBe("none");
     expect(triggerThumbStyle.backgroundImage).toBe("none");

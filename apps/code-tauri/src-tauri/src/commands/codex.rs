@@ -267,34 +267,6 @@ pub struct CollaborationModesListResponse {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AppsListRequest {
-    pub workspace_id: String,
-    pub cursor: Option<String>,
-    pub limit: Option<u64>,
-    pub thread_id: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AppInfo {
-    pub id: String,
-    pub name: String,
-    pub description: Option<String>,
-    pub is_accessible: bool,
-    pub install_url: Option<String>,
-    pub distribution_channel: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AppsListResponse {
-    pub data: Vec<AppInfo>,
-    pub next_cursor: Option<String>,
-    pub warnings: Vec<String>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct McpServerStatusListRequest {
     pub workspace_id: String,
     pub cursor: Option<String>,
@@ -832,26 +804,6 @@ pub fn code_collaboration_modes_list_v1(
             },
         ],
         warnings: vec!["Using built-in collaboration modes from desktop runtime.".to_string()],
-    })
-}
-
-#[tauri::command]
-pub fn code_apps_list_v1(payload: AppsListRequest) -> Result<AppsListResponse, String> {
-    require_codex_commands_enabled("code_apps_list_v1")?;
-    if !codex_unified_rpc_migration_enabled() {
-        return Err(method_not_found("code_apps_list_v1"));
-    }
-    if payload.workspace_id.trim().is_empty() {
-        return Err("workspaceId is required".to_string());
-    }
-    let _ = payload.cursor;
-    let _ = payload.limit;
-    let _ = payload.thread_id;
-
-    Ok(AppsListResponse {
-        data: Vec::new(),
-        next_cursor: None,
-        warnings: vec!["Desktop app catalog is unavailable; returning empty data.".to_string()],
     })
 }
 

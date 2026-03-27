@@ -196,7 +196,6 @@ describe("buildStartTurnPayload", () => {
         codexArgs: null,
         contextPrefix: null,
         images: [],
-        appMentions: [],
       })
     ).toMatchObject({
       provider: "openai",

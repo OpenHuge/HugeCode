@@ -70,7 +70,6 @@ export type StartTurnPayload = {
   codexArgs?: string[] | null;
   contextPrefix?: string | null;
   images?: string[];
-  appMentions?: AppMention[];
   autoDrive?: AgentTaskAutoDriveState | null;
 };
 
@@ -307,7 +306,6 @@ export function buildStartTurnPayload(params: {
   codexArgs: string[] | null;
   contextPrefix: string | null;
   images: string[];
-  appMentions: AppMention[];
   autoDrive?: AgentTaskAutoDriveState | null;
 }): StartTurnPayload {
   const payload: StartTurnPayload = {
@@ -328,9 +326,6 @@ export function buildStartTurnPayload(params: {
   };
   if (params.autoDrive) {
     payload.autoDrive = params.autoDrive;
-  }
-  if (params.appMentions.length > 0) {
-    payload.appMentions = params.appMentions;
   }
   return payload;
 }

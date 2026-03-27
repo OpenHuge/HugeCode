@@ -137,7 +137,7 @@ use workspace_git_dispatch::{
 use workspace_patch_dispatch::handle_workspace_patch_apply_v1;
 use workspace_prompt::handle_workspace_prompt_rpc;
 #[rustfmt::skip]
-const CODEX_DISPATCH_METHOD_MARKERS: &[&str] = &["code_codex_exec_run_v1","code_codex_cloud_tasks_list_v1","code_codex_config_path_get_v1","code_codex_doctor_v1","code_codex_update_v1","code_collaboration_modes_list_v1","code_apps_list_v1","code_mcp_server_status_list_v1"];
+const CODEX_DISPATCH_METHOD_MARKERS: &[&str] = &["code_codex_exec_run_v1","code_codex_cloud_tasks_list_v1","code_codex_config_path_get_v1","code_codex_doctor_v1","code_codex_update_v1","code_collaboration_modes_list_v1","code_mcp_server_status_list_v1"];
 
 pub(crate) async fn handle_rpc(
     ctx: &AppContext,

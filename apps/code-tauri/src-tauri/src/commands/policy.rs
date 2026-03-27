@@ -71,7 +71,6 @@ pub(crate) fn rpc_method_enabled(method: &str) -> bool {
         | "code_codex_doctor_v1"
         | "code_codex_update_v1"
         | "code_collaboration_modes_list_v1"
-        | "code_apps_list_v1"
         | "code_mcp_server_status_list_v1" => codex_commands_enabled(),
         "code_runtime_diagnostics_export_v1" => runtime_diagnostics_export_enabled(),
         _ => true,
