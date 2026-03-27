@@ -11,7 +11,6 @@ import {
   type KernelJobCallbackRemoveAckV3,
   type KernelJobCallbackRemoveRequestV3,
   type KernelJobGetRequestV3,
-  type KernelJobInterventionRequestV3 as KernelJobInterventionRpcRequestV3,
   type KernelJobResumeRequestV3,
   type KernelJobsListRequest,
   type KernelJobStartRequestV3,
@@ -21,6 +20,9 @@ import {
   type RuntimeRunPrepareV2Response,
   type RuntimeRunGetV2Request,
   type RuntimeRunGetV2Response,
+  type RuntimeRunInterventionRequest,
+  type RuntimeRunRecordV2,
+  type RuntimeRunResumeRequest,
   type RuntimeRunSubscribeV2Response,
   type RuntimeRunStartRequest,
   type RuntimeRunStartV2Response,
@@ -50,6 +52,7 @@ export type RuntimeJobInterventionRequest = {
   modelId?: string | null;
   preferredBackendIds?: string[] | null;
   relaunchContext?: AgentTaskRelaunchContext | null;
+  approvedPlanVersion?: string | null;
 };
 
 type RuntimeJobInterventionOutcome =
@@ -86,6 +89,29 @@ function toRuntimeJobInterventionOutcome(
     default:
       return accepted ? (spawnedRunId ? "spawned" : "submitted") : "blocked";
   }
+}
+
+function readRuntimeRunId(record: RuntimeRunRecordV2): string {
+  return (
+    record.missionRun.runId?.trim() ||
+    record.run.taskId?.trim() ||
+    record.run.runSummary?.id?.trim() ||
+    ""
+  );
+}
+
+function toRuntimeRunResumeAck(record: RuntimeRunRecordV2): RuntimeRunResumeAck {
+  return {
+    accepted: true,
+    runId: readRuntimeRunId(record),
+    status: record.run.status,
+    code: null,
+    message: null,
+    recovered: record.run.recovered ?? null,
+    checkpointId: record.run.checkpointId ?? null,
+    traceId: record.run.traceId ?? null,
+    updatedAt: record.run.updatedAt ?? null,
+  };
 }
 
 // Compat-only: product launches must call prepare/start v2 instead.
@@ -136,7 +162,7 @@ export async function cancelRuntimeJob(
 export async function interveneRuntimeJob(
   request: RuntimeJobInterventionRequest
 ): Promise<RuntimeJobInterventionAck> {
-  const ack = await getRuntimeClient().kernelJobInterveneV3({
+  const record = await getRuntimeClient().runtimeRunInterveneV2({
     runId: request.runId,
     action: request.action,
     reason: request.reason ?? null,
@@ -145,23 +171,30 @@ export async function interveneRuntimeJob(
     reviewProfileId: request.reviewProfileId ?? null,
     preferredBackendIds: request.preferredBackendIds ?? null,
     relaunchContext: request.relaunchContext ?? null,
-  } satisfies KernelJobInterventionRpcRequestV3);
+    approvedPlanVersion: request.approvedPlanVersion ?? null,
+  } satisfies RuntimeRunInterventionRequest);
+
+  const runId = readRuntimeRunId(record);
+  const spawnedRunId = runId !== request.runId ? runId : null;
 
   return {
-    accepted: ack.accepted,
-    action: ack.action,
-    runId: ack.runId,
-    status: ack.status,
-    outcome: toRuntimeJobInterventionOutcome(ack.outcome, ack.accepted, ack.spawnedRunId),
-    spawnedRunId: ack.spawnedRunId ?? null,
-    checkpointId: ack.checkpointId ?? null,
+    accepted: true,
+    action: request.action,
+    runId,
+    status: record.run.status,
+    outcome: toRuntimeJobInterventionOutcome(null, true, spawnedRunId),
+    spawnedRunId,
+    checkpointId: record.run.checkpointId ?? null,
   } satisfies RuntimeJobInterventionAck;
 }
 
 export async function resumeRuntimeJob(
   request: KernelJobResumeRequestV3
 ): Promise<RuntimeRunResumeAck> {
-  return getRuntimeClient().kernelJobResumeV3(request);
+  const record = await getRuntimeClient().runtimeRunResumeV2(
+    request satisfies RuntimeRunResumeRequest
+  );
+  return toRuntimeRunResumeAck(record);
 }
 
 export async function subscribeRuntimeJob(

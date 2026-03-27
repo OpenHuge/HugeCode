@@ -95,6 +95,14 @@ macro_rules! code_tauri_command_entries {
             (commands::turn::code_turn_send, "code_turn_send"),
             (commands::turn::code_turn_interrupt, "code_turn_interrupt"),
             (
+                commands::agents::code_runtime_run_prepare_v2,
+                "code_runtime_run_prepare_v2"
+            ),
+            (
+                commands::agents::code_runtime_run_start_v2,
+                "code_runtime_run_start_v2"
+            ),
+            (
                 commands::agents::code_runtime_run_start,
                 "code_runtime_run_start"
             ),
@@ -107,12 +115,32 @@ macro_rules! code_tauri_command_entries {
                 "code_runtime_run_resume"
             ),
             (
+                commands::agents::code_runtime_run_resume_v2,
+                "code_runtime_run_resume_v2"
+            ),
+            (
                 commands::agents::code_runtime_run_intervene,
                 "code_runtime_run_intervene"
             ),
             (
+                commands::agents::code_runtime_run_intervene_v2,
+                "code_runtime_run_intervene_v2"
+            ),
+            (
                 commands::agents::code_runtime_run_subscribe,
                 "code_runtime_run_subscribe"
+            ),
+            (
+                commands::agents::code_runtime_run_get_v2,
+                "code_runtime_run_get_v2"
+            ),
+            (
+                commands::agents::code_runtime_run_subscribe_v2,
+                "code_runtime_run_subscribe_v2"
+            ),
+            (
+                commands::agents::code_runtime_review_get_v2,
+                "code_runtime_review_get_v2"
             ),
             (
                 commands::agents::code_runtime_runs_list,
@@ -524,6 +552,30 @@ mod tests {
 
         let unique: HashSet<&str> = capabilities.features.iter().map(String::as_str).collect();
         assert_eq!(unique.len(), capabilities.features.len());
+    }
+
+    #[test]
+    fn rpc_capabilities_include_runtime_kernel_v2_lifecycle_methods() {
+        let _guard = rpc_capability_env_lock()
+            .lock()
+            .expect("rpc capability env lock poisoned");
+        reset_rpc_capability_env();
+        let capabilities = code_rpc_capabilities();
+
+        for method in [
+            "code_runtime_run_prepare_v2",
+            "code_runtime_run_start_v2",
+            "code_runtime_run_get_v2",
+            "code_runtime_run_subscribe_v2",
+            "code_runtime_run_resume_v2",
+            "code_runtime_run_intervene_v2",
+            "code_runtime_review_get_v2",
+        ] {
+            assert!(
+                capabilities.methods.iter().any(|entry| entry == method),
+                "desktop capabilities should expose runtime kernel v2 lifecycle method `{method}`"
+            );
+        }
     }
 
     #[test]

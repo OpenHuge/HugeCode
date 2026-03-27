@@ -75,8 +75,10 @@ import {
 } from "./tauri";
 import {
   cancelRuntimeJob,
+  interveneRuntimeJob,
   submitRuntimeJobApprovalDecision,
   listRuntimeJobs,
+  resumeRuntimeJob,
   startRuntimeJob,
   subscribeRuntimeJob,
 } from "./tauriRuntimeJobsBridge";
@@ -1198,6 +1200,150 @@ describe("tauri invoke wrappers", () => {
     expect(kernelJobSubscribeV3Mock).toHaveBeenCalledWith(subscribeRequest);
     expect(kernelJobsListV2Mock).toHaveBeenCalledWith(listRequest);
     expect(runtimeRunCheckpointApprovalMock).toHaveBeenCalledWith(approvalRequest);
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it("routes runtime resume and intervene wrappers through runtime v2 methods", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const runtimeRunResumeV2Mock = vi.fn().mockResolvedValue({
+      run: {
+        taskId: "task-1",
+        workspaceId: "ws-4",
+        threadId: null,
+        requestId: null,
+        title: "Runtime task",
+        status: "running",
+        accessMode: "on-request",
+        provider: null,
+        modelId: null,
+        routedProvider: null,
+        routedModelId: null,
+        routedPool: null,
+        routedSource: null,
+        currentStep: null,
+        createdAt: 10,
+        updatedAt: 20,
+        startedAt: 15,
+        completedAt: null,
+        errorCode: null,
+        errorMessage: null,
+        pendingApprovalId: null,
+        checkpointId: "checkpoint-1",
+        traceId: "trace-1",
+        recovered: true,
+        steps: [],
+      },
+      missionRun: {
+        runId: "task-1",
+        workspaceId: "ws-4",
+        threadId: null,
+        status: "running",
+        title: "Runtime task",
+        summary: null,
+        objective: null,
+        createdAt: 10,
+        updatedAt: 20,
+        lastEventAt: null,
+        pendingApprovalId: null,
+        activeSubAgentCount: 0,
+        reviewStatus: "not_started",
+        nextAction: null,
+        progressLabel: null,
+      },
+      reviewPack: null,
+    });
+    const runtimeRunInterveneV2Mock = vi.fn().mockResolvedValue({
+      run: {
+        taskId: "task-2",
+        workspaceId: "ws-4",
+        threadId: null,
+        requestId: null,
+        title: "Relaunched task",
+        status: "queued",
+        accessMode: "on-request",
+        provider: null,
+        modelId: null,
+        routedProvider: null,
+        routedModelId: null,
+        routedPool: null,
+        routedSource: null,
+        currentStep: null,
+        createdAt: 30,
+        updatedAt: 40,
+        startedAt: null,
+        completedAt: null,
+        errorCode: null,
+        errorMessage: null,
+        pendingApprovalId: null,
+        checkpointId: "checkpoint-2",
+        traceId: "trace-2",
+        steps: [],
+      },
+      missionRun: {
+        runId: "task-2",
+        workspaceId: "ws-4",
+        threadId: null,
+        status: "queued",
+        title: "Relaunched task",
+        summary: null,
+        objective: null,
+        createdAt: 30,
+        updatedAt: 40,
+        lastEventAt: null,
+        pendingApprovalId: null,
+        activeSubAgentCount: 0,
+        reviewStatus: "not_started",
+        nextAction: null,
+        progressLabel: null,
+      },
+      reviewPack: null,
+    });
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      runtimeRunResumeV2: runtimeRunResumeV2Mock,
+      runtimeRunInterveneV2: runtimeRunInterveneV2Mock,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
+
+    await expect(resumeRuntimeJob({ runId: "task-1", reason: "resume" })).resolves.toEqual({
+      accepted: true,
+      runId: "task-1",
+      status: "running",
+      code: null,
+      message: null,
+      recovered: true,
+      checkpointId: "checkpoint-1",
+      traceId: "trace-1",
+      updatedAt: 20,
+    });
+
+    await expect(
+      interveneRuntimeJob({
+        runId: "task-1",
+        action: "retry",
+        reason: "try again",
+        approvedPlanVersion: "plan-123",
+      })
+    ).resolves.toEqual({
+      accepted: true,
+      action: "retry",
+      runId: "task-2",
+      status: "queued",
+      outcome: "spawned",
+      spawnedRunId: "task-2",
+      checkpointId: "checkpoint-2",
+    });
+
+    expect(runtimeRunResumeV2Mock).toHaveBeenCalledWith({ runId: "task-1", reason: "resume" });
+    expect(runtimeRunInterveneV2Mock).toHaveBeenCalledWith({
+      runId: "task-1",
+      action: "retry",
+      reason: "try again",
+      instructionPatch: null,
+      executionProfileId: null,
+      reviewProfileId: null,
+      preferredBackendIds: null,
+      relaunchContext: null,
+      approvedPlanVersion: "plan-123",
+    });
     expect(invokeMock).not.toHaveBeenCalled();
   });
 

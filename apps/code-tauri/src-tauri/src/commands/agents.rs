@@ -31,6 +31,27 @@ async fn invoke_runtime_run_start(app: AppHandle, payload: Value) -> Result<Valu
     Ok(result)
 }
 
+async fn invoke_runtime_run_start_v2(app: AppHandle, payload: Value) -> Result<Value, String> {
+    let workspace_id = payload
+        .get("workspaceId")
+        .or_else(|| payload.get("workspace_id"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string);
+    let result = runtime_service::invoke_runtime_rpc("code_runtime_run_start_v2", payload).await?;
+    if let Some(task_id) = result
+        .get("run")
+        .and_then(|value| value.get("taskId").or_else(|| value.get("task_id")))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let _ = runtime_service::refresh_agent_task_state_fabric(&app, task_id, workspace_id).await;
+    }
+    Ok(result)
+}
+
 async fn invoke_runtime_run_cancel(app: AppHandle, payload: Value) -> Result<Value, String> {
     let result = runtime_service::invoke_runtime_rpc("code_runtime_run_cancel", payload).await?;
     if result
@@ -69,6 +90,20 @@ async fn invoke_runtime_run_resume(app: AppHandle, payload: Value) -> Result<Val
     Ok(result)
 }
 
+async fn invoke_runtime_run_resume_v2(app: AppHandle, payload: Value) -> Result<Value, String> {
+    let result = runtime_service::invoke_runtime_rpc("code_runtime_run_resume_v2", payload).await?;
+    if let Some(task_id) = result
+        .get("run")
+        .and_then(|value| value.get("taskId").or_else(|| value.get("task_id")))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let _ = runtime_service::refresh_agent_task_state_fabric(&app, task_id, None).await;
+    }
+    Ok(result)
+}
+
 async fn invoke_runtime_run_intervene(app: AppHandle, payload: Value) -> Result<Value, String> {
     let result = runtime_service::invoke_runtime_rpc("code_runtime_run_intervene", payload).await?;
     if result
@@ -86,6 +121,21 @@ async fn invoke_runtime_run_intervene(app: AppHandle, payload: Value) -> Result<
                 let _ = runtime_service::refresh_agent_task_state_fabric(&app, task_id, None).await;
             }
         }
+    }
+    Ok(result)
+}
+
+async fn invoke_runtime_run_intervene_v2(app: AppHandle, payload: Value) -> Result<Value, String> {
+    let result =
+        runtime_service::invoke_runtime_rpc("code_runtime_run_intervene_v2", payload).await?;
+    if let Some(task_id) = result
+        .get("run")
+        .and_then(|value| value.get("taskId").or_else(|| value.get("task_id")))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let _ = runtime_service::refresh_agent_task_state_fabric(&app, task_id, None).await;
     }
     Ok(result)
 }
@@ -178,6 +228,16 @@ pub async fn code_runtime_run_start(app: AppHandle, payload: Value) -> Result<Va
 }
 
 #[tauri::command]
+pub async fn code_runtime_run_prepare_v2(payload: Value) -> Result<Value, String> {
+    runtime_service::invoke_runtime_rpc("code_runtime_run_prepare_v2", payload).await
+}
+
+#[tauri::command]
+pub async fn code_runtime_run_start_v2(app: AppHandle, payload: Value) -> Result<Value, String> {
+    invoke_runtime_run_start_v2(app, payload).await
+}
+
+#[tauri::command]
 pub async fn code_runtime_run_cancel(app: AppHandle, payload: Value) -> Result<Value, String> {
     invoke_runtime_run_cancel(app, payload).await
 }
@@ -188,13 +248,41 @@ pub async fn code_runtime_run_resume(app: AppHandle, payload: Value) -> Result<V
 }
 
 #[tauri::command]
+pub async fn code_runtime_run_resume_v2(app: AppHandle, payload: Value) -> Result<Value, String> {
+    invoke_runtime_run_resume_v2(app, payload).await
+}
+
+#[tauri::command]
 pub async fn code_runtime_run_intervene(app: AppHandle, payload: Value) -> Result<Value, String> {
     invoke_runtime_run_intervene(app, payload).await
 }
 
 #[tauri::command]
+pub async fn code_runtime_run_intervene_v2(
+    app: AppHandle,
+    payload: Value,
+) -> Result<Value, String> {
+    invoke_runtime_run_intervene_v2(app, payload).await
+}
+
+#[tauri::command]
 pub async fn code_runtime_run_subscribe(payload: Value) -> Result<Value, String> {
     runtime_service::invoke_runtime_rpc("code_runtime_run_subscribe", payload).await
+}
+
+#[tauri::command]
+pub async fn code_runtime_run_get_v2(payload: Value) -> Result<Value, String> {
+    runtime_service::invoke_runtime_rpc("code_runtime_run_get_v2", payload).await
+}
+
+#[tauri::command]
+pub async fn code_runtime_run_subscribe_v2(payload: Value) -> Result<Value, String> {
+    runtime_service::invoke_runtime_rpc("code_runtime_run_subscribe_v2", payload).await
+}
+
+#[tauri::command]
+pub async fn code_runtime_review_get_v2(payload: Value) -> Result<Value, String> {
+    runtime_service::invoke_runtime_rpc("code_runtime_review_get_v2", payload).await
 }
 
 #[tauri::command]
