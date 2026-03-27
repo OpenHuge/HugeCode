@@ -171,7 +171,7 @@ describe("buildRuntimeContinuityReadiness", () => {
       ],
     });
 
-    expect(summary.state).toBe("attention");
+    expect(summary.state).toBe("ready");
     expect(summary.reviewBlockedCount).toBe(0);
     expect(summary.items[0]).toMatchObject({
       pathKind: "approval",
@@ -353,8 +353,9 @@ describe("buildRuntimeContinuityReadiness", () => {
       ],
     });
 
-    expect(summary.state).toBe("ready");
+    expect(summary.state).toBe("attention");
     expect(summary.handoffReadyCount).toBe(1);
+    expect(summary.items[0]?.state).toBe("attention");
     expect(summary.items[0]?.pathKind).toBe("handoff");
     expect(summary.missingPathCount).toBe(0);
   });

@@ -933,14 +933,26 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       defaultActiveLabel: "Open mission",
     });
-    const fallbackRecommendedNextAction = resolveRuntimeRecommendedAction({
-      operatorAction,
-      fallbacks: [
-        canonicalContinuation?.recommendedAction ??
-          (continuation.state !== "missing" ? continuation.recommendedAction : null),
-        resolveLegacyReviewPackNextAction(reviewPack),
-      ],
+    const publishedOperatorAction =
+      reviewPack.nextOperatorAction ?? run?.nextOperatorAction ?? null;
+    const publishedOperatorActionText = resolveRuntimeRecommendedAction({
+      operatorAction: publishedOperatorAction,
+      fallbacks: [],
     });
+    const derivedOperatorActionText = resolveRuntimeRecommendedAction({
+      operatorAction,
+      fallbacks: [],
+    });
+    const fallbackRecommendedNextAction =
+      publishedOperatorActionText ??
+      canonicalContinuation?.recommendedAction ??
+      resolveRuntimeRecommendedAction({
+        fallbacks: [
+          continuation.state !== "missing" ? continuation.recommendedAction : null,
+          derivedOperatorActionText,
+          resolveLegacyReviewPackNextAction(reviewPack),
+        ],
+      });
     const reviewIntelligence = resolveReviewIntelligenceSummary({
       contract: options?.repositoryExecutionContract ?? null,
       taskSource: reviewPack.taskSource ?? run?.taskSource ?? task.taskSource ?? null,
@@ -1051,7 +1063,10 @@ export function buildMissionReviewEntriesFromProjection(
       delegationSummary: contextAndDelegation.delegationSummary,
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
-      continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
+      continuePathLabel:
+        publishedOperatorActionText || continuation.state === "missing"
+          ? null
+          : continuation.continuePathLabel,
       continuationTruthSourceLabel:
         continuation.state !== "missing" ? continuation.truthSourceLabel : null,
       triagePriority: resolveTriagePriority({
@@ -1114,14 +1129,25 @@ export function buildMissionReviewEntriesFromProjection(
       }),
       defaultActiveLabel: "Open mission",
     });
-    const fallbackRecommendedNextAction = resolveRuntimeRecommendedAction({
-      operatorAction,
-      fallbacks: [
-        canonicalContinuation?.recommendedAction ??
-          (continuation.state !== "missing" ? continuation.recommendedAction : null),
-        run.nextAction?.detail ?? null,
-      ],
+    const publishedOperatorAction = run.nextOperatorAction ?? null;
+    const publishedOperatorActionText = resolveRuntimeRecommendedAction({
+      operatorAction: publishedOperatorAction,
+      fallbacks: [],
     });
+    const derivedOperatorActionText = resolveRuntimeRecommendedAction({
+      operatorAction,
+      fallbacks: [],
+    });
+    const fallbackRecommendedNextAction =
+      publishedOperatorActionText ??
+      canonicalContinuation?.recommendedAction ??
+      resolveRuntimeRecommendedAction({
+        fallbacks: [
+          continuation.state !== "missing" ? continuation.recommendedAction : null,
+          derivedOperatorActionText,
+          run.nextAction?.detail ?? null,
+        ],
+      });
     const reviewIntelligence = resolveReviewIntelligenceSummary({
       contract: options?.repositoryExecutionContract ?? null,
       taskSource: run.taskSource ?? task.taskSource ?? null,
@@ -1231,7 +1257,10 @@ export function buildMissionReviewEntriesFromProjection(
       delegationSummary: contextAndDelegation.delegationSummary,
       continuationState: continuation.state,
       continuationLabel: continuation.state !== "missing" ? continuation.summary : null,
-      continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
+      continuePathLabel:
+        publishedOperatorActionText || continuation.state === "missing"
+          ? null
+          : continuation.continuePathLabel,
       continuationTruthSourceLabel:
         continuation.state !== "missing" ? continuation.truthSourceLabel : null,
       triagePriority: resolveTriagePriority({

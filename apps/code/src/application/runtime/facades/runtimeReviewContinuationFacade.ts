@@ -11,6 +11,7 @@ import type {
 import { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
 import {
   buildRuntimeContinuationDescriptor,
+  formatRuntimeContinuationTruthSourceLabel,
   type RuntimeContinuationTruthSource,
 } from "./runtimeContinuationTruth";
 import {
@@ -238,18 +239,87 @@ export function resolveRuntimeFollowUpPreferredBackendIds(
     : undefined;
 }
 
+function mapPublishedContinuationState(
+  state: HugeCodeContinuationSummary["state"]
+): ReviewContinuationActionabilitySummary["state"] {
+  if (state === "attention") {
+    return "degraded";
+  }
+  if (state === "ready" || state === "blocked") {
+    return state;
+  }
+  return "missing";
+}
+
+function resolvePublishedContinuePathLabel(
+  continuation: HugeCodeContinuationSummary
+): ReviewContinuationActionabilitySummary["continuePathLabel"] {
+  if (continuation.pathKind === "review" || continuation.target?.kind === "review_pack") {
+    return "Review Pack";
+  }
+  if (continuation.target?.kind === "thread") {
+    return "Mission thread";
+  }
+  if (continuation.target?.kind === "run") {
+    return "Mission run";
+  }
+  if (continuation.target?.kind === "sub_agent_session") {
+    return "Sub-agent session";
+  }
+  return "Review Pack";
+}
+
+function pushUniqueDetail(details: string[], value: string | null | undefined) {
+  if (typeof value !== "string") {
+    return;
+  }
+  const trimmed = value.trim();
+  if (!trimmed || details.includes(trimmed)) {
+    return;
+  }
+  details.push(trimmed);
+}
+
 export function summarizeReviewContinuationActionability(input: {
   takeoverBundle?: HugeCodeTakeoverBundle | null;
   actionability?: HugeCodeReviewActionabilitySummary | null;
   missionLinkage?: HugeCodeMissionLinkageSummary | null;
   publishHandoff?: HugeCodePublishHandoffReference | null;
+  reviewPackId?: string | null;
   continuation?: HugeCodeContinuationSummary | null;
 }): ReviewContinuationActionabilitySummary {
+  if (input.continuation) {
+    const continuePathLabel = resolvePublishedContinuePathLabel(input.continuation);
+    const truthSource = input.continuation.source as RuntimeContinuationTruthSource;
+    const truthSourceLabel = formatRuntimeContinuationTruthSourceLabel(truthSource);
+    const summary =
+      (input.continuation.pathKind === "review"
+        ? input.continuation.reviewActionability?.summary
+        : null) ?? input.continuation.summary;
+    const details: string[] = [];
+    pushUniqueDetail(details, input.continuation.detail ?? summary);
+    pushUniqueDetail(details, `Canonical continue path: ${continuePathLabel}.`);
+    pushUniqueDetail(details, `Follow-up source: ${truthSourceLabel}.`);
+    pushUniqueDetail(details, input.missionLinkage?.summary);
+    pushUniqueDetail(details, input.publishHandoff?.summary);
+    const state = mapPublishedContinuationState(input.continuation.state);
+    return {
+      state,
+      summary,
+      details,
+      blockingReason: state === "blocked" ? (input.continuation.detail ?? summary) : null,
+      recommendedAction: input.continuation.recommendedAction,
+      continuePathLabel,
+      truthSource,
+      truthSourceLabel,
+    };
+  }
   const descriptor = buildRuntimeContinuationDescriptor({
     takeoverBundle: input.takeoverBundle ?? null,
     actionability: input.actionability ?? null,
     missionLinkage: input.missionLinkage ?? null,
     publishHandoff: input.publishHandoff ?? null,
+    reviewPackId: input.reviewPackId ?? null,
   });
   const summary = descriptor?.summary ?? "Runtime continuation guidance is unavailable.";
   const state =

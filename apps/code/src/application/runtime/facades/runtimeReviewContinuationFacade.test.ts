@@ -293,15 +293,59 @@ describe("runtimeReviewContinuationFacade", () => {
       state: "blocked",
       summary: "Runtime blocked follow-up until validation evidence is repaired.",
       blockingReason: "Runtime blocked follow-up until validation evidence is repaired.",
-      continuePathLabel: "Review Pack",
+      continuePathLabel: "Mission thread",
       recommendedAction:
-        "Open Review Pack and resolve the runtime-blocked follow-up before continuing.",
+        "Open the mission thread and resolve the runtime-blocked follow-up before continuing.",
       truthSource: "review_actionability",
       truthSourceLabel: "Runtime review actionability",
     });
-    expect(summary.details).toContain("Canonical continue path: Review Pack.");
+    expect(summary.details).toContain("Canonical continue path: Mission thread.");
     expect(summary.details).toContain("Follow-up source: Runtime review actionability.");
     expect(summary.details).toContain("Publish handoff is ready.");
+  });
+
+  it("prefers the review pack continue path when runtime publishes a review pack id", () => {
+    const summary = summarizeReviewContinuationActionability({
+      actionability: {
+        state: "blocked",
+        summary: "Runtime blocked follow-up until validation evidence is repaired.",
+        degradedReasons: ["runtime_evidence_incomplete"],
+        actions: [],
+      },
+      reviewPackId: "review-pack:run-42",
+      missionLinkage: {
+        workspaceId: "workspace-1",
+        taskId: "runtime-task:42",
+        runId: "run-42",
+        reviewPackId: "review-pack:run-42",
+        missionTaskId: "runtime-task:42",
+        taskEntityKind: "run",
+        recoveryPath: "run",
+        navigationTarget: {
+          kind: "run",
+          workspaceId: "workspace-1",
+          taskId: "runtime-task:42",
+          runId: "run-42",
+          reviewPackId: "review-pack:run-42",
+        },
+        summary: "Resume from the runtime-published mission detail.",
+      },
+      publishHandoff: {
+        jsonPath: ".hugecode/runs/run-42/publish/handoff.json",
+        markdownPath: ".hugecode/runs/run-42/publish/handoff.md",
+        summary: "Publish handoff is ready.",
+        branchName: "main",
+        reviewTitle: "Retry continuation",
+        details: [],
+      },
+    });
+
+    expect(summary).toMatchObject({
+      continuePathLabel: "Review Pack",
+      recommendedAction:
+        "Open Review Pack and resolve the runtime-blocked follow-up before continuing.",
+    });
+    expect(summary.details).toContain("Canonical continue path: Review Pack.");
   });
 
   it("prefers takeover-bundle review guidance over mission linkage and publish handoff fragments", () => {

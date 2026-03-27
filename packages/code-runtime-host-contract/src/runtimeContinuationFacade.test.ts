@@ -161,4 +161,37 @@ describe("runtimeContinuationFacade", () => {
       ])
     );
   });
+
+  it("marks takeover review follow-up as blocked when review actionability is blocked", () => {
+    const descriptor = buildRuntimeContinuationDescriptor({
+      runState: "review_ready",
+      takeoverBundle: {
+        state: "ready",
+        pathKind: "review",
+        primaryAction: "open_review_pack",
+        summary: "Takeover bundle published the canonical review continuation.",
+        recommendedAction: "Open Review Pack from the takeover bundle.",
+        reviewPackId: "review-pack:1",
+        reviewActionability: {
+          state: "blocked",
+          summary: "Follow-up is blocked on fresh review evidence.",
+          degradedReasons: [],
+          actions: [],
+        },
+        target: {
+          kind: "review_pack",
+          workspaceId: "workspace-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:1",
+        },
+      },
+    });
+
+    expect(descriptor.state).toBe("blocked");
+    expect(descriptor.canonicalNextAction.kind).toBe("blocked");
+    expect(descriptor.canonicalNextAction.blockedReason).toBe(
+      "Follow-up is blocked on fresh review evidence."
+    );
+  });
 });

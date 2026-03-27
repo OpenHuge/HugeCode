@@ -176,7 +176,6 @@ describe("runtimeMissionControlSurfaceModel", () => {
     expect(reviewEntries[0]?.continuationTruthSourceLabel).toBe("Runtime takeover bundle");
     expect(signals.reviewReadyCount).toBe(1);
   });
-
   it("prefers canonical continuation and next operator action over stale review-pack text", () => {
     const projection = createProjection();
     const run = projection.runs[0];

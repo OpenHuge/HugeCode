@@ -53,7 +53,6 @@ import {
   normalizeReviewPackPublishHandoff,
   normalizeReviewPackRelaunchOptions,
 } from "./runtimeReviewPackSurfaceNormalization";
-import { resolveRuntimeRecommendedAction } from "./runtimeOperatorActionPresentation";
 import {
   buildExecutionContext,
   buildCheckpointDetail,
@@ -224,7 +223,6 @@ export type ReviewPackDetailModel = {
     details: string[];
     missingReason: string | null;
   };
-  decisionActionability?: RuntimeReviewPackDecisionActionabilitySummary;
   governance?: {
     summary: string;
     details: string[];
@@ -259,6 +257,7 @@ export type ReviewPackDetailModel = {
     summary: string;
     details: string[];
   };
+  decisionActionability: RuntimeReviewPackDecisionActionabilitySummary;
   decisionActions: RuntimeReviewPackDecisionActionModel<MissionNavigationTarget>[];
   limitations: string[];
   relaunchOptions: RelaunchOption[];
@@ -636,8 +635,8 @@ function buildReviewPackContinuity(input: {
   if (!projectedContinuation && !descriptor) {
     return null;
   }
-  if (projectedContinuation) {
-    const details: string[] = descriptor ? [...descriptor.details] : [];
+  if (projectedContinuation && !descriptor) {
+    const details: string[] = [];
     if (projectedContinuation.detail) {
       pushUnique(details, projectedContinuation.detail);
     }
@@ -1131,7 +1130,6 @@ export function buildReviewPackDetailModel(input: {
     nextActionDetail: run?.nextAction?.detail,
     title: run?.title ?? taskTitle,
     instruction: interventionInstruction,
-    reviewActionability: reviewPackExtra?.actionability ?? run?.actionability ?? null,
     actions: run?.intervention?.actions,
     reviewDecision: {
       status: reviewDecision.status,
@@ -1203,7 +1201,12 @@ export function buildReviewPackDetailModel(input: {
   const publishHandoff = normalizeReviewPackPublishHandoff(
     reviewPackExtra?.publishHandoff ?? run?.publishHandoff ?? null
   );
-  const continuity = buildReviewPackContinuity({ reviewPack, run, task, publishHandoff });
+  const continuity = buildReviewPackContinuity({
+    reviewPack,
+    run,
+    task,
+    publishHandoff,
+  });
   const relaunchContext = augmentDetailSection(
     buildRelaunchContextDetail(reviewPackExtra?.relaunchOptions ?? run?.relaunchContext ?? null),
     [
@@ -1222,15 +1225,12 @@ export function buildReviewPackDetailModel(input: {
     ],
     "Runtime recorded why this pack woke the operator and what can happen next."
   );
-  const reviewRecommendedNextAction = resolveRuntimeRecommendedAction({
-    operatorAction: reviewPackExtra?.nextOperatorAction ?? run?.nextOperatorAction ?? null,
-    fallbacks: [
-      continuity?.recommendedAction,
-      reviewPackExtra?.actionability?.summary,
-      run?.actionability?.summary,
-      reviewPack.recommendedNextAction,
-    ],
-  });
+  const reviewRecommendedNextAction =
+    continuity?.recommendedAction ??
+    reviewPackExtra?.actionability?.summary ??
+    run?.actionability?.summary ??
+    reviewPack.recommendedNextAction ??
+    null;
   const reviewIntelligence = resolveReviewIntelligenceSummary({
     contract: input.repositoryExecutionContract ?? null,
     taskSource: reviewPack.taskSource ?? run?.taskSource ?? task?.taskSource ?? null,
@@ -1286,7 +1286,6 @@ export function buildReviewPackDetailModel(input: {
     skillUsage: reviewIntelligence?.skillUsage ?? [],
     autofixCandidate: reviewIntelligence?.autofixCandidate ?? null,
     backendAudit,
-    decisionActionability,
     governance: buildGovernanceDetail(reviewPack.governance ?? run?.governance ?? null),
     operatorSnapshot: buildOperatorSnapshotDetail(run?.operatorSnapshot ?? null),
     placement: buildPlacementDetail(reviewPack.placement ?? run?.placement ?? null),
@@ -1313,6 +1312,7 @@ export function buildReviewPackDetailModel(input: {
     }),
     missionBrief: buildMissionBriefDetail(run?.missionBrief ?? null),
     relaunchContext,
+    decisionActionability,
     decisionActions,
     relaunchOptions,
     subAgentSummary,

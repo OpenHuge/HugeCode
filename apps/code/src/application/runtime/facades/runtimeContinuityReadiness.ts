@@ -6,8 +6,6 @@ import type {
   RuntimeContinuationPathKind,
   RuntimeContinuationTruthSource,
 } from "@ku0/code-runtime-host-contract";
-import { resolveRuntimeContinuation as resolvePublishedRuntimeContinuation } from "@ku0/code-runtime-host-contract";
-import { summarizeHugeCodeOperatorContinuation } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import { buildMissionRunCheckpoint } from "./runtimeMissionControlCheckpoint";
 import { buildRuntimeContinuationAggregate } from "./runtimeContinuationTruth";
@@ -41,13 +39,11 @@ export type RuntimeContinuityReadinessSummary = {
 type RuntimeContinuityCandidateRun = Pick<
   HugeCodeRunSummary,
   | "id"
-  | "workspaceId"
   | "taskId"
   | "state"
   | "updatedAt"
   | "checkpoint"
   | "executionGraph"
-  | "continuation"
   | "missionLinkage"
   | "actionability"
   | "publishHandoff"
