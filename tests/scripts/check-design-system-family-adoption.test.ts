@@ -85,7 +85,7 @@ const BADGE_FILES = [
 ] as const;
 
 const SECTION_HEADER_FILES = [
-  "apps/code/src/features/home/components/Home.tsx",
+  "apps/code/src/features/home/components/HomeMissionLaunchpadSection.tsx",
   "apps/code/src/features/settings/components/sections/settings-codex-accounts-card/SettingsCodexAccountsSectionHeader.tsx",
   "apps/code/src/features/workspaces/components/WorkspaceHomeSubAgentObservabilityFixture.tsx",
 ] as const;
@@ -107,7 +107,7 @@ const STATUS_BADGE_FILES = [
 ] as const;
 
 const SURFACE_FILES = [
-  "apps/code/src/features/home/components/Home.tsx",
+  "apps/code/src/features/home/components/HomeMissionLaunchpadSection.tsx",
   "apps/code/src/features/composer/components/ComposerShell.tsx",
 ] as const;
 
@@ -284,6 +284,16 @@ async function writeAdoptionFixtureRepo(targetRoot: string): Promise<void> {
     [
       "export function ShellHomeFixture() {",
       '  return <ShellFrame><ShellSection title="Mission signals"><EmptySurface title="No missions" /></ShellSection></ShellFrame>;',
+      "}",
+      "",
+    ].join("\n")
+  );
+  appendLines(
+    "apps/code/src/features/home/components/HomeRecentMissionsSection.tsx",
+    'import { EmptySurface } from "../../../design-system";',
+    [
+      "export function ShellRecentMissionsFixture() {",
+      '  return <EmptySurface title="No recent missions" />;',
       "}",
       "",
     ].join("\n")
