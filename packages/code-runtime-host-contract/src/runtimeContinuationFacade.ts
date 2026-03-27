@@ -1,5 +1,6 @@
 import type {
   HugeCodeCheckpointSummary,
+  HugeCodeContinuationSummary,
   HugeCodeMissionLinkageSummary,
   HugeCodeMissionNavigationTarget,
   HugeCodePublishHandoffReference,
@@ -70,6 +71,7 @@ export type RuntimeContinuationAggregateCandidate = {
   taskId: string;
   runState?: HugeCodeRunState | null;
   checkpoint?: HugeCodeCheckpointSummary | null;
+  continuation?: HugeCodeContinuationSummary | null;
   missionLinkage?: HugeCodeMissionLinkageSummary | null;
   actionability?: HugeCodeReviewActionabilitySummary | null;
   publishHandoff?: HugeCodePublishHandoffReference | null;
