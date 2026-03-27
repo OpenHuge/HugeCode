@@ -1,13 +1,13 @@
 import type { HugeCodeTaskSourceSummary } from "@ku0/code-runtime-host-contract";
 import type { GitHubIssue, GitHubPullRequest } from "../../../types";
 
-type RuntimeTaskSourceWorkspaceContext = {
-  workspaceId: string;
+export type RuntimeTaskSourceWorkspaceContext = {
+  workspaceId?: string | null;
   workspaceRoot?: string | null;
   gitRemoteUrl?: string | null;
 };
 
-type TaskSourceFallback = RuntimeTaskSourceWorkspaceContext & {
+export type RuntimeTaskSourceFallback = RuntimeTaskSourceWorkspaceContext & {
   title?: string | null;
 };
 
@@ -121,18 +121,18 @@ export function resolveRepoContext(input: {
   };
 }
 
-export function buildManualTaskSource(input: TaskSourceFallback): HugeCodeTaskSourceSummary {
+export function buildManualTaskSource(input: RuntimeTaskSourceFallback): HugeCodeTaskSourceSummary {
   return {
     kind: "manual",
     title: readOptionalText(input.title),
-    workspaceId: input.workspaceId,
+    workspaceId: readOptionalText(input.workspaceId),
     workspaceRoot: readOptionalText(input.workspaceRoot),
   };
 }
 
 export function normalizeTaskSourceDraft(
   source: HugeCodeTaskSourceSummary | null | undefined,
-  fallback: TaskSourceFallback
+  fallback: RuntimeTaskSourceFallback
 ): HugeCodeTaskSourceSummary {
   if (!source) {
     return buildManualTaskSource(fallback);
@@ -142,7 +142,7 @@ export function normalizeTaskSourceDraft(
     title: readOptionalText(source.title) ?? readOptionalText(fallback.title),
     reference: readOptionalText(source.reference),
     url: readOptionalText(source.url),
-    workspaceId: readOptionalText(source.workspaceId) ?? fallback.workspaceId,
+    workspaceId: readOptionalText(source.workspaceId) ?? readOptionalText(fallback.workspaceId),
     workspaceRoot:
       readOptionalText(source.workspaceRoot) ?? readOptionalText(fallback.workspaceRoot),
     repo:
@@ -153,17 +153,25 @@ export function normalizeTaskSourceDraft(
 
 export function buildGitHubIssueTaskSource(input: {
   issue: GitHubIssue;
-  workspaceId: string;
+  workspaceId?: string | null;
   workspaceRoot?: string | null;
   gitRemoteUrl?: string | null;
+  sourceTaskId?: string | null;
+  sourceRunId?: string | null;
 }): HugeCodeTaskSourceSummary {
   return normalizeTaskSourceDraft(
     {
       kind: "github_issue",
+      label: `GitHub issue #${input.issue.number}`,
+      shortLabel: `Issue #${input.issue.number}`,
       title: input.issue.title,
       reference: `#${input.issue.number}`,
       url: input.issue.url,
       issueNumber: input.issue.number,
+      externalId: input.issue.url,
+      canonicalUrl: input.issue.url,
+      sourceTaskId: readOptionalText(input.sourceTaskId) ?? input.issue.url,
+      sourceRunId: readOptionalText(input.sourceRunId) ?? input.issue.url,
       repo: resolveRepoContext({
         sourceUrl: input.issue.url,
         gitRemoteUrl: input.gitRemoteUrl,
@@ -175,19 +183,55 @@ export function buildGitHubIssueTaskSource(input: {
 
 export function buildGitHubPullRequestFollowUpTaskSource(input: {
   pullRequest: GitHubPullRequest;
-  workspaceId: string;
+  workspaceId?: string | null;
   workspaceRoot?: string | null;
   gitRemoteUrl?: string | null;
+  sourceTaskId?: string | null;
+  sourceRunId?: string | null;
 }): HugeCodeTaskSourceSummary {
   return normalizeTaskSourceDraft(
     {
       kind: "github_pr_followup",
+      label: `GitHub PR follow-up #${input.pullRequest.number}`,
+      shortLabel: `PR #${input.pullRequest.number} follow-up`,
       title: input.pullRequest.title,
       reference: `#${input.pullRequest.number}`,
       url: input.pullRequest.url,
       pullRequestNumber: input.pullRequest.number,
+      externalId: input.pullRequest.url,
+      canonicalUrl: input.pullRequest.url,
+      sourceTaskId: readOptionalText(input.sourceTaskId) ?? input.pullRequest.url,
+      sourceRunId: readOptionalText(input.sourceRunId) ?? input.pullRequest.url,
       repo: resolveRepoContext({
         sourceUrl: input.pullRequest.url,
+        gitRemoteUrl: input.gitRemoteUrl,
+      }),
+    },
+    input
+  );
+}
+
+export function buildScheduleTaskSource(input: {
+  scheduleId: string;
+  title?: string | null;
+  workspaceId?: string | null;
+  workspaceRoot?: string | null;
+  gitRemoteUrl?: string | null;
+  sourceTaskId?: string | null;
+  sourceRunId?: string | null;
+}): HugeCodeTaskSourceSummary {
+  const scheduleId = readOptionalText(input.scheduleId) ?? "schedule";
+  return normalizeTaskSourceDraft(
+    {
+      kind: "schedule",
+      label: "Scheduled task",
+      shortLabel: "Schedule",
+      title: readOptionalText(input.title) ?? "Scheduled automation",
+      externalId: scheduleId,
+      canonicalUrl: `schedule://${scheduleId}`,
+      sourceTaskId: readOptionalText(input.sourceTaskId) ?? scheduleId,
+      sourceRunId: readOptionalText(input.sourceRunId) ?? scheduleId,
+      repo: resolveRepoContext({
         gitRemoteUrl: input.gitRemoteUrl,
       }),
     },

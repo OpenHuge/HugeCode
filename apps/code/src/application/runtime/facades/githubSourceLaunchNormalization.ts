@@ -1,25 +1,19 @@
-import type { AccessMode, AgentTaskMissionBrief } from "@ku0/code-runtime-host-contract";
+import type { AgentTaskSourceSummary } from "@ku0/code-runtime-host-contract";
 import type {
   GitHubIssue,
   GitHubPullRequest,
   GitHubPullRequestComment,
   GitHubPullRequestDiff,
 } from "../../../types";
-import { buildAgentTaskMissionBrief } from "./runtimeMissionDraftFacade";
-import { type RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
-import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
-import { resolveRepoContext } from "./runtimeTaskSourceFacade";
+import {
+  buildGitHubIssueTaskSource,
+  buildGitHubPullRequestFollowUpTaskSource,
+} from "./runtimeTaskSourceFacade";
 
 export type GitHubSourceLaunchSummary = {
   title: string;
   instruction: string;
-  missionBrief: AgentTaskMissionBrief;
-  taskSource: ReturnType<typeof buildGitHubSourceTaskSource>;
-  executionProfileId: string | null;
-  reviewProfileId: string | null;
-  validationPresetId: string | null;
-  accessMode: AccessMode | null;
-  preferredBackendIds: string[] | null;
+  taskSource: AgentTaskSourceSummary;
 };
 
 export type GitHubIssueSourceLaunchInput = {
@@ -27,10 +21,8 @@ export type GitHubIssueSourceLaunchInput = {
   workspaceId?: string | null;
   workspaceRoot?: string | null;
   gitRemoteUrl?: string | null;
-  preferredBackendIds?: string[] | null;
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
-  repositoryExecutionContract?: RepositoryExecutionContract | null;
 };
 
 export type GitHubPullRequestFollowUpSourceLaunchInput = {
@@ -43,10 +35,8 @@ export type GitHubPullRequestFollowUpSourceLaunchInput = {
   workspaceId?: string | null;
   workspaceRoot?: string | null;
   gitRemoteUrl?: string | null;
-  preferredBackendIds?: string[] | null;
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
-  repositoryExecutionContract?: RepositoryExecutionContract | null;
 };
 
 function readOptionalText(value: unknown): string | null {
@@ -72,10 +62,6 @@ function normalizeOptionalTextList(value: readonly string[] | null | undefined):
     items.push(normalized);
   }
   return items.length > 0 ? items : null;
-}
-
-function summarizeSourceId(url: string, fallbackId?: string | null): string {
-  return readOptionalText(fallbackId) ?? url;
 }
 
 function summarizeGitHubPullRequestComments(
@@ -188,110 +174,22 @@ function buildGitHubPullRequestFollowUpInstruction(
   return lines.join("\n");
 }
 
-function buildGitHubSourceTaskSource(input: {
-  kind: "github_issue" | "github_pr_followup";
-  label: string;
-  title: string;
-  shortLabel: string;
-  reference: string;
-  externalId: string;
-  canonicalUrl: string;
-  workspaceId?: string | null;
-  workspaceRoot?: string | null;
-  gitRemoteUrl?: string | null;
-  issueNumber?: number | null;
-  pullRequestNumber?: number | null;
-  sourceTaskId?: string | null;
-  sourceRunId?: string | null;
-}) {
-  const sourceTaskId = summarizeSourceId(input.externalId, input.sourceTaskId);
-  const sourceRunId = summarizeSourceId(input.externalId, input.sourceRunId);
-  return {
-    kind: input.kind,
-    label: input.label,
-    shortLabel: input.shortLabel,
-    title: input.title,
-    reference: input.reference,
-    url: input.canonicalUrl,
-    ...(typeof input.issueNumber === "number" ? { issueNumber: input.issueNumber } : {}),
-    ...(typeof input.pullRequestNumber === "number"
-      ? { pullRequestNumber: input.pullRequestNumber }
-      : {}),
-    repo: resolveRepoContext({
-      sourceUrl: input.canonicalUrl,
-      gitRemoteUrl: input.gitRemoteUrl,
-    }),
-    workspaceId: readOptionalText(input.workspaceId),
-    workspaceRoot: readOptionalText(input.workspaceRoot),
-    externalId: input.externalId,
-    canonicalUrl: input.canonicalUrl,
-    threadId: null,
-    requestId: null,
-    sourceTaskId,
-    sourceRunId,
-  };
-}
-
-function applyLaunchDefaults(input: {
-  title: string;
-  instruction: string;
-  taskSource: ReturnType<typeof buildGitHubSourceTaskSource>;
-  repositoryExecutionContract?: RepositoryExecutionContract | null;
-  preferredBackendIds?: string[] | null;
-}): GitHubSourceLaunchSummary {
-  const launchDefaults = resolveRepositoryExecutionDefaults({
-    contract: input.repositoryExecutionContract ?? null,
-    taskSource: input.taskSource,
-    explicitLaunchInput: input.preferredBackendIds
-      ? { preferredBackendIds: input.preferredBackendIds }
-      : undefined,
-  });
-  const preferredBackendIds = launchDefaults.preferredBackendIds ?? null;
-
-  return {
-    title: input.title,
-    instruction: input.instruction,
-    taskSource: input.taskSource,
-    missionBrief: buildAgentTaskMissionBrief({
-      objective: input.title,
-      accessMode: launchDefaults.accessMode,
-      preferredBackendIds,
-    }),
-    executionProfileId: launchDefaults.executionProfileId,
-    reviewProfileId: launchDefaults.reviewProfileId,
-    validationPresetId: launchDefaults.validationPresetId,
-    accessMode: launchDefaults.accessMode,
-    preferredBackendIds,
-  };
-}
-
 export function normalizeGitHubIssueLaunchInput(
   input: GitHubIssueSourceLaunchInput
 ): GitHubSourceLaunchSummary {
   const title = readOptionalText(input.issue.title) ?? `GitHub issue #${input.issue.number}`;
-  const taskSource = buildGitHubSourceTaskSource({
-    kind: "github_issue",
-    label: `GitHub issue #${input.issue.number}`,
-    shortLabel: `Issue #${input.issue.number}`,
-    title,
-    reference: `#${input.issue.number}`,
-    externalId: input.issue.url,
-    canonicalUrl: input.issue.url,
-    workspaceId: input.workspaceId,
-    workspaceRoot: input.workspaceRoot,
-    gitRemoteUrl: input.gitRemoteUrl,
-    issueNumber: input.issue.number,
-    sourceTaskId: input.sourceTaskId,
-    sourceRunId: input.sourceRunId,
-  });
-
-  return applyLaunchDefaults({
+  return {
     title,
     instruction: buildGitHubIssueInstruction(input.issue),
-    taskSource,
-    repositoryExecutionContract: input.repositoryExecutionContract,
-    preferredBackendIds: input.preferredBackendIds,
-  });
+    taskSource: buildGitHubIssueTaskSource({
+      issue: input.issue as GitHubIssue,
+      workspaceId: input.workspaceId,
+      workspaceRoot: input.workspaceRoot,
+      gitRemoteUrl: input.gitRemoteUrl,
+      sourceTaskId: input.sourceTaskId,
+      sourceRunId: input.sourceRunId,
+    }),
+  };
 }
 
 export function normalizeGitHubPullRequestFollowUpLaunchInput(
@@ -299,27 +197,16 @@ export function normalizeGitHubPullRequestFollowUpLaunchInput(
 ): GitHubSourceLaunchSummary {
   const title =
     readOptionalText(input.pullRequest.title) ?? `GitHub PR follow-up #${input.pullRequest.number}`;
-  const taskSource = buildGitHubSourceTaskSource({
-    kind: "github_pr_followup",
-    label: `GitHub PR follow-up #${input.pullRequest.number}`,
-    shortLabel: `PR #${input.pullRequest.number} follow-up`,
-    title,
-    reference: `#${input.pullRequest.number}`,
-    externalId: input.pullRequest.url,
-    canonicalUrl: input.pullRequest.url,
-    workspaceId: input.workspaceId,
-    workspaceRoot: input.workspaceRoot,
-    gitRemoteUrl: input.gitRemoteUrl,
-    pullRequestNumber: input.pullRequest.number,
-    sourceTaskId: input.sourceTaskId,
-    sourceRunId: input.sourceRunId,
-  });
-
-  return applyLaunchDefaults({
+  return {
     title,
     instruction: buildGitHubPullRequestFollowUpInstruction(input),
-    taskSource,
-    repositoryExecutionContract: input.repositoryExecutionContract,
-    preferredBackendIds: input.preferredBackendIds,
-  });
+    taskSource: buildGitHubPullRequestFollowUpTaskSource({
+      pullRequest: input.pullRequest as GitHubPullRequest,
+      workspaceId: input.workspaceId,
+      workspaceRoot: input.workspaceRoot,
+      gitRemoteUrl: input.gitRemoteUrl,
+      sourceTaskId: input.sourceTaskId,
+      sourceRunId: input.sourceRunId,
+    }),
+  };
 }
