@@ -201,7 +201,7 @@ function toRuntimeRunResumeAck(record: RuntimeRunRecordV2): RuntimeRunResumeAck 
     runId: readRuntimeRunId(record),
     status: record.run.status,
     code: null,
-    message: null,
+    message: "",
     recovered: record.run.recovered ?? null,
     checkpointId: record.run.checkpointId ?? null,
     traceId: record.run.traceId ?? null,

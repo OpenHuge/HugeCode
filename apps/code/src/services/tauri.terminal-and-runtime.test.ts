@@ -1425,7 +1425,7 @@ describe("tauri invoke wrappers", () => {
       runId: "task-1",
       status: "running",
       code: null,
-      message: null,
+      message: "",
       recovered: true,
       checkpointId: "checkpoint-1",
       traceId: "trace-1",
