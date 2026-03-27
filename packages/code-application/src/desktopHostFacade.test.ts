@@ -21,22 +21,14 @@ describe("desktopHostFacade", () => {
     expect(
       detectDesktopRuntimeHost({
         desktopHostBridge: { kind: "electron" },
-        tauriRuntimeAvailable: true,
       })
     ).toBe("electron");
   });
 
-  it("falls back to tauri or browser runtime detection", () => {
+  it("falls back to browser runtime detection without a desktop bridge", () => {
     expect(
       detectDesktopRuntimeHost({
         desktopHostBridge: null,
-        tauriRuntimeAvailable: true,
-      })
-    ).toBe("tauri");
-    expect(
-      detectDesktopRuntimeHost({
-        desktopHostBridge: null,
-        tauriRuntimeAvailable: false,
       })
     ).toBe("browser");
   });
@@ -64,18 +56,18 @@ describe("desktopHostFacade", () => {
     ).resolves.toBe("41.0.3");
   });
 
-  it("falls back to supplied tauri resolvers when bridge values are unavailable", async () => {
+  it("falls back to supplied compatibility resolvers when bridge values are unavailable", async () => {
     await expect(
       resolveDesktopWindowLabel({
         desktopHostBridge: null,
         defaultLabel: "main",
-        getTauriWindowLabel: async () => "about",
+        getWindowLabel: async () => "about",
       })
     ).resolves.toBe("about");
     await expect(
       resolveDesktopAppVersion({
         desktopHostBridge: null,
-        getTauriAppVersion: async () => "9.9.9",
+        getAppVersion: async () => "9.9.9",
       })
     ).resolves.toBe("9.9.9");
   });
@@ -265,17 +257,17 @@ describe("desktopHostFacade", () => {
     ).resolves.toBe(true);
   });
 
-  it("falls back to tauri and browser shell helpers when the bridge is unavailable", async () => {
+  it("falls back to desktop compatibility and browser shell helpers when the bridge is unavailable", async () => {
     const openBrowserUrl = vi.fn(() => true);
-    const openTauriUrl = vi.fn(async () => true);
-    const revealTauriItem = vi.fn(async () => true);
+    const openDesktopUrl = vi.fn(async () => true);
+    const revealDesktopItem = vi.fn(async () => true);
 
     await expect(
       openDesktopExternalUrl(
         {
           desktopHostBridge: null,
           openBrowserUrl,
-          openTauriUrl,
+          openDesktopUrl,
         },
         "https://example.com"
       )
@@ -284,19 +276,19 @@ describe("desktopHostFacade", () => {
       revealDesktopItemInDir(
         {
           desktopHostBridge: null,
-          revealTauriItem,
+          revealDesktopItem,
         },
         "/tmp/workspace"
       )
     ).resolves.toBe(true);
-    expect(openTauriUrl).toHaveBeenCalledWith("https://example.com");
-    expect(revealTauriItem).toHaveBeenCalledWith("/tmp/workspace");
+    expect(openDesktopUrl).toHaveBeenCalledWith("https://example.com");
+    expect(revealDesktopItem).toHaveBeenCalledWith("/tmp/workspace");
     expect(openBrowserUrl).not.toHaveBeenCalled();
   });
 
   it("blocks unsafe external urls before any desktop shell transport runs", async () => {
     const openBrowserUrl = vi.fn(() => true);
-    const openTauriUrl = vi.fn(async () => true);
+    const openDesktopUrl = vi.fn(async () => true);
     const openExternalUrl = vi.fn(async () => true);
 
     await expect(
@@ -307,14 +299,14 @@ describe("desktopHostFacade", () => {
             shell: { openExternalUrl },
           },
           openBrowserUrl,
-          openTauriUrl,
+          openDesktopUrl,
         },
         "javascript:alert(1)"
       )
     ).resolves.toBe(false);
 
     expect(openExternalUrl).not.toHaveBeenCalled();
-    expect(openTauriUrl).not.toHaveBeenCalled();
+    expect(openDesktopUrl).not.toHaveBeenCalled();
     expect(openBrowserUrl).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,5 @@
 export type DesktopHostKind = "electron";
-export type DesktopRuntimeHost = "browser" | DesktopHostKind | "tauri";
+export type DesktopRuntimeHost = "browser" | DesktopHostKind;
 export type DesktopWindowLabel = "main" | "about";
 export type DesktopRuntimeMode = "local" | "remote";
 export type DesktopReleaseChannel = "stable" | "beta" | "dev";

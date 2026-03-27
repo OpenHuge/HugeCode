@@ -1,12 +1,12 @@
 # apps/code
 
-`apps/code` is the Tauri-facing coding-assistant frontend built with React and Vite. It remains the desktop/mobile WebView entrypoint and continues to produce static client assets for `apps/code-tauri`.
+`apps/code` is the Electron-facing coding-assistant frontend built with React and Vite. It remains the shared desktop renderer entrypoint and produces static client assets for `apps/code-electron`.
 
 ## Scope in this scaffold
 
 - Static/CSR shell for the coding assistant workspace.
 - Composer/threads/model-pool placeholder surfaces.
-- Tauri IPC service entrypoint for Rust command integration.
+- Desktop renderer entrypoint for Electron bridge and runtime-gateway integration.
 - Desktop host composition around the shared workspace client in
   `packages/code-workspace-client`.
 - Runtime-bound desktop bootstrap and host bindings that the web shell does not
@@ -14,7 +14,7 @@
 
 ## Target Boundary
 
-- Keep `apps/code` compatible with `tauri dev` and `tauri build`.
+- Keep `apps/code` compatible with the Electron desktop shell and browser/runtime-gateway fallbacks.
 - Do not introduce a Cloudflare Workers runtime dependency here.
 - TanStack Start and Cloudflare platform shell work live in `apps/code-web`,
   while shared workspace behavior lives in `packages/code-workspace-client` and
