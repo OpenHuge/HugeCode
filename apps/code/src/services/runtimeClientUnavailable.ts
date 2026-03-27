@@ -147,23 +147,8 @@ export function createUnavailableRuntimeClient(
     runtimeRunsList() {
       return rejectUnavailable("list runtime runs");
     },
-    kernelJobStartV3() {
-      return rejectUnavailable("start kernel job v3");
-    },
-    kernelJobGetV3() {
-      return rejectUnavailable("read kernel job v3");
-    },
     kernelJobCancelV3() {
       return rejectUnavailable("cancel kernel job v3");
-    },
-    kernelJobResumeV3() {
-      return rejectUnavailable("resume kernel job v3");
-    },
-    kernelJobInterveneV3() {
-      return rejectUnavailable("intervene kernel job v3");
-    },
-    kernelJobSubscribeV3() {
-      return rejectUnavailable("subscribe kernel job v3");
     },
     kernelJobCallbackRegisterV3() {
       return rejectUnavailable("register kernel job callback v3");

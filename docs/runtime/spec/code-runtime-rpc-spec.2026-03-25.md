@@ -1,9 +1,9 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-03-26T13:53:02.290Z`
+- Generated at: `2026-03-27T08:16:15.531Z`
 - Contract version: `2026-03-25`
 - Freeze effective at: `2026-03-25`
-- Method-set hash: `673aa3c3d875eefd`
+- Method-set hash: `958e005bd3356a43`
 
 ## Features
 
@@ -135,12 +135,7 @@
 - `code_runtime_run_subscribe_v2`
 - `code_runtime_review_get_v2`
 - `code_runtime_runs_list`
-- `code_kernel_job_start_v3`
-- `code_kernel_job_get_v3`
 - `code_kernel_job_cancel_v3`
-- `code_kernel_job_resume_v3`
-- `code_kernel_job_intervene_v3`
-- `code_kernel_job_subscribe_v3`
 - `code_kernel_job_callback_register_v3`
 - `code_kernel_job_callback_remove_v3`
 - `code_sub_agent_spawn`
@@ -290,11 +285,6 @@
 - `code_kernel_job_callback_register_v3`
 - `code_kernel_job_callback_remove_v3`
 - `code_kernel_job_cancel_v3`
-- `code_kernel_job_get_v3`
-- `code_kernel_job_intervene_v3`
-- `code_kernel_job_resume_v3`
-- `code_kernel_job_start_v3`
-- `code_kernel_job_subscribe_v3`
 - `code_kernel_jobs_list_v2`
 - `code_kernel_policies_evaluate_v2`
 - `code_kernel_projection_bootstrap_v3`

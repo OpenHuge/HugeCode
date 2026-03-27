@@ -54,7 +54,7 @@ describe("runtime launch path governance", () => {
       "code_runtime_run_prepare_v2",
       "code_runtime_run_start_v2",
     ]);
-    expect(CODE_RUNTIME_RETIRE_ONLY_PRODUCT_LAUNCH_METHODS).toContain("code_kernel_job_start_v3");
+    expect(CODE_RUNTIME_RETIRE_ONLY_PRODUCT_LAUNCH_METHODS).toEqual(["code_runtime_run_start"]);
   });
 
   it("keeps PlanPanel observe/interrupt only and out of direct relaunch flow", () => {

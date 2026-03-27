@@ -76,10 +76,9 @@ use extensions_dispatch::{
 use kernel_dispatch::{
     handle_kernel_capabilities_list_v2, handle_kernel_context_snapshot_v2,
     handle_kernel_extensions_list_v2, handle_kernel_job_callback_register_v3,
-    handle_kernel_job_callback_remove_v3, handle_kernel_job_get_v3,
-    handle_kernel_job_subscribe_v3, handle_kernel_jobs_list_v2,
+    handle_kernel_job_callback_remove_v3, handle_kernel_jobs_list_v2,
     handle_kernel_policies_evaluate_v2, handle_kernel_projection_bootstrap_v3,
-    handle_kernel_sessions_list_v2, read_kernel_job_payload_by_id,
+    handle_kernel_sessions_list_v2,
 };
 pub(crate) use kernel_dispatch::build_kernel_projection_delta_v3;
 use mission_control_dispatch::{
@@ -191,24 +190,7 @@ pub(crate) async fn handle_rpc(
         "code_runtime_review_get_v2" => handle_runtime_review_get_v2(ctx, params).await,
         "code_runtime_runs_list" => handle_agent_tasks_list(ctx, params).await,
         // Kernel-job compatibility surface.
-        "code_kernel_job_start_v3" => {
-            let response = handle_agent_task_start(ctx, params).await?;
-            let job_id = response
-                .get("taskId")
-                .or_else(|| response.get("runId"))
-                .and_then(Value::as_str)
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .ok_or_else(|| RpcError::internal("kernel job start missing taskId"))?;
-            Ok(read_kernel_job_payload_by_id(ctx, job_id)
-                .await
-                .unwrap_or(response))
-        }
-        "code_kernel_job_get_v3" => handle_kernel_job_get_v3(ctx, params).await,
         "code_kernel_job_cancel_v3" => handle_agent_task_interrupt(ctx, params).await,
-        "code_kernel_job_resume_v3" => handle_agent_task_resume(ctx, params).await,
-        "code_kernel_job_intervene_v3" => handle_agent_task_intervene(ctx, params).await,
-        "code_kernel_job_subscribe_v3" => handle_kernel_job_subscribe_v3(ctx, params).await,
         "code_kernel_job_callback_register_v3" => {
             handle_kernel_job_callback_register_v3(ctx, params).await
         }

@@ -4,7 +4,6 @@ import {
   type AcpIntegrationUpsertInput,
   type KernelJobCallbackRegistrationV3,
   type KernelJobCallbackRemoveRequestV3,
-  type KernelJobGetRequestV3,
   type RuntimeBrowserDebugRunRequest,
   type RuntimeBrowserDebugStatusRequest,
   type RuntimeRunCancelRequest,
@@ -188,13 +187,6 @@ function toCompatRuntimeRunGetV2Payload(payload: RuntimeRunGetV2Request) {
 
 function toCompatRuntimeReviewGetV2Payload(payload: RuntimeReviewGetV2Request) {
   return withCanonicalPayload({ ...payload });
-}
-
-function toCompatKernelJobGetPayload(payload: KernelJobGetRequestV3) {
-  return withCanonicalPayload({
-    ...payload,
-    jobId: payload.jobId,
-  });
 }
 
 function toCompatKernelJobCallbackRegistrationPayload(payload: KernelJobCallbackRegistrationV3) {
@@ -433,12 +425,7 @@ export const RUNTIME_RPC_PAYLOAD_REGISTRY = Object.freeze({
   runtimeRunSubscribeV2: toCompatRuntimeRunGetV2Payload,
   runtimeReviewGetV2: toCompatRuntimeReviewGetV2Payload,
   runtimeRunsList: toCompatRuntimeRunsListPayload,
-  kernelJobStartV3: toCompatRuntimeRunStartPayload,
-  kernelJobGetV3: toCompatKernelJobGetPayload,
   kernelJobCancelV3: toCompatRuntimeRunCancelPayload,
-  kernelJobResumeV3: toCompatRuntimeRunResumePayload,
-  kernelJobInterveneV3: toCompatRuntimeRunInterventionPayload,
-  kernelJobSubscribeV3: toCompatRuntimeRunSubscribePayload,
   kernelJobCallbackRegisterV3: toCompatKernelJobCallbackRegistrationPayload,
   kernelJobCallbackRemoveV3: toCompatKernelJobCallbackRemovePayload,
   runtimeRunCheckpointApproval: toCompatRuntimeRunCheckpointApprovalPayload,

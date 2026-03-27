@@ -1271,25 +1271,10 @@ describe("agent and oauth rpc methods", () => {
     ]);
   });
 
-  it("exposes canonical candidates for kernel job v3 control methods", () => {
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_START_V3)
-    ).toEqual(["code_kernel_job_start_v3"]);
-    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_GET_V3)).toEqual([
-      "code_kernel_job_get_v3",
-    ]);
+  it("exposes canonical candidates for remaining kernel job control methods", () => {
     expect(
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3)
     ).toEqual(["code_kernel_job_cancel_v3"]);
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_RESUME_V3)
-    ).toEqual(["code_kernel_job_resume_v3"]);
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_INTERVENE_V3)
-    ).toEqual(["code_kernel_job_intervene_v3"]);
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_SUBSCRIBE_V3)
-    ).toEqual(["code_kernel_job_subscribe_v3"]);
     expect(
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CALLBACK_REGISTER_V3)
     ).toEqual(["code_kernel_job_callback_register_v3"]);

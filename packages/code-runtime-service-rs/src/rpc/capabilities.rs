@@ -98,12 +98,7 @@ pub(super) const RPC_METHOD_REGISTRY: &[RpcMethodEntry] = &[
     RpcMethodEntry::new("code_runtime_review_get_v2"),
     RpcMethodEntry::new("code_runtime_runs_list"),
     // Kernel-job compatibility surface. Not a product launch path.
-    RpcMethodEntry::new("code_kernel_job_start_v3"),
-    RpcMethodEntry::new("code_kernel_job_get_v3"),
     RpcMethodEntry::new("code_kernel_job_cancel_v3"),
-    RpcMethodEntry::new("code_kernel_job_resume_v3"),
-    RpcMethodEntry::new("code_kernel_job_intervene_v3"),
-    RpcMethodEntry::new("code_kernel_job_subscribe_v3"),
     RpcMethodEntry::new("code_kernel_job_callback_register_v3"),
     RpcMethodEntry::new("code_kernel_job_callback_remove_v3"),
     RpcMethodEntry::new("code_sub_agent_spawn"),
@@ -427,9 +422,6 @@ mod tests {
         assert!(methods
             .iter()
             .any(|method| method == "code_runtime_run_start"));
-        assert!(methods
-            .iter()
-            .any(|method| method == "code_kernel_job_start_v3"));
         assert!(methods
             .iter()
             .any(|method| method == "code_runtime_run_checkpoint_approval"));

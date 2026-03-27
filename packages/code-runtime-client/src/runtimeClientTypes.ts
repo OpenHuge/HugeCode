@@ -26,12 +26,7 @@ import type {
   KernelJobCallbackRegistrationV3,
   KernelJobCallbackRemoveAckV3,
   KernelJobCallbackRemoveRequestV3,
-  KernelJobGetRequestV3,
-  KernelJobInterventionRequestV3,
-  KernelJobResumeRequestV3,
   KernelJobsListRequest,
-  KernelJobStartRequestV3,
-  KernelJobSubscribeRequestV3,
   KernelPoliciesEvaluateRequest,
   KernelPolicyDecision,
   KernelProjectionBootstrapRequest,
@@ -286,14 +281,7 @@ export type RuntimeClient<TAppSettings extends Record<string, unknown> = Record<
     ) => Promise<RuntimeRunSubscribeV2Response>;
     runtimeReviewGetV2: (request: RuntimeReviewGetV2Request) => Promise<RuntimeReviewGetV2Response>;
     runtimeRunsList: (request: RuntimeRunsListRequest) => Promise<RuntimeRunSummary[]>;
-    kernelJobStartV3: (request: KernelJobStartRequestV3) => Promise<KernelJob>;
-    kernelJobGetV3: (request: KernelJobGetRequestV3) => Promise<KernelJob | null>;
     kernelJobCancelV3: (request: RuntimeRunCancelRequest) => Promise<RuntimeRunCancelAck>;
-    kernelJobResumeV3: (request: KernelJobResumeRequestV3) => Promise<RuntimeRunResumeAck>;
-    kernelJobInterveneV3: (
-      request: KernelJobInterventionRequestV3
-    ) => Promise<RuntimeRunInterventionAck>;
-    kernelJobSubscribeV3: (request: KernelJobSubscribeRequestV3) => Promise<KernelJob | null>;
     kernelJobCallbackRegisterV3: (
       request: KernelJobCallbackRegistrationV3
     ) => Promise<KernelJobCallbackRegistrationAckV3>;

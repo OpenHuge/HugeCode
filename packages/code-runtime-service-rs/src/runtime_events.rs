@@ -99,8 +99,8 @@ fn is_latest_state_fabric_event_kind(kind: &str) -> bool { matches!(kind, NATIVE
 fn is_agent_job_scope_method(method: &str) -> bool {
     matches!(method,
         "code_runtime_run_start" | "code_runtime_run_start_v2" | "code_runtime_run_cancel" | "code_runtime_run_resume" | "code_runtime_run_resume_v2" | "code_runtime_run_intervene" | "code_runtime_run_intervene_v2"
-        | "code_kernel_job_start_v3" | "code_kernel_job_cancel_v3" | "code_kernel_job_resume_v3" | "code_kernel_job_intervene_v3"
-        | "code_runtime_run_subscribe" | "code_runtime_run_subscribe_v2" | "code_kernel_job_get_v3" | "code_kernel_job_subscribe_v3" | "code_kernel_job_callback_register_v3" | "code_kernel_job_callback_remove_v3"
+        | "code_kernel_job_cancel_v3"
+        | "code_runtime_run_subscribe" | "code_runtime_run_subscribe_v2" | "code_kernel_job_callback_register_v3" | "code_kernel_job_callback_remove_v3"
         | "code_sub_agent_spawn" | "code_sub_agent_send" | "code_sub_agent_wait" | "code_sub_agent_status" | "code_sub_agent_interrupt" | "code_sub_agent_close"
         | "code_runtime_run_checkpoint_approval"
     )

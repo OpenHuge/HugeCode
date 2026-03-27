@@ -471,47 +471,6 @@ describe("runtimeClient mode detection", () => {
     );
 
     invokeMock.mockResolvedValueOnce({
-      id: "job-123",
-      workspaceId: "workspace-123",
-      status: "queued",
-      executionProfile: {
-        placement: "local",
-        interactivity: "background",
-        isolation: "host",
-        network: "default",
-        authority: "user",
-      },
-      createdAt: 1,
-      updatedAt: 1,
-      continuation: {
-        resumeSupported: true,
-        recovered: false,
-      },
-    });
-    await client.kernelJobStartV3({
-      workspaceId: "workspace-123",
-      steps: [{ kind: "read", input: "Check repo" }],
-    });
-    expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_start_v3",
-      expect.objectContaining({
-        workspaceId: "workspace-123",
-        steps: expect.arrayContaining([
-          expect.objectContaining({ kind: "read", input: "Check repo" }),
-        ]),
-      })
-    );
-
-    invokeMock.mockResolvedValueOnce(null);
-    await client.kernelJobGetV3({ jobId: "job-123" });
-    expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_get_v3",
-      expect.objectContaining({
-        jobId: "job-123",
-      })
-    );
-
-    invokeMock.mockResolvedValueOnce({
       accepted: true,
       runId: "job-123",
       status: "interrupted",
@@ -523,46 +482,6 @@ describe("runtimeClient mode detection", () => {
       expect.objectContaining({
         runId: "job-123",
         reason: "user-stop",
-      })
-    );
-
-    invokeMock.mockResolvedValueOnce({
-      accepted: true,
-      runId: "job-123",
-      status: "queued",
-      message: "resumed",
-    });
-    await client.kernelJobResumeV3({ runId: "job-123", reason: "retry" });
-    expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_resume_v3",
-      expect.objectContaining({
-        runId: "job-123",
-        reason: "retry",
-      })
-    );
-
-    invokeMock.mockResolvedValueOnce({
-      accepted: true,
-      action: "retry",
-      runId: "job-123",
-      status: "queued",
-      outcome: "submitted",
-    });
-    await client.kernelJobInterveneV3({ runId: "job-123", action: "retry" });
-    expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_intervene_v3",
-      expect.objectContaining({
-        runId: "job-123",
-        action: "retry",
-      })
-    );
-
-    invokeMock.mockResolvedValueOnce(null);
-    await client.kernelJobSubscribeV3({ runId: "job-123" });
-    expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_subscribe_v3",
-      expect.objectContaining({
-        runId: "job-123",
       })
     );
 
