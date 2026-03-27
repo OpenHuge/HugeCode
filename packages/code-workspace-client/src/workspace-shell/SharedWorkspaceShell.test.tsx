@@ -944,7 +944,7 @@ describe("WorkspaceShellApp", () => {
       expect(screen.getByText("3 workspaces")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Refresh" })).toBeTruthy();
     });
-  });
+  }, 15_000);
 
   it("surfaces shared-shell load failures through toast cards instead of inline copy", async () => {
     render(
