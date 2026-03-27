@@ -5,7 +5,7 @@ import type {
   HugeCodeMissionControlSummary as SharedMissionControlSummary,
   HugeCodeReviewQueueItem as SharedReviewQueueItem,
 } from "@ku0/code-runtime-host-contract";
-import { buildRuntimeContinuationAggregate } from "@ku0/code-runtime-host-contract";
+import { summarizeHugeCodeOperatorContinuation } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
 
 export type {
   SharedMissionActivityItem,
@@ -57,47 +57,66 @@ function pushUnique(values: string[], next: string | null | undefined) {
   }
 }
 
+function analyzeRunContinuitySignal(
+  run: HugeCodeMissionControlSnapshot["runs"][number]
+): keyof ContinuitySignalCounts | null {
+  const continuation = summarizeHugeCodeOperatorContinuation({
+    runState: run.state,
+    checkpoint: run.checkpoint ?? null,
+    takeoverBundle: run.takeoverBundle ?? null,
+    reviewActionability: run.actionability ?? null,
+    missionLinkage: run.missionLinkage ?? null,
+    publishHandoff: run.publishHandoff ?? null,
+  });
+
+  if (continuation.state === "blocked") {
+    return "blockedCount";
+  }
+  if (continuation.pathKind === "resume" && continuation.state === "ready") {
+    return "readyResumeCount";
+  }
+  if (continuation.pathKind === "handoff" && continuation.state === "ready") {
+    return "readyHandoffCount";
+  }
+  if (continuation.pathKind === "review" && continuation.state === "ready") {
+    return "readyReviewCount";
+  }
+  if (continuation.state === "degraded") {
+    return "attentionCount";
+  }
+  if (
+    continuation.pathKind === "missing" &&
+    continuation.truthSource === "missing" &&
+    run.reviewPackId
+  ) {
+    return "reviewPackOnlyCount";
+  }
+  if (continuation.truthSource !== "missing") {
+    return "attentionCount";
+  }
+  return null;
+}
+
 function countContinuitySignals(
   runs: HugeCodeMissionControlSnapshot["runs"]
 ): ContinuitySignalCounts {
-  const aggregate = buildRuntimeContinuationAggregate({
-    candidates: runs.map((run) => ({
-      runId: run.id,
-      taskId: run.taskId,
-      runState: run.state,
-      checkpoint: run.checkpoint ?? null,
-      missionLinkage: run.missionLinkage ?? null,
-      actionability: run.actionability ?? null,
-      publishHandoff: run.publishHandoff ?? null,
-      takeoverBundle: run.takeoverBundle ?? null,
-      nextAction: run.nextAction ?? null,
-      reviewPackId: run.reviewPackId ?? null,
-    })),
-  });
-  const reviewPackOnlyRunIds = new Set(
-    runs
-      .filter(
-        (run) =>
-          Boolean(run.reviewPackId) &&
-          !run.takeoverBundle &&
-          !run.actionability &&
-          !run.checkpoint &&
-          !run.missionLinkage &&
-          !run.publishHandoff
-      )
-      .map((run) => run.id)
-  );
-
-  return {
-    readyResumeCount: aggregate.recoverableRunCount,
-    readyHandoffCount: aggregate.handoffReadyCount,
-    readyReviewCount: aggregate.reviewReadyCount,
-    attentionCount: aggregate.items.filter(
-      (item) => item.state === "attention" && !reviewPackOnlyRunIds.has(item.runId)
-    ).length,
-    blockedCount: aggregate.blockedCount,
-    reviewPackOnlyCount: reviewPackOnlyRunIds.size,
+  const counts: ContinuitySignalCounts = {
+    readyResumeCount: 0,
+    readyHandoffCount: 0,
+    readyReviewCount: 0,
+    attentionCount: 0,
+    blockedCount: 0,
+    reviewPackOnlyCount: 0,
   };
+
+  for (const run of runs) {
+    const signalKey = analyzeRunContinuitySignal(run);
+    if (signalKey) {
+      counts[signalKey] += 1;
+    }
+  }
+
+  return counts;
 }
 
 function buildLaunchReadiness(

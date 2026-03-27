@@ -1,6 +1,6 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-03-27T05:32:00.865Z`
+- Generated at: `2026-03-27T06:15:51.381Z`
 - Contract version: `2026-03-24`
 - Freeze effective at: `2026-03-24`
 - Method-set hash: `5bae1de0c62b5aeb`

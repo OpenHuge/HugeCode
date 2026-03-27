@@ -488,9 +488,9 @@ export function useMainAppHandlers({
     pendingNewThreadSeedRef.current = createPendingThreadSeed({
       activeThreadId: activeThreadId ?? null,
       activeWorkspaceId: activeWorkspaceId ?? null,
+      selectedCollaborationModeId,
       selectionMode,
       providerFamilyId: preferredProviderFamilyId,
-      selectedCollaborationModeId,
       accessMode,
       executionMode,
       fastMode: fastModeEnabled,
@@ -504,8 +504,8 @@ export function useMainAppHandlers({
     fastModeEnabled,
     pendingNewThreadAutoDriveDraftRef,
     preferredProviderFamilyId,
-    selectedCollaborationModeId,
     selectionMode,
+    selectedCollaborationModeId,
     pendingNewThreadSeedRef,
   ]);
 

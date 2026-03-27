@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-27T05:37:39.367Z",
+  "generatedAt": "2026-03-27T06:17:28.111Z",
   "rpc": {
     "contractVersion": "2026-03-24",
     "freezeEffectiveAt": "2026-03-24",
@@ -343,6 +343,7 @@
       "code_runtime_diagnostics_export_v1"
     ],
     "features": [
+      "app_server_protocol_v2_2026_03_23",
       "canonical_methods_only",
       "contract_frozen_2026_03_24",
       "git_diff_paging_v1",

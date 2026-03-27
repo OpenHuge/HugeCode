@@ -10,65 +10,23 @@ pub(crate) const CODE_RUNTIME_RPC_CAPABILITY_PROFILE: &str = "desktop-core";
 pub(crate) const CODE_RUNTIME_RPC_FEATURES: &[&str] = &[
     "method_not_found_error_code",
     "rpc_capabilities_handshake",
-    "oauth_account_pool",
-    "oauth_secret_key_encryption_v1",
-    "prompt_library_mutation",
-    "live_skills_core_agents",
-    "provider_catalog",
-    "bootstrap_snapshot_v1",
-    "rpc_batch_read_v1",
-    "agent_orchestrator_v1",
     "canonical_methods_only",
-    "distributed_runtime_v1",
-    "durable_task_log_v1",
-    "workspace_lane_sharding_v1",
-    "event_replay_durable_v1",
-    "multi_backend_pool_v1",
-    "distributed_subtask_graph_v1",
-    "backend_placement_observability_v1",
-    "sub_agent_sessions_v1",
-    "execution_mode_v2",
-    "agent_task_durability_v1",
-    "agent_task_resume_v1",
-    "runtime_tool_lifecycle_v2",
-    "runtime_tool_metrics_v1",
-    "runtime_tool_guardrails_v1",
-    "runtime_autonomy_v2",
-    "runtime_autonomy_safety_v1",
-    "runtime_kernel_v2",
-    "runtime_kernel_prepare_v2",
-    "runtime_kernel_projection_v3",
-    "runtime_kernel_jobs_v3",
-    "runtime_stream_backpressure_v1",
-    "runtime_lifecycle_sweeper_v1",
-    "runtime_lifecycle_consistency_v1",
-    "runtime_distributed_state_cas_v1",
-    "runtime_stream_guardrails_v1",
-    "runtime_lifecycle_observability_v1",
-    "runtime_distributed_lease_observability_v1",
-    "runtime_backend_registry_persistence_v1",
-    "runtime_backend_operability_v1",
-    "runtime_acp_readiness_probe_v1",
-    "runtime_review_actionability_v1",
-    "runtime_review_linkage_v1",
-    "runtime_mission_control_summary_v1",
-    "runtime_task_normalization_v1",
-    "runtime_task_native_run_review_v1",
-    "runtime_fault_injection_test_v1",
-    "oauth_chatgpt_auth_tokens_refresh_v1",
-    "oauth_codex_login_control_v1",
-    "git_diff_paging_v1",
+    "prompt_library_mutation",
+    "provider_catalog",
     "thread_live_subscription_v1",
+    "git_diff_paging_v1",
     "workspace_diagnostics_list_v1",
-    "runtime_extension_lifecycle_v1",
-    "runtime_session_portability_v1",
-    "runtime_security_preflight_v1",
     "runtime_diagnostics_export_v1",
     "runtime_codex_exec_run_v1",
     "runtime_codex_cloud_tasks_read_v1",
     "runtime_codex_execpolicy_preflight_v1",
     "runtime_codex_unified_rpc_migration_v1",
+    "runtime_task_normalization_v1",
+    "runtime_task_native_run_review_v1",
+    "runtime_kernel_jobs_v3",
+    "oauth_codex_login_control_v1",
     "runtime_host_deprecated",
+    "app_server_protocol_v2_2026_03_23",
     CODE_RUNTIME_RPC_FROZEN_FEATURE,
 ];
 pub(crate) const CODE_RUNTIME_RPC_ERROR_CODES: &[(&str, &str)] = &[
@@ -211,13 +169,15 @@ pub(crate) fn current_rpc_methods(methods: &[&str]) -> Vec<String> {
 
 pub(crate) fn current_rpc_features() -> Vec<String> {
     let mut seen = HashSet::new();
-    CODE_RUNTIME_RPC_FEATURES
+    let mut features: Vec<String> = CODE_RUNTIME_RPC_FEATURES
         .iter()
         .filter_map(|feature| {
             let owned = (*feature).to_string();
             seen.insert(owned.clone()).then_some(owned)
         })
-        .collect()
+        .collect();
+    features.sort_unstable();
+    features
 }
 
 #[tauri::command]
