@@ -9,7 +9,6 @@ import {
   buildRuntimeRpcCompatArtifacts,
   COMPAT_LIFECYCLE_NOTE_PATH,
   SERVICE_LIB_PATH,
-  TAURI_RPC_PATH,
 } from "./runtime-rpc-compat-artifacts";
 
 type GeneratedSpecPayload = {
@@ -218,9 +217,6 @@ function main(): void {
   const compatMismatches: string[] = [];
   if (readFileSync(compatArtifacts.serviceLibPath, "utf8") !== compatArtifacts.nextServiceSource) {
     compatMismatches.push(`${SERVICE_LIB_PATH} is out of date.`);
-  }
-  if (readFileSync(compatArtifacts.tauriRpcPath, "utf8") !== compatArtifacts.nextTauriSource) {
-    compatMismatches.push(`${TAURI_RPC_PATH} is out of date.`);
   }
   const lifecycleNotePath = resolve(workspaceRoot, COMPAT_LIFECYCLE_NOTE_PATH);
   if (

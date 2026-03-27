@@ -24,10 +24,12 @@ describe("desktopHostIpcChannels", () => {
       getTrayState: "hugecode:desktop-host:get-tray-state",
       setTrayEnabled: "hugecode:desktop-host:set-tray-enabled",
       showNotification: "hugecode:desktop-host:show-notification",
+      openDialog: "hugecode:desktop-host:open-dialog",
       getUpdateState: "hugecode:desktop-host:get-update-state",
       checkForUpdates: "hugecode:desktop-host:check-for-updates",
       restartToApplyUpdate: "hugecode:desktop-host:restart-to-apply-update",
       openExternalUrl: "hugecode:desktop-host:open-external-url",
+      openPathIn: "hugecode:desktop-host:open-path-in",
       openPath: "hugecode:desktop-host:open-path",
       revealItemInDir: "hugecode:desktop-host:reveal-item-in-dir",
     });

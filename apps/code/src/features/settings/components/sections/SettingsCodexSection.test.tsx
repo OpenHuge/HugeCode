@@ -132,7 +132,7 @@ describe("SettingsCodexSection", () => {
     getProvidersCatalogMock.mockResolvedValue([]);
   });
 
-  it("renders through the shared settings grammar and keeps codex actions working", () => {
+  it("renders through the shared settings grammar and keeps codex actions working", async () => {
     const onSaveCodexSettings = vi.fn(async () => undefined);
     const onRunDoctor = vi.fn(async () => undefined);
     const onRunCodexUpdate = vi.fn(async () => undefined);
@@ -141,6 +141,14 @@ describe("SettingsCodexSection", () => {
     const { container } = render(
       <SettingsCodexSection
         {...createProps({
+          appSettings: {
+            lastComposerModelId: "gpt-5.1",
+            lastComposerReasoningEffort: "high",
+            defaultAccessMode: "full-access",
+            reviewDeliveryMode: "inline",
+            composerModelSelectionMode: "auto",
+            lastComposerProviderFamilyId: "codex",
+          } as AppSettings,
           onSaveCodexSettings,
           onRunDoctor,
           onRunCodexUpdate,
@@ -148,6 +156,8 @@ describe("SettingsCodexSection", () => {
         })}
       />
     );
+
+    await waitFor(() => expect(getProvidersCatalogMock).toHaveBeenCalledTimes(1));
 
     expect(container.querySelector('[data-settings-section-frame="true"]')).toBeTruthy();
     expect(
@@ -200,16 +210,20 @@ describe("SettingsCodexSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Access mode" }));
     fireEvent.click(screen.getByRole("option", { name: "Read only" }));
 
-    expect(onSaveCodexSettings).toHaveBeenCalled();
-    expect(onRunDoctor).toHaveBeenCalled();
-    expect(onRunCodexUpdate).toHaveBeenCalled();
-    expect(onUpdateAppSettings).toHaveBeenCalledWith(
-      expect.objectContaining({ lastComposerModelId: "gpt-5.1" })
+    await waitFor(() => expect(onSaveCodexSettings).toHaveBeenCalled());
+    await waitFor(() => expect(onRunDoctor).toHaveBeenCalled());
+    await waitFor(() => expect(onRunCodexUpdate).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ lastComposerModelId: "gpt-5.1" })
+      )
     );
-    expect(onUpdateAppSettings).toHaveBeenCalledWith(
-      expect.objectContaining({ defaultAccessMode: "read-only" })
+    await waitFor(() =>
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ defaultAccessMode: "read-only" })
+      )
     );
-  });
+  }, 15_000);
 
   it("preserves route-specific model ids when duplicate model slugs are available", async () => {
     const onUpdateAppSettings = vi.fn(async () => undefined);

@@ -44,7 +44,7 @@ export function LaunchScriptPopoverShell({
             event.preventDefault();
             onOpenEditor();
           }}
-          data-tauri-drag-region="false"
+          data-desktop-drag-region="false"
           aria-label={buttonAriaLabel}
           title={buttonTitle}
           icon={buttonIcon}

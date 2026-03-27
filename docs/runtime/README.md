@@ -18,7 +18,7 @@ This directory is the canonical entrypoint for runtime transport, contract, and 
 - TS contract source: `packages/code-runtime-host-contract`
 - Rust service implementation: `packages/code-runtime-service-rs`
 - Native parity layer: `packages/native-runtime-host-contract`
-- Tauri bridge surface: `apps/code-tauri/src-tauri`
+- Desktop bridge surface: `apps/code-electron`
 - Current frozen contract baseline:
   - `contractVersion = "2026-03-22"`
   - `freezeEffectiveAt = "2026-03-22"`

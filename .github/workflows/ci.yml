@@ -90,7 +90,6 @@ jobs:
               - 'packages/code-runtime-host-contract/**'
               - 'packages/native-runtime-host-contract/**'
               - 'packages/code-runtime-service-rs/src/**'
-              - 'apps/code-tauri/src-tauri/**'
               - 'apps/code/src/services/runtimeClient*'
               - 'docs/runtime/spec/**'
               - 'docs/specs/code-runtime-spec-2026.md'
@@ -102,13 +101,13 @@ jobs:
               - '.github/actions/setup-rust-ci/**'
               - 'scripts/check-runtime-sot.mjs'
             desktop_runtime:
-              - 'apps/code-tauri/**'
+              - 'apps/code-electron/**'
               - 'apps/code-electron/**'
               - 'turbo.json'
               - '.github/actions/setup-rust-ci/**'
               - '.github/actions/cache-turbo/**'
             desktop_host:
-              - 'apps/code-tauri/**'
+              - 'apps/code-electron/**'
             repo_sot:
               - '.nvmrc'
               - '.devcontainer/devcontainer.json'
@@ -406,8 +405,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            ~/.cache/ku0/cargo-target/code-tauri
-          cargo-cache-key: ${{ runner.os }}-code-tauri-build
+            ~/.cache/ku0/cargo-target/runtime-service
+          cargo-cache-key: ${{ runner.os }}-runtime-service-build
 
       - uses: ./.github/actions/install-linux-desktop-deps
         if: ${{ runner.os == 'Linux' }}

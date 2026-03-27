@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
-      - name: Skip frontend dist preparation while Tauri retires
+      - name: Skip dedicated frontend dist preparation
         run: |
-          echo "Tauri CI is in retirement mode."
-          echo "Keeping Desktop (Tauri) workflow names stable for branch protection while skipping frontend prebuild."
+          echo "The Electron desktop workflow builds renderer assets inside the active desktop lanes."
+          echo "No separate shared frontend artifact is required for this reusable workflow."

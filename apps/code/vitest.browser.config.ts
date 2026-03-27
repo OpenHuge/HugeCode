@@ -30,6 +30,39 @@ const reactJsxDevRuntimeEntry = fileURLToPath(
   new URL("./node_modules/react/jsx-dev-runtime.js", import.meta.url)
 );
 const reactDomEntry = fileURLToPath(new URL("./node_modules/react-dom/index.js", import.meta.url));
+const tauriCoreCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/tauriCore.ts", import.meta.url)
+);
+const tauriDpiCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/tauriDpi.ts", import.meta.url)
+);
+const tauriMenuCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/tauriMenu.ts", import.meta.url)
+);
+const tauriWindowCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/tauriWindow.ts", import.meta.url)
+);
+const tauriDialogCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/tauriDialogs.ts", import.meta.url)
+);
+const tauriUpdaterCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/tauriUpdater.ts", import.meta.url)
+);
+const tauriProcessCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/tauriProcess.ts", import.meta.url)
+);
+const tauriOpenerCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/tauriOpener.ts", import.meta.url)
+);
+const tauriEventCompatEntry = fileURLToPath(
+  new URL("./src/test/shims/tauriEventCompat.ts", import.meta.url)
+);
+const tauriNotificationCompatEntry = fileURLToPath(
+  new URL("./src/test/shims/tauriNotificationCompat.ts", import.meta.url)
+);
+const liquidGlassCompatEntry = fileURLToPath(
+  new URL("./src/test/shims/liquidGlassCompat.ts", import.meta.url)
+);
 const browserOptimizeDepsInclude = [
   "lucide-react",
   "lucide-react/dist/esm/icons/chevron-right",
@@ -67,6 +100,50 @@ export default defineConfig({
       {
         find: /^react-dom$/,
         replacement: reactDomEntry,
+      },
+      {
+        find: /^@tauri-apps\/api\/core$/,
+        replacement: tauriCoreCompatEntry,
+      },
+      {
+        find: /^@tauri-apps\/api\/dpi$/,
+        replacement: tauriDpiCompatEntry,
+      },
+      {
+        find: /^@tauri-apps\/api\/event$/,
+        replacement: tauriEventCompatEntry,
+      },
+      {
+        find: /^@tauri-apps\/api\/menu$/,
+        replacement: tauriMenuCompatEntry,
+      },
+      {
+        find: /^@tauri-apps\/api\/window$/,
+        replacement: tauriWindowCompatEntry,
+      },
+      {
+        find: /^@tauri-apps\/plugin-dialog$/,
+        replacement: tauriDialogCompatEntry,
+      },
+      {
+        find: /^@tauri-apps\/plugin-notification$/,
+        replacement: tauriNotificationCompatEntry,
+      },
+      {
+        find: /^@tauri-apps\/plugin-opener$/,
+        replacement: tauriOpenerCompatEntry,
+      },
+      {
+        find: /^@tauri-apps\/plugin-process$/,
+        replacement: tauriProcessCompatEntry,
+      },
+      {
+        find: /^@tauri-apps\/plugin-updater$/,
+        replacement: tauriUpdaterCompatEntry,
+      },
+      {
+        find: /^tauri-plugin-liquid-glass-api$/,
+        replacement: liquidGlassCompatEntry,
       },
       {
         find: /^@ku0\/code-runtime-host-contract\/codeRuntimeRpc$/,

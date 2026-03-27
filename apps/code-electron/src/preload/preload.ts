@@ -50,6 +50,9 @@ const desktopHostBridge: DesktopHostBridgeApi = {
   notifications: {
     show: (input) => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.showNotification, input),
   },
+  dialogs: {
+    open: (input) => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.openDialog, input),
+  },
   diagnostics: {
     copySupportSnapshot: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.copySupportSnapshot),
     getInfo: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getDiagnosticsInfo),
@@ -71,6 +74,7 @@ const desktopHostBridge: DesktopHostBridgeApi = {
   shell: {
     openExternalUrl: (url: string) =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.openExternalUrl, url),
+    openPathIn: (input) => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.openPathIn, input),
     openPath: (path: string) => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.openPath, path),
     revealItemInDir: (path: string) =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.revealItemInDir, path),

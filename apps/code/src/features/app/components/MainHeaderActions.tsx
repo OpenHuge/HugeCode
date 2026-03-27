@@ -29,7 +29,7 @@ export const MainHeaderActions = memo(function MainHeaderActions({
         aria-pressed={gitDiffViewStyle === "split"}
         aria-label="Switch to dual-panel diff"
         title="Dual-panel diff"
-        data-tauri-drag-region="false"
+        data-desktop-drag-region="false"
       >
         <Columns2 size={14} aria-hidden />
       </button>
@@ -40,7 +40,7 @@ export const MainHeaderActions = memo(function MainHeaderActions({
         aria-pressed={gitDiffViewStyle === "unified"}
         aria-label="Switch to single-column diff"
         title="Single-column diff"
-        data-tauri-drag-region="false"
+        data-desktop-drag-region="false"
       >
         <AlignLeft size={14} aria-hidden />
       </button>

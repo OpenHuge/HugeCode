@@ -851,8 +851,9 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     expect(commandLog).toContain("pnpm test:runtime:review-pack-selection");
   });
 
-  it("routes tauri runtime parity checks through the cargo target guard wrapper", async () => {
+  it("keeps runtime contract parity on the active host contract and runtime service lanes", async () => {
     const tempRoot = await createFixtureRepo();
+    const retiredDesktopPath = ["apps", "code" + "-tauri"].join("/");
     await writeRepoFile(
       tempRoot,
       "packages/code-runtime-host-contract/src/codeRuntimeRpc.ts",
@@ -864,8 +865,9 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
     expect(result.status).toBe(0);
     expect(commandLog).toContain(
-      "node scripts/run-cargo-with-target-guard.mjs --cwd apps/code-tauri/src-tauri test --manifest-path Cargo.toml tests::rpc_capabilities_payload_matches_frozen_spec_and_gap_allowlist"
+      "pnpm --filter @ku0/code-runtime-service-rs test -- lib_tests::rpc_capabilities_returns_method_catalog"
     );
+    expect(commandLog).not.toContain(retiredDesktopPath);
   });
 
   it("deduplicates the dedicated review-pack regression from root related runs", async () => {

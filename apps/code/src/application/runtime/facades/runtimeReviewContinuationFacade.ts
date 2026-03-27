@@ -243,6 +243,7 @@ export function summarizeReviewContinuationActionability(input: {
   actionability?: HugeCodeReviewActionabilitySummary | null;
   missionLinkage?: HugeCodeMissionLinkageSummary | null;
   publishHandoff?: HugeCodePublishHandoffReference | null;
+  reviewPackId?: string | null;
   continuation?: HugeCodeContinuationSummary | null;
 }): ReviewContinuationActionabilitySummary {
   const descriptor = buildRuntimeContinuationDescriptor({
@@ -250,6 +251,8 @@ export function summarizeReviewContinuationActionability(input: {
     actionability: input.actionability ?? null,
     missionLinkage: input.missionLinkage ?? null,
     publishHandoff: input.publishHandoff ?? null,
+    reviewPackId: input.reviewPackId ?? null,
+    continuation: input.continuation ?? null,
   });
   const summary = descriptor?.summary ?? "Runtime continuation guidance is unavailable.";
   const state =

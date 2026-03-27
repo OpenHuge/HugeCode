@@ -30,7 +30,7 @@ Use the canonical docs before deeper work:
 - `pnpm dev:code:service`
   Starts the Rust-first code runtime service only.
 - `pnpm dev:desktop`
-  Starts the Tauri desktop shell for `apps/code`.
+  Starts the Electron desktop shell for `apps/code`.
 - `pnpm dev:code:runtime-gateway-web:all`
   Starts the coding workspace with the local web runtime gateway flow.
 
@@ -103,6 +103,6 @@ validation evidence that matches the changed surface.
 - Treat `apps/code/src/application/runtime/*` as the stable runtime API for the UI.
 - Do not import `apps/code/src/services/*` runtime internals directly from feature/UI code.
 - Treat undocumented placeholder directories under `apps/` as inactive entrypoints.
-- Do not introduce new primary app narratives outside `apps/code` and `apps/code-tauri` without an ADR and a tracked manifest.
+- Do not introduce new primary app narratives outside `apps/code`, `apps/code-web`, and `apps/code-electron` without an ADR and a tracked manifest.
 - Use `runtime-policy` for policy-domain packages, examples, fixtures, and docs.
 - For docs-only changes, state that the work is docs-only and has no runtime impact.

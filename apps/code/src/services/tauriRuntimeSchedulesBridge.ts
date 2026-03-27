@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "../application/runtime/ports/tauriCore";
 import { logger } from "./logger";
 import {
   isRuntimeMethodUnsupportedError,

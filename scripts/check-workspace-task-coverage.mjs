@@ -15,8 +15,8 @@ const ACTIVE_WORKSPACE_TASKS = [
     requiredScripts: ["build", "lint", "typecheck"],
   },
   {
-    manifestPath: "apps/code-tauri/package.json",
-    requiredScripts: ["build", "check"],
+    manifestPath: "apps/code-electron/package.json",
+    requiredScripts: ["build", "lint", "test", "typecheck"],
   },
   {
     manifestPath: "packages/design-system/package.json",

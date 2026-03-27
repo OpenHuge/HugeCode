@@ -5,6 +5,7 @@ import {
   type ResolvedRepositoryExecutionDefaults,
 } from "./runtimeRepositoryExecutionContract";
 import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
+import { buildManualTaskSource } from "./runtimeTaskSourceFacade";
 import { useRuntimeWorkspaceExecutionPolicy } from "./runtimeWorkspaceExecutionPolicyFacade";
 
 export type RuntimeWorkspaceLaunchDefaultsState = {
@@ -13,24 +14,18 @@ export type RuntimeWorkspaceLaunchDefaultsState = {
   repositoryLaunchDefaults: ResolvedRepositoryExecutionDefaults;
 };
 
-function buildWorkspaceLaunchTaskSource(input: {
-  draftTitle: string;
-  draftInstruction: string;
-}): AgentTaskSourceSummary {
-  return {
-    kind: "manual",
-    title: input.draftTitle.trim() || input.draftInstruction.trim() || "Mission run",
-  };
-}
-
 export function resolveRuntimeWorkspaceLaunchDefaults(input: {
   contract: RepositoryExecutionContract | null;
+  workspaceId: string;
   draftTitle: string;
   draftInstruction: string;
 }): ResolvedRepositoryExecutionDefaults {
   return resolveRepositoryExecutionDefaults({
     contract: input.contract,
-    taskSource: buildWorkspaceLaunchTaskSource(input),
+    taskSource: buildManualTaskSource({
+      workspaceId: input.workspaceId,
+      title: input.draftTitle.trim() || input.draftInstruction.trim() || "Mission run",
+    }) as AgentTaskSourceSummary,
   });
 }
 
@@ -46,10 +41,11 @@ export function useRuntimeWorkspaceLaunchDefaults(input: {
     () =>
       resolveRuntimeWorkspaceLaunchDefaults({
         contract: repositoryExecutionContract,
+        workspaceId: input.workspaceId,
         draftTitle: input.draftTitle,
         draftInstruction: input.draftInstruction,
       }),
-    [input.draftInstruction, input.draftTitle, repositoryExecutionContract]
+    [input.draftInstruction, input.draftTitle, input.workspaceId, repositoryExecutionContract]
   );
 
   return {

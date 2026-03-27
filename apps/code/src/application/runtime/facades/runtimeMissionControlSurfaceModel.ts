@@ -555,9 +555,13 @@ function resolveMissionOperatorAction(input: {
       !input.task.origin.threadId && isRuntimeManagedMissionTaskId(input.task.id)
         ? "Inspect runtime"
         : runtimeAction.label;
+    const runtimeActionDetail =
+      runtimeAction.action === "open_review_pack"
+        ? (input.continuation?.recommendedAction ?? runtimeAction.detail)
+        : runtimeAction.detail;
     return {
       label: runtimeActionLabel,
-      detail: runtimeAction.detail,
+      detail: runtimeActionDetail,
       target:
         mapRuntimeOperatorActionTarget({
           task: input.task,
@@ -582,6 +586,7 @@ function resolveMissionOperatorAction(input: {
             : "Open review",
       detail:
         resolveCheckpointHandoffLabel(input) ||
+        input.continuation?.recommendedAction ||
         input.continuation?.summary ||
         input.reviewPack.governance?.summary?.trim() ||
         resolveLegacyReviewPackNextAction(input.reviewPack) ||
@@ -637,6 +642,7 @@ function resolveMissionOperatorAction(input: {
     label: input.task.origin.threadId ? "Open mission" : "Inspect runtime",
     detail:
       input.run?.nextAction?.detail?.trim() ||
+      input.continuation?.recommendedAction ||
       input.continuation?.summary ||
       input.run?.governance?.summary?.trim() ||
       resolveLegacyReviewPackNextAction(input.reviewPack) ||

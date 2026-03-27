@@ -35,7 +35,9 @@ function buildRoute(
   return {
     value: "auto",
     label: "Automatic workspace routing",
+    state: "ready",
     ready: true,
+    launchAllowed: true,
     detail: "2/3 provider routes ready.",
     ...overrides,
   };
@@ -99,8 +101,11 @@ describe("buildRuntimeLaunchReadiness", () => {
       selectedRoute: buildRoute({
         value: "openai",
         label: "OpenAI",
+        state: "blocked",
         ready: false,
+        launchAllowed: false,
         detail: "Enable at least one pool for this provider.",
+        blockingReason: "Enable at least one pool for this provider.",
       }),
       executionReliability: buildExecutionReliability(),
       pendingApprovalCount: 0,
@@ -129,6 +134,35 @@ describe("buildRuntimeLaunchReadiness", () => {
     expect(summary.blockingReason).toBeNull();
     expect(summary.recommendedAction).toContain("approval");
     expect(summary.approvalPressure.state).toBe("attention");
+  });
+
+  it("keeps launch available when routing falls back to local/native execution but surfaces attention", () => {
+    const summary = buildRuntimeLaunchReadiness({
+      capabilities: buildCapabilitiesSummary(),
+      health: buildHealthResponse(),
+      healthError: null,
+      selectedRoute: buildRoute({
+        state: "attention",
+        ready: false,
+        launchAllowed: true,
+        detail:
+          "No OAuth-backed provider routes are ready, so automatic routing will fall back to local/native execution.",
+        recommendedAction:
+          "Launch can continue on local/native routing, or restore a ready remote provider route before launching.",
+        fallbackDetail:
+          "No OAuth-backed provider routes are ready, so automatic routing will fall back to local/native execution.",
+        provenanceLabel: "Workspace auto route",
+      }),
+      executionReliability: buildExecutionReliability(),
+      pendingApprovalCount: 0,
+      stalePendingApprovalCount: 0,
+    });
+
+    expect(summary.state).toBe("attention");
+    expect(summary.launchAllowed).toBe(true);
+    expect(summary.recommendedAction).toContain("local/native routing");
+    expect(summary.route.fallbackDetail).toContain("fall back to local/native execution");
+    expect(summary.route.provenanceLabel).toBe("Workspace auto route");
   });
 
   it("prioritizes stale approvals as the first operator action", () => {
@@ -231,8 +265,11 @@ describe("buildRuntimeLaunchReadiness", () => {
       selectedRoute: buildRoute({
         value: "openai",
         label: "OpenAI",
+        state: "blocked",
         ready: false,
+        launchAllowed: false,
         detail: "Enable at least one pool for this provider.",
+        blockingReason: "Enable at least one pool for this provider.",
       }),
       executionReliability: buildExecutionReliability({
         state: "blocked",

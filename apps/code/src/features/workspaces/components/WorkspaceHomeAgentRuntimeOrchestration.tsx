@@ -3,7 +3,9 @@ import { useWorkspaceRuntimeMissionControlController } from "../../../applicatio
 import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import { ToolCallChip } from "../../../design-system";
+import { useWorkspaceRuntimeToolLifecycle } from "../../shared/hooks/useWorkspaceRuntimeToolLifecycle";
 import {
+  MissionControlSessionLogSection,
   MissionControlRunListSection,
   MissionControlSectionCard,
 } from "./WorkspaceHomeMissionControlSections";
@@ -21,6 +23,9 @@ type WorkspaceHomeAgentRuntimeOrchestrationProps = {
 export function WorkspaceHomeAgentRuntimeOrchestration({
   workspaceId,
 }: WorkspaceHomeAgentRuntimeOrchestrationProps) {
+  const runtimeToolLifecycle = useWorkspaceRuntimeToolLifecycle({
+    workspaceId,
+  });
   const [runtimeDraftBatchConfig, setRuntimeDraftBatchConfig] = useState(
     DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG
   );
@@ -89,6 +94,18 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const oldestPendingApprovalTask = missionControlProjection.approvalPressure.oldestPendingTask;
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
   const launchReadiness = missionControlProjection.launchReadiness;
+  const launchReadinessStatusLabel =
+    launchReadiness.state === "ready"
+      ? "Ready"
+      : launchReadiness.state === "blocked"
+        ? "Blocked"
+        : "Attention";
+  const launchReadinessStatusTone =
+    launchReadiness.state === "ready"
+      ? "success"
+      : launchReadiness.state === "blocked"
+        ? "danger"
+        : "warning";
   const activeRuntimeCount = missionControlProjection.runList.activeRuntimeCount;
   const visibleRuntimeRuns = missionControlProjection.runList.visibleRuntimeRuns;
   const checkpointFailureSummary =
@@ -211,6 +228,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           ))}
         </div>
       </div>
+      <MissionControlSessionLogSection lifecycleEvents={runtimeToolLifecycle.lifecycleEvents} />
       {runtimeDurabilityWarning ? (
         <div className={controlStyles.warning} data-testid="workspace-runtime-durability-warning">
           <strong>Runtime durability degraded</strong>
@@ -362,8 +380,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
 
       <MissionControlSectionCard
         title="Launch readiness"
-        statusLabel={launchReadiness.launchAllowed ? "Ready" : "Blocked"}
-        statusTone={launchReadiness.launchAllowed ? "success" : "danger"}
+        statusLabel={launchReadinessStatusLabel}
+        statusTone={launchReadinessStatusTone}
         meta={
           <>
             <ToolCallChip tone="neutral">
@@ -383,6 +401,15 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             <span>
               {launchReadiness.route.label}: {launchReadiness.route.detail}
             </span>
+            {launchReadiness.route.provenanceLabel ? (
+              <span>Selection source: {launchReadiness.route.provenanceLabel}</span>
+            ) : null}
+            {launchReadiness.route.fallbackDetail ? (
+              <span>Fallback: {launchReadiness.route.fallbackDetail}</span>
+            ) : null}
+            {launchReadiness.route.blockingReason ? (
+              <span>Route blocker: {launchReadiness.route.blockingReason}</span>
+            ) : null}
             <span>
               {launchReadiness.approvalPressure.label}: {launchReadiness.approvalPressure.detail}
             </span>
@@ -776,7 +803,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             disabled={
               runtimeLoading ||
               runtimeDraftInstruction.trim().length === 0 ||
-              selectedProviderRoute?.ready === false ||
+              selectedProviderRoute?.launchAllowed === false ||
               !launchReadiness.launchAllowed ||
               (runtimePlanNeedsApproval && !runtimeLaunchPlanApproved)
             }

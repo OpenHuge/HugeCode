@@ -25,6 +25,19 @@ const baseSummary: SharedMissionControlSummary = {
 };
 
 describe("deriveSharedWorkspaceOperatorAction", () => {
+  it("keeps the missions call-to-action available while runtime signals hydrate", () => {
+    const action = deriveSharedWorkspaceOperatorAction({
+      loadState: "loading",
+      summary: baseSummary,
+    });
+
+    expect(action.label).toBe("Loading runtime next action");
+    expect(action.targetSection).toBe("missions");
+    expect(action.targetItemId).toBeNull();
+    expect(action.ctaLabel).toBe("Open missions");
+    expect(action.tone).toBe("idle");
+  });
+
   it("prioritizes blocked launch routing ahead of review-ready signals", () => {
     const action = deriveSharedWorkspaceOperatorAction({
       loadState: "ready",

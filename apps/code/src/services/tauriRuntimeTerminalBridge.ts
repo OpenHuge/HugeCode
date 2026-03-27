@@ -1,5 +1,4 @@
 import type { CodeRuntimeHostEventEnvelope } from "@ku0/code-runtime-host-contract";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { TerminalSessionSummary } from "../contracts/runtime";
 import { getRuntimeClient } from "./runtimeClient";
 import {
@@ -12,9 +11,13 @@ import {
   createWebRuntimeTurnEventListener,
   createWebRuntimeTurnWsListener,
   getRuntimeTerminalSessionId,
+  logRuntimeWarning,
   requireRuntimeTerminalSessionId,
   setRuntimeTerminalSessionId,
 } from "./tauriRuntimeTurnHelpers";
+import { registerRuntimeEventTauriSubscription } from "./runtimeEventBridgeTransportShared";
+
+type UnlistenFn = () => void;
 
 export async function openTerminalSession(
   workspaceId: string,
@@ -101,28 +104,35 @@ export async function listenRuntimeTurnEvents(
   callback: (event: CodeRuntimeHostEventEnvelope) => void
 ): Promise<UnlistenFn> {
   try {
-    return await listen<unknown>(RUNTIME_TURN_EVENT_NAME, (event) => {
-      const parsed = parseRuntimeTurnEventPayload(event.payload);
-      if (parsed) {
-        callback(parsed);
-      }
-    });
-  } catch {
-    const hints = await resolveWebRuntimeTurnTransportHints();
-    const fallbackToSse = () =>
-      hints.eventsEndpoint
-        ? createWebRuntimeTurnEventListener(hints.eventsEndpoint, callback)
-        : null;
-
-    if (hints.wsEndpoint) {
-      const wsListener = createWebRuntimeTurnWsListener(hints.wsEndpoint, callback, fallbackToSse);
-      if (wsListener) {
-        return wsListener;
-      }
+    const subscription = await registerRuntimeEventTauriSubscription(
+      RUNTIME_TURN_EVENT_NAME,
+      (payload) => {
+        const parsed = parseRuntimeTurnEventPayload(payload);
+        if (parsed) {
+          callback(parsed);
+        }
+      },
+      () => undefined
+    );
+    if (subscription) {
+      return subscription;
     }
-
-    return fallbackToSse() ?? (() => undefined);
+  } catch (error) {
+    logRuntimeWarning("Runtime turn desktop event subscription unavailable.", { error });
   }
+
+  const hints = await resolveWebRuntimeTurnTransportHints();
+  const fallbackToSse = () =>
+    hints.eventsEndpoint ? createWebRuntimeTurnEventListener(hints.eventsEndpoint, callback) : null;
+
+  if (hints.wsEndpoint) {
+    const wsListener = createWebRuntimeTurnWsListener(hints.wsEndpoint, callback, fallbackToSse);
+    if (wsListener) {
+      return wsListener;
+    }
+  }
+
+  return fallbackToSse() ?? (() => undefined);
 }
 
 export async function resizeTerminalSession(

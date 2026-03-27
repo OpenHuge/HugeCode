@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
+import type { RuntimeToolLifecycleEvent } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import type { RuntimeAgentTaskInterventionInput } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeContinuityReadinessSummary } from "../../../application/runtime/facades/runtimeContinuityReadiness";
@@ -11,6 +12,7 @@ import {
   ExecutionStatusPill,
   ToolCallChip,
 } from "../../../design-system";
+import { formatRuntimeTimestamp } from "./WorkspaceHomeAgentRuntimeOrchestration.helpers";
 import { WorkspaceHomeAgentRuntimeRunItem } from "./WorkspaceHomeAgentRuntimeRunItem";
 
 type MissionControlSectionCardProps = {
@@ -132,6 +134,116 @@ export function MissionControlRunListSection({
               />
             );
           })}
+        </div>
+      )}
+    </MissionControlSectionCard>
+  );
+}
+
+function getLifecycleTone(
+  event: RuntimeToolLifecycleEvent
+): "neutral" | "running" | "success" | "warning" | "danger" {
+  switch (event.status) {
+    case "allowed":
+    case "approved":
+    case "completed":
+    case "success":
+      return "success";
+    case "blocked":
+    case "failed":
+    case "rejected":
+    case "runtime_failed":
+    case "timeout":
+    case "validation_failed":
+      return "danger";
+    case "interrupted":
+    case "pending":
+      return "warning";
+    case "in_progress":
+      return "running";
+    default:
+      return "neutral";
+  }
+}
+
+function formatLifecycleStatus(status: RuntimeToolLifecycleEvent["status"] | null): string {
+  if (!status) {
+    return "unknown";
+  }
+  return status.replaceAll("_", " ");
+}
+
+function describeLifecycleEvent(event: RuntimeToolLifecycleEvent): string {
+  switch (event.kind) {
+    case "turn":
+      return `Turn ${event.phase}`;
+    case "tool":
+      return `${event.toolName ?? "Tool call"} ${event.phase}`;
+    case "approval":
+      return `Approval ${event.phase}`;
+    case "guardrail":
+      return `${event.toolName ?? "Guardrail"} ${event.phase}`;
+  }
+}
+
+type MissionControlSessionLogSectionProps = {
+  lifecycleEvents: RuntimeToolLifecycleEvent[];
+  maxItems?: number;
+};
+
+export function MissionControlSessionLogSection({
+  lifecycleEvents,
+  maxItems = 8,
+}: MissionControlSessionLogSectionProps) {
+  const sortedEvents = lifecycleEvents.slice().sort((left, right) => right.at - left.at);
+  const visibleEvents = sortedEvents.slice(0, maxItems);
+  const latestEvent = sortedEvents[0] ?? null;
+  const toolEventCount = lifecycleEvents.filter((event) => event.kind === "tool").length;
+  const approvalEventCount = lifecycleEvents.filter((event) => event.kind === "approval").length;
+
+  return (
+    <MissionControlSectionCard
+      title="Session log"
+      statusLabel={latestEvent ? "Live" : "Idle"}
+      statusTone={latestEvent ? "running" : "success"}
+      meta={
+        <>
+          <ToolCallChip tone="neutral">Recent {lifecycleEvents.length}</ToolCallChip>
+          <ToolCallChip tone="neutral">Tools {toolEventCount}</ToolCallChip>
+          <ToolCallChip tone="neutral">Approvals {approvalEventCount}</ToolCallChip>
+        </>
+      }
+    >
+      {visibleEvents.length === 0 ? (
+        <CoreLoopStatePanel
+          compact
+          eyebrow="Operator session log"
+          title="No runtime lifecycle activity yet."
+          description="Turn, tool, approval, and guardrail events will appear here once runtime starts publishing work for this workspace."
+          tone="default"
+        />
+      ) : (
+        <div
+          className="workspace-home-code-runtime-list"
+          data-testid="workspace-runtime-session-log"
+        >
+          {visibleEvents.map((event) => (
+            <div className="workspace-home-code-runtime-item" key={event.id}>
+              <div className="workspace-home-code-runtime-item-main">
+                <strong>{describeLifecycleEvent(event)}</strong>
+                <ToolCallChip tone={getLifecycleTone(event)}>
+                  {formatLifecycleStatus(event.status)}
+                </ToolCallChip>
+                <span>{formatRuntimeTimestamp(event.at)}</span>
+                <span>Source: {event.source}</span>
+                {event.threadId ? <span>Thread: {event.threadId}</span> : null}
+                {event.turnId ? <span>Turn: {event.turnId}</span> : null}
+                {event.toolCallId ? <span>Call: {event.toolCallId}</span> : null}
+                {event.scope ? <span>Scope: {event.scope}</span> : null}
+                {event.errorCode ? <span>Error: {event.errorCode}</span> : null}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </MissionControlSectionCard>

@@ -30,7 +30,7 @@ vi.mock("@tauri-apps/plugin-process", () => ({
 
 vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
   checkForDesktopUpdates: vi.fn(),
-  detectDesktopRuntimeHost: vi.fn(async () => "tauri"),
+  detectDesktopRuntimeHost: vi.fn(async () => "browser"),
   resolveDesktopUpdaterState: vi.fn(async () => ({
     capability: "unsupported",
     message: "Automatic desktop updates are unavailable in this environment.",
@@ -62,7 +62,7 @@ describe("useUpdater", () => {
     fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("__APP_VERSION__", APP_VERSION);
-    detectDesktopRuntimeHostMock.mockResolvedValue("tauri");
+    detectDesktopRuntimeHostMock.mockResolvedValue("browser");
     checkForDesktopUpdatesMock.mockResolvedValue({
       capability: "automatic",
       mode: "enabled_stable_public_service",

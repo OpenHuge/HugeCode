@@ -99,6 +99,34 @@ export function saveStoredWebRuntimeGatewayProfile(
   }
 }
 
+export function detectBrowserRuntimeMode(
+  configuredProfile: ConfiguredWebRuntimeGatewayProfile | null
+): "tauri" | "runtime-gateway-web" | "unavailable" {
+  if (isTauriRuntimeBridgeAvailable()) {
+    return "tauri";
+  }
+
+  if (configuredProfile?.enabled || hasConfiguredWebRuntimeGateway()) {
+    return "runtime-gateway-web";
+  }
+
+  return "unavailable";
+}
+
+export function detectBrowserRuntimeConnectionState(
+  configuredProfile: ConfiguredWebRuntimeGatewayProfile | null
+): BrowserRuntimeConnectionState {
+  if (isTauriRuntimeBridgeAvailable()) {
+    return "connected";
+  }
+
+  if (configuredProfile?.enabled || hasConfiguredWebRuntimeGateway()) {
+    return "connected";
+  }
+
+  return "discoverable";
+}
+
 export function isTauriRuntimeBridgeAvailable(): boolean {
   if (typeof window === "undefined") {
     return false;
@@ -129,34 +157,6 @@ export function isTauriRuntimeBridgeAvailable(): boolean {
   }
 
   return false;
-}
-
-export function detectBrowserRuntimeMode(
-  configuredProfile: ConfiguredWebRuntimeGatewayProfile | null
-): "tauri" | "runtime-gateway-web" | "unavailable" {
-  if (isTauriRuntimeBridgeAvailable()) {
-    return "tauri";
-  }
-
-  if (configuredProfile?.enabled || hasConfiguredWebRuntimeGateway()) {
-    return "runtime-gateway-web";
-  }
-
-  return "unavailable";
-}
-
-export function detectBrowserRuntimeConnectionState(
-  configuredProfile: ConfiguredWebRuntimeGatewayProfile | null
-): BrowserRuntimeConnectionState {
-  if (isTauriRuntimeBridgeAvailable()) {
-    return "connected";
-  }
-
-  if (configuredProfile?.enabled || hasConfiguredWebRuntimeGateway()) {
-    return "connected";
-  }
-
-  return "discoverable";
 }
 
 export function buildLocalRuntimeGatewayTarget(

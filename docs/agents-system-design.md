@@ -113,7 +113,7 @@ It must not become:
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | `apps/code/src/application/runtime/*` | app-facing runtime facades, launch defaults, backend preference resolution, capability-aware UI integration            | raw page-local orchestration or transport sprawl                     |
 | `apps/code/src/services/*`            | transport adapters, WebMCP bridges, thin runtime integration helpers                                                   | canonical task state, backend policy, or page-shaped lifecycle truth |
-| `apps/code-tauri`                     | desktop host transport adaptation and native bridge behavior                                                           | product runtime policy decisions                                     |
+| `apps/code-electron`                  | desktop host transport adaptation and native bridge behavior                                                           | product runtime policy decisions                                     |
 | host-contract packages                | canonical method names, payloads, event shapes, compatibility expectations                                             | UI heuristics or repo-local workarounds                              |
 | `packages/code-runtime-service-rs`    | task execution truth, run lifecycle, sub-agent lifecycle, durability, distributed runtime, diagnostics, event emission | UI-specific state derivation or presentation policy                  |
 

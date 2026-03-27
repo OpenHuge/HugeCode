@@ -63,7 +63,7 @@ export function WorkspaceChromeHeader({
       className={joinClassNames("main-header", className)}
       data-main-header-surface="kanna-toolbar"
       data-workspace-chrome-header="true"
-      data-tauri-drag-region
+      data-desktop-drag-region
     >
       {leadingNode ? (
         <div className="main-header-leading" data-main-header-leading="true">

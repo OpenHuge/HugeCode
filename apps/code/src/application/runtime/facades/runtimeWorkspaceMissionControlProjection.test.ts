@@ -19,6 +19,12 @@ function buildTask(
     title,
     status,
     accessMode: "on-request",
+    provider: null,
+    modelId: null,
+    routedProvider: null,
+    routedModelId: null,
+    routedPool: null,
+    routedSource: null,
     distributedStatus: null,
     currentStep: 1,
     createdAt: now,
@@ -166,10 +172,14 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     );
 
     expect(projection.routeSelection.selected.value).toBe("auto");
-    expect(projection.routeSelection.selected.ready).toBe(true);
-    expect(projection.launchReadiness.headline).toBe("Launch readiness confirmed");
+    expect(projection.routeSelection.selected.ready).toBe(false);
+    expect(projection.routeSelection.selected.readiness).toBe("attention");
+    expect(projection.launchReadiness.headline).toBe("Launch readiness needs attention");
     expect(projection.routeSelection.selected.detail).toContain(
-      "local/native routing remains available"
+      "fall back to local/native execution"
+    );
+    expect(projection.routeSelection.selected.fallbackDetail).toContain(
+      "fall back to local/native execution"
     );
   });
 
@@ -201,17 +211,27 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       reviewActionability: {
         state: "ready",
         summary: "Review Pack is actionable.",
-        recommendedAction: "Open Review Pack.",
+        degradedReasons: [],
+        actions: [],
       },
       missionLinkage: {
+        workspaceId: "ws-approval",
+        taskId: "runtime-review-1",
+        runId: "runtime-review-1",
+        reviewPackId: "review-pack:runtime-review-1",
+        checkpointId: "checkpoint-1",
+        traceId: "trace-1",
+        missionTaskId: "runtime:runtime-review-1",
+        taskEntityKind: "run",
+        recoveryPath: "run",
         summary: "Continue from Review Pack.",
         navigationTarget: {
-          kind: "review_pack",
+          kind: "run",
           workspaceId: "ws-approval",
+          taskId: "runtime-review-1",
           runId: "runtime-review-1",
           reviewPackId: "review-pack:runtime-review-1",
         },
-        recoveryPath: null,
       },
     } satisfies AgentTaskSummary;
 

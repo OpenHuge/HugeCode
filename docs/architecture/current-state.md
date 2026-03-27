@@ -13,7 +13,7 @@ The main architectural debt is duplicated client/runtime-adjacent logic and comp
 The real end-to-end runtime path today is:
 
 1. UI intent enters through `apps/code/src/application/runtime/*` or shared workspace-client bindings.
-2. App/runtime ports compose calls into `apps/code/src/services/*` runtime client and Tauri bridge helpers.
+2. App/runtime ports compose calls into `apps/code/src/services/*` runtime client and desktop host bridge helpers.
 3. Runtime transport crosses the host contract via `@ku0/code-runtime-host-contract`.
 4. The Rust runtime handles `/rpc`, `/events`, `/ws`, `/health`, and `/ready` in `packages/code-runtime-service-rs`.
 5. Runtime emits snapshots, kernel projection deltas, event-stream updates, and review artifacts back to clients.
@@ -55,7 +55,7 @@ The real end-to-end runtime path today is:
 ### Shadow or duplicated client paths
 
 - `apps/code/src/services/*`
-  Still contains a broad runtime client layer, WebMCP layer, Tauri bridge layer, transport state machines, fallback handling, and some duplicated shared-client logic.
+  Still contains a broad runtime client layer, WebMCP layer, desktop host bridge layer, transport state machines, fallback handling, and some duplicated shared-client logic.
 - `packages/code-runtime-client`
   Already owns part of the canonical runtime client surface, but extraction is incomplete because `apps/code/src/services/*` still carries neighboring forks.
 - `packages/code-runtime-webmcp-client`

@@ -1,5 +1,5 @@
 export type DesktopHostKind = "electron";
-export type DesktopRuntimeHost = "browser" | DesktopHostKind | "tauri";
+export type DesktopRuntimeHost = "browser" | DesktopHostKind;
 export type DesktopWindowLabel = "main" | "about";
 export type DesktopRuntimeMode = "local" | "remote";
 export type DesktopReleaseChannel = "stable" | "beta" | "dev";
@@ -118,6 +118,20 @@ export type LocalChromeDebuggerEndpointDescriptor = {
   webSocketDebuggerUrl: string;
 };
 
+export type DesktopOpenDialogInput = {
+  directory?: boolean;
+  multiple?: boolean;
+};
+
+export type DesktopOpenDialogResult = string | string[] | null;
+
+export type DesktopOpenPathInInput = {
+  appName?: string | null;
+  args?: string[] | null;
+  command?: string | null;
+  path: string;
+};
+
 export type DesktopAppCapability = {
   getInfo?: () => Promise<DesktopAppInfo | null | undefined> | DesktopAppInfo | null | undefined;
   getVersion?: () => Promise<string | null | undefined> | string | null | undefined;
@@ -180,6 +194,12 @@ export type DesktopNotificationCapability = {
   show?: (input: DesktopNotificationInput) => Promise<boolean | void> | boolean | void;
 };
 
+export type DesktopDialogCapability = {
+  open?: (
+    input?: DesktopOpenDialogInput
+  ) => Promise<DesktopOpenDialogResult | undefined> | DesktopOpenDialogResult | undefined;
+};
+
 export type DesktopDiagnosticsCapability = {
   copySupportSnapshot?: () => Promise<boolean | void> | boolean | void;
   getInfo?: () =>
@@ -206,6 +226,7 @@ export type DesktopUpdaterCapability = {
 
 export type DesktopShellCapability = {
   openExternalUrl?: (url: string) => Promise<boolean | void> | boolean | void;
+  openPathIn?: (input: DesktopOpenPathInInput) => Promise<boolean | void> | boolean | void;
   openPath?: (path: string) => Promise<boolean | void> | boolean | void;
   revealItemInDir?: (path: string) => Promise<boolean | void> | boolean | void;
 };
@@ -228,6 +249,7 @@ export type DesktopHostCapabilities = {
   windowing?: DesktopWindowingCapability;
   tray?: DesktopTrayCapability;
   notifications?: DesktopNotificationCapability;
+  dialogs?: DesktopDialogCapability;
   diagnostics?: DesktopDiagnosticsCapability;
   shell?: DesktopShellCapability;
 };
@@ -270,6 +292,9 @@ export type DesktopHostBridgeApi = {
   notifications: {
     show(input: DesktopNotificationInput): Promise<boolean>;
   };
+  dialogs: {
+    open(input?: DesktopOpenDialogInput): Promise<DesktopOpenDialogResult>;
+  };
   diagnostics: {
     copySupportSnapshot(): Promise<boolean>;
     getInfo(): Promise<DesktopDiagnosticsInfo | null>;
@@ -282,6 +307,7 @@ export type DesktopHostBridgeApi = {
   };
   shell: {
     openExternalUrl(url: string): Promise<boolean>;
+    openPathIn(input: DesktopOpenPathInInput): Promise<boolean>;
     openPath(path: string): Promise<boolean>;
     revealItemInDir(path: string): Promise<boolean>;
   };

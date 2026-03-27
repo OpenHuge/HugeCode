@@ -283,7 +283,7 @@ export function MainHeader({
                   onClick={() => setInfoOpen((prev) => !prev)}
                   aria-haspopup="dialog"
                   aria-expanded={infoOpen}
-                  data-tauri-drag-region="false"
+                  data-desktop-drag-region="false"
                   aria-label={worktreeLabel?.trim() || branchName}
                   title={worktreeLabel?.trim() || branchName}
                   label={staticBranchLabel}
@@ -335,7 +335,7 @@ export function MainHeader({
                                 worktreeRename.onCommit();
                               }
                             }}
-                            data-tauri-drag-region="false"
+                            data-desktop-drag-region="false"
                             disabled={worktreeRename.isSubmitting}
                           />
                           <Button
@@ -396,7 +396,7 @@ export function MainHeader({
                               });
                             }
                           }}
-                          data-tauri-drag-region="false"
+                          data-desktop-drag-region="false"
                           aria-label="Copy command"
                           title="Copy command"
                         >
@@ -425,7 +425,7 @@ export function MainHeader({
                             });
                           }
                         }}
-                        data-tauri-drag-region="false"
+                        data-desktop-drag-region="false"
                       >
                         {revealInFileManagerLabel()}
                       </button>
@@ -444,7 +444,7 @@ export function MainHeader({
                   title={
                     branchMenuEnabled ? branchName : `Git branch actions unavailable\n${branchName}`
                   }
-                  data-tauri-drag-region="false"
+                  data-desktop-drag-region="false"
                   label={<span className="workspace-branch">{branchLabel}</span>}
                   trailing={
                     <span className="workspace-branch-caret" aria-hidden>

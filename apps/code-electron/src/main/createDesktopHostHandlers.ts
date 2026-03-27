@@ -4,6 +4,9 @@ import type {
   DesktopLaunchIntent,
   LocalChromeDebuggerEndpointDescriptor,
   DesktopNotificationInput,
+  DesktopOpenDialogInput,
+  DesktopOpenDialogResult,
+  DesktopOpenPathInInput,
   DesktopUpdateState,
 } from "../shared/ipc.js";
 import type { DesktopWindowDescriptor } from "./desktopShellState.js";
@@ -42,7 +45,11 @@ export type CreateDesktopHostHandlersInput = {
   listLocalChromeDebuggerEndpoints(): LocalChromeDebuggerEndpointDescriptor[];
   listRecentSessions(): unknown[];
   notificationController: NotificationController;
+  openDialog(
+    input?: DesktopOpenDialogInput
+  ): Promise<DesktopOpenDialogResult> | DesktopOpenDialogResult;
   openExternalUrl(url: string): Promise<boolean> | boolean;
+  openPathIn(input: DesktopOpenPathInInput): Promise<boolean> | boolean;
   openPath(path: string): Promise<boolean> | boolean;
   persistTrayEnabled(enabled: boolean): void;
   revealItemInDir(path: string): Promise<boolean> | boolean;
@@ -92,7 +99,9 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
       return input.listRecentSessions();
     },
     listWindows: input.windowController.listWindows,
+    openDialog: input.openDialog,
     openExternalUrl: input.openExternalUrl,
+    openPathIn: input.openPathIn,
     openPath: input.openPath,
     openWindow: input.windowController.openWindow,
     reopenSession: input.windowController.reopenSession,
