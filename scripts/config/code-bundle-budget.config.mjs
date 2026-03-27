@@ -3,7 +3,6 @@ export const codeBundleBudgetConfig = {
   chunkMaxBytes: 350_000,
   growthTolerancePct: 3,
   knownLargeChunkPrefixes: {
-    "app-bootstrap-": 350_125,
     "MainApp-": 560_000,
     "MainAppContainerCore-": 560_000,
     "app-bootstrap-": 361_263,
