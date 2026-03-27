@@ -70,6 +70,7 @@ describe("runtimeWorkspaceLaunchDefaultsFacade", () => {
   it("resolves manual launch defaults through the shared runtime facade", () => {
     const resolved = resolveRuntimeWorkspaceLaunchDefaults({
       contract: createContract(),
+      workspaceId: "ws-1",
       draftTitle: "Inspect launch defaults",
       draftInstruction: "",
     });

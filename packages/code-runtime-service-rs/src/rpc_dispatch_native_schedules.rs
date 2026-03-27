@@ -756,6 +756,40 @@ async fn launch_native_schedule_run(
     schedule: &serde_json::Map<String, Value>,
 ) -> Result<NativeScheduleLaunchOutcome, RpcError> {
     let workspace_id = resolve_schedule_workspace_id(params, schedule_id, schedule)?;
+    let prepare_payload = build_native_schedule_run_prepare_payload(schedule_id, &workspace_id, schedule)?;
+    let prepare = crate::rpc_dispatch::handle_runtime_run_prepare_v2(ctx, &prepare_payload).await?;
+    let approved_plan_version = extract_prepare_plan_version(&prepare)?;
+    let start_payload = build_native_schedule_run_start_payload(
+        prepare_payload,
+        approved_plan_version.as_str(),
+    );
+    let response = crate::rpc_dispatch::handle_runtime_run_start_v2(ctx, &start_payload).await?;
+    Ok(project_native_schedule_launch_outcome(&response))
+}
+
+fn build_native_schedule_task_source(
+    schedule_id: &str,
+    workspace_id: &str,
+    title: &str,
+) -> Value {
+    json!({
+        "kind": "schedule",
+        "label": "Scheduled task",
+        "shortLabel": "Schedule",
+        "title": title,
+        "externalId": schedule_id,
+        "canonicalUrl": format!("schedule://{schedule_id}"),
+        "sourceTaskId": schedule_id,
+        "sourceRunId": schedule_id,
+        "workspaceId": workspace_id,
+    })
+}
+
+fn build_native_schedule_run_prepare_payload(
+    schedule_id: &str,
+    workspace_id: &str,
+    schedule: &serde_json::Map<String, Value>,
+) -> Result<Value, RpcError> {
     let prompt = read_schedule_text(schedule, &["prompt", "taskPrompt", "instructions"])
         .ok_or_else(|| {
             RpcError::invalid_params(
@@ -764,7 +798,6 @@ async fn launch_native_schedule_run(
         })?;
     let title = read_schedule_text(schedule, &["name", "title"])
         .unwrap_or_else(|| "Scheduled automation".to_string());
-
     let execution_profile_id =
         read_schedule_text(schedule, &["executionProfileId", "execution_profile_id"]);
     let review_profile_id = read_schedule_text(schedule, &["reviewProfileId", "review_profile_id"]);
@@ -782,45 +815,89 @@ async fn launch_native_schedule_run(
         .map(|entry| vec![entry])
     });
     let access_mode = read_schedule_text(schedule, &["accessMode", "access_mode"]);
-    let task_source = json!({
-        "kind": "schedule",
-        "label": "Scheduled task",
-        "shortLabel": "Schedule",
-        "title": title.clone(),
-        "externalId": schedule_id,
-        "workspaceId": workspace_id,
-    });
-    let start_payload = json!({
+    let autonomy_request = schedule
+        .get("autonomyRequest")
+        .or_else(|| schedule.get("autonomy_request"))
+        .cloned();
+
+    Ok(json!({
         "workspaceId": workspace_id,
         "requestId": format!("schedule-run:{schedule_id}:{now}", now = now_ms()),
         "title": title,
-        "taskSource": task_source,
+        "taskSource": build_native_schedule_task_source(schedule_id, workspace_id, title.as_str()),
         "executionProfileId": execution_profile_id,
         "reviewProfileId": review_profile_id,
         "validationPresetId": validation_preset_id,
         "accessMode": access_mode,
         "preferredBackendIds": preferred_backend_ids,
+        "autonomyRequest": autonomy_request,
         "steps": [
             {
                 "kind": "read",
                 "input": prompt,
             }
         ],
-    });
-    let response = handle_agent_task_start(ctx, &start_payload).await?;
-    Ok(NativeScheduleLaunchOutcome {
+    }))
+}
+
+fn extract_prepare_plan_version(prepare: &Value) -> Result<String, RpcError> {
+    prepare
+        .get("plan")
+        .and_then(Value::as_object)
+        .and_then(|plan| plan.get("planVersion"))
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| RpcError::internal("runtime run prepare v2 missing planVersion"))
+}
+
+fn build_native_schedule_run_start_payload(
+    mut prepare_payload: Value,
+    approved_plan_version: &str,
+) -> Value {
+    if let Some(payload) = prepare_payload.as_object_mut() {
+        payload.insert(
+            "approvedPlanVersion".to_string(),
+            Value::String(approved_plan_version.to_string()),
+        );
+    }
+    prepare_payload
+}
+
+fn project_native_schedule_launch_outcome(response: &Value) -> NativeScheduleLaunchOutcome {
+    NativeScheduleLaunchOutcome {
         task_id: response
-            .get("taskId")
+            .get("run")
+            .and_then(Value::as_object)
+            .and_then(|run| run.get("taskId"))
             .and_then(Value::as_str)
-            .map(ToOwned::to_owned),
+            .map(ToOwned::to_owned)
+            .or_else(|| {
+                response
+                    .get("taskId")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+            }),
         run_id: response
-            .get("runSummary")
+            .get("missionRun")
             .and_then(Value::as_object)
             .and_then(|entry| entry.get("id"))
             .and_then(Value::as_str)
             .map(ToOwned::to_owned)
-            .or_else(|| response.get("runId").and_then(Value::as_str).map(ToOwned::to_owned)),
-    })
+            .or_else(|| {
+                response
+                    .get("run")
+                    .and_then(Value::as_object)
+                    .and_then(|entry| entry.get("taskId"))
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+            })
+            .or_else(|| {
+                response
+                    .get("runId")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+            }),
+    }
 }
 
 fn read_optional_string_value(
@@ -833,4 +910,115 @@ fn read_optional_string_value(
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_native_schedule_run_prepare_payload_preserves_governed_fields() {
+        let schedule = json!({
+            "name": "Nightly review",
+            "prompt": "Inspect repo drift",
+            "workspaceId": "ws-1",
+            "executionProfileId": "balanced-delegate",
+            "reviewProfileId": "night-review",
+            "validationPresetId": "review-first",
+            "preferredBackendIds": ["backend-a", "backend-b"],
+            "accessMode": "read-only",
+            "autonomyRequest": {
+                "autonomyProfile": "night_operator",
+                "sourceScope": "workspace_graph",
+                "queueBudget": {
+                    "maxQueuedActions": 2,
+                    "maxAutoContinuations": 2
+                },
+                "wakePolicy": {
+                    "mode": "auto_queue",
+                    "safeFollowUp": true,
+                    "allowAutomaticContinuation": true,
+                    "allowedActions": ["continue", "approve"],
+                    "stopGates": ["validation_failure_requires_review"]
+                },
+                "researchPolicy": {
+                    "mode": "repository_only",
+                    "allowNetworkAnalysis": false,
+                    "requireCitations": true,
+                    "allowPrivateContextStage": false
+                }
+            }
+        });
+
+        let payload = build_native_schedule_run_prepare_payload(
+            "schedule-1",
+            "ws-1",
+            schedule.as_object().expect("schedule object"),
+        )
+        .expect("prepare payload");
+
+        assert_eq!(payload.get("workspaceId"), Some(&json!("ws-1")));
+        assert_eq!(payload.get("executionProfileId"), Some(&json!("balanced-delegate")));
+        assert_eq!(payload.get("reviewProfileId"), Some(&json!("night-review")));
+        assert_eq!(payload.get("validationPresetId"), Some(&json!("review-first")));
+        assert_eq!(payload.get("preferredBackendIds"), Some(&json!(["backend-a", "backend-b"])));
+        assert_eq!(payload.get("accessMode"), Some(&json!("read-only")));
+        assert_eq!(
+            payload
+                .get("taskSource")
+                .and_then(Value::as_object)
+                .and_then(|task_source| task_source.get("kind")),
+            Some(&json!("schedule"))
+        );
+        assert_eq!(
+            payload
+                .get("autonomyRequest")
+                .and_then(Value::as_object)
+                .and_then(|request| request.get("sourceScope")),
+            Some(&json!("workspace_graph"))
+        );
+    }
+
+    #[test]
+    fn build_native_schedule_run_start_payload_adds_approved_plan_version() {
+        let payload = build_native_schedule_run_start_payload(
+            json!({
+                "workspaceId": "ws-1",
+                "requestId": "schedule-run:schedule-1:1"
+            }),
+            "plan-v1",
+        );
+
+        assert_eq!(payload.get("approvedPlanVersion"), Some(&json!("plan-v1")));
+        assert_eq!(payload.get("workspaceId"), Some(&json!("ws-1")));
+    }
+
+    #[test]
+    fn extract_prepare_plan_version_reads_runtime_prepare_truth() {
+        let prepare = json!({
+            "plan": {
+                "planVersion": "plan-v2"
+            }
+        });
+
+        assert_eq!(
+            extract_prepare_plan_version(&prepare).expect("plan version"),
+            "plan-v2"
+        );
+    }
+
+    #[test]
+    fn project_native_schedule_launch_outcome_reads_run_record_v2_shape() {
+        let outcome = project_native_schedule_launch_outcome(&json!({
+            "run": {
+                "taskId": "runtime-task:42"
+            },
+            "missionRun": {
+                "id": "run-42"
+            }
+        }));
+
+        assert_eq!(outcome.task_id.as_deref(), Some("runtime-task:42"));
+        assert_eq!(outcome.run_id.as_deref(), Some("run-42"));
+    }
 }

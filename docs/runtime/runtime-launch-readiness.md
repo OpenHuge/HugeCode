@@ -68,6 +68,13 @@ At minimum it should answer:
   enough to accept more launch traffic right now
 - `signals`: a small set of inspectable facts, not a generic diagnostics dump
 
+Route signals should stay explainable:
+
+- why this route/backend intent was selected
+- whether the current route is directly ready, degraded-but-launchable, or blocked
+- whether launch is relying on local/native fallback
+- which concrete routing blocker must be fixed first when launch cannot proceed
+
 ## Boundary Rules
 
 - Build launch readiness inside `apps/code/src/application/runtime/*`, not in page-local component logic.
@@ -89,6 +96,9 @@ The shipped implementation remains conservative:
 - the summary is still derived in app runtime facades rather than emitted as canonical runtime task truth
 - execution reliability reuse should come from the same app-runtime summary used by
   Mission Control and WebMCP diagnostics, not from duplicated page-local gate logic
+- shared workspace shell, desktop shell, and web shell should all read the same
+  snapshot-backed launch summary semantics for fallback, blocked placement, and
+  backend operability instead of rebuilding separate heuristics
 - the current shipped reliability gate is moderately conservative:
   diagnostics channel `unavailable`, any open runtime-tool circuit breaker, or
   an overall success gate below `0.95` block launch; degraded channels or

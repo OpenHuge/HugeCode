@@ -203,38 +203,81 @@ fn build_launch_readiness(
                     .to_string(),
         };
     }
-    let blocked_count = runs
+    let blocked_runs = runs
         .iter()
-        .filter(|run| json_string_field(&run.placement, "readiness") == Some("blocked"))
-        .count();
+        .filter(|run| {
+            json_string_field(&run.placement, "healthSummary") == Some("placement_blocked")
+                || json_string_field(&run.routing, "health") == Some("blocked")
+                || run
+                    .routing
+                    .as_ref()
+                    .and_then(|routing| routing.get("backendOperability"))
+                    .and_then(|operability| operability.get("state"))
+                    .and_then(Value::as_str)
+                    == Some("blocked")
+        })
+        .collect::<Vec<_>>();
+    let blocked_count = blocked_runs.len();
     if blocked_count > 0 {
+        let first_detail = blocked_runs
+            .first()
+            .and_then(|run| {
+                json_string_field(&run.placement, "summary")
+                    .or_else(|| json_string_field(&run.routing, "routeHint"))
+                    .or_else(|| run.summary.as_deref().map(str::trim).filter(|value| !value.is_empty()))
+            })
+            .unwrap_or("Runtime placement is blocked.");
         return MissionControlReadinessSummaryProjection {
             tone: "blocked".to_string(),
             label: "Launch readiness".to_string(),
             detail: format!(
-                "{} are blocked by routing readiness.",
-                pluralize(blocked_count, "run", None)
+                "{} are blocked by routing or backend operability. First: {}",
+                pluralize(blocked_count, "run", None),
+                first_detail
             ),
         };
     }
-    let attention_count = runs
+    let attention_runs = runs
         .iter()
-        .filter(|run| json_string_field(&run.placement, "readiness") == Some("attention"))
-        .count();
+        .filter(|run| {
+            json_string_field(&run.placement, "lifecycleState") == Some("fallback")
+                || json_string_field(&run.placement, "healthSummary") == Some("placement_attention")
+                || json_string_field(&run.routing, "health") == Some("attention")
+                || run
+                    .routing
+                    .as_ref()
+                    .and_then(|routing| routing.get("backendOperability"))
+                    .and_then(|operability| operability.get("state"))
+                    .and_then(Value::as_str)
+                    == Some("attention")
+        })
+        .collect::<Vec<_>>();
+    let attention_count = attention_runs.len();
     if attention_count > 0 {
+        let first_detail = attention_runs
+            .first()
+            .and_then(|run| {
+                json_string_field(&run.placement, "summary")
+                    .or_else(|| json_string_field(&run.routing, "routeHint"))
+                    .or_else(|| run.summary.as_deref().map(str::trim).filter(|value| !value.is_empty()))
+            })
+            .unwrap_or("Runtime placement needs operator inspection.");
         return MissionControlReadinessSummaryProjection {
             tone: "attention".to_string(),
             label: "Launch readiness".to_string(),
             detail: format!(
-                "{} need routing attention before the next launch.",
-                pluralize(attention_count, "run", None)
+                "{} need routing review before the next launch. First: {}",
+                pluralize(attention_count, "run", None),
+                first_detail
             ),
         };
     }
     MissionControlReadinessSummaryProjection {
         tone: "ready".to_string(),
         label: "Launch readiness".to_string(),
-        detail: "Connected routing is healthy for the current workspace slice.".to_string(),
+        detail:
+            "Connected routing and backend operability are healthy for the current workspace slice."
+                .to_string(),
     }
 }
 

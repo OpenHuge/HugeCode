@@ -99,7 +99,7 @@ describe("runtimeProviderRouting", () => {
     expect(selection.selected.detail).toContain("0/2 provider routes ready");
   });
 
-  it("keeps automatic routing ready when local runtime remains available", () => {
+  it("keeps automatic routing launchable when local runtime remains available", () => {
     const selection = resolveRuntimeProviderRouteSelection({
       selectedRoute: "auto",
       providers: PROVIDERS,
@@ -107,8 +107,10 @@ describe("runtimeProviderRouting", () => {
       pools: [],
     });
 
-    expect(selection.selected.ready).toBe(true);
-    expect(selection.selected.detail).toContain("local/native routing remains available");
+    expect(selection.selected.ready).toBe(false);
+    expect(selection.selected.readiness).toBe("attention");
+    expect(selection.selected.launchAllowed).toBe(true);
+    expect(selection.selected.detail).toContain("fall back to local/native execution");
   });
 
   it("resolves model-selected OpenAI routing through the provider catalog and OAuth readiness", () => {
@@ -151,6 +153,7 @@ describe("runtimeProviderRouting", () => {
       oauthProviderId: "claude_code",
       readiness: "blocked",
       ready: false,
+      launchAllowed: false,
     });
     expect(route?.detail).toContain("Enable at least one pool");
   });
@@ -166,5 +169,28 @@ describe("runtimeProviderRouting", () => {
     expect(route.source).toBe("explicit_route");
     expect(route.providerId).toBe("anthropic");
     expect(route.ready).toBe(true);
+  });
+
+  it("keeps explicit provider routes blocked when credentials are missing", () => {
+    const route = resolveExplicitRuntimeProviderRoute({
+      routeValue: "openai",
+      providers: PROVIDERS,
+      accounts: [
+        {
+          ...buildAccount("codex"),
+          routingState: {
+            credentialReady: false,
+          },
+          metadata: {},
+        },
+      ],
+      pools: [buildPool("codex", "pool-codex")],
+    });
+
+    expect(route).toMatchObject({
+      readiness: "blocked",
+      launchAllowed: false,
+      blockingReason: "Sign in or configure credentials for at least one enabled account.",
+    });
   });
 });

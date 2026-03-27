@@ -54,7 +54,11 @@ Provider-route readiness uses one shared mapping:
   - at least one enabled pool and one credential-ready account exist
 - `attention`
   Provider route metadata exists, but catalog or OAuth state is incomplete
-  enough that launch may succeed only after operator inspection
+  enough that launch may succeed only after operator inspection.
+  The current `auto` route also uses `attention` when remote provider routes are
+  not ready but local/native fallback is still available, so the control plane
+  can explain a degraded-but-launchable fallback instead of reporting a false
+  green state.
 - `blocked`
   Provider is unavailable, or no schedulable pool/account path exists for that
   provider family
@@ -91,6 +95,10 @@ Notes:
   model-derived send flow.
 - backend fallback remains runtime-owned after launch; the control plane only
   explains the request path and preflight state.
+- explicit backend preference, workspace-default backend fallback, and
+  runtime-confirmed fallback placement remain separate truths:
+  preflight explains intent, while Mission Control and Review explain the
+  runtime-confirmed backend, fallback reason, and operability after launch.
 
 ## Capability Differences
 

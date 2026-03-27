@@ -1073,10 +1073,11 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Launch readiness confirmed")).toBeTruthy();
-      expect(
-        screen.getAllByText(/local\/native routing remains available/i).length
-      ).toBeGreaterThan(0);
+      expect(screen.getByText("Launch readiness needs attention")).toBeTruthy();
+      expect(screen.getByText("Attention")).toBeTruthy();
+      expect(screen.getAllByText(/fall back to local\/native execution/i).length).toBeGreaterThan(
+        0
+      );
     });
 
     fireEvent.change(screen.getByPlaceholderText("Mission brief for agent"), {

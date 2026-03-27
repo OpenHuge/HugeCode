@@ -406,6 +406,12 @@ export function WorkspaceHomeAgentRuntimeRunItem({
           {effectiveRun?.placement ? (
             <span>Placement: {effectiveRun.placement.summary}</span>
           ) : null}
+          {effectiveRun?.placement?.rationale ? (
+            <span>Placement rationale: {effectiveRun.placement.rationale}</span>
+          ) : null}
+          {effectiveRun?.placement?.fallbackReasonCode ? (
+            <span>Fallback reason: {effectiveRun.placement.fallbackReasonCode}</span>
+          ) : null}
           {effectiveRun?.routing?.routeHint ? (
             <span>Routing detail: {effectiveRun.routing.routeHint}</span>
           ) : null}
@@ -980,6 +986,12 @@ export function WorkspaceHomeAgentRuntimeRunItem({
               {publishHandoffSummary ? <li>Publish handoff: {publishHandoffSummary}</li> : null}
               {effectiveRun?.placement?.summary ? (
                 <li>Placement: {effectiveRun.placement.summary}</li>
+              ) : null}
+              {effectiveRun?.placement?.rationale ? (
+                <li>Placement rationale: {effectiveRun.placement.rationale}</li>
+              ) : null}
+              {effectiveRun?.placement?.fallbackReasonCode ? (
+                <li>Fallback reason: {effectiveRun.placement.fallbackReasonCode}</li>
               ) : null}
               {checkpointId ? <li>Checkpoint: {checkpointId}</li> : null}
               {traceId ? <li>Trace: {traceId}</li> : null}
