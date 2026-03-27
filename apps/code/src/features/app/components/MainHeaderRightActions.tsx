@@ -156,7 +156,7 @@ export function MainHeaderRightActions({
       {showTerminalButton ? (
         <WorkspaceHeaderAction
           onClick={onToggleTerminal}
-          data-tauri-drag-region="false"
+          data-desktop-drag-region="false"
           aria-label="Toggle terminal panel"
           title="Terminal"
           active={isTerminalOpen}
@@ -167,7 +167,7 @@ export function MainHeaderRightActions({
       <WorkspaceHeaderAction
         onClick={handleCopyClick}
         disabled={!canCopyThread || !onCopyThread}
-        data-tauri-drag-region="false"
+        data-desktop-drag-region="false"
         aria-label="Copy thread"
         title="Copy thread"
         copied={copyFeedback}

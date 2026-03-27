@@ -135,7 +135,7 @@ export function HomeRecentMissionsSection({
             className={styles.dashboardCardButton}
             aria-label={`Open recent mission ${run.message}`}
             onClick={() => onOpenMission(run)}
-            data-tauri-drag-region="false"
+            data-desktop-drag-region="false"
             data-testid={`home-recent-mission-${run.threadId}`}
           >
             <HomeSignalCard

@@ -4,14 +4,12 @@ This directory contains the current frozen runtime spec artifacts that active ru
 
 ## Current Active Freeze
 
-- [code-runtime-rpc-spec.2026-03-24.json](./code-runtime-rpc-spec.2026-03-24.json)
+- [code-runtime-rpc-spec.2026-03-25.json](./code-runtime-rpc-spec.2026-03-25.json)
   Current canonical runtime RPC JSON spec.
-- [code-runtime-rpc-spec.2026-03-24.md](./code-runtime-rpc-spec.2026-03-24.md)
+- [code-runtime-rpc-spec.2026-03-25.md](./code-runtime-rpc-spec.2026-03-25.md)
   Human-readable markdown rendering of the same freeze.
-- [code-runtime-rpc-spec.tauri.2026-03-24.json](./code-runtime-rpc-spec.tauri.2026-03-24.json)
-  Current Tauri parity snapshot.
-- [code-runtime-rpc-tauri-gap-allowlist.2026-03-24.json](./code-runtime-rpc-tauri-gap-allowlist.2026-03-24.json)
-  Current bounded Tauri gap allowlist.
+- [code-runtime-rpc-compat-lifecycle.2026-03-25.md](./code-runtime-rpc-compat-lifecycle.2026-03-25.md)
+  Current compatibility lifecycle note for frozen RPC aliases.
 
 ## History
 

@@ -13,11 +13,13 @@ function buildReviewAgentInstruction(input: {
   run: Pick<
     HugeCodeRunSummary,
     | "id"
+    | "reviewPackId"
     | "title"
     | "summary"
     | "warnings"
     | "validations"
     | "changedPaths"
+    | "continuation"
     | "takeoverBundle"
     | "actionability"
     | "missionLinkage"
@@ -32,6 +34,7 @@ function buildReviewAgentInstruction(input: {
     | "warningCount"
     | "warnings"
     | "validations"
+    | "continuation"
     | "recommendedNextAction"
     | "takeoverBundle"
     | "actionability"

@@ -64,20 +64,6 @@ jobs:
 
       - uses: ./.github/actions/cache-turbo
 
-      - if: ${{ !inputs.affected_mode && inputs.desktop_fast_verify_required }}
-        uses: ./.github/actions/install-linux-desktop-deps
-
-      - if: ${{ !inputs.affected_mode && inputs.desktop_fast_verify_required }}
-        uses: ./.github/actions/setup-rust-ci
-        with:
-          cargo-cache-path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            ~/.cache/ku0/cargo-target/code-tauri
-          cargo-cache-key: ${{ runner.os }}-code-tauri-check
-
       - name: Code integration watch
         if: inputs.integration_watch_required
         run: node scripts/code-integration-watch.mjs --fetch

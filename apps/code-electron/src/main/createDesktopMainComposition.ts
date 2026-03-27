@@ -1,8 +1,12 @@
+import { spawn } from "node:child_process";
 import { join } from "node:path";
 import type { BrowserWindowConstructorOptions, IpcMainInvokeEvent } from "electron";
 import type {
   DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
+  DesktopOpenDialogInput,
+  DesktopOpenDialogResult,
+  DesktopOpenPathInInput,
   DesktopReleaseChannel,
   DesktopUpdateState,
 } from "../shared/ipc.js";
@@ -114,7 +118,7 @@ export type CreateDesktopMainCompositionInput = {
   dialog: {
     showOpenDialog(options: {
       buttonLabel?: string;
-      properties: Array<"openDirectory" | "openFile">;
+      properties: Array<"multiSelections" | "openDirectory" | "openFile">;
       title?: string;
     }): Promise<{
       canceled: boolean;
@@ -313,6 +317,73 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     launchIntentController.queueWorkspacePath(selectedPath);
   }
 
+  async function openDesktopDialog(
+    dialogInput?: DesktopOpenDialogInput
+  ): Promise<DesktopOpenDialogResult> {
+    const directory = dialogInput?.directory === true;
+    const multiple = dialogInput?.multiple === true;
+    const properties: Array<"multiSelections" | "openDirectory" | "openFile"> = [
+      directory ? "openDirectory" : "openFile",
+      ...(multiple ? (["multiSelections"] as const) : []),
+    ];
+    const result = await input.dialog.showOpenDialog({
+      buttonLabel: directory ? "Open Folder" : "Open File",
+      properties,
+      title: directory ? "Open Folder" : "Open File",
+    });
+    if (result.canceled) {
+      return null;
+    }
+    if (multiple) {
+      return result.filePaths;
+    }
+    return result.filePaths[0] ?? null;
+  }
+
+  function spawnDetachedCommand(command: string, args: string[]) {
+    const child = spawn(command, args, {
+      detached: true,
+      stdio: "ignore",
+    });
+    child.unref();
+  }
+
+  async function openPathIn(inputValue: DesktopOpenPathInInput): Promise<boolean> {
+    const targetPath = inputValue.path.trim();
+    if (!targetPath) {
+      return false;
+    }
+
+    const command = inputValue.command?.trim() ?? "";
+    const appName = inputValue.appName?.trim() ?? "";
+    const args = Array.isArray(inputValue.args)
+      ? inputValue.args.filter((entry): entry is string => typeof entry === "string")
+      : [];
+
+    if (command) {
+      spawnDetachedCommand(command, [...args, targetPath]);
+      return true;
+    }
+
+    if (appName) {
+      if (input.platform === "darwin") {
+        spawnDetachedCommand("open", [
+          "-a",
+          appName,
+          targetPath,
+          ...(args.length > 0 ? ["--args", ...args] : []),
+        ]);
+        return true;
+      }
+
+      spawnDetachedCommand(appName, [...args, targetPath]);
+      return true;
+    }
+
+    const errorMessage = await input.shell.openPath(targetPath);
+    return errorMessage.length === 0;
+  }
+
   function persistDesktopState() {
     stateStore.write(shellState.toPersistedState());
   }
@@ -442,10 +513,12 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       return shellState.recentSessions;
     },
     notificationController,
+    openDialog: openDesktopDialog,
     openExternalUrl: async (url) => {
       await input.shell.openExternal(url);
       return true;
     },
+    openPathIn,
     async openPath(path) {
       const errorMessage = await input.shell.openPath(path);
       return errorMessage.length === 0;

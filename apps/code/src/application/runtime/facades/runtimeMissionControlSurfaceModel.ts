@@ -431,6 +431,153 @@ function buildMissionGovernanceSummary(input: {
   );
 }
 
+function resolveMissionOperatorAction(input: {
+  task: HugeCodeTaskSummary;
+  reviewPack: HugeCodeReviewPackSummary | null;
+  run: MissionControlProjection["runs"][number] | null;
+  continuation: MissionReviewContinuation;
+}): {
+  label: string;
+  detail: string | null;
+  target: MissionNavigationTarget;
+} {
+  const missionTarget = buildMissionNavigationTarget(input.task, {
+    runId: input.run?.id ?? null,
+    reviewPackId: input.reviewPack?.id ?? null,
+  });
+  const reviewTarget = buildReviewNavigationTarget(input.task, {
+    runId: input.run?.id ?? null,
+    reviewPackId: input.reviewPack?.id ?? null,
+  });
+  const takeoverAction = resolveMissionTakeoverOperatorAction({
+    task: input.task,
+    takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run?.takeoverBundle ?? null,
+    missionTarget,
+    reviewTarget,
+  });
+  if (takeoverAction) {
+    return takeoverAction;
+  }
+  const runtimeAction = resolveRuntimeNextOperatorAction({
+    workspaceId: input.run?.workspaceId ?? input.reviewPack?.workspaceId ?? input.task.workspaceId,
+    taskId: input.run?.taskId ?? input.reviewPack?.taskId ?? input.task.id,
+    runId: input.run?.id ?? input.reviewPack?.runId ?? input.task.latestRunId ?? null,
+    reviewPackId: input.reviewPack?.id ?? input.run?.reviewPackId ?? null,
+    state: input.run?.state ?? input.task.latestRunState ?? null,
+    reviewStatus: input.reviewPack?.reviewStatus ?? null,
+    approval: input.run?.approval ?? null,
+    reviewDecision: input.reviewPack?.reviewDecision ?? input.run?.reviewDecision ?? null,
+    nextAction: input.run?.nextAction ?? null,
+    checkpoint: input.reviewPack?.checkpoint ?? input.run?.checkpoint ?? null,
+    missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,
+    actionability: input.reviewPack?.actionability ?? input.run?.actionability ?? null,
+    publishHandoff: input.reviewPack?.publishHandoff ?? input.run?.publishHandoff ?? null,
+    takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run?.takeoverBundle ?? null,
+    sessionBoundary: input.reviewPack?.sessionBoundary ?? input.run?.sessionBoundary ?? null,
+    continuation: input.reviewPack?.continuation ?? input.run?.continuation ?? null,
+    nextOperatorAction:
+      input.reviewPack?.nextOperatorAction ?? input.run?.nextOperatorAction ?? null,
+  });
+  if (runtimeAction) {
+    const runtimeActionLabel =
+      !input.task.origin.threadId && isRuntimeManagedMissionTaskId(input.task.id)
+        ? "Inspect runtime"
+        : runtimeAction.label;
+    const runtimeActionDetail =
+      runtimeAction.action === "open_review_pack"
+        ? (input.continuation?.recommendedAction ?? runtimeAction.detail)
+        : runtimeAction.detail;
+    return {
+      label: runtimeActionLabel,
+      detail: runtimeActionDetail,
+      target:
+        mapRuntimeOperatorActionTarget({
+          task: input.task,
+          target: runtimeAction.target ?? null,
+          reviewPackId: input.reviewPack?.id ?? input.run?.reviewPackId ?? null,
+        }) ?? (runtimeAction.action === "open_review_pack" ? reviewTarget : missionTarget),
+    };
+  }
+  if (
+    input.reviewPack &&
+    (input.reviewPack.reviewStatus === "ready" ||
+      input.reviewPack.reviewStatus === "incomplete_evidence" ||
+      input.reviewPack.reviewStatus === "action_required" ||
+      input.reviewPack.reviewDecision?.status === "pending")
+  ) {
+    return {
+      label:
+        input.reviewPack.reviewStatus === "incomplete_evidence"
+          ? "Inspect evidence"
+          : input.reviewPack.reviewStatus === "action_required"
+            ? "Resolve review"
+            : "Open review",
+      detail:
+        resolveCheckpointHandoffLabel(input) ||
+        input.continuation?.recommendedAction ||
+        input.continuation?.summary ||
+        input.reviewPack.governance?.summary?.trim() ||
+        resolveLegacyReviewPackNextAction(input.reviewPack) ||
+        null,
+      target: reviewTarget,
+    };
+  }
+  if (input.run?.approval?.status === "pending_decision") {
+    return {
+      label: "Open approval",
+      detail: input.run.approval.summary?.trim() || null,
+      target: missionTarget,
+    };
+  }
+  if (input.run?.state === "failed" || input.run?.state === "cancelled") {
+    return {
+      label: "View failure",
+      detail:
+        input.run.relaunchContext?.summary?.trim() ||
+        input.run.completionReason?.trim() ||
+        input.run.governance?.summary?.trim() ||
+        null,
+      target: missionTarget,
+    };
+  }
+  if (input.run?.checkpoint?.resumeReady || input.run?.checkpoint?.recovered) {
+    return {
+      label: "Resume mission",
+      detail:
+        input.run.checkpoint.summary?.trim() ||
+        input.run.nextAction?.detail?.trim() ||
+        input.run.governance?.summary?.trim() ||
+        null,
+      target: missionTarget,
+    };
+  }
+  if (input.run?.state === "needs_input") {
+    return {
+      label: "Resume mission",
+      detail: input.run.nextAction?.detail?.trim() || input.run.governance?.summary?.trim() || null,
+      target: missionTarget,
+    };
+  }
+  if (isMissionRunActive(input.run?.state ?? null)) {
+    return {
+      label: "Open mission",
+      detail:
+        input.run?.nextAction?.detail?.trim() || input.run?.governance?.summary?.trim() || null,
+      target: missionTarget,
+    };
+  }
+  return {
+    label: input.task.origin.threadId ? "Open mission" : "Inspect runtime",
+    detail:
+      input.run?.nextAction?.detail?.trim() ||
+      input.continuation?.recommendedAction ||
+      input.continuation?.summary ||
+      input.run?.governance?.summary?.trim() ||
+      resolveLegacyReviewPackNextAction(input.reviewPack) ||
+      null,
+    target: missionTarget,
+  };
+}
 function hasMissionNeedsAction(input: {
   reviewPack: HugeCodeReviewPackSummary | null;
   run: MissionControlProjection["runs"][number] | null;

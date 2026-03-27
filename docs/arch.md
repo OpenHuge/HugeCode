@@ -37,7 +37,7 @@ This architecture is derived from:
 - [agents-system-design.md](./agents-system-design.md)
 - [code-runtime-spec-2026.md](./specs/code-runtime-spec-2026.md)
 - [workspace-map.md](./workspace-map.md)
-- current repository boundaries in `apps/code`, `apps/code-tauri`, `packages/code-runtime-host-contract`, and `packages/code-runtime-service-rs`
+- current repository boundaries in `apps/code`, `apps/code-electron`, `packages/code-runtime-host-contract`, and `packages/code-runtime-service-rs`
 
 ### External Reference Patterns
 
@@ -110,7 +110,7 @@ or by continuing to grow legacy v1 run payloads.
 
 HugeCode consists of five major layers:
 
-1. **Desktop product surfaces** in `apps/code` and `apps/code-tauri`
+1. **Desktop product surfaces** in `apps/code` and `apps/code-electron`
 2. **App runtime facade layer** in `apps/code/src/application/runtime/*`
 3. **Transport and adapter layer** in `apps/code/src/services/*`
 4. **Shared host contracts** in `packages/code-runtime-host-contract` and `packages/native-runtime-host-contract`
@@ -121,7 +121,7 @@ HugeCode consists of five major layers:
 | Layer                       | Primary responsibility                                                       | Must not own                                         |
 | --------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------- |
 | `apps/code`                 | task definition, control-plane UX, review UX, capability-aware presentation  | execution truth, placement policy, durable lifecycle |
-| `apps/code-tauri`           | desktop host transport and native bridge integration                         | product policy, page-local orchestration             |
+| `apps/code-electron`        | desktop host transport and native bridge integration                         | product policy, page-local orchestration             |
 | `src/application/runtime/*` | stable UI-facing runtime APIs and backend preference resolution              | direct page-local transport sprawl                   |
 | `src/services/*`            | transport adapters, bridges, helper implementations                          | canonical task state or product lifecycle truth      |
 | host-contract packages      | method names, payloads, event shapes, compatibility rules                    | UI heuristics or repo-local policy                   |
@@ -186,7 +186,7 @@ The current repo already suggests the target architecture and should be formaliz
 ### Active Product Surfaces
 
 - `apps/code`: primary coding workspace UI
-- `apps/code-tauri`: desktop container and native integration surface
+- `apps/code-electron`: desktop container and native integration surface
 
 ### Core Runtime Layers
 
@@ -242,7 +242,7 @@ Responsible for assembling and rendering the Review Pack and ledger in a human-d
 | Decision             | Rule                                                                                     |
 | -------------------- | ---------------------------------------------------------------------------------------- |
 | Product center       | HugeCode is the control plane for governed async engineering delegation                  |
-| Primary client       | Desktop-first via `apps/code` + `apps/code-tauri`                                        |
+| Primary client       | Desktop-first via `apps/code` + `apps/code-electron`                                     |
 | Runtime core         | `packages/code-runtime-service-rs` owns execution truth                                  |
 | Frontend entry point | `src/application/runtime/*` is the only approved UI boundary                             |
 | Contract authority   | host-contract packages define payloads and event shapes                                  |

@@ -194,4 +194,70 @@ describe("runtimeContinuationFacade", () => {
       "Follow-up is blocked on fresh review evidence."
     );
   });
+
+  it("uses runtime-published continuation truth when no fragmented continuation fields are present", () => {
+    const descriptor = buildRuntimeContinuationDescriptor({
+      runState: "review_ready",
+      continuation: {
+        state: "ready",
+        pathKind: "review",
+        source: "mission_linkage",
+        summary: "Runtime published canonical review continuation.",
+        detail: "Open the canonical review pack continuation.",
+        recommendedAction: "Open Review Pack from runtime continuation.",
+        target: {
+          kind: "review_pack",
+          workspaceId: "workspace-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:1",
+          checkpointId: null,
+          traceId: null,
+        },
+        reviewPackId: "review-pack:1",
+        reviewActionability: {
+          state: "ready",
+          summary: "Review follow-up is ready from runtime continuation.",
+          degradedReasons: [],
+          actions: [],
+        },
+        sessionBoundary: {
+          workspaceId: "workspace-1",
+          taskId: "task-1",
+          runId: "run-1",
+          missionTaskId: "task-1",
+          sessionKind: "run",
+          threadId: null,
+          requestId: null,
+          reviewPackId: "review-pack:1",
+          checkpointId: null,
+          traceId: null,
+          navigationTarget: {
+            kind: "review_pack",
+            workspaceId: "workspace-1",
+            taskId: "task-1",
+            runId: "run-1",
+            reviewPackId: "review-pack:1",
+            checkpointId: null,
+            traceId: null,
+          },
+        },
+      },
+      reviewPackId: "review-pack:1",
+    });
+
+    expect(descriptor).toMatchObject({
+      state: "ready",
+      pathKind: "review",
+      summary: "Runtime published canonical review continuation.",
+      recommendedAction: "Open Review Pack from runtime continuation.",
+      truthSource: "mission_linkage",
+      continuePathLabel: "Review Pack",
+      canonicalNextAction: {
+        kind: "review",
+        label: "Open review",
+        detail: "Open Review Pack from runtime continuation.",
+      },
+    });
+  });
 });

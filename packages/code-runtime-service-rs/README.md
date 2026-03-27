@@ -5,7 +5,7 @@ Standalone Rust runtime service for `apps/code`.
 ## Purpose
 
 - Decouple UI from runtime implementation.
-- Provide a single RPC contract that web, Tauri desktop, and other clients can consume.
+- Provide a single RPC contract that web, Electron desktop, and other clients can consume.
 - Keep model invocation and session state in one service layer.
 
 ## Run

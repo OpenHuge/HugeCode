@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../application/runtime/ports/tauriCore";
 import { getErrorMessage } from "@ku0/code-runtime-client/runtimeClientErrorUtils";
 import {
   createRuntimeRpcInvokerWithCandidates,

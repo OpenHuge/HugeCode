@@ -16,9 +16,6 @@ const SERVICE_DISPATCH_PATHS = [
   "packages/code-runtime-service-rs/src/rpc_dispatch.rs",
 ];
 const SERVICE_RUNTIME_EVENTS_PATH = "packages/code-runtime-service-rs/src/runtime_events.rs";
-const TAURI_RPC_PATH = "apps/code-tauri/src-tauri/src/commands/rpc.rs";
-const TAURI_LIB_PATH = "apps/code-tauri/src-tauri/src/lib.rs";
-const TAURI_POLICY_PATH = "apps/code-tauri/src-tauri/src/commands/policy.rs";
 
 const HOST_SPEC_VERSION = (() => {
   const hostContractAbsolutePath = path.join(repoRoot, HOST_CONTRACT_PATH);
@@ -33,8 +30,6 @@ const HOST_SPEC_VERSION = (() => {
 })();
 
 const HOST_SPEC_PATH = `docs/runtime/spec/code-runtime-rpc-spec.${HOST_SPEC_VERSION}.json`;
-const TAURI_SPEC_PATH = `docs/runtime/spec/code-runtime-rpc-spec.tauri.${HOST_SPEC_VERSION}.json`;
-const TAURI_GAP_ALLOWLIST_PATH = `docs/runtime/spec/code-runtime-rpc-tauri-gap-allowlist.${HOST_SPEC_VERSION}.json`;
 
 function readText(repoRelativePath) {
   const absolutePath = path.join(repoRoot, repoRelativePath);
@@ -359,71 +354,6 @@ function parseServiceRuntimeEventKinds() {
   ].sort((a, b) => a.localeCompare(b));
 }
 
-function parseTauriContract() {
-  const content = readText(TAURI_RPC_PATH);
-  const featureSection = sectionBetween(
-    content,
-    "const CODE_RUNTIME_RPC_FEATURES: &[&str] = &[",
-    "];",
-    "tauri features"
-  );
-  const errorCodeSection = sectionBetween(
-    content,
-    "const CODE_RUNTIME_RPC_ERROR_CODES: &[(&str, &str)] = &[",
-    "];",
-    "tauri error codes"
-  );
-  const features = extractQuotedStrings(featureSection);
-  const frozenFeature = extractConstString(
-    content,
-    /CODE_RUNTIME_RPC_FROZEN_FEATURE:\s*&str\s*=\s*"([^"]+)"/u,
-    "tauri frozen feature"
-  );
-  if (featureSection.includes("CODE_RUNTIME_RPC_FROZEN_FEATURE")) {
-    features.push(frozenFeature);
-  }
-
-  return {
-    contractVersion: extractConstString(
-      content,
-      /CODE_RUNTIME_RPC_CONTRACT_VERSION:\s*&str\s*=\s*"([^"]+)"/u,
-      "tauri contract version"
-    ),
-    freezeEffectiveAt: extractConstString(
-      content,
-      /CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT:\s*&str\s*=\s*"([^"]+)"/u,
-      "tauri freeze effective at"
-    ),
-    capabilityProfile: extractConstString(
-      content,
-      /CODE_RUNTIME_RPC_CAPABILITY_PROFILE:\s*&str\s*=\s*"([^"]+)"/u,
-      "tauri capability profile"
-    ),
-    features: [...new Set(features)].sort((a, b) => a.localeCompare(b)),
-    errorCodes: extractTupleStringMap(errorCodeSection),
-  };
-}
-
-function parseTauriMethods() {
-  const content = readText(TAURI_LIB_PATH);
-  const macroSection = sectionBetween(
-    content,
-    "macro_rules! code_tauri_command_entries {",
-    "macro_rules! command_handler_from_entries",
-    "tauri command entries"
-  );
-  const registeredMethods = extractMethodStrings(macroSection);
-  const policyContent = readText(TAURI_POLICY_PATH);
-  const gatedSection = sectionBetween(
-    policyContent,
-    "pub(crate) fn rpc_method_enabled(method: &str) -> bool {",
-    "_ => true,",
-    "tauri rpc policy gates"
-  );
-  const gatedMethods = new Set(extractMethodStrings(gatedSection));
-  return registeredMethods.filter((method) => !gatedMethods.has(method));
-}
-
 function normalizeMethodList(input) {
   if (!Array.isArray(input)) {
     return [];
@@ -496,6 +426,7 @@ function computeMethodSetHash(methods) {
 function formatList(values) {
   return values.map((value) => `- ${value}`).join("\n");
 }
+
 function main() {
   const host = parseHostContract();
   const hostEventKinds = parseHostEventKinds();
@@ -503,24 +434,13 @@ function main() {
   const service = parseServiceContract();
   const { registryMethods, dispatchMethods } = parseServiceMethods();
   const serviceRuntimeEventKinds = parseServiceRuntimeEventKinds();
-  const tauri = parseTauriContract();
-  const tauriMethods = parseTauriMethods();
-
   const hostSpec = readJson(HOST_SPEC_PATH);
-  const tauriSpec = readJson(TAURI_SPEC_PATH);
-  const tauriGapAllowlist = readJson(TAURI_GAP_ALLOWLIST_PATH);
 
   const errors = [];
-  const notices = [];
 
   if (service.contractVersion !== host.contractVersion) {
     errors.push(
       `service contractVersion mismatch: host=${host.contractVersion}, service=${service.contractVersion}`
-    );
-  }
-  if (tauri.contractVersion !== host.contractVersion) {
-    errors.push(
-      `tauri contractVersion mismatch: host=${host.contractVersion}, tauri=${tauri.contractVersion}`
     );
   }
   if (service.freezeEffectiveAt !== host.freezeEffectiveAt) {
@@ -528,26 +448,13 @@ function main() {
       `service freezeEffectiveAt mismatch: host=${host.freezeEffectiveAt}, service=${service.freezeEffectiveAt}`
     );
   }
-  if (tauri.freezeEffectiveAt !== host.freezeEffectiveAt) {
-    errors.push(
-      `tauri freezeEffectiveAt mismatch: host=${host.freezeEffectiveAt}, tauri=${tauri.freezeEffectiveAt}`
-    );
-  }
   const expectedFullRuntimeProfile = host.capabilityProfiles.FULL_RUNTIME;
-  const expectedDesktopCoreProfile = host.capabilityProfiles.DESKTOP_CORE;
-  if (!expectedFullRuntimeProfile || !expectedDesktopCoreProfile) {
-    errors.push("host capability profiles are missing FULL_RUNTIME and/or DESKTOP_CORE");
-  } else {
-    if (service.capabilityProfile !== expectedFullRuntimeProfile) {
-      errors.push(
-        `service capability profile mismatch: host=${expectedFullRuntimeProfile}, service=${service.capabilityProfile}`
-      );
-    }
-    if (tauri.capabilityProfile !== expectedDesktopCoreProfile) {
-      errors.push(
-        `tauri capability profile mismatch: host=${expectedDesktopCoreProfile}, tauri=${tauri.capabilityProfile}`
-      );
-    }
+  if (!expectedFullRuntimeProfile) {
+    errors.push("host capability profiles are missing FULL_RUNTIME");
+  } else if (service.capabilityProfile !== expectedFullRuntimeProfile) {
+    errors.push(
+      `service capability profile mismatch: host=${expectedFullRuntimeProfile}, service=${service.capabilityProfile}`
+    );
   }
 
   const hostVsServiceMethods = compareSets(host.methods, registryMethods);
@@ -621,53 +528,6 @@ function main() {
     );
   }
 
-  if (tauri.capabilityProfile === expectedDesktopCoreProfile) {
-    const hostFeatureSet = new Set(host.features);
-    const unexpectedDesktopCoreFeatures = tauri.features.filter(
-      (feature) => !hostFeatureSet.has(feature)
-    );
-    if (unexpectedDesktopCoreFeatures.length > 0) {
-      errors.push(
-        `tauri desktop-core profile includes unknown features:\n${formatList(
-          unexpectedDesktopCoreFeatures
-        )}`
-      );
-    }
-
-    const requiredDesktopCoreFeatures = [
-      "method_not_found_error_code",
-      "rpc_capabilities_handshake",
-      `contract_frozen_${host.freezeEffectiveAt.replaceAll("-", "_")}`,
-    ];
-    const missingDesktopCoreFeatures = requiredDesktopCoreFeatures.filter(
-      (feature) => !tauri.features.includes(feature)
-    );
-    if (missingDesktopCoreFeatures.length > 0) {
-      errors.push(
-        `tauri desktop-core profile is missing required baseline features:\n${formatList(
-          missingDesktopCoreFeatures
-        )}`
-      );
-    }
-  } else {
-    const hostVsTauriFeatures = compareSets(host.features, tauri.features);
-    if (hostVsTauriFeatures.missing.length > 0 || hostVsTauriFeatures.extra.length > 0) {
-      errors.push(
-        [
-          "host features and tauri features diverged",
-          hostVsTauriFeatures.missing.length > 0
-            ? `missing in tauri:\n${formatList(hostVsTauriFeatures.missing)}`
-            : null,
-          hostVsTauriFeatures.extra.length > 0
-            ? `unexpected in tauri:\n${formatList(hostVsTauriFeatures.extra)}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join("\n")
-      );
-    }
-  }
-
   const hostVsServiceErrorCodes = compareRecordMaps(host.errorCodes, service.errorCodes);
   if (!hostVsServiceErrorCodes.isEqual) {
     errors.push(
@@ -681,30 +541,6 @@ function main() {
           : null,
         hostVsServiceErrorCodes.mismatchedValues.length > 0
           ? `mismatched values:\n${hostVsServiceErrorCodes.mismatchedValues
-              .map(
-                ({ key, expected, actual }) => `- ${key}: expected=${expected}, actual=${actual}`
-              )
-              .join("\n")}`
-          : null,
-      ]
-        .filter(Boolean)
-        .join("\n")
-    );
-  }
-
-  const hostVsTauriErrorCodes = compareRecordMaps(host.errorCodes, tauri.errorCodes);
-  if (!hostVsTauriErrorCodes.isEqual) {
-    errors.push(
-      [
-        "host error codes and tauri error codes diverged",
-        hostVsTauriErrorCodes.missingKeys.length > 0
-          ? `missing keys in tauri:\n${formatList(hostVsTauriErrorCodes.missingKeys)}`
-          : null,
-        hostVsTauriErrorCodes.extraKeys.length > 0
-          ? `unexpected keys in tauri:\n${formatList(hostVsTauriErrorCodes.extraKeys)}`
-          : null,
-        hostVsTauriErrorCodes.mismatchedValues.length > 0
-          ? `mismatched values:\n${hostVsTauriErrorCodes.mismatchedValues
               .map(
                 ({ key, expected, actual }) => `- ${key}: expected=${expected}, actual=${actual}`
               )
@@ -746,139 +582,11 @@ function main() {
     }
   }
 
-  if (!tauriSpec?.rpc || typeof tauriSpec.rpc !== "object") {
-    errors.push(`invalid tauri spec payload: ${TAURI_SPEC_PATH}`);
-  } else {
-    const tauriSpecMethods = normalizeMethodList(tauriSpec.rpc.methods);
-    const tauriSpecMethodDiff = compareSets(hostSpecExpectedMethods, tauriSpecMethods);
-    if (tauriSpecMethodDiff.missing.length > 0 || tauriSpecMethodDiff.extra.length > 0) {
-      errors.push(
-        [
-          "tauri frozen spec methods diverged from host contract methods",
-          tauriSpecMethodDiff.missing.length > 0
-            ? `missing in tauri spec:\n${formatList(tauriSpecMethodDiff.missing)}`
-            : null,
-          tauriSpecMethodDiff.extra.length > 0
-            ? `unexpected in tauri spec:\n${formatList(tauriSpecMethodDiff.extra)}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join("\n")
-      );
-    }
-
-    const tauriSpecHash = String(tauriSpec.rpc.methodSetHash ?? "").trim();
-    const recomputedTauriSpecHash = computeMethodSetHash(tauriSpecMethods);
-    if (tauriSpecHash !== recomputedTauriSpecHash) {
-      errors.push(
-        `tauri spec methodSetHash mismatch: spec=${tauriSpecHash}, expected=${recomputedTauriSpecHash}`
-      );
-    }
-
-    if (String(tauriSpec.rpc.contractVersion ?? "") !== host.contractVersion) {
-      errors.push(
-        `tauri spec contractVersion mismatch: spec=${tauriSpec.rpc.contractVersion}, host=${host.contractVersion}`
-      );
-    }
-    if (String(tauriSpec.rpc.freezeEffectiveAt ?? "") !== host.freezeEffectiveAt) {
-      errors.push(
-        `tauri spec freezeEffectiveAt mismatch: spec=${tauriSpec.rpc.freezeEffectiveAt}, host=${host.freezeEffectiveAt}`
-      );
-    }
-    if (String(tauriSpec.rpc.profile ?? "") !== tauri.capabilityProfile) {
-      errors.push(
-        `tauri spec profile mismatch: spec=${tauriSpec.rpc.profile}, tauri=${tauri.capabilityProfile}`
-      );
-    }
-  }
-
-  const hostToTauriMethodDiff = compareSets(host.methods, tauriMethods);
-  if (hostToTauriMethodDiff.extra.length > 0) {
-    errors.push(
-      `tauri registered methods include non-canonical/unknown entries:\n${formatList(
-        hostToTauriMethodDiff.extra
-      )}`
-    );
-  }
-
-  const strictTauriParity =
-    process.env.RUNTIME_SOT_REQUIRE_TAURI_FULL === "1" ||
-    process.env.RUNTIME_SOT_REQUIRE_TAURI_FULL === "true";
-
-  const allowlistMissingMethods = normalizeMethodList(tauriGapAllowlist?.missingMethods);
-  if (strictTauriParity) {
-    if (hostToTauriMethodDiff.missing.length > 0) {
-      errors.push(
-        `tauri full parity is required (RUNTIME_SOT_REQUIRE_TAURI_FULL=1), missing methods:\n${formatList(
-          hostToTauriMethodDiff.missing
-        )}`
-      );
-    }
-  } else {
-    const unknownMissingMethods = hostToTauriMethodDiff.missing.filter(
-      (method) => !allowlistMissingMethods.includes(method)
-    );
-    if (unknownMissingMethods.length > 0) {
-      errors.push(
-        `tauri missing method set grew beyond allowlist:\n${formatList(unknownMissingMethods)}`
-      );
-    }
-
-    const obsoleteAllowlistEntries = allowlistMissingMethods.filter(
-      (method) => !hostToTauriMethodDiff.missing.includes(method)
-    );
-    if (obsoleteAllowlistEntries.length > 0) {
-      notices.push(
-        `tauri gap allowlist contains resolved methods (shrink allowlist):\n${formatList(
-          obsoleteAllowlistEntries
-        )}`
-      );
-    }
-  }
-
-  const allowlistUnknownMethods = allowlistMissingMethods.filter(
-    (method) => !host.methods.includes(method)
-  );
-  if (allowlistUnknownMethods.length > 0) {
-    errors.push(
-      `tauri gap allowlist includes unknown methods not present in host contract:\n${formatList(
-        allowlistUnknownMethods
-      )}`
-    );
-  }
-
-  if (
-    tauriGapAllowlist?.freezeEffectiveAt &&
-    tauriGapAllowlist.freezeEffectiveAt !== host.freezeEffectiveAt
-  ) {
-    errors.push(
-      `tauri gap allowlist freezeEffectiveAt mismatch: allowlist=${tauriGapAllowlist.freezeEffectiveAt}, host=${host.freezeEffectiveAt}`
-    );
-  }
-  if (
-    Number.isFinite(Number(tauriGapAllowlist?.hostMethodCount)) &&
-    Number(tauriGapAllowlist.hostMethodCount) !== host.methods.length
-  ) {
-    errors.push(
-      `tauri gap allowlist hostMethodCount mismatch: allowlist=${tauriGapAllowlist.hostMethodCount}, host=${host.methods.length}`
-    );
-  }
-
-  if (notices.length > 0) {
-    for (const notice of notices) {
-      process.stderr.write(`[runtime-sot] notice: ${notice}\n`);
-    }
-  }
-
   if (errors.length > 0) {
     for (const error of errors) {
       process.stderr.write(`[runtime-sot] error: ${error}\n`);
     }
     process.exit(1);
-  }
-
-  if (strictTauriParity) {
-  } else {
   }
 
   process.stdout.write("[runtime-sot] ok\n");

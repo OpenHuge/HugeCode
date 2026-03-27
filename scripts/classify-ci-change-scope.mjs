@@ -221,11 +221,7 @@ const manifestDiff = manifestFiles.length
   ? runGit(["diff", "--unified=0", ...diffArgs, "--", ...manifestFiles]).stdout
   : "";
 
-const desktopFileSignals = [
-  "apps/code-tauri/package.json",
-  "apps/code-tauri/src-tauri/Cargo.toml",
-  "apps/code-tauri/src-tauri/Cargo.lock",
-];
+const desktopFileSignals = ["apps/code-electron/package.json"];
 const frontendFileSignals = [
   "apps/code/package.json",
   "apps/code-web/package.json",
@@ -233,8 +229,7 @@ const frontendFileSignals = [
   "tests/e2e/package.json",
 ];
 
-const desktopManifestPattern =
-  /@tauri-apps\/|tauri-plugin|code-tauri|desktop:|desktop-verify|src-tauri/i;
+const desktopManifestPattern = /@electron-forge\/|electron|desktop:|desktop:electron/i;
 const frontendManifestPattern =
   /@cloudflare\/vite-plugin|@playwright\/|@vanilla-extract\/|@vitest\/|playwright|postcss|react-dom|react|rollup|terrazzo|vite|vitest/i;
 

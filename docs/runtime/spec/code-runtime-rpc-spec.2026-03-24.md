@@ -1,9 +1,9 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-03-27T06:15:51.381Z`
+- Generated at: `2026-03-25T05:48:42.447Z`
 - Contract version: `2026-03-24`
 - Freeze effective at: `2026-03-24`
-- Method-set hash: `5bae1de0c62b5aeb`
+- Method-set hash: `673aa3c3d875eefd`
 
 ## Features
 
@@ -50,7 +50,6 @@
 - `runtime_acp_readiness_probe_v1`
 - `runtime_review_actionability_v1`
 - `runtime_review_linkage_v1`
-- `runtime_truth_contract_core_v1`
 - `runtime_mission_control_summary_v1`
 - `runtime_task_normalization_v1`
 - `runtime_task_native_run_review_v1`
@@ -69,7 +68,7 @@
 - `runtime_codex_execpolicy_preflight_v1`
 - `runtime_codex_unified_rpc_migration_v1`
 - `runtime_host_deprecated`
-- `app_server_protocol_v2_2026_03_23`
+- `app_server_protocol_v2_2026_03_24`
 - `contract_frozen_2026_03_24`
 
 ## RPC Methods (canonical)
@@ -122,10 +121,6 @@
 - `code_thread_live_unsubscribe`
 - `code_turn_send`
 - `code_turn_interrupt`
-- `code_task_source_ingest_v1`
-- `code_task_source_get_v1`
-- `code_task_source_list_v1`
-- `code_task_source_reconcile_v1`
 - `code_runtime_run_start`
 - `code_runtime_run_prepare_v2`
 - `code_runtime_run_start_v2`
@@ -376,10 +371,6 @@
 - `code_sub_agent_spawn`
 - `code_sub_agent_status`
 - `code_sub_agent_wait`
-- `code_task_source_get_v1`
-- `code_task_source_ingest_v1`
-- `code_task_source_list_v1`
-- `code_task_source_reconcile_v1`
 - `code_terminal_close`
 - `code_terminal_input_raw`
 - `code_terminal_interrupt`

@@ -146,7 +146,7 @@ export const MainAppShell = memo(function MainAppShell({
 
   return (
     <div ref={shellRef} className={appClassName}>
-      <div className="drag-strip" id="titlebar" data-tauri-drag-region />
+      <div className="drag-strip" id="titlebar" data-desktop-drag-region />
       {titlebarControlsNode}
       {shouldLoadGitHubPanelData ? (
         <Suspense fallback={null}>

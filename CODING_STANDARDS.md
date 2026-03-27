@@ -88,7 +88,7 @@ Targeted checks:
 Active surfaces to prefer in documentation and examples:
 
 - `apps/code`
-- `apps/code-tauri`
+- `apps/code-electron`
 - `packages/code-runtime-service-rs`
 - `packages/code-runtime-host-contract`
 - `packages/design-system`

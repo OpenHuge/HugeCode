@@ -320,6 +320,7 @@ export function summarizeReviewContinuationActionability(input: {
     missionLinkage: input.missionLinkage ?? null,
     publishHandoff: input.publishHandoff ?? null,
     reviewPackId: input.reviewPackId ?? null,
+    continuation: input.continuation ?? null,
   });
   const summary = descriptor?.summary ?? "Runtime continuation guidance is unavailable.";
   const state =

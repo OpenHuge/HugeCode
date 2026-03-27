@@ -41,7 +41,7 @@ describe("cargo target cache guard", () => {
 
   it("resolves the shared cargo target directory from the workspace root", () => {
     const workspaceRoot = createTempWorkspace();
-    const packageRoot = path.join(workspaceRoot, "apps", "code-tauri");
+    const packageRoot = path.join(workspaceRoot, "apps", "code-electron");
     mkdirSync(packageRoot, { recursive: true });
 
     expect(resolveWorkspaceCargoTargetDir({ startDir: packageRoot })).toBe(

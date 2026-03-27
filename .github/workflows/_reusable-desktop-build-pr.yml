@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
-      - name: Skip Tauri PR build while runtime retires
+      - name: Skip dedicated packaging PR lane
         run: |
-          echo "Skipping Tauri PR build for target ${{ inputs.rust_target }}."
-          echo "Workflow and job names stay unchanged so existing required checks keep passing."
+          echo "Skipping dedicated desktop packaging for target ${{ inputs.rust_target }}."
+          echo "Electron verification is covered by the active shared desktop lanes."

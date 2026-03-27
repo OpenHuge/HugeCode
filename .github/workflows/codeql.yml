@@ -67,7 +67,6 @@ jobs:
               - "pnpm-workspace.yaml"
               - "turbo.json"
             rust:
-              - "apps/code-tauri/**"
               - "packages/*-rs/**"
               - "internal/runtime-policy-rs/**"
               - "**/Cargo.toml"
