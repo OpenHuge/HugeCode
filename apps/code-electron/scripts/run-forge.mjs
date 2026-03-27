@@ -264,9 +264,10 @@ async function runCommand(commandName, args, cwd, env = process.env) {
     commandName,
     nodeExecDir,
   });
+  const invocation = createCliInvocation(command, [...argsPrefix, ...args], process.platform);
 
   await new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(command, [...argsPrefix, ...args], {
+    const child = spawn(invocation.command, invocation.args, {
       cwd,
       env: sanitizeSpawnEnv(env),
       stdio: "inherit",
@@ -280,7 +281,7 @@ async function runCommand(commandName, args, cwd, env = process.env) {
 
       rejectPromise(
         new Error(
-          `${command} ${[...argsPrefix, ...args].join(" ")} failed with exit code ${code ?? -1}`
+          `${invocation.command} ${invocation.args.join(" ")} failed with exit code ${code ?? -1}`
         )
       );
     });
