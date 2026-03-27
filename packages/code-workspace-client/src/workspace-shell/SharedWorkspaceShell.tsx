@@ -24,7 +24,7 @@ type FocusableSection = "missions" | "review";
 
 type ShellFocusTarget = {
   section: FocusableSection;
-  itemId: string;
+  itemId: string | null;
 };
 
 const shellSections = [
@@ -144,9 +144,8 @@ function ReadinessSummary({
                   className={styles.button}
                   onClick={() => {
                     if (
-                      operatorAction.targetItemId &&
-                      (operatorAction.targetSection === "missions" ||
-                        operatorAction.targetSection === "review")
+                      operatorAction.targetSection === "missions" ||
+                      operatorAction.targetSection === "review"
                     ) {
                       onOpenFocusTarget({
                         section: operatorAction.targetSection,
@@ -857,8 +856,48 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
     state.selectWorkspace(workspaceId);
   };
 
-  const focusedMissionId = focusTarget?.section === "missions" ? focusTarget.itemId : null;
-  const focusedReviewId = focusTarget?.section === "review" ? focusTarget.itemId : null;
+  useEffect(() => {
+    if (!focusTarget || focusTarget.itemId) {
+      return;
+    }
+    if (state.missionLoadState === "idle" || state.missionLoadState === "loading") {
+      return;
+    }
+
+    const resolvedItemId =
+      focusTarget.section === "missions"
+        ? (state.missionSummary.missionItems[0]?.id ?? null)
+        : (state.missionSummary.reviewItems[0]?.id ?? null);
+
+    if (!resolvedItemId) {
+      return;
+    }
+
+    setFocusTarget((current) => {
+      if (!current || current.section !== focusTarget.section || current.itemId !== null) {
+        return current;
+      }
+
+      return {
+        ...current,
+        itemId: resolvedItemId,
+      };
+    });
+  }, [
+    focusTarget,
+    state.missionLoadState,
+    state.missionSummary.missionItems,
+    state.missionSummary.reviewItems,
+  ]);
+
+  const focusedMissionId =
+    focusTarget?.section === "missions"
+      ? (focusTarget.itemId ?? state.missionSummary.missionItems[0]?.id ?? null)
+      : null;
+  const focusedReviewId =
+    focusTarget?.section === "review"
+      ? (focusTarget.itemId ?? state.missionSummary.reviewItems[0]?.id ?? null)
+      : null;
   const shellHydrating =
     state.workspaceLoadState === "idle" ||
     state.workspaceLoadState === "loading" ||
@@ -940,11 +979,11 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
               void state.refreshMissionSummary();
               void state.refreshHostStartupStatus();
             }}
-            disabled={shellHydrating || shellRefreshing}
+            disabled={shellRefreshing}
             type="button"
           >
             <RefreshCw aria-hidden size={16} />
-            {shellHydrating || shellRefreshing ? "Refreshing..." : "Refresh"}
+            {shellRefreshing ? "Refreshing..." : "Refresh"}
           </button>
           {state.accountHref ? (
             <a className={styles.subtleButton} href={state.accountHref}>
