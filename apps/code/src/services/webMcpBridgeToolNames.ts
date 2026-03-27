@@ -53,7 +53,6 @@ export const AGENT_RUNTIME_CONTROL_TOOL_NAMES = [
   "evaluate-runtime-extension-permissions",
   "read-runtime-extension-resource",
   "get-runtime-extension-health",
-  "list-runtime-extension-ui-apps",
   "get-runtime-extensions-config",
   "get-runtime-remote-status",
   "get-runtime-settings",

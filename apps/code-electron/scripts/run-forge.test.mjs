@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolveCommandInvocation } from "./run-forge-support.mjs";
 import {
   assertForgeHostBinaryRequirements,
   createCliInvocation,
@@ -42,6 +43,23 @@ describe("run-forge helpers", () => {
     });
   });
 
+  it("composes Windows pnpm fallback invocations into a cmd.exe-safe spawn target", async () => {
+    const invocation = await resolveCommandInvocation({
+      commandName: "pnpm",
+      platform: "win32",
+      nodeExecDir: "/node/bin",
+      accessPath: async () => {
+        throw new Error("missing");
+      },
+    });
+
+    expect(
+      createCliInvocation(invocation.command, ["install", "--ignore-scripts"], "win32")
+    ).toEqual({
+      command: "cmd.exe",
+      args: ["/d", "/s", "/c", "pnpm.cmd install --ignore-scripts"],
+    });
+  });
   it("filters workspace dependencies from the staged package manifest", () => {
     const stagedPackageJson = createStagedPackageJson({
       version: "1.2.3",

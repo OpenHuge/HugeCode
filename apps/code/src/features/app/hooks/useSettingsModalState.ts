@@ -26,9 +26,21 @@ function normalizeSettingsSection(section: unknown): SettingsSection | null {
 }
 
 async function preloadSettingsViewOnDemand() {
-  const module = await import("../../settings/components/settingsViewLoader");
-  return module.preloadSettingsView();
+  if (settingsViewPreloadPromise) {
+    return settingsViewPreloadPromise;
+  }
+
+  settingsViewPreloadPromise = import("../../settings/components/settingsViewLoader")
+    .then((module) => module.preloadSettingsView())
+    .catch((error) => {
+      settingsViewPreloadPromise = null;
+      throw error;
+    });
+
+  return settingsViewPreloadPromise;
 }
+
+let settingsViewPreloadPromise: Promise<unknown> | null = null;
 
 export function useSettingsModalState() {
   const [settingsOpen, setSettingsOpen] = useState(false);

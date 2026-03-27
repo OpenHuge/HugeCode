@@ -7,7 +7,15 @@ import {
 export type RuntimeWorkspaceExecutionPolicyState = {
   repositoryExecutionContract: RepositoryExecutionContract | null;
   repositoryExecutionContractError: string | null;
+  repositoryExecutionContractStatus: RuntimeWorkspaceExecutionPolicyStatus;
 };
+
+export type RuntimeWorkspaceExecutionPolicyStatus =
+  | "idle"
+  | "loading"
+  | "ready"
+  | "missing"
+  | "error";
 
 export async function readRuntimeWorkspaceExecutionPolicy(
   workspaceId: string
@@ -23,22 +31,27 @@ export function useRuntimeWorkspaceExecutionPolicy(
   const [repositoryExecutionContractError, setRepositoryExecutionContractError] = useState<
     string | null
   >(null);
+  const [repositoryExecutionContractStatus, setRepositoryExecutionContractStatus] =
+    useState<RuntimeWorkspaceExecutionPolicyStatus>("idle");
 
   useEffect(() => {
     if (!workspaceId) {
       setRepositoryExecutionContract(null);
       setRepositoryExecutionContractError(null);
+      setRepositoryExecutionContractStatus("idle");
       return;
     }
     let cancelled = false;
     setRepositoryExecutionContract(null);
     setRepositoryExecutionContractError(null);
+    setRepositoryExecutionContractStatus("loading");
     void readRuntimeWorkspaceExecutionPolicy(workspaceId)
       .then((contract) => {
         if (cancelled) {
           return;
         }
         setRepositoryExecutionContract(contract);
+        setRepositoryExecutionContractStatus(contract ? "ready" : "missing");
       })
       .catch((error) => {
         if (cancelled) {
@@ -46,6 +59,7 @@ export function useRuntimeWorkspaceExecutionPolicy(
         }
         setRepositoryExecutionContract(null);
         setRepositoryExecutionContractError(error instanceof Error ? error.message : String(error));
+        setRepositoryExecutionContractStatus("error");
       });
     return () => {
       cancelled = true;
@@ -55,5 +69,6 @@ export function useRuntimeWorkspaceExecutionPolicy(
   return {
     repositoryExecutionContract,
     repositoryExecutionContractError,
+    repositoryExecutionContractStatus,
   };
 }

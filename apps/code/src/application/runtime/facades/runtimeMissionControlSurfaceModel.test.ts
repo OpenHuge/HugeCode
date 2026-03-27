@@ -256,6 +256,6 @@ describe("runtimeMissionControlSurfaceModel", () => {
     expect(reviewEntries[0]?.recommendedNextAction).toBe(
       "Canonical operator next step for this run."
     );
-    expect(reviewEntries[0]?.continuePathLabel).toBe("Review Pack");
+    expect(reviewEntries[0]?.continuePathLabel).toBeNull();
   });
 });

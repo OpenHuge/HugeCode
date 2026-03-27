@@ -63,6 +63,8 @@ This directory is the canonical entrypoint for runtime transport, contract, and 
 - These fields are intended for Track B and Track C consumers to read directly from runtime-owned payloads rather than reconstructing placement or handoff state in UI code.
 - Mission Control task, run, and review payloads now expose the same task-source, checkpoint, and handoff truth while preserving older compatibility fields such as `threadId` for manual-thread flows.
 - This phase now includes a manual desktop-triggered GitHub source-launch MVP for issue and PR follow-up delegation through canonical `taskSource` payloads.
+- GitHub source launch beta MVP details, containment policy, and validation record:
+  [github-source-launch-beta-mvp-2026-03-25.md](./github-source-launch-beta-mvp-2026-03-25.md)
 - This phase now also includes a repo-owned `Repository Execution Contract` v1 for launch defaults, source mapping, and validation preset inheritance.
 - This phase now also includes a shared review continuation loop v1 that resolves relaunch and follow-up defaults from runtime truth plus repo defaults, and exposes those continuation summaries through Review Pack, Mission Control, and shared workspace-client surfaces.
 - This phase now also includes `Native Review Intelligence + Workspace Skills` v1:
@@ -113,6 +115,9 @@ Internal parity helpers such as `internal/runtime-policy-rs` may support tooling
 - [runtime-kernel-v2.md](./runtime-kernel-v2.md)
   Truth-first lifecycle direction for run preparation, execution, review, and
   the current v1-to-v2 compatibility bridge.
+- [runtime-compat-cleanup-2026-03-25.md](./runtime-compat-cleanup-2026-03-25.md)
+  Cleanup note for retiring `apps/connectors` compatibility paths, keeping the
+  extension v2 contract canonical, and documenting retained compat exit windows.
 - [pi-mono-runtime-source-deep-dive-2026-03-22.md](./pi-mono-runtime-source-deep-dive-2026-03-22.md)
   Runtime 主线源码解剖，解释宿主装配、shared bindings、projection fabric、frozen contract 与 Rust 真相源如何闭环。
 - [runtime-borrowing-blueprint-2026-03-22.md](./runtime-borrowing-blueprint-2026-03-22.md)

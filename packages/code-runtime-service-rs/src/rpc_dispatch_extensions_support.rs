@@ -207,95 +207,6 @@ pub(super) fn provider_extension_to_catalog(
     }
 }
 
-pub(super) fn native_plugin_to_catalog(
-    plugin: &Value,
-    workspace_id: Option<&str>,
-) -> Option<extensions_runtime::RuntimeExtensionSpecPayload> {
-    let object = plugin.as_object()?;
-    let extension_id = object
-        .get("pluginId")
-        .or_else(|| object.get("id"))
-        .and_then(Value::as_str)?
-        .trim()
-        .to_string();
-    let display_name = object
-        .get("name")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or(extension_id.as_str())
-        .to_string();
-    let enabled = object
-        .get("enabled")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    Some(extensions_runtime::RuntimeExtensionSpecPayload {
-        extension_id,
-        version: object
-            .get("version")
-            .and_then(Value::as_str)
-            .unwrap_or("1.0.0")
-            .to_string(),
-        display_name: display_name.clone(),
-        publisher: object
-            .get("publisher")
-            .and_then(Value::as_str)
-            .unwrap_or("native")
-            .to_string(),
-        summary: object
-            .get("description")
-            .or_else(|| object.get("summary"))
-            .and_then(Value::as_str)
-            .unwrap_or("Host-native extension")
-            .to_string(),
-        kind: "host".to_string(),
-        distribution: "workspace".to_string(),
-        name: display_name,
-        transport: "host-native".to_string(),
-        lifecycle_state: if enabled {
-            "enabled".to_string()
-        } else {
-            "installed".to_string()
-        },
-        enabled,
-        workspace_id: workspace_id.map(str::to_string),
-        capabilities: optional_string_array_from_object(object, "capabilities"),
-        permissions: optional_string_array_from_object(object, "permissions"),
-        ui_apps: normalize_ui_apps_from_value(
-            object.get("uiApps").or_else(|| object.get("ui_apps")),
-        ),
-        provenance: json!({
-            "sourceId": "native-plugin",
-        }),
-        config: Value::Object(object.clone()),
-        installed_at: object
-            .get("updatedAt")
-            .and_then(Value::as_u64)
-            .unwrap_or_else(now_ms),
-        updated_at: object
-            .get("updatedAt")
-            .and_then(Value::as_u64)
-            .unwrap_or_else(now_ms),
-    })
-}
-
-fn optional_string_array_from_object(
-    record: &serde_json::Map<String, Value>,
-    key: &str,
-) -> Vec<String> {
-    record
-        .get(key)
-        .and_then(Value::as_array)
-        .map(|entries| {
-            entries
-                .iter()
-                .filter_map(Value::as_str)
-                .map(str::to_string)
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
-}
-
 pub(super) fn extension_record_input_from_spec(
     spec: &extensions_runtime::RuntimeExtensionSpecPayload,
 ) -> extensions_runtime::RuntimeExtensionRecordInput {
@@ -471,14 +382,6 @@ pub(super) fn instruction_skill_record_input_from_overlay(
     })
 }
 
-fn legacy_native_plugin_record_input(
-    plugin: &Value,
-) -> Option<extensions_runtime::RuntimeExtensionRecordInput> {
-    native_plugin_to_catalog(plugin, None)
-        .as_ref()
-        .map(extension_record_input_from_spec)
-}
-
 fn provider_extension_record_input(
     extension: &RuntimeProviderExtension,
 ) -> extensions_runtime::RuntimeExtensionRecordInput {
@@ -486,14 +389,9 @@ fn provider_extension_record_input(
     extension_record_input_from_spec(&spec)
 }
 
-pub(super) async fn ensure_legacy_extension_records_imported(
+pub(super) async fn ensure_extension_seed_records_imported(
     ctx: &AppContext,
 ) -> Result<(), RpcError> {
-    let legacy_plugins = ctx
-        .native_state_store
-        .list_entities(crate::native_state_store::TABLE_NATIVE_PLUGINS)
-        .await
-        .map_err(RpcError::internal)?;
     let legacy_skill_overlays = ctx
         .native_state_store
         .list_entities(crate::native_state_store::TABLE_NATIVE_SKILLS)
@@ -510,14 +408,6 @@ pub(super) async fn ensure_legacy_extension_records_imported(
     };
 
     let mut inputs = Vec::new();
-    for plugin in legacy_plugins.iter() {
-        let Some(input) = legacy_native_plugin_record_input(plugin) else {
-            continue;
-        };
-        if !existing_ids.contains(input.extension_id.as_str()) {
-            inputs.push(input);
-        }
-    }
     for overlay in legacy_skill_overlays.iter() {
         let Some(input) = instruction_skill_record_input_from_overlay(overlay) else {
             continue;
@@ -548,7 +438,7 @@ pub(super) async fn instruction_skill_overlays_from_store(
     ctx: &AppContext,
     workspace_id: Option<&str>,
 ) -> Result<Vec<Value>, RpcError> {
-    ensure_legacy_extension_records_imported(ctx).await?;
+    ensure_extension_seed_records_imported(ctx).await?;
     let store = ctx.extensions_store.read().await;
     Ok(store
         .list_visible(workspace_id)

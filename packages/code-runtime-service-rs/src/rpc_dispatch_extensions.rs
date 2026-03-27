@@ -5,7 +5,7 @@ mod support;
 #[cfg(test)]
 use support::instruction_skill_overlay_from_spec;
 use support::{
-    default_registry_sources, ensure_legacy_extension_records_imported,
+    default_registry_sources, ensure_extension_seed_records_imported,
     extension_record_input_from_spec, instruction_skill_overlays_from_store,
     instruction_skill_record_input_from_overlay, normalize_ui_apps_from_value,
     optional_string_array, optional_workspace_id, string_array_from_object, string_from_object,
@@ -180,7 +180,7 @@ pub(crate) async fn list_extension_catalog(
     workspace_id: Option<&str>,
     include_disabled: bool,
 ) -> Result<Vec<extensions_runtime::RuntimeExtensionSpecPayload>, RpcError> {
-    ensure_legacy_extension_records_imported(ctx).await?;
+    ensure_extension_seed_records_imported(ctx).await?;
     let workspace_root = match workspace_id {
         Some(workspace_id) => Some(resolve_workspace_path(ctx, workspace_id).await?),
         None => None,
@@ -477,7 +477,7 @@ pub(crate) async fn handle_extension_set_state_v2(
     let extension_id = read_required_string(params, "extensionId")?;
     let enabled = read_optional_bool(params, "enabled")
         .ok_or_else(|| RpcError::invalid_params("Missing required boolean field: enabled"))?;
-    ensure_legacy_extension_records_imported(ctx).await?;
+    ensure_extension_seed_records_imported(ctx).await?;
 
     let store_updated = {
         let mut store = ctx.extensions_store.write().await;
@@ -515,7 +515,7 @@ pub(crate) async fn handle_extension_remove_v2(
     let params = as_object(params)?;
     let workspace_id = optional_workspace_id(params);
     let extension_id = read_required_string(params, "extensionId")?;
-    ensure_legacy_extension_records_imported(ctx).await?;
+    ensure_extension_seed_records_imported(ctx).await?;
 
     let removed = {
         let mut store = ctx.extensions_store.write().await;
