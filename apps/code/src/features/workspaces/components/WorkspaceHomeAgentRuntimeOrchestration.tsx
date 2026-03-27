@@ -383,6 +383,15 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             <span>
               {launchReadiness.route.label}: {launchReadiness.route.detail}
             </span>
+            {launchReadiness.route.provenanceLabel ? (
+              <span>Selection source: {launchReadiness.route.provenanceLabel}</span>
+            ) : null}
+            {launchReadiness.route.fallbackDetail ? (
+              <span>Fallback: {launchReadiness.route.fallbackDetail}</span>
+            ) : null}
+            {launchReadiness.route.blockingReason ? (
+              <span>Route blocker: {launchReadiness.route.blockingReason}</span>
+            ) : null}
             <span>
               {launchReadiness.approvalPressure.label}: {launchReadiness.approvalPressure.detail}
             </span>
@@ -776,7 +785,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             disabled={
               runtimeLoading ||
               runtimeDraftInstruction.trim().length === 0 ||
-              selectedProviderRoute?.ready === false ||
+              selectedProviderRoute?.launchAllowed === false ||
               !launchReadiness.launchAllowed ||
               (runtimePlanNeedsApproval && !runtimeLaunchPlanApproved)
             }

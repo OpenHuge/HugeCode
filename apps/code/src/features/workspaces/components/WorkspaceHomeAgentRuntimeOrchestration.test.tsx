@@ -13,6 +13,7 @@ import type { AgentTaskSummary } from "@ku0/code-runtime-host-contract";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { RuntimeKernelProvider } from "../../../application/runtime/kernel/RuntimeKernelContext";
 import { createRuntimeAgentControlDependencies } from "../../../application/runtime/kernel/createRuntimeAgentControlDependencies";
+import type { WorkspaceRuntimeScope } from "../../../application/runtime/kernel/runtimeKernelTypes";
 import type { RuntimeUpdatedEvent } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import { createRuntimeAgentControlFacade } from "../../../application/runtime/facades/runtimeAgentControlFacade";
 import {
@@ -603,7 +604,8 @@ function createRuntimeKernelValue(): RuntimeKernel {
         readMissionControlSnapshot: vi.fn(() => getMissionControlSnapshot()),
       },
       agentControl: {
-        startRuntimeJob: vi.fn(),
+        prepareRuntimeRun: vi.fn(),
+        startRuntimeRun: vi.fn(),
         cancelRuntimeJob: vi.fn(),
         resumeRuntimeJob: vi.fn(),
         interveneRuntimeJob: vi.fn(),
@@ -662,6 +664,7 @@ function createRuntimeKernelValue(): RuntimeKernel {
         workspaceId,
         createRuntimeAgentControlDependencies(workspaceId)
       ),
+      runtimeSessionCommands: {} as WorkspaceRuntimeScope["runtimeSessionCommands"],
     })),
   };
 }
@@ -991,10 +994,10 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Launch readiness confirmed")).toBeTruthy();
-      expect(
-        screen.getAllByText(/local\/native routing remains available/i).length
-      ).toBeGreaterThan(0);
+      expect(screen.getByText("Launch readiness needs attention")).toBeTruthy();
+      expect(screen.getAllByText(/fall back to local\/native execution/i).length).toBeGreaterThan(
+        0
+      );
     });
 
     fireEvent.change(screen.getByPlaceholderText("Mission brief for agent"), {

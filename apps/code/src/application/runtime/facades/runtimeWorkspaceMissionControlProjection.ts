@@ -24,7 +24,12 @@ export type WorkspaceMissionControlRouteOption = {
   value: string;
   label: string;
   ready: boolean;
+  launchAllowed: boolean;
+  readiness: "ready" | "attention" | "blocked";
   detail: string;
+  blockingReason: string | null;
+  recommendedAction: string;
+  fallbackDetail: string | null;
   healthEntry: RuntimeProviderRoutingHealth | null;
 };
 
@@ -142,8 +147,19 @@ export function buildWorkspaceRuntimeMissionControlProjection(
     selectedRoute: {
       value: routeSelection.selected.value,
       label: routeSelection.selected.label,
+      state: routeSelection.selected.readiness,
       ready: routeSelection.selected.ready,
+      launchAllowed: routeSelection.selected.launchAllowed,
       detail: routeSelection.selected.detail,
+      blockingReason: routeSelection.selected.blockingReason,
+      recommendedAction: routeSelection.selected.recommendedAction,
+      fallbackDetail: routeSelection.selected.fallbackDetail,
+      provenanceLabel:
+        routeSelection.selected.source === "auto"
+          ? "Workspace auto route"
+          : routeSelection.selected.source === "explicit_route"
+            ? "Explicit provider route"
+            : "Model-derived route",
     },
     runtimeToolMetrics: input.runtimeToolMetrics,
     runtimeToolGuardrails: input.runtimeToolGuardrails,

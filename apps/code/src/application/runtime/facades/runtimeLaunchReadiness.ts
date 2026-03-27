@@ -7,8 +7,14 @@ export type RuntimeLaunchReadinessState = "ready" | "attention" | "blocked";
 export type RuntimeLaunchReadinessRoute = {
   value: string;
   label: string;
+  state: RuntimeLaunchReadinessState;
   ready: boolean;
+  launchAllowed: boolean;
   detail: string | null;
+  blockingReason?: string | null;
+  recommendedAction?: string | null;
+  fallbackDetail?: string | null;
+  provenanceLabel?: string | null;
 };
 
 export type RuntimeLaunchReadinessSignal = {
@@ -17,15 +23,22 @@ export type RuntimeLaunchReadinessSignal = {
   detail: string;
 };
 
+type RuntimeLaunchReadinessRouteSignal = RuntimeLaunchReadinessSignal & {
+  value: string;
+  launchAllowed: boolean;
+  blockingReason: string | null;
+  recommendedAction: string | null;
+  fallbackDetail: string | null;
+  provenanceLabel: string | null;
+};
+
 export type RuntimeLaunchReadinessSummary = {
   state: RuntimeLaunchReadinessState;
   headline: string;
   blockingReason: string | null;
   recommendedAction: string;
   launchAllowed: boolean;
-  route: RuntimeLaunchReadinessSignal & {
-    value: string;
-  };
+  route: RuntimeLaunchReadinessRouteSignal;
   runtime: RuntimeLaunchReadinessSignal;
   approvalPressure: RuntimeLaunchReadinessSignal & {
     pendingCount: number;
@@ -124,16 +137,24 @@ function buildRuntimeSignal(
   };
 }
 
-function buildRouteSignal(
-  route: RuntimeLaunchReadinessRoute
-): RuntimeLaunchReadinessSignal & { value: string } {
+function buildRouteSignal(route: RuntimeLaunchReadinessRoute): RuntimeLaunchReadinessRouteSignal {
+  const detail =
+    route.detail?.trim() ||
+    (route.state === "ready"
+      ? "Selected route is ready for launch."
+      : route.state === "attention"
+        ? "Selected route can launch, but routing needs operator attention."
+        : "Selected route is not ready.");
   return {
     value: route.value,
-    state: route.ready ? "ready" : "blocked",
+    state: route.state,
     label: route.label,
-    detail:
-      route.detail?.trim() ||
-      (route.ready ? "Selected route is ready for launch." : "Selected route is not ready."),
+    detail,
+    launchAllowed: route.launchAllowed,
+    blockingReason: route.blockingReason?.trim() || null,
+    recommendedAction: route.recommendedAction?.trim() || null,
+    fallbackDetail: route.fallbackDetail?.trim() || null,
+    provenanceLabel: route.provenanceLabel?.trim() || null,
   };
 }
 
@@ -214,7 +235,7 @@ export function buildRuntimeLaunchReadiness({
     runtime.state === "blocked"
       ? runtime.detail
       : route.state === "blocked"
-        ? route.detail
+        ? (route.blockingReason ?? route.detail)
         : executionReliabilitySignal.state === "blocked"
           ? executionReliabilitySignal.detail
           : null;
@@ -224,9 +245,15 @@ export function buildRuntimeLaunchReadiness({
     recommendedAction =
       "Reconnect to the runtime or restore runtime capabilities before launching.";
   } else if (route.state === "blocked") {
-    recommendedAction = "Fix the selected route or switch to a ready route before launching.";
+    recommendedAction =
+      route.recommendedAction ??
+      "Fix the selected route or switch to a ready route before launching.";
   } else if (executionReliabilitySignal.state !== "ready") {
     recommendedAction = executionReliability.recommendedAction;
+  } else if (route.state === "attention") {
+    recommendedAction =
+      route.recommendedAction ??
+      "Inspect routing attention before launching, even though a viable route is still available.";
   } else if (stalePendingApprovalCount > 0) {
     recommendedAction =
       "Resolve or interrupt stale input requests before launching more work into the queue.";
