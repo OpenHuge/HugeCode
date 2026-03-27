@@ -136,6 +136,7 @@ export function evaluateGovernedGitHubLaunchPreflight(input: {
   policyError?: string | null;
 }): GovernedGitHubLaunchPreflight {
   switch (input.policyStatus) {
+    case "idle":
     case "loading":
       return {
         state: "blocked",

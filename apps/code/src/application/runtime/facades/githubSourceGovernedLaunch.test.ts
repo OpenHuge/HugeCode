@@ -77,6 +77,18 @@ function createContract() {
 }
 
 describe("githubSourceGovernedLaunch", () => {
+  it("blocks launch preflight while repository execution defaults are still idle", () => {
+    expect(
+      evaluateGovernedGitHubLaunchPreflight({
+        policyStatus: "idle",
+      })
+    ).toEqual({
+      state: "blocked",
+      reason:
+        "GitHub source launch is waiting for repository execution defaults to finish loading.",
+    });
+  });
+
   it("blocks launch preflight while repository execution defaults are still loading", () => {
     expect(
       evaluateGovernedGitHubLaunchPreflight({

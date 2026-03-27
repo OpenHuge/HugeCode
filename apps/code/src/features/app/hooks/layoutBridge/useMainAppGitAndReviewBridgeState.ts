@@ -115,6 +115,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
       setActiveWorkspaceId,
       setActiveTab,
       defaultRemoteExecutionBackendId,
+      gitRemoteUrl,
       conversationState: { homeState, fileListingState },
       gitPanelState,
       gitHubPanelState,
@@ -334,7 +335,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
           workspace: {
             workspaceId: activeWorkspace.id,
             workspaceRoot: activeWorkspace.path,
-            gitRemoteUrl: null,
+            gitRemoteUrl,
           },
           options: {
             repositoryExecutionContract: activeRepositoryExecutionContract ?? null,
@@ -362,6 +363,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
       activeRepositoryExecutionContractError,
       activeRepositoryExecutionContractStatus,
       defaultRemoteExecutionBackendId,
+      gitRemoteUrl,
       gitHubPanelState.gitIssues,
       homeState.refreshMissionControl,
       reviewRuntimeControl,
@@ -394,7 +396,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
           workspace: {
             workspaceId: activeWorkspace.id,
             workspaceRoot: activeWorkspace.path,
-            gitRemoteUrl: null,
+            gitRemoteUrl,
           },
           options: {
             repositoryExecutionContract: activeRepositoryExecutionContract ?? null,
@@ -422,6 +424,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
       activeRepositoryExecutionContractError,
       activeRepositoryExecutionContractStatus,
       defaultRemoteExecutionBackendId,
+      gitRemoteUrl,
       gitHubPanelState.gitPullRequests,
       homeState.refreshMissionControl,
       reviewRuntimeControl,
