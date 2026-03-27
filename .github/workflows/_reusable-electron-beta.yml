@@ -44,6 +44,7 @@ jobs:
       - name: Run Electron beta command
         env:
           HUGECODE_ELECTRON_RELEASE_CHANNEL: ${{ inputs.release_channel != '' && inputs.release_channel || 'beta' }}
+          HUGECODE_ELECTRON_SKIP_DMG: ${{ inputs.command == 'pnpm desktop:electron:make:smoke' && 'true' || '' }}
           HUGECODE_ELECTRON_UPDATE_BASE_URL: ${{ inputs.static_update_base_url }}
         run: ${{ inputs.command }}
 

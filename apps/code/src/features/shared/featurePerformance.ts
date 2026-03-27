@@ -6,6 +6,8 @@ export const FEATURE_PERFORMANCE_SURFACES = [
   "home",
   "home_launchpad",
   "home_recent_missions",
+  "messages_timeline",
+  "workspace_shell",
 ] as const;
 
 export type FeaturePerformanceSurface = (typeof FEATURE_PERFORMANCE_SURFACES)[number];

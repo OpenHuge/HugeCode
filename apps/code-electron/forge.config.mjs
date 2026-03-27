@@ -32,6 +32,7 @@ function buildStaticUpdateBaseUrl(rootBaseUrl, platform, arch) {
 
 const releaseChannel = process.env.HUGECODE_ELECTRON_RELEASE_CHANNEL?.trim() || "beta";
 const electronZipDir = process.env.HUGECODE_ELECTRON_ZIP_DIR?.trim() || null;
+const skipDmg = process.env.HUGECODE_ELECTRON_SKIP_DMG?.trim() === "true";
 const staticUpdateBaseUrlRoot = normalizeStaticUpdateBaseUrlRoot(
   process.env.HUGECODE_ELECTRON_UPDATE_BASE_URL
 );
@@ -58,6 +59,55 @@ const packagerConfig = {
     },
   ],
 };
+
+export function buildForgeMakers({ betaStaticUpdateBaseUrl, skipDmg }) {
+  const makers = [
+    {
+      name: "@electron-forge/maker-zip",
+      config: betaStaticUpdateBaseUrl
+        ? {
+            macUpdateManifestBaseUrl: betaStaticUpdateBaseUrl,
+          }
+        : undefined,
+      platforms: ["darwin"],
+    },
+  ];
+
+  if (!skipDmg) {
+    makers.push({
+      name: "@electron-forge/maker-dmg",
+    });
+  }
+
+  makers.push(
+    {
+      name: "@electron-forge/maker-squirrel",
+      config: {
+        authors: productAuthor,
+        description: productDescription,
+        name: "HugeCode",
+        ...(betaStaticUpdateBaseUrl
+          ? {
+              remoteReleases: betaStaticUpdateBaseUrl,
+            }
+          : {}),
+        setupExe: "HugeCodeSetup.exe",
+      },
+    },
+    new MakerDeb({
+      bin: "HugeCode",
+      options: {
+        categories: ["Development"],
+        maintainer: "OpenHuge",
+        mimeType: ["x-scheme-handler/hugecode"],
+        productDescription: "HugeCode beta desktop shell",
+        section: "devel",
+      },
+    })
+  );
+
+  return makers;
+}
 
 export default {
   hooks: {
@@ -94,44 +144,10 @@ export default {
       [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
     }),
   ],
-  makers: [
-    {
-      name: "@electron-forge/maker-zip",
-      config: betaStaticUpdateBaseUrl
-        ? {
-            macUpdateManifestBaseUrl: betaStaticUpdateBaseUrl,
-          }
-        : undefined,
-      platforms: ["darwin"],
-    },
-    {
-      name: "@electron-forge/maker-dmg",
-    },
-    {
-      name: "@electron-forge/maker-squirrel",
-      config: {
-        authors: productAuthor,
-        description: productDescription,
-        name: "HugeCode",
-        ...(betaStaticUpdateBaseUrl
-          ? {
-              remoteReleases: betaStaticUpdateBaseUrl,
-            }
-          : {}),
-        setupExe: "HugeCodeSetup.exe",
-      },
-    },
-    new MakerDeb({
-      bin: "HugeCode",
-      options: {
-        categories: ["Development"],
-        maintainer: "OpenHuge",
-        mimeType: ["x-scheme-handler/hugecode"],
-        productDescription: "HugeCode beta desktop shell",
-        section: "devel",
-      },
-    }),
-  ],
+  makers: buildForgeMakers({
+    betaStaticUpdateBaseUrl,
+    skipDmg,
+  }),
   publishers: [
     {
       name: "@electron-forge/publisher-github",
