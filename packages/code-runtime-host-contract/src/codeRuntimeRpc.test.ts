@@ -1428,9 +1428,6 @@ describe("agent and oauth rpc methods", () => {
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_HEALTH_READ_V2)
     ).toEqual(["code_extension_health_read_v2"]);
     expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_UI_APPS_LIST_V2)
-    ).toEqual(["code_extension_ui_apps_list_v2"]);
-    expect(
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V2)
     ).toEqual(["code_extension_tools_list_v2"]);
     expect(

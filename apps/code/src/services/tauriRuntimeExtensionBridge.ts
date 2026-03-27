@@ -14,8 +14,6 @@ import type {
   RuntimeExtensionSetStateRequest,
   RuntimeExtensionsConfigResponse,
   RuntimeExtensionToolSummary,
-  RuntimeExtensionUiAppsListRequest,
-  RuntimeExtensionUiAppsListResponse,
   RuntimeExtensionUpdateRequest,
 } from "@ku0/code-runtime-host-contract";
 
@@ -25,7 +23,6 @@ import {
   installRuntimeExtensionWithFallback,
   listRuntimeExtensionRegistrySourcesWithFallback,
   listRuntimeExtensionToolsWithFallback,
-  listRuntimeExtensionUiAppsWithFallback,
   listRuntimeExtensionsWithFallback,
   removeRuntimeExtensionWithFallback,
   readRuntimeExtensionResourceWithFallback,
@@ -115,10 +112,4 @@ export async function readRuntimeExtensionHealth(
   request: RuntimeExtensionHealthReadRequest
 ): Promise<RuntimeExtensionHealthReadResponse> {
   return readRuntimeExtensionHealthWithFallback(getRuntimeClient(), request);
-}
-
-export async function listRuntimeExtensionUiApps(
-  request: RuntimeExtensionUiAppsListRequest = {}
-): Promise<RuntimeExtensionUiAppsListResponse> {
-  return listRuntimeExtensionUiAppsWithFallback(getRuntimeClient(), request);
 }

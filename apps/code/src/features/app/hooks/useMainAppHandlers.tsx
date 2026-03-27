@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
 import { pickWorkspacePath } from "../../../application/runtime/ports/tauriWorkspaceDialogs";
 import type {
-  AppMention,
   ComposerExecutionMode,
   ComposerModelSelectionMode,
   ModelProviderFamilyId,
@@ -44,7 +43,6 @@ type AccessMode = Parameters<typeof createPendingThreadSeed>[0]["accessMode"];
 type SendUserMessageOptions = {
   model?: string | null;
   effort?: string | null;
-  appMentions?: AppMention[];
   collaborationMode?: Record<string, unknown> | null;
 };
 type SendUserMessageToThread = (
@@ -77,7 +75,6 @@ type PendingHomeWorkspaceSubmit = {
   workspaceId: string;
   text: string;
   images: string[];
-  appMentions?: AppMention[];
 };
 
 type UseMainAppHandlersParams = {
@@ -491,9 +488,9 @@ export function useMainAppHandlers({
     pendingNewThreadSeedRef.current = createPendingThreadSeed({
       activeThreadId: activeThreadId ?? null,
       activeWorkspaceId: activeWorkspaceId ?? null,
+      selectedCollaborationModeId,
       selectionMode,
       providerFamilyId: preferredProviderFamilyId,
-      selectedCollaborationModeId,
       accessMode,
       executionMode,
       fastMode: fastModeEnabled,
@@ -507,22 +504,18 @@ export function useMainAppHandlers({
     fastModeEnabled,
     pendingNewThreadAutoDriveDraftRef,
     preferredProviderFamilyId,
-    selectedCollaborationModeId,
     selectionMode,
+    selectedCollaborationModeId,
     pendingNewThreadSeedRef,
   ]);
 
   const handleComposerSendWithDraftStart = useCallback(
-    (text: string, images: string[], appMentions?: AppMention[]) => {
+    (text: string, images: string[]) => {
       if (isCompact) {
         setActiveTab("missions");
       }
       rememberPendingNewThreadSeed();
       return runWithDraftStart(async () => {
-        if (appMentions && appMentions.length > 0) {
-          await latestComposerSendRef.current(text, images, appMentions);
-          return;
-        }
         await latestComposerSendRef.current(text, images);
       }).catch((error) => {
         clearDraftState();
@@ -539,24 +532,16 @@ export function useMainAppHandlers({
     ]
   );
   const handleComposerQueueWithDraftStart = useCallback(
-    (text: string, images: string[], appMentions?: AppMention[]) => {
+    (text: string, images: string[]) => {
       if (isCompact) {
         setActiveTab("missions");
       }
       // Queueing without an active thread would no-op; bootstrap through send so user input is not lost.
       const runner = activeThreadId
         ? async () => {
-            if (appMentions && appMentions.length > 0) {
-              await latestComposerQueueRef.current(text, images, appMentions);
-              return;
-            }
             await latestComposerQueueRef.current(text, images);
           }
         : async () => {
-            if (appMentions && appMentions.length > 0) {
-              await latestComposerSendRef.current(text, images, appMentions);
-              return;
-            }
             await latestComposerSendRef.current(text, images);
           };
       if (!activeThreadId) {
@@ -579,7 +564,7 @@ export function useMainAppHandlers({
   );
 
   const handleSendPromptToWorkspace = useCallback(
-    (workspaceId: string, text: string, images: string[], appMentions?: AppMention[]) => {
+    (workspaceId: string, text: string, images: string[]) => {
       const trimmed = text.trim();
       if (!trimmed && images.length === 0) {
         return;
@@ -600,7 +585,6 @@ export function useMainAppHandlers({
           workspaceId,
           text: trimmed,
           images: [...images],
-          appMentions,
         },
       ]);
       selectWorkspace(workspaceId);
@@ -616,7 +600,7 @@ export function useMainAppHandlers({
   );
 
   const handleComposerQueueToWorkspace = useCallback(
-    (workspaceId: string, text: string, images: string[], appMentions?: AppMention[]) => {
+    (workspaceId: string, text: string, images: string[]) => {
       const trimmed = text.trim();
       if (!trimmed && images.length === 0) {
         return;
@@ -637,7 +621,6 @@ export function useMainAppHandlers({
           workspaceId,
           text: trimmed,
           images: [...images],
-          appMentions,
         },
       ]);
       selectWorkspace(workspaceId);
@@ -668,18 +651,8 @@ export function useMainAppHandlers({
     activePendingHomeWorkspaceSubmitRef.current = nextSubmit.id;
     const run =
       nextSubmit.mode === "queue"
-        ? () =>
-            handleComposerQueueWithDraftStart(
-              nextSubmit.text,
-              nextSubmit.images,
-              nextSubmit.appMentions
-            )
-        : () =>
-            handleComposerSendWithDraftStart(
-              nextSubmit.text,
-              nextSubmit.images,
-              nextSubmit.appMentions
-            );
+        ? () => handleComposerQueueWithDraftStart(nextSubmit.text, nextSubmit.images)
+        : () => handleComposerSendWithDraftStart(nextSubmit.text, nextSubmit.images);
     void Promise.resolve(run())
       .catch((error) => {
         clearDraftState();

@@ -2,7 +2,6 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
-  AppMention,
   ApprovalRequest,
   CollaborationModeOption,
   DynamicToolCallRequest,
@@ -44,16 +43,8 @@ vi.mock("../../../utils/platformPaths", async () => {
 });
 
 type HarnessProps = {
-  onSend: (
-    text: string,
-    images: string[],
-    appMentions?: AppMention[]
-  ) => void | false | Promise<void | false>;
-  onQueue?: (
-    text: string,
-    images: string[],
-    appMentions?: AppMention[]
-  ) => void | false | Promise<void | false>;
+  onSend: (text: string, images: string[]) => void | false | Promise<void | false>;
+  onQueue?: (text: string, images: string[]) => void | false | Promise<void | false>;
   isProcessing?: boolean;
   steerEnabled?: boolean;
   initialDraftText?: string;

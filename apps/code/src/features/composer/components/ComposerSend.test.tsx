@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   ApprovalRequest,
-  AppMention,
   CollaborationModeOption,
   DynamicToolCallRequest,
   DynamicToolCallResponse,
@@ -43,8 +42,8 @@ vi.mock("../../../utils/platformPaths", async () => {
 });
 
 type HarnessProps = {
-  onSend: (text: string, images: string[], appMentions?: AppMention[]) => void;
-  onQueue?: (text: string, images: string[], appMentions?: AppMention[]) => void;
+  onSend: (text: string, images: string[]) => void;
+  onQueue?: (text: string, images: string[]) => void;
   onDraftChangeSpy?: (text: string) => void;
   accountOptions?: Array<{ id: string; label: string; status: string }>;
   onSelectAccountIds?: (ids: string[]) => void;

@@ -315,9 +315,6 @@ export function createUnavailableRuntimeClient(
     extensionHealthReadV2() {
       return rejectUnavailable("read runtime extension health");
     },
-    extensionUiAppsListV2() {
-      return rejectUnavailable("list runtime extension ui apps");
-    },
     workspaceDiagnosticsListV1() {
       return rejectUnavailable("list workspace diagnostics");
     },

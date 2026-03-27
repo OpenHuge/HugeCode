@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type {
-  AppMention,
-  GitHubPullRequest,
-  GitHubPullRequestDiff,
-  WorkspaceInfo,
-} from "../../../types";
+import type { GitHubPullRequest, GitHubPullRequestDiff, WorkspaceInfo } from "../../../types";
 import { buildPullRequestDraft, buildPullRequestPrompt } from "../../../utils/pullRequestPrompt";
 import { usePullRequestComposer } from "./usePullRequestComposer";
 
@@ -29,8 +24,6 @@ const pullRequest: GitHubPullRequest = {
 };
 
 const diffs: GitHubPullRequestDiff[] = [{ path: "src/App.tsx", status: "modified", diff: "diff" }];
-const appMentions: AppMention[] = [{ name: "Calendar App", path: "app://connector_calendar" }];
-
 const connectedWorkspace: WorkspaceInfo = {
   id: "workspace-1",
   name: "CodexMonitor",
@@ -147,27 +140,6 @@ describe("usePullRequestComposer", () => {
     expect(options.clearActiveImages).toHaveBeenCalled();
   });
 
-  it("forwards app mentions when PR mode creates a new thread", async () => {
-    const options = makeOptions({
-      selectedPullRequest: pullRequest,
-    });
-    const { result } = renderHook(() => usePullRequestComposer(options));
-
-    await act(async () => {
-      await result.current.handleComposerSend("Question with app", ["img-1"], appMentions);
-    });
-
-    expect(options.sendUserMessageToThread).toHaveBeenCalledWith(
-      connectedWorkspace,
-      "thread-1",
-      "Prompt text",
-      ["img-1"],
-      expect.objectContaining({
-        appMentions,
-      })
-    );
-  });
-
   it("does nothing when PR send has no text or images", async () => {
     const options = makeOptions({ selectedPullRequest: pullRequest });
     const { result } = renderHook(() => usePullRequestComposer(options));
@@ -211,10 +183,10 @@ describe("usePullRequestComposer", () => {
     const { result } = renderHook(() => usePullRequestComposer(options));
 
     await act(async () => {
-      await result.current.handleComposerQueue("/compact", ["img-1"], appMentions);
+      await result.current.handleComposerQueue("/compact", ["img-1"]);
     });
 
-    expect(options.queueMessage).toHaveBeenCalledWith("/compact", ["img-1"], appMentions);
+    expect(options.queueMessage).toHaveBeenCalledWith("/compact", ["img-1"]);
     expect(options.handleSend).not.toHaveBeenCalled();
     expect(options.startThreadForWorkspace).not.toHaveBeenCalled();
     expect(options.sendUserMessageToThread).not.toHaveBeenCalled();

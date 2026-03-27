@@ -11,7 +11,6 @@ import {
   useRef,
   useState,
 } from "react";
-import type { AppMention } from "../../../types";
 import { getApprovalCommandInfo } from "../../../utils/approvalRules";
 import { getCaretPosition } from "../../../utils/caretPosition";
 import {
@@ -24,11 +23,6 @@ import {
 } from "../../../utils/composerText";
 import { isComposingEvent } from "../../../utils/keys";
 import { isMobilePlatform } from "../../../utils/platformPaths";
-import {
-  type AppMentionBinding,
-  connectorMentionSlug,
-  resolveBoundAppMentions,
-} from "../utils/appMentionBindings";
 import {
   buildRequestUserInputResponse,
   createInitialRequestUserInputState,
@@ -87,18 +81,6 @@ function isPromiseLike<T>(value: T | PromiseLike<T>): value is PromiseLike<T> {
 
 function equalStringArray(left: string[], right: string[]) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-function equalAppMentionBindings(left: AppMentionBinding[], right: AppMentionBinding[]) {
-  return (
-    left.length === right.length &&
-    left.every(
-      (binding, index) =>
-        binding.slug === right[index]?.slug &&
-        binding.mention.name === right[index]?.mention.name &&
-        binding.mention.path === right[index]?.mention.path
-    )
-  );
 }
 
 export const Composer = memo(function Composer({
@@ -195,7 +177,6 @@ export const Composer = memo(function Composer({
   workspaceControls = null,
 }: ComposerProps) {
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
-  const [appMentionBindings, setAppMentionBindings] = useState<AppMentionBinding[]>([]);
   const [suggestionsStyle, setSuggestionsStyle] = useState<CSSProperties | undefined>(undefined);
   const [pendingQuestionIndex, setPendingQuestionIndex] = useState(0);
   const [pendingSelections, setPendingSelections] = useState<Record<string, number | null>>({});
@@ -243,16 +224,12 @@ export const Composer = memo(function Composer({
   } = editorSettings;
   const latestTextRef = useRef(text);
   const latestAttachedImagesRef = useRef(attachedImages);
-  const latestAppMentionBindingsRef = useRef(appMentionBindings);
   useEffect(() => {
     latestTextRef.current = text;
   }, [text]);
   useEffect(() => {
     latestAttachedImagesRef.current = attachedImages;
   }, [attachedImages]);
-  useEffect(() => {
-    latestAppMentionBindingsRef.current = appMentionBindings;
-  }, [appMentionBindings]);
   useEffect(() => {
     const normalized = normalizeSkillReferenceText(text, skills, selectionStart);
     if (normalized.text === text) {
@@ -364,14 +341,6 @@ export const Composer = memo(function Composer({
     setPendingToolCallOutput("");
     setPendingToolCallSuccess(true);
   }, [pendingToolCallRequest]);
-  const bindingsFromMentions = useCallback(
-    (mentions?: AppMention[]) =>
-      (mentions ?? []).map((mention) => ({
-        slug: connectorMentionSlug(mention.name),
-        mention,
-      })),
-    []
-  );
   const {
     isAutocompleteOpen,
     autocompleteMatches,
@@ -650,27 +619,25 @@ export const Composer = memo(function Composer({
     pendingToolCallSuccess,
   ]);
   const shouldResetSubmittedDraft = useCallback(
-    (submittedText: string, submittedImages: string[], submittedBindings: AppMentionBinding[]) => {
+    (submittedText: string, submittedImages: string[]) => {
       const currentText = textareaRef.current?.value ?? latestTextRef.current;
       return (
         currentText === submittedText &&
-        equalStringArray(latestAttachedImagesRef.current, submittedImages) &&
-        equalAppMentionBindings(latestAppMentionBindingsRef.current, submittedBindings)
+        equalStringArray(latestAttachedImagesRef.current, submittedImages)
       );
     },
     [textareaRef]
   );
   const finalizeAcceptedDispatch = useCallback(
-    (submittedText: string, submittedImages: string[], submittedBindings: AppMentionBinding[]) => {
+    (submittedText: string, submittedImages: string[]) => {
       if (submittedText) {
         recordHistory(submittedText);
       }
-      if (!shouldResetSubmittedDraft(submittedText, submittedImages, submittedBindings)) {
+      if (!shouldResetSubmittedDraft(submittedText, submittedImages)) {
         return;
       }
       resetHistoryNavigation();
       setComposerText("", "immediate");
-      setAppMentionBindings([]);
     },
     [recordHistory, resetHistoryNavigation, setComposerText, shouldResetSubmittedDraft]
   );
@@ -682,13 +649,8 @@ export const Composer = memo(function Composer({
     if (!trimmed && attachedImages.length === 0) {
       return;
     }
-    const resolvedMentions = resolveBoundAppMentions(trimmed, appMentionBindings);
-    const submittedBindings = [...appMentionBindings];
     const submittedImages = [...attachedImages];
-    const sendResult =
-      resolvedMentions.length > 0
-        ? onSend(trimmed, submittedImages, resolvedMentions)
-        : onSend(trimmed, submittedImages);
+    const sendResult = onSend(trimmed, submittedImages);
     if (sendResult === false) {
       return;
     }
@@ -698,20 +660,13 @@ export const Composer = memo(function Composer({
           if (result === false) {
             return;
           }
-          finalizeAcceptedDispatch(trimmed, submittedImages, submittedBindings);
+          finalizeAcceptedDispatch(trimmed, submittedImages);
         })
         .catch(() => undefined);
       return;
     }
-    finalizeAcceptedDispatch(trimmed, submittedImages, submittedBindings);
-  }, [
-    appMentionBindings,
-    attachedImages,
-    disabled,
-    finalizeAcceptedDispatch,
-    getCurrentComposerText,
-    onSend,
-  ]);
+    finalizeAcceptedDispatch(trimmed, submittedImages);
+  }, [attachedImages, disabled, finalizeAcceptedDispatch, getCurrentComposerText, onSend]);
   const handleQueue = useCallback(() => {
     if (disabled) {
       return;
@@ -720,13 +675,8 @@ export const Composer = memo(function Composer({
     if (!trimmed && attachedImages.length === 0) {
       return;
     }
-    const resolvedMentions = resolveBoundAppMentions(trimmed, appMentionBindings);
-    const submittedBindings = [...appMentionBindings];
     const submittedImages = [...attachedImages];
-    const queueResult =
-      resolvedMentions.length > 0
-        ? onQueue(trimmed, submittedImages, resolvedMentions)
-        : onQueue(trimmed, submittedImages);
+    const queueResult = onQueue(trimmed, submittedImages);
     if (queueResult === false) {
       return;
     }
@@ -736,24 +686,16 @@ export const Composer = memo(function Composer({
           if (result === false) {
             return;
           }
-          finalizeAcceptedDispatch(trimmed, submittedImages, submittedBindings);
+          finalizeAcceptedDispatch(trimmed, submittedImages);
         })
         .catch(() => undefined);
       return;
     }
-    finalizeAcceptedDispatch(trimmed, submittedImages, submittedBindings);
-  }, [
-    appMentionBindings,
-    attachedImages,
-    disabled,
-    finalizeAcceptedDispatch,
-    getCurrentComposerText,
-    onQueue,
-  ]);
+    finalizeAcceptedDispatch(trimmed, submittedImages);
+  }, [attachedImages, disabled, finalizeAcceptedDispatch, getCurrentComposerText, onQueue]);
 
   useEffect(() => {
     void historyKey;
-    setAppMentionBindings([]);
   }, [historyKey]);
 
   useEffect(() => {
@@ -761,26 +703,18 @@ export const Composer = memo(function Composer({
       return;
     }
     setComposerText(prefillDraft.text, "immediate");
-    setAppMentionBindings(bindingsFromMentions(prefillDraft.appMentions));
     resetHistoryNavigation();
     onPrefillHandled?.(prefillDraft.id);
-  }, [
-    bindingsFromMentions,
-    onPrefillHandled,
-    prefillDraft,
-    resetHistoryNavigation,
-    setComposerText,
-  ]);
+  }, [onPrefillHandled, prefillDraft, resetHistoryNavigation, setComposerText]);
 
   useEffect(() => {
     if (!insertText) {
       return;
     }
     setComposerText(insertText.text, "immediate");
-    setAppMentionBindings(bindingsFromMentions(insertText.appMentions));
     resetHistoryNavigation();
     onInsertHandled?.(insertText.id);
-  }, [bindingsFromMentions, insertText, onInsertHandled, resetHistoryNavigation, setComposerText]);
+  }, [insertText, onInsertHandled, resetHistoryNavigation, setComposerText]);
 
   const applyTextInsertion = useCallback(
     (nextText: string, nextCursor: number) => {

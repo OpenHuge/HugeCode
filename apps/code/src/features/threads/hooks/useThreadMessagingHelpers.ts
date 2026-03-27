@@ -1,9 +1,4 @@
-import type {
-  AccessMode,
-  AppMention,
-  ComposerExecutionMode,
-  CustomPromptOption,
-} from "../../../types";
+import type { AccessMode, ComposerExecutionMode, CustomPromptOption } from "../../../types";
 import type { AgentTaskAutoDriveState, HugeCodeTaskMode } from "@ku0/code-runtime-host-contract";
 import { splitCommandLine } from "../../../utils/approvalRules";
 import { expandCustomCommandText } from "../../../utils/slashCommands";
@@ -23,7 +18,6 @@ export type SendMessageOptions = {
   preferredBackendIds?: string[] | null;
   codexBin?: string | null;
   codexArgs?: string[] | null;
-  appMentions?: AppMention[];
   optimisticMessageId?: string;
 };
 
@@ -40,7 +34,6 @@ export type ResolvedSendMessageSettings = {
   resolvedPreferredBackendIds: string[] | null;
   resolvedCodexBin: string | null;
   resolvedCodexArgs: string[] | null;
-  appMentions: AppMention[];
 };
 
 export type TurnRequestMode = "start" | "steer";
@@ -259,7 +252,6 @@ export function resolveSendMessageSettings(
     resolvedPreferredBackendIds,
     resolvedCodexBin,
     resolvedCodexArgs,
-    appMentions: options?.appMentions ?? [],
   };
 }
 

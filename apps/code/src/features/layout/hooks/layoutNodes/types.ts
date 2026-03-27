@@ -14,7 +14,6 @@ import type {
 import type {
   AccessMode,
   AccountSnapshot,
-  AppMention,
   ApprovalRequest,
   CollaborationModeOption,
   ComposerEditorSettings,
@@ -458,27 +457,17 @@ export type LayoutNodesFieldRegistry = {
   onRevealWorkspacePrompts: () => void | Promise<void>;
   onRevealGeneralPrompts: () => void | Promise<void>;
   canRevealGeneralPrompts: boolean;
-  onSend: (
-    text: string,
-    images: string[],
-    appMentions?: AppMention[]
-  ) => void | false | Promise<void | false>;
-  onQueue: (
-    text: string,
-    images: string[],
-    appMentions?: AppMention[]
-  ) => void | false | Promise<void | false>;
+  onSend: (text: string, images: string[]) => void | false | Promise<void | false>;
+  onQueue: (text: string, images: string[]) => void | false | Promise<void | false>;
   onSendToWorkspace?: (
     workspaceId: string,
     text: string,
-    images: string[],
-    appMentions?: AppMention[]
+    images: string[]
   ) => void | false | Promise<void | false>;
   onQueueToWorkspace?: (
     workspaceId: string,
     text: string,
-    images: string[],
-    appMentions?: AppMention[]
+    images: string[]
   ) => void | false | Promise<void | false>;
   onStop: () => void;
   canStop: boolean;
