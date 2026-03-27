@@ -95,6 +95,44 @@ describe("verifyElectronForgeUpdateContract", () => {
       })
     ).not.toThrow();
   });
+
+  it("allows smoke-only contract checks to skip the dmg maker", () => {
+    expect(() =>
+      verifyElectronForgeUpdateContract({
+        forgeConfig: {
+          makers: [
+            { name: "@electron-forge/maker-zip" },
+            {
+              name: "@electron-forge/maker-squirrel",
+              config: {
+                authors: "OpenHuge",
+                description: "HugeCode beta desktop shell",
+              },
+            },
+            { name: "deb", config: { bin: "HugeCode" } },
+          ],
+          publishers: [
+            {
+              config: {
+                prerelease: true,
+              },
+              name: "@electron-forge/publisher-github",
+            },
+          ],
+        },
+        packageJson: {
+          author: "OpenHuge",
+          description: "HugeCode beta desktop shell",
+          repository: {
+            url: "https://github.com/OpenHuge/HugeCode.git",
+          },
+        },
+        releaseChannel: "beta",
+        skipDmg: true,
+        updateMode: "disabled_beta_manual",
+      })
+    ).not.toThrow();
+  });
 });
 
 describe("Electron Forge fuse contract", () => {
