@@ -280,7 +280,7 @@ describe("PlanPanel", () => {
       mode: "tauri",
       methods: [
         CODE_RUNTIME_RPC_METHODS.DISTRIBUTED_TASK_GRAPH,
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_INTERVENE_V3,
+        CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2,
       ],
       features: ["distributed_subtask_graph_v1"],
       wsEndpointPath: null,

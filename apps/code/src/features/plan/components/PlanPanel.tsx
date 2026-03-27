@@ -169,7 +169,7 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
         CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3
       );
       const supportsRetryMethod = summary.methods.includes(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_INTERVENE_V3
+        CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2
       );
       setDistributedGraphCapabilityEnabled(hasCapability && supportsGraphMethod);
       setDistributedGraphInterruptEnabled(
