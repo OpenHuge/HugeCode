@@ -161,7 +161,10 @@ function toKernelContinuation(record: RuntimeRunRecordV2): KernelJob["continuati
   };
 }
 
-function toKernelJob(record: RuntimeRunRecordV2): KernelJob {
+function toKernelJob(
+  record: RuntimeRunRecordV2,
+  canonicalMethod: "code_runtime_run_get_v2" | "code_runtime_run_subscribe_v2"
+): KernelJob {
   return {
     id: readRuntimeRunId(record),
     workspaceId: record.run.workspaceId,
@@ -188,7 +191,7 @@ function toKernelJob(record: RuntimeRunRecordV2): KernelJob {
     completedAt: record.run.completedAt ?? record.missionRun.finishedAt ?? null,
     continuation: toKernelContinuation(record),
     metadata: {
-      canonicalMethod: "code_runtime_run_subscribe_v2",
+      canonicalMethod,
       runId: record.missionRun.id ?? readRuntimeRunId(record),
       reviewPackId: record.reviewPack?.id ?? record.missionRun.reviewPackId ?? null,
     },
@@ -245,7 +248,8 @@ export async function getRuntimeReviewV2(
 }
 
 export async function getRuntimeJob(request: KernelJobGetRequestV3): Promise<KernelJob | null> {
-  return getRuntimeClient().kernelJobGetV3(request);
+  const record = await getRuntimeClient().runtimeRunGetV2({ runId: request.jobId });
+  return record ? toKernelJob(record, "code_runtime_run_get_v2") : null;
 }
 
 export async function cancelRuntimeJob(
@@ -296,7 +300,7 @@ export async function subscribeRuntimeJob(
   request: KernelJobSubscribeRequestV3
 ): Promise<KernelJob | null> {
   const record = await getRuntimeClient().runtimeRunSubscribeV2(request);
-  return record ? toKernelJob(record) : null;
+  return record ? toKernelJob(record, "code_runtime_run_subscribe_v2") : null;
 }
 
 export async function listRuntimeJobs(request: KernelJobsListRequest): Promise<KernelJob[]> {
