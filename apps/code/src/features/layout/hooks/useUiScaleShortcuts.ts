@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { isTauri } from "../../../application/runtime/ports/tauriCore";
-import { getCurrentWebview } from "../../../application/runtime/ports/tauriWebview";
+import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { getCurrentWebview } from "../../../application/runtime/ports/desktopWebview";
 import type { AppSettings } from "../../../types";
 import { isMacPlatform } from "../../../utils/shortcuts";
 import { clampUiScale, UI_SCALE_STEP } from "../../../utils/uiScale";

@@ -1,4 +1,4 @@
-import { convertFileSrc } from "../../../application/runtime/ports/tauriFiles";
+import { convertFileSrc } from "../../../application/runtime/ports/desktopFiles";
 import FileText from "lucide-react/dist/esm/icons/file-text";
 import X from "lucide-react/dist/esm/icons/x";
 import { ComposerAttachmentsTray } from "./ComposerShell";

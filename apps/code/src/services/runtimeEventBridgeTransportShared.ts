@@ -1,5 +1,5 @@
 import type { AppServerEvent } from "../types";
-import { listen } from "../application/runtime/ports/tauriEvent";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   createEventIdDeduper,
   parseWebRuntimeReplayEventId,

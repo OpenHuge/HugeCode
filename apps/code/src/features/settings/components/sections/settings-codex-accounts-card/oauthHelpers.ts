@@ -3,7 +3,7 @@ import {
   toSafeExternalUrl,
   WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY,
 } from "@ku0/shared";
-import { isTauri } from "../../../../../application/runtime/ports/tauriCore";
+import { isTauri } from "../../../../../application/runtime/ports/desktopHostCore";
 import { openUrl } from "../../../../../application/runtime/facades/desktopHostFacade";
 import {
   type OAuthAccountSummary,

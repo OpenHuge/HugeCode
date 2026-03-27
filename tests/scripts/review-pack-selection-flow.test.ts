@@ -5,7 +5,7 @@ import type {
   RuntimeRunStartV2Response,
 } from "../../apps/code/src/application/runtime/ports/runtimeClient";
 import { buildMissionControlProjection } from "../../apps/code/src/application/runtime/facades/runtimeMissionControlFacade";
-import { getAppSettings } from "../../apps/code/src/application/runtime/ports/tauriAppSettings";
+import { getAppSettings } from "../../apps/code/src/application/runtime/ports/desktopAppSettings";
 import {
   prepareRuntimeRunV2,
   startRuntimeRunV2,
@@ -19,7 +19,7 @@ import {
   resolveReviewPackSelection,
 } from "../../apps/code/src/features/review/utils/reviewPackSurfaceModel";
 
-vi.mock("../../apps/code/src/application/runtime/ports/tauriAppSettings", () => ({
+vi.mock("../../apps/code/src/application/runtime/ports/desktopAppSettings", () => ({
   getAppSettings: vi.fn(),
 }));
 

@@ -2,10 +2,10 @@
 import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { pickAttachmentFiles } from "../../../application/runtime/ports/tauriFiles";
+import { pickAttachmentFiles } from "../../../application/runtime/ports/desktopFiles";
 import { useComposerImages } from "./useComposerImages";
 
-vi.mock("../../../application/runtime/ports/tauriFiles", () => ({
+vi.mock("../../../application/runtime/ports/desktopFiles", () => ({
   pickAttachmentFiles: vi.fn().mockResolvedValue([]),
 }));
 

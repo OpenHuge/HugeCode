@@ -12,8 +12,8 @@ import {
   tailscaleDaemonStatus,
   tailscaleDaemonStop,
   tailscaleStatus,
-} from "../../../services/tauriDesktopRuntimeOps";
-import { getAppSettings, updateAppSettings } from "../ports/tauriAppSettings";
+} from "../../../services/desktopHostRuntimeOps";
+import { getAppSettings, updateAppSettings } from "../ports/desktopAppSettings";
 
 export type DesktopHostAdapter = {
   getAppSettings: typeof getAppSettings;

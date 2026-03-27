@@ -31,7 +31,7 @@ import { getDesktopHostBridge } from "../ports/desktopHostBridge";
 import {
   readDesktopCompatibilityAppVersion,
   readDesktopCompatibilityWindowLabel,
-} from "../ports/tauriEnvironment";
+} from "../ports/desktopHostEnvironment";
 import {
   openDesktopCompatibilityPath,
   openDesktopCompatibilityUrl,

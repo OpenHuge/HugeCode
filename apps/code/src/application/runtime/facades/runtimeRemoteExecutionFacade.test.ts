@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeRunStartRequest, RuntimeRunStartV2Response } from "../ports/runtimeClient";
-import { getAppSettings } from "../ports/tauriAppSettings";
+import { getAppSettings } from "../ports/desktopAppSettings";
 import { prepareRuntimeRunV2, startRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
 import {
   resolveRuntimePreferredBackendIdsInput,
@@ -8,7 +8,7 @@ import {
   startRuntimeRunWithRemoteSelection,
 } from "./runtimeRemoteExecutionFacade";
 
-vi.mock("../ports/tauriAppSettings", () => ({
+vi.mock("../ports/desktopAppSettings", () => ({
   getAppSettings: vi.fn(),
 }));
 

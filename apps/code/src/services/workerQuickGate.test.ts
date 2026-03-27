@@ -17,7 +17,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   isTauri: isTauriMock,
 }));
 
-vi.mock("../application/runtime/ports/tauriEvent", () => ({
+vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: listenMock,
 }));
 

@@ -1,4 +1,4 @@
-export { generateCommitMessage } from "../../../services/tauriDesktopCommands";
+export { generateCommitMessage } from "../../../services/desktopHostCommands";
 export {
   fetchGit,
   getGitCommitDiff,
@@ -13,8 +13,8 @@ export {
   pushGit,
   revertGitAll,
   syncGit,
-} from "../../../services/tauriDesktopGit";
-export { applyWorktreeChanges } from "../../../services/tauriDesktopWorkspace";
+} from "../../../services/desktopHostGit";
+export { applyWorktreeChanges } from "../../../services/desktopHostWorkspace";
 export {
   checkoutGitBranch,
   commitGit,

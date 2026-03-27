@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "../application/runtime/ports/tauriCore";
+import { invoke, isTauri } from "../application/runtime/ports/desktopHostCore";
 import type { LocalUsageSnapshot } from "../types";
 import { createLocalUsageSnapshotGateway } from "./localUsageSnapshotGateway";
 import { getRuntimeClient } from "./runtimeClient";

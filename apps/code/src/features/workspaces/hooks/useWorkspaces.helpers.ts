@@ -1,5 +1,5 @@
-import { isTauri } from "../../../application/runtime/ports/tauriCore";
-import { ask, message } from "../../../application/runtime/ports/tauriDialogs";
+import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { ask, message } from "../../../application/runtime/ports/desktopHostDialogs";
 import type { WorkspaceGroup, WorkspaceInfo } from "../../../types";
 import {
   readSafeLocalStorageItem,

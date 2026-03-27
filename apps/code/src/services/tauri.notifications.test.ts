@@ -1,6 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { listen } from "../application/runtime/ports/tauriEvent";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   detectRuntimeMode,
   getRuntimeClient,
@@ -10,14 +10,14 @@ import {
   __resetLocalUsageSnapshotCacheForTests,
   __resetWebRuntimeOauthFallbackStateForTests,
   sendNotification,
-} from "./tauri";
+} from "./desktopHost";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
   isTauri: vi.fn(() => true),
 }));
 
-vi.mock("../application/runtime/ports/tauriEvent", () => ({
+vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
 }));
 

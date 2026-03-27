@@ -39,7 +39,7 @@ vi.mock("../ports/desktopHostBridge", () => ({
   getDesktopHostBridge: getDesktopHostBridgeMock,
 }));
 
-vi.mock("../ports/tauriEnvironment", () => ({
+vi.mock("../ports/desktopHostEnvironment", () => ({
   readDesktopCompatibilityAppVersion: readDesktopAppVersionCompatibilityMock,
   readDesktopCompatibilityWindowLabel: readDesktopWindowLabelCompatibilityMock,
 }));

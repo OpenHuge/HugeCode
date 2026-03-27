@@ -1,2 +1,2 @@
-export { getConfigModel } from "../../../services/tauriDesktopRpc";
+export { getConfigModel } from "../../../services/desktopHostRpc";
 export { getModelList } from "../../../services/tauriRuntimeCatalogBridge";

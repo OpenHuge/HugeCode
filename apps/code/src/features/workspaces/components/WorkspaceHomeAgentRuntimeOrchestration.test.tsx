@@ -92,7 +92,7 @@ vi.mock("../../../application/runtime/ports/tauriThreads", async () => {
   };
 });
 
-vi.mock("../../../application/runtime/ports/tauriAppSettings", () => ({
+vi.mock("../../../application/runtime/ports/desktopAppSettings", () => ({
   getAppSettings: vi.fn().mockResolvedValue({}),
   updateAppSettings: vi.fn(),
 }));
@@ -2304,9 +2304,12 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     await waitFor(() => {
       expect(startRuntimeJobWithRemoteSelectionMock).toHaveBeenCalledWith({
         workspaceId: "ws-approval",
+        title: "Inspect src/runtime and summarize.",
         taskSource: {
           kind: "manual",
           title: "Inspect src/runtime and summarize.",
+          workspaceId: "ws-approval",
+          workspaceRoot: null,
         },
         executionProfileId: "balanced-delegate",
         validationPresetId: "standard",

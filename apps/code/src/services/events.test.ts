@@ -2,7 +2,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import type { EventCallback, Event as TauriEvent, UnlistenFn } from "@tauri-apps/api/event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppServerEvent } from "../types";
-import { listen } from "../application/runtime/ports/tauriEvent";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   __resetEventSubscriptionsForTests,
   __resetRuntimeTurnContextForTests,
@@ -24,7 +24,7 @@ const WEB_WS_ENDPOINT_ENV = "VITE_CODE_RUNTIME_GATEWAY_WEB_WS_ENDPOINT";
 const ORIGINAL_EVENT_SOURCE = globalThis.EventSource;
 const ORIGINAL_WEB_SOCKET = globalThis.WebSocket;
 
-vi.mock("../application/runtime/ports/tauriEvent", () => ({
+vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
 }));
 

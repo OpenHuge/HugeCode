@@ -107,7 +107,7 @@ jobs:
               - "!apps/code/src/application/runtime/**/*.stories.mdx"
               - "!apps/code/src/application/runtime/**/__tests__/**"
               - "apps/code/src/services/runtimeClient*"
-              - "apps/code/src/services/tauri*"
+              - "apps/code/src/services/desktop*"
               - "apps/code/src/services/textFileGateway.ts"
               - "apps/code/src/features/update/**"
               - "!apps/code/src/features/update/**/*.md"

@@ -1,6 +1,6 @@
 import type { AppServerEvent } from "../types";
-import { listen } from "../application/runtime/ports/tauriEvent";
-import { isTauri } from "../application/runtime/ports/tauriCore";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
+import { isTauri } from "../application/runtime/ports/desktopHostCore";
 import {
   __resetRuntimeTurnContextForTests,
   normalizeAppServerPayload,

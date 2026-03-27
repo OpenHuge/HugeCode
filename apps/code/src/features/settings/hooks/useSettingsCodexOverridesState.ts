@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getCodexConfigPath } from "../../../application/runtime/ports/tauriCodexConfig";
-import { open } from "../../../application/runtime/ports/tauriDialogs";
+import { open } from "../../../application/runtime/ports/desktopHostDialogs";
 import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type { WorkspaceInfo } from "../../../types";

@@ -1,6 +1,6 @@
 import { detectBrowserRuntimeMode } from "@ku0/shared/runtimeGatewayBrowser";
 import type { RuntimeClientMode } from "@ku0/code-runtime-client/runtimeClientTypes";
-import { isTauri as hasDesktopTauriBridge } from "../application/runtime/ports/tauriCore";
+import { isTauri as hasDesktopTauriBridge } from "../application/runtime/ports/desktopHostCore";
 import { getConfiguredWebRuntimeGatewayProfile } from "./runtimeWebGatewayConfig";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
