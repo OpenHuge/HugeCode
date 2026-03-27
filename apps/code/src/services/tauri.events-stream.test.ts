@@ -241,7 +241,6 @@ describe("tauri invoke wrappers", () => {
       "turn-2",
       "continue",
       [],
-      undefined,
       "[ATLAS_CONTEXT v1]\n1. plan: noop\n[/ATLAS_CONTEXT]"
     );
 
@@ -267,30 +266,21 @@ describe("tauri invoke wrappers", () => {
       sendTurn: runtimeSendTurnMock,
     } as unknown as ReturnType<typeof getRuntimeClient>);
 
-    await steerTurn(
-      "ws-4",
-      "thread-1",
-      "turn-2",
-      "continue",
-      ["image.png"],
-      [{ name: "Calendar App", path: "app://connector_calendar" }],
-      null,
-      {
-        model: "gpt-5.3-codex",
-        effort: "high",
-        accessMode: "full-access",
-        executionMode: "hybrid",
-        codexBin: "/opt/codex",
-        codexArgs: ["--profile", "fast"],
-        collaborationMode: {
-          mode: "plan",
-          settings: {
-            id: "plan",
-            developer_instructions: "Stay in planning mode.",
-          },
+    await steerTurn("ws-4", "thread-1", "turn-2", "continue", ["image.png"], null, {
+      model: "gpt-5.3-codex",
+      effort: "high",
+      accessMode: "full-access",
+      executionMode: "hybrid",
+      codexBin: "/opt/codex",
+      codexArgs: ["--profile", "fast"],
+      collaborationMode: {
+        mode: "plan",
+        settings: {
+          id: "plan",
+          developer_instructions: "Stay in planning mode.",
         },
-      }
-    );
+      },
+    });
 
     expect(runtimeSendTurnMock).toHaveBeenCalledWith({
       workspaceId: "ws-4",

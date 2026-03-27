@@ -1045,7 +1045,7 @@ describe("Home", () => {
       fireEvent.click(sendButton);
 
       await waitFor(() => {
-        expect(onSend).toHaveBeenCalledWith("ship the fix", [], undefined);
+        expect(onSend).toHaveBeenCalledWith("ship the fix", []);
       });
     },
     HOME_INTERACTION_TIMEOUT_MS
@@ -1146,7 +1146,7 @@ describe("Home", () => {
       );
 
       await waitFor(() => {
-        expect(onSend).toHaveBeenCalledWith("queue after select", [], undefined);
+        expect(onSend).toHaveBeenCalledWith("queue after select", []);
       });
     },
     HOME_INTERACTION_TIMEOUT_MS
@@ -1187,8 +1187,7 @@ describe("Home", () => {
         expect(onSendToWorkspace).toHaveBeenCalledWith(
           "workspace-1",
           "send directly from home",
-          [],
-          undefined
+          []
         );
       });
       expect(onSend).not.toHaveBeenCalled();
@@ -1290,8 +1289,7 @@ describe("Home", () => {
         expect(onSendToWorkspace).toHaveBeenCalledWith(
           "workspace-2",
           "route immediately after workspace switch",
-          [],
-          undefined
+          []
         );
       });
       expect(onSend).not.toHaveBeenCalled();
@@ -1397,8 +1395,8 @@ describe("Home", () => {
       );
 
       await waitFor(() => {
-        expect(onSend).toHaveBeenNthCalledWith(1, "first queued from home", [], undefined);
-        expect(onSend).toHaveBeenNthCalledWith(2, "second queued from home", [], undefined);
+        expect(onSend).toHaveBeenNthCalledWith(1, "first queued from home", []);
+        expect(onSend).toHaveBeenNthCalledWith(2, "second queued from home", []);
       });
     },
     HOME_INTERACTION_TIMEOUT_MS

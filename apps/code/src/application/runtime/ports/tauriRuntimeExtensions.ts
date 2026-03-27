@@ -5,7 +5,6 @@ export {
   installRuntimeExtension,
   listRuntimeExtensionRegistrySources,
   listRuntimeExtensionTools,
-  listRuntimeExtensionUiApps,
   listRuntimeExtensions,
   readRuntimeExtensionResource,
   readRuntimeExtensionHealth,

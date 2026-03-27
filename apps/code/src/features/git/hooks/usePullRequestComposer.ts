@@ -1,10 +1,5 @@
 import { useCallback, useMemo } from "react";
-import type {
-  AppMention,
-  GitHubPullRequest,
-  GitHubPullRequestDiff,
-  WorkspaceInfo,
-} from "../../../types";
+import type { GitHubPullRequest, GitHubPullRequestDiff, WorkspaceInfo } from "../../../types";
 import { buildPullRequestDraft, buildPullRequestPrompt } from "../../../utils/pullRequestPrompt";
 import { isBuiltInSlashCommandText } from "../../../utils/slashCommands";
 import type { AppTab } from "../../shell/types/shellRoute";
@@ -33,20 +28,11 @@ type UsePullRequestComposerOptions = {
     workspace: WorkspaceInfo,
     threadId: string,
     text: string,
-    images?: string[],
-    options?: {
-      model?: string | null;
-      effort?: string | null;
-      appMentions?: AppMention[];
-    }
+    images?: string[]
   ) => Promise<void>;
   clearActiveImages: () => void;
-  handleSend: (text: string, images: string[], appMentions?: AppMention[]) => Promise<void | false>;
-  queueMessage: (
-    text: string,
-    images: string[],
-    appMentions?: AppMention[]
-  ) => Promise<void | false>;
+  handleSend: (text: string, images: string[]) => Promise<void | false>;
+  queueMessage: (text: string, images: string[]) => Promise<void | false>;
 };
 
 export function usePullRequestComposer({
@@ -114,7 +100,7 @@ export function usePullRequestComposer({
   }, [setDiffSource, setSelectedPullRequest]);
 
   const sendPullRequestQuestion = useCallback(
-    async (text: string, images: string[] = [], appMentions: AppMention[] = []) => {
+    async (text: string, images: string[] = []) => {
       const trimmed = text.trim();
       if (!activeWorkspace || !selectedPullRequest) {
         return;
@@ -132,13 +118,7 @@ export function usePullRequestComposer({
       if (!threadId) {
         return;
       }
-      if (appMentions.length > 0) {
-        await sendUserMessageToThread(activeWorkspace, threadId, prompt, images, {
-          appMentions,
-        });
-      } else {
-        await sendUserMessageToThread(activeWorkspace, threadId, prompt, images);
-      }
+      await sendUserMessageToThread(activeWorkspace, threadId, prompt, images);
       clearActiveImages();
     },
     [
@@ -153,31 +133,23 @@ export function usePullRequestComposer({
   );
 
   const handleSendPullRequestQuestion = useCallback(
-    async (text: string, images: string[] = [], appMentions: AppMention[] = []) => {
+    async (text: string, images: string[] = []) => {
       const trimmed = text.trim();
       if (isBuiltInSlashCommandText(trimmed)) {
-        if (appMentions.length > 0) {
-          return await handleSend(trimmed, images, appMentions);
-        } else {
-          return await handleSend(trimmed, images);
-        }
+        return await handleSend(trimmed, images);
       }
-      await sendPullRequestQuestion(text, images, appMentions);
+      await sendPullRequestQuestion(text, images);
     },
     [handleSend, sendPullRequestQuestion]
   );
 
   const handleQueuePullRequestQuestion = useCallback(
-    async (text: string, images: string[] = [], appMentions: AppMention[] = []) => {
+    async (text: string, images: string[] = []) => {
       const trimmed = text.trim();
       if (isBuiltInSlashCommandText(trimmed)) {
-        if (appMentions.length > 0) {
-          return await queueMessage(trimmed, images, appMentions);
-        } else {
-          return await queueMessage(trimmed, images);
-        }
+        return await queueMessage(trimmed, images);
       }
-      await sendPullRequestQuestion(text, images, appMentions);
+      await sendPullRequestQuestion(text, images);
     },
     [queueMessage, sendPullRequestQuestion]
   );

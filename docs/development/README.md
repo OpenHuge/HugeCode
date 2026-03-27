@@ -143,7 +143,7 @@ pnpm test:e2e:a11y
 ## Web Platform Commands
 
 - Run Cloudflare web work through the explicit `pnpm web:*` command family.
-- Legacy `pnpm experimental:web:*` aliases still work, but they are now compatibility shims over the canonical `pnpm web:*` commands.
+- The legacy `pnpm experimental:web:*` aliases have been removed. Use the canonical `pnpm web:*` commands directly.
 - For Cloudflare web publishing, public routes, or Start/SSR shell work,
   `apps/code-web` is still the current repo-owned shell. Do not assume
   `apps/code` fully replaces it just because the workspace client is shared.

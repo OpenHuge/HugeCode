@@ -1,4 +1,4 @@
-import type { AccessMode, AppMention, ComposerExecutionMode } from "../types";
+import type { AccessMode, ComposerExecutionMode } from "../types";
 import type {
   AgentTaskAutoDriveState,
   HugeCodeTaskMode,
@@ -65,7 +65,6 @@ export async function sendUserMessage(
     contextPrefix?: string | null;
     images?: string[];
     collaborationMode?: Record<string, unknown> | null;
-    appMentions?: AppMention[];
     autoDrive?: AgentTaskAutoDriveState | null;
     autonomyRequest?: RuntimeAutonomyRequestV2 | null;
   }
@@ -141,13 +140,11 @@ export async function steerTurn(
   turnId: string,
   text: string,
   images?: string[],
-  appMentions?: AppMention[],
   contextPrefix?: string | null,
   options?: RuntimeTurnOptions
 ) {
   // Steering is modeled as an explicit queued canonical turn under frozen runtime RPC.
   void turnId;
-  void appMentions;
   const executionMode = options?.executionMode ?? "runtime";
   const ack = (await getRuntimeClient().sendTurn({
     workspaceId,

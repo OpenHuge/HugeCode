@@ -643,31 +643,6 @@ pub(crate) async fn handle_extension_health_read_v2(
     }))
 }
 
-pub(crate) async fn handle_extension_ui_apps_list_v2(
-    ctx: &AppContext,
-    params: &Value,
-) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let workspace_id = optional_workspace_id(params);
-    let extension_id = read_optional_string(params, "extensionId");
-    let entries = list_extension_catalog(ctx, workspace_id.as_deref(), true).await?;
-    let apps = if let Some(ref extension_id) = extension_id {
-        catalog_entry_by_id(entries, extension_id.as_str())
-            .map(|entry| entry.ui_apps)
-            .unwrap_or_default()
-    } else {
-        entries
-            .into_iter()
-            .flat_map(|entry| entry.ui_apps)
-            .collect::<Vec<_>>()
-    };
-    Ok(json!({
-        "workspaceId": workspace_id,
-        "extensionId": extension_id,
-        "apps": apps,
-    }))
-}
-
 pub(crate) async fn handle_extension_tools_list_v2(
     ctx: &AppContext,
     params: &Value,

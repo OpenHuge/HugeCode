@@ -7,7 +7,6 @@ import { prepareRuntimeRunV2 as prepareRuntimeRunV2Service } from "../../../appl
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type {
   AccessMode,
-  AppMention,
   ComposerExecutionMode,
   ConversationItem,
   CustomPromptOption,
@@ -121,7 +120,6 @@ async function invokeSteerTurnRequest(
     activeTurnId: string;
     text: string;
     images: string[];
-    appMentions: AppMention[];
     contextPrefix: string | null;
     provider: string | null | undefined;
     model: string | null | undefined;
@@ -156,33 +154,16 @@ async function invokeSteerTurnRequest(
     ...(params.autoDrive ? { autoDrive: params.autoDrive } : {}),
     ...(params.autonomyRequest ? { autonomyRequest: params.autonomyRequest } : {}),
   };
-  if (params.contextPrefix) {
-    return (await runtimeSessionCommands.steerTurn({
-      threadId: params.threadId,
-      turnId: params.activeTurnId,
-      text: params.text,
-      images: params.images,
-      appMentions: params.appMentions.length > 0 ? params.appMentions : undefined,
-      contextPrefix: params.contextPrefix,
-      options: steerOptions,
-    })) as Record<string, unknown>;
-  }
-  if (params.appMentions.length > 0) {
-    return (await runtimeSessionCommands.steerTurn({
-      threadId: params.threadId,
-      turnId: params.activeTurnId,
-      text: params.text,
-      images: params.images,
-      appMentions: params.appMentions,
-      options: steerOptions,
-    })) as Record<string, unknown>;
-  }
-  return (await runtimeSessionCommands.steerTurn({
+  const steerInput = {
     threadId: params.threadId,
     turnId: params.activeTurnId,
     text: params.text,
     images: params.images,
     options: steerOptions,
+    ...(params.contextPrefix ? { contextPrefix: params.contextPrefix } : {}),
+  };
+  return (await runtimeSessionCommands.steerTurn({
+    ...steerInput,
   })) as Record<string, unknown>;
 }
 
@@ -333,7 +314,6 @@ export function useThreadMessaging({
         resolvedPreferredBackendIds,
         resolvedCodexBin,
         resolvedCodexArgs,
-        appMentions,
       } = resolveSendMessageSettings(options, {
         provider,
         model,
@@ -581,7 +561,6 @@ export function useThreadMessaging({
             activeTurnId,
             text: finalText,
             images,
-            appMentions,
             contextPrefix,
             provider: resolvedProvider,
             model: resolvedModel,
@@ -702,7 +681,7 @@ export function useThreadMessaging({
   );
 
   const sendUserMessage = useCallback(
-    async (text: string, images: string[] = [], appMentions: AppMention[] = []) => {
+    async (text: string, images: string[] = []) => {
       if (!activeWorkspace) {
         return;
       }
@@ -749,7 +728,6 @@ export function useThreadMessaging({
       try {
         await sendMessageToThread(activeWorkspace, threadId, finalText, images, {
           skipPromptExpansion: true,
-          appMentions,
           optimisticMessageId: shouldUsePendingDraftMessage ? pendingDraftMessage.id : undefined,
         });
       } finally {

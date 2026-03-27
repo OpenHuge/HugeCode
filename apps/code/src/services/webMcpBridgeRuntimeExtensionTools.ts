@@ -58,10 +58,6 @@ type RuntimeExtensionControl = RuntimeAgentControl & {
     workspaceId?: string | null;
     extensionId: string;
   }) => Promise<unknown>;
-  listRuntimeExtensionUiApps?: (input?: {
-    workspaceId?: string | null;
-    extensionId?: string | null;
-  }) => Promise<unknown>;
 };
 
 type RuntimeExtensionControlMethodName =
@@ -77,8 +73,7 @@ type RuntimeExtensionControlMethodName =
   | "searchRuntimeExtensionRegistry"
   | "listRuntimeExtensionRegistrySources"
   | "evaluateRuntimeExtensionPermissions"
-  | "readRuntimeExtensionHealth"
-  | "listRuntimeExtensionUiApps";
+  | "readRuntimeExtensionHealth";
 
 type RuntimeExtensionHelpers = Pick<
   BuildRuntimeToolsOptions["helpers"],
@@ -112,12 +107,6 @@ function asStringArray(value: unknown): string[] {
 
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
-}
-
-function asObjectArray(value: unknown): JsonRecord[] {
-  return asArray(value)
-    .map(asRecord)
-    .filter((entry): entry is JsonRecord => entry !== null);
 }
 
 export function buildRuntimeExtensionTools(
@@ -609,41 +598,6 @@ export function buildRuntimeExtensionTools(
           extensionId,
           health,
           warnings: asStringArray(health?.warnings),
-        });
-      },
-    },
-    {
-      name: "list-runtime-extension-ui-apps",
-      description:
-        "Inspect internal UI app descriptors contributed by runtime extensions or a specific extension.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          workspaceId: { type: "string" },
-          extensionId: { type: "string" },
-        },
-      },
-      annotations: { readOnlyHint: true },
-      execute: async (input) => {
-        const listRuntimeExtensionUiApps = requireRuntimeExtensionControlMethod(
-          control,
-          "listRuntimeExtensionUiApps",
-          "list-runtime-extension-ui-apps"
-        );
-        const workspaceId = helpers.toNonEmptyString(input.workspaceId) ?? snapshot.workspaceId;
-        const extensionId = helpers.toNonEmptyString(input.extensionId);
-        const response = asRecord(
-          await listRuntimeExtensionUiApps({
-            workspaceId,
-            extensionId,
-          })
-        );
-        const apps = asObjectArray(response?.apps);
-        return helpers.buildResponse("Runtime extension UI app descriptors retrieved.", {
-          workspaceId,
-          extensionId,
-          total: apps.length,
-          apps,
         });
       },
     },

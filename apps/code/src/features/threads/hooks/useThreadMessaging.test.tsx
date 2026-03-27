@@ -70,7 +70,6 @@ vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
       turnId,
       text,
       images,
-      appMentions,
       contextPrefix,
       options,
     }: Record<string, unknown>) =>
@@ -80,7 +79,6 @@ vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
         turnId,
         text,
         images,
-        appMentions,
         contextPrefix,
         options
       ),
@@ -1072,11 +1070,7 @@ describe("useThreadMessaging telemetry", () => {
     );
 
     await act(async () => {
-      await result.current.sendUserMessage(
-        "hello $calendar",
-        [],
-        [{ name: "Calendar App", path: "app://connector_calendar" }]
-      );
+      await result.current.sendUserMessage("hello $calendar", []);
     });
 
     expect(sendUserMessageService).toHaveBeenCalledWith(
@@ -1142,7 +1136,6 @@ describe("useThreadMessaging telemetry", () => {
       "turn-1",
       "steer this",
       [],
-      undefined,
       undefined,
       {
         accessMode: "on-request",
@@ -1216,9 +1209,7 @@ describe("useThreadMessaging telemetry", () => {
     );
 
     await act(async () => {
-      await result.current.sendUserMessageToThread(workspace, "thread-1", "steer this", [], {
-        appMentions: [{ name: "Calendar App", path: "app://connector_calendar" }],
-      });
+      await result.current.sendUserMessageToThread(workspace, "thread-1", "steer this", []);
     });
 
     expect(steerTurnService).toHaveBeenCalledWith(
@@ -1227,7 +1218,6 @@ describe("useThreadMessaging telemetry", () => {
       "turn-1",
       "steer this",
       [],
-      [{ name: "Calendar App", path: "app://connector_calendar" }],
       undefined,
       {
         accessMode: "full-access",
@@ -1900,7 +1890,6 @@ describe("useThreadMessaging telemetry", () => {
       "turn-1",
       "steer this",
       [],
-      undefined,
       expect.stringContaining("execution_state"),
       {
         accessMode: "on-request",

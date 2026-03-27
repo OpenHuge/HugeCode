@@ -2,7 +2,6 @@ import type { ComponentProps, RefObject } from "react";
 import type {
   AccessMode,
   ApprovalRequest,
-  AppMention,
   CollaborationModeOption,
   ComposerEditorSettings,
   ComposerExecutionMode,
@@ -23,16 +22,8 @@ import type { ComposerWorkspaceControls } from "./ComposerWorkspaceControls";
 
 export type ComposerProps = {
   variant?: "thread" | "home" | "workspace";
-  onSend: (
-    text: string,
-    images: string[],
-    appMentions?: AppMention[]
-  ) => void | false | Promise<void | false>;
-  onQueue: (
-    text: string,
-    images: string[],
-    appMentions?: AppMention[]
-  ) => void | false | Promise<void | false>;
+  onSend: (text: string, images: string[]) => void | false | Promise<void | false>;
+  onQueue: (text: string, images: string[]) => void | false | Promise<void | false>;
   onStop: () => void;
   canStop: boolean;
   disabled?: boolean;

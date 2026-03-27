@@ -11,8 +11,6 @@ import type {
   RuntimeExtensionResourceReadRequest,
   RuntimeExtensionResourceReadResponse,
   RuntimeExtensionSpec,
-  RuntimeExtensionUiAppsListRequest,
-  RuntimeExtensionUiAppsListResponse,
   RuntimeExtensionsConfigResponse,
   RuntimeExtensionToolSummary,
   RuntimeExtensionUpdateRequest,
@@ -88,13 +86,6 @@ export async function readRuntimeExtensionHealthWithFallback(
   request: RuntimeExtensionHealthReadRequest
 ): Promise<RuntimeExtensionHealthReadResponse> {
   return client.extensionHealthReadV2(request);
-}
-
-export async function listRuntimeExtensionUiAppsWithFallback(
-  client: RuntimeClient,
-  request: RuntimeExtensionUiAppsListRequest = {}
-): Promise<RuntimeExtensionUiAppsListResponse> {
-  return client.extensionUiAppsListV2(request);
 }
 
 export async function listRuntimeExtensionToolsWithFallback(

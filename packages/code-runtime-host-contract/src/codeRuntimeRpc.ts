@@ -3557,17 +3557,6 @@ export type RuntimeExtensionHealthReadResponse = {
   checkedAt: number;
 };
 
-export type RuntimeExtensionUiAppsListRequest = {
-  workspaceId?: string | null;
-  extensionId?: string | null;
-};
-
-export type RuntimeExtensionUiAppsListResponse = {
-  workspaceId: string | null;
-  extensionId?: string | null;
-  apps: RuntimeExtensionUiAppDescriptor[];
-};
-
 export type RuntimeSessionExportRequest = {
   workspaceId: string;
   threadId: string;
@@ -4102,7 +4091,6 @@ export const CODE_RUNTIME_RPC_METHODS = {
   EXTENSION_REGISTRY_SOURCES_V2: "code_extension_registry_sources_v2",
   EXTENSION_PERMISSIONS_EVALUATE_V2: "code_extension_permissions_evaluate_v2",
   EXTENSION_HEALTH_READ_V2: "code_extension_health_read_v2",
-  EXTENSION_UI_APPS_LIST_V2: "code_extension_ui_apps_list_v2",
   EXTENSION_TOOLS_LIST_V2: "code_extension_tools_list_v2",
   EXTENSION_RESOURCE_READ_V2: "code_extension_resource_read_v2",
   SESSION_EXPORT_V1: "code_session_export_v1",
@@ -4983,10 +4971,6 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
     workspace_id?: string | null;
     extension_id?: string;
   };
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_UI_APPS_LIST_V2]: RuntimeExtensionUiAppsListRequest & {
-    workspace_id?: string | null;
-    extension_id?: string | null;
-  };
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V2]: RuntimeExtensionToolsListRequest & {
     workspace_id?: string | null;
     extension_id?: string;
@@ -5182,7 +5166,6 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_REGISTRY_SOURCES_V2]: RuntimeExtensionRegistrySource[];
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_PERMISSIONS_EVALUATE_V2]: RuntimeExtensionPermissionsEvaluateResponse;
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_HEALTH_READ_V2]: RuntimeExtensionHealthReadResponse;
-  [CODE_RUNTIME_RPC_METHODS.EXTENSION_UI_APPS_LIST_V2]: RuntimeExtensionUiAppsListResponse;
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V2]: RuntimeExtensionToolSummary[];
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V2]: RuntimeExtensionResourceReadResponse;
   [CODE_RUNTIME_RPC_METHODS.SESSION_EXPORT_V1]: RuntimeSessionExportResponse;

@@ -1,7 +1,7 @@
 use crate::commands::policy::rpc_method_enabled;
 use crate::CODE_TAURI_REGISTERED_RPC_COMMANDS;
 use serde::Serialize;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 pub(crate) const CODE_RUNTIME_RPC_CONTRACT_VERSION: &str = "2026-03-25";
 pub(crate) const CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT: &str = "2026-03-25";
@@ -168,10 +168,16 @@ pub(crate) fn current_rpc_methods(methods: &[&str]) -> Vec<String> {
 }
 
 pub(crate) fn current_rpc_features() -> Vec<String> {
-    CODE_RUNTIME_RPC_FEATURES
+    let mut seen = HashSet::new();
+    let mut features: Vec<String> = CODE_RUNTIME_RPC_FEATURES
         .iter()
-        .map(|feature| (*feature).to_string())
-        .collect()
+        .filter_map(|feature| {
+            let owned = (*feature).to_string();
+            seen.insert(owned.clone()).then_some(owned)
+        })
+        .collect();
+    features.sort_unstable();
+    features
 }
 
 #[tauri::command]
