@@ -40,7 +40,7 @@ Use this order when starting repo-wide work:
 ## Current Repo Shape
 
 - Official product context is `HugeCode`.
-- Active app surfaces are `apps/code`, `apps/code-web`, and `apps/code-tauri`.
+- Active app surfaces are `apps/code`, `apps/code-web`, and `apps/code-electron`.
 - Core runtime layers are `packages/code-runtime-service-rs`, `packages/code-runtime-host-contract`, and `packages/native-runtime-host-contract`.
 - `apps/code-web` is the current Cloudflare-platform web implementation for
   public routes, SSR, and deploy wiring; it is not a second independent
@@ -149,7 +149,7 @@ Use deeper docs to refine a higher-level source, not to replace it.
 - Shared contracts, CI, or release-risk work: `pnpm validate:full`
 - UI/runtime boundary changes: add `pnpm ui:contract`
 - Runtime contract changes: add `pnpm check:runtime-contract`
-- Desktop/Tauri changes: add `pnpm desktop:verify:fast`
+- Desktop/Electron changes: add `pnpm desktop:verify:fast`
 - Docs-only changes: skip runtime validation and state `docs-only, no runtime impact`
 
 ## Authoring Guidance

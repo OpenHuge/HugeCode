@@ -11,7 +11,6 @@ import {
   buildRuntimeRpcCompatArtifacts,
   COMPAT_LIFECYCLE_NOTE_PATH,
   SERVICE_LIB_PATH,
-  TAURI_RPC_PATH,
 } from "./runtime-rpc-compat-artifacts";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -113,7 +112,7 @@ function buildMarkdown(payload: GeneratedSpecPayload): string {
     "",
     "- Canonical RPC spec source: `packages/code-runtime-host-contract/src/codeRuntimeRpc.ts`.",
     "- Compatibility aliases and lifecycle are tracked separately in `packages/code-runtime-host-contract/src/codeRuntimeRpcCompat.ts`.",
-    "- Web/Tauri adapters should treat this file as the frozen source for the cutover batch.",
+    "- Web and desktop adapters should treat this file as the frozen source for the active cutover batch.",
     "",
   ].join("\n");
 }
@@ -137,7 +136,6 @@ function main(): void {
 
   const compatArtifacts = buildRuntimeRpcCompatArtifacts(workspaceRoot);
   writeFileSync(compatArtifacts.serviceLibPath, compatArtifacts.nextServiceSource, "utf8");
-  writeFileSync(compatArtifacts.tauriRpcPath, compatArtifacts.nextTauriSource, "utf8");
   writeFileSync(
     compatArtifacts.lifecycleNotePath,
     `${compatArtifacts.lifecycleMarkdown}\n`,
@@ -145,7 +143,7 @@ function main(): void {
   );
 
   process.stdout.write(
-    `${jsonPath}\n${markdownPath}\n${resolve(workspaceRoot, SERVICE_LIB_PATH)}\n${resolve(workspaceRoot, TAURI_RPC_PATH)}\n${resolve(workspaceRoot, COMPAT_LIFECYCLE_NOTE_PATH)}\n`
+    `${jsonPath}\n${markdownPath}\n${resolve(workspaceRoot, SERVICE_LIB_PATH)}\n${resolve(workspaceRoot, COMPAT_LIFECYCLE_NOTE_PATH)}\n`
   );
 }
 

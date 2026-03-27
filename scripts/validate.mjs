@@ -206,9 +206,6 @@ const NATIVE_RUNTIME_HOST_CONTRACT_PATH_PREFIX = "packages/native-runtime-host-c
 const CODE_RUNTIME_SERVICE_PATH_PREFIX = "packages/code-runtime-service-rs/src/";
 const CODE_RUNTIME_RUST_CAPABILITIES_TEST_NAME =
   "lib_tests::rpc_capabilities_returns_method_catalog";
-const CODE_TAURI_RUNTIME_PATH_PREFIX = "apps/code-tauri/src-tauri/";
-const CODE_TAURI_RUNTIME_CAPABILITIES_TEST_NAME =
-  "tests::rpc_capabilities_payload_matches_frozen_spec_and_gap_allowlist";
 const CODE_WEB_RUNTIME_CLIENT_PATH_PREFIX = "apps/code/src/services/runtimeClient";
 const CODE_WEB_RUNTIME_CLIENT_CONSUMER_PATH_PREFIXES = [
   CODE_WEB_RUNTIME_CLIENT_PATH_PREFIX,
@@ -353,7 +350,6 @@ function isRuntimeContractRelatedFile(filePath) {
     normalized === CODE_RUNTIME_RPC_SPEC_PATH ||
     normalized.startsWith(CODE_RUNTIME_HOST_CONTRACT_PATH_PREFIX) ||
     normalized.startsWith(CODE_RUNTIME_SERVICE_PATH_PREFIX) ||
-    normalized.startsWith(CODE_TAURI_RUNTIME_PATH_PREFIX) ||
     CODE_WEB_RUNTIME_CLIENT_CONSUMER_PATH_PREFIXES.some((prefix) => normalized.startsWith(prefix))
   );
 }
@@ -1077,18 +1073,6 @@ function shouldRunRuntimeCapabilitiesParityTest(changedFiles) {
   });
 }
 
-function shouldRunCodeTauriCapabilitiesParityTest(changedFiles) {
-  return changedFiles.some((filePath) => {
-    const normalized = toPosixPath(filePath);
-    return (
-      normalized === CODE_RUNTIME_RPC_SPEC_PATH ||
-      normalized.startsWith(CODE_RUNTIME_HOST_CONTRACT_PATH_PREFIX) ||
-      normalized.startsWith(CODE_RUNTIME_SERVICE_PATH_PREFIX) ||
-      normalized.startsWith(CODE_TAURI_RUNTIME_PATH_PREFIX)
-    );
-  });
-}
-
 function shouldRunCodeWebRuntimeClientContractTest(changedFiles) {
   return changedFiles.some((filePath) => {
     const normalized = toPosixPath(filePath);
@@ -1096,7 +1080,6 @@ function shouldRunCodeWebRuntimeClientContractTest(changedFiles) {
       normalized === CODE_RUNTIME_RPC_SPEC_PATH ||
       normalized.startsWith(CODE_RUNTIME_HOST_CONTRACT_PATH_PREFIX) ||
       normalized.startsWith(CODE_RUNTIME_SERVICE_PATH_PREFIX) ||
-      normalized.startsWith(CODE_TAURI_RUNTIME_PATH_PREFIX) ||
       CODE_WEB_RUNTIME_CLIENT_CONSUMER_PATH_PREFIXES.some((prefix) => normalized.startsWith(prefix))
     );
   });
@@ -1138,7 +1121,6 @@ async function runRuntimeContractGuardChecks(changedFiles, options = {}) {
 
   const shouldRunRpcSpecCheck = shouldRunRuntimeRpcSpecCheck(changedFiles);
   const shouldRunRuntimeCapabilitiesCheck = shouldRunRuntimeCapabilitiesParityTest(changedFiles);
-  const shouldRunTauriCapabilitiesCheck = shouldRunCodeTauriCapabilitiesParityTest(changedFiles);
   const shouldRunWebRuntimeClientContractCheck =
     shouldRunCodeWebRuntimeClientContractTest(changedFiles);
   const shouldRunNativeRuntimeHostContractCheck =
@@ -1158,24 +1140,6 @@ async function runRuntimeContractGuardChecks(changedFiles, options = {}) {
           CODE_RUNTIME_RUST_CAPABILITIES_TEST_NAME,
         ],
         "Runtime service capabilities parity test"
-      )
-    );
-  }
-
-  if (shouldRunTauriCapabilitiesCheck) {
-    parallelChecks.push(
-      runCommandAsync(
-        "node",
-        [
-          "scripts/run-cargo-with-target-guard.mjs",
-          "--cwd",
-          "apps/code-tauri/src-tauri",
-          "test",
-          "--manifest-path",
-          "Cargo.toml",
-          CODE_TAURI_RUNTIME_CAPABILITIES_TEST_NAME,
-        ],
-        "Code Tauri capabilities parity test"
       )
     );
   }
@@ -1990,10 +1954,8 @@ function shouldRunRuntimeSotGuard(changedFiles) {
       normalized === "scripts/check-runtime-sot.mjs" ||
       normalized.startsWith("packages/code-runtime-host-contract/") ||
       normalized.startsWith("packages/code-runtime-service-rs/src/") ||
-      normalized.startsWith("apps/code-tauri/src-tauri/") ||
       normalized.startsWith("docs/runtime/spec/code-runtime-rpc-spec.") ||
-      normalized.startsWith("docs/runtime/spec/code-runtime-rpc-spec.tauri.") ||
-      normalized.startsWith("docs/runtime/spec/code-runtime-rpc-tauri-gap-allowlist.")
+      normalized.startsWith("docs/runtime/spec/code-runtime-rpc-compat-lifecycle.")
     );
   });
 }

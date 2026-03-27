@@ -51,11 +51,6 @@
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
-    "@ku0/code-tauri#build": {
-      "dependsOn": ["@ku0/code#build", "^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["src-tauri/target/**"]
-    },
     "@ku0/code-electron#build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],

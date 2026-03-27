@@ -1,4 +1,4 @@
-name: Desktop (Tauri)
+name: Desktop (Electron)
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
           - full
   pull_request:
     paths:
-      - "apps/code-tauri/**"
+      - "apps/code-electron/**"
       - ".github/workflows/_reusable-desktop-prepare-frontend.yml"
       - ".github/workflows/_reusable-desktop-build-pr.yml"
       - ".github/workflows/_reusable-desktop-build-release.yml"
@@ -30,7 +30,7 @@ on:
     branches:
       - main
     paths:
-      - "apps/code-tauri/**"
+      - "apps/code-electron/**"
       - "apps/code/**"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -77,7 +77,7 @@ jobs:
         with:
           filters: |
             desktop:
-              - "apps/code-tauri/**"
+              - "apps/code-electron/**"
             desktop_frontend:
               - "apps/code/package.json"
               - "apps/code/index.html"
@@ -120,7 +120,7 @@ jobs:
               - "!apps/code/src/features/update/**/*.stories.tsx"
               - "!apps/code/src/features/update/**/*.stories.mdx"
             desktop_host:
-              - "apps/code-tauri/**"
+              - "apps/code-electron/**"
 
       - id: scope
         name: Classify dependency manifest scope
@@ -214,35 +214,35 @@ jobs:
             runner: macos-14
             rust_target: x86_64-apple-darwin
             bundle_targets: dmg
-            artifact_path: apps/code-tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/**/*
+            artifact_path: apps/code-electron/out/make/**/*
             host_check_command: ""
           - name: macOS Apple Silicon
             id: macos-apple-silicon
             runner: macos-14
             rust_target: aarch64-apple-darwin
             bundle_targets: dmg
-            artifact_path: apps/code-tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/**/*
+            artifact_path: apps/code-electron/out/make/**/*
             host_check_command: ""
           - name: Windows x64
             id: windows-x64
             runner: windows-latest
             rust_target: x86_64-pc-windows-msvc
             bundle_targets: nsis
-            artifact_path: apps/code-tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**/*
+            artifact_path: apps/code-electron/out/make/**/*
             host_check_command: pnpm desktop:doctor:windows
           - name: Linux x64
             id: linux-x64
             runner: ubuntu-22.04
             rust_target: x86_64-unknown-linux-gnu
             bundle_targets: deb,appimage
-            artifact_path: apps/code-tauri/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/**/*
+            artifact_path: apps/code-electron/out/make/**/*
             host_check_command: ""
           - name: Linux ARM64
             id: linux-arm64
             runner: ubuntu-24.04-arm
             rust_target: aarch64-unknown-linux-gnu
             bundle_targets: deb,appimage
-            artifact_path: apps/code-tauri/src-tauri/target/aarch64-unknown-linux-gnu/release/bundle/**/*
+            artifact_path: apps/code-electron/out/make/**/*
             host_check_command: ""
     uses: ./.github/workflows/_reusable-desktop-build-release.yml
     secrets: inherit

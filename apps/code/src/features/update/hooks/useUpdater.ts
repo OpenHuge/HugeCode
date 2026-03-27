@@ -149,7 +149,7 @@ function isUpdaterUnavailableError(error: unknown): boolean {
 
 export function resolveInitialUpdaterStartupAction(input: {
   desktopState: DesktopUpdateState;
-  runtimeHost: "browser" | "electron" | "tauri";
+  runtimeHost: "browser" | "electron";
 }): {
   nextState: UpdateState | null;
   shouldAutoCheck: boolean;
@@ -157,7 +157,7 @@ export function resolveInitialUpdaterStartupAction(input: {
   if (input.runtimeHost !== "electron") {
     return {
       nextState: null,
-      shouldAutoCheck: input.runtimeHost === "tauri",
+      shouldAutoCheck: false,
     };
   }
 
@@ -442,7 +442,7 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
         return;
       }
 
-      if (runtimeHost !== "electron" && runtimeHost !== "tauri") {
+      if (runtimeHost !== "electron" && runtimeHost !== "browser") {
         return;
       }
 
@@ -490,7 +490,7 @@ export function useUpdater({ enabled = true, onDebug }: UseUpdaterOptions) {
         return;
       }
 
-      if (runtimeHost !== "electron" && runtimeHost !== "tauri") {
+      if (runtimeHost !== "electron" && runtimeHost !== "browser") {
         return;
       }
 

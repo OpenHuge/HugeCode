@@ -37,18 +37,6 @@ jobs:
 
       - uses: ./.github/actions/cache-turbo
 
-      - uses: ./.github/actions/install-linux-desktop-deps
-
-      - uses: ./.github/actions/setup-rust-ci
-        with:
-          cargo-cache-path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            ~/.cache/ku0/cargo-target/code-tauri
-          cargo-cache-key: ${{ runner.os }}-nightly-code-tauri-check
-
       - name: Build code workspace (attempt ${{ matrix.attempt }})
         run: pnpm code:build
 

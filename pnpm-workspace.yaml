@@ -3,7 +3,6 @@ packages:
   # Cloudflare platform web shell. Keep this in the workspace and default
   # quality gates because it is the active public-route and SSR surface.
   - "apps/code-web"
-  - "apps/code-tauri"
   - "apps/code-electron"
   - "packages/*"
   - "tests/*"

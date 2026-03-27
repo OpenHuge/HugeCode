@@ -6,7 +6,7 @@ import { spawnPnpmSync } from "./lib/spawn-pnpm.mjs";
 
 /**
  * Keep the runtime contract gate focused on the highest-risk cross-language links:
- * frozen spec, TS contract tests, Rust runtime parity, Tauri parity, and the web client adapter.
+ * frozen spec, TS contract tests, Rust runtime parity, and the web client adapter.
  */
 const steps = [
   {
@@ -36,18 +36,6 @@ const steps = [
       "--manifest-path",
       "Cargo.toml",
       "lib_tests::rpc_capabilities_returns_method_catalog",
-      "--",
-      "--exact",
-    ],
-  },
-  {
-    label: "Tauri runtime capabilities parity",
-    command: "cargo",
-    args: [
-      "test",
-      "--manifest-path",
-      "apps/code-tauri/src-tauri/Cargo.toml",
-      "tests::rpc_capabilities_payload_matches_frozen_spec_and_gap_allowlist",
       "--",
       "--exact",
     ],

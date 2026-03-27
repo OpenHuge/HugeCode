@@ -71,20 +71,20 @@ const WORKFLOW_SECTIONS = [
     commands: [
       [
         "pnpm desktop:doctor:windows",
-        "Check Windows host prerequisites for Tauri verification/builds.",
+        "Check Windows host prerequisites for desktop verification/builds.",
       ],
-      ["pnpm desktop:verify:fast", "Run the fast desktop capability and Tauri check gate."],
+      ["pnpm desktop:verify:fast", "Run the fast Electron desktop verification gate."],
       [
         "pnpm desktop:verify:windows",
         "Run Windows x64 desktop host checks plus debug/no-bundle verification.",
       ],
-      ["pnpm desktop:verify", "Run desktop smoke plus a debug/no-bundle Tauri build."],
+      ["pnpm desktop:verify", "Run desktop smoke plus the full Electron verify lane."],
       ["pnpm desktop:build:windows", "Build the Windows x64 NSIS desktop installer."],
       [
         "pnpm desktop:build:windows:store",
         "Build the Windows x64 Store/offline desktop installer.",
       ],
-      ["pnpm desktop:build", "Build the Tauri desktop app."],
+      ["pnpm desktop:build", "Build the Electron desktop app."],
     ],
   },
   {

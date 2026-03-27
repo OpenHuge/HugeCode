@@ -1,4 +1,3 @@
-import { listen } from "@tauri-apps/api/event";
 import type { AppServerEvent } from "../types";
 import {
   createEventIdDeduper,
@@ -53,14 +52,12 @@ export async function registerRuntimeEventTauriSubscription(
   onPayload: (payload: unknown) => void,
   onError: (error: unknown) => void
 ): Promise<Unsubscribe | null> {
-  try {
-    return await listen<unknown>(eventName, (event) => {
-      onPayload(event.payload);
-    });
-  } catch (error) {
-    onError(error);
-    return null;
-  }
+  void eventName;
+  void onPayload;
+  onError(
+    new Error("Legacy desktop event subscriptions are unavailable in the Electron renderer.")
+  );
+  return null;
 }
 
 export function subscribeWebRuntimeSseEventsShared(

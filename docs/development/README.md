@@ -51,7 +51,7 @@ Validation gates are engineering checks, not product-health promises. In particu
 - `pnpm validate:fast` is the narrow local gate for touched UI or TS surfaces; it does not prove every runtime, desktop, or end-to-end path is green.
 - `pnpm validate` and `pnpm validate:fast` keep workflow-governance-only changes and self-covered validation guard script edits on the targeted path instead of auto-escalating to `validate:full`.
 - style token, style stack, and inline-style checks should stay change-aware in `validate` / `validate:fast`; repo-wide style scans belong to `validate:full` or explicit lint commands.
-- `pnpm desktop:verify:fast` is the narrow desktop/Tauri confidence pass; it does not replace full packaging or release verification.
+- `pnpm desktop:verify:fast` is the narrow desktop confidence pass; it does not replace full packaging or release verification.
 - operator-facing docs and UI copy should describe the actual supported execution, review, and degraded paths rather than implying that a single script guarantees product-wide readiness.
 
 ## Common PR CI Failures
@@ -111,7 +111,7 @@ Practical usage:
 - `pnpm check:runtime-contract`
   Required when runtime host contracts or frozen runtime specs change.
 - `pnpm desktop:verify:fast`
-  Default desktop verification gate for Tauri/runtime integration work. This now prewarms `code-runtime-service-rs` before the fast desktop check.
+  Default desktop verification gate for Electron/runtime integration work.
 - `pnpm desktop:verify`
   Use when packaging or full desktop build risk is in scope.
 
