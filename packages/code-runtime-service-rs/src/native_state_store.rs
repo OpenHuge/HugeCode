@@ -18,6 +18,7 @@ pub(crate) const TABLE_NATIVE_THEMES: &str = "native_themes";
 pub(crate) const TABLE_NATIVE_SCHEDULES: &str = "native_schedules";
 pub(crate) const TABLE_NATIVE_WATCHERS: &str = "native_watchers";
 pub(crate) const TABLE_NATIVE_REVIEW_COMMENTS: &str = "native_review_comments";
+pub(crate) const TABLE_NATIVE_TASK_SOURCES: &str = "native_task_sources";
 pub(crate) const TABLE_NATIVE_SETTINGS_KV: &str = "native_settings_kv";
 pub(crate) const TABLE_NATIVE_RUNTIME_STATE_KV: &str = "native_runtime_state_kv";
 pub(crate) const TABLE_NATIVE_VOICE_CONFIG: &str = "native_voice_config";
@@ -889,7 +890,6 @@ fn apply_migrations(connection: &mut Connection) -> Result<(), String> {
                 payload TEXT NOT NULL,
                 updated_at INTEGER NOT NULL
             );
-
             CREATE TABLE IF NOT EXISTS native_watchers (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -898,7 +898,6 @@ fn apply_migrations(connection: &mut Connection) -> Result<(), String> {
                 payload TEXT NOT NULL,
                 updated_at INTEGER NOT NULL
             );
-
             CREATE TABLE IF NOT EXISTS native_review_comments (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -907,7 +906,7 @@ fn apply_migrations(connection: &mut Connection) -> Result<(), String> {
                 payload TEXT NOT NULL,
                 updated_at INTEGER NOT NULL
             );
-
+            CREATE TABLE IF NOT EXISTS native_task_sources (id TEXT PRIMARY KEY, name TEXT NOT NULL, version TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, payload TEXT NOT NULL, updated_at INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS native_settings_kv (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL,
@@ -973,6 +972,7 @@ fn ensure_entity_table_name(table: &str) -> Result<(), String> {
         TABLE_NATIVE_SCHEDULES,
         TABLE_NATIVE_WATCHERS,
         TABLE_NATIVE_REVIEW_COMMENTS,
+        TABLE_NATIVE_TASK_SOURCES,
     ]
     .contains(&table)
     {

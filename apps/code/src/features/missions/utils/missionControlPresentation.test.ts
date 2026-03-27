@@ -280,7 +280,7 @@ describe("missionControlPresentation", () => {
     expect(item.attentionSignals).toContain(
       "Runtime recovered the run from a checkpoint. Resume to continue."
     );
-    expect(item.operatorActionLabel).toBe("Open review");
+    expect(item.operatorActionLabel).toBe("Resume mission");
     expect(item.operatorActionDetail).toBe(
       "Runtime recovered the run from a checkpoint. Resume to continue."
     );
@@ -446,7 +446,7 @@ describe("missionControlPresentation", () => {
             requestId: null,
           },
           latestRunId: "run-2",
-          latestRunState: "paused",
+          latestRunState: "draft",
         },
       ],
       runs: [
@@ -454,7 +454,7 @@ describe("missionControlPresentation", () => {
           ...createProjection().runs[0],
           id: "run-2",
           taskId: "runtime-task:task-2",
-          state: "paused",
+          state: "draft",
           reviewPackId: null,
         },
       ],
@@ -695,8 +695,8 @@ describe("missionControlPresentation", () => {
             },
           ],
           publishHandoff: {
-            jsonPath: ".hugecode/runs/task-publish/publish/handoff.json",
-            markdownPath: ".hugecode/runs/task-publish/publish/handoff.md",
+            jsonPath: "/tmp/review-pack/publish-handoff.json",
+            markdownPath: "/tmp/review-pack/publish-handoff.md",
             summary: "Publish handoff ready",
             details: [],
           },

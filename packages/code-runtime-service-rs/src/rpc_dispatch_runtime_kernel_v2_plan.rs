@@ -126,10 +126,39 @@ fn build_plan_version(payload: &Value) -> String {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
 
-    let serialized = serde_json::to_string(payload).unwrap_or_else(|_| "{}".to_string());
+    let serialized =
+        serde_json::to_string(&canonicalize_plan_version_value(payload)).unwrap_or_else(|_| {
+            "{}".to_string()
+        });
     let mut hasher = DefaultHasher::new();
     serialized.hash(&mut hasher);
     format!("plan-{:016x}", hasher.finish())
+}
+
+fn canonicalize_plan_version_value(value: &Value) -> Value {
+    match value {
+        Value::Array(entries) => Value::Array(
+            entries
+                .iter()
+                .map(canonicalize_plan_version_value)
+                .collect::<Vec<_>>(),
+        ),
+        Value::Object(object) => {
+            let mut sorted_keys = object.keys().cloned().collect::<Vec<_>>();
+            sorted_keys.sort();
+            let mut normalized = serde_json::Map::with_capacity(sorted_keys.len());
+            for key in sorted_keys {
+                if key == "graphId" {
+                    continue;
+                }
+                if let Some(entry) = object.get(key.as_str()) {
+                    normalized.insert(key, canonicalize_plan_version_value(entry));
+                }
+            }
+            Value::Object(normalized)
+        }
+        _ => value.clone(),
+    }
 }
 
 pub(super) fn build_prepare_plan(
@@ -295,4 +324,54 @@ pub(super) fn build_prepare_plan(
         "validationLanes": validation_lanes,
         "skillPlan": build_skill_plan(required_capabilities, allow_network_analysis),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_plan_version;
+    use serde_json::json;
+
+    #[test]
+    fn build_plan_version_is_stable_across_object_key_order() {
+        let left = json!({
+            "objective": "Ship the launch handshake",
+            "executionGraph": {
+                "graphId": "prepare-graph-1000",
+                "nodes": [
+                    { "id": "node-1", "kind": "read" }
+                ],
+                "edges": [
+                    { "to": "node-1", "from": "node-0" }
+                ],
+            },
+            "validationLanes": [
+                {
+                    "label": "Review lane",
+                    "commands": ["pnpm validate"],
+                    "id": "lane-review",
+                }
+            ],
+        });
+        let right = json!({
+            "validationLanes": [
+                {
+                    "commands": ["pnpm validate"],
+                    "id": "lane-review",
+                    "label": "Review lane",
+                }
+            ],
+            "executionGraph": {
+                "graphId": "prepare-graph-2000",
+                "edges": [
+                    { "from": "node-0", "to": "node-1" }
+                ],
+                "nodes": [
+                    { "kind": "read", "id": "node-1" }
+                ],
+            },
+            "objective": "Ship the launch handshake",
+        });
+
+        assert_eq!(build_plan_version(&left), build_plan_version(&right));
+    }
 }
