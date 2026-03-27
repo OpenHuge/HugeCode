@@ -115,9 +115,9 @@ Live runtime E2E is a narrower sub-class of targeted E2E:
 ### Desktop Smoke
 
 - `pnpm test:desktop:smoke`
-  Narrow Rust desktop smoke coverage for `apps/code-tauri` backend tests.
+  Narrow Rust desktop smoke coverage for `apps/code-tauri` backend tests, with runtime-service prewarm enabled by default.
 - `pnpm desktop:verify:fast`
-  Fast Tauri verification layer for CI and desktop-runtime-sensitive changes.
+  Fast Tauri verification layer for CI and desktop-runtime-sensitive changes, with runtime-service prewarm enabled by default.
 - `pnpm desktop:verify`
   Tauri debug build without bundling for local desktop integration verification.
 - `.github/workflows/desktop.yml`

@@ -190,7 +190,7 @@ describe("webMcpBridgeRuntimeExtensionTools", () => {
     });
     expect(uiAppsResponse).toMatchObject({
       ok: true,
-      message: "Runtime extension UI apps retrieved.",
+      message: "Runtime extension UI app descriptors retrieved.",
       data: {
         total: 1,
       },

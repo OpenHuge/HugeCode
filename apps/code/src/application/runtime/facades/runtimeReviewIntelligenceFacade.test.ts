@@ -300,6 +300,83 @@ describe("runtimeReviewIntelligenceFacade", () => {
     );
   });
 
+  it("uses canonical continuation guidance for review agent operator expectation", async () => {
+    const startTask = vi.fn(
+      async (): Promise<RuntimeAgentTaskSummary> => ({
+        taskId: "review-task-2",
+        workspaceId: "ws-1",
+        threadId: null,
+        title: "Review: Follow canonical continuation",
+        status: "queued",
+        accessMode: "read-only",
+        distributedStatus: null,
+        currentStep: null,
+        createdAt: 1,
+        updatedAt: 1,
+        startedAt: null,
+        completedAt: null,
+        errorCode: null,
+        errorMessage: null,
+        pendingApprovalId: null,
+        checkpointId: null,
+        traceId: null,
+        recovered: null,
+      })
+    );
+
+    await runReviewAgent({
+      runtimeControl: { startTask },
+      workspaceId: "ws-1",
+      run: {
+        id: "run-84",
+        taskId: "runtime-task:84",
+        workspaceId: "ws-1",
+        state: "review_ready",
+        title: "Follow canonical continuation",
+        summary: "Delegated run is blocked until runtime follow-up is resolved.",
+        startedAt: 1,
+        finishedAt: 2,
+        updatedAt: 3,
+        currentStepIndex: 0,
+        warnings: [],
+        validations: [],
+        artifacts: [],
+      } as never,
+      reviewPack: {
+        id: "review-pack:84",
+        runId: "run-84",
+        taskId: "runtime-task:84",
+        workspaceId: "ws-1",
+        summary: "Review pack published blocked runtime follow-up.",
+        reviewStatus: "action_required",
+        evidenceState: "confirmed",
+        validationOutcome: "failed",
+        warningCount: 0,
+        warnings: [],
+        validations: [],
+        artifacts: [],
+        checksPerformed: [],
+        recommendedNextAction: "Legacy projection follow-up.",
+        takeoverBundle: {
+          pathKind: "review",
+          primaryAction: "open_review_pack",
+          state: "blocked",
+          summary: "Runtime blocked continuation until the review pack is resolved.",
+          recommendedAction: "Open the review pack and resolve the runtime-blocked follow-up.",
+          reviewPackId: "review-pack:84",
+        },
+      } as never,
+    });
+
+    expect(startTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instruction: expect.stringContaining(
+          "Operator expectation: Open the review pack and resolve the runtime-blocked follow-up."
+        ),
+      })
+    );
+  });
+
   it("routes bounded autofix through task intervention", async () => {
     const interveneTask = vi.fn(
       async (): Promise<RuntimeAgentTaskInterventionResult> => ({

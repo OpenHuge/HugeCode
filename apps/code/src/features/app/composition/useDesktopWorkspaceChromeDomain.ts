@@ -327,6 +327,7 @@ export function useDesktopWorkspaceChromeDomain({
         gitHubPanelState,
         gitCommitState: missionDomain.gitCommitState,
         activeGitRoot,
+        gitRemoteUrl,
         defaultRemoteExecutionBackendId: appSettings.defaultRemoteExecutionBackendId,
         worktreeApplyLoading,
         worktreeApplyError,

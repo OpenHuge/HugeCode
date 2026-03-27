@@ -1,9 +1,9 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-03-24T12:04:15.525Z`
+- Generated at: `2026-03-25T05:11:41.659Z`
 - Contract version: `2026-03-24`
 - Freeze effective at: `2026-03-24`
-- Method-set hash: `c31017c91fe296d5`
+- Method-set hash: `f826c70a8676cc7b`
 
 ## Features
 
@@ -214,7 +214,6 @@
 - `code_codex_doctor_v1`
 - `code_codex_update_v1`
 - `code_collaboration_modes_list_v1`
-- `code_apps_list_v1`
 - `code_mcp_server_status_list_v1`
 - `code_browser_debug_status_v1`
 - `code_browser_debug_run_v1`
@@ -250,7 +249,6 @@
 - `code_action_required_submit_v2`
 - `code_app_settings_get`
 - `code_app_settings_update`
-- `code_apps_list_v1`
 - `code_bootstrap_snapshot`
 - `code_browser_debug_run_v1`
 - `code_browser_debug_status_v1`

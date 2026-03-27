@@ -90,6 +90,44 @@ describe("deriveSharedWorkspaceOperatorAction", () => {
     expect(action.detail).toContain("Inspect the evidence");
   });
 
+  it("targets the approval-specific mission item even when blocked runs sort first", () => {
+    const action = deriveSharedWorkspaceOperatorAction({
+      loadState: "ready",
+      summary: {
+        ...baseSummary,
+        tasksCount: 2,
+        runsCount: 2,
+        approvalCount: 1,
+        missionItems: [
+          {
+            id: "run-blocked",
+            title: "Blocked route",
+            workspaceName: "Alpha",
+            statusLabel: "Routing blocked",
+            tone: "blocked",
+            detail: "Routing is blocked for this run.",
+            highlights: [],
+          },
+          {
+            id: "run-approval",
+            title: "Approval run",
+            workspaceName: "Alpha",
+            statusLabel: "Approval pending",
+            tone: "attention",
+            detail: "Waiting for operator approval.",
+            highlights: [],
+          },
+        ],
+      },
+    });
+
+    expect(action.label).toBe("Review pending approval");
+    expect(action.targetSection).toBe("missions");
+    expect(action.targetItemId).toBe("run-approval");
+    expect(action.detail).toContain("Approval run");
+    expect(action.detail).toContain("Waiting for operator approval.");
+  });
+
   it("falls back to a first-launch action when runtime is connected but empty", () => {
     const action = deriveSharedWorkspaceOperatorAction({
       loadState: "ready",
