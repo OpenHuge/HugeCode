@@ -28,6 +28,7 @@ import { SettingsSectionContent } from "./SettingsSectionContent";
 import { desktopSettingsShellFraming } from "./desktopSettingsShellFraming";
 import { AcpBackendEditorDialog } from "./sections/settings-backend-pool/AcpBackendEditorDialog";
 import { NativeBackendEditorDialog } from "./sections/settings-backend-pool/NativeBackendAddDialog";
+import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
 import type { OrbitServiceClient } from "./settingsTypes";
 import {
   COMPOSER_PRESET_CONFIGS,
@@ -70,6 +71,7 @@ export type SettingsViewProps = {
   onTestNotificationSound: () => void;
   onTestSystemNotification: () => void;
   onMobileConnectSuccess?: () => Promise<void> | void;
+  onOpenMissionTarget?: (target: MissionNavigationTarget) => void | Promise<void>;
   initialSection?: CodexSection;
   orbitServiceClient?: OrbitServiceClient;
 };
@@ -101,6 +103,7 @@ export function SettingsView({
   onTestNotificationSound,
   onTestSystemNotification,
   onMobileConnectSuccess,
+  onOpenMissionTarget,
   initialSection,
   orbitServiceClient = ORBIT_SERVICES,
 }: SettingsViewProps) {
@@ -699,6 +702,10 @@ export function SettingsView({
           backendPoolDiagnosticsError: backendPoolCapabilityEnabled
             ? backendPoolDiagnosticsError
             : null,
+          workspaceOptions: projects.map((workspace) => ({
+            id: workspace.id,
+            label: workspace.name,
+          })),
           automationSchedules,
           automationSchedulesLoading,
           automationSchedulesError,
@@ -709,6 +716,7 @@ export function SettingsView({
           onCreateAutomationSchedule: handleCreateAutomationSchedule,
           onUpdateAutomationSchedule: handleUpdateAutomationSchedule,
           onAutomationScheduleAction: handleAutomationScheduleAction,
+          onOpenMissionTarget,
           onRefreshBackendPool: () => {
             void refreshBackendPool();
           },

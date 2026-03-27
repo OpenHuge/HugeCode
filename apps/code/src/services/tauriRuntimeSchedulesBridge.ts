@@ -331,26 +331,27 @@ export async function runNativeScheduleNow(
 ): Promise<NativeScheduleRecord | null> {
   const { workspaceId, scheduleId } = request;
   const trimmedScheduleId = normalizeText(scheduleId);
+  const trimmedWorkspaceId = normalizeText(workspaceId);
   if (!trimmedScheduleId) {
     return null;
   }
-  const payload = await invokeNativeScheduleRpc<unknown>(
-    "native_schedule_run_now",
-    {
-      scheduleId: trimmedScheduleId,
-    },
-    {
-      webConnectionFallback: {
-        message:
-          "Web native schedule run-now unavailable; schedule state is read-only until a runtime-backed connection is restored.",
-        details: {
-          workspaceId: workspaceId ?? null,
-          scheduleId: trimmedScheduleId,
-        },
-        value: null,
+  const params: Record<string, unknown> = {
+    scheduleId: trimmedScheduleId,
+  };
+  if (trimmedWorkspaceId) {
+    params.workspaceId = trimmedWorkspaceId;
+  }
+  const payload = await invokeNativeScheduleRpc<unknown>("native_schedule_run_now", params, {
+    webConnectionFallback: {
+      message:
+        "Web native schedule run-now unavailable; schedule state is read-only until a runtime-backed connection is restored.",
+      details: {
+        workspaceId: workspaceId ?? null,
+        scheduleId: trimmedScheduleId,
       },
-    }
-  );
+      value: null,
+    },
+  });
   return normalizeNativeScheduleResult(payload);
 }
 
@@ -359,25 +360,26 @@ export async function cancelNativeScheduleRun(
 ): Promise<NativeScheduleRecord | null> {
   const { workspaceId, scheduleId } = request;
   const trimmedScheduleId = normalizeText(scheduleId);
+  const trimmedWorkspaceId = normalizeText(workspaceId);
   if (!trimmedScheduleId) {
     return null;
   }
-  const payload = await invokeNativeScheduleRpc<unknown>(
-    "native_schedule_cancel_run",
-    {
-      scheduleId: trimmedScheduleId,
-    },
-    {
-      webConnectionFallback: {
-        message:
-          "Web native schedule cancel unavailable; schedule state is read-only until a runtime-backed connection is restored.",
-        details: {
-          workspaceId: workspaceId ?? null,
-          scheduleId: trimmedScheduleId,
-        },
-        value: null,
+  const params: Record<string, unknown> = {
+    scheduleId: trimmedScheduleId,
+  };
+  if (trimmedWorkspaceId) {
+    params.workspaceId = trimmedWorkspaceId;
+  }
+  const payload = await invokeNativeScheduleRpc<unknown>("native_schedule_cancel_run", params, {
+    webConnectionFallback: {
+      message:
+        "Web native schedule cancel unavailable; schedule state is read-only until a runtime-backed connection is restored.",
+      details: {
+        workspaceId: workspaceId ?? null,
+        scheduleId: trimmedScheduleId,
       },
-    }
-  );
+      value: null,
+    },
+  });
   return normalizeNativeScheduleResult(payload);
 }

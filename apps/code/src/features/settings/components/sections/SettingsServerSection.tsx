@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Button, Input, Select, StatusBadge, type SelectOption } from "../../../../design-system";
+import type { MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";
 import type {
   AppSettings,
   BackendPoolBootstrapPreview,
@@ -153,6 +154,7 @@ type SettingsServerSectionProps = {
   onAcpBackendUpsert: () => void | Promise<void>;
   onAcpBackendEdit: (backendId: string) => void;
   onAcpBackendProbe: (backendId: string) => Promise<void>;
+  workspaceOptions: Array<{ id: string; label: string }>;
   automationSchedules?: SettingsAutomationScheduleSummary[];
   automationSchedulesLoading?: boolean;
   automationSchedulesError?: string | null;
@@ -167,6 +169,7 @@ type SettingsServerSectionProps = {
     scheduleId: string;
     action: SettingsAutomationScheduleAction;
   }) => void | Promise<void>;
+  onOpenMissionTarget?: (target: MissionNavigationTarget) => void | Promise<void>;
 };
 
 export function SettingsServerSection({
@@ -287,6 +290,7 @@ export function SettingsServerSection({
   onAcpBackendUpsert,
   onAcpBackendEdit,
   onAcpBackendProbe,
+  workspaceOptions,
   automationSchedules,
   automationSchedulesLoading,
   automationSchedulesError,
@@ -295,6 +299,7 @@ export function SettingsServerSection({
   onCreateAutomationSchedule,
   onUpdateAutomationSchedule,
   onAutomationScheduleAction,
+  onOpenMissionTarget,
 }: SettingsServerSectionProps) {
   const { isMobileSimplified, tcpRunnerStatusText, activeTcpHelperLabel, activeTcpSuggestedHost } =
     buildSettingsServerSectionViewModel({
@@ -420,6 +425,7 @@ export function SettingsServerSection({
       {!isMobileSimplified ? (
         <SettingsAutomationSection
           backendOptions={remoteExecutionBackendOptions}
+          workspaceOptions={workspaceOptions}
           defaultBackendId={defaultRemoteExecutionBackendId}
           schedules={automationSchedules}
           loading={automationSchedulesLoading}
@@ -429,6 +435,7 @@ export function SettingsServerSection({
           onCreateSchedule={onCreateAutomationSchedule}
           onUpdateSchedule={onUpdateAutomationSchedule}
           onScheduleAction={onAutomationScheduleAction}
+          onOpenMissionTarget={onOpenMissionTarget}
         />
       ) : null}
 

@@ -38,6 +38,7 @@ mod repository_execution_contract;
 mod rpc_dispatch;
 pub(crate) mod rpc_dispatch_extensions;
 mod rpc_dispatch_native;
+mod rpc_dispatch_native_schedules;
 mod rpc_params;
 mod runtime_checkpoint;
 mod runtime_events;
