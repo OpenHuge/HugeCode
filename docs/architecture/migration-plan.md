@@ -73,11 +73,11 @@ Target:
 - shared workspace shell reads kernel projection and runtime snapshot truth only
 - remove local projection fallback logic that reconstructs equivalent truth from older shapes
 
-### Step 11. Reduce Tauri bridge surface to host adaptation only
+### Step 11. Reduce desktop bridge surface to host adaptation only
 
 Target:
 
-- remove runtime-domain normalization from Tauri adapters where canonical contract types already exist
+- remove runtime-domain normalization from desktop adapters where canonical contract types already exist
 - keep only transport adaptation and platform-specific error mapping
 
 ### Step 12. Delete the remaining broad compat helpers

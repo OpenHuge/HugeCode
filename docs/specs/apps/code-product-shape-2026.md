@@ -38,7 +38,7 @@ The active product surfaces are:
   Main coding workspace and desktop-facing control-plane UI
 - `apps/code-web`
   Web-facing publishing, SSR, and Cloudflare-platform shell
-- `apps/code-tauri`
+- `apps/code-electron`
   Desktop container and host bridge for the coding workspace
 
 These surfaces form one product. They should not drift into separate app identities.

@@ -49,7 +49,7 @@ describe("ci merge-queue fast PR path", () => {
 
     expect(workflow).toContain("desktop_host_changed");
     expect(workflow).toContain("desktop_host:");
-    expect(workflow).toContain("apps/code-tauri/**");
+    expect(workflow).toContain("apps/code-electron/**");
     expect(workflow).toContain("desktop_fast_verify_required");
     expect(workflow).toContain(
       "desktop_fast_verify_required: ${{ needs.changes.outputs.desktop_fast_verify_required == 'true' }}"

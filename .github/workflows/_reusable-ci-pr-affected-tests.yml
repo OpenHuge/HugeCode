@@ -52,4 +52,4 @@ jobs:
       - name: Tests (affected)
         env:
           TURBO_BASE_REF: ${{ inputs.diff_base }}
-        run: pnpm test:affected -- --filter=!@ku0/code-tauri
+        run: pnpm test:affected
