@@ -11,10 +11,14 @@ import {
 import { act } from "react";
 import type { AgentTaskSummary } from "@ku0/code-runtime-host-contract";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import type { RuntimeToolLifecycleEvent } from "../../../application/runtime/ports/runtimeToolLifecycle";
+import { REVIEW_START_DESKTOP_ONLY_MESSAGE } from "../../../application/runtime/ports/tauriThreads";
 import { RuntimeKernelProvider } from "../../../application/runtime/kernel/RuntimeKernelContext";
 import { createRuntimeAgentControlDependencies } from "../../../application/runtime/kernel/createRuntimeAgentControlDependencies";
 import type { RuntimeUpdatedEvent } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import { createRuntimeAgentControlFacade } from "../../../application/runtime/facades/runtimeAgentControlFacade";
+import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
+import { useWorkspaceRuntimeToolLifecycle } from "../../shared/hooks/useWorkspaceRuntimeToolLifecycle";
 import {
   projectAgentTaskSummaryToRunSummary,
   projectCompletedRunToReviewPackSummary,
@@ -103,6 +107,10 @@ vi.mock("../../../application/runtime/ports/tauriRuntimeDiagnostics", () => ({
   runtimeToolGuardrailRead: vi.fn(),
 }));
 
+vi.mock("../../shared/hooks/useWorkspaceRuntimeToolLifecycle", () => ({
+  useWorkspaceRuntimeToolLifecycle: vi.fn(),
+}));
+
 vi.mock("../../../application/runtime/ports/tauriOauth", () => ({
   getProvidersCatalog: vi.fn(),
   listOAuthAccounts: vi.fn(),
@@ -140,6 +148,7 @@ const getMissionControlSnapshotMock = vi.mocked(getMissionControlSnapshot);
 const submitTaskApprovalDecisionMock = vi.mocked(submitTaskApprovalDecision) as unknown as Mock;
 const interruptAgentTaskMock = vi.mocked(interruptAgentTask) as unknown as Mock;
 const resumeAgentTaskMock = vi.mocked(resumeAgentTask) as unknown as Mock;
+const useWorkspaceRuntimeToolLifecycleMock = vi.mocked(useWorkspaceRuntimeToolLifecycle);
 
 function createEmptyMissionControlSnapshot() {
   return {
@@ -167,6 +176,11 @@ function mockRuntimeTasks(tasks: MockAgentTaskSummary[]) {
 
 beforeEach(() => {
   runtimeUpdatedListeners.clear();
+  useWorkspaceRuntimeToolLifecycleMock.mockReturnValue({
+    revision: 0,
+    lastEvent: null,
+    lifecycleEvents: [],
+  });
   vi.mocked(subscribeScopedRuntimeUpdatedEvents).mockImplementation((_options, listener) => {
     runtimeUpdatedListeners.add(listener);
     return () => {
@@ -565,6 +579,20 @@ function createRuntimeKernelValue(): RuntimeKernel {
     readMissionControlSnapshot: vi.fn(),
   };
 
+  const runtimeSessionCommands: RuntimeSessionCommandFacade = {
+    sendMessage: vi.fn(),
+    steerTurn: vi.fn(),
+    interruptTurn: vi.fn(),
+    startReview: vi.fn(),
+    compactThread: vi.fn(),
+    listMcpServerStatus: vi.fn(),
+    respondToApproval: vi.fn(),
+    respondToUserInput: vi.fn(),
+    respondToToolCall: vi.fn(),
+    canStartReviewInCurrentHost: vi.fn(() => true),
+    reviewStartDesktopOnlyMessage: REVIEW_START_DESKTOP_ONLY_MESSAGE,
+  };
+
   return {
     runtimeGateway,
     workspaceClientRuntimeGateway: {
@@ -603,7 +631,8 @@ function createRuntimeKernelValue(): RuntimeKernel {
         readMissionControlSnapshot: vi.fn(() => getMissionControlSnapshot()),
       },
       agentControl: {
-        startRuntimeJob: vi.fn(),
+        prepareRuntimeRun: vi.fn(),
+        startRuntimeRun: vi.fn(),
         cancelRuntimeJob: vi.fn(),
         resumeRuntimeJob: vi.fn(),
         interveneRuntimeJob: vi.fn(),
@@ -662,6 +691,7 @@ function createRuntimeKernelValue(): RuntimeKernel {
         workspaceId,
         createRuntimeAgentControlDependencies(workspaceId)
       ),
+      runtimeSessionCommands,
     })),
   };
 }
@@ -683,6 +713,58 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("heading", { name: "Continuity readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Approval pressure" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Run list" })).toBeTruthy();
+    });
+  });
+
+  it("renders session logs from runtime lifecycle events", async () => {
+    mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
+    const lifecycleEvents: RuntimeToolLifecycleEvent[] = [
+      {
+        id: "tool-1",
+        kind: "tool",
+        phase: "completed",
+        source: "telemetry",
+        workspaceId: "ws-approval",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        toolCallId: "call-1",
+        toolName: "bash",
+        scope: "write",
+        status: "success",
+        at: 1_771_331_697_000,
+        errorCode: null,
+      },
+      {
+        id: "approval-1",
+        kind: "approval",
+        phase: "requested",
+        source: "app-event",
+        workspaceId: "ws-approval",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        toolCallId: null,
+        toolName: null,
+        scope: null,
+        status: "pending",
+        at: 1_771_331_690_000,
+        errorCode: null,
+        approvalId: "approval-1",
+      },
+    ];
+    useWorkspaceRuntimeToolLifecycleMock.mockReturnValue({
+      revision: 2,
+      lastEvent: lifecycleEvents[0],
+      lifecycleEvents,
+    });
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Session log" })).toBeTruthy();
+      expect(screen.getByText("bash completed")).toBeTruthy();
+      expect(screen.getByText("Approval requested")).toBeTruthy();
+      expect(screen.getByText("Source: telemetry")).toBeTruthy();
+      expect(screen.getByText("Scope: write")).toBeTruthy();
     });
   });
 
