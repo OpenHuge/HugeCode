@@ -1,5 +1,12 @@
 import { type Dispatch, type SetStateAction, useCallback } from "react";
 import {
+  leaveDeactivatedChatgptWorkspaces,
+  reviewDeactivatedChatgptWorkspaces,
+  type DeactivatedChatgptWorkspaceCandidate,
+  type LeaveDeactivatedChatgptWorkspacesResult,
+  type ReviewDeactivatedChatgptWorkspacesResult,
+} from "../../../../../application/runtime/facades/chatgptWorkspaceAutomation";
+import {
   type OAuthAccountSummary,
   type OAuthProviderId,
   removeOAuthAccount,
@@ -312,10 +319,68 @@ export function useCodexAccountActions({
     [refreshOAuthState, setBusyAction, setError]
   );
 
+  const handleReviewAccountDeactivatedChatgptWorkspaces = useCallback(
+    async (account: OAuthAccountSummary): Promise<ReviewDeactivatedChatgptWorkspacesResult> => {
+      setBusyAction(`review-account-deactive-workspaces:${account.accountId}`);
+      setError(null);
+      try {
+        return await reviewDeactivatedChatgptWorkspaces(account);
+      } catch (nextError) {
+        const message = formatError(nextError, "Unable to review deactivated ChatGPT workspaces.");
+        setError(message);
+        return {
+          status: "failed",
+          message,
+          endpoint: null,
+          candidates: [],
+          remoteWorkspaces: [],
+        };
+      } finally {
+        setBusyAction(null);
+      }
+    },
+    [setBusyAction, setError]
+  );
+
+  const handleLeaveAccountDeactivatedChatgptWorkspaces = useCallback(
+    async (
+      account: OAuthAccountSummary,
+      candidates: readonly DeactivatedChatgptWorkspaceCandidate[]
+    ): Promise<LeaveDeactivatedChatgptWorkspacesResult> => {
+      setBusyAction(`leave-account-deactive-workspaces:${account.accountId}`);
+      setError(null);
+      try {
+        const result = await leaveDeactivatedChatgptWorkspaces({
+          account,
+          candidates,
+        });
+        if (result.status === "completed") {
+          await refreshOAuthState();
+        }
+        return result;
+      } catch (nextError) {
+        const message = formatError(nextError, "Unable to leave deactivated ChatGPT workspaces.");
+        setError(message);
+        return {
+          status: "failed",
+          message,
+          endpoint: null,
+          leftWorkspaceIds: [],
+          failedWorkspaceIds: candidates.map((candidate) => candidate.localWorkspace.workspaceId),
+        };
+      } finally {
+        setBusyAction(null);
+      }
+    },
+    [refreshOAuthState, setBusyAction, setError]
+  );
+
   return {
     handleBulkAccountStatus,
     handleBulkRemoveAccounts,
+    handleLeaveAccountDeactivatedChatgptWorkspaces,
     handleRemoveAccount,
+    handleReviewAccountDeactivatedChatgptWorkspaces,
     handleToggleAccountStatus,
     handleUpdateAccountDefaultChatgptWorkspace,
   };

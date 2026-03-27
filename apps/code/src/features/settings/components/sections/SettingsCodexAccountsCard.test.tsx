@@ -37,6 +37,10 @@ import {
   readActiveOauthPopupLoginId,
   setActiveOauthPopupLoginId,
 } from "./settings-codex-accounts-card/oauthHelpers";
+import {
+  leaveDeactivatedChatgptWorkspaces,
+  reviewDeactivatedChatgptWorkspaces,
+} from "../../../../application/runtime/facades/chatgptWorkspaceAutomation";
 import { SettingsCodexAccountsCard } from "./SettingsCodexAccountsCard";
 
 vi.mock("../../../../application/runtime/ports/events", () => ({
@@ -84,6 +88,11 @@ vi.mock("../../../../application/runtime/ports/tauriWorkspaceCatalog", () => ({
   listWorkspaces: vi.fn(),
 }));
 
+vi.mock("../../../../application/runtime/facades/chatgptWorkspaceAutomation", () => ({
+  leaveDeactivatedChatgptWorkspaces: vi.fn(),
+  reviewDeactivatedChatgptWorkspaces: vi.fn(),
+}));
+
 let listener: ((event: AppServerEvent) => void) | null = null;
 let runtimeUpdatedListener: ((event: RuntimeUpdatedEvent) => void) | null = null;
 const unlisten = vi.fn();
@@ -110,6 +119,8 @@ const upsertOAuthAccountMock = vi.mocked(upsertOAuthAccount);
 const openUrlMock = vi.mocked(openUrl);
 const detectRuntimeModeMock = vi.mocked(detectRuntimeMode);
 const getRuntimeClientMock = vi.mocked(getRuntimeClient);
+const leaveDeactivatedChatgptWorkspacesMock = vi.mocked(leaveDeactivatedChatgptWorkspaces);
+const reviewDeactivatedChatgptWorkspacesMock = vi.mocked(reviewDeactivatedChatgptWorkspaces);
 const runtimeOauthAccountsMock = vi.fn().mockResolvedValue([]);
 const runtimeOauthPoolsMock = vi.fn().mockResolvedValue([]);
 const SETTINGS_CODEX_ACCOUNTS_ASYNC_TIMEOUT_MS = 5_000;
@@ -140,6 +151,7 @@ async function selectAccountOption(label: string, optionName: string) {
 }
 
 beforeEach(() => {
+  vi.resetAllMocks();
   if (typeof window !== "undefined") {
     window.localStorage.removeItem("codex_accounts_tab_v1");
     window.localStorage.removeItem("codex_accounts_provider_filter_v1");
@@ -251,6 +263,20 @@ beforeEach(() => {
   detectRuntimeModeMock.mockReturnValue("unavailable");
   runtimeOauthAccountsMock.mockResolvedValue([]);
   runtimeOauthPoolsMock.mockResolvedValue([]);
+  reviewDeactivatedChatgptWorkspacesMock.mockResolvedValue({
+    status: "supported",
+    message: "No deactivated ChatGPT workspaces were confirmed.",
+    endpoint: null,
+    candidates: [],
+    remoteWorkspaces: [],
+  });
+  leaveDeactivatedChatgptWorkspacesMock.mockResolvedValue({
+    status: "completed",
+    message: "No workspaces were left.",
+    endpoint: null,
+    leftWorkspaceIds: [],
+    failedWorkspaceIds: [],
+  });
   getRuntimeClientMock.mockReturnValue({
     oauthAccounts: runtimeOauthAccountsMock,
     oauthPools: runtimeOauthPoolsMock,
@@ -272,7 +298,6 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   setActiveOauthPopupLoginId(null);
 });
 
@@ -1467,6 +1492,110 @@ describe("SettingsCodexAccountsCard", () => {
     });
     await waitFor(() => {
       expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it("reviews confirmed deactivated ChatGPT workspaces before leaving them", async () => {
+    const now = Date.now();
+    listOAuthAccountsMock.mockResolvedValue([
+      {
+        accountId: "codex-deactivated-1",
+        provider: "codex",
+        externalAccountId: "chatgpt-account-1",
+        email: "cleanup@example.com",
+        displayName: "Cleanup Account",
+        status: "enabled",
+        disabledReason: null,
+        metadata: {},
+        chatgptWorkspaces: [
+          {
+            workspaceId: "ws-alpha",
+            title: "Alpha Team",
+            role: "owner",
+            isDefault: true,
+          },
+          {
+            workspaceId: "ws-beta",
+            title: "Beta Org",
+            role: "member",
+            isDefault: false,
+          },
+        ],
+        defaultChatgptWorkspaceId: "ws-alpha",
+        createdAt: now - 1_000,
+        updatedAt: now - 500,
+      },
+    ]);
+    listOAuthPoolsMock.mockResolvedValue([]);
+    reviewDeactivatedChatgptWorkspacesMock.mockResolvedValue({
+      status: "supported",
+      message: "Found 1 deactivated ChatGPT workspace.",
+      endpoint: {
+        httpBaseUrl: "http://127.0.0.1:9222",
+        webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/browser-1",
+      },
+      remoteWorkspaces: [
+        {
+          remoteWorkspaceId: "ws-beta",
+          title: "Beta Org",
+          isDeactivated: true,
+        },
+      ],
+      candidates: [
+        {
+          localWorkspace: {
+            workspaceId: "ws-beta",
+            title: "Beta Org",
+            role: "member",
+            isDefault: false,
+          },
+          remoteWorkspace: {
+            remoteWorkspaceId: "ws-beta",
+            title: "Beta Org",
+            isDeactivated: true,
+          },
+        },
+      ],
+    });
+    leaveDeactivatedChatgptWorkspacesMock.mockResolvedValue({
+      status: "completed",
+      message: "Left Beta Org.",
+      endpoint: {
+        httpBaseUrl: "http://127.0.0.1:9222",
+        webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/browser-1",
+      },
+      leftWorkspaceIds: ["ws-beta"],
+      failedWorkspaceIds: [],
+    });
+
+    render(<SettingsCodexAccountsCard />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Review deactivated workspaces" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Leave deactivated workspaces" });
+    expect(within(dialog).getByText(/Beta Org/)).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: "Leave workspaces" }));
+    });
+
+    await waitFor(() => {
+      expect(reviewDeactivatedChatgptWorkspacesMock).toHaveBeenCalledWith(
+        expect.objectContaining({ accountId: "codex-deactivated-1" })
+      );
+      expect(leaveDeactivatedChatgptWorkspacesMock).toHaveBeenCalledWith({
+        account: expect.objectContaining({ accountId: "codex-deactivated-1" }),
+        candidates: [
+          expect.objectContaining({
+            localWorkspace: expect.objectContaining({ workspaceId: "ws-beta" }),
+          }),
+        ],
+      });
+    });
+
+    await waitFor(() => {
+      expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
   });
 

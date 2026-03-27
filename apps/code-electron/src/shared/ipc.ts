@@ -2,6 +2,7 @@ export type {
   DesktopAppInfo,
   DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
+  LocalChromeDebuggerEndpointDescriptor,
   DesktopReleaseChannel,
   DesktopHostBridgeApi,
   DesktopNotificationInput,
@@ -17,6 +18,7 @@ export type {
 export const DESKTOP_HOST_IPC_CHANNELS = {
   getAppInfo: "hugecode:desktop-host:get-app-info",
   getAppVersion: "hugecode:desktop-host:get-app-version",
+  listLocalChromeDebuggerEndpoints: "hugecode:desktop-host:list-local-chrome-debugger-endpoints",
   consumePendingLaunchIntent: "hugecode:desktop-host:consume-pending-launch-intent",
   pushLaunchIntent: "hugecode:desktop-host:push-launch-intent",
   pushUpdateState: "hugecode:desktop-host:push-update-state",

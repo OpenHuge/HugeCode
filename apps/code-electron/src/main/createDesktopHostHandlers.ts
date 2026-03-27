@@ -2,6 +2,7 @@ import type {
   DesktopAppInfo,
   DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
+  LocalChromeDebuggerEndpointDescriptor,
   DesktopNotificationInput,
   DesktopUpdateState,
 } from "../shared/ipc.js";
@@ -38,6 +39,7 @@ export type CreateDesktopHostHandlersInput = {
   consumePendingLaunchIntent(): DesktopLaunchIntent | null;
   getAppInfo(): DesktopAppInfo;
   getDiagnosticsInfo(): DesktopDiagnosticsInfo;
+  listLocalChromeDebuggerEndpoints(): LocalChromeDebuggerEndpointDescriptor[];
   listRecentSessions(): unknown[];
   notificationController: NotificationController;
   openExternalUrl(url: string): Promise<boolean> | boolean;
@@ -67,6 +69,9 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
     },
     getDiagnosticsInfo() {
       return input.getDiagnosticsInfo();
+    },
+    listLocalChromeDebuggerEndpoints() {
+      return input.listLocalChromeDebuggerEndpoints();
     },
     getAppVersion() {
       return input.appVersion;
