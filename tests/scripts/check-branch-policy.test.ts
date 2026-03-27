@@ -71,6 +71,19 @@ describe("check-branch-policy", () => {
     expect(result.stdout).toContain("feat/git-workflow-hardening");
   });
 
+  it("passes for GitHub merge-queue synthetic branches", async () => {
+    const tempRoot = await createTempRoot("branch-policy-merge-queue-");
+    await copyBranchPolicyFixture(tempRoot);
+
+    const result = runBranchPolicy(tempRoot, [
+      "--branch",
+      "gh-readonly-queue/main/pr-116-e4a318d53ad75eaa223ebb2e6d499b57edbd4400",
+    ]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("exempt merge-queue branch");
+  });
+
   it("fails for invalid working branch prefixes", async () => {
     const tempRoot = await createTempRoot("branch-policy-invalid-");
     await copyBranchPolicyFixture(tempRoot);
