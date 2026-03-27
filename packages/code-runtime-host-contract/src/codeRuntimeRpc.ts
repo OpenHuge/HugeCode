@@ -1663,8 +1663,6 @@ export type KernelJobGetRequestV3 = {
   jobId: KernelJobIdV3;
 };
 
-export type KernelJobCancelRequestV3 = RuntimeRunCancelRequest;
-
 export type KernelJobResumeRequestV3 = RuntimeRunResumeRequest;
 
 export type KernelJobInterventionRequestV3 = RuntimeRunInterventionRequest;
@@ -3996,8 +3994,7 @@ export const CODE_RUNTIME_RPC_METHODS = {
   RUN_SUBSCRIBE_V2: "code_runtime_run_subscribe_v2",
   REVIEW_GET_V2: "code_runtime_review_get_v2",
   RUNS_LIST: "code_runtime_runs_list",
-  // Kernel-job compatibility/control surface. Not a product launch path.
-  KERNEL_JOB_CANCEL_V3: "code_kernel_job_cancel_v3",
+  // Remaining kernel-job compatibility/control surface. Not a product launch path.
   KERNEL_JOB_CALLBACK_REGISTER_V3: "code_kernel_job_callback_register_v3",
   KERNEL_JOB_CALLBACK_REMOVE_V3: "code_kernel_job_callback_remove_v3",
   SUB_AGENT_SPAWN: "code_sub_agent_spawn",
@@ -4015,7 +4012,6 @@ export const CODE_RUNTIME_RPC_METHODS = {
   RUNTIME_POLICY_SET_V2: "code_runtime_policy_set_v2",
   KERNEL_CAPABILITIES_LIST_V2: "code_kernel_capabilities_list_v2",
   KERNEL_SESSIONS_LIST_V2: "code_kernel_sessions_list_v2",
-  KERNEL_JOBS_LIST_V2: "code_kernel_jobs_list_v2",
   KERNEL_CONTEXT_SNAPSHOT_V2: "code_kernel_context_snapshot_v2",
   KERNEL_EXTENSIONS_LIST_V2: "code_kernel_extensions_list_v2",
   KERNEL_POLICIES_EVALUATE_V2: "code_kernel_policies_evaluate_v2",
@@ -4599,9 +4595,6 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.RUNS_LIST]: RuntimeRunsListRequest & {
     workspace_id?: string | null;
   };
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3]: KernelJobCancelRequestV3 & {
-    run_id?: string;
-  };
   [CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CALLBACK_REGISTER_V3]: KernelJobCallbackRegistrationV3 & {
     workspace_id?: string | null;
     job_id?: string | null;
@@ -4655,9 +4648,6 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_POLICY_SET_V2]: RuntimePolicySetRequest;
   [CODE_RUNTIME_RPC_METHODS.KERNEL_CAPABILITIES_LIST_V2]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.KERNEL_SESSIONS_LIST_V2]: KernelSessionsListRequest & {
-    workspace_id?: string | null;
-  };
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_JOBS_LIST_V2]: KernelJobsListRequest & {
     workspace_id?: string | null;
   };
   [CODE_RUNTIME_RPC_METHODS.KERNEL_CONTEXT_SNAPSHOT_V2]: KernelContextSnapshotRequest & {
@@ -5032,7 +5022,6 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE_V2]: RuntimeRunSubscribeV2Response;
   [CODE_RUNTIME_RPC_METHODS.REVIEW_GET_V2]: RuntimeReviewGetV2Response;
   [CODE_RUNTIME_RPC_METHODS.RUNS_LIST]: RuntimeRunSummary[];
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3]: RuntimeRunCancelAck;
   [CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CALLBACK_REGISTER_V3]: KernelJobCallbackRegistrationAckV3;
   [CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CALLBACK_REMOVE_V3]: KernelJobCallbackRemoveAckV3;
   [CODE_RUNTIME_RPC_METHODS.SUB_AGENT_SPAWN]: SubAgentSessionSummary;
@@ -5050,7 +5039,6 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_POLICY_SET_V2]: RuntimePolicySnapshot;
   [CODE_RUNTIME_RPC_METHODS.KERNEL_CAPABILITIES_LIST_V2]: KernelCapabilityDescriptor[];
   [CODE_RUNTIME_RPC_METHODS.KERNEL_SESSIONS_LIST_V2]: KernelSession[];
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_JOBS_LIST_V2]: KernelJob[];
   [CODE_RUNTIME_RPC_METHODS.KERNEL_CONTEXT_SNAPSHOT_V2]: KernelContextSlice;
   [CODE_RUNTIME_RPC_METHODS.KERNEL_EXTENSIONS_LIST_V2]: KernelExtensionBundle[];
   [CODE_RUNTIME_RPC_METHODS.KERNEL_POLICIES_EVALUATE_V2]: KernelPolicyDecision;

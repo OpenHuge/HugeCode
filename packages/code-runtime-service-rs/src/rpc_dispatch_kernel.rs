@@ -776,24 +776,6 @@ pub(super) async fn handle_kernel_sessions_list_v2(
     Ok(build_kernel_sessions_slice_payload(ctx, workspace_id.as_deref()).await)
 }
 
-pub(super) async fn handle_kernel_jobs_list_v2(
-    ctx: &AppContext,
-    params: &Value,
-) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let workspace_id = read_optional_string(params, "workspaceId");
-    let status = read_optional_string(params, "status");
-    if workspace_id.is_none() && status.is_none() {
-        return build_kernel_projection_slice_payload(ctx, KERNEL_PROJECTION_SCOPE_JOBS).await;
-    }
-    Ok(build_kernel_jobs_slice_payload(
-        ctx,
-        workspace_id.as_deref(),
-        status.as_deref(),
-    )
-    .await)
-}
-
 pub(super) async fn handle_kernel_job_callback_register_v3(
     _ctx: &AppContext,
     params: &Value,

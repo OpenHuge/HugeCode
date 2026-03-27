@@ -425,7 +425,6 @@ export const RUNTIME_RPC_PAYLOAD_REGISTRY = Object.freeze({
   runtimeRunSubscribeV2: toCompatRuntimeRunGetV2Payload,
   runtimeReviewGetV2: toCompatRuntimeReviewGetV2Payload,
   runtimeRunsList: toCompatRuntimeRunsListPayload,
-  kernelJobCancelV3: toCompatRuntimeRunCancelPayload,
   kernelJobCallbackRegisterV3: toCompatKernelJobCallbackRegistrationPayload,
   kernelJobCallbackRemoveV3: toCompatKernelJobCallbackRemovePayload,
   runtimeRunCheckpointApproval: toCompatRuntimeRunCheckpointApprovalPayload,

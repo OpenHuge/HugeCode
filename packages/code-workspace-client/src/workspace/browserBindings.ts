@@ -6,6 +6,7 @@ import {
   projectRuntimeRunRecordToInterventionAckCompat,
   projectRuntimeRunRecordToKernelJobCompat,
   projectRuntimeRunRecordToResumeAckCompat,
+  projectRuntimeRunSummariesToKernelJobsCompat,
   type KernelProjectionBootstrapRequest,
   type KernelProjectionBootstrapResponse,
   type KernelProjectionDelta,
@@ -15,6 +16,7 @@ import {
   type RuntimeRunInterventionRequest,
   type RuntimeRunRecordV2,
   type RuntimeRunResumeAck,
+  type RuntimeRunsListRequest,
 } from "@ku0/code-runtime-host-contract";
 import {
   buildManualWebRuntimeGatewayProfile,
@@ -174,6 +176,16 @@ function toRuntimeRunInterventionAck(
   record: RuntimeRunRecordV2
 ): RuntimeRunInterventionAck {
   return projectRuntimeRunRecordToInterventionAckCompat(request, record);
+}
+
+function toRuntimeRunsListRequest(request: {
+  workspaceId?: string | null;
+  status?: string | null;
+}) {
+  return {
+    ...request,
+    status: request.status as RuntimeRunsListRequest["status"],
+  } satisfies RuntimeRunsListRequest;
 }
 
 function readMissionControlProjectionSlice(
@@ -515,7 +527,7 @@ export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRu
       startRuntimeRun: async (input) =>
         await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_START_V2, input),
       cancelRuntimeJob: async (input) =>
-        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3, input),
+        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_CANCEL, input),
       resumeRuntimeJob: async (input) =>
         toRuntimeRunResumeAck(
           await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_RESUME_V2, input)
@@ -533,7 +545,13 @@ export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRu
           await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE_V2, input)
         ),
       listRuntimeJobs: async (input) =>
-        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.KERNEL_JOBS_LIST_V2, input),
+        projectRuntimeRunSummariesToKernelJobsCompat(
+          await invokeBrowserWorkspaceRuntime(
+            CODE_RUNTIME_RPC_METHODS.RUNS_LIST,
+            toRuntimeRunsListRequest(input)
+          ),
+          "code_runtime_runs_list"
+        ),
       submitRuntimeJobApprovalDecision: async (input) =>
         await invokeBrowserWorkspaceRuntime(
           CODE_RUNTIME_RPC_METHODS.RUN_CHECKPOINT_APPROVAL,

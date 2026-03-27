@@ -97,8 +97,7 @@ pub(super) const RPC_METHOD_REGISTRY: &[RpcMethodEntry] = &[
     RpcMethodEntry::new("code_runtime_run_subscribe_v2"),
     RpcMethodEntry::new("code_runtime_review_get_v2"),
     RpcMethodEntry::new("code_runtime_runs_list"),
-    // Kernel-job compatibility surface. Not a product launch path.
-    RpcMethodEntry::new("code_kernel_job_cancel_v3"),
+    // Remaining kernel-job compatibility surface. Not a product launch path.
     RpcMethodEntry::new("code_kernel_job_callback_register_v3"),
     RpcMethodEntry::new("code_kernel_job_callback_remove_v3"),
     RpcMethodEntry::new("code_sub_agent_spawn"),
@@ -116,7 +115,6 @@ pub(super) const RPC_METHOD_REGISTRY: &[RpcMethodEntry] = &[
     RpcMethodEntry::new("code_runtime_policy_set_v2"),
     RpcMethodEntry::new("code_kernel_capabilities_list_v2"),
     RpcMethodEntry::new("code_kernel_sessions_list_v2"),
-    RpcMethodEntry::new("code_kernel_jobs_list_v2"),
     RpcMethodEntry::new("code_kernel_context_snapshot_v2"),
     RpcMethodEntry::new("code_kernel_extensions_list_v2"),
     RpcMethodEntry::new("code_kernel_policies_evaluate_v2"),

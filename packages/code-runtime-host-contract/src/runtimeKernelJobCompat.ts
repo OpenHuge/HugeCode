@@ -4,6 +4,7 @@ import type {
   RuntimeRunInterventionRequest,
   RuntimeRunRecordV2,
   RuntimeRunResumeAck,
+  RuntimeRunSummary,
 } from "./codeRuntimeRpc.js";
 import {
   buildRuntimeContinuationDescriptor,
@@ -14,7 +15,8 @@ import {
 export type RuntimeKernelJobCompatCanonicalMethod =
   | "code_runtime_run_start_v2"
   | "code_runtime_run_get_v2"
-  | "code_runtime_run_subscribe_v2";
+  | "code_runtime_run_subscribe_v2"
+  | "code_runtime_runs_list";
 
 export function readRuntimeRunIdCompat(record: RuntimeRunRecordV2): string {
   const missionRunRecord = record.missionRun as { runId?: string | null };
@@ -28,14 +30,27 @@ export function readRuntimeRunIdCompat(record: RuntimeRunRecordV2): string {
 }
 
 function projectRuntimeRunExecutionProfileCompat(
-  record: RuntimeRunRecordV2
+  run: Pick<RuntimeRunRecordV2["run"], "accessMode" | "executionMode">
 ): KernelJob["executionProfile"] {
-  const distributed = record.run.executionMode === "distributed";
+  const distributed = run.executionMode === "distributed";
   return {
     placement: distributed ? "remote" : "local",
     interactivity: distributed ? "background" : "interactive",
     isolation: distributed ? "container_sandbox" : "host",
-    network: record.run.accessMode === "read-only" ? "restricted" : "default",
+    network: run.accessMode === "read-only" ? "restricted" : "default",
+    authority: distributed ? "service" : "user",
+  };
+}
+
+function projectRuntimeRunSummaryExecutionProfileCompat(
+  summary: Pick<RuntimeRunSummary, "accessMode" | "executionMode">
+): KernelJob["executionProfile"] {
+  const distributed = summary.executionMode === "distributed";
+  return {
+    placement: distributed ? "remote" : "local",
+    interactivity: distributed ? "background" : "interactive",
+    isolation: distributed ? "container_sandbox" : "host",
+    network: summary.accessMode === "read-only" ? "restricted" : "default",
     authority: distributed ? "service" : "user",
   };
 }
@@ -110,7 +125,7 @@ export function projectRuntimeRunRecordToKernelJobCompat(
       null,
     preferredBackendIds:
       record.run.preferredBackendIds ?? record.missionRun.placement?.requestedBackendIds ?? null,
-    executionProfile: projectRuntimeRunExecutionProfileCompat(record),
+    executionProfile: projectRuntimeRunExecutionProfileCompat(record.run),
     createdAt: record.run.createdAt,
     updatedAt: record.run.updatedAt,
     startedAt: record.run.startedAt ?? record.missionRun.startedAt ?? null,
@@ -122,6 +137,70 @@ export function projectRuntimeRunRecordToKernelJobCompat(
       reviewPackId: record.reviewPack?.id ?? record.missionRun.reviewPackId ?? null,
     },
   };
+}
+
+export function projectRuntimeRunSummaryToKernelJobCompat(
+  summary: RuntimeRunSummary,
+  canonicalMethod: Extract<RuntimeKernelJobCompatCanonicalMethod, "code_runtime_runs_list">
+): KernelJob {
+  const takeoverBundle = summary.takeoverBundle ?? null;
+  const reviewActionability = resolvePreferredReviewActionability({
+    takeoverBundle,
+    actionability: summary.reviewActionability ?? null,
+  });
+  const publishHandoff = resolvePreferredPublishHandoff({
+    takeoverBundle,
+    publishHandoff: summary.publishHandoff ?? null,
+  });
+
+  return {
+    id: summary.taskId,
+    workspaceId: summary.workspaceId,
+    threadId: summary.threadId ?? null,
+    title: summary.title ?? null,
+    status: summary.status,
+    provider: summary.provider ?? summary.routedProvider ?? null,
+    modelId: summary.modelId ?? summary.routedModelId ?? null,
+    backendId: summary.backendId ?? summary.routing?.backendId ?? null,
+    preferredBackendIds: summary.preferredBackendIds ?? null,
+    executionProfile: projectRuntimeRunSummaryExecutionProfileCompat(summary),
+    createdAt: summary.createdAt,
+    updatedAt: summary.updatedAt,
+    startedAt: summary.startedAt ?? null,
+    completedAt: summary.completedAt ?? null,
+    continuation: {
+      checkpointId: summary.checkpointId ?? null,
+      resumeSupported:
+        summary.checkpointState?.resumeReady === true ||
+        summary.continuation?.pathKind === "resume" ||
+        (summary.checkpointId != null && summary.continuation != null),
+      recovered: summary.recovered === true,
+      reviewActionability,
+      takeover: takeoverBundle,
+      missionLinkage: summary.missionLinkage ?? null,
+      publishHandoff,
+      summary:
+        summary.continuation?.summary ??
+        reviewActionability?.summary ??
+        takeoverBundle?.summary ??
+        publishHandoff?.summary ??
+        null,
+    },
+    metadata: {
+      canonicalMethod,
+      runId: summary.taskId,
+      reviewPackId: summary.reviewPackId ?? null,
+    },
+  };
+}
+
+export function projectRuntimeRunSummariesToKernelJobsCompat(
+  summaries: RuntimeRunSummary[],
+  canonicalMethod: Extract<RuntimeKernelJobCompatCanonicalMethod, "code_runtime_runs_list">
+): KernelJob[] {
+  return summaries.map((summary) =>
+    projectRuntimeRunSummaryToKernelJobCompat(summary, canonicalMethod)
+  );
 }
 
 export function projectRuntimeRunRecordToResumeAckCompat(

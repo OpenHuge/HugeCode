@@ -147,10 +147,6 @@ macro_rules! code_tauri_command_entries {
                 "code_runtime_runs_list"
             ),
             (
-                commands::agents::code_kernel_job_cancel_v3,
-                "code_kernel_job_cancel_v3"
-            ),
-            (
                 commands::agents::code_kernel_job_callback_register_v3,
                 "code_kernel_job_callback_register_v3"
             ),
@@ -187,10 +183,6 @@ macro_rules! code_tauri_command_entries {
             (
                 commands::agents::code_kernel_sessions_list_v2,
                 "code_kernel_sessions_list_v2"
-            ),
-            (
-                commands::agents::code_kernel_jobs_list_v2,
-                "code_kernel_jobs_list_v2"
             ),
             (
                 commands::agents::code_kernel_context_snapshot_v2,

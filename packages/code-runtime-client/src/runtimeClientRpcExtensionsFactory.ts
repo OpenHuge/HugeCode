@@ -51,12 +51,6 @@ export function createExtendedRpcRuntimeClient<
 >(invokeRpc: RuntimeRpcInvoker) {
   const client = {
     ...createBaseRpcRuntimeClient<TAppSettings>(invokeRpc),
-    kernelJobCancelV3(request) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3,
-        adaptRuntimeRpcPayload("kernelJobCancelV3", request)
-      );
-    },
     kernelJobCallbackRegisterV3(request) {
       return invokeRpc(
         CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CALLBACK_REGISTER_V3,
@@ -176,16 +170,6 @@ export function createExtendedRpcRuntimeClient<
         {
           ...withCanonicalFields({ workspaceId: request?.workspaceId ?? null }),
           kind: request?.kind ?? null,
-        }
-      );
-    },
-    kernelJobsListV2(request) {
-      return invokeRuntimeExtensionRpc(
-        invokeRpc,
-        RUNTIME_KERNEL_V2_RPC_METHODS.KERNEL_JOBS_LIST_V2,
-        {
-          ...withCanonicalFields({ workspaceId: request?.workspaceId ?? null }),
-          status: request?.status ?? null,
         }
       );
     },

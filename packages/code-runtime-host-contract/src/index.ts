@@ -1121,5 +1121,7 @@ export {
   projectRuntimeRunRecordToInterventionAckCompat,
   projectRuntimeRunRecordToKernelJobCompat,
   projectRuntimeRunRecordToResumeAckCompat,
+  projectRuntimeRunSummariesToKernelJobsCompat,
+  projectRuntimeRunSummaryToKernelJobCompat,
   readRuntimeRunIdCompat,
 } from "./runtimeKernelJobCompat.js";

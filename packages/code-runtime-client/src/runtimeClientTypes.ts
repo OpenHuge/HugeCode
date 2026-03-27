@@ -21,12 +21,10 @@ import type {
   KernelContextSlice,
   KernelExtensionBundle,
   KernelExtensionsListRequest,
-  KernelJob,
   KernelJobCallbackRegistrationAckV3,
   KernelJobCallbackRegistrationV3,
   KernelJobCallbackRemoveAckV3,
   KernelJobCallbackRemoveRequestV3,
-  KernelJobsListRequest,
   KernelPoliciesEvaluateRequest,
   KernelPolicyDecision,
   KernelProjectionBootstrapRequest,
@@ -281,7 +279,6 @@ export type RuntimeClient<TAppSettings extends Record<string, unknown> = Record<
     ) => Promise<RuntimeRunSubscribeV2Response>;
     runtimeReviewGetV2: (request: RuntimeReviewGetV2Request) => Promise<RuntimeReviewGetV2Response>;
     runtimeRunsList: (request: RuntimeRunsListRequest) => Promise<RuntimeRunSummary[]>;
-    kernelJobCancelV3: (request: RuntimeRunCancelRequest) => Promise<RuntimeRunCancelAck>;
     kernelJobCallbackRegisterV3: (
       request: KernelJobCallbackRegistrationV3
     ) => Promise<KernelJobCallbackRegistrationAckV3>;
@@ -307,7 +304,6 @@ export type RuntimeClient<TAppSettings extends Record<string, unknown> = Record<
     runtimePolicySetV2: (request: RuntimePolicySetRequest) => Promise<RuntimePolicySnapshot>;
     kernelCapabilitiesListV2: () => Promise<KernelCapabilityDescriptor[]>;
     kernelSessionsListV2: (request?: KernelSessionsListRequest) => Promise<KernelSession[]>;
-    kernelJobsListV2: (request?: KernelJobsListRequest) => Promise<KernelJob[]>;
     kernelContextSnapshotV2: (request: {
       kind: KernelContextSlice["scope"]["kind"];
       workspaceId?: string | null;

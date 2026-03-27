@@ -76,9 +76,8 @@ use extensions_dispatch::{
 use kernel_dispatch::{
     handle_kernel_capabilities_list_v2, handle_kernel_context_snapshot_v2,
     handle_kernel_extensions_list_v2, handle_kernel_job_callback_register_v3,
-    handle_kernel_job_callback_remove_v3, handle_kernel_jobs_list_v2,
-    handle_kernel_policies_evaluate_v2, handle_kernel_projection_bootstrap_v3,
-    handle_kernel_sessions_list_v2,
+    handle_kernel_job_callback_remove_v3, handle_kernel_policies_evaluate_v2,
+    handle_kernel_projection_bootstrap_v3, handle_kernel_sessions_list_v2,
 };
 pub(crate) use kernel_dispatch::build_kernel_projection_delta_v3;
 use mission_control_dispatch::{
@@ -189,8 +188,7 @@ pub(crate) async fn handle_rpc(
         "code_runtime_run_subscribe_v2" => handle_runtime_run_subscribe_v2(ctx, params).await,
         "code_runtime_review_get_v2" => handle_runtime_review_get_v2(ctx, params).await,
         "code_runtime_runs_list" => handle_agent_tasks_list(ctx, params).await,
-        // Kernel-job compatibility surface.
-        "code_kernel_job_cancel_v3" => handle_agent_task_interrupt(ctx, params).await,
+        // Remaining kernel-job compatibility surface.
         "code_kernel_job_callback_register_v3" => {
             handle_kernel_job_callback_register_v3(ctx, params).await
         }
@@ -214,7 +212,6 @@ pub(crate) async fn handle_rpc(
         "code_runtime_policy_set_v2" => handle_runtime_policy_set_v2(ctx, params).await,
         "code_kernel_capabilities_list_v2" => handle_kernel_capabilities_list_v2(ctx).await,
         "code_kernel_sessions_list_v2" => handle_kernel_sessions_list_v2(ctx, params).await,
-        "code_kernel_jobs_list_v2" => handle_kernel_jobs_list_v2(ctx, params).await,
         "code_kernel_context_snapshot_v2" => handle_kernel_context_snapshot_v2(ctx, params).await,
         "code_kernel_extensions_list_v2" => handle_kernel_extensions_list_v2(ctx, params).await,
         "code_kernel_policies_evaluate_v2" => {

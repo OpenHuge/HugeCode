@@ -140,26 +140,6 @@ async fn invoke_runtime_run_intervene_v2(app: AppHandle, payload: Value) -> Resu
     Ok(result)
 }
 
-async fn invoke_kernel_job_cancel_v3(app: AppHandle, payload: Value) -> Result<Value, String> {
-    let result = runtime_service::invoke_runtime_rpc("code_kernel_job_cancel_v3", payload).await?;
-    if result
-        .get("accepted")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
-        if let Some(task_id) = result
-            .get("taskId")
-            .or_else(|| result.get("runId"))
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-        {
-            let _ = runtime_service::refresh_agent_task_state_fabric(&app, task_id, None).await;
-        }
-    }
-    Ok(result)
-}
-
 #[tauri::command]
 pub async fn code_runtime_run_start(app: AppHandle, payload: Value) -> Result<Value, String> {
     invoke_runtime_run_start(app, payload).await
@@ -229,11 +209,6 @@ pub async fn code_runtime_runs_list(payload: Value) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub async fn code_kernel_job_cancel_v3(app: AppHandle, payload: Value) -> Result<Value, String> {
-    invoke_kernel_job_cancel_v3(app, payload).await
-}
-
-#[tauri::command]
 pub async fn code_kernel_job_callback_register_v3(payload: Value) -> Result<Value, String> {
     runtime_service::invoke_runtime_rpc("code_kernel_job_callback_register_v3", payload).await
 }
@@ -283,11 +258,6 @@ pub async fn code_kernel_capabilities_list_v2(payload: Value) -> Result<Value, S
 #[tauri::command]
 pub async fn code_kernel_sessions_list_v2(payload: Value) -> Result<Value, String> {
     runtime_service::invoke_runtime_rpc("code_kernel_sessions_list_v2", payload).await
-}
-
-#[tauri::command]
-pub async fn code_kernel_jobs_list_v2(payload: Value) -> Result<Value, String> {
-    runtime_service::invoke_runtime_rpc("code_kernel_jobs_list_v2", payload).await
 }
 
 #[tauri::command]

@@ -165,9 +165,7 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
       const supportsGraphMethod = summary.methods.includes(
         CODE_RUNTIME_RPC_METHODS.DISTRIBUTED_TASK_GRAPH
       );
-      const supportsInterruptMethod = summary.methods.includes(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3
-      );
+      const supportsInterruptMethod = summary.methods.includes(CODE_RUNTIME_RPC_METHODS.RUN_CANCEL);
       const supportsRetryMethod = summary.methods.includes(
         CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2
       );

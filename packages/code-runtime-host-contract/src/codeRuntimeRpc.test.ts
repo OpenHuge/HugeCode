@@ -1271,10 +1271,7 @@ describe("agent and oauth rpc methods", () => {
     ]);
   });
 
-  it("exposes canonical candidates for remaining kernel job control methods", () => {
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3)
-    ).toEqual(["code_kernel_job_cancel_v3"]);
+  it("exposes canonical candidates for remaining kernel job callback methods", () => {
     expect(
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CALLBACK_REGISTER_V3)
     ).toEqual(["code_kernel_job_callback_register_v3"]);

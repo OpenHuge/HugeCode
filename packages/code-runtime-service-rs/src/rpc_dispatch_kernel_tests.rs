@@ -324,20 +324,3 @@ async fn kernel_projection_delta_emits_resync_required_ops() {
     assert_eq!(delta["ops"][0]["reason"], json!("subscriber_lagged"));
     assert_eq!(delta["ops"][1]["scope"], json!("mission_control"));
 }
-
-#[tokio::test]
-async fn kernel_jobs_compat_handler_populates_projection_slice_cache() {
-    let ctx = kernel_projection_test_context();
-    let jobs = handle_kernel_jobs_list_v2(&ctx, &json!({}))
-        .await
-        .expect("jobs projection");
-    let revision = ctx.runtime_update_revision.load(Ordering::Relaxed);
-
-    let cached = crate::read_runtime_revision_cached_json_value(
-        &ctx,
-        &RuntimeRevisionCacheKey::KernelProjectionJobsSlice,
-        revision,
-    );
-
-    assert_eq!(cached, Some(jobs));
-}

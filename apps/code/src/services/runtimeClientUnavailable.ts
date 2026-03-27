@@ -147,9 +147,6 @@ export function createUnavailableRuntimeClient(
     runtimeRunsList() {
       return rejectUnavailable("list runtime runs");
     },
-    kernelJobCancelV3() {
-      return rejectUnavailable("cancel kernel job v3");
-    },
     kernelJobCallbackRegisterV3() {
       return rejectUnavailable("register kernel job callback v3");
     },
@@ -200,9 +197,6 @@ export function createUnavailableRuntimeClient(
     },
     kernelSessionsListV2() {
       return rejectUnavailable("list kernel sessions v2");
-    },
-    kernelJobsListV2() {
-      return rejectUnavailable("list kernel jobs v2");
     },
     kernelContextSnapshotV2() {
       return rejectUnavailable("snapshot kernel context v2");

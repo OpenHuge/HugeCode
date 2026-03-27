@@ -4,6 +4,7 @@ import {
   projectRuntimeRunRecordToInterventionAckCompat,
   projectRuntimeRunRecordToKernelJobCompat,
   projectRuntimeRunRecordToResumeAckCompat,
+  projectRuntimeRunSummaryToKernelJobCompat,
   readRuntimeRunIdCompat,
 } from "./runtimeKernelJobCompat.js";
 
@@ -268,6 +269,103 @@ describe("runtimeKernelJobCompat", () => {
       outcome: "spawned",
       spawnedRunId: "run-1",
       checkpointId: "checkpoint-1",
+    });
+  });
+
+  it("projects runtime run summaries to compat kernel jobs for canonical list reads", () => {
+    expect(
+      projectRuntimeRunSummaryToKernelJobCompat(
+        {
+          taskId: "run-1",
+          workspaceId: "workspace-1",
+          threadId: "thread-1",
+          requestId: null,
+          title: "Review follow-up",
+          status: "running",
+          accessMode: "on-request",
+          executionMode: "distributed",
+          provider: "openai",
+          modelId: "gpt-5.4",
+          routedProvider: "openai",
+          routedModelId: "gpt-5.4",
+          routedPool: "auto",
+          routedSource: "workspace-default",
+          currentStep: 2,
+          createdAt: 10,
+          updatedAt: 20,
+          startedAt: 15,
+          completedAt: null,
+          errorCode: null,
+          errorMessage: null,
+          pendingApprovalId: null,
+          checkpointId: "checkpoint-1",
+          recovered: true,
+          reviewPackId: "review-pack-1",
+          continuation: {
+            summary: null,
+            pathKind: "review",
+          },
+          takeoverBundle: {
+            state: "blocked",
+            pathKind: "review",
+            primaryAction: "open_review_pack",
+            summary: "Take over the review pack.",
+            blockingReason: "Resolve review issues before continuing.",
+            recommendedAction: "Open the review pack and resolve the blocked follow-up.",
+            reviewPackId: "review-pack-1",
+            target: {
+              kind: "review_pack",
+              workspaceId: "workspace-1",
+              taskId: "task-review-1",
+              runId: "run-1",
+              reviewPackId: "review-pack-1",
+            },
+            reviewActionability: {
+              state: "blocked",
+              summary: "Review pack is blocked on unresolved findings.",
+              degradedReasons: [],
+              actions: [],
+            },
+          },
+          reviewActionability: {
+            state: "ready",
+            summary: "Fallback review truth",
+            degradedReasons: [],
+            actions: [],
+          },
+          publishHandoff: {
+            state: "available",
+            summary: "Fallback publish handoff",
+            label: "Open handoff",
+            target: {
+              kind: "mission_thread",
+              workspaceId: "workspace-1",
+              threadId: "thread-1",
+            },
+          },
+          backendId: "backend-a",
+          preferredBackendIds: ["backend-a"],
+          steps: [],
+        },
+        "code_runtime_runs_list"
+      )
+    ).toMatchObject({
+      id: "run-1",
+      continuation: {
+        reviewActionability: {
+          state: "blocked",
+          summary: "Review pack is blocked on unresolved findings.",
+        },
+        summary: "Review pack is blocked on unresolved findings.",
+        publishHandoff: {
+          summary: "Fallback publish handoff",
+        },
+      },
+      metadata: {
+        canonicalMethod: "code_runtime_runs_list",
+        runId: "run-1",
+        reviewPackId: "review-pack-1",
+      },
     });
   });
 });

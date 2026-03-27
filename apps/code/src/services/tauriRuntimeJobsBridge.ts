@@ -26,11 +26,13 @@ import {
   type RuntimeRunSubscribeV2Response,
   type RuntimeRunStartRequest,
   type RuntimeRunStartV2Response,
+  type RuntimeRunsListRequest,
   type RuntimeReviewGetV2Request,
   type RuntimeReviewGetV2Response,
   projectRuntimeRunRecordToInterventionAckCompat,
   projectRuntimeRunRecordToKernelJobCompat,
   projectRuntimeRunRecordToResumeAckCompat,
+  projectRuntimeRunSummariesToKernelJobsCompat,
 } from "@ku0/code-runtime-host-contract";
 import {
   getRuntimeClient,
@@ -98,6 +100,13 @@ function toRuntimeRunResumeAck(record: RuntimeRunRecordV2): RuntimeRunResumeAck 
   return projectRuntimeRunRecordToResumeAckCompat(record, { message: "" });
 }
 
+function toRuntimeRunsListRequest(request: KernelJobsListRequest): RuntimeRunsListRequest {
+  return {
+    ...request,
+    status: request.status as RuntimeRunsListRequest["status"],
+  };
+}
+
 // Compat-only: product launches must call prepare/start v2 instead.
 export async function startRuntimeJob(request: KernelJobStartRequestV3): Promise<KernelJob> {
   const { delivery: _delivery, ...startRequest } = request;
@@ -147,7 +156,7 @@ export async function getRuntimeJob(request: KernelJobGetRequestV3): Promise<Ker
 export async function cancelRuntimeJob(
   request: RuntimeRunCancelRequest
 ): Promise<RuntimeRunCancelAck> {
-  return getRuntimeClient().kernelJobCancelV3(request);
+  return getRuntimeClient().runtimeRunCancel(request);
 }
 
 export async function interveneRuntimeJob(
@@ -191,7 +200,10 @@ export async function subscribeRuntimeJob(
 }
 
 export async function listRuntimeJobs(request: KernelJobsListRequest): Promise<KernelJob[]> {
-  return getRuntimeClient().kernelJobsListV2(request);
+  return projectRuntimeRunSummariesToKernelJobsCompat(
+    await getRuntimeClient().runtimeRunsList(toRuntimeRunsListRequest(request)),
+    "code_runtime_runs_list"
+  );
 }
 
 export async function submitRuntimeJobApprovalDecision(

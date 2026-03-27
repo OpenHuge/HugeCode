@@ -476,9 +476,9 @@ describe("runtimeClient mode detection", () => {
       status: "interrupted",
       message: "cancelled",
     });
-    await client.kernelJobCancelV3({ runId: "job-123", reason: "user-stop" });
+    await client.runtimeRunCancel({ runId: "job-123", reason: "user-stop" });
     expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_cancel_v3",
+      "code_runtime_run_cancel",
       expect.objectContaining({
         runId: "job-123",
         reason: "user-stop",
@@ -1185,7 +1185,6 @@ describe("runtimeClient mode detection", () => {
           methods: [
             "code_kernel_capabilities_list_v2",
             "code_kernel_sessions_list_v2",
-            "code_kernel_jobs_list_v2",
             "code_kernel_context_snapshot_v2",
             "code_kernel_extensions_list_v2",
             "code_kernel_policies_evaluate_v2",
@@ -1208,15 +1207,6 @@ describe("runtimeClient mode detection", () => {
       expect.objectContaining({
         workspaceId: "ws-kernel",
         kind: "pty",
-      })
-    );
-
-    await client.kernelJobsListV2({ workspaceId: "ws-kernel", status: "running" });
-    expect(invokeMock).toHaveBeenCalledWith(
-      "code_kernel_jobs_list_v2",
-      expect.objectContaining({
-        workspaceId: "ws-kernel",
-        status: "running",
       })
     );
 

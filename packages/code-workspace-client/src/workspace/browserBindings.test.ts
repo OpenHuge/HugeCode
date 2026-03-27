@@ -285,11 +285,81 @@ describe("browser workspace bindings", () => {
         };
       }
 
+      if (request.method === CODE_RUNTIME_RPC_METHODS.RUN_CANCEL) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            result: {
+              accepted: true,
+              runId: "run-1",
+              status: "interrupted",
+              message: "Interrupted",
+            },
+          }),
+        };
+      }
+
+      if (request.method === CODE_RUNTIME_RPC_METHODS.RUNS_LIST) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            result: [
+              {
+                taskId: "run-1",
+                workspaceId: "workspace-1",
+                threadId: "thread-1",
+                requestId: null,
+                title: "Resume task",
+                status: "running",
+                accessMode: "on-request",
+                executionMode: "distributed",
+                provider: "openai",
+                modelId: "gpt-5.4",
+                routedProvider: "openai",
+                routedModelId: "gpt-5.4",
+                routedPool: "auto",
+                routedSource: "workspace-default",
+                currentStep: 2,
+                createdAt: 10,
+                updatedAt: 25,
+                startedAt: 15,
+                completedAt: null,
+                errorCode: null,
+                errorMessage: null,
+                pendingApprovalId: null,
+                checkpointId: "checkpoint-1",
+                recovered: true,
+                preferredBackendIds: ["backend-a"],
+                backendId: "backend-a",
+                continuation: {
+                  summary: "Ready to resume.",
+                },
+                reviewPackId: null,
+                steps: [],
+              },
+            ],
+          }),
+        };
+      }
+
       throw new Error(`Unexpected method: ${request.method}`);
     });
     vi.stubGlobal("fetch", fetchMock);
 
     const runtime = createBrowserWorkspaceClientRuntimeBindings();
+
+    await expect(
+      runtime.agentControl.cancelRuntimeJob({ runId: "run-1", reason: "User stop" })
+    ).resolves.toEqual({
+      accepted: true,
+      runId: "run-1",
+      status: "interrupted",
+      message: "Interrupted",
+    });
 
     await expect(runtime.agentControl.resumeRuntimeJob({ runId: "run-1" })).resolves.toEqual({
       accepted: true,
@@ -357,14 +427,58 @@ describe("browser workspace bindings", () => {
       },
     });
 
+    await expect(
+      runtime.agentControl.listRuntimeJobs({ workspaceId: "workspace-1", status: "running" })
+    ).resolves.toEqual([
+      {
+        id: "run-1",
+        workspaceId: "workspace-1",
+        threadId: "thread-1",
+        title: "Resume task",
+        status: "running",
+        provider: "openai",
+        modelId: "gpt-5.4",
+        backendId: "backend-a",
+        preferredBackendIds: ["backend-a"],
+        executionProfile: {
+          placement: "remote",
+          interactivity: "background",
+          isolation: "container_sandbox",
+          network: "default",
+          authority: "service",
+        },
+        createdAt: 10,
+        updatedAt: 25,
+        startedAt: 15,
+        completedAt: null,
+        continuation: {
+          checkpointId: "checkpoint-1",
+          resumeSupported: true,
+          recovered: true,
+          reviewActionability: null,
+          takeover: null,
+          missionLinkage: null,
+          publishHandoff: null,
+          summary: "Ready to resume.",
+        },
+        metadata: {
+          canonicalMethod: "code_runtime_runs_list",
+          runId: "run-1",
+          reviewPackId: null,
+        },
+      },
+    ]);
+
     const methods = fetchMock.mock.calls.map((call) => {
       const request = JSON.parse(String(call[1]?.body)) as { method?: string };
       return request.method;
     });
     expect(methods).toEqual([
+      CODE_RUNTIME_RPC_METHODS.RUN_CANCEL,
       CODE_RUNTIME_RPC_METHODS.RUN_RESUME_V2,
       CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2,
       CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE_V2,
+      CODE_RUNTIME_RPC_METHODS.RUNS_LIST,
     ]);
   });
 
