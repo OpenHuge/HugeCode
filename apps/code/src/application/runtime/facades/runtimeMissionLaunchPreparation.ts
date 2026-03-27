@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type {
-  AgentTaskExecutionMode,
   AgentTaskMissionBrief,
-  AgentTaskSourceSummary,
   HugeCodeExecutionProfile,
   RuntimeMissionPlanV2,
   RuntimeRunStartRequest,
@@ -11,11 +9,9 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { prepareRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
-import {
-  buildAgentTaskLaunchControls,
-  buildAgentTaskMissionBrief,
-} from "./runtimeMissionDraftFacade";
 import type { ResolvedRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionContract";
+import { buildGovernedRuntimeRunRequest } from "./runtimeGovernedRunIngestion";
+import { normalizeTaskSourceDraft } from "./runtimeTaskSourceFacade";
 import type { RuntimeTaskLauncherSourceDraft } from "./runtimeTaskInterventionDraftFacade";
 import {
   buildRuntimeContextTruth,
@@ -145,89 +141,38 @@ function summarizeLaunchPreparationRepoGuidance(
   return `Repo guidance: ${sourceLabel}`;
 }
 
-function buildWorkspaceLaunchTaskSource(input: {
-  draftTitle: string;
-  draftInstruction: string;
-}): AgentTaskSourceSummary {
-  return {
-    kind: "manual",
-    title: input.draftTitle.trim() || input.draftInstruction.trim() || "Mission run",
-  };
-}
-
-function mapExecutionProfileModeToTaskMode(
-  value: HugeCodeExecutionProfile["executionMode"]
-): AgentTaskExecutionMode {
-  return value === "remote_sandbox" ? "distributed" : "single";
-}
-
 export function buildRuntimeMissionLaunchPrepareRequest(
   input: RuntimeMissionLaunchRequestInput
 ): RuntimeRunPrepareV2Request | null {
-  const instruction = input.draftInstruction.trim();
-  if (instruction.length === 0) {
-    return null;
-  }
-
   const title = readOptionalText(input.draftTitle);
-  const accessMode =
-    input.runtimeSourceDraft?.accessMode ??
-    input.repositoryLaunchDefaults.accessMode ??
-    input.selectedExecutionProfile.accessMode;
-  const preferredBackendIds =
-    normalizeBackendIds(input.runtimeSourceDraft?.preferredBackendIds) ??
-    normalizeBackendIds(input.repositoryLaunchDefaults.preferredBackendIds);
-  const executionProfileId =
-    readOptionalText(input.runtimeSourceDraft?.profileId) ?? input.selectedExecutionProfile.id;
-  const validationPresetId =
-    readOptionalText(input.runtimeSourceDraft?.validationPresetId) ??
-    readOptionalText(input.repositoryLaunchDefaults.validationPresetId) ??
-    readOptionalText(input.selectedExecutionProfile.validationPresetId);
-  const reviewProfileId =
-    readOptionalText(input.runtimeSourceDraft?.reviewProfileId) ??
-    readOptionalText(input.repositoryLaunchDefaults.reviewProfileId);
-  const objective = title ?? instruction;
-  const launchControls = buildAgentTaskLaunchControls({
-    objective,
-    accessMode,
-  });
-
-  return {
+  const draftInstructionTitle = input.draftInstruction.trim();
+  const fallbackTitle = title ?? (draftInstructionTitle || "Mission run");
+  const taskSource = normalizeTaskSourceDraft(input.runtimeSourceDraft?.taskSource, {
+    title: fallbackTitle,
     workspaceId: input.workspaceId,
-    ...(title ? { title } : {}),
-    taskSource:
-      input.runtimeSourceDraft?.taskSource ??
-      buildWorkspaceLaunchTaskSource({
-        draftTitle: input.draftTitle,
-        draftInstruction: input.draftInstruction,
-      }),
-    executionProfileId,
-    ...(reviewProfileId ? { reviewProfileId } : {}),
-    ...(validationPresetId ? { validationPresetId } : {}),
-    ...(readOptionalText(input.routedProvider) ? { provider: input.routedProvider } : {}),
-    accessMode,
-    executionMode: mapExecutionProfileModeToTaskMode(input.selectedExecutionProfile.executionMode),
-    ...(launchControls.requiredCapabilities
-      ? { requiredCapabilities: launchControls.requiredCapabilities }
-      : {}),
-    ...(preferredBackendIds ? { preferredBackendIds } : {}),
-    missionBrief: buildAgentTaskMissionBrief({
-      objective,
-      accessMode,
-      preferredBackendIds,
-      requiredCapabilities: launchControls.requiredCapabilities,
-      maxSubtasks: launchControls.maxSubtasks,
-    }),
-    ...(input.runtimeSourceDraft?.relaunchContext
-      ? { relaunchContext: input.runtimeSourceDraft.relaunchContext }
-      : {}),
-    steps: [
-      {
-        kind: "read",
-        input: instruction,
-      },
-    ],
-  };
+  });
+  return buildGovernedRuntimeRunRequest({
+    workspaceId: input.workspaceId,
+    source: {
+      title: fallbackTitle,
+      instruction: input.draftInstruction,
+      taskSource,
+      relaunchContext: input.runtimeSourceDraft?.relaunchContext ?? null,
+    },
+    repositoryExecutionContract: input.repositoryLaunchDefaults.contract,
+    explicitLaunchInput: {
+      executionProfileId:
+        readOptionalText(input.runtimeSourceDraft?.profileId) ?? input.selectedExecutionProfile.id,
+      preferredBackendIds: normalizeBackendIds(input.runtimeSourceDraft?.preferredBackendIds),
+      accessMode: input.runtimeSourceDraft?.accessMode ?? null,
+      reviewProfileId: readOptionalText(input.runtimeSourceDraft?.reviewProfileId),
+      validationPresetId: readOptionalText(input.runtimeSourceDraft?.validationPresetId),
+    },
+    fallbackExecutionProfileId: input.selectedExecutionProfile.id,
+    fallbackValidationPresetId: input.selectedExecutionProfile.validationPresetId,
+    fallbackAccessMode: input.selectedExecutionProfile.accessMode,
+    provider: input.routedProvider,
+  });
 }
 
 export function useRuntimeMissionLaunchPreview(

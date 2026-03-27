@@ -30,9 +30,6 @@ describe("githubSourceLaunchNormalization", () => {
       expect.objectContaining({
         title: "Fix runtime source launch",
         instruction: expect.stringContaining("GitHub issue #42: Fix runtime source launch"),
-        missionBrief: expect.objectContaining({
-          objective: "Fix runtime source launch",
-        }),
         taskSource: expect.objectContaining({
           kind: "github_issue",
           label: "GitHub issue #42",
@@ -52,8 +49,6 @@ describe("githubSourceLaunchNormalization", () => {
     expect(normalized.instruction).toContain("Labels: bug, launcher");
     expect(normalized.instruction).toContain("Issue body:");
     expect(normalized.instruction).toContain("Keep the launch flow desktop-only for now.");
-    expect(normalized.missionBrief.permissionSummary).toBeNull();
-    expect(normalized.missionBrief.preferredBackendIds).toBeNull();
   });
 
   it("falls back cleanly when GitHub issue body is missing", () => {
@@ -107,7 +102,6 @@ describe("githubSourceLaunchNormalization", () => {
       pullRequest,
       diffs,
       comments,
-      preferredBackendIds: ["backend-a", "backend-a", "backend-b"],
     });
 
     expect(normalized).toEqual(
@@ -116,10 +110,6 @@ describe("githubSourceLaunchNormalization", () => {
         instruction: expect.stringContaining(
           "GitHub PR follow-up #17: Propagate taskSource through launch inputs"
         ),
-        missionBrief: expect.objectContaining({
-          objective: "Propagate taskSource through launch inputs",
-          preferredBackendIds: ["backend-a", "backend-b"],
-        }),
         taskSource: expect.objectContaining({
           kind: "github_pr_followup",
           label: "GitHub PR follow-up #17",
@@ -140,8 +130,6 @@ describe("githubSourceLaunchNormalization", () => {
     expect(normalized.instruction).toContain("- src/a.ts");
     expect(normalized.instruction).toContain("Discussion notes:");
     expect(normalized.instruction).toContain("@reviewer: Keep the wrapper fallback safe.");
-    expect(normalized.missionBrief.permissionSummary).toBeNull();
-    expect(normalized.missionBrief.preferredBackendIds).toEqual(["backend-a", "backend-b"]);
   });
 
   it("falls back cleanly when GitHub PR follow-up diffs and comments are missing", () => {

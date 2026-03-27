@@ -99,7 +99,7 @@ use runtime_backends_dispatch::{
     handle_distributed_task_graph, handle_runtime_backend_remove, handle_runtime_backend_set_state,
     handle_runtime_backend_upsert, handle_runtime_backends_list,
 };
-use runtime_kernel_v2_dispatch::{
+pub(crate) use runtime_kernel_v2_dispatch::{
     handle_runtime_review_get_v2, handle_runtime_run_get_v2, handle_runtime_run_intervene_v2,
     handle_runtime_run_prepare_v2, handle_runtime_run_resume_v2,
     handle_runtime_run_start_v2, handle_runtime_run_subscribe_v2,
