@@ -202,7 +202,7 @@ export async function applyRuntimeFlags() {
   const runtimeHost = await detectDesktopRuntimeHost();
   document.documentElement.dataset.desktopRuntime = runtimeHost;
   document.documentElement.dataset.electronRuntime = runtimeHost === "electron" ? "true" : "false";
-  document.documentElement.removeAttribute("data-desktop-runtime");
+  document.documentElement.removeAttribute("data-tauri-runtime");
 }
 
 export function resetRuntimeBootstrapStateForTest() {

@@ -101,11 +101,7 @@ export function saveStoredWebRuntimeGatewayProfile(
 
 export function detectBrowserRuntimeMode(
   configuredProfile: ConfiguredWebRuntimeGatewayProfile | null
-): "tauri" | "runtime-gateway-web" | "unavailable" {
-  if (isTauriRuntimeBridgeAvailable()) {
-    return "tauri";
-  }
-
+): "runtime-gateway-web" | "unavailable" {
   if (configuredProfile?.enabled || hasConfiguredWebRuntimeGateway()) {
     return "runtime-gateway-web";
   }
@@ -116,10 +112,6 @@ export function detectBrowserRuntimeMode(
 export function detectBrowserRuntimeConnectionState(
   configuredProfile: ConfiguredWebRuntimeGatewayProfile | null
 ): BrowserRuntimeConnectionState {
-  if (isTauriRuntimeBridgeAvailable()) {
-    return "connected";
-  }
-
   if (configuredProfile?.enabled || hasConfiguredWebRuntimeGateway()) {
     return "connected";
   }
@@ -128,34 +120,8 @@ export function detectBrowserRuntimeConnectionState(
 }
 
 export function isTauriRuntimeBridgeAvailable(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  const tauriWindow = window as Window & {
-    __TAURI__?: unknown;
-    __TAURI_INTERNALS__?: unknown;
-    __TAURI_IPC__?: unknown;
-  };
-
-  if (typeof tauriWindow.__TAURI_IPC__ === "function") {
-    return true;
-  }
-
-  if (isRecord(tauriWindow.__TAURI_INTERNALS__)) {
-    const invoke = tauriWindow.__TAURI_INTERNALS__.invoke;
-    if (typeof invoke === "function") {
-      return true;
-    }
-  }
-
-  if (isRecord(tauriWindow.__TAURI__)) {
-    const core = tauriWindow.__TAURI__.core;
-    if (isRecord(core) && typeof core.invoke === "function") {
-      return true;
-    }
-  }
-
+  // Compatibility shim: the active desktop host is Electron, so browser runtime
+  // detection should never route the app back into the retired Tauri path.
   return false;
 }
 
