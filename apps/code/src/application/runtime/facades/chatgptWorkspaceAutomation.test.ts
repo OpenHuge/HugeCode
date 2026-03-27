@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { OAuthAccountSummary } from "../ports/tauriOauth";
 import {
+  doesActiveChatgptAccountMatch,
   leaveDeactivatedChatgptWorkspacesWithDeps,
+  parseRemoteChatgptAccountIdentity,
   resolveLocalChromeDebuggerEndpointWithDeps,
   reviewDeactivatedChatgptWorkspacesWithDeps,
 } from "./chatgptWorkspaceAutomation";
@@ -83,6 +85,7 @@ describe("chatgptWorkspaceAutomation", () => {
 
   it("reports a blocked status when no local Chrome CDP endpoint is available", async () => {
     const result = await reviewDeactivatedChatgptWorkspacesWithDeps(buildAccount(), {
+      readActiveAccountIdentity: vi.fn(async () => null),
       reviewRemoteWorkspaces: vi.fn(),
       resolveChromeDebuggerEndpoint: vi.fn(async () => null),
     });
@@ -98,6 +101,11 @@ describe("chatgptWorkspaceAutomation", () => {
 
   it("returns only locally recorded workspaces that remote ChatGPT confirms as deactivated", async () => {
     const result = await reviewDeactivatedChatgptWorkspacesWithDeps(buildAccount(), {
+      readActiveAccountIdentity: vi.fn(async () => ({
+        externalAccountId: "chatgpt-account-1",
+        email: "dev@example.com",
+        title: "Dev",
+      })),
       resolveChromeDebuggerEndpoint: vi.fn(async () => ({
         httpBaseUrl: "http://127.0.0.1:9222",
         webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/browser-1",
@@ -140,6 +148,31 @@ describe("chatgptWorkspaceAutomation", () => {
     ]);
   });
 
+  it("blocks destructive cleanup when the active ChatGPT session belongs to a different account", async () => {
+    const result = await reviewDeactivatedChatgptWorkspacesWithDeps(buildAccount(), {
+      readActiveAccountIdentity: vi.fn(async () => ({
+        externalAccountId: "chatgpt-account-2",
+        email: "other@example.com",
+        title: "Other Account",
+      })),
+      resolveChromeDebuggerEndpoint: vi.fn(async () => ({
+        httpBaseUrl: "http://127.0.0.1:9222",
+        webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/browser-1",
+      })),
+      reviewRemoteWorkspaces: vi.fn(async () => [
+        {
+          remoteWorkspaceId: "ws-deactivated",
+          title: "Beta Org",
+          isDeactivated: true,
+        },
+      ]),
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(result.message).toContain("does not match");
+    expect(result.candidates).toEqual([]);
+  });
+
   it("aggregates leave results and refresh candidates by workspace id", async () => {
     const account = buildAccount();
     const result = await leaveDeactivatedChatgptWorkspacesWithDeps(
@@ -178,5 +211,49 @@ describe("chatgptWorkspaceAutomation", () => {
       failedWorkspaceIds: [],
       message: expect.stringContaining("Beta Org"),
     });
+  });
+
+  it("parses the active ChatGPT account identity from accounts-check payloads", () => {
+    expect(
+      parseRemoteChatgptAccountIdentity({
+        current_account_id: "chatgpt-account-1",
+        accounts: [
+          {
+            account_id: "chatgpt-account-1",
+            email: "dev@example.com",
+            account_name: "Dev Account",
+          },
+        ],
+      })
+    ).toEqual({
+      externalAccountId: "chatgpt-account-1",
+      email: "dev@example.com",
+      title: "Dev Account",
+    });
+  });
+
+  it("matches active ChatGPT identity by account id or email", () => {
+    const account = buildAccount();
+    expect(
+      doesActiveChatgptAccountMatch(account, {
+        externalAccountId: "chatgpt-account-1",
+        email: null,
+        title: null,
+      })
+    ).toBe(true);
+    expect(
+      doesActiveChatgptAccountMatch(account, {
+        externalAccountId: null,
+        email: "dev@example.com",
+        title: null,
+      })
+    ).toBe(true);
+    expect(
+      doesActiveChatgptAccountMatch(account, {
+        externalAccountId: "chatgpt-account-2",
+        email: "other@example.com",
+        title: null,
+      })
+    ).toBe(false);
   });
 });

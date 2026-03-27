@@ -354,7 +354,7 @@ export function useCodexAccountActions({
           account,
           candidates,
         });
-        if (result.status === "completed") {
+        if (result.leftWorkspaceIds.length > 0) {
           await refreshOAuthState();
         }
         return result;

@@ -1599,6 +1599,95 @@ describe("SettingsCodexAccountsCard", () => {
     });
   });
 
+  it("refreshes OAuth state after partially successful deactivated workspace cleanup", async () => {
+    const now = Date.now();
+    listOAuthAccountsMock.mockResolvedValue([
+      {
+        accountId: "codex-deactivated-1",
+        provider: "codex",
+        externalAccountId: "chatgpt-account-1",
+        email: "cleanup@example.com",
+        displayName: "Cleanup Account",
+        status: "enabled",
+        disabledReason: null,
+        metadata: {},
+        chatgptWorkspaces: [
+          {
+            workspaceId: "ws-alpha",
+            title: "Alpha Team",
+            role: "owner",
+            isDefault: true,
+          },
+          {
+            workspaceId: "ws-beta",
+            title: "Beta Org",
+            role: "member",
+            isDefault: false,
+          },
+        ],
+        defaultChatgptWorkspaceId: "ws-alpha",
+        createdAt: now - 1_000,
+        updatedAt: now - 500,
+      },
+    ]);
+    listOAuthPoolsMock.mockResolvedValue([]);
+    reviewDeactivatedChatgptWorkspacesMock.mockResolvedValue({
+      status: "supported",
+      message: "Found 1 deactivated ChatGPT workspace.",
+      endpoint: {
+        httpBaseUrl: "http://127.0.0.1:9222",
+        webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/browser-1",
+      },
+      remoteWorkspaces: [
+        {
+          remoteWorkspaceId: "ws-beta",
+          title: "Beta Org",
+          isDeactivated: true,
+        },
+      ],
+      candidates: [
+        {
+          localWorkspace: {
+            workspaceId: "ws-beta",
+            title: "Beta Org",
+            role: "member",
+            isDefault: false,
+          },
+          remoteWorkspace: {
+            remoteWorkspaceId: "ws-beta",
+            title: "Beta Org",
+            isDeactivated: true,
+          },
+        },
+      ],
+    });
+    leaveDeactivatedChatgptWorkspacesMock.mockResolvedValue({
+      status: "failed",
+      message: "Left Beta Org, but failed to leave another workspace.",
+      endpoint: {
+        httpBaseUrl: "http://127.0.0.1:9222",
+        webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/browser-1",
+      },
+      leftWorkspaceIds: ["ws-beta"],
+      failedWorkspaceIds: ["ws-gamma"],
+    });
+
+    render(<SettingsCodexAccountsCard />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Review deactivated workspaces" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Leave deactivated workspaces" });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole("button", { name: "Leave workspaces" }));
+    });
+
+    await waitFor(() => {
+      expect(leaveDeactivatedChatgptWorkspacesMock).toHaveBeenCalled();
+      expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
   it("autosaves renamed pool names", async () => {
     const now = Date.now();
     listOAuthAccountsMock.mockResolvedValue([

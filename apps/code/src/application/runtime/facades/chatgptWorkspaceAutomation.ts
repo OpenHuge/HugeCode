@@ -47,12 +47,21 @@ export type LeaveDeactivatedChatgptWorkspacesResult = {
   failedWorkspaceIds: string[];
 };
 
+export type RemoteChatgptAccountIdentity = {
+  externalAccountId: string | null;
+  email: string | null;
+  title: string | null;
+};
+
 type ReviewDeactivatedChatgptWorkspacesDeps = {
   resolveChromeDebuggerEndpoint(): Promise<LocalChromeDebuggerEndpoint | null>;
   reviewRemoteWorkspaces(
     endpoint: LocalChromeDebuggerEndpoint,
     account: OAuthAccountSummary
   ): Promise<RemoteChatgptWorkspace[]>;
+  readActiveAccountIdentity(
+    endpoint: LocalChromeDebuggerEndpoint
+  ): Promise<RemoteChatgptAccountIdentity | null>;
 };
 
 type LeaveWorkspaceExecutionResult = {
@@ -143,6 +152,25 @@ function buildUnavailableResult(message: string): ReviewDeactivatedChatgptWorksp
   };
 }
 
+export function doesActiveChatgptAccountMatch(
+  account: OAuthAccountSummary,
+  activeAccount: RemoteChatgptAccountIdentity | null
+): boolean {
+  if (!activeAccount) {
+    return false;
+  }
+  const localExternalAccountId = normalizeWorkspaceKey(account.externalAccountId);
+  const localEmail = normalizeWorkspaceKey(account.email);
+  const activeExternalAccountId = normalizeWorkspaceKey(activeAccount.externalAccountId);
+  const activeEmail = normalizeWorkspaceKey(activeAccount.email);
+  const externalAccountMatches =
+    localExternalAccountId !== null &&
+    activeExternalAccountId !== null &&
+    localExternalAccountId === activeExternalAccountId;
+  const emailMatches = localEmail !== null && activeEmail !== null && localEmail === activeEmail;
+  return externalAccountMatches || emailMatches;
+}
+
 export async function reviewDeactivatedChatgptWorkspacesWithDeps(
   account: OAuthAccountSummary,
   deps: ReviewDeactivatedChatgptWorkspacesDeps
@@ -167,6 +195,21 @@ export async function reviewDeactivatedChatgptWorkspacesWithDeps(
 
   try {
     const remoteWorkspaces = await deps.reviewRemoteWorkspaces(endpoint, account);
+    const activeAccount = await deps.readActiveAccountIdentity(endpoint);
+    if (!doesActiveChatgptAccountMatch(account, activeAccount)) {
+      const activeIdentityLabel =
+        readNonEmptyText(activeAccount?.email) ??
+        readNonEmptyText(activeAccount?.title) ??
+        readNonEmptyText(activeAccount?.externalAccountId) ??
+        "an unverified ChatGPT account";
+      return {
+        status: "blocked",
+        message: `The active ChatGPT session belongs to ${activeIdentityLabel}, which does not match HugeCode account ${account.accountId}. Switch to the matching ChatGPT account before leaving workspaces.`,
+        endpoint,
+        candidates: [],
+        remoteWorkspaces,
+      };
+    }
     const candidates = memberships.flatMap((localWorkspace) => {
       const localId = normalizeWorkspaceKey(localWorkspace.workspaceId);
       const localTitle = normalizeWorkspaceKey(readWorkspaceTitle(localWorkspace));
@@ -299,6 +342,7 @@ export function reviewDeactivatedChatgptWorkspaces(account: OAuthAccountSummary)
   return reviewDeactivatedChatgptWorkspacesWithDeps(account, {
     resolveChromeDebuggerEndpoint: resolveLocalChromeDebuggerEndpoint,
     reviewRemoteWorkspaces: reviewRemoteChatgptWorkspaces,
+    readActiveAccountIdentity: readActiveRemoteChatgptAccountIdentity,
   });
 }
 
@@ -611,24 +655,43 @@ function buildWorkspaceLeaveExpression(
         return content.includes(normalizedText);
       }) || null;
     };
-    const allButtons = () => Array.from(document.querySelectorAll("button,[role='button'],[aria-haspopup='menu']"));
-    const menuTrigger =
-      allButtons().find((element) => {
+    const findAllByText = (selector, text, root = document) => {
+      const normalizedText = normalize(text);
+      return Array.from(root.querySelectorAll(selector)).filter((element) => {
         const content = normalize(element.textContent || "");
-        if (accountEmail && content.includes(normalize(accountEmail))) {
-          return true;
-        }
-        return content.includes(normalize(workspaceTitle));
-      }) ||
-      allButtons().find((element) => element.getAttribute("aria-haspopup") === "menu") ||
-      null;
+        return content.includes(normalizedText);
+      });
+    };
+    const allButtons = () => Array.from(document.querySelectorAll("button,[role='button'],[aria-haspopup='menu']"));
+    const accountMenuTriggers =
+      accountEmail
+        ? allButtons().filter((element) => {
+            const content = normalize(element.textContent || "");
+            return content.includes(normalize(accountEmail));
+          })
+        : [];
+    const workspaceMenuTriggers = allButtons().filter((element) => {
+      const content = normalize(element.textContent || "");
+      return content.includes(normalize(workspaceTitle));
+    });
+    const menuTriggerCandidates =
+      accountMenuTriggers.length > 0 ? accountMenuTriggers : workspaceMenuTriggers;
+    if (menuTriggerCandidates.length > 1) {
+      throw new Error("Unable to uniquely identify the ChatGPT workspace switcher for this account.");
+    }
+    const menuTrigger = menuTriggerCandidates[0] || null;
     if (!menuTrigger || !clickElement(menuTrigger)) {
       throw new Error("Unable to open the ChatGPT workspace switcher.");
     }
     await sleep(250);
-    const workspaceRow =
-      findByText("[role='menuitem'],button,div,li", workspaceTitle) ||
-      findByText("*", workspaceTitle);
+    const workspaceRows =
+      findAllByText("[role='menuitem'],button,div,li", workspaceTitle).filter(
+        (element) => !menuTriggerCandidates.includes(element)
+      ) || [];
+    if (workspaceRows.length > 1) {
+      throw new Error("Multiple ChatGPT workspaces share this title. Leave the workspace manually from ChatGPT.");
+    }
+    const workspaceRow = workspaceRows[0] || findByText("*", workspaceTitle);
     if (!workspaceRow) {
       throw new Error("Unable to find the deactivated ChatGPT workspace in the switcher.");
     }
@@ -755,12 +818,104 @@ function parseRemoteChatgptWorkspaces(payload: unknown): RemoteChatgptWorkspace[
   });
 }
 
+export function parseRemoteChatgptAccountIdentity(
+  payload: unknown
+): RemoteChatgptAccountIdentity | null {
+  if (!isRecord(payload)) {
+    return null;
+  }
+
+  const accountRecords = [
+    payload.accounts,
+    payload.accounts_ordered,
+    payload.workspaces,
+    payload.organizations,
+  ]
+    .flatMap((value) => (Array.isArray(value) ? value.filter(isRecord) : []))
+    .map((record) => ({
+      externalAccountId:
+        readNonEmptyText(record.account_id) ??
+        readNonEmptyText(record.accountId) ??
+        readNonEmptyText(record.workspace_id) ??
+        readNonEmptyText(record.workspaceId) ??
+        readNonEmptyText(record.organization_id) ??
+        readNonEmptyText(record.organizationId) ??
+        readNonEmptyText(record.id),
+      email:
+        readNonEmptyText(record.email) ??
+        readNonEmptyText(record.account_email) ??
+        readNonEmptyText(record.accountEmail) ??
+        readNonEmptyText(record.user_email) ??
+        readNonEmptyText(record.userEmail),
+      title:
+        readNonEmptyText(record.account_name) ??
+        readNonEmptyText(record.accountName) ??
+        readNonEmptyText(record.workspace_name) ??
+        readNonEmptyText(record.workspaceName) ??
+        readNonEmptyText(record.organization_name) ??
+        readNonEmptyText(record.organizationName) ??
+        readNonEmptyText(record.name) ??
+        readNonEmptyText(record.title),
+      isActive:
+        readBoolean(record.is_current) ??
+        readBoolean(record.isCurrent) ??
+        readBoolean(record.current) ??
+        readBoolean(record.is_selected) ??
+        readBoolean(record.isSelected) ??
+        readBoolean(record.selected) ??
+        readBoolean(record.is_active) ??
+        readBoolean(record.isActive) ??
+        readBoolean(record.active) ??
+        readBoolean(record.is_default) ??
+        readBoolean(record.isDefault) ??
+        readBoolean(record.default) ??
+        false,
+    }));
+
+  if (accountRecords.length === 0) {
+    return null;
+  }
+
+  const activeRecord =
+    accountRecords.find((record) => record.isActive) ??
+    accountRecords.find(
+      (record) =>
+        normalizeWorkspaceKey(record.externalAccountId) ===
+        normalizeWorkspaceKey(
+          readNonEmptyText(payload.current_account_id) ??
+            readNonEmptyText(payload.currentAccountId) ??
+            readNonEmptyText(payload.active_account_id) ??
+            readNonEmptyText(payload.activeAccountId)
+        )
+    ) ??
+    (accountRecords.length === 1 ? (accountRecords[0] ?? null) : null);
+
+  if (!activeRecord) {
+    return null;
+  }
+
+  return {
+    externalAccountId: activeRecord.externalAccountId,
+    email: activeRecord.email,
+    title: activeRecord.title,
+  };
+}
+
 async function reviewRemoteChatgptWorkspaces(
   endpoint: LocalChromeDebuggerEndpoint
 ): Promise<RemoteChatgptWorkspace[]> {
   return withChatgptPageSession(endpoint, async (session) => {
     const payload = await evaluateJson<unknown>(session, buildWorkspaceReviewExpression());
     return parseRemoteChatgptWorkspaces(payload);
+  });
+}
+
+async function readActiveRemoteChatgptAccountIdentity(
+  endpoint: LocalChromeDebuggerEndpoint
+): Promise<RemoteChatgptAccountIdentity | null> {
+  return withChatgptPageSession(endpoint, async (session) => {
+    const payload = await evaluateJson<unknown>(session, buildWorkspaceReviewExpression());
+    return parseRemoteChatgptAccountIdentity(payload);
   });
 }
 
