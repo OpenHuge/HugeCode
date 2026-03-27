@@ -169,13 +169,15 @@ pub(crate) fn current_rpc_methods(methods: &[&str]) -> Vec<String> {
 
 pub(crate) fn current_rpc_features() -> Vec<String> {
     let mut seen = HashSet::new();
-    CODE_RUNTIME_RPC_FEATURES
+    let mut features: Vec<String> = CODE_RUNTIME_RPC_FEATURES
         .iter()
         .filter_map(|feature| {
             let owned = (*feature).to_string();
             seen.insert(owned.clone()).then_some(owned)
         })
-        .collect()
+        .collect();
+    features.sort_unstable();
+    features
 }
 
 #[tauri::command]
