@@ -24,7 +24,10 @@ import * as styles from "./ReviewQueuePanel.css";
 
 type ReviewQueueFilter =
   | "all"
+  | "critical_review"
   | "needs_attention"
+  | "autofix_ready"
+  | "blocked_follow_up"
   | "incomplete_evidence"
   | "fallback_routing"
   | "sub_agent_blocked";
@@ -75,6 +78,96 @@ function resolveEntrySelection(
   return entry.runId === selectedRunId;
 }
 
+function getReviewFindingCount(entry: MissionReviewEntry): number {
+  return typeof entry.reviewFindingCount === "number" ? entry.reviewFindingCount : 0;
+}
+
+function isCriticalReviewEntry(entry: MissionReviewEntry): boolean {
+  return (
+    entry.reviewGateState === "fail" ||
+    entry.reviewGateState === "blocked" ||
+    entry.highestReviewSeverity === "critical"
+  );
+}
+
+function isAutofixReadyEntry(entry: MissionReviewEntry): boolean {
+  return entry.autofixAvailable === true;
+}
+
+function isBlockedFollowUpEntry(entry: MissionReviewEntry): boolean {
+  return (
+    entry.continuationState === "blocked" ||
+    entry.continuationState === "degraded" ||
+    (entry.filterTags ?? []).includes("sub_agent_blocked")
+  );
+}
+
+function matchesFilter(entry: MissionReviewEntry, filter: ReviewQueueFilter): boolean {
+  switch (filter) {
+    case "all":
+      return true;
+    case "critical_review":
+      return isCriticalReviewEntry(entry);
+    case "needs_attention":
+      return (entry.filterTags ?? []).includes("needs_attention");
+    case "autofix_ready":
+      return isAutofixReadyEntry(entry);
+    case "blocked_follow_up":
+      return isBlockedFollowUpEntry(entry);
+    case "incomplete_evidence":
+      return (entry.filterTags ?? []).includes("incomplete_evidence");
+    case "fallback_routing":
+      return (entry.filterTags ?? []).includes("fallback_routing");
+    case "sub_agent_blocked":
+      return (entry.filterTags ?? []).includes("sub_agent_blocked");
+    default:
+      return false;
+  }
+}
+
+function resolveQueuePriority(entry: MissionReviewEntry): number {
+  let score = 0;
+
+  if (isCriticalReviewEntry(entry)) {
+    score += 100;
+  }
+  if ((entry.filterTags ?? []).includes("needs_attention")) {
+    score += 60;
+  }
+  if (isBlockedFollowUpEntry(entry)) {
+    score += 40;
+  }
+  if (isAutofixReadyEntry(entry)) {
+    score += 30;
+  }
+  if ((entry.filterTags ?? []).includes("incomplete_evidence")) {
+    score += 20;
+  }
+  if ((entry.filterTags ?? []).includes("fallback_routing")) {
+    score += 15;
+  }
+  if ((entry.filterTags ?? []).includes("sub_agent_blocked")) {
+    score += 10;
+  }
+
+  score += Math.min(getReviewFindingCount(entry), 9);
+  score += Math.min(entry.warningCount, 5);
+
+  return score;
+}
+
+function buildPrioritySummary(entry: MissionReviewEntry): string | null {
+  const details = [
+    isCriticalReviewEntry(entry) ? "Critical review" : null,
+    isBlockedFollowUpEntry(entry) ? "Blocked follow-up" : null,
+    isAutofixReadyEntry(entry) ? "Autofix ready" : null,
+    getReviewFindingCount(entry) > 0 ? `${getReviewFindingCount(entry)} findings` : null,
+    entry.highestReviewSeverity ? `Highest severity ${entry.highestReviewSeverity}` : null,
+  ].filter((value): value is string => Boolean(value));
+
+  return details.length > 0 ? details.join(" | ") : null;
+}
+
 export function ReviewQueuePanel({
   workspaceName = null,
   items,
@@ -91,24 +184,31 @@ export function ReviewQueuePanel({
   const filterCounts = useMemo(
     () => ({
       all: items.length,
-      needs_attention: items.filter((item) => (item.filterTags ?? []).includes("needs_attention"))
+      critical_review: items.filter((item) => matchesFilter(item, "critical_review")).length,
+      needs_attention: items.filter((item) => matchesFilter(item, "needs_attention")).length,
+      autofix_ready: items.filter((item) => matchesFilter(item, "autofix_ready")).length,
+      blocked_follow_up: items.filter((item) => matchesFilter(item, "blocked_follow_up")).length,
+      incomplete_evidence: items.filter((item) => matchesFilter(item, "incomplete_evidence"))
         .length,
-      incomplete_evidence: items.filter((item) =>
-        (item.filterTags ?? []).includes("incomplete_evidence")
-      ).length,
-      fallback_routing: items.filter((item) => (item.filterTags ?? []).includes("fallback_routing"))
-        .length,
-      sub_agent_blocked: items.filter((item) =>
-        (item.filterTags ?? []).includes("sub_agent_blocked")
-      ).length,
+      fallback_routing: items.filter((item) => matchesFilter(item, "fallback_routing")).length,
+      sub_agent_blocked: items.filter((item) => matchesFilter(item, "sub_agent_blocked")).length,
     }),
     [items]
   );
   const visibleItems = useMemo(
     () =>
-      activeFilter === "all"
-        ? items
-        : items.filter((item) => (item.filterTags ?? []).includes(activeFilter)),
+      items
+        .filter((item) => matchesFilter(item, activeFilter))
+        .slice()
+        .sort((left, right) => {
+          const priorityDelta = resolveQueuePriority(right) - resolveQueuePriority(left);
+          if (priorityDelta !== 0) {
+            return priorityDelta;
+          }
+          return (
+            (right.queueEnteredAt ?? right.createdAt) - (left.queueEnteredAt ?? left.createdAt)
+          );
+        }),
     [activeFilter, items]
   );
 
@@ -153,10 +253,28 @@ export function ReviewQueuePanel({
           detail="Runtime-backed queue items"
         />
         <ReviewSummaryCard
+          label="Critical now"
+          value={filterCounts.critical_review}
+          detail="Blocked gates or critical review severity"
+          tone={filterCounts.critical_review > 0 ? "attention" : "default"}
+        />
+        <ReviewSummaryCard
           label="Needs attention"
           value={filterCounts.needs_attention}
           detail="Approval, intervention, or degraded review"
           tone={filterCounts.needs_attention > 0 ? "attention" : "default"}
+        />
+        <ReviewSummaryCard
+          label="Autofix ready"
+          value={filterCounts.autofix_ready}
+          detail="Bounded review fixes can be applied now"
+          tone={filterCounts.autofix_ready > 0 ? "attention" : "default"}
+        />
+        <ReviewSummaryCard
+          label="Blocked follow-up"
+          value={filterCounts.blocked_follow_up}
+          detail="Continuation or delegated recovery is constrained"
+          tone={filterCounts.blocked_follow_up > 0 ? "attention" : "default"}
         />
         <ReviewSummaryCard
           label="Fallback routing"
@@ -164,22 +282,18 @@ export function ReviewQueuePanel({
           detail="Routing degraded away from the preferred path"
           tone={filterCounts.fallback_routing > 0 ? "attention" : "default"}
         />
-        <ReviewSummaryCard
-          label="Sub-agent blocked"
-          value={filterCounts.sub_agent_blocked}
-          detail="Delegated work is waiting for operator recovery"
-          tone={filterCounts.sub_agent_blocked > 0 ? "attention" : "default"}
-        />
       </div>
 
       <ReviewActionRail className={styles.actionRow}>
         {(
           [
             ["all", "All"],
+            ["critical_review", "Critical now"],
             ["needs_attention", "Needs attention"],
+            ["autofix_ready", "Autofix ready"],
+            ["blocked_follow_up", "Blocked follow-up"],
             ["incomplete_evidence", "Incomplete evidence"],
             ["fallback_routing", "Fallback routing"],
-            ["sub_agent_blocked", "Sub-agent blocked"],
           ] as const
         ).map(([filterId, label]) => (
           <Button
@@ -205,6 +319,7 @@ export function ReviewQueuePanel({
           {visibleItems.map((entry) =>
             (() => {
               const isSelected = resolveEntrySelection(entry, selectedReviewPackId, selectedRunId);
+              const prioritySummary = buildPrioritySummary(entry);
               const supervisionSignals = [
                 entry.subAgentSignal,
                 entry.failureClassLabel,
@@ -245,12 +360,15 @@ export function ReviewQueuePanel({
                             {entry.reviewGateLabel}
                           </StatusBadge>
                         ) : null}
+                        {isCriticalReviewEntry(entry) ? (
+                          <StatusBadge tone="warning">Critical review</StatusBadge>
+                        ) : null}
                         <StatusBadge>{entry.evidenceLabel}</StatusBadge>
                         {(entry.filterTags ?? []).includes("fallback_routing") ? (
                           <StatusBadge tone="warning">Fallback routing</StatusBadge>
                         ) : null}
-                        {(entry.filterTags ?? []).includes("sub_agent_blocked") ? (
-                          <StatusBadge tone="warning">Sub-agent blocked</StatusBadge>
+                        {isBlockedFollowUpEntry(entry) ? (
+                          <StatusBadge tone="warning">Blocked follow-up</StatusBadge>
                         ) : null}
                         {entry.warningCount > 0 ? (
                           <StatusBadge tone="warning">{`${entry.warningCount} warnings`}</StatusBadge>
@@ -334,6 +452,9 @@ export function ReviewQueuePanel({
                   ) : null}
                   {entry.routeDetail ? (
                     <div className={styles.footerCopy}>{entry.routeDetail}</div>
+                  ) : null}
+                  {prioritySummary ? (
+                    <div className={styles.footerCopy}>Triage: {prioritySummary}</div>
                   ) : null}
                   {entry.operatorActionLabel ? (
                     <div className={styles.footerCopy}>
