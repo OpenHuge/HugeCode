@@ -995,6 +995,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Launch readiness needs attention")).toBeTruthy();
+      expect(screen.getByText("Attention")).toBeTruthy();
       expect(screen.getAllByText(/fall back to local\/native execution/i).length).toBeGreaterThan(
         0
       );

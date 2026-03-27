@@ -89,6 +89,18 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const oldestPendingApprovalTask = missionControlProjection.approvalPressure.oldestPendingTask;
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
   const launchReadiness = missionControlProjection.launchReadiness;
+  const launchReadinessStatusLabel =
+    launchReadiness.state === "ready"
+      ? "Ready"
+      : launchReadiness.state === "blocked"
+        ? "Blocked"
+        : "Attention";
+  const launchReadinessStatusTone =
+    launchReadiness.state === "ready"
+      ? "success"
+      : launchReadiness.state === "blocked"
+        ? "danger"
+        : "warning";
   const activeRuntimeCount = missionControlProjection.runList.activeRuntimeCount;
   const visibleRuntimeRuns = missionControlProjection.runList.visibleRuntimeRuns;
   const checkpointFailureSummary =
@@ -362,8 +374,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
 
       <MissionControlSectionCard
         title="Launch readiness"
-        statusLabel={launchReadiness.launchAllowed ? "Ready" : "Blocked"}
-        statusTone={launchReadiness.launchAllowed ? "success" : "danger"}
+        statusLabel={launchReadinessStatusLabel}
+        statusTone={launchReadinessStatusTone}
         meta={
           <>
             <ToolCallChip tone="neutral">
