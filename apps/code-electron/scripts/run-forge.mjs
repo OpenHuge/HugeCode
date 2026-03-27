@@ -3,13 +3,16 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { delimiter, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  createForgeStagePackageJson,
+  shouldInstallForgeStageDependencies,
+} from "./forge-stage-package.mjs";
 import { buildForgeEnvironment, resolveCommandInvocation } from "./run-forge-support.mjs";
 
 const scriptDir = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const packageDir = resolve(scriptDir, "..");
 const distDir = resolve(packageDir, "dist-electron");
 const outDir = resolve(packageDir, "out");
-const tempRootDir = resolve(packageDir, ".tmp");
 const packageJson = JSON.parse(await readFile(resolve(packageDir, "package.json"), "utf8"));
 const forgeConfigSource = resolve(packageDir, "forge.config.mjs");
 const workspaceRoot = resolve(packageDir, "../..");
@@ -17,6 +20,7 @@ const requireFromWorkspace = createRequire(resolve(workspaceRoot, "package.json"
 const electronForgeCli = requireFromWorkspace.resolve("@electron-forge/cli/dist/electron-forge.js");
 const darwinAdHocSignSource = resolve(scriptDir, "darwin-ad-hoc-sign.mjs");
 const localMakerDebSource = resolve(scriptDir, "maker-deb.cjs");
+const forgeTempRoot = resolve(workspaceRoot, "node_modules/.cache/hugecode-electron-forge");
 
 let forgeStageDir = "";
 let forgePackageDir = "";
@@ -101,7 +105,7 @@ export function createCliInvocation(commandName, args, platform = process.platfo
   if (platform === "win32") {
     const shellCommand = [resolvedCommand, ...args].map(quoteWindowsShellSegment).join(" ");
     return {
-      command: process.env.ComSpec || "cmd.exe",
+      command: "cmd.exe",
       args: ["/d", "/s", "/c", shellCommand],
     };
   }
@@ -113,43 +117,26 @@ export function createCliInvocation(commandName, args, platform = process.platfo
 }
 
 export function createStagedPackageJson(packageMetadata) {
-  const stagedDevDependencies = {};
-  for (const dependencyName of [
-    "@electron-forge/maker-deb",
-    "@electron-forge/plugin-fuses",
-    "@electron/fuses",
-    "@electron/osx-sign",
-    "electron",
-  ]) {
-    const version = packageMetadata.devDependencies?.[dependencyName];
-    if (typeof version === "string" && !version.startsWith("workspace:")) {
-      stagedDevDependencies[dependencyName] = version;
-    }
-  }
-
   return {
-    name: "hugecode",
-    productName: "HugeCode",
-    version: packageMetadata.version,
     author: typeof packageMetadata.author === "string" ? packageMetadata.author : "OpenHuge",
     description:
       typeof packageMetadata.description === "string"
         ? packageMetadata.description
         : "HugeCode beta desktop shell",
     productDescription: "HugeCode beta desktop shell",
-    type: "module",
-    main: "dist-electron/main/main.js",
-    repository: packageMetadata.repository,
-    config: {
-      forge: "./forge.config.mjs",
-    },
-    dependencies: Object.fromEntries(
-      Object.entries(packageMetadata.dependencies ?? {}).filter(
-        ([, version]) => typeof version === "string" && !version.startsWith("workspace:")
-      )
-    ),
-    devDependencies: stagedDevDependencies,
+    ...createForgeStagePackageJson(packageMetadata),
   };
+}
+
+export function createForgeStageInstallArgs(lockfileDir = workspaceRoot) {
+  return [
+    "install",
+    "--frozen-lockfile",
+    "--ignore-scripts",
+    "--ignore-workspace",
+    "--lockfile-dir",
+    lockfileDir,
+  ];
 }
 
 export function resolveForgeHostBinaryRequirements(command, platform = process.platform) {
@@ -303,9 +290,8 @@ async function runCommand(commandName, args, cwd, env = process.env) {
 }
 
 async function createStagePaths() {
-  const forgeTempDir = resolve(tempRootDir, "forge");
-  await mkdir(forgeTempDir, { recursive: true });
-  forgeStageDir = await mkdtemp(resolve(forgeTempDir, "stage-"));
+  await mkdir(forgeTempRoot, { recursive: true });
+  forgeStageDir = await mkdtemp(resolve(forgeTempRoot, "stage-"));
   forgePackageDir = resolve(forgeStageDir, "app");
 }
 
@@ -329,13 +315,10 @@ async function prepareStage() {
   );
   await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
 
-  if (
-    Object.keys(stagedPackageJson.dependencies ?? {}).length > 0 ||
-    Object.keys(stagedPackageJson.devDependencies ?? {}).length > 0
-  ) {
+  if (shouldInstallForgeStageDependencies(stagedPackageJson)) {
     await runCommand(
-      "npm",
-      ["install", "--include=dev", "--ignore-scripts", "--no-package-lock"],
+      "pnpm",
+      createForgeStageInstallArgs(workspaceRoot),
       forgePackageDir,
       process.env
     );
@@ -402,7 +385,7 @@ async function runForge() {
 
   try {
     await prepareStage();
-    const processTempDir = resolve(tempRootDir, "process");
+    const processTempDir = resolve(forgeTempRoot, "process");
     await mkdir(processTempDir, { recursive: true });
 
     await new Promise((resolvePromise, rejectPromise) => {

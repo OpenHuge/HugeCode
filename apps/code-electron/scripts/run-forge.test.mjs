@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertForgeHostBinaryRequirements,
   createCliInvocation,
+  createForgeStageInstallArgs,
   createStagedPackageJson,
   parseForgeCommand,
   resolveCliCommand,
@@ -32,7 +33,7 @@ describe("run-forge helpers", () => {
 
   it("wraps Windows CLI invocations through cmd.exe", () => {
     expect(createCliInvocation("npm", ["install"], "win32")).toEqual({
-      command: process.env.ComSpec || "cmd.exe",
+      command: "cmd.exe",
       args: ["/d", "/s", "/c", "npm.cmd install"],
     });
     expect(createCliInvocation("node", ["scripts/run.js"], "linux")).toEqual({
@@ -95,6 +96,17 @@ describe("run-forge helpers", () => {
       PATH: "C:\\Windows\\System32",
       KEEP_ME: "ok",
     });
+  });
+
+  it("installs staged dependencies with the workspace lockfile", () => {
+    expect(createForgeStageInstallArgs("/repo")).toEqual([
+      "install",
+      "--frozen-lockfile",
+      "--ignore-scripts",
+      "--ignore-workspace",
+      "--lockfile-dir",
+      "/repo",
+    ]);
   });
 });
 
