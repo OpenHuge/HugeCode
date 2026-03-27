@@ -101,6 +101,10 @@ Practical usage:
   waiting through the full latest-base suite.
 - Repo-authored PRs default to approval-driven auto-merge once required reviews,
   required checks, and conversation resolution are satisfied.
+- `PR Auto Merge` should also re-arm approved PRs that were previously dropped
+  from merge queue due to transient queue failures, stale auto-merge state, or
+  main-branch drift, instead of treating an existing auto-merge request as a
+  terminal success state.
 - Add the `manual-merge` label to keep an approved PR out of auto-merge and the
   merge queue until a human explicitly merges it.
 
