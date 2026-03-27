@@ -7,7 +7,7 @@ export type FocusableSection = "missions" | "review";
 
 export type ShellFocusTarget = {
   section: FocusableSection;
-  itemId: string;
+  itemId: string | null;
 };
 
 export const shellSections = [
@@ -130,9 +130,8 @@ export function ReadinessSummary({
                   className={styles.button}
                   onClick={() => {
                     if (
-                      operatorAction.targetItemId &&
-                      (operatorAction.targetSection === "missions" ||
-                        operatorAction.targetSection === "review")
+                      operatorAction.targetSection === "missions" ||
+                      operatorAction.targetSection === "review"
                     ) {
                       onOpenFocusTarget({
                         section: operatorAction.targetSection,
