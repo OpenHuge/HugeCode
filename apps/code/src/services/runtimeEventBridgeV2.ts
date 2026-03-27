@@ -632,18 +632,18 @@ export async function startAppServerBridgeV2(
       );
       if (runtimeUnsubscribe) {
         unsubscribers.push(runtimeUnsubscribe);
+        bridgeState.transition("open", {
+          reason: "tauri-listener-open",
+          transport: "tauri",
+          retryAttempt: 0,
+          retryDelayMs: null,
+          consecutiveFailures: 0,
+        });
+        return () => {
+          createCompositeUnsubscribe(unsubscribers)();
+          bridgeState.transition("stopped", { reason: "disposed", retryDelayMs: null });
+        };
       }
-      bridgeState.transition("open", {
-        reason: "tauri-listener-open",
-        transport: "tauri",
-        retryAttempt: 0,
-        retryDelayMs: null,
-        consecutiveFailures: 0,
-      });
-      return () => {
-        createCompositeUnsubscribe(unsubscribers)();
-        bridgeState.transition("stopped", { reason: "disposed", retryDelayMs: null });
-      };
     }
 
     const webUnsubscribe = await subscribeWebRuntimeEventsV2(onEvent, options);

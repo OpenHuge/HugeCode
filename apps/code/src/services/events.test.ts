@@ -28,6 +28,7 @@ const PROCESS_ENV = (
 const WEB_EVENTS_ENDPOINT_ENV = "VITE_CODE_RUNTIME_GATEWAY_WEB_EVENTS_ENDPOINT";
 const WEB_ENDPOINT_ENV = "VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT";
 const WEB_WS_ENDPOINT_ENV = "VITE_CODE_RUNTIME_GATEWAY_WEB_WS_ENDPOINT";
+const RUNTIME_EVENT_V2_ENV = "VITE_RUNTIME_EVENT_STATE_MACHINE_V2";
 
 const ORIGINAL_EVENT_SOURCE = globalThis.EventSource;
 const ORIGINAL_WEB_SOCKET = globalThis.WebSocket;
@@ -123,6 +124,7 @@ describe("events subscriptions", () => {
     setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, undefined);
     setProcessEnv(WEB_ENDPOINT_ENV, undefined);
     setProcessEnv(WEB_WS_ENDPOINT_ENV, undefined);
+    setProcessEnv(RUNTIME_EVENT_V2_ENV, undefined);
     MockEventSource.instances.forEach((source) => {
       source.reset();
     });
@@ -264,6 +266,43 @@ describe("events subscriptions", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("falls back to web runtime events when v2 desktop event subscription is unavailable", async () => {
+    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(listen).mockRejectedValueOnce(new Error("desktop event bridge unavailable"));
+    setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, "https://runtime.example.test/events");
+    setProcessEnv(RUNTIME_EVENT_V2_ENV, "1");
+    globalThis.EventSource = MockEventSource as typeof EventSource;
+
+    const onEvent = vi.fn();
+    const onError = vi.fn();
+    const cleanup = subscribeAppServerEvents(onEvent, { onError });
+
+    await vi.waitFor(() => {
+      expect(MockEventSource.instances).toHaveLength(1);
+    });
+    expect(onError).toHaveBeenCalledTimes(1);
+
+    MockEventSource.instances[0]?.emitMessage(
+      JSON.stringify({
+        workspace_id: "workspace-web",
+        message: {
+          method: "ping",
+        },
+      })
+    );
+
+    expect(onEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspace_id: "workspace-web",
+        message: expect.objectContaining({
+          method: "ping",
+        }),
+      })
+    );
+
+    cleanup();
   });
 
   it("adapts runtime-host turn events into app-server payloads", async () => {
