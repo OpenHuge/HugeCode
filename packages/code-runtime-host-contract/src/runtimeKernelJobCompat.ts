@@ -12,6 +12,7 @@ import {
 } from "./runtimeContinuationFacade.js";
 
 export type RuntimeKernelJobCompatCanonicalMethod =
+  | "code_runtime_run_start_v2"
   | "code_runtime_run_get_v2"
   | "code_runtime_run_subscribe_v2";
 

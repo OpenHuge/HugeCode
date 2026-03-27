@@ -100,7 +100,11 @@ function toRuntimeRunResumeAck(record: RuntimeRunRecordV2): RuntimeRunResumeAck 
 
 // Compat-only: product launches must call prepare/start v2 instead.
 export async function startRuntimeJob(request: KernelJobStartRequestV3): Promise<KernelJob> {
-  return getRuntimeClient().kernelJobStartV3(request);
+  const { delivery: _delivery, ...startRequest } = request;
+  const record = await getRuntimeClient().runtimeRunStartV2(
+    startRequest satisfies RuntimeRunStartRequest
+  );
+  return projectRuntimeRunRecordToKernelJobCompat(record, "code_runtime_run_start_v2");
 }
 
 export async function prepareRuntimeRunV2(

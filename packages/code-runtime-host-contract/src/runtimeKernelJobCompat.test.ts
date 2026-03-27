@@ -229,14 +229,14 @@ describe("runtimeKernelJobCompat", () => {
     } satisfies RuntimeRunRecordV2;
 
     expect(
-      projectRuntimeRunRecordToKernelJobCompat(record, "code_runtime_run_subscribe_v2")
+      projectRuntimeRunRecordToKernelJobCompat(record, "code_runtime_run_start_v2")
     ).toMatchObject({
       continuation: {
         summary: "Ready to resume.",
         resumeSupported: true,
       },
       metadata: {
-        canonicalMethod: "code_runtime_run_subscribe_v2",
+        canonicalMethod: "code_runtime_run_start_v2",
       },
     });
 
