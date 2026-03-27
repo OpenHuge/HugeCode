@@ -1,83 +1,67 @@
-import { getVersion } from "@tauri-apps/api/app";
-import { isTauri } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getDesktopHostBridge } from "./desktopHostBridge";
 
-type TauriCoreModule = {
-  isTauri: () => boolean;
+type DesktopCompatibilityEnvironment = {
+  getAppVersion?: () => Promise<string | null>;
+  getWindowLabel?: () => Promise<string | null>;
 };
 
-type TauriAppModule = {
-  getVersion: () => Promise<string>;
-};
+type DesktopCompatibilityEnvironmentLoader = () => Promise<DesktopCompatibilityEnvironment>;
 
-type TauriWindowModule = {
-  getCurrentWindow: () => {
-    label?: string | null;
-  };
-};
-
-type TauriRuntimeModules = {
-  app?: TauriAppModule;
-  core?: TauriCoreModule;
-  window?: TauriWindowModule;
-};
-
-type TauriModuleLoader = () => Promise<TauriRuntimeModules>;
-
-async function defaultTauriModuleLoader(): Promise<TauriRuntimeModules> {
+async function defaultDesktopCompatibilityEnvironmentLoader(): Promise<DesktopCompatibilityEnvironment> {
   return {
-    app: { getVersion },
-    core: { isTauri },
-    window: { getCurrentWindow },
+    getAppVersion: async () => {
+      const version = await getDesktopHostBridge()?.app?.getVersion?.();
+      return typeof version === "string" && version.length > 0 ? version : null;
+    },
+    getWindowLabel: async () => {
+      const label = await getDesktopHostBridge()?.window?.getLabel?.();
+      return typeof label === "string" && label.length > 0 ? label : null;
+    },
   };
 }
 
-let cachedTauriModulesPromise: Promise<TauriRuntimeModules> | null = null;
-let tauriModuleLoader: TauriModuleLoader = defaultTauriModuleLoader;
+let cachedCompatibilityEnvironmentPromise: Promise<DesktopCompatibilityEnvironment> | null = null;
+let compatibilityEnvironmentLoader: DesktopCompatibilityEnvironmentLoader =
+  defaultDesktopCompatibilityEnvironmentLoader;
 
-async function loadTauriModules() {
-  if (cachedTauriModulesPromise) {
-    return cachedTauriModulesPromise;
+async function loadCompatibilityEnvironment() {
+  if (cachedCompatibilityEnvironmentPromise) {
+    return cachedCompatibilityEnvironmentPromise;
   }
 
-  cachedTauriModulesPromise = tauriModuleLoader().catch(() => ({}));
-  return cachedTauriModulesPromise;
+  cachedCompatibilityEnvironmentPromise = compatibilityEnvironmentLoader().catch(() => ({}));
+  return cachedCompatibilityEnvironmentPromise;
 }
 
 export async function detectTauriRuntime() {
-  try {
-    const modules = await loadTauriModules();
-    return modules.core?.isTauri?.() === true;
-  } catch {
-    return false;
-  }
+  return false;
 }
 
-export async function readTauriWindowLabel() {
+export async function readDesktopCompatibilityWindowLabel() {
   try {
-    const modules = await loadTauriModules();
-    const label = modules.window?.getCurrentWindow?.().label;
-    return typeof label === "string" && label.length > 0 ? label : null;
+    return (await loadCompatibilityEnvironment()).getWindowLabel?.();
   } catch {
     return null;
   }
 }
 
-export async function readTauriAppVersion() {
+export async function readDesktopCompatibilityAppVersion() {
   try {
-    const modules = await loadTauriModules();
-    const version = await modules.app?.getVersion?.();
-    return typeof version === "string" && version.length > 0 ? version : null;
+    return (await loadCompatibilityEnvironment()).getAppVersion?.();
   } catch {
     return null;
   }
 }
-export function __setTauriModuleLoaderForTests(loader: TauriModuleLoader) {
-  tauriModuleLoader = loader;
-  cachedTauriModulesPromise = null;
+
+export const readTauriWindowLabel = readDesktopCompatibilityWindowLabel;
+export const readTauriAppVersion = readDesktopCompatibilityAppVersion;
+
+export function __setTauriModuleLoaderForTests(loader: DesktopCompatibilityEnvironmentLoader) {
+  compatibilityEnvironmentLoader = loader;
+  cachedCompatibilityEnvironmentPromise = null;
 }
 
 export function __resetTauriRuntimeEnvironmentForTests() {
-  tauriModuleLoader = defaultTauriModuleLoader;
-  cachedTauriModulesPromise = null;
+  compatibilityEnvironmentLoader = defaultDesktopCompatibilityEnvironmentLoader;
+  cachedCompatibilityEnvironmentPromise = null;
 }

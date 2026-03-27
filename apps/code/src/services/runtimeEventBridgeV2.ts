@@ -1,4 +1,3 @@
-import { isTauri } from "@tauri-apps/api/core";
 import type { AppServerEvent } from "../types";
 import { normalizeAppServerPayload } from "./eventsRuntimePayloadAdapter";
 import {
@@ -182,11 +181,7 @@ function readAgentEnvelopeMetadataFromEvent(event: AppServerEvent): AgentEnvelop
 }
 
 function isTauriRuntime(): boolean {
-  try {
-    return isTauri();
-  } catch {
-    return false;
-  }
+  return false;
 }
 
 function notifySubscriptionError(

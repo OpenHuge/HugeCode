@@ -106,7 +106,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   const persistedActiveWorkspaceIdRef = useRef<string | null>(
     appSettings?.lastActiveWorkspaceId ?? null
   );
-  const supportsLegacyAppSettingsMirrorRef = useRef(detectRuntimeMode() === "tauri");
+  const supportsLegacyAppSettingsMirrorRef = useRef(false);
   const routeSelection = useWorkspaceRouteSelection();
   const showMissionHomeRoute = useDesktopMissionHomeRoute();
   const hasWorkspaceRouteSelection = routeSelection.kind === "workspace";

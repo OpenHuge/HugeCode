@@ -24,8 +24,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            ~/.cache/ku0/cargo-target/code-tauri
-          cargo-cache-key: ${{ runner.os }}-code-tauri-check
+            ~/.cache/ku0/cargo-target/runtime-service
+          cargo-cache-key: ${{ runner.os }}-runtime-service-check
 
       - name: Runtime Contract Parity
         run: pnpm check:runtime-contract:parity

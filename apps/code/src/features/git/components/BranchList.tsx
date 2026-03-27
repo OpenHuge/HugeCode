@@ -62,7 +62,7 @@ export function BranchList({
             onClick={() => onSelect(branch)}
             onMouseEnter={onMouseEnter ? () => onMouseEnter(index) : undefined}
             role={itemRole}
-            data-tauri-drag-region={itemDataTauriDragRegion}
+            data-desktop-drag-region={itemDataTauriDragRegion}
           >
             {itemLabelClassName ? (
               <span className={itemLabelClassName}>{branch.name}</span>

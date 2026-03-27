@@ -19,6 +19,8 @@ export function resolveCanonicalMissionReviewContinuation(input: {
     actionability: input.reviewPack?.actionability ?? input.run?.actionability ?? null,
     missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,
     publishHandoff: input.reviewPack?.publishHandoff ?? input.run?.publishHandoff ?? null,
+    reviewPackId: input.reviewPack?.id ?? input.run?.reviewPackId ?? null,
+    continuation: input.reviewPack?.continuation ?? input.run?.continuation ?? null,
   });
   return continuation.state === "missing" ? null : continuation;
 }
@@ -32,6 +34,8 @@ export function resolveMissionReviewContinuationData(input: {
     actionability: input.reviewPack?.actionability ?? input.run?.actionability ?? null,
     missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,
     publishHandoff: input.reviewPack?.publishHandoff ?? input.run?.publishHandoff ?? null,
+    reviewPackId: input.reviewPack?.id ?? input.run?.reviewPackId ?? null,
+    continuation: input.reviewPack?.continuation ?? input.run?.continuation ?? null,
   });
   return {
     continuation,

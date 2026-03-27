@@ -72,9 +72,9 @@ export function deriveSharedWorkspaceOperatorAction(input: {
       tone: "idle",
       label: "Loading runtime next action",
       detail: "Mission, review, and routing signals are still hydrating in the background.",
-      targetSection: "home",
+      targetSection: "missions",
       targetItemId: null,
-      ctaLabel: null,
+      ctaLabel: buildSectionCtaLabel("missions"),
     };
   }
 

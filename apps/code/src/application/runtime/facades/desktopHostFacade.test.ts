@@ -20,21 +20,19 @@ import {
 } from "./desktopHostFacade";
 
 const {
-  detectTauriRuntimeMock,
   getDesktopHostBridgeMock,
-  openTauriPathMock,
-  openTauriUrlMock,
-  readTauriAppVersionMock,
-  readTauriWindowLabelMock,
-  revealTauriItemInDirMock,
+  openDesktopPathCompatibilityMock,
+  openDesktopUrlCompatibilityMock,
+  readDesktopAppVersionCompatibilityMock,
+  readDesktopWindowLabelCompatibilityMock,
+  revealDesktopItemCompatibilityMock,
 } = vi.hoisted(() => ({
-  detectTauriRuntimeMock: vi.fn(),
   getDesktopHostBridgeMock: vi.fn(),
-  openTauriPathMock: vi.fn(),
-  openTauriUrlMock: vi.fn(),
-  readTauriAppVersionMock: vi.fn(),
-  readTauriWindowLabelMock: vi.fn(),
-  revealTauriItemInDirMock: vi.fn(),
+  openDesktopPathCompatibilityMock: vi.fn(),
+  openDesktopUrlCompatibilityMock: vi.fn(),
+  readDesktopAppVersionCompatibilityMock: vi.fn(),
+  readDesktopWindowLabelCompatibilityMock: vi.fn(),
+  revealDesktopItemCompatibilityMock: vi.fn(),
 }));
 
 vi.mock("../ports/desktopHostBridge", () => ({
@@ -42,27 +40,25 @@ vi.mock("../ports/desktopHostBridge", () => ({
 }));
 
 vi.mock("../ports/tauriEnvironment", () => ({
-  detectTauriRuntime: detectTauriRuntimeMock,
-  readTauriAppVersion: readTauriAppVersionMock,
-  readTauriWindowLabel: readTauriWindowLabelMock,
+  readDesktopCompatibilityAppVersion: readDesktopAppVersionCompatibilityMock,
+  readDesktopCompatibilityWindowLabel: readDesktopWindowLabelCompatibilityMock,
 }));
 
 vi.mock("../ports/tauriOpener", () => ({
-  openTauriPath: openTauriPathMock,
-  openTauriUrl: openTauriUrlMock,
-  revealTauriItemInDir: revealTauriItemInDirMock,
+  openDesktopCompatibilityPath: openDesktopPathCompatibilityMock,
+  openDesktopCompatibilityUrl: openDesktopUrlCompatibilityMock,
+  revealDesktopCompatibilityItemInDir: revealDesktopItemCompatibilityMock,
 }));
 
 describe("desktopHostFacade", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     getDesktopHostBridgeMock.mockReturnValue(null);
-    detectTauriRuntimeMock.mockResolvedValue(false);
-    readTauriWindowLabelMock.mockResolvedValue(null);
-    readTauriAppVersionMock.mockResolvedValue(null);
-    openTauriPathMock.mockResolvedValue(false);
-    openTauriUrlMock.mockResolvedValue(false);
-    revealTauriItemInDirMock.mockResolvedValue(false);
+    readDesktopWindowLabelCompatibilityMock.mockResolvedValue(null);
+    readDesktopAppVersionCompatibilityMock.mockResolvedValue(null);
+    openDesktopPathCompatibilityMock.mockResolvedValue(false);
+    openDesktopUrlCompatibilityMock.mockResolvedValue(false);
+    revealDesktopItemCompatibilityMock.mockResolvedValue(false);
     window.open = vi.fn(() => window) as typeof window.open;
   });
 
@@ -186,15 +182,14 @@ describe("desktopHostFacade", () => {
     expect(window.open).not.toHaveBeenCalled();
   });
 
-  it("falls back to tauri and browser helpers when no bridge is present", async () => {
-    detectTauriRuntimeMock.mockResolvedValue(true);
-    readTauriWindowLabelMock.mockResolvedValue("about");
-    readTauriAppVersionMock.mockResolvedValue("9.9.9");
-    openTauriPathMock.mockResolvedValue(true);
-    openTauriUrlMock.mockResolvedValue(true);
-    revealTauriItemInDirMock.mockResolvedValue(true);
+  it("falls back to compatibility helpers and browser behavior when no bridge is present", async () => {
+    readDesktopWindowLabelCompatibilityMock.mockResolvedValue("about");
+    readDesktopAppVersionCompatibilityMock.mockResolvedValue("9.9.9");
+    openDesktopPathCompatibilityMock.mockResolvedValue(true);
+    openDesktopUrlCompatibilityMock.mockResolvedValue(true);
+    revealDesktopItemCompatibilityMock.mockResolvedValue(true);
 
-    await expect(detectDesktopRuntimeHost()).resolves.toBe("tauri");
+    await expect(detectDesktopRuntimeHost()).resolves.toBe("browser");
     await expect(resolveAppInfo()).resolves.toBeNull();
     await expect(resolveDesktopDiagnosticsInfo()).resolves.toBeNull();
     await expect(copyDesktopSupportSnapshot()).resolves.toBe(false);
@@ -210,7 +205,7 @@ describe("desktopHostFacade", () => {
     });
     await expect(resolveDesktopShellStartupStatus()).resolves.toEqual({
       tone: "attention",
-      label: "Tauri host manual updates",
+      label: "Browser host manual updates",
       detail: "Automatic desktop updates are unavailable in this environment.",
     });
     await expect(checkForDesktopUpdates()).resolves.toEqual({
@@ -230,7 +225,7 @@ describe("desktopHostFacade", () => {
   });
 
   it("uses browser fallback when native openers fail", async () => {
-    openTauriUrlMock.mockResolvedValue(false);
+    openDesktopUrlCompatibilityMock.mockResolvedValue(false);
     window.open = vi.fn(() => null) as typeof window.open;
 
     await expect(openUrl("https://example.com")).resolves.toBe(false);

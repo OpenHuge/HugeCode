@@ -12,18 +12,17 @@ import { toSafeExternalUrl } from "@ku0/shared";
 
 export type DesktopRuntimeDetectionInput = {
   desktopHostBridge: DesktopHostBridge | null;
-  tauriRuntimeAvailable: boolean;
 };
 
 export type DesktopWindowLabelFallbacks = {
   defaultLabel?: string;
   desktopHostBridge: DesktopHostBridge | null;
-  getTauriWindowLabel?: () => Promise<string | null | undefined>;
+  getWindowLabel?: () => Promise<string | null | undefined>;
 };
 
 export type DesktopVersionFallbacks = {
   desktopHostBridge: DesktopHostBridge | null;
-  getTauriAppVersion?: () => Promise<string | null | undefined>;
+  getAppVersion?: () => Promise<string | null | undefined>;
 };
 
 const DEFAULT_UNSUPPORTED_UPDATE_STATE: DesktopUpdateState = {
@@ -45,17 +44,17 @@ export type DesktopDiagnosticsFallbacks = {
 export type DesktopExternalUrlFallbacks = {
   desktopHostBridge: DesktopHostBridge | null;
   openBrowserUrl?: (url: string) => boolean;
-  openTauriUrl?: (url: string) => Promise<boolean>;
+  openDesktopUrl?: (url: string) => Promise<boolean>;
 };
 
 export type DesktopItemRevealFallbacks = {
   desktopHostBridge: DesktopHostBridge | null;
-  revealTauriItem?: (path: string) => Promise<boolean>;
+  revealDesktopItem?: (path: string) => Promise<boolean>;
 };
 
 export type DesktopPathOpenFallbacks = {
   desktopHostBridge: DesktopHostBridge | null;
-  openTauriPath?: (path: string) => Promise<boolean>;
+  openDesktopPath?: (path: string) => Promise<boolean>;
 };
 
 export function detectDesktopRuntimeHost(input: DesktopRuntimeDetectionInput): DesktopRuntimeHost {
@@ -63,7 +62,7 @@ export function detectDesktopRuntimeHost(input: DesktopRuntimeDetectionInput): D
     return input.desktopHostBridge.kind;
   }
 
-  return input.tauriRuntimeAvailable ? "tauri" : "browser";
+  return "browser";
 }
 
 export async function resolveDesktopWindowLabel(
@@ -77,13 +76,13 @@ export async function resolveDesktopWindowLabel(
       return label;
     }
   } catch {
-    // Fall through to the Tauri loader and then the default value.
+    // Fall through to the compatibility loader and then the default value.
   }
 
   try {
-    const tauriLabel = await input.getTauriWindowLabel?.();
-    if (typeof tauriLabel === "string" && tauriLabel.length > 0) {
-      return tauriLabel;
+    const fallbackLabel = await input.getWindowLabel?.();
+    if (typeof fallbackLabel === "string" && fallbackLabel.length > 0) {
+      return fallbackLabel;
     }
   } catch {
     // Fall through to the default value.
@@ -101,13 +100,13 @@ export async function resolveDesktopAppVersion(
       return version;
     }
   } catch {
-    // Fall through to the Tauri loader and then the null fallback.
+    // Fall through to the compatibility loader and then the null fallback.
   }
 
   try {
-    const tauriVersion = await input.getTauriAppVersion?.();
-    if (typeof tauriVersion === "string" && tauriVersion.length > 0) {
-      return tauriVersion;
+    const fallbackVersion = await input.getAppVersion?.();
+    if (typeof fallbackVersion === "string" && fallbackVersion.length > 0) {
+      return fallbackVersion;
     }
   } catch {
     // Fall through to null.
@@ -299,12 +298,12 @@ export async function openDesktopExternalUrl(
       return openResult !== false;
     }
   } catch {
-    // Fall through to Tauri and browser fallbacks.
+    // Fall through to desktop compatibility and browser fallbacks.
   }
 
   try {
-    const tauriOpened = await input.openTauriUrl?.(safeUrl);
-    if (tauriOpened) {
+    const desktopOpened = await input.openDesktopUrl?.(safeUrl);
+    if (desktopOpened) {
       return true;
     }
   } catch {
@@ -324,11 +323,11 @@ export async function revealDesktopItemInDir(
       return revealResult !== false;
     }
   } catch {
-    // Fall through to Tauri fallback.
+    // Fall through to desktop compatibility fallback.
   }
 
   try {
-    return (await input.revealTauriItem?.(path)) === true;
+    return (await input.revealDesktopItem?.(path)) === true;
   } catch {
     return false;
   }
@@ -344,11 +343,11 @@ export async function openDesktopPath(
       return openResult !== false;
     }
   } catch {
-    // Fall through to Tauri fallback.
+    // Fall through to desktop compatibility fallback.
   }
 
   try {
-    return (await input.openTauriPath?.(path)) === true;
+    return (await input.openDesktopPath?.(path)) === true;
   } catch {
     return false;
   }

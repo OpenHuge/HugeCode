@@ -901,7 +901,7 @@ export const Sidebar = memo(function Sidebar({
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search projects and threads"
             aria-label="Search projects and threads"
-            data-tauri-drag-region="false"
+            data-desktop-drag-region="false"
             data-testid="sidebar-search-input"
           />
         )}
@@ -911,7 +911,7 @@ export const Sidebar = memo(function Sidebar({
             className="sidebar-search-clear"
             onClick={() => setSearchQuery("")}
             aria-label="Clear search"
-            data-tauri-drag-region="false"
+            data-desktop-drag-region="false"
             data-testid="sidebar-search-clear"
           >
             <Icon icon={X} size={12} aria-hidden />
@@ -1218,7 +1218,7 @@ export const Sidebar = memo(function Sidebar({
                 type="button"
                 className="sidebar-empty-action"
                 onClick={() => emptyState.action()}
-                data-tauri-drag-region="false"
+                data-desktop-drag-region="false"
                 aria-label={emptyState.ariaLabel}
                 data-testid="sidebar-empty-state-action"
               >

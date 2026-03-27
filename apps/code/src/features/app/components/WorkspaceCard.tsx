@@ -166,7 +166,7 @@ export function WorkspaceCard({
                 event.stopPropagation();
                 openAddMenu(event.currentTarget as HTMLElement);
               }}
-              data-tauri-drag-region="false"
+              data-desktop-drag-region="false"
               aria-label="New agent"
               title="New agent"
               aria-expanded={addMenuOpen}

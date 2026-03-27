@@ -398,7 +398,7 @@ const requiredChecks = [
   {
     file: ".github/workflows/desktop.yml",
     includes: [
-      "name: Desktop (Tauri)",
+      "name: Desktop (Electron)",
       "uses: ./.github/workflows/_reusable-desktop-prepare-frontend.yml",
       "uses: ./.github/workflows/_reusable-desktop-build-pr.yml",
       "uses: ./.github/workflows/_reusable-desktop-build-release.yml",
@@ -409,7 +409,7 @@ const requiredChecks = [
     includes: [
       "name: _reusable-desktop-prepare-frontend",
       "name: Prepare frontend dist",
-      "Skip frontend dist preparation while Tauri retires",
+      "Skip dedicated frontend dist preparation",
     ],
   },
   {
@@ -417,7 +417,7 @@ const requiredChecks = [
     includes: [
       "name: _reusable-desktop-build-pr",
       "name: Build PR",
-      "Skip Tauri PR build while runtime retires",
+      "Skip dedicated packaging PR lane",
     ],
   },
   {
@@ -425,7 +425,7 @@ const requiredChecks = [
     includes: [
       "name: _reusable-desktop-build-release",
       "name: Build",
-      "Skip Tauri release build while runtime retires",
+      "Skip dedicated release packaging lane",
     ],
   },
   {
