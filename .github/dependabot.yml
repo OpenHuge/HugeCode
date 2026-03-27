@@ -60,7 +60,6 @@ updates:
 
   - package-ecosystem: "cargo"
     directories:
-      - /apps/code-tauri/src-tauri
       - /internal/runtime-policy-rs
       - /packages/code-runtime-service-rs
       - /packages/discovery-rs

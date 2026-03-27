@@ -83,7 +83,7 @@ export function LaunchScriptButton({
         value={draftScript}
         onChange={(event) => onDraftChange(event.target.value)}
         rows={6}
-        data-tauri-drag-region="false"
+        data-desktop-drag-region="false"
       />
       <div className={styles.actions}>
         <Button
@@ -93,12 +93,12 @@ export function LaunchScriptButton({
             onCloseEditor();
             onCloseNew?.();
           }}
-          data-tauri-drag-region="false"
+          data-desktop-drag-region="false"
         >
           Cancel
         </Button>
         {showNew && onOpenNew && (
-          <Button variant="ghost" size="sm" onClick={onOpenNew} data-tauri-drag-region="false">
+          <Button variant="ghost" size="sm" onClick={onOpenNew} data-desktop-drag-region="false">
             New
           </Button>
         )}
@@ -107,7 +107,7 @@ export function LaunchScriptButton({
           size="sm"
           onClick={onSave}
           disabled={isSaving}
-          data-tauri-drag-region="false"
+          data-desktop-drag-region="false"
         >
           {isSaving ? "Saving..." : "Save"}
         </Button>
@@ -122,7 +122,7 @@ export function LaunchScriptButton({
             placeholder="Optional label"
             value={newDraftLabel}
             onChange={(event) => onNewDraftLabelChange?.(event.target.value)}
-            data-tauri-drag-region="false"
+            data-desktop-drag-region="false"
           />
           <Textarea
             className={styles.textarea}
@@ -130,10 +130,10 @@ export function LaunchScriptButton({
             value={newDraftScript}
             onChange={(event) => onNewDraftChange(event.target.value)}
             rows={5}
-            data-tauri-drag-region="false"
+            data-desktop-drag-region="false"
           />
           <div className={styles.actions}>
-            <Button variant="ghost" size="sm" onClick={onCloseNew} data-tauri-drag-region="false">
+            <Button variant="ghost" size="sm" onClick={onCloseNew} data-desktop-drag-region="false">
               Cancel
             </Button>
             <Button
@@ -141,7 +141,7 @@ export function LaunchScriptButton({
               size="sm"
               onClick={onCreateNew}
               disabled={isSaving}
-              data-tauri-drag-region="false"
+              data-desktop-drag-region="false"
             >
               {isSaving ? "Saving..." : "Create"}
             </Button>

@@ -51,7 +51,7 @@ describe("RuntimeBootstrapEffects", () => {
     detectDesktopRuntimeHostMock.mockResolvedValue("browser");
     isMobilePlatformMock.mockReturnValue(false);
     document.documentElement.removeAttribute("data-desktop-runtime");
-    document.documentElement.removeAttribute("data-tauri-runtime");
+    document.documentElement.removeAttribute("data-desktop-runtime");
     document.documentElement.removeAttribute("data-electron-runtime");
     document.documentElement.removeAttribute("data-mobile-composer-focus");
     document.documentElement.style.removeProperty("--app-height");
@@ -78,8 +78,8 @@ describe("RuntimeBootstrapEffects", () => {
       render(<RuntimeBootstrapEffects />);
       await waitFor(() => {
         expect(document.documentElement.dataset.desktopRuntime).toBe("electron");
-        expect(document.documentElement.dataset.tauriRuntime).toBe("false");
         expect(document.documentElement.dataset.electronRuntime).toBe("true");
+        expect(document.documentElement.hasAttribute("data-desktop-runtime")).toBe(false);
       });
       expect(addDocumentListenerSpy).not.toHaveBeenCalledWith(
         "gesturestart",

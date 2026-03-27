@@ -58,7 +58,7 @@ export const SidebarHeader = memo(function SidebarHeader({
   return (
     <SidebarHeaderFrame
       className="sidebar-header"
-      data-tauri-drag-region="true"
+      data-desktop-drag-region="true"
       data-sidebar-header-surface="kanna-card"
     >
       <div className="sidebar-header-start">

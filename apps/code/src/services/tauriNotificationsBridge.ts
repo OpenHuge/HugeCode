@@ -1,5 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
-import type { Options as NotificationOptions } from "@tauri-apps/plugin-notification";
+import { getDesktopHostBridge } from "../application/runtime/ports/desktopHostBridge";
 import { logRuntimeWarning } from "./tauriRuntimeTurnHelpers";
 
 export async function sendNotification(
@@ -14,62 +13,40 @@ export async function sendNotification(
     extra?: Record<string, unknown>;
   }
 ): Promise<void> {
-  const macosDebugBuild = await invoke<boolean>("is_macos_debug_build").catch(() => false);
-  const attemptFallback = async () => {
-    try {
-      await invoke("send_notification_fallback", { title, body });
-      return true;
-    } catch (error) {
-      logRuntimeWarning("Notification fallback failed.", { error });
-      return false;
-    }
-  };
+  const shown = await getDesktopHostBridge()?.notifications?.show?.({
+    body,
+    title,
+  });
+  if (shown !== false && shown !== undefined) {
+    return;
+  }
 
-  // In dev builds on macOS, the notification plugin can silently fail because
-  // the process is not a bundled app. Prefer the native AppleScript fallback.
-  if (macosDebugBuild) {
-    await attemptFallback();
+  if (typeof Notification !== "function") {
     return;
   }
 
   try {
-    const notification = await import("@tauri-apps/plugin-notification");
-    let permissionGranted = await notification.isPermissionGranted();
-    if (!permissionGranted) {
-      const permission = await notification.requestPermission();
-      permissionGranted = permission === "granted";
-      if (!permissionGranted) {
-        logRuntimeWarning("Notification permission not granted.", { permission });
-        await attemptFallback();
-        return;
-      }
+    let permission = Notification.permission;
+    if (permission === "default") {
+      permission = await Notification.requestPermission();
     }
-    if (permissionGranted) {
-      const payload: NotificationOptions = { title, body };
-      if (options?.id !== undefined) {
-        payload.id = options.id;
-      }
-      if (options?.group !== undefined) {
-        payload.group = options.group;
-      }
-      if (options?.actionTypeId !== undefined) {
-        payload.actionTypeId = options.actionTypeId;
-      }
-      if (options?.sound !== undefined) {
-        payload.sound = options.sound;
-      }
-      if (options?.autoCancel !== undefined) {
-        payload.autoCancel = options.autoCancel;
-      }
-      if (options?.extra !== undefined) {
-        payload.extra = options.extra;
-      }
-      await notification.sendNotification(payload);
+    if (permission !== "granted") {
+      logRuntimeWarning("Notification permission not granted.", { permission });
       return;
     }
-  } catch (error) {
-    logRuntimeWarning("Notification plugin failed.", { error });
-  }
 
-  await attemptFallback();
+    const notification = new Notification(title, {
+      body,
+      tag: options?.group,
+    });
+    if (options?.autoCancel !== false) {
+      notification.onshow = () => {
+        setTimeout(() => {
+          notification.close();
+        }, 8_000);
+      };
+    }
+  } catch (error) {
+    logRuntimeWarning("Notification delivery failed.", { error });
+  }
 }

@@ -76,10 +76,10 @@ describe("runtimeGatewayBrowser", () => {
       invoke: vi.fn(),
     };
 
-    expect(detectBrowserRuntimeConnectionState(null)).toBe("connected");
+    expect(detectBrowserRuntimeConnectionState(null)).toBe("discoverable");
   });
 
-  it("detects web runtime from stored profile or env and tauri from the injected bridge", () => {
+  it("detects web runtime from stored profile or env and ignores retired tauri globals", () => {
     expect(detectBrowserRuntimeMode(null)).toBe("unavailable");
 
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
@@ -103,7 +103,7 @@ describe("runtimeGatewayBrowser", () => {
       invoke: vi.fn(),
     };
 
-    expect(detectBrowserRuntimeMode(null)).toBe("tauri");
+    expect(detectBrowserRuntimeMode(null)).toBe("unavailable");
   });
 
   it("discovers reachable targets once per valid port and prefers host order", async () => {

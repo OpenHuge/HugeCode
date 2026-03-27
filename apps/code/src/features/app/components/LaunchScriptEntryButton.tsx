@@ -60,7 +60,7 @@ export function LaunchScriptEntryButton({
         placeholder="Optional label"
         value={draftLabel}
         onChange={(event) => onDraftLabelChange(event.target.value)}
-        data-tauri-drag-region="false"
+        data-desktop-drag-region="false"
       />
       <Textarea
         className={styles.textarea}
@@ -68,10 +68,10 @@ export function LaunchScriptEntryButton({
         value={draftScript}
         onChange={(event) => onDraftChange(event.target.value)}
         rows={6}
-        data-tauri-drag-region="false"
+        data-desktop-drag-region="false"
       />
       <div className={styles.actions}>
-        <Button variant="ghost" size="sm" onClick={onCloseEditor} data-tauri-drag-region="false">
+        <Button variant="ghost" size="sm" onClick={onCloseEditor} data-desktop-drag-region="false">
           Cancel
         </Button>
         <Button
@@ -79,7 +79,7 @@ export function LaunchScriptEntryButton({
           size="sm"
           className={styles.deleteButton}
           onClick={onDelete}
-          data-tauri-drag-region="false"
+          data-desktop-drag-region="false"
         >
           Delete
         </Button>
@@ -88,7 +88,7 @@ export function LaunchScriptEntryButton({
           size="sm"
           onClick={onSave}
           disabled={isSaving}
-          data-tauri-drag-region="false"
+          data-desktop-drag-region="false"
         >
           {isSaving ? "Saving..." : "Save"}
         </Button>

@@ -29,11 +29,14 @@ import type {
 import type { WorkspaceClientHostStartupStatus } from "@ku0/code-workspace-client/workspace-bindings";
 import { getDesktopHostBridge } from "../ports/desktopHostBridge";
 import {
-  detectTauriRuntime,
-  readTauriAppVersion,
-  readTauriWindowLabel,
+  readDesktopCompatibilityAppVersion,
+  readDesktopCompatibilityWindowLabel,
 } from "../ports/tauriEnvironment";
-import { openTauriPath, openTauriUrl, revealTauriItemInDir } from "../ports/tauriOpener";
+import {
+  openDesktopCompatibilityPath,
+  openDesktopCompatibilityUrl,
+  revealDesktopCompatibilityItemInDir,
+} from "../ports/tauriOpener";
 
 function openBrowserUrl(url: string) {
   if (typeof window === "undefined" || typeof window.open !== "function") {
@@ -46,7 +49,6 @@ function openBrowserUrl(url: string) {
 export async function detectDesktopRuntimeHost() {
   return detectDesktopRuntimeHostWithCapabilities({
     desktopHostBridge: getDesktopHostBridge(),
-    tauriRuntimeAvailable: (await detectTauriRuntime()) === true,
   });
 }
 
@@ -54,14 +56,14 @@ export async function resolveWindowLabel(defaultLabel = "main") {
   return resolveDesktopWindowLabel({
     desktopHostBridge: getDesktopHostBridge(),
     defaultLabel,
-    getTauriWindowLabel: readTauriWindowLabel,
+    getWindowLabel: readDesktopCompatibilityWindowLabel,
   });
 }
 
 export async function resolveAppVersion() {
   return resolveDesktopAppVersion({
     desktopHostBridge: getDesktopHostBridge(),
-    getTauriAppVersion: readTauriAppVersion,
+    getAppVersion: readDesktopCompatibilityAppVersion,
   });
 }
 
@@ -106,8 +108,8 @@ function buildDesktopShellStartupStatus(input: {
   const hostLabel =
     input.runtimeHost === "electron"
       ? "Electron host"
-      : input.runtimeHost === "tauri"
-        ? "Tauri host"
+      : input.runtimeHost === "browser"
+        ? "Browser host"
         : null;
 
   if (!hostLabel) {
@@ -171,7 +173,7 @@ function buildDesktopShellStartupStatus(input: {
 
 export async function resolveDesktopShellStartupStatus(): Promise<WorkspaceClientHostStartupStatus | null> {
   const runtimeHost = await detectDesktopRuntimeHost();
-  if (runtimeHost !== "electron" && runtimeHost !== "tauri") {
+  if (runtimeHost !== "electron" && runtimeHost !== "browser") {
     return null;
   }
 
@@ -201,7 +203,7 @@ export async function openUrl(url: string) {
     {
       desktopHostBridge: getDesktopHostBridge(),
       openBrowserUrl,
-      openTauriUrl,
+      openDesktopUrl: openDesktopCompatibilityUrl,
     },
     url
   );
@@ -211,7 +213,7 @@ export async function openPath(path: string) {
   return openDesktopPathWithCapabilities(
     {
       desktopHostBridge: getDesktopHostBridge(),
-      openTauriPath,
+      openDesktopPath: openDesktopCompatibilityPath,
     },
     path
   );
@@ -221,7 +223,7 @@ export async function revealItemInDir(path: string) {
   return revealDesktopItemInDir(
     {
       desktopHostBridge: getDesktopHostBridge(),
-      revealTauriItem: revealTauriItemInDir,
+      revealDesktopItem: revealDesktopCompatibilityItemInDir,
     },
     path
   );

@@ -1,1 +1,6 @@
-export { relaunch } from "@tauri-apps/plugin-process";
+export async function relaunch() {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.location.reload();
+}

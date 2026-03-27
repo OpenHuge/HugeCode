@@ -1,5 +1,4 @@
 import type { CodeRuntimeHostEventEnvelope } from "@ku0/code-runtime-host-contract";
-import type { UnlistenFn } from "@tauri-apps/api/event";
 import type { LocalUsageSnapshot } from "../types";
 import { logger } from "./logger";
 import { createExponentialRetryScheduler } from "./retryScheduler";
@@ -21,6 +20,8 @@ import {
   withLastEventIdQuery,
 } from "./tauriRuntimeTransport";
 import { getPathBasename } from "./tauriWorkspaceBridge";
+
+type UnlistenFn = () => void;
 
 function logRuntimeWarning(message: string, context?: unknown) {
   logger.warn(message, context);

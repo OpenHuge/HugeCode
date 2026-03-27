@@ -47,7 +47,7 @@ export type WorkspaceClientHostBindings = {
 
 export type CreateWorkspaceClientBindingsInput<TBindings> = TBindings;
 
-type CreateWorkspaceClientPlatformUiInput = {
+export type WorkspaceClientPlatformUiInput = {
   WorkspaceApp: ComponentType;
   WorkspaceRuntimeShell?: ComponentType;
   settingsShellFraming: SettingsShellFraming;
@@ -66,11 +66,11 @@ export type CreateDesktopWorkspaceClientHostBindingsInput = {
   testSound?: () => void;
 };
 
-export type CreateWebWorkspaceClientBindingsInput = CreateWorkspaceClientPlatformUiInput & {
+export type CreateWebWorkspaceClientBindingsInput = WorkspaceClientPlatformUiInput & {
   navigation: WorkspaceNavigationAdapter;
 };
 
-export type CreateDesktopWorkspaceClientBindingsInput = CreateWorkspaceClientPlatformUiInput &
+export type CreateDesktopWorkspaceClientBindingsInput = WorkspaceClientPlatformUiInput &
   CreateDesktopWorkspaceClientHostBindingsInput & {
     navigation: WorkspaceNavigationAdapter;
     runtimeGateway: WorkspaceClientRuntimeGatewayBindings;
@@ -107,7 +107,7 @@ export function createDesktopWorkspaceClientHostBindings(
 }
 
 function createPlatformUiBindings(
-  input: CreateWorkspaceClientPlatformUiInput,
+  input: WorkspaceClientPlatformUiInput,
   bootstrapEffects: readonly WorkspaceHostEffect[] = []
 ) {
   return {

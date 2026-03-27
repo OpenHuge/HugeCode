@@ -12,7 +12,7 @@
 ## Architecture Position
 
 - This document defines the routing/account-pool authority of the shared runtime service.
-- UI (`apps/code`) and desktop bridge (`apps/code-tauri`) must consume this authority, not re-implement policy.
+- UI (`apps/code`) and desktop bridge (`apps/code-electron`) must consume this authority, not re-implement policy.
 - Runtime host contract (`packages/code-runtime-host-contract`) is the transport-neutral envelope, while this document defines routing semantics.
 
 ## Contract Surface
@@ -88,7 +88,7 @@
 ### Routing rules
 
 - Provider + model: route exactly if consistent.
-- Provider only: route by provider default model (service) or first eligible provider model (legacy tauri backend).
+- Provider only: route by provider default model (service) or first eligible provider model from the active desktop/browser adapter.
   - In OpenAI-compatible gateway mode, service should prefer discovered provider models with stability ranking (non-experimental chat/coding models first, e.g. `gemini-3-flash` before `gemini-2.0-flash-exp`).
 - Model only: infer provider from model ID.
 - Neither: apply default model strategy.
@@ -181,10 +181,10 @@
 - Do not remove compat catalog cache + stale fallback behavior; provider-only routing should remain stable under transient `/models` failures.
 - Do not require env-level compat keys for provider-only routing when OAuth account keys are available.
 
-## Web / Tauri Integration
+## Web / Desktop Integration
 
 - Web client (`apps/code/src/services/runtimeClient.ts`) consumes OAuth APIs through runtime contract only.
-- Tauri bridge may keep compatibility commands during migration.
+- Desktop host bridges may keep compatibility commands during migration.
 - Unsupported methods must continue standard method-not-found handling.
 - Business/UI code should avoid direct platform bridge coupling.
 

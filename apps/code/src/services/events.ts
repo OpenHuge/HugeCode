@@ -1,6 +1,5 @@
-import { isTauri } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import type { AppServerEvent } from "../types";
+import { listen } from "../application/runtime/ports/tauriEvent";
 import {
   __resetRuntimeTurnContextForTests,
   normalizeAppServerPayload,
@@ -90,11 +89,7 @@ async function loadStartAppServerBridgeV2() {
 }
 
 function isTauriRuntime(): boolean {
-  try {
-    return isTauri();
-  } catch {
-    return false;
-  }
+  return false;
 }
 
 function notifySubscriptionError(
@@ -651,7 +646,7 @@ function createEventHub<T>(eventName: string) {
     if (!isTauriRuntime()) {
       return;
     }
-    listenPromise = listen<T>(eventName, (event) => {
+    listenPromise = listen<T>(eventName, (event: { payload: T }) => {
       for (const listener of listeners) {
         try {
           listener(event.payload);

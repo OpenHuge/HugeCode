@@ -22,7 +22,7 @@ function sliceBetween(workflow: string, startMarker: string, endMarker: string) 
 }
 
 describe("optional PR workflow scope", () => {
-  it("keeps Tauri desktop pull_request triggers host-owned while preserving broader push coverage", () => {
+  it("keeps desktop pull_request triggers host-owned while preserving broader push coverage", () => {
     const workflow = readWorkflow(desktopWorkflowPath);
     const pullRequestSection = sliceBetween(workflow, "  pull_request:\n", "  push:\n");
     const pushSection = sliceBetween(workflow, "  push:\n", "\npermissions:\n");
@@ -37,27 +37,27 @@ describe("optional PR workflow scope", () => {
       "\n\n      - id: scope\n"
     );
 
-    expect(pullRequestSection).toContain('"apps/code-tauri/**"');
+    expect(pullRequestSection).toContain('"apps/code-electron/**"');
     expect(pullRequestSection).toContain('".github/workflows/desktop.yml"');
     expect(pullRequestSection).not.toContain('"apps/code/src/application/runtime/**"');
     expect(pullRequestSection).not.toContain('"apps/code/src/features/update/**"');
     expect(pullRequestSection).not.toContain('"apps/code/package.json"');
 
     expect(pushSection).toContain('"apps/code/**"');
-    expect(pushSection).toContain('"apps/code-tauri/**"');
-    expect(desktopFilterSection).toContain('"apps/code-tauri/**"');
+    expect(pushSection).toContain('"apps/code-electron/**"');
+    expect(desktopFilterSection).toContain('"apps/code-electron/**"');
     expect(desktopFilterSection).not.toContain(
       '".github/workflows/_reusable-desktop-build-pr.yml"'
     );
     expect(desktopFilterSection).not.toContain('".github/actions/setup-node-pnpm/**"');
-    expect(desktopHostFilterSection).toContain('"apps/code-tauri/**"');
+    expect(desktopHostFilterSection).toContain('"apps/code-electron/**"');
     expect(desktopHostFilterSection).not.toContain(
       '".github/workflows/_reusable-desktop-build-pr.yml"'
     );
     expect(desktopHostFilterSection).not.toContain('".github/actions/setup-rust-ci/**"');
   });
 
-  it("keeps the Linux-only Tauri PR fast path self-contained while reserving shared frontend artifacts for full matrices", () => {
+  it("keeps the Linux-only desktop PR fast path self-contained while reserving shared frontend artifacts for full matrices", () => {
     const workflow = readWorkflow(desktopWorkflowPath);
     const prepareJobSection = sliceBetween(
       workflow,
@@ -81,7 +81,7 @@ describe("optional PR workflow scope", () => {
     expect(buildPrFastSection).toContain('restore_frontend_artifact: "false"');
   });
 
-  it("keeps the cross-platform Tauri PR matrix disabled in merge-queue fast mode", () => {
+  it("keeps the cross-platform desktop PR matrix disabled in merge-queue fast mode", () => {
     const workflow = readWorkflow(desktopWorkflowPath);
 
     expect(workflow).toContain(

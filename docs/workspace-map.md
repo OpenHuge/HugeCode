@@ -4,12 +4,11 @@ This document defines the intended directory roles for the HugeCode monorepo.
 
 ## Active Application Surfaces
 
-| Path                 | Role                        | Stack                             | Status       |
-| -------------------- | --------------------------- | --------------------------------- | ------------ |
-| `apps/code`          | Primary coding workspace UI | React 19 + Vite + vanilla-extract | Active       |
-| `apps/code-web`      | Cloudflare platform web app | TanStack Start + React 19         | Active       |
-| `apps/code-tauri`    | Desktop runtime container   | Tauri v2                          | Active       |
-| `apps/code-electron` | Experimental desktop shell  | Electron 41 + preload bridge      | Experimental |
+| Path                 | Role                        | Stack                             | Status |
+| -------------------- | --------------------------- | --------------------------------- | ------ |
+| `apps/code`          | Primary coding workspace UI | React 19 + Vite + vanilla-extract | Active |
+| `apps/code-web`      | Cloudflare platform web app | TanStack Start + React 19         | Active |
+| `apps/code-electron` | Desktop runtime container   | Electron 41 + preload bridge      | Active |
 
 Interpret this carefully:
 
@@ -26,8 +25,9 @@ Interpret this carefully:
   Electron runtime imports.
 - `apps/code` remains the desktop-first host shell and runtime bootstrap layer
   around that shared workspace client.
-- `apps/code-electron` is an additive desktop shell around the same `apps/code`
-  renderer. Do not fork product logic into Electron-only React surfaces.
+- `apps/code-electron` is the canonical desktop shell around the same
+  `apps/code` renderer. Do not fork product logic into Electron-only React
+  surfaces.
 - `apps/code-web` is active product infrastructure and now participates in the
   default root build/lint/typecheck quality gates.
 - Do not start default product feature work from `apps/code-web`, but also do
@@ -35,7 +35,7 @@ Interpret this carefully:
   deployment work.
 - If these surfaces are ever consolidated, prefer extracting a shared workspace
   client layer rather than folding Cloudflare Start concerns directly into the
-  Tauri-facing app.
+  desktop-facing app.
 - Agent/product extension work is `skills`-first.
 - Do not restore an `apps/connectors` product surface under `apps/code`; that
   direction is retired even though lower-level compatibility types may still
@@ -63,7 +63,6 @@ Interpret this carefully:
 Treat these as the product-defining core:
 
 - `apps/code`
-- `apps/code-tauri`
 - `apps/code-electron`
 - `packages/code-runtime-service-rs`
 - `packages/code-runtime-host-contract`
