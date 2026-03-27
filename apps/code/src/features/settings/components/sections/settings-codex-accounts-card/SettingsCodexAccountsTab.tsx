@@ -235,6 +235,7 @@ type SettingsCodexAccountsTabProps = {
   onBulkRemoveAccounts: () => void;
   onRefreshUsage: (account: OAuthAccountSummary) => void;
   onToggleAccountStatus: (account: OAuthAccountSummary) => void;
+  onReviewDeactivatedChatgptWorkspaces: (account: OAuthAccountSummary) => void;
   onUpdateDefaultChatgptWorkspace: (
     account: OAuthAccountSummary,
     chatgptWorkspaceId: string | null
@@ -286,6 +287,7 @@ export function SettingsCodexAccountsTab({
   onBulkRemoveAccounts,
   onRefreshUsage,
   onToggleAccountStatus,
+  onReviewDeactivatedChatgptWorkspaces,
   onUpdateDefaultChatgptWorkspace,
   onReauthenticateAccount,
   onRemoveAccount,
@@ -609,6 +611,10 @@ export function SettingsCodexAccountsTab({
             const hasMultipleChatgptWorkspaces = chatgptWorkspaceMemberships.length > 1;
             const defaultWorkspaceBusy =
               busyAction === `set-account-default-workspace:${account.accountId}`;
+            const reviewDeactivatedBusy =
+              busyAction === `review-account-deactive-workspaces:${account.accountId}`;
+            const leaveDeactivatedBusy =
+              busyAction === `leave-account-deactive-workspaces:${account.accountId}`;
             const isEnabled = account.status === "enabled";
             const isDisabled = account.status === "disabled";
             const isMutableStatus = isEnabled || isDisabled;
@@ -892,6 +898,20 @@ export function SettingsCodexAccountsTab({
                     >
                       {isEnabled ? "Disable" : "Enable"}
                     </Button>
+                    {account.provider === "codex" && chatgptWorkspaceMemberships.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onReviewDeactivatedChatgptWorkspaces(account)}
+                        disabled={reviewDeactivatedBusy || leaveDeactivatedBusy}
+                      >
+                        {reviewDeactivatedBusy
+                          ? "Reviewing workspaces…"
+                          : leaveDeactivatedBusy
+                            ? "Leaving workspaces…"
+                            : "Review deactivated workspaces"}
+                      </Button>
+                    )}
                     {account.provider === "codex" && (
                       <Button
                         variant="ghost"

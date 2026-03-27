@@ -30,6 +30,15 @@ describe("createDesktopHostHandlers", () => {
         reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
         supportSnapshotText: "HugeCode Desktop Support Snapshot",
       })),
+      listLocalChromeDebuggerEndpoints: vi.fn(() => [
+        {
+          browserName: "Google Chrome",
+          discoverySource: "devtools-active-port" as const,
+          httpBaseUrl: "http://127.0.0.1:9222",
+          profileLabel: "Default",
+          webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/browser-1",
+        },
+      ]),
       listRecentSessions: vi.fn(() => [{ id: "session-1" }]),
       notificationController: {
         showNotification: vi.fn(() => true),
@@ -102,6 +111,15 @@ describe("createDesktopHostHandlers", () => {
       reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
       supportSnapshotText: "HugeCode Desktop Support Snapshot",
     });
+    expect(handlers.listLocalChromeDebuggerEndpoints()).toEqual([
+      {
+        browserName: "Google Chrome",
+        discoverySource: "devtools-active-port",
+        httpBaseUrl: "http://127.0.0.1:9222",
+        profileLabel: "Default",
+        webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/browser-1",
+      },
+    ]);
     expect(handlers.getWindowLabel({ sender: {} as never })).toBe("main");
     expect(handlers.consumePendingLaunchIntent()).toEqual({
       kind: "protocol",
@@ -171,6 +189,7 @@ describe("createDesktopHostHandlers", () => {
         reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
         supportSnapshotText: "HugeCode Desktop Support Snapshot",
       })),
+      listLocalChromeDebuggerEndpoints: vi.fn(() => []),
       listRecentSessions: vi.fn(() => []),
       notificationController: {
         showNotification: vi.fn(() => false),

@@ -31,6 +31,7 @@ import { createDesktopStateStore } from "./desktopStateStore.js";
 import { createDesktopTrayController } from "./desktopTrayController.js";
 import { createDesktopUpdaterController } from "./desktopUpdaterController.js";
 import { createDesktopWindowController } from "./desktopWindowController.js";
+import { listLocalChromeDebuggerEndpoints } from "./localChromeDebuggerDiscovery.js";
 import { registerDesktopHostIpc } from "./registerDesktopHostIpc.js";
 
 const DEFAULT_WINDOW_STATE: DesktopWindowBounds = {
@@ -509,6 +510,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       };
     },
     getDiagnosticsInfo,
+    listLocalChromeDebuggerEndpoints,
     listRecentSessions() {
       return shellState.recentSessions;
     },

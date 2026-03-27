@@ -22,6 +22,8 @@ export type FormBusyAction =
   | `report-rate-limit:${string}`
   | `clear-rate-limit:${string}`
   | `reauth-account:${string}`
+  | `review-account-deactive-workspaces:${string}`
+  | `leave-account-deactive-workspaces:${string}`
   | `save-pool:${string}`
   | `set-account-default-workspace:${string}`
   | `sync-pool:${string}`

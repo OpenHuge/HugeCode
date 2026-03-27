@@ -1,6 +1,7 @@
 import {
   type DesktopAppInfo,
   type DesktopDiagnosticsInfo,
+  type LocalChromeDebuggerEndpointDescriptor,
   isElectronDesktopHostBridge,
   type DesktopLaunchIntent,
   type DesktopHostBridge,
@@ -21,6 +22,7 @@ export type {
   DesktopLaunchIntent,
   DesktopHostBridge,
   DesktopHostKind,
+  LocalChromeDebuggerEndpointDescriptor,
   DesktopNotificationInput,
   DesktopRuntimeMode,
   DesktopSessionInfo,
