@@ -1116,3 +1116,10 @@ export {
   resolvePreferredPublishHandoff,
   resolvePreferredReviewActionability,
 } from "./runtimeContinuationFacade.js";
+export type * from "./runtimeKernelJobCompat.js";
+export {
+  projectRuntimeRunRecordToInterventionAckCompat,
+  projectRuntimeRunRecordToKernelJobCompat,
+  projectRuntimeRunRecordToResumeAckCompat,
+  readRuntimeRunIdCompat,
+} from "./runtimeKernelJobCompat.js";
