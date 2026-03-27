@@ -381,6 +381,7 @@ function buildDetails(input: {
 }
 
 function buildCanonicalNextActionFromTakeover(input: {
+  state: RuntimeContinuationState;
   takeoverBundle: HugeCodeTakeoverBundle;
   summary: string;
   blockingReason: string | null;
@@ -388,9 +389,7 @@ function buildCanonicalNextActionFromTakeover(input: {
   continuePathLabel: RuntimeContinuationPathLabel;
 }): RuntimeCanonicalNextAction {
   const kind =
-    input.takeoverBundle.state === "blocked"
-      ? "blocked"
-      : mapNextActionKind(input.takeoverBundle.primaryAction);
+    input.state === "blocked" ? "blocked" : mapNextActionKind(input.takeoverBundle.primaryAction);
   return {
     kind,
     label:
@@ -544,6 +543,7 @@ export function buildRuntimeContinuationDescriptor(
       truthSourceLabel,
       navigationTarget,
       canonicalNextAction: buildCanonicalNextActionFromTakeover({
+        state,
         takeoverBundle,
         summary,
         blockingReason,

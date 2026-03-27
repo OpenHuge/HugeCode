@@ -75,11 +75,7 @@ export function resolveMissionOperatorAction(input: {
 } {
   const continuation = buildContinuation(input);
   const continuationTarget =
-    continuation?.canonicalNextAction.kind === "review"
-      ? input.reviewTarget
-      : continuation?.canonicalNextAction.navigationTarget
-        ? input.missionTarget
-        : null;
+    continuation?.canonicalNextAction.kind === "review" ? input.reviewTarget : input.missionTarget;
   if (
     input.reviewPack &&
     (input.reviewPack.reviewStatus === "ready" ||
