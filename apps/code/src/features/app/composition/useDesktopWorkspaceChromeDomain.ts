@@ -423,6 +423,7 @@ export function useDesktopWorkspaceChromeDomain({
         onTestNotificationSound: updaterController.handleTestNotificationSound,
         onTestSystemNotification: updaterController.handleTestSystemNotification,
         handleMobileConnectSuccess,
+        onOpenMissionTarget: missionDomain.missionControlState.openMissionTarget,
       },
       layoutInput: {
         isPhone: layoutState.isPhone,

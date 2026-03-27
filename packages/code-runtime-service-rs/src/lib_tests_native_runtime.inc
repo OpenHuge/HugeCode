@@ -138,6 +138,635 @@ async fn native_tool_secret_methods_support_secret_lifecycle() {
 }
 
 #[tokio::test]
+async fn native_schedule_create_run_cancel_derives_runtime_summary_fields() {
+    let app = test_router();
+
+    let create_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_create",
+            "params": {
+                "scheduleId": "schedule-night-operator",
+                "schedule": {
+                    "name": "Night Operator",
+                    "workspaceId": "workspace-1",
+                    "prompt": "Inspect the latest runtime schedule state.",
+                    "cadenceLabel": "Weekdays at 23:00",
+                    "autonomyProfile": "night_operator",
+                    "enabled": true
+                }
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(create_payload["ok"], Value::Bool(true));
+    assert_eq!(
+        create_payload["result"]["status"],
+        Value::String("idle".to_string())
+    );
+    assert_eq!(
+        create_payload["result"]["triggerSourceLabel"],
+        Value::String("schedule".to_string())
+    );
+    assert_eq!(
+        create_payload["result"]["lastOutcomeLabel"],
+        Value::String("Awaiting next run".to_string())
+    );
+    assert!(
+        create_payload["result"]["nextRunAtMs"]
+            .as_u64()
+            .is_some_and(|value| value > 0)
+    );
+    assert_eq!(
+        create_payload["result"]["nextRunAtMs"],
+        create_payload["result"]["nextRunAt"]
+    );
+
+    let run_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_run_now",
+            "params": {
+                "scheduleId": "schedule-night-operator"
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(run_payload["ok"], Value::Bool(true));
+    assert_eq!(
+        run_payload["result"]["status"],
+        Value::String("running".to_string())
+    );
+    assert_eq!(
+        run_payload["result"]["lastOutcomeLabel"],
+        Value::String("Running".to_string())
+    );
+    assert!(
+        run_payload["result"]["lastRunAtMs"]
+            .as_u64()
+            .is_some_and(|value| value > 0)
+    );
+    assert!(run_payload["result"]["nextRunAtMs"].is_null());
+
+    let cancel_payload = send_rpc_request(
+        app,
+        json!({
+            "method": "native_schedule_cancel_run",
+            "params": {
+                "scheduleId": "schedule-night-operator"
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(cancel_payload["ok"], Value::Bool(true));
+    assert_eq!(
+        cancel_payload["result"]["status"],
+        Value::String("idle".to_string())
+    );
+    assert_eq!(
+        cancel_payload["result"]["lastOutcomeLabel"],
+        Value::String("No workspace is available for core live skills.".to_string())
+    );
+    assert!(
+        cancel_payload["result"]["nextRunAtMs"]
+            .as_u64()
+            .is_some_and(|value| value > 0)
+    );
+    assert!(cancel_payload["result"]["currentTaskId"].is_null());
+}
+
+#[tokio::test]
+async fn native_schedule_update_normalizes_blocked_and_paused_states() {
+    let app = test_router();
+
+    let create_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_create",
+            "params": {
+                "scheduleId": "schedule-review-pack",
+                "schedule": {
+                    "name": "Review Pack Sweep",
+                    "cron": "0 6 * * *"
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(create_payload["ok"], Value::Bool(true));
+
+    let blocked_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_update",
+            "params": {
+                "scheduleId": "schedule-review-pack",
+                "schedule": {
+                    "blockingReason": "Waiting for validation results."
+                }
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(blocked_payload["ok"], Value::Bool(true));
+    assert_eq!(
+        blocked_payload["result"]["status"],
+        Value::String("blocked".to_string())
+    );
+    assert_eq!(
+        blocked_payload["result"]["lastOutcomeLabel"],
+        Value::String("Waiting for validation results.".to_string())
+    );
+    assert!(blocked_payload["result"]["nextRunAtMs"].is_null());
+
+    let paused_payload = send_rpc_request(
+        app,
+        json!({
+            "method": "native_schedule_update",
+            "params": {
+                "scheduleId": "schedule-review-pack",
+                "schedule": {
+                    "enabled": false,
+                    "blockingReason": null
+                }
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(paused_payload["ok"], Value::Bool(true));
+    assert_eq!(
+        paused_payload["result"]["status"],
+        Value::String("paused".to_string())
+    );
+    assert_eq!(
+        paused_payload["result"]["lastOutcomeLabel"],
+        Value::String("Paused".to_string())
+    );
+    assert!(paused_payload["result"]["nextRunAtMs"].is_null());
+}
+
+#[tokio::test]
+async fn native_schedule_run_now_launches_task_when_schedule_has_workspace_context() {
+    let app = test_router();
+
+    let create_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_create",
+            "params": {
+                "scheduleId": "schedule-review-pack-launch",
+                "schedule": {
+                    "name": "Night Operator Review Sweep",
+                    "workspaceId": "workspace-1",
+                    "prompt": "Summarize the latest runtime truth changes.",
+                    "accessMode": "on-request",
+                    "enabled": true
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(create_payload["ok"], Value::Bool(true));
+
+    let run_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_run_now",
+            "params": {
+                "scheduleId": "schedule-review-pack-launch"
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(run_payload["ok"], Value::Bool(true));
+    let task_id = run_payload["result"]["currentTaskId"]
+        .as_str()
+        .expect("scheduled run task id")
+        .to_string();
+    let run_id = run_payload["result"]["currentRunId"]
+        .as_str()
+        .expect("scheduled run id")
+        .to_string();
+    assert_eq!(run_payload["result"]["lastTriggeredTaskId"], json!(task_id));
+    assert_eq!(run_payload["result"]["lastTriggeredRunId"], json!(run_id));
+    assert!(
+        run_payload["result"]["lastTriggeredAt"]
+            .as_u64()
+            .is_some_and(|value| value > 0)
+    );
+
+    let task_payload = send_rpc_request(
+        app,
+        json!({
+            "method": "code_runtime_run_subscribe",
+            "params": {
+                "taskId": task_id
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(task_payload["ok"], Value::Bool(true));
+    assert_eq!(task_payload["result"]["taskId"], json!(task_id));
+    assert_eq!(
+        task_payload["result"]["title"],
+        Value::String("Night Operator Review Sweep".to_string())
+    );
+    assert_eq!(task_payload["result"]["runSummary"]["id"], json!(run_id));
+    assert_eq!(
+        task_payload["result"]["missionLinkage"]["workspaceId"],
+        Value::String("workspace-1".to_string())
+    );
+}
+
+#[test]
+fn native_schedule_run_now_rejects_second_active_launch() {
+    let error = crate::rpc_dispatch_native_schedules::reject_active_schedule_task(
+        "schedule-active-task-guard",
+        "agent-task-active",
+        "awaiting_approval",
+    )
+    .expect_err("non-terminal task should block schedule relaunch");
+
+    assert_eq!(error.code_str(), "INVALID_PARAMS");
+    assert!(error.message().contains("already has an active task"));
+}
+
+#[tokio::test]
+async fn native_schedule_run_now_rejects_workspace_override_mismatch() {
+    let app = test_router();
+
+    let create_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_create",
+            "params": {
+                "scheduleId": "schedule-workspace-guard",
+                "schedule": {
+                    "name": "Night Operator Workspace Guard",
+                    "workspaceId": "workspace-1",
+                    "prompt": "Use the persisted schedule workspace.",
+                    "enabled": true
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(create_payload["ok"], Value::Bool(true));
+
+    let run_payload = send_rpc_request(
+        app,
+        json!({
+            "method": "native_schedule_run_now",
+            "params": {
+                "scheduleId": "schedule-workspace-guard",
+                "workspaceId": "workspace-2"
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(run_payload["ok"], Value::Bool(false));
+    assert_eq!(
+        run_payload["error"]["code"],
+        Value::String("INVALID_PARAMS".to_string())
+    );
+}
+
+#[tokio::test]
+async fn native_schedules_list_projects_runtime_lineage_for_triggered_task() {
+    let app = test_router();
+
+    let create_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_create",
+            "params": {
+                "scheduleId": "schedule-review-pack-lineage",
+                "schedule": {
+                    "name": "Night Operator Runtime Truth",
+                    "workspaceId": "workspace-1",
+                    "prompt": "Project schedule lineage into the runtime summary.",
+                    "accessMode": "on-request",
+                    "enabled": true
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(create_payload["ok"], Value::Bool(true));
+
+    let run_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_run_now",
+            "params": {
+                "scheduleId": "schedule-review-pack-lineage"
+            }
+        }),
+    )
+    .await;
+    assert_eq!(run_payload["ok"], Value::Bool(true));
+    let task_id = run_payload["result"]["currentTaskId"]
+        .as_str()
+        .expect("scheduled run task id")
+        .to_string();
+
+    let list_payload = send_rpc_request(
+        app,
+        json!({
+            "method": "native_schedules_list",
+            "params": {}
+        }),
+    )
+    .await;
+
+    assert_eq!(list_payload["ok"], Value::Bool(true));
+    let schedule_entry = list_payload["result"]
+        .as_array()
+        .and_then(|entries| {
+            entries
+                .iter()
+                .find(|entry| entry["id"] == Value::String("schedule-review-pack-lineage".to_string()))
+        })
+        .expect("projected schedule entry");
+    assert_eq!(schedule_entry["lastTriggeredTaskId"], json!(task_id));
+    assert_eq!(
+        schedule_entry["missionLinkage"]["workspaceId"],
+        Value::String("workspace-1".to_string())
+    );
+    assert_eq!(schedule_entry["taskSource"]["kind"], json!("schedule"));
+    assert_eq!(
+        schedule_entry["reviewActionability"]["state"].as_str().is_some(),
+        true
+    );
+}
+
+#[tokio::test]
+async fn native_schedules_list_preserves_persisted_workspace_after_workspace_update() {
+    let app = test_router();
+
+    let create_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_create",
+            "params": {
+                "scheduleId": "schedule-workspace-projection",
+                "schedule": {
+                    "name": "Night Operator Workspace Projection",
+                    "workspaceId": "workspace-1",
+                    "prompt": "Project runtime lineage without clobbering the schedule workspace.",
+                    "enabled": true
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(create_payload["ok"], Value::Bool(true));
+
+    let run_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_run_now",
+            "params": {
+                "scheduleId": "schedule-workspace-projection"
+            }
+        }),
+    )
+    .await;
+    assert_eq!(run_payload["ok"], Value::Bool(true));
+
+    let update_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_update",
+            "params": {
+                "scheduleId": "schedule-workspace-projection",
+                "schedule": {
+                    "workspaceId": "workspace-2"
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(update_payload["ok"], Value::Bool(true));
+
+    let list_payload = send_rpc_request(
+        app,
+        json!({
+            "method": "native_schedules_list",
+            "params": {}
+        }),
+    )
+    .await;
+
+    assert_eq!(list_payload["ok"], Value::Bool(true));
+    let schedule_entry = list_payload["result"]
+        .as_array()
+        .and_then(|entries| {
+            entries
+                .iter()
+                .find(|entry| entry["id"] == Value::String("schedule-workspace-projection".to_string()))
+        })
+        .expect("projected schedule entry");
+    assert_eq!(
+        schedule_entry["workspaceId"],
+        Value::String("workspace-2".to_string())
+    );
+    assert_eq!(
+        schedule_entry["missionLinkage"]["workspaceId"],
+        Value::String("workspace-1".to_string())
+    );
+}
+
+#[tokio::test]
+async fn native_schedule_cancel_run_clears_active_task_linkage() {
+    let app = test_router();
+
+    let create_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_create",
+            "params": {
+                "scheduleId": "schedule-review-pack-cancel",
+                "schedule": {
+                    "name": "Night Operator Cancel Sweep",
+                    "workspaceId": "workspace-1",
+                    "prompt": "Interrupt the scheduled review run.",
+                    "accessMode": "on-request",
+                    "enabled": true
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(create_payload["ok"], Value::Bool(true));
+
+    let run_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_run_now",
+            "params": {
+                "scheduleId": "schedule-review-pack-cancel"
+            }
+        }),
+    )
+    .await;
+    assert_eq!(run_payload["ok"], Value::Bool(true));
+    let task_id = run_payload["result"]["currentTaskId"]
+        .as_str()
+        .expect("scheduled run task id")
+        .to_string();
+
+    let cancel_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_cancel_run",
+            "params": {
+                "scheduleId": "schedule-review-pack-cancel"
+            }
+        }),
+    )
+    .await;
+    assert_eq!(cancel_payload["ok"], Value::Bool(true));
+    assert_eq!(cancel_payload["result"]["status"], json!("idle"));
+    assert_eq!(
+        cancel_payload["result"]["lastOutcomeLabel"],
+        json!("No workspace is available for core live skills.")
+    );
+    assert!(cancel_payload["result"]["currentTaskId"].is_null());
+    assert!(cancel_payload["result"]["currentRunId"].is_null());
+
+    let task_payload = send_rpc_request(
+        app,
+        json!({
+            "method": "code_runtime_run_subscribe",
+            "params": {
+                "taskId": task_id
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(task_payload["ok"], Value::Bool(true));
+    assert_eq!(task_payload["result"]["taskId"], json!(task_id));
+    assert_eq!(task_payload["result"]["status"], json!("failed"));
+}
+
+#[tokio::test]
+async fn native_schedule_cancel_run_projects_terminal_task_state_when_interrupt_not_accepted() {
+    let app = test_router();
+
+    let create_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_create",
+            "params": {
+                "scheduleId": "schedule-terminal-cancel-guard",
+                "schedule": {
+                    "name": "Night Operator Terminal Cancel Guard",
+                    "workspaceId": "workspace-1",
+                    "prompt": "Finish before the cancel request lands.",
+                    "enabled": true
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(create_payload["ok"], Value::Bool(true));
+
+    let run_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_run_now",
+            "params": {
+                "scheduleId": "schedule-terminal-cancel-guard"
+            }
+        }),
+    )
+    .await;
+    assert_eq!(run_payload["ok"], Value::Bool(true));
+    let task_id = run_payload["result"]["currentTaskId"]
+        .as_str()
+        .expect("scheduled run task id")
+        .to_string();
+
+    let _ = wait_for_agent_task_terminal_status(
+        app.clone(),
+        task_id.as_str(),
+        &["completed", "failed"],
+    )
+    .await;
+
+    let cancel_payload = send_rpc_request(
+        app,
+        json!({
+            "method": "native_schedule_cancel_run",
+            "params": {
+                "scheduleId": "schedule-terminal-cancel-guard"
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(cancel_payload["ok"], Value::Bool(true));
+    assert_eq!(cancel_payload["result"]["status"], json!("idle"));
+    assert!(cancel_payload["result"]["currentTaskId"].is_null());
+    assert!(cancel_payload["result"]["currentRunId"].is_null());
+    let last_outcome = cancel_payload["result"]["lastOutcomeLabel"]
+        .as_str()
+        .unwrap_or_default();
+    assert!(matches!(
+        last_outcome,
+        "Completed" | "Review pack ready" | "No workspace is available for core live skills."
+    ));
+}
+
+#[tokio::test]
+async fn native_schedule_run_now_requires_launch_context() {
+    let app = test_router();
+
+    let create_payload = send_rpc_request(
+        app.clone(),
+        json!({
+            "method": "native_schedule_create",
+            "params": {
+                "scheduleId": "schedule-missing-context",
+                "schedule": {
+                    "name": "Missing context schedule",
+                    "enabled": true
+                }
+            }
+        }),
+    )
+    .await;
+    assert_eq!(create_payload["ok"], Value::Bool(true));
+
+    let run_payload = send_rpc_request(
+        app,
+        json!({
+            "method": "native_schedule_run_now",
+            "params": {
+                "scheduleId": "schedule-missing-context"
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(run_payload["ok"], Value::Bool(false));
+    assert_eq!(
+        run_payload["error"]["code"],
+        Value::String("INVALID_PARAMS".to_string())
+    );
+}
+
+#[tokio::test]
 async fn native_providers_snapshot_returns_catalog_and_oauth_entities() {
     let app = test_router();
 

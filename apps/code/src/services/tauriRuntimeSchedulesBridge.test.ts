@@ -97,10 +97,15 @@ describe("tauriRuntimeSchedulesBridge", () => {
     id: "schedule-2",
     enabled: true,
     name: "Staging deploy",
-    status: "cancelled",
+    status: "idle",
     cron: "30 2 * * 1-5",
     updatedAt: 1710800400000,
     lastActionAt: 1710800400000,
+    lastRunAt: 1710800400000,
+    lastRunAtMs: 1710800400000,
+    nextRunAt: 1710801300000,
+    nextRunAtMs: 1710801300000,
+    lastOutcomeLabel: "Cancelled current run",
   };
 
   beforeEach(() => {
@@ -115,13 +120,14 @@ describe("tauriRuntimeSchedulesBridge", () => {
   });
 
   it("routes native schedule CRUD operations through Tauri invoke", async () => {
-    invokeMock.mockImplementation(async (method: string, params?: Record<string, unknown>) => {
+    invokeMock.mockImplementation(async (method, params) => {
+      const namedParams = params as Record<string, unknown> | undefined;
       switch (method) {
         case "native_schedules_list":
-          expect(params).toEqual({});
+          expect(namedParams).toEqual({});
           return [listSchedule];
         case "native_schedule_create":
-          expect(params).toEqual({
+          expect(namedParams).toEqual({
             scheduleId: "schedule-2",
             schedule: {
               name: "Staging deploy",
@@ -130,7 +136,7 @@ describe("tauriRuntimeSchedulesBridge", () => {
           });
           return createdSchedule;
         case "native_schedule_update":
-          expect(params).toEqual({
+          expect(namedParams).toEqual({
             scheduleId: "schedule-2",
             schedule: {
               name: "Staging deploy",
@@ -139,13 +145,13 @@ describe("tauriRuntimeSchedulesBridge", () => {
           });
           return updatedSchedule;
         case "native_schedule_delete":
-          expect(params).toEqual({ scheduleId: "schedule-2" });
+          expect(namedParams).toEqual({ scheduleId: "schedule-2" });
           return true;
         case "native_schedule_run_now":
-          expect(params).toEqual({ scheduleId: "schedule-2" });
+          expect(namedParams).toEqual({ scheduleId: "schedule-2" });
           return runningSchedule;
         case "native_schedule_cancel_run":
-          expect(params).toEqual({ scheduleId: "schedule-2" });
+          expect(namedParams).toEqual({ scheduleId: "schedule-2" });
           return cancelledSchedule;
         default:
           throw new Error(`Unexpected method: ${method}`);
@@ -203,7 +209,8 @@ describe("tauriRuntimeSchedulesBridge", () => {
     await expect(cancelNativeScheduleRun({ scheduleId: "schedule-2" })).resolves.toEqual(
       expect.objectContaining({
         id: "schedule-2",
-        status: "cancelled",
+        status: "idle",
+        lastOutcomeLabel: "Cancelled current run",
       })
     );
 
@@ -281,7 +288,11 @@ describe("tauriRuntimeSchedulesBridge", () => {
       expect.objectContaining({ id: "schedule-2", status: "running" })
     );
     await expect(cancelNativeScheduleRun({ scheduleId: "schedule-2" })).resolves.toEqual(
-      expect.objectContaining({ id: "schedule-2", status: "cancelled" })
+      expect.objectContaining({
+        id: "schedule-2",
+        status: "idle",
+        lastOutcomeLabel: "Cancelled current run",
+      })
     );
 
     expect(invokeMock).not.toHaveBeenCalled();

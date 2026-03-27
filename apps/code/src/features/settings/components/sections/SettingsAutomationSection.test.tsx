@@ -16,6 +16,7 @@ function createSummaries(): SettingsAutomationScheduleSummary[] {
       id: "schedule-daily-review",
       name: "Daily review sweep",
       prompt: "Inspect the queue and summarize follow-up work.",
+      workspaceId: "workspace-alpha",
       cadenceLabel: "Every weekday at 09:00",
       status: "paused",
       nextRunAtMs: null,
@@ -35,11 +36,20 @@ function createSummaries(): SettingsAutomationScheduleSummary[] {
       wakePolicy: "auto_queue",
       researchPolicy: "repository_only",
       queueBudget: 2,
+      currentTaskId: null,
+      currentTaskStatus: null,
+      currentRunId: null,
+      lastTriggeredTaskId: "task-daily-review",
+      lastTriggeredTaskStatus: "completed",
+      lastTriggeredRunId: "run-daily-review",
+      reviewPackId: "review-pack:task-daily-review",
+      reviewActionabilityState: "ready",
     },
     {
       id: "schedule-nightly-check",
       name: "Nightly health check",
       prompt: "Validate the runtime summary and report blockers.",
+      workspaceId: "workspace-beta",
       cadenceLabel: "Every day at 23:00",
       status: "running",
       nextRunAtMs: 1_710_086_400_000,
@@ -59,6 +69,14 @@ function createSummaries(): SettingsAutomationScheduleSummary[] {
       wakePolicy: "review_queue",
       researchPolicy: "staged",
       queueBudget: 3,
+      currentTaskId: "task-nightly-check",
+      currentTaskStatus: "running",
+      currentRunId: "run-nightly-check",
+      lastTriggeredTaskId: "task-nightly-check",
+      lastTriggeredTaskStatus: "running",
+      lastTriggeredRunId: "run-nightly-check",
+      reviewPackId: null,
+      reviewActionabilityState: "pending",
     },
   ];
 }
@@ -71,6 +89,10 @@ function createProps(
       { id: "backend-primary", label: "Primary backend" },
       { id: "backend-secondary", label: "Secondary backend" },
     ],
+    workspaceOptions: [
+      { id: "workspace-alpha", label: "Workspace Alpha" },
+      { id: "workspace-beta", label: "Workspace Beta" },
+    ],
     defaultBackendId: "backend-primary",
     schedules: createSummaries(),
     loading: false,
@@ -82,6 +104,7 @@ function createProps(
       async (_scheduleId: string, _draft: SettingsAutomationScheduleDraft) => undefined
     ),
     onScheduleAction: vi.fn(async () => undefined),
+    onOpenMissionTarget: vi.fn(async () => undefined),
     ...overrides,
   };
 }
@@ -97,7 +120,12 @@ function clickButtonByText(container: HTMLElement, text: string): void {
 describe("SettingsAutomationSection", () => {
   it("renders an empty state when no runtime summaries are available yet", () => {
     render(
-      <SettingsAutomationSection backendOptions={[]} defaultBackendId={null} schedules={[]} />
+      <SettingsAutomationSection
+        backendOptions={[]}
+        workspaceOptions={[]}
+        defaultBackendId={null}
+        schedules={[]}
+      />
     );
 
     expect(
@@ -113,11 +141,15 @@ describe("SettingsAutomationSection", () => {
   it("switches between summaries and invokes run controls for the selected schedule", async () => {
     const onScheduleAction = vi.fn(async () => undefined);
 
-    render(<SettingsAutomationSection {...createProps({ onScheduleAction })} />);
+    const { container } = render(
+      <SettingsAutomationSection {...createProps({ onScheduleAction })} />
+    );
 
     expect(screen.getAllByText("Daily review sweep").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Nightly health check").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Resume schedule" })).toBeTruthy();
+    expect(screen.getAllByText("Review ready").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Review pending").length).toBeGreaterThan(0);
 
     await act(async () => {
       fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[1] as HTMLButtonElement);
@@ -126,6 +158,9 @@ describe("SettingsAutomationSection", () => {
     expect(screen.getByRole("button", { name: "Pause schedule" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Run now" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Cancel current run" })).toBeTruthy();
+    expect(within(container).getAllByText("Workspace: Workspace Beta").length).toBeGreaterThan(0);
+    expect(within(container).getByText("Active task: task-nightly-check (running)")).toBeTruthy();
+    expect(within(container).getByText("Active run: run-nightly-check")).toBeTruthy();
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Run now" }));
@@ -143,6 +178,64 @@ describe("SettingsAutomationSection", () => {
     expect(onScheduleAction).toHaveBeenCalledWith({
       scheduleId: "schedule-nightly-check",
       action: "pause",
+    });
+  });
+
+  it("opens the review surface from the schedule summary when a review pack is available", async () => {
+    const onOpenMissionTarget = vi.fn(async () => undefined);
+
+    const { container } = render(
+      <SettingsAutomationSection {...createProps({ onOpenMissionTarget })} />
+    );
+
+    await act(async () => {
+      fireEvent.click(
+        within(container).getAllByRole("button", {
+          name: "Open review for Daily review sweep",
+        })[0] as HTMLButtonElement
+      );
+    });
+
+    expect(onOpenMissionTarget).toHaveBeenCalledWith({
+      kind: "review",
+      workspaceId: "workspace-alpha",
+      taskId: "task-daily-review",
+      runId: "run-daily-review",
+      reviewPackId: "review-pack:task-daily-review",
+      limitation: "thread_unavailable",
+    });
+  });
+
+  it("opens the mission surface when the selected schedule only has task/run linkage", async () => {
+    const onOpenMissionTarget = vi.fn(async () => undefined);
+
+    const { container } = render(
+      <SettingsAutomationSection
+        {...createProps({
+          onOpenMissionTarget,
+          schedules: [createSummaries()[1] as SettingsAutomationScheduleSummary],
+        })}
+      />
+    );
+
+    expect(within(container).getByText("Active task: task-nightly-check (running)")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(
+        within(container).getAllByRole("button", {
+          name: "Open mission for Nightly health check",
+        })[0] as HTMLButtonElement
+      );
+    });
+
+    expect(onOpenMissionTarget).toHaveBeenCalledWith({
+      kind: "mission",
+      workspaceId: "workspace-beta",
+      taskId: "task-nightly-check",
+      runId: "run-nightly-check",
+      reviewPackId: null,
+      threadId: null,
+      limitation: "thread_unavailable",
     });
   });
 
@@ -165,6 +258,7 @@ describe("SettingsAutomationSection", () => {
     expect(onCreateSchedule).toHaveBeenCalledWith({
       name: "",
       prompt: "",
+      workspaceId: "",
       cadence: "",
       backendId: "backend-primary",
       reviewProfileId: "",
@@ -198,6 +292,7 @@ describe("SettingsAutomationSection", () => {
     expect(onUpdateSchedule).toHaveBeenCalledWith("schedule-daily-review", {
       name: "Daily review sweep",
       prompt: "Inspect the queue and summarize follow-up work.",
+      workspaceId: "workspace-alpha",
       cadence: "Every weekday at 09:00",
       backendId: "backend-primary",
       reviewProfileId: "issue-review",
@@ -210,5 +305,29 @@ describe("SettingsAutomationSection", () => {
       queueBudget: "2",
       safeFollowUp: true,
     });
+  });
+
+  it("disables run-now when the selected schedule has no workspace context", async () => {
+    const { container } = render(
+      <SettingsAutomationSection
+        {...createProps({
+          schedules: [
+            {
+              ...createSummaries()[0],
+              id: "schedule-missing-workspace",
+              workspaceId: null,
+              status: "paused",
+            },
+          ],
+        })}
+      />
+    );
+
+    const runNowButton = within(container).getAllByRole("button", { name: "Run now" }).at(-1);
+    expect(runNowButton).toBeTruthy();
+    expect((runNowButton as HTMLButtonElement).disabled).toBe(true);
+    expect((runNowButton as HTMLButtonElement).getAttribute("title")).toBe(
+      "Select a workspace and prompt before launching."
+    );
   });
 });

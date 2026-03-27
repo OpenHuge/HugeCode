@@ -37,6 +37,7 @@ type UseMainAppSettingsPropsParams = {
   onTestNotificationSound: () => void;
   onTestSystemNotification: () => void;
   onMobileConnectSuccess: SettingsViewProps["onMobileConnectSuccess"];
+  onOpenMissionTarget: SettingsViewProps["onOpenMissionTarget"];
 };
 
 export function useMainAppSettingsProps({
@@ -65,6 +66,7 @@ export function useMainAppSettingsProps({
   onTestNotificationSound,
   onTestSystemNotification,
   onMobileConnectSuccess,
+  onOpenMissionTarget,
 }: UseMainAppSettingsPropsParams): SettingsProps {
   return useMemo(
     () => ({
@@ -93,6 +95,7 @@ export function useMainAppSettingsProps({
       onTestNotificationSound,
       onTestSystemNotification,
       onMobileConnectSuccess,
+      onOpenMissionTarget,
     }),
     [
       workspaceGroups,
@@ -120,6 +123,7 @@ export function useMainAppSettingsProps({
       onTestNotificationSound,
       onTestSystemNotification,
       onMobileConnectSuccess,
+      onOpenMissionTarget,
     ]
   );
 }
