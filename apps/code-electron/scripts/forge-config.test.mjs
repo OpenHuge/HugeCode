@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import forgeConfig from "../forge.config.mjs";
+import forgeConfig, { buildForgeMakers } from "../forge.config.mjs";
 
 describe("forge config", () => {
   it("keeps the deb binary name aligned with the packaged executable", () => {
@@ -17,5 +17,15 @@ describe("forge config", () => {
 
     expect(squirrelMaker?.config?.authors).toBe("OpenHuge");
     expect(squirrelMaker?.config?.description).toBe("HugeCode beta desktop shell");
+  });
+
+  it("drops the dmg maker when smoke builds opt out", () => {
+    const makers = buildForgeMakers({
+      betaStaticUpdateBaseUrl: null,
+      skipDmg: true,
+    });
+
+    expect(makers.some((maker) => maker.name === "@electron-forge/maker-dmg")).toBe(false);
+    expect(makers.some((maker) => maker.name === "@electron-forge/maker-zip")).toBe(true);
   });
 });
