@@ -60,7 +60,6 @@ describe("run-forge helpers", () => {
       args: ["/d", "/s", "/c", "pnpm.cmd install --ignore-scripts"],
     });
   });
-
   it("filters workspace dependencies from the staged package manifest", () => {
     const stagedPackageJson = createStagedPackageJson({
       version: "1.2.3",

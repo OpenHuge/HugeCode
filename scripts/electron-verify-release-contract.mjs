@@ -18,7 +18,9 @@ verifyElectronForgeFuseContract(contract);
 const runtimeResult = await verifyElectronPackagedUpdaterRuntime(repoRoot);
 const rendererTransportResult = await verifyElectronPackagedRendererTransport(repoRoot);
 const appIntegrityResult = await verifyElectronPackagedAppIntegrity(repoRoot);
-const makeResult = requireMakeArtifacts ? await verifyElectronMakeArtifacts(repoRoot) : null;
+const makeResult = requireMakeArtifacts
+  ? await verifyElectronMakeArtifacts(repoRoot, { skipDmg: contract.skipDmg })
+  : null;
 
 process.stdout.write(
   `Electron release contract verified: channel=${contract.releaseChannel} mode=${contract.updateMode} provider=${contract.provider} appAsar=${runtimeResult.appAsarPath} renderer=${rendererTransportResult.rendererTransport}${appIntegrityResult.appPath ? ` app=${appIntegrityResult.appPath}` : ""}${makeResult ? ` artifacts=${makeResult.files.length}` : ""}\n`

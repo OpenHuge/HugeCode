@@ -7,8 +7,16 @@ import {
   useWorkspaceRouteSelection,
 } from "../features/workspaces/hooks/workspaceRoute";
 
-const mainAppContainerCoreModulePromise = import("../MainAppContainerCore");
-const MainAppContainerCore = lazy(() => mainAppContainerCoreModulePromise);
+let mainAppContainerCoreModulePromise: Promise<{
+  default: typeof import("../MainAppContainerCore").default;
+}> | null = null;
+
+function loadMainAppContainerCoreModule() {
+  mainAppContainerCoreModulePromise ??= import("../MainAppContainerCore");
+  return mainAppContainerCoreModulePromise;
+}
+
+const MainAppContainerCore = lazy(loadMainAppContainerCoreModule);
 
 export default function DesktopWorkspaceSurface() {
   const routeSelection = useWorkspaceRouteSelection();
@@ -19,6 +27,7 @@ export default function DesktopWorkspaceSurface() {
     routeSelection.kind === "home" ||
     showMissionHomeRoute
   ) {
+    void loadMainAppContainerCoreModule();
     return (
       <Suspense fallback={<AppBootFallback {...workspaceBootState} />}>
         <MainAppContainerCore />

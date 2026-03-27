@@ -131,6 +131,7 @@ export async function loadElectronReleaseContract(repoRoot) {
   const { default: forgeConfig } = await import(pathToFileURL(forgeConfigPath).href);
   const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
   const releaseChannel = process.env.HUGECODE_ELECTRON_RELEASE_CHANNEL?.trim() || "beta";
+  const skipDmg = process.env.HUGECODE_ELECTRON_SKIP_DMG?.trim() === "true";
   const staticUpdateBaseUrlRoot = normalizeStaticUpdateBaseUrlRoot(
     process.env.HUGECODE_ELECTRON_UPDATE_BASE_URL
   );
@@ -157,6 +158,7 @@ export async function loadElectronReleaseContract(repoRoot) {
     packageJson,
     provider,
     releaseChannel,
+    skipDmg,
     staticUpdateBaseUrlRoot,
     updateMode,
   };
@@ -322,15 +324,16 @@ export async function verifyElectronPackagedAppIntegrity(repoRoot) {
   };
 }
 
-export async function verifyElectronMakeArtifacts(repoRoot) {
+export async function verifyElectronMakeArtifacts(repoRoot, options = {}) {
   const makeDir = resolve(repoRoot, "apps/code-electron/out/make");
   const files = await listRelativeFiles(makeDir);
+  const skipDmg = options.skipDmg ?? false;
   if (files.length === 0) {
     throw new Error("Missing Electron make output under apps/code-electron/out/make.");
   }
 
   if (process.platform === "darwin") {
-    if (!files.some((file) => file.endsWith(".dmg"))) {
+    if (!skipDmg && !files.some((file) => file.endsWith(".dmg"))) {
       throw new Error("Missing macOS DMG artifact in apps/code-electron/out/make.");
     }
     if (
@@ -374,12 +377,14 @@ export function verifyElectronForgeUpdateContract(context) {
     throw new Error("Missing GitHub publisher in Electron Forge config.");
   }
 
-  const requiredMakerGroups = [
-    ["@electron-forge/maker-zip"],
-    ["@electron-forge/maker-dmg"],
+  const requiredMakerGroups = [["@electron-forge/maker-zip"]];
+  if (!context.skipDmg) {
+    requiredMakerGroups.push(["@electron-forge/maker-dmg"]);
+  }
+  requiredMakerGroups.push(
     ["@electron-forge/maker-squirrel"],
-    ["@electron-forge/maker-deb", "local-maker-deb"],
-  ];
+    ["@electron-forge/maker-deb", "local-maker-deb"]
+  );
 
   for (const acceptedMakerNames of requiredMakerGroups) {
     const hasAcceptedMaker = acceptedMakerNames.some((makerName) =>

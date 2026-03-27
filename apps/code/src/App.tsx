@@ -10,12 +10,18 @@ const AboutView = lazy(() =>
     default: module.AboutView,
   }))
 );
-const workspaceClientEntryModulePromise = import("./web/WorkspaceClientEntry");
-const WorkspaceClientEntry = lazy(() =>
-  workspaceClientEntryModulePromise.then((module) => ({
+let workspaceClientEntryModulePromise: Promise<{
+  default: typeof import("./web/WorkspaceClientEntry").default;
+}> | null = null;
+
+function loadWorkspaceClientEntryModule() {
+  workspaceClientEntryModulePromise ??= import("./web/WorkspaceClientEntry").then((module) => ({
     default: module.default,
-  }))
-);
+  }));
+  return workspaceClientEntryModulePromise;
+}
+
+const WorkspaceClientEntry = lazy(loadWorkspaceClientEntryModule);
 
 function App() {
   const windowLabel = useWindowLabel();
@@ -26,6 +32,8 @@ function App() {
       </Suspense>
     );
   }
+
+  void loadWorkspaceClientEntryModule();
 
   return (
     <RuntimePortsProvider>
