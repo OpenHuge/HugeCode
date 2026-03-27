@@ -5,6 +5,7 @@ import { delimiter, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   createForgeStagePackageJson,
+  createForgeStagePnpmConfig,
   shouldInstallForgeStageDependencies,
 } from "./forge-stage-package.mjs";
 import { buildForgeEnvironment, resolveCommandInvocation } from "./run-forge-support.mjs";
@@ -16,6 +17,9 @@ const outDir = resolve(packageDir, "out");
 const packageJson = JSON.parse(await readFile(resolve(packageDir, "package.json"), "utf8"));
 const forgeConfigSource = resolve(packageDir, "forge.config.mjs");
 const workspaceRoot = resolve(packageDir, "../..");
+const workspacePnpmConfig = createForgeStagePnpmConfig(
+  await readFile(resolve(workspaceRoot, "pnpm-workspace.yaml"), "utf8")
+);
 const requireFromWorkspace = createRequire(resolve(workspaceRoot, "package.json"));
 const electronForgeCli = requireFromWorkspace.resolve("@electron-forge/cli/dist/electron-forge.js");
 const darwinAdHocSignSource = resolve(scriptDir, "darwin-ad-hoc-sign.mjs");
@@ -27,6 +31,7 @@ let forgePackageDir = "";
 const nodeExecDir = dirname(process.execPath);
 
 const incompatibleForgeStageConfigEnvKeys = new Set([
+  "npm_config_block_exotic_subdeps",
   "npm_config__jsr_registry",
   "npm_config_minimum_release_age",
   "npm_config_node_linker",
@@ -35,6 +40,7 @@ const incompatibleForgeStageConfigEnvKeys = new Set([
   "npm_config_recursive",
   "npm_config_strict_dep_builds",
   "npm_config_verify_deps_before_run",
+  "pnpm_config_block_exotic_subdeps",
   "pnpm_config_verify_deps_before_run",
 ]);
 
@@ -124,19 +130,12 @@ export function createStagedPackageJson(packageMetadata) {
         ? packageMetadata.description
         : "HugeCode beta desktop shell",
     productDescription: "HugeCode beta desktop shell",
-    ...createForgeStagePackageJson(packageMetadata),
+    ...createForgeStagePackageJson(packageMetadata, workspacePnpmConfig),
   };
 }
 
-export function createForgeStageInstallArgs(lockfileDir = workspaceRoot) {
-  return [
-    "install",
-    "--frozen-lockfile",
-    "--ignore-scripts",
-    "--ignore-workspace",
-    "--lockfile-dir",
-    lockfileDir,
-  ];
+export function createForgeStageInstallArgs() {
+  return ["install", "--ignore-scripts", "--ignore-workspace", "--no-lockfile"];
 }
 
 export function resolveForgeHostBinaryRequirements(command, platform = process.platform) {
@@ -265,9 +264,10 @@ async function runCommand(commandName, args, cwd, env = process.env) {
     commandName,
     nodeExecDir,
   });
+  const invocation = createCliInvocation(command, [...argsPrefix, ...args], process.platform);
 
   await new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(command, [...argsPrefix, ...args], {
+    const child = spawn(invocation.command, invocation.args, {
       cwd,
       env: sanitizeSpawnEnv(env),
       stdio: "inherit",
@@ -281,7 +281,7 @@ async function runCommand(commandName, args, cwd, env = process.env) {
 
       rejectPromise(
         new Error(
-          `${command} ${[...argsPrefix, ...args].join(" ")} failed with exit code ${code ?? -1}`
+          `${invocation.command} ${invocation.args.join(" ")} failed with exit code ${code ?? -1}`
         )
       );
     });
@@ -305,6 +305,15 @@ async function prepareStage() {
   await cp(forgeConfigSource, resolve(forgePackageDir, "forge.config.mjs"));
   await cp(darwinAdHocSignSource, resolve(forgePackageDir, "scripts/darwin-ad-hoc-sign.mjs"));
   await cp(localMakerDebSource, resolve(forgePackageDir, "scripts/maker-deb.cjs"));
+  if (workspacePnpmConfig?.patchedDependencies) {
+    const patchSourceDir = resolve(workspaceRoot, "patches");
+    try {
+      await access(patchSourceDir);
+      await cp(patchSourceDir, resolve(forgePackageDir, "patches"), { recursive: true });
+    } catch {
+      // Keep the staged install running even if the workspace has no patch assets.
+    }
+  }
 
   const stagedPackageJson = createStagedPackageJson(packageJson);
 
@@ -316,12 +325,16 @@ async function prepareStage() {
   await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
 
   if (shouldInstallForgeStageDependencies(stagedPackageJson)) {
+<<<<<<< HEAD
     await runCommand(
       "pnpm",
       createForgeStageInstallArgs(workspaceRoot),
       forgePackageDir,
       process.env
     );
+=======
+    await runCommand("pnpm", createForgeStageInstallArgs(), forgePackageDir, process.env);
+>>>>>>> ab2a52bb (fix: align forge stage install with workspace config)
   }
 }
 
