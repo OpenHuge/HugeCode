@@ -325,16 +325,7 @@ async function prepareStage() {
   await writeFile(resolve(forgePackageDir, ".npmrc"), "node-linker=hoisted\n", "utf8");
 
   if (shouldInstallForgeStageDependencies(stagedPackageJson)) {
-<<<<<<< HEAD
-    await runCommand(
-      "pnpm",
-      createForgeStageInstallArgs(workspaceRoot),
-      forgePackageDir,
-      process.env
-    );
-=======
     await runCommand("pnpm", createForgeStageInstallArgs(), forgePackageDir, process.env);
->>>>>>> ab2a52bb (fix: align forge stage install with workspace config)
   }
 }
 
