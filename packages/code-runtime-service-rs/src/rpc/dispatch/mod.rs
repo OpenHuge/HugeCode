@@ -36,6 +36,8 @@ mod security_preflight_dispatch;
 mod sessions_dispatch;
 #[path = "../../rpc_dispatch_task_sources.rs"]
 mod task_sources_dispatch;
+#[path = "../../rpc_dispatch_text_files.rs"]
+mod text_files_dispatch;
 #[path = "../../rpc_dispatch_thread_live.rs"]
 mod thread_live;
 #[path = "../../rpc_dispatch_workspace_diagnostics.rs"]
@@ -124,6 +126,7 @@ use task_sources_dispatch::{
     handle_task_source_get_v1, handle_task_source_ingest_v1, handle_task_source_list_v1,
     handle_task_source_reconcile_v1,
 };
+use text_files_dispatch::{handle_text_file_read_v1, handle_text_file_write_v1};
 use thread_live::{
     detach_thread_live_subscriptions_for_workspace, handle_thread_archive, handle_thread_create,
     handle_thread_live_subscribe, handle_thread_live_unsubscribe, handle_thread_resume,
