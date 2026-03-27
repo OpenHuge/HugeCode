@@ -1,0 +1,197 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildRuntimeContinuationAggregate,
+  buildRuntimeContinuationDescriptor,
+} from "./runtimeContinuationFacade";
+
+describe("runtimeContinuationFacade", () => {
+  it("gives takeover bundle precedence over fragmented review truth and fallback next action", () => {
+    const descriptor = buildRuntimeContinuationDescriptor({
+      runState: "review_ready",
+      actionability: {
+        state: "blocked",
+        summary: "Top-level review actionability is stale.",
+        degradedReasons: ["runtime_evidence_incomplete"],
+        actions: [],
+      },
+      missionLinkage: {
+        workspaceId: "workspace-1",
+        taskId: "task-1",
+        runId: "run-1",
+        reviewPackId: "review-pack:1",
+        missionTaskId: "task-1",
+        taskEntityKind: "thread",
+        recoveryPath: "thread",
+        navigationTarget: {
+          kind: "thread",
+          workspaceId: "workspace-1",
+          threadId: "thread-1",
+        },
+        summary: "Legacy thread continuation",
+      },
+      nextAction: {
+        label: "Inspect stale runtime action",
+        action: "review",
+        detail: "This fallback next action must not win.",
+      },
+      takeoverBundle: {
+        state: "ready",
+        pathKind: "review",
+        primaryAction: "open_review_pack",
+        summary: "Takeover bundle published the canonical review continuation.",
+        recommendedAction: "Open Review Pack from the takeover bundle.",
+        reviewPackId: "review-pack:1",
+        reviewActionability: {
+          state: "ready",
+          summary: "Takeover bundle says review can continue now.",
+          degradedReasons: [],
+          actions: [],
+        },
+        target: {
+          kind: "review_pack",
+          workspaceId: "workspace-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:1",
+        },
+      },
+    });
+
+    expect(descriptor).toMatchObject({
+      state: "ready",
+      pathKind: "review",
+      summary: "Takeover bundle says review can continue now.",
+      recommendedAction: "Open Review Pack from the takeover bundle.",
+      truthSource: "takeover_bundle",
+      continuePathLabel: "Review Pack",
+      canonicalNextAction: {
+        kind: "review",
+        label: "Open review",
+        detail: "Open Review Pack from the takeover bundle.",
+      },
+    });
+  });
+
+  it("keeps resumable, handoff, blocked, and review-ready runs distinct in the aggregate", () => {
+    const aggregate = buildRuntimeContinuationAggregate({
+      candidates: [
+        {
+          runId: "run-resume",
+          taskId: "task-resume",
+          runState: "paused",
+          checkpoint: {
+            state: "paused",
+            lifecycleState: "paused",
+            checkpointId: "checkpoint-1",
+            traceId: "trace-1",
+            recovered: true,
+            updatedAt: 1,
+            resumeReady: true,
+            recoveredAt: 1,
+            summary: "Resume ready from checkpoint-1.",
+          },
+        },
+        {
+          runId: "run-review",
+          taskId: "task-review",
+          runState: "review_ready",
+          actionability: {
+            state: "ready",
+            summary: "Review follow-up is ready.",
+            degradedReasons: [],
+            actions: [],
+          },
+          reviewPackId: "review-pack:2",
+        },
+        {
+          runId: "run-handoff",
+          taskId: "task-handoff",
+          runState: "running",
+          missionLinkage: {
+            workspaceId: "workspace-1",
+            taskId: "task-handoff",
+            runId: "run-handoff",
+            missionTaskId: "task-handoff",
+            taskEntityKind: "thread",
+            recoveryPath: "thread",
+            navigationTarget: {
+              kind: "thread",
+              workspaceId: "workspace-1",
+              threadId: "thread-handoff",
+            },
+            summary: "Continue from thread-handoff.",
+          },
+        },
+        {
+          runId: "run-blocked",
+          taskId: "task-blocked",
+          runState: "paused",
+          checkpoint: {
+            state: "paused",
+            lifecycleState: "paused",
+            checkpointId: "checkpoint-2",
+            traceId: "trace-2",
+            recovered: true,
+            updatedAt: 2,
+            resumeReady: false,
+            recoveredAt: 2,
+            summary: "Recoverable run is missing a canonical continue path.",
+          },
+        },
+      ],
+    });
+
+    expect(aggregate).toMatchObject({
+      state: "blocked",
+      recoverableRunCount: 1,
+      handoffReadyCount: 1,
+      reviewReadyCount: 1,
+      reviewBlockedCount: 0,
+      missingPathCount: 1,
+      attentionCount: 1,
+      blockedCount: 1,
+      blockingReason: "Recoverable run is missing a canonical continue path.",
+    });
+    expect(aggregate.items.map((item) => [item.runId, item.canonicalNextAction.kind])).toEqual(
+      expect.arrayContaining([
+        ["run-resume", "resume"],
+        ["run-review", "review"],
+        ["run-handoff", "continue"],
+        ["run-blocked", "blocked"],
+      ])
+    );
+  });
+
+  it("marks takeover review follow-up as blocked when review actionability is blocked", () => {
+    const descriptor = buildRuntimeContinuationDescriptor({
+      runState: "review_ready",
+      takeoverBundle: {
+        state: "ready",
+        pathKind: "review",
+        primaryAction: "open_review_pack",
+        summary: "Takeover bundle published the canonical review continuation.",
+        recommendedAction: "Open Review Pack from the takeover bundle.",
+        reviewPackId: "review-pack:1",
+        reviewActionability: {
+          state: "blocked",
+          summary: "Follow-up is blocked on fresh review evidence.",
+          degradedReasons: [],
+          actions: [],
+        },
+        target: {
+          kind: "review_pack",
+          workspaceId: "workspace-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:1",
+        },
+      },
+    });
+
+    expect(descriptor.state).toBe("blocked");
+    expect(descriptor.canonicalNextAction.kind).toBe("blocked");
+    expect(descriptor.canonicalNextAction.blockedReason).toBe(
+      "Follow-up is blocked on fresh review evidence."
+    );
+  });
+});

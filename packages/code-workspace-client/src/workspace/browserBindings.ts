@@ -28,6 +28,7 @@ import type {
   WorkspaceClientRuntimeGatewayBindings,
   WorkspaceClientRuntimeMode,
 } from "./bindings";
+import { buildSharedMissionControlSummary } from "../workspace-shell/sharedMissionControlSummary";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -460,10 +461,29 @@ export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRu
           {}
         );
       },
+      // Keep first-party UI summary generation on the snapshot-backed canonical continuation facade.
+      // `mission_control_summary_v1` remains a compatibility RPC until external callers migrate.
       readMissionControlSummary: async (activeWorkspaceId) =>
-        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.MISSION_CONTROL_SUMMARY_V1, {
-          activeWorkspaceId,
-        }),
+        buildSharedMissionControlSummary(
+          await (async () => {
+            try {
+              const bootstrap = await bootstrapBrowserWorkspaceClientKernelProjection({
+                scopes: ["mission_control"],
+              });
+              const missionControl = readMissionControlProjectionSlice(bootstrap);
+              if (missionControl) {
+                return missionControl;
+              }
+            } catch {
+              // Fall through to snapshot v1 when projection bootstrap is unavailable.
+            }
+            return await invokeBrowserWorkspaceRuntime(
+              CODE_RUNTIME_RPC_METHODS.MISSION_CONTROL_SNAPSHOT_V1,
+              {}
+            );
+          })(),
+          activeWorkspaceId
+        ),
     },
     kernelProjection: {
       bootstrap: bootstrapBrowserWorkspaceClientKernelProjection,

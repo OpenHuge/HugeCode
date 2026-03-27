@@ -15,6 +15,7 @@ import {
   resolveRuntimeSessionBoundary,
 } from "@ku0/code-runtime-host-contract";
 import { buildGovernanceSummary } from "./runtimeMissionControlRunState";
+import { buildRuntimeContinuationDescriptor } from "./runtimeContinuationTruth";
 import {
   buildReviewPackAssumptions,
   buildReviewPackBackendAudit,
@@ -187,6 +188,23 @@ export function projectCompletedRunToReviewPackSummary(
       : "incomplete");
   const validationOutcome = deriveValidationOutcome(validations);
   const reviewStatus = buildReviewStatus(run, validationOutcome, evidenceState);
+  const continuationDescriptor = buildRuntimeContinuationDescriptor({
+    runState: run.state,
+    checkpoint: run.checkpoint ?? null,
+    missionLinkage: run.missionLinkage ?? null,
+    actionability: run.actionability ?? null,
+    publishHandoff: run.publishHandoff ?? null,
+    takeoverBundle: run.takeoverBundle ?? null,
+    nextAction: run.nextAction ?? null,
+    reviewPackId: run.reviewPackId ?? `review-pack:${run.id}`,
+  });
+  const hasCanonicalContinuationTruth = Boolean(
+    run.checkpoint ??
+    run.missionLinkage ??
+    run.actionability ??
+    run.publishHandoff ??
+    run.takeoverBundle
+  );
   const reviewDecision =
     run.reviewDecision ??
     (run.reviewPackId
@@ -302,12 +320,13 @@ export function projectCompletedRunToReviewPackSummary(
     recommendedNextAction:
       nextOperatorAction?.detail ??
       nextOperatorAction?.label ??
-      continuation?.recommendedAction ??
+      continuationDescriptor?.recommendedAction ??
       (reviewDecision?.status === "accepted"
         ? "Accepted in review. No further action is required unless follow-up work is needed."
         : reviewDecision?.status === "rejected"
           ? "Rejected in review. Open the mission thread to retry or reroute with operator feedback."
-          : (run.nextAction?.label ??
+          : ((hasCanonicalContinuationTruth ? continuationDescriptor?.recommendedAction : null) ??
+            run.nextAction?.label ??
             (reviewStatus === "ready"
               ? "Review the evidence and accept or retry."
               : reviewStatus === "action_required"

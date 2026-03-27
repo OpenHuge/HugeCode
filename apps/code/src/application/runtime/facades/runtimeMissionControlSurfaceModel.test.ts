@@ -163,7 +163,9 @@ describe("runtimeMissionControlSurfaceModel", () => {
     const signals = summarizeMissionControlSignals(projection);
 
     expect(latestRuns[0]?.statusKind).toBe("review_ready");
+    expect(latestRuns[0]?.operatorActionLabel).toBe("Open review");
     expect(reviewEntries[0]?.recommendedNextAction).toBe("Open Review Pack");
+    expect(reviewEntries[0]?.operatorActionLabel).toBe("Open review");
     expect(reviewEntries[0]?.continuePathLabel).toBe("Review Pack");
     expect(reviewEntries[0]?.contextSummary).toBe("GitHub issue · triage");
     expect(reviewEntries[0]?.provenanceSummary).toBe(
@@ -174,7 +176,6 @@ describe("runtimeMissionControlSurfaceModel", () => {
     expect(reviewEntries[0]?.continuationTruthSourceLabel).toBe("Runtime takeover bundle");
     expect(signals.reviewReadyCount).toBe(1);
   });
-
   it("prefers canonical continuation and next operator action over stale review-pack text", () => {
     const projection = createProjection();
     const run = projection.runs[0];

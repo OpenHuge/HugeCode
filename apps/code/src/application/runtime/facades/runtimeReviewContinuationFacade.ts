@@ -8,13 +8,9 @@ import type {
   HugeCodeReviewActionabilitySummary,
   HugeCodeTakeoverBundle,
 } from "@ku0/code-runtime-host-contract";
-import { resolveRuntimeContinuation } from "@ku0/code-runtime-host-contract";
-import type { HugeCodeOperatorTruthSource } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
-import { summarizeHugeCodeOperatorContinuation } from "@ku0/code-runtime-host-contract/hugeCodeOperatorLoop";
 import { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
 import {
-  formatRuntimeContinuationTruthSourceLabel,
-  resolveContinuationPathLabel,
+  buildRuntimeContinuationDescriptor,
   type RuntimeContinuationTruthSource,
 } from "./runtimeContinuationTruth";
 import {
@@ -83,14 +79,10 @@ export type ReviewContinuationActionabilitySummary = {
   details: string[];
   blockingReason: string | null;
   recommendedAction: string;
-  continuePathLabel: "Mission thread" | "Mission run" | "Review Pack";
+  continuePathLabel: "Mission thread" | "Mission run" | "Review Pack" | "Sub-agent session";
   truthSource: RuntimeContinuationTruthSource;
   truthSourceLabel: string;
 };
-
-function mapTruthSource(source: HugeCodeOperatorTruthSource): RuntimeContinuationTruthSource {
-  return source;
-}
 
 type RuntimeRecordedContinuationDefaults = {
   sourceTaskId: string;
@@ -246,40 +238,6 @@ export function resolveRuntimeFollowUpPreferredBackendIds(
     : undefined;
 }
 
-function mapTakeoverStateToReviewContinuationState(
-  state: HugeCodeTakeoverBundle["state"] | null | undefined
-): ReviewContinuationActionabilitySummary["state"] {
-  if (state === "ready") {
-    return "ready";
-  }
-  if (state === "attention") {
-    return "degraded";
-  }
-  if (state === "blocked") {
-    return "blocked";
-  }
-  return "missing";
-}
-
-function resolvePublishedContinuationPathLabel(
-  continuation: HugeCodeContinuationSummary,
-  fallbackLabel: ReviewContinuationActionabilitySummary["continuePathLabel"]
-): ReviewContinuationActionabilitySummary["continuePathLabel"] {
-  if (continuation.pathKind === "review") {
-    return "Review Pack";
-  }
-  if (continuation.target?.kind === "thread") {
-    return "Mission thread";
-  }
-  if (continuation.target?.kind === "run") {
-    return "Mission run";
-  }
-  if (continuation.target?.kind === "review_pack") {
-    return "Review Pack";
-  }
-  return fallbackLabel;
-}
-
 export function summarizeReviewContinuationActionability(input: {
   takeoverBundle?: HugeCodeTakeoverBundle | null;
   actionability?: HugeCodeReviewActionabilitySummary | null;
@@ -287,81 +245,32 @@ export function summarizeReviewContinuationActionability(input: {
   publishHandoff?: HugeCodePublishHandoffReference | null;
   continuation?: HugeCodeContinuationSummary | null;
 }): ReviewContinuationActionabilitySummary {
-  const publishedContinuation = resolveRuntimeContinuation({
+  const descriptor = buildRuntimeContinuationDescriptor({
     takeoverBundle: input.takeoverBundle ?? null,
     actionability: input.actionability ?? null,
     missionLinkage: input.missionLinkage ?? null,
     publishHandoff: input.publishHandoff ?? null,
-    continuation: input.continuation ?? null,
-    sessionBoundary: null,
   });
-  const fallbackContinuePathLabel = resolveContinuationPathLabel({
-    takeoverBundle: input.takeoverBundle ?? null,
-    missionLinkage: input.missionLinkage ?? null,
-  });
-  if (publishedContinuation) {
-    const continuePathLabel = resolvePublishedContinuationPathLabel(
-      publishedContinuation,
-      fallbackContinuePathLabel
-    );
-    const publishedSummary =
-      (publishedContinuation.pathKind === "review"
-        ? publishedContinuation.reviewActionability?.summary
-        : null) ?? publishedContinuation.summary;
-    const publishedDetail = publishedContinuation.detail ?? publishedSummary;
-    const details = [
-      publishedDetail,
-      `Canonical continue path: ${continuePathLabel}.`,
-      `Follow-up source: ${formatRuntimeContinuationTruthSourceLabel(publishedContinuation.source)}.`,
-    ];
-    if (input.missionLinkage?.summary && !details.includes(input.missionLinkage.summary)) {
-      details.push(input.missionLinkage.summary);
-    }
-    if (input.publishHandoff?.summary && !details.includes(input.publishHandoff.summary)) {
-      details.push(input.publishHandoff.summary);
-    }
-    const state =
-      publishedContinuation.state === "attention"
-        ? "degraded"
-        : publishedContinuation.state === "missing"
-          ? "missing"
-          : publishedContinuation.state;
-    const truthSourceLabel = formatRuntimeContinuationTruthSourceLabel(
-      publishedContinuation.source
-    );
-    return {
-      state,
-      summary: publishedSummary,
-      details,
-      blockingReason: publishedContinuation.state === "blocked" ? publishedDetail : null,
-      recommendedAction: publishedContinuation.recommendedAction,
-      continuePathLabel,
-      truthSource: publishedContinuation.source,
-      truthSourceLabel,
-    };
-  }
-  const shared = summarizeHugeCodeOperatorContinuation({
-    takeoverBundle: input.takeoverBundle ?? null,
-    reviewActionability: input.actionability ?? null,
-    missionLinkage: input.missionLinkage ?? null,
-    publishHandoff: input.publishHandoff ?? null,
-  });
+  const summary = descriptor?.summary ?? "Runtime continuation guidance is unavailable.";
+  const state =
+    descriptor?.state === "attention"
+      ? "degraded"
+      : descriptor?.state === "ready" || descriptor?.state === "blocked"
+        ? descriptor.state
+        : "missing";
   return {
-    state:
-      shared.state === "ready"
-        ? "ready"
-        : shared.state === "blocked"
-          ? "blocked"
-          : shared.state === "degraded"
-            ? "degraded"
-            : mapTakeoverStateToReviewContinuationState(input.takeoverBundle?.state),
-    summary: shared.summary,
-    details: shared.details,
-    blockingReason: shared.blockingReason,
-    recommendedAction: shared.recommendedAction,
-    continuePathLabel: shared.continuePathLabel,
-    truthSource: mapTruthSource(shared.truthSource),
-    truthSourceLabel: shared.truthSourceLabel,
+    state,
+    summary,
+    details: descriptor?.details ?? [
+      "Runtime continuation guidance is unavailable.",
+      "Follow-up source: Runtime truth unavailable.",
+    ],
+    blockingReason: descriptor?.blockingReason ?? (state === "blocked" ? summary : null),
+    recommendedAction:
+      descriptor?.recommendedAction ?? "Inspect the recorded runtime truth before continuing.",
+    continuePathLabel: descriptor?.continuePathLabel ?? "Review Pack",
+    truthSource: descriptor?.truthSource ?? "missing",
+    truthSourceLabel: descriptor?.truthSourceLabel ?? "Runtime truth unavailable",
   };
 }
 
