@@ -11,7 +11,6 @@ import {
   Suspense,
 } from "react";
 import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";
-import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import { REVIEW_START_DESKTOP_ONLY_MESSAGE } from "../../../application/runtime/ports/tauriThreads";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import { Button } from "../../../design-system";
@@ -512,7 +511,7 @@ export function Home({
   }, [activeWorkspaceId, onQueue, onSend, pendingHomeSubmits]);
 
   const handleHomeSubmit = (mode: "send" | "queue", text: string, images: string[]) => {
-    if (isReviewSlashCommand(text) && detectRuntimeMode() !== "tauri") {
+    if (isReviewSlashCommand(text) && true) {
       pushErrorToast({
         title: "Desktop review only",
         message: REVIEW_START_DESKTOP_ONLY_MESSAGE,
@@ -575,7 +574,7 @@ export function Home({
               {onExpandSidebar ? (
                 <WorkspaceHeaderAction
                   onClick={onExpandSidebar}
-                  data-tauri-drag-region="false"
+                  data-desktop-drag-region="false"
                   data-testid="home-sidebar-toggle"
                   aria-label="Show threads sidebar"
                   title="Show threads sidebar"
@@ -609,7 +608,7 @@ export function Home({
                 }
                 onOpenSettings();
               }}
-              data-tauri-drag-region="false"
+              data-desktop-drag-region="false"
               data-testid="home-settings-trigger"
               aria-label={settingsButtonLabel}
               title={settingsButtonLabel}
@@ -808,7 +807,7 @@ export function Home({
         <ComposerSurface
           surface="home"
           className={joinClassNames(styles.composerDock, launchpadStyles.composer)}
-          data-tauri-drag-region="false"
+          data-desktop-drag-region="false"
           data-home-dock="true"
           data-home-composer-dock="true"
         >

@@ -4,6 +4,9 @@ import type {
   DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopNotificationInput,
+  DesktopOpenDialogInput,
+  DesktopOpenDialogResult,
+  DesktopOpenPathInInput,
   DesktopUpdateState,
   OpenDesktopWindowInput,
 } from "../shared/ipc.js";
@@ -47,7 +50,11 @@ type DesktopHostIpcHandlers = {
   getWindowLabel(event: IpcInvokeEventLike): Promise<string> | string;
   listRecentSessions(): Promise<unknown[]> | unknown[];
   listWindows(): Promise<DesktopWindowDescriptor[]> | DesktopWindowDescriptor[];
+  openDialog(
+    input?: DesktopOpenDialogInput
+  ): Promise<DesktopOpenDialogResult> | DesktopOpenDialogResult;
   openExternalUrl(url: string): Promise<boolean> | boolean;
+  openPathIn(input: DesktopOpenPathInInput): Promise<boolean> | boolean;
   openPath(path: string): Promise<boolean> | boolean;
   openWindow(input?: OpenDesktopWindowInput): Promise<unknown> | unknown;
   reopenSession(sessionId: string): Promise<boolean> | boolean;
@@ -147,6 +154,10 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
     return handlers.showNotification(event, notificationInput as DesktopNotificationInput);
   });
 
+  handleTrusted(channels.openDialog, async (_event, dialogInput) => {
+    return handlers.openDialog(dialogInput as DesktopOpenDialogInput | undefined);
+  });
+
   handleTrusted(channels.getUpdateState, async () => {
     return handlers.getUpdateState();
   });
@@ -161,6 +172,10 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
 
   handleTrusted(channels.openExternalUrl, async (_event, url) => {
     return handlers.openExternalUrl(url as string);
+  });
+
+  handleTrusted(channels.openPathIn, async (_event, openPathInput) => {
+    return handlers.openPathIn(openPathInput as DesktopOpenPathInInput);
   });
 
   handleTrusted(channels.openPath, async (_event, path) => {

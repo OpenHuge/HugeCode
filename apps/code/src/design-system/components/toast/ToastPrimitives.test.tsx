@@ -23,7 +23,7 @@ describe("ToastPrimitives", () => {
     expect(region.className).toContain("ds-toast-viewport");
     expect(region.className).toContain("custom-toast");
     expect(region.getAttribute("aria-live")).toBe("assertive");
-    expect(region.getAttribute("data-tauri-drag-region")).toBe("false");
+    expect(region.getAttribute("data-desktop-drag-region")).toBe("false");
   });
 
   it("renders card, text, and section primitive classes", () => {
@@ -43,7 +43,7 @@ describe("ToastPrimitives", () => {
     const card = screen.getByRole("alert");
     expect(card.className).toContain("ds-toast-card");
     expect(card.className).toContain("custom-card");
-    expect(card.getAttribute("data-tauri-drag-region")).toBe("false");
+    expect(card.getAttribute("data-desktop-drag-region")).toBe("false");
     expect(container.querySelector(".ds-toast-header.custom-header")).toBeTruthy();
     expect(container.querySelector(".ds-toast-title.custom-title")).toBeTruthy();
     expect(container.querySelector(".ds-toast-body.custom-body")).toBeTruthy();

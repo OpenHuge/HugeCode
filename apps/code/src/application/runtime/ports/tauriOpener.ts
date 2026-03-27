@@ -38,6 +38,9 @@ export async function openDesktopCompatibilityUrl(url: string) {
   return false;
 }
 
+export const openUrl = openDesktopCompatibilityUrl;
+export const openExternal = openDesktopCompatibilityUrl;
+
 export async function revealDesktopCompatibilityItemInDir(path: string) {
   const opener = await loadCompatibilityOpener();
   if (opener?.revealItemInDir) {
@@ -47,6 +50,8 @@ export async function revealDesktopCompatibilityItemInDir(path: string) {
   return false;
 }
 
+export const revealItemInDir = revealDesktopCompatibilityItemInDir;
+
 export async function openDesktopCompatibilityPath(path: string) {
   const opener = await loadCompatibilityOpener();
   if (opener?.openPath) {
@@ -55,6 +60,8 @@ export async function openDesktopCompatibilityPath(path: string) {
 
   return false;
 }
+
+export const openPath = openDesktopCompatibilityPath;
 
 export const openTauriUrl = openDesktopCompatibilityUrl;
 export const revealTauriItemInDir = revealDesktopCompatibilityItemInDir;

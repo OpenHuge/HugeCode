@@ -192,7 +192,7 @@ export function OpenAppMenu({
         <WorkspaceHeaderAction
           onClick={handleOpen}
           disabled={!selectedCanOpen}
-          data-tauri-drag-region="false"
+          data-desktop-drag-region="false"
           aria-label={`Open in ${selectedOpenTarget.label}`}
           title={openLabel}
           segment="single"
@@ -236,7 +236,7 @@ export function OpenAppMenu({
               {...triggerProps}
               ref={ref}
               className="open-app-picker-trigger"
-              data-tauri-drag-region="false"
+              data-desktop-drag-region="false"
               title="Select editor"
               active={open}
               segment="icon"

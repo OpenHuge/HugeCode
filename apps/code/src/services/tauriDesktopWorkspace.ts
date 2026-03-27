@@ -1,4 +1,5 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "../application/runtime/ports/tauriCore";
+import { getDesktopHostBridge } from "../application/runtime/ports/desktopHostBridge";
 
 export type WorktreeSetupStatus = {
   shouldRun: boolean;
@@ -36,6 +37,21 @@ export async function openWorkspaceIn(
     args?: string[];
   }
 ): Promise<void> {
+  const bridgeOpenPathIn = getDesktopHostBridge()?.shell?.openPathIn;
+  if (bridgeOpenPathIn) {
+    const opened =
+      (await bridgeOpenPathIn({
+        appName: options.appName ?? null,
+        args: options.args ?? [],
+        command: options.command ?? null,
+        path,
+      })) ?? false;
+    if (!opened) {
+      throw new Error("Open in is unavailable in the current desktop host.");
+    }
+    return;
+  }
+
   if (!isTauri()) {
     throw new Error("Open in is unavailable outside Tauri desktop runtime.");
   }

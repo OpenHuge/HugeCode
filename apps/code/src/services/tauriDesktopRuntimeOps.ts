@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../application/runtime/ports/tauriCore";
 import type {
   BackendPoolBootstrapPreview,
   BackendPoolDiagnostics,

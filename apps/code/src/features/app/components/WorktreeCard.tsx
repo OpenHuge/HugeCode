@@ -80,7 +80,7 @@ export function WorktreeCard({
                   }
                   onToggleWorkspaceCollapse(worktree.id, !isCollapsed);
                 }}
-                data-tauri-drag-region="false"
+                data-desktop-drag-region="false"
                 aria-label={isCollapsed ? "Show agents" : "Hide agents"}
                 aria-expanded={!isCollapsed}
                 aria-disabled={collapseLocked}

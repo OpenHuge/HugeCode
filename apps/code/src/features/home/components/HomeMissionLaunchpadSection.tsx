@@ -92,7 +92,7 @@ function MissionSignalTile({
         className={joinClassNames(styles.missionTile, styles.missionTileButton)}
         onClick={onClick}
         disabled={disabled}
-        data-tauri-drag-region="false"
+        data-desktop-drag-region="false"
         aria-label={ariaLabel}
         data-testid={testId}
       >
@@ -291,7 +291,7 @@ export function HomeMissionLaunchpadSection({
                     type="button"
                     className={launchpadStyles.starterCardButton}
                     onClick={() => onSetLaunchpadPrompt(starter.prompt)}
-                    data-tauri-drag-region="false"
+                    data-desktop-drag-region="false"
                     data-testid={`home-launchpad-starter-${starter.id}`}
                   >
                     <Card

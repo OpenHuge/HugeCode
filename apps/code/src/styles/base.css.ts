@@ -211,7 +211,7 @@ applyGlobalStyle(".drag-strip", {
     },
   },
 });
-applyGlobalStyle(':root body [data-tauri-drag-region="false"]', {
+applyGlobalStyle(':root body [data-desktop-drag-region="false"]', {
   "@layer": { [layers.reset]: { "-webkit-app-region": "no-drag" } },
 });
 applyGlobalStyle(".titlebar-controls", {
@@ -380,10 +380,10 @@ applyGlobalStyle(".app > .sidebar", {
 applyGlobalStyle(".sidebar-resizer", {
   "@layer": { [layers.reset]: { "@media": { "(max-width: 960px)": { display: "none" } } } },
 });
-applyGlobalStyle(':root[data-tauri-runtime="false"] .drag-strip', {
+applyGlobalStyle(':root[data-desktop-runtime="false"] .drag-strip', {
   "@layer": { [layers.reset]: { display: "none" } },
 });
-applyGlobalStyle(':root[data-tauri-runtime="false"] body *', {
+applyGlobalStyle(':root[data-desktop-runtime="false"] body *', {
   "@layer": { [layers.reset]: { "-webkit-app-region": "no-drag" } },
 });
 applyGlobalStyle("*,\n  *::before,\n  *::after", {
