@@ -368,6 +368,172 @@ describe("browser workspace bindings", () => {
     ]);
   });
 
+  it("projects subscribe continuation from canonical review takeover truth", async () => {
+    process.env[WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY] = "http://127.0.0.1:8788/rpc";
+    const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      const request = JSON.parse(String(init?.body)) as { method?: string };
+      if (request.method !== CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE_V2) {
+        throw new Error(`Unexpected method: ${request.method}`);
+      }
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          result: {
+            run: {
+              taskId: "run-review-1",
+              workspaceId: "workspace-1",
+              threadId: "thread-1",
+              requestId: null,
+              title: "Review follow-up",
+              status: "needs_input",
+              accessMode: "on-request",
+              executionMode: "distributed",
+              provider: "openai",
+              modelId: "gpt-5.4",
+              routedProvider: "openai",
+              routedModelId: "gpt-5.4",
+              routedPool: "auto",
+              routedSource: "workspace-default",
+              currentStep: 4,
+              createdAt: 10,
+              updatedAt: 25,
+              startedAt: 15,
+              completedAt: null,
+              errorCode: null,
+              errorMessage: null,
+              pendingApprovalId: null,
+              checkpointId: "checkpoint-review-1",
+              traceId: "trace-review-1",
+              recovered: false,
+              checkpointState: {
+                state: "paused",
+                checkpointId: "checkpoint-review-1",
+                traceId: "trace-review-1",
+                resumeReady: false,
+              },
+              preferredBackendIds: ["backend-a"],
+              backendId: "backend-a",
+              steps: [],
+            },
+            missionRun: {
+              id: "run-review-1",
+              taskId: "task-review-1",
+              workspaceId: "workspace-1",
+              state: "needs_input",
+              title: "Review follow-up",
+              summary: "Mission is waiting for follow-up.",
+              startedAt: 15,
+              updatedAt: 25,
+              continuation: {
+                state: "blocked",
+                pathKind: "review",
+                source: "review_actionability",
+                summary: null,
+                detail: null,
+                recommendedAction: "Inspect blocked review follow-up",
+                sessionBoundary: {
+                  workspaceId: "workspace-1",
+                  taskId: "task-review-1",
+                  runId: "run-review-1",
+                  reviewPackId: "review-pack-1",
+                },
+              },
+              checkpoint: {
+                checkpointId: "checkpoint-review-1",
+                traceId: "trace-review-1",
+                recovered: false,
+                resumeReady: false,
+              },
+              takeoverBundle: {
+                state: "blocked",
+                pathKind: "review",
+                primaryAction: "open_review_pack",
+                summary: "Take over the review pack.",
+                blockingReason: "Resolve review issues before continuing.",
+                recommendedAction: "Open the review pack and resolve the blocked follow-up.",
+                reviewPackId: "review-pack-1",
+                target: {
+                  kind: "review_pack",
+                  workspaceId: "workspace-1",
+                  taskId: "task-review-1",
+                  runId: "run-review-1",
+                  reviewPackId: "review-pack-1",
+                },
+                reviewActionability: {
+                  state: "blocked",
+                  summary: "Review pack is blocked on unresolved findings.",
+                  degradedReasons: [],
+                  actions: [],
+                },
+              },
+            },
+            reviewPack: {
+              id: "review-pack-1",
+              workspaceId: "workspace-1",
+              taskId: "task-review-1",
+              runId: "run-review-1",
+              reviewStatus: "blocked",
+              title: "Review pack",
+              summary: "Review pack summary",
+              createdAt: 20,
+              updatedAt: 25,
+              actionability: {
+                state: "ready",
+                summary: "Fallback review truth",
+                degradedReasons: [],
+                actions: [],
+              },
+              takeoverBundle: {
+                state: "blocked",
+                pathKind: "review",
+                primaryAction: "open_review_pack",
+                summary: "Take over the review pack.",
+                blockingReason: "Resolve review issues before continuing.",
+                recommendedAction: "Open the review pack and resolve the blocked follow-up.",
+                reviewPackId: "review-pack-1",
+                target: {
+                  kind: "review_pack",
+                  workspaceId: "workspace-1",
+                  taskId: "task-review-1",
+                  runId: "run-review-1",
+                  reviewPackId: "review-pack-1",
+                },
+                reviewActionability: {
+                  state: "blocked",
+                  summary: "Review pack is blocked on unresolved findings.",
+                  degradedReasons: [],
+                  actions: [],
+                },
+              },
+            },
+          },
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const runtime = createBrowserWorkspaceClientRuntimeBindings();
+
+    await expect(
+      runtime.agentControl.subscribeRuntimeJob({ runId: "run-review-1" })
+    ).resolves.toMatchObject({
+      continuation: {
+        reviewActionability: {
+          state: "blocked",
+          summary: "Review pack is blocked on unresolved findings.",
+        },
+        takeover: {
+          state: "blocked",
+          pathKind: "review",
+        },
+        summary: "Review pack is blocked on unresolved findings.",
+      },
+    });
+  });
+
   it("prefers kernel projection bootstrap truth for mission control", async () => {
     process.env[WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY] = "http://127.0.0.1:8788/rpc";
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {

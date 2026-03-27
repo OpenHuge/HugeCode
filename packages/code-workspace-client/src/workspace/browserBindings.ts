@@ -1,4 +1,5 @@
 import {
+  buildRuntimeContinuationDescriptor,
   CODE_RUNTIME_RPC_METHODS,
   type CodeRuntimeRpcRequestPayloadByMethod,
   type CodeRuntimeRpcResponsePayloadByMethod,
@@ -13,6 +14,8 @@ import {
   type RuntimeRunInterventionRequest,
   type RuntimeRunRecordV2,
   type RuntimeRunResumeAck,
+  resolvePreferredPublishHandoff,
+  resolvePreferredReviewActionability,
 } from "@ku0/code-runtime-host-contract";
 import {
   buildManualWebRuntimeGatewayProfile,
@@ -186,27 +189,44 @@ function toKernelExecutionProfile(record: RuntimeRunRecordV2): KernelJob["execut
 function toKernelContinuation(record: RuntimeRunRecordV2): KernelJob["continuation"] {
   const continuation = record.missionRun.continuation ?? null;
   const reviewPack = record.reviewPack;
+  const takeoverBundle = reviewPack?.takeoverBundle ?? record.missionRun.takeoverBundle ?? null;
+  const missionLinkage = reviewPack?.missionLinkage ?? record.missionRun.missionLinkage ?? null;
+  const reviewActionability = resolvePreferredReviewActionability({
+    takeoverBundle,
+    actionability: reviewPack?.actionability ?? record.missionRun.actionability ?? null,
+  });
+  const publishHandoff = resolvePreferredPublishHandoff({
+    takeoverBundle,
+    publishHandoff: reviewPack?.publishHandoff ?? record.missionRun.publishHandoff ?? null,
+  });
+  const continuationDescriptor = buildRuntimeContinuationDescriptor({
+    runState: record.missionRun.state ?? null,
+    checkpoint: record.missionRun.checkpoint ?? null,
+    missionLinkage,
+    actionability: reviewActionability,
+    publishHandoff,
+    takeoverBundle,
+    nextAction: record.missionRun.nextAction ?? null,
+    reviewPackId: reviewPack?.id ?? record.missionRun.reviewPackId ?? null,
+  });
   const resumeSupported =
-    record.run.checkpointState?.resumeReady === true || continuation?.pathKind === "resume";
+    record.run.checkpointState?.resumeReady === true ||
+    continuation?.pathKind === "resume" ||
+    continuationDescriptor?.pathKind === "resume";
 
   return {
     checkpointId: record.run.checkpointId ?? record.missionRun.checkpoint?.checkpointId ?? null,
     resumeSupported,
     recovered: record.run.recovered === true || record.missionRun.checkpoint?.recovered === true,
-    reviewActionability:
-      continuation?.reviewActionability ??
-      reviewPack?.actionability ??
-      record.missionRun.actionability ??
-      null,
-    takeover: reviewPack?.takeoverBundle ?? record.missionRun.takeoverBundle ?? null,
-    missionLinkage: reviewPack?.missionLinkage ?? record.missionRun.missionLinkage ?? null,
-    publishHandoff: reviewPack?.publishHandoff ?? record.missionRun.publishHandoff ?? null,
+    reviewActionability,
+    takeover: takeoverBundle,
+    missionLinkage,
+    publishHandoff,
     summary:
       continuation?.summary ??
-      reviewPack?.takeoverBundle?.summary ??
-      reviewPack?.publishHandoff?.summary ??
-      record.missionRun.takeoverBundle?.summary ??
-      record.missionRun.publishHandoff?.summary ??
+      continuationDescriptor?.summary ??
+      takeoverBundle?.summary ??
+      publishHandoff?.summary ??
       null,
   };
 }

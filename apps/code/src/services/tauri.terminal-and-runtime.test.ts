@@ -1464,6 +1464,159 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
+  it("projects subscribed runtime continuation from canonical review takeover truth", async () => {
+    const invokeMock = vi.mocked(invoke);
+    const runtimeRunSubscribeV2Mock = vi.fn().mockResolvedValue({
+      run: {
+        taskId: "task-review-1",
+        workspaceId: "ws-4",
+        threadId: "thread-1",
+        requestId: null,
+        title: "Review follow-up",
+        status: "needs_input",
+        accessMode: "on-request",
+        executionMode: "distributed",
+        provider: "openai",
+        modelId: "gpt-5.4",
+        routedProvider: "openai",
+        routedModelId: "gpt-5.4",
+        routedPool: "auto",
+        routedSource: "workspace-default",
+        currentStep: 4,
+        createdAt: 100,
+        updatedAt: 140,
+        startedAt: 110,
+        completedAt: null,
+        errorCode: null,
+        errorMessage: null,
+        pendingApprovalId: null,
+        checkpointId: "checkpoint-review-1",
+        traceId: "trace-review-1",
+        recovered: false,
+        checkpointState: {
+          state: "paused",
+          checkpointId: "checkpoint-review-1",
+          traceId: "trace-review-1",
+          resumeReady: false,
+        },
+        preferredBackendIds: ["backend-a"],
+        backendId: "backend-a",
+        steps: [],
+      },
+      missionRun: {
+        id: "task-review-1",
+        taskId: "task-review-1",
+        workspaceId: "ws-4",
+        state: "needs_input",
+        title: "Review follow-up",
+        summary: "Mission is waiting for follow-up.",
+        startedAt: 110,
+        updatedAt: 140,
+        continuation: {
+          state: "blocked",
+          pathKind: "review",
+          source: "review_actionability",
+          summary: null,
+          detail: null,
+          recommendedAction: "Inspect blocked review follow-up",
+          sessionBoundary: {
+            workspaceId: "ws-4",
+            taskId: "task-review-1",
+            runId: "task-review-1",
+            reviewPackId: "review-pack-1",
+          },
+        },
+        checkpoint: {
+          checkpointId: "checkpoint-review-1",
+          traceId: "trace-review-1",
+          recovered: false,
+          resumeReady: false,
+        },
+        takeoverBundle: {
+          state: "blocked",
+          pathKind: "review",
+          primaryAction: "open_review_pack",
+          summary: "Take over the review pack.",
+          blockingReason: "Resolve review issues before continuing.",
+          recommendedAction: "Open the review pack and resolve the blocked follow-up.",
+          reviewPackId: "review-pack-1",
+          target: {
+            kind: "review_pack",
+            workspaceId: "ws-4",
+            taskId: "task-review-1",
+            runId: "task-review-1",
+            reviewPackId: "review-pack-1",
+          },
+          reviewActionability: {
+            state: "blocked",
+            summary: "Review pack is blocked on unresolved findings.",
+            degradedReasons: [],
+            actions: [],
+          },
+        },
+      },
+      reviewPack: {
+        id: "review-pack-1",
+        workspaceId: "ws-4",
+        taskId: "task-review-1",
+        runId: "task-review-1",
+        reviewStatus: "blocked",
+        title: "Review pack",
+        summary: "Review pack summary",
+        createdAt: 120,
+        updatedAt: 140,
+        actionability: {
+          state: "ready",
+          summary: "Fallback review truth",
+          degradedReasons: [],
+          actions: [],
+        },
+        takeoverBundle: {
+          state: "blocked",
+          pathKind: "review",
+          primaryAction: "open_review_pack",
+          summary: "Take over the review pack.",
+          blockingReason: "Resolve review issues before continuing.",
+          recommendedAction: "Open the review pack and resolve the blocked follow-up.",
+          reviewPackId: "review-pack-1",
+          target: {
+            kind: "review_pack",
+            workspaceId: "ws-4",
+            taskId: "task-review-1",
+            runId: "task-review-1",
+            reviewPackId: "review-pack-1",
+          },
+          reviewActionability: {
+            state: "blocked",
+            summary: "Review pack is blocked on unresolved findings.",
+            degradedReasons: [],
+            actions: [],
+          },
+        },
+      },
+    });
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      runtimeRunSubscribeV2: runtimeRunSubscribeV2Mock,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
+
+    await expect(subscribeRuntimeJob({ runId: "task-review-1" })).resolves.toMatchObject({
+      continuation: {
+        reviewActionability: {
+          state: "blocked",
+          summary: "Review pack is blocked on unresolved findings.",
+        },
+        takeover: {
+          state: "blocked",
+          pathKind: "review",
+        },
+        summary: "Review pack is blocked on unresolved findings.",
+      },
+    });
+
+    expect(runtimeRunSubscribeV2Mock).toHaveBeenCalledWith({ runId: "task-review-1" });
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
   it("routes distributed backend wrappers through runtime client", async () => {
     const invokeMock = vi.mocked(invoke);
     const runtimeBackendsListMock = vi
