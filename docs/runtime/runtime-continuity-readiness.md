@@ -14,6 +14,10 @@ or control-device handoff:
 
 This remains intentionally separate from launch readiness.
 
+This keeps the enhancement aligned with the product direction:
+more runtime-owned continuation truth, less UI-side reconstruction, and clearer
+operator action after interruption or handoff.
+
 ## Canonical Path
 
 The canonical continuation truth path is:
@@ -205,3 +209,7 @@ Changes in this area must keep the following checks green:
 - compat boundary tests
 - review follow-up derivation tests
 - blocked / resumable / reviewable / takeover-ready regression cases
+
+For the shared next-action and takeover-first interpretation used by Mission
+Control and Review Pack, see
+[`runtime-operator-loop.md`](./runtime-operator-loop.md).
