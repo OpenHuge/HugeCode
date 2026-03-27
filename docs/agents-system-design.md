@@ -177,7 +177,7 @@ Once resolved, the selected or preferred placement intent must flow through the 
 After launch, Mission Control, AutoDrive progress, intervention availability, handoff state, and review evidence must come from the runtime snapshot path. Client-local compatibility projections are allowed only as explicit non-primary debugging fixtures.
 When thread detail is unavailable, control-device UX may only route operators to runtime-published review, checkpoint, or publish handoff artifacts. It must not synthesize a replacement thread truth from local state, cached transcript fragments, or compatibility projections.
 
-Source-driven orchestration is an upstream intake concern. Runtime-agent design may carry task-source lineage, but this phase does not introduce GitHub ingestion, backlog polling, unattended reconcile loops, workspace schedulers, or repository execution contracts.
+Source-driven orchestration is an upstream intake concern. Runtime-agent design may carry task-source lineage, and the current phase now includes manual GitHub issue and PR follow-up ingestion plus repository execution contracts for governed launch defaults. It still does not introduce backlog polling, unattended reconcile loops, or workspace schedulers.
 
 ### 6.3 Task Summary Rule
 

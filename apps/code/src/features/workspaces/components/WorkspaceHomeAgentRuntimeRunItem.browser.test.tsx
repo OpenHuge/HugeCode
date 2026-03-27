@@ -7,9 +7,11 @@ import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types
 import { WorkspaceHomeAgentRuntimeRunItem } from "./WorkspaceHomeAgentRuntimeRunItem";
 
 const getRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
+const subscribeRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
   getRuntimeRunV2: getRuntimeRunV2Mock,
+  subscribeRuntimeRunV2: subscribeRuntimeRunV2Mock,
 }));
 
 function buildTask(overrides: Partial<RuntimeAgentTaskSummary> = {}): RuntimeAgentTaskSummary {
@@ -84,6 +86,7 @@ function buildRun(overrides: Partial<HugeCodeRunSummary> = {}): HugeCodeRunSumma
 describe("WorkspaceHomeAgentRuntimeRunItem", () => {
   beforeEach(() => {
     getRuntimeRunV2Mock.mockResolvedValue(null);
+    subscribeRuntimeRunV2Mock.mockResolvedValue(null);
   });
 
   afterEach(() => {

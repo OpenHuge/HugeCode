@@ -599,6 +599,40 @@ describe("WorkspaceShellApp", () => {
     expect(screen.getByText("Validation failed: Failed review")).toBeTruthy();
   });
 
+  it("preserves item focus when home overview cards route into missions and review", async () => {
+    window.history.pushState({}, "", "/app");
+
+    render(
+      <WorkspaceClientBindingsProvider bindings={createBindings()}>
+        <WorkspaceShellApp />
+      </WorkspaceClientBindingsProvider>
+    );
+
+    const missionsOverviewDetail = await screen.findByText("Approval pending: Launch");
+    const missionsOverviewCard = missionsOverviewDetail.closest("button");
+
+    expect(missionsOverviewCard).toBeTruthy();
+
+    fireEvent.click(missionsOverviewCard as HTMLElement);
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Missions" })).toBeTruthy();
+    expect(screen.getByText("Operator focus")).toBeTruthy();
+    expect(screen.getByText("Launch")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Home" }));
+
+    const reviewOverviewDetail = await screen.findByText("Ready: Ready for review");
+    const reviewOverviewCard = reviewOverviewDetail.closest("button");
+
+    expect(reviewOverviewCard).toBeTruthy();
+
+    fireEvent.click(reviewOverviewCard as HTMLElement);
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Review" })).toBeTruthy();
+    expect(screen.getByText("Operator focus")).toBeTruthy();
+    expect(screen.getAllByText("Ready for review").length).toBeGreaterThan(0);
+  });
+
   it("renders an operator triage queue on home and focuses the selected mission entry", async () => {
     window.history.pushState({}, "", "/app");
 

@@ -123,12 +123,37 @@ function sanitizeSessionDescriptor(
   };
 }
 
+function restoreRecentSessions(
+  sessions: Partial<DesktopSessionDescriptor>[] | undefined,
+  now: () => string
+) {
+  const seenSessionIds = new Set<string>();
+  const seenFingerprints = new Set<string>();
+  const restoredSessions: DesktopSessionDescriptor[] = [];
+
+  for (const entry of sessions ?? []) {
+    const session = sanitizeSessionDescriptor(entry, now);
+    if (!session || seenSessionIds.has(session.id)) {
+      continue;
+    }
+    const fingerprint = createSessionFingerprint(session);
+    if (seenFingerprints.has(fingerprint)) {
+      continue;
+    }
+    seenSessionIds.add(session.id);
+    seenFingerprints.add(fingerprint);
+    restoredSessions.push(session);
+    if (restoredSessions.length >= MAX_RECENT_SESSIONS) {
+      break;
+    }
+  }
+
+  return restoredSessions;
+}
+
 export function createDesktopShellState(options: DesktopShellStateOptions = {}) {
   const now = options.now ?? (() => new Date().toISOString());
-  const recentSessions = (options.persistedState?.sessions ?? [])
-    .map((session) => sanitizeSessionDescriptor(session, now))
-    .filter((session): session is DesktopSessionDescriptor => session !== null)
-    .slice(0, MAX_RECENT_SESSIONS);
+  const recentSessions = restoreRecentSessions(options.persistedState?.sessions, now);
   const activeWindows = new Map<number, ActiveWindowRecord>();
   let trayEnabled = options.persistedState?.trayEnabled === true;
   let sessionCounter = recentSessions.length;

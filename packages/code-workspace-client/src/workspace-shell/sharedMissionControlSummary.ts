@@ -441,6 +441,20 @@ function getReviewItemTone(
   return "neutral";
 }
 
+function resolveReviewQueueSummary(
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+) {
+  return (
+    reviewPack.takeoverBundle?.recommendedAction ??
+    reviewPack.actionability?.summary ??
+    reviewPack.missionLinkage?.summary ??
+    reviewPack.publishHandoff?.summary ??
+    reviewPack.recommendedNextAction ??
+    reviewPack.summary ??
+    "Review-ready evidence is available."
+  );
+}
+
 function getReviewQueuePriority(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
   if (
     reviewPack.validationOutcome === "failed" ||
@@ -460,7 +474,13 @@ function getReviewQueuePriority(reviewPack: HugeCodeMissionControlSnapshot["revi
   if (reviewPack.reviewStatus === "ready" || reviewPack.takeoverBundle?.state === "ready") {
     return 320;
   }
-  if (reviewPack.publishHandoff || reviewPack.recommendedNextAction) {
+  if (
+    reviewPack.takeoverBundle ||
+    reviewPack.actionability ||
+    reviewPack.missionLinkage ||
+    reviewPack.publishHandoff ||
+    reviewPack.recommendedNextAction
+  ) {
     return 240;
   }
   return 120;
@@ -481,13 +501,7 @@ function buildReviewQueueItems(
       id: reviewPack.id,
       title: reviewPack.summary,
       workspaceName: getWorkspaceName(workspaces, reviewPack.workspaceId),
-      summary:
-        reviewPack.recommendedNextAction ??
-        reviewPack.takeoverBundle?.recommendedAction ??
-        reviewPack.actionability?.summary ??
-        reviewPack.publishHandoff?.summary ??
-        reviewPack.summary ??
-        "Review-ready evidence is available.",
+      summary: resolveReviewQueueSummary(reviewPack),
       reviewStatusLabel: getReviewStatusLabel(reviewPack),
       validationLabel: formatValidationLabel(reviewPack.validationOutcome),
       tone: getReviewItemTone(reviewPack),

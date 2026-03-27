@@ -421,7 +421,16 @@ function HomeOverviewSection({
       <div className={styles.overviewGrid}>
         <button
           className={styles.overviewButton}
-          onClick={() => onNavigateSection("missions")}
+          onClick={() => {
+            if (topMissionItem) {
+              onOpenFocusTarget({
+                section: "missions",
+                itemId: topMissionItem.id,
+              });
+              return;
+            }
+            onNavigateSection("missions");
+          }}
           type="button"
         >
           <span className={styles.workspaceName}>Missions</span>
@@ -437,7 +446,16 @@ function HomeOverviewSection({
         </button>
         <button
           className={styles.overviewButton}
-          onClick={() => onNavigateSection("review")}
+          onClick={() => {
+            if (topReviewItem) {
+              onOpenFocusTarget({
+                section: "review",
+                itemId: topReviewItem.id,
+              });
+              return;
+            }
+            onNavigateSection("review");
+          }}
           type="button"
         >
           <span className={styles.workspaceName}>Review</span>

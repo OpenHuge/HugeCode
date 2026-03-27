@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  normalizeGitHubIssueLaunchInput,
-  normalizeGitHubPullRequestFollowUpLaunchInput,
-} from "../../../../application/runtime/facades/githubSourceLaunchNormalization";
+  assertGovernedGitHubLaunchReady,
+  buildGovernedGitHubIssueLaunchRequest,
+  buildGovernedGitHubPullRequestLaunchRequest,
+  launchGovernedGitHubRun,
+} from "../../../../application/runtime/facades/githubSourceGovernedLaunch";
 import { useRuntimeWorkspaceExecutionPolicy } from "../../../../application/runtime/facades/runtimeWorkspaceExecutionPolicyFacade";
 import {
   applyReviewAutofix,
@@ -22,7 +24,6 @@ import type { MissionNavigationTarget } from "../../../missions/utils/missionCon
 import { useReviewPackDecisionActions } from "../../../review/hooks/useReviewPackDecisionActions";
 import { useReviewPackSelectionState } from "../../../review/hooks/useReviewPackSelectionState";
 import type { ReviewPackSelectionRequest } from "../../../review/utils/reviewPackSurfaceModel";
-import { launchGitHubSourceDelegation } from "../gitHubSourceDelegationLauncher";
 import { launchReviewInterventionDraft } from "../reviewInterventionLauncher";
 import type { MainAppLayoutGitReviewBridgeDomainInput } from "./types";
 
@@ -114,6 +115,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
       setActiveWorkspaceId,
       setActiveTab,
       defaultRemoteExecutionBackendId,
+      gitRemoteUrl,
       conversationState: { homeState, fileListingState },
       gitPanelState,
       gitHubPanelState,
@@ -135,8 +137,11 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
       typeof useWorkspaceRuntimeAgentControl
     >[0]
   );
-  const { repositoryExecutionContract: activeRepositoryExecutionContract } =
-    useRuntimeWorkspaceExecutionPolicy(activeWorkspaceId);
+  const {
+    repositoryExecutionContract: activeRepositoryExecutionContract,
+    repositoryExecutionContractError: activeRepositoryExecutionContractError,
+    repositoryExecutionContractStatus: activeRepositoryExecutionContractStatus,
+  } = useRuntimeWorkspaceExecutionPolicy(activeWorkspaceId);
   const { reviewPackSelection, openReviewPack } = useReviewPackSelectionState({
     projection: homeState.missionControlProjection ?? null,
     activeWorkspaceId,
@@ -319,27 +324,30 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
         return;
       }
       try {
+        assertGovernedGitHubLaunchReady({
+          policyStatus: activeRepositoryExecutionContractStatus,
+          policyError: activeRepositoryExecutionContractError,
+        });
         const issueDetail =
           (await getGitHubIssueDetails(activeWorkspace.id, issue.number)) ?? issue;
-        const normalized = normalizeGitHubIssueLaunchInput({
+        const { launch, request } = buildGovernedGitHubIssueLaunchRequest({
           issue: issueDetail,
-          repositoryExecutionContract: activeRepositoryExecutionContract,
-        });
-        await launchGitHubSourceDelegation({
-          runtimeControl: reviewRuntimeControl,
-          onRefresh: homeState.refreshMissionControl,
-          launch: {
+          workspace: {
             workspaceId: activeWorkspace.id,
-            title: normalized.title,
-            instruction: normalized.instruction,
-            missionBrief: normalized.missionBrief,
-            executionProfileId: normalized.executionProfileId,
-            reviewProfileId: normalized.reviewProfileId,
-            validationPresetId: normalized.validationPresetId,
-            accessMode: normalized.accessMode,
-            preferredBackendIds: normalized.preferredBackendIds,
-            taskSource: normalized.taskSource,
+            workspaceRoot: activeWorkspace.path,
+            gitRemoteUrl,
           },
+          options: {
+            repositoryExecutionContract: activeRepositoryExecutionContract ?? null,
+            preferredBackendIds: defaultRemoteExecutionBackendId
+              ? [defaultRemoteExecutionBackendId]
+              : undefined,
+          },
+        });
+        await launchGovernedGitHubRun({
+          launch,
+          request,
+          onRefresh: homeState.refreshMissionControl,
         });
         setActiveTab("workspaces");
       } catch (error) {
@@ -352,6 +360,10 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
     [
       activeWorkspace,
       activeRepositoryExecutionContract,
+      activeRepositoryExecutionContractError,
+      activeRepositoryExecutionContractStatus,
+      defaultRemoteExecutionBackendId,
+      gitRemoteUrl,
       gitHubPanelState.gitIssues,
       homeState.refreshMissionControl,
       reviewRuntimeControl,
@@ -369,31 +381,34 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
         return;
       }
       try {
+        assertGovernedGitHubLaunchReady({
+          policyStatus: activeRepositoryExecutionContractStatus,
+          policyError: activeRepositoryExecutionContractError,
+        });
         const [diffs, comments] = await Promise.all([
           getGitHubPullRequestDiff(activeWorkspace.id, pullRequest.number),
           getGitHubPullRequestComments(activeWorkspace.id, pullRequest.number),
         ]);
-        const normalized = normalizeGitHubPullRequestFollowUpLaunchInput({
+        const { launch, request } = buildGovernedGitHubPullRequestLaunchRequest({
           pullRequest,
           diffs,
           comments,
-          repositoryExecutionContract: activeRepositoryExecutionContract,
-        });
-        await launchGitHubSourceDelegation({
-          runtimeControl: reviewRuntimeControl,
-          onRefresh: homeState.refreshMissionControl,
-          launch: {
+          workspace: {
             workspaceId: activeWorkspace.id,
-            title: normalized.title,
-            instruction: normalized.instruction,
-            missionBrief: normalized.missionBrief,
-            executionProfileId: normalized.executionProfileId,
-            reviewProfileId: normalized.reviewProfileId,
-            validationPresetId: normalized.validationPresetId,
-            accessMode: normalized.accessMode,
-            preferredBackendIds: normalized.preferredBackendIds,
-            taskSource: normalized.taskSource,
+            workspaceRoot: activeWorkspace.path,
+            gitRemoteUrl,
           },
+          options: {
+            repositoryExecutionContract: activeRepositoryExecutionContract ?? null,
+            preferredBackendIds: defaultRemoteExecutionBackendId
+              ? [defaultRemoteExecutionBackendId]
+              : undefined,
+          },
+        });
+        await launchGovernedGitHubRun({
+          launch,
+          request,
+          onRefresh: homeState.refreshMissionControl,
         });
         setActiveTab("workspaces");
       } catch (error) {
@@ -406,6 +421,10 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
     [
       activeWorkspace,
       activeRepositoryExecutionContract,
+      activeRepositoryExecutionContractError,
+      activeRepositoryExecutionContractStatus,
+      defaultRemoteExecutionBackendId,
+      gitRemoteUrl,
       gitHubPanelState.gitPullRequests,
       homeState.refreshMissionControl,
       reviewRuntimeControl,

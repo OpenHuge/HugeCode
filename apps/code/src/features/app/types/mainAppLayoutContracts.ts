@@ -123,6 +123,7 @@ export type MainAppConversationBridgeParams = {
 
 export type MainAppGitReviewBridgeParams = {
   activeGitRoot: BridgeParams["activeGitRoot"];
+  gitRemoteUrl: BridgeParams["gitRemoteUrl"];
   handleSetGitRoot: BridgeParams["handleSetGitRoot"];
   defaultRemoteExecutionBackendId: BridgeParams["appSettings"]["defaultRemoteExecutionBackendId"];
   worktreeApplyLoading: boolean;
@@ -271,6 +272,7 @@ export type MainAppConversationBridgeContextParams = Pick<
 export type MainAppGitReviewBridgeContextParams = Pick<
   MainAppGitReviewBridgeParams,
   | "activeGitRoot"
+  | "gitRemoteUrl"
   | "defaultRemoteExecutionBackendId"
   | "worktreeApplyLoading"
   | "worktreeApplyError"
