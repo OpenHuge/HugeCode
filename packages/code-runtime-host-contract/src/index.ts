@@ -299,6 +299,11 @@ export {
   resolvePreferredHugeCodeReviewActionability,
   summarizeHugeCodeOperatorContinuation,
 } from "./hugeCodeOperatorLoop";
+export {
+  resolveRuntimeContinuation,
+  resolveRuntimeNextOperatorAction,
+  resolveRuntimeSessionBoundary,
+} from "./runtimeTruthCompat";
 
 export interface ItemCompletedEventPayload {
   turnId: string;

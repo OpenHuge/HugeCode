@@ -15,7 +15,6 @@ import {
   resolveRuntimeSessionBoundary,
 } from "@ku0/code-runtime-host-contract";
 import { buildGovernanceSummary } from "./runtimeMissionControlRunState";
-import { buildRuntimeContinuationDescriptor } from "./runtimeContinuationTruth";
 import {
   buildReviewPackAssumptions,
   buildReviewPackBackendAudit,
@@ -188,16 +187,6 @@ export function projectCompletedRunToReviewPackSummary(
       : "incomplete");
   const validationOutcome = deriveValidationOutcome(validations);
   const reviewStatus = buildReviewStatus(run, validationOutcome, evidenceState);
-  const continuation = buildRuntimeContinuationDescriptor({
-    runState: run.state,
-    checkpoint: run.checkpoint ?? null,
-    missionLinkage: run.missionLinkage ?? null,
-    actionability: run.actionability ?? null,
-    publishHandoff: run.publishHandoff ?? null,
-    takeoverBundle: run.takeoverBundle ?? null,
-    nextAction: run.nextAction ?? null,
-    reviewPackId: run.reviewPackId ?? `review-pack:${run.id}`,
-  });
   const hasCanonicalContinuationTruth = Boolean(
     run.checkpoint ??
     run.missionLinkage ??

@@ -69,7 +69,6 @@ pub(crate) const CODE_RUNTIME_RPC_FEATURES: &[&str] = &[
     "runtime_codex_execpolicy_preflight_v1",
     "runtime_codex_unified_rpc_migration_v1",
     "runtime_host_deprecated",
-    "app_server_protocol_v2_2026_03_25",
     CODE_RUNTIME_RPC_FROZEN_FEATURE,
 ];
 pub(crate) const CODE_RUNTIME_RPC_ERROR_CODES: &[(&str, &str)] = &[

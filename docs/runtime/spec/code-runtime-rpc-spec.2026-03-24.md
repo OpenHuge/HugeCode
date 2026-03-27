@@ -1,9 +1,9 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-03-24T15:16:17.683Z`
+- Generated at: `2026-03-27T05:32:00.865Z`
 - Contract version: `2026-03-24`
 - Freeze effective at: `2026-03-24`
-- Method-set hash: `20fa6924c9178e12`
+- Method-set hash: `5bae1de0c62b5aeb`
 
 ## Features
 
@@ -50,6 +50,7 @@
 - `runtime_acp_readiness_probe_v1`
 - `runtime_review_actionability_v1`
 - `runtime_review_linkage_v1`
+- `runtime_truth_contract_core_v1`
 - `runtime_mission_control_summary_v1`
 - `runtime_task_normalization_v1`
 - `runtime_task_native_run_review_v1`
@@ -78,6 +79,8 @@
 - `code_settings_summary`
 - `code_app_settings_get`
 - `code_app_settings_update`
+- `code_text_file_read_v1`
+- `code_text_file_write_v1`
 - `code_remote_status`
 - `code_terminal_status`
 - `code_models_pool`
@@ -216,7 +219,6 @@
 - `code_codex_doctor_v1`
 - `code_codex_update_v1`
 - `code_collaboration_modes_list_v1`
-- `code_apps_list_v1`
 - `code_mcp_server_status_list_v1`
 - `code_browser_debug_status_v1`
 - `code_browser_debug_run_v1`
@@ -230,7 +232,6 @@
 - `code_extension_registry_sources_v2`
 - `code_extension_permissions_evaluate_v2`
 - `code_extension_health_read_v2`
-- `code_extension_ui_apps_list_v2`
 - `code_extension_tools_list_v2`
 - `code_extension_resource_read_v2`
 - `code_session_export_v1`
@@ -252,7 +253,6 @@
 - `code_action_required_submit_v2`
 - `code_app_settings_get`
 - `code_app_settings_update`
-- `code_apps_list_v1`
 - `code_bootstrap_snapshot`
 - `code_browser_debug_run_v1`
 - `code_browser_debug_status_v1`
@@ -275,7 +275,6 @@
 - `code_extension_resource_read_v2`
 - `code_extension_set_state_v2`
 - `code_extension_tools_list_v2`
-- `code_extension_ui_apps_list_v2`
 - `code_extension_update_v2`
 - `code_git_branch_checkout`
 - `code_git_branch_create`
@@ -391,6 +390,8 @@
 - `code_terminal_stream_start`
 - `code_terminal_stream_stop`
 - `code_terminal_write`
+- `code_text_file_read_v1`
+- `code_text_file_write_v1`
 - `code_thread_archive`
 - `code_thread_create`
 - `code_thread_live_subscribe`

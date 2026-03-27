@@ -14,8 +14,18 @@ import {
   buildRuntimeTriageSummary,
 } from "./runtimeContextTruth";
 import { buildMissionProvenanceSummary } from "./runtimeMissionControlProvenance";
-import { summarizeReviewContinuationActionability } from "./runtimeReviewContinuationFacade";
 import { resolveMissionContinuationActionability } from "./runtimeMissionControlContinuation";
+import {
+  resolveMissionReviewContinuationData,
+  resolveLegacyReviewPackNextAction,
+} from "./runtimeMissionControlContinuationSummary";
+import { describeMissionRunRouteDetail } from "./runtimeMissionControlRouteDetail";
+export { describeMissionRunRouteDetail };
+import {
+  buildMissionOverviewOperatorSignal,
+  resolveCheckpointHandoffLabel,
+  resolveMissionOperatorAction,
+} from "./runtimeMissionControlOperatorAction";
 import { resolveReviewIntelligenceSummary } from "./runtimeReviewIntelligenceSummary";
 import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
 import { resolveRuntimeRecommendedAction } from "./runtimeOperatorActionPresentation";
@@ -168,7 +178,7 @@ function buildRunIndex(projection: MissionControlProjection) {
 function buildReviewPackIndex(projection: MissionControlProjection) {
   return new Map(projection.reviewPacks.map((reviewPack) => [reviewPack.runId, reviewPack]));
 }
-function buildIdIndex<TEntry extends { id: string }>(entries: TEntry[]) {
+function buildIdIndex<TEntry extends { id: string }>(entries: readonly TEntry[]) {
   return new Map(entries.map((entry) => [entry.id, entry]));
 }
 function resolveTaskTimestamp(
@@ -419,29 +429,6 @@ function buildMissionGovernanceSummary(input: {
     input.run?.approval?.summary?.trim() ||
     null
   );
-}
-
-export function describeMissionRunRouteDetail(
-  projection: MissionControlProjection | null | undefined,
-  runId: string | null
-) {
-  if (!projection || !runId) return null;
-  const run = projection.runs.find((entry) => entry.id === runId) ?? null;
-  if (!run) return null;
-  const routeLabel = run.routing?.routeLabel?.trim() || null;
-  const resolvedBackendId = run.placement?.resolvedBackendId?.trim() || null;
-  const routeHealth = run.routing?.health ?? run.placement?.readiness ?? null;
-  const placementHealth = run.placement?.healthSummary ?? null;
-  const parts = [routeLabel ?? (resolvedBackendId ? `Backend ${resolvedBackendId}` : null)];
-  if (resolvedBackendId && !parts.some((part) => part?.includes(resolvedBackendId))) {
-    parts.push(resolvedBackendId);
-  }
-  if (placementHealth === "placement_attention" || routeHealth === "attention") {
-    parts.push("Route needs attention");
-  } else if (placementHealth === "placement_blocked" || routeHealth === "blocked") {
-    parts.push("Route blocked");
-  }
-  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 function hasMissionNeedsAction(input: {
@@ -928,19 +915,30 @@ export function buildMissionReviewEntriesFromProjection(
     if (hasBlockedSubAgents(reviewPack, run)) {
       filterTags.push("sub_agent_blocked");
     }
-    const operatorAction = resolveMissionOperatorAction({ task, reviewPack, run });
-    const continuation = summarizeReviewContinuationActionability({
-      takeoverBundle: reviewPack.takeoverBundle ?? run?.takeoverBundle ?? null,
-      actionability: reviewPack.actionability ?? run?.actionability ?? null,
-      missionLinkage: reviewPack.missionLinkage ?? run?.missionLinkage ?? null,
-      publishHandoff: reviewPack.publishHandoff ?? run?.publishHandoff ?? null,
-      continuation: reviewPack.continuation ?? run?.continuation ?? null,
+    const { continuation, canonicalContinuation } = resolveMissionReviewContinuationData({
+      reviewPack,
+      run,
+    });
+    const operatorAction = resolveMissionOperatorAction({
+      task,
+      reviewPack,
+      run,
+      missionTarget: buildMissionNavigationTarget(task, {
+        runId: run?.id ?? reviewPack.runId,
+        reviewPackId: reviewPack.id,
+      }),
+      reviewTarget: buildReviewNavigationTarget(task, {
+        runId: run?.id ?? reviewPack.runId,
+        reviewPackId: reviewPack.id,
+      }),
+      defaultActiveLabel: "Open mission",
     });
     const fallbackRecommendedNextAction = resolveRuntimeRecommendedAction({
       operatorAction,
       fallbacks: [
-        continuation.state !== "missing" ? continuation.recommendedAction : null,
-        reviewPack.recommendedNextAction,
+        canonicalContinuation?.recommendedAction ??
+          (continuation.state !== "missing" ? continuation.recommendedAction : null),
+        resolveLegacyReviewPackNextAction(reviewPack),
       ],
     });
     const reviewIntelligence = resolveReviewIntelligenceSummary({
@@ -948,7 +946,10 @@ export function buildMissionReviewEntriesFromProjection(
       taskSource: reviewPack.taskSource ?? run?.taskSource ?? task.taskSource ?? null,
       run,
       reviewPack,
-      recommendedNextAction: fallbackRecommendedNextAction,
+      recommendedNextAction:
+        fallbackRecommendedNextAction ??
+        canonicalContinuation?.recommendedAction ??
+        resolveLegacyReviewPackNextAction(reviewPack),
     });
     const recommendedNextAction =
       reviewIntelligence?.nextRecommendedAction ?? fallbackRecommendedNextAction;
@@ -1095,18 +1096,29 @@ export function buildMissionReviewEntriesFromProjection(
     if (hasBlockedSubAgents(null, run)) {
       filterTags.push("sub_agent_blocked");
     }
-    const operatorAction = resolveMissionOperatorAction({ task, reviewPack: null, run });
-    const continuation = summarizeReviewContinuationActionability({
-      takeoverBundle: run.takeoverBundle ?? null,
-      actionability: run.actionability ?? null,
-      missionLinkage: run.missionLinkage ?? null,
-      publishHandoff: run.publishHandoff ?? null,
-      continuation: run.continuation ?? null,
+    const { continuation, canonicalContinuation } = resolveMissionReviewContinuationData({
+      reviewPack: null,
+      run,
+    });
+    const operatorAction = resolveMissionOperatorAction({
+      task,
+      reviewPack: null,
+      run,
+      missionTarget: buildMissionNavigationTarget(task, {
+        runId: run.id,
+        reviewPackId: null,
+      }),
+      reviewTarget: buildReviewNavigationTarget(task, {
+        runId: run.id,
+        reviewPackId: null,
+      }),
+      defaultActiveLabel: "Open mission",
     });
     const fallbackRecommendedNextAction = resolveRuntimeRecommendedAction({
       operatorAction,
       fallbacks: [
-        continuation.state !== "missing" ? continuation.recommendedAction : null,
+        canonicalContinuation?.recommendedAction ??
+          (continuation.state !== "missing" ? continuation.recommendedAction : null),
         run.nextAction?.detail ?? null,
       ],
     });
@@ -1114,7 +1126,11 @@ export function buildMissionReviewEntriesFromProjection(
       contract: options?.repositoryExecutionContract ?? null,
       taskSource: run.taskSource ?? task.taskSource ?? null,
       run,
-      recommendedNextAction: fallbackRecommendedNextAction,
+      recommendedNextAction:
+        fallbackRecommendedNextAction ??
+        canonicalContinuation?.recommendedAction ??
+        run.nextAction?.detail ??
+        null,
     });
     const recommendedNextAction =
       reviewIntelligence?.nextRecommendedAction ?? fallbackRecommendedNextAction;

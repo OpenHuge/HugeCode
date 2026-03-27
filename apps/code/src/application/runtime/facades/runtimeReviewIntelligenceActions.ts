@@ -6,18 +6,46 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import type { RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import { resolveReviewProfileDefaults } from "./runtimeReviewIntelligenceSummary";
+import { summarizeReviewContinuationActionability } from "./runtimeReviewContinuationFacade";
 import type { RuntimeAgentControl } from "../types/webMcpBridge";
 
 function buildReviewAgentInstruction(input: {
   run: Pick<
     HugeCodeRunSummary,
-    "id" | "title" | "summary" | "warnings" | "validations" | "changedPaths"
+    | "id"
+    | "title"
+    | "summary"
+    | "warnings"
+    | "validations"
+    | "changedPaths"
+    | "takeoverBundle"
+    | "actionability"
+    | "missionLinkage"
+    | "publishHandoff"
   >;
   reviewPack?: Pick<
     HugeCodeReviewPackSummary,
-    "summary" | "warningCount" | "warnings" | "validations" | "recommendedNextAction"
+    | "summary"
+    | "warningCount"
+    | "warnings"
+    | "validations"
+    | "recommendedNextAction"
+    | "takeoverBundle"
+    | "actionability"
+    | "missionLinkage"
+    | "publishHandoff"
   > | null;
 }): string {
+  const continuation = summarizeReviewContinuationActionability({
+    takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run.takeoverBundle ?? null,
+    actionability: input.reviewPack?.actionability ?? input.run.actionability ?? null,
+    missionLinkage: input.reviewPack?.missionLinkage ?? input.run.missionLinkage ?? null,
+    publishHandoff: input.reviewPack?.publishHandoff ?? input.run.publishHandoff ?? null,
+  });
+  const operatorExpectation =
+    continuation.state !== "missing"
+      ? continuation.recommendedAction
+      : (input.reviewPack?.recommendedNextAction ?? null);
   const sections = [
     `Review the delegated run ${input.run.id}.`,
     input.reviewPack?.summary ?? input.run.summary ?? input.run.title ?? null,
@@ -32,9 +60,7 @@ function buildReviewAgentInstruction(input: {
     (input.run.changedPaths?.length ?? 0) > 0
       ? `Changed paths: ${input.run.changedPaths?.join(", ")}`
       : null,
-    input.reviewPack?.recommendedNextAction
-      ? `Operator expectation: ${input.reviewPack.recommendedNextAction}`
-      : null,
+    operatorExpectation ? `Operator expectation: ${operatorExpectation}` : null,
     "Produce structured review findings for correctness, validation, security, policy alignment, and required follow-up clarification.",
   ];
   return sections.filter((value): value is string => Boolean(value)).join("\n\n");

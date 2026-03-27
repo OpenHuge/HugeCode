@@ -100,7 +100,7 @@ function parseRepoFromUrl(
   }
 }
 
-function resolveRepoContext(input: {
+export function resolveRepoContext(input: {
   sourceUrl?: string | null;
   gitRemoteUrl?: string | null;
 }): HugeCodeTaskSourceSummary["repo"] {

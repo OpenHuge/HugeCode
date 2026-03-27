@@ -2,7 +2,12 @@ import type { MutableRefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
 import { pickWorkspacePath } from "../../../application/runtime/ports/tauriWorkspaceDialogs";
-import type { ComposerExecutionMode, WorkspaceInfo } from "../../../types";
+import type {
+  ComposerExecutionMode,
+  ComposerModelSelectionMode,
+  ModelProviderFamilyId,
+  WorkspaceInfo,
+} from "../../../types";
 import { usePullRequestComposer } from "../../git/hooks/usePullRequestComposer";
 import { useWindowDrag } from "../../layout/hooks/useWindowDrag";
 import type { AppTab } from "../../shell/types/shellRoute";

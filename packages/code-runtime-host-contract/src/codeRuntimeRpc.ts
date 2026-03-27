@@ -4142,11 +4142,10 @@ export const CODE_RUNTIME_RPC_METHODS = {
   TASK_SOURCE_GET_V1: "code_task_source_get_v1",
   TASK_SOURCE_LIST_V1: "code_task_source_list_v1",
   TASK_SOURCE_RECONCILE_V1: "code_task_source_reconcile_v1",
+  // Legacy runtime-run compatibility surface. Not a product launch path.
   RUN_START: "code_runtime_run_start",
   RUN_PREPARE_V2: "code_runtime_run_prepare_v2",
   RUN_START_V2: "code_runtime_run_start_v2",
-  // Legacy runtime-run compatibility surface. Not a product launch path.
-  RUN_START: "code_runtime_run_start",
   RUN_CANCEL: "code_runtime_run_cancel",
   RUN_RESUME: "code_runtime_run_resume",
   RUN_RESUME_V2: "code_runtime_run_resume_v2",

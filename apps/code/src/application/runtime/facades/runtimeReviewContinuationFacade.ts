@@ -250,8 +250,6 @@ export function summarizeReviewContinuationActionability(input: {
     actionability: input.actionability ?? null,
     missionLinkage: input.missionLinkage ?? null,
     publishHandoff: input.publishHandoff ?? null,
-    continuation: input.continuation ?? null,
-    sessionBoundary: null,
   });
   const summary = descriptor?.summary ?? "Runtime continuation guidance is unavailable.";
   const state =

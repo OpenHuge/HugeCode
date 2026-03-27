@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolveCommandInvocation } from "./run-forge-support.mjs";
 import {
   assertForgeHostBinaryRequirements,
   createCliInvocation,
@@ -42,23 +43,41 @@ describe("run-forge helpers", () => {
     });
   });
 
-  it("filters workspace dependencies from the staged package manifest", () => {
+  it("composes Windows pnpm fallback invocations into a cmd.exe-safe spawn target", async () => {
+    const invocation = await resolveCommandInvocation({
+      commandName: "pnpm",
+      platform: "win32",
+      nodeExecDir: "/node/bin",
+      accessPath: async () => {
+        throw new Error("missing");
+      },
+    });
+
     expect(
-      createStagedPackageJson({
-        version: "1.2.3",
-        repository: {
-          type: "git",
-          url: "https://github.com/OpenHuge/HugeCode.git",
-        },
-        dependencies: {
-          "@ku0/code-platform-interfaces": "workspace:*",
-          "update-electron-app": "3.1.2",
-        },
-        devDependencies: {
-          electron: "41.0.3",
-        },
-      })
+      createCliInvocation(invocation.command, ["install", "--ignore-scripts"], "win32")
     ).toEqual({
+      command: "cmd.exe",
+      args: ["/d", "/s", "/c", "pnpm.cmd install --ignore-scripts"],
+    });
+  });
+
+  it("filters workspace dependencies from the staged package manifest", () => {
+    const stagedPackageJson = createStagedPackageJson({
+      version: "1.2.3",
+      repository: {
+        type: "git",
+        url: "https://github.com/OpenHuge/HugeCode.git",
+      },
+      dependencies: {
+        "@ku0/code-platform-interfaces": "workspace:*",
+        "update-electron-app": "3.1.2",
+      },
+      devDependencies: {
+        electron: "41.0.3",
+      },
+    });
+
+    expect(stagedPackageJson).toMatchObject({
       name: "hugecode",
       productName: "HugeCode",
       version: "1.2.3",
@@ -81,6 +100,13 @@ describe("run-forge helpers", () => {
         electron: "41.0.3",
       },
     });
+    expect(stagedPackageJson.pnpm).toMatchObject({
+      allowUnusedPatches: true,
+      overrides: expect.any(Object),
+      patchedDependencies: {
+        "electron-installer-common@0.10.4": "patches/electron-installer-common@0.10.4.patch",
+      },
+    });
   });
 
   it("removes Windows pseudo-environment keys before spawning child processes", () => {
@@ -90,7 +116,9 @@ describe("run-forge helpers", () => {
         PATH: "C:\\Windows\\System32",
         KEEP_ME: "ok",
         BROKEN: "bad\u0000value",
+        npm_config_block_exotic_subdeps: "true",
         npm_config_node_linker: "hoisted",
+        pnpm_config_block_exotic_subdeps: "true",
       })
     ).toEqual({
       PATH: "C:\\Windows\\System32",
@@ -98,14 +126,12 @@ describe("run-forge helpers", () => {
     });
   });
 
-  it("installs staged dependencies with the workspace lockfile", () => {
-    expect(createForgeStageInstallArgs("/repo")).toEqual([
+  it("installs staged dependencies without generating a stage lockfile", () => {
+    expect(createForgeStageInstallArgs()).toEqual([
       "install",
-      "--frozen-lockfile",
       "--ignore-scripts",
       "--ignore-workspace",
-      "--lockfile-dir",
-      "/repo",
+      "--no-lockfile",
     ]);
   });
 });

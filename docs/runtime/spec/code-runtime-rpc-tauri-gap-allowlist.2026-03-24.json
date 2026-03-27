@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-03-24",
+  "updatedAt": "2026-03-27",
   "contractVersion": "2026-03-24",
   "freezeEffectiveAt": "2026-03-24",
   "hostMethodCount": 167,
@@ -12,7 +12,6 @@
     "code_acp_integrations_list",
     "code_action_required_get_v2",
     "code_action_required_submit_v2",
-    "code_apps_list_v1",
     "code_bootstrap_snapshot",
     "code_browser_debug_run_v1",
     "code_browser_debug_status_v1",
@@ -33,7 +32,6 @@
     "code_extension_resource_read_v2",
     "code_extension_set_state_v2",
     "code_extension_tools_list_v2",
-    "code_extension_ui_apps_list_v2",
     "code_extension_update_v2",
     "code_git_log",
     "code_live_skill_execute",

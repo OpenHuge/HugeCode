@@ -164,6 +164,30 @@ function normalizeStringList(value: unknown): string[] {
   return items;
 }
 
+function normalizeTaskSourceKind(
+  taskSource: AgentTaskSourceSummary | null | undefined
+): SupportedRepositoryTaskSourceKind {
+  const kind = readSourceMappingKind(taskSource?.kind ?? "manual");
+  return kind ?? "manual";
+}
+
+function profileValidationPresetId(profileId: string | null): string | null {
+  if (!profileId) {
+    return null;
+  }
+  return (
+    listRunExecutionProfiles().find((profile) => profile.id === profileId)?.validationPresetId ??
+    null
+  );
+}
+
+function profileAccessMode(profileId: string | null): AccessMode | null {
+  if (!profileId) {
+    return null;
+  }
+  return listRunExecutionProfiles().find((profile) => profile.id === profileId)?.accessMode ?? null;
+}
+
 function readGuidance(value: unknown, context: string): RepositoryExecutionContractGuidance {
   if (value === null || value === undefined) {
     return {

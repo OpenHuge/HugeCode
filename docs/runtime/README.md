@@ -63,6 +63,8 @@ This directory is the canonical entrypoint for runtime transport, contract, and 
 - These fields are intended for Track B and Track C consumers to read directly from runtime-owned payloads rather than reconstructing placement or handoff state in UI code.
 - Mission Control task, run, and review payloads now expose the same task-source, checkpoint, and handoff truth while preserving older compatibility fields such as `threadId` for manual-thread flows.
 - This phase now includes a manual desktop-triggered GitHub source-launch MVP for issue and PR follow-up delegation through canonical `taskSource` payloads.
+- GitHub source launch beta MVP details, containment policy, and validation record:
+  [github-source-launch-beta-mvp-2026-03-25.md](./github-source-launch-beta-mvp-2026-03-25.md)
 - This phase now also includes a repo-owned `Repository Execution Contract` v1 for launch defaults, source mapping, and validation preset inheritance.
 - This phase now also includes a shared review continuation loop v1 that resolves relaunch and follow-up defaults from runtime truth plus repo defaults, and exposes those continuation summaries through Review Pack, Mission Control, and shared workspace-client surfaces.
 - This phase now also includes `Native Review Intelligence + Workspace Skills` v1:

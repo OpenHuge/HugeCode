@@ -927,24 +927,6 @@ export function buildReviewPackDetailModel(input: {
       recommendedNextAction:
         runtimeContinuation?.recommendedAction ?? run.nextAction?.detail ?? null,
     });
-    const runtimeOperatorAction = resolveRuntimeNextOperatorAction({
-      workspaceId,
-      taskId: task.id,
-      runId: run.id,
-      reviewPackId: run.reviewPackId ?? null,
-      state: run.state,
-      approval: run.approval ?? null,
-      reviewDecision: run.reviewDecision ?? null,
-      nextAction: run.nextAction ?? null,
-      checkpoint: run.checkpoint ?? null,
-      missionLinkage: run.missionLinkage ?? null,
-      actionability: run.actionability ?? null,
-      publishHandoff: run.publishHandoff ?? null,
-      takeoverBundle: run.takeoverBundle ?? null,
-      sessionBoundary: run.sessionBoundary ?? null,
-      continuation: run.continuation ?? null,
-      nextOperatorAction: run.nextOperatorAction ?? null,
-    });
     const limitations: string[] = [];
     if (isRuntimeManaged) {
       limitations.push(

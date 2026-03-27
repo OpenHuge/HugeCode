@@ -57,46 +57,6 @@ function pushUnique(values: string[], next: string | null | undefined) {
   }
 }
 
-function analyzeRunContinuitySignal(
-  run: HugeCodeMissionControlSnapshot["runs"][number]
-): keyof ContinuitySignalCounts | null {
-  const continuation = summarizeHugeCodeOperatorContinuation({
-    runState: run.state,
-    checkpoint: run.checkpoint ?? null,
-    takeoverBundle: run.takeoverBundle ?? null,
-    reviewActionability: run.actionability ?? null,
-    missionLinkage: run.missionLinkage ?? null,
-    publishHandoff: run.publishHandoff ?? null,
-  });
-
-  if (continuation.state === "blocked") {
-    return "blockedCount";
-  }
-  if (continuation.pathKind === "resume" && continuation.state === "ready") {
-    return "readyResumeCount";
-  }
-  if (continuation.pathKind === "handoff" && continuation.state === "ready") {
-    return "readyHandoffCount";
-  }
-  if (continuation.pathKind === "review" && continuation.state === "ready") {
-    return "readyReviewCount";
-  }
-  if (continuation.state === "degraded") {
-    return "attentionCount";
-  }
-  if (
-    continuation.pathKind === "missing" &&
-    continuation.truthSource === "missing" &&
-    run.reviewPackId
-  ) {
-    return "reviewPackOnlyCount";
-  }
-  if (continuation.truthSource !== "missing") {
-    return "attentionCount";
-  }
-  return null;
-}
-
 function countContinuitySignals(
   runs: HugeCodeMissionControlSnapshot["runs"]
 ): ContinuitySignalCounts {
@@ -462,6 +422,20 @@ function getReviewItemTone(
   return "neutral";
 }
 
+function resolveReviewQueueSummary(
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+) {
+  return (
+    reviewPack.takeoverBundle?.recommendedAction ??
+    reviewPack.actionability?.summary ??
+    reviewPack.missionLinkage?.summary ??
+    reviewPack.publishHandoff?.summary ??
+    reviewPack.recommendedNextAction ??
+    reviewPack.summary ??
+    "Review-ready evidence is available."
+  );
+}
+
 function getReviewQueuePriority(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
   if (
     reviewPack.validationOutcome === "failed" ||
@@ -481,7 +455,13 @@ function getReviewQueuePriority(reviewPack: HugeCodeMissionControlSnapshot["revi
   if (reviewPack.reviewStatus === "ready" || reviewPack.takeoverBundle?.state === "ready") {
     return 320;
   }
-  if (reviewPack.publishHandoff || reviewPack.recommendedNextAction) {
+  if (
+    reviewPack.takeoverBundle ||
+    reviewPack.actionability ||
+    reviewPack.missionLinkage ||
+    reviewPack.publishHandoff ||
+    reviewPack.recommendedNextAction
+  ) {
     return 240;
   }
   return 120;
@@ -502,13 +482,7 @@ function buildReviewQueueItems(
       id: reviewPack.id,
       title: reviewPack.summary,
       workspaceName: getWorkspaceName(workspaces, reviewPack.workspaceId),
-      summary:
-        reviewPack.recommendedNextAction ??
-        reviewPack.takeoverBundle?.recommendedAction ??
-        reviewPack.actionability?.summary ??
-        reviewPack.publishHandoff?.summary ??
-        reviewPack.summary ??
-        "Review-ready evidence is available.",
+      summary: resolveReviewQueueSummary(reviewPack),
       reviewStatusLabel: getReviewStatusLabel(reviewPack),
       validationLabel: formatValidationLabel(reviewPack.validationOutcome),
       tone: getReviewItemTone(reviewPack),
