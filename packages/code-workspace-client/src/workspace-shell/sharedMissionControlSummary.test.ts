@@ -325,10 +325,10 @@ describe("buildSharedMissionControlSummary", () => {
               resolutionSource: "unresolved",
               lifecycleState: "requested",
               readiness: "blocked",
-              healthSummary: "blocked",
+              healthSummary: "placement_blocked",
               attentionReasons: [],
               summary: "Blocked by routing readiness.",
-              rationale: null,
+              rationale: "Runtime has not recorded a launchable routing path yet.",
             },
           },
         ],
@@ -338,6 +338,45 @@ describe("buildSharedMissionControlSummary", () => {
 
     expect(summary.missionItems[0]?.title).toBe("Blocked route");
     expect(summary.missionItems[1]?.title).toBe("Active run");
+  });
+
+  it("surfaces fallback placement as launch-readiness attention in the shared shell", () => {
+    const summary = buildSharedMissionControlSummary(
+      createSnapshot({
+        runs: [
+          {
+            id: "run-fallback",
+            workspaceId: "workspace-1",
+            taskId: "task-fallback",
+            state: "running",
+            title: "Fallback run",
+            summary: "Fallback route is active.",
+            taskSource: null,
+            startedAt: 0,
+            finishedAt: null,
+            updatedAt: 1,
+            currentStepIndex: null,
+            placement: {
+              resolvedBackendId: "backend-fallback",
+              requestedBackendIds: ["backend-preferred"],
+              resolutionSource: "runtime_fallback",
+              lifecycleState: "fallback",
+              readiness: "ready",
+              healthSummary: "placement_attention",
+              attentionReasons: ["fallback_backend_selected"],
+              summary: "Runtime confirmed fallback placement on backend backend-fallback.",
+              rationale:
+                "Runtime selected backend-fallback instead of the requested backend set, which indicates fallback placement.",
+            },
+          },
+        ],
+      }),
+      "workspace-1"
+    );
+
+    expect(summary.launchReadiness.tone).toBe("attention");
+    expect(summary.launchReadiness.detail).toContain("need routing review");
+    expect(summary.launchReadiness.detail).toContain("fallback placement");
   });
 
   it("orders failed or blocked review packs before newer ready review packs", () => {

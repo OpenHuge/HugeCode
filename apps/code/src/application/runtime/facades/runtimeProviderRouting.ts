@@ -17,17 +17,30 @@ import {
 
 export type RuntimeProviderRouteReadiness = "ready" | "attention" | "blocked";
 
+export type RuntimeProviderRouteProvenance = {
+  source: "auto" | "explicit_route" | "model_selection";
+  catalogProviderId: ModelProvider | null;
+  readinessKind: RuntimeProviderCatalogEntry["readinessKind"];
+  readinessMessage: RuntimeProviderCatalogEntry["readinessMessage"];
+  executionKind: RuntimeProviderCatalogEntry["executionKind"];
+};
+
 export type RuntimeProviderRouteOption = {
   value: string;
   label: string;
   ready: boolean;
   readiness: RuntimeProviderRouteReadiness;
   detail: string;
+  launchAllowed: boolean;
+  blockingReason: string | null;
+  recommendedAction: string;
+  fallbackDetail: string | null;
   providerId: ModelProvider | null;
   oauthProviderId: RuntimeProviderCatalogEntry["oauthProviderId"];
   pool: ModelPool | null;
   defaultModelId: string | null;
   healthEntry: RuntimeProviderRoutingHealth | null;
+  provenance: RuntimeProviderRouteProvenance;
 };
 
 export type RuntimeResolvedProviderRoute = RuntimeProviderRouteOption & {
@@ -40,6 +53,28 @@ type RuntimeProviderRouteModelLike = {
   provider?: string | null;
   pool?: string | null;
 };
+
+function buildUnavailableRoutingHealth(
+  oauthProviderId: RuntimeProviderCatalogEntry["oauthProviderId"],
+  providerLabel: string
+): RuntimeProviderRoutingHealth | null {
+  if (!oauthProviderId) {
+    return null;
+  }
+  return {
+    providerId: oauthProviderId,
+    providerLabel,
+    state: "attention",
+    poolRoutingReady: false,
+    blockingReason: null,
+    recommendation: "Provider routing details are not available yet.",
+    accountsTotal: 0,
+    enabledAccounts: 0,
+    credentialReadyAccounts: 0,
+    poolsTotal: 0,
+    enabledPools: 0,
+  };
+}
 
 function normalizeText(value: string | null | undefined): string | null {
   if (typeof value !== "string") {
@@ -109,10 +144,7 @@ function resolveRoutingHealth(
   if (!healthEntry) {
     return "attention";
   }
-  if (healthEntry.poolRoutingReady) {
-    return "ready";
-  }
-  return healthEntry.enabledPools > 0 || healthEntry.enabledAccounts > 0 ? "attention" : "blocked";
+  return healthEntry.state;
 }
 
 function buildRouteDetail(
@@ -129,6 +161,9 @@ function buildRouteDetail(
   if (provider.oauthProviderId === null) {
     return "No OAuth route required.";
   }
+  if (provider.readinessMessage && readiness !== "ready") {
+    return provider.readinessMessage;
+  }
   if (healthEntry?.recommendation) {
     return healthEntry.recommendation;
   }
@@ -141,25 +176,87 @@ function buildRouteDetail(
   return "Provider routing is blocked.";
 }
 
+function buildRouteRecommendedAction(input: {
+  provider: RuntimeProviderCatalogEntry | null;
+  healthEntry: RuntimeProviderRoutingHealth | null;
+  readiness: RuntimeProviderRouteReadiness;
+  fallbackDetail?: string | null;
+}): string {
+  if (input.readiness === "ready") {
+    return "Selected route is ready for launch.";
+  }
+  if (input.fallbackDetail) {
+    return "Launch can continue on the available fallback route, or restore a ready remote provider route first.";
+  }
+  if (!input.provider) {
+    return "Refresh provider routing metadata or switch to a route that the runtime provider catalog currently publishes.";
+  }
+  if (!input.provider.available) {
+    return "Restore provider availability or switch to another ready route before launching.";
+  }
+  if (input.provider.readinessKind === "not_authenticated") {
+    return "Sign in for this provider or choose another ready route before launching.";
+  }
+  if (input.healthEntry?.recommendation) {
+    return input.healthEntry.recommendation;
+  }
+  return "Inspect provider routing readiness before launching.";
+}
+
+function buildRouteBlockingReason(
+  provider: RuntimeProviderCatalogEntry | null,
+  healthEntry: RuntimeProviderRoutingHealth | null,
+  readiness: RuntimeProviderRouteReadiness
+): string | null {
+  if (readiness !== "blocked") {
+    return null;
+  }
+  return (
+    healthEntry?.blockingReason ??
+    provider?.readinessMessage ??
+    buildRouteDetail(provider, healthEntry, readiness)
+  );
+}
+
 function createRouteOption(input: {
   provider: RuntimeProviderCatalogEntry | null;
   healthEntry: RuntimeProviderRoutingHealth | null;
+  source: RuntimeResolvedProviderRoute["source"];
+  fallbackDetail?: string | null;
 }): RuntimeProviderRouteOption | null {
   if (!input.provider) {
     return null;
   }
   const readiness = resolveRoutingHealth(input.provider, input.healthEntry);
+  const blockingReason = buildRouteBlockingReason(input.provider, input.healthEntry, readiness);
+  const recommendedAction = buildRouteRecommendedAction({
+    provider: input.provider,
+    healthEntry: input.healthEntry,
+    readiness,
+    fallbackDetail: input.fallbackDetail,
+  });
   return {
     value: input.provider.providerId,
     label: input.provider.displayName,
     ready: readiness === "ready",
     readiness,
     detail: buildRouteDetail(input.provider, input.healthEntry, readiness),
+    launchAllowed: readiness !== "blocked",
+    blockingReason,
+    recommendedAction,
+    fallbackDetail: input.fallbackDetail ?? null,
     providerId: input.provider.providerId,
     oauthProviderId: input.provider.oauthProviderId,
     pool: input.provider.pool ?? null,
     defaultModelId: input.provider.defaultModelId ?? null,
     healthEntry: input.healthEntry,
+    provenance: {
+      source: input.source,
+      catalogProviderId: input.provider.providerId,
+      readinessKind: input.provider.readinessKind ?? null,
+      readinessMessage: input.provider.readinessMessage ?? null,
+      executionKind: input.provider.executionKind ?? null,
+    },
   };
 }
 
@@ -183,6 +280,7 @@ export function buildRuntimeProviderRouteCatalog(input: {
             (entry) => entry.providerId === canonicalizeOAuthProviderId(provider.providerId)
           ) ??
           null,
+        source: provider.providerId === "auto" ? "auto" : "explicit_route",
       })
     )
     .filter((option): option is RuntimeProviderRouteOption => option !== null);
@@ -191,8 +289,16 @@ export function buildRuntimeProviderRouteCatalog(input: {
   const readyOAuthRoutes = options.filter(
     (option) => option.oauthProviderId !== null && option.readiness === "ready"
   ).length;
+  const autoFallbackDetail =
+    readyOAuthRoutes === 0 && hasNonOAuthRoute && routingHealth.length > 0
+      ? "No OAuth-backed provider routes are ready, so automatic routing will fall back to local/native execution."
+      : null;
   const autoReadiness: RuntimeProviderRouteReadiness =
-    readyOAuthRoutes > 0 || hasNonOAuthRoute || routingHealth.length === 0 ? "ready" : "blocked";
+    readyOAuthRoutes > 0 || routingHealth.length === 0
+      ? "ready"
+      : hasNonOAuthRoute
+        ? "attention"
+        : "blocked";
   const autoOption: RuntimeProviderRouteOption = {
     value: "auto",
     label: "Automatic workspace routing",
@@ -204,13 +310,31 @@ export function buildRuntimeProviderRouteCatalog(input: {
         : readyOAuthRoutes > 0
           ? `${readyOAuthRoutes}/${routingHealth.length} provider routes ready.`
           : hasNonOAuthRoute
-            ? "No OAuth-backed provider routes are ready, but local/native routing remains available."
+            ? (autoFallbackDetail ??
+              "No OAuth-backed provider routes are ready, but local/native routing remains available.")
             : `0/${routingHealth.length} provider routes ready.`,
+    launchAllowed: autoReadiness !== "blocked",
+    blockingReason:
+      autoReadiness === "blocked" ? `0/${routingHealth.length} provider routes ready.` : null,
+    recommendedAction:
+      autoReadiness === "attention"
+        ? "Launch can continue on local/native routing, or restore a ready remote provider route before launching."
+        : autoReadiness === "blocked"
+          ? "Enable a ready provider route or switch the workspace to a route that can launch now."
+          : "Automatic routing is ready for launch.",
+    fallbackDetail: autoFallbackDetail,
     providerId: null,
     oauthProviderId: null,
     pool: canonicalizeModelPool("auto"),
     defaultModelId: null,
     healthEntry: null,
+    provenance: {
+      source: "auto",
+      catalogProviderId: null,
+      readinessKind: null,
+      readinessMessage: null,
+      executionKind: null,
+    },
   };
 
   return {
@@ -227,12 +351,20 @@ export function resolveRuntimeProviderRouteSelection(input: {
 }): {
   routingHealth: RuntimeProviderRoutingHealth[];
   options: RuntimeProviderRouteOption[];
-  selected: RuntimeProviderRouteOption;
+  selected: RuntimeResolvedProviderRoute;
   normalizedValue: string;
 } {
   const catalog = buildRuntimeProviderRouteCatalog(input);
-  const selected =
+  const selectedOption =
     catalog.options.find((option) => option.value === input.selectedRoute) ?? catalog.options[0];
+  const selected: RuntimeResolvedProviderRoute = {
+    ...selectedOption,
+    source: selectedOption.value === "auto" ? "auto" : "explicit_route",
+    provenance: {
+      ...selectedOption.provenance,
+      source: selectedOption.value === "auto" ? "auto" : "explicit_route",
+    },
+  };
   return {
     routingHealth: catalog.routingHealth,
     options: catalog.options,
@@ -260,19 +392,7 @@ export function resolveRuntimeModelProviderRoute(input: {
   });
   const healthEntry =
     routingHealth.find((entry) => entry.providerId === oauthProviderId) ??
-    (oauthProviderId
-      ? {
-          providerId: oauthProviderId,
-          providerLabel: provider?.displayName ?? oauthProviderId,
-          poolRoutingReady: false,
-          recommendation: "Provider routing details are not available yet.",
-          accountsTotal: 0,
-          enabledAccounts: 0,
-          credentialReadyAccounts: 0,
-          poolsTotal: 0,
-          enabledPools: 0,
-        }
-      : null);
+    buildUnavailableRoutingHealth(oauthProviderId, provider?.displayName ?? oauthProviderId ?? "");
   const readiness = resolveRoutingHealth(provider, healthEntry);
   const providerId =
     provider?.providerId ??
@@ -293,12 +413,27 @@ export function resolveRuntimeModelProviderRoute(input: {
     ready: readiness === "ready",
     readiness,
     detail: buildRouteDetail(provider, healthEntry, readiness),
+    launchAllowed: readiness !== "blocked",
+    blockingReason: buildRouteBlockingReason(provider, healthEntry, readiness),
+    recommendedAction: buildRouteRecommendedAction({
+      provider,
+      healthEntry,
+      readiness,
+    }),
+    fallbackDetail: null,
     providerId,
     oauthProviderId,
     pool,
     defaultModelId: provider?.defaultModelId ?? null,
     healthEntry,
     source: "model_selection",
+    provenance: {
+      source: "model_selection",
+      catalogProviderId: provider?.providerId ?? null,
+      readinessKind: provider?.readinessKind ?? null,
+      readinessMessage: provider?.readinessMessage ?? null,
+      executionKind: provider?.executionKind ?? null,
+    },
   };
 }
 
@@ -317,5 +452,9 @@ export function resolveExplicitRuntimeProviderRoute(input: {
   return {
     ...selection.selected,
     source: selection.selected.value === "auto" ? "auto" : "explicit_route",
+    provenance: {
+      ...selection.selected.provenance,
+      source: selection.selected.value === "auto" ? "auto" : "explicit_route",
+    },
   };
 }

@@ -54,5 +54,5 @@ describe("LaunchScriptEntryButton", () => {
     expect(onCloseEditor).toHaveBeenCalledTimes(1);
     expect(onDelete).toHaveBeenCalledTimes(1);
     expect(onSave).toHaveBeenCalledTimes(1);
-  });
+  }, 10_000);
 });

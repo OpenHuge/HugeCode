@@ -122,26 +122,60 @@ function buildLaunchReadiness(
       detail: "The workspace is connected, but no runtime runs have reported placement yet.",
     };
   }
-  const blockedCount = runs.filter((run) => run.placement?.readiness === "blocked").length;
+  const blockedRuns = runs.filter((run) => {
+    if (run.placement?.healthSummary === "placement_blocked") {
+      return true;
+    }
+    if (run.routing?.backendOperability?.state === "blocked") {
+      return true;
+    }
+    return run.placement?.readiness === "blocked" || run.routing?.health === "blocked";
+  });
+  const blockedCount = blockedRuns.length;
   if (blockedCount > 0) {
+    const firstBlocked = blockedRuns[0];
+    const blockedDetail =
+      firstBlocked?.placement?.summary ??
+      firstBlocked?.routing?.routeHint ??
+      firstBlocked?.summary ??
+      "Runtime placement is blocked.";
     return {
       tone: "blocked",
       label: "Launch readiness",
-      detail: `${pluralize(blockedCount, "run")} are blocked by routing readiness.`,
+      detail: `${pluralize(blockedCount, "run")} are blocked by routing or backend operability. First: ${blockedDetail}`,
     };
   }
-  const attentionCount = runs.filter((run) => run.placement?.readiness === "attention").length;
+  const attentionRuns = runs.filter((run) => {
+    if (run.placement?.lifecycleState === "fallback") {
+      return true;
+    }
+    if (run.placement?.healthSummary === "placement_attention") {
+      return true;
+    }
+    if (run.routing?.backendOperability?.state === "attention") {
+      return true;
+    }
+    return run.placement?.readiness === "attention" || run.routing?.health === "attention";
+  });
+  const attentionCount = attentionRuns.length;
   if (attentionCount > 0) {
+    const firstAttention = attentionRuns[0];
+    const attentionDetail =
+      firstAttention?.placement?.summary ??
+      firstAttention?.routing?.routeHint ??
+      firstAttention?.summary ??
+      "Runtime placement needs operator inspection.";
     return {
       tone: "attention",
       label: "Launch readiness",
-      detail: `${pluralize(attentionCount, "run")} need routing attention before the next launch.`,
+      detail: `${pluralize(attentionCount, "run")} need routing review before the next launch. First: ${attentionDetail}`,
     };
   }
   return {
     tone: "ready",
     label: "Launch readiness",
-    detail: "Connected routing is healthy for the current workspace slice.",
+    detail:
+      "Connected routing and backend operability are healthy for the current workspace slice.",
   };
 }
 
