@@ -177,6 +177,43 @@ describe("events subscriptions", () => {
     expect(unlistenRuntime).toHaveBeenCalledTimes(1);
   });
 
+  it("falls back to web runtime events when desktop event subscription is unavailable", async () => {
+    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(listen).mockRejectedValue(
+      new Error('Desktop event listener "fastcode://runtime/event" is unavailable.')
+    );
+    setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, "http://runtime.example/events");
+    globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
+
+    const onEvent = vi.fn();
+    const onError = vi.fn();
+    const cleanup = subscribeAppServerEvents(onEvent, { onError });
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+
+    expect(MockEventSource.instances).toHaveLength(1);
+    const source = MockEventSource.instances[0];
+    expect(source?.url).toBe("http://runtime.example/events");
+    expect(onError).toHaveBeenCalledTimes(1);
+
+    source?.emitMessage(
+      JSON.stringify({
+        workspace_id: "ws-fallback",
+        message: { method: "ping" },
+      })
+    );
+
+    expect(onEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspace_id: "ws-fallback",
+        message: expect.objectContaining({ method: "ping" }),
+      })
+    );
+
+    cleanup();
+  });
+
   it("cleans up listeners that resolve after unsubscribe", async () => {
     let resolveListener: (handler: UnlistenFn) => void = () => undefined;
     const unlisten = vi.fn();

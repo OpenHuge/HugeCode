@@ -456,8 +456,8 @@ async function startAppServerBridge(
     );
     if (runtimeUnsubscribe) {
       unsubscribers.push(runtimeUnsubscribe);
+      return createCompositeUnsubscribe(unsubscribers);
     }
-    return createCompositeUnsubscribe(unsubscribers);
   }
 
   const webUnsubscribe = await subscribeWebRuntimeEvents(onEvent, options);
