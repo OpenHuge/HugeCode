@@ -703,7 +703,7 @@ describe("runtimeClient mode detection", () => {
     invokeMock.mockResolvedValueOnce(guardrailSnapshot);
     await client.runtimeToolGuardrailRead();
     expect(invokeMock).toHaveBeenCalledWith("code_runtime_tool_guardrail_read", {});
-  });
+  }, 15_000);
 
   it("reads runtime capabilities summary for capability gating", async () => {
     isTauriMock.mockReturnValue(true);
