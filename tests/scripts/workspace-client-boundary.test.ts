@@ -34,12 +34,16 @@ describe("workspace client boundaries", () => {
   it("routes the desktop workspace app through the shared workspace client entry", () => {
     const appSource = readRepoFile("apps/code/src/App.tsx");
     const entrySource = readRepoFile("apps/code/src/web/WorkspaceClientEntry.tsx");
+    const bootstrapSource = readRepoFile(
+      "packages/code-application/src/desktopWorkspaceBootstrap.ts"
+    );
 
     expect(appSource).toContain("./web/WorkspaceClientEntry");
     expect(appSource).not.toContain("./web/WorkspaceAppBridge");
     expect(entrySource).toContain("WorkspaceClientBoot");
     expect(entrySource).toContain("@ku0/code-application");
-    expect(entrySource).toContain("createDesktopWorkspaceClientBindings");
+    expect(entrySource).toContain("createDesktopWorkspaceBootstrap");
+    expect(bootstrapSource).toContain("createDesktopWorkspaceClientBindings");
   });
 
   it("keeps the web adapter focused on binding composition instead of inline runtime transport", () => {
@@ -59,6 +63,9 @@ describe("workspace client boundaries", () => {
     const webSource = readRepoFile(
       "apps/code-web/app/components/createWebWorkspaceClientBindings.tsx"
     );
+    const bootstrapSource = readRepoFile(
+      "packages/code-application/src/desktopWorkspaceBootstrap.ts"
+    );
     const sharedBindingsSource = readRepoFile(
       "packages/code-application/src/workspaceClientBindings.ts"
     );
@@ -66,8 +73,8 @@ describe("workspace client boundaries", () => {
       "apps/code/src/application/runtime/kernel/createRuntimeKernel.ts"
     );
 
-    expect(desktopSource).toContain("runtimeGateway:");
-    expect(desktopSource).toContain("runtime:");
+    expect(desktopSource).toContain("createDesktopWorkspaceBootstrap");
+    expect(desktopSource).toContain("runtimeKernel,");
     expect(desktopSource).toContain("openExternalUrl:");
     expect(desktopSource).toContain("waitForOauthBinding:");
     expect(desktopSource).toContain("testSystemNotification:");
@@ -77,7 +84,11 @@ describe("workspace client boundaries", () => {
     expect(desktopSource).not.toContain("window:");
     expect(desktopSource).not.toContain("nativeFiles:");
     expect(desktopSource).not.toContain("updater:");
-    expect(desktopSource).toContain("createDesktopWorkspaceClientBindings");
+    expect(bootstrapSource).toContain("createDesktopWorkspaceClientBindings");
+    expect(bootstrapSource).toContain(
+      "runtimeGateway: input.runtimeKernel.workspaceClientRuntimeGateway"
+    );
+    expect(bootstrapSource).toContain("runtime: input.runtimeKernel.workspaceClientRuntime");
     expect(kernelSource).toContain("createWorkspaceClientRuntimeBindings");
     expect(kernelSource).toContain("workspaceClientRuntimeGateway:");
     expect(kernelSource).toContain("workspaceClientRuntime,");
