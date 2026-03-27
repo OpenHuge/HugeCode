@@ -92,12 +92,87 @@ function toRuntimeJobInterventionOutcome(
 }
 
 function readRuntimeRunId(record: RuntimeRunRecordV2): string {
+  const missionRunRecord = record.missionRun as { runId?: string | null };
   return (
-    record.missionRun.runId?.trim() ||
+    missionRunRecord.runId?.trim() ||
+    record.missionRun.id?.trim() ||
     record.run.taskId?.trim() ||
     record.run.runSummary?.id?.trim() ||
     ""
   );
+}
+
+function toKernelExecutionProfile(record: RuntimeRunRecordV2): KernelJob["executionProfile"] {
+  const distributed = record.run.executionMode === "distributed";
+  return {
+    placement: distributed ? "remote" : "local",
+    interactivity: distributed ? "background" : "interactive",
+    isolation: distributed ? "container_sandbox" : "host",
+    network: record.run.accessMode === "read-only" ? "restricted" : "default",
+    authority: distributed ? "service" : "user",
+  };
+}
+
+function toKernelContinuation(record: RuntimeRunRecordV2): KernelJob["continuation"] {
+  const continuation = record.missionRun.continuation ?? null;
+  const reviewPack = record.reviewPack;
+  const resumeSupported =
+    record.run.checkpointState?.resumeReady === true || continuation?.pathKind === "resume";
+
+  return {
+    checkpointId: record.run.checkpointId ?? record.missionRun.checkpoint?.checkpointId ?? null,
+    resumeSupported,
+    recovered: record.run.recovered === true || record.missionRun.checkpoint?.recovered === true,
+    reviewActionability:
+      continuation?.reviewActionability ??
+      reviewPack?.actionability ??
+      record.missionRun.actionability ??
+      null,
+    takeover: reviewPack?.takeoverBundle ?? record.missionRun.takeoverBundle ?? null,
+    missionLinkage: reviewPack?.missionLinkage ?? record.missionRun.missionLinkage ?? null,
+    publishHandoff: reviewPack?.publishHandoff ?? record.missionRun.publishHandoff ?? null,
+    summary:
+      continuation?.summary ??
+      reviewPack?.takeoverBundle?.summary ??
+      reviewPack?.publishHandoff?.summary ??
+      record.missionRun.takeoverBundle?.summary ??
+      record.missionRun.publishHandoff?.summary ??
+      null,
+  };
+}
+
+function toKernelJob(record: RuntimeRunRecordV2): KernelJob {
+  return {
+    id: readRuntimeRunId(record),
+    workspaceId: record.run.workspaceId,
+    threadId: record.run.threadId ?? record.missionRun.lineage?.threadId ?? null,
+    title: record.run.title ?? record.missionRun.title ?? null,
+    status: record.run.status,
+    provider:
+      record.run.provider ??
+      record.run.routedProvider ??
+      record.missionRun.routing?.provider ??
+      null,
+    modelId: record.run.modelId ?? record.run.routedModelId ?? null,
+    backendId:
+      record.run.backendId ??
+      record.missionRun.routing?.backendId ??
+      record.missionRun.placement?.resolvedBackendId ??
+      null,
+    preferredBackendIds:
+      record.run.preferredBackendIds ?? record.missionRun.placement?.requestedBackendIds ?? null,
+    executionProfile: toKernelExecutionProfile(record),
+    createdAt: record.run.createdAt,
+    updatedAt: record.run.updatedAt,
+    startedAt: record.run.startedAt ?? record.missionRun.startedAt ?? null,
+    completedAt: record.run.completedAt ?? record.missionRun.finishedAt ?? null,
+    continuation: toKernelContinuation(record),
+    metadata: {
+      canonicalMethod: "code_runtime_run_subscribe_v2",
+      runId: record.missionRun.id ?? readRuntimeRunId(record),
+      reviewPackId: record.reviewPack?.id ?? record.missionRun.reviewPackId ?? null,
+    },
+  };
 }
 
 function toRuntimeRunResumeAck(record: RuntimeRunRecordV2): RuntimeRunResumeAck {
@@ -200,7 +275,8 @@ export async function resumeRuntimeJob(
 export async function subscribeRuntimeJob(
   request: KernelJobSubscribeRequestV3
 ): Promise<KernelJob | null> {
-  return getRuntimeClient().kernelJobSubscribeV3(request);
+  const record = await getRuntimeClient().runtimeRunSubscribeV2(request);
+  return record ? toKernelJob(record) : null;
 }
 
 export async function listRuntimeJobs(request: KernelJobsListRequest): Promise<KernelJob[]> {

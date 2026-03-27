@@ -3,11 +3,16 @@ import {
   type CodeRuntimeRpcRequestPayloadByMethod,
   type CodeRuntimeRpcResponsePayloadByMethod,
   type HugeCodeMissionControlSnapshot,
+  type KernelJob,
   type KernelProjectionBootstrapRequest,
   type KernelProjectionBootstrapResponse,
   type KernelProjectionDelta,
   type KernelProjectionScope,
   type KernelProjectionSubscriptionRequest,
+  type RuntimeRunInterventionAck,
+  type RuntimeRunInterventionRequest,
+  type RuntimeRunRecordV2,
+  type RuntimeRunResumeAck,
 } from "@ku0/code-runtime-host-contract";
 import {
   buildManualWebRuntimeGatewayProfile,
@@ -153,6 +158,121 @@ function parseKernelProjectionDelta(payload: unknown): KernelProjectionDelta | n
       revision: typeof op.revision === "number" ? op.revision : null,
       reason: typeof op.reason === "string" ? op.reason : null,
     })),
+  };
+}
+
+function readRuntimeRunId(record: RuntimeRunRecordV2): string {
+  const missionRunRecord = record.missionRun as { runId?: string | null };
+  return (
+    missionRunRecord.runId?.trim() ||
+    record.missionRun.id?.trim() ||
+    record.run.taskId?.trim() ||
+    record.run.runSummary?.id?.trim() ||
+    ""
+  );
+}
+
+function toKernelExecutionProfile(record: RuntimeRunRecordV2): KernelJob["executionProfile"] {
+  const distributed = record.run.executionMode === "distributed";
+  return {
+    placement: distributed ? "remote" : "local",
+    interactivity: distributed ? "background" : "interactive",
+    isolation: distributed ? "container_sandbox" : "host",
+    network: record.run.accessMode === "read-only" ? "restricted" : "default",
+    authority: distributed ? "service" : "user",
+  };
+}
+
+function toKernelContinuation(record: RuntimeRunRecordV2): KernelJob["continuation"] {
+  const continuation = record.missionRun.continuation ?? null;
+  const reviewPack = record.reviewPack;
+  const resumeSupported =
+    record.run.checkpointState?.resumeReady === true || continuation?.pathKind === "resume";
+
+  return {
+    checkpointId: record.run.checkpointId ?? record.missionRun.checkpoint?.checkpointId ?? null,
+    resumeSupported,
+    recovered: record.run.recovered === true || record.missionRun.checkpoint?.recovered === true,
+    reviewActionability:
+      continuation?.reviewActionability ??
+      reviewPack?.actionability ??
+      record.missionRun.actionability ??
+      null,
+    takeover: reviewPack?.takeoverBundle ?? record.missionRun.takeoverBundle ?? null,
+    missionLinkage: reviewPack?.missionLinkage ?? record.missionRun.missionLinkage ?? null,
+    publishHandoff: reviewPack?.publishHandoff ?? record.missionRun.publishHandoff ?? null,
+    summary:
+      continuation?.summary ??
+      reviewPack?.takeoverBundle?.summary ??
+      reviewPack?.publishHandoff?.summary ??
+      record.missionRun.takeoverBundle?.summary ??
+      record.missionRun.publishHandoff?.summary ??
+      null,
+  };
+}
+
+function toKernelJob(record: RuntimeRunRecordV2): KernelJob {
+  return {
+    id: readRuntimeRunId(record),
+    workspaceId: record.run.workspaceId,
+    threadId: record.run.threadId ?? record.missionRun.lineage?.threadId ?? null,
+    title: record.run.title ?? record.missionRun.title ?? null,
+    status: record.run.status,
+    provider:
+      record.run.provider ??
+      record.run.routedProvider ??
+      record.missionRun.routing?.provider ??
+      null,
+    modelId: record.run.modelId ?? record.run.routedModelId ?? null,
+    backendId:
+      record.run.backendId ??
+      record.missionRun.routing?.backendId ??
+      record.missionRun.placement?.resolvedBackendId ??
+      null,
+    preferredBackendIds:
+      record.run.preferredBackendIds ?? record.missionRun.placement?.requestedBackendIds ?? null,
+    executionProfile: toKernelExecutionProfile(record),
+    createdAt: record.run.createdAt,
+    updatedAt: record.run.updatedAt,
+    startedAt: record.run.startedAt ?? record.missionRun.startedAt ?? null,
+    completedAt: record.run.completedAt ?? record.missionRun.finishedAt ?? null,
+    continuation: toKernelContinuation(record),
+    metadata: {
+      canonicalMethod: "code_runtime_run_subscribe_v2",
+      runId: record.missionRun.id ?? readRuntimeRunId(record),
+      reviewPackId: record.reviewPack?.id ?? record.missionRun.reviewPackId ?? null,
+    },
+  };
+}
+
+function toRuntimeRunResumeAck(record: RuntimeRunRecordV2): RuntimeRunResumeAck {
+  return {
+    accepted: true,
+    runId: readRuntimeRunId(record),
+    status: record.run.status,
+    code: null,
+    message: "Runtime run resumed.",
+    recovered: record.run.recovered ?? null,
+    checkpointId: record.run.checkpointId ?? null,
+    traceId: record.run.traceId ?? null,
+    updatedAt: record.run.updatedAt ?? null,
+  };
+}
+
+function toRuntimeRunInterventionAck(
+  request: RuntimeRunInterventionRequest,
+  record: RuntimeRunRecordV2
+): RuntimeRunInterventionAck {
+  const runId = readRuntimeRunId(record);
+  const spawnedRunId = runId !== request.runId ? runId : null;
+  return {
+    accepted: true,
+    action: request.action,
+    runId,
+    status: record.run.status,
+    outcome: spawnedRunId ? "spawned" : "submitted",
+    spawnedRunId,
+    checkpointId: record.run.checkpointId ?? null,
   };
 }
 
@@ -497,16 +617,17 @@ export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRu
       cancelRuntimeJob: async (input) =>
         await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3, input),
       resumeRuntimeJob: async (input) =>
-        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_RESUME_V3, input),
+        toRuntimeRunResumeAck(
+          await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_RESUME_V2, input)
+        ),
       interveneRuntimeJob: async (input) =>
-        await invokeBrowserWorkspaceRuntime(
-          CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_INTERVENE_V3,
-          input
+        toRuntimeRunInterventionAck(
+          input,
+          await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2, input)
         ),
       subscribeRuntimeJob: async (input) =>
-        await invokeBrowserWorkspaceRuntime(
-          CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_SUBSCRIBE_V3,
-          input
+        ((record) => (record ? toKernelJob(record) : null))(
+          await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE_V2, input)
         ),
       listRuntimeJobs: async (input) =>
         await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.KERNEL_JOBS_LIST_V2, input),

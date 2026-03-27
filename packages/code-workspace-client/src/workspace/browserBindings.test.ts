@@ -72,6 +72,302 @@ describe("browser workspace bindings", () => {
     expect(startRequest.method).toBe(CODE_RUNTIME_RPC_METHODS.RUN_START_V2);
   });
 
+  it("routes browser agent control resume, intervene, and subscribe through runtime kernel v2 methods", async () => {
+    process.env[WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY] = "http://127.0.0.1:8788/rpc";
+    const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      const request = JSON.parse(String(init?.body)) as { method?: string };
+      if (request.method === CODE_RUNTIME_RPC_METHODS.RUN_RESUME_V2) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            result: {
+              run: {
+                taskId: "run-1",
+                workspaceId: "workspace-1",
+                threadId: "thread-1",
+                requestId: null,
+                title: "Resume task",
+                status: "running",
+                accessMode: "on-request",
+                executionMode: "single",
+                provider: "openai",
+                modelId: "gpt-5.4",
+                routedProvider: "openai",
+                routedModelId: "gpt-5.4",
+                routedPool: "auto",
+                routedSource: "workspace-default",
+                currentStep: 2,
+                createdAt: 10,
+                updatedAt: 20,
+                startedAt: 15,
+                completedAt: null,
+                errorCode: null,
+                errorMessage: null,
+                pendingApprovalId: null,
+                checkpointId: "checkpoint-1",
+                traceId: "trace-1",
+                recovered: true,
+                checkpointState: {
+                  state: "running",
+                  checkpointId: "checkpoint-1",
+                  traceId: "trace-1",
+                  resumeReady: true,
+                },
+                preferredBackendIds: ["backend-a"],
+                backendId: "backend-a",
+                steps: [],
+              },
+              missionRun: {
+                id: "run-1",
+                taskId: "task-1",
+                workspaceId: "workspace-1",
+                state: "running",
+                title: "Resume task",
+                summary: "Resumed",
+                startedAt: 15,
+                updatedAt: 20,
+              },
+              reviewPack: null,
+            },
+          }),
+        };
+      }
+
+      if (request.method === CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            result: {
+              run: {
+                taskId: "run-2",
+                workspaceId: "workspace-1",
+                threadId: "thread-1",
+                requestId: null,
+                title: "Retry task",
+                status: "queued",
+                accessMode: "on-request",
+                executionMode: "distributed",
+                provider: "openai",
+                modelId: "gpt-5.4",
+                routedProvider: "openai",
+                routedModelId: "gpt-5.4",
+                routedPool: "auto",
+                routedSource: "workspace-default",
+                currentStep: null,
+                createdAt: 30,
+                updatedAt: 40,
+                startedAt: null,
+                completedAt: null,
+                errorCode: null,
+                errorMessage: null,
+                pendingApprovalId: null,
+                checkpointId: "checkpoint-2",
+                traceId: "trace-2",
+                recovered: null,
+                preferredBackendIds: ["backend-b"],
+                backendId: "backend-b",
+                steps: [],
+              },
+              missionRun: {
+                id: "run-2",
+                taskId: "task-1",
+                workspaceId: "workspace-1",
+                state: "queued",
+                title: "Retry task",
+                summary: "Queued retry",
+                updatedAt: 40,
+                placement: {
+                  lifecycleState: "confirmed",
+                  resolutionSource: "runtime_confirmed",
+                  resolvedBackendId: "backend-b",
+                  requestedBackendIds: ["backend-b"],
+                  readiness: "ready",
+                  summary: "Backend ready",
+                  rationale: null,
+                  failureReasonCode: null,
+                },
+              },
+              reviewPack: null,
+            },
+          }),
+        };
+      }
+
+      if (request.method === CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE_V2) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            result: {
+              run: {
+                taskId: "run-1",
+                workspaceId: "workspace-1",
+                threadId: "thread-1",
+                requestId: null,
+                title: "Resume task",
+                status: "running",
+                accessMode: "on-request",
+                executionMode: "distributed",
+                provider: "openai",
+                modelId: "gpt-5.4",
+                routedProvider: "openai",
+                routedModelId: "gpt-5.4",
+                routedPool: "auto",
+                routedSource: "workspace-default",
+                currentStep: 2,
+                createdAt: 10,
+                updatedAt: 25,
+                startedAt: 15,
+                completedAt: null,
+                errorCode: null,
+                errorMessage: null,
+                pendingApprovalId: null,
+                checkpointId: "checkpoint-1",
+                traceId: "trace-1",
+                recovered: true,
+                checkpointState: {
+                  state: "running",
+                  checkpointId: "checkpoint-1",
+                  traceId: "trace-1",
+                  resumeReady: true,
+                },
+                preferredBackendIds: ["backend-a"],
+                backendId: "backend-a",
+                steps: [],
+              },
+              missionRun: {
+                id: "run-1",
+                taskId: "task-1",
+                workspaceId: "workspace-1",
+                state: "running",
+                title: "Resume task",
+                summary: "Runtime truth",
+                startedAt: 15,
+                updatedAt: 25,
+                continuation: {
+                  state: "ready",
+                  pathKind: "resume",
+                  source: "takeover_bundle",
+                  summary: "Ready to resume.",
+                  detail: null,
+                  recommendedAction: "Resume run",
+                  sessionBoundary: {
+                    workspaceId: "workspace-1",
+                    taskId: "task-1",
+                    runId: "run-1",
+                    reviewPackId: null,
+                  },
+                },
+                placement: {
+                  lifecycleState: "confirmed",
+                  resolutionSource: "runtime_confirmed",
+                  resolvedBackendId: "backend-a",
+                  requestedBackendIds: ["backend-a"],
+                  readiness: "ready",
+                  summary: "Backend ready",
+                  rationale: null,
+                  failureReasonCode: null,
+                },
+                checkpoint: {
+                  checkpointId: "checkpoint-1",
+                  traceId: "trace-1",
+                  recovered: true,
+                },
+              },
+              reviewPack: null,
+            },
+          }),
+        };
+      }
+
+      throw new Error(`Unexpected method: ${request.method}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const runtime = createBrowserWorkspaceClientRuntimeBindings();
+
+    await expect(runtime.agentControl.resumeRuntimeJob({ runId: "run-1" })).resolves.toEqual({
+      accepted: true,
+      runId: "run-1",
+      status: "running",
+      code: null,
+      message: "Runtime run resumed.",
+      recovered: true,
+      checkpointId: "checkpoint-1",
+      traceId: "trace-1",
+      updatedAt: 20,
+    });
+
+    await expect(
+      runtime.agentControl.interveneRuntimeJob({
+        runId: "run-1",
+        action: "retry",
+        reason: "Try again",
+      })
+    ).resolves.toEqual({
+      accepted: true,
+      action: "retry",
+      runId: "run-2",
+      status: "queued",
+      outcome: "spawned",
+      spawnedRunId: "run-2",
+      checkpointId: "checkpoint-2",
+    });
+
+    await expect(runtime.agentControl.subscribeRuntimeJob({ runId: "run-1" })).resolves.toEqual({
+      id: "run-1",
+      workspaceId: "workspace-1",
+      threadId: "thread-1",
+      title: "Resume task",
+      status: "running",
+      provider: "openai",
+      modelId: "gpt-5.4",
+      backendId: "backend-a",
+      preferredBackendIds: ["backend-a"],
+      executionProfile: {
+        placement: "remote",
+        interactivity: "background",
+        isolation: "container_sandbox",
+        network: "default",
+        authority: "service",
+      },
+      createdAt: 10,
+      updatedAt: 25,
+      startedAt: 15,
+      completedAt: null,
+      continuation: {
+        checkpointId: "checkpoint-1",
+        resumeSupported: true,
+        recovered: true,
+        reviewActionability: null,
+        takeover: null,
+        missionLinkage: null,
+        publishHandoff: null,
+        summary: "Ready to resume.",
+      },
+      metadata: {
+        canonicalMethod: "code_runtime_run_subscribe_v2",
+        runId: "run-1",
+        reviewPackId: null,
+      },
+    });
+
+    const methods = fetchMock.mock.calls.map((call) => {
+      const request = JSON.parse(String(call[1]?.body)) as { method?: string };
+      return request.method;
+    });
+    expect(methods).toEqual([
+      CODE_RUNTIME_RPC_METHODS.RUN_RESUME_V2,
+      CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2,
+      CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE_V2,
+    ]);
+  });
+
   it("prefers kernel projection bootstrap truth for mission control", async () => {
     process.env[WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY] = "http://127.0.0.1:8788/rpc";
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
