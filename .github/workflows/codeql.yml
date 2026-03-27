@@ -91,12 +91,16 @@ jobs:
         if: needs.changes.outputs.fast_pr_iteration_mode == 'true'
         run: echo "Skipping JavaScript/TypeScript CodeQL lane because PR fast mode is enabled."
 
+      - name: Skip merge queue synthetic ref upload lane
+        if: github.event_name == 'merge_group'
+        run: echo "Skipping JavaScript/TypeScript CodeQL lane because merge queue synthetic refs are already covered by PR and main scans."
+
       - name: Skip untouched JavaScript/TypeScript lane
-        if: needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.javascript_required != 'true'
+        if: github.event_name != 'merge_group' && needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.javascript_required != 'true'
         run: echo "Skipping JavaScript/TypeScript CodeQL lane because no relevant files changed."
 
       - name: Initialize CodeQL
-        if: needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.javascript_required == 'true'
+        if: github.event_name != 'merge_group' && needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.javascript_required == 'true'
         uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
@@ -104,7 +108,7 @@ jobs:
           queries: security-extended,security-and-quality
 
       - name: Analyze
-        if: needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.javascript_required == 'true'
+        if: github.event_name != 'merge_group' && needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.javascript_required == 'true'
         uses: github/codeql-action/analyze@v3
 
   analyze_rust:
@@ -125,12 +129,16 @@ jobs:
         if: needs.changes.outputs.fast_pr_iteration_mode == 'true'
         run: echo "Skipping Rust CodeQL lane because PR fast mode is enabled."
 
+      - name: Skip merge queue synthetic ref upload lane
+        if: github.event_name == 'merge_group'
+        run: echo "Skipping Rust CodeQL lane because merge queue synthetic refs are already covered by PR and main scans."
+
       - name: Skip untouched Rust lane
-        if: needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.rust_required != 'true'
+        if: github.event_name != 'merge_group' && needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.rust_required != 'true'
         run: echo "Skipping Rust CodeQL lane because no relevant files changed."
 
       - name: Initialize CodeQL
-        if: needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.rust_required == 'true'
+        if: github.event_name != 'merge_group' && needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.rust_required == 'true'
         uses: github/codeql-action/init@v3
         with:
           languages: rust
@@ -138,5 +146,5 @@ jobs:
           queries: security-extended,security-and-quality
 
       - name: Analyze
-        if: needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.rust_required == 'true'
+        if: github.event_name != 'merge_group' && needs.changes.outputs.fast_pr_iteration_mode != 'true' && needs.changes.outputs.rust_required == 'true'
         uses: github/codeql-action/analyze@v3

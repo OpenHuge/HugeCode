@@ -40,11 +40,16 @@ describe("codeql merge-queue fast PR path", () => {
     expect(workflow).toContain("Skipping Rust CodeQL lane because PR fast mode is enabled.");
   });
 
-  it("keeps merge_group scans broad even when PR fast mode is enabled", () => {
+  it("short-circuits merge_group scans that cannot upload against synthetic refs", () => {
     const workflow = readWorkflow();
 
+    expect(workflow).toContain("Skip merge queue synthetic ref upload lane");
     expect(workflow).toContain("github.event_name == 'merge_group'");
-    expect(workflow).toContain("javascript_required");
-    expect(workflow).toContain("rust_required");
+    expect(workflow).toContain(
+      "Skipping JavaScript/TypeScript CodeQL lane because merge queue synthetic refs are already covered by PR and main scans."
+    );
+    expect(workflow).toContain(
+      "Skipping Rust CodeQL lane because merge queue synthetic refs are already covered by PR and main scans."
+    );
   });
 });
