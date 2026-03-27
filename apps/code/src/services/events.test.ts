@@ -1,8 +1,8 @@
-import { isTauri } from "@tauri-apps/api/core";
-import type { EventCallback, Event as TauriEvent, UnlistenFn } from "@tauri-apps/api/event";
-import { listen } from "@tauri-apps/api/event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppServerEvent } from "../types";
+import { isTauri } from "../application/runtime/ports/tauriCore";
+import type { UnlistenFn } from "../application/runtime/ports/tauriEvent";
+import { listen } from "../application/runtime/ports/tauriEvent";
 import {
   __resetEventSubscriptionsForTests,
   __resetRuntimeTurnContextForTests,
@@ -12,6 +12,14 @@ import {
   subscribeMenuCycleModel,
   subscribeMenuNewAgent,
 } from "./events";
+
+type TauriEvent<T> = {
+  event?: string;
+  id?: number;
+  payload: T;
+};
+
+type EventCallback<T> = (event: TauriEvent<T>) => void;
 
 const PROCESS_ENV = (
   globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }
@@ -24,11 +32,11 @@ const WEB_WS_ENDPOINT_ENV = "VITE_CODE_RUNTIME_GATEWAY_WEB_WS_ENDPOINT";
 const ORIGINAL_EVENT_SOURCE = globalThis.EventSource;
 const ORIGINAL_WEB_SOCKET = globalThis.WebSocket;
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("../application/runtime/ports/tauriEvent", () => ({
   listen: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("../application/runtime/ports/tauriCore", () => ({
   isTauri: vi.fn(() => true),
 }));
 

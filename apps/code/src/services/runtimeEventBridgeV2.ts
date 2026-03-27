@@ -1,5 +1,5 @@
-import { isTauri } from "@tauri-apps/api/core";
 import type { AppServerEvent } from "../types";
+import { isTauri } from "../application/runtime/ports/tauriCore";
 import { normalizeAppServerPayload } from "./eventsRuntimePayloadAdapter";
 import {
   createEventIdDeduper,
