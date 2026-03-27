@@ -1130,20 +1130,26 @@ async function runRuntimeContractGuardChecks(changedFiles, options = {}) {
 
   if (shouldRunRuntimeCapabilitiesCheck) {
     parallelChecks.push(
-      runCommandAsync(
-        "pnpm",
-        [
-          "--filter",
-          "@ku0/code-runtime-service-rs",
-          "test",
-          "--",
-          CODE_RUNTIME_RUST_CAPABILITIES_TEST_NAME,
-        ],
-        "Runtime service capabilities parity test"
-      )
+      (async () => {
+        // These parity checks share the guarded cargo target dir. Running them
+        // sequentially avoids validate-tail flakiness where one long-running
+        // cargo test blocks the other and obscures the real failure source.
+        if (shouldRunRuntimeCapabilitiesCheck) {
+          await runCommandAsync(
+            "pnpm",
+            [
+              "--filter",
+              "@ku0/code-runtime-service-rs",
+              "test",
+              "--",
+              CODE_RUNTIME_RUST_CAPABILITIES_TEST_NAME,
+            ],
+            "Runtime service capabilities parity test"
+          );
+        }
+      })()
     );
   }
-
   if (shouldRunRpcSpecCheck || shouldRunWebRuntimeClientContractCheck) {
     parallelChecks.push(
       (async () => {

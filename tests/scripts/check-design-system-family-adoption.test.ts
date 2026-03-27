@@ -299,6 +299,16 @@ async function writeAdoptionFixtureRepo(targetRoot: string): Promise<void> {
     ].join("\n")
   );
   appendLines(
+    "apps/code/src/features/home/components/HomeRecentMissionsSection.tsx",
+    'import { EmptySurface } from "../../../design-system";',
+    [
+      "export function ShellRecentMissionsFixture() {",
+      '  return <EmptySurface title="No recent missions" />;',
+      "}",
+      "",
+    ].join("\n")
+  );
+  appendLines(
     "apps/code/src/features/composer/components/ComposerShell.tsx",
     'import { ShellFrame, ShellToolbar } from "../../../design-system";',
     [

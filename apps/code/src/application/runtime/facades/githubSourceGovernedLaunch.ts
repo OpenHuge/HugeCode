@@ -1,12 +1,7 @@
 import type {
-  AccessMode,
-  AgentTaskMissionBrief,
   AgentTaskSourceSummary,
-  HugeCodeExecutionProfile,
   RuntimeAutonomyRequestV2,
   RuntimeRunPrepareV2Request,
-  RuntimeRunPrepareV2Response,
-  RuntimeRunStartV2Response,
 } from "@ku0/code-runtime-host-contract";
 import type {
   GitHubIssue,
@@ -14,19 +9,17 @@ import type {
   GitHubPullRequestComment,
   GitHubPullRequestDiff,
 } from "../../../types";
-import { prepareRuntimeRunV2, startRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
-import {
-  buildAgentTaskLaunchControls,
-  buildAgentTaskMissionBrief,
-} from "./runtimeMissionDraftFacade";
-import { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
 import {
   normalizeGitHubIssueLaunchInput,
   normalizeGitHubPullRequestFollowUpLaunchInput,
   type GitHubSourceLaunchSummary,
 } from "./githubSourceLaunchNormalization";
+import {
+  buildGovernedRuntimeRunRequest,
+  launchGovernedRuntimeRun,
+  type GovernedRuntimeRunLaunchAck,
+} from "./runtimeGovernedRunIngestion";
 import { type RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
-import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
 import type { RuntimeWorkspaceExecutionPolicyStatus } from "./runtimeWorkspaceExecutionPolicyFacade";
 
 type GitHubSourceWorkspaceContext = {
@@ -41,8 +34,8 @@ type GitHubSourceLaunchRequestOptions = {
 };
 
 export type GovernedGitHubRunLaunchAck = {
-  preparation: RuntimeRunPrepareV2Response;
-  response: RuntimeRunStartV2Response;
+  preparation: GovernedRuntimeRunLaunchAck["preparation"];
+  response: GovernedRuntimeRunLaunchAck["response"];
   request: RuntimeRunPrepareV2Request;
   launch: GitHubSourceLaunchSummary;
 };
@@ -58,38 +51,6 @@ function readOptionalText(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
-}
-
-function normalizeBackendIds(value: readonly string[] | null | undefined): string[] | undefined {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  const seen = new Set<string>();
-  const ids: string[] = [];
-  for (const entry of value) {
-    const normalized = readOptionalText(entry);
-    if (!normalized || seen.has(normalized)) {
-      continue;
-    }
-    seen.add(normalized);
-    ids.push(normalized);
-  }
-  return ids.length > 0 ? ids : undefined;
-}
-
-function resolveExecutionProfile(profileId: string | null | undefined): HugeCodeExecutionProfile {
-  const normalizedProfileId = readOptionalText(profileId);
-  return (
-    listRunExecutionProfiles().find((profile) => profile.id === normalizedProfileId) ??
-    listRunExecutionProfiles().find((profile) => profile.id === "balanced-delegate") ??
-    listRunExecutionProfiles()[0]
-  );
-}
-
-function mapExecutionProfileModeToTaskMode(
-  value: HugeCodeExecutionProfile["executionMode"]
-): "single" | "distributed" {
-  return value === "remote_sandbox" ? "distributed" : "single";
 }
 
 function buildGitHubSourceAutonomyRequest(): RuntimeAutonomyRequestV2 {
@@ -166,81 +127,31 @@ export function assertGovernedGitHubLaunchReady(input: {
   }
 }
 
-function buildGovernedGitHubMissionBrief(input: {
-  launch: GitHubSourceLaunchSummary;
-  accessMode: AccessMode | null;
-  preferredBackendIds?: string[];
-  requiredCapabilities?: string[] | null;
-  maxSubtasks?: number | null;
-}): AgentTaskMissionBrief {
-  return buildAgentTaskMissionBrief({
-    objective: input.launch.title,
-    accessMode: input.accessMode,
-    preferredBackendIds: input.preferredBackendIds,
-    constraints: buildGitHubSourceMissionConstraints({
-      launch: input.launch,
-    }),
-    requiredCapabilities: input.requiredCapabilities ?? null,
-    maxSubtasks: input.maxSubtasks ?? null,
-    allowNetwork: false,
-  });
-}
-
 function buildGovernedGitHubLaunchRequest(input: {
   launch: GitHubSourceLaunchSummary;
   workspaceId: string;
   repositoryExecutionContract?: RepositoryExecutionContract | null;
   preferredBackendIds?: string[] | null;
 }): RuntimeRunPrepareV2Request {
-  const resolvedDefaults = resolveRepositoryExecutionDefaults({
-    contract: input.repositoryExecutionContract ?? null,
-    taskSource: input.launch.taskSource,
-    explicitLaunchInput: {
-      preferredBackendIds: normalizeBackendIds(input.preferredBackendIds),
-    },
-  });
-  const selectedExecutionProfile = resolveExecutionProfile(resolvedDefaults.executionProfileId);
-  const accessMode = resolvedDefaults.accessMode ?? selectedExecutionProfile.accessMode;
-  const preferredBackendIds = normalizeBackendIds(resolvedDefaults.preferredBackendIds);
-  const launchControls = buildAgentTaskLaunchControls({
-    objective: input.launch.title,
-    accessMode,
-    preferredBackendIds,
-  });
-  const missionBrief = buildGovernedGitHubMissionBrief({
-    launch: input.launch,
-    accessMode,
-    preferredBackendIds,
-    requiredCapabilities: launchControls.requiredCapabilities,
-    maxSubtasks: launchControls.maxSubtasks,
-  });
-
-  return {
+  const request = buildGovernedRuntimeRunRequest({
     workspaceId: input.workspaceId,
-    title: input.launch.title,
-    taskSource: input.launch.taskSource,
-    executionProfileId: selectedExecutionProfile.id,
-    ...(resolvedDefaults.reviewProfileId
-      ? { reviewProfileId: resolvedDefaults.reviewProfileId }
-      : {}),
-    ...(resolvedDefaults.validationPresetId
-      ? { validationPresetId: resolvedDefaults.validationPresetId }
-      : {}),
-    accessMode,
-    executionMode: mapExecutionProfileModeToTaskMode(selectedExecutionProfile.executionMode),
-    ...(launchControls.requiredCapabilities
-      ? { requiredCapabilities: launchControls.requiredCapabilities }
-      : {}),
-    ...(preferredBackendIds ? { preferredBackendIds } : {}),
-    missionBrief,
-    autonomyRequest: buildGitHubSourceAutonomyRequest(),
-    steps: [
-      {
-        kind: "read",
-        input: input.launch.instruction,
-      },
-    ],
-  };
+    source: {
+      ...input.launch,
+      autonomyRequest: buildGitHubSourceAutonomyRequest(),
+      missionConstraints: buildGitHubSourceMissionConstraints({
+        launch: input.launch,
+      }),
+    },
+    repositoryExecutionContract: input.repositoryExecutionContract ?? null,
+    explicitLaunchInput: {
+      preferredBackendIds: input.preferredBackendIds ?? undefined,
+    },
+    fallbackExecutionProfileId: "balanced-delegate",
+  });
+  if (!request) {
+    throw new Error("GitHub source launch requires a non-empty instruction.");
+  }
+  return request;
 }
 
 export function buildGovernedGitHubIssueLaunchRequest(input: {
@@ -253,7 +164,6 @@ export function buildGovernedGitHubIssueLaunchRequest(input: {
     workspaceId: input.workspace.workspaceId,
     workspaceRoot: input.workspace.workspaceRoot,
     gitRemoteUrl: input.workspace.gitRemoteUrl,
-    preferredBackendIds: input.options?.preferredBackendIds,
   });
   const request = buildGovernedGitHubLaunchRequest({
     launch,
@@ -284,7 +194,6 @@ export function buildGovernedGitHubPullRequestLaunchRequest(input: {
     workspaceId: input.workspace.workspaceId,
     workspaceRoot: input.workspace.workspaceRoot,
     gitRemoteUrl: input.workspace.gitRemoteUrl,
-    preferredBackendIds: input.options?.preferredBackendIds,
   });
   const request = buildGovernedGitHubLaunchRequest({
     launch,
@@ -303,13 +212,12 @@ export async function launchGovernedGitHubRun(input: {
   launch: GitHubSourceLaunchSummary;
   onRefresh?: (() => void | Promise<void>) | null;
 }): Promise<GovernedGitHubRunLaunchAck> {
-  const preparation = await prepareRuntimeRunV2(input.request);
-  const response = await startRuntimeRunV2(input.request);
-  await input.onRefresh?.();
-  return {
-    preparation,
-    response,
+  const launchAck = await launchGovernedRuntimeRun({
     request: input.request,
+    onRefresh: input.onRefresh,
+  });
+  return {
+    ...launchAck,
     launch: input.launch,
   };
 }

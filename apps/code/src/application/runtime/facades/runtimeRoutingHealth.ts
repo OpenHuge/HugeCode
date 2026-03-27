@@ -14,7 +14,9 @@ export type RuntimeRoutingProviderDescriptor = {
 export type RuntimeProviderRoutingHealth = {
   providerId: OAuthProviderId;
   providerLabel: string;
+  state: "ready" | "attention" | "blocked";
   poolRoutingReady: boolean;
+  blockingReason: string | null;
   recommendation: string | null;
   accountsTotal: number;
   enabledAccounts: number;
@@ -90,21 +92,33 @@ export function buildRuntimeProviderRoutingHealth({
       const enabledPools = providerPools.filter((pool) => pool.enabled);
       const poolRoutingReady = enabledPools.length > 0 && credentialReadyAccounts.length > 0;
 
+      let state: RuntimeProviderRoutingHealth["state"] = "ready";
+      let blockingReason: string | null = null;
       let recommendation: string | null = null;
       if (!provider.available) {
-        recommendation = "Runtime provider catalog currently marks this provider unavailable.";
+        state = "blocked";
+        blockingReason = "Runtime provider catalog currently marks this provider unavailable.";
+        recommendation = blockingReason;
       } else if (enabledPools.length === 0) {
-        recommendation = "Enable at least one pool for this provider.";
+        state = "blocked";
+        blockingReason = "Enable at least one pool for this provider.";
+        recommendation = blockingReason;
       } else if (enabledAccounts.length === 0) {
-        recommendation = "Enable at least one account for this provider.";
+        state = "blocked";
+        blockingReason = "Enable at least one account for this provider.";
+        recommendation = blockingReason;
       } else if (credentialReadyAccounts.length === 0) {
+        state = "blocked";
+        blockingReason = "Sign in or configure credentials for at least one enabled account.";
         recommendation = "Sign in or configure credentials for at least one enabled account.";
       }
 
       return {
         providerId: provider.providerId,
         providerLabel: provider.label,
+        state,
         poolRoutingReady,
+        blockingReason,
         recommendation,
         accountsTotal: providerAccounts.length,
         enabledAccounts: enabledAccounts.length,
