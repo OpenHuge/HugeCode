@@ -72,6 +72,9 @@ type LeaveWorkspaceExecutionResult = {
 
 type LeaveDeactivatedChatgptWorkspacesDeps = {
   resolveChromeDebuggerEndpoint(): Promise<LocalChromeDebuggerEndpoint | null>;
+  readActiveAccountIdentity(
+    endpoint: LocalChromeDebuggerEndpoint
+  ): Promise<RemoteChatgptAccountIdentity | null>;
   executeLeave(
     endpoint: LocalChromeDebuggerEndpoint,
     account: OAuthAccountSummary,
@@ -152,6 +155,18 @@ function buildUnavailableResult(message: string): ReviewDeactivatedChatgptWorksp
   };
 }
 
+function formatActiveAccountMismatchMessage(
+  account: OAuthAccountSummary,
+  activeAccount: RemoteChatgptAccountIdentity | null
+): string {
+  const activeIdentityLabel =
+    readNonEmptyText(activeAccount?.email) ??
+    readNonEmptyText(activeAccount?.title) ??
+    readNonEmptyText(activeAccount?.externalAccountId) ??
+    "an unverified ChatGPT account";
+  return `The active ChatGPT session belongs to ${activeIdentityLabel}, which does not match HugeCode account ${account.accountId}. Switch to the matching ChatGPT account before leaving workspaces.`;
+}
+
 export function doesActiveChatgptAccountMatch(
   account: OAuthAccountSummary,
   activeAccount: RemoteChatgptAccountIdentity | null
@@ -197,14 +212,9 @@ export async function reviewDeactivatedChatgptWorkspacesWithDeps(
     const remoteWorkspaces = await deps.reviewRemoteWorkspaces(endpoint, account);
     const activeAccount = await deps.readActiveAccountIdentity(endpoint);
     if (!doesActiveChatgptAccountMatch(account, activeAccount)) {
-      const activeIdentityLabel =
-        readNonEmptyText(activeAccount?.email) ??
-        readNonEmptyText(activeAccount?.title) ??
-        readNonEmptyText(activeAccount?.externalAccountId) ??
-        "an unverified ChatGPT account";
       return {
         status: "blocked",
-        message: `The active ChatGPT session belongs to ${activeIdentityLabel}, which does not match HugeCode account ${account.accountId}. Switch to the matching ChatGPT account before leaving workspaces.`,
+        message: formatActiveAccountMismatchMessage(account, activeAccount),
         endpoint,
         candidates: [],
         remoteWorkspaces,
@@ -296,29 +306,53 @@ export async function leaveDeactivatedChatgptWorkspacesWithDeps(
   }
 
   try {
-    const results = await Promise.all(
-      input.candidates.map((candidate) => deps.executeLeave(endpoint, input.account, candidate))
-    );
-    const leftWorkspaceIds = results
-      .filter((result) => result.left)
-      .map((result) => result.remoteWorkspaceId);
-    const failedWorkspaceIds = results
-      .filter((result) => !result.left)
-      .map((result) => result.remoteWorkspaceId);
-    const leftNames = input.candidates
-      .filter((candidate) => leftWorkspaceIds.includes(candidate.localWorkspace.workspaceId))
-      .map(
-        (candidate) =>
-          readWorkspaceTitle(candidate.localWorkspace) ??
-          candidate.remoteWorkspace.title ??
-          candidate.localWorkspace.workspaceId
-      );
+    const activeAccount = await deps.readActiveAccountIdentity(endpoint);
+    if (!doesActiveChatgptAccountMatch(input.account, activeAccount)) {
+      return {
+        status: "blocked",
+        message: formatActiveAccountMismatchMessage(input.account, activeAccount),
+        endpoint,
+        leftWorkspaceIds: [],
+        failedWorkspaceIds: input.candidates.map(
+          (candidate) => candidate.localWorkspace.workspaceId
+        ),
+      };
+    }
+
+    const leftWorkspaceIds: string[] = [];
+    const failedWorkspaceIds: string[] = [];
+    const leftNames: string[] = [];
+
+    for (const candidate of input.candidates) {
+      try {
+        const result = await deps.executeLeave(endpoint, input.account, candidate);
+        if (result.left) {
+          leftWorkspaceIds.push(result.remoteWorkspaceId);
+          leftNames.push(
+            readWorkspaceTitle(candidate.localWorkspace) ??
+              candidate.remoteWorkspace.title ??
+              candidate.localWorkspace.workspaceId
+          );
+          continue;
+        }
+        failedWorkspaceIds.push(result.remoteWorkspaceId);
+      } catch {
+        failedWorkspaceIds.push(candidate.localWorkspace.workspaceId);
+      }
+    }
+
+    let message = "Failed to leave the selected ChatGPT workspaces.";
+    if (leftNames.length > 0 && failedWorkspaceIds.length === 0) {
+      message = `Left ${formatWorkspaceList(leftNames)}.`;
+    } else if (leftNames.length > 0 && failedWorkspaceIds.length === 1) {
+      message = `Left ${formatWorkspaceList(leftNames)}, but failed to leave another workspace.`;
+    } else if (leftNames.length > 0 && failedWorkspaceIds.length > 1) {
+      message = `Left ${formatWorkspaceList(leftNames)}, but failed to leave ${failedWorkspaceIds.length} other workspaces.`;
+    }
+
     return {
       status: failedWorkspaceIds.length === 0 ? "completed" : "failed",
-      message:
-        leftNames.length > 0
-          ? `Left ${formatWorkspaceList(leftNames)}.`
-          : "Failed to leave the selected ChatGPT workspaces.",
+      message,
       endpoint,
       leftWorkspaceIds,
       failedWorkspaceIds,
@@ -349,6 +383,7 @@ export function reviewDeactivatedChatgptWorkspaces(account: OAuthAccountSummary)
 export function leaveDeactivatedChatgptWorkspaces(input: LeaveDeactivatedChatgptWorkspacesInput) {
   return leaveDeactivatedChatgptWorkspacesWithDeps(input, {
     resolveChromeDebuggerEndpoint: resolveLocalChromeDebuggerEndpoint,
+    readActiveAccountIdentity: readActiveRemoteChatgptAccountIdentity,
     executeLeave: leaveRemoteChatgptWorkspace,
   });
 }
