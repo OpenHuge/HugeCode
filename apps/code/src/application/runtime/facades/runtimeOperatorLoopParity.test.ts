@@ -129,7 +129,7 @@ describe("runtimeOperatorLoopParity", () => {
     });
 
     expect(reviewEntry?.recommendedNextAction).toBe(
-      "Runtime blocked follow-up until validation evidence is repaired."
+      "Open Review Pack and resolve the runtime-blocked follow-up before continuing."
     );
     expect(reviewEntry?.operatorActionLabel).toBe("Open review");
     expect(reviewEntry?.operatorActionTarget).toEqual({

@@ -1226,9 +1226,9 @@ export function buildReviewPackDetailModel(input: {
     "Runtime recorded why this pack woke the operator and what can happen next."
   );
   const reviewRecommendedNextAction =
+    continuity?.recommendedAction ??
     reviewPackExtra?.actionability?.summary ??
     run?.actionability?.summary ??
-    continuity?.recommendedAction ??
     reviewPack.recommendedNextAction ??
     null;
   const reviewIntelligence = resolveReviewIntelligenceSummary({
