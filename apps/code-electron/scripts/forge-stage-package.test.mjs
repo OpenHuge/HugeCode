@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   FORGE_STAGE_CONFIG_TIME_DEV_DEPENDENCIES,
   createForgeStagePackageJson,
+  createForgeStagePnpmConfig,
   shouldInstallForgeStageDependencies,
 } from "./forge-stage-package.mjs";
 
@@ -52,5 +53,40 @@ describe("forge stage package helpers", () => {
     });
 
     expect(shouldInstallForgeStageDependencies(stagedPackageJson)).toBe(true);
+  });
+
+  it("carries workspace overrides and patch metadata into the staged package", () => {
+    const workspaceConfigText = `
+overrides:
+  "axios@>=1.0.0 <1.12.0": ">=1.12.0"
+patchedDependencies:
+  electron-installer-common@0.10.4: patches/electron-installer-common@0.10.4.patch
+`;
+    const stagedPackageJson = createForgeStagePackageJson(
+      {
+        dependencies: {
+          "update-electron-app": "3.1.2",
+        },
+        devDependencies: {
+          electron: "41.0.3",
+        },
+        repository: {
+          type: "git",
+          url: "https://github.com/OpenHuge/HugeCode.git",
+        },
+        version: "0.1.0",
+      },
+      createForgeStagePnpmConfig(workspaceConfigText)
+    );
+
+    expect(stagedPackageJson.pnpm).toEqual({
+      allowUnusedPatches: true,
+      overrides: {
+        "axios@>=1.0.0 <1.12.0": ">=1.12.0",
+      },
+      patchedDependencies: {
+        "electron-installer-common@0.10.4": "patches/electron-installer-common@0.10.4.patch",
+      },
+    });
   });
 });

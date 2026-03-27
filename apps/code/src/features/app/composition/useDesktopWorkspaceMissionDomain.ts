@@ -69,8 +69,6 @@ export function useDesktopWorkspaceMissionDomain({
       activeWorkspace,
       activeWorkspaceId,
       gitRemoteUrl,
-      accessMode: threadCodexState.accessMode,
-      executionMode: threadCodexState.executionMode,
       selectedRemoteBackendId: threadCodexState.selectedRemoteBackendId,
       refreshMissionControl: conversationState.homeState.refreshMissionControl,
     });
