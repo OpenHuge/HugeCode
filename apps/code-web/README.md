@@ -56,8 +56,8 @@ in `apps/code`.
 - `pnpm web:typecheck`
 - `pnpm --filter @ku0/code-web run test`
 
-Legacy `pnpm experimental:web:*` aliases still resolve to the same workflow for
-compatibility, but `pnpm web:*` is the canonical command family.
+Use the canonical `pnpm web:*` command family directly. The legacy
+`pnpm experimental:web:*` aliases have been removed.
 
 ## Boundary Rules
 

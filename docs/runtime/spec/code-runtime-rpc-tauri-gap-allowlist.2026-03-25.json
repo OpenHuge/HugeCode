@@ -3,7 +3,7 @@
   "updatedAt": "2026-03-25",
   "contractVersion": "2026-03-25",
   "freezeEffectiveAt": "2026-03-25",
-  "hostMethodCount": 164,
+  "hostMethodCount": 163,
   "missingMethods": [
     "code_acp_integration_probe",
     "code_acp_integration_remove",
