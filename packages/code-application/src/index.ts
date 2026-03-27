@@ -31,13 +31,23 @@ export {
   createWebWorkspaceClientBindings,
   createWorkspaceClientBindings,
 } from "./workspaceClientBindings";
+export {
+  createDesktopWorkspaceBootstrap,
+  createDesktopWorkspaceBootstrap as createDesktopWorkspaceBootstrapBindings,
+} from "./desktopWorkspaceBootstrap";
 
 export type {
   CreateDesktopWorkspaceClientBindingsInput,
   CreateDesktopWorkspaceClientHostBindingsInput,
   CreateWebWorkspaceClientBindingsInput,
   CreateWorkspaceClientBindingsInput,
+  WorkspaceClientPlatformUiInput,
 } from "./workspaceClientBindings";
+export type {
+  CreateDesktopWorkspaceBootstrapInput,
+  CreateDesktopWorkspaceBootstrapInput as CreateDesktopWorkspaceBootstrapBindingsInput,
+  DesktopWorkspaceRuntimeKernel,
+} from "./desktopWorkspaceBootstrap";
 export type {
   DesktopExternalUrlFallbacks,
   DesktopDiagnosticsFallbacks,

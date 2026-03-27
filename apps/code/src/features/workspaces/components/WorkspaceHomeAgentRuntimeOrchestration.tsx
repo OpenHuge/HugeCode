@@ -3,7 +3,9 @@ import { useWorkspaceRuntimeMissionControlController } from "../../../applicatio
 import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import { ToolCallChip } from "../../../design-system";
+import { useWorkspaceRuntimeToolLifecycle } from "../../shared/hooks/useWorkspaceRuntimeToolLifecycle";
 import {
+  MissionControlSessionLogSection,
   MissionControlRunListSection,
   MissionControlSectionCard,
 } from "./WorkspaceHomeMissionControlSections";
@@ -21,6 +23,9 @@ type WorkspaceHomeAgentRuntimeOrchestrationProps = {
 export function WorkspaceHomeAgentRuntimeOrchestration({
   workspaceId,
 }: WorkspaceHomeAgentRuntimeOrchestrationProps) {
+  const runtimeToolLifecycle = useWorkspaceRuntimeToolLifecycle({
+    workspaceId,
+  });
   const [runtimeDraftBatchConfig, setRuntimeDraftBatchConfig] = useState(
     DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG
   );
@@ -223,6 +228,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           ))}
         </div>
       </div>
+      <MissionControlSessionLogSection lifecycleEvents={runtimeToolLifecycle.lifecycleEvents} />
       {runtimeDurabilityWarning ? (
         <div className={controlStyles.warning} data-testid="workspace-runtime-durability-warning">
           <strong>Runtime durability degraded</strong>

@@ -27,7 +27,7 @@ const requiredEntries = [
   "docs",
   ".github/workflows",
   path.join("apps", "code", "package.json"),
-  path.join("apps", "code-tauri", "src-tauri", "Cargo.toml"),
+  path.join("apps", "code-electron", "package.json"),
   path.join("apps", "code-web"),
   path.join("internal", "runtime-policy-rs", "Cargo.toml"),
   path.join("packages", "code-runtime-service-rs", "Cargo.toml"),

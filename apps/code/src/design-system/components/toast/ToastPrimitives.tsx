@@ -29,7 +29,7 @@ export function ToastViewport({
       className={joinClassNames("ds-toast-viewport", className)}
       role={role}
       ariaLive={ariaLive}
-      data-tauri-drag-region="false"
+      data-desktop-drag-region="false"
       {...props}
     >
       {children}
@@ -50,7 +50,7 @@ export function ToastCard({ children, className, role, tone, ...props }: ToastCa
       className={joinClassNames("ds-toast-card", className)}
       role={role}
       tone={tone}
-      data-tauri-drag-region="false"
+      data-desktop-drag-region="false"
       {...props}
     >
       {children}

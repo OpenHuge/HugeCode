@@ -2,7 +2,7 @@
 
 HugeCode is a runtime-first mission control for coding agents with **AutoDrive** and **multi-remote server control** as core product capabilities.
 
-The product helps engineers move from the current repo state to a desired engineering outcome through supervised autonomous execution. Users define the destination, guardrails, and budget; AutoDrive plans a route, executes waypoints, reroutes when needed, and stops safely with a reviewable evidence trail. The client can also manage multiple remote execution servers and route each run through an explicit backend preference or a shared default backend. The active product surface is the coding workspace built around `apps/code`, `apps/code-tauri`, and the shared Rust runtime.
+The product helps engineers move from the current repo state to a desired engineering outcome through supervised autonomous execution. Users define the destination, guardrails, and budget; AutoDrive plans a route, executes waypoints, reroutes when needed, and stops safely with a reviewable evidence trail. The client can also manage multiple remote execution servers and route each run through an explicit backend preference or a shared default backend. The active product surface is the coding workspace built around `apps/code`, `apps/code-electron`, and the shared Rust runtime.
 
 Official product context is **HugeCode**. Older documents may still mention **Keep-Up** or **Reader**; treat those names as historical unless a file is explicitly archived.
 
@@ -91,8 +91,7 @@ The active engineering center of this repo is:
 
 - `apps/code`: primary React 19 + Vite coding workspace UI
 - `apps/code-web`: Cloudflare platform web implementation for public routes, SSR, and deploy wiring
-- `apps/code-tauri`: desktop container and host bridge
-- `apps/code-electron`: experimental Electron desktop shell around the shared `apps/code` renderer
+- `apps/code-electron`: desktop container and host bridge around the shared `apps/code` renderer
 - `packages/code-workspace-client`: shared workspace client boot and compatibility adapters for web and desktop shells
 - `packages/code-runtime-service-rs`: Rust-first runtime orchestrator
 - `packages/code-runtime-host-contract`: canonical TypeScript runtime contract
@@ -127,8 +126,8 @@ Useful entrypoints:
 - `pnpm dev`: default code workspace and runtime flow
 - `pnpm dev:code:ui`: Vite UI only
 - `pnpm dev:code:service`: runtime service only
-- `pnpm desktop:prepare:fast && pnpm dev:desktop`: Tauri desktop flow
-- `pnpm desktop:electron:dev`: Electron desktop shell flow
+- `pnpm dev:desktop`: Electron desktop shell flow
+- `pnpm desktop:electron:dev`: explicit Electron desktop shell flow
 - `pnpm desktop:electron:make:smoke`: Electron beta installer smoke build on the current host
 - `pnpm desktop:electron:publish:dry-run`: Electron beta release configuration dry-run
 

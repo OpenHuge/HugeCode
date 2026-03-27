@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
-      - name: Skip Tauri release build while runtime retires
+      - name: Skip dedicated release packaging lane
         run: |
-          echo "Skipping Tauri release build for target ${{ inputs.rust_target }}."
-          echo "Workflow and job names stay unchanged so release automation can be retired separately."
+          echo "Skipping dedicated desktop release packaging for target ${{ inputs.rust_target }}."
+          echo "Release packaging is handled through the active Electron release flow."

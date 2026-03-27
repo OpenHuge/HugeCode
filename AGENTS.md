@@ -39,15 +39,15 @@ A task is not done until the agent has, within the task scope:
 
 ## Project Overview
 
-| Item      | Detail                                                                                                              |
-| --------- | ------------------------------------------------------------------------------------------------------------------- |
-| Stack     | TypeScript, React 19, pnpm 10 monorepo, Turbo, Vite, Rust (native accelerators)                                     |
-| Namespace | `@ku0/*` (TS) and `ku0-*` (Rust crates)                                                                             |
-| Core App  | `apps/code` (UI) + `apps/code-tauri` (Tauri runtime container) + `apps/code-electron` (experimental Electron shell) |
-| CRDT      | Loro only; never add Yjs                                                                                            |
-| Styling   | `vanilla-extract` (`.css.ts`) + CSS custom properties across active UI surfaces; no Tailwind, no inline styles      |
-| Linter    | Oxlint (TS/JS/JSX) and Clippy (Rust)                                                                                |
-| Formatter | `pnpm format` (Oxfmt) and `cargo fmt` (Rust)                                                                        |
+| Item      | Detail                                                                                                         |
+| --------- | -------------------------------------------------------------------------------------------------------------- |
+| Stack     | TypeScript, React 19, pnpm 10 monorepo, Turbo, Vite, Rust (native accelerators)                                |
+| Namespace | `@ku0/*` (TS) and `ku0-*` (Rust crates)                                                                        |
+| Core App  | `apps/code` (UI) + `apps/code-electron` (Electron desktop shell) + `apps/code-web` (Cloudflare web shell)      |
+| CRDT      | Loro only; never add Yjs                                                                                       |
+| Styling   | `vanilla-extract` (`.css.ts`) + CSS custom properties across active UI surfaces; no Tailwind, no inline styles |
+| Linter    | Oxlint (TS/JS/JSX) and Clippy (Rust)                                                                           |
+| Formatter | `pnpm format` (Oxfmt) and `cargo fmt` (Rust)                                                                   |
 
 ## Architecture
 
@@ -58,8 +58,7 @@ A task is not done until the agent has, within the task scope:
 ```text
 apps/
   code/                       # Core coding app (Vite + React 19)
-  code-tauri/                 # Desktop runtime container (Tauri v2)
-  code-electron/              # Experimental Electron shell around apps/code
+  code-electron/              # Electron desktop shell around apps/code
 
 packages/
   code-application/          # Shared application orchestration, workspace host rendering, and host-agnostic use-case logic
@@ -80,7 +79,7 @@ docs/                         # Product specs and engineering docs
 ### Runtime Boundary Rules
 
 - `apps/code/src/application/runtime/*` is the only approved frontend boundary for runtime and remote execution behavior.
-- UI components and feature hooks must not orchestrate multiple runtime, Tauri, or transport ports directly.
+- UI components and feature hooks must not orchestrate multiple runtime, desktop-host, or transport ports directly.
 - `ports/*` exist only for host, IPC, or transport adaptation. They must not become page-shaped service layers.
 - New remote execution or server features must enter through a domain facade or application service first.
 - `launch readiness` is an advisory preflight summary over existing runtime truth.

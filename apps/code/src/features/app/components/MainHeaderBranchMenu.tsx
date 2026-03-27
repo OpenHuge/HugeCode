@@ -72,7 +72,7 @@ export function MainHeaderBranchMenu({
     <PopoverSurface
       className="workspace-branch-dropdown"
       role="menu"
-      data-tauri-drag-region="false"
+      data-desktop-drag-region="false"
     >
       <div className="branch-actions">
         <div className="branch-search">
@@ -104,7 +104,7 @@ export function MainHeaderBranchMenu({
             autoCorrect="off"
             autoCapitalize="none"
             spellCheck={false}
-            data-tauri-drag-region="false"
+            data-desktop-drag-region="false"
             aria-label="Search branches"
           />
           <button
@@ -112,7 +112,7 @@ export function MainHeaderBranchMenu({
             className="branch-create-button"
             disabled={!canCreate || Boolean(branchValidationMessage)}
             onClick={handleCreate}
-            data-tauri-drag-region="false"
+            data-desktop-drag-region="false"
           >
             Create
           </button>

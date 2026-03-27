@@ -9,7 +9,7 @@ The target architecture has one runtime truth path per capability.
 - `@ku0/code-runtime-client` owns runtime client transport and runtime-client type truth.
 - `@ku0/code-runtime-webmcp-client` owns WebMCP client behavior and WebMCP/runtime-agent type truth.
 - `@ku0/code-workspace-client` owns shared workspace-shell composition only.
-- `apps/code`, `apps/code-web`, and `apps/code-tauri` are composition shells and host adapters, not alternate runtime layers.
+- `apps/code`, `apps/code-web`, and `apps/code-electron` are composition shells and host adapters, not alternate runtime layers.
 
 ## Ownership Model
 
@@ -54,14 +54,14 @@ The target architecture has one runtime truth path per capability.
 
 - `apps/code`
   - app/runtime facades
-  - Tauri composition
+  - desktop composition
   - platform-specific UI wiring
 
 - `apps/code-web`
   - browser bindings
   - shared workspace shell composition
 
-- `apps/code-tauri`
+- `apps/code-electron`
   - host bridge only
 
 ## Single Execution Path

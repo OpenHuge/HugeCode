@@ -68,7 +68,7 @@ Primary focus:
 - `pnpm check:runtime-contract`
   Frozen spec and runtime source-of-truth guard.
 - `pnpm check:runtime-contract:parity`
-  Shared-contract parity across TS host contract, native alias contract, Rust runtime, Tauri payloads, and the web runtime client.
+  Shared-contract parity across TS host contract, native alias contract, Rust runtime, and the web runtime client.
 
 Use the parity gate when the change touches method names, payload fields, runtime events, frozen specs, or adapter compatibility.
 
@@ -115,9 +115,9 @@ Live runtime E2E is a narrower sub-class of targeted E2E:
 ### Desktop Smoke
 
 - `pnpm test:desktop:smoke`
-  Narrow Rust desktop smoke coverage for `apps/code-tauri` backend tests, with runtime-service prewarm enabled by default.
+  Narrow Electron desktop smoke coverage for `apps/code-electron` tests.
 - `pnpm desktop:verify:fast`
-  Fast Tauri verification layer for CI and desktop-runtime-sensitive changes, with runtime-service prewarm enabled by default.
+  Fast Electron verification layer for CI and desktop-runtime-sensitive changes.
 - `pnpm desktop:verify`
   Tauri debug build without bundling for local desktop integration verification.
 - `.github/workflows/desktop.yml`

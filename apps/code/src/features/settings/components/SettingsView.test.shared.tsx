@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 
-import { ask, open } from "@tauri-apps/plugin-dialog";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { beforeEach, vi } from "vitest";
@@ -22,6 +21,7 @@ import {
   upsertOAuthAccount,
   upsertOAuthPool,
 } from "../../../application/runtime/ports/tauriOauth";
+import { ask, open } from "../../../application/runtime/ports/tauriDialogs";
 import { getModelList } from "../../../application/runtime/ports/tauriModels";
 import { listWorkspaces } from "../../../application/runtime/ports/tauriWorkspaceCatalog";
 import {
@@ -48,7 +48,7 @@ import type { AppSettings, RemoteBackendProfile, WorkspaceInfo } from "../../../
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "../../../utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({
+vi.mock("../../../application/runtime/ports/tauriDialogs", () => ({
   ask: vi.fn(),
   open: vi.fn(),
 }));

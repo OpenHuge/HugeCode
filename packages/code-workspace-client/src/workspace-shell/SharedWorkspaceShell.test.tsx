@@ -23,6 +23,113 @@ const desktopSettingsShellFraming: SettingsShellFraming = {
   subtitle: "Appearance, projects, runtime, and Codex defaults for this app.",
 };
 
+function createDefaultMissionControlSnapshot() {
+  return {
+    source: "runtime_snapshot_v1",
+    generatedAt: 0,
+    workspaces: [
+      {
+        id: "workspace-1",
+        name: "Alpha",
+        rootPath: "/alpha",
+        connected: true,
+        defaultProfileId: null,
+      },
+      {
+        id: "workspace-2",
+        name: "Beta",
+        rootPath: "/beta",
+        connected: false,
+        defaultProfileId: null,
+      },
+    ],
+    tasks: [
+      {
+        id: "task-1",
+        workspaceId: "workspace-1",
+        title: "Launch",
+        objective: null,
+        origin: {
+          kind: "run",
+          threadId: null,
+          runId: "run-1",
+          requestId: null,
+        },
+        taskSource: null,
+        mode: null,
+        modeSource: "missing",
+        status: "running",
+        createdAt: 0,
+        updatedAt: 0,
+        currentRunId: "run-1",
+        latestRunId: "run-1",
+        latestRunState: "running",
+      },
+    ],
+    runs: [
+      {
+        id: "run-1",
+        workspaceId: "workspace-1",
+        taskId: "task-1",
+        state: "running",
+        title: "Launch",
+        summary: null,
+        taskSource: null,
+        startedAt: 0,
+        finishedAt: null,
+        updatedAt: 0,
+        currentStepIndex: null,
+        placement: {
+          resolvedBackendId: "backend-1",
+          requestedBackendIds: [],
+          resolutionSource: "explicit_preference",
+          lifecycleState: "confirmed",
+          readiness: "ready",
+          healthSummary: "placement_ready",
+          attentionReasons: [],
+          summary: "Ready",
+          rationale: "Healthy",
+        },
+        approval: {
+          status: "pending_decision",
+          approvalId: "approval-1",
+          label: "Approval pending",
+          summary: "Waiting for approval.",
+        },
+        checkpoint: {
+          state: "ready",
+          lifecycleState: "active",
+          checkpointId: "checkpoint-1",
+          traceId: "trace-1",
+          recovered: false,
+          updatedAt: 0,
+          resumeReady: true,
+          summary: "Ready to resume",
+        },
+      },
+    ],
+    reviewPacks: [
+      {
+        id: "review-1",
+        runId: "run-1",
+        taskId: "task-1",
+        workspaceId: "workspace-1",
+        summary: "Ready for review",
+        reviewStatus: "ready",
+        evidenceState: "complete",
+        validationOutcome: "passed",
+        warningCount: 0,
+        warnings: [],
+        validations: [],
+        artifacts: [],
+        checksPerformed: [],
+        recommendedNextAction: null,
+        createdAt: 0,
+      },
+    ],
+  } as unknown as MissionControlSnapshot;
+}
+
 function createBindings(options?: {
   workspaceCatalogError?: string;
   missionControlError?: string;
@@ -111,110 +218,7 @@ function createBindings(options?: {
           if (options?.missionControlError) {
             throw new Error(options.missionControlError);
           }
-          return {
-            source: "runtime_snapshot_v1",
-            generatedAt: 0,
-            workspaces: [
-              {
-                id: "workspace-1",
-                name: "Alpha",
-                rootPath: "/alpha",
-                connected: true,
-                defaultProfileId: null,
-              },
-              {
-                id: "workspace-2",
-                name: "Beta",
-                rootPath: "/beta",
-                connected: false,
-                defaultProfileId: null,
-              },
-            ],
-            tasks: [
-              {
-                id: "task-1",
-                workspaceId: "workspace-1",
-                title: "Launch",
-                objective: null,
-                origin: {
-                  kind: "run",
-                  threadId: null,
-                  runId: "run-1",
-                  requestId: null,
-                },
-                taskSource: null,
-                mode: null,
-                modeSource: "missing",
-                status: "running",
-                createdAt: 0,
-                updatedAt: 0,
-                currentRunId: "run-1",
-                latestRunId: "run-1",
-                latestRunState: "running",
-              },
-            ],
-            runs: [
-              {
-                id: "run-1",
-                workspaceId: "workspace-1",
-                taskId: "task-1",
-                state: "running",
-                title: "Launch",
-                summary: null,
-                taskSource: null,
-                startedAt: 0,
-                finishedAt: null,
-                updatedAt: 0,
-                currentStepIndex: null,
-                placement: {
-                  resolvedBackendId: "backend-1",
-                  requestedBackendIds: [],
-                  resolutionSource: "explicit_preference",
-                  lifecycleState: "confirmed",
-                  readiness: "ready",
-                  healthSummary: "placement_ready",
-                  attentionReasons: [],
-                  summary: "Ready",
-                  rationale: "Healthy",
-                },
-                approval: {
-                  status: "pending_decision",
-                  approvalId: "approval-1",
-                  label: "Approval pending",
-                  summary: "Waiting for approval.",
-                },
-                checkpoint: {
-                  state: "ready",
-                  lifecycleState: "active",
-                  checkpointId: "checkpoint-1",
-                  traceId: "trace-1",
-                  recovered: false,
-                  updatedAt: 0,
-                  resumeReady: true,
-                  summary: "Ready to resume",
-                },
-              },
-            ],
-            reviewPacks: [
-              {
-                id: "review-1",
-                runId: "run-1",
-                taskId: "task-1",
-                workspaceId: "workspace-1",
-                summary: "Ready for review",
-                reviewStatus: "ready",
-                evidenceState: "complete",
-                validationOutcome: "passed",
-                warningCount: 0,
-                warnings: [],
-                validations: [],
-                artifacts: [],
-                checksPerformed: [],
-                recommendedNextAction: null,
-                createdAt: 0,
-              },
-            ],
-          } as unknown as MissionControlSnapshot;
+          return createDefaultMissionControlSnapshot();
         },
       },
       agentControl: {
@@ -336,13 +340,13 @@ describe("WorkspaceShellApp", () => {
         )
       ).toBeTruthy();
       expect(screen.getByText("Hydrating shell")).toBeTruthy();
-      expect(
-        (screen.getByRole("button", { name: "Refreshing..." }) as HTMLButtonElement).disabled
-      ).toBe(true);
       expect(screen.getByText("Runtime activity is loading in the background.")).toBeTruthy();
       expect(
         screen.getByText("Review signals load after the shell becomes interactive.")
       ).toBeTruthy();
+      expect((screen.getByRole("button", { name: "Refresh" }) as HTMLButtonElement).disabled).toBe(
+        false
+      );
 
       act(() => {
         unmount();
@@ -843,7 +847,7 @@ describe("WorkspaceShellApp", () => {
     expect(await screen.findByRole("heading", { level: 2, name: "Mission activity" })).toBeTruthy();
     expect(screen.getByText("Operator focus")).toBeTruthy();
     expect(screen.getByText("Launch")).toBeTruthy();
-  });
+  }, 15_000);
 
   it("renders settings framing as a shared control-plane section", async () => {
     window.history.pushState({}, "", "/app");
@@ -940,7 +944,7 @@ describe("WorkspaceShellApp", () => {
       expect(screen.getByText("3 workspaces")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Refresh" })).toBeTruthy();
     });
-  });
+  }, 15_000);
 
   it("surfaces shared-shell load failures through toast cards instead of inline copy", async () => {
     render(

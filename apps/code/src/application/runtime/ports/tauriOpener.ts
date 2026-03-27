@@ -1,63 +1,78 @@
-type TauriOpenerModule = {
-  openUrl: (url: string) => Promise<void>;
-  openPath?: (path: string) => Promise<void>;
-  revealItemInDir: (path: string) => Promise<void>;
+import { getDesktopHostBridge } from "./desktopHostBridge";
+
+type DesktopCompatibilityOpener = {
+  openPath?: (path: string) => Promise<boolean | void>;
+  openUrl?: (url: string) => Promise<boolean | void>;
+  revealItemInDir?: (path: string) => Promise<boolean | void>;
 };
 
-type TauriOpenerLoader = () => Promise<TauriOpenerModule>;
+type DesktopCompatibilityOpenerLoader = () => Promise<DesktopCompatibilityOpener>;
 
-async function defaultTauriOpenerLoader(): Promise<TauriOpenerModule> {
-  return import("@tauri-apps/plugin-opener");
+async function defaultDesktopCompatibilityOpenerLoader(): Promise<DesktopCompatibilityOpener> {
+  return {
+    openPath: async (path) => getDesktopHostBridge()?.shell?.openPath?.(path),
+    openUrl: async (url) => getDesktopHostBridge()?.shell?.openExternalUrl?.(url),
+    revealItemInDir: async (path) => getDesktopHostBridge()?.shell?.revealItemInDir?.(path),
+  };
 }
 
-let cachedTauriOpenerPromise: Promise<TauriOpenerModule | null> | null = null;
-let tauriOpenerLoader: TauriOpenerLoader = defaultTauriOpenerLoader;
+let cachedCompatibilityOpenerPromise: Promise<DesktopCompatibilityOpener | null> | null = null;
+let compatibilityOpenerLoader: DesktopCompatibilityOpenerLoader =
+  defaultDesktopCompatibilityOpenerLoader;
 
-async function loadTauriOpener() {
-  if (cachedTauriOpenerPromise) {
-    return cachedTauriOpenerPromise;
+async function loadCompatibilityOpener() {
+  if (cachedCompatibilityOpenerPromise) {
+    return cachedCompatibilityOpenerPromise;
   }
 
-  cachedTauriOpenerPromise = tauriOpenerLoader().catch(() => null);
-  return cachedTauriOpenerPromise;
+  cachedCompatibilityOpenerPromise = compatibilityOpenerLoader().catch(() => null);
+  return cachedCompatibilityOpenerPromise;
 }
 
-export async function openTauriUrl(url: string) {
-  const opener = await loadTauriOpener();
+export async function openDesktopCompatibilityUrl(url: string) {
+  const opener = await loadCompatibilityOpener();
   if (opener?.openUrl) {
-    await opener.openUrl(url);
-    return true;
+    return (await opener.openUrl(url)) !== false;
   }
 
   return false;
 }
 
-export async function revealTauriItemInDir(path: string) {
-  const opener = await loadTauriOpener();
+export const openUrl = openDesktopCompatibilityUrl;
+export const openExternal = openDesktopCompatibilityUrl;
+
+export async function revealDesktopCompatibilityItemInDir(path: string) {
+  const opener = await loadCompatibilityOpener();
   if (opener?.revealItemInDir) {
-    await opener.revealItemInDir(path);
-    return true;
+    return (await opener.revealItemInDir(path)) !== false;
   }
 
   return false;
 }
 
-export async function openTauriPath(path: string) {
-  const opener = await loadTauriOpener();
+export const revealItemInDir = revealDesktopCompatibilityItemInDir;
+
+export async function openDesktopCompatibilityPath(path: string) {
+  const opener = await loadCompatibilityOpener();
   if (opener?.openPath) {
-    await opener.openPath(path);
-    return true;
+    return (await opener.openPath(path)) !== false;
   }
 
   return false;
 }
 
-export function __setTauriOpenerLoaderForTests(loader: TauriOpenerLoader) {
-  tauriOpenerLoader = loader;
-  cachedTauriOpenerPromise = null;
+export const openPath = openDesktopCompatibilityPath;
+
+export const openTauriUrl = openDesktopCompatibilityUrl;
+export const revealTauriItemInDir = revealDesktopCompatibilityItemInDir;
+export const openTauriPath = openDesktopCompatibilityPath;
+
+export function __setTauriOpenerLoaderForTests(loader: DesktopCompatibilityOpenerLoader) {
+  compatibilityOpenerLoader = loader;
+  cachedCompatibilityOpenerPromise = null;
 }
 
 export function __resetTauriOpenerForTests() {
-  tauriOpenerLoader = defaultTauriOpenerLoader;
-  cachedTauriOpenerPromise = null;
+  compatibilityOpenerLoader = defaultDesktopCompatibilityOpenerLoader;
+  cachedCompatibilityOpenerPromise = null;
 }

@@ -10,7 +10,7 @@
 This specification defines the active HugeCode code runtime for the coding-agent product. It describes the current runtime boundaries, transport surface, contract ownership, and validation expectations that guide work in:
 
 - `apps/code`
-- `apps/code-tauri`
+- `apps/code-electron`
 - `packages/code-runtime-service-rs`
 - `packages/code-runtime-host-contract`
 - `packages/native-runtime-host-contract`
@@ -56,7 +56,7 @@ The code runtime is the orchestration subsystem for the coding workspace, not a 
 
 - `apps/code`
   Primary React 19 + Vite coding workspace UI.
-- `apps/code-tauri`
+- `apps/code-electron`
   Desktop container and host bridge for the coding workspace.
 - `packages/code-runtime-service-rs`
   Rust-first runtime service that owns transport, orchestration, readiness, and server-side execution support.
@@ -175,7 +175,7 @@ These terms are valid, but they should be explained as subordinate to the primar
 ### 7.1 Client Surfaces
 
 - `apps/code` owns runtime client adapters, transport selection, capability probing, and UI-facing integration.
-- `apps/code-tauri` owns desktop host bridging and packaging concerns.
+- `apps/code-electron` owns desktop host bridging and packaging concerns.
 - `apps/code` should prefer the v2 run/review lifecycle when introducing new
   runtime-planning, review, or operator-guidance behavior.
 - App-runtime facades may continue reading compat-backed projections during the

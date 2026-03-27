@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "../application/runtime/ports/tauriCore";
 import type {
   NativeStateFabricChange,
   NativeStateFabricDelta,
@@ -258,7 +258,7 @@ async function invokeNativeStateFabric(method: string, params: Record<string, un
   if (detectRuntimeMode() === "runtime-gateway-web") {
     return extractRpcPayload(await invokeWebRuntimeDirectRpc(method, params));
   }
-  throw new Error("Native state fabric is unavailable outside desktop/runtime-gateway mode.");
+  throw new Error("Native state fabric is unavailable outside runtime-gateway mode.");
 }
 
 export async function getNativeStateFabricSnapshot(

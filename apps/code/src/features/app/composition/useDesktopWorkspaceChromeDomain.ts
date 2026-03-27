@@ -1,92 +1,13 @@
-import type { ComponentProps, MutableRefObject } from "react";
-import type { ComposerEditorSettings, ThreadListSortKey } from "../../../types";
-import type { useCustomPrompts } from "../../prompts/hooks/useCustomPrompts";
-import type { useSkills } from "../../skills/hooks/useSkills";
+import type { ComponentProps } from "react";
 import type { WorkspaceDesktopAppHost } from "../components/WorkspaceDesktopAppHost";
-import { useDesktopWorkspaceConversationDomain } from "./useDesktopWorkspaceConversationDomain";
-import { useDesktopWorkspaceMissionDomain } from "./useDesktopWorkspaceMissionDomain";
-import { useDesktopWorkspaceProjectDomain } from "./useDesktopWorkspaceProjectDomain";
-import { useDesktopWorkspaceThreadDomain } from "./useDesktopWorkspaceThreadDomain";
 import { useMainAppLayoutNodesState } from "../hooks/useMainAppLayoutNodesState";
-import { useMainAppShellBootstrap } from "../hooks/useMainAppShellBootstrap";
 import { useMainAppShellSurfaceProps } from "../hooks/useMainAppShellSurfaceProps";
 import { useMainAppSurfaceStyles } from "../hooks/useMainAppSurfaceStyles";
 import { REMOTE_THREAD_POLL_INTERVAL_MS } from "../hooks/useRemoteThreadRefreshOnFocus";
-import { useThreadCodexControls } from "../hooks/useThreadCodexControls";
 import { resolveCompactCodexUiState } from "../utils/compactCodexUiState";
+import type { DesktopWorkspaceChromeDomainContracts } from "./desktopWorkspaceContracts";
 
-type MainAppBootstrapState = ReturnType<typeof useMainAppShellBootstrap>;
-type ProjectDomainState = ReturnType<typeof useDesktopWorkspaceProjectDomain>;
-type ThreadDomainState = ReturnType<typeof useDesktopWorkspaceThreadDomain>;
-type ConversationDomainState = ReturnType<typeof useDesktopWorkspaceConversationDomain>;
-type MissionDomainState = ReturnType<typeof useDesktopWorkspaceMissionDomain>;
-type ThreadCodexState = ReturnType<typeof useThreadCodexControls>;
-
-export type DesktopWorkspaceChromeDomainInput = {
-  workspaceState: MainAppBootstrapState["workspaceState"];
-  mobileState: MainAppBootstrapState["mobileState"];
-  layoutState: MainAppBootstrapState["layoutState"];
-  sidebarToggleProps: MainAppBootstrapState["sidebarToggleProps"];
-  activeTab: MainAppBootstrapState["activeTab"];
-  settingsOpen: MainAppBootstrapState["settingsOpen"];
-  settingsSection: MainAppBootstrapState["settingsSection"];
-  openSettings: MainAppBootstrapState["openSettings"];
-  closeSettings: MainAppBootstrapState["closeSettings"];
-  updaterController: MainAppBootstrapState["updaterController"];
-  errorToasts: MainAppBootstrapState["errorToasts"];
-  dismissErrorToast: MainAppBootstrapState["dismissErrorToast"];
-  handleConnectLocalRuntimePort: MainAppBootstrapState["handleConnectLocalRuntimePort"];
-  workspacesById: MainAppBootstrapState["workspacesById"];
-  setActiveTab: MainAppBootstrapState["setActiveTab"];
-  debugState: MainAppBootstrapState["debugState"];
-  gitRemoteUrl: MainAppBootstrapState["gitRemoteUrl"];
-  gitBranchState: MainAppBootstrapState["gitBranchState"];
-  gitPanelState: MainAppBootstrapState["gitPanelState"];
-  gitHubPanelState: MainAppBootstrapState["gitHubPanelState"];
-  appSettings: MainAppBootstrapState["appSettings"];
-  setAppSettings: MainAppBootstrapState["setAppSettings"];
-  queueSaveSettings: MainAppBootstrapState["queueSaveSettings"];
-  doctor: MainAppBootstrapState["doctor"];
-  codexUpdate: MainAppBootstrapState["codexUpdate"];
-  reduceTransparency: MainAppBootstrapState["reduceTransparency"];
-  setReduceTransparency: MainAppBootstrapState["setReduceTransparency"];
-  scaleShortcutTitle: MainAppBootstrapState["scaleShortcutTitle"];
-  scaleShortcutText: MainAppBootstrapState["scaleShortcutText"];
-  shouldReduceTransparency: MainAppBootstrapState["shouldReduceTransparency"];
-  projectDomain: ProjectDomainState;
-  threadDomain: ThreadDomainState;
-  conversationDomain: ConversationDomainState;
-  missionDomain: MissionDomainState;
-  threadCodexState: ThreadCodexState;
-  threadListSortKey: ThreadListSortKey;
-  composerEditorExpanded: boolean;
-  toggleComposerEditorExpanded: () => void;
-  composerEditorSettings: ComposerEditorSettings;
-  skills: ReturnType<typeof useSkills>["skills"];
-  prompts: ReturnType<typeof useCustomPrompts>["prompts"];
-  composerInputRef: MutableRefObject<HTMLTextAreaElement | null>;
-  gitActions: {
-    handleStageGitAll: () => void | Promise<void>;
-    handleStageGitFile: (path: string) => void | Promise<void>;
-    handleUnstageGitFile: (path: string) => void | Promise<void>;
-    handleRevertGitFile: (path: string) => void | Promise<void>;
-    handleRevertAllGitChanges: () => void | Promise<void>;
-  };
-  activeGitRoot: string | null;
-  handleSetGitRoot: (root: string | null) => void;
-  handlePickGitRoot: () => void | Promise<void>;
-  handleApplyWorktreeChanges: () => void | Promise<void>;
-  worktreeApplyLoading: boolean;
-  worktreeApplyError: string | null;
-  worktreeApplySuccess: boolean;
-  gitRootScanDepth: number;
-  gitRootScanLoading: boolean;
-  gitRootScanError: string | null;
-  gitRootScanHasScanned: boolean;
-  gitRootCandidates: string[];
-  setGitRootScanDepth: (depth: number) => void;
-  scanGitRoots: () => void | Promise<void>;
-};
+export type DesktopWorkspaceChromeDomainInput = DesktopWorkspaceChromeDomainContracts;
 
 export type DesktopWorkspaceChromeDomainOutput = Pick<
   ComponentProps<typeof WorkspaceDesktopAppHost>,
@@ -97,64 +18,73 @@ export type DesktopWorkspaceChromeDomainOutput = Pick<
 };
 
 export function useDesktopWorkspaceChromeDomain({
-  workspaceState,
-  mobileState,
-  layoutState,
-  sidebarToggleProps,
-  activeTab,
-  settingsOpen,
-  settingsSection,
-  openSettings,
-  closeSettings,
-  updaterController,
-  errorToasts,
-  dismissErrorToast,
-  handleConnectLocalRuntimePort,
-  workspacesById,
-  setActiveTab,
-  debugState,
-  gitRemoteUrl,
-  gitBranchState,
-  gitPanelState,
-  gitHubPanelState,
-  appSettings,
-  setAppSettings,
-  queueSaveSettings,
-  doctor,
-  codexUpdate,
-  reduceTransparency,
-  setReduceTransparency,
-  scaleShortcutTitle,
-  scaleShortcutText,
-  shouldReduceTransparency,
-  projectDomain,
-  threadDomain,
-  conversationDomain,
-  missionDomain,
-  threadCodexState,
-  threadListSortKey,
-  composerEditorExpanded,
-  toggleComposerEditorExpanded,
-  composerEditorSettings,
-  skills,
-  prompts,
-  composerInputRef,
-  gitActions,
-  activeGitRoot,
-  handleSetGitRoot,
-  handlePickGitRoot,
-  handleApplyWorktreeChanges,
-  worktreeApplyLoading,
-  worktreeApplyError,
-  worktreeApplySuccess,
-  gitRootScanDepth,
-  gitRootScanLoading,
-  gitRootScanError,
-  gitRootScanHasScanned,
-  gitRootCandidates,
-  setGitRootScanDepth,
-  scanGitRoots,
+  bootstrap,
+  domains,
+  shell,
 }: DesktopWorkspaceChromeDomainInput): DesktopWorkspaceChromeDomainOutput {
+  const {
+    workspaceState,
+    mobileState,
+    layoutState,
+    sidebarToggleProps,
+    activeTab,
+    settingsOpen,
+    settingsSection,
+    openSettings,
+    closeSettings,
+    updaterController,
+    errorToasts,
+    dismissErrorToast,
+    handleConnectLocalRuntimePort,
+    workspacesById,
+    setActiveTab,
+    debugState,
+    gitRemoteUrl,
+    gitBranchState,
+    gitPanelState,
+    gitHubPanelState,
+    appSettings,
+    setAppSettings,
+    queueSaveSettings,
+    doctor,
+    codexUpdate,
+    reduceTransparency,
+    setReduceTransparency,
+    scaleShortcutTitle,
+    scaleShortcutText,
+    shouldReduceTransparency,
+  } = bootstrap;
+  const {
+    project: projectDomain,
+    thread: threadDomain,
+    conversation: conversationDomain,
+    mission: missionDomain,
+  } = domains;
+  const {
+    threadCodexState,
+    threadListSortKey,
+    composerEditorExpanded,
+    toggleComposerEditorExpanded,
+    composerEditorSettings,
+    skills,
+    prompts,
+    composerInputRef,
+    gitActions,
+    activeGitRoot,
+    handleSetGitRoot,
+    handlePickGitRoot,
+    handleApplyWorktreeChanges,
+    worktreeApplyLoading,
+    worktreeApplyError,
+    worktreeApplySuccess,
+    gitRootScanDepth,
+    gitRootScanLoading,
+    gitRootScanError,
+    gitRootScanHasScanned,
+    gitRootCandidates,
+    setGitRootScanDepth,
+    scanGitRoots,
+  } = shell;
   const {
     workspaceGroups,
     groupedWorkspaces,

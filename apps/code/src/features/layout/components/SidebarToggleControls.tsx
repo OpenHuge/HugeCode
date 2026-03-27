@@ -23,7 +23,7 @@ export function SidebarCollapseButton({
     <WorkspaceHeaderAction
       type="button"
       onClick={onCollapseSidebar}
-      data-tauri-drag-region="false"
+      data-desktop-drag-region="false"
       aria-label="Hide sidebar"
       title="Hide sidebar"
       segment="icon"
@@ -45,7 +45,7 @@ export function SidebarExpandButton({
     <WorkspaceHeaderAction
       type="button"
       onClick={onExpandSidebar}
-      data-tauri-drag-region="false"
+      data-desktop-drag-region="false"
       aria-label="Show sidebar"
       title="Show sidebar"
       segment="icon"
@@ -67,7 +67,7 @@ export function RightPanelCollapseButton({
     <WorkspaceHeaderAction
       type="button"
       onClick={onCollapseRightPanel}
-      data-tauri-drag-region="false"
+      data-desktop-drag-region="false"
       aria-label="Hide context rail"
       title="Hide context rail"
       aria-pressed="true"
@@ -91,7 +91,7 @@ export function RightPanelExpandButton({
     <WorkspaceHeaderAction
       type="button"
       onClick={onExpandRightPanel}
-      data-tauri-drag-region="false"
+      data-desktop-drag-region="false"
       aria-label="Show context rail"
       title="Show context rail"
       segment="icon"
