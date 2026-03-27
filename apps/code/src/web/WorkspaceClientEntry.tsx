@@ -1,4 +1,4 @@
-import { createDesktopWorkspaceClientBindings } from "@ku0/code-application";
+import { createDesktopWorkspaceBootstrap } from "@ku0/code-application";
 import { WorkspaceClientBoot } from "@ku0/code-workspace-client";
 import {
   openUrl,
@@ -15,10 +15,9 @@ import DesktopWorkspaceSurface from "./DesktopWorkspaceSurface";
 
 const runtimeKernel = createRuntimeKernel();
 
-const workspaceClientBindings = createDesktopWorkspaceClientBindings({
+const workspaceClientBindings = createDesktopWorkspaceBootstrap({
   navigation: desktopWorkspaceNavigation,
-  runtimeGateway: runtimeKernel.workspaceClientRuntimeGateway,
-  runtime: runtimeKernel.workspaceClientRuntime,
+  runtimeKernel,
   openExternalUrl: openUrl,
   readShellStartupStatus: resolveDesktopShellStartupStatus,
   waitForOauthBinding: (workspaceId, baselineUpdatedAt) =>
