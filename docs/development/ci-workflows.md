@@ -154,4 +154,9 @@ Public workflow entrypoints currently include:
   analysis jobs, while `merge_group`, `push`, and scheduled runs carry the
   expensive scans.
 - Auto-merge for non-Dependabot PRs should stay repo-branch-only and review-gated; the default path is "approved with no unresolved conversations means `gh pr merge --auto` is enabled unless the PR carries the opt-out `manual-merge` label."
+- `PR Auto Merge` should not treat an existing auto-merge request as a final
+  healthy state. When an approved PR is no longer in merge queue after
+  GitHub removed it for timeout, latest-base conflict, or similar transient
+  queue failure, the workflow should disable and re-enable auto-merge so the
+  PR can be enqueued again.
 - npm Dependabot updates should prefer grouped low-risk development-version bumps to reduce queue pressure and redundant CI fan-out, while keeping higher-risk dependency changes in manual-review lanes.

@@ -24,6 +24,8 @@ function buildReviewAgentInstruction(input: {
     | "actionability"
     | "missionLinkage"
     | "publishHandoff"
+    | "reviewPackId"
+    | "continuation"
   >;
   reviewPack?: Pick<
     HugeCodeReviewPackSummary,
@@ -38,6 +40,7 @@ function buildReviewAgentInstruction(input: {
     | "actionability"
     | "missionLinkage"
     | "publishHandoff"
+    | "continuation"
   > | null;
 }): string {
   const continuation = summarizeReviewContinuationActionability({
