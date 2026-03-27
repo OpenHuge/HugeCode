@@ -240,10 +240,14 @@ function buildDefaultRecommendedAction(input: {
 
 function resolveNavigationTarget(input: {
   takeoverBundle?: HugeCodeTakeoverBundle | null;
+  continuation?: HugeCodeContinuationSummary | null;
   missionLinkage?: HugeCodeMissionLinkageSummary | null;
 }): RuntimeCanonicalNavigationTarget {
   if (input.takeoverBundle?.target) {
     return input.takeoverBundle.target;
+  }
+  if (input.continuation?.target) {
+    return input.continuation.target;
   }
   return input.missionLinkage?.navigationTarget ?? null;
 }
@@ -285,6 +289,7 @@ export function formatRuntimeContinuationTruthSourceLabel(
 
 export function resolveContinuationTruthSource({
   takeoverBundle,
+  continuation,
   actionability,
   missionLinkage,
   publishHandoff,
@@ -306,6 +311,9 @@ export function resolveContinuationTruthSource({
   if (checkpoint) {
     return "checkpoint";
   }
+  if (continuation) {
+    return continuation.source;
+  }
   if (nextAction) {
     return "next_action";
   }
@@ -314,11 +322,12 @@ export function resolveContinuationTruthSource({
 
 export function resolveContinuationPathLabel({
   takeoverBundle,
+  continuation,
   missionLinkage,
   reviewPackId,
 }: Pick<
   RuntimeContinuationDescriptorInput,
-  "takeoverBundle" | "missionLinkage" | "reviewPackId"
+  "takeoverBundle" | "continuation" | "missionLinkage" | "reviewPackId"
 >): RuntimeContinuationPathLabel {
   const takeoverTargetKind = takeoverBundle?.target?.kind;
   if (takeoverTargetKind === "review_pack" || takeoverBundle?.pathKind === "review") {
@@ -332,6 +341,21 @@ export function resolveContinuationPathLabel({
   }
   if (takeoverTargetKind === "sub_agent_session") {
     return "Sub-agent session";
+  }
+  if (continuation?.target?.kind === "review_pack" || continuation?.pathKind === "review") {
+    return "Review Pack";
+  }
+  if (continuation?.target?.kind === "thread") {
+    return "Mission thread";
+  }
+  if (continuation?.target?.kind === "run") {
+    return "Mission run";
+  }
+  if (continuation?.target?.kind === "sub_agent_session") {
+    return "Sub-agent session";
+  }
+  if (continuation?.pathKind === "resume") {
+    return "Mission run";
   }
   if (reviewPackId) {
     return "Review Pack";
@@ -361,6 +385,7 @@ function buildDetails(input: {
   actionability?: HugeCodeReviewActionabilitySummary | null;
   continuePathLabel: RuntimeContinuationPathLabel;
   truthSourceLabel: string;
+  continuation?: HugeCodeContinuationSummary | null;
 }): string[] {
   const details: string[] = [];
   const pushUnique = (value: string | null | undefined) => {
@@ -373,6 +398,7 @@ function buildDetails(input: {
   pushUnique(input.takeoverBundle?.summary);
   pushUnique(input.missionLinkage?.summary);
   pushUnique(input.publishHandoff?.summary ?? null);
+  pushUnique(input.continuation?.detail ?? null);
   pushUnique(input.summary);
   pushUnique(`Canonical continue path: ${input.continuePathLabel}.`);
   pushUnique(`Follow-up source: ${input.truthSourceLabel}.`);
@@ -474,11 +500,78 @@ function buildCanonicalNextActionFromRuntimeActionability(input: {
   };
 }
 
+function buildCanonicalNextActionFromContinuation(input: {
+  state: RuntimeContinuationState;
+  continuation: HugeCodeContinuationSummary;
+  summary: string;
+  blockingReason: string | null;
+  navigationTarget: RuntimeCanonicalNavigationTarget;
+  continuePathLabel: RuntimeContinuationPathLabel;
+}): RuntimeCanonicalNextAction {
+  if (input.state === "blocked") {
+    return {
+      kind: "blocked",
+      label: "Inspect blocked follow-up",
+      detail: input.summary,
+      blockedReason: input.blockingReason ?? input.summary,
+      navigationTarget: input.navigationTarget,
+    };
+  }
+
+  switch (input.continuation.pathKind) {
+    case "resume":
+      return {
+        kind: "resume",
+        label: "Resume mission",
+        detail: input.continuation.recommendedAction,
+        blockedReason: null,
+        navigationTarget: input.navigationTarget,
+      };
+    case "review":
+      return {
+        kind: "review",
+        label: "Open review",
+        detail: input.continuation.recommendedAction,
+        blockedReason: null,
+        navigationTarget: input.navigationTarget,
+      };
+    case "approval":
+      return {
+        kind: input.navigationTarget?.kind === "sub_agent_session" ? "takeover" : "continue",
+        label:
+          input.navigationTarget?.kind === "sub_agent_session"
+            ? "Take over sub-agent session"
+            : buildContinueLabel(input.continuePathLabel),
+        detail: input.continuation.recommendedAction,
+        blockedReason: null,
+        navigationTarget: input.navigationTarget,
+      };
+    case "handoff":
+      return {
+        kind: input.navigationTarget ? "continue" : "follow_up",
+        label: buildContinueLabel(input.continuePathLabel),
+        detail: input.continuation.recommendedAction,
+        blockedReason: null,
+        navigationTarget: input.navigationTarget,
+      };
+    default:
+      return {
+        kind: "follow_up",
+        label: buildContinueLabel(input.continuePathLabel),
+        detail: input.continuation.recommendedAction,
+        blockedReason: null,
+        navigationTarget: input.navigationTarget,
+      };
+  }
+}
+
 export function buildRuntimeContinuationDescriptor(
   input: RuntimeContinuationDescriptorInput
 ): RuntimeContinuationDescriptor | null {
+  const continuation = input.continuation ?? null;
   const continuePathLabel = resolveContinuationPathLabel({
     takeoverBundle: input.takeoverBundle ?? null,
+    continuation,
     missionLinkage: input.missionLinkage ?? null,
     reviewPackId: input.reviewPackId ?? null,
   });
@@ -489,6 +582,7 @@ export function buildRuntimeContinuationDescriptor(
   });
   const truthSource = resolveContinuationTruthSource({
     takeoverBundle: input.takeoverBundle ?? null,
+    continuation,
     actionability: actionability,
     missionLinkage: input.missionLinkage ?? null,
     publishHandoff,
@@ -498,6 +592,7 @@ export function buildRuntimeContinuationDescriptor(
   const truthSourceLabel = formatRuntimeContinuationTruthSourceLabel(truthSource);
   const navigationTarget = resolveNavigationTarget({
     takeoverBundle: input.takeoverBundle ?? null,
+    continuation,
     missionLinkage: input.missionLinkage ?? null,
   });
 
@@ -533,6 +628,7 @@ export function buildRuntimeContinuationDescriptor(
       details: buildDetails({
         summary,
         takeoverBundle,
+        continuation,
         missionLinkage: input.missionLinkage ?? null,
         publishHandoff,
         actionability: takeoverActionability,
@@ -555,6 +651,52 @@ export function buildRuntimeContinuationDescriptor(
     };
   }
 
+  if (continuation) {
+    const state = continuation.state;
+    const summary = continuation.summary;
+    const blockingReason = state === "blocked" ? (continuation.detail ?? summary) : null;
+    const canonicalNavigationTarget =
+      continuation.target ??
+      (continuation.pathKind === "review" && (continuation.reviewPackId ?? input.reviewPackId)
+        ? {
+            kind: "review_pack" as const,
+            workspaceId: input.missionLinkage?.workspaceId ?? "",
+            taskId: input.missionLinkage?.taskId ?? "",
+            runId: input.missionLinkage?.runId ?? "",
+            reviewPackId: continuation.reviewPackId ?? input.reviewPackId ?? "",
+          }
+        : navigationTarget);
+    const continuationActionability = continuation.reviewActionability ?? actionability;
+    return {
+      state,
+      pathKind: continuation.pathKind,
+      continuePathLabel,
+      summary,
+      details: buildDetails({
+        summary,
+        continuation,
+        missionLinkage: input.missionLinkage ?? null,
+        publishHandoff,
+        actionability: continuationActionability,
+        continuePathLabel,
+        truthSourceLabel,
+      }),
+      blockingReason,
+      recommendedAction: continuation.recommendedAction,
+      truthSource,
+      truthSourceLabel,
+      navigationTarget: canonicalNavigationTarget,
+      canonicalNextAction: buildCanonicalNextActionFromContinuation({
+        state,
+        continuation,
+        summary,
+        blockingReason,
+        navigationTarget: canonicalNavigationTarget,
+        continuePathLabel,
+      }),
+    };
+  }
+
   if (actionability) {
     const state = mapActionabilityState(actionability.state);
     const summary = actionability.summary;
@@ -571,6 +713,7 @@ export function buildRuntimeContinuationDescriptor(
       summary,
       details: buildDetails({
         summary,
+        continuation,
         missionLinkage: input.missionLinkage ?? null,
         publishHandoff,
         actionability,
@@ -622,6 +765,7 @@ export function buildRuntimeContinuationDescriptor(
       summary,
       details: buildDetails({
         summary,
+        continuation,
         missionLinkage: input.missionLinkage ?? null,
         publishHandoff,
         continuePathLabel,
@@ -654,6 +798,7 @@ export function buildRuntimeContinuationDescriptor(
       summary,
       details: buildDetails({
         summary,
+        continuation,
         missionLinkage: input.missionLinkage ?? null,
         publishHandoff,
         continuePathLabel,
@@ -693,6 +838,7 @@ export function buildRuntimeContinuationDescriptor(
       summary,
       details: buildDetails({
         summary,
+        continuation,
         missionLinkage: input.missionLinkage ?? null,
         publishHandoff,
         continuePathLabel,
@@ -765,6 +911,7 @@ export function buildRuntimeContinuationDescriptor(
       summary,
       details: buildDetails({
         summary,
+        continuation,
         continuePathLabel,
         truthSourceLabel,
       }),
@@ -799,6 +946,7 @@ export function buildRuntimeContinuationDescriptor(
       summary,
       details: buildDetails({
         summary,
+        continuation,
         missionLinkage: input.missionLinkage ?? null,
         publishHandoff,
         continuePathLabel,
