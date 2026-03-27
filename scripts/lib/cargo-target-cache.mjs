@@ -239,6 +239,25 @@ export function acquireCargoTargetGuardLock({
   const startMs = now();
   let reportedWait = false;
 
+  function waitForActiveLockOrThrow(currentTimeMs) {
+    if (isStaleLock(lockPath, currentTimeMs, staleAfterMs)) {
+      rmSync(lockPath, { recursive: true, force: true });
+      return;
+    }
+
+    if (currentTimeMs - startMs >= timeoutMs) {
+      throw new Error(
+        `Timed out waiting for cargo target guard lock at ${lockPath} after ${timeoutMs}ms`
+      );
+    }
+
+    if (!reportedWait) {
+      log(`waiting for cargo target guard lock at ${lockPath}`);
+      reportedWait = true;
+    }
+    sleepSync(pollMs);
+  }
+
   while (true) {
     try {
       mkdirSync(lockPath);
@@ -258,6 +277,9 @@ export function acquireCargoTargetGuardLock({
         );
       } catch (error) {
         if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+          if (existsSync(lockPath)) {
+            waitForActiveLockOrThrow(now());
+          }
           continue;
         }
         throw error;
@@ -281,22 +303,7 @@ export function acquireCargoTargetGuardLock({
       }
 
       const currentTimeMs = now();
-      if (isStaleLock(lockPath, currentTimeMs, staleAfterMs)) {
-        rmSync(lockPath, { recursive: true, force: true });
-        continue;
-      }
-
-      if (currentTimeMs - startMs >= timeoutMs) {
-        throw new Error(
-          `Timed out waiting for cargo target guard lock at ${lockPath} after ${timeoutMs}ms`
-        );
-      }
-
-      if (!reportedWait) {
-        log(`waiting for cargo target guard lock at ${lockPath}`);
-        reportedWait = true;
-      }
-      sleepSync(pollMs);
+      waitForActiveLockOrThrow(currentTimeMs);
     }
   }
 }

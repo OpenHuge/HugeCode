@@ -1,8 +1,8 @@
 import { isTauri } from "@tauri-apps/api/core";
 import type { EventCallback, Event as TauriEvent, UnlistenFn } from "@tauri-apps/api/event";
-import { listen } from "@tauri-apps/api/event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppServerEvent } from "../types";
+import { listen } from "../application/runtime/ports/tauriEvent";
 import {
   __resetEventSubscriptionsForTests,
   __resetRuntimeTurnContextForTests,
@@ -24,7 +24,7 @@ const WEB_WS_ENDPOINT_ENV = "VITE_CODE_RUNTIME_GATEWAY_WEB_WS_ENDPOINT";
 const ORIGINAL_EVENT_SOURCE = globalThis.EventSource;
 const ORIGINAL_WEB_SOCKET = globalThis.WebSocket;
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("../application/runtime/ports/tauriEvent", () => ({
   listen: vi.fn(),
 }));
 
@@ -127,6 +127,13 @@ describe("events subscriptions", () => {
     __resetEventSubscriptionsForTests();
     globalThis.EventSource = ORIGINAL_EVENT_SOURCE;
     globalThis.WebSocket = ORIGINAL_WEB_SOCKET;
+    (
+      window as Window & {
+        __TAURI_INTERNALS__?: unknown;
+      }
+    ).__TAURI_INTERNALS__ = {
+      invoke: vi.fn(),
+    };
   });
 
   it("delivers payloads and unsubscribes on cleanup", async () => {

@@ -120,8 +120,8 @@ export function detectBrowserRuntimeConnectionState(
 }
 
 export function isTauriRuntimeBridgeAvailable(): boolean {
-  // Compatibility shim: the active desktop host is Electron, so browser runtime
-  // detection should never route the app back into the retired Tauri path.
+  // Tauri runtime detection is retired. Keep the helper as a stable
+  // compatibility export while the remaining compat shims are removed.
   return false;
 }
 

@@ -1,14 +1,30 @@
 import { getDesktopHostBridge } from "./desktopHostBridge";
 
 type DesktopCompatibilityEnvironment = {
+  isTauri?: () => boolean | Promise<boolean>;
   getAppVersion?: () => Promise<string | null>;
   getWindowLabel?: () => Promise<string | null>;
+  app?: {
+    getVersion?: () => Promise<string | null> | string | null;
+  };
+  core?: {
+    isTauri?: () => boolean | Promise<boolean>;
+  };
+  window?: {
+    getCurrentWindow?: () => {
+      label?: string | null;
+    } | null;
+  };
 };
 
 type DesktopCompatibilityEnvironmentLoader = () => Promise<DesktopCompatibilityEnvironment>;
 
 async function defaultDesktopCompatibilityEnvironmentLoader(): Promise<DesktopCompatibilityEnvironment> {
   return {
+    isTauri: async () => {
+      const bridge = getDesktopHostBridge();
+      return bridge?.kind === "electron";
+    },
     getAppVersion: async () => {
       const version = await getDesktopHostBridge()?.app?.getVersion?.();
       return typeof version === "string" && version.length > 0 ? version : null;
@@ -34,12 +50,23 @@ async function loadCompatibilityEnvironment() {
 }
 
 export async function detectTauriRuntime() {
-  return false;
+  try {
+    const environment = await loadCompatibilityEnvironment();
+    const detected = await (environment.isTauri ?? environment.core?.isTauri ?? (() => false))();
+    return detected === true;
+  } catch {
+    return false;
+  }
 }
 
 export async function readDesktopCompatibilityWindowLabel() {
   try {
-    return (await loadCompatibilityEnvironment()).getWindowLabel?.();
+    const environment = await loadCompatibilityEnvironment();
+    const label =
+      (await environment.getWindowLabel?.()) ??
+      environment.window?.getCurrentWindow?.()?.label ??
+      null;
+    return typeof label === "string" && label.length > 0 ? label : null;
   } catch {
     return null;
   }
@@ -47,7 +74,10 @@ export async function readDesktopCompatibilityWindowLabel() {
 
 export async function readDesktopCompatibilityAppVersion() {
   try {
-    return (await loadCompatibilityEnvironment()).getAppVersion?.();
+    const environment = await loadCompatibilityEnvironment();
+    const version =
+      (await environment.getAppVersion?.()) ?? (await environment.app?.getVersion?.()) ?? null;
+    return typeof version === "string" && version.length > 0 ? version : null;
   } catch {
     return null;
   }

@@ -92,7 +92,7 @@ describe("createRuntimeSessionCommandFacade", () => {
     const deps = createDependencies();
     const facade = createRuntimeSessionCommandFacade("ws-1", deps);
 
-    expect(facade.canStartReviewInCurrentHost()).toBe(true);
+    expect(facade.canStartReviewInCurrentHost()).toBe(false);
     expect(facade.reviewStartDesktopOnlyMessage).toBe(
       "Review start is only available in the desktop app."
     );
