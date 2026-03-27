@@ -7,11 +7,10 @@ import {
 import type { WorkspaceClientRuntimeBindings } from "@ku0/code-workspace-client";
 import { getMissionControlSnapshot } from "../ports/tauriMissionControl";
 import {
-  cancelRuntimeJob,
+  cancelRuntimeRun,
   submitRuntimeJobApprovalDecision,
-  interveneRuntimeJob,
-  listRuntimeJobs,
-  resumeRuntimeJob,
+  interveneRuntimeRun,
+  resumeRuntimeRun,
 } from "../ports/tauriRuntimeJobs";
 import { startRuntimeRunWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
 import { createRuntimeAgentControlDependencies } from "../kernel/createRuntimeAgentControlDependencies";
@@ -25,20 +24,18 @@ vi.mock("../ports/tauriMissionControl", () => ({
 }));
 
 vi.mock("../ports/tauriRuntimeJobs", () => ({
-  cancelRuntimeJob: vi.fn(),
+  cancelRuntimeRun: vi.fn(),
   submitRuntimeJobApprovalDecision: vi.fn(),
-  interveneRuntimeJob: vi.fn(),
-  listRuntimeJobs: vi.fn(),
-  resumeRuntimeJob: vi.fn(),
+  interveneRuntimeRun: vi.fn(),
+  resumeRuntimeRun: vi.fn(),
 }));
 
 const startRuntimeRunWithRemoteSelectionMock = vi.mocked(startRuntimeRunWithRemoteSelection);
 const getMissionControlSnapshotMock = vi.mocked(getMissionControlSnapshot);
-const cancelRuntimeJobMock = vi.mocked(cancelRuntimeJob);
+const cancelRuntimeRunMock = vi.mocked(cancelRuntimeRun);
 const submitRuntimeJobApprovalDecisionMock = vi.mocked(submitRuntimeJobApprovalDecision);
-const interveneRuntimeJobMock = vi.mocked(interveneRuntimeJob);
-const listRuntimeJobsMock = vi.mocked(listRuntimeJobs);
-const resumeRuntimeJobMock = vi.mocked(resumeRuntimeJob);
+const interveneRuntimeRunMock = vi.mocked(interveneRuntimeRun);
+const resumeRuntimeRunMock = vi.mocked(resumeRuntimeRun);
 
 function createProjectionBootstrapResponse(
   overrides?: Partial<KernelProjectionBootstrapResponse>
@@ -106,11 +103,9 @@ function createWorkspaceClientRuntimeBindings(
     agentControl: {
       prepareRuntimeRun: vi.fn(async () => null),
       startRuntimeRun: vi.fn(async () => null),
-      cancelRuntimeJob: vi.fn(async () => null),
-      resumeRuntimeJob: vi.fn(async () => null),
-      interveneRuntimeJob: vi.fn(async () => null),
-      subscribeRuntimeJob: vi.fn(async () => null),
-      listRuntimeJobs: vi.fn(async () => []),
+      cancelRuntimeRun: vi.fn(async () => null),
+      resumeRuntimeRun: vi.fn(async () => null),
+      interveneRuntimeRun: vi.fn(async () => null),
       submitRuntimeJobApprovalDecision: vi.fn(async () => null),
     },
     threads: {
@@ -351,7 +346,7 @@ describe("runtimeAgentControlFacade", () => {
     await deps.listTasks({ workspaceId: "ws-1", status: null, limit: 50 } as never);
 
     expect(getMissionControlSnapshotMock).toHaveBeenCalledOnce();
-    expect(listRuntimeJobsMock).not.toHaveBeenCalled();
+    expect(cancelRuntimeRunMock).not.toHaveBeenCalled();
   });
 
   it("prefers kernel projection job truth before legacy runtime job listing", async () => {
@@ -404,7 +399,7 @@ describe("runtimeAgentControlFacade", () => {
     expect(workspaceClientRuntime.kernelProjection?.bootstrap).toHaveBeenCalledWith({
       scopes: ["mission_control", "jobs"],
     });
-    expect(listRuntimeJobsMock).not.toHaveBeenCalled();
+    expect(cancelRuntimeRunMock).not.toHaveBeenCalled();
     expect(getMissionControlSnapshotMock).not.toHaveBeenCalled();
   });
 
@@ -452,32 +447,30 @@ describe("runtimeAgentControlFacade", () => {
     });
   });
 
-  it("routes control-plane mutations through kernel jobs v3 ports", async () => {
-    cancelRuntimeJobMock.mockResolvedValue({
+  it("routes control-plane mutations through canonical runtime run ports", async () => {
+    cancelRuntimeRunMock.mockResolvedValue({
       accepted: true,
       runId: "job-1",
       status: "cancelled",
       message: null,
     } as never);
-    interveneRuntimeJobMock.mockResolvedValue({
-      accepted: true,
-      action: "retry",
-      runId: "job-1",
-      status: "queued",
-      outcome: "submitted",
-      spawnedRunId: null,
-      checkpointId: null,
+    interveneRuntimeRunMock.mockResolvedValue({
+      run: {
+        taskId: "job-1",
+        status: "queued",
+        updatedAt: 1,
+      },
+      missionRun: {} as never,
+      reviewPack: null,
     } as never);
-    resumeRuntimeJobMock.mockResolvedValue({
-      accepted: true,
-      runId: "job-1",
-      status: "running",
-      code: null,
-      message: null,
-      recovered: false,
-      checkpointId: null,
-      traceId: null,
-      updatedAt: 1,
+    resumeRuntimeRunMock.mockResolvedValue({
+      run: {
+        taskId: "job-1",
+        status: "running",
+        updatedAt: 1,
+      },
+      missionRun: {} as never,
+      reviewPack: null,
     } as never);
     submitRuntimeJobApprovalDecisionMock.mockResolvedValue({
       recorded: true,
@@ -498,11 +491,11 @@ describe("runtimeAgentControlFacade", () => {
       decision: "approved",
     } as never);
 
-    expect(cancelRuntimeJobMock).toHaveBeenCalledWith({ runId: "job-1", reason: "Stop" });
-    expect(interveneRuntimeJobMock).toHaveBeenCalledWith(
+    expect(cancelRuntimeRunMock).toHaveBeenCalledWith({ runId: "job-1", reason: "Stop" });
+    expect(interveneRuntimeRunMock).toHaveBeenCalledWith(
       expect.objectContaining({ runId: "job-1", action: "retry" })
     );
-    expect(resumeRuntimeJobMock).toHaveBeenCalledWith({ runId: "job-1", reason: "Retry" });
+    expect(resumeRuntimeRunMock).toHaveBeenCalledWith({ runId: "job-1", reason: "Retry" });
     expect(submitRuntimeJobApprovalDecisionMock).toHaveBeenCalledWith({
       approvalId: "approval-1",
       decision: "approved",

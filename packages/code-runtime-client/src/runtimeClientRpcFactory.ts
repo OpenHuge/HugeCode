@@ -12,7 +12,6 @@ import {
   type RuntimeRunInterventionRequest,
   type RuntimeRunCancelRequest,
   type RuntimeRunResumeRequest,
-  type RuntimeRunSubscribeRequest,
   type RuntimeReviewGetV2Request,
   type ThreadCreateRequest,
   type ThreadSummary,
@@ -247,12 +246,6 @@ export function createBaseRpcRuntimeClient<
         adaptRuntimeRpcPayload("runtimeRunPrepareV2", request)
       );
     },
-    runtimeRunStart(request: RuntimeRunStartRequest) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.RUN_START,
-        adaptRuntimeRpcPayload("runtimeRunStart", request)
-      );
-    },
     runtimeRunStartV2(request: RuntimeRunStartRequest) {
       return invokeRpc(
         CODE_RUNTIME_RPC_METHODS.RUN_START_V2,
@@ -265,40 +258,22 @@ export function createBaseRpcRuntimeClient<
         adaptRuntimeRpcPayload("runtimeRunGetV2", request)
       );
     },
-    runtimeRunIntervene(request: RuntimeRunInterventionRequest) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE,
-        adaptRuntimeRpcPayload("runtimeRunIntervene", request)
-      );
-    },
     runtimeRunInterveneV2(request: RuntimeRunInterventionRequest) {
       return invokeRpc(
         CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2,
         adaptRuntimeRpcPayload("runtimeRunInterveneV2", request)
       );
     },
-    runtimeRunCancel(request: RuntimeRunCancelRequest) {
+    runtimeRunCancelV2(request: RuntimeRunCancelRequest) {
       return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.RUN_CANCEL,
-        adaptRuntimeRpcPayload("runtimeRunCancel", request)
-      );
-    },
-    runtimeRunResume(request: RuntimeRunResumeRequest) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.RUN_RESUME,
-        adaptRuntimeRpcPayload("runtimeRunResume", request)
+        CODE_RUNTIME_RPC_METHODS.RUN_CANCEL_V2,
+        adaptRuntimeRpcPayload("runtimeRunCancelV2", request)
       );
     },
     runtimeRunResumeV2(request: RuntimeRunResumeRequest) {
       return invokeRpc(
         CODE_RUNTIME_RPC_METHODS.RUN_RESUME_V2,
         adaptRuntimeRpcPayload("runtimeRunResumeV2", request)
-      );
-    },
-    runtimeRunSubscribe(request: RuntimeRunSubscribeRequest) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE,
-        adaptRuntimeRpcPayload("runtimeRunSubscribe", request)
       );
     },
     runtimeRunSubscribeV2(request: RuntimeRunGetV2Request) {
@@ -367,15 +342,11 @@ export function createBaseRpcRuntimeClient<
     | "sendTurn"
     | "interruptTurn"
     | "runtimeRunPrepareV2"
-    | "runtimeRunStart"
     | "runtimeRunStartV2"
     | "runtimeRunGetV2"
-    | "runtimeRunIntervene"
     | "runtimeRunInterveneV2"
-    | "runtimeRunCancel"
-    | "runtimeRunResume"
+    | "runtimeRunCancelV2"
     | "runtimeRunResumeV2"
-    | "runtimeRunSubscribe"
     | "runtimeRunSubscribeV2"
     | "runtimeReviewGetV2"
     | "runtimeRunsList"

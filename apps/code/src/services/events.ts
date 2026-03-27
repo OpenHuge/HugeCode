@@ -1,3 +1,4 @@
+import { isTauri } from "@tauri-apps/api/core";
 import type { AppServerEvent } from "../types";
 import { listen } from "../application/runtime/ports/tauriEvent";
 import {
@@ -89,7 +90,11 @@ async function loadStartAppServerBridgeV2() {
 }
 
 function isTauriRuntime(): boolean {
-  return false;
+  try {
+    return isTauri();
+  } catch {
+    return false;
+  }
 }
 
 function notifySubscriptionError(

@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { retryDistributedTaskGraphNode } from "../../../application/runtime/facades/runtimeDistributedTaskGraphControlFacade";
+import type { AgentTaskSummary } from "@ku0/code-runtime-host-contract";
 import type { DistributedTaskGraphSnapshot } from "../types/distributedGraph";
 import { DistributedTaskGraphPanel } from "./DistributedTaskGraphPanel";
 
@@ -40,6 +41,33 @@ function buildGraph(nodeCount = 4): DistributedTaskGraphSnapshot {
   };
 }
 
+function buildRuntimeRun(taskId: string): AgentTaskSummary {
+  return {
+    taskId,
+    workspaceId: "workspace-1",
+    threadId: null,
+    requestId: null,
+    title: taskId,
+    status: "queued",
+    accessMode: "on-request",
+    provider: null,
+    modelId: null,
+    routedProvider: null,
+    routedModelId: null,
+    routedPool: null,
+    routedSource: null,
+    currentStep: null,
+    createdAt: 1,
+    updatedAt: 1,
+    startedAt: null,
+    completedAt: null,
+    errorCode: null,
+    errorMessage: null,
+    pendingApprovalId: null,
+    steps: [],
+  };
+}
+
 describe("DistributedTaskGraphPanel", () => {
   const retryDistributedTaskGraphNodeMock = vi.mocked(retryDistributedTaskGraphNode);
 
@@ -50,13 +78,9 @@ describe("DistributedTaskGraphPanel", () => {
 
   beforeEach(() => {
     retryDistributedTaskGraphNodeMock.mockResolvedValue({
-      accepted: true,
-      action: "retry",
-      runId: "node-2",
-      status: "queued",
-      outcome: "spawned",
-      spawnedRunId: "node-2-retry",
-      checkpointId: null,
+      run: buildRuntimeRun("node-2-retry"),
+      missionRun: {} as never,
+      reviewPack: null,
     });
   });
 

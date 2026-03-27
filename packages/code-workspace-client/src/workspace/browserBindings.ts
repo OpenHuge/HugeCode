@@ -494,22 +494,12 @@ export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRu
         await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2, input),
       startRuntimeRun: async (input) =>
         await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_START_V2, input),
-      cancelRuntimeJob: async (input) =>
-        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3, input),
-      resumeRuntimeJob: async (input) =>
-        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_RESUME_V3, input),
-      interveneRuntimeJob: async (input) =>
-        await invokeBrowserWorkspaceRuntime(
-          CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_INTERVENE_V3,
-          input
-        ),
-      subscribeRuntimeJob: async (input) =>
-        await invokeBrowserWorkspaceRuntime(
-          CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_SUBSCRIBE_V3,
-          input
-        ),
-      listRuntimeJobs: async (input) =>
-        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.KERNEL_JOBS_LIST_V2, input),
+      cancelRuntimeRun: async (input) =>
+        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_CANCEL_V2, input),
+      resumeRuntimeRun: async (input) =>
+        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_RESUME_V2, input),
+      interveneRuntimeRun: async (input) =>
+        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2, input),
       submitRuntimeJobApprovalDecision: async (input) =>
         await invokeBrowserWorkspaceRuntime(
           CODE_RUNTIME_RPC_METHODS.RUN_CHECKPOINT_APPROVAL,
