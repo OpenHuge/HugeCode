@@ -3,6 +3,9 @@ use crate::native_state_store::{
     TABLE_NATIVE_REVIEW_COMMENTS, TABLE_NATIVE_SCHEDULES, TABLE_NATIVE_SETTINGS_KV,
     TABLE_NATIVE_THEMES, TABLE_NATIVE_TOOLS, TABLE_NATIVE_VOICE_CONFIG, TABLE_NATIVE_WATCHERS,
 };
+use crate::rpc_dispatch_native_schedules::{
+    create_native_schedule, list_native_schedules, schedule_run_state_update, update_native_schedule,
+};
 
 pub(crate) async fn handle_native_rpc(
     ctx: &AppContext,
@@ -52,18 +55,9 @@ pub(crate) async fn handle_native_rpc(
         }
         "native_theme_set_active" => set_active_theme(ctx, params).await,
 
-        "native_schedules_list" => list_native_entities(ctx, TABLE_NATIVE_SCHEDULES).await,
+        "native_schedules_list" => list_native_schedules(ctx).await,
         "native_schedule_create" => create_native_schedule(ctx, params).await,
-        "native_schedule_update" => {
-            update_native_entity(
-                ctx,
-                params,
-                TABLE_NATIVE_SCHEDULES,
-                &["scheduleId", "id"],
-                "schedule",
-            )
-            .await
-        }
+        "native_schedule_update" => update_native_schedule(ctx, params).await,
         "native_schedule_delete" => {
             remove_native_entity(ctx, params, TABLE_NATIVE_SCHEDULES, &["scheduleId", "id"]).await
         }
@@ -134,7 +128,7 @@ async fn handle_native_management_snapshot(ctx: &AppContext) -> Result<Value, Rp
         .filter(|entry| entry.kind == "instruction")
         .collect::<Vec<_>>();
     let themes = list_native_entities(ctx, TABLE_NATIVE_THEMES).await?;
-    let schedules = list_native_entities(ctx, TABLE_NATIVE_SCHEDULES).await?;
+    let schedules = list_native_schedules(ctx).await?;
     let watchers = list_native_entities(ctx, TABLE_NATIVE_WATCHERS).await?;
     let insights_summary = native_insights_summary(ctx).await?;
     let server_status = native_server_status(ctx).await?;
@@ -713,63 +707,6 @@ async fn remove_tool_secret(ctx: &AppContext, params: &Value) -> Result<Value, R
         .remove_tool_secret(tool_id, secret_key)
         .await
         .map(Value::Bool)
-        .map_err(RpcError::internal)
-}
-
-async fn create_native_schedule(ctx: &AppContext, params: &Value) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let id =
-        read_optional_string(params, "scheduleId").unwrap_or_else(|| new_id("native-schedule"));
-    let mut payload = extract_payload(params, "schedule", id.as_str());
-    if let Value::Object(ref mut object) = payload {
-        object.insert("status".to_string(), Value::String("idle".to_string()));
-        if !object.contains_key("cron") {
-            object.insert(
-                "cron".to_string(),
-                Value::String("*/15 * * * *".to_string()),
-            );
-        }
-    }
-
-    ctx.native_state_store
-        .upsert_entity(TABLE_NATIVE_SCHEDULES, id.as_str(), Some(true), payload)
-        .await
-        .map_err(RpcError::internal)
-}
-
-async fn schedule_run_state_update(
-    ctx: &AppContext,
-    params: &Value,
-    status: &str,
-) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let schedule_id = read_first_non_empty_string(params, &["scheduleId", "id"])
-        .ok_or_else(|| RpcError::invalid_params("Missing required string field: scheduleId"))?;
-    let existing = ctx
-        .native_state_store
-        .get_entity(TABLE_NATIVE_SCHEDULES, schedule_id.as_str())
-        .await
-        .map_err(RpcError::internal)?
-        .ok_or_else(|| RpcError::invalid_params(format!("schedule `{schedule_id}` not found")))?;
-
-    let mut object = existing
-        .as_object()
-        .cloned()
-        .unwrap_or_else(serde_json::Map::new);
-    object.insert("status".to_string(), Value::String(status.to_string()));
-    object.insert(
-        "lastActionAt".to_string(),
-        Value::Number(serde_json::Number::from(now_ms())),
-    );
-
-    ctx.native_state_store
-        .upsert_entity(
-            TABLE_NATIVE_SCHEDULES,
-            schedule_id.as_str(),
-            object.get("enabled").and_then(Value::as_bool),
-            Value::Object(object),
-        )
-        .await
         .map_err(RpcError::internal)
 }
 
