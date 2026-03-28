@@ -86,6 +86,18 @@ const RUNTIME_GOVERNED_CONTEXT_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeReviewIntelligenceSummary.ts",
   "/src/application/runtime/facades/runtimeReviewPackSurfaceFacade.ts",
 ] as const;
+const RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS = [
+  "/src/application/runtime/facades/runtimeContinuityReadiness.ts",
+  "/src/application/runtime/facades/runtimeExecutionReliability.ts",
+  "/src/application/runtime/facades/runtimeLaunchReadiness.ts",
+  "/src/application/runtime/facades/runtimeMissionControl",
+  "/src/application/runtime/facades/runtimeMissionLaunchPreparation.ts",
+  "/src/application/runtime/facades/runtimeRepositoryExecutionContract.ts",
+  "/src/application/runtime/facades/runtimeTaskInterventionDraftFacade.ts",
+  "/src/application/runtime/facades/runtimeWorkspaceLaunchDefaultsFacade.ts",
+  "/src/application/runtime/facades/runtimeWorkspaceMissionControlProjection.ts",
+  "/src/application/runtime/ports/tauriRuntimeDiagnostics.ts",
+] as const;
 const RUNTIME_APPLICATION_CHUNK_PATTERNS = ["/src/application/runtime/"] as const;
 const DESKTOP_SERVICES_CHUNK_PATTERNS = ["/src/services/"] as const;
 const DESKTOP_INTEGRATION_CHUNK_PATTERNS = [
@@ -98,8 +110,10 @@ const DESKTOP_INTEGRATION_CHUNK_PATTERNS = [
 const SHELL_BOOTSTRAP_CHUNK_PATTERNS = [
   "/src/features/app/hooks/useMainAppShellBootstrap.ts",
 ] as const;
-const APP_BOOTSTRAP_CHUNK_PATTERNS = [
+const THREAD_CODEX_CONTROLS_CHUNK_PATTERNS = [
   "/src/features/app/hooks/useThreadCodexControls.ts",
+] as const;
+const APP_BOOTSTRAP_CHUNK_PATTERNS = [
   "/src/features/app/hooks/useGitRootSelection.ts",
   "/src/features/app/hooks/useSyncSelectedDiffPath.ts",
 ] as const;
@@ -226,6 +240,9 @@ export default defineConfig({
           if (matchesChunkPattern(id, RUNTIME_GOVERNED_CONTEXT_CHUNK_PATTERNS)) {
             return "runtime-governed-context";
           }
+          if (matchesChunkPattern(id, RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS)) {
+            return "runtime-mission-control";
+          }
           if (matchesChunkPattern(id, RUNTIME_APPLICATION_CHUNK_PATTERNS)) {
             return "runtime-application";
           }
@@ -237,6 +254,9 @@ export default defineConfig({
           }
           if (matchesChunkPattern(id, SHELL_BOOTSTRAP_CHUNK_PATTERNS)) {
             return "shell-bootstrap";
+          }
+          if (matchesChunkPattern(id, THREAD_CODEX_CONTROLS_CHUNK_PATTERNS)) {
+            return "thread-codex-controls";
           }
           if (matchesChunkPattern(id, APP_BOOTSTRAP_CHUNK_PATTERNS)) {
             return "app-bootstrap";
