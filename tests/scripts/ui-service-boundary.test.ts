@@ -89,6 +89,28 @@ describe("ui service boundary guard", () => {
     expect(violations).toEqual([]);
   });
 
+  it("rejects direct chatgpt automation implementation imports in product code", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/settings/components/sections/SettingsCodexAccountsCard.tsx",
+      'import { reviewDeactivatedChatgptWorkspaces } from "../../../../application/runtime/facades/chatgptWorkspaceAutomation";\n'
+    );
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-chatgpt-automation-facade-only",
+      }),
+    ]);
+  });
+
+  it("allows the approved chatgpt automation facade in product code", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/settings/components/sections/SettingsCodexAccountsCard.tsx",
+      'import { reviewDeactivatedChatgptWorkspaces } from "../../../../application/runtime/facades/chatgptWorkspaceAutomationFacade";\n'
+    );
+
+    expect(violations).toEqual([]);
+  });
+
   it("rejects direct tauri imports in shared workspace client files", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "packages/code-workspace-client/src/workspace/WorkspaceClientApp.tsx",

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   DeactivatedChatgptWorkspaceCandidate,
   ReviewDeactivatedChatgptWorkspacesResult,
-} from "../../../../application/runtime/facades/chatgptWorkspaceAutomation";
+} from "../../../../application/runtime/facades/chatgptWorkspaceAutomationFacade";
 
 import {
   applyOAuthPool,

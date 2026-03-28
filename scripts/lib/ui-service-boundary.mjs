@@ -276,6 +276,15 @@ const VIOLATION_RULES = [
       /^apps\/code\/src\/features\/(?:threads|composer)\//u.test(filePath),
   },
   {
+    id: "runtime-chatgpt-automation-facade-only",
+    description:
+      "product code must use `application/runtime/facades/chatgptWorkspaceAutomationFacade` instead of importing the ChatGPT automation implementation module directly",
+    pattern:
+      /(?:from\s+["'][^"']*\/application\/runtime\/facades\/chatgptWorkspaceAutomation["']|import\(\s*["'][^"']*\/application\/runtime\/facades\/chatgptWorkspaceAutomation["'])/u,
+    appliesTo: (filePath) =>
+      !isUiTestFile(filePath) && (isUiBoundaryFile(filePath) || isNonUiAppProductFile(filePath)),
+  },
+  {
     id: "runtime-legacy-bridge-app",
     description:
       "non-UI product code must not import retired runtime bridge ports (`tauriSettings`, `tauriWorkspaces`, `tauriSkills`, `tauriRuntimeSkills`, or raw `tauri`)",

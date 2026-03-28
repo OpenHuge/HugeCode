@@ -40,7 +40,7 @@ import {
 import {
   leaveDeactivatedChatgptWorkspaces,
   reviewDeactivatedChatgptWorkspaces,
-} from "../../../../application/runtime/facades/chatgptWorkspaceAutomation";
+} from "../../../../application/runtime/facades/chatgptWorkspaceAutomationFacade";
 import { SettingsCodexAccountsCard } from "./SettingsCodexAccountsCard";
 
 vi.mock("../../../../application/runtime/ports/events", () => ({
@@ -88,7 +88,7 @@ vi.mock("../../../../application/runtime/ports/tauriWorkspaceCatalog", () => ({
   listWorkspaces: vi.fn(),
 }));
 
-vi.mock("../../../../application/runtime/facades/chatgptWorkspaceAutomation", () => ({
+vi.mock("../../../../application/runtime/facades/chatgptWorkspaceAutomationFacade", () => ({
   leaveDeactivatedChatgptWorkspaces: vi.fn(),
   reviewDeactivatedChatgptWorkspaces: vi.fn(),
 }));
@@ -293,7 +293,7 @@ beforeEach(() => {
     createdAt: Date.now(),
     updatedAt: Date.now(),
   });
-  openUrlMock.mockResolvedValue(undefined);
+  openUrlMock.mockResolvedValue(true);
 });
 
 afterEach(() => {
