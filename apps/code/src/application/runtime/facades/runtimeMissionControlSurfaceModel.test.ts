@@ -333,4 +333,24 @@ describe("runtimeMissionControlSurfaceModel", () => {
     );
     expect(reviewEntries[0]?.continuePathLabel).toBeNull();
   });
+
+  it("keeps latest mission run labels aligned with review triage presentation", () => {
+    const projection = createProjection();
+    const reviewPack = projection.reviewPacks[0];
+    if (!reviewPack) {
+      throw new Error("Expected seeded review pack");
+    }
+
+    reviewPack.validationOutcome = "failed";
+
+    const [latestRun] = buildLatestMissionRunsFromProjection(projection, {
+      getWorkspaceGroupName: () => null,
+      limit: 1,
+    });
+
+    expect(latestRun).toMatchObject({
+      statusLabel: "Validation failed",
+      statusKind: "attention",
+    });
+  });
 });

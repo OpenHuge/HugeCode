@@ -610,4 +610,36 @@ describe("buildSharedMissionControlSummary", () => {
       summary: "Open Review Pack and inspect the attention guidance before continuing.",
     });
   });
+
+  it("uses runtime triage wording for warning-backed action-required review packs", () => {
+    const summary = buildSharedMissionControlSummary(
+      createSnapshot({
+        reviewPacks: [
+          {
+            id: "review-warnings",
+            runId: "run-warnings",
+            taskId: "task-warnings",
+            workspaceId: "workspace-1",
+            summary: "Warnings require inspection",
+            reviewStatus: "action_required",
+            evidenceState: "confirmed",
+            validationOutcome: "warning",
+            warningCount: 2,
+            warnings: [],
+            validations: [],
+            artifacts: [],
+            checksPerformed: [],
+            recommendedNextAction: "Inspect the warnings before accepting.",
+            createdAt: 10,
+          },
+        ],
+      }),
+      "workspace-1"
+    );
+
+    expect(summary.reviewItems[0]).toMatchObject({
+      reviewStatusLabel: "Warnings: 2",
+      tone: "attention",
+    });
+  });
 });
