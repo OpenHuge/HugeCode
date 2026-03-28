@@ -4,6 +4,7 @@ import {
   getModelReasoningOptions,
   normalizeEffortValue,
   normalizeModelOption,
+  resolveModelToolsCapabilitySupport,
   resolveModelVisionCapabilitySupport,
   supportsModelReasoning,
 } from "./modelOptionCapabilities";
@@ -136,5 +137,47 @@ describe("modelOptionCapabilities", () => {
 
     expect(resolveModelVisionCapabilitySupport(unsupportedProviderModel)).toBe("unsupported");
     expect(resolveModelVisionCapabilitySupport(explicitModelSupport)).toBe("supported");
+  });
+
+  it("uses provider tools support only when the model capability stays unknown", () => {
+    const unsupportedProviderModel = createModelOption({
+      capabilityMatrix: {
+        supportsTools: "unknown",
+        supportsReasoningEffort: "supported",
+        supportsVision: "supported",
+        supportsJsonSchema: "unknown",
+        maxContextTokens: 128000,
+        supportedReasoningEfforts: [],
+      },
+      providerCapabilityMatrix: {
+        supportsTools: "unsupported",
+        supportsReasoningEffort: "supported",
+        supportsVision: "supported",
+        supportsJsonSchema: "unknown",
+        maxContextTokens: 128000,
+        supportedReasoningEfforts: [],
+      },
+    });
+    const explicitModelSupport = createModelOption({
+      capabilityMatrix: {
+        supportsTools: "supported",
+        supportsReasoningEffort: "supported",
+        supportsVision: "supported",
+        supportsJsonSchema: "unknown",
+        maxContextTokens: 128000,
+        supportedReasoningEfforts: [],
+      },
+      providerCapabilityMatrix: {
+        supportsTools: "unsupported",
+        supportsReasoningEffort: "supported",
+        supportsVision: "supported",
+        supportsJsonSchema: "unknown",
+        maxContextTokens: 128000,
+        supportedReasoningEfforts: [],
+      },
+    });
+
+    expect(resolveModelToolsCapabilitySupport(unsupportedProviderModel)).toBe("unsupported");
+    expect(resolveModelToolsCapabilitySupport(explicitModelSupport)).toBe("supported");
   });
 });

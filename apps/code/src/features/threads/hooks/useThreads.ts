@@ -42,6 +42,7 @@ type UseThreadsOptions = {
   onWorkspaceConnected: (id: string) => void;
   onDebug?: (entry: DebugEntry) => void;
   hasAvailableModel?: boolean;
+  toolsCapabilitySupport?: "supported" | "unsupported" | "unknown" | null;
   visionCapabilitySupport?: "supported" | "unsupported" | "unknown" | null;
   provider?: string | null;
   model?: string | null;
@@ -81,6 +82,7 @@ export function useThreads({
   onWorkspaceConnected,
   onDebug,
   hasAvailableModel = true,
+  toolsCapabilitySupport = "unknown",
   visionCapabilitySupport = "unknown",
   provider,
   model,
@@ -631,6 +633,7 @@ export function useThreads({
     activeWorkspace,
     activeThreadId,
     hasAvailableModel,
+    toolsCapabilitySupport,
     visionCapabilitySupport,
     accessMode,
     provider,

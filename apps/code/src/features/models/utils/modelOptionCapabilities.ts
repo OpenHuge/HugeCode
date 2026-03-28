@@ -119,21 +119,34 @@ export function supportsModelReasoning(model: ModelOption | null): boolean {
   );
 }
 
-export function resolveModelVisionCapabilitySupport(
-  model: ModelOption | null
+function resolveModelCapabilitySupport(
+  model: ModelOption | null,
+  key: "supportsTools" | "supportsVision"
 ): "supported" | "unsupported" | "unknown" {
   if (!model) {
     return "unknown";
   }
-  const modelSupport = model.capabilityMatrix?.supportsVision;
+  const modelSupport = model.capabilityMatrix?.[key];
   if (modelSupport === "supported" || modelSupport === "unsupported") {
     return modelSupport;
   }
-  const providerSupport = model.providerCapabilityMatrix?.supportsVision;
+  const providerSupport = model.providerCapabilityMatrix?.[key];
   if (providerSupport === "supported" || providerSupport === "unsupported") {
     return providerSupport;
   }
   return "unknown";
+}
+
+export function resolveModelToolsCapabilitySupport(
+  model: ModelOption | null
+): "supported" | "unsupported" | "unknown" {
+  return resolveModelCapabilitySupport(model, "supportsTools");
+}
+
+export function resolveModelVisionCapabilitySupport(
+  model: ModelOption | null
+): "supported" | "unsupported" | "unknown" {
+  return resolveModelCapabilitySupport(model, "supportsVision");
 }
 
 export function getModelReasoningOptions(model: ModelOption | null): string[] {

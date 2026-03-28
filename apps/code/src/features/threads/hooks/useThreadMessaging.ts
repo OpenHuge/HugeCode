@@ -55,6 +55,7 @@ type UseThreadMessagingOptions = {
   activeThreadId: string | null;
   activeThreadIdRef?: MutableRefObject<string | null>;
   hasAvailableModel?: boolean;
+  toolsCapabilitySupport?: "supported" | "unsupported" | "unknown" | null;
   visionCapabilitySupport?: "supported" | "unsupported" | "unknown" | null;
   accessMode?: AccessMode;
   provider?: string | null;
@@ -191,6 +192,7 @@ export function useThreadMessaging({
   activeThreadId,
   activeThreadIdRef,
   hasAvailableModel = true,
+  toolsCapabilitySupport = "unknown",
   visionCapabilitySupport = "unknown",
   accessMode,
   provider,
@@ -341,6 +343,19 @@ export function useThreadMessaging({
       }
       const resolvedVisionCapabilitySupport =
         options?.visionCapabilitySupport ?? visionCapabilitySupport;
+      const resolvedToolsCapabilitySupport =
+        options?.toolsCapabilitySupport ?? toolsCapabilitySupport;
+      if (
+        resolvedToolsCapabilitySupport === "unsupported" &&
+        (resolvedMissionMode === "pair" || resolvedMissionMode === "delegate")
+      ) {
+        pushThreadErrorMessage(
+          threadId,
+          "Selected model does not support tool use required for this task mode. Choose a tools-capable model or switch to Ask mode."
+        );
+        safeMessageActivity();
+        return;
+      }
       if (images.length > 0 && resolvedVisionCapabilitySupport === "unsupported") {
         pushThreadErrorMessage(
           threadId,
@@ -669,6 +684,7 @@ export function useThreadMessaging({
       activeTurnIdByThread,
       getCustomName,
       hasAvailableModel,
+      toolsCapabilitySupport,
       visionCapabilitySupport,
       markProcessing,
       model,
