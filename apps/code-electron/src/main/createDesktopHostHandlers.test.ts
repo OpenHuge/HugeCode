@@ -43,7 +43,12 @@ describe("createDesktopHostHandlers", () => {
       notificationController: {
         showNotification: vi.fn(() => true),
       },
+      openDialog: vi.fn(async () => ({
+        canceled: false,
+        filePaths: ["/tmp/hugecode/workspace-alpha"],
+      })),
       openExternalUrl: vi.fn(async () => true),
+      openPathIn: vi.fn(async () => true),
       openPath: vi.fn(async () => true),
       persistTrayEnabled: vi.fn(),
       revealItemInDir: vi.fn(() => true),
@@ -140,6 +145,13 @@ describe("createDesktopHostHandlers", () => {
     expect(handlers.reopenSession("session-1")).toBe(true);
     expect(handlers.closeWindow(1)).toBe(true);
     expect(handlers.focusWindow(1)).toBe(true);
+    await expect(handlers.openDialog()).resolves.toEqual({
+      canceled: false,
+      filePaths: ["/tmp/hugecode/workspace-alpha"],
+    });
+    await expect(
+      handlers.openPathIn({ path: "/tmp/hugecode/workspace-alpha", target: "finder" })
+    ).resolves.toBe(true);
     await expect(handlers.openPath("/tmp/hugecode/logs")).resolves.toBe(true);
     expect(handlers.getTrayState()).toEqual({ enabled: true, supported: true });
     expect(handlers.getUpdateState()).toEqual({
@@ -194,7 +206,12 @@ describe("createDesktopHostHandlers", () => {
       notificationController: {
         showNotification: vi.fn(() => false),
       },
+      openDialog: vi.fn(async () => ({
+        canceled: true,
+        filePaths: [],
+      })),
       openExternalUrl: vi.fn(async () => true),
+      openPathIn: vi.fn(async () => true),
       openPath: vi.fn(async () => true),
       persistTrayEnabled,
       revealItemInDir: vi.fn(() => true),

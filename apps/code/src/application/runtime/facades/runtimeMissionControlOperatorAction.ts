@@ -1,4 +1,5 @@
 import type {
+  HugeCodeTakeoverTarget,
   HugeCodeReviewPackSummary,
   HugeCodeTaskSummary,
 } from "@ku0/code-runtime-host-contract";
@@ -22,6 +23,47 @@ function buildContinuation(input: MissionOperatorActionInput) {
     nextAction: input.run?.nextAction ?? null,
     reviewPackId: input.reviewPack?.id ?? input.run?.reviewPackId ?? null,
   });
+}
+
+function mapCanonicalTargetToMissionNavigationTarget(input: {
+  task: HugeCodeTaskSummary;
+  target: HugeCodeTakeoverTarget | null | undefined;
+  missionTarget: MissionNavigationTarget;
+  reviewTarget: MissionNavigationTarget;
+}): MissionNavigationTarget {
+  const target = input.target;
+  if (!target) {
+    return input.missionTarget;
+  }
+  if (target.kind === "thread") {
+    return {
+      kind: "thread",
+      workspaceId: target.workspaceId,
+      threadId: target.threadId,
+    };
+  }
+  if (target.kind === "review_pack") {
+    return {
+      kind: "review",
+      workspaceId: target.workspaceId,
+      taskId: target.taskId,
+      runId: target.runId,
+      reviewPackId: target.reviewPackId,
+      limitation: input.task.origin.threadId ? null : "thread_unavailable",
+    };
+  }
+  if (target.kind === "run") {
+    return {
+      kind: "mission",
+      workspaceId: target.workspaceId,
+      taskId: target.taskId,
+      runId: target.runId,
+      reviewPackId: target.reviewPackId ?? null,
+      threadId: input.task.origin.threadId ?? null,
+      limitation: input.task.origin.threadId ? null : "thread_unavailable",
+    };
+  }
+  return input.reviewTarget;
 }
 
 export function resolveCheckpointHandoffLabel(input: MissionOperatorActionInput): string | null {
@@ -74,8 +116,14 @@ export function resolveMissionOperatorAction(input: {
   target: MissionNavigationTarget;
 } {
   const continuation = buildContinuation(input);
-  const continuationTarget =
-    continuation?.canonicalNextAction.kind === "review" ? input.reviewTarget : input.missionTarget;
+  const continuationTarget = continuation
+    ? mapCanonicalTargetToMissionNavigationTarget({
+        task: input.task,
+        target: continuation.canonicalNextAction.navigationTarget,
+        missionTarget: input.missionTarget,
+        reviewTarget: input.reviewTarget,
+      })
+    : input.missionTarget;
   if (
     input.reviewPack &&
     (input.reviewPack.reviewStatus === "ready" ||
