@@ -9,6 +9,16 @@ import type { Unsubscribe } from "../ports/events";
 import { subscribeAppServerEvents } from "../ports/events";
 import type { RuntimeToolExecutionTelemetryEvent } from "../ports/runtimeToolExecutionTelemetry";
 import { subscribeRuntimeToolExecutionTelemetryEvents } from "../ports/runtimeToolExecutionTelemetry";
+export {
+  describeRuntimeToolLifecycleEvent,
+  describeRuntimeToolLifecycleHookCheckpoint,
+  formatRuntimeToolLifecycleStatusLabel,
+  getRuntimeToolLifecycleEventTone,
+  getRuntimeToolLifecycleHookCheckpointTone,
+  sortRuntimeToolLifecycleEventsByRecency,
+  sortRuntimeToolLifecycleHookCheckpointsByRecency,
+  type RuntimeToolLifecyclePresentationTone,
+} from "./runtimeToolLifecyclePresentation";
 import type {
   RuntimeToolLifecycleAppEventMethod,
   RuntimeToolLifecycleEvent,

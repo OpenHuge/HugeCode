@@ -211,12 +211,21 @@ describe("ui service boundary guard", () => {
       "apps/code/src/features/example/hooks/useExample.ts",
       'import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/facades/runtimeToolLifecycleFacade";\n'
     );
+    const presentationViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/example/components/Example.tsx",
+      'import { describeRuntimeToolLifecycleEvent } from "../../../application/runtime/facades/runtimeToolLifecyclePresentation";\n'
+    );
     const typeViolations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/example/components/Example.tsx",
       'import type { RuntimeToolLifecycleEvent } from "../../../application/runtime/types/runtimeToolLifecycle";\n'
     );
 
     expect(facadeViolations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-tool-lifecycle-port-only",
+      }),
+    ]);
+    expect(presentationViolations).toEqual([
       expect.objectContaining({
         rule: "runtime-tool-lifecycle-port-only",
       }),

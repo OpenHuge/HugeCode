@@ -4,6 +4,15 @@ import type {
   RuntimeToolLifecycleEvent,
   RuntimeToolLifecycleHookCheckpoint,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
+import {
+  describeRuntimeToolLifecycleEvent,
+  describeRuntimeToolLifecycleHookCheckpoint,
+  formatRuntimeToolLifecycleStatusLabel,
+  getRuntimeToolLifecycleEventTone,
+  getRuntimeToolLifecycleHookCheckpointTone,
+  sortRuntimeToolLifecycleEventsByRecency,
+  sortRuntimeToolLifecycleHookCheckpointsByRecency,
+} from "../../../application/runtime/ports/runtimeToolLifecycle";
 import type { RuntimeAgentTaskInterventionInput } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeContinuityReadinessSummary } from "../../../application/runtime/facades/runtimeContinuityReadiness";
@@ -143,72 +152,6 @@ export function MissionControlRunListSection({
   );
 }
 
-function getLifecycleTone(
-  event: RuntimeToolLifecycleEvent
-): "neutral" | "running" | "success" | "warning" | "danger" {
-  switch (event.status) {
-    case "allowed":
-    case "approved":
-    case "completed":
-    case "success":
-      return "success";
-    case "blocked":
-    case "failed":
-    case "rejected":
-    case "runtime_failed":
-    case "timeout":
-    case "validation_failed":
-      return "danger";
-    case "interrupted":
-    case "pending":
-      return "warning";
-    case "in_progress":
-      return "running";
-    default:
-      return "neutral";
-  }
-}
-
-function formatLifecycleStatus(status: RuntimeToolLifecycleEvent["status"] | null): string {
-  if (!status) {
-    return "unknown";
-  }
-  return status.replaceAll("_", " ");
-}
-
-function getHookCheckpointTone(
-  checkpoint: RuntimeToolLifecycleHookCheckpoint
-): "neutral" | "running" | "success" | "warning" | "danger" {
-  switch (checkpoint.status) {
-    case "ready":
-    case "completed":
-      return "success";
-    case "blocked":
-      return "danger";
-    case "pending":
-      return "warning";
-    default:
-      return "neutral";
-  }
-}
-
-function describeHookCheckpoint(checkpoint: RuntimeToolLifecycleHookCheckpoint): string {
-  return checkpoint.point.replaceAll("_", " ");
-}
-
-function describeLifecycleEvent(event: RuntimeToolLifecycleEvent): string {
-  switch (event.kind) {
-    case "turn":
-      return `Turn ${event.phase}`;
-    case "tool":
-      return `${event.toolName ?? "Tool call"} ${event.phase}`;
-    case "approval":
-      return `Approval ${event.phase}`;
-    case "guardrail":
-      return `${event.toolName ?? "Guardrail"} ${event.phase}`;
-  }
-}
-
 type MissionControlSessionLogSectionProps = {
   hookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
   lifecycleEvents: RuntimeToolLifecycleEvent[];
@@ -220,8 +163,8 @@ export function MissionControlSessionLogSection({
   lifecycleEvents,
   maxItems = 8,
 }: MissionControlSessionLogSectionProps) {
-  const sortedEvents = lifecycleEvents.slice().sort((left, right) => right.at - left.at);
-  const sortedHookCheckpoints = hookCheckpoints.slice().sort((left, right) => right.at - left.at);
+  const sortedEvents = sortRuntimeToolLifecycleEventsByRecency(lifecycleEvents);
+  const sortedHookCheckpoints = sortRuntimeToolLifecycleHookCheckpointsByRecency(hookCheckpoints);
   const visibleEvents = sortedEvents.slice(0, maxItems);
   const visibleHookCheckpoints = sortedHookCheckpoints.slice(0, maxItems);
   const hasActivity = visibleEvents.length > 0 || visibleHookCheckpoints.length > 0;
@@ -258,9 +201,9 @@ export function MissionControlSessionLogSection({
           {visibleEvents.map((event) => (
             <div className="workspace-home-code-runtime-item" key={event.id}>
               <div className="workspace-home-code-runtime-item-main">
-                <strong>{describeLifecycleEvent(event)}</strong>
-                <ToolCallChip tone={getLifecycleTone(event)}>
-                  {formatLifecycleStatus(event.status)}
+                <strong>{describeRuntimeToolLifecycleEvent(event)}</strong>
+                <ToolCallChip tone={getRuntimeToolLifecycleEventTone(event)}>
+                  {formatRuntimeToolLifecycleStatusLabel(event.status)}
                 </ToolCallChip>
                 <span>{formatRuntimeTimestamp(event.at)}</span>
                 <span>Source: {event.source}</span>
@@ -275,9 +218,9 @@ export function MissionControlSessionLogSection({
           {visibleHookCheckpoints.map((checkpoint) => (
             <div className="workspace-home-code-runtime-item" key={checkpoint.key}>
               <div className="workspace-home-code-runtime-item-main">
-                <strong>Hook {describeHookCheckpoint(checkpoint)}</strong>
-                <ToolCallChip tone={getHookCheckpointTone(checkpoint)}>
-                  {formatLifecycleStatus(checkpoint.status)}
+                <strong>Hook {describeRuntimeToolLifecycleHookCheckpoint(checkpoint)}</strong>
+                <ToolCallChip tone={getRuntimeToolLifecycleHookCheckpointTone(checkpoint)}>
+                  {formatRuntimeToolLifecycleStatusLabel(checkpoint.status)}
                 </ToolCallChip>
                 <span>{formatRuntimeTimestamp(checkpoint.at)}</span>
                 <span>Source: {checkpoint.source}</span>

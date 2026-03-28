@@ -193,7 +193,7 @@ const VIOLATION_RULES = [
     description:
       "UI code must consume runtime tool lifecycle through `application/runtime/ports/runtimeToolLifecycle` or shared hooks, not the facade or raw type re-export layer",
     pattern:
-      /(?:from\s+["'][^"']*\/application\/runtime\/(?:facades\/runtimeToolLifecycleFacade|types\/runtimeToolLifecycle)["']|import\(\s*["'][^"']*\/application\/runtime\/(?:facades\/runtimeToolLifecycleFacade|types\/runtimeToolLifecycle)["'])/u,
+      /(?:from\s+["'][^"']*\/application\/runtime\/(?:facades\/runtimeToolLifecycleFacade|facades\/runtimeToolLifecyclePresentation|types\/runtimeToolLifecycle)["']|import\(\s*["'][^"']*\/application\/runtime\/(?:facades\/runtimeToolLifecycleFacade|facades\/runtimeToolLifecyclePresentation|types\/runtimeToolLifecycle)["'])/u,
     appliesTo: (filePath) => isUiBoundaryFile(filePath) && !isUiTestFile(filePath),
   },
   {

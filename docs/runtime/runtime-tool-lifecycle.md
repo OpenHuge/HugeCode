@@ -166,6 +166,7 @@ The approved workspace-scoped read path is now:
   - `getWorkspaceRuntimeToolLifecycleSnapshot(workspaceId)`
   - `subscribeWorkspaceRuntimeToolLifecycleEvents(workspaceId, listener)`
   - `subscribeWorkspaceRuntimeToolLifecycleSnapshot(workspaceId, listener)`
+  - shared lifecycle presentation helpers for labels, tones, and recency sorting
 
 Consumers should prefer that boundary over composing
 `getRuntimeToolLifecycleSnapshot() + filterRuntimeToolLifecycleSnapshot(...)`
@@ -181,10 +182,26 @@ Likewise, the unscoped lifecycle read/subscribe functions remain available in
 the facade for runtime-store assembly and facade-level tests, but they are not
 part of the approved `application/runtime/ports` surface for feature code.
 
+The same rule now applies to lifecycle presentation semantics:
+
+- pages should not define their own lifecycle status-to-tone mapping
+- pages should not invent their own event or hook-checkpoint labels
+- pages should not re-sort lifecycle streams with ad hoc ordering rules
+- those presentation primitives now live behind the same
+  `application/runtime/ports/runtimeToolLifecycle` boundary
+
 ## Follow-On Work
 
-Track 1 is complete when new work treats this lifecycle baseline as frozen and
-stops redefining equivalent sequencing or hook semantics in page code.
+Track 1 completion criteria are now satisfied for the active consumers:
+
+- Mission Control uses the shared lifecycle presentation helpers through
+  `application/runtime/ports/runtimeToolLifecycle`
+- debug diagnostics use the same shared recency ordering helpers
+- current feature code no longer defines parallel lifecycle status, tone, or
+  hook-checkpoint presentation rules
+
+New work must keep treating this lifecycle baseline as frozen and must not
+redefine equivalent sequencing or hook semantics in page code.
 
 Future tracks should use it like this:
 

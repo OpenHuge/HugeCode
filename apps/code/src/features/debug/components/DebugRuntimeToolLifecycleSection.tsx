@@ -3,6 +3,10 @@ import type {
   RuntimeToolLifecycleHookCheckpoint,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import {
+  sortRuntimeToolLifecycleEventsByRecency,
+  sortRuntimeToolLifecycleHookCheckpointsByRecency,
+} from "../../../application/runtime/ports/runtimeToolLifecycle";
+import {
   DebugDiagnosticsDefinitionList,
   type DebugDiagnosticsFieldDescriptor,
 } from "./DebugDiagnosticsFieldGroups";
@@ -14,16 +18,6 @@ export type DebugRuntimeToolLifecycleSectionProps = {
 
 function formatLifecycleTimestamp(value: number): string {
   return new Date(value).toISOString();
-}
-
-function sortLifecycleEvents(events: RuntimeToolLifecycleEvent[]): RuntimeToolLifecycleEvent[] {
-  return events.slice().sort((left, right) => right.at - left.at);
-}
-
-function sortHookCheckpoints(
-  checkpoints: RuntimeToolLifecycleHookCheckpoint[]
-): RuntimeToolLifecycleHookCheckpoint[] {
-  return checkpoints.slice().sort((left, right) => right.at - left.at);
 }
 
 function createLifecycleFields(
@@ -64,8 +58,8 @@ export function DebugRuntimeToolLifecycleSection({
   hookCheckpoints,
   lifecycleEvents,
 }: DebugRuntimeToolLifecycleSectionProps) {
-  const sortedEvents = sortLifecycleEvents(lifecycleEvents);
-  const sortedHookCheckpoints = sortHookCheckpoints(hookCheckpoints);
+  const sortedEvents = sortRuntimeToolLifecycleEventsByRecency(lifecycleEvents);
+  const sortedHookCheckpoints = sortRuntimeToolLifecycleHookCheckpointsByRecency(hookCheckpoints);
   const latestEvent = sortedEvents[0] ?? null;
   const latestHookCheckpoint = sortedHookCheckpoints[0] ?? null;
 
