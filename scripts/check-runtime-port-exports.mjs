@@ -161,6 +161,51 @@ const LEGACY_TAURI_SERVICE_IMPORT_PATTERN =
 const RUNTIME_TOOL_LIFECYCLE_PORT_PATH = `${RUNTIME_PORTS_DIR}/runtimeToolLifecycle.ts`;
 const RUNTIME_TOOL_LIFECYCLE_FORBIDDEN_EXPORT_PATTERN =
   /\b(?:getRuntimeToolLifecycleSnapshot|subscribeRuntimeToolLifecycleEvents|subscribeRuntimeToolLifecycleSnapshot|filterRuntimeToolLifecycleSnapshot|runtimeToolLifecycleEventMatchesWorkspace)\b/u;
+const RUNTIME_TOOL_LIFECYCLE_ALLOWED_EXPORTS = new Set([
+  "RuntimeToolLifecycleEvent",
+  "RuntimeToolLifecycleHookCheckpoint",
+  "RuntimeToolLifecycleHookCheckpointStatus",
+  "RuntimeToolLifecycleHookPoint",
+  "RuntimeToolLifecycleSnapshot",
+  "RuntimeToolLifecycleSource",
+  "RuntimeToolLifecycleStatus",
+  "RuntimeToolLifecyclePresentationTone",
+  "describeRuntimeToolLifecycleEvent",
+  "describeRuntimeToolLifecycleHookCheckpoint",
+  "formatRuntimeToolLifecycleStatusLabel",
+  "getRuntimeToolLifecycleEventTone",
+  "getRuntimeToolLifecycleHookCheckpointTone",
+  "getWorkspaceRuntimeToolLifecycleSnapshot",
+  "sortRuntimeToolLifecycleEventsByRecency",
+  "sortRuntimeToolLifecycleHookCheckpointsByRecency",
+  "subscribeWorkspaceRuntimeToolLifecycleEvents",
+  "subscribeWorkspaceRuntimeToolLifecycleSnapshot",
+]);
+
+function collectNamedExports(content) {
+  const names = new Set();
+  const exportBlockPattern = /export(?:\s+type)?\s*\{([\s\S]*?)\}\s*from\s+["'][^"']+["'];?/gu;
+
+  for (const match of content.matchAll(exportBlockPattern)) {
+    const block = match[1] ?? "";
+    const specifiers = block
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+
+    for (const specifier of specifiers) {
+      const normalized = specifier.replace(/^type\s+/u, "");
+      const aliasMatch = normalized.match(/\bas\s+([A-Za-z0-9_]+)$/u);
+      if (aliasMatch?.[1]) {
+        names.add(aliasMatch[1]);
+        continue;
+      }
+      names.add(normalized);
+    }
+  }
+
+  return names;
+}
 
 function toPosixPath(input) {
   return input.split(path.sep).join("/");
@@ -295,6 +340,27 @@ for (const filePath of files) {
     violations.push(
       `${filePath}: runtime tool lifecycle port must stay workspace-scoped; export only scoped read/subscribe primitives`
     );
+  }
+  if (filePath === RUNTIME_TOOL_LIFECYCLE_PORT_PATH) {
+    const exportedNames = collectNamedExports(content);
+    const unexpectedExports = [...exportedNames]
+      .filter((name) => !RUNTIME_TOOL_LIFECYCLE_ALLOWED_EXPORTS.has(name))
+      .sort((left, right) => left.localeCompare(right));
+    const missingExports = [...RUNTIME_TOOL_LIFECYCLE_ALLOWED_EXPORTS]
+      .filter((name) => !exportedNames.has(name))
+      .sort((left, right) => left.localeCompare(right));
+
+    if (unexpectedExports.length > 0 || missingExports.length > 0) {
+      const details = [
+        unexpectedExports.length > 0 ? `unexpected: ${unexpectedExports.join(", ")}` : null,
+        missingExports.length > 0 ? `missing: ${missingExports.join(", ")}` : null,
+      ]
+        .filter(Boolean)
+        .join("; ");
+      violations.push(
+        `${filePath}: runtime tool lifecycle port must keep the approved export surface; ${details}`
+      );
+    }
   }
 }
 

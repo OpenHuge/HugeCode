@@ -168,6 +168,18 @@ The approved workspace-scoped read path is now:
   - `subscribeWorkspaceRuntimeToolLifecycleSnapshot(workspaceId, listener)`
   - shared lifecycle presentation helpers for labels, tones, and recency sorting
 
+The approved `runtimeToolLifecycle` port surface is intentionally frozen to:
+
+- lifecycle event and checkpoint types
+- `RuntimeToolLifecyclePresentationTone`
+- workspace-scoped snapshot and subscription primitives
+- shared presentation helpers for:
+  - event labels
+  - hook-checkpoint labels
+  - status labels
+  - tone mapping
+  - recency sorting
+
 Consumers should prefer that boundary over composing
 `getRuntimeToolLifecycleSnapshot() + filterRuntimeToolLifecycleSnapshot(...)`
 or subscribing to the unscoped snapshot stream inside feature code.
