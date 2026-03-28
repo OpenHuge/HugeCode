@@ -3,6 +3,7 @@ import type {
   AgentTaskSummary,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
+import { createRuntimeProviderRoutePluginDescriptors } from "../kernel/runtimeKernelPlugins";
 import { buildWorkspaceRuntimeMissionControlProjection } from "./runtimeWorkspaceMissionControlProjection";
 
 function buildTask(
@@ -41,12 +42,22 @@ function buildTask(
 function buildRuntimeProjectionInput(
   overrides: Partial<Parameters<typeof buildWorkspaceRuntimeMissionControlProjection>[0]> = {}
 ): Parameters<typeof buildWorkspaceRuntimeMissionControlProjection>[0] {
+  const runtimeProviders = overrides.runtimeProviders ?? [];
+  const runtimeAccounts = overrides.runtimeAccounts ?? [];
+  const runtimePools = overrides.runtimePools ?? [];
+  const runtimePlugins =
+    overrides.runtimePlugins ??
+    createRuntimeProviderRoutePluginDescriptors({
+      providers: runtimeProviders,
+      accounts: runtimeAccounts,
+      pools: runtimePools,
+    });
   return {
     workspaceId: "ws-approval",
     runtimeTasks: [],
-    runtimeProviders: [],
-    runtimeAccounts: [],
-    runtimePools: [],
+    runtimeProviders,
+    runtimeAccounts,
+    runtimePools,
     runtimeCapabilities: {
       mode: "tauri",
       methods: ["code_health"],
@@ -101,7 +112,7 @@ function buildRuntimeProjectionInput(
       circuitBreakers: [],
       updatedAt: 1_700_000_000_000,
     },
-    runtimePlugins: [],
+    runtimePlugins,
     runtimePluginsError: null,
     runtimePluginsProjectionBacked: false,
     selectedProviderRoute: "auto",
@@ -184,6 +195,174 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.routeSelection.selected.fallbackDetail).toContain(
       "fall back to local/native execution"
     );
+  });
+
+  it("derives route selection from routing plugins without requiring legacy provider routing inputs", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimeProviders: [],
+        runtimeAccounts: [],
+        runtimePools: [],
+        runtimePlugins: [
+          {
+            id: "route:auto",
+            name: "Automatic workspace routing",
+            version: "routing",
+            summary: "Automatic route.",
+            source: "execution_route",
+            transport: "execution_route",
+            hostProfile: {
+              kind: "routing",
+              executionBoundaries: ["routing", "runtime"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: true,
+            capabilities: [],
+            permissions: [],
+            resources: [],
+            executionBoundaries: ["routing", "runtime"],
+            binding: {
+              state: "bound",
+              contractFormat: "route",
+              contractBoundary: "runtime-routing",
+              interfaceId: "route:auto",
+              surfaces: [
+                {
+                  id: "route:auto",
+                  kind: "route",
+                  direction: "export",
+                  summary: "Automatic route selection surface.",
+                },
+              ],
+            },
+            operations: {
+              execution: {
+                executable: true,
+                mode: "execution_route",
+                reason: null,
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason:
+                  "Route plugins do not expose readable resources through the runtime kernel.",
+              },
+              permissions: {
+                evaluable: false,
+                mode: "none",
+                reason: "Route plugins do not publish runtime-evaluable permission state.",
+              },
+            },
+            metadata: {
+              routeKind: "combined_execution",
+              routeValue: "auto",
+              readiness: "attention",
+              launchAllowed: true,
+              detail:
+                "No OAuth-backed provider routes are ready, but local/native routing remains available.",
+              fallbackDetail:
+                "No OAuth-backed provider routes are ready, so automatic routing will fall back to local/native execution.",
+              recommendedAction:
+                "Launch can continue on local/native routing, or restore a ready remote provider route before launching.",
+              providerId: null,
+              pool: "auto",
+              provenance: "auto",
+            },
+            permissionDecision: "unsupported",
+            health: {
+              state: "degraded",
+              checkedAt: null,
+              warnings: [],
+            },
+          },
+          {
+            id: "route:openai",
+            name: "OpenAI",
+            version: "routing",
+            summary: "OpenAI route.",
+            source: "provider_route",
+            transport: "provider_route",
+            hostProfile: {
+              kind: "routing",
+              executionBoundaries: ["routing", "runtime"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: true,
+            capabilities: [],
+            permissions: [],
+            resources: [],
+            executionBoundaries: ["routing", "runtime"],
+            binding: {
+              state: "bound",
+              contractFormat: "route",
+              contractBoundary: "runtime-routing",
+              interfaceId: "route:openai",
+              surfaces: [
+                {
+                  id: "route:openai",
+                  kind: "route",
+                  direction: "export",
+                  summary: "Provider route selection surface.",
+                },
+              ],
+            },
+            operations: {
+              execution: {
+                executable: false,
+                mode: "none",
+                reason: "Provider route is blocked until credentials and pools are ready.",
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason:
+                  "Route plugins do not expose readable resources through the runtime kernel.",
+              },
+              permissions: {
+                evaluable: false,
+                mode: "none",
+                reason: "Route plugins do not publish runtime-evaluable permission state.",
+              },
+            },
+            metadata: {
+              routeKind: "provider_family",
+              routeValue: "openai",
+              readiness: "blocked",
+              launchAllowed: false,
+              detail:
+                "Enable at least one pool and one credential-ready account for this provider.",
+              blockingReason:
+                "Enable at least one pool and one credential-ready account for this provider.",
+              recommendedAction:
+                "Sign in for this provider or choose another ready route before launching.",
+              providerId: "openai",
+              oauthProviderId: "codex",
+              pool: "codex",
+              provenance: "explicit_route",
+            },
+            permissionDecision: "unsupported",
+            health: {
+              state: "degraded",
+              checkedAt: null,
+              warnings: ["No credential-ready accounts."],
+            },
+          },
+        ],
+        selectedProviderRoute: "openai",
+      })
+    );
+
+    expect(projection.routeSelection.selected.value).toBe("openai");
+    expect(projection.routeSelection.selected.ready).toBe(false);
+    expect(projection.routeSelection.selected.readiness).toBe("blocked");
+    expect(projection.routeSelection.selected.detail).toContain("credential-ready account");
+    expect(projection.routeSelection.options.map((option) => option.value)).toEqual([
+      "auto",
+      "openai",
+    ]);
+    expect(projection.launchReadiness.route.detail).toContain("credential-ready account");
   });
 
   it("projects continuity readiness from runtime task truth instead of page-local guesses", () => {
@@ -371,6 +550,73 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
             },
           },
           {
+            id: "route:auto",
+            name: "Automatic workspace routing",
+            version: "routing",
+            summary: null,
+            source: "execution_route",
+            transport: "execution_route",
+            hostProfile: {
+              kind: "routing",
+              executionBoundaries: ["routing", "runtime"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: true,
+            capabilities: [],
+            permissions: [],
+            resources: [],
+            executionBoundaries: ["routing", "runtime"],
+            binding: {
+              state: "bound",
+              contractFormat: "route",
+              contractBoundary: "runtime-routing",
+              interfaceId: "route:auto",
+              surfaces: [
+                {
+                  id: "route:auto",
+                  kind: "route",
+                  direction: "export",
+                  summary: "Automatic route selection surface.",
+                },
+              ],
+            },
+            operations: {
+              execution: {
+                executable: true,
+                mode: "execution_route",
+                reason: null,
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason:
+                  "Route plugins do not expose readable resources through the runtime kernel.",
+              },
+              permissions: {
+                evaluable: false,
+                mode: "none",
+                reason: "Route plugins do not publish runtime-evaluable permission state.",
+              },
+            },
+            metadata: {
+              routeKind: "combined_execution",
+              routeValue: "auto",
+              readiness: "ready",
+              launchAllowed: true,
+              detail: "Automatic routing is ready for launch.",
+              providerId: null,
+              pool: "auto",
+              provenance: "auto",
+            },
+            permissionDecision: "unsupported",
+            health: {
+              state: "healthy",
+              checkedAt: 3,
+              warnings: [],
+            },
+          },
+          {
             id: "repo-manifest-1",
             name: "Review Manifest",
             version: "0.0.1",
@@ -436,23 +682,30 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     );
 
     expect(projection.pluginCatalog).toMatchObject({
-      total: 3,
-      enabled: 3,
-      runtimeBacked: 2,
-      executableCount: 1,
+      total: 4,
+      enabled: 4,
+      runtimeBacked: 3,
+      executableCount: 2,
       nonExecutableCount: 2,
       readableResourceCount: 2,
       permissionEvaluableCount: 3,
-      contractSurfaceCount: 3,
+      contractSurfaceCount: 4,
       contractImportSurfaceCount: 0,
-      contractExportSurfaceCount: 3,
-      boundCount: 2,
+      contractExportSurfaceCount: 4,
+      boundCount: 3,
       declarationOnlyCount: 1,
       unboundCount: 0,
       runtimeExtensionCount: 1,
       liveSkillCount: 1,
       repoManifestCount: 1,
-      healthyCount: 1,
+      routingCount: 1,
+      providerRouteCount: 0,
+      backendRouteCount: 0,
+      executionRouteCount: 1,
+      readyRouteCount: 1,
+      attentionRouteCount: 0,
+      blockedRouteCount: 0,
+      healthyCount: 2,
       degradedCount: 1,
       unsupportedCount: 1,
       projectionBacked: true,
@@ -461,6 +714,7 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.pluginCatalog.plugins.map((plugin) => plugin.id)).toEqual([
       "ext-1",
       "skill-1",
+      "route:auto",
       "repo-manifest-1",
     ]);
   });

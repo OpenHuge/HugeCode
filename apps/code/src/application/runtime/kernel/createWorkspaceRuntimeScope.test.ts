@@ -69,7 +69,7 @@ describe("createWorkspaceRuntimeScope", () => {
     ).toThrow(/Missing workspace runtime capability `plugins\.catalog`/);
   });
 
-  it("resolves the legacy extensions catalog alias through the canonical plugin capability", () => {
+  it("does not expose the removed extensions catalog alias", () => {
     const pluginCatalog = { listPlugins: vi.fn() };
     const scope = createWorkspaceRuntimeScope({
       workspaceId: "ws-1",
@@ -82,10 +82,10 @@ describe("createWorkspaceRuntimeScope", () => {
       ],
     });
 
-    expect(scope.hasCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog)).toBe(true);
+    expect(scope.hasCapability("extensions.catalog")).toBe(false);
     expect(scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog)).toBe(pluginCatalog);
-    expect(scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog)).toBe(
-      pluginCatalog
+    expect(() => scope.getCapability("extensions.catalog" as never)).toThrow(
+      /Missing workspace runtime capability `extensions\.catalog`/
     );
     expect(scope.listCapabilities()).toEqual([RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog]);
   });

@@ -3,6 +3,7 @@ import type {
   ModelProvider,
   OAuthAccountSummary,
   OAuthPoolSummary,
+  RuntimeRoutingPluginProvenance,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import {
@@ -14,11 +15,15 @@ import {
   buildRuntimeProviderRoutingHealth,
   type RuntimeProviderRoutingHealth,
 } from "./runtimeRoutingHealth";
+import {
+  createRuntimeProviderRoutePluginDescriptors,
+  resolveRuntimeKernelRouteSelection,
+} from "../kernel/runtimeKernelPlugins";
 
 export type RuntimeProviderRouteReadiness = "ready" | "attention" | "blocked";
 
 export type RuntimeProviderRouteProvenance = {
-  source: "auto" | "explicit_route" | "model_selection";
+  source: RuntimeRoutingPluginProvenance;
   catalogProviderId: ModelProvider | null;
   readinessKind: RuntimeProviderCatalogEntry["readinessKind"];
   readinessMessage: RuntimeProviderCatalogEntry["readinessMessage"];
@@ -44,7 +49,7 @@ export type RuntimeProviderRouteOption = {
 };
 
 export type RuntimeResolvedProviderRoute = RuntimeProviderRouteOption & {
-  source: "auto" | "explicit_route" | "model_selection";
+  source: RuntimeRoutingPluginProvenance;
 };
 
 type RuntimeProviderRouteModelLike = {
@@ -218,128 +223,22 @@ function buildRouteBlockingReason(
   );
 }
 
-function createRouteOption(input: {
-  provider: RuntimeProviderCatalogEntry | null;
-  healthEntry: RuntimeProviderRoutingHealth | null;
-  source: RuntimeResolvedProviderRoute["source"];
-  fallbackDetail?: string | null;
-}): RuntimeProviderRouteOption | null {
-  if (!input.provider) {
-    return null;
-  }
-  const readiness = resolveRoutingHealth(input.provider, input.healthEntry);
-  const blockingReason = buildRouteBlockingReason(input.provider, input.healthEntry, readiness);
-  const recommendedAction = buildRouteRecommendedAction({
-    provider: input.provider,
-    healthEntry: input.healthEntry,
-    readiness,
-    fallbackDetail: input.fallbackDetail,
-  });
-  return {
-    value: input.provider.providerId,
-    label: input.provider.displayName,
-    ready: readiness === "ready",
-    readiness,
-    detail: buildRouteDetail(input.provider, input.healthEntry, readiness),
-    launchAllowed: readiness !== "blocked",
-    blockingReason,
-    recommendedAction,
-    fallbackDetail: input.fallbackDetail ?? null,
-    providerId: input.provider.providerId,
-    oauthProviderId: input.provider.oauthProviderId,
-    pool: input.provider.pool ?? null,
-    defaultModelId: input.provider.defaultModelId ?? null,
-    healthEntry: input.healthEntry,
-    provenance: {
-      source: input.source,
-      catalogProviderId: input.provider.providerId,
-      readinessKind: input.provider.readinessKind ?? null,
-      readinessMessage: input.provider.readinessMessage ?? null,
-      executionKind: input.provider.executionKind ?? null,
-    },
-  };
-}
-
 export function buildRuntimeProviderRouteCatalog(input: {
   providers: readonly RuntimeProviderCatalogEntry[];
   accounts: readonly OAuthAccountSummary[];
   pools: readonly OAuthPoolSummary[];
 }) {
-  const routingHealth = buildRuntimeProviderRoutingHealth({
-    providers: input.providers,
-    accounts: input.accounts,
-    pools: input.pools,
+  const selection = resolveRuntimeKernelRouteSelection({
+    plugins: createRuntimeProviderRoutePluginDescriptors({
+      providers: input.providers,
+      accounts: input.accounts,
+      pools: input.pools,
+    }),
+    selectedRoute: "auto",
   });
-  const options = input.providers
-    .map((provider) =>
-      createRouteOption({
-        provider,
-        healthEntry:
-          routingHealth.find((entry) => entry.providerId === provider.oauthProviderId) ??
-          routingHealth.find(
-            (entry) => entry.providerId === canonicalizeOAuthProviderId(provider.providerId)
-          ) ??
-          null,
-        source: provider.providerId === "auto" ? "auto" : "explicit_route",
-      })
-    )
-    .filter((option): option is RuntimeProviderRouteOption => option !== null);
-
-  const hasNonOAuthRoute = options.some((option) => option.oauthProviderId === null);
-  const readyOAuthRoutes = options.filter(
-    (option) => option.oauthProviderId !== null && option.readiness === "ready"
-  ).length;
-  const autoFallbackDetail =
-    readyOAuthRoutes === 0 && hasNonOAuthRoute && routingHealth.length > 0
-      ? "No OAuth-backed provider routes are ready, so automatic routing will fall back to local/native execution."
-      : null;
-  const autoReadiness: RuntimeProviderRouteReadiness =
-    readyOAuthRoutes > 0 || routingHealth.length === 0
-      ? "ready"
-      : hasNonOAuthRoute
-        ? "attention"
-        : "blocked";
-  const autoOption: RuntimeProviderRouteOption = {
-    value: "auto",
-    label: "Automatic workspace routing",
-    ready: autoReadiness === "ready",
-    readiness: autoReadiness,
-    detail:
-      routingHealth.length === 0
-        ? "No OAuth-backed providers detected; runtime can still use local routing."
-        : readyOAuthRoutes > 0
-          ? `${readyOAuthRoutes}/${routingHealth.length} provider routes ready.`
-          : hasNonOAuthRoute
-            ? (autoFallbackDetail ??
-              "No OAuth-backed provider routes are ready, but local/native routing remains available.")
-            : `0/${routingHealth.length} provider routes ready.`,
-    launchAllowed: autoReadiness !== "blocked",
-    blockingReason:
-      autoReadiness === "blocked" ? `0/${routingHealth.length} provider routes ready.` : null,
-    recommendedAction:
-      autoReadiness === "attention"
-        ? "Launch can continue on local/native routing, or restore a ready remote provider route before launching."
-        : autoReadiness === "blocked"
-          ? "Enable a ready provider route or switch the workspace to a route that can launch now."
-          : "Automatic routing is ready for launch.",
-    fallbackDetail: autoFallbackDetail,
-    providerId: null,
-    oauthProviderId: null,
-    pool: canonicalizeModelPool("auto"),
-    defaultModelId: null,
-    healthEntry: null,
-    provenance: {
-      source: "auto",
-      catalogProviderId: null,
-      readinessKind: null,
-      readinessMessage: null,
-      executionKind: null,
-    },
-  };
-
   return {
-    routingHealth,
-    options: [autoOption, ...options],
+    routingHealth: selection.routingHealth,
+    options: selection.options,
   };
 }
 
@@ -354,22 +253,26 @@ export function resolveRuntimeProviderRouteSelection(input: {
   selected: RuntimeResolvedProviderRoute;
   normalizedValue: string;
 } {
-  const catalog = buildRuntimeProviderRouteCatalog(input);
-  const selectedOption =
-    catalog.options.find((option) => option.value === input.selectedRoute) ?? catalog.options[0];
-  const selected: RuntimeResolvedProviderRoute = {
-    ...selectedOption,
-    source: selectedOption.value === "auto" ? "auto" : "explicit_route",
-    provenance: {
-      ...selectedOption.provenance,
-      source: selectedOption.value === "auto" ? "auto" : "explicit_route",
-    },
-  };
+  const selection = resolveRuntimeKernelRouteSelection({
+    plugins: createRuntimeProviderRoutePluginDescriptors({
+      providers: input.providers,
+      accounts: input.accounts,
+      pools: input.pools,
+    }),
+    selectedRoute: input.selectedRoute,
+  });
   return {
-    routingHealth: catalog.routingHealth,
-    options: catalog.options,
-    selected,
-    normalizedValue: selected?.value ?? "auto",
+    routingHealth: selection.routingHealth,
+    options: selection.options,
+    selected: {
+      ...selection.selected,
+      source: selection.selected.value === "auto" ? "auto" : "explicit_route",
+      provenance: {
+        ...selection.selected.provenance,
+        source: selection.selected.value === "auto" ? "auto" : "explicit_route",
+      },
+    },
+    normalizedValue: selection.normalizedValue,
   };
 }
 

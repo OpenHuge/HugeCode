@@ -3269,7 +3269,8 @@ export type KernelCapabilityContractSurfaceKind =
   | "procedure_set"
   | "extension"
   | "skill"
-  | "manifest";
+  | "manifest"
+  | "route";
 
 export type KernelCapabilityContractSurfaceDirection = "import" | "export";
 
@@ -3294,6 +3295,50 @@ export type KernelHostCapabilityMetadata = {
   hostManaged?: boolean | null;
   semverQualifiedImports?: boolean | null;
   canonicalAbiResources?: boolean | null;
+};
+
+export type RuntimeRoutingPluginKind =
+  | "provider_family"
+  | "backend_placement"
+  | "combined_execution";
+
+export type RuntimeRoutingPluginProvenance =
+  | "auto"
+  | "explicit_route"
+  | "model_selection"
+  | "backend_preference"
+  | "runtime_fallback";
+
+export type RuntimeRoutingPluginReadiness = "ready" | "attention" | "blocked";
+
+export type RuntimeRoutingPluginMetadata = {
+  routeKind: RuntimeRoutingPluginKind;
+  routeValue: string;
+  readiness: RuntimeRoutingPluginReadiness;
+  launchAllowed: boolean;
+  detail?: string | null;
+  blockingReason?: string | null;
+  recommendedAction?: string | null;
+  fallbackDetail?: string | null;
+  providerId?: ModelProvider | null;
+  providerLabel?: string | null;
+  oauthProviderId?: OAuthProviderId | null;
+  pool?: ModelPool | null;
+  defaultModelId?: string | null;
+  provenance?: RuntimeRoutingPluginProvenance | null;
+  preferredBackendIds?: string[] | null;
+  resolvedBackendId?: string | null;
+  readinessKind?: RuntimeProviderReadinessKind | null;
+  readinessMessage?: string | null;
+  executionKind?: RuntimeProviderExecutionKind | null;
+  capabilityMatrix?: RuntimeProviderCapabilityMatrix | null;
+  providerAvailable?: boolean | null;
+  accountsTotal?: number | null;
+  enabledAccountCount?: number | null;
+  credentialReadyAccountCount?: number | null;
+  poolsTotal?: number | null;
+  enabledPoolCount?: number | null;
+  poolRoutingReady?: boolean | null;
 };
 
 export type KernelCapabilityDescriptor = {

@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   KernelCapabilityDescriptor,
   LiveSkillSummary,
+  OAuthAccountSummary,
+  OAuthPoolSummary,
+  RuntimeProviderCatalogEntry,
   RuntimeExtensionRecord,
 } from "@ku0/code-runtime-host-contract";
 
@@ -10,6 +13,9 @@ const readRuntimeExtensionResourceMock = vi.hoisted(() => vi.fn());
 const evaluateRuntimeExtensionPermissionsMock = vi.hoisted(() => vi.fn());
 const listRuntimeKernelCapabilitiesMock = vi.hoisted(() => vi.fn());
 const runRuntimeLiveSkillMock = vi.hoisted(() => vi.fn());
+const getProvidersCatalogMock = vi.hoisted(() => vi.fn());
+const listOAuthAccountsMock = vi.hoisted(() => vi.fn());
+const listOAuthPoolsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../ports/runtimeExtensions", () => ({
   evaluateRuntimeExtensionPermissions: evaluateRuntimeExtensionPermissionsMock,
@@ -38,6 +44,12 @@ vi.mock("../ports/runtimeKernelCapabilities", () => ({
 
 vi.mock("../ports/tauriRuntimeSkills", () => ({
   listRuntimeLiveSkills: vi.fn(),
+}));
+
+vi.mock("../ports/tauriOauth", () => ({
+  getProvidersCatalog: getProvidersCatalogMock,
+  listOAuthAccounts: listOAuthAccountsMock,
+  listOAuthPools: listOAuthPoolsMock,
 }));
 
 function createExtensionRecord(
@@ -130,6 +142,75 @@ function createHostCapabilityDescriptor(
   };
 }
 
+function createRuntimeProviderCatalogEntry(
+  overrides: Partial<RuntimeProviderCatalogEntry> = {}
+): RuntimeProviderCatalogEntry {
+  return {
+    providerId: "openai",
+    displayName: "OpenAI",
+    pool: "codex",
+    oauthProviderId: "codex",
+    aliases: [],
+    defaultModelId: "gpt-5.4",
+    available: true,
+    supportsNative: true,
+    supportsOpenaiCompat: true,
+    readinessKind: "ready",
+    readinessMessage: null,
+    executionKind: "cloud",
+    registryVersion: "1",
+    capabilityMatrix: {
+      supportsTools: "supported",
+      supportsReasoningEffort: "supported",
+      supportsVision: "supported",
+      supportsJsonSchema: "supported",
+      maxContextTokens: 200_000,
+      supportedReasoningEfforts: ["low", "medium", "high"],
+    },
+    ...overrides,
+  };
+}
+
+function createOAuthAccountSummary(
+  overrides: Partial<OAuthAccountSummary> = {}
+): OAuthAccountSummary {
+  return {
+    accountId: "acct-1",
+    provider: "codex",
+    externalAccountId: null,
+    email: "operator@example.com",
+    displayName: "Operator",
+    status: "enabled",
+    disabledReason: null,
+    routeConfig: {
+      schedulable: true,
+    },
+    routingState: {
+      credentialReady: true,
+    },
+    metadata: {},
+    createdAt: 1,
+    updatedAt: 2,
+    ...overrides,
+  };
+}
+
+function createOAuthPoolSummary(overrides: Partial<OAuthPoolSummary> = {}): OAuthPoolSummary {
+  return {
+    poolId: "pool-1",
+    provider: "codex",
+    name: "Primary pool",
+    strategy: "round_robin",
+    stickyMode: "cache_first",
+    preferredAccountId: null,
+    enabled: true,
+    metadata: {},
+    createdAt: 1,
+    updatedAt: 2,
+    ...overrides,
+  };
+}
+
 describe("runtimeKernelPlugins", () => {
   beforeEach(() => {
     readRuntimeWorkspaceSkillManifestsMock.mockReset();
@@ -137,6 +218,12 @@ describe("runtimeKernelPlugins", () => {
     evaluateRuntimeExtensionPermissionsMock.mockReset();
     listRuntimeKernelCapabilitiesMock.mockReset();
     runRuntimeLiveSkillMock.mockReset();
+    getProvidersCatalogMock.mockReset();
+    listOAuthAccountsMock.mockReset();
+    listOAuthPoolsMock.mockReset();
+    getProvidersCatalogMock.mockResolvedValue([]);
+    listOAuthAccountsMock.mockResolvedValue([]);
+    listOAuthPoolsMock.mockResolvedValue([]);
   });
 
   it("normalizes runtime extensions, live skills, and repo manifests into unified plugin descriptors", async () => {
@@ -568,6 +655,109 @@ describe("runtimeKernelPlugins", () => {
       decision: "ask",
       authority: "repo_manifest",
       evaluationMode: "repo_manifest_permissions",
+    });
+  });
+
+  it("normalizes provider routing into unified routing plugin descriptors", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+
+    const descriptors = plugins.createRuntimeProviderRoutePluginDescriptors({
+      providers: [
+        createRuntimeProviderCatalogEntry(),
+        createRuntimeProviderCatalogEntry({
+          providerId: "local",
+          displayName: "Native runtime",
+          pool: null,
+          oauthProviderId: null,
+          defaultModelId: null,
+          executionKind: "local",
+          capabilityMatrix: null,
+        }),
+      ],
+      accounts: [],
+      pools: [],
+    });
+
+    expect(descriptors.map((descriptor) => descriptor.id)).toEqual([
+      "route:auto",
+      "route:local",
+      "route:openai",
+    ]);
+    expect(descriptors[0]).toMatchObject({
+      source: "execution_route",
+      transport: "execution_route",
+      binding: {
+        contractFormat: "route",
+        surfaces: [
+          {
+            kind: "route",
+            direction: "export",
+          },
+        ],
+      },
+      metadata: expect.objectContaining({
+        routeKind: "combined_execution",
+        routeValue: "auto",
+        readiness: "attention",
+      }),
+    });
+    expect(descriptors[2]).toMatchObject({
+      source: "provider_route",
+      transport: "provider_route",
+      operations: {
+        execution: {
+          executable: false,
+          mode: "none",
+        },
+      },
+      metadata: expect.objectContaining({
+        routeKind: "provider_family",
+        providerId: "openai",
+        oauthProviderId: "codex",
+        readiness: "blocked",
+        enabledPoolCount: 0,
+        credentialReadyAccountCount: 0,
+        capabilityMatrix: expect.objectContaining({
+          supportsTools: "supported",
+        }),
+      }),
+    });
+  });
+
+  it("builds selected routing state from plugin descriptors instead of the legacy routing facade", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+
+    const selection = plugins.resolveRuntimeKernelRouteSelection({
+      plugins: [
+        ...plugins.createRuntimeProviderRoutePluginDescriptors({
+          providers: [createRuntimeProviderCatalogEntry()],
+          accounts: [createOAuthAccountSummary()],
+          pools: [createOAuthPoolSummary()],
+        }),
+      ],
+      selectedRoute: "openai",
+      preferredBackendIds: ["backend-primary", "backend-primary"],
+      resolvedBackendId: "backend-primary",
+      provenance: "backend_preference",
+    });
+
+    expect(selection.normalizedValue).toBe("openai");
+    expect(selection.selected).toMatchObject({
+      value: "openai",
+      ready: true,
+      readiness: "ready",
+      detail: expect.stringContaining("backend-primary"),
+      provenance: expect.objectContaining({
+        source: "backend_preference",
+      }),
+      plugin: expect.objectContaining({
+        source: "execution_route",
+        transport: "execution_route",
+        metadata: expect.objectContaining({
+          preferredBackendIds: ["backend-primary"],
+          resolvedBackendId: "backend-primary",
+        }),
+      }),
     });
   });
 });

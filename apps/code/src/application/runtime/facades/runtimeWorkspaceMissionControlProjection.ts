@@ -4,7 +4,11 @@ import type {
   OAuthPoolSummary,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
-import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPlugins";
+import {
+  readRuntimeKernelRoutingPluginMetadata,
+  resolveRuntimeKernelRouteSelection,
+  type RuntimeKernelPluginDescriptor,
+} from "../kernel/runtimeKernelPlugins";
 import type { RuntimeExecutionReliabilitySummary } from "./runtimeExecutionReliability";
 import type { RuntimeLaunchReadinessSummary } from "./runtimeLaunchReadiness";
 import {
@@ -19,7 +23,6 @@ import {
 } from "./runtimeMissionControlOrchestration";
 import { type RuntimeProviderRoutingHealth } from "./runtimeRoutingHealth";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
-import { resolveRuntimeProviderRouteSelection } from "./runtimeProviderRouting";
 
 export type WorkspaceMissionControlRouteOption = {
   value: string;
@@ -88,6 +91,13 @@ export type WorkspaceRuntimeMissionControlProjection = {
     runtimeExtensionCount: number;
     liveSkillCount: number;
     repoManifestCount: number;
+    routingCount: number;
+    providerRouteCount: number;
+    backendRouteCount: number;
+    executionRouteCount: number;
+    readyRouteCount: number;
+    attentionRouteCount: number;
+    blockedRouteCount: number;
     unsupportedHostCount: number;
     healthyCount: number;
     degradedCount: number;
@@ -166,6 +176,13 @@ function buildPluginCatalogSummary(input: {
     runtimeExtensionCount: 0,
     liveSkillCount: 0,
     repoManifestCount: 0,
+    routingCount: 0,
+    providerRouteCount: 0,
+    backendRouteCount: 0,
+    executionRouteCount: 0,
+    readyRouteCount: 0,
+    attentionRouteCount: 0,
+    blockedRouteCount: 0,
     unsupportedHostCount: 0,
     healthyCount: 0,
     degradedCount: 0,
@@ -213,6 +230,27 @@ function buildPluginCatalogSummary(input: {
       summary.liveSkillCount += 1;
     } else if (plugin.source === "repo_manifest") {
       summary.repoManifestCount += 1;
+    } else if (
+      plugin.source === "provider_route" ||
+      plugin.source === "backend_route" ||
+      plugin.source === "execution_route"
+    ) {
+      summary.routingCount += 1;
+      if (plugin.source === "provider_route") {
+        summary.providerRouteCount += 1;
+      } else if (plugin.source === "backend_route") {
+        summary.backendRouteCount += 1;
+      } else {
+        summary.executionRouteCount += 1;
+      }
+      const routingMetadata = readRuntimeKernelRoutingPluginMetadata(plugin.metadata);
+      if (routingMetadata?.readiness === "ready") {
+        summary.readyRouteCount += 1;
+      } else if (routingMetadata?.readiness === "attention") {
+        summary.attentionRouteCount += 1;
+      } else if (routingMetadata?.readiness === "blocked") {
+        summary.blockedRouteCount += 1;
+      }
     } else {
       summary.unsupportedHostCount += 1;
     }
@@ -240,11 +278,20 @@ export function buildWorkspaceRuntimeMissionControlProjection(
     error: input.runtimePluginsError,
     projectionBacked: input.runtimePluginsProjectionBacked,
   });
-  const routeSelection = resolveRuntimeProviderRouteSelection({
+  const recentTaskWithPlacement = input.runtimeTasks.find((task) =>
+    Array.isArray(task.preferredBackendIds) && task.preferredBackendIds.length > 0
+      ? true
+      : typeof task.backendId === "string" && task.backendId.trim().length > 0
+  );
+  const routeSelection = resolveRuntimeKernelRouteSelection({
+    plugins: input.runtimePlugins,
     selectedRoute: input.selectedProviderRoute,
-    providers: input.runtimeProviders,
-    accounts: input.runtimeAccounts,
-    pools: input.runtimePools,
+    preferredBackendIds: recentTaskWithPlacement?.preferredBackendIds ?? null,
+    resolvedBackendId: recentTaskWithPlacement?.backendId ?? null,
+    provenance:
+      recentTaskWithPlacement?.backendId || recentTaskWithPlacement?.preferredBackendIds?.length
+        ? "runtime_fallback"
+        : undefined,
   });
 
   const orchestration = buildRuntimeMissionControlOrchestrationState({
@@ -279,7 +326,11 @@ export function buildWorkspaceRuntimeMissionControlProjection(
           ? "Workspace auto route"
           : routeSelection.selected.source === "explicit_route"
             ? "Explicit provider route"
-            : "Model-derived route",
+            : routeSelection.selected.source === "backend_preference"
+              ? "Backend-preferred route"
+              : routeSelection.selected.source === "runtime_fallback"
+                ? "Runtime fallback route"
+                : "Model-derived route",
     },
     runtimeToolMetrics: input.runtimeToolMetrics,
     runtimeToolGuardrails: input.runtimeToolGuardrails,

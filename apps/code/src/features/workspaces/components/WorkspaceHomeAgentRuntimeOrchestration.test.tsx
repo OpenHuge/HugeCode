@@ -9,7 +9,10 @@ import {
   within,
 } from "@testing-library/react";
 import { act } from "react";
-import type { AgentTaskSummary } from "@ku0/code-runtime-host-contract";
+import type {
+  AgentTaskSummary,
+  RuntimeProviderCatalogEntry,
+} from "@ku0/code-runtime-host-contract";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import {
   buildRuntimeToolLifecyclePresentationSummary,
@@ -25,7 +28,10 @@ import {
   type RuntimeKernelCapabilityKey,
   type RuntimeKernelCapabilityMap,
 } from "../../../application/runtime/kernel/runtimeKernelCapabilities";
-import type { RuntimeKernelPluginDescriptor } from "../../../application/runtime/kernel/runtimeKernelPlugins";
+import {
+  createRuntimeProviderRoutePluginDescriptors,
+  type RuntimeKernelPluginDescriptor,
+} from "../../../application/runtime/kernel/runtimeKernelPlugins";
 import type { RuntimeUpdatedEvent } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import { createRuntimeAgentControlFacade } from "../../../application/runtime/facades/runtimeAgentControlFacade";
 import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
@@ -183,6 +189,20 @@ function mockRuntimeTasks(tasks: MockAgentTaskSummary[]) {
       .map((run) => projectCompletedRunToReviewPackSummary(run))
       .filter((reviewPack) => reviewPack !== null),
   });
+}
+
+function mockRoutingPlugins(input: {
+  providers: Parameters<typeof createRuntimeProviderRoutePluginDescriptors>[0]["providers"];
+  accounts?: Parameters<typeof createRuntimeProviderRoutePluginDescriptors>[0]["accounts"];
+  pools?: Parameters<typeof createRuntimeProviderRoutePluginDescriptors>[0]["pools"];
+}) {
+  runtimePluginCatalogListMock.mockResolvedValue(
+    createRuntimeProviderRoutePluginDescriptors({
+      providers: input.providers,
+      accounts: input.accounts ?? [],
+      pools: input.pools ?? [],
+    })
+  );
 }
 
 beforeEach(() => {
@@ -748,10 +768,7 @@ function createRuntimeKernelValue(): RuntimeKernel {
         if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands) {
           return runtimeSessionCommands as RuntimeKernelCapabilityMap[K];
         }
-        if (
-          key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog ||
-          key === RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog
-        ) {
+        if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog) {
           return runtimePluginCatalog as RuntimeKernelCapabilityMap[K];
         }
         throw new Error(`Unsupported workspace runtime capability: ${key}`);
@@ -759,8 +776,7 @@ function createRuntimeKernelValue(): RuntimeKernel {
       hasCapability: (key: string) =>
         key === RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl ||
         key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands ||
-        key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog ||
-        key === RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog,
+        key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog,
       listCapabilities: () => [
         RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
         RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
@@ -1165,7 +1181,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
   it("shows route-specific readiness detail when no provider route is ready", async () => {
     mockRuntimeTasks([]);
-    vi.mocked(getProvidersCatalog).mockResolvedValue([
+    const providers: RuntimeProviderCatalogEntry[] = [
       {
         providerId: "openai",
         displayName: "OpenAI",
@@ -1178,9 +1194,11 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
         supportsOpenaiCompat: true,
         registryVersion: "1",
       },
-    ]);
+    ];
+    vi.mocked(getProvidersCatalog).mockResolvedValue(providers);
     vi.mocked(listOAuthAccounts).mockResolvedValue([]);
     vi.mocked(listOAuthPools).mockResolvedValue([]);
+    mockRoutingPlugins({ providers });
 
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
@@ -1249,7 +1267,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
   it("keeps auto launch available when local routing remains available", async () => {
     mockRuntimeTasks([]);
-    vi.mocked(getProvidersCatalog).mockResolvedValue([
+    const providers: RuntimeProviderCatalogEntry[] = [
       {
         providerId: "native",
         displayName: "Native runtime",
@@ -1274,9 +1292,11 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
         supportsOpenaiCompat: true,
         registryVersion: "1",
       },
-    ]);
+    ];
+    vi.mocked(getProvidersCatalog).mockResolvedValue(providers);
     vi.mocked(listOAuthAccounts).mockResolvedValue([]);
     vi.mocked(listOAuthPools).mockResolvedValue([]);
+    mockRoutingPlugins({ providers });
 
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 

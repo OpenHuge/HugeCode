@@ -1,4 +1,7 @@
-import type { RuntimeKernelPluginDescriptor } from "../../../application/runtime/kernel/runtimeKernelPlugins";
+import {
+  readRuntimeKernelRoutingPluginMetadata,
+  type RuntimeKernelPluginDescriptor,
+} from "../../../application/runtime/kernel/runtimeKernelPlugins";
 import {
   DebugDiagnosticsDefinitionList,
   type DebugDiagnosticsFieldDescriptor,
@@ -17,7 +20,7 @@ function createPluginFields(
   const execution = plugin.operations.execution;
   const resources = plugin.operations.resources;
   const permissions = plugin.operations.permissions;
-  return [
+  const fields: DebugDiagnosticsFieldDescriptor[] = [
     { label: "source", value: plugin.source },
     { label: "transport", value: plugin.transport },
     { label: "binding_state", value: plugin.binding.state },
@@ -55,6 +58,23 @@ function createPluginFields(
           : "-",
     },
   ];
+  const routingMetadata = readRuntimeKernelRoutingPluginMetadata(plugin.metadata);
+  if (routingMetadata) {
+    fields.push(
+      { label: "route_kind", value: routingMetadata.routeKind },
+      { label: "route_value", value: routingMetadata.routeValue },
+      { label: "route_readiness", value: routingMetadata.readiness },
+      { label: "route_provenance", value: routingMetadata.provenance ?? "-" },
+      { label: "route_provider", value: routingMetadata.providerId ?? "-" },
+      { label: "route_pool", value: routingMetadata.pool ?? "-" },
+      {
+        label: "preferred_backends",
+        value: routingMetadata.preferredBackendIds?.join(", ") ?? "-",
+      },
+      { label: "resolved_backend", value: routingMetadata.resolvedBackendId ?? "-" }
+    );
+  }
+  return fields;
 }
 
 export function DebugRuntimePluginsSection({

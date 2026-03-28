@@ -9,20 +9,14 @@ export const RUNTIME_KERNEL_CAPABILITY_KEYS = {
   agentControl: "control.agent",
   sessionCommands: "session.commands",
   pluginCatalog: "plugins.catalog",
-  extensionsCatalog: "extensions.catalog",
 } as const;
 
-export type RuntimeKernelCanonicalCapabilityMap = {
+export type RuntimeKernelCapabilityMap = {
   [RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl]: RuntimeAgentControlFacade;
   [RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands]: RuntimeSessionCommandFacade;
   [RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog]: RuntimeKernelPluginCatalogFacade;
 };
 
-export type RuntimeKernelCapabilityMap = RuntimeKernelCanonicalCapabilityMap & {
-  [RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog]: RuntimeKernelPluginCatalogFacade;
-};
-
-export type RuntimeKernelCanonicalCapabilityKey = keyof RuntimeKernelCanonicalCapabilityMap;
 export type RuntimeKernelCapabilityKey = keyof RuntimeKernelCapabilityMap;
 
 export type WorkspaceRuntimeCapabilityProviderContext = {
@@ -31,22 +25,13 @@ export type WorkspaceRuntimeCapabilityProviderContext = {
 };
 
 export type WorkspaceRuntimeCapabilityProvider<
-  K extends RuntimeKernelCanonicalCapabilityKey = RuntimeKernelCanonicalCapabilityKey,
+  K extends RuntimeKernelCapabilityKey = RuntimeKernelCapabilityKey,
 > = {
   key: K;
   createCapability: (
     context: WorkspaceRuntimeCapabilityProviderContext
   ) => RuntimeKernelCapabilityMap[K];
 };
-
-export function resolveRuntimeKernelCapabilityKey(
-  key: RuntimeKernelCapabilityKey
-): RuntimeKernelCanonicalCapabilityKey {
-  if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog) {
-    return RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog;
-  }
-  return key;
-}
 
 export function resolveWorkspaceRuntimeCapability<K extends RuntimeKernelCapabilityKey>(
   scope: WorkspaceRuntimeScope,
