@@ -20,9 +20,11 @@ import {
 } from "./runtimeMissionControlFacade";
 import { buildMissionProvenanceSummary } from "./runtimeMissionControlProvenance";
 import { describeMissionRunRouteDetail } from "./runtimeMissionControlRouteDetail";
+import { formatMissionLatestRunReviewStatus } from "./runtimeMissionControlFormatting";
 
 export {
   formatMissionControlFreshnessLabel,
+  formatMissionLatestRunReviewStatus,
   formatMissionOverviewStateLabel,
 } from "./runtimeMissionControlFormatting";
 export { describeMissionRunRouteDetail };
@@ -651,17 +653,12 @@ export function buildLatestMissionRunsFromProjection(
       statusLabel = "Needs input";
       statusKind = "needs_input";
     } else if (task.latestRunState === "review_ready") {
-      if (reviewPack?.reviewStatus === "action_required") {
-        statusLabel =
-          reviewPack.warningCount > 0 ? `Warnings: ${reviewPack.warningCount}` : "Action required";
-        statusKind = "attention";
-      } else if (reviewPack?.reviewStatus === "incomplete_evidence") {
-        statusLabel = "Evidence incomplete";
-        statusKind = "attention";
-      } else {
-        statusLabel = "Review ready";
-        statusKind = "review_ready";
-      }
+      const reviewPresentation = formatMissionLatestRunReviewStatus({
+        reviewPack,
+        run: latestRun,
+      });
+      statusLabel = reviewPresentation.statusLabel;
+      statusKind = reviewPresentation.statusKind;
     } else {
       statusLabel = "Needs attention";
       statusKind = "attention";

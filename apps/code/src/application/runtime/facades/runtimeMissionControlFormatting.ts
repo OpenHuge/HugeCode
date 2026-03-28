@@ -1,3 +1,9 @@
+import type {
+  HugeCodeReviewPackSummary,
+  HugeCodeRunSummary,
+} from "@ku0/code-runtime-host-contract";
+import { resolveMissionControlReviewPresentation } from "@ku0/code-runtime-host-contract";
+
 export function formatMissionOverviewStateLabel(
   state: "running" | "needsAction" | "reviewReady" | "ready"
 ): string {
@@ -34,4 +40,22 @@ export function formatMissionControlFreshnessLabel(freshness: {
     return "Mission control stale";
   }
   return "Mission control live";
+}
+
+export function formatMissionLatestRunReviewStatus(input: {
+  reviewPack: HugeCodeReviewPackSummary | null;
+  run: HugeCodeRunSummary;
+  continuationState?: "ready" | "attention" | "degraded" | "blocked" | "missing" | null;
+  hasBlockedSubAgents?: boolean;
+}) {
+  const presentation = resolveMissionControlReviewPresentation({
+    reviewPack: input.reviewPack,
+    run: input.run,
+    continuationState: input.continuationState,
+    hasBlockedSubAgents: input.hasBlockedSubAgents,
+  });
+  return {
+    statusLabel: presentation.reviewStatusLabel,
+    statusKind: presentation.tone === "ready" ? "review_ready" : "attention",
+  } as const;
 }
