@@ -36,11 +36,9 @@ function mapCanonicalTargetToMissionNavigationTarget(input: {
     return input.missionTarget;
   }
   if (target.kind === "thread") {
-    return {
-      kind: "thread",
-      workspaceId: target.workspaceId,
-      threadId: target.threadId,
-    };
+    // Mission Control should keep mission context intact even when runtime
+    // continuation truth says the next continue path is the mission thread.
+    return input.missionTarget;
   }
   if (target.kind === "review_pack") {
     return {
