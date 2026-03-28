@@ -813,6 +813,109 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     });
   });
 
+  it("renders one reverse-chronological session timeline across events and hook checkpoints", async () => {
+    mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
+    useWorkspaceRuntimeToolLifecycleMock.mockReturnValue({
+      revision: 3,
+      lastHookCheckpoint: {
+        key: "hook-chronology",
+        point: "post_execution_pre_publication",
+        status: "ready",
+        source: "telemetry",
+        workspaceId: "ws-approval",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        toolCallId: "call-1",
+        toolName: "bash",
+        scope: "write",
+        lifecycleEventId: "tool-chronology",
+        at: 1_771_331_698_000,
+        reason: null,
+      },
+      lastEvent: {
+        id: "tool-chronology",
+        kind: "tool",
+        phase: "completed",
+        source: "telemetry",
+        workspaceId: "ws-approval",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        toolCallId: "call-1",
+        toolName: "bash",
+        scope: "write",
+        status: "success",
+        at: 1_771_331_697_000,
+        errorCode: null,
+      },
+      hookCheckpoints: [
+        {
+          key: "hook-chronology",
+          point: "post_execution_pre_publication",
+          status: "ready",
+          source: "telemetry",
+          workspaceId: "ws-approval",
+          threadId: "thread-1",
+          turnId: "turn-1",
+          toolCallId: "call-1",
+          toolName: "bash",
+          scope: "write",
+          lifecycleEventId: "tool-chronology",
+          at: 1_771_331_698_000,
+          reason: null,
+        },
+      ],
+      lifecycleEvents: [
+        {
+          id: "tool-chronology",
+          kind: "tool",
+          phase: "completed",
+          source: "telemetry",
+          workspaceId: "ws-approval",
+          threadId: "thread-1",
+          turnId: "turn-1",
+          toolCallId: "call-1",
+          toolName: "bash",
+          scope: "write",
+          status: "success",
+          at: 1_771_331_697_000,
+          errorCode: null,
+        },
+        {
+          id: "approval-chronology",
+          kind: "approval",
+          phase: "requested",
+          source: "app-event",
+          workspaceId: "ws-approval",
+          threadId: "thread-1",
+          turnId: "turn-1",
+          toolCallId: null,
+          toolName: null,
+          scope: null,
+          status: "pending",
+          at: 1_771_331_690_000,
+          errorCode: null,
+          approvalId: "approval-1",
+        },
+      ],
+    });
+
+    const { container } = render(
+      <WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />
+    );
+
+    await waitFor(() => {
+      const sessionLog = within(container).getByTestId("workspace-runtime-session-log");
+      const labels = Array.from(sessionLog.querySelectorAll("strong")).map(
+        (node) => node.textContent
+      );
+      expect(labels).toEqual([
+        "Hook post execution pre publication",
+        "bash completed",
+        "Approval requested",
+      ]);
+    });
+  });
+
   it("shows runtime-owned launch preparation from runtime kernel v2", async () => {
     mockRuntimeTasks([]);
 

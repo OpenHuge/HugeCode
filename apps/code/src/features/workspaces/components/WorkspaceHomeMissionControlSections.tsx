@@ -224,16 +224,66 @@ type MissionControlSessionLogSectionProps = {
   maxItems?: number;
 };
 
+type MissionControlSessionLogEntry =
+  | {
+      kind: "event";
+      key: string;
+      at: number;
+      event: RuntimeToolLifecycleEvent;
+    }
+  | {
+      kind: "checkpoint";
+      key: string;
+      at: number;
+      checkpoint: RuntimeToolLifecycleHookCheckpoint;
+    };
+
+function getMissionControlSessionLogEntries(
+  hookCheckpoints: RuntimeToolLifecycleHookCheckpoint[],
+  lifecycleEvents: RuntimeToolLifecycleEvent[],
+  maxItems: number
+): MissionControlSessionLogEntry[] {
+  return [
+    ...lifecycleEvents.map(
+      (event): MissionControlSessionLogEntry => ({
+        kind: "event",
+        key: event.id,
+        at: event.at,
+        event,
+      })
+    ),
+    ...hookCheckpoints.map(
+      (checkpoint): MissionControlSessionLogEntry => ({
+        kind: "checkpoint",
+        key: checkpoint.key,
+        at: checkpoint.at,
+        checkpoint,
+      })
+    ),
+  ]
+    .sort((left, right) => {
+      if (right.at !== left.at) {
+        return right.at - left.at;
+      }
+      if (left.kind === right.kind) {
+        return 0;
+      }
+      return left.kind === "event" ? -1 : 1;
+    })
+    .slice(0, maxItems);
+}
+
 export function MissionControlSessionLogSection({
   hookCheckpoints,
   lifecycleEvents,
   maxItems = 8,
 }: MissionControlSessionLogSectionProps) {
-  const sortedEvents = lifecycleEvents.slice().sort((left, right) => right.at - left.at);
-  const sortedHookCheckpoints = hookCheckpoints.slice().sort((left, right) => right.at - left.at);
-  const visibleEvents = sortedEvents.slice(0, maxItems);
-  const visibleHookCheckpoints = sortedHookCheckpoints.slice(0, maxItems);
-  const hasActivity = visibleEvents.length > 0 || visibleHookCheckpoints.length > 0;
+  const visibleEntries = getMissionControlSessionLogEntries(
+    hookCheckpoints,
+    lifecycleEvents,
+    maxItems
+  );
+  const hasActivity = visibleEntries.length > 0;
   const toolEventCount = lifecycleEvents.filter((event) => event.kind === "tool").length;
   const approvalEventCount = lifecycleEvents.filter((event) => event.kind === "approval").length;
 
@@ -251,7 +301,7 @@ export function MissionControlSessionLogSection({
         </>
       }
     >
-      {visibleEvents.length === 0 && visibleHookCheckpoints.length === 0 ? (
+      {visibleEntries.length === 0 ? (
         <CoreLoopStatePanel
           compact
           eyebrow="Operator session log"
@@ -264,40 +314,45 @@ export function MissionControlSessionLogSection({
           className="workspace-home-code-runtime-list"
           data-testid="workspace-runtime-session-log"
         >
-          {visibleEvents.map((event) => (
-            <div className="workspace-home-code-runtime-item" key={event.id}>
-              <div className="workspace-home-code-runtime-item-main">
-                <strong>{describeLifecycleEvent(event)}</strong>
-                <ToolCallChip tone={getLifecycleTone(event)}>
-                  {formatLifecycleStatus(event.status)}
-                </ToolCallChip>
-                <span>{formatRuntimeTimestamp(event.at)}</span>
-                <span>Source: {event.source}</span>
-                {event.threadId ? <span>Thread: {event.threadId}</span> : null}
-                {event.turnId ? <span>Turn: {event.turnId}</span> : null}
-                {event.toolCallId ? <span>Call: {event.toolCallId}</span> : null}
-                {event.scope ? <span>Scope: {event.scope}</span> : null}
-                {event.errorCode ? <span>Error: {event.errorCode}</span> : null}
+          {visibleEntries.map((entry) =>
+            entry.kind === "event" ? (
+              <div className="workspace-home-code-runtime-item" key={entry.key}>
+                <div className="workspace-home-code-runtime-item-main">
+                  <strong>{describeLifecycleEvent(entry.event)}</strong>
+                  <ToolCallChip tone={getLifecycleTone(entry.event)}>
+                    {formatLifecycleStatus(entry.event.status)}
+                  </ToolCallChip>
+                  <span>{formatRuntimeTimestamp(entry.event.at)}</span>
+                  <span>Source: {entry.event.source}</span>
+                  {entry.event.threadId ? <span>Thread: {entry.event.threadId}</span> : null}
+                  {entry.event.turnId ? <span>Turn: {entry.event.turnId}</span> : null}
+                  {entry.event.toolCallId ? <span>Call: {entry.event.toolCallId}</span> : null}
+                  {entry.event.scope ? <span>Scope: {entry.event.scope}</span> : null}
+                  {entry.event.errorCode ? <span>Error: {entry.event.errorCode}</span> : null}
+                </div>
               </div>
-            </div>
-          ))}
-          {visibleHookCheckpoints.map((checkpoint) => (
-            <div className="workspace-home-code-runtime-item" key={checkpoint.key}>
-              <div className="workspace-home-code-runtime-item-main">
-                <strong>Hook {describeHookCheckpoint(checkpoint)}</strong>
-                <ToolCallChip tone={getHookCheckpointTone(checkpoint)}>
-                  {formatHookCheckpointStatus(checkpoint.status)}
-                </ToolCallChip>
-                <span>{formatRuntimeTimestamp(checkpoint.at)}</span>
-                <span>Source: {checkpoint.source}</span>
-                {checkpoint.threadId ? <span>Thread: {checkpoint.threadId}</span> : null}
-                {checkpoint.turnId ? <span>Turn: {checkpoint.turnId}</span> : null}
-                {checkpoint.toolCallId ? <span>Call: {checkpoint.toolCallId}</span> : null}
-                {checkpoint.scope ? <span>Scope: {checkpoint.scope}</span> : null}
-                {checkpoint.reason ? <span>Reason: {checkpoint.reason}</span> : null}
+            ) : (
+              <div className="workspace-home-code-runtime-item" key={entry.key}>
+                <div className="workspace-home-code-runtime-item-main">
+                  <strong>Hook {describeHookCheckpoint(entry.checkpoint)}</strong>
+                  <ToolCallChip tone={getHookCheckpointTone(entry.checkpoint)}>
+                    {formatHookCheckpointStatus(entry.checkpoint.status)}
+                  </ToolCallChip>
+                  <span>{formatRuntimeTimestamp(entry.checkpoint.at)}</span>
+                  <span>Source: {entry.checkpoint.source}</span>
+                  {entry.checkpoint.threadId ? (
+                    <span>Thread: {entry.checkpoint.threadId}</span>
+                  ) : null}
+                  {entry.checkpoint.turnId ? <span>Turn: {entry.checkpoint.turnId}</span> : null}
+                  {entry.checkpoint.toolCallId ? (
+                    <span>Call: {entry.checkpoint.toolCallId}</span>
+                  ) : null}
+                  {entry.checkpoint.scope ? <span>Scope: {entry.checkpoint.scope}</span> : null}
+                  {entry.checkpoint.reason ? <span>Reason: {entry.checkpoint.reason}</span> : null}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          )}
         </div>
       )}
     </MissionControlSectionCard>
