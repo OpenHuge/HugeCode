@@ -28,6 +28,7 @@ import {
 } from "../types/runtimeToolLifecycle";
 
 const RUNTIME_TOOL_LIFECYCLE_RECENT_LIMIT = 40;
+const ALL_WORKSPACE_RUNTIME_TOOL_LIFECYCLE_LISTENER_KEY = "__all__";
 
 type RuntimeToolLifecycleEventListener = (event: RuntimeToolLifecycleEvent) => void;
 type RuntimeToolLifecycleSnapshotListener = () => void;
@@ -152,6 +153,7 @@ export function createRuntimeToolLifecycleStore(
 ) {
   const eventListeners = new Set<RuntimeToolLifecycleEventListener>();
   const snapshotListeners = new Set<RuntimeToolLifecycleSnapshotListener>();
+  const workspaceSnapshotListeners = new Map<string, Set<RuntimeToolLifecycleSnapshotListener>>();
   let appServerUnsubscribe: Unsubscribe | null = null;
   let telemetryUnsubscribe: Unsubscribe | null = null;
   let snapshot: RuntimeToolLifecycleSnapshot = {
@@ -202,13 +204,38 @@ export function createRuntimeToolLifecycleStore(
     for (const listener of snapshotListeners) {
       notifyLifecycleSnapshotListener(listener);
     }
+    const workspaceListenerKeys = [ALL_WORKSPACE_RUNTIME_TOOL_LIFECYCLE_LISTENER_KEY];
+    if (event.workspaceId) {
+      workspaceListenerKeys.push(event.workspaceId);
+    }
+    for (const listenerKey of workspaceListenerKeys) {
+      const listeners = workspaceSnapshotListeners.get(listenerKey);
+      if (!listeners) {
+        continue;
+      }
+      for (const listener of listeners) {
+        notifyLifecycleSnapshotListener(listener);
+      }
+    }
+  }
+
+  function getWorkspaceListenerKey(workspaceId: string | null): string {
+    return workspaceId ?? ALL_WORKSPACE_RUNTIME_TOOL_LIFECYCLE_LISTENER_KEY;
+  }
+
+  function getWorkspaceSnapshotListenerCount(): number {
+    let listenerCount = 0;
+    for (const listeners of workspaceSnapshotListeners.values()) {
+      listenerCount += listeners.size;
+    }
+    return listenerCount;
   }
 
   function ensureSubscriptions(): void {
     if (
       appServerUnsubscribe ||
       telemetryUnsubscribe ||
-      eventListeners.size + snapshotListeners.size === 0
+      eventListeners.size + snapshotListeners.size + getWorkspaceSnapshotListenerCount() === 0
     ) {
       return;
     }
@@ -244,7 +271,7 @@ export function createRuntimeToolLifecycleStore(
   }
 
   function maybeStopSubscriptions(): void {
-    if (eventListeners.size + snapshotListeners.size > 0) {
+    if (eventListeners.size + snapshotListeners.size + getWorkspaceSnapshotListenerCount() > 0) {
       return;
     }
     if (appServerUnsubscribe) {
@@ -279,6 +306,28 @@ export function createRuntimeToolLifecycleStore(
     };
   }
 
+  function subscribeWorkspaceRuntimeToolLifecycleSnapshot(
+    workspaceId: string | null,
+    listener: RuntimeToolLifecycleSnapshotListener
+  ): Unsubscribe {
+    const listenerKey = getWorkspaceListenerKey(workspaceId);
+    const listeners = workspaceSnapshotListeners.get(listenerKey) ?? new Set();
+    listeners.add(listener);
+    workspaceSnapshotListeners.set(listenerKey, listeners);
+    ensureSubscriptions();
+    return () => {
+      const currentListeners = workspaceSnapshotListeners.get(listenerKey);
+      if (!currentListeners) {
+        return;
+      }
+      currentListeners.delete(listener);
+      if (currentListeners.size === 0) {
+        workspaceSnapshotListeners.delete(listenerKey);
+      }
+      maybeStopSubscriptions();
+    };
+  }
+
   function getRuntimeToolLifecycleSnapshot(): RuntimeToolLifecycleSnapshot {
     return snapshot;
   }
@@ -294,6 +343,7 @@ export function createRuntimeToolLifecycleStore(
     getWorkspaceRuntimeToolLifecycleSnapshot,
     subscribeRuntimeToolLifecycleEvents,
     subscribeRuntimeToolLifecycleSnapshot,
+    subscribeWorkspaceRuntimeToolLifecycleSnapshot,
   };
 }
 
@@ -310,3 +360,5 @@ export const subscribeRuntimeToolLifecycleEvents =
   runtimeToolLifecycleStore.subscribeRuntimeToolLifecycleEvents;
 export const subscribeRuntimeToolLifecycleSnapshot =
   runtimeToolLifecycleStore.subscribeRuntimeToolLifecycleSnapshot;
+export const subscribeWorkspaceRuntimeToolLifecycleSnapshot =
+  runtimeToolLifecycleStore.subscribeWorkspaceRuntimeToolLifecycleSnapshot;

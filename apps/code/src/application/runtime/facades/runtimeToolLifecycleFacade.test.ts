@@ -105,9 +105,24 @@ describe("runtimeToolLifecycleFacade", () => {
 
     const lifecycleListener = vi.fn();
     const snapshotListener = vi.fn();
+    const workspaceOneSnapshotListener = vi.fn();
+    const workspaceTwoSnapshotListener = vi.fn();
+    const allWorkspaceSnapshotListener = vi.fn();
 
     const unsubscribeEvents = facade.subscribeRuntimeToolLifecycleEvents(lifecycleListener);
     const unsubscribeSnapshot = facade.subscribeRuntimeToolLifecycleSnapshot(snapshotListener);
+    const unsubscribeWorkspaceOne = facade.subscribeWorkspaceRuntimeToolLifecycleSnapshot(
+      "workspace-1",
+      workspaceOneSnapshotListener
+    );
+    const unsubscribeWorkspaceTwo = facade.subscribeWorkspaceRuntimeToolLifecycleSnapshot(
+      "workspace-2",
+      workspaceTwoSnapshotListener
+    );
+    const unsubscribeAllWorkspaces = facade.subscribeWorkspaceRuntimeToolLifecycleSnapshot(
+      null,
+      allWorkspaceSnapshotListener
+    );
 
     expect(events.subscribeAppServerEvents).toHaveBeenCalledTimes(1);
     expect(telemetry.subscribeRuntimeToolExecutionTelemetryEvents).toHaveBeenCalledTimes(1);
@@ -146,6 +161,9 @@ describe("runtimeToolLifecycleFacade", () => {
 
     expect(lifecycleListener).toHaveBeenCalledTimes(2);
     expect(snapshotListener).toHaveBeenCalledTimes(2);
+    expect(workspaceOneSnapshotListener).toHaveBeenCalledTimes(2);
+    expect(workspaceTwoSnapshotListener).not.toHaveBeenCalled();
+    expect(allWorkspaceSnapshotListener).toHaveBeenCalledTimes(2);
     expect(facade.getRuntimeToolLifecycleSnapshot()).toMatchObject({
       revision: 2,
       lastEvent: {
@@ -205,6 +223,9 @@ describe("runtimeToolLifecycleFacade", () => {
     expect(telemetry.__telemetryListenerCount()).toBe(1);
 
     unsubscribeSnapshot();
+    unsubscribeWorkspaceOne();
+    unsubscribeWorkspaceTwo();
+    unsubscribeAllWorkspaces();
     expect(events.__appServerListenerCount()).toBe(0);
     expect(telemetry.__telemetryListenerCount()).toBe(0);
   });

@@ -7,12 +7,12 @@ import type { RuntimeToolLifecycleSnapshot } from "../../../application/runtime/
 
 type RuntimeToolLifecycleTestApi = {
   getWorkspaceRuntimeToolLifecycleSnapshot: ReturnType<typeof vi.fn>;
-  subscribeRuntimeToolLifecycleSnapshot: ReturnType<typeof vi.fn>;
+  subscribeWorkspaceRuntimeToolLifecycleSnapshot: ReturnType<typeof vi.fn>;
 };
 
 vi.mock("../../../application/runtime/ports/runtimeToolLifecycle", () => ({
   getWorkspaceRuntimeToolLifecycleSnapshot: vi.fn(),
-  subscribeRuntimeToolLifecycleSnapshot: vi.fn(() => () => undefined),
+  subscribeWorkspaceRuntimeToolLifecycleSnapshot: vi.fn(() => () => undefined),
 }));
 
 const lifecycleEvent = {
@@ -74,7 +74,11 @@ describe("useDebugRuntimeToolLifecycle", () => {
       })
     );
 
-    expect(api.subscribeRuntimeToolLifecycleSnapshot).toHaveBeenCalledTimes(1);
+    expect(api.subscribeWorkspaceRuntimeToolLifecycleSnapshot).toHaveBeenCalledTimes(1);
+    expect(api.subscribeWorkspaceRuntimeToolLifecycleSnapshot).toHaveBeenCalledWith(
+      "workspace-1",
+      expect.any(Function)
+    );
     expect(result.current.lifecycleEvents).toEqual([lifecycleEvent]);
     expect(result.current.lastEvent).toEqual(lifecycleEvent);
     expect(result.current.hookCheckpoints).toEqual([hookCheckpoint]);
@@ -112,7 +116,7 @@ describe("useDebugRuntimeToolLifecycle", () => {
       })
     );
 
-    expect(api.subscribeRuntimeToolLifecycleSnapshot).not.toHaveBeenCalled();
+    expect(api.subscribeWorkspaceRuntimeToolLifecycleSnapshot).not.toHaveBeenCalled();
     expect(result.current).toEqual({
       hookCheckpoints: [],
       lastHookCheckpoint: null,

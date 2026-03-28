@@ -1,7 +1,7 @@
 import { useCallback, useRef, useSyncExternalStore } from "react";
 import {
   getWorkspaceRuntimeToolLifecycleSnapshot,
-  subscribeRuntimeToolLifecycleSnapshot,
+  subscribeWorkspaceRuntimeToolLifecycleSnapshot,
   type RuntimeToolLifecycleEvent,
   type RuntimeToolLifecycleHookCheckpoint,
   type RuntimeToolLifecycleSnapshot,
@@ -61,9 +61,9 @@ export function useWorkspaceRuntimeToolLifecycle({
       if (!enabled) {
         return () => undefined;
       }
-      return subscribeRuntimeToolLifecycleSnapshot(callback);
+      return subscribeWorkspaceRuntimeToolLifecycleSnapshot(workspaceId, callback);
     },
-    [enabled]
+    [enabled, workspaceId]
   );
 
   const getSnapshot = useCallback(() => {
