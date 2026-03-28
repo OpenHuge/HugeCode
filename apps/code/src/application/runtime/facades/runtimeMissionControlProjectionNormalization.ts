@@ -1,3 +1,4 @@
+import { normalizeRuntimeProviderCapabilityMatrix } from "@ku0/code-runtime-client/runtimeCapabilityMatrix";
 import type {
   AgentTaskDistributedStatus,
   AgentTaskSummary,
@@ -74,6 +75,7 @@ export function normalizeRuntimeProviderCatalogEntry(
     readinessMessage: isNonEmptyString(entry.readinessMessage) ? entry.readinessMessage : null,
     executionKind: toExecutionKind(entry.executionKind),
     registryVersion: entry.registryVersion ?? null,
+    capabilityMatrix: normalizeRuntimeProviderCapabilityMatrix(entry),
   };
 }
 

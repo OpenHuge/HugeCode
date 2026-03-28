@@ -51,6 +51,21 @@ export type ModelPool =
 
 export type ModelCapability = "chat" | "coding" | "reasoning" | "vision";
 
+export type RuntimeCapabilitySupport = "supported" | "unsupported" | "unknown";
+
+export type RuntimeCapabilityMatrix = {
+  supportsTools: RuntimeCapabilitySupport;
+  supportsReasoningEffort: RuntimeCapabilitySupport;
+  supportsVision: RuntimeCapabilitySupport;
+  supportsJsonSchema: RuntimeCapabilitySupport;
+  maxContextTokens: number | null;
+  supportedReasoningEfforts: ReasonEffort[];
+};
+
+export type RuntimeModelCapabilityMatrix = RuntimeCapabilityMatrix;
+
+export type RuntimeProviderCapabilityMatrix = RuntimeCapabilityMatrix;
+
 export type WorkspaceSummary = {
   id: string;
   path: string;
@@ -87,6 +102,7 @@ export type ModelPoolEntry = {
   supportsVision: boolean;
   reasoningEfforts: ReasonEffort[];
   capabilities: ModelCapability[];
+  capabilityMatrix?: RuntimeModelCapabilityMatrix | null;
 };
 
 export type RemoteStatus = {
@@ -2489,6 +2505,7 @@ export type RuntimeProviderCatalogEntry = {
   readinessMessage?: string | null;
   executionKind?: RuntimeProviderExecutionKind | null;
   registryVersion?: string | null;
+  capabilityMatrix?: RuntimeProviderCapabilityMatrix | null;
 };
 
 export type OAuthAccountStatus = "enabled" | "disabled" | "forbidden" | "validation_blocked";

@@ -61,6 +61,10 @@
       "types": "./src/runtimeClientTypes.ts",
       "default": "./src/runtimeClientTypes.ts"
     },
+    "./runtimeCapabilityMatrix": {
+      "types": "./src/runtimeCapabilityMatrix.ts",
+      "default": "./src/runtimeCapabilityMatrix.ts"
+    },
     "./runtimeClientWebRequestTimeouts": {
       "types": "./src/runtimeClientWebRequestTimeouts.ts",
       "default": "./src/runtimeClientWebRequestTimeouts.ts"

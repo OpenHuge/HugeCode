@@ -14,6 +14,7 @@ export type ProviderSelectableModel = Pick<
   | "pool"
   | "source"
   | "available"
+  | "capabilityMatrix"
   | "providerReadinessKind"
   | "providerReadinessMessage"
   | "executionKind"
@@ -135,6 +136,91 @@ function resolveProviderReadinessPriority(
   return PROVIDER_READINESS_PRIORITY[readinessKind] ?? -1;
 }
 
+function resolveModelToolsPriority(model: ProviderSelectableModel): number {
+  switch (model.capabilityMatrix?.supportsTools) {
+    case "supported":
+      return 2;
+    case "unknown":
+    case undefined:
+    case null:
+      return 1;
+    case "unsupported":
+      return 0;
+  }
+}
+
+function resolveCapabilitySupportPriority(
+  value: "supported" | "unsupported" | "unknown" | null | undefined
+): number {
+  switch (value) {
+    case "supported":
+      return 2;
+    case "unknown":
+    case undefined:
+    case null:
+      return 1;
+    case "unsupported":
+      return 0;
+  }
+}
+
+function resolveModelReasoningPriority(model: ProviderSelectableModel): number {
+  return resolveCapabilitySupportPriority(model.capabilityMatrix?.supportsReasoningEffort);
+}
+
+function resolveModelVisionPriority(model: ProviderSelectableModel): number {
+  return resolveCapabilitySupportPriority(model.capabilityMatrix?.supportsVision);
+}
+
+function resolveModelContextPriority(model: ProviderSelectableModel): number {
+  return model.capabilityMatrix?.maxContextTokens ?? -1;
+}
+
+function resolveProviderToolsPriority<TModel extends ProviderSelectableModel>(
+  models: ReadonlyArray<TModel>
+): number {
+  return models.reduce((best, model) => {
+    const priority = resolveModelToolsPriority(model);
+    if (model.available === false) {
+      return best;
+    }
+    return Math.max(best, priority);
+  }, -1);
+}
+
+function resolveProviderReasoningPriority<TModel extends ProviderSelectableModel>(
+  models: ReadonlyArray<TModel>
+): number {
+  return models.reduce((best, model) => {
+    if (model.available === false) {
+      return best;
+    }
+    return Math.max(best, resolveModelReasoningPriority(model));
+  }, -1);
+}
+
+function resolveProviderVisionPriority<TModel extends ProviderSelectableModel>(
+  models: ReadonlyArray<TModel>
+): number {
+  return models.reduce((best, model) => {
+    if (model.available === false) {
+      return best;
+    }
+    return Math.max(best, resolveModelVisionPriority(model));
+  }, -1);
+}
+
+function resolveProviderContextPriority<TModel extends ProviderSelectableModel>(
+  models: ReadonlyArray<TModel>
+): number {
+  return models.reduce((best, model) => {
+    if (model.available === false) {
+      return best;
+    }
+    return Math.max(best, resolveModelContextPriority(model));
+  }, -1);
+}
+
 function resolveProviderRoutePriority(model: ProviderSelectableModel): number {
   const routeId = (
     normalizeValue(model.provider) ??
@@ -233,6 +319,23 @@ function pickRepresentativeModel<TModel extends ProviderSelectableModel>(
     const availabilityDelta = Number(right.available !== false) - Number(left.available !== false);
     if (availabilityDelta !== 0) {
       return availabilityDelta;
+    }
+    const toolsDelta = resolveModelToolsPriority(right) - resolveModelToolsPriority(left);
+    if (toolsDelta !== 0) {
+      return toolsDelta;
+    }
+    const reasoningDelta =
+      resolveModelReasoningPriority(right) - resolveModelReasoningPriority(left);
+    if (reasoningDelta !== 0) {
+      return reasoningDelta;
+    }
+    const visionDelta = resolveModelVisionPriority(right) - resolveModelVisionPriority(left);
+    if (visionDelta !== 0) {
+      return visionDelta;
+    }
+    const contextDelta = resolveModelContextPriority(right) - resolveModelContextPriority(left);
+    if (contextDelta !== 0) {
+      return contextDelta;
     }
     const priorityDelta = resolveProviderRoutePriority(left) - resolveProviderRoutePriority(right);
     if (priorityDelta !== 0) {
@@ -336,6 +439,27 @@ export function buildModelProviderOptions<TModel extends ProviderSelectableModel
       if (readinessDelta !== 0) {
         return readinessDelta;
       }
+      const toolsDelta =
+        resolveProviderToolsPriority(right.models) - resolveProviderToolsPriority(left.models);
+      if (toolsDelta !== 0) {
+        return toolsDelta;
+      }
+      const reasoningDelta =
+        resolveProviderReasoningPriority(right.models) -
+        resolveProviderReasoningPriority(left.models);
+      if (reasoningDelta !== 0) {
+        return reasoningDelta;
+      }
+      const visionDelta =
+        resolveProviderVisionPriority(right.models) - resolveProviderVisionPriority(left.models);
+      if (visionDelta !== 0) {
+        return visionDelta;
+      }
+      const contextDelta =
+        resolveProviderContextPriority(right.models) - resolveProviderContextPriority(left.models);
+      if (contextDelta !== 0) {
+        return contextDelta;
+      }
       const priorityDelta =
         resolveProviderFamilyPriority(left.id) - resolveProviderFamilyPriority(right.id);
       if (priorityDelta !== 0) {
@@ -366,6 +490,23 @@ export function buildProviderModelEntries<TModel extends ProviderSelectableModel
         Number(right.available !== false) - Number(left.available !== false);
       if (availabilityDelta !== 0) {
         return availabilityDelta;
+      }
+      const toolsDelta = resolveModelToolsPriority(right) - resolveModelToolsPriority(left);
+      if (toolsDelta !== 0) {
+        return toolsDelta;
+      }
+      const reasoningDelta =
+        resolveModelReasoningPriority(right) - resolveModelReasoningPriority(left);
+      if (reasoningDelta !== 0) {
+        return reasoningDelta;
+      }
+      const visionDelta = resolveModelVisionPriority(right) - resolveModelVisionPriority(left);
+      if (visionDelta !== 0) {
+        return visionDelta;
+      }
+      const contextDelta = resolveModelContextPriority(right) - resolveModelContextPriority(left);
+      if (contextDelta !== 0) {
+        return contextDelta;
       }
       return resolveModelPreferenceOrder(left, right);
     });
@@ -433,6 +574,27 @@ export function resolveAutoProviderId<TModel extends ProviderSelectableModel>(
       resolveProviderReadinessPriority(left.readinessKind);
     if (readinessDelta !== 0) {
       return readinessDelta;
+    }
+    const toolsDelta =
+      resolveProviderToolsPriority(right.models) - resolveProviderToolsPriority(left.models);
+    if (toolsDelta !== 0) {
+      return toolsDelta;
+    }
+    const reasoningDelta =
+      resolveProviderReasoningPriority(right.models) -
+      resolveProviderReasoningPriority(left.models);
+    if (reasoningDelta !== 0) {
+      return reasoningDelta;
+    }
+    const visionDelta =
+      resolveProviderVisionPriority(right.models) - resolveProviderVisionPriority(left.models);
+    if (visionDelta !== 0) {
+      return visionDelta;
+    }
+    const contextDelta =
+      resolveProviderContextPriority(right.models) - resolveProviderContextPriority(left.models);
+    if (contextDelta !== 0) {
+      return contextDelta;
     }
     const priorityDelta =
       resolveProviderFamilyPriority(left.id) - resolveProviderFamilyPriority(right.id);

@@ -3824,6 +3824,8 @@
             entry["providerId"] == Value::String("google".to_string())
                 && entry["pool"] == Value::String("gemini".to_string())
                 && entry["oauthProviderId"] == Value::String("gemini".to_string())
+                && entry["capabilityMatrix"]["supportedReasoningEfforts"]
+                    == json!(["low", "medium", "high"])
                 && entry["aliases"].as_array().is_some_and(|aliases| {
                     aliases.contains(&Value::String("antigravity".to_string()))
                 })
@@ -3832,6 +3834,8 @@
             entry["providerId"] == Value::String("claude_code_local".to_string())
                 && entry["pool"] == Value::Null
                 && entry["oauthProviderId"] == Value::Null
+                && entry["capabilityMatrix"]["supportsTools"]
+                    == Value::String("supported".to_string())
                 && entry["supportsOpenaiCompat"] == Value::Bool(false)
         }));
     }

@@ -33,7 +33,8 @@ pub(super) async fn build_models_pool(ctx: &AppContext) -> Vec<Value> {
             "supportsReasoning": true,
             "supportsVision": true,
             "reasoningEfforts": provider_reasoning_efforts(provider),
-            "capabilities": ["chat", "coding", "reasoning", "vision"]
+            "capabilities": ["chat", "coding", "reasoning", "vision"],
+            "capabilityMatrix": provider_capability_matrix_value(provider)
         }));
     }
     for extension in &provider_extensions {
@@ -50,7 +51,8 @@ pub(super) async fn build_models_pool(ctx: &AppContext) -> Vec<Value> {
             "supportsReasoning": true,
             "supportsVision": true,
             "reasoningEfforts": ["low", "medium", "high"],
-            "capabilities": ["chat", "coding", "reasoning", "vision"]
+            "capabilities": ["chat", "coding", "reasoning", "vision"],
+            "capabilityMatrix": extension_provider_capability_matrix_value()
         }));
     }
 
@@ -96,7 +98,8 @@ pub(super) async fn build_models_pool(ctx: &AppContext) -> Vec<Value> {
                 "supportsReasoning": true,
                 "supportsVision": true,
                 "reasoningEfforts": provider_reasoning_efforts(provider),
-                "capabilities": ["chat", "coding", "reasoning", "vision"]
+                "capabilities": ["chat", "coding", "reasoning", "vision"],
+                "capabilityMatrix": provider_capability_matrix_value(provider)
             }));
         }
     }
@@ -157,6 +160,7 @@ pub(super) async fn build_providers_catalog(ctx: &AppContext) -> Vec<RuntimeProv
             readiness_message: readiness.readiness_message,
             execution_kind: Some(readiness.execution_kind.to_string()),
             registry_version: Some(CODE_RUNTIME_RPC_CONTRACT_VERSION.to_string()),
+            capability_matrix: Some(provider_capability_matrix(provider)),
         });
     }
     entries.extend(
@@ -182,6 +186,7 @@ pub(super) async fn build_providers_catalog(ctx: &AppContext) -> Vec<RuntimeProv
                 ),
                 execution_kind: Some("cloud".to_string()),
                 registry_version: Some(CODE_RUNTIME_RPC_CONTRACT_VERSION.to_string()),
+                capability_matrix: Some(extension_provider_capability_matrix()),
             }),
     );
 
@@ -372,6 +377,43 @@ fn provider_reasoning_efforts(provider: RuntimeProvider) -> &'static [&'static s
             &["low", "medium", "high"]
         }
     }
+}
+
+fn provider_capability_matrix(provider: RuntimeProvider) -> RuntimeCapabilityMatrix {
+    RuntimeCapabilityMatrix {
+        supports_tools: "supported".to_string(),
+        supports_reasoning_effort: "supported".to_string(),
+        supports_vision: "supported".to_string(),
+        supports_json_schema: "unknown".to_string(),
+        max_context_tokens: None,
+        supported_reasoning_efforts: provider_reasoning_efforts(provider)
+            .iter()
+            .map(|effort| (*effort).to_string())
+            .collect(),
+    }
+}
+
+fn provider_capability_matrix_value(provider: RuntimeProvider) -> Value {
+    json!(provider_capability_matrix(provider))
+}
+
+fn extension_provider_capability_matrix() -> RuntimeCapabilityMatrix {
+    RuntimeCapabilityMatrix {
+        supports_tools: "supported".to_string(),
+        supports_reasoning_effort: "supported".to_string(),
+        supports_vision: "supported".to_string(),
+        supports_json_schema: "unknown".to_string(),
+        max_context_tokens: None,
+        supported_reasoning_efforts: vec![
+            "low".to_string(),
+            "medium".to_string(),
+            "high".to_string(),
+        ],
+    }
+}
+
+fn extension_provider_capability_matrix_value() -> Value {
+    json!(extension_provider_capability_matrix())
 }
 
 fn has_available_oauth_account(ctx: &AppContext, provider: RuntimeProvider) -> bool {

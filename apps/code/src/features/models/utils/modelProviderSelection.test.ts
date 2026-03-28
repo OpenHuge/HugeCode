@@ -81,4 +81,118 @@ describe("modelProviderSelection", () => {
       modelId: "gpt-5.1",
     });
   });
+
+  it("avoids auto-selecting providers whose models explicitly do not support tools", () => {
+    const providerOptions = buildModelProviderOptions([
+      createModel({
+        id: "gpt-5.1",
+        model: "gpt-5.1",
+        displayName: "GPT-5.1",
+        provider: "openai",
+        capabilityMatrix: {
+          supportsTools: "unsupported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "supported",
+          supportsJsonSchema: "supported",
+          maxContextTokens: 200000,
+          supportedReasoningEfforts: ["medium", "high"],
+        },
+      }),
+      createModel({
+        id: "claude-sonnet-4-5",
+        model: "claude-sonnet-4-5",
+        displayName: "Claude Sonnet 4.5",
+        provider: "anthropic",
+        pool: "claude",
+        capabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "supported",
+          supportsJsonSchema: "supported",
+          maxContextTokens: 200000,
+          supportedReasoningEfforts: ["medium", "high"],
+        },
+      }),
+    ]);
+
+    expect(resolveAutoModelProviderSelection(providerOptions, null, null)).toMatchObject({
+      providerId: "claude",
+      modelId: "claude-sonnet-4-5",
+    });
+  });
+
+  it("prefers models with explicit vision support when other routing signals are tied", () => {
+    const entries = buildProviderModelEntries(
+      [
+        createModel({
+          id: "gpt-5.4-text",
+          model: "gpt-5.4",
+          displayName: "GPT-5.4 Text",
+          capabilityMatrix: {
+            supportsTools: "supported",
+            supportsReasoningEffort: "supported",
+            supportsVision: "unsupported",
+            supportsJsonSchema: "supported",
+            maxContextTokens: 128000,
+            supportedReasoningEfforts: ["medium", "high"],
+          },
+        }),
+        createModel({
+          id: "gpt-5.4-vision",
+          model: "gpt-5.4",
+          displayName: "GPT-5.4 Vision",
+          capabilityMatrix: {
+            supportsTools: "supported",
+            supportsReasoningEffort: "supported",
+            supportsVision: "supported",
+            supportsJsonSchema: "supported",
+            maxContextTokens: 128000,
+            supportedReasoningEfforts: ["medium", "high"],
+          },
+        }),
+      ],
+      null
+    );
+
+    expect(entries.map((entry) => entry.id)).toEqual(["gpt-5.4-vision"]);
+  });
+
+  it("avoids auto-selecting providers whose models explicitly do not support vision", () => {
+    const providerOptions = buildModelProviderOptions([
+      createModel({
+        id: "gpt-5.4",
+        model: "gpt-5.4",
+        displayName: "GPT-5.4",
+        provider: "openai",
+        capabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "unsupported",
+          supportsJsonSchema: "supported",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: ["medium", "high"],
+        },
+      }),
+      createModel({
+        id: "claude-sonnet-4-5",
+        model: "claude-sonnet-4-5",
+        displayName: "Claude Sonnet 4.5",
+        provider: "anthropic",
+        pool: "claude",
+        capabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "supported",
+          supportsJsonSchema: "supported",
+          maxContextTokens: 200000,
+          supportedReasoningEfforts: ["medium", "high"],
+        },
+      }),
+    ]);
+
+    expect(resolveAutoModelProviderSelection(providerOptions, null, null)).toMatchObject({
+      providerId: "claude",
+      modelId: "claude-sonnet-4-5",
+    });
+  });
 });

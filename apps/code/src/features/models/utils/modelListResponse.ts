@@ -1,3 +1,4 @@
+import { normalizeRuntimeModelCapabilityMatrix } from "@ku0/code-runtime-client/runtimeCapabilityMatrix";
 import type { ModelOption } from "../../../types";
 import { normalizeEffortValue, normalizeModelOption } from "./modelOptionCapabilities";
 
@@ -96,6 +97,8 @@ export function parseModelListResponse(response: unknown): ModelOption[] {
       const modelSlug = String(record.model ?? record.id ?? "");
       const rawDisplayName = String(record.displayName ?? record.display_name ?? "");
       const displayName = rawDisplayName.trim().length > 0 ? rawDisplayName : modelSlug;
+      const parsedReasoningEfforts = parseReasoningEfforts(record);
+      const capabilityMatrix = normalizeRuntimeModelCapabilityMatrix(record);
       return normalizeModelOption({
         id: String(record.id ?? record.model ?? ""),
         model: modelSlug,
@@ -105,10 +108,20 @@ export function parseModelListResponse(response: unknown): ModelOption[] {
         pool: typeof poolRaw === "string" ? poolRaw : null,
         source: typeof sourceRaw === "string" ? sourceRaw : null,
         available: typeof availableRaw === "boolean" ? availableRaw : true,
-        supportedReasoningEfforts: parseReasoningEfforts(record),
+        supportedReasoningEfforts:
+          capabilityMatrix.supportedReasoningEfforts.length > 0
+            ? capabilityMatrix.supportedReasoningEfforts.map((reasoningEffort) => ({
+                reasoningEffort,
+                description:
+                  parsedReasoningEfforts.find(
+                    (effort) => effort.reasoningEffort === reasoningEffort
+                  )?.description ?? "",
+              }))
+            : parsedReasoningEfforts,
         defaultReasoningEffort: normalizeEffortValue(
           record.defaultReasoningEffort ?? record.default_reasoning_effort
         ),
+        capabilityMatrix,
         isDefault: Boolean(record.isDefault ?? record.is_default ?? false),
       } satisfies ModelOption);
     })

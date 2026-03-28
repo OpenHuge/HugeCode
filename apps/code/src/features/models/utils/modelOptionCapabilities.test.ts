@@ -45,7 +45,7 @@ describe("modelOptionCapabilities", () => {
     expect(normalized.supportedReasoningEfforts).toEqual([
       { reasoningEffort: "high", description: "High" },
     ]);
-    expect(normalized.defaultReasoningEffort).toBe("medium");
+    expect(normalized.defaultReasoningEffort).toBe("high");
   });
 
   it("derives reasoning support and options from normalized model capabilities", () => {
@@ -72,5 +72,26 @@ describe("modelOptionCapabilities", () => {
 
     expect(getModelReasoningOptions(model)).toEqual(["high"]);
     expect(normalizeEffortValue(" XHIGH ")).toBe("xhigh");
+  });
+
+  it("honors explicit unsupported reasoning capability over legacy reasoning fields", () => {
+    const model = normalizeModelOption(
+      createModelOption({
+        supportedReasoningEfforts: [{ reasoningEffort: "high", description: "High" }],
+        defaultReasoningEffort: "high",
+        capabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "unsupported",
+          supportsVision: "supported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: [],
+        },
+      })
+    );
+
+    expect(supportsModelReasoning(model)).toBe(false);
+    expect(getModelReasoningOptions(model)).toEqual([]);
+    expect(model.defaultReasoningEffort).toBeNull();
   });
 });

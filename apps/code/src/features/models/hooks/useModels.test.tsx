@@ -447,6 +447,243 @@ describe("useModels", () => {
     expect(result.current.selectedModel?.provider).toBe("openai");
   });
 
+  it("suppresses reasoning options when provider compatibility marks reasoning unsupported", async () => {
+    vi.mocked(getModelList).mockResolvedValueOnce({
+      result: {
+        data: [
+          {
+            id: "openai::gpt-5.4",
+            model: "gpt-5.4",
+            displayName: "GPT-5.4",
+            provider: "openai",
+            pool: "codex",
+            available: true,
+            supportedReasoningEfforts: [{ reasoningEffort: "high", description: "High" }],
+            defaultReasoningEffort: "high",
+            isDefault: true,
+          },
+        ],
+      },
+    });
+    vi.mocked(getConfigModel).mockResolvedValueOnce(null);
+    getProvidersCatalogMock.mockResolvedValueOnce([
+      {
+        providerId: "openai",
+        displayName: "Codex",
+        pool: "codex",
+        oauthProviderId: "codex",
+        aliases: ["openai", "codex"],
+        defaultModelId: "openai::gpt-5.4",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        readinessKind: "ready",
+        readinessMessage: null,
+        executionKind: "cloud",
+        registryVersion: "test",
+        capabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "unsupported",
+          supportsVision: "supported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: [],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() => useModels({ activeWorkspace: workspace }));
+
+    await waitFor(() => expect(result.current.selectedModelId).toBe("openai::gpt-5.4"));
+    expect(result.current.reasoningSupported).toBe(false);
+    expect(result.current.reasoningOptions).toEqual([]);
+    expect(result.current.selectedEffort).toBeNull();
+  });
+
+  it("avoids auto-selecting providers whose models explicitly do not support tools", async () => {
+    vi.mocked(getModelList).mockResolvedValueOnce({
+      result: {
+        data: [
+          {
+            id: "openai::gpt-5.4",
+            model: "gpt-5.4",
+            displayName: "GPT-5.4",
+            provider: "openai",
+            pool: "codex",
+            available: true,
+            supportedReasoningEfforts: [{ reasoningEffort: "high", description: "High" }],
+            defaultReasoningEffort: "high",
+            isDefault: true,
+          },
+          {
+            id: "anthropic::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            provider: "anthropic",
+            pool: "claude",
+            available: true,
+            supportedReasoningEfforts: [{ reasoningEffort: "high", description: "High" }],
+            defaultReasoningEffort: "high",
+            isDefault: false,
+          },
+        ],
+      },
+    });
+    vi.mocked(getConfigModel).mockResolvedValueOnce(null);
+    getProvidersCatalogMock.mockResolvedValueOnce([
+      {
+        providerId: "openai",
+        displayName: "Codex",
+        pool: "codex",
+        oauthProviderId: "codex",
+        aliases: ["openai", "codex"],
+        defaultModelId: "openai::gpt-5.4",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        readinessKind: "ready",
+        readinessMessage: null,
+        executionKind: "cloud",
+        registryVersion: "test",
+        capabilityMatrix: {
+          supportsTools: "unsupported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "supported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: ["high"],
+        },
+      },
+      {
+        providerId: "anthropic",
+        displayName: "Claude Code",
+        pool: "claude",
+        oauthProviderId: "claude_code",
+        aliases: ["claude", "claude_code"],
+        defaultModelId: "anthropic::claude-sonnet-4-5",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        readinessKind: "ready",
+        readinessMessage: null,
+        executionKind: "cloud",
+        registryVersion: "test",
+        capabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "supported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: ["high"],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useModels({
+        activeWorkspace: workspace,
+        selectionMode: "auto",
+      })
+    );
+
+    await waitFor(() =>
+      expect(result.current.selectedModelId).toBe("anthropic::claude-sonnet-4-5")
+    );
+    expect(result.current.selectedModel?.provider).toBe("anthropic");
+  });
+
+  it("avoids auto-selecting providers whose models explicitly do not support vision", async () => {
+    vi.mocked(getModelList).mockResolvedValueOnce({
+      result: {
+        data: [
+          {
+            id: "openai::gpt-5.4",
+            model: "gpt-5.4",
+            displayName: "GPT-5.4",
+            provider: "openai",
+            pool: "codex",
+            available: true,
+            supportedReasoningEfforts: [{ reasoningEffort: "high", description: "High" }],
+            defaultReasoningEffort: "high",
+            isDefault: true,
+          },
+          {
+            id: "anthropic::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            provider: "anthropic",
+            pool: "claude",
+            available: true,
+            supportedReasoningEfforts: [{ reasoningEffort: "high", description: "High" }],
+            defaultReasoningEffort: "high",
+            isDefault: false,
+          },
+        ],
+      },
+    });
+    vi.mocked(getConfigModel).mockResolvedValueOnce(null);
+    getProvidersCatalogMock.mockResolvedValueOnce([
+      {
+        providerId: "openai",
+        displayName: "Codex",
+        pool: "codex",
+        oauthProviderId: "codex",
+        aliases: ["openai", "codex"],
+        defaultModelId: "openai::gpt-5.4",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        readinessKind: "ready",
+        readinessMessage: null,
+        executionKind: "cloud",
+        registryVersion: "test",
+        capabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "unsupported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: ["high"],
+        },
+      },
+      {
+        providerId: "anthropic",
+        displayName: "Claude Code",
+        pool: "claude",
+        oauthProviderId: "claude_code",
+        aliases: ["claude", "claude_code"],
+        defaultModelId: "anthropic::claude-sonnet-4-5",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        readinessKind: "ready",
+        readinessMessage: null,
+        executionKind: "cloud",
+        registryVersion: "test",
+        capabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "supported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 200000,
+          supportedReasoningEfforts: ["high"],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useModels({
+        activeWorkspace: workspace,
+        selectionMode: "auto",
+      })
+    );
+
+    await waitFor(() =>
+      expect(result.current.selectedModelId).toBe("anthropic::claude-sonnet-4-5")
+    );
+    expect(result.current.selectedModel?.provider).toBe("anthropic");
+  });
+
   it("keeps the selected reasoning effort when switching models", async () => {
     vi.mocked(getModelList).mockResolvedValueOnce({
       result: {
@@ -492,6 +729,139 @@ describe("useModels", () => {
     await waitFor(() => {
       expect(result.current.selectedModelId).toBe("remote-2");
       expect(result.current.selectedEffort).toBe("high");
+    });
+  });
+
+  it("clamps the selected reasoning effort when the next model does not support it", async () => {
+    vi.mocked(getModelList).mockResolvedValueOnce({
+      result: {
+        data: [
+          {
+            id: "remote-openai",
+            model: "gpt-5.4",
+            displayName: "GPT-5.4",
+            supportedReasoningEfforts: [
+              { reasoningEffort: "medium", description: "Medium" },
+              { reasoningEffort: "high", description: "High" },
+              { reasoningEffort: "xhigh", description: "Extra High" },
+            ],
+            defaultReasoningEffort: "high",
+            isDefault: true,
+          },
+          {
+            id: "remote-anthropic",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            supportedReasoningEfforts: [
+              { reasoningEffort: "medium", description: "Medium" },
+              { reasoningEffort: "high", description: "High" },
+            ],
+            defaultReasoningEffort: "medium",
+            isDefault: false,
+          },
+        ],
+      },
+    });
+    vi.mocked(getConfigModel).mockResolvedValueOnce(null);
+
+    const { result } = renderHook(() => useModels({ activeWorkspace: workspace }));
+
+    await waitFor(() =>
+      expect(result.current.models.map((model) => model.id)).toEqual([
+        "remote-openai",
+        "remote-anthropic",
+      ])
+    );
+
+    act(() => {
+      result.current.setSelectedModelId("remote-openai");
+      result.current.setSelectedEffort("xhigh");
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedModelId).toBe("remote-openai");
+      expect(result.current.selectedEffort).toBe("xhigh");
+    });
+
+    act(() => {
+      result.current.setSelectedModelId("remote-anthropic");
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedModelId).toBe("remote-anthropic");
+      expect(result.current.selectedEffort).toBe("medium");
+    });
+  });
+
+  it("restores the user's reasoning preference after switching through a non-reasoning model", async () => {
+    vi.mocked(getModelList).mockResolvedValueOnce({
+      result: {
+        data: [
+          {
+            id: "remote-openai",
+            model: "gpt-5.4",
+            displayName: "GPT-5.4",
+            supportedReasoningEfforts: [
+              { reasoningEffort: "medium", description: "Medium" },
+              { reasoningEffort: "high", description: "High" },
+              { reasoningEffort: "xhigh", description: "Extra High" },
+            ],
+            defaultReasoningEffort: "high",
+            isDefault: true,
+          },
+          {
+            id: "remote-gemini",
+            model: "gemini-2.5-pro",
+            displayName: "Gemini 2.5 Pro",
+            supportedReasoningEfforts: [],
+            defaultReasoningEffort: null,
+            capabilityMatrix: {
+              supportsReasoningEffort: "unsupported",
+              supportedReasoningEfforts: [],
+            },
+            isDefault: false,
+          },
+        ],
+      },
+    });
+    vi.mocked(getConfigModel).mockResolvedValueOnce(null);
+
+    const { result } = renderHook(() => useModels({ activeWorkspace: workspace }));
+
+    await waitFor(() =>
+      expect(result.current.models.map((model) => model.id)).toEqual([
+        "remote-openai",
+        "remote-gemini",
+      ])
+    );
+
+    act(() => {
+      result.current.setSelectedModelId("remote-openai");
+      result.current.setSelectedEffort("xhigh");
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedModelId).toBe("remote-openai");
+      expect(result.current.selectedEffort).toBe("xhigh");
+    });
+
+    act(() => {
+      result.current.setSelectedModelId("remote-gemini");
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedModelId).toBe("remote-gemini");
+      expect(result.current.reasoningSupported).toBe(false);
+      expect(result.current.selectedEffort).toBeNull();
+    });
+
+    act(() => {
+      result.current.setSelectedModelId("remote-openai");
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedModelId).toBe("remote-openai");
+      expect(result.current.selectedEffort).toBe("xhigh");
     });
   });
 
