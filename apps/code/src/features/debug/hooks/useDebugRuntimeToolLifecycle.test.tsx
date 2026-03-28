@@ -10,10 +10,16 @@ type RuntimeToolLifecycleTestApi = {
   subscribeWorkspaceRuntimeToolLifecycleSnapshot: ReturnType<typeof vi.fn>;
 };
 
-vi.mock("../../../application/runtime/ports/runtimeToolLifecycle", () => ({
-  getWorkspaceRuntimeToolLifecycleSnapshot: vi.fn(),
-  subscribeWorkspaceRuntimeToolLifecycleSnapshot: vi.fn(() => () => undefined),
-}));
+vi.mock("../../../application/runtime/ports/runtimeToolLifecycle", async () => {
+  const actual = await vi.importActual<
+    typeof import("../../../application/runtime/ports/runtimeToolLifecycle")
+  >("../../../application/runtime/ports/runtimeToolLifecycle");
+  return {
+    ...actual,
+    getWorkspaceRuntimeToolLifecycleSnapshot: vi.fn(),
+    subscribeWorkspaceRuntimeToolLifecycleSnapshot: vi.fn(() => () => undefined),
+  };
+});
 
 const lifecycleEvent = {
   id: "tool-started-1",
@@ -83,6 +89,17 @@ describe("useDebugRuntimeToolLifecycle", () => {
     expect(result.current.lastEvent).toEqual(lifecycleEvent);
     expect(result.current.hookCheckpoints).toEqual([hookCheckpoint]);
     expect(result.current.lastHookCheckpoint).toEqual(hookCheckpoint);
+    expect(result.current.summary).toMatchObject({
+      totalEvents: 1,
+      totalHookCheckpoints: 1,
+      latestEventKey: "tool/started",
+      latestHookCheckpointKey: "post_execution_pre_publication/ready",
+    });
+    expect(result.current.sessionCheckpointBaseline.sessions).toHaveLength(1);
+    expect(result.current.sessionCheckpointSummary).toMatchObject({
+      hasSessions: true,
+      latestSessionLabel: "thread:thread-1/turn:turn-1",
+    });
   });
 
   it("preserves a matching lastEvent even when it is not present in recentEvents", () => {
@@ -106,6 +123,12 @@ describe("useDebugRuntimeToolLifecycle", () => {
     expect(result.current.lastHookCheckpoint).toEqual(hookCheckpoint);
     expect(result.current.hookCheckpoints).toEqual([]);
     expect(result.current.revision).toBe(3);
+    expect(result.current.summary).toMatchObject({
+      totalEvents: 0,
+      totalHookCheckpoints: 0,
+      hasActivity: false,
+    });
+    expect(result.current.sessionCheckpointBaseline.sessions).toHaveLength(1);
   });
 
   it("returns an empty snapshot when disabled", () => {
@@ -118,11 +141,35 @@ describe("useDebugRuntimeToolLifecycle", () => {
 
     expect(api.subscribeWorkspaceRuntimeToolLifecycleSnapshot).not.toHaveBeenCalled();
     expect(result.current).toEqual({
+      summary: {
+        approvalEventCount: 0,
+        hasActivity: false,
+        latestEvent: null,
+        latestEventKey: null,
+        latestHookCheckpoint: null,
+        latestHookCheckpointKey: null,
+        toolEventCount: 0,
+        totalEvents: 0,
+        totalHookCheckpoints: 0,
+      },
       hookCheckpoints: [],
       lastHookCheckpoint: null,
       lifecycleEvents: [],
       lastEvent: null,
       revision: 0,
+      sessionCheckpointBaseline: {
+        schemaVersion: "runtime-session-checkpoint-baseline/v1",
+        workspaceId: "workspace-1",
+        lifecycleRevision: 0,
+        projectionSource: "runtime_tool_lifecycle",
+        sessions: [],
+      },
+      sessionCheckpointSummary: expect.objectContaining({
+        hasSessions: false,
+        latestSession: null,
+        latestSessionLabel: null,
+        totalSessions: 0,
+      }),
     });
   });
 });

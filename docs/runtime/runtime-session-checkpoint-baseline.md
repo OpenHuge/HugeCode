@@ -91,12 +91,14 @@ Current implementation slices are intentionally narrow:
 
 1. debug diagnostics metadata export
 2. debug runtime lifecycle section summary
+3. shared workspace session/checkpoint read hook for debug consumers
 
 Why these slices:
 
 - the export artifact is machine-readable first
-- the debug panel now reads the same shared projection instead of rebuilding a
-  local session interpretation
+- the debug panel now reads the same shared projection through a shared
+  workspace-scoped hook instead of rebuilding a local session interpretation in
+  page components
 - both stay inside existing HugeCode application/runtime boundaries
 - both prove Track 2 records can reference frozen Track 1 lifecycle ids and
   hook checkpoints without changing the lifecycle port

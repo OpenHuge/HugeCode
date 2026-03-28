@@ -1,20 +1,18 @@
 import type {
   RuntimeToolLifecycleEvent,
   RuntimeToolLifecycleHookCheckpoint,
+  RuntimeToolLifecyclePresentationSummary,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import {
-  buildRuntimeToolLifecyclePresentationSummary,
   formatRuntimeToolLifecycleEventKey,
   formatRuntimeToolLifecycleHookCheckpointKey,
-  sortRuntimeToolLifecycleEventsByRecency,
-  sortRuntimeToolLifecycleHookCheckpointsByRecency,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
-import { buildRuntimeSessionCheckpointBaseline } from "../../../application/runtime/facades/runtimeSessionCheckpointFacade";
+import type { RuntimeSessionCheckpointPresentationSummary } from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
 import {
-  buildRuntimeSessionCheckpointPresentationSummary,
   formatRuntimeSessionCheckpointSessionLabel,
   sortRuntimeSessionCheckpointSessionsByRecency,
 } from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
+import type { RuntimeSessionCheckpointBaseline } from "../../../application/runtime/types/runtimeSessionCheckpoint";
 import {
   DebugDiagnosticsDefinitionList,
   type DebugDiagnosticsFieldDescriptor,
@@ -22,10 +20,10 @@ import {
 
 export type DebugRuntimeToolLifecycleSectionProps = {
   hookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
-  lastHookCheckpoint: RuntimeToolLifecycleHookCheckpoint | null;
-  lastEvent: RuntimeToolLifecycleEvent | null;
   lifecycleEvents: RuntimeToolLifecycleEvent[];
-  revision: number;
+  sessionCheckpointBaseline: RuntimeSessionCheckpointBaseline;
+  sessionCheckpointSummary: RuntimeSessionCheckpointPresentationSummary;
+  summary: RuntimeToolLifecyclePresentationSummary;
 };
 
 function formatLifecycleTimestamp(value: number): string {
@@ -68,32 +66,14 @@ function createHookCheckpointFields(
 
 export function DebugRuntimeToolLifecycleSection({
   hookCheckpoints,
-  lastHookCheckpoint,
-  lastEvent,
   lifecycleEvents,
-  revision,
+  sessionCheckpointBaseline,
+  sessionCheckpointSummary,
+  summary,
 }: DebugRuntimeToolLifecycleSectionProps) {
-  const summary = buildRuntimeToolLifecyclePresentationSummary({
-    lifecycleEvents,
-    hookCheckpoints,
-  });
-  const sessionCheckpointBaseline = buildRuntimeSessionCheckpointBaseline({
-    workspaceId: summary.latestEvent?.workspaceId ?? lastHookCheckpoint?.workspaceId ?? null,
-    lifecycleSnapshot: {
-      revision,
-      lastEvent,
-      recentEvents: lifecycleEvents,
-      lastHookCheckpoint,
-      recentHookCheckpoints: hookCheckpoints,
-    },
-  });
-  const sessionSummary =
-    buildRuntimeSessionCheckpointPresentationSummary(sessionCheckpointBaseline);
   const sortedSessions = sortRuntimeSessionCheckpointSessionsByRecency(
     sessionCheckpointBaseline.sessions
   );
-  const sortedEvents = sortRuntimeToolLifecycleEventsByRecency(lifecycleEvents);
-  const sortedHookCheckpoints = sortRuntimeToolLifecycleHookCheckpointsByRecency(hookCheckpoints);
 
   return (
     <div className="debug-event-channel-diagnostics" data-testid="debug-runtime-tool-lifecycle">
@@ -126,19 +106,21 @@ export function DebugRuntimeToolLifecycleSection({
           </div>
         </>
       ) : null}
-      {sessionSummary.latestSession ? (
+      {sessionCheckpointSummary.latestSession ? (
         <>
           <div className="debug-event-channel-diagnostics-empty">
-            {sessionSummary.totalSessions} structured sessions observed.
+            {sessionCheckpointSummary.totalSessions} structured sessions observed.
           </div>
           <div className="debug-event-channel-diagnostics-empty">
-            Latest session: {sessionSummary.latestSessionLabel} at{" "}
+            Latest session: {sessionCheckpointSummary.latestSessionLabel} at{" "}
             <time
               dateTime={formatLifecycleTimestamp(
-                sessionSummary.latestSession.latestActivityAt ?? 0
+                sessionCheckpointSummary.latestSession.latestActivityAt ?? 0
               )}
             >
-              {formatLifecycleTimestamp(sessionSummary.latestSession.latestActivityAt ?? 0)}
+              {formatLifecycleTimestamp(
+                sessionCheckpointSummary.latestSession.latestActivityAt ?? 0
+              )}
             </time>
             .
           </div>
@@ -178,7 +160,7 @@ export function DebugRuntimeToolLifecycleSection({
               />
             </div>
           ))}
-          {sortedEvents.map((event) => (
+          {lifecycleEvents.map((event) => (
             <div key={event.id} className="debug-event-channel-diagnostics-item">
               <div className="debug-event-channel-diagnostics-label">
                 {formatRuntimeToolLifecycleEventKey(event)}
@@ -186,7 +168,7 @@ export function DebugRuntimeToolLifecycleSection({
               <DebugDiagnosticsDefinitionList fields={createLifecycleFields(event)} />
             </div>
           ))}
-          {sortedHookCheckpoints.map((checkpoint) => (
+          {hookCheckpoints.map((checkpoint) => (
             <div key={checkpoint.key} className="debug-event-channel-diagnostics-item">
               <div className="debug-event-channel-diagnostics-label">
                 {formatRuntimeToolLifecycleHookCheckpointKey(checkpoint)}

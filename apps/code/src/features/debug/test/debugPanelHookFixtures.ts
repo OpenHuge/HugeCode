@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 import type { CreateDebugPanelViewModelParams } from "../hooks/debugPanelViewModel";
 import { createDebugEntries } from "./debugPanelComponentFixtures";
+import { buildRuntimeToolLifecyclePresentationSummary } from "../../../application/runtime/ports/runtimeToolLifecycle";
 
 export function createDebugRuntimeCapabilitiesState(
   overrides: Partial<CreateDebugPanelViewModelParams["runtimeCapabilities"]> = {}
@@ -118,11 +119,32 @@ export function createDebugPanelViewModelBuilderParams(
     runtimeEventChannels: createDebugRuntimeEventChannelsState(),
     runtimeToolExecutionMetrics: createDebugRuntimeToolExecutionMetricsState(),
     runtimeToolLifecycle: {
+      summary: buildRuntimeToolLifecyclePresentationSummary({
+        lifecycleEvents: [],
+        hookCheckpoints: [],
+      }),
       revision: 0,
       lastHookCheckpoint: null,
       lastEvent: null,
       hookCheckpoints: [],
       lifecycleEvents: [],
+      sessionCheckpointBaseline: {
+        schemaVersion: "runtime-session-checkpoint-baseline/v1",
+        workspaceId: "workspace-1",
+        lifecycleRevision: 0,
+        projectionSource: "runtime_tool_lifecycle",
+        sessions: [],
+      },
+      sessionCheckpointSummary: {
+        hasSessions: false,
+        latestHookCheckpointKey: null,
+        latestLifecycleEventId: null,
+        latestSession: null,
+        latestSessionLabel: null,
+        totalCheckpointPayloads: 0,
+        totalRecords: 0,
+        totalSessions: 0,
+      },
     },
     runtimeProbe: createDebugRuntimeProbeState(),
     formattedEntries: [],

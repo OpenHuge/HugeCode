@@ -2,6 +2,9 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { buildRuntimeToolLifecyclePresentationSummary } from "../../../application/runtime/ports/runtimeToolLifecycle";
+import { buildRuntimeSessionCheckpointBaseline } from "../../../application/runtime/facades/runtimeSessionCheckpointFacade";
+import { buildRuntimeSessionCheckpointPresentationSummary } from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
 import { createRuntimeToolLifecycleEvent } from "../test/debugDiagnosticsFixtures";
 import { DebugRuntimeToolLifecycleSection } from "./DebugRuntimeToolLifecycleSection";
 
@@ -11,37 +14,58 @@ describe("DebugRuntimeToolLifecycleSection", () => {
   });
 
   it("renders lifecycle cards when lifecycle events are available", () => {
+    const lifecycleEvents = [
+      createRuntimeToolLifecycleEvent(),
+      createRuntimeToolLifecycleEvent({
+        id: "guardrail-1",
+        kind: "guardrail",
+        phase: "evaluated",
+        source: "telemetry",
+        status: "blocked",
+        toolCallId: null,
+        at: 1_771_331_697_000,
+      }),
+    ];
+    const hookCheckpoints = [
+      {
+        key: "hook-1",
+        point: "post_execution_pre_publication" as const,
+        status: "ready" as const,
+        source: "telemetry" as const,
+        workspaceId: "workspace-1",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        toolCallId: "tool-call-1",
+        toolName: "bash",
+        scope: "write" as const,
+        lifecycleEventId: "guardrail-1",
+        at: 1_771_331_697_000,
+        reason: null,
+      },
+    ];
+    const sessionCheckpointBaseline = buildRuntimeSessionCheckpointBaseline({
+      workspaceId: "workspace-1",
+      lifecycleSnapshot: {
+        revision: 2,
+        lastEvent: lifecycleEvents[1] ?? null,
+        recentEvents: lifecycleEvents,
+        lastHookCheckpoint: hookCheckpoints[0] ?? null,
+        recentHookCheckpoints: hookCheckpoints,
+      },
+    });
+    const sessionCheckpointSummary =
+      buildRuntimeSessionCheckpointPresentationSummary(sessionCheckpointBaseline);
+
     render(
       <DebugRuntimeToolLifecycleSection
-        lifecycleEvents={[
-          createRuntimeToolLifecycleEvent(),
-          createRuntimeToolLifecycleEvent({
-            id: "guardrail-1",
-            kind: "guardrail",
-            phase: "evaluated",
-            source: "telemetry",
-            status: "blocked",
-            toolCallId: null,
-            at: 1_771_331_697_000,
-          }),
-        ]}
-        hookCheckpoints={[
-          {
-            key: "hook-1",
-            point: "post_execution_pre_publication",
-            status: "ready",
-            source: "telemetry",
-            workspaceId: "workspace-1",
-            threadId: "thread-1",
-            turnId: "turn-1",
-            toolCallId: "tool-call-1",
-            toolName: "bash",
-            scope: "write",
-            lifecycleEventId: "guardrail-1",
-            at: 1_771_331_697_000,
-            reason: null,
-          },
-        ]}
+        lifecycleEvents={lifecycleEvents}
+        hookCheckpoints={hookCheckpoints}
+        sessionCheckpointBaseline={sessionCheckpointBaseline}
+        sessionCheckpointSummary={sessionCheckpointSummary}
+        summary={buildRuntimeToolLifecyclePresentationSummary({
+          lifecycleEvents,
+          hookCheckpoints,
+        })}
       />
     );
 
@@ -71,7 +95,33 @@ describe("DebugRuntimeToolLifecycleSection", () => {
   });
 
   it("renders an empty state when no lifecycle events exist", () => {
-    render(<DebugRuntimeToolLifecycleSection lifecycleEvents={[]} hookCheckpoints={[]} />);
+    render(
+      <DebugRuntimeToolLifecycleSection
+        lifecycleEvents={[]}
+        hookCheckpoints={[]}
+        sessionCheckpointBaseline={{
+          schemaVersion: "runtime-session-checkpoint-baseline/v1",
+          workspaceId: null,
+          lifecycleRevision: 0,
+          projectionSource: "runtime_tool_lifecycle",
+          sessions: [],
+        }}
+        sessionCheckpointSummary={{
+          hasSessions: false,
+          latestHookCheckpointKey: null,
+          latestLifecycleEventId: null,
+          latestSession: null,
+          latestSessionLabel: null,
+          totalCheckpointPayloads: 0,
+          totalRecords: 0,
+          totalSessions: 0,
+        }}
+        summary={buildRuntimeToolLifecyclePresentationSummary({
+          lifecycleEvents: [],
+          hookCheckpoints: [],
+        })}
+      />
+    );
 
     expect(screen.getByText("No lifecycle activity observed yet.")).toBeTruthy();
   });

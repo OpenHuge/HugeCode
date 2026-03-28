@@ -15,11 +15,14 @@ import { DebugRuntimeToolLifecycleSection } from "./DebugRuntimeToolLifecycleSec
 import type {
   RuntimeToolLifecycleEvent,
   RuntimeToolLifecycleHookCheckpoint,
+  RuntimeToolLifecyclePresentationSummary,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import type {
   RuntimeToolExecutionRecentEntry,
   RuntimeToolExecutionTotals,
 } from "../../../application/runtime/ports/runtimeToolExecutionMetrics";
+import type { RuntimeSessionCheckpointPresentationSummary } from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
+import type { RuntimeSessionCheckpointBaseline } from "../../../application/runtime/types/runtimeSessionCheckpoint";
 
 export type DebugPanelBodyProps = DebugRuntimeProbesSectionProps & {
   isOpen: boolean;
@@ -31,11 +34,11 @@ export type DebugPanelBodyProps = DebugRuntimeProbesSectionProps & {
   runtimeToolExecutionMetricsUpdatedAt: number;
   runtimeToolExecutionTotals: RuntimeToolExecutionTotals;
   runtimeToolExecutionRecentExecutions: RuntimeToolExecutionRecentEntry[];
+  runtimeToolLifecycleSummary: RuntimeToolLifecyclePresentationSummary;
   runtimeToolLifecycleHookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
-  runtimeToolLifecycleLastHookCheckpoint: RuntimeToolLifecycleHookCheckpoint | null;
-  runtimeToolLifecycleLastEvent: RuntimeToolLifecycleEvent | null;
-  runtimeToolLifecycleRevision: number;
   runtimeToolLifecycleEvents: RuntimeToolLifecycleEvent[];
+  runtimeSessionCheckpointBaseline: RuntimeSessionCheckpointBaseline;
+  runtimeSessionCheckpointSummary: RuntimeSessionCheckpointPresentationSummary;
   runtimeEventBridgePath: "legacy" | "v2";
   formattedEntries: FormattedDebugEntry[];
 };
@@ -50,11 +53,11 @@ export function DebugPanelBody({
   runtimeToolExecutionMetricsUpdatedAt,
   runtimeToolExecutionTotals,
   runtimeToolExecutionRecentExecutions,
+  runtimeToolLifecycleSummary,
   runtimeToolLifecycleHookCheckpoints,
-  runtimeToolLifecycleLastHookCheckpoint,
-  runtimeToolLifecycleLastEvent,
-  runtimeToolLifecycleRevision,
   runtimeToolLifecycleEvents,
+  runtimeSessionCheckpointBaseline,
+  runtimeSessionCheckpointSummary,
   runtimeEventBridgePath,
   formattedEntries,
   ...probeProps
@@ -77,11 +80,11 @@ export function DebugPanelBody({
         recentExecutions={runtimeToolExecutionRecentExecutions}
       />
       <DebugRuntimeToolLifecycleSection
-        revision={runtimeToolLifecycleRevision}
-        lastEvent={runtimeToolLifecycleLastEvent}
-        lastHookCheckpoint={runtimeToolLifecycleLastHookCheckpoint}
         lifecycleEvents={runtimeToolLifecycleEvents}
         hookCheckpoints={runtimeToolLifecycleHookCheckpoints}
+        sessionCheckpointBaseline={runtimeSessionCheckpointBaseline}
+        sessionCheckpointSummary={runtimeSessionCheckpointSummary}
+        summary={runtimeToolLifecycleSummary}
       />
       <DebugRuntimeProbesSection {...probeProps} />
       {isOpen ? <DebugEntriesList formattedEntries={formattedEntries} /> : null}

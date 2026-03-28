@@ -3,16 +3,14 @@ import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
 import type {
   RuntimeToolLifecycleEvent,
   RuntimeToolLifecycleHookCheckpoint,
+  RuntimeToolLifecyclePresentationSummary,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import {
-  buildRuntimeToolLifecyclePresentationSummary,
   describeRuntimeToolLifecycleEvent,
   describeRuntimeToolLifecycleHookCheckpoint,
   formatRuntimeToolLifecycleStatusLabel,
   getRuntimeToolLifecycleEventTone,
   getRuntimeToolLifecycleHookCheckpointTone,
-  sortRuntimeToolLifecycleEventsByRecency,
-  sortRuntimeToolLifecycleHookCheckpointsByRecency,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import type { RuntimeAgentTaskInterventionInput } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
@@ -156,22 +154,18 @@ export function MissionControlRunListSection({
 type MissionControlSessionLogSectionProps = {
   hookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
   lifecycleEvents: RuntimeToolLifecycleEvent[];
+  summary: RuntimeToolLifecyclePresentationSummary;
   maxItems?: number;
 };
 
 export function MissionControlSessionLogSection({
   hookCheckpoints,
   lifecycleEvents,
+  summary,
   maxItems = 8,
 }: MissionControlSessionLogSectionProps) {
-  const summary = buildRuntimeToolLifecyclePresentationSummary({
-    lifecycleEvents,
-    hookCheckpoints,
-  });
-  const sortedEvents = sortRuntimeToolLifecycleEventsByRecency(lifecycleEvents);
-  const sortedHookCheckpoints = sortRuntimeToolLifecycleHookCheckpointsByRecency(hookCheckpoints);
-  const visibleEvents = sortedEvents.slice(0, maxItems);
-  const visibleHookCheckpoints = sortedHookCheckpoints.slice(0, maxItems);
+  const visibleEvents = lifecycleEvents.slice(0, maxItems);
+  const visibleHookCheckpoints = hookCheckpoints.slice(0, maxItems);
 
   return (
     <MissionControlSectionCard

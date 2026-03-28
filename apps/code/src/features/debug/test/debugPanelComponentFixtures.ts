@@ -12,6 +12,7 @@ import {
   createRuntimeEventChannelDiagnostics,
   createRuntimeToolLifecycleEvent,
 } from "./debugDiagnosticsFixtures";
+import { buildRuntimeToolLifecyclePresentationSummary } from "../../../application/runtime/ports/runtimeToolLifecycle";
 
 export function createDebugEntries(): DebugEntry[] {
   return [
@@ -47,7 +48,7 @@ export function createDebugPanelShellProps(
 export function createDebugPanelBodyProps(
   overrides: Partial<DebugPanelBodyProps> = {}
 ): DebugPanelBodyProps {
-  return {
+  const baseProps: DebugPanelBodyProps = {
     isOpen: true,
     observabilityCapabilityEnabled: true,
     distributedDiagnostics: null,
@@ -67,11 +68,29 @@ export function createDebugPanelBodyProps(
       truncatedTotal: 0,
     },
     runtimeToolExecutionRecentExecutions: [],
+    runtimeToolLifecycleSummary: buildRuntimeToolLifecyclePresentationSummary({
+      lifecycleEvents: [],
+      hookCheckpoints: [],
+    }),
     runtimeToolLifecycleHookCheckpoints: [],
-    runtimeToolLifecycleLastHookCheckpoint: null,
-    runtimeToolLifecycleLastEvent: null,
-    runtimeToolLifecycleRevision: 0,
     runtimeToolLifecycleEvents: [],
+    runtimeSessionCheckpointBaseline: {
+      schemaVersion: "runtime-session-checkpoint-baseline/v1",
+      workspaceId: "workspace-1",
+      lifecycleRevision: 0,
+      projectionSource: "runtime_tool_lifecycle",
+      sessions: [],
+    },
+    runtimeSessionCheckpointSummary: {
+      hasSessions: false,
+      latestHookCheckpointKey: null,
+      latestLifecycleEventId: null,
+      latestSession: null,
+      latestSessionLabel: null,
+      totalCheckpointPayloads: 0,
+      totalRecords: 0,
+      totalSessions: 0,
+    },
     runtimeEventBridgePath: "legacy",
     formattedEntries: [],
     isRuntimeProbeBusy: false,
@@ -101,7 +120,23 @@ export function createDebugPanelBodyProps(
     onRunBootstrapProbe: vi.fn(),
     onRunToolLifecycleProbe: vi.fn(),
     onRunLiveSkillProbe: vi.fn(),
+  };
+
+  const mergedProps = {
+    ...baseProps,
     ...overrides,
+  };
+
+  if (overrides.runtimeToolLifecycleSummary !== undefined) {
+    return mergedProps;
+  }
+
+  return {
+    ...mergedProps,
+    runtimeToolLifecycleSummary: buildRuntimeToolLifecyclePresentationSummary({
+      lifecycleEvents: mergedProps.runtimeToolLifecycleEvents,
+      hookCheckpoints: mergedProps.runtimeToolLifecycleHookCheckpoints,
+    }),
   };
 }
 
@@ -114,11 +149,29 @@ export function createPopulatedDebugPanelBodyProps(
     hasRemoteExecutionDiagnostics: true,
     agentTaskDurabilityDiagnostics: createAgentTaskDurabilityDiagnostics(),
     eventChannelDiagnostics: createRuntimeEventChannelDiagnostics(),
+    runtimeToolLifecycleSummary: buildRuntimeToolLifecyclePresentationSummary({
+      lifecycleEvents: [createRuntimeToolLifecycleEvent()],
+      hookCheckpoints: [],
+    }),
     runtimeToolLifecycleHookCheckpoints: [],
-    runtimeToolLifecycleLastHookCheckpoint: null,
-    runtimeToolLifecycleLastEvent: createRuntimeToolLifecycleEvent(),
-    runtimeToolLifecycleRevision: 1,
     runtimeToolLifecycleEvents: [createRuntimeToolLifecycleEvent()],
+    runtimeSessionCheckpointBaseline: {
+      schemaVersion: "runtime-session-checkpoint-baseline/v1",
+      workspaceId: "workspace-1",
+      lifecycleRevision: 1,
+      projectionSource: "runtime_tool_lifecycle",
+      sessions: [],
+    },
+    runtimeSessionCheckpointSummary: {
+      hasSessions: false,
+      latestHookCheckpointKey: null,
+      latestLifecycleEventId: null,
+      latestSession: null,
+      latestSessionLabel: null,
+      totalCheckpointPayloads: 0,
+      totalRecords: 0,
+      totalSessions: 0,
+    },
     runtimeEventBridgePath: "v2",
     formattedEntries: createFormattedDebugEntries(),
     ...overrides,

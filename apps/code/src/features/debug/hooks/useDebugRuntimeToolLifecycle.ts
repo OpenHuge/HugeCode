@@ -1,21 +1,30 @@
 import {
-  useWorkspaceRuntimeToolLifecycle,
-  type WorkspaceRuntimeToolLifecycleState,
-} from "../../shared/hooks/useWorkspaceRuntimeToolLifecycle";
+  useWorkspaceRuntimeSessionCheckpoint,
+  type WorkspaceRuntimeSessionCheckpointState,
+} from "../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint";
 
 type UseDebugRuntimeToolLifecycleOptions = {
   workspaceId: string | null;
   enabled: boolean;
 };
 
-type DebugRuntimeToolLifecycleState = WorkspaceRuntimeToolLifecycleState;
+type DebugRuntimeToolLifecycleState = WorkspaceRuntimeSessionCheckpointState["lifecycle"] & {
+  sessionCheckpointBaseline: WorkspaceRuntimeSessionCheckpointState["sessionCheckpointBaseline"];
+  sessionCheckpointSummary: WorkspaceRuntimeSessionCheckpointState["sessionCheckpointSummary"];
+};
 
 export function useDebugRuntimeToolLifecycle({
   workspaceId,
   enabled,
 }: UseDebugRuntimeToolLifecycleOptions): DebugRuntimeToolLifecycleState {
-  return useWorkspaceRuntimeToolLifecycle({
+  const sessionCheckpointState = useWorkspaceRuntimeSessionCheckpoint({
     workspaceId,
     enabled,
   });
+
+  return {
+    ...sessionCheckpointState.lifecycle,
+    sessionCheckpointBaseline: sessionCheckpointState.sessionCheckpointBaseline,
+    sessionCheckpointSummary: sessionCheckpointState.sessionCheckpointSummary,
+  };
 }

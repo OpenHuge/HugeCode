@@ -1,13 +1,18 @@
 import { useCallback, useRef, useSyncExternalStore } from "react";
 import {
+  buildRuntimeToolLifecyclePresentationSummary,
   getWorkspaceRuntimeToolLifecycleSnapshot,
+  sortRuntimeToolLifecycleEventsByRecency,
+  sortRuntimeToolLifecycleHookCheckpointsByRecency,
   subscribeWorkspaceRuntimeToolLifecycleSnapshot,
   type RuntimeToolLifecycleEvent,
   type RuntimeToolLifecycleHookCheckpoint,
+  type RuntimeToolLifecyclePresentationSummary,
   type RuntimeToolLifecycleSnapshot,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 
 export type WorkspaceRuntimeToolLifecycleState = {
+  summary: RuntimeToolLifecyclePresentationSummary;
   revision: number;
   lastHookCheckpoint: RuntimeToolLifecycleHookCheckpoint | null;
   lastEvent: RuntimeToolLifecycleEvent | null;
@@ -27,6 +32,17 @@ type WorkspaceRuntimeToolLifecycleCache = {
 };
 
 const EMPTY_RUNTIME_TOOL_LIFECYCLE_STATE: WorkspaceRuntimeToolLifecycleState = {
+  summary: {
+    approvalEventCount: 0,
+    hasActivity: false,
+    latestEvent: null,
+    latestEventKey: null,
+    latestHookCheckpoint: null,
+    latestHookCheckpointKey: null,
+    toolEventCount: 0,
+    totalEvents: 0,
+    totalHookCheckpoints: 0,
+  },
   revision: 0,
   lastHookCheckpoint: null,
   lastEvent: null,
@@ -37,12 +53,21 @@ const EMPTY_RUNTIME_TOOL_LIFECYCLE_STATE: WorkspaceRuntimeToolLifecycleState = {
 function toWorkspaceRuntimeToolLifecycleState(
   snapshot: RuntimeToolLifecycleSnapshot
 ): WorkspaceRuntimeToolLifecycleState {
+  const lifecycleEvents = sortRuntimeToolLifecycleEventsByRecency(snapshot.recentEvents);
+  const hookCheckpoints = sortRuntimeToolLifecycleHookCheckpointsByRecency(
+    snapshot.recentHookCheckpoints ?? []
+  );
+
   return {
+    summary: buildRuntimeToolLifecyclePresentationSummary({
+      lifecycleEvents,
+      hookCheckpoints,
+    }),
     revision: snapshot.revision,
     lastHookCheckpoint: snapshot.lastHookCheckpoint ?? null,
     lastEvent: snapshot.lastEvent,
-    hookCheckpoints: snapshot.recentHookCheckpoints ?? [],
-    lifecycleEvents: snapshot.recentEvents,
+    hookCheckpoints,
+    lifecycleEvents,
   };
 }
 
