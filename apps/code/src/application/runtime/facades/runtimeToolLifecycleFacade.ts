@@ -55,6 +55,23 @@ type TelemetryEventSubscriber = (
 function normalizeRuntimeToolLifecycleTelemetryEvent(
   event: RuntimeToolExecutionTelemetryEvent
 ): RuntimeToolLifecycleEvent | null {
+  const correlationKey =
+    ("requestId" in event &&
+    typeof event.requestId === "string" &&
+    event.requestId.trim().length > 0
+      ? event.requestId.trim()
+      : null) ??
+    ("plannerStepKey" in event &&
+    typeof event.plannerStepKey === "string" &&
+    event.plannerStepKey.trim().length > 0
+      ? event.plannerStepKey.trim()
+      : null) ??
+    ("spanId" in event && typeof event.spanId === "string" && event.spanId.trim().length > 0
+      ? event.spanId.trim()
+      : null) ??
+    ("traceId" in event && typeof event.traceId === "string" && event.traceId.trim().length > 0
+      ? event.traceId.trim()
+      : null);
   if (event.kind === "execution") {
     const status =
       event.phase === "attempted"
@@ -68,9 +85,9 @@ function normalizeRuntimeToolLifecycleTelemetryEvent(
         event.phase,
         "telemetry",
         event.at,
-        event.requestId ?? event.toolName
+        correlationKey ?? `${event.toolName}:${event.at}`
       ),
-      correlationKey: event.requestId ?? event.toolName,
+      correlationKey,
       kind: "tool",
       phase: event.phase,
       source: "telemetry",
@@ -92,9 +109,9 @@ function normalizeRuntimeToolLifecycleTelemetryEvent(
         "evaluated",
         "telemetry",
         event.at,
-        event.requestId ?? event.toolName
+        correlationKey ?? `${event.toolName}:${event.at}`
       ),
-      correlationKey: event.requestId ?? event.toolName,
+      correlationKey,
       kind: "guardrail",
       phase: "evaluated",
       source: "telemetry",
@@ -121,9 +138,9 @@ function normalizeRuntimeToolLifecycleTelemetryEvent(
         "outcome",
         "telemetry",
         event.at,
-        event.requestId ?? event.toolName
+        correlationKey ?? `${event.toolName}:${event.at}`
       ),
-      correlationKey: event.requestId ?? event.toolName,
+      correlationKey,
       kind: "guardrail",
       phase: "outcome",
       source: "telemetry",

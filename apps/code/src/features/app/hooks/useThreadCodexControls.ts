@@ -753,9 +753,6 @@ export function useThreadCodexControls({
   const effectiveExecutionMode: ComposerExecutionMode =
     localCliAvailable || executionMode === "runtime" ? executionMode : "runtime";
   const resolvedModel = selectedModel?.model ?? null;
-  const selectedProviderId =
-    preferredProviderFamilyId ??
-    (selectedModel ? (resolveModelProviderId(selectedModel) as ModelProviderFamilyId) : null);
   const resolvedEffort = reasoningSupported ? selectedEffort : null;
   const toolsCapabilitySupport = resolveModelToolsCapabilitySupport(selectedModel);
   const visionCapabilitySupport = resolveModelVisionCapabilitySupport(selectedModel);
@@ -808,6 +805,10 @@ export function useThreadCodexControls({
     selectedModel?.provider,
     selectedProviderRoute?.pool,
   ]);
+  const routedProviderId =
+    selectedProviderRoute?.providerId ??
+    (selectedModel ? (resolveModelProviderId(selectedModel) as ModelProviderFamilyId) : null);
+  const selectedProviderId = routedProviderId ?? preferredProviderFamilyId;
 
   useEffect(() => {
     let canceled = false;

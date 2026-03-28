@@ -18,7 +18,10 @@ import type { AppSettings, WorkspaceInfo } from "../../../types";
 import { useCollaborationModes } from "../../collaboration/hooks/useCollaborationModes";
 import { useModels } from "../../models/hooks/useModels";
 import { NO_THREAD_SCOPE_SUFFIX } from "../../threads/utils/threadCodexParamsSeed";
-import { makeThreadCodexParamsKey } from "../../threads/utils/threadStorage";
+import {
+  makeThreadCodexParamsKey,
+  type ThreadCodexParams,
+} from "../../threads/utils/threadStorage";
 import { useThreadCodexControls } from "./useThreadCodexControls";
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
@@ -101,6 +104,25 @@ const modelOption = {
   isDefault: true,
 };
 
+function buildThreadCodexParams(overrides?: Partial<ThreadCodexParams>): ThreadCodexParams {
+  return {
+    modelId: null,
+    effort: null,
+    selectionMode: null,
+    providerFamilyId: null,
+    fastMode: null,
+    accessMode: null,
+    collaborationModeId: null,
+    executionMode: null,
+    missionMode: null,
+    executionProfileId: null,
+    preferredBackendIds: null,
+    autoDriveDraft: null,
+    updatedAt: 1,
+    ...overrides,
+  };
+}
+
 function createHook(options?: {
   setAppSettings?: ReturnType<typeof vi.fn<(value: SetStateAction<AppSettings>) => void>>;
   queueSaveSettings?: ReturnType<typeof vi.fn<(next: AppSettings) => Promise<AppSettings>>>;
@@ -108,17 +130,7 @@ function createHook(options?: {
     typeof vi.fn<(workspaceId: string, threadId: string, patch: Record<string, unknown>) => void>
   >;
   getThreadCodexParams?: ReturnType<
-    typeof vi.fn<
-      (
-        workspaceId: string,
-        threadId: string
-      ) => {
-        accessMode: "read-only" | "on-request" | "full-access" | null;
-        collaborationModeId: string | null;
-        executionProfileId?: string | null;
-        preferredBackendIds?: string[] | null;
-      } | null
-    >
+    typeof vi.fn<(workspaceId: string, threadId: string) => ThreadCodexParams | null>
   >;
   activeThreadId?: string | null;
   visibleActiveThreadId?: string | null;
@@ -133,17 +145,7 @@ function createHook(options?: {
     vi.fn<(workspaceId: string, threadId: string, patch: Record<string, unknown>) => void>();
   const getThreadCodexParams =
     options?.getThreadCodexParams ??
-    vi.fn<
-      (
-        workspaceId: string,
-        threadId: string
-      ) => {
-        accessMode: "read-only" | "on-request" | "full-access" | null;
-        collaborationModeId: string | null;
-        executionProfileId?: string | null;
-        preferredBackendIds?: string[] | null;
-      } | null
-    >(() => null);
+    vi.fn<(workspaceId: string, threadId: string) => ThreadCodexParams | null>(() => null);
   const activeThreadId = options?.activeThreadId ?? null;
   const visibleActiveThreadId = options?.visibleActiveThreadId ?? activeThreadId;
   return renderHook(() =>
@@ -1116,10 +1118,12 @@ describe("useThreadCodexControls", () => {
   });
 
   it("passes the auto tools requirement through to useModels for agentic task modes", async () => {
-    const getThreadCodexParams = vi.fn(() => ({
-      accessMode: "full-access" as const,
-      collaborationModeId: null,
-    }));
+    const getThreadCodexParams = vi.fn(() =>
+      buildThreadCodexParams({
+        accessMode: "full-access",
+        collaborationModeId: null,
+      })
+    );
 
     createHook({
       activeThreadId: "thread-1",
@@ -1251,6 +1255,43 @@ describe("useThreadCodexControls", () => {
 
     await waitFor(() => {
       expect(result.current.toolsCapabilitySupport).toBe("unsupported");
+    });
+  });
+
+  it("reports the actual routed provider when auto routing lands on a different provider family", async () => {
+    useModelsMock.mockReturnValue({
+      models: [
+        {
+          ...modelOption,
+          id: "codex::gpt-5.4-codex",
+          model: "gpt-5.4-codex",
+          provider: "codex",
+        },
+      ],
+      selectedModel: {
+        ...modelOption,
+        id: "codex::gpt-5.4-codex",
+        model: "gpt-5.4-codex",
+        provider: "codex",
+      },
+      selectedModelId: "codex::gpt-5.4-codex",
+      setSelectedModelId: vi.fn(),
+      reasoningSupported: false,
+      reasoningOptions: [],
+      selectedEffort: null,
+      setSelectedEffort: vi.fn(),
+      refreshModels: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { result } = createHook();
+
+    act(() => {
+      result.current.handleSelectAutoRoute("claude");
+    });
+
+    await waitFor(() => {
+      expect(result.current.preferredProviderFamilyId).toBe("claude");
+      expect(result.current.selectedProviderId).toBe("codex");
     });
   });
 });

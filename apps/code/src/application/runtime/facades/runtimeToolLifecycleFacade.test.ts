@@ -434,4 +434,51 @@ describe("runtimeToolLifecycleFacade", () => {
 
     unsubscribe();
   });
+
+  it("keeps repeated telemetry executions distinct when request ids are missing", async () => {
+    const facade = await import("./runtimeToolLifecycleFacade");
+    const telemetry =
+      (await import("../ports/runtimeToolExecutionTelemetry")) as unknown as TelemetryTestApi;
+
+    const lifecycleListener = vi.fn();
+    const unsubscribe = facade.subscribeRuntimeToolLifecycleEvents(lifecycleListener);
+
+    telemetry.__emitRuntimeToolExecutionTelemetryEvent({
+      kind: "execution",
+      phase: "completed",
+      toolName: "bash",
+      scope: "write",
+      at: 600,
+      workspaceId: "workspace-5",
+      status: "success",
+    });
+    telemetry.__emitRuntimeToolExecutionTelemetryEvent({
+      kind: "execution",
+      phase: "completed",
+      toolName: "bash",
+      scope: "write",
+      at: 700,
+      workspaceId: "workspace-5",
+      status: "success",
+    });
+
+    expect(lifecycleListener).toHaveBeenCalledTimes(2);
+    expect(facade.getRuntimeToolLifecycleSnapshot()).toMatchObject({
+      revision: 2,
+      recentEvents: [
+        expect.objectContaining({
+          kind: "tool",
+          phase: "completed",
+          at: 600,
+        }),
+        expect.objectContaining({
+          kind: "tool",
+          phase: "completed",
+          at: 700,
+        }),
+      ],
+    });
+
+    unsubscribe();
+  });
 });

@@ -187,4 +187,63 @@ describe("runtimeMissionControlOperatorAction", () => {
     expect(action.label).toBe("Resume mission");
     expect(action.target).toEqual(missionTarget);
   });
+
+  it("preserves runtime-published review continuation targets in continuation-only flows", () => {
+    const missionTarget = {
+      kind: "mission",
+      workspaceId: "workspace-1",
+      taskId: "task-1",
+      runId: "run-1",
+      reviewPackId: "review-pack-1",
+      threadId: "thread-1",
+      limitation: null,
+    } as const;
+    const reviewTarget = {
+      kind: "review",
+      workspaceId: "workspace-1",
+      taskId: "task-1",
+      runId: "run-1",
+      reviewPackId: "review-pack-1",
+      limitation: null,
+    } as const;
+
+    const action = resolveMissionOperatorAction({
+      task: {
+        workspaceId: "workspace-1",
+        id: "task-1",
+        origin: {
+          threadId: "thread-1",
+        },
+      } as never,
+      reviewPack: null,
+      run: {
+        id: "run-1",
+        reviewPackId: "review-pack-1",
+        state: "review_ready",
+        takeoverBundle: {
+          state: "ready",
+          pathKind: "review",
+          primaryAction: "open_review_pack",
+          summary: "Review continuation should start from the delegated thread.",
+          recommendedAction: "Open review from the delegated thread first.",
+          target: {
+            kind: "thread",
+            workspaceId: "workspace-1",
+            threadId: "thread-review-handoff",
+          },
+        },
+      } as never,
+      missionTarget,
+      reviewTarget,
+      defaultActiveLabel: "Monitor mission",
+    });
+
+    expect(action.label).toBe("Open review");
+    expect(action.detail).toBe("Open review from the delegated thread first.");
+    expect(action.target).toEqual({
+      kind: "thread",
+      workspaceId: "workspace-1",
+      threadId: "thread-review-handoff",
+    });
+  });
 });

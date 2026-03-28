@@ -455,7 +455,7 @@ export function getRuntimeToolLifecycleEntityKey(event: RuntimeToolLifecycleEven
   return [
     event.kind,
     event.source,
-    event.correlationKey ?? event.toolCallId ?? event.toolName ?? event.id,
+    event.correlationKey ?? event.toolCallId ?? event.id,
     event.scope ?? "scope:na",
     event.workspaceId ?? "workspace:na",
   ].join(":");
