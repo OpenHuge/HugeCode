@@ -110,6 +110,55 @@ export type RuntimeKernelPluginCatalogFacade = {
   ) => Promise<RuntimeExtensionPermissionsEvaluateResponse | null>;
 };
 
+function createReservedHostPluginDescriptor(
+  source: Extract<RuntimeKernelPluginSource, "wasi_host" | "rpc_host">
+): RuntimeKernelPluginDescriptor {
+  const isWasiHost = source === "wasi_host";
+
+  return {
+    id: isWasiHost ? "host:wasi" : "host:rpc",
+    name: isWasiHost ? "WASI host slot" : "RPC host slot",
+    version: "unbound",
+    summary: isWasiHost
+      ? "Reserved component-model host slot for future WIT/world bindings."
+      : "Reserved remote host slot for future RPC-backed plugin bindings.",
+    source,
+    transport: source,
+    hostProfile: {
+      kind: isWasiHost ? "wasi" : "rpc",
+      executionBoundaries: [source],
+    },
+    workspaceId: null,
+    enabled: false,
+    runtimeBacked: false,
+    capabilities: [],
+    permissions: [],
+    resources: [],
+    executionBoundaries: [source],
+    metadata: {
+      bindingState: "unbound",
+      contractFormat: isWasiHost ? "wit" : "rpc",
+      contractBoundary: isWasiHost ? "world-imports" : "remote-procedure-calls",
+      semverQualifiedImports: isWasiHost,
+      canonicalAbiResources: isWasiHost,
+      hostManaged: true,
+    },
+    permissionDecision: "unsupported",
+    health: {
+      state: "unsupported",
+      checkedAt: null,
+      warnings: ["Host provider is not yet bound in apps/code."],
+    },
+  };
+}
+
+export function createReservedHostPluginDescriptors(): RuntimeKernelPluginDescriptor[] {
+  return [
+    createReservedHostPluginDescriptor("rpc_host"),
+    createReservedHostPluginDescriptor("wasi_host"),
+  ];
+}
+
 function normalizeCapabilityIds(capabilities: string[]): RuntimeKernelPluginCapabilityDescriptor[] {
   return capabilities.map((capability) => ({ id: capability, enabled: true }));
 }
@@ -312,6 +361,7 @@ export function createRuntimeKernelPluginCatalogProvider(): RuntimeKernelPluginC
   return {
     listPluginDescriptors: async (workspaceId) =>
       mergeRuntimeKernelPluginDescriptors([
+        ...createReservedHostPluginDescriptors(),
         ...(await listRepoManifestPluginDescriptors(workspaceId)),
         ...(await listLiveSkillPluginDescriptors()),
         ...(await listRuntimeExtensionPluginDescriptors(workspaceId)),
@@ -337,10 +387,25 @@ export function createRuntimeKernelPluginResourceProvider(): RuntimeKernelPlugin
 export function createRuntimeKernelPluginExecutionProvider(): RuntimeKernelPluginExecutionProvider {
   return {
     executePlugin: async (_workspaceId, descriptor, request) => {
-      if (descriptor.source !== "live_skill") {
-        throw new Error(`Plugin \`${descriptor.id}\` does not expose a bound execution provider.`);
+      if (descriptor.source === "live_skill") {
+        return runRuntimeLiveSkill(request);
       }
-      return runRuntimeLiveSkill(request);
+      if (descriptor.source === "repo_manifest") {
+        throw new Error(
+          `Plugin \`${descriptor.id}\` is declaration-only and does not expose a bound execution provider.`
+        );
+      }
+      if (descriptor.source === "wasi_host") {
+        throw new Error(
+          `Plugin \`${descriptor.id}\` reserves a WIT/component-model host slot and is currently unbound in apps/code.`
+        );
+      }
+      if (descriptor.source === "rpc_host") {
+        throw new Error(
+          `Plugin \`${descriptor.id}\` reserves an RPC host slot and is currently unbound in apps/code.`
+        );
+      }
+      throw new Error(`Plugin \`${descriptor.id}\` does not expose a bound execution provider.`);
     },
   };
 }

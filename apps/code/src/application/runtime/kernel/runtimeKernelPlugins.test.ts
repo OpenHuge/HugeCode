@@ -138,4 +138,64 @@ describe("runtimeKernelPlugins", () => {
       }),
     });
   });
+
+  it("publishes reserved WASI and RPC host slots as explicit unsupported plugin descriptors", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+
+    expect(plugins.createReservedHostPluginDescriptors()).toEqual([
+      expect.objectContaining({
+        id: "host:rpc",
+        source: "rpc_host",
+        transport: "rpc_host",
+        enabled: false,
+        permissionDecision: "unsupported",
+        metadata: expect.objectContaining({
+          bindingState: "unbound",
+          contractFormat: "rpc",
+        }),
+        health: expect.objectContaining({
+          state: "unsupported",
+        }),
+      }),
+      expect.objectContaining({
+        id: "host:wasi",
+        source: "wasi_host",
+        transport: "wasi_host",
+        enabled: false,
+        permissionDecision: "unsupported",
+        metadata: expect.objectContaining({
+          bindingState: "unbound",
+          contractFormat: "wit",
+          semverQualifiedImports: true,
+        }),
+        health: expect.objectContaining({
+          state: "unsupported",
+        }),
+      }),
+    ]);
+  });
+
+  it("returns explicit unbound execution errors for reserved host slots", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+    const facade = plugins.createRuntimeKernelPluginCatalogFacade({
+      workspaceId: "ws-1",
+      catalogProvider: {
+        listPluginDescriptors: async () => plugins.createReservedHostPluginDescriptors(),
+      },
+    });
+
+    await expect(
+      facade.executePlugin("host:wasi", {
+        skillId: "host:wasi",
+        input: "",
+      })
+    ).rejects.toThrow("currently unbound in apps/code");
+
+    await expect(
+      facade.executePlugin("host:rpc", {
+        skillId: "host:rpc",
+        input: "",
+      })
+    ).rejects.toThrow("currently unbound in apps/code");
+  });
 });
