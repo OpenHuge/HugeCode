@@ -74,6 +74,8 @@ export {
 export { WorkspaceApp } from "./workspace-app";
 export {
   buildSharedMissionControlSummary,
+  createMissionControlSummaryLoader,
+  DEFAULT_MISSION_CONTROL_SUMMARY_COMPOSER,
   getMissionControlSnapshotStore,
   getKernelProjectionStore,
   SharedWorkspaceShell,
@@ -89,7 +91,10 @@ export {
 export type {
   KernelProjectionLoadState,
   KernelProjectionState,
+  MissionControlSummaryComposer,
+  MissionControlSummaryLoadResult,
   MissionControlLoadState,
+  MissionControlSummarySource,
   MissionControlSnapshotState,
   SharedMissionControlReadinessSummary,
   SharedMissionControlSummary,
