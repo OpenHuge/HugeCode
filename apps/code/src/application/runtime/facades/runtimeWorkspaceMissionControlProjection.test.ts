@@ -272,6 +272,12 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
             permissions: ["network"],
             resources: [],
             executionBoundaries: ["runtime"],
+            binding: {
+              state: "bound",
+              contractFormat: "runtime_extension",
+              contractBoundary: "runtime-extension-record",
+              interfaceId: "ext-1",
+            },
             metadata: null,
             permissionDecision: "allow",
             health: {
@@ -298,6 +304,12 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
             permissions: [],
             resources: [],
             executionBoundaries: ["runtime"],
+            binding: {
+              state: "bound",
+              contractFormat: "live_skill",
+              contractBoundary: "runtime-live-skill",
+              interfaceId: "skill-1",
+            },
             metadata: null,
             permissionDecision: null,
             health: {
@@ -324,6 +336,12 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
             permissions: [],
             resources: [],
             executionBoundaries: ["repository"],
+            binding: {
+              state: "declaration_only",
+              contractFormat: "manifest",
+              contractBoundary: "repository-manifest",
+              interfaceId: "repo-manifest-1",
+            },
             metadata: null,
             permissionDecision: "unsupported",
             health: {
@@ -342,6 +360,9 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       total: 3,
       enabled: 3,
       runtimeBacked: 2,
+      boundCount: 2,
+      declarationOnlyCount: 1,
+      unboundCount: 0,
       runtimeExtensionCount: 1,
       liveSkillCount: 1,
       repoManifestCount: 1,

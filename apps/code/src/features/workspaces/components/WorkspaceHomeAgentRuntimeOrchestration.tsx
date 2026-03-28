@@ -210,6 +210,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         <span>Recoverable: {continuityReadiness.recoverableRunCount}</span>
         <span>Handoff ready: {continuityReadiness.handoffReadyCount}</span>
         <span>Plugins: {pluginCatalog.total}</span>
+        <span>Bound: {pluginCatalog.boundCount}</span>
         <span>Finished: {runtimeSummary.finished}</span>
         <button type="button" onClick={() => void refreshRuntimeTasks()} disabled={runtimeLoading}>
           {runtimeLoading ? "Syncing..." : "Sync runs"}
@@ -256,6 +257,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             </strong>
             <span>Total plugins: {pluginCatalog.total}</span>
             <span>Enabled: {pluginCatalog.enabled}</span>
+            <span>Bound: {pluginCatalog.boundCount}</span>
+            <span>Declaration-only: {pluginCatalog.declarationOnlyCount}</span>
+            <span>Unbound hosts: {pluginCatalog.unboundCount}</span>
             <span>Runtime extensions: {pluginCatalog.runtimeExtensionCount}</span>
             <span>Live skills: {pluginCatalog.liveSkillCount}</span>
             <span>Repo manifests: {pluginCatalog.repoManifestCount}</span>
@@ -268,7 +272,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             </span>
             {pluginCatalog.plugins.slice(0, 3).map((plugin) => (
               <span key={plugin.id}>
-                {plugin.name} ({plugin.source}) {plugin.enabled ? "enabled" : "disabled"}
+                {plugin.name} ({plugin.source}, {plugin.binding.state}){" "}
+                {plugin.enabled ? "enabled" : "disabled"}
               </span>
             ))}
           </div>

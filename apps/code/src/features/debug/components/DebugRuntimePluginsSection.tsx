@@ -17,6 +17,9 @@ function createPluginFields(
   return [
     { label: "source", value: plugin.source },
     { label: "transport", value: plugin.transport },
+    { label: "binding_state", value: plugin.binding.state },
+    { label: "contract_format", value: plugin.binding.contractFormat },
+    { label: "contract_boundary", value: plugin.binding.contractBoundary },
     { label: "enabled", value: plugin.enabled ? "yes" : "no" },
     { label: "runtime_backed", value: plugin.runtimeBacked ? "yes" : "no" },
     {

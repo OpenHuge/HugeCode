@@ -64,6 +64,12 @@ function createRuntimeKernelValue() {
                 permissions: ["network"],
                 resources: [],
                 executionBoundaries: ["runtime"],
+                binding: {
+                  state: "bound",
+                  contractFormat: "runtime_extension",
+                  contractBoundary: "runtime-extension-record",
+                  interfaceId: "ext-1",
+                },
                 metadata: null,
                 permissionDecision: "allow",
                 health: null,

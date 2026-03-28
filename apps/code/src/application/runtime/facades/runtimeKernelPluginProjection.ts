@@ -28,6 +28,12 @@ export function normalizeKernelExtensionBundlePluginDescriptor(
     permissions: [],
     resources: [],
     executionBoundaries: ["runtime"],
+    binding: {
+      state: "bound",
+      contractFormat: "runtime_extension",
+      contractBoundary: "kernel-extension-bundle",
+      interfaceId: bundle.id,
+    },
     metadata: {
       ...metadata,
       kernelExtensionBundle: {

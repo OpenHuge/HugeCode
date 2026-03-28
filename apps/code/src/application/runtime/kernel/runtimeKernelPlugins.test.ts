@@ -70,6 +70,10 @@ describe("runtimeKernelPlugins", () => {
       transport: "runtime_extension",
       runtimeBacked: true,
       enabled: true,
+      binding: expect.objectContaining({
+        state: "bound",
+        contractFormat: "runtime_extension",
+      }),
     });
 
     expect(plugins.normalizeLiveSkillPluginDescriptor(createLiveSkillSummary())).toMatchObject({
@@ -78,6 +82,10 @@ describe("runtimeKernelPlugins", () => {
       transport: "live_skill",
       runtimeBacked: true,
       executionBoundaries: expect.arrayContaining(["runtime"]),
+      binding: expect.objectContaining({
+        state: "bound",
+        contractFormat: "live_skill",
+      }),
     });
 
     expect(
@@ -102,6 +110,10 @@ describe("runtimeKernelPlugins", () => {
       source: "repo_manifest",
       transport: "repo_manifest",
       runtimeBacked: false,
+      binding: expect.objectContaining({
+        state: "declaration_only",
+        contractFormat: "manifest",
+      }),
     });
   });
 

@@ -30,6 +30,12 @@ describe("DebugRuntimePluginsSection", () => {
             permissions: ["network"],
             resources: [],
             executionBoundaries: ["runtime"],
+            binding: {
+              state: "bound",
+              contractFormat: "runtime_extension",
+              contractBoundary: "runtime-extension-record",
+              interfaceId: "ext-1",
+            },
             metadata: null,
             permissionDecision: null,
             health: null,
@@ -42,5 +48,7 @@ describe("DebugRuntimePluginsSection", () => {
     expect(screen.getByText(/projection extensions: connected/i)).toBeTruthy();
     expect(screen.getByText(/Test Plugin \(1\.0\.0\)/)).toBeTruthy();
     expect(screen.getByText("network")).toBeTruthy();
+    expect(screen.getByText("bound")).toBeTruthy();
+    expect(screen.getByText("runtime-extension-record")).toBeTruthy();
   });
 });

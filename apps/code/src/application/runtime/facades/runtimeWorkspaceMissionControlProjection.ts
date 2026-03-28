@@ -75,6 +75,9 @@ export type WorkspaceRuntimeMissionControlProjection = {
     total: number;
     enabled: number;
     runtimeBacked: number;
+    boundCount: number;
+    declarationOnlyCount: number;
+    unboundCount: number;
     runtimeExtensionCount: number;
     liveSkillCount: number;
     repoManifestCount: number;
@@ -143,6 +146,9 @@ function buildPluginCatalogSummary(input: {
     total: input.plugins.length,
     enabled: 0,
     runtimeBacked: 0,
+    boundCount: 0,
+    declarationOnlyCount: 0,
+    unboundCount: 0,
     runtimeExtensionCount: 0,
     liveSkillCount: 0,
     repoManifestCount: 0,
@@ -160,6 +166,13 @@ function buildPluginCatalogSummary(input: {
     }
     if (plugin.runtimeBacked) {
       summary.runtimeBacked += 1;
+    }
+    if (plugin.binding.state === "bound") {
+      summary.boundCount += 1;
+    } else if (plugin.binding.state === "declaration_only") {
+      summary.declarationOnlyCount += 1;
+    } else if (plugin.binding.state === "unbound") {
+      summary.unboundCount += 1;
     }
     if (plugin.source === "runtime_extension") {
       summary.runtimeExtensionCount += 1;

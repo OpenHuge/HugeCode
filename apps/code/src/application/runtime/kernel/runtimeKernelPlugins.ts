@@ -42,6 +42,13 @@ export type RuntimeKernelPluginResourceDescriptor = {
   contentType: string | null;
 };
 
+export type RuntimeKernelPluginBinding = {
+  state: "bound" | "declaration_only" | "unbound";
+  contractFormat: "runtime_extension" | "live_skill" | "manifest" | "wit" | "rpc";
+  contractBoundary: string;
+  interfaceId: string | null;
+};
+
 export type RuntimeKernelPluginDescriptor = {
   id: string;
   name: string;
@@ -57,6 +64,7 @@ export type RuntimeKernelPluginDescriptor = {
   permissions: string[];
   resources: RuntimeKernelPluginResourceDescriptor[];
   executionBoundaries: string[];
+  binding: RuntimeKernelPluginBinding;
   metadata: Record<string, unknown> | null;
   permissionDecision: "allow" | "ask" | "deny" | "unsupported" | null;
   health: {
@@ -135,6 +143,12 @@ function createReservedHostPluginDescriptor(
     permissions: [],
     resources: [],
     executionBoundaries: [source],
+    binding: {
+      state: "unbound",
+      contractFormat: isWasiHost ? "wit" : "rpc",
+      contractBoundary: isWasiHost ? "world-imports" : "remote-procedure-calls",
+      interfaceId: isWasiHost ? "wasi:*/*" : "runtime.plugin.host",
+    },
     metadata: {
       bindingState: "unbound",
       contractFormat: isWasiHost ? "wit" : "rpc",
@@ -199,6 +213,12 @@ export function normalizeRuntimeExtensionPluginDescriptor(
     permissions: permissionResult?.permissions ?? extension.permissions,
     resources: [],
     executionBoundaries: ["runtime"],
+    binding: {
+      state: "bound",
+      contractFormat: "runtime_extension",
+      contractBoundary: "runtime-extension-record",
+      interfaceId: extension.extensionId,
+    },
     metadata: {
       distribution: extension.distribution,
       kind: extension.kind,
@@ -232,6 +252,12 @@ export function normalizeLiveSkillPluginDescriptor(
     permissions: skill.supportsNetwork ? ["network"] : [],
     resources: [],
     executionBoundaries: ["runtime"],
+    binding: {
+      state: "bound",
+      contractFormat: "live_skill",
+      contractBoundary: "runtime-live-skill",
+      interfaceId: skill.id,
+    },
     metadata: {
       source: skill.source,
       kind: skill.kind,
@@ -267,6 +293,12 @@ export function normalizeRepoManifestPluginDescriptor(
     permissions: manifest.permissions,
     resources: [{ id: "manifest", contentType: "application/json" }],
     executionBoundaries: ["repository"],
+    binding: {
+      state: "declaration_only",
+      contractFormat: "manifest",
+      contractBoundary: "repository-manifest",
+      interfaceId: manifest.id,
+    },
     metadata: {
       trustLevel: manifest.trustLevel,
       entrypoint: manifest.entrypoint,

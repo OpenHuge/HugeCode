@@ -32,6 +32,12 @@ describe("runtimeKernelPluginProjection", () => {
       transport: "runtime_extension",
       runtimeBacked: true,
       enabled: true,
+      binding: {
+        state: "bound",
+        contractFormat: "runtime_extension",
+        contractBoundary: "kernel-extension-bundle",
+        interfaceId: "ext-1",
+      },
       metadata: {
         kernelExtensionBundle: {
           toolCount: 2,
@@ -80,6 +86,12 @@ describe("runtimeKernelPluginProjection", () => {
           permissions: ["network"],
           resources: [{ id: "resource-1", contentType: "application/json" }],
           executionBoundaries: ["runtime"],
+          binding: {
+            state: "bound",
+            contractFormat: "runtime_extension",
+            contractBoundary: "runtime-extension-record",
+            interfaceId: "ext-1",
+          },
           metadata: {
             distribution: "workspace",
           },
