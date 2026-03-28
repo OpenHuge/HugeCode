@@ -28,7 +28,7 @@ import type {
   WorkspaceClientRuntimeGatewayBindings,
   WorkspaceClientRuntimeMode,
 } from "./bindings";
-import { createSnapshotBackedMissionControlBindings } from "./missionControlBindings";
+import { createSnapshotBackedMissionControlSurfaceBindings } from "./missionControlBindings";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -398,6 +398,10 @@ export function subscribeBrowserWorkspaceClientKernelProjection(
 }
 
 export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRuntimeBindings {
+  const missionControlSurface = createSnapshotBackedMissionControlSurfaceBindings({
+    readMissionControlSnapshot: readBrowserMissionControlSnapshot,
+  });
+
   return {
     surface: "shared-workspace-client",
     settings: {
@@ -461,9 +465,7 @@ export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRu
           })
         ),
     },
-    missionControl: createSnapshotBackedMissionControlBindings({
-      readMissionControlSnapshot: readBrowserMissionControlSnapshot,
-    }),
+    missionControl: missionControlSurface.missionControl,
     kernelProjection: {
       bootstrap: bootstrapBrowserWorkspaceClientKernelProjection,
       subscribe: subscribeBrowserWorkspaceClientKernelProjection,
@@ -535,27 +537,7 @@ export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRu
       readWorkspaceFile: async (input) =>
         await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.WORKSPACE_FILE_READ, input),
     },
-    review: {
-      listReviewPacks: async () => {
-        try {
-          const bootstrap = await bootstrapBrowserWorkspaceClientKernelProjection({
-            scopes: ["mission_control"],
-          });
-          const missionControl = readMissionControlProjectionSlice(bootstrap);
-          if (missionControl) {
-            return missionControl.reviewPacks;
-          }
-        } catch {
-          // Fall through to snapshot v1 when projection bootstrap is unavailable.
-        }
-        return (
-          await invokeBrowserWorkspaceRuntime(
-            CODE_RUNTIME_RPC_METHODS.MISSION_CONTROL_SNAPSHOT_V1,
-            {}
-          )
-        ).reviewPacks;
-      },
-    },
+    review: missionControlSurface.review,
   };
 }
 

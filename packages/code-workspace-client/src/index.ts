@@ -41,6 +41,15 @@ export {
   subscribeBrowserWorkspaceClientKernelProjection,
   subscribeBrowserWorkspaceClientRuntimeMode,
 } from "./workspace/browserBindings";
+export {
+  createSnapshotBackedMissionControlBindings,
+  createSnapshotBackedMissionControlSurfaceBindings,
+  createSnapshotBackedReviewBindings,
+} from "./workspace/missionControlBindings";
+export type {
+  MissionControlSnapshotReader,
+  SnapshotBackedMissionControlSurfaceBindings,
+} from "./workspace/missionControlBindings";
 export { AccountCenterDashboard } from "./account-center/AccountCenterDashboard";
 export type {
   AccountCenterCodexAccountSummary,
