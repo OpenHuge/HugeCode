@@ -585,7 +585,7 @@ describe("reviewPackSurfaceModel", () => {
     expect(detail.executionContext?.details).toContain("Validation preset: standard");
   });
 
-  it("shows repo source mapping origins when review continuation falls back to repository defaults", () => {
+  it("does not reconstruct review continuation defaults from repository mappings", () => {
     const projection = asMissionControlSnapshot({
       source: "runtime_snapshot_v1" as const,
       generatedAt: 10,
@@ -731,11 +731,14 @@ describe("reviewPackSurfaceModel", () => {
       })
     );
 
-    expect(detail.executionContext?.details).toContain("Repo source mapping: github_issue");
-    expect(detail.executionContext?.details).toContain("Validation preset: review-first");
-    expect(detail.executionContext?.details).toContain("Access mode: read-only");
-    expect(detail.executionContext?.details).toContain("Profile source: repo source mapping.");
-    expect(detail.executionContext?.details).toContain("Validation source: repo source mapping.");
+    expect(detail.executionContext?.details).toContain("Backend route: backend-review-a");
+    expect(detail.executionContext?.details).not.toContain("Repo source mapping: github_issue");
+    expect(detail.executionContext?.details).not.toContain("Validation preset: review-first");
+    expect(detail.executionContext?.details).not.toContain("Access mode: read-only");
+    expect(detail.executionContext?.details).not.toContain("Profile source: repo source mapping.");
+    expect(detail.executionContext?.details).not.toContain(
+      "Validation source: repo source mapping."
+    );
   });
 
   it("keeps a thread-backed review pack linked to its mission thread in detail actions", () => {
@@ -928,6 +931,15 @@ describe("reviewPackSurfaceModel", () => {
             label: "Decision pending",
             summary: "Accept or reject this result from the review surface.",
             decidedAt: null,
+          },
+          actionability: {
+            state: "ready" as const,
+            summary: "Runtime review actionability is ready.",
+            degradedReasons: [],
+            actions: [
+              { action: "accept_result" as const, enabled: true, supported: true, reason: null },
+              { action: "reject_result" as const, enabled: true, supported: true, reason: null },
+            ],
           },
         },
       ],
@@ -1160,6 +1172,34 @@ describe("reviewPackSurfaceModel", () => {
           checksPerformed: ["pnpm validate:fast"],
           recommendedNextAction: "Retry with narrower scope.",
           createdAt: 10,
+          actionability: {
+            state: "ready" as const,
+            summary: "Runtime review actionability is ready.",
+            degradedReasons: [],
+            actions: [
+              { action: "accept_result" as const, enabled: true, supported: true, reason: null },
+              { action: "reject_result" as const, enabled: true, supported: true, reason: null },
+              { action: "retry" as const, enabled: true, supported: true, reason: null },
+              {
+                action: "continue_with_clarification" as const,
+                enabled: false,
+                supported: true,
+                reason: "Clarify is not currently available for this run.",
+              },
+              {
+                action: "switch_profile_and_retry" as const,
+                enabled: true,
+                supported: true,
+                reason: null,
+              },
+              {
+                action: "escalate_to_pair_mode" as const,
+                enabled: true,
+                supported: true,
+                reason: null,
+              },
+            ],
+          },
         },
       ],
     });
@@ -1622,6 +1662,32 @@ describe("reviewPackSurfaceModel", () => {
             completionReason: "Run completed.",
             lastProgressAt: 10,
           },
+          actionability: {
+            state: "ready" as const,
+            summary: "Runtime review actionability is ready.",
+            degradedReasons: [],
+            actions: [
+              { action: "retry" as const, enabled: true, supported: true, reason: null },
+              {
+                action: "continue_with_clarification" as const,
+                enabled: false,
+                supported: true,
+                reason: "Clarify is not currently available for this run.",
+              },
+              {
+                action: "switch_profile_and_retry" as const,
+                enabled: true,
+                supported: true,
+                reason: null,
+              },
+              {
+                action: "escalate_to_pair_mode" as const,
+                enabled: true,
+                supported: true,
+                reason: null,
+              },
+            ],
+          },
         },
       ],
     });
@@ -1864,6 +1930,12 @@ describe("reviewPackSurfaceModel", () => {
               health: "active" as const,
               rolloutState: "current" as const,
             },
+          },
+          actionability: {
+            state: "ready" as const,
+            summary: "Runtime review actionability is ready.",
+            degradedReasons: [],
+            actions: [{ action: "retry" as const, enabled: true, supported: true, reason: null }],
           },
         },
       ],
@@ -2739,6 +2811,20 @@ describe("reviewPackSurfaceModel", () => {
           checksPerformed: [],
           recommendedNextAction: "Review the result.",
           createdAt: 10,
+          actionability: {
+            state: "ready" as const,
+            summary: "Runtime review actionability is ready.",
+            degradedReasons: [],
+            actions: [
+              { action: "retry" as const, enabled: true, supported: true, reason: null },
+              {
+                action: "continue_with_clarification" as const,
+                enabled: true,
+                supported: true,
+                reason: null,
+              },
+            ],
+          },
         },
       ],
     });

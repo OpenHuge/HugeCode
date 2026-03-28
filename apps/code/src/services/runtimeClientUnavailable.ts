@@ -111,32 +111,20 @@ export function createUnavailableRuntimeClient(
     runtimeRunPrepareV2() {
       return rejectUnavailable("prepare runtime run v2");
     },
-    runtimeRunStart() {
-      return rejectUnavailable("start runtime run");
-    },
     runtimeRunStartV2() {
       return rejectUnavailable("start runtime run v2");
     },
     runtimeRunGetV2() {
       return rejectUnavailable("read runtime run v2");
     },
-    runtimeRunIntervene() {
-      return rejectUnavailable("intervene runtime run");
-    },
     runtimeRunInterveneV2() {
       return rejectUnavailable("intervene runtime run v2");
     },
-    runtimeRunCancel() {
-      return rejectUnavailable("cancel runtime run");
-    },
-    runtimeRunResume() {
-      return rejectUnavailable("resume runtime run");
+    runtimeRunCancelV2() {
+      return rejectUnavailable("cancel runtime run v2");
     },
     runtimeRunResumeV2() {
       return rejectUnavailable("resume runtime run v2");
-    },
-    runtimeRunSubscribe() {
-      return rejectUnavailable("subscribe runtime run");
     },
     runtimeRunSubscribeV2() {
       return rejectUnavailable("subscribe runtime run v2");
@@ -146,30 +134,6 @@ export function createUnavailableRuntimeClient(
     },
     runtimeRunsList() {
       return rejectUnavailable("list runtime runs");
-    },
-    kernelJobStartV3() {
-      return rejectUnavailable("start kernel job v3");
-    },
-    kernelJobGetV3() {
-      return rejectUnavailable("read kernel job v3");
-    },
-    kernelJobCancelV3() {
-      return rejectUnavailable("cancel kernel job v3");
-    },
-    kernelJobResumeV3() {
-      return rejectUnavailable("resume kernel job v3");
-    },
-    kernelJobInterveneV3() {
-      return rejectUnavailable("intervene kernel job v3");
-    },
-    kernelJobSubscribeV3() {
-      return rejectUnavailable("subscribe kernel job v3");
-    },
-    kernelJobCallbackRegisterV3() {
-      return rejectUnavailable("register kernel job callback v3");
-    },
-    kernelJobCallbackRemoveV3() {
-      return rejectUnavailable("remove kernel job callback v3");
     },
     subAgentSpawn() {
       return rejectUnavailable("spawn sub-agent session");

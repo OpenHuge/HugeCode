@@ -475,131 +475,175 @@ describe("runtimeClient mode detection", () => {
     );
 
     invokeMock.mockResolvedValueOnce({
-      id: "job-123",
-      workspaceId: "workspace-123",
-      status: "queued",
-      executionProfile: {
-        placement: "local",
-        interactivity: "background",
-        isolation: "host",
-        network: "default",
-        authority: "user",
-      },
-      createdAt: 1,
-      updatedAt: 1,
-      continuation: {
-        resumeSupported: true,
-        recovered: false,
-      },
-    });
-    await client.kernelJobStartV3({
-      workspaceId: "workspace-123",
-      steps: [{ kind: "read", input: "Check repo" }],
-    });
-    expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_start_v3",
-      expect.objectContaining({
+      run: {
+        taskId: "run-123",
         workspaceId: "workspace-123",
-        steps: expect.arrayContaining([
-          expect.objectContaining({ kind: "read", input: "Check repo" }),
-        ]),
-      })
-    );
-
-    invokeMock.mockResolvedValueOnce(null);
-    await client.kernelJobGetV3({ jobId: "job-123" });
+        threadId: null,
+        requestId: null,
+        title: "Runtime v2",
+        status: "queued",
+        accessMode: "on-request",
+        provider: null,
+        modelId: null,
+        routedProvider: null,
+        routedModelId: null,
+        routedPool: null,
+        routedSource: null,
+        currentStep: null,
+        createdAt: 1,
+        updatedAt: 1,
+        startedAt: null,
+        completedAt: null,
+        errorCode: null,
+        errorMessage: null,
+        pendingApprovalId: null,
+        steps: [],
+      },
+      missionRun: {
+        runId: "run-123",
+        workspaceId: "workspace-123",
+        threadId: null,
+        status: "queued",
+        title: "Runtime v2",
+        summary: null,
+        objective: null,
+        createdAt: 1,
+        updatedAt: 1,
+        lastEventAt: null,
+        pendingApprovalId: null,
+        activeSubAgentCount: 0,
+        reviewStatus: "not_started",
+        nextAction: null,
+        progressLabel: null,
+      },
+      reviewPack: null,
+    });
+    await client.runtimeRunGetV2({ runId: "run-123" });
     expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_get_v3",
+      "code_runtime_run_get_v2",
       expect.objectContaining({
-        jobId: "job-123",
+        runId: "run-123",
       })
     );
 
     invokeMock.mockResolvedValueOnce({
       accepted: true,
-      runId: "job-123",
+      runId: "run-123",
       status: "interrupted",
       message: "cancelled",
     });
-    await client.kernelJobCancelV3({ runId: "job-123", reason: "user-stop" });
+    await client.runtimeRunCancelV2({ runId: "run-123", reason: "user-stop" });
     expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_cancel_v3",
+      "code_runtime_run_cancel_v2",
       expect.objectContaining({
-        runId: "job-123",
+        runId: "run-123",
         reason: "user-stop",
       })
     );
 
     invokeMock.mockResolvedValueOnce({
-      accepted: true,
-      runId: "job-123",
-      status: "queued",
-      message: "resumed",
+      run: {
+        taskId: "run-123",
+        workspaceId: "workspace-123",
+        threadId: null,
+        requestId: null,
+        title: "Runtime v2",
+        status: "queued",
+        accessMode: "on-request",
+        provider: null,
+        modelId: null,
+        routedProvider: null,
+        routedModelId: null,
+        routedPool: null,
+        routedSource: null,
+        currentStep: null,
+        createdAt: 1,
+        updatedAt: 1,
+        startedAt: null,
+        completedAt: null,
+        errorCode: null,
+        errorMessage: null,
+        pendingApprovalId: null,
+        steps: [],
+      },
+      missionRun: {
+        runId: "run-123",
+        workspaceId: "workspace-123",
+        threadId: null,
+        status: "queued",
+        title: "Runtime v2",
+        summary: null,
+        objective: null,
+        createdAt: 1,
+        updatedAt: 1,
+        lastEventAt: null,
+        pendingApprovalId: null,
+        activeSubAgentCount: 0,
+        reviewStatus: "not_started",
+        nextAction: null,
+        progressLabel: null,
+      },
+      reviewPack: null,
     });
-    await client.kernelJobResumeV3({ runId: "job-123", reason: "retry" });
+    await client.runtimeRunResumeV2({ runId: "run-123", reason: "retry" });
     expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_resume_v3",
+      "code_runtime_run_resume_v2",
       expect.objectContaining({
-        runId: "job-123",
+        runId: "run-123",
         reason: "retry",
       })
     );
 
     invokeMock.mockResolvedValueOnce({
-      accepted: true,
-      action: "retry",
-      runId: "job-123",
-      status: "queued",
-      outcome: "submitted",
-    });
-    await client.kernelJobInterveneV3({ runId: "job-123", action: "retry" });
-    expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_intervene_v3",
-      expect.objectContaining({
-        runId: "job-123",
-        action: "retry",
-      })
-    );
-
-    invokeMock.mockResolvedValueOnce(null);
-    await client.kernelJobSubscribeV3({ runId: "job-123" });
-    expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_subscribe_v3",
-      expect.objectContaining({
-        runId: "job-123",
-      })
-    );
-
-    invokeMock.mockResolvedValueOnce({
-      registered: true,
-      callbackId: "cb-123",
-      delivery: { mode: "callback", callbackId: "cb-123" },
-      message: null,
-    });
-    await client.kernelJobCallbackRegisterV3({
-      callbackId: "cb-123",
-      workspaceId: "workspace-123",
-      mode: "callback",
-    });
-    expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_callback_register_v3",
-      expect.objectContaining({
-        callbackId: "cb-123",
+      run: {
+        taskId: "run-123",
         workspaceId: "workspace-123",
-        mode: "callback",
-      })
-    );
-
-    invokeMock.mockResolvedValueOnce({
-      removed: true,
-      callbackId: "cb-123",
-      message: null,
+        threadId: null,
+        requestId: null,
+        title: "Runtime v2",
+        status: "queued",
+        accessMode: "on-request",
+        provider: null,
+        modelId: null,
+        routedProvider: null,
+        routedModelId: null,
+        routedPool: null,
+        routedSource: null,
+        currentStep: null,
+        createdAt: 1,
+        updatedAt: 1,
+        startedAt: null,
+        completedAt: null,
+        errorCode: null,
+        errorMessage: null,
+        pendingApprovalId: null,
+        steps: [],
+      },
+      missionRun: {
+        runId: "run-123",
+        workspaceId: "workspace-123",
+        threadId: null,
+        status: "queued",
+        title: "Runtime v2",
+        summary: null,
+        objective: null,
+        createdAt: 1,
+        updatedAt: 1,
+        lastEventAt: null,
+        pendingApprovalId: null,
+        activeSubAgentCount: 0,
+        reviewStatus: "not_started",
+        nextAction: null,
+        progressLabel: null,
+      },
+      reviewPack: null,
     });
-    await client.kernelJobCallbackRemoveV3({ callbackId: "cb-123" });
+    await client.runtimeRunInterveneV2({ runId: "run-123", action: "retry" });
     expect(invokeMock).toHaveBeenLastCalledWith(
-      "code_kernel_job_callback_remove_v3",
+      "code_runtime_run_intervene_v2",
       expect.objectContaining({
-        callbackId: "cb-123",
+        runId: "run-123",
+        action: "retry",
       })
     );
 

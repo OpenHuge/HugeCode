@@ -116,7 +116,7 @@ function createDefaultMissionControlSnapshot() {
         workspaceId: "workspace-1",
         summary: "Ready for review",
         reviewStatus: "ready",
-        evidenceState: "complete",
+        evidenceState: "confirmed",
         validationOutcome: "passed",
         warningCount: 0,
         warnings: [],
@@ -228,17 +228,15 @@ function createBindings(options?: {
         startRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        cancelRuntimeJob: async () => {
+        cancelRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        resumeRuntimeJob: async () => {
+        resumeRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        interveneRuntimeJob: async () => {
+        interveneRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        subscribeRuntimeJob: async () => null,
-        listRuntimeJobs: async () => [],
         submitRuntimeJobApprovalDecision: async () => {
           throw new Error("not implemented");
         },
@@ -791,7 +789,7 @@ describe("WorkspaceShellApp", () => {
                   workspaceId: "workspace-1",
                   summary: "Lint failure",
                   reviewStatus: "ready",
-                  evidenceState: "complete",
+                  evidenceState: "confirmed",
                   validationOutcome: "failed",
                   warningCount: 0,
                   warnings: [],
@@ -876,7 +874,7 @@ describe("WorkspaceShellApp", () => {
         bindings={createBindings({
           hostPlatform: "desktop",
           readStartupStatus: vi.fn(async () => ({
-            tone: "attention",
+            tone: "attention" as const,
             label: "Electron updates need attention",
             detail: "Manual updates are required for this build.",
           })),

@@ -31,34 +31,60 @@ const runtimeMocks = vi.hoisted(() => ({
     missionRun: {} as never,
     reviewPack: null,
   })),
-  cancelRuntimeJob: vi.fn(async (input) => ({
+  cancelRuntimeRun: vi.fn(async (input) => ({
     accepted: true,
     runId: input.runId,
     status: "cancelled",
     message: null,
   })),
-  resumeRuntimeJob: vi.fn(async (input) => ({
-    accepted: true,
-    runId: input.runId,
-    status: "running",
-    code: null,
-    message: null,
-    recovered: false,
-    checkpointId: null,
-    traceId: null,
-    updatedAt: null,
+  resumeRuntimeRun: vi.fn(async (input) => ({
+    run: {
+      taskId: input.runId,
+      workspaceId: "workspace-1",
+      threadId: null,
+      requestId: null,
+      title: null,
+      status: "running",
+      accessMode: "on-request",
+      currentStep: null,
+      createdAt: 1,
+      updatedAt: 1,
+      startedAt: 1,
+      completedAt: null,
+      errorCode: null,
+      errorMessage: null,
+      pendingApprovalId: null,
+      checkpointId: null,
+      traceId: null,
+      recovered: false,
+    },
+    missionRun: {} as never,
+    reviewPack: null,
   })),
-  interveneRuntimeJob: vi.fn(async (input) => ({
-    accepted: true,
-    action: input.action,
-    runId: input.runId,
-    status: "queued",
-    outcome: "submitted",
-    spawnedRunId: null,
-    checkpointId: null,
+  interveneRuntimeRun: vi.fn(async (input) => ({
+    run: {
+      taskId: input.runId,
+      workspaceId: "workspace-1",
+      threadId: null,
+      requestId: null,
+      title: null,
+      status: "queued",
+      accessMode: "on-request",
+      currentStep: null,
+      createdAt: 1,
+      updatedAt: 1,
+      startedAt: null,
+      completedAt: null,
+      errorCode: null,
+      errorMessage: null,
+      pendingApprovalId: null,
+      checkpointId: null,
+      traceId: null,
+      recovered: false,
+    },
+    missionRun: {} as never,
+    reviewPack: null,
   })),
-  subscribeRuntimeJob: vi.fn(async (input) => ({ id: input.runId, status: "running" })),
-  listRuntimeJobs: vi.fn(async (input) => [{ id: "run-1", workspaceId: input.workspaceId }]),
   submitRuntimeJobApprovalDecision: vi.fn(async (input) => ({
     recorded: true,
     approvalId: input.approvalId,
@@ -150,11 +176,9 @@ vi.mock("../ports/runtimeUpdatedEvents", () => ({
 vi.mock("../ports/tauriRuntimeJobs", () => ({
   prepareRuntimeRunV2: runtimeMocks.prepareRuntimeRun,
   startRuntimeRunV2: runtimeMocks.startRuntimeRun,
-  cancelRuntimeJob: runtimeMocks.cancelRuntimeJob,
-  resumeRuntimeJob: runtimeMocks.resumeRuntimeJob,
-  interveneRuntimeJob: runtimeMocks.interveneRuntimeJob,
-  subscribeRuntimeJob: runtimeMocks.subscribeRuntimeJob,
-  listRuntimeJobs: runtimeMocks.listRuntimeJobs,
+  cancelRuntimeRun: runtimeMocks.cancelRuntimeRun,
+  resumeRuntimeRun: runtimeMocks.resumeRuntimeRun,
+  interveneRuntimeRun: runtimeMocks.interveneRuntimeRun,
   submitRuntimeJobApprovalDecision: runtimeMocks.submitRuntimeJobApprovalDecision,
 }));
 
@@ -234,23 +258,17 @@ describe("createRuntimeKernel", () => {
       })
     ).resolves.toMatchObject({ run: { taskId: "run-1" } });
     await expect(
-      kernel.workspaceClientRuntime.agentControl.cancelRuntimeJob({ runId: "run-1" })
+      kernel.workspaceClientRuntime.agentControl.cancelRuntimeRun({ runId: "run-1" })
     ).resolves.toMatchObject({ runId: "run-1", accepted: true });
     await expect(
-      kernel.workspaceClientRuntime.agentControl.resumeRuntimeJob({ runId: "run-1" })
-    ).resolves.toMatchObject({ runId: "run-1", accepted: true });
+      kernel.workspaceClientRuntime.agentControl.resumeRuntimeRun({ runId: "run-1" })
+    ).resolves.toMatchObject({ run: { taskId: "run-1" } });
     await expect(
-      kernel.workspaceClientRuntime.agentControl.interveneRuntimeJob({
+      kernel.workspaceClientRuntime.agentControl.interveneRuntimeRun({
         runId: "run-1",
         action: "retry",
       })
-    ).resolves.toMatchObject({ runId: "run-1", accepted: true });
-    await expect(
-      kernel.workspaceClientRuntime.agentControl.subscribeRuntimeJob({ runId: "run-1" })
-    ).resolves.toMatchObject({ id: "run-1" });
-    await expect(
-      kernel.workspaceClientRuntime.agentControl.listRuntimeJobs({ workspaceId: "workspace-1" })
-    ).resolves.toHaveLength(1);
+    ).resolves.toMatchObject({ run: { taskId: "run-1" } });
     await expect(
       kernel.workspaceClientRuntime.agentControl.submitRuntimeJobApprovalDecision({
         runId: "run-1",

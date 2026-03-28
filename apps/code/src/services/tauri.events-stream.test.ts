@@ -36,12 +36,6 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-notification", () => ({
-  isPermissionGranted: vi.fn(),
-  requestPermission: vi.fn(),
-  sendNotification: vi.fn(),
-}));
-
 vi.mock("./runtimeClient", () => ({
   detectRuntimeMode: vi.fn(() => "tauri"),
   getRuntimeClient: vi.fn(),
@@ -341,10 +335,12 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
-  it("omits delivery when starting reviews without override", async () => {
+  it("rejects review start on the deprecated desktop compat surface", async () => {
+    const invokeMock = vi.mocked(invoke);
     await expect(startReview("ws-5", "thread-2", { type: "uncommittedChanges" })).rejects.toThrow(
       "Review start is only available in the desktop app."
     );
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it("rejects review start outside tauri mode", async () => {
@@ -357,10 +353,12 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("nests decisions for server request responses", async () => {
+  it("rejects numeric approval responses on the deprecated desktop compat surface", async () => {
+    const invokeMock = vi.mocked(invoke);
     await expect(respondToServerRequest("ws-6", 101, "accept")).rejects.toThrow(
       "Numeric approval requests are unavailable in the Electron desktop host."
     );
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it("routes runtime approval responses through code_runtime_run_checkpoint_approval", async () => {
@@ -409,15 +407,18 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).not.toHaveBeenCalledWith("respond_to_server_request", expect.anything());
   });
 
-  it("nests answers for user input responses", async () => {
+  it("rejects user input responses on the deprecated desktop compat surface", async () => {
+    const invokeMock = vi.mocked(invoke);
     await expect(
       respondToUserInputRequest("ws-7", 202, {
         confirm_path: { answers: ["Yes"] },
       })
     ).rejects.toThrow("User-input request responses are unavailable in the Electron desktop host.");
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("passes through multiple user input answers", async () => {
+  it("continues rejecting multi-answer user input responses on the deprecated compat surface", async () => {
+    const invokeMock = vi.mocked(invoke);
     const answers = {
       confirm_path: { answers: ["Yes"] },
       notes: { answers: ["First line", "Second line"] },
@@ -426,18 +427,22 @@ describe("tauri invoke wrappers", () => {
     await expect(respondToUserInputRequest("ws-8", 303, answers)).rejects.toThrow(
       "User-input request responses are unavailable in the Electron desktop host."
     );
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("sends dynamic tool-call responses to respond_to_server_request", async () => {
+  it("rejects tool-call responses on the deprecated desktop compat surface", async () => {
+    const invokeMock = vi.mocked(invoke);
     await expect(
       respondToToolCallRequest("ws-9", 404, {
         contentItems: [{ type: "inputText", text: "Ticket resolved." }],
         success: true,
       })
     ).rejects.toThrow("Tool-call request responses are unavailable in the Electron desktop host.");
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("sends arbitrary server-request payloads through respond_to_server_request", async () => {
+  it("rejects server-request result replies on the deprecated desktop compat surface", async () => {
+    const invokeMock = vi.mocked(invoke);
     await expect(
       respondToServerRequestResult("ws-10", "refresh-77", {
         accessToken: "token-abc",
@@ -447,6 +452,7 @@ describe("tauri invoke wrappers", () => {
     ).rejects.toThrow(
       "Server request result replies are unavailable in the Electron desktop host."
     );
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it("sends a notification without re-requesting permission when already granted", async () => {

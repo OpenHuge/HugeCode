@@ -177,7 +177,7 @@ export function createRuntimeSessionCommandFacade(
       deps.respondToUserInputRequest(workspaceId, requestId, answers),
     respondToToolCall: ({ requestId, response }) =>
       deps.respondToToolCallRequest(workspaceId, requestId, response),
-    canStartReviewInCurrentHost: () => false,
+    canStartReviewInCurrentHost: () => deps.detectRuntimeMode() === "tauri",
     reviewStartDesktopOnlyMessage: deps.reviewStartDesktopOnlyMessage,
   };
 }

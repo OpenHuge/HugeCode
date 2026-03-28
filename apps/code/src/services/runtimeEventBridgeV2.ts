@@ -1,4 +1,5 @@
 import type { AppServerEvent } from "../types";
+import { isTauri } from "../application/runtime/ports/tauriCore";
 import { normalizeAppServerPayload } from "./eventsRuntimePayloadAdapter";
 import {
   createEventIdDeduper,
@@ -181,7 +182,11 @@ function readAgentEnvelopeMetadataFromEvent(event: AppServerEvent): AgentEnvelop
 }
 
 function isTauriRuntime(): boolean {
-  return false;
+  try {
+    return isTauri();
+  } catch {
+    return false;
+  }
 }
 
 function notifySubscriptionError(
@@ -627,18 +632,18 @@ export async function startAppServerBridgeV2(
       );
       if (runtimeUnsubscribe) {
         unsubscribers.push(runtimeUnsubscribe);
+        bridgeState.transition("open", {
+          reason: "tauri-listener-open",
+          transport: "tauri",
+          retryAttempt: 0,
+          retryDelayMs: null,
+          consecutiveFailures: 0,
+        });
+        return () => {
+          createCompositeUnsubscribe(unsubscribers)();
+          bridgeState.transition("stopped", { reason: "disposed", retryDelayMs: null });
+        };
       }
-      bridgeState.transition("open", {
-        reason: "tauri-listener-open",
-        transport: "tauri",
-        retryAttempt: 0,
-        retryDelayMs: null,
-        consecutiveFailures: 0,
-      });
-      return () => {
-        createCompositeUnsubscribe(unsubscribers)();
-        bridgeState.transition("stopped", { reason: "disposed", retryDelayMs: null });
-      };
     }
 
     const webUnsubscribe = await subscribeWebRuntimeEventsV2(onEvent, options);

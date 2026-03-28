@@ -88,27 +88,13 @@ pub(super) const RPC_METHOD_REGISTRY: &[RpcMethodEntry] = &[
     RpcMethodEntry::new("code_task_source_reconcile_v1"),
     RpcMethodEntry::new("code_runtime_run_prepare_v2"),
     RpcMethodEntry::new("code_runtime_run_start_v2"),
-    // Legacy runtime-run compatibility surface. Not a product launch path.
-    RpcMethodEntry::new("code_runtime_run_start"),
-    RpcMethodEntry::new("code_runtime_run_cancel"),
-    RpcMethodEntry::new("code_runtime_run_resume"),
+    RpcMethodEntry::new("code_runtime_run_cancel_v2"),
     RpcMethodEntry::new("code_runtime_run_resume_v2"),
-    RpcMethodEntry::new("code_runtime_run_intervene"),
     RpcMethodEntry::new("code_runtime_run_intervene_v2"),
-    RpcMethodEntry::new("code_runtime_run_subscribe"),
     RpcMethodEntry::new("code_runtime_run_get_v2"),
     RpcMethodEntry::new("code_runtime_run_subscribe_v2"),
     RpcMethodEntry::new("code_runtime_review_get_v2"),
     RpcMethodEntry::new("code_runtime_runs_list"),
-    // Kernel-job compatibility surface. Not a product launch path.
-    RpcMethodEntry::new("code_kernel_job_start_v3"),
-    RpcMethodEntry::new("code_kernel_job_get_v3"),
-    RpcMethodEntry::new("code_kernel_job_cancel_v3"),
-    RpcMethodEntry::new("code_kernel_job_resume_v3"),
-    RpcMethodEntry::new("code_kernel_job_intervene_v3"),
-    RpcMethodEntry::new("code_kernel_job_subscribe_v3"),
-    RpcMethodEntry::new("code_kernel_job_callback_register_v3"),
-    RpcMethodEntry::new("code_kernel_job_callback_remove_v3"),
     RpcMethodEntry::new("code_sub_agent_spawn"),
     RpcMethodEntry::new("code_sub_agent_send"),
     RpcMethodEntry::new("code_sub_agent_wait"),
@@ -429,16 +415,22 @@ mod tests {
             .any(|method| method == "code_oauth_pool_apply"));
         assert!(methods
             .iter()
-            .any(|method| method == "code_runtime_run_start"));
+            .any(|method| method == "code_runtime_run_start_v2"));
         assert!(methods
             .iter()
-            .any(|method| method == "code_kernel_job_start_v3"));
+            .any(|method| method == "code_runtime_run_cancel_v2"));
         assert!(methods
             .iter()
             .any(|method| method == "code_runtime_run_checkpoint_approval"));
         assert!(methods
             .iter()
             .any(|method| method == "code_oauth_codex_accounts_import_from_cockpit_tools"));
+        assert!(!methods
+            .iter()
+            .any(|method| method == "code_runtime_run_start"));
+        assert!(!methods
+            .iter()
+            .any(|method| method == "code_kernel_job_start_v3"));
         assert!(!methods
             .iter()
             .any(|method| method == "code_agent_task_start"));
