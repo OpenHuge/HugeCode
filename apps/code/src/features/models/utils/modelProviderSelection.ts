@@ -373,22 +373,27 @@ function pickRepresentativeModel<TModel extends ProviderSelectableModel>(
   selectedModelId: string | null,
   requirements: AutoSelectionRequirements | null | undefined = null
 ): TModel {
+  const hasAvailableModel = models.some((model) => model.available !== false);
   const selectedMatch = models.find(
     (model) => model.id === selectedModelId || model.model === selectedModelId
   );
-  if (selectedMatch && modelSatisfiesAutoSelectionRequirements(selectedMatch, requirements)) {
+  if (
+    selectedMatch &&
+    modelSatisfiesAutoSelectionRequirements(selectedMatch, requirements) &&
+    (selectedMatch.available !== false || !hasAvailableModel)
+  ) {
     return selectedMatch;
   }
   return [...models].sort((left, right) => {
+    const availabilityDelta = Number(right.available !== false) - Number(left.available !== false);
+    if (availabilityDelta !== 0) {
+      return availabilityDelta;
+    }
     const requirementDelta =
       Number(modelSatisfiesAutoSelectionRequirements(right, requirements)) -
       Number(modelSatisfiesAutoSelectionRequirements(left, requirements));
     if (requirementDelta !== 0) {
       return requirementDelta;
-    }
-    const availabilityDelta = Number(right.available !== false) - Number(left.available !== false);
-    if (availabilityDelta !== 0) {
-      return availabilityDelta;
     }
     const toolsDelta = resolveModelToolsPriority(right) - resolveModelToolsPriority(left);
     if (toolsDelta !== 0) {

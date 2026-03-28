@@ -36,9 +36,25 @@ function mapCanonicalTargetToMissionNavigationTarget(input: {
     return input.missionTarget;
   }
   if (target.kind === "thread") {
-    // Mission Control should keep mission context intact even when runtime
-    // continuation truth says the next continue path is the mission thread.
-    return input.missionTarget;
+    const missionThreadId =
+      input.task.origin.threadId ??
+      (input.missionTarget.kind === "mission" || input.missionTarget.kind === "thread"
+        ? (input.missionTarget.threadId ?? null)
+        : null);
+    if (
+      missionThreadId &&
+      target.workspaceId === input.task.workspaceId &&
+      target.threadId === missionThreadId
+    ) {
+      // Keep mission context when runtime truth points back to the same mission
+      // thread, but preserve cross-thread handoff targets.
+      return input.missionTarget;
+    }
+    return {
+      kind: "thread",
+      workspaceId: target.workspaceId,
+      threadId: target.threadId,
+    };
   }
   if (target.kind === "review_pack") {
     return {
