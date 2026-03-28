@@ -153,8 +153,10 @@ export function extractReviewThreadId(response: unknown): string | null {
   const threadId = asString(
     result?.reviewThreadId ??
       result?.review_thread_id ??
+      result?.threadId ??
       record.reviewThreadId ??
-      record.review_thread_id
+      record.review_thread_id ??
+      record.threadId
   );
   return threadId || null;
 }

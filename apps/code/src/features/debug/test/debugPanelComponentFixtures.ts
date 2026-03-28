@@ -1,4 +1,7 @@
 import { vi } from "vitest";
+import { buildRuntimeSessionCheckpointBaseline } from "../../../application/runtime/facades/runtimeSessionCheckpointFacade";
+import { buildRuntimeSessionCheckpointPresentationSummary } from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
+import { buildRuntimeToolLifecyclePresentationSummary } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import type { DebugEntry } from "../../../types";
 import type { DebugPanelBodyProps } from "../components/DebugPanelBody";
 import type {
@@ -12,6 +15,46 @@ import {
   createRuntimeEventChannelDiagnostics,
   createRuntimeToolLifecycleEvent,
 } from "./debugDiagnosticsFixtures";
+
+function createRuntimeToolLifecycleFixture(input?: {
+  hookCheckpoints?: DebugPanelBodyProps["runtimeToolLifecycle"]["hookCheckpoints"];
+  lifecycleEvents?: DebugPanelBodyProps["runtimeToolLifecycle"]["lifecycleEvents"];
+  revision?: number;
+  workspaceId?: string | null;
+}): DebugPanelBodyProps["runtimeToolLifecycle"] {
+  const lifecycleEvents = input?.lifecycleEvents ?? [];
+  const hookCheckpoints = input?.hookCheckpoints ?? [];
+  const revision = input?.revision ?? 0;
+  const workspaceId = input?.workspaceId ?? "workspace-1";
+  const lifecycle = {
+    summary: buildRuntimeToolLifecyclePresentationSummary({
+      lifecycleEvents,
+      hookCheckpoints,
+    }),
+    revision,
+    lastHookCheckpoint: hookCheckpoints[0] ?? null,
+    lastEvent: lifecycleEvents[0] ?? null,
+    hookCheckpoints,
+    lifecycleEvents,
+  };
+  const sessionCheckpointBaseline = buildRuntimeSessionCheckpointBaseline({
+    workspaceId,
+    lifecycleSnapshot: {
+      revision: lifecycle.revision,
+      lastEvent: lifecycle.lastEvent,
+      recentEvents: lifecycle.lifecycleEvents,
+      lastHookCheckpoint: lifecycle.lastHookCheckpoint,
+      recentHookCheckpoints: lifecycle.hookCheckpoints,
+    },
+  });
+
+  return {
+    ...lifecycle,
+    sessionCheckpointBaseline,
+    sessionCheckpointSummary:
+      buildRuntimeSessionCheckpointPresentationSummary(sessionCheckpointBaseline),
+  };
+}
 
 export function createDebugEntries(): DebugEntry[] {
   return [
@@ -47,7 +90,7 @@ export function createDebugPanelShellProps(
 export function createDebugPanelBodyProps(
   overrides: Partial<DebugPanelBodyProps> = {}
 ): DebugPanelBodyProps {
-  return {
+  const baseProps: DebugPanelBodyProps = {
     isOpen: true,
     observabilityCapabilityEnabled: true,
     distributedDiagnostics: null,
@@ -67,7 +110,7 @@ export function createDebugPanelBodyProps(
       truncatedTotal: 0,
     },
     runtimeToolExecutionRecentExecutions: [],
-    runtimeToolLifecycleEvents: [],
+    runtimeToolLifecycle: createRuntimeToolLifecycleFixture(),
     runtimeEventBridgePath: "legacy",
     formattedEntries: [],
     isRuntimeProbeBusy: false,
@@ -97,7 +140,22 @@ export function createDebugPanelBodyProps(
     onRunBootstrapProbe: vi.fn(),
     onRunToolLifecycleProbe: vi.fn(),
     onRunLiveSkillProbe: vi.fn(),
+  };
+
+  const mergedRuntimeToolLifecycle = {
+    ...baseProps.runtimeToolLifecycle,
+    ...overrides.runtimeToolLifecycle,
+  };
+
+  return {
+    ...baseProps,
     ...overrides,
+    runtimeToolLifecycle: createRuntimeToolLifecycleFixture({
+      workspaceId: mergedRuntimeToolLifecycle.sessionCheckpointBaseline.workspaceId,
+      lifecycleEvents: mergedRuntimeToolLifecycle.lifecycleEvents,
+      hookCheckpoints: mergedRuntimeToolLifecycle.hookCheckpoints,
+      revision: mergedRuntimeToolLifecycle.revision,
+    }),
   };
 }
 
@@ -110,7 +168,10 @@ export function createPopulatedDebugPanelBodyProps(
     hasRemoteExecutionDiagnostics: true,
     agentTaskDurabilityDiagnostics: createAgentTaskDurabilityDiagnostics(),
     eventChannelDiagnostics: createRuntimeEventChannelDiagnostics(),
-    runtimeToolLifecycleEvents: [createRuntimeToolLifecycleEvent()],
+    runtimeToolLifecycle: createRuntimeToolLifecycleFixture({
+      lifecycleEvents: [createRuntimeToolLifecycleEvent()],
+      revision: 1,
+    }),
     runtimeEventBridgePath: "v2",
     formattedEntries: createFormattedDebugEntries(),
     ...overrides,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  extractReviewThreadId,
   normalizePlanStepStatus,
   normalizePlanUpdate,
   normalizeRateLimits,
@@ -202,6 +203,16 @@ describe("normalizePlanUpdate", () => {
     };
 
     expect(normalizeRateLimits({}, previous)).toEqual(previous);
+  });
+
+  it("extracts review thread ids from legacy threadId review-start payloads", () => {
+    expect(
+      extractReviewThreadId({
+        result: {
+          threadId: "thread-review-legacy",
+        },
+      })
+    ).toBe("thread-review-legacy");
   });
 
   it("merges limit id/name incrementally across updates", () => {

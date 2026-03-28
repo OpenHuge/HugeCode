@@ -9,6 +9,8 @@ export type SendMessageOptions = {
   provider?: string | null;
   model?: string | null;
   effort?: string | null;
+  toolsCapabilitySupport?: "supported" | "unsupported" | "unknown" | null;
+  visionCapabilitySupport?: "supported" | "unsupported" | "unknown" | null;
   fastMode?: boolean;
   collaborationMode?: Record<string, unknown> | null;
   accessMode?: AccessMode;

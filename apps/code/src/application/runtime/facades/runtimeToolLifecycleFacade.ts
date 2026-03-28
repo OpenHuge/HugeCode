@@ -9,16 +9,40 @@ import type { Unsubscribe } from "../ports/events";
 import { subscribeAppServerEvents } from "../ports/events";
 import type { RuntimeToolExecutionTelemetryEvent } from "../ports/runtimeToolExecutionTelemetry";
 import { subscribeRuntimeToolExecutionTelemetryEvents } from "../ports/runtimeToolExecutionTelemetry";
+export {
+  buildRuntimeToolLifecyclePresentationSummary,
+  describeRuntimeToolLifecycleEvent,
+  describeRuntimeToolLifecycleHookCheckpoint,
+  formatRuntimeToolLifecycleStatusLabel,
+  formatRuntimeToolLifecycleEventKey,
+  formatRuntimeToolLifecycleHookCheckpointKey,
+  getRuntimeToolLifecycleEventTone,
+  getRuntimeToolLifecycleHookCheckpointTone,
+  sortRuntimeToolLifecycleEventsByRecency,
+  sortRuntimeToolLifecycleHookCheckpointsByRecency,
+  type RuntimeToolLifecyclePresentationSummary,
+  type RuntimeToolLifecyclePresentationTone,
+} from "./runtimeToolLifecyclePresentation";
 import type {
-  RuntimeApprovalLifecycleEvent,
+  RuntimeToolLifecycleAppEventMethod,
   RuntimeToolLifecycleEvent,
-  RuntimeToolLifecycleEventRecord,
+  RuntimeToolLifecycleHookCheckpoint,
   RuntimeToolLifecycleSnapshot,
-  RuntimeToolLifecycleStatus,
-  RuntimeTurnLifecycleEvent,
+} from "../types/runtimeToolLifecycle";
+import {
+  RUNTIME_TOOL_LIFECYCLE_APP_EVENT_METHODS,
+  buildRuntimeToolLifecycleEventId,
+  deriveRuntimeToolLifecycleHookCheckpoint,
+  filterRuntimeToolLifecycleSnapshot,
+  getRuntimeToolLifecycleEntityKey,
+  isRuntimeGuardrailLifecycleStatus,
+  normalizeRuntimeToolLifecycleAppEvent,
+  normalizeRuntimeToolLifecycleStatus,
+  shouldAcceptRuntimeToolLifecycleTransition,
 } from "../types/runtimeToolLifecycle";
 
 const RUNTIME_TOOL_LIFECYCLE_RECENT_LIMIT = 40;
+const ALL_WORKSPACE_RUNTIME_TOOL_LIFECYCLE_LISTENER_KEY = "__all__";
 
 type RuntimeToolLifecycleEventListener = (event: RuntimeToolLifecycleEvent) => void;
 type RuntimeToolLifecycleSnapshotListener = () => void;
@@ -28,277 +52,42 @@ type TelemetryEventSubscriber = (
   listener: (event: RuntimeToolExecutionTelemetryEvent) => void
 ) => Unsubscribe;
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-  return value as Record<string, unknown>;
-}
-
-function readString(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function readNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-  return null;
-}
-
-function normalizeLifecycleStatus(value: unknown): RuntimeToolLifecycleStatus | null {
-  const raw = readString(value);
-  if (!raw) {
-    return null;
-  }
-  const normalized = raw.trim().toLowerCase();
-  switch (normalized) {
-    case "allowed":
-    case "approved":
-    case "blocked":
-    case "completed":
-    case "failed":
-    case "interrupted":
-    case "pending":
-    case "rejected":
-    case "runtime_failed":
-    case "success":
-    case "timeout":
-    case "validation_failed":
-      return normalized;
-    case "inprogress":
-    case "in_progress":
-      return "in_progress";
-    default:
-      return null;
-  }
-}
-
-function isApprovalLifecycleStatus(
-  status: RuntimeToolLifecycleStatus | null
-): status is RuntimeApprovalLifecycleEvent["status"] {
-  return (
-    status === "pending" ||
-    status === "approved" ||
-    status === "rejected" ||
-    status === "interrupted"
-  );
-}
-
-function isGuardrailLifecycleStatus(
-  status: RuntimeToolLifecycleStatus | null
-): status is Extract<
-  RuntimeToolLifecycleEvent["status"],
-  "allowed" | "blocked" | "runtime_failed" | "success" | "timeout" | "validation_failed"
-> {
-  return (
-    status === "allowed" ||
-    status === "blocked" ||
-    status === "runtime_failed" ||
-    status === "success" ||
-    status === "timeout" ||
-    status === "validation_failed"
-  );
-}
-
-function readEventAt(params: Record<string, unknown>, fallbackAt: number): number {
-  return (
-    readNumber(params.at) ??
-    readNumber(params.updatedAt) ??
-    readNumber(params.timestamp) ??
-    fallbackAt
-  );
-}
-
-function buildLifecycleEventId(
-  kind: RuntimeToolLifecycleEvent["kind"],
-  phase: RuntimeToolLifecycleEvent["phase"],
-  source: RuntimeToolLifecycleEvent["source"],
-  at: number,
-  suffix: string | null
-): string {
-  return [source, kind, phase, String(at), suffix ?? "na"].join(":");
-}
-
-function createTurnLifecycleEvent(
-  method: "turn/started" | "turn/completed" | "error",
-  event: AppServerEvent,
-  receivedAt: number
-): RuntimeTurnLifecycleEvent | null {
-  const params = getAppServerParams(event);
-  const turnId = readString(params.turnId);
-  if (!turnId) {
-    return null;
-  }
-  const threadId = readString(params.threadId);
-  const at = readEventAt(params, receivedAt);
-  const requestId = getAppServerRequestId(event);
-  const phase =
-    method === "turn/started" ? "started" : method === "turn/completed" ? "completed" : "failed";
-  const status =
-    phase === "started" ? "in_progress" : phase === "completed" ? "completed" : "failed";
-  const errorCode = method === "error" ? readString(asRecord(params.error)?.code) : null;
-
-  return {
-    id: buildLifecycleEventId("turn", phase, "app-event", at, String(requestId ?? turnId)),
-    kind: "turn",
-    phase,
-    source: "app-event",
-    workspaceId: event.workspace_id,
-    threadId,
-    turnId,
-    toolCallId: null,
-    toolName: null,
-    scope: null,
-    status,
-    at,
-    errorCode,
-  };
-}
-
-function createToolLifecycleEventFromAppEvent(
-  method: "item/started" | "item/updated" | "item/completed" | "item/mcpToolCall/progress",
-  event: AppServerEvent,
-  receivedAt: number
-): RuntimeToolLifecycleEventRecord | null {
-  const params = getAppServerParams(event);
-  const item = asRecord(params.item);
-  const itemId = readString(params.itemId) ?? readString(item?.id);
-  const toolName = readString(item?.tool);
-  const toolType = readString(item?.type);
-  if (method !== "item/mcpToolCall/progress" && toolType && toolType !== "mcpToolCall") {
-    return null;
-  }
-  const at = readEventAt(params, receivedAt);
-  const requestId = getAppServerRequestId(event);
-  const status =
-    method === "item/started" || method === "item/updated" || method === "item/mcpToolCall/progress"
-      ? (normalizeLifecycleStatus(item?.status) ?? "in_progress")
-      : (normalizeLifecycleStatus(item?.status) ?? "completed");
-  const phase =
-    method === "item/started"
-      ? "started"
-      : method === "item/updated"
-        ? "updated"
-        : method === "item/mcpToolCall/progress"
-          ? "progress"
-          : "completed";
-
-  return {
-    id: buildLifecycleEventId(
-      "tool",
-      phase,
-      "app-event",
-      at,
-      String(requestId ?? itemId ?? toolName ?? "tool")
-    ),
-    kind: "tool",
-    phase,
-    source: "app-event",
-    workspaceId: event.workspace_id,
-    threadId: readString(params.threadId),
-    turnId: readString(params.turnId),
-    toolCallId: itemId,
-    toolName,
-    scope: null,
-    status,
-    at,
-    errorCode: method === "item/completed" ? readString(item?.errorCode) : null,
-  };
-}
-
-function createApprovalLifecycleEvent(
-  method: "runtime/requestApproval" | "runtime/approvalResolved",
-  event: AppServerEvent,
-  receivedAt: number
-): RuntimeApprovalLifecycleEvent | null {
-  const params = getAppServerParams(event);
-  const approvalId = readString(params.approvalId);
-  if (!approvalId) {
-    return null;
-  }
-  const at = readEventAt(params, receivedAt);
-  const requestId = getAppServerRequestId(event);
-  const phase = method === "runtime/requestApproval" ? "requested" : "resolved";
-  const status =
-    method === "runtime/requestApproval"
-      ? "pending"
-      : (normalizeLifecycleStatus(params.status) ?? normalizeLifecycleStatus(params.decision));
-  if (!isApprovalLifecycleStatus(status)) {
-    return null;
-  }
-
-  return {
-    id: buildLifecycleEventId("approval", phase, "app-event", at, String(requestId ?? approvalId)),
-    kind: "approval",
-    phase,
-    source: "app-event",
-    workspaceId: event.workspace_id,
-    threadId: readString(params.threadId),
-    turnId: readString(params.turnId),
-    toolCallId: null,
-    toolName: readString(params.action) ?? readString(params.command),
-    scope: null,
-    status,
-    at,
-    errorCode: null,
-    approvalId,
-  };
-}
-
-function normalizeRuntimeToolLifecycleAppEvent(
-  event: AppServerEvent,
-  receivedAt: number
-): RuntimeToolLifecycleEvent | null {
-  const method = getAppServerRawMethod(event);
-  if (!method) {
-    return null;
-  }
-  if (method === "turn/started" || method === "turn/completed" || method === "error") {
-    return createTurnLifecycleEvent(method, event, receivedAt);
-  }
-  if (
-    method === "item/started" ||
-    method === "item/updated" ||
-    method === "item/completed" ||
-    method === "item/mcpToolCall/progress"
-  ) {
-    return createToolLifecycleEventFromAppEvent(method, event, receivedAt);
-  }
-  if (method === "runtime/requestApproval" || method === "runtime/approvalResolved") {
-    return createApprovalLifecycleEvent(method, event, receivedAt);
-  }
-  return null;
-}
-
 function normalizeRuntimeToolLifecycleTelemetryEvent(
   event: RuntimeToolExecutionTelemetryEvent
 ): RuntimeToolLifecycleEvent | null {
+  const correlationKey =
+    ("requestId" in event &&
+    typeof event.requestId === "string" &&
+    event.requestId.trim().length > 0
+      ? event.requestId.trim()
+      : null) ??
+    ("plannerStepKey" in event &&
+    typeof event.plannerStepKey === "string" &&
+    event.plannerStepKey.trim().length > 0
+      ? event.plannerStepKey.trim()
+      : null) ??
+    ("spanId" in event && typeof event.spanId === "string" && event.spanId.trim().length > 0
+      ? event.spanId.trim()
+      : null) ??
+    ("traceId" in event && typeof event.traceId === "string" && event.traceId.trim().length > 0
+      ? event.traceId.trim()
+      : null);
   if (event.kind === "execution") {
     const status =
       event.phase === "attempted"
         ? "pending"
         : event.phase === "started"
           ? "in_progress"
-          : normalizeLifecycleStatus(event.status);
+          : normalizeRuntimeToolLifecycleStatus(event.status);
     return {
-      id: buildLifecycleEventId(
+      id: buildRuntimeToolLifecycleEventId(
         "tool",
         event.phase,
         "telemetry",
         event.at,
-        event.requestId ?? event.toolName
+        correlationKey ?? `${event.toolName}:${event.at}`
       ),
+      correlationKey,
       kind: "tool",
       phase: event.phase,
       source: "telemetry",
@@ -315,13 +104,14 @@ function normalizeRuntimeToolLifecycleTelemetryEvent(
   }
   if (event.kind === "guardrail_evaluated") {
     return {
-      id: buildLifecycleEventId(
+      id: buildRuntimeToolLifecycleEventId(
         "guardrail",
         "evaluated",
         "telemetry",
         event.at,
-        event.requestId ?? event.toolName
+        correlationKey ?? `${event.toolName}:${event.at}`
       ),
+      correlationKey,
       kind: "guardrail",
       phase: "evaluated",
       source: "telemetry",
@@ -338,18 +128,19 @@ function normalizeRuntimeToolLifecycleTelemetryEvent(
     };
   }
   if (event.kind === "guardrail_outcome") {
-    const status = normalizeLifecycleStatus(event.status);
-    if (!isGuardrailLifecycleStatus(status)) {
+    const status = normalizeRuntimeToolLifecycleStatus(event.status);
+    if (!isRuntimeGuardrailLifecycleStatus(status)) {
       return null;
     }
     return {
-      id: buildLifecycleEventId(
+      id: buildRuntimeToolLifecycleEventId(
         "guardrail",
         "outcome",
         "telemetry",
         event.at,
-        event.requestId ?? event.toolName
+        correlationKey ?? `${event.toolName}:${event.at}`
       ),
+      correlationKey,
       kind: "guardrail",
       phase: "outcome",
       source: "telemetry",
@@ -392,41 +183,133 @@ export function createRuntimeToolLifecycleStore(
   subscribeToTelemetryEvents: TelemetryEventSubscriber
 ) {
   const eventListeners = new Set<RuntimeToolLifecycleEventListener>();
+  const workspaceEventListeners = new Map<string, Set<RuntimeToolLifecycleEventListener>>();
   const snapshotListeners = new Set<RuntimeToolLifecycleSnapshotListener>();
+  const workspaceSnapshotListeners = new Map<string, Set<RuntimeToolLifecycleSnapshotListener>>();
   let appServerUnsubscribe: Unsubscribe | null = null;
   let telemetryUnsubscribe: Unsubscribe | null = null;
   let snapshot: RuntimeToolLifecycleSnapshot = {
     revision: 0,
     lastEvent: null,
     recentEvents: [],
+    lastHookCheckpoint: null,
+    recentHookCheckpoints: [],
   };
+  const latestEventByEntityKey = new Map<string, RuntimeToolLifecycleEvent>();
+
+  function updateHookCheckpoint(
+    checkpoint: RuntimeToolLifecycleHookCheckpoint | null
+  ): Pick<RuntimeToolLifecycleSnapshot, "lastHookCheckpoint" | "recentHookCheckpoints"> {
+    if (!checkpoint) {
+      return {
+        lastHookCheckpoint: snapshot.lastHookCheckpoint ?? null,
+        recentHookCheckpoints: snapshot.recentHookCheckpoints ?? [],
+      };
+    }
+
+    return {
+      lastHookCheckpoint: checkpoint,
+      recentHookCheckpoints: [...(snapshot.recentHookCheckpoints ?? []), checkpoint].slice(
+        -RUNTIME_TOOL_LIFECYCLE_RECENT_LIMIT
+      ),
+    };
+  }
 
   function publish(event: RuntimeToolLifecycleEvent): void {
+    const entityKey = getRuntimeToolLifecycleEntityKey(event);
+    const previousEvent = latestEventByEntityKey.get(entityKey);
+    if (previousEvent && !shouldAcceptRuntimeToolLifecycleTransition(previousEvent, event)) {
+      return;
+    }
+    latestEventByEntityKey.set(entityKey, event);
+    const hookCheckpoint = deriveRuntimeToolLifecycleHookCheckpoint(event);
     snapshot = {
       revision: snapshot.revision + 1,
       lastEvent: event,
       recentEvents: [...snapshot.recentEvents, event].slice(-RUNTIME_TOOL_LIFECYCLE_RECENT_LIMIT),
+      ...updateHookCheckpoint(hookCheckpoint),
     };
 
     for (const listener of eventListeners) {
       notifyLifecycleEventListener(listener, event);
     }
+    const workspaceListenerKeys = [ALL_WORKSPACE_RUNTIME_TOOL_LIFECYCLE_LISTENER_KEY];
+    if (event.workspaceId) {
+      workspaceListenerKeys.push(event.workspaceId);
+    }
+    for (const listenerKey of workspaceListenerKeys) {
+      const listeners = workspaceEventListeners.get(listenerKey);
+      if (!listeners) {
+        continue;
+      }
+      for (const listener of listeners) {
+        notifyLifecycleEventListener(listener, event);
+      }
+    }
     for (const listener of snapshotListeners) {
       notifyLifecycleSnapshotListener(listener);
     }
+    for (const listenerKey of workspaceListenerKeys) {
+      const listeners = workspaceSnapshotListeners.get(listenerKey);
+      if (!listeners) {
+        continue;
+      }
+      for (const listener of listeners) {
+        notifyLifecycleSnapshotListener(listener);
+      }
+    }
+  }
+
+  function getWorkspaceListenerKey(workspaceId: string | null): string {
+    return workspaceId ?? ALL_WORKSPACE_RUNTIME_TOOL_LIFECYCLE_LISTENER_KEY;
+  }
+
+  function getWorkspaceSnapshotListenerCount(): number {
+    let listenerCount = 0;
+    for (const listeners of workspaceSnapshotListeners.values()) {
+      listenerCount += listeners.size;
+    }
+    return listenerCount;
+  }
+
+  function getWorkspaceEventListenerCount(): number {
+    let listenerCount = 0;
+    for (const listeners of workspaceEventListeners.values()) {
+      listenerCount += listeners.size;
+    }
+    return listenerCount;
   }
 
   function ensureSubscriptions(): void {
     if (
       appServerUnsubscribe ||
       telemetryUnsubscribe ||
-      eventListeners.size + snapshotListeners.size === 0
+      eventListeners.size +
+        snapshotListeners.size +
+        getWorkspaceEventListenerCount() +
+        getWorkspaceSnapshotListenerCount() ===
+        0
     ) {
       return;
     }
 
     appServerUnsubscribe = subscribeToAppServerEvents((event) => {
-      const normalized = normalizeRuntimeToolLifecycleAppEvent(event, Date.now());
+      const method = getAppServerRawMethod(event);
+      if (
+        !method ||
+        !RUNTIME_TOOL_LIFECYCLE_APP_EVENT_METHODS.includes(
+          method as RuntimeToolLifecycleAppEventMethod
+        )
+      ) {
+        return;
+      }
+      const normalized = normalizeRuntimeToolLifecycleAppEvent({
+        workspaceId: event.workspace_id,
+        requestId: getAppServerRequestId(event),
+        method: method as RuntimeToolLifecycleAppEventMethod,
+        params: getAppServerParams(event),
+        receivedAt: Date.now(),
+      });
       if (normalized) {
         publish(normalized);
       }
@@ -441,7 +324,13 @@ export function createRuntimeToolLifecycleStore(
   }
 
   function maybeStopSubscriptions(): void {
-    if (eventListeners.size + snapshotListeners.size > 0) {
+    if (
+      eventListeners.size +
+        snapshotListeners.size +
+        getWorkspaceEventListenerCount() +
+        getWorkspaceSnapshotListenerCount() >
+      0
+    ) {
       return;
     }
     if (appServerUnsubscribe) {
@@ -465,6 +354,28 @@ export function createRuntimeToolLifecycleStore(
     };
   }
 
+  function subscribeWorkspaceRuntimeToolLifecycleEvents(
+    workspaceId: string | null,
+    listener: RuntimeToolLifecycleEventListener
+  ): Unsubscribe {
+    const listenerKey = getWorkspaceListenerKey(workspaceId);
+    const listeners = workspaceEventListeners.get(listenerKey) ?? new Set();
+    listeners.add(listener);
+    workspaceEventListeners.set(listenerKey, listeners);
+    ensureSubscriptions();
+    return () => {
+      const currentListeners = workspaceEventListeners.get(listenerKey);
+      if (!currentListeners) {
+        return;
+      }
+      currentListeners.delete(listener);
+      if (currentListeners.size === 0) {
+        workspaceEventListeners.delete(listenerKey);
+      }
+      maybeStopSubscriptions();
+    };
+  }
+
   function subscribeRuntimeToolLifecycleSnapshot(
     listener: RuntimeToolLifecycleSnapshotListener
   ): Unsubscribe {
@@ -476,14 +387,45 @@ export function createRuntimeToolLifecycleStore(
     };
   }
 
+  function subscribeWorkspaceRuntimeToolLifecycleSnapshot(
+    workspaceId: string | null,
+    listener: RuntimeToolLifecycleSnapshotListener
+  ): Unsubscribe {
+    const listenerKey = getWorkspaceListenerKey(workspaceId);
+    const listeners = workspaceSnapshotListeners.get(listenerKey) ?? new Set();
+    listeners.add(listener);
+    workspaceSnapshotListeners.set(listenerKey, listeners);
+    ensureSubscriptions();
+    return () => {
+      const currentListeners = workspaceSnapshotListeners.get(listenerKey);
+      if (!currentListeners) {
+        return;
+      }
+      currentListeners.delete(listener);
+      if (currentListeners.size === 0) {
+        workspaceSnapshotListeners.delete(listenerKey);
+      }
+      maybeStopSubscriptions();
+    };
+  }
+
   function getRuntimeToolLifecycleSnapshot(): RuntimeToolLifecycleSnapshot {
     return snapshot;
   }
 
+  function getWorkspaceRuntimeToolLifecycleSnapshot(
+    workspaceId: string | null
+  ): RuntimeToolLifecycleSnapshot {
+    return filterRuntimeToolLifecycleSnapshot(snapshot, workspaceId);
+  }
+
   return {
     getRuntimeToolLifecycleSnapshot,
+    getWorkspaceRuntimeToolLifecycleSnapshot,
     subscribeRuntimeToolLifecycleEvents,
+    subscribeWorkspaceRuntimeToolLifecycleEvents,
     subscribeRuntimeToolLifecycleSnapshot,
+    subscribeWorkspaceRuntimeToolLifecycleSnapshot,
   };
 }
 
@@ -494,7 +436,13 @@ const runtimeToolLifecycleStore = createRuntimeToolLifecycleStore(
 
 export const getRuntimeToolLifecycleSnapshot =
   runtimeToolLifecycleStore.getRuntimeToolLifecycleSnapshot;
+export const getWorkspaceRuntimeToolLifecycleSnapshot =
+  runtimeToolLifecycleStore.getWorkspaceRuntimeToolLifecycleSnapshot;
 export const subscribeRuntimeToolLifecycleEvents =
   runtimeToolLifecycleStore.subscribeRuntimeToolLifecycleEvents;
+export const subscribeWorkspaceRuntimeToolLifecycleEvents =
+  runtimeToolLifecycleStore.subscribeWorkspaceRuntimeToolLifecycleEvents;
 export const subscribeRuntimeToolLifecycleSnapshot =
   runtimeToolLifecycleStore.subscribeRuntimeToolLifecycleSnapshot;
+export const subscribeWorkspaceRuntimeToolLifecycleSnapshot =
+  runtimeToolLifecycleStore.subscribeWorkspaceRuntimeToolLifecycleSnapshot;

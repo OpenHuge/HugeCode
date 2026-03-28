@@ -1,7 +1,11 @@
 import type { RuntimeEventChannelDiagnostics } from "../../../application/runtime/ports/runtimeEventChannelDiagnostics";
 import type {
-  AgentTaskDurabilityDiagnostics,
-  DistributedDiagnostics,
+  RuntimeToolExecutionRecentEntry,
+  RuntimeToolExecutionTotals,
+} from "../../../application/runtime/ports/runtimeToolExecutionMetrics";
+import {
+  type AgentTaskDurabilityDiagnostics,
+  type DistributedDiagnostics,
 } from "../utils/debugEntryDiagnostics";
 import { DebugDiagnosticsSummary } from "./DebugDiagnosticsSummary";
 import { DebugEntriesList, type FormattedDebugEntry } from "./DebugEntriesList";
@@ -12,11 +16,7 @@ import {
 } from "./DebugRuntimeProbesSection";
 import { DebugRuntimeToolExecutionMetricsSection } from "./DebugRuntimeToolExecutionMetricsSection";
 import { DebugRuntimeToolLifecycleSection } from "./DebugRuntimeToolLifecycleSection";
-import type { RuntimeToolLifecycleEvent } from "../../../application/runtime/ports/runtimeToolLifecycle";
-import type {
-  RuntimeToolExecutionRecentEntry,
-  RuntimeToolExecutionTotals,
-} from "../../../application/runtime/ports/runtimeToolExecutionMetrics";
+import type { DebugRuntimeToolLifecycleState } from "../hooks/useDebugRuntimeToolLifecycle";
 
 export type DebugPanelBodyProps = DebugRuntimeProbesSectionProps & {
   isOpen: boolean;
@@ -28,7 +28,7 @@ export type DebugPanelBodyProps = DebugRuntimeProbesSectionProps & {
   runtimeToolExecutionMetricsUpdatedAt: number;
   runtimeToolExecutionTotals: RuntimeToolExecutionTotals;
   runtimeToolExecutionRecentExecutions: RuntimeToolExecutionRecentEntry[];
-  runtimeToolLifecycleEvents: RuntimeToolLifecycleEvent[];
+  runtimeToolLifecycle: DebugRuntimeToolLifecycleState;
   runtimeEventBridgePath: "legacy" | "v2";
   formattedEntries: FormattedDebugEntry[];
 };
@@ -43,7 +43,7 @@ export function DebugPanelBody({
   runtimeToolExecutionMetricsUpdatedAt,
   runtimeToolExecutionTotals,
   runtimeToolExecutionRecentExecutions,
-  runtimeToolLifecycleEvents,
+  runtimeToolLifecycle,
   runtimeEventBridgePath,
   formattedEntries,
   ...probeProps
@@ -65,7 +65,7 @@ export function DebugPanelBody({
         totals={runtimeToolExecutionTotals}
         recentExecutions={runtimeToolExecutionRecentExecutions}
       />
-      <DebugRuntimeToolLifecycleSection lifecycleEvents={runtimeToolLifecycleEvents} />
+      <DebugRuntimeToolLifecycleSection runtimeToolLifecycle={runtimeToolLifecycle} />
       <DebugRuntimeProbesSection {...probeProps} />
       {isOpen ? <DebugEntriesList formattedEntries={formattedEntries} /> : null}
     </>

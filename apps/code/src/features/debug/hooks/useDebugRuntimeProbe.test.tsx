@@ -7,10 +7,7 @@ import {
   getRuntimeHealth,
   runRuntimeLiveSkill,
 } from "../../../application/runtime/ports/tauriRuntime";
-import {
-  filterRuntimeToolLifecycleSnapshot,
-  getRuntimeToolLifecycleSnapshot,
-} from "../../../application/runtime/ports/runtimeToolLifecycle";
+import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import { useDebugRuntimeProbe } from "./useDebugRuntimeProbe";
 
 vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
@@ -27,36 +24,14 @@ vi.mock("../../../application/runtime/ports/runtimeToolExecutionMetrics", () => 
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeToolLifecycle", () => ({
-  filterRuntimeToolLifecycleSnapshot: vi.fn(
-    (
-      snapshot: {
-        recentEvents: Array<{ workspaceId: string | null }>;
-        lastEvent: { workspaceId: string | null } | null;
-        revision: number;
-      },
-      workspaceId: string | null
-    ) => {
-      const recentEvents = snapshot.recentEvents.filter(
-        (event) => !workspaceId || event.workspaceId === workspaceId
-      );
-      const lastEvent =
-        snapshot.lastEvent && (!workspaceId || snapshot.lastEvent.workspaceId === workspaceId)
-          ? snapshot.lastEvent
-          : (recentEvents.at(-1) ?? null);
-      return {
-        revision: snapshot.revision,
-        lastEvent,
-        recentEvents,
-      };
-    }
-  ),
-  getRuntimeToolLifecycleSnapshot: vi.fn(),
+  getWorkspaceRuntimeToolLifecycleSnapshot: vi.fn(),
 }));
 
 const getRuntimeHealthMock = vi.mocked(getRuntimeHealth);
 const readRuntimeToolExecutionMetricsMock = vi.mocked(readRuntimeToolExecutionMetrics);
-const filterRuntimeToolLifecycleSnapshotMock = vi.mocked(filterRuntimeToolLifecycleSnapshot);
-const getRuntimeToolLifecycleSnapshotMock = vi.mocked(getRuntimeToolLifecycleSnapshot);
+const getWorkspaceRuntimeToolLifecycleSnapshotMock = vi.mocked(
+  getWorkspaceRuntimeToolLifecycleSnapshot
+);
 const runRuntimeLiveSkillMock = vi.mocked(runRuntimeLiveSkill);
 
 describe("useDebugRuntimeProbe", () => {
@@ -108,9 +83,8 @@ describe("useDebugRuntimeProbe", () => {
       ],
       updatedAt: 1_770_000_000_100,
     });
-    getRuntimeToolLifecycleSnapshotMock.mockReturnValue({
-      revision: 2,
-      lastEvent: {
+    const lifecycleEvents = [
+      {
         id: "tool-completed-1",
         kind: "tool",
         phase: "completed",
@@ -125,38 +99,31 @@ describe("useDebugRuntimeProbe", () => {
         at: 1_770_000_000_000,
         errorCode: null,
       },
-      recentEvents: [
-        {
-          id: "tool-completed-1",
-          kind: "tool",
-          phase: "completed",
-          source: "telemetry",
-          workspaceId: "workspace-1",
-          threadId: null,
-          turnId: "turn-1",
-          toolCallId: "tool-call-1",
-          toolName: "bash",
-          scope: "write",
-          status: "success",
-          at: 1_770_000_000_000,
-          errorCode: null,
-        },
-        {
-          id: "tool-completed-2",
-          kind: "tool",
-          phase: "completed",
-          source: "telemetry",
-          workspaceId: "workspace-2",
-          threadId: null,
-          turnId: "turn-2",
-          toolCallId: "tool-call-2",
-          toolName: "python",
-          scope: "write",
-          status: "success",
-          at: 1_770_000_000_001,
-          errorCode: null,
-        },
-      ],
+      {
+        id: "tool-completed-2",
+        kind: "tool",
+        phase: "completed",
+        source: "telemetry",
+        workspaceId: "workspace-2",
+        threadId: null,
+        turnId: "turn-2",
+        toolCallId: "tool-call-2",
+        toolName: "python",
+        scope: "write",
+        status: "success",
+        at: 1_770_000_000_001,
+        errorCode: null,
+      },
+    ] as const;
+    getWorkspaceRuntimeToolLifecycleSnapshotMock.mockImplementation((workspaceId) => {
+      const recentEvents = lifecycleEvents.filter(
+        (event) => workspaceId === null || event.workspaceId === workspaceId
+      );
+      return {
+        revision: 2,
+        lastEvent: recentEvents.at(-1) ?? null,
+        recentEvents,
+      };
     });
     runRuntimeLiveSkillMock.mockResolvedValue({
       runId: "run-1",
@@ -193,11 +160,8 @@ describe("useDebugRuntimeProbe", () => {
       await result.current.runToolLifecycleProbe();
     });
 
-    expect(getRuntimeToolLifecycleSnapshotMock).toHaveBeenCalledTimes(1);
-    expect(filterRuntimeToolLifecycleSnapshotMock).toHaveBeenCalledWith(
-      expect.objectContaining({ revision: 2 }),
-      "workspace-1"
-    );
+    expect(getWorkspaceRuntimeToolLifecycleSnapshotMock).toHaveBeenCalledTimes(1);
+    expect(getWorkspaceRuntimeToolLifecycleSnapshotMock).toHaveBeenCalledWith("workspace-1");
     expect(result.current.runtimeProbeError).toBeNull();
     expect(result.current.runtimeProbeBusyLabel).toBeNull();
     expect(result.current.runtimeProbeResult).toContain('"revision": 2');

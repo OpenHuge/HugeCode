@@ -1,6 +1,6 @@
 import type { Dispatch, MutableRefObject } from "react";
 import { useCallback } from "react";
-import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/ports/runtimeSessionCommands";
+import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacadeHooks";
 import type { ApprovalRequest } from "../../../types";
 import { getApprovalCommandInfo, matchesCommandPrefix } from "../../../utils/approvalRules";
 import type { ThreadAction } from "./useThreadsReducer";

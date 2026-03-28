@@ -123,7 +123,7 @@ vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
   detectRuntimeMode: vi.fn(() => "tauri"),
 }));
 
-vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
+vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks", () => ({
   useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
     sendMessage: ({ threadId, text, options }: Record<string, unknown>) =>
       sendUserMessageService(workspaceId, String(threadId), String(text), options as never),
@@ -817,7 +817,7 @@ describe("useThreads UX integration", () => {
     ).toBe(true);
 
     act(() => {
-      handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1");
+      handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1", {});
     });
 
     await waitFor(() => {
@@ -872,7 +872,7 @@ describe("useThreads UX integration", () => {
     });
 
     act(() => {
-      handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1");
+      handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1", {});
     });
 
     await act(async () => {
@@ -2030,7 +2030,7 @@ describe("useThreads UX integration", () => {
     });
 
     await act(async () => {
-      handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1");
+      handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1", {});
     });
 
     expect(result.current.planByThread["thread-1"]).toBeNull();
@@ -2052,7 +2052,7 @@ describe("useThreads UX integration", () => {
     });
 
     await act(async () => {
-      handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1");
+      handlers?.onTurnCompleted?.("ws-1", "thread-1", "turn-1", {});
     });
 
     expect(result.current.planByThread["thread-1"]).toEqual({

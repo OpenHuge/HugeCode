@@ -104,10 +104,40 @@ describe("runtimeToolLifecycleFacade", () => {
       (await import("../ports/runtimeToolExecutionTelemetry")) as unknown as TelemetryTestApi;
 
     const lifecycleListener = vi.fn();
+    const workspaceOneLifecycleListener = vi.fn();
+    const workspaceTwoLifecycleListener = vi.fn();
+    const allWorkspaceLifecycleListener = vi.fn();
     const snapshotListener = vi.fn();
+    const workspaceOneSnapshotListener = vi.fn();
+    const workspaceTwoSnapshotListener = vi.fn();
+    const allWorkspaceSnapshotListener = vi.fn();
 
     const unsubscribeEvents = facade.subscribeRuntimeToolLifecycleEvents(lifecycleListener);
+    const unsubscribeWorkspaceOneEvents = facade.subscribeWorkspaceRuntimeToolLifecycleEvents(
+      "workspace-1",
+      workspaceOneLifecycleListener
+    );
+    const unsubscribeWorkspaceTwoEvents = facade.subscribeWorkspaceRuntimeToolLifecycleEvents(
+      "workspace-2",
+      workspaceTwoLifecycleListener
+    );
+    const unsubscribeAllWorkspaceEvents = facade.subscribeWorkspaceRuntimeToolLifecycleEvents(
+      null,
+      allWorkspaceLifecycleListener
+    );
     const unsubscribeSnapshot = facade.subscribeRuntimeToolLifecycleSnapshot(snapshotListener);
+    const unsubscribeWorkspaceOne = facade.subscribeWorkspaceRuntimeToolLifecycleSnapshot(
+      "workspace-1",
+      workspaceOneSnapshotListener
+    );
+    const unsubscribeWorkspaceTwo = facade.subscribeWorkspaceRuntimeToolLifecycleSnapshot(
+      "workspace-2",
+      workspaceTwoSnapshotListener
+    );
+    const unsubscribeAllWorkspaces = facade.subscribeWorkspaceRuntimeToolLifecycleSnapshot(
+      null,
+      allWorkspaceSnapshotListener
+    );
 
     expect(events.subscribeAppServerEvents).toHaveBeenCalledTimes(1);
     expect(telemetry.subscribeRuntimeToolExecutionTelemetryEvents).toHaveBeenCalledTimes(1);
@@ -145,7 +175,13 @@ describe("runtimeToolLifecycleFacade", () => {
     });
 
     expect(lifecycleListener).toHaveBeenCalledTimes(2);
+    expect(workspaceOneLifecycleListener).toHaveBeenCalledTimes(2);
+    expect(workspaceTwoLifecycleListener).not.toHaveBeenCalled();
+    expect(allWorkspaceLifecycleListener).toHaveBeenCalledTimes(2);
     expect(snapshotListener).toHaveBeenCalledTimes(2);
+    expect(workspaceOneSnapshotListener).toHaveBeenCalledTimes(2);
+    expect(workspaceTwoSnapshotListener).not.toHaveBeenCalled();
+    expect(allWorkspaceSnapshotListener).toHaveBeenCalledTimes(2);
     expect(facade.getRuntimeToolLifecycleSnapshot()).toMatchObject({
       revision: 2,
       lastEvent: {
@@ -177,12 +213,40 @@ describe("runtimeToolLifecycleFacade", () => {
         }),
       ],
     });
+    expect(facade.getWorkspaceRuntimeToolLifecycleSnapshot("workspace-1")).toMatchObject({
+      revision: 2,
+      lastEvent: expect.objectContaining({
+        workspaceId: "workspace-1",
+        toolName: "bash",
+      }),
+      recentEvents: [
+        expect.objectContaining({
+          workspaceId: "workspace-1",
+          toolName: "bash",
+        }),
+        expect.objectContaining({
+          workspaceId: "workspace-1",
+          toolName: "bash",
+        }),
+      ],
+    });
+    expect(facade.getWorkspaceRuntimeToolLifecycleSnapshot("workspace-2")).toMatchObject({
+      revision: 2,
+      lastEvent: null,
+      recentEvents: [],
+    });
 
     unsubscribeEvents();
     expect(events.__appServerListenerCount()).toBe(1);
     expect(telemetry.__telemetryListenerCount()).toBe(1);
 
     unsubscribeSnapshot();
+    unsubscribeWorkspaceOneEvents();
+    unsubscribeWorkspaceTwoEvents();
+    unsubscribeAllWorkspaceEvents();
+    unsubscribeWorkspaceOne();
+    unsubscribeWorkspaceTwo();
+    unsubscribeAllWorkspaces();
     expect(events.__appServerListenerCount()).toBe(0);
     expect(telemetry.__telemetryListenerCount()).toBe(0);
   });
@@ -312,6 +376,108 @@ describe("runtimeToolLifecycleFacade", () => {
     });
 
     expect(lifecycleListener).not.toHaveBeenCalled();
+
+    unsubscribe();
+  });
+
+  it("drops retrograde lifecycle transitions and publishes derived hook checkpoints", async () => {
+    const facade = await import("./runtimeToolLifecycleFacade");
+    const telemetry =
+      (await import("../ports/runtimeToolExecutionTelemetry")) as unknown as TelemetryTestApi;
+
+    const lifecycleListener = vi.fn();
+    const unsubscribe = facade.subscribeRuntimeToolLifecycleEvents(lifecycleListener);
+
+    telemetry.__emitRuntimeToolExecutionTelemetryEvent({
+      kind: "execution",
+      phase: "completed",
+      toolName: "bash",
+      scope: "write",
+      at: 500,
+      workspaceId: "workspace-4",
+      status: "success",
+      requestId: "req-tool-4",
+    });
+    telemetry.__emitRuntimeToolExecutionTelemetryEvent({
+      kind: "execution",
+      phase: "started",
+      toolName: "bash",
+      scope: "write",
+      at: 501,
+      workspaceId: "workspace-4",
+      status: null,
+      requestId: "req-tool-4",
+    });
+
+    expect(lifecycleListener).toHaveBeenCalledTimes(1);
+    expect(facade.getRuntimeToolLifecycleSnapshot()).toMatchObject({
+      revision: 1,
+      recentEvents: [
+        expect.objectContaining({
+          kind: "tool",
+          phase: "completed",
+          correlationKey: "req-tool-4",
+        }),
+      ],
+      recentHookCheckpoints: [
+        expect.objectContaining({
+          point: "post_execution_pre_publication",
+          status: "ready",
+          toolName: "bash",
+        }),
+      ],
+      lastHookCheckpoint: expect.objectContaining({
+        point: "post_execution_pre_publication",
+        status: "ready",
+      }),
+    });
+
+    unsubscribe();
+  });
+
+  it("keeps repeated telemetry executions distinct when request ids are missing", async () => {
+    const facade = await import("./runtimeToolLifecycleFacade");
+    const telemetry =
+      (await import("../ports/runtimeToolExecutionTelemetry")) as unknown as TelemetryTestApi;
+
+    const lifecycleListener = vi.fn();
+    const unsubscribe = facade.subscribeRuntimeToolLifecycleEvents(lifecycleListener);
+
+    telemetry.__emitRuntimeToolExecutionTelemetryEvent({
+      kind: "execution",
+      phase: "completed",
+      toolName: "bash",
+      scope: "write",
+      at: 600,
+      workspaceId: "workspace-5",
+      status: "success",
+    });
+    telemetry.__emitRuntimeToolExecutionTelemetryEvent({
+      kind: "execution",
+      phase: "completed",
+      toolName: "bash",
+      scope: "write",
+      at: 700,
+      workspaceId: "workspace-5",
+      status: "success",
+    });
+
+    expect(lifecycleListener).toHaveBeenCalledTimes(2);
+    expect(facade.getRuntimeToolLifecycleSnapshot()).toMatchObject({
+      revision: 2,
+      recentEvents: [
+        expect.objectContaining({
+          kind: "tool",
+          phase: "completed",
+          at: 600,
+        }),
+        expect.objectContaining({
+          kind: "tool",
+          phase: "completed",
+          at: 700,
+        }),
+      ],
+    });
 
     unsubscribe();
   });

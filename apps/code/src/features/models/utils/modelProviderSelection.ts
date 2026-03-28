@@ -14,6 +14,8 @@ export type ProviderSelectableModel = Pick<
   | "pool"
   | "source"
   | "available"
+  | "capabilityMatrix"
+  | "providerCapabilityMatrix"
   | "providerReadinessKind"
   | "providerReadinessMessage"
   | "executionKind"
@@ -37,6 +39,11 @@ export type AutoModelProviderSelection<
   providerId: ModelProviderFamilyId | string | null;
   provider: ModelProviderOption<TModel> | null;
   modelId: string | null;
+};
+
+export type AutoSelectionRequirements = {
+  requiresTools?: boolean;
+  requiresVision?: boolean;
 };
 
 const CLAUDE_PROVIDER_IDS = new Set(["anthropic", "claude", "claude_code", "claude_code_local"]);
@@ -88,8 +95,21 @@ export function resolveModelProviderId(
 ): ModelProviderFamilyId | string {
   const resolvedRouteId =
     normalizeValue(model.provider) ?? normalizeValue(model.pool) ?? normalizeValue(model.source);
-  const fallbackModelId = normalizeValue(model.model) ?? "";
-  const resolvedId = resolvedRouteId ?? (fallbackModelId.length > 0 ? fallbackModelId : "default");
+  const fallbackModelId = normalizeValue(model.model);
+  return (
+    resolveProviderFamilySelectionId(
+      resolvedRouteId ?? (fallbackModelId && fallbackModelId.length > 0 ? fallbackModelId : null)
+    ) ?? "default"
+  );
+}
+
+export function resolveProviderFamilySelectionId(
+  value: string | null | undefined
+): ModelProviderFamilyId | string | null {
+  const resolvedId = normalizeValue(value);
+  if (!resolvedId) {
+    return null;
+  }
   const normalizedId = resolvedId.trim().toLowerCase();
   if (CLAUDE_PROVIDER_IDS.has(normalizedId) || normalizedId.startsWith("claude-")) {
     return "claude";
@@ -103,7 +123,7 @@ export function resolveModelProviderId(
   if (ANTIGRAVITY_PROVIDER_IDS.has(normalizedId)) {
     return "antigravity";
   }
-  return resolvedRouteId ?? "default";
+  return resolvedId;
 }
 
 export function resolveModelProviderLabel(providerId: string): string {
@@ -133,6 +153,148 @@ function resolveProviderReadinessPriority(
     return -1;
   }
   return PROVIDER_READINESS_PRIORITY[readinessKind] ?? -1;
+}
+
+function resolveModelToolsPriority(model: ProviderSelectableModel): number {
+  return resolveCapabilitySupportPriority(
+    resolveRoutingCapabilitySupport(
+      model.capabilityMatrix?.supportsTools,
+      model.providerCapabilityMatrix?.supportsTools
+    )
+  );
+}
+
+function resolveCapabilitySupportPriority(
+  value: "supported" | "unsupported" | "unknown" | null | undefined
+): number {
+  switch (value) {
+    case "supported":
+      return 2;
+    case "unknown":
+    case undefined:
+    case null:
+      return 1;
+    case "unsupported":
+      return 0;
+  }
+}
+
+function resolveModelReasoningPriority(model: ProviderSelectableModel): number {
+  return resolveCapabilitySupportPriority(
+    resolveRoutingCapabilitySupport(
+      model.capabilityMatrix?.supportsReasoningEffort,
+      model.providerCapabilityMatrix?.supportsReasoningEffort
+    )
+  );
+}
+
+function resolveModelVisionPriority(model: ProviderSelectableModel): number {
+  return resolveCapabilitySupportPriority(
+    resolveRoutingCapabilitySupport(
+      model.capabilityMatrix?.supportsVision,
+      model.providerCapabilityMatrix?.supportsVision
+    )
+  );
+}
+
+function resolveModelContextPriority(model: ProviderSelectableModel): number {
+  return (
+    model.capabilityMatrix?.maxContextTokens ??
+    model.providerCapabilityMatrix?.maxContextTokens ??
+    -1
+  );
+}
+
+function resolveRoutingCapabilitySupport(
+  modelSupport: "supported" | "unsupported" | "unknown" | null | undefined,
+  providerSupport: "supported" | "unsupported" | "unknown" | null | undefined
+): "supported" | "unsupported" | "unknown" | null | undefined {
+  if (modelSupport === "supported" || modelSupport === "unsupported") {
+    return modelSupport;
+  }
+  if (providerSupport === "supported" || providerSupport === "unsupported") {
+    return providerSupport;
+  }
+  return modelSupport ?? providerSupport;
+}
+
+function resolveProviderToolsPriority<TModel extends ProviderSelectableModel>(
+  models: ReadonlyArray<TModel>
+): number {
+  return models.reduce((best, model) => {
+    const priority = resolveModelToolsPriority(model);
+    if (model.available === false) {
+      return best;
+    }
+    return Math.max(best, priority);
+  }, -1);
+}
+
+function resolveProviderReasoningPriority<TModel extends ProviderSelectableModel>(
+  models: ReadonlyArray<TModel>
+): number {
+  return models.reduce((best, model) => {
+    if (model.available === false) {
+      return best;
+    }
+    return Math.max(best, resolveModelReasoningPriority(model));
+  }, -1);
+}
+
+function resolveProviderVisionPriority<TModel extends ProviderSelectableModel>(
+  models: ReadonlyArray<TModel>
+): number {
+  return models.reduce((best, model) => {
+    if (model.available === false) {
+      return best;
+    }
+    return Math.max(best, resolveModelVisionPriority(model));
+  }, -1);
+}
+
+function resolveProviderContextPriority<TModel extends ProviderSelectableModel>(
+  models: ReadonlyArray<TModel>
+): number {
+  return models.reduce((best, model) => {
+    if (model.available === false) {
+      return best;
+    }
+    return Math.max(best, resolveModelContextPriority(model));
+  }, -1);
+}
+
+function modelSatisfiesAutoSelectionRequirements(
+  model: ProviderSelectableModel,
+  requirements: AutoSelectionRequirements | null | undefined
+): boolean {
+  if (requirements?.requiresTools) {
+    const toolsSupport = resolveRoutingCapabilitySupport(
+      model.capabilityMatrix?.supportsTools,
+      model.providerCapabilityMatrix?.supportsTools
+    );
+    if (toolsSupport !== "supported") {
+      return false;
+    }
+  }
+  if (!requirements?.requiresVision) {
+    return true;
+  }
+  return (
+    resolveRoutingCapabilitySupport(
+      model.capabilityMatrix?.supportsVision,
+      model.providerCapabilityMatrix?.supportsVision
+    ) === "supported"
+  );
+}
+
+function providerHasEligibleAutoSelectionModel<TModel extends ProviderSelectableModel>(
+  providerOption: ModelProviderOption<TModel>,
+  requirements: AutoSelectionRequirements | null | undefined
+): boolean {
+  return providerOption.models.some(
+    (model) =>
+      model.available !== false && modelSatisfiesAutoSelectionRequirements(model, requirements)
+  );
 }
 
 function resolveProviderRoutePriority(model: ProviderSelectableModel): number {
@@ -221,18 +383,47 @@ function resolveModelPreferenceOrder(
 
 function pickRepresentativeModel<TModel extends ProviderSelectableModel>(
   models: ReadonlyArray<TModel>,
-  selectedModelId: string | null
+  selectedModelId: string | null,
+  requirements: AutoSelectionRequirements | null | undefined = null
 ): TModel {
+  const hasAvailableModel = models.some((model) => model.available !== false);
   const selectedMatch = models.find(
     (model) => model.id === selectedModelId || model.model === selectedModelId
   );
-  if (selectedMatch) {
+  if (
+    selectedMatch &&
+    modelSatisfiesAutoSelectionRequirements(selectedMatch, requirements) &&
+    (selectedMatch.available !== false || !hasAvailableModel)
+  ) {
     return selectedMatch;
   }
   return [...models].sort((left, right) => {
     const availabilityDelta = Number(right.available !== false) - Number(left.available !== false);
     if (availabilityDelta !== 0) {
       return availabilityDelta;
+    }
+    const requirementDelta =
+      Number(modelSatisfiesAutoSelectionRequirements(right, requirements)) -
+      Number(modelSatisfiesAutoSelectionRequirements(left, requirements));
+    if (requirementDelta !== 0) {
+      return requirementDelta;
+    }
+    const toolsDelta = resolveModelToolsPriority(right) - resolveModelToolsPriority(left);
+    if (toolsDelta !== 0) {
+      return toolsDelta;
+    }
+    const reasoningDelta =
+      resolveModelReasoningPriority(right) - resolveModelReasoningPriority(left);
+    if (reasoningDelta !== 0) {
+      return reasoningDelta;
+    }
+    const visionDelta = resolveModelVisionPriority(right) - resolveModelVisionPriority(left);
+    if (visionDelta !== 0) {
+      return visionDelta;
+    }
+    const contextDelta = resolveModelContextPriority(right) - resolveModelContextPriority(left);
+    if (contextDelta !== 0) {
+      return contextDelta;
     }
     const priorityDelta = resolveProviderRoutePriority(left) - resolveProviderRoutePriority(right);
     if (priorityDelta !== 0) {
@@ -336,6 +527,27 @@ export function buildModelProviderOptions<TModel extends ProviderSelectableModel
       if (readinessDelta !== 0) {
         return readinessDelta;
       }
+      const toolsDelta =
+        resolveProviderToolsPriority(right.models) - resolveProviderToolsPriority(left.models);
+      if (toolsDelta !== 0) {
+        return toolsDelta;
+      }
+      const reasoningDelta =
+        resolveProviderReasoningPriority(right.models) -
+        resolveProviderReasoningPriority(left.models);
+      if (reasoningDelta !== 0) {
+        return reasoningDelta;
+      }
+      const visionDelta =
+        resolveProviderVisionPriority(right.models) - resolveProviderVisionPriority(left.models);
+      if (visionDelta !== 0) {
+        return visionDelta;
+      }
+      const contextDelta =
+        resolveProviderContextPriority(right.models) - resolveProviderContextPriority(left.models);
+      if (contextDelta !== 0) {
+        return contextDelta;
+      }
       const priorityDelta =
         resolveProviderFamilyPriority(left.id) - resolveProviderFamilyPriority(right.id);
       if (priorityDelta !== 0) {
@@ -347,7 +559,8 @@ export function buildModelProviderOptions<TModel extends ProviderSelectableModel
 
 export function buildProviderModelEntries<TModel extends ProviderSelectableModel>(
   providerModels: ReadonlyArray<TModel>,
-  selectedModelId: string | null = null
+  selectedModelId: string | null = null,
+  requirements: AutoSelectionRequirements | null | undefined = null
 ): TModel[] {
   const modelsBySlug = new Map<string, TModel[]>();
   for (const model of providerModels) {
@@ -360,12 +573,35 @@ export function buildProviderModelEntries<TModel extends ProviderSelectableModel
     modelsBySlug.set(modelSlug, [model]);
   }
   return Array.from(modelsBySlug.values())
-    .map((group) => pickRepresentativeModel(group, selectedModelId))
+    .map((group) => pickRepresentativeModel(group, selectedModelId, requirements))
     .sort((left, right) => {
+      const requirementDelta =
+        Number(modelSatisfiesAutoSelectionRequirements(right, requirements)) -
+        Number(modelSatisfiesAutoSelectionRequirements(left, requirements));
+      if (requirementDelta !== 0) {
+        return requirementDelta;
+      }
       const availabilityDelta =
         Number(right.available !== false) - Number(left.available !== false);
       if (availabilityDelta !== 0) {
         return availabilityDelta;
+      }
+      const toolsDelta = resolveModelToolsPriority(right) - resolveModelToolsPriority(left);
+      if (toolsDelta !== 0) {
+        return toolsDelta;
+      }
+      const reasoningDelta =
+        resolveModelReasoningPriority(right) - resolveModelReasoningPriority(left);
+      if (reasoningDelta !== 0) {
+        return reasoningDelta;
+      }
+      const visionDelta = resolveModelVisionPriority(right) - resolveModelVisionPriority(left);
+      if (visionDelta !== 0) {
+        return visionDelta;
+      }
+      const contextDelta = resolveModelContextPriority(right) - resolveModelContextPriority(left);
+      if (contextDelta !== 0) {
+        return contextDelta;
       }
       return resolveModelPreferenceOrder(left, right);
     });
@@ -395,7 +631,8 @@ export function resolveSelectedProviderId<TModel extends ProviderSelectableModel
 export function resolveProviderModelId<TModel extends ProviderSelectableModel>(
   providerOptions: ReadonlyArray<ModelProviderOption<TModel>>,
   providerId: ModelProviderFamilyId | string | null,
-  selectedModelId: string | null
+  selectedModelId: string | null,
+  requirements: AutoSelectionRequirements | null | undefined = null
 ): string | null {
   if (!providerId) {
     return null;
@@ -407,23 +644,40 @@ export function resolveProviderModelId<TModel extends ProviderSelectableModel>(
   const matchedModel = providerOption.models.find(
     (model) => model.id === selectedModelId || model.model === selectedModelId
   );
-  return matchedModel?.id ?? providerOption.defaultModelId;
+  if (matchedModel && modelSatisfiesAutoSelectionRequirements(matchedModel, requirements)) {
+    return matchedModel.id;
+  }
+  const preferredModel =
+    buildProviderModelEntries(providerOption.models, null, requirements).find(
+      (model) => model.available !== false
+    ) ??
+    buildProviderModelEntries(providerOption.models, null, requirements)[0] ??
+    null;
+  return preferredModel?.id ?? providerOption.defaultModelId;
 }
 
 export function resolveAutoProviderId<TModel extends ProviderSelectableModel>(
   providerOptions: ReadonlyArray<ModelProviderOption<TModel>>,
-  preferredProviderId: ModelProviderFamilyId | string | null
+  preferredProviderId: ModelProviderFamilyId | string | null,
+  requirements: AutoSelectionRequirements | null | undefined = null
 ): ModelProviderFamilyId | string | null {
+  const eligibleProviders =
+    requirements &&
+    providerOptions.some((option) => providerHasEligibleAutoSelectionModel(option, requirements))
+      ? providerOptions.filter((option) =>
+          providerHasEligibleAutoSelectionModel(option, requirements)
+        )
+      : providerOptions;
   if (preferredProviderId) {
-    const preferredOption = providerOptions.find((option) => option.id === preferredProviderId);
+    const preferredOption = eligibleProviders.find((option) => option.id === preferredProviderId);
     if (preferredOption?.hasAvailableModels) {
       return preferredOption.id;
     }
-    if (!providerOptions.some((option) => option.hasAvailableModels)) {
+    if (!eligibleProviders.some((option) => option.hasAvailableModels)) {
       return preferredOption?.id ?? null;
     }
   }
-  const rankedProviders = [...providerOptions].sort((left, right) => {
+  const rankedProviders = [...eligibleProviders].sort((left, right) => {
     const availabilityDelta = Number(right.hasAvailableModels) - Number(left.hasAvailableModels);
     if (availabilityDelta !== 0) {
       return availabilityDelta;
@@ -433,6 +687,27 @@ export function resolveAutoProviderId<TModel extends ProviderSelectableModel>(
       resolveProviderReadinessPriority(left.readinessKind);
     if (readinessDelta !== 0) {
       return readinessDelta;
+    }
+    const toolsDelta =
+      resolveProviderToolsPriority(right.models) - resolveProviderToolsPriority(left.models);
+    if (toolsDelta !== 0) {
+      return toolsDelta;
+    }
+    const reasoningDelta =
+      resolveProviderReasoningPriority(right.models) -
+      resolveProviderReasoningPriority(left.models);
+    if (reasoningDelta !== 0) {
+      return reasoningDelta;
+    }
+    const visionDelta =
+      resolveProviderVisionPriority(right.models) - resolveProviderVisionPriority(left.models);
+    if (visionDelta !== 0) {
+      return visionDelta;
+    }
+    const contextDelta =
+      resolveProviderContextPriority(right.models) - resolveProviderContextPriority(left.models);
+    if (contextDelta !== 0) {
+      return contextDelta;
     }
     const priorityDelta =
       resolveProviderFamilyPriority(left.id) - resolveProviderFamilyPriority(right.id);
@@ -447,14 +722,16 @@ export function resolveAutoProviderId<TModel extends ProviderSelectableModel>(
 export function resolveAutoModelProviderSelection<TModel extends ProviderSelectableModel>(
   providerOptions: ReadonlyArray<ModelProviderOption<TModel>>,
   preferredProviderId: ModelProviderFamilyId | string | null,
-  fallbackModelId: string | null = null
+  fallbackModelId: string | null = null,
+  requirements: AutoSelectionRequirements | null | undefined = null
 ): AutoModelProviderSelection<TModel> {
-  const providerId = resolveAutoProviderId(providerOptions, preferredProviderId);
+  const providerId = resolveAutoProviderId(providerOptions, preferredProviderId, requirements);
   const provider = providerOptions.find((option) => option.id === providerId) ?? null;
   return {
     providerId,
     provider,
     modelId:
-      resolveProviderModelId(providerOptions, providerId, fallbackModelId) ?? fallbackModelId,
+      resolveProviderModelId(providerOptions, providerId, fallbackModelId, requirements) ??
+      fallbackModelId,
   };
 }

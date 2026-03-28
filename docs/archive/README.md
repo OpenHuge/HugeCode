@@ -11,3 +11,5 @@ Use active guidance from `AGENTS.md`, `docs/README.md`, and the current root/spe
 
 - `apps/`
   Historical product-surface specs and legacy app definitions
+- `plans/`
+  Completed and superseded working plans retained for execution history

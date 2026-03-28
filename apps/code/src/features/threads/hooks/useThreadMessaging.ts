@@ -2,7 +2,7 @@ import type { HugeCodeTaskMode } from "@ku0/code-runtime-host-contract";
 import type { Dispatch, MutableRefObject } from "react";
 import { useCallback } from "react";
 import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
-import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/ports/runtimeSessionCommands";
+import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacadeHooks";
 import { prepareRuntimeRunV2 as prepareRuntimeRunV2Service } from "../../../application/runtime/ports/tauriRuntimeJobs";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type {
@@ -55,6 +55,8 @@ type UseThreadMessagingOptions = {
   activeThreadId: string | null;
   activeThreadIdRef?: MutableRefObject<string | null>;
   hasAvailableModel?: boolean;
+  toolsCapabilitySupport?: "supported" | "unsupported" | "unknown" | null;
+  visionCapabilitySupport?: "supported" | "unsupported" | "unknown" | null;
   accessMode?: AccessMode;
   provider?: string | null;
   model?: string | null;
@@ -190,6 +192,8 @@ export function useThreadMessaging({
   activeThreadId,
   activeThreadIdRef,
   hasAvailableModel = true,
+  toolsCapabilitySupport = "unknown",
+  visionCapabilitySupport = "unknown",
   accessMode,
   provider,
   model,
@@ -333,6 +337,29 @@ export function useThreadMessaging({
         pushThreadErrorMessage(
           threadId,
           "No available model route in current runtime. Sign in with a provider account or configure API keys."
+        );
+        safeMessageActivity();
+        return;
+      }
+      const resolvedVisionCapabilitySupport =
+        options?.visionCapabilitySupport ?? visionCapabilitySupport;
+      const resolvedToolsCapabilitySupport =
+        options?.toolsCapabilitySupport ?? toolsCapabilitySupport;
+      if (
+        resolvedToolsCapabilitySupport === "unsupported" &&
+        (resolvedMissionMode === "pair" || resolvedMissionMode === "delegate")
+      ) {
+        pushThreadErrorMessage(
+          threadId,
+          "Selected model does not support tool use required for this task mode. Choose a tools-capable model or switch to Ask mode."
+        );
+        safeMessageActivity();
+        return;
+      }
+      if (images.length > 0 && resolvedVisionCapabilitySupport === "unsupported") {
+        pushThreadErrorMessage(
+          threadId,
+          "Selected model does not support image attachments. Choose a vision-capable model or remove the images."
         );
         safeMessageActivity();
         return;
@@ -657,6 +684,8 @@ export function useThreadMessaging({
       activeTurnIdByThread,
       getCustomName,
       hasAvailableModel,
+      toolsCapabilitySupport,
+      visionCapabilitySupport,
       markProcessing,
       model,
       onDebug,

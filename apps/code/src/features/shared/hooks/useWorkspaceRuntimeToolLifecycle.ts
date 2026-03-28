@@ -1,17 +1,29 @@
 import { useCallback, useRef, useSyncExternalStore } from "react";
 import {
-  filterRuntimeToolLifecycleSnapshot,
-  getRuntimeToolLifecycleSnapshot,
-  subscribeRuntimeToolLifecycleSnapshot,
+  buildRuntimeToolLifecyclePresentationSummary,
+  getWorkspaceRuntimeToolLifecycleSnapshot,
+  sortRuntimeToolLifecycleEventsByRecency,
+  sortRuntimeToolLifecycleHookCheckpointsByRecency,
+  subscribeWorkspaceRuntimeToolLifecycleSnapshot,
   type RuntimeToolLifecycleEvent,
+  type RuntimeToolLifecycleHookCheckpoint,
+  type RuntimeToolLifecyclePresentationSummary,
   type RuntimeToolLifecycleSnapshot,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 
 export type WorkspaceRuntimeToolLifecycleState = {
+  summary: RuntimeToolLifecyclePresentationSummary;
   revision: number;
+  lastHookCheckpoint: RuntimeToolLifecycleHookCheckpoint | null;
   lastEvent: RuntimeToolLifecycleEvent | null;
+  hookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
   lifecycleEvents: RuntimeToolLifecycleEvent[];
 };
+
+export type WorkspaceRuntimeToolLifecycleProjection = Pick<
+  WorkspaceRuntimeToolLifecycleState,
+  "summary" | "hookCheckpoints" | "lifecycleEvents"
+>;
 
 type UseWorkspaceRuntimeToolLifecycleOptions = {
   workspaceId: string | null;
@@ -25,20 +37,42 @@ type WorkspaceRuntimeToolLifecycleCache = {
 };
 
 const EMPTY_RUNTIME_TOOL_LIFECYCLE_STATE: WorkspaceRuntimeToolLifecycleState = {
+  summary: {
+    approvalEventCount: 0,
+    hasActivity: false,
+    latestEvent: null,
+    latestEventKey: null,
+    latestHookCheckpoint: null,
+    latestHookCheckpointKey: null,
+    toolEventCount: 0,
+    totalEvents: 0,
+    totalHookCheckpoints: 0,
+  },
   revision: 0,
+  lastHookCheckpoint: null,
   lastEvent: null,
+  hookCheckpoints: [],
   lifecycleEvents: [],
 };
 
-function filterLifecycleSnapshot(
-  snapshot: RuntimeToolLifecycleSnapshot,
-  workspaceId: string | null
+function toWorkspaceRuntimeToolLifecycleState(
+  snapshot: RuntimeToolLifecycleSnapshot
 ): WorkspaceRuntimeToolLifecycleState {
-  const filteredSnapshot = filterRuntimeToolLifecycleSnapshot(snapshot, workspaceId);
+  const lifecycleEvents = sortRuntimeToolLifecycleEventsByRecency(snapshot.recentEvents);
+  const hookCheckpoints = sortRuntimeToolLifecycleHookCheckpointsByRecency(
+    snapshot.recentHookCheckpoints ?? []
+  );
+
   return {
-    revision: filteredSnapshot.revision,
-    lastEvent: filteredSnapshot.lastEvent,
-    lifecycleEvents: filteredSnapshot.recentEvents,
+    summary: buildRuntimeToolLifecyclePresentationSummary({
+      lifecycleEvents,
+      hookCheckpoints,
+    }),
+    revision: snapshot.revision,
+    lastHookCheckpoint: snapshot.lastHookCheckpoint ?? null,
+    lastEvent: snapshot.lastEvent,
+    hookCheckpoints,
+    lifecycleEvents,
   };
 }
 
@@ -57,9 +91,9 @@ export function useWorkspaceRuntimeToolLifecycle({
       if (!enabled) {
         return () => undefined;
       }
-      return subscribeRuntimeToolLifecycleSnapshot(callback);
+      return subscribeWorkspaceRuntimeToolLifecycleSnapshot(workspaceId, callback);
     },
-    [enabled]
+    [enabled, workspaceId]
   );
 
   const getSnapshot = useCallback(() => {
@@ -72,7 +106,7 @@ export function useWorkspaceRuntimeToolLifecycle({
       return EMPTY_RUNTIME_TOOL_LIFECYCLE_STATE;
     }
 
-    const sourceSnapshot = getRuntimeToolLifecycleSnapshot();
+    const sourceSnapshot = getWorkspaceRuntimeToolLifecycleSnapshot(workspaceId);
     if (
       cacheRef.current.sourceRevision === sourceSnapshot.revision &&
       cacheRef.current.workspaceId === workspaceId
@@ -80,7 +114,7 @@ export function useWorkspaceRuntimeToolLifecycle({
       return cacheRef.current.snapshot;
     }
 
-    const nextSnapshot = filterLifecycleSnapshot(sourceSnapshot, workspaceId);
+    const nextSnapshot = toWorkspaceRuntimeToolLifecycleState(sourceSnapshot);
     cacheRef.current = {
       sourceRevision: sourceSnapshot.revision,
       workspaceId,

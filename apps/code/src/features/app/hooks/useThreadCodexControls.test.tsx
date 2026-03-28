@@ -18,7 +18,10 @@ import type { AppSettings, WorkspaceInfo } from "../../../types";
 import { useCollaborationModes } from "../../collaboration/hooks/useCollaborationModes";
 import { useModels } from "../../models/hooks/useModels";
 import { NO_THREAD_SCOPE_SUFFIX } from "../../threads/utils/threadCodexParamsSeed";
-import { makeThreadCodexParamsKey } from "../../threads/utils/threadStorage";
+import {
+  makeThreadCodexParamsKey,
+  type ThreadCodexParams,
+} from "../../threads/utils/threadStorage";
 import { useThreadCodexControls } from "./useThreadCodexControls";
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
@@ -101,6 +104,25 @@ const modelOption = {
   isDefault: true,
 };
 
+function buildThreadCodexParams(overrides?: Partial<ThreadCodexParams>): ThreadCodexParams {
+  return {
+    modelId: null,
+    effort: null,
+    selectionMode: null,
+    providerFamilyId: null,
+    fastMode: null,
+    accessMode: null,
+    collaborationModeId: null,
+    executionMode: null,
+    missionMode: null,
+    executionProfileId: null,
+    preferredBackendIds: null,
+    autoDriveDraft: null,
+    updatedAt: 1,
+    ...overrides,
+  };
+}
+
 function createHook(options?: {
   setAppSettings?: ReturnType<typeof vi.fn<(value: SetStateAction<AppSettings>) => void>>;
   queueSaveSettings?: ReturnType<typeof vi.fn<(next: AppSettings) => Promise<AppSettings>>>;
@@ -108,17 +130,7 @@ function createHook(options?: {
     typeof vi.fn<(workspaceId: string, threadId: string, patch: Record<string, unknown>) => void>
   >;
   getThreadCodexParams?: ReturnType<
-    typeof vi.fn<
-      (
-        workspaceId: string,
-        threadId: string
-      ) => {
-        accessMode: "read-only" | "on-request" | "full-access" | null;
-        collaborationModeId: string | null;
-        executionProfileId?: string | null;
-        preferredBackendIds?: string[] | null;
-      } | null
-    >
+    typeof vi.fn<(workspaceId: string, threadId: string) => ThreadCodexParams | null>
   >;
   activeThreadId?: string | null;
   visibleActiveThreadId?: string | null;
@@ -133,17 +145,7 @@ function createHook(options?: {
     vi.fn<(workspaceId: string, threadId: string, patch: Record<string, unknown>) => void>();
   const getThreadCodexParams =
     options?.getThreadCodexParams ??
-    vi.fn<
-      (
-        workspaceId: string,
-        threadId: string
-      ) => {
-        accessMode: "read-only" | "on-request" | "full-access" | null;
-        collaborationModeId: string | null;
-        executionProfileId?: string | null;
-        preferredBackendIds?: string[] | null;
-      } | null
-    >(() => null);
+    vi.fn<(workspaceId: string, threadId: string) => ThreadCodexParams | null>(() => null);
   const activeThreadId = options?.activeThreadId ?? null;
   const visibleActiveThreadId = options?.visibleActiveThreadId ?? activeThreadId;
   return renderHook(() =>
@@ -1070,6 +1072,241 @@ describe("useThreadCodexControls", () => {
 
     expect(patchThreadCodexParams).toHaveBeenCalledWith("workspace-1", "thread-1", {
       preferredBackendIds: ["backend-remote-a"],
+    });
+  });
+
+  it("passes the auto vision requirement through to useModels when requested", async () => {
+    detectRuntimeModeMock.mockReturnValue("runtime-gateway-web");
+    runCodexDoctorMock.mockResolvedValue({
+      ok: true,
+      codexBin: "codex",
+      version: "1.2.3",
+      appServerOk: true,
+      details: null,
+      path: null,
+      nodeOk: true,
+      nodeVersion: "v22.0.0",
+      nodeDetails: null,
+    });
+
+    const { result } = createHook();
+
+    await waitFor(() => {
+      expect(useModelsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          autoSelectionRequirements: {
+            requiresTools: true,
+          },
+        })
+      );
+    });
+
+    act(() => {
+      result.current.setAutoSelectionNeedsVision(true);
+    });
+
+    await waitFor(() => {
+      expect(useModelsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          autoSelectionRequirements: {
+            requiresTools: true,
+            requiresVision: true,
+          },
+        })
+      );
+    });
+  });
+
+  it("passes the auto tools requirement through to useModels for agentic task modes", async () => {
+    const getThreadCodexParams = vi.fn(() =>
+      buildThreadCodexParams({
+        accessMode: "full-access",
+        collaborationModeId: null,
+      })
+    );
+
+    createHook({
+      activeThreadId: "thread-1",
+      visibleActiveThreadId: "thread-1",
+      getThreadCodexParams,
+    });
+
+    await waitFor(() => {
+      expect(useModelsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          autoSelectionRequirements: {
+            requiresTools: true,
+          },
+        })
+      );
+    });
+  });
+
+  it("derives unsupported vision routing from provider capability truth when the model stays unknown", async () => {
+    useModelsMock.mockReturnValue({
+      models: [
+        {
+          ...modelOption,
+          capabilityMatrix: {
+            supportsTools: "supported",
+            supportsReasoningEffort: "supported",
+            supportsVision: "unknown",
+            supportsJsonSchema: "unknown",
+            maxContextTokens: 128000,
+            supportedReasoningEfforts: [],
+          },
+          providerCapabilityMatrix: {
+            supportsTools: "supported",
+            supportsReasoningEffort: "supported",
+            supportsVision: "unsupported",
+            supportsJsonSchema: "unknown",
+            maxContextTokens: 128000,
+            supportedReasoningEfforts: [],
+          },
+        },
+      ],
+      selectedModel: {
+        ...modelOption,
+        capabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "unknown",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: [],
+        },
+        providerCapabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "unsupported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: [],
+        },
+      },
+      selectedModelId: "openai::gpt-5.3-codex",
+      setSelectedModelId: vi.fn(),
+      reasoningSupported: false,
+      reasoningOptions: [],
+      selectedEffort: null,
+      setSelectedEffort: vi.fn(),
+      refreshModels: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { result } = createHook();
+
+    await waitFor(() => {
+      expect(result.current.visionCapabilitySupport).toBe("unsupported");
+    });
+  });
+
+  it("derives unsupported tools routing from provider capability truth when the model stays unknown", async () => {
+    useModelsMock.mockReturnValue({
+      models: [
+        {
+          ...modelOption,
+          capabilityMatrix: {
+            supportsTools: "unknown",
+            supportsReasoningEffort: "supported",
+            supportsVision: "supported",
+            supportsJsonSchema: "unknown",
+            maxContextTokens: 128000,
+            supportedReasoningEfforts: [],
+          },
+          providerCapabilityMatrix: {
+            supportsTools: "unsupported",
+            supportsReasoningEffort: "supported",
+            supportsVision: "supported",
+            supportsJsonSchema: "unknown",
+            maxContextTokens: 128000,
+            supportedReasoningEfforts: [],
+          },
+        },
+      ],
+      selectedModel: {
+        ...modelOption,
+        capabilityMatrix: {
+          supportsTools: "unknown",
+          supportsReasoningEffort: "supported",
+          supportsVision: "supported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: [],
+        },
+        providerCapabilityMatrix: {
+          supportsTools: "unsupported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "supported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: [],
+        },
+      },
+      selectedModelId: "openai::gpt-5.3-codex",
+      setSelectedModelId: vi.fn(),
+      reasoningSupported: false,
+      reasoningOptions: [],
+      selectedEffort: null,
+      setSelectedEffort: vi.fn(),
+      refreshModels: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { result } = createHook();
+
+    await waitFor(() => {
+      expect(result.current.toolsCapabilitySupport).toBe("unsupported");
+    });
+  });
+
+  it("reports the actual routed provider when auto routing lands on a different provider family", async () => {
+    getProvidersCatalogMock.mockResolvedValue([
+      {
+        providerId: "openai",
+        displayName: "OpenAI",
+        oauthProviderId: "codex",
+        aliases: ["codex", "openai"],
+        available: true,
+        readinessKind: "ready",
+        readinessMessage: "OpenAI is ready.",
+        executionKind: "cloud",
+        pool: "codex",
+        defaultModelId: "codex::gpt-5.4-codex",
+        supportedRouteIds: ["codex", "openai"],
+      },
+    ] as never);
+    useModelsMock.mockReturnValue({
+      models: [
+        {
+          ...modelOption,
+          id: "codex::gpt-5.4-codex",
+          model: "gpt-5.4-codex",
+          provider: "codex",
+        },
+      ],
+      selectedModel: {
+        ...modelOption,
+        id: "codex::gpt-5.4-codex",
+        model: "gpt-5.4-codex",
+        provider: "codex",
+      },
+      selectedModelId: "codex::gpt-5.4-codex",
+      setSelectedModelId: vi.fn(),
+      reasoningSupported: false,
+      reasoningOptions: [],
+      selectedEffort: null,
+      setSelectedEffort: vi.fn(),
+      refreshModels: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { result } = createHook();
+
+    act(() => {
+      result.current.handleSelectAutoRoute("claude");
+    });
+
+    await waitFor(() => {
+      expect(result.current.preferredProviderFamilyId).toBe("claude");
+      expect(result.current.selectedProviderId).toBe("codex");
     });
   });
 });

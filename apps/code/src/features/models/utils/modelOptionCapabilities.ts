@@ -1,4 +1,8 @@
 import {
+  clampReasoningEffortToCapabilityMatrix,
+  normalizeRuntimeModelCapabilityMatrix,
+} from "@ku0/code-runtime-client/runtimeCapabilityMatrix";
+import {
   canonicalizeModelPool,
   canonicalizeModelProvider,
 } from "@ku0/code-runtime-host-contract/codeRuntimeRpcCompat";
@@ -55,6 +59,31 @@ export function normalizeModelOptionSource(
 
 export function normalizeModelOption(model: ModelOption): ModelOption {
   const displayName = model.displayName.trim() || model.model.trim() || model.id.trim();
+  const normalizedLegacyReasoningEfforts = normalizeReasoningEfforts(
+    model.supportedReasoningEfforts
+  );
+  const capabilityMatrix = normalizeRuntimeModelCapabilityMatrix({
+    capabilityMatrix: model.capabilityMatrix ?? null,
+    reasoningEfforts: normalizedLegacyReasoningEfforts.map((effort) => effort.reasoningEffort),
+    supportsReasoning:
+      normalizedLegacyReasoningEfforts.length > 0 ||
+      normalizeEffortValue(model.defaultReasoningEffort) !== null,
+  });
+  const normalizedReasoningEfforts =
+    capabilityMatrix.supportedReasoningEfforts.length > 0
+      ? capabilityMatrix.supportedReasoningEfforts.map((reasoningEffort) => ({
+          reasoningEffort,
+          description:
+            normalizedLegacyReasoningEfforts.find(
+              (effort) => effort.reasoningEffort === reasoningEffort
+            )?.description ?? "",
+        }))
+      : normalizedLegacyReasoningEfforts;
+  const defaultReasoningEffort = clampReasoningEffortToCapabilityMatrix(
+    model.defaultReasoningEffort,
+    capabilityMatrix,
+    capabilityMatrix.supportedReasoningEfforts[0] ?? null
+  );
   return {
     ...model,
     id: model.id.trim(),
@@ -70,8 +99,9 @@ export function normalizeModelOption(model: ModelOption): ModelOption {
       model.pool?.trim().toLowerCase() ??
       null,
     source: normalizeModelOptionSource(model.source),
-    supportedReasoningEfforts: normalizeReasoningEfforts(model.supportedReasoningEfforts),
-    defaultReasoningEffort: normalizeEffortValue(model.defaultReasoningEffort),
+    supportedReasoningEfforts: normalizedReasoningEfforts,
+    defaultReasoningEffort,
+    capabilityMatrix,
   };
 }
 
@@ -79,19 +109,58 @@ export function supportsModelReasoning(model: ModelOption | null): boolean {
   if (!model) {
     return false;
   }
+  if (model.capabilityMatrix?.supportsReasoningEffort === "unsupported") {
+    return false;
+  }
   return (
+    model.capabilityMatrix?.supportsReasoningEffort === "supported" ||
     model.supportedReasoningEfforts.length > 0 ||
     normalizeEffortValue(model.defaultReasoningEffort) !== null
   );
+}
+
+function resolveModelCapabilitySupport(
+  model: ModelOption | null,
+  key: "supportsTools" | "supportsVision"
+): "supported" | "unsupported" | "unknown" {
+  if (!model) {
+    return "unknown";
+  }
+  const modelSupport = model.capabilityMatrix?.[key];
+  if (modelSupport === "supported" || modelSupport === "unsupported") {
+    return modelSupport;
+  }
+  const providerSupport = model.providerCapabilityMatrix?.[key];
+  if (providerSupport === "supported" || providerSupport === "unsupported") {
+    return providerSupport;
+  }
+  return "unknown";
+}
+
+export function resolveModelToolsCapabilitySupport(
+  model: ModelOption | null
+): "supported" | "unsupported" | "unknown" {
+  return resolveModelCapabilitySupport(model, "supportsTools");
+}
+
+export function resolveModelVisionCapabilitySupport(
+  model: ModelOption | null
+): "supported" | "unsupported" | "unknown" {
+  return resolveModelCapabilitySupport(model, "supportsVision");
 }
 
 export function getModelReasoningOptions(model: ModelOption | null): string[] {
   if (!model) {
     return [];
   }
-  const supported = normalizeReasoningEfforts(model.supportedReasoningEfforts).map(
-    (effort) => effort.reasoningEffort
-  );
+  if (model.capabilityMatrix?.supportsReasoningEffort === "unsupported") {
+    return [];
+  }
+  const supported = model.capabilityMatrix?.supportedReasoningEfforts.length
+    ? model.capabilityMatrix.supportedReasoningEfforts
+    : normalizeReasoningEfforts(model.supportedReasoningEfforts).map(
+        (effort) => effort.reasoningEffort
+      );
   if (supported.length > 0) {
     return supported;
   }

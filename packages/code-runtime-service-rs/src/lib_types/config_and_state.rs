@@ -642,6 +642,17 @@ static LOCAL_CODEX_CLI_AUTH_PROFILE_CACHE: LazyLock<Mutex<LocalCodexCliAuthProfi
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+struct RuntimeCapabilityMatrix {
+    supports_tools: String,
+    supports_reasoning_effort: String,
+    supports_vision: String,
+    supports_json_schema: String,
+    max_context_tokens: Option<u64>,
+    supported_reasoning_efforts: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct RuntimeProviderCatalogEntry {
     provider_id: String,
     display_name: String,
@@ -660,6 +671,8 @@ struct RuntimeProviderCatalogEntry {
     execution_kind: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     registry_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    capability_matrix: Option<RuntimeCapabilityMatrix>,
 }
 
 #[derive(Clone, Debug)]

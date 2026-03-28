@@ -58,6 +58,59 @@ describe("ui service boundary guard", () => {
     ]);
   });
 
+  it("rejects direct runtime session command port imports in thread and composer features", () => {
+    const threadViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/threads/hooks/useThreadMessaging.ts",
+      'import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/ports/runtimeSessionCommands";\n'
+    );
+    const composerViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/composer/hooks/useComposerActions.ts",
+      'import { useWorkspaceRuntimeSessionCommands } from "../../../application/runtime/ports/runtimeSessionCommands";\n'
+    );
+
+    expect(threadViolations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-thread-session-command-facade-only",
+      }),
+    ]);
+    expect(composerViolations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-thread-session-command-facade-only",
+      }),
+    ]);
+  });
+
+  it("allows runtime session command facade hooks in thread features", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/threads/hooks/useThreadMessaging.ts",
+      'import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacadeHooks";\n'
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("rejects direct chatgpt automation implementation imports in product code", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/settings/components/sections/SettingsCodexAccountsCard.tsx",
+      'import { reviewDeactivatedChatgptWorkspaces } from "../../../../application/runtime/facades/chatgptWorkspaceAutomation";\n'
+    );
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-chatgpt-automation-facade-only",
+      }),
+    ]);
+  });
+
+  it("allows the approved chatgpt automation facade in product code", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/settings/components/sections/SettingsCodexAccountsCard.tsx",
+      'import { reviewDeactivatedChatgptWorkspaces } from "../../../../application/runtime/facades/chatgptWorkspaceAutomationFacade";\n'
+    );
+
+    expect(violations).toEqual([]);
+  });
+
   it("rejects direct tauri imports in shared workspace client files", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "packages/code-workspace-client/src/workspace/WorkspaceClientApp.tsx",
@@ -204,6 +257,124 @@ describe("ui service boundary guard", () => {
         rule: "runtime-implementation",
       }),
     ]);
+  });
+
+  it("rejects direct runtime tool lifecycle facade and type-layer imports in UI code", () => {
+    const facadeViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/example/hooks/useExample.ts",
+      'import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/facades/runtimeToolLifecycleFacade";\n'
+    );
+    const presentationViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/example/components/Example.tsx",
+      'import { describeRuntimeToolLifecycleEvent } from "../../../application/runtime/facades/runtimeToolLifecyclePresentation";\n'
+    );
+    const typeViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/example/components/Example.tsx",
+      'import type { RuntimeToolLifecycleEvent } from "../../../application/runtime/types/runtimeToolLifecycle";\n'
+    );
+
+    expect(facadeViolations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-tool-lifecycle-port-only",
+      }),
+    ]);
+    expect(presentationViolations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-tool-lifecycle-port-only",
+      }),
+    ]);
+    expect(typeViolations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-tool-lifecycle-port-only",
+      }),
+    ]);
+  });
+
+  it("rejects product imports of runtime tool lifecycle read primitives outside approved hooks", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/workspaces/components/WorkspaceHomeMissionControlSections.tsx",
+      'import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";\n'
+    );
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-tool-lifecycle-read-primitives",
+      }),
+    ]);
+  });
+
+  it("allows runtime tool lifecycle read primitives in the shared workspace hook", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/shared/hooks/useWorkspaceRuntimeToolLifecycle.ts",
+      [
+        "import {",
+        "  getWorkspaceRuntimeToolLifecycleSnapshot,",
+        "  subscribeWorkspaceRuntimeToolLifecycleSnapshot,",
+        '} from "../../../application/runtime/ports/runtimeToolLifecycle";',
+      ].join("\n")
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("rejects product imports of lifecycle projection primitives outside the shared workspace hook", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/workspaces/components/WorkspaceHomeMissionControlSections.tsx",
+      [
+        "import {",
+        "  buildRuntimeToolLifecyclePresentationSummary,",
+        "  sortRuntimeToolLifecycleEventsByRecency,",
+        '} from "../../../application/runtime/ports/runtimeToolLifecycle";',
+      ].join("\n")
+    );
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-tool-lifecycle-projection-primitives",
+      }),
+    ]);
+  });
+
+  it("allows lifecycle projection primitives in the shared workspace hook", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/shared/hooks/useWorkspaceRuntimeToolLifecycle.ts",
+      [
+        "import {",
+        "  buildRuntimeToolLifecyclePresentationSummary,",
+        "  sortRuntimeToolLifecycleEventsByRecency,",
+        "  sortRuntimeToolLifecycleHookCheckpointsByRecency,",
+        '} from "../../../application/runtime/ports/runtimeToolLifecycle";',
+      ].join("\n")
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("allows lifecycle projection primitives in test support fixtures", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/debug/test/debugPanelComponentFixtures.ts",
+      [
+        "import {",
+        "  buildRuntimeToolLifecyclePresentationSummary,",
+        '} from "../../../application/runtime/ports/runtimeToolLifecycle";',
+      ].join("\n")
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("allows runtime tool lifecycle read primitives in debug diagnostics hooks", () => {
+    const probeViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/debug/hooks/useDebugRuntimeProbe.ts",
+      'import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";\n'
+    );
+    const exportViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/debug/hooks/useRuntimeDiagnosticsExport.ts",
+      'import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";\n'
+    );
+
+    expect(probeViolations).toEqual([]);
+    expect(exportViolations).toEqual([]);
   });
 
   it("rejects low-level runtime transport imports in non-UI product files", () => {

@@ -36,6 +36,20 @@ function mapCanonicalTargetToMissionNavigationTarget(input: {
     return input.missionTarget;
   }
   if (target.kind === "thread") {
+    const missionThreadId =
+      input.task.origin.threadId ??
+      (input.missionTarget.kind === "mission" || input.missionTarget.kind === "thread"
+        ? (input.missionTarget.threadId ?? null)
+        : null);
+    if (
+      missionThreadId &&
+      target.workspaceId === input.task.workspaceId &&
+      target.threadId === missionThreadId
+    ) {
+      // Keep mission context when runtime truth points back to the same mission
+      // thread, but preserve cross-thread handoff targets.
+      return input.missionTarget;
+    }
     return {
       kind: "thread",
       workspaceId: target.workspaceId,
@@ -116,14 +130,18 @@ export function resolveMissionOperatorAction(input: {
   target: MissionNavigationTarget;
 } {
   const continuation = buildContinuation(input);
+  const canonicalNavigationTarget = continuation?.canonicalNextAction.navigationTarget ?? null;
   const continuationTarget = continuation
     ? mapCanonicalTargetToMissionNavigationTarget({
         task: input.task,
-        target: continuation.canonicalNextAction.navigationTarget,
+        target: canonicalNavigationTarget,
         missionTarget: input.missionTarget,
         reviewTarget: input.reviewTarget,
       })
     : input.missionTarget;
+  const resolvedCanonicalReviewTarget = canonicalNavigationTarget
+    ? (continuationTarget ?? input.reviewTarget)
+    : input.reviewTarget;
   if (
     input.reviewPack &&
     (input.reviewPack.reviewStatus === "ready" ||
@@ -150,7 +168,9 @@ export function resolveMissionOperatorAction(input: {
         input.reviewPack.governance?.summary?.trim() ||
         null,
       target: useCanonicalReviewAction
-        ? (continuationTarget ?? input.reviewTarget)
+        ? continuation?.canonicalNextAction.kind === "review"
+          ? resolvedCanonicalReviewTarget
+          : (continuationTarget ?? input.missionTarget)
         : input.reviewTarget,
     };
   }
@@ -160,7 +180,7 @@ export function resolveMissionOperatorAction(input: {
       detail: continuation.canonicalNextAction.detail,
       target:
         continuation.canonicalNextAction.kind === "review"
-          ? input.reviewTarget
+          ? resolvedCanonicalReviewTarget
           : (continuationTarget ?? input.missionTarget),
     };
   }

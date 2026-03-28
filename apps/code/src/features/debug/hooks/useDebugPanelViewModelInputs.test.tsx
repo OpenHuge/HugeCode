@@ -2,6 +2,7 @@
 
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { buildRuntimeToolLifecyclePresentationSummary } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import {
   createDebugEntryDiagnosticsState,
   createDebugPanelViewModelBuilderParams,
@@ -82,9 +83,32 @@ describe("useDebugPanelViewModelInputs", () => {
       recentExecutions: [],
     });
     useDebugRuntimeToolLifecycleMock.mockReturnValue({
+      summary: buildRuntimeToolLifecyclePresentationSummary({
+        lifecycleEvents: [],
+        hookCheckpoints: [],
+      }),
       revision: 0,
+      lastHookCheckpoint: null,
       lastEvent: null,
+      hookCheckpoints: [],
       lifecycleEvents: [],
+      sessionCheckpointBaseline: {
+        schemaVersion: "runtime-session-checkpoint-baseline/v1",
+        workspaceId: "workspace-1",
+        lifecycleRevision: 0,
+        projectionSource: "runtime_tool_lifecycle",
+        sessions: [],
+      },
+      sessionCheckpointSummary: {
+        hasSessions: false,
+        latestHookCheckpointKey: null,
+        latestLifecycleEventId: null,
+        latestSession: null,
+        latestSessionLabel: null,
+        totalCheckpointPayloads: 0,
+        totalRecords: 0,
+        totalSessions: 0,
+      },
     });
     useDebugRuntimeProbeMock.mockReturnValue(createDebugRuntimeProbeState());
     useFormattedDebugEntriesMock.mockReturnValue([]);

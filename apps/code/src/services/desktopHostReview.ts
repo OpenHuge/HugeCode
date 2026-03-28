@@ -9,7 +9,7 @@ export async function startReview(
   threadId: string,
   target: ReviewTarget,
   delivery?: "inline" | "detached"
-) {
+): Promise<unknown> {
   void workspaceId;
   void threadId;
   void target;

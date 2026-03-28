@@ -1,4 +1,4 @@
-import type { MutableRefObject } from "react";
+import { useEffect, type MutableRefObject } from "react";
 import type { AppSettings } from "../../../types";
 import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
 import type { useCustomPrompts } from "../../prompts/hooks/useCustomPrompts";
@@ -162,6 +162,12 @@ export function useDesktopWorkspaceConversationDomain({
     },
     composerInputRef,
   });
+
+  useEffect(() => {
+    threadCodexState.setAutoSelectionNeedsVision(
+      conversationState.composerState.activeImages.length > 0
+    );
+  }, [conversationState.composerState.activeImages, threadCodexState]);
 
   const mainAppHandlers = useMainAppHandlers({
     ...threadsState,

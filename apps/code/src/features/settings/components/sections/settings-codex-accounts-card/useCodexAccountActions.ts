@@ -5,7 +5,7 @@ import {
   type DeactivatedChatgptWorkspaceCandidate,
   type LeaveDeactivatedChatgptWorkspacesResult,
   type ReviewDeactivatedChatgptWorkspacesResult,
-} from "../../../../../application/runtime/facades/chatgptWorkspaceAutomation";
+} from "../../../../../application/runtime/facades/chatgptWorkspaceAutomationFacade";
 import {
   type OAuthAccountSummary,
   type OAuthProviderId,

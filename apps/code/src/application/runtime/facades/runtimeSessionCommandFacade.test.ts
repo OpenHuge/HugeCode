@@ -15,7 +15,7 @@ function createDependencies(): RuntimeSessionCommandDependencies {
     respondToServerRequest: vi.fn(async () => undefined),
     respondToUserInputRequest: vi.fn(async () => undefined),
     respondToToolCallRequest: vi.fn(async () => undefined),
-    detectRuntimeMode: vi.fn(() => "tauri" as const),
+    detectRuntimeMode: vi.fn(() => "runtime-gateway-web" as const),
     reviewStartDesktopOnlyMessage: "Review start is only available in the desktop app.",
   } as unknown as RuntimeSessionCommandDependencies;
 }
@@ -100,5 +100,9 @@ describe("createRuntimeSessionCommandFacade", () => {
     vi.mocked(deps.detectRuntimeMode).mockReturnValue("runtime-gateway-web");
 
     expect(facade.canStartReviewInCurrentHost()).toBe(false);
+
+    vi.mocked(deps.detectRuntimeMode).mockReturnValue("tauri");
+
+    expect(facade.canStartReviewInCurrentHost()).toBe(true);
   });
 });

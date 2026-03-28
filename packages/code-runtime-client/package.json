@@ -61,6 +61,10 @@
       "types": "./src/runtimeClientTypes.ts",
       "default": "./src/runtimeClientTypes.ts"
     },
+    "./runtimeCapabilityMatrix": {
+      "types": "./src/runtimeCapabilityMatrix.ts",
+      "default": "./src/runtimeCapabilityMatrix.ts"
+    },
     "./runtimeClientWebRequestTimeouts": {
       "types": "./src/runtimeClientWebRequestTimeouts.ts",
       "default": "./src/runtimeClientWebRequestTimeouts.ts"
@@ -96,6 +100,10 @@
     "./runtimeEventStateMachine": {
       "types": "./src/runtimeEventStateMachine.ts",
       "default": "./src/runtimeEventStateMachine.ts"
+    },
+    "./runtimeToolLifecycle": {
+      "types": "./src/runtimeToolLifecycle.ts",
+      "default": "./src/runtimeToolLifecycle.ts"
     },
     "./webMcpToolInputSchemaValidation": {
       "types": "./src/webMcpToolInputSchemaValidation.ts",

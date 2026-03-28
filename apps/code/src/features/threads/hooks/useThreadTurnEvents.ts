@@ -1,6 +1,6 @@
 import type { Dispatch, MutableRefObject } from "react";
 import { useCallback, useEffect, useRef } from "react";
-import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/ports/runtimeSessionCommands";
+import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacadeHooks";
 import type { ConversationItem, RateLimitSnapshot, TurnPlan } from "../../../types";
 import { resolveRateLimitsSnapshot } from "../../../utils/rateLimits";
 import { getThreadTimestamp } from "../../../utils/threadItems";
