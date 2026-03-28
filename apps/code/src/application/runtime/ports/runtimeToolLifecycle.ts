@@ -8,10 +8,6 @@ export type {
   RuntimeToolLifecycleStatus,
 } from "../types/runtimeToolLifecycle";
 export {
-  filterRuntimeToolLifecycleSnapshot,
-  runtimeToolLifecycleEventMatchesWorkspace,
-} from "../types/runtimeToolLifecycle";
-export {
   getRuntimeToolLifecycleSnapshot,
   getWorkspaceRuntimeToolLifecycleSnapshot,
   subscribeRuntimeToolLifecycleEvents,

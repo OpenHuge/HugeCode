@@ -171,6 +171,12 @@ Consumers should prefer that boundary over composing
 `getRuntimeToolLifecycleSnapshot() + filterRuntimeToolLifecycleSnapshot(...)`
 or subscribing to the unscoped snapshot stream inside feature code.
 
+The raw filtering helpers remain part of the shared lifecycle implementation in
+`@ku0/code-runtime-client/runtimeToolLifecycle` and the local
+`application/runtime/types` layer for facade assembly and tests, but they are no
+longer part of the approved `application/runtime/ports` surface for feature
+code.
+
 ## Follow-On Work
 
 Track 1 is complete when new work treats this lifecycle baseline as frozen and
