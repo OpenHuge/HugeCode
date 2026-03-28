@@ -85,17 +85,21 @@ Track 2 baseline keeps three invariants:
    - "latest record per identity" is recorded as projection strategy, not
      inferred by consumers
 
-## Proof Slice
+## Proof Slices
 
-The first implementation slice writes this structured baseline into the debug
-diagnostics metadata artifact.
+Current implementation slices are intentionally narrow:
 
-Why this slice:
+1. debug diagnostics metadata export
+2. debug runtime lifecycle section summary
 
-- it is already machine-readable
-- it stays inside existing HugeCode application/runtime boundaries
-- it proves Track 2 records can reference frozen Track 1 lifecycle ids and hook
-  checkpoints without changing the lifecycle port
+Why these slices:
+
+- the export artifact is machine-readable first
+- the debug panel now reads the same shared projection instead of rebuilding a
+  local session interpretation
+- both stay inside existing HugeCode application/runtime boundaries
+- both prove Track 2 records can reference frozen Track 1 lifecycle ids and
+  hook checkpoints without changing the lifecycle port
 
 ## External Calibration
 

@@ -75,7 +75,10 @@ export function createDebugPanelViewModel({
   const { recentExecutions: runtimeToolExecutionRecentExecutions } = runtimeToolExecutionMetrics;
   const {
     hookCheckpoints: runtimeToolLifecycleHookCheckpoints,
+    lastHookCheckpoint: runtimeToolLifecycleLastHookCheckpoint,
+    lastEvent: runtimeToolLifecycleLastEvent,
     lifecycleEvents: runtimeToolLifecycleEvents,
+    revision: runtimeToolLifecycleRevision,
   } = runtimeToolLifecycle;
   const {
     runtimeProbeBusyLabel,
@@ -135,6 +138,9 @@ export function createDebugPanelViewModel({
       runtimeToolExecutionTotals,
       runtimeToolExecutionRecentExecutions,
       runtimeToolLifecycleHookCheckpoints,
+      runtimeToolLifecycleLastHookCheckpoint,
+      runtimeToolLifecycleLastEvent,
+      runtimeToolLifecycleRevision,
       runtimeToolLifecycleEvents,
       runtimeEventBridgePath,
       formattedEntries,

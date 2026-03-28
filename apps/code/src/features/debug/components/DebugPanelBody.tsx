@@ -32,6 +32,9 @@ export type DebugPanelBodyProps = DebugRuntimeProbesSectionProps & {
   runtimeToolExecutionTotals: RuntimeToolExecutionTotals;
   runtimeToolExecutionRecentExecutions: RuntimeToolExecutionRecentEntry[];
   runtimeToolLifecycleHookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
+  runtimeToolLifecycleLastHookCheckpoint: RuntimeToolLifecycleHookCheckpoint | null;
+  runtimeToolLifecycleLastEvent: RuntimeToolLifecycleEvent | null;
+  runtimeToolLifecycleRevision: number;
   runtimeToolLifecycleEvents: RuntimeToolLifecycleEvent[];
   runtimeEventBridgePath: "legacy" | "v2";
   formattedEntries: FormattedDebugEntry[];
@@ -48,6 +51,9 @@ export function DebugPanelBody({
   runtimeToolExecutionTotals,
   runtimeToolExecutionRecentExecutions,
   runtimeToolLifecycleHookCheckpoints,
+  runtimeToolLifecycleLastHookCheckpoint,
+  runtimeToolLifecycleLastEvent,
+  runtimeToolLifecycleRevision,
   runtimeToolLifecycleEvents,
   runtimeEventBridgePath,
   formattedEntries,
@@ -71,6 +77,9 @@ export function DebugPanelBody({
         recentExecutions={runtimeToolExecutionRecentExecutions}
       />
       <DebugRuntimeToolLifecycleSection
+        revision={runtimeToolLifecycleRevision}
+        lastEvent={runtimeToolLifecycleLastEvent}
+        lastHookCheckpoint={runtimeToolLifecycleLastHookCheckpoint}
         lifecycleEvents={runtimeToolLifecycleEvents}
         hookCheckpoints={runtimeToolLifecycleHookCheckpoints}
       />

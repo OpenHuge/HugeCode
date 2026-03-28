@@ -9,6 +9,12 @@ import {
   sortRuntimeToolLifecycleEventsByRecency,
   sortRuntimeToolLifecycleHookCheckpointsByRecency,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
+import { buildRuntimeSessionCheckpointBaseline } from "../../../application/runtime/facades/runtimeSessionCheckpointFacade";
+import {
+  buildRuntimeSessionCheckpointPresentationSummary,
+  formatRuntimeSessionCheckpointSessionLabel,
+  sortRuntimeSessionCheckpointSessionsByRecency,
+} from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
 import {
   DebugDiagnosticsDefinitionList,
   type DebugDiagnosticsFieldDescriptor,
@@ -16,7 +22,10 @@ import {
 
 export type DebugRuntimeToolLifecycleSectionProps = {
   hookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
+  lastHookCheckpoint: RuntimeToolLifecycleHookCheckpoint | null;
+  lastEvent: RuntimeToolLifecycleEvent | null;
   lifecycleEvents: RuntimeToolLifecycleEvent[];
+  revision: number;
 };
 
 function formatLifecycleTimestamp(value: number): string {
@@ -59,12 +68,30 @@ function createHookCheckpointFields(
 
 export function DebugRuntimeToolLifecycleSection({
   hookCheckpoints,
+  lastHookCheckpoint,
+  lastEvent,
   lifecycleEvents,
+  revision,
 }: DebugRuntimeToolLifecycleSectionProps) {
   const summary = buildRuntimeToolLifecyclePresentationSummary({
     lifecycleEvents,
     hookCheckpoints,
   });
+  const sessionCheckpointBaseline = buildRuntimeSessionCheckpointBaseline({
+    workspaceId: summary.latestEvent?.workspaceId ?? lastHookCheckpoint?.workspaceId ?? null,
+    lifecycleSnapshot: {
+      revision,
+      lastEvent,
+      recentEvents: lifecycleEvents,
+      lastHookCheckpoint,
+      recentHookCheckpoints: hookCheckpoints,
+    },
+  });
+  const sessionSummary =
+    buildRuntimeSessionCheckpointPresentationSummary(sessionCheckpointBaseline);
+  const sortedSessions = sortRuntimeSessionCheckpointSessionsByRecency(
+    sessionCheckpointBaseline.sessions
+  );
   const sortedEvents = sortRuntimeToolLifecycleEventsByRecency(lifecycleEvents);
   const sortedHookCheckpoints = sortRuntimeToolLifecycleHookCheckpointsByRecency(hookCheckpoints);
 
@@ -99,12 +126,58 @@ export function DebugRuntimeToolLifecycleSection({
           </div>
         </>
       ) : null}
+      {sessionSummary.latestSession ? (
+        <>
+          <div className="debug-event-channel-diagnostics-empty">
+            {sessionSummary.totalSessions} structured sessions observed.
+          </div>
+          <div className="debug-event-channel-diagnostics-empty">
+            Latest session: {sessionSummary.latestSessionLabel} at{" "}
+            <time
+              dateTime={formatLifecycleTimestamp(
+                sessionSummary.latestSession.latestActivityAt ?? 0
+              )}
+            >
+              {formatLifecycleTimestamp(sessionSummary.latestSession.latestActivityAt ?? 0)}
+            </time>
+            .
+          </div>
+        </>
+      ) : null}
       {!summary.hasActivity ? (
         <div className="debug-event-channel-diagnostics-empty">
           No lifecycle activity observed yet.
         </div>
       ) : (
         <div className="debug-event-channel-diagnostics-grid">
+          {sortedSessions.map((session) => (
+            <div key={session.sessionKey} className="debug-event-channel-diagnostics-item">
+              <div className="debug-event-channel-diagnostics-label">
+                {formatRuntimeSessionCheckpointSessionLabel(session)}
+              </div>
+              <DebugDiagnosticsDefinitionList
+                fields={[
+                  {
+                    label: "latest_activity_at",
+                    value:
+                      session.latestActivityAt === null
+                        ? "-"
+                        : formatLifecycleTimestamp(session.latestActivityAt),
+                  },
+                  { label: "records", value: String(session.records.length) },
+                  { label: "checkpoints", value: String(session.checkpoints.length) },
+                  {
+                    label: "last_event_id",
+                    value: session.replay.lastLifecycleEventId ?? "-",
+                  },
+                  {
+                    label: "last_checkpoint_key",
+                    value: session.replay.lastHookCheckpointKey ?? "-",
+                  },
+                ]}
+              />
+            </div>
+          ))}
           {sortedEvents.map((event) => (
             <div key={event.id} className="debug-event-channel-diagnostics-item">
               <div className="debug-event-channel-diagnostics-label">
