@@ -91,7 +91,8 @@ Current implementation slices are intentionally narrow:
 
 1. debug diagnostics metadata export
 2. debug runtime lifecycle section summary
-3. shared workspace session/checkpoint read hook for debug consumers
+3. shared workspace session/checkpoint read hook for product consumers
+4. Mission Control session log summary
 
 Why these slices:
 
@@ -99,6 +100,9 @@ Why these slices:
 - the debug panel now reads the same shared projection through a shared
   workspace-scoped hook instead of rebuilding a local session interpretation in
   page components
+- Mission Control now consumes the same shared session/checkpoint projection on
+  a formal product surface instead of limiting Track 2 to diagnostics-only
+  proof
 - both stay inside existing HugeCode application/runtime boundaries
 - both prove Track 2 records can reference frozen Track 1 lifecycle ids and
   hook checkpoints without changing the lifecycle port
