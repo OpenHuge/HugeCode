@@ -35,6 +35,14 @@ describe("DebugRuntimePluginsSection", () => {
               contractFormat: "runtime_extension",
               contractBoundary: "runtime-extension-record",
               interfaceId: "ext-1",
+              surfaces: [
+                {
+                  id: "ext-1",
+                  kind: "extension",
+                  direction: "export",
+                  summary: "Runtime extension record exported through the kernel plugin catalog.",
+                },
+              ],
             },
             operations: {
               execution: {
@@ -70,6 +78,7 @@ describe("DebugRuntimePluginsSection", () => {
     expect(screen.getByText("blocked")).toBeTruthy();
     expect(screen.getByText("readable")).toBeTruthy();
     expect(screen.getByText("evaluable")).toBeTruthy();
+    expect(screen.getByText("export:extension:ext-1")).toBeTruthy();
     expect(
       screen.getByText(/catalog\/resource access only and does not expose an execution provider/i)
     ).toBeTruthy();

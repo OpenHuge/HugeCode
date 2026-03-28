@@ -39,6 +39,14 @@ export function normalizeKernelExtensionBundlePluginDescriptor(
       contractFormat: "runtime_extension",
       contractBoundary: "kernel-extension-bundle",
       interfaceId: bundle.id,
+      surfaces: [
+        {
+          id: bundle.id,
+          kind: "extension",
+          direction: "export",
+          summary: "Kernel projection export for a runtime extension bundle.",
+        },
+      ],
     },
     operations: {
       execution: {

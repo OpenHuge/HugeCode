@@ -79,6 +79,9 @@ export type WorkspaceRuntimeMissionControlProjection = {
     nonExecutableCount: number;
     readableResourceCount: number;
     permissionEvaluableCount: number;
+    contractSurfaceCount: number;
+    contractImportSurfaceCount: number;
+    contractExportSurfaceCount: number;
     boundCount: number;
     declarationOnlyCount: number;
     unboundCount: number;
@@ -154,6 +157,9 @@ function buildPluginCatalogSummary(input: {
     nonExecutableCount: 0,
     readableResourceCount: 0,
     permissionEvaluableCount: 0,
+    contractSurfaceCount: 0,
+    contractImportSurfaceCount: 0,
+    contractExportSurfaceCount: 0,
     boundCount: 0,
     declarationOnlyCount: 0,
     unboundCount: 0,
@@ -185,6 +191,14 @@ function buildPluginCatalogSummary(input: {
     }
     if (plugin.operations.permissions.evaluable) {
       summary.permissionEvaluableCount += 1;
+    }
+    summary.contractSurfaceCount += plugin.binding.surfaces.length;
+    for (const surface of plugin.binding.surfaces) {
+      if (surface.direction === "import") {
+        summary.contractImportSurfaceCount += 1;
+      } else {
+        summary.contractExportSurfaceCount += 1;
+      }
     }
     if (plugin.binding.state === "bound") {
       summary.boundCount += 1;

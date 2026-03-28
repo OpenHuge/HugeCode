@@ -60,12 +60,33 @@ describe("createWorkspaceRuntimeScope", () => {
       capabilityProviders: [],
     });
 
-    expect(scope.hasCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog)).toBe(false);
-    expect(() => scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog)).toThrow(
-      /Missing workspace runtime capability `extensions\.catalog`/
+    expect(scope.hasCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog)).toBe(false);
+    expect(() => scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog)).toThrow(
+      /Missing workspace runtime capability `plugins\.catalog`/
     );
     expect(() =>
-      resolveWorkspaceRuntimeCapability(scope, RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog)
-    ).toThrow(/Missing workspace runtime capability `extensions\.catalog`/);
+      resolveWorkspaceRuntimeCapability(scope, RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog)
+    ).toThrow(/Missing workspace runtime capability `plugins\.catalog`/);
+  });
+
+  it("resolves the legacy extensions catalog alias through the canonical plugin capability", () => {
+    const pluginCatalog = { listPlugins: vi.fn() };
+    const scope = createWorkspaceRuntimeScope({
+      workspaceId: "ws-1",
+      runtimeGateway: {} as never,
+      capabilityProviders: [
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog,
+          createCapability: vi.fn(() => pluginCatalog) as never,
+        },
+      ],
+    });
+
+    expect(scope.hasCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog)).toBe(true);
+    expect(scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog)).toBe(pluginCatalog);
+    expect(scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog)).toBe(
+      pluginCatalog
+    );
+    expect(scope.listCapabilities()).toEqual([RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog]);
   });
 });

@@ -1,7 +1,9 @@
 import type { RuntimeGateway } from "../facades/RuntimeGateway";
 import type { RuntimeWorkspaceId } from "../types/runtimeIds";
 import type { WorkspaceRuntimeScope } from "./runtimeKernelTypes";
+import { resolveRuntimeKernelCapabilityKey } from "./runtimeKernelCapabilities";
 import type {
+  RuntimeKernelCanonicalCapabilityKey,
   RuntimeKernelCapabilityKey,
   RuntimeKernelCapabilityMap,
   WorkspaceRuntimeCapabilityProvider,
@@ -18,26 +20,30 @@ export function createWorkspaceRuntimeScope({
   runtimeGateway,
   capabilityProviders,
 }: CreateWorkspaceRuntimeScopeInput): WorkspaceRuntimeScope {
-  const providerByKey = new Map<RuntimeKernelCapabilityKey, WorkspaceRuntimeCapabilityProvider>(
-    capabilityProviders.map((provider) => [provider.key, provider] as const)
-  );
-  const capabilityCache = new Map<RuntimeKernelCapabilityKey, unknown>();
+  const providerByKey = new Map<
+    RuntimeKernelCanonicalCapabilityKey,
+    WorkspaceRuntimeCapabilityProvider
+  >(capabilityProviders.map((provider) => [provider.key, provider] as const));
+  const capabilityCache = new Map<RuntimeKernelCanonicalCapabilityKey, unknown>();
 
   function getCapability<K extends RuntimeKernelCapabilityKey>(
     key: K
   ): RuntimeKernelCapabilityMap[K] {
-    const provider = providerByKey.get(key) as WorkspaceRuntimeCapabilityProvider<K> | undefined;
+    const resolvedKey = resolveRuntimeKernelCapabilityKey(key);
+    const provider = providerByKey.get(resolvedKey) as
+      | WorkspaceRuntimeCapabilityProvider<RuntimeKernelCanonicalCapabilityKey>
+      | undefined;
     if (!provider) {
       throw new Error(`Missing workspace runtime capability \`${key}\`.`);
     }
-    if (capabilityCache.has(key)) {
-      return capabilityCache.get(key) as RuntimeKernelCapabilityMap[K];
+    if (capabilityCache.has(resolvedKey)) {
+      return capabilityCache.get(resolvedKey) as RuntimeKernelCapabilityMap[K];
     }
     const capability = provider.createCapability({
       workspaceId,
       runtimeGateway,
-    });
-    capabilityCache.set(key, capability);
+    }) as RuntimeKernelCapabilityMap[K];
+    capabilityCache.set(resolvedKey, capability);
     return capability;
   }
 
@@ -45,7 +51,8 @@ export function createWorkspaceRuntimeScope({
     workspaceId,
     runtimeGateway,
     getCapability,
-    hasCapability: (key) => providerByKey.has(key as RuntimeKernelCapabilityKey),
+    hasCapability: (key) =>
+      providerByKey.has(resolveRuntimeKernelCapabilityKey(key as RuntimeKernelCapabilityKey)),
     listCapabilities: () => [...providerByKey.keys()],
   };
 }

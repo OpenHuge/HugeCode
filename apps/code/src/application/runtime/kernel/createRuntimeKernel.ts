@@ -75,7 +75,7 @@ export function createRuntimeKernel(): RuntimeKernel {
           createCapability: () => createRuntimeSessionCommandFacade(workspaceId),
         },
         {
-          key: RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog,
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog,
           createCapability: () => createRuntimeKernelPluginCatalogFacade({ workspaceId }),
         },
       ];

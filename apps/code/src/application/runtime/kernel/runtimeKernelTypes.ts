@@ -6,6 +6,7 @@ import type { DesktopHostAdapter } from "../adapters/DesktopHostAdapter";
 import type { RuntimeGateway } from "../facades/RuntimeGateway";
 import type { RuntimeWorkspaceId } from "../types/runtimeIds";
 import type {
+  RuntimeKernelCanonicalCapabilityKey,
   RuntimeKernelCapabilityKey,
   RuntimeKernelCapabilityMap,
 } from "./runtimeKernelCapabilities";
@@ -15,7 +16,7 @@ export type WorkspaceRuntimeScope = {
   runtimeGateway: RuntimeGateway;
   getCapability: <K extends RuntimeKernelCapabilityKey>(key: K) => RuntimeKernelCapabilityMap[K];
   hasCapability: (key: string) => boolean;
-  listCapabilities: () => RuntimeKernelCapabilityKey[];
+  listCapabilities: () => RuntimeKernelCanonicalCapabilityKey[];
 };
 
 export type RuntimeKernel = {

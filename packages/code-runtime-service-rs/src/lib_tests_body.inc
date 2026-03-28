@@ -8889,6 +8889,18 @@ exit 1
         assert_eq!(wasi["metadata"]["pluginSource"], Value::String("wasi_host".to_string()));
         assert_eq!(wasi["metadata"]["bindingState"], Value::String("unbound".to_string()));
         assert_eq!(wasi["metadata"]["contractFormat"], Value::String("wit".to_string()));
+        assert_eq!(
+            wasi["metadata"]["worldId"],
+            Value::String("hugecode:runtime/plugin-host".to_string())
+        );
+        assert_eq!(
+            wasi["metadata"]["contractSurfaces"][0]["kind"],
+            Value::String("world".to_string())
+        );
+        assert_eq!(
+            wasi["metadata"]["contractSurfaces"][1]["direction"],
+            Value::String("import".to_string())
+        );
 
         let rpc = capabilities_by_id.get("host:rpc").expect("rpc host capability");
         assert_eq!(rpc["kind"], Value::String("host".to_string()));
@@ -8897,6 +8909,10 @@ exit 1
         assert_eq!(rpc["metadata"]["pluginSource"], Value::String("rpc_host".to_string()));
         assert_eq!(rpc["metadata"]["bindingState"], Value::String("unbound".to_string()));
         assert_eq!(rpc["metadata"]["contractFormat"], Value::String("rpc".to_string()));
+        assert_eq!(
+            rpc["metadata"]["contractSurfaces"][0]["kind"],
+            Value::String("procedure_set".to_string())
+        );
     }
 
     #[tokio::test]

@@ -276,6 +276,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             <span>Blocked execution: {pluginCatalog.nonExecutableCount}</span>
             <span>Readable resources: {pluginCatalog.readableResourceCount}</span>
             <span>Permission-aware: {pluginCatalog.permissionEvaluableCount}</span>
+            <span>Contract surfaces: {pluginCatalog.contractSurfaceCount}</span>
+            <span>Host imports: {pluginCatalog.contractImportSurfaceCount}</span>
+            <span>Plugin exports: {pluginCatalog.contractExportSurfaceCount}</span>
             <span>Bound: {pluginCatalog.boundCount}</span>
             <span>Declaration-only: {pluginCatalog.declarationOnlyCount}</span>
             <span>Unbound hosts: {pluginCatalog.unboundCount}</span>

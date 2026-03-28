@@ -25,6 +25,36 @@ fn kernel_host_capability_payload(host_id: &str) -> Value {
             "contractFormat": if is_wasi { "wit" } else { "rpc" },
             "contractBoundary": if is_wasi { "world-imports" } else { "remote-procedure-calls" },
             "interfaceId": if is_wasi { "wasi:*/*" } else { "runtime.plugin.host" },
+            "worldId": if is_wasi {
+                json!("hugecode:runtime/plugin-host")
+            } else {
+                Value::Null
+            },
+            "contractSurfaces": if is_wasi {
+                json!([
+                    {
+                        "id": "hugecode:runtime/plugin-host",
+                        "kind": "world",
+                        "direction": "import",
+                        "summary": "Reserved component-model world that the runtime host binder is expected to satisfy."
+                    },
+                    {
+                        "id": "wasi:*/*",
+                        "kind": "interface",
+                        "direction": "import",
+                        "summary": "Semver-qualified WIT interface imports published by the runtime host binder."
+                    }
+                ])
+            } else {
+                json!([
+                    {
+                        "id": "runtime.plugin.host",
+                        "kind": "procedure_set",
+                        "direction": "import",
+                        "summary": "RPC procedure surface reserved for a runtime-managed plugin host binder."
+                    }
+                ])
+            },
             "summary": if is_wasi {
                 "Runtime-published component-model host slot reserved for future WIT/world bindings."
             } else {

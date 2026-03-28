@@ -37,6 +37,23 @@ function createRuntimeKernelValue() {
                   contractFormat: "wit",
                   contractBoundary: "world-imports",
                   interfaceId: "wasi:*/*",
+                  worldId: "hugecode:runtime/plugin-host",
+                  contractSurfaces: [
+                    {
+                      id: "hugecode:runtime/plugin-host",
+                      kind: "world",
+                      direction: "import",
+                      summary:
+                        "Reserved component-model world that the runtime host binder is expected to satisfy.",
+                    },
+                    {
+                      id: "wasi:*/*",
+                      kind: "interface",
+                      direction: "import",
+                      summary:
+                        "Semver-qualified WIT interface imports published by the runtime host binder.",
+                    },
+                  ],
                   summary:
                     "Runtime-published component-model host slot reserved for future WIT/world bindings.",
                   reason: "Runtime host binder is not currently connected.",
@@ -70,7 +87,7 @@ function createRuntimeKernelValue() {
       workspaceId: "workspace-1",
       runtimeGateway: {} as never,
       getCapability: (key: string) => {
-        if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog) {
+        if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog) {
           return {
             listPlugins: vi.fn(async () => [
               {
@@ -96,6 +113,15 @@ function createRuntimeKernelValue() {
                   contractFormat: "runtime_extension",
                   contractBoundary: "runtime-extension-record",
                   interfaceId: "ext-1",
+                  surfaces: [
+                    {
+                      id: "ext-1",
+                      kind: "extension",
+                      direction: "export",
+                      summary:
+                        "Runtime extension record exported through the kernel plugin catalog.",
+                    },
+                  ],
                 },
                 operations: {
                   execution: {
@@ -128,7 +154,7 @@ function createRuntimeKernelValue() {
         throw new Error(`Unsupported capability: ${key}`);
       },
       hasCapability: () => true,
-      listCapabilities: () => [RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog],
+      listCapabilities: () => [RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog],
     })),
   };
 }
@@ -177,6 +203,21 @@ describe("runtimeKernelPluginProjectionHooks", () => {
         contractFormat: "wit",
         contractBoundary: "world-imports",
         interfaceId: "wasi:*/*",
+        surfaces: [
+          {
+            id: "hugecode:runtime/plugin-host",
+            kind: "world",
+            direction: "import",
+            summary:
+              "Reserved component-model world that the runtime host binder is expected to satisfy.",
+          },
+          {
+            id: "wasi:*/*",
+            kind: "interface",
+            direction: "import",
+            summary: "Semver-qualified WIT interface imports published by the runtime host binder.",
+          },
+        ],
       },
     });
   });

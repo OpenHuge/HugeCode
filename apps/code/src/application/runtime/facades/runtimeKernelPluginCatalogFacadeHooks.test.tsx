@@ -23,13 +23,13 @@ describe("useWorkspaceRuntimePluginCatalog", () => {
         workspaceId: "workspace-1",
         runtimeGateway: {} as never,
         getCapability: (key: string) => {
-          if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog) {
+          if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog) {
             return pluginCatalog;
           }
           throw new Error(`Unsupported capability: ${key}`);
         },
         hasCapability: () => true,
-        listCapabilities: () => [RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog],
+        listCapabilities: () => [RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog],
       })),
     };
 

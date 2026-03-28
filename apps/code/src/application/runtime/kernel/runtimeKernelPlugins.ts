@@ -1,4 +1,5 @@
 import type {
+  KernelCapabilityContractSurface,
   KernelCapabilityDescriptor,
   LiveSkillExecuteRequest,
   LiveSkillExecutionResult,
@@ -44,11 +45,19 @@ export type RuntimeKernelPluginResourceDescriptor = {
   contentType: string | null;
 };
 
+export type RuntimeKernelPluginContractSurface = {
+  id: string;
+  kind: KernelCapabilityContractSurface["kind"];
+  direction: KernelCapabilityContractSurface["direction"];
+  summary: string | null;
+};
+
 export type RuntimeKernelPluginBinding = {
   state: "bound" | "declaration_only" | "unbound";
   contractFormat: "runtime_extension" | "live_skill" | "manifest" | "wit" | "rpc";
   contractBoundary: string;
   interfaceId: string | null;
+  surfaces: RuntimeKernelPluginContractSurface[];
 };
 
 export type RuntimeKernelPluginExecutionAvailability = {
@@ -87,6 +96,22 @@ export type RuntimeKernelPluginOperations = {
   execution: RuntimeKernelPluginExecutionAvailability;
   resources: RuntimeKernelPluginResourceAvailability;
   permissions: RuntimeKernelPluginPermissionsAvailability;
+};
+
+type NormalizedKernelHostCapabilityMetadata = {
+  pluginSource: Extract<RuntimeKernelPluginSource, "wasi_host" | "rpc_host">;
+  bindingState: RuntimeKernelPluginBinding["state"];
+  contractFormat: "wit" | "rpc";
+  contractBoundary: string;
+  interfaceId: string | null;
+  worldId: string | null;
+  contractSurfaces: RuntimeKernelPluginContractSurface[];
+  summary: string | null;
+  reason: string | null;
+  warnings: string[];
+  hostManaged: boolean | null;
+  semverQualifiedImports: boolean | null;
+  canonicalAbiResources: boolean | null;
 };
 
 export type RuntimeKernelPluginDescriptor = {
@@ -302,11 +327,175 @@ function isHostPluginSource(
   return value === "wasi_host" || value === "rpc_host";
 }
 
+function isContractSurfaceKind(
+  value: unknown
+): value is RuntimeKernelPluginContractSurface["kind"] {
+  return (
+    value === "world" ||
+    value === "interface" ||
+    value === "procedure_set" ||
+    value === "extension" ||
+    value === "skill" ||
+    value === "manifest"
+  );
+}
+
+function isContractSurfaceDirection(
+  value: unknown
+): value is RuntimeKernelPluginContractSurface["direction"] {
+  return value === "import" || value === "export";
+}
+
 function readOptionalStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
   }
   return value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+}
+
+function readOptionalText(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function normalizeContractSurfaces(value: unknown): RuntimeKernelPluginContractSurface[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((entry) => {
+    if (typeof entry !== "object" || entry === null) {
+      return [];
+    }
+    const surface = entry as Record<string, unknown>;
+    const id = readOptionalText(surface.id);
+    if (
+      !id ||
+      !isContractSurfaceKind(surface.kind) ||
+      !isContractSurfaceDirection(surface.direction)
+    ) {
+      return [];
+    }
+    return [
+      {
+        id,
+        kind: surface.kind,
+        direction: surface.direction,
+        summary: readOptionalText(surface.summary),
+      },
+    ];
+  });
+}
+
+function createPluginContractSurface(input: RuntimeKernelPluginContractSurface) {
+  return input;
+}
+
+function createDefaultHostContractSurfaces(input: {
+  source: Extract<RuntimeKernelPluginSource, "wasi_host" | "rpc_host">;
+  interfaceId: string | null;
+  worldId: string | null;
+}): RuntimeKernelPluginContractSurface[] {
+  if (input.source === "wasi_host") {
+    return [
+      createPluginContractSurface({
+        id: input.worldId ?? "hugecode:runtime/plugin-host",
+        kind: "world",
+        direction: "import",
+        summary:
+          "Reserved component-model world that the runtime host binder is expected to satisfy.",
+      }),
+      createPluginContractSurface({
+        id: input.interfaceId ?? "wasi:*/*",
+        kind: "interface",
+        direction: "import",
+        summary: "Semver-qualified WIT interface imports published by the runtime host binder.",
+      }),
+    ];
+  }
+
+  return [
+    createPluginContractSurface({
+      id: input.interfaceId ?? "runtime.plugin.host",
+      kind: "procedure_set",
+      direction: "import",
+      summary: "RPC procedure surface reserved for a runtime-managed plugin host binder.",
+    }),
+  ];
+}
+
+function createDefaultPluginContractSurfaces(input: {
+  source: Exclude<RuntimeKernelPluginSource, "wasi_host" | "rpc_host">;
+  interfaceId: string;
+}): RuntimeKernelPluginContractSurface[] {
+  if (input.source === "runtime_extension") {
+    return [
+      createPluginContractSurface({
+        id: input.interfaceId,
+        kind: "extension",
+        direction: "export",
+        summary: "Runtime extension record exported through the kernel plugin catalog.",
+      }),
+    ];
+  }
+  if (input.source === "live_skill") {
+    return [
+      createPluginContractSurface({
+        id: input.interfaceId,
+        kind: "skill",
+        direction: "export",
+        summary: "Live skill execution surface exported by the runtime.",
+      }),
+    ];
+  }
+  return [
+    createPluginContractSurface({
+      id: input.interfaceId,
+      kind: "manifest",
+      direction: "export",
+      summary: "Repository manifest declaration exported through the workspace plugin catalog.",
+    }),
+  ];
+}
+
+function readKernelHostCapabilityMetadata(
+  metadata: Record<string, unknown> | null | undefined
+): NormalizedKernelHostCapabilityMetadata | null {
+  if (!metadata || !isHostPluginSource(metadata.pluginSource)) {
+    return null;
+  }
+
+  const bindingState =
+    metadata.bindingState === "bound" ||
+    metadata.bindingState === "declaration_only" ||
+    metadata.bindingState === "unbound"
+      ? metadata.bindingState
+      : "unbound";
+  const normalizedContractFormat =
+    metadata.contractFormat === "wit" || metadata.contractFormat === "rpc"
+      ? metadata.contractFormat
+      : null;
+  if (!normalizedContractFormat) {
+    return null;
+  }
+
+  return {
+    pluginSource: metadata.pluginSource,
+    bindingState,
+    contractFormat: normalizedContractFormat,
+    contractBoundary:
+      readOptionalText(metadata.contractBoundary) ??
+      (metadata.pluginSource === "wasi_host" ? "world-imports" : "remote-procedure-calls"),
+    interfaceId: readOptionalText(metadata.interfaceId),
+    worldId: readOptionalText(metadata.worldId),
+    contractSurfaces: normalizeContractSurfaces(metadata.contractSurfaces),
+    summary: readOptionalText(metadata.summary),
+    reason: readOptionalText(metadata.reason),
+    warnings: readOptionalStringArray(metadata.warnings),
+    hostManaged: typeof metadata.hostManaged === "boolean" ? metadata.hostManaged : null,
+    semverQualifiedImports:
+      typeof metadata.semverQualifiedImports === "boolean" ? metadata.semverQualifiedImports : null,
+    canonicalAbiResources:
+      typeof metadata.canonicalAbiResources === "boolean" ? metadata.canonicalAbiResources : null,
+  };
 }
 
 function normalizeHostPluginDescriptor(input: {
@@ -318,6 +507,8 @@ function normalizeHostPluginDescriptor(input: {
   summary?: string | null;
   bindingState?: RuntimeKernelPluginBinding["state"];
   interfaceId?: string | null;
+  worldId?: string | null;
+  contractSurfaces?: RuntimeKernelPluginContractSurface[];
   metadata?: Record<string, unknown> | null;
   warnings?: string[];
   health?: RuntimeKernelPluginDescriptor["health"];
@@ -329,6 +520,16 @@ function normalizeHostPluginDescriptor(input: {
       ? "Reserved component-model host slot for future WIT/world bindings."
       : "Reserved remote host slot for future RPC-backed plugin bindings.");
   const bindingState = input.bindingState ?? "unbound";
+  const interfaceId = input.interfaceId ?? (isWasiHost ? "wasi:*/*" : "runtime.plugin.host");
+  const worldId = input.worldId ?? (isWasiHost ? "hugecode:runtime/plugin-host" : null);
+  const contractSurfaces =
+    input.contractSurfaces && input.contractSurfaces.length > 0
+      ? input.contractSurfaces
+      : createDefaultHostContractSurfaces({
+          source: input.source,
+          interfaceId,
+          worldId,
+        });
 
   return attachRuntimeKernelPluginOperations({
     id: isWasiHost ? "host:wasi" : "host:rpc",
@@ -352,15 +553,19 @@ function normalizeHostPluginDescriptor(input: {
       state: bindingState,
       contractFormat: isWasiHost ? "wit" : "rpc",
       contractBoundary: isWasiHost ? "world-imports" : "remote-procedure-calls",
-      interfaceId: input.interfaceId ?? (isWasiHost ? "wasi:*/*" : "runtime.plugin.host"),
+      interfaceId,
+      surfaces: contractSurfaces,
     },
     metadata: {
       bindingState,
       contractFormat: isWasiHost ? "wit" : "rpc",
       contractBoundary: isWasiHost ? "world-imports" : "remote-procedure-calls",
+      interfaceId,
+      worldId,
+      contractSurfaces,
+      hostManaged: true,
       semverQualifiedImports: isWasiHost,
       canonicalAbiResources: isWasiHost,
-      hostManaged: true,
       ...(input.metadata ?? {}),
     },
     permissionDecision: "unsupported",
@@ -427,32 +632,27 @@ export function normalizeRuntimeHostCapabilityPluginDescriptor(
   if (capability.kind !== "host") {
     return null;
   }
-  const source = capability.metadata?.pluginSource;
-  if (!isHostPluginSource(source)) {
+  const metadata = readKernelHostCapabilityMetadata(capability.metadata ?? null);
+  if (!metadata) {
     return null;
   }
 
-  const bindingState = capability.metadata?.bindingState;
   const normalizedBindingState =
-    bindingState === "bound" || bindingState === "declaration_only" || bindingState === "unbound"
-      ? bindingState
-      : capability.enabled
-        ? "bound"
-        : "unbound";
-  const interfaceId =
-    typeof capability.metadata?.interfaceId === "string" ? capability.metadata.interfaceId : null;
+    metadata.bindingState ?? (capability.enabled ? "bound" : "unbound");
 
   return normalizeHostPluginDescriptor({
-    source,
+    source: metadata.pluginSource,
     runtimeBacked: true,
     enabled: capability.enabled,
     name: capability.name,
     version: normalizedBindingState === "bound" ? "bound" : "unbound",
-    summary: typeof capability.metadata?.summary === "string" ? capability.metadata.summary : null,
+    summary: metadata.summary,
     bindingState: normalizedBindingState,
-    interfaceId,
+    interfaceId: metadata.interfaceId,
+    worldId: metadata.worldId,
+    contractSurfaces: metadata.contractSurfaces ?? undefined,
     metadata: capability.metadata ?? null,
-    warnings: readOptionalStringArray(capability.metadata?.warnings),
+    warnings: metadata.warnings ?? [],
     health: normalizeKernelCapabilityHealth(capability),
   });
 }
@@ -502,6 +702,10 @@ export function normalizeRuntimeExtensionPluginDescriptor(
       contractFormat: "runtime_extension",
       contractBoundary: "runtime-extension-record",
       interfaceId: extension.extensionId,
+      surfaces: createDefaultPluginContractSurfaces({
+        source: "runtime_extension",
+        interfaceId: extension.extensionId,
+      }),
     },
     metadata: {
       distribution: extension.distribution,
@@ -542,6 +746,10 @@ export function normalizeLiveSkillPluginDescriptor(
       contractFormat: "live_skill",
       contractBoundary: "runtime-live-skill",
       interfaceId: skill.id,
+      surfaces: createDefaultPluginContractSurfaces({
+        source: "live_skill",
+        interfaceId: skill.id,
+      }),
     },
     metadata: {
       source: skill.source,
@@ -584,6 +792,10 @@ export function normalizeRepoManifestPluginDescriptor(
       contractFormat: "manifest",
       contractBoundary: "repository-manifest",
       interfaceId: manifest.id,
+      surfaces: createDefaultPluginContractSurfaces({
+        source: "repo_manifest",
+        interfaceId: manifest.id,
+      }),
     },
     metadata: {
       trustLevel: manifest.trustLevel,

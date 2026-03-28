@@ -29,6 +29,15 @@ function createPluginFields(
     { label: "permissions_mode", value: permissions.mode },
     { label: "contract_format", value: plugin.binding.contractFormat },
     { label: "contract_boundary", value: plugin.binding.contractBoundary },
+    {
+      label: "contract_surfaces",
+      value:
+        plugin.binding.surfaces.length > 0
+          ? plugin.binding.surfaces
+              .map((surface) => `${surface.direction}:${surface.kind}:${surface.id}`)
+              .join(", ")
+          : "-",
+    },
     { label: "enabled", value: plugin.enabled ? "yes" : "no" },
     { label: "runtime_backed", value: plugin.runtimeBacked ? "yes" : "no" },
     { label: "execution_reason", value: execution.reason ?? "-" },

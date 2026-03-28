@@ -14,6 +14,6 @@ export function useWorkspaceRuntimePluginCatalog(
   }
   return resolveWorkspaceRuntimeCapability(
     runtimeKernel.getWorkspaceScope(workspaceId),
-    RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog
+    RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog
   );
 }

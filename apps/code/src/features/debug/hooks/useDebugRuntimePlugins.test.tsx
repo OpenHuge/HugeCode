@@ -43,7 +43,7 @@ function createRuntimeKernelValue() {
       workspaceId: "workspace-1",
       runtimeGateway: {} as never,
       getCapability: (key: string) => {
-        if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog) {
+        if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog) {
           return {
             listPlugins: vi.fn(async () => [
               {
@@ -69,6 +69,15 @@ function createRuntimeKernelValue() {
                   contractFormat: "runtime_extension",
                   contractBoundary: "runtime-extension-record",
                   interfaceId: "ext-1",
+                  surfaces: [
+                    {
+                      id: "ext-1",
+                      kind: "extension",
+                      direction: "export",
+                      summary:
+                        "Runtime extension record exported through the kernel plugin catalog.",
+                    },
+                  ],
                 },
                 operations: {
                   execution: {
@@ -101,7 +110,7 @@ function createRuntimeKernelValue() {
         throw new Error(`Unsupported capability: ${key}`);
       },
       hasCapability: () => true,
-      listCapabilities: () => [RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog],
+      listCapabilities: () => [RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog],
     })),
   };
 }

@@ -277,6 +277,14 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
               contractFormat: "runtime_extension",
               contractBoundary: "runtime-extension-record",
               interfaceId: "ext-1",
+              surfaces: [
+                {
+                  id: "ext-1",
+                  kind: "extension",
+                  direction: "export",
+                  summary: "Runtime extension record exported through the kernel plugin catalog.",
+                },
+              ],
             },
             operations: {
               execution: {
@@ -327,6 +335,14 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
               contractFormat: "live_skill",
               contractBoundary: "runtime-live-skill",
               interfaceId: "skill-1",
+              surfaces: [
+                {
+                  id: "skill-1",
+                  kind: "skill",
+                  direction: "export",
+                  summary: "Live skill execution surface exported by the runtime.",
+                },
+              ],
             },
             operations: {
               execution: {
@@ -377,6 +393,15 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
               contractFormat: "manifest",
               contractBoundary: "repository-manifest",
               interfaceId: "repo-manifest-1",
+              surfaces: [
+                {
+                  id: "repo-manifest-1",
+                  kind: "manifest",
+                  direction: "export",
+                  summary:
+                    "Repository manifest declaration exported through the workspace plugin catalog.",
+                },
+              ],
             },
             operations: {
               execution: {
@@ -418,6 +443,9 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       nonExecutableCount: 2,
       readableResourceCount: 2,
       permissionEvaluableCount: 3,
+      contractSurfaceCount: 3,
+      contractImportSurfaceCount: 0,
+      contractExportSurfaceCount: 3,
       boundCount: 2,
       declarationOnlyCount: 1,
       unboundCount: 0,

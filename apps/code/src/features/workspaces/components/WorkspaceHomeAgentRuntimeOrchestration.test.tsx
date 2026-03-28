@@ -748,7 +748,10 @@ function createRuntimeKernelValue(): RuntimeKernel {
         if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands) {
           return runtimeSessionCommands as RuntimeKernelCapabilityMap[K];
         }
-        if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog) {
+        if (
+          key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog ||
+          key === RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog
+        ) {
           return runtimePluginCatalog as RuntimeKernelCapabilityMap[K];
         }
         throw new Error(`Unsupported workspace runtime capability: ${key}`);
@@ -756,11 +759,12 @@ function createRuntimeKernelValue(): RuntimeKernel {
       hasCapability: (key: string) =>
         key === RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl ||
         key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands ||
+        key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog ||
         key === RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog,
       listCapabilities: () => [
         RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
         RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
-        RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog,
+        RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog,
       ],
     })),
   };
@@ -813,6 +817,22 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
           contractFormat: "wit",
           contractBoundary: "world-imports",
           interfaceId: "wasi:*/*",
+          surfaces: [
+            {
+              id: "hugecode:runtime/plugin-host",
+              kind: "world",
+              direction: "import",
+              summary:
+                "Reserved component-model world that the runtime host binder is expected to satisfy.",
+            },
+            {
+              id: "wasi:*/*",
+              kind: "interface",
+              direction: "import",
+              summary:
+                "Semver-qualified WIT interface imports published by the runtime host binder.",
+            },
+          ],
         },
         operations: {
           execution: {
@@ -851,6 +871,9 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByText("Blocked execution: 1")).toBeTruthy();
       expect(screen.getByText("Readable resources: 0")).toBeTruthy();
       expect(screen.getByText("Permission-aware: 0")).toBeTruthy();
+      expect(screen.getByText("Contract surfaces: 2")).toBeTruthy();
+      expect(screen.getByText("Host imports: 2")).toBeTruthy();
+      expect(screen.getByText("Plugin exports: 0")).toBeTruthy();
     });
   });
 

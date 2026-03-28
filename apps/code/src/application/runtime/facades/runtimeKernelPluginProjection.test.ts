@@ -37,6 +37,14 @@ describe("runtimeKernelPluginProjection", () => {
         contractFormat: "runtime_extension",
         contractBoundary: "kernel-extension-bundle",
         interfaceId: "ext-1",
+        surfaces: [
+          {
+            id: "ext-1",
+            kind: "extension",
+            direction: "export",
+            summary: "Kernel projection export for a runtime extension bundle.",
+          },
+        ],
       },
       metadata: {
         kernelExtensionBundle: {
@@ -88,6 +96,23 @@ describe("runtimeKernelPluginProjection", () => {
             contractFormat: "wit",
             contractBoundary: "world-imports",
             interfaceId: "wasi:*/*",
+            worldId: "hugecode:runtime/plugin-host",
+            contractSurfaces: [
+              {
+                id: "hugecode:runtime/plugin-host",
+                kind: "world",
+                direction: "import",
+                summary:
+                  "Reserved component-model world that the runtime host binder is expected to satisfy.",
+              },
+              {
+                id: "wasi:*/*",
+                kind: "interface",
+                direction: "import",
+                summary:
+                  "Semver-qualified WIT interface imports published by the runtime host binder.",
+              },
+            ],
             summary:
               "Runtime-published component-model host slot reserved for future WIT/world bindings.",
             reason: "Runtime host binder is not currently connected.",
@@ -118,6 +143,14 @@ describe("runtimeKernelPluginProjection", () => {
             contractFormat: "runtime_extension",
             contractBoundary: "runtime-extension-record",
             interfaceId: "ext-1",
+            surfaces: [
+              {
+                id: "ext-1",
+                kind: "extension",
+                direction: "export",
+                summary: "Runtime extension record exported through the kernel plugin catalog.",
+              },
+            ],
           },
           operations: {
             execution: {
