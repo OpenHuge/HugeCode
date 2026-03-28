@@ -2,6 +2,7 @@ import type { DebugPanelViewModel, DebugPanelViewModelParams } from "./debugPane
 import type { useDebugEntryDiagnostics } from "./useDebugEntryDiagnostics";
 import type { useDebugRuntimeCapabilities } from "./useDebugRuntimeCapabilities";
 import type { useDebugRuntimeEventChannels } from "./useDebugRuntimeEventChannels";
+import type { useDebugRuntimePlugins } from "./useDebugRuntimePlugins";
 import type { useDebugRuntimeToolExecutionMetrics } from "./useDebugRuntimeToolExecutionMetrics";
 import type { useDebugRuntimeToolLifecycle } from "./useDebugRuntimeToolLifecycle";
 import type { useDebugRuntimeProbe } from "./useDebugRuntimeProbe";
@@ -18,6 +19,7 @@ export type {
 type DebugRuntimeCapabilitiesState = ReturnType<typeof useDebugRuntimeCapabilities>;
 type RuntimeDiagnosticsExportState = ReturnType<typeof useRuntimeDiagnosticsExport>;
 type DebugRuntimeEventChannelsState = ReturnType<typeof useDebugRuntimeEventChannels>;
+type DebugRuntimePluginsState = ReturnType<typeof useDebugRuntimePlugins>;
 type DebugRuntimeToolExecutionMetricsState = ReturnType<typeof useDebugRuntimeToolExecutionMetrics>;
 type DebugRuntimeToolLifecycleState = ReturnType<typeof useDebugRuntimeToolLifecycle>;
 type DebugRuntimeProbeState = ReturnType<typeof useDebugRuntimeProbe>;
@@ -28,6 +30,7 @@ export type CreateDebugPanelViewModelParams = DebugPanelViewModelParams & {
   runtimeCapabilities: DebugRuntimeCapabilitiesState;
   diagnosticsExport: RuntimeDiagnosticsExportState;
   runtimeEventChannels: DebugRuntimeEventChannelsState;
+  runtimePlugins: DebugRuntimePluginsState;
   runtimeToolExecutionMetrics: DebugRuntimeToolExecutionMetricsState;
   runtimeToolLifecycle: DebugRuntimeToolLifecycleState;
   runtimeProbe: DebugRuntimeProbeState;
@@ -51,6 +54,7 @@ export function createDebugPanelViewModel({
   runtimeCapabilities,
   diagnosticsExport,
   runtimeEventChannels,
+  runtimePlugins,
   runtimeToolExecutionMetrics,
   runtimeToolLifecycle,
   runtimeProbe,
@@ -131,6 +135,7 @@ export function createDebugPanelViewModel({
       runtimeToolExecutionTotals,
       runtimeToolExecutionRecentExecutions,
       runtimeToolLifecycle,
+      runtimePlugins,
       runtimeEventBridgePath,
       formattedEntries,
       isRuntimeProbeBusy,

@@ -101,6 +101,9 @@ function buildRuntimeProjectionInput(
       circuitBreakers: [],
       updatedAt: 1_700_000_000_000,
     },
+    runtimePlugins: [],
+    runtimePluginsError: null,
+    runtimePluginsProjectionBacked: false,
     selectedProviderRoute: "auto",
     runtimeStatusFilter: "all",
     runtimeDurabilityWarning: null,
@@ -245,5 +248,220 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.continuity.summary.reviewBlockedCount).toBe(0);
     expect(projection.continuity.itemsByTaskId.get("runtime-review-1")?.pathKind).toBe("review");
     expect(projection.runList.visibleRuntimeRuns).toHaveLength(1);
+  });
+
+  it("summarizes the unified runtime plugin catalog for mission control consumers", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimePlugins: [
+          {
+            id: "ext-1",
+            name: "Shell Tools",
+            version: "1.0.0",
+            summary: null,
+            source: "runtime_extension",
+            transport: "runtime_extension",
+            hostProfile: {
+              kind: "runtime",
+              executionBoundaries: ["runtime"],
+            },
+            workspaceId: "ws-approval",
+            enabled: true,
+            runtimeBacked: true,
+            capabilities: [],
+            permissions: ["network"],
+            resources: [],
+            executionBoundaries: ["runtime"],
+            binding: {
+              state: "bound",
+              contractFormat: "runtime_extension",
+              contractBoundary: "runtime-extension-record",
+              interfaceId: "ext-1",
+              surfaces: [
+                {
+                  id: "ext-1",
+                  kind: "extension",
+                  direction: "export",
+                  summary: "Runtime extension record exported through the kernel plugin catalog.",
+                },
+              ],
+            },
+            operations: {
+              execution: {
+                executable: false,
+                mode: "none",
+                reason:
+                  "Plugin `ext-1` is bound for catalog/resource access only and does not expose an execution provider.",
+              },
+              resources: {
+                readable: true,
+                mode: "runtime_extension_resource",
+                reason: null,
+              },
+              permissions: {
+                evaluable: true,
+                mode: "runtime_extension_permissions",
+                reason: null,
+              },
+            },
+            metadata: null,
+            permissionDecision: "allow",
+            health: {
+              state: "healthy",
+              checkedAt: 1,
+              warnings: [],
+            },
+          },
+          {
+            id: "skill-1",
+            name: "Repo Review",
+            version: "0.1.0",
+            summary: null,
+            source: "live_skill",
+            transport: "live_skill",
+            hostProfile: {
+              kind: "runtime",
+              executionBoundaries: ["runtime"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: true,
+            capabilities: [],
+            permissions: ["network"],
+            resources: [],
+            executionBoundaries: ["runtime"],
+            binding: {
+              state: "bound",
+              contractFormat: "live_skill",
+              contractBoundary: "runtime-live-skill",
+              interfaceId: "skill-1",
+              surfaces: [
+                {
+                  id: "skill-1",
+                  kind: "skill",
+                  direction: "export",
+                  summary: "Live skill execution surface exported by the runtime.",
+                },
+              ],
+            },
+            operations: {
+              execution: {
+                executable: true,
+                mode: "live_skill",
+                reason: null,
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason:
+                  "Plugin `skill-1` does not expose readable resources through the runtime kernel.",
+              },
+              permissions: {
+                evaluable: true,
+                mode: "live_skill_permissions",
+                reason: null,
+              },
+            },
+            metadata: null,
+            permissionDecision: "allow",
+            health: {
+              state: "degraded",
+              checkedAt: 2,
+              warnings: ["quota"],
+            },
+          },
+          {
+            id: "repo-manifest-1",
+            name: "Review Manifest",
+            version: "0.0.1",
+            summary: null,
+            source: "repo_manifest",
+            transport: "repo_manifest",
+            hostProfile: {
+              kind: "repository",
+              executionBoundaries: ["repository"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: false,
+            capabilities: [],
+            permissions: ["workspace:read"],
+            resources: [],
+            executionBoundaries: ["repository"],
+            binding: {
+              state: "declaration_only",
+              contractFormat: "manifest",
+              contractBoundary: "repository-manifest",
+              interfaceId: "repo-manifest-1",
+              surfaces: [
+                {
+                  id: "repo-manifest-1",
+                  kind: "manifest",
+                  direction: "export",
+                  summary:
+                    "Repository manifest declaration exported through the workspace plugin catalog.",
+                },
+              ],
+            },
+            operations: {
+              execution: {
+                executable: false,
+                mode: "none",
+                reason:
+                  "Plugin `repo-manifest-1` is declaration-only and does not expose a bound execution provider.",
+              },
+              resources: {
+                readable: true,
+                mode: "repo_manifest_resource",
+                reason: null,
+              },
+              permissions: {
+                evaluable: true,
+                mode: "repo_manifest_permissions",
+                reason: null,
+              },
+            },
+            metadata: null,
+            permissionDecision: "ask",
+            health: {
+              state: "unsupported",
+              checkedAt: null,
+              warnings: [],
+            },
+          },
+        ],
+        runtimePluginsError: "catalog degraded",
+        runtimePluginsProjectionBacked: true,
+      })
+    );
+
+    expect(projection.pluginCatalog).toMatchObject({
+      total: 3,
+      enabled: 3,
+      runtimeBacked: 2,
+      executableCount: 1,
+      nonExecutableCount: 2,
+      readableResourceCount: 2,
+      permissionEvaluableCount: 3,
+      contractSurfaceCount: 3,
+      contractImportSurfaceCount: 0,
+      contractExportSurfaceCount: 3,
+      boundCount: 2,
+      declarationOnlyCount: 1,
+      unboundCount: 0,
+      runtimeExtensionCount: 1,
+      liveSkillCount: 1,
+      repoManifestCount: 1,
+      healthyCount: 1,
+      degradedCount: 1,
+      unsupportedCount: 1,
+      projectionBacked: true,
+      error: "catalog degraded",
+    });
+    expect(projection.pluginCatalog.plugins.map((plugin) => plugin.id)).toEqual([
+      "ext-1",
+      "skill-1",
+      "repo-manifest-1",
+    ]);
   });
 });

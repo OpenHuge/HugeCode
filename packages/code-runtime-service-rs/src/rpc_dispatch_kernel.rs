@@ -9,6 +9,65 @@ fn kernel_health_label(healthy: bool) -> &'static str {
     if healthy { "ready" } else { "attention" }
 }
 
+fn kernel_host_capability_payload(host_id: &str) -> Value {
+    let is_wasi = host_id == "wasi";
+    json!({
+        "id": format!("host:{host_id}"),
+        "name": if is_wasi { "WASI host binder" } else { "RPC host binder" },
+        "kind": "host",
+        "enabled": false,
+        "health": "blocked",
+        "executionProfile": kernel_execution_profile_payload("local", "background", "host", "restricted", "service"),
+        "tags": if is_wasi { vec!["component-model", "wit", "host"] } else { vec!["rpc", "host"] },
+        "metadata": {
+            "pluginSource": if is_wasi { "wasi_host" } else { "rpc_host" },
+            "bindingState": "unbound",
+            "contractFormat": if is_wasi { "wit" } else { "rpc" },
+            "contractBoundary": if is_wasi { "world-imports" } else { "remote-procedure-calls" },
+            "interfaceId": if is_wasi { "wasi:*/*" } else { "runtime.plugin.host" },
+            "worldId": if is_wasi {
+                json!("hugecode:runtime/plugin-host")
+            } else {
+                Value::Null
+            },
+            "contractSurfaces": if is_wasi {
+                json!([
+                    {
+                        "id": "hugecode:runtime/plugin-host",
+                        "kind": "world",
+                        "direction": "import",
+                        "summary": "Reserved component-model world that the runtime host binder is expected to satisfy."
+                    },
+                    {
+                        "id": "wasi:*/*",
+                        "kind": "interface",
+                        "direction": "import",
+                        "summary": "Semver-qualified WIT interface imports published by the runtime host binder."
+                    }
+                ])
+            } else {
+                json!([
+                    {
+                        "id": "runtime.plugin.host",
+                        "kind": "procedure_set",
+                        "direction": "import",
+                        "summary": "RPC procedure surface reserved for a runtime-managed plugin host binder."
+                    }
+                ])
+            },
+            "summary": if is_wasi {
+                "Runtime-published component-model host slot reserved for future WIT/world bindings."
+            } else {
+                "Runtime-published remote host slot reserved for future RPC-backed plugin bindings."
+            },
+            "reason": "Runtime host binder is not currently connected.",
+            "hostManaged": true,
+            "semverQualifiedImports": is_wasi,
+            "canonicalAbiResources": is_wasi,
+        },
+    })
+}
+
 fn kernel_execution_profile_payload(
     placement: &str,
     interactivity: &str,
@@ -455,6 +514,8 @@ async fn build_kernel_capabilities_slice_payload(ctx: &AppContext) -> Value {
             "networkEnabled": ctx.config.live_skills_network_enabled,
         },
     }));
+    capabilities.push(kernel_host_capability_payload("rpc"));
+    capabilities.push(kernel_host_capability_payload("wasi"));
 
     let revision = ctx.runtime_update_revision.load(Ordering::Relaxed);
     capabilities.push(json!({

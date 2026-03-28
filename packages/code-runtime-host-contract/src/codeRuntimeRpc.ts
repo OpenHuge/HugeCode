@@ -2800,6 +2800,7 @@ export type LiveSkillSummary = {
   version: string;
   enabled: boolean;
   supportsNetwork: boolean;
+  permissions?: string[] | null;
   tags: string[];
   aliases?: string[] | null;
 };
@@ -3237,6 +3238,7 @@ export type KernelCapabilityKind =
   | "job"
   | "backend"
   | "extension"
+  | "host"
   | "skill"
   | "policy"
   | "context";
@@ -3259,6 +3261,39 @@ export type KernelExecutionProfile = {
   isolation: KernelIsolation;
   network: KernelNetworkMode;
   authority: KernelAuthority;
+};
+
+export type KernelCapabilityContractSurfaceKind =
+  | "world"
+  | "interface"
+  | "procedure_set"
+  | "extension"
+  | "skill"
+  | "manifest";
+
+export type KernelCapabilityContractSurfaceDirection = "import" | "export";
+
+export type KernelCapabilityContractSurface = {
+  id: string;
+  kind: KernelCapabilityContractSurfaceKind;
+  direction: KernelCapabilityContractSurfaceDirection;
+  summary?: string | null;
+};
+
+export type KernelHostCapabilityMetadata = {
+  pluginSource: "wasi_host" | "rpc_host";
+  bindingState: "bound" | "declaration_only" | "unbound";
+  contractFormat: "wit" | "rpc";
+  contractBoundary: string;
+  interfaceId?: string | null;
+  worldId?: string | null;
+  contractSurfaces?: KernelCapabilityContractSurface[] | null;
+  summary?: string | null;
+  reason?: string | null;
+  warnings?: string[] | null;
+  hostManaged?: boolean | null;
+  semverQualifiedImports?: boolean | null;
+  canonicalAbiResources?: boolean | null;
 };
 
 export type KernelCapabilityDescriptor = {

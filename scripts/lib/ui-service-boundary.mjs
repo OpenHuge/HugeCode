@@ -285,6 +285,14 @@ const VIOLATION_RULES = [
       !isUiTestFile(filePath) && (isUiBoundaryFile(filePath) || isNonUiAppProductFile(filePath)),
   },
   {
+    id: "runtime-capability-registry-internal",
+    description:
+      "UI code must not import internal runtime capability registry helpers or capability keys directly",
+    pattern:
+      /(?:from\s+["'][^"']*\/application\/runtime\/(?:hooks\/useWorkspaceRuntimeCapability|kernel\/runtimeKernelCapabilities)["']|import\(\s*["'][^"']*\/application\/runtime\/(?:hooks\/useWorkspaceRuntimeCapability|kernel\/runtimeKernelCapabilities)["'])/u,
+    appliesTo: (filePath) => isUiBoundaryFile(filePath) && !isUiTestFile(filePath),
+  },
+  {
     id: "runtime-legacy-bridge-app",
     description:
       "non-UI product code must not import retired runtime bridge ports (`tauriSettings`, `tauriWorkspaces`, `tauriSkills`, `tauriRuntimeSkills`, or raw `tauri`)",

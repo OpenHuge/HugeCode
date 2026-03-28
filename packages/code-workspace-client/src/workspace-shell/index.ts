@@ -68,6 +68,7 @@ export {
   readCapabilitiesProjectionSlice,
   readContinuityProjectionSlice,
   readDiagnosticsProjectionSlice,
+  readExtensionsProjectionSlice,
   readMissionControlProjectionSlice,
 } from "./kernelProjectionStore";
 export type { KernelProjectionLoadState, KernelProjectionState } from "./kernelProjectionStore";

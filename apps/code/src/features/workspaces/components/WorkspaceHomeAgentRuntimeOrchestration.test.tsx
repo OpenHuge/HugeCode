@@ -20,9 +20,16 @@ import { buildRuntimeSessionCheckpointPresentationSummary } from "../../../appli
 import { REVIEW_START_DESKTOP_ONLY_MESSAGE } from "../../../application/runtime/ports/tauriThreads";
 import { RuntimeKernelProvider } from "../../../application/runtime/kernel/RuntimeKernelContext";
 import { createRuntimeAgentControlDependencies } from "../../../application/runtime/kernel/createRuntimeAgentControlDependencies";
+import {
+  RUNTIME_KERNEL_CAPABILITY_KEYS,
+  type RuntimeKernelCapabilityKey,
+  type RuntimeKernelCapabilityMap,
+} from "../../../application/runtime/kernel/runtimeKernelCapabilities";
+import type { RuntimeKernelPluginDescriptor } from "../../../application/runtime/kernel/runtimeKernelPlugins";
 import type { RuntimeUpdatedEvent } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import { createRuntimeAgentControlFacade } from "../../../application/runtime/facades/runtimeAgentControlFacade";
 import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
+import type { RuntimeKernelPluginCatalogFacade } from "../../../application/runtime/kernel/runtimeKernelPlugins";
 import { useWorkspaceRuntimeSessionCheckpoint } from "../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint";
 import {
   projectAgentTaskSummaryToRunSummary,
@@ -38,6 +45,9 @@ const prepareRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 const getRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 const subscribeRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 const startRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
+const runtimePluginCatalogListMock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelPluginCatalogFacade["listPlugins"]>(async () => [])
+);
 
 vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   subscribeScopedRuntimeUpdatedEvents: vi.fn(),
@@ -177,6 +187,7 @@ function mockRuntimeTasks(tasks: MockAgentTaskSummary[]) {
 
 beforeEach(() => {
   runtimeUpdatedListeners.clear();
+  runtimePluginCatalogListMock.mockResolvedValue([]);
   const lifecycle = {
     summary: buildRuntimeToolLifecyclePresentationSummary({
       lifecycleEvents: [],
@@ -628,6 +639,12 @@ function createRuntimeKernelValue(): RuntimeKernel {
     canStartReviewInCurrentHost: vi.fn(() => true),
     reviewStartDesktopOnlyMessage: REVIEW_START_DESKTOP_ONLY_MESSAGE,
   };
+  const runtimePluginCatalog: RuntimeKernelPluginCatalogFacade = {
+    listPlugins: runtimePluginCatalogListMock,
+    readPluginResource: vi.fn(),
+    executePlugin: vi.fn(),
+    evaluatePluginPermissions: vi.fn(),
+  };
 
   return {
     runtimeGateway,
@@ -721,11 +738,34 @@ function createRuntimeKernelValue(): RuntimeKernel {
     getWorkspaceScope: vi.fn((workspaceId: string) => ({
       workspaceId,
       runtimeGateway,
-      runtimeAgentControl: createRuntimeAgentControlFacade(
-        workspaceId,
-        createRuntimeAgentControlDependencies(workspaceId)
-      ),
-      runtimeSessionCommands,
+      getCapability: <K extends RuntimeKernelCapabilityKey>(key: K) => {
+        if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl) {
+          return createRuntimeAgentControlFacade(
+            workspaceId,
+            createRuntimeAgentControlDependencies(workspaceId)
+          ) as RuntimeKernelCapabilityMap[K];
+        }
+        if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands) {
+          return runtimeSessionCommands as RuntimeKernelCapabilityMap[K];
+        }
+        if (
+          key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog ||
+          key === RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog
+        ) {
+          return runtimePluginCatalog as RuntimeKernelCapabilityMap[K];
+        }
+        throw new Error(`Unsupported workspace runtime capability: ${key}`);
+      },
+      hasCapability: (key: string) =>
+        key === RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl ||
+        key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands ||
+        key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog ||
+        key === RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog,
+      listCapabilities: () => [
+        RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
+        RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
+        RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog,
+      ],
     })),
   };
 }
@@ -746,7 +786,94 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("heading", { name: "Launch readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Continuity readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Approval pressure" })).toBeTruthy();
+      expect(screen.getByRole("heading", { name: "Plugin catalog" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Run list" })).toBeTruthy();
+    });
+  });
+
+  it("marks plugin catalog as cataloged when entries are present but none are executable", async () => {
+    mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
+    runtimePluginCatalogListMock.mockResolvedValue([
+      {
+        id: "host:wasi",
+        name: "WASI host slot",
+        version: "unbound",
+        summary: null,
+        source: "wasi_host",
+        transport: "wasi_host",
+        hostProfile: {
+          kind: "wasi",
+          executionBoundaries: ["wasi_host"],
+        },
+        workspaceId: null,
+        enabled: false,
+        runtimeBacked: false,
+        capabilities: [],
+        permissions: [],
+        resources: [],
+        executionBoundaries: ["wasi_host"],
+        binding: {
+          state: "unbound",
+          contractFormat: "wit",
+          contractBoundary: "world-imports",
+          interfaceId: "wasi:*/*",
+          surfaces: [
+            {
+              id: "hugecode:runtime/plugin-host",
+              kind: "world",
+              direction: "import",
+              summary:
+                "Reserved component-model world that the runtime host binder is expected to satisfy.",
+            },
+            {
+              id: "wasi:*/*",
+              kind: "interface",
+              direction: "import",
+              summary:
+                "Semver-qualified WIT interface imports published by the runtime host binder.",
+            },
+          ],
+        },
+        operations: {
+          execution: {
+            executable: false,
+            mode: "none",
+            reason:
+              "Plugin `host:wasi` reserves a WIT/component-model host slot and is currently unbound in the runtime host binder.",
+          },
+          resources: {
+            readable: false,
+            mode: "none",
+            reason:
+              "Plugin `host:wasi` does not expose readable resources through the runtime kernel.",
+          },
+          permissions: {
+            evaluable: false,
+            mode: "none",
+            reason: "Plugin `host:wasi` does not publish runtime-evaluable permission state.",
+          },
+        },
+        metadata: null,
+        permissionDecision: "unsupported" as const,
+        health: {
+          state: "unsupported" as const,
+          checkedAt: null,
+          warnings: [],
+        },
+      },
+    ] satisfies RuntimeKernelPluginDescriptor[]);
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Cataloged")).toBeTruthy();
+      expect(screen.getByText("Executable: 0")).toBeTruthy();
+      expect(screen.getByText("Blocked execution: 1")).toBeTruthy();
+      expect(screen.getByText("Readable resources: 0")).toBeTruthy();
+      expect(screen.getByText("Permission-aware: 0")).toBeTruthy();
+      expect(screen.getByText("Contract surfaces: 2")).toBeTruthy();
+      expect(screen.getByText("Host imports: 2")).toBeTruthy();
+      expect(screen.getByText("Plugin exports: 0")).toBeTruthy();
     });
   });
 

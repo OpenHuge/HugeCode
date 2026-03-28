@@ -108,6 +108,7 @@ export {
   readCapabilitiesProjectionSlice,
   readContinuityProjectionSlice,
   readDiagnosticsProjectionSlice,
+  readExtensionsProjectionSlice,
   readMissionControlProjectionSlice,
   useSharedMissionControlSummaryState,
   useSharedWorkspaceCatalogState,

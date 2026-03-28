@@ -4,15 +4,19 @@ import type {
 } from "@ku0/code-workspace-client";
 import type { DesktopHostAdapter } from "../adapters/DesktopHostAdapter";
 import type { RuntimeGateway } from "../facades/RuntimeGateway";
-import type { RuntimeAgentControlFacade } from "../facades/runtimeAgentControlFacade";
-import type { RuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
 import type { RuntimeWorkspaceId } from "../types/runtimeIds";
+import type {
+  RuntimeKernelCanonicalCapabilityKey,
+  RuntimeKernelCapabilityKey,
+  RuntimeKernelCapabilityMap,
+} from "./runtimeKernelCapabilities";
 
 export type WorkspaceRuntimeScope = {
   workspaceId: RuntimeWorkspaceId;
   runtimeGateway: RuntimeGateway;
-  runtimeAgentControl: RuntimeAgentControlFacade;
-  runtimeSessionCommands: RuntimeSessionCommandFacade;
+  getCapability: <K extends RuntimeKernelCapabilityKey>(key: K) => RuntimeKernelCapabilityMap[K];
+  hasCapability: (key: string) => boolean;
+  listCapabilities: () => RuntimeKernelCanonicalCapabilityKey[];
 };
 
 export type RuntimeKernel = {

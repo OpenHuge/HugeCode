@@ -93,6 +93,26 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const stalePendingApprovalTasks = missionControlProjection.approvalPressure.staleTasks;
   const oldestPendingApprovalTask = missionControlProjection.approvalPressure.oldestPendingTask;
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
+  const pluginCatalog = missionControlProjection.pluginCatalog;
+  const pluginCatalogStatus = pluginCatalog.error
+    ? {
+        label: "Attention",
+        tone: "warning" as const,
+      }
+    : pluginCatalog.executableCount > 0
+      ? {
+          label: "Ready",
+          tone: "success" as const,
+        }
+      : pluginCatalog.total > 0
+        ? {
+            label: "Cataloged",
+            tone: "neutral" as const,
+          }
+        : {
+            label: "Empty",
+            tone: "neutral" as const,
+          };
   const launchReadiness = missionControlProjection.launchReadiness;
   const launchReadinessStatusLabel =
     launchReadiness.state === "ready"
@@ -208,6 +228,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         <span>Review ready: {missionRunSummary.reviewReady}</span>
         <span>Recoverable: {continuityReadiness.recoverableRunCount}</span>
         <span>Handoff ready: {continuityReadiness.handoffReadyCount}</span>
+        <span>Plugins: {pluginCatalog.total}</span>
+        <span>Bound: {pluginCatalog.boundCount}</span>
         <span>Finished: {runtimeSummary.finished}</span>
         <button type="button" onClick={() => void refreshRuntimeTasks()} disabled={runtimeLoading}>
           {runtimeLoading ? "Syncing..." : "Sync runs"}
@@ -229,6 +251,60 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         </div>
       </div>
       <MissionControlSessionLogSection runtimeSessionCheckpoint={runtimeSessionCheckpoint} />
+      <MissionControlSectionCard
+        title="Plugin catalog"
+        statusLabel={pluginCatalogStatus.label}
+        statusTone={pluginCatalogStatus.tone}
+        meta={
+          <>
+            <ToolCallChip tone="neutral">Runtime {pluginCatalog.runtimeBacked}</ToolCallChip>
+            <ToolCallChip tone="neutral">Repo {pluginCatalog.repoManifestCount}</ToolCallChip>
+            <ToolCallChip tone="neutral">Live skills {pluginCatalog.liveSkillCount}</ToolCallChip>
+          </>
+        }
+      >
+        <div className="workspace-home-code-runtime-item" data-testid="workspace-runtime-plugins">
+          <div className="workspace-home-code-runtime-item-main">
+            <strong>
+              {pluginCatalog.total > 0
+                ? "Unified runtime plugin directory is available."
+                : "No runtime plugins discovered for this workspace."}
+            </strong>
+            <span>Total plugins: {pluginCatalog.total}</span>
+            <span>Enabled: {pluginCatalog.enabled}</span>
+            <span>Executable: {pluginCatalog.executableCount}</span>
+            <span>Blocked execution: {pluginCatalog.nonExecutableCount}</span>
+            <span>Readable resources: {pluginCatalog.readableResourceCount}</span>
+            <span>Permission-aware: {pluginCatalog.permissionEvaluableCount}</span>
+            <span>Contract surfaces: {pluginCatalog.contractSurfaceCount}</span>
+            <span>Host imports: {pluginCatalog.contractImportSurfaceCount}</span>
+            <span>Plugin exports: {pluginCatalog.contractExportSurfaceCount}</span>
+            <span>Bound: {pluginCatalog.boundCount}</span>
+            <span>Declaration-only: {pluginCatalog.declarationOnlyCount}</span>
+            <span>Unbound hosts: {pluginCatalog.unboundCount}</span>
+            <span>Runtime extensions: {pluginCatalog.runtimeExtensionCount}</span>
+            <span>Live skills: {pluginCatalog.liveSkillCount}</span>
+            <span>Repo manifests: {pluginCatalog.repoManifestCount}</span>
+            <span>
+              Projection slice: {pluginCatalog.projectionBacked ? "connected" : "capability-only"}
+            </span>
+            <span>
+              Health: healthy {pluginCatalog.healthyCount} | degraded {pluginCatalog.degradedCount}{" "}
+              | unsupported {pluginCatalog.unsupportedCount}
+            </span>
+            {pluginCatalog.plugins.slice(0, 3).map((plugin) => (
+              <span key={plugin.id}>
+                {plugin.name} ({plugin.source}, {plugin.binding.state},{" "}
+                {plugin.operations.execution.executable ? "executable" : "blocked"}){" "}
+                {plugin.enabled ? "enabled" : "disabled"}
+              </span>
+            ))}
+          </div>
+          {pluginCatalog.error ? (
+            <div className={controlStyles.warning}>{pluginCatalog.error}</div>
+          ) : null}
+        </div>
+      </MissionControlSectionCard>
       {runtimeDurabilityWarning ? (
         <div className={controlStyles.warning} data-testid="workspace-runtime-durability-warning">
           <strong>Runtime durability degraded</strong>

@@ -5,6 +5,32 @@ fn build_live_skill_aliases(skill_id: &str) -> Vec<String> {
         .collect()
 }
 
+fn build_live_skill_permissions(skill_id: &str) -> Vec<String> {
+    match skill_id {
+        BUILTIN_LIVE_NETWORK_SKILL_ID => vec!["network".to_string()],
+        BUILTIN_LIVE_RESEARCH_ORCHESTRATOR_SKILL_ID => vec!["network".to_string()],
+        BUILTIN_LIVE_CORE_TREE_SKILL_ID
+        | BUILTIN_LIVE_CORE_GREP_SKILL_ID
+        | BUILTIN_LIVE_CORE_READ_SKILL_ID => vec!["workspace:read".to_string()],
+        BUILTIN_LIVE_CORE_WRITE_SKILL_ID | BUILTIN_LIVE_CORE_EDIT_SKILL_ID => vec![
+            "workspace:read".to_string(),
+            "workspace:write".to_string(),
+        ],
+        BUILTIN_LIVE_CORE_BASH_SKILL_ID
+        | BUILTIN_LIVE_CORE_JS_REPL_SKILL_ID
+        | BUILTIN_LIVE_CORE_JS_REPL_RESET_SKILL_ID => vec![
+            "workspace:read".to_string(),
+            "workspace:write".to_string(),
+            "process:spawn".to_string(),
+        ],
+        BUILTIN_LIVE_CORE_DIAGNOSTICS_SKILL_ID => {
+            vec!["workspace:read".to_string(), "process:spawn".to_string()]
+        }
+        BUILTIN_LIVE_CORE_COMPUTER_OBSERVE_SKILL_ID => vec!["desktop:observe".to_string()],
+        _ => Vec::new(),
+    }
+}
+
 pub fn list_live_skills(config: &ServiceConfig) -> Vec<LiveSkillSummaryEntry> {
     vec![
         LiveSkillSummaryEntry {
@@ -18,6 +44,7 @@ pub fn list_live_skills(config: &ServiceConfig) -> Vec<LiveSkillSummaryEntry> {
             version: BUILTIN_LIVE_NETWORK_SKILL_VERSION.to_string(),
             enabled: true,
             supports_network: config.live_skills_network_enabled,
+            permissions: build_live_skill_permissions(BUILTIN_LIVE_NETWORK_SKILL_ID),
             tags: vec![
                 "network".to_string(),
                 "research".to_string(),
@@ -36,6 +63,7 @@ pub fn list_live_skills(config: &ServiceConfig) -> Vec<LiveSkillSummaryEntry> {
             version: BUILTIN_LIVE_RESEARCH_ORCHESTRATOR_SKILL_VERSION.to_string(),
             enabled: true,
             supports_network: config.live_skills_network_enabled,
+            permissions: build_live_skill_permissions(BUILTIN_LIVE_RESEARCH_ORCHESTRATOR_SKILL_ID),
             tags: vec![
                 "research".to_string(),
                 "orchestration".to_string(),
@@ -54,6 +82,7 @@ pub fn list_live_skills(config: &ServiceConfig) -> Vec<LiveSkillSummaryEntry> {
             version: BUILTIN_LIVE_CORE_SKILL_VERSION.to_string(),
             enabled: true,
             supports_network: false,
+            permissions: build_live_skill_permissions(BUILTIN_LIVE_CORE_TREE_SKILL_ID),
             tags: vec![
                 "core".to_string(),
                 "tree".to_string(),
@@ -72,6 +101,7 @@ pub fn list_live_skills(config: &ServiceConfig) -> Vec<LiveSkillSummaryEntry> {
             version: BUILTIN_LIVE_CORE_SKILL_VERSION.to_string(),
             enabled: true,
             supports_network: false,
+            permissions: build_live_skill_permissions(BUILTIN_LIVE_CORE_GREP_SKILL_ID),
             tags: vec![
                 "core".to_string(),
                 "search".to_string(),
@@ -89,6 +119,7 @@ pub fn list_live_skills(config: &ServiceConfig) -> Vec<LiveSkillSummaryEntry> {
             version: BUILTIN_LIVE_CORE_SKILL_VERSION.to_string(),
             enabled: true,
             supports_network: false,
+            permissions: build_live_skill_permissions(BUILTIN_LIVE_CORE_READ_SKILL_ID),
             tags: vec![
                 "core".to_string(),
                 "read".to_string(),
@@ -105,6 +136,7 @@ pub fn list_live_skills(config: &ServiceConfig) -> Vec<LiveSkillSummaryEntry> {
             version: BUILTIN_LIVE_CORE_SKILL_VERSION.to_string(),
             enabled: true,
             supports_network: false,
+            permissions: build_live_skill_permissions(BUILTIN_LIVE_CORE_WRITE_SKILL_ID),
             tags: vec![
                 "core".to_string(),
                 "write".to_string(),
@@ -121,6 +153,7 @@ pub fn list_live_skills(config: &ServiceConfig) -> Vec<LiveSkillSummaryEntry> {
             version: BUILTIN_LIVE_CORE_SKILL_VERSION.to_string(),
             enabled: true,
             supports_network: false,
+            permissions: build_live_skill_permissions(BUILTIN_LIVE_CORE_EDIT_SKILL_ID),
             tags: vec![
                 "core".to_string(),
                 "edit".to_string(),
@@ -139,6 +172,7 @@ pub fn list_live_skills(config: &ServiceConfig) -> Vec<LiveSkillSummaryEntry> {
             version: BUILTIN_LIVE_CORE_SKILL_VERSION.to_string(),
             enabled: true,
             supports_network: false,
+            permissions: build_live_skill_permissions(BUILTIN_LIVE_CORE_BASH_SKILL_ID),
             tags: vec!["core".to_string(), "bash".to_string(), "shell".to_string()],
             aliases: build_live_skill_aliases(BUILTIN_LIVE_CORE_BASH_SKILL_ID),
         },
@@ -153,6 +187,7 @@ pub fn list_live_skills(config: &ServiceConfig) -> Vec<LiveSkillSummaryEntry> {
             version: BUILTIN_LIVE_CORE_SKILL_VERSION.to_string(),
             enabled: true,
             supports_network: false,
+            permissions: build_live_skill_permissions(BUILTIN_LIVE_CORE_JS_REPL_SKILL_ID),
             tags: vec![
                 "core".to_string(),
                 "javascript".to_string(),
@@ -172,6 +207,7 @@ pub fn list_live_skills(config: &ServiceConfig) -> Vec<LiveSkillSummaryEntry> {
             version: BUILTIN_LIVE_CORE_SKILL_VERSION.to_string(),
             enabled: true,
             supports_network: false,
+            permissions: build_live_skill_permissions(BUILTIN_LIVE_CORE_JS_REPL_RESET_SKILL_ID),
             tags: vec![
                 "core".to_string(),
                 "javascript".to_string(),
@@ -191,6 +227,7 @@ pub fn list_live_skills(config: &ServiceConfig) -> Vec<LiveSkillSummaryEntry> {
             version: BUILTIN_LIVE_CORE_SKILL_VERSION.to_string(),
             enabled: true,
             supports_network: false,
+            permissions: build_live_skill_permissions(BUILTIN_LIVE_CORE_DIAGNOSTICS_SKILL_ID),
             tags: vec![
                 "core".to_string(),
                 "diagnostics".to_string(),
@@ -210,6 +247,7 @@ pub fn list_live_skills(config: &ServiceConfig) -> Vec<LiveSkillSummaryEntry> {
             version: BUILTIN_LIVE_CORE_SKILL_VERSION.to_string(),
             enabled: true,
             supports_network: false,
+            permissions: build_live_skill_permissions(BUILTIN_LIVE_CORE_COMPUTER_OBSERVE_SKILL_ID),
             tags: vec![
                 "core".to_string(),
                 "computer".to_string(),
