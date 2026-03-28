@@ -1,5 +1,7 @@
 import {
   resolveRuntimeKernelPluginExecutionAvailability,
+  resolveRuntimeKernelPluginPermissionsAvailability,
+  resolveRuntimeKernelPluginResourceAvailability,
   type RuntimeKernelPluginDescriptor,
 } from "../../../application/runtime/kernel/runtimeKernelPlugins";
 import {
@@ -18,17 +20,25 @@ function createPluginFields(
   plugin: RuntimeKernelPluginDescriptor
 ): DebugDiagnosticsFieldDescriptor[] {
   const execution = resolveRuntimeKernelPluginExecutionAvailability(plugin);
+  const resources = resolveRuntimeKernelPluginResourceAvailability(plugin);
+  const permissions = resolveRuntimeKernelPluginPermissionsAvailability(plugin);
   return [
     { label: "source", value: plugin.source },
     { label: "transport", value: plugin.transport },
     { label: "binding_state", value: plugin.binding.state },
     { label: "execution_state", value: execution.executable ? "executable" : "blocked" },
     { label: "execution_mode", value: execution.mode },
+    { label: "resource_state", value: resources.readable ? "readable" : "blocked" },
+    { label: "resource_mode", value: resources.mode },
+    { label: "permissions_state", value: permissions.evaluable ? "evaluable" : "blocked" },
+    { label: "permissions_mode", value: permissions.mode },
     { label: "contract_format", value: plugin.binding.contractFormat },
     { label: "contract_boundary", value: plugin.binding.contractBoundary },
     { label: "enabled", value: plugin.enabled ? "yes" : "no" },
     { label: "runtime_backed", value: plugin.runtimeBacked ? "yes" : "no" },
     { label: "execution_reason", value: execution.reason ?? "-" },
+    { label: "resource_reason", value: resources.reason ?? "-" },
+    { label: "permissions_reason", value: permissions.reason ?? "-" },
     {
       label: "permissions",
       value: plugin.permissions.length > 0 ? plugin.permissions.join(", ") : "-",

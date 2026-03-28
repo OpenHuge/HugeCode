@@ -55,6 +55,18 @@ export type RuntimeKernelPluginExecutionAvailability = {
   reason: string | null;
 };
 
+export type RuntimeKernelPluginResourceAvailability = {
+  readable: boolean;
+  mode: "runtime_extension_resource" | "repo_manifest_resource" | "none";
+  reason: string | null;
+};
+
+export type RuntimeKernelPluginPermissionsAvailability = {
+  evaluable: boolean;
+  mode: "runtime_extension_permissions" | "none";
+  reason: string | null;
+};
+
 export type RuntimeKernelPluginDescriptor = {
   id: string;
   name: string;
@@ -159,6 +171,55 @@ export function resolveRuntimeKernelPluginExecutionAvailability(
     executable: false,
     mode: "none",
     reason: `Plugin \`${descriptor.id}\` is bound for catalog/resource access only and does not expose an execution provider.`,
+  };
+}
+
+export function resolveRuntimeKernelPluginResourceAvailability(
+  descriptor: RuntimeKernelPluginDescriptor,
+  resourceId?: string
+): RuntimeKernelPluginResourceAvailability {
+  if (descriptor.source === "runtime_extension") {
+    return {
+      readable: true,
+      mode: "runtime_extension_resource",
+      reason: null,
+    };
+  }
+  if (descriptor.source === "repo_manifest") {
+    if (resourceId && resourceId !== "manifest") {
+      return {
+        readable: false,
+        mode: "none",
+        reason: `Plugin \`${descriptor.id}\` only exposes the repository manifest resource \`manifest\`.`,
+      };
+    }
+    return {
+      readable: true,
+      mode: "repo_manifest_resource",
+      reason: null,
+    };
+  }
+  return {
+    readable: false,
+    mode: "none",
+    reason: `Plugin \`${descriptor.id}\` does not expose readable resources through the runtime kernel.`,
+  };
+}
+
+export function resolveRuntimeKernelPluginPermissionsAvailability(
+  descriptor: RuntimeKernelPluginDescriptor
+): RuntimeKernelPluginPermissionsAvailability {
+  if (descriptor.source === "runtime_extension") {
+    return {
+      evaluable: true,
+      mode: "runtime_extension_permissions",
+      reason: null,
+    };
+  }
+  return {
+    evaluable: false,
+    mode: "none",
+    reason: `Plugin \`${descriptor.id}\` does not publish runtime-evaluable permission state.`,
   };
 }
 
@@ -448,14 +509,37 @@ export function createRuntimeKernelPluginCatalogProvider(): RuntimeKernelPluginC
 export function createRuntimeKernelPluginResourceProvider(): RuntimeKernelPluginResourceProvider {
   return {
     readPluginResource: async (workspaceId, descriptor, resourceId) => {
-      if (descriptor.source !== "runtime_extension") {
-        return null;
+      const availability = resolveRuntimeKernelPluginResourceAvailability(descriptor, resourceId);
+      if (availability.mode === "runtime_extension_resource") {
+        return readRuntimeExtensionResource({
+          workspaceId,
+          extensionId: descriptor.id,
+          resourceId,
+        });
       }
-      return readRuntimeExtensionResource({
-        workspaceId,
-        extensionId: descriptor.id,
-        resourceId,
-      });
+      if (availability.mode === "repo_manifest_resource") {
+        const manifests = await readRuntimeWorkspaceSkillManifests(workspaceId);
+        const manifest = manifests.find((entry) => entry.id === descriptor.id) ?? null;
+        if (!manifest) {
+          throw new Error(
+            `Plugin \`${descriptor.id}\` no longer has a repository manifest in workspace \`${workspaceId}\`.`
+          );
+        }
+        return {
+          extensionId: descriptor.id,
+          resourceId: "manifest",
+          contentType: "application/json",
+          content: JSON.stringify(manifest, null, 2),
+          metadata: {
+            source: "repo_manifest",
+            manifestPath: manifest.manifestPath,
+          },
+        };
+      }
+      throw new Error(
+        availability.reason ??
+          `Plugin \`${descriptor.id}\` does not expose readable resources through the runtime kernel.`
+      );
     },
   };
 }
@@ -478,8 +562,12 @@ export function createRuntimeKernelPluginExecutionProvider(): RuntimeKernelPlugi
 export function createRuntimeKernelPluginPermissionsProvider(): RuntimeKernelPluginPermissionsProvider {
   return {
     evaluatePluginPermissions: async (workspaceId, descriptor) => {
-      if (descriptor.source !== "runtime_extension") {
-        return null;
+      const availability = resolveRuntimeKernelPluginPermissionsAvailability(descriptor);
+      if (availability.mode !== "runtime_extension_permissions") {
+        throw new Error(
+          availability.reason ??
+            `Plugin \`${descriptor.id}\` does not publish runtime-evaluable permission state.`
+        );
       }
       return evaluateRuntimeExtensionPermissions({
         workspaceId,

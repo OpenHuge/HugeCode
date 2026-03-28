@@ -50,6 +50,8 @@ describe("DebugRuntimePluginsSection", () => {
     expect(screen.getByText("network")).toBeTruthy();
     expect(screen.getByText("bound")).toBeTruthy();
     expect(screen.getByText("blocked")).toBeTruthy();
+    expect(screen.getByText("readable")).toBeTruthy();
+    expect(screen.getByText("evaluable")).toBeTruthy();
     expect(
       screen.getByText(/catalog\/resource access only and does not expose an execution provider/i)
     ).toBeTruthy();

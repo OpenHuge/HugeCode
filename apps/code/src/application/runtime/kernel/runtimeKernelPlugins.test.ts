@@ -1,5 +1,35 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LiveSkillSummary, RuntimeExtensionRecord } from "@ku0/code-runtime-host-contract";
+
+const readRuntimeWorkspaceSkillManifestsMock = vi.hoisted(() => vi.fn());
+const readRuntimeExtensionResourceMock = vi.hoisted(() => vi.fn());
+const evaluateRuntimeExtensionPermissionsMock = vi.hoisted(() => vi.fn());
+const runRuntimeLiveSkillMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../ports/runtimeExtensions", () => ({
+  evaluateRuntimeExtensionPermissions: evaluateRuntimeExtensionPermissionsMock,
+  listRuntimeExtensions: vi.fn(),
+  readRuntimeExtensionHealth: vi.fn(),
+  readRuntimeExtensionResource: readRuntimeExtensionResourceMock,
+}));
+
+vi.mock("./runtimeWorkspaceSkillManifests", async () => {
+  const actual = await vi.importActual<typeof import("./runtimeWorkspaceSkillManifests")>(
+    "./runtimeWorkspaceSkillManifests"
+  );
+  return {
+    ...actual,
+    readRuntimeWorkspaceSkillManifests: readRuntimeWorkspaceSkillManifestsMock,
+  };
+});
+
+vi.mock("../ports/tauriRuntime", () => ({
+  runRuntimeLiveSkill: runRuntimeLiveSkillMock,
+}));
+
+vi.mock("../ports/tauriRuntimeSkills", () => ({
+  listRuntimeLiveSkills: vi.fn(),
+}));
 
 function createExtensionRecord(
   overrides: Partial<RuntimeExtensionRecord> = {}
@@ -44,6 +74,13 @@ function createLiveSkillSummary(overrides: Partial<LiveSkillSummary> = {}): Live
 }
 
 describe("runtimeKernelPlugins", () => {
+  beforeEach(() => {
+    readRuntimeWorkspaceSkillManifestsMock.mockReset();
+    readRuntimeExtensionResourceMock.mockReset();
+    evaluateRuntimeExtensionPermissionsMock.mockReset();
+    runRuntimeLiveSkillMock.mockReset();
+  });
+
   it("normalizes runtime extensions, live skills, and repo manifests into unified plugin descriptors", async () => {
     const plugins = await import("./runtimeKernelPlugins");
 
@@ -223,6 +260,41 @@ describe("runtimeKernelPlugins", () => {
       executable: false,
       mode: "none",
     });
+
+    expect(
+      plugins.resolveRuntimeKernelPluginResourceAvailability(
+        plugins.normalizeRepoManifestPluginDescriptor({
+          id: "review-agent",
+          name: "Review Agent",
+          version: "1.0.0",
+          kind: "skill",
+          trustLevel: "local",
+          entrypoint: "review-agent",
+          permissions: ["workspace:read"],
+          compatibility: {
+            minRuntime: "1.0.0",
+            maxRuntime: null,
+            minApp: "1.0.0",
+            maxApp: null,
+          },
+          manifestPath: ".hugecode/skills/review-agent/manifest.json",
+        }),
+        "manifest"
+      )
+    ).toMatchObject({
+      readable: true,
+      mode: "repo_manifest_resource",
+      reason: null,
+    });
+
+    expect(
+      plugins.resolveRuntimeKernelPluginPermissionsAvailability(
+        plugins.normalizeLiveSkillPluginDescriptor(createLiveSkillSummary())
+      )
+    ).toMatchObject({
+      evaluable: false,
+      mode: "none",
+    });
   });
 
   it("returns explicit unbound execution errors for reserved host slots", async () => {
@@ -280,5 +352,77 @@ describe("runtimeKernelPlugins", () => {
         input: "",
       })
     ).rejects.toThrow("catalog/resource access only");
+  });
+
+  it("reads repository manifests through the unified plugin resource provider", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+    readRuntimeWorkspaceSkillManifestsMock.mockResolvedValue([
+      {
+        id: "review-agent",
+        name: "Review Agent",
+        version: "1.0.0",
+        kind: "skill",
+        trustLevel: "local",
+        entrypoint: "review-agent",
+        permissions: ["workspace:read"],
+        compatibility: {
+          minRuntime: "1.0.0",
+          maxRuntime: null,
+          minApp: "1.0.0",
+          maxApp: null,
+        },
+        manifestPath: ".hugecode/skills/review-agent/manifest.json",
+      },
+    ]);
+    const descriptor = plugins.normalizeRepoManifestPluginDescriptor({
+      id: "review-agent",
+      name: "Review Agent",
+      version: "1.0.0",
+      kind: "skill",
+      trustLevel: "local",
+      entrypoint: "review-agent",
+      permissions: ["workspace:read"],
+      compatibility: {
+        minRuntime: "1.0.0",
+        maxRuntime: null,
+        minApp: "1.0.0",
+        maxApp: null,
+      },
+      manifestPath: ".hugecode/skills/review-agent/manifest.json",
+    });
+    const facade = plugins.createRuntimeKernelPluginCatalogFacade({
+      workspaceId: "ws-1",
+      catalogProvider: {
+        listPluginDescriptors: async () => [descriptor],
+      },
+    });
+
+    await expect(facade.readPluginResource("review-agent", "manifest")).resolves.toMatchObject({
+      extensionId: "review-agent",
+      resourceId: "manifest",
+      contentType: "application/json",
+      metadata: expect.objectContaining({
+        source: "repo_manifest",
+        manifestPath: ".hugecode/skills/review-agent/manifest.json",
+      }),
+    });
+  });
+
+  it("returns explicit unsupported errors for plugin operations without provider support", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+    const hostDescriptor = plugins.createReservedHostPluginDescriptors()[0];
+    const facade = plugins.createRuntimeKernelPluginCatalogFacade({
+      workspaceId: "ws-1",
+      catalogProvider: {
+        listPluginDescriptors: async () => [hostDescriptor],
+      },
+    });
+
+    await expect(facade.readPluginResource(hostDescriptor.id, "manifest")).rejects.toThrow(
+      "does not expose readable resources"
+    );
+    await expect(facade.evaluatePluginPermissions(hostDescriptor.id)).rejects.toThrow(
+      "does not publish runtime-evaluable permission state"
+    );
   });
 });

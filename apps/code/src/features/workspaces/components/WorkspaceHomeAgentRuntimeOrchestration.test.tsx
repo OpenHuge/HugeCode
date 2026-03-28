@@ -830,6 +830,8 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByText("Cataloged")).toBeTruthy();
       expect(screen.getByText("Executable: 0")).toBeTruthy();
       expect(screen.getByText("Blocked execution: 1")).toBeTruthy();
+      expect(screen.getByText("Readable resources: 0")).toBeTruthy();
+      expect(screen.getByText("Permission-aware: 0")).toBeTruthy();
     });
   });
 
