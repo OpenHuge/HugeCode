@@ -31,6 +31,14 @@ vi.mock("../../../application/runtime/ports/runtimeToolLifecycle", () => ({
         revision: snapshot.revision,
         lastEvent,
         recentEvents: lifecycleEvents,
+        lastHookCheckpoint:
+          snapshot.lastHookCheckpoint &&
+          (!workspaceId || snapshot.lastHookCheckpoint.workspaceId === workspaceId)
+            ? snapshot.lastHookCheckpoint
+            : (snapshot.recentHookCheckpoints?.at(-1) ?? null),
+        recentHookCheckpoints: (snapshot.recentHookCheckpoints ?? []).filter(
+          (checkpoint) => !workspaceId || checkpoint.workspaceId === workspaceId
+        ),
       };
     }
   ),
@@ -58,6 +66,22 @@ const lifecycleEvent = {
   errorCode: null,
 };
 
+const hookCheckpoint = {
+  key: "tool:app-event:tool-call-1:write:workspace-1:post_execution_pre_publication",
+  point: "post_execution_pre_publication" as const,
+  status: "ready" as const,
+  source: "telemetry" as const,
+  workspaceId: "workspace-1",
+  threadId: "thread-1",
+  turnId: "turn-1",
+  toolCallId: "tool-call-1",
+  toolName: "bash",
+  scope: "write" as const,
+  lifecycleEventId: "tool-completed-1",
+  at: 120,
+  reason: null,
+};
+
 describe("useDebugRuntimeToolLifecycle", () => {
   let api: RuntimeToolLifecycleTestApi;
 
@@ -67,12 +91,23 @@ describe("useDebugRuntimeToolLifecycle", () => {
     api.getRuntimeToolLifecycleSnapshot.mockReturnValue({
       revision: 2,
       lastEvent: lifecycleEvent,
+      lastHookCheckpoint: hookCheckpoint,
       recentEvents: [
         lifecycleEvent,
         {
           ...lifecycleEvent,
           id: "tool-started-2",
           workspaceId: "workspace-2",
+          turnId: "turn-2",
+        },
+      ],
+      recentHookCheckpoints: [
+        hookCheckpoint,
+        {
+          ...hookCheckpoint,
+          key: "tool:app-event:tool-call-2:write:workspace-2:post_execution_pre_publication",
+          workspaceId: "workspace-2",
+          toolCallId: "tool-call-2",
           turnId: "turn-2",
         },
       ],
@@ -94,12 +129,15 @@ describe("useDebugRuntimeToolLifecycle", () => {
     expect(api.subscribeRuntimeToolLifecycleSnapshot).toHaveBeenCalledTimes(1);
     expect(result.current.lifecycleEvents).toEqual([lifecycleEvent]);
     expect(result.current.lastEvent).toEqual(lifecycleEvent);
+    expect(result.current.hookCheckpoints).toEqual([hookCheckpoint]);
+    expect(result.current.lastHookCheckpoint).toEqual(hookCheckpoint);
   });
 
   it("preserves a matching lastEvent even when it is not present in recentEvents", () => {
     api.getRuntimeToolLifecycleSnapshot.mockReturnValue({
       revision: 3,
       lastEvent: lifecycleEvent,
+      lastHookCheckpoint: hookCheckpoint,
       recentEvents: [
         {
           ...lifecycleEvent,
@@ -108,6 +146,7 @@ describe("useDebugRuntimeToolLifecycle", () => {
           turnId: "turn-2",
         },
       ],
+      recentHookCheckpoints: [],
     } satisfies RuntimeToolLifecycleSnapshot);
 
     const { result } = renderHook(() =>
@@ -119,6 +158,8 @@ describe("useDebugRuntimeToolLifecycle", () => {
 
     expect(result.current.lifecycleEvents).toEqual([]);
     expect(result.current.lastEvent).toEqual(lifecycleEvent);
+    expect(result.current.lastHookCheckpoint).toEqual(hookCheckpoint);
+    expect(result.current.hookCheckpoints).toEqual([]);
     expect(result.current.revision).toBe(3);
   });
 
@@ -132,6 +173,8 @@ describe("useDebugRuntimeToolLifecycle", () => {
 
     expect(api.subscribeRuntimeToolLifecycleSnapshot).not.toHaveBeenCalled();
     expect(result.current).toEqual({
+      hookCheckpoints: [],
+      lastHookCheckpoint: null,
       lifecycleEvents: [],
       lastEvent: null,
       revision: 0,

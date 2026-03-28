@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  deriveRuntimeToolLifecycleHookCheckpoint,
   RUNTIME_TOOL_LIFECYCLE_PHASE_SEQUENCE,
   filterRuntimeToolLifecycleSnapshot,
   isRuntimeToolLifecycleTerminalEvent,
   normalizeRuntimeToolLifecycleAppEvent,
+  shouldAcceptRuntimeToolLifecycleTransition,
 } from "./runtimeToolLifecycle";
 
 describe("@ku0/code-runtime-client runtime tool lifecycle", () => {
@@ -214,5 +216,137 @@ describe("@ku0/code-runtime-client runtime tool lifecycle", () => {
         }),
       ],
     });
+  });
+
+  it("derives hook checkpoints from approval, guardrail, and tool lifecycle events", () => {
+    const approvalRequested = deriveRuntimeToolLifecycleHookCheckpoint({
+      id: "approval-requested",
+      kind: "approval",
+      phase: "requested",
+      source: "app-event",
+      workspaceId: "workspace-1",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      toolCallId: null,
+      toolName: "bash",
+      scope: null,
+      status: "pending",
+      at: 700,
+      errorCode: null,
+      approvalId: "approval-1",
+    });
+    const guardrailBlocked = deriveRuntimeToolLifecycleHookCheckpoint({
+      id: "guardrail-evaluated",
+      kind: "guardrail",
+      phase: "evaluated",
+      source: "telemetry",
+      workspaceId: "workspace-1",
+      threadId: null,
+      turnId: null,
+      toolCallId: null,
+      toolName: "bash",
+      scope: "write",
+      status: "blocked",
+      at: 701,
+      errorCode: "runtime.validation.payload_too_large",
+      guardrailDecision: "blocked",
+    });
+    const toolCompleted = deriveRuntimeToolLifecycleHookCheckpoint({
+      id: "tool-completed",
+      kind: "tool",
+      phase: "completed",
+      source: "telemetry",
+      workspaceId: "workspace-1",
+      threadId: null,
+      turnId: null,
+      toolCallId: null,
+      toolName: "bash",
+      scope: "write",
+      status: "success",
+      at: 702,
+      errorCode: null,
+    });
+
+    expect(approvalRequested).toMatchObject({
+      point: "post_validation_pre_execution",
+      status: "pending",
+      toolName: "bash",
+      lifecycleEventId: "approval-requested",
+    });
+    expect(guardrailBlocked).toMatchObject({
+      point: "post_validation_pre_execution",
+      status: "blocked",
+      toolName: "bash",
+      reason: "runtime.validation.payload_too_large",
+    });
+    expect(toolCompleted).toMatchObject({
+      point: "post_execution_pre_publication",
+      status: "ready",
+      toolName: "bash",
+      lifecycleEventId: "tool-completed",
+    });
+  });
+
+  it("rejects retrograde lifecycle transitions while allowing repeated progress updates", () => {
+    const previousCompleted = {
+      id: "tool-completed",
+      kind: "tool",
+      phase: "completed",
+      source: "telemetry",
+      workspaceId: "workspace-1",
+      threadId: null,
+      turnId: null,
+      toolCallId: null,
+      toolName: "bash",
+      scope: "write",
+      status: "success",
+      at: 800,
+      errorCode: null,
+      correlationKey: "req-tool-1",
+    } as const;
+    const retrogradeStarted = {
+      id: "tool-started",
+      kind: "tool",
+      phase: "started",
+      source: "telemetry",
+      workspaceId: "workspace-1",
+      threadId: null,
+      turnId: null,
+      toolCallId: null,
+      toolName: "bash",
+      scope: "write",
+      status: "in_progress",
+      at: 801,
+      errorCode: null,
+      correlationKey: "req-tool-1",
+    } as const;
+    const repeatedProgress = {
+      id: "tool-progress",
+      kind: "tool",
+      phase: "progress",
+      source: "app-event",
+      workspaceId: "workspace-1",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      toolCallId: "tool-call-1",
+      toolName: "bash",
+      scope: null,
+      status: "in_progress",
+      at: 803,
+      errorCode: null,
+      correlationKey: "tool-call-1",
+    } as const;
+    const repeatedProgressLater = {
+      ...repeatedProgress,
+      id: "tool-progress-2",
+      at: 804,
+    };
+
+    expect(shouldAcceptRuntimeToolLifecycleTransition(previousCompleted, retrogradeStarted)).toBe(
+      false
+    );
+    expect(
+      shouldAcceptRuntimeToolLifecycleTransition(repeatedProgress, repeatedProgressLater)
+    ).toBe(true);
   });
 });

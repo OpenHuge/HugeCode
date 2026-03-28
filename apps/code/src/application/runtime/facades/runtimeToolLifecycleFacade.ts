@@ -12,14 +12,18 @@ import { subscribeRuntimeToolExecutionTelemetryEvents } from "../ports/runtimeTo
 import type {
   RuntimeToolLifecycleAppEventMethod,
   RuntimeToolLifecycleEvent,
+  RuntimeToolLifecycleHookCheckpoint,
   RuntimeToolLifecycleSnapshot,
 } from "../types/runtimeToolLifecycle";
 import {
   RUNTIME_TOOL_LIFECYCLE_APP_EVENT_METHODS,
   buildRuntimeToolLifecycleEventId,
+  deriveRuntimeToolLifecycleHookCheckpoint,
+  getRuntimeToolLifecycleEntityKey,
   isRuntimeGuardrailLifecycleStatus,
   normalizeRuntimeToolLifecycleAppEvent,
   normalizeRuntimeToolLifecycleStatus,
+  shouldAcceptRuntimeToolLifecycleTransition,
 } from "../types/runtimeToolLifecycle";
 
 const RUNTIME_TOOL_LIFECYCLE_RECENT_LIMIT = 40;
@@ -50,6 +54,7 @@ function normalizeRuntimeToolLifecycleTelemetryEvent(
         event.at,
         event.requestId ?? event.toolName
       ),
+      correlationKey: event.requestId ?? event.toolName,
       kind: "tool",
       phase: event.phase,
       source: "telemetry",
@@ -73,6 +78,7 @@ function normalizeRuntimeToolLifecycleTelemetryEvent(
         event.at,
         event.requestId ?? event.toolName
       ),
+      correlationKey: event.requestId ?? event.toolName,
       kind: "guardrail",
       phase: "evaluated",
       source: "telemetry",
@@ -101,6 +107,7 @@ function normalizeRuntimeToolLifecycleTelemetryEvent(
         event.at,
         event.requestId ?? event.toolName
       ),
+      correlationKey: event.requestId ?? event.toolName,
       kind: "guardrail",
       phase: "outcome",
       source: "telemetry",
@@ -150,13 +157,42 @@ export function createRuntimeToolLifecycleStore(
     revision: 0,
     lastEvent: null,
     recentEvents: [],
+    lastHookCheckpoint: null,
+    recentHookCheckpoints: [],
   };
+  const latestEventByEntityKey = new Map<string, RuntimeToolLifecycleEvent>();
+
+  function updateHookCheckpoint(
+    checkpoint: RuntimeToolLifecycleHookCheckpoint | null
+  ): Pick<RuntimeToolLifecycleSnapshot, "lastHookCheckpoint" | "recentHookCheckpoints"> {
+    if (!checkpoint) {
+      return {
+        lastHookCheckpoint: snapshot.lastHookCheckpoint ?? null,
+        recentHookCheckpoints: snapshot.recentHookCheckpoints ?? [],
+      };
+    }
+
+    return {
+      lastHookCheckpoint: checkpoint,
+      recentHookCheckpoints: [...(snapshot.recentHookCheckpoints ?? []), checkpoint].slice(
+        -RUNTIME_TOOL_LIFECYCLE_RECENT_LIMIT
+      ),
+    };
+  }
 
   function publish(event: RuntimeToolLifecycleEvent): void {
+    const entityKey = getRuntimeToolLifecycleEntityKey(event);
+    const previousEvent = latestEventByEntityKey.get(entityKey);
+    if (previousEvent && !shouldAcceptRuntimeToolLifecycleTransition(previousEvent, event)) {
+      return;
+    }
+    latestEventByEntityKey.set(entityKey, event);
+    const hookCheckpoint = deriveRuntimeToolLifecycleHookCheckpoint(event);
     snapshot = {
       revision: snapshot.revision + 1,
       lastEvent: event,
       recentEvents: [...snapshot.recentEvents, event].slice(-RUNTIME_TOOL_LIFECYCLE_RECENT_LIMIT),
+      ...updateHookCheckpoint(hookCheckpoint),
     };
 
     for (const listener of eventListeners) {

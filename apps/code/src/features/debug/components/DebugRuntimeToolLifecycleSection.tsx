@@ -1,10 +1,14 @@
-import type { RuntimeToolLifecycleEvent } from "../../../application/runtime/ports/runtimeToolLifecycle";
+import type {
+  RuntimeToolLifecycleEvent,
+  RuntimeToolLifecycleHookCheckpoint,
+} from "../../../application/runtime/ports/runtimeToolLifecycle";
 import {
   DebugDiagnosticsDefinitionList,
   type DebugDiagnosticsFieldDescriptor,
 } from "./DebugDiagnosticsFieldGroups";
 
 export type DebugRuntimeToolLifecycleSectionProps = {
+  hookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
   lifecycleEvents: RuntimeToolLifecycleEvent[];
 };
 
@@ -14,6 +18,12 @@ function formatLifecycleTimestamp(value: number): string {
 
 function sortLifecycleEvents(events: RuntimeToolLifecycleEvent[]): RuntimeToolLifecycleEvent[] {
   return events.slice().sort((left, right) => right.at - left.at);
+}
+
+function sortHookCheckpoints(
+  checkpoints: RuntimeToolLifecycleHookCheckpoint[]
+): RuntimeToolLifecycleHookCheckpoint[] {
+  return checkpoints.slice().sort((left, right) => right.at - left.at);
 }
 
 function createLifecycleFields(
@@ -33,11 +43,31 @@ function createLifecycleFields(
   ];
 }
 
+function createHookCheckpointFields(
+  checkpoint: RuntimeToolLifecycleHookCheckpoint
+): DebugDiagnosticsFieldDescriptor[] {
+  return [
+    { label: "at", value: formatLifecycleTimestamp(checkpoint.at) },
+    { label: "source", value: checkpoint.source },
+    { label: "workspace", value: checkpoint.workspaceId ?? "-" },
+    { label: "thread", value: checkpoint.threadId ?? "-" },
+    { label: "turn", value: checkpoint.turnId ?? "-" },
+    { label: "tool", value: checkpoint.toolName ?? "-" },
+    { label: "tool_call", value: checkpoint.toolCallId ?? "-" },
+    { label: "scope", value: checkpoint.scope ?? "-" },
+    { label: "event_id", value: checkpoint.lifecycleEventId },
+    { label: "reason", value: checkpoint.reason ?? "-" },
+  ];
+}
+
 export function DebugRuntimeToolLifecycleSection({
+  hookCheckpoints,
   lifecycleEvents,
 }: DebugRuntimeToolLifecycleSectionProps) {
   const sortedEvents = sortLifecycleEvents(lifecycleEvents);
+  const sortedHookCheckpoints = sortHookCheckpoints(hookCheckpoints);
   const latestEvent = sortedEvents[0] ?? null;
+  const latestHookCheckpoint = sortedHookCheckpoints[0] ?? null;
 
   return (
     <div className="debug-event-channel-diagnostics" data-testid="debug-runtime-tool-lifecycle">
@@ -56,7 +86,21 @@ export function DebugRuntimeToolLifecycleSection({
           </div>
         </>
       ) : null}
-      {sortedEvents.length === 0 ? (
+      {latestHookCheckpoint ? (
+        <>
+          <div className="debug-event-channel-diagnostics-empty">
+            {sortedHookCheckpoints.length} hook checkpoints observed.
+          </div>
+          <div className="debug-event-channel-diagnostics-empty">
+            Latest hook checkpoint: {latestHookCheckpoint.point}/{latestHookCheckpoint.status} at{" "}
+            <time dateTime={formatLifecycleTimestamp(latestHookCheckpoint.at)}>
+              {formatLifecycleTimestamp(latestHookCheckpoint.at)}
+            </time>
+            .
+          </div>
+        </>
+      ) : null}
+      {sortedEvents.length === 0 && sortedHookCheckpoints.length === 0 ? (
         <div className="debug-event-channel-diagnostics-empty">
           No lifecycle activity observed yet.
         </div>
@@ -68,6 +112,14 @@ export function DebugRuntimeToolLifecycleSection({
                 {event.kind}/{event.phase}
               </div>
               <DebugDiagnosticsDefinitionList fields={createLifecycleFields(event)} />
+            </div>
+          ))}
+          {sortedHookCheckpoints.map((checkpoint) => (
+            <div key={checkpoint.key} className="debug-event-channel-diagnostics-item">
+              <div className="debug-event-channel-diagnostics-label">
+                {checkpoint.point}/{checkpoint.status}
+              </div>
+              <DebugDiagnosticsDefinitionList fields={createHookCheckpointFields(checkpoint)} />
             </div>
           ))}
         </div>
