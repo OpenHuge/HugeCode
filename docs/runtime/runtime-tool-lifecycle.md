@@ -180,6 +180,16 @@ The approved `runtimeToolLifecycle` port surface is intentionally frozen to:
   - tone mapping
   - recency sorting
 
+Direct reads from the workspace-scoped lifecycle snapshot/subscription
+primitives are intentionally narrower than the full port surface:
+
+- `features/shared/hooks/useWorkspaceRuntimeToolLifecycle.ts` owns the primary
+  product-facing subscription path
+- explicit debug diagnostics hooks may perform direct snapshot reads for probe
+  and export flows
+- other product code should consume lifecycle state through the shared hook or
+  through props derived from that hook instead of reading the port directly
+
 Consumers should prefer that boundary over composing
 `getRuntimeToolLifecycleSnapshot() + filterRuntimeToolLifecycleSnapshot(...)`
 or subscribing to the unscoped snapshot stream inside feature code.

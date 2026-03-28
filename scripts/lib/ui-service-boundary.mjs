@@ -47,6 +47,11 @@ const SETTINGS_ACCOUNT_MIGRATION_FILES = new Set([
   "apps/code/src/features/settings/hooks/useSettingsDefaultModels.ts",
   "apps/code/src/features/app/hooks/useAccountCenterState.ts",
 ]);
+const RUNTIME_TOOL_LIFECYCLE_READ_PORT_EXCEPTIONS = new Set([
+  "apps/code/src/features/shared/hooks/useWorkspaceRuntimeToolLifecycle.ts",
+  "apps/code/src/features/debug/hooks/useDebugRuntimeProbe.ts",
+  "apps/code/src/features/debug/hooks/useRuntimeDiagnosticsExport.ts",
+]);
 
 export function toPosixPath(input) {
   return input.split(path.sep).join("/");
@@ -195,6 +200,19 @@ const VIOLATION_RULES = [
     pattern:
       /(?:from\s+["'][^"']*\/application\/runtime\/(?:facades\/runtimeToolLifecycleFacade|facades\/runtimeToolLifecyclePresentation|types\/runtimeToolLifecycle)["']|import\(\s*["'][^"']*\/application\/runtime\/(?:facades\/runtimeToolLifecycleFacade|facades\/runtimeToolLifecyclePresentation|types\/runtimeToolLifecycle)["'])/u,
     appliesTo: (filePath) => isUiBoundaryFile(filePath) && !isUiTestFile(filePath),
+  },
+  {
+    id: "runtime-tool-lifecycle-read-primitives",
+    description:
+      "product code must reserve runtime tool lifecycle snapshot/subscription primitives for the shared workspace hook and explicit debug diagnostics hooks",
+    pattern:
+      /(?:import\s*\{[\s\S]*\b(?:getWorkspaceRuntimeToolLifecycleSnapshot|subscribeWorkspaceRuntimeToolLifecycleSnapshot|subscribeWorkspaceRuntimeToolLifecycleEvents)\b[\s\S]*\}\s*from\s+["'][^"']*\/application\/runtime\/ports\/runtimeToolLifecycle["']|from\s+["'][^"']*\/application\/runtime\/ports\/runtimeToolLifecycle["'][\s\S]*\b(?:getWorkspaceRuntimeToolLifecycleSnapshot|subscribeWorkspaceRuntimeToolLifecycleSnapshot|subscribeWorkspaceRuntimeToolLifecycleEvents)\b)/u,
+    appliesTo: (filePath) =>
+      isAppSourceFile(filePath) &&
+      !isUiTestFile(filePath) &&
+      !filePath.startsWith("apps/code/src/application/runtime/") &&
+      !RUNTIME_TOOL_LIFECYCLE_READ_PORT_EXCEPTIONS.has(filePath),
+    scope: "source",
   },
   {
     id: "cross-shell-tauri-port",

@@ -237,6 +237,47 @@ describe("ui service boundary guard", () => {
     ]);
   });
 
+  it("rejects product imports of runtime tool lifecycle read primitives outside approved hooks", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/workspaces/components/WorkspaceHomeMissionControlSections.tsx",
+      'import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";\n'
+    );
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-tool-lifecycle-read-primitives",
+      }),
+    ]);
+  });
+
+  it("allows runtime tool lifecycle read primitives in the shared workspace hook", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/shared/hooks/useWorkspaceRuntimeToolLifecycle.ts",
+      [
+        "import {",
+        "  getWorkspaceRuntimeToolLifecycleSnapshot,",
+        "  subscribeWorkspaceRuntimeToolLifecycleSnapshot,",
+        '} from "../../../application/runtime/ports/runtimeToolLifecycle";',
+      ].join("\n")
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("allows runtime tool lifecycle read primitives in debug diagnostics hooks", () => {
+    const probeViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/debug/hooks/useDebugRuntimeProbe.ts",
+      'import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";\n'
+    );
+    const exportViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/debug/hooks/useRuntimeDiagnosticsExport.ts",
+      'import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";\n'
+    );
+
+    expect(probeViolations).toEqual([]);
+    expect(exportViolations).toEqual([]);
+  });
+
   it("rejects low-level runtime transport imports in non-UI product files", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/utils/runtimeExample.ts",
