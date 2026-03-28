@@ -13,8 +13,10 @@ export { WorkspaceShellApp } from "./WorkspaceShellApp";
 export { default } from "./WorkspaceShellApp";
 export {
   composeSharedWorkspaceShellState,
+  deriveSharedWorkspaceShellFrameState,
   deriveSharedWorkspaceShellActiveSection,
   deriveSharedWorkspaceShellBackgroundEnabled,
+  SHARED_WORKSPACE_SHELL_HOME_OPTION_VALUE,
 } from "./sharedWorkspaceShellComposition";
 export type {
   SharedWorkspaceShellCatalogState,
@@ -23,6 +25,11 @@ export type {
   SharedWorkspaceShellState,
   SharedWorkspaceShellStateCompositionInput,
 } from "./sharedWorkspaceShellContracts";
+export type {
+  SharedWorkspaceShellError,
+  SharedWorkspaceShellFrameState,
+  SharedWorkspaceShellSelectOption,
+} from "./sharedWorkspaceShellComposition";
 export { useSharedMissionControlSummaryState } from "./useSharedMissionControlSummaryState";
 export type {
   SharedMissionActivityItem,
