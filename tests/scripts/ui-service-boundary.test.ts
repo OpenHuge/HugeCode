@@ -264,6 +264,52 @@ describe("ui service boundary guard", () => {
     expect(violations).toEqual([]);
   });
 
+  it("rejects product imports of lifecycle projection primitives outside the shared workspace hook", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/workspaces/components/WorkspaceHomeMissionControlSections.tsx",
+      [
+        "import {",
+        "  buildRuntimeToolLifecyclePresentationSummary,",
+        "  sortRuntimeToolLifecycleEventsByRecency,",
+        '} from "../../../application/runtime/ports/runtimeToolLifecycle";',
+      ].join("\n")
+    );
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-tool-lifecycle-projection-primitives",
+      }),
+    ]);
+  });
+
+  it("allows lifecycle projection primitives in the shared workspace hook", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/shared/hooks/useWorkspaceRuntimeToolLifecycle.ts",
+      [
+        "import {",
+        "  buildRuntimeToolLifecyclePresentationSummary,",
+        "  sortRuntimeToolLifecycleEventsByRecency,",
+        "  sortRuntimeToolLifecycleHookCheckpointsByRecency,",
+        '} from "../../../application/runtime/ports/runtimeToolLifecycle";',
+      ].join("\n")
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("allows lifecycle projection primitives in test support fixtures", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/debug/test/debugPanelComponentFixtures.ts",
+      [
+        "import {",
+        "  buildRuntimeToolLifecyclePresentationSummary,",
+        '} from "../../../application/runtime/ports/runtimeToolLifecycle";',
+      ].join("\n")
+    );
+
+    expect(violations).toEqual([]);
+  });
+
   it("allows runtime tool lifecycle read primitives in debug diagnostics hooks", () => {
     const probeViolations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/debug/hooks/useDebugRuntimeProbe.ts",

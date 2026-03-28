@@ -221,6 +221,17 @@ The same rule now applies to lifecycle presentation semantics:
 - those presentation primitives now live behind the same
   `application/runtime/ports/runtimeToolLifecycle` boundary
 
+Track 1 now also treats the projection-building helpers themselves as guarded
+primitives:
+
+- `buildRuntimeToolLifecyclePresentationSummary`
+- `sortRuntimeToolLifecycleEventsByRecency`
+- `sortRuntimeToolLifecycleHookCheckpointsByRecency`
+
+Those helpers are reserved for the shared workspace lifecycle hook and the
+runtime/app layers that assemble it. Product pages and feature-local hooks
+should consume the hook's derived state instead of rebuilding the projection.
+
 ## Follow-On Work
 
 Track 1 completion criteria are now satisfied for the active consumers:
