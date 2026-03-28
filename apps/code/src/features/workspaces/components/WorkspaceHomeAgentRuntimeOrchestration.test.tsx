@@ -20,6 +20,11 @@ import { buildRuntimeSessionCheckpointPresentationSummary } from "../../../appli
 import { REVIEW_START_DESKTOP_ONLY_MESSAGE } from "../../../application/runtime/ports/tauriThreads";
 import { RuntimeKernelProvider } from "../../../application/runtime/kernel/RuntimeKernelContext";
 import { createRuntimeAgentControlDependencies } from "../../../application/runtime/kernel/createRuntimeAgentControlDependencies";
+import {
+  RUNTIME_KERNEL_CAPABILITY_KEYS,
+  type RuntimeKernelCapabilityKey,
+  type RuntimeKernelCapabilityMap,
+} from "../../../application/runtime/kernel/runtimeKernelCapabilities";
 import type { RuntimeUpdatedEvent } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import { createRuntimeAgentControlFacade } from "../../../application/runtime/facades/runtimeAgentControlFacade";
 import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
@@ -721,11 +726,25 @@ function createRuntimeKernelValue(): RuntimeKernel {
     getWorkspaceScope: vi.fn((workspaceId: string) => ({
       workspaceId,
       runtimeGateway,
-      runtimeAgentControl: createRuntimeAgentControlFacade(
-        workspaceId,
-        createRuntimeAgentControlDependencies(workspaceId)
-      ),
-      runtimeSessionCommands,
+      getCapability: <K extends RuntimeKernelCapabilityKey>(key: K) => {
+        if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl) {
+          return createRuntimeAgentControlFacade(
+            workspaceId,
+            createRuntimeAgentControlDependencies(workspaceId)
+          ) as RuntimeKernelCapabilityMap[K];
+        }
+        if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands) {
+          return runtimeSessionCommands as RuntimeKernelCapabilityMap[K];
+        }
+        throw new Error(`Unsupported workspace runtime capability: ${key}`);
+      },
+      hasCapability: (key: string) =>
+        key === RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl ||
+        key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
+      listCapabilities: () => [
+        RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
+        RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
+      ],
     })),
   };
 }

@@ -3,6 +3,7 @@ import type {
   KernelCapabilitiesSlice,
   KernelContinuitySlice,
   KernelDiagnosticsSlice,
+  KernelExtensionBundle,
   KernelProjectionDelta,
   KernelProjectionOp,
   KernelProjectionScope,
@@ -226,6 +227,13 @@ export function readDiagnosticsProjectionSlice(
     asRecord(record.toolGuardrails)
     ? (diagnostics as KernelDiagnosticsSlice)
     : null;
+}
+
+export function readExtensionsProjectionSlice(
+  state: Pick<KernelProjectionState, "slices">
+): KernelExtensionBundle[] | null {
+  const extensions = state.slices.extensions;
+  return Array.isArray(extensions) ? (extensions as KernelExtensionBundle[]) : null;
 }
 
 class KernelProjectionStore {

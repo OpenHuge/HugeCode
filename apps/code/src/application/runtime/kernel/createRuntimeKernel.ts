@@ -1,5 +1,7 @@
 import { createDesktopHostAdapter } from "../adapters/DesktopHostAdapter";
 import { createRuntimeGateway } from "../facades/RuntimeGateway";
+import { createRuntimeAgentControlFacade } from "../facades/runtimeAgentControlFacade";
+import { createRuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
 import { discoverLocalRuntimeGatewayTargets } from "../facades/discoverLocalRuntimeGatewayTargets";
 import { configureManualWebRuntimeGatewayTarget } from "../ports/runtimeWebGatewayConfig";
 import { getMissionControlSnapshot } from "../ports/tauriMissionControl";
@@ -14,6 +16,11 @@ import {
   bootstrapRuntimeKernelProjection,
   subscribeRuntimeKernelProjection,
 } from "../../../services/runtimeKernelProjectionTransport";
+import { createRuntimeKernelPluginCatalogFacade } from "./runtimeKernelPlugins";
+import {
+  RUNTIME_KERNEL_CAPABILITY_KEYS,
+  type WorkspaceRuntimeCapabilityProvider,
+} from "./runtimeKernelCapabilities";
 
 function mapWorkspaceClientRuntimeMode(
   mode: ReturnType<typeof detectRuntimeMode>
@@ -36,6 +43,7 @@ export function createRuntimeKernel(): RuntimeKernel {
     bootstrapKernelProjection: bootstrapRuntimeKernelProjection,
     subscribeKernelProjection: subscribeRuntimeKernelProjection,
   });
+  const workspaceScopeCache = new Map<string, ReturnType<typeof createWorkspaceRuntimeScope>>();
 
   return {
     runtimeGateway,
@@ -47,13 +55,37 @@ export function createRuntimeKernel(): RuntimeKernel {
     },
     workspaceClientRuntime,
     desktopHost,
-    getWorkspaceScope: (workspaceId) =>
-      createWorkspaceRuntimeScope({
+    getWorkspaceScope: (workspaceId) => {
+      const cachedScope = workspaceScopeCache.get(workspaceId);
+      if (cachedScope) {
+        return cachedScope;
+      }
+
+      const runtimeAgentControlDependencies = createRuntimeAgentControlDependencies(workspaceId, {
+        workspaceClientRuntime,
+      });
+      const capabilityProviders: WorkspaceRuntimeCapabilityProvider[] = [
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
+          createCapability: () =>
+            createRuntimeAgentControlFacade(workspaceId, runtimeAgentControlDependencies),
+        },
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
+          createCapability: () => createRuntimeSessionCommandFacade(workspaceId),
+        },
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog,
+          createCapability: () => createRuntimeKernelPluginCatalogFacade({ workspaceId }),
+        },
+      ];
+      const scope = createWorkspaceRuntimeScope({
         workspaceId,
         runtimeGateway,
-        runtimeAgentControlDependencies: createRuntimeAgentControlDependencies(workspaceId, {
-          workspaceClientRuntime,
-        }),
-      }),
+        capabilityProviders,
+      });
+      workspaceScopeCache.set(workspaceId, scope);
+      return scope;
+    },
   };
 }

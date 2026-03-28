@@ -10,6 +10,7 @@ import {
   getKernelProjectionStore,
   readContinuityProjectionSlice,
   readDiagnosticsProjectionSlice,
+  readExtensionsProjectionSlice,
 } from "./kernelProjectionStore";
 
 type KernelProjectionBindings = NonNullable<WorkspaceClientRuntimeBindings["kernelProjection"]>;
@@ -296,6 +297,50 @@ describe("KernelProjectionStore", () => {
       expect(continuity?.items[0]?.takeoverBundle?.pathKind).toBe("resume");
       const diagnostics = readDiagnosticsProjectionSlice(store.getSnapshot());
       expect(diagnostics?.toolMetrics.updatedAt).toBe(12);
+    });
+
+    unsubscribe();
+  });
+
+  it("exposes typed extensions slices after bootstrap", async () => {
+    const runtime = createRuntimeBindings({
+      bootstrap: async () => ({
+        revision: 3,
+        sliceRevisions: {
+          extensions: 3,
+        },
+        slices: {
+          extensions: [
+            {
+              id: "ext-1",
+              name: "Extension One",
+              enabled: true,
+              transport: "mcp-stdio",
+              workspaceId: "workspace-1",
+              toolCount: 1,
+              resourceCount: 2,
+              surfaces: ["debug"],
+              installedAt: 10,
+              updatedAt: 20,
+              metadata: null,
+            },
+          ],
+        },
+      }),
+    });
+    const store = getKernelProjectionStore(runtime);
+
+    store.ensureScopes(["extensions"]);
+    const unsubscribe = store.subscribe(() => undefined);
+
+    await vi.waitFor(() => {
+      expect(readExtensionsProjectionSlice(store.getSnapshot())).toEqual([
+        expect.objectContaining({
+          id: "ext-1",
+          toolCount: 1,
+          resourceCount: 2,
+        }),
+      ]);
     });
 
     unsubscribe();

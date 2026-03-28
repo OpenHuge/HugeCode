@@ -1,13 +1,17 @@
 import { useCallback } from "react";
 import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
-import { useWorkspaceRuntimeScope } from "../kernel/WorkspaceRuntimeScope";
 import type { RuntimeWorkspaceId } from "../types/runtimeIds";
 import type { RuntimeSessionCommandFacade } from "./runtimeSessionCommandFacade";
+import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "../kernel/runtimeKernelCapabilities";
+import {
+  resolveWorkspaceRuntimeCapability,
+  useWorkspaceRuntimeCapability,
+} from "../hooks/useWorkspaceRuntimeCapability";
 
 export function useWorkspaceRuntimeSessionCommands(
   workspaceId: RuntimeWorkspaceId
 ): RuntimeSessionCommandFacade {
-  return useWorkspaceRuntimeScope(workspaceId).runtimeSessionCommands;
+  return useWorkspaceRuntimeCapability(workspaceId, RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands);
 }
 
 export function useRuntimeSessionCommandsResolver(): (
@@ -17,7 +21,11 @@ export function useRuntimeSessionCommandsResolver(): (
 
   return useCallback(
     (workspaceId: RuntimeWorkspaceId) =>
-      kernel.getWorkspaceScope(workspaceId).runtimeSessionCommands,
+      resolveWorkspaceRuntimeCapability(
+        kernel,
+        workspaceId,
+        RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands
+      ),
     [kernel]
   );
 }

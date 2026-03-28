@@ -1,28 +1,51 @@
 import type { RuntimeGateway } from "../facades/RuntimeGateway";
-import { createRuntimeAgentControlFacade } from "../facades/runtimeAgentControlFacade";
-import { createRuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
 import type { RuntimeWorkspaceId } from "../types/runtimeIds";
 import type { WorkspaceRuntimeScope } from "./runtimeKernelTypes";
-import type { RuntimeAgentControlDependencies } from "../facades/runtimeAgentControlFacade";
+import type {
+  RuntimeKernelCapabilityKey,
+  RuntimeKernelCapabilityMap,
+  WorkspaceRuntimeCapabilityProvider,
+} from "./runtimeKernelCapabilities";
 
 type CreateWorkspaceRuntimeScopeInput = {
   workspaceId: RuntimeWorkspaceId;
   runtimeGateway: RuntimeGateway;
-  runtimeAgentControlDependencies: RuntimeAgentControlDependencies;
+  capabilityProviders: WorkspaceRuntimeCapabilityProvider[];
 };
 
 export function createWorkspaceRuntimeScope({
   workspaceId,
   runtimeGateway,
-  runtimeAgentControlDependencies,
+  capabilityProviders,
 }: CreateWorkspaceRuntimeScopeInput): WorkspaceRuntimeScope {
+  const providerByKey = new Map<RuntimeKernelCapabilityKey, WorkspaceRuntimeCapabilityProvider>(
+    capabilityProviders.map((provider) => [provider.key, provider] as const)
+  );
+  const capabilityCache = new Map<RuntimeKernelCapabilityKey, unknown>();
+
+  function getCapability<K extends RuntimeKernelCapabilityKey>(
+    key: K
+  ): RuntimeKernelCapabilityMap[K] {
+    const provider = providerByKey.get(key) as WorkspaceRuntimeCapabilityProvider<K> | undefined;
+    if (!provider) {
+      throw new Error(`Missing workspace runtime capability \`${key}\`.`);
+    }
+    if (capabilityCache.has(key)) {
+      return capabilityCache.get(key) as RuntimeKernelCapabilityMap[K];
+    }
+    const capability = provider.createCapability({
+      workspaceId,
+      runtimeGateway,
+    });
+    capabilityCache.set(key, capability);
+    return capability;
+  }
+
   return {
     workspaceId,
     runtimeGateway,
-    runtimeAgentControl: createRuntimeAgentControlFacade(
-      workspaceId,
-      runtimeAgentControlDependencies
-    ),
-    runtimeSessionCommands: createRuntimeSessionCommandFacade(workspaceId),
+    getCapability,
+    hasCapability: (key) => providerByKey.has(key as RuntimeKernelCapabilityKey),
+    listCapabilities: () => [...providerByKey.keys()],
   };
 }

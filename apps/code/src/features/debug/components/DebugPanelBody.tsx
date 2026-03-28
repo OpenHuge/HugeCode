@@ -14,9 +14,11 @@ import {
   DebugRuntimeProbesSection,
   type DebugRuntimeProbesSectionProps,
 } from "./DebugRuntimeProbesSection";
+import { DebugRuntimePluginsSection } from "./DebugRuntimePluginsSection";
 import { DebugRuntimeToolExecutionMetricsSection } from "./DebugRuntimeToolExecutionMetricsSection";
 import { DebugRuntimeToolLifecycleSection } from "./DebugRuntimeToolLifecycleSection";
 import type { DebugRuntimeToolLifecycleState } from "../hooks/useDebugRuntimeToolLifecycle";
+import type { DebugRuntimePluginsState } from "../hooks/useDebugRuntimePlugins";
 
 export type DebugPanelBodyProps = DebugRuntimeProbesSectionProps & {
   isOpen: boolean;
@@ -29,6 +31,7 @@ export type DebugPanelBodyProps = DebugRuntimeProbesSectionProps & {
   runtimeToolExecutionTotals: RuntimeToolExecutionTotals;
   runtimeToolExecutionRecentExecutions: RuntimeToolExecutionRecentEntry[];
   runtimeToolLifecycle: DebugRuntimeToolLifecycleState;
+  runtimePlugins: DebugRuntimePluginsState;
   runtimeEventBridgePath: "legacy" | "v2";
   formattedEntries: FormattedDebugEntry[];
 };
@@ -44,6 +47,7 @@ export function DebugPanelBody({
   runtimeToolExecutionTotals,
   runtimeToolExecutionRecentExecutions,
   runtimeToolLifecycle,
+  runtimePlugins,
   runtimeEventBridgePath,
   formattedEntries,
   ...probeProps
@@ -66,6 +70,7 @@ export function DebugPanelBody({
         recentExecutions={runtimeToolExecutionRecentExecutions}
       />
       <DebugRuntimeToolLifecycleSection runtimeToolLifecycle={runtimeToolLifecycle} />
+      <DebugRuntimePluginsSection {...runtimePlugins} />
       <DebugRuntimeProbesSection {...probeProps} />
       {isOpen ? <DebugEntriesList formattedEntries={formattedEntries} /> : null}
     </>

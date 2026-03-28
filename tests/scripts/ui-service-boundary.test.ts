@@ -102,6 +102,30 @@ describe("ui service boundary guard", () => {
     ]);
   });
 
+  it("rejects direct runtime capability registry imports in UI code", () => {
+    const capabilityHookViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/example/hooks/useExample.ts",
+      'import { useWorkspaceRuntimeCapability } from "../../../application/runtime/hooks/useWorkspaceRuntimeCapability";\n'
+    );
+    const capabilityKeyViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/example/hooks/useExample.ts",
+      'import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "../../../application/runtime/kernel/runtimeKernelCapabilities";\n'
+    );
+
+    expect(capabilityHookViolations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rule: "runtime-capability-registry-internal",
+        }),
+      ])
+    );
+    expect(capabilityKeyViolations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-capability-registry-internal",
+      }),
+    ]);
+  });
+
   it("allows the approved chatgpt automation facade in product code", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/settings/components/sections/SettingsCodexAccountsCard.tsx",
@@ -110,7 +134,6 @@ describe("ui service boundary guard", () => {
 
     expect(violations).toEqual([]);
   });
-
   it("rejects direct tauri imports in shared workspace client files", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "packages/code-workspace-client/src/workspace/WorkspaceClientApp.tsx",

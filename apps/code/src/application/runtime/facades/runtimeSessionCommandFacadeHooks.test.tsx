@@ -9,6 +9,7 @@ import {
 } from "./runtimeSessionCommandFacadeHooks";
 import { RuntimeKernelProvider } from "../kernel/RuntimeKernelContext";
 import type { RuntimeKernel } from "../kernel/runtimeKernelTypes";
+import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "../kernel/runtimeKernelCapabilities";
 
 describe("runtimeSessionCommandFacadeHooks", () => {
   function createWrapper(kernel: RuntimeKernel) {
@@ -35,8 +36,14 @@ describe("runtimeSessionCommandFacadeHooks", () => {
       getWorkspaceScope: vi.fn(() => ({
         workspaceId: "ws-1",
         runtimeGateway: {} as RuntimeKernel["runtimeGateway"],
-        runtimeAgentControl: {} as never,
-        runtimeSessionCommands,
+        getCapability: vi.fn((key: string) => {
+          if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands) {
+            return runtimeSessionCommands;
+          }
+          throw new Error(`unexpected capability ${key}`);
+        }),
+        hasCapability: vi.fn(() => true),
+        listCapabilities: vi.fn(() => [RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands]),
       })),
     } as unknown as RuntimeKernel;
 
@@ -66,8 +73,14 @@ describe("runtimeSessionCommandFacadeHooks", () => {
       getWorkspaceScope: vi.fn((workspaceId: string) => ({
         workspaceId,
         runtimeGateway: {} as RuntimeKernel["runtimeGateway"],
-        runtimeAgentControl: {} as never,
-        runtimeSessionCommands: workspaceSessionCommands,
+        getCapability: vi.fn((key: string) => {
+          if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands) {
+            return workspaceSessionCommands;
+          }
+          throw new Error(`unexpected capability ${key}`);
+        }),
+        hasCapability: vi.fn(() => true),
+        listCapabilities: vi.fn(() => [RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands]),
       })),
     } as unknown as RuntimeKernel;
 

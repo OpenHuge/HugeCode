@@ -111,6 +111,12 @@ export function createDebugPanelBodyProps(
     },
     runtimeToolExecutionRecentExecutions: [],
     runtimeToolLifecycle: createRuntimeToolLifecycleFixture(),
+    runtimePlugins: {
+      plugins: [],
+      loading: false,
+      error: null,
+      projectionBacked: false,
+    },
     runtimeEventBridgePath: "legacy",
     formattedEntries: [],
     isRuntimeProbeBusy: false,

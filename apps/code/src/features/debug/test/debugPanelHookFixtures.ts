@@ -36,6 +36,18 @@ export function createDebugRuntimeEventChannelsState(
   };
 }
 
+export function createDebugRuntimePluginsState(
+  overrides: Partial<CreateDebugPanelViewModelParams["runtimePlugins"]> = {}
+): CreateDebugPanelViewModelParams["runtimePlugins"] {
+  return {
+    plugins: [],
+    loading: false,
+    error: null,
+    projectionBacked: false,
+    ...overrides,
+  };
+}
+
 export function createDebugRuntimeToolExecutionMetricsState(
   overrides: Partial<CreateDebugPanelViewModelParams["runtimeToolExecutionMetrics"]> = {}
 ): CreateDebugPanelViewModelParams["runtimeToolExecutionMetrics"] {
@@ -117,6 +129,7 @@ export function createDebugPanelViewModelBuilderParams(
     runtimeCapabilities: createDebugRuntimeCapabilitiesState(),
     diagnosticsExport: createRuntimeDiagnosticsExportState(),
     runtimeEventChannels: createDebugRuntimeEventChannelsState(),
+    runtimePlugins: createDebugRuntimePluginsState(),
     runtimeToolExecutionMetrics: createDebugRuntimeToolExecutionMetricsState(),
     runtimeToolLifecycle: {
       summary: buildRuntimeToolLifecyclePresentationSummary({
