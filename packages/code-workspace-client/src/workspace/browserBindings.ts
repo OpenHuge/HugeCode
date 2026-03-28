@@ -2,7 +2,6 @@ import {
   CODE_RUNTIME_RPC_METHODS,
   type CodeRuntimeRpcRequestPayloadByMethod,
   type CodeRuntimeRpcResponsePayloadByMethod,
-  type HugeCodeMissionControlSnapshot,
   type KernelProjectionBootstrapRequest,
   type KernelProjectionBootstrapResponse,
   type KernelProjectionDelta,
@@ -28,7 +27,7 @@ import type {
   WorkspaceClientRuntimeGatewayBindings,
   WorkspaceClientRuntimeMode,
 } from "./bindings";
-import { createSnapshotBackedMissionControlSurfaceBindings } from "./missionControlBindings";
+import { createWorkspaceClientRuntimeMissionControlSurfaceBindings } from "./missionControlBindings";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -154,33 +153,6 @@ function parseKernelProjectionDelta(payload: unknown): KernelProjectionDelta | n
       reason: typeof op.reason === "string" ? op.reason : null,
     })),
   };
-}
-
-async function readBrowserMissionControlSnapshot() {
-  try {
-    const bootstrap = await bootstrapBrowserWorkspaceClientKernelProjection({
-      scopes: ["mission_control"],
-    });
-    const missionControl = readMissionControlProjectionSlice(bootstrap);
-    if (missionControl) {
-      return missionControl;
-    }
-  } catch {
-    // Fall through to snapshot v1 when projection bootstrap is unavailable.
-  }
-  return await invokeBrowserWorkspaceRuntime(
-    CODE_RUNTIME_RPC_METHODS.MISSION_CONTROL_SNAPSHOT_V1,
-    {}
-  );
-}
-
-function readMissionControlProjectionSlice(
-  bootstrap: KernelProjectionBootstrapResponse
-): HugeCodeMissionControlSnapshot | null {
-  const missionControl = bootstrap.slices.mission_control;
-  return missionControl && typeof missionControl === "object"
-    ? (missionControl as HugeCodeMissionControlSnapshot)
-    : null;
 }
 
 function openBrowserExternalUrl(url: string, popup: Window | null = null) {
@@ -398,8 +370,10 @@ export function subscribeBrowserWorkspaceClientKernelProjection(
 }
 
 export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRuntimeBindings {
-  const missionControlSurface = createSnapshotBackedMissionControlSurfaceBindings({
-    readMissionControlSnapshot: readBrowserMissionControlSnapshot,
+  const missionControlSurface = createWorkspaceClientRuntimeMissionControlSurfaceBindings({
+    bootstrapKernelProjection: bootstrapBrowserWorkspaceClientKernelProjection,
+    readMissionControlSnapshot: async () =>
+      await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.MISSION_CONTROL_SNAPSHOT_V1, {}),
   });
 
   return {
