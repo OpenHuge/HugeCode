@@ -10,12 +10,16 @@ import { subscribeAppServerEvents } from "../ports/events";
 import type { RuntimeToolExecutionTelemetryEvent } from "../ports/runtimeToolExecutionTelemetry";
 import { subscribeRuntimeToolExecutionTelemetryEvents } from "../ports/runtimeToolExecutionTelemetry";
 import type {
-  RuntimeApprovalLifecycleEvent,
+  RuntimeToolLifecycleAppEventMethod,
   RuntimeToolLifecycleEvent,
-  RuntimeToolLifecycleEventRecord,
   RuntimeToolLifecycleSnapshot,
-  RuntimeToolLifecycleStatus,
-  RuntimeTurnLifecycleEvent,
+} from "../types/runtimeToolLifecycle";
+import {
+  RUNTIME_TOOL_LIFECYCLE_APP_EVENT_METHODS,
+  buildRuntimeToolLifecycleEventId,
+  isRuntimeGuardrailLifecycleStatus,
+  normalizeRuntimeToolLifecycleAppEvent,
+  normalizeRuntimeToolLifecycleStatus,
 } from "../types/runtimeToolLifecycle";
 
 const RUNTIME_TOOL_LIFECYCLE_RECENT_LIMIT = 40;
@@ -28,259 +32,6 @@ type TelemetryEventSubscriber = (
   listener: (event: RuntimeToolExecutionTelemetryEvent) => void
 ) => Unsubscribe;
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-  return value as Record<string, unknown>;
-}
-
-function readString(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function readNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-  return null;
-}
-
-function normalizeLifecycleStatus(value: unknown): RuntimeToolLifecycleStatus | null {
-  const raw = readString(value);
-  if (!raw) {
-    return null;
-  }
-  const normalized = raw.trim().toLowerCase();
-  switch (normalized) {
-    case "allowed":
-    case "approved":
-    case "blocked":
-    case "completed":
-    case "failed":
-    case "interrupted":
-    case "pending":
-    case "rejected":
-    case "runtime_failed":
-    case "success":
-    case "timeout":
-    case "validation_failed":
-      return normalized;
-    case "inprogress":
-    case "in_progress":
-      return "in_progress";
-    default:
-      return null;
-  }
-}
-
-function isApprovalLifecycleStatus(
-  status: RuntimeToolLifecycleStatus | null
-): status is RuntimeApprovalLifecycleEvent["status"] {
-  return (
-    status === "pending" ||
-    status === "approved" ||
-    status === "rejected" ||
-    status === "interrupted"
-  );
-}
-
-function isGuardrailLifecycleStatus(
-  status: RuntimeToolLifecycleStatus | null
-): status is Extract<
-  RuntimeToolLifecycleEvent["status"],
-  "allowed" | "blocked" | "runtime_failed" | "success" | "timeout" | "validation_failed"
-> {
-  return (
-    status === "allowed" ||
-    status === "blocked" ||
-    status === "runtime_failed" ||
-    status === "success" ||
-    status === "timeout" ||
-    status === "validation_failed"
-  );
-}
-
-function readEventAt(params: Record<string, unknown>, fallbackAt: number): number {
-  return (
-    readNumber(params.at) ??
-    readNumber(params.updatedAt) ??
-    readNumber(params.timestamp) ??
-    fallbackAt
-  );
-}
-
-function buildLifecycleEventId(
-  kind: RuntimeToolLifecycleEvent["kind"],
-  phase: RuntimeToolLifecycleEvent["phase"],
-  source: RuntimeToolLifecycleEvent["source"],
-  at: number,
-  suffix: string | null
-): string {
-  return [source, kind, phase, String(at), suffix ?? "na"].join(":");
-}
-
-function createTurnLifecycleEvent(
-  method: "turn/started" | "turn/completed" | "error",
-  event: AppServerEvent,
-  receivedAt: number
-): RuntimeTurnLifecycleEvent | null {
-  const params = getAppServerParams(event);
-  const turnId = readString(params.turnId);
-  if (!turnId) {
-    return null;
-  }
-  const threadId = readString(params.threadId);
-  const at = readEventAt(params, receivedAt);
-  const requestId = getAppServerRequestId(event);
-  const phase =
-    method === "turn/started" ? "started" : method === "turn/completed" ? "completed" : "failed";
-  const status =
-    phase === "started" ? "in_progress" : phase === "completed" ? "completed" : "failed";
-  const errorCode = method === "error" ? readString(asRecord(params.error)?.code) : null;
-
-  return {
-    id: buildLifecycleEventId("turn", phase, "app-event", at, String(requestId ?? turnId)),
-    kind: "turn",
-    phase,
-    source: "app-event",
-    workspaceId: event.workspace_id,
-    threadId,
-    turnId,
-    toolCallId: null,
-    toolName: null,
-    scope: null,
-    status,
-    at,
-    errorCode,
-  };
-}
-
-function createToolLifecycleEventFromAppEvent(
-  method: "item/started" | "item/updated" | "item/completed" | "item/mcpToolCall/progress",
-  event: AppServerEvent,
-  receivedAt: number
-): RuntimeToolLifecycleEventRecord | null {
-  const params = getAppServerParams(event);
-  const item = asRecord(params.item);
-  const itemId = readString(params.itemId) ?? readString(item?.id);
-  const toolName = readString(item?.tool);
-  const toolType = readString(item?.type);
-  if (method !== "item/mcpToolCall/progress" && toolType && toolType !== "mcpToolCall") {
-    return null;
-  }
-  const at = readEventAt(params, receivedAt);
-  const requestId = getAppServerRequestId(event);
-  const status =
-    method === "item/started" || method === "item/updated" || method === "item/mcpToolCall/progress"
-      ? (normalizeLifecycleStatus(item?.status) ?? "in_progress")
-      : (normalizeLifecycleStatus(item?.status) ?? "completed");
-  const phase =
-    method === "item/started"
-      ? "started"
-      : method === "item/updated"
-        ? "updated"
-        : method === "item/mcpToolCall/progress"
-          ? "progress"
-          : "completed";
-
-  return {
-    id: buildLifecycleEventId(
-      "tool",
-      phase,
-      "app-event",
-      at,
-      String(requestId ?? itemId ?? toolName ?? "tool")
-    ),
-    kind: "tool",
-    phase,
-    source: "app-event",
-    workspaceId: event.workspace_id,
-    threadId: readString(params.threadId),
-    turnId: readString(params.turnId),
-    toolCallId: itemId,
-    toolName,
-    scope: null,
-    status,
-    at,
-    errorCode: method === "item/completed" ? readString(item?.errorCode) : null,
-  };
-}
-
-function createApprovalLifecycleEvent(
-  method: "runtime/requestApproval" | "runtime/approvalResolved",
-  event: AppServerEvent,
-  receivedAt: number
-): RuntimeApprovalLifecycleEvent | null {
-  const params = getAppServerParams(event);
-  const approvalId = readString(params.approvalId);
-  if (!approvalId) {
-    return null;
-  }
-  const at = readEventAt(params, receivedAt);
-  const requestId = getAppServerRequestId(event);
-  const phase = method === "runtime/requestApproval" ? "requested" : "resolved";
-  const status =
-    method === "runtime/requestApproval"
-      ? "pending"
-      : (normalizeLifecycleStatus(params.status) ?? normalizeLifecycleStatus(params.decision));
-  if (!isApprovalLifecycleStatus(status)) {
-    return null;
-  }
-
-  return {
-    id: buildLifecycleEventId("approval", phase, "app-event", at, String(requestId ?? approvalId)),
-    kind: "approval",
-    phase,
-    source: "app-event",
-    workspaceId: event.workspace_id,
-    threadId: readString(params.threadId),
-    turnId: readString(params.turnId),
-    toolCallId: null,
-    toolName: readString(params.action) ?? readString(params.command),
-    scope: null,
-    status,
-    at,
-    errorCode: null,
-    approvalId,
-  };
-}
-
-function normalizeRuntimeToolLifecycleAppEvent(
-  event: AppServerEvent,
-  receivedAt: number
-): RuntimeToolLifecycleEvent | null {
-  const method = getAppServerRawMethod(event);
-  if (!method) {
-    return null;
-  }
-  if (method === "turn/started" || method === "turn/completed" || method === "error") {
-    return createTurnLifecycleEvent(method, event, receivedAt);
-  }
-  if (
-    method === "item/started" ||
-    method === "item/updated" ||
-    method === "item/completed" ||
-    method === "item/mcpToolCall/progress"
-  ) {
-    return createToolLifecycleEventFromAppEvent(method, event, receivedAt);
-  }
-  if (method === "runtime/requestApproval" || method === "runtime/approvalResolved") {
-    return createApprovalLifecycleEvent(method, event, receivedAt);
-  }
-  return null;
-}
-
 function normalizeRuntimeToolLifecycleTelemetryEvent(
   event: RuntimeToolExecutionTelemetryEvent
 ): RuntimeToolLifecycleEvent | null {
@@ -290,9 +41,9 @@ function normalizeRuntimeToolLifecycleTelemetryEvent(
         ? "pending"
         : event.phase === "started"
           ? "in_progress"
-          : normalizeLifecycleStatus(event.status);
+          : normalizeRuntimeToolLifecycleStatus(event.status);
     return {
-      id: buildLifecycleEventId(
+      id: buildRuntimeToolLifecycleEventId(
         "tool",
         event.phase,
         "telemetry",
@@ -315,7 +66,7 @@ function normalizeRuntimeToolLifecycleTelemetryEvent(
   }
   if (event.kind === "guardrail_evaluated") {
     return {
-      id: buildLifecycleEventId(
+      id: buildRuntimeToolLifecycleEventId(
         "guardrail",
         "evaluated",
         "telemetry",
@@ -338,12 +89,12 @@ function normalizeRuntimeToolLifecycleTelemetryEvent(
     };
   }
   if (event.kind === "guardrail_outcome") {
-    const status = normalizeLifecycleStatus(event.status);
-    if (!isGuardrailLifecycleStatus(status)) {
+    const status = normalizeRuntimeToolLifecycleStatus(event.status);
+    if (!isRuntimeGuardrailLifecycleStatus(status)) {
       return null;
     }
     return {
-      id: buildLifecycleEventId(
+      id: buildRuntimeToolLifecycleEventId(
         "guardrail",
         "outcome",
         "telemetry",
@@ -426,7 +177,22 @@ export function createRuntimeToolLifecycleStore(
     }
 
     appServerUnsubscribe = subscribeToAppServerEvents((event) => {
-      const normalized = normalizeRuntimeToolLifecycleAppEvent(event, Date.now());
+      const method = getAppServerRawMethod(event);
+      if (
+        !method ||
+        !RUNTIME_TOOL_LIFECYCLE_APP_EVENT_METHODS.includes(
+          method as RuntimeToolLifecycleAppEventMethod
+        )
+      ) {
+        return;
+      }
+      const normalized = normalizeRuntimeToolLifecycleAppEvent({
+        workspaceId: event.workspace_id,
+        requestId: getAppServerRequestId(event),
+        method: method as RuntimeToolLifecycleAppEventMethod,
+        params: getAppServerParams(event),
+        receivedAt: Date.now(),
+      });
       if (normalized) {
         publish(normalized);
       }

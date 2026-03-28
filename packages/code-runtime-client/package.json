@@ -97,6 +97,10 @@
       "types": "./src/runtimeEventStateMachine.ts",
       "default": "./src/runtimeEventStateMachine.ts"
     },
+    "./runtimeToolLifecycle": {
+      "types": "./src/runtimeToolLifecycle.ts",
+      "default": "./src/runtimeToolLifecycle.ts"
+    },
     "./webMcpToolInputSchemaValidation": {
       "types": "./src/webMcpToolInputSchemaValidation.ts",
       "default": "./src/webMcpToolInputSchemaValidation.ts"
