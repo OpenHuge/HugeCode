@@ -202,6 +202,7 @@ export function useThreadCodexControls({
   const [preferredFastMode, setPreferredFastMode] = useState(false);
   const [preferredCollabModeId, setPreferredCollabModeId] = useState<string | null>(null);
   const [threadCodexSelectionKey, setThreadCodexSelectionKey] = useState<string | null>(null);
+  const [autoSelectionNeedsVision, setAutoSelectionNeedsVision] = useState(false);
   const [composerAccountOptions, setComposerAccountOptions] = useState<ComposerAccountOption[]>([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [executionMode, setExecutionMode] = useState<ComposerExecutionMode>("runtime");
@@ -239,6 +240,7 @@ export function useThreadCodexControls({
     selectionMode,
     preferredProviderId: preferredProviderFamilyId,
     selectionKey: threadCodexSelectionKey,
+    autoSelectionRequirements: autoSelectionNeedsVision ? { requiresVision: true } : null,
   });
 
   const {
@@ -1029,6 +1031,7 @@ export function useThreadCodexControls({
     selectedModelId,
     selectedProviderId,
     selectedRemoteBackendId: missionDraft.preferredBackendIds?.[0] ?? null,
+    setAutoSelectionNeedsVision,
     setAccessMode,
     setPreferredCollabModeId,
     setPreferredEffort,

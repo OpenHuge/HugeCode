@@ -70,6 +70,7 @@ export function mergeModelsWithProviderCatalogMetadata(
       providerReadinessKind: catalogEntry.readinessKind ?? null,
       providerReadinessMessage: catalogEntry.readinessMessage ?? null,
       executionKind: catalogEntry.executionKind ?? null,
+      providerCapabilityMatrix: catalogEntry.capabilityMatrix ?? null,
       available: model.available !== false && catalogEntry.available !== false,
       supportedReasoningEfforts,
       defaultReasoningEffort,

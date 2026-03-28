@@ -19,6 +19,7 @@ import {
   supportsModelReasoning,
 } from "../utils/modelOptionCapabilities";
 import {
+  type AutoSelectionRequirements,
   buildModelProviderOptions,
   resolveAutoModelProviderSelection,
 } from "../utils/modelProviderSelection";
@@ -32,6 +33,7 @@ type UseModelsOptions = {
   selectionMode?: ComposerModelSelectionMode | null;
   preferredProviderId?: ModelProviderFamilyId | string | null;
   selectionKey?: string | null;
+  autoSelectionRequirements?: AutoSelectionRequirements | null;
 };
 
 const GLOBAL_MODEL_SCOPE_ID = "__global__";
@@ -174,6 +176,7 @@ export function useModels({
   selectionMode = "manual",
   preferredProviderId = null,
   selectionKey = null,
+  autoSelectionRequirements = null,
 }: UseModelsOptions) {
   const [models, setModels] = useState<ModelOption[]>(() => createBootstrapModelOptions());
   const [configModel, setConfigModel] = useState<string | null>(null);
@@ -431,7 +434,8 @@ export function useModels({
                   defaultModel?.id ??
                   existingSelectionUsable?.id ??
                   existingSelection?.id ??
-                  null
+                  null,
+                autoSelectionRequirements
               );
               return (
                 findModelByIdOrModel(resolvedModels, autoSelection.modelId) ??
@@ -483,6 +487,7 @@ export function useModels({
     onDebug,
     preferredModelId,
     preferredProviderId,
+    autoSelectionRequirements,
     selectionMode,
     selectedEffort,
     selectedModelId,
@@ -583,7 +588,8 @@ export function useModels({
                 defaultModel?.id ??
                 existingSelectionUsable?.id ??
                 existingSelection?.id ??
-                null
+                null,
+              autoSelectionRequirements
             );
             return (
               findModelByIdOrModel(models, autoSelection.modelId) ??
@@ -614,6 +620,7 @@ export function useModels({
     models,
     preferredModelId,
     preferredProviderId,
+    autoSelectionRequirements,
     selectedEffort,
     selectedModelId,
     selectionMode,

@@ -8,6 +8,7 @@ import type {
   GitWorkflowBranch,
   GitWorkflowStatusResult,
   RuntimeModelCapabilityMatrix,
+  RuntimeProviderCapabilityMatrix,
 } from "@ku0/code-runtime-host-contract";
 import type { DistributedTaskGraphSnapshot } from "./features/plan/types/distributedGraph";
 
@@ -815,6 +816,7 @@ export type ModelOption = {
   supportedReasoningEfforts: { reasoningEffort: string; description: string }[];
   defaultReasoningEffort: string | null;
   capabilityMatrix?: RuntimeModelCapabilityMatrix | null;
+  providerCapabilityMatrix?: RuntimeProviderCapabilityMatrix | null;
   isDefault: boolean;
 };
 

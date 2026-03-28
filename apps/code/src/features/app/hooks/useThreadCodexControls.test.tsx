@@ -1072,4 +1072,43 @@ describe("useThreadCodexControls", () => {
       preferredBackendIds: ["backend-remote-a"],
     });
   });
+
+  it("passes the auto vision requirement through to useModels when requested", async () => {
+    detectRuntimeModeMock.mockReturnValue("runtime-gateway-web");
+    runCodexDoctorMock.mockResolvedValue({
+      ok: true,
+      codexBin: "codex",
+      version: "1.2.3",
+      appServerOk: true,
+      details: null,
+      path: null,
+      nodeOk: true,
+      nodeVersion: "v22.0.0",
+      nodeDetails: null,
+    });
+
+    const { result } = createHook();
+
+    await waitFor(() => {
+      expect(useModelsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          autoSelectionRequirements: null,
+        })
+      );
+    });
+
+    act(() => {
+      result.current.setAutoSelectionNeedsVision(true);
+    });
+
+    await waitFor(() => {
+      expect(useModelsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          autoSelectionRequirements: {
+            requiresVision: true,
+          },
+        })
+      );
+    });
+  });
 });

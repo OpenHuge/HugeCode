@@ -32,6 +32,7 @@ const conversationState = {
     isPlanReadyAwaitingResponse: false,
   },
   composerState: {
+    activeImages: [],
     clearDraftForThread: vi.fn(),
     removeImagesForThread: vi.fn(),
     setPrefillDraft: vi.fn(),
@@ -111,6 +112,7 @@ function createInput() {
       collaborationModes: [],
       resolvedModel: null,
       resolvedEffort: null,
+      setAutoSelectionNeedsVision: vi.fn(),
       setSelectedCollaborationModeId: vi.fn(),
     },
     projectDomain: {
@@ -224,5 +226,32 @@ describe("useDesktopWorkspaceConversationDomain", () => {
       conversationState,
       mainAppHandlers,
     });
+  });
+
+  it("syncs composer image attachments into the auto vision selection hint", () => {
+    const localConversationState = {
+      ...conversationState,
+      composerState: {
+        ...conversationState.composerState,
+        activeImages: ["/tmp/screenshot.png"],
+      },
+    };
+    vi.mocked(useMainAppConversationState).mockReturnValue(
+      localConversationState as ReturnType<typeof useMainAppConversationState>
+    );
+    vi.mocked(useMainAppHandlers).mockReturnValue(
+      mainAppHandlers as ReturnType<typeof useMainAppHandlers>
+    );
+
+    const input = createInput();
+    const setAutoSelectionNeedsVision = vi.fn();
+    input.threadCodexState = {
+      ...input.threadCodexState,
+      setAutoSelectionNeedsVision,
+    };
+
+    renderHook(() => useDesktopWorkspaceConversationDomain(input));
+
+    expect(setAutoSelectionNeedsVision).toHaveBeenCalledWith(true);
   });
 });

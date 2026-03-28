@@ -72,5 +72,45 @@ describe("providerCatalogMetadata", () => {
       maxContextTokens: 64000,
       supportedReasoningEfforts: [],
     });
+    expect(merged.providerCapabilityMatrix).toEqual({
+      supportsTools: "unknown",
+      supportsReasoningEffort: "unsupported",
+      supportsVision: "unknown",
+      supportsJsonSchema: "unknown",
+      maxContextTokens: 64000,
+      supportedReasoningEfforts: [],
+    });
+  });
+
+  it("preserves model-unknown support while exposing provider support for routing hints", () => {
+    const [merged] = mergeModelsWithProviderCatalogMetadata(
+      [
+        createModelOption({
+          capabilityMatrix: {
+            supportsTools: "unknown",
+            supportsReasoningEffort: "unknown",
+            supportsVision: "unknown",
+            supportsJsonSchema: "unknown",
+            maxContextTokens: null,
+            supportedReasoningEfforts: [],
+          },
+        }),
+      ],
+      [
+        createProviderCatalogEntry({
+          capabilityMatrix: {
+            supportsTools: "supported",
+            supportsReasoningEffort: "supported",
+            supportsVision: "supported",
+            supportsJsonSchema: "supported",
+            maxContextTokens: 200000,
+            supportedReasoningEfforts: ["high"],
+          },
+        }),
+      ]
+    );
+
+    expect(merged.capabilityMatrix?.supportsVision).toBe("unknown");
+    expect(merged.providerCapabilityMatrix?.supportsVision).toBe("supported");
   });
 });

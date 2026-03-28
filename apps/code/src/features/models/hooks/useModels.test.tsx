@@ -684,6 +684,102 @@ describe("useModels", () => {
     expect(result.current.selectedModel?.provider).toBe("anthropic");
   });
 
+  it("overrides the preferred provider in auto mode when the current task requires vision", async () => {
+    vi.mocked(getModelList).mockResolvedValueOnce({
+      result: {
+        data: [
+          {
+            id: "openai::gpt-5.4",
+            model: "gpt-5.4",
+            displayName: "GPT-5.4",
+            provider: "openai",
+            pool: "codex",
+            available: true,
+            supportedReasoningEfforts: [{ reasoningEffort: "high", description: "High" }],
+            defaultReasoningEffort: "high",
+            isDefault: true,
+          },
+          {
+            id: "anthropic::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            provider: "anthropic",
+            pool: "claude",
+            available: true,
+            supportedReasoningEfforts: [{ reasoningEffort: "high", description: "High" }],
+            defaultReasoningEffort: "high",
+            isDefault: false,
+          },
+        ],
+      },
+    });
+    vi.mocked(getConfigModel).mockResolvedValueOnce(null);
+    getProvidersCatalogMock.mockResolvedValueOnce([
+      {
+        providerId: "openai",
+        displayName: "Codex",
+        pool: "codex",
+        oauthProviderId: "codex",
+        aliases: ["openai", "codex"],
+        defaultModelId: "openai::gpt-5.4",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        readinessKind: "ready",
+        readinessMessage: null,
+        executionKind: "cloud",
+        registryVersion: "test",
+        capabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "unsupported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: ["high"],
+        },
+      },
+      {
+        providerId: "anthropic",
+        displayName: "Claude Code",
+        pool: "claude",
+        oauthProviderId: "claude_code",
+        aliases: ["claude", "claude_code"],
+        defaultModelId: "anthropic::claude-sonnet-4-5",
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        readinessKind: "ready",
+        readinessMessage: null,
+        executionKind: "cloud",
+        registryVersion: "test",
+        capabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "supported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 200000,
+          supportedReasoningEfforts: ["high"],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useModels({
+        activeWorkspace: workspace,
+        selectionMode: "auto",
+        preferredProviderId: "codex",
+        autoSelectionRequirements: {
+          requiresVision: true,
+        },
+      })
+    );
+
+    await waitFor(() =>
+      expect(result.current.selectedModelId).toBe("anthropic::claude-sonnet-4-5")
+    );
+    expect(result.current.selectedModel?.provider).toBe("anthropic");
+  });
+
   it("keeps the selected reasoning effort when switching models", async () => {
     vi.mocked(getModelList).mockResolvedValueOnce({
       result: {
