@@ -60,7 +60,7 @@ export function buildWebMcpResources(
   snapshot: AgentCommandCenterSnapshot,
   options?: WebMcpContextDescriptorOptions
 ): WebMcpResourceDescriptor[] {
-  const baseUri = `hypecode://workspace/${encodeURIComponent(snapshot.workspaceId)}`;
+  const baseUri = `hugecode://workspace/${encodeURIComponent(snapshot.workspaceId)}`;
   const runtimeDiscoveryResource = buildRuntimeToolDiscoveryResource(baseUri, options);
 
   return [

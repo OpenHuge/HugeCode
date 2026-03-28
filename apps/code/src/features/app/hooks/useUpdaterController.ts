@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
 import { subscribeUpdaterCheck } from "../../../application/runtime/ports/events";
-import { sendNotification } from "../../../application/runtime/ports/tauriNotifications";
+import { sendNotification } from "../../../application/runtime/ports/desktopNotifications";
 import type { DebugEntry } from "../../../types";
 import { playNotificationSound } from "../../../utils/notificationSounds";
 import { useWindowFocusState } from "../../layout/hooks/useWindowFocusState";

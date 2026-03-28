@@ -4,8 +4,10 @@
 
 ### 1. Shared client ownership is incomplete
 
-- `packages/code-runtime-client` exists, but `apps/code/src/services/runtimeClient*.ts` still contains neighboring app-owned behavior beside the extracted client package.
-- `packages/code-runtime-webmcp-client` exists, but `apps/code/src/services/webMcpBridge*.ts` still contains app-owned behavior wiring even after type/helper shims were deleted.
+- Resolved for the runtime-client and core WebMCP ownership seam.
+- `packages/code-runtime-client` now owns the shared RPC client construction that previously remained adjacent in `apps/code/src/services/runtimeClient*.ts`.
+- `packages/code-runtime-webmcp-client` now owns the canonical WebMCP descriptors, tool-name catalogs, read tools, and shared agent-control helper logic.
+- `apps/code` keeps only host binding, app runtime composition, and runtime-specific invalidation/tool wiring on this seam.
 
 ### 2. Public contract naming split is resolved
 
@@ -32,14 +34,14 @@
 
 - `codeRuntimeRpcCompat`
   Still public and broad.
-- deprecated Tauri aggregation surfaces are blocked by tests, which is good, but their existence shows the repo is still carrying compatibility cleanup work.
+- deprecated desktop-host aggregation surfaces are blocked by tests, which is good, but their existence shows the repo is still carrying compatibility cleanup work.
 
 ## Suspicious Layering
 
 - `apps/code/src/application/runtime/facades/*`
   Large and numerous. Some are correct app-facing facades; some still compensate for missing canonical projections or naming cleanup.
 - `apps/code/src/services/*`
-  Wide runtime/Tauri/WebMCP layer. Too much system knowledge still sits under the app.
+  Wide runtime/desktop-host/WebMCP layer. Too much system knowledge still sits under the app.
 - `packages/code-runtime-service-rs/src/lib.rs`
   Very broad import surface, which suggests runtime subsystems are still coupled at the top level.
 
@@ -55,4 +57,4 @@
 
 ## Immediate Deletion Candidates
 
-- any Tauri adapter code that still normalizes runtime-domain errors or state instead of forwarding canonical contracts
+- any legacy desktop-host adapter code that still normalizes runtime-domain errors or state instead of forwarding canonical contracts

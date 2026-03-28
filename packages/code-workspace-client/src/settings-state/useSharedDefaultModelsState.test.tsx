@@ -2,7 +2,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SettingsShellFraming, WorkspaceClientBindings } from "../index";
+import type { SettingsShellFraming } from "../settings-shell/settingsShellTypes";
+import type { WorkspaceClientBindings } from "../workspace/bindings";
 import { WorkspaceClientBindingsProvider } from "../workspace/WorkspaceClientBindingsProvider";
 import { useSharedDefaultModelsState } from "./useSharedDefaultModelsState";
 
@@ -75,17 +76,15 @@ function createBindings(
         startRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        cancelRuntimeJob: async () => {
+        cancelRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        resumeRuntimeJob: async () => {
+        resumeRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        interveneRuntimeJob: async () => {
+        interveneRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        subscribeRuntimeJob: async () => null,
-        listRuntimeJobs: async () => [],
         submitRuntimeJobApprovalDecision: async () => {
           throw new Error("not implemented");
         },

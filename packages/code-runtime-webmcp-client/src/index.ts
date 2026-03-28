@@ -8,6 +8,19 @@ export {
   supportsWebMcp,
 } from "./webMcpBridgeModelContextApi";
 export { buildWebMcpPrompts, buildWebMcpResources } from "./webMcpBridgeContextDescriptors";
+export {
+  buildAgentControlWriteTools,
+  buildResponse,
+  confirmWriteAction,
+  normalizeRuntimeAccessMode,
+  normalizeRuntimeExecutionMode,
+  normalizeRuntimeReasonEffort,
+  normalizeRuntimeStepKind,
+  normalizeRuntimeTaskStatus,
+  toNonEmptyString,
+  toPositiveInteger,
+  toStringArray,
+} from "./webMcpAgentControlCatalog";
 export { buildReadTools } from "./webMcpBridgeReadTools";
 export {
   AGENT_CONTROL_TOOL_NAMES,

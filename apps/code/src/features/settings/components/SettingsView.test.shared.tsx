@@ -21,7 +21,7 @@ import {
   upsertOAuthAccount,
   upsertOAuthPool,
 } from "../../../application/runtime/ports/tauriOauth";
-import { ask, open } from "../../../application/runtime/ports/tauriDialogs";
+import { ask, open } from "../../../application/runtime/ports/desktopHostDialogs";
 import { getModelList } from "../../../application/runtime/ports/tauriModels";
 import { listWorkspaces } from "../../../application/runtime/ports/tauriWorkspaceCatalog";
 import {
@@ -48,12 +48,12 @@ import type { AppSettings, RemoteBackendProfile, WorkspaceInfo } from "../../../
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "../../../utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
 
-vi.mock("../../../application/runtime/ports/tauriDialogs", () => ({
+vi.mock("../../../application/runtime/ports/desktopHostDialogs", () => ({
   ask: vi.fn(),
   open: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriAppSettings", () => ({
+vi.mock("../../../application/runtime/ports/desktopAppSettings", () => ({
   getAppSettings: vi.fn(),
   updateAppSettings: vi.fn(),
 }));
@@ -165,7 +165,7 @@ export const listWorkspacesMock = vi.mocked(listWorkspaces);
 export const askMock = vi.mocked(ask);
 export const openMock = vi.mocked(open);
 
-import { getAppSettings } from "../../../application/runtime/ports/tauriAppSettings";
+import { getAppSettings } from "../../../application/runtime/ports/desktopAppSettings";
 export const getAppSettingsMock = vi.mocked(getAppSettings);
 
 const desktopSettingsShellFraming: SettingsShellFraming = {
@@ -238,17 +238,15 @@ function createWorkspaceClientBindings(): WorkspaceClientBindings {
         startRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        cancelRuntimeJob: async () => {
+        cancelRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        resumeRuntimeJob: async () => {
+        resumeRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        interveneRuntimeJob: async () => {
+        interveneRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        subscribeRuntimeJob: async () => null,
-        listRuntimeJobs: async () => [],
         submitRuntimeJobApprovalDecision: async () => {
           throw new Error("not implemented");
         },

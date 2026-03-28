@@ -4,12 +4,17 @@ import {
   useWorkspaceClientBindings,
   useWorkspaceClientRuntimeMode,
 } from "../workspace/WorkspaceClientBindingsProvider";
+import type { SharedWorkspaceShellState } from "./sharedWorkspaceShellContracts";
+import {
+  composeSharedWorkspaceShellState,
+  deriveSharedWorkspaceShellFrameState,
+} from "./sharedWorkspaceShellComposition";
 import type { SharedWorkspaceShellSection } from "./workspaceNavigation";
 import { useSharedHostStartupStatusState } from "./useSharedHostStartupStatusState";
 import { useSharedMissionControlSummaryState } from "./useSharedMissionControlSummaryState";
 import { useSharedWorkspaceCatalogState } from "./useSharedWorkspaceCatalogState";
 
-export function useSharedWorkspaceShellState() {
+export function useSharedWorkspaceShellState(): SharedWorkspaceShellState {
   const bindings = useWorkspaceClientBindings();
   const catalogState = useSharedWorkspaceCatalogState();
   const runtimeMode = useWorkspaceClientRuntimeMode();
@@ -22,30 +27,28 @@ export function useSharedWorkspaceShellState() {
     () => bindings.navigation.getAccountCenterHref?.() ?? null,
     [bindings.navigation]
   );
-  const activeSection: SharedWorkspaceShellSection =
-    routeSelection.kind === "none"
-      ? "home"
-      : routeSelection.kind === "workspace"
-        ? "workspaces"
-        : routeSelection.kind;
   const [shellBackgroundActivationRequested, setShellBackgroundActivationRequested] = useState(
-    () => activeSection === "missions" || activeSection === "review"
+    () => routeSelection.kind === "missions" || routeSelection.kind === "review"
   );
   const shellBackgroundActivated = useDeferredActivation({
     enabled: !shellBackgroundActivationRequested,
     idleTimeoutMs: 250,
     fallbackDelayMs: 250,
   });
-  const shellBackgroundEnabled =
-    shellBackgroundActivationRequested ||
-    activeSection === "missions" ||
-    activeSection === "review" ||
-    shellBackgroundActivated;
+  const frameState = deriveSharedWorkspaceShellFrameState({
+    runtimeMode,
+    platformHint: bindings.host.shell.platformHint ?? bindings.host.platform,
+    routeSelection,
+    activationRequested: shellBackgroundActivationRequested,
+    activationDeferred: shellBackgroundActivated,
+    accountHref,
+    settingsFraming: bindings.platformUi.settingsShellFraming,
+  });
   const missionControlState = useSharedMissionControlSummaryState(catalogState.activeWorkspaceId, {
-    enabled: shellBackgroundEnabled,
+    enabled: frameState.backgroundEnabled,
   });
   const hostStartupState = useSharedHostStartupStatusState(bindings.host, {
-    enabled: shellBackgroundEnabled,
+    enabled: frameState.backgroundEnabled,
   });
   const navigateToSection = useCallback(
     (section: SharedWorkspaceShellSection) => {
@@ -66,30 +69,17 @@ export function useSharedWorkspaceShellState() {
     return hostStartupState.refresh();
   }, [hostStartupState.refresh]);
 
-  return {
-    runtimeMode,
-    platformHint: bindings.host.shell.platformHint ?? bindings.host.platform,
-    routeSelection,
-    activeSection,
-    workspaces: catalogState.workspaces,
-    activeWorkspaceId: catalogState.activeWorkspaceId,
-    activeWorkspace: catalogState.activeWorkspace,
-    hasPendingWorkspaceSelection: catalogState.hasPendingWorkspaceSelection,
-    workspaceLoadState: catalogState.loadState,
-    workspaceError: catalogState.error,
-    refreshWorkspaces: catalogState.refresh,
-    selectWorkspace: catalogState.selectWorkspace,
+  return composeSharedWorkspaceShellState({
+    frameState,
+    catalogState,
+    missionControlState: {
+      ...missionControlState,
+      refresh: refreshMissionSummary,
+    },
+    hostStartupState: {
+      ...hostStartupState,
+      refresh: refreshHostStartupStatus,
+    },
     navigateToSection,
-    missionSummary: missionControlState.summary,
-    missionSnapshot: missionControlState.snapshot,
-    missionLoadState: missionControlState.loadState,
-    missionError: missionControlState.error,
-    refreshMissionSummary,
-    hostStartupStatus: hostStartupState.status,
-    hostStartupLoadState: hostStartupState.loadState,
-    hostStartupError: hostStartupState.error,
-    refreshHostStartupStatus,
-    accountHref,
-    settingsFraming: bindings.platformUi.settingsShellFraming,
-  };
+  });
 }

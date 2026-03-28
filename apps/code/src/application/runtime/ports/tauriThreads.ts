@@ -4,7 +4,7 @@ export {
   generateRunMetadata,
   listMcpServerStatus,
   setThreadName,
-} from "../../../services/tauriDesktopRpc";
+} from "../../../services/desktopHostRpc";
 export {
   REVIEW_START_DESKTOP_ONLY_MESSAGE,
   rememberApprovalRule,
@@ -13,7 +13,7 @@ export {
   respondToToolCallRequest,
   respondToUserInputRequest,
   startReview,
-} from "../../../services/tauriDesktopReview";
+} from "../../../services/desktopHostReview";
 export { getGitLog, listGitBranches } from "../../../services/tauriRuntimeGitBridge";
 export { sendUserMessage, steerTurn } from "../../../services/tauriRuntimeTurnBridge";
 export { prepareRuntimeRunV2 } from "./tauriRuntimeJobs";

@@ -175,7 +175,7 @@ Set CODE_RUNTIME_SERVICE_AGENT_SESSION_MAX_CONCURRENCY to raise the cap."
     )
     .await;
     let runtime_updated_scope =
-        runtime_update_scope_for_method("code_runtime_run_start").unwrap_or(&["agents", "threads"]);
+        runtime_update_scope_for_method("code_runtime_run_start_v2").unwrap_or(&["agents", "threads"]);
     publish_runtime_updated_event_at(
         ctx,
         runtime_updated_scope,

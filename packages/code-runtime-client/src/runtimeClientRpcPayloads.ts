@@ -2,9 +2,6 @@ import {
   type AcpIntegrationProbeRequest,
   type AcpIntegrationSetStateRequest,
   type AcpIntegrationUpsertInput,
-  type KernelJobCallbackRegistrationV3,
-  type KernelJobCallbackRemoveRequestV3,
-  type KernelJobGetRequestV3,
   type RuntimeBrowserDebugRunRequest,
   type RuntimeBrowserDebugStatusRequest,
   type RuntimeRunCancelRequest,
@@ -15,7 +12,6 @@ import {
   type RuntimeRunsListRequest,
   type RuntimeRunResumeRequest,
   type RuntimeRunStartRequest,
-  type RuntimeRunSubscribeRequest,
   type RuntimeReviewGetV2Request,
   type RuntimeCodexCloudTasksListRequest,
   type RuntimeCodexDoctorRequest,
@@ -178,41 +174,12 @@ function toCompatRuntimeRunResumePayload(payload: RuntimeRunResumeRequest) {
   return withCanonicalPayload({ ...payload });
 }
 
-function toCompatRuntimeRunSubscribePayload(payload: RuntimeRunSubscribeRequest) {
-  return withCanonicalPayload({ ...payload });
-}
-
 function toCompatRuntimeRunGetV2Payload(payload: RuntimeRunGetV2Request) {
   return withCanonicalPayload({ ...payload });
 }
 
 function toCompatRuntimeReviewGetV2Payload(payload: RuntimeReviewGetV2Request) {
   return withCanonicalPayload({ ...payload });
-}
-
-function toCompatKernelJobGetPayload(payload: KernelJobGetRequestV3) {
-  return withCanonicalPayload({
-    ...payload,
-    jobId: payload.jobId,
-  });
-}
-
-function toCompatKernelJobCallbackRegistrationPayload(payload: KernelJobCallbackRegistrationV3) {
-  return withCanonicalPayload({
-    ...payload,
-    workspaceId: payload.workspaceId ?? null,
-    jobId: payload.jobId ?? null,
-    mode: payload.mode ?? "callback",
-    callbackUrl: payload.callbackUrl ?? null,
-    secret: payload.secret ?? null,
-  });
-}
-
-function toCompatKernelJobCallbackRemovePayload(payload: KernelJobCallbackRemoveRequestV3) {
-  return withCanonicalPayload({
-    ...payload,
-    callbackId: payload.callbackId,
-  });
 }
 
 function toCompatRuntimeRunsListPayload(payload: RuntimeRunsListRequest) {
@@ -421,26 +388,14 @@ export const RUNTIME_RPC_PAYLOAD_REGISTRY = Object.freeze({
   turnSend: toCompatTurnSendPayload,
   turnInterrupt: toCompatTurnInterruptPayload,
   runtimeRunPrepareV2: toCompatRuntimeRunPrepareV2Payload,
-  runtimeRunStart: toCompatRuntimeRunStartPayload,
   runtimeRunStartV2: toCompatRuntimeRunStartPayload,
-  runtimeRunIntervene: toCompatRuntimeRunInterventionPayload,
   runtimeRunInterveneV2: toCompatRuntimeRunInterventionPayload,
-  runtimeRunCancel: toCompatRuntimeRunCancelPayload,
-  runtimeRunResume: toCompatRuntimeRunResumePayload,
+  runtimeRunCancelV2: toCompatRuntimeRunCancelPayload,
   runtimeRunResumeV2: toCompatRuntimeRunResumePayload,
-  runtimeRunSubscribe: toCompatRuntimeRunSubscribePayload,
   runtimeRunGetV2: toCompatRuntimeRunGetV2Payload,
   runtimeRunSubscribeV2: toCompatRuntimeRunGetV2Payload,
   runtimeReviewGetV2: toCompatRuntimeReviewGetV2Payload,
   runtimeRunsList: toCompatRuntimeRunsListPayload,
-  kernelJobStartV3: toCompatRuntimeRunStartPayload,
-  kernelJobGetV3: toCompatKernelJobGetPayload,
-  kernelJobCancelV3: toCompatRuntimeRunCancelPayload,
-  kernelJobResumeV3: toCompatRuntimeRunResumePayload,
-  kernelJobInterveneV3: toCompatRuntimeRunInterventionPayload,
-  kernelJobSubscribeV3: toCompatRuntimeRunSubscribePayload,
-  kernelJobCallbackRegisterV3: toCompatKernelJobCallbackRegistrationPayload,
-  kernelJobCallbackRemoveV3: toCompatKernelJobCallbackRemovePayload,
   runtimeRunCheckpointApproval: toCompatRuntimeRunCheckpointApprovalPayload,
   subAgentSpawn: toCompatSubAgentSpawnPayload,
   subAgentSend: toCompatSubAgentSendPayload,

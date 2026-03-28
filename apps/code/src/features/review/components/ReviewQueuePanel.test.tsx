@@ -182,12 +182,15 @@ describe("ReviewQueuePanel", () => {
 
     const panel = screen.getAllByTestId("review-queue-panel").at(-1);
     expect(panel).toBeTruthy();
-    expect(within(panel!).getAllByText(/mission triage/i).length).toBeGreaterThan(0);
-    expect(within(panel!).getAllByText("Sub-agent blocked").length).toBeGreaterThan(0);
-    expect(within(panel!).getAllByText("Relaunch available").length).toBeGreaterThan(0);
-    expect(within(panel!).getByRole("button", { name: "Selected" })).toBeTruthy();
+    if (!panel) {
+      throw new Error("Expected review queue panel");
+    }
+    expect(within(panel).getAllByText(/mission triage/i).length).toBeGreaterThan(0);
+    expect(within(panel).getAllByText("Sub-agent blocked").length).toBeGreaterThan(0);
+    expect(within(panel).getAllByText("Relaunch available").length).toBeGreaterThan(0);
+    expect(within(panel).getByRole("button", { name: "Selected" })).toBeTruthy();
 
-    fireEvent.click(within(panel!).getByRole("button", { name: /Fallback routing/ }));
+    fireEvent.click(within(panel).getByRole("button", { name: /Fallback routing/ }));
 
     expect(screen.getByText("Fallback routing review")).toBeTruthy();
     expect(screen.queryByText("Blocked runtime mission")).toBeNull();
@@ -261,7 +264,122 @@ describe("ReviewQueuePanel", () => {
     expect(
       screen.getByText("Autofix available").closest('[data-status-tone="progress"]')
     ).toBeTruthy();
+    expect(screen.getAllByText("Blocked follow-up").length).toBeGreaterThan(0);
     expect(screen.getByText("Follow-up source: Runtime checkpoint")).toBeTruthy();
     expect(screen.getAllByTestId("review-summary-card").length).toBeGreaterThan(0);
+  });
+
+  it("prioritizes critical review items and supports critical/autofix filters", () => {
+    render(
+      <ReviewQueuePanel
+        items={[
+          {
+            id: "review-pack:task-standard",
+            kind: "review_pack",
+            taskId: "runtime-task:task-standard",
+            runId: "task-standard",
+            reviewPackId: "review-pack:task-standard",
+            workspaceId: "workspace-1",
+            title: "Standard review item",
+            summary: "A normal review-ready mission.",
+            createdAt: Date.now() - 5_000,
+            state: "reviewReady",
+            validationOutcome: "pass",
+            warningCount: 0,
+            recommendedNextAction: null,
+            accountabilityLifecycle: "in_review",
+            queueEnteredAt: Date.now() - 5_000,
+            filterTags: [],
+            navigationTarget: {
+              kind: "mission",
+              workspaceId: "workspace-1",
+              taskId: "runtime-task:task-standard",
+              runId: "task-standard",
+              reviewPackId: "review-pack:task-standard",
+              threadId: null,
+              limitation: "thread_unavailable",
+            },
+            secondaryLabel: "Runtime-managed mission",
+            evidenceLabel: "Runtime evidence only",
+            operatorSignal: null,
+            attentionSignals: [],
+            failureClassLabel: null,
+            subAgentSignal: null,
+            publishHandoffLabel: null,
+            relaunchLabel: null,
+          },
+          {
+            id: "review-pack:task-critical",
+            kind: "review_pack",
+            taskId: "runtime-task:task-critical",
+            runId: "task-critical",
+            reviewPackId: "review-pack:task-critical",
+            workspaceId: "workspace-1",
+            title: "Critical review item",
+            summary: "The review gate is blocked and autofix is available.",
+            createdAt: Date.now() - 60_000,
+            state: "reviewReady",
+            validationOutcome: "warning",
+            warningCount: 2,
+            recommendedNextAction:
+              "Inspect the critical finding and decide whether to apply autofix.",
+            accountabilityLifecycle: "in_review",
+            queueEnteredAt: Date.now() - 60_000,
+            filterTags: [
+              "needs_attention",
+              "critical_review",
+              "autofix_ready",
+              "blocked_follow_up",
+            ],
+            navigationTarget: {
+              kind: "mission",
+              workspaceId: "workspace-1",
+              taskId: "runtime-task:task-critical",
+              runId: "task-critical",
+              reviewPackId: "review-pack:task-critical",
+              threadId: null,
+              limitation: "thread_unavailable",
+            },
+            secondaryLabel: "Runtime-managed mission",
+            evidenceLabel: "Runtime evidence only",
+            operatorSignal: "Operator review is blocked.",
+            attentionSignals: ["Critical"],
+            failureClassLabel: null,
+            subAgentSignal: null,
+            publishHandoffLabel: null,
+            relaunchLabel: null,
+            reviewGateLabel: "Review gate blocked",
+            reviewGateState: "blocked",
+            highestReviewSeverity: "critical",
+            reviewFindingCount: 3,
+            autofixAvailable: true,
+            continuationState: "degraded",
+          },
+        ]}
+      />
+    );
+
+    const criticalTitle = screen.getByText("Critical review item");
+    const standardTitle = screen.getByText("Standard review item");
+    expect(
+      criticalTitle.compareDocumentPosition(standardTitle) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+
+    expect(screen.getAllByText("Critical now").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Autofix ready").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Blocked follow-up").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(
+        "Triage: Critical review | Blocked follow-up | Autofix ready | 3 findings | Highest severity critical"
+      )
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /Critical now/ }));
+    expect(screen.getByText("Critical review item")).toBeTruthy();
+    expect(screen.queryByText("Standard review item")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Autofix ready/ }));
+    expect(screen.getByText("Critical review item")).toBeTruthy();
+    expect(screen.queryByText("Standard review item")).toBeNull();
   });
 });

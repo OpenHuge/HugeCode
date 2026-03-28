@@ -52,7 +52,7 @@ export {
   tailscaleDaemonStatus,
   tailscaleDaemonStop,
   tailscaleStatus,
-} from "../../../services/tauriDesktopRuntimeOps";
+} from "../../../services/desktopHostRuntimeOps";
 export { getRuntimeCapabilitiesSummary } from "./tauriRuntime";
 export {
   cancelNativeScheduleRun,
@@ -62,4 +62,4 @@ export {
   runNativeScheduleNow,
   updateNativeSchedule,
 } from "./tauriRuntimeSchedules";
-export { runBackendPoolOnboardingPreflight } from "../../../services/tauriDesktopRuntimeOps";
+export { runBackendPoolOnboardingPreflight } from "../../../services/desktopHostRuntimeOps";

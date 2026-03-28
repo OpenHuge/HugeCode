@@ -164,12 +164,6 @@ function formatContinuationOrigin(
       return `${label}: runtime-recorded default.`;
     case "runtime_relaunch_context":
       return `${label}: runtime relaunch context.`;
-    case "repo_source_mapping":
-      return `${label}: repo source mapping.`;
-    case "repo_defaults":
-      return `${label}: repo defaults.`;
-    case "runtime_fallback":
-      return `${label}: runtime fallback.`;
     default:
       return null;
   }

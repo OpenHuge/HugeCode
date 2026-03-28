@@ -21,6 +21,27 @@ describe("reviewPackDecisionActions", () => {
       sourceTaskId: "task-1",
       sourceRunId: "run-1",
       sourceReviewPackId: "review-pack-1",
+      reviewActionability: {
+        state: "ready",
+        summary: "Runtime review actionability is ready.",
+        degradedReasons: [],
+        actions: [
+          { action: "retry", enabled: true, supported: true, reason: null },
+          {
+            action: "continue_with_clarification",
+            enabled: true,
+            supported: true,
+            reason: null,
+          },
+          {
+            action: "switch_profile_and_retry",
+            enabled: false,
+            supported: true,
+            reason: "Choose another execution profile first.",
+          },
+          { action: "escalate_to_pair_mode", enabled: true, supported: true, reason: null },
+        ],
+      },
       actions: [
         {
           action: "retry",

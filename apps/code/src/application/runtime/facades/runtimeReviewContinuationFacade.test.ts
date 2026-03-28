@@ -128,6 +128,10 @@ describe("runtimeReviewContinuationFacade", () => {
       fallbackProfileId: "balanced-delegate",
     });
 
+    expect(resolved).not.toBeNull();
+    if (!resolved) {
+      throw new Error("Expected resolved continuation defaults.");
+    }
     expect(resolved.executionProfileId).toBe("operator-review");
     expect(resolved.preferredBackendIds).toEqual(["backend-explicit"]);
     expect(resolved.accessMode).toBe("read-only");
@@ -161,12 +165,15 @@ describe("runtimeReviewContinuationFacade", () => {
       fallbackProfileId: "operator-review",
     });
 
+    expect(resolved).not.toBeNull();
+    if (!resolved) {
+      throw new Error("Expected resolved continuation defaults.");
+    }
     expect(resolved.executionProfileId).toBe("balanced-delegate");
     expect(resolved.preferredBackendIds).toEqual(["backend-runtime"]);
     expect(resolved.accessMode).toBe("on-request");
     expect(resolved.reviewProfileId).toBe("default-review");
     expect(resolved.validationPresetId).toBe("standard");
-    expect(resolved.sourceMappingKind).toBeNull();
     expect(resolved.validationPresetLabel).toBe("standard");
     expect(resolved.validationCommands).toEqual(["pnpm validate"]);
     expect(resolved.fieldOrigins).toEqual({
@@ -193,22 +200,25 @@ describe("runtimeReviewContinuationFacade", () => {
       fallbackProfileId: "operator-review",
     });
 
+    expect(resolved).not.toBeNull();
+    if (!resolved) {
+      throw new Error("Expected resolved continuation defaults.");
+    }
     expect(resolved.executionProfileId).toBe("balanced-delegate");
     expect(resolved.preferredBackendIds).toBeUndefined();
-    expect(resolved.accessMode).toBe("on-request");
+    expect(resolved.accessMode).toBeNull();
     expect(resolved.reviewProfileId).toBeNull();
-    expect(resolved.validationPresetId).toBe("standard");
-    expect(resolved.sourceMappingKind).toBeNull();
+    expect(resolved.validationPresetId).toBeNull();
     expect(resolved.fieldOrigins).toEqual({
       executionProfileId: "runtime_recorded",
-      preferredBackendIds: "runtime_fallback",
-      accessMode: "runtime_fallback",
-      reviewProfileId: "runtime_fallback",
-      validationPresetId: "runtime_fallback",
+      preferredBackendIds: "runtime_relaunch_context",
+      accessMode: "runtime_relaunch_context",
+      reviewProfileId: "runtime_relaunch_context",
+      validationPresetId: "runtime_relaunch_context",
     });
   });
 
-  it("builds continuation drafts with repository-derived defaults when runtime did not publish them", () => {
+  it("does not synthesize repository-derived defaults when runtime did not publish them", () => {
     const draft = prepareReviewContinuationDraft({
       contract: createContract(),
       taskSource: githubPrFollowUpSource,
@@ -234,26 +244,25 @@ describe("runtimeReviewContinuationFacade", () => {
       intent: "retry",
       title: "Tighten continuation follow-up",
       instruction: "Retry the PR follow-up with stricter validation.",
-      profileId: "operator-review",
-      preferredBackendIds: ["backend-pr"],
-      reviewProfileId: "pr-review",
-      validationPresetId: "review-first",
-      accessMode: "read-only",
+      profileId: "balanced-delegate",
+      reviewProfileId: null,
+      validationPresetId: null,
+      accessMode: null,
       sourceTaskId: "runtime-task:77",
       sourceRunId: "run-77",
       sourceReviewPackId: "review-pack:run-77",
       taskSource: {
         kind: "github_pr_followup",
       },
-      sourceMappingKind: "github_pr_followup",
       fieldOrigins: {
-        executionProfileId: "repo_source_mapping",
-        preferredBackendIds: "repo_source_mapping",
-        accessMode: "repo_source_mapping",
-        reviewProfileId: "repo_source_mapping",
-        validationPresetId: "repo_source_mapping",
+        executionProfileId: "runtime_recorded",
+        preferredBackendIds: "runtime_relaunch_context",
+        accessMode: "runtime_relaunch_context",
+        reviewProfileId: "runtime_relaunch_context",
+        validationPresetId: "runtime_relaunch_context",
       },
     });
+    expect(draft?.preferredBackendIds).toBeUndefined();
   });
 
   it("summarizes blocked continuation actionability with the canonical continue path", () => {

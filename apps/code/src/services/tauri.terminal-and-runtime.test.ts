@@ -72,13 +72,12 @@ import {
   writeRuntimeTerminalSession,
   writeTerminalSession,
   writeTerminalSessionRaw,
-} from "./tauri";
+} from "./desktopHost";
 import {
-  cancelRuntimeJob,
+  cancelRuntimeRun,
+  getRuntimeRunV2,
+  subscribeRuntimeRunV2,
   submitRuntimeJobApprovalDecision,
-  listRuntimeJobs,
-  startRuntimeJob,
-  subscribeRuntimeJob,
 } from "./tauriRuntimeJobsBridge";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -1103,46 +1102,37 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).not.toHaveBeenCalledWith("turn_interrupt", expect.anything());
   });
 
-  it("routes runtime job and approval wrappers through runtime client", async () => {
+  it("routes canonical runtime run and approval wrappers through runtime client", async () => {
     const invokeMock = vi.mocked(invoke);
-    const taskSummary = {
-      id: "task-1",
-      workspaceId: "ws-4",
-      threadId: "thread-1",
-      title: "Task",
-      status: "running",
-      provider: "openai",
-      modelId: "gpt-5.3-codex",
-      backendId: "backend-a",
-      preferredBackendIds: ["backend-a"],
-      executionProfile: {
-        placement: "remote",
-        interactivity: "background",
-        isolation: "container_sandbox",
-        network: "default",
-        authority: "service",
+    const runRecord = {
+      run: {
+        taskId: "task-1",
+        workspaceId: "ws-4",
+        threadId: "thread-1",
+        requestId: null,
+        title: "Task",
+        status: "running",
+        accessMode: "on-request",
+        currentStep: null,
+        createdAt: 100,
+        updatedAt: 100,
+        startedAt: 100,
+        completedAt: null,
+        errorCode: null,
+        errorMessage: null,
+        pendingApprovalId: null,
       },
-      createdAt: 100,
-      updatedAt: 100,
-      startedAt: 100,
-      completedAt: null,
-      continuation: {
-        checkpointId: "checkpoint-1",
-        resumeSupported: true,
-        recovered: false,
-        summary: "Ready",
-      },
-      metadata: null,
+      missionRun: {} as const,
+      reviewPack: null,
     } as const;
-    const kernelJobStartV3Mock = vi.fn().mockResolvedValue(taskSummary);
-    const kernelJobCancelV3Mock = vi.fn().mockResolvedValue({
+    const runtimeRunCancelV2Mock = vi.fn().mockResolvedValue({
       accepted: true,
       runId: "task-1",
       status: "interrupted",
       message: "Interrupted",
     });
-    const kernelJobSubscribeV3Mock = vi.fn().mockResolvedValue(taskSummary);
-    const kernelJobsListV2Mock = vi.fn().mockResolvedValue([taskSummary]);
+    const runtimeRunGetV2Mock = vi.fn().mockResolvedValue(runRecord);
+    const runtimeRunSubscribeV2Mock = vi.fn().mockResolvedValue(runRecord);
     const runtimeRunCheckpointApprovalMock = vi.fn().mockResolvedValue({
       recorded: true,
       approvalId: "approval-1",
@@ -1151,40 +1141,29 @@ describe("tauri invoke wrappers", () => {
       message: "Recorded",
     });
     vi.mocked(getRuntimeClient).mockReturnValue({
-      kernelJobStartV3: kernelJobStartV3Mock,
-      kernelJobCancelV3: kernelJobCancelV3Mock,
-      kernelJobSubscribeV3: kernelJobSubscribeV3Mock,
-      kernelJobsListV2: kernelJobsListV2Mock,
+      runtimeRunCancelV2: runtimeRunCancelV2Mock,
+      runtimeRunGetV2: runtimeRunGetV2Mock,
+      runtimeRunSubscribeV2: runtimeRunSubscribeV2Mock,
       runtimeRunCheckpointApproval: runtimeRunCheckpointApprovalMock,
     } as unknown as ReturnType<typeof getRuntimeClient>);
 
-    const startRequest: Parameters<typeof startRuntimeJob>[0] = {
-      workspaceId: "ws-4",
-      threadId: "thread-1",
-      requestId: "request-1",
-      steps: [{ kind: "read", path: "README.md" }],
-      delivery: {
-        mode: "poll",
-      },
-    };
     const cancelRequest = { runId: "task-1", reason: "user-stop" } as const;
+    const getRequest = { runId: "task-1" } as const;
     const subscribeRequest = { runId: "task-1" } as const;
-    const listRequest = { workspaceId: "ws-4", status: "running", limit: 10 } as const;
     const approvalRequest = {
       approvalId: "approval-1",
       decision: "approved",
       reason: "looks good",
     } as const;
 
-    await expect(startRuntimeJob(startRequest)).resolves.toEqual(taskSummary);
-    await expect(cancelRuntimeJob(cancelRequest)).resolves.toEqual({
+    await expect(cancelRuntimeRun(cancelRequest)).resolves.toEqual({
       accepted: true,
       runId: "task-1",
       status: "interrupted",
       message: "Interrupted",
     });
-    await expect(subscribeRuntimeJob(subscribeRequest)).resolves.toEqual(taskSummary);
-    await expect(listRuntimeJobs(listRequest)).resolves.toEqual([taskSummary]);
+    await expect(getRuntimeRunV2(getRequest)).resolves.toEqual(runRecord);
+    await expect(subscribeRuntimeRunV2(subscribeRequest)).resolves.toEqual(runRecord);
     await expect(submitRuntimeJobApprovalDecision(approvalRequest)).resolves.toEqual({
       recorded: true,
       approvalId: "approval-1",
@@ -1193,10 +1172,9 @@ describe("tauri invoke wrappers", () => {
       message: "Recorded",
     });
 
-    expect(kernelJobStartV3Mock).toHaveBeenCalledWith(startRequest);
-    expect(kernelJobCancelV3Mock).toHaveBeenCalledWith(cancelRequest);
-    expect(kernelJobSubscribeV3Mock).toHaveBeenCalledWith(subscribeRequest);
-    expect(kernelJobsListV2Mock).toHaveBeenCalledWith(listRequest);
+    expect(runtimeRunCancelV2Mock).toHaveBeenCalledWith(cancelRequest);
+    expect(runtimeRunGetV2Mock).toHaveBeenCalledWith(getRequest);
+    expect(runtimeRunSubscribeV2Mock).toHaveBeenCalledWith(subscribeRequest);
     expect(runtimeRunCheckpointApprovalMock).toHaveBeenCalledWith(approvalRequest);
     expect(invokeMock).not.toHaveBeenCalled();
   });

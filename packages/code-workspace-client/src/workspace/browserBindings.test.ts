@@ -130,4 +130,49 @@ describe("browser workspace bindings", () => {
     expect(snapshot.reviewPacks).toHaveLength(1);
     expect(snapshot.reviewPacks[0]?.id).toBe("review-pack-1");
   });
+
+  it("routes review packs through the mission control surface bindings", async () => {
+    process.env[WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY] = "http://127.0.0.1:8788/rpc";
+    const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      const request = JSON.parse(String(init?.body)) as { method?: string };
+      if (request.method === CODE_RUNTIME_RPC_METHODS.KERNEL_PROJECTION_BOOTSTRAP_V3) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            result: {
+              revision: 6,
+              sliceRevisions: { mission_control: 6 },
+              slices: {
+                mission_control: {
+                  source: "runtime_snapshot_v1",
+                  generatedAt: 4,
+                  workspaces: [],
+                  tasks: [],
+                  runs: [],
+                  reviewPacks: [
+                    {
+                      id: "review-pack-2",
+                      workspaceId: "workspace-2",
+                    },
+                  ],
+                },
+              },
+            },
+          }),
+        };
+      }
+
+      throw new Error(`Unexpected method ${request.method ?? "unknown"}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const runtime = createBrowserWorkspaceClientRuntimeBindings();
+    const reviewPacks = await runtime.review.listReviewPacks();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(reviewPacks).toHaveLength(1);
+    expect(reviewPacks[0]?.id).toBe("review-pack-2");
+  });
 });

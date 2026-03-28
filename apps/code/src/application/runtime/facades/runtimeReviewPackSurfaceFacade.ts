@@ -1026,17 +1026,16 @@ export function buildReviewPackDetailModel(input: {
       executionContext: buildExecutionContext({
         executionProfileName: run.executionProfile?.name,
         reviewProfileId:
-          reviewIntelligence?.reviewProfileId ?? missionRunContinuationDefaults.reviewProfileId,
+          reviewIntelligence?.reviewProfileId ?? missionRunContinuationDefaults?.reviewProfileId,
         validationPresetId:
           reviewIntelligence?.validationPresetId ??
-          missionRunContinuationDefaults.validationPresetId,
+          missionRunContinuationDefaults?.validationPresetId,
         backendId: run.routing?.backendId,
         providerLabel: run.routing?.providerLabel,
         autonomyProfile: null,
         wakePolicy: null,
-        accessMode: missionRunContinuationDefaults.accessMode,
-        sourceMappingKind: missionRunContinuationDefaults.sourceMappingKind,
-        fieldOrigins: missionRunContinuationDefaults.fieldOrigins,
+        accessMode: missionRunContinuationDefaults?.accessMode,
+        fieldOrigins: missionRunContinuationDefaults?.fieldOrigins,
         inheritFollowUpDefaults:
           (run.intervention?.actions.some((action) => action.enabled && action.supported) ??
             false) ||
@@ -1131,6 +1130,7 @@ export function buildReviewPackDetailModel(input: {
     title: run?.title ?? taskTitle,
     instruction: interventionInstruction,
     actions: run?.intervention?.actions,
+    reviewActionability: reviewPack.actionability ?? run?.actionability ?? null,
     reviewDecision: {
       status: reviewDecision.status,
       reviewPackId: reviewDecision.reviewPackId,
@@ -1306,7 +1306,6 @@ export function buildReviewPackDetailModel(input: {
       backendId: run?.routing?.backendId,
       providerLabel: run?.routing?.providerLabel,
       accessMode: reviewContinuationDefaults?.accessMode,
-      sourceMappingKind: reviewContinuationDefaults?.sourceMappingKind,
       fieldOrigins: reviewContinuationDefaults?.fieldOrigins,
       inheritFollowUpDefaults: followUpDefaultsAvailable,
     }),

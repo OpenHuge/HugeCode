@@ -25,7 +25,7 @@ import {
   tailscaleDaemonStatus,
   tailscaleDaemonStop,
   tailscaleStatus,
-} from "./tauriDesktopRuntimeOps";
+} from "./desktopHostRuntimeOps";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),

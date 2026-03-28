@@ -5,6 +5,7 @@ import net from "node:net";
 import { fileURLToPath } from "node:url";
 
 const BASE_PORT = 5197;
+const BASE_RUNTIME_PORT = 8788;
 const PORT_HOST = "127.0.0.1";
 const PORT_MAX_ATTEMPTS = 20;
 const FIXTURE_SMOKE_RUNTIME_READY_TIMEOUT_MS = "480000";
@@ -119,13 +120,37 @@ export async function resolveFixtureSmokePort({
   }
 }
 
-export function buildFixtureSmokeEnv(env = process.env, port) {
+export async function resolveFixtureSmokeRuntimePort({
+  env = process.env,
+  basePort = BASE_RUNTIME_PORT,
+  maxAttempts = PORT_MAX_ATTEMPTS,
+  claimPort = claimFixtureSmokePort,
+  resolveAvailablePort: resolveAvailablePortImpl,
+} = {}) {
+  const configuredPort = parseFixtureSmokePort(env.CODE_RUNTIME_SERVICE_PORT);
+  if (configuredPort !== null) {
+    return configuredPort;
+  }
+
+  return resolveFixtureSmokePort({
+    env: {
+      WEB_E2E_PORT: "",
+    },
+    basePort,
+    maxAttempts,
+    claimPort,
+    resolveAvailablePort: resolveAvailablePortImpl,
+  });
+}
+
+export function buildFixtureSmokeEnv(env = process.env, port, runtimePort) {
   return {
     ...env,
     // Fixture smoke routinely pays the cold Rust compile cost. Give it a
     // higher startup budget than interactive dev without changing repo-wide defaults.
     CODE_RUNTIME_SERVICE_READY_TIMEOUT_MS:
       env.CODE_RUNTIME_SERVICE_READY_TIMEOUT_MS ?? FIXTURE_SMOKE_RUNTIME_READY_TIMEOUT_MS,
+    CODE_RUNTIME_SERVICE_PORT: String(runtimePort),
     PW_WEBSERVER_TIMEOUT_MS: env.PW_WEBSERVER_TIMEOUT_MS ?? FIXTURE_SMOKE_WEB_SERVER_TIMEOUT_MS,
     WEB_E2E_PORT: String(port),
   };
@@ -133,11 +158,12 @@ export function buildFixtureSmokeEnv(env = process.env, port) {
 
 export async function main() {
   const port = await resolveFixtureSmokePort();
+  const runtimePort = await resolveFixtureSmokeRuntimePort();
 
   const child = spawn("pnpm", PLAYWRIGHT_ARGS, {
     stdio: "inherit",
     shell: process.platform === "win32",
-    env: buildFixtureSmokeEnv(process.env, port),
+    env: buildFixtureSmokeEnv(process.env, port, runtimePort),
   });
 
   child.on("exit", (code, signal) => {

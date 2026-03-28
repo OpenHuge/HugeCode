@@ -3,14 +3,14 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { WorkspaceClientBindings } from "../index";
+import type { WorkspaceClientBindings } from "../workspace/bindings";
 import { WorkspaceClientBindingsProvider } from "../workspace/WorkspaceClientBindingsProvider";
 import { useSharedHostStartupStatusState } from "./useSharedHostStartupStatusState";
 
 function createBindings(
   readStartupStatus: WorkspaceClientBindings["host"]["shell"]["readStartupStatus"] = vi.fn(
     async () => ({
-      tone: "ready",
+      tone: "ready" as const,
       label: "Desktop host ready",
       detail: "Automatic desktop updates are available.",
     })
@@ -69,20 +69,21 @@ function createBindings(
         }),
       },
       agentControl: {
-        startRuntimeJob: async () => {
+        prepareRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        cancelRuntimeJob: async () => {
+        startRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        resumeRuntimeJob: async () => {
+        cancelRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        interveneRuntimeJob: async () => {
+        resumeRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        subscribeRuntimeJob: async () => null,
-        listRuntimeJobs: async () => [],
+        interveneRuntimeRun: async () => {
+          throw new Error("not implemented");
+        },
         submitRuntimeJobApprovalDecision: async () => {
           throw new Error("not implemented");
         },

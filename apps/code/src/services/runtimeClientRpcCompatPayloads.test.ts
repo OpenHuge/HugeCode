@@ -47,9 +47,9 @@ describe("runtimeClientRpcPayloads", () => {
     );
   });
 
-  it("preserves task source in canonical shape for runtime run start payloads", () => {
+  it("preserves task source in canonical shape for runtime run start v2 payloads", () => {
     expect(
-      adaptRuntimeRpcPayload("runtimeRunStart", {
+      adaptRuntimeRpcPayload("runtimeRunStartV2", {
         workspaceId: "ws-1",
         title: "Delegate issue #42",
         accessMode: "on-request",
@@ -108,8 +108,8 @@ describe("runtimeClientRpcPayloads", () => {
     );
   });
 
-  it("keeps nested runtime run start payloads canonical-only", () => {
-    const payload = adaptRuntimeRpcPayload("runtimeRunStart", {
+  it("keeps nested runtime run start v2 payloads canonical-only", () => {
+    const payload = adaptRuntimeRpcPayload("runtimeRunStartV2", {
       workspaceId: "ws-1",
       accessMode: "on-request",
       executionMode: "distributed",
@@ -178,6 +178,13 @@ describe("runtimeClientRpcPayloads", () => {
 
     expect(adaptRuntimeRpcPayload("runtimeReviewGetV2", { runId: "run-1" })).toEqual({
       runId: "run-1",
+    });
+  });
+
+  it("keeps runtime run cancel v2 payloads canonical-only", () => {
+    expect(adaptRuntimeRpcPayload("runtimeRunCancelV2", { runId: "run-1", reason: null })).toEqual({
+      runId: "run-1",
+      reason: null,
     });
   });
 });

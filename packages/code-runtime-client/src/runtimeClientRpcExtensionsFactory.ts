@@ -1,6 +1,17 @@
 import {
   CODE_RUNTIME_RPC_EMPTY_PARAMS,
   CODE_RUNTIME_RPC_METHODS,
+  type OAuthAccountUpsertInput,
+  type OAuthChatgptAuthTokensRefreshRequest,
+  type OAuthCodexLoginCancelRequest,
+  type OAuthCodexLoginStartRequest,
+  type OAuthPoolApplyInput,
+  type OAuthPoolMemberInput,
+  type OAuthPoolSelectionRequest,
+  type OAuthPoolUpsertInput,
+  type OAuthProviderId,
+  type OAuthRateLimitReportInput,
+  type OAuthUsageRefreshMode,
   type TerminalSessionSummary,
   type TerminalStatus,
 } from "@ku0/code-runtime-host-contract";
@@ -22,82 +33,227 @@ import { adaptRuntimeRpcPayload, withCanonicalFields } from "./runtimeClientRpcP
 import { createBaseRpcRuntimeClient } from "./runtimeClientRpcFactory";
 import type { RuntimeClient } from "./runtimeClientTypes";
 
-type AppLocalRpcRuntimeClientKeys =
-  | "oauthAccounts"
-  | "oauthUpsertAccount"
-  | "oauthRemoveAccount"
-  | "oauthPrimaryAccountGet"
-  | "oauthPrimaryAccountSet"
-  | "oauthPools"
-  | "oauthUpsertPool"
-  | "oauthRemovePool"
-  | "oauthPoolMembers"
-  | "oauthApplyPool"
-  | "oauthReplacePoolMembers"
-  | "oauthSelectPoolAccount"
-  | "oauthBindPoolAccount"
-  | "oauthReportRateLimit"
-  | "oauthChatgptAuthTokensRefresh"
-  | "oauthCodexLoginStart"
-  | "oauthCodexLoginCancel"
-  | "oauthCodexAccountsImportFromCockpitTools"
-  | "appSettingsGet"
-  | "appSettingsUpdate"
-  | "textFileReadV1"
-  | "textFileWriteV1";
-
 export function createExtendedRpcRuntimeClient<
   TAppSettings extends Record<string, unknown> = Record<string, unknown>,
 >(invokeRpc: RuntimeRpcInvoker) {
   const client = {
     ...createBaseRpcRuntimeClient<TAppSettings>(invokeRpc),
-    kernelJobStartV3(request) {
+    oauthAccounts(
+      provider: OAuthProviderId | null = null,
+      options?: { usageRefresh?: OAuthUsageRefreshMode | null }
+    ) {
+      const usageRefresh = options?.usageRefresh;
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.OAUTH_ACCOUNTS_LIST, {
+        provider,
+        ...(usageRefresh ? withCanonicalFields({ usageRefresh }) : {}),
+      });
+    },
+    oauthUpsertAccount(input: OAuthAccountUpsertInput) {
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.OAUTH_ACCOUNT_UPSERT, {
+        ...input,
+        ...withCanonicalFields({ accountId: input.accountId }),
+      });
+    },
+    oauthRemoveAccount(accountId: string) {
       return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_START_V3,
-        adaptRuntimeRpcPayload("kernelJobStartV3", request)
+        CODE_RUNTIME_RPC_METHODS.OAUTH_ACCOUNT_REMOVE,
+        withCanonicalFields({ accountId })
       );
     },
-    kernelJobGetV3(request) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_GET_V3,
-        adaptRuntimeRpcPayload("kernelJobGetV3", request)
+    oauthPrimaryAccountGet(provider: OAuthProviderId) {
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.OAUTH_PRIMARY_ACCOUNT_GET, { provider });
+    },
+    oauthPrimaryAccountSet(input) {
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.OAUTH_PRIMARY_ACCOUNT_SET, {
+        provider: input.provider,
+        ...withCanonicalFields({ accountId: input.accountId ?? null }),
+      });
+    },
+    oauthPools(provider: OAuthProviderId | null = null) {
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.OAUTH_POOLS_LIST, { provider });
+    },
+    oauthUpsertPool(input: OAuthPoolUpsertInput) {
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.OAUTH_POOL_UPSERT, {
+        ...input,
+        ...withCanonicalFields({
+          poolId: input.poolId,
+          accountId: input.preferredAccountId ?? undefined,
+        }),
+      });
+    },
+    oauthRemovePool(poolId: string) {
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.OAUTH_POOL_REMOVE, withCanonicalFields({ poolId }));
+    },
+    oauthPoolMembers(poolId: string) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.OAUTH_POOL_MEMBERS_LIST,
+        withCanonicalFields({ poolId })
       );
     },
-    kernelJobCancelV3(request) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3,
-        adaptRuntimeRpcPayload("kernelJobCancelV3", request)
+    oauthApplyPool(input: OAuthPoolApplyInput) {
+      return invokeRuntimeExtensionRpc(invokeRpc, RUNTIME_EXTENSION_RPC_METHODS.OAUTH_POOL_APPLY, {
+        pool: {
+          ...input.pool,
+          ...withCanonicalFields({
+            poolId: input.pool.poolId,
+            accountId: input.pool.preferredAccountId ?? undefined,
+          }),
+        },
+        members: input.members.map((member) => ({
+          ...member,
+          ...withCanonicalFields({ accountId: member.accountId }),
+        })),
+        expectedUpdatedAt: input.expectedUpdatedAt ?? null,
+        expected_updated_at: input.expectedUpdatedAt ?? null,
+      });
+    },
+    oauthReplacePoolMembers(poolId: string, members: OAuthPoolMemberInput[]) {
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.OAUTH_POOL_MEMBERS_REPLACE, {
+        ...withCanonicalFields({ poolId }),
+        members: members.map((member) => ({
+          ...member,
+          ...withCanonicalFields({ accountId: member.accountId }),
+        })),
+      });
+    },
+    oauthSelectPoolAccount(request: OAuthPoolSelectionRequest) {
+      const chatgptWorkspaceId = request.chatgptWorkspaceId ?? request.workspaceId ?? null;
+      const selectorPayload =
+        request.chatgptWorkspaceId != null
+          ? withCanonicalFields({
+              chatgptWorkspaceId,
+            })
+          : withCanonicalFields({
+              chatgptWorkspaceId,
+              workspaceId: chatgptWorkspaceId,
+            });
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.OAUTH_POOL_SELECT, {
+        ...withCanonicalFields({
+          poolId: request.poolId,
+          sessionId: request.sessionId ?? null,
+          modelId: request.modelId ?? null,
+        }),
+        ...selectorPayload,
+      });
+    },
+    oauthBindPoolAccount(request) {
+      const chatgptWorkspaceId = request.chatgptWorkspaceId ?? request.workspaceId ?? null;
+      const selectorPayload =
+        request.chatgptWorkspaceId != null
+          ? withCanonicalFields({
+              chatgptWorkspaceId,
+            })
+          : withCanonicalFields({
+              chatgptWorkspaceId,
+              workspaceId: chatgptWorkspaceId,
+            });
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.OAUTH_POOL_ACCOUNT_BIND, {
+        ...withCanonicalFields({
+          poolId: request.poolId,
+          sessionId: request.sessionId,
+          accountId: request.accountId,
+        }),
+        ...selectorPayload,
+      });
+    },
+    oauthReportRateLimit(input: OAuthRateLimitReportInput) {
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.OAUTH_RATE_LIMIT_REPORT, {
+        ...input,
+        ...withCanonicalFields({
+          accountId: input.accountId,
+          modelId: input.modelId ?? null,
+        }),
+        retryAfterSec: input.retryAfterSec ?? null,
+        resetAt: input.resetAt ?? null,
+        errorCode: input.errorCode ?? null,
+        errorMessage: input.errorMessage ?? null,
+      });
+    },
+    oauthChatgptAuthTokensRefresh(request: OAuthChatgptAuthTokensRefreshRequest = {}) {
+      const previousAccountId = request.previousAccountId ?? null;
+      const sessionId = request.sessionId ?? null;
+      const chatgptWorkspaceId = request.chatgptWorkspaceId ?? request.workspaceId ?? null;
+      const selectorPayload =
+        request.chatgptWorkspaceId != null
+          ? withCanonicalFields({
+              chatgptWorkspaceId,
+            })
+          : withCanonicalFields({
+              chatgptWorkspaceId,
+              workspaceId: chatgptWorkspaceId,
+            });
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.OAUTH_CHATGPT_AUTH_TOKENS_REFRESH,
+        {
+          reason: request.reason ?? null,
+          previousAccountId,
+          previous_account_id: previousAccountId,
+          ...withCanonicalFields({
+            sessionId,
+          }),
+          ...selectorPayload,
+        }
       );
     },
-    kernelJobResumeV3(request) {
+    oauthCodexLoginStart(request: OAuthCodexLoginStartRequest) {
       return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_RESUME_V3,
-        adaptRuntimeRpcPayload("kernelJobResumeV3", request)
+        CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_LOGIN_START,
+        withCanonicalFields({
+          workspaceId: request.workspaceId,
+          forceOAuth: request.forceOAuth === true,
+        })
       );
     },
-    kernelJobInterveneV3(request) {
+    oauthCodexLoginCancel(request: OAuthCodexLoginCancelRequest) {
       return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_INTERVENE_V3,
-        adaptRuntimeRpcPayload("kernelJobInterveneV3", request)
+        CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_LOGIN_CANCEL,
+        withCanonicalFields({
+          workspaceId: request.workspaceId,
+        })
       );
     },
-    kernelJobSubscribeV3(request) {
+    oauthCodexAccountsImportFromCockpitTools() {
       return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_SUBSCRIBE_V3,
-        adaptRuntimeRpcPayload("kernelJobSubscribeV3", request)
+        CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_ACCOUNTS_IMPORT_FROM_COCKPIT_TOOLS,
+        CODE_RUNTIME_RPC_EMPTY_PARAMS
       );
     },
-    kernelJobCallbackRegisterV3(request) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CALLBACK_REGISTER_V3,
-        adaptRuntimeRpcPayload("kernelJobCallbackRegisterV3", request)
+    appSettingsGet() {
+      return invokeRuntimeExtensionRpc<TAppSettings>(
+        invokeRpc,
+        CODE_RUNTIME_RPC_METHODS.APP_SETTINGS_GET,
+        CODE_RUNTIME_RPC_EMPTY_PARAMS
       );
     },
-    kernelJobCallbackRemoveV3(request) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CALLBACK_REMOVE_V3,
-        adaptRuntimeRpcPayload("kernelJobCallbackRemoveV3", request)
+    appSettingsUpdate(settings: TAppSettings) {
+      return invokeRuntimeExtensionRpc<TAppSettings>(
+        invokeRpc,
+        CODE_RUNTIME_RPC_METHODS.APP_SETTINGS_UPDATE,
+        {
+          payload: settings,
+        }
       );
+    },
+    textFileReadV1(request) {
+      return invokeRuntimeExtensionRpc(invokeRpc, CODE_RUNTIME_RPC_METHODS.TEXT_FILE_READ_V1, {
+        scope: request.scope,
+        kind: request.kind,
+        ...withCanonicalFields({
+          workspaceId: request.workspaceId ?? null,
+        }),
+      });
+    },
+    textFileWriteV1(request) {
+      return invokeRuntimeExtensionRpc(invokeRpc, CODE_RUNTIME_RPC_METHODS.TEXT_FILE_WRITE_V1, {
+        scope: request.scope,
+        kind: request.kind,
+        content: request.content,
+        ...withCanonicalFields({
+          workspaceId: request.workspaceId ?? null,
+        }),
+      });
     },
     subAgentSpawn(request) {
       return invokeRuntimeExtensionRpc(
@@ -712,7 +868,7 @@ export function createExtendedRpcRuntimeClient<
         CODE_RUNTIME_RPC_EMPTY_PARAMS
       );
     },
-  } satisfies Omit<RuntimeClient<TAppSettings>, AppLocalRpcRuntimeClientKeys>;
+  } satisfies RuntimeClient<TAppSettings>;
 
   return client;
 }

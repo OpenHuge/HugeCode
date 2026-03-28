@@ -2,7 +2,7 @@ import {
   CODE_RUNTIME_RPC_METHODS,
   type CodeRuntimeRpcMethod,
 } from "@ku0/code-runtime-host-contract";
-import { invoke } from "../application/runtime/ports/tauriCore";
+import { invoke } from "../application/runtime/ports/desktopHostCore";
 import {
   createRuntimeRpcCapabilitiesProbeCache,
   buildWebRuntimeCapabilitiesProbeCacheKey as buildWebRuntimeCapabilitiesProbeCacheKeyShared,

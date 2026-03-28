@@ -44,12 +44,12 @@
 - Modify: `packages/shared/src/runtimeGatewayBrowser.ts`
 - Modify: `packages/code-application/src/desktopHostFacade.ts`
 - Modify: `apps/code/src/bootstrap/runtimeBootstrap.tsx`
-- Modify: `apps/code/src/application/runtime/ports/tauriEnvironment.ts`
+- Modify: `apps/code/src/application/runtime/ports/desktopHostEnvironment.ts`
 - Modify: `apps/code/src/application/runtime/ports/tauriOpener.ts`
 - Modify: `apps/code/src/application/runtime/ports/tauriNotifications.ts`
 - Modify: `apps/code/src/application/runtime/ports/tauriUpdater.ts`
 - Modify: `apps/code/src/application/runtime/ports/tauriFiles.ts`
-- Modify: `apps/code/src/application/runtime/ports/tauriWindow.ts`
+- Modify: `apps/code/src/application/runtime/ports/desktopHostWindow.ts`
 - Modify: relevant tests under `apps/code/src/**` and `packages/**`
 
 **Step 1: Remove the `tauri` runtime host value**

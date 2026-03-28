@@ -1,5 +1,6 @@
 import type { AppServerEvent } from "../types";
-import { listen } from "../application/runtime/ports/tauriEvent";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
+import { isTauri } from "../application/runtime/ports/desktopHostCore";
 import {
   __resetRuntimeTurnContextForTests,
   normalizeAppServerPayload,
@@ -89,7 +90,11 @@ async function loadStartAppServerBridgeV2() {
 }
 
 function isTauriRuntime(): boolean {
-  return false;
+  try {
+    return isTauri();
+  } catch {
+    return false;
+  }
 }
 
 function notifySubscriptionError(
@@ -451,8 +456,8 @@ async function startAppServerBridge(
     );
     if (runtimeUnsubscribe) {
       unsubscribers.push(runtimeUnsubscribe);
+      return createCompositeUnsubscribe(unsubscribers);
     }
-    return createCompositeUnsubscribe(unsubscribers);
   }
 
   const webUnsubscribe = await subscribeWebRuntimeEvents(onEvent, options);

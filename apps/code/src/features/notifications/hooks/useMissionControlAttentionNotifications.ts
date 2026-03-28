@@ -6,7 +6,7 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import { useCallback, useEffect, useRef } from "react";
 import { summarizeReviewContinuationActionability } from "../../../application/runtime/facades/runtimeReviewContinuationFacade";
-import { sendNotification } from "../../../application/runtime/ports/tauriNotifications";
+import { sendNotification } from "../../../application/runtime/ports/desktopNotifications";
 import type { DebugEntry } from "../../../types";
 import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
 

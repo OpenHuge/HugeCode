@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { StatusBadge } from "../../../design-system";
 import { distributedTaskGraph } from "../../../application/runtime/ports/tauriThreads";
 import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/tauriRuntime";
-import { cancelRuntimeJob } from "../../../application/runtime/ports/tauriRuntimeJobs";
+import { cancelRuntimeRun } from "../../../application/runtime/ports/tauriRuntimeJobs";
 import type { TurnPlan } from "../../../types";
 import type { ResolvedPlanArtifact } from "../../messages/utils/planArtifact";
 import {
@@ -166,10 +166,10 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
         CODE_RUNTIME_RPC_METHODS.DISTRIBUTED_TASK_GRAPH
       );
       const supportsInterruptMethod = summary.methods.includes(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3
+        CODE_RUNTIME_RPC_METHODS.RUN_CANCEL_V2
       );
       const supportsRetryMethod = summary.methods.includes(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_INTERVENE_V3
+        CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2
       );
       setDistributedGraphCapabilityEnabled(hasCapability && supportsGraphMethod);
       setDistributedGraphInterruptEnabled(
@@ -262,7 +262,7 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
 
       const acknowledgements = await Promise.all(
         normalizedTaskIds.map((taskId) =>
-          cancelRuntimeJob({
+          cancelRuntimeRun({
             runId: taskId,
             reason: "ui:distributed_control_interrupt",
           })

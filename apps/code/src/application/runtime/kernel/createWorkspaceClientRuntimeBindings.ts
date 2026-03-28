@@ -1,10 +1,10 @@
 import type { WorkspaceClientRuntimeBindings } from "@ku0/code-workspace-client";
-import { buildSharedMissionControlSummary } from "@ku0/code-workspace-client";
+import { createWorkspaceClientRuntimeMissionControlSurfaceBindings } from "@ku0/code-workspace-client";
 import {
   getAppSettings,
   syncRuntimeGatewayProfileFromAppSettings,
   updateAppSettings,
-} from "../ports/tauriAppSettings";
+} from "../ports/desktopAppSettings";
 import {
   applyOAuthPool,
   bindOAuthPoolAccount,
@@ -21,14 +21,12 @@ import { getConfigModel, getModelList } from "../ports/tauriModels";
 import { listWorkspaces } from "../ports/tauriWorkspaceCatalog";
 import { subscribeScopedRuntimeUpdatedEvents } from "../ports/runtimeUpdatedEvents";
 import {
-  cancelRuntimeJob,
+  cancelRuntimeRun,
+  interveneRuntimeRun,
   prepareRuntimeRunV2,
   submitRuntimeJobApprovalDecision,
-  interveneRuntimeJob,
-  listRuntimeJobs,
-  resumeRuntimeJob,
+  resumeRuntimeRun,
   startRuntimeRunV2,
-  subscribeRuntimeJob,
 } from "../ports/tauriRuntimeJobs";
 import {
   archiveRuntimeThread,
@@ -75,6 +73,11 @@ type CreateWorkspaceClientRuntimeBindingsInput = {
 export function createWorkspaceClientRuntimeBindings(
   input: CreateWorkspaceClientRuntimeBindingsInput
 ): WorkspaceClientRuntimeBindings {
+  const missionControlSurface = createWorkspaceClientRuntimeMissionControlSurfaceBindings({
+    bootstrapKernelProjection: input.bootstrapKernelProjection,
+    readMissionControlSnapshot: input.readMissionControlSnapshot,
+  });
+
   return {
     surface: "shared-workspace-client",
     settings: {
@@ -103,28 +106,7 @@ export function createWorkspaceClientRuntimeBindings(
     workspaceCatalog: {
       listWorkspaces,
     },
-    missionControl: {
-      readMissionControlSnapshot: async () => {
-        const bootstrap = await input.bootstrapKernelProjection({
-          scopes: ["mission_control"],
-        });
-        const missionControl = bootstrap.slices.mission_control;
-        return missionControl && typeof missionControl === "object"
-          ? (missionControl as HugeCodeMissionControlSnapshot)
-          : input.readMissionControlSnapshot();
-      },
-      readMissionControlSummary: async (activeWorkspaceId) => {
-        const bootstrap = await input.bootstrapKernelProjection({
-          scopes: ["mission_control"],
-        });
-        const missionControl = bootstrap.slices.mission_control;
-        const snapshot =
-          missionControl && typeof missionControl === "object"
-            ? (missionControl as HugeCodeMissionControlSnapshot)
-            : await input.readMissionControlSnapshot();
-        return buildSharedMissionControlSummary(snapshot, activeWorkspaceId);
-      },
-    },
+    missionControl: missionControlSurface.missionControl,
     kernelProjection: {
       bootstrap: input.bootstrapKernelProjection,
       subscribe: input.subscribeKernelProjection,
@@ -143,11 +125,9 @@ export function createWorkspaceClientRuntimeBindings(
     agentControl: {
       prepareRuntimeRun: prepareRuntimeRunV2,
       startRuntimeRun: startRuntimeRunV2,
-      cancelRuntimeJob,
-      resumeRuntimeJob,
-      interveneRuntimeJob,
-      subscribeRuntimeJob,
-      listRuntimeJobs,
+      cancelRuntimeRun,
+      resumeRuntimeRun,
+      interveneRuntimeRun,
       submitRuntimeJobApprovalDecision,
     },
     threads: {
@@ -178,17 +158,6 @@ export function createWorkspaceClientRuntimeBindings(
       listWorkspaceFileEntries: async (input) => listRuntimeWorkspaceFileEntries(input.workspaceId),
       readWorkspaceFile: async (input) => readRuntimeWorkspaceFile(input.workspaceId, input.fileId),
     },
-    review: {
-      listReviewPacks: async () => {
-        const bootstrap = await input.bootstrapKernelProjection({
-          scopes: ["mission_control"],
-        });
-        const missionControl = bootstrap.slices.mission_control;
-        if (missionControl && typeof missionControl === "object") {
-          return (missionControl as HugeCodeMissionControlSnapshot).reviewPacks;
-        }
-        return (await input.readMissionControlSnapshot()).reviewPacks;
-      },
-    },
+    review: missionControlSurface.review,
   };
 }
