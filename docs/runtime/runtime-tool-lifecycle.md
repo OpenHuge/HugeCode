@@ -172,12 +172,15 @@ The approved `runtimeToolLifecycle` port surface is intentionally frozen to:
 
 - lifecycle event and checkpoint types
 - `RuntimeToolLifecyclePresentationTone`
+- `RuntimeToolLifecyclePresentationSummary`
 - workspace-scoped snapshot and subscription primitives
 - shared presentation helpers for:
+  - structured operator-facing summary and latest-item projection
   - event labels
   - hook-checkpoint labels
   - status labels
   - tone mapping
+  - machine-readable event/checkpoint keys
   - recency sorting
 
 Direct reads from the workspace-scoped lifecycle snapshot/subscription
@@ -218,7 +221,8 @@ Track 1 completion criteria are now satisfied for the active consumers:
 
 - Mission Control uses the shared lifecycle presentation helpers through
   `application/runtime/ports/runtimeToolLifecycle`
-- debug diagnostics use the same shared recency ordering helpers
+- Mission Control and debug diagnostics now consume the same shared lifecycle
+  summary and recency ordering helpers
 - current feature code no longer defines parallel lifecycle status, tone, or
   hook-checkpoint presentation rules
 
