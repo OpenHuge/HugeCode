@@ -11,7 +11,10 @@ import {
 import { act } from "react";
 import type { AgentTaskSummary } from "@ku0/code-runtime-host-contract";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
-import type { RuntimeToolLifecycleEvent } from "../../../application/runtime/ports/runtimeToolLifecycle";
+import {
+  buildRuntimeToolLifecyclePresentationSummary,
+  type RuntimeToolLifecycleEvent,
+} from "../../../application/runtime/ports/runtimeToolLifecycle";
 import { REVIEW_START_DESKTOP_ONLY_MESSAGE } from "../../../application/runtime/ports/tauriThreads";
 import { RuntimeKernelProvider } from "../../../application/runtime/kernel/RuntimeKernelContext";
 import { createRuntimeAgentControlDependencies } from "../../../application/runtime/kernel/createRuntimeAgentControlDependencies";
@@ -173,6 +176,10 @@ function mockRuntimeTasks(tasks: MockAgentTaskSummary[]) {
 beforeEach(() => {
   runtimeUpdatedListeners.clear();
   useWorkspaceRuntimeToolLifecycleMock.mockReturnValue({
+    summary: buildRuntimeToolLifecyclePresentationSummary({
+      lifecycleEvents: [],
+      hookCheckpoints: [],
+    }),
     revision: 0,
     lastHookCheckpoint: null,
     lastEvent: null,
@@ -761,6 +768,26 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       },
     ];
     useWorkspaceRuntimeToolLifecycleMock.mockReturnValue({
+      summary: buildRuntimeToolLifecyclePresentationSummary({
+        lifecycleEvents,
+        hookCheckpoints: [
+          {
+            key: "hook-1",
+            point: "post_execution_pre_publication",
+            status: "ready",
+            source: "telemetry",
+            workspaceId: "ws-approval",
+            threadId: "thread-1",
+            turnId: "turn-1",
+            toolCallId: "call-1",
+            toolName: "bash",
+            scope: "write",
+            lifecycleEventId: "tool-1",
+            at: 1_771_331_697_000,
+            reason: null,
+          },
+        ],
+      }),
       revision: 2,
       lastHookCheckpoint: {
         key: "hook-1",

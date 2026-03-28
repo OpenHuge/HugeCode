@@ -74,6 +74,7 @@ export function createDebugPanelViewModel({
     runtimeToolExecutionMetrics;
   const { recentExecutions: runtimeToolExecutionRecentExecutions } = runtimeToolExecutionMetrics;
   const {
+    summary: runtimeToolLifecycleSummary,
     hookCheckpoints: runtimeToolLifecycleHookCheckpoints,
     lifecycleEvents: runtimeToolLifecycleEvents,
   } = runtimeToolLifecycle;
@@ -134,6 +135,7 @@ export function createDebugPanelViewModel({
       runtimeToolExecutionMetricsUpdatedAt,
       runtimeToolExecutionTotals,
       runtimeToolExecutionRecentExecutions,
+      runtimeToolLifecycleSummary,
       runtimeToolLifecycleHookCheckpoints,
       runtimeToolLifecycleEvents,
       runtimeEventBridgePath,

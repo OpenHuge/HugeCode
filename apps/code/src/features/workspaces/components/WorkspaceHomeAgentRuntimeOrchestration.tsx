@@ -231,6 +231,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
       <MissionControlSessionLogSection
         hookCheckpoints={runtimeToolLifecycle.hookCheckpoints}
         lifecycleEvents={runtimeToolLifecycle.lifecycleEvents}
+        summary={runtimeToolLifecycle.summary}
       />
       {runtimeDurabilityWarning ? (
         <div className={controlStyles.warning} data-testid="workspace-runtime-durability-warning">

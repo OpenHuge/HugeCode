@@ -1,13 +1,11 @@
 import type {
   RuntimeToolLifecycleEvent,
   RuntimeToolLifecycleHookCheckpoint,
+  RuntimeToolLifecyclePresentationSummary,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import {
-  buildRuntimeToolLifecyclePresentationSummary,
   formatRuntimeToolLifecycleEventKey,
   formatRuntimeToolLifecycleHookCheckpointKey,
-  sortRuntimeToolLifecycleEventsByRecency,
-  sortRuntimeToolLifecycleHookCheckpointsByRecency,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import {
   DebugDiagnosticsDefinitionList,
@@ -17,6 +15,7 @@ import {
 export type DebugRuntimeToolLifecycleSectionProps = {
   hookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
   lifecycleEvents: RuntimeToolLifecycleEvent[];
+  summary: RuntimeToolLifecyclePresentationSummary;
 };
 
 function formatLifecycleTimestamp(value: number): string {
@@ -60,14 +59,8 @@ function createHookCheckpointFields(
 export function DebugRuntimeToolLifecycleSection({
   hookCheckpoints,
   lifecycleEvents,
+  summary,
 }: DebugRuntimeToolLifecycleSectionProps) {
-  const summary = buildRuntimeToolLifecyclePresentationSummary({
-    lifecycleEvents,
-    hookCheckpoints,
-  });
-  const sortedEvents = sortRuntimeToolLifecycleEventsByRecency(lifecycleEvents);
-  const sortedHookCheckpoints = sortRuntimeToolLifecycleHookCheckpointsByRecency(hookCheckpoints);
-
   return (
     <div className="debug-event-channel-diagnostics" data-testid="debug-runtime-tool-lifecycle">
       <div className="debug-event-channel-diagnostics-title">Tool lifecycle</div>
@@ -105,7 +98,7 @@ export function DebugRuntimeToolLifecycleSection({
         </div>
       ) : (
         <div className="debug-event-channel-diagnostics-grid">
-          {sortedEvents.map((event) => (
+          {lifecycleEvents.map((event) => (
             <div key={event.id} className="debug-event-channel-diagnostics-item">
               <div className="debug-event-channel-diagnostics-label">
                 {formatRuntimeToolLifecycleEventKey(event)}
@@ -113,7 +106,7 @@ export function DebugRuntimeToolLifecycleSection({
               <DebugDiagnosticsDefinitionList fields={createLifecycleFields(event)} />
             </div>
           ))}
-          {sortedHookCheckpoints.map((checkpoint) => (
+          {hookCheckpoints.map((checkpoint) => (
             <div key={checkpoint.key} className="debug-event-channel-diagnostics-item">
               <div className="debug-event-channel-diagnostics-label">
                 {formatRuntimeToolLifecycleHookCheckpointKey(checkpoint)}
