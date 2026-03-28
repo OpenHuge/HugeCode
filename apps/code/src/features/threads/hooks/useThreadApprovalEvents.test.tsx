@@ -7,7 +7,7 @@ import { useThreadApprovalEvents } from "./useThreadApprovalEvents";
 
 const respondToServerRequest = vi.hoisted(() => vi.fn());
 
-vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacade", () => ({
+vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks", () => ({
   useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
     respondToApproval: ({ requestId, decision }: Record<string, unknown>) =>
       respondToServerRequest(workspaceId, requestId, decision),

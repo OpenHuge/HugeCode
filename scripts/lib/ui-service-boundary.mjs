@@ -268,7 +268,7 @@ const VIOLATION_RULES = [
   {
     id: "runtime-thread-session-command-facade-only",
     description:
-      "threads/composer feature code must use runtime session command hooks from `application/runtime/facades/runtimeSessionCommandFacade` instead of the compatibility port shim",
+      "threads/composer feature code must use runtime session command hooks from `application/runtime/facades/runtimeSessionCommandFacadeHooks` instead of the compatibility port shim",
     pattern:
       /(?:from\s+["'][^"']*\/application\/runtime\/ports\/runtimeSessionCommands["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/runtimeSessionCommands["'])/u,
     appliesTo: (filePath) =>

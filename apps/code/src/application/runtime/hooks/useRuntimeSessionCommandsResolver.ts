@@ -1,1 +1,1 @@
-export { useRuntimeSessionCommandsResolver } from "../facades/runtimeSessionCommandFacade";
+export { useRuntimeSessionCommandsResolver } from "../facades/runtimeSessionCommandFacadeHooks";

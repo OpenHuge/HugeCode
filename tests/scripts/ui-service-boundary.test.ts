@@ -83,7 +83,7 @@ describe("ui service boundary guard", () => {
   it("allows runtime session command facade hooks in thread features", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/threads/hooks/useThreadMessaging.ts",
-      'import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacade";\n'
+      'import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacadeHooks";\n'
     );
 
     expect(violations).toEqual([]);

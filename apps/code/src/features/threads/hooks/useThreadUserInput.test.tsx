@@ -5,7 +5,7 @@ import { useThreadUserInput } from "./useThreadUserInput";
 
 const respondToUserInput = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => undefined));
 
-vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacade", () => ({
+vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks", () => ({
   useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
     respondToUserInput: ({ requestId, answers }: Record<string, unknown>) =>
       respondToUserInput(workspaceId, requestId, answers),

@@ -152,8 +152,8 @@ describe("check-runtime-port-exports", () => {
       tempRoot,
       "apps/code/src/application/runtime/ports/runtimeSessionCommands.ts",
       [
-        'export { useRuntimeSessionCommandsResolver } from "../facades/runtimeSessionCommandFacade";',
-        'export { useWorkspaceRuntimeSessionCommands } from "../facades/runtimeSessionCommandFacade";',
+        'export { useRuntimeSessionCommandsResolver } from "../facades/runtimeSessionCommandFacadeHooks";',
+        'export { useWorkspaceRuntimeSessionCommands } from "../facades/runtimeSessionCommandFacadeHooks";',
         'export { createRuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";',
       ].join("\n")
     );

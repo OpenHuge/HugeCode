@@ -1,1 +1,1 @@
-export { useWorkspaceRuntimeSessionCommands } from "../facades/runtimeSessionCommandFacade";
+export { useWorkspaceRuntimeSessionCommands } from "../facades/runtimeSessionCommandFacadeHooks";

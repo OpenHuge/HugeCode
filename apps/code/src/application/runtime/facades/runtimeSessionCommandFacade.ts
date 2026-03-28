@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import type {
   AgentTaskAutoDriveState,
   HugeCodeTaskMode,
@@ -29,8 +28,6 @@ import type {
   RuntimeTurnId,
   RuntimeWorkspaceId,
 } from "../types/runtimeIds";
-import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
-import { useWorkspaceRuntimeScope } from "../kernel/WorkspaceRuntimeScope";
 
 export type RuntimeSessionTurnOptions = {
   requestId?: string | null;
@@ -183,22 +180,4 @@ export function createRuntimeSessionCommandFacade(
     canStartReviewInCurrentHost: () => deps.detectRuntimeMode() === "tauri",
     reviewStartDesktopOnlyMessage: deps.reviewStartDesktopOnlyMessage,
   };
-}
-
-export function useWorkspaceRuntimeSessionCommands(
-  workspaceId: RuntimeWorkspaceId
-): RuntimeSessionCommandFacade {
-  return useWorkspaceRuntimeScope(workspaceId).runtimeSessionCommands;
-}
-
-export function useRuntimeSessionCommandsResolver(): (
-  workspaceId: RuntimeWorkspaceId
-) => RuntimeSessionCommandFacade {
-  const kernel = useRuntimeKernel();
-
-  return useCallback(
-    (workspaceId: RuntimeWorkspaceId) =>
-      kernel.getWorkspaceScope(workspaceId).runtimeSessionCommands,
-    [kernel]
-  );
 }

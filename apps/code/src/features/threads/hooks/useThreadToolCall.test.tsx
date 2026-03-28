@@ -5,7 +5,7 @@ import { useThreadToolCall } from "./useThreadToolCall";
 
 const respondToToolCall = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => undefined));
 
-vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacade", () => ({
+vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks", () => ({
   useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
     respondToToolCall: ({ requestId, response }: Record<string, unknown>) =>
       respondToToolCall(workspaceId, requestId, response),

@@ -1,6 +1,6 @@
 // Compatibility shim. Feature code should import workspace-scoped session command hooks
-// from `application/runtime/facades/runtimeSessionCommandFacade`.
+// from `application/runtime/facades/runtimeSessionCommandFacadeHooks`.
 export {
   useRuntimeSessionCommandsResolver,
   useWorkspaceRuntimeSessionCommands,
-} from "../facades/runtimeSessionCommandFacade";
+} from "../facades/runtimeSessionCommandFacadeHooks";

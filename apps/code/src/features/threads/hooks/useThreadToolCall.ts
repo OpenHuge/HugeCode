@@ -1,6 +1,6 @@
 import type { Dispatch } from "react";
 import { useCallback } from "react";
-import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
+import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacadeHooks";
 import type { DynamicToolCallRequest, DynamicToolCallResponse } from "../../../types";
 import type { ThreadAction } from "./useThreadsReducer";
 

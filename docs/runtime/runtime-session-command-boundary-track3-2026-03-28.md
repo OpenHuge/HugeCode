@@ -7,8 +7,9 @@ changing the frozen Track 1 lifecycle boundary.
 
 ## Boundary Rules
 
-- `application/runtime/facades/runtimeSessionCommandFacade` is the approved
-  workspace-scoped session-command hook surface for UI and feature code.
+- `application/runtime/facades/runtimeSessionCommandFacadeHooks` is the
+  approved workspace-scoped session-command hook surface for UI and feature
+  code.
 - `application/runtime/ports/runtimeSessionCommands` remains a compatibility
   shim for existing runtime composition paths. New feature code must not import
   it directly.
