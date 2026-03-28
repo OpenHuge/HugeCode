@@ -204,7 +204,7 @@ const VIOLATION_RULES = [
   {
     id: "runtime-tool-lifecycle-read-primitives",
     description:
-      "product code must reserve runtime tool lifecycle snapshot/subscription primitives for the shared workspace hook and explicit debug diagnostics hooks",
+      "product code must reserve runtime tool lifecycle snapshot/subscription primitives for `features/shared/hooks/useWorkspaceRuntimeToolLifecycle.ts` and the explicit debug diagnostics hooks (`useDebugRuntimeProbe.ts`, `useRuntimeDiagnosticsExport.ts`)",
     pattern:
       /(?:import\s*\{[\s\S]*\b(?:getWorkspaceRuntimeToolLifecycleSnapshot|subscribeWorkspaceRuntimeToolLifecycleSnapshot|subscribeWorkspaceRuntimeToolLifecycleEvents)\b[\s\S]*\}\s*from\s+["'][^"']*\/application\/runtime\/ports\/runtimeToolLifecycle["']|from\s+["'][^"']*\/application\/runtime\/ports\/runtimeToolLifecycle["'][\s\S]*\b(?:getWorkspaceRuntimeToolLifecycleSnapshot|subscribeWorkspaceRuntimeToolLifecycleSnapshot|subscribeWorkspaceRuntimeToolLifecycleEvents)\b)/u,
     appliesTo: (filePath) =>

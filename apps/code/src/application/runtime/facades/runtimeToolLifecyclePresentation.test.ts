@@ -4,9 +4,12 @@ import type {
   RuntimeToolLifecycleHookCheckpoint,
 } from "../types/runtimeToolLifecycle";
 import {
+  buildRuntimeToolLifecyclePresentationSummary,
   describeRuntimeToolLifecycleEvent,
   describeRuntimeToolLifecycleHookCheckpoint,
   formatRuntimeToolLifecycleStatusLabel,
+  formatRuntimeToolLifecycleEventKey,
+  formatRuntimeToolLifecycleHookCheckpointKey,
   getRuntimeToolLifecycleEventTone,
   getRuntimeToolLifecycleHookCheckpointTone,
   sortRuntimeToolLifecycleEventsByRecency,
@@ -97,5 +100,41 @@ describe("runtimeToolLifecyclePresentation", () => {
         createRuntimeToolLifecycleHookCheckpoint({ status: "pending" })
       )
     ).toBe("warning");
+    expect(
+      formatRuntimeToolLifecycleEventKey(
+        createRuntimeToolLifecycleEvent({ kind: "guardrail", phase: "outcome" })
+      )
+    ).toBe("guardrail/outcome");
+    expect(
+      formatRuntimeToolLifecycleHookCheckpointKey(
+        createRuntimeToolLifecycleHookCheckpoint({ status: "completed" })
+      )
+    ).toBe("post_execution_pre_publication/completed");
+  });
+
+  it("builds a shared lifecycle presentation summary", () => {
+    const summary = buildRuntimeToolLifecyclePresentationSummary({
+      lifecycleEvents: [
+        createRuntimeToolLifecycleEvent({
+          id: "approval-1",
+          kind: "approval",
+          phase: "requested",
+          toolName: null,
+          at: 30,
+        }),
+        createRuntimeToolLifecycleEvent({ id: "tool-1", at: 20 }),
+      ],
+      hookCheckpoints: [createRuntimeToolLifecycleHookCheckpoint({ key: "hook-1", at: 40 })],
+    });
+
+    expect(summary).toMatchObject({
+      approvalEventCount: 1,
+      hasActivity: true,
+      latestEventKey: "approval/requested",
+      latestHookCheckpointKey: "post_execution_pre_publication/ready",
+      toolEventCount: 1,
+      totalEvents: 2,
+      totalHookCheckpoints: 1,
+    });
   });
 });

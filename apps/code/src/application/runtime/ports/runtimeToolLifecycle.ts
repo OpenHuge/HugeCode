@@ -7,11 +7,17 @@ export type {
   RuntimeToolLifecycleSource,
   RuntimeToolLifecycleStatus,
 } from "../types/runtimeToolLifecycle";
-export type { RuntimeToolLifecyclePresentationTone } from "../facades/runtimeToolLifecycleFacade";
+export type {
+  RuntimeToolLifecyclePresentationSummary,
+  RuntimeToolLifecyclePresentationTone,
+} from "../facades/runtimeToolLifecycleFacade";
 export {
+  buildRuntimeToolLifecyclePresentationSummary,
   describeRuntimeToolLifecycleEvent,
   describeRuntimeToolLifecycleHookCheckpoint,
   formatRuntimeToolLifecycleStatusLabel,
+  formatRuntimeToolLifecycleEventKey,
+  formatRuntimeToolLifecycleHookCheckpointKey,
   getRuntimeToolLifecycleEventTone,
   getRuntimeToolLifecycleHookCheckpointTone,
   getWorkspaceRuntimeToolLifecycleSnapshot,

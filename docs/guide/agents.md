@@ -88,6 +88,14 @@ Use this order when starting repo-wide work:
 - Do not expect a runtime `list-runtime-apps` tool or `appsListV1` app-layer
   compatibility RPC; that discovery path has been removed.
 - Runtime/UI work in `apps/code` must stay behind `src/application/runtime/*`.
+- Treat the Track 1 runtime lifecycle boundary as frozen:
+  - approved product-facing reads flow through
+    `features/shared/hooks/useWorkspaceRuntimeToolLifecycle.ts`
+  - direct workspace lifecycle snapshot reads are only allowed in the explicit
+    debug diagnostics hooks
+  - page components must consume derived hook state or the approved
+    `application/runtime/ports/runtimeToolLifecycle` presentation helpers
+  - do not widen `application/runtime/ports/runtimeToolLifecycle`
 
 ## Source Of Truth Ladder
 
