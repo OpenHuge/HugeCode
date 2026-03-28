@@ -12,6 +12,7 @@ import {
   createRuntimeEventChannelDiagnostics,
   createRuntimeToolLifecycleEvent,
 } from "./debugDiagnosticsFixtures";
+import { buildRuntimeToolLifecyclePresentationSummary } from "../../../application/runtime/ports/runtimeToolLifecycle";
 
 export function createDebugEntries(): DebugEntry[] {
   return [
@@ -47,7 +48,7 @@ export function createDebugPanelShellProps(
 export function createDebugPanelBodyProps(
   overrides: Partial<DebugPanelBodyProps> = {}
 ): DebugPanelBodyProps {
-  return {
+  const baseProps: DebugPanelBodyProps = {
     isOpen: true,
     observabilityCapabilityEnabled: true,
     distributedDiagnostics: null,
@@ -67,6 +68,10 @@ export function createDebugPanelBodyProps(
       truncatedTotal: 0,
     },
     runtimeToolExecutionRecentExecutions: [],
+    runtimeToolLifecycleSummary: buildRuntimeToolLifecyclePresentationSummary({
+      lifecycleEvents: [],
+      hookCheckpoints: [],
+    }),
     runtimeToolLifecycleHookCheckpoints: [],
     runtimeToolLifecycleEvents: [],
     runtimeEventBridgePath: "legacy",
@@ -98,7 +103,23 @@ export function createDebugPanelBodyProps(
     onRunBootstrapProbe: vi.fn(),
     onRunToolLifecycleProbe: vi.fn(),
     onRunLiveSkillProbe: vi.fn(),
+  };
+
+  const mergedProps = {
+    ...baseProps,
     ...overrides,
+  };
+
+  if (overrides.runtimeToolLifecycleSummary !== undefined) {
+    return mergedProps;
+  }
+
+  return {
+    ...mergedProps,
+    runtimeToolLifecycleSummary: buildRuntimeToolLifecyclePresentationSummary({
+      lifecycleEvents: mergedProps.runtimeToolLifecycleEvents,
+      hookCheckpoints: mergedProps.runtimeToolLifecycleHookCheckpoints,
+    }),
   };
 }
 
@@ -111,6 +132,10 @@ export function createPopulatedDebugPanelBodyProps(
     hasRemoteExecutionDiagnostics: true,
     agentTaskDurabilityDiagnostics: createAgentTaskDurabilityDiagnostics(),
     eventChannelDiagnostics: createRuntimeEventChannelDiagnostics(),
+    runtimeToolLifecycleSummary: buildRuntimeToolLifecyclePresentationSummary({
+      lifecycleEvents: [createRuntimeToolLifecycleEvent()],
+      hookCheckpoints: [],
+    }),
     runtimeToolLifecycleHookCheckpoints: [],
     runtimeToolLifecycleEvents: [createRuntimeToolLifecycleEvent()],
     runtimeEventBridgePath: "v2",

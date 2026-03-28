@@ -15,6 +15,7 @@ import { DebugRuntimeToolLifecycleSection } from "./DebugRuntimeToolLifecycleSec
 import type {
   RuntimeToolLifecycleEvent,
   RuntimeToolLifecycleHookCheckpoint,
+  RuntimeToolLifecyclePresentationSummary,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import type {
   RuntimeToolExecutionRecentEntry,
@@ -31,6 +32,7 @@ export type DebugPanelBodyProps = DebugRuntimeProbesSectionProps & {
   runtimeToolExecutionMetricsUpdatedAt: number;
   runtimeToolExecutionTotals: RuntimeToolExecutionTotals;
   runtimeToolExecutionRecentExecutions: RuntimeToolExecutionRecentEntry[];
+  runtimeToolLifecycleSummary: RuntimeToolLifecyclePresentationSummary;
   runtimeToolLifecycleHookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
   runtimeToolLifecycleEvents: RuntimeToolLifecycleEvent[];
   runtimeEventBridgePath: "legacy" | "v2";
@@ -47,6 +49,7 @@ export function DebugPanelBody({
   runtimeToolExecutionMetricsUpdatedAt,
   runtimeToolExecutionTotals,
   runtimeToolExecutionRecentExecutions,
+  runtimeToolLifecycleSummary,
   runtimeToolLifecycleHookCheckpoints,
   runtimeToolLifecycleEvents,
   runtimeEventBridgePath,
@@ -73,6 +76,7 @@ export function DebugPanelBody({
       <DebugRuntimeToolLifecycleSection
         lifecycleEvents={runtimeToolLifecycleEvents}
         hookCheckpoints={runtimeToolLifecycleHookCheckpoints}
+        summary={runtimeToolLifecycleSummary}
       />
       <DebugRuntimeProbesSection {...probeProps} />
       {isOpen ? <DebugEntriesList formattedEntries={formattedEntries} /> : null}

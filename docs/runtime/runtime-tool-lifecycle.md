@@ -188,6 +188,11 @@ primitives are intentionally narrower than the full port surface:
 
 - `features/shared/hooks/useWorkspaceRuntimeToolLifecycle.ts` owns the primary
   product-facing subscription path
+- that shared hook now returns the workspace-scoped lifecycle projection in
+  presentation-ready form:
+  - recency-sorted `lifecycleEvents`
+  - recency-sorted `hookCheckpoints`
+  - shared `summary` derived from those same collections
 - explicit debug diagnostics hooks may perform direct snapshot reads for probe
   and export flows
 - other product code should consume lifecycle state through the shared hook or
@@ -212,6 +217,7 @@ The same rule now applies to lifecycle presentation semantics:
 - pages should not define their own lifecycle status-to-tone mapping
 - pages should not invent their own event or hook-checkpoint labels
 - pages should not re-sort lifecycle streams with ad hoc ordering rules
+- pages should not rebuild lifecycle summary counters from raw arrays
 - those presentation primitives now live behind the same
   `application/runtime/ports/runtimeToolLifecycle` boundary
 
