@@ -14,6 +14,7 @@ export type {
   WorkspaceClientRuntimeBindings,
   WorkspaceClientRuntimeGitBindings,
   WorkspaceClientRuntimeMissionControlBindings,
+  WorkspaceClientRuntimeMissionControlSourceAdapter,
   WorkspaceClientRuntimeModelsBindings,
   WorkspaceClientRuntimeMode,
   WorkspaceClientRuntimeKernelProjectionBindings,
@@ -45,6 +46,10 @@ export {
   createSnapshotBackedMissionControlBindings,
   createSnapshotBackedMissionControlSurfaceBindings,
   createSnapshotBackedReviewBindings,
+  createWorkspaceClientRuntimeMissionControlBindings,
+  createWorkspaceClientRuntimeMissionControlSurfaceBindings,
+  createWorkspaceClientRuntimeReviewBindings,
+  readMissionControlSnapshotFromSourceAdapter,
 } from "./workspace/missionControlBindings";
 export type {
   MissionControlSnapshotReader,
