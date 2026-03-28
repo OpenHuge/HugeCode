@@ -6,6 +6,7 @@ import {
   detectBrowserRuntimeConnectionState,
   detectBrowserRuntimeMode,
   discoverLocalRuntimeGatewayTargets,
+  isTauriRuntimeBridgeAvailable,
   MANUAL_WEB_RUNTIME_GATEWAY_PROFILE_STORAGE_KEY,
   readManualWebRuntimeGatewayTarget,
   readStoredWebRuntimeGatewayProfile,
@@ -52,7 +53,7 @@ describe("runtimeGatewayBrowser", () => {
     expect(window.localStorage.getItem(MANUAL_WEB_RUNTIME_GATEWAY_PROFILE_STORAGE_KEY)).toBeNull();
   });
 
-  it("maps browser runtime availability to host-neutral connection states", () => {
+  it("maps browser runtime availability to browser-side connection states only", () => {
     expect(detectBrowserRuntimeConnectionState(null)).toBe("discoverable");
 
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "https://runtime.example.com/rpc");
@@ -76,10 +77,10 @@ describe("runtimeGatewayBrowser", () => {
       invoke: vi.fn(),
     };
 
-    expect(detectBrowserRuntimeConnectionState(null)).toBe("connected");
+    expect(detectBrowserRuntimeConnectionState(null)).toBe("discoverable");
   });
 
-  it("detects web runtime from stored profile or env and honors tauri bridge globals", () => {
+  it("detects browser runtime mode from stored profile or env without reviving tauri globals", () => {
     expect(detectBrowserRuntimeMode(null)).toBe("unavailable");
 
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
@@ -103,7 +104,31 @@ describe("runtimeGatewayBrowser", () => {
       invoke: vi.fn(),
     };
 
-    expect(detectBrowserRuntimeMode(null)).toBe("tauri");
+    expect(detectBrowserRuntimeMode(null)).toBe("unavailable");
+  });
+
+  it("keeps tauri runtime bridge detection retired in the shared browser helper", () => {
+    expect(isTauriRuntimeBridgeAvailable()).toBe(false);
+
+    (
+      window as Window & {
+        __TAURI__?: unknown;
+        __TAURI_INTERNALS__?: unknown;
+      }
+    ).__TAURI__ = {
+      core: {
+        invoke: vi.fn(),
+      },
+    };
+    (
+      window as Window & {
+        __TAURI_INTERNALS__?: unknown;
+      }
+    ).__TAURI_INTERNALS__ = {
+      invoke: vi.fn(),
+    };
+
+    expect(isTauriRuntimeBridgeAvailable()).toBe(false);
   });
 
   it("discovers reachable targets once per valid port and prefers host order", async () => {
