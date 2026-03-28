@@ -1,11 +1,11 @@
 import { invoke } from "../application/runtime/ports/desktopHostCore";
 import { getErrorMessage } from "@ku0/code-runtime-client/runtimeClientErrorUtils";
+import { createExtendedRpcRuntimeClient } from "@ku0/code-runtime-client/runtimeClientRpcExtensionsFactory";
 import {
   createRuntimeRpcInvokerWithCandidates,
   invokeTauriRaw as invokeTauriRawShared,
 } from "@ku0/code-runtime-client/runtimeClientTransportCore";
 import { detectRuntimeMode } from "./runtimeClientMode";
-import { createRpcRuntimeClient } from "./runtimeClientRpcClient";
 import {
   resolveCapabilitiesSnapshotByMode,
   resolveTauriRuntimeRpcMethodCandidates,
@@ -73,11 +73,11 @@ export async function readRuntimeCapabilitiesSummary(): Promise<RuntimeCapabilit
 
 const unavailableClient = createUnavailableRuntimeClient(rejectUnavailable);
 
-const webRuntimeClient = createRpcRuntimeClient(
+const webRuntimeClient = createExtendedRpcRuntimeClient<AppSettings>(
   createRuntimeRpcInvokerWithCandidates(invokeWebRuntimeRaw, resolveWebRuntimeRpcMethodCandidates)
 );
 
-const tauriClient = createRpcRuntimeClient(
+const tauriClient = createExtendedRpcRuntimeClient<AppSettings>(
   createRuntimeRpcInvokerWithCandidates(invokeTauriRaw, resolveTauriRuntimeRpcMethodCandidates)
 );
 

@@ -21,6 +21,10 @@
       "types": "./src/webMcpBridgeContextDescriptors.ts",
       "default": "./src/webMcpBridgeContextDescriptors.ts"
     },
+    "./webMcpAgentControlCatalog": {
+      "types": "./src/webMcpAgentControlCatalog.ts",
+      "default": "./src/webMcpAgentControlCatalog.ts"
+    },
     "./webMcpBridgeReadTools": {
       "types": "./src/webMcpBridgeReadTools.ts",
       "default": "./src/webMcpBridgeReadTools.ts"

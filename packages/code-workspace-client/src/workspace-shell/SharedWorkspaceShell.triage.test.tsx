@@ -151,7 +151,7 @@ describe("WorkspaceShellApp triage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Home" }));
 
-    const reviewOverviewDetail = await screen.findByText("Review ready: Ready for review");
+    const reviewOverviewDetail = await screen.findByText("Ready: Ready for review");
     const reviewOverviewCard = reviewOverviewDetail.closest("button");
 
     expect(reviewOverviewCard).toBeTruthy();

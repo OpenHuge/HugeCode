@@ -4,8 +4,10 @@
 
 ### 1. Shared client ownership is incomplete
 
-- `packages/code-runtime-client` exists, but `apps/code/src/services/runtimeClient*.ts` still contains neighboring app-owned behavior beside the extracted client package.
-- `packages/code-runtime-webmcp-client` exists, but `apps/code/src/services/webMcpBridge*.ts` still contains app-owned behavior wiring even after type/helper shims were deleted.
+- Resolved for the runtime-client and core WebMCP ownership seam.
+- `packages/code-runtime-client` now owns the shared RPC client construction that previously remained adjacent in `apps/code/src/services/runtimeClient*.ts`.
+- `packages/code-runtime-webmcp-client` now owns the canonical WebMCP descriptors, tool-name catalogs, read tools, and shared agent-control helper logic.
+- `apps/code` keeps only host binding, app runtime composition, and runtime-specific invalidation/tool wiring on this seam.
 
 ### 2. Public contract naming split is resolved
 

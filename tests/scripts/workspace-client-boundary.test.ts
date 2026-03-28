@@ -34,12 +34,16 @@ describe("workspace client boundaries", () => {
   it("routes the desktop workspace app through the shared workspace client entry", () => {
     const appSource = readRepoFile("apps/code/src/App.tsx");
     const entrySource = readRepoFile("apps/code/src/web/WorkspaceClientEntry.tsx");
+    const bootstrapSource = readRepoFile(
+      "packages/code-application/src/desktopWorkspaceBootstrap.ts"
+    );
 
     expect(appSource).toContain("./web/WorkspaceClientEntry");
     expect(appSource).not.toContain("./web/WorkspaceAppBridge");
     expect(entrySource).toContain("WorkspaceClientBoot");
     expect(entrySource).toContain("@ku0/code-application");
     expect(entrySource).toContain("createDesktopWorkspaceBootstrap");
+    expect(bootstrapSource).toContain("createDesktopWorkspaceClientBindings");
     expect(entrySource).toContain("runtimeKernel");
   });
 

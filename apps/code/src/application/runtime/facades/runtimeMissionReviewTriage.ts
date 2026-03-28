@@ -1,9 +1,7 @@
 import type {
   HugeCodeReviewFindingSeverity,
   HugeCodeReviewPackSummary,
-  HugeCodeRunSummary,
 } from "@ku0/code-runtime-host-contract";
-import { resolveMissionControlReviewPresentation } from "@ku0/code-runtime-host-contract";
 import type { MissionControlProjection } from "./runtimeMissionControlFacade";
 
 export type MissionReviewFilterTag =
@@ -26,15 +24,51 @@ export type MissionReviewTriageMetadata = {
 function resolveTriagePriority(input: {
   reviewPack: HugeCodeReviewPackSummary | null;
   run: MissionControlProjection["runs"][number] | null;
+  reviewGateState: ReviewGateState;
+  highestReviewSeverity: HugeCodeReviewFindingSeverity | null;
+  autofixAvailable: boolean;
   continuationState: ContinuationState;
   hasBlockedSubAgents: boolean;
 }): number {
-  return resolveMissionControlReviewPresentation({
-    reviewPack: input.reviewPack,
-    run: input.run as HugeCodeRunSummary | null,
-    continuationState: input.continuationState,
-    hasBlockedSubAgents: input.hasBlockedSubAgents,
-  }).triagePriority;
+  if (
+    input.run?.approval?.status === "pending_decision" ||
+    Boolean(input.run?.operatorSnapshot?.blocker?.trim()) ||
+    input.reviewPack?.reviewDecision?.status === "rejected" ||
+    input.reviewPack?.reviewStatus === "action_required" ||
+    input.reviewGateState === "fail" ||
+    input.reviewGateState === "blocked" ||
+    input.highestReviewSeverity === "critical" ||
+    (!input.reviewPack &&
+      input.run !== null &&
+      ["needs_input", "failed", "cancelled"].includes(input.run.state))
+  ) {
+    return 4;
+  }
+  if (
+    input.continuationState === "blocked" ||
+    input.continuationState === "degraded" ||
+    input.hasBlockedSubAgents
+  ) {
+    return 3;
+  }
+  if (input.autofixAvailable) {
+    return 2;
+  }
+  if (
+    input.reviewPack?.reviewStatus === "incomplete_evidence" ||
+    input.reviewPack?.placement?.resolutionSource === "runtime_fallback" ||
+    input.reviewPack?.placement?.lifecycleState === "fallback" ||
+    input.reviewPack?.placement?.healthSummary === "placement_attention" ||
+    input.reviewPack?.placement?.healthSummary === "placement_blocked" ||
+    input.run?.placement?.resolutionSource === "runtime_fallback" ||
+    input.run?.placement?.lifecycleState === "fallback" ||
+    input.run?.placement?.healthSummary === "placement_attention" ||
+    input.run?.placement?.healthSummary === "placement_blocked" ||
+    input.hasBlockedSubAgents
+  ) {
+    return 1;
+  }
+  return 0;
 }
 
 export function buildMissionReviewTriageMetadata(input: {
@@ -51,7 +85,6 @@ export function buildMissionReviewTriageMetadata(input: {
   if (
     input.reviewPack?.reviewStatus === "action_required" ||
     input.reviewPack?.reviewDecision?.status === "rejected" ||
-    input.reviewPack?.validationOutcome === "failed" ||
     input.run?.approval?.status === "pending_decision" ||
     Boolean(input.run?.operatorSnapshot?.blocker?.trim()) ||
     (!input.reviewPack &&
@@ -63,7 +96,6 @@ export function buildMissionReviewTriageMetadata(input: {
     filterTags.push("needs_attention");
   }
   if (
-    input.reviewPack?.validationOutcome === "failed" ||
     input.reviewGateState === "fail" ||
     input.reviewGateState === "blocked" ||
     input.highestReviewSeverity === "critical"
@@ -97,11 +129,6 @@ export function buildMissionReviewTriageMetadata(input: {
 
   return {
     filterTags,
-    triagePriority: resolveTriagePriority({
-      reviewPack: input.reviewPack,
-      run: input.run,
-      continuationState: input.continuationState,
-      hasBlockedSubAgents: input.hasBlockedSubAgents,
-    }),
+    triagePriority: resolveTriagePriority(input),
   };
 }
