@@ -228,6 +228,58 @@ export function useThreadCodexControls({
   );
 
   const {
+    collaborationModes,
+    selectedCollaborationMode,
+    selectedCollaborationModeId,
+    setSelectedCollaborationModeId,
+  } = useCollaborationModes({
+    activeWorkspace,
+    enabled: appSettings.collaborationModesEnabled,
+    preferredModeId: preferredCollabModeId,
+    selectionKey: threadCodexSelectionKey,
+    onDebug: addDebugEntry,
+  });
+
+  const currentMissionWorkspaceId = activeWorkspaceIdForParamsRef.current;
+  const currentMissionThreadId = visibleActiveThreadIdRef.current ?? activeThreadIdRef.current;
+  const missionDraft = useMemo(() => {
+    const stored =
+      currentMissionWorkspaceId && currentMissionThreadId
+        ? getThreadCodexParams(currentMissionWorkspaceId, currentMissionThreadId)
+        : null;
+    return buildMissionDraftFromThreadState({
+      objective: "",
+      accessMode: stored?.accessMode ?? accessMode,
+      collaborationModeId: stored?.collaborationModeId ?? selectedCollaborationModeId,
+      executionProfileId: stored?.executionProfileId ?? null,
+      preferredBackendIds:
+        resolveRuntimePreferredBackendIdsInput({
+          preferredBackendIds: stored?.preferredBackendIds ?? null,
+          fallbackDefaultBackendId: appSettings.defaultRemoteExecutionBackendId,
+        }) ?? null,
+      autoDriveDraft: stored?.autoDriveDraft ?? null,
+    });
+  }, [
+    accessMode,
+    appSettings.defaultRemoteExecutionBackendId,
+    currentMissionThreadId,
+    currentMissionWorkspaceId,
+    getThreadCodexParams,
+    selectedCollaborationModeId,
+  ]);
+
+  const autoSelectionRequirements = useMemo(() => {
+    const requiresTools = missionDraft.mode === "pair" || missionDraft.mode === "delegate";
+    if (!autoSelectionNeedsVision && !requiresTools) {
+      return null;
+    }
+    return {
+      ...(requiresTools ? { requiresTools: true } : {}),
+      ...(autoSelectionNeedsVision ? { requiresVision: true } : {}),
+    };
+  }, [autoSelectionNeedsVision, missionDraft.mode]);
+
+  const {
     models,
     selectedModel,
     selectedModelId,
@@ -244,20 +296,7 @@ export function useThreadCodexControls({
     selectionMode,
     preferredProviderId: preferredProviderFamilyId,
     selectionKey: threadCodexSelectionKey,
-    autoSelectionRequirements: autoSelectionNeedsVision ? { requiresVision: true } : null,
-  });
-
-  const {
-    collaborationModes,
-    selectedCollaborationMode,
-    selectedCollaborationModeId,
-    setSelectedCollaborationModeId,
-  } = useCollaborationModes({
-    activeWorkspace,
-    enabled: appSettings.collaborationModesEnabled,
-    preferredModeId: preferredCollabModeId,
-    selectionKey: threadCodexSelectionKey,
-    onDebug: addDebugEntry,
+    autoSelectionRequirements,
   });
 
   const persistThreadCodexParams = useCallback(
@@ -963,34 +1002,6 @@ export function useThreadCodexControls({
     const uniqueIds = Array.from(new Set(ids.map((id) => id.trim()).filter((id) => id.length > 0)));
     setSelectedAccountIds(uniqueIds);
   }, []);
-
-  const currentMissionWorkspaceId = activeWorkspaceIdForParamsRef.current;
-  const currentMissionThreadId = visibleActiveThreadIdRef.current ?? activeThreadIdRef.current;
-  const missionDraft = useMemo(() => {
-    const stored =
-      currentMissionWorkspaceId && currentMissionThreadId
-        ? getThreadCodexParams(currentMissionWorkspaceId, currentMissionThreadId)
-        : null;
-    return buildMissionDraftFromThreadState({
-      objective: "",
-      accessMode: stored?.accessMode ?? accessMode,
-      collaborationModeId: stored?.collaborationModeId ?? selectedCollaborationModeId,
-      executionProfileId: stored?.executionProfileId ?? null,
-      preferredBackendIds:
-        resolveRuntimePreferredBackendIdsInput({
-          preferredBackendIds: stored?.preferredBackendIds ?? null,
-          fallbackDefaultBackendId: appSettings.defaultRemoteExecutionBackendId,
-        }) ?? null,
-      autoDriveDraft: stored?.autoDriveDraft ?? null,
-    });
-  }, [
-    accessMode,
-    appSettings.defaultRemoteExecutionBackendId,
-    currentMissionThreadId,
-    currentMissionWorkspaceId,
-    getThreadCodexParams,
-    selectedCollaborationModeId,
-  ]);
 
   return {
     accessMode,

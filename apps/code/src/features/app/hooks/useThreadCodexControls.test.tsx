@@ -1092,7 +1092,9 @@ describe("useThreadCodexControls", () => {
     await waitFor(() => {
       expect(useModelsMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          autoSelectionRequirements: null,
+          autoSelectionRequirements: {
+            requiresTools: true,
+          },
         })
       );
     });
@@ -1105,7 +1107,31 @@ describe("useThreadCodexControls", () => {
       expect(useModelsMock).toHaveBeenLastCalledWith(
         expect.objectContaining({
           autoSelectionRequirements: {
+            requiresTools: true,
             requiresVision: true,
+          },
+        })
+      );
+    });
+  });
+
+  it("passes the auto tools requirement through to useModels for agentic task modes", async () => {
+    const getThreadCodexParams = vi.fn(() => ({
+      accessMode: "full-access" as const,
+      collaborationModeId: null,
+    }));
+
+    createHook({
+      activeThreadId: "thread-1",
+      visibleActiveThreadId: "thread-1",
+      getThreadCodexParams,
+    });
+
+    await waitFor(() => {
+      expect(useModelsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          autoSelectionRequirements: {
+            requiresTools: true,
           },
         })
       );

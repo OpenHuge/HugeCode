@@ -244,6 +244,54 @@ describe("modelProviderSelection", () => {
     });
   });
 
+  it("overrides a preferred provider when the task explicitly requires tools", () => {
+    const providerOptions = buildModelProviderOptions([
+      createModel({
+        id: "gpt-5.4",
+        model: "gpt-5.4",
+        displayName: "GPT-5.4",
+        provider: "openai",
+        capabilityMatrix: {
+          supportsTools: "unsupported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "supported",
+          supportsJsonSchema: "supported",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: ["medium", "high"],
+        },
+      }),
+      createModel({
+        id: "claude-sonnet-4-5",
+        model: "claude-sonnet-4-5",
+        displayName: "Claude Sonnet 4.5",
+        provider: "anthropic",
+        pool: "claude",
+        capabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "supported",
+          supportsJsonSchema: "supported",
+          maxContextTokens: 200000,
+          supportedReasoningEfforts: ["medium", "high"],
+        },
+      }),
+    ]);
+
+    expect(resolveAutoModelProviderSelection(providerOptions, "codex", null)).toMatchObject({
+      providerId: "codex",
+      modelId: "gpt-5.4",
+    });
+
+    expect(
+      resolveAutoModelProviderSelection(providerOptions, "codex", null, {
+        requiresTools: true,
+      })
+    ).toMatchObject({
+      providerId: "claude",
+      modelId: "claude-sonnet-4-5",
+    });
+  });
+
   it("uses provider-level vision support as a routing hint when the model capability is unknown", () => {
     const providerOptions = buildModelProviderOptions([
       createModel({

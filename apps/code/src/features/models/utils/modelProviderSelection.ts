@@ -42,6 +42,7 @@ export type AutoModelProviderSelection<
 };
 
 export type AutoSelectionRequirements = {
+  requiresTools?: boolean;
   requiresVision?: boolean;
 };
 
@@ -253,6 +254,15 @@ function modelSatisfiesAutoSelectionRequirements(
   model: ProviderSelectableModel,
   requirements: AutoSelectionRequirements | null | undefined
 ): boolean {
+  if (requirements?.requiresTools) {
+    const toolsSupport = resolveRoutingCapabilitySupport(
+      model.capabilityMatrix?.supportsTools,
+      model.providerCapabilityMatrix?.supportsTools
+    );
+    if (toolsSupport !== "supported") {
+      return false;
+    }
+  }
   if (!requirements?.requiresVision) {
     return true;
   }

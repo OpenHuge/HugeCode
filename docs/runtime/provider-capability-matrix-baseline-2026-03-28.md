@@ -44,10 +44,16 @@ The first consumers live in `apps/code`.
 - Reasoning-effort selection keeps using runtime-owned model metadata and clamps a requested effort
   against the normalized model capability matrix. Unsupported efforts fall back to the model's
   compatible default or first supported effort.
+- Auto model/provider selection treats capability requirements as explicit routing hints instead of
+  burying them behind preferred-provider stickiness. Vision attachments set `requiresVision`, and
+  pair/delegate mission modes set `requiresTools`, so auto routing can prefer a compatible route
+  before the send path is reached.
 - Thread messaging now also treats image input as an explicit capability boundary. When the
   selected model is explicitly `supportsVision: "unsupported"`, image sends are blocked at the
   existing thread messaging boundary instead of optimistically sending an invalid multimodal
   request.
+- Thread messaging also blocks pair/delegate sends when the selected route is explicitly
+  `supportsTools: "unsupported"`. `unknown` stays permissive until runtime publishes stronger truth.
 
 This proves capability-aware branching without changing lifecycle truth, runtime routing ownership,
 or page-local orchestration boundaries.
