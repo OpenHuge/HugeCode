@@ -102,6 +102,8 @@ Internal parity helpers such as `internal/runtime-policy-rs` may support tooling
   Account-pool and provider-routing domain guidance.
 - [runtime-launch-readiness.md](./runtime-launch-readiness.md)
   Launch-scoped operator preflight guidance over existing runtime truth surfaces.
+- [runtime-tool-lifecycle.md](./runtime-tool-lifecycle.md)
+  Shared app-facing lifecycle event vocabulary, ordering guarantees, and hook-checkpoint boundary for Mission Control and debug consumers.
 - [runtime-continuity-readiness.md](./runtime-continuity-readiness.md)
   Canonical continuation / review actionability contract, next-action
   precedence, and compat exit rules for first-party UI surfaces.
