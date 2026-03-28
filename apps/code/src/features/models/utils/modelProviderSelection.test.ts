@@ -342,4 +342,44 @@ describe("modelProviderSelection", () => {
       modelId: "claude-sonnet-4-5",
     });
   });
+
+  it("does not let an unavailable variant hide an available model during slug dedupe", () => {
+    const entries = buildProviderModelEntries(
+      [
+        createModel({
+          id: "gpt-5.4-text",
+          model: "gpt-5.4",
+          displayName: "GPT-5.4 Text",
+          available: true,
+          capabilityMatrix: {
+            supportsTools: "supported",
+            supportsReasoningEffort: "supported",
+            supportsVision: "unsupported",
+            supportsJsonSchema: "supported",
+            maxContextTokens: 128000,
+            supportedReasoningEfforts: ["medium", "high"],
+          },
+        }),
+        createModel({
+          id: "gpt-5.4-vision",
+          model: "gpt-5.4",
+          displayName: "GPT-5.4 Vision",
+          available: false,
+          capabilityMatrix: {
+            supportsTools: "supported",
+            supportsReasoningEffort: "supported",
+            supportsVision: "supported",
+            supportsJsonSchema: "supported",
+            maxContextTokens: 128000,
+            supportedReasoningEfforts: ["medium", "high"],
+          },
+        }),
+      ],
+      null,
+      { requiresVision: true }
+    );
+
+    expect(entries.map((entry) => entry.id)).toEqual(["gpt-5.4-text"]);
+    expect(entries[0]?.available).toBe(true);
+  });
 });
