@@ -2,7 +2,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { SettingsShellFraming, WorkspaceClientBindings } from "../index";
+import type { SettingsShellFraming } from "../settings-shell/settingsShellTypes";
+import type { WorkspaceClientBindings } from "../workspace/bindings";
 import { WorkspaceClientBindingsProvider } from "../workspace/WorkspaceClientBindingsProvider";
 import { useSharedAppSettingsState } from "./useSharedAppSettingsState";
 

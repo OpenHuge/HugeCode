@@ -2,7 +2,8 @@
 
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { SettingsShellFraming, WorkspaceClientBindings } from "../index";
+import type { SettingsShellFraming } from "../settings-shell/settingsShellTypes";
+import type { WorkspaceClientBindings } from "../workspace/bindings";
 import { WorkspaceRuntimeShell } from "./WorkspaceRuntimeShell";
 import { WorkspaceClientBindingsProvider } from "../workspace/WorkspaceClientBindingsProvider";
 
