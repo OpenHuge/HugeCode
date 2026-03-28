@@ -52,6 +52,9 @@ const RUNTIME_TOOL_LIFECYCLE_READ_PORT_EXCEPTIONS = new Set([
   "apps/code/src/features/debug/hooks/useDebugRuntimeProbe.ts",
   "apps/code/src/features/debug/hooks/useRuntimeDiagnosticsExport.ts",
 ]);
+const RUNTIME_TOOL_LIFECYCLE_PROJECTION_PORT_EXCEPTIONS = new Set([
+  "apps/code/src/features/shared/hooks/useWorkspaceRuntimeToolLifecycle.ts",
+]);
 
 export function toPosixPath(input) {
   return input.split(path.sep).join("/");
@@ -83,6 +86,10 @@ export function isUiBoundaryFile(filePath) {
 
 function isFeatureComponentHookFile(filePath) {
   return FEATURE_COMPONENT_HOOK_PREFIX.test(filePath);
+}
+
+function isAppTestSupportFile(filePath) {
+  return /\/test\//u.test(filePath);
 }
 
 function isAppSourceFile(filePath) {
@@ -210,8 +217,23 @@ const VIOLATION_RULES = [
     appliesTo: (filePath) =>
       isAppSourceFile(filePath) &&
       !isUiTestFile(filePath) &&
+      !isAppTestSupportFile(filePath) &&
       !filePath.startsWith("apps/code/src/application/runtime/") &&
       !RUNTIME_TOOL_LIFECYCLE_READ_PORT_EXCEPTIONS.has(filePath),
+    scope: "source",
+  },
+  {
+    id: "runtime-tool-lifecycle-projection-primitives",
+    description:
+      "product code must reserve lifecycle presentation summary/sorting primitives for `features/shared/hooks/useWorkspaceRuntimeToolLifecycle.ts` instead of rebuilding projection state in page code",
+    pattern:
+      /(?:import\s*\{[\s\S]*\b(?:buildRuntimeToolLifecyclePresentationSummary|sortRuntimeToolLifecycleEventsByRecency|sortRuntimeToolLifecycleHookCheckpointsByRecency)\b[\s\S]*\}\s*from\s+["'][^"']*\/application\/runtime\/ports\/runtimeToolLifecycle["']|from\s+["'][^"']*\/application\/runtime\/ports\/runtimeToolLifecycle["'][\s\S]*\b(?:buildRuntimeToolLifecyclePresentationSummary|sortRuntimeToolLifecycleEventsByRecency|sortRuntimeToolLifecycleHookCheckpointsByRecency)\b)/u,
+    appliesTo: (filePath) =>
+      isAppSourceFile(filePath) &&
+      !isUiTestFile(filePath) &&
+      !isAppTestSupportFile(filePath) &&
+      !filePath.startsWith("apps/code/src/application/runtime/") &&
+      !RUNTIME_TOOL_LIFECYCLE_PROJECTION_PORT_EXCEPTIONS.has(filePath),
     scope: "source",
   },
   {
