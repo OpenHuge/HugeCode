@@ -814,6 +814,25 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
           contractBoundary: "world-imports",
           interfaceId: "wasi:*/*",
         },
+        operations: {
+          execution: {
+            executable: false,
+            mode: "none",
+            reason:
+              "Plugin `host:wasi` reserves a WIT/component-model host slot and is currently unbound in apps/code.",
+          },
+          resources: {
+            readable: false,
+            mode: "none",
+            reason:
+              "Plugin `host:wasi` does not expose readable resources through the runtime kernel.",
+          },
+          permissions: {
+            evaluable: false,
+            mode: "none",
+            reason: "Plugin `host:wasi` does not publish runtime-evaluable permission state.",
+          },
+        },
         metadata: null,
         permissionDecision: "unsupported" as const,
         health: {

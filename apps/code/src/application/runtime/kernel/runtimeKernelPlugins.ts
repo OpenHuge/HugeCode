@@ -67,6 +67,12 @@ export type RuntimeKernelPluginPermissionsAvailability = {
   reason: string | null;
 };
 
+export type RuntimeKernelPluginOperations = {
+  execution: RuntimeKernelPluginExecutionAvailability;
+  resources: RuntimeKernelPluginResourceAvailability;
+  permissions: RuntimeKernelPluginPermissionsAvailability;
+};
+
 export type RuntimeKernelPluginDescriptor = {
   id: string;
   name: string;
@@ -83,6 +89,7 @@ export type RuntimeKernelPluginDescriptor = {
   resources: RuntimeKernelPluginResourceDescriptor[];
   executionBoundaries: string[];
   binding: RuntimeKernelPluginBinding;
+  operations: RuntimeKernelPluginOperations;
   metadata: Record<string, unknown> | null;
   permissionDecision: "allow" | "ask" | "deny" | "unsupported" | null;
   health: {
@@ -136,63 +143,57 @@ export type RuntimeKernelPluginCatalogFacade = {
   ) => Promise<RuntimeExtensionPermissionsEvaluateResponse | null>;
 };
 
-export function resolveRuntimeKernelPluginExecutionAvailability(
-  descriptor: RuntimeKernelPluginDescriptor
-): RuntimeKernelPluginExecutionAvailability {
-  if (descriptor.source === "live_skill") {
+function buildRuntimeKernelPluginExecutionAvailability(input: {
+  id: string;
+  source: RuntimeKernelPluginSource;
+}): RuntimeKernelPluginExecutionAvailability {
+  if (input.source === "live_skill") {
     return {
       executable: true,
       mode: "live_skill",
       reason: null,
     };
   }
-  if (descriptor.source === "repo_manifest") {
+  if (input.source === "repo_manifest") {
     return {
       executable: false,
       mode: "none",
-      reason: `Plugin \`${descriptor.id}\` is declaration-only and does not expose a bound execution provider.`,
+      reason: `Plugin \`${input.id}\` is declaration-only and does not expose a bound execution provider.`,
     };
   }
-  if (descriptor.source === "wasi_host") {
+  if (input.source === "wasi_host") {
     return {
       executable: false,
       mode: "none",
-      reason: `Plugin \`${descriptor.id}\` reserves a WIT/component-model host slot and is currently unbound in apps/code.`,
+      reason: `Plugin \`${input.id}\` reserves a WIT/component-model host slot and is currently unbound in apps/code.`,
     };
   }
-  if (descriptor.source === "rpc_host") {
+  if (input.source === "rpc_host") {
     return {
       executable: false,
       mode: "none",
-      reason: `Plugin \`${descriptor.id}\` reserves an RPC host slot and is currently unbound in apps/code.`,
+      reason: `Plugin \`${input.id}\` reserves an RPC host slot and is currently unbound in apps/code.`,
     };
   }
   return {
     executable: false,
     mode: "none",
-    reason: `Plugin \`${descriptor.id}\` is bound for catalog/resource access only and does not expose an execution provider.`,
+    reason: `Plugin \`${input.id}\` is bound for catalog/resource access only and does not expose an execution provider.`,
   };
 }
 
-export function resolveRuntimeKernelPluginResourceAvailability(
-  descriptor: RuntimeKernelPluginDescriptor,
-  resourceId?: string
-): RuntimeKernelPluginResourceAvailability {
-  if (descriptor.source === "runtime_extension") {
+function buildRuntimeKernelPluginResourceAvailability(input: {
+  id: string;
+  source: RuntimeKernelPluginSource;
+}): RuntimeKernelPluginResourceAvailability {
+  if (input.source === "runtime_extension") {
     return {
       readable: true,
       mode: "runtime_extension_resource",
       reason: null,
     };
   }
-  if (descriptor.source === "repo_manifest") {
-    if (resourceId && resourceId !== "manifest") {
-      return {
-        readable: false,
-        mode: "none",
-        reason: `Plugin \`${descriptor.id}\` only exposes the repository manifest resource \`manifest\`.`,
-      };
-    }
+  if (input.source === "repo_manifest") {
     return {
       readable: true,
       mode: "repo_manifest_resource",
@@ -202,14 +203,15 @@ export function resolveRuntimeKernelPluginResourceAvailability(
   return {
     readable: false,
     mode: "none",
-    reason: `Plugin \`${descriptor.id}\` does not expose readable resources through the runtime kernel.`,
+    reason: `Plugin \`${input.id}\` does not expose readable resources through the runtime kernel.`,
   };
 }
 
-export function resolveRuntimeKernelPluginPermissionsAvailability(
-  descriptor: RuntimeKernelPluginDescriptor
-): RuntimeKernelPluginPermissionsAvailability {
-  if (descriptor.source === "runtime_extension") {
+function buildRuntimeKernelPluginPermissionsAvailability(input: {
+  id: string;
+  source: RuntimeKernelPluginSource;
+}): RuntimeKernelPluginPermissionsAvailability {
+  if (input.source === "runtime_extension") {
     return {
       evaluable: true,
       mode: "runtime_extension_permissions",
@@ -219,8 +221,51 @@ export function resolveRuntimeKernelPluginPermissionsAvailability(
   return {
     evaluable: false,
     mode: "none",
-    reason: `Plugin \`${descriptor.id}\` does not publish runtime-evaluable permission state.`,
+    reason: `Plugin \`${input.id}\` does not publish runtime-evaluable permission state.`,
   };
+}
+
+function attachRuntimeKernelPluginOperations(
+  descriptor: Omit<RuntimeKernelPluginDescriptor, "operations">
+): RuntimeKernelPluginDescriptor {
+  return {
+    ...descriptor,
+    operations: {
+      execution: buildRuntimeKernelPluginExecutionAvailability(descriptor),
+      resources: buildRuntimeKernelPluginResourceAvailability(descriptor),
+      permissions: buildRuntimeKernelPluginPermissionsAvailability(descriptor),
+    },
+  };
+}
+
+export function resolveRuntimeKernelPluginExecutionAvailability(
+  descriptor: RuntimeKernelPluginDescriptor
+): RuntimeKernelPluginExecutionAvailability {
+  return descriptor.operations.execution;
+}
+
+export function resolveRuntimeKernelPluginResourceAvailability(
+  descriptor: RuntimeKernelPluginDescriptor,
+  resourceId?: string
+): RuntimeKernelPluginResourceAvailability {
+  if (
+    descriptor.operations.resources.mode === "repo_manifest_resource" &&
+    resourceId &&
+    resourceId !== "manifest"
+  ) {
+    return {
+      readable: false,
+      mode: "none",
+      reason: `Plugin \`${descriptor.id}\` only exposes the repository manifest resource \`manifest\`.`,
+    };
+  }
+  return descriptor.operations.resources;
+}
+
+export function resolveRuntimeKernelPluginPermissionsAvailability(
+  descriptor: RuntimeKernelPluginDescriptor
+): RuntimeKernelPluginPermissionsAvailability {
+  return descriptor.operations.permissions;
 }
 
 function createReservedHostPluginDescriptor(
@@ -228,7 +273,7 @@ function createReservedHostPluginDescriptor(
 ): RuntimeKernelPluginDescriptor {
   const isWasiHost = source === "wasi_host";
 
-  return {
+  return attachRuntimeKernelPluginOperations({
     id: isWasiHost ? "host:wasi" : "host:rpc",
     name: isWasiHost ? "WASI host slot" : "RPC host slot",
     version: "unbound",
@@ -268,7 +313,7 @@ function createReservedHostPluginDescriptor(
       checkedAt: null,
       warnings: ["Host provider is not yet bound in apps/code."],
     },
-  };
+  });
 }
 
 export function createReservedHostPluginDescriptors(): RuntimeKernelPluginDescriptor[] {
@@ -300,7 +345,7 @@ export function normalizeRuntimeExtensionPluginDescriptor(
   permissionResult: RuntimeExtensionPermissionsEvaluateResponse | null,
   healthResult: RuntimeExtensionHealthReadResponse | null
 ): RuntimeKernelPluginDescriptor {
-  return {
+  return attachRuntimeKernelPluginOperations({
     id: extension.extensionId,
     name: extension.displayName || extension.name,
     version: extension.version,
@@ -333,13 +378,13 @@ export function normalizeRuntimeExtensionPluginDescriptor(
     },
     permissionDecision: permissionResult?.decision ?? null,
     health: normalizeWarningsToHealth(healthResult),
-  };
+  });
 }
 
 export function normalizeLiveSkillPluginDescriptor(
   skill: LiveSkillSummary
 ): RuntimeKernelPluginDescriptor {
-  return {
+  return attachRuntimeKernelPluginOperations({
     id: skill.id,
     name: skill.name,
     version: skill.version,
@@ -374,13 +419,13 @@ export function normalizeLiveSkillPluginDescriptor(
       checkedAt: null,
       warnings: [],
     },
-  };
+  });
 }
 
 export function normalizeRepoManifestPluginDescriptor(
   manifest: RuntimeWorkspaceSkillManifest
 ): RuntimeKernelPluginDescriptor {
-  return {
+  return attachRuntimeKernelPluginOperations({
     id: manifest.id,
     name: manifest.name,
     version: manifest.version,
@@ -416,7 +461,7 @@ export function normalizeRepoManifestPluginDescriptor(
       checkedAt: null,
       warnings: [],
     },
-  };
+  });
 }
 
 const PLUGIN_SOURCE_PRIORITY: Record<RuntimeKernelPluginSource, number> = {

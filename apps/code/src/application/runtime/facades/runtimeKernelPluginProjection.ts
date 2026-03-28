@@ -1,5 +1,5 @@
 import type { KernelExtensionBundle } from "@ku0/code-runtime-host-contract";
-import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPlugins";
+import { type RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPlugins";
 
 function readOptionalText(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
@@ -33,6 +33,23 @@ export function normalizeKernelExtensionBundlePluginDescriptor(
       contractFormat: "runtime_extension",
       contractBoundary: "kernel-extension-bundle",
       interfaceId: bundle.id,
+    },
+    operations: {
+      execution: {
+        executable: false,
+        mode: "none",
+        reason: `Plugin \`${bundle.id}\` is bound for catalog/resource access only and does not expose an execution provider.`,
+      },
+      resources: {
+        readable: true,
+        mode: "runtime_extension_resource",
+        reason: null,
+      },
+      permissions: {
+        evaluable: true,
+        mode: "runtime_extension_permissions",
+        reason: null,
+      },
     },
     metadata: {
       ...metadata,

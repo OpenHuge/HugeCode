@@ -70,6 +70,24 @@ function createRuntimeKernelValue() {
                   contractBoundary: "runtime-extension-record",
                   interfaceId: "ext-1",
                 },
+                operations: {
+                  execution: {
+                    executable: false,
+                    mode: "none",
+                    reason:
+                      "Plugin `ext-1` is bound for catalog/resource access only and does not expose an execution provider.",
+                  },
+                  resources: {
+                    readable: true,
+                    mode: "runtime_extension_resource",
+                    reason: null,
+                  },
+                  permissions: {
+                    evaluable: true,
+                    mode: "runtime_extension_permissions",
+                    reason: null,
+                  },
+                },
                 metadata: null,
                 permissionDecision: "allow",
                 health: null,

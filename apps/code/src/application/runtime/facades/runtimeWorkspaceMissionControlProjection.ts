@@ -4,12 +4,7 @@ import type {
   OAuthPoolSummary,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
-import {
-  resolveRuntimeKernelPluginExecutionAvailability,
-  resolveRuntimeKernelPluginPermissionsAvailability,
-  resolveRuntimeKernelPluginResourceAvailability,
-  type RuntimeKernelPluginDescriptor,
-} from "../kernel/runtimeKernelPlugins";
+import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPlugins";
 import type { RuntimeExecutionReliabilitySummary } from "./runtimeExecutionReliability";
 import type { RuntimeLaunchReadinessSummary } from "./runtimeLaunchReadiness";
 import {
@@ -180,15 +175,15 @@ function buildPluginCatalogSummary(input: {
     if (plugin.runtimeBacked) {
       summary.runtimeBacked += 1;
     }
-    if (resolveRuntimeKernelPluginExecutionAvailability(plugin).executable) {
+    if (plugin.operations.execution.executable) {
       summary.executableCount += 1;
     } else {
       summary.nonExecutableCount += 1;
     }
-    if (resolveRuntimeKernelPluginResourceAvailability(plugin).readable) {
+    if (plugin.operations.resources.readable) {
       summary.readableResourceCount += 1;
     }
-    if (resolveRuntimeKernelPluginPermissionsAvailability(plugin).evaluable) {
+    if (plugin.operations.permissions.evaluable) {
       summary.permissionEvaluableCount += 1;
     }
     if (plugin.binding.state === "bound") {

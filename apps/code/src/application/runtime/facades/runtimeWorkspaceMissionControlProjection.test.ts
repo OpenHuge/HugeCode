@@ -278,6 +278,24 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
               contractBoundary: "runtime-extension-record",
               interfaceId: "ext-1",
             },
+            operations: {
+              execution: {
+                executable: false,
+                mode: "none",
+                reason:
+                  "Plugin `ext-1` is bound for catalog/resource access only and does not expose an execution provider.",
+              },
+              resources: {
+                readable: true,
+                mode: "runtime_extension_resource",
+                reason: null,
+              },
+              permissions: {
+                evaluable: true,
+                mode: "runtime_extension_permissions",
+                reason: null,
+              },
+            },
             metadata: null,
             permissionDecision: "allow",
             health: {
@@ -310,6 +328,24 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
               contractBoundary: "runtime-live-skill",
               interfaceId: "skill-1",
             },
+            operations: {
+              execution: {
+                executable: true,
+                mode: "live_skill",
+                reason: null,
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason:
+                  "Plugin `skill-1` does not expose readable resources through the runtime kernel.",
+              },
+              permissions: {
+                evaluable: false,
+                mode: "none",
+                reason: "Plugin `skill-1` does not publish runtime-evaluable permission state.",
+              },
+            },
             metadata: null,
             permissionDecision: null,
             health: {
@@ -341,6 +377,25 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
               contractFormat: "manifest",
               contractBoundary: "repository-manifest",
               interfaceId: "repo-manifest-1",
+            },
+            operations: {
+              execution: {
+                executable: false,
+                mode: "none",
+                reason:
+                  "Plugin `repo-manifest-1` is declaration-only and does not expose a bound execution provider.",
+              },
+              resources: {
+                readable: true,
+                mode: "repo_manifest_resource",
+                reason: null,
+              },
+              permissions: {
+                evaluable: false,
+                mode: "none",
+                reason:
+                  "Plugin `repo-manifest-1` does not publish runtime-evaluable permission state.",
+              },
             },
             metadata: null,
             permissionDecision: "unsupported",

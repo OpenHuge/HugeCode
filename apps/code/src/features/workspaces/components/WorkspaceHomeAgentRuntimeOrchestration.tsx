@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
-import { resolveRuntimeKernelPluginExecutionAvailability } from "../../../application/runtime/kernel/runtimeKernelPlugins";
 import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import { ToolCallChip } from "../../../design-system";
@@ -293,10 +292,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             {pluginCatalog.plugins.slice(0, 3).map((plugin) => (
               <span key={plugin.id}>
                 {plugin.name} ({plugin.source}, {plugin.binding.state},{" "}
-                {resolveRuntimeKernelPluginExecutionAvailability(plugin).executable
-                  ? "executable"
-                  : "blocked"}
-                ) {plugin.enabled ? "enabled" : "disabled"}
+                {plugin.operations.execution.executable ? "executable" : "blocked"}){" "}
+                {plugin.enabled ? "enabled" : "disabled"}
               </span>
             ))}
           </div>

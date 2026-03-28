@@ -1,9 +1,4 @@
-import {
-  resolveRuntimeKernelPluginExecutionAvailability,
-  resolveRuntimeKernelPluginPermissionsAvailability,
-  resolveRuntimeKernelPluginResourceAvailability,
-  type RuntimeKernelPluginDescriptor,
-} from "../../../application/runtime/kernel/runtimeKernelPlugins";
+import type { RuntimeKernelPluginDescriptor } from "../../../application/runtime/kernel/runtimeKernelPlugins";
 import {
   DebugDiagnosticsDefinitionList,
   type DebugDiagnosticsFieldDescriptor,
@@ -19,9 +14,9 @@ export type DebugRuntimePluginsSectionProps = {
 function createPluginFields(
   plugin: RuntimeKernelPluginDescriptor
 ): DebugDiagnosticsFieldDescriptor[] {
-  const execution = resolveRuntimeKernelPluginExecutionAvailability(plugin);
-  const resources = resolveRuntimeKernelPluginResourceAvailability(plugin);
-  const permissions = resolveRuntimeKernelPluginPermissionsAvailability(plugin);
+  const execution = plugin.operations.execution;
+  const resources = plugin.operations.resources;
+  const permissions = plugin.operations.permissions;
   return [
     { label: "source", value: plugin.source },
     { label: "transport", value: plugin.transport },
