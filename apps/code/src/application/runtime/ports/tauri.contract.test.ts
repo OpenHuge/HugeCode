@@ -58,12 +58,12 @@ import { isWorkspacePathDir, pickWorkspacePath, pickWorkspacePaths } from "./tau
 import {
   getOpenAppIcon as getOpenAppIconBridge,
   openWorkspaceIn as openWorkspaceInBridge,
-} from "../../../services/tauriDesktopWorkspace";
+} from "../../../services/desktopHostWorkspace";
 import {
   getCollaborationModes as getCollaborationModesBridge,
   getConfigModel as getConfigModelBridge,
-} from "../../../services/tauriDesktopRpc";
-import { setMenuAccelerators as setMenuAcceleratorsBridge } from "../../../services/tauriDesktopCommands";
+} from "../../../services/desktopHostRpc";
+import { setMenuAccelerators as setMenuAcceleratorsBridge } from "../../../services/desktopHostCommands";
 import { sendNotification as sendNotificationBridge } from "../../../services/tauriNotificationsBridge";
 import { getMissionControlSnapshot as getMissionControlSnapshotBridge } from "../../../services/tauriRuntimeMissionControlBridge";
 import {

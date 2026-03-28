@@ -4,7 +4,7 @@
  * Prefer this over the retired `tauriWorkspaces` bridge for workspace and
  * worktree mutations so features do not depend on the old aggregation layer.
  */
-export { renameWorktreeUpstream } from "../../../services/tauriDesktopWorkspace";
+export { renameWorktreeUpstream } from "../../../services/desktopHostWorkspace";
 export {
   addClone,
   addWorkspace,

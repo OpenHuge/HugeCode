@@ -29,8 +29,8 @@ const WORKFLOW_SECTIONS = [
         "pnpm prewarm:code-runtime-service",
         "Prebuild the Rust runtime service for cold-start lanes.",
       ],
-      ["pnpm desktop:prepare:fast", "Prepare desktop assets for local Tauri work."],
-      ["pnpm dev:desktop", "Run the code Tauri app in development mode."],
+      ["pnpm desktop:prepare:fast", "Prepare desktop assets for local Electron host work."],
+      ["pnpm dev:desktop", "Run the Electron desktop host in development mode."],
     ],
   },
   {

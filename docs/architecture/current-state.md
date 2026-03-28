@@ -71,7 +71,7 @@ The real end-to-end runtime path today is:
   `apps/code/src/application/runtime/ports/*`
 - App transport and host bridges:
   `apps/code/src/services/runtimeClient*.ts`
-  `apps/code/src/services/tauri*.ts`
+  `apps/code/src/services/desktopHost*.ts` plus legacy `tauri*.ts` shims
   `apps/code/src/services/webMcpBridge*.ts`
 - Shared client packages:
   `packages/code-runtime-client`
@@ -114,7 +114,7 @@ Client-side storage and fallback state also still exist:
 ## Compatibility Layers Still Active
 
 - `packages/code-runtime-host-contract/src/codeRuntimeRpcCompat.ts`
-- app runtime and Tauri ports/tests explicitly guard against deprecated compat ports, which confirms the repo is still actively unwinding older surfaces
+- app runtime and desktop-host compatibility ports/tests explicitly guard against deprecated compat ports, which confirms the repo is still actively unwinding older surfaces
 
 ## Domain Logic Outside Runtime
 

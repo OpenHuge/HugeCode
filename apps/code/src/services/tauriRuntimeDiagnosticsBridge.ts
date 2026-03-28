@@ -1,4 +1,4 @@
-export { listMcpServerStatus } from "./tauriDesktopRpc";
+export { listMcpServerStatus } from "./desktopHostRpc";
 export {
   listWorkspaceDiagnostics,
   runtimeToolGuardrailRead,

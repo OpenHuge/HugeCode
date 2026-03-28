@@ -4,7 +4,7 @@ import {
   getAppSettings,
   syncRuntimeGatewayProfileFromAppSettings,
   updateAppSettings,
-} from "./tauriAppSettings";
+} from "./desktopAppSettings";
 
 vi.mock("../../../services/tauriRuntimeAppSettingsBridge", () => ({
   getRuntimeAppSettings: vi.fn(),

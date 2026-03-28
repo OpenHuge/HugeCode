@@ -428,7 +428,7 @@ When adding runtime-adjacent integrations:
 3. update contract payloads first if transport or durable state changes
 4. implement runtime lifecycle, durability, diagnostics, and event behavior
 5. adjust application/runtime facades to keep placement and runtime access out of UI components
-6. keep Tauri and WebMCP layers thin and contract-driven
+6. keep desktop-host compatibility and WebMCP layers thin and contract-driven
 7. add focused tests for lifecycle, approval, replay, and placement behavior
 
 ---

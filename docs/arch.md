@@ -587,7 +587,7 @@ Architecture progress should be judged by the following questions:
 
 Avoid the following:
 
-- UI components calling transport or Tauri APIs directly
+- UI components calling transport or desktop-host APIs directly
 - page-local backend routing after task start
 - shell commands becoming unofficial orchestration APIs
 - duplicated runtime types in app packages

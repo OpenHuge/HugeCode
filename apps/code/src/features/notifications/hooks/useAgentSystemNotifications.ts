@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef } from "react";
-import { sendNotification } from "../../../application/runtime/ports/tauriNotifications";
+import { sendNotification } from "../../../application/runtime/ports/desktopNotifications";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type { DebugEntry } from "../../../types";
 import { useAppServerEvents } from "../../app/hooks/useAppServerEvents";

@@ -623,9 +623,10 @@ export function reviewNextTaskProposal(params: {
   if (
     proposal.currentWaypoint.repoAreas.some(
       (area) =>
-        area.startsWith("apps/code-tauri/") || area.startsWith("packages/code-runtime-service-rs/")
+        area.startsWith("apps/code-electron/") ||
+        area.startsWith("packages/code-runtime-service-rs/")
     ) &&
-    !/tauri|rust|runtime host/i.test(run.destination.title)
+    !/electron|desktop host|rust|runtime host/i.test(run.destination.title)
   ) {
     issues.push({
       code: "desktop_web_mixup",

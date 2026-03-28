@@ -191,9 +191,9 @@ const VIOLATION_RULES = [
   {
     id: "cross-shell-tauri-port",
     description:
-      "shared workspace client and web shell must not import desktop-only `application/runtime/ports/tauri*` ports",
+      "shared workspace client and web shell must not import desktop-only runtime ports directly",
     pattern:
-      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/tauri[A-Z][^"']*["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/tauri[A-Z][^"']*["'])/u,
+      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/(?:tauri[A-Z][^"']*|desktopHost[A-Z][^"']*|desktopAppSettings)["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/(?:tauri[A-Z][^"']*|desktopHost[A-Z][^"']*|desktopAppSettings)["'])/u,
     appliesTo: (filePath) =>
       !isUiTestFile(filePath) &&
       (filePath.startsWith("apps/code-web/") ||
@@ -238,7 +238,7 @@ const VIOLATION_RULES = [
     description:
       "migrated account/settings hooks must not import legacy settings or oauth bridge ports directly",
     pattern:
-      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/(?:tauriOauth|tauriModels|tauriRemoteServers|tauriAppSettings|tauriWorkspaceCatalog)["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/(?:tauriOauth|tauriModels|tauriRemoteServers|tauriAppSettings|tauriWorkspaceCatalog)["'])/u,
+      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/(?:tauriOauth|tauriModels|tauriRemoteServers|tauriAppSettings|desktopAppSettings|tauriWorkspaceCatalog)["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/(?:tauriOauth|tauriModels|tauriRemoteServers|tauriAppSettings|desktopAppSettings|tauriWorkspaceCatalog)["'])/u,
     appliesTo: (filePath) =>
       !isUiTestFile(filePath) && SETTINGS_ACCOUNT_MIGRATION_FILES.has(filePath),
   },
@@ -285,7 +285,7 @@ const VIOLATION_RULES = [
     description:
       "`createDesktopWorkspaceClientBindings` must consume RuntimeKernel instead of assembling runtime ports directly",
     pattern:
-      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/(?:runtimeClientMode|runtimeWebGatewayConfig|runtimeClient|tauriAppSettings|tauriOauth|tauriModels|tauriWorkspaceCatalog|tauriSettings|tauriWorkspaces)["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/(?:runtimeClientMode|runtimeWebGatewayConfig|runtimeClient|tauriAppSettings|tauriOauth|tauriModels|tauriWorkspaceCatalog|tauriSettings|tauriWorkspaces)["']\s*\))/u,
+      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/(?:runtimeClientMode|runtimeWebGatewayConfig|runtimeClient|tauriAppSettings|desktopAppSettings|tauriOauth|tauriModels|tauriWorkspaceCatalog|tauriSettings|tauriWorkspaces)["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/(?:runtimeClientMode|runtimeWebGatewayConfig|runtimeClient|tauriAppSettings|desktopAppSettings|tauriOauth|tauriModels|tauriWorkspaceCatalog|tauriSettings|tauriWorkspaces)["']\s*\))/u,
     appliesTo: (filePath) =>
       filePath === "apps/code/src/web/createDesktopWorkspaceClientBindings.tsx",
   },
@@ -294,7 +294,7 @@ const VIOLATION_RULES = [
     description:
       "product code must use `application/runtime/facades/desktopHostFacade` instead of importing desktop host adapter ports directly",
     pattern:
-      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/(?:tauriEnvironment|tauriOpener)["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/(?:tauriEnvironment|tauriOpener)["'])/u,
+      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/(?:tauriEnvironment|desktopHostEnvironment|tauriOpener)["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/(?:tauriEnvironment|desktopHostEnvironment|tauriOpener)["'])/u,
     appliesTo: (filePath) =>
       (isUiBoundaryFile(filePath) || isNonUiAppProductFile(filePath)) && !isUiTestFile(filePath),
   },

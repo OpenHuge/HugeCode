@@ -17,7 +17,7 @@ import {
   stageGitAll,
   stageGitFile,
   unstageGitFile,
-} from "./tauri";
+} from "./desktopHost";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),

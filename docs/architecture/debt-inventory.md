@@ -32,14 +32,14 @@
 
 - `codeRuntimeRpcCompat`
   Still public and broad.
-- deprecated Tauri aggregation surfaces are blocked by tests, which is good, but their existence shows the repo is still carrying compatibility cleanup work.
+- deprecated desktop-host aggregation surfaces are blocked by tests, which is good, but their existence shows the repo is still carrying compatibility cleanup work.
 
 ## Suspicious Layering
 
 - `apps/code/src/application/runtime/facades/*`
   Large and numerous. Some are correct app-facing facades; some still compensate for missing canonical projections or naming cleanup.
 - `apps/code/src/services/*`
-  Wide runtime/Tauri/WebMCP layer. Too much system knowledge still sits under the app.
+  Wide runtime/desktop-host/WebMCP layer. Too much system knowledge still sits under the app.
 - `packages/code-runtime-service-rs/src/lib.rs`
   Very broad import surface, which suggests runtime subsystems are still coupled at the top level.
 
@@ -55,4 +55,4 @@
 
 ## Immediate Deletion Candidates
 
-- any Tauri adapter code that still normalizes runtime-domain errors or state instead of forwarding canonical contracts
+- any legacy desktop-host adapter code that still normalizes runtime-domain errors or state instead of forwarding canonical contracts

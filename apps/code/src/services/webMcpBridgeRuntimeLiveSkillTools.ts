@@ -1,7 +1,7 @@
 import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
 import { createRuntimeError } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 import { canonicalizeLiveSkillId, listAcceptedLiveSkillIds } from "./runtimeClientLiveSkills";
-import type { LiveSkillSummary } from "./tauri";
+import type { LiveSkillSummary } from "./desktopHost";
 import type {
   AgentCommandCenterSnapshot,
   RuntimeAgentControl,

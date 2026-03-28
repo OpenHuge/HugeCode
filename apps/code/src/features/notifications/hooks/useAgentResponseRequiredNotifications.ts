@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { sendNotification } from "../../../application/runtime/ports/tauriNotifications";
+import { sendNotification } from "../../../application/runtime/ports/desktopNotifications";
 import type { ApprovalRequest, DebugEntry, RequestUserInputRequest } from "../../../types";
 import { getApprovalCommandInfo } from "../../../utils/approvalRules";
 import { useAppServerEvents } from "../../app/hooks/useAppServerEvents";

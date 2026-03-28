@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { ask, open } from "../../../application/runtime/ports/tauriDialogs";
+import { ask, open } from "../../../application/runtime/ports/desktopHostDialogs";
 import type { AppSettings, WorkspaceGroup, WorkspaceInfo } from "../../../types";
 
 type UseSettingsWorkspaceGroupActionsOptions = {
