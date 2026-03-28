@@ -95,8 +95,21 @@ export function resolveModelProviderId(
 ): ModelProviderFamilyId | string {
   const resolvedRouteId =
     normalizeValue(model.provider) ?? normalizeValue(model.pool) ?? normalizeValue(model.source);
-  const fallbackModelId = normalizeValue(model.model) ?? "";
-  const resolvedId = resolvedRouteId ?? (fallbackModelId.length > 0 ? fallbackModelId : "default");
+  const fallbackModelId = normalizeValue(model.model);
+  return (
+    resolveProviderFamilySelectionId(
+      resolvedRouteId ?? (fallbackModelId && fallbackModelId.length > 0 ? fallbackModelId : null)
+    ) ?? "default"
+  );
+}
+
+export function resolveProviderFamilySelectionId(
+  value: string | null | undefined
+): ModelProviderFamilyId | string | null {
+  const resolvedId = normalizeValue(value);
+  if (!resolvedId) {
+    return null;
+  }
   const normalizedId = resolvedId.trim().toLowerCase();
   if (CLAUDE_PROVIDER_IDS.has(normalizedId) || normalizedId.startsWith("claude-")) {
     return "claude";
@@ -110,7 +123,7 @@ export function resolveModelProviderId(
   if (ANTIGRAVITY_PROVIDER_IDS.has(normalizedId)) {
     return "antigravity";
   }
-  return resolvedRouteId ?? "default";
+  return resolvedId;
 }
 
 export function resolveModelProviderLabel(providerId: string): string {

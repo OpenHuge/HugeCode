@@ -39,7 +39,10 @@ import {
   resolveModelToolsCapabilitySupport,
   resolveModelVisionCapabilitySupport,
 } from "../../models/utils/modelOptionCapabilities";
-import { resolveModelProviderId } from "../../models/utils/modelProviderSelection";
+import {
+  resolveModelProviderId,
+  resolveProviderFamilySelectionId,
+} from "../../models/utils/modelProviderSelection";
 import { resolveModelBrandLabel } from "../utils/antiGravityBranding";
 import { NO_THREAD_SCOPE_SUFFIX } from "../../threads/utils/threadCodexParamsSeed";
 import type { ThreadCodexParamsPatch } from "../../threads/hooks/useThreadCodexParams";
@@ -806,7 +809,7 @@ export function useThreadCodexControls({
     selectedProviderRoute?.pool,
   ]);
   const routedProviderId =
-    selectedProviderRoute?.providerId ??
+    resolveProviderFamilySelectionId(selectedProviderRoute?.providerId) ??
     (selectedModel ? (resolveModelProviderId(selectedModel) as ModelProviderFamilyId) : null);
   const selectedProviderId = routedProviderId ?? preferredProviderFamilyId;
 

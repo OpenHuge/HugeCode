@@ -3,6 +3,7 @@ import {
   buildModelProviderOptions,
   buildProviderModelEntries,
   resolveAutoModelProviderSelection,
+  resolveProviderFamilySelectionId,
   type ProviderSelectableModel,
 } from "./modelProviderSelection";
 
@@ -23,6 +24,14 @@ function createModel(
 }
 
 describe("modelProviderSelection", () => {
+  it("normalizes raw provider catalog ids into the provider-family selection space", () => {
+    expect(resolveProviderFamilySelectionId("openai")).toBe("codex");
+    expect(resolveProviderFamilySelectionId("anthropic")).toBe("claude");
+    expect(resolveProviderFamilySelectionId("google")).toBe("gemini");
+    expect(resolveProviderFamilySelectionId("antigravity")).toBe("antigravity");
+    expect(resolveProviderFamilySelectionId("custom-provider")).toBe("custom-provider");
+  });
+
   it("orders stronger models ahead of weaker versions within a provider family", () => {
     const entries = buildProviderModelEntries(
       [

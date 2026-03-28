@@ -1259,6 +1259,21 @@ describe("useThreadCodexControls", () => {
   });
 
   it("reports the actual routed provider when auto routing lands on a different provider family", async () => {
+    getProvidersCatalogMock.mockResolvedValue([
+      {
+        providerId: "openai",
+        displayName: "OpenAI",
+        oauthProviderId: "codex",
+        aliases: ["codex", "openai"],
+        available: true,
+        readinessKind: "ready",
+        readinessMessage: "OpenAI is ready.",
+        executionKind: "cloud",
+        pool: "codex",
+        defaultModelId: "codex::gpt-5.4-codex",
+        supportedRouteIds: ["codex", "openai"],
+      },
+    ] as never);
     useModelsMock.mockReturnValue({
       models: [
         {
