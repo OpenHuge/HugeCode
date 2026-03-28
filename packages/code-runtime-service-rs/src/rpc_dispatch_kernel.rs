@@ -152,14 +152,6 @@ pub(super) fn kernel_job_payload(runtime: &AgentTaskRuntime) -> Value {
     })
 }
 
-pub(super) async fn read_kernel_job_payload_by_id(
-    ctx: &AppContext,
-    job_id: &str,
-) -> Option<Value> {
-    let tasks = ctx.agent_tasks.read().await;
-    tasks.tasks.get(job_id).map(kernel_job_payload)
-}
-
 fn extension_surfaces(config: &Value) -> Vec<String> {
     let mut surfaces = Vec::new();
     if config.get("tools").and_then(Value::as_array).is_some() {
@@ -802,87 +794,6 @@ pub(super) async fn handle_kernel_jobs_list_v2(
     .await)
 }
 
-pub(super) async fn handle_kernel_job_get_v3(
-    ctx: &AppContext,
-    params: &Value,
-) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let job_id = read_optional_string(params, "jobId")
-        .or_else(|| read_optional_string(params, "job_id"))
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| RpcError::invalid_params("Missing jobId"))?;
-
-    Ok(read_kernel_job_payload_by_id(ctx, job_id.as_str())
-        .await
-        .unwrap_or(Value::Null))
-}
-
-pub(super) async fn handle_kernel_job_subscribe_v3(
-    ctx: &AppContext,
-    params: &Value,
-) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let job_id = read_optional_string(params, "runId")
-        .or_else(|| read_optional_string(params, "run_id"))
-        .or_else(|| read_optional_string(params, "jobId"))
-        .or_else(|| read_optional_string(params, "job_id"))
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| RpcError::invalid_params("Missing runId"))?;
-
-    Ok(read_kernel_job_payload_by_id(ctx, job_id.as_str())
-        .await
-        .unwrap_or(Value::Null))
-}
-
-pub(super) async fn handle_kernel_job_callback_register_v3(
-    _ctx: &AppContext,
-    params: &Value,
-) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let callback_id = read_optional_string(params, "callbackId")
-        .or_else(|| read_optional_string(params, "callback_id"))
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| RpcError::invalid_params("Missing callbackId"))?;
-    let mode = read_optional_string(params, "mode")
-        .map(|value| value.trim().to_string())
-        .filter(|value| value == "poll" || value == "callback")
-        .unwrap_or_else(|| "callback".to_string());
-
-    Ok(json!({
-        "registered": true,
-        "callbackId": callback_id,
-        "delivery": {
-            "mode": mode,
-            "callbackId": params
-                .get("callbackId")
-                .or_else(|| params.get("callback_id"))
-                .cloned()
-                .unwrap_or(Value::Null),
-        },
-        "message": Value::Null,
-    }))
-}
-
-pub(super) async fn handle_kernel_job_callback_remove_v3(
-    _ctx: &AppContext,
-    params: &Value,
-) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let callback_id = read_optional_string(params, "callbackId")
-        .or_else(|| read_optional_string(params, "callback_id"))
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| RpcError::invalid_params("Missing callbackId"))?;
-
-    Ok(json!({
-        "removed": true,
-        "callbackId": callback_id,
-        "message": Value::Null,
-    }))
-}
 
 pub(super) async fn handle_kernel_context_snapshot_v2(
     ctx: &AppContext,

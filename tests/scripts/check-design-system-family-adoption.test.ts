@@ -289,7 +289,7 @@ async function writeAdoptionFixtureRepo(targetRoot: string): Promise<void> {
     ].join("\n")
   );
   appendLines(
-    "apps/code/src/features/home/components/HomeRecentMissionsSection.tsx",
+    "apps/code/src/features/home/components/HomeEmptySurface.tsx",
     'import { EmptySurface } from "../../../design-system";',
     [
       "export function ShellEmptySurfaceFixture() {",

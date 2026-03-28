@@ -9,11 +9,6 @@ import type {
   HugeCodeMissionControlSnapshot,
   HugeCodeMissionControlSummary,
   HugeCodeReviewPackSummary,
-  KernelJob,
-  KernelJobInterventionRequestV3,
-  KernelJobsListRequest,
-  KernelJobResumeRequestV3,
-  KernelJobSubscribeRequestV3,
   KernelProjectionBootstrapRequest,
   KernelProjectionBootstrapResponse,
   KernelProjectionDelta,
@@ -26,14 +21,16 @@ import type {
   OAuthPrimaryAccountSetInput,
   OAuthPrimaryAccountSummary,
   OAuthProviderId,
-  RuntimeRunCancelAck,
   RuntimeRunCancelRequest,
+  RuntimeRunCancelV2Response,
   RuntimeRunCheckpointApprovalAck,
   RuntimeRunCheckpointApprovalRequest,
-  RuntimeRunInterventionAck,
+  RuntimeRunInterventionRequest,
+  RuntimeRunInterventionV2Response,
   RuntimeRunPrepareV2Request,
   RuntimeRunPrepareV2Response,
-  RuntimeRunResumeAck,
+  RuntimeRunResumeRequest,
+  RuntimeRunResumeV2Response,
   RuntimeRunStartRequest,
   RuntimeRunStartV2Response,
   ThreadSummary,
@@ -132,6 +129,13 @@ export type WorkspaceClientRuntimeMissionControlBindings = {
   ) => Promise<HugeCodeMissionControlSummary>;
 };
 
+export type WorkspaceClientRuntimeMissionControlSourceAdapter = {
+  readMissionControlSnapshot: () => Promise<HugeCodeMissionControlSnapshot>;
+  bootstrapKernelProjection?: (
+    request?: KernelProjectionBootstrapRequest
+  ) => Promise<KernelProjectionBootstrapResponse>;
+};
+
 export type WorkspaceClientRuntimeKernelProjectionBindings = {
   bootstrap: (
     request?: KernelProjectionBootstrapRequest
@@ -152,13 +156,11 @@ export type WorkspaceClientRuntimeUpdatedBindings = {
 export type WorkspaceClientRuntimeAgentControlBindings = {
   prepareRuntimeRun: (input: RuntimeRunPrepareV2Request) => Promise<RuntimeRunPrepareV2Response>;
   startRuntimeRun: (input: RuntimeRunStartRequest) => Promise<RuntimeRunStartV2Response>;
-  cancelRuntimeJob: (input: RuntimeRunCancelRequest) => Promise<RuntimeRunCancelAck>;
-  resumeRuntimeJob: (input: KernelJobResumeRequestV3) => Promise<RuntimeRunResumeAck>;
-  interveneRuntimeJob: (
-    input: KernelJobInterventionRequestV3
-  ) => Promise<RuntimeRunInterventionAck>;
-  subscribeRuntimeJob: (input: KernelJobSubscribeRequestV3) => Promise<KernelJob | null>;
-  listRuntimeJobs: (input: KernelJobsListRequest) => Promise<KernelJob[]>;
+  cancelRuntimeRun: (input: RuntimeRunCancelRequest) => Promise<RuntimeRunCancelV2Response>;
+  resumeRuntimeRun: (input: RuntimeRunResumeRequest) => Promise<RuntimeRunResumeV2Response>;
+  interveneRuntimeRun: (
+    input: RuntimeRunInterventionRequest
+  ) => Promise<RuntimeRunInterventionV2Response>;
   submitRuntimeJobApprovalDecision: (
     input: RuntimeRunCheckpointApprovalRequest
   ) => Promise<RuntimeRunCheckpointApprovalAck>;

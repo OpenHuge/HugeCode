@@ -1,4 +1,5 @@
 import type { AppServerEvent } from "../types";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   createEventIdDeduper,
   parseWebRuntimeReplayEventId,
@@ -52,12 +53,14 @@ export async function registerRuntimeEventTauriSubscription(
   onPayload: (payload: unknown) => void,
   onError: (error: unknown) => void
 ): Promise<Unsubscribe | null> {
-  void eventName;
-  void onPayload;
-  onError(
-    new Error("Legacy desktop event subscriptions are unavailable in the Electron renderer.")
-  );
-  return null;
+  try {
+    return await listen(eventName, (event: { payload: unknown }) => {
+      onPayload(event.payload);
+    });
+  } catch (error) {
+    onError(error);
+    return null;
+  }
 }
 
 export function subscribeWebRuntimeSseEventsShared(

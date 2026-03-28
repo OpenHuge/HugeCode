@@ -79,11 +79,9 @@ describe("desktopWorkspaceBootstrap", () => {
         agentControl: {
           prepareRuntimeRun: vi.fn(),
           startRuntimeRun: vi.fn(),
-          cancelRuntimeJob: vi.fn(),
-          resumeRuntimeJob: vi.fn(),
-          interveneRuntimeJob: vi.fn(),
-          subscribeRuntimeJob: vi.fn(),
-          listRuntimeJobs: vi.fn(),
+          cancelRuntimeRun: vi.fn(),
+          resumeRuntimeRun: vi.fn(),
+          interveneRuntimeRun: vi.fn(),
           submitRuntimeJobApprovalDecision: vi.fn(),
         },
         threads: {

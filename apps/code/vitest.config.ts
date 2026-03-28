@@ -30,19 +30,22 @@ const reactDomEntry = fileURLToPath(new URL("./node_modules/react-dom/index.js",
 const nodeUtilShimEntry = fileURLToPath(new URL("./src/test/shims/nodeUtil.ts", import.meta.url));
 const nodeTtyShimEntry = fileURLToPath(new URL("./src/test/shims/nodeTty.ts", import.meta.url));
 const tauriCoreCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriCore.ts", import.meta.url)
+  new URL("./src/application/runtime/ports/packageCompat/tauriApiCoreCompat.ts", import.meta.url)
 );
 const tauriDpiCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriDpi.ts", import.meta.url)
+  new URL("./src/application/runtime/ports/packageCompat/tauriApiDpiCompat.ts", import.meta.url)
 );
 const tauriMenuCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriMenu.ts", import.meta.url)
+  new URL("./src/application/runtime/ports/packageCompat/tauriApiMenuCompat.ts", import.meta.url)
 );
 const tauriWindowCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriWindow.ts", import.meta.url)
+  new URL("./src/application/runtime/ports/packageCompat/tauriApiWindowCompat.ts", import.meta.url)
 );
 const tauriDialogCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriDialogs.ts", import.meta.url)
+  new URL(
+    "./src/application/runtime/ports/packageCompat/tauriPluginDialogCompat.ts",
+    import.meta.url
+  )
 );
 const tauriUpdaterCompatEntry = fileURLToPath(
   new URL("./src/application/runtime/ports/tauriUpdater.ts", import.meta.url)

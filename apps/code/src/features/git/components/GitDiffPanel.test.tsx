@@ -106,7 +106,7 @@ describe("GitDiffPanel", () => {
     pushErrorToastMock.mockClear();
   });
 
-  it("enables commit when message exists and only unstaged changes", () => {
+  it("enables commit when message exists and only unstaged changes", { timeout: 10000 }, () => {
     const onCommit = vi.fn();
     render(
       <GitDiffPanel

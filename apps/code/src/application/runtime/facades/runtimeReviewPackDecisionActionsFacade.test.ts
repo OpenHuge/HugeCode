@@ -25,6 +25,27 @@ describe("runtimeReviewPackDecisionActionsFacade", () => {
       sourceTaskId: "task-1",
       sourceRunId: "run-1",
       sourceReviewPackId: "review-pack-1",
+      reviewActionability: {
+        state: "ready",
+        summary: "Runtime review actionability is ready.",
+        degradedReasons: [],
+        actions: [
+          { action: "retry", enabled: true, supported: true, reason: null },
+          {
+            action: "continue_with_clarification",
+            enabled: true,
+            supported: true,
+            reason: null,
+          },
+          {
+            action: "switch_profile_and_retry",
+            enabled: false,
+            supported: true,
+            reason: "Choose another execution profile first.",
+          },
+          { action: "escalate_to_pair_mode", enabled: true, supported: true, reason: null },
+        ],
+      },
       actions: [
         {
           action: "retry",
@@ -112,6 +133,16 @@ describe("runtimeReviewPackDecisionActionsFacade", () => {
         sourceReviewPackId: "review-pack-1",
         executionProfileId: "balanced-delegate",
       },
+      reviewActionability: {
+        state: "ready",
+        summary: "Runtime review actionability is ready.",
+        degradedReasons: [],
+        actions: [
+          { action: "retry", enabled: true, supported: true, reason: null },
+          { action: "accept_result", enabled: true, supported: true, reason: null },
+          { action: "reject_result", enabled: true, supported: true, reason: null },
+        ],
+      },
       navigationTarget: {
         kind: "review",
         workspaceId: "workspace-1",
@@ -135,7 +166,7 @@ describe("runtimeReviewPackDecisionActionsFacade", () => {
         reviewPackId: "review-pack-1",
         summary: "",
       },
-      evidenceState: "complete",
+      evidenceState: "confirmed",
       reviewStatus: "ready",
     });
 
@@ -146,7 +177,7 @@ describe("runtimeReviewPackDecisionActionsFacade", () => {
     expect(state.decisionActions[0]?.enabled).toBe(true);
   });
 
-  it("surfaces when decision availability is running on the controlled legacy fallback", () => {
+  it("surfaces when runtime review actionability is unavailable", () => {
     const state = buildRuntimeReviewPackFollowUpState({
       source: "runtime_snapshot_v1",
       placement: {
@@ -189,19 +220,21 @@ describe("runtimeReviewPackDecisionActionsFacade", () => {
         reviewPackId: "review-pack-1",
         summary: "",
       },
-      evidenceState: "complete",
+      evidenceState: "confirmed",
       reviewStatus: "ready",
     });
 
     expect(state.decisionActionability).toEqual({
       summary:
-        "Decision availability is using the controlled fallback until canonical runtime review actionability is published.",
+        "Canonical runtime review actionability is unavailable. Follow-up and review decisions stay disabled until runtime publishes the action set.",
       details: [
-        "Decision source: Controlled legacy follow-up fallback.",
-        "Canonical runtime review actionability has not been published for this run yet.",
+        "Decision source: Runtime review actionability unavailable.",
+        "This surface no longer reconstructs follow-up actions or default review policy in page-local logic.",
       ],
-      sourceLabel: "Controlled legacy follow-up fallback",
-      usesFallback: true,
+      sourceLabel: "Runtime review actionability unavailable",
+      usesFallback: false,
     });
+    expect(state.interventionActions[0]?.enabled).toBe(false);
+    expect(state.decisionActions[0]?.enabled).toBe(false);
   });
 });

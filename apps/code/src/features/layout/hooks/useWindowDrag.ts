@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { isTauri } from "../../../application/runtime/ports/tauriCore";
-import { getCurrentWindow } from "../../../application/runtime/ports/tauriWindow";
+import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { getCurrentWindow } from "../../../application/runtime/ports/desktopHostWindow";
 
 export function useWindowDrag(targetId: string) {
   useEffect(() => {

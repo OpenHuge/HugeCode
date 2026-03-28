@@ -1,11 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   composeSharedWorkspaceShellState,
-  deriveSharedWorkspaceShellFrameState,
-  deriveSharedWorkspaceShellResolvedFocusState,
   deriveSharedWorkspaceShellActiveSection,
   deriveSharedWorkspaceShellBackgroundEnabled,
-  SHARED_WORKSPACE_SHELL_HOME_OPTION_VALUE,
+  deriveSharedWorkspaceShellErrors,
+  deriveSharedWorkspaceShellFocusedItemIds,
+  deriveSharedWorkspaceShellFrameState,
+  deriveSharedWorkspaceShellRefreshLabel,
+  deriveSharedWorkspaceShellUiState,
+  deriveSharedWorkspaceShellVisibleErrors,
+  deriveSharedWorkspaceShellWorkspaceSelectOptions,
+  reconcileSharedWorkspaceShellDismissedErrors,
+  resolveSharedWorkspaceShellFocusTarget,
 } from "./sharedWorkspaceShellComposition";
 
 describe("deriveSharedWorkspaceShellActiveSection", () => {
@@ -68,6 +74,33 @@ describe("deriveSharedWorkspaceShellBackgroundEnabled", () => {
   });
 });
 
+describe("deriveSharedWorkspaceShellFrameState", () => {
+  it("derives a stable shell frame from route and activation inputs", () => {
+    const frameState = deriveSharedWorkspaceShellFrameState({
+      runtimeMode: "connected",
+      platformHint: "desktop",
+      routeSelection: { kind: "workspace", workspaceId: "workspace-1" },
+      activationRequested: false,
+      activationDeferred: true,
+      accountHref: "/account",
+      settingsFraming: {
+        kickerLabel: "Preferences",
+        contextLabel: "Desktop app",
+        title: "Settings",
+        subtitle: "Workspace settings",
+      },
+    });
+
+    expect(frameState).toMatchObject({
+      runtimeMode: "connected",
+      platformHint: "desktop",
+      activeSection: "workspaces",
+      backgroundEnabled: true,
+      accountHref: "/account",
+    });
+  });
+});
+
 describe("composeSharedWorkspaceShellState", () => {
   it("stitches shell frame, data, and actions into a stable shared state shape", () => {
     const refreshWorkspaces = vi.fn(async () => undefined);
@@ -77,10 +110,20 @@ describe("composeSharedWorkspaceShellState", () => {
     const navigateToSection = vi.fn();
 
     const state = composeSharedWorkspaceShellState({
-      runtimeMode: "connected",
-      platformHint: "desktop",
-      routeSelection: { kind: "workspace", workspaceId: "workspace-1" },
-      activeSection: "workspaces",
+      frameState: {
+        runtimeMode: "connected",
+        platformHint: "desktop",
+        routeSelection: { kind: "workspace", workspaceId: "workspace-1" },
+        activeSection: "workspaces",
+        backgroundEnabled: true,
+        accountHref: "/account",
+        settingsFraming: {
+          kickerLabel: "Preferences",
+          contextLabel: "Desktop app",
+          title: "Settings",
+          subtitle: "Workspace settings",
+        },
+      },
       catalogState: {
         workspaces: [{ id: "workspace-1", name: "Alpha", connected: true }],
         activeWorkspaceId: "workspace-1",
@@ -128,13 +171,6 @@ describe("composeSharedWorkspaceShellState", () => {
         refresh: refreshHostStartupStatus,
       },
       navigateToSection,
-      accountHref: "/account",
-      settingsFraming: {
-        kickerLabel: "Preferences",
-        contextLabel: "Desktop app",
-        title: "Settings",
-        subtitle: "Workspace settings",
-      },
     });
 
     expect(state.activeSection).toBe("workspaces");
@@ -149,179 +185,162 @@ describe("composeSharedWorkspaceShellState", () => {
   });
 });
 
-describe("deriveSharedWorkspaceShellFrameState", () => {
-  it("derives shell chrome state from the exported shell contract instead of hook internals", () => {
-    const state = composeSharedWorkspaceShellState({
-      runtimeMode: "connected",
-      platformHint: "desktop",
-      routeSelection: { kind: "workspace", workspaceId: "workspace-1" },
-      activeSection: "workspaces",
-      catalogState: {
-        workspaces: [{ id: "workspace-1", name: "Alpha", connected: true }],
-        activeWorkspaceId: "workspace-1",
-        activeWorkspace: { id: "workspace-1", name: "Alpha", connected: true },
+describe("shell ui derivation helpers", () => {
+  it("derives workspace select options with a pending placeholder", () => {
+    expect(
+      deriveSharedWorkspaceShellWorkspaceSelectOptions({
+        activeWorkspaceId: "workspace-2",
         hasPendingWorkspaceSelection: true,
-        loadState: "refreshing",
-        error: "Workspace catalog failed",
-        refresh: vi.fn(async () => undefined),
-        selectWorkspace: vi.fn(),
+        workspaceLoadState: "loading",
+        workspaces: [{ id: "workspace-1", name: "Alpha", connected: true }],
+      })
+    ).toEqual([
+      { value: "__home__", label: "Home overview" },
+      {
+        value: "workspace-2",
+        label: "Loading selected workspace...",
+        disabled: true,
       },
-      missionControlState: {
-        summary: {
-          workspaceLabel: "Alpha",
-          tasksCount: 1,
-          runsCount: 2,
-          approvalCount: 1,
-          reviewPacksCount: 1,
-          connectedWorkspaceCount: 1,
-          launchReadiness: {
-            tone: "ready",
-            label: "Launch readiness",
-            detail: "Healthy",
-          },
-          continuityReadiness: {
-            tone: "attention",
-            label: "Continuity readiness",
-            detail: "Needs review",
-          },
-          missionItems: [],
-          reviewItems: [],
-        },
-        snapshot: null,
-        loadState: "refreshing",
-        error: "Mission summary failed",
-        refresh: vi.fn(async () => undefined),
-      },
-      hostStartupState: {
-        status: null,
-        loadState: "refreshing",
-        error: "Host status failed",
-        refresh: vi.fn(async () => undefined),
-      },
-      navigateToSection: vi.fn(),
-      accountHref: "/account",
-      settingsFraming: {
-        kickerLabel: "Preferences",
-        contextLabel: "Desktop app",
-        title: "Settings",
-        subtitle: "Workspace settings",
-      },
-    });
-
-    const frameState = deriveSharedWorkspaceShellFrameState(state);
-
-    expect(frameState.workspaceSelectValue).toBe("workspace-1");
-    expect(frameState.workspaceSelectOptions[0]).toEqual({
-      value: SHARED_WORKSPACE_SHELL_HOME_OPTION_VALUE,
-      label: "Home overview",
-    });
-    expect(frameState.workspaceSelectOptions[1]).toEqual({
-      value: "workspace-1",
-      label: "Refreshing selected workspace...",
-      disabled: true,
-    });
-    expect(frameState.refreshLabel).toBe("Refreshing shell");
-    expect(frameState.shellRefreshing).toBe(true);
-    expect(frameState.shellErrors.map((error) => error.title)).toEqual([
-      "Workspace roster unavailable",
-      "Mission summary unavailable",
-      "Desktop host status unavailable",
+      { value: "workspace-1", label: "Alpha" },
     ]);
   });
-});
 
-describe("deriveSharedWorkspaceShellResolvedFocusState", () => {
-  it("resolves the top review item when a focus target enters review without an explicit item id", () => {
-    const state = composeSharedWorkspaceShellState({
-      runtimeMode: "connected",
-      platformHint: "desktop",
-      routeSelection: { kind: "review" },
-      activeSection: "review",
+  it("derives shell errors and reconciles dismissed ids against active errors", () => {
+    const errors = deriveSharedWorkspaceShellErrors({
+      workspaceError: "Workspace failed",
+      missionError: null,
+      hostStartupError: "Host failed",
+    });
+
+    expect(errors.map((error) => error.id)).toEqual([
+      "workspace:Workspace failed",
+      "host:Host failed",
+    ]);
+    expect(
+      reconcileSharedWorkspaceShellDismissedErrors(["gone", "host:Host failed"], errors)
+    ).toEqual(["host:Host failed"]);
+    expect(deriveSharedWorkspaceShellVisibleErrors(errors, ["host:Host failed"])).toEqual([
+      errors[0],
+    ]);
+  });
+
+  it("resolves pending focus targets and derives focused ids", () => {
+    const resolvedFocusTarget = resolveSharedWorkspaceShellFocusTarget({
+      focusTarget: { section: "review", itemId: null },
+      missionLoadState: "ready",
+      missionItemIds: ["mission-1"],
+      reviewItemIds: ["review-1", "review-2"],
+    });
+
+    expect(resolvedFocusTarget).toEqual({
+      section: "review",
+      itemId: "review-1",
+    });
+    expect(
+      deriveSharedWorkspaceShellFocusedItemIds({
+        focusTarget: resolvedFocusTarget,
+        missionItemIds: ["mission-1"],
+        reviewItemIds: ["review-1", "review-2"],
+      })
+    ).toEqual({
+      focusedMissionId: null,
+      focusedReviewId: "review-1",
+    });
+  });
+
+  it("derives shell refresh state and the aggregate ui state", () => {
+    expect(
+      deriveSharedWorkspaceShellRefreshLabel({
+        workspaceLoadState: "ready",
+        missionLoadState: "refreshing",
+        hostStartupLoadState: "ready",
+      })
+    ).toEqual({
+      shellHydrating: false,
+      shellRefreshing: true,
+      refreshLabel: "Refreshing shell",
+    });
+
+    const shellState = composeSharedWorkspaceShellState({
+      frameState: {
+        runtimeMode: "connected",
+        platformHint: "desktop",
+        routeSelection: { kind: "review" },
+        activeSection: "review",
+        backgroundEnabled: true,
+        accountHref: "/account",
+        settingsFraming: {
+          kickerLabel: "Preferences",
+          contextLabel: "Desktop app",
+          title: "Settings",
+          subtitle: "Workspace settings",
+        },
+      },
       catalogState: {
         workspaces: [{ id: "workspace-1", name: "Alpha", connected: true }],
         activeWorkspaceId: "workspace-1",
         activeWorkspace: { id: "workspace-1", name: "Alpha", connected: true },
         hasPendingWorkspaceSelection: false,
         loadState: "ready",
-        error: null,
+        error: "Workspace failed",
         refresh: vi.fn(async () => undefined),
         selectWorkspace: vi.fn(),
       },
       missionControlState: {
         summary: {
           workspaceLabel: "Alpha",
-          tasksCount: 1,
-          runsCount: 1,
+          tasksCount: 0,
+          runsCount: 0,
           approvalCount: 0,
-          reviewPacksCount: 2,
+          reviewPacksCount: 1,
           connectedWorkspaceCount: 1,
-          launchReadiness: {
-            tone: "ready",
-            label: "Launch readiness",
-            detail: "Healthy",
-          },
+          launchReadiness: { tone: "ready", label: "Launch readiness", detail: "Healthy" },
           continuityReadiness: {
-            tone: "ready",
+            tone: "attention",
             label: "Continuity readiness",
-            detail: "Stable",
+            detail: "Needs review",
           },
-          missionItems: [
-            {
-              id: "mission-1",
-              title: "Compile",
-              workspaceName: "Alpha",
-              statusLabel: "Running",
-              tone: "active",
-              detail: "In progress",
-              highlights: [],
-            },
-          ],
+          missionItems: [],
           reviewItems: [
             {
               id: "review-1",
-              title: "Lint",
+              title: "Review 1",
               workspaceName: "Alpha",
-              summary: "Failed lint",
-              reviewStatusLabel: "Validation failed",
-              validationLabel: "Failed",
-              tone: "blocked",
+              summary: "Inspect review 1",
+              reviewStatusLabel: "Needs attention",
+              validationLabel: "Passed",
               warningCount: 0,
+              tone: "attention",
             },
           ],
         },
         snapshot: null,
         loadState: "ready",
-        error: null,
+        error: "Mission failed",
         refresh: vi.fn(async () => undefined),
       },
       hostStartupState: {
         status: null,
-        loadState: "ready",
-        error: null,
+        loadState: "refreshing",
+        error: "Host failed",
         refresh: vi.fn(async () => undefined),
       },
       navigateToSection: vi.fn(),
-      accountHref: "/account",
-      settingsFraming: {
-        kickerLabel: "Preferences",
-        contextLabel: "Desktop app",
-        title: "Settings",
-        subtitle: "Workspace settings",
-      },
     });
 
     expect(
-      deriveSharedWorkspaceShellResolvedFocusState({
-        state,
-        focusTarget: {
-          section: "review",
-          itemId: null,
-        },
+      deriveSharedWorkspaceShellUiState({
+        shellState,
+        focusTarget: { section: "review", itemId: null },
+        dismissedErrors: ["host:Host failed"],
       })
-    ).toEqual({
-      resolvedFocusTargetItemId: "review-1",
+    ).toMatchObject({
+      workspaceSelectValue: "workspace-1",
       focusedMissionId: null,
       focusedReviewId: "review-1",
+      shellHydrating: false,
+      shellRefreshing: true,
+      refreshLabel: "Refreshing shell",
     });
   });
 });

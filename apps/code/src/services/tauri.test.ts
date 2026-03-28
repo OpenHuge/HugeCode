@@ -24,7 +24,7 @@ import {
   renameWorktreeUpstream,
   updateWorkspaceCodexBin,
   updateWorkspaceSettings,
-} from "./tauri";
+} from "./desktopHost";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -266,7 +266,7 @@ describe("tauri invoke wrappers", () => {
 
     await expect(
       renameWorktreeUpstream("wt-upstream", "feature/old", "feature/new")
-    ).rejects.toThrow("Upstream worktree rename is unavailable outside Tauri runtime.");
+    ).rejects.toThrow("Upstream worktree rename is unavailable outside the desktop host.");
   });
 
   it("does not use workspace settings fallback in runtime-gateway-web mode", async () => {

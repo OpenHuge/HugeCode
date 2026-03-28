@@ -1,15 +1,15 @@
 import { StatusBadge } from "@ku0/design-system";
 import { useEffect, useMemo } from "react";
 import { deriveSharedWorkspaceOperatorAction } from "./sharedWorkspaceOperatorAction";
-import type { SharedWorkspaceShellState } from "./sharedWorkspaceShellContracts";
+import type {
+  SharedWorkspaceShellFocusableSection,
+  SharedWorkspaceShellFocusTarget,
+  SharedWorkspaceShellState,
+} from "./sharedWorkspaceShellContracts";
 import * as styles from "./SharedWorkspaceShell.css";
 
-export type FocusableSection = "missions" | "review";
-
-export type ShellFocusTarget = {
-  section: FocusableSection;
-  itemId: string | null;
-};
+export type FocusableSection = SharedWorkspaceShellFocusableSection;
+export type ShellFocusTarget = SharedWorkspaceShellFocusTarget;
 
 export const shellSections = [
   {

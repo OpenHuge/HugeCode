@@ -1,1 +1,1 @@
-export { runCodexDoctor, runCodexUpdate } from "../../../services/tauriDesktopRuntimeOps";
+export { runCodexDoctor, runCodexUpdate } from "../../../services/desktopHostRuntimeOps";

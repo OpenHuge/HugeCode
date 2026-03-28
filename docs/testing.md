@@ -119,7 +119,7 @@ Live runtime E2E is a narrower sub-class of targeted E2E:
 - `pnpm desktop:verify:fast`
   Fast Electron verification layer for CI and desktop-runtime-sensitive changes.
 - `pnpm desktop:verify`
-  Tauri debug build without bundling for local desktop integration verification.
+  Full Electron desktop verification for local integration changes that need the host build, packaging, or native smoke coverage.
 - `.github/workflows/desktop.yml`
   PR and main desktop build matrix for compile-and-link coverage across supported targets.
 
@@ -149,11 +149,11 @@ Use the smallest gate that matches risk:
 - `pnpm ui:contract`
   UI/runtime boundary guard for `apps/code`.
 - `pnpm test:desktop:smoke`
-  Narrow desktop backend smoke for Tauri-local changes.
+  Narrow desktop backend smoke for Electron desktop-host changes.
 - `pnpm desktop:verify:fast`
-  Faster desktop verification before escalating to a full Tauri debug build.
+  Faster desktop verification before escalating to a full desktop host build.
 - `pnpm desktop:verify`
-  Desktop/Tauri verification when desktop integration changes.
+  Desktop host verification when Electron integration changes.
 
 ## Fast Gate Scheduling
 
@@ -185,7 +185,7 @@ Use the matrix below to decide where a regression belongs by default.
 | Browser interaction inside one feature surface | Vitest Browser Mode                      | route, shell, runtime, or persistence boundary is involved | composer key handling, review prompt focus, resolver priority, draft retention |
 | Cross-route or cross-workspace UI behavior     | Playwright E2E                           | desktop packaging or native host behavior matters          | home-to-workspace routing, workspace recovery, startup shell transitions       |
 | Runtime transport / backend wiring             | Playwright E2E plus targeted integration | contract or cross-language payload risk exists             | turn/start, request-failed recovery, replay correctness                        |
-| Desktop-only host behavior                     | targeted integration plus desktop verify | native packaging or OS behavior matters                    | Tauri review start, IPC payloads, desktop smoke                                |
+| Desktop-only host behavior                     | targeted integration plus desktop verify | native packaging or OS behavior matters                    | Electron review start, IPC payloads, desktop smoke                             |
 
 ## Promotion Rules
 
@@ -270,7 +270,7 @@ Avoid these patterns because they create expensive or brittle suites:
 
 - Runtime-facing `apps/code` tests commonly expect the code runtime service at `127.0.0.1:8788`.
 - `pnpm dev` is the canonical local entrypoint when the UI and runtime need to run together.
-- Desktop verification requires the Tauri toolchain plus the platform-native prerequisites documented in `docs/development/README.md`.
+- Desktop verification requires the Electron desktop host prerequisites documented in `docs/development/README.md`.
 
 ## Recommended Commands
 

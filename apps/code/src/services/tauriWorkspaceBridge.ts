@@ -1,5 +1,5 @@
-import { invoke, isTauri } from "../application/runtime/ports/tauriCore";
-import { open } from "../application/runtime/ports/tauriDialogs";
+import { invoke, isTauri } from "../application/runtime/ports/desktopHostCore";
+import { open } from "../application/runtime/ports/desktopHostDialogs";
 import type { WorkspaceInfo, WorkspaceSettings } from "../types";
 import { logger } from "./logger";
 import { detectRuntimeMode, getRuntimeClient } from "./runtimeClient";

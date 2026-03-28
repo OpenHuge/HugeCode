@@ -1,6 +1,12 @@
 import type {
+  SharedWorkspaceShellFrameState,
+  SharedWorkspaceShellFrameStateCompositionInput,
+  SharedWorkspaceShellFocusTarget,
+  SharedWorkspaceShellError,
   SharedWorkspaceShellState,
   SharedWorkspaceShellStateCompositionInput,
+  SharedWorkspaceShellUiState,
+  SharedWorkspaceShellWorkspaceOption,
 } from "./sharedWorkspaceShellContracts";
 import type {
   SharedWorkspaceRouteSelection,
@@ -21,7 +27,7 @@ export function deriveSharedWorkspaceShellBackgroundEnabled(input: {
   activeSection: SharedWorkspaceShellSection;
   activationRequested: boolean;
   activationDeferred: boolean;
-}) {
+}): boolean {
   return (
     input.activationRequested ||
     input.activeSection === "missions" ||
@@ -30,140 +36,23 @@ export function deriveSharedWorkspaceShellBackgroundEnabled(input: {
   );
 }
 
-export const SHARED_WORKSPACE_SHELL_HOME_OPTION_VALUE = "__home__";
-
-export type SharedWorkspaceShellSelectOption = {
-  value: string;
-  label: string;
-  disabled?: boolean;
-};
-
-export type SharedWorkspaceShellError = {
-  id: string;
-  title: string;
-  message: string;
-};
-
-export type SharedWorkspaceShellFrameState = {
-  workspaceSelectOptions: SharedWorkspaceShellSelectOption[];
-  workspaceSelectValue: string;
-  shellErrors: SharedWorkspaceShellError[];
-  refreshLabel: string | null;
-  shellRefreshing: boolean;
-};
-
-export type SharedWorkspaceShellResolvedFocusState = {
-  resolvedFocusTargetItemId: string | null;
-  focusedMissionId: string | null;
-  focusedReviewId: string | null;
-};
-
 export function deriveSharedWorkspaceShellFrameState(
-  state: SharedWorkspaceShellState
+  input: SharedWorkspaceShellFrameStateCompositionInput
 ): SharedWorkspaceShellFrameState {
-  const workspaceSelectOptions: SharedWorkspaceShellSelectOption[] = [
-    {
-      value: SHARED_WORKSPACE_SHELL_HOME_OPTION_VALUE,
-      label: "Home overview",
-    },
-    ...(state.hasPendingWorkspaceSelection && state.activeWorkspaceId
-      ? [
-          {
-            value: state.activeWorkspaceId,
-            label:
-              state.workspaceLoadState === "refreshing"
-                ? "Refreshing selected workspace..."
-                : "Loading selected workspace...",
-            disabled: true,
-          },
-        ]
-      : []),
-    ...state.workspaces.map((workspace) => ({
-      value: workspace.id,
-      label: workspace.name,
-    })),
-  ];
-  const workspaceSelectValue = state.activeWorkspaceId ?? SHARED_WORKSPACE_SHELL_HOME_OPTION_VALUE;
-  const shellErrors = [
-    state.workspaceError
-      ? {
-          id: `workspace:${state.workspaceError}`,
-          title: "Workspace roster unavailable",
-          message: state.workspaceError,
-        }
-      : null,
-    state.missionError
-      ? {
-          id: `mission:${state.missionError}`,
-          title: "Mission summary unavailable",
-          message: state.missionError,
-        }
-      : null,
-    state.hostStartupError
-      ? {
-          id: `host:${state.hostStartupError}`,
-          title: "Desktop host status unavailable",
-          message: state.hostStartupError,
-        }
-      : null,
-  ].filter((error): error is SharedWorkspaceShellError => error !== null);
-  const shellHydrating =
-    state.workspaceLoadState === "idle" ||
-    state.workspaceLoadState === "loading" ||
-    state.missionLoadState === "idle" ||
-    state.missionLoadState === "loading" ||
-    state.hostStartupLoadState === "idle" ||
-    state.hostStartupLoadState === "loading";
-  const shellRefreshing =
-    state.workspaceLoadState === "refreshing" ||
-    state.missionLoadState === "refreshing" ||
-    state.hostStartupLoadState === "refreshing";
-  const refreshLabel = shellRefreshing
-    ? "Refreshing shell"
-    : shellHydrating
-      ? "Hydrating shell"
-      : null;
+  const activeSection = deriveSharedWorkspaceShellActiveSection(input.routeSelection);
 
   return {
-    workspaceSelectOptions,
-    workspaceSelectValue,
-    shellErrors,
-    refreshLabel,
-    shellRefreshing,
-  };
-}
-
-export function deriveSharedWorkspaceShellResolvedFocusState(input: {
-  state: SharedWorkspaceShellState;
-  focusTarget: {
-    section: "missions" | "review";
-    itemId: string | null;
-  } | null;
-}): SharedWorkspaceShellResolvedFocusState {
-  const { focusTarget, state } = input;
-  const missionItems = state.missionSummary.missionItems;
-  const reviewItems = state.missionSummary.reviewItems;
-  const missionHydrating =
-    state.missionLoadState === "idle" || state.missionLoadState === "loading";
-  const resolvedFocusTargetItemId =
-    !focusTarget || focusTarget.itemId !== null || missionHydrating
-      ? null
-      : focusTarget.section === "missions"
-        ? (missionItems[0]?.id ?? null)
-        : (reviewItems[0]?.id ?? null);
-  const focusedMissionId =
-    focusTarget?.section === "missions"
-      ? (focusTarget.itemId ?? resolvedFocusTargetItemId ?? missionItems[0]?.id ?? null)
-      : null;
-  const focusedReviewId =
-    focusTarget?.section === "review"
-      ? (focusTarget.itemId ?? resolvedFocusTargetItemId ?? reviewItems[0]?.id ?? null)
-      : null;
-
-  return {
-    resolvedFocusTargetItemId,
-    focusedMissionId,
-    focusedReviewId,
+    runtimeMode: input.runtimeMode,
+    platformHint: input.platformHint,
+    routeSelection: input.routeSelection,
+    activeSection,
+    backgroundEnabled: deriveSharedWorkspaceShellBackgroundEnabled({
+      activeSection,
+      activationRequested: input.activationRequested,
+      activationDeferred: input.activationDeferred,
+    }),
+    accountHref: input.accountHref,
+    settingsFraming: input.settingsFraming,
   };
 }
 
@@ -171,10 +60,10 @@ export function composeSharedWorkspaceShellState(
   input: SharedWorkspaceShellStateCompositionInput
 ): SharedWorkspaceShellState {
   return {
-    runtimeMode: input.runtimeMode,
-    platformHint: input.platformHint,
-    routeSelection: input.routeSelection,
-    activeSection: input.activeSection,
+    runtimeMode: input.frameState.runtimeMode,
+    platformHint: input.frameState.platformHint,
+    routeSelection: input.frameState.routeSelection,
+    activeSection: input.frameState.activeSection,
     workspaces: input.catalogState.workspaces,
     activeWorkspaceId: input.catalogState.activeWorkspaceId,
     activeWorkspace: input.catalogState.activeWorkspace,
@@ -193,7 +82,191 @@ export function composeSharedWorkspaceShellState(
     hostStartupLoadState: input.hostStartupState.loadState,
     hostStartupError: input.hostStartupState.error,
     refreshHostStartupStatus: input.hostStartupState.refresh,
-    accountHref: input.accountHref,
-    settingsFraming: input.settingsFraming,
+    accountHref: input.frameState.accountHref,
+    settingsFraming: input.frameState.settingsFraming,
+  };
+}
+
+export function deriveSharedWorkspaceShellWorkspaceSelectOptions(input: {
+  activeWorkspaceId: string | null;
+  hasPendingWorkspaceSelection: boolean;
+  workspaceLoadState: SharedWorkspaceShellState["workspaceLoadState"];
+  workspaces: SharedWorkspaceShellState["workspaces"];
+}): SharedWorkspaceShellWorkspaceOption[] {
+  return [
+    {
+      value: "__home__",
+      label: "Home overview",
+    },
+    ...(input.hasPendingWorkspaceSelection && input.activeWorkspaceId
+      ? [
+          {
+            value: input.activeWorkspaceId,
+            label:
+              input.workspaceLoadState === "refreshing"
+                ? "Refreshing selected workspace..."
+                : "Loading selected workspace...",
+            disabled: true,
+          },
+        ]
+      : []),
+    ...input.workspaces.map((workspace) => ({
+      value: workspace.id,
+      label: workspace.name,
+    })),
+  ];
+}
+
+export function deriveSharedWorkspaceShellErrors(input: {
+  workspaceError: string | null;
+  missionError: string | null;
+  hostStartupError: string | null;
+}): SharedWorkspaceShellError[] {
+  return [
+    input.workspaceError
+      ? {
+          id: `workspace:${input.workspaceError}`,
+          title: "Workspace roster unavailable",
+          message: input.workspaceError,
+        }
+      : null,
+    input.missionError
+      ? {
+          id: `mission:${input.missionError}`,
+          title: "Mission summary unavailable",
+          message: input.missionError,
+        }
+      : null,
+    input.hostStartupError
+      ? {
+          id: `host:${input.hostStartupError}`,
+          title: "Desktop host status unavailable",
+          message: input.hostStartupError,
+        }
+      : null,
+  ].filter((error): error is SharedWorkspaceShellError => error !== null);
+}
+
+export function reconcileSharedWorkspaceShellDismissedErrors(
+  dismissedErrors: string[],
+  shellErrors: SharedWorkspaceShellError[]
+) {
+  return dismissedErrors.filter((id) => shellErrors.some((error) => error.id === id));
+}
+
+export function deriveSharedWorkspaceShellVisibleErrors(
+  shellErrors: SharedWorkspaceShellError[],
+  dismissedErrors: string[]
+) {
+  return shellErrors.filter((error) => !dismissedErrors.includes(error.id));
+}
+
+export function resolveSharedWorkspaceShellFocusTarget(input: {
+  focusTarget: SharedWorkspaceShellFocusTarget | null;
+  missionLoadState: SharedWorkspaceShellState["missionLoadState"];
+  missionItemIds: string[];
+  reviewItemIds: string[];
+}): SharedWorkspaceShellFocusTarget | null {
+  if (!input.focusTarget || input.focusTarget.itemId) {
+    return input.focusTarget;
+  }
+  if (input.missionLoadState === "idle" || input.missionLoadState === "loading") {
+    return input.focusTarget;
+  }
+
+  const resolvedItemId =
+    input.focusTarget.section === "missions"
+      ? (input.missionItemIds[0] ?? null)
+      : (input.reviewItemIds[0] ?? null);
+
+  if (!resolvedItemId) {
+    return input.focusTarget;
+  }
+
+  return {
+    ...input.focusTarget,
+    itemId: resolvedItemId,
+  };
+}
+
+export function deriveSharedWorkspaceShellFocusedItemIds(input: {
+  focusTarget: SharedWorkspaceShellFocusTarget | null;
+  missionItemIds: string[];
+  reviewItemIds: string[];
+}) {
+  return {
+    focusedMissionId:
+      input.focusTarget?.section === "missions"
+        ? (input.focusTarget.itemId ?? input.missionItemIds[0] ?? null)
+        : null,
+    focusedReviewId:
+      input.focusTarget?.section === "review"
+        ? (input.focusTarget.itemId ?? input.reviewItemIds[0] ?? null)
+        : null,
+  };
+}
+
+export function deriveSharedWorkspaceShellRefreshLabel(input: {
+  workspaceLoadState: SharedWorkspaceShellState["workspaceLoadState"];
+  missionLoadState: SharedWorkspaceShellState["missionLoadState"];
+  hostStartupLoadState: SharedWorkspaceShellState["hostStartupLoadState"];
+}) {
+  const shellHydrating =
+    input.workspaceLoadState === "idle" ||
+    input.workspaceLoadState === "loading" ||
+    input.missionLoadState === "idle" ||
+    input.missionLoadState === "loading" ||
+    input.hostStartupLoadState === "idle" ||
+    input.hostStartupLoadState === "loading";
+  const shellRefreshing =
+    input.workspaceLoadState === "refreshing" ||
+    input.missionLoadState === "refreshing" ||
+    input.hostStartupLoadState === "refreshing";
+
+  return {
+    shellHydrating,
+    shellRefreshing,
+    refreshLabel: shellRefreshing ? "Refreshing shell" : shellHydrating ? "Hydrating shell" : null,
+  };
+}
+
+export function deriveSharedWorkspaceShellUiState(input: {
+  shellState: SharedWorkspaceShellState;
+  focusTarget: SharedWorkspaceShellFocusTarget | null;
+  dismissedErrors: string[];
+}): SharedWorkspaceShellUiState {
+  const workspaceSelectOptions = deriveSharedWorkspaceShellWorkspaceSelectOptions({
+    activeWorkspaceId: input.shellState.activeWorkspaceId,
+    hasPendingWorkspaceSelection: input.shellState.hasPendingWorkspaceSelection,
+    workspaceLoadState: input.shellState.workspaceLoadState,
+    workspaces: input.shellState.workspaces,
+  });
+  const shellErrors = deriveSharedWorkspaceShellErrors({
+    workspaceError: input.shellState.workspaceError,
+    missionError: input.shellState.missionError,
+    hostStartupError: input.shellState.hostStartupError,
+  });
+  const visibleErrors = deriveSharedWorkspaceShellVisibleErrors(shellErrors, input.dismissedErrors);
+  const { focusedMissionId, focusedReviewId } = deriveSharedWorkspaceShellFocusedItemIds({
+    focusTarget: input.focusTarget,
+    missionItemIds: input.shellState.missionSummary.missionItems.map((item) => item.id),
+    reviewItemIds: input.shellState.missionSummary.reviewItems.map((item) => item.id),
+  });
+  const { shellHydrating, shellRefreshing, refreshLabel } = deriveSharedWorkspaceShellRefreshLabel({
+    workspaceLoadState: input.shellState.workspaceLoadState,
+    missionLoadState: input.shellState.missionLoadState,
+    hostStartupLoadState: input.shellState.hostStartupLoadState,
+  });
+
+  return {
+    workspaceSelectOptions,
+    workspaceSelectValue: input.shellState.activeWorkspaceId ?? "__home__",
+    shellErrors,
+    visibleErrors,
+    focusedMissionId,
+    focusedReviewId,
+    shellHydrating,
+    shellRefreshing,
+    refreshLabel,
   };
 }

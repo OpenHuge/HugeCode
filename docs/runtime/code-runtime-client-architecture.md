@@ -9,7 +9,7 @@ Status: Active
 
 Supported runtime modes are now:
 
-- `tauri`
+- `tauri` (legacy desktop-host compatibility label retained for runtime-mode stability)
 - `runtime-gateway-web`
 - `unavailable`
 
@@ -25,7 +25,7 @@ Rules:
 
 - RPC method names and payload aliases come only from `packages/code-runtime-host-contract`.
 - Runtime contract baseline (`contractVersion`, `freezeEffectiveAt`, `contract_frozen_*` feature expectation) must come from `@ku0/code-runtime-host-contract` constants; do not hardcode date literals in clients/adapters.
-- Runtime method-set source of truth is guarded by `scripts/check-runtime-sot.mjs` (host=service exact set, tauri gap allowlist bounded, optional strict tauri parity mode).
+- Runtime method-set source of truth is guarded by `scripts/check-runtime-sot.mjs` (host=service exact set, no desktop-host gap allowlist, optional strict compatibility checks).
 - Frontend does not infer provider/model routing semantics; it consumes routed metadata from service responses.
 - Compatibility fallback to legacy aliases is removed in the frozen `2026-03-22` baseline.
 - Shared runtime clients should now expose the runtime kernel v2 lifecycle
@@ -61,5 +61,5 @@ adding local fallback semantics.
 ## Why
 
 - Prevents semantic drift between UI and service.
-- Keeps cross-platform behavior deterministic across web/tauri/future clients.
+- Keeps cross-platform behavior deterministic across web/desktop-host/future clients.
 - Removes historical fallback debt based on non-contract heuristics.

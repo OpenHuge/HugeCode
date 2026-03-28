@@ -3,7 +3,8 @@
 import { lazy } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { SettingsShellFraming, WorkspaceClientBindings } from "../index";
+import type { SettingsShellFraming } from "../settings-shell/settingsShellTypes";
+import type { WorkspaceClientBindings } from "./bindings";
 import { WorkspaceClientApp } from "./WorkspaceClientApp";
 import { WorkspaceClientBindingsProvider } from "./WorkspaceClientBindingsProvider";
 
@@ -80,17 +81,15 @@ function createBindings(
         startRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        cancelRuntimeJob: async () => {
+        cancelRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        resumeRuntimeJob: async () => {
+        resumeRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        interveneRuntimeJob: async () => {
+        interveneRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        subscribeRuntimeJob: async () => null,
-        listRuntimeJobs: async () => [],
         submitRuntimeJobApprovalDecision: async () => {
           throw new Error("not implemented");
         },

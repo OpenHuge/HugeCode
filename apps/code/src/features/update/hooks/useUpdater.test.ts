@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
 
-import { relaunch } from "@tauri-apps/plugin-process";
-import { check } from "@tauri-apps/plugin-updater";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -12,6 +10,8 @@ import {
   subscribeToDesktopUpdateState,
 } from "../../../application/runtime/facades/desktopHostFacade";
 import type { DesktopUpdateState } from "../../../application/runtime/ports/desktopHostBridge";
+import { relaunch } from "../../../application/runtime/ports/desktopProcess";
+import { check } from "../../../application/runtime/ports/desktopUpdater";
 import type { DebugEntry } from "../../../types";
 import { STORAGE_KEY_PENDING_POST_UPDATE_VERSION } from "../utils/postUpdateRelease";
 import { resolveInitialUpdaterStartupAction, useUpdater } from "./useUpdater";
@@ -20,11 +20,11 @@ vi.mock("@tauri-apps/api/core", () => ({
   isTauri: vi.fn(() => true),
 }));
 
-vi.mock("@tauri-apps/plugin-updater", () => ({
+vi.mock("../../../application/runtime/ports/desktopUpdater", () => ({
   check: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-process", () => ({
+vi.mock("../../../application/runtime/ports/desktopProcess", () => ({
   relaunch: vi.fn(),
 }));
 

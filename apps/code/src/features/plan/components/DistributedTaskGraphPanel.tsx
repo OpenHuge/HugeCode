@@ -124,11 +124,8 @@ export function DistributedTaskGraphPanel({
     summary?.failedNodes ?? graph?.nodes.filter((node) => node.status === "failed").length ?? 0;
   const handleRetryNode = useCallback(
     async (nodeId: string) => {
-      const ack = await retryDistributedTaskGraphNode(nodeId);
-      if (!ack.accepted) {
-        throw new Error(`Runtime declined retry for node '${nodeId}'.`);
-      }
-      await onRefreshGraph?.(ack.spawnedRunId || nodeId);
+      const record = await retryDistributedTaskGraphNode(nodeId);
+      await onRefreshGraph?.(record.run.taskId || nodeId);
     },
     [onRefreshGraph]
   );

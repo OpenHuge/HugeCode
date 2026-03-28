@@ -12,10 +12,11 @@ import {
 } from "@ku0/design-system";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  deriveSharedWorkspaceShellFrameState,
-  deriveSharedWorkspaceShellResolvedFocusState,
-  SHARED_WORKSPACE_SHELL_HOME_OPTION_VALUE,
+  deriveSharedWorkspaceShellUiState,
+  reconcileSharedWorkspaceShellDismissedErrors,
+  resolveSharedWorkspaceShellFocusTarget,
 } from "./sharedWorkspaceShellComposition";
+import type { SharedWorkspaceShellFocusTarget } from "./sharedWorkspaceShellContracts";
 import { useSharedWorkspaceShellState } from "./useSharedWorkspaceShellState";
 import {
   getSectionMeta,
@@ -34,40 +35,36 @@ type SharedWorkspaceShellProps = {
 export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
   const state = useSharedWorkspaceShellState();
   const [dismissedErrors, setDismissedErrors] = useState<string[]>([]);
-  const [focusTarget, setFocusTarget] = useState<ShellFocusTarget | null>(null);
+  const [focusTarget, setFocusTarget] = useState<SharedWorkspaceShellFocusTarget | null>(null);
   const activeSectionMeta = getSectionMeta(state.activeSection);
-  const frameState = useMemo(
-    () => deriveSharedWorkspaceShellFrameState(state),
+  const uiState = useMemo(
+    () =>
+      deriveSharedWorkspaceShellUiState({
+        shellState: state,
+        focusTarget,
+        dismissedErrors,
+      }),
     [
       state.activeWorkspaceId,
-      state.hasPendingWorkspaceSelection,
       state.hostStartupError,
       state.hostStartupLoadState,
+      state.hasPendingWorkspaceSelection,
       state.missionError,
       state.missionLoadState,
+      state.missionSummary,
+      state.workspaces,
       state.workspaceError,
       state.workspaceLoadState,
-      state.workspaces,
+      dismissedErrors,
+      focusTarget,
     ]
-  );
-  const focusState = useMemo(
-    () =>
-      deriveSharedWorkspaceShellResolvedFocusState({
-        state,
-        focusTarget,
-      }),
-    [focusTarget, state]
-  );
-  const visibleErrors = useMemo(
-    () => frameState.shellErrors.filter((error) => !dismissedErrors.includes(error.id)),
-    [dismissedErrors, frameState.shellErrors]
   );
 
   useEffect(() => {
     setDismissedErrors((current) =>
-      current.filter((id) => frameState.shellErrors.some((error) => error.id === id))
+      reconcileSharedWorkspaceShellDismissedErrors(current, uiState.shellErrors)
     );
-  }, [frameState.shellErrors]);
+  }, [uiState.shellErrors]);
 
   const handleNavigateSection = (section: ShellSectionId) => {
     setFocusTarget(null);
@@ -85,27 +82,45 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
   };
 
   useEffect(() => {
-    if (!focusTarget || focusTarget.itemId || !focusState.resolvedFocusTargetItemId) {
+    const resolvedFocusTarget = resolveSharedWorkspaceShellFocusTarget({
+      focusTarget,
+      missionLoadState: state.missionLoadState,
+      missionItemIds: state.missionSummary.missionItems.map((item) => item.id),
+      reviewItemIds: state.missionSummary.reviewItems.map((item) => item.id),
+    });
+
+    if (
+      !focusTarget ||
+      !resolvedFocusTarget ||
+      resolvedFocusTarget === focusTarget ||
+      focusTarget.itemId
+    ) {
       return;
     }
 
     setFocusTarget((current) => {
-      if (!current || current.section !== focusTarget.section || current.itemId !== null) {
+      if (
+        !current ||
+        current.section !== focusTarget.section ||
+        current.itemId !== focusTarget.itemId
+      ) {
         return current;
       }
 
-      return {
-        ...current,
-        itemId: focusState.resolvedFocusTargetItemId,
-      };
+      return resolvedFocusTarget;
     });
-  }, [focusState.resolvedFocusTargetItemId, focusTarget]);
+  }, [
+    focusTarget,
+    state.missionLoadState,
+    state.missionSummary.missionItems,
+    state.missionSummary.reviewItems,
+  ]);
 
   return (
     <div className={styles.shell} data-workspace-shell={state.platformHint}>
-      {visibleErrors.length ? (
+      {uiState.visibleErrors.length ? (
         <ToastViewport className={styles.toastViewport} role="region" ariaLive="assertive">
-          {visibleErrors.map((error) => (
+          {uiState.visibleErrors.map((error) => (
             <ToastCard key={error.id} className={styles.toastCard} role="alert" tone="error">
               <ToastHeader className={styles.toastHeader}>
                 <ToastTitle>{error.title}</ToastTitle>
@@ -135,13 +150,9 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
             triggerClassName={styles.workspaceSelectTrigger}
             menuClassName={styles.workspaceSelectMenu}
             optionClassName={styles.workspaceSelectOption}
-            options={frameState.workspaceSelectOptions}
-            value={frameState.workspaceSelectValue}
-            onValueChange={(value) =>
-              handleSelectWorkspace(
-                value === SHARED_WORKSPACE_SHELL_HOME_OPTION_VALUE ? null : value
-              )
-            }
+            options={uiState.workspaceSelectOptions}
+            value={uiState.workspaceSelectValue}
+            onValueChange={(value) => handleSelectWorkspace(value === "__home__" ? null : value)}
             placeholder="Select workspace"
           />
           <div className={styles.headerIdentity}>
@@ -151,9 +162,9 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
           </div>
         </div>
         <div className={styles.headerActions}>
-          {frameState.refreshLabel ? (
+          {uiState.refreshLabel ? (
             <StatusBadge tone="progress" className={styles.runtimeBadge}>
-              {frameState.refreshLabel}
+              {uiState.refreshLabel}
             </StatusBadge>
           ) : null}
           <StatusBadge tone="progress" className={styles.runtimeBadge}>
@@ -169,11 +180,11 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
               void state.refreshMissionSummary();
               void state.refreshHostStartupStatus();
             }}
-            disabled={frameState.shellRefreshing}
+            disabled={uiState.shellRefreshing}
             type="button"
           >
             <RefreshCw aria-hidden size={16} />
-            {frameState.shellRefreshing ? "Refreshing..." : "Refresh"}
+            {uiState.shellRefreshing ? "Refreshing..." : "Refresh"}
           </button>
           {state.accountHref ? (
             <a className={styles.subtleButton} href={state.accountHref}>
@@ -208,8 +219,8 @@ export function SharedWorkspaceShell({ children }: SharedWorkspaceShellProps) {
 
         <SharedWorkspaceShellSectionContent
           state={state}
-          focusedMissionId={focusState.focusedMissionId}
-          focusedReviewId={focusState.focusedReviewId}
+          focusedMissionId={uiState.focusedMissionId}
+          focusedReviewId={uiState.focusedReviewId}
           onNavigateSection={handleNavigateSection}
           onOpenFocusTarget={handleOpenFocusTarget}
           onSelectWorkspace={handleSelectWorkspace}

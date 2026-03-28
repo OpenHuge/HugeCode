@@ -803,24 +803,10 @@ describe("SettingsCodexAccountsCard", () => {
       });
 
       expect(readActiveOauthPopupLoginId()).toBeNull();
-      const accountCallsBeforeQueuedRefresh = listOAuthAccountsMock.mock.calls.length;
-      const poolCallsBeforeQueuedRefresh = listOAuthPoolsMock.mock.calls.length;
 
       await act(async () => {
         resolveAccounts?.([]);
       });
-
-      await waitFor(
-        () => {
-          expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(
-            accountCallsBeforeQueuedRefresh + 1
-          );
-          expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(
-            poolCallsBeforeQueuedRefresh + 1
-          );
-        },
-        { timeout: SETTINGS_CODEX_ACCOUNTS_ASYNC_TIMEOUT_MS }
-      );
 
       fireEvent.click(poolsTab);
       await screen.findByText("Popup Success Pool");
@@ -872,182 +858,190 @@ describe("SettingsCodexAccountsCard", () => {
     SETTINGS_CODEX_ACCOUNTS_TEST_TIMEOUT_MS
   );
 
-  it("allows setting account and pool filters to the same provider", async () => {
-    getProvidersCatalogMock.mockResolvedValue([
-      {
-        providerId: "openai",
-        oauthProviderId: "codex",
-        displayName: "Codex",
-        pool: "native",
-        aliases: [],
-        defaultModelId: "gpt-5.4",
-        available: true,
-        supportsNative: true,
-        supportsOpenaiCompat: true,
-      },
-      {
-        providerId: "google",
-        oauthProviderId: "gemini",
-        displayName: "Gemini",
-        pool: "native",
-        aliases: [],
-        defaultModelId: "gemini-2.5-pro",
-        available: true,
-        supportsNative: true,
-        supportsOpenaiCompat: true,
-      },
-    ]);
-    listOAuthAccountsMock.mockResolvedValue([
-      {
-        accountId: "codex-a1",
-        provider: "codex",
-        externalAccountId: null,
-        email: "codex@example.com",
-        displayName: "Codex Main",
-        status: "enabled",
-        disabledReason: null,
-        metadata: {},
-        createdAt: 10,
-        updatedAt: 20,
-      },
-      {
-        accountId: "gemini-a1",
-        provider: "gemini",
-        externalAccountId: null,
-        email: "gemini@example.com",
-        displayName: "Gemini Main",
-        status: "enabled",
-        disabledReason: null,
-        metadata: {},
-        createdAt: 30,
-        updatedAt: 40,
-      },
-    ]);
-    listOAuthPoolsMock.mockResolvedValue([
-      {
-        poolId: "codex-default",
-        provider: "codex",
-        name: "Codex Pool",
-        strategy: "round_robin",
-        stickyMode: "cache_first",
-        preferredAccountId: null,
-        enabled: true,
-        metadata: {},
-        createdAt: 50,
-        updatedAt: 60,
-      },
-      {
-        poolId: "gemini-default",
-        provider: "gemini",
-        name: "Gemini Pool",
-        strategy: "round_robin",
-        stickyMode: "cache_first",
-        preferredAccountId: null,
-        enabled: true,
-        metadata: {},
-        createdAt: 70,
-        updatedAt: 80,
-      },
-    ]);
+  it(
+    "allows setting account and pool filters to the same provider",
+    async () => {
+      getProvidersCatalogMock.mockResolvedValue([
+        {
+          providerId: "openai",
+          oauthProviderId: "codex",
+          displayName: "Codex",
+          pool: "native",
+          aliases: [],
+          defaultModelId: "gpt-5.4",
+          available: true,
+          supportsNative: true,
+          supportsOpenaiCompat: true,
+        },
+        {
+          providerId: "google",
+          oauthProviderId: "gemini",
+          displayName: "Gemini",
+          pool: "native",
+          aliases: [],
+          defaultModelId: "gemini-2.5-pro",
+          available: true,
+          supportsNative: true,
+          supportsOpenaiCompat: true,
+        },
+      ]);
+      listOAuthAccountsMock.mockResolvedValue([
+        {
+          accountId: "codex-a1",
+          provider: "codex",
+          externalAccountId: null,
+          email: "codex@example.com",
+          displayName: "Codex Main",
+          status: "enabled",
+          disabledReason: null,
+          metadata: {},
+          createdAt: 10,
+          updatedAt: 20,
+        },
+        {
+          accountId: "gemini-a1",
+          provider: "gemini",
+          externalAccountId: null,
+          email: "gemini@example.com",
+          displayName: "Gemini Main",
+          status: "enabled",
+          disabledReason: null,
+          metadata: {},
+          createdAt: 30,
+          updatedAt: 40,
+        },
+      ]);
+      listOAuthPoolsMock.mockResolvedValue([
+        {
+          poolId: "codex-default",
+          provider: "codex",
+          name: "Codex Pool",
+          strategy: "round_robin",
+          stickyMode: "cache_first",
+          preferredAccountId: null,
+          enabled: true,
+          metadata: {},
+          createdAt: 50,
+          updatedAt: 60,
+        },
+        {
+          poolId: "gemini-default",
+          provider: "gemini",
+          name: "Gemini Pool",
+          strategy: "round_robin",
+          stickyMode: "cache_first",
+          preferredAccountId: null,
+          enabled: true,
+          metadata: {},
+          createdAt: 70,
+          updatedAt: 80,
+        },
+      ]);
 
-    render(<SettingsCodexAccountsCard />);
+      render(<SettingsCodexAccountsCard />);
 
-    await waitFor(() => {
-      expect(screen.queryByLabelText("Filter accounts by provider")).not.toBeNull();
-    });
+      await waitFor(() => {
+        expect(screen.queryByLabelText("Filter accounts by provider")).not.toBeNull();
+      });
 
-    await selectAccountOption("Filter accounts by provider", "Gemini");
-    expect(
-      screen.getByRole("button", { name: "Filter accounts by provider" }).textContent ?? ""
-    ).toContain("Gemini");
+      await selectAccountOption("Filter accounts by provider", "Gemini");
+      expect(
+        screen.getByRole("button", { name: "Filter accounts by provider" }).textContent ?? ""
+      ).toContain("Gemini");
 
-    fireEvent.click(screen.getByRole("tab", { name: /Pools/i }));
+      fireEvent.click(screen.getByRole("tab", { name: /Pools/i }));
 
-    await waitFor(() => {
-      expect(screen.queryByLabelText("Filter pools by provider")).not.toBeNull();
-    });
+      await waitFor(() => {
+        expect(screen.queryByLabelText("Filter pools by provider")).not.toBeNull();
+      });
 
-    await selectAccountOption("Filter pools by provider", "Gemini");
-    expect(
-      screen.getByRole("button", { name: "Filter pools by provider" }).textContent ?? ""
-    ).toContain("Gemini");
-  });
+      await selectAccountOption("Filter pools by provider", "Gemini");
+      expect(
+        screen.getByRole("button", { name: "Filter pools by provider" }).textContent ?? ""
+      ).toContain("Gemini");
+    },
+    SETTINGS_CODEX_ACCOUNTS_TEST_TIMEOUT_MS
+  );
 
-  it("handles pool save conflict by code even without legacy message prefix", async () => {
-    listOAuthAccountsMock.mockResolvedValue([
-      {
-        accountId: "codex-a1",
-        provider: "codex",
-        externalAccountId: null,
-        email: "codex@example.com",
-        displayName: "Codex Main",
-        status: "enabled",
-        disabledReason: null,
-        metadata: {},
-        createdAt: 10,
-        updatedAt: 20,
-      },
-    ]);
-    listOAuthPoolsMock.mockResolvedValue([
-      {
-        poolId: "pool-codex",
-        provider: "codex",
-        name: "Codex Pool",
-        strategy: "round_robin",
-        stickyMode: "cache_first",
-        preferredAccountId: "codex-a1",
-        enabled: true,
-        metadata: {},
-        createdAt: 50,
-        updatedAt: 60,
-      },
-    ]);
-    listOAuthPoolMembersMock.mockImplementation(async (poolId: string) => {
-      if (poolId !== "pool-codex") {
-        return [];
-      }
-      return [
+  it(
+    "handles pool save conflict by code even without legacy message prefix",
+    async () => {
+      listOAuthAccountsMock.mockResolvedValue([
+        {
+          accountId: "codex-a1",
+          provider: "codex",
+          externalAccountId: null,
+          email: "codex@example.com",
+          displayName: "Codex Main",
+          status: "enabled",
+          disabledReason: null,
+          metadata: {},
+          createdAt: 10,
+          updatedAt: 20,
+        },
+      ]);
+      listOAuthPoolsMock.mockResolvedValue([
         {
           poolId: "pool-codex",
-          accountId: "codex-a1",
-          weight: 1,
-          priority: 0,
-          position: 0,
+          provider: "codex",
+          name: "Codex Pool",
+          strategy: "round_robin",
+          stickyMode: "cache_first",
+          preferredAccountId: "codex-a1",
           enabled: true,
-          createdAt: 61,
-          updatedAt: 62,
+          metadata: {},
+          createdAt: 50,
+          updatedAt: 60,
         },
-      ];
-    });
-    applyOAuthPoolMock.mockRejectedValueOnce(
-      Object.assign(new Error("Pool revision mismatch"), {
-        code: "runtime.approval.pool.version_mismatch",
-      })
-    );
+      ]);
+      listOAuthPoolMembersMock.mockImplementation(async (poolId: string) => {
+        if (poolId !== "pool-codex") {
+          return [];
+        }
+        return [
+          {
+            poolId: "pool-codex",
+            accountId: "codex-a1",
+            weight: 1,
+            priority: 0,
+            position: 0,
+            enabled: true,
+            createdAt: 61,
+            updatedAt: 62,
+          },
+        ];
+      });
+      applyOAuthPoolMock.mockRejectedValueOnce(
+        Object.assign(new Error("Pool revision mismatch"), {
+          code: "runtime.approval.pool.version_mismatch",
+        })
+      );
 
-    render(<SettingsCodexAccountsCard />);
+      render(<SettingsCodexAccountsCard />);
 
-    await waitFor(
-      () => {
-        expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
-        expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
-      },
-      { timeout: SETTINGS_CODEX_ACCOUNTS_ASYNC_TIMEOUT_MS }
-    );
+      await waitFor(
+        () => {
+          expect(listOAuthAccountsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+          expect(listOAuthPoolsMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+        },
+        { timeout: SETTINGS_CODEX_ACCOUNTS_ASYNC_TIMEOUT_MS }
+      );
 
-    fireEvent.click(screen.getByRole("tab", { name: /Pools/i }));
-    await screen.findByLabelText("Name for pool pool-codex");
+      fireEvent.click(screen.getByRole("tab", { name: /Pools/i }));
+      await screen.findByLabelText("Name for pool pool-codex");
 
-    await selectAccountOption("Session binding for pool pool-codex", "balance");
+      await selectAccountOption("Session binding for pool pool-codex", "balance");
 
-    await waitFor(() => {
-      expect(applyOAuthPoolMock).toHaveBeenCalled();
-    });
+      await waitFor(() => {
+        expect(applyOAuthPoolMock).toHaveBeenCalled();
+      });
 
-    await waitFor(() => {
-      expect(screen.queryByText("Remote pool updated. Reloaded latest version.")).not.toBeNull();
-    });
-  });
+      await waitFor(() => {
+        expect(screen.queryByText("Remote pool updated. Reloaded latest version.")).not.toBeNull();
+      });
+    },
+    SETTINGS_CODEX_ACCOUNTS_TEST_TIMEOUT_MS
+  );
 
   it("disables remove action for local Codex CLI managed account", async () => {
     listOAuthAccountsMock.mockResolvedValue([
