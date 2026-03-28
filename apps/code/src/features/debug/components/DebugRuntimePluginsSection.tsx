@@ -1,4 +1,7 @@
-import type { RuntimeKernelPluginDescriptor } from "../../../application/runtime/kernel/runtimeKernelPlugins";
+import {
+  resolveRuntimeKernelPluginExecutionAvailability,
+  type RuntimeKernelPluginDescriptor,
+} from "../../../application/runtime/kernel/runtimeKernelPlugins";
 import {
   DebugDiagnosticsDefinitionList,
   type DebugDiagnosticsFieldDescriptor,
@@ -14,14 +17,18 @@ export type DebugRuntimePluginsSectionProps = {
 function createPluginFields(
   plugin: RuntimeKernelPluginDescriptor
 ): DebugDiagnosticsFieldDescriptor[] {
+  const execution = resolveRuntimeKernelPluginExecutionAvailability(plugin);
   return [
     { label: "source", value: plugin.source },
     { label: "transport", value: plugin.transport },
     { label: "binding_state", value: plugin.binding.state },
+    { label: "execution_state", value: execution.executable ? "executable" : "blocked" },
+    { label: "execution_mode", value: execution.mode },
     { label: "contract_format", value: plugin.binding.contractFormat },
     { label: "contract_boundary", value: plugin.binding.contractBoundary },
     { label: "enabled", value: plugin.enabled ? "yes" : "no" },
     { label: "runtime_backed", value: plugin.runtimeBacked ? "yes" : "no" },
+    { label: "execution_reason", value: execution.reason ?? "-" },
     {
       label: "permissions",
       value: plugin.permissions.length > 0 ? plugin.permissions.join(", ") : "-",

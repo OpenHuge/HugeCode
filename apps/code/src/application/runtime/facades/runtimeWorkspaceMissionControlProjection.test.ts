@@ -360,6 +360,8 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       total: 3,
       enabled: 3,
       runtimeBacked: 2,
+      executableCount: 1,
+      nonExecutableCount: 2,
       boundCount: 2,
       declarationOnlyCount: 1,
       unboundCount: 0,

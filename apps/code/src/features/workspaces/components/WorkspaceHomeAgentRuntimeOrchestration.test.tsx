@@ -25,6 +25,7 @@ import {
   type RuntimeKernelCapabilityKey,
   type RuntimeKernelCapabilityMap,
 } from "../../../application/runtime/kernel/runtimeKernelCapabilities";
+import type { RuntimeKernelPluginDescriptor } from "../../../application/runtime/kernel/runtimeKernelPlugins";
 import type { RuntimeUpdatedEvent } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import { createRuntimeAgentControlFacade } from "../../../application/runtime/facades/runtimeAgentControlFacade";
 import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
@@ -44,6 +45,9 @@ const prepareRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 const getRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 const subscribeRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 const startRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
+const runtimePluginCatalogListMock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelPluginCatalogFacade["listPlugins"]>(async () => [])
+);
 
 vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   subscribeScopedRuntimeUpdatedEvents: vi.fn(),
@@ -183,6 +187,7 @@ function mockRuntimeTasks(tasks: MockAgentTaskSummary[]) {
 
 beforeEach(() => {
   runtimeUpdatedListeners.clear();
+  runtimePluginCatalogListMock.mockResolvedValue([]);
   const lifecycle = {
     summary: buildRuntimeToolLifecyclePresentationSummary({
       lifecycleEvents: [],
@@ -635,7 +640,7 @@ function createRuntimeKernelValue(): RuntimeKernel {
     reviewStartDesktopOnlyMessage: REVIEW_START_DESKTOP_ONLY_MESSAGE,
   };
   const runtimePluginCatalog: RuntimeKernelPluginCatalogFacade = {
-    listPlugins: vi.fn(async () => []),
+    listPlugins: runtimePluginCatalogListMock,
     readPluginResource: vi.fn(),
     executePlugin: vi.fn(),
     evaluatePluginPermissions: vi.fn(),
@@ -779,6 +784,52 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("heading", { name: "Approval pressure" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Plugin catalog" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Run list" })).toBeTruthy();
+    });
+  });
+
+  it("marks plugin catalog as cataloged when entries are present but none are executable", async () => {
+    mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
+    runtimePluginCatalogListMock.mockResolvedValue([
+      {
+        id: "host:wasi",
+        name: "WASI host slot",
+        version: "unbound",
+        summary: null,
+        source: "wasi_host",
+        transport: "wasi_host",
+        hostProfile: {
+          kind: "wasi",
+          executionBoundaries: ["wasi_host"],
+        },
+        workspaceId: null,
+        enabled: false,
+        runtimeBacked: false,
+        capabilities: [],
+        permissions: [],
+        resources: [],
+        executionBoundaries: ["wasi_host"],
+        binding: {
+          state: "unbound",
+          contractFormat: "wit",
+          contractBoundary: "world-imports",
+          interfaceId: "wasi:*/*",
+        },
+        metadata: null,
+        permissionDecision: "unsupported" as const,
+        health: {
+          state: "unsupported" as const,
+          checkedAt: null,
+          warnings: [],
+        },
+      },
+    ] satisfies RuntimeKernelPluginDescriptor[]);
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Cataloged")).toBeTruthy();
+      expect(screen.getByText("Executable: 0")).toBeTruthy();
+      expect(screen.getByText("Blocked execution: 1")).toBeTruthy();
     });
   });
 

@@ -4,7 +4,10 @@ import type {
   OAuthPoolSummary,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
-import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPlugins";
+import {
+  resolveRuntimeKernelPluginExecutionAvailability,
+  type RuntimeKernelPluginDescriptor,
+} from "../kernel/runtimeKernelPlugins";
 import type { RuntimeExecutionReliabilitySummary } from "./runtimeExecutionReliability";
 import type { RuntimeLaunchReadinessSummary } from "./runtimeLaunchReadiness";
 import {
@@ -75,6 +78,8 @@ export type WorkspaceRuntimeMissionControlProjection = {
     total: number;
     enabled: number;
     runtimeBacked: number;
+    executableCount: number;
+    nonExecutableCount: number;
     boundCount: number;
     declarationOnlyCount: number;
     unboundCount: number;
@@ -146,6 +151,8 @@ function buildPluginCatalogSummary(input: {
     total: input.plugins.length,
     enabled: 0,
     runtimeBacked: 0,
+    executableCount: 0,
+    nonExecutableCount: 0,
     boundCount: 0,
     declarationOnlyCount: 0,
     unboundCount: 0,
@@ -166,6 +173,11 @@ function buildPluginCatalogSummary(input: {
     }
     if (plugin.runtimeBacked) {
       summary.runtimeBacked += 1;
+    }
+    if (resolveRuntimeKernelPluginExecutionAvailability(plugin).executable) {
+      summary.executableCount += 1;
+    } else {
+      summary.nonExecutableCount += 1;
     }
     if (plugin.binding.state === "bound") {
       summary.boundCount += 1;

@@ -49,6 +49,10 @@ describe("DebugRuntimePluginsSection", () => {
     expect(screen.getByText(/Test Plugin \(1\.0\.0\)/)).toBeTruthy();
     expect(screen.getByText("network")).toBeTruthy();
     expect(screen.getByText("bound")).toBeTruthy();
+    expect(screen.getByText("blocked")).toBeTruthy();
+    expect(
+      screen.getByText(/catalog\/resource access only and does not expose an execution provider/i)
+    ).toBeTruthy();
     expect(screen.getByText("runtime-extension-record")).toBeTruthy();
   });
 });

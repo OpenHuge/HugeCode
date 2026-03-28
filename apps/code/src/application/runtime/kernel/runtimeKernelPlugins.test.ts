@@ -187,6 +187,44 @@ describe("runtimeKernelPlugins", () => {
     ]);
   });
 
+  it("distinguishes binding state from execution availability", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+
+    expect(
+      plugins.resolveRuntimeKernelPluginExecutionAvailability(
+        plugins.normalizeLiveSkillPluginDescriptor(createLiveSkillSummary())
+      )
+    ).toMatchObject({
+      executable: true,
+      mode: "live_skill",
+      reason: null,
+    });
+
+    expect(
+      plugins.resolveRuntimeKernelPluginExecutionAvailability(
+        plugins.normalizeRuntimeExtensionPluginDescriptor(
+          createExtensionRecord(),
+          {
+            extensionId: "ext-1",
+            permissions: ["workspace:read"],
+            decision: "ask",
+            warnings: [],
+          },
+          {
+            extensionId: "ext-1",
+            lifecycleState: "enabled",
+            healthy: true,
+            warnings: [],
+            checkedAt: 10,
+          }
+        )
+      )
+    ).toMatchObject({
+      executable: false,
+      mode: "none",
+    });
+  });
+
   it("returns explicit unbound execution errors for reserved host slots", async () => {
     const plugins = await import("./runtimeKernelPlugins");
     const facade = plugins.createRuntimeKernelPluginCatalogFacade({
@@ -209,5 +247,38 @@ describe("runtimeKernelPlugins", () => {
         input: "",
       })
     ).rejects.toThrow("currently unbound in apps/code");
+  });
+
+  it("returns explicit non-executable errors for bound runtime extensions", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+    const descriptor = plugins.normalizeRuntimeExtensionPluginDescriptor(
+      createExtensionRecord(),
+      {
+        extensionId: "ext-1",
+        permissions: ["workspace:read"],
+        decision: "ask",
+        warnings: [],
+      },
+      {
+        extensionId: "ext-1",
+        lifecycleState: "enabled",
+        healthy: true,
+        warnings: [],
+        checkedAt: 10,
+      }
+    );
+    const facade = plugins.createRuntimeKernelPluginCatalogFacade({
+      workspaceId: "ws-1",
+      catalogProvider: {
+        listPluginDescriptors: async () => [descriptor],
+      },
+    });
+
+    await expect(
+      facade.executePlugin("ext-1", {
+        skillId: "ext-1",
+        input: "",
+      })
+    ).rejects.toThrow("catalog/resource access only");
   });
 });

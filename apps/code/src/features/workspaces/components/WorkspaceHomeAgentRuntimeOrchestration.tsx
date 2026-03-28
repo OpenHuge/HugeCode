@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
+import { resolveRuntimeKernelPluginExecutionAvailability } from "../../../application/runtime/kernel/runtimeKernelPlugins";
 import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import { ToolCallChip } from "../../../design-system";
@@ -94,6 +95,25 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const oldestPendingApprovalTask = missionControlProjection.approvalPressure.oldestPendingTask;
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
   const pluginCatalog = missionControlProjection.pluginCatalog;
+  const pluginCatalogStatus = pluginCatalog.error
+    ? {
+        label: "Attention",
+        tone: "warning" as const,
+      }
+    : pluginCatalog.executableCount > 0
+      ? {
+          label: "Ready",
+          tone: "success" as const,
+        }
+      : pluginCatalog.total > 0
+        ? {
+            label: "Cataloged",
+            tone: "neutral" as const,
+          }
+        : {
+            label: "Empty",
+            tone: "neutral" as const,
+          };
   const launchReadiness = missionControlProjection.launchReadiness;
   const launchReadinessStatusLabel =
     launchReadiness.state === "ready"
@@ -234,12 +254,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
       <MissionControlSessionLogSection runtimeSessionCheckpoint={runtimeSessionCheckpoint} />
       <MissionControlSectionCard
         title="Plugin catalog"
-        statusLabel={
-          pluginCatalog.error ? "Attention" : pluginCatalog.total > 0 ? "Ready" : "Empty"
-        }
-        statusTone={
-          pluginCatalog.error ? "warning" : pluginCatalog.total > 0 ? "success" : "neutral"
-        }
+        statusLabel={pluginCatalogStatus.label}
+        statusTone={pluginCatalogStatus.tone}
         meta={
           <>
             <ToolCallChip tone="neutral">Runtime {pluginCatalog.runtimeBacked}</ToolCallChip>
@@ -257,6 +273,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             </strong>
             <span>Total plugins: {pluginCatalog.total}</span>
             <span>Enabled: {pluginCatalog.enabled}</span>
+            <span>Executable: {pluginCatalog.executableCount}</span>
+            <span>Blocked execution: {pluginCatalog.nonExecutableCount}</span>
             <span>Bound: {pluginCatalog.boundCount}</span>
             <span>Declaration-only: {pluginCatalog.declarationOnlyCount}</span>
             <span>Unbound hosts: {pluginCatalog.unboundCount}</span>
@@ -272,8 +290,11 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             </span>
             {pluginCatalog.plugins.slice(0, 3).map((plugin) => (
               <span key={plugin.id}>
-                {plugin.name} ({plugin.source}, {plugin.binding.state}){" "}
-                {plugin.enabled ? "enabled" : "disabled"}
+                {plugin.name} ({plugin.source}, {plugin.binding.state},{" "}
+                {resolveRuntimeKernelPluginExecutionAvailability(plugin).executable
+                  ? "executable"
+                  : "blocked"}
+                ) {plugin.enabled ? "enabled" : "disabled"}
               </span>
             ))}
           </div>
