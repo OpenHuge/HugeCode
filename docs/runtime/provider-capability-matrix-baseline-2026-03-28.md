@@ -37,13 +37,17 @@ This keeps the contract honest when runtime has not yet proven a capability.
 - If runtime does not publish the new field yet, the compat shim derives the narrowest safe matrix
   it can from legacy fields instead of inventing a lowest-common-denominator abstraction.
 
-## Narrow Proof Slice
+## Narrow Proof Slices
 
-The first consumer is reasoning-effort selection in `apps/code`.
+The first consumers live in `apps/code`.
 
-- The selected model keeps using runtime-owned model metadata.
-- The app clamps a requested reasoning effort against the normalized model capability matrix.
-- Unsupported efforts fall back to the model's compatible default or first supported effort.
+- Reasoning-effort selection keeps using runtime-owned model metadata and clamps a requested effort
+  against the normalized model capability matrix. Unsupported efforts fall back to the model's
+  compatible default or first supported effort.
+- Thread messaging now also treats image input as an explicit capability boundary. When the
+  selected model is explicitly `supportsVision: "unsupported"`, image sends are blocked at the
+  existing thread messaging boundary instead of optimistically sending an invalid multimodal
+  request.
 
 This proves capability-aware branching without changing lifecycle truth, runtime routing ownership,
 or page-local orchestration boundaries.

@@ -1036,6 +1036,57 @@ describe("useThreadMessaging telemetry", () => {
     expect(sendUserMessageService).toHaveBeenCalled();
   });
 
+  it("blocks image sends when the selected model explicitly does not support vision", async () => {
+    const pushThreadErrorMessage = vi.fn();
+    const markProcessing = vi.fn();
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "on-request",
+        model: "gpt-5.4",
+        effort: null,
+        collaborationMode: null,
+        visionCapabilitySupport: "unsupported",
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing,
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage,
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      await result.current.sendUserMessageToThread(workspace, "thread-1", "describe this", [
+        "/tmp/screenshot.png",
+      ]);
+    });
+
+    expect(pushThreadErrorMessage).toHaveBeenCalledWith(
+      "thread-1",
+      "Selected model does not support image attachments. Choose a vision-capable model or remove the images."
+    );
+    expect(markProcessing).not.toHaveBeenCalled();
+    expect(sendUserMessageService).not.toHaveBeenCalled();
+  });
+
   it("forwards explicit app mentions to turn/start", async () => {
     const { result } = renderHook(() =>
       useThreadMessaging({

@@ -712,6 +712,7 @@ export function useThreadCodexControls({
     preferredProviderFamilyId ??
     (selectedModel ? (resolveModelProviderId(selectedModel) as ModelProviderFamilyId) : null);
   const resolvedEffort = reasoningSupported ? selectedEffort : null;
+  const visionCapabilitySupport = selectedModel?.capabilityMatrix?.supportsVision ?? "unknown";
   const executionOptions = useMemo<ComposerExecutionOption[]>(
     () =>
       localCliAvailable
@@ -1013,6 +1014,7 @@ export function useThreadCodexControls({
     reasoningSupported,
     resolvedEffort,
     resolvedModel,
+    visionCapabilitySupport,
     missionMode: missionDraft.mode,
     executionProfileId: missionDraft.executionProfileId,
     preferredBackendIds: missionDraft.preferredBackendIds,

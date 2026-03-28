@@ -55,6 +55,7 @@ type UseThreadMessagingOptions = {
   activeThreadId: string | null;
   activeThreadIdRef?: MutableRefObject<string | null>;
   hasAvailableModel?: boolean;
+  visionCapabilitySupport?: "supported" | "unsupported" | "unknown" | null;
   accessMode?: AccessMode;
   provider?: string | null;
   model?: string | null;
@@ -190,6 +191,7 @@ export function useThreadMessaging({
   activeThreadId,
   activeThreadIdRef,
   hasAvailableModel = true,
+  visionCapabilitySupport = "unknown",
   accessMode,
   provider,
   model,
@@ -333,6 +335,16 @@ export function useThreadMessaging({
         pushThreadErrorMessage(
           threadId,
           "No available model route in current runtime. Sign in with a provider account or configure API keys."
+        );
+        safeMessageActivity();
+        return;
+      }
+      const resolvedVisionCapabilitySupport =
+        options?.visionCapabilitySupport ?? visionCapabilitySupport;
+      if (images.length > 0 && resolvedVisionCapabilitySupport === "unsupported") {
+        pushThreadErrorMessage(
+          threadId,
+          "Selected model does not support image attachments. Choose a vision-capable model or remove the images."
         );
         safeMessageActivity();
         return;
@@ -657,6 +669,7 @@ export function useThreadMessaging({
       activeTurnIdByThread,
       getCustomName,
       hasAvailableModel,
+      visionCapabilitySupport,
       markProcessing,
       model,
       onDebug,
