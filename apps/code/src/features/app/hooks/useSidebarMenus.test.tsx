@@ -39,11 +39,11 @@ vi.mock("@tauri-apps/api/dpi", () => ({
   },
 }));
 
-const revealItemInDir = vi.hoisted(() => vi.fn());
+const revealItemInDirMock = vi.hoisted(() => vi.fn());
 const pushErrorToastMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
-  revealItemInDir: (...args: unknown[]) => revealItemInDir(...args),
+vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
+  revealItemInDir: (...args: unknown[]) => revealItemInDirMock(...args),
 }));
 
 vi.mock("../../../application/runtime/ports/toasts", () => ({
@@ -104,7 +104,7 @@ describe("useSidebarMenus", () => {
     menuNew.mockClear();
     menuItemNew.mockClear();
     menuPopup.mockClear();
-    revealItemInDir.mockClear();
+    revealItemInDirMock.mockClear();
     pushErrorToastMock.mockClear();
     clipboardWriteText.mockClear();
     openWebContextMenuMock.mockReset();
@@ -145,7 +145,7 @@ describe("useSidebarMenus", () => {
     const revealItem = getMenuItems().find((item) => item.text === `Show in ${fileManagerName()}`);
     expect(revealItem).toBeDefined();
     await revealItem?.action();
-    expect(revealItemInDir).toHaveBeenCalledWith("/tmp/worktree-1");
+    expect(revealItemInDirMock).toHaveBeenCalledWith("/tmp/worktree-1");
     expect(menuPopup).toHaveBeenCalledTimes(1);
   });
 

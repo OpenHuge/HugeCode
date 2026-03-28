@@ -1,9 +1,9 @@
-import { isTauri } from "../../../application/runtime/ports/tauriCore";
+import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
 import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import { useMemo } from "react";
 import { Select, type SelectOption, WorkspaceHeaderAction } from "../../../design-system";
-import { openWorkspaceIn } from "../../../application/runtime/ports/tauriApps";
+import { openWorkspaceIn } from "../../../application/runtime/ports/desktopApps";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type { OpenAppTarget } from "../../../types";
 import { writeSafeLocalStorageItem } from "../../../utils/safeLocalStorage";

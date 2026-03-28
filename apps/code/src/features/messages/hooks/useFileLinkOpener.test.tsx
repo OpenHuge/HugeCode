@@ -43,7 +43,7 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
   revealItemInDir: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriApps", () => ({
+vi.mock("../../../application/runtime/ports/desktopApps", () => ({
   openWorkspaceIn: (...args: unknown[]) => openWorkspaceInMock(...args),
 }));
 

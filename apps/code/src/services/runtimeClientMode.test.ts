@@ -14,10 +14,12 @@ describe("detectRuntimeMode", () => {
       __TAURI__?: unknown;
       __TAURI_INTERNALS__?: unknown;
       __TAURI_IPC__?: unknown;
+      __HUGE_CODE_RUNTIME_CLIENT_MODE__?: unknown;
     };
     delete tauriWindow.__TAURI__;
     delete tauriWindow.__TAURI_INTERNALS__;
     delete tauriWindow.__TAURI_IPC__;
+    delete tauriWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__;
   });
 
   it("does not detect tauri until a callable bridge is injected", async () => {
@@ -63,7 +65,7 @@ describe("detectRuntimeMode", () => {
     expect(detectRuntimeMode()).toBe("runtime-gateway-web");
   });
 
-  it("detects tauri when __TAURI_INTERNALS__.invoke is injected", async () => {
+  it("detects tauri when a callable legacy bridge is injected", async () => {
     (
       window as Window & {
         __TAURI_INTERNALS__?: unknown;

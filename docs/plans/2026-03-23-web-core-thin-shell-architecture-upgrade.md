@@ -50,7 +50,7 @@
 
 - Create: `packages/code-platform-interfaces/**`
 - Modify: `apps/code/src/application/runtime/ports/desktopHostBridge.ts`
-- Modify: `apps/code/src/application/runtime/ports/tauriEnvironment.ts`
+- Modify: `apps/code/src/application/runtime/ports/desktopHostEnvironment.ts`
 - Modify: `apps/code/src/application/runtime/ports/tauriOpener.ts`
 - Modify: `apps/code-electron/src/shared/ipc.ts`
 - Modify: `apps/code-electron/src/preload/preload.ts`

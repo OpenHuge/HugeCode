@@ -219,7 +219,7 @@ const REVIEW_PACK_SELECTION_FLOW_TRIGGER_PATHS = [
   "apps/code/src/application/runtime/facades/runtimeMissionControlFacade.ts",
   "apps/code/src/application/runtime/facades/runtimeRemoteExecutionFacade.ts",
   "apps/code/src/application/runtime/ports/tauriRuntimeJobs.ts",
-  "apps/code/src/application/runtime/ports/tauriAppSettings.ts",
+  "apps/code/src/application/runtime/ports/desktopAppSettings.ts",
   "apps/code/src/features/review/utils/reviewPackSurfaceModel.ts",
   REVIEW_PACK_SELECTION_FLOW_TEST_REPO_PATH,
 ];

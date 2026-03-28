@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getCurrentWindow } from "../../../application/runtime/ports/tauriWindow";
+import { getCurrentWindow } from "../../../application/runtime/ports/desktopHostWindow";
 
 export function useWindowFocusState() {
   const [isFocused, setIsFocused] = useState(() => {

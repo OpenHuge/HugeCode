@@ -21,7 +21,7 @@ const {
   }),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriAppSettings", () => ({
+vi.mock("../../../application/runtime/ports/desktopAppSettings", () => ({
   getAppSettings: getAppSettingsMock,
   updateAppSettings: updateAppSettingsMock,
 }));

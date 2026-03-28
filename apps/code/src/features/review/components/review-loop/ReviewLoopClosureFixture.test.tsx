@@ -18,7 +18,7 @@ describe("ReviewLoopClosureFixture", () => {
     await flushBrowserMicrotasks();
 
     expect(screen.getAllByText(/Mission triage/i).length).toBeGreaterThan(0);
-    expect(screen.getByText("Fallback routing review")).toBeTruthy();
+    expect(screen.getByText("Unified detail grammar for triage, runtime, and review")).toBeTruthy();
     expect(screen.getByText("Review decision rail")).toBeTruthy();
     expect(screen.getByText("Runtime continuity and handoff")).toBeTruthy();
     expect(screen.getByText("Blocking runtime detail")).toBeTruthy();

@@ -724,9 +724,6 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
               {runtimeSourceDraft.taskSource?.label ? (
                 <span>Source-linked launch: {runtimeSourceDraft.taskSource.label}</span>
               ) : null}
-              {runtimeSourceDraft.sourceMappingKind ? (
-                <span>Repo source mapping: {runtimeSourceDraft.sourceMappingKind}</span>
-              ) : null}
               {runtimeSourceDraft.reviewProfileId ? (
                 <span>Review profile: {runtimeSourceDraft.reviewProfileId}</span>
               ) : null}

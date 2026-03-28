@@ -22,7 +22,6 @@ export type RuntimeTaskLauncherSourceDraft = {
   preferredBackendIds?: string[];
   reviewProfileId: string | null;
   taskSource?: MissionInterventionDraft["taskSource"];
-  sourceMappingKind?: MissionInterventionDraft["sourceMappingKind"];
   validationPresetId?: string | null;
   accessMode?: MissionInterventionDraft["accessMode"];
   relaunchContext?: AgentTaskRelaunchContext | null;
@@ -135,7 +134,7 @@ function buildInfoMessage(
 
 export function prepareMissionInterventionDraft(
   input: PrepareMissionInterventionDraftInput
-): MissionInterventionDraft {
+): MissionInterventionDraft | null {
   const continuationDraft = prepareReviewContinuationDraft({
     contract: input.repositoryExecutionContract ?? null,
     taskSource: input.taskSource ?? null,
@@ -153,8 +152,11 @@ export function prepareMissionInterventionDraft(
     intent: input.intent,
     title: input.title?.trim() ?? "",
     instruction: input.instruction,
-    fallbackProfileId: readString(input.fallbackProfileId) ?? "balanced-delegate",
+    fallbackProfileId: readString(input.fallbackProfileId) ?? null,
   });
+  if (!continuationDraft) {
+    return null;
+  }
 
   return {
     ...continuationDraft,
@@ -178,8 +180,13 @@ export function prepareRuntimeTaskLauncherDraft(
   const profileId =
     readString(input.executionProfileId) ??
     readString(input.task.executionProfileId) ??
-    readString(input.fallbackProfileId) ??
-    "balanced-delegate";
+    readString(input.fallbackProfileId);
+  if (!profileId) {
+    return {
+      ok: false,
+      error: `Run ${input.task.taskId} does not have a runtime-published execution profile for relaunch.`,
+    };
+  }
   const nextInstruction =
     input.intent === "clarify"
       ? buildRuntimeClarifyInstruction(draftInstruction)
@@ -205,6 +212,12 @@ export function prepareRuntimeTaskLauncherDraft(
     validationPresetId: input.task.executionProfile?.validationPresetId ?? null,
     repositoryExecutionContract: input.repositoryExecutionContract ?? null,
   });
+  if (!interventionDraft) {
+    return {
+      ok: false,
+      error: `Run ${input.task.taskId} cannot be relaunched because runtime continuation defaults are incomplete.`,
+    };
+  }
 
   return {
     ok: true,
@@ -221,7 +234,6 @@ export function prepareRuntimeTaskLauncherDraft(
           : {}),
         reviewProfileId: interventionDraft.reviewProfileId,
         taskSource: interventionDraft.taskSource,
-        sourceMappingKind: interventionDraft.sourceMappingKind,
         validationPresetId: interventionDraft.validationPresetId,
         accessMode: interventionDraft.accessMode,
         ...(interventionDraft.relaunchContext

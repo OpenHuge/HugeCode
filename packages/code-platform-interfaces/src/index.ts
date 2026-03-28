@@ -117,7 +117,6 @@ export type LocalChromeDebuggerEndpointDescriptor = {
   profileLabel?: string | null;
   webSocketDebuggerUrl: string;
 };
-
 export type DesktopOpenDialogInput = {
   directory?: boolean;
   multiple?: boolean;

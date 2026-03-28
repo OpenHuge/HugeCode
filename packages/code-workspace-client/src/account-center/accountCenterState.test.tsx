@@ -2,7 +2,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SettingsShellFraming, WorkspaceClientBindings } from "../index";
+import type { SettingsShellFraming } from "../settings-shell/settingsShellTypes";
+import type { WorkspaceClientBindings } from "../workspace/bindings";
 import { WorkspaceClientBindingsProvider } from "../workspace/WorkspaceClientBindingsProvider";
 import { useSharedAccountCenterState } from "./accountCenterState";
 
@@ -113,11 +114,9 @@ function createBindings(): WorkspaceClientBindings {
       agentControl: {
         prepareRuntimeRun: vi.fn(),
         startRuntimeRun: vi.fn(),
-        cancelRuntimeJob: vi.fn(),
-        resumeRuntimeJob: vi.fn(),
-        interveneRuntimeJob: vi.fn(),
-        subscribeRuntimeJob: vi.fn(async () => null),
-        listRuntimeJobs: vi.fn(async () => []),
+        cancelRuntimeRun: vi.fn(),
+        resumeRuntimeRun: vi.fn(),
+        interveneRuntimeRun: vi.fn(),
         submitRuntimeJobApprovalDecision: vi.fn(),
       },
       threads: {

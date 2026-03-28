@@ -12,6 +12,8 @@ const tempRoots: string[] = [];
 const nodeShebang = `#!${process.execPath}`;
 const runtimeBinaryName =
   process.platform === "win32" ? "code-runtime-service-rs.exe" : "code-runtime-service-rs";
+const lockHolderReadyTimeoutMs = 15_000;
+const lockHolderReleaseDelayMs = 1_000;
 
 async function createFixtureWorkspace(): Promise<string> {
   const workspaceRoot = await mkdtemp(path.join(tmpdir(), "runtime-service-dev-"));
@@ -129,9 +131,9 @@ describe("code-runtime-service dev script", () => {
           [
             'const fs = await import("node:fs");',
             `const { acquireCargoTargetGuardLock } = await import(${JSON.stringify(lockHolderModuleUrl)});`,
-            `const releaseLock = acquireCargoTargetGuardLock({ targetDir: ${JSON.stringify(targetDir)}, timeoutMs: 5_000, pollMs: 10 });`,
+            `const releaseLock = acquireCargoTargetGuardLock({ targetDir: ${JSON.stringify(targetDir)}, timeoutMs: ${lockHolderReadyTimeoutMs}, pollMs: 10 });`,
             'process.stdout.write("locked\\n");',
-            `setTimeout(() => { fs.appendFileSync(${JSON.stringify(eventLogPath)}, \`lock:released:\${Date.now()}\\n\`, "utf8"); releaseLock(); process.exit(0); }, 1000);`,
+            `setTimeout(() => { fs.appendFileSync(${JSON.stringify(eventLogPath)}, \`lock:released:\${Date.now()}\\n\`, "utf8"); releaseLock(); process.exit(0); }, ${lockHolderReleaseDelayMs});`,
           ].join("\n"),
         ],
         {
@@ -160,7 +162,7 @@ describe("code-runtime-service dev script", () => {
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           reject(new Error("timed out waiting for lock holder to acquire cargo target lock"));
-        }, 5_000);
+        }, lockHolderReadyTimeoutMs);
         let observedLock = false;
         let stderr = "";
 
@@ -213,7 +215,7 @@ describe("code-runtime-service dev script", () => {
           `dev script failed with status ${result.status ?? "null"}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`
         );
       }
-      expect(elapsedMs).toBeGreaterThanOrEqual(900);
+      expect(elapsedMs).toBeGreaterThanOrEqual(lockHolderReleaseDelayMs - 100);
 
       const events = (await readFile(eventLogPath, "utf8"))
         .split("\n")
@@ -239,6 +241,7 @@ describe("code-runtime-service dev script", () => {
       expect(runtimeStartedAt).toBeGreaterThanOrEqual(buildStartedAt);
 
       await lockHolderExit;
-    }
+    },
+    20_000
   );
 });

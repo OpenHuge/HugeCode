@@ -1110,7 +1110,7 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     );
     await writeRepoFile(
       tempRoot,
-      "apps/code/src/application/runtime/ports/tauriAppSettings.test.ts",
+      "apps/code/src/application/runtime/ports/desktopAppSettings.test.ts",
       "export {};\n"
     );
 

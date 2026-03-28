@@ -1,50 +1,36 @@
 /**
  * Runtime run bridge.
  *
- * `prepareRuntimeRunV2` + `startRuntimeRunV2` is the canonical product-facing
- * launch path. Kernel job v3 helpers remain available here as compat/control
- * shims and must not become fresh product launch entry points.
+ * Canonical product-facing run control stays on the runtime run v2 surface.
  */
 export type {
-  KernelJob,
-  KernelJobCallbackRegistrationAckV3,
-  KernelJobCallbackRegistrationV3,
-  KernelJobCallbackRemoveAckV3,
-  KernelJobCallbackRemoveRequestV3,
-  KernelJobsListRequest,
-  KernelJobResumeRequestV3,
-  KernelJobSubscribeRequestV3,
-  RuntimeRunPrepareV2Request,
-  RuntimeRunPrepareV2Response,
+  RuntimeRunCancelRequest,
+  RuntimeRunCancelV2Response,
+  RuntimeRunCheckpointApprovalAck,
+  RuntimeRunCheckpointApprovalRequest,
   RuntimeRunGetV2Request,
   RuntimeRunGetV2Response,
+  RuntimeRunInterventionRequest,
+  RuntimeRunInterventionV2Response,
+  RuntimeRunPrepareV2Request,
+  RuntimeRunPrepareV2Response,
+  RuntimeRunResumeRequest,
+  RuntimeRunResumeV2Response,
+  RuntimeRunSubscribeRequest,
   RuntimeRunSubscribeV2Response,
   RuntimeRunStartRequest,
   RuntimeRunStartV2Response,
-  RuntimeRunCancelAck,
-  RuntimeRunCancelRequest,
-  RuntimeRunCheckpointApprovalAck,
-  RuntimeRunCheckpointApprovalRequest,
-  RuntimeRunResumeAck,
   RuntimeReviewGetV2Request,
   RuntimeReviewGetV2Response,
 } from "./runtimeClient";
-export type {
-  RuntimeJobInterventionAck,
-  RuntimeJobInterventionRequest,
-} from "../../../services/tauriRuntimeJobsBridge";
 export {
-  cancelRuntimeJob,
+  cancelRuntimeRun,
   getRuntimeRunV2,
   getRuntimeReviewV2,
   submitRuntimeJobApprovalDecision,
-  interveneRuntimeJob,
-  listRuntimeJobs,
+  interveneRuntimeRun,
   prepareRuntimeRunV2,
-  startRuntimeRunV2,
-  registerRuntimeJobCallback,
-  removeRuntimeJobCallback,
-  resumeRuntimeJob,
-  subscribeRuntimeJob,
+  resumeRuntimeRun,
   subscribeRuntimeRunV2,
+  startRuntimeRunV2,
 } from "../../../services/tauriRuntimeJobsBridge";

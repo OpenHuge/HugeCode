@@ -1,7 +1,7 @@
 export {
   getWorktreeSetupStatus,
   markWorktreeSetupRan,
-} from "../../../services/tauriDesktopWorkspace";
+} from "../../../services/desktopHostWorkspace";
 export {
   closeTerminalSession,
   interruptTerminalSession,

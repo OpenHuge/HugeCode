@@ -19,7 +19,7 @@ import {
   moveRuntimePrompt,
   updatePrompt,
   updateRuntimePrompt,
-} from "./tauri";
+} from "./desktopHost";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),

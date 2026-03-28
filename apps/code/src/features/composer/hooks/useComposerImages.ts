@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { pickAttachmentFiles } from "../../../application/runtime/ports/tauriFiles";
+import { pickAttachmentFiles } from "../../../application/runtime/ports/desktopFiles";
 
 type UseComposerImagesArgs = {
   activeThreadId: string | null;

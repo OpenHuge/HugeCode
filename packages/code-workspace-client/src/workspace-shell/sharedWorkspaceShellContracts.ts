@@ -12,6 +12,25 @@ import type {
   SharedWorkspaceShellSection,
 } from "./workspaceNavigation";
 
+export type SharedWorkspaceShellFocusableSection = "missions" | "review";
+
+export type SharedWorkspaceShellFocusTarget = {
+  section: SharedWorkspaceShellFocusableSection;
+  itemId: string | null;
+};
+
+export type SharedWorkspaceShellError = {
+  id: string;
+  title: string;
+  message: string;
+};
+
+export type SharedWorkspaceShellWorkspaceOption = {
+  value: string;
+  label: string;
+  disabled?: boolean;
+};
+
 export type SharedWorkspaceShellCatalogState = {
   workspaces: WorkspaceCatalogEntry[];
   activeWorkspaceId: string | null;
@@ -36,6 +55,28 @@ export type SharedWorkspaceShellHostStartupState = {
   loadState: "idle" | "loading" | "refreshing" | "ready" | "error";
   error: string | null;
   refresh: () => Promise<void>;
+};
+
+export type SharedWorkspaceShellFrameState = {
+  runtimeMode: WorkspaceClientRuntimeMode;
+  platformHint: string;
+  routeSelection: SharedWorkspaceRouteSelection;
+  activeSection: SharedWorkspaceShellSection;
+  backgroundEnabled: boolean;
+  accountHref: string | null;
+  settingsFraming: SettingsShellFraming;
+};
+
+export type SharedWorkspaceShellUiState = {
+  workspaceSelectOptions: SharedWorkspaceShellWorkspaceOption[];
+  workspaceSelectValue: string;
+  shellErrors: SharedWorkspaceShellError[];
+  visibleErrors: SharedWorkspaceShellError[];
+  focusedMissionId: string | null;
+  focusedReviewId: string | null;
+  shellHydrating: boolean;
+  shellRefreshing: boolean;
+  refreshLabel: string | null;
 };
 
 export type SharedWorkspaceShellState = {
@@ -65,15 +106,20 @@ export type SharedWorkspaceShellState = {
   settingsFraming: SettingsShellFraming;
 };
 
-export type SharedWorkspaceShellStateCompositionInput = {
+export type SharedWorkspaceShellFrameStateCompositionInput = {
   runtimeMode: WorkspaceClientRuntimeMode;
   platformHint: string;
   routeSelection: SharedWorkspaceRouteSelection;
-  activeSection: SharedWorkspaceShellSection;
+  activationRequested: boolean;
+  activationDeferred: boolean;
+  accountHref: string | null;
+  settingsFraming: SettingsShellFraming;
+};
+
+export type SharedWorkspaceShellStateCompositionInput = {
+  frameState: SharedWorkspaceShellFrameState;
   catalogState: SharedWorkspaceShellCatalogState;
   missionControlState: SharedWorkspaceShellMissionControlState;
   hostStartupState: SharedWorkspaceShellHostStartupState;
   navigateToSection: (section: SharedWorkspaceShellSection) => void;
-  accountHref: string | null;
-  settingsFraming: SettingsShellFraming;
 };

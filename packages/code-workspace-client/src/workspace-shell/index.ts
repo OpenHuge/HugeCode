@@ -15,13 +15,29 @@ export {
   composeSharedWorkspaceShellState,
   deriveSharedWorkspaceShellActiveSection,
   deriveSharedWorkspaceShellBackgroundEnabled,
+  deriveSharedWorkspaceShellErrors,
+  deriveSharedWorkspaceShellFocusedItemIds,
+  deriveSharedWorkspaceShellFrameState,
+  deriveSharedWorkspaceShellRefreshLabel,
+  deriveSharedWorkspaceShellUiState,
+  deriveSharedWorkspaceShellVisibleErrors,
+  deriveSharedWorkspaceShellWorkspaceSelectOptions,
+  reconcileSharedWorkspaceShellDismissedErrors,
+  resolveSharedWorkspaceShellFocusTarget,
 } from "./sharedWorkspaceShellComposition";
 export type {
   SharedWorkspaceShellCatalogState,
+  SharedWorkspaceShellError,
+  SharedWorkspaceShellFocusableSection,
+  SharedWorkspaceShellFrameState,
+  SharedWorkspaceShellFrameStateCompositionInput,
+  SharedWorkspaceShellFocusTarget,
   SharedWorkspaceShellHostStartupState,
   SharedWorkspaceShellMissionControlState,
   SharedWorkspaceShellState,
   SharedWorkspaceShellStateCompositionInput,
+  SharedWorkspaceShellUiState,
+  SharedWorkspaceShellWorkspaceOption,
 } from "./sharedWorkspaceShellContracts";
 export { useSharedMissionControlSummaryState } from "./useSharedMissionControlSummaryState";
 export type {
