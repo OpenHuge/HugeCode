@@ -12,6 +12,25 @@ import type {
   SharedWorkspaceShellSection,
 } from "./workspaceNavigation";
 
+export type SharedWorkspaceShellFocusableSection = "missions" | "review";
+
+export type SharedWorkspaceShellFocusTarget = {
+  section: SharedWorkspaceShellFocusableSection;
+  itemId: string | null;
+};
+
+export type SharedWorkspaceShellError = {
+  id: string;
+  title: string;
+  message: string;
+};
+
+export type SharedWorkspaceShellWorkspaceOption = {
+  value: string;
+  label: string;
+  disabled?: boolean;
+};
+
 export type SharedWorkspaceShellCatalogState = {
   workspaces: WorkspaceCatalogEntry[];
   activeWorkspaceId: string | null;
@@ -46,6 +65,18 @@ export type SharedWorkspaceShellFrameState = {
   backgroundEnabled: boolean;
   accountHref: string | null;
   settingsFraming: SettingsShellFraming;
+};
+
+export type SharedWorkspaceShellUiState = {
+  workspaceSelectOptions: SharedWorkspaceShellWorkspaceOption[];
+  workspaceSelectValue: string;
+  shellErrors: SharedWorkspaceShellError[];
+  visibleErrors: SharedWorkspaceShellError[];
+  focusedMissionId: string | null;
+  focusedReviewId: string | null;
+  shellHydrating: boolean;
+  shellRefreshing: boolean;
+  refreshLabel: string | null;
 };
 
 export type SharedWorkspaceShellState = {
