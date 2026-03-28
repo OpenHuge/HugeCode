@@ -3,6 +3,7 @@ import {
   composeSharedWorkspaceShellState,
   deriveSharedWorkspaceShellActiveSection,
   deriveSharedWorkspaceShellBackgroundEnabled,
+  deriveSharedWorkspaceShellFrameState,
 } from "./sharedWorkspaceShellComposition";
 
 describe("deriveSharedWorkspaceShellActiveSection", () => {
@@ -65,6 +66,33 @@ describe("deriveSharedWorkspaceShellBackgroundEnabled", () => {
   });
 });
 
+describe("deriveSharedWorkspaceShellFrameState", () => {
+  it("derives a stable shell frame from route and activation inputs", () => {
+    const frameState = deriveSharedWorkspaceShellFrameState({
+      runtimeMode: "connected",
+      platformHint: "desktop",
+      routeSelection: { kind: "workspace", workspaceId: "workspace-1" },
+      activationRequested: false,
+      activationDeferred: true,
+      accountHref: "/account",
+      settingsFraming: {
+        kickerLabel: "Preferences",
+        contextLabel: "Desktop app",
+        title: "Settings",
+        subtitle: "Workspace settings",
+      },
+    });
+
+    expect(frameState).toMatchObject({
+      runtimeMode: "connected",
+      platformHint: "desktop",
+      activeSection: "workspaces",
+      backgroundEnabled: true,
+      accountHref: "/account",
+    });
+  });
+});
+
 describe("composeSharedWorkspaceShellState", () => {
   it("stitches shell frame, data, and actions into a stable shared state shape", () => {
     const refreshWorkspaces = vi.fn(async () => undefined);
@@ -74,10 +102,20 @@ describe("composeSharedWorkspaceShellState", () => {
     const navigateToSection = vi.fn();
 
     const state = composeSharedWorkspaceShellState({
-      runtimeMode: "connected",
-      platformHint: "desktop",
-      routeSelection: { kind: "workspace", workspaceId: "workspace-1" },
-      activeSection: "workspaces",
+      frameState: {
+        runtimeMode: "connected",
+        platformHint: "desktop",
+        routeSelection: { kind: "workspace", workspaceId: "workspace-1" },
+        activeSection: "workspaces",
+        backgroundEnabled: true,
+        accountHref: "/account",
+        settingsFraming: {
+          kickerLabel: "Preferences",
+          contextLabel: "Desktop app",
+          title: "Settings",
+          subtitle: "Workspace settings",
+        },
+      },
       catalogState: {
         workspaces: [{ id: "workspace-1", name: "Alpha", connected: true }],
         activeWorkspaceId: "workspace-1",
@@ -125,13 +163,6 @@ describe("composeSharedWorkspaceShellState", () => {
         refresh: refreshHostStartupStatus,
       },
       navigateToSection,
-      accountHref: "/account",
-      settingsFraming: {
-        kickerLabel: "Preferences",
-        contextLabel: "Desktop app",
-        title: "Settings",
-        subtitle: "Workspace settings",
-      },
     });
 
     expect(state.activeSection).toBe("workspaces");

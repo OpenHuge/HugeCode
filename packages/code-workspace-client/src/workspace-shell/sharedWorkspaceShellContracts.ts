@@ -38,6 +38,16 @@ export type SharedWorkspaceShellHostStartupState = {
   refresh: () => Promise<void>;
 };
 
+export type SharedWorkspaceShellFrameState = {
+  runtimeMode: WorkspaceClientRuntimeMode;
+  platformHint: string;
+  routeSelection: SharedWorkspaceRouteSelection;
+  activeSection: SharedWorkspaceShellSection;
+  backgroundEnabled: boolean;
+  accountHref: string | null;
+  settingsFraming: SettingsShellFraming;
+};
+
 export type SharedWorkspaceShellState = {
   runtimeMode: WorkspaceClientRuntimeMode;
   platformHint: string;
@@ -65,15 +75,20 @@ export type SharedWorkspaceShellState = {
   settingsFraming: SettingsShellFraming;
 };
 
-export type SharedWorkspaceShellStateCompositionInput = {
+export type SharedWorkspaceShellFrameStateCompositionInput = {
   runtimeMode: WorkspaceClientRuntimeMode;
   platformHint: string;
   routeSelection: SharedWorkspaceRouteSelection;
-  activeSection: SharedWorkspaceShellSection;
+  activationRequested: boolean;
+  activationDeferred: boolean;
+  accountHref: string | null;
+  settingsFraming: SettingsShellFraming;
+};
+
+export type SharedWorkspaceShellStateCompositionInput = {
+  frameState: SharedWorkspaceShellFrameState;
   catalogState: SharedWorkspaceShellCatalogState;
   missionControlState: SharedWorkspaceShellMissionControlState;
   hostStartupState: SharedWorkspaceShellHostStartupState;
   navigateToSection: (section: SharedWorkspaceShellSection) => void;
-  accountHref: string | null;
-  settingsFraming: SettingsShellFraming;
 };

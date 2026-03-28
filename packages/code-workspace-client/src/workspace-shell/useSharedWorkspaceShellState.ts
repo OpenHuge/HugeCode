@@ -7,8 +7,7 @@ import {
 import type { SharedWorkspaceShellState } from "./sharedWorkspaceShellContracts";
 import {
   composeSharedWorkspaceShellState,
-  deriveSharedWorkspaceShellActiveSection,
-  deriveSharedWorkspaceShellBackgroundEnabled,
+  deriveSharedWorkspaceShellFrameState,
 } from "./sharedWorkspaceShellComposition";
 import type { SharedWorkspaceShellSection } from "./workspaceNavigation";
 import { useSharedHostStartupStatusState } from "./useSharedHostStartupStatusState";
@@ -28,26 +27,28 @@ export function useSharedWorkspaceShellState(): SharedWorkspaceShellState {
     () => bindings.navigation.getAccountCenterHref?.() ?? null,
     [bindings.navigation]
   );
-  const activeSection: SharedWorkspaceShellSection =
-    deriveSharedWorkspaceShellActiveSection(routeSelection);
   const [shellBackgroundActivationRequested, setShellBackgroundActivationRequested] = useState(
-    () => activeSection === "missions" || activeSection === "review"
+    () => routeSelection.kind === "missions" || routeSelection.kind === "review"
   );
   const shellBackgroundActivated = useDeferredActivation({
     enabled: !shellBackgroundActivationRequested,
     idleTimeoutMs: 250,
     fallbackDelayMs: 250,
   });
-  const shellBackgroundEnabled = deriveSharedWorkspaceShellBackgroundEnabled({
-    activeSection,
+  const frameState = deriveSharedWorkspaceShellFrameState({
+    runtimeMode,
+    platformHint: bindings.host.shell.platformHint ?? bindings.host.platform,
+    routeSelection,
     activationRequested: shellBackgroundActivationRequested,
     activationDeferred: shellBackgroundActivated,
+    accountHref,
+    settingsFraming: bindings.platformUi.settingsShellFraming,
   });
   const missionControlState = useSharedMissionControlSummaryState(catalogState.activeWorkspaceId, {
-    enabled: shellBackgroundEnabled,
+    enabled: frameState.backgroundEnabled,
   });
   const hostStartupState = useSharedHostStartupStatusState(bindings.host, {
-    enabled: shellBackgroundEnabled,
+    enabled: frameState.backgroundEnabled,
   });
   const navigateToSection = useCallback(
     (section: SharedWorkspaceShellSection) => {
@@ -69,10 +70,7 @@ export function useSharedWorkspaceShellState(): SharedWorkspaceShellState {
   }, [hostStartupState.refresh]);
 
   return composeSharedWorkspaceShellState({
-    runtimeMode,
-    platformHint: bindings.host.shell.platformHint ?? bindings.host.platform,
-    routeSelection,
-    activeSection,
+    frameState,
     catalogState,
     missionControlState: {
       ...missionControlState,
@@ -83,7 +81,5 @@ export function useSharedWorkspaceShellState(): SharedWorkspaceShellState {
       refresh: refreshHostStartupStatus,
     },
     navigateToSection,
-    accountHref,
-    settingsFraming: bindings.platformUi.settingsShellFraming,
   });
 }

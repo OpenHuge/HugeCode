@@ -15,9 +15,12 @@ export {
   composeSharedWorkspaceShellState,
   deriveSharedWorkspaceShellActiveSection,
   deriveSharedWorkspaceShellBackgroundEnabled,
+  deriveSharedWorkspaceShellFrameState,
 } from "./sharedWorkspaceShellComposition";
 export type {
   SharedWorkspaceShellCatalogState,
+  SharedWorkspaceShellFrameState,
+  SharedWorkspaceShellFrameStateCompositionInput,
   SharedWorkspaceShellHostStartupState,
   SharedWorkspaceShellMissionControlState,
   SharedWorkspaceShellState,

@@ -1,4 +1,6 @@
 import type {
+  SharedWorkspaceShellFrameState,
+  SharedWorkspaceShellFrameStateCompositionInput,
   SharedWorkspaceShellState,
   SharedWorkspaceShellStateCompositionInput,
 } from "./sharedWorkspaceShellContracts";
@@ -21,7 +23,7 @@ export function deriveSharedWorkspaceShellBackgroundEnabled(input: {
   activeSection: SharedWorkspaceShellSection;
   activationRequested: boolean;
   activationDeferred: boolean;
-}) {
+}): boolean {
   return (
     input.activationRequested ||
     input.activeSection === "missions" ||
@@ -30,14 +32,34 @@ export function deriveSharedWorkspaceShellBackgroundEnabled(input: {
   );
 }
 
-export function composeSharedWorkspaceShellState(
-  input: SharedWorkspaceShellStateCompositionInput
-): SharedWorkspaceShellState {
+export function deriveSharedWorkspaceShellFrameState(
+  input: SharedWorkspaceShellFrameStateCompositionInput
+): SharedWorkspaceShellFrameState {
+  const activeSection = deriveSharedWorkspaceShellActiveSection(input.routeSelection);
+
   return {
     runtimeMode: input.runtimeMode,
     platformHint: input.platformHint,
     routeSelection: input.routeSelection,
-    activeSection: input.activeSection,
+    activeSection,
+    backgroundEnabled: deriveSharedWorkspaceShellBackgroundEnabled({
+      activeSection,
+      activationRequested: input.activationRequested,
+      activationDeferred: input.activationDeferred,
+    }),
+    accountHref: input.accountHref,
+    settingsFraming: input.settingsFraming,
+  };
+}
+
+export function composeSharedWorkspaceShellState(
+  input: SharedWorkspaceShellStateCompositionInput
+): SharedWorkspaceShellState {
+  return {
+    runtimeMode: input.frameState.runtimeMode,
+    platformHint: input.frameState.platformHint,
+    routeSelection: input.frameState.routeSelection,
+    activeSection: input.frameState.activeSection,
     workspaces: input.catalogState.workspaces,
     activeWorkspaceId: input.catalogState.activeWorkspaceId,
     activeWorkspace: input.catalogState.activeWorkspace,
@@ -56,7 +78,7 @@ export function composeSharedWorkspaceShellState(
     hostStartupLoadState: input.hostStartupState.loadState,
     hostStartupError: input.hostStartupState.error,
     refreshHostStartupStatus: input.hostStartupState.refresh,
-    accountHref: input.accountHref,
-    settingsFraming: input.settingsFraming,
+    accountHref: input.frameState.accountHref,
+    settingsFraming: input.frameState.settingsFraming,
   };
 }

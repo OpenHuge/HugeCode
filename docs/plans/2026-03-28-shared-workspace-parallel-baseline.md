@@ -3,6 +3,8 @@
 Date: 2026-03-28
 Status: active working doc
 Branch: `codex/runtime-review-triage-alignment`
+Baseline commit: `1f49e81c`
+Baseline PR: `#132` <https://github.com/OpenHuge/HugeCode/pull/132>
 
 ## Intent
 
@@ -130,7 +132,15 @@ Do not do:
 ### Track 2 Prompt
 
 ```text
-You are implementing HugeCode Track 2 on top of branch codex/runtime-review-triage-alignment.
+You are implementing HugeCode Track 2.
+
+Baseline:
+- Branch: codex/runtime-review-triage-alignment
+- Commit: 1f49e81c
+- PR: #132 https://github.com/OpenHuge/HugeCode/pull/132
+
+Start from this exact baseline unless a newer commit on the same PR is explicitly announced as
+the new shared head. Do not rebase onto another feature branch.
 
 Goal:
 Normalize runtime mission-control source adapters so browser/desktop/remote bindings can reuse the
@@ -163,7 +173,15 @@ Validation:
 ### Track 3 Prompt
 
 ```text
-You are implementing HugeCode Track 3 on top of branch codex/runtime-review-triage-alignment.
+You are implementing HugeCode Track 3.
+
+Baseline:
+- Branch: codex/runtime-review-triage-alignment
+- Commit: 1f49e81c
+- PR: #132 https://github.com/OpenHuge/HugeCode/pull/132
+
+Start from this exact baseline unless a newer commit on the same PR is explicitly announced as
+the new shared head. Do not rebase onto another feature branch.
 
 Goal:
 Push mission-control summary and review-triage logic into more explicit policy modules while
@@ -195,7 +213,15 @@ Validation:
 ### Track 4 Prompt
 
 ```text
-You are implementing HugeCode Track 4 on top of branch codex/runtime-review-triage-alignment.
+You are implementing HugeCode Track 4.
+
+Baseline:
+- Branch: codex/runtime-review-triage-alignment
+- Commit: 1f49e81c
+- PR: #132 https://github.com/OpenHuge/HugeCode/pull/132
+
+Start from this exact baseline unless a newer commit on the same PR is explicitly announced as
+the new shared head. Do not rebase onto another feature branch.
 
 Goal:
 Decompose SharedWorkspaceShell UI consumers so sections depend on the exported
