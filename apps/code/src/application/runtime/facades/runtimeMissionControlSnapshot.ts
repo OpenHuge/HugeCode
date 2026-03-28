@@ -21,6 +21,7 @@ import { readRuntimeErrorCode, readRuntimeErrorMessage } from "../ports/runtimeE
 import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import { normalizeRuntimeProviderCatalogEntry } from "./runtimeMissionControlProjectionNormalization";
+import { useWorkspaceRuntimePluginProjection } from "./runtimeKernelPluginProjectionHooks";
 import {
   AGENT_TASK_DURABILITY_DEGRADED_REASON,
   parseRuntimeDurabilityDiagnostics,
@@ -56,6 +57,7 @@ export const CONTROL_PLANE_KERNEL_PROJECTION_SCOPES: readonly KernelProjectionSc
   "continuity",
   "diagnostics",
   "capabilities",
+  "extensions",
 ];
 
 function readOptionalText(value: unknown): string | null {
@@ -319,6 +321,10 @@ export function useRuntimeMissionControlSnapshot(input: {
   const capabilitiesProjectionSlice = readCapabilitiesProjectionSlice(kernelProjectionState);
   const missionControlProjectionSlice = readMissionControlProjectionSlice(kernelProjectionState);
   const diagnosticsProjectionSlice = readDiagnosticsProjectionSlice(kernelProjectionState);
+  const runtimePluginsState = useWorkspaceRuntimePluginProjection({
+    workspaceId: input.workspaceId,
+    enabled: true,
+  });
   const [runtimeTasks, setRuntimeTasks] = useState<RuntimeAgentTaskSummary[]>([]);
   const [runtimeProviders, setRuntimeProviders] = useState<RuntimeProviderCatalogEntry[]>([]);
   const [runtimeAccounts, setRuntimeAccounts] = useState<OAuthAccountSummary[]>([]);
@@ -581,9 +587,13 @@ export function useRuntimeMissionControlSnapshot(input: {
     runtimeHealthError,
     runtimeToolMetrics,
     runtimeToolGuardrails,
+    runtimePlugins: runtimePluginsState.plugins,
+    runtimePluginsError: runtimePluginsState.error,
+    runtimePluginsProjectionBacked: runtimePluginsState.projectionBacked,
     runtimeLoading:
       runtimeAuxLoading ||
       runtimeFallbackLoading ||
+      runtimePluginsState.loading ||
       (workspaceClientRuntime.kernelProjection
         ? kernelProjectionState.loadState === "loading"
         : false),

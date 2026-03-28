@@ -4,6 +4,7 @@ import type {
   OAuthPoolSummary,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
+import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPlugins";
 import type { RuntimeExecutionReliabilitySummary } from "./runtimeExecutionReliability";
 import type { RuntimeLaunchReadinessSummary } from "./runtimeLaunchReadiness";
 import {
@@ -69,6 +70,21 @@ export type WorkspaceRuntimeMissionControlProjection = {
     staleTasks: RuntimeAgentTaskSummary[];
     oldestPendingTask: RuntimeAgentTaskSummary | null;
   };
+  pluginCatalog: {
+    plugins: RuntimeKernelPluginDescriptor[];
+    total: number;
+    enabled: number;
+    runtimeBacked: number;
+    runtimeExtensionCount: number;
+    liveSkillCount: number;
+    repoManifestCount: number;
+    unsupportedHostCount: number;
+    healthyCount: number;
+    degradedCount: number;
+    unsupportedCount: number;
+    projectionBacked: boolean;
+    error: string | null;
+  };
   executionReliability: RuntimeExecutionReliabilitySummary;
   launchReadiness: RuntimeLaunchReadinessSummary;
 };
@@ -84,6 +100,9 @@ type BuildWorkspaceRuntimeMissionControlProjectionInput = {
   runtimeHealthError: string | null;
   runtimeToolMetrics: unknown;
   runtimeToolGuardrails: unknown;
+  runtimePlugins: RuntimeKernelPluginDescriptor[];
+  runtimePluginsError: string | null;
+  runtimePluginsProjectionBacked: boolean;
   selectedProviderRoute: string;
   runtimeStatusFilter: RuntimeAgentTaskSummary["status"] | "all";
   runtimeDurabilityWarning: {
@@ -114,12 +133,67 @@ function buildRuntimeSummary(runtimeTasks: RuntimeAgentTaskSummary[]) {
   return counts;
 }
 
+function buildPluginCatalogSummary(input: {
+  plugins: RuntimeKernelPluginDescriptor[];
+  error: string | null;
+  projectionBacked: boolean;
+}): WorkspaceRuntimeMissionControlProjection["pluginCatalog"] {
+  const summary: WorkspaceRuntimeMissionControlProjection["pluginCatalog"] = {
+    plugins: input.plugins,
+    total: input.plugins.length,
+    enabled: 0,
+    runtimeBacked: 0,
+    runtimeExtensionCount: 0,
+    liveSkillCount: 0,
+    repoManifestCount: 0,
+    unsupportedHostCount: 0,
+    healthyCount: 0,
+    degradedCount: 0,
+    unsupportedCount: 0,
+    projectionBacked: input.projectionBacked,
+    error: input.error,
+  };
+
+  for (const plugin of input.plugins) {
+    if (plugin.enabled) {
+      summary.enabled += 1;
+    }
+    if (plugin.runtimeBacked) {
+      summary.runtimeBacked += 1;
+    }
+    if (plugin.source === "runtime_extension") {
+      summary.runtimeExtensionCount += 1;
+    } else if (plugin.source === "live_skill") {
+      summary.liveSkillCount += 1;
+    } else if (plugin.source === "repo_manifest") {
+      summary.repoManifestCount += 1;
+    } else {
+      summary.unsupportedHostCount += 1;
+    }
+
+    if (plugin.health?.state === "healthy") {
+      summary.healthyCount += 1;
+    } else if (plugin.health?.state === "degraded") {
+      summary.degradedCount += 1;
+    } else if (plugin.health?.state === "unsupported") {
+      summary.unsupportedCount += 1;
+    }
+  }
+
+  return summary;
+}
+
 export function buildWorkspaceRuntimeMissionControlProjection(
   input: BuildWorkspaceRuntimeMissionControlProjectionInput
 ): WorkspaceRuntimeMissionControlProjection {
   const runtimeSummary = buildRuntimeSummary(input.runtimeTasks);
   const missionRunSummary = buildMissionRunSummary(input.runtimeTasks);
   const missionControlLoopItems = buildMissionControlLoopItems(input.runtimeTasks);
+  const pluginCatalog = buildPluginCatalogSummary({
+    plugins: input.runtimePlugins,
+    error: input.runtimePluginsError,
+    projectionBacked: input.runtimePluginsProjectionBacked,
+  });
   const routeSelection = resolveRuntimeProviderRouteSelection({
     selectedRoute: input.selectedProviderRoute,
     providers: input.runtimeProviders,
@@ -196,6 +270,7 @@ export function buildWorkspaceRuntimeMissionControlProjection(
       staleTasks: orchestration.stalePendingApprovalTasks,
       oldestPendingTask: orchestration.oldestPendingApprovalTask,
     },
+    pluginCatalog,
     executionReliability: orchestration.executionReliability,
     launchReadiness: orchestration.launchReadiness,
   };

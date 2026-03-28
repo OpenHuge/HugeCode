@@ -101,6 +101,9 @@ function buildRuntimeProjectionInput(
       circuitBreakers: [],
       updatedAt: 1_700_000_000_000,
     },
+    runtimePlugins: [],
+    runtimePluginsError: null,
+    runtimePluginsProjectionBacked: false,
     selectedProviderRoute: "auto",
     runtimeStatusFilter: "all",
     runtimeDurabilityWarning: null,
@@ -245,5 +248,113 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.continuity.summary.reviewBlockedCount).toBe(0);
     expect(projection.continuity.itemsByTaskId.get("runtime-review-1")?.pathKind).toBe("review");
     expect(projection.runList.visibleRuntimeRuns).toHaveLength(1);
+  });
+
+  it("summarizes the unified runtime plugin catalog for mission control consumers", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimePlugins: [
+          {
+            id: "ext-1",
+            name: "Shell Tools",
+            version: "1.0.0",
+            summary: null,
+            source: "runtime_extension",
+            transport: "runtime_extension",
+            hostProfile: {
+              kind: "runtime",
+              executionBoundaries: ["runtime"],
+            },
+            workspaceId: "ws-approval",
+            enabled: true,
+            runtimeBacked: true,
+            capabilities: [],
+            permissions: ["network"],
+            resources: [],
+            executionBoundaries: ["runtime"],
+            metadata: null,
+            permissionDecision: "allow",
+            health: {
+              state: "healthy",
+              checkedAt: 1,
+              warnings: [],
+            },
+          },
+          {
+            id: "skill-1",
+            name: "Repo Review",
+            version: "0.1.0",
+            summary: null,
+            source: "live_skill",
+            transport: "live_skill",
+            hostProfile: {
+              kind: "runtime",
+              executionBoundaries: ["runtime"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: true,
+            capabilities: [],
+            permissions: [],
+            resources: [],
+            executionBoundaries: ["runtime"],
+            metadata: null,
+            permissionDecision: null,
+            health: {
+              state: "degraded",
+              checkedAt: 2,
+              warnings: ["quota"],
+            },
+          },
+          {
+            id: "repo-manifest-1",
+            name: "Review Manifest",
+            version: "0.0.1",
+            summary: null,
+            source: "repo_manifest",
+            transport: "repo_manifest",
+            hostProfile: {
+              kind: "repository",
+              executionBoundaries: ["repository"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: false,
+            capabilities: [],
+            permissions: [],
+            resources: [],
+            executionBoundaries: ["repository"],
+            metadata: null,
+            permissionDecision: "unsupported",
+            health: {
+              state: "unsupported",
+              checkedAt: null,
+              warnings: [],
+            },
+          },
+        ],
+        runtimePluginsError: "catalog degraded",
+        runtimePluginsProjectionBacked: true,
+      })
+    );
+
+    expect(projection.pluginCatalog).toMatchObject({
+      total: 3,
+      enabled: 3,
+      runtimeBacked: 2,
+      runtimeExtensionCount: 1,
+      liveSkillCount: 1,
+      repoManifestCount: 1,
+      healthyCount: 1,
+      degradedCount: 1,
+      unsupportedCount: 1,
+      projectionBacked: true,
+      error: "catalog degraded",
+    });
+    expect(projection.pluginCatalog.plugins.map((plugin) => plugin.id)).toEqual([
+      "ext-1",
+      "skill-1",
+      "repo-manifest-1",
+    ]);
   });
 });

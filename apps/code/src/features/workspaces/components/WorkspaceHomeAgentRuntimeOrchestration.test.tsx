@@ -28,6 +28,7 @@ import {
 import type { RuntimeUpdatedEvent } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import { createRuntimeAgentControlFacade } from "../../../application/runtime/facades/runtimeAgentControlFacade";
 import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
+import type { RuntimeKernelPluginCatalogFacade } from "../../../application/runtime/kernel/runtimeKernelPlugins";
 import { useWorkspaceRuntimeSessionCheckpoint } from "../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint";
 import {
   projectAgentTaskSummaryToRunSummary,
@@ -633,6 +634,12 @@ function createRuntimeKernelValue(): RuntimeKernel {
     canStartReviewInCurrentHost: vi.fn(() => true),
     reviewStartDesktopOnlyMessage: REVIEW_START_DESKTOP_ONLY_MESSAGE,
   };
+  const runtimePluginCatalog: RuntimeKernelPluginCatalogFacade = {
+    listPlugins: vi.fn(async () => []),
+    readPluginResource: vi.fn(),
+    executePlugin: vi.fn(),
+    evaluatePluginPermissions: vi.fn(),
+  };
 
   return {
     runtimeGateway,
@@ -736,14 +743,19 @@ function createRuntimeKernelValue(): RuntimeKernel {
         if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands) {
           return runtimeSessionCommands as RuntimeKernelCapabilityMap[K];
         }
+        if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog) {
+          return runtimePluginCatalog as RuntimeKernelCapabilityMap[K];
+        }
         throw new Error(`Unsupported workspace runtime capability: ${key}`);
       },
       hasCapability: (key: string) =>
         key === RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl ||
-        key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
+        key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands ||
+        key === RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog,
       listCapabilities: () => [
         RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
         RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
+        RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog,
       ],
     })),
   };
@@ -765,6 +777,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("heading", { name: "Launch readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Continuity readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Approval pressure" })).toBeTruthy();
+      expect(screen.getByRole("heading", { name: "Plugin catalog" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Run list" })).toBeTruthy();
     });
   });

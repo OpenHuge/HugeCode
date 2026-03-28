@@ -179,6 +179,7 @@ describe("runtimeMissionControlSnapshot", () => {
       "continuity",
       "diagnostics",
       "capabilities",
+      "extensions",
     ]);
   });
 
