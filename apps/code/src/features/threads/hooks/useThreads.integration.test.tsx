@@ -123,7 +123,7 @@ vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
   detectRuntimeMode: vi.fn(() => "tauri"),
 }));
 
-vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
+vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacade", () => ({
   useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
     sendMessage: ({ threadId, text, options }: Record<string, unknown>) =>
       sendUserMessageService(workspaceId, String(threadId), String(text), options as never),

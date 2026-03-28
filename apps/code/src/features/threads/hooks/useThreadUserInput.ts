@@ -1,6 +1,6 @@
 import type { Dispatch } from "react";
 import { useCallback } from "react";
-import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/ports/runtimeSessionCommands";
+import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
 import type { RequestUserInputRequest, RequestUserInputResponse } from "../../../types";
 import type { ThreadAction } from "./useThreadsReducer";
 

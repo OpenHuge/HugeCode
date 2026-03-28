@@ -1,8 +1,10 @@
 import type { HugeCodeTaskMode } from "@ku0/code-runtime-host-contract";
 import type { Dispatch, MutableRefObject } from "react";
 import { useCallback } from "react";
-import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
-import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/ports/runtimeSessionCommands";
+import {
+  type RuntimeSessionCommandFacade,
+  useRuntimeSessionCommandsResolver,
+} from "../../../application/runtime/facades/runtimeSessionCommandFacade";
 import { prepareRuntimeRunV2 as prepareRuntimeRunV2Service } from "../../../application/runtime/ports/tauriRuntimeJobs";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type {
