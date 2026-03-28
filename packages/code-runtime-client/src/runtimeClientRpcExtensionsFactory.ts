@@ -255,54 +255,6 @@ export function createExtendedRpcRuntimeClient<
         }),
       });
     },
-    kernelJobStartV3(request) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_START_V3,
-        adaptRuntimeRpcPayload("kernelJobStartV3", request)
-      );
-    },
-    kernelJobGetV3(request) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_GET_V3,
-        adaptRuntimeRpcPayload("kernelJobGetV3", request)
-      );
-    },
-    kernelJobCancelV3(request) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3,
-        adaptRuntimeRpcPayload("kernelJobCancelV3", request)
-      );
-    },
-    kernelJobResumeV3(request) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_RESUME_V3,
-        adaptRuntimeRpcPayload("kernelJobResumeV3", request)
-      );
-    },
-    kernelJobInterveneV3(request) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_INTERVENE_V3,
-        adaptRuntimeRpcPayload("kernelJobInterveneV3", request)
-      );
-    },
-    kernelJobSubscribeV3(request) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_SUBSCRIBE_V3,
-        adaptRuntimeRpcPayload("kernelJobSubscribeV3", request)
-      );
-    },
-    kernelJobCallbackRegisterV3(request) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CALLBACK_REGISTER_V3,
-        adaptRuntimeRpcPayload("kernelJobCallbackRegisterV3", request)
-      );
-    },
-    kernelJobCallbackRemoveV3(request) {
-      return invokeRpc(
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CALLBACK_REMOVE_V3,
-        adaptRuntimeRpcPayload("kernelJobCallbackRemoveV3", request)
-      );
-    },
     subAgentSpawn(request) {
       return invokeRuntimeExtensionRpc(
         invokeRpc,
