@@ -74,4 +74,25 @@ describe("check-runtime-port-exports", () => {
     expect(result.stderr).toContain("tauriSettings.ts");
     expect(result.stderr).toContain("tauriWorkspaces.ts");
   });
+
+  it("fails when runtimeToolLifecycle port re-exports unscoped or filter helpers", async () => {
+    const tempRoot = await mkdtemp(path.join(tmpdir(), "runtime-port-exports-"));
+    tempRoots.push(tempRoot);
+    await copyScript(tempRoot);
+    await writeRepoFile(
+      tempRoot,
+      "apps/code/src/application/runtime/ports/runtimeToolLifecycle.ts",
+      [
+        'export { getRuntimeToolLifecycleSnapshot } from "../facades/runtimeToolLifecycleFacade";',
+        'export { subscribeRuntimeToolLifecycleEvents } from "../facades/runtimeToolLifecycleFacade";',
+        'export { filterRuntimeToolLifecycleSnapshot } from "../types/runtimeToolLifecycle";',
+      ].join("\n")
+    );
+
+    const result = runGuard(tempRoot);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("runtimeToolLifecycle.ts");
+    expect(result.stderr).toContain("workspace-scoped");
+  });
 });

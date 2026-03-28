@@ -21,6 +21,7 @@ const GUARDED_PORT_FILES = new Set([
   "runtimeEventStabilityMetrics.ts",
   "runtimeEventStateMachine.ts",
   "runtimeMessageCodes.ts",
+  "runtimeToolLifecycle.ts",
   "runtimeToolExecutionMetrics.ts",
   "runtimeUpdatedEvents.ts",
   "desktopAppSettings.ts",
@@ -157,6 +158,9 @@ const RAW_TAURI_AGGREGATION_IMPORT_PATTERN =
   /^\s*(?:export|import)[\s\S]*from\s+["']\.\/tauri["'];?\s*$/mu;
 const LEGACY_TAURI_SERVICE_IMPORT_PATTERN =
   /^\s*import[\s\S]*from\s+["']\.\.\/\.\.\/\.\.\/services\/tauri["'];?\s*$/mu;
+const RUNTIME_TOOL_LIFECYCLE_PORT_PATH = `${RUNTIME_PORTS_DIR}/runtimeToolLifecycle.ts`;
+const RUNTIME_TOOL_LIFECYCLE_FORBIDDEN_EXPORT_PATTERN =
+  /\b(?:getRuntimeToolLifecycleSnapshot|subscribeRuntimeToolLifecycleEvents|subscribeRuntimeToolLifecycleSnapshot|filterRuntimeToolLifecycleSnapshot|runtimeToolLifecycleEventMatchesWorkspace)\b/u;
 
 function toPosixPath(input) {
   return input.split(path.sep).join("/");
@@ -282,6 +286,14 @@ for (const filePath of files) {
   if (RETIRED_RUNTIME_PORT_FILES.has(baseName)) {
     violations.push(
       `${filePath}: retired runtime bridge port must not exist; use narrower domain ports instead`
+    );
+  }
+  if (
+    filePath === RUNTIME_TOOL_LIFECYCLE_PORT_PATH &&
+    RUNTIME_TOOL_LIFECYCLE_FORBIDDEN_EXPORT_PATTERN.test(content)
+  ) {
+    violations.push(
+      `${filePath}: runtime tool lifecycle port must stay workspace-scoped; export only scoped read/subscribe primitives`
     );
   }
 }
