@@ -8,8 +8,11 @@ import type {
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import {
+  resolveRuntimeControlPlaneRouteSelection,
+  type RuntimeControlPlaneRouteOption,
+} from "./runtimeControlPlaneRouting";
+import {
   readRuntimeKernelRoutingPluginMetadata,
-  resolveRuntimeKernelRouteSelection,
   type RuntimeKernelPluginDescriptor,
 } from "../kernel/runtimeKernelPlugins";
 import { readRuntimeKernelPluginCompositionMetadata } from "../kernel/runtimeKernelComposition";
@@ -29,18 +32,19 @@ import {
 import { type RuntimeProviderRoutingHealth } from "./runtimeRoutingHealth";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 
-export type WorkspaceMissionControlRouteOption = {
-  value: string;
-  label: string;
-  ready: boolean;
-  launchAllowed: boolean;
-  readiness: "ready" | "attention" | "blocked";
-  detail: string;
-  blockingReason: string | null;
-  recommendedAction: string;
-  fallbackDetail: string | null;
-  healthEntry: RuntimeProviderRoutingHealth | null;
-};
+export type WorkspaceMissionControlRouteOption = Pick<
+  RuntimeControlPlaneRouteOption,
+  | "value"
+  | "label"
+  | "ready"
+  | "launchAllowed"
+  | "readiness"
+  | "detail"
+  | "blockingReason"
+  | "recommendedAction"
+  | "fallbackDetail"
+  | "healthEntry"
+>;
 
 export type WorkspaceRuntimeTaskRun = {
   task: RuntimeAgentTaskSummary;
@@ -367,9 +371,9 @@ export function buildWorkspaceRuntimeMissionControlProjection(
       ? true
       : typeof task.backendId === "string" && task.backendId.trim().length > 0
   );
-  const routeSelection = resolveRuntimeKernelRouteSelection({
-    plugins: input.runtimePlugins,
+  const routeSelection = resolveRuntimeControlPlaneRouteSelection({
     selectedRoute: input.selectedProviderRoute,
+    plugins: input.runtimePlugins,
     preferredBackendIds:
       input.runtimeCompositionResolution?.selectedBackendCandidates.map(
         (entry) => entry.backendId

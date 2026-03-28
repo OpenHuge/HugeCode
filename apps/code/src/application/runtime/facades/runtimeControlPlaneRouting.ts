@@ -1,9 +1,6 @@
 import type {
-  ModelPool,
-  ModelProvider,
   OAuthAccountSummary,
   OAuthPoolSummary,
-  RuntimeRoutingPluginProvenance,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import {
@@ -18,39 +15,14 @@ import {
 import {
   createRuntimeProviderRoutePluginDescriptors,
   resolveRuntimeKernelRouteSelection,
+  type RuntimeKernelPluginDescriptor,
+  type RuntimeKernelResolvedRoute,
+  type RuntimeKernelRouteOption,
 } from "../kernel/runtimeKernelPlugins";
 
-export type RuntimeProviderRouteReadiness = "ready" | "attention" | "blocked";
-
-export type RuntimeProviderRouteProvenance = {
-  source: RuntimeRoutingPluginProvenance;
-  catalogProviderId: ModelProvider | null;
-  readinessKind: RuntimeProviderCatalogEntry["readinessKind"];
-  readinessMessage: RuntimeProviderCatalogEntry["readinessMessage"];
-  executionKind: RuntimeProviderCatalogEntry["executionKind"];
-};
-
-export type RuntimeProviderRouteOption = {
-  value: string;
-  label: string;
-  ready: boolean;
-  readiness: RuntimeProviderRouteReadiness;
-  detail: string;
-  launchAllowed: boolean;
-  blockingReason: string | null;
-  recommendedAction: string;
-  fallbackDetail: string | null;
-  providerId: ModelProvider | null;
-  oauthProviderId: RuntimeProviderCatalogEntry["oauthProviderId"];
-  pool: ModelPool | null;
-  defaultModelId: string | null;
-  healthEntry: RuntimeProviderRoutingHealth | null;
-  provenance: RuntimeProviderRouteProvenance;
-};
-
-export type RuntimeResolvedProviderRoute = RuntimeProviderRouteOption & {
-  source: RuntimeRoutingPluginProvenance;
-};
+export type RuntimeControlPlaneRouteReadiness = "ready" | "attention" | "blocked";
+export type RuntimeControlPlaneRouteOption = RuntimeKernelRouteOption;
+export type RuntimeResolvedControlPlaneRoute = RuntimeKernelResolvedRoute;
 
 type RuntimeProviderRouteModelLike = {
   id?: string | null;
@@ -136,7 +108,7 @@ function findCatalogEntryForModel(
 function resolveRoutingHealth(
   provider: RuntimeProviderCatalogEntry | null,
   healthEntry: RuntimeProviderRoutingHealth | null
-): RuntimeProviderRouteReadiness {
+): RuntimeControlPlaneRouteReadiness {
   if (!provider) {
     return "attention";
   }
@@ -155,7 +127,7 @@ function resolveRoutingHealth(
 function buildRouteDetail(
   provider: RuntimeProviderCatalogEntry | null,
   healthEntry: RuntimeProviderRoutingHealth | null,
-  readiness: RuntimeProviderRouteReadiness
+  readiness: RuntimeControlPlaneRouteReadiness
 ): string {
   if (!provider) {
     return "Selected provider route is not present in the current runtime provider catalog.";
@@ -184,7 +156,7 @@ function buildRouteDetail(
 function buildRouteRecommendedAction(input: {
   provider: RuntimeProviderCatalogEntry | null;
   healthEntry: RuntimeProviderRoutingHealth | null;
-  readiness: RuntimeProviderRouteReadiness;
+  readiness: RuntimeControlPlaneRouteReadiness;
   fallbackDetail?: string | null;
 }): string {
   if (input.readiness === "ready") {
@@ -211,7 +183,7 @@ function buildRouteRecommendedAction(input: {
 function buildRouteBlockingReason(
   provider: RuntimeProviderCatalogEntry | null,
   healthEntry: RuntimeProviderRoutingHealth | null,
-  readiness: RuntimeProviderRouteReadiness
+  readiness: RuntimeControlPlaneRouteReadiness
 ): string | null {
   if (readiness !== "blocked") {
     return null;
@@ -223,7 +195,7 @@ function buildRouteBlockingReason(
   );
 }
 
-export function buildRuntimeProviderRouteCatalog(input: {
+export function buildRuntimeControlPlaneRouteCatalog(input: {
   providers: readonly RuntimeProviderCatalogEntry[];
   accounts: readonly OAuthAccountSummary[];
   pools: readonly OAuthPoolSummary[];
@@ -242,46 +214,38 @@ export function buildRuntimeProviderRouteCatalog(input: {
   };
 }
 
-export function resolveRuntimeProviderRouteSelection(input: {
+export function resolveRuntimeControlPlaneRouteSelection(input: {
   selectedRoute: string | null | undefined;
-  providers: readonly RuntimeProviderCatalogEntry[];
-  accounts: readonly OAuthAccountSummary[];
-  pools: readonly OAuthPoolSummary[];
-}): {
-  routingHealth: RuntimeProviderRoutingHealth[];
-  options: RuntimeProviderRouteOption[];
-  selected: RuntimeResolvedProviderRoute;
-  normalizedValue: string;
-} {
-  const selection = resolveRuntimeKernelRouteSelection({
-    plugins: createRuntimeProviderRoutePluginDescriptors({
-      providers: input.providers,
-      accounts: input.accounts,
-      pools: input.pools,
-    }),
+  plugins?: RuntimeKernelPluginDescriptor[];
+  providers?: readonly RuntimeProviderCatalogEntry[];
+  accounts?: readonly OAuthAccountSummary[];
+  pools?: readonly OAuthPoolSummary[];
+  preferredBackendIds?: string[] | null;
+  resolvedBackendId?: string | null;
+  provenance?: RuntimeResolvedControlPlaneRoute["source"];
+}) {
+  const plugins =
+    input.plugins ??
+    createRuntimeProviderRoutePluginDescriptors({
+      providers: input.providers ?? [],
+      accounts: input.accounts ?? [],
+      pools: input.pools ?? [],
+    });
+  return resolveRuntimeKernelRouteSelection({
+    plugins,
     selectedRoute: input.selectedRoute,
+    preferredBackendIds: input.preferredBackendIds,
+    resolvedBackendId: input.resolvedBackendId,
+    provenance: input.provenance,
   });
-  return {
-    routingHealth: selection.routingHealth,
-    options: selection.options,
-    selected: {
-      ...selection.selected,
-      source: selection.selected.value === "auto" ? "auto" : "explicit_route",
-      provenance: {
-        ...selection.selected.provenance,
-        source: selection.selected.value === "auto" ? "auto" : "explicit_route",
-      },
-    },
-    normalizedValue: selection.normalizedValue,
-  };
 }
 
-export function resolveRuntimeModelProviderRoute(input: {
+export function resolveRuntimeControlPlaneModelRoute(input: {
   model: RuntimeProviderRouteModelLike | null | undefined;
   providers: readonly RuntimeProviderCatalogEntry[];
   accounts?: readonly OAuthAccountSummary[];
   pools?: readonly OAuthPoolSummary[];
-}): RuntimeResolvedProviderRoute | null {
+}): RuntimeResolvedControlPlaneRoute | null {
   const provider = findCatalogEntryForModel(input.providers, input.model);
   const oauthProviderId =
     provider?.oauthProviderId ??
@@ -337,27 +301,25 @@ export function resolveRuntimeModelProviderRoute(input: {
       readinessMessage: provider?.readinessMessage ?? null,
       executionKind: provider?.executionKind ?? null,
     },
+    plugin: resolveRuntimeControlPlaneRouteSelection({
+      selectedRoute: provider?.providerId ?? providerId,
+      providers: input.providers,
+      accounts: input.accounts ?? [],
+      pools: input.pools ?? [],
+    }).selected.plugin,
   };
 }
 
-export function resolveExplicitRuntimeProviderRoute(input: {
+export function resolveExplicitRuntimeControlPlaneRoute(input: {
   routeValue: string | null | undefined;
   providers: readonly RuntimeProviderCatalogEntry[];
   accounts: readonly OAuthAccountSummary[];
   pools: readonly OAuthPoolSummary[];
-}): RuntimeResolvedProviderRoute {
-  const selection = resolveRuntimeProviderRouteSelection({
+}): RuntimeResolvedControlPlaneRoute {
+  return resolveRuntimeControlPlaneRouteSelection({
     selectedRoute: input.routeValue,
     providers: input.providers,
     accounts: input.accounts,
     pools: input.pools,
-  });
-  return {
-    ...selection.selected,
-    source: selection.selected.value === "auto" ? "auto" : "explicit_route",
-    provenance: {
-      ...selection.selected.provenance,
-      source: selection.selected.value === "auto" ? "auto" : "explicit_route",
-    },
-  };
+  }).selected;
 }

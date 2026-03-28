@@ -5,10 +5,10 @@ import type {
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import {
-  resolveExplicitRuntimeProviderRoute,
-  resolveRuntimeModelProviderRoute,
-  resolveRuntimeProviderRouteSelection,
-} from "./runtimeProviderRouting";
+  resolveExplicitRuntimeControlPlaneRoute,
+  resolveRuntimeControlPlaneModelRoute,
+  resolveRuntimeControlPlaneRouteSelection,
+} from "./runtimeControlPlaneRouting";
 
 const PROVIDERS: RuntimeProviderCatalogEntry[] = [
   {
@@ -85,9 +85,9 @@ function buildPool(provider: OAuthPoolSummary["provider"], poolId: string): OAut
   };
 }
 
-describe("runtimeProviderRouting", () => {
+describe("runtimeControlPlaneRouting", () => {
   it("marks automatic routing blocked when no provider family is ready", () => {
-    const selection = resolveRuntimeProviderRouteSelection({
+    const selection = resolveRuntimeControlPlaneRouteSelection({
       selectedRoute: "auto",
       providers: PROVIDERS.filter((provider) => provider.providerId !== "local"),
       accounts: [],
@@ -100,7 +100,7 @@ describe("runtimeProviderRouting", () => {
   });
 
   it("keeps automatic routing launchable when local runtime remains available", () => {
-    const selection = resolveRuntimeProviderRouteSelection({
+    const selection = resolveRuntimeControlPlaneRouteSelection({
       selectedRoute: "auto",
       providers: PROVIDERS,
       accounts: [],
@@ -114,7 +114,7 @@ describe("runtimeProviderRouting", () => {
   });
 
   it("resolves model-selected OpenAI routing through the provider catalog and OAuth readiness", () => {
-    const route = resolveRuntimeModelProviderRoute({
+    const route = resolveRuntimeControlPlaneModelRoute({
       model: {
         id: "gpt-5.4",
         model: "gpt-5.4",
@@ -132,11 +132,12 @@ describe("runtimeProviderRouting", () => {
       pool: "codex",
       readiness: "ready",
       ready: true,
+      source: "model_selection",
     });
   });
 
   it("resolves model-selected Claude routing and reports blocked readiness without pools", () => {
-    const route = resolveRuntimeModelProviderRoute({
+    const route = resolveRuntimeControlPlaneModelRoute({
       model: {
         id: "claude-sonnet-4.5",
         model: "claude-sonnet-4.5",
@@ -154,12 +155,13 @@ describe("runtimeProviderRouting", () => {
       readiness: "blocked",
       ready: false,
       launchAllowed: false,
+      source: "model_selection",
     });
     expect(route?.detail).toContain("Enable at least one pool");
   });
 
   it("keeps explicit provider launch routes aligned with the same readiness calculation", () => {
-    const route = resolveExplicitRuntimeProviderRoute({
+    const route = resolveExplicitRuntimeControlPlaneRoute({
       routeValue: "anthropic",
       providers: PROVIDERS,
       accounts: [buildAccount("claude_code")],
@@ -172,7 +174,7 @@ describe("runtimeProviderRouting", () => {
   });
 
   it("keeps explicit provider routes blocked when credentials are missing", () => {
-    const route = resolveExplicitRuntimeProviderRoute({
+    const route = resolveExplicitRuntimeControlPlaneRoute({
       routeValue: "openai",
       providers: PROVIDERS,
       accounts: [
