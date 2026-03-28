@@ -568,4 +568,46 @@ describe("buildSharedMissionControlSummary", () => {
       summary: "Apply the suggested review autofix.",
     });
   });
+
+  it("maps continuation attention to the degraded follow-up review lane", () => {
+    const summary = buildSharedMissionControlSummary(
+      createSnapshot({
+        reviewPacks: [
+          {
+            id: "review-continuation-attention",
+            runId: "run-continuation-attention",
+            taskId: "task-continuation-attention",
+            workspaceId: "workspace-1",
+            summary: "Continuation needs inspection",
+            reviewStatus: "ready",
+            evidenceState: "confirmed",
+            validationOutcome: "passed",
+            warningCount: 0,
+            warnings: [],
+            validations: [],
+            artifacts: [],
+            checksPerformed: [],
+            recommendedNextAction: "Inspect the continuation guidance.",
+            continuation: {
+              state: "attention",
+              pathKind: "review_pack",
+              source: "review_actionability",
+              summary: "Review continuation needs inspection.",
+              detail: "Open Review Pack and inspect the attention guidance before continuing.",
+              recommendedAction: "Inspect the degraded review path.",
+              sessionBoundary: "same_session",
+            },
+            createdAt: 10,
+          },
+        ],
+      }),
+      "workspace-1"
+    );
+
+    expect(summary.reviewItems[0]).toMatchObject({
+      reviewStatusLabel: "Follow-up degraded",
+      tone: "attention",
+      summary: "Open Review Pack and inspect the attention guidance before continuing.",
+    });
+  });
 });

@@ -431,7 +431,7 @@ function getBlockedFollowUpState(
   }
   if (
     reviewPack.actionability?.state === "degraded" ||
-    reviewPack.continuation?.state === "degraded"
+    reviewPack.continuation?.state === "attention"
   ) {
     return "degraded";
   }
