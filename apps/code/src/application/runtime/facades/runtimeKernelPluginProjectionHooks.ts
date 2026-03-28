@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   getKernelProjectionStore,
+  readCapabilitiesProjectionSlice,
   readExtensionsProjectionSlice,
 } from "@ku0/code-workspace-client";
 import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
@@ -28,6 +29,7 @@ export function useWorkspaceRuntimePluginProjection(input: {
     kernelProjectionStore.getSnapshot
   );
   const extensionBundles = readExtensionsProjectionSlice(kernelProjectionState);
+  const capabilityProjection = readCapabilitiesProjectionSlice(kernelProjectionState);
   const [capabilityPlugins, setCapabilityPlugins] = useState<RuntimeKernelPluginDescriptor[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function useWorkspaceRuntimePluginProjection(input: {
     if (!input.enabled || !runtimeKernel.workspaceClientRuntime.kernelProjection) {
       return;
     }
-    kernelProjectionStore.ensureScopes(["extensions"]);
+    kernelProjectionStore.ensureScopes(["extensions", "capabilities"]);
   }, [input.enabled, kernelProjectionStore, runtimeKernel.workspaceClientRuntime.kernelProjection]);
 
   useEffect(() => {
@@ -82,10 +84,11 @@ export function useWorkspaceRuntimePluginProjection(input: {
   return {
     plugins: mergeRuntimeKernelProjectionPlugins({
       extensionBundles,
+      capabilities: capabilityProjection,
       capabilityPlugins,
     }),
     loading,
     error,
-    projectionBacked: extensionBundles !== null,
+    projectionBacked: extensionBundles !== null || capabilityProjection !== null,
   };
 }

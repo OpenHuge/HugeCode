@@ -1,4 +1,5 @@
 import type {
+  KernelCapabilityDescriptor,
   LiveSkillExecuteRequest,
   LiveSkillExecutionResult,
   LiveSkillSummary,
@@ -15,6 +16,7 @@ import {
   readRuntimeExtensionHealth,
   readRuntimeExtensionResource,
 } from "../ports/runtimeExtensions";
+import { listRuntimeKernelCapabilities } from "../ports/runtimeKernelCapabilities";
 import type { RuntimeWorkspaceSkillManifest } from "./runtimeWorkspaceSkillManifests";
 import { readRuntimeWorkspaceSkillManifests } from "./runtimeWorkspaceSkillManifests";
 
@@ -63,8 +65,22 @@ export type RuntimeKernelPluginResourceAvailability = {
 
 export type RuntimeKernelPluginPermissionsAvailability = {
   evaluable: boolean;
-  mode: "runtime_extension_permissions" | "none";
+  mode:
+    | "runtime_extension_permissions"
+    | "live_skill_permissions"
+    | "repo_manifest_permissions"
+    | "none";
   reason: string | null;
+};
+
+export type RuntimeKernelPluginPermissionsResult = {
+  pluginId: string;
+  permissions: string[];
+  decision: "allow" | "ask" | "deny" | "unsupported";
+  warnings: string[];
+  authority: "runtime_extension" | "runtime_live_skill" | "repo_manifest";
+  bindingState: RuntimeKernelPluginBinding["state"];
+  evaluationMode: Exclude<RuntimeKernelPluginPermissionsAvailability["mode"], "none">;
 };
 
 export type RuntimeKernelPluginOperations = {
@@ -125,7 +141,7 @@ export type RuntimeKernelPluginPermissionsProvider = {
   evaluatePluginPermissions: (
     workspaceId: string,
     descriptor: RuntimeKernelPluginDescriptor
-  ) => Promise<RuntimeExtensionPermissionsEvaluateResponse | null>;
+  ) => Promise<RuntimeKernelPluginPermissionsResult>;
 };
 
 export type RuntimeKernelPluginCatalogFacade = {
@@ -138,9 +154,7 @@ export type RuntimeKernelPluginCatalogFacade = {
     pluginId: string,
     request: LiveSkillExecuteRequest
   ) => Promise<LiveSkillExecutionResult>;
-  evaluatePluginPermissions: (
-    pluginId: string
-  ) => Promise<RuntimeExtensionPermissionsEvaluateResponse | null>;
+  evaluatePluginPermissions: (pluginId: string) => Promise<RuntimeKernelPluginPermissionsResult>;
 };
 
 function buildRuntimeKernelPluginExecutionAvailability(input: {
@@ -165,14 +179,14 @@ function buildRuntimeKernelPluginExecutionAvailability(input: {
     return {
       executable: false,
       mode: "none",
-      reason: `Plugin \`${input.id}\` reserves a WIT/component-model host slot and is currently unbound in apps/code.`,
+      reason: `Plugin \`${input.id}\` reserves a WIT/component-model host slot and is currently unbound in the runtime host binder.`,
     };
   }
   if (input.source === "rpc_host") {
     return {
       executable: false,
       mode: "none",
-      reason: `Plugin \`${input.id}\` reserves an RPC host slot and is currently unbound in apps/code.`,
+      reason: `Plugin \`${input.id}\` reserves an RPC host slot and is currently unbound in the runtime host binder.`,
     };
   }
   return {
@@ -215,6 +229,20 @@ function buildRuntimeKernelPluginPermissionsAvailability(input: {
     return {
       evaluable: true,
       mode: "runtime_extension_permissions",
+      reason: null,
+    };
+  }
+  if (input.source === "live_skill") {
+    return {
+      evaluable: true,
+      mode: "live_skill_permissions",
+      reason: null,
+    };
+  }
+  if (input.source === "repo_manifest") {
+    return {
+      evaluable: true,
+      mode: "repo_manifest_permissions",
       reason: null,
     };
   }
@@ -268,51 +296,89 @@ export function resolveRuntimeKernelPluginPermissionsAvailability(
   return descriptor.operations.permissions;
 }
 
-function createReservedHostPluginDescriptor(
-  source: Extract<RuntimeKernelPluginSource, "wasi_host" | "rpc_host">
-): RuntimeKernelPluginDescriptor {
-  const isWasiHost = source === "wasi_host";
+function isHostPluginSource(
+  value: unknown
+): value is Extract<RuntimeKernelPluginSource, "wasi_host" | "rpc_host"> {
+  return value === "wasi_host" || value === "rpc_host";
+}
+
+function readOptionalStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+}
+
+function normalizeHostPluginDescriptor(input: {
+  source: Extract<RuntimeKernelPluginSource, "wasi_host" | "rpc_host">;
+  runtimeBacked: boolean;
+  enabled: boolean;
+  name?: string | null;
+  version?: string | null;
+  summary?: string | null;
+  bindingState?: RuntimeKernelPluginBinding["state"];
+  interfaceId?: string | null;
+  metadata?: Record<string, unknown> | null;
+  warnings?: string[];
+  health?: RuntimeKernelPluginDescriptor["health"];
+}) {
+  const isWasiHost = input.source === "wasi_host";
+  const summary =
+    input.summary ??
+    (isWasiHost
+      ? "Reserved component-model host slot for future WIT/world bindings."
+      : "Reserved remote host slot for future RPC-backed plugin bindings.");
+  const bindingState = input.bindingState ?? "unbound";
 
   return attachRuntimeKernelPluginOperations({
     id: isWasiHost ? "host:wasi" : "host:rpc",
-    name: isWasiHost ? "WASI host slot" : "RPC host slot",
-    version: "unbound",
-    summary: isWasiHost
-      ? "Reserved component-model host slot for future WIT/world bindings."
-      : "Reserved remote host slot for future RPC-backed plugin bindings.",
-    source,
-    transport: source,
+    name: input.name ?? (isWasiHost ? "WASI host slot" : "RPC host slot"),
+    version: input.version ?? (bindingState === "bound" ? "bound" : "unbound"),
+    summary,
+    source: input.source,
+    transport: input.source,
     hostProfile: {
       kind: isWasiHost ? "wasi" : "rpc",
-      executionBoundaries: [source],
+      executionBoundaries: [input.source],
     },
     workspaceId: null,
-    enabled: false,
-    runtimeBacked: false,
+    enabled: input.enabled,
+    runtimeBacked: input.runtimeBacked,
     capabilities: [],
     permissions: [],
     resources: [],
-    executionBoundaries: [source],
+    executionBoundaries: [input.source],
     binding: {
-      state: "unbound",
+      state: bindingState,
       contractFormat: isWasiHost ? "wit" : "rpc",
       contractBoundary: isWasiHost ? "world-imports" : "remote-procedure-calls",
-      interfaceId: isWasiHost ? "wasi:*/*" : "runtime.plugin.host",
+      interfaceId: input.interfaceId ?? (isWasiHost ? "wasi:*/*" : "runtime.plugin.host"),
     },
     metadata: {
-      bindingState: "unbound",
+      bindingState,
       contractFormat: isWasiHost ? "wit" : "rpc",
       contractBoundary: isWasiHost ? "world-imports" : "remote-procedure-calls",
       semverQualifiedImports: isWasiHost,
       canonicalAbiResources: isWasiHost,
       hostManaged: true,
+      ...(input.metadata ?? {}),
     },
     permissionDecision: "unsupported",
-    health: {
+    health: input.health ?? {
       state: "unsupported",
       checkedAt: null,
-      warnings: ["Host provider is not yet bound in apps/code."],
+      warnings: input.warnings ?? ["Host provider is not yet bound in apps/code."],
     },
+  });
+}
+
+function createReservedHostPluginDescriptor(
+  source: Extract<RuntimeKernelPluginSource, "wasi_host" | "rpc_host">
+): RuntimeKernelPluginDescriptor {
+  return normalizeHostPluginDescriptor({
+    source,
+    runtimeBacked: false,
+    enabled: false,
   });
 }
 
@@ -321,6 +387,74 @@ export function createReservedHostPluginDescriptors(): RuntimeKernelPluginDescri
     createReservedHostPluginDescriptor("rpc_host"),
     createReservedHostPluginDescriptor("wasi_host"),
   ];
+}
+
+function normalizeKernelCapabilityHealth(
+  capability: KernelCapabilityDescriptor
+): RuntimeKernelPluginDescriptor["health"] {
+  const warnings = readOptionalStringArray(capability.metadata?.warnings);
+  if (capability.health === "ready") {
+    return {
+      state: "healthy",
+      checkedAt: null,
+      warnings,
+    };
+  }
+  if (capability.health === "attention") {
+    return {
+      state: "degraded",
+      checkedAt: null,
+      warnings,
+    };
+  }
+  return {
+    state: "unsupported",
+    checkedAt: null,
+    warnings:
+      warnings.length > 0
+        ? warnings
+        : [
+            typeof capability.metadata?.reason === "string"
+              ? capability.metadata.reason
+              : "Runtime host binder is not currently connected.",
+          ],
+  };
+}
+
+export function normalizeRuntimeHostCapabilityPluginDescriptor(
+  capability: KernelCapabilityDescriptor
+): RuntimeKernelPluginDescriptor | null {
+  if (capability.kind !== "host") {
+    return null;
+  }
+  const source = capability.metadata?.pluginSource;
+  if (!isHostPluginSource(source)) {
+    return null;
+  }
+
+  const bindingState = capability.metadata?.bindingState;
+  const normalizedBindingState =
+    bindingState === "bound" || bindingState === "declaration_only" || bindingState === "unbound"
+      ? bindingState
+      : capability.enabled
+        ? "bound"
+        : "unbound";
+  const interfaceId =
+    typeof capability.metadata?.interfaceId === "string" ? capability.metadata.interfaceId : null;
+
+  return normalizeHostPluginDescriptor({
+    source,
+    runtimeBacked: true,
+    enabled: capability.enabled,
+    name: capability.name,
+    version: normalizedBindingState === "bound" ? "bound" : "unbound",
+    summary: typeof capability.metadata?.summary === "string" ? capability.metadata.summary : null,
+    bindingState: normalizedBindingState,
+    interfaceId,
+    metadata: capability.metadata ?? null,
+    warnings: readOptionalStringArray(capability.metadata?.warnings),
+    health: normalizeKernelCapabilityHealth(capability),
+  });
 }
 
 function normalizeCapabilityIds(capabilities: string[]): RuntimeKernelPluginCapabilityDescriptor[] {
@@ -384,6 +518,7 @@ export function normalizeRuntimeExtensionPluginDescriptor(
 export function normalizeLiveSkillPluginDescriptor(
   skill: LiveSkillSummary
 ): RuntimeKernelPluginDescriptor {
+  const normalizedPermissions = skill.permissions ?? (skill.supportsNetwork ? ["network"] : []);
   return attachRuntimeKernelPluginOperations({
     id: skill.id,
     name: skill.name,
@@ -399,7 +534,7 @@ export function normalizeLiveSkillPluginDescriptor(
     enabled: skill.enabled,
     runtimeBacked: true,
     capabilities: normalizeCapabilityIds(skill.tags),
-    permissions: skill.supportsNetwork ? ["network"] : [],
+    permissions: normalizedPermissions,
     resources: [],
     executionBoundaries: ["runtime"],
     binding: {
@@ -412,8 +547,9 @@ export function normalizeLiveSkillPluginDescriptor(
       source: skill.source,
       kind: skill.kind,
       aliases: skill.aliases ?? [],
+      permissionAuthority: "runtime_live_skill",
     },
-    permissionDecision: null,
+    permissionDecision: skill.enabled ? "allow" : "deny",
     health: {
       state: "healthy",
       checkedAt: null,
@@ -454,8 +590,9 @@ export function normalizeRepoManifestPluginDescriptor(
       entrypoint: manifest.entrypoint,
       compatibility: manifest.compatibility,
       manifestPath: manifest.manifestPath,
+      permissionAuthority: "repo_manifest",
     },
-    permissionDecision: "unsupported",
+    permissionDecision: manifest.permissions.length > 0 ? "ask" : "allow",
     health: {
       state: "unsupported",
       checkedAt: null,
@@ -532,6 +669,19 @@ async function listLiveSkillPluginDescriptors(): Promise<RuntimeKernelPluginDesc
   return liveSkills.map((skill) => normalizeLiveSkillPluginDescriptor(skill));
 }
 
+async function listRuntimeHostCapabilityPluginDescriptors(): Promise<
+  RuntimeKernelPluginDescriptor[]
+> {
+  try {
+    const capabilities = await listRuntimeKernelCapabilities();
+    return capabilities
+      .map((capability) => normalizeRuntimeHostCapabilityPluginDescriptor(capability))
+      .filter((descriptor): descriptor is RuntimeKernelPluginDescriptor => descriptor !== null);
+  } catch {
+    return [];
+  }
+}
+
 async function listRepoManifestPluginDescriptors(
   workspaceId: string
 ): Promise<RuntimeKernelPluginDescriptor[]> {
@@ -541,13 +691,15 @@ async function listRepoManifestPluginDescriptors(
 
 export function createRuntimeKernelPluginCatalogProvider(): RuntimeKernelPluginCatalogProvider {
   return {
-    listPluginDescriptors: async (workspaceId) =>
-      mergeRuntimeKernelPluginDescriptors([
-        ...createReservedHostPluginDescriptors(),
+    listPluginDescriptors: async (workspaceId) => {
+      const hostDescriptors = await listRuntimeHostCapabilityPluginDescriptors();
+      return mergeRuntimeKernelPluginDescriptors([
+        ...(hostDescriptors.length > 0 ? hostDescriptors : createReservedHostPluginDescriptors()),
         ...(await listRepoManifestPluginDescriptors(workspaceId)),
         ...(await listLiveSkillPluginDescriptors()),
         ...(await listRuntimeExtensionPluginDescriptors(workspaceId)),
-      ]),
+      ]);
+    },
   };
 }
 
@@ -608,16 +760,50 @@ export function createRuntimeKernelPluginPermissionsProvider(): RuntimeKernelPlu
   return {
     evaluatePluginPermissions: async (workspaceId, descriptor) => {
       const availability = resolveRuntimeKernelPluginPermissionsAvailability(descriptor);
-      if (availability.mode !== "runtime_extension_permissions") {
-        throw new Error(
-          availability.reason ??
-            `Plugin \`${descriptor.id}\` does not publish runtime-evaluable permission state.`
-        );
+      if (availability.mode === "runtime_extension_permissions") {
+        const permissionResult = await evaluateRuntimeExtensionPermissions({
+          workspaceId,
+          extensionId: descriptor.id,
+        });
+        return {
+          pluginId: descriptor.id,
+          permissions: permissionResult.permissions,
+          decision: permissionResult.decision,
+          warnings: permissionResult.warnings,
+          authority: "runtime_extension",
+          bindingState: descriptor.binding.state,
+          evaluationMode: availability.mode,
+        };
       }
-      return evaluateRuntimeExtensionPermissions({
-        workspaceId,
-        extensionId: descriptor.id,
-      });
+      if (availability.mode === "live_skill_permissions") {
+        return {
+          pluginId: descriptor.id,
+          permissions: descriptor.permissions,
+          decision: descriptor.enabled ? "allow" : "deny",
+          warnings: descriptor.enabled ? [] : ["Live skill is currently disabled in the runtime."],
+          authority: "runtime_live_skill",
+          bindingState: descriptor.binding.state,
+          evaluationMode: availability.mode,
+        };
+      }
+      if (availability.mode === "repo_manifest_permissions") {
+        return {
+          pluginId: descriptor.id,
+          permissions: descriptor.permissions,
+          decision: descriptor.permissions.length > 0 ? "ask" : "allow",
+          warnings:
+            descriptor.permissions.length > 0
+              ? ["Permissions are repository-declared and require a bound runtime host."]
+              : [],
+          authority: "repo_manifest",
+          bindingState: descriptor.binding.state,
+          evaluationMode: availability.mode,
+        };
+      }
+      throw new Error(
+        availability.reason ??
+          `Plugin \`${descriptor.id}\` does not publish runtime-evaluable permission state.`
+      );
     },
   };
 }

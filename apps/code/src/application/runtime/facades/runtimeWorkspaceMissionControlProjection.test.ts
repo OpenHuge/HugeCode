@@ -319,7 +319,7 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
             enabled: true,
             runtimeBacked: true,
             capabilities: [],
-            permissions: [],
+            permissions: ["network"],
             resources: [],
             executionBoundaries: ["runtime"],
             binding: {
@@ -341,13 +341,13 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
                   "Plugin `skill-1` does not expose readable resources through the runtime kernel.",
               },
               permissions: {
-                evaluable: false,
-                mode: "none",
-                reason: "Plugin `skill-1` does not publish runtime-evaluable permission state.",
+                evaluable: true,
+                mode: "live_skill_permissions",
+                reason: null,
               },
             },
             metadata: null,
-            permissionDecision: null,
+            permissionDecision: "allow",
             health: {
               state: "degraded",
               checkedAt: 2,
@@ -369,7 +369,7 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
             enabled: true,
             runtimeBacked: false,
             capabilities: [],
-            permissions: [],
+            permissions: ["workspace:read"],
             resources: [],
             executionBoundaries: ["repository"],
             binding: {
@@ -391,14 +391,13 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
                 reason: null,
               },
               permissions: {
-                evaluable: false,
-                mode: "none",
-                reason:
-                  "Plugin `repo-manifest-1` does not publish runtime-evaluable permission state.",
+                evaluable: true,
+                mode: "repo_manifest_permissions",
+                reason: null,
               },
             },
             metadata: null,
-            permissionDecision: "unsupported",
+            permissionDecision: "ask",
             health: {
               state: "unsupported",
               checkedAt: null,
@@ -418,7 +417,7 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       executableCount: 1,
       nonExecutableCount: 2,
       readableResourceCount: 2,
-      permissionEvaluableCount: 1,
+      permissionEvaluableCount: 3,
       boundCount: 2,
       declarationOnlyCount: 1,
       unboundCount: 0,

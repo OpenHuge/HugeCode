@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { LiveSkillSummary, RuntimeExtensionRecord } from "@ku0/code-runtime-host-contract";
+import type {
+  KernelCapabilityDescriptor,
+  LiveSkillSummary,
+  RuntimeExtensionRecord,
+} from "@ku0/code-runtime-host-contract";
 
 const readRuntimeWorkspaceSkillManifestsMock = vi.hoisted(() => vi.fn());
 const readRuntimeExtensionResourceMock = vi.hoisted(() => vi.fn());
 const evaluateRuntimeExtensionPermissionsMock = vi.hoisted(() => vi.fn());
+const listRuntimeKernelCapabilitiesMock = vi.hoisted(() => vi.fn());
 const runRuntimeLiveSkillMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../ports/runtimeExtensions", () => ({
@@ -25,6 +30,10 @@ vi.mock("./runtimeWorkspaceSkillManifests", async () => {
 
 vi.mock("../ports/tauriRuntime", () => ({
   runRuntimeLiveSkill: runRuntimeLiveSkillMock,
+}));
+
+vi.mock("../ports/runtimeKernelCapabilities", () => ({
+  listRuntimeKernelCapabilities: listRuntimeKernelCapabilitiesMock,
 }));
 
 vi.mock("../ports/tauriRuntimeSkills", () => ({
@@ -68,7 +77,39 @@ function createLiveSkillSummary(overrides: Partial<LiveSkillSummary> = {}): Live
     version: "1.0.0",
     enabled: true,
     supportsNetwork: false,
+    permissions: [],
     tags: ["review"],
+    ...overrides,
+  };
+}
+
+function createHostCapabilityDescriptor(
+  overrides: Partial<KernelCapabilityDescriptor> = {}
+): KernelCapabilityDescriptor {
+  return {
+    id: "host:wasi",
+    name: "WASI host binder",
+    kind: "host",
+    enabled: false,
+    health: "blocked",
+    executionProfile: {
+      placement: "local",
+      interactivity: "background",
+      isolation: "host",
+      network: "restricted",
+      authority: "service",
+    },
+    tags: ["component-model", "wit", "host"],
+    metadata: {
+      pluginSource: "wasi_host",
+      bindingState: "unbound",
+      contractFormat: "wit",
+      contractBoundary: "world-imports",
+      interfaceId: "wasi:*/*",
+      summary:
+        "Runtime-published component-model host slot reserved for future WIT/world bindings.",
+      reason: "Runtime host binder is not currently connected.",
+    },
     ...overrides,
   };
 }
@@ -78,6 +119,7 @@ describe("runtimeKernelPlugins", () => {
     readRuntimeWorkspaceSkillManifestsMock.mockReset();
     readRuntimeExtensionResourceMock.mockReset();
     evaluateRuntimeExtensionPermissionsMock.mockReset();
+    listRuntimeKernelCapabilitiesMock.mockReset();
     runRuntimeLiveSkillMock.mockReset();
   });
 
@@ -118,6 +160,7 @@ describe("runtimeKernelPlugins", () => {
       source: "live_skill",
       transport: "live_skill",
       runtimeBacked: true,
+      permissions: [],
       executionBoundaries: expect.arrayContaining(["runtime"]),
       binding: expect.objectContaining({
         state: "bound",
@@ -224,6 +267,29 @@ describe("runtimeKernelPlugins", () => {
     ]);
   });
 
+  it("normalizes runtime host capabilities into runtime-backed host descriptors", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+
+    expect(
+      plugins.normalizeRuntimeHostCapabilityPluginDescriptor(createHostCapabilityDescriptor())
+    ).toMatchObject({
+      id: "host:wasi",
+      source: "wasi_host",
+      runtimeBacked: true,
+      enabled: false,
+      binding: {
+        state: "unbound",
+        contractFormat: "wit",
+        contractBoundary: "world-imports",
+        interfaceId: "wasi:*/*",
+      },
+      health: {
+        state: "unsupported",
+        warnings: ["Runtime host binder is not currently connected."],
+      },
+    });
+  });
+
   it("distinguishes binding state from execution availability", async () => {
     const plugins = await import("./runtimeKernelPlugins");
 
@@ -292,8 +358,8 @@ describe("runtimeKernelPlugins", () => {
         plugins.normalizeLiveSkillPluginDescriptor(createLiveSkillSummary())
       )
     ).toMatchObject({
-      evaluable: false,
-      mode: "none",
+      evaluable: true,
+      mode: "live_skill_permissions",
     });
   });
 
@@ -311,14 +377,14 @@ describe("runtimeKernelPlugins", () => {
         skillId: "host:wasi",
         input: "",
       })
-    ).rejects.toThrow("currently unbound in apps/code");
+    ).rejects.toThrow("currently unbound in the runtime host binder");
 
     await expect(
       facade.executePlugin("host:rpc", {
         skillId: "host:rpc",
         input: "",
       })
-    ).rejects.toThrow("currently unbound in apps/code");
+    ).rejects.toThrow("currently unbound in the runtime host binder");
   });
 
   it("returns explicit non-executable errors for bound runtime extensions", async () => {
@@ -424,5 +490,53 @@ describe("runtimeKernelPlugins", () => {
     await expect(facade.evaluatePluginPermissions(hostDescriptor.id)).rejects.toThrow(
       "does not publish runtime-evaluable permission state"
     );
+  });
+
+  it("evaluates live-skill and repo-manifest permissions through plugin-specific truth", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+    const liveSkillDescriptor = plugins.normalizeLiveSkillPluginDescriptor(
+      createLiveSkillSummary({
+        permissions: ["network", "workspace:read"],
+      })
+    );
+    const repoManifestDescriptor = plugins.normalizeRepoManifestPluginDescriptor({
+      id: "review-manifest",
+      name: "Review Manifest",
+      version: "1.0.0",
+      kind: "skill",
+      trustLevel: "local",
+      entrypoint: "review-manifest",
+      permissions: ["workspace:read"],
+      compatibility: {
+        minRuntime: "1.0.0",
+        maxRuntime: null,
+        minApp: "1.0.0",
+        maxApp: null,
+      },
+      manifestPath: ".hugecode/skills/review-manifest/manifest.json",
+    });
+    const facade = plugins.createRuntimeKernelPluginCatalogFacade({
+      workspaceId: "ws-1",
+      catalogProvider: {
+        listPluginDescriptors: async () => [liveSkillDescriptor, repoManifestDescriptor],
+      },
+    });
+
+    await expect(facade.evaluatePluginPermissions(liveSkillDescriptor.id)).resolves.toMatchObject({
+      pluginId: liveSkillDescriptor.id,
+      permissions: ["network", "workspace:read"],
+      decision: "allow",
+      authority: "runtime_live_skill",
+      evaluationMode: "live_skill_permissions",
+    });
+    await expect(
+      facade.evaluatePluginPermissions(repoManifestDescriptor.id)
+    ).resolves.toMatchObject({
+      pluginId: repoManifestDescriptor.id,
+      permissions: ["workspace:read"],
+      decision: "ask",
+      authority: "repo_manifest",
+      evaluationMode: "repo_manifest_permissions",
+    });
   });
 });

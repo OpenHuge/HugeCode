@@ -2800,6 +2800,7 @@ export type LiveSkillSummary = {
   version: string;
   enabled: boolean;
   supportsNetwork: boolean;
+  permissions?: string[] | null;
   tags: string[];
   aliases?: string[] | null;
 };
@@ -3237,6 +3238,7 @@ export type KernelCapabilityKind =
   | "job"
   | "backend"
   | "extension"
+  | "host"
   | "skill"
   | "policy"
   | "context";

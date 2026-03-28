@@ -57,6 +57,7 @@ pub struct LiveSkillSummaryEntry {
     version: String,
     enabled: bool,
     supports_network: bool,
+    permissions: Vec<String>,
     tags: Vec<String>,
     aliases: Vec<String>,
 }

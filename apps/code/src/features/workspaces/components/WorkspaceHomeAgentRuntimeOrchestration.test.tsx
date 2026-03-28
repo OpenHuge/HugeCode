@@ -819,7 +819,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
             executable: false,
             mode: "none",
             reason:
-              "Plugin `host:wasi` reserves a WIT/component-model host slot and is currently unbound in apps/code.",
+              "Plugin `host:wasi` reserves a WIT/component-model host slot and is currently unbound in the runtime host binder.",
           },
           resources: {
             readable: false,

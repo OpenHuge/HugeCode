@@ -1,5 +1,11 @@
-import type { KernelExtensionBundle } from "@ku0/code-runtime-host-contract";
-import { type RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPlugins";
+import type {
+  KernelCapabilityDescriptor,
+  KernelExtensionBundle,
+} from "@ku0/code-runtime-host-contract";
+import {
+  normalizeRuntimeHostCapabilityPluginDescriptor,
+  type RuntimeKernelPluginDescriptor,
+} from "../kernel/runtimeKernelPlugins";
 
 function readOptionalText(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
@@ -69,12 +75,33 @@ export function normalizeKernelExtensionBundlePluginDescriptor(
 
 export function mergeRuntimeKernelProjectionPlugins(input: {
   extensionBundles: KernelExtensionBundle[] | null;
+  capabilities: KernelCapabilityDescriptor[] | null;
   capabilityPlugins: RuntimeKernelPluginDescriptor[];
 }): RuntimeKernelPluginDescriptor[] {
   const merged = new Map<string, RuntimeKernelPluginDescriptor>();
 
   for (const plugin of input.capabilityPlugins) {
     merged.set(plugin.id, plugin);
+  }
+
+  for (const capability of input.capabilities ?? []) {
+    const hostPlugin = normalizeRuntimeHostCapabilityPluginDescriptor(capability);
+    if (!hostPlugin) {
+      continue;
+    }
+    const existing = merged.get(hostPlugin.id);
+    if (!existing || !existing.runtimeBacked) {
+      merged.set(hostPlugin.id, hostPlugin);
+      continue;
+    }
+    merged.set(hostPlugin.id, {
+      ...existing,
+      ...hostPlugin,
+      metadata: {
+        ...(existing.metadata ?? {}),
+        ...(hostPlugin.metadata ?? {}),
+      },
+    });
   }
 
   for (const bundle of input.extensionBundles ?? []) {

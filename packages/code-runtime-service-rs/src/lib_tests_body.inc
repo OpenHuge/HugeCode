@@ -8807,6 +8807,7 @@ exit 1
         assert_eq!(network["source"], Value::String("builtin".to_string()));
         assert_eq!(network["enabled"], Value::Bool(true));
         assert_eq!(network["supportsNetwork"], Value::Bool(true));
+        assert_eq!(network["permissions"], json!(["network"]));
         assert!(network["tags"]
             .as_array()
             .is_some_and(|tags| tags.contains(&Value::String("analysis".to_string()))));
@@ -8824,6 +8825,7 @@ exit 1
         assert_eq!(research["source"], Value::String("builtin".to_string()));
         assert_eq!(research["enabled"], Value::Bool(true));
         assert_eq!(research["supportsNetwork"], Value::Bool(true));
+        assert_eq!(research["permissions"], json!(["network"]));
         assert!(research["tags"]
             .as_array()
             .is_some_and(|tags| tags.contains(&Value::String("research".to_string()))));
@@ -8847,11 +8849,54 @@ exit 1
             assert_eq!(core["source"], Value::String("builtin".to_string()));
             assert_eq!(core["enabled"], Value::Bool(true));
             assert_eq!(core["supportsNetwork"], Value::Bool(false));
+            assert!(core["permissions"].as_array().is_some_and(|permissions| !permissions.is_empty()));
             assert!(core["tags"]
                 .as_array()
                 .is_some_and(|tags| tags.contains(&Value::String("core".to_string()))));
             assert!(core["aliases"].as_array().is_some_and(|aliases| !aliases.is_empty()));
         }
+    }
+
+    #[tokio::test]
+    async fn kernel_capabilities_list_publishes_host_binder_slots() {
+        let app = test_router();
+        let request = Request::builder()
+            .method("POST")
+            .uri("/rpc")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{"method":"code_kernel_capabilities_list_v2","params":{}}"#,
+            ))
+            .expect("build request");
+
+        let response = app.oneshot(request).await.expect("rpc response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("read body");
+        let payload: Value = serde_json::from_slice(&bytes).expect("parse json");
+        assert_eq!(payload["ok"], Value::Bool(true));
+        let capabilities = payload["result"].as_array().expect("capabilities array");
+        let capabilities_by_id = capabilities
+            .iter()
+            .filter_map(|entry| entry["id"].as_str().map(|id| (id.to_string(), entry)))
+            .collect::<HashMap<_, _>>();
+
+        let wasi = capabilities_by_id.get("host:wasi").expect("wasi host capability");
+        assert_eq!(wasi["kind"], Value::String("host".to_string()));
+        assert_eq!(wasi["enabled"], Value::Bool(false));
+        assert_eq!(wasi["health"], Value::String("blocked".to_string()));
+        assert_eq!(wasi["metadata"]["pluginSource"], Value::String("wasi_host".to_string()));
+        assert_eq!(wasi["metadata"]["bindingState"], Value::String("unbound".to_string()));
+        assert_eq!(wasi["metadata"]["contractFormat"], Value::String("wit".to_string()));
+
+        let rpc = capabilities_by_id.get("host:rpc").expect("rpc host capability");
+        assert_eq!(rpc["kind"], Value::String("host".to_string()));
+        assert_eq!(rpc["enabled"], Value::Bool(false));
+        assert_eq!(rpc["health"], Value::String("blocked".to_string()));
+        assert_eq!(rpc["metadata"]["pluginSource"], Value::String("rpc_host".to_string()));
+        assert_eq!(rpc["metadata"]["bindingState"], Value::String("unbound".to_string()));
+        assert_eq!(rpc["metadata"]["contractFormat"], Value::String("rpc".to_string()));
     }
 
     #[tokio::test]

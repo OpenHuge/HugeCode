@@ -14,8 +14,35 @@ function createRuntimeKernelValue() {
       kernelProjection: {
         bootstrap: vi.fn(async () => ({
           revision: 1,
-          sliceRevisions: { extensions: 1 },
+          sliceRevisions: { extensions: 1, capabilities: 1 },
           slices: {
+            capabilities: [
+              {
+                id: "host:wasi",
+                name: "WASI host binder",
+                kind: "host",
+                enabled: false,
+                health: "blocked",
+                executionProfile: {
+                  placement: "local",
+                  interactivity: "background",
+                  isolation: "host",
+                  network: "restricted",
+                  authority: "service",
+                },
+                tags: ["component-model", "wit", "host"],
+                metadata: {
+                  pluginSource: "wasi_host",
+                  bindingState: "unbound",
+                  contractFormat: "wit",
+                  contractBoundary: "world-imports",
+                  interfaceId: "wasi:*/*",
+                  summary:
+                    "Runtime-published component-model host slot reserved for future WIT/world bindings.",
+                  reason: "Runtime host binder is not currently connected.",
+                },
+              },
+            ],
             extensions: [
               {
                 id: "ext-1",
@@ -125,7 +152,7 @@ describe("runtimeKernelPluginProjectionHooks", () => {
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
-      expect(result.current.plugins).toHaveLength(1);
+      expect(result.current.plugins).toHaveLength(2);
     });
 
     expect(result.current.projectionBacked).toBe(true);
@@ -139,6 +166,17 @@ describe("runtimeKernelPluginProjectionHooks", () => {
         kernelExtensionBundle: {
           toolCount: 2,
         },
+      },
+    });
+    expect(result.current.plugins[1]).toMatchObject({
+      id: "host:wasi",
+      source: "wasi_host",
+      runtimeBacked: true,
+      binding: {
+        state: "unbound",
+        contractFormat: "wit",
+        contractBoundary: "world-imports",
+        interfaceId: "wasi:*/*",
       },
     });
   });

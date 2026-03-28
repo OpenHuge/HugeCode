@@ -67,6 +67,33 @@ describe("runtimeKernelPluginProjection", () => {
           },
         },
       ],
+      capabilities: [
+        {
+          id: "host:wasi",
+          name: "WASI host binder",
+          kind: "host",
+          enabled: false,
+          health: "blocked",
+          executionProfile: {
+            placement: "local",
+            interactivity: "background",
+            isolation: "host",
+            network: "restricted",
+            authority: "service",
+          },
+          tags: ["component-model", "wit", "host"],
+          metadata: {
+            pluginSource: "wasi_host",
+            bindingState: "unbound",
+            contractFormat: "wit",
+            contractBoundary: "world-imports",
+            interfaceId: "wasi:*/*",
+            summary:
+              "Runtime-published component-model host slot reserved for future WIT/world bindings.",
+            reason: "Runtime host binder is not currently connected.",
+          },
+        },
+      ],
       capabilityPlugins: [
         {
           id: "ext-1",
@@ -139,6 +166,15 @@ describe("runtimeKernelPluginProjection", () => {
             resourceCount: 4,
             surfaces: ["mission_control"],
           }),
+        }),
+      }),
+      expect.objectContaining({
+        id: "host:wasi",
+        source: "wasi_host",
+        runtimeBacked: true,
+        binding: expect.objectContaining({
+          state: "unbound",
+          contractFormat: "wit",
         }),
       }),
     ]);
