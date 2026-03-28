@@ -15,7 +15,7 @@ import {
   runtimeToolGuardrailEvaluate,
   runtimeToolGuardrailRecordOutcome,
   runtimeToolMetricsRecord,
-} from "./tauri";
+} from "./desktopHost";
 
 type RuntimeToolMetricsRecordFn = (events: RuntimeToolExecutionEvent[]) => Promise<unknown>;
 type RuntimeToolGuardrailEvaluateFn = (

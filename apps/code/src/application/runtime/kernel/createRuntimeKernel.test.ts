@@ -141,7 +141,7 @@ vi.mock("../ports/tauriMissionControl", () => ({
   })),
 }));
 
-vi.mock("../ports/tauriAppSettings", () => ({
+vi.mock("../ports/desktopAppSettings", () => ({
   getAppSettings: vi.fn(async () => ({})),
   updateAppSettings: vi.fn(async () => ({})),
   syncRuntimeGatewayProfileFromAppSettings: vi.fn(),

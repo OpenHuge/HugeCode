@@ -4,13 +4,13 @@ import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Search from "lucide-react/dist/esm/icons/search";
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { isTauri } from "../../../application/runtime/ports/tauriCore";
-import { ask } from "../../../application/runtime/ports/tauriDialogs";
-import { LogicalPosition } from "../../../application/runtime/ports/tauriDpi";
-import { Menu, MenuItem } from "../../../application/runtime/ports/tauriMenu";
+import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { ask } from "../../../application/runtime/ports/desktopHostDialogs";
+import { LogicalPosition } from "../../../application/runtime/ports/desktopDpi";
+import { Menu, MenuItem } from "../../../application/runtime/ports/desktopMenu";
 import { openUrl, revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
-import { getCurrentWindow } from "../../../application/runtime/ports/tauriWindow";
+import { getCurrentWindow } from "../../../application/runtime/ports/desktopHostWindow";
 import type { GitHubIssue, GitHubPullRequest, GitLogEntry } from "../../../types";
 import {
   fileManagerName,

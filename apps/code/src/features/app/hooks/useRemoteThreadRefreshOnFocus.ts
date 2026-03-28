@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { getCurrentWindow } from "../../../application/runtime/ports/tauriWindow";
+import { getCurrentWindow } from "../../../application/runtime/ports/desktopHostWindow";
 import type { WorkspaceInfo } from "../../../types";
 
 export const REMOTE_THREAD_POLL_INTERVAL_MS = 12_000;

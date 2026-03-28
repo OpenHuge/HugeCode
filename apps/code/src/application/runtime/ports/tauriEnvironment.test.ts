@@ -5,7 +5,7 @@ import {
   detectTauriRuntime,
   readTauriAppVersion,
   readTauriWindowLabel,
-} from "./tauriEnvironment";
+} from "./desktopHostEnvironment";
 
 describe("tauriRuntimeEnvironment", () => {
   beforeEach(() => {

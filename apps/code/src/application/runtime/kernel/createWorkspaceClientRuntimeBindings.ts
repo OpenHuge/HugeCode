@@ -4,7 +4,7 @@ import {
   getAppSettings,
   syncRuntimeGatewayProfileFromAppSettings,
   updateAppSettings,
-} from "../ports/tauriAppSettings";
+} from "../ports/desktopAppSettings";
 import {
   applyOAuthPool,
   bindOAuthPoolAccount,

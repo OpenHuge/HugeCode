@@ -1,5 +1,5 @@
 import type { RuntimeRunStartRequest, RuntimeRunStartV2Response } from "../ports/runtimeClient";
-import { getAppSettings } from "../ports/tauriAppSettings";
+import { getAppSettings } from "../ports/desktopAppSettings";
 import { prepareRuntimeRunV2, startRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
 
 type RuntimeRunStartRequestWithRemoteSelection = RuntimeRunStartRequest;

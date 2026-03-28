@@ -87,7 +87,7 @@ describe("ui service boundary guard", () => {
   it("rejects direct desktop host adapter port imports in product code", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/about/components/AboutView.tsx",
-      'import { resolveAppVersion } from "../../../application/runtime/ports/tauriEnvironment";\n'
+      'import { resolveAppVersion } from "../../../application/runtime/ports/desktopHostEnvironment";\n'
     );
 
     expect(violations).toEqual([
@@ -139,7 +139,7 @@ describe("ui service boundary guard", () => {
   it("rejects direct account/settings legacy runtime bridge imports in production UI files", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/settings/hooks/useAppSettings.ts",
-      'import { getAppSettings } from "../../../application/runtime/ports/tauriAppSettings";\n'
+      'import { getAppSettings } from "../../../application/runtime/ports/desktopAppSettings";\n'
     );
 
     expect(violations).toEqual([
@@ -248,7 +248,7 @@ describe("ui service boundary guard", () => {
   it("rejects desktop workspace bindings that assemble runtime ports directly", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/web/createDesktopWorkspaceClientBindings.tsx",
-      'import { getAppSettings } from "../application/runtime/ports/tauriAppSettings";\n'
+      'import { getAppSettings } from "../application/runtime/ports/desktopAppSettings";\n'
     );
 
     expect(violations).toEqual([

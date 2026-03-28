@@ -1,1 +1,1 @@
-export { getOpenAppIcon, openWorkspaceIn } from "../../../services/tauriDesktopWorkspace";
+export { getOpenAppIcon, openWorkspaceIn } from "./desktopApps";

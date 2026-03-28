@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { GitLogResponse, WorkspaceSummary } from "@ku0/code-runtime-host-contract";
 import type { OpenAppTarget, GitFileDiff, GitFileStatus } from "../../../types";
 import { getRuntimeClient } from "../../../application/runtime/ports/runtimeClient";
-import { readWorkspaceFile } from "../../../application/runtime/ports/tauriFiles";
+import { readWorkspaceFile } from "../../../application/runtime/ports/desktopFiles";
 import { getGitDiffs, getGitLog, getGitStatus } from "../../../application/runtime/ports/tauriGit";
 import {
   AgentStepSummaryBlock,

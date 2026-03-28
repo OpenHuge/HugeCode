@@ -17,7 +17,7 @@ import {
   getWorkspacePromptsDir,
   listMcpServerStatus,
   setThreadName,
-} from "./tauriDesktopRpc";
+} from "./desktopHostRpc";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),

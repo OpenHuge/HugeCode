@@ -110,6 +110,13 @@ export type DesktopNotificationInput = {
   title: string;
 };
 
+export type LocalChromeDebuggerEndpointDescriptor = {
+  browserName?: string | null;
+  discoverySource: "devtools-active-port" | "remote-debugging-port";
+  httpBaseUrl?: string | null;
+  profileLabel?: string | null;
+  webSocketDebuggerUrl: string;
+};
 export type DesktopOpenDialogInput = {
   directory?: boolean;
   multiple?: boolean;
@@ -223,8 +230,17 @@ export type DesktopShellCapability = {
   revealItemInDir?: (path: string) => Promise<boolean | void> | boolean | void;
 };
 
+export type DesktopBrowserDebugCapability = {
+  listLocalChromeDebuggerEndpoints?: () =>
+    | Promise<LocalChromeDebuggerEndpointDescriptor[] | null | undefined>
+    | LocalChromeDebuggerEndpointDescriptor[]
+    | null
+    | undefined;
+};
+
 export type DesktopHostCapabilities = {
   app?: DesktopAppCapability;
+  browserDebug?: DesktopBrowserDebugCapability;
   launch?: DesktopLaunchCapability;
   updater?: DesktopUpdaterCapability;
   session?: DesktopSessionCapability;
@@ -246,6 +262,9 @@ export type DesktopHostBridgeApi = {
   app: {
     getInfo(): Promise<DesktopAppInfo | null>;
     getVersion(): Promise<string | null>;
+  };
+  browserDebug: {
+    listLocalChromeDebuggerEndpoints(): Promise<LocalChromeDebuggerEndpointDescriptor[]>;
   };
   launch: {
     consumePendingIntent(): Promise<DesktopLaunchIntent | null>;

@@ -90,7 +90,7 @@ vi.mock("../../../application/runtime/ports/tauriThreads", async () => {
   };
 });
 
-vi.mock("../../../application/runtime/ports/tauriAppSettings", () => ({
+vi.mock("../../../application/runtime/ports/desktopAppSettings", () => ({
   getAppSettings: vi.fn().mockResolvedValue({}),
   updateAppSettings: vi.fn(),
 }));

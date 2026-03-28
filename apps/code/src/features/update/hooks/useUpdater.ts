@@ -7,12 +7,12 @@ import {
   subscribeToDesktopUpdateState,
 } from "../../../application/runtime/facades/desktopHostFacade";
 import type { DesktopUpdateState } from "../../../application/runtime/ports/desktopHostBridge";
-import { relaunch } from "../../../application/runtime/ports/tauriProcess";
+import { relaunch } from "../../../application/runtime/ports/desktopProcess";
 import {
   check,
   type DownloadEvent,
   type Update,
-} from "../../../application/runtime/ports/tauriUpdater";
+} from "../../../application/runtime/ports/desktopUpdater";
 import type { DebugEntry } from "../../../types";
 import {
   buildReleaseTagUrl,

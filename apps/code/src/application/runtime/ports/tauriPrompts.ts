@@ -1,4 +1,4 @@
-export { getGlobalPromptsDir, getWorkspacePromptsDir } from "../../../services/tauriDesktopRpc";
+export { getGlobalPromptsDir, getWorkspacePromptsDir } from "../../../services/desktopHostRpc";
 export {
   createPrompt,
   deletePrompt,

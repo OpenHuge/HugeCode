@@ -1,5 +1,5 @@
 import type { AppServerEvent } from "../types";
-import { listen as listenTauriEvent } from "../application/runtime/ports/tauriEvent";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   createEventIdDeduper,
   parseWebRuntimeReplayEventId,
@@ -54,7 +54,7 @@ export async function registerRuntimeEventTauriSubscription(
   onError: (error: unknown) => void
 ): Promise<Unsubscribe | null> {
   try {
-    return await listenTauriEvent(eventName, (event) => {
+    return await listen(eventName, (event: { payload: unknown }) => {
       onPayload(event.payload);
     });
   } catch (error) {

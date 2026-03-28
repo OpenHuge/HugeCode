@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -32,8 +31,10 @@ vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   subscribeScopedRuntimeUpdatedEvents: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
-  openUrl: vi.fn(),
+const openUrlMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
+  openUrl: openUrlMock,
 }));
 
 type Handlers = Parameters<typeof useAccountSwitching>[0];
@@ -55,6 +56,7 @@ beforeEach(() => {
   runtimeUpdatedListener = null;
   latest = null;
   unlisten.mockReset();
+  openUrlMock.mockReset();
   vi.mocked(bindOAuthPoolAccount).mockReset();
   vi.mocked(subscribeAppServerEvents).mockImplementation((cb) => {
     listener = cb;
@@ -274,7 +276,7 @@ describe("useAccountSwitching", () => {
     });
 
     expect(runCodexLogin).toHaveBeenCalledWith("ws-1", { forceOAuth: true });
-    expect(openUrl).toHaveBeenCalledWith("https://example.com/auth");
+    expect(openUrlMock).toHaveBeenCalledWith("https://example.com/auth");
     expect(refreshAccountInfo).not.toHaveBeenCalled();
     expect(refreshAccountRateLimits).not.toHaveBeenCalled();
     expect(latest?.accountSwitching).toBe(true);
@@ -305,7 +307,7 @@ describe("useAccountSwitching", () => {
       loginId: "login-fallback",
       authUrl: "https://example.com/fallback-auth",
     });
-    vi.mocked(openUrl).mockRejectedValueOnce(new Error("openUrl unavailable"));
+    openUrlMock.mockRejectedValueOnce(new Error("openUrl unavailable"));
     const openSpy = vi
       .spyOn(window, "open")
       .mockReturnValue({ closed: false } as unknown as Window);
@@ -326,7 +328,7 @@ describe("useAccountSwitching", () => {
       await latest?.handleSwitchAccount();
     });
 
-    expect(openUrl).toHaveBeenCalledWith("https://example.com/fallback-auth");
+    expect(openUrlMock).toHaveBeenCalledWith("https://example.com/fallback-auth");
     expect(openSpy).toHaveBeenCalledWith(
       "https://example.com/fallback-auth",
       "_blank",
@@ -365,7 +367,7 @@ describe("useAccountSwitching", () => {
     });
 
     expect(runCodexLogin).toHaveBeenCalledWith("ws-1", { forceOAuth: true });
-    expect(openUrl).not.toHaveBeenCalled();
+    expect(openUrlMock).not.toHaveBeenCalled();
     expect(refreshAccountInfo).toHaveBeenCalledWith("ws-1");
     expect(refreshAccountRateLimits).toHaveBeenCalledWith("ws-1");
     expect(alertError).not.toHaveBeenCalled();
@@ -462,7 +464,7 @@ describe("useAccountSwitching", () => {
       await Promise.resolve();
     });
 
-    expect(openUrl).not.toHaveBeenCalled();
+    expect(openUrlMock).not.toHaveBeenCalled();
     expect(cancelCodexLogin).toHaveBeenCalledWith("ws-1");
     expect(refreshAccountInfo).not.toHaveBeenCalled();
     expect(refreshAccountRateLimits).not.toHaveBeenCalled();
@@ -494,7 +496,7 @@ describe("useAccountSwitching", () => {
 
     expect(latest?.accountSwitching).toBe(false);
     expect(alertError).not.toHaveBeenCalled();
-    expect(openUrl).not.toHaveBeenCalled();
+    expect(openUrlMock).not.toHaveBeenCalled();
     expect(cancelCodexLogin).not.toHaveBeenCalled();
 
     await act(async () => {

@@ -1,10 +1,10 @@
 import { type MouseEvent, useCallback } from "react";
-import { isTauri } from "../../../application/runtime/ports/tauriCore";
-import { LogicalPosition } from "../../../application/runtime/ports/tauriDpi";
-import { Menu, MenuItem } from "../../../application/runtime/ports/tauriMenu";
+import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { LogicalPosition } from "../../../application/runtime/ports/desktopDpi";
+import { Menu, MenuItem } from "../../../application/runtime/ports/desktopMenu";
 import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
-import { getCurrentWindow } from "../../../application/runtime/ports/tauriWindow";
+import { getCurrentWindow } from "../../../application/runtime/ports/desktopHostWindow";
 import type { WorkspaceInfo } from "../../../types";
 import { fileManagerName } from "../../../utils/platformPaths";
 

@@ -1,6 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   detectRuntimeMode,
   getRuntimeClient,
@@ -17,17 +17,18 @@ import {
   respondToServerRequest,
   respondToUserInputRequest,
   runRuntimeLiveSkill,
+  sendNotification,
   startReview,
   steerTurn,
-} from "./tauri";
-import { respondToServerRequestResult, respondToToolCallRequest } from "./tauriDesktopReview";
+} from "./desktopHost";
+import { respondToServerRequestResult, respondToToolCallRequest } from "./desktopHostReview";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
   isTauri: vi.fn(() => true),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
 }));
 
@@ -40,6 +41,31 @@ vi.mock("./runtimeClient", () => ({
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
+
+function installNotificationApiMock(config: {
+  permission: NotificationPermission;
+  requestPermissionResult?: NotificationPermission;
+}) {
+  const instances: Array<{ close: ReturnType<typeof vi.fn>; onshow: (() => void) | null }> = [];
+  const requestPermission = vi.fn(async () => config.requestPermissionResult ?? config.permission);
+
+  class MockNotification {
+    static permission = config.permission;
+    static requestPermission = requestPermission;
+    onshow: (() => void) | null = null;
+    close = vi.fn();
+
+    constructor(
+      public readonly title: string,
+      public readonly options?: NotificationOptions
+    ) {
+      instances.push(this);
+    }
+  }
+
+  vi.stubGlobal("Notification", MockNotification as unknown as typeof Notification);
+  return { instances, requestPermission };
+}
 
 describe("tauri invoke wrappers", () => {
   beforeEach(() => {
@@ -383,7 +409,6 @@ describe("tauri invoke wrappers", () => {
 
   it("rejects user input responses on the deprecated desktop compat surface", async () => {
     const invokeMock = vi.mocked(invoke);
-
     await expect(
       respondToUserInputRequest("ws-7", 202, {
         confirm_path: { answers: ["Yes"] },
@@ -394,7 +419,6 @@ describe("tauri invoke wrappers", () => {
 
   it("continues rejecting multi-answer user input responses on the deprecated compat surface", async () => {
     const invokeMock = vi.mocked(invoke);
-
     const answers = {
       confirm_path: { answers: ["Yes"] },
       notes: { answers: ["First line", "Second line"] },
@@ -408,7 +432,6 @@ describe("tauri invoke wrappers", () => {
 
   it("rejects tool-call responses on the deprecated desktop compat surface", async () => {
     const invokeMock = vi.mocked(invoke);
-
     await expect(
       respondToToolCallRequest("ws-9", 404, {
         contentItems: [{ type: "inputText", text: "Ticket resolved." }],
@@ -420,7 +443,6 @@ describe("tauri invoke wrappers", () => {
 
   it("rejects server-request result replies on the deprecated desktop compat surface", async () => {
     const invokeMock = vi.mocked(invoke);
-
     await expect(
       respondToServerRequestResult("ws-10", "refresh-77", {
         accessToken: "token-abc",
@@ -431,6 +453,47 @@ describe("tauri invoke wrappers", () => {
       "Server request result replies are unavailable in the Electron desktop host."
     );
     expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it("sends a notification without re-requesting permission when already granted", async () => {
+    const { instances, requestPermission } = installNotificationApiMock({
+      permission: "granted",
+    });
+
+    await sendNotification("Hello", "World");
+
+    expect(requestPermission).not.toHaveBeenCalled();
+    expect(instances).toHaveLength(1);
+    expect(instances[0]?.title).toBe("Hello");
+    expect(instances[0]?.options).toMatchObject({ body: "World", tag: undefined });
+  });
+
+  it("passes extra metadata when provided", async () => {
+    const { instances } = installNotificationApiMock({
+      permission: "granted",
+    });
+
+    await sendNotification("Hello", "World", {
+      extra: { kind: "thread", workspaceId: "ws-1", threadId: "t-1" },
+    });
+
+    expect(instances).toHaveLength(1);
+    expect(instances[0]?.title).toBe("Hello");
+    expect(instances[0]?.options).toMatchObject({ body: "World", tag: undefined });
+  });
+
+  it("requests permission once when needed and sends on grant", async () => {
+    const { instances, requestPermission } = installNotificationApiMock({
+      permission: "default",
+      requestPermissionResult: "granted",
+    });
+
+    await sendNotification("Grant", "Please");
+
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+    expect(instances).toHaveLength(1);
+    expect(instances[0]?.title).toBe("Grant");
+    expect(instances[0]?.options).toMatchObject({ body: "Please", tag: undefined });
   });
 
   it("prefers websocket runtime turn stream when ws transport is advertised", async () => {

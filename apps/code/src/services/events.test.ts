@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppServerEvent } from "../types";
-import { isTauri } from "../application/runtime/ports/tauriCore";
-import type { UnlistenFn } from "../application/runtime/ports/tauriEvent";
-import { listen } from "../application/runtime/ports/tauriEvent";
+import { isTauri } from "../application/runtime/ports/desktopHostCore";
+import type { UnlistenFn } from "../application/runtime/ports/desktopHostEvent";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   __resetEventSubscriptionsForTests,
   __resetRuntimeTurnContextForTests,
@@ -33,11 +33,11 @@ const RUNTIME_EVENT_V2_ENV = "VITE_RUNTIME_EVENT_STATE_MACHINE_V2";
 const ORIGINAL_EVENT_SOURCE = globalThis.EventSource;
 const ORIGINAL_WEB_SOCKET = globalThis.WebSocket;
 
-vi.mock("../application/runtime/ports/tauriEvent", () => ({
+vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
 }));
 
-vi.mock("../application/runtime/ports/tauriCore", () => ({
+vi.mock("../application/runtime/ports/desktopHostCore", () => ({
   isTauri: vi.fn(() => true),
 }));
 
@@ -137,6 +137,13 @@ describe("events subscriptions", () => {
     __resetEventSubscriptionsForTests();
     globalThis.EventSource = ORIGINAL_EVENT_SOURCE;
     globalThis.WebSocket = ORIGINAL_WEB_SOCKET;
+    (
+      window as Window & {
+        __TAURI_INTERNALS__?: unknown;
+      }
+    ).__TAURI_INTERNALS__ = {
+      invoke: vi.fn(),
+    };
   });
 
   it("delivers payloads and unsubscribes on cleanup", async () => {
@@ -178,6 +185,43 @@ describe("events subscriptions", () => {
       setTimeout(resolve, 0);
     });
     expect(unlistenRuntime).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to web runtime events when desktop event subscription is unavailable", async () => {
+    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(listen).mockRejectedValue(
+      new Error('Desktop event listener "fastcode://runtime/event" is unavailable.')
+    );
+    setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, "http://runtime.example/events");
+    globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
+
+    const onEvent = vi.fn();
+    const onError = vi.fn();
+    const cleanup = subscribeAppServerEvents(onEvent, { onError });
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+
+    expect(MockEventSource.instances).toHaveLength(1);
+    const source = MockEventSource.instances[0];
+    expect(source?.url).toBe("http://runtime.example/events");
+    expect(onError).toHaveBeenCalledTimes(1);
+
+    source?.emitMessage(
+      JSON.stringify({
+        workspace_id: "ws-fallback",
+        message: { method: "ping" },
+      })
+    );
+
+    expect(onEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspace_id: "ws-fallback",
+        message: expect.objectContaining({ method: "ping" }),
+      })
+    );
+
+    cleanup();
   });
 
   it("cleans up listeners that resolve after unsubscribe", async () => {

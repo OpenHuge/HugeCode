@@ -1,13 +1,13 @@
 import type { MouseEvent } from "react";
 import { useCallback } from "react";
-import { isTauri } from "../../../application/runtime/ports/tauriCore";
-import { LogicalPosition } from "../../../application/runtime/ports/tauriDpi";
+import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { LogicalPosition } from "../../../application/runtime/ports/desktopDpi";
 import { logger } from "../../../application/runtime/ports/logger";
-import { Menu, MenuItem, PredefinedMenuItem } from "../../../application/runtime/ports/tauriMenu";
+import { Menu, MenuItem, PredefinedMenuItem } from "../../../application/runtime/ports/desktopMenu";
 import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
-import { openWorkspaceIn } from "../../../application/runtime/ports/tauriApps";
+import { openWorkspaceIn } from "../../../application/runtime/ports/desktopApps";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
-import { getCurrentWindow } from "../../../application/runtime/ports/tauriWindow";
+import { getCurrentWindow } from "../../../application/runtime/ports/desktopHostWindow";
 import type { OpenAppTarget } from "../../../types";
 import {
   isAbsolutePath,

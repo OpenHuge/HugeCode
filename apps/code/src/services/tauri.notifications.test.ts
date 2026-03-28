@@ -1,6 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   detectRuntimeMode,
   getRuntimeClient,
@@ -10,14 +10,14 @@ import {
   __resetLocalUsageSnapshotCacheForTests,
   __resetWebRuntimeOauthFallbackStateForTests,
   sendNotification,
-} from "./tauri";
+} from "./desktopHost";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
   isTauri: vi.fn(() => true),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
 }));
 
@@ -30,6 +30,35 @@ vi.mock("./runtimeClient", () => ({
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
+
+function installNotificationApiMock(config: {
+  permission: NotificationPermission;
+  requestPermissionResult?: NotificationPermission;
+  throwOnConstruct?: boolean;
+}) {
+  const instances: Array<{ close: ReturnType<typeof vi.fn>; onshow: (() => void) | null }> = [];
+  const requestPermission = vi.fn(async () => config.requestPermissionResult ?? config.permission);
+
+  class MockNotification {
+    static permission = config.permission;
+    static requestPermission = requestPermission;
+    onshow: (() => void) | null = null;
+    close = vi.fn();
+
+    constructor(
+      public readonly title: string,
+      public readonly options?: NotificationOptions
+    ) {
+      if (config.throwOnConstruct) {
+        throw new Error("boom");
+      }
+      instances.push(this);
+    }
+  }
+
+  vi.stubGlobal("Notification", MockNotification as unknown as typeof Notification);
+  return { instances, requestPermission };
+}
 
 describe("tauri invoke wrappers", () => {
   beforeEach(() => {
@@ -401,6 +430,23 @@ describe("tauri invoke wrappers", () => {
     ]);
   });
 
+  it("falls back when the browser Notification API throws", async () => {
+    installNotificationApiMock({
+      permission: "granted",
+      throwOnConstruct: true,
+    });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
+      // noop
+    });
+
+    await sendNotification("Plugin", "Failed");
+
+    expect(warnSpy).toHaveBeenCalledWith("Notification delivery failed.", {
+      error: expect.any(Error),
+    });
+    warnSpy.mockRestore();
+  });
+
   it("uses the desktop host notification bridge before the browser Notification API", async () => {
     const showMock = vi.fn().mockResolvedValue(true);
     const requestPermissionMock = vi.fn();
@@ -437,5 +483,13 @@ describe("tauri invoke wrappers", () => {
     });
     expect(requestPermissionMock).not.toHaveBeenCalled();
     expect(notificationInstances).toHaveLength(0);
+  });
+
+  it("returns early when the browser Notification API is unavailable", async () => {
+    vi.stubGlobal("Notification", undefined);
+
+    await sendNotification("Dev", "Fallback");
+
+    expect(vi.mocked(invoke)).not.toHaveBeenCalledWith("is_macos_debug_build");
   });
 });

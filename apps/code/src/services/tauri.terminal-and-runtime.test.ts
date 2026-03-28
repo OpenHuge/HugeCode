@@ -72,7 +72,7 @@ import {
   writeRuntimeTerminalSession,
   writeTerminalSession,
   writeTerminalSessionRaw,
-} from "./tauri";
+} from "./desktopHost";
 import {
   cancelRuntimeRun,
   getRuntimeRunV2,
