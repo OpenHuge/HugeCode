@@ -1,4 +1,4 @@
-import { interveneRuntimeJob } from "../ports/tauriRuntimeJobs";
+import { interveneRuntimeRun } from "../ports/tauriRuntimeJobs";
 
 export async function retryDistributedTaskGraphNode(nodeId: string) {
   const runId = nodeId.trim();
@@ -6,7 +6,7 @@ export async function retryDistributedTaskGraphNode(nodeId: string) {
     throw new Error("Distributed task graph retry requires a node id.");
   }
 
-  return interveneRuntimeJob({
+  return interveneRuntimeRun({
     runId,
     action: "retry",
     reason: "ui:distributed_control_retry",

@@ -4,7 +4,7 @@ import { CODE_RUNTIME_RPC_METHODS } from "@ku0/code-runtime-host-contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { distributedTaskGraph } from "../../../application/runtime/ports/tauriThreads";
 import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/tauriRuntime";
-import { cancelRuntimeJob } from "../../../application/runtime/ports/tauriRuntimeJobs";
+import { cancelRuntimeRun } from "../../../application/runtime/ports/tauriRuntimeJobs";
 import { PlanPanel } from "./PlanPanel";
 
 vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
@@ -16,7 +16,7 @@ vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
-  cancelRuntimeJob: vi.fn(),
+  cancelRuntimeRun: vi.fn(),
 }));
 
 vi.mock("../../../application/runtime/ports/desktopAppSettings", () => ({
@@ -60,7 +60,7 @@ vi.mock("./DistributedTaskGraphPanel", () => ({
 
 const getRuntimeCapabilitiesSummaryMock = vi.mocked(getRuntimeCapabilitiesSummary);
 const distributedTaskGraphMock = vi.mocked(distributedTaskGraph);
-const cancelRuntimeJobMock = vi.mocked(cancelRuntimeJob);
+const cancelRuntimeRunMock = vi.mocked(cancelRuntimeRun);
 
 describe("PlanPanel", () => {
   afterEach(() => {
@@ -77,7 +77,7 @@ describe("PlanPanel", () => {
       error: null,
     });
     distributedTaskGraphMock.mockResolvedValue(null);
-    cancelRuntimeJobMock.mockResolvedValue({
+    cancelRuntimeRunMock.mockResolvedValue({
       accepted: true,
       runId: "task-node-1",
       status: "interrupted",
@@ -239,7 +239,7 @@ describe("PlanPanel", () => {
       mode: "tauri",
       methods: [
         CODE_RUNTIME_RPC_METHODS.DISTRIBUTED_TASK_GRAPH,
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3,
+        CODE_RUNTIME_RPC_METHODS.RUN_CANCEL_V2,
       ],
       features: ["distributed_subtask_graph_v1"],
       wsEndpointPath: null,
@@ -268,7 +268,7 @@ describe("PlanPanel", () => {
     fireEvent.click(screen.getByText("interrupt-node-1"));
 
     await waitFor(() => {
-      expect(cancelRuntimeJobMock).toHaveBeenCalledWith({
+      expect(cancelRuntimeRunMock).toHaveBeenCalledWith({
         runId: "task-node-1",
         reason: "ui:distributed_control_interrupt",
       });
@@ -280,7 +280,7 @@ describe("PlanPanel", () => {
       mode: "tauri",
       methods: [
         CODE_RUNTIME_RPC_METHODS.DISTRIBUTED_TASK_GRAPH,
-        CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_INTERVENE_V3,
+        CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2,
       ],
       features: ["distributed_subtask_graph_v1"],
       wsEndpointPath: null,

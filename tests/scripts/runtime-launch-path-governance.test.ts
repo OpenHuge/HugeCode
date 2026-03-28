@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   CODE_RUNTIME_CANONICAL_MISSION_LAUNCH_METHODS,
-  CODE_RUNTIME_RETIRE_ONLY_PRODUCT_LAUNCH_METHODS,
+  CODE_RUNTIME_RPC_METHOD_LIST,
 } from "../../packages/code-runtime-host-contract/src/codeRuntimeRpc";
 import { describe, expect, it } from "vitest";
 
@@ -54,7 +54,10 @@ describe("runtime launch path governance", () => {
       "code_runtime_run_prepare_v2",
       "code_runtime_run_start_v2",
     ]);
-    expect(CODE_RUNTIME_RETIRE_ONLY_PRODUCT_LAUNCH_METHODS).toContain("code_kernel_job_start_v3");
+    expect(CODE_RUNTIME_RPC_METHOD_LIST).toContain("code_runtime_run_cancel_v2");
+    expect(CODE_RUNTIME_RPC_METHOD_LIST).not.toContain("code_runtime_run_start");
+    expect(CODE_RUNTIME_RPC_METHOD_LIST).not.toContain("code_runtime_run_cancel");
+    expect(CODE_RUNTIME_RPC_METHOD_LIST).not.toContain("code_kernel_job_start_v3");
   });
 
   it("keeps PlanPanel observe/interrupt only and out of direct relaunch flow", () => {
@@ -84,16 +87,19 @@ describe("runtime launch path governance", () => {
     expect(source).not.toMatch(/kernelJobStartV3/);
   });
 
-  it("does not re-export direct legacy job launch through the app runtime port", () => {
+  it("does not re-export legacy job control through the app runtime port", () => {
     const source = readFileSync(
       path.resolve(repoRoot, "apps/code/src/application/runtime/ports/tauriRuntimeJobs.ts"),
       "utf8"
     );
 
-    expect(source).not.toMatch(/\bstartRuntimeJob\b/);
-    expect(source).not.toMatch(/\bgetRuntimeJob\b/);
-    expect(source).not.toMatch(/\bKernelJobStartRequestV3\b/);
-    expect(source).not.toMatch(/\bKernelJobGetRequestV3\b/);
+    expect(source).not.toMatch(/\bRuntimeJobInterventionAck\b/);
+    expect(source).not.toMatch(/\bcancelRuntimeJob\b/);
+    expect(source).not.toMatch(/\bresumeRuntimeJob\b/);
+    expect(source).not.toMatch(/\binterveneRuntimeJob\b/);
+    expect(source).not.toMatch(/\bsubscribeRuntimeJob\b/);
+    expect(source).not.toMatch(/\blistRuntimeJobs\b/);
+    expect(source).not.toMatch(/\bKernelJob[A-Za-z]+V3\b/);
   });
 
   it("rejects non-canonical product launch entry points in product-facing sources", () => {

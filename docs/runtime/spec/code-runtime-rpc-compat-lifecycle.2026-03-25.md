@@ -166,21 +166,13 @@
 - `rootTaskId`
 - `parentTaskId`
 - `childTaskIds`
-- `missionLinkage`
-- `reviewActionability`
-- `sessionBoundary`
-- `continuation`
-- `nextOperatorAction`
 - `reviewGate`
 - `reviewFindings`
 - `reviewRunId`
 - `skillUsage`
 - `autofixCandidate`
-- `takeoverBundle`
 - `executionGraph`
 - `distributedStatus`
-- `runSummary`
-- `reviewPackSummary`
 - `fromTaskId`
 - `toTaskId`
 - `requiresApproval`
@@ -220,6 +212,13 @@ These aliases are still generated but should not gain new callers.
 
 ## Removable Now
 
-- None
+- `missionLinkage`
+- `reviewActionability`
+- `sessionBoundary`
+- `continuation`
+- `nextOperatorAction`
+- `takeoverBundle`
+- `runSummary`
+- `reviewPackSummary`
 
 These entries are compatibility no-ops or fully superseded. Keep them visible until the next explicit compat prune window, then delete them from the TS registry and regenerate artifacts.

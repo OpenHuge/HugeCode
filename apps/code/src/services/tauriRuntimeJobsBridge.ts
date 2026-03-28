@@ -1,97 +1,24 @@
-import {
-  type AccessMode,
-  type AgentTaskExecutionMode,
-  type AgentTaskExecutionProfile,
-  type AgentTaskInterventionAction,
-  type AgentTaskRelaunchContext,
-  type AgentTaskStatus,
-  type KernelJob,
-  type KernelJobCallbackRegistrationAckV3,
-  type KernelJobCallbackRegistrationV3,
-  type KernelJobCallbackRemoveAckV3,
-  type KernelJobCallbackRemoveRequestV3,
-  type KernelJobGetRequestV3,
-  type KernelJobInterventionRequestV3 as KernelJobInterventionRpcRequestV3,
-  type KernelJobResumeRequestV3,
-  type KernelJobsListRequest,
-  type KernelJobStartRequestV3,
-  type KernelJobSubscribeRequestV3,
-  type ModelProvider,
-  type RuntimeRunPrepareV2Request,
-  type RuntimeRunPrepareV2Response,
-  type RuntimeRunGetV2Request,
-  type RuntimeRunGetV2Response,
-  type RuntimeRunSubscribeV2Response,
-  type RuntimeRunStartRequest,
-  type RuntimeRunStartV2Response,
-  type RuntimeReviewGetV2Request,
-  type RuntimeReviewGetV2Response,
+import type {
+  RuntimeRunCancelRequest,
+  RuntimeRunCancelV2Response,
+  RuntimeRunCheckpointApprovalAck,
+  RuntimeRunCheckpointApprovalRequest,
+  RuntimeRunGetV2Request,
+  RuntimeRunGetV2Response,
+  RuntimeRunInterventionRequest,
+  RuntimeRunInterventionV2Response,
+  RuntimeRunPrepareV2Request,
+  RuntimeRunPrepareV2Response,
+  RuntimeRunResumeRequest,
+  RuntimeRunResumeV2Response,
+  RuntimeRunSubscribeRequest,
+  RuntimeRunSubscribeV2Response,
+  RuntimeRunStartRequest,
+  RuntimeRunStartV2Response,
+  RuntimeReviewGetV2Request,
+  RuntimeReviewGetV2Response,
 } from "@ku0/code-runtime-host-contract";
-import {
-  getRuntimeClient,
-  type RuntimeRunCancelAck,
-  type RuntimeRunCancelRequest,
-  type RuntimeRunCheckpointApprovalAck,
-  type RuntimeRunCheckpointApprovalRequest,
-  type RuntimeRunResumeAck,
-} from "./runtimeClient";
-
-export type RuntimeJobInterventionRequest = {
-  runId: string;
-  action: AgentTaskInterventionAction;
-  reason?: string | null;
-  instructionPatch?: string | null;
-  executionProfileId?: string | null;
-  reviewProfileId?: string | null;
-  executionProfile?: AgentTaskExecutionProfile | null;
-  accessMode?: AccessMode | null;
-  executionMode?: AgentTaskExecutionMode | null;
-  provider?: ModelProvider | null;
-  modelId?: string | null;
-  preferredBackendIds?: string[] | null;
-  relaunchContext?: AgentTaskRelaunchContext | null;
-};
-
-type RuntimeJobInterventionOutcome =
-  | "submitted"
-  | "spawned"
-  | "completed"
-  | "blocked"
-  | "unsupported"
-  | "unavailable";
-
-export type RuntimeJobInterventionAck = {
-  accepted: boolean;
-  action: AgentTaskInterventionAction;
-  runId: string;
-  status: AgentTaskStatus;
-  outcome: RuntimeJobInterventionOutcome;
-  spawnedRunId?: string | null;
-  checkpointId?: string | null;
-};
-
-function toRuntimeJobInterventionOutcome(
-  outcome: string | null | undefined,
-  accepted: boolean,
-  spawnedRunId?: string | null
-): RuntimeJobInterventionOutcome {
-  switch (outcome) {
-    case "submitted":
-    case "spawned":
-    case "completed":
-    case "blocked":
-    case "unsupported":
-    case "unavailable":
-      return outcome;
-    default:
-      return accepted ? (spawnedRunId ? "spawned" : "submitted") : "blocked";
-  }
-}
-
-// Compat-only: product launches must call prepare/start v2 instead.
-export async function startRuntimeJob(request: KernelJobStartRequestV3): Promise<KernelJob> {
-  return getRuntimeClient().kernelJobStartV3(request);
-}
+import { getRuntimeClient } from "./runtimeClient";
 
 export async function prepareRuntimeRunV2(
   request: RuntimeRunPrepareV2Request
@@ -112,7 +39,7 @@ export async function getRuntimeRunV2(
 }
 
 export async function subscribeRuntimeRunV2(
-  request: RuntimeRunGetV2Request
+  request: RuntimeRunSubscribeRequest
 ): Promise<RuntimeRunSubscribeV2Response> {
   return getRuntimeClient().runtimeRunSubscribeV2(request);
 }
@@ -123,71 +50,26 @@ export async function getRuntimeReviewV2(
   return getRuntimeClient().runtimeReviewGetV2(request);
 }
 
-export async function getRuntimeJob(request: KernelJobGetRequestV3): Promise<KernelJob | null> {
-  return getRuntimeClient().kernelJobGetV3(request);
-}
-
-export async function cancelRuntimeJob(
+export async function cancelRuntimeRun(
   request: RuntimeRunCancelRequest
-): Promise<RuntimeRunCancelAck> {
-  return getRuntimeClient().kernelJobCancelV3(request);
+): Promise<RuntimeRunCancelV2Response> {
+  return getRuntimeClient().runtimeRunCancelV2(request);
 }
 
-export async function interveneRuntimeJob(
-  request: RuntimeJobInterventionRequest
-): Promise<RuntimeJobInterventionAck> {
-  const ack = await getRuntimeClient().kernelJobInterveneV3({
-    runId: request.runId,
-    action: request.action,
-    reason: request.reason ?? null,
-    instructionPatch: request.instructionPatch ?? null,
-    executionProfileId: request.executionProfileId ?? null,
-    reviewProfileId: request.reviewProfileId ?? null,
-    preferredBackendIds: request.preferredBackendIds ?? null,
-    relaunchContext: request.relaunchContext ?? null,
-  } satisfies KernelJobInterventionRpcRequestV3);
-
-  return {
-    accepted: ack.accepted,
-    action: ack.action,
-    runId: ack.runId,
-    status: ack.status,
-    outcome: toRuntimeJobInterventionOutcome(ack.outcome, ack.accepted, ack.spawnedRunId),
-    spawnedRunId: ack.spawnedRunId ?? null,
-    checkpointId: ack.checkpointId ?? null,
-  } satisfies RuntimeJobInterventionAck;
+export async function interveneRuntimeRun(
+  request: RuntimeRunInterventionRequest
+): Promise<RuntimeRunInterventionV2Response> {
+  return getRuntimeClient().runtimeRunInterveneV2(request);
 }
 
-export async function resumeRuntimeJob(
-  request: KernelJobResumeRequestV3
-): Promise<RuntimeRunResumeAck> {
-  return getRuntimeClient().kernelJobResumeV3(request);
-}
-
-export async function subscribeRuntimeJob(
-  request: KernelJobSubscribeRequestV3
-): Promise<KernelJob | null> {
-  return getRuntimeClient().kernelJobSubscribeV3(request);
-}
-
-export async function listRuntimeJobs(request: KernelJobsListRequest): Promise<KernelJob[]> {
-  return getRuntimeClient().kernelJobsListV2(request);
+export async function resumeRuntimeRun(
+  request: RuntimeRunResumeRequest
+): Promise<RuntimeRunResumeV2Response> {
+  return getRuntimeClient().runtimeRunResumeV2(request);
 }
 
 export async function submitRuntimeJobApprovalDecision(
   request: RuntimeRunCheckpointApprovalRequest
 ): Promise<RuntimeRunCheckpointApprovalAck> {
   return getRuntimeClient().runtimeRunCheckpointApproval(request);
-}
-
-export async function registerRuntimeJobCallback(
-  request: KernelJobCallbackRegistrationV3
-): Promise<KernelJobCallbackRegistrationAckV3> {
-  return getRuntimeClient().kernelJobCallbackRegisterV3(request);
-}
-
-export async function removeRuntimeJobCallback(
-  request: KernelJobCallbackRemoveRequestV3
-): Promise<KernelJobCallbackRemoveAckV3> {
-  return getRuntimeClient().kernelJobCallbackRemoveV3(request);
 }

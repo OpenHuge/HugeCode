@@ -8,7 +8,6 @@ import type {
   HugeCodeReviewActionabilitySummary,
   HugeCodeTakeoverBundle,
 } from "@ku0/code-runtime-host-contract";
-import { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
 import {
   buildRuntimeContinuationDescriptor,
   formatRuntimeContinuationTruthSourceLabel,
@@ -17,19 +16,14 @@ import {
 import {
   type RepositoryExecutionContract,
   type RepositoryExecutionExplicitLaunchInput,
-  type SupportedRepositoryTaskSourceKind,
 } from "./runtimeRepositoryExecutionContract";
-import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
 
 export type ReviewContinuationIntent = "retry" | "clarify" | "switch_profile" | "pair_mode";
 
 export type ReviewContinuationFieldOrigin =
   | "explicit_override"
   | "runtime_recorded"
-  | "runtime_relaunch_context"
-  | "repo_source_mapping"
-  | "repo_defaults"
-  | "runtime_fallback";
+  | "runtime_relaunch_context";
 
 export type ReviewContinuationFieldOrigins = {
   executionProfileId: ReviewContinuationFieldOrigin;
@@ -44,7 +38,6 @@ export type ReviewContinuationDefaults = {
   sourceRunId: string;
   sourceReviewPackId: string | null;
   taskSource: AgentTaskSourceSummary | null;
-  sourceMappingKind: SupportedRepositoryTaskSourceKind | null;
   executionProfileId: string;
   preferredBackendIds?: string[];
   accessMode: AccessMode | null;
@@ -70,7 +63,6 @@ export type ReviewContinuationDraft = {
   sourceRunId: string;
   sourceReviewPackId: string | null;
   taskSource: AgentTaskSourceSummary | null;
-  sourceMappingKind: SupportedRepositoryTaskSourceKind | null;
   fieldOrigins: ReviewContinuationFieldOrigins;
 };
 
@@ -104,15 +96,6 @@ export type RuntimeFollowUpPlacementInput = {
   readiness: string | null;
 };
 
-type RepositoryContinuationFallback = {
-  sourceMappingKind: SupportedRepositoryTaskSourceKind | null;
-  executionProfileId: string | null;
-  preferredBackendIds?: string[];
-  accessMode: AccessMode | null;
-  reviewProfileId: string | null;
-  validationPresetId: string | null;
-};
-
 function readOptionalText(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
@@ -138,23 +121,6 @@ function normalizeBackendIds(value: string[] | undefined | null): string[] | und
   return ids.length > 0 ? ids : undefined;
 }
 
-function profileValidationPresetId(profileId: string | null): string | null {
-  if (!profileId) {
-    return null;
-  }
-  return (
-    listRunExecutionProfiles().find((profile) => profile.id === profileId)?.validationPresetId ??
-    null
-  );
-}
-
-function profileAccessMode(profileId: string | null): AccessMode | null {
-  if (!profileId) {
-    return null;
-  }
-  return listRunExecutionProfiles().find((profile) => profile.id === profileId)?.accessMode ?? null;
-}
-
 function lookupValidationPresetMetadata(
   contract: RepositoryExecutionContract | null,
   validationPresetId: string | null
@@ -174,57 +140,6 @@ function lookupValidationPresetMetadata(
     label: preset?.label ?? validationPresetId,
     commands: preset?.commands ?? [],
   };
-}
-
-function hasRuntimePolicyDefaults(input: RuntimeRecordedContinuationDefaults): boolean {
-  return Boolean(
-    readOptionalText(input.executionProfileId) ||
-    readOptionalText(input.accessMode) ||
-    readOptionalText(input.reviewProfileId) ||
-    readOptionalText(input.validationPresetId)
-  );
-}
-
-function resolveRepoFieldOrigin(input: {
-  contract: RepositoryExecutionContract | null;
-  sourceMappingKind: SupportedRepositoryTaskSourceKind | null;
-  field:
-    | "executionProfileId"
-    | "preferredBackendIds"
-    | "accessMode"
-    | "reviewProfileId"
-    | "validationPresetId";
-  value: string | AccessMode | string[] | null | undefined;
-}): ReviewContinuationFieldOrigin {
-  const { contract, sourceMappingKind, field, value } = input;
-  const normalizedValue = Array.isArray(value) ? value.join("|") : value;
-  if (
-    sourceMappingKind &&
-    contract?.sourceMappings[sourceMappingKind] &&
-    (() => {
-      const sourceValue = contract.sourceMappings[sourceMappingKind]?.[field];
-      const normalizedSourceValue = Array.isArray(sourceValue)
-        ? sourceValue.join("|")
-        : sourceValue;
-      return normalizedSourceValue === normalizedValue;
-    })()
-  ) {
-    return "repo_source_mapping";
-  }
-  if (
-    contract?.defaults[field] !== undefined &&
-    normalizedValue !== undefined &&
-    normalizedValue !== null
-  ) {
-    const defaultsValue = contract.defaults[field];
-    const normalizedDefaultsValue = Array.isArray(defaultsValue)
-      ? defaultsValue.join("|")
-      : defaultsValue;
-    if (normalizedDefaultsValue === normalizedValue) {
-      return "repo_defaults";
-    }
-  }
-  return "runtime_fallback";
 }
 
 export function resolveRuntimeFollowUpPreferredBackendIds(
@@ -351,24 +266,8 @@ export function resolveReviewContinuationDefaults(input: {
   runtimeDefaults: RuntimeRecordedContinuationDefaults;
   explicitLaunchInput?: RepositoryExecutionExplicitLaunchInput;
   fallbackProfileId?: string | null;
-}): ReviewContinuationDefaults {
+}): ReviewContinuationDefaults | null {
   const runtimeTaskSource = input.runtimeDefaults.taskSource ?? input.taskSource ?? null;
-  const runtimeOwnsPolicyDefaults = hasRuntimePolicyDefaults(input.runtimeDefaults);
-  const fieldOriginContract = runtimeOwnsPolicyDefaults ? null : input.contract;
-  const repoDefaults: RepositoryContinuationFallback = runtimeOwnsPolicyDefaults
-    ? {
-        sourceMappingKind: null,
-        executionProfileId: null,
-        preferredBackendIds: undefined,
-        accessMode: null,
-        reviewProfileId: null,
-        validationPresetId: null,
-      }
-    : resolveRepositoryExecutionDefaults({
-        contract: input.contract,
-        taskSource: runtimeTaskSource,
-        explicitLaunchInput: {},
-      });
   const explicit = input.explicitLaunchInput ?? {};
   const explicitExecutionProfileId = readOptionalText(explicit.executionProfileId);
   const explicitBackendIds = normalizeBackendIds(explicit.preferredBackendIds);
@@ -381,45 +280,38 @@ export function resolveReviewContinuationDefaults(input: {
   const runtimeAccessMode = readOptionalText(input.runtimeDefaults.accessMode) as AccessMode | null;
   const runtimeReviewProfileId = readOptionalText(input.runtimeDefaults.reviewProfileId);
   const runtimeValidationPresetId = readOptionalText(input.runtimeDefaults.validationPresetId);
+  const relaunchSourceTaskId = readOptionalText(
+    input.runtimeDefaults.relaunchContext?.sourceTaskId
+  );
+  const relaunchSourceRunId = readOptionalText(input.runtimeDefaults.relaunchContext?.sourceRunId);
+  const relaunchSourceReviewPackId = readOptionalText(
+    input.runtimeDefaults.relaunchContext?.sourceReviewPackId
+  );
 
   const executionProfileId =
     explicitExecutionProfileId ??
     runtimeExecutionProfileId ??
-    repoDefaults.executionProfileId ??
-    readOptionalText(input.fallbackProfileId) ??
-    "balanced-delegate";
-  const preferredBackendIds =
-    explicitBackendIds ?? runtimeBackendIds ?? repoDefaults.preferredBackendIds ?? undefined;
-  const accessMode =
-    explicitAccessMode ??
-    runtimeAccessMode ??
-    repoDefaults.accessMode ??
-    profileAccessMode(executionProfileId);
-  const reviewProfileId =
-    explicitReviewProfileId ?? runtimeReviewProfileId ?? repoDefaults.reviewProfileId;
-  const validationPresetId =
-    explicitValidationPresetId ??
-    runtimeValidationPresetId ??
-    repoDefaults.validationPresetId ??
-    profileValidationPresetId(executionProfileId);
+    readOptionalText(input.fallbackProfileId);
+  if (!executionProfileId) {
+    return null;
+  }
+  const preferredBackendIds = explicitBackendIds ?? runtimeBackendIds ?? undefined;
+  const accessMode = explicitAccessMode ?? runtimeAccessMode ?? null;
+  const reviewProfileId = explicitReviewProfileId ?? runtimeReviewProfileId;
+  const validationPresetId = explicitValidationPresetId ?? runtimeValidationPresetId;
   const validationPresetMetadata = lookupValidationPresetMetadata(
     input.contract,
     validationPresetId
   );
 
   return {
-    sourceTaskId:
-      readOptionalText(input.runtimeDefaults.relaunchContext?.sourceTaskId) ??
-      input.runtimeDefaults.sourceTaskId,
-    sourceRunId:
-      readOptionalText(input.runtimeDefaults.relaunchContext?.sourceRunId) ??
-      input.runtimeDefaults.sourceRunId,
+    sourceTaskId: relaunchSourceTaskId ?? input.runtimeDefaults.sourceTaskId,
+    sourceRunId: relaunchSourceRunId ?? input.runtimeDefaults.sourceRunId,
     sourceReviewPackId:
       readOptionalText(input.runtimeDefaults.sourceReviewPackId) ??
-      readOptionalText(input.runtimeDefaults.relaunchContext?.sourceReviewPackId) ??
+      relaunchSourceReviewPackId ??
       null,
     taskSource: runtimeTaskSource,
-    sourceMappingKind: repoDefaults.sourceMappingKind,
     executionProfileId,
     ...(preferredBackendIds ? { preferredBackendIds } : {}),
     accessMode,
@@ -431,54 +323,29 @@ export function resolveReviewContinuationDefaults(input: {
     fieldOrigins: {
       executionProfileId: explicitExecutionProfileId
         ? "explicit_override"
-        : runtimeExecutionProfileId
+        : runtimeExecutionProfileId || readOptionalText(input.fallbackProfileId)
           ? "runtime_recorded"
-          : resolveRepoFieldOrigin({
-              contract: fieldOriginContract,
-              sourceMappingKind: repoDefaults.sourceMappingKind,
-              field: "executionProfileId",
-              value: executionProfileId,
-            }),
+          : "runtime_relaunch_context",
       preferredBackendIds: explicitBackendIds
         ? "explicit_override"
         : runtimeBackendIds
           ? "runtime_recorded"
-          : resolveRepoFieldOrigin({
-              contract: fieldOriginContract,
-              sourceMappingKind: repoDefaults.sourceMappingKind,
-              field: "preferredBackendIds",
-              value: preferredBackendIds,
-            }),
+          : "runtime_relaunch_context",
       accessMode: explicitAccessMode
         ? "explicit_override"
         : runtimeAccessMode
           ? "runtime_recorded"
-          : resolveRepoFieldOrigin({
-              contract: fieldOriginContract,
-              sourceMappingKind: repoDefaults.sourceMappingKind,
-              field: "accessMode",
-              value: accessMode,
-            }),
+          : "runtime_relaunch_context",
       reviewProfileId: explicitReviewProfileId
         ? "explicit_override"
         : runtimeReviewProfileId
           ? "runtime_recorded"
-          : resolveRepoFieldOrigin({
-              contract: fieldOriginContract,
-              sourceMappingKind: repoDefaults.sourceMappingKind,
-              field: "reviewProfileId",
-              value: reviewProfileId,
-            }),
+          : "runtime_relaunch_context",
       validationPresetId: explicitValidationPresetId
         ? "explicit_override"
         : runtimeValidationPresetId
           ? "runtime_recorded"
-          : resolveRepoFieldOrigin({
-              contract: fieldOriginContract,
-              sourceMappingKind: repoDefaults.sourceMappingKind,
-              field: "validationPresetId",
-              value: validationPresetId,
-            }),
+          : "runtime_relaunch_context",
     },
   };
 }
@@ -492,7 +359,7 @@ export function prepareReviewContinuationDraft(input: {
   title: string;
   instruction: string;
   fallbackProfileId?: string | null;
-}): ReviewContinuationDraft {
+}): ReviewContinuationDraft | null {
   const resolved = resolveReviewContinuationDefaults({
     contract: input.contract,
     taskSource: input.taskSource,
@@ -500,6 +367,9 @@ export function prepareReviewContinuationDraft(input: {
     explicitLaunchInput: input.explicitLaunchInput,
     fallbackProfileId: input.fallbackProfileId,
   });
+  if (!resolved) {
+    return null;
+  }
 
   return {
     intent: input.intent,
@@ -515,7 +385,6 @@ export function prepareReviewContinuationDraft(input: {
     sourceRunId: resolved.sourceRunId,
     sourceReviewPackId: resolved.sourceReviewPackId,
     taskSource: resolved.taskSource,
-    sourceMappingKind: resolved.sourceMappingKind,
     fieldOrigins: resolved.fieldOrigins,
   };
 }

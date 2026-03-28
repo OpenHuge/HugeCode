@@ -24,10 +24,10 @@ import {
 } from "../ports/tauriThreads";
 import { getMissionControlSnapshot } from "../ports/tauriMissionControl";
 import {
-  cancelRuntimeJob,
+  cancelRuntimeRun,
   submitRuntimeJobApprovalDecision,
-  interveneRuntimeJob,
-  resumeRuntimeJob,
+  interveneRuntimeRun,
+  resumeRuntimeRun,
 } from "../ports/tauriRuntimeJobs";
 import {
   checkoutGitBranch,
@@ -52,7 +52,11 @@ import { runtimeToolGuardrailRead, runtimeToolMetricsRead } from "../ports/tauri
 import { buildRuntimeDiscoveryControl } from "../facades/runtimeDiscoveryControl";
 import { startRuntimeRunWithRemoteSelection } from "../facades/runtimeRemoteExecutionFacade";
 import type { RuntimeAgentControlDependencies } from "../facades/runtimeAgentControlFacade";
-import type { RuntimeAgentTaskStatus, RuntimeAgentTaskSummary } from "../types/webMcpBridge";
+import type {
+  RuntimeAgentTaskInterventionAction,
+  RuntimeAgentTaskStatus,
+  RuntimeAgentTaskSummary,
+} from "../types/webMcpBridge";
 import type { RuntimeWorkspaceId } from "../types/runtimeIds";
 
 const RUNTIME_TASK_ENTITY_PREFIX = "runtime-task:";
@@ -187,6 +191,56 @@ function projectRuntimeRunRecordToRuntimeTaskSummary(
     runSummary: record.missionRun,
     reviewPackSummary: record.reviewPack,
   };
+}
+
+function projectRuntimeRunRecordToInterventionResult(
+  record: RuntimeRunRecordV2,
+  action: RuntimeAgentTaskInterventionAction
+) {
+  return {
+    accepted: true,
+    action,
+    taskId: record.run.taskId,
+    status: record.run.status,
+    outcome: action === "escalate_to_pair_mode" ? "spawned" : "submitted",
+    spawnedTaskId: null,
+    checkpointId:
+      record.run.checkpointId ??
+      record.run.checkpointState?.checkpointId ??
+      record.missionRun.checkpoint?.checkpointId ??
+      record.missionRun.ledger?.checkpointId ??
+      null,
+  } as const;
+}
+
+function projectRuntimeRunRecordToResumeResult(record: RuntimeRunRecordV2) {
+  return {
+    accepted: true,
+    taskId: record.run.taskId,
+    status: record.run.status,
+    code: null,
+    message: "",
+    recovered:
+      record.run.recovered ??
+      record.run.checkpointState?.recovered ??
+      record.missionRun.ledger?.recovered ??
+      record.missionRun.checkpoint?.recovered ??
+      null,
+    checkpointId:
+      record.run.checkpointId ??
+      record.run.checkpointState?.checkpointId ??
+      record.missionRun.ledger?.checkpointId ??
+      record.missionRun.checkpoint?.checkpointId ??
+      null,
+    traceId:
+      record.run.traceId ??
+      record.run.checkpointState?.traceId ??
+      record.missionRun.ledger?.traceId ??
+      record.missionRun.checkpoint?.traceId ??
+      null,
+    updatedAt:
+      record.run.updatedAt ?? record.run.checkpointState?.updatedAt ?? record.missionRun.updatedAt,
+  } as const;
 }
 
 function readKernelProjectionJobsSlice(
@@ -359,7 +413,7 @@ export function createRuntimeAgentControlDependencies(
         ],
       }).then(projectRuntimeRunRecordToRuntimeTaskSummary),
     interruptTask: async (input) =>
-      cancelRuntimeJob({
+      cancelRuntimeRun({
         runId: input.taskId,
         ...(input.reason !== undefined && input.reason !== null ? { reason: input.reason } : {}),
       }).then((ack) => ({
@@ -369,7 +423,7 @@ export function createRuntimeAgentControlDependencies(
         message: ack.message,
       })),
     interveneTask: async (input) =>
-      interveneRuntimeJob({
+      interveneRuntimeRun({
         runId: input.taskId,
         action: input.action,
         ...(input.reason !== undefined && input.reason !== null ? { reason: input.reason } : {}),
@@ -389,30 +443,12 @@ export function createRuntimeAgentControlDependencies(
         ...(input.approvedPlanVersion !== undefined && input.approvedPlanVersion !== null
           ? { approvedPlanVersion: input.approvedPlanVersion }
           : {}),
-      }).then((ack) => ({
-        accepted: ack.accepted,
-        action: ack.action,
-        taskId: ack.runId,
-        status: ack.status ?? "queued",
-        outcome: ack.outcome,
-        spawnedTaskId: ack.spawnedRunId ?? null,
-        checkpointId: ack.checkpointId ?? null,
-      })),
+      }).then((record) => projectRuntimeRunRecordToInterventionResult(record, input.action)),
     resumeTask: async (input) =>
-      resumeRuntimeJob({
+      resumeRuntimeRun({
         runId: input.taskId,
         ...(input.reason !== undefined && input.reason !== null ? { reason: input.reason } : {}),
-      }).then((ack) => ({
-        accepted: ack.accepted,
-        taskId: ack.runId,
-        status: ack.status,
-        code: ack.code ?? null,
-        message: ack.message,
-        recovered: ack.recovered ?? null,
-        checkpointId: ack.checkpointId ?? null,
-        traceId: ack.traceId ?? null,
-        updatedAt: ack.updatedAt ?? null,
-      })),
+      }).then(projectRuntimeRunRecordToResumeResult),
     submitTaskApprovalDecision: async (input) =>
       submitRuntimeJobApprovalDecision({
         approvalId: input.approvalId,

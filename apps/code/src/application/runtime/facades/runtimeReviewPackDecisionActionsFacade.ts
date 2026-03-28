@@ -241,28 +241,15 @@ function buildRuntimeReviewPackDecisionActionability(input: {
     };
   }
 
-  if ((input.actions?.length ?? 0) > 0) {
-    return {
-      summary:
-        "Decision availability is using the controlled fallback until canonical runtime review actionability is published.",
-      details: [
-        "Decision source: Controlled legacy follow-up fallback.",
-        "Canonical runtime review actionability has not been published for this run yet.",
-      ],
-      sourceLabel: "Controlled legacy follow-up fallback",
-      usesFallback: true,
-    };
-  }
-
   return {
     summary:
-      "Decision availability is using the default review policy until canonical runtime review actionability is published.",
+      "Canonical runtime review actionability is unavailable. Follow-up and review decisions stay disabled until runtime publishes the action set.",
     details: [
-      "Decision source: Default review policy.",
-      "Canonical runtime review actionability has not been published for this run yet.",
+      "Decision source: Runtime review actionability unavailable.",
+      "This surface no longer reconstructs follow-up actions or default review policy in page-local logic.",
     ],
-    sourceLabel: "Default review policy",
-    usesFallback: true,
+    sourceLabel: "Runtime review actionability unavailable",
+    usesFallback: false,
   };
 }
 
@@ -273,7 +260,6 @@ export function getInterventionAvailability(
 ) {
   return getHugeCodeReviewActionAvailability({
     reviewActionability,
-    legacyFallbackActions: actions ?? null,
     actionIds,
   });
 }
@@ -357,7 +343,7 @@ export function buildRuntimeReviewPackDecisionActions<TNavigationTarget>(
     reviewDecisionPending &&
     evidenceIncompleteReason === null &&
     input.readOnlyReason === null &&
-    (acceptAvailability?.enabled ?? true);
+    acceptAvailability?.enabled === true;
   const reviewDecisionDisabledReason = !reviewDecisionPending
     ? (acceptedReason ?? rejectedReason)
     : (evidenceIncompleteReason ?? input.readOnlyReason ?? acceptAvailability?.reason ?? null);
@@ -365,7 +351,7 @@ export function buildRuntimeReviewPackDecisionActions<TNavigationTarget>(
     reviewDecisionPending &&
     evidenceIncompleteReason === null &&
     input.readOnlyReason === null &&
-    (rejectAvailability?.enabled ?? true);
+    rejectAvailability?.enabled === true;
   const rejectDecisionDisabledReason = !reviewDecisionPending
     ? (acceptedReason ?? rejectedReason)
     : (evidenceIncompleteReason ?? input.readOnlyReason ?? rejectAvailability?.reason ?? null);

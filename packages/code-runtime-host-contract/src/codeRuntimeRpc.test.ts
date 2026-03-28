@@ -186,7 +186,16 @@ describe("code runtime rpc compatibility helpers", () => {
     ]);
 
     expect(classifiedFields).toEqual(new Set(Object.keys(CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES)));
-    expect(CODE_RUNTIME_RPC_COMPAT_FIELD_LIFECYCLE.removableNow).toHaveLength(0);
+    expect(CODE_RUNTIME_RPC_COMPAT_FIELD_LIFECYCLE.removableNow).toEqual([
+      "missionLinkage",
+      "reviewActionability",
+      "sessionBoundary",
+      "continuation",
+      "nextOperatorAction",
+      "takeoverBundle",
+      "runSummary",
+      "reviewPackSummary",
+    ]);
   });
 
   it("recursively mirrors registered compat aliases through nested payloads", () => {
@@ -1253,49 +1262,37 @@ describe("agent and oauth rpc methods", () => {
     ).toEqual(["code_oauth_codex_accounts_import_from_cockpit_tools"]);
   });
 
-  it("exposes canonical candidates for runtime run start", () => {
-    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.RUN_START)).toEqual([
-      "code_runtime_run_start",
+  it("exposes canonical candidates for runtime run start v2", () => {
+    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.RUN_START_V2)).toEqual([
+      "code_runtime_run_start_v2",
     ]);
   });
 
-  it("exposes canonical candidates for runtime run resume", () => {
-    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.RUN_RESUME)).toEqual([
-      "code_runtime_run_resume",
+  it("exposes canonical candidates for runtime run cancel v2", () => {
+    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.RUN_CANCEL_V2)).toEqual([
+      "code_runtime_run_cancel_v2",
     ]);
   });
 
-  it("exposes canonical candidates for runtime run intervention", () => {
-    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE)).toEqual([
-      "code_runtime_run_intervene",
+  it("exposes canonical candidates for runtime run resume v2", () => {
+    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.RUN_RESUME_V2)).toEqual([
+      "code_runtime_run_resume_v2",
     ]);
   });
 
-  it("exposes canonical candidates for kernel job v3 control methods", () => {
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_START_V3)
-    ).toEqual(["code_kernel_job_start_v3"]);
-    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_GET_V3)).toEqual([
-      "code_kernel_job_get_v3",
+  it("exposes canonical candidates for runtime run intervention v2", () => {
+    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2)).toEqual([
+      "code_runtime_run_intervene_v2",
     ]);
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3)
-    ).toEqual(["code_kernel_job_cancel_v3"]);
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_RESUME_V3)
-    ).toEqual(["code_kernel_job_resume_v3"]);
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_INTERVENE_V3)
-    ).toEqual(["code_kernel_job_intervene_v3"]);
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_SUBSCRIBE_V3)
-    ).toEqual(["code_kernel_job_subscribe_v3"]);
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CALLBACK_REGISTER_V3)
-    ).toEqual(["code_kernel_job_callback_register_v3"]);
-    expect(
-      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CALLBACK_REMOVE_V3)
-    ).toEqual(["code_kernel_job_callback_remove_v3"]);
+  });
+
+  it("exposes canonical candidates for runtime run get and subscribe v2", () => {
+    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.RUN_GET_V2)).toEqual([
+      "code_runtime_run_get_v2",
+    ]);
+    expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE_V2)).toEqual([
+      "code_runtime_run_subscribe_v2",
+    ]);
   });
 
   it("exposes canonical candidates for sub-agent session methods", () => {

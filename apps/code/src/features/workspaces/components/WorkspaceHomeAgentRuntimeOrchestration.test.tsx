@@ -65,16 +65,14 @@ vi.mock("../../../application/runtime/ports/tauriMissionControl", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
-  cancelRuntimeJob: vi.fn(),
+  cancelRuntimeRun: vi.fn(),
   submitRuntimeJobApprovalDecision: vi.fn(),
-  getRuntimeJob: vi.fn(),
-  interveneRuntimeJob: vi.fn(),
-  listRuntimeJobs: vi.fn(),
+  interveneRuntimeRun: vi.fn(),
   getRuntimeRunV2: getRuntimeRunV2Mock,
   subscribeRuntimeRunV2: subscribeRuntimeRunV2Mock,
   prepareRuntimeRunV2: prepareRuntimeRunV2Mock,
   startRuntimeRunV2: startRuntimeRunV2Mock,
-  resumeRuntimeJob: vi.fn(),
+  resumeRuntimeRun: vi.fn(),
 }));
 
 vi.mock("../../../application/runtime/ports/tauriThreads", async () => {
@@ -120,11 +118,10 @@ vi.mock("../../../application/runtime/ports/tauriOauth", () => ({
 import { subscribeScopedRuntimeUpdatedEvents } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import { getMissionControlSnapshot } from "../../../application/runtime/ports/tauriMissionControl";
 import {
-  cancelRuntimeJob as interruptAgentTask,
+  cancelRuntimeRun as interruptAgentTask,
   getRuntimeRunV2,
   submitRuntimeJobApprovalDecision as submitTaskApprovalDecision,
-  listRuntimeJobs,
-  resumeRuntimeJob as resumeAgentTask,
+  resumeRuntimeRun as resumeAgentTask,
 } from "../../../application/runtime/ports/tauriRuntimeJobs";
 import {
   getRuntimeCapabilitiesSummary,
@@ -171,7 +168,6 @@ function mockRuntimeTasks(tasks: MockAgentTaskSummary[]) {
       .map((run) => projectCompletedRunToReviewPackSummary(run))
       .filter((reviewPack) => reviewPack !== null),
   });
-  vi.mocked(listRuntimeJobs).mockResolvedValue([]);
 }
 
 beforeEach(() => {
@@ -244,7 +240,6 @@ beforeEach(() => {
   vi.mocked(listOAuthPools).mockResolvedValue([]);
   readRepositoryExecutionContractMock.mockResolvedValue(null);
   getMissionControlSnapshotMock.mockResolvedValue(createEmptyMissionControlSnapshot());
-  vi.mocked(listRuntimeJobs).mockResolvedValue([]);
   vi.mocked(runtimeToolMetricsRead).mockResolvedValue({
     totals: {
       attemptedTotal: 10,
@@ -335,6 +330,20 @@ function buildTask(
     pendingApprovalId: status === "awaiting_approval" ? `${taskId}-approval` : null,
     steps: [],
   } as MockAgentTaskSummary;
+}
+
+function buildRuntimeRunRecord(
+  overrides: Partial<MockAgentTaskSummary> & Pick<MockAgentTaskSummary, "taskId" | "status">
+) {
+  const run = {
+    ...buildTask(overrides.taskId, overrides.status, overrides.title ?? overrides.taskId),
+    ...overrides,
+  } as MockAgentTaskSummary;
+  return {
+    run,
+    missionRun: projectAgentTaskSummaryToRunSummary(run),
+    reviewPack: null,
+  };
 }
 
 function buildRuntimeUpdatedEvent(
@@ -633,11 +642,9 @@ function createRuntimeKernelValue(): RuntimeKernel {
       agentControl: {
         prepareRuntimeRun: vi.fn(),
         startRuntimeRun: vi.fn(),
-        cancelRuntimeJob: vi.fn(),
-        resumeRuntimeJob: vi.fn(),
-        interveneRuntimeJob: vi.fn(),
-        subscribeRuntimeJob: vi.fn(),
-        listRuntimeJobs: vi.fn(),
+        cancelRuntimeRun: vi.fn(),
+        resumeRuntimeRun: vi.fn(),
+        interveneRuntimeRun: vi.fn(),
         submitRuntimeJobApprovalDecision: vi.fn(),
       },
       threads: {
@@ -914,8 +921,8 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
         screen.getByText("Source-linked launch: GitHub issue #44 · ku0/hugecode")
       ).toBeTruthy();
       expect(screen.queryByText("Repo source mapping: github_issue")).toBeNull();
-      expect(screen.getByText("Review profile source: runtime fallback")).toBeTruthy();
-      expect(screen.getByText("Validation source: runtime fallback")).toBeTruthy();
+      expect(screen.getByText("Review profile source: runtime relaunch context")).toBeTruthy();
+      expect(screen.getByText("Validation source: runtime relaunch context")).toBeTruthy();
       expect(screen.getAllByText("Validation preset: standard").length).toBeGreaterThan(0);
       expect(screen.getByText("Access mode: on-request")).toBeTruthy();
       expect(
@@ -1596,13 +1603,13 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       status: "interrupted",
       message: "ok",
     });
-    resumeAgentTaskMock.mockResolvedValue({
-      accepted: true,
-      taskId: "runtime-recovered-1",
-      status: "queued",
-      message: "Task resume accepted.",
-      checkpointId: "checkpoint-123",
-    });
+    resumeAgentTaskMock.mockResolvedValue(
+      buildRuntimeRunRecord({
+        taskId: "runtime-recovered-1",
+        status: "queued",
+        checkpointId: "checkpoint-123",
+      })
+    );
 
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
@@ -1647,12 +1654,12 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       status: "interrupted",
       message: "ok",
     });
-    resumeAgentTaskMock.mockResolvedValue({
-      accepted: true,
-      taskId: "runtime-recovered-dot-case",
-      status: "queued",
-      message: "Task resume accepted.",
-    });
+    resumeAgentTaskMock.mockResolvedValue(
+      buildRuntimeRunRecord({
+        taskId: "runtime-recovered-dot-case",
+        status: "queued",
+      })
+    );
 
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
@@ -1693,18 +1700,18 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       message: "ok",
     });
     resumeAgentTaskMock
-      .mockResolvedValueOnce({
-        accepted: true,
-        taskId: "runtime-recovered-a",
-        status: "queued",
-        message: "Task resume accepted.",
-      })
-      .mockResolvedValueOnce({
-        accepted: true,
-        taskId: "runtime-recovered-b",
-        status: "queued",
-        message: "Task resume accepted.",
-      });
+      .mockResolvedValueOnce(
+        buildRuntimeRunRecord({
+          taskId: "runtime-recovered-a",
+          status: "queued",
+        })
+      )
+      .mockResolvedValueOnce(
+        buildRuntimeRunRecord({
+          taskId: "runtime-recovered-b",
+          status: "queued",
+        })
+      );
 
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
@@ -1723,7 +1730,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     });
   });
 
-  it("shows runtime rejection message when single resume is not accepted", async () => {
+  it("shows runtime error when single resume fails", async () => {
     const now = Date.now();
     mockRuntimeTasks([
       {
@@ -1747,12 +1754,9 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       status: "interrupted",
       message: "ok",
     });
-    resumeAgentTaskMock.mockResolvedValue({
-      accepted: false,
-      taskId: "runtime-rejected-1",
-      status: "interrupted",
-      message: "Task is not recoverable from runtime restart interruption.",
-    });
+    resumeAgentTaskMock.mockRejectedValue(
+      new Error("Task is not recoverable from runtime restart interruption.")
+    );
 
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
@@ -1770,7 +1774,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     });
   });
 
-  it("classifies recoverable batch resume outcomes by success rejection and transport failures", async () => {
+  it("classifies recoverable batch resume outcomes by success and transport failures", async () => {
     const now = Date.now();
     mockRuntimeTasks([
       {
@@ -1807,19 +1811,13 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       message: "ok",
     });
     resumeAgentTaskMock
-      .mockResolvedValueOnce({
-        accepted: true,
-        taskId: "runtime-batch-a",
-        status: "queued",
-        message: "Task resume accepted.",
-      })
-      .mockResolvedValueOnce({
-        accepted: false,
-        taskId: "runtime-batch-b",
-        status: "interrupted",
-        code: "runtime.task.resume.not_recoverable",
-        message: "Task not recoverable.",
-      })
+      .mockResolvedValueOnce(
+        buildRuntimeRunRecord({
+          taskId: "runtime-batch-a",
+          status: "queued",
+        })
+      )
+      .mockRejectedValueOnce(new Error("runtime.task.resume.not_recoverable"))
       .mockRejectedValueOnce(new Error("network timeout"));
 
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
@@ -1833,9 +1831,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     await waitFor(() => {
       expect(resumeAgentTask).toHaveBeenCalledTimes(3);
       expect(
-        screen.getByText(
-          "Resumed 1 recoverable run(s). 1 rejected by runtime. 1 failed to call resume."
-        )
+        screen.getByText("Resumed 1 recoverable run(s). 2 failed to call resume.")
       ).toBeTruthy();
       expect(screen.getByText("Resume errors: runtime.task.resume.not_recoverable")).toBeTruthy();
     });

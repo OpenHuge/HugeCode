@@ -34,15 +34,13 @@ import { sendNotification } from "./tauriNotifications";
 import { getRuntimeHealth } from "./tauriRuntime";
 import { getRuntimeCapabilitiesSummary as getRuntimeCapabilitiesSummaryFromRemoteServers } from "./tauriRemoteServers";
 import {
-  cancelRuntimeJob,
+  cancelRuntimeRun,
   getRuntimeRunV2,
   subscribeRuntimeRunV2,
   submitRuntimeJobApprovalDecision,
-  interveneRuntimeJob,
-  listRuntimeJobs,
-  resumeRuntimeJob,
+  interveneRuntimeRun,
+  resumeRuntimeRun,
   startRuntimeRunV2,
-  subscribeRuntimeJob,
 } from "./tauriRuntimeJobs";
 import { getInstructionSkill, getSkillsList } from "./tauriSkills";
 import { getRuntimeCapabilitiesSummary as getRuntimeCapabilitiesSummaryFromThreads } from "./tauriThreads";
@@ -99,15 +97,13 @@ import {
   getRuntimeHealth as getRuntimeHealthBridge,
 } from "../../../services/tauriRuntimeSystemBridge";
 import {
-  cancelRuntimeJob as cancelRuntimeJobBridge,
+  cancelRuntimeRun as cancelRuntimeRunBridge,
   getRuntimeRunV2 as getRuntimeRunV2Bridge,
   subscribeRuntimeRunV2 as subscribeRuntimeRunV2Bridge,
   submitRuntimeJobApprovalDecision as submitRuntimeJobApprovalDecisionBridge,
-  interveneRuntimeJob as interveneRuntimeJobBridge,
-  listRuntimeJobs as listRuntimeJobsBridge,
-  resumeRuntimeJob as resumeRuntimeJobBridge,
+  interveneRuntimeRun as interveneRuntimeRunBridge,
+  resumeRuntimeRun as resumeRuntimeRunBridge,
   startRuntimeRunV2 as startRuntimeRunV2Bridge,
-  subscribeRuntimeJob as subscribeRuntimeJobBridge,
 } from "../../../services/tauriRuntimeJobsBridge";
 import { openRuntimeTerminalSession as openRuntimeTerminalSessionBridge } from "../../../services/tauriRuntimeSessionTerminalBridge";
 import {
@@ -128,14 +124,12 @@ import {
 describe("tauri runtime port contract", () => {
   it("re-exports critical runtime functions from narrow runtime ports", () => {
     const runtimePortExports = [
-      ["interveneRuntimeJob", interveneRuntimeJob, interveneRuntimeJobBridge],
-      ["cancelRuntimeJob", cancelRuntimeJob, cancelRuntimeJobBridge],
-      ["resumeRuntimeJob", resumeRuntimeJob, resumeRuntimeJobBridge],
+      ["interveneRuntimeRun", interveneRuntimeRun, interveneRuntimeRunBridge],
+      ["cancelRuntimeRun", cancelRuntimeRun, cancelRuntimeRunBridge],
+      ["resumeRuntimeRun", resumeRuntimeRun, resumeRuntimeRunBridge],
       ["startRuntimeRunV2", startRuntimeRunV2, startRuntimeRunV2Bridge],
       ["getRuntimeRunV2", getRuntimeRunV2, getRuntimeRunV2Bridge],
       ["subscribeRuntimeRunV2", subscribeRuntimeRunV2, subscribeRuntimeRunV2Bridge],
-      ["subscribeRuntimeJob", subscribeRuntimeJob, subscribeRuntimeJobBridge],
-      ["listRuntimeJobs", listRuntimeJobs, listRuntimeJobsBridge],
       [
         "submitRuntimeJobApprovalDecision",
         submitRuntimeJobApprovalDecision,
