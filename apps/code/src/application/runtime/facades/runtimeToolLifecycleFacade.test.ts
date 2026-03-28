@@ -315,4 +315,59 @@ describe("runtimeToolLifecycleFacade", () => {
 
     unsubscribe();
   });
+
+  it("drops retrograde lifecycle transitions and publishes derived hook checkpoints", async () => {
+    const facade = await import("./runtimeToolLifecycleFacade");
+    const telemetry =
+      (await import("../ports/runtimeToolExecutionTelemetry")) as unknown as TelemetryTestApi;
+
+    const lifecycleListener = vi.fn();
+    const unsubscribe = facade.subscribeRuntimeToolLifecycleEvents(lifecycleListener);
+
+    telemetry.__emitRuntimeToolExecutionTelemetryEvent({
+      kind: "execution",
+      phase: "completed",
+      toolName: "bash",
+      scope: "write",
+      at: 500,
+      workspaceId: "workspace-4",
+      status: "success",
+      requestId: "req-tool-4",
+    });
+    telemetry.__emitRuntimeToolExecutionTelemetryEvent({
+      kind: "execution",
+      phase: "started",
+      toolName: "bash",
+      scope: "write",
+      at: 501,
+      workspaceId: "workspace-4",
+      status: null,
+      requestId: "req-tool-4",
+    });
+
+    expect(lifecycleListener).toHaveBeenCalledTimes(1);
+    expect(facade.getRuntimeToolLifecycleSnapshot()).toMatchObject({
+      revision: 1,
+      recentEvents: [
+        expect.objectContaining({
+          kind: "tool",
+          phase: "completed",
+          correlationKey: "req-tool-4",
+        }),
+      ],
+      recentHookCheckpoints: [
+        expect.objectContaining({
+          point: "post_execution_pre_publication",
+          status: "ready",
+          toolName: "bash",
+        }),
+      ],
+      lastHookCheckpoint: expect.objectContaining({
+        point: "post_execution_pre_publication",
+        status: "ready",
+      }),
+    });
+
+    unsubscribe();
+  });
 });

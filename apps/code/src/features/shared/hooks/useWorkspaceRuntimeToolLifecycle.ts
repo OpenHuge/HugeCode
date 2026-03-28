@@ -4,12 +4,15 @@ import {
   getRuntimeToolLifecycleSnapshot,
   subscribeRuntimeToolLifecycleSnapshot,
   type RuntimeToolLifecycleEvent,
+  type RuntimeToolLifecycleHookCheckpoint,
   type RuntimeToolLifecycleSnapshot,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 
 export type WorkspaceRuntimeToolLifecycleState = {
   revision: number;
+  lastHookCheckpoint: RuntimeToolLifecycleHookCheckpoint | null;
   lastEvent: RuntimeToolLifecycleEvent | null;
+  hookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
   lifecycleEvents: RuntimeToolLifecycleEvent[];
 };
 
@@ -26,7 +29,9 @@ type WorkspaceRuntimeToolLifecycleCache = {
 
 const EMPTY_RUNTIME_TOOL_LIFECYCLE_STATE: WorkspaceRuntimeToolLifecycleState = {
   revision: 0,
+  lastHookCheckpoint: null,
   lastEvent: null,
+  hookCheckpoints: [],
   lifecycleEvents: [],
 };
 
@@ -37,7 +42,9 @@ function filterLifecycleSnapshot(
   const filteredSnapshot = filterRuntimeToolLifecycleSnapshot(snapshot, workspaceId);
   return {
     revision: filteredSnapshot.revision,
+    lastHookCheckpoint: filteredSnapshot.lastHookCheckpoint ?? null,
     lastEvent: filteredSnapshot.lastEvent,
+    hookCheckpoints: filteredSnapshot.recentHookCheckpoints ?? [],
     lifecycleEvents: filteredSnapshot.recentEvents,
   };
 }

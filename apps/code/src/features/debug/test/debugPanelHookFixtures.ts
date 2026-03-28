@@ -119,7 +119,9 @@ export function createDebugPanelViewModelBuilderParams(
     runtimeToolExecutionMetrics: createDebugRuntimeToolExecutionMetricsState(),
     runtimeToolLifecycle: {
       revision: 0,
+      lastHookCheckpoint: null,
       lastEvent: null,
+      hookCheckpoints: [],
       lifecycleEvents: [],
     },
     runtimeProbe: createDebugRuntimeProbeState(),

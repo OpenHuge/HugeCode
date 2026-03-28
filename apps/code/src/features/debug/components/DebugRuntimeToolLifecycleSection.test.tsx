@@ -25,6 +25,23 @@ describe("DebugRuntimeToolLifecycleSection", () => {
             at: 1_771_331_697_000,
           }),
         ]}
+        hookCheckpoints={[
+          {
+            key: "hook-1",
+            point: "post_execution_pre_publication",
+            status: "ready",
+            source: "telemetry",
+            workspaceId: "workspace-1",
+            threadId: "thread-1",
+            turnId: "turn-1",
+            toolCallId: "tool-call-1",
+            toolName: "bash",
+            scope: "write",
+            lifecycleEventId: "guardrail-1",
+            at: 1_771_331_697_000,
+            reason: null,
+          },
+        ]}
       />
     );
 
@@ -38,12 +55,14 @@ describe("DebugRuntimeToolLifecycleSection", () => {
     ).toBeTruthy();
     expect(screen.getByText("guardrail/evaluated")).toBeTruthy();
     expect(screen.getByText("tool/started")).toBeTruthy();
+    expect(screen.getByText("1 hook checkpoints observed.")).toBeTruthy();
+    expect(screen.getByText("post_execution_pre_publication/ready")).toBeTruthy();
     expect(screen.getAllByText("2026-02-17T12:34:57.000Z").length).toBeGreaterThan(0);
     expect(screen.getAllByText("bash").length).toBeGreaterThan(0);
   });
 
   it("renders an empty state when no lifecycle events exist", () => {
-    render(<DebugRuntimeToolLifecycleSection lifecycleEvents={[]} />);
+    render(<DebugRuntimeToolLifecycleSection lifecycleEvents={[]} hookCheckpoints={[]} />);
 
     expect(screen.getByText("No lifecycle activity observed yet.")).toBeTruthy();
   });

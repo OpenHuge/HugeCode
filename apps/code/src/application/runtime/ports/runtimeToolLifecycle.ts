@@ -1,5 +1,8 @@
 export type {
   RuntimeToolLifecycleEvent,
+  RuntimeToolLifecycleHookCheckpoint,
+  RuntimeToolLifecycleHookCheckpointStatus,
+  RuntimeToolLifecycleHookPoint,
   RuntimeToolLifecycleSnapshot,
   RuntimeToolLifecycleSource,
   RuntimeToolLifecycleStatus,

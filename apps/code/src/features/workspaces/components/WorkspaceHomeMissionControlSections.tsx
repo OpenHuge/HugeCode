@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
-import type { RuntimeToolLifecycleEvent } from "../../../application/runtime/ports/runtimeToolLifecycle";
+import type {
+  RuntimeToolLifecycleEvent,
+  RuntimeToolLifecycleHookCheckpoint,
+} from "../../../application/runtime/ports/runtimeToolLifecycle";
 import type { RuntimeAgentTaskInterventionInput } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeContinuityReadinessSummary } from "../../../application/runtime/facades/runtimeContinuityReadiness";
@@ -173,6 +176,26 @@ function formatLifecycleStatus(status: RuntimeToolLifecycleEvent["status"] | nul
   return status.replaceAll("_", " ");
 }
 
+function getHookCheckpointTone(
+  checkpoint: RuntimeToolLifecycleHookCheckpoint
+): "neutral" | "running" | "success" | "warning" | "danger" {
+  switch (checkpoint.status) {
+    case "ready":
+    case "completed":
+      return "success";
+    case "blocked":
+      return "danger";
+    case "pending":
+      return "warning";
+    default:
+      return "neutral";
+  }
+}
+
+function describeHookCheckpoint(checkpoint: RuntimeToolLifecycleHookCheckpoint): string {
+  return checkpoint.point.replaceAll("_", " ");
+}
+
 function describeLifecycleEvent(event: RuntimeToolLifecycleEvent): string {
   switch (event.kind) {
     case "turn":
@@ -187,34 +210,39 @@ function describeLifecycleEvent(event: RuntimeToolLifecycleEvent): string {
 }
 
 type MissionControlSessionLogSectionProps = {
+  hookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
   lifecycleEvents: RuntimeToolLifecycleEvent[];
   maxItems?: number;
 };
 
 export function MissionControlSessionLogSection({
+  hookCheckpoints,
   lifecycleEvents,
   maxItems = 8,
 }: MissionControlSessionLogSectionProps) {
   const sortedEvents = lifecycleEvents.slice().sort((left, right) => right.at - left.at);
+  const sortedHookCheckpoints = hookCheckpoints.slice().sort((left, right) => right.at - left.at);
   const visibleEvents = sortedEvents.slice(0, maxItems);
-  const latestEvent = sortedEvents[0] ?? null;
+  const visibleHookCheckpoints = sortedHookCheckpoints.slice(0, maxItems);
+  const hasActivity = visibleEvents.length > 0 || visibleHookCheckpoints.length > 0;
   const toolEventCount = lifecycleEvents.filter((event) => event.kind === "tool").length;
   const approvalEventCount = lifecycleEvents.filter((event) => event.kind === "approval").length;
 
   return (
     <MissionControlSectionCard
       title="Session log"
-      statusLabel={latestEvent ? "Live" : "Idle"}
-      statusTone={latestEvent ? "running" : "success"}
+      statusLabel={hasActivity ? "Live" : "Idle"}
+      statusTone={hasActivity ? "running" : "success"}
       meta={
         <>
           <ToolCallChip tone="neutral">Recent {lifecycleEvents.length}</ToolCallChip>
           <ToolCallChip tone="neutral">Tools {toolEventCount}</ToolCallChip>
           <ToolCallChip tone="neutral">Approvals {approvalEventCount}</ToolCallChip>
+          <ToolCallChip tone="neutral">Hook checkpoints {hookCheckpoints.length}</ToolCallChip>
         </>
       }
     >
-      {visibleEvents.length === 0 ? (
+      {visibleEvents.length === 0 && visibleHookCheckpoints.length === 0 ? (
         <CoreLoopStatePanel
           compact
           eyebrow="Operator session log"
@@ -241,6 +269,23 @@ export function MissionControlSessionLogSection({
                 {event.toolCallId ? <span>Call: {event.toolCallId}</span> : null}
                 {event.scope ? <span>Scope: {event.scope}</span> : null}
                 {event.errorCode ? <span>Error: {event.errorCode}</span> : null}
+              </div>
+            </div>
+          ))}
+          {visibleHookCheckpoints.map((checkpoint) => (
+            <div className="workspace-home-code-runtime-item" key={checkpoint.key}>
+              <div className="workspace-home-code-runtime-item-main">
+                <strong>Hook {describeHookCheckpoint(checkpoint)}</strong>
+                <ToolCallChip tone={getHookCheckpointTone(checkpoint)}>
+                  {formatLifecycleStatus(checkpoint.status)}
+                </ToolCallChip>
+                <span>{formatRuntimeTimestamp(checkpoint.at)}</span>
+                <span>Source: {checkpoint.source}</span>
+                {checkpoint.threadId ? <span>Thread: {checkpoint.threadId}</span> : null}
+                {checkpoint.turnId ? <span>Turn: {checkpoint.turnId}</span> : null}
+                {checkpoint.toolCallId ? <span>Call: {checkpoint.toolCallId}</span> : null}
+                {checkpoint.scope ? <span>Scope: {checkpoint.scope}</span> : null}
+                {checkpoint.reason ? <span>Reason: {checkpoint.reason}</span> : null}
               </div>
             </div>
           ))}

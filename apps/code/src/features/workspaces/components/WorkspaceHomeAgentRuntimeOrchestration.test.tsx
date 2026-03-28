@@ -174,7 +174,9 @@ beforeEach(() => {
   runtimeUpdatedListeners.clear();
   useWorkspaceRuntimeToolLifecycleMock.mockReturnValue({
     revision: 0,
+    lastHookCheckpoint: null,
     lastEvent: null,
+    hookCheckpoints: [],
     lifecycleEvents: [],
   });
   vi.mocked(subscribeScopedRuntimeUpdatedEvents).mockImplementation((_options, listener) => {
@@ -760,7 +762,39 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     ];
     useWorkspaceRuntimeToolLifecycleMock.mockReturnValue({
       revision: 2,
+      lastHookCheckpoint: {
+        key: "hook-1",
+        point: "post_execution_pre_publication",
+        status: "ready",
+        source: "telemetry",
+        workspaceId: "ws-approval",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        toolCallId: "call-1",
+        toolName: "bash",
+        scope: "write",
+        lifecycleEventId: "tool-1",
+        at: 1_771_331_697_000,
+        reason: null,
+      },
       lastEvent: lifecycleEvents[0],
+      hookCheckpoints: [
+        {
+          key: "hook-1",
+          point: "post_execution_pre_publication",
+          status: "ready",
+          source: "telemetry",
+          workspaceId: "ws-approval",
+          threadId: "thread-1",
+          turnId: "turn-1",
+          toolCallId: "call-1",
+          toolName: "bash",
+          scope: "write",
+          lifecycleEventId: "tool-1",
+          at: 1_771_331_697_000,
+          reason: null,
+        },
+      ],
       lifecycleEvents,
     });
 
@@ -770,8 +804,12 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("heading", { name: "Session log" })).toBeTruthy();
       expect(screen.getByText("bash completed")).toBeTruthy();
       expect(screen.getByText("Approval requested")).toBeTruthy();
-      expect(screen.getByText("Source: telemetry")).toBeTruthy();
-      expect(screen.getByText("Scope: write")).toBeTruthy();
+      expect(screen.getByText("Hook checkpoints 1")).toBeTruthy();
+      expect(
+        screen.getByText((content) => content.includes("Hook post execution pre publication"))
+      ).toBeTruthy();
+      expect(screen.getAllByText("Source: telemetry").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Scope: write").length).toBeGreaterThan(0);
     });
   });
 
