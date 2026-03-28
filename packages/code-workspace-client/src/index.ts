@@ -14,6 +14,7 @@ export type {
   WorkspaceClientRuntimeBindings,
   WorkspaceClientRuntimeGitBindings,
   WorkspaceClientRuntimeMissionControlBindings,
+  WorkspaceClientRuntimeMissionControlSourceAdapter,
   WorkspaceClientRuntimeModelsBindings,
   WorkspaceClientRuntimeMode,
   WorkspaceClientRuntimeKernelProjectionBindings,
@@ -41,6 +42,19 @@ export {
   subscribeBrowserWorkspaceClientKernelProjection,
   subscribeBrowserWorkspaceClientRuntimeMode,
 } from "./workspace/browserBindings";
+export {
+  createSnapshotBackedMissionControlBindings,
+  createSnapshotBackedMissionControlSurfaceBindings,
+  createSnapshotBackedReviewBindings,
+  createWorkspaceClientRuntimeMissionControlBindings,
+  createWorkspaceClientRuntimeMissionControlSurfaceBindings,
+  createWorkspaceClientRuntimeReviewBindings,
+  readMissionControlSnapshotFromSourceAdapter,
+} from "./workspace/missionControlBindings";
+export type {
+  MissionControlSnapshotReader,
+  SnapshotBackedMissionControlSurfaceBindings,
+} from "./workspace/missionControlBindings";
 export { AccountCenterDashboard } from "./account-center/AccountCenterDashboard";
 export type {
   AccountCenterCodexAccountSummary,
@@ -74,8 +88,22 @@ export {
 export { WorkspaceApp } from "./workspace-app";
 export {
   buildSharedMissionControlSummary,
+  composeSharedWorkspaceShellState,
+  createMissionControlSummaryLoader,
+  DEFAULT_MISSION_CONTROL_SUMMARY_COMPOSER,
+  deriveSharedWorkspaceShellActiveSection,
+  deriveSharedWorkspaceShellBackgroundEnabled,
+  deriveSharedWorkspaceShellErrors,
+  deriveSharedWorkspaceShellFocusedItemIds,
+  deriveSharedWorkspaceShellFrameState,
+  deriveSharedWorkspaceShellRefreshLabel,
+  deriveSharedWorkspaceShellUiState,
+  deriveSharedWorkspaceShellVisibleErrors,
+  deriveSharedWorkspaceShellWorkspaceSelectOptions,
   getMissionControlSnapshotStore,
   getKernelProjectionStore,
+  reconcileSharedWorkspaceShellDismissedErrors,
+  resolveSharedWorkspaceShellFocusTarget,
   SharedWorkspaceShell,
   readCapabilitiesProjectionSlice,
   readContinuityProjectionSlice,
@@ -89,11 +117,26 @@ export {
 export type {
   KernelProjectionLoadState,
   KernelProjectionState,
+  MissionControlSummaryComposer,
+  MissionControlSummaryLoadResult,
   MissionControlLoadState,
+  MissionControlSummarySource,
   MissionControlSnapshotState,
   SharedMissionControlReadinessSummary,
   SharedMissionControlSummary,
+  SharedWorkspaceShellCatalogState,
+  SharedWorkspaceShellError,
+  SharedWorkspaceShellFocusableSection,
+  SharedWorkspaceShellFrameState,
+  SharedWorkspaceShellFrameStateCompositionInput,
+  SharedWorkspaceShellFocusTarget,
   SharedWorkspaceRouteSelection,
+  SharedWorkspaceShellHostStartupState,
+  SharedWorkspaceShellMissionControlState,
+  SharedWorkspaceShellState,
+  SharedWorkspaceShellStateCompositionInput,
+  SharedWorkspaceShellUiState,
+  SharedWorkspaceShellWorkspaceOption,
   WorkspaceNavigationAdapter,
   WorkspaceNavigationOptions,
 } from "./workspace-shell";

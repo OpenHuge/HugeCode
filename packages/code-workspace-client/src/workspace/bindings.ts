@@ -129,6 +129,13 @@ export type WorkspaceClientRuntimeMissionControlBindings = {
   ) => Promise<HugeCodeMissionControlSummary>;
 };
 
+export type WorkspaceClientRuntimeMissionControlSourceAdapter = {
+  readMissionControlSnapshot: () => Promise<HugeCodeMissionControlSnapshot>;
+  bootstrapKernelProjection?: (
+    request?: KernelProjectionBootstrapRequest
+  ) => Promise<KernelProjectionBootstrapResponse>;
+};
+
 export type WorkspaceClientRuntimeKernelProjectionBindings = {
   bootstrap: (
     request?: KernelProjectionBootstrapRequest

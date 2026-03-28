@@ -2,7 +2,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { act, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { WorkspaceClientBindings } from "../index";
+import type { WorkspaceClientBindings } from "../workspace/bindings";
 import { WorkspaceClientBindingsProvider } from "../workspace/WorkspaceClientBindingsProvider";
 import { useSharedMissionControlSummaryState } from "./useSharedMissionControlSummaryState";
 

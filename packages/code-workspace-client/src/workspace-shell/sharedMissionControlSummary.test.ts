@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
+import { describe, expect, it } from "vitest";
 import { buildSharedMissionControlSummary } from "./sharedMissionControlSummary";
 
 function createSnapshot(
@@ -34,7 +34,12 @@ describe("buildSharedMissionControlSummary", () => {
             workspaceId: "workspace-1",
             title: "Task",
             objective: null,
-            origin: { kind: "run", runId: "run-1", threadId: null, requestId: null },
+            origin: {
+              kind: "run",
+              runId: "run-1",
+              threadId: null,
+              requestId: null,
+            },
             taskSource: null,
             mode: null,
             modeSource: "missing",
@@ -92,7 +97,12 @@ describe("buildSharedMissionControlSummary", () => {
             workspaceId: "workspace-1",
             title: "Task",
             objective: null,
-            origin: { kind: "run", runId: "run-1", threadId: null, requestId: null },
+            origin: {
+              kind: "run",
+              runId: "run-1",
+              threadId: null,
+              requestId: null,
+            },
             taskSource: null,
             mode: null,
             modeSource: "missing",
@@ -180,7 +190,12 @@ describe("buildSharedMissionControlSummary", () => {
             workspaceId: "workspace-1",
             title: "Stabilize launch flow",
             objective: null,
-            origin: { kind: "run", runId: "run-1", threadId: null, requestId: null },
+            origin: {
+              kind: "run",
+              runId: "run-1",
+              threadId: null,
+              requestId: null,
+            },
             taskSource: null,
             mode: null,
             modeSource: "missing",
@@ -265,7 +280,12 @@ describe("buildSharedMissionControlSummary", () => {
             workspaceId: "workspace-1",
             title: "Blocked route",
             objective: null,
-            origin: { kind: "run", runId: "run-blocked", threadId: null, requestId: null },
+            origin: {
+              kind: "run",
+              runId: "run-blocked",
+              threadId: null,
+              requestId: null,
+            },
             taskSource: null,
             mode: null,
             modeSource: "missing",
@@ -281,7 +301,12 @@ describe("buildSharedMissionControlSummary", () => {
             workspaceId: "workspace-1",
             title: "Active run",
             objective: null,
-            origin: { kind: "run", runId: "run-active", threadId: null, requestId: null },
+            origin: {
+              kind: "run",
+              runId: "run-active",
+              threadId: null,
+              requestId: null,
+            },
             taskSource: null,
             mode: null,
             modeSource: "missing",
@@ -425,5 +450,164 @@ describe("buildSharedMissionControlSummary", () => {
     expect(summary.reviewItems[0]?.title).toBe("Failed review");
     expect(summary.reviewItems[0]?.tone).toBe("blocked");
     expect(summary.reviewItems[1]?.title).toBe("Ready review");
+  });
+
+  it("surfaces critical review, blocked follow-up, and autofix-ready review packs in runtime order", () => {
+    const summary = buildSharedMissionControlSummary(
+      createSnapshot({
+        reviewPacks: [
+          {
+            id: "review-ready",
+            runId: "run-ready",
+            taskId: "task-ready",
+            workspaceId: "workspace-1",
+            summary: "Ready review",
+            reviewStatus: "ready",
+            evidenceState: "confirmed",
+            validationOutcome: "passed",
+            warningCount: 0,
+            warnings: [],
+            validations: [],
+            artifacts: [],
+            checksPerformed: [],
+            recommendedNextAction: "Open the review pack.",
+            createdAt: 40,
+          },
+          {
+            id: "review-autofix",
+            runId: "run-autofix",
+            taskId: "task-autofix",
+            workspaceId: "workspace-1",
+            summary: "Autofix review",
+            reviewStatus: "ready",
+            evidenceState: "confirmed",
+            validationOutcome: "passed",
+            warningCount: 1,
+            warnings: [],
+            validations: [],
+            artifacts: [],
+            checksPerformed: [],
+            recommendedNextAction: "Inspect the autofix candidate.",
+            autofixCandidate: {
+              id: "autofix-1",
+              summary: "Apply the suggested review autofix.",
+              status: "available",
+            },
+            createdAt: 30,
+          },
+          {
+            id: "review-blocked-follow-up",
+            runId: "run-blocked-follow-up",
+            taskId: "task-blocked-follow-up",
+            workspaceId: "workspace-1",
+            summary: "Blocked follow-up review",
+            reviewStatus: "ready",
+            evidenceState: "confirmed",
+            validationOutcome: "passed",
+            warningCount: 0,
+            warnings: [],
+            validations: [],
+            artifacts: [],
+            checksPerformed: [],
+            recommendedNextAction: "Recover the blocked follow-up path.",
+            actionability: {
+              state: "blocked",
+              summary: "Operator approval is still required before follow-up can continue.",
+              degradedReasons: [],
+              actions: [],
+            },
+            createdAt: 20,
+          },
+          {
+            id: "review-critical",
+            runId: "run-critical",
+            taskId: "task-critical",
+            workspaceId: "workspace-1",
+            summary: "Critical review",
+            reviewStatus: "ready",
+            evidenceState: "confirmed",
+            validationOutcome: "warning",
+            warningCount: 2,
+            warnings: [],
+            validations: [],
+            artifacts: [],
+            checksPerformed: [],
+            recommendedNextAction: "Resolve the critical gate failure.",
+            reviewGate: {
+              state: "blocked",
+              summary: "Critical findings are blocking acceptance.",
+              highestSeverity: "critical",
+              findingCount: 3,
+            },
+            createdAt: 10,
+          },
+        ],
+      }),
+      "workspace-1"
+    );
+
+    expect(summary.reviewItems.map((item) => item.title)).toEqual([
+      "Critical review",
+      "Blocked follow-up review",
+      "Autofix review",
+      "Ready review",
+    ]);
+    expect(summary.reviewItems[0]).toMatchObject({
+      reviewStatusLabel: "Critical review",
+      tone: "blocked",
+      summary: "Critical findings are blocking acceptance.",
+    });
+    expect(summary.reviewItems[1]).toMatchObject({
+      reviewStatusLabel: "Blocked follow-up",
+      tone: "blocked",
+      summary: "Operator approval is still required before follow-up can continue.",
+    });
+    expect(summary.reviewItems[2]).toMatchObject({
+      reviewStatusLabel: "Autofix ready",
+      tone: "attention",
+      summary: "Apply the suggested review autofix.",
+    });
+  });
+
+  it("maps continuation attention to the degraded follow-up review lane", () => {
+    const summary = buildSharedMissionControlSummary(
+      createSnapshot({
+        reviewPacks: [
+          {
+            id: "review-continuation-attention",
+            runId: "run-continuation-attention",
+            taskId: "task-continuation-attention",
+            workspaceId: "workspace-1",
+            summary: "Continuation needs inspection",
+            reviewStatus: "ready",
+            evidenceState: "confirmed",
+            validationOutcome: "passed",
+            warningCount: 0,
+            warnings: [],
+            validations: [],
+            artifacts: [],
+            checksPerformed: [],
+            recommendedNextAction: "Inspect the continuation guidance.",
+            continuation: {
+              state: "attention",
+              pathKind: "review_pack",
+              source: "review_actionability",
+              summary: "Review continuation needs inspection.",
+              detail: "Open Review Pack and inspect the attention guidance before continuing.",
+              recommendedAction: "Inspect the degraded review path.",
+              sessionBoundary: "same_session",
+            },
+            createdAt: 10,
+          },
+        ],
+      }),
+      "workspace-1"
+    );
+
+    expect(summary.reviewItems[0]).toMatchObject({
+      reviewStatusLabel: "Follow-up degraded",
+      tone: "attention",
+      summary: "Open Review Pack and inspect the attention guidance before continuing.",
+    });
   });
 });

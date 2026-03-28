@@ -1,10 +1,8 @@
 import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWorkspaceClientRuntimeBindings } from "../workspace/WorkspaceClientBindingsProvider";
-import {
-  buildSharedMissionControlSummary,
-  EMPTY_SHARED_MISSION_CONTROL_SUMMARY,
-} from "./sharedMissionControlSummary";
+import { EMPTY_SHARED_MISSION_CONTROL_SUMMARY } from "./sharedMissionControlSummary";
+import { createMissionControlSummaryLoader } from "./missionControlSummaryLoader";
 import type { SharedMissionControlSummary } from "./sharedMissionControlSummary";
 import type { MissionControlLoadState } from "./missionControlSnapshotStore";
 
@@ -37,6 +35,10 @@ export function useSharedMissionControlSummaryState(
 ) {
   const runtime = useWorkspaceClientRuntimeBindings();
   const enabled = options?.enabled ?? true;
+  const summaryLoader = useMemo(
+    () => createMissionControlSummaryLoader(runtime.missionControl),
+    [runtime.missionControl]
+  );
 
   const [state, setState] = useState<SharedMissionControlSummaryState>(IDLE_MISSION_CONTROL_STATE);
   const requestIdRef = useRef(0);
@@ -59,27 +61,13 @@ export function useSharedMissionControlSummaryState(
       }));
 
       try {
-        if (runtime.missionControl.readMissionControlSummary) {
-          const summary = await runtime.missionControl.readMissionControlSummary(activeWorkspaceId);
-          if (requestId !== requestIdRef.current) {
-            return;
-          }
-          setState({
-            snapshot: null,
-            summary,
-            loadState: "ready",
-            error: null,
-          });
-          return;
-        }
-
-        const snapshot = await runtime.missionControl.readMissionControlSnapshot();
+        const { snapshot, summary } = await summaryLoader.load(activeWorkspaceId);
         if (requestId !== requestIdRef.current) {
           return;
         }
         setState({
           snapshot,
-          summary: buildSharedMissionControlSummary(snapshot, activeWorkspaceId),
+          summary,
           loadState: "ready",
           error: null,
         });
@@ -95,7 +83,7 @@ export function useSharedMissionControlSummaryState(
         });
       }
     },
-    [activeWorkspaceId, enabled, runtime]
+    [activeWorkspaceId, enabled, summaryLoader]
   );
 
   // Prevent stale closure capture in delayed refresh callbacks.

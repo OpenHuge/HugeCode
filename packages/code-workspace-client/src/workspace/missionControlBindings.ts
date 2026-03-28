@@ -1,0 +1,107 @@
+import type {
+  HugeCodeMissionControlSnapshot,
+  KernelProjectionScope,
+} from "@ku0/code-runtime-host-contract";
+import type {
+  WorkspaceClientRuntimeBindings,
+  WorkspaceClientRuntimeMissionControlBindings,
+  WorkspaceClientRuntimeMissionControlSourceAdapter,
+  WorkspaceClientRuntimeReviewBindings,
+} from "./bindings";
+import {
+  createMissionControlSummaryLoader,
+  DEFAULT_MISSION_CONTROL_SUMMARY_COMPOSER,
+} from "../workspace-shell/missionControlSummaryLoader";
+import type { MissionControlSummaryComposer } from "../workspace-shell/missionControlSummaryContracts";
+import { readMissionControlProjectionSlice } from "../workspace-shell/kernelProjectionStore";
+
+export type MissionControlSnapshotReader = () => Promise<HugeCodeMissionControlSnapshot>;
+export type SnapshotBackedMissionControlSurfaceBindings = Pick<
+  WorkspaceClientRuntimeBindings,
+  "missionControl" | "review"
+>;
+
+const MISSION_CONTROL_PROJECTION_SCOPES: KernelProjectionScope[] = ["mission_control"];
+
+type WorkspaceClientMissionControlSurfaceBindingsInput =
+  WorkspaceClientRuntimeMissionControlSourceAdapter & {
+    composer?: MissionControlSummaryComposer;
+  };
+
+export async function readMissionControlSnapshotFromSourceAdapter(
+  adapter: WorkspaceClientRuntimeMissionControlSourceAdapter
+): Promise<HugeCodeMissionControlSnapshot> {
+  if (adapter.bootstrapKernelProjection) {
+    try {
+      const bootstrap = await adapter.bootstrapKernelProjection({
+        scopes: MISSION_CONTROL_PROJECTION_SCOPES,
+      });
+      const missionControl = readMissionControlProjectionSlice(bootstrap);
+      if (missionControl) {
+        return missionControl;
+      }
+    } catch {
+      // Fall through to snapshot-backed truth when projection bootstrap is unavailable.
+    }
+  }
+
+  return await adapter.readMissionControlSnapshot();
+}
+
+export function createWorkspaceClientRuntimeMissionControlBindings(
+  input: WorkspaceClientMissionControlSurfaceBindingsInput
+): WorkspaceClientRuntimeMissionControlBindings {
+  const composer = input.composer ?? DEFAULT_MISSION_CONTROL_SUMMARY_COMPOSER;
+  const readMissionControlSnapshot = async () =>
+    await readMissionControlSnapshotFromSourceAdapter(input);
+  const loader = createMissionControlSummaryLoader(
+    {
+      readMissionControlSnapshot,
+    },
+    composer
+  );
+
+  return {
+    readMissionControlSnapshot,
+    readMissionControlSummary: async (activeWorkspaceId) =>
+      (await loader.load(activeWorkspaceId)).summary,
+  };
+}
+
+export function createWorkspaceClientRuntimeReviewBindings(
+  input: WorkspaceClientRuntimeMissionControlSourceAdapter
+): WorkspaceClientRuntimeReviewBindings {
+  return {
+    listReviewPacks: async () =>
+      (await readMissionControlSnapshotFromSourceAdapter(input)).reviewPacks,
+  };
+}
+
+export function createWorkspaceClientRuntimeMissionControlSurfaceBindings(
+  input: WorkspaceClientMissionControlSurfaceBindingsInput
+): SnapshotBackedMissionControlSurfaceBindings {
+  return {
+    missionControl: createWorkspaceClientRuntimeMissionControlBindings(input),
+    review: createWorkspaceClientRuntimeReviewBindings(input),
+  };
+}
+
+export function createSnapshotBackedMissionControlBindings(input: {
+  readMissionControlSnapshot: MissionControlSnapshotReader;
+  composer?: MissionControlSummaryComposer;
+}): WorkspaceClientRuntimeMissionControlBindings {
+  return createWorkspaceClientRuntimeMissionControlBindings(input);
+}
+
+export function createSnapshotBackedReviewBindings(input: {
+  readMissionControlSnapshot: MissionControlSnapshotReader;
+}): WorkspaceClientRuntimeReviewBindings {
+  return createWorkspaceClientRuntimeReviewBindings(input);
+}
+
+export function createSnapshotBackedMissionControlSurfaceBindings(input: {
+  readMissionControlSnapshot: MissionControlSnapshotReader;
+  composer?: MissionControlSummaryComposer;
+}): SnapshotBackedMissionControlSurfaceBindings {
+  return createWorkspaceClientRuntimeMissionControlSurfaceBindings(input);
+}

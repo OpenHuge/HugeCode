@@ -3,7 +3,8 @@
 import { lazy } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { SettingsShellFraming, WorkspaceClientBindings } from "../index";
+import type { SettingsShellFraming } from "../settings-shell/settingsShellTypes";
+import type { WorkspaceClientBindings } from "./bindings";
 import { WorkspaceClientApp } from "./WorkspaceClientApp";
 import { WorkspaceClientBindingsProvider } from "./WorkspaceClientBindingsProvider";
 

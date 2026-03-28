@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
+import { describe, expect, it } from "vitest";
 import {
   buildLatestMissionRunsFromProjection,
   buildMissionOverviewCountsFromProjection,
@@ -426,9 +426,13 @@ describe("missionControlPresentation", () => {
     expect(entry.operatorActionLabel).toBe("Continue in mission thread");
     expect(entry.operatorActionDetail).toBe("Open the handoff target on the mission thread.");
     expect(entry.operatorActionTarget).toEqual({
-      kind: "thread",
+      kind: "mission",
       workspaceId: "ws-1",
+      taskId: "task-handoff",
+      runId: "run-handoff",
+      reviewPackId: "review-pack:run-handoff",
       threadId: "thread-1",
+      limitation: null,
     });
   });
   it("uses runtime-inspection language for runtime-managed latest mission fallbacks", () => {
@@ -621,6 +625,7 @@ describe("missionControlPresentation", () => {
     expect(entries[0]).toMatchObject({
       accountabilityLifecycle: "in_review",
       filterTags: expect.arrayContaining([
+        "blocked_follow_up",
         "incomplete_evidence",
         "fallback_routing",
         "sub_agent_blocked",
@@ -751,6 +756,11 @@ describe("missionControlPresentation", () => {
       reviewPackId: null,
       operatorSignal: "Awaiting approval",
       attentionSignals: expect.arrayContaining(["Approval pending", "Blocked"]),
+      filterTags: expect.arrayContaining([
+        "needs_attention",
+        "blocked_follow_up",
+        "sub_agent_blocked",
+      ]),
       subAgentSignal: "Sub-agent awaiting approval",
       publishHandoffLabel: "Publish handoff ready",
     });
