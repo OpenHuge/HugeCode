@@ -176,6 +176,15 @@ function formatLifecycleStatus(status: RuntimeToolLifecycleEvent["status"] | nul
   return status.replaceAll("_", " ");
 }
 
+function formatHookCheckpointStatus(
+  status: RuntimeToolLifecycleHookCheckpoint["status"] | null
+): string {
+  if (!status) {
+    return "unknown";
+  }
+  return status.replaceAll("_", " ");
+}
+
 function getHookCheckpointTone(
   checkpoint: RuntimeToolLifecycleHookCheckpoint
 ): "neutral" | "running" | "success" | "warning" | "danger" {
@@ -277,7 +286,7 @@ export function MissionControlSessionLogSection({
               <div className="workspace-home-code-runtime-item-main">
                 <strong>Hook {describeHookCheckpoint(checkpoint)}</strong>
                 <ToolCallChip tone={getHookCheckpointTone(checkpoint)}>
-                  {formatLifecycleStatus(checkpoint.status)}
+                  {formatHookCheckpointStatus(checkpoint.status)}
                 </ToolCallChip>
                 <span>{formatRuntimeTimestamp(checkpoint.at)}</span>
                 <span>Source: {checkpoint.source}</span>
