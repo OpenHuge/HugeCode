@@ -11,7 +11,7 @@ import { useThreadTurnEvents } from "./useThreadTurnEvents";
 
 const interruptTurn = vi.hoisted(() => vi.fn());
 
-vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
+vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks", () => ({
   useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
     interruptTurn: ({ threadId, turnId }: Record<string, unknown>) =>
       interruptTurn(workspaceId, threadId, turnId),
