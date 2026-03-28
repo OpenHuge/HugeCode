@@ -164,6 +164,7 @@ The approved workspace-scoped read path is now:
 
 - `apps/code/src/application/runtime/ports/runtimeToolLifecycle.ts`
   - `getWorkspaceRuntimeToolLifecycleSnapshot(workspaceId)`
+  - `subscribeWorkspaceRuntimeToolLifecycleEvents(workspaceId, listener)`
   - `subscribeWorkspaceRuntimeToolLifecycleSnapshot(workspaceId, listener)`
 
 Consumers should prefer that boundary over composing

@@ -152,6 +152,7 @@ export function createRuntimeToolLifecycleStore(
   subscribeToTelemetryEvents: TelemetryEventSubscriber
 ) {
   const eventListeners = new Set<RuntimeToolLifecycleEventListener>();
+  const workspaceEventListeners = new Map<string, Set<RuntimeToolLifecycleEventListener>>();
   const snapshotListeners = new Set<RuntimeToolLifecycleSnapshotListener>();
   const workspaceSnapshotListeners = new Map<string, Set<RuntimeToolLifecycleSnapshotListener>>();
   let appServerUnsubscribe: Unsubscribe | null = null;
@@ -201,12 +202,21 @@ export function createRuntimeToolLifecycleStore(
     for (const listener of eventListeners) {
       notifyLifecycleEventListener(listener, event);
     }
-    for (const listener of snapshotListeners) {
-      notifyLifecycleSnapshotListener(listener);
-    }
     const workspaceListenerKeys = [ALL_WORKSPACE_RUNTIME_TOOL_LIFECYCLE_LISTENER_KEY];
     if (event.workspaceId) {
       workspaceListenerKeys.push(event.workspaceId);
+    }
+    for (const listenerKey of workspaceListenerKeys) {
+      const listeners = workspaceEventListeners.get(listenerKey);
+      if (!listeners) {
+        continue;
+      }
+      for (const listener of listeners) {
+        notifyLifecycleEventListener(listener, event);
+      }
+    }
+    for (const listener of snapshotListeners) {
+      notifyLifecycleSnapshotListener(listener);
     }
     for (const listenerKey of workspaceListenerKeys) {
       const listeners = workspaceSnapshotListeners.get(listenerKey);
@@ -231,11 +241,23 @@ export function createRuntimeToolLifecycleStore(
     return listenerCount;
   }
 
+  function getWorkspaceEventListenerCount(): number {
+    let listenerCount = 0;
+    for (const listeners of workspaceEventListeners.values()) {
+      listenerCount += listeners.size;
+    }
+    return listenerCount;
+  }
+
   function ensureSubscriptions(): void {
     if (
       appServerUnsubscribe ||
       telemetryUnsubscribe ||
-      eventListeners.size + snapshotListeners.size + getWorkspaceSnapshotListenerCount() === 0
+      eventListeners.size +
+        snapshotListeners.size +
+        getWorkspaceEventListenerCount() +
+        getWorkspaceSnapshotListenerCount() ===
+        0
     ) {
       return;
     }
@@ -271,7 +293,13 @@ export function createRuntimeToolLifecycleStore(
   }
 
   function maybeStopSubscriptions(): void {
-    if (eventListeners.size + snapshotListeners.size + getWorkspaceSnapshotListenerCount() > 0) {
+    if (
+      eventListeners.size +
+        snapshotListeners.size +
+        getWorkspaceEventListenerCount() +
+        getWorkspaceSnapshotListenerCount() >
+      0
+    ) {
       return;
     }
     if (appServerUnsubscribe) {
@@ -291,6 +319,28 @@ export function createRuntimeToolLifecycleStore(
     ensureSubscriptions();
     return () => {
       eventListeners.delete(listener);
+      maybeStopSubscriptions();
+    };
+  }
+
+  function subscribeWorkspaceRuntimeToolLifecycleEvents(
+    workspaceId: string | null,
+    listener: RuntimeToolLifecycleEventListener
+  ): Unsubscribe {
+    const listenerKey = getWorkspaceListenerKey(workspaceId);
+    const listeners = workspaceEventListeners.get(listenerKey) ?? new Set();
+    listeners.add(listener);
+    workspaceEventListeners.set(listenerKey, listeners);
+    ensureSubscriptions();
+    return () => {
+      const currentListeners = workspaceEventListeners.get(listenerKey);
+      if (!currentListeners) {
+        return;
+      }
+      currentListeners.delete(listener);
+      if (currentListeners.size === 0) {
+        workspaceEventListeners.delete(listenerKey);
+      }
       maybeStopSubscriptions();
     };
   }
@@ -342,6 +392,7 @@ export function createRuntimeToolLifecycleStore(
     getRuntimeToolLifecycleSnapshot,
     getWorkspaceRuntimeToolLifecycleSnapshot,
     subscribeRuntimeToolLifecycleEvents,
+    subscribeWorkspaceRuntimeToolLifecycleEvents,
     subscribeRuntimeToolLifecycleSnapshot,
     subscribeWorkspaceRuntimeToolLifecycleSnapshot,
   };
@@ -358,6 +409,8 @@ export const getWorkspaceRuntimeToolLifecycleSnapshot =
   runtimeToolLifecycleStore.getWorkspaceRuntimeToolLifecycleSnapshot;
 export const subscribeRuntimeToolLifecycleEvents =
   runtimeToolLifecycleStore.subscribeRuntimeToolLifecycleEvents;
+export const subscribeWorkspaceRuntimeToolLifecycleEvents =
+  runtimeToolLifecycleStore.subscribeWorkspaceRuntimeToolLifecycleEvents;
 export const subscribeRuntimeToolLifecycleSnapshot =
   runtimeToolLifecycleStore.subscribeRuntimeToolLifecycleSnapshot;
 export const subscribeWorkspaceRuntimeToolLifecycleSnapshot =

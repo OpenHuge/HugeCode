@@ -104,12 +104,27 @@ describe("runtimeToolLifecycleFacade", () => {
       (await import("../ports/runtimeToolExecutionTelemetry")) as unknown as TelemetryTestApi;
 
     const lifecycleListener = vi.fn();
+    const workspaceOneLifecycleListener = vi.fn();
+    const workspaceTwoLifecycleListener = vi.fn();
+    const allWorkspaceLifecycleListener = vi.fn();
     const snapshotListener = vi.fn();
     const workspaceOneSnapshotListener = vi.fn();
     const workspaceTwoSnapshotListener = vi.fn();
     const allWorkspaceSnapshotListener = vi.fn();
 
     const unsubscribeEvents = facade.subscribeRuntimeToolLifecycleEvents(lifecycleListener);
+    const unsubscribeWorkspaceOneEvents = facade.subscribeWorkspaceRuntimeToolLifecycleEvents(
+      "workspace-1",
+      workspaceOneLifecycleListener
+    );
+    const unsubscribeWorkspaceTwoEvents = facade.subscribeWorkspaceRuntimeToolLifecycleEvents(
+      "workspace-2",
+      workspaceTwoLifecycleListener
+    );
+    const unsubscribeAllWorkspaceEvents = facade.subscribeWorkspaceRuntimeToolLifecycleEvents(
+      null,
+      allWorkspaceLifecycleListener
+    );
     const unsubscribeSnapshot = facade.subscribeRuntimeToolLifecycleSnapshot(snapshotListener);
     const unsubscribeWorkspaceOne = facade.subscribeWorkspaceRuntimeToolLifecycleSnapshot(
       "workspace-1",
@@ -160,6 +175,9 @@ describe("runtimeToolLifecycleFacade", () => {
     });
 
     expect(lifecycleListener).toHaveBeenCalledTimes(2);
+    expect(workspaceOneLifecycleListener).toHaveBeenCalledTimes(2);
+    expect(workspaceTwoLifecycleListener).not.toHaveBeenCalled();
+    expect(allWorkspaceLifecycleListener).toHaveBeenCalledTimes(2);
     expect(snapshotListener).toHaveBeenCalledTimes(2);
     expect(workspaceOneSnapshotListener).toHaveBeenCalledTimes(2);
     expect(workspaceTwoSnapshotListener).not.toHaveBeenCalled();
@@ -223,6 +241,9 @@ describe("runtimeToolLifecycleFacade", () => {
     expect(telemetry.__telemetryListenerCount()).toBe(1);
 
     unsubscribeSnapshot();
+    unsubscribeWorkspaceOneEvents();
+    unsubscribeWorkspaceTwoEvents();
+    unsubscribeAllWorkspaceEvents();
     unsubscribeWorkspaceOne();
     unsubscribeWorkspaceTwo();
     unsubscribeAllWorkspaces();

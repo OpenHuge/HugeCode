@@ -15,6 +15,7 @@ export {
   getRuntimeToolLifecycleSnapshot,
   getWorkspaceRuntimeToolLifecycleSnapshot,
   subscribeRuntimeToolLifecycleEvents,
+  subscribeWorkspaceRuntimeToolLifecycleEvents,
   subscribeRuntimeToolLifecycleSnapshot,
   subscribeWorkspaceRuntimeToolLifecycleSnapshot,
 } from "../facades/runtimeToolLifecycleFacade";
