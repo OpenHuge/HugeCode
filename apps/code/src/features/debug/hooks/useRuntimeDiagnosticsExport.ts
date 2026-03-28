@@ -1,7 +1,9 @@
 import { readRuntimeToolExecutionMetrics } from "../../../application/runtime/ports/runtimeToolExecutionMetrics";
 import { useCallback, useState } from "react";
 import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";
+import { buildRuntimeSessionCheckpointBaseline } from "../../../application/runtime/facades/runtimeSessionCheckpointFacade";
 import { runtimeDiagnosticsExportV1 } from "../../../application/runtime/ports/tauriRuntime";
+import type { RuntimeSessionCheckpointBaseline } from "../../../application/runtime/types/runtimeSessionCheckpoint";
 
 type UseRuntimeDiagnosticsExportOptions = {
   workspaceId?: string | null;
@@ -27,6 +29,7 @@ type DiagnosticsMetadataArtifact = {
     lastEvent: unknown;
     recentEvents: unknown[];
   };
+  sessionCheckpointBaseline: RuntimeSessionCheckpointBaseline;
   toolExecutionMetrics: {
     updatedAt: number;
     totals: unknown;
@@ -103,6 +106,10 @@ function createDiagnosticsMetadataArtifact(input: {
 }): DiagnosticsMetadataArtifact {
   const lifecycleSnapshot = getWorkspaceRuntimeToolLifecycleSnapshot(input.workspaceId);
   const toolExecutionMetricsSnapshot = readRuntimeToolExecutionMetrics();
+  const sessionCheckpointBaseline = buildRuntimeSessionCheckpointBaseline({
+    workspaceId: input.workspaceId,
+    lifecycleSnapshot,
+  });
 
   return {
     schemaVersion: "runtime-diagnostics-metadata/v1",
@@ -123,6 +130,7 @@ function createDiagnosticsMetadataArtifact(input: {
       lastEvent: lifecycleSnapshot.lastEvent,
       recentEvents: lifecycleSnapshot.recentEvents,
     },
+    sessionCheckpointBaseline,
     toolExecutionMetrics: {
       updatedAt: toolExecutionMetricsSnapshot.updatedAt,
       totals: toolExecutionMetricsSnapshot.totals,
@@ -138,12 +146,13 @@ function formatDiagnosticsExportStatus(options: {
   sizeBytes: number;
   sectionCount: number;
   lifecycleEventCount: number;
+  structuredSessionCount: number;
   toolExecutionRecentCount: number;
   warnings: string[];
 }): string {
   const statusPrefix = options.includeZipBase64
     ? `Exported ${options.artifactFilename} (${options.sizeBytes} bytes).`
-    : `Exported ${options.artifactFilename} (${options.sectionCount} sections, ${options.lifecycleEventCount} lifecycle events, ${options.toolExecutionRecentCount} tool metric entries).`;
+    : `Exported ${options.artifactFilename} (${options.sectionCount} sections, ${options.lifecycleEventCount} lifecycle events, ${options.structuredSessionCount} structured sessions, ${options.toolExecutionRecentCount} tool metric entries).`;
   const warningsSuffix =
     options.warnings.length > 0 ? ` Warnings: ${options.warnings.join(" | ")}` : "";
   return `${statusPrefix}${warningsSuffix}`;
@@ -176,6 +185,7 @@ export function useRuntimeDiagnosticsExport({
         }
         let artifactFilename = exported.filename;
         let lifecycleEventCount = 0;
+        let structuredSessionCount = 0;
         let toolExecutionRecentCount = 0;
         if (includeZipBase64) {
           if (typeof exported.zipBase64 !== "string" || exported.zipBase64.trim().length === 0) {
@@ -197,6 +207,7 @@ export function useRuntimeDiagnosticsExport({
             workspaceId,
           });
           lifecycleEventCount = countLifecycleEvents(metadataArtifact);
+          structuredSessionCount = metadataArtifact.sessionCheckpointBaseline.sessions.length;
           toolExecutionRecentCount = metadataArtifact.toolExecutionMetrics.recent.length;
           triggerDiagnosticsExportDownload(
             JSON.stringify(metadataArtifact, null, 2),
@@ -211,6 +222,7 @@ export function useRuntimeDiagnosticsExport({
             sizeBytes: exported.sizeBytes,
             sectionCount: exported.sections.length,
             lifecycleEventCount,
+            structuredSessionCount,
             toolExecutionRecentCount,
             warnings: exported.warnings,
           })

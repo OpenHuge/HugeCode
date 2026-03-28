@@ -15,13 +15,15 @@ import {
   buildRuntimeToolLifecyclePresentationSummary,
   type RuntimeToolLifecycleEvent,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
+import { buildRuntimeSessionCheckpointBaseline } from "../../../application/runtime/facades/runtimeSessionCheckpointFacade";
+import { buildRuntimeSessionCheckpointPresentationSummary } from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
 import { REVIEW_START_DESKTOP_ONLY_MESSAGE } from "../../../application/runtime/ports/tauriThreads";
 import { RuntimeKernelProvider } from "../../../application/runtime/kernel/RuntimeKernelContext";
 import { createRuntimeAgentControlDependencies } from "../../../application/runtime/kernel/createRuntimeAgentControlDependencies";
 import type { RuntimeUpdatedEvent } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import { createRuntimeAgentControlFacade } from "../../../application/runtime/facades/runtimeAgentControlFacade";
 import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
-import { useWorkspaceRuntimeToolLifecycle } from "../../shared/hooks/useWorkspaceRuntimeToolLifecycle";
+import { useWorkspaceRuntimeSessionCheckpoint } from "../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint";
 import {
   projectAgentTaskSummaryToRunSummary,
   projectCompletedRunToReviewPackSummary,
@@ -108,8 +110,8 @@ vi.mock("../../../application/runtime/ports/tauriRuntimeDiagnostics", () => ({
   runtimeToolGuardrailRead: vi.fn(),
 }));
 
-vi.mock("../../shared/hooks/useWorkspaceRuntimeToolLifecycle", () => ({
-  useWorkspaceRuntimeToolLifecycle: vi.fn(),
+vi.mock("../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint", () => ({
+  useWorkspaceRuntimeSessionCheckpoint: vi.fn(),
 }));
 
 vi.mock("../../../application/runtime/ports/tauriOauth", () => ({
@@ -148,7 +150,7 @@ const getMissionControlSnapshotMock = vi.mocked(getMissionControlSnapshot);
 const submitTaskApprovalDecisionMock = vi.mocked(submitTaskApprovalDecision) as unknown as Mock;
 const interruptAgentTaskMock = vi.mocked(interruptAgentTask) as unknown as Mock;
 const resumeAgentTaskMock = vi.mocked(resumeAgentTask) as unknown as Mock;
-const useWorkspaceRuntimeToolLifecycleMock = vi.mocked(useWorkspaceRuntimeToolLifecycle);
+const useWorkspaceRuntimeSessionCheckpointMock = vi.mocked(useWorkspaceRuntimeSessionCheckpoint);
 
 function createEmptyMissionControlSnapshot() {
   return {
@@ -175,7 +177,7 @@ function mockRuntimeTasks(tasks: MockAgentTaskSummary[]) {
 
 beforeEach(() => {
   runtimeUpdatedListeners.clear();
-  useWorkspaceRuntimeToolLifecycleMock.mockReturnValue({
+  const lifecycle = {
     summary: buildRuntimeToolLifecyclePresentationSummary({
       lifecycleEvents: [],
       hookCheckpoints: [],
@@ -185,6 +187,22 @@ beforeEach(() => {
     lastEvent: null,
     hookCheckpoints: [],
     lifecycleEvents: [],
+  };
+  const sessionCheckpointBaseline = buildRuntimeSessionCheckpointBaseline({
+    workspaceId: "ws-approval",
+    lifecycleSnapshot: {
+      revision: lifecycle.revision,
+      lastEvent: lifecycle.lastEvent,
+      recentEvents: lifecycle.lifecycleEvents,
+      lastHookCheckpoint: lifecycle.lastHookCheckpoint,
+      recentHookCheckpoints: lifecycle.hookCheckpoints,
+    },
+  });
+  useWorkspaceRuntimeSessionCheckpointMock.mockReturnValue({
+    lifecycle,
+    sessionCheckpointBaseline,
+    sessionCheckpointSummary:
+      buildRuntimeSessionCheckpointPresentationSummary(sessionCheckpointBaseline),
   });
   vi.mocked(subscribeScopedRuntimeUpdatedEvents).mockImplementation((_options, listener) => {
     runtimeUpdatedListeners.add(listener);
@@ -767,29 +785,8 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
         approvalId: "approval-1",
       },
     ];
-    useWorkspaceRuntimeToolLifecycleMock.mockReturnValue({
-      summary: buildRuntimeToolLifecyclePresentationSummary({
-        lifecycleEvents,
-        hookCheckpoints: [
-          {
-            key: "hook-1",
-            point: "post_execution_pre_publication",
-            status: "ready",
-            source: "telemetry",
-            workspaceId: "ws-approval",
-            threadId: "thread-1",
-            turnId: "turn-1",
-            toolCallId: "call-1",
-            toolName: "bash",
-            scope: "write",
-            lifecycleEventId: "tool-1",
-            at: 1_771_331_697_000,
-            reason: null,
-          },
-        ],
-      }),
-      revision: 2,
-      lastHookCheckpoint: {
+    const hookCheckpoints = [
+      {
         key: "hook-1",
         point: "post_execution_pre_publication",
         status: "ready",
@@ -804,25 +801,33 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
         at: 1_771_331_697_000,
         reason: null,
       },
-      lastEvent: lifecycleEvents[0],
-      hookCheckpoints: [
-        {
-          key: "hook-1",
-          point: "post_execution_pre_publication",
-          status: "ready",
-          source: "telemetry",
-          workspaceId: "ws-approval",
-          threadId: "thread-1",
-          turnId: "turn-1",
-          toolCallId: "call-1",
-          toolName: "bash",
-          scope: "write",
-          lifecycleEventId: "tool-1",
-          at: 1_771_331_697_000,
-          reason: null,
-        },
-      ],
+    ] as const;
+    const lifecycle = {
+      summary: buildRuntimeToolLifecyclePresentationSummary({
+        lifecycleEvents,
+        hookCheckpoints: [...hookCheckpoints],
+      }),
+      revision: 2,
+      lastHookCheckpoint: hookCheckpoints[0] ?? null,
+      lastEvent: lifecycleEvents[0] ?? null,
+      hookCheckpoints: [...hookCheckpoints],
       lifecycleEvents,
+    };
+    const sessionCheckpointBaseline = buildRuntimeSessionCheckpointBaseline({
+      workspaceId: "ws-approval",
+      lifecycleSnapshot: {
+        revision: lifecycle.revision,
+        lastEvent: lifecycle.lastEvent,
+        recentEvents: lifecycle.lifecycleEvents,
+        lastHookCheckpoint: lifecycle.lastHookCheckpoint,
+        recentHookCheckpoints: lifecycle.hookCheckpoints,
+      },
+    });
+    useWorkspaceRuntimeSessionCheckpointMock.mockReturnValue({
+      lifecycle,
+      sessionCheckpointBaseline,
+      sessionCheckpointSummary:
+        buildRuntimeSessionCheckpointPresentationSummary(sessionCheckpointBaseline),
     });
 
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
@@ -831,6 +836,10 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("heading", { name: "Session log" })).toBeTruthy();
       expect(screen.getByText("bash completed")).toBeTruthy();
       expect(screen.getByText("Approval requested")).toBeTruthy();
+      expect(screen.getByText("Structured sessions 1")).toBeTruthy();
+      expect(screen.getByText("Session thread:thread-1/turn:turn-1")).toBeTruthy();
+      expect(screen.getByText("Last event: tool-1")).toBeTruthy();
+      expect(screen.getByText("Last checkpoint: hook-1")).toBeTruthy();
       expect(screen.getByText("Hook checkpoints 1")).toBeTruthy();
       expect(
         screen.getByText((content) => content.includes("Hook post execution pre publication"))

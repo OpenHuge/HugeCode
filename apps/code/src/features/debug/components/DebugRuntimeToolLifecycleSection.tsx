@@ -6,14 +6,18 @@ import {
   formatRuntimeToolLifecycleEventKey,
   formatRuntimeToolLifecycleHookCheckpointKey,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
-import type { WorkspaceRuntimeToolLifecycleProjection } from "../../shared/hooks/useWorkspaceRuntimeToolLifecycle";
+import {
+  formatRuntimeSessionCheckpointSessionLabel,
+  sortRuntimeSessionCheckpointSessionsByRecency,
+} from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
+import type { DebugRuntimeToolLifecycleState } from "../hooks/useDebugRuntimeToolLifecycle";
 import {
   DebugDiagnosticsDefinitionList,
   type DebugDiagnosticsFieldDescriptor,
 } from "./DebugDiagnosticsFieldGroups";
 
 export type DebugRuntimeToolLifecycleSectionProps = {
-  runtimeToolLifecycle: WorkspaceRuntimeToolLifecycleProjection;
+  runtimeToolLifecycle: DebugRuntimeToolLifecycleState;
 };
 
 function formatLifecycleTimestamp(value: number): string {
@@ -57,7 +61,17 @@ function createHookCheckpointFields(
 export function DebugRuntimeToolLifecycleSection({
   runtimeToolLifecycle,
 }: DebugRuntimeToolLifecycleSectionProps) {
-  const { hookCheckpoints, lifecycleEvents, summary } = runtimeToolLifecycle;
+  const {
+    hookCheckpoints,
+    lifecycleEvents,
+    sessionCheckpointBaseline,
+    sessionCheckpointSummary,
+    summary,
+  } = runtimeToolLifecycle;
+  const sortedSessions = sortRuntimeSessionCheckpointSessionsByRecency(
+    sessionCheckpointBaseline.sessions
+  );
+
   return (
     <div className="debug-event-channel-diagnostics" data-testid="debug-runtime-tool-lifecycle">
       <div className="debug-event-channel-diagnostics-title">Tool lifecycle</div>
@@ -89,12 +103,60 @@ export function DebugRuntimeToolLifecycleSection({
           </div>
         </>
       ) : null}
+      {sessionCheckpointSummary.latestSession ? (
+        <>
+          <div className="debug-event-channel-diagnostics-empty">
+            {sessionCheckpointSummary.totalSessions} structured sessions observed.
+          </div>
+          <div className="debug-event-channel-diagnostics-empty">
+            Latest session: {sessionCheckpointSummary.latestSessionLabel} at{" "}
+            <time
+              dateTime={formatLifecycleTimestamp(
+                sessionCheckpointSummary.latestSession.latestActivityAt ?? 0
+              )}
+            >
+              {formatLifecycleTimestamp(
+                sessionCheckpointSummary.latestSession.latestActivityAt ?? 0
+              )}
+            </time>
+            .
+          </div>
+        </>
+      ) : null}
       {!summary.hasActivity ? (
         <div className="debug-event-channel-diagnostics-empty">
           No lifecycle activity observed yet.
         </div>
       ) : (
         <div className="debug-event-channel-diagnostics-grid">
+          {sortedSessions.map((session) => (
+            <div key={session.sessionKey} className="debug-event-channel-diagnostics-item">
+              <div className="debug-event-channel-diagnostics-label">
+                {formatRuntimeSessionCheckpointSessionLabel(session)}
+              </div>
+              <DebugDiagnosticsDefinitionList
+                fields={[
+                  {
+                    label: "latest_activity_at",
+                    value:
+                      session.latestActivityAt === null
+                        ? "-"
+                        : formatLifecycleTimestamp(session.latestActivityAt),
+                  },
+                  { label: "records", value: String(session.records.length) },
+                  { label: "checkpoints", value: String(session.checkpoints.length) },
+                  {
+                    label: "last_event_id",
+                    value: session.replay.lastLifecycleEventId ?? "-",
+                  },
+                  {
+                    label: "last_checkpoint_key",
+                    value: session.replay.lastHookCheckpointKey ?? "-",
+                  },
+                ]}
+              />
+            </div>
+          ))}
           {lifecycleEvents.map((event) => (
             <div key={event.id} className="debug-event-channel-diagnostics-item">
               <div className="debug-event-channel-diagnostics-label">

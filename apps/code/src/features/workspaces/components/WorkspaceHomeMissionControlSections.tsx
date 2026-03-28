@@ -7,11 +7,12 @@ import {
   getRuntimeToolLifecycleEventTone,
   getRuntimeToolLifecycleHookCheckpointTone,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
+import { formatRuntimeSessionCheckpointSessionLabel } from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
 import type { RuntimeAgentTaskInterventionInput } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeContinuityReadinessSummary } from "../../../application/runtime/facades/runtimeContinuityReadiness";
 import type { RuntimeTaskLauncherInterventionIntent } from "../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
-import type { WorkspaceRuntimeToolLifecycleProjection } from "../../shared/hooks/useWorkspaceRuntimeToolLifecycle";
+import type { WorkspaceRuntimeSessionCheckpointState } from "../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint";
 import {
   CoreLoopMetaRail,
   CoreLoopSection,
@@ -148,15 +149,20 @@ export function MissionControlRunListSection({
 }
 
 type MissionControlSessionLogSectionProps = {
-  runtimeToolLifecycle: WorkspaceRuntimeToolLifecycleProjection;
+  runtimeSessionCheckpoint: WorkspaceRuntimeSessionCheckpointState;
   maxItems?: number;
 };
 
 export function MissionControlSessionLogSection({
-  runtimeToolLifecycle,
+  runtimeSessionCheckpoint,
   maxItems = 8,
 }: MissionControlSessionLogSectionProps) {
-  const { hookCheckpoints, lifecycleEvents, summary } = runtimeToolLifecycle;
+  const {
+    lifecycle: { hookCheckpoints, lifecycleEvents, summary },
+    sessionCheckpointBaseline,
+    sessionCheckpointSummary,
+  } = runtimeSessionCheckpoint;
+  const visibleSessions = sessionCheckpointBaseline.sessions.slice(0, maxItems);
   const visibleEvents = lifecycleEvents.slice(0, maxItems);
   const visibleHookCheckpoints = hookCheckpoints.slice(0, maxItems);
 
@@ -171,17 +177,22 @@ export function MissionControlSessionLogSection({
           <ToolCallChip tone="neutral">Tools {summary.toolEventCount}</ToolCallChip>
           <ToolCallChip tone="neutral">Approvals {summary.approvalEventCount}</ToolCallChip>
           <ToolCallChip tone="neutral">
+            Structured sessions {sessionCheckpointSummary.totalSessions}
+          </ToolCallChip>
+          <ToolCallChip tone="neutral">
             Hook checkpoints {summary.totalHookCheckpoints}
           </ToolCallChip>
         </>
       }
     >
-      {visibleEvents.length === 0 && visibleHookCheckpoints.length === 0 ? (
+      {visibleSessions.length === 0 &&
+      visibleEvents.length === 0 &&
+      visibleHookCheckpoints.length === 0 ? (
         <CoreLoopStatePanel
           compact
           eyebrow="Operator session log"
           title="No runtime lifecycle activity yet."
-          description="Turn, tool, approval, and guardrail events will appear here once runtime starts publishing work for this workspace."
+          description="Turn, tool, approval, guardrail, and checkpoint activity will appear here once runtime starts publishing work for this workspace."
           tone="default"
         />
       ) : (
@@ -189,6 +200,23 @@ export function MissionControlSessionLogSection({
           className="workspace-home-code-runtime-list"
           data-testid="workspace-runtime-session-log"
         >
+          {visibleSessions.map((session) => (
+            <div className="workspace-home-code-runtime-item" key={session.sessionKey}>
+              <div className="workspace-home-code-runtime-item-main">
+                <strong>Session {formatRuntimeSessionCheckpointSessionLabel(session)}</strong>
+                <span>
+                  Latest activity:{" "}
+                  {session.latestActivityAt === null
+                    ? "n/a"
+                    : formatRuntimeTimestamp(session.latestActivityAt)}
+                </span>
+                <span>Records: {session.records.length}</span>
+                <span>Checkpoints: {session.checkpoints.length}</span>
+                <span>Last event: {session.replay.lastLifecycleEventId ?? "n/a"}</span>
+                <span>Last checkpoint: {session.replay.lastHookCheckpointKey ?? "n/a"}</span>
+              </div>
+            </div>
+          ))}
           {visibleEvents.map((event) => (
             <div className="workspace-home-code-runtime-item" key={event.id}>
               <div className="workspace-home-code-runtime-item-main">

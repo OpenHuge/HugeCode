@@ -49,7 +49,39 @@ describe("useRuntimeDiagnosticsExport", () => {
         at: 1_770_000_000_000,
         errorCode: null,
       },
+      lastHookCheckpoint: {
+        key: "workspace-debug-meta:post_execution_pre_publication",
+        point: "post_execution_pre_publication",
+        status: "ready",
+        source: "app-event",
+        workspaceId: "workspace-debug-meta",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        toolCallId: "tool-call-1",
+        toolName: "bash",
+        scope: "write",
+        lifecycleEventId: "tool-started-1",
+        at: 1_770_000_000_001,
+        reason: null,
+      },
       recentEvents: [],
+      recentHookCheckpoints: [
+        {
+          key: "workspace-debug-meta:post_execution_pre_publication",
+          point: "post_execution_pre_publication",
+          status: "ready",
+          source: "app-event",
+          workspaceId: "workspace-debug-meta",
+          threadId: "thread-1",
+          turnId: "turn-1",
+          toolCallId: "tool-call-1",
+          toolName: "bash",
+          scope: "write",
+          lifecycleEventId: "tool-started-1",
+          at: 1_770_000_000_001,
+          reason: null,
+        },
+      ],
     });
     readRuntimeToolExecutionMetricsMock.mockReturnValue({
       totals: {
@@ -242,12 +274,18 @@ describe("useRuntimeDiagnosticsExport", () => {
     );
     await expect(metadataBlob.text()).resolves.toContain('"lifecycle"');
     await expect(metadataBlob.text()).resolves.toContain('"tool-started-1"');
+    await expect(metadataBlob.text()).resolves.toContain('"sessionCheckpointBaseline"');
+    await expect(metadataBlob.text()).resolves.toContain('"thread:thread-1"');
+    await expect(metadataBlob.text()).resolves.toContain(
+      '"workspace-debug-meta:post_execution_pre_publication"'
+    );
     await expect(metadataBlob.text()).resolves.toContain('"toolExecutionMetrics"');
     await expect(metadataBlob.text()).resolves.toContain('"lastAnnotations"');
     expect(result.current.diagnosticsExportStatus).toContain(
       "Exported runtime-diagnostics.metadata.json"
     );
     expect(result.current.diagnosticsExportStatus).toContain("1 lifecycle events");
+    expect(result.current.diagnosticsExportStatus).toContain("1 structured sessions");
     expect(result.current.diagnosticsExportStatus).toContain("1 tool metric entries");
     expect(result.current.diagnosticsExportError).toBeNull();
     expect(result.current.diagnosticsExportBusy).toBe(false);

@@ -3,7 +3,7 @@ import { useWorkspaceRuntimeMissionControlController } from "../../../applicatio
 import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import { ToolCallChip } from "../../../design-system";
-import { useWorkspaceRuntimeToolLifecycle } from "../../shared/hooks/useWorkspaceRuntimeToolLifecycle";
+import { useWorkspaceRuntimeSessionCheckpoint } from "../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint";
 import {
   MissionControlSessionLogSection,
   MissionControlRunListSection,
@@ -23,7 +23,7 @@ type WorkspaceHomeAgentRuntimeOrchestrationProps = {
 export function WorkspaceHomeAgentRuntimeOrchestration({
   workspaceId,
 }: WorkspaceHomeAgentRuntimeOrchestrationProps) {
-  const runtimeToolLifecycle = useWorkspaceRuntimeToolLifecycle({
+  const runtimeSessionCheckpoint = useWorkspaceRuntimeSessionCheckpoint({
     workspaceId,
   });
   const [runtimeDraftBatchConfig, setRuntimeDraftBatchConfig] = useState(
@@ -228,7 +228,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           ))}
         </div>
       </div>
-      <MissionControlSessionLogSection runtimeToolLifecycle={runtimeToolLifecycle} />
+      <MissionControlSessionLogSection runtimeSessionCheckpoint={runtimeSessionCheckpoint} />
       {runtimeDurabilityWarning ? (
         <div className={controlStyles.warning} data-testid="workspace-runtime-durability-warning">
           <strong>Runtime durability degraded</strong>

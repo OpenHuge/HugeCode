@@ -92,6 +92,23 @@ describe("useDebugPanelViewModelInputs", () => {
       lastEvent: null,
       hookCheckpoints: [],
       lifecycleEvents: [],
+      sessionCheckpointBaseline: {
+        schemaVersion: "runtime-session-checkpoint-baseline/v1",
+        workspaceId: "workspace-1",
+        lifecycleRevision: 0,
+        projectionSource: "runtime_tool_lifecycle",
+        sessions: [],
+      },
+      sessionCheckpointSummary: {
+        hasSessions: false,
+        latestHookCheckpointKey: null,
+        latestLifecycleEventId: null,
+        latestSession: null,
+        latestSessionLabel: null,
+        totalCheckpointPayloads: 0,
+        totalRecords: 0,
+        totalSessions: 0,
+      },
     });
     useDebugRuntimeProbeMock.mockReturnValue(createDebugRuntimeProbeState());
     useFormattedDebugEntriesMock.mockReturnValue([]);

@@ -95,6 +95,11 @@ describe("useDebugRuntimeToolLifecycle", () => {
       latestEventKey: "tool/started",
       latestHookCheckpointKey: "post_execution_pre_publication/ready",
     });
+    expect(result.current.sessionCheckpointBaseline.sessions).toHaveLength(1);
+    expect(result.current.sessionCheckpointSummary).toMatchObject({
+      hasSessions: true,
+      latestSessionLabel: "thread:thread-1/turn:turn-1",
+    });
   });
 
   it("preserves a matching lastEvent even when it is not present in recentEvents", () => {
@@ -123,6 +128,7 @@ describe("useDebugRuntimeToolLifecycle", () => {
       totalHookCheckpoints: 0,
       hasActivity: false,
     });
+    expect(result.current.sessionCheckpointBaseline.sessions).toHaveLength(1);
   });
 
   it("returns an empty snapshot when disabled", () => {
@@ -151,6 +157,19 @@ describe("useDebugRuntimeToolLifecycle", () => {
       lifecycleEvents: [],
       lastEvent: null,
       revision: 0,
+      sessionCheckpointBaseline: {
+        schemaVersion: "runtime-session-checkpoint-baseline/v1",
+        workspaceId: "workspace-1",
+        lifecycleRevision: 0,
+        projectionSource: "runtime_tool_lifecycle",
+        sessions: [],
+      },
+      sessionCheckpointSummary: expect.objectContaining({
+        hasSessions: false,
+        latestSession: null,
+        latestSessionLabel: null,
+        totalSessions: 0,
+      }),
     });
   });
 });
