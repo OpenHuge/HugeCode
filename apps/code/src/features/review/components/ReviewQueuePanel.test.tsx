@@ -325,7 +325,12 @@ describe("ReviewQueuePanel", () => {
               "Inspect the critical finding and decide whether to apply autofix.",
             accountabilityLifecycle: "in_review",
             queueEnteredAt: Date.now() - 60_000,
-            filterTags: ["needs_attention"],
+            filterTags: [
+              "needs_attention",
+              "critical_review",
+              "autofix_ready",
+              "blocked_follow_up",
+            ],
             navigationTarget: {
               kind: "mission",
               workspaceId: "workspace-1",

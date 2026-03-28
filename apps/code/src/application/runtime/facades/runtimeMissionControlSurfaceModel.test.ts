@@ -176,6 +176,80 @@ describe("runtimeMissionControlSurfaceModel", () => {
     expect(reviewEntries[0]?.continuationTruthSourceLabel).toBe("Runtime takeover bundle");
     expect(signals.reviewReadyCount).toBe(1);
   });
+
+  it("publishes runtime triage tags for critical review, blocked follow-up, and autofix", () => {
+    const projection = createProjection();
+    const run = projection.runs[0];
+    const reviewPack = projection.reviewPacks[0];
+    if (!run || !reviewPack) {
+      throw new Error("Expected seeded run and review pack");
+    }
+
+    run.continuation = {
+      state: "blocked",
+      pathKind: "review",
+      source: "review_actionability",
+      summary: "Review continuation is blocked.",
+      detail: "Operator approval is required before the follow-up can continue.",
+      recommendedAction: "Unblock the review follow-up.",
+      target: {
+        kind: "review_pack",
+        workspaceId: "ws-1",
+        taskId: "task-1",
+        runId: "run-1",
+        reviewPackId: "review-pack:run-1",
+        checkpointId: null,
+        traceId: null,
+      },
+      reviewPackId: "review-pack:run-1",
+      reviewActionability: {
+        state: "blocked",
+        summary: "Operator approval is required.",
+        degradedReasons: [],
+        actions: [],
+      },
+    };
+    reviewPack.reviewStatus = "action_required";
+    reviewPack.reviewGate = {
+      state: "blocked",
+      summary: "Critical findings block acceptance.",
+      highestSeverity: "critical",
+      findingCount: 2,
+    };
+    reviewPack.reviewFindings = [
+      {
+        id: "finding-1",
+        title: "Critical issue",
+        severity: "critical",
+        category: "repo_policy_mismatch",
+        summary: "A critical review finding requires operator action.",
+        confidence: "high",
+      },
+    ];
+    reviewPack.autofixCandidate = {
+      id: "autofix-1",
+      summary: "Runtime prepared a bounded autofix.",
+      status: "available",
+    };
+
+    const [entry] = buildMissionReviewEntriesFromProjection(projection, {
+      workspaceId: "ws-1",
+    });
+
+    expect(entry?.filterTags).toEqual(
+      expect.arrayContaining([
+        "needs_attention",
+        "critical_review",
+        "autofix_ready",
+        "blocked_follow_up",
+      ])
+    );
+    expect(entry?.reviewGateState).toBe("blocked");
+    expect(entry?.highestReviewSeverity).toBe("critical");
+    expect(entry?.autofixAvailable).toBe(true);
+    expect(entry?.continuationState).toBe("blocked");
+  });
+
   it("prefers canonical continuation and next operator action over stale review-pack text", () => {
     const projection = createProjection();
     const run = projection.runs[0];

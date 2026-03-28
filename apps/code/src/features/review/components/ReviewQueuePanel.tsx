@@ -82,8 +82,13 @@ function getReviewFindingCount(entry: MissionReviewEntry): number {
   return typeof entry.reviewFindingCount === "number" ? entry.reviewFindingCount : 0;
 }
 
+function hasFilterTag(entry: MissionReviewEntry, tag: Exclude<ReviewQueueFilter, "all">): boolean {
+  return (entry.filterTags ?? []).includes(tag);
+}
+
 function isCriticalReviewEntry(entry: MissionReviewEntry): boolean {
   return (
+    hasFilterTag(entry, "critical_review") ||
     entry.reviewGateState === "fail" ||
     entry.reviewGateState === "blocked" ||
     entry.highestReviewSeverity === "critical"
@@ -91,14 +96,15 @@ function isCriticalReviewEntry(entry: MissionReviewEntry): boolean {
 }
 
 function isAutofixReadyEntry(entry: MissionReviewEntry): boolean {
-  return entry.autofixAvailable === true;
+  return hasFilterTag(entry, "autofix_ready") || entry.autofixAvailable === true;
 }
 
 function isBlockedFollowUpEntry(entry: MissionReviewEntry): boolean {
   return (
+    hasFilterTag(entry, "blocked_follow_up") ||
     entry.continuationState === "blocked" ||
     entry.continuationState === "degraded" ||
-    (entry.filterTags ?? []).includes("sub_agent_blocked")
+    hasFilterTag(entry, "sub_agent_blocked")
   );
 }
 
@@ -109,17 +115,17 @@ function matchesFilter(entry: MissionReviewEntry, filter: ReviewQueueFilter): bo
     case "critical_review":
       return isCriticalReviewEntry(entry);
     case "needs_attention":
-      return (entry.filterTags ?? []).includes("needs_attention");
+      return hasFilterTag(entry, "needs_attention");
     case "autofix_ready":
       return isAutofixReadyEntry(entry);
     case "blocked_follow_up":
       return isBlockedFollowUpEntry(entry);
     case "incomplete_evidence":
-      return (entry.filterTags ?? []).includes("incomplete_evidence");
+      return hasFilterTag(entry, "incomplete_evidence");
     case "fallback_routing":
-      return (entry.filterTags ?? []).includes("fallback_routing");
+      return hasFilterTag(entry, "fallback_routing");
     case "sub_agent_blocked":
-      return (entry.filterTags ?? []).includes("sub_agent_blocked");
+      return hasFilterTag(entry, "sub_agent_blocked");
     default:
       return false;
   }
@@ -129,25 +135,25 @@ function resolveQueuePriority(entry: MissionReviewEntry): number {
   let score = 0;
 
   if (isCriticalReviewEntry(entry)) {
-    score += 100;
-  }
-  if ((entry.filterTags ?? []).includes("needs_attention")) {
-    score += 60;
+    score += 400;
   }
   if (isBlockedFollowUpEntry(entry)) {
-    score += 40;
+    score += 300;
   }
   if (isAutofixReadyEntry(entry)) {
-    score += 30;
+    score += 200;
   }
-  if ((entry.filterTags ?? []).includes("incomplete_evidence")) {
-    score += 20;
+  if (hasFilterTag(entry, "needs_attention")) {
+    score += 100;
   }
-  if ((entry.filterTags ?? []).includes("fallback_routing")) {
-    score += 15;
+  if (hasFilterTag(entry, "incomplete_evidence")) {
+    score += 80;
   }
-  if ((entry.filterTags ?? []).includes("sub_agent_blocked")) {
-    score += 10;
+  if (hasFilterTag(entry, "fallback_routing")) {
+    score += 60;
+  }
+  if (hasFilterTag(entry, "sub_agent_blocked")) {
+    score += 40;
   }
 
   score += Math.min(getReviewFindingCount(entry), 9);
@@ -364,7 +370,7 @@ export function ReviewQueuePanel({
                           <StatusBadge tone="warning">Critical review</StatusBadge>
                         ) : null}
                         <StatusBadge>{entry.evidenceLabel}</StatusBadge>
-                        {(entry.filterTags ?? []).includes("fallback_routing") ? (
+                        {hasFilterTag(entry, "fallback_routing") ? (
                           <StatusBadge tone="warning">Fallback routing</StatusBadge>
                         ) : null}
                         {isBlockedFollowUpEntry(entry) ? (

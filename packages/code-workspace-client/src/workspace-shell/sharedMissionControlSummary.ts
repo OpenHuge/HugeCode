@@ -1,7 +1,7 @@
 import type {
+  HugeCodeMissionControlSnapshot,
   HugeCodeMissionActivityItem as SharedMissionActivityItem,
   HugeCodeMissionControlReadinessSummary as SharedMissionControlReadinessSummary,
-  HugeCodeMissionControlSnapshot,
   HugeCodeMissionControlSummary as SharedMissionControlSummary,
   HugeCodeReviewQueueItem as SharedReviewQueueItem,
 } from "@ku0/code-runtime-host-contract";
@@ -400,20 +400,95 @@ function formatReviewStatusLabel(reviewStatus: string) {
   return reviewStatus.replace(/_/g, " ");
 }
 
-function getReviewStatusLabel(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
-  if (
+function getHighestReviewSeverity(
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+) {
+  return reviewPack.reviewGate?.highestSeverity ?? reviewPack.reviewFindings?.[0]?.severity ?? null;
+}
+
+function hasCriticalReviewSignal(
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+) {
+  return (
     reviewPack.validationOutcome === "failed" ||
+    reviewPack.reviewStatus === "action_required" ||
+    reviewPack.reviewDecision?.status === "rejected" ||
+    reviewPack.reviewGate?.state === "fail" ||
+    reviewPack.reviewGate?.state === "blocked" ||
+    getHighestReviewSeverity(reviewPack) === "critical"
+  );
+}
+
+function getBlockedFollowUpState(
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+): "blocked" | "degraded" | null {
+  if (
     reviewPack.takeoverBundle?.state === "blocked" ||
-    reviewPack.actionability?.state === "blocked"
+    reviewPack.actionability?.state === "blocked" ||
+    reviewPack.continuation?.state === "blocked"
   ) {
-    return "Validation failed";
+    return "blocked";
   }
   if (
-    reviewPack.reviewStatus === "action_required" ||
+    reviewPack.actionability?.state === "degraded" ||
+    reviewPack.continuation?.state === "degraded"
+  ) {
+    return "degraded";
+  }
+  return null;
+}
+
+function hasAutofixReadySignal(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
+  return reviewPack.autofixCandidate?.status === "available";
+}
+
+function hasNeedsAttentionSignal(
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+) {
+  return (
     reviewPack.reviewStatus === "incomplete_evidence" ||
     reviewPack.validationOutcome === "warning" ||
-    reviewPack.actionability?.state === "degraded"
-  ) {
+    reviewPack.placement?.resolutionSource === "runtime_fallback" ||
+    reviewPack.placement?.lifecycleState === "fallback"
+  );
+}
+
+function resolveReviewQueuePriorityBand(
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+) {
+  if (hasCriticalReviewSignal(reviewPack)) {
+    return 4;
+  }
+  if (getBlockedFollowUpState(reviewPack)) {
+    return 3;
+  }
+  if (hasAutofixReadySignal(reviewPack)) {
+    return 2;
+  }
+  if (hasNeedsAttentionSignal(reviewPack)) {
+    return 1;
+  }
+  return 0;
+}
+
+function getReviewStatusLabel(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
+  const blockedFollowUpState = getBlockedFollowUpState(reviewPack);
+  if (reviewPack.validationOutcome === "failed") {
+    return "Validation failed";
+  }
+  if (hasCriticalReviewSignal(reviewPack)) {
+    return "Critical review";
+  }
+  if (blockedFollowUpState === "blocked") {
+    return "Blocked follow-up";
+  }
+  if (blockedFollowUpState === "degraded") {
+    return "Follow-up degraded";
+  }
+  if (hasAutofixReadySignal(reviewPack)) {
+    return "Autofix ready";
+  }
+  if (hasNeedsAttentionSignal(reviewPack)) {
     return "Needs attention";
   }
   if (reviewPack.takeoverBundle?.state === "ready" && reviewPack.reviewStatus !== "ready") {
@@ -435,18 +510,21 @@ function formatValidationLabel(validationOutcome: string) {
 function getReviewItemTone(
   reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
 ): SharedReviewQueueItem["tone"] {
+  const blockedFollowUpState = getBlockedFollowUpState(reviewPack);
   if (
     reviewPack.validationOutcome === "failed" ||
-    reviewPack.takeoverBundle?.state === "blocked" ||
-    reviewPack.actionability?.state === "blocked"
+    reviewPack.reviewGate?.state === "fail" ||
+    reviewPack.reviewGate?.state === "blocked" ||
+    reviewPack.reviewDecision?.status === "rejected" ||
+    blockedFollowUpState === "blocked"
   ) {
     return "blocked";
   }
   if (
-    reviewPack.reviewStatus === "action_required" ||
-    reviewPack.reviewStatus === "incomplete_evidence" ||
-    reviewPack.validationOutcome === "warning" ||
-    reviewPack.actionability?.state === "degraded"
+    hasCriticalReviewSignal(reviewPack) ||
+    blockedFollowUpState === "degraded" ||
+    hasAutofixReadySignal(reviewPack) ||
+    hasNeedsAttentionSignal(reviewPack)
   ) {
     return "attention";
   }
@@ -459,6 +537,44 @@ function getReviewItemTone(
 function resolveReviewQueueSummary(
   reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
 ) {
+  if (reviewPack.validationOutcome === "failed") {
+    return (
+      reviewPack.reviewGate?.blockingReason ??
+      reviewPack.reviewGate?.summary ??
+      reviewPack.reviewFindings?.[0]?.summary ??
+      reviewPack.recommendedNextAction ??
+      reviewPack.summary ??
+      "Validation failed and operator review is required."
+    );
+  }
+  if (hasCriticalReviewSignal(reviewPack)) {
+    return (
+      reviewPack.reviewGate?.blockingReason ??
+      reviewPack.reviewGate?.summary ??
+      reviewPack.reviewFindings?.[0]?.summary ??
+      reviewPack.recommendedNextAction ??
+      reviewPack.summary ??
+      "Critical review findings need operator action."
+    );
+  }
+  if (getBlockedFollowUpState(reviewPack)) {
+    return (
+      reviewPack.takeoverBundle?.blockingReason ??
+      reviewPack.actionability?.summary ??
+      reviewPack.continuation?.detail ??
+      reviewPack.recommendedNextAction ??
+      reviewPack.summary ??
+      "Follow-up is constrained and needs operator attention."
+    );
+  }
+  if (hasAutofixReadySignal(reviewPack)) {
+    return (
+      reviewPack.autofixCandidate?.summary ??
+      reviewPack.recommendedNextAction ??
+      reviewPack.summary ??
+      "Runtime prepared an autofix candidate for this review."
+    );
+  }
   return (
     reviewPack.takeoverBundle?.recommendedAction ??
     reviewPack.actionability?.summary ??
@@ -471,20 +587,13 @@ function resolveReviewQueueSummary(
 }
 
 function getReviewQueuePriority(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
-  if (
-    reviewPack.validationOutcome === "failed" ||
-    reviewPack.takeoverBundle?.state === "blocked" ||
-    reviewPack.actionability?.state === "blocked"
-  ) {
-    return 600;
-  }
-  if (
-    reviewPack.reviewStatus === "action_required" ||
-    reviewPack.reviewStatus === "incomplete_evidence" ||
-    reviewPack.validationOutcome === "warning" ||
-    reviewPack.actionability?.state === "degraded"
-  ) {
-    return 460;
+  const priorityBand = resolveReviewQueuePriorityBand(reviewPack);
+  if (priorityBand > 0) {
+    return (
+      priorityBand * 200 +
+      Math.min(reviewPack.warningCount, 9) * 5 +
+      Math.min(reviewPack.reviewGate?.findingCount ?? reviewPack.reviewFindings?.length ?? 0, 9)
+    );
   }
   if (reviewPack.reviewStatus === "ready" || reviewPack.takeoverBundle?.state === "ready") {
     return 320;
