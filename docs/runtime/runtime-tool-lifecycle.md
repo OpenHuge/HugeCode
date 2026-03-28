@@ -177,6 +177,10 @@ The raw filtering helpers remain part of the shared lifecycle implementation in
 longer part of the approved `application/runtime/ports` surface for feature
 code.
 
+Likewise, the unscoped lifecycle read/subscribe functions remain available in
+the facade for runtime-store assembly and facade-level tests, but they are not
+part of the approved `application/runtime/ports` surface for feature code.
+
 ## Follow-On Work
 
 Track 1 is complete when new work treats this lifecycle baseline as frozen and
