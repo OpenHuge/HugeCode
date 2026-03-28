@@ -1,3 +1,4 @@
+import { normalizeRuntimeModelCapabilityMatrix } from "@ku0/code-runtime-client/runtimeCapabilityMatrix";
 import type { RuntimeExtensionRecord } from "@ku0/code-runtime-host-contract";
 import { getRuntimeClient } from "./runtimeClient";
 import {
@@ -423,6 +424,7 @@ export async function getModelList(workspaceId: string): Promise<LooseResultEnve
             capabilities.length > 0 ? `${provider} (${capabilities.join(", ")})` : provider;
           const reasoningEfforts = normalizeReasoningEfforts(model);
           const defaultReasoningEffort = reasoningEfforts[0] ?? null;
+          const capabilityMatrix = normalizeRuntimeModelCapabilityMatrix(model);
           const declaredDefaultModelSlug =
             normalizeText(model.defaultModelId) ?? normalizeText(model.default_model_id);
           return modelSlugs
@@ -463,6 +465,15 @@ export async function getModelList(workspaceId: string): Promise<LooseResultEnve
                 })),
                 defaultReasoningEffort,
                 default_reasoning_effort: defaultReasoningEffort,
+                capabilityMatrix,
+                capability_matrix: {
+                  supports_tools: capabilityMatrix.supportsTools,
+                  supports_reasoning_effort: capabilityMatrix.supportsReasoningEffort,
+                  supports_vision: capabilityMatrix.supportsVision,
+                  supports_json_schema: capabilityMatrix.supportsJsonSchema,
+                  max_context_tokens: capabilityMatrix.maxContextTokens,
+                  supported_reasoning_efforts: capabilityMatrix.supportedReasoningEfforts,
+                },
                 isDefault,
                 is_default: isDefault,
               };

@@ -35,6 +35,10 @@ import { useCollaborationModes } from "../../collaboration/hooks/useCollaboratio
 import { useComposerMenuActions } from "../../composer/hooks/useComposerMenuActions";
 import { useComposerShortcuts } from "../../composer/hooks/useComposerShortcuts";
 import { useModels } from "../../models/hooks/useModels";
+import {
+  resolveModelToolsCapabilitySupport,
+  resolveModelVisionCapabilitySupport,
+} from "../../models/utils/modelOptionCapabilities";
 import { resolveModelProviderId } from "../../models/utils/modelProviderSelection";
 import { resolveModelBrandLabel } from "../utils/antiGravityBranding";
 import { NO_THREAD_SCOPE_SUFFIX } from "../../threads/utils/threadCodexParamsSeed";
@@ -202,6 +206,7 @@ export function useThreadCodexControls({
   const [preferredFastMode, setPreferredFastMode] = useState(false);
   const [preferredCollabModeId, setPreferredCollabModeId] = useState<string | null>(null);
   const [threadCodexSelectionKey, setThreadCodexSelectionKey] = useState<string | null>(null);
+  const [autoSelectionNeedsVision, setAutoSelectionNeedsVision] = useState(false);
   const [composerAccountOptions, setComposerAccountOptions] = useState<ComposerAccountOption[]>([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [executionMode, setExecutionMode] = useState<ComposerExecutionMode>("runtime");
@@ -223,6 +228,58 @@ export function useThreadCodexControls({
   );
 
   const {
+    collaborationModes,
+    selectedCollaborationMode,
+    selectedCollaborationModeId,
+    setSelectedCollaborationModeId,
+  } = useCollaborationModes({
+    activeWorkspace,
+    enabled: appSettings.collaborationModesEnabled,
+    preferredModeId: preferredCollabModeId,
+    selectionKey: threadCodexSelectionKey,
+    onDebug: addDebugEntry,
+  });
+
+  const currentMissionWorkspaceId = activeWorkspaceIdForParamsRef.current;
+  const currentMissionThreadId = visibleActiveThreadIdRef.current ?? activeThreadIdRef.current;
+  const missionDraft = useMemo(() => {
+    const stored =
+      currentMissionWorkspaceId && currentMissionThreadId
+        ? getThreadCodexParams(currentMissionWorkspaceId, currentMissionThreadId)
+        : null;
+    return buildMissionDraftFromThreadState({
+      objective: "",
+      accessMode: stored?.accessMode ?? accessMode,
+      collaborationModeId: stored?.collaborationModeId ?? selectedCollaborationModeId,
+      executionProfileId: stored?.executionProfileId ?? null,
+      preferredBackendIds:
+        resolveRuntimePreferredBackendIdsInput({
+          preferredBackendIds: stored?.preferredBackendIds ?? null,
+          fallbackDefaultBackendId: appSettings.defaultRemoteExecutionBackendId,
+        }) ?? null,
+      autoDriveDraft: stored?.autoDriveDraft ?? null,
+    });
+  }, [
+    accessMode,
+    appSettings.defaultRemoteExecutionBackendId,
+    currentMissionThreadId,
+    currentMissionWorkspaceId,
+    getThreadCodexParams,
+    selectedCollaborationModeId,
+  ]);
+
+  const autoSelectionRequirements = useMemo(() => {
+    const requiresTools = missionDraft.mode === "pair" || missionDraft.mode === "delegate";
+    if (!autoSelectionNeedsVision && !requiresTools) {
+      return null;
+    }
+    return {
+      ...(requiresTools ? { requiresTools: true } : {}),
+      ...(autoSelectionNeedsVision ? { requiresVision: true } : {}),
+    };
+  }, [autoSelectionNeedsVision, missionDraft.mode]);
+
+  const {
     models,
     selectedModel,
     selectedModelId,
@@ -239,19 +296,7 @@ export function useThreadCodexControls({
     selectionMode,
     preferredProviderId: preferredProviderFamilyId,
     selectionKey: threadCodexSelectionKey,
-  });
-
-  const {
-    collaborationModes,
-    selectedCollaborationMode,
-    selectedCollaborationModeId,
-    setSelectedCollaborationModeId,
-  } = useCollaborationModes({
-    activeWorkspace,
-    enabled: appSettings.collaborationModesEnabled,
-    preferredModeId: preferredCollabModeId,
-    selectionKey: threadCodexSelectionKey,
-    onDebug: addDebugEntry,
+    autoSelectionRequirements,
   });
 
   const persistThreadCodexParams = useCallback(
@@ -712,6 +757,8 @@ export function useThreadCodexControls({
     preferredProviderFamilyId ??
     (selectedModel ? (resolveModelProviderId(selectedModel) as ModelProviderFamilyId) : null);
   const resolvedEffort = reasoningSupported ? selectedEffort : null;
+  const toolsCapabilitySupport = resolveModelToolsCapabilitySupport(selectedModel);
+  const visionCapabilitySupport = resolveModelVisionCapabilitySupport(selectedModel);
   const executionOptions = useMemo<ComposerExecutionOption[]>(
     () =>
       localCliAvailable
@@ -956,34 +1003,6 @@ export function useThreadCodexControls({
     setSelectedAccountIds(uniqueIds);
   }, []);
 
-  const currentMissionWorkspaceId = activeWorkspaceIdForParamsRef.current;
-  const currentMissionThreadId = visibleActiveThreadIdRef.current ?? activeThreadIdRef.current;
-  const missionDraft = useMemo(() => {
-    const stored =
-      currentMissionWorkspaceId && currentMissionThreadId
-        ? getThreadCodexParams(currentMissionWorkspaceId, currentMissionThreadId)
-        : null;
-    return buildMissionDraftFromThreadState({
-      objective: "",
-      accessMode: stored?.accessMode ?? accessMode,
-      collaborationModeId: stored?.collaborationModeId ?? selectedCollaborationModeId,
-      executionProfileId: stored?.executionProfileId ?? null,
-      preferredBackendIds:
-        resolveRuntimePreferredBackendIdsInput({
-          preferredBackendIds: stored?.preferredBackendIds ?? null,
-          fallbackDefaultBackendId: appSettings.defaultRemoteExecutionBackendId,
-        }) ?? null,
-      autoDriveDraft: stored?.autoDriveDraft ?? null,
-    });
-  }, [
-    accessMode,
-    appSettings.defaultRemoteExecutionBackendId,
-    currentMissionThreadId,
-    currentMissionWorkspaceId,
-    getThreadCodexParams,
-    selectedCollaborationModeId,
-  ]);
-
   return {
     accessMode,
     selectionMode,
@@ -1013,6 +1032,8 @@ export function useThreadCodexControls({
     reasoningSupported,
     resolvedEffort,
     resolvedModel,
+    toolsCapabilitySupport,
+    visionCapabilitySupport,
     missionMode: missionDraft.mode,
     executionProfileId: missionDraft.executionProfileId,
     preferredBackendIds: missionDraft.preferredBackendIds,
@@ -1027,6 +1048,7 @@ export function useThreadCodexControls({
     selectedModelId,
     selectedProviderId,
     selectedRemoteBackendId: missionDraft.preferredBackendIds?.[0] ?? null,
+    setAutoSelectionNeedsVision,
     setAccessMode,
     setPreferredCollabModeId,
     setPreferredEffort,

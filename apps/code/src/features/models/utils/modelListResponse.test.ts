@@ -115,4 +115,44 @@ describe("parseModelListResponse", () => {
       displayName: "gpt-5.2-codex",
     });
   });
+
+  it("parses explicit capability matrices without dropping runtime capability limits", () => {
+    const parsed = parseModelListResponse({
+      result: {
+        data: [
+          {
+            id: "anthropic::claude-sonnet-4-5",
+            model: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet 4.5",
+            capability_matrix: {
+              supports_tools: "supported",
+              supports_reasoning_effort: "supported",
+              supports_vision: "supported",
+              supports_json_schema: "unknown",
+              max_context_tokens: 200000,
+              supported_reasoning_efforts: ["medium", "high"],
+            },
+            defaultReasoningEffort: "xhigh",
+          },
+        ],
+      },
+    });
+
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]).toMatchObject({
+      supportedReasoningEfforts: [
+        { reasoningEffort: "medium", description: "" },
+        { reasoningEffort: "high", description: "" },
+      ],
+      defaultReasoningEffort: "medium",
+      capabilityMatrix: {
+        supportsTools: "supported",
+        supportsReasoningEffort: "supported",
+        supportsVision: "supported",
+        supportsJsonSchema: "unknown",
+        maxContextTokens: 200000,
+        supportedReasoningEfforts: ["medium", "high"],
+      },
+    });
+  });
 });

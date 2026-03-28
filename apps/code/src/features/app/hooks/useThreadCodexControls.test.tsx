@@ -1072,4 +1072,185 @@ describe("useThreadCodexControls", () => {
       preferredBackendIds: ["backend-remote-a"],
     });
   });
+
+  it("passes the auto vision requirement through to useModels when requested", async () => {
+    detectRuntimeModeMock.mockReturnValue("runtime-gateway-web");
+    runCodexDoctorMock.mockResolvedValue({
+      ok: true,
+      codexBin: "codex",
+      version: "1.2.3",
+      appServerOk: true,
+      details: null,
+      path: null,
+      nodeOk: true,
+      nodeVersion: "v22.0.0",
+      nodeDetails: null,
+    });
+
+    const { result } = createHook();
+
+    await waitFor(() => {
+      expect(useModelsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          autoSelectionRequirements: {
+            requiresTools: true,
+          },
+        })
+      );
+    });
+
+    act(() => {
+      result.current.setAutoSelectionNeedsVision(true);
+    });
+
+    await waitFor(() => {
+      expect(useModelsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          autoSelectionRequirements: {
+            requiresTools: true,
+            requiresVision: true,
+          },
+        })
+      );
+    });
+  });
+
+  it("passes the auto tools requirement through to useModels for agentic task modes", async () => {
+    const getThreadCodexParams = vi.fn(() => ({
+      accessMode: "full-access" as const,
+      collaborationModeId: null,
+    }));
+
+    createHook({
+      activeThreadId: "thread-1",
+      visibleActiveThreadId: "thread-1",
+      getThreadCodexParams,
+    });
+
+    await waitFor(() => {
+      expect(useModelsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          autoSelectionRequirements: {
+            requiresTools: true,
+          },
+        })
+      );
+    });
+  });
+
+  it("derives unsupported vision routing from provider capability truth when the model stays unknown", async () => {
+    useModelsMock.mockReturnValue({
+      models: [
+        {
+          ...modelOption,
+          capabilityMatrix: {
+            supportsTools: "supported",
+            supportsReasoningEffort: "supported",
+            supportsVision: "unknown",
+            supportsJsonSchema: "unknown",
+            maxContextTokens: 128000,
+            supportedReasoningEfforts: [],
+          },
+          providerCapabilityMatrix: {
+            supportsTools: "supported",
+            supportsReasoningEffort: "supported",
+            supportsVision: "unsupported",
+            supportsJsonSchema: "unknown",
+            maxContextTokens: 128000,
+            supportedReasoningEfforts: [],
+          },
+        },
+      ],
+      selectedModel: {
+        ...modelOption,
+        capabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "unknown",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: [],
+        },
+        providerCapabilityMatrix: {
+          supportsTools: "supported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "unsupported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: [],
+        },
+      },
+      selectedModelId: "openai::gpt-5.3-codex",
+      setSelectedModelId: vi.fn(),
+      reasoningSupported: false,
+      reasoningOptions: [],
+      selectedEffort: null,
+      setSelectedEffort: vi.fn(),
+      refreshModels: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { result } = createHook();
+
+    await waitFor(() => {
+      expect(result.current.visionCapabilitySupport).toBe("unsupported");
+    });
+  });
+
+  it("derives unsupported tools routing from provider capability truth when the model stays unknown", async () => {
+    useModelsMock.mockReturnValue({
+      models: [
+        {
+          ...modelOption,
+          capabilityMatrix: {
+            supportsTools: "unknown",
+            supportsReasoningEffort: "supported",
+            supportsVision: "supported",
+            supportsJsonSchema: "unknown",
+            maxContextTokens: 128000,
+            supportedReasoningEfforts: [],
+          },
+          providerCapabilityMatrix: {
+            supportsTools: "unsupported",
+            supportsReasoningEffort: "supported",
+            supportsVision: "supported",
+            supportsJsonSchema: "unknown",
+            maxContextTokens: 128000,
+            supportedReasoningEfforts: [],
+          },
+        },
+      ],
+      selectedModel: {
+        ...modelOption,
+        capabilityMatrix: {
+          supportsTools: "unknown",
+          supportsReasoningEffort: "supported",
+          supportsVision: "supported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: [],
+        },
+        providerCapabilityMatrix: {
+          supportsTools: "unsupported",
+          supportsReasoningEffort: "supported",
+          supportsVision: "supported",
+          supportsJsonSchema: "unknown",
+          maxContextTokens: 128000,
+          supportedReasoningEfforts: [],
+        },
+      },
+      selectedModelId: "openai::gpt-5.3-codex",
+      setSelectedModelId: vi.fn(),
+      reasoningSupported: false,
+      reasoningOptions: [],
+      selectedEffort: null,
+      setSelectedEffort: vi.fn(),
+      refreshModels: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { result } = createHook();
+
+    await waitFor(() => {
+      expect(result.current.toolsCapabilitySupport).toBe("unsupported");
+    });
+  });
 });

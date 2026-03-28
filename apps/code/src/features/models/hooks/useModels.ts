@@ -1,3 +1,4 @@
+import { clampReasoningEffortToCapabilityMatrix } from "@ku0/code-runtime-client/runtimeCapabilityMatrix";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getConfigModel, getModelList } from "../../../application/runtime/ports/tauriModels";
 import { getProvidersCatalog } from "../../../application/runtime/ports/tauriOauth";
@@ -18,6 +19,7 @@ import {
   supportsModelReasoning,
 } from "../utils/modelOptionCapabilities";
 import {
+  type AutoSelectionRequirements,
   buildModelProviderOptions,
   resolveAutoModelProviderSelection,
 } from "../utils/modelProviderSelection";
@@ -31,6 +33,7 @@ type UseModelsOptions = {
   selectionMode?: ComposerModelSelectionMode | null;
   preferredProviderId?: ModelProviderFamilyId | string | null;
   selectionKey?: string | null;
+  autoSelectionRequirements?: AutoSelectionRequirements | null;
 };
 
 const GLOBAL_MODEL_SCOPE_ID = "__global__";
@@ -173,11 +176,13 @@ export function useModels({
   selectionMode = "manual",
   preferredProviderId = null,
   selectionKey = null,
+  autoSelectionRequirements = null,
 }: UseModelsOptions) {
   const [models, setModels] = useState<ModelOption[]>(() => createBootstrapModelOptions());
   const [configModel, setConfigModel] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelIdState] = useState<string | null>(null);
   const [selectedEffort, setSelectedEffortState] = useState<string | null>(null);
+  const preferredSelectedEffort = useRef<string | null>(normalizeEffortValue(preferredEffort));
   const lastFetchedWorkspaceId = useRef<string | null>(null);
   const inFlight = useRef(false);
   const inFlightScopeId = useRef<string | null>(null);
@@ -214,7 +219,8 @@ export function useModels({
     lastSelectionKey.current = selectionKey;
     hasUserSelectedModel.current = false;
     hasUserSelectedEffort.current = false;
-  }, [selectionKey]);
+    preferredSelectedEffort.current = normalizeEffortValue(preferredEffort);
+  }, [preferredEffort, selectionKey]);
 
   useEffect(() => {
     if (workspaceId === lastWorkspaceId.current) {
@@ -222,9 +228,17 @@ export function useModels({
     }
     hasUserSelectedModel.current = false;
     hasUserSelectedEffort.current = false;
+    preferredSelectedEffort.current = normalizeEffortValue(preferredEffort);
     lastWorkspaceId.current = workspaceId;
     setConfigModel(null);
-  }, [workspaceId]);
+  }, [preferredEffort, workspaceId]);
+
+  useEffect(() => {
+    if (hasUserSelectedEffort.current) {
+      return;
+    }
+    preferredSelectedEffort.current = normalizeEffortValue(preferredEffort);
+  }, [preferredEffort]);
 
   useEffect(() => {
     if (selectedEffort === null) {
@@ -237,19 +251,30 @@ export function useModels({
     setSelectedEffortState(null);
   }, [selectedEffort]);
 
+  const selectedModel = useMemo(
+    () => models.find((model) => model.id === selectedModelId) ?? null,
+    [models, selectedModelId]
+  );
+
   const setSelectedModelId = useCallback((next: string | null) => {
     hasUserSelectedModel.current = true;
     setSelectedModelIdState(next);
   }, []);
 
-  const setSelectedEffort = useCallback((next: string | null) => {
-    hasUserSelectedEffort.current = true;
-    setSelectedEffortState(next);
-  }, []);
-
-  const selectedModel = useMemo(
-    () => models.find((model) => model.id === selectedModelId) ?? null,
-    [models, selectedModelId]
+  const setSelectedEffort = useCallback(
+    (next: string | null) => {
+      const normalizedEffort = normalizeEffortValue(next);
+      hasUserSelectedEffort.current = normalizedEffort !== null;
+      preferredSelectedEffort.current = normalizedEffort;
+      setSelectedEffortState(
+        clampReasoningEffortToCapabilityMatrix(
+          normalizedEffort,
+          selectedModel?.capabilityMatrix ?? null,
+          selectedModel?.defaultReasoningEffort ?? null
+        )
+      );
+    },
+    [selectedModel?.capabilityMatrix, selectedModel?.defaultReasoningEffort]
   );
 
   const reasoningSupported = useMemo(() => {
@@ -262,21 +287,23 @@ export function useModels({
 
   const resolveEffort = useCallback(
     (model: ModelOption, preferCurrent: boolean) => {
-      const supportedEfforts = model.supportedReasoningEfforts.map(
-        (effort) => effort.reasoningEffort
+      const currentEffort = preferCurrent
+        ? (preferredSelectedEffort.current ??
+          normalizeEffortValue(selectedEffort) ??
+          normalizeEffortValue(preferredEffort))
+        : normalizeEffortValue(preferredEffort);
+      if (currentEffort) {
+        return clampReasoningEffortToCapabilityMatrix(
+          currentEffort,
+          model.capabilityMatrix ?? null,
+          model.defaultReasoningEffort
+        );
+      }
+      return clampReasoningEffortToCapabilityMatrix(
+        null,
+        model.capabilityMatrix ?? null,
+        model.defaultReasoningEffort
       );
-      const currentEffort = normalizeEffortValue(selectedEffort);
-      if (preferCurrent && currentEffort) {
-        return currentEffort;
-      }
-      if (supportedEfforts.length === 0) {
-        return normalizeEffortValue(preferredEffort);
-      }
-      const preferred = normalizeEffortValue(preferredEffort);
-      if (preferred && supportedEfforts.includes(preferred)) {
-        return preferred;
-      }
-      return normalizeEffortValue(model.defaultReasoningEffort);
     },
     [preferredEffort, selectedEffort]
   );
@@ -407,7 +434,8 @@ export function useModels({
                   defaultModel?.id ??
                   existingSelectionUsable?.id ??
                   existingSelection?.id ??
-                  null
+                  null,
+                autoSelectionRequirements
               );
               return (
                 findModelByIdOrModel(resolvedModels, autoSelection.modelId) ??
@@ -459,6 +487,7 @@ export function useModels({
     onDebug,
     preferredModelId,
     preferredProviderId,
+    autoSelectionRequirements,
     selectionMode,
     selectedEffort,
     selectedModelId,
@@ -501,14 +530,17 @@ export function useModels({
       return;
     }
     const currentEffort = normalizeEffortValue(selectedEffort);
-    if (currentEffort) {
+    if (!currentEffort) {
       return;
     }
-    const nextEffort = normalizeEffortValue(selectedModel.defaultReasoningEffort);
-    if (nextEffort === null) {
+    const nextEffort = clampReasoningEffortToCapabilityMatrix(
+      currentEffort,
+      selectedModel.capabilityMatrix ?? null,
+      selectedModel.defaultReasoningEffort
+    );
+    if (nextEffort === currentEffort) {
       return;
     }
-    hasUserSelectedEffort.current = false;
     setSelectedEffortState(nextEffort);
   }, [selectedEffort, selectedModel]);
 
@@ -539,6 +571,10 @@ export function useModels({
     const shouldKeepUserSelection =
       selectionMode !== "auto" && hasUserSelectedModel.current && existingSelectionUsable !== null;
     if (shouldKeepUserSelection) {
+      const nextEffort = resolveEffort(existingSelectionUsable, hasUserSelectedEffort.current);
+      if (nextEffort !== selectedEffort) {
+        setSelectedEffortState(nextEffort);
+      }
       return;
     }
     const nextSelection =
@@ -552,7 +588,8 @@ export function useModels({
                 defaultModel?.id ??
                 existingSelectionUsable?.id ??
                 existingSelection?.id ??
-                null
+                null,
+              autoSelectionRequirements
             );
             return (
               findModelByIdOrModel(models, autoSelection.modelId) ??
@@ -583,6 +620,7 @@ export function useModels({
     models,
     preferredModelId,
     preferredProviderId,
+    autoSelectionRequirements,
     selectedEffort,
     selectedModelId,
     selectionMode,
