@@ -4,6 +4,7 @@ import type {
   OAuthPoolSummary,
   RuntimeCompositionProfile,
   RuntimeCompositionResolution,
+  RuntimeRegistryPackageDescriptor,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import {

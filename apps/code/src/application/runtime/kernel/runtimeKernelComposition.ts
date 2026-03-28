@@ -602,7 +602,8 @@ export function attachRuntimeKernelCompositionMetadata(input: {
   plugins: RuntimeKernelPluginDescriptor[];
   resolution: RuntimeCompositionResolution | null;
 }) {
-  if (!input.resolution) {
+  const resolution = input.resolution;
+  if (!resolution) {
     return input.plugins;
   }
   return input.plugins.map((plugin) => ({
@@ -610,13 +611,7 @@ export function attachRuntimeKernelCompositionMetadata(input: {
     metadata: {
       ...(plugin.metadata ?? {}),
       [RUNTIME_KERNEL_PLUGIN_COMPOSITION_METADATA_KEY]:
-        createRuntimeKernelPluginCompositionMetadata(plugin.id, input.resolution),
-      ...(readPackageDescriptorForPlugin({
-        plugin,
-        registryPackages: [],
-      })
-        ? {}
-        : {}),
+        createRuntimeKernelPluginCompositionMetadata(plugin.id, resolution),
     },
   }));
 }
