@@ -2,6 +2,8 @@ import type {
   HugeCodeRunSummary,
   OAuthAccountSummary,
   OAuthPoolSummary,
+  RuntimeCompositionProfile,
+  RuntimeCompositionResolution,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import {
@@ -9,6 +11,8 @@ import {
   resolveRuntimeKernelRouteSelection,
   type RuntimeKernelPluginDescriptor,
 } from "../kernel/runtimeKernelPlugins";
+import { readRuntimeKernelPluginCompositionMetadata } from "../kernel/runtimeKernelComposition";
+import { readRuntimeKernelPluginRegistryMetadata } from "../kernel/runtimeKernelPluginRegistry";
 import type { RuntimeExecutionReliabilitySummary } from "./runtimeExecutionReliability";
 import type { RuntimeLaunchReadinessSummary } from "./runtimeLaunchReadiness";
 import {
@@ -95,6 +99,10 @@ export type WorkspaceRuntimeMissionControlProjection = {
     providerRouteCount: number;
     backendRouteCount: number;
     executionRouteCount: number;
+    externalPackageCount: number;
+    verifiedPackageCount: number;
+    blockedPackageCount: number;
+    selectedInActiveProfileCount: number;
     readyRouteCount: number;
     attentionRouteCount: number;
     blockedRouteCount: number;
@@ -103,6 +111,16 @@ export type WorkspaceRuntimeMissionControlProjection = {
     degradedCount: number;
     unsupportedCount: number;
     projectionBacked: boolean;
+    error: string | null;
+  };
+  composition: {
+    profileCount: number;
+    activeProfileId: string | null;
+    activeProfileName: string | null;
+    verifiedPluginCount: number;
+    blockedPluginCount: number;
+    selectedRouteCount: number;
+    selectedBackendCount: number;
     error: string | null;
   };
   executionReliability: RuntimeExecutionReliabilitySummary;
@@ -123,6 +141,13 @@ type BuildWorkspaceRuntimeMissionControlProjectionInput = {
   runtimePlugins: RuntimeKernelPluginDescriptor[];
   runtimePluginsError: string | null;
   runtimePluginsProjectionBacked: boolean;
+  runtimePluginRegistryPackages: RuntimeRegistryPackageDescriptor[];
+  runtimePluginRegistryError: string | null;
+  runtimeCompositionProfiles: RuntimeCompositionProfile[];
+  runtimeCompositionActiveProfileId: string | null;
+  runtimeCompositionActiveProfile: RuntimeCompositionProfile | null;
+  runtimeCompositionResolution: RuntimeCompositionResolution | null;
+  runtimeCompositionError: string | null;
   selectedProviderRoute: string;
   runtimeStatusFilter: RuntimeAgentTaskSummary["status"] | "all";
   runtimeDurabilityWarning: {
@@ -180,6 +205,10 @@ function buildPluginCatalogSummary(input: {
     providerRouteCount: 0,
     backendRouteCount: 0,
     executionRouteCount: 0,
+    externalPackageCount: 0,
+    verifiedPackageCount: 0,
+    blockedPackageCount: 0,
+    selectedInActiveProfileCount: 0,
     readyRouteCount: 0,
     attentionRouteCount: 0,
     blockedRouteCount: 0,
@@ -231,6 +260,13 @@ function buildPluginCatalogSummary(input: {
     } else if (plugin.source === "repo_manifest") {
       summary.repoManifestCount += 1;
     } else if (
+      plugin.source === "mcp_remote" ||
+      plugin.source === "wasi_component" ||
+      plugin.source === "a2a_remote" ||
+      plugin.source === "host_bridge"
+    ) {
+      summary.externalPackageCount += 1;
+    } else if (
       plugin.source === "provider_route" ||
       plugin.source === "backend_route" ||
       plugin.source === "execution_route"
@@ -255,6 +291,20 @@ function buildPluginCatalogSummary(input: {
       summary.unsupportedHostCount += 1;
     }
 
+    const registryMetadata = readRuntimeKernelPluginRegistryMetadata(plugin.metadata);
+    if (
+      registryMetadata?.trust.status === "verified" ||
+      registryMetadata?.trust.status === "runtime_managed"
+    ) {
+      summary.verifiedPackageCount += 1;
+    } else if (registryMetadata?.trust.status === "blocked") {
+      summary.blockedPackageCount += 1;
+    }
+    const compositionMetadata = readRuntimeKernelPluginCompositionMetadata(plugin.metadata);
+    if (compositionMetadata?.selectedInActiveProfile) {
+      summary.selectedInActiveProfileCount += 1;
+    }
+
     if (plugin.health?.state === "healthy") {
       summary.healthyCount += 1;
     } else if (plugin.health?.state === "degraded") {
@@ -265,6 +315,28 @@ function buildPluginCatalogSummary(input: {
   }
 
   return summary;
+}
+
+function buildCompositionSummary(input: {
+  profiles: RuntimeCompositionProfile[];
+  activeProfile: RuntimeCompositionProfile | null;
+  activeProfileId: string | null;
+  resolution: RuntimeCompositionResolution | null;
+  error: string | null;
+}): WorkspaceRuntimeMissionControlProjection["composition"] {
+  return {
+    profileCount: input.profiles.length,
+    activeProfileId: input.activeProfileId,
+    activeProfileName: input.activeProfile?.name ?? null,
+    verifiedPluginCount:
+      input.resolution?.trustDecisions.filter(
+        (decision) => decision.status === "verified" || decision.status === "runtime_managed"
+      ).length ?? 0,
+    blockedPluginCount: input.resolution?.blockedPlugins.length ?? 0,
+    selectedRouteCount: input.resolution?.selectedRouteCandidates.length ?? 0,
+    selectedBackendCount: input.resolution?.selectedBackendCandidates.length ?? 0,
+    error: input.error,
+  };
 }
 
 export function buildWorkspaceRuntimeMissionControlProjection(
@@ -278,6 +350,17 @@ export function buildWorkspaceRuntimeMissionControlProjection(
     error: input.runtimePluginsError,
     projectionBacked: input.runtimePluginsProjectionBacked,
   });
+  pluginCatalog.externalPackageCount = Math.max(
+    pluginCatalog.externalPackageCount,
+    input.runtimePluginRegistryPackages.filter((entry) => entry.source !== "runtime_managed").length
+  );
+  const composition = buildCompositionSummary({
+    profiles: input.runtimeCompositionProfiles,
+    activeProfile: input.runtimeCompositionActiveProfile,
+    activeProfileId: input.runtimeCompositionActiveProfileId,
+    resolution: input.runtimeCompositionResolution,
+    error: input.runtimeCompositionError ?? input.runtimePluginRegistryError,
+  });
   const recentTaskWithPlacement = input.runtimeTasks.find((task) =>
     Array.isArray(task.preferredBackendIds) && task.preferredBackendIds.length > 0
       ? true
@@ -286,8 +369,16 @@ export function buildWorkspaceRuntimeMissionControlProjection(
   const routeSelection = resolveRuntimeKernelRouteSelection({
     plugins: input.runtimePlugins,
     selectedRoute: input.selectedProviderRoute,
-    preferredBackendIds: recentTaskWithPlacement?.preferredBackendIds ?? null,
-    resolvedBackendId: recentTaskWithPlacement?.backendId ?? null,
+    preferredBackendIds:
+      input.runtimeCompositionResolution?.selectedBackendCandidates.map(
+        (entry) => entry.backendId
+      ) ??
+      recentTaskWithPlacement?.preferredBackendIds ??
+      null,
+    resolvedBackendId:
+      input.runtimeCompositionResolution?.selectedBackendCandidates[0]?.backendId ??
+      recentTaskWithPlacement?.backendId ??
+      null,
     provenance:
       recentTaskWithPlacement?.backendId || recentTaskWithPlacement?.preferredBackendIds?.length
         ? "runtime_fallback"
@@ -368,6 +459,7 @@ export function buildWorkspaceRuntimeMissionControlProjection(
       oldestPendingTask: orchestration.oldestPendingApprovalTask,
     },
     pluginCatalog,
+    composition,
     executionReliability: orchestration.executionReliability,
     launchReadiness: orchestration.launchReadiness,
   };

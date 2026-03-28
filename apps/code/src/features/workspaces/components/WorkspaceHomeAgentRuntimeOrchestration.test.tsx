@@ -32,10 +32,12 @@ import {
   createRuntimeProviderRoutePluginDescriptors,
   type RuntimeKernelPluginDescriptor,
 } from "../../../application/runtime/kernel/runtimeKernelPlugins";
+import type { RuntimeKernelCompositionFacade } from "../../../application/runtime/kernel/runtimeKernelComposition";
 import type { RuntimeUpdatedEvent } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import { createRuntimeAgentControlFacade } from "../../../application/runtime/facades/runtimeAgentControlFacade";
 import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
 import type { RuntimeKernelPluginCatalogFacade } from "../../../application/runtime/kernel/runtimeKernelPlugins";
+import type { RuntimeKernelPluginRegistryFacade } from "../../../application/runtime/kernel/runtimeKernelPluginRegistry";
 import { useWorkspaceRuntimeSessionCheckpoint } from "../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint";
 import {
   projectAgentTaskSummaryToRunSummary,
@@ -53,6 +55,15 @@ const subscribeRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 const startRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 const runtimePluginCatalogListMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelPluginCatalogFacade["listPlugins"]>(async () => [])
+);
+const runtimePluginRegistryListMock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelPluginRegistryFacade["listInstalledPackages"]>(async () => [])
+);
+const runtimeCompositionProfilesMock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelCompositionFacade["listProfiles"]>(async () => [])
+);
+const runtimeCompositionResolutionMock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelCompositionFacade["getActiveResolution"]>(async () => null as never)
 );
 
 vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
@@ -208,6 +219,49 @@ function mockRoutingPlugins(input: {
 beforeEach(() => {
   runtimeUpdatedListeners.clear();
   runtimePluginCatalogListMock.mockResolvedValue([]);
+  runtimePluginRegistryListMock.mockResolvedValue([]);
+  runtimeCompositionProfilesMock.mockResolvedValue([
+    {
+      id: "workspace-default",
+      name: "Workspace Default",
+      scope: "workspace",
+      enabled: true,
+      pluginSelectors: [],
+      routePolicy: {
+        preferredRoutePluginIds: [],
+        providerPreference: [],
+        allowRuntimeFallback: true,
+      },
+      backendPolicy: {
+        preferredBackendIds: ["backend-primary"],
+        resolvedBackendId: null,
+      },
+      trustPolicy: {
+        requireVerifiedSignatures: true,
+        allowDevOverrides: false,
+        blockedPublishers: [],
+      },
+      executionPolicyRefs: [],
+      observabilityPolicy: {
+        emitStableEvents: true,
+        emitOtelAlignedTelemetry: true,
+      },
+      configLayers: [],
+    },
+  ]);
+  runtimeCompositionResolutionMock.mockResolvedValue({
+    selectedPlugins: [],
+    selectedRouteCandidates: [],
+    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+    blockedPlugins: [],
+    trustDecisions: [],
+    provenance: {
+      activeProfileId: "workspace-default",
+      activeProfileName: "Workspace Default",
+      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+      selectorDecisions: {},
+    },
+  });
   const lifecycle = {
     summary: buildRuntimeToolLifecyclePresentationSummary({
       lifecycleEvents: [],
@@ -665,6 +719,22 @@ function createRuntimeKernelValue(): RuntimeKernel {
     executePlugin: vi.fn(),
     evaluatePluginPermissions: vi.fn(),
   };
+  const runtimePluginRegistry: RuntimeKernelPluginRegistryFacade = {
+    searchPackages: vi.fn(),
+    getPackage: vi.fn(),
+    verifyPackage: vi.fn(),
+    installPackage: vi.fn(),
+    updatePackage: vi.fn(),
+    uninstallPackage: vi.fn(),
+    listInstalledPackages: runtimePluginRegistryListMock,
+  };
+  const runtimeComposition: RuntimeKernelCompositionFacade = {
+    listProfiles: runtimeCompositionProfilesMock,
+    getProfile: vi.fn(),
+    previewResolution: vi.fn(),
+    applyProfile: vi.fn(),
+    getActiveResolution: runtimeCompositionResolutionMock,
+  };
 
   return {
     runtimeGateway,
@@ -771,16 +841,26 @@ function createRuntimeKernelValue(): RuntimeKernel {
         if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog) {
           return runtimePluginCatalog as RuntimeKernelCapabilityMap[K];
         }
+        if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginRegistry) {
+          return runtimePluginRegistry as RuntimeKernelCapabilityMap[K];
+        }
+        if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime) {
+          return runtimeComposition as RuntimeKernelCapabilityMap[K];
+        }
         throw new Error(`Unsupported workspace runtime capability: ${key}`);
       },
       hasCapability: (key: string) =>
         key === RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl ||
         key === RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands ||
-        key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog,
+        key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog ||
+        key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginRegistry ||
+        key === RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime,
       listCapabilities: () => [
         RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
         RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
         RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog,
+        RUNTIME_KERNEL_CAPABILITY_KEYS.pluginRegistry,
+        RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime,
       ],
     })),
   };

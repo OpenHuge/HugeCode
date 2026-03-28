@@ -39,6 +39,10 @@ export type RuntimeKernelPluginSource =
   | "runtime_extension"
   | "live_skill"
   | "repo_manifest"
+  | "mcp_remote"
+  | "wasi_component"
+  | "a2a_remote"
+  | "host_bridge"
   | "wasi_host"
   | "rpc_host"
   | "provider_route"
@@ -48,7 +52,7 @@ export type RuntimeKernelPluginSource =
 export type RuntimeKernelPluginTransport = RuntimeKernelPluginSource;
 
 export type RuntimeKernelPluginHostProfile = {
-  kind: "runtime" | "repository" | "wasi" | "rpc" | "routing";
+  kind: "runtime" | "repository" | "wasi" | "rpc" | "routing" | "remote" | "component" | "bridge";
   executionBoundaries: string[];
 };
 
@@ -71,7 +75,17 @@ export type RuntimeKernelPluginContractSurface = {
 
 export type RuntimeKernelPluginBinding = {
   state: "bound" | "declaration_only" | "unbound";
-  contractFormat: "runtime_extension" | "live_skill" | "manifest" | "wit" | "rpc" | "route";
+  contractFormat:
+    | "runtime_extension"
+    | "live_skill"
+    | "manifest"
+    | "wit"
+    | "rpc"
+    | "route"
+    | "mcp"
+    | "a2a"
+    | "wasi_component"
+    | "host_bridge";
   contractBoundary: string;
   interfaceId: string | null;
   surfaces: RuntimeKernelPluginContractSurface[];
@@ -241,6 +255,18 @@ function buildRuntimeKernelPluginExecutionAvailability(input: {
       executable: false,
       mode: "none",
       reason: `Plugin \`${input.id}\` is declaration-only and does not expose a bound execution provider.`,
+    };
+  }
+  if (
+    input.source === "mcp_remote" ||
+    input.source === "wasi_component" ||
+    input.source === "a2a_remote" ||
+    input.source === "host_bridge"
+  ) {
+    return {
+      executable: false,
+      mode: "none",
+      reason: `Plugin \`${input.id}\` is installed in the registry but not yet bound into the live runtime catalog.`,
     };
   }
   if (input.source === "wasi_host") {
@@ -858,6 +884,10 @@ export function normalizeRepoManifestPluginDescriptor(
 }
 
 const PLUGIN_SOURCE_PRIORITY: Record<RuntimeKernelPluginSource, number> = {
+  mcp_remote: 9,
+  a2a_remote: 9,
+  wasi_component: 9,
+  host_bridge: 9,
   execution_route: 8,
   backend_route: 7,
   provider_route: 6,

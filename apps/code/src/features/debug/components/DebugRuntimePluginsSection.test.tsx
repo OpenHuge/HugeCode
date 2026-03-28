@@ -11,6 +11,20 @@ describe("DebugRuntimePluginsSection", () => {
         loading={false}
         error={null}
         projectionBacked
+        registry={{
+          packages: [],
+          installedCount: 0,
+          verifiedCount: 0,
+          blockedCount: 0,
+          error: null,
+        }}
+        composition={{
+          profiles: [],
+          activeProfileId: null,
+          activeProfile: null,
+          resolution: null,
+          error: null,
+        }}
         plugins={[
           {
             id: "ext-1",
@@ -91,6 +105,78 @@ describe("DebugRuntimePluginsSection", () => {
         loading={false}
         error={null}
         projectionBacked={false}
+        registry={{
+          packages: [],
+          installedCount: 1,
+          verifiedCount: 1,
+          blockedCount: 0,
+          error: null,
+        }}
+        composition={{
+          profiles: [],
+          activeProfileId: "workspace-default",
+          activeProfile: {
+            id: "workspace-default",
+            name: "Workspace Default",
+            scope: "workspace",
+            enabled: true,
+            pluginSelectors: [],
+            routePolicy: {
+              preferredRoutePluginIds: [],
+              providerPreference: [],
+              allowRuntimeFallback: true,
+            },
+            backendPolicy: {
+              preferredBackendIds: ["backend-primary"],
+              resolvedBackendId: null,
+            },
+            trustPolicy: {
+              requireVerifiedSignatures: true,
+              allowDevOverrides: false,
+              blockedPublishers: [],
+            },
+            executionPolicyRefs: [],
+            observabilityPolicy: {
+              emitStableEvents: true,
+              emitOtelAlignedTelemetry: true,
+            },
+            configLayers: [],
+          },
+          resolution: {
+            selectedPlugins: [
+              {
+                pluginId: "route:openai",
+                packageRef: "hugecode.mcp.search@1.0.0",
+                source: "execution_route",
+                reason: null,
+              },
+            ],
+            selectedRouteCandidates: [
+              {
+                pluginId: "route:openai",
+                routeKind: "combined_execution",
+                providerId: "openai",
+                preferredBackendIds: ["backend-primary"],
+                resolvedBackendId: "backend-primary",
+              },
+            ],
+            selectedBackendCandidates: [
+              {
+                backendId: "backend-primary",
+                sourcePluginId: "route:openai",
+              },
+            ],
+            blockedPlugins: [],
+            trustDecisions: [],
+            provenance: {
+              activeProfileId: "workspace-default",
+              activeProfileName: "Workspace Default",
+              appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+              selectorDecisions: {},
+            },
+          },
+          error: null,
+        }}
         plugins={[
           {
             id: "route:openai",
@@ -154,6 +240,41 @@ describe("DebugRuntimePluginsSection", () => {
               preferredBackendIds: ["backend-primary"],
               resolvedBackendId: "backend-primary",
               provenance: "backend_preference",
+              pluginRegistry: {
+                packageRef: "hugecode.mcp.search@1.0.0",
+                transport: "mcp_remote",
+                source: "installed",
+                installed: true,
+                installedPluginId: "route:openai",
+                publisher: "HugeCode Labs",
+                trust: {
+                  status: "verified",
+                  verificationStatus: "verified",
+                  publisher: "HugeCode Labs",
+                  attestationSource: "sigstore",
+                  blockedReason: null,
+                  packageRef: "hugecode.mcp.search@1.0.0",
+                  pluginId: "route:openai",
+                },
+                compatibility: {
+                  status: "compatible",
+                  minimumHostContractVersion: "2026-03-25",
+                  supportedRuntimeProtocolVersions: ["2026-03-25"],
+                  supportedCapabilityKeys: ["plugins.catalog"],
+                  optionalTransportFeatures: [],
+                  blockers: [],
+                },
+              },
+              composition: {
+                activeProfileId: "workspace-default",
+                activeProfileName: "Workspace Default",
+                selectedInActiveProfile: true,
+                blockedInActiveProfile: false,
+                blockedReason: null,
+                selectedRouteCandidate: true,
+                selectedBackendCandidateIds: ["backend-primary"],
+                layerOrder: ["built_in", "user", "workspace", "launch_override"],
+              },
             },
             permissionDecision: "unsupported",
             health: {
@@ -167,10 +288,21 @@ describe("DebugRuntimePluginsSection", () => {
     );
 
     expect(screen.getByText(/OpenAI Route \(routing\)/)).toBeTruthy();
+    expect(
+      screen.getByText(/registry packages: 1 installed \| 1 verified \| 0 blocked/i)
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        /active profile: Workspace Default \| routes selected: 1 \| backends selected: 1/i
+      )
+    ).toBeTruthy();
     expect(screen.getByText("export:route:route:openai")).toBeTruthy();
     expect(screen.getAllByText("execution_route")).toHaveLength(3);
     expect(screen.getByText("backend_preference")).toBeTruthy();
-    expect(screen.getAllByText("backend-primary")).toHaveLength(2);
+    expect(screen.getAllByText("backend-primary")).toHaveLength(3);
     expect(screen.getByText("codex")).toBeTruthy();
+    expect(screen.getByText("hugecode.mcp.search@1.0.0")).toBeTruthy();
+    expect(screen.getAllByText("verified").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("workspace-default")).toBeTruthy();
   });
 });

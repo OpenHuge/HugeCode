@@ -115,6 +115,13 @@ function buildRuntimeProjectionInput(
     runtimePlugins,
     runtimePluginsError: null,
     runtimePluginsProjectionBacked: false,
+    runtimePluginRegistryPackages: [],
+    runtimePluginRegistryError: null,
+    runtimeCompositionProfiles: [],
+    runtimeCompositionActiveProfileId: null,
+    runtimeCompositionActiveProfile: null,
+    runtimeCompositionResolution: null,
+    runtimeCompositionError: null,
     selectedProviderRoute: "auto",
     runtimeStatusFilter: "all",
     runtimeDurabilityWarning: null,
@@ -149,6 +156,257 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.routeSelection.selected.ready).toBe(false);
     expect(projection.launchReadiness.headline).toBe("Launch readiness blocked");
     expect(projection.launchReadiness.route.detail).toContain("0/1 provider routes ready");
+  });
+
+  it("summarizes control-plane profile, trust, and backend selection state", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimePlugins: [
+          {
+            id: "pkg:hugecode.mcp.search@1.0.0",
+            name: "Remote Search Tools",
+            version: "1.0.0",
+            summary: "Registry package",
+            source: "mcp_remote",
+            transport: "mcp_remote",
+            hostProfile: {
+              kind: "remote",
+              executionBoundaries: ["registry"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: false,
+            capabilities: [],
+            permissions: ["network"],
+            resources: [],
+            executionBoundaries: ["registry"],
+            binding: {
+              state: "declaration_only",
+              contractFormat: "mcp",
+              contractBoundary: "registry:mcp_remote",
+              interfaceId: "pkg.search.remote",
+              surfaces: [
+                {
+                  id: "pkg.search.remote.routes",
+                  kind: "route",
+                  direction: "export",
+                  summary: "Remote route",
+                },
+              ],
+            },
+            operations: {
+              execution: {
+                executable: false,
+                mode: "none",
+                reason: "Registry package is not runtime-bound.",
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason: "Registry package is not runtime-bound.",
+              },
+              permissions: {
+                evaluable: false,
+                mode: "none",
+                reason: "Registry package is not runtime-bound.",
+              },
+            },
+            metadata: {
+              pluginRegistry: {
+                packageRef: "hugecode.mcp.search@1.0.0",
+                transport: "mcp_remote",
+                source: "installed",
+                installed: true,
+                installedPluginId: null,
+                publisher: "HugeCode Labs",
+                trust: {
+                  status: "verified",
+                  verificationStatus: "verified",
+                  publisher: "HugeCode Labs",
+                  attestationSource: "sigstore",
+                  blockedReason: null,
+                  packageRef: "hugecode.mcp.search@1.0.0",
+                  pluginId: "pkg.search.remote",
+                },
+                compatibility: {
+                  status: "compatible",
+                  minimumHostContractVersion: "2026-03-25",
+                  supportedRuntimeProtocolVersions: ["2026-03-25"],
+                  supportedCapabilityKeys: ["plugins.catalog", "plugins.registry"],
+                  optionalTransportFeatures: [],
+                  blockers: [],
+                },
+              },
+              composition: {
+                activeProfileId: "workspace-default",
+                activeProfileName: "Workspace Default",
+                selectedInActiveProfile: true,
+                blockedInActiveProfile: false,
+                blockedReason: null,
+                selectedRouteCandidate: false,
+                selectedBackendCandidateIds: [],
+                layerOrder: ["built_in", "user", "workspace", "launch_override"],
+              },
+            },
+            permissionDecision: null,
+            health: null,
+          },
+        ],
+        runtimePluginRegistryPackages: [
+          {
+            packageRef: "hugecode.mcp.search@1.0.0",
+            packageId: "hugecode.mcp.search",
+            version: "1.0.0",
+            publisher: "HugeCode Labs",
+            summary: "Registry package",
+            transport: "mcp_remote",
+            source: "installed",
+            installed: true,
+            installedPluginId: null,
+            manifest: {
+              packageId: "hugecode.mcp.search",
+              version: "1.0.0",
+              publisher: "HugeCode Labs",
+              transport: "mcp_remote",
+              entry: {
+                pluginId: "pkg.search.remote",
+                displayName: "Remote Search Tools",
+                summary: "Registry package",
+                interfaceId: "pkg.search.remote",
+              },
+              contractSurfaces: [],
+              compatibility: {
+                status: "compatible",
+                minimumHostContractVersion: "2026-03-25",
+                supportedRuntimeProtocolVersions: ["2026-03-25"],
+                supportedCapabilityKeys: ["plugins.catalog", "plugins.registry"],
+                optionalTransportFeatures: [],
+                blockers: [],
+              },
+              dependencies: [],
+              permissions: ["network"],
+              defaultConfig: {},
+              attestations: [],
+            },
+            compatibility: {
+              status: "compatible",
+              minimumHostContractVersion: "2026-03-25",
+              supportedRuntimeProtocolVersions: ["2026-03-25"],
+              supportedCapabilityKeys: ["plugins.catalog", "plugins.registry"],
+              optionalTransportFeatures: [],
+              blockers: [],
+            },
+            trust: {
+              status: "verified",
+              verificationStatus: "verified",
+              publisher: "HugeCode Labs",
+              attestationSource: "sigstore",
+              blockedReason: null,
+              packageRef: "hugecode.mcp.search@1.0.0",
+              pluginId: "pkg.search.remote",
+            },
+          },
+        ],
+        runtimeCompositionProfiles: [
+          {
+            id: "workspace-default",
+            name: "Workspace Default",
+            scope: "workspace",
+            enabled: true,
+            pluginSelectors: [],
+            routePolicy: {
+              preferredRoutePluginIds: [],
+              providerPreference: [],
+              allowRuntimeFallback: true,
+            },
+            backendPolicy: {
+              preferredBackendIds: ["backend-primary"],
+              resolvedBackendId: null,
+            },
+            trustPolicy: {
+              requireVerifiedSignatures: true,
+              allowDevOverrides: false,
+              blockedPublishers: [],
+            },
+            executionPolicyRefs: [],
+            observabilityPolicy: {
+              emitStableEvents: true,
+              emitOtelAlignedTelemetry: true,
+            },
+            configLayers: [],
+          },
+        ],
+        runtimeCompositionActiveProfileId: "workspace-default",
+        runtimeCompositionActiveProfile: {
+          id: "workspace-default",
+          name: "Workspace Default",
+          scope: "workspace",
+          enabled: true,
+          pluginSelectors: [],
+          routePolicy: {
+            preferredRoutePluginIds: [],
+            providerPreference: [],
+            allowRuntimeFallback: true,
+          },
+          backendPolicy: {
+            preferredBackendIds: ["backend-primary"],
+            resolvedBackendId: null,
+          },
+          trustPolicy: {
+            requireVerifiedSignatures: true,
+            allowDevOverrides: false,
+            blockedPublishers: [],
+          },
+          executionPolicyRefs: [],
+          observabilityPolicy: {
+            emitStableEvents: true,
+            emitOtelAlignedTelemetry: true,
+          },
+          configLayers: [],
+        },
+        runtimeCompositionResolution: {
+          selectedPlugins: [
+            {
+              pluginId: "pkg:hugecode.mcp.search@1.0.0",
+              packageRef: "hugecode.mcp.search@1.0.0",
+              source: "mcp_remote",
+              reason: null,
+            },
+          ],
+          selectedRouteCandidates: [],
+          selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+          blockedPlugins: [],
+          trustDecisions: [
+            {
+              status: "verified",
+              verificationStatus: "verified",
+              publisher: "HugeCode Labs",
+              attestationSource: "sigstore",
+              blockedReason: null,
+              packageRef: "hugecode.mcp.search@1.0.0",
+              pluginId: "pkg.search.remote",
+            },
+          ],
+          provenance: {
+            activeProfileId: "workspace-default",
+            activeProfileName: "Workspace Default",
+            appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+            selectorDecisions: {},
+          },
+        },
+      })
+    );
+
+    expect(projection.pluginCatalog.externalPackageCount).toBe(1);
+    expect(projection.pluginCatalog.verifiedPackageCount).toBe(1);
+    expect(projection.pluginCatalog.selectedInActiveProfileCount).toBe(1);
+    expect(projection.composition).toMatchObject({
+      activeProfileId: "workspace-default",
+      activeProfileName: "Workspace Default",
+      verifiedPluginCount: 1,
+      blockedPluginCount: 0,
+      selectedBackendCount: 1,
+    });
   });
 
   it("keeps launch ready when local routing remains available", () => {
