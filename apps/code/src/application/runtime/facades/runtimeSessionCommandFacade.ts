@@ -74,6 +74,19 @@ export type StartReviewInput = {
   delivery?: "inline" | "detached";
 };
 
+export type RuntimeSessionReviewStartResult = {
+  reviewThreadId?: string | null;
+  review_thread_id?: string | null;
+  threadId?: string | null;
+};
+
+export type RuntimeSessionReviewStartResponse = {
+  result?: RuntimeSessionReviewStartResult | null;
+  reviewThreadId?: string | null;
+  review_thread_id?: string | null;
+  error?: unknown;
+};
+
 export type CompactThreadInput = {
   threadId: RuntimeThreadId;
 };
@@ -102,7 +115,7 @@ export type RuntimeSessionCommandFacade = {
   sendMessage: (input: SendMessageInput) => ReturnType<typeof sendUserMessage>;
   steerTurn: (input: SteerTurnInput) => ReturnType<typeof steerTurn>;
   interruptTurn: (input: InterruptTurnInput) => ReturnType<typeof interruptTurn>;
-  startReview: (input: StartReviewInput) => ReturnType<typeof startReview>;
+  startReview: (input: StartReviewInput) => Promise<RuntimeSessionReviewStartResponse>;
   compactThread: (input: CompactThreadInput) => ReturnType<typeof compactThread>;
   listMcpServerStatus: (input?: ListMcpServerStatusInput) => ReturnType<typeof listMcpServerStatus>;
   respondToApproval: (input: RespondToApprovalInput) => ReturnType<typeof respondToServerRequest>;
@@ -118,7 +131,12 @@ export type RuntimeSessionCommandDependencies = {
   sendUserMessage: typeof sendUserMessage;
   steerTurn: typeof steerTurn;
   interruptTurn: typeof interruptTurn;
-  startReview: typeof startReview;
+  startReview: (
+    workspaceId: RuntimeWorkspaceId,
+    threadId: RuntimeThreadId,
+    target: ReviewTarget,
+    delivery?: "inline" | "detached"
+  ) => Promise<RuntimeSessionReviewStartResponse>;
   compactThread: typeof compactThread;
   listMcpServerStatus: typeof listMcpServerStatus;
   respondToServerRequest: typeof respondToServerRequest;
@@ -132,7 +150,13 @@ const defaultRuntimeSessionCommandDependencies: RuntimeSessionCommandDependencie
   sendUserMessage,
   steerTurn,
   interruptTurn,
-  startReview,
+  startReview: (workspaceId, threadId, target, delivery) =>
+    startReview(
+      workspaceId,
+      threadId,
+      target,
+      delivery
+    ) as Promise<RuntimeSessionReviewStartResponse>,
   compactThread,
   listMcpServerStatus,
   respondToServerRequest,

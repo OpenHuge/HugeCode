@@ -58,6 +58,37 @@ describe("ui service boundary guard", () => {
     ]);
   });
 
+  it("rejects direct runtime session command port imports in thread and composer features", () => {
+    const threadViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/threads/hooks/useThreadMessaging.ts",
+      'import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/ports/runtimeSessionCommands";\n'
+    );
+    const composerViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/composer/hooks/useComposerActions.ts",
+      'import { useWorkspaceRuntimeSessionCommands } from "../../../application/runtime/ports/runtimeSessionCommands";\n'
+    );
+
+    expect(threadViolations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-thread-session-command-facade-only",
+      }),
+    ]);
+    expect(composerViolations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-thread-session-command-facade-only",
+      }),
+    ]);
+  });
+
+  it("allows runtime session command facade hooks in thread features", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/threads/hooks/useThreadMessaging.ts",
+      'import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacadeHooks";\n'
+    );
+
+    expect(violations).toEqual([]);
+  });
+
   it("rejects direct tauri imports in shared workspace client files", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "packages/code-workspace-client/src/workspace/WorkspaceClientApp.tsx",

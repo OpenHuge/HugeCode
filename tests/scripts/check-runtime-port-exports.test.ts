@@ -143,4 +143,26 @@ describe("check-runtime-port-exports", () => {
     expect(result.stderr).toContain("approved export surface");
     expect(result.stderr).toContain("publishRuntimeToolLifecycleTelemetry");
   });
+
+  it("fails when runtimeSessionCommands port widens beyond the approved facade-hook surface", async () => {
+    const tempRoot = await mkdtemp(path.join(tmpdir(), "runtime-port-exports-"));
+    tempRoots.push(tempRoot);
+    await copyScript(tempRoot);
+    await writeRepoFile(
+      tempRoot,
+      "apps/code/src/application/runtime/ports/runtimeSessionCommands.ts",
+      [
+        'export { useRuntimeSessionCommandsResolver } from "../facades/runtimeSessionCommandFacadeHooks";',
+        'export { useWorkspaceRuntimeSessionCommands } from "../facades/runtimeSessionCommandFacadeHooks";',
+        'export { createRuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";',
+      ].join("\n")
+    );
+
+    const result = runGuard(tempRoot);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("runtimeSessionCommands.ts");
+    expect(result.stderr).toContain("approved facade-hook export surface");
+    expect(result.stderr).toContain("createRuntimeSessionCommandFacade");
+  });
 });

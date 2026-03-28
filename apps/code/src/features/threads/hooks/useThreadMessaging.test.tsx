@@ -61,7 +61,7 @@ vi.mock("../../../application/runtime/ports/toasts", () => ({
   pushErrorToast: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
+vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks", () => ({
   useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
     sendMessage: ({ threadId, text, options }: Record<string, unknown>) =>
       runtimeSessionCommandMocks.sendUserMessage(workspaceId, threadId, text, options),
@@ -1545,7 +1545,7 @@ describe("useThreadMessaging telemetry", () => {
         allowedActions: ["continue"],
         queueBudget: null,
       },
-    });
+    } as unknown as Awaited<ReturnType<typeof prepareRuntimeRunV2Service>>);
 
     const { result } = renderHook(() =>
       useThreadMessaging({

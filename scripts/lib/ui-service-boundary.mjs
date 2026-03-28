@@ -266,6 +266,16 @@ const VIOLATION_RULES = [
       /^apps\/code\/src\/features\/(?:threads|composer)\//u.test(filePath),
   },
   {
+    id: "runtime-thread-session-command-facade-only",
+    description:
+      "threads/composer feature code must use runtime session command hooks from `application/runtime/facades/runtimeSessionCommandFacadeHooks` instead of the compatibility port shim",
+    pattern:
+      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/runtimeSessionCommands["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/runtimeSessionCommands["'])/u,
+    appliesTo: (filePath) =>
+      !isUiTestFile(filePath) &&
+      /^apps\/code\/src\/features\/(?:threads|composer)\//u.test(filePath),
+  },
+  {
     id: "runtime-legacy-bridge-app",
     description:
       "non-UI product code must not import retired runtime bridge ports (`tauriSettings`, `tauriWorkspaces`, `tauriSkills`, `tauriRuntimeSkills`, or raw `tauri`)",
