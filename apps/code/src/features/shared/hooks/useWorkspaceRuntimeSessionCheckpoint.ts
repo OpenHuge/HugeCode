@@ -1,7 +1,11 @@
 import { buildRuntimeSessionCheckpointBaseline } from "../../../application/runtime/facades/runtimeSessionCheckpointFacade";
 import type { RuntimeSessionCheckpointPresentationSummary } from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
 import { buildRuntimeSessionCheckpointPresentationSummary } from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
-import type { RuntimeSessionCheckpointBaseline } from "../../../application/runtime/types/runtimeSessionCheckpoint";
+import {
+  RUNTIME_SESSION_CHECKPOINT_BASELINE_SCHEMA_VERSION,
+  RUNTIME_SESSION_CHECKPOINT_PROJECTION_SOURCE,
+  type RuntimeSessionCheckpointBaseline,
+} from "../../../application/runtime/types/runtimeSessionCheckpoint";
 import {
   useWorkspaceRuntimeToolLifecycle,
   type WorkspaceRuntimeToolLifecycleState,
@@ -22,10 +26,10 @@ function buildEmptyRuntimeSessionCheckpointBaseline(
   workspaceId: string | null
 ): RuntimeSessionCheckpointBaseline {
   return {
-    schemaVersion: "runtime-session-checkpoint-baseline/v1",
+    schemaVersion: RUNTIME_SESSION_CHECKPOINT_BASELINE_SCHEMA_VERSION,
     workspaceId,
     lifecycleRevision: 0,
-    projectionSource: "runtime_tool_lifecycle",
+    projectionSource: RUNTIME_SESSION_CHECKPOINT_PROJECTION_SOURCE,
     sessions: [],
   };
 }

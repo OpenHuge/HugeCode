@@ -5,6 +5,7 @@ import type {
 } from "../types/runtimeToolLifecycle";
 import {
   RUNTIME_SESSION_CHECKPOINT_BASELINE_SCHEMA_VERSION,
+  RUNTIME_SESSION_CHECKPOINT_PROJECTION_SOURCE,
   type RuntimeSessionCheckpointActivity,
   type RuntimeSessionCheckpointBaseline,
   type RuntimeSessionCheckpointPayload,
@@ -247,7 +248,7 @@ export function buildRuntimeSessionCheckpointBaseline(input: {
     schemaVersion: RUNTIME_SESSION_CHECKPOINT_BASELINE_SCHEMA_VERSION,
     workspaceId: input.workspaceId,
     lifecycleRevision: input.lifecycleSnapshot.revision,
-    projectionSource: "runtime_tool_lifecycle",
+    projectionSource: RUNTIME_SESSION_CHECKPOINT_PROJECTION_SOURCE,
     sessions,
   };
 }

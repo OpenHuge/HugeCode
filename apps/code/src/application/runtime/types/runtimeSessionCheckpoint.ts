@@ -10,6 +10,7 @@ import type {
 
 export const RUNTIME_SESSION_CHECKPOINT_BASELINE_SCHEMA_VERSION =
   "runtime-session-checkpoint-baseline/v1";
+export const RUNTIME_SESSION_CHECKPOINT_PROJECTION_SOURCE = "runtime_tool_lifecycle";
 
 export type RuntimeSessionCheckpointReplayOrdering = "chronological";
 export type RuntimeSessionCheckpointCompactionStrategy = "latest_record_per_identity";
@@ -86,7 +87,7 @@ export type RuntimeSessionCheckpointBaseline = {
   schemaVersion: typeof RUNTIME_SESSION_CHECKPOINT_BASELINE_SCHEMA_VERSION;
   workspaceId: string | null;
   lifecycleRevision: RuntimeToolLifecycleSnapshot["revision"];
-  projectionSource: "runtime_tool_lifecycle";
+  projectionSource: typeof RUNTIME_SESSION_CHECKPOINT_PROJECTION_SOURCE;
   sessions: RuntimeSessionCheckpointSession[];
 };
 
