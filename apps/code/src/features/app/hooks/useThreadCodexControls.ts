@@ -35,6 +35,7 @@ import { useCollaborationModes } from "../../collaboration/hooks/useCollaboratio
 import { useComposerMenuActions } from "../../composer/hooks/useComposerMenuActions";
 import { useComposerShortcuts } from "../../composer/hooks/useComposerShortcuts";
 import { useModels } from "../../models/hooks/useModels";
+import { resolveModelVisionCapabilitySupport } from "../../models/utils/modelOptionCapabilities";
 import { resolveModelProviderId } from "../../models/utils/modelProviderSelection";
 import { resolveModelBrandLabel } from "../utils/antiGravityBranding";
 import { NO_THREAD_SCOPE_SUFFIX } from "../../threads/utils/threadCodexParamsSeed";
@@ -714,7 +715,7 @@ export function useThreadCodexControls({
     preferredProviderFamilyId ??
     (selectedModel ? (resolveModelProviderId(selectedModel) as ModelProviderFamilyId) : null);
   const resolvedEffort = reasoningSupported ? selectedEffort : null;
-  const visionCapabilitySupport = selectedModel?.capabilityMatrix?.supportsVision ?? "unknown";
+  const visionCapabilitySupport = resolveModelVisionCapabilitySupport(selectedModel);
   const executionOptions = useMemo<ComposerExecutionOption[]>(
     () =>
       localCliAvailable

@@ -119,6 +119,23 @@ export function supportsModelReasoning(model: ModelOption | null): boolean {
   );
 }
 
+export function resolveModelVisionCapabilitySupport(
+  model: ModelOption | null
+): "supported" | "unsupported" | "unknown" {
+  if (!model) {
+    return "unknown";
+  }
+  const modelSupport = model.capabilityMatrix?.supportsVision;
+  if (modelSupport === "supported" || modelSupport === "unsupported") {
+    return modelSupport;
+  }
+  const providerSupport = model.providerCapabilityMatrix?.supportsVision;
+  if (providerSupport === "supported" || providerSupport === "unsupported") {
+    return providerSupport;
+  }
+  return "unknown";
+}
+
 export function getModelReasoningOptions(model: ModelOption | null): string[] {
   if (!model) {
     return [];
