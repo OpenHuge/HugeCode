@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createWorkspaceRuntimeScope } from "./createWorkspaceRuntimeScope";
-import {
-  RUNTIME_KERNEL_CAPABILITY_KEYS,
-  resolveWorkspaceRuntimeCapability,
-} from "./runtimeKernelCapabilities";
+import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "./runtimeKernelCapabilities";
 import type { WorkspaceRuntimeCapabilityProvider } from "./runtimeKernelCapabilities";
 
 describe("createWorkspaceRuntimeScope", () => {
@@ -64,9 +61,6 @@ describe("createWorkspaceRuntimeScope", () => {
     expect(() => scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog)).toThrow(
       /Missing workspace runtime capability `plugins\.catalog`/
     );
-    expect(() =>
-      resolveWorkspaceRuntimeCapability(scope, RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog)
-    ).toThrow(/Missing workspace runtime capability `plugins\.catalog`/);
   });
 
   it("resolves the legacy extensions catalog alias through the canonical plugin capability", () => {

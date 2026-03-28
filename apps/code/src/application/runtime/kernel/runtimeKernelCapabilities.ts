@@ -2,7 +2,6 @@ import type { RuntimeAgentControlFacade } from "../facades/runtimeAgentControlFa
 import type { RuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
 import type { RuntimeWorkspaceId } from "../types/runtimeIds";
 import type { RuntimeGateway } from "../facades/RuntimeGateway";
-import type { WorkspaceRuntimeScope } from "./runtimeKernelTypes";
 import type { RuntimeKernelPluginCatalogFacade } from "./runtimeKernelPlugins";
 
 export const RUNTIME_KERNEL_CAPABILITY_KEYS = {
@@ -46,11 +45,4 @@ export function resolveRuntimeKernelCapabilityKey(
     return RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog;
   }
   return key;
-}
-
-export function resolveWorkspaceRuntimeCapability<K extends RuntimeKernelCapabilityKey>(
-  scope: WorkspaceRuntimeScope,
-  key: K
-): RuntimeKernelCapabilityMap[K] {
-  return scope.getCapability(key);
 }

@@ -1,9 +1,6 @@
 import type { RuntimeKernelPluginCatalogFacade } from "../kernel/runtimeKernelPlugins";
 import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
-import {
-  RUNTIME_KERNEL_CAPABILITY_KEYS,
-  resolveWorkspaceRuntimeCapability,
-} from "../kernel/runtimeKernelCapabilities";
+import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "../kernel/runtimeKernelCapabilities";
 
 export function useWorkspaceRuntimePluginCatalog(
   workspaceId: string | null
@@ -12,8 +9,7 @@ export function useWorkspaceRuntimePluginCatalog(
   if (!workspaceId) {
     return null;
   }
-  return resolveWorkspaceRuntimeCapability(
-    runtimeKernel.getWorkspaceScope(workspaceId),
-    RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog
-  );
+  return runtimeKernel
+    .getWorkspaceScope(workspaceId)
+    .getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog);
 }

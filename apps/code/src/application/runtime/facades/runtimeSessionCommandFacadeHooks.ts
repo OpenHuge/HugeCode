@@ -3,10 +3,7 @@ import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
 import type { RuntimeWorkspaceId } from "../types/runtimeIds";
 import type { RuntimeSessionCommandFacade } from "./runtimeSessionCommandFacade";
 import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "../kernel/runtimeKernelCapabilities";
-import {
-  resolveWorkspaceRuntimeCapability,
-  useWorkspaceRuntimeCapability,
-} from "../hooks/useWorkspaceRuntimeCapability";
+import { useWorkspaceRuntimeCapability } from "../hooks/useWorkspaceRuntimeCapability";
 
 export function useWorkspaceRuntimeSessionCommands(
   workspaceId: RuntimeWorkspaceId
@@ -21,11 +18,9 @@ export function useRuntimeSessionCommandsResolver(): (
 
   return useCallback(
     (workspaceId: RuntimeWorkspaceId) =>
-      resolveWorkspaceRuntimeCapability(
-        kernel,
-        workspaceId,
-        RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands
-      ),
+      kernel
+        .getWorkspaceScope(workspaceId)
+        .getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands),
     [kernel]
   );
 }
