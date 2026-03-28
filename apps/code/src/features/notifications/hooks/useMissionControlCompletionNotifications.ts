@@ -4,7 +4,7 @@ import type {
   HugeCodeTaskSummary,
 } from "@ku0/code-runtime-host-contract";
 import { useCallback, useEffect, useRef } from "react";
-import { sendNotification } from "../../../application/runtime/ports/tauriNotifications";
+import { sendNotification } from "../../../application/runtime/ports/desktopNotifications";
 import type { DebugEntry } from "../../../types";
 import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
 

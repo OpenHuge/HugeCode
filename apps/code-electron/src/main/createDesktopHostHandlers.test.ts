@@ -30,11 +30,25 @@ describe("createDesktopHostHandlers", () => {
         reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
         supportSnapshotText: "HugeCode Desktop Support Snapshot",
       })),
+      listLocalChromeDebuggerEndpoints: vi.fn(() => [
+        {
+          browserName: "Google Chrome",
+          discoverySource: "devtools-active-port" as const,
+          httpBaseUrl: "http://127.0.0.1:9222",
+          profileLabel: "Default",
+          webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/browser-1",
+        },
+      ]),
       listRecentSessions: vi.fn(() => [{ id: "session-1" }]),
       notificationController: {
         showNotification: vi.fn(() => true),
       },
+      openDialog: vi.fn(async () => ({
+        canceled: false,
+        filePaths: ["/tmp/hugecode/workspace-alpha"],
+      })),
       openExternalUrl: vi.fn(async () => true),
+      openPathIn: vi.fn(async () => true),
       openPath: vi.fn(async () => true),
       persistTrayEnabled: vi.fn(),
       revealItemInDir: vi.fn(() => true),
@@ -102,6 +116,15 @@ describe("createDesktopHostHandlers", () => {
       reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
       supportSnapshotText: "HugeCode Desktop Support Snapshot",
     });
+    expect(handlers.listLocalChromeDebuggerEndpoints()).toEqual([
+      {
+        browserName: "Google Chrome",
+        discoverySource: "devtools-active-port",
+        httpBaseUrl: "http://127.0.0.1:9222",
+        profileLabel: "Default",
+        webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/browser-1",
+      },
+    ]);
     expect(handlers.getWindowLabel({ sender: {} as never })).toBe("main");
     expect(handlers.consumePendingLaunchIntent()).toEqual({
       kind: "protocol",
@@ -122,6 +145,13 @@ describe("createDesktopHostHandlers", () => {
     expect(handlers.reopenSession("session-1")).toBe(true);
     expect(handlers.closeWindow(1)).toBe(true);
     expect(handlers.focusWindow(1)).toBe(true);
+    await expect(handlers.openDialog()).resolves.toEqual({
+      canceled: false,
+      filePaths: ["/tmp/hugecode/workspace-alpha"],
+    });
+    await expect(
+      handlers.openPathIn({ path: "/tmp/hugecode/workspace-alpha", target: "finder" })
+    ).resolves.toBe(true);
     await expect(handlers.openPath("/tmp/hugecode/logs")).resolves.toBe(true);
     expect(handlers.getTrayState()).toEqual({ enabled: true, supported: true });
     expect(handlers.getUpdateState()).toEqual({
@@ -171,11 +201,17 @@ describe("createDesktopHostHandlers", () => {
         reportIssueUrl: "https://github.com/OpenHuge/HugeCode/issues/new",
         supportSnapshotText: "HugeCode Desktop Support Snapshot",
       })),
+      listLocalChromeDebuggerEndpoints: vi.fn(() => []),
       listRecentSessions: vi.fn(() => []),
       notificationController: {
         showNotification: vi.fn(() => false),
       },
+      openDialog: vi.fn(async () => ({
+        canceled: true,
+        filePaths: [],
+      })),
       openExternalUrl: vi.fn(async () => true),
+      openPathIn: vi.fn(async () => true),
       openPath: vi.fn(async () => true),
       persistTrayEnabled,
       revealItemInDir: vi.fn(() => true),

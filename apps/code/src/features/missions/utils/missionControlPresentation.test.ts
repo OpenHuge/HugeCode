@@ -338,7 +338,7 @@ describe("missionControlPresentation", () => {
       limit: 6,
     });
 
-    expect(item.operatorActionLabel).toBe("Open approval");
+    expect(item.operatorActionLabel).toBe("Continue in mission run");
     expect(item.operatorActionDetail).toBe("Open the pending approval before reopening review.");
     expect(item.continuationLabel).toBe("Approval is the first required continuation step.");
     expect(item.continuePathLabel).toBe("Mission run");
@@ -423,7 +423,7 @@ describe("missionControlPresentation", () => {
       limit: 3,
     });
 
-    expect(entry.operatorActionLabel).toBe("Open handoff");
+    expect(entry.operatorActionLabel).toBe("Continue in mission thread");
     expect(entry.operatorActionDetail).toBe("Open the handoff target on the mission thread.");
     expect(entry.operatorActionTarget).toEqual({
       kind: "thread",
@@ -466,7 +466,7 @@ describe("missionControlPresentation", () => {
       limit: 3,
     });
 
-    expect(entry.operatorActionLabel).toBe("Inspect runtime");
+    expect(entry.operatorActionLabel).toBe("Open action center");
   });
 
   it("orders review queue items by in-review entry time and excludes done items", () => {

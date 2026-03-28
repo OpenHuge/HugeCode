@@ -44,6 +44,7 @@ describe("workspace client boundaries", () => {
     expect(entrySource).toContain("@ku0/code-application");
     expect(entrySource).toContain("createDesktopWorkspaceBootstrap");
     expect(bootstrapSource).toContain("createDesktopWorkspaceClientBindings");
+    expect(entrySource).toContain("runtimeKernel");
   });
 
   it("keeps the web adapter focused on binding composition instead of inline runtime transport", () => {
@@ -63,7 +64,7 @@ describe("workspace client boundaries", () => {
     const webSource = readRepoFile(
       "apps/code-web/app/components/createWebWorkspaceClientBindings.tsx"
     );
-    const bootstrapSource = readRepoFile(
+    const desktopBootstrapSource = readRepoFile(
       "packages/code-application/src/desktopWorkspaceBootstrap.ts"
     );
     const sharedBindingsSource = readRepoFile(
@@ -84,11 +85,11 @@ describe("workspace client boundaries", () => {
     expect(desktopSource).not.toContain("window:");
     expect(desktopSource).not.toContain("nativeFiles:");
     expect(desktopSource).not.toContain("updater:");
-    expect(bootstrapSource).toContain("createDesktopWorkspaceClientBindings");
-    expect(bootstrapSource).toContain(
-      "runtimeGateway: input.runtimeKernel.workspaceClientRuntimeGateway"
-    );
-    expect(bootstrapSource).toContain("runtime: input.runtimeKernel.workspaceClientRuntime");
+    expect(desktopBootstrapSource).toContain("createDesktopWorkspaceClientBindings");
+    expect(desktopBootstrapSource).toContain("runtimeGateway:");
+    expect(desktopBootstrapSource).toContain("runtime:");
+    expect(desktopBootstrapSource).toContain("input.runtimeKernel.workspaceClientRuntimeGateway");
+    expect(desktopBootstrapSource).toContain("input.runtimeKernel.workspaceClientRuntime");
     expect(kernelSource).toContain("createWorkspaceClientRuntimeBindings");
     expect(kernelSource).toContain("workspaceClientRuntimeGateway:");
     expect(kernelSource).toContain("workspaceClientRuntime,");

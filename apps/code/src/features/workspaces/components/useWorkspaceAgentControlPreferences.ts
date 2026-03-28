@@ -3,7 +3,7 @@ import { subscribeScopedRuntimeUpdatedEvents } from "../../../application/runtim
 import {
   getAppSettings,
   updateAppSettings,
-} from "../../../application/runtime/ports/tauriAppSettings";
+} from "../../../application/runtime/ports/desktopAppSettings";
 import type { AppSettings, WorkspaceAgentControlPersistedState } from "../../../types";
 import {
   DEFAULT_PERSISTED_AGENT_CONTROLS,

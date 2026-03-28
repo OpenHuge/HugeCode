@@ -3,6 +3,7 @@ import type {
   DesktopAppInfo,
   DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
+  LocalChromeDebuggerEndpointDescriptor,
   DesktopNotificationInput,
   DesktopOpenDialogInput,
   DesktopOpenDialogResult,
@@ -44,6 +45,9 @@ type DesktopHostIpcHandlers = {
   getAppInfo(): Promise<DesktopAppInfo | null> | DesktopAppInfo | null;
   getDiagnosticsInfo(): Promise<DesktopDiagnosticsInfo | null> | DesktopDiagnosticsInfo | null;
   getAppVersion(): Promise<string | null> | string | null;
+  listLocalChromeDebuggerEndpoints():
+    | Promise<LocalChromeDebuggerEndpointDescriptor[]>
+    | LocalChromeDebuggerEndpointDescriptor[];
   getCurrentSession(event: IpcInvokeEventLike): Promise<unknown> | unknown;
   getTrayState(): Promise<DesktopTrayState> | DesktopTrayState;
   getUpdateState(): Promise<DesktopUpdateState> | DesktopUpdateState;
@@ -96,6 +100,10 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
 
   handleTrusted(channels.getAppVersion, async () => {
     return handlers.getAppVersion();
+  });
+
+  handleTrusted(channels.listLocalChromeDebuggerEndpoints, async () => {
+    return handlers.listLocalChromeDebuggerEndpoints();
   });
 
   handleTrusted(channels.getDiagnosticsInfo, async () => {

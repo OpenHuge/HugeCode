@@ -172,7 +172,9 @@ test("review-loop closure fixture smoke renders the unified review grammar", asy
           .getByTestId("mission-overview-panel")
           .getByRole("heading", { name: "Mission triage" })
       ).toBeVisible();
-      await expect(currentPage.getByText("Fallback routing review")).toBeVisible();
+      await expect(
+        currentPage.getByText("Unified detail grammar for triage, runtime, and review")
+      ).toBeVisible();
       await expect(currentPage.getByText("Review decision rail")).toBeVisible();
       await expect(currentPage.getByText("Runtime continuity and handoff")).toBeVisible();
       await expect(currentPage.getByText("Blocking runtime detail")).toBeVisible();

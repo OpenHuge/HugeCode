@@ -19,7 +19,7 @@ vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
   cancelRuntimeJob: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriAppSettings", () => ({
+vi.mock("../../../application/runtime/ports/desktopAppSettings", () => ({
   getAppSettings: vi.fn().mockResolvedValue({}),
 }));
 

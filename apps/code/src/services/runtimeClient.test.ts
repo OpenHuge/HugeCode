@@ -20,9 +20,11 @@ vi.mock("@tauri-apps/api/core", () => ({
 function syncTauriBridgeWithMockState() {
   const tauriWindow = window as Window & {
     __TAURI_INTERNALS__?: unknown;
+    __HUGE_CODE_RUNTIME_CLIENT_MODE__?: unknown;
   };
   const implementation = isTauriMock.getMockImplementation();
   if (implementation && implementation() === true) {
+    tauriWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__ = "tauri";
     tauriWindow.__TAURI_INTERNALS__ = {
       invoke: invokeMock,
     };
@@ -40,11 +42,13 @@ function clearTauriMarkers() {
     __TAURI__?: unknown;
     __TAURI_INTERNALS__?: unknown;
     __TAURI_IPC__?: unknown;
+    __HUGE_CODE_RUNTIME_CLIENT_MODE__?: unknown;
   };
 
   delete tauriWindow.__TAURI__;
   delete tauriWindow.__TAURI_INTERNALS__;
   delete tauriWindow.__TAURI_IPC__;
+  delete tauriWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__;
 }
 
 function clearAgentRuntimeMarkers() {

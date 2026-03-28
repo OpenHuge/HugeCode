@@ -1,5 +1,5 @@
-import { isTauri } from "../application/runtime/ports/tauriCore";
-import { getCurrentWindow } from "../application/runtime/ports/tauriWindow";
+import { isTauri } from "../application/runtime/ports/desktopHostCore";
+import { getCurrentWindow } from "../application/runtime/ports/desktopHostWindow";
 import { logger } from "./logger";
 
 export type DragDropPayload = {

@@ -1,7 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import * as notification from "@tauri-apps/plugin-notification";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   detectRuntimeMode,
   getRuntimeClient,
@@ -11,14 +10,14 @@ import {
   __resetLocalUsageSnapshotCacheForTests,
   __resetWebRuntimeOauthFallbackStateForTests,
   sendNotification,
-} from "./tauri";
+} from "./desktopHost";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
   isTauri: vi.fn(() => true),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
 }));
 
@@ -37,6 +36,35 @@ vi.mock("./runtimeClient", () => ({
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
+
+function installNotificationApiMock(config: {
+  permission: NotificationPermission;
+  requestPermissionResult?: NotificationPermission;
+  throwOnConstruct?: boolean;
+}) {
+  const instances: Array<{ close: ReturnType<typeof vi.fn>; onshow: (() => void) | null }> = [];
+  const requestPermission = vi.fn(async () => config.requestPermissionResult ?? config.permission);
+
+  class MockNotification {
+    static permission = config.permission;
+    static requestPermission = requestPermission;
+    onshow: (() => void) | null = null;
+    close = vi.fn();
+
+    constructor(
+      public readonly title: string,
+      public readonly options?: NotificationOptions
+    ) {
+      if (config.throwOnConstruct) {
+        throw new Error("boom");
+      }
+      instances.push(this);
+    }
+  }
+
+  vi.stubGlobal("Notification", MockNotification as unknown as typeof Notification);
+  return { instances, requestPermission };
+}
 
 describe("tauri invoke wrappers", () => {
   beforeEach(() => {
@@ -315,69 +343,46 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("does not send and warns when permission is denied", async () => {
-    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
-    const requestPermissionMock = vi.mocked(notification.requestPermission);
-    const sendNotificationMock = vi.mocked(notification.sendNotification);
-    const invokeMock = vi.mocked(invoke);
+    const { instances, requestPermission } = installNotificationApiMock({
+      permission: "default",
+      requestPermissionResult: "denied",
+    });
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
       // noop
     });
-    isPermissionGrantedMock.mockResolvedValueOnce(false);
-    requestPermissionMock.mockResolvedValueOnce("denied");
 
     await sendNotification("Denied", "Nope");
 
-    expect(isPermissionGrantedMock).toHaveBeenCalledTimes(1);
-    expect(requestPermissionMock).toHaveBeenCalledTimes(1);
-    expect(sendNotificationMock).not.toHaveBeenCalled();
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+    expect(instances).toHaveLength(0);
     expect(warnSpy).toHaveBeenCalledWith("Notification permission not granted.", {
       permission: "denied",
-    });
-    expect(invokeMock).toHaveBeenCalledWith("send_notification_fallback", {
-      title: "Denied",
-      body: "Nope",
     });
     warnSpy.mockRestore();
   });
 
   it("falls back when the notification plugin throws", async () => {
-    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
-    const invokeMock = vi.mocked(invoke);
+    installNotificationApiMock({
+      permission: "granted",
+      throwOnConstruct: true,
+    });
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
       // noop
     });
-    isPermissionGrantedMock.mockRejectedValueOnce(new Error("boom"));
 
     await sendNotification("Plugin", "Failed");
 
-    expect(invokeMock).toHaveBeenCalledWith("send_notification_fallback", {
-      title: "Plugin",
-      body: "Failed",
+    expect(warnSpy).toHaveBeenCalledWith("Notification delivery failed.", {
+      error: expect.any(Error),
     });
     warnSpy.mockRestore();
   });
 
-  it("prefers the fallback on macOS debug builds", async () => {
-    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
-    const invokeMock = vi.mocked(invoke);
-
-    invokeMock.mockImplementation(async (command: string) => {
-      if (command === "is_macos_debug_build") {
-        return true;
-      }
-      if (command === "send_notification_fallback") {
-        return undefined;
-      }
-      return undefined;
-    });
+  it("returns early when the browser Notification API is unavailable", async () => {
+    vi.stubGlobal("Notification", undefined);
 
     await sendNotification("Dev", "Fallback");
 
-    expect(invokeMock).toHaveBeenCalledWith("is_macos_debug_build");
-    expect(invokeMock).toHaveBeenCalledWith("send_notification_fallback", {
-      title: "Dev",
-      body: "Fallback",
-    });
-    expect(isPermissionGrantedMock).not.toHaveBeenCalled();
+    expect(vi.mocked(invoke)).not.toHaveBeenCalledWith("is_macos_debug_build");
   });
 });

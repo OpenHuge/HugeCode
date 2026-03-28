@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type {
+  DeactivatedChatgptWorkspaceCandidate,
+  ReviewDeactivatedChatgptWorkspacesResult,
+} from "../../../../application/runtime/facades/chatgptWorkspaceAutomation";
 
 import {
   applyOAuthPool,
@@ -64,6 +68,20 @@ import { isCodexPrimaryPool } from "./settings-codex-accounts-card/settingsCodex
 type SettingsCodexAccountsCardProps = {
   onClose?: () => void;
 };
+
+type PendingDeactivatedWorkspaceReview = {
+  account: OAuthAccountSummary;
+  review: ReviewDeactivatedChatgptWorkspacesResult & {
+    status: "supported";
+    candidates: DeactivatedChatgptWorkspaceCandidate[];
+  };
+};
+
+function isSupportedDeactivatedWorkspaceReview(
+  review: ReviewDeactivatedChatgptWorkspacesResult
+): review is PendingDeactivatedWorkspaceReview["review"] {
+  return review.status === "supported";
+}
 
 const STORAGE_KEY_ACTIVE_TAB = "codex_accounts_tab_v1";
 const STORAGE_KEY_ACCOUNT_PROVIDER_FILTER = "codex_accounts_provider_filter_v1";
@@ -189,6 +207,8 @@ export function SettingsCodexAccountsCard({ onClose }: SettingsCodexAccountsCard
   const [pendingRemoveAccount, setPendingRemoveAccount] = useState<OAuthAccountSummary | null>(
     null
   );
+  const [pendingDeactivatedWorkspaceReview, setPendingDeactivatedWorkspaceReview] =
+    useState<PendingDeactivatedWorkspaceReview | null>(null);
   const subscriptionPersistenceCapability = readOAuthSubscriptionPersistenceCapability();
 
   useEffect(() => {
@@ -540,7 +560,9 @@ export function SettingsCodexAccountsCard({ onClose }: SettingsCodexAccountsCard
   const {
     handleBulkAccountStatus,
     handleBulkRemoveAccounts,
+    handleLeaveAccountDeactivatedChatgptWorkspaces,
     handleRemoveAccount,
+    handleReviewAccountDeactivatedChatgptWorkspaces,
     handleToggleAccountStatus,
     handleUpdateAccountDefaultChatgptWorkspace,
   } = useCodexAccountActions({
@@ -592,6 +614,46 @@ export function SettingsCodexAccountsCard({ onClose }: SettingsCodexAccountsCard
     formatCockpitToolsImportSummary,
     isMountedRef,
   });
+
+  const handleReviewDeactivatedChatgptWorkspaces = useCallback(
+    async (account: OAuthAccountSummary) => {
+      const review = await handleReviewAccountDeactivatedChatgptWorkspaces(account);
+      if (!isSupportedDeactivatedWorkspaceReview(review)) {
+        if (review.message.trim().length > 0) {
+          setError(review.message);
+        }
+        return;
+      }
+      if (review.candidates.length === 0) {
+        setNotice(review.message);
+        return;
+      }
+      setPendingDeactivatedWorkspaceReview({
+        account,
+        review,
+      });
+    },
+    [handleReviewAccountDeactivatedChatgptWorkspaces]
+  );
+
+  const handleConfirmLeaveDeactivatedChatgptWorkspaces = useCallback(async () => {
+    const pendingReview = pendingDeactivatedWorkspaceReview;
+    if (!pendingReview) {
+      return;
+    }
+    const result = await handleLeaveAccountDeactivatedChatgptWorkspaces(
+      pendingReview.account,
+      pendingReview.review.candidates
+    );
+    setPendingDeactivatedWorkspaceReview(null);
+    if (result.message.trim().length > 0) {
+      if (result.status === "completed") {
+        setNotice(result.message);
+      } else {
+        setError(result.message);
+      }
+    }
+  }, [handleLeaveAccountDeactivatedChatgptWorkspaces, pendingDeactivatedWorkspaceReview]);
 
   const handleAddPool = useCallback(async () => {
     const normalizedName = poolNameDraft.trim();
@@ -840,6 +902,9 @@ export function SettingsCodexAccountsCard({ onClose }: SettingsCodexAccountsCard
             onBulkRemoveAccounts={() => void handleBulkRemoveAccounts()}
             onRefreshUsage={() => void refreshOAuthState({ usageRefresh: "force" })}
             onToggleAccountStatus={(account) => void handleToggleAccountStatus(account)}
+            onReviewDeactivatedChatgptWorkspaces={(account) =>
+              void handleReviewDeactivatedChatgptWorkspaces(account)
+            }
             onUpdateDefaultChatgptWorkspace={(account, workspaceId) =>
               void handleUpdateAccountDefaultChatgptWorkspace(account, workspaceId)
             }
@@ -929,6 +994,29 @@ export function SettingsCodexAccountsCard({ onClose }: SettingsCodexAccountsCard
           setPendingRemoveAccount(null);
         }}
         onCancel={() => setPendingRemoveAccount(null)}
+      />
+      <ConfirmDialog
+        open={pendingDeactivatedWorkspaceReview !== null}
+        title="Leave deactivated workspaces"
+        message={
+          pendingDeactivatedWorkspaceReview
+            ? `Leave ${pendingDeactivatedWorkspaceReview.review.candidates
+                .map(
+                  (candidate) =>
+                    candidate.localWorkspace.title?.trim() || candidate.localWorkspace.workspaceId
+                )
+                .join(
+                  ", "
+                )} from ChatGPT? HugeCode matched these stored memberships against ChatGPT and confirmed they are deactivated before leaving them.`
+            : ""
+        }
+        confirmLabel="Leave workspaces"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={() => {
+          void handleConfirmLeaveDeactivatedChatgptWorkspaces();
+        }}
+        onCancel={() => setPendingDeactivatedWorkspaceReview(null)}
       />
     </div>
   );

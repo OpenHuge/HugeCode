@@ -1,1 +1,1 @@
-export { getCollaborationModes } from "../../../services/tauriDesktopRpc";
+export { getCollaborationModes } from "../../../services/desktopHostRpc";

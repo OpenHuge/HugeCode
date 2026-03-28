@@ -1,4 +1,4 @@
-import { isTauri } from "../application/runtime/ports/tauriCore";
+import { isTauri } from "../application/runtime/ports/desktopHostCore";
 import { logger } from "./logger";
 import { detectRuntimeMode } from "./runtimeClient";
 import { getErrorMessage } from "@ku0/code-runtime-client/runtimeClientErrorUtils";

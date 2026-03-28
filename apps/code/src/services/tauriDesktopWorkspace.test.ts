@@ -7,7 +7,7 @@ import {
   markWorktreeSetupRan,
   openWorkspaceIn,
   renameWorktreeUpstream,
-} from "./tauriDesktopWorkspace";
+} from "./desktopHostWorkspace";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -77,7 +77,7 @@ describe("tauriDesktopWorkspace", () => {
     isTauriMock.mockReturnValue(false);
 
     await expect(openWorkspaceIn("/tmp/defaults", {})).rejects.toThrow(
-      "Open in is unavailable outside Tauri desktop runtime."
+      "Open in is unavailable outside the desktop host."
     );
 
     expect(invokeMock).not.toHaveBeenCalled();
@@ -106,7 +106,7 @@ describe("tauriDesktopWorkspace", () => {
 
     await expect(
       renameWorktreeUpstream("wt-upstream", "feature/old", "feature/new")
-    ).rejects.toThrow("Upstream worktree rename is unavailable outside Tauri runtime.");
+    ).rejects.toThrow("Upstream worktree rename is unavailable outside the desktop host.");
 
     expect(invokeMock).not.toHaveBeenCalled();
   });

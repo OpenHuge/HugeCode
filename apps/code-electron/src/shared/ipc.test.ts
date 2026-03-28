@@ -12,6 +12,8 @@ describe("desktopHostIpcChannels", () => {
       pushLaunchIntent: "hugecode:desktop-host:push-launch-intent",
       pushUpdateState: "hugecode:desktop-host:push-update-state",
       getCurrentSession: "hugecode:desktop-host:get-current-session",
+      listLocalChromeDebuggerEndpoints:
+        "hugecode:desktop-host:list-local-chrome-debugger-endpoints",
       listRecentSessions: "hugecode:desktop-host:list-recent-sessions",
       reopenSession: "hugecode:desktop-host:reopen-session",
       getWindowLabel: "hugecode:desktop-host:get-window-label",
