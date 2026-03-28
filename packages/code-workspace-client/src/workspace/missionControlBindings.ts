@@ -1,4 +1,7 @@
-import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
+import type {
+  HugeCodeMissionControlSnapshot,
+  KernelProjectionScope,
+} from "@ku0/code-runtime-host-contract";
 import type {
   WorkspaceClientRuntimeBindings,
   WorkspaceClientRuntimeMissionControlBindings,
@@ -18,7 +21,7 @@ export type SnapshotBackedMissionControlSurfaceBindings = Pick<
   "missionControl" | "review"
 >;
 
-const MISSION_CONTROL_PROJECTION_SCOPES = ["mission_control"] as const;
+const MISSION_CONTROL_PROJECTION_SCOPES: KernelProjectionScope[] = ["mission_control"];
 
 type WorkspaceClientMissionControlSurfaceBindingsInput =
   WorkspaceClientRuntimeMissionControlSourceAdapter & {
