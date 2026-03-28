@@ -20,6 +20,11 @@ export type WorkspaceRuntimeToolLifecycleState = {
   lifecycleEvents: RuntimeToolLifecycleEvent[];
 };
 
+export type WorkspaceRuntimeToolLifecycleProjection = Pick<
+  WorkspaceRuntimeToolLifecycleState,
+  "summary" | "hookCheckpoints" | "lifecycleEvents"
+>;
+
 type UseWorkspaceRuntimeToolLifecycleOptions = {
   workspaceId: string | null;
   enabled?: boolean;

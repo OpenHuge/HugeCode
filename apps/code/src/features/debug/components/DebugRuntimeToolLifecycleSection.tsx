@@ -1,21 +1,19 @@
 import type {
   RuntimeToolLifecycleEvent,
   RuntimeToolLifecycleHookCheckpoint,
-  RuntimeToolLifecyclePresentationSummary,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import {
   formatRuntimeToolLifecycleEventKey,
   formatRuntimeToolLifecycleHookCheckpointKey,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
+import type { WorkspaceRuntimeToolLifecycleProjection } from "../../shared/hooks/useWorkspaceRuntimeToolLifecycle";
 import {
   DebugDiagnosticsDefinitionList,
   type DebugDiagnosticsFieldDescriptor,
 } from "./DebugDiagnosticsFieldGroups";
 
 export type DebugRuntimeToolLifecycleSectionProps = {
-  hookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
-  lifecycleEvents: RuntimeToolLifecycleEvent[];
-  summary: RuntimeToolLifecyclePresentationSummary;
+  runtimeToolLifecycle: WorkspaceRuntimeToolLifecycleProjection;
 };
 
 function formatLifecycleTimestamp(value: number): string {
@@ -57,10 +55,9 @@ function createHookCheckpointFields(
 }
 
 export function DebugRuntimeToolLifecycleSection({
-  hookCheckpoints,
-  lifecycleEvents,
-  summary,
+  runtimeToolLifecycle,
 }: DebugRuntimeToolLifecycleSectionProps) {
+  const { hookCheckpoints, lifecycleEvents, summary } = runtimeToolLifecycle;
   return (
     <div className="debug-event-channel-diagnostics" data-testid="debug-runtime-tool-lifecycle">
       <div className="debug-event-channel-diagnostics-title">Tool lifecycle</div>

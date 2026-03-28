@@ -2,6 +2,7 @@
 
 import { cleanup, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { buildRuntimeToolLifecyclePresentationSummary } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import { useDebugEntryDiagnostics } from "../hooks/useDebugEntryDiagnostics";
 import {
   createDebugDiagnosticsEntries,
@@ -51,6 +52,8 @@ describe("DebugPanelBody integration", () => {
   it("renders hook-produced diagnostics through summary and event sections", () => {
     const entries = createDebugDiagnosticsEntries();
     const { result } = renderHook(() => useDebugEntryDiagnostics(entries, true, true));
+    const lifecycleEvents = [createRuntimeToolLifecycleEvent()];
+    const hookCheckpoints: [] = [];
 
     render(
       <DebugPanelBody
@@ -62,8 +65,14 @@ describe("DebugPanelBody integration", () => {
           hasRemoteExecutionDiagnostics: result.current.hasRemoteExecutionDiagnostics,
           agentTaskDurabilityDiagnostics: result.current.agentTaskDurabilityDiagnostics,
           eventChannelDiagnostics: createRuntimeEventChannelDiagnostics(),
-          runtimeToolLifecycleHookCheckpoints: [],
-          runtimeToolLifecycleEvents: [createRuntimeToolLifecycleEvent()],
+          runtimeToolLifecycle: {
+            summary: buildRuntimeToolLifecyclePresentationSummary({
+              lifecycleEvents,
+              hookCheckpoints,
+            }),
+            hookCheckpoints,
+            lifecycleEvents,
+          },
           runtimeEventBridgePath: "v2",
           formattedEntries: createFormattedDebugEntries(),
         })}
@@ -83,6 +92,8 @@ describe("DebugPanelBody integration", () => {
   it("keeps durability diagnostics when hook disables distributed diagnostics", () => {
     const entries = createDebugDiagnosticsEntries();
     const { result } = renderHook(() => useDebugEntryDiagnostics(entries, false, true));
+    const lifecycleEvents: [] = [];
+    const hookCheckpoints: [] = [];
 
     render(
       <DebugPanelBody
@@ -94,8 +105,14 @@ describe("DebugPanelBody integration", () => {
           hasRemoteExecutionDiagnostics: result.current.hasRemoteExecutionDiagnostics,
           agentTaskDurabilityDiagnostics: result.current.agentTaskDurabilityDiagnostics,
           eventChannelDiagnostics: [],
-          runtimeToolLifecycleHookCheckpoints: [],
-          runtimeToolLifecycleEvents: [],
+          runtimeToolLifecycle: {
+            summary: buildRuntimeToolLifecyclePresentationSummary({
+              lifecycleEvents,
+              hookCheckpoints,
+            }),
+            hookCheckpoints,
+            lifecycleEvents,
+          },
           runtimeEventBridgePath: "legacy",
           formattedEntries: createFormattedDebugEntries(),
         })}

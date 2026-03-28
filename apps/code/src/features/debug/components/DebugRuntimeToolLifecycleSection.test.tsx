@@ -44,12 +44,14 @@ describe("DebugRuntimeToolLifecycleSection", () => {
 
     render(
       <DebugRuntimeToolLifecycleSection
-        lifecycleEvents={lifecycleEvents}
-        hookCheckpoints={hookCheckpoints}
-        summary={buildRuntimeToolLifecyclePresentationSummary({
+        runtimeToolLifecycle={{
           lifecycleEvents,
           hookCheckpoints,
-        })}
+          summary: buildRuntimeToolLifecyclePresentationSummary({
+            lifecycleEvents,
+            hookCheckpoints,
+          }),
+        }}
       />
     );
 
@@ -72,12 +74,14 @@ describe("DebugRuntimeToolLifecycleSection", () => {
   it("renders an empty state when no lifecycle events exist", () => {
     render(
       <DebugRuntimeToolLifecycleSection
-        lifecycleEvents={[]}
-        hookCheckpoints={[]}
-        summary={buildRuntimeToolLifecyclePresentationSummary({
+        runtimeToolLifecycle={{
           lifecycleEvents: [],
           hookCheckpoints: [],
-        })}
+          summary: buildRuntimeToolLifecyclePresentationSummary({
+            lifecycleEvents: [],
+            hookCheckpoints: [],
+          }),
+        }}
       />
     );
 

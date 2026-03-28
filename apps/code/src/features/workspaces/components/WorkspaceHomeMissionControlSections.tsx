@@ -1,10 +1,5 @@
 import type { ReactNode } from "react";
 import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
-import type {
-  RuntimeToolLifecycleEvent,
-  RuntimeToolLifecycleHookCheckpoint,
-  RuntimeToolLifecyclePresentationSummary,
-} from "../../../application/runtime/ports/runtimeToolLifecycle";
 import {
   describeRuntimeToolLifecycleEvent,
   describeRuntimeToolLifecycleHookCheckpoint,
@@ -16,6 +11,7 @@ import type { RuntimeAgentTaskInterventionInput } from "../../../application/run
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeContinuityReadinessSummary } from "../../../application/runtime/facades/runtimeContinuityReadiness";
 import type { RuntimeTaskLauncherInterventionIntent } from "../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
+import type { WorkspaceRuntimeToolLifecycleProjection } from "../../shared/hooks/useWorkspaceRuntimeToolLifecycle";
 import {
   CoreLoopMetaRail,
   CoreLoopSection,
@@ -152,18 +148,15 @@ export function MissionControlRunListSection({
 }
 
 type MissionControlSessionLogSectionProps = {
-  hookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
-  lifecycleEvents: RuntimeToolLifecycleEvent[];
-  summary: RuntimeToolLifecyclePresentationSummary;
+  runtimeToolLifecycle: WorkspaceRuntimeToolLifecycleProjection;
   maxItems?: number;
 };
 
 export function MissionControlSessionLogSection({
-  hookCheckpoints,
-  lifecycleEvents,
-  summary,
+  runtimeToolLifecycle,
   maxItems = 8,
 }: MissionControlSessionLogSectionProps) {
+  const { hookCheckpoints, lifecycleEvents, summary } = runtimeToolLifecycle;
   const visibleEvents = lifecycleEvents.slice(0, maxItems);
   const visibleHookCheckpoints = hookCheckpoints.slice(0, maxItems);
 

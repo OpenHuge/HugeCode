@@ -12,11 +12,7 @@ import {
 } from "./DebugRuntimeProbesSection";
 import { DebugRuntimeToolExecutionMetricsSection } from "./DebugRuntimeToolExecutionMetricsSection";
 import { DebugRuntimeToolLifecycleSection } from "./DebugRuntimeToolLifecycleSection";
-import type {
-  RuntimeToolLifecycleEvent,
-  RuntimeToolLifecycleHookCheckpoint,
-  RuntimeToolLifecyclePresentationSummary,
-} from "../../../application/runtime/ports/runtimeToolLifecycle";
+import type { WorkspaceRuntimeToolLifecycleProjection } from "../../shared/hooks/useWorkspaceRuntimeToolLifecycle";
 import type {
   RuntimeToolExecutionRecentEntry,
   RuntimeToolExecutionTotals,
@@ -32,9 +28,7 @@ export type DebugPanelBodyProps = DebugRuntimeProbesSectionProps & {
   runtimeToolExecutionMetricsUpdatedAt: number;
   runtimeToolExecutionTotals: RuntimeToolExecutionTotals;
   runtimeToolExecutionRecentExecutions: RuntimeToolExecutionRecentEntry[];
-  runtimeToolLifecycleSummary: RuntimeToolLifecyclePresentationSummary;
-  runtimeToolLifecycleHookCheckpoints: RuntimeToolLifecycleHookCheckpoint[];
-  runtimeToolLifecycleEvents: RuntimeToolLifecycleEvent[];
+  runtimeToolLifecycle: WorkspaceRuntimeToolLifecycleProjection;
   runtimeEventBridgePath: "legacy" | "v2";
   formattedEntries: FormattedDebugEntry[];
 };
@@ -49,9 +43,7 @@ export function DebugPanelBody({
   runtimeToolExecutionMetricsUpdatedAt,
   runtimeToolExecutionTotals,
   runtimeToolExecutionRecentExecutions,
-  runtimeToolLifecycleSummary,
-  runtimeToolLifecycleHookCheckpoints,
-  runtimeToolLifecycleEvents,
+  runtimeToolLifecycle,
   runtimeEventBridgePath,
   formattedEntries,
   ...probeProps
@@ -73,11 +65,7 @@ export function DebugPanelBody({
         totals={runtimeToolExecutionTotals}
         recentExecutions={runtimeToolExecutionRecentExecutions}
       />
-      <DebugRuntimeToolLifecycleSection
-        lifecycleEvents={runtimeToolLifecycleEvents}
-        hookCheckpoints={runtimeToolLifecycleHookCheckpoints}
-        summary={runtimeToolLifecycleSummary}
-      />
+      <DebugRuntimeToolLifecycleSection runtimeToolLifecycle={runtimeToolLifecycle} />
       <DebugRuntimeProbesSection {...probeProps} />
       {isOpen ? <DebugEntriesList formattedEntries={formattedEntries} /> : null}
     </>
