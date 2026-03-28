@@ -200,7 +200,14 @@ export function resolveMissionControlReviewPresentation(
       reviewStatusLabel: "Validation failed",
     };
   }
-  if (reviewStatus === "action_required" || reviewDecisionRejected) {
+  if (reviewDecisionRejected) {
+    return {
+      triagePriority,
+      tone: "blocked",
+      reviewStatusLabel: "Critical review",
+    };
+  }
+  if (reviewStatus === "action_required") {
     return {
       triagePriority,
       tone: "attention",

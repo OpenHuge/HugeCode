@@ -125,4 +125,38 @@ describe("missionControlReviewPresentationPolicy", () => {
       reviewStatusLabel: "Evidence incomplete",
     });
   });
+
+  it("keeps rejected reviews in the blocked critical lane", () => {
+    expect(
+      resolveMissionControlReviewPresentation({
+        reviewPack: {
+          id: "review-rejected",
+          runId: "run-rejected",
+          taskId: "task-rejected",
+          workspaceId: "workspace-1",
+          summary: "Rejected review",
+          reviewStatus: "action_required",
+          evidenceState: "confirmed",
+          validationOutcome: "warning",
+          warningCount: 2,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          checksPerformed: [],
+          recommendedNextAction: "Address the requested changes.",
+          reviewDecision: {
+            status: "rejected",
+            summary: "Requested changes block acceptance.",
+            decidedAt: 0,
+          },
+          createdAt: 0,
+        },
+        run: null,
+      })
+    ).toEqual({
+      triagePriority: 4,
+      tone: "blocked",
+      reviewStatusLabel: "Critical review",
+    });
+  });
 });
