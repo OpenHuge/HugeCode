@@ -328,9 +328,7 @@ describe("runtimeMissionControlSurfaceModel", () => {
       workspaceId: "ws-1",
     });
 
-    expect(reviewEntries[0]?.recommendedNextAction).toBe(
-      "Canonical operator next step for this run."
-    );
-    expect(reviewEntries[0]?.continuePathLabel).toBeNull();
+    expect(reviewEntries[0]?.recommendedNextAction).toBe("Open Review Pack");
+    expect(reviewEntries[0]?.continuePathLabel).toBe("Review Pack");
   });
 });

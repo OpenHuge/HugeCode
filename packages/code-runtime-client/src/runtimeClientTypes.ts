@@ -20,18 +20,9 @@ import type {
   KernelCapabilityDescriptor,
   KernelContextSlice,
   KernelExtensionBundle,
-  KernelExtensionsListRequest,
   KernelJob,
-  KernelJobCallbackRegistrationAckV3,
-  KernelJobCallbackRegistrationV3,
-  KernelJobCallbackRemoveAckV3,
-  KernelJobCallbackRemoveRequestV3,
-  KernelJobGetRequestV3,
-  KernelJobInterventionRequestV3,
-  KernelJobResumeRequestV3,
+  KernelExtensionsListRequest,
   KernelJobsListRequest,
-  KernelJobStartRequestV3,
-  KernelJobSubscribeRequestV3,
   KernelPoliciesEvaluateRequest,
   KernelPolicyDecision,
   KernelProjectionBootstrapRequest,
@@ -110,7 +101,6 @@ import type {
   RuntimePolicySetRequest,
   RuntimePolicySnapshot,
   RuntimeProviderCatalogEntry,
-  RuntimeRunCancelAck,
   RuntimeRunCancelRequest,
   RuntimeRunCheckpointApprovalAck,
   RuntimeRunCheckpointApprovalRequest,
@@ -118,16 +108,14 @@ import type {
   RuntimeRunPrepareV2Response,
   RuntimeRunGetV2Request,
   RuntimeRunGetV2Response,
-  RuntimeRunInterventionAck,
   RuntimeRunInterventionRequest,
   RuntimeRunInterventionV2Response,
-  RuntimeRunResumeAck,
+  RuntimeRunCancelV2Response,
   RuntimeRunResumeRequest,
   RuntimeRunResumeV2Response,
   RuntimeRunsListRequest,
   RuntimeRunStartRequest,
   RuntimeRunStartV2Response,
-  RuntimeRunSubscribeRequest,
   RuntimeRunSubscribeV2Response,
   RuntimeRunSummary,
   RuntimeReviewGetV2Request,
@@ -268,38 +256,18 @@ export type RuntimeClient<TAppSettings extends Record<string, unknown> = Record<
     runtimeRunPrepareV2: (
       request: RuntimeRunPrepareV2Request
     ) => Promise<RuntimeRunPrepareV2Response>;
-    runtimeRunStart: (request: RuntimeRunStartRequest) => Promise<RuntimeRunSummary>;
     runtimeRunStartV2: (request: RuntimeRunStartRequest) => Promise<RuntimeRunStartV2Response>;
     runtimeRunGetV2: (request: RuntimeRunGetV2Request) => Promise<RuntimeRunGetV2Response>;
-    runtimeRunIntervene: (
-      request: RuntimeRunInterventionRequest
-    ) => Promise<RuntimeRunInterventionAck>;
     runtimeRunInterveneV2: (
       request: RuntimeRunInterventionRequest
     ) => Promise<RuntimeRunInterventionV2Response>;
-    runtimeRunCancel: (request: RuntimeRunCancelRequest) => Promise<RuntimeRunCancelAck>;
-    runtimeRunResume: (request: RuntimeRunResumeRequest) => Promise<RuntimeRunResumeAck>;
+    runtimeRunCancelV2: (request: RuntimeRunCancelRequest) => Promise<RuntimeRunCancelV2Response>;
     runtimeRunResumeV2: (request: RuntimeRunResumeRequest) => Promise<RuntimeRunResumeV2Response>;
-    runtimeRunSubscribe: (request: RuntimeRunSubscribeRequest) => Promise<RuntimeRunSummary | null>;
     runtimeRunSubscribeV2: (
       request: RuntimeRunGetV2Request
     ) => Promise<RuntimeRunSubscribeV2Response>;
     runtimeReviewGetV2: (request: RuntimeReviewGetV2Request) => Promise<RuntimeReviewGetV2Response>;
     runtimeRunsList: (request: RuntimeRunsListRequest) => Promise<RuntimeRunSummary[]>;
-    kernelJobStartV3: (request: KernelJobStartRequestV3) => Promise<KernelJob>;
-    kernelJobGetV3: (request: KernelJobGetRequestV3) => Promise<KernelJob | null>;
-    kernelJobCancelV3: (request: RuntimeRunCancelRequest) => Promise<RuntimeRunCancelAck>;
-    kernelJobResumeV3: (request: KernelJobResumeRequestV3) => Promise<RuntimeRunResumeAck>;
-    kernelJobInterveneV3: (
-      request: KernelJobInterventionRequestV3
-    ) => Promise<RuntimeRunInterventionAck>;
-    kernelJobSubscribeV3: (request: KernelJobSubscribeRequestV3) => Promise<KernelJob | null>;
-    kernelJobCallbackRegisterV3: (
-      request: KernelJobCallbackRegistrationV3
-    ) => Promise<KernelJobCallbackRegistrationAckV3>;
-    kernelJobCallbackRemoveV3: (
-      request: KernelJobCallbackRemoveRequestV3
-    ) => Promise<KernelJobCallbackRemoveAckV3>;
     subAgentSpawn: (request: SubAgentSpawnRequest) => Promise<SubAgentSessionSummary>;
     subAgentSend: (request: SubAgentSendRequest) => Promise<SubAgentSendResult>;
     subAgentWait: (request: SubAgentWaitRequest) => Promise<SubAgentWaitResult>;

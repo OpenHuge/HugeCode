@@ -4,7 +4,7 @@ import {
   getAppSettings,
   syncRuntimeGatewayProfileFromAppSettings,
   updateAppSettings,
-} from "../ports/tauriAppSettings";
+} from "../ports/desktopAppSettings";
 import {
   applyOAuthPool,
   bindOAuthPoolAccount,
@@ -21,14 +21,12 @@ import { getConfigModel, getModelList } from "../ports/tauriModels";
 import { listWorkspaces } from "../ports/tauriWorkspaceCatalog";
 import { subscribeScopedRuntimeUpdatedEvents } from "../ports/runtimeUpdatedEvents";
 import {
-  cancelRuntimeJob,
+  cancelRuntimeRun,
+  interveneRuntimeRun,
   prepareRuntimeRunV2,
   submitRuntimeJobApprovalDecision,
-  interveneRuntimeJob,
-  listRuntimeJobs,
-  resumeRuntimeJob,
+  resumeRuntimeRun,
   startRuntimeRunV2,
-  subscribeRuntimeJob,
 } from "../ports/tauriRuntimeJobs";
 import {
   archiveRuntimeThread,
@@ -143,11 +141,9 @@ export function createWorkspaceClientRuntimeBindings(
     agentControl: {
       prepareRuntimeRun: prepareRuntimeRunV2,
       startRuntimeRun: startRuntimeRunV2,
-      cancelRuntimeJob,
-      resumeRuntimeJob,
-      interveneRuntimeJob,
-      subscribeRuntimeJob,
-      listRuntimeJobs,
+      cancelRuntimeRun,
+      resumeRuntimeRun,
+      interveneRuntimeRun,
       submitRuntimeJobApprovalDecision,
     },
     threads: {

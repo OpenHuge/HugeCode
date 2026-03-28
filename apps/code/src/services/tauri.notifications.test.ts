@@ -1,7 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import * as notification from "@tauri-apps/plugin-notification";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   detectRuntimeMode,
   getRuntimeClient,
@@ -11,14 +10,14 @@ import {
   __resetLocalUsageSnapshotCacheForTests,
   __resetWebRuntimeOauthFallbackStateForTests,
   sendNotification,
-} from "./tauri";
+} from "./desktopHost";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
   isTauri: vi.fn(() => true),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
 }));
 
@@ -26,17 +25,40 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-notification", () => ({
-  isPermissionGranted: vi.fn(),
-  requestPermission: vi.fn(),
-  sendNotification: vi.fn(),
-}));
-
 vi.mock("./runtimeClient", () => ({
   detectRuntimeMode: vi.fn(() => "tauri"),
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
+
+function installNotificationApiMock(config: {
+  permission: NotificationPermission;
+  requestPermissionResult?: NotificationPermission;
+  throwOnConstruct?: boolean;
+}) {
+  const instances: Array<{ close: ReturnType<typeof vi.fn>; onshow: (() => void) | null }> = [];
+  const requestPermission = vi.fn(async () => config.requestPermissionResult ?? config.permission);
+
+  class MockNotification {
+    static permission = config.permission;
+    static requestPermission = requestPermission;
+    onshow: (() => void) | null = null;
+    close = vi.fn();
+
+    constructor(
+      public readonly title: string,
+      public readonly options?: NotificationOptions
+    ) {
+      if (config.throwOnConstruct) {
+        throw new Error("boom");
+      }
+      instances.push(this);
+    }
+  }
+
+  vi.stubGlobal("Notification", MockNotification as unknown as typeof Notification);
+  return { instances, requestPermission };
+}
 
 describe("tauri invoke wrappers", () => {
   beforeEach(() => {
@@ -46,6 +68,7 @@ describe("tauri invoke wrappers", () => {
     __resetWebRuntimeOauthFallbackStateForTests();
     __resetLocalUsageSnapshotCacheForTests();
     localStorage.clear();
+    delete window.hugeCodeDesktopHost;
     const invokeMock = vi.mocked(invoke);
     vi.mocked(listen).mockResolvedValue(async () => undefined);
     vi.mocked(isTauri).mockReturnValue(true);
@@ -315,69 +338,158 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("does not send and warns when permission is denied", async () => {
-    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
-    const requestPermissionMock = vi.mocked(notification.requestPermission);
-    const sendNotificationMock = vi.mocked(notification.sendNotification);
-    const invokeMock = vi.mocked(invoke);
+    const showMock = vi.fn().mockResolvedValue(false);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
       // noop
     });
-    isPermissionGrantedMock.mockResolvedValueOnce(false);
-    requestPermissionMock.mockResolvedValueOnce("denied");
+    const requestPermissionMock = vi.fn(async () => "denied" as NotificationPermission);
+    const notificationInstances: Array<{ title: string; options?: NotificationOptions }> = [];
+
+    class FakeNotification {
+      static permission: NotificationPermission = "default";
+      static requestPermission = requestPermissionMock;
+      onshow: (() => void) | null = null;
+
+      constructor(
+        public readonly title: string,
+        public readonly options?: NotificationOptions
+      ) {
+        notificationInstances.push({ title, options });
+      }
+
+      close(): void {
+        // noop
+      }
+    }
+
+    window.hugeCodeDesktopHost = {
+      kind: "electron",
+      notifications: { show: showMock },
+    } as never;
+    vi.stubGlobal("Notification", FakeNotification as unknown as typeof Notification);
 
     await sendNotification("Denied", "Nope");
 
-    expect(isPermissionGrantedMock).toHaveBeenCalledTimes(1);
-    expect(requestPermissionMock).toHaveBeenCalledTimes(1);
-    expect(sendNotificationMock).not.toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledWith("Notification permission not granted.", {
-      permission: "denied",
-    });
-    expect(invokeMock).toHaveBeenCalledWith("send_notification_fallback", {
+    expect(showMock).toHaveBeenCalledWith({
       title: "Denied",
       body: "Nope",
     });
+    expect(requestPermissionMock).toHaveBeenCalledTimes(1);
+    expect(notificationInstances).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledWith("Notification permission not granted.", {
+      permission: "denied",
+    });
     warnSpy.mockRestore();
   });
 
-  it("falls back when the notification plugin throws", async () => {
-    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
-    const invokeMock = vi.mocked(invoke);
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
-      // noop
+  it("falls back to the browser Notification API when the desktop host declines delivery", async () => {
+    const showMock = vi.fn().mockResolvedValue(false);
+    const requestPermissionMock = vi.fn();
+    const notificationInstances: Array<{ title: string; options?: NotificationOptions }> = [];
+
+    class FakeNotification {
+      static permission: NotificationPermission = "granted";
+      static requestPermission = requestPermissionMock;
+      onshow: (() => void) | null = null;
+
+      constructor(
+        public readonly title: string,
+        public readonly options?: NotificationOptions
+      ) {
+        notificationInstances.push({ title, options });
+      }
+
+      close(): void {
+        // noop
+      }
+    }
+
+    window.hugeCodeDesktopHost = {
+      kind: "electron",
+      notifications: { show: showMock },
+    } as never;
+    vi.stubGlobal("Notification", FakeNotification as unknown as typeof Notification);
+
+    await sendNotification("Plugin", "Failed", {
+      group: "runtime",
     });
-    isPermissionGrantedMock.mockRejectedValueOnce(new Error("boom"));
 
-    await sendNotification("Plugin", "Failed");
-
-    expect(invokeMock).toHaveBeenCalledWith("send_notification_fallback", {
+    expect(showMock).toHaveBeenCalledWith({
       title: "Plugin",
       body: "Failed",
     });
+    expect(requestPermissionMock).not.toHaveBeenCalled();
+    expect(notificationInstances).toEqual([
+      {
+        title: "Plugin",
+        options: {
+          body: "Failed",
+          tag: "runtime",
+        },
+      },
+    ]);
+  });
+
+  it("falls back when the browser Notification API throws", async () => {
+    installNotificationApiMock({
+      permission: "granted",
+      throwOnConstruct: true,
+    });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
+      // noop
+    });
+
+    await sendNotification("Plugin", "Failed");
+
+    expect(warnSpy).toHaveBeenCalledWith("Notification delivery failed.", {
+      error: expect.any(Error),
+    });
     warnSpy.mockRestore();
   });
 
-  it("prefers the fallback on macOS debug builds", async () => {
-    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
-    const invokeMock = vi.mocked(invoke);
+  it("uses the desktop host notification bridge before the browser Notification API", async () => {
+    const showMock = vi.fn().mockResolvedValue(true);
+    const requestPermissionMock = vi.fn();
+    const notificationInstances: Array<{ title: string; options?: NotificationOptions }> = [];
 
-    invokeMock.mockImplementation(async (command: string) => {
-      if (command === "is_macos_debug_build") {
-        return true;
+    class FakeNotification {
+      static permission: NotificationPermission = "granted";
+      static requestPermission = requestPermissionMock;
+      onshow: (() => void) | null = null;
+
+      constructor(
+        public readonly title: string,
+        public readonly options?: NotificationOptions
+      ) {
+        notificationInstances.push({ title, options });
       }
-      if (command === "send_notification_fallback") {
-        return undefined;
+
+      close(): void {
+        // noop
       }
-      return undefined;
-    });
+    }
+
+    window.hugeCodeDesktopHost = {
+      kind: "electron",
+      notifications: { show: showMock },
+    } as never;
+    vi.stubGlobal("Notification", FakeNotification as unknown as typeof Notification);
 
     await sendNotification("Dev", "Fallback");
 
-    expect(invokeMock).toHaveBeenCalledWith("is_macos_debug_build");
-    expect(invokeMock).toHaveBeenCalledWith("send_notification_fallback", {
+    expect(showMock).toHaveBeenCalledWith({
       title: "Dev",
       body: "Fallback",
     });
-    expect(isPermissionGrantedMock).not.toHaveBeenCalled();
+    expect(requestPermissionMock).not.toHaveBeenCalled();
+    expect(notificationInstances).toHaveLength(0);
+  });
+
+  it("returns early when the browser Notification API is unavailable", async () => {
+    vi.stubGlobal("Notification", undefined);
+
+    await sendNotification("Dev", "Fallback");
+
+    expect(vi.mocked(invoke)).not.toHaveBeenCalledWith("is_macos_debug_build");
   });
 });

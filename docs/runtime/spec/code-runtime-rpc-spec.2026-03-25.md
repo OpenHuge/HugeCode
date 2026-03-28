@@ -1,9 +1,9 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-03-27T12:37:08.626Z`
+- Generated at: `2026-03-27T15:37:14.066Z`
 - Contract version: `2026-03-25`
 - Freeze effective at: `2026-03-25`
-- Method-set hash: `5bae1de0c62b5aeb`
+- Method-set hash: `0ce16de9dfed8ab7`
 
 ## Features
 
@@ -126,27 +126,15 @@
 - `code_task_source_get_v1`
 - `code_task_source_list_v1`
 - `code_task_source_reconcile_v1`
-- `code_runtime_run_start`
 - `code_runtime_run_prepare_v2`
 - `code_runtime_run_start_v2`
-- `code_runtime_run_cancel`
-- `code_runtime_run_resume`
+- `code_runtime_run_cancel_v2`
 - `code_runtime_run_resume_v2`
-- `code_runtime_run_intervene`
 - `code_runtime_run_intervene_v2`
-- `code_runtime_run_subscribe`
 - `code_runtime_run_get_v2`
 - `code_runtime_run_subscribe_v2`
 - `code_runtime_review_get_v2`
 - `code_runtime_runs_list`
-- `code_kernel_job_start_v3`
-- `code_kernel_job_get_v3`
-- `code_kernel_job_cancel_v3`
-- `code_kernel_job_resume_v3`
-- `code_kernel_job_intervene_v3`
-- `code_kernel_job_subscribe_v3`
-- `code_kernel_job_callback_register_v3`
-- `code_kernel_job_callback_remove_v3`
 - `code_sub_agent_spawn`
 - `code_sub_agent_send`
 - `code_sub_agent_wait`
@@ -291,14 +279,6 @@
 - `code_kernel_capabilities_list_v2`
 - `code_kernel_context_snapshot_v2`
 - `code_kernel_extensions_list_v2`
-- `code_kernel_job_callback_register_v3`
-- `code_kernel_job_callback_remove_v3`
-- `code_kernel_job_cancel_v3`
-- `code_kernel_job_get_v3`
-- `code_kernel_job_intervene_v3`
-- `code_kernel_job_resume_v3`
-- `code_kernel_job_start_v3`
-- `code_kernel_job_subscribe_v3`
 - `code_kernel_jobs_list_v2`
 - `code_kernel_policies_evaluate_v2`
 - `code_kernel_projection_bootstrap_v3`
@@ -344,17 +324,13 @@
 - `code_runtime_policy_get_v2`
 - `code_runtime_policy_set_v2`
 - `code_runtime_review_get_v2`
-- `code_runtime_run_cancel`
+- `code_runtime_run_cancel_v2`
 - `code_runtime_run_checkpoint_approval`
 - `code_runtime_run_get_v2`
-- `code_runtime_run_intervene`
 - `code_runtime_run_intervene_v2`
 - `code_runtime_run_prepare_v2`
-- `code_runtime_run_resume`
 - `code_runtime_run_resume_v2`
-- `code_runtime_run_start`
 - `code_runtime_run_start_v2`
-- `code_runtime_run_subscribe`
 - `code_runtime_run_subscribe_v2`
 - `code_runtime_runs_list`
 - `code_runtime_tool_guardrail_evaluate`
@@ -442,8 +418,9 @@
 
 The runtime-owned task responses for:
 
-- `code_runtime_run_start`
-- `code_runtime_run_subscribe`
+- `code_runtime_run_start_v2`
+- `code_runtime_run_get_v2`
+- `code_runtime_run_subscribe_v2`
 - `code_runtime_runs_list`
 
 must expose the canonical task-truth fields used by control-plane consumers:

@@ -60,7 +60,7 @@ describe("check-runtime-port-exports", () => {
     await writeRepoFile(
       tempRoot,
       "apps/code/src/application/runtime/ports/tauriSettings.ts",
-      'export { getAppSettings } from "./tauriAppSettings";\n'
+      'export { getAppSettings } from "./desktopAppSettings";\n'
     );
     await writeRepoFile(
       tempRoot,

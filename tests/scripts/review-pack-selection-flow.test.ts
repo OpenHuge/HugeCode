@@ -5,7 +5,7 @@ import type {
   RuntimeRunStartV2Response,
 } from "../../apps/code/src/application/runtime/ports/runtimeClient";
 import { buildMissionControlProjection } from "../../apps/code/src/application/runtime/facades/runtimeMissionControlFacade";
-import { getAppSettings } from "../../apps/code/src/application/runtime/ports/tauriAppSettings";
+import { getAppSettings } from "../../apps/code/src/application/runtime/ports/desktopAppSettings";
 import {
   prepareRuntimeRunV2,
   startRuntimeRunV2,
@@ -19,7 +19,7 @@ import {
   resolveReviewPackSelection,
 } from "../../apps/code/src/features/review/utils/reviewPackSurfaceModel";
 
-vi.mock("../../apps/code/src/application/runtime/ports/tauriAppSettings", () => ({
+vi.mock("../../apps/code/src/application/runtime/ports/desktopAppSettings", () => ({
   getAppSettings: vi.fn(),
 }));
 
@@ -67,6 +67,19 @@ function createCompletedRuntimeTask(): AgentTaskSummary {
     routedModelId: "gpt-5.3-codex",
     routedPool: "pool-a",
     routedSource: "workspace-default",
+    reviewActionability: {
+      state: "ready",
+      summary: "Runtime-published review actions are ready.",
+      degradedReasons: [],
+      actions: [
+        { action: "accept_result", enabled: true, supported: true, reason: null },
+        { action: "reject_result", enabled: true, supported: true, reason: null },
+        { action: "retry", enabled: true, supported: true, reason: null },
+        { action: "continue_with_clarification", enabled: true, supported: true, reason: null },
+        { action: "switch_profile_and_retry", enabled: true, supported: true, reason: null },
+        { action: "escalate_to_pair_mode", enabled: true, supported: true, reason: null },
+      ],
+    },
     routing: {
       backendId: "backend-remote-a",
       provider: "openai",

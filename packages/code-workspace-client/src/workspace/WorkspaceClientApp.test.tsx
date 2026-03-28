@@ -81,17 +81,15 @@ function createBindings(
         startRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        cancelRuntimeJob: async () => {
+        cancelRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        resumeRuntimeJob: async () => {
+        resumeRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        interveneRuntimeJob: async () => {
+        interveneRuntimeRun: async () => {
           throw new Error("not implemented");
         },
-        subscribeRuntimeJob: async () => null,
-        listRuntimeJobs: async () => [],
         submitRuntimeJobApprovalDecision: async () => {
           throw new Error("not implemented");
         },

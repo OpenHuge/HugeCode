@@ -1,7 +1,7 @@
 export {
   runRuntimeCodexDoctor,
   runRuntimeCodexUpdate,
-} from "../../../services/tauriDesktopRuntimeOps";
+} from "../../../services/desktopHostRuntimeOps";
 export {
   runtimeSecurityPreflightV1,
   runtimeSessionDeleteV1,

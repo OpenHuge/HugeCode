@@ -1,7 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import * as notification from "@tauri-apps/plugin-notification";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   detectRuntimeMode,
   getRuntimeClient,
@@ -21,15 +20,15 @@ import {
   sendNotification,
   startReview,
   steerTurn,
-} from "./tauri";
-import { respondToServerRequestResult, respondToToolCallRequest } from "./tauriDesktopReview";
+} from "./desktopHost";
+import { respondToServerRequestResult, respondToToolCallRequest } from "./desktopHostReview";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
   isTauri: vi.fn(() => true),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
 }));
 
@@ -37,17 +36,36 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-notification", () => ({
-  isPermissionGranted: vi.fn(),
-  requestPermission: vi.fn(),
-  sendNotification: vi.fn(),
-}));
-
 vi.mock("./runtimeClient", () => ({
   detectRuntimeMode: vi.fn(() => "tauri"),
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
+
+function installNotificationApiMock(config: {
+  permission: NotificationPermission;
+  requestPermissionResult?: NotificationPermission;
+}) {
+  const instances: Array<{ close: ReturnType<typeof vi.fn>; onshow: (() => void) | null }> = [];
+  const requestPermission = vi.fn(async () => config.requestPermissionResult ?? config.permission);
+
+  class MockNotification {
+    static permission = config.permission;
+    static requestPermission = requestPermission;
+    onshow: (() => void) | null = null;
+    close = vi.fn();
+
+    constructor(
+      public readonly title: string,
+      public readonly options?: NotificationOptions
+    ) {
+      instances.push(this);
+    }
+  }
+
+  vi.stubGlobal("Notification", MockNotification as unknown as typeof Notification);
+  return { instances, requestPermission };
+}
 
 describe("tauri invoke wrappers", () => {
   beforeEach(() => {
@@ -317,17 +335,12 @@ describe("tauri invoke wrappers", () => {
     });
   });
 
-  it("omits delivery when starting reviews without override", async () => {
+  it("rejects review start on the deprecated desktop compat surface", async () => {
     const invokeMock = vi.mocked(invoke);
-    invokeMock.mockResolvedValueOnce({});
-
-    await startReview("ws-5", "thread-2", { type: "uncommittedChanges" });
-
-    expect(invokeMock).toHaveBeenCalledWith("start_review", {
-      workspaceId: "ws-5",
-      threadId: "thread-2",
-      target: { type: "uncommittedChanges" },
-    });
+    await expect(startReview("ws-5", "thread-2", { type: "uncommittedChanges" })).rejects.toThrow(
+      "Review start is only available in the desktop app."
+    );
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it("rejects review start outside tauri mode", async () => {
@@ -340,17 +353,12 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("nests decisions for server request responses", async () => {
+  it("rejects numeric approval responses on the deprecated desktop compat surface", async () => {
     const invokeMock = vi.mocked(invoke);
-    invokeMock.mockResolvedValueOnce({});
-
-    await respondToServerRequest("ws-6", 101, "accept");
-
-    expect(invokeMock).toHaveBeenCalledWith("respond_to_server_request", {
-      workspaceId: "ws-6",
-      requestId: 101,
-      result: { decision: "accept" },
-    });
+    await expect(respondToServerRequest("ws-6", 101, "accept")).rejects.toThrow(
+      "Numeric approval requests are unavailable in the Electron desktop host."
+    );
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it("routes runtime approval responses through code_runtime_run_checkpoint_approval", async () => {
@@ -399,132 +407,93 @@ describe("tauri invoke wrappers", () => {
     expect(invokeMock).not.toHaveBeenCalledWith("respond_to_server_request", expect.anything());
   });
 
-  it("nests answers for user input responses", async () => {
+  it("rejects user input responses on the deprecated desktop compat surface", async () => {
     const invokeMock = vi.mocked(invoke);
-    invokeMock.mockResolvedValueOnce({});
-
-    await respondToUserInputRequest("ws-7", 202, {
-      confirm_path: { answers: ["Yes"] },
-    });
-
-    expect(invokeMock).toHaveBeenCalledWith("respond_to_server_request", {
-      workspaceId: "ws-7",
-      requestId: 202,
-      result: {
-        answers: {
-          confirm_path: { answers: ["Yes"] },
-        },
-      },
-    });
+    await expect(
+      respondToUserInputRequest("ws-7", 202, {
+        confirm_path: { answers: ["Yes"] },
+      })
+    ).rejects.toThrow("User-input request responses are unavailable in the Electron desktop host.");
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("passes through multiple user input answers", async () => {
+  it("continues rejecting multi-answer user input responses on the deprecated compat surface", async () => {
     const invokeMock = vi.mocked(invoke);
-    invokeMock.mockResolvedValueOnce({});
-
     const answers = {
       confirm_path: { answers: ["Yes"] },
       notes: { answers: ["First line", "Second line"] },
     };
 
-    await respondToUserInputRequest("ws-8", 303, answers);
-
-    expect(invokeMock).toHaveBeenCalledWith("respond_to_server_request", {
-      workspaceId: "ws-8",
-      requestId: 303,
-      result: {
-        answers,
-      },
-    });
+    await expect(respondToUserInputRequest("ws-8", 303, answers)).rejects.toThrow(
+      "User-input request responses are unavailable in the Electron desktop host."
+    );
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("sends dynamic tool-call responses to respond_to_server_request", async () => {
+  it("rejects tool-call responses on the deprecated desktop compat surface", async () => {
     const invokeMock = vi.mocked(invoke);
-    invokeMock.mockResolvedValueOnce({});
-
-    await respondToToolCallRequest("ws-9", 404, {
-      contentItems: [{ type: "inputText", text: "Ticket resolved." }],
-      success: true,
-    });
-
-    expect(invokeMock).toHaveBeenCalledWith("respond_to_server_request", {
-      workspaceId: "ws-9",
-      requestId: 404,
-      result: {
+    await expect(
+      respondToToolCallRequest("ws-9", 404, {
         contentItems: [{ type: "inputText", text: "Ticket resolved." }],
         success: true,
-      },
-    });
+      })
+    ).rejects.toThrow("Tool-call request responses are unavailable in the Electron desktop host.");
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("sends arbitrary server-request payloads through respond_to_server_request", async () => {
+  it("rejects server-request result replies on the deprecated desktop compat surface", async () => {
     const invokeMock = vi.mocked(invoke);
-    invokeMock.mockResolvedValueOnce({});
-
-    await respondToServerRequestResult("ws-10", "refresh-77", {
-      accessToken: "token-abc",
-      chatgptAccountId: "workspace-1",
-      chatgptPlanType: "pro",
-    });
-
-    expect(invokeMock).toHaveBeenCalledWith("respond_to_server_request", {
-      workspaceId: "ws-10",
-      requestId: "refresh-77",
-      result: {
+    await expect(
+      respondToServerRequestResult("ws-10", "refresh-77", {
         accessToken: "token-abc",
         chatgptAccountId: "workspace-1",
         chatgptPlanType: "pro",
-      },
-    });
+      })
+    ).rejects.toThrow(
+      "Server request result replies are unavailable in the Electron desktop host."
+    );
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it("sends a notification without re-requesting permission when already granted", async () => {
-    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
-    const requestPermissionMock = vi.mocked(notification.requestPermission);
-    const sendNotificationMock = vi.mocked(notification.sendNotification);
-    isPermissionGrantedMock.mockResolvedValueOnce(true);
+    const { instances, requestPermission } = installNotificationApiMock({
+      permission: "granted",
+    });
 
     await sendNotification("Hello", "World");
 
-    expect(isPermissionGrantedMock).toHaveBeenCalledTimes(1);
-    expect(requestPermissionMock).not.toHaveBeenCalled();
-    expect(sendNotificationMock).toHaveBeenCalledWith({
-      title: "Hello",
-      body: "World",
-    });
+    expect(requestPermission).not.toHaveBeenCalled();
+    expect(instances).toHaveLength(1);
+    expect(instances[0]?.title).toBe("Hello");
+    expect(instances[0]?.options).toMatchObject({ body: "World", tag: undefined });
   });
 
   it("passes extra metadata when provided", async () => {
-    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
-    const sendNotificationMock = vi.mocked(notification.sendNotification);
-    isPermissionGrantedMock.mockResolvedValueOnce(true);
+    const { instances } = installNotificationApiMock({
+      permission: "granted",
+    });
 
     await sendNotification("Hello", "World", {
       extra: { kind: "thread", workspaceId: "ws-1", threadId: "t-1" },
     });
 
-    expect(sendNotificationMock).toHaveBeenCalledWith({
-      title: "Hello",
-      body: "World",
-      extra: { kind: "thread", workspaceId: "ws-1", threadId: "t-1" },
-    });
+    expect(instances).toHaveLength(1);
+    expect(instances[0]?.title).toBe("Hello");
+    expect(instances[0]?.options).toMatchObject({ body: "World", tag: undefined });
   });
 
   it("requests permission once when needed and sends on grant", async () => {
-    const isPermissionGrantedMock = vi.mocked(notification.isPermissionGranted);
-    const requestPermissionMock = vi.mocked(notification.requestPermission);
-    const sendNotificationMock = vi.mocked(notification.sendNotification);
-    isPermissionGrantedMock.mockResolvedValueOnce(false);
-    requestPermissionMock.mockResolvedValueOnce("granted");
+    const { instances, requestPermission } = installNotificationApiMock({
+      permission: "default",
+      requestPermissionResult: "granted",
+    });
 
     await sendNotification("Grant", "Please");
 
-    expect(isPermissionGrantedMock).toHaveBeenCalledTimes(1);
-    expect(requestPermissionMock).toHaveBeenCalledTimes(1);
-    expect(sendNotificationMock).toHaveBeenCalledWith({
-      title: "Grant",
-      body: "Please",
-    });
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+    expect(instances).toHaveLength(1);
+    expect(instances[0]?.title).toBe("Grant");
+    expect(instances[0]?.options).toMatchObject({ body: "Please", tag: undefined });
   });
 
   it("prefers websocket runtime turn stream when ws transport is advertised", async () => {

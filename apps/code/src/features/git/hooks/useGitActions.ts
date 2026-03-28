@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isTauri } from "../../../application/runtime/ports/tauriCore";
-import { ask } from "../../../application/runtime/ports/tauriDialogs";
+import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { ask } from "../../../application/runtime/ports/desktopHostDialogs";
 import {
   applyWorktreeChanges as applyWorktreeChangesService,
   revertGitAll,

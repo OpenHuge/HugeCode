@@ -1,4 +1,4 @@
-import { convertFileSrc } from "../../../application/runtime/ports/tauriFiles";
+import { convertFileSrc } from "../../../application/runtime/ports/desktopFiles";
 import type { ConversationItem } from "../../../types";
 import { lifecycleStatusTone, normalizeLifecycleStatus } from "../../../utils/lifecycleStatus";
 import { resolveActivePlanArtifact } from "./planArtifact";

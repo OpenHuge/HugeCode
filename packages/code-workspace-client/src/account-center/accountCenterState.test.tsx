@@ -114,11 +114,9 @@ function createBindings(): WorkspaceClientBindings {
       agentControl: {
         prepareRuntimeRun: vi.fn(),
         startRuntimeRun: vi.fn(),
-        cancelRuntimeJob: vi.fn(),
-        resumeRuntimeJob: vi.fn(),
-        interveneRuntimeJob: vi.fn(),
-        subscribeRuntimeJob: vi.fn(async () => null),
-        listRuntimeJobs: vi.fn(async () => []),
+        cancelRuntimeRun: vi.fn(),
+        resumeRuntimeRun: vi.fn(),
+        interveneRuntimeRun: vi.fn(),
         submitRuntimeJobApprovalDecision: vi.fn(),
       },
       threads: {

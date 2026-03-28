@@ -5,7 +5,7 @@
  * remaining behind a dedicated adapter so UI code stays inside the approved
  * application/runtime boundary.
  */
-export { getCodexConfigPath } from "../../../services/tauriDesktopRpc";
+export { getCodexConfigPath } from "../../../services/desktopHostRpc";
 export {
   readGlobalAgentsMd,
   readGlobalCodexConfigToml,

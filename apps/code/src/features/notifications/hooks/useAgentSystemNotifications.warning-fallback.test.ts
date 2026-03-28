@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { sendNotification } from "../../../application/runtime/ports/tauriNotifications";
+import { sendNotification } from "../../../application/runtime/ports/desktopNotifications";
 import { useAgentSystemNotifications } from "./useAgentSystemNotifications";
 
 const useAppServerEventsMock = vi.fn();
 const pushErrorToastMock = vi.hoisted(() => vi.fn());
 
-vi.mock("../../../application/runtime/ports/tauriNotifications", () => ({
+vi.mock("../../../application/runtime/ports/desktopNotifications", () => ({
   sendNotification: vi.fn(),
 }));
 

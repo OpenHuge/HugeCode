@@ -1,1 +1,1 @@
-export { sendNotification } from "../../../services/tauriNotificationsBridge";
+export { sendNotification } from "./desktopNotifications";

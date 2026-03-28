@@ -6,10 +6,10 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { sendNotification } from "../../../application/runtime/ports/tauriNotifications";
+import { sendNotification } from "../../../application/runtime/ports/desktopNotifications";
 import { useMissionControlCompletionNotifications } from "./useMissionControlCompletionNotifications";
 
-vi.mock("../../../application/runtime/ports/tauriNotifications", () => ({
+vi.mock("../../../application/runtime/ports/desktopNotifications", () => ({
   sendNotification: vi.fn(),
 }));
 

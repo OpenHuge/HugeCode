@@ -9,7 +9,7 @@ import {
   listGitRoots,
   pushGit,
   revertGitAll,
-} from "./tauriDesktopGit";
+} from "./desktopHostGit";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
