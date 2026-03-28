@@ -5,6 +5,7 @@ import type {
   RuntimeToolLifecycleHookCheckpoint,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import {
+  buildRuntimeToolLifecyclePresentationSummary,
   describeRuntimeToolLifecycleEvent,
   describeRuntimeToolLifecycleHookCheckpoint,
   formatRuntimeToolLifecycleStatusLabel,
@@ -163,25 +164,28 @@ export function MissionControlSessionLogSection({
   lifecycleEvents,
   maxItems = 8,
 }: MissionControlSessionLogSectionProps) {
+  const summary = buildRuntimeToolLifecyclePresentationSummary({
+    lifecycleEvents,
+    hookCheckpoints,
+  });
   const sortedEvents = sortRuntimeToolLifecycleEventsByRecency(lifecycleEvents);
   const sortedHookCheckpoints = sortRuntimeToolLifecycleHookCheckpointsByRecency(hookCheckpoints);
   const visibleEvents = sortedEvents.slice(0, maxItems);
   const visibleHookCheckpoints = sortedHookCheckpoints.slice(0, maxItems);
-  const hasActivity = visibleEvents.length > 0 || visibleHookCheckpoints.length > 0;
-  const toolEventCount = lifecycleEvents.filter((event) => event.kind === "tool").length;
-  const approvalEventCount = lifecycleEvents.filter((event) => event.kind === "approval").length;
 
   return (
     <MissionControlSectionCard
       title="Session log"
-      statusLabel={hasActivity ? "Live" : "Idle"}
-      statusTone={hasActivity ? "running" : "success"}
+      statusLabel={summary.hasActivity ? "Live" : "Idle"}
+      statusTone={summary.hasActivity ? "running" : "success"}
       meta={
         <>
-          <ToolCallChip tone="neutral">Recent {lifecycleEvents.length}</ToolCallChip>
-          <ToolCallChip tone="neutral">Tools {toolEventCount}</ToolCallChip>
-          <ToolCallChip tone="neutral">Approvals {approvalEventCount}</ToolCallChip>
-          <ToolCallChip tone="neutral">Hook checkpoints {hookCheckpoints.length}</ToolCallChip>
+          <ToolCallChip tone="neutral">Recent {summary.totalEvents}</ToolCallChip>
+          <ToolCallChip tone="neutral">Tools {summary.toolEventCount}</ToolCallChip>
+          <ToolCallChip tone="neutral">Approvals {summary.approvalEventCount}</ToolCallChip>
+          <ToolCallChip tone="neutral">
+            Hook checkpoints {summary.totalHookCheckpoints}
+          </ToolCallChip>
         </>
       }
     >

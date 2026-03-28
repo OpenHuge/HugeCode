@@ -10,13 +10,17 @@ import { subscribeAppServerEvents } from "../ports/events";
 import type { RuntimeToolExecutionTelemetryEvent } from "../ports/runtimeToolExecutionTelemetry";
 import { subscribeRuntimeToolExecutionTelemetryEvents } from "../ports/runtimeToolExecutionTelemetry";
 export {
+  buildRuntimeToolLifecyclePresentationSummary,
   describeRuntimeToolLifecycleEvent,
   describeRuntimeToolLifecycleHookCheckpoint,
   formatRuntimeToolLifecycleStatusLabel,
+  formatRuntimeToolLifecycleEventKey,
+  formatRuntimeToolLifecycleHookCheckpointKey,
   getRuntimeToolLifecycleEventTone,
   getRuntimeToolLifecycleHookCheckpointTone,
   sortRuntimeToolLifecycleEventsByRecency,
   sortRuntimeToolLifecycleHookCheckpointsByRecency,
+  type RuntimeToolLifecyclePresentationSummary,
   type RuntimeToolLifecyclePresentationTone,
 } from "./runtimeToolLifecyclePresentation";
 import type {

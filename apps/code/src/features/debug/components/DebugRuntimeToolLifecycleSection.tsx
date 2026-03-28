@@ -3,6 +3,9 @@ import type {
   RuntimeToolLifecycleHookCheckpoint,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import {
+  buildRuntimeToolLifecyclePresentationSummary,
+  formatRuntimeToolLifecycleEventKey,
+  formatRuntimeToolLifecycleHookCheckpointKey,
   sortRuntimeToolLifecycleEventsByRecency,
   sortRuntimeToolLifecycleHookCheckpointsByRecency,
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
@@ -58,43 +61,45 @@ export function DebugRuntimeToolLifecycleSection({
   hookCheckpoints,
   lifecycleEvents,
 }: DebugRuntimeToolLifecycleSectionProps) {
+  const summary = buildRuntimeToolLifecyclePresentationSummary({
+    lifecycleEvents,
+    hookCheckpoints,
+  });
   const sortedEvents = sortRuntimeToolLifecycleEventsByRecency(lifecycleEvents);
   const sortedHookCheckpoints = sortRuntimeToolLifecycleHookCheckpointsByRecency(hookCheckpoints);
-  const latestEvent = sortedEvents[0] ?? null;
-  const latestHookCheckpoint = sortedHookCheckpoints[0] ?? null;
 
   return (
     <div className="debug-event-channel-diagnostics" data-testid="debug-runtime-tool-lifecycle">
       <div className="debug-event-channel-diagnostics-title">Tool lifecycle</div>
-      {latestEvent ? (
+      {summary.latestEvent ? (
         <>
           <div className="debug-event-channel-diagnostics-empty">
-            {sortedEvents.length} events observed.
+            {summary.totalEvents} events observed.
           </div>
           <div className="debug-event-channel-diagnostics-empty">
-            Latest event: {latestEvent.kind}/{latestEvent.phase} at{" "}
-            <time dateTime={formatLifecycleTimestamp(latestEvent.at)}>
-              {formatLifecycleTimestamp(latestEvent.at)}
+            Latest event: {summary.latestEventKey} at{" "}
+            <time dateTime={formatLifecycleTimestamp(summary.latestEvent.at)}>
+              {formatLifecycleTimestamp(summary.latestEvent.at)}
             </time>
             .
           </div>
         </>
       ) : null}
-      {latestHookCheckpoint ? (
+      {summary.latestHookCheckpoint ? (
         <>
           <div className="debug-event-channel-diagnostics-empty">
-            {sortedHookCheckpoints.length} hook checkpoints observed.
+            {summary.totalHookCheckpoints} hook checkpoints observed.
           </div>
           <div className="debug-event-channel-diagnostics-empty">
-            Latest hook checkpoint: {latestHookCheckpoint.point}/{latestHookCheckpoint.status} at{" "}
-            <time dateTime={formatLifecycleTimestamp(latestHookCheckpoint.at)}>
-              {formatLifecycleTimestamp(latestHookCheckpoint.at)}
+            Latest hook checkpoint: {summary.latestHookCheckpointKey} at{" "}
+            <time dateTime={formatLifecycleTimestamp(summary.latestHookCheckpoint.at)}>
+              {formatLifecycleTimestamp(summary.latestHookCheckpoint.at)}
             </time>
             .
           </div>
         </>
       ) : null}
-      {sortedEvents.length === 0 && sortedHookCheckpoints.length === 0 ? (
+      {!summary.hasActivity ? (
         <div className="debug-event-channel-diagnostics-empty">
           No lifecycle activity observed yet.
         </div>
@@ -103,7 +108,7 @@ export function DebugRuntimeToolLifecycleSection({
           {sortedEvents.map((event) => (
             <div key={event.id} className="debug-event-channel-diagnostics-item">
               <div className="debug-event-channel-diagnostics-label">
-                {event.kind}/{event.phase}
+                {formatRuntimeToolLifecycleEventKey(event)}
               </div>
               <DebugDiagnosticsDefinitionList fields={createLifecycleFields(event)} />
             </div>
@@ -111,7 +116,7 @@ export function DebugRuntimeToolLifecycleSection({
           {sortedHookCheckpoints.map((checkpoint) => (
             <div key={checkpoint.key} className="debug-event-channel-diagnostics-item">
               <div className="debug-event-channel-diagnostics-label">
-                {checkpoint.point}/{checkpoint.status}
+                {formatRuntimeToolLifecycleHookCheckpointKey(checkpoint)}
               </div>
               <DebugDiagnosticsDefinitionList fields={createHookCheckpointFields(checkpoint)} />
             </div>
