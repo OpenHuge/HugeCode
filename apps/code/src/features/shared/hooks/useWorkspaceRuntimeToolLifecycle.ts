@@ -1,8 +1,7 @@
 import { useCallback, useRef, useSyncExternalStore } from "react";
 import {
-  filterRuntimeToolLifecycleSnapshot,
-  getRuntimeToolLifecycleSnapshot,
-  subscribeRuntimeToolLifecycleSnapshot,
+  getWorkspaceRuntimeToolLifecycleSnapshot,
+  subscribeWorkspaceRuntimeToolLifecycleSnapshot,
   type RuntimeToolLifecycleEvent,
   type RuntimeToolLifecycleHookCheckpoint,
   type RuntimeToolLifecycleSnapshot,
@@ -35,17 +34,15 @@ const EMPTY_RUNTIME_TOOL_LIFECYCLE_STATE: WorkspaceRuntimeToolLifecycleState = {
   lifecycleEvents: [],
 };
 
-function filterLifecycleSnapshot(
-  snapshot: RuntimeToolLifecycleSnapshot,
-  workspaceId: string | null
+function toWorkspaceRuntimeToolLifecycleState(
+  snapshot: RuntimeToolLifecycleSnapshot
 ): WorkspaceRuntimeToolLifecycleState {
-  const filteredSnapshot = filterRuntimeToolLifecycleSnapshot(snapshot, workspaceId);
   return {
-    revision: filteredSnapshot.revision,
-    lastHookCheckpoint: filteredSnapshot.lastHookCheckpoint ?? null,
-    lastEvent: filteredSnapshot.lastEvent,
-    hookCheckpoints: filteredSnapshot.recentHookCheckpoints ?? [],
-    lifecycleEvents: filteredSnapshot.recentEvents,
+    revision: snapshot.revision,
+    lastHookCheckpoint: snapshot.lastHookCheckpoint ?? null,
+    lastEvent: snapshot.lastEvent,
+    hookCheckpoints: snapshot.recentHookCheckpoints ?? [],
+    lifecycleEvents: snapshot.recentEvents,
   };
 }
 
@@ -64,9 +61,9 @@ export function useWorkspaceRuntimeToolLifecycle({
       if (!enabled) {
         return () => undefined;
       }
-      return subscribeRuntimeToolLifecycleSnapshot(callback);
+      return subscribeWorkspaceRuntimeToolLifecycleSnapshot(workspaceId, callback);
     },
-    [enabled]
+    [enabled, workspaceId]
   );
 
   const getSnapshot = useCallback(() => {
@@ -79,7 +76,7 @@ export function useWorkspaceRuntimeToolLifecycle({
       return EMPTY_RUNTIME_TOOL_LIFECYCLE_STATE;
     }
 
-    const sourceSnapshot = getRuntimeToolLifecycleSnapshot();
+    const sourceSnapshot = getWorkspaceRuntimeToolLifecycleSnapshot(workspaceId);
     if (
       cacheRef.current.sourceRevision === sourceSnapshot.revision &&
       cacheRef.current.workspaceId === workspaceId
@@ -87,7 +84,7 @@ export function useWorkspaceRuntimeToolLifecycle({
       return cacheRef.current.snapshot;
     }
 
-    const nextSnapshot = filterLifecycleSnapshot(sourceSnapshot, workspaceId);
+    const nextSnapshot = toWorkspaceRuntimeToolLifecycleState(sourceSnapshot);
     cacheRef.current = {
       sourceRevision: sourceSnapshot.revision,
       workspaceId,

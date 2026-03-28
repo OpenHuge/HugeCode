@@ -8,11 +8,7 @@ export type {
   RuntimeToolLifecycleStatus,
 } from "../types/runtimeToolLifecycle";
 export {
-  filterRuntimeToolLifecycleSnapshot,
-  runtimeToolLifecycleEventMatchesWorkspace,
-} from "../types/runtimeToolLifecycle";
-export {
-  getRuntimeToolLifecycleSnapshot,
-  subscribeRuntimeToolLifecycleEvents,
-  subscribeRuntimeToolLifecycleSnapshot,
+  getWorkspaceRuntimeToolLifecycleSnapshot,
+  subscribeWorkspaceRuntimeToolLifecycleEvents,
+  subscribeWorkspaceRuntimeToolLifecycleSnapshot,
 } from "../facades/runtimeToolLifecycleFacade";

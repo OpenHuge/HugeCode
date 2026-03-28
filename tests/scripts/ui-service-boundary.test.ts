@@ -206,6 +206,28 @@ describe("ui service boundary guard", () => {
     ]);
   });
 
+  it("rejects direct runtime tool lifecycle facade and type-layer imports in UI code", () => {
+    const facadeViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/example/hooks/useExample.ts",
+      'import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/facades/runtimeToolLifecycleFacade";\n'
+    );
+    const typeViolations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/example/components/Example.tsx",
+      'import type { RuntimeToolLifecycleEvent } from "../../../application/runtime/types/runtimeToolLifecycle";\n'
+    );
+
+    expect(facadeViolations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-tool-lifecycle-port-only",
+      }),
+    ]);
+    expect(typeViolations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-tool-lifecycle-port-only",
+      }),
+    ]);
+  });
+
   it("rejects low-level runtime transport imports in non-UI product files", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/utils/runtimeExample.ts",

@@ -1,9 +1,6 @@
 import { readRuntimeToolExecutionMetrics } from "../../../application/runtime/ports/runtimeToolExecutionMetrics";
 import { useCallback, useState } from "react";
-import {
-  filterRuntimeToolLifecycleSnapshot,
-  getRuntimeToolLifecycleSnapshot,
-} from "../../../application/runtime/ports/runtimeToolLifecycle";
+import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import { runtimeDiagnosticsExportV1 } from "../../../application/runtime/ports/tauriRuntime";
 
 type UseRuntimeDiagnosticsExportOptions = {
@@ -104,10 +101,7 @@ function createDiagnosticsMetadataArtifact(input: {
   exported: NonNullable<Awaited<ReturnType<typeof runtimeDiagnosticsExportV1>>>;
   workspaceId: string | null;
 }): DiagnosticsMetadataArtifact {
-  const lifecycleSnapshot = filterRuntimeToolLifecycleSnapshot(
-    getRuntimeToolLifecycleSnapshot(),
-    input.workspaceId
-  );
+  const lifecycleSnapshot = getWorkspaceRuntimeToolLifecycleSnapshot(input.workspaceId);
   const toolExecutionMetricsSnapshot = readRuntimeToolExecutionMetrics();
 
   return {

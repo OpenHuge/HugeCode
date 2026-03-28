@@ -189,6 +189,14 @@ const VIOLATION_RULES = [
     appliesTo: isUiBoundaryFile,
   },
   {
+    id: "runtime-tool-lifecycle-port-only",
+    description:
+      "UI code must consume runtime tool lifecycle through `application/runtime/ports/runtimeToolLifecycle` or shared hooks, not the facade or raw type re-export layer",
+    pattern:
+      /(?:from\s+["'][^"']*\/application\/runtime\/(?:facades\/runtimeToolLifecycleFacade|types\/runtimeToolLifecycle)["']|import\(\s*["'][^"']*\/application\/runtime\/(?:facades\/runtimeToolLifecycleFacade|types\/runtimeToolLifecycle)["'])/u,
+    appliesTo: (filePath) => isUiBoundaryFile(filePath) && !isUiTestFile(filePath),
+  },
+  {
     id: "cross-shell-tauri-port",
     description:
       "shared workspace client and web shell must not import desktop-only runtime ports directly",

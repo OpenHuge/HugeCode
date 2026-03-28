@@ -160,6 +160,27 @@ The baseline is already consumed in:
 This gives HugeCode one shared vocabulary for event rendering and one shared
 hook-checkpoint projection for operator-facing tool-shaping visibility.
 
+The approved workspace-scoped read path is now:
+
+- `apps/code/src/application/runtime/ports/runtimeToolLifecycle.ts`
+  - `getWorkspaceRuntimeToolLifecycleSnapshot(workspaceId)`
+  - `subscribeWorkspaceRuntimeToolLifecycleEvents(workspaceId, listener)`
+  - `subscribeWorkspaceRuntimeToolLifecycleSnapshot(workspaceId, listener)`
+
+Consumers should prefer that boundary over composing
+`getRuntimeToolLifecycleSnapshot() + filterRuntimeToolLifecycleSnapshot(...)`
+or subscribing to the unscoped snapshot stream inside feature code.
+
+The raw filtering helpers remain part of the shared lifecycle implementation in
+`@ku0/code-runtime-client/runtimeToolLifecycle` and the local
+`application/runtime/types` layer for facade assembly and tests, but they are no
+longer part of the approved `application/runtime/ports` surface for feature
+code.
+
+Likewise, the unscoped lifecycle read/subscribe functions remain available in
+the facade for runtime-store assembly and facade-level tests, but they are not
+part of the approved `application/runtime/ports` surface for feature code.
+
 ## Follow-On Work
 
 Track 1 is complete when new work treats this lifecycle baseline as frozen and
