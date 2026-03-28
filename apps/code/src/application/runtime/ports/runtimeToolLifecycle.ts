@@ -13,6 +13,7 @@ export {
 } from "../types/runtimeToolLifecycle";
 export {
   getRuntimeToolLifecycleSnapshot,
+  getWorkspaceRuntimeToolLifecycleSnapshot,
   subscribeRuntimeToolLifecycleEvents,
   subscribeRuntimeToolLifecycleSnapshot,
 } from "../facades/runtimeToolLifecycleFacade";

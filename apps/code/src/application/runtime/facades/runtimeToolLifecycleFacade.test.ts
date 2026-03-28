@@ -177,6 +177,28 @@ describe("runtimeToolLifecycleFacade", () => {
         }),
       ],
     });
+    expect(facade.getWorkspaceRuntimeToolLifecycleSnapshot("workspace-1")).toMatchObject({
+      revision: 2,
+      lastEvent: expect.objectContaining({
+        workspaceId: "workspace-1",
+        toolName: "bash",
+      }),
+      recentEvents: [
+        expect.objectContaining({
+          workspaceId: "workspace-1",
+          toolName: "bash",
+        }),
+        expect.objectContaining({
+          workspaceId: "workspace-1",
+          toolName: "bash",
+        }),
+      ],
+    });
+    expect(facade.getWorkspaceRuntimeToolLifecycleSnapshot("workspace-2")).toMatchObject({
+      revision: 2,
+      lastEvent: null,
+      recentEvents: [],
+    });
 
     unsubscribeEvents();
     expect(events.__appServerListenerCount()).toBe(1);

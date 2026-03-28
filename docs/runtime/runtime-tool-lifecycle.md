@@ -160,6 +160,16 @@ The baseline is already consumed in:
 This gives HugeCode one shared vocabulary for event rendering and one shared
 hook-checkpoint projection for operator-facing tool-shaping visibility.
 
+The approved workspace-scoped read path is now:
+
+- `apps/code/src/application/runtime/ports/runtimeToolLifecycle.ts`
+  - `getWorkspaceRuntimeToolLifecycleSnapshot(workspaceId)`
+  - `subscribeRuntimeToolLifecycleSnapshot(listener)`
+
+Consumers should prefer that boundary over composing
+`getRuntimeToolLifecycleSnapshot() + filterRuntimeToolLifecycleSnapshot(...)`
+inside feature code.
+
 ## Follow-On Work
 
 Track 1 is complete when new work treats this lifecycle baseline as frozen and

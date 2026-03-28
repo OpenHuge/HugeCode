@@ -19,6 +19,7 @@ import {
   RUNTIME_TOOL_LIFECYCLE_APP_EVENT_METHODS,
   buildRuntimeToolLifecycleEventId,
   deriveRuntimeToolLifecycleHookCheckpoint,
+  filterRuntimeToolLifecycleSnapshot,
   getRuntimeToolLifecycleEntityKey,
   isRuntimeGuardrailLifecycleStatus,
   normalizeRuntimeToolLifecycleAppEvent,
@@ -282,8 +283,15 @@ export function createRuntimeToolLifecycleStore(
     return snapshot;
   }
 
+  function getWorkspaceRuntimeToolLifecycleSnapshot(
+    workspaceId: string | null
+  ): RuntimeToolLifecycleSnapshot {
+    return filterRuntimeToolLifecycleSnapshot(snapshot, workspaceId);
+  }
+
   return {
     getRuntimeToolLifecycleSnapshot,
+    getWorkspaceRuntimeToolLifecycleSnapshot,
     subscribeRuntimeToolLifecycleEvents,
     subscribeRuntimeToolLifecycleSnapshot,
   };
@@ -296,6 +304,8 @@ const runtimeToolLifecycleStore = createRuntimeToolLifecycleStore(
 
 export const getRuntimeToolLifecycleSnapshot =
   runtimeToolLifecycleStore.getRuntimeToolLifecycleSnapshot;
+export const getWorkspaceRuntimeToolLifecycleSnapshot =
+  runtimeToolLifecycleStore.getWorkspaceRuntimeToolLifecycleSnapshot;
 export const subscribeRuntimeToolLifecycleEvents =
   runtimeToolLifecycleStore.subscribeRuntimeToolLifecycleEvents;
 export const subscribeRuntimeToolLifecycleSnapshot =

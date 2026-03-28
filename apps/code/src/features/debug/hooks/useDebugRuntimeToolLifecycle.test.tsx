@@ -6,47 +6,12 @@ import { useDebugRuntimeToolLifecycle } from "./useDebugRuntimeToolLifecycle";
 import type { RuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";
 
 type RuntimeToolLifecycleTestApi = {
-  getRuntimeToolLifecycleSnapshot: ReturnType<typeof vi.fn>;
+  getWorkspaceRuntimeToolLifecycleSnapshot: ReturnType<typeof vi.fn>;
   subscribeRuntimeToolLifecycleSnapshot: ReturnType<typeof vi.fn>;
 };
 
 vi.mock("../../../application/runtime/ports/runtimeToolLifecycle", () => ({
-  filterRuntimeToolLifecycleSnapshot: vi.fn(
-    (
-      snapshot: {
-        recentEvents: Array<{ workspaceId: string | null }>;
-        lastEvent: { workspaceId: string | null } | null;
-        revision: number;
-      },
-      workspaceId: string | null
-    ) => {
-      const lifecycleEvents = snapshot.recentEvents.filter(
-        (event) => !workspaceId || event.workspaceId === workspaceId
-      );
-      const lastEvent =
-        snapshot.lastEvent && (!workspaceId || snapshot.lastEvent.workspaceId === workspaceId)
-          ? snapshot.lastEvent
-          : (lifecycleEvents.at(-1) ?? null);
-      return {
-        revision: snapshot.revision,
-        lastEvent,
-        recentEvents: lifecycleEvents,
-        lastHookCheckpoint:
-          snapshot.lastHookCheckpoint &&
-          (!workspaceId || snapshot.lastHookCheckpoint.workspaceId === workspaceId)
-            ? snapshot.lastHookCheckpoint
-            : (snapshot.recentHookCheckpoints?.at(-1) ?? null),
-        recentHookCheckpoints: (snapshot.recentHookCheckpoints ?? []).filter(
-          (checkpoint) => !workspaceId || checkpoint.workspaceId === workspaceId
-        ),
-      };
-    }
-  ),
-  getRuntimeToolLifecycleSnapshot: vi.fn(),
-  runtimeToolLifecycleEventMatchesWorkspace: vi.fn(
-    (event: { workspaceId: string | null }, workspaceId: string | null) =>
-      !workspaceId || event.workspaceId === workspaceId
-  ),
+  getWorkspaceRuntimeToolLifecycleSnapshot: vi.fn(),
   subscribeRuntimeToolLifecycleSnapshot: vi.fn(() => () => undefined),
 }));
 
@@ -88,29 +53,12 @@ describe("useDebugRuntimeToolLifecycle", () => {
   beforeEach(async () => {
     api =
       (await import("../../../application/runtime/ports/runtimeToolLifecycle")) as unknown as RuntimeToolLifecycleTestApi;
-    api.getRuntimeToolLifecycleSnapshot.mockReturnValue({
+    api.getWorkspaceRuntimeToolLifecycleSnapshot.mockReturnValue({
       revision: 2,
       lastEvent: lifecycleEvent,
       lastHookCheckpoint: hookCheckpoint,
-      recentEvents: [
-        lifecycleEvent,
-        {
-          ...lifecycleEvent,
-          id: "tool-started-2",
-          workspaceId: "workspace-2",
-          turnId: "turn-2",
-        },
-      ],
-      recentHookCheckpoints: [
-        hookCheckpoint,
-        {
-          ...hookCheckpoint,
-          key: "tool:app-event:tool-call-2:write:workspace-2:post_execution_pre_publication",
-          workspaceId: "workspace-2",
-          toolCallId: "tool-call-2",
-          turnId: "turn-2",
-        },
-      ],
+      recentEvents: [lifecycleEvent],
+      recentHookCheckpoints: [hookCheckpoint],
     } satisfies RuntimeToolLifecycleSnapshot);
   });
 
@@ -134,18 +82,11 @@ describe("useDebugRuntimeToolLifecycle", () => {
   });
 
   it("preserves a matching lastEvent even when it is not present in recentEvents", () => {
-    api.getRuntimeToolLifecycleSnapshot.mockReturnValue({
+    api.getWorkspaceRuntimeToolLifecycleSnapshot.mockReturnValue({
       revision: 3,
       lastEvent: lifecycleEvent,
       lastHookCheckpoint: hookCheckpoint,
-      recentEvents: [
-        {
-          ...lifecycleEvent,
-          id: "tool-started-2",
-          workspaceId: "workspace-2",
-          turnId: "turn-2",
-        },
-      ],
+      recentEvents: [],
       recentHookCheckpoints: [],
     } satisfies RuntimeToolLifecycleSnapshot);
 
