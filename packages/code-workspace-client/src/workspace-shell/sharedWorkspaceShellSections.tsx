@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { deriveSharedWorkspaceOperatorAction } from "./sharedWorkspaceOperatorAction";
-import { useSharedWorkspaceShellState } from "./useSharedWorkspaceShellState";
+import type { SharedWorkspaceShellState } from "./sharedWorkspaceShellContracts";
 import * as styles from "./SharedWorkspaceShell.css";
 
 export type FocusableSection = "missions" | "review";
@@ -43,7 +43,6 @@ export const shellSections = [
   },
 ] as const;
 
-export type SharedWorkspaceShellState = ReturnType<typeof useSharedWorkspaceShellState>;
 export type ShellSectionId = (typeof shellSections)[number]["id"];
 
 export function getSectionMeta(section: ShellSectionId) {

@@ -4,12 +4,18 @@ import {
   useWorkspaceClientBindings,
   useWorkspaceClientRuntimeMode,
 } from "../workspace/WorkspaceClientBindingsProvider";
+import type { SharedWorkspaceShellState } from "./sharedWorkspaceShellContracts";
+import {
+  composeSharedWorkspaceShellState,
+  deriveSharedWorkspaceShellActiveSection,
+  deriveSharedWorkspaceShellBackgroundEnabled,
+} from "./sharedWorkspaceShellComposition";
 import type { SharedWorkspaceShellSection } from "./workspaceNavigation";
 import { useSharedHostStartupStatusState } from "./useSharedHostStartupStatusState";
 import { useSharedMissionControlSummaryState } from "./useSharedMissionControlSummaryState";
 import { useSharedWorkspaceCatalogState } from "./useSharedWorkspaceCatalogState";
 
-export function useSharedWorkspaceShellState() {
+export function useSharedWorkspaceShellState(): SharedWorkspaceShellState {
   const bindings = useWorkspaceClientBindings();
   const catalogState = useSharedWorkspaceCatalogState();
   const runtimeMode = useWorkspaceClientRuntimeMode();
@@ -23,11 +29,7 @@ export function useSharedWorkspaceShellState() {
     [bindings.navigation]
   );
   const activeSection: SharedWorkspaceShellSection =
-    routeSelection.kind === "none"
-      ? "home"
-      : routeSelection.kind === "workspace"
-        ? "workspaces"
-        : routeSelection.kind;
+    deriveSharedWorkspaceShellActiveSection(routeSelection);
   const [shellBackgroundActivationRequested, setShellBackgroundActivationRequested] = useState(
     () => activeSection === "missions" || activeSection === "review"
   );
@@ -36,11 +38,11 @@ export function useSharedWorkspaceShellState() {
     idleTimeoutMs: 250,
     fallbackDelayMs: 250,
   });
-  const shellBackgroundEnabled =
-    shellBackgroundActivationRequested ||
-    activeSection === "missions" ||
-    activeSection === "review" ||
-    shellBackgroundActivated;
+  const shellBackgroundEnabled = deriveSharedWorkspaceShellBackgroundEnabled({
+    activeSection,
+    activationRequested: shellBackgroundActivationRequested,
+    activationDeferred: shellBackgroundActivated,
+  });
   const missionControlState = useSharedMissionControlSummaryState(catalogState.activeWorkspaceId, {
     enabled: shellBackgroundEnabled,
   });
@@ -66,30 +68,22 @@ export function useSharedWorkspaceShellState() {
     return hostStartupState.refresh();
   }, [hostStartupState.refresh]);
 
-  return {
+  return composeSharedWorkspaceShellState({
     runtimeMode,
     platformHint: bindings.host.shell.platformHint ?? bindings.host.platform,
     routeSelection,
     activeSection,
-    workspaces: catalogState.workspaces,
-    activeWorkspaceId: catalogState.activeWorkspaceId,
-    activeWorkspace: catalogState.activeWorkspace,
-    hasPendingWorkspaceSelection: catalogState.hasPendingWorkspaceSelection,
-    workspaceLoadState: catalogState.loadState,
-    workspaceError: catalogState.error,
-    refreshWorkspaces: catalogState.refresh,
-    selectWorkspace: catalogState.selectWorkspace,
+    catalogState,
+    missionControlState: {
+      ...missionControlState,
+      refresh: refreshMissionSummary,
+    },
+    hostStartupState: {
+      ...hostStartupState,
+      refresh: refreshHostStartupStatus,
+    },
     navigateToSection,
-    missionSummary: missionControlState.summary,
-    missionSnapshot: missionControlState.snapshot,
-    missionLoadState: missionControlState.loadState,
-    missionError: missionControlState.error,
-    refreshMissionSummary,
-    hostStartupStatus: hostStartupState.status,
-    hostStartupLoadState: hostStartupState.loadState,
-    hostStartupError: hostStartupState.error,
-    refreshHostStartupStatus,
     accountHref,
     settingsFraming: bindings.platformUi.settingsShellFraming,
-  };
+  });
 }

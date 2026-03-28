@@ -12,6 +12,7 @@ import {
   ToastViewport,
 } from "@ku0/design-system";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import type { SharedWorkspaceShellState } from "./sharedWorkspaceShellContracts";
 import { useSharedWorkspaceShellState } from "./useSharedWorkspaceShellState";
 import {
   buildMissionActivityDomId,
@@ -32,7 +33,7 @@ function WorkspaceRosterSection({
   state,
   onSelectWorkspace,
 }: {
-  state: ReturnType<typeof useSharedWorkspaceShellState>;
+  state: SharedWorkspaceShellState;
   onSelectWorkspace: (workspaceId: string | null) => void;
 }) {
   const workspaceRosterHydrating =
@@ -126,7 +127,7 @@ function HomeOverviewSection({
   onOpenFocusTarget,
   onSelectWorkspace,
 }: {
-  state: ReturnType<typeof useSharedWorkspaceShellState>;
+  state: SharedWorkspaceShellState;
   onNavigateSection: (section: ShellSectionId) => void;
   onOpenFocusTarget: (target: ShellFocusTarget) => void;
   onSelectWorkspace: (workspaceId: string | null) => void;
@@ -316,7 +317,7 @@ function MissionActivitySection({
   state,
   focusedMissionId,
 }: {
-  state: ReturnType<typeof useSharedWorkspaceShellState>;
+  state: SharedWorkspaceShellState;
   focusedMissionId: string | null;
 }) {
   useEffect(() => {
@@ -404,7 +405,7 @@ function ReviewQueueSection({
   state,
   focusedReviewId,
 }: {
-  state: ReturnType<typeof useSharedWorkspaceShellState>;
+  state: SharedWorkspaceShellState;
   focusedReviewId: string | null;
 }) {
   useEffect(() => {
@@ -487,7 +488,7 @@ function ReviewQueueSection({
   );
 }
 
-function SettingsSection({ state }: { state: ReturnType<typeof useSharedWorkspaceShellState> }) {
+function SettingsSection({ state }: { state: SharedWorkspaceShellState }) {
   const missionSummaryPending =
     state.missionLoadState === "idle" || state.missionLoadState === "loading";
 

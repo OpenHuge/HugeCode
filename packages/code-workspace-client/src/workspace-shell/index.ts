@@ -11,6 +11,18 @@ export type {
 export { SharedWorkspaceShell } from "./SharedWorkspaceShell";
 export { WorkspaceShellApp } from "./WorkspaceShellApp";
 export { default } from "./WorkspaceShellApp";
+export {
+  composeSharedWorkspaceShellState,
+  deriveSharedWorkspaceShellActiveSection,
+  deriveSharedWorkspaceShellBackgroundEnabled,
+} from "./sharedWorkspaceShellComposition";
+export type {
+  SharedWorkspaceShellCatalogState,
+  SharedWorkspaceShellHostStartupState,
+  SharedWorkspaceShellMissionControlState,
+  SharedWorkspaceShellState,
+  SharedWorkspaceShellStateCompositionInput,
+} from "./sharedWorkspaceShellContracts";
 export { useSharedMissionControlSummaryState } from "./useSharedMissionControlSummaryState";
 export type {
   SharedMissionActivityItem,

@@ -83,8 +83,11 @@ export {
 export { WorkspaceApp } from "./workspace-app";
 export {
   buildSharedMissionControlSummary,
+  composeSharedWorkspaceShellState,
   createMissionControlSummaryLoader,
   DEFAULT_MISSION_CONTROL_SUMMARY_COMPOSER,
+  deriveSharedWorkspaceShellActiveSection,
+  deriveSharedWorkspaceShellBackgroundEnabled,
   getMissionControlSnapshotStore,
   getKernelProjectionStore,
   SharedWorkspaceShell,
@@ -107,7 +110,12 @@ export type {
   MissionControlSnapshotState,
   SharedMissionControlReadinessSummary,
   SharedMissionControlSummary,
+  SharedWorkspaceShellCatalogState,
   SharedWorkspaceRouteSelection,
+  SharedWorkspaceShellHostStartupState,
+  SharedWorkspaceShellMissionControlState,
+  SharedWorkspaceShellState,
+  SharedWorkspaceShellStateCompositionInput,
   WorkspaceNavigationAdapter,
   WorkspaceNavigationOptions,
 } from "./workspace-shell";
