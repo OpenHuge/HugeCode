@@ -1,4 +1,6 @@
-# Archived Plans
+# [ARCHIVED] Archived Plans
+
+Current source of truth: [`../../README.md`](../../README.md), [`../../runtime/README.md`](../../runtime/README.md), and [`../README.md`](../README.md)
 
 This directory stores completed, superseded, or historical working plans.
 

@@ -1,7 +1,9 @@
-# Pi-Mono Source Deep Dive Tracks
+# [ARCHIVED] Pi-Mono Source Deep Dive Tracks
+
+Current source of truth: [`../../runtime/runtime-tool-lifecycle.md`](../../runtime/runtime-tool-lifecycle.md), [`../../runtime/runtime-session-checkpoint-baseline.md`](../../runtime/runtime-session-checkpoint-baseline.md), and [`../../runtime/provider-capability-matrix-baseline-2026-03-28.md`](../../runtime/provider-capability-matrix-baseline-2026-03-28.md)
 
 Date: 2026-03-28
-Status: active working doc
+Status: archived working doc
 Branch: `feature-browser`
 HugeCode workspace: `/Volumes/Dev/HugeCode/.worktrees/feature-browser`
 Pi-mono reference checkout: `/Users/han/Documents/Code/github/pi-mono`
