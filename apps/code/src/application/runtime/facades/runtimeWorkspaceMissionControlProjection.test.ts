@@ -418,6 +418,171 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       blockedPluginCount: 0,
       selectedBackendCount: 1,
     });
+    expect(projection.pluginControlPlane.counts).toMatchObject({
+      needsAction: 1,
+      selectedNow: 1,
+      inventory: 1,
+      profiles: 1,
+    });
+    expect(projection.pluginControlPlane.selectedNow[0]).toMatchObject({
+      label: "Remote Search Tools",
+      statusLabel: "Selected now",
+    });
+    expect(projection.pluginControlPlane.profiles[0]?.actions.map((action) => action.kind)).toEqual(
+      ["preview_profile", "apply_profile"]
+    );
+  });
+
+  it("keeps blocked local-dev packages visible in needs action when trust override is disabled", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimePlugins: [
+          {
+            id: "pkg.unsigned.remote",
+            name: "Unsigned Remote Lab",
+            version: "0.3.0",
+            summary: "Unsigned package",
+            source: "mcp_remote",
+            transport: "mcp_remote",
+            hostProfile: {
+              kind: "remote",
+              executionBoundaries: ["registry"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: false,
+            capabilities: [],
+            permissions: ["network"],
+            resources: [],
+            executionBoundaries: ["registry"],
+            binding: {
+              state: "declaration_only",
+              contractFormat: "mcp",
+              contractBoundary: "registry:mcp_remote",
+              interfaceId: "pkg.unsigned.remote",
+              surfaces: [],
+            },
+            operations: {
+              execution: {
+                executable: false,
+                mode: "none",
+                reason: "Registry package is not runtime-bound.",
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason: "Registry package is not runtime-bound.",
+              },
+              permissions: {
+                evaluable: false,
+                mode: "none",
+                reason: "Registry package is not runtime-bound.",
+              },
+            },
+            metadata: {
+              pluginRegistry: {
+                packageRef: "hugecode.mcp.unsigned-lab@0.3.0",
+                transport: "mcp_remote",
+                source: "catalog",
+                installed: false,
+                installedPluginId: null,
+                publisher: "local-dev",
+                trust: {
+                  status: "blocked",
+                  verificationStatus: "missing_signature",
+                  publisher: "local-dev",
+                  attestationSource: "manifest",
+                  blockedReason: "Unsigned local-dev package.",
+                  packageRef: "hugecode.mcp.unsigned-lab@0.3.0",
+                  pluginId: "pkg.unsigned.remote",
+                },
+                compatibility: {
+                  status: "compatible",
+                  minimumHostContractVersion: "2026-03-25",
+                  supportedRuntimeProtocolVersions: ["2026-03-25"],
+                  supportedCapabilityKeys: ["plugins.catalog", "plugins.registry"],
+                  optionalTransportFeatures: [],
+                  blockers: [],
+                },
+              },
+            },
+            permissionDecision: null,
+            health: null,
+          },
+        ],
+        runtimeCompositionProfiles: [
+          {
+            id: "workspace-default",
+            name: "Workspace Default",
+            scope: "workspace",
+            enabled: true,
+            pluginSelectors: [],
+            routePolicy: {
+              preferredRoutePluginIds: [],
+              providerPreference: [],
+              allowRuntimeFallback: true,
+            },
+            backendPolicy: {
+              preferredBackendIds: ["backend-primary"],
+              resolvedBackendId: null,
+            },
+            trustPolicy: {
+              requireVerifiedSignatures: true,
+              allowDevOverrides: false,
+              blockedPublishers: [],
+            },
+            executionPolicyRefs: [],
+            observabilityPolicy: {
+              emitStableEvents: true,
+              emitOtelAlignedTelemetry: true,
+            },
+            configLayers: [],
+          },
+        ],
+        runtimeCompositionActiveProfileId: "workspace-default",
+        runtimeCompositionActiveProfile: {
+          id: "workspace-default",
+          name: "Workspace Default",
+          scope: "workspace",
+          enabled: true,
+          pluginSelectors: [],
+          routePolicy: {
+            preferredRoutePluginIds: [],
+            providerPreference: [],
+            allowRuntimeFallback: true,
+          },
+          backendPolicy: {
+            preferredBackendIds: ["backend-primary"],
+            resolvedBackendId: null,
+          },
+          trustPolicy: {
+            requireVerifiedSignatures: true,
+            allowDevOverrides: false,
+            blockedPublishers: [],
+          },
+          executionPolicyRefs: [],
+          observabilityPolicy: {
+            emitStableEvents: true,
+            emitOtelAlignedTelemetry: true,
+          },
+          configLayers: [],
+        },
+      })
+    );
+
+    expect(projection.pluginControlPlane.needsAction[0]).toMatchObject({
+      label: "Unsigned Remote Lab",
+      attentionReason: "Unsigned local-dev package.",
+    });
+    expect(projection.pluginControlPlane.needsAction[0]?.actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "install_with_dev_override",
+          disabledReason:
+            "The active composition profile does not allow development trust overrides.",
+        }),
+      ])
+    );
   });
 
   it("keeps launch ready when local routing remains available", () => {
