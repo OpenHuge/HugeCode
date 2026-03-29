@@ -95,6 +95,12 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
   const pluginCatalog = missionControlProjection.pluginCatalog;
   const composition = missionControlProjection.composition;
+  const readinessNeedsActionCount =
+    pluginCatalog.readinessSections.find((section) => section.id === "needs_action")?.entries
+      .length ?? 0;
+  const readinessSelectedNowCount =
+    pluginCatalog.readinessSections.find((section) => section.id === "selected_now")?.entries
+      .length ?? 0;
   const pluginCatalogStatus = pluginCatalog.error
     ? {
         label: "Attention",
@@ -280,12 +286,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                     : "success"
               }
             >
-              Action required {pluginCatalog.blockedCount + pluginCatalog.attentionCount}
+              Action required {readinessNeedsActionCount}
             </ToolCallChip>
-            <ToolCallChip tone="success">
-              Selected now{" "}
-              {pluginCatalog.selectedInActiveProfileCount + composition.selectedRouteCount}
-            </ToolCallChip>
+            <ToolCallChip tone="success">Selected now {readinessSelectedNowCount}</ToolCallChip>
             <ToolCallChip tone="neutral">
               Verified/runtime-managed {pluginCatalog.verifiedPackageCount}
             </ToolCallChip>
@@ -335,42 +338,44 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             <div className={controlStyles.warning}>{pluginCatalog.error}</div>
           ) : null}
         </div>
-        {pluginCatalog.readinessSections.map((section) => (
-          <div key={section.id}>
-            <div className="workspace-home-code-runtime-item">
-              <div className="workspace-home-code-runtime-item-main">
-                <strong>{section.title}</strong>
-                <span>{section.description}</span>
-              </div>
-            </div>
-            {section.entries.map((entry) => (
-              <div key={entry.id} className="workspace-home-code-runtime-item">
+        {pluginCatalog.readinessSections
+          .filter((section) => section.entries.length > 0)
+          .map((section) => (
+            <div key={section.id}>
+              <div className="workspace-home-code-runtime-item">
                 <div className="workspace-home-code-runtime-item-main">
-                  <strong>
-                    {entry.name} ({entry.version})
-                  </strong>
-                  <span>
-                    {entry.badges.map((badge) => (
-                      <ToolCallChip key={`${entry.id}-${badge.label}`} tone={badge.tone}>
-                        {badge.label}
-                      </ToolCallChip>
-                    ))}
-                  </span>
-                  <span>Source: {entry.sourceLabel}</span>
-                  <span>Selection: {entry.selectionState.label}</span>
-                  <span>Trust: {entry.trustState.label}</span>
-                  <span>Capability support: {entry.capabilitySupport.summary}</span>
-                  <span>Permission state: {entry.permissionState.label}</span>
-                  <span>Readiness: {entry.readiness.label}</span>
-                  <span>{entry.readiness.detail}</span>
-                  <span>{entry.selectionState.detail}</span>
-                  <span>{entry.trustState.detail}</span>
-                  <span>Remediation: {entry.remediationSummary}</span>
+                  <strong>{section.title}</strong>
+                  <span>{section.description}</span>
                 </div>
               </div>
-            ))}
-          </div>
-        ))}
+              {section.entries.map((entry) => (
+                <div key={entry.id} className="workspace-home-code-runtime-item">
+                  <div className="workspace-home-code-runtime-item-main">
+                    <strong>
+                      {entry.name} ({entry.version})
+                    </strong>
+                    <span>
+                      {entry.badges.map((badge) => (
+                        <ToolCallChip key={`${entry.id}-${badge.label}`} tone={badge.tone}>
+                          {badge.label}
+                        </ToolCallChip>
+                      ))}
+                    </span>
+                    <span>Source: {entry.sourceLabel}</span>
+                    <span>Selection: {entry.selectionState.label}</span>
+                    <span>Trust: {entry.trustState.label}</span>
+                    <span>Capability support: {entry.capabilitySupport.summary}</span>
+                    <span>Permission state: {entry.permissionState.label}</span>
+                    <span>Readiness: {entry.readiness.label}</span>
+                    <span>{entry.readiness.detail}</span>
+                    <span>{entry.selectionState.detail}</span>
+                    <span>{entry.trustState.detail}</span>
+                    <span>Remediation: {entry.remediationSummary}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
       </MissionControlSectionCard>
       {runtimeDurabilityWarning ? (
         <div className={controlStyles.warning} data-testid="workspace-runtime-durability-warning">
