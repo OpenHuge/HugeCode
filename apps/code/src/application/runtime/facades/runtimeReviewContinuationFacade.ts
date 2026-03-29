@@ -1,16 +1,18 @@
 import type {
   AccessMode,
   AgentTaskRelaunchContext,
+  HugeCodeCheckpointSummary,
   AgentTaskSourceSummary,
   HugeCodeContinuationSummary,
   HugeCodeMissionLinkageSummary,
   HugeCodePublishHandoffReference,
   HugeCodeReviewActionabilitySummary,
+  HugeCodeRunState,
   HugeCodeTakeoverBundle,
+  RuntimeContinuationPathKind,
 } from "@ku0/code-runtime-host-contract";
 import {
   buildRuntimeContinuationDescriptor,
-  formatRuntimeContinuationTruthSourceLabel,
   type RuntimeContinuationTruthSource,
 } from "./runtimeContinuationTruth";
 import {
@@ -66,15 +68,27 @@ export type ReviewContinuationDraft = {
   fieldOrigins: ReviewContinuationFieldOrigins;
 };
 
+export type ReviewContinuationCheckpointDurabilityState =
+  | "ready"
+  | "attention"
+  | "blocked"
+  | "unknown";
+
 export type ReviewContinuationActionabilitySummary = {
-  state: "ready" | "degraded" | "blocked" | "missing";
+  state: "ready" | "attention" | "blocked" | "missing";
   summary: string;
   details: string[];
   blockingReason: string | null;
   recommendedAction: string;
+  pathKind: RuntimeContinuationPathKind;
   continuePathLabel: "Mission thread" | "Mission run" | "Review Pack" | "Sub-agent session";
   truthSource: RuntimeContinuationTruthSource;
   truthSourceLabel: string;
+  canSafelyContinue: boolean;
+  hasHandoffPath: boolean;
+  reviewFollowUpActionable: boolean;
+  checkpointDurabilityState: ReviewContinuationCheckpointDurabilityState;
+  continuityOverview: string;
 };
 
 type RuntimeRecordedContinuationDefaults = {
@@ -154,48 +168,65 @@ export function resolveRuntimeFollowUpPreferredBackendIds(
     : undefined;
 }
 
-function mapPublishedContinuationState(
-  state: HugeCodeContinuationSummary["state"]
-): ReviewContinuationActionabilitySummary["state"] {
-  if (state === "attention") {
-    return "degraded";
+function resolveCheckpointDurabilityState(input: {
+  checkpoint: HugeCodeCheckpointSummary | null;
+  state: ReviewContinuationActionabilitySummary["state"];
+}): ReviewContinuationCheckpointDurabilityState {
+  if (!input.checkpoint) {
+    return "unknown";
   }
-  if (state === "ready" || state === "blocked") {
-    return state;
+  if (input.checkpoint.resumeReady === true) {
+    return "ready";
   }
-  return "missing";
+  if (input.state === "blocked") {
+    return "blocked";
+  }
+  return "attention";
 }
 
-function resolvePublishedContinuePathLabel(
-  continuation: HugeCodeContinuationSummary
-): ReviewContinuationActionabilitySummary["continuePathLabel"] {
-  if (continuation.pathKind === "review" || continuation.target?.kind === "review_pack") {
-    return "Review Pack";
-  }
-  if (continuation.target?.kind === "thread") {
-    return "Mission thread";
-  }
-  if (continuation.target?.kind === "run") {
-    return "Mission run";
-  }
-  if (continuation.target?.kind === "sub_agent_session") {
-    return "Sub-agent session";
-  }
-  return "Review Pack";
-}
-
-function pushUniqueDetail(details: string[], value: string | null | undefined) {
-  if (typeof value !== "string") {
-    return;
-  }
-  const trimmed = value.trim();
-  if (!trimmed || details.includes(trimmed)) {
-    return;
-  }
-  details.push(trimmed);
+function buildReviewContinuationOverview(input: {
+  state: ReviewContinuationActionabilitySummary["state"];
+  canSafelyContinue: boolean;
+  hasHandoffPath: boolean;
+  reviewFollowUpActionable: boolean;
+  checkpointDurabilityState: ReviewContinuationCheckpointDurabilityState;
+  hasReviewFollowUpTruth: boolean;
+}) {
+  const safeContinueLabel = input.canSafelyContinue
+    ? "Safe continue path published."
+    : "Safe continue path unavailable.";
+  const handoffLabel = input.hasHandoffPath
+    ? "Handoff path available."
+    : "Handoff path unavailable.";
+  const reviewLabel = input.reviewFollowUpActionable
+    ? "Review follow-up actionable."
+    : input.hasReviewFollowUpTruth
+      ? input.state === "blocked"
+        ? "Review follow-up blocked."
+        : input.state === "attention"
+          ? "Review follow-up needs attention."
+          : "Review follow-up unavailable."
+      : "Review follow-up unavailable.";
+  const checkpointLabel =
+    input.checkpointDurabilityState === "ready"
+      ? "Checkpoint durability ready."
+      : input.checkpointDurabilityState === "attention"
+        ? "Checkpoint durability warning."
+        : input.checkpointDurabilityState === "blocked"
+          ? "Checkpoint durability blocked."
+          : "Checkpoint durability unknown.";
+  return [
+    `Continuity readiness ${input.state}.`,
+    safeContinueLabel,
+    handoffLabel,
+    reviewLabel,
+    checkpointLabel,
+  ].join(" ");
 }
 
 export function summarizeReviewContinuationActionability(input: {
+  runState?: string | null;
+  checkpoint?: HugeCodeCheckpointSummary | null;
   takeoverBundle?: HugeCodeTakeoverBundle | null;
   actionability?: HugeCodeReviewActionabilitySummary | null;
   missionLinkage?: HugeCodeMissionLinkageSummary | null;
@@ -203,33 +234,12 @@ export function summarizeReviewContinuationActionability(input: {
   reviewPackId?: string | null;
   continuation?: HugeCodeContinuationSummary | null;
 }): ReviewContinuationActionabilitySummary {
-  if (input.continuation) {
-    const continuePathLabel = resolvePublishedContinuePathLabel(input.continuation);
-    const truthSource = input.continuation.source as RuntimeContinuationTruthSource;
-    const truthSourceLabel = formatRuntimeContinuationTruthSourceLabel(truthSource);
-    const summary =
-      (input.continuation.pathKind === "review"
-        ? input.continuation.reviewActionability?.summary
-        : null) ?? input.continuation.summary;
-    const details: string[] = [];
-    pushUniqueDetail(details, input.continuation.detail ?? summary);
-    pushUniqueDetail(details, `Canonical continue path: ${continuePathLabel}.`);
-    pushUniqueDetail(details, `Follow-up source: ${truthSourceLabel}.`);
-    pushUniqueDetail(details, input.missionLinkage?.summary);
-    pushUniqueDetail(details, input.publishHandoff?.summary);
-    const state = mapPublishedContinuationState(input.continuation.state);
-    return {
-      state,
-      summary,
-      details,
-      blockingReason: state === "blocked" ? (input.continuation.detail ?? summary) : null,
-      recommendedAction: input.continuation.recommendedAction,
-      continuePathLabel,
-      truthSource,
-      truthSourceLabel,
-    };
-  }
   const descriptor = buildRuntimeContinuationDescriptor({
+    runState:
+      input.runState === null || input.runState === undefined
+        ? null
+        : (input.runState as HugeCodeRunState),
+    checkpoint: input.checkpoint ?? null,
     takeoverBundle: input.takeoverBundle ?? null,
     actionability: input.actionability ?? null,
     missionLinkage: input.missionLinkage ?? null,
@@ -238,12 +248,29 @@ export function summarizeReviewContinuationActionability(input: {
     continuation: input.continuation ?? null,
   });
   const summary = descriptor?.summary ?? "Runtime continuation guidance is unavailable.";
-  const state =
-    descriptor?.state === "attention"
-      ? "degraded"
-      : descriptor?.state === "ready" || descriptor?.state === "blocked"
-        ? descriptor.state
-        : "missing";
+  const state = descriptor?.state ?? "missing";
+  const hasReviewFollowUpTruth = Boolean(
+    descriptor?.pathKind === "review" ||
+    input.actionability ||
+    input.takeoverBundle?.reviewActionability ||
+    input.continuation?.pathKind === "review"
+  );
+  const canSafelyContinue = Boolean(
+    descriptor && descriptor.state === "ready" && descriptor.pathKind !== "missing"
+  );
+  const hasHandoffPath = Boolean(
+    descriptor?.pathKind === "handoff" ||
+    input.publishHandoff ||
+    input.takeoverBundle?.publishHandoff ||
+    input.missionLinkage?.recoveryPath
+  );
+  const reviewFollowUpActionable = Boolean(
+    descriptor?.pathKind === "review" && descriptor.state === "ready"
+  );
+  const checkpointDurabilityState = resolveCheckpointDurabilityState({
+    checkpoint: input.checkpoint ?? null,
+    state,
+  });
   return {
     state,
     summary,
@@ -254,9 +281,22 @@ export function summarizeReviewContinuationActionability(input: {
     blockingReason: descriptor?.blockingReason ?? (state === "blocked" ? summary : null),
     recommendedAction:
       descriptor?.recommendedAction ?? "Inspect the recorded runtime truth before continuing.",
+    pathKind: descriptor?.pathKind ?? "missing",
     continuePathLabel: descriptor?.continuePathLabel ?? "Review Pack",
     truthSource: descriptor?.truthSource ?? "missing",
     truthSourceLabel: descriptor?.truthSourceLabel ?? "Runtime truth unavailable",
+    canSafelyContinue,
+    hasHandoffPath,
+    reviewFollowUpActionable,
+    checkpointDurabilityState,
+    continuityOverview: buildReviewContinuationOverview({
+      state,
+      canSafelyContinue,
+      hasHandoffPath,
+      reviewFollowUpActionable,
+      checkpointDurabilityState,
+      hasReviewFollowUpTruth,
+    }),
   };
 }
 

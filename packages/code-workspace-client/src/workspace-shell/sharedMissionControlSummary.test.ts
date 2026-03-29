@@ -85,10 +85,10 @@ describe("buildSharedMissionControlSummary", () => {
     );
 
     expect(summary.continuityReadiness.tone).toBe("ready");
-    expect(summary.continuityReadiness.detail).toContain("1 review path ready");
+    expect(summary.continuityReadiness.detail).toContain("1 review follow-up actionable");
   });
 
-  it("keeps review packs as supporting evidence instead of primary continuity truth", () => {
+  it("does not treat review-pack-only references as canonical continuity truth", () => {
     const summary = buildSharedMissionControlSummary(
       createSnapshot({
         tasks: [
@@ -154,10 +154,7 @@ describe("buildSharedMissionControlSummary", () => {
     );
 
     expect(summary.continuityReadiness.tone).toBe("attention");
-    expect(summary.continuityReadiness.detail).toContain(
-      "1 run only expose review-pack references"
-    );
-    expect(summary.continuityReadiness.detail).toContain("1 review pack available");
+    expect(summary.continuityReadiness.detail).toBe("1 run is missing a canonical continue path");
   });
 
   it("surfaces blocked placement and disconnected workspaces through centralized summaries", () => {
@@ -590,12 +587,32 @@ describe("buildSharedMissionControlSummary", () => {
             recommendedNextAction: "Inspect the continuation guidance.",
             continuation: {
               state: "attention",
-              pathKind: "review_pack",
+              pathKind: "review",
               source: "review_actionability",
               summary: "Review continuation needs inspection.",
               detail: "Open Review Pack and inspect the attention guidance before continuing.",
               recommendedAction: "Inspect the degraded review path.",
-              sessionBoundary: "same_session",
+              sessionBoundary: {
+                workspaceId: "workspace-1",
+                taskId: "task-continuation-attention",
+                runId: "run-continuation-attention",
+                missionTaskId: "task-continuation-attention",
+                sessionKind: "run",
+                threadId: null,
+                requestId: null,
+                reviewPackId: "review-continuation-attention",
+                checkpointId: null,
+                traceId: null,
+                navigationTarget: {
+                  kind: "run",
+                  workspaceId: "workspace-1",
+                  taskId: "task-continuation-attention",
+                  runId: "run-continuation-attention",
+                  reviewPackId: "review-continuation-attention",
+                  checkpointId: null,
+                  traceId: null,
+                },
+              },
             },
             createdAt: 10,
           },

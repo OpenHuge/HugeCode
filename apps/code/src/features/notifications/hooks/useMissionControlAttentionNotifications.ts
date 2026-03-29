@@ -83,6 +83,8 @@ function resolveRejectedBody(
   run: HugeCodeRunSummary | null | undefined
 ): string {
   const continuation = summarizeReviewContinuationActionability({
+    runState: run?.state ?? null,
+    checkpoint: reviewPack.checkpoint ?? run?.checkpoint ?? null,
     takeoverBundle: reviewPack.takeoverBundle ?? run?.takeoverBundle ?? null,
     actionability: reviewPack.actionability ?? run?.actionability ?? null,
     missionLinkage: reviewPack.missionLinkage ?? run?.missionLinkage ?? null,

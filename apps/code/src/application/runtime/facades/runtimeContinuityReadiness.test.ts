@@ -75,6 +75,7 @@ describe("buildRuntimeContinuityReadiness", () => {
     });
 
     expect(summary.state).toBe("ready");
+    expect(summary.detail).toContain("1 run can safely continue");
     expect(summary.recoverableRunCount).toBe(1);
     expect(summary.items[0]?.pathKind).toBe("resume");
     expect(summary.items[0]?.truthSourceLabel).toBe("Runtime checkpoint");
@@ -214,7 +215,7 @@ describe("buildRuntimeContinuityReadiness", () => {
       ],
     });
 
-    expect(summary.state).toBe("ready");
+    expect(summary.state).toBe("attention");
     expect(summary.recoverableRunCount).toBe(0);
     expect(summary.items).toHaveLength(0);
   });
@@ -523,5 +524,6 @@ describe("buildRuntimeContinuityReadiness", () => {
 
     expect(summary.state).toBe("attention");
     expect(summary.durabilityDegraded).toBe(true);
+    expect(summary.detail).toContain("Checkpoint durability warning published");
   });
 });

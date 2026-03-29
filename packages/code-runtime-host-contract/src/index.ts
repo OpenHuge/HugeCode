@@ -1108,6 +1108,7 @@ export {
 export type * from "./runtimeContinuationFacade.js";
 export {
   buildRuntimeContinuationAggregate,
+  buildRuntimeContinuationReadinessSummary,
   buildRuntimeContinuationDescriptor,
   formatRuntimeContinuationTruthSourceLabel,
   projectTakeoverBundleToContinuation,

@@ -143,10 +143,11 @@ export type MissionReviewEntry = {
   provenanceSummary?: string | null;
   triageSummary?: string | null;
   delegationSummary?: string | null;
-  continuationState?: "ready" | "degraded" | "blocked" | "missing" | null;
+  continuationState?: "ready" | "attention" | "blocked" | "missing" | null;
   continuationLabel?: string | null;
   continuePathLabel?: string | null;
   continuationTruthSourceLabel?: string | null;
+  continuityOverview?: string | null;
 };
 
 export type MissionControlFreshnessState = {
@@ -199,7 +200,7 @@ function buildEntryContextAndDelegationSummary(input: {
   continuationLabel: string | null;
   continuePathLabel: string | null;
   recommendedNextAction: string | null;
-  continuationState: "ready" | "degraded" | "blocked" | "missing" | null;
+  continuationState: "ready" | "attention" | "blocked" | "missing" | null;
 }): Pick<MissionReviewEntry, "contextSummary" | "triageSummary" | "delegationSummary"> {
   const repositoryDefaults = resolveRepositoryExecutionDefaults({
     contract: input.contract,
@@ -1002,6 +1003,7 @@ export function buildMissionReviewEntriesFromProjection(
           : continuation.continuePathLabel,
       continuationTruthSourceLabel:
         continuation.state !== "missing" ? continuation.truthSourceLabel : null,
+      continuityOverview: continuation.state !== "missing" ? continuation.continuityOverview : null,
       triagePriority: triageMetadata.triagePriority,
     });
   }
@@ -1187,6 +1189,7 @@ export function buildMissionReviewEntriesFromProjection(
           : continuation.continuePathLabel,
       continuationTruthSourceLabel:
         continuation.state !== "missing" ? continuation.truthSourceLabel : null,
+      continuityOverview: continuation.state !== "missing" ? continuation.continuityOverview : null,
       triagePriority: triageMetadata.triagePriority,
     });
   }

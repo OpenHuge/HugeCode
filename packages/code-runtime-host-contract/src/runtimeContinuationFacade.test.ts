@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildRuntimeContinuationAggregate,
   buildRuntimeContinuationDescriptor,
+  buildRuntimeContinuationReadinessSummary,
 } from "./runtimeContinuationFacade";
 
 describe("runtimeContinuationFacade", () => {
@@ -159,6 +160,105 @@ describe("runtimeContinuationFacade", () => {
         ["run-handoff", "continue"],
         ["run-blocked", "blocked"],
       ])
+    );
+  });
+
+  it("builds a shared continuity readiness summary from runtime continuation truth", () => {
+    const summary = buildRuntimeContinuationReadinessSummary({
+      candidates: [
+        {
+          runId: "run-resume",
+          taskId: "task-resume",
+          runState: "paused",
+          checkpoint: {
+            state: "paused",
+            lifecycleState: "paused",
+            checkpointId: "checkpoint-1",
+            traceId: "trace-1",
+            recovered: true,
+            updatedAt: 1,
+            resumeReady: true,
+            recoveredAt: 1,
+            summary: "Resume ready from checkpoint-1.",
+          },
+        },
+        {
+          runId: "run-review-blocked",
+          taskId: "task-review-blocked",
+          runState: "review_ready",
+          actionability: {
+            state: "blocked",
+            summary: "Review follow-up is blocked.",
+            degradedReasons: [],
+            actions: [],
+          },
+          reviewPackId: "review-pack:2",
+        },
+        {
+          runId: "run-handoff",
+          taskId: "task-handoff",
+          runState: "running",
+          missionLinkage: {
+            workspaceId: "workspace-1",
+            taskId: "task-handoff",
+            runId: "run-handoff",
+            missionTaskId: "task-handoff",
+            taskEntityKind: "thread",
+            recoveryPath: "thread",
+            navigationTarget: {
+              kind: "thread",
+              workspaceId: "workspace-1",
+              threadId: "thread-handoff",
+            },
+            summary: "Continue from thread-handoff.",
+          },
+        },
+      ],
+      durabilityDegraded: true,
+    });
+
+    expect(summary).toMatchObject({
+      state: "blocked",
+      headline: "Continuity readiness blocked",
+      recoverableRunCount: 1,
+      handoffReadyCount: 1,
+      reviewReadyCount: 0,
+      reviewBlockedCount: 1,
+      durabilityDegraded: true,
+      blockingReason: "Review follow-up is blocked.",
+    });
+    expect(summary.detail).toContain("1 run can safely continue");
+    expect(summary.detail).toContain("1 handoff path ready");
+    expect(summary.detail).toContain("1 review follow-up blocked");
+    expect(summary.detail).toContain("Checkpoint durability warning published");
+    expect(summary.recommendedAction).toBe(
+      "Open Review Pack and resolve the runtime-blocked follow-up before continuing."
+    );
+  });
+
+  it("keeps continuity readiness at attention when no canonical runtime truth is published yet", () => {
+    const summary = buildRuntimeContinuationReadinessSummary({
+      candidates: [
+        {
+          runId: "run-1",
+          taskId: "task-1",
+          runState: "running",
+          reviewPackId: "review-pack:1",
+        },
+      ],
+    });
+
+    expect(summary).toMatchObject({
+      state: "attention",
+      headline: "Continuity readiness needs attention",
+      blockingReason: null,
+      recoverableRunCount: 0,
+      handoffReadyCount: 0,
+      reviewReadyCount: 0,
+      reviewBlockedCount: 0,
+    });
+    expect(summary.detail).toBe(
+      "No runtime-published checkpoint, handoff, or review follow-up truth is available yet."
     );
   });
 

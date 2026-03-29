@@ -3,12 +3,16 @@ import type {
   HugeCodeRunSummary,
   RuntimeContinuationAggregateCandidate,
   RuntimeContinuationAggregateItem,
+  RuntimeContinuationReadinessSummary as SharedRuntimeContinuationReadinessSummary,
   RuntimeContinuationPathKind,
   RuntimeContinuationTruthSource,
 } from "@ku0/code-runtime-host-contract";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import { buildMissionRunCheckpoint } from "./runtimeMissionControlCheckpoint";
-import { buildRuntimeContinuationAggregate } from "./runtimeContinuationTruth";
+import {
+  buildRuntimeContinuationAggregate,
+  buildRuntimeContinuationReadinessSummary,
+} from "./runtimeContinuationTruth";
 
 export type RuntimeContinuityReadinessState = "ready" | "attention" | "blocked";
 
@@ -23,16 +27,11 @@ export type RuntimeContinuityReadinessItem = {
   truthSourceLabel: string;
 };
 
-export type RuntimeContinuityReadinessSummary = {
+export type RuntimeContinuityReadinessSummary = Omit<
+  SharedRuntimeContinuationReadinessSummary,
+  "state"
+> & {
   state: RuntimeContinuityReadinessState;
-  headline: string;
-  blockingReason: string | null;
-  recommendedAction: string;
-  recoverableRunCount: number;
-  handoffReadyCount: number;
-  reviewBlockedCount: number;
-  missingPathCount: number;
-  durabilityDegraded: boolean;
   items: RuntimeContinuityReadinessItem[];
 };
 
@@ -158,25 +157,14 @@ export function buildRuntimeContinuityReadiness({
     candidates: aggregateCandidates,
     durabilityDegraded: durabilityWarning?.degraded === true,
   });
-
-  const durabilityDegraded = durabilityWarning?.degraded === true;
+  const readiness = buildRuntimeContinuationReadinessSummary({
+    candidates: aggregateCandidates,
+    durabilityDegraded: durabilityWarning?.degraded === true,
+  });
   const items = aggregate.items.map(toReadinessItem);
 
   return {
-    state: aggregate.state,
-    headline:
-      aggregate.state === "ready"
-        ? "Continuity readiness confirmed"
-        : aggregate.state === "blocked"
-          ? "Continuity readiness blocked"
-          : "Continuity readiness needs attention",
-    blockingReason: aggregate.blockingReason,
-    recommendedAction: aggregate.recommendedAction,
-    recoverableRunCount: aggregate.recoverableRunCount,
-    handoffReadyCount: aggregate.handoffReadyCount,
-    reviewBlockedCount: aggregate.reviewBlockedCount,
-    missingPathCount: aggregate.missingPathCount,
-    durabilityDegraded,
+    ...readiness,
     items,
   };
 }

@@ -1,5 +1,6 @@
 export {
   buildRuntimeContinuationAggregate,
+  buildRuntimeContinuationReadinessSummary,
   buildRuntimeContinuationDescriptor,
   formatRuntimeContinuationTruthSourceLabel,
   projectTakeoverBundleToContinuation,
@@ -12,6 +13,7 @@ export {
   type RuntimeContinuationAggregate,
   type RuntimeContinuationAggregateCandidate,
   type RuntimeContinuationAggregateItem,
+  type RuntimeContinuationReadinessSummary,
   type RuntimeContinuationDescriptor,
   type RuntimeContinuationPathKind,
   type RuntimeContinuationPathLabel,

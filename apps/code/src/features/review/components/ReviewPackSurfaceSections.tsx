@@ -65,9 +65,18 @@ export function renderControlDeviceHandoff(detail: ReviewPackDetailModel) {
       {detail.continuity?.summary ? (
         <div className={styles.bodyText}>{detail.continuity.summary}</div>
       ) : null}
+      {detail.continuity?.continuityOverview ? (
+        <div className={styles.bodyText}>{detail.continuity.continuityOverview}</div>
+      ) : null}
       {detail.continuity?.truthSourceLabel ? (
         <div className={styles.bodyText}>
           Follow-up source: {detail.continuity.truthSourceLabel}
+        </div>
+      ) : null}
+      {detail.continuity ? (
+        <div className={styles.bodyText}>
+          Continue via {detail.continuity.continuePathLabel}. Checkpoint durability{" "}
+          {detail.continuity.checkpointDurabilityState}.
         </div>
       ) : null}
       {detail.continuity?.blockingReason &&
