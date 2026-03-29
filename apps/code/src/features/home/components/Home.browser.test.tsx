@@ -107,6 +107,26 @@ async function dispatchClick(element: Element) {
   });
 }
 
+async function dispatchWindowEvent(event: Event) {
+  await act(async () => {
+    window.dispatchEvent(event);
+  });
+}
+
+async function flushAsyncEffects() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+async function renderAndFlush(element: Parameters<typeof render>[0]) {
+  let view: ReturnType<typeof render> | null = null;
+  await act(async () => {
+    view = render(element);
+    await flushAsyncEffects();
+  });
+  return view as ReturnType<typeof render>;
+}
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -172,7 +192,7 @@ describe("Home browser interactions", () => {
     const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
     const onOpenSettings = vi.fn();
 
-    render(
+    await renderAndFlush(
       <Home
         {...baseProps}
         onOpenSettings={onOpenSettings}
@@ -210,7 +230,7 @@ describe("Home browser interactions", () => {
   it("blocks invalid local runtime ports in a real browser", async () => {
     const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
 
-    render(
+    await renderAndFlush(
       <Home
         {...baseProps}
         onConnectLocalRuntimePort={onConnectLocalRuntimePort}
@@ -241,7 +261,7 @@ describe("Home browser interactions", () => {
   it("passes a remote runtime address from home in a real browser", async () => {
     const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
 
-    render(
+    await renderAndFlush(
       <Home
         {...baseProps}
         onConnectLocalRuntimePort={onConnectLocalRuntimePort}
@@ -271,7 +291,7 @@ describe("Home browser interactions", () => {
   it("auto-connects the default local runtime once in a real browser on local startup", async () => {
     const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
 
-    render(
+    await renderAndFlush(
       <Home
         {...baseProps}
         onConnectLocalRuntimePort={onConnectLocalRuntimePort}
@@ -798,7 +818,7 @@ describe("Home browser interactions", () => {
       expect(document.querySelector('[data-testid="home-agent-settings-dialog"]')).toBeTruthy();
     });
 
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await dispatchWindowEvent(new KeyboardEvent("keydown", { key: "Escape" }));
 
     await waitFor(() => {
       expect(document.querySelector('[data-testid="home-agent-settings-dialog"]')).toBeNull();

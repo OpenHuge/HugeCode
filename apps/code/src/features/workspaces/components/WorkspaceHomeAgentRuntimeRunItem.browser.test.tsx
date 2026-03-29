@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeRunGetV2Response, HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
 import { __resetRuntimeRunTruthStoreForTests } from "../../../application/runtime/facades/runtimeRunTruthStore";
@@ -84,6 +84,30 @@ function buildRun(overrides: Partial<HugeCodeRunSummary> = {}): HugeCodeRunSumma
   } as HugeCodeRunSummary;
 }
 
+async function flushAsyncEffects() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+async function renderAndFlush(element: Parameters<typeof render>[0]) {
+  let view: ReturnType<typeof render> | null = null;
+  await act(async () => {
+    view = render(element);
+    await flushAsyncEffects();
+  });
+  return view as ReturnType<typeof render>;
+}
+
+async function rerenderAndFlush(
+  view: ReturnType<typeof render>,
+  element: Parameters<typeof render>[0]
+) {
+  await act(async () => {
+    view.rerender(element);
+    await flushAsyncEffects();
+  });
+}
+
 describe("WorkspaceHomeAgentRuntimeRunItem", () => {
   beforeEach(() => {
     __resetRuntimeRunTruthStoreForTests();
@@ -97,10 +121,10 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
     vi.clearAllMocks();
   });
 
-  it("keeps observability collapsed by default and toggles an accessible region", () => {
+  it("keeps observability collapsed by default and toggles an accessible region", async () => {
     const noop = vi.fn();
 
-    render(
+    await renderAndFlush(
       <WorkspaceHomeAgentRuntimeRunItem
         task={buildTask()}
         run={buildRun()}
@@ -136,9 +160,9 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
     expect(screen.queryByRole("region", { name: "Sub-agent observability" })).toBeNull();
   });
 
-  it("auto-expands observability when a visible run later requires approval", () => {
+  it("auto-expands observability when a visible run later requires approval", async () => {
     const noop = vi.fn();
-    const { rerender } = render(
+    const view = await renderAndFlush(
       <WorkspaceHomeAgentRuntimeRunItem
         task={buildTask()}
         run={buildRun()}
@@ -156,7 +180,8 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
     expect(screen.getByRole("button", { name: "Open sub-agent observability" })).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Sub-agent observability" })).toBeNull();
 
-    rerender(
+    await rerenderAndFlush(
+      view,
       <WorkspaceHomeAgentRuntimeRunItem
         task={buildTask({
           status: "awaiting_approval",
@@ -207,7 +232,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
     ).toBeTruthy();
   });
 
-  it("keeps observability collapsed after a manual close during same blocking refresh", () => {
+  it("keeps observability collapsed after a manual close during same blocking refresh", async () => {
     const noop = vi.fn();
     const blockingTask = buildTask({
       status: "awaiting_approval",
@@ -240,7 +265,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
         },
       ],
     });
-    const { rerender } = render(
+    const view = await renderAndFlush(
       <WorkspaceHomeAgentRuntimeRunItem
         task={blockingTask}
         run={blockingRun}
@@ -260,7 +285,8 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
     fireEvent.click(screen.getByRole("button", { name: "Hide sub-agent observability" }));
     expect(screen.queryByRole("region", { name: "Sub-agent observability" })).toBeNull();
 
-    rerender(
+    await rerenderAndFlush(
+      view,
       <WorkspaceHomeAgentRuntimeRunItem
         task={{ ...blockingTask, updatedAt: 1_700_000_200_000 }}
         run={{ ...blockingRun, updatedAt: 1_700_000_200_000 }}
@@ -327,7 +353,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
       },
     } satisfies RuntimeRunGetV2Response);
 
-    render(
+    await renderAndFlush(
       <WorkspaceHomeAgentRuntimeRunItem
         task={buildTask({
           status: "completed",
@@ -358,11 +384,11 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
     });
   });
 
-  it("submits structured mission interventions with approved plan version", () => {
+  it("submits structured mission interventions with approved plan version", async () => {
     const noop = vi.fn();
     const onIntervene = vi.fn();
 
-    render(
+    await renderAndFlush(
       <WorkspaceHomeAgentRuntimeRunItem
         task={buildTask()}
         run={buildRun({
@@ -449,7 +475,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
       wakeReason: "review_ready",
     } satisfies RuntimeRunGetV2Response);
 
-    render(
+    await renderAndFlush(
       <WorkspaceHomeAgentRuntimeRunItem
         task={buildTask()}
         run={buildRun({
