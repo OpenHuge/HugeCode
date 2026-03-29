@@ -39,11 +39,17 @@ export type WorkspaceRuntimePluginProjectionState = {
   };
 };
 
+function formatPluginProjectionError(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function useWorkspaceRuntimePluginProjection(input: {
   workspaceId: string | null;
   enabled: boolean;
 }): WorkspaceRuntimePluginProjectionState {
   const runtimeKernel = useRuntimeKernel();
+  const kernelProjectionEnabled =
+    runtimeKernel.workspaceClientRuntime.kernelProjection !== undefined;
   const pluginCatalog = useWorkspaceRuntimePluginCatalog(input.workspaceId);
   const pluginRegistry = useWorkspaceRuntimePluginRegistry(input.workspaceId);
   const compositionRuntime = useWorkspaceRuntimeComposition(input.workspaceId);
@@ -55,6 +61,7 @@ export function useWorkspaceRuntimePluginProjection(input: {
   );
   const extensionBundles = readExtensionsProjectionSlice(kernelProjectionState);
   const capabilityProjection = readCapabilitiesProjectionSlice(kernelProjectionState);
+  const projectionBacked = extensionBundles !== null || capabilityProjection !== null;
   const [capabilityPlugins, setCapabilityPlugins] = useState<RuntimeKernelPluginDescriptor[]>([]);
   const [registryPackages, setRegistryPackages] = useState<RuntimeRegistryPackageDescriptor[]>([]);
   const [compositionProfiles, setCompositionProfiles] = useState<RuntimeCompositionProfile[]>([]);
@@ -75,7 +82,21 @@ export function useWorkspaceRuntimePluginProjection(input: {
   useEffect(() => {
     let cancelled = false;
 
-    if (!input.enabled || !pluginCatalog || !pluginRegistry || !compositionRuntime) {
+    if (!input.enabled) {
+      setCapabilityPlugins([]);
+      setRegistryPackages([]);
+      setCompositionProfiles([]);
+      setCompositionResolution(null);
+      setLoading(false);
+      setError(null);
+      setRegistryError(null);
+      setCompositionError(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!pluginRegistry || !compositionRuntime || (!kernelProjectionEnabled && !pluginCatalog)) {
       setCapabilityPlugins([]);
       setRegistryPackages([]);
       setCompositionProfiles([]);
@@ -91,91 +112,62 @@ export function useWorkspaceRuntimePluginProjection(input: {
 
     setLoading(true);
     setError(null);
+    setRegistryError(null);
+    setCompositionError(null);
 
-    void Promise.all([
-      pluginCatalog.listPlugins(),
+    const pluginPromise = kernelProjectionEnabled
+      ? Promise.resolve<RuntimeKernelPluginDescriptor[]>([])
+      : pluginCatalog!.listPlugins();
+
+    void Promise.allSettled([
+      pluginPromise,
       pluginRegistry.listInstalledPackages(),
       compositionRuntime.listProfiles(),
       compositionRuntime.getActiveResolution(),
-    ])
-      .then(([plugins, packages, profiles, resolution]) => {
-        if (cancelled) {
-          return;
-        }
-        setCapabilityPlugins(plugins);
-        setRegistryPackages(packages);
-        setCompositionProfiles(profiles);
-        setCompositionResolution(resolution);
-        setLoading(false);
-      })
-      .catch((nextError: unknown) => {
-        if (cancelled) {
-          return;
-        }
-        setCapabilityPlugins([]);
-        setRegistryPackages([]);
-        setCompositionProfiles([]);
-        setCompositionResolution(null);
-        setLoading(false);
-        setError(
-          nextError instanceof Error ? nextError.message : "Unable to load runtime plugins."
-        );
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [compositionRuntime, input.enabled, pluginCatalog, pluginRegistry]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!input.enabled || !pluginRegistry) {
-      setRegistryError(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void pluginRegistry.listInstalledPackages().catch((nextError: unknown) => {
+    ]).then(([pluginsResult, packagesResult, profilesResult, resolutionResult]) => {
       if (cancelled) {
         return;
       }
+
+      setCapabilityPlugins(pluginsResult.status === "fulfilled" ? pluginsResult.value : []);
+      setRegistryPackages(packagesResult.status === "fulfilled" ? packagesResult.value : []);
+      setCompositionProfiles(profilesResult.status === "fulfilled" ? profilesResult.value : []);
+      setCompositionResolution(
+        resolutionResult.status === "fulfilled" ? resolutionResult.value : null
+      );
+      setError(
+        pluginsResult.status === "rejected"
+          ? formatPluginProjectionError(pluginsResult.reason, "Unable to load runtime plugins.")
+          : null
+      );
       setRegistryError(
-        nextError instanceof Error ? nextError.message : "Unable to load runtime package registry."
+        packagesResult.status === "rejected"
+          ? formatPluginProjectionError(
+              packagesResult.reason,
+              "Unable to load runtime package registry."
+            )
+          : null
       );
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [input.enabled, pluginRegistry]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!input.enabled || !compositionRuntime) {
-      setCompositionError(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void compositionRuntime.getActiveResolution().catch((nextError: unknown) => {
-      if (cancelled) {
-        return;
-      }
       setCompositionError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Unable to resolve runtime composition control plane."
+        profilesResult.status === "rejected"
+          ? formatPluginProjectionError(
+              profilesResult.reason,
+              "Unable to resolve runtime composition control plane."
+            )
+          : resolutionResult.status === "rejected"
+            ? formatPluginProjectionError(
+                resolutionResult.reason,
+                "Unable to resolve runtime composition control plane."
+              )
+            : null
       );
+      setLoading(false);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [compositionRuntime, input.enabled]);
+  }, [compositionRuntime, input.enabled, kernelProjectionEnabled, pluginCatalog, pluginRegistry]);
 
   const activeProfileId = compositionResolution?.provenance.activeProfileId ?? null;
   const activeProfile =
@@ -191,7 +183,7 @@ export function useWorkspaceRuntimePluginProjection(input: {
     }),
     loading,
     error: error ?? registryError ?? compositionError,
-    projectionBacked: extensionBundles !== null || capabilityProjection !== null,
+    projectionBacked,
     registry: {
       packages: registryPackages,
       installedCount: registryPackages.filter((entry) => entry.installed).length,

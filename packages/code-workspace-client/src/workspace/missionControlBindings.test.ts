@@ -7,7 +7,7 @@ import {
 } from "./missionControlBindings";
 
 describe("createSnapshotBackedMissionControlBindings", () => {
-  it("uses the injected snapshot reader for both snapshot and summary calls", async () => {
+  it("uses the injected snapshot reader for mission control snapshot calls", async () => {
     const snapshot = {
       source: "runtime_snapshot_v1" as const,
       generatedAt: 0,
@@ -17,39 +17,13 @@ describe("createSnapshotBackedMissionControlBindings", () => {
       reviewPacks: [],
     };
     const readMissionControlSnapshot = vi.fn(async () => snapshot);
-    const compose = vi.fn((_value, activeWorkspaceId) => ({
-      workspaceLabel: activeWorkspaceId ?? "all",
-      tasksCount: 0,
-      runsCount: 0,
-      approvalCount: 0,
-      reviewPacksCount: 0,
-      connectedWorkspaceCount: 0,
-      launchReadiness: {
-        tone: "idle" as const,
-        label: "Launch readiness",
-        detail: "Idle",
-      },
-      continuityReadiness: {
-        tone: "idle" as const,
-        label: "Continuity readiness",
-        detail: "Idle",
-      },
-      missionItems: [],
-      reviewItems: [],
-    }));
 
     const bindings = createSnapshotBackedMissionControlBindings({
       readMissionControlSnapshot,
-      composer: { compose },
     });
 
     await expect(bindings.readMissionControlSnapshot()).resolves.toBe(snapshot);
-    await expect(bindings.readMissionControlSummary?.("workspace-1")).resolves.toMatchObject({
-      workspaceLabel: "workspace-1",
-    });
-
-    expect(readMissionControlSnapshot).toHaveBeenCalledTimes(2);
-    expect(compose).toHaveBeenCalledWith(snapshot, "workspace-1");
+    expect(readMissionControlSnapshot).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -130,40 +104,11 @@ describe("createWorkspaceClientRuntimeMissionControlSurfaceBindings", () => {
         throw new Error("projection unavailable");
       },
       readMissionControlSnapshot: async () => fallbackSnapshot,
-      composer: {
-        compose: (snapshot, activeWorkspaceId) => ({
-          workspaceLabel: activeWorkspaceId ?? "all",
-          tasksCount: snapshot?.tasks.length ?? 0,
-          runsCount: snapshot?.runs.length ?? 0,
-          approvalCount: 0,
-          reviewPacksCount: snapshot?.reviewPacks.length ?? 0,
-          connectedWorkspaceCount: snapshot?.workspaces.length ?? 0,
-          launchReadiness: {
-            tone: "idle",
-            label: "Launch readiness",
-            detail: "Idle",
-          },
-          continuityReadiness: {
-            tone: "idle",
-            label: "Continuity readiness",
-            detail: "Idle",
-          },
-          missionItems: [],
-          reviewItems: [],
-        }),
-      },
     });
 
     await expect(bindings.missionControl.readMissionControlSnapshot()).resolves.toEqual(
       fallbackSnapshot
     );
-    await expect(
-      bindings.missionControl.readMissionControlSummary?.("workspace-2")
-    ).resolves.toMatchObject({
-      reviewPacksCount: 1,
-      tasksCount: 0,
-      runsCount: 0,
-    });
     await expect(bindings.review.listReviewPacks()).resolves.toEqual(fallbackSnapshot.reviewPacks);
   });
 });

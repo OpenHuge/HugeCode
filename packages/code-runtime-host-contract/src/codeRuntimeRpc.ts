@@ -2,7 +2,6 @@ import type {
   HugeCodeCheckpointSummary,
   HugeCodeContinuationSummary,
   HugeCodeMissionControlSnapshot,
-  HugeCodeMissionControlSummary,
   HugeCodeMissionLinkageSummary,
   HugeCodeNextOperatorAction,
   HugeCodePlacementLifecycleState,
@@ -4336,7 +4335,6 @@ export const CODE_RUNTIME_RPC_METHODS = {
   WORKSPACES_LIST: "code_workspaces_list",
   BOOTSTRAP_SNAPSHOT: "code_bootstrap_snapshot",
   MISSION_CONTROL_SNAPSHOT_V1: "code_mission_control_snapshot_v1",
-  MISSION_CONTROL_SUMMARY_V1: "code_mission_control_summary_v1",
   RPC_BATCH: "code_rpc_batch",
   WORKSPACE_PICK_DIRECTORY: "code_workspace_pick_directory",
   WORKSPACE_CREATE: "code_workspace_create",
@@ -4549,7 +4547,6 @@ export const CODE_RUNTIME_RPC_FEATURES = Object.freeze([
   "runtime_review_actionability_v1",
   "runtime_review_linkage_v1",
   "runtime_truth_contract_core_v1",
-  "runtime_mission_control_summary_v1",
   "runtime_task_normalization_v1",
   "runtime_task_native_run_review_v1",
   "runtime_fault_injection_test_v1",
@@ -4696,11 +4693,6 @@ export type ThreadLiveUnsubscribeResult = {
   ok: true;
 };
 
-export type MissionControlSummaryRequest = {
-  activeWorkspaceId: string | null;
-  active_workspace_id?: string | null;
-};
-
 export interface CodeRuntimeRpcRequestPayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.RPC_CAPABILITIES]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.HEALTH]: CodeRuntimeRpcEmptyParams;
@@ -4716,7 +4708,6 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.WORKSPACES_LIST]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.BOOTSTRAP_SNAPSHOT]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.MISSION_CONTROL_SNAPSHOT_V1]: CodeRuntimeRpcEmptyParams;
-  [CODE_RUNTIME_RPC_METHODS.MISSION_CONTROL_SUMMARY_V1]: MissionControlSummaryRequest;
   [CODE_RUNTIME_RPC_METHODS.RPC_BATCH]: RuntimeRpcBatchRequest;
   [CODE_RUNTIME_RPC_METHODS.WORKSPACE_PICK_DIRECTORY]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.WORKSPACE_CREATE]: {
@@ -5326,7 +5317,6 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.WORKSPACES_LIST]: WorkspaceSummary[];
   [CODE_RUNTIME_RPC_METHODS.BOOTSTRAP_SNAPSHOT]: RuntimeBootstrapSnapshot;
   [CODE_RUNTIME_RPC_METHODS.MISSION_CONTROL_SNAPSHOT_V1]: HugeCodeMissionControlSnapshot;
-  [CODE_RUNTIME_RPC_METHODS.MISSION_CONTROL_SUMMARY_V1]: HugeCodeMissionControlSummary;
   [CODE_RUNTIME_RPC_METHODS.RPC_BATCH]: RuntimeRpcBatchResponse;
   [CODE_RUNTIME_RPC_METHODS.WORKSPACE_PICK_DIRECTORY]: string | null;
   [CODE_RUNTIME_RPC_METHODS.WORKSPACE_CREATE]: WorkspaceSummary;

@@ -7,7 +7,6 @@ import type {
   GitLogResponse,
   GitOperationResult,
   HugeCodeMissionControlSnapshot,
-  HugeCodeMissionControlSummary,
   HugeCodeReviewPackSummary,
   KernelProjectionBootstrapRequest,
   KernelProjectionBootstrapResponse,
@@ -124,9 +123,6 @@ export type WorkspaceClientRuntimeWorkspaceCatalogBindings = {
 
 export type WorkspaceClientRuntimeMissionControlBindings = {
   readMissionControlSnapshot: () => Promise<HugeCodeMissionControlSnapshot>;
-  readMissionControlSummary?: (
-    activeWorkspaceId: string | null
-  ) => Promise<HugeCodeMissionControlSummary>;
 };
 
 export type WorkspaceClientRuntimeMissionControlSourceAdapter = {

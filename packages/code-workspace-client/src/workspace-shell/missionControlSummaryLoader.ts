@@ -21,13 +21,6 @@ export function createMissionControlSummaryLoader(
 ) {
   return {
     load: async (activeWorkspaceId: string | null): Promise<MissionControlSummaryLoadResult> => {
-      if (source.readMissionControlSummary) {
-        return {
-          snapshot: null,
-          summary: await source.readMissionControlSummary(activeWorkspaceId),
-        };
-      }
-
       const snapshot = await source.readMissionControlSnapshot();
       return {
         snapshot,

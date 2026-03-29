@@ -82,9 +82,7 @@ use kernel_dispatch::{
     handle_kernel_sessions_list_v2,
 };
 pub(crate) use kernel_dispatch::build_kernel_projection_delta_v3;
-use mission_control_dispatch::{
-    handle_mission_control_snapshot_v1, handle_mission_control_summary_v1,
-};
+use mission_control_dispatch::handle_mission_control_snapshot_v1;
 use oauth_chatgpt_refresh::handle_oauth_chatgpt_auth_tokens_refresh;
 use runtime_autonomy_v2_dispatch::{
     handle_action_required_get_v2, handle_action_required_submit_v2, handle_runtime_policy_get_v2,
@@ -163,7 +161,6 @@ pub(crate) async fn handle_rpc(
         "code_models_pool" => Ok(json!(build_models_pool(ctx).await)),
         "code_providers_catalog" => Ok(json!(build_providers_catalog(ctx).await)),
         "code_mission_control_snapshot_v1" => handle_mission_control_snapshot_v1(ctx, params).await,
-        "code_mission_control_summary_v1" => handle_mission_control_summary_v1(ctx, params).await,
         "code_bootstrap_snapshot" => handle_bootstrap_snapshot(ctx).await,
         "code_rpc_batch" => handle_rpc_batch(ctx, params).await,
         _ => {

@@ -1,9 +1,9 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-03-27T15:37:14.066Z`
+- Generated at: `2026-03-29T05:05:19.974Z`
 - Contract version: `2026-03-25`
 - Freeze effective at: `2026-03-25`
-- Method-set hash: `0ce16de9dfed8ab7`
+- Method-set hash: `2e75df2ab1c38c67`
 
 ## Features
 
@@ -51,7 +51,6 @@
 - `runtime_review_actionability_v1`
 - `runtime_review_linkage_v1`
 - `runtime_truth_contract_core_v1`
-- `runtime_mission_control_summary_v1`
 - `runtime_task_normalization_v1`
 - `runtime_task_native_run_review_v1`
 - `runtime_fault_injection_test_v1`
@@ -88,7 +87,6 @@
 - `code_workspaces_list`
 - `code_bootstrap_snapshot`
 - `code_mission_control_snapshot_v1`
-- `code_mission_control_summary_v1`
 - `code_rpc_batch`
 - `code_workspace_pick_directory`
 - `code_workspace_create`
@@ -287,7 +285,6 @@
 - `code_live_skills_list`
 - `code_mcp_server_status_list_v1`
 - `code_mission_control_snapshot_v1`
-- `code_mission_control_summary_v1`
 - `code_models_pool`
 - `code_oauth_account_remove`
 - `code_oauth_account_upsert`
