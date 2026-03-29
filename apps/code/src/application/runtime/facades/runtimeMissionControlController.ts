@@ -104,6 +104,13 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
         runtimePlugins: snapshot.runtimePlugins,
         runtimePluginsError: snapshot.runtimePluginsError,
         runtimePluginsProjectionBacked: snapshot.runtimePluginsProjectionBacked,
+        runtimePluginRegistryPackages: snapshot.runtimePluginRegistryPackages,
+        runtimePluginRegistryError: snapshot.runtimePluginRegistryError,
+        runtimeCompositionProfiles: snapshot.runtimeCompositionProfiles,
+        runtimeCompositionActiveProfileId: snapshot.runtimeCompositionActiveProfileId,
+        runtimeCompositionActiveProfile: snapshot.runtimeCompositionActiveProfile,
+        runtimeCompositionResolution: snapshot.runtimeCompositionResolution,
+        runtimeCompositionError: snapshot.runtimeCompositionError,
         selectedProviderRoute: draft.runtimeDraftProviderRoute,
         runtimeStatusFilter,
         runtimeDurabilityWarning: snapshot.runtimeDurabilityWarning,
@@ -120,6 +127,13 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
       snapshot.runtimePlugins,
       snapshot.runtimePluginsError,
       snapshot.runtimePluginsProjectionBacked,
+      snapshot.runtimePluginRegistryPackages,
+      snapshot.runtimePluginRegistryError,
+      snapshot.runtimeCompositionProfiles,
+      snapshot.runtimeCompositionActiveProfileId,
+      snapshot.runtimeCompositionActiveProfile,
+      snapshot.runtimeCompositionResolution,
+      snapshot.runtimeCompositionError,
       snapshot.runtimeProviders,
       snapshot.runtimeTasks,
       snapshot.runtimeToolGuardrails,
@@ -149,6 +163,8 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     repositoryLaunchDefaults,
     runtimeSourceDraft: draft.runtimeSourceDraft,
     routedProvider,
+    preferredBackendIds: selectedProviderRoute?.preferredBackendIds ?? null,
+    defaultBackendId: selectedProviderRoute?.resolvedBackendId ?? null,
   });
   const runtimeLaunchPlanVersion = runtimeLaunchPreview.preparation?.plan?.planVersion ?? null;
   const runtimeLaunchPlanApprovalRequired = runtimeLaunchPlanVersion !== null;
@@ -207,6 +223,8 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
         repositoryLaunchDefaults,
         runtimeSourceDraft: draft.runtimeSourceDraft,
         routedProvider,
+        preferredBackendIds: selectedProviderRoute?.preferredBackendIds ?? null,
+        defaultBackendId: selectedProviderRoute?.resolvedBackendId ?? null,
       });
     if (!launchRequest) {
       return;

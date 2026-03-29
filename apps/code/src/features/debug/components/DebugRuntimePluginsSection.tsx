@@ -1,15 +1,16 @@
-import type { RuntimeKernelPluginDescriptor } from "../../../application/runtime/kernel/runtimeKernelPlugins";
+import {
+  readRuntimeKernelRoutingPluginMetadata,
+  type RuntimeKernelPluginDescriptor,
+} from "../../../application/runtime/kernel/runtimeKernelPlugins";
+import { readRuntimeKernelPluginCompositionMetadata } from "../../../application/runtime/kernel/runtimeKernelComposition";
+import { readRuntimeKernelPluginRegistryMetadata } from "../../../application/runtime/kernel/runtimeKernelPluginRegistry";
+import type { WorkspaceRuntimePluginProjectionState } from "../../../application/runtime/facades/runtimeKernelPluginProjectionHooks";
 import {
   DebugDiagnosticsDefinitionList,
   type DebugDiagnosticsFieldDescriptor,
 } from "./DebugDiagnosticsFieldGroups";
 
-export type DebugRuntimePluginsSectionProps = {
-  plugins: RuntimeKernelPluginDescriptor[];
-  loading: boolean;
-  error: string | null;
-  projectionBacked: boolean;
-};
+export type DebugRuntimePluginsSectionProps = WorkspaceRuntimePluginProjectionState;
 
 function createPluginFields(
   plugin: RuntimeKernelPluginDescriptor
@@ -17,7 +18,7 @@ function createPluginFields(
   const execution = plugin.operations.execution;
   const resources = plugin.operations.resources;
   const permissions = plugin.operations.permissions;
-  return [
+  const fields: DebugDiagnosticsFieldDescriptor[] = [
     { label: "source", value: plugin.source },
     { label: "transport", value: plugin.transport },
     { label: "binding_state", value: plugin.binding.state },
@@ -55,6 +56,57 @@ function createPluginFields(
           : "-",
     },
   ];
+  const routingMetadata = readRuntimeKernelRoutingPluginMetadata(plugin.metadata);
+  const registryMetadata = readRuntimeKernelPluginRegistryMetadata(plugin.metadata);
+  const compositionMetadata = readRuntimeKernelPluginCompositionMetadata(plugin.metadata);
+  if (registryMetadata) {
+    fields.push(
+      { label: "package_ref", value: registryMetadata.packageRef },
+      { label: "package_transport", value: registryMetadata.transport },
+      { label: "package_source", value: registryMetadata.source },
+      { label: "package_publisher", value: registryMetadata.publisher ?? "-" },
+      { label: "trust_status", value: registryMetadata.trust.status },
+      { label: "verification_status", value: registryMetadata.trust.verificationStatus },
+      { label: "compatibility_status", value: registryMetadata.compatibility.status }
+    );
+  }
+  if (compositionMetadata) {
+    fields.push(
+      { label: "active_profile", value: compositionMetadata.activeProfileId ?? "-" },
+      {
+        label: "selected_in_active_profile",
+        value: compositionMetadata.selectedInActiveProfile ? "yes" : "no",
+      },
+      {
+        label: "blocked_in_active_profile",
+        value: compositionMetadata.blockedInActiveProfile ? "yes" : "no",
+      },
+      { label: "blocked_reason", value: compositionMetadata.blockedReason ?? "-" },
+      {
+        label: "selected_backends",
+        value:
+          compositionMetadata.selectedBackendCandidateIds.length > 0
+            ? compositionMetadata.selectedBackendCandidateIds.join(", ")
+            : "-",
+      }
+    );
+  }
+  if (routingMetadata) {
+    fields.push(
+      { label: "route_kind", value: routingMetadata.routeKind },
+      { label: "route_value", value: routingMetadata.routeValue },
+      { label: "route_readiness", value: routingMetadata.readiness },
+      { label: "route_provenance", value: routingMetadata.provenance ?? "-" },
+      { label: "route_provider", value: routingMetadata.providerId ?? "-" },
+      { label: "route_pool", value: routingMetadata.pool ?? "-" },
+      {
+        label: "preferred_backends",
+        value: routingMetadata.preferredBackendIds?.join(", ") ?? "-",
+      },
+      { label: "resolved_backend", value: routingMetadata.resolvedBackendId ?? "-" }
+    );
+  }
+  return fields;
 }
 
 export function DebugRuntimePluginsSection({
@@ -62,12 +114,24 @@ export function DebugRuntimePluginsSection({
   loading,
   error,
   projectionBacked,
+  registry,
+  composition,
 }: DebugRuntimePluginsSectionProps) {
   return (
     <div className="debug-event-channel-diagnostics" data-testid="debug-runtime-plugins">
       <div className="debug-event-channel-diagnostics-title">Runtime plugins</div>
       <div className="debug-event-channel-diagnostics-empty">
         projection extensions: {projectionBacked ? "connected" : "not connected"}
+      </div>
+      <div className="debug-event-channel-diagnostics-empty">
+        registry packages: {registry.installedCount} installed | {registry.verifiedCount} verified
+        {" | "}
+        {registry.blockedCount} blocked
+      </div>
+      <div className="debug-event-channel-diagnostics-empty">
+        active profile: {composition.activeProfile?.name ?? composition.activeProfileId ?? "none"}
+        {" | "}routes selected: {composition.resolution?.selectedRouteCandidates.length ?? 0}
+        {" | "}backends selected: {composition.resolution?.selectedBackendCandidates.length ?? 0}
       </div>
       {loading ? (
         <div className="debug-event-channel-diagnostics-empty">Loading runtime plugins...</div>

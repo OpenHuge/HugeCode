@@ -4,9 +4,9 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildMissionDraftFromThreadState } from "../../../application/runtime/facades/runtimeMissionDraftFacade";
 import {
-  resolveRuntimeModelProviderRoute,
-  type RuntimeResolvedProviderRoute,
-} from "../../../application/runtime/facades/runtimeProviderRouting";
+  resolveRuntimeControlPlaneModelRoute,
+  type RuntimeResolvedControlPlaneRoute,
+} from "../../../application/runtime/facades/runtimeControlPlaneRouting";
 import { resolveRuntimePreferredBackendIdsInput } from "../../../application/runtime/facades/runtimeRemoteExecutionFacade";
 import { useWorkspaceRuntimeAgentControl } from "../../../application/runtime/ports/runtimeAgentControl";
 import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
@@ -784,9 +784,9 @@ export function useThreadCodexControls({
     [localCliAvailable, localCliVersion]
   );
   const hasAvailableModel = models.some((model) => model.available !== false);
-  const selectedProviderRoute = useMemo<RuntimeResolvedProviderRoute | null>(
+  const selectedProviderRoute = useMemo<RuntimeResolvedControlPlaneRoute | null>(
     () =>
-      resolveRuntimeModelProviderRoute({
+      resolveRuntimeControlPlaneModelRoute({
         model: selectedModel,
         providers: runtimeProviders,
         accounts: selectedProviderAccounts,

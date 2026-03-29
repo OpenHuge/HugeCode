@@ -3269,7 +3269,8 @@ export type KernelCapabilityContractSurfaceKind =
   | "procedure_set"
   | "extension"
   | "skill"
-  | "manifest";
+  | "manifest"
+  | "route";
 
 export type KernelCapabilityContractSurfaceDirection = "import" | "export";
 
@@ -3294,6 +3295,235 @@ export type KernelHostCapabilityMetadata = {
   hostManaged?: boolean | null;
   semverQualifiedImports?: boolean | null;
   canonicalAbiResources?: boolean | null;
+};
+
+export type RuntimeRoutingPluginKind =
+  | "provider_family"
+  | "backend_placement"
+  | "combined_execution";
+
+export type RuntimeRoutingPluginProvenance =
+  | "auto"
+  | "explicit_route"
+  | "model_selection"
+  | "backend_preference"
+  | "runtime_fallback";
+
+export type RuntimeRoutingPluginReadiness = "ready" | "attention" | "blocked";
+
+export type RuntimeRoutingPluginMetadata = {
+  routeKind: RuntimeRoutingPluginKind;
+  routeValue: string;
+  readiness: RuntimeRoutingPluginReadiness;
+  launchAllowed: boolean;
+  detail?: string | null;
+  blockingReason?: string | null;
+  recommendedAction?: string | null;
+  fallbackDetail?: string | null;
+  providerId?: ModelProvider | null;
+  providerLabel?: string | null;
+  oauthProviderId?: OAuthProviderId | null;
+  pool?: ModelPool | null;
+  defaultModelId?: string | null;
+  provenance?: RuntimeRoutingPluginProvenance | null;
+  preferredBackendIds?: string[] | null;
+  resolvedBackendId?: string | null;
+  readinessKind?: RuntimeProviderReadinessKind | null;
+  readinessMessage?: string | null;
+  executionKind?: RuntimeProviderExecutionKind | null;
+  capabilityMatrix?: RuntimeProviderCapabilityMatrix | null;
+  providerAvailable?: boolean | null;
+  accountsTotal?: number | null;
+  enabledAccountCount?: number | null;
+  credentialReadyAccountCount?: number | null;
+  poolsTotal?: number | null;
+  enabledPoolCount?: number | null;
+  poolRoutingReady?: boolean | null;
+};
+
+export type RuntimePluginPackageTransport =
+  | "mcp_remote"
+  | "wasi_component"
+  | "a2a_remote"
+  | "runtime_extension"
+  | "host_bridge"
+  | "repo_manifest";
+
+export type RuntimePluginVerificationStatus =
+  | "verified"
+  | "unsigned"
+  | "attestation_missing"
+  | "failed"
+  | "dev_override"
+  | "runtime_managed"
+  | "unknown";
+
+export type RuntimePluginTrustDecisionStatus =
+  | "verified"
+  | "blocked"
+  | "dev_override"
+  | "runtime_managed"
+  | "unknown";
+
+export type RuntimePluginCompatibilityStatus = "compatible" | "incompatible" | "unknown";
+
+export type RuntimePluginAttestation = {
+  kind: "signature" | "provenance" | "transparency_log" | "manifest" | (string & {});
+  source: string;
+  identity?: string | null;
+  verified?: boolean | null;
+  summary?: string | null;
+};
+
+export type RuntimePluginCompatibility = {
+  status: RuntimePluginCompatibilityStatus;
+  minimumHostContractVersion?: string | null;
+  supportedRuntimeProtocolVersions?: string[] | null;
+  supportedCapabilityKeys?: string[] | null;
+  optionalTransportFeatures?: string[] | null;
+  blockers?: string[] | null;
+};
+
+export type RuntimePluginTrustDecision = {
+  status: RuntimePluginTrustDecisionStatus;
+  verificationStatus: RuntimePluginVerificationStatus;
+  publisher?: string | null;
+  attestationSource?: string | null;
+  blockedReason?: string | null;
+  packageRef?: string | null;
+  pluginId?: string | null;
+};
+
+export type RuntimePluginPackageManifest = {
+  packageId: string;
+  version: string;
+  publisher?: string | null;
+  transport: RuntimePluginPackageTransport;
+  entry: {
+    pluginId: string;
+    displayName?: string | null;
+    summary?: string | null;
+    interfaceId?: string | null;
+  };
+  contractSurfaces: KernelCapabilityContractSurface[];
+  compatibility?: RuntimePluginCompatibility | null;
+  dependencies?: string[] | null;
+  permissions?: string[] | null;
+  defaultConfig?: Record<string, unknown> | null;
+  attestations?: RuntimePluginAttestation[] | null;
+};
+
+export type RuntimeRegistryPackageDescriptorSource = "catalog" | "installed" | "runtime_managed";
+
+export type RuntimeRegistryPackageDescriptor = {
+  packageRef: string;
+  packageId: string;
+  version: string;
+  publisher?: string | null;
+  summary?: string | null;
+  transport: RuntimePluginPackageTransport;
+  source: RuntimeRegistryPackageDescriptorSource;
+  installed: boolean;
+  installedPluginId?: string | null;
+  manifest: RuntimePluginPackageManifest;
+  compatibility: RuntimePluginCompatibility;
+  trust: RuntimePluginTrustDecision;
+};
+
+export type RuntimeCompositionPluginSelectorAction = "include" | "exclude" | "prefer";
+
+export type RuntimeCompositionPluginSelector = {
+  matchBy: "pluginId" | "packageRef" | "source" | "transport" | "routeKind";
+  matchValue: string;
+  action: RuntimeCompositionPluginSelectorAction;
+  reason?: string | null;
+};
+
+export type RuntimeCompositionRoutePolicy = {
+  preferredRoutePluginIds?: string[] | null;
+  providerPreference?: string[] | null;
+  allowRuntimeFallback?: boolean | null;
+};
+
+export type RuntimeCompositionBackendPolicy = {
+  preferredBackendIds?: string[] | null;
+  resolvedBackendId?: string | null;
+};
+
+export type RuntimeCompositionTrustPolicy = {
+  requireVerifiedSignatures: boolean;
+  allowDevOverrides: boolean;
+  blockedPublishers?: string[] | null;
+};
+
+export type RuntimeCompositionObservabilityPolicy = {
+  emitStableEvents: boolean;
+  emitOtelAlignedTelemetry: boolean;
+};
+
+export type RuntimeCompositionConfigLayer = {
+  id: string;
+  source: "built_in" | "user" | "workspace" | "launch_override";
+  summary?: string | null;
+};
+
+export type RuntimeCompositionProfileScope = "built_in" | "user" | "workspace";
+
+export type RuntimeCompositionProfile = {
+  id: string;
+  name: string;
+  scope: RuntimeCompositionProfileScope;
+  enabled: boolean;
+  pluginSelectors: RuntimeCompositionPluginSelector[];
+  routePolicy: RuntimeCompositionRoutePolicy;
+  backendPolicy: RuntimeCompositionBackendPolicy;
+  trustPolicy: RuntimeCompositionTrustPolicy;
+  executionPolicyRefs: string[];
+  observabilityPolicy: RuntimeCompositionObservabilityPolicy;
+  configLayers: RuntimeCompositionConfigLayer[];
+};
+
+export type RuntimeCompositionBlockedPlugin = {
+  pluginId: string;
+  packageRef?: string | null;
+  reason: string;
+  stage: "selector" | "trust" | "compatibility" | "dependency";
+};
+
+export type RuntimeCompositionPluginSelection = {
+  pluginId: string;
+  packageRef?: string | null;
+  source: string;
+  reason?: string | null;
+};
+
+export type RuntimeCompositionRouteCandidate = {
+  pluginId: string;
+  routeKind?: RuntimeRoutingPluginKind | null;
+  providerId?: ModelProvider | null;
+  preferredBackendIds?: string[] | null;
+  resolvedBackendId?: string | null;
+};
+
+export type RuntimeCompositionBackendCandidate = {
+  backendId: string;
+  sourcePluginId?: string | null;
+};
+
+export type RuntimeCompositionResolutionProvenance = {
+  activeProfileId: string | null;
+  activeProfileName?: string | null;
+  appliedLayerOrder: RuntimeCompositionConfigLayer["source"][];
+  selectorDecisions: Record<string, string>;
+};
+
+export type RuntimeCompositionResolution = {
+  selectedPlugins: RuntimeCompositionPluginSelection[];
+  selectedRouteCandidates: RuntimeCompositionRouteCandidate[];
+  selectedBackendCandidates: RuntimeCompositionBackendCandidate[];
+  blockedPlugins: RuntimeCompositionBlockedPlugin[];
+  trustDecisions: RuntimePluginTrustDecision[];
+  provenance: RuntimeCompositionResolutionProvenance;
 };
 
 export type KernelCapabilityDescriptor = {

@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { createWorkspaceRuntimeScope } from "./createWorkspaceRuntimeScope";
-import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "./runtimeKernelCapabilities";
+import {
+  RUNTIME_KERNEL_CAPABILITY_KEYS,
+  resolveWorkspaceRuntimeCapability,
+} from "./runtimeKernelCapabilities";
 import type { WorkspaceRuntimeCapabilityProvider } from "./runtimeKernelCapabilities";
 
 describe("createWorkspaceRuntimeScope", () => {
@@ -8,8 +11,12 @@ describe("createWorkspaceRuntimeScope", () => {
     const runtimeGateway = { detectMode: vi.fn() };
     const runtimeAgentControl = { listTasks: vi.fn() };
     const runtimeSessionCommands = { sendMessage: vi.fn() };
+    const pluginRegistry = { listInstalledPackages: vi.fn() };
+    const compositionRuntime = { getActiveResolution: vi.fn() };
     const createAgentControl = vi.fn(() => runtimeAgentControl);
     const createSessionCommands = vi.fn(() => runtimeSessionCommands);
+    const createPluginRegistry = vi.fn(() => pluginRegistry);
+    const createCompositionRuntime = vi.fn(() => compositionRuntime);
     const capabilityProviders: WorkspaceRuntimeCapabilityProvider[] = [
       {
         key: RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
@@ -18,6 +25,14 @@ describe("createWorkspaceRuntimeScope", () => {
       {
         key: RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
         createCapability: createSessionCommands as never,
+      },
+      {
+        key: RUNTIME_KERNEL_CAPABILITY_KEYS.pluginRegistry,
+        createCapability: createPluginRegistry as never,
+      },
+      {
+        key: RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime,
+        createCapability: createCompositionRuntime as never,
       },
     ];
 
@@ -29,9 +44,13 @@ describe("createWorkspaceRuntimeScope", () => {
 
     expect(scope.hasCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl)).toBe(true);
     expect(scope.hasCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands)).toBe(true);
+    expect(scope.hasCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.pluginRegistry)).toBe(true);
+    expect(scope.hasCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime)).toBe(true);
     expect(scope.listCapabilities()).toEqual([
       RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
       RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
+      RUNTIME_KERNEL_CAPABILITY_KEYS.pluginRegistry,
+      RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime,
     ]);
     expect(scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl)).toBe(
       runtimeAgentControl
@@ -42,8 +61,14 @@ describe("createWorkspaceRuntimeScope", () => {
     expect(scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands)).toBe(
       runtimeSessionCommands
     );
+    expect(scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.pluginRegistry)).toBe(pluginRegistry);
+    expect(scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime)).toBe(
+      compositionRuntime
+    );
     expect(createAgentControl).toHaveBeenCalledTimes(1);
     expect(createSessionCommands).toHaveBeenCalledTimes(1);
+    expect(createPluginRegistry).toHaveBeenCalledTimes(1);
+    expect(createCompositionRuntime).toHaveBeenCalledTimes(1);
     expect(scope).toMatchObject({
       workspaceId: "ws-1",
       runtimeGateway,
@@ -61,9 +86,12 @@ describe("createWorkspaceRuntimeScope", () => {
     expect(() => scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog)).toThrow(
       /Missing workspace runtime capability `plugins\.catalog`/
     );
+    expect(() =>
+      resolveWorkspaceRuntimeCapability(scope, RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog)
+    ).toThrow(/Missing workspace runtime capability `plugins\.catalog`/);
   });
 
-  it("resolves the legacy extensions catalog alias through the canonical plugin capability", () => {
+  it("does not expose the removed extensions catalog alias", () => {
     const pluginCatalog = { listPlugins: vi.fn() };
     const scope = createWorkspaceRuntimeScope({
       workspaceId: "ws-1",
@@ -76,11 +104,26 @@ describe("createWorkspaceRuntimeScope", () => {
       ],
     });
 
-    expect(scope.hasCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog)).toBe(true);
+    expect(scope.hasCapability("extensions.catalog")).toBe(false);
     expect(scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog)).toBe(pluginCatalog);
-    expect(scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.extensionsCatalog)).toBe(
-      pluginCatalog
+    expect(() => scope.getCapability("extensions.catalog" as never)).toThrow(
+      /Missing workspace runtime capability `extensions\.catalog`/
     );
     expect(scope.listCapabilities()).toEqual([RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog]);
+  });
+
+  it("throws clear errors for missing registry and composition capabilities", () => {
+    const scope = createWorkspaceRuntimeScope({
+      workspaceId: "ws-1",
+      runtimeGateway: {} as never,
+      capabilityProviders: [],
+    });
+
+    expect(() => scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.pluginRegistry)).toThrow(
+      /Missing workspace runtime capability `plugins\.registry`/
+    );
+    expect(() => scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime)).toThrow(
+      /Missing workspace runtime capability `composition\.runtime`/
+    );
   });
 });
