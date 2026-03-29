@@ -792,8 +792,9 @@ export function ReviewPackSurface({
               placement: reviewPackDetail.placement,
               governance: reviewPackDetail.governance,
               nextAction: {
-                label: "Recommended next action",
+                label: reviewPackDetail.nextActionLabel ?? "Recommended next action",
                 detail:
+                  reviewPackDetail.nextActionDetail ??
                   reviewPackDetail.recommendedNextAction ??
                   "Inspect the runtime evidence, validate the result, then accept or retry.",
               },
@@ -802,6 +803,23 @@ export function ReviewPackSurface({
               onFocusEvidenceBucket: setFocusedEvidenceBucketKind,
               actions: reviewPackCockpitActions,
             })}
+
+            {reviewPackDetail.provenanceSummary ||
+            reviewPackDetail.placement?.summary ||
+            reviewPackDetail.lineage?.summary ? (
+              <Card className={styles.actionCard} variant="subtle">
+                <CardTitle className={styles.actionTitle}>Source and runtime lineage</CardTitle>
+                <div className={styles.bodyText}>
+                  {[
+                    reviewPackDetail.provenanceSummary,
+                    reviewPackDetail.placement?.summary,
+                    reviewPackDetail.lineage?.summary,
+                  ]
+                    .filter((value): value is string => Boolean(value))
+                    .join(" | ")}
+                </div>
+              </Card>
+            ) : null}
 
             {reviewPackDetail.navigationTarget ? (
               <Card className={styles.actionCard} variant="subtle">
@@ -817,7 +835,8 @@ export function ReviewPackSurface({
                   size="sm"
                   onClick={() => onOpenMissionTarget(reviewPackDetail.navigationTarget)}
                 >
-                  {getNavigationTargetButtonLabel(reviewPackDetail.navigationTarget)}
+                  {reviewPackDetail.nextActionLabel ??
+                    getNavigationTargetButtonLabel(reviewPackDetail.navigationTarget)}
                 </Button>
               </Card>
             ) : null}
