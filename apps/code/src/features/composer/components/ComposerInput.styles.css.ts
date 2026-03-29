@@ -23,7 +23,7 @@ export const inputArea = style({
     "--composer-input-shadow-rest":
       "0 10px 24px -24px color-mix(in srgb, var(--ds-shadow-color) 20%, transparent)",
     "--composer-input-shadow-focus":
-      "0 12px 26px -24px color-mix(in srgb, var(--ds-shadow-color) 20%, transparent), 0 0 0 1px color-mix(in srgb, var(--ds-focus-ring) 18%, transparent)",
+      "0 12px 28px -22px color-mix(in srgb, var(--ds-shadow-color) 22%, transparent), 0 0 0 1px color-mix(in srgb, var(--ds-focus-ring) 22%, transparent), 0 0 12px -4px color-mix(in srgb, var(--ds-focus-ring) 10%, transparent)",
   },
   borderRadius: "20px",
   border: "1px solid var(--composer-input-border)",

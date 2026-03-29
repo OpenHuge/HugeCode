@@ -31,6 +31,12 @@ export const sidebarResizeHandle = style({
   gridColumn: "2",
   alignSelf: "stretch",
   zIndex: 2,
+  transition: "opacity var(--duration-fast) var(--ds-motion-ease-standard, var(--ease-smooth))",
+  selectors: {
+    "&:hover": {
+      opacity: 0.8,
+    },
+  },
 });
 
 export const mainPane = style({
@@ -64,7 +70,7 @@ const mainShellBase = {
   borderRadius: "18px",
   border: "1px solid color-mix(in srgb, var(--ds-panel-border) 72%, transparent)",
   boxShadow:
-    "0 18px 40px color-mix(in srgb, var(--ds-brand-background) 10%, transparent), inset 0 1px 0 color-mix(in srgb, var(--ds-color-white) 6%, transparent)",
+    "0 18px 40px color-mix(in srgb, var(--ds-brand-background) 10%, transparent), 0 1px 3px color-mix(in srgb, var(--ds-brand-background) 6%, transparent), inset 0 1px 0 color-mix(in srgb, var(--ds-color-white) 9%, transparent), inset 0 0 0 0.5px color-mix(in srgb, var(--ds-color-white) 4%, transparent)",
   transition:
     "grid-template-columns var(--duration-slow) var(--ds-motion-ease-standard, var(--ease-smooth))",
 };

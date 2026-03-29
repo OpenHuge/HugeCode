@@ -380,14 +380,20 @@ export const starterCard = style({
       borderRadius: "14px",
       border: "1px solid color-mix(in srgb, var(--ds-border-default) 76%, transparent)",
       background: "var(--ds-surface-card)",
-      boxShadow: "none",
+      boxShadow: "0 1px 2px color-mix(in srgb, var(--ds-shadow-color) 8%, transparent)",
       transition: motionValues.interactive,
+      cursor: "pointer",
       selectors: {
         "&:hover, &[data-selected='true']": {
-          transform: "none",
+          transform: "translateY(-1px)",
           borderColor: "color-mix(in srgb, var(--ds-border-strong) 70%, transparent)",
           background: "var(--ds-surface-elevated)",
-          boxShadow: "none",
+          boxShadow:
+            "0 4px 12px color-mix(in srgb, var(--ds-shadow-color) 14%, transparent), 0 1px 3px color-mix(in srgb, var(--ds-shadow-color) 8%, transparent)",
+        },
+        "&:active": {
+          transform: "translateY(0) scale(0.985)",
+          boxShadow: "0 1px 2px color-mix(in srgb, var(--ds-shadow-color) 8%, transparent)",
         },
       },
       "@media": {
