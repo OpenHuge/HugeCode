@@ -55,4 +55,11 @@ describe("ci merge-queue fast PR path", () => {
       "desktop_fast_verify_required: ${{ needs.changes.outputs.desktop_fast_verify_required == 'true' }}"
     );
   });
+
+  it("keeps the merge-queue required affected summary green on push", () => {
+    const workflow = readWorkflow();
+
+    expect(workflow).toContain("pr_affected:");
+    expect(workflow).not.toContain("if: always() && github.event_name != 'push'");
+  });
 });

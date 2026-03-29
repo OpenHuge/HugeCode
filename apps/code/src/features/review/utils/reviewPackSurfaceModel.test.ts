@@ -836,9 +836,9 @@ describe("reviewPackSurfaceModel", () => {
     expect(detail).toMatchObject({
       id: "review-pack:run-1",
       navigationTarget: {
-        kind: "thread",
+        kind: "review",
         workspaceId: "workspace-1",
-        threadId: "thread-1",
+        reviewPackId: "review-pack:run-1",
       },
       reviewDecision: {
         status: "pending",
@@ -1275,33 +1275,45 @@ describe("reviewPackSurfaceModel", () => {
         expect.objectContaining({
           id: "retry",
           navigationTarget: {
-            kind: "thread",
+            kind: "review",
             workspaceId: "workspace-1",
-            threadId: "thread-1",
+            taskId: "task-1",
+            runId: "run-1",
+            reviewPackId: "review-pack:run-1",
+            limitation: null,
           },
         }),
         expect.objectContaining({
           id: "clarify",
           navigationTarget: {
-            kind: "thread",
+            kind: "review",
             workspaceId: "workspace-1",
-            threadId: "thread-1",
+            taskId: "task-1",
+            runId: "run-1",
+            reviewPackId: "review-pack:run-1",
+            limitation: null,
           },
         }),
         expect.objectContaining({
           id: "switch_profile_and_retry",
           navigationTarget: {
-            kind: "thread",
+            kind: "review",
             workspaceId: "workspace-1",
-            threadId: "thread-1",
+            taskId: "task-1",
+            runId: "run-1",
+            reviewPackId: "review-pack:run-1",
+            limitation: null,
           },
         }),
         expect.objectContaining({
           id: "continue_in_pair",
           navigationTarget: {
-            kind: "thread",
+            kind: "review",
             workspaceId: "workspace-1",
-            threadId: "thread-1",
+            taskId: "task-1",
+            runId: "run-1",
+            reviewPackId: "review-pack:run-1",
+            limitation: null,
           },
         }),
       ])
@@ -3277,12 +3289,11 @@ describe("reviewPackSurfaceModel", () => {
     );
 
     expect(detail.navigationTarget).toEqual({
-      kind: "mission",
+      kind: "review",
       workspaceId: "workspace-1",
       taskId: "runtime-task:run-9",
       runId: "run-9",
       reviewPackId: "review-pack:run-9",
-      threadId: "thread-legacy",
       limitation: null,
     });
     expect(detail.recommendedNextAction).toBe(

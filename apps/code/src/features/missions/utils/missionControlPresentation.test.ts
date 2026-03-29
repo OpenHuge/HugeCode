@@ -338,8 +338,8 @@ describe("missionControlPresentation", () => {
       limit: 6,
     });
 
-    expect(item.operatorActionLabel).toBe("Continue in mission run");
-    expect(item.operatorActionDetail).toBe("Open the pending approval before reopening review.");
+    expect(item.operatorActionLabel).toBe("Open approval");
+    expect(item.operatorActionDetail).toBe("Approval is the first required continuation step.");
     expect(item.continuationLabel).toBe("Approval is the first required continuation step.");
     expect(item.continuePathLabel).toBe("Mission run");
   });
@@ -423,15 +423,16 @@ describe("missionControlPresentation", () => {
       limit: 3,
     });
 
-    expect(entry.operatorActionLabel).toBe("Continue in mission thread");
-    expect(entry.operatorActionDetail).toBe("Open the handoff target on the mission thread.");
+    expect(entry.operatorActionLabel).toBe("Open handoff");
+    expect(entry.operatorActionDetail).toBe(
+      "Continue from the mission thread on another control device."
+    );
     expect(entry.operatorActionTarget).toEqual({
-      kind: "mission",
+      kind: "review",
       workspaceId: "ws-1",
       taskId: "task-handoff",
       runId: "run-handoff",
       reviewPackId: "review-pack:run-handoff",
-      threadId: "thread-1",
       limitation: null,
     });
   });
@@ -470,10 +471,10 @@ describe("missionControlPresentation", () => {
       limit: 3,
     });
 
-    expect(entry.operatorActionLabel).toBe("Open action center");
+    expect(entry.operatorActionLabel).toBe("Inspect runtime");
   });
 
-  it("orders review queue items by in-review entry time and excludes done items", () => {
+  it("orders review queue items by most recent in-review entry time and excludes done items", () => {
     const projection: HugeCodeMissionControlSnapshot = {
       ...createProjection(),
       tasks: [
@@ -619,10 +620,10 @@ describe("missionControlPresentation", () => {
     });
 
     expect(entries.map((entry) => entry.id)).toEqual([
-      "review-pack:run-fallback",
       "review-pack:run-in-review",
+      "review-pack:run-fallback",
     ]);
-    expect(entries[0]).toMatchObject({
+    expect(entries[1]).toMatchObject({
       accountabilityLifecycle: "in_review",
       filterTags: expect.arrayContaining([
         "blocked_follow_up",
