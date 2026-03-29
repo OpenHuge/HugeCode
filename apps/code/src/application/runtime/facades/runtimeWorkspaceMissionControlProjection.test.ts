@@ -1372,4 +1372,107 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       })
     );
   });
+
+  it("surfaces plugins blocked by the active profile as action-required readiness", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimePlugins: [
+          {
+            id: "ext.blocked",
+            name: "Blocked Extension",
+            version: "1.0.0",
+            summary: "Healthy extension blocked by the active profile",
+            source: "runtime_extension",
+            transport: "runtime_extension",
+            hostProfile: {
+              kind: "runtime",
+              executionBoundaries: ["runtime"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: true,
+            capabilities: [
+              {
+                id: "tools.exec",
+                enabled: true,
+              },
+            ],
+            permissions: [],
+            resources: [],
+            executionBoundaries: ["runtime"],
+            binding: {
+              state: "bound",
+              contractFormat: "runtime_extension",
+              contractBoundary: "runtime-extension",
+              interfaceId: "ext.blocked",
+              surfaces: [],
+            },
+            operations: {
+              execution: {
+                executable: true,
+                mode: "none",
+                reason: null,
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason: null,
+              },
+              permissions: {
+                evaluable: true,
+                mode: "runtime_extension_permissions",
+                reason: null,
+              },
+            },
+            metadata: {
+              composition: {
+                activeProfileId: "workspace-default",
+                activeProfileName: "Workspace Default",
+                selectedInActiveProfile: false,
+                blockedInActiveProfile: true,
+                blockedReason: "Workspace Default currently excludes this plugin from launch.",
+                selectedRouteCandidate: false,
+                selectedBackendCandidateIds: [],
+                layerOrder: ["built_in", "workspace"],
+              },
+            },
+            permissionDecision: "allow",
+            health: {
+              state: "healthy",
+              checkedAt: null,
+              warnings: [],
+            },
+          },
+        ],
+      })
+    );
+
+    expect(projection.pluginCatalog).toMatchObject({
+      readyCount: 0,
+      attentionCount: 0,
+      blockedCount: 1,
+    });
+    expect(projection.pluginCatalog.readinessEntries).toEqual([
+      expect.objectContaining({
+        id: "ext.blocked",
+        readiness: expect.objectContaining({
+          state: "blocked",
+          detail: "Workspace Default currently excludes this plugin from launch.",
+        }),
+        selectionState: expect.objectContaining({
+          kind: "blocked_in_active_profile",
+          label: "Blocked in active profile",
+          state: "blocked",
+        }),
+        remediationSummary:
+          "Adjust the active runtime profile or remove the blocking rule before relying on this plugin.",
+      }),
+    ]);
+    expect(projection.pluginCatalog.readinessSections[0]).toEqual(
+      expect.objectContaining({
+        id: "needs_action",
+        entries: [expect.objectContaining({ id: "ext.blocked" })],
+      })
+    );
+  });
 });

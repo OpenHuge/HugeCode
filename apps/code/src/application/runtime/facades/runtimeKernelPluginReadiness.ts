@@ -509,11 +509,13 @@ function buildReadinessState(input: {
   plugin: RuntimeKernelPluginDescriptor;
   capabilitySupport: RuntimeKernelPluginReadinessEntry["capabilitySupport"];
   permissionState: RuntimeKernelPluginReadinessEntry["permissionState"];
+  selectionState: RuntimeKernelPluginReadinessEntry["selectionState"];
   trustState: RuntimeKernelPluginReadinessEntry["trustState"];
 }): RuntimeKernelPluginReadinessState {
   if (
     (!input.plugin.enabled && input.plugin.source !== "repo_manifest") ||
     input.plugin.binding.state === "unbound" ||
+    input.selectionState.kind === "blocked_in_active_profile" ||
     input.trustState.state === "blocked" ||
     input.permissionState.state === "blocked" ||
     (input.plugin.runtimeBacked && input.plugin.health?.state === "unsupported") ||
@@ -539,6 +541,7 @@ function buildReadinessDetail(
   plugin: RuntimeKernelPluginDescriptor,
   readinessState: RuntimeKernelPluginReadinessState,
   permissionState: RuntimeKernelPluginReadinessEntry["permissionState"],
+  selectionState: RuntimeKernelPluginReadinessEntry["selectionState"],
   trustState: RuntimeKernelPluginReadinessEntry["trustState"]
 ) {
   if (readinessState === "blocked") {
@@ -548,6 +551,9 @@ function buildReadinessDetail(
         (typeof plugin.metadata?.["reason"] === "string" ? plugin.metadata["reason"] : null) ??
         "Runtime host binder is not connected."
       );
+    }
+    if (selectionState.kind === "blocked_in_active_profile") {
+      return selectionState.detail;
     }
     if (trustState.state === "blocked") {
       return trustState.detail;
@@ -585,6 +591,7 @@ function buildRemediationSummary(
   plugin: RuntimeKernelPluginDescriptor,
   readinessState: RuntimeKernelPluginReadinessState,
   permissionState: RuntimeKernelPluginReadinessEntry["permissionState"],
+  selectionState: RuntimeKernelPluginReadinessEntry["selectionState"],
   trustState: RuntimeKernelPluginReadinessEntry["trustState"]
 ) {
   if (plugin.source === "wasi_host") {
@@ -601,6 +608,9 @@ function buildRemediationSummary(
     return readinessState === "blocked"
       ? "Adjust route selection or restore provider/backend readiness before launch."
       : "No operator action required unless route readiness changes.";
+  }
+  if (selectionState.kind === "blocked_in_active_profile") {
+    return "Adjust the active runtime profile or remove the blocking rule before relying on this plugin.";
   }
   if (trustState.kind === "incompatible") {
     return "Install a package version compatible with the current runtime host contract before launch.";
@@ -643,6 +653,7 @@ export function buildRuntimeKernelPluginReadinessEntries(
       plugin,
       capabilitySupport,
       permissionState,
+      selectionState,
       trustState,
     });
 
@@ -663,7 +674,13 @@ export function buildRuntimeKernelPluginReadinessEntries(
       readiness: {
         state: readinessState,
         label: formatReadinessLabel(readinessState),
-        detail: buildReadinessDetail(plugin, readinessState, permissionState, trustState),
+        detail: buildReadinessDetail(
+          plugin,
+          readinessState,
+          permissionState,
+          selectionState,
+          trustState
+        ),
       },
       selectionState,
       trustState,
@@ -671,6 +688,7 @@ export function buildRuntimeKernelPluginReadinessEntries(
         plugin,
         readinessState,
         permissionState,
+        selectionState,
         trustState
       ),
     };

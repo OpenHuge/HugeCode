@@ -265,4 +265,48 @@ describe("runtimeKernelPluginReadiness", () => {
       })
     );
   });
+
+  it("treats plugins blocked by the active profile as blocked readiness with profile remediation", () => {
+    const entries = buildRuntimeKernelPluginReadinessEntries([
+      buildPlugin({
+        id: "ext.blocked",
+        name: "Blocked Extension",
+        metadata: {
+          composition: {
+            activeProfileId: "workspace-default",
+            activeProfileName: "Workspace Default",
+            selectedInActiveProfile: false,
+            blockedInActiveProfile: true,
+            blockedReason: "Workspace Default currently excludes this plugin from launch.",
+            selectedRouteCandidate: false,
+            selectedBackendCandidateIds: [],
+            layerOrder: ["built_in", "workspace"],
+          },
+        },
+      }),
+    ]);
+
+    expect(entries).toEqual([
+      expect.objectContaining({
+        id: "ext.blocked",
+        readiness: expect.objectContaining({
+          state: "blocked",
+          detail: "Workspace Default currently excludes this plugin from launch.",
+        }),
+        selectionState: expect.objectContaining({
+          kind: "blocked_in_active_profile",
+          label: "Blocked in active profile",
+          state: "blocked",
+        }),
+        remediationSummary:
+          "Adjust the active runtime profile or remove the blocking rule before relying on this plugin.",
+      }),
+    ]);
+    expect(buildRuntimeKernelPluginReadinessSections(entries)[0]).toEqual(
+      expect.objectContaining({
+        id: "needs_action",
+        entries: [expect.objectContaining({ id: "ext.blocked" })],
+      })
+    );
+  });
 });
