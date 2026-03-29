@@ -744,7 +744,7 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       "backend-route",
     ]);
     expect(projection.routeSelection.selected.resolvedBackendId).toBe("backend-route");
-    expect(projection.routeSelection.selected.provenance.source).toBe("backend_preference");
+    expect(projection.routeSelection.selected.source).toBe("backend_preference");
   });
 
   it("keeps a profile-resolved backend on automatic routing when no route-specific override exists", () => {
@@ -810,7 +810,7 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       "backend-profile",
     ]);
     expect(projection.routeSelection.selected.resolvedBackendId).toBe("backend-profile");
-    expect(projection.routeSelection.selected.provenance.source).toBe("backend_preference");
+    expect(projection.routeSelection.selected.source).toBe("backend_preference");
   });
 
   it("projects continuity readiness from runtime task truth instead of page-local guesses", () => {
@@ -1156,6 +1156,9 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       healthyCount: 2,
       degradedCount: 1,
       unsupportedCount: 1,
+      readyCount: 2,
+      attentionCount: 2,
+      blockedCount: 0,
       projectionBacked: true,
       error: "catalog degraded",
     });
@@ -1165,5 +1168,156 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       "route:auto",
       "repo-manifest-1",
     ]);
+    expect(projection.pluginCatalog.readinessEntries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "ext-1",
+          sourceLabel: "Runtime extension",
+          readiness: expect.objectContaining({
+            state: "ready",
+          }),
+          permissionState: expect.objectContaining({
+            state: "ready",
+          }),
+        }),
+        expect.objectContaining({
+          id: "repo-manifest-1",
+          sourceLabel: "Repo manifest",
+          readiness: expect.objectContaining({
+            state: "attention",
+          }),
+          permissionState: expect.objectContaining({
+            state: "attention",
+          }),
+          remediationSummary:
+            "Bind or install a runtime-backed implementation so this manifest can move beyond declaration-only readiness.",
+        }),
+        expect.objectContaining({
+          id: "skill-1",
+          sourceLabel: "Live skill",
+          readiness: expect.objectContaining({
+            state: "attention",
+          }),
+          capabilitySupport: expect.objectContaining({
+            state: "ready",
+          }),
+          remediationSummary: "Inspect runtime health warnings before relying on this live skill.",
+        }),
+      ])
+    );
+  });
+
+  it("marks runtime-published host binders as blocked until the binder is connected", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimePlugins: [
+          {
+            id: "host:wasi",
+            name: "WASI host binder",
+            version: "unbound",
+            summary:
+              "Runtime-published component-model host slot reserved for future WIT/world bindings.",
+            source: "wasi_host",
+            transport: "wasi_host",
+            hostProfile: {
+              kind: "wasi",
+              executionBoundaries: ["wasi_host"],
+            },
+            workspaceId: null,
+            enabled: false,
+            runtimeBacked: true,
+            capabilities: [],
+            permissions: [],
+            resources: [],
+            executionBoundaries: ["wasi_host"],
+            binding: {
+              state: "unbound",
+              contractFormat: "wit",
+              contractBoundary: "world-imports",
+              interfaceId: "wasi:*/*",
+              surfaces: [
+                {
+                  id: "hugecode:runtime/plugin-host",
+                  kind: "world",
+                  direction: "import",
+                  summary:
+                    "Reserved component-model world that the runtime host binder is expected to satisfy.",
+                },
+              ],
+            },
+            operations: {
+              execution: {
+                executable: false,
+                mode: "none",
+                reason:
+                  "Plugin `host:wasi` reserves a WIT/component-model host slot and is currently unbound in the runtime host binder.",
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason:
+                  "Plugin `host:wasi` does not expose readable resources through the runtime kernel.",
+              },
+              permissions: {
+                evaluable: false,
+                mode: "none",
+                reason: "Plugin `host:wasi` does not publish runtime-evaluable permission state.",
+              },
+            },
+            metadata: null,
+            permissionDecision: "unsupported",
+            health: {
+              state: "unsupported",
+              checkedAt: null,
+              warnings: ["Runtime host binder is not currently connected."],
+            },
+          },
+        ],
+      })
+    );
+
+    expect(projection.pluginCatalog).toMatchObject({
+      readyCount: 0,
+      attentionCount: 0,
+      blockedCount: 1,
+    });
+    expect(projection.pluginCatalog.readinessEntries).toEqual([
+      expect.objectContaining({
+        id: "host:wasi",
+        sourceLabel: "WASI host",
+        badges: expect.arrayContaining([
+          expect.objectContaining({ label: "Blocked" }),
+          expect.objectContaining({ label: "Runtime-published" }),
+          expect.objectContaining({ label: "Host truth" }),
+        ]),
+        readiness: expect.objectContaining({
+          state: "blocked",
+        }),
+        permissionState: expect.objectContaining({
+          state: "ready",
+          label: "Runtime-managed",
+        }),
+        selectionState: expect.objectContaining({
+          label: "Available inventory",
+        }),
+        trustState: expect.objectContaining({
+          label: "Runtime-published",
+        }),
+        remediationSummary:
+          "Connect the WASI host binder so runtime can satisfy the published WIT imports.",
+      }),
+    ]);
+    expect(projection.pluginCatalog.readinessSections).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "needs_action",
+          entries: [expect.objectContaining({ id: "host:wasi" })],
+        }),
+        expect.objectContaining({
+          id: "selected_now",
+          entries: [],
+        }),
+      ])
+    );
   });
 });

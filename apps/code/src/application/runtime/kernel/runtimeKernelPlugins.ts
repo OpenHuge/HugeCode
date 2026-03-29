@@ -921,7 +921,7 @@ export function createRuntimeKernelPluginCatalogProvider(): RuntimeKernelPluginC
       const hostDescriptors = await listRuntimeHostCapabilityPluginDescriptors();
       return mergeRuntimeKernelPluginDescriptors([
         ...routingDescriptors,
-        ...(hostDescriptors.length > 0 ? hostDescriptors : createReservedHostPluginDescriptors()),
+        ...hostDescriptors,
         ...(await listRepoManifestPluginDescriptors(workspaceId)),
         ...(await listLiveSkillPluginDescriptors()),
         ...(await listRuntimeExtensionPluginDescriptors(workspaceId)),

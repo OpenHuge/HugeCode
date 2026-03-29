@@ -9,9 +9,12 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 
 const readRuntimeWorkspaceSkillManifestsMock = vi.hoisted(() => vi.fn());
+const listRuntimeExtensionsMock = vi.hoisted(() => vi.fn());
+const readRuntimeExtensionHealthMock = vi.hoisted(() => vi.fn());
 const readRuntimeExtensionResourceMock = vi.hoisted(() => vi.fn());
 const evaluateRuntimeExtensionPermissionsMock = vi.hoisted(() => vi.fn());
 const listRuntimeKernelCapabilitiesMock = vi.hoisted(() => vi.fn());
+const listRuntimeLiveSkillsMock = vi.hoisted(() => vi.fn());
 const runRuntimeLiveSkillMock = vi.hoisted(() => vi.fn());
 const getProvidersCatalogMock = vi.hoisted(() => vi.fn());
 const listOAuthAccountsMock = vi.hoisted(() => vi.fn());
@@ -19,8 +22,8 @@ const listOAuthPoolsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../ports/runtimeExtensions", () => ({
   evaluateRuntimeExtensionPermissions: evaluateRuntimeExtensionPermissionsMock,
-  listRuntimeExtensions: vi.fn(),
-  readRuntimeExtensionHealth: vi.fn(),
+  listRuntimeExtensions: listRuntimeExtensionsMock,
+  readRuntimeExtensionHealth: readRuntimeExtensionHealthMock,
   readRuntimeExtensionResource: readRuntimeExtensionResourceMock,
 }));
 
@@ -43,7 +46,7 @@ vi.mock("../ports/runtimeKernelCapabilities", () => ({
 }));
 
 vi.mock("../ports/tauriRuntimeSkills", () => ({
-  listRuntimeLiveSkills: vi.fn(),
+  listRuntimeLiveSkills: listRuntimeLiveSkillsMock,
 }));
 
 vi.mock("../ports/tauriOauth", () => ({
@@ -214,13 +217,19 @@ function createOAuthPoolSummary(overrides: Partial<OAuthPoolSummary> = {}): OAut
 describe("runtimeKernelPlugins", () => {
   beforeEach(() => {
     readRuntimeWorkspaceSkillManifestsMock.mockReset();
+    listRuntimeExtensionsMock.mockReset();
+    readRuntimeExtensionHealthMock.mockReset();
     readRuntimeExtensionResourceMock.mockReset();
     evaluateRuntimeExtensionPermissionsMock.mockReset();
     listRuntimeKernelCapabilitiesMock.mockReset();
+    listRuntimeLiveSkillsMock.mockReset();
     runRuntimeLiveSkillMock.mockReset();
     getProvidersCatalogMock.mockReset();
     listOAuthAccountsMock.mockReset();
     listOAuthPoolsMock.mockReset();
+    readRuntimeWorkspaceSkillManifestsMock.mockResolvedValue([]);
+    listRuntimeExtensionsMock.mockResolvedValue([]);
+    listRuntimeLiveSkillsMock.mockResolvedValue([]);
     getProvidersCatalogMock.mockResolvedValue([]);
     listOAuthAccountsMock.mockResolvedValue([]);
     listOAuthPoolsMock.mockResolvedValue([]);
@@ -406,6 +415,20 @@ describe("runtimeKernelPlugins", () => {
         warnings: ["Runtime host binder is not currently connected."],
       },
     });
+  });
+
+  it("does not synthesize host placeholders when runtime capability truth is unavailable", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+    listRuntimeKernelCapabilitiesMock.mockRejectedValue(new Error("capabilities unavailable"));
+
+    const provider = plugins.createRuntimeKernelPluginCatalogProvider();
+
+    await expect(provider.listPluginDescriptors("ws-1")).resolves.toEqual([
+      expect.objectContaining({
+        id: "route:auto",
+        source: "execution_route",
+      }),
+    ]);
   });
 
   it("distinguishes binding state from execution availability", async () => {
@@ -747,9 +770,7 @@ describe("runtimeKernelPlugins", () => {
       ready: true,
       readiness: "ready",
       detail: expect.stringContaining("backend-primary"),
-      provenance: expect.objectContaining({
-        source: "backend_preference",
-      }),
+      source: "backend_preference",
       plugin: expect.objectContaining({
         source: "execution_route",
         transport: "execution_route",
@@ -771,13 +792,14 @@ describe("runtimeKernelPlugins", () => {
             providerId: "anthropic",
             displayName: "Anthropic",
             pool: "claude",
-            oauthProviderId: "claude",
+            oauthProviderId: "claude_code",
           }),
           createRuntimeProviderCatalogEntry(),
         ],
         accounts: [createOAuthAccountSummary()],
         pools: [createOAuthPoolSummary()],
       }),
+      selectedRoute: null,
     });
 
     expect(selection.normalizedValue).toBe("auto");
