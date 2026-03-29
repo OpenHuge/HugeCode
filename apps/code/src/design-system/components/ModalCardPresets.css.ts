@@ -14,7 +14,7 @@ export const compactModalCard = style({
       backdropFilter: "blur(16px) saturate(1.06)",
       WebkitBackdropFilter: "blur(16px) saturate(1.06)",
       boxShadow:
-        "var(--ds-elevation-2), 0 1px 3px color-mix(in srgb, var(--ds-shadow-color, rgba(0,0,0,0.1)) 10%, transparent), inset 0 1px 0 color-mix(in srgb, var(--ds-color-white, #fff) 8%, transparent)",
+        "var(--ds-elevation-2), 0 1px 3px color-mix(in srgb, var(--ds-shadow-color) 10%, transparent), inset 0 1px 0 color-mix(in srgb, var(--ds-color-white) 8%, transparent)",
     },
   },
 });

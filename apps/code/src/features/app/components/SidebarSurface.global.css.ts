@@ -317,7 +317,7 @@ applyGlobalStyle(".thread-row.active", {
       color: "var(--ds-text-primary)",
       fontWeight: "520",
       boxShadow:
-        "inset 0 0 0 1px color-mix(in srgb, var(--ds-border-subtle) 42%, transparent), inset 0 1px 2px color-mix(in srgb, var(--ds-shadow-color, rgba(0,0,0,0.1)) 6%, transparent)",
+        "inset 0 0 0 1px color-mix(in srgb, var(--ds-border-subtle) 42%, transparent), inset 0 1px 2px color-mix(in srgb, var(--ds-shadow-color) 6%, transparent)",
     },
   },
 });
