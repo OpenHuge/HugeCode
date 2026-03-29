@@ -1,3 +1,12 @@
+import type {
+  RuntimeGitHubSourceLaunchHandshakeState,
+  RuntimeTaskSourceCommandKind,
+  RuntimeTaskSourceEventSummary,
+  RuntimeTaskSourceLaunchDisposition,
+  RuntimeTaskSourceRequester,
+  RuntimeTaskSourceTriggerMode,
+} from "./runtimeTaskSourceShared.js";
+
 export const HUGECODE_RUN_STATES = [
   "draft",
   "queued",
@@ -134,11 +143,46 @@ export type HugeCodeTaskSourceSummary = {
   requestId?: string | null;
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
+  githubSource?: HugeCodeGitHubSourceProvenance | null;
 };
 
 export type HugeCodeTaskSourceLinkage = HugeCodeTaskSourceSummary & {
   label: string;
   shortLabel: string;
+};
+
+export type HugeCodeGitHubSourceRef = {
+  label: string;
+  issueNumber?: number | null;
+  pullRequestNumber?: number | null;
+  headSha?: string | null;
+  triggerMode?: RuntimeTaskSourceTriggerMode | null;
+  commandKind?: RuntimeTaskSourceCommandKind | null;
+};
+
+export type HugeCodeGitHubSourceComment = {
+  commentId?: number | null;
+  url?: string | null;
+  author?: RuntimeTaskSourceRequester | null;
+};
+
+export type HugeCodeGitHubSourceLaunchHandshakeState = RuntimeGitHubSourceLaunchHandshakeState;
+
+export type HugeCodeGitHubSourceLaunchHandshake = {
+  state: HugeCodeGitHubSourceLaunchHandshakeState;
+  summary: string;
+  disposition?: RuntimeTaskSourceLaunchDisposition | null;
+  preparedPlanVersion?: string | null;
+  approvedPlanVersion?: string | null;
+};
+
+export type HugeCodeGitHubSourceProvenance = {
+  sourceRecordId: string;
+  repo: HugeCodeTaskSourceRepoContext;
+  event: RuntimeTaskSourceEventSummary;
+  ref: HugeCodeGitHubSourceRef;
+  comment?: HugeCodeGitHubSourceComment | null;
+  launchHandshake: HugeCodeGitHubSourceLaunchHandshake;
 };
 
 export type HugeCodeExecutionAutonomy =

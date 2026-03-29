@@ -777,6 +777,8 @@ struct AgentTaskSourceSummary {
     source_task_id: Option<String>,
     #[serde(default, alias = "source_run_id")]
     source_run_id: Option<String>,
+    #[serde(default, alias = "github_source")]
+    github_source: Option<AgentTaskSourceGitHubProvenance>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

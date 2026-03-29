@@ -1,7 +1,13 @@
 import type {
+  HugeCodeNextOperatorAction,
   HugeCodeTaskSourceLinkage,
   HugeCodeTaskSourceSummary,
 } from "@ku0/code-runtime-host-contract";
+
+export type TaskSourceProvenanceDetail = {
+  summary: string;
+  details: string[];
+};
 
 function readOptionalText(value: unknown): string | null {
   if (typeof value !== "string") {
@@ -26,6 +32,24 @@ function inferReference(
   return null;
 }
 
+function buildGitHubTaskSourceLabels(input: {
+  labelPrefix: string;
+  shortPrefix: string;
+  reference: string | null;
+  repo: string | null;
+}): Pick<HugeCodeTaskSourceLinkage, "label" | "shortLabel"> {
+  return {
+    label: input.reference
+      ? input.repo
+        ? `${input.labelPrefix} ${input.reference} · ${input.repo}`
+        : `${input.labelPrefix} ${input.reference}`
+      : input.repo
+        ? `${input.labelPrefix} · ${input.repo}`
+        : input.labelPrefix,
+    shortLabel: input.reference ? `${input.shortPrefix} ${input.reference}` : input.labelPrefix,
+  };
+}
+
 function buildTaskSourceLabels(
   source: HugeCodeTaskSourceSummary | HugeCodeTaskSourceLinkage
 ): Pick<HugeCodeTaskSourceLinkage, "label" | "shortLabel"> {
@@ -48,41 +72,26 @@ function buildTaskSourceLabels(
         shortLabel: "External",
       };
     case "github_issue":
-      return {
-        label:
-          reference && repo
-            ? `GitHub issue ${reference} · ${repo}`
-            : reference
-              ? `GitHub issue ${reference}`
-              : repo
-                ? `GitHub issue · ${repo}`
-                : "GitHub issue",
-        shortLabel: reference ? `Issue ${reference}` : "GitHub issue",
-      };
+      return buildGitHubTaskSourceLabels({
+        labelPrefix: "GitHub issue",
+        shortPrefix: "Issue",
+        reference,
+        repo,
+      });
     case "github_pr_followup":
-      return {
-        label:
-          reference && repo
-            ? `PR follow-up ${reference} · ${repo}`
-            : reference
-              ? `PR follow-up ${reference}`
-              : repo
-                ? `PR follow-up · ${repo}`
-                : "PR follow-up",
-        shortLabel: reference ? `PR ${reference}` : "PR follow-up",
-      };
+      return buildGitHubTaskSourceLabels({
+        labelPrefix: "PR follow-up",
+        shortPrefix: "PR",
+        reference,
+        repo,
+      });
     case "github_discussion":
-      return {
-        label:
-          reference && repo
-            ? `GitHub discussion ${reference} · ${repo}`
-            : reference
-              ? `GitHub discussion ${reference}`
-              : repo
-                ? `GitHub discussion · ${repo}`
-                : "GitHub discussion",
-        shortLabel: reference ? `Discussion ${reference}` : "Discussion",
-      };
+      return buildGitHubTaskSourceLabels({
+        labelPrefix: "GitHub discussion",
+        shortPrefix: "Discussion",
+        reference,
+        repo,
+      });
     case "note":
       return {
         label: "Operator note",
@@ -148,6 +157,7 @@ export function normalizeTaskSourceLinkage(
     requestId: readOptionalText(source.requestId),
     sourceTaskId: readOptionalText(source.sourceTaskId),
     sourceRunId: readOptionalText(source.sourceRunId),
+    githubSource: source.githubSource ?? null,
   };
 }
 
@@ -155,6 +165,104 @@ export function resolveTaskSourceSecondaryLabel(
   source: HugeCodeTaskSourceLinkage | HugeCodeTaskSourceSummary | null | undefined
 ): string | null {
   return normalizeTaskSourceLinkage(source)?.shortLabel ?? null;
+}
+
+function buildGitHubEventLabel(
+  source: NonNullable<HugeCodeTaskSourceSummary["githubSource"]>
+): string {
+  return source.event.action
+    ? `${source.event.eventName}.${source.event.action}`
+    : source.event.eventName;
+}
+
+function formatLaunchHandshakeState(
+  state: NonNullable<HugeCodeTaskSourceSummary["githubSource"]>["launchHandshake"]["state"]
+) {
+  switch (state) {
+    case "prepared":
+      return "Prepared";
+    case "started":
+      return "Started";
+    case "intervened":
+      return "Attached to active run";
+    case "deduped":
+      return "Deduped";
+    case "blocked":
+      return "Blocked";
+    case "failed":
+      return "Failed";
+    default:
+      return "Runtime-owned";
+  }
+}
+
+function formatNextOperatorAction(
+  nextOperatorAction: HugeCodeNextOperatorAction | null | undefined
+): string | null {
+  if (!nextOperatorAction?.label) {
+    return null;
+  }
+  return nextOperatorAction.detail
+    ? `${nextOperatorAction.label}: ${nextOperatorAction.detail}`
+    : nextOperatorAction.label;
+}
+
+export function buildTaskSourceProvenanceDetail(input: {
+  source: HugeCodeTaskSourceLinkage | HugeCodeTaskSourceSummary | null | undefined;
+  nextOperatorAction?: HugeCodeNextOperatorAction | null | undefined;
+}): TaskSourceProvenanceDetail | undefined {
+  const normalized = normalizeTaskSourceLinkage(input.source);
+  const githubSource = normalized?.githubSource;
+  if (!normalized || !githubSource) {
+    return undefined;
+  }
+  const repoLabel = readOptionalText(githubSource.repo.fullName) ?? "GitHub repository";
+  const eventLabel = buildGitHubEventLabel(githubSource);
+  const handshakeLabel = formatLaunchHandshakeState(githubSource.launchHandshake.state);
+  const nextOperatorAction = formatNextOperatorAction(input.nextOperatorAction);
+  const details = [
+    `Source repo: ${repoLabel}`,
+    `Source ref: ${githubSource.ref.label}`,
+    `GitHub event: ${eventLabel}`,
+    githubSource.comment?.commentId
+      ? `Source comment: #${githubSource.comment.commentId}${githubSource.comment.author?.login ? ` by ${githubSource.comment.author.login}` : ""}`
+      : null,
+    `Source record: ${githubSource.sourceRecordId}`,
+    `Launch handshake: ${handshakeLabel}`,
+    githubSource.launchHandshake.preparedPlanVersion
+      ? `Prepared plan version: ${githubSource.launchHandshake.preparedPlanVersion}`
+      : null,
+    githubSource.launchHandshake.approvedPlanVersion
+      ? `Approved plan version: ${githubSource.launchHandshake.approvedPlanVersion}`
+      : null,
+    githubSource.launchHandshake.summary,
+    nextOperatorAction ? `Next operator action: ${nextOperatorAction}` : null,
+  ].filter((value): value is string => Boolean(value));
+  return {
+    summary: `${normalized.label} started from ${eventLabel} in ${repoLabel}.`,
+    details,
+  };
+}
+
+export function buildTaskSourceProvenanceSummary(input: {
+  source: HugeCodeTaskSourceLinkage | HugeCodeTaskSourceSummary | null | undefined;
+  nextOperatorAction?: HugeCodeNextOperatorAction | null | undefined;
+}) {
+  const detail = buildTaskSourceProvenanceDetail(input);
+  if (!detail) {
+    return null;
+  }
+  const githubSource = normalizeTaskSourceLinkage(input.source)?.githubSource;
+  if (!githubSource) {
+    return null;
+  }
+  return [
+    `Launch source: ${githubSource.repo.fullName ?? "GitHub"}`,
+    githubSource.ref.label,
+    buildGitHubEventLabel(githubSource),
+    `record ${githubSource.sourceRecordId}`,
+    `handshake ${formatLaunchHandshakeState(githubSource.launchHandshake.state).toLowerCase()}`,
+  ].join(" | ");
 }
 
 export function buildTaskSourceLineageDetails(

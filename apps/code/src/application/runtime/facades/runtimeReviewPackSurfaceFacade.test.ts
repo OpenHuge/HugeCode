@@ -453,4 +453,164 @@ describe("runtimeReviewPackSurfaceFacade", () => {
       ])
     );
   });
+
+  it("surfaces GitHub source provenance and runtime next action in review detail", () => {
+    const projection = asProjection({
+      source: "runtime_snapshot_v1" as const,
+      generatedAt: 10,
+      workspaces: [
+        {
+          id: "workspace-1",
+          name: "Workspace One",
+          rootPath: "/tmp/workspace-one",
+          connected: true,
+          defaultProfileId: null,
+        },
+      ],
+      tasks: [
+        {
+          id: "task-1",
+          workspaceId: "workspace-1",
+          title: "Review GitHub provenance",
+          objective: "Review GitHub provenance",
+          origin: {
+            kind: "thread" as const,
+            threadId: "thread-1",
+            runId: "run-1",
+            requestId: null,
+          },
+          mode: "pair" as const,
+          modeSource: "execution_profile" as const,
+          status: "review_ready" as const,
+          createdAt: 1,
+          updatedAt: 10,
+          currentRunId: null,
+          latestRunId: "run-1",
+          latestRunState: "review_ready" as const,
+          nextAction: null,
+        },
+      ],
+      runs: [
+        {
+          id: "run-1",
+          taskId: "task-1",
+          workspaceId: "workspace-1",
+          state: "review_ready" as const,
+          title: "Review GitHub provenance",
+          summary: "Review-ready runtime evidence.",
+          startedAt: 2,
+          finishedAt: 9,
+          updatedAt: 10,
+          currentStepIndex: 0,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          reviewPackId: "review-pack:1",
+          taskSource: {
+            kind: "github_pr_followup" as const,
+            label: "PR follow-up",
+            title: "Review GitHub provenance",
+            reference: "PR #74",
+            repo: {
+              owner: "OpenHuge",
+              name: "HugeCode",
+              fullName: "OpenHuge/HugeCode",
+            },
+            githubSource: {
+              sourceRecordId: "source-74",
+              repo: {
+                owner: "OpenHuge",
+                name: "HugeCode",
+                fullName: "OpenHuge/HugeCode",
+              },
+              event: {
+                deliveryId: "delivery-74",
+                eventName: "issue_comment",
+                action: "created",
+                receivedAt: 9,
+              },
+              ref: {
+                label: "PR #74",
+                pullRequestNumber: 74,
+                triggerMode: "pull_request_comment_command",
+                commandKind: "continue",
+              },
+              comment: {
+                commentId: 991,
+                author: {
+                  login: "reviewer",
+                  id: 2,
+                  type: "User",
+                },
+              },
+              launchHandshake: {
+                state: "started",
+                summary: "Runtime started the GitHub-driven run after approving the plan.",
+                disposition: "launched",
+                preparedPlanVersion: "plan-v74",
+                approvedPlanVersion: "plan-v74",
+              },
+            },
+          },
+          nextOperatorAction: {
+            action: "review",
+            label: "Review the pack",
+            detail: "Confirm the review pack and decide whether to continue.",
+          },
+        },
+      ],
+      reviewPacks: [
+        {
+          id: "review-pack:1",
+          runId: "run-1",
+          taskId: "task-1",
+          workspaceId: "workspace-1",
+          summary: "Review-ready runtime evidence.",
+          reviewStatus: "ready" as const,
+          evidenceState: "confirmed" as const,
+          validationOutcome: "passed" as const,
+          warningCount: 0,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          checksPerformed: [],
+          recommendedNextAction: "Open the pack and review the evidence.",
+          createdAt: 10,
+        },
+      ],
+    });
+
+    const detail = buildReviewPackDetailModel({
+      projection,
+      selection: resolveReviewPackSelection({
+        projection,
+        workspaceId: "workspace-1",
+        request: {
+          workspaceId: "workspace-1",
+          reviewPackId: "review-pack:1",
+          source: "review_surface",
+        },
+      }),
+    });
+
+    expect(detail?.kind).toBe("review_pack");
+    if (!detail || detail.kind !== "review_pack") {
+      throw new Error("Expected review pack detail");
+    }
+    expect(detail.sourceProvenance).toEqual({
+      summary: "PR follow-up started from issue_comment.created in OpenHuge/HugeCode.",
+      details: [
+        "Source repo: OpenHuge/HugeCode",
+        "Source ref: PR #74",
+        "GitHub event: issue_comment.created",
+        "Source comment: #991 by reviewer",
+        "Source record: source-74",
+        "Launch handshake: Started",
+        "Prepared plan version: plan-v74",
+        "Approved plan version: plan-v74",
+        "Runtime started the GitHub-driven run after approving the plan.",
+        "Next operator action: Review the pack: Confirm the review pack and decide whether to continue.",
+      ],
+    });
+  });
 });

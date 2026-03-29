@@ -58,6 +58,7 @@ import {
   buildGovernanceDetail,
   buildMissionBriefDetail,
   buildMissionLineageDetail,
+  buildSourceProvenanceDetail,
   buildOperatorSnapshotDetail,
   buildPlacementDetail,
   buildRelaunchContextDetail,
@@ -113,6 +114,11 @@ type ReviewPackContinuitySummary = Pick<
   | "continuityOverview"
 > & {
   state: RuntimeContinuityReadinessState;
+};
+
+type SummaryDetail = {
+  summary: string;
+  details: string[];
 };
 
 type ReviewPackWithExtras = MissionControlProjection["reviewPacks"][number];
@@ -230,40 +236,17 @@ export type ReviewPackDetailModel = {
     details: string[];
     missingReason: string | null;
   };
-  governance?: {
-    summary: string;
-    details: string[];
-  };
+  governance?: SummaryDetail;
   operatorSnapshot?: OperatorSnapshotSummary;
-  placement?: {
-    summary: string;
-    details: string[];
-  };
+  placement?: SummaryDetail;
   workspaceEvidence?: WorkspaceEvidenceSummary;
-  lineage?: {
-    summary: string;
-    details: string[];
-  };
-  ledger?: {
-    summary: string;
-    details: string[];
-  };
-  checkpoint?: {
-    summary: string;
-    details: string[];
-  };
-  executionContext?: {
-    summary: string;
-    details: string[];
-  };
-  missionBrief?: {
-    summary: string;
-    details: string[];
-  };
-  relaunchContext?: {
-    summary: string;
-    details: string[];
-  };
+  sourceProvenance?: SummaryDetail;
+  lineage?: SummaryDetail;
+  ledger?: SummaryDetail;
+  checkpoint?: SummaryDetail;
+  executionContext?: SummaryDetail;
+  missionBrief?: SummaryDetail;
+  relaunchContext?: SummaryDetail;
   decisionActionability: RuntimeReviewPackDecisionActionabilitySummary;
   decisionActions: RuntimeReviewPackDecisionActionModel<MissionNavigationTarget>[];
   limitations: string[];
@@ -314,40 +297,17 @@ export type MissionRunDetailModel = {
   reviewRunId: string | null;
   skillUsage: HugeCodeRuntimeSkillUsageSummary[];
   autofixCandidate: HugeCodeRuntimeAutofixCandidate | null;
-  governance?: {
-    summary: string;
-    details: string[];
-  };
+  governance?: SummaryDetail;
   operatorSnapshot?: OperatorSnapshotSummary;
-  placement?: {
-    summary: string;
-    details: string[];
-  };
+  placement?: SummaryDetail;
   workspaceEvidence?: WorkspaceEvidenceSummary;
-  lineage?: {
-    summary: string;
-    details: string[];
-  };
-  ledger?: {
-    summary: string;
-    details: string[];
-  };
-  checkpoint?: {
-    summary: string;
-    details: string[];
-  };
-  executionContext?: {
-    summary: string;
-    details: string[];
-  };
-  missionBrief?: {
-    summary: string;
-    details: string[];
-  };
-  relaunchContext?: {
-    summary: string;
-    details: string[];
-  };
+  sourceProvenance?: SummaryDetail;
+  lineage?: SummaryDetail;
+  ledger?: SummaryDetail;
+  checkpoint?: SummaryDetail;
+  executionContext?: SummaryDetail;
+  missionBrief?: SummaryDetail;
+  relaunchContext?: SummaryDetail;
   autoDriveSummary: string[];
   subAgentSummary: SubAgentSummary[];
   limitations: string[];
@@ -946,6 +906,10 @@ export function buildReviewPackDetailModel(input: {
       ],
       "Runtime recorded wake-up gates and the next eligible operator action."
     );
+    const sourceProvenance = buildSourceProvenanceDetail({
+      taskSource: run.taskSource ?? task.taskSource ?? null,
+      nextOperatorAction: run.nextOperatorAction ?? null,
+    });
     return {
       kind: "mission_run",
       workspaceId,
@@ -998,6 +962,7 @@ export function buildReviewPackDetailModel(input: {
       operatorSnapshot: buildOperatorSnapshotDetail(run.operatorSnapshot ?? null),
       placement: buildPlacementDetail(run.placement ?? null),
       workspaceEvidence: buildWorkspaceEvidenceDetail(run.workspaceEvidence ?? null),
+      ...(sourceProvenance ? { sourceProvenance } : {}),
       lineage,
       ledger: buildRunLedgerDetail({
         ledger: run.ledger ?? null,
@@ -1171,6 +1136,10 @@ export function buildReviewPackDetailModel(input: {
     artifactCount: reviewPack.artifacts.length,
   });
   const checkpoint = buildCheckpointDetail(reviewPack.checkpoint ?? run?.checkpoint ?? null);
+  const sourceProvenance = buildSourceProvenanceDetail({
+    taskSource: reviewPack.taskSource ?? run?.taskSource ?? task?.taskSource ?? null,
+    nextOperatorAction: reviewPack.nextOperatorAction ?? run?.nextOperatorAction ?? null,
+  });
 
   const failureMeta = describeReviewFailureClass(reviewPackExtra?.failureClass ?? null);
   const relaunchOptions = normalizeReviewPackRelaunchOptions(
@@ -1275,6 +1244,7 @@ export function buildReviewPackDetailModel(input: {
     workspaceEvidence: buildWorkspaceEvidenceDetail(
       reviewPackExtra?.workspaceEvidence ?? run?.workspaceEvidence ?? null
     ),
+    ...(sourceProvenance ? { sourceProvenance } : {}),
     lineage,
     ledger,
     checkpoint,

@@ -621,6 +621,7 @@ mod tests {
                 request_id: None,
                 source_task_id: None,
                 source_run_id: None,
+                github_source: None,
             }),
             &RepositoryExecutionExplicitLaunchInput::default(),
         );
@@ -739,6 +740,7 @@ mod tests {
                 request_id: None,
                 source_task_id: None,
                 source_run_id: None,
+                github_source: None,
             }),
             &RepositoryExecutionExplicitLaunchInput::default(),
         );
@@ -814,6 +816,7 @@ mod tests {
                 request_id: None,
                 source_task_id: None,
                 source_run_id: None,
+                github_source: None,
             }),
             &RepositoryExecutionExplicitLaunchInput::default(),
         );
@@ -837,6 +840,7 @@ mod tests {
                 request_id: None,
                 source_task_id: None,
                 source_run_id: None,
+                github_source: None,
             }),
             &RepositoryExecutionExplicitLaunchInput::default(),
         );
