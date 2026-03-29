@@ -66,13 +66,17 @@
 - `validationLaneIds`
 - `acceptanceCriteria`
 - `sourcePlanVersion`
+- `sourceRecordId`
 - `planChangeSummary`
 - `approvedPlanVersion`
+- `preparedPlanVersion`
 - `plan`
 - `placementFallbackReasonCode`
 - `resumeBackendId`
 - `placementScoreBreakdown`
 - `taskSource`
+- `githubSource`
+- `launchHandshake`
 - `instructionPatch`
 - `missionBrief`
 - `relaunchContext`

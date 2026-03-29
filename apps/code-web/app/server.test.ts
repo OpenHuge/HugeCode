@@ -102,6 +102,30 @@ describe("server GitHub webhook route", () => {
     });
     expect(runtimeFetch).toHaveBeenCalledOnce();
     expect(runtimeFetch.mock.calls[0]?.[0]).toBe("https://runtime.hugecode.dev/rpc");
+    const runtimeRequest = runtimeFetch.mock.calls[0]?.[1];
+    expect(runtimeRequest?.headers).toMatchObject({
+      "content-type": "application/json",
+      "x-hugecode-source-provider": "github",
+    });
+    expect(runtimeRequest?.body).toBeTruthy();
+    const runtimePayload = JSON.parse(String(runtimeRequest?.body)) as {
+      method: string;
+      params: {
+        event: {
+          deliveryId: string;
+        };
+        payload: {
+          repo: {
+            fullName: string;
+          };
+          issueNumber: number;
+        };
+      };
+    };
+    expect(runtimePayload.method).toBe("code_task_source_ingest_v1");
+    expect(runtimePayload.params.event.deliveryId).toBe("delivery-1");
+    expect(runtimePayload.params.payload.repo.fullName).toBe("OpenHuge/HugeCode");
+    expect(runtimePayload.params.payload.issueNumber).toBe(42);
   });
 
   it("returns 502 when the runtime gateway request fails", async () => {

@@ -39,6 +39,8 @@ describe("githubWebhook", () => {
     expect(result.request.payload.issueNumber).toBe(42);
     expect(result.request.payload.repo.fullName).toBe("OpenHuge/HugeCode");
     expect(result.request.payload.triggerMode).toBe("assignment");
+    expect(result.request.event.deliveryId).toBe("delivery-1");
+    expect(result.request.launch?.enabled).toBe(true);
   });
 
   it("normalizes PR comments with /hugecode continue and strips the command body", () => {
@@ -84,6 +86,9 @@ describe("githubWebhook", () => {
       "Focus on webhook dedupe and source state transitions."
     );
     expect(result.request.payload.pullRequestNumber).toBe(74);
+    expect(result.request.payload.commentId).toBe(991);
+    expect(result.request.payload.commentAuthor?.login).toBe("reviewer");
+    expect(result.request.event.deliveryId).toBe("delivery-2");
   });
 
   it("ignores comments without a supported command", () => {

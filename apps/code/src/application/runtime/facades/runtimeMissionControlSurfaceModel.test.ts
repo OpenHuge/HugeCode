@@ -35,6 +35,32 @@ function createProjection(): HugeCodeMissionControlSnapshot {
             name: "hugecode",
             fullName: "ku0/hugecode",
           },
+          githubSource: {
+            sourceRecordId: "source-42",
+            repo: {
+              owner: "ku0",
+              name: "hugecode",
+              fullName: "ku0/hugecode",
+            },
+            event: {
+              deliveryId: "delivery-42",
+              eventName: "issues",
+              action: "assigned",
+              receivedAt: 1_200,
+            },
+            ref: {
+              label: "#42",
+              issueNumber: 42,
+              triggerMode: "assignment",
+            },
+            launchHandshake: {
+              state: "started",
+              summary: "Runtime started the GitHub-driven run.",
+              disposition: "launched",
+              preparedPlanVersion: "plan-v42",
+              approvedPlanVersion: "plan-v42",
+            },
+          },
         },
         origin: {
           kind: "thread",
@@ -72,6 +98,32 @@ function createProjection(): HugeCodeMissionControlSnapshot {
             name: "hugecode",
             fullName: "ku0/hugecode",
           },
+          githubSource: {
+            sourceRecordId: "source-42",
+            repo: {
+              owner: "ku0",
+              name: "hugecode",
+              fullName: "ku0/hugecode",
+            },
+            event: {
+              deliveryId: "delivery-42",
+              eventName: "issues",
+              action: "assigned",
+              receivedAt: 1_200,
+            },
+            ref: {
+              label: "#42",
+              issueNumber: 42,
+              triggerMode: "assignment",
+            },
+            launchHandshake: {
+              state: "started",
+              summary: "Runtime started the GitHub-driven run.",
+              disposition: "launched",
+              preparedPlanVersion: "plan-v42",
+              approvedPlanVersion: "plan-v42",
+            },
+          },
         },
         state: "review_ready",
         title: "Refactor review routing",
@@ -84,6 +136,11 @@ function createProjection(): HugeCodeMissionControlSnapshot {
         validations: [],
         artifacts: [],
         reviewPackId: "review-pack:run-1",
+        nextOperatorAction: {
+          action: "review",
+          label: "Review the evidence",
+          detail: "Inspect the Review Pack and decide whether to continue.",
+        },
         sourceCitations: [
           {
             id: "citation-1",
@@ -133,6 +190,32 @@ function createProjection(): HugeCodeMissionControlSnapshot {
             name: "hugecode",
             fullName: "ku0/hugecode",
           },
+          githubSource: {
+            sourceRecordId: "source-42",
+            repo: {
+              owner: "ku0",
+              name: "hugecode",
+              fullName: "ku0/hugecode",
+            },
+            event: {
+              deliveryId: "delivery-42",
+              eventName: "issues",
+              action: "assigned",
+              receivedAt: 1_200,
+            },
+            ref: {
+              label: "#42",
+              issueNumber: 42,
+              triggerMode: "assignment",
+            },
+            launchHandshake: {
+              state: "started",
+              summary: "Runtime started the GitHub-driven run.",
+              disposition: "launched",
+              preparedPlanVersion: "plan-v42",
+              approvedPlanVersion: "plan-v42",
+            },
+          },
         },
         summary: "Runtime evidence is ready for review.",
         reviewStatus: "ready",
@@ -164,15 +247,19 @@ describe("runtimeMissionControlSurfaceModel", () => {
 
     expect(latestRuns[0]?.statusKind).toBe("review_ready");
     expect(latestRuns[0]?.operatorActionLabel).toBe("Open review");
-    expect(reviewEntries[0]?.recommendedNextAction).toBe("Open Review Pack");
+    expect(reviewEntries[0]?.recommendedNextAction).toBe(
+      "Inspect the Review Pack and decide whether to continue."
+    );
     expect(reviewEntries[0]?.operatorActionLabel).toBe("Open review");
-    expect(reviewEntries[0]?.continuePathLabel).toBe("Review Pack");
+    expect(reviewEntries[0]?.continuePathLabel).toBeNull();
     expect(reviewEntries[0]?.contextSummary).toBe("GitHub issue · triage");
     expect(reviewEntries[0]?.provenanceSummary).toBe(
-      "Repo guidance: AGENTS.md, .github/copilot-instructions.md | Source evidence: GitHub issue #42"
+      "Launch source: ku0/hugecode | #42 | issues.assigned | record source-42 | handshake started | Repo guidance: AGENTS.md, .github/copilot-instructions.md | Source evidence: GitHub issue #42"
     );
     expect(reviewEntries[0]?.triageSummary).toContain("Owner unassigned");
-    expect(reviewEntries[0]?.delegationSummary).toBe("Open Review Pack");
+    expect(reviewEntries[0]?.delegationSummary).toBe(
+      "Inspect the Review Pack and decide whether to continue."
+    );
     expect(reviewEntries[0]?.continuationTruthSourceLabel).toBe("Runtime takeover bundle");
     expect(signals.reviewReadyCount).toBe(1);
   });
