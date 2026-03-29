@@ -1,6 +1,9 @@
 import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
 import { describe, expect, it } from "vitest";
-import { buildMissionReviewEntriesFromProjection } from "./runtimeMissionControlSurfaceModel";
+import {
+  buildLatestMissionRunsFromProjection,
+  buildMissionReviewEntriesFromProjection,
+} from "./runtimeMissionControlSurfaceModel";
 import {
   buildReviewPackDetailModel,
   resolveReviewPackSelection,
@@ -115,6 +118,10 @@ describe("runtimeOperatorLoopParity", () => {
     const [reviewEntry] = buildMissionReviewEntriesFromProjection(projection, {
       workspaceId: "workspace-1",
     });
+    const [latestRun] = buildLatestMissionRunsFromProjection(projection, {
+      getWorkspaceGroupName: () => null,
+      limit: 1,
+    });
     const reviewDetail = buildReviewPackDetailModel({
       projection,
       selection: resolveReviewPackSelection({
@@ -140,21 +147,16 @@ describe("runtimeOperatorLoopParity", () => {
       reviewPackId: "review-pack:run-9",
       limitation: null,
     });
+    expect(latestRun?.operatorActionLabel).toBe(reviewEntry?.operatorActionLabel);
+    expect(latestRun?.operatorActionDetail).toBe(reviewEntry?.operatorActionDetail);
+    expect(latestRun?.operatorActionTarget).toEqual(reviewEntry?.operatorActionTarget);
 
     expect(reviewDetail?.kind).toBe("review_pack");
     if (!reviewDetail || reviewDetail.kind !== "review_pack") {
       throw new Error("Expected review pack detail");
     }
     expect(reviewDetail.recommendedNextAction).toBe(reviewEntry?.recommendedNextAction);
-    expect(reviewDetail.navigationTarget).toEqual({
-      kind: "mission",
-      workspaceId: "workspace-1",
-      taskId: "runtime-task:run-9",
-      runId: "run-9",
-      reviewPackId: "review-pack:run-9",
-      threadId: "thread-legacy",
-      limitation: null,
-    });
+    expect(reviewDetail.navigationTarget).toEqual(reviewEntry?.operatorActionTarget);
     expect(reviewDetail.continuity?.recommendedAction).toBe(reviewEntry?.recommendedNextAction);
   });
 
@@ -251,6 +253,10 @@ describe("runtimeOperatorLoopParity", () => {
     const [reviewEntry] = buildMissionReviewEntriesFromProjection(projection, {
       workspaceId: "workspace-1",
     });
+    const [latestRun] = buildLatestMissionRunsFromProjection(projection, {
+      getWorkspaceGroupName: () => null,
+      limit: 1,
+    });
     const reviewDetail = buildReviewPackDetailModel({
       projection,
       selection: resolveReviewPackSelection({
@@ -274,6 +280,9 @@ describe("runtimeOperatorLoopParity", () => {
       reviewPackId: "review-pack:1",
       limitation: null,
     });
+    expect(latestRun?.operatorActionLabel).toBe(reviewEntry?.operatorActionLabel);
+    expect(latestRun?.operatorActionDetail).toBe(reviewEntry?.operatorActionDetail);
+    expect(latestRun?.operatorActionTarget).toEqual(reviewEntry?.operatorActionTarget);
 
     expect(reviewDetail?.kind).toBe("review_pack");
     if (!reviewDetail || reviewDetail.kind !== "review_pack") {
@@ -281,5 +290,269 @@ describe("runtimeOperatorLoopParity", () => {
     }
     expect(reviewDetail.recommendedNextAction).toBe(reviewEntry?.recommendedNextAction);
     expect(reviewDetail.continuity?.recommendedAction).toBe(reviewEntry?.recommendedNextAction);
+  });
+
+  it("keeps approval CTA label, detail, and target aligned across Mission Control and Review Pack", () => {
+    const projection = asProjection({
+      source: "runtime_snapshot_v1" as const,
+      generatedAt: 20,
+      workspaces: [
+        {
+          id: "workspace-1",
+          name: "Workspace One",
+          rootPath: "/tmp/workspace-one",
+          connected: true,
+          defaultProfileId: null,
+        },
+      ],
+      tasks: [
+        {
+          id: "task-approval",
+          workspaceId: "workspace-1",
+          title: "Approve runtime handoff",
+          objective: "Approve runtime handoff",
+          origin: {
+            kind: "thread" as const,
+            threadId: "thread-approval",
+            runId: "run-approval",
+            requestId: null,
+          },
+          mode: "pair" as const,
+          modeSource: "execution_profile" as const,
+          status: "review_ready" as const,
+          createdAt: 1,
+          updatedAt: 20,
+          currentRunId: null,
+          latestRunId: "run-approval",
+          latestRunState: "review_ready" as const,
+          nextAction: null,
+        },
+      ],
+      runs: [
+        {
+          id: "run-approval",
+          taskId: "task-approval",
+          workspaceId: "workspace-1",
+          state: "review_ready" as const,
+          title: "Approve runtime handoff",
+          summary: "Approval is pending before the review can continue.",
+          startedAt: 2,
+          finishedAt: 19,
+          updatedAt: 20,
+          currentStepIndex: 0,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          reviewPackId: "review-pack:approval",
+          approval: {
+            status: "pending_decision" as const,
+            approvalId: "approval-1",
+            label: "Approval pending",
+            summary: "Operator approval is required before the follow-up can proceed.",
+          },
+          takeoverBundle: {
+            pathKind: "approval",
+            primaryAction: "approve",
+            state: "ready",
+            summary: "Operator approval is required before the follow-up can proceed.",
+            recommendedAction: "Open the approval decision before continuing this follow-up.",
+            target: {
+              kind: "run",
+              workspaceId: "workspace-1",
+              taskId: "task-approval",
+              runId: "run-approval",
+              reviewPackId: "review-pack:approval",
+            },
+            reviewPackId: "review-pack:approval",
+          },
+        },
+      ],
+      reviewPacks: [
+        {
+          id: "review-pack:approval",
+          runId: "run-approval",
+          taskId: "task-approval",
+          workspaceId: "workspace-1",
+          summary: "Approval is pending before the review can continue.",
+          reviewStatus: "ready" as const,
+          evidenceState: "confirmed" as const,
+          validationOutcome: "passed" as const,
+          warningCount: 0,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          checksPerformed: [],
+          recommendedNextAction: "Legacy review text.",
+          createdAt: 20,
+        },
+      ],
+    });
+
+    const [reviewEntry] = buildMissionReviewEntriesFromProjection(projection, {
+      workspaceId: "workspace-1",
+    });
+    const [latestRun] = buildLatestMissionRunsFromProjection(projection, {
+      getWorkspaceGroupName: () => null,
+      limit: 1,
+    });
+    const reviewDetail = buildReviewPackDetailModel({
+      projection,
+      selection: resolveReviewPackSelection({
+        projection,
+        workspaceId: "workspace-1",
+        request: {
+          workspaceId: "workspace-1",
+          reviewPackId: "review-pack:approval",
+          source: "review_surface",
+        },
+      }),
+    });
+
+    expect(reviewEntry?.operatorActionLabel).toBe("Open approval");
+    expect(reviewEntry?.operatorActionDetail).toBe(
+      "Operator approval is required before the follow-up can proceed."
+    );
+    expect(latestRun?.operatorActionLabel).toBe(reviewEntry?.operatorActionLabel);
+    expect(latestRun?.operatorActionDetail).toBe(reviewEntry?.operatorActionDetail);
+    expect(latestRun?.operatorActionTarget).toEqual(reviewEntry?.operatorActionTarget);
+
+    expect(reviewDetail?.kind).toBe("review_pack");
+    if (!reviewDetail || reviewDetail.kind !== "review_pack") {
+      throw new Error("Expected review pack detail");
+    }
+    expect(reviewDetail.nextActionLabel).toBe(reviewEntry?.operatorActionLabel);
+    expect(reviewDetail.nextActionDetail).toBe(reviewEntry?.operatorActionDetail);
+    expect(reviewDetail.navigationTarget).toEqual(reviewEntry?.operatorActionTarget);
+  });
+
+  it("keeps review takeover target aligned between Mission Control and Review Pack", () => {
+    const projection = asProjection({
+      source: "runtime_snapshot_v1" as const,
+      generatedAt: 30,
+      workspaces: [
+        {
+          id: "workspace-1",
+          name: "Workspace One",
+          rootPath: "/tmp/workspace-one",
+          connected: true,
+          defaultProfileId: null,
+        },
+      ],
+      tasks: [
+        {
+          id: "task-review",
+          workspaceId: "workspace-1",
+          title: "Review takeover target",
+          objective: "Review takeover target",
+          origin: {
+            kind: "thread" as const,
+            threadId: "thread-review",
+            runId: "run-review",
+            requestId: null,
+          },
+          mode: "pair" as const,
+          modeSource: "execution_profile" as const,
+          status: "review_ready" as const,
+          createdAt: 1,
+          updatedAt: 30,
+          currentRunId: null,
+          latestRunId: "run-review",
+          latestRunState: "review_ready" as const,
+          nextAction: null,
+        },
+      ],
+      runs: [
+        {
+          id: "run-review",
+          taskId: "task-review",
+          workspaceId: "workspace-1",
+          state: "review_ready" as const,
+          title: "Review takeover target",
+          summary: "Runtime published a review takeover path.",
+          startedAt: 2,
+          finishedAt: 29,
+          updatedAt: 30,
+          currentStepIndex: 0,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          reviewPackId: "review-pack:review",
+          takeoverBundle: {
+            pathKind: "review",
+            primaryAction: "open_review_pack",
+            state: "ready",
+            summary: "Continue from Review Pack on this device.",
+            recommendedAction: "Open Review Pack on this device.",
+            target: {
+              kind: "review_pack",
+              workspaceId: "workspace-1",
+              taskId: "task-review",
+              runId: "run-review",
+              reviewPackId: "review-pack:review",
+            },
+            reviewPackId: "review-pack:review",
+          },
+        },
+      ],
+      reviewPacks: [
+        {
+          id: "review-pack:review",
+          runId: "run-review",
+          taskId: "task-review",
+          workspaceId: "workspace-1",
+          summary: "Runtime published a review takeover path.",
+          reviewStatus: "ready" as const,
+          evidenceState: "confirmed" as const,
+          validationOutcome: "passed" as const,
+          warningCount: 0,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          checksPerformed: [],
+          recommendedNextAction: "Legacy follow-up.",
+          createdAt: 30,
+        },
+      ],
+    });
+
+    const [reviewEntry] = buildMissionReviewEntriesFromProjection(projection, {
+      workspaceId: "workspace-1",
+    });
+    const [latestRun] = buildLatestMissionRunsFromProjection(projection, {
+      getWorkspaceGroupName: () => null,
+      limit: 1,
+    });
+    const reviewDetail = buildReviewPackDetailModel({
+      projection,
+      selection: resolveReviewPackSelection({
+        projection,
+        workspaceId: "workspace-1",
+        request: {
+          workspaceId: "workspace-1",
+          reviewPackId: "review-pack:review",
+          source: "review_surface",
+        },
+      }),
+    });
+
+    expect(reviewEntry?.operatorActionTarget).toEqual({
+      kind: "review",
+      workspaceId: "workspace-1",
+      taskId: "task-review",
+      runId: "run-review",
+      reviewPackId: "review-pack:review",
+      limitation: null,
+    });
+    expect(latestRun?.operatorActionLabel).toBe(reviewEntry?.operatorActionLabel);
+    expect(latestRun?.operatorActionDetail).toBe(reviewEntry?.operatorActionDetail);
+    expect(latestRun?.operatorActionTarget).toEqual(reviewEntry?.operatorActionTarget);
+
+    expect(reviewDetail?.kind).toBe("review_pack");
+    if (!reviewDetail || reviewDetail.kind !== "review_pack") {
+      throw new Error("Expected review pack detail");
+    }
+    expect(reviewDetail.nextActionLabel).toBe(reviewEntry?.operatorActionLabel);
+    expect(reviewDetail.nextActionDetail).toBe(reviewEntry?.operatorActionDetail);
+    expect(reviewDetail.navigationTarget).toEqual(reviewEntry?.operatorActionTarget);
   });
 });

@@ -63,9 +63,9 @@ describe("runtimeMissionControlOperatorAction", () => {
       defaultActiveLabel: "Monitor mission",
     });
 
-    expect(action.label).toBe("Continue in mission thread");
-    expect(action.detail).toBe("Open the handoff target on the mission thread.");
-    expect(action.target).toEqual(missionTarget);
+    expect(action.label).toBe("Open handoff");
+    expect(action.detail).toBe("Continue from the mission thread on another control device.");
+    expect(action.target).toEqual(reviewTarget);
   });
 
   it("keeps cross-thread handoff targets when runtime points at a different thread", () => {
@@ -129,13 +129,9 @@ describe("runtimeMissionControlOperatorAction", () => {
       defaultActiveLabel: "Monitor mission",
     });
 
-    expect(action.label).toBe("Continue in mission thread");
-    expect(action.detail).toBe("Open the delegated thread handoff target.");
-    expect(action.target).toEqual({
-      kind: "thread",
-      workspaceId: "workspace-1",
-      threadId: "thread-handoff",
-    });
+    expect(action.label).toBe("Open handoff");
+    expect(action.detail).toBe("Continue in the delegated thread on another control device.");
+    expect(action.target).toEqual(reviewTarget);
   });
 
   it("routes non-review canonical review-pack actions back to the mission target", () => {
@@ -239,11 +235,14 @@ describe("runtimeMissionControlOperatorAction", () => {
     });
 
     expect(action.label).toBe("Open review");
-    expect(action.detail).toBe("Open review from the delegated thread first.");
+    expect(action.detail).toBe("Review continuation should start from the delegated thread.");
     expect(action.target).toEqual({
-      kind: "thread",
+      kind: "review",
       workspaceId: "workspace-1",
-      threadId: "thread-review-handoff",
+      taskId: "task-1",
+      runId: "run-1",
+      reviewPackId: "review-pack-1",
+      limitation: null,
     });
   });
 });

@@ -9,6 +9,61 @@ vi.mock("../../shared/productAnalytics", () => ({
   trackProductAnalyticsEvent: vi.fn(async () => undefined),
 }));
 
+const reviewContinuationFieldOrigins = {
+  executionProfileId: "runtime_recorded",
+  preferredBackendIds: "runtime_recorded",
+  accessMode: "runtime_recorded",
+  reviewProfileId: "runtime_recorded",
+  validationPresetId: "runtime_recorded",
+} as const;
+
+const missionReviewDefaults = {
+  reviewProfileId: null,
+  reviewGate: null,
+  reviewFindings: [],
+  reviewRunId: null,
+  skillUsage: [],
+  autofixCandidate: null,
+};
+
+const reviewPackDecisionActionabilityDefaults = {
+  summary: "Runtime review decision actions use fixture defaults in this test.",
+  details: ["Decision source: test fixture defaults."],
+  sourceLabel: "Test fixture defaults",
+  usesFallback: true,
+};
+
+function buildInterventionDraft(input: {
+  intent: "retry" | "clarify" | "switch_profile" | "pair_mode";
+  title: string;
+  instruction: string;
+  profileId: string;
+  preferredBackendIds?: string[];
+  sourceTaskId: string;
+  sourceRunId: string;
+  sourceReviewPackId: string;
+}) {
+  return {
+    ...input,
+    reviewProfileId: null,
+    validationPresetId: null,
+    accessMode: null,
+    taskSource: null,
+    fieldOrigins: reviewContinuationFieldOrigins,
+  };
+}
+
+const blockedContinuityDefaults = {
+  truthSourceLabel: "Runtime published continuity truth",
+  continuePathLabel: "Mission run",
+  canSafelyContinue: false,
+  hasHandoffPath: true,
+  reviewFollowUpActionable: false,
+  checkpointDurabilityState: "blocked",
+  continuityOverview:
+    "Continuity readiness blocked. Safe continue path unavailable. Handoff path available. Review follow-up blocked. Checkpoint durability blocked.",
+} as const;
+
 describe("ReviewPackSurface", () => {
   it("renders evidence-first detail content for a runtime-managed review pack", () => {
     const onSelectReviewPack = vi.fn();
@@ -60,6 +115,7 @@ describe("ReviewPackSurface", () => {
           fallbackReason: null,
         }}
         detail={{
+          ...missionReviewDefaults,
           id: "review-pack:runtime-7",
           workspaceId: "workspace-1",
           workspaceName: "Workspace One",
@@ -124,6 +180,7 @@ describe("ReviewPackSurface", () => {
             summary: "Accept or reject this result from the review surface.",
             decidedAt: null,
           },
+          provenanceSummary: "Repo guidance: AGENTS.md | Source evidence: GitHub issue #42",
           backendAudit: {
             summary: "Remote provider route",
             details: ["Provider: OpenAI", "Routing health: ready"],
@@ -308,7 +365,7 @@ describe("ReviewPackSurface", () => {
                 reviewPackId: "review-pack:runtime-7",
                 limitation: "thread_unavailable",
               },
-              interventionDraft: {
+              interventionDraft: buildInterventionDraft({
                 intent: "retry",
                 title: "Prepare release notes",
                 instruction: "Retry the runtime-managed review task.",
@@ -317,7 +374,7 @@ describe("ReviewPackSurface", () => {
                 sourceTaskId: "runtime-task:runtime-7",
                 sourceRunId: "runtime-7",
                 sourceReviewPackId: "review-pack:runtime-7",
-              },
+              }),
               actionTarget: null,
             },
           ],
@@ -449,6 +506,12 @@ describe("ReviewPackSurface", () => {
     expect(screen.getAllByText("Branch: main").length).toBeGreaterThan(0);
     expect(screen.getAllByText("gh pr create --draft").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Confirm validations").length).toBeGreaterThan(0);
+    expect(screen.getByText("Source and runtime lineage")).toBeTruthy();
+    expect(
+      screen.getByText(
+        /Repo guidance: AGENTS\.md \| Source evidence: GitHub issue #42 \| Runtime confirmed workspace-default placement on backend backend-review-a\. \| Objective, guardrails, and review outcome stayed attached to this runtime-managed mission\./
+      )
+    ).toBeTruthy();
     expect(
       screen.getAllByText("Thread detail is unavailable in this runtime snapshot.").length
     ).toBeGreaterThan(0);
@@ -531,6 +594,7 @@ describe("ReviewPackSurface", () => {
           detailKind: "mission_run",
         }}
         detail={{
+          ...missionReviewDefaults,
           kind: "mission_run",
           workspaceId: "workspace-1",
           workspaceName: "Workspace One",
@@ -693,6 +757,7 @@ describe("ReviewPackSurface", () => {
           detailKind: "mission_run",
         }}
         detail={{
+          ...missionReviewDefaults,
           kind: "mission_run",
           workspaceId: "workspace-1",
           workspaceName: "Workspace One",
@@ -851,6 +916,8 @@ describe("ReviewPackSurface", () => {
           fallbackReason: null,
         }}
         detail={{
+          ...missionReviewDefaults,
+          decisionActionability: reviewPackDecisionActionabilityDefaults,
           id: "review-pack:run-1",
           workspaceId: "workspace-1",
           workspaceName: "Workspace One",
@@ -959,7 +1026,7 @@ describe("ReviewPackSurface", () => {
                 threadId: "thread-1",
               },
               actionTarget: null,
-              interventionDraft: {
+              interventionDraft: buildInterventionDraft({
                 intent: "retry",
                 title: "Refactor review routing",
                 instruction:
@@ -969,7 +1036,7 @@ describe("ReviewPackSurface", () => {
                 sourceTaskId: "task-1",
                 sourceRunId: "run-1",
                 sourceReviewPackId: "review-pack:run-1",
-              },
+              }),
             },
             {
               id: "clarify",
@@ -984,7 +1051,7 @@ describe("ReviewPackSurface", () => {
                 threadId: "thread-1",
               },
               actionTarget: null,
-              interventionDraft: {
+              interventionDraft: buildInterventionDraft({
                 intent: "clarify",
                 title: "Refactor review routing",
                 instruction:
@@ -994,7 +1061,7 @@ describe("ReviewPackSurface", () => {
                 sourceTaskId: "task-1",
                 sourceRunId: "run-1",
                 sourceReviewPackId: "review-pack:run-1",
-              },
+              }),
             },
             {
               id: "switch_profile_and_retry",
@@ -1009,7 +1076,7 @@ describe("ReviewPackSurface", () => {
                 threadId: "thread-1",
               },
               actionTarget: null,
-              interventionDraft: {
+              interventionDraft: buildInterventionDraft({
                 intent: "switch_profile",
                 title: "Refactor review routing",
                 instruction:
@@ -1019,7 +1086,7 @@ describe("ReviewPackSurface", () => {
                 sourceTaskId: "task-1",
                 sourceRunId: "run-1",
                 sourceReviewPackId: "review-pack:run-1",
-              },
+              }),
             },
             {
               id: "continue_in_pair",
@@ -1034,7 +1101,7 @@ describe("ReviewPackSurface", () => {
                 threadId: "thread-1",
               },
               actionTarget: null,
-              interventionDraft: {
+              interventionDraft: buildInterventionDraft({
                 intent: "pair_mode",
                 title: "Refactor review routing",
                 instruction:
@@ -1044,7 +1111,7 @@ describe("ReviewPackSurface", () => {
                 sourceTaskId: "task-1",
                 sourceRunId: "run-1",
                 sourceReviewPackId: "review-pack:run-1",
-              },
+              }),
             },
           ],
           failureClass: null,
@@ -1205,6 +1272,8 @@ describe("ReviewPackSurface", () => {
           fallbackReason: null,
         }}
         detail={{
+          ...missionReviewDefaults,
+          decisionActionability: reviewPackDecisionActionabilityDefaults,
           id: "review-pack:run-1",
           workspaceId: "workspace-1",
           workspaceName: "Workspace One",
@@ -1292,7 +1361,7 @@ describe("ReviewPackSurface", () => {
               disabledReason: null,
               navigationTarget: null,
               actionTarget: null,
-              interventionDraft: {
+              interventionDraft: buildInterventionDraft({
                 intent: "retry",
                 title: "Refactor review routing",
                 instruction: "Retry the runtime-managed review task.",
@@ -1301,7 +1370,7 @@ describe("ReviewPackSurface", () => {
                 sourceTaskId: "task-1",
                 sourceRunId: "run-1",
                 sourceReviewPackId: "review-pack:run-1",
-              },
+              }),
             },
             {
               id: "clarify",
@@ -1312,7 +1381,7 @@ describe("ReviewPackSurface", () => {
               disabledReason: null,
               navigationTarget: null,
               actionTarget: null,
-              interventionDraft: {
+              interventionDraft: buildInterventionDraft({
                 intent: "clarify",
                 title: "Refactor review routing",
                 instruction: "Clarify the runtime-managed review task.",
@@ -1321,7 +1390,7 @@ describe("ReviewPackSurface", () => {
                 sourceTaskId: "task-1",
                 sourceRunId: "run-1",
                 sourceReviewPackId: "review-pack:run-1",
-              },
+              }),
             },
           ],
           failureClass: null,
@@ -1382,7 +1451,7 @@ describe("ReviewPackSurface", () => {
       expect(onLaunchInterventionDraft).toHaveBeenCalledWith({
         workspaceId: "workspace-1",
         navigationTarget: null,
-        draft: {
+        draft: buildInterventionDraft({
           intent: "retry",
           title: "Retry review routing with tighter scope",
           instruction: "Retry with a narrower runtime-managed scope.",
@@ -1391,7 +1460,7 @@ describe("ReviewPackSurface", () => {
           sourceTaskId: "task-1",
           sourceRunId: "run-1",
           sourceReviewPackId: "review-pack:run-1",
-        },
+        }),
       });
     });
   }, 60_000);
@@ -1437,6 +1506,8 @@ describe("ReviewPackSurface", () => {
           fallbackReason: null,
         }}
         detail={{
+          ...missionReviewDefaults,
+          decisionActionability: reviewPackDecisionActionabilityDefaults,
           id: "review-pack:run-1",
           workspaceId: "workspace-1",
           workspaceName: "Workspace One",
@@ -1616,6 +1687,8 @@ describe("ReviewPackSurface", () => {
           fallbackReason: null,
         }}
         detail={{
+          ...missionReviewDefaults,
+          decisionActionability: reviewPackDecisionActionabilityDefaults,
           id: "review-pack:run-1",
           workspaceId: "workspace-1",
           workspaceName: "Workspace One",
@@ -1703,7 +1776,7 @@ describe("ReviewPackSurface", () => {
               disabledReason: null,
               navigationTarget: null,
               actionTarget: null,
-              interventionDraft: {
+              interventionDraft: buildInterventionDraft({
                 intent: "pair_mode",
                 title: "Refactor review routing",
                 instruction: "Continue in pair with the current review context.",
@@ -1712,7 +1785,7 @@ describe("ReviewPackSurface", () => {
                 sourceTaskId: "task-1",
                 sourceRunId: "run-1",
                 sourceReviewPackId: "review-pack:run-1",
-              },
+              }),
             },
           ],
           failureClass: null,
@@ -1804,6 +1877,7 @@ describe("ReviewPackSurface", () => {
           fallbackReason: null,
         }}
         detail={{
+          ...missionReviewDefaults,
           kind: "mission_run",
           workspaceId: "workspace-1",
           workspaceName: "Workspace One",
@@ -1887,6 +1961,8 @@ describe("ReviewPackSurface", () => {
           fallbackReason: null,
         }}
         detail={{
+          ...missionReviewDefaults,
+          decisionActionability: reviewPackDecisionActionabilityDefaults,
           id: "review-pack:run-9",
           workspaceId: "workspace-1",
           workspaceName: "Workspace One",
@@ -1933,6 +2009,7 @@ describe("ReviewPackSurface", () => {
             details: ["handoff detail"],
           },
           continuity: {
+            ...blockedContinuityDefaults,
             state: "blocked",
             summary: "Runtime blocked follow-up until validation evidence is repaired.",
             details: [
