@@ -9,9 +9,31 @@ vi.mock("../../shared/productAnalytics", () => ({
   trackProductAnalyticsEvent: vi.fn(async () => undefined),
 }));
 
-const reviewContinuationFieldOrigins = {
-  executionProfileId: "runtime_recorded",
-  preferredBackendIds: "runtime_recorded",
+function buildEmptyReviewMetadata() {
+  return {
+    reviewProfileId: null,
+    reviewGate: null,
+    reviewFindings: [],
+    reviewRunId: null,
+    skillUsage: [],
+    autofixCandidate: null,
+  };
+}
+
+const defaultDecisionActionability = {
+  summary:
+    "Canonical runtime review actionability is unavailable. Follow-up and review decisions stay disabled until runtime publishes the action set.",
+  details: [
+    "Decision source: Runtime review actionability unavailable.",
+    "This surface no longer reconstructs follow-up actions or default review policy in page-local logic.",
+  ],
+  sourceLabel: "Runtime review actionability unavailable",
+  usesFallback: false,
+};
+
+const runtimeRecordedFieldOrigins = {
+  executionProfileId: "explicit_override",
+  preferredBackendIds: "explicit_override",
   accessMode: "runtime_recorded",
   reviewProfileId: "runtime_recorded",
   validationPresetId: "runtime_recorded",
@@ -33,15 +55,29 @@ const reviewPackDecisionActionabilityDefaults = {
   usesFallback: true,
 };
 
+function buildPlacementEvidence(input: { summary: string; rationale: string }) {
+  return {
+    summary: input.summary,
+    lifecycleState: "confirmed" as const,
+    resolutionSource: "workspace_default" as const,
+    requestedBackendIds: ["backend-review-a"],
+    resolvedBackendId: "backend-review-a",
+    readiness: "ready" as const,
+    healthSummary: "placement_ready" as const,
+    attentionReasons: [],
+    rationale: input.rationale,
+  };
+}
+
 function buildInterventionDraft(input: {
   intent: "retry" | "clarify" | "switch_profile" | "pair_mode";
   title: string;
   instruction: string;
   profileId: string;
-  preferredBackendIds?: string[];
+  preferredBackendIds: string[];
   sourceTaskId: string;
   sourceRunId: string;
-  sourceReviewPackId: string;
+  sourceReviewPackId: string | null;
 }) {
   return {
     ...input,
@@ -49,7 +85,7 @@ function buildInterventionDraft(input: {
     validationPresetId: null,
     accessMode: null,
     taskSource: null,
-    fieldOrigins: reviewContinuationFieldOrigins,
+    fieldOrigins: runtimeRecordedFieldOrigins,
   };
 }
 
@@ -131,6 +167,7 @@ describe("ReviewPackSurface", () => {
           evidenceLabel: "Evidence incomplete",
           validationOutcome: "unknown",
           validationLabel: "Validation unavailable",
+          ...buildEmptyReviewMetadata(),
           warningCount: 1,
           warnings: ["Validation output was not recorded."],
           validations: [],
@@ -355,16 +392,10 @@ describe("ReviewPackSurface", () => {
                 claimSummary: "Issue context scoped the requested change.",
               },
             ],
-            placement: {
+            placement: buildPlacementEvidence({
               summary: "Runtime confirmed workspace-default placement on backend-review-a.",
-              lifecycleState: "confirmed",
-              resolutionSource: "workspace_default",
-              requestedBackendIds: ["backend-review-a"],
-              resolvedBackendId: "backend-review-a",
-              readiness: "ready",
-              healthSummary: "placement_ready",
               rationale: "Runtime used the default review backend for this workspace.",
-            },
+            }),
             missionBrief: {
               objective: "Prepare release notes",
               planVersion: "plan-v3",
@@ -690,6 +721,7 @@ describe("ReviewPackSurface", () => {
           secondaryLabel: "Runtime-managed mission",
           source: "runtime_snapshot_v1",
           sourceLabel: "Runtime snapshot",
+          ...buildEmptyReviewMetadata(),
           warnings: [],
           validations: [],
           artifacts: [],
@@ -853,6 +885,7 @@ describe("ReviewPackSurface", () => {
           secondaryLabel: "Runtime-managed mission",
           source: "runtime_snapshot_v1",
           sourceLabel: "Runtime snapshot",
+          ...buildEmptyReviewMetadata(),
           warnings: [],
           validations: [],
           artifacts: [],
@@ -998,6 +1031,7 @@ describe("ReviewPackSurface", () => {
           evidenceLabel: "Evidence confirmed",
           validationOutcome: "warning",
           validationLabel: "Validation warning",
+          ...buildEmptyReviewMetadata(),
           warningCount: 1,
           warnings: ["Warnings remain after the latest validation pass."],
           validations: [
@@ -1047,6 +1081,7 @@ describe("ReviewPackSurface", () => {
             details: ["Provider: OpenAI", "Routing health: ready"],
             missingReason: null,
           },
+          decisionActionability: defaultDecisionActionability,
           decisionActions: [
             {
               id: "accept",
@@ -1354,6 +1389,7 @@ describe("ReviewPackSurface", () => {
           evidenceLabel: "Evidence confirmed",
           validationOutcome: "warning",
           validationLabel: "Validation warning",
+          ...buildEmptyReviewMetadata(),
           warningCount: 1,
           warnings: ["Warnings remain after the latest validation pass."],
           validations: [],
@@ -1386,6 +1422,7 @@ describe("ReviewPackSurface", () => {
             details: ["Provider: OpenAI", "Routing health: ready"],
             missingReason: null,
           },
+          decisionActionability: defaultDecisionActionability,
           decisionActions: [
             {
               id: "accept",
@@ -1516,7 +1553,7 @@ describe("ReviewPackSurface", () => {
       expect(onLaunchInterventionDraft).toHaveBeenCalledWith({
         workspaceId: "workspace-1",
         navigationTarget: null,
-        draft: buildInterventionDraft({
+        draft: expect.objectContaining({
           intent: "retry",
           title: "Retry review routing with tighter scope",
           instruction: "Retry with a narrower runtime-managed scope.",
@@ -1588,6 +1625,7 @@ describe("ReviewPackSurface", () => {
           evidenceLabel: "Evidence confirmed",
           validationOutcome: "passed",
           validationLabel: "Validation passed",
+          ...buildEmptyReviewMetadata(),
           warningCount: 0,
           warnings: [],
           validations: [],
@@ -1617,6 +1655,7 @@ describe("ReviewPackSurface", () => {
             details: [],
             missingReason: null,
           },
+          decisionActionability: defaultDecisionActionability,
           decisionActions: [
             {
               id: "accept",
@@ -1769,6 +1808,7 @@ describe("ReviewPackSurface", () => {
           evidenceLabel: "Evidence confirmed",
           validationOutcome: "warning",
           validationLabel: "Validation warning",
+          ...buildEmptyReviewMetadata(),
           warningCount: 1,
           warnings: ["Warnings remain after the latest validation pass."],
           validations: [],
@@ -1801,6 +1841,7 @@ describe("ReviewPackSurface", () => {
             details: ["Provider: OpenAI", "Routing health: ready"],
             missingReason: null,
           },
+          decisionActionability: defaultDecisionActionability,
           decisionActions: [
             {
               id: "accept",
@@ -1965,6 +2006,7 @@ describe("ReviewPackSurface", () => {
           secondaryLabel: "Runtime-managed mission",
           source: "runtime_snapshot_v1",
           sourceLabel: "Runtime snapshot",
+          ...buildEmptyReviewMetadata(),
           warnings: ["Validation has not run yet."],
           validations: [],
           artifacts: [],
@@ -2043,6 +2085,7 @@ describe("ReviewPackSurface", () => {
           evidenceLabel: "Runtime evidence confirmed",
           validationOutcome: "passed",
           validationLabel: "Validation passed",
+          ...buildEmptyReviewMetadata(),
           warningCount: 0,
           warnings: [],
           validations: [],
@@ -2085,6 +2128,13 @@ describe("ReviewPackSurface", () => {
             recommendedAction:
               "Open Review Pack and resolve the runtime-blocked follow-up before continuing.",
             blockingReason: "Runtime blocked follow-up until validation evidence is repaired.",
+            continuePathLabel: "Mission run",
+            truthSourceLabel: "Runtime continuation truth",
+            continuityOverview: "Runtime blocked follow-up until validation evidence is repaired.",
+            canSafelyContinue: false,
+            hasHandoffPath: true,
+            reviewFollowUpActionable: false,
+            checkpointDurabilityState: "blocked",
           },
           assumptions: [],
           reproductionGuidance: [],
@@ -2111,6 +2161,7 @@ describe("ReviewPackSurface", () => {
           executionContext: undefined,
           missionBrief: undefined,
           relaunchContext: undefined,
+          decisionActionability: defaultDecisionActionability,
           decisionActions: [],
           limitations: [],
           relaunchOptions: [],

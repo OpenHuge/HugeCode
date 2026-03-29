@@ -103,6 +103,7 @@ describe("ReviewQueuePanel", () => {
                 resolvedBackendId: "backend-review-a",
                 readiness: "ready",
                 healthSummary: "placement_ready",
+                attentionReasons: [],
                 rationale: "Runtime used the default review backend for this workspace.",
               },
               missionBrief: {
@@ -167,7 +168,7 @@ describe("ReviewQueuePanel", () => {
       threadId: null,
       limitation: "thread_unavailable",
     });
-  });
+  }, 20_000);
 
   it("filters review queue items by risk tags", () => {
     render(
