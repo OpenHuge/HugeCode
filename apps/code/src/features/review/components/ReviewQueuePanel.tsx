@@ -13,6 +13,7 @@ import {
   Surface,
 } from "../../../design-system";
 import { formatRelativeTime } from "../../../utils/time";
+import { CompactReviewEvidenceCard } from "./CompactReviewEvidenceCard";
 import {
   formatMissionControlFreshnessLabel,
   formatMissionOverviewStateLabel,
@@ -21,6 +22,7 @@ import {
   type MissionReviewEntry,
 } from "../../missions/utils/missionControlPresentation";
 import { resolveMissionEntryActionLabel } from "../../missions/utils/missionNavigation";
+import { buildCompactReviewEvidenceDescriptor } from "../utils/compactReviewEvidence";
 import * as styles from "./ReviewQueuePanel.css";
 
 type ReviewQueueFilter =
@@ -33,7 +35,7 @@ type ReviewQueueFilter =
   | "fallback_routing"
   | "sub_agent_blocked";
 
-type ReviewQueuePanelProps = {
+export type ReviewQueuePanelProps = {
   workspaceName?: string | null;
   items: MissionReviewEntry[];
   selectedReviewPackId?: string | null;
@@ -454,6 +456,13 @@ export function ReviewQueuePanel({
                   }
                 >
                   <CardDescription className={styles.summary}>{entry.summary}</CardDescription>
+                  {entry.compactEvidenceInput ? (
+                    <CompactReviewEvidenceCard
+                      descriptor={buildCompactReviewEvidenceDescriptor(entry.compactEvidenceInput)}
+                      density="compact"
+                      testId={`review-queue-compact-evidence-${entry.id}`}
+                    />
+                  ) : null}
                   {entry.operatorSignal ? (
                     <div className={styles.footerCopy}>{entry.operatorSignal}</div>
                   ) : null}

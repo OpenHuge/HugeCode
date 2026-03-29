@@ -2,16 +2,11 @@ import { lazy, Suspense } from "react";
 import { Text } from "../../../../design-system";
 import { GitDiffViewerPlaceholder } from "../../../git/components/GitDiffViewerPlaceholder";
 import { resolveBranchDisplayLabel } from "../../../git/utils/branchLabels";
-import {
-  buildMissionReviewEntriesFromProjection,
-  type MissionNavigationTarget,
-} from "../../../missions/utils/missionControlPresentation";
+import { type MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";
 import { openMissionTargetFromDesktopShell } from "../../../missions/utils/missionNavigation";
-import {
-  buildReviewPackDetailModel,
-  buildReviewPackListItems,
-  type ReviewPackSelectionRequest,
-  type ReviewPackSelectionSource,
+import type {
+  ReviewPackSelectionRequest,
+  ReviewPackSelectionSource,
 } from "../../../review/utils/reviewPackSurfaceModel";
 import {
   flattenLayoutNodesOptions,
@@ -47,12 +42,12 @@ const LazyGitDiffViewer = lazy(async () => {
   return { default: module.GitDiffViewer };
 });
 const LazyReviewQueuePanel = lazy(async () => {
-  const module = await import("../../../review/components/ReviewQueuePanel");
-  return { default: module.ReviewQueuePanel };
+  const module = await import("../../../review/components/ReviewQueuePanelFromProjection");
+  return { default: module.ReviewQueuePanelFromProjection };
 });
 const LazyReviewPackSurface = lazy(async () => {
-  const module = await import("../../../review/components/ReviewPackSurface");
-  return { default: module.ReviewPackSurface };
+  const module = await import("../../../review/components/ReviewPackSurfaceFromProjection");
+  return { default: module.ReviewPackSurfaceFromProjection };
 });
 
 export function buildReviewSurfaceSelectionRequest(input: {
@@ -181,11 +176,10 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
       <Suspense fallback={<ReviewPanelLoadingFallback />}>
         <LazyReviewQueuePanel
           workspaceName={input.activeWorkspace.name}
-          items={buildMissionReviewEntriesFromProjection(input.missionControlProjection, {
-            workspaceId: input.activeWorkspace.id,
-            limit: 8,
-            repositoryExecutionContract: input.activeRepositoryExecutionContract ?? null,
-          })}
+          projection={input.missionControlProjection}
+          workspaceId={input.activeWorkspace.id}
+          repositoryExecutionContract={input.activeRepositoryExecutionContract ?? null}
+          limit={8}
           freshness={input.missionControlFreshness ?? null}
           onRefresh={input.onRefreshMissionControl}
           onOpenMissionTarget={(target) => openMissionTarget(target, "review_queue")}
@@ -197,18 +191,11 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
     <Suspense fallback={<ReviewPanelLoadingFallback />}>
       <LazyReviewPackSurface
         workspaceName={input.activeWorkspace.name}
-        items={buildReviewPackListItems(
-          input.missionControlProjection ?? null,
-          input.activeWorkspace.id,
-          input.activeRepositoryExecutionContract ?? null
-        )}
-        detail={buildReviewPackDetailModel({
-          projection: input.missionControlProjection ?? null,
-          selection: input.reviewPackSelection,
-          repositoryExecutionContract: input.activeRepositoryExecutionContract ?? null,
-          runtimeReviewPack: input.runtimeReviewPack ?? null,
-        })}
+        projection={input.missionControlProjection ?? null}
+        workspaceId={input.activeWorkspace.id}
         selection={input.reviewPackSelection}
+        repositoryExecutionContract={input.activeRepositoryExecutionContract ?? null}
+        runtimeReviewPack={input.runtimeReviewPack ?? null}
         freshness={input.missionControlFreshness ?? null}
         onRefresh={input.onRefreshMissionControl}
         decisionSubmission={input.reviewPackDecisionSubmission ?? null}
