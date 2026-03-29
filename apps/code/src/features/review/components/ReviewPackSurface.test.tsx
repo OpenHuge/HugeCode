@@ -124,6 +124,7 @@ describe("ReviewPackSurface", () => {
             summary: "Accept or reject this result from the review surface.",
             decidedAt: null,
           },
+          provenanceSummary: "Repo guidance: AGENTS.md | Source evidence: GitHub issue #42",
           backendAudit: {
             summary: "Remote provider route",
             details: ["Provider: OpenAI", "Routing health: ready"],
@@ -429,6 +430,12 @@ describe("ReviewPackSurface", () => {
     expect(screen.getAllByText("Branch: main").length).toBeGreaterThan(0);
     expect(screen.getAllByText("gh pr create --draft").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Confirm validations").length).toBeGreaterThan(0);
+    expect(screen.getByText("Source and runtime lineage")).toBeTruthy();
+    expect(
+      screen.getByText(
+        /Repo guidance: AGENTS\.md \| Source evidence: GitHub issue #42 \| Runtime confirmed workspace-default placement on backend backend-review-a\. \| Objective, guardrails, and review outcome stayed attached to this runtime-managed mission\./
+      )
+    ).toBeTruthy();
     expect(
       screen.getAllByText("Thread detail is unavailable in this runtime snapshot.").length
     ).toBeGreaterThan(0);
