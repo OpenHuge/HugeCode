@@ -458,7 +458,10 @@ export function useRuntimeMissionControlSnapshot(input: {
   const refreshRuntimeTasks = useCallback(async () => {
     if (workspaceClientRuntime.kernelProjection) {
       kernelProjectionStore.ensureScopes(CONTROL_PLANE_KERNEL_PROJECTION_SCOPES);
-      await Promise.all([kernelProjectionStore.refresh(CONTROL_PLANE_KERNEL_PROJECTION_SCOPES)]);
+      await Promise.all([
+        kernelProjectionStore.refresh(CONTROL_PLANE_KERNEL_PROJECTION_SCOPES),
+        runtimePluginsState.refresh(),
+      ]);
       await refreshRuntimeAdvisoryState();
       return;
     }
@@ -468,6 +471,7 @@ export function useRuntimeMissionControlSnapshot(input: {
       const snapshot = await workspaceClientRuntime.missionControl.readMissionControlSnapshot();
       setRuntimeTasks(projectMissionControlSnapshotToRuntimeTasks(snapshot));
       setRuntimeFallbackError(null);
+      await runtimePluginsState.refresh();
       await refreshRuntimeAdvisoryState();
     } catch (error) {
       setRuntimeFallbackError(formatRuntimeError(error));
@@ -477,6 +481,7 @@ export function useRuntimeMissionControlSnapshot(input: {
   }, [
     kernelProjectionStore,
     refreshRuntimeAdvisoryState,
+    runtimePluginsState,
     workspaceClientRuntime.kernelProjection,
     workspaceClientRuntime.missionControl,
   ]);

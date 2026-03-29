@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import {
   getKernelProjectionStore,
   readCapabilitiesProjectionSlice,
@@ -23,6 +23,7 @@ export type WorkspaceRuntimePluginProjectionState = {
   loading: boolean;
   error: string | null;
   projectionBacked: boolean;
+  refresh: () => Promise<void>;
   registry: {
     packages: RuntimeRegistryPackageDescriptor[];
     installedCount: number;
@@ -65,6 +66,46 @@ export function useWorkspaceRuntimePluginProjection(input: {
   const [registryError, setRegistryError] = useState<string | null>(null);
   const [compositionError, setCompositionError] = useState<string | null>(null);
 
+  const refresh = useCallback(async () => {
+    if (!input.enabled || !pluginCatalog || !pluginRegistry || !compositionRuntime) {
+      setCapabilityPlugins([]);
+      setRegistryPackages([]);
+      setCompositionProfiles([]);
+      setCompositionResolution(null);
+      setLoading(false);
+      setError(null);
+      setRegistryError(null);
+      setCompositionError(null);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setRegistryError(null);
+    setCompositionError(null);
+
+    try {
+      const [plugins, packages, profiles, resolution] = await Promise.all([
+        pluginCatalog.listPlugins(),
+        pluginRegistry.listInstalledPackages(),
+        compositionRuntime.listProfiles(),
+        compositionRuntime.getActiveResolution(),
+      ]);
+      setCapabilityPlugins(plugins);
+      setRegistryPackages(packages);
+      setCompositionProfiles(profiles);
+      setCompositionResolution(resolution);
+    } catch (nextError) {
+      setCapabilityPlugins([]);
+      setRegistryPackages([]);
+      setCompositionProfiles([]);
+      setCompositionResolution(null);
+      setError(nextError instanceof Error ? nextError.message : "Unable to load runtime plugins.");
+    } finally {
+      setLoading(false);
+    }
+  }, [compositionRuntime, input.enabled, pluginCatalog, pluginRegistry]);
+
   useEffect(() => {
     if (!input.enabled || !runtimeKernel.workspaceClientRuntime.kernelProjection) {
       return;
@@ -75,57 +116,22 @@ export function useWorkspaceRuntimePluginProjection(input: {
   useEffect(() => {
     let cancelled = false;
 
-    if (!input.enabled || !pluginCatalog || !pluginRegistry || !compositionRuntime) {
+    void refresh().catch((nextError: unknown) => {
+      if (cancelled) {
+        return;
+      }
       setCapabilityPlugins([]);
       setRegistryPackages([]);
       setCompositionProfiles([]);
       setCompositionResolution(null);
       setLoading(false);
-      setError(null);
-      setRegistryError(null);
-      setCompositionError(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    setLoading(true);
-    setError(null);
-
-    void Promise.all([
-      pluginCatalog.listPlugins(),
-      pluginRegistry.listInstalledPackages(),
-      compositionRuntime.listProfiles(),
-      compositionRuntime.getActiveResolution(),
-    ])
-      .then(([plugins, packages, profiles, resolution]) => {
-        if (cancelled) {
-          return;
-        }
-        setCapabilityPlugins(plugins);
-        setRegistryPackages(packages);
-        setCompositionProfiles(profiles);
-        setCompositionResolution(resolution);
-        setLoading(false);
-      })
-      .catch((nextError: unknown) => {
-        if (cancelled) {
-          return;
-        }
-        setCapabilityPlugins([]);
-        setRegistryPackages([]);
-        setCompositionProfiles([]);
-        setCompositionResolution(null);
-        setLoading(false);
-        setError(
-          nextError instanceof Error ? nextError.message : "Unable to load runtime plugins."
-        );
-      });
+      setError(nextError instanceof Error ? nextError.message : "Unable to load runtime plugins.");
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [compositionRuntime, input.enabled, pluginCatalog, pluginRegistry]);
+  }, [refresh]);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,6 +198,7 @@ export function useWorkspaceRuntimePluginProjection(input: {
     loading,
     error: error ?? registryError ?? compositionError,
     projectionBacked: extensionBundles !== null || capabilityProjection !== null,
+    refresh,
     registry: {
       packages: registryPackages,
       installedCount: registryPackages.filter((entry) => entry.installed).length,

@@ -24,6 +24,7 @@ import {
   useRuntimeMissionControlSnapshot,
   type RuntimeDurabilityWarningState,
 } from "./runtimeMissionControlSnapshot";
+import { useWorkspaceRuntimeControlPlaneOperatorState } from "./runtimeKernelControlPlaneFacadeHooks";
 
 export type { RuntimeDurabilityWarningState };
 
@@ -86,6 +87,10 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     workspaceId,
     runtimeControl,
     pollSeconds,
+  });
+  const runtimePluginControlPlane = useWorkspaceRuntimeControlPlaneOperatorState({
+    workspaceId,
+    refresh: snapshot.refreshRuntimeTasks,
   });
 
   const missionControlProjection = useMemo(
@@ -540,6 +545,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimeError: runtimeActionError ?? snapshot.runtimeError,
     runtimeInfo,
     runtimeLoading: runtimeActionLoading || snapshot.runtimeLoading,
+    runtimePluginControlPlane,
     runtimeSourceDraft: draft.runtimeSourceDraft,
     setPollSeconds,
     setRuntimeSourceDraft: draft.setRuntimeSourceDraft,
