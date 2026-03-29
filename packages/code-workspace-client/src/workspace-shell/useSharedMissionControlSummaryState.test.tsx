@@ -16,8 +16,7 @@ function createBindings(
     reviewPacks: [],
   })),
   subscribeScopedRuntimeUpdatedEvents = vi.fn((_options, _listener) => () => undefined),
-  kernelProjection: WorkspaceClientBindings["runtime"]["kernelProjection"] = undefined,
-  readMissionControlSummary?: WorkspaceClientBindings["runtime"]["missionControl"]["readMissionControlSummary"]
+  kernelProjection: WorkspaceClientBindings["runtime"]["kernelProjection"] = undefined
 ): WorkspaceClientBindings {
   return {
     navigation: {
@@ -63,7 +62,6 @@ function createBindings(
       },
       missionControl: {
         readMissionControlSnapshot,
-        readMissionControlSummary,
       },
       kernelProjection,
       runtimeUpdated: {
@@ -399,26 +397,66 @@ describe("useSharedMissionControlSummaryState", () => {
 
   it("clears pending refresh timeouts when the active workspace changes", async () => {
     vi.useFakeTimers();
-    const readMissionControlSummary = vi.fn(async (workspaceId: string | null) => ({
-      workspaceLabel: workspaceId === "workspace-2" ? "Beta" : "Alpha",
-      tasksCount: workspaceId === "workspace-2" ? 2 : 1,
-      runsCount: 0,
-      approvalCount: 0,
-      reviewPacksCount: 0,
-      connectedWorkspaceCount: 1,
-      launchReadiness: {
-        tone: "ready" as const,
-        label: "Launch readiness",
-        detail: "Ready",
-      },
-      continuityReadiness: {
-        tone: "ready" as const,
-        label: "Continuity readiness",
-        detail: "Ready",
-      },
-      missionItems: [],
-      reviewItems: [],
-    }));
+    const readMissionControlSnapshot = vi
+      .fn(async () => ({
+        source: "runtime_snapshot_v1" as const,
+        generatedAt: 0,
+        workspaces: [{ id: "workspace-1", name: "Alpha", connected: true }],
+        tasks: [
+          {
+            id: "task-1",
+            workspaceId: "workspace-1",
+            title: "Task 1",
+            createdAt: 0,
+            currentRunId: null,
+            latestRunId: null,
+          },
+        ],
+        runs: [],
+        reviewPacks: [],
+      }))
+      .mockResolvedValueOnce({
+        source: "runtime_snapshot_v1" as const,
+        generatedAt: 0,
+        workspaces: [{ id: "workspace-1", name: "Alpha", connected: true }],
+        tasks: [
+          {
+            id: "task-1",
+            workspaceId: "workspace-1",
+            title: "Task 1",
+            createdAt: 0,
+            currentRunId: null,
+            latestRunId: null,
+          },
+        ],
+        runs: [],
+        reviewPacks: [],
+      })
+      .mockResolvedValueOnce({
+        source: "runtime_snapshot_v1" as const,
+        generatedAt: 0,
+        workspaces: [{ id: "workspace-2", name: "Beta", connected: true }],
+        tasks: [
+          {
+            id: "task-1",
+            workspaceId: "workspace-2",
+            title: "Task 1",
+            createdAt: 0,
+            currentRunId: null,
+            latestRunId: null,
+          },
+          {
+            id: "task-2",
+            workspaceId: "workspace-2",
+            title: "Task 2",
+            createdAt: 0,
+            currentRunId: null,
+            latestRunId: null,
+          },
+        ],
+        runs: [],
+        reviewPacks: [],
+      });
 
     let listener:
       | ((event: {
@@ -441,19 +479,7 @@ describe("useSharedMissionControlSummaryState", () => {
       {
         initialProps: { activeWorkspaceId: "workspace-1" },
         wrapper: wrapper(
-          createBindings(
-            vi.fn(async () => ({
-              source: "runtime_snapshot_v1" as const,
-              generatedAt: 0,
-              workspaces: [],
-              tasks: [],
-              runs: [],
-              reviewPacks: [],
-            })),
-            subscribeScopedRuntimeUpdatedEvents,
-            undefined,
-            readMissionControlSummary
-          )
+          createBindings(readMissionControlSnapshot, subscribeScopedRuntimeUpdatedEvents)
         ),
       }
     );
@@ -488,56 +514,37 @@ describe("useSharedMissionControlSummaryState", () => {
       await Promise.resolve();
     });
 
-    expect(readMissionControlSummary.mock.calls).toEqual([["workspace-1"], ["workspace-2"]]);
+    expect(readMissionControlSnapshot).toHaveBeenCalledTimes(2);
     expect(result.current.summary.workspaceLabel).toBe("Beta");
     expect(result.current.summary.tasksCount).toBe(2);
   });
 
-  it("prefers the lightweight mission summary binding over the full mission snapshot", async () => {
+  it("derives summary from the full mission snapshot", async () => {
     const readMissionControlSnapshot = vi.fn(async () => ({
       source: "runtime_snapshot_v1" as const,
       generatedAt: 0,
-      workspaces: [],
-      tasks: [],
+      workspaces: [{ id: "workspace-1", name: "Alpha", connected: true }],
+      tasks: [
+        {
+          id: "task-1",
+          workspaceId: "workspace-1",
+          title: "Task 1",
+          createdAt: 0,
+          currentRunId: null,
+          latestRunId: null,
+        },
+      ],
       runs: [],
       reviewPacks: [],
     }));
-    const readMissionControlSummary = vi.fn(async () => ({
-      workspaceLabel: "Alpha",
-      tasksCount: 1,
-      runsCount: 2,
-      approvalCount: 1,
-      reviewPacksCount: 1,
-      connectedWorkspaceCount: 1,
-      launchReadiness: {
-        tone: "ready" as const,
-        label: "Launch readiness",
-        detail: "Connected routing is healthy for the current workspace slice.",
-      },
-      continuityReadiness: {
-        tone: "attention" as const,
-        label: "Continuity readiness",
-        detail: "1 review path ready; 1 review pack published",
-      },
-      missionItems: [],
-      reviewItems: [],
-    }));
-
     const { result } = renderHook(() => useSharedMissionControlSummaryState("workspace-1"), {
-      wrapper: wrapper(
-        (() => {
-          const bindings = createBindings(readMissionControlSnapshot);
-          bindings.runtime.missionControl.readMissionControlSummary = readMissionControlSummary;
-          return bindings;
-        })()
-      ),
+      wrapper: wrapper(createBindings(readMissionControlSnapshot)),
     });
 
     await waitFor(() => {
       expect(result.current.summary.tasksCount).toBe(1);
     });
 
-    expect(readMissionControlSummary).toHaveBeenCalledWith("workspace-1");
-    expect(readMissionControlSnapshot).not.toHaveBeenCalled();
+    expect(readMissionControlSnapshot).toHaveBeenCalledTimes(1);
   });
 });

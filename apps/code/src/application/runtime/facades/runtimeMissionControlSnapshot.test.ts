@@ -211,6 +211,19 @@ describe("runtimeMissionControlSnapshot", () => {
     ).toEqual(projectionCapabilities);
   });
 
+  it("does not retain legacy capabilities fallback once kernel projection is enabled", () => {
+    expect(
+      resolveRuntimeCapabilitiesValue({
+        kernelProjectionEnabled: true,
+        projectionCapabilities: null,
+        fallbackCapabilities: {
+          mode: "connected",
+          features: ["legacy"],
+        },
+      })
+    ).toBeNull();
+  });
+
   it("projects mission-control runs into runtime task summaries with runtime-owned truth", () => {
     const tasks = projectMissionControlSnapshotToRuntimeTasks(createMissionControlSnapshot());
 

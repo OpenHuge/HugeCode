@@ -88,16 +88,15 @@ Updated: 2026-03-22
 - First-party UI surfaces must derive readiness / continuation / review
   follow-up semantics from the canonical continuation facade in
   `packages/code-runtime-host-contract/src/runtimeContinuationFacade.ts`.
-- `code_mission_control_summary_v1` remains a compatibility projection for
-  external or lagging callers, not a canonical first-party semantic source.
+- `code_mission_control_summary_v1` has been removed from the frozen canonical
+  RPC surface. First-party UI must continue consuming mission-control snapshot
+  truth plus the canonical continuation facade.
 - Workspace shell, Mission Control, and Review Pack must consume mission-control
   snapshot truth plus the canonical continuation facade instead of reading
   summary semantics from the compatibility RPC.
 - Compat projections may preserve transport shape, but they must not keep
   growing new product-semantic precedence rules.
-- The summary RPC should be deleted in the next explicit runtime compat prune
-  window after external callers have migrated and first-party clients no longer
-  depend on it.
+- Do not reintroduce a summary RPC as a first-party semantic shortcut.
 
 ## Runtime Kernel v2 Compatibility Rule
 

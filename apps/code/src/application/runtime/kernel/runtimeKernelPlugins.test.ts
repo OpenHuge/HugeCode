@@ -230,6 +230,9 @@ describe("runtimeKernelPlugins", () => {
     getProvidersCatalogMock.mockReset();
     listOAuthAccountsMock.mockReset();
     listOAuthPoolsMock.mockReset();
+    readRuntimeWorkspaceSkillManifestsMock.mockResolvedValue([]);
+    listRuntimeExtensionsMock.mockResolvedValue([]);
+    listRuntimeLiveSkillsMock.mockResolvedValue([]);
     getProvidersCatalogMock.mockResolvedValue([]);
     listOAuthAccountsMock.mockResolvedValue([]);
     listOAuthPoolsMock.mockResolvedValue([]);
@@ -770,9 +773,7 @@ describe("runtimeKernelPlugins", () => {
       ready: true,
       readiness: "ready",
       detail: expect.stringContaining("backend-primary"),
-      provenance: expect.objectContaining({
-        source: "backend_preference",
-      }),
+      source: "backend_preference",
       plugin: expect.objectContaining({
         source: "execution_route",
         transport: "execution_route",

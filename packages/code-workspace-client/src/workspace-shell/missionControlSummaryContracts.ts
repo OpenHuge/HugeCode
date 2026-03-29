@@ -12,9 +12,6 @@ export type MissionControlSummaryComposer = {
 
 export type MissionControlSummarySource = {
   readMissionControlSnapshot: () => Promise<HugeCodeMissionControlSnapshot>;
-  readMissionControlSummary?: (
-    activeWorkspaceId: string | null
-  ) => Promise<HugeCodeMissionControlSummary>;
 };
 
 export type MissionControlSummaryLoadResult = {

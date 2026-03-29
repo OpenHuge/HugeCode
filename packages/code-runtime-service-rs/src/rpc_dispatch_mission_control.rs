@@ -39,13 +39,9 @@ pub(crate) use support::{
     build_runtime_takeover_bundle,
     derive_review_evidence_state, derive_review_validation_outcome,
 };
-pub(crate) use summary::handle_mission_control_summary_v1;
 #[cfg(test)]
 #[path = "rpc_dispatch_mission_control_tests.rs"]
 mod tests;
-#[cfg(test)]
-#[path = "rpc_dispatch_mission_control_summary_tests.rs"]
-mod summary_tests;
 #[cfg(test)]
 #[path = "rpc_dispatch_mission_control_runtime_truth_tests.rs"]
 mod runtime_truth_tests;
