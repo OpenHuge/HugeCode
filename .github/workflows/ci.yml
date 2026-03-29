@@ -354,10 +354,10 @@ jobs:
       repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
       skip_expensive_checks: ${{ github.event_name == 'pull_request' && needs.dependabot_policy.outputs.skip_pr_affected == 'true' }}
 
-  # PR fast path (affected build + tests)
+  # Merge-queue-required affected summary
   pr_affected:
     name: PR Affected Checks
-    if: always() && github.event_name != 'push'
+    if: always()
     needs: [changes, dependabot_policy, pr_affected_build, pr_affected_tests]
     uses: ./.github/workflows/_reusable-ci-pr-affected.yml
     secrets: inherit

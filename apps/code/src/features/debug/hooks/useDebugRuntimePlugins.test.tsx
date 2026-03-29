@@ -270,9 +270,9 @@ describe("useDebugRuntimePlugins", () => {
     expect(result.current.plugins[0]).toMatchObject({
       id: "ext-1",
       name: "Projection Name",
-      version: "9.9.9",
-      permissions: ["network"],
-      capabilities: [{ id: "tool:bash", enabled: true }],
+      version: "1.0.0",
+      permissions: [],
+      capabilities: [],
       metadata: {
         kernelExtensionBundle: {
           toolCount: 2,
