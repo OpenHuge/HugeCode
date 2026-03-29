@@ -137,7 +137,7 @@ function mapTakeoverTargetToMissionNavigationTarget(input: {
 }
 
 function resolveContinuationPreferredLabel(
-  pathKind: ReturnType<typeof buildContinuation>["pathKind"] | null | undefined,
+  pathKind: NonNullable<ReturnType<typeof buildContinuation>>["pathKind"] | null | undefined,
   fallbackLabel: string | null
 ) {
   if (pathKind === "approval") {
