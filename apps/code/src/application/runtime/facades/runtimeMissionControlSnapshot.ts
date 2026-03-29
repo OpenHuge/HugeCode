@@ -381,6 +381,13 @@ export function useRuntimeMissionControlSnapshot(input: {
   const refreshRuntimeAdvisoryState = useCallback(async () => {
     setRuntimeAuxLoading(true);
     try {
+      const getRuntimePolicy = input.runtimeControl.getRuntimePolicy as
+        | (() => Promise<RuntimePolicySnapshot | null>)
+        | undefined;
+      const runtimePolicyPromise: Promise<RuntimePolicySnapshot | null> = getRuntimePolicy
+        ? getRuntimePolicy()
+        : Promise.resolve(null);
+
       const [coreResponse, diagnosticsResponse] = await Promise.all([
         Promise.all([
           input.runtimeControl.listRuntimeProviderCatalog
@@ -407,9 +414,7 @@ export function useRuntimeMissionControlSnapshot(input: {
           !workspaceClientRuntime.kernelProjection && input.runtimeControl.runtimeToolGuardrailRead
             ? input.runtimeControl.runtimeToolGuardrailRead()
             : Promise.resolve(diagnosticsProjectionSlice?.toolGuardrails ?? null),
-          input.runtimeControl.getRuntimePolicy
-            ? input.runtimeControl.getRuntimePolicy()
-            : Promise.resolve(null),
+          runtimePolicyPromise,
         ]),
       ]);
       const [nextProviders, nextAccounts, nextPools] = coreResponse as [
