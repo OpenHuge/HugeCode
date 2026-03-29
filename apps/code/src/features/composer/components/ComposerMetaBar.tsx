@@ -51,18 +51,19 @@ type RemoteBackendOption = {
 };
 
 type AutoDrivePresetKey = "safe_default" | "tight_validation" | "fast_explore";
+const noop = () => {};
 
 type ComposerMetaBarProps = {
   disabled: boolean;
   collaborationModes: CollaborationModeOption[];
   selectedCollaborationModeId: string | null;
   onSelectCollaborationMode: (id: string | null) => void;
-  modelSelectionMode: ComposerModelSelectionMode;
+  modelSelectionMode?: ComposerModelSelectionMode;
   models: ModelOption[];
   selectedProviderId?: string | null;
-  onSelectProvider: (providerId: string) => void;
+  onSelectProvider?: (providerId: string) => void;
   onSelectAutoRoute?: (providerId: string | null) => void;
-  onSelectModelSelectionMode: (mode: ComposerModelSelectionMode) => void;
+  onSelectModelSelectionMode?: (mode: ComposerModelSelectionMode) => void;
   selectedModelId: string | null;
   onSelectModel: (id: string) => void;
   reasoningOptions: string[];
@@ -244,12 +245,12 @@ export const ComposerMetaBar = memo(function ComposerMetaBar({
   collaborationModes,
   selectedCollaborationModeId,
   onSelectCollaborationMode,
-  modelSelectionMode,
+  modelSelectionMode = "manual",
   models,
   selectedProviderId: explicitSelectedProviderId = null,
-  onSelectProvider,
+  onSelectProvider = noop,
   onSelectAutoRoute,
-  onSelectModelSelectionMode,
+  onSelectModelSelectionMode = noop,
   selectedModelId,
   onSelectModel,
   reasoningOptions,

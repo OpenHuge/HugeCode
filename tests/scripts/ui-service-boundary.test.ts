@@ -126,6 +126,19 @@ describe("ui service boundary guard", () => {
     ]);
   });
 
+  it("rejects direct provider-routing compatibility imports in UI code", () => {
+    const violations = collectUiBoundaryViolationsForSource(
+      "apps/code/src/features/example/hooks/useExample.ts",
+      'import { resolveRuntimeModelProviderRoute } from "../../../application/runtime/facades/runtimeProviderRouting";\n'
+    );
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        rule: "runtime-provider-routing-compat",
+      }),
+    ]);
+  });
+
   it("allows the approved chatgpt automation facade in product code", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/settings/components/sections/SettingsCodexAccountsCard.tsx",

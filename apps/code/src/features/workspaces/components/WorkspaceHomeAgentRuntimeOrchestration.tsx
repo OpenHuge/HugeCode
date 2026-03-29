@@ -94,6 +94,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const oldestPendingApprovalTask = missionControlProjection.approvalPressure.oldestPendingTask;
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
   const pluginCatalog = missionControlProjection.pluginCatalog;
+  const composition = missionControlProjection.composition;
   const pluginCatalogStatus = pluginCatalog.error
     ? {
         label: "Attention",
@@ -240,6 +241,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         <span>Handoff ready: {continuityReadiness.handoffReadyCount}</span>
         <span>Plugins: {pluginCatalog.total}</span>
         <span>Bound: {pluginCatalog.boundCount}</span>
+        <span>
+          Profile: {composition.activeProfileName ?? composition.activeProfileId ?? "none"}
+        </span>
         <span>Finished: {runtimeSummary.finished}</span>
         <button type="button" onClick={() => void refreshRuntimeTasks()} disabled={runtimeLoading}>
           {runtimeLoading ? "Syncing..." : "Sync runs"}
@@ -287,12 +291,22 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             <span>Runtime extensions: {pluginCatalog.runtimeExtensionCount}</span>
             <span>Live skills: {pluginCatalog.liveSkillCount}</span>
             <span>Repo manifests: {pluginCatalog.repoManifestCount}</span>
+            <span>External packages: {pluginCatalog.externalPackageCount}</span>
+            <span>Verified packages: {pluginCatalog.verifiedPackageCount}</span>
+            <span>Blocked packages: {pluginCatalog.blockedPackageCount}</span>
+            <span>Selected in active profile: {pluginCatalog.selectedInActiveProfileCount}</span>
             <span>
               Runtime host truth:{" "}
               {pluginCatalog.unsupportedHostCount > 0 ? "published" : "not published"}
             </span>
             <span>
               Projection slice: {pluginCatalog.projectionBacked ? "connected" : "capability-only"}
+            </span>
+            <span>
+              Control plane:{" "}
+              {composition.activeProfileName ?? composition.activeProfileId ?? "none"} | verified{" "}
+              {composition.verifiedPluginCount} | blocked {composition.blockedPluginCount} | routes{" "}
+              {composition.selectedRouteCount} | backends {composition.selectedBackendCount}
             </span>
           </div>
           {pluginCatalog.error ? (

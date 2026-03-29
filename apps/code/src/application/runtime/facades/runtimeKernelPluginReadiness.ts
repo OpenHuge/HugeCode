@@ -1,4 +1,5 @@
-import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPlugins";
+import { readRuntimeKernelRoutingPluginMetadata } from "../kernel/runtimeKernelRoutingPlugins";
+import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPluginTypes";
 
 export type RuntimeKernelPluginReadinessState = "ready" | "attention" | "blocked";
 
@@ -52,6 +53,20 @@ function toSourceLabel(source: RuntimeKernelPluginDescriptor["source"]) {
       return "WASI host";
     case "rpc_host":
       return "RPC host";
+    case "mcp_remote":
+      return "MCP remote";
+    case "wasi_component":
+      return "WASI component";
+    case "a2a_remote":
+      return "A2A remote";
+    case "host_bridge":
+      return "Host bridge";
+    case "provider_route":
+      return "Provider route";
+    case "backend_route":
+      return "Backend route";
+    case "execution_route":
+      return "Execution route";
   }
 }
 
@@ -62,6 +77,23 @@ function buildCapabilitySupport(
     .filter((capability) => capability.enabled)
     .map((capability) => capability.id);
   const surfaceIds = plugin.binding.surfaces.map((surface) => surface.id);
+  const routingMetadata = readRuntimeKernelRoutingPluginMetadata(plugin.metadata);
+
+  if (routingMetadata) {
+    return {
+      state: routingMetadata.readiness,
+      summary:
+        routingMetadata.readiness === "ready"
+          ? "Runtime published a launch-ready route."
+          : routingMetadata.readiness === "attention"
+            ? "Runtime published a usable route that still needs operator attention."
+            : "Runtime published this route as blocked for launch.",
+      detail:
+        routingMetadata.detail ??
+        routingMetadata.blockingReason ??
+        "Runtime did not publish additional routing detail for this plugin.",
+    };
+  }
 
   if (plugin.source === "wasi_host" || plugin.source === "rpc_host") {
     return {
@@ -129,6 +161,25 @@ function buildPermissionState(
   plugin: RuntimeKernelPluginDescriptor
 ): RuntimeKernelPluginReadinessEntry["permissionState"] {
   const permissionList = formatList(plugin.permissions);
+  const routingMetadata = readRuntimeKernelRoutingPluginMetadata(plugin.metadata);
+
+  if (routingMetadata) {
+    return {
+      state: "ready",
+      label: "Runtime-managed",
+      detail:
+        routingMetadata.readinessMessage ??
+        "Runtime manages credentials and approval state for this route selection.",
+    };
+  }
+
+  if (plugin.source === "wasi_host" || plugin.source === "rpc_host") {
+    return {
+      state: "ready",
+      label: "Runtime-managed",
+      detail: "Host binders do not request additional operator permissions through this surface.",
+    };
+  }
 
   if (plugin.permissionDecision === "allow") {
     return {
@@ -162,6 +213,16 @@ function buildPermissionState(
   }
 
   if (plugin.permissionDecision === "unsupported" || !plugin.operations.permissions.evaluable) {
+    if (plugin.binding.state === "declaration_only") {
+      return {
+        state: "attention",
+        label: "Unavailable",
+        detail:
+          plugin.operations.permissions.reason ??
+          "Runtime has not published a permission evaluation path for this plugin yet.",
+      };
+    }
+
     return {
       state: "blocked",
       label: "Unsupported",
@@ -255,6 +316,15 @@ function buildRemediationSummary(
   }
   if (plugin.binding.state === "declaration_only") {
     return "Bind or install a runtime-backed implementation so this manifest can move beyond declaration-only readiness.";
+  }
+  if (
+    plugin.source === "provider_route" ||
+    plugin.source === "backend_route" ||
+    plugin.source === "execution_route"
+  ) {
+    return readinessState === "blocked"
+      ? "Adjust route selection or restore provider/backend readiness before launch."
+      : "No operator action required unless route readiness changes.";
   }
   if (permissionState.state === "attention") {
     return "Review the published permission request before relying on this plugin.";

@@ -1,11 +1,18 @@
 import type {
   KernelCapabilityDescriptor,
   KernelExtensionBundle,
+  RuntimeCompositionResolution,
+  RuntimeRegistryPackageDescriptor,
 } from "@ku0/code-runtime-host-contract";
 import {
   normalizeRuntimeHostCapabilityPluginDescriptor,
   type RuntimeKernelPluginDescriptor,
 } from "../kernel/runtimeKernelPlugins";
+import { createRuntimeKernelPluginCompositionMetadata } from "../kernel/runtimeKernelComposition";
+import {
+  createRuntimeKernelPluginRegistryMetadata,
+  normalizeRuntimeRegistryPackagePluginDescriptor,
+} from "../kernel/runtimeKernelPluginRegistry";
 
 function readOptionalText(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
@@ -85,6 +92,8 @@ export function mergeRuntimeKernelProjectionPlugins(input: {
   extensionBundles: KernelExtensionBundle[] | null;
   capabilities: KernelCapabilityDescriptor[] | null;
   capabilityPlugins: RuntimeKernelPluginDescriptor[];
+  registryPackages?: RuntimeRegistryPackageDescriptor[] | null;
+  compositionResolution?: RuntimeCompositionResolution | null;
 }): RuntimeKernelPluginDescriptor[] {
   const merged = new Map<string, RuntimeKernelPluginDescriptor>();
 
@@ -133,5 +142,54 @@ export function mergeRuntimeKernelProjectionPlugins(input: {
     });
   }
 
-  return [...merged.values()].sort((left, right) => left.id.localeCompare(right.id));
+  for (const packageDescriptor of input.registryPackages ?? []) {
+    if (packageDescriptor.installedPluginId && merged.has(packageDescriptor.installedPluginId)) {
+      const existing = merged.get(packageDescriptor.installedPluginId);
+      if (existing) {
+        merged.set(packageDescriptor.installedPluginId, {
+          ...existing,
+          metadata: {
+            ...(existing.metadata ?? {}),
+            pluginRegistry: createRuntimeKernelPluginRegistryMetadata(packageDescriptor),
+            packageManifest: packageDescriptor.manifest,
+          },
+        });
+      }
+      continue;
+    }
+    if (packageDescriptor.source === "runtime_managed") {
+      continue;
+    }
+    const registryPlugin = normalizeRuntimeRegistryPackagePluginDescriptor(packageDescriptor);
+    const existing = merged.get(registryPlugin.id);
+    if (!existing) {
+      merged.set(registryPlugin.id, registryPlugin);
+      continue;
+    }
+    merged.set(registryPlugin.id, {
+      ...existing,
+      metadata: {
+        ...(existing.metadata ?? {}),
+        ...(registryPlugin.metadata ?? {}),
+      },
+    });
+  }
+
+  const compositionResolution = input.compositionResolution ?? null;
+  const withComposition = [...merged.values()].map((plugin) => ({
+    ...plugin,
+    metadata: {
+      ...(plugin.metadata ?? {}),
+      ...(compositionResolution
+        ? {
+            composition: createRuntimeKernelPluginCompositionMetadata(
+              plugin.id,
+              compositionResolution
+            ),
+          }
+        : {}),
+    },
+  }));
+
+  return withComposition.sort((left, right) => left.id.localeCompare(right.id));
 }

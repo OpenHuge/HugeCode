@@ -152,4 +152,34 @@ describe("runtimeGovernedRunIngestion", () => {
       })
     );
   });
+
+  it("preserves an explicitly resolved default backend in the final governed request", () => {
+    const request = buildGovernedRuntimeRunRequest({
+      workspaceId: "ws-1",
+      source: {
+        title: "Launch pinned backend run",
+        instruction: "Launch pinned backend run",
+        taskSource: buildManualTaskSource({
+          workspaceId: "ws-1",
+          title: "Launch pinned backend run",
+        }),
+      },
+      repositoryExecutionContract: createContract(),
+      explicitLaunchInput: {
+        executionProfileId: "balanced-delegate",
+        defaultBackendId: "backend-pinned",
+      },
+      fallbackExecutionProfileId: "balanced-delegate",
+      fallbackValidationPresetId: "standard",
+      fallbackAccessMode: "on-request",
+      provider: "provider-route",
+    });
+
+    expect(request).toEqual(
+      expect.objectContaining({
+        preferredBackendIds: ["backend-default"],
+        defaultBackendId: "backend-pinned",
+      })
+    );
+  });
 });

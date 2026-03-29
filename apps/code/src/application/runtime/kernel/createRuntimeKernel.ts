@@ -21,6 +21,8 @@ import {
   RUNTIME_KERNEL_CAPABILITY_KEYS,
   type WorkspaceRuntimeCapabilityProvider,
 } from "./runtimeKernelCapabilities";
+import { createRuntimeKernelPluginRegistryFacade } from "./runtimeKernelPluginRegistry";
+import { createRuntimeKernelCompositionFacade } from "./runtimeKernelComposition";
 
 function mapWorkspaceClientRuntimeMode(
   mode: ReturnType<typeof detectRuntimeMode>
@@ -64,6 +66,16 @@ export function createRuntimeKernel(): RuntimeKernel {
       const runtimeAgentControlDependencies = createRuntimeAgentControlDependencies(workspaceId, {
         workspaceClientRuntime,
       });
+      const pluginCatalog = createRuntimeKernelPluginCatalogFacade({ workspaceId });
+      const pluginRegistry = createRuntimeKernelPluginRegistryFacade({
+        workspaceId,
+        pluginCatalog,
+      });
+      const compositionRuntime = createRuntimeKernelCompositionFacade({
+        workspaceId,
+        pluginCatalog,
+        pluginRegistry,
+      });
       const capabilityProviders: WorkspaceRuntimeCapabilityProvider[] = [
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
@@ -76,7 +88,15 @@ export function createRuntimeKernel(): RuntimeKernel {
         },
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog,
-          createCapability: () => createRuntimeKernelPluginCatalogFacade({ workspaceId }),
+          createCapability: () => pluginCatalog,
+        },
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.pluginRegistry,
+          createCapability: () => pluginRegistry,
+        },
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime,
+          createCapability: () => compositionRuntime,
         },
       ];
       const scope = createWorkspaceRuntimeScope({

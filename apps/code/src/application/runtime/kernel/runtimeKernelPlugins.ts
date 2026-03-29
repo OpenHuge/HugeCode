@@ -1,5 +1,4 @@
 import type {
-  KernelCapabilityContractSurface,
   KernelCapabilityDescriptor,
   LiveSkillExecuteRequest,
   LiveSkillExecutionResult,
@@ -18,69 +17,50 @@ import {
   readRuntimeExtensionResource,
 } from "../ports/runtimeExtensions";
 import { listRuntimeKernelCapabilities } from "../ports/runtimeKernelCapabilities";
+import { getProvidersCatalog, listOAuthAccounts, listOAuthPools } from "../ports/tauriOauth";
 import type { RuntimeWorkspaceSkillManifest } from "./runtimeWorkspaceSkillManifests";
 import { readRuntimeWorkspaceSkillManifests } from "./runtimeWorkspaceSkillManifests";
+import {
+  createRuntimeProviderRoutePluginDescriptors,
+  readRuntimeKernelRoutingPluginMetadata,
+  resolveRuntimeKernelRouteSelection,
+  type RuntimeKernelResolvedRoute,
+  type RuntimeKernelRouteOption,
+} from "./runtimeKernelRoutingPlugins";
+import type {
+  RuntimeKernelPluginBinding,
+  RuntimeKernelPluginCapabilityDescriptor,
+  RuntimeKernelPluginContractSurface,
+  RuntimeKernelPluginDescriptor,
+  RuntimeKernelPluginExecutionAvailability,
+  RuntimeKernelPluginHostProfile,
+  RuntimeKernelPluginOperations,
+  RuntimeKernelPluginPermissionsAvailability,
+  RuntimeKernelPluginResourceAvailability,
+  RuntimeKernelPluginResourceDescriptor,
+  RuntimeKernelPluginSource,
+  RuntimeKernelPluginTransport,
+} from "./runtimeKernelPluginTypes";
 
-export type RuntimeKernelPluginSource =
-  | "runtime_extension"
-  | "live_skill"
-  | "repo_manifest"
-  | "wasi_host"
-  | "rpc_host";
-
-export type RuntimeKernelPluginTransport = RuntimeKernelPluginSource;
-
-export type RuntimeKernelPluginHostProfile = {
-  kind: "runtime" | "repository" | "wasi" | "rpc";
-  executionBoundaries: string[];
+export {
+  createRuntimeProviderRoutePluginDescriptors,
+  readRuntimeKernelRoutingPluginMetadata,
+  resolveRuntimeKernelRouteSelection,
 };
-
-export type RuntimeKernelPluginCapabilityDescriptor = {
-  id: string;
-  enabled: boolean;
-};
-
-export type RuntimeKernelPluginResourceDescriptor = {
-  id: string;
-  contentType: string | null;
-};
-
-export type RuntimeKernelPluginContractSurface = {
-  id: string;
-  kind: KernelCapabilityContractSurface["kind"];
-  direction: KernelCapabilityContractSurface["direction"];
-  summary: string | null;
-};
-
-export type RuntimeKernelPluginBinding = {
-  state: "bound" | "declaration_only" | "unbound";
-  contractFormat: "runtime_extension" | "live_skill" | "manifest" | "wit" | "rpc";
-  contractBoundary: string;
-  interfaceId: string | null;
-  surfaces: RuntimeKernelPluginContractSurface[];
-};
-
-export type RuntimeKernelPluginExecutionAvailability = {
-  executable: boolean;
-  mode: "live_skill" | "none";
-  reason: string | null;
-};
-
-export type RuntimeKernelPluginResourceAvailability = {
-  readable: boolean;
-  mode: "runtime_extension_resource" | "repo_manifest_resource" | "none";
-  reason: string | null;
-};
-
-export type RuntimeKernelPluginPermissionsAvailability = {
-  evaluable: boolean;
-  mode:
-    | "runtime_extension_permissions"
-    | "live_skill_permissions"
-    | "repo_manifest_permissions"
-    | "none";
-  reason: string | null;
-};
+export type {
+  RuntimeKernelPluginBinding,
+  RuntimeKernelPluginCapabilityDescriptor,
+  RuntimeKernelPluginContractSurface,
+  RuntimeKernelPluginDescriptor,
+  RuntimeKernelPluginExecutionAvailability,
+  RuntimeKernelPluginHostProfile,
+  RuntimeKernelPluginOperations,
+  RuntimeKernelPluginPermissionsAvailability,
+  RuntimeKernelPluginResourceAvailability,
+  RuntimeKernelPluginResourceDescriptor,
+  RuntimeKernelPluginSource,
+  RuntimeKernelPluginTransport,
+} from "./runtimeKernelPluginTypes";
 
 export type RuntimeKernelPluginPermissionsResult = {
   pluginId: string;
@@ -90,12 +70,6 @@ export type RuntimeKernelPluginPermissionsResult = {
   authority: "runtime_extension" | "runtime_live_skill" | "repo_manifest";
   bindingState: RuntimeKernelPluginBinding["state"];
   evaluationMode: Exclude<RuntimeKernelPluginPermissionsAvailability["mode"], "none">;
-};
-
-export type RuntimeKernelPluginOperations = {
-  execution: RuntimeKernelPluginExecutionAvailability;
-  resources: RuntimeKernelPluginResourceAvailability;
-  permissions: RuntimeKernelPluginPermissionsAvailability;
 };
 
 type NormalizedKernelHostCapabilityMetadata = {
@@ -114,31 +88,7 @@ type NormalizedKernelHostCapabilityMetadata = {
   canonicalAbiResources: boolean | null;
 };
 
-export type RuntimeKernelPluginDescriptor = {
-  id: string;
-  name: string;
-  version: string;
-  summary: string | null;
-  source: RuntimeKernelPluginSource;
-  transport: RuntimeKernelPluginTransport;
-  hostProfile: RuntimeKernelPluginHostProfile;
-  workspaceId: string | null;
-  enabled: boolean;
-  runtimeBacked: boolean;
-  capabilities: RuntimeKernelPluginCapabilityDescriptor[];
-  permissions: string[];
-  resources: RuntimeKernelPluginResourceDescriptor[];
-  executionBoundaries: string[];
-  binding: RuntimeKernelPluginBinding;
-  operations: RuntimeKernelPluginOperations;
-  metadata: Record<string, unknown> | null;
-  permissionDecision: "allow" | "ask" | "deny" | "unsupported" | null;
-  health: {
-    state: "healthy" | "degraded" | "unsupported" | "unknown";
-    checkedAt: number | null;
-    warnings: string[];
-  } | null;
-};
+export type { RuntimeKernelResolvedRoute, RuntimeKernelRouteOption };
 
 export type RuntimeKernelPluginResourceResult = RuntimeExtensionResourceReadResponse | null;
 
@@ -185,7 +135,31 @@ export type RuntimeKernelPluginCatalogFacade = {
 function buildRuntimeKernelPluginExecutionAvailability(input: {
   id: string;
   source: RuntimeKernelPluginSource;
+  metadata?: Record<string, unknown> | null;
 }): RuntimeKernelPluginExecutionAvailability {
+  const routingMetadata = readRuntimeKernelRoutingPluginMetadata(input.metadata);
+  if (routingMetadata) {
+    if (!routingMetadata.launchAllowed) {
+      return {
+        executable: false,
+        mode: "none",
+        reason:
+          routingMetadata.blockingReason ??
+          routingMetadata.detail ??
+          `Route plugin \`${input.id}\` is not ready for execution.`,
+      };
+    }
+    return {
+      executable: true,
+      mode:
+        input.source === "backend_route"
+          ? "backend_route"
+          : input.source === "provider_route"
+            ? "provider_route"
+            : "execution_route",
+      reason: null,
+    };
+  }
   if (input.source === "live_skill") {
     return {
       executable: true,
@@ -198,6 +172,18 @@ function buildRuntimeKernelPluginExecutionAvailability(input: {
       executable: false,
       mode: "none",
       reason: `Plugin \`${input.id}\` is declaration-only and does not expose a bound execution provider.`,
+    };
+  }
+  if (
+    input.source === "mcp_remote" ||
+    input.source === "wasi_component" ||
+    input.source === "a2a_remote" ||
+    input.source === "host_bridge"
+  ) {
+    return {
+      executable: false,
+      mode: "none",
+      reason: `Plugin \`${input.id}\` is installed in the registry but not yet bound into the live runtime catalog.`,
     };
   }
   if (input.source === "wasi_host") {
@@ -336,7 +322,8 @@ function isContractSurfaceKind(
     value === "procedure_set" ||
     value === "extension" ||
     value === "skill" ||
-    value === "manifest"
+    value === "manifest" ||
+    value === "route"
   );
 }
 
@@ -814,6 +801,13 @@ export function normalizeRepoManifestPluginDescriptor(
 }
 
 const PLUGIN_SOURCE_PRIORITY: Record<RuntimeKernelPluginSource, number> = {
+  mcp_remote: 9,
+  a2a_remote: 9,
+  wasi_component: 9,
+  host_bridge: 9,
+  execution_route: 8,
+  backend_route: 7,
+  provider_route: 6,
   runtime_extension: 5,
   live_skill: 4,
   repo_manifest: 3,
@@ -894,6 +888,25 @@ async function listRuntimeHostCapabilityPluginDescriptors(): Promise<
   }
 }
 
+async function listRuntimeProviderRoutePluginDescriptors(): Promise<
+  RuntimeKernelPluginDescriptor[]
+> {
+  try {
+    const [providers, accounts, pools] = await Promise.all([
+      getProvidersCatalog(),
+      listOAuthAccounts(null),
+      listOAuthPools(null),
+    ]);
+    return createRuntimeProviderRoutePluginDescriptors({
+      providers,
+      accounts,
+      pools,
+    });
+  } catch {
+    return [];
+  }
+}
+
 async function listRepoManifestPluginDescriptors(
   workspaceId: string
 ): Promise<RuntimeKernelPluginDescriptor[]> {
@@ -904,9 +917,11 @@ async function listRepoManifestPluginDescriptors(
 export function createRuntimeKernelPluginCatalogProvider(): RuntimeKernelPluginCatalogProvider {
   return {
     listPluginDescriptors: async (workspaceId) => {
+      const routingDescriptors = await listRuntimeProviderRoutePluginDescriptors();
       const hostDescriptors = await listRuntimeHostCapabilityPluginDescriptors();
       return mergeRuntimeKernelPluginDescriptors([
         ...hostDescriptors,
+        ...routingDescriptors,
         ...(await listRepoManifestPluginDescriptors(workspaceId)),
         ...(await listLiveSkillPluginDescriptors()),
         ...(await listRuntimeExtensionPluginDescriptors(workspaceId)),

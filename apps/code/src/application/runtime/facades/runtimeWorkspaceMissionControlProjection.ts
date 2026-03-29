@@ -2,9 +2,19 @@ import type {
   HugeCodeRunSummary,
   OAuthAccountSummary,
   OAuthPoolSummary,
+  RuntimeCompositionProfile,
+  RuntimeCompositionResolution,
+  RuntimeRegistryPackageDescriptor,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
-import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPlugins";
+import {
+  resolveRuntimeControlPlaneRouteSelection,
+  type RuntimeControlPlaneRouteOption,
+} from "./runtimeControlPlaneRouting";
+import { readRuntimeKernelPluginCompositionMetadata } from "../kernel/runtimeKernelComposition";
+import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPluginTypes";
+import { readRuntimeKernelPluginRegistryMetadata } from "../kernel/runtimeKernelPluginRegistry";
+import { readRuntimeKernelRoutingPluginMetadata } from "../kernel/runtimeKernelRoutingPlugins";
 import type { RuntimeExecutionReliabilitySummary } from "./runtimeExecutionReliability";
 import {
   buildRuntimeKernelPluginReadinessEntries,
@@ -23,20 +33,23 @@ import {
 } from "./runtimeMissionControlOrchestration";
 import { type RuntimeProviderRoutingHealth } from "./runtimeRoutingHealth";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
-import { resolveRuntimeProviderRouteSelection } from "./runtimeProviderRouting";
 
-export type WorkspaceMissionControlRouteOption = {
-  value: string;
-  label: string;
-  ready: boolean;
-  launchAllowed: boolean;
-  readiness: "ready" | "attention" | "blocked";
-  detail: string;
-  blockingReason: string | null;
-  recommendedAction: string;
-  fallbackDetail: string | null;
-  healthEntry: RuntimeProviderRoutingHealth | null;
-};
+export type WorkspaceMissionControlRouteOption = Pick<
+  RuntimeControlPlaneRouteOption,
+  | "value"
+  | "label"
+  | "ready"
+  | "launchAllowed"
+  | "readiness"
+  | "detail"
+  | "blockingReason"
+  | "recommendedAction"
+  | "fallbackDetail"
+  | "preferredBackendIds"
+  | "provenance"
+  | "resolvedBackendId"
+  | "healthEntry"
+>;
 
 export type WorkspaceRuntimeTaskRun = {
   task: RuntimeAgentTaskSummary;
@@ -93,6 +106,17 @@ export type WorkspaceRuntimeMissionControlProjection = {
     runtimeExtensionCount: number;
     liveSkillCount: number;
     repoManifestCount: number;
+    routingCount: number;
+    providerRouteCount: number;
+    backendRouteCount: number;
+    executionRouteCount: number;
+    externalPackageCount: number;
+    verifiedPackageCount: number;
+    blockedPackageCount: number;
+    selectedInActiveProfileCount: number;
+    readyRouteCount: number;
+    attentionRouteCount: number;
+    blockedRouteCount: number;
     unsupportedHostCount: number;
     healthyCount: number;
     degradedCount: number;
@@ -101,6 +125,16 @@ export type WorkspaceRuntimeMissionControlProjection = {
     attentionCount: number;
     blockedCount: number;
     projectionBacked: boolean;
+    error: string | null;
+  };
+  composition: {
+    profileCount: number;
+    activeProfileId: string | null;
+    activeProfileName: string | null;
+    verifiedPluginCount: number;
+    blockedPluginCount: number;
+    selectedRouteCount: number;
+    selectedBackendCount: number;
     error: string | null;
   };
   executionReliability: RuntimeExecutionReliabilitySummary;
@@ -121,6 +155,13 @@ type BuildWorkspaceRuntimeMissionControlProjectionInput = {
   runtimePlugins: RuntimeKernelPluginDescriptor[];
   runtimePluginsError: string | null;
   runtimePluginsProjectionBacked: boolean;
+  runtimePluginRegistryPackages: RuntimeRegistryPackageDescriptor[];
+  runtimePluginRegistryError: string | null;
+  runtimeCompositionProfiles: RuntimeCompositionProfile[];
+  runtimeCompositionActiveProfileId: string | null;
+  runtimeCompositionActiveProfile: RuntimeCompositionProfile | null;
+  runtimeCompositionResolution: RuntimeCompositionResolution | null;
+  runtimeCompositionError: string | null;
   selectedProviderRoute: string;
   runtimeStatusFilter: RuntimeAgentTaskSummary["status"] | "all";
   runtimeDurabilityWarning: {
@@ -175,6 +216,17 @@ function buildPluginCatalogSummary(input: {
     runtimeExtensionCount: 0,
     liveSkillCount: 0,
     repoManifestCount: 0,
+    routingCount: 0,
+    providerRouteCount: 0,
+    backendRouteCount: 0,
+    executionRouteCount: 0,
+    externalPackageCount: 0,
+    verifiedPackageCount: 0,
+    blockedPackageCount: 0,
+    selectedInActiveProfileCount: 0,
+    readyRouteCount: 0,
+    attentionRouteCount: 0,
+    blockedRouteCount: 0,
     unsupportedHostCount: 0,
     healthyCount: 0,
     degradedCount: 0,
@@ -226,8 +278,50 @@ function buildPluginCatalogSummary(input: {
       summary.liveSkillCount += 1;
     } else if (plugin.source === "repo_manifest") {
       summary.repoManifestCount += 1;
+    } else if (
+      plugin.source === "mcp_remote" ||
+      plugin.source === "wasi_component" ||
+      plugin.source === "a2a_remote" ||
+      plugin.source === "host_bridge"
+    ) {
+      summary.externalPackageCount += 1;
+    } else if (
+      plugin.source === "provider_route" ||
+      plugin.source === "backend_route" ||
+      plugin.source === "execution_route"
+    ) {
+      summary.routingCount += 1;
+      if (plugin.source === "provider_route") {
+        summary.providerRouteCount += 1;
+      } else if (plugin.source === "backend_route") {
+        summary.backendRouteCount += 1;
+      } else {
+        summary.executionRouteCount += 1;
+      }
+      const routingMetadata = readRuntimeKernelRoutingPluginMetadata(plugin.metadata);
+      if (routingMetadata?.readiness === "ready") {
+        summary.readyRouteCount += 1;
+      } else if (routingMetadata?.readiness === "attention") {
+        summary.attentionRouteCount += 1;
+      } else if (routingMetadata?.readiness === "blocked") {
+        summary.blockedRouteCount += 1;
+      }
     } else {
       summary.unsupportedHostCount += 1;
+    }
+
+    const registryMetadata = readRuntimeKernelPluginRegistryMetadata(plugin.metadata);
+    if (
+      registryMetadata?.trust.status === "verified" ||
+      registryMetadata?.trust.status === "runtime_managed"
+    ) {
+      summary.verifiedPackageCount += 1;
+    } else if (registryMetadata?.trust.status === "blocked") {
+      summary.blockedPackageCount += 1;
+    }
+    const compositionMetadata = readRuntimeKernelPluginCompositionMetadata(plugin.metadata);
+    if (compositionMetadata?.selectedInActiveProfile) {
+      summary.selectedInActiveProfileCount += 1;
     }
 
     if (plugin.health?.state === "healthy") {
@@ -250,6 +344,68 @@ function buildPluginCatalogSummary(input: {
   return summary;
 }
 
+function buildCompositionSummary(input: {
+  profiles: RuntimeCompositionProfile[];
+  activeProfile: RuntimeCompositionProfile | null;
+  activeProfileId: string | null;
+  resolution: RuntimeCompositionResolution | null;
+  error: string | null;
+}): WorkspaceRuntimeMissionControlProjection["composition"] {
+  return {
+    profileCount: input.profiles.length,
+    activeProfileId: input.activeProfileId,
+    activeProfileName: input.activeProfile?.name ?? null,
+    verifiedPluginCount:
+      input.resolution?.trustDecisions.filter(
+        (decision) => decision.status === "verified" || decision.status === "runtime_managed"
+      ).length ?? 0,
+    blockedPluginCount: input.resolution?.blockedPlugins.length ?? 0,
+    selectedRouteCount: input.resolution?.selectedRouteCandidates.length ?? 0,
+    selectedBackendCount: input.resolution?.selectedBackendCandidates.length ?? 0,
+    error: input.error,
+  };
+}
+
+function normalizeBackendIds(values: readonly string[] | null | undefined): string[] | null {
+  if (!values) {
+    return null;
+  }
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const entry of values) {
+    const trimmed = entry.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  }
+  return normalized.length > 0 ? normalized : null;
+}
+
+function resolveCompositionPreferredBackendIds(
+  resolution: RuntimeCompositionResolution | null
+): string[] | null {
+  return normalizeBackendIds(resolution?.selectedBackendCandidates.map((entry) => entry.backendId));
+}
+
+function resolveCompositionResolvedBackendId(input: {
+  selectedRoute: string;
+  activeProfile: RuntimeCompositionProfile | null;
+  resolution: RuntimeCompositionResolution | null;
+}): string | null {
+  const normalizedRoute = input.selectedRoute.trim() || "auto";
+  const routePluginId = `route:${normalizedRoute}`;
+  const selectedRouteCandidate =
+    input.resolution?.selectedRouteCandidates.find((entry) => entry.pluginId === routePluginId) ??
+    null;
+  return (
+    selectedRouteCandidate?.resolvedBackendId ??
+    input.activeProfile?.backendPolicy.resolvedBackendId ??
+    null
+  );
+}
+
 export function buildWorkspaceRuntimeMissionControlProjection(
   input: BuildWorkspaceRuntimeMissionControlProjectionInput
 ): WorkspaceRuntimeMissionControlProjection {
@@ -261,11 +417,31 @@ export function buildWorkspaceRuntimeMissionControlProjection(
     error: input.runtimePluginsError,
     projectionBacked: input.runtimePluginsProjectionBacked,
   });
-  const routeSelection = resolveRuntimeProviderRouteSelection({
+  pluginCatalog.externalPackageCount = Math.max(
+    pluginCatalog.externalPackageCount,
+    input.runtimePluginRegistryPackages.filter((entry) => entry.source !== "runtime_managed").length
+  );
+  const composition = buildCompositionSummary({
+    profiles: input.runtimeCompositionProfiles,
+    activeProfile: input.runtimeCompositionActiveProfile,
+    activeProfileId: input.runtimeCompositionActiveProfileId,
+    resolution: input.runtimeCompositionResolution,
+    error: input.runtimeCompositionError ?? input.runtimePluginRegistryError,
+  });
+  const preferredBackendIds = resolveCompositionPreferredBackendIds(
+    input.runtimeCompositionResolution
+  );
+  const resolvedBackendId = resolveCompositionResolvedBackendId({
     selectedRoute: input.selectedProviderRoute,
-    providers: input.runtimeProviders,
-    accounts: input.runtimeAccounts,
-    pools: input.runtimePools,
+    activeProfile: input.runtimeCompositionActiveProfile,
+    resolution: input.runtimeCompositionResolution,
+  });
+  const routeSelection = resolveRuntimeControlPlaneRouteSelection({
+    selectedRoute: input.selectedProviderRoute,
+    plugins: input.runtimePlugins,
+    preferredBackendIds,
+    resolvedBackendId,
+    provenance: preferredBackendIds || resolvedBackendId ? "backend_preference" : undefined,
   });
 
   const orchestration = buildRuntimeMissionControlOrchestrationState({
@@ -300,7 +476,11 @@ export function buildWorkspaceRuntimeMissionControlProjection(
           ? "Workspace auto route"
           : routeSelection.selected.source === "explicit_route"
             ? "Explicit provider route"
-            : "Model-derived route",
+            : routeSelection.selected.source === "backend_preference"
+              ? "Backend-preferred route"
+              : routeSelection.selected.source === "runtime_fallback"
+                ? "Runtime fallback route"
+                : "Model-derived route",
     },
     runtimeToolMetrics: input.runtimeToolMetrics,
     runtimeToolGuardrails: input.runtimeToolGuardrails,
@@ -338,6 +518,7 @@ export function buildWorkspaceRuntimeMissionControlProjection(
       oldestPendingTask: orchestration.oldestPendingApprovalTask,
     },
     pluginCatalog,
+    composition,
     executionReliability: orchestration.executionReliability,
     launchReadiness: orchestration.launchReadiness,
   };

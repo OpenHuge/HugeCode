@@ -293,6 +293,14 @@ const VIOLATION_RULES = [
     appliesTo: (filePath) => isUiBoundaryFile(filePath) && !isUiTestFile(filePath),
   },
   {
+    id: "runtime-provider-routing-compat",
+    description:
+      "UI code must use the control-plane routing facade instead of importing the retired provider-routing compatibility seam",
+    pattern:
+      /(?:from\s+["'][^"']*\/application\/runtime\/facades\/runtimeProviderRouting["']|import\(\s*["'][^"']*\/application\/runtime\/facades\/runtimeProviderRouting["'])/u,
+    appliesTo: (filePath) => isUiBoundaryFile(filePath) && !isUiTestFile(filePath),
+  },
+  {
     id: "runtime-legacy-bridge-app",
     description:
       "non-UI product code must not import retired runtime bridge ports (`tauriSettings`, `tauriWorkspaces`, `tauriSkills`, `tauriRuntimeSkills`, or raw `tauri`)",

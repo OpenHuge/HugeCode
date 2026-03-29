@@ -132,6 +132,9 @@ export function buildGovernedRuntimeRunRequest(
       ? { requiredCapabilities: launchControls.requiredCapabilities }
       : {}),
     ...(preferredBackendIds ? { preferredBackendIds } : {}),
+    ...(readOptionalText(resolvedDefaults.defaultBackendId)
+      ? { defaultBackendId: readOptionalText(resolvedDefaults.defaultBackendId) }
+      : {}),
     missionBrief: buildAgentTaskMissionBrief({
       objective,
       accessMode,

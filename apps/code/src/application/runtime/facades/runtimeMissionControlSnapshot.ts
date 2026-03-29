@@ -590,6 +590,13 @@ export function useRuntimeMissionControlSnapshot(input: {
     runtimePlugins: runtimePluginsState.plugins,
     runtimePluginsError: runtimePluginsState.error,
     runtimePluginsProjectionBacked: runtimePluginsState.projectionBacked,
+    runtimePluginRegistryPackages: runtimePluginsState.registry.packages,
+    runtimePluginRegistryError: runtimePluginsState.registry.error,
+    runtimeCompositionProfiles: runtimePluginsState.composition.profiles,
+    runtimeCompositionActiveProfileId: runtimePluginsState.composition.activeProfileId,
+    runtimeCompositionActiveProfile: runtimePluginsState.composition.activeProfile,
+    runtimeCompositionResolution: runtimePluginsState.composition.resolution,
+    runtimeCompositionError: runtimePluginsState.composition.error,
     runtimeLoading:
       runtimeAuxLoading ||
       runtimeFallbackLoading ||

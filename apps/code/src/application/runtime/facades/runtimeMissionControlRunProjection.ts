@@ -152,7 +152,6 @@ export function projectAgentTaskSummaryToRunSummary(
     task,
     routing,
     executionProfile,
-    routingContext: options?.routingContext,
   });
   const operatorSnapshot = buildRunOperatorSnapshot({
     task,

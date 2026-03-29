@@ -3,6 +3,7 @@ import type {
   AgentTaskSummary,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
+import { createRuntimeProviderRoutePluginDescriptors } from "../kernel/runtimeKernelPlugins";
 import { buildWorkspaceRuntimeMissionControlProjection } from "./runtimeWorkspaceMissionControlProjection";
 
 function buildTask(
@@ -41,12 +42,22 @@ function buildTask(
 function buildRuntimeProjectionInput(
   overrides: Partial<Parameters<typeof buildWorkspaceRuntimeMissionControlProjection>[0]> = {}
 ): Parameters<typeof buildWorkspaceRuntimeMissionControlProjection>[0] {
+  const runtimeProviders = overrides.runtimeProviders ?? [];
+  const runtimeAccounts = overrides.runtimeAccounts ?? [];
+  const runtimePools = overrides.runtimePools ?? [];
+  const runtimePlugins =
+    overrides.runtimePlugins ??
+    createRuntimeProviderRoutePluginDescriptors({
+      providers: runtimeProviders,
+      accounts: runtimeAccounts,
+      pools: runtimePools,
+    });
   return {
     workspaceId: "ws-approval",
     runtimeTasks: [],
-    runtimeProviders: [],
-    runtimeAccounts: [],
-    runtimePools: [],
+    runtimeProviders,
+    runtimeAccounts,
+    runtimePools,
     runtimeCapabilities: {
       mode: "tauri",
       methods: ["code_health"],
@@ -101,9 +112,16 @@ function buildRuntimeProjectionInput(
       circuitBreakers: [],
       updatedAt: 1_700_000_000_000,
     },
-    runtimePlugins: [],
+    runtimePlugins,
     runtimePluginsError: null,
     runtimePluginsProjectionBacked: false,
+    runtimePluginRegistryPackages: [],
+    runtimePluginRegistryError: null,
+    runtimeCompositionProfiles: [],
+    runtimeCompositionActiveProfileId: null,
+    runtimeCompositionActiveProfile: null,
+    runtimeCompositionResolution: null,
+    runtimeCompositionError: null,
     selectedProviderRoute: "auto",
     runtimeStatusFilter: "all",
     runtimeDurabilityWarning: null,
@@ -138,6 +156,257 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.routeSelection.selected.ready).toBe(false);
     expect(projection.launchReadiness.headline).toBe("Launch readiness blocked");
     expect(projection.launchReadiness.route.detail).toContain("0/1 provider routes ready");
+  });
+
+  it("summarizes control-plane profile, trust, and backend selection state", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimePlugins: [
+          {
+            id: "pkg:hugecode.mcp.search@1.0.0",
+            name: "Remote Search Tools",
+            version: "1.0.0",
+            summary: "Registry package",
+            source: "mcp_remote",
+            transport: "mcp_remote",
+            hostProfile: {
+              kind: "remote",
+              executionBoundaries: ["registry"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: false,
+            capabilities: [],
+            permissions: ["network"],
+            resources: [],
+            executionBoundaries: ["registry"],
+            binding: {
+              state: "declaration_only",
+              contractFormat: "mcp",
+              contractBoundary: "registry:mcp_remote",
+              interfaceId: "pkg.search.remote",
+              surfaces: [
+                {
+                  id: "pkg.search.remote.routes",
+                  kind: "route",
+                  direction: "export",
+                  summary: "Remote route",
+                },
+              ],
+            },
+            operations: {
+              execution: {
+                executable: false,
+                mode: "none",
+                reason: "Registry package is not runtime-bound.",
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason: "Registry package is not runtime-bound.",
+              },
+              permissions: {
+                evaluable: false,
+                mode: "none",
+                reason: "Registry package is not runtime-bound.",
+              },
+            },
+            metadata: {
+              pluginRegistry: {
+                packageRef: "hugecode.mcp.search@1.0.0",
+                transport: "mcp_remote",
+                source: "installed",
+                installed: true,
+                installedPluginId: null,
+                publisher: "HugeCode Labs",
+                trust: {
+                  status: "verified",
+                  verificationStatus: "verified",
+                  publisher: "HugeCode Labs",
+                  attestationSource: "sigstore",
+                  blockedReason: null,
+                  packageRef: "hugecode.mcp.search@1.0.0",
+                  pluginId: "pkg.search.remote",
+                },
+                compatibility: {
+                  status: "compatible",
+                  minimumHostContractVersion: "2026-03-25",
+                  supportedRuntimeProtocolVersions: ["2026-03-25"],
+                  supportedCapabilityKeys: ["plugins.catalog", "plugins.registry"],
+                  optionalTransportFeatures: [],
+                  blockers: [],
+                },
+              },
+              composition: {
+                activeProfileId: "workspace-default",
+                activeProfileName: "Workspace Default",
+                selectedInActiveProfile: true,
+                blockedInActiveProfile: false,
+                blockedReason: null,
+                selectedRouteCandidate: false,
+                selectedBackendCandidateIds: [],
+                layerOrder: ["built_in", "user", "workspace", "launch_override"],
+              },
+            },
+            permissionDecision: null,
+            health: null,
+          },
+        ],
+        runtimePluginRegistryPackages: [
+          {
+            packageRef: "hugecode.mcp.search@1.0.0",
+            packageId: "hugecode.mcp.search",
+            version: "1.0.0",
+            publisher: "HugeCode Labs",
+            summary: "Registry package",
+            transport: "mcp_remote",
+            source: "installed",
+            installed: true,
+            installedPluginId: null,
+            manifest: {
+              packageId: "hugecode.mcp.search",
+              version: "1.0.0",
+              publisher: "HugeCode Labs",
+              transport: "mcp_remote",
+              entry: {
+                pluginId: "pkg.search.remote",
+                displayName: "Remote Search Tools",
+                summary: "Registry package",
+                interfaceId: "pkg.search.remote",
+              },
+              contractSurfaces: [],
+              compatibility: {
+                status: "compatible",
+                minimumHostContractVersion: "2026-03-25",
+                supportedRuntimeProtocolVersions: ["2026-03-25"],
+                supportedCapabilityKeys: ["plugins.catalog", "plugins.registry"],
+                optionalTransportFeatures: [],
+                blockers: [],
+              },
+              dependencies: [],
+              permissions: ["network"],
+              defaultConfig: {},
+              attestations: [],
+            },
+            compatibility: {
+              status: "compatible",
+              minimumHostContractVersion: "2026-03-25",
+              supportedRuntimeProtocolVersions: ["2026-03-25"],
+              supportedCapabilityKeys: ["plugins.catalog", "plugins.registry"],
+              optionalTransportFeatures: [],
+              blockers: [],
+            },
+            trust: {
+              status: "verified",
+              verificationStatus: "verified",
+              publisher: "HugeCode Labs",
+              attestationSource: "sigstore",
+              blockedReason: null,
+              packageRef: "hugecode.mcp.search@1.0.0",
+              pluginId: "pkg.search.remote",
+            },
+          },
+        ],
+        runtimeCompositionProfiles: [
+          {
+            id: "workspace-default",
+            name: "Workspace Default",
+            scope: "workspace",
+            enabled: true,
+            pluginSelectors: [],
+            routePolicy: {
+              preferredRoutePluginIds: [],
+              providerPreference: [],
+              allowRuntimeFallback: true,
+            },
+            backendPolicy: {
+              preferredBackendIds: ["backend-primary"],
+              resolvedBackendId: null,
+            },
+            trustPolicy: {
+              requireVerifiedSignatures: true,
+              allowDevOverrides: false,
+              blockedPublishers: [],
+            },
+            executionPolicyRefs: [],
+            observabilityPolicy: {
+              emitStableEvents: true,
+              emitOtelAlignedTelemetry: true,
+            },
+            configLayers: [],
+          },
+        ],
+        runtimeCompositionActiveProfileId: "workspace-default",
+        runtimeCompositionActiveProfile: {
+          id: "workspace-default",
+          name: "Workspace Default",
+          scope: "workspace",
+          enabled: true,
+          pluginSelectors: [],
+          routePolicy: {
+            preferredRoutePluginIds: [],
+            providerPreference: [],
+            allowRuntimeFallback: true,
+          },
+          backendPolicy: {
+            preferredBackendIds: ["backend-primary"],
+            resolvedBackendId: null,
+          },
+          trustPolicy: {
+            requireVerifiedSignatures: true,
+            allowDevOverrides: false,
+            blockedPublishers: [],
+          },
+          executionPolicyRefs: [],
+          observabilityPolicy: {
+            emitStableEvents: true,
+            emitOtelAlignedTelemetry: true,
+          },
+          configLayers: [],
+        },
+        runtimeCompositionResolution: {
+          selectedPlugins: [
+            {
+              pluginId: "pkg:hugecode.mcp.search@1.0.0",
+              packageRef: "hugecode.mcp.search@1.0.0",
+              source: "mcp_remote",
+              reason: null,
+            },
+          ],
+          selectedRouteCandidates: [],
+          selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+          blockedPlugins: [],
+          trustDecisions: [
+            {
+              status: "verified",
+              verificationStatus: "verified",
+              publisher: "HugeCode Labs",
+              attestationSource: "sigstore",
+              blockedReason: null,
+              packageRef: "hugecode.mcp.search@1.0.0",
+              pluginId: "pkg.search.remote",
+            },
+          ],
+          provenance: {
+            activeProfileId: "workspace-default",
+            activeProfileName: "Workspace Default",
+            appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+            selectorDecisions: {},
+          },
+        },
+      })
+    );
+
+    expect(projection.pluginCatalog.externalPackageCount).toBe(1);
+    expect(projection.pluginCatalog.verifiedPackageCount).toBe(1);
+    expect(projection.pluginCatalog.selectedInActiveProfileCount).toBe(1);
+    expect(projection.composition).toMatchObject({
+      activeProfileId: "workspace-default",
+      activeProfileName: "Workspace Default",
+      verifiedPluginCount: 1,
+      blockedPluginCount: 0,
+      selectedBackendCount: 1,
+    });
   });
 
   it("keeps launch ready when local routing remains available", () => {
@@ -184,6 +453,364 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.routeSelection.selected.fallbackDetail).toContain(
       "fall back to local/native execution"
     );
+  });
+
+  it("derives route selection from routing plugins without requiring legacy provider routing inputs", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimeProviders: [],
+        runtimeAccounts: [],
+        runtimePools: [],
+        runtimePlugins: [
+          {
+            id: "route:auto",
+            name: "Automatic workspace routing",
+            version: "routing",
+            summary: "Automatic route.",
+            source: "execution_route",
+            transport: "execution_route",
+            hostProfile: {
+              kind: "routing",
+              executionBoundaries: ["routing", "runtime"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: true,
+            capabilities: [],
+            permissions: [],
+            resources: [],
+            executionBoundaries: ["routing", "runtime"],
+            binding: {
+              state: "bound",
+              contractFormat: "route",
+              contractBoundary: "runtime-routing",
+              interfaceId: "route:auto",
+              surfaces: [
+                {
+                  id: "route:auto",
+                  kind: "route",
+                  direction: "export",
+                  summary: "Automatic route selection surface.",
+                },
+              ],
+            },
+            operations: {
+              execution: {
+                executable: true,
+                mode: "execution_route",
+                reason: null,
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason:
+                  "Route plugins do not expose readable resources through the runtime kernel.",
+              },
+              permissions: {
+                evaluable: false,
+                mode: "none",
+                reason: "Route plugins do not publish runtime-evaluable permission state.",
+              },
+            },
+            metadata: {
+              routeKind: "combined_execution",
+              routeValue: "auto",
+              readiness: "attention",
+              launchAllowed: true,
+              detail:
+                "No OAuth-backed provider routes are ready, but local/native routing remains available.",
+              fallbackDetail:
+                "No OAuth-backed provider routes are ready, so automatic routing will fall back to local/native execution.",
+              recommendedAction:
+                "Launch can continue on local/native routing, or restore a ready remote provider route before launching.",
+              providerId: null,
+              pool: "auto",
+              provenance: "auto",
+            },
+            permissionDecision: "unsupported",
+            health: {
+              state: "degraded",
+              checkedAt: null,
+              warnings: [],
+            },
+          },
+          {
+            id: "route:openai",
+            name: "OpenAI",
+            version: "routing",
+            summary: "OpenAI route.",
+            source: "provider_route",
+            transport: "provider_route",
+            hostProfile: {
+              kind: "routing",
+              executionBoundaries: ["routing", "runtime"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: true,
+            capabilities: [],
+            permissions: [],
+            resources: [],
+            executionBoundaries: ["routing", "runtime"],
+            binding: {
+              state: "bound",
+              contractFormat: "route",
+              contractBoundary: "runtime-routing",
+              interfaceId: "route:openai",
+              surfaces: [
+                {
+                  id: "route:openai",
+                  kind: "route",
+                  direction: "export",
+                  summary: "Provider route selection surface.",
+                },
+              ],
+            },
+            operations: {
+              execution: {
+                executable: false,
+                mode: "none",
+                reason: "Provider route is blocked until credentials and pools are ready.",
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason:
+                  "Route plugins do not expose readable resources through the runtime kernel.",
+              },
+              permissions: {
+                evaluable: false,
+                mode: "none",
+                reason: "Route plugins do not publish runtime-evaluable permission state.",
+              },
+            },
+            metadata: {
+              routeKind: "provider_family",
+              routeValue: "openai",
+              readiness: "blocked",
+              launchAllowed: false,
+              detail:
+                "Enable at least one pool and one credential-ready account for this provider.",
+              blockingReason:
+                "Enable at least one pool and one credential-ready account for this provider.",
+              recommendedAction:
+                "Sign in for this provider or choose another ready route before launching.",
+              providerId: "openai",
+              oauthProviderId: "codex",
+              pool: "codex",
+              provenance: "explicit_route",
+            },
+            permissionDecision: "unsupported",
+            health: {
+              state: "degraded",
+              checkedAt: null,
+              warnings: ["No credential-ready accounts."],
+            },
+          },
+        ],
+        selectedProviderRoute: "openai",
+      })
+    );
+
+    expect(projection.routeSelection.selected.value).toBe("openai");
+    expect(projection.routeSelection.selected.ready).toBe(false);
+    expect(projection.routeSelection.selected.readiness).toBe("blocked");
+    expect(projection.routeSelection.selected.detail).toContain("credential-ready account");
+    expect(projection.routeSelection.options.map((option) => option.value)).toEqual([
+      "auto",
+      "openai",
+    ]);
+    expect(projection.launchReadiness.route.detail).toContain("credential-ready account");
+  });
+
+  it("preserves the composition-selected resolved backend on the chosen route", () => {
+    const providers: RuntimeProviderCatalogEntry[] = [
+      {
+        providerId: "openai",
+        displayName: "OpenAI",
+        pool: "codex",
+        oauthProviderId: "codex",
+        aliases: [],
+        defaultModelId: null,
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        registryVersion: "1",
+      },
+    ];
+
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimeProviders: providers,
+        runtimeAccounts: [
+          {
+            accountId: "acct-1",
+            provider: "codex",
+            externalAccountId: null,
+            email: "operator@example.com",
+            displayName: "Operator",
+            status: "enabled",
+            disabledReason: null,
+            routeConfig: {
+              schedulable: true,
+            },
+            routingState: {
+              credentialReady: true,
+            },
+            metadata: {},
+            createdAt: 1,
+            updatedAt: 2,
+          },
+        ],
+        runtimePools: [
+          {
+            poolId: "pool-1",
+            provider: "codex",
+            name: "Primary pool",
+            strategy: "round_robin",
+            stickyMode: "cache_first",
+            preferredAccountId: null,
+            enabled: true,
+            metadata: {},
+            createdAt: 1,
+            updatedAt: 2,
+          },
+        ],
+        runtimeCompositionActiveProfileId: "workspace-default",
+        runtimeCompositionActiveProfile: {
+          id: "workspace-default",
+          name: "Workspace Default",
+          scope: "workspace",
+          enabled: true,
+          pluginSelectors: [],
+          routePolicy: {
+            preferredRoutePluginIds: [],
+            providerPreference: [],
+            allowRuntimeFallback: true,
+          },
+          backendPolicy: {
+            preferredBackendIds: ["backend-primary"],
+            resolvedBackendId: "backend-profile",
+          },
+          trustPolicy: {
+            requireVerifiedSignatures: false,
+            allowDevOverrides: false,
+            blockedPublishers: [],
+          },
+          executionPolicyRefs: [],
+          observabilityPolicy: {
+            emitStableEvents: true,
+            emitOtelAlignedTelemetry: true,
+          },
+          configLayers: [],
+        },
+        runtimeCompositionResolution: {
+          selectedPlugins: [],
+          selectedRouteCandidates: [
+            {
+              pluginId: "route:openai",
+              routeKind: "provider_family",
+              providerId: "openai",
+              preferredBackendIds: ["backend-primary"],
+              resolvedBackendId: "backend-route",
+            },
+          ],
+          selectedBackendCandidates: [
+            {
+              backendId: "backend-primary",
+              sourcePluginId: "route:openai",
+            },
+            {
+              backendId: "backend-route",
+              sourcePluginId: "route:openai",
+            },
+          ],
+          blockedPlugins: [],
+          trustDecisions: [],
+          provenance: {
+            activeProfileId: "workspace-default",
+            activeProfileName: "Workspace Default",
+            appliedLayerOrder: ["workspace"],
+            selectorDecisions: {},
+          },
+        },
+        selectedProviderRoute: "openai",
+      })
+    );
+
+    expect(projection.routeSelection.selected.value).toBe("openai");
+    expect(projection.routeSelection.selected.preferredBackendIds).toEqual([
+      "backend-primary",
+      "backend-route",
+    ]);
+    expect(projection.routeSelection.selected.resolvedBackendId).toBe("backend-route");
+    expect(projection.routeSelection.selected.provenance.source).toBe("backend_preference");
+  });
+
+  it("keeps a profile-resolved backend on automatic routing when no route-specific override exists", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimeCompositionActiveProfileId: "workspace-default",
+        runtimeCompositionActiveProfile: {
+          id: "workspace-default",
+          name: "Workspace Default",
+          scope: "workspace",
+          enabled: true,
+          pluginSelectors: [],
+          routePolicy: {
+            preferredRoutePluginIds: [],
+            providerPreference: [],
+            allowRuntimeFallback: true,
+          },
+          backendPolicy: {
+            preferredBackendIds: ["backend-primary"],
+            resolvedBackendId: "backend-profile",
+          },
+          trustPolicy: {
+            requireVerifiedSignatures: false,
+            allowDevOverrides: false,
+            blockedPublishers: [],
+          },
+          executionPolicyRefs: [],
+          observabilityPolicy: {
+            emitStableEvents: true,
+            emitOtelAlignedTelemetry: true,
+          },
+          configLayers: [],
+        },
+        runtimeCompositionResolution: {
+          selectedPlugins: [],
+          selectedRouteCandidates: [],
+          selectedBackendCandidates: [
+            {
+              backendId: "backend-primary",
+              sourcePluginId: null,
+            },
+            {
+              backendId: "backend-profile",
+              sourcePluginId: null,
+            },
+          ],
+          blockedPlugins: [],
+          trustDecisions: [],
+          provenance: {
+            activeProfileId: "workspace-default",
+            activeProfileName: "Workspace Default",
+            appliedLayerOrder: ["workspace"],
+            selectorDecisions: {},
+          },
+        },
+        selectedProviderRoute: "auto",
+      })
+    );
+
+    expect(projection.routeSelection.selected.value).toBe("auto");
+    expect(projection.routeSelection.selected.preferredBackendIds).toEqual([
+      "backend-primary",
+      "backend-profile",
+    ]);
+    expect(projection.routeSelection.selected.resolvedBackendId).toBe("backend-profile");
+    expect(projection.routeSelection.selected.provenance.source).toBe("backend_preference");
   });
 
   it("projects continuity readiness from runtime task truth instead of page-local guesses", () => {
@@ -371,6 +998,73 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
             },
           },
           {
+            id: "route:auto",
+            name: "Automatic workspace routing",
+            version: "routing",
+            summary: null,
+            source: "execution_route",
+            transport: "execution_route",
+            hostProfile: {
+              kind: "routing",
+              executionBoundaries: ["routing", "runtime"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: true,
+            capabilities: [],
+            permissions: [],
+            resources: [],
+            executionBoundaries: ["routing", "runtime"],
+            binding: {
+              state: "bound",
+              contractFormat: "route",
+              contractBoundary: "runtime-routing",
+              interfaceId: "route:auto",
+              surfaces: [
+                {
+                  id: "route:auto",
+                  kind: "route",
+                  direction: "export",
+                  summary: "Automatic route selection surface.",
+                },
+              ],
+            },
+            operations: {
+              execution: {
+                executable: true,
+                mode: "execution_route",
+                reason: null,
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason:
+                  "Route plugins do not expose readable resources through the runtime kernel.",
+              },
+              permissions: {
+                evaluable: false,
+                mode: "none",
+                reason: "Route plugins do not publish runtime-evaluable permission state.",
+              },
+            },
+            metadata: {
+              routeKind: "combined_execution",
+              routeValue: "auto",
+              readiness: "ready",
+              launchAllowed: true,
+              detail: "Automatic routing is ready for launch.",
+              providerId: null,
+              pool: "auto",
+              provenance: "auto",
+            },
+            permissionDecision: "unsupported",
+            health: {
+              state: "healthy",
+              checkedAt: 3,
+              warnings: [],
+            },
+          },
+          {
             id: "repo-manifest-1",
             name: "Review Manifest",
             version: "0.0.1",
@@ -436,26 +1130,33 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     );
 
     expect(projection.pluginCatalog).toMatchObject({
-      total: 3,
-      enabled: 3,
-      runtimeBacked: 2,
-      executableCount: 1,
+      total: 4,
+      enabled: 4,
+      runtimeBacked: 3,
+      executableCount: 2,
       nonExecutableCount: 2,
       readableResourceCount: 2,
       permissionEvaluableCount: 3,
-      contractSurfaceCount: 3,
+      contractSurfaceCount: 4,
       contractImportSurfaceCount: 0,
-      contractExportSurfaceCount: 3,
-      boundCount: 2,
+      contractExportSurfaceCount: 4,
+      boundCount: 3,
       declarationOnlyCount: 1,
       unboundCount: 0,
       runtimeExtensionCount: 1,
       liveSkillCount: 1,
       repoManifestCount: 1,
-      healthyCount: 1,
+      routingCount: 1,
+      providerRouteCount: 0,
+      backendRouteCount: 0,
+      executionRouteCount: 1,
+      readyRouteCount: 1,
+      attentionRouteCount: 0,
+      blockedRouteCount: 0,
+      healthyCount: 2,
       degradedCount: 1,
       unsupportedCount: 1,
-      readyCount: 1,
+      readyCount: 2,
       attentionCount: 2,
       blockedCount: 0,
       projectionBacked: true,
@@ -464,6 +1165,7 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.pluginCatalog.plugins.map((plugin) => plugin.id)).toEqual([
       "ext-1",
       "skill-1",
+      "route:auto",
       "repo-manifest-1",
     ]);
     expect(projection.pluginCatalog.readinessEntries).toEqual(
@@ -500,6 +1202,17 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
             state: "ready",
           }),
           remediationSummary: "Inspect runtime health warnings before relying on this live skill.",
+        }),
+        expect.objectContaining({
+          id: "route:auto",
+          sourceLabel: "Execution route",
+          readiness: expect.objectContaining({
+            state: "ready",
+          }),
+          permissionState: expect.objectContaining({
+            label: "Runtime-managed",
+            state: "ready",
+          }),
         }),
       ])
     );
@@ -587,7 +1300,8 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
           state: "blocked",
         }),
         permissionState: expect.objectContaining({
-          state: "blocked",
+          label: "Runtime-managed",
+          state: "ready",
         }),
         remediationSummary:
           "Connect the WASI host binder so runtime can satisfy the published WIT imports.",

@@ -119,6 +119,88 @@ describe("runtimeKernelPluginProjection", () => {
           },
         },
       ],
+      registryPackages: [
+        {
+          packageRef: "hugecode.mcp.search@1.0.0",
+          packageId: "hugecode.mcp.search",
+          version: "1.0.0",
+          publisher: "HugeCode Labs",
+          summary: "Registry package",
+          transport: "mcp_remote",
+          source: "installed",
+          installed: true,
+          installedPluginId: null,
+          manifest: {
+            packageId: "hugecode.mcp.search",
+            version: "1.0.0",
+            publisher: "HugeCode Labs",
+            transport: "mcp_remote",
+            entry: {
+              pluginId: "pkg.search.remote",
+              displayName: "Remote Search Tools",
+              summary: "Registry package",
+              interfaceId: "pkg.search.remote",
+            },
+            contractSurfaces: [
+              {
+                id: "pkg.search.remote.routes",
+                kind: "route",
+                direction: "export",
+                summary: "Remote route",
+              },
+            ],
+            compatibility: {
+              status: "compatible",
+              minimumHostContractVersion: "2026-03-25",
+              supportedRuntimeProtocolVersions: ["2026-03-25"],
+              supportedCapabilityKeys: ["plugins.catalog", "plugins.registry"],
+              optionalTransportFeatures: [],
+              blockers: [],
+            },
+            dependencies: [],
+            permissions: ["network"],
+            defaultConfig: {},
+            attestations: [],
+          },
+          compatibility: {
+            status: "compatible",
+            minimumHostContractVersion: "2026-03-25",
+            supportedRuntimeProtocolVersions: ["2026-03-25"],
+            supportedCapabilityKeys: ["plugins.catalog", "plugins.registry"],
+            optionalTransportFeatures: [],
+            blockers: [],
+          },
+          trust: {
+            status: "verified",
+            verificationStatus: "verified",
+            publisher: "HugeCode Labs",
+            attestationSource: "sigstore",
+            blockedReason: null,
+            packageRef: "hugecode.mcp.search@1.0.0",
+            pluginId: "pkg.search.remote",
+          },
+        },
+      ],
+      compositionResolution: {
+        selectedPlugins: [
+          {
+            pluginId: "ext-1",
+            packageRef: null,
+            source: "runtime_extension",
+            reason: null,
+          },
+        ],
+        selectedRouteCandidates: [],
+        selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+        blockedPlugins: [],
+        trustDecisions: [],
+        provenance: {
+          activeProfileId: "workspace-default",
+          activeProfileName: "Workspace Default",
+          appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+          selectorDecisions: {},
+        },
+      },
       capabilityPlugins: [
         {
           id: "ext-1",
@@ -183,33 +265,49 @@ describe("runtimeKernelPluginProjection", () => {
       ],
     });
 
-    expect(merged).toEqual([
-      expect.objectContaining({
-        id: "ext-1",
-        name: "Projection Name",
-        version: "9.9.9",
-        enabled: false,
-        workspaceId: "workspace-1",
-        permissions: ["network"],
-        capabilities: [{ id: "tool:bash", enabled: true }],
-        metadata: expect.objectContaining({
-          distribution: "workspace",
-          kernelExtensionBundle: expect.objectContaining({
-            toolCount: 3,
-            resourceCount: 4,
-            surfaces: ["mission_control"],
-          }),
+    expect(merged).toHaveLength(3);
+    expect(merged[0]).toMatchObject({
+      id: "ext-1",
+      name: "Projection Name",
+      version: "9.9.9",
+      enabled: false,
+      workspaceId: "workspace-1",
+      permissions: ["network"],
+      capabilities: [{ id: "tool:bash", enabled: true }],
+      metadata: expect.objectContaining({
+        distribution: "workspace",
+        kernelExtensionBundle: expect.objectContaining({
+          toolCount: 3,
+          resourceCount: 4,
+          surfaces: ["mission_control"],
+        }),
+        composition: expect.objectContaining({
+          activeProfileId: "workspace-default",
+          selectedInActiveProfile: true,
         }),
       }),
-      expect.objectContaining({
-        id: "host:wasi",
-        source: "wasi_host",
-        runtimeBacked: true,
-        binding: expect.objectContaining({
-          state: "unbound",
-          contractFormat: "wit",
+    });
+    expect(merged[1]).toMatchObject({
+      id: "host:wasi",
+      source: "wasi_host",
+      runtimeBacked: true,
+      binding: expect.objectContaining({
+        state: "unbound",
+        contractFormat: "wit",
+      }),
+    });
+    expect(merged[2]).toMatchObject({
+      id: "pkg:hugecode.mcp.search@1.0.0",
+      source: "mcp_remote",
+      metadata: expect.objectContaining({
+        pluginRegistry: expect.objectContaining({
+          packageRef: "hugecode.mcp.search@1.0.0",
+          transport: "mcp_remote",
+        }),
+        composition: expect.objectContaining({
+          activeProfileId: "workspace-default",
         }),
       }),
-    ]);
+    });
   });
 });

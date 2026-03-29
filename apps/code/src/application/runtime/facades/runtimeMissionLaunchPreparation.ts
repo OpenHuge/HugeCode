@@ -28,6 +28,8 @@ export type RuntimeMissionLaunchRequestInput = {
   repositoryLaunchDefaults: ResolvedRepositoryExecutionDefaults;
   runtimeSourceDraft?: RuntimeTaskLauncherSourceDraft | null;
   routedProvider?: string | null;
+  preferredBackendIds?: string[] | null;
+  defaultBackendId?: string | null;
 };
 
 export type RuntimeMissionLaunchPreviewState = {
@@ -163,7 +165,10 @@ export function buildRuntimeMissionLaunchPrepareRequest(
     explicitLaunchInput: {
       executionProfileId:
         readOptionalText(input.runtimeSourceDraft?.profileId) ?? input.selectedExecutionProfile.id,
-      preferredBackendIds: normalizeBackendIds(input.runtimeSourceDraft?.preferredBackendIds),
+      preferredBackendIds: normalizeBackendIds(
+        input.runtimeSourceDraft?.preferredBackendIds ?? input.preferredBackendIds
+      ),
+      defaultBackendId: readOptionalText(input.defaultBackendId),
       accessMode: input.runtimeSourceDraft?.accessMode ?? null,
       reviewProfileId: readOptionalText(input.runtimeSourceDraft?.reviewProfileId),
       validationPresetId: readOptionalText(input.runtimeSourceDraft?.validationPresetId),
@@ -183,6 +188,8 @@ export function useRuntimeMissionLaunchPreview(
     [
       input.draftInstruction,
       input.draftTitle,
+      input.defaultBackendId,
+      input.preferredBackendIds,
       input.repositoryLaunchDefaults,
       input.routedProvider,
       input.runtimeSourceDraft,

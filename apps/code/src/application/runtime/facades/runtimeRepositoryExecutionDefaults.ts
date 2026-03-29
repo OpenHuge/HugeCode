@@ -86,6 +86,7 @@ export function resolveRepositoryExecutionDefaults(input: {
   const explicitExecutionProfileId = readOptionalText(explicit.executionProfileId);
   const explicitValidationPresetId = readOptionalText(explicit.validationPresetId);
   const explicitBackendIds = normalizeBackendIds(explicit.preferredBackendIds);
+  const explicitDefaultBackendId = readOptionalText(explicit.defaultBackendId);
   const explicitAccessMode = readOptionalText(explicit.accessMode) as AccessMode | null;
 
   const executionProfileId =
@@ -115,6 +116,7 @@ export function resolveRepositoryExecutionDefaults(input: {
     sourceMapping?.preferredBackendIds ??
     defaults.preferredBackendIds ??
     undefined;
+  const defaultBackendId = explicitDefaultBackendId ?? null;
   const accessMode =
     explicitAccessMode ??
     sourceMapping?.accessMode ??
@@ -131,6 +133,7 @@ export function resolveRepositoryExecutionDefaults(input: {
     sourceMappingKind: input.contract?.sourceMappings[sourceMappingKind] ? sourceMappingKind : null,
     executionProfileId,
     ...(preferredBackendIds ? { preferredBackendIds } : {}),
+    ...(defaultBackendId ? { defaultBackendId } : {}),
     accessMode,
     reviewProfileId,
     reviewProfile,

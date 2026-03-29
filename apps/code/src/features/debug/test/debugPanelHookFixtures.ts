@@ -44,6 +44,20 @@ export function createDebugRuntimePluginsState(
     loading: false,
     error: null,
     projectionBacked: false,
+    registry: {
+      packages: [],
+      installedCount: 0,
+      verifiedCount: 0,
+      blockedCount: 0,
+      error: null,
+    },
+    composition: {
+      profiles: [],
+      activeProfileId: null,
+      activeProfile: null,
+      resolution: null,
+      error: null,
+    },
     ...overrides,
   };
 }
