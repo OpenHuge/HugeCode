@@ -469,12 +469,12 @@ describe("buildRuntimeContinuityReadiness", () => {
     });
   });
 
-  it("preserves runtime continuation truth when checkpoint and mission linkage are absent", () => {
+  it("preserves continuation-only runtime truth before the run becomes review_ready", () => {
     const summary = buildRuntimeContinuityReadiness({
       candidates: [
         {
           run: buildRun({
-            state: "review_ready",
+            state: "validating",
             reviewPackId: "review-pack:run-1",
             continuation: {
               state: "ready",

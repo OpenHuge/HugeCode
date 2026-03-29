@@ -105,6 +105,7 @@ function isCanonicalContinuationCandidate(input: {
 }) {
   return Boolean(
     input.run.state === "review_ready" ||
+    input.run.continuation ||
     input.run.takeoverBundle ||
     input.run.publishHandoff ||
     input.run.missionLinkage ||
