@@ -36,6 +36,29 @@ function readWebMcpSupport(): boolean {
   }
 }
 
+function buildPlaceholderResult(input: {
+  status: DesktopBrowserExtractionResult["status"];
+  message: string;
+  errorCode: string;
+}): DesktopBrowserExtractionResult {
+  return {
+    status: input.status,
+    normalizedText: null,
+    snippet: null,
+    errorCode: input.errorCode,
+    errorMessage: input.message,
+    traceId: null,
+    trace: [
+      {
+        stage: "availability",
+        message: input.message,
+        at: new Date(0).toISOString(),
+        code: input.errorCode,
+      },
+    ],
+  };
+}
+
 export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
   if (typeof window === "undefined") {
     return {
@@ -49,7 +72,11 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       sourceLabel: "Unavailable",
       extractionAvailable: false,
       localOnly: false,
-      lastResult: null,
+      lastResult: buildPlaceholderResult({
+        status: "failed",
+        message: "Browser capability state can only be read from an interactive client runtime.",
+        errorCode: "INTERACTIVE_BROWSER_RUNTIME_REQUIRED",
+      }),
       capabilities: {
         browserDebug: false,
         browserExtraction: false,
@@ -102,7 +129,12 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       sourceLabel: "Local placeholder",
       extractionAvailable: false,
       localOnly: true,
-      lastResult: null,
+      lastResult: buildPlaceholderResult({
+        status: "empty",
+        message:
+          "Browser extraction remains in placeholder mode until a host or runtime adapter publishes canonical extraction results.",
+        errorCode: "LOCAL_PLACEHOLDER_STATE",
+      }),
       capabilities: {
         browserDebug: hasBrowserDebugCapability,
         browserExtraction: false,
@@ -123,7 +155,12 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
     sourceLabel: "Unavailable",
     extractionAvailable: false,
     localOnly: false,
-    lastResult: null,
+    lastResult: buildPlaceholderResult({
+      status: "failed",
+      message:
+        "No browser extraction capability, browser debug bridge, or WebMCP browser support is available on this host.",
+      errorCode: "BROWSER_CAPABILITY_UNAVAILABLE",
+    }),
     capabilities: {
       browserDebug: false,
       browserExtraction: false,

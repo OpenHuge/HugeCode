@@ -50,6 +50,8 @@ describe("runtimeBrowserReadiness", () => {
     expect(summary.localOnly).toBe(true);
     expect(summary.capabilities.webMcp).toBe(true);
     expect(summary.recommendedAction).toContain("placeholder");
+    expect(summary.lastResult?.status).toBe("empty");
+    expect(summary.lastResult?.trace[0]?.stage).toBe("availability");
   });
 
   it("treats browser debug as an attention signal until extraction is wired", () => {
@@ -66,6 +68,7 @@ describe("runtimeBrowserReadiness", () => {
     expect(summary.capabilities.browserDebug).toBe(true);
     expect(summary.extractionAvailable).toBe(false);
     expect(summary.localOnly).toBe(true);
+    expect(summary.lastResult?.errorCode).toBe("LOCAL_PLACEHOLDER_STATE");
   });
 
   it("reports blocked when no browser capability surface is available on an electron host", () => {
@@ -82,5 +85,7 @@ describe("runtimeBrowserReadiness", () => {
     expect(summary.capabilities.webMcp).toBe(false);
     expect(summary.extractionAvailable).toBe(false);
     expect(summary.localOnly).toBe(false);
+    expect(summary.lastResult?.status).toBe("failed");
+    expect(summary.lastResult?.errorCode).toBe("BROWSER_CAPABILITY_UNAVAILABLE");
   });
 });
