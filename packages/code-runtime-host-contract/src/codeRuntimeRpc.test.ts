@@ -1192,6 +1192,10 @@ describe("code runtime rpc v2 features", () => {
     expect(CODE_RUNTIME_RPC_FEATURES).toContain("runtime_kernel_prepare_v2");
   });
 
+  it("does not advertise the retired mission-control summary compat feature", () => {
+    expect(CODE_RUNTIME_RPC_FEATURES).not.toContain("runtime_mission_control_summary_v1");
+  });
+
   it("changes the canonical method hash when v2 runtime methods are present", () => {
     const hash = computeCodeRuntimeRpcMethodSetHash(CODE_RUNTIME_RPC_METHOD_LIST);
     expect(typeof hash).toBe("string");
@@ -1320,6 +1324,7 @@ describe("agent and oauth rpc methods", () => {
     expect(
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.MISSION_CONTROL_SNAPSHOT_V1)
     ).toEqual(["code_mission_control_snapshot_v1"]);
+    expect(CODE_RUNTIME_RPC_METHOD_LIST).not.toContain("code_mission_control_summary_v1");
     expect(
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKENDS_LIST)
     ).toEqual(["code_runtime_backends_list"]);

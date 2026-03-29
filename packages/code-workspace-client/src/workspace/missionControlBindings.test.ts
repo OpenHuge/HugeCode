@@ -1,3 +1,7 @@
+import type {
+  HugeCodeMissionControlSnapshot,
+  HugeCodeReviewPackSummary,
+} from "@ku0/code-runtime-host-contract";
 import { describe, expect, it, vi } from "vitest";
 import {
   createSnapshotBackedMissionControlBindings,
@@ -6,68 +10,96 @@ import {
   readMissionControlSnapshotFromSourceAdapter,
 } from "./missionControlBindings";
 
+function createReviewPack(
+  overrides: Partial<HugeCodeReviewPackSummary> = {}
+): HugeCodeReviewPackSummary {
+  return {
+    id: "review-pack-1",
+    runId: "run-1",
+    taskId: "task-1",
+    workspaceId: "workspace-1",
+    taskSource: null,
+    summary: "Review ready",
+    reviewStatus: "ready",
+    evidenceState: "confirmed",
+    validationOutcome: "passed",
+    warningCount: 0,
+    warnings: [],
+    validations: [],
+    artifacts: [],
+    checksPerformed: [],
+    recommendedNextAction: null,
+    assumptions: [],
+    reproductionGuidance: [],
+    rollbackGuidance: [],
+    backendAudit: undefined,
+    reviewDecision: null,
+    createdAt: 0,
+    lineage: null,
+    ledger: null,
+    checkpoint: null,
+    missionLinkage: null,
+    actionability: null,
+    reviewProfileId: null,
+    reviewGate: null,
+    reviewFindings: null,
+    reviewRunId: null,
+    skillUsage: null,
+    autofixCandidate: null,
+    sessionBoundary: null,
+    continuation: null,
+    nextOperatorAction: null,
+    governance: null,
+    placement: null,
+    workspaceEvidence: null,
+    failureClass: null,
+    relaunchOptions: null,
+    subAgentSummary: null,
+    publishHandoff: null,
+    takeoverBundle: null,
+    selectedOpportunityId: null,
+    wakeReason: null,
+    wakeState: null,
+    sourceCitations: null,
+    queuePosition: null,
+    nextEligibleAction: null,
+    ...overrides,
+  };
+}
+
+function createSnapshot(
+  overrides: Partial<HugeCodeMissionControlSnapshot> = {}
+): HugeCodeMissionControlSnapshot {
+  return {
+    source: "runtime_snapshot_v1",
+    generatedAt: 0,
+    workspaces: [],
+    tasks: [],
+    runs: [],
+    reviewPacks: [],
+    ...overrides,
+  };
+}
+
 describe("createSnapshotBackedMissionControlBindings", () => {
-  it("uses the injected snapshot reader for both snapshot and summary calls", async () => {
-    const snapshot = {
-      source: "runtime_snapshot_v1" as const,
-      generatedAt: 0,
-      workspaces: [],
-      tasks: [],
-      runs: [],
-      reviewPacks: [],
-    };
+  it("uses the injected snapshot reader for mission control snapshot calls", async () => {
+    const snapshot = createSnapshot();
     const readMissionControlSnapshot = vi.fn(async () => snapshot);
-    const compose = vi.fn((_value, activeWorkspaceId) => ({
-      workspaceLabel: activeWorkspaceId ?? "all",
-      tasksCount: 0,
-      runsCount: 0,
-      approvalCount: 0,
-      reviewPacksCount: 0,
-      connectedWorkspaceCount: 0,
-      launchReadiness: {
-        tone: "idle" as const,
-        label: "Launch readiness",
-        detail: "Idle",
-      },
-      continuityReadiness: {
-        tone: "idle" as const,
-        label: "Continuity readiness",
-        detail: "Idle",
-      },
-      missionItems: [],
-      reviewItems: [],
-    }));
 
     const bindings = createSnapshotBackedMissionControlBindings({
       readMissionControlSnapshot,
-      composer: { compose },
     });
 
     await expect(bindings.readMissionControlSnapshot()).resolves.toBe(snapshot);
-    await expect(bindings.readMissionControlSummary?.("workspace-1")).resolves.toMatchObject({
-      workspaceLabel: "workspace-1",
-    });
-
-    expect(readMissionControlSnapshot).toHaveBeenCalledTimes(2);
-    expect(compose).toHaveBeenCalledWith(snapshot, "workspace-1");
+    expect(readMissionControlSnapshot).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("createSnapshotBackedMissionControlSurfaceBindings", () => {
   it("derives review bindings from the same snapshot-backed surface", async () => {
-    const snapshot = {
-      source: "runtime_snapshot_v1" as const,
-      generatedAt: 0,
-      workspaces: [],
-      tasks: [],
-      runs: [],
-      reviewPacks: [
-        {
-          id: "review-pack-1",
-          workspaceId: "workspace-1",
-        },
-      ],
-    };
+    const snapshot = createSnapshot({
+      reviewPacks: [createReviewPack()],
+    });
     const readMissionControlSnapshot = vi.fn(async () => snapshot);
 
     const bindings = createSnapshotBackedMissionControlSurfaceBindings({
@@ -82,22 +114,15 @@ describe("createSnapshotBackedMissionControlSurfaceBindings", () => {
 
 describe("readMissionControlSnapshotFromSourceAdapter", () => {
   it("prefers projection bootstrap mission-control truth over snapshot fallback", async () => {
-    const projectionSnapshot = {
-      source: "runtime_snapshot_v1" as const,
+    const projectionSnapshot = createSnapshot({
       generatedAt: 1,
-      workspaces: [],
-      tasks: [],
-      runs: [],
-      reviewPacks: [{ id: "review-pack-1", workspaceId: "workspace-1" }],
-    };
-    const readMissionControlSnapshot = vi.fn(async () => ({
-      source: "runtime_snapshot_v1" as const,
-      generatedAt: 2,
-      workspaces: [],
-      tasks: [],
-      runs: [],
-      reviewPacks: [],
-    }));
+      reviewPacks: [createReviewPack()],
+    });
+    const readMissionControlSnapshot = vi.fn(async () =>
+      createSnapshot({
+        generatedAt: 2,
+      })
+    );
 
     const snapshot = await readMissionControlSnapshotFromSourceAdapter({
       bootstrapKernelProjection: async () => ({
@@ -117,53 +142,25 @@ describe("readMissionControlSnapshotFromSourceAdapter", () => {
 
 describe("createWorkspaceClientRuntimeMissionControlSurfaceBindings", () => {
   it("falls back to snapshot-backed composition when projection bootstrap fails", async () => {
-    const fallbackSnapshot = {
-      source: "runtime_snapshot_v1" as const,
+    const fallbackSnapshot = createSnapshot({
       generatedAt: 3,
-      workspaces: [],
-      tasks: [],
-      runs: [],
-      reviewPacks: [{ id: "review-pack-2", workspaceId: "workspace-2" }],
-    };
+      reviewPacks: [
+        createReviewPack({
+          id: "review-pack-2",
+          workspaceId: "workspace-2",
+        }),
+      ],
+    });
     const bindings = createWorkspaceClientRuntimeMissionControlSurfaceBindings({
       bootstrapKernelProjection: async () => {
         throw new Error("projection unavailable");
       },
       readMissionControlSnapshot: async () => fallbackSnapshot,
-      composer: {
-        compose: (snapshot, activeWorkspaceId) => ({
-          workspaceLabel: activeWorkspaceId ?? "all",
-          tasksCount: snapshot?.tasks.length ?? 0,
-          runsCount: snapshot?.runs.length ?? 0,
-          approvalCount: 0,
-          reviewPacksCount: snapshot?.reviewPacks.length ?? 0,
-          connectedWorkspaceCount: snapshot?.workspaces.length ?? 0,
-          launchReadiness: {
-            tone: "idle",
-            label: "Launch readiness",
-            detail: "Idle",
-          },
-          continuityReadiness: {
-            tone: "idle",
-            label: "Continuity readiness",
-            detail: "Idle",
-          },
-          missionItems: [],
-          reviewItems: [],
-        }),
-      },
     });
 
     await expect(bindings.missionControl.readMissionControlSnapshot()).resolves.toEqual(
       fallbackSnapshot
     );
-    await expect(
-      bindings.missionControl.readMissionControlSummary?.("workspace-2")
-    ).resolves.toMatchObject({
-      reviewPacksCount: 1,
-      tasksCount: 0,
-      runsCount: 0,
-    });
     await expect(bindings.review.listReviewPacks()).resolves.toEqual(fallbackSnapshot.reviewPacks);
   });
 });

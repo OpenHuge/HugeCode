@@ -305,7 +305,6 @@ struct AppContext {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum RuntimeRevisionCacheKey {
     MissionControlSnapshot,
-    MissionControlSummary { workspace_id: Option<String> },
     KernelProjectionMissionControlSlice,
     KernelProjectionJobsSlice,
     KernelProjectionSessionsSlice,

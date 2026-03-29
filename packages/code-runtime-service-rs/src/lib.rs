@@ -392,7 +392,6 @@ const CODE_RUNTIME_RPC_FEATURES: &[&str] = &[
     "runtime_review_actionability_v1",
     "runtime_review_linkage_v1",
     "runtime_truth_contract_core_v1",
-    "runtime_mission_control_summary_v1",
     "runtime_task_normalization_v1",
     "runtime_task_native_run_review_v1",
     "runtime_fault_injection_test_v1",

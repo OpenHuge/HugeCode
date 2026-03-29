@@ -239,8 +239,8 @@ export function resolveRuntimeCapabilitiesValue(input: {
   projectionCapabilities: KernelCapabilitiesSlice | null;
   fallbackCapabilities: unknown;
 }) {
-  if (input.kernelProjectionEnabled && input.projectionCapabilities) {
-    return input.projectionCapabilities;
+  if (input.kernelProjectionEnabled) {
+    return input.projectionCapabilities ?? null;
   }
   return input.fallbackCapabilities;
 }

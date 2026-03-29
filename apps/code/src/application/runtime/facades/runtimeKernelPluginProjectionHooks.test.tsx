@@ -6,64 +6,69 @@ import { RuntimeKernelProvider } from "../kernel/RuntimeKernelContext";
 import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "../kernel/runtimeKernelCapabilities";
 import { useWorkspaceRuntimePluginProjection } from "./runtimeKernelPluginProjectionHooks";
 
-function createRuntimeKernelValue() {
-  const pluginCatalogFacade = {
-    listPlugins: vi.fn(async () => [
-      {
-        id: "ext-1",
-        name: "Catalog Name",
-        version: "9.9.9",
-        summary: null,
-        source: "runtime_extension",
-        transport: "runtime_extension",
-        hostProfile: {
-          kind: "runtime",
-          executionBoundaries: ["runtime"],
-        },
-        workspaceId: null,
-        enabled: false,
-        runtimeBacked: true,
-        capabilities: [{ id: "tool:bash", enabled: true }],
-        permissions: ["network"],
-        resources: [],
+function createCatalogPlugins() {
+  return [
+    {
+      id: "ext-1",
+      name: "Catalog Name",
+      version: "9.9.9",
+      summary: null,
+      source: "runtime_extension",
+      transport: "runtime_extension",
+      hostProfile: {
+        kind: "runtime",
         executionBoundaries: ["runtime"],
-        binding: {
-          state: "bound",
-          contractFormat: "runtime_extension",
-          contractBoundary: "runtime-extension-record",
-          interfaceId: "ext-1",
-          surfaces: [
-            {
-              id: "ext-1",
-              kind: "extension",
-              direction: "export",
-              summary: "Runtime extension record exported through the kernel plugin catalog.",
-            },
-          ],
-        },
-        operations: {
-          execution: {
-            executable: false,
-            mode: "none",
-            reason:
-              "Plugin `ext-1` is bound for catalog/resource access only and does not expose an execution provider.",
-          },
-          resources: {
-            readable: true,
-            mode: "runtime_extension_resource",
-            reason: null,
-          },
-          permissions: {
-            evaluable: true,
-            mode: "runtime_extension_permissions",
-            reason: null,
-          },
-        },
-        metadata: null,
-        permissionDecision: "allow",
-        health: null,
       },
-    ]),
+      workspaceId: null,
+      enabled: false,
+      runtimeBacked: true,
+      capabilities: [{ id: "tool:bash", enabled: true }],
+      permissions: ["network"],
+      resources: [],
+      executionBoundaries: ["runtime"],
+      binding: {
+        state: "bound",
+        contractFormat: "runtime_extension",
+        contractBoundary: "runtime-extension-record",
+        interfaceId: "ext-1",
+        surfaces: [
+          {
+            id: "ext-1",
+            kind: "extension",
+            direction: "export",
+            summary: "Runtime extension record exported through the kernel plugin catalog.",
+          },
+        ],
+      },
+      operations: {
+        execution: {
+          executable: false,
+          mode: "none",
+          reason:
+            "Plugin `ext-1` is bound for catalog/resource access only and does not expose an execution provider.",
+        },
+        resources: {
+          readable: true,
+          mode: "runtime_extension_resource",
+          reason: null,
+        },
+        permissions: {
+          evaluable: true,
+          mode: "runtime_extension_permissions",
+          reason: null,
+        },
+      },
+      metadata: null,
+      permissionDecision: "allow",
+      health: null,
+    },
+  ];
+}
+
+function createRuntimeKernelValue(input?: { projectionEnabled?: boolean }) {
+  const listPlugins = vi.fn(async () => createCatalogPlugins());
+  const pluginCatalogFacade = {
+    listPlugins,
     readPluginResource: vi.fn(),
     executePlugin: vi.fn(),
     evaluatePluginPermissions: vi.fn(),
@@ -210,80 +215,83 @@ function createRuntimeKernelValue() {
     runtimeGateway: {} as never,
     workspaceClientRuntimeGateway: {} as never,
     workspaceClientRuntime: {
-      kernelProjection: {
-        bootstrap: vi.fn(async () => ({
-          revision: 1,
-          sliceRevisions: { extensions: 1, capabilities: 1 },
-          slices: {
-            capabilities: [
-              {
-                id: "host:wasi",
-                name: "WASI host binder",
-                kind: "host",
-                enabled: false,
-                health: "blocked",
-                executionProfile: {
-                  placement: "local",
-                  interactivity: "background",
-                  isolation: "host",
-                  network: "restricted",
-                  authority: "service",
-                },
-                tags: ["component-model", "wit", "host"],
-                metadata: {
-                  pluginSource: "wasi_host",
-                  bindingState: "unbound",
-                  contractFormat: "wit",
-                  contractBoundary: "world-imports",
-                  interfaceId: "wasi:*/*",
-                  worldId: "hugecode:runtime/plugin-host",
-                  contractSurfaces: [
+      kernelProjection:
+        input?.projectionEnabled === false
+          ? undefined
+          : {
+              bootstrap: vi.fn(async () => ({
+                revision: 1,
+                sliceRevisions: { extensions: 1, capabilities: 1 },
+                slices: {
+                  capabilities: [
                     {
-                      id: "hugecode:runtime/plugin-host",
-                      kind: "world",
-                      direction: "import",
-                      summary:
-                        "Reserved component-model world that the runtime host binder is expected to satisfy.",
-                    },
-                    {
-                      id: "wasi:*/*",
-                      kind: "interface",
-                      direction: "import",
-                      summary:
-                        "Semver-qualified WIT interface imports published by the runtime host binder.",
+                      id: "host:wasi",
+                      name: "WASI host binder",
+                      kind: "host",
+                      enabled: false,
+                      health: "blocked",
+                      executionProfile: {
+                        placement: "local",
+                        interactivity: "background",
+                        isolation: "host",
+                        network: "restricted",
+                        authority: "service",
+                      },
+                      tags: ["component-model", "wit", "host"],
+                      metadata: {
+                        pluginSource: "wasi_host",
+                        bindingState: "unbound",
+                        contractFormat: "wit",
+                        contractBoundary: "world-imports",
+                        interfaceId: "wasi:*/*",
+                        worldId: "hugecode:runtime/plugin-host",
+                        contractSurfaces: [
+                          {
+                            id: "hugecode:runtime/plugin-host",
+                            kind: "world",
+                            direction: "import",
+                            summary:
+                              "Reserved component-model world that the runtime host binder is expected to satisfy.",
+                          },
+                          {
+                            id: "wasi:*/*",
+                            kind: "interface",
+                            direction: "import",
+                            summary:
+                              "Semver-qualified WIT interface imports published by the runtime host binder.",
+                          },
+                        ],
+                        summary:
+                          "Runtime-published component-model host slot reserved for future WIT/world bindings.",
+                        reason: "Runtime host binder is not currently connected.",
+                      },
                     },
                   ],
-                  summary:
-                    "Runtime-published component-model host slot reserved for future WIT/world bindings.",
-                  reason: "Runtime host binder is not currently connected.",
+                  extensions: [
+                    {
+                      id: "ext-1",
+                      name: "Projection Name",
+                      enabled: true,
+                      transport: "mcp-stdio",
+                      workspaceId: "workspace-1",
+                      toolCount: 2,
+                      resourceCount: 1,
+                      surfaces: ["debug"],
+                      installedAt: 10,
+                      updatedAt: 20,
+                      metadata: {
+                        version: "1.0.0",
+                      },
+                    },
+                  ],
                 },
-              },
-            ],
-            extensions: [
-              {
-                id: "ext-1",
-                name: "Projection Name",
-                enabled: true,
-                transport: "mcp-stdio",
-                workspaceId: "workspace-1",
-                toolCount: 2,
-                resourceCount: 1,
-                surfaces: ["debug"],
-                installedAt: 10,
-                updatedAt: 20,
-                metadata: {
-                  version: "1.0.0",
-                },
-              },
-            ],
-          },
-        })),
-        subscribe: vi.fn(() => () => undefined),
-      },
+              })),
+              subscribe: vi.fn(() => () => undefined),
+            },
     } as never,
     desktopHost: {} as never,
     getWorkspaceScope: vi.fn(() => workspaceScope),
-    listPlugins: pluginCatalogFacade.listPlugins,
+    listPlugins,
     listInstalledPackages: pluginRegistryFacade.listInstalledPackages,
     listProfiles: compositionFacade.listProfiles,
     getActiveResolution: compositionFacade.getActiveResolution,
@@ -291,8 +299,8 @@ function createRuntimeKernelValue() {
 }
 
 describe("runtimeKernelPluginProjectionHooks", () => {
-  it("merges projection extension bundles with the workspace plugin catalog", async () => {
-    const kernelValue = createRuntimeKernelValue();
+  it("treats kernel projection as the only first-party plugin truth when slices are available", async () => {
+    const runtimeKernelValue = createRuntimeKernelValue();
     const { result } = renderHook(
       () =>
         useWorkspaceRuntimePluginProjection({
@@ -301,7 +309,9 @@ describe("runtimeKernelPluginProjectionHooks", () => {
         }),
       {
         wrapper: ({ children }) => (
-          <RuntimeKernelProvider value={kernelValue as never}>{children}</RuntimeKernelProvider>
+          <RuntimeKernelProvider value={runtimeKernelValue as never}>
+            {children}
+          </RuntimeKernelProvider>
         ),
       }
     );
@@ -317,12 +327,15 @@ describe("runtimeKernelPluginProjectionHooks", () => {
     expect(result.current.plugins[0]).toMatchObject({
       id: "ext-1",
       name: "Projection Name",
-      version: "9.9.9",
-      permissions: ["network"],
-      capabilities: [{ id: "tool:bash", enabled: true }],
+      version: "1.0.0",
+      permissions: [],
+      capabilities: [],
       metadata: {
         kernelExtensionBundle: {
           toolCount: 2,
+        },
+        composition: {
+          activeProfileId: "workspace-default",
         },
       },
     });
@@ -364,10 +377,50 @@ describe("runtimeKernelPluginProjectionHooks", () => {
         },
       },
     });
+    expect(runtimeKernelValue.listPlugins).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the workspace plugin catalog when kernel projection is unavailable", async () => {
+    const runtimeKernelValue = createRuntimeKernelValue({ projectionEnabled: false });
+    const { result } = renderHook(
+      () =>
+        useWorkspaceRuntimePluginProjection({
+          workspaceId: "workspace-1",
+          enabled: true,
+        }),
+      {
+        wrapper: ({ children }) => (
+          <RuntimeKernelProvider value={runtimeKernelValue as never}>
+            {children}
+          </RuntimeKernelProvider>
+        ),
+      }
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.plugins).toHaveLength(2);
+    });
+
+    expect(result.current.projectionBacked).toBe(false);
+    expect(result.current.registry.installedCount).toBe(1);
+    expect(result.current.composition.activeProfileId).toBe("workspace-default");
+    expect(result.current.plugins[0]).toMatchObject({
+      id: "ext-1",
+      name: "Catalog Name",
+      version: "9.9.9",
+      permissions: ["network"],
+      capabilities: [{ id: "tool:bash", enabled: true }],
+    });
+    expect(result.current.plugins[1]).toMatchObject({
+      id: "pkg.search.remote",
+      source: "mcp_remote",
+    });
+    expect(runtimeKernelValue.listPlugins).toHaveBeenCalledOnce();
   });
 
   it("refreshes plugin catalog, registry, and composition state through the shared boundary hook", async () => {
-    const kernelValue = createRuntimeKernelValue();
+    const kernelValue = createRuntimeKernelValue({ projectionEnabled: false });
     const { result } = renderHook(
       () =>
         useWorkspaceRuntimePluginProjection({

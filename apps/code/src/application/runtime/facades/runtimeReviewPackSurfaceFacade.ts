@@ -26,7 +26,7 @@ import {
   type MissionControlProjection,
 } from "./runtimeMissionControlFacade";
 import type { RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
-import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
+import { buildMissionProvenanceSummary } from "./runtimeMissionControlProvenance";
 import {
   resolveReviewContinuationDefaults,
   resolveRuntimeFollowUpPreferredBackendIds,
@@ -48,6 +48,7 @@ import {
   type MissionNavigationTarget,
   type MissionReviewEntry,
 } from "./runtimeMissionControlSurfaceModel";
+import { resolveCanonicalMissionOperatorAction } from "./runtimeMissionControlOperatorAction";
 import {
   normalizeReviewPackPublishHandoff,
   normalizeReviewPackRelaunchOptions,
@@ -68,6 +69,11 @@ import {
   type WorkspaceEvidenceSummary,
   pushUnique,
 } from "./runtimeReviewPackDetailPresentation";
+import {
+  MISSION_RUN_EMPTY_SECTION_LABELS,
+  REVIEW_PACK_EMPTY_SECTION_LABELS,
+} from "./runtimeReviewPackEmptySectionLabels";
+import { buildMissionSecondaryLabel } from "./runtimeMissionSecondaryLabel";
 
 type RelaunchOption = {
   id: string;
@@ -127,26 +133,6 @@ type RunWithExtras = MissionControlProjection["runs"][number] & {
   subAgentSummary?: Array<Record<string, unknown>> | null;
 };
 
-function buildMissionSecondaryLabel(input: {
-  isRuntimeManaged: boolean;
-  taskSource?:
-    | MissionControlProjection["tasks"][number]["taskSource"]
-    | MissionControlProjection["runs"][number]["taskSource"]
-    | MissionControlProjection["reviewPacks"][number]["taskSource"]
-    | null
-    | undefined;
-}) {
-  const labels: string[] = [];
-  if (input.isRuntimeManaged) {
-    labels.push("Runtime-managed mission");
-  }
-  const taskSourceLabel = resolveTaskSourceSecondaryLabel(input.taskSource ?? null);
-  if (taskSourceLabel) {
-    labels.push(taskSourceLabel);
-  }
-  return labels.length > 0 ? labels.join(" | ") : null;
-}
-
 export type ReviewPackSelectionSource =
   | "home"
   | "missions"
@@ -200,6 +186,8 @@ export type ReviewPackDetailModel = {
   validationOutcome: HugeCodeValidationOutcome;
   validationLabel: string;
   warningCount: number;
+  nextActionLabel?: string;
+  nextActionDetail?: string | null;
   warnings: string[];
   validations: MissionControlProjection["reviewPacks"][number]["validations"];
   artifacts: MissionControlProjection["reviewPacks"][number]["artifacts"];
@@ -231,6 +219,7 @@ export type ReviewPackDetailModel = {
   reviewRunId: string | null;
   skillUsage: HugeCodeRuntimeSkillUsageSummary[];
   autofixCandidate: HugeCodeRuntimeAutofixCandidate | null;
+  provenanceSummary?: string | null;
   backendAudit: {
     summary: string;
     details: string[];
@@ -996,12 +985,7 @@ export function buildReviewPackDetailModel(input: {
         runExtra?.subAgents ?? runExtra?.subAgentSummary ?? null
       ),
       limitations,
-      emptySectionLabels: {
-        warnings: "The runtime did not record warnings for this mission run.",
-        validations: "No runtime validation details were recorded for this mission run.",
-        artifacts: "No runtime artifacts or evidence references were attached to this mission run.",
-        autoDrive: "This run did not publish an AutoDrive route snapshot.",
-      },
+      emptySectionLabels: MISSION_RUN_EMPTY_SECTION_LABELS,
     };
   }
 
@@ -1016,7 +1000,7 @@ export function buildReviewPackDetailModel(input: {
     };
   const isRuntimeManaged = task ? isRuntimeManagedMissionTaskId(task.id) : true;
   const missionLinkage = reviewPackExtra?.missionLinkage ?? run?.missionLinkage ?? null;
-  const navigationTarget: MissionNavigationTarget = missionLinkage?.navigationTarget
+  const missionNavigationTarget: MissionNavigationTarget = missionLinkage?.navigationTarget
     ? mapRuntimeNavigationTarget({
         target: missionLinkage.navigationTarget,
         reviewPackId: reviewPack.id,
@@ -1036,6 +1020,38 @@ export function buildReviewPackDetailModel(input: {
           reviewPackId: reviewPack.id,
           limitation: "thread_unavailable",
         };
+  const reviewNavigationTarget: MissionNavigationTarget = {
+    kind: "review",
+    workspaceId: reviewPack.workspaceId,
+    taskId: reviewPack.taskId,
+    runId: reviewPack.runId,
+    reviewPackId: reviewPack.id,
+    limitation: (task?.origin.threadId ?? missionLinkage?.threadId) ? null : "thread_unavailable",
+  };
+  const operatorAction = resolveCanonicalMissionOperatorAction({
+    reviewPack,
+    run,
+    workspaceId: reviewPack.workspaceId,
+    threadId: task?.origin.threadId ?? missionLinkage?.threadId ?? null,
+    taskId: reviewPack.taskId,
+    runId: reviewPack.runId,
+    missionTarget:
+      missionNavigationTarget.kind === "review"
+        ? {
+            kind: "mission",
+            workspaceId: reviewPack.workspaceId,
+            taskId: reviewPack.taskId,
+            runId: reviewPack.runId,
+            reviewPackId: reviewPack.id,
+            threadId: task?.origin.threadId ?? missionLinkage?.threadId ?? null,
+            limitation:
+              (task?.origin.threadId ?? missionLinkage?.threadId) ? null : "thread_unavailable",
+          }
+        : missionNavigationTarget,
+    reviewTarget: reviewNavigationTarget,
+    defaultActiveLabel: "Open review",
+  });
+  const navigationTarget = operatorAction?.target ?? missionNavigationTarget;
 
   const limitations: string[] = [];
   if (isRuntimeManaged && navigationTarget.kind !== "thread") {
@@ -1110,6 +1126,9 @@ export function buildReviewPackDetailModel(input: {
   const followUpDefaultsAvailable = followUpState.interventionActions.some(
     (action) => action.enabled
   );
+  const provenanceSummary = buildMissionProvenanceSummary(
+    reviewPack.sourceCitations ?? run?.sourceCitations ?? null
+  );
   const lineage = augmentDetailSection(
     buildMissionLineageDetail({
       lineage: reviewPack.lineage ?? run?.lineage ?? task?.lineage ?? null,
@@ -1181,6 +1200,7 @@ export function buildReviewPackDetailModel(input: {
     continuity?.recommendedAction ??
     reviewPackExtra?.actionability?.summary ??
     run?.actionability?.summary ??
+    operatorAction?.detail ??
     reviewPack.recommendedNextAction ??
     null;
   const reviewIntelligence = resolveReviewIntelligenceSummary({
@@ -1209,6 +1229,8 @@ export function buildReviewPackDetailModel(input: {
     validationOutcome: reviewPack.validationOutcome,
     validationLabel: formatValidationOutcomeLabel(reviewPack.validationOutcome),
     warningCount: reviewPack.warningCount,
+    nextActionLabel: operatorAction?.label ?? "Open review",
+    nextActionDetail: operatorAction?.detail ?? reviewRecommendedNextAction,
     warnings: reviewPack.warnings,
     validations: reviewPack.validations,
     artifacts: reviewPack.artifacts,
@@ -1237,6 +1259,7 @@ export function buildReviewPackDetailModel(input: {
     reviewRunId: reviewIntelligence?.reviewRunId ?? null,
     skillUsage: reviewIntelligence?.skillUsage ?? [],
     autofixCandidate: reviewIntelligence?.autofixCandidate ?? null,
+    provenanceSummary,
     backendAudit,
     governance: buildGovernanceDetail(reviewPack.governance ?? run?.governance ?? null),
     operatorSnapshot: buildOperatorSnapshotDetail(run?.operatorSnapshot ?? null),
@@ -1270,17 +1293,11 @@ export function buildReviewPackDetailModel(input: {
     subAgentSummary,
     limitations,
     emptySectionLabels: {
-      assumptions: "The runtime did not record explicit review assumptions for this pack.",
-      warnings: "The runtime did not record any warnings for this review pack.",
+      ...REVIEW_PACK_EMPTY_SECTION_LABELS,
       validations:
         reviewPack.validationOutcome === "unknown"
           ? "Validation evidence was not recorded for this run."
           : "No individual validation checks were recorded for this run.",
-      artifacts: "No artifacts or evidence references were attached to this review pack.",
-      reproduction:
-        "The runtime did not record reproduction guidance for this review pack. Re-run the linked validations or inspect attached evidence.",
-      rollback:
-        "The runtime did not record rollback guidance for this review pack. Use diff evidence or reopen the mission thread before reverting changes.",
     },
   };
 }

@@ -8,11 +8,6 @@ import type {
   WorkspaceClientRuntimeMissionControlSourceAdapter,
   WorkspaceClientRuntimeReviewBindings,
 } from "./bindings";
-import {
-  createMissionControlSummaryLoader,
-  DEFAULT_MISSION_CONTROL_SUMMARY_COMPOSER,
-} from "../workspace-shell/missionControlSummaryLoader";
-import type { MissionControlSummaryComposer } from "../workspace-shell/missionControlSummaryContracts";
 import { readMissionControlProjectionSlice } from "../workspace-shell/kernelProjectionStore";
 
 export type MissionControlSnapshotReader = () => Promise<HugeCodeMissionControlSnapshot>;
@@ -24,9 +19,7 @@ export type SnapshotBackedMissionControlSurfaceBindings = Pick<
 const MISSION_CONTROL_PROJECTION_SCOPES: KernelProjectionScope[] = ["mission_control"];
 
 type WorkspaceClientMissionControlSurfaceBindingsInput =
-  WorkspaceClientRuntimeMissionControlSourceAdapter & {
-    composer?: MissionControlSummaryComposer;
-  };
+  WorkspaceClientRuntimeMissionControlSourceAdapter;
 
 export async function readMissionControlSnapshotFromSourceAdapter(
   adapter: WorkspaceClientRuntimeMissionControlSourceAdapter
@@ -51,20 +44,11 @@ export async function readMissionControlSnapshotFromSourceAdapter(
 export function createWorkspaceClientRuntimeMissionControlBindings(
   input: WorkspaceClientMissionControlSurfaceBindingsInput
 ): WorkspaceClientRuntimeMissionControlBindings {
-  const composer = input.composer ?? DEFAULT_MISSION_CONTROL_SUMMARY_COMPOSER;
   const readMissionControlSnapshot = async () =>
     await readMissionControlSnapshotFromSourceAdapter(input);
-  const loader = createMissionControlSummaryLoader(
-    {
-      readMissionControlSnapshot,
-    },
-    composer
-  );
 
   return {
     readMissionControlSnapshot,
-    readMissionControlSummary: async (activeWorkspaceId) =>
-      (await loader.load(activeWorkspaceId)).summary,
   };
 }
 
@@ -88,7 +72,6 @@ export function createWorkspaceClientRuntimeMissionControlSurfaceBindings(
 
 export function createSnapshotBackedMissionControlBindings(input: {
   readMissionControlSnapshot: MissionControlSnapshotReader;
-  composer?: MissionControlSummaryComposer;
 }): WorkspaceClientRuntimeMissionControlBindings {
   return createWorkspaceClientRuntimeMissionControlBindings(input);
 }
@@ -101,7 +84,6 @@ export function createSnapshotBackedReviewBindings(input: {
 
 export function createSnapshotBackedMissionControlSurfaceBindings(input: {
   readMissionControlSnapshot: MissionControlSnapshotReader;
-  composer?: MissionControlSummaryComposer;
 }): SnapshotBackedMissionControlSurfaceBindings {
   return createWorkspaceClientRuntimeMissionControlSurfaceBindings(input);
 }

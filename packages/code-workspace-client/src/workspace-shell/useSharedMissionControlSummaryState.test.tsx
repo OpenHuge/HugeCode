@@ -1,4 +1,9 @@
 // @vitest-environment jsdom
+import type {
+  HugeCodeMissionControlSnapshot,
+  HugeCodeTaskSummary,
+  HugeCodeWorkspace,
+} from "@ku0/code-runtime-host-contract";
 import { renderHook, waitFor } from "@testing-library/react";
 import { act, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -6,18 +11,60 @@ import type { WorkspaceClientBindings } from "../workspace/bindings";
 import { WorkspaceClientBindingsProvider } from "../workspace/WorkspaceClientBindingsProvider";
 import { useSharedMissionControlSummaryState } from "./useSharedMissionControlSummaryState";
 
-function createBindings(
-  readMissionControlSnapshot = vi.fn(async () => ({
-    source: "runtime_snapshot_v1" as const,
+function createSnapshot(
+  overrides: Partial<HugeCodeMissionControlSnapshot> = {}
+): HugeCodeMissionControlSnapshot {
+  return {
+    source: "runtime_snapshot_v1",
     generatedAt: 0,
     workspaces: [],
     tasks: [],
     runs: [],
     reviewPacks: [],
-  })),
+    ...overrides,
+  };
+}
+
+function createWorkspace(overrides: Partial<HugeCodeWorkspace> = {}): HugeCodeWorkspace {
+  return {
+    id: "workspace-1",
+    name: "Alpha",
+    rootPath: "/alpha",
+    connected: true,
+    defaultProfileId: null,
+    ...overrides,
+  };
+}
+
+function createTask(overrides: Partial<HugeCodeTaskSummary> = {}): HugeCodeTaskSummary {
+  return {
+    id: "task-1",
+    workspaceId: "workspace-1",
+    title: "Task",
+    objective: null,
+    origin: {
+      kind: "run",
+      runId: "run-1",
+      threadId: null,
+      requestId: null,
+    },
+    taskSource: null,
+    mode: null,
+    modeSource: "missing",
+    status: "queued",
+    createdAt: 0,
+    updatedAt: 0,
+    currentRunId: null,
+    latestRunId: null,
+    latestRunState: null,
+    ...overrides,
+  };
+}
+
+function createBindings(
+  readMissionControlSnapshot = vi.fn(async () => createSnapshot()),
   subscribeScopedRuntimeUpdatedEvents = vi.fn((_options, _listener) => () => undefined),
-  kernelProjection: WorkspaceClientBindings["runtime"]["kernelProjection"] = undefined,
-  readMissionControlSummary?: WorkspaceClientBindings["runtime"]["missionControl"]["readMissionControlSummary"]
+  kernelProjection: WorkspaceClientBindings["runtime"]["kernelProjection"] = undefined
 ): WorkspaceClientBindings {
   return {
     navigation: {
@@ -63,7 +110,6 @@ function createBindings(
       },
       missionControl: {
         readMissionControlSnapshot,
-        readMissionControlSummary,
       },
       kernelProjection,
       runtimeUpdated: {
@@ -202,55 +248,25 @@ describe("useSharedMissionControlSummaryState", () => {
   it("refreshes mission control snapshot when scoped runtime updates arrive", async () => {
     const readMissionControlSnapshot = vi
       .fn()
-      .mockResolvedValueOnce({
-        source: "runtime_snapshot_v1" as const,
-        generatedAt: 0,
-        workspaces: [
-          {
-            id: "workspace-1",
-            name: "Alpha",
-            rootPath: "/alpha",
-            connected: true,
-            defaultProfileId: null,
-          },
-        ],
-        tasks: [],
-        runs: [],
-        reviewPacks: [],
-      })
-      .mockResolvedValueOnce({
-        source: "runtime_snapshot_v1" as const,
-        generatedAt: 1,
-        workspaces: [
-          {
-            id: "workspace-1",
-            name: "Alpha",
-            rootPath: "/alpha",
-            connected: true,
-            defaultProfileId: null,
-          },
-        ],
-        tasks: [
-          {
-            id: "task-1",
-            workspaceId: "workspace-1",
-            title: "Task",
-            objective: null,
-            origin: { kind: "run", runId: "run-1", threadId: null, requestId: null },
-            taskSource: null,
-            mode: null,
-            modeSource: "missing",
-            status: "running",
-            createdAt: 0,
-            updatedAt: 0,
-            currentRunId: "run-1",
-            latestRunId: "run-1",
-            latestRunState: "running",
-          },
-        ],
-        runs: [],
-        reviewPacks: [],
-      });
+      .mockResolvedValueOnce(
+        createSnapshot({
+          workspaces: [createWorkspace()],
+        })
+      )
+      .mockResolvedValueOnce(
+        createSnapshot({
+          generatedAt: 1,
+          workspaces: [createWorkspace()],
+          tasks: [
+            createTask({
+              status: "running",
+              currentRunId: "run-1",
+              latestRunId: "run-1",
+              latestRunState: "running",
+            }),
+          ],
+        })
+      );
 
     let listener:
       | ((event: {
@@ -305,39 +321,20 @@ describe("useSharedMissionControlSummaryState", () => {
     vi.useFakeTimers();
     const readMissionControlSnapshot = vi
       .fn()
-      .mockResolvedValueOnce({
-        source: "runtime_snapshot_v1" as const,
-        generatedAt: 0,
-        workspaces: [],
-        tasks: [],
-        runs: [],
-        reviewPacks: [],
-      })
-      .mockResolvedValueOnce({
-        source: "runtime_snapshot_v1" as const,
-        generatedAt: 1,
-        workspaces: [],
-        tasks: [
-          {
-            id: "task-1",
-            workspaceId: "workspace-1",
-            title: "Task",
-            objective: null,
-            origin: { kind: "run", runId: "run-1", threadId: null, requestId: null },
-            taskSource: null,
-            mode: null,
-            modeSource: "missing",
-            status: "running",
-            createdAt: 0,
-            updatedAt: 0,
-            currentRunId: "run-1",
-            latestRunId: "run-1",
-            latestRunState: "running",
-          },
-        ],
-        runs: [],
-        reviewPacks: [],
-      });
+      .mockResolvedValueOnce(createSnapshot())
+      .mockResolvedValueOnce(
+        createSnapshot({
+          generatedAt: 1,
+          tasks: [
+            createTask({
+              status: "running",
+              currentRunId: "run-1",
+              latestRunId: "run-1",
+              latestRunState: "running",
+            }),
+          ],
+        })
+      );
 
     let listener:
       | ((event: {
@@ -399,26 +396,47 @@ describe("useSharedMissionControlSummaryState", () => {
 
   it("clears pending refresh timeouts when the active workspace changes", async () => {
     vi.useFakeTimers();
-    const readMissionControlSummary = vi.fn(async (workspaceId: string | null) => ({
-      workspaceLabel: workspaceId === "workspace-2" ? "Beta" : "Alpha",
-      tasksCount: workspaceId === "workspace-2" ? 2 : 1,
-      runsCount: 0,
-      approvalCount: 0,
-      reviewPacksCount: 0,
-      connectedWorkspaceCount: 1,
-      launchReadiness: {
-        tone: "ready" as const,
-        label: "Launch readiness",
-        detail: "Ready",
-      },
-      continuityReadiness: {
-        tone: "ready" as const,
-        label: "Continuity readiness",
-        detail: "Ready",
-      },
-      missionItems: [],
-      reviewItems: [],
-    }));
+    const readMissionControlSnapshot = vi
+      .fn(async () =>
+        createSnapshot({
+          workspaces: [createWorkspace()],
+          tasks: [createTask({ title: "Task 1" })],
+        })
+      )
+      .mockResolvedValueOnce(
+        createSnapshot({
+          workspaces: [createWorkspace()],
+          tasks: [createTask({ title: "Task 1" })],
+        })
+      )
+      .mockResolvedValueOnce(
+        createSnapshot({
+          workspaces: [
+            createWorkspace({
+              id: "workspace-2",
+              name: "Beta",
+              rootPath: "/beta",
+            }),
+          ],
+          tasks: [
+            createTask({
+              workspaceId: "workspace-2",
+              title: "Task 1",
+            }),
+            createTask({
+              id: "task-2",
+              workspaceId: "workspace-2",
+              title: "Task 2",
+              origin: {
+                kind: "run",
+                runId: "run-2",
+                threadId: null,
+                requestId: null,
+              },
+            }),
+          ],
+        })
+      );
 
     let listener:
       | ((event: {
@@ -441,19 +459,7 @@ describe("useSharedMissionControlSummaryState", () => {
       {
         initialProps: { activeWorkspaceId: "workspace-1" },
         wrapper: wrapper(
-          createBindings(
-            vi.fn(async () => ({
-              source: "runtime_snapshot_v1" as const,
-              generatedAt: 0,
-              workspaces: [],
-              tasks: [],
-              runs: [],
-              reviewPacks: [],
-            })),
-            subscribeScopedRuntimeUpdatedEvents,
-            undefined,
-            readMissionControlSummary
-          )
+          createBindings(readMissionControlSnapshot, subscribeScopedRuntimeUpdatedEvents)
         ),
       }
     );
@@ -488,56 +494,26 @@ describe("useSharedMissionControlSummaryState", () => {
       await Promise.resolve();
     });
 
-    expect(readMissionControlSummary.mock.calls).toEqual([["workspace-1"], ["workspace-2"]]);
+    expect(readMissionControlSnapshot).toHaveBeenCalledTimes(2);
     expect(result.current.summary.workspaceLabel).toBe("Beta");
     expect(result.current.summary.tasksCount).toBe(2);
   });
 
-  it("prefers the lightweight mission summary binding over the full mission snapshot", async () => {
-    const readMissionControlSnapshot = vi.fn(async () => ({
-      source: "runtime_snapshot_v1" as const,
-      generatedAt: 0,
-      workspaces: [],
-      tasks: [],
-      runs: [],
-      reviewPacks: [],
-    }));
-    const readMissionControlSummary = vi.fn(async () => ({
-      workspaceLabel: "Alpha",
-      tasksCount: 1,
-      runsCount: 2,
-      approvalCount: 1,
-      reviewPacksCount: 1,
-      connectedWorkspaceCount: 1,
-      launchReadiness: {
-        tone: "ready" as const,
-        label: "Launch readiness",
-        detail: "Connected routing is healthy for the current workspace slice.",
-      },
-      continuityReadiness: {
-        tone: "attention" as const,
-        label: "Continuity readiness",
-        detail: "1 review path ready; 1 review pack published",
-      },
-      missionItems: [],
-      reviewItems: [],
-    }));
-
+  it("derives summary from the full mission snapshot", async () => {
+    const readMissionControlSnapshot = vi.fn(async () =>
+      createSnapshot({
+        workspaces: [createWorkspace()],
+        tasks: [createTask({ title: "Task 1" })],
+      })
+    );
     const { result } = renderHook(() => useSharedMissionControlSummaryState("workspace-1"), {
-      wrapper: wrapper(
-        (() => {
-          const bindings = createBindings(readMissionControlSnapshot);
-          bindings.runtime.missionControl.readMissionControlSummary = readMissionControlSummary;
-          return bindings;
-        })()
-      ),
+      wrapper: wrapper(createBindings(readMissionControlSnapshot)),
     });
 
     await waitFor(() => {
       expect(result.current.summary.tasksCount).toBe(1);
     });
 
-    expect(readMissionControlSummary).toHaveBeenCalledWith("workspace-1");
-    expect(readMissionControlSnapshot).not.toHaveBeenCalled();
+    expect(readMissionControlSnapshot).toHaveBeenCalledTimes(1);
   });
 });

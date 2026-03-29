@@ -135,17 +135,17 @@ The per-run descriptor must answer:
 This is the current readiness / continuation / review actionability production
 inventory for first-party surfaces in scope.
 
-| Semantic type                           | Producer module                                                                                                                                          | Current consumers                                                 | Canonical             | Action                                                 | Owner / exit plan                                                                                                                                                                                                                        |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Per-run continuation descriptor         | `packages/code-runtime-host-contract/src/runtimeContinuationFacade.ts`                                                                                   | App runtime facades, workspace shell summary, tests               | Yes                   | Retain as the only canonical composer                  | Shared runtime contract. Remove wrappers only after all first-party callers import this facade directly or through one thin adapter.                                                                                                     |
-| Aggregate continuity readiness          | `packages/code-runtime-host-contract/src/runtimeContinuationFacade.ts`                                                                                   | `runtimeContinuityReadiness.ts`, `sharedMissionControlSummary.ts` | Yes                   | Retain                                                 | Shared runtime contract. Future runtime-native aggregate may replace this, but must replace rather than coexist.                                                                                                                         |
-| App continuity readiness wrapper        | `apps/code/src/application/runtime/facades/runtimeContinuityReadiness.ts`                                                                                | `apps/code` Mission Control and workspace orchestration surfaces  | No, wrapper only      | Retain temporarily as a thin adapter; do not add logic | `apps/code` runtime facade owner. Delete when app callers can consume host-contract aggregate directly.                                                                                                                                  |
-| Review continuation adapter             | `apps/code/src/application/runtime/facades/runtimeReviewContinuationFacade.ts`                                                                           | Review Pack continuation UI                                       | No, adapter only      | Retain temporarily; no semantic recompute              | `apps/code` review runtime owner. Delete or flatten once Review Pack consumes descriptor fields directly.                                                                                                                                |
-| Review Pack surface adapter             | `apps/code/src/application/runtime/facades/runtimeReviewPackSurfaceFacade.ts`                                                                            | Review Pack detail model                                          | No, adapter only      | Retain; presentation-only                              | `apps/code` review surface owner. Keep only detail shaping and copy assembly.                                                                                                                                                            |
-| Mission Control operator-action adapter | `apps/code/src/application/runtime/facades/runtimeMissionControlSurfaceModel.ts`                                                                         | Mission Control rows and review-pack rows                         | No, adapter only      | Retain; presentation-only                              | `apps/code` mission-control owner. Do not reintroduce local next-action precedence.                                                                                                                                                      |
-| Shared workspace summary builder        | `packages/code-workspace-client/src/workspace-shell/sharedMissionControlSummary.ts`                                                                      | Shared workspace shell summary                                    | No, adapter only      | Retain; presentation-only                              | Workspace-client owner. Must stay a consumer of the canonical aggregate only.                                                                                                                                                            |
-| First-party summary runtime binding     | `packages/code-workspace-client/src/workspace/browserBindings.ts` and `apps/code/src/application/runtime/kernel/createWorkspaceClientRuntimeBindings.ts` | Workspace shell summary state                                     | No, transport adapter | Retain; now snapshot + canonical summary only          | Workspace-client and app-runtime owners. Do not route first-party UI back to summary RPC.                                                                                                                                                |
-| Runtime summary RPC compat projection   | `packages/code-runtime-service-rs/src/rpc_dispatch_mission_control_summary.rs` via `code_mission_control_summary_v1`                                     | External or older callers only                                    | No                    | Retain temporarily as compat-only; freeze semantics    | Runtime service owner. Exit trigger: first-party clients remain snapshot/facade-only and external callers migrate to snapshot plus canonical facade. Delete in the next explicit runtime compat prune window after that migration lands. |
+| Semantic type                           | Producer module                                                                                                                                          | Current consumers                                                 | Canonical             | Action                                                 | Owner / exit plan                                                                                                                    |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Per-run continuation descriptor         | `packages/code-runtime-host-contract/src/runtimeContinuationFacade.ts`                                                                                   | App runtime facades, workspace shell summary, tests               | Yes                   | Retain as the only canonical composer                  | Shared runtime contract. Remove wrappers only after all first-party callers import this facade directly or through one thin adapter. |
+| Aggregate continuity readiness          | `packages/code-runtime-host-contract/src/runtimeContinuationFacade.ts`                                                                                   | `runtimeContinuityReadiness.ts`, `sharedMissionControlSummary.ts` | Yes                   | Retain                                                 | Shared runtime contract. Future runtime-native aggregate may replace this, but must replace rather than coexist.                     |
+| App continuity readiness wrapper        | `apps/code/src/application/runtime/facades/runtimeContinuityReadiness.ts`                                                                                | `apps/code` Mission Control and workspace orchestration surfaces  | No, wrapper only      | Retain temporarily as a thin adapter; do not add logic | `apps/code` runtime facade owner. Delete when app callers can consume host-contract aggregate directly.                              |
+| Review continuation adapter             | `apps/code/src/application/runtime/facades/runtimeReviewContinuationFacade.ts`                                                                           | Review Pack continuation UI                                       | No, adapter only      | Retain temporarily; no semantic recompute              | `apps/code` review runtime owner. Delete or flatten once Review Pack consumes descriptor fields directly.                            |
+| Review Pack surface adapter             | `apps/code/src/application/runtime/facades/runtimeReviewPackSurfaceFacade.ts`                                                                            | Review Pack detail model                                          | No, adapter only      | Retain; presentation-only                              | `apps/code` review surface owner. Keep only detail shaping and copy assembly.                                                        |
+| Mission Control operator-action adapter | `apps/code/src/application/runtime/facades/runtimeMissionControlSurfaceModel.ts`                                                                         | Mission Control rows and review-pack rows                         | No, adapter only      | Retain; presentation-only                              | `apps/code` mission-control owner. Do not reintroduce local next-action precedence.                                                  |
+| Shared workspace summary builder        | `packages/code-workspace-client/src/workspace-shell/sharedMissionControlSummary.ts`                                                                      | Shared workspace shell summary                                    | No, adapter only      | Retain; presentation-only                              | Workspace-client owner. Must stay a consumer of the canonical aggregate only.                                                        |
+| First-party summary runtime binding     | `packages/code-workspace-client/src/workspace/browserBindings.ts` and `apps/code/src/application/runtime/kernel/createWorkspaceClientRuntimeBindings.ts` | Workspace shell summary state                                     | No, transport adapter | Retain; now snapshot + canonical summary only          | Workspace-client and app-runtime owners. Do not route first-party UI back to summary RPC.                                            |
+| Runtime summary RPC compat projection   | Removed from the canonical runtime RPC surface                                                                                                           | None                                                              | No                    | Deleted                                                | Runtime service owner. Do not restore; external callers must migrate to mission-control snapshot plus canonical continuation facade. |
 
 ## Hard Rules
 
@@ -162,13 +162,12 @@ inventory for first-party surfaces in scope.
 
 ## Compat Boundary And Exit Strategy
 
-`code_mission_control_summary_v1` remains in the runtime service as a
-compatibility projection only. First-party UI must not treat it as a product
-semantic source.
+`code_mission_control_summary_v1` has been removed from the runtime service.
+First-party UI must continue treating mission-control snapshot plus the
+canonical continuation facade as the only semantic source.
 
 The allowed compat boundary is now:
 
-- one runtime service summary RPC projection for external or lagging callers
 - one compat field alias registry in `codeRuntimeRpcCompat.ts`
 
 The following are no longer allowed:
@@ -180,11 +179,9 @@ The following are no longer allowed:
 Compat owner and retirement rule:
 
 - Owner: runtime service + workspace-client maintainers
-- Exit trigger: all first-party surfaces remain on snapshot + canonical facade,
-  and external dependents of `code_mission_control_summary_v1` have migrated
-- Delete window: the next explicit runtime compat prune window after the exit
-  trigger is confirmed; do not let the summary RPC remain as an indefinite UI
-  semantic dependency
+- Exit trigger: completed
+- Delete window: completed in the March 29, 2026 compat prune slice; do not
+  let a summary RPC return as an indefinite UI semantic dependency
 
 ## Consumer Migration Notes
 
@@ -192,7 +189,7 @@ Compat owner and retirement rule:
   plus `buildSharedMissionControlSummary`, which itself consumes the canonical
   aggregate facade.
 - First-party browser and desktop bindings no longer read summary semantics from
-  `code_mission_control_summary_v1`.
+  a summary RPC.
 - Review Pack continuation, Review Pack mission-run detail, and Mission Control
   operator recommendation now read the same canonical descriptor output.
 - Existing thin adapters may keep formatting surface-specific copy, but they may
