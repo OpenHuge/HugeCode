@@ -920,7 +920,6 @@ export function buildMissionReviewEntriesFromProjection(
       continuationState: continuation.state,
     });
     const provenanceSummary =
-    const provenanceSummary =
       [
         buildTaskSourceProvenanceSummary({
           source: reviewPack.taskSource ?? run?.taskSource ?? task.taskSource ?? null,
