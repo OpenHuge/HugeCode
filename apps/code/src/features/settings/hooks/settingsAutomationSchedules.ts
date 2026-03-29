@@ -1,4 +1,4 @@
-import type { NativeScheduleRecord } from "../../../application/runtime/ports/tauriRemoteServers";
+import type { RuntimeAutomationScheduleRecord } from "../../../application/runtime/ports/runtimeAutomationSchedules";
 import type {
   SettingsAutomationScheduleDraft,
   SettingsAutomationScheduleSummary,
@@ -94,7 +94,7 @@ function readScheduleStringArray(record: Record<string, unknown>, ...keys: strin
   return [];
 }
 
-function resolveAutomationBackendId(schedule: NativeScheduleRecord): string | null {
+function resolveAutomationBackendId(schedule: RuntimeAutomationScheduleRecord): string | null {
   const directBackendId = readScheduleText(
     schedule,
     "backendId",
@@ -110,7 +110,7 @@ function resolveAutomationBackendId(schedule: NativeScheduleRecord): string | nu
   );
 }
 
-function formatAutomationCadence(schedule: NativeScheduleRecord): string {
+function formatAutomationCadence(schedule: RuntimeAutomationScheduleRecord): string {
   return (
     readScheduleText(
       schedule,
@@ -127,7 +127,7 @@ function formatAutomationCadence(schedule: NativeScheduleRecord): string {
 }
 
 function normalizeAutomationScheduleStatus(
-  schedule: NativeScheduleRecord
+  schedule: RuntimeAutomationScheduleRecord
 ): SettingsAutomationScheduleSummary["status"] {
   if (schedule.enabled === false) {
     return "paused";
@@ -150,7 +150,7 @@ function normalizeAutomationScheduleStatus(
 }
 
 export function mapNativeScheduleToDraft(
-  schedule: NativeScheduleRecord,
+  schedule: RuntimeAutomationScheduleRecord,
   defaultBackendId: string | null
 ): SettingsAutomationScheduleDraft {
   const autonomyRequest = readScheduleObject(schedule, "autonomyRequest", "autonomy_request") ?? {};
@@ -203,7 +203,7 @@ export function mapNativeScheduleToDraft(
 }
 
 function sanitizeExistingScheduleRecord(
-  existing?: NativeScheduleRecord | null
+  existing?: RuntimeAutomationScheduleRecord | null
 ): Record<string, unknown> {
   if (!existing) {
     return {};
@@ -233,7 +233,7 @@ function sanitizeExistingScheduleRecord(
 
 export function buildNativeSchedulePayload(
   draft: SettingsAutomationScheduleDraft,
-  existing?: NativeScheduleRecord | null
+  existing?: RuntimeAutomationScheduleRecord | null
 ): Record<string, unknown> {
   const existingBase = sanitizeExistingScheduleRecord(existing);
   const backendId = normalizeScheduleText(draft.backendId);
@@ -311,7 +311,7 @@ export function buildNativeSchedulePayload(
 }
 
 export function mapNativeScheduleToSummary(
-  schedule: NativeScheduleRecord,
+  schedule: RuntimeAutomationScheduleRecord,
   backendOptions: Array<{ id: string; label: string }>
 ): SettingsAutomationScheduleSummary {
   const autonomyRequest = readScheduleObject(schedule, "autonomyRequest", "autonomy_request") ?? {};

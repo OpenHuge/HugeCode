@@ -26,6 +26,7 @@ import { SettingsToggleControl } from "../SettingsToggleControl";
 import {
   SettingsAutomationSection,
   type SettingsAutomationScheduleAction,
+  type SettingsAutomationScheduleActionAvailability,
   type SettingsAutomationScheduleDraft,
   type SettingsAutomationScheduleSummary,
 } from "./SettingsAutomationSection";
@@ -159,6 +160,7 @@ type SettingsServerSectionProps = {
   automationSchedulesLoading?: boolean;
   automationSchedulesError?: string | null;
   automationSchedulesReadOnlyReason?: string | null;
+  automationScheduleActionAvailability?: SettingsAutomationScheduleActionAvailability;
   onRefreshAutomationSchedules?: () => void | Promise<void>;
   onCreateAutomationSchedule?: (draft: SettingsAutomationScheduleDraft) => void | Promise<void>;
   onUpdateAutomationSchedule?: (
@@ -295,6 +297,7 @@ export function SettingsServerSection({
   automationSchedulesLoading,
   automationSchedulesError,
   automationSchedulesReadOnlyReason,
+  automationScheduleActionAvailability,
   onRefreshAutomationSchedules,
   onCreateAutomationSchedule,
   onUpdateAutomationSchedule,
@@ -431,6 +434,7 @@ export function SettingsServerSection({
           loading={automationSchedulesLoading}
           error={automationSchedulesError}
           readOnlyReason={automationSchedulesReadOnlyReason}
+          actionAvailability={automationScheduleActionAvailability}
           onRefreshSchedules={onRefreshAutomationSchedules}
           onCreateSchedule={onCreateAutomationSchedule}
           onUpdateSchedule={onUpdateAutomationSchedule}

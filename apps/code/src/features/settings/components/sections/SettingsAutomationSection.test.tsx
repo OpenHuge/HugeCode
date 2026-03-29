@@ -98,6 +98,12 @@ function createProps(
     loading: false,
     error: null,
     readOnlyReason: null,
+    actionAvailability: {
+      createEnabled: true,
+      updateEnabled: true,
+      runNowEnabled: true,
+      cancelRunEnabled: true,
+    },
     onRefreshSchedules: vi.fn(),
     onCreateSchedule: vi.fn(async (_draft: SettingsAutomationScheduleDraft) => undefined),
     onUpdateSchedule: vi.fn(
@@ -121,10 +127,12 @@ describe("SettingsAutomationSection", () => {
   it("renders an empty state when no runtime summaries are available yet", () => {
     render(
       <SettingsAutomationSection
-        backendOptions={[]}
-        workspaceOptions={[]}
-        defaultBackendId={null}
-        schedules={[]}
+        {...createProps({
+          backendOptions: [],
+          workspaceOptions: [],
+          defaultBackendId: null,
+          schedules: [],
+        })}
       />
     );
 
@@ -133,9 +141,43 @@ describe("SettingsAutomationSection", () => {
         selector: '[data-settings-field-group-title="true"]',
       })
     ).toBeTruthy();
-    expect(screen.getByText(/No runtime-confirmed schedules are available yet\./)).toBeTruthy();
+    expect(
+      screen.getByText(/No runtime-confirmed schedules are currently published by the runtime\./)
+    ).toBeTruthy();
     expect(screen.getAllByRole("button", { name: "New schedule" }).length).toBeGreaterThan(0);
     expect(screen.getByLabelText("Schedule name")).toBeTruthy();
+  });
+
+  it("stays read-only when runtime schedule control is unavailable", () => {
+    const { container } = render(
+      <SettingsAutomationSection
+        {...createProps({
+          schedules: [],
+          readOnlyReason: "Runtime schedule summaries are unavailable in current runtime.",
+          actionAvailability: {
+            createEnabled: false,
+            updateEnabled: false,
+            runNowEnabled: false,
+            cancelRunEnabled: false,
+          },
+        })}
+      />
+    );
+
+    const newScheduleButton = screen.getByRole("button", { name: "New schedule" });
+    expect(newScheduleButton).toBeTruthy();
+    expect((newScheduleButton as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      screen.getByText("Runtime schedule summaries are unavailable in current runtime.")
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "No runtime-confirmed schedules are available while runtime schedule control is read-only."
+      )
+    ).toBeTruthy();
+
+    const saveButton = within(container).getByRole("button", { name: "Create schedule" });
+    expect((saveButton as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("switches between summaries and invokes run controls for the selected schedule", async () => {

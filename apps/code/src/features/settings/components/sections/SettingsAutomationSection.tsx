@@ -73,6 +73,13 @@ export type SettingsAutomationScheduleDraft = {
   safeFollowUp: boolean;
 };
 
+export type SettingsAutomationScheduleActionAvailability = {
+  createEnabled?: boolean;
+  updateEnabled?: boolean;
+  runNowEnabled?: boolean;
+  cancelRunEnabled?: boolean;
+};
+
 export type SettingsAutomationSectionProps = {
   backendOptions?: Array<{ id: string; label: string }>;
   workspaceOptions?: Array<{ id: string; label: string }>;
@@ -81,6 +88,7 @@ export type SettingsAutomationSectionProps = {
   loading?: boolean;
   error?: string | null;
   readOnlyReason?: string | null;
+  actionAvailability?: SettingsAutomationScheduleActionAvailability;
   onRefreshSchedules?: () => void | Promise<void>;
   onCreateSchedule?: (draft: SettingsAutomationScheduleDraft) => void | Promise<void>;
   onUpdateSchedule?: (
@@ -330,12 +338,19 @@ export function SettingsAutomationSection({
   loading = false,
   error = null,
   readOnlyReason = null,
+  actionAvailability,
   onRefreshSchedules,
   onCreateSchedule,
   onUpdateSchedule,
   onScheduleAction,
   onOpenMissionTarget,
 }: SettingsAutomationSectionProps) {
+  const {
+    createEnabled = true,
+    updateEnabled = true,
+    runNowEnabled = true,
+    cancelRunEnabled = true,
+  } = actionAvailability ?? {};
   const compactInputFieldClassName = `${controlStyles.inputField} ${controlStyles.inputFieldCompact}`;
   const compactSelectProps = {
     className: controlStyles.selectRoot,
@@ -397,14 +412,14 @@ export function SettingsAutomationSection({
 
   const handleSaveDraft = async () => {
     if (selectedScheduleId === null) {
-      if (!onCreateSchedule) {
+      if (!onCreateSchedule || !createEnabled) {
         return;
       }
       await onCreateSchedule(draft);
       return;
     }
 
-    if (!onUpdateSchedule) {
+    if (!onUpdateSchedule || !updateEnabled) {
       return;
     }
 
@@ -416,11 +431,23 @@ export function SettingsAutomationSection({
       return;
     }
 
+    if (action === "run-now" && !runNowEnabled) {
+      return;
+    }
+    if (action === "cancel-run" && !cancelRunEnabled) {
+      return;
+    }
+    if ((action === "pause" || action === "resume") && !updateEnabled) {
+      return;
+    }
+
     await onScheduleAction({ scheduleId: selectedScheduleId, action });
   };
 
   const canSave =
-    selectedScheduleId === null ? onCreateSchedule !== undefined : onUpdateSchedule !== undefined;
+    selectedScheduleId === null
+      ? onCreateSchedule !== undefined && createEnabled
+      : onUpdateSchedule !== undefined && updateEnabled;
   const saveLabel = selectedScheduleId === null ? "Create schedule" : "Save changes";
   const backendSelectOptions: SelectOption[] = useMemo(
     () => [
@@ -464,13 +491,17 @@ export function SettingsAutomationSection({
   const selectedScheduleLabel = selectedSchedule?.name ?? "No schedule selected";
   const selectedScheduleActionLabel =
     selectedSchedule?.status === "paused" ? "Resume schedule" : "Pause schedule";
+  const selectedScheduleSupportsToggle = selectedSchedule !== null && updateEnabled;
   const cancelDisabled =
-    loading || selectedSchedule?.status !== "running" || onScheduleAction === undefined;
-  const runNowDisabled = loading || onScheduleAction === undefined;
+    loading ||
+    !cancelRunEnabled ||
+    selectedSchedule?.status !== "running" ||
+    onScheduleAction === undefined;
+  const runNowDisabled = loading || !runNowEnabled || onScheduleAction === undefined;
   const selectedScheduleCanLaunch =
     Boolean(selectedSchedule?.workspaceId) && Boolean(selectedSchedule?.prompt.trim().length);
   const pauseResumeDisabled =
-    loading || selectedSchedule === null || onScheduleAction === undefined;
+    loading || !selectedScheduleSupportsToggle || onScheduleAction === undefined;
   const selectedBackendLabel = resolveBackendLabel(
     selectedSchedule?.backendId ?? draft.backendId ?? null,
     selectedSchedule?.backendLabel ?? null,
@@ -517,7 +548,8 @@ export function SettingsAutomationSection({
                 size="sm"
                 className="settings-button-compact"
                 onClick={handleCreateNew}
-                disabled={loading}
+                disabled={loading || !createEnabled}
+                title={!createEnabled ? (readOnlyStateReason ?? undefined) : undefined}
               >
                 New schedule
               </Button>
@@ -529,8 +561,9 @@ export function SettingsAutomationSection({
             ) : null}
             {schedules.length === 0 ? (
               <div className={grammar.helpText}>
-                No runtime-confirmed schedules are available yet. Wire the schedule facade to show
-                confirmed runs, timing, review state, and blockers here.
+                {readOnlyStateReason
+                  ? "No runtime-confirmed schedules are available while runtime schedule control is read-only."
+                  : "No runtime-confirmed schedules are currently published by the runtime. Create one here to populate confirmed cadence, review state, placement, and blockers."}
               </div>
             ) : (
               schedules.map((schedule) => {
@@ -1077,7 +1110,13 @@ export function SettingsAutomationSection({
                   );
                 }}
                 disabled={pauseResumeDisabled}
-                title={pauseResumeDisabled ? (readOnlyStateReason ?? undefined) : undefined}
+                title={
+                  pauseResumeDisabled
+                    ? updateEnabled
+                      ? (readOnlyStateReason ?? undefined)
+                      : (readOnlyStateReason ?? "Runtime schedule state changes are unavailable.")
+                    : undefined
+                }
               >
                 {selectedScheduleActionLabel}
               </Button>
@@ -1092,7 +1131,9 @@ export function SettingsAutomationSection({
                 disabled={runNowDisabled || !selectedScheduleCanLaunch}
                 title={
                   runNowDisabled
-                    ? (readOnlyStateReason ?? undefined)
+                    ? !runNowEnabled
+                      ? (readOnlyStateReason ?? "Runtime schedule run-now is unavailable.")
+                      : (readOnlyStateReason ?? undefined)
                     : !selectedScheduleCanLaunch
                       ? "Select a workspace and prompt before launching."
                       : undefined
@@ -1109,7 +1150,13 @@ export function SettingsAutomationSection({
                   void handleScheduleAction("cancel-run");
                 }}
                 disabled={cancelDisabled}
-                title={cancelDisabled ? "No current run is active." : undefined}
+                title={
+                  cancelDisabled
+                    ? !cancelRunEnabled
+                      ? (readOnlyStateReason ?? "Runtime schedule cancel-run is unavailable.")
+                      : "No current run is active."
+                    : undefined
+                }
               >
                 Cancel current run
               </Button>
