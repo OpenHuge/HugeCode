@@ -10,8 +10,12 @@ import type {
   GitHubPullRequestDiff,
 } from "../../../types";
 import {
+  normalizeGitHubIssueCommentCommandLaunchInput,
   normalizeGitHubIssueLaunchInput,
   normalizeGitHubPullRequestFollowUpLaunchInput,
+  normalizeGitHubPullRequestReviewCommentCommandLaunchInput,
+  type GitHubIssueCommentCommandLaunchInput,
+  type GitHubPullRequestReviewCommentCommandLaunchInput,
   type GitHubSourceLaunchSummary,
 } from "./githubSourceLaunchNormalization";
 import {
@@ -85,11 +89,17 @@ function buildGitHubSourceMissionConstraints(input: {
   launch: GitHubSourceLaunchSummary;
 }): string[] {
   const sourceLabel = summarizeGovernedGitHubLaunchSource(input.launch.taskSource);
-  return [
+  const constraints = [
     `Stay within the linked workspace and repository context for ${sourceLabel} unless an operator explicitly expands scope.`,
     "Keep continuation operator-supervised and do not auto-continue past review, approval, or validation gates.",
     "Cite repository evidence for findings, recommendations, and follow-up actions instead of relying on broad network research.",
   ];
+  if (input.launch.taskSource.githubSource?.ref.triggerMode?.includes("comment_command")) {
+    constraints.unshift(
+      "Treat the linked GitHub comment command as the primary follow-up request and resolve it against repository evidence before broadening scope."
+    );
+  }
+  return constraints;
 }
 
 export function evaluateGovernedGitHubLaunchPreflight(input: {
@@ -177,6 +187,33 @@ export function buildGovernedGitHubIssueLaunchRequest(input: {
   };
 }
 
+export function buildGovernedGitHubIssueCommentCommandLaunchRequest(input: {
+  issue: Pick<GitHubIssue, "number" | "title" | "url" | "body" | "author" | "labels">;
+  event: GitHubIssueCommentCommandLaunchInput["event"];
+  command: GitHubIssueCommentCommandLaunchInput["command"];
+  workspace: GitHubSourceWorkspaceContext;
+  options?: GitHubSourceLaunchRequestOptions;
+}) {
+  const launch = normalizeGitHubIssueCommentCommandLaunchInput({
+    issue: input.issue,
+    event: input.event,
+    command: input.command,
+    workspaceId: input.workspace.workspaceId,
+    workspaceRoot: input.workspace.workspaceRoot,
+    gitRemoteUrl: input.workspace.gitRemoteUrl,
+  });
+  const request = buildGovernedGitHubLaunchRequest({
+    launch,
+    workspaceId: input.workspace.workspaceId,
+    repositoryExecutionContract: input.options?.repositoryExecutionContract ?? null,
+    preferredBackendIds: input.options?.preferredBackendIds,
+  });
+  return {
+    launch,
+    request,
+  };
+}
+
 export function buildGovernedGitHubPullRequestLaunchRequest(input: {
   pullRequest: Pick<
     GitHubPullRequest,
@@ -191,6 +228,40 @@ export function buildGovernedGitHubPullRequestLaunchRequest(input: {
     pullRequest: input.pullRequest,
     diffs: input.diffs ?? null,
     comments: input.comments ?? null,
+    workspaceId: input.workspace.workspaceId,
+    workspaceRoot: input.workspace.workspaceRoot,
+    gitRemoteUrl: input.workspace.gitRemoteUrl,
+  });
+  const request = buildGovernedGitHubLaunchRequest({
+    launch,
+    workspaceId: input.workspace.workspaceId,
+    repositoryExecutionContract: input.options?.repositoryExecutionContract ?? null,
+    preferredBackendIds: input.options?.preferredBackendIds,
+  });
+  return {
+    launch,
+    request,
+  };
+}
+
+export function buildGovernedGitHubPullRequestReviewCommentLaunchRequest(input: {
+  pullRequest: Pick<
+    GitHubPullRequest,
+    "number" | "title" | "url" | "body" | "headRefName" | "baseRefName" | "isDraft" | "author"
+  >;
+  diffs?: GitHubPullRequestDiff[] | null;
+  comments?: GitHubPullRequestComment[] | null;
+  event: GitHubPullRequestReviewCommentCommandLaunchInput["event"];
+  command: GitHubPullRequestReviewCommentCommandLaunchInput["command"];
+  workspace: GitHubSourceWorkspaceContext;
+  options?: GitHubSourceLaunchRequestOptions;
+}) {
+  const launch = normalizeGitHubPullRequestReviewCommentCommandLaunchInput({
+    pullRequest: input.pullRequest,
+    diffs: input.diffs ?? null,
+    comments: input.comments ?? null,
+    event: input.event,
+    command: input.command,
     workspaceId: input.workspace.workspaceId,
     workspaceRoot: input.workspace.workspaceRoot,
     gitRemoteUrl: input.workspace.gitRemoteUrl,

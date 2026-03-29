@@ -5,6 +5,8 @@ import {
   normalizeDocumentSourceLaunchInput,
   normalizeExternalReferenceSourceLaunchInput,
   normalizeGitHubDiscussionSourceLaunchInput,
+  normalizeGitHubIssueCommentCommandSourceLaunchInput,
+  normalizeGitHubPullRequestReviewCommentCommandSourceLaunchInput,
   normalizeNoteSourceLaunchInput,
 } from "./runtimeSourceLaunchNormalization";
 
@@ -84,5 +86,69 @@ describe("runtimeSourceLaunchNormalization", () => {
     expect(document.instruction).toContain("Promote source-linked work");
     expect(call.instruction).toContain("Attendees: han, maintainer");
     expect(external.instruction).toContain("Context to execution is replacing issue-first");
+  });
+
+  it("normalizes GitHub comment-command source launches into governed task sources", () => {
+    const issue = normalizeGitHubIssueCommentCommandSourceLaunchInput({
+      issue: {
+        number: 31,
+        title: "Issue comment launch",
+        url: "https://github.com/acme/hugecode/issues/31",
+      },
+      event: {
+        eventName: "issue_comment",
+        action: "created",
+      },
+      command: {
+        triggerMode: "issue_comment_command",
+        commandKind: "continue",
+        sourceRecordId: "source-31",
+        comment: {
+          commentId: 3101,
+          body: "@hugecode continue",
+          author: { login: "reviewer" },
+        },
+      },
+    });
+
+    const pullRequest = normalizeGitHubPullRequestReviewCommentCommandSourceLaunchInput({
+      pullRequest: {
+        number: 32,
+        title: "Review comment launch",
+        url: "https://github.com/acme/hugecode/pull/32",
+        body: "",
+        headRefName: "feature/review-comment-launch",
+        baseRefName: "main",
+        isDraft: false,
+        author: null,
+      },
+      event: {
+        eventName: "pull_request_review_comment",
+        action: "created",
+      },
+      command: {
+        triggerMode: "pull_request_review_comment_command",
+      },
+    });
+
+    expect(issue.taskSource).toEqual(
+      expect.objectContaining({
+        kind: "github_issue",
+        label: "GitHub issue #31",
+        githubSource: expect.objectContaining({
+          sourceRecordId: "source-31",
+        }),
+      })
+    );
+    expect(issue.instruction).toContain("GitHub event: issue_comment.created");
+    expect(issue.instruction).toContain("Command comment summary: @hugecode continue");
+    expect(pullRequest.taskSource).toEqual(
+      expect.objectContaining({
+        kind: "github_pr_followup",
+        label: "GitHub PR follow-up #32",
+      })
+    );
+    expect(pullRequest.instruction).toContain("GitHub event: pull_request_review_comment.created");
+    expect(pullRequest.instruction).toContain("Review comment context unavailable.");
   });
 });

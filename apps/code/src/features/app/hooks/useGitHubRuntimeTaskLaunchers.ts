@@ -2,8 +2,10 @@ import { useCallback } from "react";
 import { useRuntimeWorkspaceExecutionPolicy } from "../../../application/runtime/facades/runtimeWorkspaceExecutionPolicyFacade";
 import {
   assertGovernedGitHubLaunchReady,
+  buildGovernedGitHubIssueCommentCommandLaunchRequest,
   buildGovernedGitHubIssueLaunchRequest,
   buildGovernedGitHubPullRequestLaunchRequest,
+  buildGovernedGitHubPullRequestReviewCommentLaunchRequest,
   launchGovernedGitHubRun,
 } from "../../../application/runtime/facades/githubSourceGovernedLaunch";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
@@ -16,6 +18,16 @@ type UseGitHubRuntimeTaskLaunchersParams = {
   selectedRemoteBackendId: string | null;
   refreshMissionControl: () => Promise<void>;
 };
+
+type GitHubIssueCommentCommandLaunchParams = Omit<
+  Parameters<typeof buildGovernedGitHubIssueCommentCommandLaunchRequest>[0],
+  "workspace" | "options"
+>;
+
+type GitHubPullRequestReviewCommentLaunchParams = Omit<
+  Parameters<typeof buildGovernedGitHubPullRequestReviewCommentLaunchRequest>[0],
+  "workspace" | "options"
+>;
 
 export function useGitHubRuntimeTaskLaunchers({
   activeWorkspace,
@@ -126,8 +138,106 @@ export function useGitHubRuntimeTaskLaunchers({
     ]
   );
 
+  const handleStartTaskFromGitHubIssueCommentCommand = useCallback(
+    async (input: GitHubIssueCommentCommandLaunchParams) => {
+      if (!activeWorkspace) {
+        return;
+      }
+      try {
+        assertGovernedGitHubLaunchReady({
+          policyStatus: repositoryExecutionContractStatus,
+          policyError: repositoryExecutionContractError,
+        });
+        const { launch, request } = buildGovernedGitHubIssueCommentCommandLaunchRequest({
+          ...input,
+          workspace: {
+            workspaceId: activeWorkspace.id,
+            workspaceRoot: activeWorkspace.path,
+            gitRemoteUrl,
+          },
+          options: {
+            repositoryExecutionContract,
+            preferredBackendIds: selectedRemoteBackendId ? [selectedRemoteBackendId] : undefined,
+          },
+        });
+        await launchGovernedGitHubRun({
+          launch,
+          request,
+          onRefresh: refreshMissionControl,
+        });
+      } catch (error) {
+        pushErrorToast({
+          title: "Couldn't start issue follow-up task",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Unable to start a runtime-managed follow-up from this GitHub issue comment.",
+        });
+      }
+    },
+    [
+      activeWorkspace,
+      gitRemoteUrl,
+      repositoryExecutionContract,
+      repositoryExecutionContractError,
+      repositoryExecutionContractStatus,
+      refreshMissionControl,
+      selectedRemoteBackendId,
+    ]
+  );
+
+  const handleStartTaskFromGitHubPullRequestReviewCommentCommand = useCallback(
+    async (input: GitHubPullRequestReviewCommentLaunchParams) => {
+      if (!activeWorkspace) {
+        return;
+      }
+      try {
+        assertGovernedGitHubLaunchReady({
+          policyStatus: repositoryExecutionContractStatus,
+          policyError: repositoryExecutionContractError,
+        });
+        const { launch, request } = buildGovernedGitHubPullRequestReviewCommentLaunchRequest({
+          ...input,
+          workspace: {
+            workspaceId: activeWorkspace.id,
+            workspaceRoot: activeWorkspace.path,
+            gitRemoteUrl,
+          },
+          options: {
+            repositoryExecutionContract,
+            preferredBackendIds: selectedRemoteBackendId ? [selectedRemoteBackendId] : undefined,
+          },
+        });
+        await launchGovernedGitHubRun({
+          launch,
+          request,
+          onRefresh: refreshMissionControl,
+        });
+      } catch (error) {
+        pushErrorToast({
+          title: "Couldn't start review-comment follow-up task",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Unable to start a runtime-managed follow-up from this GitHub review comment.",
+        });
+      }
+    },
+    [
+      activeWorkspace,
+      gitRemoteUrl,
+      repositoryExecutionContract,
+      repositoryExecutionContractError,
+      repositoryExecutionContractStatus,
+      refreshMissionControl,
+      selectedRemoteBackendId,
+    ]
+  );
+
   return {
     handleStartTaskFromGitHubIssue,
     handleStartTaskFromGitHubPullRequest,
+    handleStartTaskFromGitHubIssueCommentCommand,
+    handleStartTaskFromGitHubPullRequestReviewCommentCommand,
   };
 }
