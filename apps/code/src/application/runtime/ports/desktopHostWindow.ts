@@ -10,9 +10,13 @@ type WindowEffectInput = {
 type WindowListener = (payload: unknown) => void;
 
 function readTauriWindowExport(key: "Effect" | "EffectState" | "getCurrentWindow") {
-  return Object.prototype.hasOwnProperty.call(tauriWindow, key)
-    ? Reflect.get(tauriWindow, key)
-    : undefined;
+  try {
+    return Object.prototype.hasOwnProperty.call(tauriWindow, key)
+      ? Reflect.get(tauriWindow, key)
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export const Effect =

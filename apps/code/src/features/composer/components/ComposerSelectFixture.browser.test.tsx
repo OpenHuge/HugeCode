@@ -1,4 +1,4 @@
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "vitest/browser";
 import { afterEach, describe, expect, it } from "vitest";
 import { ComposerSelectFixture } from "./ComposerSelectFixture";
@@ -17,7 +17,7 @@ describe("ComposerSelectFixture browser styles", () => {
   it("keeps composer select chrome flat while preserving option switching", async () => {
     render(<ComposerSelectFixture />);
 
-    const wrap = document.querySelector<HTMLElement>(".composer-select-wrap--model");
+    const wrap = document.querySelector<HTMLElement>(".composer-select-wrap--model-provider");
     const trigger = document.querySelector<HTMLButtonElement>('button[aria-label="Model"]');
     if (!wrap || !trigger) {
       throw new Error("Expected composer model select controls");
@@ -33,11 +33,9 @@ describe("ComposerSelectFixture browser styles", () => {
 
     await click(trigger);
 
-    const menu = document.querySelector<HTMLElement>('[role="listbox"][aria-label="Model"]');
-    if (!menu) {
-      throw new Error("Expected composer model menu");
-    }
-    const selectedOption = menu.querySelector<HTMLElement>('[role="option"][aria-selected="true"]');
+    const providerMenu = screen.getByRole("menu", { name: "Model providers" });
+    const menu = screen.getByRole("menu", { name: "Codex models" });
+    const selectedOption = within(menu).getByRole("menuitemradio", { name: "GPT-5.4" });
     if (!selectedOption) {
       throw new Error("Expected selected composer model option");
     }
@@ -48,17 +46,17 @@ describe("ComposerSelectFixture browser styles", () => {
     expect(menuStyle.backgroundImage).toBe("none");
     expect(selectedOptionStyle.backgroundImage).toBe("none");
 
-    const nextOption = Array.from(menu.querySelectorAll<HTMLElement>('[role="option"]')).find(
-      (option) => option.textContent?.trim() === "GPT-5.4 Mini"
-    );
-    if (!nextOption) {
-      throw new Error("Expected GPT-5.4 Mini option");
-    }
+    await click(within(providerMenu).getByRole("menuitem", { name: "Claude" }));
+
+    const claudeMenu = screen.getByRole("menu", { name: "Claude models" });
+    const nextOption = within(claudeMenu).getByRole("menuitemradio", { name: "Claude Sonnet 4.5" });
 
     await click(nextOption);
 
     await waitFor(() => {
-      expect(trigger.textContent?.trim()).toBe("GPT-5.4 Mini");
+      const modelTrigger = screen.getByRole("button", { name: "Model" });
+      const triggerLabel = modelTrigger.querySelector<HTMLElement>('[class*="triggerLabel"]');
+      expect(triggerLabel?.textContent?.trim()).toBe("Claude Sonnet 4.5");
       expect(trigger.getAttribute("aria-expanded")).toBe("false");
     });
   });

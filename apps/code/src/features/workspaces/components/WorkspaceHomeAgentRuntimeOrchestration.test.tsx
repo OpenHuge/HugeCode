@@ -1364,7 +1364,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     expect(screen.getAllByText("Needs action").length).toBeGreaterThan(0);
     expect(screen.getByText("Inventory", { selector: "strong" })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Remote Search Tools: Install" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Remote Search Tools: Install" }));
 
     await waitFor(() => {
       expect(runtimePluginRegistryInstallMock).toHaveBeenCalledWith({
@@ -1372,7 +1372,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       });
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview active profile" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Preview active profile" }));
 
     await waitFor(() => {
       expect(runtimeCompositionPreviewMock).toHaveBeenCalledWith({

@@ -107,6 +107,26 @@ async function dispatchClick(element: Element) {
   });
 }
 
+async function dispatchWindowEvent(event: Event) {
+  await act(async () => {
+    window.dispatchEvent(event);
+  });
+}
+
+async function flushAsyncEffects() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+async function renderAndFlush(element: Parameters<typeof render>[0]) {
+  let view: ReturnType<typeof render> | null = null;
+  await act(async () => {
+    view = render(element);
+    await flushAsyncEffects();
+  });
+  return view as ReturnType<typeof render>;
+}
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -138,7 +158,7 @@ describe("Home browser interactions", () => {
     await setValue(input, "ship the fix");
     await click(sendButton);
 
-    expect(onSend).toHaveBeenCalledWith("ship the fix", [], undefined);
+    expect(onSend).toHaveBeenCalledWith("ship the fix", []);
   });
 
   it("routes send into workspace setup when no workspace is available in a real browser", async () => {
@@ -172,7 +192,7 @@ describe("Home browser interactions", () => {
     const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
     const onOpenSettings = vi.fn();
 
-    render(
+    await renderAndFlush(
       <Home
         {...baseProps}
         onOpenSettings={onOpenSettings}
@@ -210,7 +230,7 @@ describe("Home browser interactions", () => {
   it("blocks invalid local runtime ports in a real browser", async () => {
     const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
 
-    render(
+    await renderAndFlush(
       <Home
         {...baseProps}
         onConnectLocalRuntimePort={onConnectLocalRuntimePort}
@@ -241,7 +261,7 @@ describe("Home browser interactions", () => {
   it("passes a remote runtime address from home in a real browser", async () => {
     const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
 
-    render(
+    await renderAndFlush(
       <Home
         {...baseProps}
         onConnectLocalRuntimePort={onConnectLocalRuntimePort}
@@ -271,7 +291,7 @@ describe("Home browser interactions", () => {
   it("auto-connects the default local runtime once in a real browser on local startup", async () => {
     const onConnectLocalRuntimePort = vi.fn().mockResolvedValue(undefined);
 
-    render(
+    await renderAndFlush(
       <Home
         {...baseProps}
         onConnectLocalRuntimePort={onConnectLocalRuntimePort}
@@ -335,12 +355,7 @@ describe("Home browser interactions", () => {
     await waitFor(() => {
       expect(onSelectWorkspace).toHaveBeenNthCalledWith(1, "workspace-2");
       expect(onSelectWorkspace).toHaveBeenNthCalledWith(2, "workspace-2");
-      expect(onSendToWorkspace).toHaveBeenCalledWith(
-        "workspace-2",
-        "route immediately",
-        [],
-        undefined
-      );
+      expect(onSendToWorkspace).toHaveBeenCalledWith("workspace-2", "route immediately", []);
     });
     expect(onSend).not.toHaveBeenCalled();
   });
@@ -476,7 +491,7 @@ describe("Home browser interactions", () => {
     );
 
     await waitFor(() => {
-      expect(onSend).toHaveBeenCalledWith("queue after select", [], undefined);
+      expect(onSend).toHaveBeenCalledWith("queue after select", []);
     });
   });
 
@@ -503,12 +518,7 @@ describe("Home browser interactions", () => {
 
     await waitFor(() => {
       expect(onSelectWorkspace).toHaveBeenCalledWith("workspace-1");
-      expect(onSendToWorkspace).toHaveBeenCalledWith(
-        "workspace-1",
-        "send directly from home",
-        [],
-        undefined
-      );
+      expect(onSendToWorkspace).toHaveBeenCalledWith("workspace-1", "send directly from home", []);
     });
     expect(onSend).not.toHaveBeenCalled();
   });
@@ -611,8 +621,8 @@ describe("Home browser interactions", () => {
     );
 
     await waitFor(() => {
-      expect(onSend).toHaveBeenNthCalledWith(1, "first queued from home", [], undefined);
-      expect(onSend).toHaveBeenNthCalledWith(2, "second queued from home", [], undefined);
+      expect(onSend).toHaveBeenNthCalledWith(1, "first queued from home", []);
+      expect(onSend).toHaveBeenNthCalledWith(2, "second queued from home", []);
     });
   });
 
@@ -808,7 +818,7 @@ describe("Home browser interactions", () => {
       expect(document.querySelector('[data-testid="home-agent-settings-dialog"]')).toBeTruthy();
     });
 
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await dispatchWindowEvent(new KeyboardEvent("keydown", { key: "Escape" }));
 
     await waitFor(() => {
       expect(document.querySelector('[data-testid="home-agent-settings-dialog"]')).toBeNull();
