@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type {
   AgentTaskSummary,
+  RuntimePolicySnapshot,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import { createRuntimeProviderRoutePluginDescriptors } from "../kernel/runtimeKernelPlugins";
@@ -52,6 +53,30 @@ function buildRuntimeProjectionInput(
       accounts: runtimeAccounts,
       pools: runtimePools,
     });
+  const runtimePolicy =
+    overrides.runtimePolicy ??
+    ({
+      mode: "balanced",
+      updatedAt: 1_700_000_000_000,
+      state: {
+        readiness: "ready",
+        summary:
+          "Runtime policy is ready in Balanced mode for standard mission control operations.",
+        activeConstraintCount: 0,
+        blockedCapabilityCount: 0,
+        capabilities: [
+          {
+            capabilityId: "guardrail_channel",
+            label: "Guardrail channel",
+            readiness: "ready",
+            effect: "allow",
+            activeConstraint: false,
+            summary: "Runtime guardrail channel is healthy.",
+            detail: null,
+          },
+        ],
+      },
+    } satisfies RuntimePolicySnapshot);
   return {
     workspaceId: "ws-approval",
     runtimeTasks: [],
@@ -112,6 +137,8 @@ function buildRuntimeProjectionInput(
       circuitBreakers: [],
       updatedAt: 1_700_000_000_000,
     },
+    runtimePolicy,
+    runtimePolicyError: null,
     runtimePlugins,
     runtimePluginsError: null,
     runtimePluginsProjectionBacked: false,
@@ -156,6 +183,65 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.routeSelection.selected.ready).toBe(false);
     expect(projection.launchReadiness.headline).toBe("Launch readiness blocked");
     expect(projection.launchReadiness.route.detail).toContain("0/1 provider routes ready");
+  });
+
+  it("projects runtime-published policy state into a governance indicator", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimePolicy: {
+          mode: "strict",
+          updatedAt: 1_700_000_001_000,
+          state: {
+            readiness: "attention",
+            summary: "Runtime policy is active in Strict mode with 2 operator-visible constraints.",
+            activeConstraintCount: 2,
+            blockedCapabilityCount: 1,
+            capabilities: [
+              {
+                capabilityId: "tool_preflight",
+                label: "Tool preflight",
+                readiness: "attention",
+                effect: "approval",
+                activeConstraint: true,
+                summary: "Strict mode gates medium and high-risk actions.",
+                detail: "Operator approval is required before risky tool execution can continue.",
+              },
+              {
+                capabilityId: "network_analysis",
+                label: "Network analysis",
+                readiness: "attention",
+                effect: "blocked",
+                activeConstraint: true,
+                summary: "Network-backed analysis is disabled by runtime policy.",
+                detail:
+                  "Enable live-skills network access to restore remote search and fetch paths.",
+              },
+            ],
+          },
+        },
+      })
+    );
+
+    expect(projection.policy.statusLabel).toBe("Attention");
+    expect(projection.policy.mode).toBe("Strict");
+    expect(projection.policy.activeConstraintCount).toBe(2);
+    expect(projection.policy.blockedCapabilityCount).toBe(1);
+    expect(projection.policy.capabilities[0]?.effectLabel).toBe("Approval gated");
+    expect(projection.policy.capabilities[1]?.effectLabel).toBe("Blocked");
+  });
+
+  it("surfaces policy read errors without inventing policy truth", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimePolicy: null,
+        runtimePolicyError: "Runtime policy RPC unavailable.",
+      })
+    );
+
+    expect(projection.policy.statusLabel).toBe("Attention");
+    expect(projection.policy.error).toBe("Runtime policy RPC unavailable.");
+    expect(projection.policy.capabilities).toEqual([]);
+    expect(projection.policy.headline).toContain("waiting for runtime truth");
   });
 
   it("summarizes control-plane profile, trust, and backend selection state", () => {

@@ -137,6 +137,11 @@ vi.mock("../../../application/runtime/ports/tauriRuntimeDiagnostics", () => ({
   runtimeToolGuardrailRead: vi.fn(),
 }));
 
+vi.mock("../../../application/runtime/ports/tauriRuntimePolicy", () => ({
+  getRuntimePolicy: vi.fn(),
+  setRuntimePolicy: vi.fn(),
+}));
+
 vi.mock("../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint", () => ({
   useWorkspaceRuntimeSessionCheckpoint: vi.fn(),
 }));
@@ -163,6 +168,7 @@ import {
   runtimeToolGuardrailRead,
   runtimeToolMetricsRead,
 } from "../../../application/runtime/ports/tauriRuntimeDiagnostics";
+import { getRuntimePolicy } from "../../../application/runtime/ports/tauriRuntimePolicy";
 import {
   getProvidersCatalog,
   listOAuthAccounts,
@@ -178,6 +184,7 @@ const submitTaskApprovalDecisionMock = vi.mocked(submitTaskApprovalDecision) as 
 const interruptAgentTaskMock = vi.mocked(interruptAgentTask) as unknown as Mock;
 const resumeAgentTaskMock = vi.mocked(resumeAgentTask) as unknown as Mock;
 const useWorkspaceRuntimeSessionCheckpointMock = vi.mocked(useWorkspaceRuntimeSessionCheckpoint);
+const getRuntimePolicyMock = vi.mocked(getRuntimePolicy);
 
 function createEmptyMissionControlSnapshot() {
   return {
@@ -260,6 +267,36 @@ beforeEach(() => {
       activeProfileName: "Workspace Default",
       appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
       selectorDecisions: {},
+    },
+  });
+  getRuntimePolicyMock.mockResolvedValue({
+    mode: "strict",
+    updatedAt: 1_700_000_000_000,
+    state: {
+      readiness: "attention",
+      summary: "Runtime policy is active in Strict mode with 2 operator-visible constraints.",
+      activeConstraintCount: 2,
+      blockedCapabilityCount: 1,
+      capabilities: [
+        {
+          capabilityId: "tool_preflight",
+          label: "Tool preflight",
+          readiness: "attention",
+          effect: "approval",
+          activeConstraint: true,
+          summary: "Strict mode gates medium and high-risk actions.",
+          detail: "Operator approval is required before risky tool execution can continue.",
+        },
+        {
+          capabilityId: "network_analysis",
+          label: "Network analysis",
+          readiness: "attention",
+          effect: "blocked",
+          activeConstraint: true,
+          summary: "Network-backed analysis is disabled by runtime policy.",
+          detail: "Enable live-skills network access to restore remote search and fetch paths.",
+        },
+      ],
     },
   });
   const lifecycle = {
@@ -879,11 +916,28 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Governance / Policy" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Launch readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Continuity readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Approval pressure" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Extension readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Run list" })).toBeTruthy();
+    });
+  });
+
+  it("renders runtime-published governance and policy capability details", async () => {
+    mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Governance / Policy is actively constraining runtime behavior")
+      ).toBeTruthy();
+      expect(screen.getByText("Policy mode: Strict")).toBeTruthy();
+      expect(screen.getByText("Tool preflight")).toBeTruthy();
+      expect(screen.getByText("Network analysis")).toBeTruthy();
+      expect(screen.getAllByText("Active constraint").length).toBeGreaterThan(0);
     });
   });
 

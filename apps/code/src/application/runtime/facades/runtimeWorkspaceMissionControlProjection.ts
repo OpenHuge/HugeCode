@@ -4,6 +4,7 @@ import type {
   OAuthPoolSummary,
   RuntimeCompositionProfile,
   RuntimeCompositionResolution,
+  RuntimePolicySnapshot,
   RuntimeRegistryPackageDescriptor,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
@@ -58,6 +59,31 @@ export type WorkspaceRuntimeTaskRun = {
   run: HugeCodeRunSummary | undefined;
 };
 
+export type WorkspaceRuntimePolicyCapability = {
+  capabilityId: string;
+  label: string;
+  readiness: "ready" | "attention" | "blocked";
+  effect: "allow" | "approval" | "restricted" | "blocked";
+  activeConstraint: boolean;
+  effectLabel: string;
+  summary: string;
+  detail: string | null;
+};
+
+export type WorkspaceRuntimePolicyIndicator = {
+  readiness: "ready" | "attention" | "blocked";
+  statusLabel: "Ready" | "Attention" | "Blocked";
+  statusTone: "success" | "warning" | "danger";
+  headline: string;
+  summary: string;
+  mode: string | null;
+  updatedAt: number | null;
+  activeConstraintCount: number;
+  blockedCapabilityCount: number;
+  capabilities: WorkspaceRuntimePolicyCapability[];
+  error: string | null;
+};
+
 export type WorkspaceRuntimeMissionControlProjection = {
   runtimeSummary: {
     total: number;
@@ -89,6 +115,7 @@ export type WorkspaceRuntimeMissionControlProjection = {
     staleTasks: RuntimeAgentTaskSummary[];
     oldestPendingTask: RuntimeAgentTaskSummary | null;
   };
+  policy: WorkspaceRuntimePolicyIndicator;
   pluginCatalog: {
     plugins: RuntimeKernelPluginDescriptor[];
     readinessEntries: RuntimeKernelPluginReadinessEntry[];
@@ -155,6 +182,8 @@ type BuildWorkspaceRuntimeMissionControlProjectionInput = {
   runtimeHealthError: string | null;
   runtimeToolMetrics: unknown;
   runtimeToolGuardrails: unknown;
+  runtimePolicy: RuntimePolicySnapshot | null;
+  runtimePolicyError: string | null;
   runtimePlugins: RuntimeKernelPluginDescriptor[];
   runtimePluginsError: string | null;
   runtimePluginsProjectionBacked: boolean;
@@ -372,6 +401,109 @@ function buildCompositionSummary(input: {
   };
 }
 
+function formatRuntimePolicyModeLabel(
+  mode: RuntimePolicySnapshot["mode"] | null | undefined
+): string | null {
+  switch (mode) {
+    case "strict":
+      return "Strict";
+    case "balanced":
+      return "Balanced";
+    case "aggressive":
+      return "Aggressive";
+    default:
+      return null;
+  }
+}
+
+function formatRuntimePolicyEffectLabel(
+  effect: WorkspaceRuntimePolicyCapability["effect"]
+): string {
+  switch (effect) {
+    case "approval":
+      return "Approval gated";
+    case "restricted":
+      return "Restricted";
+    case "blocked":
+      return "Blocked";
+    default:
+      return "Allowed";
+  }
+}
+
+function buildRuntimePolicyIndicator(input: {
+  runtimePolicy: RuntimePolicySnapshot | null;
+  runtimePolicyError: string | null;
+}): WorkspaceRuntimePolicyIndicator {
+  if (input.runtimePolicyError) {
+    return {
+      readiness: "attention",
+      statusLabel: "Attention",
+      statusTone: "warning",
+      headline: "Governance / Policy is waiting for runtime truth",
+      summary:
+        "Mission Control could not read the runtime-published policy state. The indicator stays read-only until runtime publishes policy truth again.",
+      mode: null,
+      updatedAt: null,
+      activeConstraintCount: 0,
+      blockedCapabilityCount: 0,
+      capabilities: [],
+      error: input.runtimePolicyError,
+    };
+  }
+
+  if (!input.runtimePolicy) {
+    return {
+      readiness: "attention",
+      statusLabel: "Attention",
+      statusTone: "warning",
+      headline: "Governance / Policy has not published a state yet",
+      summary:
+        "Mission Control is waiting for the runtime policy snapshot before it can describe active operator constraints.",
+      mode: null,
+      updatedAt: null,
+      activeConstraintCount: 0,
+      blockedCapabilityCount: 0,
+      capabilities: [],
+      error: null,
+    };
+  }
+
+  const capabilities = input.runtimePolicy.state.capabilities.map((capability) => ({
+    capabilityId: capability.capabilityId,
+    label: capability.label,
+    readiness: capability.readiness,
+    effect: capability.effect,
+    activeConstraint: capability.activeConstraint,
+    effectLabel: formatRuntimePolicyEffectLabel(capability.effect),
+    summary: capability.summary,
+    detail: capability.detail ?? null,
+  }));
+  const readiness = input.runtimePolicy.state.readiness;
+  const headline =
+    readiness === "blocked"
+      ? "Governance / Policy is blocking part of the runtime surface"
+      : readiness === "attention"
+        ? "Governance / Policy is actively constraining runtime behavior"
+        : "Governance / Policy is clear for standard execution";
+
+  return {
+    readiness,
+    statusLabel:
+      readiness === "blocked" ? "Blocked" : readiness === "attention" ? "Attention" : "Ready",
+    statusTone:
+      readiness === "blocked" ? "danger" : readiness === "attention" ? "warning" : "success",
+    headline,
+    summary: input.runtimePolicy.state.summary,
+    mode: formatRuntimePolicyModeLabel(input.runtimePolicy.mode),
+    updatedAt: input.runtimePolicy.updatedAt,
+    activeConstraintCount: input.runtimePolicy.state.activeConstraintCount,
+    blockedCapabilityCount: input.runtimePolicy.state.blockedCapabilityCount,
+    capabilities,
+    error: null,
+  };
+}
+
 function normalizeBackendIds(values: readonly string[] | null | undefined): string[] | null {
   if (!values) {
     return null;
@@ -433,6 +565,10 @@ export function buildWorkspaceRuntimeMissionControlProjection(
     activeProfileId: input.runtimeCompositionActiveProfileId,
     resolution: input.runtimeCompositionResolution,
     error: input.runtimeCompositionError ?? input.runtimePluginRegistryError,
+  });
+  const policy = buildRuntimePolicyIndicator({
+    runtimePolicy: input.runtimePolicy,
+    runtimePolicyError: input.runtimePolicyError,
   });
   const preferredBackendIds = resolveCompositionPreferredBackendIds(
     input.runtimeCompositionResolution
@@ -523,6 +659,7 @@ export function buildWorkspaceRuntimeMissionControlProjection(
       staleTasks: orchestration.stalePendingApprovalTasks,
       oldestPendingTask: orchestration.oldestPendingApprovalTask,
     },
+    policy,
     pluginCatalog,
     composition,
     executionReliability: orchestration.executionReliability,

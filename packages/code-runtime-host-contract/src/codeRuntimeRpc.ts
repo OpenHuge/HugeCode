@@ -3151,6 +3151,20 @@ export type RuntimeToolGuardrailStateSnapshot = {
 
 export type RuntimePolicyMode = "strict" | "balanced" | "aggressive";
 
+export type PolicyReadiness = "ready" | "attention" | "blocked";
+
+export type PolicyCapabilityEffect = "allow" | "approval" | "restricted" | "blocked";
+
+export type PolicyCapabilityState = {
+  capabilityId: string;
+  label: string;
+  readiness: PolicyReadiness;
+  effect: PolicyCapabilityEffect;
+  activeConstraint: boolean;
+  summary: string;
+  detail?: string | null;
+};
+
 export type ToolRiskLevel = "low" | "medium" | "high" | "critical";
 
 export type ToolPreflightDecisionAction = "allow" | "require_approval" | "deny";
@@ -3235,11 +3249,20 @@ export type RuntimeToolOutcomeRecordRequest = {
 export type RuntimePolicySnapshot = {
   mode: RuntimePolicyMode;
   updatedAt: number;
+  state: PolicyState;
 };
 
 export type RuntimePolicySetRequest = {
   mode: RuntimePolicyMode;
   actor?: string | null;
+};
+
+export type PolicyState = {
+  readiness: PolicyReadiness;
+  summary: string;
+  activeConstraintCount: number;
+  blockedCapabilityCount: number;
+  capabilities: PolicyCapabilityState[];
 };
 
 export type KernelCapabilityKind =

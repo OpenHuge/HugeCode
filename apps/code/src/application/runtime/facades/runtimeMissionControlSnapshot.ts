@@ -7,6 +7,7 @@ import type {
   KernelProjectionScope,
   OAuthAccountSummary,
   OAuthPoolSummary,
+  RuntimePolicySnapshot,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import {
@@ -22,6 +23,7 @@ import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import { normalizeRuntimeProviderCatalogEntry } from "./runtimeMissionControlProjectionNormalization";
 import { useWorkspaceRuntimePluginProjection } from "./runtimeKernelPluginProjectionHooks";
+import { getRuntimePolicy } from "../ports/tauriRuntimePolicy";
 import {
   AGENT_TASK_DURABILITY_DEGRADED_REASON,
   parseRuntimeDurabilityDiagnostics,
@@ -334,6 +336,8 @@ export function useRuntimeMissionControlSnapshot(input: {
   const [runtimeHealthError, setRuntimeHealthError] = useState<string | null>(null);
   const [runtimeToolMetrics, setRuntimeToolMetrics] = useState<unknown>(null);
   const [runtimeToolGuardrails, setRuntimeToolGuardrails] = useState<unknown>(null);
+  const [runtimePolicy, setRuntimePolicy] = useState<RuntimePolicySnapshot | null>(null);
+  const [runtimePolicyError, setRuntimePolicyError] = useState<string | null>(null);
   const [runtimeAuxLoading, setRuntimeAuxLoading] = useState(false);
   const [runtimeFallbackLoading, setRuntimeFallbackLoading] = useState(false);
   const [runtimeFallbackError, setRuntimeFallbackError] = useState<string | null>(null);
@@ -404,6 +408,7 @@ export function useRuntimeMissionControlSnapshot(input: {
           !workspaceClientRuntime.kernelProjection && input.runtimeControl.runtimeToolGuardrailRead
             ? input.runtimeControl.runtimeToolGuardrailRead()
             : Promise.resolve(diagnosticsProjectionSlice?.toolGuardrails ?? null),
+          getRuntimePolicy(),
         ]),
       ]);
       const [nextProviders, nextAccounts, nextPools] = coreResponse as [
@@ -411,7 +416,7 @@ export function useRuntimeMissionControlSnapshot(input: {
         OAuthAccountSummary[],
         OAuthPoolSummary[],
       ];
-      const [capabilitiesResult, healthResult, metricsResult, guardrailsResult] =
+      const [capabilitiesResult, healthResult, metricsResult, guardrailsResult, policyResult] =
         diagnosticsResponse;
       setRuntimeProviders(nextProviders.map(normalizeRuntimeProviderCatalogEntry));
       setRuntimeAccounts(nextAccounts);
@@ -444,6 +449,13 @@ export function useRuntimeMissionControlSnapshot(input: {
       }
       if (guardrailsResult?.status === "fulfilled") {
         setRuntimeToolGuardrails(guardrailsResult.value);
+      }
+      if (policyResult?.status === "fulfilled") {
+        setRuntimePolicy(policyResult.value);
+        setRuntimePolicyError(null);
+      } else {
+        setRuntimePolicy(null);
+        setRuntimePolicyError(policyResult ? formatRuntimeError(policyResult.reason) : null);
       }
     } finally {
       setRuntimeAuxLoading(false);
@@ -493,7 +505,7 @@ export function useRuntimeMissionControlSnapshot(input: {
       const unsubscribe = subscribeScopedRuntimeUpdatedEvents(
         {
           workspaceId: input.workspaceId,
-          scopes: ["providers", "oauth", "server"],
+          scopes: ["providers", "oauth", "server", "diagnostics"],
         },
         () => {
           void refreshRuntimeAdvisoryState();
@@ -587,6 +599,8 @@ export function useRuntimeMissionControlSnapshot(input: {
     runtimeHealthError,
     runtimeToolMetrics,
     runtimeToolGuardrails,
+    runtimePolicy,
+    runtimePolicyError,
     runtimePlugins: runtimePluginsState.plugins,
     runtimePluginsError: runtimePluginsState.error,
     runtimePluginsProjectionBacked: runtimePluginsState.projectionBacked,

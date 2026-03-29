@@ -14,6 +14,7 @@ import {
   formatRuntimeTimestamp,
   parseRuntimeBatchPreviewState,
 } from "./WorkspaceHomeAgentRuntimeOrchestration.helpers";
+import { WorkspaceHomeRuntimePolicyIndicator } from "./WorkspaceHomeRuntimePolicyIndicator";
 import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";
 
 type WorkspaceHomeAgentRuntimeOrchestrationProps = {
@@ -93,6 +94,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const stalePendingApprovalTasks = missionControlProjection.approvalPressure.staleTasks;
   const oldestPendingApprovalTask = missionControlProjection.approvalPressure.oldestPendingTask;
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
+  const policy = missionControlProjection.policy;
   const pluginCatalog = missionControlProjection.pluginCatalog;
   const composition = missionControlProjection.composition;
   const readinessNeedsActionCount =
@@ -245,6 +247,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         <span>Review ready: {missionRunSummary.reviewReady}</span>
         <span>Recoverable: {continuityReadiness.recoverableRunCount}</span>
         <span>Handoff ready: {continuityReadiness.handoffReadyCount}</span>
+        <span>Policy: {policy.statusLabel}</span>
         <span>Plugins: {pluginCatalog.total}</span>
         <span>Bound: {pluginCatalog.boundCount}</span>
         <span>
@@ -270,6 +273,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           ))}
         </div>
       </div>
+      <WorkspaceHomeRuntimePolicyIndicator policy={policy} />
       <MissionControlSessionLogSection runtimeSessionCheckpoint={runtimeSessionCheckpoint} />
       <MissionControlSectionCard
         title="Extension readiness"
