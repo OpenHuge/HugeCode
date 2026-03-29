@@ -81,6 +81,62 @@ describe("runtimeMissionControlRouting", () => {
     });
   });
 
+  it("includes unresolved placement detail when execution-graph routing is still pending", () => {
+    expect(
+      buildRoutingSummary(
+        createTask({
+          provider: "native",
+          routedProvider: "native",
+          routedPool: null,
+          executionGraph: {
+            graphId: "graph-1",
+            nodes: [
+              {
+                id: "graph-1:root",
+                kind: "plan",
+                status: "running",
+                executorKind: "sub_agent",
+                executorSessionId: "session-1",
+                preferredBackendIds: ["backend-primary"],
+                resolvedBackendId: null,
+                placementLifecycleState: "requested",
+                placementResolutionSource: "explicit_preference",
+              },
+            ],
+            edges: [],
+          },
+        }),
+        {
+          providers: [
+            {
+              providerId: "native",
+              oauthProviderId: null,
+              displayName: "Native runtime",
+              pool: null,
+              defaultModelId: null,
+              available: true,
+              supportsNative: true,
+              supportsOpenaiCompat: false,
+              aliases: [],
+            },
+          ],
+        }
+      )
+    ).toEqual({
+      backendId: null,
+      provider: "native",
+      providerLabel: "Native runtime",
+      pool: null,
+      routeLabel: "Native runtime",
+      routeHint:
+        "Runtime has not confirmed a concrete backend placement yet. This run does not require workspace OAuth routing.",
+      health: "ready",
+      enabledAccountCount: 0,
+      readyAccountCount: 0,
+      enabledPoolCount: 0,
+    });
+  });
+
   it("projects ready routing health from provider, account, and pool context", () => {
     const routing = buildRoutingSummary(createTask(), {
       providers: [

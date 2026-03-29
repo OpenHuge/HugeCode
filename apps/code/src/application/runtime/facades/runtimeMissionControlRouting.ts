@@ -6,6 +6,10 @@ import type {
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import type { BackendPoolEntry } from "../types/backendPool";
+import {
+  projectRuntimeExecutionGraphSummary,
+  resolveExecutionGraphRootNode,
+} from "./runtimeMissionControlExecutionGraph";
 import { buildRuntimeProviderRoutingHealth } from "./runtimeRoutingHealth";
 
 export type RunProjectionRoutingContext = {
@@ -30,6 +34,28 @@ export type RunProjectionRoutingContext = {
   preferredExecutionProfileId?: string | null;
 };
 
+function joinRoutingHintParts(parts: Array<string | null>): string | null {
+  const normalized = parts.filter(
+    (part): part is string => typeof part === "string" && part.length > 0
+  );
+  return normalized.length > 0 ? normalized.join(" ") : null;
+}
+
+function resolvePlacementPendingRoutingHint(task: AgentTaskSummary): string | null {
+  const rootNode = resolveExecutionGraphRootNode(
+    projectRuntimeExecutionGraphSummary(task.executionGraph)
+  );
+  const resolvedBackendId = rootNode?.resolvedBackendId?.trim() || null;
+  const placementLifecycleState = rootNode?.placementLifecycleState?.trim() || null;
+  if (resolvedBackendId) {
+    return null;
+  }
+  if (placementLifecycleState === "requested" || placementLifecycleState === "unresolved") {
+    return "Runtime has not confirmed a concrete backend placement yet.";
+  }
+  return null;
+}
+
 export function buildRoutingSummary(
   task: AgentTaskSummary,
   context?: RunProjectionRoutingContext
@@ -43,6 +69,7 @@ export function buildRoutingSummary(
   }
 
   const routedProvider = task.routedProvider ?? task.provider ?? null;
+  const placementPendingHint = resolvePlacementPendingRoutingHint(task);
   const providers = context?.providers ?? [];
   const providerEntry =
     providers.find((entry) => entry.providerId === routedProvider) ??
@@ -82,7 +109,10 @@ export function buildRoutingSummary(
       providerLabel,
       pool: task.routedPool ?? null,
       routeLabel: providerLabel ?? "Local runtime",
-      routeHint: "This run does not require workspace OAuth routing.",
+      routeHint: joinRoutingHintParts([
+        placementPendingHint,
+        "This run does not require workspace OAuth routing.",
+      ]),
       health: "ready",
       enabledAccountCount: 0,
       readyAccountCount: 0,
@@ -97,7 +127,10 @@ export function buildRoutingSummary(
       providerLabel,
       pool: task.routedPool ?? null,
       routeLabel: providerLabel ?? "Unknown runtime route",
-      routeHint: `Runtime routed provider ${routedProvider} is not present in the current provider catalog.`,
+      routeHint: joinRoutingHintParts([
+        placementPendingHint,
+        `Runtime routed provider ${routedProvider} is not present in the current provider catalog.`,
+      ]),
       health: "attention",
       enabledAccountCount: 0,
       readyAccountCount: 0,
@@ -112,7 +145,10 @@ export function buildRoutingSummary(
       providerLabel,
       pool: task.routedPool ?? null,
       routeLabel: providerLabel ?? "Local runtime",
-      routeHint: "This run does not require workspace OAuth routing.",
+      routeHint: joinRoutingHintParts([
+        placementPendingHint,
+        "This run does not require workspace OAuth routing.",
+      ]),
       health: "ready",
       enabledAccountCount: 0,
       readyAccountCount: 0,
