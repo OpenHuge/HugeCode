@@ -30,6 +30,7 @@ import type {
 } from "../utils/reviewPackSurfaceModel";
 import type { ReviewPackDecisionSubmissionState } from "../hooks/useReviewPackDecisionActions";
 import type { MissionInterventionDraft } from "../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
+import type { RuntimeWorkspaceSkillCatalogState } from "../../../application/runtime/facades/runtimeReviewIntelligenceFacade";
 import {
   buildDisplayedReviewDecision,
   getReviewFindings,
@@ -45,6 +46,7 @@ import {
   renderRelaunchOptions,
   renderReviewFindings,
   renderReviewIntelligenceBlock,
+  renderWorkspaceSkillCatalog,
   ReviewDetailSection,
   renderSkillUsage,
   renderSubAgentSummary,
@@ -57,29 +59,11 @@ import {
   ReviewSummaryCard,
 } from "./review-loop/ReviewLoopAdapters";
 import {
+  type ReviewAutomationTarget,
+  type ReviewAutofixTarget,
   type PreparedInterventionDraft,
   useReviewPackSurfaceController,
 } from "./useReviewPackSurfaceController";
-
-type ReviewAutomationTarget = {
-  workspaceId: string;
-  taskId: string;
-  runId: string;
-  reviewPackId?: string | null;
-};
-
-type ReviewAutofixTarget = ReviewAutomationTarget & {
-  autofixCandidate: {
-    id: string;
-    summary: string;
-    status: "available" | "applied" | "blocked";
-  };
-};
-
-type ReviewAutomationCallbacks = {
-  onRunReviewAgent?: (input: ReviewAutomationTarget) => unknown | Promise<unknown>;
-  onApplyReviewAutofix?: (input: ReviewAutofixTarget) => unknown | Promise<unknown>;
-};
 
 type ReviewAutomationState = {
   runningReviewAgentKey: string | null;
@@ -115,13 +99,14 @@ export type ReviewPackSurfaceProps = {
     navigationTarget: MissionNavigationTarget | null;
     draft: MissionInterventionDraft;
   }) => unknown | Promise<unknown>;
-  onRunReviewAgent?: ReviewAutomationCallbacks["onRunReviewAgent"];
-  onApplyReviewAutofix?: ReviewAutomationCallbacks["onApplyReviewAutofix"];
+  onRunReviewAgent?: (input: ReviewAutomationTarget) => unknown | Promise<unknown>;
+  onApplyReviewAutofix?: (input: ReviewAutofixTarget) => unknown | Promise<unknown>;
   decisionSubmission?: ReviewPackDecisionSubmissionState | null;
+  workspaceSkillCatalogState?: RuntimeWorkspaceSkillCatalogState;
 };
 
-const FAILURE_CONTEXT_SECTION_ID = "review-pack-failure-context";
-const DECISION_ACTIONS_SECTION_ID = "review-pack-decision-actions";
+const FAILURE_CONTEXT_SECTION_ID = "review-pack-failure-context",
+  DECISION_ACTIONS_SECTION_ID = "review-pack-decision-actions";
 
 function buildReviewAutomationScopeKey(target: ReviewAutomationTarget): string {
   return [target.workspaceId, target.taskId, target.runId, target.reviewPackId ?? ""].join(":");
@@ -314,8 +299,12 @@ function renderMissionRunDetail(
   detail: MissionRunDetailModel,
   fallbackReason: string | null,
   onOpenMissionTarget: (target: MissionNavigationTarget) => void,
-  reviewAutomationCallbacks: ReviewAutomationCallbacks,
+  reviewAutomationCallbacks: Pick<
+    ReviewPackSurfaceProps,
+    "onRunReviewAgent" | "onApplyReviewAutofix"
+  >,
   reviewAutomationState: ReviewAutomationState,
+  workspaceSkillCatalogState: RuntimeWorkspaceSkillCatalogState,
   focusedEvidenceBucketKind: string | null,
   onFocusEvidenceBucket: (kind: string | null) => void
 ) {
@@ -483,10 +472,7 @@ function renderMissionRunDetail(
       autofixCandidate?.status === "available" ? (
         <ReviewDetailSection title="Review intelligence">
           {renderReviewIntelligenceBlock(detail, {
-            emptyLabel: "Review intelligence metadata was not published for this mission run.",
-            fallbackLabel: detail.reviewProfileId
-              ? `Review profile ${detail.reviewProfileId} is attached to this mission run.`
-              : "Review intelligence metadata is available for this mission run.",
+            workspaceSkillCatalogState,
             scopeKey: reviewAutomationScopeKey,
             reviewAgentLabel: detail.reviewRunId ? "Re-run review agent" : "Run review agent",
             runningReviewAgentKey: reviewAutomationState.runningReviewAgentKey,
@@ -521,6 +507,12 @@ function renderMissionRunDetail(
           })}
         </ReviewDetailSection>
       ) : null}
+
+      {shouldShowWorkspaceSkillCatalog(detail, workspaceSkillCatalogState) && (
+        <ReviewDetailSection title="Workspace skill catalog">
+          {renderWorkspaceSkillCatalog(detail, workspaceSkillCatalogState)}
+        </ReviewDetailSection>
+      )}
 
       {getReviewFindings(detail).length > 0 ? (
         <ReviewDetailSection
@@ -629,6 +621,16 @@ function renderMissionRunDetail(
   );
 }
 
+function shouldShowWorkspaceSkillCatalog(
+  detail: Pick<MissionRunDetailModel | ReviewPackDetailModel, "reviewIntelligence">,
+  workspaceSkillCatalogState: RuntimeWorkspaceSkillCatalogState
+) {
+  return (
+    workspaceSkillCatalogState.status !== "idle" ||
+    (detail.reviewIntelligence?.allowedSkillIds.length ?? 0) > 0
+  );
+}
+
 export function ReviewPackSurface({
   workspaceName = null,
   items,
@@ -647,6 +649,7 @@ export function ReviewPackSurface({
   onRunReviewAgent,
   onApplyReviewAutofix,
   decisionSubmission = null,
+  workspaceSkillCatalogState = { status: "idle", entries: [], error: null },
 }: ReviewPackSurfaceProps) {
   const fallbackReason = describeFallbackReason(selection);
   const missionRunDetail = detail?.kind === "mission_run" ? detail : null;
@@ -793,6 +796,7 @@ export function ReviewPackSurface({
               handleRunReviewAgent,
               handleApplyReviewAutofix,
             },
+            workspaceSkillCatalogState,
             focusedEvidenceBucketKind,
             setFocusedEvidenceBucketKind
           )
@@ -1045,11 +1049,7 @@ export function ReviewPackSurface({
             reviewPackAutofixCandidate?.status === "available" ? (
               <ReviewDetailSection title="Review intelligence">
                 {renderReviewIntelligenceBlock(reviewPackDetail, {
-                  emptyLabel:
-                    "Review intelligence metadata was not published for this review pack.",
-                  fallbackLabel: reviewPackDetail.reviewProfileId
-                    ? `Review profile ${reviewPackDetail.reviewProfileId} is attached to this review pack.`
-                    : "Review intelligence metadata is available for this review pack.",
+                  workspaceSkillCatalogState,
                   scopeKey: reviewPackAutomationScopeKey,
                   reviewAgentLabel: reviewPackDetail.reviewRunId
                     ? "Re-run review agent"
@@ -1088,6 +1088,12 @@ export function ReviewPackSurface({
                 })}
               </ReviewDetailSection>
             ) : null}
+
+            {shouldShowWorkspaceSkillCatalog(reviewPackDetail, workspaceSkillCatalogState) && (
+              <ReviewDetailSection title="Workspace skill catalog">
+                {renderWorkspaceSkillCatalog(reviewPackDetail, workspaceSkillCatalogState)}
+              </ReviewDetailSection>
+            )}
 
             {getReviewFindings(reviewPackDetail).length > 0 ? (
               <ReviewDetailSection
