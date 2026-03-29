@@ -4,10 +4,8 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { RuntimeKernelProvider } from "../kernel/RuntimeKernelContext";
 import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "../kernel/runtimeKernelCapabilities";
-import {
-  resolveRuntimeControlPlaneOperatorActionPresentation,
-  useWorkspaceRuntimeControlPlaneOperatorState,
-} from "./runtimeKernelControlPlaneFacadeHooks";
+import { useWorkspaceRuntimeControlPlaneOperatorState } from "./runtimeKernelControlPlaneFacadeHooks";
+import { resolveRuntimeControlPlaneOperatorActionPresentation } from "./runtimeKernelControlPlaneOperatorPresentation";
 import type { RuntimeControlPlaneOperatorAction } from "./runtimeKernelControlPlaneOperatorModel";
 
 function createRuntimeKernelValue() {

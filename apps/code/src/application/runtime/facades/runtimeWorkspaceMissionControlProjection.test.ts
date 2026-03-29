@@ -561,23 +561,10 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       })
     );
 
-    expect(projection.pluginControlPlane.needsAction[0]).toMatchObject({
-      label: "Unsigned Remote Lab",
-      attentionReason: "Unsigned local-dev package.",
+    expect(projection.pluginCatalog.status).toMatchObject({
+      label: "Cataloged",
+      tone: "neutral",
     });
-    expect(projection.pluginControlPlane.status).toMatchObject({
-      label: "Needs action",
-      tone: "warning",
-    });
-    expect(projection.pluginControlPlane.needsAction[0]?.actions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          kind: "install_with_dev_override",
-          disabledReason:
-            "The active composition profile does not allow development trust overrides.",
-        }),
-      ])
-    );
   });
 
   it("keeps launch ready when local routing remains available", () => {

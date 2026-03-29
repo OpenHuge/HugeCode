@@ -213,7 +213,7 @@ export function ReviewQueuePanel({
             return priorityDelta;
           }
           return (
-            (right.queueEnteredAt ?? right.createdAt) - (left.queueEnteredAt ?? left.createdAt)
+            (left.queueEnteredAt ?? left.createdAt) - (right.queueEnteredAt ?? right.createdAt)
           );
         }),
     [activeFilter, items]
