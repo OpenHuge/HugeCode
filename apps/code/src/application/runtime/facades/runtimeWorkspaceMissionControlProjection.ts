@@ -11,12 +11,10 @@ import {
   resolveRuntimeControlPlaneRouteSelection,
   type RuntimeControlPlaneRouteOption,
 } from "./runtimeControlPlaneRouting";
-import {
-  readRuntimeKernelRoutingPluginMetadata,
-  type RuntimeKernelPluginDescriptor,
-} from "../kernel/runtimeKernelPlugins";
 import { readRuntimeKernelPluginCompositionMetadata } from "../kernel/runtimeKernelComposition";
+import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPluginTypes";
 import { readRuntimeKernelPluginRegistryMetadata } from "../kernel/runtimeKernelPluginRegistry";
+import { readRuntimeKernelRoutingPluginMetadata } from "../kernel/runtimeKernelRoutingPlugins";
 import type { RuntimeExecutionReliabilitySummary } from "./runtimeExecutionReliability";
 import {
   buildRuntimeKernelPluginReadinessEntries,
@@ -42,7 +40,6 @@ export type WorkspaceMissionControlRouteOption = Pick<
   RuntimeControlPlaneRouteOption,
   | "value"
   | "label"
-  | "source"
   | "ready"
   | "launchAllowed"
   | "readiness"
@@ -51,6 +48,7 @@ export type WorkspaceMissionControlRouteOption = Pick<
   | "recommendedAction"
   | "fallbackDetail"
   | "preferredBackendIds"
+  | "provenance"
   | "resolvedBackendId"
   | "healthEntry"
 >;
@@ -202,11 +200,10 @@ function buildPluginCatalogSummary(input: {
   error: string | null;
   projectionBacked: boolean;
 }): WorkspaceRuntimeMissionControlProjection["pluginCatalog"] {
-  const readinessEntries = buildRuntimeKernelPluginReadinessEntries(input.plugins);
   const summary: WorkspaceRuntimeMissionControlProjection["pluginCatalog"] = {
     plugins: input.plugins,
-    readinessEntries,
-    readinessSections: buildRuntimeKernelPluginReadinessSections(readinessEntries),
+    readinessEntries: buildRuntimeKernelPluginReadinessEntries(input.plugins),
+    readinessSections: [],
     total: input.plugins.length,
     enabled: 0,
     runtimeBacked: 0,
@@ -347,6 +344,8 @@ function buildPluginCatalogSummary(input: {
       summary.blockedCount += 1;
     }
   }
+
+  summary.readinessSections = buildRuntimeKernelPluginReadinessSections(summary.readinessEntries);
 
   return summary;
 }

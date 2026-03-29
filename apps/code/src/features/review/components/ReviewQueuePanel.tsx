@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { formatRuntimeContinuationStateLabel } from "@ku0/code-runtime-host-contract";
 import {
   Button,
   Card,
@@ -46,7 +47,7 @@ type ReviewQueuePanelProps = {
 function resolveContinuationTone(
   continuationState: MissionReviewEntry["continuationState"]
 ): "warning" | "progress" | "default" {
-  if (continuationState === "blocked" || continuationState === "degraded") {
+  if (continuationState === "blocked" || continuationState === "attention") {
     return "warning";
   }
   if (continuationState && continuationState !== "missing") {
@@ -103,7 +104,7 @@ function isBlockedFollowUpEntry(entry: MissionReviewEntry): boolean {
   return (
     hasFilterTag(entry, "blocked_follow_up") ||
     entry.continuationState === "blocked" ||
-    entry.continuationState === "degraded" ||
+    entry.continuationState === "attention" ||
     hasFilterTag(entry, "sub_agent_blocked")
   );
 }
@@ -353,7 +354,7 @@ export function ReviewQueuePanel({
                       <ReviewSignalGroup className={styles.chipRow}>
                         {entry.continuationState && entry.continuationState !== "missing" ? (
                           <StatusBadge tone={resolveContinuationTone(entry.continuationState)}>
-                            Follow-up {entry.continuationState}
+                            {formatRuntimeContinuationStateLabel(entry.continuationState)}
                           </StatusBadge>
                         ) : null}
                         {entry.accountabilityLifecycle ? (
@@ -404,6 +405,9 @@ export function ReviewQueuePanel({
                             .filter((value): value is string => Boolean(value))
                             .join(" ")}
                         </span>
+                      ) : null}
+                      {entry.continuityOverview ? (
+                        <span className={styles.footerCopy}>{entry.continuityOverview}</span>
                       ) : null}
                       {entry.contextSummary || entry.triageSummary || entry.delegationSummary ? (
                         <span className={styles.footerCopy}>

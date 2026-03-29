@@ -10,6 +10,8 @@ export function resolveMissionContinuationActionability(input: {
   run: MissionControlProjection["runs"][number] | null;
 }): ReviewContinuationActionabilitySummary {
   return summarizeReviewContinuationActionability({
+    runState: input.run?.state ?? null,
+    checkpoint: input.reviewPack?.checkpoint ?? input.run?.checkpoint ?? null,
     takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run?.takeoverBundle ?? null,
     actionability: input.reviewPack?.actionability ?? input.run?.actionability ?? null,
     missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,

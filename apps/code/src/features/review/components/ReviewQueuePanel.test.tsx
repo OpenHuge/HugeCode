@@ -284,7 +284,7 @@ describe("ReviewQueuePanel", () => {
             summary: "A normal review-ready mission.",
             createdAt: Date.now() - 5_000,
             state: "reviewReady",
-            validationOutcome: "pass",
+            validationOutcome: "passed",
             warningCount: 0,
             recommendedNextAction: null,
             accountabilityLifecycle: "in_review",
@@ -353,7 +353,7 @@ describe("ReviewQueuePanel", () => {
             highestReviewSeverity: "critical",
             reviewFindingCount: 3,
             autofixAvailable: true,
-            continuationState: "degraded",
+            continuationState: "attention",
           },
         ]}
       />

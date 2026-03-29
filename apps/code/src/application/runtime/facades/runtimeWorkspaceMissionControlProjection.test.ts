@@ -400,6 +400,17 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.pluginCatalog.externalPackageCount).toBe(1);
     expect(projection.pluginCatalog.verifiedPackageCount).toBe(1);
     expect(projection.pluginCatalog.selectedInActiveProfileCount).toBe(1);
+    expect(projection.pluginCatalog.readinessSections).toEqual([
+      expect.objectContaining({
+        id: "needs_action",
+      }),
+      expect.objectContaining({
+        id: "selected_now",
+      }),
+      expect.objectContaining({
+        id: "inventory",
+      }),
+    ]);
     expect(projection.composition).toMatchObject({
       activeProfileId: "workspace-default",
       activeProfileName: "Workspace Default",
@@ -744,7 +755,7 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       "backend-route",
     ]);
     expect(projection.routeSelection.selected.resolvedBackendId).toBe("backend-route");
-    expect(projection.routeSelection.selected.source).toBe("backend_preference");
+    expect(projection.routeSelection.selected.provenance.source).toBe("backend_preference");
   });
 
   it("keeps a profile-resolved backend on automatic routing when no route-specific override exists", () => {
@@ -810,7 +821,7 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       "backend-profile",
     ]);
     expect(projection.routeSelection.selected.resolvedBackendId).toBe("backend-profile");
-    expect(projection.routeSelection.selected.source).toBe("backend_preference");
+    expect(projection.routeSelection.selected.provenance.source).toBe("backend_preference");
   });
 
   it("projects continuity readiness from runtime task truth instead of page-local guesses", () => {
@@ -1176,6 +1187,12 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
           readiness: expect.objectContaining({
             state: "ready",
           }),
+          selectionState: expect.objectContaining({
+            label: "Available inventory",
+          }),
+          trustState: expect.objectContaining({
+            label: "Runtime-published",
+          }),
           permissionState: expect.objectContaining({
             state: "ready",
           }),
@@ -1189,6 +1206,12 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
           permissionState: expect.objectContaining({
             state: "attention",
           }),
+          selectionState: expect.objectContaining({
+            label: "Repository declaration",
+          }),
+          trustState: expect.objectContaining({
+            label: "Repository-local",
+          }),
           remediationSummary:
             "Bind or install a runtime-backed implementation so this manifest can move beyond declaration-only readiness.",
         }),
@@ -1201,10 +1224,50 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
           capabilitySupport: expect.objectContaining({
             state: "ready",
           }),
+          trustState: expect.objectContaining({
+            label: "Runtime-published",
+          }),
           remediationSummary: "Inspect runtime health warnings before relying on this live skill.",
+        }),
+        expect.objectContaining({
+          id: "route:auto",
+          sourceLabel: "Execution route",
+          readiness: expect.objectContaining({
+            state: "ready",
+          }),
+          permissionState: expect.objectContaining({
+            label: "Runtime-managed",
+            state: "ready",
+          }),
+          selectionState: expect.objectContaining({
+            label: "Published route",
+          }),
+          trustState: expect.objectContaining({
+            label: "Runtime-published",
+          }),
         }),
       ])
     );
+    expect(projection.pluginCatalog.readinessSections).toEqual([
+      expect.objectContaining({
+        id: "needs_action",
+        entries: [
+          expect.objectContaining({ id: "repo-manifest-1" }),
+          expect.objectContaining({ id: "skill-1" }),
+        ],
+      }),
+      expect.objectContaining({
+        id: "selected_now",
+        entries: [],
+      }),
+      expect.objectContaining({
+        id: "inventory",
+        entries: [
+          expect.objectContaining({ id: "route:auto" }),
+          expect.objectContaining({ id: "ext-1" }),
+        ],
+      }),
+    ]);
   });
 
   it("marks runtime-published host binders as blocked until the binder is connected", () => {
@@ -1285,17 +1348,8 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       expect.objectContaining({
         id: "host:wasi",
         sourceLabel: "WASI host",
-        badges: expect.arrayContaining([
-          expect.objectContaining({ label: "Blocked" }),
-          expect.objectContaining({ label: "Runtime-published" }),
-          expect.objectContaining({ label: "Host truth" }),
-        ]),
         readiness: expect.objectContaining({
           state: "blocked",
-        }),
-        permissionState: expect.objectContaining({
-          state: "ready",
-          label: "Runtime-managed",
         }),
         selectionState: expect.objectContaining({
           label: "Available inventory",
@@ -1303,21 +1357,122 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
         trustState: expect.objectContaining({
           label: "Runtime-published",
         }),
+        permissionState: expect.objectContaining({
+          label: "Runtime-managed",
+          state: "ready",
+        }),
         remediationSummary:
           "Connect the WASI host binder so runtime can satisfy the published WIT imports.",
       }),
     ]);
-    expect(projection.pluginCatalog.readinessSections).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: "needs_action",
-          entries: [expect.objectContaining({ id: "host:wasi" })],
+    expect(projection.pluginCatalog.readinessSections[0]).toEqual(
+      expect.objectContaining({
+        id: "needs_action",
+        entries: [expect.objectContaining({ id: "host:wasi" })],
+      })
+    );
+  });
+
+  it("surfaces plugins blocked by the active profile as action-required readiness", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimePlugins: [
+          {
+            id: "ext.blocked",
+            name: "Blocked Extension",
+            version: "1.0.0",
+            summary: "Healthy extension blocked by the active profile",
+            source: "runtime_extension",
+            transport: "runtime_extension",
+            hostProfile: {
+              kind: "runtime",
+              executionBoundaries: ["runtime"],
+            },
+            workspaceId: null,
+            enabled: true,
+            runtimeBacked: true,
+            capabilities: [
+              {
+                id: "tools.exec",
+                enabled: true,
+              },
+            ],
+            permissions: [],
+            resources: [],
+            executionBoundaries: ["runtime"],
+            binding: {
+              state: "bound",
+              contractFormat: "runtime_extension",
+              contractBoundary: "runtime-extension",
+              interfaceId: "ext.blocked",
+              surfaces: [],
+            },
+            operations: {
+              execution: {
+                executable: true,
+                mode: "none",
+                reason: null,
+              },
+              resources: {
+                readable: false,
+                mode: "none",
+                reason: null,
+              },
+              permissions: {
+                evaluable: true,
+                mode: "runtime_extension_permissions",
+                reason: null,
+              },
+            },
+            metadata: {
+              composition: {
+                activeProfileId: "workspace-default",
+                activeProfileName: "Workspace Default",
+                selectedInActiveProfile: false,
+                blockedInActiveProfile: true,
+                blockedReason: "Workspace Default currently excludes this plugin from launch.",
+                selectedRouteCandidate: false,
+                selectedBackendCandidateIds: [],
+                layerOrder: ["built_in", "workspace"],
+              },
+            },
+            permissionDecision: "allow",
+            health: {
+              state: "healthy",
+              checkedAt: null,
+              warnings: [],
+            },
+          },
+        ],
+      })
+    );
+
+    expect(projection.pluginCatalog).toMatchObject({
+      readyCount: 0,
+      attentionCount: 0,
+      blockedCount: 1,
+    });
+    expect(projection.pluginCatalog.readinessEntries).toEqual([
+      expect.objectContaining({
+        id: "ext.blocked",
+        readiness: expect.objectContaining({
+          state: "blocked",
+          detail: "Workspace Default currently excludes this plugin from launch.",
         }),
-        expect.objectContaining({
-          id: "selected_now",
-          entries: [],
+        selectionState: expect.objectContaining({
+          kind: "blocked_in_active_profile",
+          label: "Blocked in active profile",
+          state: "blocked",
         }),
-      ])
+        remediationSummary:
+          "Adjust the active runtime profile or remove the blocking rule before relying on this plugin.",
+      }),
+    ]);
+    expect(projection.pluginCatalog.readinessSections[0]).toEqual(
+      expect.objectContaining({
+        id: "needs_action",
+        entries: [expect.objectContaining({ id: "ext.blocked" })],
+      })
     );
   });
 });

@@ -224,6 +224,9 @@ describe("runtimeKernelPlugins", () => {
     listRuntimeKernelCapabilitiesMock.mockReset();
     listRuntimeLiveSkillsMock.mockReset();
     runRuntimeLiveSkillMock.mockReset();
+    readRuntimeWorkspaceSkillManifestsMock.mockResolvedValue([]);
+    listRuntimeExtensionsMock.mockResolvedValue([]);
+    listRuntimeLiveSkillsMock.mockResolvedValue([]);
     getProvidersCatalogMock.mockReset();
     listOAuthAccountsMock.mockReset();
     listOAuthPoolsMock.mockReset();

@@ -14,7 +14,7 @@ export type MissionReviewFilterTag =
   | "sub_agent_blocked";
 
 type ReviewGateState = "pass" | "warn" | "fail" | "blocked" | null;
-type ContinuationState = "ready" | "degraded" | "blocked" | "missing" | null;
+type ContinuationState = "ready" | "attention" | "blocked" | "missing" | null;
 
 export type MissionReviewTriageMetadata = {
   filterTags: MissionReviewFilterTag[];
@@ -46,7 +46,7 @@ function resolveTriagePriority(input: {
   }
   if (
     input.continuationState === "blocked" ||
-    input.continuationState === "degraded" ||
+    input.continuationState === "attention" ||
     input.hasBlockedSubAgents
   ) {
     return 3;
@@ -107,7 +107,7 @@ export function buildMissionReviewTriageMetadata(input: {
   }
   if (
     input.continuationState === "blocked" ||
-    input.continuationState === "degraded" ||
+    input.continuationState === "attention" ||
     input.hasBlockedSubAgents
   ) {
     filterTags.push("blocked_follow_up");

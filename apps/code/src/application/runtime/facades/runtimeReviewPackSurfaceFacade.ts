@@ -30,11 +30,10 @@ import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSour
 import {
   resolveReviewContinuationDefaults,
   resolveRuntimeFollowUpPreferredBackendIds,
+  summarizeReviewContinuationActionability,
+  type ReviewContinuationActionabilitySummary,
 } from "./runtimeReviewContinuationFacade";
-import {
-  buildRuntimeContinuationDescriptor,
-  formatRuntimeContinuationTruthSourceLabel,
-} from "./runtimeContinuationTruth";
+import { buildRuntimeContinuationDescriptor } from "./runtimeContinuationTruth";
 import {
   resolveReviewIntelligenceSummary,
   type ReviewIntelligenceSummary,
@@ -99,13 +98,21 @@ type PublishHandoffSummary = {
   details?: string[] | null;
 };
 
-type ReviewPackContinuitySummary = {
+type ReviewPackContinuitySummary = Pick<
+  ReviewContinuationActionabilitySummary,
+  | "summary"
+  | "details"
+  | "recommendedAction"
+  | "blockingReason"
+  | "truthSourceLabel"
+  | "continuePathLabel"
+  | "canSafelyContinue"
+  | "hasHandoffPath"
+  | "reviewFollowUpActionable"
+  | "checkpointDurabilityState"
+  | "continuityOverview"
+> & {
   state: RuntimeContinuityReadinessState;
-  summary: string;
-  details: string[];
-  recommendedAction: string;
-  blockingReason: string | null;
-  truthSourceLabel: string;
 };
 
 type ReviewPackWithExtras = MissionControlProjection["reviewPacks"][number];
@@ -602,66 +609,36 @@ function buildReviewPackContinuity(input: {
   task: MissionControlProjection["tasks"][number] | null;
   publishHandoff: PublishHandoffSummary | null;
 }): ReviewPackContinuitySummary | null {
-  const missionLinkage = input.reviewPack.missionLinkage ?? input.run?.missionLinkage ?? null;
-  const actionability = input.reviewPack.actionability ?? input.run?.actionability ?? null;
   const checkpoint = input.reviewPack.checkpoint ?? input.run?.checkpoint ?? null;
-  const rawPublishHandoff = input.reviewPack.publishHandoff ?? input.run?.publishHandoff ?? null;
-  const takeoverBundle = input.reviewPack.takeoverBundle ?? input.run?.takeoverBundle ?? null;
-  const descriptor = buildRuntimeContinuationDescriptor({
+  const continuation = summarizeReviewContinuationActionability({
     runState: input.run?.state ?? "review_ready",
     checkpoint,
-    missionLinkage,
-    actionability,
-    publishHandoff: rawPublishHandoff,
-    takeoverBundle,
+    takeoverBundle: input.reviewPack.takeoverBundle ?? input.run?.takeoverBundle ?? null,
+    actionability: input.reviewPack.actionability ?? input.run?.actionability ?? null,
+    missionLinkage: input.reviewPack.missionLinkage ?? input.run?.missionLinkage ?? null,
+    publishHandoff: input.reviewPack.publishHandoff ?? input.run?.publishHandoff ?? null,
     reviewPackId: input.reviewPack.id,
+    continuation:
+      input.reviewPack.continuation ??
+      input.run?.continuation ??
+      resolveRuntimeContinuation({
+        workspaceId: input.reviewPack.workspaceId,
+        taskId: input.reviewPack.taskId,
+        runId: input.reviewPack.runId,
+        reviewPackId: input.reviewPack.id,
+        state: input.run?.state ?? "review_ready",
+        checkpoint,
+        missionLinkage: input.reviewPack.missionLinkage ?? input.run?.missionLinkage ?? null,
+        actionability: input.reviewPack.actionability ?? input.run?.actionability ?? null,
+        publishHandoff: input.reviewPack.publishHandoff ?? input.run?.publishHandoff ?? null,
+        takeoverBundle: input.reviewPack.takeoverBundle ?? input.run?.takeoverBundle ?? null,
+      }),
   });
-  const projectedContinuation =
-    input.reviewPack.continuation ??
-    input.run?.continuation ??
-    resolveRuntimeContinuation({
-      workspaceId: input.reviewPack.workspaceId,
-      taskId: input.reviewPack.taskId,
-      runId: input.reviewPack.runId,
-      reviewPackId: input.reviewPack.id,
-      state: input.run?.state ?? "review_ready",
-      checkpoint,
-      missionLinkage,
-      actionability,
-      publishHandoff: rawPublishHandoff,
-      takeoverBundle,
-    });
 
-  if (!projectedContinuation && !descriptor) {
+  if (continuation.state === "missing") {
     return null;
   }
-  if (projectedContinuation && !descriptor) {
-    const details: string[] = [];
-    if (projectedContinuation.detail) {
-      pushUnique(details, projectedContinuation.detail);
-    }
-    if (input.publishHandoff?.branchName) {
-      pushUnique(details, `Publish branch: ${input.publishHandoff.branchName}`);
-    }
-    if (checkpoint?.summary) {
-      pushUnique(details, checkpoint.summary);
-    }
-    return {
-      state: projectedContinuation.state === "missing" ? "attention" : projectedContinuation.state,
-      summary: projectedContinuation.summary,
-      details,
-      recommendedAction: projectedContinuation.recommendedAction,
-      blockingReason:
-        projectedContinuation.state === "blocked"
-          ? (projectedContinuation.detail ?? projectedContinuation.summary)
-          : null,
-      truthSourceLabel: formatRuntimeContinuationTruthSourceLabel(projectedContinuation.source),
-    };
-  }
-  if (!descriptor) {
-    return null;
-  }
-  const details: string[] = [...descriptor.details];
+  const details: string[] = [...continuation.details];
   if (input.publishHandoff?.branchName) {
     pushUnique(details, `Publish branch: ${input.publishHandoff.branchName}`);
   }
@@ -669,12 +646,18 @@ function buildReviewPackContinuity(input: {
     pushUnique(details, checkpoint.summary);
   }
   return {
-    state: descriptor.state === "missing" ? "attention" : descriptor.state,
-    summary: descriptor.summary,
+    state: continuation.state,
+    summary: continuation.summary,
     details,
-    recommendedAction: descriptor.recommendedAction,
-    blockingReason: descriptor.blockingReason,
-    truthSourceLabel: descriptor.truthSourceLabel,
+    recommendedAction: continuation.recommendedAction,
+    blockingReason: continuation.blockingReason,
+    truthSourceLabel: continuation.truthSourceLabel,
+    continuePathLabel: continuation.continuePathLabel,
+    canSafelyContinue: continuation.canSafelyContinue,
+    hasHandoffPath: continuation.hasHandoffPath,
+    reviewFollowUpActionable: continuation.reviewFollowUpActionable,
+    checkpointDurabilityState: continuation.checkpointDurabilityState,
+    continuityOverview: continuation.continuityOverview,
   };
 }
 

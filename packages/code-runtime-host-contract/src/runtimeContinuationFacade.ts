@@ -99,6 +99,22 @@ export type RuntimeContinuationAggregate = {
   items: RuntimeContinuationAggregateItem[];
 };
 
+export type RuntimeContinuationReadinessSummary = {
+  state: "ready" | "attention" | "blocked";
+  headline: string;
+  detail: string;
+  blockingReason: string | null;
+  recommendedAction: string;
+  recoverableRunCount: number;
+  handoffReadyCount: number;
+  reviewReadyCount: number;
+  reviewBlockedCount: number;
+  missingPathCount: number;
+  attentionCount: number;
+  blockedCount: number;
+  durabilityDegraded: boolean;
+};
+
 type RuntimeContinuationDescriptorInput = Omit<
   RuntimeContinuationAggregateCandidate,
   "runId" | "taskId"
@@ -149,6 +165,22 @@ function maxState(
 
 function sortState(state: RuntimeContinuationState): number {
   return state === "blocked" ? 4 : state === "attention" ? 3 : state === "ready" ? 2 : 1;
+}
+
+function pluralizeCount(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function quantifyContinuityStatement(
+  count: number,
+  singularSubject: string,
+  pluralSubject: string,
+  singularPredicate: string,
+  pluralPredicate: string
+) {
+  return count === 1
+    ? `1 ${singularSubject} ${singularPredicate}`
+    : `${count} ${pluralSubject} ${pluralPredicate}`;
 }
 
 function hasNavigationTarget(linkage: HugeCodeMissionLinkageSummary | null | undefined): boolean {
@@ -284,6 +316,19 @@ export function formatRuntimeContinuationTruthSourceLabel(
       return "Runtime next action";
     default:
       return "Runtime truth unavailable";
+  }
+}
+
+export function formatRuntimeContinuationStateLabel(state: RuntimeContinuationState): string {
+  switch (state) {
+    case "ready":
+      return "Continuity ready";
+    case "attention":
+      return "Continuity attention";
+    case "blocked":
+      return "Continuity blocked";
+    default:
+      return "Continuity unavailable";
   }
 }
 
@@ -1036,5 +1081,87 @@ export function buildRuntimeContinuationAggregate(input: {
     attentionCount,
     blockedCount,
     items,
+  };
+}
+
+export function buildRuntimeContinuationReadinessSummary(input: {
+  candidates: RuntimeContinuationAggregateCandidate[];
+  durabilityDegraded?: boolean | null;
+}): RuntimeContinuationReadinessSummary {
+  const aggregate = buildRuntimeContinuationAggregate(input);
+  const durabilityDegraded = input.durabilityDegraded === true;
+  const hasContinuityTruth = aggregate.items.length > 0;
+  const state =
+    !hasContinuityTruth || (aggregate.state === "ready" && durabilityDegraded)
+      ? "attention"
+      : aggregate.state;
+  const headline =
+    state === "blocked"
+      ? "Continuity readiness blocked"
+      : state === "attention"
+        ? "Continuity readiness needs attention"
+        : "Continuity readiness confirmed";
+
+  const detailParts = [
+    aggregate.recoverableRunCount > 0
+      ? `${pluralizeCount(aggregate.recoverableRunCount, "run")} can safely continue`
+      : null,
+    aggregate.handoffReadyCount > 0
+      ? `${pluralizeCount(aggregate.handoffReadyCount, "handoff path")} ready`
+      : null,
+    aggregate.reviewReadyCount > 0
+      ? `${pluralizeCount(aggregate.reviewReadyCount, "review follow-up")} actionable`
+      : null,
+    aggregate.reviewBlockedCount > 0
+      ? `${pluralizeCount(aggregate.reviewBlockedCount, "review follow-up")} blocked`
+      : null,
+    aggregate.missingPathCount > 0
+      ? quantifyContinuityStatement(
+          aggregate.missingPathCount,
+          "run",
+          "runs",
+          "is missing a canonical continue path",
+          "are missing a canonical continue path"
+        )
+      : null,
+    aggregate.attentionCount > 0 &&
+    aggregate.reviewReadyCount === 0 &&
+    aggregate.reviewBlockedCount === 0 &&
+    aggregate.missingPathCount === 0
+      ? quantifyContinuityStatement(
+          aggregate.attentionCount,
+          "run",
+          "runs",
+          "needs continuity attention",
+          "need continuity attention"
+        )
+      : null,
+    durabilityDegraded ? "Checkpoint durability warning published" : null,
+  ].filter((part): part is string => part !== null);
+
+  const detail =
+    detailParts.join("; ") ||
+    (durabilityDegraded
+      ? "Checkpoint durability warning published; inspect runtime continuity truth before relying on recovery or handoff."
+      : "No runtime-published checkpoint, handoff, or review follow-up truth is available yet.");
+  const recommendedAction =
+    hasContinuityTruth || durabilityDegraded
+      ? aggregate.recommendedAction
+      : "Inspect runtime continuity truth before continuing this run.";
+
+  return {
+    state,
+    headline,
+    detail,
+    blockingReason: aggregate.blockingReason,
+    recommendedAction,
+    recoverableRunCount: aggregate.recoverableRunCount,
+    handoffReadyCount: aggregate.handoffReadyCount,
+    reviewReadyCount: aggregate.reviewReadyCount,
+    reviewBlockedCount: aggregate.reviewBlockedCount,
+    missingPathCount: aggregate.missingPathCount,
+    attentionCount: aggregate.attentionCount,
+    blockedCount: aggregate.blockedCount,
+    durabilityDegraded,
   };
 }
