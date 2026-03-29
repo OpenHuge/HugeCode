@@ -15,7 +15,7 @@ import {
   buildRuntimeProviderRoutingHealth,
   type RuntimeProviderRoutingHealth,
 } from "../facades/runtimeRoutingHealth";
-import type { RuntimeKernelPluginDescriptor } from "./runtimeKernelPlugins";
+import type { RuntimeKernelPluginDescriptor } from "./runtimeKernelPluginTypes";
 
 export type RuntimeKernelRouteOption = {
   value: string;

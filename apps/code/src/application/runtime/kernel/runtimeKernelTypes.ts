@@ -8,7 +8,7 @@ import type { RuntimeWorkspaceId } from "../types/runtimeIds";
 import type {
   RuntimeKernelCapabilityKey,
   RuntimeKernelCapabilityMap,
-} from "./runtimeKernelCapabilities";
+} from "./runtimeKernelCapabilitySchema";
 
 export type WorkspaceRuntimeScope = {
   workspaceId: RuntimeWorkspaceId;
