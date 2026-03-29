@@ -292,6 +292,8 @@ export function resolveRuntimeControlPlaneModelRoute(input: {
     oauthProviderId,
     pool,
     defaultModelId: provider?.defaultModelId ?? null,
+    preferredBackendIds: null,
+    resolvedBackendId: null,
     healthEntry,
     source: "model_selection",
     provenance: {

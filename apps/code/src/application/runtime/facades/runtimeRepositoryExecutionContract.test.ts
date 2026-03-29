@@ -308,6 +308,22 @@ describe("runtimeRepositoryExecutionContract", () => {
     });
   });
 
+  it("preserves an explicit default backend alongside mapped backend preferences", () => {
+    const resolved = resolveRepositoryExecutionDefaults({
+      contract: createContract(),
+      taskSource: createTaskSource("github_issue"),
+      explicitLaunchInput: {
+        defaultBackendId: "backend-pinned",
+      },
+    });
+
+    expect(resolved).toMatchObject({
+      sourceMappingKind: "github_issue",
+      preferredBackendIds: ["backend-issue"],
+      defaultBackendId: "backend-pinned",
+    });
+  });
+
   it("prefers schedule source mappings over repo defaults and explicit launch input", () => {
     const resolved = resolveRepositoryExecutionDefaults({
       contract: createContract(),

@@ -133,6 +133,8 @@ describe("runtimeControlPlaneRouting", () => {
       readiness: "ready",
       ready: true,
       source: "model_selection",
+      preferredBackendIds: null,
+      resolvedBackendId: null,
     });
   });
 

@@ -537,6 +537,7 @@ export function resolveRuntimeKernelRouteSelection(input: {
     )
     .sort((left, right) => left.metadata.routeValue.localeCompare(right.metadata.routeValue));
   const normalizedSelectedRoute = readOptionalText(input.selectedRoute) ?? "auto";
+  let selectedOption: RuntimeKernelRouteOption | null = null;
 
   const options = routingPlugins.map(({ plugin, metadata }) => {
     const selectedMatch = metadata.routeValue === normalizedSelectedRoute;
@@ -551,7 +552,7 @@ export function resolveRuntimeKernelRouteSelection(input: {
       : plugin;
     const selectedMetadata =
       readRuntimeKernelRoutingPluginMetadata(selectedPlugin.metadata) ?? metadata;
-    return {
+    const option = {
       value: selectedMetadata.routeValue,
       label:
         selectedMetadata.routeValue === "auto"
@@ -585,10 +586,14 @@ export function resolveRuntimeKernelRouteSelection(input: {
       },
       plugin: selectedPlugin,
     } satisfies RuntimeKernelRouteOption;
+    if (selectedMatch) {
+      selectedOption = option;
+    }
+    return option;
   });
 
   const selected =
-    options.find((option) => option.value === normalizedSelectedRoute) ??
+    selectedOption ??
     options.find((option) => option.value === "auto") ??
     options[0];
   if (!selected) {

@@ -747,6 +747,72 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.routeSelection.selected.provenance.source).toBe("backend_preference");
   });
 
+  it("keeps a profile-resolved backend on automatic routing when no route-specific override exists", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimeCompositionActiveProfileId: "workspace-default",
+        runtimeCompositionActiveProfile: {
+          id: "workspace-default",
+          name: "Workspace Default",
+          scope: "workspace",
+          enabled: true,
+          pluginSelectors: [],
+          routePolicy: {
+            preferredRoutePluginIds: [],
+            providerPreference: [],
+            allowRuntimeFallback: true,
+          },
+          backendPolicy: {
+            preferredBackendIds: ["backend-primary"],
+            resolvedBackendId: "backend-profile",
+          },
+          trustPolicy: {
+            requireVerifiedSignatures: false,
+            allowDevOverrides: false,
+            blockedPublishers: [],
+          },
+          executionPolicyRefs: [],
+          observabilityPolicy: {
+            emitStableEvents: true,
+            emitOtelAlignedTelemetry: true,
+          },
+          configLayers: [],
+        },
+        runtimeCompositionResolution: {
+          selectedPlugins: [],
+          selectedRouteCandidates: [],
+          selectedBackendCandidates: [
+            {
+              backendId: "backend-primary",
+              sourcePluginId: null,
+            },
+            {
+              backendId: "backend-profile",
+              sourcePluginId: null,
+            },
+          ],
+          blockedPlugins: [],
+          trustDecisions: [],
+          provenance: {
+            activeProfileId: "workspace-default",
+            activeProfileName: "Workspace Default",
+            appliedLayerOrder: ["workspace"],
+            selectorDecisions: {},
+          },
+        },
+        selectedProviderRoute: "auto",
+      })
+    );
+
+    expect(projection.routeSelection.selected.value).toBe("auto");
+    expect(projection.routeSelection.selected.preferredBackendIds).toEqual([
+      "backend-primary",
+      "backend-profile",
+    ]);
+    expect(projection.routeSelection.selected.resolvedBackendId).toBe("backend-profile");
+    expect(projection.routeSelection.selected.provenance.source).toBe("backend_preference");
+  });
+
   it("projects continuity readiness from runtime task truth instead of page-local guesses", () => {
     const task = {
       ...buildTask("runtime-review-1", "completed", "Reviewable task"),
