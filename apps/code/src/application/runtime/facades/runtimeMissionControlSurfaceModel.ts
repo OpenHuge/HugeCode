@@ -868,6 +868,7 @@ export function buildMissionReviewEntriesFromProjection(
       publishedOperatorActionText ??
       canonicalContinuation?.recommendedAction ??
       resolveRuntimeRecommendedAction({
+        operatorAction,
         fallbacks: [
           continuation.state !== "missing" ? continuation.recommendedAction : null,
           derivedOperatorActionText,
@@ -1055,6 +1056,7 @@ export function buildMissionReviewEntriesFromProjection(
       publishedOperatorActionText ??
       canonicalContinuation?.recommendedAction ??
       resolveRuntimeRecommendedAction({
+        operatorAction,
         fallbacks: [
           continuation.state !== "missing" ? continuation.recommendedAction : null,
           derivedOperatorActionText,

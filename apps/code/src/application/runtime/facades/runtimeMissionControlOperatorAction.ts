@@ -1,10 +1,13 @@
 import type {
-  HugeCodeTakeoverTarget,
+  HugeCodeNextOperatorAction,
   HugeCodeReviewPackSummary,
+  HugeCodeTakeoverTarget,
   HugeCodeTaskSummary,
 } from "@ku0/code-runtime-host-contract";
+import { resolveRuntimeNextOperatorAction } from "@ku0/code-runtime-host-contract";
 import type { MissionControlProjection } from "./runtimeMissionControlFacade";
 import { buildRuntimeContinuationDescriptor } from "./runtimeContinuationTruth";
+import { readRuntimeOperatorActionText } from "./runtimeOperatorActionPresentation";
 import type { MissionNavigationTarget } from "./runtimeMissionNavigationTarget";
 
 type MissionOperatorActionInput = {
@@ -12,8 +15,29 @@ type MissionOperatorActionInput = {
   run: MissionControlProjection["runs"][number] | null;
 };
 
+type MissionOperatorActionContext = MissionOperatorActionInput & {
+  workspaceId: string;
+  threadId: string | null;
+  taskId: string;
+  runId: string | null;
+  missionTarget: MissionNavigationTarget;
+  reviewTarget: MissionNavigationTarget;
+  defaultActiveLabel: string;
+};
+
+export type MissionOperatorActionModel = {
+  label: string;
+  detail: string | null;
+  target: MissionNavigationTarget;
+};
+
+function readOptionalText(value: string | null | undefined) {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
 function buildContinuation(input: MissionOperatorActionInput) {
   return buildRuntimeContinuationDescriptor({
+    continuation: input.reviewPack?.continuation ?? input.run?.continuation ?? null,
     runState: input.run?.state ?? (input.reviewPack ? "review_ready" : null),
     checkpoint: input.reviewPack?.checkpoint ?? input.run?.checkpoint ?? null,
     missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,
@@ -25,59 +49,132 @@ function buildContinuation(input: MissionOperatorActionInput) {
   });
 }
 
-function mapCanonicalTargetToMissionNavigationTarget(input: {
-  task: HugeCodeTaskSummary;
-  target: HugeCodeTakeoverTarget | null | undefined;
+function resolvePublishedNextOperatorAction(
+  input: MissionOperatorActionContext
+): HugeCodeNextOperatorAction | null {
+  if (input.reviewPack?.nextOperatorAction) {
+    return input.reviewPack.nextOperatorAction;
+  }
+  if (input.run?.nextOperatorAction) {
+    return input.run.nextOperatorAction;
+  }
+  if (!input.run) {
+    return null;
+  }
+  return resolveRuntimeNextOperatorAction({
+    workspaceId: input.workspaceId,
+    taskId: input.taskId,
+    runId: input.runId,
+    reviewPackId: input.reviewPack?.id ?? input.run.reviewPackId ?? null,
+    state: input.run.state,
+    reviewStatus: input.reviewPack?.reviewStatus ?? null,
+    approval: input.run.approval ?? null,
+    reviewDecision: input.reviewPack?.reviewDecision ?? input.run.reviewDecision ?? null,
+    nextAction: input.run.nextAction ?? null,
+    checkpoint: input.reviewPack?.checkpoint ?? input.run.checkpoint ?? null,
+    missionLinkage: input.reviewPack?.missionLinkage ?? input.run.missionLinkage ?? null,
+    actionability: input.reviewPack?.actionability ?? input.run.actionability ?? null,
+    publishHandoff: input.reviewPack?.publishHandoff ?? input.run.publishHandoff ?? null,
+    takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run.takeoverBundle ?? null,
+    sessionBoundary: input.reviewPack?.sessionBoundary ?? input.run.sessionBoundary ?? null,
+    continuation: input.reviewPack?.continuation ?? input.run.continuation ?? null,
+    nextOperatorAction: null,
+  });
+}
+
+function mapTakeoverTargetToMissionNavigationTarget(input: {
+  workspaceId: string;
+  threadId: string | null;
+  operatorAction: HugeCodeNextOperatorAction | null;
+  takeoverTarget: HugeCodeTakeoverTarget | null | undefined;
   missionTarget: MissionNavigationTarget;
   reviewTarget: MissionNavigationTarget;
 }): MissionNavigationTarget {
-  const target = input.target;
-  if (!target) {
-    return input.missionTarget;
+  const takeoverTarget = input.takeoverTarget;
+  if (!takeoverTarget) {
+    return input.operatorAction?.action === "open_review_pack"
+      ? input.reviewTarget
+      : input.missionTarget;
   }
-  if (target.kind === "thread") {
-    const missionThreadId =
-      input.task.origin.threadId ??
-      (input.missionTarget.kind === "mission" || input.missionTarget.kind === "thread"
-        ? (input.missionTarget.threadId ?? null)
-        : null);
+  if (takeoverTarget.kind === "thread") {
     if (
-      missionThreadId &&
-      target.workspaceId === input.task.workspaceId &&
-      target.threadId === missionThreadId
+      input.threadId &&
+      takeoverTarget.workspaceId === input.workspaceId &&
+      takeoverTarget.threadId === input.threadId
     ) {
-      // Keep mission context when runtime truth points back to the same mission
-      // thread, but preserve cross-thread handoff targets.
       return input.missionTarget;
     }
     return {
       kind: "thread",
-      workspaceId: target.workspaceId,
-      threadId: target.threadId,
+      workspaceId: takeoverTarget.workspaceId,
+      threadId: takeoverTarget.threadId,
     };
   }
-  if (target.kind === "review_pack") {
+  if (takeoverTarget.kind === "review_pack") {
     return {
       kind: "review",
-      workspaceId: target.workspaceId,
-      taskId: target.taskId,
-      runId: target.runId,
-      reviewPackId: target.reviewPackId,
-      limitation: input.task.origin.threadId ? null : "thread_unavailable",
+      workspaceId: takeoverTarget.workspaceId,
+      taskId: takeoverTarget.taskId,
+      runId: takeoverTarget.runId,
+      reviewPackId: takeoverTarget.reviewPackId,
+      limitation: input.threadId ? null : "thread_unavailable",
     };
   }
-  if (target.kind === "run") {
+  if (takeoverTarget.kind === "run") {
     return {
       kind: "mission",
-      workspaceId: target.workspaceId,
-      taskId: target.taskId,
-      runId: target.runId,
-      reviewPackId: target.reviewPackId ?? null,
-      threadId: input.task.origin.threadId ?? null,
-      limitation: input.task.origin.threadId ? null : "thread_unavailable",
+      workspaceId: takeoverTarget.workspaceId,
+      taskId: takeoverTarget.taskId,
+      runId: takeoverTarget.runId,
+      reviewPackId: takeoverTarget.reviewPackId ?? null,
+      threadId: input.threadId,
+      limitation: input.threadId ? null : "thread_unavailable",
     };
   }
-  return input.reviewTarget;
+  return input.operatorAction?.action === "open_review_pack"
+    ? input.reviewTarget
+    : input.missionTarget;
+}
+
+function resolveContinuationPreferredLabel(
+  pathKind: ReturnType<typeof buildContinuation>["pathKind"] | null | undefined,
+  fallbackLabel: string | null
+) {
+  if (pathKind === "approval") {
+    return "Open approval";
+  }
+  if (pathKind === "review") {
+    return "Open review";
+  }
+  if (pathKind === "resume") {
+    return "Resume mission";
+  }
+  if (pathKind === "handoff") {
+    return "Open handoff";
+  }
+  return fallbackLabel;
+}
+
+function resolveContinuationPreferredDetail(
+  continuation: ReturnType<typeof buildContinuation>,
+  operatorAction: HugeCodeNextOperatorAction | null,
+  input: MissionOperatorActionContext
+) {
+  const continuationDetail =
+    continuation?.blockingReason ??
+    continuation?.summary ??
+    continuation?.canonicalNextAction.detail ??
+    continuation?.recommendedAction ??
+    null;
+  return (
+    readOptionalText(operatorAction?.detail) ??
+    continuationDetail ??
+    resolveCheckpointHandoffLabel(input) ??
+    input.reviewPack?.recommendedNextAction?.trim() ??
+    input.run?.nextAction?.detail?.trim() ??
+    input.run?.governance?.summary?.trim() ??
+    null
+  );
 }
 
 export function resolveCheckpointHandoffLabel(input: MissionOperatorActionInput): string | null {
@@ -106,15 +203,58 @@ export function buildMissionOverviewOperatorSignal(
   input: MissionOperatorActionInput
 ): string | null {
   const continuation = buildContinuation(input);
+  const runtimeActionText = readRuntimeOperatorActionText(
+    input.reviewPack?.nextOperatorAction ?? input.run?.nextOperatorAction ?? null
+  );
   return (
     input.run?.operatorSnapshot?.currentActivity?.trim() ||
     input.run?.operatorSnapshot?.blocker?.trim() ||
-    input.run?.approval?.summary?.trim() ||
+    runtimeActionText ||
     continuation?.recommendedAction ||
+    input.run?.approval?.summary?.trim() ||
     input.run?.nextAction?.detail?.trim() ||
     input.reviewPack?.recommendedNextAction?.trim() ||
     null
   );
+}
+
+export function resolveCanonicalMissionOperatorAction(
+  input: MissionOperatorActionContext
+): MissionOperatorActionModel | null {
+  const continuation = buildContinuation(input);
+  const operatorAction = resolvePublishedNextOperatorAction(input);
+
+  if (!continuation && !operatorAction && !input.run && !input.reviewPack) {
+    return null;
+  }
+
+  const label =
+    resolveContinuationPreferredLabel(
+      continuation?.pathKind ?? null,
+      operatorAction?.label?.trim() || null
+    ) ?? input.defaultActiveLabel;
+  const detail = resolveContinuationPreferredDetail(continuation, operatorAction, input);
+  const target = mapTakeoverTargetToMissionNavigationTarget({
+    workspaceId: input.workspaceId,
+    threadId: input.threadId,
+    operatorAction,
+    takeoverTarget:
+      continuation?.navigationTarget && "kind" in continuation.navigationTarget
+        ? continuation.navigationTarget
+        : (operatorAction?.target ?? null),
+    missionTarget: input.missionTarget,
+    reviewTarget: input.reviewTarget,
+  });
+  const normalizedTarget =
+    continuation?.pathKind === "review" || operatorAction?.action === "open_review_pack"
+      ? input.reviewTarget
+      : target;
+
+  return {
+    label,
+    detail,
+    target: normalizedTarget,
+  };
 }
 
 export function resolveMissionOperatorAction(input: {
@@ -124,113 +264,20 @@ export function resolveMissionOperatorAction(input: {
   missionTarget: MissionNavigationTarget;
   reviewTarget: MissionNavigationTarget;
   defaultActiveLabel: string;
-}): {
-  label: string;
-  detail: string | null;
-  target: MissionNavigationTarget;
-} {
-  const continuation = buildContinuation(input);
-  const canonicalNavigationTarget = continuation?.canonicalNextAction.navigationTarget ?? null;
-  const continuationTarget = continuation
-    ? mapCanonicalTargetToMissionNavigationTarget({
-        task: input.task,
-        target: canonicalNavigationTarget,
-        missionTarget: input.missionTarget,
-        reviewTarget: input.reviewTarget,
-      })
-    : input.missionTarget;
-  const resolvedCanonicalReviewTarget = canonicalNavigationTarget
-    ? (continuationTarget ?? input.reviewTarget)
-    : input.reviewTarget;
-  if (
-    input.reviewPack &&
-    (input.reviewPack.reviewStatus === "ready" ||
-      input.reviewPack.reviewStatus === "incomplete_evidence" ||
-      input.reviewPack.reviewStatus === "action_required" ||
-      input.reviewPack.reviewDecision?.status === "pending")
-  ) {
-    const useCanonicalReviewAction =
-      continuation &&
-      continuation.pathKind !== "missing" &&
-      continuation.canonicalNextAction.kind !== "blocked";
-    return {
-      label:
-        (useCanonicalReviewAction ? continuation?.canonicalNextAction.label : null) ??
-        (input.reviewPack.reviewStatus === "incomplete_evidence"
-          ? "Inspect evidence"
-          : input.reviewPack.reviewStatus === "action_required"
-            ? "Resolve review"
-            : "Open review"),
-      detail:
-        (useCanonicalReviewAction ? continuation?.canonicalNextAction.detail : null) ||
-        resolveCheckpointHandoffLabel(input) ||
-        input.reviewPack.recommendedNextAction?.trim() ||
-        input.reviewPack.governance?.summary?.trim() ||
-        null,
-      target: useCanonicalReviewAction
-        ? continuation?.canonicalNextAction.kind === "review"
-          ? resolvedCanonicalReviewTarget
-          : (continuationTarget ?? input.missionTarget)
-        : input.reviewTarget,
-    };
-  }
-  if (continuation) {
-    return {
-      label: continuation.canonicalNextAction.label,
-      detail: continuation.canonicalNextAction.detail,
-      target:
-        continuation.canonicalNextAction.kind === "review"
-          ? resolvedCanonicalReviewTarget
-          : (continuationTarget ?? input.missionTarget),
-    };
-  }
-  if (input.run?.approval?.status === "pending_decision") {
-    return {
-      label: "Open approval",
-      detail: input.run.approval.summary?.trim() || null,
-      target: input.missionTarget,
-    };
-  }
-  if (input.run?.state === "failed" || input.run?.state === "cancelled") {
-    return {
-      label: "View failure",
-      detail:
-        input.run.relaunchContext?.summary?.trim() ||
-        input.run.completionReason?.trim() ||
-        input.run.governance?.summary?.trim() ||
-        null,
-      target: input.missionTarget,
-    };
-  }
-  if (input.run?.checkpoint?.resumeReady || input.run?.checkpoint?.recovered) {
-    return {
-      label: "Resume mission",
-      detail:
-        input.run.checkpoint.summary?.trim() ||
-        input.run.nextAction?.detail?.trim() ||
-        input.run.governance?.summary?.trim() ||
-        null,
-      target: input.missionTarget,
-    };
-  }
-  if (input.run?.state === "needs_input") {
-    return {
-      label: "Resume mission",
-      detail: input.run.nextAction?.detail?.trim() || input.run.governance?.summary?.trim() || null,
-      target: input.missionTarget,
-    };
-  }
-  if (
-    input.run?.state === "queued" ||
-    input.run?.state === "preparing" ||
-    input.run?.state === "running" ||
-    input.run?.state === "validating"
-  ) {
-    return {
-      label: input.defaultActiveLabel,
-      detail: input.run.nextAction?.detail?.trim() || input.run.governance?.summary?.trim() || null,
-      target: input.missionTarget,
-    };
+}): MissionOperatorActionModel {
+  const resolved = resolveCanonicalMissionOperatorAction({
+    reviewPack: input.reviewPack,
+    run: input.run,
+    workspaceId: input.task.workspaceId,
+    threadId: input.task.origin.threadId ?? null,
+    taskId: input.task.id,
+    runId: input.run?.id ?? input.reviewPack?.runId ?? null,
+    missionTarget: input.missionTarget,
+    reviewTarget: input.reviewTarget,
+    defaultActiveLabel: input.defaultActiveLabel,
+  });
+  if (resolved) {
+    return resolved;
   }
   return {
     label: input.task.origin.threadId ? "Open mission" : "Open action center",
