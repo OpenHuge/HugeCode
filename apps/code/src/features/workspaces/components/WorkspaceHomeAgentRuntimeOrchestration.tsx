@@ -99,20 +99,30 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         label: "Attention",
         tone: "warning" as const,
       }
-    : pluginCatalog.executableCount > 0
+    : pluginCatalog.blockedCount > 0
       ? {
-          label: "Ready",
-          tone: "success" as const,
+          label: "Blocked",
+          tone: "danger" as const,
         }
-      : pluginCatalog.total > 0
+      : pluginCatalog.attentionCount > 0
         ? {
-            label: "Cataloged",
-            tone: "neutral" as const,
+            label: "Attention",
+            tone: "warning" as const,
           }
-        : {
-            label: "Empty",
-            tone: "neutral" as const,
-          };
+        : pluginCatalog.readyCount > 0
+          ? {
+              label: "Ready",
+              tone: "success" as const,
+            }
+          : pluginCatalog.total > 0
+            ? {
+                label: "Cataloged",
+                tone: "neutral" as const,
+              }
+            : {
+                label: "Empty",
+                tone: "neutral" as const,
+              };
   const launchReadiness = missionControlProjection.launchReadiness;
   const launchReadinessStatusLabel =
     launchReadiness.state === "ready"
@@ -252,14 +262,14 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
       </div>
       <MissionControlSessionLogSection runtimeSessionCheckpoint={runtimeSessionCheckpoint} />
       <MissionControlSectionCard
-        title="Plugin catalog"
+        title="Extension readiness"
         statusLabel={pluginCatalogStatus.label}
         statusTone={pluginCatalogStatus.tone}
         meta={
           <>
-            <ToolCallChip tone="neutral">Runtime {pluginCatalog.runtimeBacked}</ToolCallChip>
-            <ToolCallChip tone="neutral">Repo {pluginCatalog.repoManifestCount}</ToolCallChip>
-            <ToolCallChip tone="neutral">Live skills {pluginCatalog.liveSkillCount}</ToolCallChip>
+            <ToolCallChip tone="neutral">Ready {pluginCatalog.readyCount}</ToolCallChip>
+            <ToolCallChip tone="neutral">Attention {pluginCatalog.attentionCount}</ToolCallChip>
+            <ToolCallChip tone="neutral">Blocked {pluginCatalog.blockedCount}</ToolCallChip>
           </>
         }
       >
@@ -267,43 +277,43 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           <div className="workspace-home-code-runtime-item-main">
             <strong>
               {pluginCatalog.total > 0
-                ? "Unified runtime plugin directory is available."
-                : "No runtime plugins discovered for this workspace."}
+                ? "Runtime-published extension readiness is available."
+                : "No runtime-published plugins discovered for this workspace."}
             </strong>
             <span>Total plugins: {pluginCatalog.total}</span>
-            <span>Enabled: {pluginCatalog.enabled}</span>
-            <span>Executable: {pluginCatalog.executableCount}</span>
-            <span>Blocked execution: {pluginCatalog.nonExecutableCount}</span>
-            <span>Readable resources: {pluginCatalog.readableResourceCount}</span>
-            <span>Permission-aware: {pluginCatalog.permissionEvaluableCount}</span>
-            <span>Contract surfaces: {pluginCatalog.contractSurfaceCount}</span>
-            <span>Host imports: {pluginCatalog.contractImportSurfaceCount}</span>
-            <span>Plugin exports: {pluginCatalog.contractExportSurfaceCount}</span>
-            <span>Bound: {pluginCatalog.boundCount}</span>
-            <span>Declaration-only: {pluginCatalog.declarationOnlyCount}</span>
-            <span>Unbound hosts: {pluginCatalog.unboundCount}</span>
+            <span>Ready: {pluginCatalog.readyCount}</span>
+            <span>Attention: {pluginCatalog.attentionCount}</span>
+            <span>Blocked: {pluginCatalog.blockedCount}</span>
             <span>Runtime extensions: {pluginCatalog.runtimeExtensionCount}</span>
             <span>Live skills: {pluginCatalog.liveSkillCount}</span>
             <span>Repo manifests: {pluginCatalog.repoManifestCount}</span>
             <span>
-              Projection slice: {pluginCatalog.projectionBacked ? "connected" : "capability-only"}
+              Runtime host truth:{" "}
+              {pluginCatalog.unsupportedHostCount > 0 ? "published" : "not published"}
             </span>
             <span>
-              Health: healthy {pluginCatalog.healthyCount} | degraded {pluginCatalog.degradedCount}{" "}
-              | unsupported {pluginCatalog.unsupportedCount}
+              Projection slice: {pluginCatalog.projectionBacked ? "connected" : "capability-only"}
             </span>
-            {pluginCatalog.plugins.slice(0, 3).map((plugin) => (
-              <span key={plugin.id}>
-                {plugin.name} ({plugin.source}, {plugin.binding.state},{" "}
-                {plugin.operations.execution.executable ? "executable" : "blocked"}){" "}
-                {plugin.enabled ? "enabled" : "disabled"}
-              </span>
-            ))}
           </div>
           {pluginCatalog.error ? (
             <div className={controlStyles.warning}>{pluginCatalog.error}</div>
           ) : null}
         </div>
+        {pluginCatalog.readinessEntries.map((entry) => (
+          <div key={entry.id} className="workspace-home-code-runtime-item">
+            <div className="workspace-home-code-runtime-item-main">
+              <strong>
+                {entry.name} ({entry.version})
+              </strong>
+              <span>Source: {entry.sourceLabel}</span>
+              <span>Capability support: {entry.capabilitySupport.summary}</span>
+              <span>Permission state: {entry.permissionState.label}</span>
+              <span>Readiness: {entry.readiness.label}</span>
+              <span>{entry.readiness.detail}</span>
+              <span>Remediation: {entry.remediationSummary}</span>
+            </div>
+          </div>
+        ))}
       </MissionControlSectionCard>
       {runtimeDurabilityWarning ? (
         <div className={controlStyles.warning} data-testid="workspace-runtime-durability-warning">

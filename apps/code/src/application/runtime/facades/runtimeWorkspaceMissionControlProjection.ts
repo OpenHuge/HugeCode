@@ -6,6 +6,10 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPlugins";
 import type { RuntimeExecutionReliabilitySummary } from "./runtimeExecutionReliability";
+import {
+  buildRuntimeKernelPluginReadinessEntries,
+  type RuntimeKernelPluginReadinessEntry,
+} from "./runtimeKernelPluginReadiness";
 import type { RuntimeLaunchReadinessSummary } from "./runtimeLaunchReadiness";
 import {
   buildMissionControlLoopItems,
@@ -72,6 +76,7 @@ export type WorkspaceRuntimeMissionControlProjection = {
   };
   pluginCatalog: {
     plugins: RuntimeKernelPluginDescriptor[];
+    readinessEntries: RuntimeKernelPluginReadinessEntry[];
     total: number;
     enabled: number;
     runtimeBacked: number;
@@ -92,6 +97,9 @@ export type WorkspaceRuntimeMissionControlProjection = {
     healthyCount: number;
     degradedCount: number;
     unsupportedCount: number;
+    readyCount: number;
+    attentionCount: number;
+    blockedCount: number;
     projectionBacked: boolean;
     error: string | null;
   };
@@ -150,6 +158,7 @@ function buildPluginCatalogSummary(input: {
 }): WorkspaceRuntimeMissionControlProjection["pluginCatalog"] {
   const summary: WorkspaceRuntimeMissionControlProjection["pluginCatalog"] = {
     plugins: input.plugins,
+    readinessEntries: buildRuntimeKernelPluginReadinessEntries(input.plugins),
     total: input.plugins.length,
     enabled: 0,
     runtimeBacked: 0,
@@ -170,11 +179,15 @@ function buildPluginCatalogSummary(input: {
     healthyCount: 0,
     degradedCount: 0,
     unsupportedCount: 0,
+    readyCount: 0,
+    attentionCount: 0,
+    blockedCount: 0,
     projectionBacked: input.projectionBacked,
     error: input.error,
   };
 
-  for (const plugin of input.plugins) {
+  for (const [index, plugin] of input.plugins.entries()) {
+    const readinessEntry = summary.readinessEntries[index];
     if (plugin.enabled) {
       summary.enabled += 1;
     }
@@ -223,6 +236,14 @@ function buildPluginCatalogSummary(input: {
       summary.degradedCount += 1;
     } else if (plugin.health?.state === "unsupported") {
       summary.unsupportedCount += 1;
+    }
+
+    if (readinessEntry?.readiness.state === "ready") {
+      summary.readyCount += 1;
+    } else if (readinessEntry?.readiness.state === "attention") {
+      summary.attentionCount += 1;
+    } else if (readinessEntry?.readiness.state === "blocked") {
+      summary.blockedCount += 1;
     }
   }
 

@@ -6,15 +6,18 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 
 const readRuntimeWorkspaceSkillManifestsMock = vi.hoisted(() => vi.fn());
+const listRuntimeExtensionsMock = vi.hoisted(() => vi.fn());
+const readRuntimeExtensionHealthMock = vi.hoisted(() => vi.fn());
 const readRuntimeExtensionResourceMock = vi.hoisted(() => vi.fn());
 const evaluateRuntimeExtensionPermissionsMock = vi.hoisted(() => vi.fn());
 const listRuntimeKernelCapabilitiesMock = vi.hoisted(() => vi.fn());
+const listRuntimeLiveSkillsMock = vi.hoisted(() => vi.fn());
 const runRuntimeLiveSkillMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../ports/runtimeExtensions", () => ({
   evaluateRuntimeExtensionPermissions: evaluateRuntimeExtensionPermissionsMock,
-  listRuntimeExtensions: vi.fn(),
-  readRuntimeExtensionHealth: vi.fn(),
+  listRuntimeExtensions: listRuntimeExtensionsMock,
+  readRuntimeExtensionHealth: readRuntimeExtensionHealthMock,
   readRuntimeExtensionResource: readRuntimeExtensionResourceMock,
 }));
 
@@ -37,7 +40,7 @@ vi.mock("../ports/runtimeKernelCapabilities", () => ({
 }));
 
 vi.mock("../ports/tauriRuntimeSkills", () => ({
-  listRuntimeLiveSkills: vi.fn(),
+  listRuntimeLiveSkills: listRuntimeLiveSkillsMock,
 }));
 
 function createExtensionRecord(
@@ -133,10 +136,16 @@ function createHostCapabilityDescriptor(
 describe("runtimeKernelPlugins", () => {
   beforeEach(() => {
     readRuntimeWorkspaceSkillManifestsMock.mockReset();
+    listRuntimeExtensionsMock.mockReset();
+    readRuntimeExtensionHealthMock.mockReset();
     readRuntimeExtensionResourceMock.mockReset();
     evaluateRuntimeExtensionPermissionsMock.mockReset();
     listRuntimeKernelCapabilitiesMock.mockReset();
+    listRuntimeLiveSkillsMock.mockReset();
     runRuntimeLiveSkillMock.mockReset();
+    readRuntimeWorkspaceSkillManifestsMock.mockResolvedValue([]);
+    listRuntimeExtensionsMock.mockResolvedValue([]);
+    listRuntimeLiveSkillsMock.mockResolvedValue([]);
   });
 
   it("normalizes runtime extensions, live skills, and repo manifests into unified plugin descriptors", async () => {
@@ -319,6 +328,15 @@ describe("runtimeKernelPlugins", () => {
         warnings: ["Runtime host binder is not currently connected."],
       },
     });
+  });
+
+  it("does not synthesize host placeholders when runtime capability truth is unavailable", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+    listRuntimeKernelCapabilitiesMock.mockRejectedValue(new Error("capabilities unavailable"));
+
+    const provider = plugins.createRuntimeKernelPluginCatalogProvider();
+
+    await expect(provider.listPluginDescriptors("ws-1")).resolves.toEqual([]);
   });
 
   it("distinguishes binding state from execution availability", async () => {
