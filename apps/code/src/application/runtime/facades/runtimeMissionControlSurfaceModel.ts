@@ -48,6 +48,7 @@ import {
   buildReviewNavigationTarget,
 } from "./runtimeMissionNavigationTarget";
 import type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
+import type { CompactReviewEvidenceInput } from "./runtimeReviewEvidenceModel";
 import {
   buildMissionReviewTriageMetadata,
   type MissionReviewFilterTag,
@@ -151,6 +152,7 @@ export type MissionReviewEntry = {
   continuePathLabel?: string | null;
   continuationTruthSourceLabel?: string | null;
   continuityOverview?: string | null;
+  compactEvidenceInput?: CompactReviewEvidenceInput | null;
 };
 
 export type MissionControlFreshnessState = {
@@ -918,6 +920,7 @@ export function buildMissionReviewEntriesFromProjection(
       continuationState: continuation.state,
     });
     const provenanceSummary =
+    const provenanceSummary =
       [
         buildTaskSourceProvenanceSummary({
           source: reviewPack.taskSource ?? run?.taskSource ?? task.taskSource ?? null,
@@ -927,7 +930,6 @@ export function buildMissionReviewEntriesFromProjection(
       ]
         .filter((value): value is string => Boolean(value))
         .join(" | ") || null;
-
     entries.push({
       id: reviewPack.id,
       kind: "review_pack",

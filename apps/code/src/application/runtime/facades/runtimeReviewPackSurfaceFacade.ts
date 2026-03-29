@@ -73,7 +73,13 @@ import {
   MISSION_RUN_EMPTY_SECTION_LABELS,
   REVIEW_PACK_EMPTY_SECTION_LABELS,
 } from "./runtimeReviewPackEmptySectionLabels";
+import type { CompactReviewEvidenceInput } from "./runtimeReviewEvidenceModel";
 import { buildMissionSecondaryLabel } from "./runtimeMissionSecondaryLabel";
+import {
+  buildMissionRouteAudit,
+  formatSourceCitationDetail,
+  getSourceLabel,
+} from "./runtimeReviewPackSurfacePresentation";
 
 type RelaunchOption = {
   id: string;
@@ -236,6 +242,7 @@ export type ReviewPackDetailModel = {
   executionContext?: SummaryDetail;
   missionBrief?: SummaryDetail;
   relaunchContext?: SummaryDetail;
+  compactEvidenceInput?: CompactReviewEvidenceInput | null;
   decisionActionability: RuntimeReviewPackDecisionActionabilitySummary;
   decisionActions: RuntimeReviewPackDecisionActionModel<MissionNavigationTarget>[];
   limitations: string[];
@@ -297,6 +304,7 @@ export type MissionRunDetailModel = {
   executionContext?: SummaryDetail;
   missionBrief?: SummaryDetail;
   relaunchContext?: SummaryDetail;
+  compactEvidenceInput?: CompactReviewEvidenceInput | null;
   autoDriveSummary: string[];
   subAgentSummary: SubAgentSummary[];
   limitations: string[];
@@ -309,12 +317,6 @@ export type MissionRunDetailModel = {
 };
 
 export type MissionSurfaceDetailModel = ReviewPackDetailModel | MissionRunDetailModel;
-
-function getSourceLabel(source: MissionControlProjection["source"]) {
-  return source === "runtime_snapshot_v1"
-    ? "Runtime snapshot"
-    : "Mission-control snapshot unavailable";
-}
 
 function augmentDetailSection(
   section: { summary: string; details: string[] } | undefined,
@@ -331,66 +333,6 @@ function augmentDetailSection(
   return {
     summary: section?.summary ?? fallbackSummary,
     details,
-  };
-}
-
-function formatSourceCitationDetail(
-  citation:
-    | NonNullable<MissionControlProjection["runs"][number]["sourceCitations"]>[number]
-    | NonNullable<MissionControlProjection["reviewPacks"][number]["sourceCitations"]>[number]
-) {
-  const trustLabel =
-    citation.trustLevel === "primary"
-      ? "primary"
-      : citation.trustLevel === "runtime"
-        ? "runtime"
-        : "derived";
-  return `${citation.label}: ${citation.claimSummary} (${trustLabel})`;
-}
-
-function buildMissionRouteAudit(input: {
-  routeLabel: string | null | undefined;
-  routeHint: string | null | undefined;
-  providerLabel: string | null | undefined;
-  pool: string | null | undefined;
-  health: string | null | undefined;
-  backendId: string | null | undefined;
-  executionProfileName: string | null | undefined;
-  validationPresetId: string | null | undefined;
-  profileReadinessSummary: string | null | undefined;
-}) {
-  const details: string[] = [];
-  if (input.executionProfileName) {
-    pushUnique(details, `Execution profile: ${input.executionProfileName}`);
-  }
-  if (input.validationPresetId) {
-    pushUnique(details, `Validation preset: ${input.validationPresetId}`);
-  }
-  if (input.backendId) {
-    pushUnique(details, `Backend: ${input.backendId}`);
-  }
-  if (input.providerLabel) {
-    pushUnique(details, `Provider: ${input.providerLabel}`);
-  }
-  if (input.pool) {
-    pushUnique(details, `Pool: ${input.pool}`);
-  }
-  if (input.health) {
-    pushUnique(details, `Routing health: ${input.health}`);
-  }
-  if (input.routeHint) {
-    pushUnique(details, input.routeHint);
-  }
-  if (input.profileReadinessSummary) {
-    pushUnique(details, input.profileReadinessSummary);
-  }
-  return {
-    routeSummary:
-      input.routeLabel ??
-      (input.executionProfileName
-        ? `Executed with ${input.executionProfileName}`
-        : "Routing unavailable"),
-    routeDetails: details,
   };
 }
 
@@ -1210,7 +1152,6 @@ export function buildReviewPackDetailModel(input: {
     reviewPack,
     recommendedNextAction: reviewRecommendedNextAction,
   });
-
   return {
     kind: "review_pack",
     id: reviewPack.id,

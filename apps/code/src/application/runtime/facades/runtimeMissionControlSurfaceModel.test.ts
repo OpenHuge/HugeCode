@@ -135,6 +135,29 @@ function createProjection(): HugeCodeMissionControlSnapshot {
         warnings: [],
         validations: [],
         artifacts: [],
+        missionBrief: {
+          objective: "Refactor review routing",
+          doneDefinition: ["Keep runtime truth authoritative in review surfaces."],
+          preferredBackendIds: ["backend-review-a"],
+          planVersion: "plan-v3",
+          planSummary: "Front-load runtime review evidence before deep detail sections.",
+        },
+        placement: {
+          summary: "Runtime confirmed workspace-default placement on backend-review-a.",
+          lifecycleState: "confirmed",
+          resolutionSource: "workspace_default",
+          requestedBackendIds: ["backend-review-a"],
+          resolvedBackendId: "backend-review-a",
+          readiness: "ready",
+          healthSummary: "placement_ready",
+          rationale: "Runtime used the default review backend for this workspace.",
+          backendContract: {
+            kind: "native",
+            origin: "runtime-native",
+            transport: "ws",
+            health: "active",
+          },
+        },
         reviewPackId: "review-pack:run-1",
         nextOperatorAction: {
           action: "review",
@@ -256,6 +279,9 @@ describe("runtimeMissionControlSurfaceModel", () => {
     expect(reviewEntries[0]?.provenanceSummary).toBe(
       "Launch source: ku0/hugecode | #42 | issues.assigned | record source-42 | handshake started | Repo guidance: AGENTS.md, .github/copilot-instructions.md | Source evidence: GitHub issue #42"
     );
+    expect(reviewEntries[0]?.reviewGateLabel).toBeNull();
+    expect(reviewEntries[0]?.routeDetail).toBe("Backend backend-review-a");
+    expect(reviewEntries[0]?.compactEvidenceInput).toBeUndefined();
     expect(reviewEntries[0]?.triageSummary).toContain("Owner unassigned");
     expect(reviewEntries[0]?.delegationSummary).toBe(
       "Inspect the Review Pack and decide whether to continue."
