@@ -11,10 +11,10 @@ pub(super) struct MissionControlProjectionState {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct MissionControlReadinessSummaryProjection {
-    tone: String,
-    label: String,
-    detail: String,
+pub(super) struct MissionControlReadinessSummaryProjection {
+    pub(super) tone: String,
+    pub(super) label: String,
+    pub(super) detail: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -62,9 +62,10 @@ struct ContinuitySignalCounts {
     ready_resume_count: usize,
     ready_handoff_count: usize,
     ready_review_count: usize,
+    review_blocked_count: usize,
+    missing_path_count: usize,
     attention_count: usize,
     blocked_count: usize,
-    review_pack_only_count: usize,
 }
 
 fn json_string_field<'a>(value: &'a Option<Value>, key: &str) -> Option<&'a str> {
@@ -123,6 +124,20 @@ fn has_recovery_path(run: &MissionRunProjection) -> bool {
     run.publish_handoff.is_some() || json_has_non_null_field(&run.mission_linkage, "navigationTarget")
 }
 
+fn quantify_continuity_statement(
+    count: usize,
+    singular_subject: &str,
+    plural_subject: &str,
+    singular_predicate: &str,
+    plural_predicate: &str,
+) -> String {
+    if count == 1 {
+        format!("1 {singular_subject} {singular_predicate}")
+    } else {
+        format!("{count} {plural_subject} {plural_predicate}")
+    }
+}
+
 fn analyze_run_continuity_signal(run: &MissionRunProjection) -> Option<&'static str> {
     if let Some(takeover_bundle) = run.takeover_bundle.as_ref() {
         let state = takeover_bundle.get("state").and_then(Value::as_str);
@@ -142,6 +157,26 @@ fn analyze_run_continuity_signal(run: &MissionRunProjection) -> Option<&'static 
         return Some("attention");
     }
 
+    if let Some(continuation) = run.continuation.as_ref() {
+        let state = continuation.get("state").and_then(Value::as_str);
+        let path_kind = continuation.get("pathKind").and_then(Value::as_str);
+        if state == Some("blocked") {
+            return Some("blocked");
+        }
+        if state == Some("ready") && path_kind == Some("resume") {
+            return Some("ready_resume");
+        }
+        if state == Some("ready") && path_kind == Some("handoff") {
+            return Some("ready_handoff");
+        }
+        if state == Some("ready") && path_kind == Some("review") {
+            return Some("ready_review");
+        }
+        if state == Some("attention") || state == Some("ready") {
+            return Some("attention_missing");
+        }
+    }
+
     match json_string_field(&run.review_actionability, "state") {
         Some("blocked") => return Some("blocked"),
         Some("ready") => return Some("ready_review"),
@@ -154,10 +189,16 @@ fn analyze_run_continuity_signal(run: &MissionRunProjection) -> Option<&'static 
     if has_recovery_path(run) {
         return Some("ready_handoff");
     }
-    if run.review_pack_id.is_some() {
-        return Some("review_pack_only");
+    if run.state == "review_ready" {
+        return Some("attention_missing");
     }
     if run.checkpoint.is_some() || run.mission_linkage.is_some() || run.publish_handoff.is_some() {
+        if json_bool_field(&run.checkpoint, "recovered")
+            || run.state == "paused"
+            || run.state == "needs_input"
+        {
+            return Some("blocked_missing");
+        }
         return Some("attention");
     }
     None
@@ -170,9 +211,19 @@ fn count_continuity_signals(runs: &[MissionRunProjection]) -> ContinuitySignalCo
             Some("ready_resume") => counts.ready_resume_count += 1,
             Some("ready_handoff") => counts.ready_handoff_count += 1,
             Some("ready_review") => counts.ready_review_count += 1,
+            Some("blocked_missing") => {
+                counts.blocked_count += 1;
+                counts.missing_path_count += 1;
+            }
+            Some("attention_missing") => {
+                counts.attention_count += 1;
+                counts.missing_path_count += 1;
+            }
             Some("attention") => counts.attention_count += 1,
-            Some("blocked") => counts.blocked_count += 1,
-            Some("review_pack_only") => counts.review_pack_only_count += 1,
+            Some("blocked") => {
+                counts.blocked_count += 1;
+                counts.review_blocked_count += 1;
+            }
             _ => {}
         }
     }
@@ -281,11 +332,11 @@ fn build_launch_readiness(
     }
 }
 
-fn build_continuity_readiness(
+pub(super) fn build_continuity_readiness(
     has_active_workspace: bool,
     active_workspace_connected: bool,
     runs: &[MissionRunProjection],
-    review_packs: &[MissionReviewPackProjection],
+    _review_packs: &[MissionReviewPackProjection],
 ) -> MissionControlReadinessSummaryProjection {
     if !has_active_workspace {
         return empty_continuity_readiness();
@@ -301,103 +352,69 @@ fn build_continuity_readiness(
     }
 
     let counts = count_continuity_signals(runs);
-    let ready_count =
-        counts.ready_resume_count + counts.ready_handoff_count + counts.ready_review_count;
+    let has_continuity_truth = counts.ready_resume_count
+        + counts.ready_handoff_count
+        + counts.ready_review_count
+        + counts.review_blocked_count
+        + counts.missing_path_count
+        + counts.attention_count
+        > 0;
+    let tone = if counts.blocked_count > 0 {
+        "blocked"
+    } else if !has_continuity_truth || counts.attention_count > 0 || counts.missing_path_count > 0 {
+        "attention"
+    } else {
+        "ready"
+    };
+    let mut detail_parts = Vec::new();
+    if counts.ready_resume_count > 0 {
+        detail_parts.push(format!(
+            "{} can safely continue",
+            pluralize(counts.ready_resume_count, "run", None)
+        ));
+    }
+    if counts.ready_handoff_count > 0 {
+        detail_parts.push(format!(
+            "{} ready",
+            pluralize(counts.ready_handoff_count, "handoff path", None)
+        ));
+    }
+    if counts.ready_review_count > 0 {
+        detail_parts.push(format!(
+            "{} actionable",
+            pluralize(counts.ready_review_count, "review follow-up", None)
+        ));
+    }
+    if counts.review_blocked_count > 0 {
+        detail_parts.push(format!(
+            "{} blocked",
+            pluralize(counts.review_blocked_count, "review follow-up", None)
+        ));
+    }
+    if counts.missing_path_count > 0 {
+        detail_parts.push(quantify_continuity_statement(
+            counts.missing_path_count,
+            "run",
+            "runs",
+            "is missing a canonical continue path",
+            "are missing a canonical continue path",
+        ));
+    }
+    if counts.attention_count > 0 && counts.review_blocked_count == 0 && counts.missing_path_count == 0 {
+        detail_parts.push(quantify_continuity_statement(
+            counts.attention_count,
+            "run",
+            "runs",
+            "needs continuity attention",
+            "need continuity attention",
+        ));
+    }
 
-    if ready_count > 0 {
-        let mut detail_parts = Vec::new();
-        if counts.ready_resume_count > 0 {
-            detail_parts.push(format!(
-                "{} ready",
-                pluralize(counts.ready_resume_count, "resume path", None)
-            ));
-        }
-        if counts.ready_handoff_count > 0 {
-            detail_parts.push(format!(
-                "{} ready",
-                pluralize(counts.ready_handoff_count, "handoff path", None)
-            ));
-        }
-        if counts.ready_review_count > 0 {
-            detail_parts.push(format!(
-                "{} ready",
-                pluralize(counts.ready_review_count, "review path", None)
-            ));
-        }
-        if counts.attention_count > 0 {
-            detail_parts.push(format!(
-                "{} still need continuity attention",
-                pluralize(counts.attention_count, "run", None)
-            ));
-        }
-        if counts.blocked_count > 0 {
-            detail_parts.push(format!(
-                "{} remain blocked",
-                pluralize(counts.blocked_count, "run", None)
-            ));
-        }
-        if !review_packs.is_empty() {
-            detail_parts.push(format!(
-                "{} published",
-                pluralize(review_packs.len(), "review pack", None)
-            ));
-        }
-
+    if !detail_parts.is_empty() {
         return MissionControlReadinessSummaryProjection {
-            tone: if counts.blocked_count > 0 || counts.attention_count > 0 {
-                "attention".to_string()
-            } else {
-                "ready".to_string()
-            },
+            tone: tone.to_string(),
             label: "Continuity readiness".to_string(),
             detail: detail_parts.join("; "),
-        };
-    }
-
-    if counts.blocked_count > 0 {
-        return MissionControlReadinessSummaryProjection {
-            tone: "blocked".to_string(),
-            label: "Continuity readiness".to_string(),
-            detail: format!(
-                "{} are blocked and do not have a recoverable runtime-published continuation path yet.",
-                pluralize(counts.blocked_count, "run", None)
-            ),
-        };
-    }
-
-    if counts.attention_count > 0
-        || counts.review_pack_only_count > 0
-        || !review_packs.is_empty()
-    {
-        let mut detail_parts = Vec::new();
-        if counts.attention_count > 0 {
-            detail_parts.push(format!(
-                "{} published partial continuity signals",
-                pluralize(counts.attention_count, "run", None)
-            ));
-        }
-        if counts.review_pack_only_count > 0 {
-            detail_parts.push(format!(
-                "{} only expose review-pack references",
-                pluralize(counts.review_pack_only_count, "run", None)
-            ));
-        }
-        if !review_packs.is_empty() {
-            detail_parts.push(format!(
-                "{} available",
-                pluralize(review_packs.len(), "review pack", None)
-            ));
-        }
-
-        return MissionControlReadinessSummaryProjection {
-            tone: "attention".to_string(),
-            label: "Continuity readiness".to_string(),
-            detail: if detail_parts.is_empty() {
-                "Runtime continuity metadata exists, but no canonical resume or handoff path is ready yet."
-                    .to_string()
-            } else {
-                detail_parts.join("; ")
-            },
         };
     }
 
@@ -405,7 +422,7 @@ fn build_continuity_readiness(
         tone: "attention".to_string(),
         label: "Continuity readiness".to_string(),
         detail:
-            "No checkpoint, takeover bundle, handoff, or review actionability signals have been published yet."
+            "No runtime-published checkpoint, handoff, or review follow-up truth is available yet."
                 .to_string(),
     }
 }

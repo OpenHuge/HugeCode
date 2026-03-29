@@ -13,6 +13,8 @@ function buildReviewAgentInstruction(input: {
   run: Pick<
     HugeCodeRunSummary,
     | "id"
+    | "state"
+    | "checkpoint"
     | "reviewPackId"
     | "title"
     | "summary"
@@ -30,6 +32,7 @@ function buildReviewAgentInstruction(input: {
   reviewPack?: Pick<
     HugeCodeReviewPackSummary,
     | "id"
+    | "checkpoint"
     | "summary"
     | "warningCount"
     | "warnings"
@@ -44,6 +47,8 @@ function buildReviewAgentInstruction(input: {
   > | null;
 }): string {
   const continuation = summarizeReviewContinuationActionability({
+    runState: input.run.state,
+    checkpoint: input.reviewPack?.checkpoint ?? input.run.checkpoint ?? null,
     takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run.takeoverBundle ?? null,
     actionability: input.reviewPack?.actionability ?? input.run.actionability ?? null,
     missionLinkage: input.reviewPack?.missionLinkage ?? input.run.missionLinkage ?? null,

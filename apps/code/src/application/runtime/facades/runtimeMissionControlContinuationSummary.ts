@@ -15,6 +15,8 @@ export function resolveCanonicalMissionReviewContinuation(input: {
   run: MissionControlProjection["runs"][number] | null;
 }): MissionReviewContinuation {
   const continuation = summarizeReviewContinuationActionability({
+    runState: input.run?.state ?? null,
+    checkpoint: input.reviewPack?.checkpoint ?? input.run?.checkpoint ?? null,
     takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run?.takeoverBundle ?? null,
     actionability: input.reviewPack?.actionability ?? input.run?.actionability ?? null,
     missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,
@@ -30,6 +32,8 @@ export function resolveMissionReviewContinuationData(input: {
   run: MissionControlProjection["runs"][number] | null;
 }) {
   const continuation = summarizeReviewContinuationActionability({
+    runState: input.run?.state ?? null,
+    checkpoint: input.reviewPack?.checkpoint ?? input.run?.checkpoint ?? null,
     takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run?.takeoverBundle ?? null,
     actionability: input.reviewPack?.actionability ?? input.run?.actionability ?? null,
     missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,

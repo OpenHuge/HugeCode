@@ -267,6 +267,18 @@ describe("runtimeReviewContinuationFacade", () => {
 
   it("summarizes blocked continuation actionability with the canonical continue path", () => {
     const summary = summarizeReviewContinuationActionability({
+      runState: "review_ready",
+      checkpoint: {
+        state: "interrupted",
+        lifecycleState: "interrupted",
+        checkpointId: "checkpoint-42",
+        traceId: "trace-42",
+        recovered: true,
+        updatedAt: 42,
+        resumeReady: false,
+        recoveredAt: 42,
+        summary: "Checkpoint cannot safely resume without repaired evidence.",
+      },
       actionability: {
         state: "blocked",
         summary: "Runtime blocked follow-up until validation evidence is repaired.",
@@ -307,7 +319,15 @@ describe("runtimeReviewContinuationFacade", () => {
         "Open the mission thread and resolve the runtime-blocked follow-up before continuing.",
       truthSource: "review_actionability",
       truthSourceLabel: "Runtime review actionability",
+      canSafelyContinue: false,
+      hasHandoffPath: true,
+      reviewFollowUpActionable: false,
+      checkpointDurabilityState: "blocked",
     });
+    expect(summary.continuityOverview).toContain("Continuity readiness blocked.");
+    expect(summary.continuityOverview).toContain("Handoff path available.");
+    expect(summary.continuityOverview).toContain("Review follow-up blocked.");
+    expect(summary.continuityOverview).toContain("Checkpoint durability blocked.");
     expect(summary.details).toContain("Canonical continue path: Mission thread.");
     expect(summary.details).toContain("Follow-up source: Runtime review actionability.");
     expect(summary.details).toContain("Publish handoff is ready.");
@@ -414,6 +434,63 @@ describe("runtimeReviewContinuationFacade", () => {
       recommendedAction: "Continue from Review Pack using takeover guidance.",
       truthSource: "takeover_bundle",
       truthSourceLabel: "Runtime takeover bundle",
+      canSafelyContinue: true,
+      hasHandoffPath: true,
+      reviewFollowUpActionable: true,
+      checkpointDurabilityState: "unknown",
     });
+  });
+
+  it("surfaces degraded review actionability as continuity attention with a shared overview", () => {
+    const summary = summarizeReviewContinuationActionability({
+      runState: "review_ready",
+      checkpoint: {
+        state: "paused",
+        lifecycleState: "paused",
+        checkpointId: "checkpoint-7",
+        traceId: "trace-7",
+        recovered: true,
+        updatedAt: 7,
+        resumeReady: false,
+        recoveredAt: 7,
+        summary: "Checkpoint exists but direct resume is not ready.",
+      },
+      actionability: {
+        state: "degraded",
+        summary: "Review can continue, but runtime follow-up guidance needs attention.",
+        degradedReasons: ["validation_pending"],
+        actions: [],
+      },
+      missionLinkage: {
+        workspaceId: "workspace-1",
+        taskId: "runtime-task:7",
+        runId: "run-7",
+        reviewPackId: "review-pack:run-7",
+        missionTaskId: "runtime-task:7",
+        taskEntityKind: "run",
+        recoveryPath: "run",
+        navigationTarget: {
+          kind: "run",
+          workspaceId: "workspace-1",
+          taskId: "runtime-task:7",
+          runId: "run-7",
+          reviewPackId: "review-pack:run-7",
+        },
+        summary: "Resume from mission detail on this device.",
+      },
+      reviewPackId: "review-pack:run-7",
+    });
+
+    expect(summary).toMatchObject({
+      state: "attention",
+      continuePathLabel: "Review Pack",
+      canSafelyContinue: false,
+      hasHandoffPath: true,
+      reviewFollowUpActionable: false,
+      checkpointDurabilityState: "attention",
+    });
+    expect(summary.continuityOverview).toBe(
+      "Continuity readiness attention. Safe continue path unavailable. Handoff path available. Review follow-up needs attention. Checkpoint durability warning."
+    );
   });
 });

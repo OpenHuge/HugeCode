@@ -5,22 +5,17 @@ import type {
   HugeCodeMissionControlSummary as SharedMissionControlSummary,
   HugeCodeReviewQueueItem as SharedReviewQueueItem,
 } from "@ku0/code-runtime-host-contract";
-import { buildRuntimeContinuationAggregate } from "@ku0/code-runtime-host-contract";
+import {
+  buildRuntimeContinuationDescriptor,
+  buildRuntimeContinuationReadinessSummary,
+  formatRuntimeContinuationStateLabel,
+} from "@ku0/code-runtime-host-contract";
 
 export type {
   SharedMissionActivityItem,
   SharedMissionControlReadinessSummary,
   SharedMissionControlSummary,
   SharedReviewQueueItem,
-};
-
-type ContinuitySignalCounts = {
-  readyResumeCount: number;
-  readyHandoffCount: number;
-  readyReviewCount: number;
-  attentionCount: number;
-  blockedCount: number;
-  reviewPackOnlyCount: number;
 };
 
 export const EMPTY_SHARED_MISSION_CONTROL_SUMMARY: SharedMissionControlSummary = {
@@ -55,49 +50,6 @@ function pushUnique(values: string[], next: string | null | undefined) {
   if (!values.includes(next)) {
     values.push(next);
   }
-}
-
-function countContinuitySignals(
-  runs: HugeCodeMissionControlSnapshot["runs"]
-): ContinuitySignalCounts {
-  const aggregate = buildRuntimeContinuationAggregate({
-    candidates: runs.map((run) => ({
-      runId: run.id,
-      taskId: run.taskId,
-      runState: run.state,
-      checkpoint: run.checkpoint ?? null,
-      missionLinkage: run.missionLinkage ?? null,
-      actionability: run.actionability ?? null,
-      publishHandoff: run.publishHandoff ?? null,
-      takeoverBundle: run.takeoverBundle ?? null,
-      nextAction: run.nextAction ?? null,
-      reviewPackId: run.reviewPackId ?? null,
-    })),
-  });
-  const reviewPackOnlyRunIds = new Set(
-    runs
-      .filter(
-        (run) =>
-          Boolean(run.reviewPackId) &&
-          !run.takeoverBundle &&
-          !run.actionability &&
-          !run.checkpoint &&
-          !run.missionLinkage &&
-          !run.publishHandoff
-      )
-      .map((run) => run.id)
-  );
-
-  return {
-    readyResumeCount: aggregate.recoverableRunCount,
-    readyHandoffCount: aggregate.handoffReadyCount,
-    readyReviewCount: aggregate.reviewReadyCount,
-    attentionCount: aggregate.items.filter(
-      (item) => item.state === "attention" && !reviewPackOnlyRunIds.has(item.runId)
-    ).length,
-    blockedCount: aggregate.blockedCount,
-    reviewPackOnlyCount: reviewPackOnlyRunIds.size,
-  };
 }
 
 function buildLaunchReadiness(
@@ -183,7 +135,7 @@ function buildContinuityReadiness(
   hasActiveWorkspace: boolean,
   activeWorkspaceConnected: boolean,
   runs: HugeCodeMissionControlSnapshot["runs"],
-  reviewPacks: HugeCodeMissionControlSnapshot["reviewPacks"]
+  _reviewPacks: HugeCodeMissionControlSnapshot["reviewPacks"]
 ): SharedMissionControlReadinessSummary {
   if (!hasActiveWorkspace) {
     return EMPTY_SHARED_MISSION_CONTROL_SUMMARY.continuityReadiness;
@@ -196,67 +148,25 @@ function buildContinuityReadiness(
         "The selected workspace must connect before checkpoint or review continuity can recover.",
     };
   }
-
-  const counts = countContinuitySignals(runs);
-  const readyCount = counts.readyResumeCount + counts.readyHandoffCount + counts.readyReviewCount;
-  if (readyCount > 0) {
-    const detailParts = [
-      counts.readyResumeCount > 0
-        ? `${pluralize(counts.readyResumeCount, "resume path")} ready`
-        : null,
-      counts.readyHandoffCount > 0
-        ? `${pluralize(counts.readyHandoffCount, "handoff path")} ready`
-        : null,
-      counts.readyReviewCount > 0
-        ? `${pluralize(counts.readyReviewCount, "review path")} ready`
-        : null,
-      counts.attentionCount > 0
-        ? `${pluralize(counts.attentionCount, "run")} still need continuity attention`
-        : null,
-      counts.blockedCount > 0 ? `${pluralize(counts.blockedCount, "run")} remain blocked` : null,
-      reviewPacks.length > 0 ? `${pluralize(reviewPacks.length, "review pack")} published` : null,
-    ].filter((part): part is string => part !== null);
-
-    return {
-      tone: counts.blockedCount > 0 || counts.attentionCount > 0 ? "attention" : "ready",
-      label: "Continuity readiness",
-      detail: detailParts.join("; "),
-    };
-  }
-
-  if (counts.blockedCount > 0) {
-    return {
-      tone: "blocked",
-      label: "Continuity readiness",
-      detail: `${pluralize(counts.blockedCount, "run")} are blocked and do not have a recoverable runtime-published continuation path yet.`,
-    };
-  }
-
-  if (counts.attentionCount > 0 || counts.reviewPackOnlyCount > 0 || reviewPacks.length > 0) {
-    const detailParts = [
-      counts.attentionCount > 0
-        ? `${pluralize(counts.attentionCount, "run")} published partial continuity signals`
-        : null,
-      counts.reviewPackOnlyCount > 0
-        ? `${pluralize(counts.reviewPackOnlyCount, "run")} only expose review-pack references`
-        : null,
-      reviewPacks.length > 0 ? `${pluralize(reviewPacks.length, "review pack")} available` : null,
-    ].filter((part): part is string => part !== null);
-
-    return {
-      tone: "attention",
-      label: "Continuity readiness",
-      detail:
-        detailParts.join("; ") ||
-        "Runtime continuity metadata exists, but no canonical resume or handoff path is ready yet.",
-    };
-  }
-
+  const readiness = buildRuntimeContinuationReadinessSummary({
+    candidates: runs.map((run) => ({
+      runId: run.id,
+      taskId: run.taskId,
+      runState: run.state,
+      checkpoint: run.checkpoint ?? null,
+      continuation: run.continuation ?? null,
+      missionLinkage: run.missionLinkage ?? null,
+      actionability: run.actionability ?? null,
+      publishHandoff: run.publishHandoff ?? null,
+      takeoverBundle: run.takeoverBundle ?? null,
+      nextAction: run.nextAction ?? null,
+      reviewPackId: run.reviewPackId ?? null,
+    })),
+  });
   return {
-    tone: "attention",
+    tone: readiness.state,
     label: "Continuity readiness",
-    detail:
-      "No checkpoint, takeover bundle, handoff, or review actionability signals have been published yet.",
+    detail: readiness.detail,
   };
 }
 
@@ -406,6 +316,23 @@ function getHighestReviewSeverity(
   return reviewPack.reviewGate?.highestSeverity ?? reviewPack.reviewFindings?.[0]?.severity ?? null;
 }
 
+type ReviewPackContinuityState = "blocked" | "attention" | null;
+type ReviewPackContinuityDescriptor = ReturnType<typeof buildRuntimeContinuationDescriptor>;
+
+function resolveReviewPackContinuityDescriptor(
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+) {
+  return buildRuntimeContinuationDescriptor({
+    checkpoint: reviewPack.checkpoint ?? null,
+    continuation: reviewPack.continuation ?? null,
+    missionLinkage: reviewPack.missionLinkage ?? null,
+    actionability: reviewPack.actionability ?? null,
+    publishHandoff: reviewPack.publishHandoff ?? null,
+    takeoverBundle: reviewPack.takeoverBundle ?? null,
+    reviewPackId: reviewPack.id,
+  });
+}
+
 function hasCriticalReviewSignal(
   reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
 ) {
@@ -419,21 +346,14 @@ function hasCriticalReviewSignal(
   );
 }
 
-function getBlockedFollowUpState(
-  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
-): "blocked" | "degraded" | null {
-  if (
-    reviewPack.takeoverBundle?.state === "blocked" ||
-    reviewPack.actionability?.state === "blocked" ||
-    reviewPack.continuation?.state === "blocked"
-  ) {
+function getReviewPackContinuityState(
+  descriptor: ReviewPackContinuityDescriptor
+): ReviewPackContinuityState {
+  if (descriptor?.state === "blocked") {
     return "blocked";
   }
-  if (
-    reviewPack.actionability?.state === "degraded" ||
-    reviewPack.continuation?.state === "attention"
-  ) {
-    return "degraded";
+  if (descriptor?.state === "attention") {
+    return "attention";
   }
   return null;
 }
@@ -454,12 +374,13 @@ function hasNeedsAttentionSignal(
 }
 
 function resolveReviewQueuePriorityBand(
-  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number],
+  continuityState: ReviewPackContinuityState
 ) {
   if (hasCriticalReviewSignal(reviewPack)) {
     return 4;
   }
-  if (getBlockedFollowUpState(reviewPack)) {
+  if (continuityState) {
     return 3;
   }
   if (hasAutofixReadySignal(reviewPack)) {
@@ -471,19 +392,21 @@ function resolveReviewQueuePriorityBand(
   return 0;
 }
 
-function getReviewStatusLabel(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
-  const blockedFollowUpState = getBlockedFollowUpState(reviewPack);
+function getReviewStatusLabel(
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number],
+  continuityState: ReviewPackContinuityState
+) {
   if (reviewPack.validationOutcome === "failed") {
     return "Validation failed";
   }
   if (hasCriticalReviewSignal(reviewPack)) {
     return "Critical review";
   }
-  if (blockedFollowUpState === "blocked") {
-    return "Blocked follow-up";
+  if (continuityState === "blocked") {
+    return formatRuntimeContinuationStateLabel("blocked");
   }
-  if (blockedFollowUpState === "degraded") {
-    return "Follow-up degraded";
+  if (continuityState === "attention") {
+    return formatRuntimeContinuationStateLabel("attention");
   }
   if (hasAutofixReadySignal(reviewPack)) {
     return "Autofix ready";
@@ -508,21 +431,21 @@ function formatValidationLabel(validationOutcome: string) {
 }
 
 function getReviewItemTone(
-  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number],
+  continuityState: ReviewPackContinuityState
 ): SharedReviewQueueItem["tone"] {
-  const blockedFollowUpState = getBlockedFollowUpState(reviewPack);
   if (
     reviewPack.validationOutcome === "failed" ||
     reviewPack.reviewGate?.state === "fail" ||
     reviewPack.reviewGate?.state === "blocked" ||
     reviewPack.reviewDecision?.status === "rejected" ||
-    blockedFollowUpState === "blocked"
+    continuityState === "blocked"
   ) {
     return "blocked";
   }
   if (
     hasCriticalReviewSignal(reviewPack) ||
-    blockedFollowUpState === "degraded" ||
+    continuityState === "attention" ||
     hasAutofixReadySignal(reviewPack) ||
     hasNeedsAttentionSignal(reviewPack)
   ) {
@@ -535,7 +458,8 @@ function getReviewItemTone(
 }
 
 function resolveReviewQueueSummary(
-  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number],
+  continuityDescriptor: ReviewPackContinuityDescriptor
 ) {
   if (reviewPack.validationOutcome === "failed") {
     return (
@@ -557,14 +481,18 @@ function resolveReviewQueueSummary(
       "Critical review findings need operator action."
     );
   }
-  if (getBlockedFollowUpState(reviewPack)) {
+  if (
+    continuityDescriptor &&
+    (continuityDescriptor.state === "blocked" || continuityDescriptor.state === "attention")
+  ) {
     return (
-      reviewPack.takeoverBundle?.blockingReason ??
-      reviewPack.actionability?.summary ??
-      reviewPack.continuation?.detail ??
+      continuityDescriptor.canonicalNextAction.detail ??
+      continuityDescriptor.blockingReason ??
+      continuityDescriptor.recommendedAction ??
+      continuityDescriptor.summary ??
       reviewPack.recommendedNextAction ??
       reviewPack.summary ??
-      "Follow-up is constrained and needs operator attention."
+      "Runtime continuity needs operator attention."
     );
   }
   if (hasAutofixReadySignal(reviewPack)) {
@@ -576,38 +504,74 @@ function resolveReviewQueueSummary(
     );
   }
   return (
-    reviewPack.takeoverBundle?.recommendedAction ??
-    reviewPack.actionability?.summary ??
-    reviewPack.missionLinkage?.summary ??
-    reviewPack.publishHandoff?.summary ??
+    continuityDescriptor?.canonicalNextAction.detail ??
+    continuityDescriptor?.recommendedAction ??
+    continuityDescriptor?.summary ??
     reviewPack.recommendedNextAction ??
     reviewPack.summary ??
     "Review-ready evidence is available."
   );
 }
 
-function getReviewQueuePriority(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
-  const priorityBand = resolveReviewQueuePriorityBand(reviewPack);
+function computeReviewQueuePriority(input: {
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number];
+  continuityDescriptor: ReviewPackContinuityDescriptor;
+  continuityState: ReviewPackContinuityState;
+}) {
+  const priorityBand = resolveReviewQueuePriorityBand(input.reviewPack, input.continuityState);
   if (priorityBand > 0) {
     return (
       priorityBand * 200 +
-      Math.min(reviewPack.warningCount, 9) * 5 +
-      Math.min(reviewPack.reviewGate?.findingCount ?? reviewPack.reviewFindings?.length ?? 0, 9)
+      Math.min(input.reviewPack.warningCount, 9) * 5 +
+      Math.min(
+        input.reviewPack.reviewGate?.findingCount ?? input.reviewPack.reviewFindings?.length ?? 0,
+        9
+      )
     );
   }
-  if (reviewPack.reviewStatus === "ready" || reviewPack.takeoverBundle?.state === "ready") {
+  if (
+    input.reviewPack.reviewStatus === "ready" ||
+    input.reviewPack.takeoverBundle?.state === "ready" ||
+    input.continuityDescriptor?.state === "ready"
+  ) {
     return 320;
   }
   if (
-    reviewPack.takeoverBundle ||
-    reviewPack.actionability ||
-    reviewPack.missionLinkage ||
-    reviewPack.publishHandoff ||
-    reviewPack.recommendedNextAction
+    input.reviewPack.takeoverBundle ||
+    input.reviewPack.actionability ||
+    input.reviewPack.missionLinkage ||
+    input.reviewPack.publishHandoff ||
+    input.reviewPack.recommendedNextAction
   ) {
     return 240;
   }
   return 120;
+}
+
+function projectReviewQueueItem(
+  workspaces: HugeCodeMissionControlSnapshot["workspaces"],
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+) {
+  const continuityDescriptor = resolveReviewPackContinuityDescriptor(reviewPack);
+  const continuityState = getReviewPackContinuityState(continuityDescriptor);
+  return {
+    reviewPack,
+    priority: computeReviewQueuePriority({
+      reviewPack,
+      continuityDescriptor,
+      continuityState,
+    }),
+    item: {
+      id: reviewPack.id,
+      title: reviewPack.summary,
+      workspaceName: getWorkspaceName(workspaces, reviewPack.workspaceId),
+      summary: resolveReviewQueueSummary(reviewPack, continuityDescriptor),
+      reviewStatusLabel: getReviewStatusLabel(reviewPack, continuityState),
+      validationLabel: formatValidationLabel(reviewPack.validationOutcome),
+      tone: getReviewItemTone(reviewPack, continuityState),
+      warningCount: reviewPack.warningCount,
+    },
+  };
 }
 
 function buildReviewQueueItems(
@@ -615,22 +579,13 @@ function buildReviewQueueItems(
   reviewPacks: HugeCodeMissionControlSnapshot["reviewPacks"]
 ): SharedReviewQueueItem[] {
   return [...reviewPacks]
+    .map((reviewPack) => projectReviewQueueItem(workspaces, reviewPack))
     .sort(
       (left, right) =>
-        getReviewQueuePriority(right) - getReviewQueuePriority(left) ||
-        right.createdAt - left.createdAt
+        right.priority - left.priority || right.reviewPack.createdAt - left.reviewPack.createdAt
     )
     .slice(0, 6)
-    .map((reviewPack) => ({
-      id: reviewPack.id,
-      title: reviewPack.summary,
-      workspaceName: getWorkspaceName(workspaces, reviewPack.workspaceId),
-      summary: resolveReviewQueueSummary(reviewPack),
-      reviewStatusLabel: getReviewStatusLabel(reviewPack),
-      validationLabel: formatValidationLabel(reviewPack.validationOutcome),
-      tone: getReviewItemTone(reviewPack),
-      warningCount: reviewPack.warningCount,
-    }));
+    .map((entry) => entry.item);
 }
 
 export function buildSharedMissionControlSummary(

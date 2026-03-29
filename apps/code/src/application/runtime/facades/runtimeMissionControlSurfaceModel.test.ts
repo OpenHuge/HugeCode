@@ -185,6 +185,7 @@ describe("runtimeMissionControlSurfaceModel", () => {
       throw new Error("Expected seeded run and review pack");
     }
 
+    run.takeoverBundle = undefined;
     run.continuation = {
       state: "blocked",
       pathKind: "review",
@@ -207,6 +208,27 @@ describe("runtimeMissionControlSurfaceModel", () => {
         summary: "Operator approval is required.",
         degradedReasons: [],
         actions: [],
+      },
+      sessionBoundary: {
+        workspaceId: "ws-1",
+        taskId: "task-1",
+        runId: "run-1",
+        missionTaskId: "task-1",
+        sessionKind: "run",
+        threadId: null,
+        requestId: null,
+        reviewPackId: "review-pack:run-1",
+        checkpointId: null,
+        traceId: null,
+        navigationTarget: {
+          kind: "run",
+          workspaceId: "ws-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:run-1",
+          checkpointId: null,
+          traceId: null,
+        },
       },
     };
     reviewPack.reviewStatus = "action_required";
