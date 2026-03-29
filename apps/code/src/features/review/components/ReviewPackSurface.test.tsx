@@ -320,6 +320,62 @@ describe("ReviewPackSurface", () => {
               "Resume is ready from another control device.",
             ],
           },
+          compactEvidenceInput: {
+            source: {
+              kind: "github_issue",
+              label: "GitHub issue",
+              title: "Prepare release notes",
+              reference: "#42",
+              repo: {
+                owner: "ku0",
+                name: "hugecode",
+                fullName: "ku0/hugecode",
+              },
+            },
+            sourceCitations: [
+              {
+                id: "citation-1",
+                label: "AGENTS.md",
+                sourceKind: "repo_doc",
+                trustLevel: "primary",
+                claimSummary: "Repo instructions stay authoritative for execution.",
+              },
+              {
+                id: "citation-2",
+                label: ".github/copilot-instructions.md",
+                sourceKind: "repo_doc",
+                trustLevel: "primary",
+                claimSummary: "Copilot instructions refine repository guidance.",
+              },
+              {
+                id: "citation-3",
+                label: "GitHub issue #42",
+                sourceKind: "task_source",
+                trustLevel: "derived",
+                claimSummary: "Issue context scoped the requested change.",
+              },
+            ],
+            placement: {
+              summary: "Runtime confirmed workspace-default placement on backend-review-a.",
+              lifecycleState: "confirmed",
+              resolutionSource: "workspace_default",
+              requestedBackendIds: ["backend-review-a"],
+              resolvedBackendId: "backend-review-a",
+              readiness: "ready",
+              healthSummary: "placement_ready",
+              rationale: "Runtime used the default review backend for this workspace.",
+            },
+            missionBrief: {
+              objective: "Prepare release notes",
+              planVersion: "plan-v3",
+              planSummary: "Tighten review evidence.",
+            },
+            validationOutcome: "unknown",
+            evidenceLabel: "Evidence incomplete",
+            recommendedNextAction: "Inspect the warnings before accepting the result.",
+            nextActionLabel: "Inspect the warnings before accepting the result.",
+            nextActionDetail: "Open Review Pack",
+          },
           decisionActions: [
             {
               id: "accept",
@@ -430,6 +486,15 @@ describe("ReviewPackSurface", () => {
     expect(screen.getByTestId("review-pack-surface")).toBeTruthy();
     expect(screen.getByText("Review Pack")).toBeTruthy();
     expect(screen.getByText("Review evidence snapshot")).toBeTruthy();
+    const compactEvidence = screen.getByTestId("review-pack-compact-evidence");
+    expect(within(compactEvidence).getByText("Quick decision evidence")).toBeTruthy();
+    expect(within(compactEvidence).getByText("Projected fallback")).toBeTruthy();
+    expect(within(compactEvidence).getByText("Plan plan-v3")).toBeTruthy();
+    expect(
+      compactEvidence.compareDocumentPosition(
+        screen.getByText("Assumptions and inferred context")
+      ) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(screen.getAllByText("Operator cockpit").length).toBeGreaterThan(0);
     expect(screen.getByText("Control-device handoff")).toBeTruthy();
     expect(screen.getAllByText("Execution trajectory").length).toBeGreaterThan(0);
