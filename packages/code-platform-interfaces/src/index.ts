@@ -238,9 +238,60 @@ export type DesktopBrowserDebugCapability = {
     | undefined;
 };
 
+export type DesktopBrowserExtractionStatus = "succeeded" | "partial" | "empty" | "failed";
+
+export type DesktopBrowserExtractionTraceStage =
+  | "availability"
+  | "capture"
+  | "extract"
+  | "normalize"
+  | "transport";
+
+export type DesktopBrowserExtractionTraceEntry = {
+  stage: DesktopBrowserExtractionTraceStage;
+  message: string;
+  at: string;
+  code?: string | null;
+  detail?: string | null;
+};
+
+export type DesktopBrowserExtractionRequest = {
+  maxCharacters?: number;
+  selector?: string | null;
+  sourceUrl?: string | null;
+};
+
+export type DesktopBrowserExtractionResult = {
+  status: DesktopBrowserExtractionStatus;
+  normalizedText: string | null;
+  snippet: string | null;
+  sourceUrl?: string | null;
+  title?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  traceId?: string | null;
+  trace: DesktopBrowserExtractionTraceEntry[];
+};
+
+export type DesktopBrowserExtractionCapability = {
+  extract?: (
+    input?: DesktopBrowserExtractionRequest
+  ) =>
+    | Promise<DesktopBrowserExtractionResult | null | undefined>
+    | DesktopBrowserExtractionResult
+    | null
+    | undefined;
+  getLastResult?: () =>
+    | Promise<DesktopBrowserExtractionResult | null | undefined>
+    | DesktopBrowserExtractionResult
+    | null
+    | undefined;
+};
+
 export type DesktopHostCapabilities = {
   app?: DesktopAppCapability;
   browserDebug?: DesktopBrowserDebugCapability;
+  browserExtraction?: DesktopBrowserExtractionCapability;
   launch?: DesktopLaunchCapability;
   updater?: DesktopUpdaterCapability;
   session?: DesktopSessionCapability;
@@ -265,6 +316,12 @@ export type DesktopHostBridgeApi = {
   };
   browserDebug: {
     listLocalChromeDebuggerEndpoints(): Promise<LocalChromeDebuggerEndpointDescriptor[]>;
+  };
+  browserExtraction?: {
+    extract(
+      input?: DesktopBrowserExtractionRequest
+    ): Promise<DesktopBrowserExtractionResult | null>;
+    getLastResult(): Promise<DesktopBrowserExtractionResult | null>;
   };
   launch: {
     consumePendingIntent(): Promise<DesktopLaunchIntent | null>;

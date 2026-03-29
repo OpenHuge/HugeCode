@@ -139,6 +139,23 @@ function buildRuntimeProjectionInput(
     },
     runtimePolicy,
     runtimePolicyError: null,
+    browserReadiness: {
+      state: "ready",
+      headline: "Browser readiness confirmed",
+      detail: "Desktop host bridge publishes browser extraction capability.",
+      recommendedAction: "Use the published browser capability contract.",
+      runtimeHost: "electron",
+      source: "desktop_host_bridge",
+      sourceLabel: "Desktop host bridge",
+      extractionAvailable: true,
+      localOnly: false,
+      lastResult: null,
+      capabilities: {
+        browserDebug: true,
+        browserExtraction: true,
+        webMcp: true,
+      },
+    },
     runtimePlugins,
     runtimePluginsError: null,
     runtimePluginsProjectionBacked: false,
@@ -242,6 +259,14 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.policy.error).toBe("Runtime policy RPC unavailable.");
     expect(projection.policy.capabilities).toEqual([]);
     expect(projection.policy.headline).toContain("waiting for runtime truth");
+  });
+
+  it("preserves browser readiness as a separate mission-control surface", () => {
+    const projection = buildWorkspaceRuntimeMissionControlProjection(buildRuntimeProjectionInput());
+
+    expect(projection.browserReadiness.state).toBe("ready");
+    expect(projection.browserReadiness.source).toBe("desktop_host_bridge");
+    expect(projection.browserReadiness.capabilities.browserExtraction).toBe(true);
   });
 
   it("summarizes control-plane profile, trust, and backend selection state", () => {

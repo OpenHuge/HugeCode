@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RuntimeAgentTaskInterventionInput } from "../types/webMcpBridge";
+import { readBrowserReadiness } from "../ports/browserCapability";
 import { useWorkspaceRuntimeAgentControl } from "../ports/runtimeAgentControl";
 import { readRuntimeErrorCode, readRuntimeErrorMessage } from "../ports/runtimeErrorClassifier";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
@@ -87,6 +88,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimeControl,
     pollSeconds,
   });
+  const browserReadiness = readBrowserReadiness();
 
   const missionControlProjection = useMemo(
     () =>
@@ -103,6 +105,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
         runtimeToolGuardrails: snapshot.runtimeToolGuardrails,
         runtimePolicy: snapshot.runtimePolicy,
         runtimePolicyError: snapshot.runtimePolicyError,
+        browserReadiness,
         runtimePlugins: snapshot.runtimePlugins,
         runtimePluginsError: snapshot.runtimePluginsError,
         runtimePluginsProjectionBacked: snapshot.runtimePluginsProjectionBacked,
@@ -118,6 +121,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
         runtimeDurabilityWarning: snapshot.runtimeDurabilityWarning,
       }),
     [
+      browserReadiness,
       draft.runtimeDraftProviderRoute,
       runtimeStatusFilter,
       snapshot.runtimeAccounts,

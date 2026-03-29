@@ -34,6 +34,7 @@ import {
   buildRuntimeMissionControlOrchestrationState,
   type RuntimeMissionControlOrchestrationState,
 } from "./runtimeMissionControlOrchestration";
+import type { RuntimeBrowserReadinessSummary } from "./runtimeBrowserReadiness";
 import { type RuntimeProviderRoutingHealth } from "./runtimeRoutingHealth";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 
@@ -116,6 +117,7 @@ export type WorkspaceRuntimeMissionControlProjection = {
     oldestPendingTask: RuntimeAgentTaskSummary | null;
   };
   policy: WorkspaceRuntimePolicyIndicator;
+  browserReadiness: RuntimeBrowserReadinessSummary;
   pluginCatalog: {
     plugins: RuntimeKernelPluginDescriptor[];
     readinessEntries: RuntimeKernelPluginReadinessEntry[];
@@ -184,6 +186,7 @@ type BuildWorkspaceRuntimeMissionControlProjectionInput = {
   runtimeToolGuardrails: unknown;
   runtimePolicy: RuntimePolicySnapshot | null;
   runtimePolicyError: string | null;
+  browserReadiness: RuntimeBrowserReadinessSummary;
   runtimePlugins: RuntimeKernelPluginDescriptor[];
   runtimePluginsError: string | null;
   runtimePluginsProjectionBacked: boolean;
@@ -660,6 +663,7 @@ export function buildWorkspaceRuntimeMissionControlProjection(
       oldestPendingTask: orchestration.oldestPendingApprovalTask,
     },
     policy,
+    browserReadiness: input.browserReadiness,
     pluginCatalog,
     composition,
     executionReliability: orchestration.executionReliability,
