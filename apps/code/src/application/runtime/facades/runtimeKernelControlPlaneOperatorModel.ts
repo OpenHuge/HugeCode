@@ -208,6 +208,16 @@ function buildPluginActions(input: {
   return actions;
 }
 
+function countsAsNeedsAction(item: RuntimeControlPlanePluginInventoryItem) {
+  if (item.blockedInActiveProfile || item.attentionReason !== null) {
+    return true;
+  }
+
+  return item.actions.some(
+    (action) => action.kind === "install" || action.kind === "install_with_dev_override"
+  );
+}
+
 function compareInventoryItems(
   left: RuntimeControlPlanePluginInventoryItem,
   right: RuntimeControlPlanePluginInventoryItem
@@ -327,15 +337,7 @@ export function buildRuntimeControlPlaneOperatorModel(input: {
     )
     .sort(compareInventoryItems);
 
-  const needsAction = inventory.filter((item) => {
-    const enabledActions = item.actions.filter((action) => action.disabledReason === null);
-    return (
-      item.blockedInActiveProfile ||
-      item.attentionReason !== null ||
-      item.actions.length > 0 ||
-      enabledActions.length > 0
-    );
-  });
+  const needsAction = inventory.filter((item) => countsAsNeedsAction(item));
   const selectedNow = inventory.filter((item) => item.selectedInActiveProfile);
   const profiles = input.profiles
     .map((profile) => {

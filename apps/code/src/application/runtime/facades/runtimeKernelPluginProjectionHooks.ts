@@ -117,6 +117,7 @@ export function useWorkspaceRuntimePluginProjection(input: {
 
     if (pluginsResult.status === "fulfilled") {
       setCapabilityPlugins(pluginsResult.value);
+      setError(null);
     } else {
       setCapabilityPlugins([]);
       setError(
@@ -126,6 +127,7 @@ export function useWorkspaceRuntimePluginProjection(input: {
 
     if (packagesResult.status === "fulfilled") {
       setRegistryPackages(packagesResult.value);
+      setRegistryError(null);
     } else {
       setRegistryPackages([]);
       setRegistryError(
@@ -138,6 +140,7 @@ export function useWorkspaceRuntimePluginProjection(input: {
 
     if (profilesResult.status === "fulfilled") {
       setCompositionProfiles(profilesResult.value);
+      setCompositionError(null);
     } else {
       setCompositionProfiles([]);
       setCompositionError(
@@ -150,6 +153,9 @@ export function useWorkspaceRuntimePluginProjection(input: {
 
     if (resolutionResult.status === "fulfilled") {
       setCompositionResolution(resolutionResult.value);
+      if (profilesResult.status !== "rejected") {
+        setCompositionError(null);
+      }
     } else {
       setCompositionResolution(null);
       setCompositionError(

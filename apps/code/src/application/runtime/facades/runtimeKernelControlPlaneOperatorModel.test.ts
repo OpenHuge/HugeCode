@@ -227,4 +227,72 @@ describe("runtimeKernelControlPlaneOperatorModel", () => {
       ])
     );
   });
+
+  it("keeps ordinary installed plugins out of the needs-action bucket", () => {
+    const activeProfile = buildProfile();
+    const model = buildRuntimeControlPlaneOperatorModel({
+      plugins: [
+        buildPlugin({
+          metadata: {
+            pluginRegistry: {
+              packageRef: "hugecode.mcp.search@1.0.0",
+              transport: "mcp_remote",
+              source: "installed",
+              installed: true,
+              installedPluginId: "pkg.search.remote",
+              publisher: "HugeCode Labs",
+              trust: {
+                status: "verified",
+                verificationStatus: "verified",
+                publisher: "HugeCode Labs",
+                attestationSource: "sigstore",
+                blockedReason: null,
+                packageRef: "hugecode.mcp.search@1.0.0",
+                pluginId: "pkg.search.remote",
+              },
+              compatibility: {
+                status: "compatible",
+                minimumHostContractVersion: "2026-03-25",
+                supportedRuntimeProtocolVersions: ["2026-03-25"],
+                supportedCapabilityKeys: ["plugins.catalog", "plugins.registry"],
+                optionalTransportFeatures: [],
+                blockers: [],
+              },
+            },
+            composition: {
+              activeProfileId: activeProfile.id,
+              activeProfileName: activeProfile.name,
+              selectedInActiveProfile: true,
+              blockedInActiveProfile: false,
+              blockedReason: null,
+              selectedRouteCandidate: false,
+              selectedBackendCandidateIds: [],
+              layerOrder: ["built_in", "user", "workspace", "launch_override"],
+            },
+          },
+        }),
+      ],
+      profiles: [activeProfile],
+      activeProfile,
+      activeProfileId: activeProfile.id,
+      resolution: buildResolution({
+        selectedPlugins: [
+          {
+            pluginId: "pkg.search.remote",
+            packageRef: "hugecode.mcp.search@1.0.0",
+            source: "catalog",
+            reason: null,
+          },
+        ],
+      }),
+    });
+
+    expect(model.counts.needsAction).toBe(0);
+    expect(model.needsAction).toEqual([]);
+    expect(model.counts.selectedNow).toBe(1);
+    expect(model.selectedNow[0]?.actions.map((action) => action.kind)).toEqual([
+      "update",
+      "uninstall",
+    ]);
+  });
 });
