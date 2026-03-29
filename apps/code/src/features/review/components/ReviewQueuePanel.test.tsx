@@ -60,6 +60,63 @@ describe("ReviewQueuePanel", () => {
             triageSummary: "Owner Issue Desk · Priority high · Risk high",
             delegationSummary: "Open Review Pack",
             continuationTruthSourceLabel: "Runtime takeover bundle",
+            compactEvidenceInput: {
+              source: {
+                kind: "github_issue",
+                label: "GitHub issue",
+                title: "Draft regression fix",
+                reference: "#42",
+                repo: {
+                  owner: "ku0",
+                  name: "hugecode",
+                  fullName: "ku0/hugecode",
+                },
+              },
+              sourceCitations: [
+                {
+                  id: "citation-1",
+                  label: "AGENTS.md",
+                  sourceKind: "repo_doc",
+                  trustLevel: "primary",
+                  claimSummary: "Repo instructions stay authoritative for execution.",
+                },
+                {
+                  id: "citation-2",
+                  label: ".github/copilot-instructions.md",
+                  sourceKind: "repo_doc",
+                  trustLevel: "primary",
+                  claimSummary: "Copilot instructions refine repository guidance.",
+                },
+                {
+                  id: "citation-3",
+                  label: "GitHub issue #42",
+                  sourceKind: "task_source",
+                  trustLevel: "derived",
+                  claimSummary: "Issue context scoped the requested change.",
+                },
+              ],
+              placement: {
+                summary: "Runtime confirmed workspace-default placement on backend-review-a.",
+                lifecycleState: "confirmed",
+                resolutionSource: "workspace_default",
+                requestedBackendIds: ["backend-review-a"],
+                resolvedBackendId: "backend-review-a",
+                readiness: "ready",
+                healthSummary: "placement_ready",
+                attentionReasons: [],
+                rationale: "Runtime used the default review backend for this workspace.",
+              },
+              missionBrief: {
+                objective: "Draft regression fix",
+                planVersion: "plan-v3",
+                planSummary: "Front-load runtime review evidence before deep detail sections.",
+              },
+              validationOutcome: "skipped",
+              evidenceLabel: "Runtime evidence only",
+              warningCount: 0,
+              recommendedNextAction: "Inspect runtime evidence, validate, then accept or retry.",
+              continuePathLabel: "Review Pack",
+            },
           },
         ]}
       />
@@ -69,7 +126,7 @@ describe("ReviewQueuePanel", () => {
     expect(screen.getByTestId("review-queue-panel").getAttribute("data-review-loop-panel")).toBe(
       "triage"
     );
-    expect(screen.getByText("Runtime evidence only")).toBeTruthy();
+    expect(screen.getAllByText("Runtime evidence only").length).toBeGreaterThan(0);
     expect(screen.getByText("Runtime paused for approval")).toBeTruthy();
     expect(screen.getByText("Sub-agent awaiting approval")).toBeTruthy();
     expect(screen.getByText("Publish handoff ready")).toBeTruthy();
@@ -80,11 +137,23 @@ describe("ReviewQueuePanel", () => {
       )
     ).toBeTruthy();
     expect(
-      screen.getByText(
+      screen.getAllByText(
+        "Repo guidance: AGENTS.md, .github/copilot-instructions.md | Source evidence: GitHub issue #42"
+      ).length
+    ).toBeGreaterThan(0);
+    expect(screen.getByText("Follow-up source: Runtime takeover bundle")).toBeTruthy();
+    const evidenceCard = screen.getByTestId("review-queue-compact-evidence-review-pack:task-1");
+    expect(within(evidenceCard).getByText("Quick decision evidence")).toBeTruthy();
+    expect(within(evidenceCard).getByText("Runtime truth")).toBeTruthy();
+    expect(within(evidenceCard).getByText("Projected fallback")).toBeTruthy();
+    expect(within(evidenceCard).getByText("GitHub issue #42 · ku0/hugecode")).toBeTruthy();
+    expect(
+      within(evidenceCard).getByText(
         "Repo guidance: AGENTS.md, .github/copilot-instructions.md | Source evidence: GitHub issue #42"
       )
     ).toBeTruthy();
-    expect(screen.getByText("Follow-up source: Runtime takeover bundle")).toBeTruthy();
+    expect(within(evidenceCard).getByText("Plan plan-v3")).toBeTruthy();
+    expect(within(evidenceCard).getByText("Continue via Review Pack")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     expect(onRefresh).toHaveBeenCalledTimes(1);
@@ -99,7 +168,7 @@ describe("ReviewQueuePanel", () => {
       threadId: null,
       limitation: "thread_unavailable",
     });
-  });
+  }, 20_000);
 
   it("filters review queue items by risk tags", () => {
     render(

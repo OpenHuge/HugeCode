@@ -326,6 +326,7 @@ export function useRuntimeMissionControlSnapshot(input: {
     workspaceId: input.workspaceId,
     enabled: true,
   });
+  const refreshRuntimePlugins = runtimePluginsState.refresh;
   const [runtimeTasks, setRuntimeTasks] = useState<RuntimeAgentTaskSummary[]>([]);
   const [runtimeProviders, setRuntimeProviders] = useState<RuntimeProviderCatalogEntry[]>([]);
   const [runtimeAccounts, setRuntimeAccounts] = useState<OAuthAccountSummary[]>([]);
@@ -476,7 +477,10 @@ export function useRuntimeMissionControlSnapshot(input: {
   const refreshRuntimeTasks = useCallback(async () => {
     if (workspaceClientRuntime.kernelProjection) {
       kernelProjectionStore.ensureScopes(CONTROL_PLANE_KERNEL_PROJECTION_SCOPES);
-      await Promise.all([kernelProjectionStore.refresh(CONTROL_PLANE_KERNEL_PROJECTION_SCOPES)]);
+      await Promise.all([
+        kernelProjectionStore.refresh(CONTROL_PLANE_KERNEL_PROJECTION_SCOPES),
+        refreshRuntimePlugins(),
+      ]);
       await refreshRuntimeAdvisoryState();
       return;
     }
@@ -486,6 +490,7 @@ export function useRuntimeMissionControlSnapshot(input: {
       const snapshot = await workspaceClientRuntime.missionControl.readMissionControlSnapshot();
       setRuntimeTasks(projectMissionControlSnapshotToRuntimeTasks(snapshot));
       setRuntimeFallbackError(null);
+      await refreshRuntimePlugins();
       await refreshRuntimeAdvisoryState();
     } catch (error) {
       setRuntimeFallbackError(formatRuntimeError(error));
@@ -495,6 +500,7 @@ export function useRuntimeMissionControlSnapshot(input: {
   }, [
     kernelProjectionStore,
     refreshRuntimeAdvisoryState,
+    refreshRuntimePlugins,
     workspaceClientRuntime.kernelProjection,
     workspaceClientRuntime.missionControl,
   ]);

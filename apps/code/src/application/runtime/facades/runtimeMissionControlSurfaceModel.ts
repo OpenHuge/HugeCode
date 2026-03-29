@@ -48,6 +48,7 @@ import {
   buildReviewNavigationTarget,
 } from "./runtimeMissionNavigationTarget";
 import type { MissionNavigationTarget } from "./runtimeMissionNavigationTypes";
+import type { CompactReviewEvidenceInput } from "./runtimeReviewEvidenceModel";
 import {
   buildMissionReviewTriageMetadata,
   type MissionReviewFilterTag,
@@ -151,6 +152,7 @@ export type MissionReviewEntry = {
   continuePathLabel?: string | null;
   continuationTruthSourceLabel?: string | null;
   continuityOverview?: string | null;
+  compactEvidenceInput?: CompactReviewEvidenceInput | null;
 };
 
 export type MissionControlFreshnessState = {
@@ -927,7 +929,6 @@ export function buildMissionReviewEntriesFromProjection(
       ]
         .filter((value): value is string => Boolean(value))
         .join(" | ") || null;
-
     entries.push({
       id: reviewPack.id,
       kind: "review_pack",
@@ -1219,7 +1220,7 @@ export function buildMissionReviewEntriesFromProjection(
     .sort(
       (left, right) =>
         right.triagePriority - left.triagePriority ||
-        (right.queueEnteredAt ?? right.createdAt) - (left.queueEnteredAt ?? left.createdAt)
+        (left.queueEnteredAt ?? left.createdAt) - (right.queueEnteredAt ?? right.createdAt)
     )
     .slice(0, options?.limit ?? 8)
     .map(({ triagePriority: _triagePriority, ...entry }) => entry);

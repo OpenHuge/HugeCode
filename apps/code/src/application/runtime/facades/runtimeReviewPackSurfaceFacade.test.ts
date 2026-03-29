@@ -119,6 +119,9 @@ describe("runtimeReviewPackSurfaceFacade", () => {
       truthSourceLabel: "Runtime takeover bundle",
     });
     expect(detail.recommendedNextAction).toBe("Open Review Pack");
+    expect(detail.compactEvidenceInput).toBeUndefined();
+    expect(detail.validationLabel).toBe("Validation passed");
+    expect(detail.evidenceLabel).toBe("Evidence confirmed");
   });
 
   it("prefers runtime review truth over projection review pack detail", () => {

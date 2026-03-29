@@ -304,9 +304,9 @@ describe("review-pack selection flow", () => {
       id: "review-pack:run-1",
       runId: "run-1",
       navigationTarget: {
-        kind: "thread",
+        kind: "review",
         workspaceId: "ws-1",
-        threadId: "thread-1",
+        reviewPackId: "review-pack:run-1",
       },
       backendAudit: {
         summary: "Workspace default backend",

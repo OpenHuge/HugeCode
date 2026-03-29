@@ -59,6 +59,27 @@ const runtimePluginCatalogListMock = vi.hoisted(() =>
 const runtimePluginRegistryListMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelPluginRegistryFacade["listInstalledPackages"]>(async () => [])
 );
+const runtimePluginRegistryInstallMock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelPluginRegistryFacade["installPackage"]>(async () => ({
+    package: {} as never,
+    installed: true,
+    blockedReason: null,
+  }))
+);
+const runtimePluginRegistryUpdateMock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelPluginRegistryFacade["updatePackage"]>(async () => ({
+    package: null,
+    updated: false,
+    blockedReason: null,
+  }))
+);
+const runtimePluginRegistryUninstallMock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelPluginRegistryFacade["uninstallPackage"]>(async () => ({
+    packageRef: "pkg.search.remote",
+    removed: true,
+    blockedReason: null,
+  }))
+);
 const runtimeCompositionProfilesMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["listProfiles"]>(async () => [])
 );
@@ -66,6 +87,36 @@ const runtimeCompositionResolutionMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["getActiveResolution"]>(async () => null as never)
 );
 const readBrowserReadinessMock = vi.hoisted(() => vi.fn());
+const runtimeCompositionPreviewMock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelCompositionFacade["previewResolution"]>(async () => ({
+    selectedPlugins: [],
+    selectedRouteCandidates: [],
+    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+    blockedPlugins: [],
+    trustDecisions: [],
+    provenance: {
+      activeProfileId: "workspace-default",
+      activeProfileName: "Workspace Default",
+      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+      selectorDecisions: {},
+    },
+  }))
+);
+const runtimeCompositionApplyMock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelCompositionFacade["applyProfile"]>(async () => ({
+    selectedPlugins: [],
+    selectedRouteCandidates: [],
+    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+    blockedPlugins: [],
+    trustDecisions: [],
+    provenance: {
+      activeProfileId: "workspace-default",
+      activeProfileName: "Workspace Default",
+      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+      selectorDecisions: {},
+    },
+  }))
+);
 
 vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   subscribeScopedRuntimeUpdatedEvents: vi.fn(),
@@ -253,6 +304,24 @@ beforeEach(() => {
   runtimeUpdatedListeners.clear();
   runtimePluginCatalogListMock.mockResolvedValue([]);
   runtimePluginRegistryListMock.mockResolvedValue([]);
+  runtimePluginRegistryInstallMock.mockClear();
+  runtimePluginRegistryInstallMock.mockResolvedValue({
+    package: {} as never,
+    installed: true,
+    blockedReason: null,
+  });
+  runtimePluginRegistryUpdateMock.mockClear();
+  runtimePluginRegistryUpdateMock.mockResolvedValue({
+    package: null,
+    updated: false,
+    blockedReason: null,
+  });
+  runtimePluginRegistryUninstallMock.mockClear();
+  runtimePluginRegistryUninstallMock.mockResolvedValue({
+    packageRef: "pkg.search.remote",
+    removed: true,
+    blockedReason: null,
+  });
   runtimeCompositionProfilesMock.mockResolvedValue([
     {
       id: "workspace-default",
@@ -323,6 +392,34 @@ beforeEach(() => {
           detail: "Enable live-skills network access to restore remote search and fetch paths.",
         },
       ],
+    },
+  });
+  runtimeCompositionPreviewMock.mockClear();
+  runtimeCompositionPreviewMock.mockResolvedValue({
+    selectedPlugins: [],
+    selectedRouteCandidates: [],
+    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+    blockedPlugins: [],
+    trustDecisions: [],
+    provenance: {
+      activeProfileId: "workspace-default",
+      activeProfileName: "Workspace Default",
+      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+      selectorDecisions: {},
+    },
+  });
+  runtimeCompositionApplyMock.mockClear();
+  runtimeCompositionApplyMock.mockResolvedValue({
+    selectedPlugins: [],
+    selectedRouteCandidates: [],
+    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+    blockedPlugins: [],
+    trustDecisions: [],
+    provenance: {
+      activeProfileId: "workspace-default",
+      activeProfileName: "Workspace Default",
+      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+      selectorDecisions: {},
     },
   });
   const lifecycle = {
@@ -787,16 +884,16 @@ function createRuntimeKernelValue(): RuntimeKernel {
     searchPackages: vi.fn(),
     getPackage: vi.fn(),
     verifyPackage: vi.fn(),
-    installPackage: vi.fn(),
-    updatePackage: vi.fn(),
-    uninstallPackage: vi.fn(),
+    installPackage: runtimePluginRegistryInstallMock,
+    updatePackage: runtimePluginRegistryUpdateMock,
+    uninstallPackage: runtimePluginRegistryUninstallMock,
     listInstalledPackages: runtimePluginRegistryListMock,
   };
   const runtimeComposition: RuntimeKernelCompositionFacade = {
     listProfiles: runtimeCompositionProfilesMock,
     getProfile: vi.fn(),
-    previewResolution: vi.fn(),
-    applyProfile: vi.fn(),
+    previewResolution: runtimeCompositionPreviewMock,
+    applyProfile: runtimeCompositionApplyMock,
     getActiveResolution: runtimeCompositionResolutionMock,
   };
 
@@ -1128,6 +1225,160 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
           "Remediation: Connect the WASI host binder so runtime can satisfy the published WIT imports."
         )
       ).toBeTruthy();
+    });
+  });
+
+  it("wires plugin operator actions through the mission control section", async () => {
+    mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
+    runtimePluginCatalogListMock.mockResolvedValue([
+      {
+        id: "pkg.search.remote",
+        name: "Remote Search Tools",
+        version: "1.0.0",
+        summary: "Registry package",
+        source: "mcp_remote",
+        transport: "mcp_remote",
+        hostProfile: {
+          kind: "remote",
+          executionBoundaries: ["registry"],
+        },
+        workspaceId: null,
+        enabled: true,
+        runtimeBacked: false,
+        capabilities: [],
+        permissions: ["network"],
+        resources: [],
+        executionBoundaries: ["registry"],
+        binding: {
+          state: "declaration_only",
+          contractFormat: "mcp",
+          contractBoundary: "registry:mcp_remote",
+          interfaceId: "pkg.search.remote",
+          surfaces: [],
+        },
+        operations: {
+          execution: {
+            executable: false,
+            mode: "none",
+            reason: "Registry package is not runtime-bound.",
+          },
+          resources: {
+            readable: false,
+            mode: "none",
+            reason: "Registry package is not runtime-bound.",
+          },
+          permissions: {
+            evaluable: false,
+            mode: "none",
+            reason: "Registry package is not runtime-bound.",
+          },
+        },
+        metadata: {
+          pluginRegistry: {
+            packageRef: "hugecode.mcp.search@1.0.0",
+            transport: "mcp_remote",
+            source: "catalog",
+            installed: false,
+            installedPluginId: null,
+            publisher: "HugeCode Labs",
+            trust: {
+              status: "verified",
+              verificationStatus: "verified",
+              publisher: "HugeCode Labs",
+              attestationSource: "sigstore",
+              blockedReason: null,
+              packageRef: "hugecode.mcp.search@1.0.0",
+              pluginId: "pkg.search.remote",
+            },
+            compatibility: {
+              status: "compatible",
+              minimumHostContractVersion: "2026-03-25",
+              supportedRuntimeProtocolVersions: ["2026-03-25"],
+              supportedCapabilityKeys: ["plugins.catalog", "plugins.registry"],
+              optionalTransportFeatures: [],
+              blockers: [],
+            },
+          },
+          composition: {
+            activeProfileId: "workspace-default",
+            activeProfileName: "Workspace Default",
+            selectedInActiveProfile: false,
+            blockedInActiveProfile: false,
+            blockedReason: null,
+            selectedRouteCandidate: false,
+            selectedBackendCandidateIds: [],
+            layerOrder: ["built_in", "user", "workspace", "launch_override"],
+          },
+        },
+        permissionDecision: null,
+        health: null,
+      },
+    ] satisfies RuntimeKernelPluginDescriptor[]);
+    runtimeCompositionProfilesMock.mockResolvedValue([
+      {
+        id: "workspace-default",
+        name: "Workspace Default",
+        scope: "workspace",
+        enabled: true,
+        pluginSelectors: [],
+        routePolicy: {
+          preferredRoutePluginIds: [],
+          providerPreference: [],
+          allowRuntimeFallback: true,
+        },
+        backendPolicy: {
+          preferredBackendIds: ["backend-primary"],
+          resolvedBackendId: null,
+        },
+        trustPolicy: {
+          requireVerifiedSignatures: true,
+          allowDevOverrides: false,
+          blockedPublishers: [],
+        },
+        executionPolicyRefs: [],
+        observabilityPolicy: {
+          emitStableEvents: true,
+          emitOtelAlignedTelemetry: true,
+        },
+        configLayers: [],
+      },
+    ]);
+    runtimeCompositionResolutionMock.mockResolvedValue({
+      selectedPlugins: [],
+      selectedRouteCandidates: [],
+      selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+      blockedPlugins: [],
+      trustDecisions: [],
+      provenance: {
+        activeProfileId: "workspace-default",
+        activeProfileName: "Workspace Default",
+        appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+        selectorDecisions: {},
+      },
+    });
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    const section = await screen.findByTestId("workspace-runtime-plugin-operator-actions");
+    expect(within(section).getByText("Composition profiles")).toBeTruthy();
+    expect(screen.getAllByText("Needs action").length).toBeGreaterThan(0);
+    expect(screen.getByText("Inventory", { selector: "strong" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remote Search Tools: Install" }));
+
+    await waitFor(() => {
+      expect(runtimePluginRegistryInstallMock).toHaveBeenCalledWith({
+        packageRef: "hugecode.mcp.search@1.0.0",
+      });
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Preview active profile" }));
+
+    await waitFor(() => {
+      expect(runtimeCompositionPreviewMock).toHaveBeenCalledWith({
+        profileId: "workspace-default",
+      });
+      expect(screen.getByText("Preview: workspace-default")).toBeTruthy();
     });
   });
 

@@ -1,6 +1,57 @@
+import type {
+  HugeCodeMissionControlSnapshot,
+  HugeCodeTaskSummary,
+} from "@ku0/code-runtime-host-contract";
 import { describe, expect, it, vi } from "vitest";
 import { createMissionControlSummaryLoader } from "./missionControlSummaryLoader";
 import type { MissionControlSummaryComposer } from "./missionControlSummaryContracts";
+
+function createTask(overrides: Partial<HugeCodeTaskSummary> = {}): HugeCodeTaskSummary {
+  return {
+    id: "task-1",
+    workspaceId: "workspace-1",
+    title: "Task 1",
+    objective: null,
+    origin: {
+      kind: "run",
+      runId: "run-1",
+      threadId: null,
+      requestId: null,
+    },
+    taskSource: null,
+    mode: null,
+    modeSource: "missing",
+    status: "queued",
+    createdAt: 0,
+    updatedAt: 0,
+    currentRunId: null,
+    latestRunId: null,
+    latestRunState: null,
+    ...overrides,
+  };
+}
+
+function createSnapshot(
+  overrides: Partial<HugeCodeMissionControlSnapshot> = {}
+): HugeCodeMissionControlSnapshot {
+  return {
+    source: "runtime_snapshot_v1",
+    generatedAt: 0,
+    workspaces: [
+      {
+        id: "workspace-1",
+        name: "Alpha",
+        rootPath: "/alpha",
+        connected: true,
+        defaultProfileId: null,
+      },
+    ],
+    tasks: [],
+    runs: [],
+    reviewPacks: [],
+    ...overrides,
+  };
+}
 
 describe("createMissionControlSummaryLoader", () => {
   it("always composes mission control summary from snapshot truth", async () => {
@@ -24,23 +75,9 @@ describe("createMissionControlSummaryLoader", () => {
       missionItems: [],
       reviewItems: [],
     }));
-    const snapshot = {
-      source: "runtime_snapshot_v1" as const,
-      generatedAt: 0,
-      workspaces: [{ id: "workspace-1", name: "Alpha", connected: true }],
-      tasks: [
-        {
-          id: "task-1",
-          workspaceId: "workspace-1",
-          title: "Task 1",
-          createdAt: 0,
-          currentRunId: null,
-          latestRunId: null,
-        },
-      ],
-      runs: [],
-      reviewPacks: [],
-    };
+    const snapshot = createSnapshot({
+      tasks: [createTask()],
+    });
     const source = {
       readMissionControlSnapshot: vi.fn(async () => snapshot),
       readMissionControlSummary,
@@ -79,14 +116,9 @@ describe("createMissionControlSummaryLoader", () => {
   });
 
   it("falls back to snapshot composition when a precomputed summary is unavailable", async () => {
-    const snapshot = {
-      source: "runtime_snapshot_v1" as const,
-      generatedAt: 0,
+    const snapshot = createSnapshot({
       workspaces: [],
-      tasks: [],
-      runs: [],
-      reviewPacks: [],
-    };
+    });
     const readMissionControlSnapshot = vi.fn(async () => snapshot);
     const compose = vi.fn((value, activeWorkspaceId) => ({
       workspaceLabel: activeWorkspaceId ?? "all",

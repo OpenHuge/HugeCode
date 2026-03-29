@@ -26,7 +26,6 @@ import {
   type MissionControlProjection,
 } from "./runtimeMissionControlFacade";
 import type { RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
-import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
 import { buildMissionProvenanceSummary } from "./runtimeMissionControlProvenance";
 import {
   resolveReviewContinuationDefaults,
@@ -70,6 +69,17 @@ import {
   type WorkspaceEvidenceSummary,
   pushUnique,
 } from "./runtimeReviewPackDetailPresentation";
+import {
+  MISSION_RUN_EMPTY_SECTION_LABELS,
+  REVIEW_PACK_EMPTY_SECTION_LABELS,
+} from "./runtimeReviewPackEmptySectionLabels";
+import type { CompactReviewEvidenceInput } from "./runtimeReviewEvidenceModel";
+import { buildMissionSecondaryLabel } from "./runtimeMissionSecondaryLabel";
+import {
+  buildMissionRouteAudit,
+  formatSourceCitationDetail,
+  getSourceLabel,
+} from "./runtimeReviewPackSurfacePresentation";
 
 type RelaunchOption = {
   id: string;
@@ -128,26 +138,6 @@ type ReviewPackWithExtras = MissionControlProjection["reviewPacks"][number];
 type RunWithExtras = MissionControlProjection["runs"][number] & {
   subAgentSummary?: Array<Record<string, unknown>> | null;
 };
-
-function buildMissionSecondaryLabel(input: {
-  isRuntimeManaged: boolean;
-  taskSource?:
-    | MissionControlProjection["tasks"][number]["taskSource"]
-    | MissionControlProjection["runs"][number]["taskSource"]
-    | MissionControlProjection["reviewPacks"][number]["taskSource"]
-    | null
-    | undefined;
-}) {
-  const labels: string[] = [];
-  if (input.isRuntimeManaged) {
-    labels.push("Runtime-managed mission");
-  }
-  const taskSourceLabel = resolveTaskSourceSecondaryLabel(input.taskSource ?? null);
-  if (taskSourceLabel) {
-    labels.push(taskSourceLabel);
-  }
-  return labels.length > 0 ? labels.join(" | ") : null;
-}
 
 export type ReviewPackSelectionSource =
   | "home"
@@ -252,6 +242,7 @@ export type ReviewPackDetailModel = {
   executionContext?: SummaryDetail;
   missionBrief?: SummaryDetail;
   relaunchContext?: SummaryDetail;
+  compactEvidenceInput?: CompactReviewEvidenceInput | null;
   decisionActionability: RuntimeReviewPackDecisionActionabilitySummary;
   decisionActions: RuntimeReviewPackDecisionActionModel<MissionNavigationTarget>[];
   limitations: string[];
@@ -313,6 +304,7 @@ export type MissionRunDetailModel = {
   executionContext?: SummaryDetail;
   missionBrief?: SummaryDetail;
   relaunchContext?: SummaryDetail;
+  compactEvidenceInput?: CompactReviewEvidenceInput | null;
   autoDriveSummary: string[];
   subAgentSummary: SubAgentSummary[];
   limitations: string[];
@@ -325,12 +317,6 @@ export type MissionRunDetailModel = {
 };
 
 export type MissionSurfaceDetailModel = ReviewPackDetailModel | MissionRunDetailModel;
-
-function getSourceLabel(source: MissionControlProjection["source"]) {
-  return source === "runtime_snapshot_v1"
-    ? "Runtime snapshot"
-    : "Mission-control snapshot unavailable";
-}
 
 function augmentDetailSection(
   section: { summary: string; details: string[] } | undefined,
@@ -347,66 +333,6 @@ function augmentDetailSection(
   return {
     summary: section?.summary ?? fallbackSummary,
     details,
-  };
-}
-
-function formatSourceCitationDetail(
-  citation:
-    | NonNullable<MissionControlProjection["runs"][number]["sourceCitations"]>[number]
-    | NonNullable<MissionControlProjection["reviewPacks"][number]["sourceCitations"]>[number]
-) {
-  const trustLabel =
-    citation.trustLevel === "primary"
-      ? "primary"
-      : citation.trustLevel === "runtime"
-        ? "runtime"
-        : "derived";
-  return `${citation.label}: ${citation.claimSummary} (${trustLabel})`;
-}
-
-function buildMissionRouteAudit(input: {
-  routeLabel: string | null | undefined;
-  routeHint: string | null | undefined;
-  providerLabel: string | null | undefined;
-  pool: string | null | undefined;
-  health: string | null | undefined;
-  backendId: string | null | undefined;
-  executionProfileName: string | null | undefined;
-  validationPresetId: string | null | undefined;
-  profileReadinessSummary: string | null | undefined;
-}) {
-  const details: string[] = [];
-  if (input.executionProfileName) {
-    pushUnique(details, `Execution profile: ${input.executionProfileName}`);
-  }
-  if (input.validationPresetId) {
-    pushUnique(details, `Validation preset: ${input.validationPresetId}`);
-  }
-  if (input.backendId) {
-    pushUnique(details, `Backend: ${input.backendId}`);
-  }
-  if (input.providerLabel) {
-    pushUnique(details, `Provider: ${input.providerLabel}`);
-  }
-  if (input.pool) {
-    pushUnique(details, `Pool: ${input.pool}`);
-  }
-  if (input.health) {
-    pushUnique(details, `Routing health: ${input.health}`);
-  }
-  if (input.routeHint) {
-    pushUnique(details, input.routeHint);
-  }
-  if (input.profileReadinessSummary) {
-    pushUnique(details, input.profileReadinessSummary);
-  }
-  return {
-    routeSummary:
-      input.routeLabel ??
-      (input.executionProfileName
-        ? `Executed with ${input.executionProfileName}`
-        : "Routing unavailable"),
-    routeDetails: details,
   };
 }
 
@@ -1001,12 +927,7 @@ export function buildReviewPackDetailModel(input: {
         runExtra?.subAgents ?? runExtra?.subAgentSummary ?? null
       ),
       limitations,
-      emptySectionLabels: {
-        warnings: "The runtime did not record warnings for this mission run.",
-        validations: "No runtime validation details were recorded for this mission run.",
-        artifacts: "No runtime artifacts or evidence references were attached to this mission run.",
-        autoDrive: "This run did not publish an AutoDrive route snapshot.",
-      },
+      emptySectionLabels: MISSION_RUN_EMPTY_SECTION_LABELS,
     };
   }
 
@@ -1231,7 +1152,6 @@ export function buildReviewPackDetailModel(input: {
     reviewPack,
     recommendedNextAction: reviewRecommendedNextAction,
   });
-
   return {
     kind: "review_pack",
     id: reviewPack.id,
@@ -1314,17 +1234,11 @@ export function buildReviewPackDetailModel(input: {
     subAgentSummary,
     limitations,
     emptySectionLabels: {
-      assumptions: "The runtime did not record explicit review assumptions for this pack.",
-      warnings: "The runtime did not record any warnings for this review pack.",
+      ...REVIEW_PACK_EMPTY_SECTION_LABELS,
       validations:
         reviewPack.validationOutcome === "unknown"
           ? "Validation evidence was not recorded for this run."
           : "No individual validation checks were recorded for this run.",
-      artifacts: "No artifacts or evidence references were attached to this review pack.",
-      reproduction:
-        "The runtime did not record reproduction guidance for this review pack. Re-run the linked validations or inspect attached evidence.",
-      rollback:
-        "The runtime did not record rollback guidance for this review pack. Use diff evidence or reopen the mission thread before reverting changes.",
     },
   };
 }

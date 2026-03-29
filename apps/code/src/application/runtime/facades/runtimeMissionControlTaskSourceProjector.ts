@@ -9,6 +9,16 @@ export type TaskSourceProvenanceDetail = {
   details: string[];
 };
 
+export type TaskSourceGitHubProvenanceHint = {
+  repoFullName: string | null;
+  refLabel: string | null;
+  eventLabel: string | null;
+  commentLabel: string | null;
+  sourceRecordId: string | null;
+  handshakeSummary: string | null;
+  handshakeState: string | null;
+};
+
 function readOptionalText(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
@@ -128,6 +138,77 @@ function buildTaskSourceLabels(
         shortLabel: "Source",
       };
   }
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function readGitHubEventLabel(value: unknown): string | null {
+  const event = readRecord(value);
+  if (!event) {
+    return null;
+  }
+  const eventName = readOptionalText(event.eventName);
+  const action = readOptionalText(event.action);
+  if (!eventName) {
+    return null;
+  }
+  return action ? `${eventName}.${action}` : eventName;
+}
+
+export function buildTaskSourceEvidenceLabel(
+  source: HugeCodeTaskSourceLinkage | HugeCodeTaskSourceSummary | null | undefined
+): string | null {
+  if (!source) {
+    return null;
+  }
+  return buildTaskSourceLabels(source).label;
+}
+
+export function readTaskSourceGitHubProvenanceHint(
+  source: HugeCodeTaskSourceLinkage | HugeCodeTaskSourceSummary | null | undefined
+): TaskSourceGitHubProvenanceHint | null {
+  const githubSource = readRecord(readRecord(source)?.githubSource);
+  if (!githubSource) {
+    return null;
+  }
+  const repoFullName = readOptionalText(readRecord(githubSource.repo)?.fullName);
+  const refLabel = readOptionalText(readRecord(githubSource.ref)?.label);
+  const eventLabel = readGitHubEventLabel(githubSource.event);
+  const comment = readRecord(githubSource.comment);
+  const commentId = comment && typeof comment.commentId === "number" ? comment.commentId : null;
+  const commentAuthor = readOptionalText(readRecord(comment?.author)?.login);
+  const commentLabel =
+    commentId === null
+      ? null
+      : commentAuthor
+        ? `#${commentId} by ${commentAuthor}`
+        : `#${commentId}`;
+  const sourceRecordId = readOptionalText(githubSource.sourceRecordId);
+  const launchHandshake = readRecord(githubSource.launchHandshake);
+  const handshakeSummary = readOptionalText(launchHandshake?.summary);
+  const handshakeState = readOptionalText(launchHandshake?.state);
+  if (
+    !repoFullName &&
+    !refLabel &&
+    !eventLabel &&
+    !commentLabel &&
+    !sourceRecordId &&
+    !handshakeSummary &&
+    !handshakeState
+  ) {
+    return null;
+  }
+  return {
+    repoFullName,
+    refLabel,
+    eventLabel,
+    commentLabel,
+    sourceRecordId,
+    handshakeSummary,
+    handshakeState,
+  };
 }
 
 export function normalizeTaskSourceLinkage(

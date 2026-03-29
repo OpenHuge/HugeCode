@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { RuntimeKernelProvider } from "../kernel/RuntimeKernelContext";
 import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "../kernel/runtimeKernelCapabilities";
@@ -292,6 +292,9 @@ function createRuntimeKernelValue(input?: { projectionEnabled?: boolean }) {
     desktopHost: {} as never,
     getWorkspaceScope: vi.fn(() => workspaceScope),
     listPlugins,
+    listInstalledPackages: pluginRegistryFacade.listInstalledPackages,
+    listProfiles: compositionFacade.listProfiles,
+    getActiveResolution: compositionFacade.getActiveResolution,
   };
 }
 
@@ -414,5 +417,77 @@ describe("runtimeKernelPluginProjectionHooks", () => {
       source: "mcp_remote",
     });
     expect(runtimeKernelValue.listPlugins).toHaveBeenCalledOnce();
+  });
+
+  it("refreshes plugin catalog, registry, and composition state through the shared boundary hook", async () => {
+    const kernelValue = createRuntimeKernelValue({ projectionEnabled: false });
+    const { result } = renderHook(
+      () =>
+        useWorkspaceRuntimePluginProjection({
+          workspaceId: "workspace-1",
+          enabled: true,
+        }),
+      {
+        wrapper: ({ children }) => (
+          <RuntimeKernelProvider value={kernelValue as never}>{children}</RuntimeKernelProvider>
+        ),
+      }
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    const initialCalls = {
+      listPlugins: kernelValue.listPlugins.mock.calls.length,
+      listInstalledPackages: kernelValue.listInstalledPackages.mock.calls.length,
+      listProfiles: kernelValue.listProfiles.mock.calls.length,
+      getActiveResolution: kernelValue.getActiveResolution.mock.calls.length,
+    };
+
+    await result.current.refresh();
+
+    expect(kernelValue.listPlugins).toHaveBeenCalledTimes(initialCalls.listPlugins + 1);
+    expect(kernelValue.listInstalledPackages).toHaveBeenCalledTimes(
+      initialCalls.listInstalledPackages + 1
+    );
+    expect(kernelValue.listProfiles).toHaveBeenCalledTimes(initialCalls.listProfiles + 1);
+    expect(kernelValue.getActiveResolution).toHaveBeenCalledTimes(
+      initialCalls.getActiveResolution + 1
+    );
+  });
+
+  it("clears stale registry errors after a successful refresh", async () => {
+    const kernelValue = createRuntimeKernelValue({ projectionEnabled: false });
+    kernelValue.listInstalledPackages.mockRejectedValueOnce(new Error("Registry offline"));
+
+    const { result } = renderHook(
+      () =>
+        useWorkspaceRuntimePluginProjection({
+          workspaceId: "workspace-1",
+          enabled: true,
+        }),
+      {
+        wrapper: ({ children }) => (
+          <RuntimeKernelProvider value={kernelValue as never}>{children}</RuntimeKernelProvider>
+        ),
+      }
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.registry.error).toBe("Registry offline");
+      expect(result.current.error).toBe("Registry offline");
+    });
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    await waitFor(() => {
+      expect(result.current.registry.error).toBeNull();
+      expect(result.current.error).toBeNull();
+      expect(result.current.registry.installedCount).toBe(1);
+    });
   });
 });

@@ -85,6 +85,13 @@ export type WorkspaceRuntimePolicyIndicator = {
   error: string | null;
 };
 
+type RuntimeMissionControlSectionTone = "neutral" | "running" | "success" | "warning" | "danger";
+
+type RuntimeMissionControlSectionStatus = {
+  label: string;
+  tone: RuntimeMissionControlSectionTone;
+};
+
 export type WorkspaceRuntimeMissionControlProjection = {
   runtimeSummary: {
     total: number;
@@ -119,6 +126,7 @@ export type WorkspaceRuntimeMissionControlProjection = {
   policy: WorkspaceRuntimePolicyIndicator;
   browserReadiness: RuntimeBrowserReadinessSummary;
   pluginCatalog: {
+    status: RuntimeMissionControlSectionStatus;
     plugins: RuntimeKernelPluginDescriptor[];
     readinessEntries: RuntimeKernelPluginReadinessEntry[];
     readinessSections: RuntimeKernelPluginReadinessSection[];
@@ -233,6 +241,10 @@ function buildPluginCatalogSummary(input: {
   projectionBacked: boolean;
 }): WorkspaceRuntimeMissionControlProjection["pluginCatalog"] {
   const summary: WorkspaceRuntimeMissionControlProjection["pluginCatalog"] = {
+    status: {
+      label: "Empty",
+      tone: "neutral",
+    },
     plugins: input.plugins,
     readinessEntries: buildRuntimeKernelPluginReadinessEntries(input.plugins),
     readinessSections: [],
@@ -378,6 +390,25 @@ function buildPluginCatalogSummary(input: {
   }
 
   summary.readinessSections = buildRuntimeKernelPluginReadinessSections(summary.readinessEntries);
+  summary.status = input.error
+    ? {
+        label: "Attention",
+        tone: "warning",
+      }
+    : summary.executableCount > 0
+      ? {
+          label: "Ready",
+          tone: "success",
+        }
+      : summary.total > 0
+        ? {
+            label: "Cataloged",
+            tone: "neutral",
+          }
+        : {
+            label: "Empty",
+            tone: "neutral",
+          };
 
   return summary;
 }

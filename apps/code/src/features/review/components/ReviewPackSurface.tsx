@@ -19,7 +19,9 @@ import type {
 import type { MissionReviewEntry } from "../../missions/utils/missionControlPresentation";
 import { ReviewQueuePanel } from "./ReviewQueuePanel";
 import * as styles from "./ReviewPackSurface.css";
+import { CompactReviewEvidenceCard } from "./CompactReviewEvidenceCard";
 import { ReviewPackSurfaceHero } from "./ReviewPackSurfaceHero";
+import { buildCompactReviewEvidenceDescriptor } from "../utils/compactReviewEvidence";
 import type {
   MissionRunDetailModel,
   MissionSurfaceDetailModel,
@@ -87,7 +89,7 @@ type ReviewAutomationState = {
   handleApplyReviewAutofix: (input: ReviewAutofixTarget) => Promise<void>;
 };
 
-type ReviewPackSurfaceProps = {
+export type ReviewPackSurfaceProps = {
   workspaceName?: string | null;
   items: MissionReviewEntry[];
   detail: MissionSurfaceDetailModel | null;
@@ -382,6 +384,13 @@ function renderMissionRunDetail(
         <Card className={styles.emptyState} variant="subtle">
           {fallbackReason}
         </Card>
+      ) : null}
+
+      {detail.compactEvidenceInput ? (
+        <CompactReviewEvidenceCard
+          descriptor={buildCompactReviewEvidenceDescriptor(detail.compactEvidenceInput)}
+          testId="review-mission-run-compact-evidence"
+        />
       ) : null}
 
       {renderOperatorCockpit({
@@ -794,6 +803,15 @@ export function ReviewPackSurface({
               displayedReviewDecision={displayedReviewDecision}
               fallbackReason={fallbackReason}
             />
+
+            {reviewPackDetail.compactEvidenceInput ? (
+              <CompactReviewEvidenceCard
+                descriptor={buildCompactReviewEvidenceDescriptor(
+                  reviewPackDetail.compactEvidenceInput
+                )}
+                testId="review-pack-compact-evidence"
+              />
+            ) : null}
 
             {renderControlDeviceHandoff(reviewPackDetail)}
 

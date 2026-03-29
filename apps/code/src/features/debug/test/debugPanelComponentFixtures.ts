@@ -116,6 +116,7 @@ export function createDebugPanelBodyProps(
       loading: false,
       error: null,
       projectionBacked: false,
+      refresh: vi.fn(async () => undefined),
       registry: {
         packages: [],
         installedCount: 0,
