@@ -283,11 +283,16 @@ function createRuntimeKernelValue() {
     } as never,
     desktopHost: {} as never,
     getWorkspaceScope: vi.fn(() => workspaceScope),
+    listPlugins: pluginCatalogFacade.listPlugins,
+    listInstalledPackages: pluginRegistryFacade.listInstalledPackages,
+    listProfiles: compositionFacade.listProfiles,
+    getActiveResolution: compositionFacade.getActiveResolution,
   };
 }
 
 describe("runtimeKernelPluginProjectionHooks", () => {
   it("merges projection extension bundles with the workspace plugin catalog", async () => {
+    const kernelValue = createRuntimeKernelValue();
     const { result } = renderHook(
       () =>
         useWorkspaceRuntimePluginProjection({
@@ -296,9 +301,7 @@ describe("runtimeKernelPluginProjectionHooks", () => {
         }),
       {
         wrapper: ({ children }) => (
-          <RuntimeKernelProvider value={createRuntimeKernelValue() as never}>
-            {children}
-          </RuntimeKernelProvider>
+          <RuntimeKernelProvider value={kernelValue as never}>{children}</RuntimeKernelProvider>
         ),
       }
     );
@@ -361,5 +364,43 @@ describe("runtimeKernelPluginProjectionHooks", () => {
         },
       },
     });
+  });
+
+  it("refreshes plugin catalog, registry, and composition state through the shared boundary hook", async () => {
+    const kernelValue = createRuntimeKernelValue();
+    const { result } = renderHook(
+      () =>
+        useWorkspaceRuntimePluginProjection({
+          workspaceId: "workspace-1",
+          enabled: true,
+        }),
+      {
+        wrapper: ({ children }) => (
+          <RuntimeKernelProvider value={kernelValue as never}>{children}</RuntimeKernelProvider>
+        ),
+      }
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    const initialCalls = {
+      listPlugins: kernelValue.listPlugins.mock.calls.length,
+      listInstalledPackages: kernelValue.listInstalledPackages.mock.calls.length,
+      listProfiles: kernelValue.listProfiles.mock.calls.length,
+      getActiveResolution: kernelValue.getActiveResolution.mock.calls.length,
+    };
+
+    await result.current.refresh();
+
+    expect(kernelValue.listPlugins).toHaveBeenCalledTimes(initialCalls.listPlugins + 1);
+    expect(kernelValue.listInstalledPackages).toHaveBeenCalledTimes(
+      initialCalls.listInstalledPackages + 1
+    );
+    expect(kernelValue.listProfiles).toHaveBeenCalledTimes(initialCalls.listProfiles + 1);
+    expect(kernelValue.getActiveResolution).toHaveBeenCalledTimes(
+      initialCalls.getActiveResolution + 1
+    );
   });
 });

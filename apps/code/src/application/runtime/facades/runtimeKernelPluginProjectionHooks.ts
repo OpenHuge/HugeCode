@@ -40,6 +40,10 @@ export type WorkspaceRuntimePluginProjectionState = {
   };
 };
 
+function formatPluginProjectionLoadError(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function useWorkspaceRuntimePluginProjection(input: {
   workspaceId: string | null;
   enabled: boolean;
@@ -84,26 +88,62 @@ export function useWorkspaceRuntimePluginProjection(input: {
     setRegistryError(null);
     setCompositionError(null);
 
-    try {
-      const [plugins, packages, profiles, resolution] = await Promise.all([
+    const [pluginsResult, packagesResult, profilesResult, resolutionResult] =
+      await Promise.allSettled([
         pluginCatalog.listPlugins(),
         pluginRegistry.listInstalledPackages(),
         compositionRuntime.listProfiles(),
         compositionRuntime.getActiveResolution(),
       ]);
-      setCapabilityPlugins(plugins);
-      setRegistryPackages(packages);
-      setCompositionProfiles(profiles);
-      setCompositionResolution(resolution);
-    } catch (nextError) {
+
+    if (pluginsResult.status === "fulfilled") {
+      setCapabilityPlugins(pluginsResult.value);
+    } else {
       setCapabilityPlugins([]);
-      setRegistryPackages([]);
-      setCompositionProfiles([]);
-      setCompositionResolution(null);
-      setError(nextError instanceof Error ? nextError.message : "Unable to load runtime plugins.");
-    } finally {
-      setLoading(false);
+      setError(
+        formatPluginProjectionLoadError(pluginsResult.reason, "Unable to load runtime plugins.")
+      );
     }
+
+    if (packagesResult.status === "fulfilled") {
+      setRegistryPackages(packagesResult.value);
+    } else {
+      setRegistryPackages([]);
+      setRegistryError(
+        formatPluginProjectionLoadError(
+          packagesResult.reason,
+          "Unable to load runtime package registry."
+        )
+      );
+    }
+
+    if (profilesResult.status === "fulfilled") {
+      setCompositionProfiles(profilesResult.value);
+    } else {
+      setCompositionProfiles([]);
+      setCompositionError(
+        formatPluginProjectionLoadError(
+          profilesResult.reason,
+          "Unable to load runtime composition profiles."
+        )
+      );
+    }
+
+    if (resolutionResult.status === "fulfilled") {
+      setCompositionResolution(resolutionResult.value);
+    } else {
+      setCompositionResolution(null);
+      setCompositionError(
+        (current) =>
+          current ??
+          formatPluginProjectionLoadError(
+            resolutionResult.reason,
+            "Unable to resolve runtime composition control plane."
+          )
+      );
+    }
+
+    setLoading(false);
   }, [compositionRuntime, input.enabled, pluginCatalog, pluginRegistry]);
 
   useEffect(() => {
@@ -132,56 +172,6 @@ export function useWorkspaceRuntimePluginProjection(input: {
       cancelled = true;
     };
   }, [refresh]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!input.enabled || !pluginRegistry) {
-      setRegistryError(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void pluginRegistry.listInstalledPackages().catch((nextError: unknown) => {
-      if (cancelled) {
-        return;
-      }
-      setRegistryError(
-        nextError instanceof Error ? nextError.message : "Unable to load runtime package registry."
-      );
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [input.enabled, pluginRegistry]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!input.enabled || !compositionRuntime) {
-      setCompositionError(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void compositionRuntime.getActiveResolution().catch((nextError: unknown) => {
-      if (cancelled) {
-        return;
-      }
-      setCompositionError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Unable to resolve runtime composition control plane."
-      );
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [compositionRuntime, input.enabled]);
 
   const activeProfileId = compositionResolution?.provenance.activeProfileId ?? null;
   const activeProfile =

@@ -19,6 +19,28 @@ export type RuntimeControlPlaneOperatorState = {
   runAction: (action: RuntimeControlPlaneOperatorAction) => Promise<void>;
 };
 
+export type RuntimeControlPlaneOperatorActionPresentation = {
+  busy: boolean;
+  disabled: boolean;
+  label: string;
+  title: string | undefined;
+};
+
+export function resolveRuntimeControlPlaneOperatorActionPresentation(input: {
+  action: RuntimeControlPlaneOperatorAction;
+  busyActionId: string | null;
+  runtimeLoading: boolean;
+}): RuntimeControlPlaneOperatorActionPresentation {
+  const busy = input.busyActionId === input.action.id;
+  return {
+    busy,
+    disabled:
+      input.runtimeLoading || input.busyActionId !== null || input.action.disabledReason !== null,
+    label: busy ? "Working..." : input.action.label,
+    title: input.action.disabledReason ?? input.action.detail ?? undefined,
+  };
+}
+
 export function useWorkspaceRuntimePluginRegistry(
   workspaceId: string | null
 ): RuntimeKernelPluginRegistryFacade | null {
@@ -49,6 +71,7 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
   workspaceId: string | null;
   refresh: () => Promise<void>;
 }): RuntimeControlPlaneOperatorState {
+  const { refresh, workspaceId } = input;
   const pluginRegistry = useWorkspaceRuntimePluginRegistry(input.workspaceId);
   const compositionRuntime = useWorkspaceRuntimeComposition(input.workspaceId);
   const [busyActionId, setBusyActionId] = useState<string | null>(null);
@@ -66,7 +89,7 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
 
   const runAction = useCallback(
     async (action: RuntimeControlPlaneOperatorAction) => {
-      if (!input.workspaceId) {
+      if (!workspaceId) {
         setError("Workspace runtime control plane is unavailable.");
         return;
       }
@@ -84,7 +107,7 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
             if (!result.installed) {
               throw new Error(result.blockedReason ?? `Failed to install ${action.packageRef}.`);
             }
-            await input.refresh();
+            await refresh();
             setInfo(`Installed runtime plugin package ${action.packageRef}.`);
             break;
           }
@@ -102,7 +125,7 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
                   `Failed to install ${action.packageRef} with a development trust override.`
               );
             }
-            await input.refresh();
+            await refresh();
             setInfo(`Installed ${action.packageRef} with a development trust override.`);
             break;
           }
@@ -115,7 +138,7 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
             if (result.blockedReason) {
               throw new Error(result.blockedReason);
             }
-            await input.refresh();
+            await refresh();
             setInfo(
               result.updated
                 ? `Updated runtime plugin package ${updateTarget}.`
@@ -131,7 +154,7 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
             if (!result.removed) {
               throw new Error(result.blockedReason ?? `Failed to uninstall ${action.pluginId}.`);
             }
-            await input.refresh();
+            await refresh();
             clearPreview();
             setInfo(`Uninstalled runtime plugin package ${result.packageRef}.`);
             break;
@@ -157,7 +180,7 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
             });
             setPreviewProfileId(action.profileId);
             setPreviewResolution(result);
-            await input.refresh();
+            await refresh();
             setInfo(`Applied runtime composition profile ${action.profileId}.`);
             break;
           }
@@ -171,7 +194,7 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
         setBusyActionId(null);
       }
     },
-    [clearPreview, compositionRuntime, input, pluginRegistry]
+    [clearPreview, compositionRuntime, pluginRegistry, refresh, workspaceId]
   );
 
   return {

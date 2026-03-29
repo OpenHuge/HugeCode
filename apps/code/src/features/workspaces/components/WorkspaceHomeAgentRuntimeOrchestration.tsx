@@ -63,7 +63,6 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     runtimeError,
     runtimeInfo,
     runtimeLoading,
-    runtimePluginControlPlane,
     runtimeSourceDraft,
     runtimeStatusFilter,
     selectedExecutionProfile,

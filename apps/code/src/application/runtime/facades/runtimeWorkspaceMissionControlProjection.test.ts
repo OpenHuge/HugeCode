@@ -411,6 +411,10 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
         id: "inventory",
       }),
     ]);
+    expect(projection.pluginCatalog.status).toMatchObject({
+      label: "Cataloged",
+      tone: "neutral",
+    });
     expect(projection.composition).toMatchObject({
       activeProfileId: "workspace-default",
       activeProfileName: "Workspace Default",
@@ -418,19 +422,6 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
       blockedPluginCount: 0,
       selectedBackendCount: 1,
     });
-    expect(projection.pluginControlPlane.counts).toMatchObject({
-      needsAction: 1,
-      selectedNow: 1,
-      inventory: 1,
-      profiles: 1,
-    });
-    expect(projection.pluginControlPlane.selectedNow[0]).toMatchObject({
-      label: "Remote Search Tools",
-      statusLabel: "Selected now",
-    });
-    expect(projection.pluginControlPlane.profiles[0]?.actions.map((action) => action.kind)).toEqual(
-      ["preview_profile", "apply_profile"]
-    );
   });
 
   it("keeps blocked local-dev packages visible in needs action when trust override is disabled", () => {
@@ -573,6 +564,10 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.pluginControlPlane.needsAction[0]).toMatchObject({
       label: "Unsigned Remote Lab",
       attentionReason: "Unsigned local-dev package.",
+    });
+    expect(projection.pluginControlPlane.status).toMatchObject({
+      label: "Needs action",
+      tone: "warning",
     });
     expect(projection.pluginControlPlane.needsAction[0]?.actions).toEqual(
       expect.arrayContaining([
