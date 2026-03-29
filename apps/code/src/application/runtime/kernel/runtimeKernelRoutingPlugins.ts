@@ -593,9 +593,7 @@ export function resolveRuntimeKernelRouteSelection(input: {
   });
 
   const selected =
-    selectedOption ??
-    options.find((option) => option.value === "auto") ??
-    options[0];
+    selectedOption ?? options.find((option) => option.value === "auto") ?? options[0];
   if (!selected) {
     const plugin = createRuntimeRoutingPluginDescriptor({
       routeKind: "combined_execution",
