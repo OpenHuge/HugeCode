@@ -153,6 +153,98 @@ fn normalize_task_source_repo_context(
     Some(normalized)
 }
 
+fn normalize_task_source_requester(
+    value: Option<AgentTaskSourceRequester>,
+) -> Option<AgentTaskSourceRequester> {
+    let requester = value?;
+    let normalized = AgentTaskSourceRequester {
+        login: trim_optional_string(requester.login),
+        id: requester.id,
+        r#type: trim_optional_string(requester.r#type),
+    };
+    if normalized.login.is_none() && normalized.id.is_none() && normalized.r#type.is_none() {
+        return None;
+    }
+    Some(normalized)
+}
+
+fn normalize_task_source_event(
+    value: AgentTaskSourceEvent,
+) -> Option<AgentTaskSourceEvent> {
+    let normalized = AgentTaskSourceEvent {
+        delivery_id: trim_optional_string(value.delivery_id),
+        event_name: value.event_name.trim().to_ascii_lowercase(),
+        action: trim_optional_string(value.action).map(|entry| entry.to_ascii_lowercase()),
+        received_at: value.received_at,
+    };
+    if normalized.event_name.is_empty() {
+        return None;
+    }
+    Some(normalized)
+}
+
+fn normalize_task_source_github_provenance(
+    value: Option<AgentTaskSourceGitHubProvenance>,
+) -> Option<AgentTaskSourceGitHubProvenance> {
+    let provenance = value?;
+    let source_record_id = provenance.source_record_id.trim().to_string();
+    if source_record_id.is_empty() {
+        return None;
+    }
+    let repo = normalize_task_source_repo_context(Some(provenance.repo))?;
+    let event = normalize_task_source_event(provenance.event)?;
+    let ref_label = provenance.r#ref.label.trim().to_string();
+    if ref_label.is_empty() {
+        return None;
+    }
+    let handshake_state = provenance.launch_handshake.state.trim().to_ascii_lowercase();
+    let handshake_summary = provenance.launch_handshake.summary.trim().to_string();
+    if handshake_state.is_empty() || handshake_summary.is_empty() {
+        return None;
+    }
+    Some(AgentTaskSourceGitHubProvenance {
+        source_record_id,
+        repo,
+        event,
+        r#ref: AgentTaskSourceGitHubRef {
+            label: ref_label,
+            issue_number: provenance.r#ref.issue_number,
+            pull_request_number: provenance.r#ref.pull_request_number,
+            head_sha: trim_optional_string(provenance.r#ref.head_sha),
+            trigger_mode: trim_optional_string(provenance.r#ref.trigger_mode)
+                .map(|entry| entry.to_ascii_lowercase()),
+            command_kind: trim_optional_string(provenance.r#ref.command_kind)
+                .map(|entry| entry.to_ascii_lowercase()),
+        },
+        comment: provenance.comment.and_then(|comment| {
+            let normalized = AgentTaskSourceGitHubComment {
+                comment_id: comment.comment_id,
+                url: trim_optional_string(comment.url),
+                author: normalize_task_source_requester(comment.author),
+            };
+            if normalized.comment_id.is_none()
+                && normalized.url.is_none()
+                && normalized.author.is_none()
+            {
+                return None;
+            }
+            Some(normalized)
+        }),
+        launch_handshake: AgentTaskSourceGitHubLaunchHandshake {
+            state: handshake_state,
+            summary: handshake_summary,
+            disposition: trim_optional_string(provenance.launch_handshake.disposition)
+                .map(|entry| entry.to_ascii_lowercase()),
+            prepared_plan_version: trim_optional_string(
+                provenance.launch_handshake.prepared_plan_version,
+            ),
+            approved_plan_version: trim_optional_string(
+                provenance.launch_handshake.approved_plan_version,
+            ),
+        },
+    })
+}
+
 fn infer_task_source_reference(
     kind: &str,
     issue_number: Option<u64>,
@@ -256,6 +348,7 @@ fn normalize_agent_task_source(
         request_id: None,
         source_task_id: None,
         source_run_id: None,
+        github_source: None,
     });
     let label = trim_optional_string(source.label);
     let short_label = trim_optional_string(source.short_label);
@@ -266,6 +359,7 @@ fn normalize_agent_task_source(
     let request_id = trim_optional_string(source.request_id);
     let source_task_id = trim_optional_string(source.source_task_id);
     let source_run_id = trim_optional_string(source.source_run_id);
+    let github_source = normalize_task_source_github_provenance(source.github_source);
     let kind = canonicalize_agent_task_source_kind(source.kind.as_str()).or_else(|| {
         if label.is_some()
             || title.is_some()
@@ -275,6 +369,7 @@ fn normalize_agent_task_source(
             || request_id.is_some()
             || source_task_id.is_some()
             || source_run_id.is_some()
+            || github_source.is_some()
         {
             Some("external_runtime")
         } else {
@@ -312,6 +407,7 @@ fn normalize_agent_task_source(
         request_id,
         source_task_id,
         source_run_id,
+        github_source,
     })
 }
 
@@ -537,6 +633,7 @@ pub(super) fn derive_agent_task_source_summary(
             request_id: source.request_id.or_else(|| trim_str_to_option(request_id)),
             source_task_id: source.source_task_id,
             source_run_id: source.source_run_id.or_else(|| Some(task_id.to_string())),
+            github_source: source.github_source,
         });
     }
 
@@ -559,6 +656,7 @@ pub(super) fn derive_agent_task_source_summary(
             request_id: trim_str_to_option(request_id),
             source_task_id: None,
             source_run_id: Some(task_id.to_string()),
+            github_source: None,
         });
     }
 
@@ -581,6 +679,7 @@ pub(super) fn derive_agent_task_source_summary(
             request_id: trim_str_to_option(request_id),
             source_task_id: Some(task_id.to_string()),
             source_run_id: Some(task_id.to_string()),
+            github_source: None,
         });
     }
 
@@ -742,6 +841,7 @@ mod tests {
             request_id: Some("  request-42  ".to_string()),
             source_task_id: Some("  source-task-42  ".to_string()),
             source_run_id: Some("  source-run-42  ".to_string()),
+            github_source: None,
         }))
         .expect("task source should normalize");
 
@@ -799,6 +899,7 @@ mod tests {
             request_id: None,
             source_task_id: None,
             source_run_id: None,
+            github_source: None,
         }))
         .expect("autodrive source should normalize");
 
@@ -834,6 +935,7 @@ mod tests {
                 request_id: None,
                 source_task_id: None,
                 source_run_id: None,
+                github_source: None,
             }),
             Some("workspace-1"),
             None,

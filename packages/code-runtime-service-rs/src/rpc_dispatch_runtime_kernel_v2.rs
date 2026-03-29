@@ -1705,8 +1705,7 @@ mod tests {
                 canonical_url: None,
                 thread_id: None,
                 request_id: None,
-                source_task_id: None,
-                source_run_id: None,
+                source_task_id: None, source_run_id: None, github_source: None,
             }),
             &RepositoryExecutionResolvedDefaults {
                 source_mapping_kind: Some("github_issue".to_string()),

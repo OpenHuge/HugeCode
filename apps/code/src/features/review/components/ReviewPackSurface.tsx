@@ -456,6 +456,16 @@ function renderMissionRunDetail(
         </ReviewDetailSection>
       ) : null}
 
+      {detail.sourceProvenance ? (
+        <ReviewDetailSection title="Source provenance">
+          <div className={styles.bodyText}>{detail.sourceProvenance.summary}</div>
+          {renderCopyList(
+            detail.sourceProvenance.details,
+            "GitHub source provenance was not published for this mission run."
+          )}
+        </ReviewDetailSection>
+      ) : null}
+
       {detail.reviewIntelligence ||
       detail.reviewGate ||
       detail.reviewProfileId ||
@@ -995,6 +1005,16 @@ export function ReviewPackSurface({
                 {renderCopyList(
                   reviewPackDetail.executionContext.details,
                   "The runtime did not publish additional execution context."
+                )}
+              </ReviewDetailSection>
+            ) : null}
+
+            {reviewPackDetail.sourceProvenance ? (
+              <ReviewDetailSection title="Source provenance">
+                <div className={styles.bodyText}>{reviewPackDetail.sourceProvenance.summary}</div>
+                {renderCopyList(
+                  reviewPackDetail.sourceProvenance.details,
+                  "GitHub source provenance was not published for this review pack."
                 )}
               </ReviewDetailSection>
             ) : null}

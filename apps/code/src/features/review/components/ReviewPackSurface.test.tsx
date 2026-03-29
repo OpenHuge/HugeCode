@@ -280,6 +280,21 @@ describe("ReviewPackSurface", () => {
               "Follow-up relaunches inherit the recorded execution profile and backend route until changed by a control device in Mission Control.",
             ],
           },
+          sourceProvenance: {
+            summary: "PR follow-up started from issue_comment.created in OpenHuge/HugeCode.",
+            details: [
+              "Source repo: OpenHuge/HugeCode",
+              "Source ref: PR #74",
+              "GitHub event: issue_comment.created",
+              "Source comment: #991 by reviewer",
+              "Source record: source-74",
+              "Launch handshake: Started",
+              "Prepared plan version: plan-v74",
+              "Approved plan version: plan-v74",
+              "Runtime started the GitHub-driven run after approving the plan.",
+              "Next operator action: Review the pack: Confirm the review pack and decide whether to continue.",
+            ],
+          },
           lineage: {
             summary:
               "Objective, guardrails, and review outcome stayed attached to this runtime-managed mission.",
@@ -426,6 +441,7 @@ describe("ReviewPackSurface", () => {
     expect(screen.getByText("Rollback guidance")).toBeTruthy();
     expect(screen.getByText("Backend audit")).toBeTruthy();
     expect(screen.getByText("Execution context")).toBeTruthy();
+    expect(screen.getByText("Source provenance")).toBeTruthy();
     expect(screen.getByText("Governance and approval")).toBeTruthy();
     expect(screen.getByText("Placement evidence")).toBeTruthy();
     expect(screen.getByText("Run operator")).toBeTruthy();
@@ -464,6 +480,10 @@ describe("ReviewPackSurface", () => {
         "Follow-up relaunches inherit the recorded execution profile and backend route until changed by a control device in Mission Control."
       )
     ).toBeTruthy();
+    expect(
+      screen.getByText("PR follow-up started from issue_comment.created in OpenHuge/HugeCode.")
+    ).toBeTruthy();
+    expect(screen.getByText("Source comment: #991 by reviewer")).toBeTruthy();
     expect(screen.getByText("Review decision")).toBeTruthy();
     expect(screen.getByText("Review decisions and follow-up")).toBeTruthy();
     expect(screen.getByText("Remote provider route")).toBeTruthy();

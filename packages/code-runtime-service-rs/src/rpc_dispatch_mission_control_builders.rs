@@ -214,6 +214,49 @@ fn normalize_task_source_value(source: &AgentTaskSourceSummary) -> Value {
         "requestId": trim_to_option(source.request_id.as_deref()),
         "sourceTaskId": trim_to_option(source.source_task_id.as_deref()),
         "sourceRunId": trim_to_option(source.source_run_id.as_deref()),
+        "githubSource": source.github_source.as_ref().map(|github_source| json!({
+            "sourceRecordId": github_source.source_record_id,
+            "repo": {
+                "owner": trim_to_option(github_source.repo.owner.as_deref()),
+                "name": trim_to_option(github_source.repo.name.as_deref()),
+                "fullName": trim_to_option(github_source.repo.full_name.as_deref()),
+                "remoteUrl": trim_to_option(github_source.repo.remote_url.as_deref()),
+            },
+            "event": {
+                "deliveryId": trim_to_option(github_source.event.delivery_id.as_deref()),
+                "eventName": github_source.event.event_name,
+                "action": trim_to_option(github_source.event.action.as_deref()),
+                "receivedAt": github_source.event.received_at,
+            },
+            "ref": {
+                "label": github_source.r#ref.label,
+                "issueNumber": github_source.r#ref.issue_number,
+                "pullRequestNumber": github_source.r#ref.pull_request_number,
+                "headSha": trim_to_option(github_source.r#ref.head_sha.as_deref()),
+                "triggerMode": trim_to_option(github_source.r#ref.trigger_mode.as_deref()),
+                "commandKind": trim_to_option(github_source.r#ref.command_kind.as_deref()),
+            },
+            "comment": github_source.comment.as_ref().map(|comment| json!({
+                "commentId": comment.comment_id,
+                "url": trim_to_option(comment.url.as_deref()),
+                "author": comment.author.as_ref().map(|author| json!({
+                    "login": trim_to_option(author.login.as_deref()),
+                    "id": author.id,
+                    "type": trim_to_option(author.r#type.as_deref()),
+                })).unwrap_or(Value::Null),
+            })).unwrap_or(Value::Null),
+            "launchHandshake": {
+                "state": github_source.launch_handshake.state,
+                "summary": github_source.launch_handshake.summary,
+                "disposition": trim_to_option(github_source.launch_handshake.disposition.as_deref()),
+                "preparedPlanVersion": trim_to_option(
+                    github_source.launch_handshake.prepared_plan_version.as_deref(),
+                ),
+                "approvedPlanVersion": trim_to_option(
+                    github_source.launch_handshake.approved_plan_version.as_deref(),
+                ),
+            },
+        })).unwrap_or(Value::Null),
     })
 }
 
