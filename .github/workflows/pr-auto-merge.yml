@@ -43,6 +43,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_QUEUE_ENABLED: ${{ vars.MERGE_QUEUE_ENABLED == 'false' && 'false' || 'true' }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPOSITORY: ${{ github.repository }}
         run: |
@@ -73,6 +74,18 @@ jobs:
               cat "$file_path"
               echo
             } >> "$GITHUB_STEP_SUMMARY"
+          }
+
+          enable_auto_merge() {
+            local url="$1"
+            local head_ref_oid="$2"
+
+            if [[ "$MERGE_QUEUE_ENABLED" == "true" ]]; then
+              gh pr merge --auto --match-head-commit "$head_ref_oid" "$url"
+              return
+            fi
+
+            gh pr merge --auto --squash --match-head-commit "$head_ref_oid" "$url"
           }
 
           process_pr_json() {
@@ -154,7 +167,7 @@ jobs:
 
             if [[ -n "$auto_merge_enabled_at" ]]; then
               gh pr merge --disable-auto "$url"
-              if gh pr merge --auto --squash --match-head-commit "$head_ref_oid" "$url"; then
+              if enable_auto_merge "$url" "$head_ref_oid"; then
                 echo "- PR #$number: re-armed auto-merge so GitHub can enqueue it again." >> "$rearmed_file"
               else
                 echo "- PR #$number: failed to re-arm auto-merge for queue recovery." >> "$failed_file"
@@ -162,7 +175,7 @@ jobs:
               return
             fi
 
-            if gh pr merge --auto --squash --match-head-commit "$head_ref_oid" "$url"; then
+            if enable_auto_merge "$url" "$head_ref_oid"; then
               echo "- PR #$number: enabled auto-merge." >> "$enabled_file"
             else
               echo "- PR #$number: failed to enable auto-merge." >> "$failed_file"
