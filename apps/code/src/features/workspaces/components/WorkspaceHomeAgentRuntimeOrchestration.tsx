@@ -3,7 +3,6 @@ import { useWorkspaceRuntimeMissionControlController } from "../../../applicatio
 import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import { ToolCallChip } from "../../../design-system";
-import { useWorkspaceRuntimeSessionCheckpoint } from "../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint";
 import {
   MissionControlSessionLogSection,
   MissionControlRunListSection,
@@ -31,9 +30,6 @@ type WorkspaceHomeAgentRuntimeOrchestrationProps = {
 export function WorkspaceHomeAgentRuntimeOrchestration({
   workspaceId,
 }: WorkspaceHomeAgentRuntimeOrchestrationProps) {
-  const runtimeSessionCheckpoint = useWorkspaceRuntimeSessionCheckpoint({
-    workspaceId,
-  });
   const [runtimeDraftBatchConfig, setRuntimeDraftBatchConfig] = useState(
     DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG
   );
@@ -350,7 +346,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           </div>
         </div>
       </MissionControlSectionCard>
-      <MissionControlSessionLogSection runtimeSessionCheckpoint={runtimeSessionCheckpoint} />
+      <MissionControlSessionLogSection workspaceId={workspaceId} />
       <Suspense
         fallback={<div className={controlStyles.sectionMeta}>Loading plugin control plane...</div>}
       >

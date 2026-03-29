@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, useDeferredValue, type ReactNode } from "react";
 import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
 import {
   describeRuntimeToolLifecycleEvent,
@@ -12,7 +12,7 @@ import type { RuntimeAgentTaskInterventionInput } from "../../../application/run
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeContinuityReadinessSummary } from "../../../application/runtime/facades/runtimeContinuityReadiness";
 import type { RuntimeTaskLauncherInterventionIntent } from "../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
-import type { WorkspaceRuntimeSessionCheckpointState } from "../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint";
+import { useWorkspaceRuntimeSessionCheckpoint } from "../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint";
 import {
   CoreLoopMetaRail,
   CoreLoopSection,
@@ -149,19 +149,23 @@ export function MissionControlRunListSection({
 }
 
 type MissionControlSessionLogSectionProps = {
-  runtimeSessionCheckpoint: WorkspaceRuntimeSessionCheckpointState;
+  workspaceId: string;
   maxItems?: number;
 };
 
-export function MissionControlSessionLogSection({
-  runtimeSessionCheckpoint,
+export const MissionControlSessionLogSection = memo(function MissionControlSessionLogSection({
+  workspaceId,
   maxItems = 8,
 }: MissionControlSessionLogSectionProps) {
+  const runtimeSessionCheckpoint = useWorkspaceRuntimeSessionCheckpoint({
+    workspaceId,
+  });
+  const deferredRuntimeSessionCheckpoint = useDeferredValue(runtimeSessionCheckpoint);
   const {
     lifecycle: { hookCheckpoints, lifecycleEvents, summary },
     sessionCheckpointBaseline,
     sessionCheckpointSummary,
-  } = runtimeSessionCheckpoint;
+  } = deferredRuntimeSessionCheckpoint;
   const visibleSessions = sessionCheckpointBaseline.sessions.slice(0, maxItems);
   const visibleEvents = lifecycleEvents.slice(0, maxItems);
   const visibleHookCheckpoints = hookCheckpoints.slice(0, maxItems);
@@ -255,4 +259,6 @@ export function MissionControlSessionLogSection({
       )}
     </MissionControlSectionCard>
   );
-}
+});
+
+MissionControlSessionLogSection.displayName = "MissionControlSessionLogSection";
