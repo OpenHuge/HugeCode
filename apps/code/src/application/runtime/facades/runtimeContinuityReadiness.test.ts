@@ -469,6 +469,62 @@ describe("buildRuntimeContinuityReadiness", () => {
     });
   });
 
+  it("preserves runtime continuation truth when checkpoint and mission linkage are absent", () => {
+    const summary = buildRuntimeContinuityReadiness({
+      candidates: [
+        {
+          run: buildRun({
+            state: "review_ready",
+            reviewPackId: "review-pack:run-1",
+            continuation: {
+              state: "ready",
+              pathKind: "review",
+              source: "review_actionability",
+              summary: "Native runtime published canonical continuation after host fallback.",
+              detail: "Open the runtime review follow-up without reconstructing checkpoint truth.",
+              recommendedAction: "Open Review Pack from runtime continuation.",
+              reviewPackId: "review-pack:run-1",
+              sessionBoundary: {
+                workspaceId: "workspace-1",
+                taskId: "task-1",
+                runId: "run-1",
+                missionTaskId: "runtime-task:task-1",
+                sessionKind: "run",
+                reviewPackId: "review-pack:run-1",
+                navigationTarget: {
+                  kind: "run",
+                  workspaceId: "workspace-1",
+                  taskId: "task-1",
+                  runId: "run-1",
+                  reviewPackId: "review-pack:run-1",
+                },
+              },
+              target: {
+                kind: "review_pack",
+                workspaceId: "workspace-1",
+                taskId: "task-1",
+                runId: "run-1",
+                reviewPackId: "review-pack:run-1",
+              },
+            },
+          }),
+          task: buildTask({
+            status: "completed",
+          }),
+        },
+      ],
+    });
+
+    expect(summary.state).toBe("ready");
+    expect(summary.reviewReadyCount).toBe(1);
+    expect(summary.items[0]).toMatchObject({
+      pathKind: "review",
+      detail: "Native runtime published canonical continuation after host fallback.",
+      recommendedAction: "Open Review Pack from runtime continuation.",
+      truthSourceLabel: "Runtime review actionability",
+    });
+  });
+
   it("stays in parity with the shared canonical continuation aggregate", () => {
     const run = buildRun({
       state: "review_ready",
