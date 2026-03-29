@@ -321,7 +321,7 @@ const VIOLATION_RULES = [
     description:
       "migrated account/settings hooks must not import legacy settings or oauth bridge ports directly",
     pattern:
-      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/(?:tauriOauth|tauriModels|tauriRemoteServers|tauriAppSettings|desktopAppSettings|tauriWorkspaceCatalog)["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/(?:tauriOauth|tauriModels|tauriRemoteServers|tauriAppSettings|desktopAppSettings|tauriWorkspaceCatalog)["'])/u,
+      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/(?:tauriOauth|tauriModels|tauriRemoteServers|desktopAppSettings|tauriWorkspaceCatalog)["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/(?:tauriOauth|tauriModels|tauriRemoteServers|desktopAppSettings|tauriWorkspaceCatalog)["'])/u,
     appliesTo: (filePath) =>
       !isUiTestFile(filePath) && SETTINGS_ACCOUNT_MIGRATION_FILES.has(filePath),
   },
@@ -368,7 +368,7 @@ const VIOLATION_RULES = [
     description:
       "`createDesktopWorkspaceClientBindings` must consume RuntimeKernel instead of assembling runtime ports directly",
     pattern:
-      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/(?:runtimeClientMode|runtimeWebGatewayConfig|runtimeClient|tauriAppSettings|desktopAppSettings|tauriOauth|tauriModels|tauriWorkspaceCatalog|tauriSettings|tauriWorkspaces)["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/(?:runtimeClientMode|runtimeWebGatewayConfig|runtimeClient|tauriAppSettings|desktopAppSettings|tauriOauth|tauriModels|tauriWorkspaceCatalog|tauriSettings|tauriWorkspaces)["']\s*\))/u,
+      /(?:from\s+["'][^"']*\/application\/runtime\/ports\/(?:runtimeClientMode|runtimeWebGatewayConfig|runtimeClient|desktopAppSettings|tauriOauth|tauriModels|tauriWorkspaceCatalog|tauriSettings|tauriWorkspaces)["']|import\(\s*["'][^"']*\/application\/runtime\/ports\/(?:runtimeClientMode|runtimeWebGatewayConfig|runtimeClient|desktopAppSettings|tauriOauth|tauriModels|tauriWorkspaceCatalog|tauriSettings|tauriWorkspaces)["']\s*\))/u,
     appliesTo: (filePath) =>
       filePath === "apps/code/src/web/createDesktopWorkspaceClientBindings.tsx",
   },

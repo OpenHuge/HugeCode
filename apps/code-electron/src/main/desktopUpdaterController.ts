@@ -1,4 +1,4 @@
-import type { DesktopUpdateState } from "../shared/ipc.js";
+import type { DesktopUpdateState } from "@ku0/code-platform-interfaces";
 import type { DesktopAutoUpdateStrategy } from "./desktopAutoUpdateConfigurator.js";
 
 type AutoUpdaterInfo = {

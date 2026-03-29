@@ -1,8 +1,8 @@
 import { BrowserWindow } from "electron";
 import type { BrowserWindowConstructorOptions } from "electron";
-import type { DesktopLaunchIntent, DesktopUpdateState } from "../shared/ipc.js";
-import type { OpenDesktopWindowInput } from "../shared/ipc.js";
-import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
+import type { DesktopLaunchIntent, DesktopUpdateState } from "@ku0/code-platform-interfaces";
+import type { OpenDesktopWindowInput } from "@ku0/code-platform-interfaces";
+import { DESKTOP_HOST_IPC_CHANNELS } from "@ku0/code-platform-interfaces";
 import {
   createDesktopShellState,
   resolveCloseBehavior,

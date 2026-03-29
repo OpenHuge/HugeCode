@@ -24,7 +24,6 @@ import {
   upsertOAuthAccount,
   upsertOAuthPool,
 } from "./tauriOauth";
-import { getOpenAppIcon, openWorkspaceIn } from "./tauriApps";
 import { getCollaborationModes } from "./tauriCollaboration";
 import { pickImageFiles, readWorkspaceFile } from "./tauriFiles";
 import { getMissionControlSnapshot } from "./tauriMissionControl";
@@ -53,10 +52,6 @@ import {
 } from "./tauriRuntimeSubAgents";
 import { listWorkspaces } from "./tauriWorkspaceCatalog";
 import { isWorkspacePathDir, pickWorkspacePath, pickWorkspacePaths } from "./tauriWorkspaceDialogs";
-import {
-  getOpenAppIcon as getOpenAppIconBridge,
-  openWorkspaceIn as openWorkspaceInBridge,
-} from "../../../services/desktopHostWorkspace";
 import {
   getCollaborationModes as getCollaborationModesBridge,
   getConfigModel as getConfigModelBridge,
@@ -164,8 +159,6 @@ describe("tauri runtime port contract", () => {
       ["getModelList", getModelList, getModelListBridge],
       ["setMenuAccelerators", setMenuAccelerators, setMenuAcceleratorsBridge],
       ["sendNotification", sendNotification, sendNotificationBridge],
-      ["getOpenAppIcon", getOpenAppIcon, getOpenAppIconBridge],
-      ["openWorkspaceIn", openWorkspaceIn, openWorkspaceInBridge],
       ["pickImageFiles", pickImageFiles, pickImageFilesBridge],
       ["readWorkspaceFile", readWorkspaceFile, readWorkspaceFileBridge],
       ["isWorkspacePathDir", isWorkspacePathDir, isWorkspacePathDirBridge],
@@ -280,9 +273,16 @@ describe("tauri runtime port contract", () => {
     expect(remoteServersSource).not.toMatch(/export\s*\{\s*listWorkspaces\s*\}\s*from/);
   });
 
+  it("retires tauri leaf aliases that only mirrored canonical desktop ports", () => {
+    const retiredLeafPortSources = ["tauriApps.ts", "tauriAppSettings.ts"] as const;
+
+    for (const fileName of retiredLeafPortSources) {
+      expect(() => readFileSync(path.resolve(import.meta.dirname, fileName), "utf8")).toThrow();
+    }
+  });
+
   it("keeps leaf ports off the deprecated tauri aggregation port", () => {
     const leafPortSources = [
-      "tauriApps.ts",
       "tauriCollaboration.ts",
       "tauriFiles.ts",
       "tauriMenu.ts",

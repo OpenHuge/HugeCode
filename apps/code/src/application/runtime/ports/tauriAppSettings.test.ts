@@ -38,7 +38,7 @@ function buildSettings(overrides: Partial<AppSettings> = {}): AppSettings {
   } as AppSettings;
 }
 
-describe("tauriAppSettings port", () => {
+describe("desktopAppSettings port", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

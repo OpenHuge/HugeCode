@@ -8,7 +8,7 @@ import type {
   DesktopOpenDialogResult,
   DesktopOpenPathInInput,
   DesktopUpdateState,
-} from "../shared/ipc.js";
+} from "@ku0/code-platform-interfaces";
 import type { DesktopWindowDescriptor } from "./desktopShellState.js";
 
 type WindowController = {

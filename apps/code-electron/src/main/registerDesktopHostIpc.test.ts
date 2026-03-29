@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
+import { DESKTOP_HOST_IPC_CHANNELS } from "@ku0/code-platform-interfaces";
 import { registerDesktopHostIpc } from "./registerDesktopHostIpc.js";
 
 describe("registerDesktopHostIpc", () => {

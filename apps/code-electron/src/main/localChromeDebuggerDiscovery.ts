@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { LocalChromeDebuggerEndpointDescriptor } from "../shared/ipc.js";
+import type { LocalChromeDebuggerEndpointDescriptor } from "@ku0/code-platform-interfaces";
 
 type BrowserUserDataRoot = {
   browserName: string;

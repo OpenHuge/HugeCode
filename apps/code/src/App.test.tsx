@@ -29,8 +29,11 @@ describe("App boot fallback", () => {
     vi.doMock("./features/layout/hooks/useWindowLabel", () => ({
       useWindowLabel: () => null,
     }));
-    vi.doMock("./application/runtime/ports", () => ({
-      RuntimePortsProvider: ({ children }: { children: ReactNode }) => children,
+    vi.doMock("./application/runtime/kernel/RuntimeKernelContext", () => ({
+      RuntimeKernelProvider: ({ children }: { children: ReactNode }) => children,
+    }));
+    vi.doMock("./application/runtime/kernel/sharedRuntimeKernel", () => ({
+      runtimeKernel: {},
     }));
     vi.doMock("@ku0/code-application", () => ({
       ErrorBoundary: ({ children }: { children: ReactNode }) => children,
@@ -104,8 +107,11 @@ describe("App boot fallback", () => {
     vi.doMock("./features/about/components/AboutView", () => ({
       AboutView: () => <div>About window</div>,
     }));
-    vi.doMock("./application/runtime/ports", () => ({
-      RuntimePortsProvider: ({ children }: { children: ReactNode }) => children,
+    vi.doMock("./application/runtime/kernel/RuntimeKernelContext", () => ({
+      RuntimeKernelProvider: ({ children }: { children: ReactNode }) => children,
+    }));
+    vi.doMock("./application/runtime/kernel/sharedRuntimeKernel", () => ({
+      runtimeKernel: {},
     }));
     vi.doMock("@ku0/code-application", () => ({
       ErrorBoundary: ({ children }: { children: ReactNode }) => children,

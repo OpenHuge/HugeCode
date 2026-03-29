@@ -41,8 +41,6 @@ const GUARDED_PORT_FILES = new Set([
   "desktopUpdater.ts",
   "desktopWebview.ts",
   "tauri.ts",
-  "tauriAppSettings.ts",
-  "tauriApps.ts",
   "tauriCodex.ts",
   "tauriCodexConfig.ts",
   "tauriCollaboration.ts",
@@ -83,6 +81,8 @@ const GUARDED_PORT_FILES = new Set([
   "webMcpToolInputSchemaValidation.ts",
 ]);
 const RETIRED_RUNTIME_PORT_FILES = new Set([
+  "tauriAppSettings.ts",
+  "tauriApps.ts",
   "tauriCodex.ts",
   "tauriRuntimeRuns.ts",
   "tauriSettings.ts",
@@ -109,8 +109,6 @@ const GUARDED_APP_FILES = new Set([
 const GUARDED_CODE_RUNTIME_HOST_CONTRACT_FILES = new Set(["index.ts"]);
 const GUARDED_NATIVE_RUNTIME_HOST_CONTRACT_FILES = new Set(["index.ts"]);
 const NO_RAW_TAURI_AGGREGATION_PORT_FILES = new Set([
-  "tauriAppSettings.ts",
-  "tauriApps.ts",
   "tauriCollaboration.ts",
   "tauriCodexOperations.ts",
   "tauriFiles.ts",
