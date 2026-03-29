@@ -760,4 +760,32 @@ describe("runtimeKernelPlugins", () => {
       }),
     });
   });
+
+  it("defaults missing route selection to automatic routing instead of the first provider alphabetically", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+
+    const selection = plugins.resolveRuntimeKernelRouteSelection({
+      plugins: plugins.createRuntimeProviderRoutePluginDescriptors({
+        providers: [
+          createRuntimeProviderCatalogEntry({
+            providerId: "anthropic",
+            displayName: "Anthropic",
+            pool: "claude",
+            oauthProviderId: "claude",
+          }),
+          createRuntimeProviderCatalogEntry(),
+        ],
+        accounts: [createOAuthAccountSummary()],
+        pools: [createOAuthPoolSummary()],
+      }),
+    });
+
+    expect(selection.normalizedValue).toBe("auto");
+    expect(selection.selected.value).toBe("auto");
+    expect(selection.options.map((option) => option.value)).toEqual([
+      "anthropic",
+      "auto",
+      "openai",
+    ]);
+  });
 });

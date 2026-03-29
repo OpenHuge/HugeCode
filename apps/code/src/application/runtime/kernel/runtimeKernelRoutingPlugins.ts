@@ -32,6 +32,8 @@ export type RuntimeKernelRouteOption = {
   oauthProviderId: OAuthProviderId | null;
   pool: ModelPool | null;
   defaultModelId: string | null;
+  preferredBackendIds: string[] | null;
+  resolvedBackendId: string | null;
   healthEntry: RuntimeProviderRoutingHealth | null;
   provenance: {
     source: RuntimeRoutingPluginProvenance;
@@ -534,9 +536,10 @@ export function resolveRuntimeKernelRouteSelection(input: {
       } => entry.metadata !== null
     )
     .sort((left, right) => left.metadata.routeValue.localeCompare(right.metadata.routeValue));
+  const normalizedSelectedRoute = readOptionalText(input.selectedRoute) ?? "auto";
 
   const options = routingPlugins.map(({ plugin, metadata }) => {
-    const selectedMatch = metadata.routeValue === (input.selectedRoute ?? "auto");
+    const selectedMatch = metadata.routeValue === normalizedSelectedRoute;
     const selectedPlugin = selectedMatch
       ? enrichSelectedRoutingPlugin({
           plugin,
@@ -570,6 +573,8 @@ export function resolveRuntimeKernelRouteSelection(input: {
       oauthProviderId: selectedMetadata.oauthProviderId ?? null,
       pool: selectedMetadata.pool ?? null,
       defaultModelId: selectedMetadata.defaultModelId ?? null,
+      preferredBackendIds: selectedMetadata.preferredBackendIds ?? null,
+      resolvedBackendId: selectedMetadata.resolvedBackendId ?? null,
       healthEntry: buildRoutingHealthEntry(selectedPlugin),
       provenance: {
         source: selectedMetadata.provenance ?? "explicit_route",
@@ -582,7 +587,10 @@ export function resolveRuntimeKernelRouteSelection(input: {
     } satisfies RuntimeKernelRouteOption;
   });
 
-  const selected = options.find((option) => option.value === input.selectedRoute) ?? options[0];
+  const selected =
+    options.find((option) => option.value === normalizedSelectedRoute) ??
+    options.find((option) => option.value === "auto") ??
+    options[0];
   if (!selected) {
     const plugin = createRuntimeRoutingPluginDescriptor({
       routeKind: "combined_execution",
@@ -619,6 +627,8 @@ export function resolveRuntimeKernelRouteSelection(input: {
           oauthProviderId: null,
           pool: "auto",
           defaultModelId: null,
+          preferredBackendIds: null,
+          resolvedBackendId: null,
           healthEntry: null,
           provenance: {
             source: "auto",
@@ -646,6 +656,8 @@ export function resolveRuntimeKernelRouteSelection(input: {
         oauthProviderId: null,
         pool: "auto",
         defaultModelId: null,
+        preferredBackendIds: null,
+        resolvedBackendId: null,
         healthEntry: null,
         provenance: {
           source: "auto",

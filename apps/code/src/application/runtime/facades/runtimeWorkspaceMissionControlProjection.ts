@@ -43,6 +43,8 @@ export type WorkspaceMissionControlRouteOption = Pick<
   | "blockingReason"
   | "recommendedAction"
   | "fallbackDetail"
+  | "preferredBackendIds"
+  | "resolvedBackendId"
   | "healthEntry"
 >;
 
@@ -344,6 +346,46 @@ function buildCompositionSummary(input: {
   };
 }
 
+function normalizeBackendIds(values: readonly string[] | null | undefined): string[] | null {
+  if (!values) {
+    return null;
+  }
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const entry of values) {
+    const trimmed = entry.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  }
+  return normalized.length > 0 ? normalized : null;
+}
+
+function resolveCompositionPreferredBackendIds(
+  resolution: RuntimeCompositionResolution | null
+): string[] | null {
+  return normalizeBackendIds(resolution?.selectedBackendCandidates.map((entry) => entry.backendId));
+}
+
+function resolveCompositionResolvedBackendId(input: {
+  selectedRoute: string;
+  activeProfile: RuntimeCompositionProfile | null;
+  resolution: RuntimeCompositionResolution | null;
+}): string | null {
+  const normalizedRoute = input.selectedRoute.trim() || "auto";
+  const routePluginId = `route:${normalizedRoute}`;
+  const selectedRouteCandidate =
+    input.resolution?.selectedRouteCandidates.find((entry) => entry.pluginId === routePluginId) ??
+    null;
+  return (
+    selectedRouteCandidate?.resolvedBackendId ??
+    input.activeProfile?.backendPolicy.resolvedBackendId ??
+    null
+  );
+}
+
 export function buildWorkspaceRuntimeMissionControlProjection(
   input: BuildWorkspaceRuntimeMissionControlProjectionInput
 ): WorkspaceRuntimeMissionControlProjection {
@@ -366,17 +408,20 @@ export function buildWorkspaceRuntimeMissionControlProjection(
     resolution: input.runtimeCompositionResolution,
     error: input.runtimeCompositionError ?? input.runtimePluginRegistryError,
   });
+  const preferredBackendIds = resolveCompositionPreferredBackendIds(
+    input.runtimeCompositionResolution
+  );
+  const resolvedBackendId = resolveCompositionResolvedBackendId({
+    selectedRoute: input.selectedProviderRoute,
+    activeProfile: input.runtimeCompositionActiveProfile,
+    resolution: input.runtimeCompositionResolution,
+  });
   const routeSelection = resolveRuntimeControlPlaneRouteSelection({
     selectedRoute: input.selectedProviderRoute,
     plugins: input.runtimePlugins,
-    preferredBackendIds:
-      input.runtimeCompositionResolution?.selectedBackendCandidates.map(
-        (entry) => entry.backendId
-      ) ?? null,
-    provenance:
-      (input.runtimeCompositionResolution?.selectedBackendCandidates.length ?? 0) > 0
-        ? "backend_preference"
-        : undefined,
+    preferredBackendIds,
+    resolvedBackendId,
+    provenance: preferredBackendIds || resolvedBackendId ? "backend_preference" : undefined,
   });
 
   const orchestration = buildRuntimeMissionControlOrchestrationState({

@@ -623,6 +623,130 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.launchReadiness.route.detail).toContain("credential-ready account");
   });
 
+  it("preserves the composition-selected resolved backend on the chosen route", () => {
+    const providers: RuntimeProviderCatalogEntry[] = [
+      {
+        providerId: "openai",
+        displayName: "OpenAI",
+        pool: "codex",
+        oauthProviderId: "codex",
+        aliases: [],
+        defaultModelId: null,
+        available: true,
+        supportsNative: true,
+        supportsOpenaiCompat: true,
+        registryVersion: "1",
+      },
+    ];
+
+    const projection = buildWorkspaceRuntimeMissionControlProjection(
+      buildRuntimeProjectionInput({
+        runtimeProviders: providers,
+        runtimeAccounts: [
+          {
+            accountId: "acct-1",
+            provider: "codex",
+            externalAccountId: null,
+            email: "operator@example.com",
+            displayName: "Operator",
+            status: "enabled",
+            disabledReason: null,
+            routeConfig: {
+              schedulable: true,
+            },
+            routingState: {
+              credentialReady: true,
+            },
+            metadata: {},
+            createdAt: 1,
+            updatedAt: 2,
+          },
+        ],
+        runtimePools: [
+          {
+            poolId: "pool-1",
+            provider: "codex",
+            name: "Primary pool",
+            strategy: "round_robin",
+            stickyMode: "cache_first",
+            preferredAccountId: null,
+            enabled: true,
+            metadata: {},
+            createdAt: 1,
+            updatedAt: 2,
+          },
+        ],
+        runtimeCompositionActiveProfileId: "workspace-default",
+        runtimeCompositionActiveProfile: {
+          id: "workspace-default",
+          name: "Workspace Default",
+          scope: "workspace",
+          enabled: true,
+          pluginSelectors: [],
+          routePolicy: {
+            preferredRoutePluginIds: [],
+            providerPreference: [],
+            allowRuntimeFallback: true,
+          },
+          backendPolicy: {
+            preferredBackendIds: ["backend-primary"],
+            resolvedBackendId: "backend-profile",
+          },
+          trustPolicy: {
+            requireVerifiedSignatures: false,
+            allowDevOverrides: false,
+            blockedPublishers: [],
+          },
+          executionPolicyRefs: [],
+          observabilityPolicy: {
+            emitStableEvents: true,
+            emitOtelAlignedTelemetry: true,
+          },
+          configLayers: [],
+        },
+        runtimeCompositionResolution: {
+          selectedPlugins: [],
+          selectedRouteCandidates: [
+            {
+              pluginId: "route:openai",
+              routeKind: "provider_family",
+              providerId: "openai",
+              preferredBackendIds: ["backend-primary"],
+              resolvedBackendId: "backend-route",
+            },
+          ],
+          selectedBackendCandidates: [
+            {
+              backendId: "backend-primary",
+              sourcePluginId: "route:openai",
+            },
+            {
+              backendId: "backend-route",
+              sourcePluginId: "route:openai",
+            },
+          ],
+          blockedPlugins: [],
+          trustDecisions: [],
+          provenance: {
+            activeProfileId: "workspace-default",
+            activeProfileName: "Workspace Default",
+            appliedLayerOrder: ["workspace"],
+            selectorDecisions: {},
+          },
+        },
+        selectedProviderRoute: "openai",
+      })
+    );
+
+    expect(projection.routeSelection.selected.value).toBe("openai");
+    expect(projection.routeSelection.selected.preferredBackendIds).toEqual([
+      "backend-primary",
+      "backend-route",
+    ]);
+    expect(projection.routeSelection.selected.resolvedBackendId).toBe("backend-route");
+    expect(projection.routeSelection.selected.provenance.source).toBe("backend_preference");
+  });
+
   it("projects continuity readiness from runtime task truth instead of page-local guesses", () => {
     const task = {
       ...buildTask("runtime-review-1", "completed", "Reviewable task"),

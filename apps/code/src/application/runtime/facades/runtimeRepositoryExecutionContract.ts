@@ -96,6 +96,7 @@ export type RepositoryExecutionContract = {
 export type RepositoryExecutionExplicitLaunchInput = {
   executionProfileId?: string | null;
   preferredBackendIds?: string[];
+  defaultBackendId?: string | null;
   accessMode?: AccessMode | null;
   reviewProfileId?: string | null;
   validationPresetId?: string | null;
@@ -106,6 +107,7 @@ export type ResolvedRepositoryExecutionDefaults = {
   sourceMappingKind: SupportedRepositoryTaskSourceKind | null;
   executionProfileId: string | null;
   preferredBackendIds?: string[];
+  defaultBackendId?: string | null;
   accessMode: AccessMode | null;
   reviewProfileId: string | null;
   reviewProfile: RepositoryExecutionReviewProfile | null;
