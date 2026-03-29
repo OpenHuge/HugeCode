@@ -271,9 +271,24 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         statusTone={pluginCatalogStatus.tone}
         meta={
           <>
-            <ToolCallChip tone="neutral">Ready {pluginCatalog.readyCount}</ToolCallChip>
-            <ToolCallChip tone="neutral">Attention {pluginCatalog.attentionCount}</ToolCallChip>
-            <ToolCallChip tone="neutral">Blocked {pluginCatalog.blockedCount}</ToolCallChip>
+            <ToolCallChip
+              tone={
+                pluginCatalog.blockedCount > 0
+                  ? "danger"
+                  : pluginCatalog.attentionCount > 0
+                    ? "warning"
+                    : "success"
+              }
+            >
+              Action required {pluginCatalog.blockedCount + pluginCatalog.attentionCount}
+            </ToolCallChip>
+            <ToolCallChip tone="success">
+              Selected now{" "}
+              {pluginCatalog.selectedInActiveProfileCount + composition.selectedRouteCount}
+            </ToolCallChip>
+            <ToolCallChip tone="neutral">
+              Verified/runtime-managed {pluginCatalog.verifiedPackageCount}
+            </ToolCallChip>
           </>
         }
       >
@@ -284,17 +299,24 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                 ? "Runtime-published extension readiness is available."
                 : "No runtime-published plugins discovered for this workspace."}
             </strong>
-            <span>Total plugins: {pluginCatalog.total}</span>
-            <span>Ready: {pluginCatalog.readyCount}</span>
-            <span>Attention: {pluginCatalog.attentionCount}</span>
-            <span>Blocked: {pluginCatalog.blockedCount}</span>
-            <span>Runtime extensions: {pluginCatalog.runtimeExtensionCount}</span>
-            <span>Live skills: {pluginCatalog.liveSkillCount}</span>
-            <span>Repo manifests: {pluginCatalog.repoManifestCount}</span>
-            <span>External packages: {pluginCatalog.externalPackageCount}</span>
-            <span>Verified packages: {pluginCatalog.verifiedPackageCount}</span>
-            <span>Blocked packages: {pluginCatalog.blockedPackageCount}</span>
-            <span>Selected in active profile: {pluginCatalog.selectedInActiveProfileCount}</span>
+            <span>
+              Action required now: {pluginCatalog.blockedCount + pluginCatalog.attentionCount} |
+              ready {pluginCatalog.readyCount}
+            </span>
+            <span>
+              Source mix: runtime extensions {pluginCatalog.runtimeExtensionCount} | live skills{" "}
+              {pluginCatalog.liveSkillCount} | repo manifests {pluginCatalog.repoManifestCount} |
+              external packages {pluginCatalog.externalPackageCount}
+            </span>
+            <span>
+              Trust posture: verified/runtime-managed {pluginCatalog.verifiedPackageCount} |
+              trust-blocked {pluginCatalog.blockedPackageCount}
+            </span>
+            <span>
+              Active selection: profile-selected {pluginCatalog.selectedInActiveProfileCount} |
+              route candidates {composition.selectedRouteCount} | backend candidates{" "}
+              {composition.selectedBackendCount}
+            </span>
             <span>
               Runtime host truth:{" "}
               {pluginCatalog.unsupportedHostCount > 0 ? "published" : "not published"}
@@ -313,19 +335,40 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             <div className={controlStyles.warning}>{pluginCatalog.error}</div>
           ) : null}
         </div>
-        {pluginCatalog.readinessEntries.map((entry) => (
-          <div key={entry.id} className="workspace-home-code-runtime-item">
-            <div className="workspace-home-code-runtime-item-main">
-              <strong>
-                {entry.name} ({entry.version})
-              </strong>
-              <span>Source: {entry.sourceLabel}</span>
-              <span>Capability support: {entry.capabilitySupport.summary}</span>
-              <span>Permission state: {entry.permissionState.label}</span>
-              <span>Readiness: {entry.readiness.label}</span>
-              <span>{entry.readiness.detail}</span>
-              <span>Remediation: {entry.remediationSummary}</span>
+        {pluginCatalog.readinessSections.map((section) => (
+          <div key={section.id}>
+            <div className="workspace-home-code-runtime-item">
+              <div className="workspace-home-code-runtime-item-main">
+                <strong>{section.title}</strong>
+                <span>{section.description}</span>
+              </div>
             </div>
+            {section.entries.map((entry) => (
+              <div key={entry.id} className="workspace-home-code-runtime-item">
+                <div className="workspace-home-code-runtime-item-main">
+                  <strong>
+                    {entry.name} ({entry.version})
+                  </strong>
+                  <span>
+                    {entry.badges.map((badge) => (
+                      <ToolCallChip key={`${entry.id}-${badge.label}`} tone={badge.tone}>
+                        {badge.label}
+                      </ToolCallChip>
+                    ))}
+                  </span>
+                  <span>Source: {entry.sourceLabel}</span>
+                  <span>Selection: {entry.selectionState.label}</span>
+                  <span>Trust: {entry.trustState.label}</span>
+                  <span>Capability support: {entry.capabilitySupport.summary}</span>
+                  <span>Permission state: {entry.permissionState.label}</span>
+                  <span>Readiness: {entry.readiness.label}</span>
+                  <span>{entry.readiness.detail}</span>
+                  <span>{entry.selectionState.detail}</span>
+                  <span>{entry.trustState.detail}</span>
+                  <span>Remediation: {entry.remediationSummary}</span>
+                </div>
+              </div>
+            ))}
           </div>
         ))}
       </MissionControlSectionCard>

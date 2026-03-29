@@ -1,7 +1,16 @@
+import { readRuntimeKernelPluginCompositionMetadata } from "../kernel/runtimeKernelComposition";
+import { readRuntimeKernelPluginRegistryMetadata } from "../kernel/runtimeKernelPluginRegistry";
 import { readRuntimeKernelRoutingPluginMetadata } from "../kernel/runtimeKernelRoutingPlugins";
 import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPluginTypes";
 
 export type RuntimeKernelPluginReadinessState = "ready" | "attention" | "blocked";
+
+export type RuntimeKernelPluginReadinessTone = "neutral" | "success" | "warning" | "danger";
+
+export type RuntimeKernelPluginReadinessBadge = {
+  label: string;
+  tone: RuntimeKernelPluginReadinessTone;
+};
 
 export type RuntimeKernelPluginReadinessEntry = {
   id: string;
@@ -9,6 +18,7 @@ export type RuntimeKernelPluginReadinessEntry = {
   version: string;
   source: RuntimeKernelPluginDescriptor["source"];
   sourceLabel: string;
+  badges: RuntimeKernelPluginReadinessBadge[];
   capabilitySupport: {
     state: RuntimeKernelPluginReadinessState;
     summary: string;
@@ -24,7 +34,24 @@ export type RuntimeKernelPluginReadinessEntry = {
     label: "Ready" | "Attention" | "Blocked";
     detail: string;
   };
+  selectionState: {
+    state: RuntimeKernelPluginReadinessState;
+    label: string;
+    detail: string;
+  };
+  trustState: {
+    state: RuntimeKernelPluginReadinessState;
+    label: string;
+    detail: string;
+  };
   remediationSummary: string;
+};
+
+export type RuntimeKernelPluginReadinessSection = {
+  id: "needs_action" | "selected_now" | "inventory";
+  title: string;
+  description: string;
+  entries: RuntimeKernelPluginReadinessEntry[];
 };
 
 function formatReadinessLabel(state: RuntimeKernelPluginReadinessState) {
@@ -39,6 +66,10 @@ function formatReadinessLabel(state: RuntimeKernelPluginReadinessState) {
 
 function formatList(values: string[]) {
   return values.length > 0 ? values.join(", ") : "none";
+}
+
+function formatLayerOrder(values: string[]) {
+  return values.length > 0 ? values.join(" -> ") : "none";
 }
 
 function toSourceLabel(source: RuntimeKernelPluginDescriptor["source"]) {
@@ -237,6 +268,211 @@ function buildPermissionState(
   };
 }
 
+function buildSelectionState(
+  plugin: RuntimeKernelPluginDescriptor
+): RuntimeKernelPluginReadinessEntry["selectionState"] {
+  const compositionMetadata = readRuntimeKernelPluginCompositionMetadata(plugin.metadata);
+  const routingMetadata = readRuntimeKernelRoutingPluginMetadata(plugin.metadata);
+  if (compositionMetadata?.blockedInActiveProfile) {
+    return {
+      state: "blocked",
+      label: "Blocked in active profile",
+      detail:
+        compositionMetadata.blockedReason ??
+        "The active runtime composition profile blocks this plugin from launch.",
+    };
+  }
+  if (compositionMetadata?.selectedRouteCandidate) {
+    return {
+      state: "ready",
+      label: "Selected route",
+      detail:
+        routingMetadata?.provenance === "backend_preference"
+          ? `The active profile selected this route from backend preference with backends ${formatList(
+              routingMetadata.preferredBackendIds ?? []
+            )}.`
+          : routingMetadata?.provenance === "explicit_route"
+            ? "The active profile selected this route explicitly."
+            : routingMetadata?.provenance === "runtime_fallback"
+              ? "The active profile is currently relying on this runtime fallback route."
+              : "The active profile selected this route for launch.",
+    };
+  }
+  if (compositionMetadata?.selectedInActiveProfile) {
+    return {
+      state: "ready",
+      label: "Selected in active profile",
+      detail: `Chosen by the active runtime profile across layers ${formatLayerOrder(
+        compositionMetadata.layerOrder
+      )}.`,
+    };
+  }
+  if (
+    plugin.source === "provider_route" ||
+    plugin.source === "backend_route" ||
+    plugin.source === "execution_route"
+  ) {
+    return {
+      state: "attention",
+      label: "Published route",
+      detail:
+        "Runtime published this route in the catalog, but the active profile is not currently launching through it.",
+    };
+  }
+  if (plugin.source === "repo_manifest") {
+    return {
+      state: "attention",
+      label: "Repository declaration",
+      detail:
+        "This plugin is visible because the repository manifest declared it for this workspace.",
+    };
+  }
+  return {
+    state: "ready",
+    label: "Available inventory",
+    detail:
+      "Runtime published this plugin in the catalog even though it is not selected by the active profile.",
+  };
+}
+
+function buildTrustState(
+  plugin: RuntimeKernelPluginDescriptor
+): RuntimeKernelPluginReadinessEntry["trustState"] {
+  const registryMetadata = readRuntimeKernelPluginRegistryMetadata(plugin.metadata);
+  if (registryMetadata) {
+    if (registryMetadata.compatibility.status === "incompatible") {
+      return {
+        state: "blocked",
+        label: "Incompatible",
+        detail:
+          registryMetadata.compatibility.blockers?.[0] ??
+          "This package requires a host/runtime contract the current workspace cannot satisfy.",
+      };
+    }
+    if (registryMetadata.trust.status === "verified") {
+      return {
+        state: "ready",
+        label: "Verified",
+        detail:
+          registryMetadata.publisher !== null
+            ? `Verified publisher: ${registryMetadata.publisher}.`
+            : "Runtime verified this package before surfacing it here.",
+      };
+    }
+    if (registryMetadata.trust.status === "runtime_managed") {
+      return {
+        state: "ready",
+        label: "Runtime-managed",
+        detail: "Runtime owns the package provenance and trust decision for this surface.",
+      };
+    }
+    if (registryMetadata.trust.status === "dev_override") {
+      return {
+        state: "attention",
+        label: "Dev override",
+        detail:
+          registryMetadata.trust.blockedReason ??
+          "This package relies on a local development trust override instead of verified attestation.",
+      };
+    }
+    if (registryMetadata.trust.status === "blocked") {
+      return {
+        state: "blocked",
+        label: "Trust blocked",
+        detail:
+          registryMetadata.trust.blockedReason ??
+          "Runtime trust policy currently blocks this package from production use.",
+      };
+    }
+    return {
+      state: "attention",
+      label: "Trust unknown",
+      detail: "Runtime did not publish a stable trust decision for this package.",
+    };
+  }
+
+  if (plugin.runtimeBacked || plugin.source === "wasi_host" || plugin.source === "rpc_host") {
+    return {
+      state: "ready",
+      label: "Runtime-published",
+      detail: "This surface is published directly by runtime instead of an installable package.",
+    };
+  }
+
+  if (plugin.source === "repo_manifest") {
+    return {
+      state: "attention",
+      label: "Repository-local",
+      detail:
+        "This declaration comes from repository manifest truth and does not carry registry attestation metadata.",
+    };
+  }
+
+  return {
+    state: "attention",
+    label: "Trust unspecified",
+    detail: "Runtime did not publish package trust metadata for this plugin source.",
+  };
+}
+
+function buildBadges(input: {
+  plugin: RuntimeKernelPluginDescriptor;
+  readinessState: RuntimeKernelPluginReadinessState;
+  selectionState: RuntimeKernelPluginReadinessEntry["selectionState"];
+  trustState: RuntimeKernelPluginReadinessEntry["trustState"];
+}): RuntimeKernelPluginReadinessBadge[] {
+  const badges: RuntimeKernelPluginReadinessBadge[] = [
+    {
+      label:
+        input.readinessState === "ready"
+          ? "Ready"
+          : input.readinessState === "attention"
+            ? "Attention"
+            : "Blocked",
+      tone:
+        input.readinessState === "ready"
+          ? "success"
+          : input.readinessState === "attention"
+            ? "warning"
+            : "danger",
+    },
+  ];
+
+  if (
+    input.selectionState.label === "Selected in active profile" ||
+    input.selectionState.label === "Selected route"
+  ) {
+    badges.push({
+      label: input.selectionState.label,
+      tone: "success",
+    });
+  } else if (input.selectionState.state !== "ready") {
+    badges.push({
+      label: input.selectionState.label,
+      tone: input.selectionState.state === "blocked" ? "danger" : "warning",
+    });
+  }
+
+  badges.push({
+    label: input.trustState.label,
+    tone:
+      input.trustState.state === "ready"
+        ? "neutral"
+        : input.trustState.state === "attention"
+          ? "warning"
+          : "danger",
+  });
+
+  if (input.plugin.source === "wasi_host" || input.plugin.source === "rpc_host") {
+    badges.push({
+      label: "Host truth",
+      tone: "neutral",
+    });
+  }
+
+  return badges;
+}
+
 function buildReadinessState(input: {
   plugin: RuntimeKernelPluginDescriptor;
   capabilitySupport: RuntimeKernelPluginReadinessEntry["capabilitySupport"];
@@ -349,6 +585,8 @@ export function buildRuntimeKernelPluginReadinessEntries(
   return plugins.map((plugin) => {
     const capabilitySupport = buildCapabilitySupport(plugin);
     const permissionState = buildPermissionState(plugin);
+    const selectionState = buildSelectionState(plugin);
+    const trustState = buildTrustState(plugin);
     const readinessState = buildReadinessState({
       plugin,
       capabilitySupport,
@@ -361,6 +599,12 @@ export function buildRuntimeKernelPluginReadinessEntries(
       version: plugin.version,
       source: plugin.source,
       sourceLabel: toSourceLabel(plugin.source),
+      badges: buildBadges({
+        plugin,
+        readinessState,
+        selectionState,
+        trustState,
+      }),
       capabilitySupport,
       permissionState,
       readiness: {
@@ -368,7 +612,87 @@ export function buildRuntimeKernelPluginReadinessEntries(
         label: formatReadinessLabel(readinessState),
         detail: buildReadinessDetail(plugin, readinessState, permissionState),
       },
+      selectionState,
+      trustState,
       remediationSummary: buildRemediationSummary(plugin, readinessState, permissionState),
     };
   });
+}
+
+function compareSectionEntries(
+  left: RuntimeKernelPluginReadinessEntry,
+  right: RuntimeKernelPluginReadinessEntry
+) {
+  const readinessRank = {
+    blocked: 0,
+    attention: 1,
+    ready: 2,
+  } satisfies Record<RuntimeKernelPluginReadinessState, number>;
+  const leftSelected =
+    left.selectionState.label === "Selected in active profile" ||
+    left.selectionState.label === "Selected route";
+  const rightSelected =
+    right.selectionState.label === "Selected in active profile" ||
+    right.selectionState.label === "Selected route";
+
+  if (readinessRank[left.readiness.state] !== readinessRank[right.readiness.state]) {
+    return readinessRank[left.readiness.state] - readinessRank[right.readiness.state];
+  }
+  if (leftSelected !== rightSelected) {
+    return leftSelected ? -1 : 1;
+  }
+  if (left.trustState.state !== right.trustState.state) {
+    return readinessRank[left.trustState.state] - readinessRank[right.trustState.state];
+  }
+  return left.name.localeCompare(right.name);
+}
+
+export function buildRuntimeKernelPluginReadinessSections(
+  entries: RuntimeKernelPluginReadinessEntry[]
+): RuntimeKernelPluginReadinessSection[] {
+  const needsAction = entries
+    .filter((entry) => entry.readiness.state !== "ready")
+    .sort(compareSectionEntries);
+  const selectedNow = entries
+    .filter(
+      (entry) =>
+        entry.readiness.state === "ready" &&
+        (entry.selectionState.label === "Selected in active profile" ||
+          entry.selectionState.label === "Selected route")
+    )
+    .sort(compareSectionEntries);
+  const accountedFor = new Set([...needsAction, ...selectedNow].map((entry) => entry.id));
+  const inventory = entries
+    .filter((entry) => !accountedFor.has(entry.id))
+    .sort(compareSectionEntries);
+
+  return [
+    {
+      id: "needs_action",
+      title: "Needs action",
+      description:
+        needsAction.length > 0
+          ? "Runtime says these plugin surfaces still need operator attention before you should rely on them."
+          : "No runtime-published plugin surfaces currently need operator action.",
+      entries: needsAction,
+    },
+    {
+      id: "selected_now",
+      title: "Selected now",
+      description:
+        selectedNow.length > 0
+          ? "These plugin surfaces are actively selected by the current profile or route resolution."
+          : "The active profile did not publish any fully ready selected plugin surfaces yet.",
+      entries: selectedNow,
+    },
+    {
+      id: "inventory",
+      title: "Inventory",
+      description:
+        inventory.length > 0
+          ? "The remaining runtime-published plugin inventory stays visible for verification, rollout, and later activation."
+          : "No additional runtime-published plugin inventory is available.",
+      entries: inventory,
+    },
+  ];
 }

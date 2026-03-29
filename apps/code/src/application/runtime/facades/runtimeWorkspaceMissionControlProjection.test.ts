@@ -400,6 +400,17 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
     expect(projection.pluginCatalog.externalPackageCount).toBe(1);
     expect(projection.pluginCatalog.verifiedPackageCount).toBe(1);
     expect(projection.pluginCatalog.selectedInActiveProfileCount).toBe(1);
+    expect(projection.pluginCatalog.readinessSections).toEqual([
+      expect.objectContaining({
+        id: "needs_action",
+      }),
+      expect.objectContaining({
+        id: "selected_now",
+      }),
+      expect.objectContaining({
+        id: "inventory",
+      }),
+    ]);
     expect(projection.composition).toMatchObject({
       activeProfileId: "workspace-default",
       activeProfileName: "Workspace Default",
@@ -1176,6 +1187,12 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
           readiness: expect.objectContaining({
             state: "ready",
           }),
+          selectionState: expect.objectContaining({
+            label: "Available inventory",
+          }),
+          trustState: expect.objectContaining({
+            label: "Runtime-published",
+          }),
           permissionState: expect.objectContaining({
             state: "ready",
           }),
@@ -1189,6 +1206,12 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
           permissionState: expect.objectContaining({
             state: "attention",
           }),
+          selectionState: expect.objectContaining({
+            label: "Repository declaration",
+          }),
+          trustState: expect.objectContaining({
+            label: "Repository-local",
+          }),
           remediationSummary:
             "Bind or install a runtime-backed implementation so this manifest can move beyond declaration-only readiness.",
         }),
@@ -1200,6 +1223,9 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
           }),
           capabilitySupport: expect.objectContaining({
             state: "ready",
+          }),
+          trustState: expect.objectContaining({
+            label: "Runtime-published",
           }),
           remediationSummary: "Inspect runtime health warnings before relying on this live skill.",
         }),
@@ -1213,9 +1239,35 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
             label: "Runtime-managed",
             state: "ready",
           }),
+          selectionState: expect.objectContaining({
+            label: "Published route",
+          }),
+          trustState: expect.objectContaining({
+            label: "Runtime-published",
+          }),
         }),
       ])
     );
+    expect(projection.pluginCatalog.readinessSections).toEqual([
+      expect.objectContaining({
+        id: "needs_action",
+        entries: [
+          expect.objectContaining({ id: "repo-manifest-1" }),
+          expect.objectContaining({ id: "skill-1" }),
+        ],
+      }),
+      expect.objectContaining({
+        id: "selected_now",
+        entries: [],
+      }),
+      expect.objectContaining({
+        id: "inventory",
+        entries: [
+          expect.objectContaining({ id: "route:auto" }),
+          expect.objectContaining({ id: "ext-1" }),
+        ],
+      }),
+    ]);
   });
 
   it("marks runtime-published host binders as blocked until the binder is connected", () => {
@@ -1299,6 +1351,12 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
         readiness: expect.objectContaining({
           state: "blocked",
         }),
+        selectionState: expect.objectContaining({
+          label: "Available inventory",
+        }),
+        trustState: expect.objectContaining({
+          label: "Runtime-published",
+        }),
         permissionState: expect.objectContaining({
           label: "Runtime-managed",
           state: "ready",
@@ -1307,5 +1365,11 @@ describe("runtimeWorkspaceMissionControlProjection", () => {
           "Connect the WASI host binder so runtime can satisfy the published WIT imports.",
       }),
     ]);
+    expect(projection.pluginCatalog.readinessSections[0]).toEqual(
+      expect.objectContaining({
+        id: "needs_action",
+        entries: [expect.objectContaining({ id: "host:wasi" })],
+      })
+    );
   });
 });

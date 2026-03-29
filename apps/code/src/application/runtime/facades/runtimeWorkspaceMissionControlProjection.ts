@@ -18,7 +18,9 @@ import { readRuntimeKernelRoutingPluginMetadata } from "../kernel/runtimeKernelR
 import type { RuntimeExecutionReliabilitySummary } from "./runtimeExecutionReliability";
 import {
   buildRuntimeKernelPluginReadinessEntries,
+  buildRuntimeKernelPluginReadinessSections,
   type RuntimeKernelPluginReadinessEntry,
+  type RuntimeKernelPluginReadinessSection,
 } from "./runtimeKernelPluginReadiness";
 import type { RuntimeLaunchReadinessSummary } from "./runtimeLaunchReadiness";
 import {
@@ -90,6 +92,7 @@ export type WorkspaceRuntimeMissionControlProjection = {
   pluginCatalog: {
     plugins: RuntimeKernelPluginDescriptor[];
     readinessEntries: RuntimeKernelPluginReadinessEntry[];
+    readinessSections: RuntimeKernelPluginReadinessSection[];
     total: number;
     enabled: number;
     runtimeBacked: number;
@@ -200,6 +203,7 @@ function buildPluginCatalogSummary(input: {
   const summary: WorkspaceRuntimeMissionControlProjection["pluginCatalog"] = {
     plugins: input.plugins,
     readinessEntries: buildRuntimeKernelPluginReadinessEntries(input.plugins),
+    readinessSections: [],
     total: input.plugins.length,
     enabled: 0,
     runtimeBacked: 0,
@@ -340,6 +344,8 @@ function buildPluginCatalogSummary(input: {
       summary.blockedCount += 1;
     }
   }
+
+  summary.readinessSections = buildRuntimeKernelPluginReadinessSections(summary.readinessEntries);
 
   return summary;
 }

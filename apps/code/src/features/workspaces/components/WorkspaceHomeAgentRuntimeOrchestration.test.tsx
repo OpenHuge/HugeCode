@@ -970,12 +970,15 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
       const readinessPanel = within(section as HTMLElement);
 
-      expect(readinessPanel.getByText("Blocked")).toBeTruthy();
-      expect(readinessPanel.getByText("Ready 0")).toBeTruthy();
-      expect(readinessPanel.getByText("Attention 0")).toBeTruthy();
-      expect(readinessPanel.getByText("Blocked 1")).toBeTruthy();
+      expect(readinessPanel.getAllByText("Blocked").length).toBeGreaterThan(0);
+      expect(readinessPanel.getByText("Action required 1")).toBeTruthy();
+      expect(readinessPanel.getByText("Selected now 0")).toBeTruthy();
+      expect(readinessPanel.getByText("Verified/runtime-managed 0")).toBeTruthy();
+      expect(readinessPanel.getByText("Needs action")).toBeTruthy();
       expect(readinessPanel.getByText("WASI host slot (unbound)")).toBeTruthy();
       expect(readinessPanel.getByText("Source: WASI host")).toBeTruthy();
+      expect(readinessPanel.getByText("Selection: Available inventory")).toBeTruthy();
+      expect(readinessPanel.getByText("Trust: Runtime-published")).toBeTruthy();
       expect(
         readinessPanel.getByText(
           "Capability support: Runtime host binder imports are published, but the binder is not connected."
@@ -1400,7 +1403,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Launch readiness needs attention")).toBeTruthy();
-      expect(screen.getByText("Attention")).toBeTruthy();
+      expect(screen.getAllByText("Attention").length).toBeGreaterThan(0);
       expect(screen.getAllByText(/fall back to local\/native execution/i).length).toBeGreaterThan(
         0
       );
