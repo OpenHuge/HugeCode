@@ -39,8 +39,7 @@ describe("runtimeMissionControlRouting", () => {
       providerLabel: "openai",
       pool: "codex",
       routeLabel: "openai",
-      routeHint:
-        "Runtime has not confirmed a concrete backend placement yet. Runtime routed provider openai is not present in the current provider catalog.",
+      routeHint: "Runtime routed provider openai is not present in the current provider catalog.",
       health: "attention",
       enabledAccountCount: 0,
       readyAccountCount: 0,
@@ -74,8 +73,7 @@ describe("runtimeMissionControlRouting", () => {
       providerLabel: "Native runtime",
       pool: null,
       routeLabel: "Native runtime",
-      routeHint:
-        "Runtime has not confirmed a concrete backend placement yet. This run does not require workspace OAuth routing.",
+      routeHint: "This run does not require workspace OAuth routing.",
       health: "ready",
       enabledAccountCount: 0,
       readyAccountCount: 0,
@@ -148,9 +146,8 @@ describe("runtimeMissionControlRouting", () => {
     expect(routing).toMatchObject({
       providerLabel: "OpenAI",
       routeLabel: "OpenAI / codex",
-      routeHint: expect.stringContaining(
-        "Runtime has not confirmed a concrete backend placement yet."
-      ),
+      routeHint:
+        "Workspace routing exposes 1 enabled pool(s) and 1 ready account(s) for this provider.",
       health: "ready",
       enabledAccountCount: 1,
       readyAccountCount: 1,
@@ -164,7 +161,7 @@ describe("runtimeMissionControlRouting", () => {
     });
   });
 
-  it("marks fallback placement explicitly in routing hints", () => {
+  it("keeps backend preferences out of synthesized routing hints", () => {
     const routing = buildRoutingSummary(
       createTask({
         backendId: "backend-fallback-b",
@@ -187,9 +184,8 @@ describe("runtimeMissionControlRouting", () => {
       }
     );
 
-    expect(routing.routeHint).toContain(
-      "Runtime confirmed fallback placement on backend backend-fallback-b."
-    );
+    expect(routing.backendId).toBeNull();
+    expect(routing.routeHint).toBe("Enable at least one pool for this provider.");
   });
 
   it("preserves runtime-published routing lifecycle and backend truth when available", () => {
@@ -217,10 +213,7 @@ describe("runtimeMissionControlRouting", () => {
       backendId: "backend-runtime-resolved",
       health: "attention",
     });
-    expect(routing.routeHint).toContain(
-      "Runtime resolved backend backend-runtime-resolved, but confirmation details are incomplete."
-    );
-    expect(routing.routeHint).toContain("Runtime attached provider route context.");
+    expect(routing.routeHint).toBe("Runtime attached provider route context.");
   });
 
   it("prefers runtime-published profile readiness over locally derived messaging", () => {

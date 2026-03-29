@@ -55,6 +55,9 @@ export function buildMissionRunSupervisionSignals(
       details.push("Routing intent is recorded, but runtime has not confirmed placement yet.");
       break;
     default:
+      if (!run?.placement) {
+        details.push("Runtime has not published placement confirmation yet.");
+      }
       break;
   }
 

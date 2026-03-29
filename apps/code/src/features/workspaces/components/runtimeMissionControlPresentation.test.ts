@@ -134,4 +134,19 @@ describe("runtimeMissionControlPresentation", () => {
       "Trace trace-11 is available for remote supervision.",
     ]);
   });
+
+  it("surfaces awaiting-runtime messaging when placement truth is missing", () => {
+    const task = createRuntimeTask({
+      checkpointId: null,
+      traceId: "trace-21",
+    });
+    const run: Pick<HugeCodeRunSummary, "placement"> = {
+      placement: null,
+    };
+
+    expect(buildMissionRunSupervisionSignals(task, run)).toEqual([
+      "Runtime has not published placement confirmation yet.",
+      "Trace trace-21 is available for remote supervision.",
+    ]);
+  });
 });

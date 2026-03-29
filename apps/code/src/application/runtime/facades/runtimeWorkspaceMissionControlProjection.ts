@@ -366,27 +366,16 @@ export function buildWorkspaceRuntimeMissionControlProjection(
     resolution: input.runtimeCompositionResolution,
     error: input.runtimeCompositionError ?? input.runtimePluginRegistryError,
   });
-  const recentTaskWithPlacement = input.runtimeTasks.find((task) =>
-    Array.isArray(task.preferredBackendIds) && task.preferredBackendIds.length > 0
-      ? true
-      : typeof task.backendId === "string" && task.backendId.trim().length > 0
-  );
   const routeSelection = resolveRuntimeControlPlaneRouteSelection({
     selectedRoute: input.selectedProviderRoute,
     plugins: input.runtimePlugins,
     preferredBackendIds:
       input.runtimeCompositionResolution?.selectedBackendCandidates.map(
         (entry) => entry.backendId
-      ) ??
-      recentTaskWithPlacement?.preferredBackendIds ??
-      null,
-    resolvedBackendId:
-      input.runtimeCompositionResolution?.selectedBackendCandidates[0]?.backendId ??
-      recentTaskWithPlacement?.backendId ??
-      null,
+      ) ?? null,
     provenance:
-      recentTaskWithPlacement?.backendId || recentTaskWithPlacement?.preferredBackendIds?.length
-        ? "runtime_fallback"
+      (input.runtimeCompositionResolution?.selectedBackendCandidates.length ?? 0) > 0
+        ? "backend_preference"
         : undefined,
   });
 

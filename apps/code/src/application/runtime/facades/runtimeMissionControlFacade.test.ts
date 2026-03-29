@@ -847,7 +847,7 @@ describe("runtimeMissionControlFacade", () => {
     expect(reviewPack?.reviewStatus).toBe("incomplete_evidence");
   });
 
-  it("preserves backend linkage when runtime routing summary omits backendId", () => {
+  it("does not synthesize backend linkage when runtime routing summary omits backendId", () => {
     const run = projectAgentTaskSummaryToRunSummary({
       taskId: "run-routing-1",
       workspaceId: "ws-1",
@@ -886,7 +886,7 @@ describe("runtimeMissionControlFacade", () => {
     });
 
     expect(run.routing).toMatchObject({
-      backendId: "backend-remote-a",
+      backendId: null,
       routeLabel: "OpenAI / codex",
       provider: "openai",
     });
@@ -1140,7 +1140,7 @@ describe("runtimeMissionControlFacade", () => {
     expect(projection.reviewPacks[0]?.runId).toBe("run-1");
     expect(projection.reviewPacks[0]?.validationOutcome).toBe("unknown");
     expect(projection.reviewPacks[0]?.warnings).toEqual([
-      "Runtime has not confirmed a concrete backend placement yet. Runtime routed provider openai is not present in the current provider catalog.",
+      "Runtime routed provider openai is not present in the current provider catalog.",
     ]);
     expect(projection.reviewPacks[0]?.lineage).toMatchObject({
       objective: "Investigate regression",
@@ -1174,7 +1174,7 @@ describe("runtimeMissionControlFacade", () => {
         "Routing health: attention",
         "Ready accounts: 0/0",
         "Enabled pools: 0",
-        "Runtime has not confirmed a concrete backend placement yet. Runtime routed provider openai is not present in the current provider catalog.",
+        "Runtime routed provider openai is not present in the current provider catalog.",
       ],
       missingReason: null,
     });
@@ -1270,7 +1270,7 @@ describe("runtimeMissionControlFacade", () => {
     });
 
     expect(projection.runs[0]?.routing).toMatchObject({
-      backendId: "backend-review-a",
+      backendId: null,
       routeLabel: "openai",
     });
     expect(projection.runs[0]?.ledger).toMatchObject({
@@ -1293,35 +1293,13 @@ describe("runtimeMissionControlFacade", () => {
       state: "awaiting_review",
       blocking: true,
     });
-    expect(projection.runs[0]?.placement).toMatchObject({
-      resolvedBackendId: "backend-review-a",
-      requestedBackendIds: [],
-      resolutionSource: "workspace_default",
-      lifecycleState: "confirmed",
-      readiness: "attention",
-      backendContract: {
-        kind: "native",
-        origin: "runtime-native",
-        health: "active",
-      },
-    });
+    expect(projection.runs[0]?.placement).toBeNull();
     expect(projection.reviewPacks[0]).toMatchObject({
       governance: {
         state: "awaiting_review",
         blocking: true,
       },
-      placement: {
-        resolvedBackendId: "backend-review-a",
-        requestedBackendIds: [],
-        resolutionSource: "workspace_default",
-        lifecycleState: "confirmed",
-        readiness: "attention",
-        backendContract: {
-          kind: "native",
-          origin: "runtime-native",
-          health: "active",
-        },
-      },
+      placement: null,
       lineage: {
         objective: "Retry review task",
         threadId: "thread-1",
@@ -1355,7 +1333,7 @@ describe("runtimeMissionControlFacade", () => {
     });
   });
 
-  it("records placement evidence when runtime falls back away from the requested backend", () => {
+  it("does not synthesize placement evidence from fallback-shaped task fields", () => {
     const run = projectAgentTaskSummaryToRunSummary(
       {
         taskId: "run-placement-1",
@@ -1412,23 +1390,10 @@ describe("runtimeMissionControlFacade", () => {
       }
     );
 
-    expect(run.placement).toMatchObject({
-      resolvedBackendId: "backend-review-b",
-      requestedBackendIds: ["backend-review-a"],
-      resolutionSource: "runtime_fallback",
-      lifecycleState: "fallback",
-      readiness: "attention",
-      backendContract: {
-        kind: "acp",
-        origin: "acp-projection",
-        transport: "http",
-      },
-    });
-    expect(run.placement?.summary).toContain("fallback");
-    expect(run.placement?.rationale).toContain("requested backend");
+    expect(run.placement).toBeNull();
   });
 
-  it("carries backend health pressure and tcp overlay into placement evidence", () => {
+  it("does not synthesize placement evidence from backend health snapshots", () => {
     const run = projectAgentTaskSummaryToRunSummary(
       {
         taskId: "run-placement-2",
@@ -1484,21 +1449,79 @@ describe("runtimeMissionControlFacade", () => {
       }
     );
 
+    expect(run.placement).toBeNull();
+  });
+
+  it("passes through runtime-published placement evidence without frontend synthesis", () => {
+    const run = projectAgentTaskSummaryToRunSummary({
+      taskId: "run-placement-runtime-1",
+      workspaceId: "ws-1",
+      threadId: "thread-placement-runtime-1",
+      requestId: null,
+      title: "Use runtime placement truth",
+      status: "running",
+      accessMode: "full-access",
+      executionMode: "distributed",
+      provider: "openai",
+      modelId: "gpt-5.3-codex",
+      routedProvider: "openai",
+      routedModelId: "gpt-5.3-codex",
+      routedPool: "codex",
+      routedSource: "workspace-default",
+      currentStep: 0,
+      createdAt: 1,
+      updatedAt: 20,
+      startedAt: 2,
+      completedAt: null,
+      errorCode: null,
+      errorMessage: null,
+      pendingApprovalId: null,
+      backendId: "backend-task-level",
+      preferredBackendIds: ["backend-request-a"],
+      runSummary: {
+        id: "run-placement-runtime-1",
+        taskId: "runtime:run-placement-runtime-1",
+        workspaceId: "ws-1",
+        state: "running",
+        title: "Use runtime placement truth",
+        summary: "Runtime is executing.",
+        startedAt: 2,
+        finishedAt: null,
+        updatedAt: 20,
+        currentStepIndex: 0,
+        placement: {
+          resolvedBackendId: "backend-runtime-confirmed",
+          requestedBackendIds: ["backend-request-runtime"],
+          resolutionSource: "runtime_fallback",
+          lifecycleState: "fallback",
+          readiness: "attention",
+          healthSummary: "placement_attention",
+          attentionReasons: ["backend_failures_detected"],
+          summary: "Runtime confirmed fallback placement on backend-runtime-confirmed.",
+          rationale: "Runtime moved execution after backend-review pressure.",
+          backendContract: {
+            kind: "acp",
+            origin: "acp-projection",
+            transport: "http",
+            capabilityCount: 6,
+            health: "draining",
+            rolloutState: "current",
+          },
+        },
+      } as AgentTaskSummary["runSummary"],
+      steps: [],
+    });
+
     expect(run.placement).toMatchObject({
-      resolvedBackendId: "backend-review-c",
-      requestedBackendIds: [],
-      resolutionSource: "workspace_default",
-      lifecycleState: "confirmed",
+      resolvedBackendId: "backend-runtime-confirmed",
+      requestedBackendIds: ["backend-request-runtime"],
+      resolutionSource: "runtime_fallback",
+      lifecycleState: "fallback",
       readiness: "attention",
       healthSummary: "placement_attention",
-      attentionReasons: expect.arrayContaining([
-        "backend_unhealthy",
-        "backend_draining",
-        "backend_queue_depth",
-        "backend_at_capacity",
-        "backend_failures_detected",
-      ]),
-      tcpOverlay: "netbird",
+      attentionReasons: ["backend_failures_detected"],
+      summary: "Runtime confirmed fallback placement on backend-runtime-confirmed.",
+      rationale: "Runtime moved execution after backend-review pressure.",
       backendContract: {
         kind: "acp",
         origin: "acp-projection",

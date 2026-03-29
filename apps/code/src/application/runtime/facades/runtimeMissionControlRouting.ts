@@ -1,6 +1,5 @@
 import type {
   AgentTaskSummary,
-  HugeCodePlacementLifecycleState,
   HugeCodeRunSummary,
   OAuthAccountSummary,
   OAuthPoolSummary,
@@ -31,90 +30,18 @@ export type RunProjectionRoutingContext = {
   preferredExecutionProfileId?: string | null;
 };
 
-function normalizePreferredBackendIds(task: AgentTaskSummary): string[] {
-  return Array.from(
-    new Set(
-      (task.preferredBackendIds ?? [])
-        .map((entry) => entry.trim())
-        .filter((entry) => entry.length > 0)
-    )
-  );
-}
-
-function resolveRoutingLifecycle(input: {
-  backendId: string | null;
-  preferredBackendIds: string[];
-  hasConfirmationEvidence: boolean;
-}): HugeCodePlacementLifecycleState {
-  if (!input.backendId) {
-    return input.preferredBackendIds.length > 0 ? "requested" : "unresolved";
-  }
-  if (
-    input.preferredBackendIds.length > 0 &&
-    !input.preferredBackendIds.includes(input.backendId)
-  ) {
-    return "fallback";
-  }
-  return input.hasConfirmationEvidence ? "confirmed" : "resolved";
-}
-
-function buildRoutingLifecycleHint(input: {
-  lifecycleState: HugeCodePlacementLifecycleState;
-  backendId: string | null;
-  preferredBackendIds: string[];
-}) {
-  switch (input.lifecycleState) {
-    case "requested":
-      return "Requested backend placement is still waiting for runtime confirmation.";
-    case "resolved":
-      return input.backendId
-        ? `Runtime resolved backend ${input.backendId}, but confirmation details are incomplete.`
-        : "Runtime resolved routing intent, but backend confirmation details are incomplete.";
-    case "confirmed":
-      return input.preferredBackendIds.length > 0 && input.backendId
-        ? `Runtime confirmed the requested backend ${input.backendId}.`
-        : input.backendId
-          ? `Runtime confirmed backend placement on ${input.backendId}.`
-          : "Runtime confirmed backend placement.";
-    case "fallback":
-      return input.backendId
-        ? `Runtime confirmed fallback placement on backend ${input.backendId}.`
-        : "Runtime confirmed fallback placement.";
-    case "unresolved":
-    default:
-      return "Runtime has not confirmed a concrete backend placement yet.";
-  }
-}
-
 export function buildRoutingSummary(
   task: AgentTaskSummary,
   context?: RunProjectionRoutingContext
 ): NonNullable<HugeCodeRunSummary["routing"]> {
   if (task.routing) {
-    const preferredBackendIds = normalizePreferredBackendIds(task);
-    const backendId = task.routing.backendId ?? task.backendId ?? null;
-    const lifecycleState =
-      task.routing.lifecycleState ??
-      resolveRoutingLifecycle({
-        backendId,
-        preferredBackendIds,
-        hasConfirmationEvidence: true,
-      });
-    const lifecycleHint = buildRoutingLifecycleHint({
-      lifecycleState,
-      backendId,
-      preferredBackendIds,
-    });
     return {
       ...task.routing,
-      backendId,
-      routeHint: Array.from(new Set([lifecycleHint, task.routing.routeHint].filter(Boolean))).join(
-        " "
-      ),
+      backendId: task.routing.backendId ?? null,
+      routeHint: task.routing.routeHint ?? null,
     };
   }
 
-  const preferredBackendIds = normalizePreferredBackendIds(task);
   const routedProvider = task.routedProvider ?? task.provider ?? null;
   const providers = context?.providers ?? [];
   const providerEntry =
@@ -147,26 +74,15 @@ export function buildRoutingSummary(
     providerHealth.find((entry) => entry.providerId === providerEntry?.oauthProviderId) ??
     providerHealth.find((entry) => entry.providerId === providerEntry?.providerId);
   const providerLabel = providerEntry?.displayName ?? routedProvider;
-  const backendId = task.backendId ?? null;
-  const lifecycleState = resolveRoutingLifecycle({
-    backendId,
-    preferredBackendIds,
-    hasConfirmationEvidence: providerEntry !== undefined || healthEntry !== undefined,
-  });
-  const lifecycleHint = buildRoutingLifecycleHint({
-    lifecycleState,
-    backendId,
-    preferredBackendIds,
-  });
 
   if (!routedProvider) {
     return {
-      backendId,
+      backendId: null,
       provider: routedProvider,
       providerLabel,
       pool: task.routedPool ?? null,
       routeLabel: providerLabel ?? "Local runtime",
-      routeHint: `${lifecycleHint} This run does not require workspace OAuth routing.`,
+      routeHint: "This run does not require workspace OAuth routing.",
       health: "ready",
       enabledAccountCount: 0,
       readyAccountCount: 0,
@@ -176,12 +92,12 @@ export function buildRoutingSummary(
 
   if (!providerEntry) {
     return {
-      backendId,
+      backendId: null,
       provider: routedProvider,
       providerLabel,
       pool: task.routedPool ?? null,
       routeLabel: providerLabel ?? "Unknown runtime route",
-      routeHint: `${lifecycleHint} Runtime routed provider ${routedProvider} is not present in the current provider catalog.`,
+      routeHint: `Runtime routed provider ${routedProvider} is not present in the current provider catalog.`,
       health: "attention",
       enabledAccountCount: 0,
       readyAccountCount: 0,
@@ -191,12 +107,12 @@ export function buildRoutingSummary(
 
   if (providerEntry.oauthProviderId === null) {
     return {
-      backendId,
+      backendId: null,
       provider: routedProvider,
       providerLabel,
       pool: task.routedPool ?? null,
       routeLabel: providerLabel ?? "Local runtime",
-      routeHint: `${lifecycleHint} This run does not require workspace OAuth routing.`,
+      routeHint: "This run does not require workspace OAuth routing.",
       health: "ready",
       enabledAccountCount: 0,
       readyAccountCount: 0,
@@ -208,13 +124,11 @@ export function buildRoutingSummary(
     ? `${providerLabel ?? providerEntry.oauthProviderId} / ${task.routedPool}`
     : `${providerLabel ?? providerEntry.oauthProviderId} / workspace route`;
 
-  const routeHint = [
-    lifecycleHint,
+  const routeHint =
     healthEntry?.recommendation ??
-      (healthEntry
-        ? `Workspace routing exposes ${healthEntry.enabledPools} enabled pool(s) and ${healthEntry.credentialReadyAccounts} ready account(s) for this provider.`
-        : "Workspace routing details are not available yet."),
-  ].join(" ");
+    (healthEntry
+      ? `Workspace routing exposes ${healthEntry.enabledPools} enabled pool(s) and ${healthEntry.credentialReadyAccounts} ready account(s) for this provider.`
+      : "Workspace routing details are not available yet.");
 
   const health = !healthEntry
     ? "attention"
@@ -225,7 +139,7 @@ export function buildRoutingSummary(
         : "blocked";
 
   return {
-    backendId,
+    backendId: null,
     provider: routedProvider,
     providerLabel,
     pool: task.routedPool ?? null,
