@@ -13,6 +13,26 @@ describe("createDesktopHostHandlers", () => {
         receivedAt: "2026-03-24T00:00:00.000Z",
         url: "hugecode://workspace/open?path=%2Fworkspace%2Falpha",
       })),
+      browserExtraction: {
+        extract: vi.fn(async () => ({
+          status: "succeeded" as const,
+          normalizedText: "Mission Control browser extraction",
+          snippet: "Mission Control browser extraction",
+          sourceUrl: "https://example.com/browser-readiness",
+          title: "Browser readiness",
+          traceId: "browser-trace-1",
+          trace: [],
+        })),
+        getLastResult: vi.fn(async () => ({
+          status: "succeeded" as const,
+          normalizedText: "Mission Control browser extraction",
+          snippet: "Mission Control browser extraction",
+          sourceUrl: "https://example.com/browser-readiness",
+          title: "Browser readiness",
+          traceId: "browser-trace-1",
+          trace: [],
+        })),
+      },
       getAppInfo: vi.fn(() => ({
         channel: "beta" as const,
         platform: "darwin" as const,
@@ -43,10 +63,7 @@ describe("createDesktopHostHandlers", () => {
       notificationController: {
         showNotification: vi.fn(() => true),
       },
-      openDialog: vi.fn(async () => ({
-        canceled: false,
-        filePaths: ["/tmp/hugecode/workspace-alpha"],
-      })),
+      openDialog: vi.fn(async () => ["/tmp/hugecode/workspace-alpha"]),
       openExternalUrl: vi.fn(async () => true),
       openPathIn: vi.fn(async () => true),
       openPath: vi.fn(async () => true),
@@ -125,6 +142,24 @@ describe("createDesktopHostHandlers", () => {
         webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/browser-1",
       },
     ]);
+    await expect(handlers.extractBrowserContent()).resolves.toEqual({
+      status: "succeeded",
+      normalizedText: "Mission Control browser extraction",
+      snippet: "Mission Control browser extraction",
+      sourceUrl: "https://example.com/browser-readiness",
+      title: "Browser readiness",
+      traceId: "browser-trace-1",
+      trace: [],
+    });
+    await expect(handlers.getLastBrowserExtractionResult()).resolves.toEqual({
+      status: "succeeded",
+      normalizedText: "Mission Control browser extraction",
+      snippet: "Mission Control browser extraction",
+      sourceUrl: "https://example.com/browser-readiness",
+      title: "Browser readiness",
+      traceId: "browser-trace-1",
+      trace: [],
+    });
     expect(handlers.getWindowLabel({ sender: {} as never })).toBe("main");
     expect(handlers.consumePendingLaunchIntent()).toEqual({
       kind: "protocol",
@@ -145,12 +180,9 @@ describe("createDesktopHostHandlers", () => {
     expect(handlers.reopenSession("session-1")).toBe(true);
     expect(handlers.closeWindow(1)).toBe(true);
     expect(handlers.focusWindow(1)).toBe(true);
-    await expect(handlers.openDialog()).resolves.toEqual({
-      canceled: false,
-      filePaths: ["/tmp/hugecode/workspace-alpha"],
-    });
+    await expect(handlers.openDialog()).resolves.toEqual(["/tmp/hugecode/workspace-alpha"]);
     await expect(
-      handlers.openPathIn({ path: "/tmp/hugecode/workspace-alpha", target: "finder" })
+      handlers.openPathIn({ appName: "Finder", path: "/tmp/hugecode/workspace-alpha" })
     ).resolves.toBe(true);
     await expect(handlers.openPath("/tmp/hugecode/logs")).resolves.toBe(true);
     expect(handlers.getTrayState()).toEqual({ enabled: true, supported: true });
@@ -183,6 +215,10 @@ describe("createDesktopHostHandlers", () => {
       appVersion: null,
       copySupportSnapshot: vi.fn(() => false),
       consumePendingLaunchIntent: vi.fn(() => null),
+      browserExtraction: {
+        extract: vi.fn(async () => null),
+        getLastResult: vi.fn(async () => null),
+      },
       getAppInfo: vi.fn(() => ({
         channel: "beta" as const,
         platform: "darwin" as const,
@@ -206,10 +242,7 @@ describe("createDesktopHostHandlers", () => {
       notificationController: {
         showNotification: vi.fn(() => false),
       },
-      openDialog: vi.fn(async () => ({
-        canceled: true,
-        filePaths: [],
-      })),
+      openDialog: vi.fn(async () => null),
       openExternalUrl: vi.fn(async () => true),
       openPathIn: vi.fn(async () => true),
       openPath: vi.fn(async () => true),

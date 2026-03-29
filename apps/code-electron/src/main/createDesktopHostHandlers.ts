@@ -1,5 +1,7 @@
 import type {
   DesktopAppInfo,
+  DesktopBrowserExtractionRequest,
+  DesktopBrowserExtractionResult,
   DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   LocalChromeDebuggerEndpointDescriptor,
@@ -38,6 +40,15 @@ type UpdaterController = {
 
 export type CreateDesktopHostHandlersInput = {
   appVersion: string | null;
+  browserExtraction: {
+    extract(
+      input?: DesktopBrowserExtractionRequest
+    ): Promise<DesktopBrowserExtractionResult | null> | DesktopBrowserExtractionResult | null;
+    getLastResult():
+      | Promise<DesktopBrowserExtractionResult | null>
+      | DesktopBrowserExtractionResult
+      | null;
+  };
   copySupportSnapshot(): boolean;
   consumePendingLaunchIntent(): DesktopLaunchIntent | null;
   getAppInfo(): DesktopAppInfo;
@@ -70,12 +81,18 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
     consumePendingLaunchIntent() {
       return input.consumePendingLaunchIntent();
     },
+    extractBrowserContent(extractionInput?: DesktopBrowserExtractionRequest) {
+      return input.browserExtraction.extract(extractionInput);
+    },
     focusWindow: input.windowController.focusWindow,
     getAppInfo() {
       return input.getAppInfo();
     },
     getDiagnosticsInfo() {
       return input.getDiagnosticsInfo();
+    },
+    getLastBrowserExtractionResult() {
+      return input.browserExtraction.getLastResult();
     },
     listLocalChromeDebuggerEndpoints() {
       return input.listLocalChromeDebuggerEndpoints();

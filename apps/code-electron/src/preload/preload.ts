@@ -12,6 +12,11 @@ const desktopHostBridge: DesktopHostBridgeApi = {
     listLocalChromeDebuggerEndpoints: () =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.listLocalChromeDebuggerEndpoints),
   },
+  browserExtraction: {
+    extract: (input) => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.extractBrowserContent, input),
+    getLastResult: () =>
+      ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getLastBrowserExtractionResult),
+  },
   launch: {
     consumePendingIntent: () =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.consumePendingLaunchIntent),
