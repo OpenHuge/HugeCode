@@ -38,15 +38,19 @@ export type RuntimeContinuityReadinessSummary = Omit<
 type RuntimeContinuityCandidateRun = Pick<
   HugeCodeRunSummary,
   | "id"
+  | "workspaceId"
   | "taskId"
   | "state"
   | "updatedAt"
+  | "reviewPackId"
   | "checkpoint"
   | "executionGraph"
+  | "continuation"
   | "missionLinkage"
   | "actionability"
   | "publishHandoff"
   | "takeoverBundle"
+  | "nextAction"
 >;
 
 type RuntimeContinuityCandidateTask = Pick<
@@ -101,6 +105,7 @@ function isCanonicalContinuationCandidate(input: {
 }) {
   return Boolean(
     input.run.state === "review_ready" ||
+    input.run.continuation ||
     input.run.takeoverBundle ||
     input.run.publishHandoff ||
     input.run.missionLinkage ||
@@ -144,11 +149,13 @@ export function buildRuntimeContinuityReadiness({
       taskId: candidate.task?.taskId ?? candidate.run.id,
       runState: candidate.run.state,
       checkpoint,
+      continuation: candidate.run.continuation ?? null,
       missionLinkage: candidate.run.missionLinkage ?? null,
       actionability: candidate.run.actionability ?? null,
       publishHandoff: candidate.run.publishHandoff ?? null,
       takeoverBundle: candidate.run.takeoverBundle ?? null,
-      nextAction: null,
+      nextAction: candidate.run.nextAction ?? null,
+      reviewPackId: candidate.run.reviewPackId ?? null,
     };
     return [aggregateCandidate];
   });
