@@ -316,6 +316,9 @@ function getHighestReviewSeverity(
   return reviewPack.reviewGate?.highestSeverity ?? reviewPack.reviewFindings?.[0]?.severity ?? null;
 }
 
+type ReviewPackContinuityState = "blocked" | "attention" | null;
+type ReviewPackContinuityDescriptor = ReturnType<typeof buildRuntimeContinuationDescriptor>;
+
 function resolveReviewPackContinuityDescriptor(
   reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
 ) {
@@ -344,9 +347,8 @@ function hasCriticalReviewSignal(
 }
 
 function getReviewPackContinuityState(
-  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
-): "blocked" | "attention" | null {
-  const descriptor = resolveReviewPackContinuityDescriptor(reviewPack);
+  descriptor: ReviewPackContinuityDescriptor
+): ReviewPackContinuityState {
   if (descriptor?.state === "blocked") {
     return "blocked";
   }
@@ -372,12 +374,13 @@ function hasNeedsAttentionSignal(
 }
 
 function resolveReviewQueuePriorityBand(
-  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number],
+  continuityState: ReviewPackContinuityState
 ) {
   if (hasCriticalReviewSignal(reviewPack)) {
     return 4;
   }
-  if (getReviewPackContinuityState(reviewPack)) {
+  if (continuityState) {
     return 3;
   }
   if (hasAutofixReadySignal(reviewPack)) {
@@ -389,8 +392,10 @@ function resolveReviewQueuePriorityBand(
   return 0;
 }
 
-function getReviewStatusLabel(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
-  const continuityState = getReviewPackContinuityState(reviewPack);
+function getReviewStatusLabel(
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number],
+  continuityState: ReviewPackContinuityState
+) {
   if (reviewPack.validationOutcome === "failed") {
     return "Validation failed";
   }
@@ -426,9 +431,9 @@ function formatValidationLabel(validationOutcome: string) {
 }
 
 function getReviewItemTone(
-  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number],
+  continuityState: ReviewPackContinuityState
 ): SharedReviewQueueItem["tone"] {
-  const continuityState = getReviewPackContinuityState(reviewPack);
   if (
     reviewPack.validationOutcome === "failed" ||
     reviewPack.reviewGate?.state === "fail" ||
@@ -453,9 +458,9 @@ function getReviewItemTone(
 }
 
 function resolveReviewQueueSummary(
-  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number],
+  continuityDescriptor: ReviewPackContinuityDescriptor
 ) {
-  const continuityDescriptor = resolveReviewPackContinuityDescriptor(reviewPack);
   if (reviewPack.validationOutcome === "failed") {
     return (
       reviewPack.reviewGate?.blockingReason ??
@@ -508,33 +513,65 @@ function resolveReviewQueueSummary(
   );
 }
 
-function getReviewQueuePriority(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
-  const continuityDescriptor = resolveReviewPackContinuityDescriptor(reviewPack);
-  const priorityBand = resolveReviewQueuePriorityBand(reviewPack);
+function computeReviewQueuePriority(input: {
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number];
+  continuityDescriptor: ReviewPackContinuityDescriptor;
+  continuityState: ReviewPackContinuityState;
+}) {
+  const priorityBand = resolveReviewQueuePriorityBand(input.reviewPack, input.continuityState);
   if (priorityBand > 0) {
     return (
       priorityBand * 200 +
-      Math.min(reviewPack.warningCount, 9) * 5 +
-      Math.min(reviewPack.reviewGate?.findingCount ?? reviewPack.reviewFindings?.length ?? 0, 9)
+      Math.min(input.reviewPack.warningCount, 9) * 5 +
+      Math.min(
+        input.reviewPack.reviewGate?.findingCount ?? input.reviewPack.reviewFindings?.length ?? 0,
+        9
+      )
     );
   }
   if (
-    reviewPack.reviewStatus === "ready" ||
-    reviewPack.takeoverBundle?.state === "ready" ||
-    continuityDescriptor?.state === "ready"
+    input.reviewPack.reviewStatus === "ready" ||
+    input.reviewPack.takeoverBundle?.state === "ready" ||
+    input.continuityDescriptor?.state === "ready"
   ) {
     return 320;
   }
   if (
-    reviewPack.takeoverBundle ||
-    reviewPack.actionability ||
-    reviewPack.missionLinkage ||
-    reviewPack.publishHandoff ||
-    reviewPack.recommendedNextAction
+    input.reviewPack.takeoverBundle ||
+    input.reviewPack.actionability ||
+    input.reviewPack.missionLinkage ||
+    input.reviewPack.publishHandoff ||
+    input.reviewPack.recommendedNextAction
   ) {
     return 240;
   }
   return 120;
+}
+
+function projectReviewQueueItem(
+  workspaces: HugeCodeMissionControlSnapshot["workspaces"],
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+) {
+  const continuityDescriptor = resolveReviewPackContinuityDescriptor(reviewPack);
+  const continuityState = getReviewPackContinuityState(continuityDescriptor);
+  return {
+    reviewPack,
+    priority: computeReviewQueuePriority({
+      reviewPack,
+      continuityDescriptor,
+      continuityState,
+    }),
+    item: {
+      id: reviewPack.id,
+      title: reviewPack.summary,
+      workspaceName: getWorkspaceName(workspaces, reviewPack.workspaceId),
+      summary: resolveReviewQueueSummary(reviewPack, continuityDescriptor),
+      reviewStatusLabel: getReviewStatusLabel(reviewPack, continuityState),
+      validationLabel: formatValidationLabel(reviewPack.validationOutcome),
+      tone: getReviewItemTone(reviewPack, continuityState),
+      warningCount: reviewPack.warningCount,
+    },
+  };
 }
 
 function buildReviewQueueItems(
@@ -542,22 +579,13 @@ function buildReviewQueueItems(
   reviewPacks: HugeCodeMissionControlSnapshot["reviewPacks"]
 ): SharedReviewQueueItem[] {
   return [...reviewPacks]
+    .map((reviewPack) => projectReviewQueueItem(workspaces, reviewPack))
     .sort(
       (left, right) =>
-        getReviewQueuePriority(right) - getReviewQueuePriority(left) ||
-        right.createdAt - left.createdAt
+        right.priority - left.priority || right.reviewPack.createdAt - left.reviewPack.createdAt
     )
     .slice(0, 6)
-    .map((reviewPack) => ({
-      id: reviewPack.id,
-      title: reviewPack.summary,
-      workspaceName: getWorkspaceName(workspaces, reviewPack.workspaceId),
-      summary: resolveReviewQueueSummary(reviewPack),
-      reviewStatusLabel: getReviewStatusLabel(reviewPack),
-      validationLabel: formatValidationLabel(reviewPack.validationOutcome),
-      tone: getReviewItemTone(reviewPack),
-      warningCount: reviewPack.warningCount,
-    }));
+    .map((entry) => entry.item);
 }
 
 export function buildSharedMissionControlSummary(
