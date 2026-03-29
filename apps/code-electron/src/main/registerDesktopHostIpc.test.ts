@@ -18,17 +18,22 @@ describe("registerDesktopHostIpc", () => {
         checkForUpdates: vi.fn(),
         copySupportSnapshot: vi.fn(),
         consumePendingLaunchIntent: vi.fn(),
+        extractBrowserContent: vi.fn(),
         focusWindow: vi.fn(),
         getAppInfo: vi.fn(),
         getAppVersion: vi.fn(),
         getCurrentSession: vi.fn(),
         getDiagnosticsInfo: vi.fn(),
+        getLastBrowserExtractionResult: vi.fn(),
         getTrayState: vi.fn(),
         getUpdateState: vi.fn(),
         getWindowLabel: vi.fn(),
+        listLocalChromeDebuggerEndpoints: vi.fn(),
         listRecentSessions: vi.fn(),
         listWindows: vi.fn(),
+        openDialog: vi.fn(),
         openExternalUrl: vi.fn(),
+        openPathIn: vi.fn(),
         openPath: vi.fn(),
         openWindow: vi.fn(),
         reopenSession: vi.fn(),
@@ -44,8 +49,8 @@ describe("registerDesktopHostIpc", () => {
     });
 
     expect(handleMock).toHaveBeenCalledTimes(invokeChannels.length);
-    expect(handleMock.mock.calls.map(([channel]) => channel).toSorted()).toEqual(
-      invokeChannels.toSorted()
+    expect(handleMock.mock.calls.map(([channel]) => channel).sort()).toEqual(
+      [...invokeChannels].sort()
     );
   });
 
@@ -60,17 +65,22 @@ describe("registerDesktopHostIpc", () => {
         checkForUpdates: vi.fn(),
         copySupportSnapshot: vi.fn(),
         consumePendingLaunchIntent: vi.fn(),
+        extractBrowserContent: vi.fn(),
         focusWindow: vi.fn(),
         getAppInfo: vi.fn(),
         getAppVersion,
         getCurrentSession: vi.fn(),
         getDiagnosticsInfo: vi.fn(),
+        getLastBrowserExtractionResult: vi.fn(),
         getTrayState: vi.fn(),
         getUpdateState: vi.fn(),
         getWindowLabel: vi.fn(),
+        listLocalChromeDebuggerEndpoints: vi.fn(),
         listRecentSessions: vi.fn(),
         listWindows: vi.fn(),
+        openDialog: vi.fn(),
         openExternalUrl: vi.fn(),
+        openPathIn: vi.fn(),
         openPath: vi.fn(),
         openWindow: vi.fn(),
         reopenSession: vi.fn(),

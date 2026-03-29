@@ -11,6 +11,7 @@ import type {
   DesktopUpdateState,
 } from "@ku0/code-platform-interfaces";
 import { DESKTOP_HOST_IPC_CHANNELS } from "@ku0/code-platform-interfaces";
+import { createDesktopBrowserExtractionCapability } from "./desktopBrowserExtraction.js";
 import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
 import {
   createDesktopAppRendererUrl,
@@ -494,8 +495,13 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     return false;
   }
 
+  const browserExtraction = createDesktopBrowserExtractionCapability({
+    listLocalChromeDebuggerEndpoints,
+  });
+
   const desktopHostHandlers = createDesktopHostHandlers({
     appVersion,
+    browserExtraction,
     copySupportSnapshot,
     consumePendingLaunchIntent: launchIntentController.consumePendingIntent,
     getAppInfo() {

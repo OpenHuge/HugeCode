@@ -109,6 +109,8 @@ describe("code-platform-interfaces", () => {
       getAppVersion: "hugecode:desktop-host:get-app-version",
       getDiagnosticsInfo: "hugecode:desktop-host:get-diagnostics-info",
       copySupportSnapshot: "hugecode:desktop-host:copy-support-snapshot",
+      extractBrowserContent: "hugecode:desktop-host:extract-browser-content",
+      getLastBrowserExtractionResult: "hugecode:desktop-host:get-last-browser-extraction-result",
       consumePendingLaunchIntent: "hugecode:desktop-host:consume-pending-launch-intent",
       pushLaunchIntent: "hugecode:desktop-host:push-launch-intent",
       pushUpdateState: "hugecode:desktop-host:push-update-state",
