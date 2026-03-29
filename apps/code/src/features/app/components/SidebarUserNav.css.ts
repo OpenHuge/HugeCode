@@ -24,11 +24,15 @@ export const nav = style({
       width: "100%",
       textAlign: "left",
       transform: "none",
-      boxShadow: "none",
+      boxShadow:
+        "0 1px 2px color-mix(in srgb, var(--ds-shadow-color, rgba(0,0,0,0.1)) 6%, transparent)",
       selectors: {
         '&:hover, &[data-open="true"]': {
           background: "color-mix(in srgb, var(--ds-surface-hover) 92%, var(--ds-surface-item))",
           borderColor: "color-mix(in srgb, var(--ds-border-default) 52%, transparent)",
+          boxShadow:
+            "0 2px 6px color-mix(in srgb, var(--ds-shadow-color, rgba(0,0,0,0.1)) 10%, transparent)",
+          transform: "translateY(-0.5px)",
         },
         '&[data-account-state="disconnected"]': {
           background: "color-mix(in srgb, var(--ds-surface-card-base) 98%, transparent)",

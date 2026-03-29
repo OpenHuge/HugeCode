@@ -89,9 +89,17 @@ applyGlobalStyle(".thread-row", {
       "min-width": "0",
       position: "relative",
       transition:
-        "background var(--duration-fast) var(--ease-smooth), color var(--duration-fast) var(--ease-smooth)",
+        "background var(--duration-fast) var(--ease-smooth), color var(--duration-fast) var(--ease-smooth), transform var(--duration-fast) var(--ease-smooth), box-shadow var(--duration-fast) var(--ease-smooth)",
       "box-shadow": "none",
       appearance: "none",
+    },
+  },
+});
+
+applyGlobalStyle(".thread-row:active:not(.active)", {
+  "@layer": {
+    [layers.features]: {
+      transform: "scale(0.995)",
     },
   },
 });
@@ -308,7 +316,8 @@ applyGlobalStyle(".thread-row.active", {
       background: "color-mix(in srgb, var(--ds-surface-active) 28%, var(--ds-surface-sidebar))",
       color: "var(--ds-text-primary)",
       fontWeight: "520",
-      boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--ds-border-subtle) 36%, transparent)",
+      boxShadow:
+        "inset 0 0 0 1px color-mix(in srgb, var(--ds-border-subtle) 42%, transparent), inset 0 1px 2px color-mix(in srgb, var(--ds-shadow-color, rgba(0,0,0,0.1)) 6%, transparent)",
     },
   },
 });
