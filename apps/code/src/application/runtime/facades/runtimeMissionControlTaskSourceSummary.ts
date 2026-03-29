@@ -43,6 +43,7 @@ export function normalizeMissionTaskSource(
     requestId: taskSource.requestId ?? null,
     sourceTaskId: taskSource.sourceTaskId ?? null,
     sourceRunId: taskSource.sourceRunId ?? null,
+    githubSource: taskSource.githubSource ?? null,
   };
   if ("shortLabel" in taskSource) {
     normalized.shortLabel = taskSource.shortLabel ?? null;
@@ -101,6 +102,7 @@ export function deriveRuntimeTaskSource(
       requestId: explicit.requestId ?? task.requestId ?? null,
       sourceTaskId: explicit.sourceTaskId ?? task.rootTaskId ?? null,
       sourceRunId: explicit.sourceRunId ?? task.taskId,
+      githubSource: explicit.githubSource ?? null,
     };
   }
   if (task.threadId) {
@@ -114,6 +116,7 @@ export function deriveRuntimeTaskSource(
       requestId: task.requestId ?? null,
       sourceTaskId: null,
       sourceRunId: task.taskId,
+      githubSource: null,
     };
   }
   return {
@@ -126,5 +129,6 @@ export function deriveRuntimeTaskSource(
     requestId: task.requestId ?? null,
     sourceTaskId: task.taskId,
     sourceRunId: task.taskId,
+    githubSource: null,
   };
 }

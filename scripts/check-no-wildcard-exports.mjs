@@ -64,9 +64,15 @@ function walkFilesRecursive(relativeDir) {
 }
 
 function listCandidateFiles() {
-  const changedFiles = listChangedFilesFromEnv().filter(isTargetPath);
+  const changedFilesFromEnv = listChangedFilesFromEnv();
+  const changedFiles = changedFilesFromEnv.filter(
+    (filePath) => isTargetPath(filePath) && fs.existsSync(path.join(repoRoot, filePath))
+  );
   if (changedFiles.length > 0) {
     return [...new Set(changedFiles)].sort((a, b) => a.localeCompare(b));
+  }
+  if (changedFilesFromEnv.length > 0) {
+    return [];
   }
 
   const allFiles = TARGET_ROOTS.flatMap((root) => walkFilesRecursive(root)).filter(isTargetPath);

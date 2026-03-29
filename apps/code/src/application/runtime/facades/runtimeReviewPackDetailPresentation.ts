@@ -4,7 +4,10 @@ import type {
   RuntimeWakePolicyV2,
 } from "@ku0/code-runtime-host-contract";
 import type { MissionControlProjection } from "./runtimeMissionControlFacade";
-import { buildTaskSourceLineageDetails } from "./runtimeMissionControlTaskSourceProjector";
+import {
+  buildTaskSourceLineageDetails,
+  buildTaskSourceProvenanceDetail,
+} from "./runtimeMissionControlTaskSourceProjector";
 import { buildRuntimeAutonomyContextDetails } from "./runtimeAutonomyPresentation";
 import type {
   ReviewContinuationFieldOrigin,
@@ -520,6 +523,27 @@ export function buildMissionLineageDetail(input: {
       "Objective, guardrails, and review outcome stayed attached to this runtime-managed mission.",
     details,
   };
+}
+
+export function buildSourceProvenanceDetail(input: {
+  taskSource?:
+    | MissionControlProjection["tasks"][number]["taskSource"]
+    | MissionControlProjection["runs"][number]["taskSource"]
+    | MissionControlProjection["reviewPacks"][number]["taskSource"]
+    | null
+    | undefined;
+  nextOperatorAction?:
+    | MissionControlProjection["runs"][number]["nextOperatorAction"]
+    | MissionControlProjection["reviewPacks"][number]["nextOperatorAction"]
+    | null
+    | undefined;
+}) {
+  return (
+    buildTaskSourceProvenanceDetail({
+      source: input.taskSource ?? null,
+      nextOperatorAction: input.nextOperatorAction ?? null,
+    }) ?? undefined
+  );
 }
 
 export function buildRunLedgerDetail(input: {

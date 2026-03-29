@@ -39,7 +39,10 @@ import {
   resolveCheckpointHandoffLabel,
   resolveMissionOperatorAction,
 } from "./runtimeMissionControlOperatorAction";
-import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
+import {
+  buildTaskSourceProvenanceSummary,
+  resolveTaskSourceSecondaryLabel,
+} from "./runtimeMissionControlTaskSourceProjector";
 import {
   buildMissionNavigationTarget,
   buildReviewNavigationTarget,
@@ -913,9 +916,16 @@ export function buildMissionReviewEntriesFromProjection(
       recommendedNextAction,
       continuationState: continuation.state,
     });
-    const provenanceSummary = buildMissionProvenanceSummary(
-      reviewPack.sourceCitations ?? run?.sourceCitations ?? null
-    );
+    const provenanceSummary =
+      [
+        buildTaskSourceProvenanceSummary({
+          source: reviewPack.taskSource ?? run?.taskSource ?? task.taskSource ?? null,
+          nextOperatorAction: reviewPack.nextOperatorAction ?? run?.nextOperatorAction ?? null,
+        }),
+        buildMissionProvenanceSummary(reviewPack.sourceCitations ?? run?.sourceCitations ?? null),
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" | ") || null;
 
     entries.push({
       id: reviewPack.id,
@@ -1100,7 +1110,16 @@ export function buildMissionReviewEntriesFromProjection(
       recommendedNextAction,
       continuationState: continuation.state,
     });
-    const provenanceSummary = buildMissionProvenanceSummary(run.sourceCitations ?? null);
+    const provenanceSummary =
+      [
+        buildTaskSourceProvenanceSummary({
+          source: run.taskSource ?? task.taskSource ?? null,
+          nextOperatorAction: run.nextOperatorAction ?? null,
+        }),
+        buildMissionProvenanceSummary(run.sourceCitations ?? null),
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" | ") || null;
     entries.push({
       id: run.id,
       kind: "mission_run",

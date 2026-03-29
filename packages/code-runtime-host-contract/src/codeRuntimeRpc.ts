@@ -14,6 +14,14 @@ import type {
   HugeCodeTakeoverBundle,
   HugeCodeTaskMode,
 } from "./hugeCodeMissionControl.js";
+import type {
+  RuntimeGitHubSourceLaunchHandshakeState,
+  RuntimeTaskSourceCommandKind,
+  RuntimeTaskSourceEventSummary,
+  RuntimeTaskSourceLaunchDisposition,
+  RuntimeTaskSourceRequester,
+  RuntimeTaskSourceTriggerMode,
+} from "./runtimeTaskSourceShared.js";
 
 export type ReasonEffort = "low" | "medium" | "high" | "xhigh";
 
@@ -255,20 +263,10 @@ export type AgentTaskSourceSummary = {
   requestId?: string | null;
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
+  githubSource?: RuntimeGitHubSourceProvenance | null;
 };
 
 export type RuntimeTaskSourceProvider = "github" | (string & {});
-
-export type RuntimeTaskSourceTriggerMode =
-  | "assignment"
-  | "issue_comment_command"
-  | "pull_request_comment_command"
-  | "pull_request_review_comment_command"
-  | "ci_failure"
-  | "manual"
-  | (string & {});
-
-export type RuntimeTaskSourceCommandKind = "run" | "continue" | "retry" | (string & {});
 
 export type RuntimeTaskSourceState =
   | "received"
@@ -287,27 +285,6 @@ export type RuntimeTaskSourceWriteBackState =
   | "mirrored"
   | "failed"
   | (string & {});
-
-export type RuntimeTaskSourceLaunchDisposition =
-  | "not_requested"
-  | "launched"
-  | "intervened"
-  | "deduped"
-  | "blocked"
-  | "failed";
-
-export type RuntimeTaskSourceEventSummary = {
-  deliveryId?: string | null;
-  eventName: string;
-  action?: string | null;
-  receivedAt?: number | null;
-};
-
-export type RuntimeTaskSourceRequester = {
-  login?: string | null;
-  id?: number | null;
-  type?: string | null;
-};
 
 export type RuntimeTaskSourcePayload = {
   kind: Extract<AgentTaskSourceKind, "github_issue" | "github_pr_followup"> | (string & {});
@@ -342,6 +319,38 @@ export type RuntimeTaskSourceLaunchRequest = {
   preferredBackendIds?: string[] | null;
 };
 
+export type RuntimeGitHubSourceRef = {
+  label: string;
+  issueNumber?: number | null;
+  pullRequestNumber?: number | null;
+  headSha?: string | null;
+  triggerMode?: RuntimeTaskSourceTriggerMode | null;
+  commandKind?: RuntimeTaskSourceCommandKind | null;
+};
+
+export type RuntimeGitHubSourceComment = {
+  commentId?: number | null;
+  url?: string | null;
+  author?: RuntimeTaskSourceRequester | null;
+};
+
+export type RuntimeGitHubSourceLaunchHandshake = {
+  state: RuntimeGitHubSourceLaunchHandshakeState;
+  summary: string;
+  disposition?: RuntimeTaskSourceLaunchDisposition | null;
+  preparedPlanVersion?: string | null;
+  approvedPlanVersion?: string | null;
+};
+
+export type RuntimeGitHubSourceProvenance = {
+  sourceRecordId: string;
+  repo: AgentTaskSourceRepoContext;
+  event: RuntimeTaskSourceEventSummary;
+  ref: RuntimeGitHubSourceRef;
+  comment?: RuntimeGitHubSourceComment | null;
+  launchHandshake: RuntimeGitHubSourceLaunchHandshake;
+};
+
 export type RuntimeTaskSourceRecord = {
   sourceRecordId: string;
   provider: RuntimeTaskSourceProvider;
@@ -366,6 +375,7 @@ export type RuntimeTaskSourceRecord = {
   linkedReviewPackId?: string | null;
   message?: string | null;
   metadata?: Record<string, unknown> | null;
+  githubSource?: RuntimeGitHubSourceProvenance | null;
   createdAt: number;
   updatedAt: number;
   payload: RuntimeTaskSourcePayload;
