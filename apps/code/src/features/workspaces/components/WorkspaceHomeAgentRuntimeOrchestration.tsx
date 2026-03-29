@@ -95,25 +95,41 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
   const pluginCatalog = missionControlProjection.pluginCatalog;
   const composition = missionControlProjection.composition;
+  const readinessNeedsActionCount =
+    pluginCatalog.readinessSections.find((section) => section.id === "needs_action")?.entries
+      .length ?? 0;
+  const readinessSelectedNowCount =
+    pluginCatalog.readinessSections.find((section) => section.id === "selected_now")?.entries
+      .length ?? 0;
   const pluginCatalogStatus = pluginCatalog.error
     ? {
         label: "Attention",
         tone: "warning" as const,
       }
-    : pluginCatalog.executableCount > 0
+    : pluginCatalog.blockedCount > 0
       ? {
-          label: "Ready",
-          tone: "success" as const,
+          label: "Blocked",
+          tone: "danger" as const,
         }
-      : pluginCatalog.total > 0
+      : pluginCatalog.attentionCount > 0
         ? {
-            label: "Cataloged",
-            tone: "neutral" as const,
+            label: "Attention",
+            tone: "warning" as const,
           }
-        : {
-            label: "Empty",
-            tone: "neutral" as const,
-          };
+        : pluginCatalog.readyCount > 0
+          ? {
+              label: "Ready",
+              tone: "success" as const,
+            }
+          : pluginCatalog.total > 0
+            ? {
+                label: "Cataloged",
+                tone: "neutral" as const,
+              }
+            : {
+                label: "Empty",
+                tone: "neutral" as const,
+              };
   const launchReadiness = missionControlProjection.launchReadiness;
   const launchReadinessStatusLabel =
     launchReadiness.state === "ready"
@@ -256,16 +272,25 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
       </div>
       <MissionControlSessionLogSection runtimeSessionCheckpoint={runtimeSessionCheckpoint} />
       <MissionControlSectionCard
-        title="Plugin catalog"
+        title="Extension readiness"
         statusLabel={pluginCatalogStatus.label}
         statusTone={pluginCatalogStatus.tone}
         meta={
           <>
-            <ToolCallChip tone="neutral">Runtime {pluginCatalog.runtimeBacked}</ToolCallChip>
-            <ToolCallChip tone="neutral">Repo {pluginCatalog.repoManifestCount}</ToolCallChip>
-            <ToolCallChip tone="neutral">Live skills {pluginCatalog.liveSkillCount}</ToolCallChip>
+            <ToolCallChip
+              tone={
+                pluginCatalog.blockedCount > 0
+                  ? "danger"
+                  : pluginCatalog.attentionCount > 0
+                    ? "warning"
+                    : "success"
+              }
+            >
+              Action required {readinessNeedsActionCount}
+            </ToolCallChip>
+            <ToolCallChip tone="success">Selected now {readinessSelectedNowCount}</ToolCallChip>
             <ToolCallChip tone="neutral">
-              Verified {pluginCatalog.verifiedPackageCount}
+              Verified/runtime-managed {pluginCatalog.verifiedPackageCount}
             </ToolCallChip>
           </>
         }
@@ -274,34 +299,33 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           <div className="workspace-home-code-runtime-item-main">
             <strong>
               {pluginCatalog.total > 0
-                ? "Unified runtime plugin directory is available."
-                : "No runtime plugins discovered for this workspace."}
+                ? "Runtime-published extension readiness is available."
+                : "No runtime-published plugins discovered for this workspace."}
             </strong>
-            <span>Total plugins: {pluginCatalog.total}</span>
-            <span>Enabled: {pluginCatalog.enabled}</span>
-            <span>Executable: {pluginCatalog.executableCount}</span>
-            <span>Blocked execution: {pluginCatalog.nonExecutableCount}</span>
-            <span>Readable resources: {pluginCatalog.readableResourceCount}</span>
-            <span>Permission-aware: {pluginCatalog.permissionEvaluableCount}</span>
-            <span>Contract surfaces: {pluginCatalog.contractSurfaceCount}</span>
-            <span>Host imports: {pluginCatalog.contractImportSurfaceCount}</span>
-            <span>Plugin exports: {pluginCatalog.contractExportSurfaceCount}</span>
-            <span>Bound: {pluginCatalog.boundCount}</span>
-            <span>Declaration-only: {pluginCatalog.declarationOnlyCount}</span>
-            <span>Unbound hosts: {pluginCatalog.unboundCount}</span>
-            <span>Runtime extensions: {pluginCatalog.runtimeExtensionCount}</span>
-            <span>Live skills: {pluginCatalog.liveSkillCount}</span>
-            <span>Repo manifests: {pluginCatalog.repoManifestCount}</span>
-            <span>External packages: {pluginCatalog.externalPackageCount}</span>
-            <span>Verified packages: {pluginCatalog.verifiedPackageCount}</span>
-            <span>Blocked packages: {pluginCatalog.blockedPackageCount}</span>
-            <span>Selected in active profile: {pluginCatalog.selectedInActiveProfileCount}</span>
             <span>
-              Projection slice: {pluginCatalog.projectionBacked ? "connected" : "capability-only"}
+              Action required now: {pluginCatalog.blockedCount + pluginCatalog.attentionCount} |
+              ready {pluginCatalog.readyCount}
             </span>
             <span>
-              Health: healthy {pluginCatalog.healthyCount} | degraded {pluginCatalog.degradedCount}{" "}
-              | unsupported {pluginCatalog.unsupportedCount}
+              Source mix: runtime extensions {pluginCatalog.runtimeExtensionCount} | live skills{" "}
+              {pluginCatalog.liveSkillCount} | repo manifests {pluginCatalog.repoManifestCount} |
+              external packages {pluginCatalog.externalPackageCount}
+            </span>
+            <span>
+              Trust posture: verified/runtime-managed {pluginCatalog.verifiedPackageCount} |
+              trust-blocked {pluginCatalog.blockedPackageCount}
+            </span>
+            <span>
+              Active selection: profile-selected {pluginCatalog.selectedInActiveProfileCount} |
+              route candidates {composition.selectedRouteCount} | backend candidates{" "}
+              {composition.selectedBackendCount}
+            </span>
+            <span>
+              Runtime host truth:{" "}
+              {pluginCatalog.unsupportedHostCount > 0 ? "published" : "not published"}
+            </span>
+            <span>
+              Projection slice: {pluginCatalog.projectionBacked ? "connected" : "capability-only"}
             </span>
             <span>
               Control plane:{" "}
@@ -309,18 +333,49 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
               {composition.verifiedPluginCount} | blocked {composition.blockedPluginCount} | routes{" "}
               {composition.selectedRouteCount} | backends {composition.selectedBackendCount}
             </span>
-            {pluginCatalog.plugins.slice(0, 3).map((plugin) => (
-              <span key={plugin.id}>
-                {plugin.name} ({plugin.source}, {plugin.binding.state},{" "}
-                {plugin.operations.execution.executable ? "executable" : "blocked"}){" "}
-                {plugin.enabled ? "enabled" : "disabled"}
-              </span>
-            ))}
           </div>
           {pluginCatalog.error ? (
             <div className={controlStyles.warning}>{pluginCatalog.error}</div>
           ) : null}
         </div>
+        {pluginCatalog.readinessSections
+          .filter((section) => section.entries.length > 0)
+          .map((section) => (
+            <div key={section.id}>
+              <div className="workspace-home-code-runtime-item">
+                <div className="workspace-home-code-runtime-item-main">
+                  <strong>{section.title}</strong>
+                  <span>{section.description}</span>
+                </div>
+              </div>
+              {section.entries.map((entry) => (
+                <div key={entry.id} className="workspace-home-code-runtime-item">
+                  <div className="workspace-home-code-runtime-item-main">
+                    <strong>
+                      {entry.name} ({entry.version})
+                    </strong>
+                    <span>
+                      {entry.badges.map((badge) => (
+                        <ToolCallChip key={`${entry.id}-${badge.label}`} tone={badge.tone}>
+                          {badge.label}
+                        </ToolCallChip>
+                      ))}
+                    </span>
+                    <span>Source: {entry.sourceLabel}</span>
+                    <span>Selection: {entry.selectionState.label}</span>
+                    <span>Trust: {entry.trustState.label}</span>
+                    <span>Capability support: {entry.capabilitySupport.summary}</span>
+                    <span>Permission state: {entry.permissionState.label}</span>
+                    <span>Readiness: {entry.readiness.label}</span>
+                    <span>{entry.readiness.detail}</span>
+                    <span>{entry.selectionState.detail}</span>
+                    <span>{entry.trustState.detail}</span>
+                    <span>Remediation: {entry.remediationSummary}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
       </MissionControlSectionCard>
       {runtimeDurabilityWarning ? (
         <div className={controlStyles.warning} data-testid="workspace-runtime-durability-warning">

@@ -882,12 +882,12 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("heading", { name: "Launch readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Continuity readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Approval pressure" })).toBeTruthy();
-      expect(screen.getByRole("heading", { name: "Plugin catalog" })).toBeTruthy();
+      expect(screen.getByRole("heading", { name: "Extension readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Run list" })).toBeTruthy();
     });
   });
 
-  it("marks plugin catalog as cataloged when entries are present but none are executable", async () => {
+  it("renders blocked extension readiness with human-readable runtime host remediation", async () => {
     mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
     runtimePluginCatalogListMock.mockResolvedValue([
       {
@@ -962,14 +962,35 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Cataloged")).toBeTruthy();
-      expect(screen.getByText("Executable: 0")).toBeTruthy();
-      expect(screen.getByText("Blocked execution: 1")).toBeTruthy();
-      expect(screen.getByText("Readable resources: 0")).toBeTruthy();
-      expect(screen.getByText("Permission-aware: 0")).toBeTruthy();
-      expect(screen.getByText("Contract surfaces: 2")).toBeTruthy();
-      expect(screen.getByText("Host imports: 2")).toBeTruthy();
-      expect(screen.getByText("Plugin exports: 0")).toBeTruthy();
+      const section = screen
+        .getByRole("heading", { name: "Extension readiness" })
+        .closest("section");
+
+      expect(section).toBeTruthy();
+
+      const readinessPanel = within(section as HTMLElement);
+
+      expect(readinessPanel.getAllByText("Blocked").length).toBeGreaterThan(0);
+      expect(readinessPanel.getByText("Action required 1")).toBeTruthy();
+      expect(readinessPanel.getByText("Selected now 0")).toBeTruthy();
+      expect(readinessPanel.getByText("Verified/runtime-managed 0")).toBeTruthy();
+      expect(readinessPanel.getByText("Needs action")).toBeTruthy();
+      expect(readinessPanel.getByText("WASI host slot (unbound)")).toBeTruthy();
+      expect(readinessPanel.getByText("Source: WASI host")).toBeTruthy();
+      expect(readinessPanel.getByText("Selection: Available inventory")).toBeTruthy();
+      expect(readinessPanel.getByText("Trust: Runtime-published")).toBeTruthy();
+      expect(
+        readinessPanel.getByText(
+          "Capability support: Runtime host binder imports are published, but the binder is not connected."
+        )
+      ).toBeTruthy();
+      expect(readinessPanel.getByText("Permission state: Runtime-managed")).toBeTruthy();
+      expect(readinessPanel.getByText("Readiness: Blocked")).toBeTruthy();
+      expect(
+        readinessPanel.getByText(
+          "Remediation: Connect the WASI host binder so runtime can satisfy the published WIT imports."
+        )
+      ).toBeTruthy();
     });
   });
 
@@ -1382,7 +1403,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Launch readiness needs attention")).toBeTruthy();
-      expect(screen.getByText("Attention")).toBeTruthy();
+      expect(screen.getAllByText("Attention").length).toBeGreaterThan(0);
       expect(screen.getAllByText(/fall back to local\/native execution/i).length).toBeGreaterThan(
         0
       );

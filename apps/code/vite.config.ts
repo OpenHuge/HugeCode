@@ -89,6 +89,7 @@ const RUNTIME_GOVERNED_CONTEXT_CHUNK_PATTERNS = [
 const RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeContinuityReadiness.ts",
   "/src/application/runtime/facades/runtimeExecutionReliability.ts",
+  "/src/application/runtime/facades/runtimeKernelPluginReadiness.ts",
   "/src/application/runtime/facades/runtimeLaunchReadiness.ts",
   "/src/application/runtime/facades/runtimeMissionControl",
   "/src/application/runtime/facades/runtimeMissionLaunchPreparation.ts",
