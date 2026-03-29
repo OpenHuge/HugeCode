@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { formatRuntimeContinuationStateLabel } from "@ku0/code-runtime-host-contract";
 import {
   Button,
   Card,
@@ -353,7 +354,7 @@ export function ReviewQueuePanel({
                       <ReviewSignalGroup className={styles.chipRow}>
                         {entry.continuationState && entry.continuationState !== "missing" ? (
                           <StatusBadge tone={resolveContinuationTone(entry.continuationState)}>
-                            Continuity {entry.continuationState}
+                            {formatRuntimeContinuationStateLabel(entry.continuationState)}
                           </StatusBadge>
                         ) : null}
                         {entry.accountabilityLifecycle ? (

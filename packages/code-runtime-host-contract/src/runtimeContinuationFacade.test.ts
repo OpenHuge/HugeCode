@@ -3,6 +3,7 @@ import {
   buildRuntimeContinuationAggregate,
   buildRuntimeContinuationDescriptor,
   buildRuntimeContinuationReadinessSummary,
+  formatRuntimeContinuationStateLabel,
 } from "./runtimeContinuationFacade";
 
 describe("runtimeContinuationFacade", () => {
@@ -359,5 +360,12 @@ describe("runtimeContinuationFacade", () => {
         detail: "Open Review Pack from runtime continuation.",
       },
     });
+  });
+
+  it("formats continuity state labels for shared surfaces", () => {
+    expect(formatRuntimeContinuationStateLabel("ready")).toBe("Continuity ready");
+    expect(formatRuntimeContinuationStateLabel("attention")).toBe("Continuity attention");
+    expect(formatRuntimeContinuationStateLabel("blocked")).toBe("Continuity blocked");
+    expect(formatRuntimeContinuationStateLabel("missing")).toBe("Continuity unavailable");
   });
 });

@@ -1110,6 +1110,7 @@ export {
   buildRuntimeContinuationAggregate,
   buildRuntimeContinuationReadinessSummary,
   buildRuntimeContinuationDescriptor,
+  formatRuntimeContinuationStateLabel,
   formatRuntimeContinuationTruthSourceLabel,
   projectTakeoverBundleToContinuation,
   resolveContinuationPathLabel,

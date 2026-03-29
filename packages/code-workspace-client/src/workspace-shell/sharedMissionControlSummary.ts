@@ -5,7 +5,11 @@ import type {
   HugeCodeMissionControlSummary as SharedMissionControlSummary,
   HugeCodeReviewQueueItem as SharedReviewQueueItem,
 } from "@ku0/code-runtime-host-contract";
-import { buildRuntimeContinuationReadinessSummary } from "@ku0/code-runtime-host-contract";
+import {
+  buildRuntimeContinuationDescriptor,
+  buildRuntimeContinuationReadinessSummary,
+  formatRuntimeContinuationStateLabel,
+} from "@ku0/code-runtime-host-contract";
 
 export type {
   SharedMissionActivityItem,
@@ -312,6 +316,20 @@ function getHighestReviewSeverity(
   return reviewPack.reviewGate?.highestSeverity ?? reviewPack.reviewFindings?.[0]?.severity ?? null;
 }
 
+function resolveReviewPackContinuityDescriptor(
+  reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
+) {
+  return buildRuntimeContinuationDescriptor({
+    checkpoint: reviewPack.checkpoint ?? null,
+    continuation: reviewPack.continuation ?? null,
+    missionLinkage: reviewPack.missionLinkage ?? null,
+    actionability: reviewPack.actionability ?? null,
+    publishHandoff: reviewPack.publishHandoff ?? null,
+    takeoverBundle: reviewPack.takeoverBundle ?? null,
+    reviewPackId: reviewPack.id,
+  });
+}
+
 function hasCriticalReviewSignal(
   reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
 ) {
@@ -325,21 +343,15 @@ function hasCriticalReviewSignal(
   );
 }
 
-function getBlockedFollowUpState(
+function getReviewPackContinuityState(
   reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
-): "blocked" | "degraded" | null {
-  if (
-    reviewPack.takeoverBundle?.state === "blocked" ||
-    reviewPack.actionability?.state === "blocked" ||
-    reviewPack.continuation?.state === "blocked"
-  ) {
+): "blocked" | "attention" | null {
+  const descriptor = resolveReviewPackContinuityDescriptor(reviewPack);
+  if (descriptor?.state === "blocked") {
     return "blocked";
   }
-  if (
-    reviewPack.actionability?.state === "degraded" ||
-    reviewPack.continuation?.state === "attention"
-  ) {
-    return "degraded";
+  if (descriptor?.state === "attention") {
+    return "attention";
   }
   return null;
 }
@@ -365,7 +377,7 @@ function resolveReviewQueuePriorityBand(
   if (hasCriticalReviewSignal(reviewPack)) {
     return 4;
   }
-  if (getBlockedFollowUpState(reviewPack)) {
+  if (getReviewPackContinuityState(reviewPack)) {
     return 3;
   }
   if (hasAutofixReadySignal(reviewPack)) {
@@ -378,18 +390,18 @@ function resolveReviewQueuePriorityBand(
 }
 
 function getReviewStatusLabel(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
-  const blockedFollowUpState = getBlockedFollowUpState(reviewPack);
+  const continuityState = getReviewPackContinuityState(reviewPack);
   if (reviewPack.validationOutcome === "failed") {
     return "Validation failed";
   }
   if (hasCriticalReviewSignal(reviewPack)) {
     return "Critical review";
   }
-  if (blockedFollowUpState === "blocked") {
-    return "Blocked follow-up";
+  if (continuityState === "blocked") {
+    return formatRuntimeContinuationStateLabel("blocked");
   }
-  if (blockedFollowUpState === "degraded") {
-    return "Follow-up degraded";
+  if (continuityState === "attention") {
+    return formatRuntimeContinuationStateLabel("attention");
   }
   if (hasAutofixReadySignal(reviewPack)) {
     return "Autofix ready";
@@ -416,19 +428,19 @@ function formatValidationLabel(validationOutcome: string) {
 function getReviewItemTone(
   reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
 ): SharedReviewQueueItem["tone"] {
-  const blockedFollowUpState = getBlockedFollowUpState(reviewPack);
+  const continuityState = getReviewPackContinuityState(reviewPack);
   if (
     reviewPack.validationOutcome === "failed" ||
     reviewPack.reviewGate?.state === "fail" ||
     reviewPack.reviewGate?.state === "blocked" ||
     reviewPack.reviewDecision?.status === "rejected" ||
-    blockedFollowUpState === "blocked"
+    continuityState === "blocked"
   ) {
     return "blocked";
   }
   if (
     hasCriticalReviewSignal(reviewPack) ||
-    blockedFollowUpState === "degraded" ||
+    continuityState === "attention" ||
     hasAutofixReadySignal(reviewPack) ||
     hasNeedsAttentionSignal(reviewPack)
   ) {
@@ -443,6 +455,7 @@ function getReviewItemTone(
 function resolveReviewQueueSummary(
   reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]
 ) {
+  const continuityDescriptor = resolveReviewPackContinuityDescriptor(reviewPack);
   if (reviewPack.validationOutcome === "failed") {
     return (
       reviewPack.reviewGate?.blockingReason ??
@@ -463,14 +476,18 @@ function resolveReviewQueueSummary(
       "Critical review findings need operator action."
     );
   }
-  if (getBlockedFollowUpState(reviewPack)) {
+  if (
+    continuityDescriptor &&
+    (continuityDescriptor.state === "blocked" || continuityDescriptor.state === "attention")
+  ) {
     return (
-      reviewPack.takeoverBundle?.blockingReason ??
-      reviewPack.actionability?.summary ??
-      reviewPack.continuation?.detail ??
+      continuityDescriptor.canonicalNextAction.detail ??
+      continuityDescriptor.blockingReason ??
+      continuityDescriptor.recommendedAction ??
+      continuityDescriptor.summary ??
       reviewPack.recommendedNextAction ??
       reviewPack.summary ??
-      "Follow-up is constrained and needs operator attention."
+      "Runtime continuity needs operator attention."
     );
   }
   if (hasAutofixReadySignal(reviewPack)) {
@@ -482,10 +499,9 @@ function resolveReviewQueueSummary(
     );
   }
   return (
-    reviewPack.takeoverBundle?.recommendedAction ??
-    reviewPack.actionability?.summary ??
-    reviewPack.missionLinkage?.summary ??
-    reviewPack.publishHandoff?.summary ??
+    continuityDescriptor?.canonicalNextAction.detail ??
+    continuityDescriptor?.recommendedAction ??
+    continuityDescriptor?.summary ??
     reviewPack.recommendedNextAction ??
     reviewPack.summary ??
     "Review-ready evidence is available."
@@ -493,6 +509,7 @@ function resolveReviewQueueSummary(
 }
 
 function getReviewQueuePriority(reviewPack: HugeCodeMissionControlSnapshot["reviewPacks"][number]) {
+  const continuityDescriptor = resolveReviewPackContinuityDescriptor(reviewPack);
   const priorityBand = resolveReviewQueuePriorityBand(reviewPack);
   if (priorityBand > 0) {
     return (
@@ -501,7 +518,11 @@ function getReviewQueuePriority(reviewPack: HugeCodeMissionControlSnapshot["revi
       Math.min(reviewPack.reviewGate?.findingCount ?? reviewPack.reviewFindings?.length ?? 0, 9)
     );
   }
-  if (reviewPack.reviewStatus === "ready" || reviewPack.takeoverBundle?.state === "ready") {
+  if (
+    reviewPack.reviewStatus === "ready" ||
+    reviewPack.takeoverBundle?.state === "ready" ||
+    continuityDescriptor?.state === "ready"
+  ) {
     return 320;
   }
   if (

@@ -319,6 +319,19 @@ export function formatRuntimeContinuationTruthSourceLabel(
   }
 }
 
+export function formatRuntimeContinuationStateLabel(state: RuntimeContinuationState): string {
+  switch (state) {
+    case "ready":
+      return "Continuity ready";
+    case "attention":
+      return "Continuity attention";
+    case "blocked":
+      return "Continuity blocked";
+    default:
+      return "Continuity unavailable";
+  }
+}
+
 export function resolveContinuationTruthSource({
   takeoverBundle,
   continuation,

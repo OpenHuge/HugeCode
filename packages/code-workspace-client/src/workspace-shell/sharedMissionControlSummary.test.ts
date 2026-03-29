@@ -555,7 +555,7 @@ describe("buildSharedMissionControlSummary", () => {
       summary: "Critical findings are blocking acceptance.",
     });
     expect(summary.reviewItems[1]).toMatchObject({
-      reviewStatusLabel: "Blocked follow-up",
+      reviewStatusLabel: "Continuity blocked",
       tone: "blocked",
       summary: "Operator approval is still required before follow-up can continue.",
     });
@@ -566,7 +566,7 @@ describe("buildSharedMissionControlSummary", () => {
     });
   });
 
-  it("maps continuation attention to the degraded follow-up review lane", () => {
+  it("maps continuation attention to the shared continuity review lane", () => {
     const summary = buildSharedMissionControlSummary(
       createSnapshot({
         reviewPacks: [
@@ -622,9 +622,9 @@ describe("buildSharedMissionControlSummary", () => {
     );
 
     expect(summary.reviewItems[0]).toMatchObject({
-      reviewStatusLabel: "Follow-up degraded",
+      reviewStatusLabel: "Continuity attention",
       tone: "attention",
-      summary: "Open Review Pack and inspect the attention guidance before continuing.",
+      summary: "Inspect the degraded review path.",
     });
   });
 });
