@@ -1220,7 +1220,7 @@ export function buildMissionReviewEntriesFromProjection(
     .sort(
       (left, right) =>
         right.triagePriority - left.triagePriority ||
-        (left.queueEnteredAt ?? left.createdAt) - (right.queueEnteredAt ?? right.createdAt)
+        (right.queueEnteredAt ?? right.createdAt) - (left.queueEnteredAt ?? left.createdAt)
     )
     .slice(0, options?.limit ?? 8)
     .map(({ triagePriority: _triagePriority, ...entry }) => entry);

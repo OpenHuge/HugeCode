@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { DesktopHostBridgeApi } from "../shared/ipc.js";
-import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
+import type { DesktopHostBridgeApi } from "@ku0/code-platform-interfaces";
+import { DESKTOP_HOST_IPC_CHANNELS } from "@ku0/code-platform-interfaces";
 
 const desktopHostBridge: DesktopHostBridgeApi = {
   kind: "electron",

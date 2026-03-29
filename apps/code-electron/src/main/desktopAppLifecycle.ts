@@ -1,5 +1,5 @@
 import type { DesktopSessionDescriptor } from "./desktopShellState.js";
-import type { OpenDesktopWindowInput } from "../shared/ipc.js";
+import type { OpenDesktopWindowInput } from "@ku0/code-platform-interfaces";
 
 type BrowserWindowLike = {
   focus(): void;

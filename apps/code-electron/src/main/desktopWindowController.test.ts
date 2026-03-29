@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createDesktopShellState, type DesktopWindowBounds } from "./desktopShellState.js";
 import { createDesktopWindowController } from "./desktopWindowController.js";
-import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
+import { DESKTOP_HOST_IPC_CHANNELS } from "@ku0/code-platform-interfaces";
 
 type WindowEventMap = {
   close: (event: { preventDefault(): void }) => void;

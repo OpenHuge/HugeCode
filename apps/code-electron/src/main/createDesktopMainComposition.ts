@@ -9,8 +9,8 @@ import type {
   DesktopOpenPathInInput,
   DesktopReleaseChannel,
   DesktopUpdateState,
-} from "../shared/ipc.js";
-import { DESKTOP_HOST_IPC_CHANNELS } from "../shared/ipc.js";
+} from "@ku0/code-platform-interfaces";
+import { DESKTOP_HOST_IPC_CHANNELS } from "@ku0/code-platform-interfaces";
 import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
 import {
   createDesktopAppRendererUrl,

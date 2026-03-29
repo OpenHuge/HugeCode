@@ -1,5 +1,5 @@
 import { BrowserWindow, Notification } from "electron";
-import type { DesktopNotificationInput } from "../shared/ipc.js";
+import type { DesktopNotificationInput } from "@ku0/code-platform-interfaces";
 
 type BrowserWindowLike = {
   focus(): void;

@@ -1,7 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
-import type { OpenDesktopWindowInput } from "../shared/ipc.js";
-import type { DesktopLaunchIntent } from "../shared/ipc.js";
+import type { OpenDesktopWindowInput } from "@ku0/code-platform-interfaces";
+import type { DesktopLaunchIntent } from "@ku0/code-platform-interfaces";
 import { hasDesktopNewWindowArg } from "./desktopLaunchCommands.js";
 
 type OpenUrlEventLike = {
