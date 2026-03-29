@@ -195,9 +195,16 @@ export function WorkspaceHomeAgentRuntimeRunItem({
   });
   const truthTask = runtimeRunTruth.record?.run ?? null;
   const effectiveTask = truthTask ? ({ ...task, ...truthTask } as RuntimeAgentTaskSummary) : task;
-  const effectiveRun = runtimeRunTruth.record?.missionRun ?? run ?? task.runSummary ?? null;
+  const localRun = run ?? task.runSummary ?? null;
+  const truthRun = runtimeRunTruth.record?.missionRun ?? null;
+  const effectiveRun =
+    truthRun && localRun
+      ? ({ ...localRun, ...truthRun } as HugeCodeRunSummary)
+      : (truthRun ?? localRun);
   const effectiveReviewPack =
-    runtimeRunTruth.record?.reviewPack ?? effectiveTask.reviewPackSummary ?? null;
+    runtimeRunTruth.record?.reviewPack && effectiveTask.reviewPackSummary
+      ? { ...effectiveTask.reviewPackSummary, ...runtimeRunTruth.record.reviewPack }
+      : (runtimeRunTruth.record?.reviewPack ?? effectiveTask.reviewPackSummary ?? null);
   const missionPlan = effectiveRun?.missionBrief ?? null;
   const runtimeAutonomyProfile = runtimeRunTruth.record?.autonomyProfile ?? null;
   const runtimeWakePolicy = runtimeRunTruth.record?.wakePolicy ?? null;

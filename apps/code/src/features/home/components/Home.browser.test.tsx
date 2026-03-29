@@ -138,7 +138,7 @@ describe("Home browser interactions", () => {
     await setValue(input, "ship the fix");
     await click(sendButton);
 
-    expect(onSend).toHaveBeenCalledWith("ship the fix", [], undefined);
+    expect(onSend).toHaveBeenCalledWith("ship the fix", []);
   });
 
   it("routes send into workspace setup when no workspace is available in a real browser", async () => {
@@ -335,12 +335,7 @@ describe("Home browser interactions", () => {
     await waitFor(() => {
       expect(onSelectWorkspace).toHaveBeenNthCalledWith(1, "workspace-2");
       expect(onSelectWorkspace).toHaveBeenNthCalledWith(2, "workspace-2");
-      expect(onSendToWorkspace).toHaveBeenCalledWith(
-        "workspace-2",
-        "route immediately",
-        [],
-        undefined
-      );
+      expect(onSendToWorkspace).toHaveBeenCalledWith("workspace-2", "route immediately", []);
     });
     expect(onSend).not.toHaveBeenCalled();
   });
@@ -476,7 +471,7 @@ describe("Home browser interactions", () => {
     );
 
     await waitFor(() => {
-      expect(onSend).toHaveBeenCalledWith("queue after select", [], undefined);
+      expect(onSend).toHaveBeenCalledWith("queue after select", []);
     });
   });
 
@@ -503,12 +498,7 @@ describe("Home browser interactions", () => {
 
     await waitFor(() => {
       expect(onSelectWorkspace).toHaveBeenCalledWith("workspace-1");
-      expect(onSendToWorkspace).toHaveBeenCalledWith(
-        "workspace-1",
-        "send directly from home",
-        [],
-        undefined
-      );
+      expect(onSendToWorkspace).toHaveBeenCalledWith("workspace-1", "send directly from home", []);
     });
     expect(onSend).not.toHaveBeenCalled();
   });
@@ -611,8 +601,8 @@ describe("Home browser interactions", () => {
     );
 
     await waitFor(() => {
-      expect(onSend).toHaveBeenNthCalledWith(1, "first queued from home", [], undefined);
-      expect(onSend).toHaveBeenNthCalledWith(2, "second queued from home", [], undefined);
+      expect(onSend).toHaveBeenNthCalledWith(1, "first queued from home", []);
+      expect(onSend).toHaveBeenNthCalledWith(2, "second queued from home", []);
     });
   });
 

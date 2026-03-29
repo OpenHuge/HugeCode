@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeRunGetV2Response, HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
+import { __resetRuntimeRunTruthStoreForTests } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import { WorkspaceHomeAgentRuntimeRunItem } from "./WorkspaceHomeAgentRuntimeRunItem";
 
@@ -85,12 +86,14 @@ function buildRun(overrides: Partial<HugeCodeRunSummary> = {}): HugeCodeRunSumma
 
 describe("WorkspaceHomeAgentRuntimeRunItem", () => {
   beforeEach(() => {
+    __resetRuntimeRunTruthStoreForTests();
     getRuntimeRunV2Mock.mockResolvedValue(null);
     subscribeRuntimeRunV2Mock.mockResolvedValue(null);
   });
 
   afterEach(() => {
     cleanup();
+    __resetRuntimeRunTruthStoreForTests();
     vi.clearAllMocks();
   });
 
