@@ -278,6 +278,10 @@ export function SettingsView({
     automationSchedulesLoading,
     automationSchedulesError,
     automationSchedulesReadOnlyReason,
+    automationSchedulesCreateEnabled,
+    automationSchedulesUpdateEnabled,
+    automationSchedulesRunNowEnabled,
+    automationSchedulesCancelRunEnabled,
     nativeBackendEditorOpen,
     nativeBackendEditorMode,
     nativeBackendEditorDraft,
@@ -710,6 +714,12 @@ export function SettingsView({
           automationSchedulesLoading,
           automationSchedulesError,
           automationSchedulesReadOnlyReason,
+          automationScheduleActionAvailability: {
+            createEnabled: automationSchedulesCreateEnabled,
+            updateEnabled: automationSchedulesUpdateEnabled,
+            runNowEnabled: automationSchedulesRunNowEnabled,
+            cancelRunEnabled: automationSchedulesCancelRunEnabled,
+          },
           onRefreshAutomationSchedules: () => {
             void refreshAutomationSchedules();
           },

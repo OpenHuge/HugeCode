@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { NativeScheduleRecord } from "../../../application/runtime/ports/tauriRemoteServers";
+import type { RuntimeAutomationScheduleRecord } from "../../../application/runtime/ports/runtimeAutomationSchedules";
 import { buildNativeSchedulePayload } from "./settingsAutomationSchedules";
 
 describe("buildNativeSchedulePayload", () => {
   it("drops projected review linkage from the existing schedule record", () => {
-    const existing: NativeScheduleRecord = {
+    const existing: RuntimeAutomationScheduleRecord = {
       id: "schedule-1",
       enabled: true,
       name: "Night Operator",
