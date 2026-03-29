@@ -347,6 +347,7 @@ export function createRuntimeAgentControlDependencies(
   options?: CreateRuntimeAgentControlDependenciesOptions
 ): RuntimeAgentControlDependencies {
   const workspaceClientRuntime = options?.workspaceClientRuntime ?? null;
+  const runtimeDiscoveryControl = buildRuntimeDiscoveryControl(workspaceId);
 
   return {
     listTasks: async (input) =>
@@ -489,6 +490,7 @@ export function createRuntimeAgentControlDependencies(
         includeDiagnostics:
           typeof input?.includeDiagnostics === "boolean" ? input.includeDiagnostics : undefined,
       }),
+    getRuntimePolicy: async () => runtimeDiscoveryControl.getRuntimePolicy(),
     getRuntimeCapabilitiesSummary: async () => getRuntimeCapabilitiesSummary(),
     getRuntimeHealth: async () => getRuntimeHealth(),
     getRuntimeTerminalStatus: async () => getRuntimeTerminalStatus(),
@@ -536,6 +538,6 @@ export function createRuntimeAgentControlDependencies(
         reason: input.reason ?? null,
         force: input.force,
       }),
-    runtimeDiscoveryControl: buildRuntimeDiscoveryControl(workspaceId),
+    runtimeDiscoveryControl,
   };
 }

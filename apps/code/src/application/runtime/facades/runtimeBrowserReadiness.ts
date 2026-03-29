@@ -9,6 +9,7 @@ export type RuntimeBrowserReadinessState = "ready" | "attention" | "blocked";
 
 export type RuntimeBrowserReadinessSource =
   | "desktop_host_bridge"
+  | "partial_host_bridge"
   | "local_placeholder"
   | "unavailable";
 
@@ -90,7 +91,8 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
   const desktopHostBridge = getDesktopHostBridge();
   const runtimeHost: DesktopRuntimeHost = desktopHostBridge?.kind ?? "browser";
   const hasBrowserExtractionCapability =
-    typeof desktopHostBridge?.browserExtraction?.extract === "function" ||
+    typeof desktopHostBridge?.browserExtraction?.extract === "function";
+  const hasBrowserExtractionHistoryCapability =
     typeof desktopHostBridge?.browserExtraction?.getLastResult === "function";
   const hasBrowserDebugCapability =
     typeof desktopHostBridge?.browserDebug?.listLocalChromeDebuggerEndpoints === "function";
@@ -118,7 +120,29 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
     };
   }
 
-  if (runtimeHost === "browser" || hasBrowserDebugCapability || hasWebMcpSupport) {
+  if (hasBrowserExtractionHistoryCapability) {
+    return {
+      state: "attention",
+      headline: "Browser readiness is partially published",
+      detail:
+        "Desktop host bridge can read the last browser extraction result, but it does not publish the canonical extract entrypoint yet.",
+      recommendedAction:
+        "Publish the full browser extraction contract before treating browser extraction as runtime-ready.",
+      runtimeHost,
+      source: "partial_host_bridge",
+      sourceLabel: "Partial desktop host bridge",
+      extractionAvailable: false,
+      localOnly: false,
+      lastResult: null,
+      capabilities: {
+        browserDebug: hasBrowserDebugCapability,
+        browserExtraction: false,
+        webMcp: hasWebMcpSupport,
+      },
+    };
+  }
+
+  if (hasBrowserDebugCapability || hasWebMcpSupport) {
     return {
       state: "attention",
       headline: "Browser readiness is local-only",

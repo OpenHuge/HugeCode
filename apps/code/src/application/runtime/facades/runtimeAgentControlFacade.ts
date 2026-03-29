@@ -1,3 +1,4 @@
+import type { RuntimePolicySnapshot } from "@ku0/code-runtime-host-contract";
 import type { RuntimeAgentControl } from "../types/webMcpBridge";
 import type { RuntimeWorkspaceId } from "../types/runtimeIds";
 import type { buildRuntimeDiscoveryControl } from "./runtimeDiscoveryControl";
@@ -13,6 +14,7 @@ export type RuntimeAgentControlFacade = RuntimeAgentControl & {
   commitGit: (workspaceId: string, message: string) => Promise<void>;
   createGitBranch: (workspaceId: string, name: string) => Promise<void>;
   checkoutGitBranch: (workspaceId: string, name: string) => Promise<void>;
+  getRuntimePolicy: () => Promise<RuntimePolicySnapshot>;
 };
 
 export type RuntimeAgentControlDependencies = {
@@ -50,6 +52,7 @@ export function createRuntimeAgentControlFacade(
     commitGit: deps.commitGit,
     createGitBranch: deps.createGitBranch,
     checkoutGitBranch: deps.checkoutGitBranch,
+    getRuntimePolicy: deps.getRuntimePolicy,
     distributedTaskGraph: deps.distributedTaskGraph,
     getRuntimeCapabilitiesSummary: deps.getRuntimeCapabilitiesSummary,
     getRuntimeHealth: deps.getRuntimeHealth,

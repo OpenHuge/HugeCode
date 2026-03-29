@@ -23,7 +23,6 @@ import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import { normalizeRuntimeProviderCatalogEntry } from "./runtimeMissionControlProjectionNormalization";
 import { useWorkspaceRuntimePluginProjection } from "./runtimeKernelPluginProjectionHooks";
-import { getRuntimePolicy } from "../ports/tauriRuntimePolicy";
 import {
   AGENT_TASK_DURABILITY_DEGRADED_REASON,
   parseRuntimeDurabilityDiagnostics,
@@ -408,7 +407,9 @@ export function useRuntimeMissionControlSnapshot(input: {
           !workspaceClientRuntime.kernelProjection && input.runtimeControl.runtimeToolGuardrailRead
             ? input.runtimeControl.runtimeToolGuardrailRead()
             : Promise.resolve(diagnosticsProjectionSlice?.toolGuardrails ?? null),
-          getRuntimePolicy(),
+          input.runtimeControl.getRuntimePolicy
+            ? input.runtimeControl.getRuntimePolicy()
+            : Promise.resolve(null),
         ]),
       ]);
       const [nextProviders, nextAccounts, nextPools] = coreResponse as [
