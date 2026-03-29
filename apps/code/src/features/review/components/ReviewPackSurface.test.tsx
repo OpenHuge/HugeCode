@@ -20,17 +20,6 @@ function buildEmptyReviewMetadata() {
   };
 }
 
-const defaultDecisionActionability = {
-  summary:
-    "Canonical runtime review actionability is unavailable. Follow-up and review decisions stay disabled until runtime publishes the action set.",
-  details: [
-    "Decision source: Runtime review actionability unavailable.",
-    "This surface no longer reconstructs follow-up actions or default review policy in page-local logic.",
-  ],
-  sourceLabel: "Runtime review actionability unavailable",
-  usesFallback: false,
-};
-
 const runtimeRecordedFieldOrigins = {
   executionProfileId: "explicit_override",
   preferredBackendIds: "explicit_override",
@@ -1081,7 +1070,6 @@ describe("ReviewPackSurface", () => {
             details: ["Provider: OpenAI", "Routing health: ready"],
             missingReason: null,
           },
-          decisionActionability: defaultDecisionActionability,
           decisionActions: [
             {
               id: "accept",
@@ -1422,7 +1410,6 @@ describe("ReviewPackSurface", () => {
             details: ["Provider: OpenAI", "Routing health: ready"],
             missingReason: null,
           },
-          decisionActionability: defaultDecisionActionability,
           decisionActions: [
             {
               id: "accept",
@@ -1655,7 +1642,6 @@ describe("ReviewPackSurface", () => {
             details: [],
             missingReason: null,
           },
-          decisionActionability: defaultDecisionActionability,
           decisionActions: [
             {
               id: "accept",
@@ -1841,7 +1827,6 @@ describe("ReviewPackSurface", () => {
             details: ["Provider: OpenAI", "Routing health: ready"],
             missingReason: null,
           },
-          decisionActionability: defaultDecisionActionability,
           decisionActions: [
             {
               id: "accept",
@@ -2161,7 +2146,6 @@ describe("ReviewPackSurface", () => {
           executionContext: undefined,
           missionBrief: undefined,
           relaunchContext: undefined,
-          decisionActionability: defaultDecisionActionability,
           decisionActions: [],
           limitations: [],
           relaunchOptions: [],

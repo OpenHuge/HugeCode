@@ -164,6 +164,7 @@ function createDeps(): RuntimeAgentControlDependencies {
     createGitBranch: vi.fn(),
     checkoutGitBranch: vi.fn(),
     distributedTaskGraph: vi.fn(),
+    getRuntimePolicy: vi.fn(),
     getRuntimeCapabilitiesSummary: vi.fn(),
     getRuntimeHealth: vi.fn(),
     getRuntimeTerminalStatus: vi.fn(),

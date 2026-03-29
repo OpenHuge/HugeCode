@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RuntimeAgentTaskInterventionInput } from "../types/webMcpBridge";
+import { readBrowserReadiness } from "../ports/browserCapability";
 import { useWorkspaceRuntimeAgentControl } from "../ports/runtimeAgentControl";
 import { readRuntimeErrorCode, readRuntimeErrorMessage } from "../ports/runtimeErrorClassifier";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
@@ -87,6 +88,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimeControl,
     pollSeconds,
   });
+  const browserReadiness = readBrowserReadiness();
   const runtimePluginControlPlaneSurface = useMemo(
     () => ({
       plugins: snapshot.runtimePlugins,
@@ -123,6 +125,9 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
         runtimeHealthError: snapshot.runtimeHealthError,
         runtimeToolMetrics: snapshot.runtimeToolMetrics,
         runtimeToolGuardrails: snapshot.runtimeToolGuardrails,
+        runtimePolicy: snapshot.runtimePolicy,
+        runtimePolicyError: snapshot.runtimePolicyError,
+        browserReadiness,
         runtimePlugins: snapshot.runtimePlugins,
         runtimePluginsError: snapshot.runtimePluginsError,
         runtimePluginsProjectionBacked: snapshot.runtimePluginsProjectionBacked,
@@ -138,6 +143,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
         runtimeDurabilityWarning: snapshot.runtimeDurabilityWarning,
       }),
     [
+      browserReadiness,
       draft.runtimeDraftProviderRoute,
       runtimeStatusFilter,
       snapshot.runtimeAccounts,
@@ -145,6 +151,8 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
       snapshot.runtimeDurabilityWarning,
       snapshot.runtimeHealth,
       snapshot.runtimeHealthError,
+      snapshot.runtimePolicy,
+      snapshot.runtimePolicyError,
       snapshot.runtimePools,
       snapshot.runtimePlugins,
       snapshot.runtimePluginsError,

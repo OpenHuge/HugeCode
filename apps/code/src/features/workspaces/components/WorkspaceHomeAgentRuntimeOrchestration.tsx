@@ -14,6 +14,7 @@ import {
   formatRuntimeTimestamp,
   parseRuntimeBatchPreviewState,
 } from "./WorkspaceHomeAgentRuntimeOrchestration.helpers";
+import { WorkspaceHomeRuntimePolicyIndicator } from "./WorkspaceHomeRuntimePolicyIndicator";
 import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";
 
 const WorkspaceHomeAgentRuntimePluginControlPlane = lazy(async () => {
@@ -101,6 +102,20 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const stalePendingApprovalTasks = missionControlProjection.approvalPressure.staleTasks;
   const oldestPendingApprovalTask = missionControlProjection.approvalPressure.oldestPendingTask;
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
+  const policy = missionControlProjection.policy;
+  const browserReadiness = missionControlProjection.browserReadiness;
+  const browserReadinessStatusLabel =
+    browserReadiness.state === "ready"
+      ? "Ready"
+      : browserReadiness.state === "blocked"
+        ? "Blocked"
+        : "Attention";
+  const browserReadinessStatusTone =
+    browserReadiness.state === "ready"
+      ? "success"
+      : browserReadiness.state === "blocked"
+        ? "danger"
+        : "warning";
   const pluginCatalog = missionControlProjection.pluginCatalog;
   const composition = missionControlProjection.composition;
   const readinessNeedsActionCount =
@@ -253,6 +268,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         <span>Review ready: {missionRunSummary.reviewReady}</span>
         <span>Recoverable: {continuityReadiness.recoverableRunCount}</span>
         <span>Handoff ready: {continuityReadiness.handoffReadyCount}</span>
+        <span>Policy: {policy.statusLabel}</span>
+        <span>Browser: {browserReadinessStatusLabel}</span>
         <span>Plugins: {pluginCatalog.total}</span>
         <span>Bound: {pluginCatalog.boundCount}</span>
         <span>
@@ -278,6 +295,61 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           ))}
         </div>
       </div>
+      <WorkspaceHomeRuntimePolicyIndicator policy={policy} />
+      <MissionControlSectionCard
+        title="Browser readiness"
+        statusLabel={browserReadinessStatusLabel}
+        statusTone={browserReadinessStatusTone}
+        meta={
+          <>
+            <ToolCallChip tone="neutral">Host {browserReadiness.runtimeHost}</ToolCallChip>
+            <ToolCallChip
+              tone={
+                browserReadiness.extractionAvailable
+                  ? "success"
+                  : browserReadiness.localOnly
+                    ? "warning"
+                    : "neutral"
+              }
+            >
+              Extraction {browserReadiness.extractionAvailable ? "published" : "unavailable"}
+            </ToolCallChip>
+            <ToolCallChip tone="neutral">Source {browserReadiness.sourceLabel}</ToolCallChip>
+          </>
+        }
+      >
+        <div
+          className="workspace-home-code-runtime-item"
+          data-testid="workspace-runtime-browser-readiness"
+        >
+          <div className="workspace-home-code-runtime-item-main">
+            <strong>{browserReadiness.headline}</strong>
+            <span>{browserReadiness.detail}</span>
+            <span>{browserReadiness.recommendedAction}</span>
+            <span>
+              Capability boundary: separate from Governance / Policy and sourced from browser host
+              capability truth.
+            </span>
+            <span>
+              Signals: extraction {browserReadiness.capabilities.browserExtraction ? "yes" : "no"} |
+              debug {browserReadiness.capabilities.browserDebug ? "yes" : "no"} | WebMCP{" "}
+              {browserReadiness.capabilities.webMcp ? "yes" : "no"}
+            </span>
+            <span>
+              Placeholder-only: {browserReadiness.localOnly ? "yes" : "no"} | runtime host:{" "}
+              {browserReadiness.runtimeHost}
+            </span>
+            {browserReadiness.lastResult ? (
+              <span>
+                Last result: {browserReadiness.lastResult.status}
+                {browserReadiness.lastResult.errorCode
+                  ? ` (${browserReadiness.lastResult.errorCode})`
+                  : ""}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </MissionControlSectionCard>
       <MissionControlSessionLogSection runtimeSessionCheckpoint={runtimeSessionCheckpoint} />
       <Suspense
         fallback={<div className={controlStyles.sectionMeta}>Loading plugin control plane...</div>}

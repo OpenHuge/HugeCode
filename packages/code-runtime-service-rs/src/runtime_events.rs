@@ -529,6 +529,7 @@ pub(crate) fn runtime_update_scope_for_method(method: &str) -> Option<&'static [
             Some(&["threads", "agents", "bootstrap"])
         }
         "code_security_preflight_v1" => Some(&["tools", "agents"]),
+        "code_runtime_policy_set_v2" => Some(&["diagnostics"]),
         "native_tool_policy_upsert"
         | "native_tool_set_enabled"
         | "native_tool_secret_upsert"
@@ -1029,6 +1030,14 @@ mod tests {
         assert!(emitted_lag_resync_event);
         assert!(
             next_lagged_resync_event(&mut emitted_lag_resync_event, "2".to_string(), 18).is_none()
+        );
+    }
+
+    #[test]
+    fn runtime_policy_set_publishes_diagnostics_scope_updates() {
+        assert_eq!(
+            runtime_update_scope_for_method("code_runtime_policy_set_v2"),
+            Some(&["diagnostics"][..])
         );
     }
 

@@ -86,6 +86,7 @@ const runtimeCompositionProfilesMock = vi.hoisted(() =>
 const runtimeCompositionResolutionMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["getActiveResolution"]>(async () => null as never)
 );
+const readBrowserReadinessMock = vi.hoisted(() => vi.fn());
 const runtimeCompositionPreviewMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["previewResolution"]>(async () => ({
     selectedPlugins: [],
@@ -178,6 +179,10 @@ vi.mock("../../../application/runtime/ports/desktopAppSettings", () => ({
   updateAppSettings: vi.fn(),
 }));
 
+vi.mock("../../../application/runtime/ports/browserCapability", () => ({
+  readBrowserReadiness: readBrowserReadinessMock,
+}));
+
 vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
   getRuntimeCapabilitiesSummary: vi.fn(),
   getRuntimeHealth: vi.fn(),
@@ -186,6 +191,11 @@ vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
 vi.mock("../../../application/runtime/ports/tauriRuntimeDiagnostics", () => ({
   runtimeToolMetricsRead: vi.fn(),
   runtimeToolGuardrailRead: vi.fn(),
+}));
+
+vi.mock("../../../application/runtime/ports/tauriRuntimePolicy", () => ({
+  getRuntimePolicy: vi.fn(),
+  setRuntimePolicy: vi.fn(),
 }));
 
 vi.mock("../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint", () => ({
@@ -214,6 +224,7 @@ import {
   runtimeToolGuardrailRead,
   runtimeToolMetricsRead,
 } from "../../../application/runtime/ports/tauriRuntimeDiagnostics";
+import { getRuntimePolicy } from "../../../application/runtime/ports/tauriRuntimePolicy";
 import {
   getProvidersCatalog,
   listOAuthAccounts,
@@ -229,6 +240,7 @@ const submitTaskApprovalDecisionMock = vi.mocked(submitTaskApprovalDecision) as 
 const interruptAgentTaskMock = vi.mocked(interruptAgentTask) as unknown as Mock;
 const resumeAgentTaskMock = vi.mocked(resumeAgentTask) as unknown as Mock;
 const useWorkspaceRuntimeSessionCheckpointMock = vi.mocked(useWorkspaceRuntimeSessionCheckpoint);
+const getRuntimePolicyMock = vi.mocked(getRuntimePolicy);
 
 function createEmptyMissionControlSnapshot() {
   return {
@@ -238,6 +250,27 @@ function createEmptyMissionControlSnapshot() {
     tasks: [],
     runs: [],
     reviewPacks: [],
+  };
+}
+
+function createBrowserReadinessSummary(overrides: Record<string, unknown> = {}) {
+  return {
+    state: "ready",
+    headline: "Browser readiness confirmed",
+    detail: "Desktop host bridge publishes the browser extraction contract.",
+    recommendedAction: "Use the desktop-host browser extraction contract.",
+    runtimeHost: "electron",
+    source: "desktop_host_bridge",
+    sourceLabel: "Desktop host bridge",
+    extractionAvailable: true,
+    localOnly: false,
+    lastResult: null,
+    capabilities: {
+      browserDebug: true,
+      browserExtraction: true,
+      webMcp: true,
+    },
+    ...overrides,
   };
 }
 
@@ -329,6 +362,36 @@ beforeEach(() => {
       activeProfileName: "Workspace Default",
       appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
       selectorDecisions: {},
+    },
+  });
+  getRuntimePolicyMock.mockResolvedValue({
+    mode: "strict",
+    updatedAt: 1_700_000_000_000,
+    state: {
+      readiness: "attention",
+      summary: "Runtime policy is active in Strict mode with 2 operator-visible constraints.",
+      activeConstraintCount: 2,
+      blockedCapabilityCount: 1,
+      capabilities: [
+        {
+          capabilityId: "tool_preflight",
+          label: "Tool preflight",
+          readiness: "attention",
+          effect: "approval",
+          activeConstraint: true,
+          summary: "Strict mode gates medium and high-risk actions.",
+          detail: "Operator approval is required before risky tool execution can continue.",
+        },
+        {
+          capabilityId: "network_analysis",
+          label: "Network analysis",
+          readiness: "attention",
+          effect: "blocked",
+          activeConstraint: true,
+          summary: "Network-backed analysis is disabled by runtime policy.",
+          detail: "Enable live-skills network access to restore remote search and fetch paths.",
+        },
+      ],
     },
   });
   runtimeCompositionPreviewMock.mockClear();
@@ -444,6 +507,7 @@ beforeEach(() => {
     version: "1.0.0",
     status: "ok",
   });
+  readBrowserReadinessMock.mockReturnValue(createBrowserReadinessSummary());
   vi.mocked(getProvidersCatalog).mockResolvedValue([]);
   vi.mocked(listOAuthAccounts).mockResolvedValue([]);
   vi.mocked(listOAuthPools).mockResolvedValue([]);
@@ -976,11 +1040,84 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Governance / Policy" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Launch readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Continuity readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Approval pressure" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Extension readiness" })).toBeTruthy();
+      expect(screen.getByRole("heading", { name: "Browser readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Run list" })).toBeTruthy();
+    });
+  });
+
+  it("renders runtime-published governance and policy capability details", async () => {
+    mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Governance / Policy is actively constraining runtime behavior")
+      ).toBeTruthy();
+      expect(screen.getByText("Policy mode: Strict")).toBeTruthy();
+      expect(screen.getByText("Tool preflight")).toBeTruthy();
+      expect(screen.getByText("Network analysis")).toBeTruthy();
+      expect(screen.getAllByText("Active constraint").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("renders browser readiness as a separate capability surface from policy attention", async () => {
+    mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
+    readBrowserReadinessMock.mockReturnValue(
+      createBrowserReadinessSummary({
+        state: "attention",
+        headline: "Browser readiness is local-only",
+        detail:
+          "Browser extraction still resolves through placeholder local state until a host adapter publishes the canonical contract.",
+        recommendedAction:
+          "Treat browser extraction as placeholder-only until a host or runtime adapter publishes canonical results.",
+        runtimeHost: "browser",
+        source: "local_placeholder",
+        sourceLabel: "Local placeholder",
+        extractionAvailable: false,
+        localOnly: true,
+        lastResult: {
+          status: "empty",
+          normalizedText: null,
+          snippet: null,
+          errorCode: "LOCAL_PLACEHOLDER_STATE",
+          errorMessage: "Placeholder browser extraction state only.",
+          traceId: null,
+          trace: [],
+        },
+        capabilities: {
+          browserDebug: false,
+          browserExtraction: false,
+          webMcp: true,
+        },
+      })
+    );
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await waitFor(() => {
+      const section = screen.getByRole("heading", { name: "Browser readiness" }).closest("section");
+
+      expect(section).toBeTruthy();
+
+      const readinessPanel = within(section as HTMLElement);
+
+      expect(readinessPanel.getAllByText("Attention").length).toBeGreaterThan(0);
+      expect(readinessPanel.getByText("Host browser")).toBeTruthy();
+      expect(readinessPanel.getByText("Extraction unavailable")).toBeTruthy();
+      expect(readinessPanel.getByText("Source Local placeholder")).toBeTruthy();
+      expect(readinessPanel.getByText("Browser readiness is local-only")).toBeTruthy();
+      expect(
+        readinessPanel.getByText(
+          /separate from Governance \/ Policy and sourced from browser host capability truth/i
+        )
+      ).toBeTruthy();
+      expect(readinessPanel.getByText("Last result: empty (LOCAL_PLACEHOLDER_STATE)")).toBeTruthy();
     });
   });
 

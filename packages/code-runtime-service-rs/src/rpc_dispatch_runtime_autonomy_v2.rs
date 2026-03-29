@@ -108,6 +108,245 @@ fn payload_bytes_from_params(params: &serde_json::Map<String, Value>) -> u64 {
         .unwrap_or(0)
 }
 
+fn runtime_policy_mode_label(mode: RuntimePolicyMode) -> &'static str {
+    match mode {
+        RuntimePolicyMode::Strict => "Strict",
+        RuntimePolicyMode::Balanced => "Balanced",
+        RuntimePolicyMode::Aggressive => "Aggressive",
+    }
+}
+
+fn runtime_policy_computer_observe_enabled() -> bool {
+    match std::env::var("KU0_ENABLE_COMPUTER_OBSERVE") {
+        Ok(value) => matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        ),
+        Err(_) => false,
+    }
+}
+
+fn build_runtime_policy_capability(
+    capability_id: &str,
+    label: &str,
+    readiness: &str,
+    effect: &str,
+    active_constraint: bool,
+    summary: String,
+    detail: Option<String>,
+) -> Value {
+    json!({
+        "capabilityId": capability_id,
+        "label": label,
+        "readiness": readiness,
+        "effect": effect,
+        "activeConstraint": active_constraint,
+        "summary": summary,
+        "detail": detail,
+    })
+}
+
+fn build_runtime_policy_state(
+    mode: RuntimePolicyMode,
+    guardrails: &runtime_tool_guardrails::RuntimeToolGuardrailStateSnapshot,
+    network_enabled: bool,
+    computer_observe_enabled: bool,
+) -> Value {
+    let channel_detail = guardrails
+        .channel_health
+        .reason
+        .as_ref()
+        .map(|reason| reason.trim().to_string())
+        .filter(|reason| !reason.is_empty());
+    let guardrail_channel = match guardrails.channel_health.status {
+        runtime_tool_domain::RuntimeToolExecutionChannelHealthStatus::Healthy => {
+            build_runtime_policy_capability(
+                "guardrail_channel",
+                "Guardrail channel",
+                "ready",
+                "allow",
+                false,
+                "Runtime guardrail channel is healthy.".to_string(),
+                channel_detail,
+            )
+        }
+        runtime_tool_domain::RuntimeToolExecutionChannelHealthStatus::Degraded => {
+            build_runtime_policy_capability(
+                "guardrail_channel",
+                "Guardrail channel",
+                "attention",
+                "restricted",
+                true,
+                "Runtime guardrail channel is degraded and may constrain policy enforcement."
+                    .to_string(),
+                channel_detail,
+            )
+        }
+        runtime_tool_domain::RuntimeToolExecutionChannelHealthStatus::Unavailable => {
+            build_runtime_policy_capability(
+                "guardrail_channel",
+                "Guardrail channel",
+                "blocked",
+                "blocked",
+                true,
+                "Runtime guardrail channel is unavailable; policy-backed preflight is blocked."
+                    .to_string(),
+                channel_detail,
+            )
+        }
+    };
+
+    let tool_preflight = match mode {
+        RuntimePolicyMode::Strict => build_runtime_policy_capability(
+            "tool_preflight",
+            "Tool preflight",
+            "attention",
+            "approval",
+            true,
+            "Strict mode gates medium and high-risk actions and denies critical tools."
+                .to_string(),
+            Some("Operator approval is required before risky tool execution can continue.".to_string()),
+        ),
+        RuntimePolicyMode::Balanced => build_runtime_policy_capability(
+            "tool_preflight",
+            "Tool preflight",
+            "ready",
+            "approval",
+            false,
+            "Balanced mode allows standard execution and escalates only high-risk actions."
+                .to_string(),
+            Some("Critical actions remain denied and high-risk actions still require approval.".to_string()),
+        ),
+        RuntimePolicyMode::Aggressive => build_runtime_policy_capability(
+            "tool_preflight",
+            "Tool preflight",
+            "ready",
+            "allow",
+            false,
+            "Aggressive mode keeps runtime execution open for most tools.".to_string(),
+            Some("Only critical actions still require approval.".to_string()),
+        ),
+    };
+
+    let network_analysis = if network_enabled {
+        build_runtime_policy_capability(
+            "network_analysis",
+            "Network analysis",
+            "ready",
+            "allow",
+            false,
+            "Network-backed analysis is available to the runtime.".to_string(),
+            None,
+        )
+    } else {
+        build_runtime_policy_capability(
+            "network_analysis",
+            "Network analysis",
+            "attention",
+            "blocked",
+            true,
+            "Network-backed analysis is disabled by runtime policy.".to_string(),
+            Some("Enable live-skills network access to restore remote search and fetch paths.".to_string()),
+        )
+    };
+
+    let research_orchestration = if network_enabled {
+        build_runtime_policy_capability(
+            "research_orchestration",
+            "Research orchestration",
+            "ready",
+            "allow",
+            false,
+            "Research orchestration can request network-backed evidence collection.".to_string(),
+            None,
+        )
+    } else {
+        build_runtime_policy_capability(
+            "research_orchestration",
+            "Research orchestration",
+            "attention",
+            "blocked",
+            true,
+            "Research orchestration is disabled because network access is blocked by policy."
+                .to_string(),
+            Some("Mission Control should treat research follow-up as unavailable until policy changes.".to_string()),
+        )
+    };
+
+    let computer_observe = if computer_observe_enabled {
+        build_runtime_policy_capability(
+            "computer_observe",
+            "Computer observe",
+            "ready",
+            "allow",
+            false,
+            "Computer observe is available in read-only mode.".to_string(),
+            None,
+        )
+    } else {
+        build_runtime_policy_capability(
+            "computer_observe",
+            "Computer observe",
+            "attention",
+            "blocked",
+            true,
+            "Computer observe is disabled by runtime policy.".to_string(),
+            Some("Set KU0_ENABLE_COMPUTER_OBSERVE to restore read-only observation support.".to_string()),
+        )
+    };
+
+    let capabilities = vec![
+        guardrail_channel,
+        tool_preflight,
+        network_analysis,
+        research_orchestration,
+        computer_observe,
+    ];
+    let active_constraint_count = capabilities
+        .iter()
+        .filter(|entry| {
+            entry.get("activeConstraint")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
+        .count();
+    let blocked_capability_count = capabilities
+        .iter()
+        .filter(|entry| entry.get("effect").and_then(Value::as_str) == Some("blocked"))
+        .count();
+    let readiness = if capabilities
+        .iter()
+        .any(|entry| entry.get("readiness").and_then(Value::as_str) == Some("blocked"))
+    {
+        "blocked"
+    } else if active_constraint_count > 0 {
+        "attention"
+    } else {
+        "ready"
+    };
+    let mode_label = runtime_policy_mode_label(mode);
+    let summary = match readiness {
+        "blocked" => format!(
+            "Runtime policy is blocked in {mode_label} mode. Repair the guardrail channel before continuing."
+        ),
+        "attention" => format!(
+            "Runtime policy is active in {mode_label} mode with {active_constraint_count} operator-visible constraint{}.",
+            if active_constraint_count == 1 { "" } else { "s" }
+        ),
+        _ => format!(
+            "Runtime policy is ready in {mode_label} mode for standard mission control operations."
+        ),
+    };
+
+    json!({
+        "readiness": readiness,
+        "summary": summary,
+        "activeConstraintCount": active_constraint_count,
+        "blockedCapabilityCount": blocked_capability_count,
+        "capabilities": capabilities,
+    })
+}
+
 pub(super) async fn handle_runtime_tool_preflight_v2(
     ctx: &AppContext,
     params: &Value,
@@ -429,9 +668,21 @@ pub(super) async fn handle_runtime_tool_outcome_record_v2(
 pub(super) async fn handle_runtime_policy_get_v2(ctx: &AppContext) -> Result<Value, RpcError> {
     let state = ctx.state.read().await;
     let mode = read_runtime_policy_mode_from_state(state.runtime_policy_mode.as_str());
+    let updated_at = state.runtime_policy_updated_at;
+    drop(state);
+    let guardrail_snapshot = {
+        let guardrails = ctx.runtime_tool_guardrails.lock().await;
+        guardrails.read_snapshot()
+    };
     Ok(json!({
         "mode": mode.as_str(),
-        "updatedAt": state.runtime_policy_updated_at,
+        "updatedAt": updated_at,
+        "state": build_runtime_policy_state(
+            mode,
+            &guardrail_snapshot,
+            ctx.config.live_skills_network_enabled,
+            runtime_policy_computer_observe_enabled(),
+        ),
     }))
 }
 
@@ -450,8 +701,170 @@ pub(super) async fn handle_runtime_policy_set_v2(
         state.runtime_policy_mode = mode.as_str().to_string();
         state.runtime_policy_updated_at = updated_at;
     }
+    let guardrail_snapshot = {
+        let guardrails = ctx.runtime_tool_guardrails.lock().await;
+        guardrails.read_snapshot()
+    };
     Ok(json!({
         "mode": mode.as_str(),
         "updatedAt": updated_at,
+        "state": build_runtime_policy_state(
+            mode,
+            &guardrail_snapshot,
+            ctx.config.live_skills_network_enabled,
+            runtime_policy_computer_observe_enabled(),
+        ),
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        build_app_context, create_initial_state, native_state_store, ServiceConfig,
+        DEFAULT_AGENT_MAX_CONCURRENT_TASKS, DEFAULT_AGENT_TASK_HISTORY_LIMIT,
+        DEFAULT_ANTHROPIC_ENDPOINT, DEFAULT_ANTHROPIC_VERSION,
+        DEFAULT_DISCOVERY_BROWSE_INTERVAL_MS, DEFAULT_DISCOVERY_SERVICE_TYPE,
+        DEFAULT_DISCOVERY_STALE_TTL_MS, DEFAULT_GEMINI_ENDPOINT,
+        DEFAULT_LIVE_SKILLS_NETWORK_BASE_URL, DEFAULT_LIVE_SKILLS_NETWORK_CACHE_TTL_MS,
+        DEFAULT_LIVE_SKILLS_NETWORK_TIMEOUT_MS, DEFAULT_OAUTH_LOOPBACK_CALLBACK_PORT,
+        DEFAULT_OPENAI_COMPAT_MODEL_CACHE_TTL_MS, DEFAULT_OPENAI_MAX_RETRIES,
+        DEFAULT_OPENAI_RETRY_BASE_MS, DEFAULT_OPENAI_TIMEOUT_MS,
+        DEFAULT_RUNTIME_WS_MAX_CONNECTIONS, DEFAULT_RUNTIME_WS_MAX_FRAME_SIZE_BYTES,
+        DEFAULT_RUNTIME_WS_MAX_MESSAGE_SIZE_BYTES, DEFAULT_RUNTIME_WS_MAX_WRITE_BUFFER_SIZE_BYTES,
+        DEFAULT_RUNTIME_WS_WRITE_BUFFER_SIZE_BYTES, DEFAULT_SANDBOX_NETWORK_ACCESS,
+    };
+    use std::sync::Arc;
+
+    fn runtime_policy_test_config() -> ServiceConfig {
+        ServiceConfig {
+            default_model_id: "gpt-5.4".to_string(),
+            openai_api_key: Some("test-openai-key".to_string()),
+            openai_endpoint: "https://api.openai.com/v1/responses".to_string(),
+            openai_compat_base_url: None,
+            openai_compat_api_key: None,
+            anthropic_api_key: None,
+            anthropic_endpoint: DEFAULT_ANTHROPIC_ENDPOINT.to_string(),
+            anthropic_version: DEFAULT_ANTHROPIC_VERSION.to_string(),
+            gemini_api_key: None,
+            gemini_endpoint: DEFAULT_GEMINI_ENDPOINT.to_string(),
+            openai_timeout_ms: DEFAULT_OPENAI_TIMEOUT_MS,
+            openai_max_retries: DEFAULT_OPENAI_MAX_RETRIES,
+            openai_retry_base_ms: DEFAULT_OPENAI_RETRY_BASE_MS,
+            openai_compat_model_cache_ttl_ms: DEFAULT_OPENAI_COMPAT_MODEL_CACHE_TTL_MS,
+            live_skills_network_enabled: false,
+            live_skills_network_base_url: DEFAULT_LIVE_SKILLS_NETWORK_BASE_URL.to_string(),
+            live_skills_network_timeout_ms: DEFAULT_LIVE_SKILLS_NETWORK_TIMEOUT_MS,
+            live_skills_network_cache_ttl_ms: DEFAULT_LIVE_SKILLS_NETWORK_CACHE_TTL_MS,
+            sandbox_enabled: false,
+            sandbox_network_access: DEFAULT_SANDBOX_NETWORK_ACCESS.to_string(),
+            sandbox_allowed_hosts: Vec::new(),
+            oauth_pool_db_path: ":memory:".to_string(),
+            oauth_secret_key: None,
+            oauth_public_base_url: None,
+            oauth_loopback_callback_port: DEFAULT_OAUTH_LOOPBACK_CALLBACK_PORT,
+            runtime_auth_token: None,
+            agent_max_concurrent_tasks: DEFAULT_AGENT_MAX_CONCURRENT_TASKS,
+            agent_task_history_limit: DEFAULT_AGENT_TASK_HISTORY_LIMIT,
+            distributed_enabled: false,
+            distributed_redis_url: None,
+            distributed_lane_count: 1,
+            distributed_worker_concurrency: 1,
+            distributed_claim_idle_ms: 500,
+            discovery_enabled: false,
+            discovery_service_type: DEFAULT_DISCOVERY_SERVICE_TYPE.to_string(),
+            discovery_browse_interval_ms: DEFAULT_DISCOVERY_BROWSE_INTERVAL_MS,
+            discovery_stale_ttl_ms: DEFAULT_DISCOVERY_STALE_TTL_MS,
+            runtime_backend_id: "runtime-policy-test".to_string(),
+            runtime_backend_capabilities: vec!["code".to_string()],
+            runtime_port: 8788,
+            ws_write_buffer_size_bytes: DEFAULT_RUNTIME_WS_WRITE_BUFFER_SIZE_BYTES,
+            ws_max_write_buffer_size_bytes: DEFAULT_RUNTIME_WS_MAX_WRITE_BUFFER_SIZE_BYTES,
+            ws_max_frame_size_bytes: DEFAULT_RUNTIME_WS_MAX_FRAME_SIZE_BYTES,
+            ws_max_message_size_bytes: DEFAULT_RUNTIME_WS_MAX_MESSAGE_SIZE_BYTES,
+            ws_max_connections: DEFAULT_RUNTIME_WS_MAX_CONNECTIONS,
+            provider_extension_seeds: Vec::new(),
+        }
+    }
+
+    fn runtime_policy_test_context() -> AppContext {
+        build_app_context(
+            create_initial_state("gpt-5.4"),
+            runtime_policy_test_config(),
+            Arc::new(native_state_store::NativeStateStore::from_env_or_default()),
+        )
+    }
+
+    #[test]
+    fn build_runtime_policy_state_marks_optional_policy_blocks_as_attention() {
+        let guardrails =
+            runtime_tool_guardrails::RuntimeToolGuardrailStore::isolated_for_test(500)
+                .read_snapshot();
+
+        let state = build_runtime_policy_state(RuntimePolicyMode::Strict, &guardrails, false, false);
+
+        assert_eq!(state.get("readiness").and_then(Value::as_str), Some("attention"));
+        assert_eq!(
+            state
+                .get("activeConstraintCount")
+                .and_then(Value::as_u64),
+            Some(4)
+        );
+        assert_eq!(
+            state
+                .get("blockedCapabilityCount")
+                .and_then(Value::as_u64),
+            Some(3)
+        );
+        let capabilities = state
+            .get("capabilities")
+            .and_then(Value::as_array)
+            .expect("policy capabilities");
+        assert!(capabilities.iter().any(|entry| {
+            entry.get("capabilityId").and_then(Value::as_str) == Some("network_analysis")
+                && entry.get("effect").and_then(Value::as_str) == Some("blocked")
+        }));
+    }
+
+    #[tokio::test]
+    async fn runtime_policy_get_returns_standard_policy_state_payload() {
+        let ctx = runtime_policy_test_context();
+
+        let response = handle_runtime_policy_get_v2(&ctx)
+            .await
+            .expect("runtime policy get");
+
+        assert_eq!(response.get("mode").and_then(Value::as_str), Some("strict"));
+        let state = response.get("state").expect("policy state");
+        assert_eq!(state.get("readiness").and_then(Value::as_str), Some("attention"));
+        assert!(state
+            .get("summary")
+            .and_then(Value::as_str)
+            .expect("summary")
+            .contains("Strict"));
+        assert!(state
+            .get("capabilities")
+            .and_then(Value::as_array)
+            .map(|entries| !entries.is_empty())
+            .unwrap_or(false));
+    }
+
+    #[tokio::test]
+    async fn runtime_policy_set_returns_updated_mode_and_state_payload() {
+        let ctx = runtime_policy_test_context();
+
+        let response = handle_runtime_policy_set_v2(&ctx, &json!({ "mode": "aggressive" }))
+            .await
+            .expect("runtime policy set");
+
+        assert_eq!(response.get("mode").and_then(Value::as_str), Some("aggressive"));
+        assert!(response.get("updatedAt").and_then(Value::as_u64).is_some());
+        let state = response.get("state").expect("policy state");
+        assert_eq!(state.get("readiness").and_then(Value::as_str), Some("attention"));
+        assert!(state
+            .get("summary")
+            .and_then(Value::as_str)
+            .expect("summary")
+            .contains("Aggressive"));
+    }
 }

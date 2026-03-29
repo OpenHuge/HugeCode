@@ -39,6 +39,24 @@ describe("runtimeBrowserReadiness", () => {
     expect(summary.source).toBe("desktop_host_bridge");
   });
 
+  it("reports partial host attention when only browser extraction history is published", () => {
+    getDesktopHostBridgeMock.mockReturnValue({
+      kind: "electron",
+      browserExtraction: {
+        getLastResult: async () => null,
+      },
+    });
+
+    const summary = readBrowserReadiness();
+
+    expect(summary.state).toBe("attention");
+    expect(summary.runtimeHost).toBe("electron");
+    expect(summary.extractionAvailable).toBe(false);
+    expect(summary.localOnly).toBe(false);
+    expect(summary.source).toBe("partial_host_bridge");
+    expect(summary.headline).toContain("partially published");
+  });
+
   it("reports local placeholder attention when browser runtime integrations are present", () => {
     supportsWebMcpMock.mockReturnValue(true);
 
@@ -69,6 +87,16 @@ describe("runtimeBrowserReadiness", () => {
     expect(summary.extractionAvailable).toBe(false);
     expect(summary.localOnly).toBe(true);
     expect(summary.lastResult?.errorCode).toBe("LOCAL_PLACEHOLDER_STATE");
+  });
+
+  it("reports blocked in a plain browser runtime without browser signals", () => {
+    const summary = readBrowserReadiness();
+
+    expect(summary.state).toBe("blocked");
+    expect(summary.runtimeHost).toBe("browser");
+    expect(summary.localOnly).toBe(false);
+    expect(summary.source).toBe("unavailable");
+    expect(summary.lastResult?.errorCode).toBe("BROWSER_CAPABILITY_UNAVAILABLE");
   });
 
   it("reports blocked when no browser capability surface is available on an electron host", () => {
