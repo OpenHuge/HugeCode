@@ -68,7 +68,7 @@ export function ReviewPackSurfaceFromProjection({
         reviewPackDetail.recommendedNextAction,
         reviewPackDetail.recommendedNextAction,
         reviewPackDetail.continuity?.recommendedAction ?? null,
-        undefined,
+        reviewPackDetail.continuity?.continuePathLabel ?? null,
         reviewPackDetail.backendAudit?.details.join(" | ") ?? null
       );
     } else {
