@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import {
   getKernelProjectionStore,
   readCapabilitiesProjectionSlice,
@@ -23,6 +23,7 @@ export type WorkspaceRuntimePluginProjectionState = {
   loading: boolean;
   error: string | null;
   projectionBacked: boolean;
+  refresh: () => Promise<void>;
   registry: {
     packages: RuntimeRegistryPackageDescriptor[];
     installedCount: number;
@@ -72,16 +73,7 @@ export function useWorkspaceRuntimePluginProjection(input: {
   const [registryError, setRegistryError] = useState<string | null>(null);
   const [compositionError, setCompositionError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!input.enabled || !runtimeKernel.workspaceClientRuntime.kernelProjection) {
-      return;
-    }
-    kernelProjectionStore.ensureScopes(["extensions", "capabilities"]);
-  }, [input.enabled, kernelProjectionStore, runtimeKernel.workspaceClientRuntime.kernelProjection]);
-
-  useEffect(() => {
-    let cancelled = false;
-
+  const refresh = useCallback(async () => {
     if (!input.enabled) {
       setCapabilityPlugins([]);
       setRegistryPackages([]);
@@ -91,9 +83,7 @@ export function useWorkspaceRuntimePluginProjection(input: {
       setError(null);
       setRegistryError(null);
       setCompositionError(null);
-      return () => {
-        cancelled = true;
-      };
+      return;
     }
 
     if (!pluginRegistry || !compositionRuntime || (!kernelProjectionEnabled && !pluginCatalog)) {
@@ -105,9 +95,7 @@ export function useWorkspaceRuntimePluginProjection(input: {
       setError(null);
       setRegistryError(null);
       setCompositionError(null);
-      return () => {
-        cancelled = true;
-      };
+      return;
     }
 
     setLoading(true);
@@ -119,55 +107,96 @@ export function useWorkspaceRuntimePluginProjection(input: {
       ? Promise.resolve<RuntimeKernelPluginDescriptor[]>([])
       : pluginCatalog!.listPlugins();
 
-    void Promise.allSettled([
-      pluginPromise,
-      pluginRegistry.listInstalledPackages(),
-      compositionRuntime.listProfiles(),
-      compositionRuntime.getActiveResolution(),
-    ]).then(([pluginsResult, packagesResult, profilesResult, resolutionResult]) => {
+    const [pluginsResult, packagesResult, profilesResult, resolutionResult] =
+      await Promise.allSettled([
+        pluginPromise,
+        pluginRegistry.listInstalledPackages(),
+        compositionRuntime.listProfiles(),
+        compositionRuntime.getActiveResolution(),
+      ]);
+
+    if (pluginsResult.status === "fulfilled") {
+      setCapabilityPlugins(pluginsResult.value);
+      setError(null);
+    } else {
+      setCapabilityPlugins([]);
+      setError(
+        formatPluginProjectionError(pluginsResult.reason, "Unable to load runtime plugins.")
+      );
+    }
+
+    if (packagesResult.status === "fulfilled") {
+      setRegistryPackages(packagesResult.value);
+      setRegistryError(null);
+    } else {
+      setRegistryPackages([]);
+      setRegistryError(
+        formatPluginProjectionError(
+          packagesResult.reason,
+          "Unable to load runtime package registry."
+        )
+      );
+    }
+
+    if (profilesResult.status === "fulfilled") {
+      setCompositionProfiles(profilesResult.value);
+      setCompositionError(null);
+    } else {
+      setCompositionProfiles([]);
+      setCompositionError(
+        formatPluginProjectionError(
+          profilesResult.reason,
+          "Unable to load runtime composition profiles."
+        )
+      );
+    }
+
+    if (resolutionResult.status === "fulfilled") {
+      setCompositionResolution(resolutionResult.value);
+      if (profilesResult.status !== "rejected") {
+        setCompositionError(null);
+      }
+    } else {
+      setCompositionResolution(null);
+      setCompositionError(
+        (current) =>
+          current ??
+          formatPluginProjectionError(
+            resolutionResult.reason,
+            "Unable to resolve runtime composition control plane."
+          )
+      );
+    }
+
+    setLoading(false);
+  }, [compositionRuntime, input.enabled, kernelProjectionEnabled, pluginCatalog, pluginRegistry]);
+
+  useEffect(() => {
+    if (!input.enabled || !runtimeKernel.workspaceClientRuntime.kernelProjection) {
+      return;
+    }
+    kernelProjectionStore.ensureScopes(["extensions", "capabilities"]);
+  }, [input.enabled, kernelProjectionStore, runtimeKernel.workspaceClientRuntime.kernelProjection]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void refresh().catch((nextError: unknown) => {
       if (cancelled) {
         return;
       }
-
-      setCapabilityPlugins(pluginsResult.status === "fulfilled" ? pluginsResult.value : []);
-      setRegistryPackages(packagesResult.status === "fulfilled" ? packagesResult.value : []);
-      setCompositionProfiles(profilesResult.status === "fulfilled" ? profilesResult.value : []);
-      setCompositionResolution(
-        resolutionResult.status === "fulfilled" ? resolutionResult.value : null
-      );
-      setError(
-        pluginsResult.status === "rejected"
-          ? formatPluginProjectionError(pluginsResult.reason, "Unable to load runtime plugins.")
-          : null
-      );
-      setRegistryError(
-        packagesResult.status === "rejected"
-          ? formatPluginProjectionError(
-              packagesResult.reason,
-              "Unable to load runtime package registry."
-            )
-          : null
-      );
-      setCompositionError(
-        profilesResult.status === "rejected"
-          ? formatPluginProjectionError(
-              profilesResult.reason,
-              "Unable to resolve runtime composition control plane."
-            )
-          : resolutionResult.status === "rejected"
-            ? formatPluginProjectionError(
-                resolutionResult.reason,
-                "Unable to resolve runtime composition control plane."
-              )
-            : null
-      );
+      setCapabilityPlugins([]);
+      setRegistryPackages([]);
+      setCompositionProfiles([]);
+      setCompositionResolution(null);
       setLoading(false);
+      setError(nextError instanceof Error ? nextError.message : "Unable to load runtime plugins.");
     });
 
     return () => {
       cancelled = true;
     };
-  }, [compositionRuntime, input.enabled, kernelProjectionEnabled, pluginCatalog, pluginRegistry]);
+  }, [refresh]);
 
   const activeProfileId = compositionResolution?.provenance.activeProfileId ?? null;
   const activeProfile =
@@ -184,6 +213,7 @@ export function useWorkspaceRuntimePluginProjection(input: {
     loading,
     error: error ?? registryError ?? compositionError,
     projectionBacked,
+    refresh,
     registry: {
       packages: registryPackages,
       installedCount: registryPackages.filter((entry) => entry.installed).length,

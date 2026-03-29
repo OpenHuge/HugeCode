@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
 import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
@@ -15,6 +15,13 @@ import {
   parseRuntimeBatchPreviewState,
 } from "./WorkspaceHomeAgentRuntimeOrchestration.helpers";
 import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";
+
+const WorkspaceHomeAgentRuntimePluginControlPlane = lazy(async () => {
+  const module = await import("./WorkspaceHomeAgentRuntimePluginControlPlane");
+  return {
+    default: module.WorkspaceHomeAgentRuntimePluginControlPlane,
+  };
+});
 
 type WorkspaceHomeAgentRuntimeOrchestrationProps = {
   workspaceId: string;
@@ -63,6 +70,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     runtimeError,
     runtimeInfo,
     runtimeLoading,
+    runtimePluginControlPlaneSurface,
     runtimeSourceDraft,
     runtimeStatusFilter,
     selectedExecutionProfile,
@@ -271,6 +279,16 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         </div>
       </div>
       <MissionControlSessionLogSection runtimeSessionCheckpoint={runtimeSessionCheckpoint} />
+      <Suspense
+        fallback={<div className={controlStyles.sectionMeta}>Loading plugin control plane...</div>}
+      >
+        <WorkspaceHomeAgentRuntimePluginControlPlane
+          workspaceId={workspaceId}
+          pluginControlPlaneSurface={runtimePluginControlPlaneSurface}
+          refreshRuntimeTasks={refreshRuntimeTasks}
+          runtimeLoading={runtimeLoading}
+        />
+      </Suspense>
       <MissionControlSectionCard
         title="Extension readiness"
         statusLabel={pluginCatalogStatus.label}

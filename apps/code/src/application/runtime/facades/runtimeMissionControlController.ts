@@ -87,6 +87,28 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimeControl,
     pollSeconds,
   });
+  const runtimePluginControlPlaneSurface = useMemo(
+    () => ({
+      plugins: snapshot.runtimePlugins,
+      pluginsError: snapshot.runtimePluginsError,
+      profiles: snapshot.runtimeCompositionProfiles,
+      activeProfileId: snapshot.runtimeCompositionActiveProfileId,
+      activeProfile: snapshot.runtimeCompositionActiveProfile,
+      resolution: snapshot.runtimeCompositionResolution,
+      compositionError: snapshot.runtimeCompositionError,
+      registryError: snapshot.runtimePluginRegistryError,
+    }),
+    [
+      snapshot.runtimePlugins,
+      snapshot.runtimePluginsError,
+      snapshot.runtimeCompositionProfiles,
+      snapshot.runtimeCompositionActiveProfileId,
+      snapshot.runtimeCompositionActiveProfile,
+      snapshot.runtimeCompositionResolution,
+      snapshot.runtimeCompositionError,
+      snapshot.runtimePluginRegistryError,
+    ]
+  );
 
   const missionControlProjection = useMemo(
     () =>
@@ -540,6 +562,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimeError: runtimeActionError ?? snapshot.runtimeError,
     runtimeInfo,
     runtimeLoading: runtimeActionLoading || snapshot.runtimeLoading,
+    runtimePluginControlPlaneSurface,
     runtimeSourceDraft: draft.runtimeSourceDraft,
     setPollSeconds,
     setRuntimeSourceDraft: draft.setRuntimeSourceDraft,

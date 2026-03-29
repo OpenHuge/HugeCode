@@ -26,7 +26,6 @@ import {
   type MissionControlProjection,
 } from "./runtimeMissionControlFacade";
 import type { RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
-import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
 import { buildMissionProvenanceSummary } from "./runtimeMissionControlProvenance";
 import {
   resolveReviewContinuationDefaults,
@@ -70,6 +69,11 @@ import {
   type WorkspaceEvidenceSummary,
   pushUnique,
 } from "./runtimeReviewPackDetailPresentation";
+import {
+  MISSION_RUN_EMPTY_SECTION_LABELS,
+  REVIEW_PACK_EMPTY_SECTION_LABELS,
+} from "./runtimeReviewPackEmptySectionLabels";
+import { buildMissionSecondaryLabel } from "./runtimeMissionSecondaryLabel";
 
 type RelaunchOption = {
   id: string;
@@ -128,26 +132,6 @@ type ReviewPackWithExtras = MissionControlProjection["reviewPacks"][number];
 type RunWithExtras = MissionControlProjection["runs"][number] & {
   subAgentSummary?: Array<Record<string, unknown>> | null;
 };
-
-function buildMissionSecondaryLabel(input: {
-  isRuntimeManaged: boolean;
-  taskSource?:
-    | MissionControlProjection["tasks"][number]["taskSource"]
-    | MissionControlProjection["runs"][number]["taskSource"]
-    | MissionControlProjection["reviewPacks"][number]["taskSource"]
-    | null
-    | undefined;
-}) {
-  const labels: string[] = [];
-  if (input.isRuntimeManaged) {
-    labels.push("Runtime-managed mission");
-  }
-  const taskSourceLabel = resolveTaskSourceSecondaryLabel(input.taskSource ?? null);
-  if (taskSourceLabel) {
-    labels.push(taskSourceLabel);
-  }
-  return labels.length > 0 ? labels.join(" | ") : null;
-}
 
 export type ReviewPackSelectionSource =
   | "home"
@@ -1001,12 +985,7 @@ export function buildReviewPackDetailModel(input: {
         runExtra?.subAgents ?? runExtra?.subAgentSummary ?? null
       ),
       limitations,
-      emptySectionLabels: {
-        warnings: "The runtime did not record warnings for this mission run.",
-        validations: "No runtime validation details were recorded for this mission run.",
-        artifacts: "No runtime artifacts or evidence references were attached to this mission run.",
-        autoDrive: "This run did not publish an AutoDrive route snapshot.",
-      },
+      emptySectionLabels: MISSION_RUN_EMPTY_SECTION_LABELS,
     };
   }
 
@@ -1314,17 +1293,11 @@ export function buildReviewPackDetailModel(input: {
     subAgentSummary,
     limitations,
     emptySectionLabels: {
-      assumptions: "The runtime did not record explicit review assumptions for this pack.",
-      warnings: "The runtime did not record any warnings for this review pack.",
+      ...REVIEW_PACK_EMPTY_SECTION_LABELS,
       validations:
         reviewPack.validationOutcome === "unknown"
           ? "Validation evidence was not recorded for this run."
           : "No individual validation checks were recorded for this run.",
-      artifacts: "No artifacts or evidence references were attached to this review pack.",
-      reproduction:
-        "The runtime did not record reproduction guidance for this review pack. Re-run the linked validations or inspect attached evidence.",
-      rollback:
-        "The runtime did not record rollback guidance for this review pack. Use diff evidence or reopen the mission thread before reverting changes.",
     },
   };
 }
