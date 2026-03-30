@@ -33,9 +33,7 @@ export function BrowserAssessmentProxyFixture() {
             return {
               ok: false as const,
               message:
-                error instanceof Error
-                  ? error.message
-                  : "Unable to resolve assessment target.",
+                error instanceof Error ? error.message : "Unable to resolve assessment target.",
             };
           }
         })()

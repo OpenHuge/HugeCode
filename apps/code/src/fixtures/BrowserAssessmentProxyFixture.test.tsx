@@ -1,12 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { BrowserAssessmentProxyFixture } from "./BrowserAssessmentProxyFixture";
 
 describe("BrowserAssessmentProxyFixture", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
   afterEach(() => {
     vi.useRealTimers();
     window.history.replaceState({}, "", "/fixtures.html");
@@ -35,6 +31,7 @@ describe("BrowserAssessmentProxyFixture", () => {
   });
 
   it("honors the requested post-load delay before reporting the proxy as ready", async () => {
+    vi.useFakeTimers();
     window.history.replaceState(
       {},
       "",
@@ -44,17 +41,21 @@ describe("BrowserAssessmentProxyFixture", () => {
     render(<BrowserAssessmentProxyFixture />);
 
     const iframe = screen.getByTitle("Browser assessment target");
-    fireEvent.load(iframe);
+    await act(async () => {
+      fireEvent.load(iframe);
+    });
 
     expect(document.querySelector("[data-browser-assessment-proxy-state='loading']")).toBeTruthy();
 
-    await vi.advanceTimersByTimeAsync(249);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(249);
+    });
     expect(document.querySelector("[data-browser-assessment-proxy-state='ready']")).toBeNull();
 
-    await vi.advanceTimersByTimeAsync(1);
-    await waitFor(() => {
-      expect(document.querySelector("[data-browser-assessment-proxy-state='ready']")).toBeTruthy();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
     });
+    expect(document.querySelector("[data-browser-assessment-proxy-state='ready']")).toBeTruthy();
   });
 
   it("blocks recursive proxy targets so the self-healing loop cannot recurse forever", () => {

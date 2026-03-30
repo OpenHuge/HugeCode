@@ -121,14 +121,12 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
     return {
       state: "ready",
       headline: "Browser readiness confirmed",
-      detail:
-        hasBrowserAssessmentCapability
-          ? "Desktop host bridge publishes the canonical browser assessment and extraction contracts."
-          : "Desktop host bridge publishes the browser extraction contract, so extraction can move through the canonical capability boundary.",
-      recommendedAction:
-        hasBrowserAssessmentCapability
-          ? "Use the published browser assessment and extraction contracts as the canonical source for future browser feedback loops."
-          : "Use the desktop-host browser extraction contract as the canonical source for future browser reads.",
+      detail: hasBrowserAssessmentCapability
+        ? "Desktop host bridge publishes the canonical browser assessment and extraction contracts."
+        : "Desktop host bridge publishes the browser extraction contract, so extraction can move through the canonical capability boundary.",
+      recommendedAction: hasBrowserAssessmentCapability
+        ? "Use the published browser assessment and extraction contracts as the canonical source for future browser feedback loops."
+        : "Use the desktop-host browser extraction contract as the canonical source for future browser reads.",
       runtimeHost,
       source: "desktop_host_bridge",
       sourceLabel: "Desktop host bridge",
