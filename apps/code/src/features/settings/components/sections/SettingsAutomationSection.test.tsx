@@ -225,6 +225,30 @@ describe("SettingsAutomationSection", () => {
     );
   });
 
+  it("keeps refresh available when summary loading fails", () => {
+    const onRefreshSchedules = vi.fn();
+
+    render(
+      <SettingsAutomationSection
+        {...createProps({
+          schedules: [],
+          operability: createOperability({
+            error: "Unable to load automation schedules.",
+          }),
+          onRefreshSchedules,
+        })}
+      />
+    );
+
+    const refreshButton = screen.getByRole("button", { name: "Refresh summaries" });
+    expect((refreshButton as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(refreshButton);
+
+    expect(onRefreshSchedules).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Error: Unable to load automation schedules.")).toBeTruthy();
+  });
+
   it("switches between summaries and invokes run controls for the selected schedule", async () => {
     const onScheduleAction = vi.fn(async () => undefined);
 

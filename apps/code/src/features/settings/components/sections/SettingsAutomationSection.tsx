@@ -531,9 +531,7 @@ export function SettingsAutomationSection({
                 onClick={() => {
                   void onRefreshSchedules?.();
                 }}
-                disabled={
-                  loading || summaryBlockedReason !== null || onRefreshSchedules === undefined
-                }
+                disabled={loading || unavailableReason !== null || onRefreshSchedules === undefined}
               >
                 {loading ? "Refreshing..." : "Refresh summaries"}
               </Button>
