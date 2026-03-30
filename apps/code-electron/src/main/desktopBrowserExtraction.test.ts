@@ -132,7 +132,62 @@ describe("desktopBrowserExtraction", () => {
     expect(result.status).toBe("failed");
     expect(result.errorCode).toBe("LOCAL_CHROME_DEBUGGER_UNAVAILABLE");
     expect(result.errorMessage).toContain("Chrome DevTools");
+    expect(result.errorMessage).toContain("--user-data-dir");
     expect(result.trace[0]?.stage).toBe("availability");
     await expect(capability.getLastResult()).resolves.toEqual(result);
+  });
+
+  it("skips prerender page targets and selects the first debuggable visible page", async () => {
+    const evaluate = vi.fn(async () => ({
+      title: "Browser readiness",
+      sourceUrl: "https://example.com/browser-readiness",
+      selectorMatched: true,
+      text: "Mission Control browser extraction is now canonical.",
+    }));
+    const connectToPageTarget: NonNullable<
+      CreateDesktopBrowserExtractionCapabilityInput["connectToPageTarget"]
+    > = vi.fn(async () => ({
+      close: vi.fn(),
+      evaluate: async <T>() => (await evaluate()) as T,
+    }));
+
+    const capability = createDesktopBrowserExtractionCapability({
+      connectToPageTarget,
+      createTraceId: () => "browser-trace-4",
+      fetchJson: vi.fn(async () => [
+        {
+          id: "page-prerender",
+          subtype: "prerender",
+          type: "page",
+          title: "Prerendered browser readiness",
+          url: "https://example.com/browser-readiness",
+          webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/page/page-prerender",
+        },
+        {
+          id: "page-1",
+          type: "page",
+          title: "Browser readiness",
+          url: "https://example.com/browser-readiness",
+          webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/page/page-1",
+        },
+      ]),
+      listLocalChromeDebuggerEndpoints: () => [
+        {
+          browserName: "Google Chrome",
+          discoverySource: "devtools-active-port",
+          httpBaseUrl: "http://127.0.0.1:9222",
+          profileLabel: "Default",
+          webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/browser-1",
+        },
+      ],
+      now: () => "2026-03-30T00:00:03.000Z",
+    });
+
+    const result = await capability.extract({
+      sourceUrl: "https://example.com/browser-readiness",
+    });
+
+    expect(result.status).toBe("succeeded");
+    expect(connectToPageTarget).toHaveBeenCalledWith("ws://127.0.0.1:9222/devtools/page/page-1");
   });
 });

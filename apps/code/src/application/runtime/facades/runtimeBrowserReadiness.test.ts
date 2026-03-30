@@ -34,8 +34,10 @@ describe("runtimeBrowserReadiness", () => {
     expect(summary.state).toBe("ready");
     expect(summary.runtimeHost).toBe("electron");
     expect(summary.extractionAvailable).toBe(true);
+    expect(summary.historyAvailable).toBe(false);
     expect(summary.localOnly).toBe(false);
     expect(summary.capabilities.browserExtraction).toBe(true);
+    expect(summary.capabilities.browserExtractionHistory).toBe(false);
     expect(summary.source).toBe("desktop_host_bridge");
   });
 
@@ -52,7 +54,9 @@ describe("runtimeBrowserReadiness", () => {
     expect(summary.state).toBe("attention");
     expect(summary.runtimeHost).toBe("electron");
     expect(summary.extractionAvailable).toBe(false);
+    expect(summary.historyAvailable).toBe(true);
     expect(summary.localOnly).toBe(false);
+    expect(summary.capabilities.browserExtractionHistory).toBe(true);
     expect(summary.source).toBe("partial_host_bridge");
     expect(summary.headline).toContain("partially published");
   });
@@ -65,8 +69,10 @@ describe("runtimeBrowserReadiness", () => {
     expect(summary.state).toBe("attention");
     expect(summary.runtimeHost).toBe("browser");
     expect(summary.extractionAvailable).toBe(false);
+    expect(summary.historyAvailable).toBe(false);
     expect(summary.localOnly).toBe(true);
     expect(summary.capabilities.webMcp).toBe(true);
+    expect(summary.capabilities.browserExtractionHistory).toBe(false);
     expect(summary.recommendedAction).toContain("placeholder");
     expect(summary.lastResult?.status).toBe("empty");
     expect(summary.lastResult?.trace[0]?.stage).toBe("availability");
@@ -85,6 +91,7 @@ describe("runtimeBrowserReadiness", () => {
     expect(summary.state).toBe("attention");
     expect(summary.capabilities.browserDebug).toBe(true);
     expect(summary.extractionAvailable).toBe(false);
+    expect(summary.historyAvailable).toBe(false);
     expect(summary.localOnly).toBe(true);
     expect(summary.lastResult?.errorCode).toBe("LOCAL_PLACEHOLDER_STATE");
   });
@@ -94,6 +101,7 @@ describe("runtimeBrowserReadiness", () => {
 
     expect(summary.state).toBe("blocked");
     expect(summary.runtimeHost).toBe("browser");
+    expect(summary.historyAvailable).toBe(false);
     expect(summary.localOnly).toBe(false);
     expect(summary.source).toBe("unavailable");
     expect(summary.lastResult?.errorCode).toBe("BROWSER_CAPABILITY_UNAVAILABLE");
@@ -110,8 +118,10 @@ describe("runtimeBrowserReadiness", () => {
     expect(summary.runtimeHost).toBe("electron");
     expect(summary.capabilities.browserDebug).toBe(false);
     expect(summary.capabilities.browserExtraction).toBe(false);
+    expect(summary.capabilities.browserExtractionHistory).toBe(false);
     expect(summary.capabilities.webMcp).toBe(false);
     expect(summary.extractionAvailable).toBe(false);
+    expect(summary.historyAvailable).toBe(false);
     expect(summary.localOnly).toBe(false);
     expect(summary.lastResult?.status).toBe("failed");
     expect(summary.lastResult?.errorCode).toBe("BROWSER_CAPABILITY_UNAVAILABLE");

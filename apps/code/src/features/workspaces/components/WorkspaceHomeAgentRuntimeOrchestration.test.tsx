@@ -87,6 +87,8 @@ const runtimeCompositionResolutionMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["getActiveResolution"]>(async () => null as never)
 );
 const readBrowserReadinessMock = vi.hoisted(() => vi.fn());
+const extractBrowserContentMock = vi.hoisted(() => vi.fn());
+const getLastBrowserExtractionResultMock = vi.hoisted(() => vi.fn());
 const runtimeCompositionPreviewMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["previewResolution"]>(async () => ({
     selectedPlugins: [],
@@ -181,6 +183,8 @@ vi.mock("../../../application/runtime/ports/desktopAppSettings", () => ({
 
 vi.mock("../../../application/runtime/ports/browserCapability", () => ({
   readBrowserReadiness: readBrowserReadinessMock,
+  extractBrowserContent: extractBrowserContentMock,
+  getLastBrowserExtractionResult: getLastBrowserExtractionResultMock,
 }));
 
 vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
@@ -263,11 +267,13 @@ function createBrowserReadinessSummary(overrides: Record<string, unknown> = {}) 
     source: "desktop_host_bridge",
     sourceLabel: "Desktop host bridge",
     extractionAvailable: true,
+    historyAvailable: true,
     localOnly: false,
     lastResult: null,
     capabilities: {
       browserDebug: true,
       browserExtraction: true,
+      browserExtractionHistory: true,
       webMcp: true,
     },
     ...overrides,
@@ -508,6 +514,10 @@ beforeEach(() => {
     status: "ok",
   });
   readBrowserReadinessMock.mockReturnValue(createBrowserReadinessSummary());
+  extractBrowserContentMock.mockReset();
+  extractBrowserContentMock.mockResolvedValue(null);
+  getLastBrowserExtractionResultMock.mockReset();
+  getLastBrowserExtractionResultMock.mockResolvedValue(null);
   vi.mocked(getProvidersCatalog).mockResolvedValue([]);
   vi.mocked(listOAuthAccounts).mockResolvedValue([]);
   vi.mocked(listOAuthPools).mockResolvedValue([]);
@@ -1119,6 +1129,188 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       ).toBeTruthy();
       expect(readinessPanel.getByText("Last result: empty (LOCAL_PLACEHOLDER_STATE)")).toBeTruthy();
     });
+  });
+
+  it("lets Mission Control trigger browser extraction and review the latest host result", async () => {
+    mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
+    extractBrowserContentMock.mockResolvedValue({
+      status: "succeeded",
+      normalizedText: "Mission Control extracted browser text.",
+      snippet: "Mission Control extracted browser text.",
+      sourceUrl: "https://example.com/browser-readiness",
+      title: "Browser readiness",
+      traceId: "browser-trace-1",
+      trace: [
+        {
+          stage: "availability",
+          at: "2026-03-30T00:00:00.000Z",
+          message: "Resolved a local Chrome DevTools endpoint for browser extraction.",
+        },
+        {
+          stage: "capture",
+          at: "2026-03-30T00:00:01.000Z",
+          message: "Selected a debuggable browser page target for extraction.",
+        },
+        {
+          stage: "extract",
+          at: "2026-03-30T00:00:02.000Z",
+          message: "Evaluated the selected browser page target for text extraction.",
+        },
+        {
+          stage: "normalize",
+          at: "2026-03-30T00:00:03.000Z",
+          message: "Normalized browser text without truncation.",
+        },
+      ],
+    });
+    getLastBrowserExtractionResultMock.mockResolvedValue({
+      status: "partial",
+      normalizedText: "Latest recorded browser extraction excerpt.",
+      snippet: "Latest recorded browser extraction excerpt.",
+      sourceUrl: "https://example.com/browser-readiness",
+      title: "Browser readiness",
+      errorCode: "BROWSER_TEXT_TRUNCATED",
+      errorMessage: "Browser extraction was truncated to 4000 characters.",
+      traceId: "browser-trace-2",
+      trace: [
+        {
+          stage: "availability",
+          at: "2026-03-30T00:00:04.000Z",
+          message: "Resolved a local Chrome DevTools endpoint for browser extraction.",
+        },
+        {
+          stage: "capture",
+          at: "2026-03-30T00:00:05.000Z",
+          message: "Selected a debuggable browser page target for extraction.",
+        },
+        {
+          stage: "extract",
+          at: "2026-03-30T00:00:06.000Z",
+          message: "Evaluated the selected browser page target for text extraction.",
+        },
+        {
+          stage: "normalize",
+          at: "2026-03-30T00:00:07.000Z",
+          message: "Normalized browser text and truncated it to 4000 characters.",
+        },
+      ],
+    });
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("workspace-runtime-browser-extraction-operator")).toBeTruthy();
+    });
+
+    const operator = within(screen.getByTestId("workspace-runtime-browser-extraction-operator"));
+
+    fireEvent.change(operator.getByLabelText("Preferred page URL"), {
+      target: { value: "  https://example.com/browser-readiness  " },
+    });
+    fireEvent.change(operator.getByLabelText("Selector"), {
+      target: { value: "  main article  " },
+    });
+    fireEvent.click(operator.getByRole("button", { name: "Extract browser page" }));
+
+    await waitFor(() => {
+      expect(extractBrowserContentMock).toHaveBeenCalledWith({
+        sourceUrl: "https://example.com/browser-readiness",
+        selector: "main article",
+      });
+    });
+
+    let resultPanel = within(screen.getByTestId("workspace-runtime-browser-extraction-result"));
+    expect(resultPanel.getByText("Browser extraction completed.")).toBeTruthy();
+    expect(resultPanel.getByText("Succeeded")).toBeTruthy();
+    expect(resultPanel.getByText("Latest extraction")).toBeTruthy();
+    expect(resultPanel.getByText("Page URL: https://example.com/browser-readiness")).toBeTruthy();
+    expect(resultPanel.getByText("Mission Control extracted browser text.")).toBeTruthy();
+
+    fireEvent.click(operator.getByRole("button", { name: "Review last result" }));
+
+    await waitFor(() => {
+      expect(getLastBrowserExtractionResultMock).toHaveBeenCalledTimes(1);
+    });
+
+    resultPanel = within(screen.getByTestId("workspace-runtime-browser-extraction-result"));
+    expect(resultPanel.getByText("Browser extraction completed with truncation.")).toBeTruthy();
+    expect(resultPanel.getByText("Partial")).toBeTruthy();
+    expect(resultPanel.getByText("Last host result")).toBeTruthy();
+    expect(resultPanel.getByText("Latest recorded browser extraction excerpt.")).toBeTruthy();
+    expect(resultPanel.getByText("Error code: BROWSER_TEXT_TRUNCATED")).toBeTruthy();
+  });
+
+  it("disables last-result review when the host does not publish history", async () => {
+    mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
+    readBrowserReadinessMock.mockReturnValue(
+      createBrowserReadinessSummary({
+        historyAvailable: false,
+        capabilities: {
+          browserDebug: true,
+          browserExtraction: true,
+          browserExtractionHistory: false,
+          webMcp: true,
+        },
+      })
+    );
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("workspace-runtime-browser-extraction-operator")).toBeTruthy();
+    });
+
+    const operator = within(screen.getByTestId("workspace-runtime-browser-extraction-operator"));
+    const reviewButton = operator.getByRole("button", { name: "Review last result" });
+    expect(operator.getByText(/Review last result: blocked/i)).toBeTruthy();
+    expect(reviewButton).toHaveProperty("disabled", true);
+  });
+
+  it("explains when no local debuggable browser page target is available", async () => {
+    mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
+    extractBrowserContentMock.mockResolvedValue({
+      status: "empty",
+      normalizedText: null,
+      snippet: null,
+      errorCode: "BROWSER_PAGE_TARGET_UNAVAILABLE",
+      errorMessage: "No debuggable browser page target is currently available for extraction.",
+      traceId: "browser-trace-3",
+      trace: [
+        {
+          stage: "availability",
+          at: "2026-03-30T00:00:00.000Z",
+          message: "Resolved a local Chrome DevTools endpoint for browser extraction.",
+        },
+        {
+          stage: "capture",
+          at: "2026-03-30T00:00:01.000Z",
+          message: "No debuggable browser page target was available for extraction.",
+        },
+      ],
+    });
+
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("workspace-runtime-browser-extraction-operator")).toBeTruthy();
+    });
+
+    const operator = within(screen.getByTestId("workspace-runtime-browser-extraction-operator"));
+    fireEvent.click(operator.getByRole("button", { name: "Extract browser page" }));
+
+    await waitFor(() => {
+      expect(extractBrowserContentMock).toHaveBeenCalledTimes(1);
+    });
+
+    const resultPanel = within(screen.getByTestId("workspace-runtime-browser-extraction-result"));
+    expect(resultPanel.getByText("No debuggable local browser page is available.")).toBeTruthy();
+    expect(resultPanel.getByText("Error code: BROWSER_PAGE_TARGET_UNAVAILABLE")).toBeTruthy();
+    expect(
+      resultPanel.getByText(
+        /No local debuggable browser page is currently available\. Open the intended page/i
+      )
+    ).toBeTruthy();
+    expect(resultPanel.getByText("Trace: availability -> capture")).toBeTruthy();
   });
 
   it("renders blocked extension readiness with human-readable runtime host remediation", async () => {

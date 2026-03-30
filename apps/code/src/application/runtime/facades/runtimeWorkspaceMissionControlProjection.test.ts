@@ -148,11 +148,13 @@ function buildRuntimeProjectionInput(
       source: "desktop_host_bridge",
       sourceLabel: "Desktop host bridge",
       extractionAvailable: true,
+      historyAvailable: true,
       localOnly: false,
       lastResult: null,
       capabilities: {
         browserDebug: true,
         browserExtraction: true,
+        browserExtractionHistory: true,
         webMcp: true,
       },
     },

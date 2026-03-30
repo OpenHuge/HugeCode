@@ -25,6 +25,7 @@ import {
   useRuntimeMissionControlSnapshot,
   type RuntimeDurabilityWarningState,
 } from "./runtimeMissionControlSnapshot";
+import { useRuntimeBrowserExtractionOperator } from "./runtimeBrowserExtractionOperator";
 
 export type { RuntimeDurabilityWarningState };
 
@@ -89,6 +90,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     pollSeconds,
   });
   const browserReadiness = readBrowserReadiness();
+  const browserExtraction = useRuntimeBrowserExtractionOperator(browserReadiness);
   const runtimePluginControlPlaneSurface = useMemo(
     () => ({
       plugins: snapshot.runtimePlugins,
@@ -535,6 +537,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
   return {
     executionProfiles,
     missionControlProjection,
+    browserExtraction,
     pollSeconds,
     prepareRunLauncher,
     providerRouteOptions,

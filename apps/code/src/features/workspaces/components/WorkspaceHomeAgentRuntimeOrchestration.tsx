@@ -34,6 +34,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG
   );
   const {
+    browserExtraction,
     executionProfiles,
     missionControlProjection,
     pollSeconds,
@@ -100,6 +101,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
   const policy = missionControlProjection.policy;
   const browserReadiness = missionControlProjection.browserReadiness;
+  const browserExtractionResult = browserExtraction.result;
+  const browserExtractionPresentation = browserExtraction.resultPresentation;
   const browserReadinessStatusLabel =
     browserReadiness.state === "ready"
       ? "Ready"
@@ -328,6 +331,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             </span>
             <span>
               Signals: extraction {browserReadiness.capabilities.browserExtraction ? "yes" : "no"} |
+              history {browserReadiness.capabilities.browserExtractionHistory ? "yes" : "no"} |
               debug {browserReadiness.capabilities.browserDebug ? "yes" : "no"} | WebMCP{" "}
               {browserReadiness.capabilities.webMcp ? "yes" : "no"}
             </span>
@@ -344,6 +348,137 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
               </span>
             ) : null}
           </div>
+        </div>
+        <div
+          className="workspace-home-code-runtime-item"
+          data-testid="workspace-runtime-browser-extraction-operator"
+        >
+          <div className="workspace-home-code-runtime-item-main">
+            <strong>Browser extraction operator</strong>
+            <span>
+              Trigger the canonical desktop-host extraction contract from Mission Control and keep
+              the latest host-published result available for review.
+            </span>
+            <span>
+              Operator path: extract and history reads stay inside the approved application/runtime
+              browser capability boundary.
+            </span>
+            <span>
+              Extract now: {browserExtraction.canExtract ? "available" : "blocked"} | Review last
+              result: {browserExtraction.canReviewLastResult ? "available" : "blocked"}
+            </span>
+          </div>
+          <div className={controlStyles.controlGrid}>
+            <label className={controlStyles.field}>
+              <span>Preferred page URL</span>
+              <input
+                className={controlStyles.fieldControl}
+                type="text"
+                value={browserExtraction.input.sourceUrl}
+                onChange={(event) => browserExtraction.setSourceUrl(event.target.value)}
+                placeholder="Optional: target a specific local browser page"
+              />
+            </label>
+            <label className={controlStyles.field}>
+              <span>Selector</span>
+              <input
+                className={controlStyles.fieldControl}
+                type="text"
+                value={browserExtraction.input.selector}
+                onChange={(event) => browserExtraction.setSelector(event.target.value)}
+                placeholder="Optional: extract from a specific element"
+              />
+            </label>
+          </div>
+          <div className={controlStyles.actions}>
+            <button
+              className={controlStyles.actionButton}
+              type="button"
+              onClick={() => void browserExtraction.extract()}
+              disabled={!browserExtraction.canExtract || browserExtraction.loading}
+              title={browserExtraction.extractDisabledReason ?? undefined}
+            >
+              {browserExtraction.extracting ? "Extracting..." : "Extract browser page"}
+            </button>
+            <button
+              className={controlStyles.actionButton}
+              type="button"
+              onClick={() => void browserExtraction.reviewLastResult()}
+              disabled={!browserExtraction.canReviewLastResult || browserExtraction.loading}
+              title={browserExtraction.reviewLastResultDisabledReason ?? undefined}
+            >
+              {browserExtraction.reviewingLastResult ? "Loading..." : "Review last result"}
+            </button>
+          </div>
+          {browserExtraction.extractDisabledReason && !browserExtraction.canExtract ? (
+            <div className={controlStyles.sectionMeta}>
+              Extraction blocked: {browserExtraction.extractDisabledReason}
+            </div>
+          ) : null}
+          {browserExtraction.notice ? (
+            <div
+              className={
+                browserExtraction.notice.tone === "danger"
+                  ? controlStyles.error
+                  : browserExtraction.notice.tone === "warning"
+                    ? controlStyles.warning
+                    : controlStyles.emptyState
+              }
+            >
+              {browserExtraction.notice.message}
+            </div>
+          ) : null}
+          {browserExtractionResult && browserExtractionPresentation ? (
+            <div
+              className="workspace-home-code-runtime-item"
+              data-testid="workspace-runtime-browser-extraction-result"
+            >
+              <div className="workspace-home-code-runtime-item-main">
+                <strong>{browserExtractionPresentation.headline}</strong>
+                <span>
+                  <ToolCallChip tone={browserExtractionPresentation.statusTone}>
+                    {browserExtractionPresentation.statusLabel}
+                  </ToolCallChip>
+                  {browserExtraction.resultSourceLabel ? (
+                    <ToolCallChip tone="neutral">
+                      {browserExtraction.resultSourceLabel}
+                    </ToolCallChip>
+                  ) : null}
+                </span>
+                <span>{browserExtractionPresentation.detail}</span>
+                {browserExtractionResult.sourceUrl ? (
+                  <span>Page URL: {browserExtractionResult.sourceUrl}</span>
+                ) : null}
+                {browserExtractionResult.title ? (
+                  <span>Page title: {browserExtractionResult.title}</span>
+                ) : null}
+                {browserExtractionResult.errorCode ? (
+                  <span>Error code: {browserExtractionResult.errorCode}</span>
+                ) : null}
+                {browserExtractionPresentation.recommendedAction ? (
+                  <span>{browserExtractionPresentation.recommendedAction}</span>
+                ) : null}
+                {browserExtractionPresentation.traceSummary ? (
+                  <span>Trace: {browserExtractionPresentation.traceSummary}</span>
+                ) : null}
+                {browserExtractionResult.normalizedText ? (
+                  <div className={controlStyles.extractionPreview}>
+                    {browserExtractionResult.normalizedText}
+                  </div>
+                ) : null}
+              </div>
+              {browserExtractionPresentation.noDebugTargetDetail ? (
+                <div className={controlStyles.warning}>
+                  {browserExtractionPresentation.noDebugTargetDetail}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className={controlStyles.emptyState}>
+              No browser extraction result loaded yet. Run extraction now or review the last
+              recorded host result.
+            </div>
+          )}
         </div>
       </MissionControlSectionCard>
       <MissionControlSessionLogSection workspaceId={workspaceId} />
