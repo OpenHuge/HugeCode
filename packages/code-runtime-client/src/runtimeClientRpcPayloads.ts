@@ -36,9 +36,7 @@ import {
   type SubAgentStatusRequest,
   type SubAgentWaitRequest,
   type TurnInterruptRequest,
-  type TurnInterruptRequestCompat,
   type TurnSendRequest,
-  type TurnSendRequestCompat,
   type WorkspaceDiagnosticsListRequest,
   type WorkspacePatchApplyRequest,
 } from "@ku0/code-runtime-host-contract";
@@ -53,11 +51,10 @@ function withCanonicalPayload<Payload extends object>(payload: Payload): Payload
   return { ...payload };
 }
 
-function toCompatTurnSendPayload(payload: TurnSendRequest): TurnSendRequestCompat {
-  const compatPayload = payload as TurnSendRequestCompat;
-  const requestId = payload.requestId ?? compatPayload.request_id;
-  const hasContextPrefixField = "contextPrefix" in payload || "context_prefix" in compatPayload;
-  const contextPrefix = payload.contextPrefix ?? compatPayload.context_prefix ?? null;
+function toCompatTurnSendPayload(payload: TurnSendRequest): TurnSendRequest {
+  const requestId = payload.requestId;
+  const hasContextPrefixField = "contextPrefix" in payload;
+  const contextPrefix = payload.contextPrefix ?? null;
   const hasCollaborationModeField = Object.hasOwn(payload, "collaborationMode");
   const collaborationMode = payload.collaborationMode;
   const hasAutoDriveField = Object.hasOwn(payload, "autoDrive");
@@ -89,7 +86,7 @@ function toCompatTurnSendPayload(payload: TurnSendRequest): TurnSendRequestCompa
           collaborationMode,
         }
       : {}),
-  }) as TurnSendRequestCompat;
+  });
 }
 
 function toCompatRuntimeBackendUpsertPayload(payload: RuntimeBackendUpsertInput) {
@@ -119,11 +116,11 @@ function toCompatAcpIntegrationProbePayload(payload: AcpIntegrationProbeRequest)
   return withCanonicalPayload({ ...payload });
 }
 
-function toCompatTurnInterruptPayload(payload: TurnInterruptRequest): TurnInterruptRequestCompat {
+function toCompatTurnInterruptPayload(payload: TurnInterruptRequest): TurnInterruptRequest {
   return withCanonicalPayload({
     ...payload,
     turnId: payload.turnId ?? null,
-  }) as TurnInterruptRequestCompat;
+  });
 }
 
 function toCompatRuntimeRunStartPayload(payload: RuntimeRunStartRequest) {

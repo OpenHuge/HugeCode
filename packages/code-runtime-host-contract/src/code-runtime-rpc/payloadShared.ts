@@ -1,10 +1,4 @@
-import type { AccessMode, ReasonEffort, TurnExecutionMode } from "./foundation.js";
-import type { HugeCodeTaskMode } from "../hugeCodeMissionControl.js";
-import type {
-  AgentTaskAutoDriveState,
-  TurnInterruptRequest,
-  TurnSendRequest,
-} from "./agentExecution.js";
+import type { TurnInterruptRequest, TurnSendRequest } from "./agentExecution.js";
 import type { RuntimeTextFileKind, RuntimeTextFileScope } from "./workspaceAndGit.js";
 
 export type RuntimeAppSettingsRecord = Record<string, unknown>;
@@ -24,27 +18,9 @@ export type RuntimeTextFileWriteRequest = RuntimeTextFileReadRequest & {
   content: string;
 };
 
-export type TurnSendRequestCompat = TurnSendRequest & {
-  workspace_id?: string;
-  thread_id?: string | null;
-  request_id?: string;
-  mission_mode?: HugeCodeTaskMode | null;
-  execution_profile_id?: string | null;
-  preferred_backend_ids?: string[] | null;
-  contextPrefix?: string | null;
-  context_prefix?: string | null;
-  model_id?: string | null;
-  reason_effort?: ReasonEffort | null;
-  access_mode?: AccessMode;
-  execution_mode?: TurnExecutionMode;
-  codex_bin?: string | null;
-  codex_args?: string[] | null;
-  auto_drive?: AgentTaskAutoDriveState | null;
-};
+export type TurnSendRequestCompat = TurnSendRequest;
 
-export type TurnInterruptRequestCompat = TurnInterruptRequest & {
-  turn_id?: string | null;
-};
+export type TurnInterruptRequestCompat = TurnInterruptRequest;
 
 export type ThreadLiveSubscribeRequest = {
   workspaceId: string;

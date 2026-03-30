@@ -19,7 +19,8 @@ pub(crate) async fn create_native_schedule(
     params: &Value,
 ) -> Result<Value, RpcError> {
     let params = as_object(params)?;
-    let id = read_optional_string(params, "scheduleId").unwrap_or_else(|| new_id("native-schedule"));
+    let id =
+        read_optional_string(params, "scheduleId").unwrap_or_else(|| new_id("native-schedule"));
     let payload = normalize_native_schedule_payload(
         extract_schedule_payload(params, "schedule", id.as_str()),
         None,
@@ -172,10 +173,8 @@ pub(crate) async fn schedule_run_state_update(
                         if is_agent_task_terminal_status(task_status) {
                             project_schedule_terminal_task_state(&mut object, Some(payload));
                         } else {
-                            object.insert(
-                                "status".to_string(),
-                                Value::String("running".to_string()),
-                            );
+                            object
+                                .insert("status".to_string(), Value::String("running".to_string()));
                             if let Some(message) = interrupt_ack
                                 .get("message")
                                 .and_then(Value::as_str)
@@ -264,16 +263,18 @@ fn derive_schedule_outcome_label_from_task_payload(
         "queued" => Some("Queued".to_string()),
         "running" => Some("Running".to_string()),
         "awaiting_approval" => Some("Awaiting approval".to_string()),
-        "completed" => Some(if payload
-            .get("reviewPackId")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .is_some_and(|value| !value.is_empty())
-        {
-            "Review pack ready".to_string()
-        } else {
-            "Completed".to_string()
-        }),
+        "completed" => Some(
+            if payload
+                .get("reviewPackId")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .is_some_and(|value| !value.is_empty())
+            {
+                "Review pack ready".to_string()
+            } else {
+                "Completed".to_string()
+            },
+        ),
         "failed" => Some(error_message.unwrap_or("Failed").to_string()),
         "interrupted" | "cancelled" => {
             Some(error_message.unwrap_or("Cancelled current run").to_string())
@@ -381,7 +382,10 @@ async fn project_native_schedule_runtime_truth(
             .map(str::trim)
             .filter(|value| !value.is_empty())
         {
-            object.insert("currentTaskStatus".to_string(), Value::String(status.to_string()));
+            object.insert(
+                "currentTaskStatus".to_string(),
+                Value::String(status.to_string()),
+            );
             if is_agent_task_terminal_status(status) {
                 project_schedule_terminal_task_state(&mut object, Some(payload));
             } else {
@@ -395,7 +399,10 @@ async fn project_native_schedule_runtime_truth(
                     .map(str::trim)
                     .filter(|value| !value.is_empty())
                 {
-                    object.insert("currentRunId".to_string(), Value::String(run_id.to_string()));
+                    object.insert(
+                        "currentRunId".to_string(),
+                        Value::String(run_id.to_string()),
+                    );
                 }
             }
         }
@@ -756,22 +763,17 @@ async fn launch_native_schedule_run(
     schedule: &serde_json::Map<String, Value>,
 ) -> Result<NativeScheduleLaunchOutcome, RpcError> {
     let workspace_id = resolve_schedule_workspace_id(params, schedule_id, schedule)?;
-    let prepare_payload = build_native_schedule_run_prepare_payload(schedule_id, &workspace_id, schedule)?;
+    let prepare_payload =
+        build_native_schedule_run_prepare_payload(schedule_id, &workspace_id, schedule)?;
     let prepare = crate::rpc_dispatch::handle_runtime_run_prepare_v2(ctx, &prepare_payload).await?;
     let approved_plan_version = extract_prepare_plan_version(&prepare)?;
-    let start_payload = build_native_schedule_run_start_payload(
-        prepare_payload,
-        approved_plan_version.as_str(),
-    );
+    let start_payload =
+        build_native_schedule_run_start_payload(prepare_payload, approved_plan_version.as_str());
     let response = crate::rpc_dispatch::handle_runtime_run_start_v2(ctx, &start_payload).await?;
     Ok(project_native_schedule_launch_outcome(&response))
 }
 
-fn build_native_schedule_task_source(
-    schedule_id: &str,
-    workspace_id: &str,
-    title: &str,
-) -> Value {
+fn build_native_schedule_task_source(schedule_id: &str, workspace_id: &str, title: &str) -> Value {
     json!({
         "kind": "schedule",
         "label": "Scheduled task",
@@ -803,17 +805,20 @@ fn build_native_schedule_run_prepare_payload(
     let review_profile_id = read_schedule_text(schedule, &["reviewProfileId", "review_profile_id"]);
     let validation_preset_id =
         read_schedule_text(schedule, &["validationPresetId", "validation_preset_id"]);
-    let preferred_backend_ids = read_schedule_string_array(
-        schedule,
-        &["preferredBackendIds", "preferred_backend_ids"],
-    )
-    .or_else(|| {
-        read_schedule_text(
-            schedule,
-            &["preferredBackendId", "preferred_backend_id", "backendId", "backend_id"],
-        )
-        .map(|entry| vec![entry])
-    });
+    let preferred_backend_ids =
+        read_schedule_string_array(schedule, &["preferredBackendIds", "preferred_backend_ids"])
+            .or_else(|| {
+                read_schedule_text(
+                    schedule,
+                    &[
+                        "preferredBackendId",
+                        "preferred_backend_id",
+                        "backendId",
+                        "backend_id",
+                    ],
+                )
+                .map(|entry| vec![entry])
+            });
     let access_mode = read_schedule_text(schedule, &["accessMode", "access_mode"]);
     let autonomy_request = schedule
         .get("autonomyRequest")
@@ -874,6 +879,14 @@ fn project_native_schedule_launch_outcome(response: &Value) -> NativeScheduleLau
             .or_else(|| {
                 response
                     .get("taskId")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+            })
+            .or_else(|| {
+                response
+                    .get("missionRun")
+                    .and_then(Value::as_object)
+                    .and_then(|entry| entry.get("id"))
                     .and_then(Value::as_str)
                     .map(ToOwned::to_owned)
             }),
@@ -958,10 +971,19 @@ mod tests {
         .expect("prepare payload");
 
         assert_eq!(payload.get("workspaceId"), Some(&json!("ws-1")));
-        assert_eq!(payload.get("executionProfileId"), Some(&json!("balanced-delegate")));
+        assert_eq!(
+            payload.get("executionProfileId"),
+            Some(&json!("balanced-delegate"))
+        );
         assert_eq!(payload.get("reviewProfileId"), Some(&json!("night-review")));
-        assert_eq!(payload.get("validationPresetId"), Some(&json!("review-first")));
-        assert_eq!(payload.get("preferredBackendIds"), Some(&json!(["backend-a", "backend-b"])));
+        assert_eq!(
+            payload.get("validationPresetId"),
+            Some(&json!("review-first"))
+        );
+        assert_eq!(
+            payload.get("preferredBackendIds"),
+            Some(&json!(["backend-a", "backend-b"]))
+        );
         assert_eq!(payload.get("accessMode"), Some(&json!("read-only")));
         assert_eq!(
             payload
@@ -1019,6 +1041,18 @@ mod tests {
         }));
 
         assert_eq!(outcome.task_id.as_deref(), Some("runtime-task:42"));
+        assert_eq!(outcome.run_id.as_deref(), Some("run-42"));
+    }
+
+    #[test]
+    fn project_native_schedule_launch_outcome_falls_back_to_mission_run_id_when_task_id_missing() {
+        let outcome = project_native_schedule_launch_outcome(&json!({
+            "missionRun": {
+                "id": "run-42"
+            }
+        }));
+
+        assert_eq!(outcome.task_id.as_deref(), Some("run-42"));
         assert_eq!(outcome.run_id.as_deref(), Some("run-42"));
     }
 }

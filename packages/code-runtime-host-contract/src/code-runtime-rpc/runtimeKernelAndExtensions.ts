@@ -558,7 +558,6 @@ export type KernelPoliciesEvaluateRequest = {
   workspaceId?: string | null;
   payloadBytes?: number | null;
   requiresApproval?: boolean | null;
-  capabilityId?: string | null;
   mutationKind?: string | null;
 };
 

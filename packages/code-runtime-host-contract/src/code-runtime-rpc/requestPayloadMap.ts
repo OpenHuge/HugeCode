@@ -1,8 +1,5 @@
 import type {
-  AgentTaskAutoDriveState,
-  AgentTaskExecutionMode,
   AgentTaskSourceKind,
-  AgentTaskStepInput,
   RuntimeTaskSourceGetRequest,
   RuntimeTaskSourceIngestRequest,
   RuntimeTaskSourceListRequest,
@@ -302,66 +299,14 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.TASK_SOURCE_RECONCILE_V1]: RuntimeTaskSourceReconcileRequest & {
     source_record_id?: string;
   };
-  [CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2]: RuntimeRunPrepareV2Request & {
-    workspace_id?: string;
-    thread_id?: string | null;
-    request_id?: string;
-    model_id?: string | null;
-    reason_effort?: ReasonEffort | null;
-    access_mode?: AccessMode;
-    execution_mode?: AgentTaskExecutionMode;
-    preferred_backend_ids?: string[] | null;
-    approved_plan_version?: string | null;
-    auto_drive?: AgentTaskAutoDriveState | null;
-    steps: Array<
-      AgentTaskStepInput & {
-        timeout_ms?: number | null;
-        requires_approval?: boolean | null;
-        approval_reason?: string | null;
-      }
-    >;
-  };
-  [CODE_RUNTIME_RPC_METHODS.RUN_START_V2]: RuntimeRunStartRequest & {
-    workspace_id?: string;
-    thread_id?: string | null;
-    request_id?: string;
-    model_id?: string | null;
-    reason_effort?: ReasonEffort | null;
-    access_mode?: AccessMode;
-    execution_mode?: AgentTaskExecutionMode;
-    preferred_backend_ids?: string[] | null;
-    approved_plan_version?: string | null;
-    auto_drive?: AgentTaskAutoDriveState | null;
-    steps: Array<
-      AgentTaskStepInput & {
-        timeout_ms?: number | null;
-        requires_approval?: boolean | null;
-        approval_reason?: string | null;
-      }
-    >;
-  };
-  [CODE_RUNTIME_RPC_METHODS.RUN_CANCEL_V2]: RuntimeRunCancelRequest & {
-    run_id?: string;
-  };
-  [CODE_RUNTIME_RPC_METHODS.RUN_RESUME_V2]: RuntimeRunResumeRequest & {
-    run_id?: string;
-  };
-  [CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2]: RuntimeRunInterventionRequest & {
-    run_id?: string;
-    instruction_patch?: string | null;
-    execution_profile_id?: string | null;
-    preferred_backend_ids?: string[] | null;
-    approved_plan_version?: string | null;
-  };
-  [CODE_RUNTIME_RPC_METHODS.RUN_GET_V2]: RuntimeRunGetV2Request & {
-    run_id?: string;
-  };
-  [CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE_V2]: RuntimeRunGetV2Request & {
-    run_id?: string;
-  };
-  [CODE_RUNTIME_RPC_METHODS.REVIEW_GET_V2]: RuntimeReviewGetV2Request & {
-    run_id?: string;
-  };
+  [CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2]: RuntimeRunPrepareV2Request;
+  [CODE_RUNTIME_RPC_METHODS.RUN_START_V2]: RuntimeRunStartRequest;
+  [CODE_RUNTIME_RPC_METHODS.RUN_CANCEL_V2]: RuntimeRunCancelRequest;
+  [CODE_RUNTIME_RPC_METHODS.RUN_RESUME_V2]: RuntimeRunResumeRequest;
+  [CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2]: RuntimeRunInterventionRequest;
+  [CODE_RUNTIME_RPC_METHODS.RUN_GET_V2]: RuntimeRunGetV2Request;
+  [CODE_RUNTIME_RPC_METHODS.RUN_SUBSCRIBE_V2]: RuntimeRunGetV2Request;
+  [CODE_RUNTIME_RPC_METHODS.REVIEW_GET_V2]: RuntimeReviewGetV2Request;
   [CODE_RUNTIME_RPC_METHODS.RUNS_LIST]: RuntimeRunsListRequest & {
     workspace_id?: string | null;
   };
@@ -408,29 +353,11 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_POLICY_GET_V2]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_POLICY_SET_V2]: RuntimePolicySetRequest;
   [CODE_RUNTIME_RPC_METHODS.KERNEL_CAPABILITIES_LIST_V2]: CodeRuntimeRpcEmptyParams;
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_SESSIONS_LIST_V2]: KernelSessionsListRequest & {
-    workspace_id?: string | null;
-  };
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_JOBS_LIST_V2]: KernelJobsListRequest & {
-    workspace_id?: string | null;
-  };
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_CONTEXT_SNAPSHOT_V2]: KernelContextSnapshotRequest & {
-    workspace_id?: string;
-    thread_id?: string;
-    task_id?: string;
-    run_id?: string;
-  };
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_EXTENSIONS_LIST_V2]: KernelExtensionsListRequest & {
-    workspace_id?: string | null;
-  };
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_POLICIES_EVALUATE_V2]: KernelPoliciesEvaluateRequest & {
-    workspace_id?: string | null;
-    tool_name?: string | null;
-    payload_bytes?: number | null;
-    requires_approval?: boolean | null;
-    capability_id?: string | null;
-    mutation_kind?: string | null;
-  };
+  [CODE_RUNTIME_RPC_METHODS.KERNEL_SESSIONS_LIST_V2]: KernelSessionsListRequest;
+  [CODE_RUNTIME_RPC_METHODS.KERNEL_JOBS_LIST_V2]: KernelJobsListRequest;
+  [CODE_RUNTIME_RPC_METHODS.KERNEL_CONTEXT_SNAPSHOT_V2]: KernelContextSnapshotRequest;
+  [CODE_RUNTIME_RPC_METHODS.KERNEL_EXTENSIONS_LIST_V2]: KernelExtensionsListRequest;
+  [CODE_RUNTIME_RPC_METHODS.KERNEL_POLICIES_EVALUATE_V2]: KernelPoliciesEvaluateRequest;
   [CODE_RUNTIME_RPC_METHODS.KERNEL_PROJECTION_BOOTSTRAP_V3]: KernelProjectionBootstrapRequest;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKENDS_LIST]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKEND_UPSERT]: RuntimeBackendUpsertInput & {

@@ -379,15 +379,7 @@ export function createExtendedRpcRuntimeClient<
       return invokeRuntimeExtensionRpc(
         invokeRpc,
         RUNTIME_KERNEL_V2_RPC_METHODS.KERNEL_CONTEXT_SNAPSHOT_V2,
-        {
-          kind: request.kind,
-          ...withCanonicalFields({
-            workspaceId: request.workspaceId ?? null,
-            threadId: request.threadId ?? null,
-            taskId: request.taskId ?? null,
-            runId: request.runId ?? null,
-          }),
-        }
+        withCanonicalFields({ ...request })
       );
     },
     kernelExtensionsListV2(request) {
@@ -407,7 +399,6 @@ export function createExtendedRpcRuntimeClient<
             toolName: request.toolName ?? null,
             payloadBytes: request.payloadBytes ?? null,
             requiresApproval: request.requiresApproval ?? null,
-            capabilityId: request.capabilityId ?? null,
             mutationKind: request.mutationKind ?? null,
           }),
           scope: request.scope ?? null,
