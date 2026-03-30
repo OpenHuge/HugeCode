@@ -51,6 +51,10 @@ type GitDiffViewerProps = {
   pullRequestComments?: GitHubPullRequestComment[];
   pullRequestCommentsLoading?: boolean;
   pullRequestCommentsError?: string | null;
+  onStartTaskFromGitHubPullRequestReviewCommentCommand?: (
+    pullRequest: GitHubPullRequest,
+    comment: GitHubPullRequestComment
+  ) => Promise<void> | void;
   canRevert?: boolean;
   onRevertFile?: (path: string) => Promise<void> | void;
   onActivePathChange?: (path: string) => void;
@@ -205,6 +209,10 @@ type PullRequestSummaryProps = {
   pullRequestComments?: GitHubPullRequestComment[];
   pullRequestCommentsLoading: boolean;
   pullRequestCommentsError?: string | null;
+  onStartTaskFromGitHubPullRequestReviewCommentCommand?: (
+    pullRequest: GitHubPullRequest,
+    comment: GitHubPullRequestComment
+  ) => Promise<void> | void;
 };
 
 const PullRequestSummary = memo(function PullRequestSummary({
@@ -215,6 +223,7 @@ const PullRequestSummary = memo(function PullRequestSummary({
   pullRequestComments,
   pullRequestCommentsLoading,
   pullRequestCommentsError,
+  onStartTaskFromGitHubPullRequestReviewCommentCommand,
 }: PullRequestSummaryProps) {
   const prUpdatedLabel = pullRequest.updatedAt
     ? formatRelativeTime(new Date(pullRequest.updatedAt).getTime())
@@ -355,6 +364,24 @@ const PullRequestSummary = memo(function PullRequestSummary({
                     <span className={styles.pullRequestTimelineAuthor}>@{commentAuthor}</span>
                     <span className={styles.pullRequestSeparator}>·</span>
                     <span>{commentTime}</span>
+                    {onStartTaskFromGitHubPullRequestReviewCommentCommand ? (
+                      <>
+                        <span className={styles.pullRequestSeparator}>·</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            void onStartTaskFromGitHubPullRequestReviewCommentCommand(
+                              pullRequest,
+                              comment
+                            );
+                          }}
+                        >
+                          Follow up
+                        </Button>
+                      </>
+                    ) : null}
                   </div>
                   {comment.body.trim() ? (
                     <Markdown
@@ -388,6 +415,7 @@ export function GitDiffViewer({
   pullRequestComments,
   pullRequestCommentsLoading = false,
   pullRequestCommentsError = null,
+  onStartTaskFromGitHubPullRequestReviewCommentCommand,
   canRevert = false,
   onRevertFile,
   onActivePathChange,
@@ -669,6 +697,9 @@ export function GitDiffViewer({
             pullRequestComments={pullRequestComments}
             pullRequestCommentsLoading={pullRequestCommentsLoading}
             pullRequestCommentsError={pullRequestCommentsError}
+            onStartTaskFromGitHubPullRequestReviewCommentCommand={
+              onStartTaskFromGitHubPullRequestReviewCommentCommand
+            }
           />
         )}
         {!error && stickyEntry && (

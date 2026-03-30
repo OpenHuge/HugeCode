@@ -248,6 +248,23 @@ describe("GitDiffPanel", () => {
     expect(stageButton.getAttribute("aria-describedby")).toBe(tooltip.getAttribute("id"));
   });
 
+  it("exposes an issue comment follow-up action through the issues surface", () => {
+    const onStartTaskFromGitHubIssueCommentCommand = vi.fn();
+
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        mode="issues"
+        issues={githubIssues}
+        onStartTaskFromGitHubIssueCommentCommand={onStartTaskFromGitHubIssueCommentCommand}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Start comment follow-up for issue #42" }));
+
+    expect(onStartTaskFromGitHubIssueCommentCommand).toHaveBeenCalledWith(githubIssues[0]);
+  });
+
   it("adds a show in file manager option for file context menus", async () => {
     clipboardWriteText.mockClear();
     const { container } = render(

@@ -719,6 +719,7 @@ type GitIssuesModeContentProps = {
   issuesLoading: boolean;
   issues: GitHubIssue[];
   onStartTask?: (issue: GitHubIssue) => void | Promise<void>;
+  onStartCommentCommandTask?: (issue: GitHubIssue) => void | Promise<void>;
   onDelegateIssue?: (issue: GitHubIssue) => void | Promise<void>;
 };
 
@@ -727,6 +728,7 @@ export function GitIssuesModeContent({
   issuesLoading,
   issues,
   onStartTask,
+  onStartCommentCommandTask,
   onDelegateIssue,
 }: GitIssuesModeContentProps) {
   return (
@@ -750,6 +752,19 @@ export function GitIssuesModeContent({
               </span>
             </div>
             <div className={styles.entryActions}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={styles.entryActionButton}
+                aria-label={`Start comment follow-up for issue #${issue.number}`}
+                onClick={() => {
+                  void onStartCommentCommandTask?.(issue);
+                }}
+                disabled={!onStartCommentCommandTask}
+              >
+                Follow up
+              </Button>
               <Button
                 type="button"
                 variant="ghost"

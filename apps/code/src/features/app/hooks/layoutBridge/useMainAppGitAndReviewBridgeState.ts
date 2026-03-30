@@ -126,7 +126,12 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
       gitHubPanelState,
       gitCommitState,
     },
-    actions: { onStartTaskFromGitHubIssue, onStartTaskFromGitHubPullRequest },
+    actions: {
+      onStartTaskFromGitHubIssue,
+      onStartTaskFromGitHubIssueCommentCommand,
+      onStartTaskFromGitHubPullRequest,
+      onStartTaskFromGitHubPullRequestReviewCommentCommand,
+    },
     reviewPackControllerReady: onReviewPackControllerReady = null,
   } = input;
 
@@ -483,12 +488,14 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
     gitIssuesLoading: gitHubPanelState.gitIssuesLoading,
     gitIssuesError: gitHubPanelState.gitIssuesError,
     onStartTaskFromGitHubIssue,
+    onStartTaskFromGitHubIssueCommentCommand,
     onDelegateGitHubIssue: handleDelegateGitHubIssue,
     gitPullRequests: gitHubPanelState.gitPullRequests,
     gitPullRequestsTotal: gitHubPanelState.gitPullRequestsTotal,
     gitPullRequestsLoading: gitHubPanelState.gitPullRequestsLoading,
     gitPullRequestsError: gitHubPanelState.gitPullRequestsError,
     onStartTaskFromGitHubPullRequest,
+    onStartTaskFromGitHubPullRequestReviewCommentCommand,
     onDelegateGitHubPullRequest: handleDelegateGitHubPullRequest,
     selectedPullRequestCommentsLoading: gitHubPanelState.gitPullRequestCommentsLoading,
     selectedPullRequestCommentsError: gitHubPanelState.gitPullRequestCommentsError,

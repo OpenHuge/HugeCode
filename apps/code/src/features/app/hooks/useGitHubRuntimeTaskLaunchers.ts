@@ -63,7 +63,7 @@ export function useGitHubRuntimeTaskLaunchers({
 
   const launchGovernedTask = useCallback(
     async (input: {
-      prepare: () => GovernedGitHubLaunchRequest;
+      prepare: () => Promise<GovernedGitHubLaunchRequest> | GovernedGitHubLaunchRequest;
       errorTitle: string;
       fallbackMessage: string;
     }) => {
@@ -72,7 +72,7 @@ export function useGitHubRuntimeTaskLaunchers({
           policyStatus: repositoryExecutionContractStatus,
           policyError: repositoryExecutionContractError,
         });
-        const { launch, request } = input.prepare();
+        const { launch, request } = await input.prepare();
         await launchGovernedGitHubRun({
           launch,
           request,
@@ -160,10 +160,10 @@ export function useGitHubRuntimeTaskLaunchers({
       if (!workspace) {
         return;
       }
-      const githubLaunch = await loadGitHubCommentSourceGovernedLaunch();
       await launchGovernedTask({
-        prepare: () =>
-          githubLaunch.buildGovernedGitHubIssueCommentCommandLaunchRequest({
+        prepare: async () => {
+          const githubLaunch = await loadGitHubCommentSourceGovernedLaunch();
+          return githubLaunch.buildGovernedGitHubIssueCommentCommandLaunchRequest({
             ...input,
             workspace: {
               workspaceId: workspace.id,
@@ -174,7 +174,8 @@ export function useGitHubRuntimeTaskLaunchers({
               repositoryExecutionContract,
               preferredBackendIds: selectedRemoteBackendId ? [selectedRemoteBackendId] : undefined,
             },
-          }),
+          });
+        },
         errorTitle: "Couldn't start issue follow-up task",
         fallbackMessage:
           "Unable to start a runtime-managed follow-up from this GitHub issue comment.",
@@ -195,10 +196,10 @@ export function useGitHubRuntimeTaskLaunchers({
       if (!workspace) {
         return;
       }
-      const githubLaunch = await loadGitHubCommentSourceGovernedLaunch();
       await launchGovernedTask({
-        prepare: () =>
-          githubLaunch.buildGovernedGitHubPullRequestReviewCommentLaunchRequest({
+        prepare: async () => {
+          const githubLaunch = await loadGitHubCommentSourceGovernedLaunch();
+          return githubLaunch.buildGovernedGitHubPullRequestReviewCommentLaunchRequest({
             ...input,
             workspace: {
               workspaceId: workspace.id,
@@ -209,7 +210,8 @@ export function useGitHubRuntimeTaskLaunchers({
               repositoryExecutionContract,
               preferredBackendIds: selectedRemoteBackendId ? [selectedRemoteBackendId] : undefined,
             },
-          }),
+          });
+        },
         errorTitle: "Couldn't start review-comment follow-up task",
         fallbackMessage:
           "Unable to start a runtime-managed follow-up from this GitHub review comment.",

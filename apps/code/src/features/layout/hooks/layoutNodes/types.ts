@@ -378,12 +378,17 @@ export type LayoutNodesFieldRegistry = {
   gitIssuesLoading: boolean;
   gitIssuesError: string | null;
   onStartTaskFromGitHubIssue?: (issue: GitHubIssue) => Promise<void> | void;
+  onStartTaskFromGitHubIssueCommentCommand?: (issue: GitHubIssue) => Promise<void> | void;
   onDelegateGitHubIssue?: (issue: GitHubIssue) => void | Promise<void>;
   gitPullRequests: GitHubPullRequest[];
   gitPullRequestsTotal: number;
   gitPullRequestsLoading: boolean;
   gitPullRequestsError: string | null;
   onStartTaskFromGitHubPullRequest?: (pullRequest: GitHubPullRequest) => Promise<void> | void;
+  onStartTaskFromGitHubPullRequestReviewCommentCommand?: (
+    pullRequest: GitHubPullRequest,
+    comment: GitHubPullRequestComment
+  ) => Promise<void> | void;
   selectedPullRequestNumber: number | null;
   selectedPullRequest: GitHubPullRequest | null;
   selectedPullRequestComments: GitHubPullRequestComment[];
@@ -988,12 +993,14 @@ const LAYOUT_GIT_REVIEW_NODE_KEYS = [
   "gitIssuesLoading",
   "gitIssuesError",
   "onStartTaskFromGitHubIssue",
+  "onStartTaskFromGitHubIssueCommentCommand",
   "onDelegateGitHubIssue",
   "gitPullRequests",
   "gitPullRequestsTotal",
   "gitPullRequestsLoading",
   "gitPullRequestsError",
   "onStartTaskFromGitHubPullRequest",
+  "onStartTaskFromGitHubPullRequestReviewCommentCommand",
   "selectedPullRequestNumber",
   "selectedPullRequest",
   "selectedPullRequestComments",

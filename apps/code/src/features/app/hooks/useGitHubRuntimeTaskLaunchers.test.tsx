@@ -244,7 +244,7 @@ describe("useGitHubRuntimeTaskLaunchers", () => {
     });
   });
 
-  it("surfaces PR review-comment launch failures through shared toasts", async () => {
+  it("surfaces PR review-comment prepare failures through shared toasts", async () => {
     const pullRequest: GitHubPullRequest = {
       number: 14,
       title: "Review comment failure",
@@ -257,13 +257,9 @@ describe("useGitHubRuntimeTaskLaunchers", () => {
       isDraft: false,
       author: null,
     };
-    vi.mocked(buildGovernedGitHubPullRequestReviewCommentLaunchRequest).mockReturnValue({
-      launch: { taskSource: { kind: "github_pr_followup" } },
-      request: { workspaceId: "ws-1", title: pullRequest.title },
-    } as never);
-    vi.mocked(launchGovernedGitHubRun).mockRejectedValue(
-      new Error("review-comment prepare failed")
-    );
+    vi.mocked(buildGovernedGitHubPullRequestReviewCommentLaunchRequest).mockImplementation(() => {
+      throw new Error("review-comment prepare failed");
+    });
 
     const { result } = renderHook(() =>
       useGitHubRuntimeTaskLaunchers({
@@ -292,6 +288,7 @@ describe("useGitHubRuntimeTaskLaunchers", () => {
       title: "Couldn't start review-comment follow-up task",
       message: "review-comment prepare failed",
     });
+    expect(launchGovernedGitHubRun).not.toHaveBeenCalled();
   });
 
   it("surfaces GitHub launch failures through shared toasts", async () => {

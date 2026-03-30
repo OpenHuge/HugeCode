@@ -134,7 +134,9 @@ export type MainAppGitReviewBridgeParams = {
   gitHubPanelState: ReturnType<typeof useGitHubPanelController>;
   gitCommitState: ReturnType<typeof useGitCommitController>;
   onStartTaskFromGitHubIssue: BridgeParams["onStartTaskFromGitHubIssue"];
+  onStartTaskFromGitHubIssueCommentCommand: BridgeParams["onStartTaskFromGitHubIssueCommentCommand"];
   onStartTaskFromGitHubPullRequest: BridgeParams["onStartTaskFromGitHubPullRequest"];
+  onStartTaskFromGitHubPullRequestReviewCommentCommand: BridgeParams["onStartTaskFromGitHubPullRequestReviewCommentCommand"];
   onReviewPackControllerReady?: MainAppReviewPackControllerReady;
 };
 
@@ -221,7 +223,9 @@ export type UseMainAppLayoutNodesStateActionParams = Pick<
     | "handleSetGitRoot"
     | "handleApplyWorktreeChanges"
     | "onStartTaskFromGitHubIssue"
+    | "onStartTaskFromGitHubIssueCommentCommand"
     | "onStartTaskFromGitHubPullRequest"
+    | "onStartTaskFromGitHubPullRequestReviewCommentCommand"
   > &
   Pick<MainAppConversationBridgeParams, "toggleComposerEditorExpanded">;
 
@@ -376,7 +380,10 @@ export type UseMainAppLayoutNodesStateParams = {
       };
     actions: Pick<
       UseMainAppLayoutNodesStateActionParams,
-      "onStartTaskFromGitHubIssue" | "onStartTaskFromGitHubPullRequest"
+      | "onStartTaskFromGitHubIssue"
+      | "onStartTaskFromGitHubIssueCommentCommand"
+      | "onStartTaskFromGitHubPullRequest"
+      | "onStartTaskFromGitHubPullRequestReviewCommentCommand"
     >;
     reviewPackControllerReady?: MainAppReviewPackControllerReady;
   };

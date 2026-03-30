@@ -318,6 +318,7 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
         issuesLoading={input.gitIssuesLoading}
         issuesError={input.gitIssuesError}
         onStartTaskFromGitHubIssue={input.onStartTaskFromGitHubIssue}
+        onStartTaskFromGitHubIssueCommentCommand={input.onStartTaskFromGitHubIssueCommentCommand}
         onDelegateGitHubIssue={input.onDelegateGitHubIssue}
         pullRequests={input.gitPullRequests}
         pullRequestsTotal={input.gitPullRequestsTotal}
@@ -414,6 +415,9 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
         pullRequestComments={input.selectedPullRequestComments}
         pullRequestCommentsLoading={input.selectedPullRequestCommentsLoading}
         pullRequestCommentsError={input.selectedPullRequestCommentsError}
+        onStartTaskFromGitHubPullRequestReviewCommentCommand={
+          input.onStartTaskFromGitHubPullRequestReviewCommentCommand
+        }
         canRevert={input.diffSource === "local"}
         onRevertFile={input.onRevertGitFile}
         onActivePathChange={input.onDiffActivePathChange}

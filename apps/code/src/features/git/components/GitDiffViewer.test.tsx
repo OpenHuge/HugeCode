@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GitHubPullRequest, GitHubPullRequestComment } from "../../../types";
 import { getExportedStyleBlock, readRelativeSource } from "../../../test/styleSource";
 import { GitDiffViewer } from "./GitDiffViewer";
@@ -91,6 +91,32 @@ describe("GitDiffViewer", () => {
 
     fireEvent.click(collapseButton);
     expect(screen.queryByText("Oldest comment")).toBeNull();
+  });
+
+  it("exposes review-comment follow-up actions from the pull-request timeline", () => {
+    const onStartTaskFromGitHubPullRequestReviewCommentCommand = vi.fn();
+
+    render(
+      <GitDiffViewer
+        diffs={[]}
+        selectedPath={null}
+        isLoading={false}
+        error={null}
+        pullRequest={pullRequest}
+        pullRequestComments={comments}
+        onStartTaskFromGitHubPullRequestReviewCommentCommand={
+          onStartTaskFromGitHubPullRequestReviewCommentCommand
+        }
+      />
+    );
+
+    const followUpButtons = screen.getAllByRole("button", { name: "Follow up" });
+    fireEvent.click(followUpButtons[0] as HTMLButtonElement);
+
+    expect(onStartTaskFromGitHubPullRequestReviewCommentCommand).toHaveBeenCalledWith(
+      pullRequest,
+      comments[1]
+    );
   });
 
   it("surfaces repository-unavailable guidance when no git root is selected", () => {

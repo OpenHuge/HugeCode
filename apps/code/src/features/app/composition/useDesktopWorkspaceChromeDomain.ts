@@ -108,6 +108,55 @@ export function useDesktopWorkspaceChromeDomain({
   } = workspaceState;
   const { handleMobileConnectSuccess } = mobileState;
   const { currentBranch, fileStatus } = gitBranchState;
+  const handleStartTaskFromGitHubIssueCommentCommand = (
+    issue: Parameters<
+      NonNullable<
+        Parameters<
+          typeof useMainAppLayoutNodesState
+        >[0]["gitReview"]["actions"]["onStartTaskFromGitHubIssueCommentCommand"]
+      >
+    >[0]
+  ) =>
+    missionDomain.handleStartTaskFromGitHubIssueCommentCommand({
+      issue,
+      event: {
+        eventName: "issue_comment",
+        action: "created",
+      },
+      command: {
+        triggerMode: "issue_comment_command",
+        commandKind: "continue",
+      },
+    });
+  const handleStartTaskFromGitHubPullRequestReviewCommentCommand = (
+    pullRequest: Parameters<
+      NonNullable<
+        Parameters<
+          typeof useMainAppLayoutNodesState
+        >[0]["gitReview"]["actions"]["onStartTaskFromGitHubPullRequestReviewCommentCommand"]
+      >
+    >[0],
+    comment: Parameters<
+      NonNullable<
+        Parameters<
+          typeof useMainAppLayoutNodesState
+        >[0]["gitReview"]["actions"]["onStartTaskFromGitHubPullRequestReviewCommentCommand"]
+      >
+    >[1]
+  ) =>
+    missionDomain.handleStartTaskFromGitHubPullRequestReviewCommentCommand({
+      pullRequest,
+      comments: gitHubPanelState.gitPullRequestComments,
+      event: {
+        eventName: "pull_request_review_comment",
+        action: "created",
+      },
+      command: {
+        triggerMode: "pull_request_review_comment_command",
+        commandKind: "continue",
+        comment,
+      },
+    });
 
   const { appClassName, appStyle } = useMainAppSurfaceStyles({
     appSettings,
@@ -270,7 +319,10 @@ export function useDesktopWorkspaceChromeDomain({
       },
       actions: {
         onStartTaskFromGitHubIssue: missionDomain.handleStartTaskFromGitHubIssue,
+        onStartTaskFromGitHubIssueCommentCommand: handleStartTaskFromGitHubIssueCommentCommand,
         onStartTaskFromGitHubPullRequest: missionDomain.handleStartTaskFromGitHubPullRequest,
+        onStartTaskFromGitHubPullRequestReviewCommentCommand:
+          handleStartTaskFromGitHubPullRequestReviewCommentCommand,
       },
       reviewPackControllerReady: missionDomain.missionControlState.onReviewPackControllerReady,
     },
