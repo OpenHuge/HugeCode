@@ -34,7 +34,6 @@ jobs:
       fast_pr_iteration_mode: ${{ github.event_name == 'pull_request' && vars.MERGE_QUEUE_ENABLED != 'false' }}
       runtime_contract_changed: ${{ steps.filter.outputs.runtime_contract }}
       desktop_host_changed: ${{ steps.filter.outputs.desktop_host }}
-      desktop_runtime_changed: ${{ steps.filter.outputs.desktop_runtime }}
       desktop_fast_verify_required: ${{ steps.filter.outputs.desktop_host == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
       repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
       repo_governance_only: ${{ steps.scope.outputs.repo_governance_only }}
@@ -43,6 +42,7 @@ jobs:
       circular_required: ${{ steps.scope.outputs.circular_required }}
       integration_watch_required: ${{ steps.filter.outputs.code_integration_watch }}
       pr_affected_build_required: ${{ steps.scope.outputs.build_skip_eligible_only != 'true' }}
+      pr_affected_tests_required: ${{ steps.scope.outputs.test_skip_eligible_only != 'true' }}
       pr_affected_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.scope.outputs.quality_core_changed == 'true' || steps.filter.outputs.runtime_contract == 'true') }}
       ci_required: ${{ steps.scope.outputs.repo_governance_only != 'true' && (steps.scope.outputs.quality_core_changed == 'true' || steps.filter.outputs.runtime_contract == 'true' || steps.scope.outputs.ui_contract_required == 'true' || steps.scope.outputs.circular_required == 'true' || steps.filter.outputs.code_integration_watch == 'true') }}
     steps:
@@ -94,18 +94,7 @@ jobs:
               - 'docs/runtime/spec/**'
               - 'docs/specs/code-runtime-spec-2026.md'
               - 'docs/specs/code-runtime/**'
-              - '.github/workflows/ci.yml'
-              - '.github/workflows/_reusable-ci-runtime-contract-parity.yml'
-              - '.github/actions/setup-node-pnpm/**'
-              - '.github/actions/install-linux-desktop-deps/**'
-              - '.github/actions/setup-rust-ci/**'
               - 'scripts/check-runtime-sot.mjs'
-            desktop_runtime:
-              - 'apps/code-electron/**'
-              - 'apps/code-electron/**'
-              - 'turbo.json'
-              - '.github/actions/setup-rust-ci/**'
-              - '.github/actions/cache-turbo/**'
             desktop_host:
               - 'apps/code-electron/**'
             repo_sot:
@@ -139,90 +128,9 @@ jobs:
               - 'scripts/codex-preflight.mjs'
               - 'scripts/workflow-list.mjs'
               - 'apps/deskt*/README.md'
-            ui_contract:
-              - 'apps/code/**'
-              - '!apps/code/**/*.md'
-              - '!apps/code/**/*.mdx'
-              - '!apps/code/**/*.test.ts'
-              - '!apps/code/**/*.test.tsx'
-              - '!apps/code/**/*.spec.ts'
-              - '!apps/code/**/*.spec.tsx'
-              - '!apps/code/**/*.stories.ts'
-              - '!apps/code/**/*.stories.tsx'
-              - '!apps/code/**/*.stories.mdx'
-              - '!apps/code/**/__tests__/**'
-              - '!apps/code/src/test/**'
-              - '!apps/code/src/fixtures/**'
-              - 'apps/code-web/**'
-              - '!apps/code-web/**/*.md'
-              - '!apps/code-web/**/*.mdx'
-              - '!apps/code-web/**/*.test.ts'
-              - '!apps/code-web/**/*.test.tsx'
-              - '!apps/code-web/**/*.spec.ts'
-              - '!apps/code-web/**/*.spec.tsx'
-              - '!apps/code-web/**/*.stories.ts'
-              - '!apps/code-web/**/*.stories.tsx'
-              - '!apps/code-web/**/*.stories.mdx'
-              - '!apps/code-web/**/__tests__/**'
-              - '!apps/code-web/src/test/**'
-              - '!apps/code-web/src/fixtures/**'
-              - 'packages/code-application/**'
-              - '!packages/code-application/**/*.md'
-              - '!packages/code-application/**/*.mdx'
-              - 'packages/code-platform-interfaces/**'
-              - '!packages/code-platform-interfaces/**/*.md'
-              - '!packages/code-platform-interfaces/**/*.mdx'
-              - 'packages/code-workspace-client/**'
-              - '!packages/code-workspace-client/**/*.md'
-              - '!packages/code-workspace-client/**/*.mdx'
-              - 'scripts/check-ui-service-boundary.mjs'
-              - 'scripts/check-app-source-boundary.mjs'
-              - 'scripts/check-platform-boundaries.mjs'
-              - 'scripts/lib/ui-service-boundary.mjs'
-            app_circular:
-              - 'apps/code/src/**'
-              - '!apps/code/src/**/*.test.ts'
-              - '!apps/code/src/**/*.test.tsx'
-              - '!apps/code/src/**/*.spec.ts'
-              - '!apps/code/src/**/*.spec.tsx'
-              - '!apps/code/src/**/*.stories.ts'
-              - '!apps/code/src/**/*.stories.tsx'
-              - '!apps/code/src/**/*.stories.mdx'
-              - '!apps/code/src/**/__tests__/**'
-              - '!apps/code/src/test/**'
-              - '!apps/code/src/fixtures/**'
-              - 'scripts/check-circular-deps.mjs'
             code_integration_watch:
               - '.codex/code-integration-watch.json'
               - 'scripts/code-integration-watch.mjs'
-            frontend_optimization:
-              - 'apps/code/**'
-              - '!apps/code/**/*.md'
-              - '!apps/code/**/*.mdx'
-              - '!apps/code/**/*.test.ts'
-              - '!apps/code/**/*.test.tsx'
-              - '!apps/code/**/*.spec.ts'
-              - '!apps/code/**/*.spec.tsx'
-              - '!apps/code/**/*.stories.ts'
-              - '!apps/code/**/*.stories.tsx'
-              - '!apps/code/**/*.stories.mdx'
-              - '!apps/code/**/__tests__/**'
-              - '!apps/code/src/test/**'
-              - '!apps/code/src/fixtures/**'
-              - 'packages/design-system/**'
-              - '!packages/design-system/**/*.md'
-              - '!packages/design-system/**/*.mdx'
-              - '!packages/design-system/**/*.test.ts'
-              - '!packages/design-system/**/*.test.tsx'
-              - '!packages/design-system/**/*.spec.ts'
-              - '!packages/design-system/**/*.spec.tsx'
-              - '!packages/design-system/**/*.stories.ts'
-              - '!packages/design-system/**/*.stories.tsx'
-              - '!packages/design-system/**/*.stories.mdx'
-              - '!packages/design-system/**/__tests__/**'
-              - 'scripts/check-code-bundle-budget.mjs'
-              - 'scripts/report-code-bundle.mjs'
-              - 'scripts/config/code-bundle-budget.config.mjs'
 
       - id: scope
         name: Classify dependency manifest scope
@@ -350,6 +258,7 @@ jobs:
     secrets: inherit
     with:
       ci_required: ${{ needs.changes.outputs.pr_affected_required == 'true' }}
+      affected_tests_required: ${{ needs.changes.outputs.pr_affected_tests_required == 'true' }}
       diff_base: ${{ needs.changes.outputs.diff_base }}
       repo_governance_only: ${{ needs.changes.outputs.repo_governance_only == 'true' }}
       skip_expensive_checks: ${{ github.event_name == 'pull_request' && needs.dependabot_policy.outputs.skip_pr_affected == 'true' }}
