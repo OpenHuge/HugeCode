@@ -9,18 +9,15 @@ import type {
   GitHubPullRequestComment,
   GitHubPullRequestDiff,
 } from "../../../types";
+import type { RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
+import { buildGovernedRuntimeRunRequest } from "./runtimeGovernedRunIngestion";
 import {
-  normalizeGitHubIssueLaunchInput,
-  normalizeGitHubPullRequestFollowUpLaunchInput,
-  type GitHubSourceLaunchSummary,
-} from "./githubSourceLaunchNormalization";
-import {
-  buildGovernedRuntimeRunRequest,
-  launchGovernedRuntimeRun,
-  type GovernedRuntimeRunLaunchAck,
-} from "./runtimeGovernedRunIngestion";
-import { type RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
-import type { RuntimeWorkspaceExecutionPolicyStatus } from "./runtimeWorkspaceExecutionPolicyFacade";
+  normalizeGitHubIssueCommentCommandLaunchInput,
+  normalizeGitHubPullRequestReviewCommentCommandLaunchInput,
+  type GitHubIssueCommentCommandLaunchInput,
+  type GitHubPullRequestReviewCommentCommandLaunchInput,
+} from "./githubCommentSourceLaunchNormalization";
+import type { GitHubSourceLaunchSummary } from "./githubSourceLaunchNormalization";
 
 type GitHubSourceWorkspaceContext = {
   workspaceId: string;
@@ -33,24 +30,27 @@ type GitHubSourceLaunchRequestOptions = {
   preferredBackendIds?: string[] | null;
 };
 
-export type GovernedGitHubRunLaunchAck = {
-  preparation: GovernedRuntimeRunLaunchAck["preparation"];
-  response: GovernedRuntimeRunLaunchAck["response"];
-  request: RuntimeRunPrepareV2Request;
-  launch: GitHubSourceLaunchSummary;
-};
-
-export type GovernedGitHubLaunchPreflight = {
-  state: "ready" | "blocked";
-  reason: string | null;
-};
-
 function readOptionalText(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function summarizeGovernedGitHubLaunchSource(
+  taskSource: AgentTaskSourceSummary | null | undefined
+) {
+  const label = readOptionalText(taskSource?.label) ?? "GitHub source";
+  const reference = readOptionalText(taskSource?.reference);
+  const repo = readOptionalText(taskSource?.repo?.fullName);
+  if (reference && repo) {
+    return `${label} · ${reference} · ${repo}`;
+  }
+  if (repo) {
+    return `${label} · ${repo}`;
+  }
+  return label;
 }
 
 function buildGitHubSourceAutonomyRequest(): RuntimeAutonomyRequestV2 {
@@ -98,41 +98,6 @@ function buildGitHubSourceMissionConstraints(input: {
   return constraints;
 }
 
-export function evaluateGovernedGitHubLaunchPreflight(input: {
-  policyStatus: RuntimeWorkspaceExecutionPolicyStatus;
-  policyError?: string | null;
-}): GovernedGitHubLaunchPreflight {
-  switch (input.policyStatus) {
-    case "idle":
-    case "loading":
-      return {
-        state: "blocked",
-        reason:
-          "GitHub source launch is waiting for repository execution defaults to finish loading.",
-      };
-    case "error":
-      return {
-        state: "blocked",
-        reason: `GitHub source launch is blocked until repository execution policy loads cleanly.${input.policyError ? ` ${input.policyError}` : ""}`,
-      };
-    default:
-      return {
-        state: "ready",
-        reason: null,
-      };
-  }
-}
-
-export function assertGovernedGitHubLaunchReady(input: {
-  policyStatus: RuntimeWorkspaceExecutionPolicyStatus;
-  policyError?: string | null;
-}) {
-  const preflight = evaluateGovernedGitHubLaunchPreflight(input);
-  if (preflight.state === "blocked") {
-    throw new Error(preflight.reason ?? "GitHub source launch preflight blocked.");
-  }
-}
-
 function buildGovernedGitHubLaunchRequest(input: {
   launch: GitHubSourceLaunchSummary;
   workspaceId: string;
@@ -176,14 +141,18 @@ function finalizeGovernedGitHubLaunch(input: {
   };
 }
 
-export function buildGovernedGitHubIssueLaunchRequest(input: {
+export function buildGovernedGitHubIssueCommentCommandLaunchRequest(input: {
   issue: Pick<GitHubIssue, "number" | "title" | "url" | "body" | "author" | "labels">;
+  event: GitHubIssueCommentCommandLaunchInput["event"];
+  command: GitHubIssueCommentCommandLaunchInput["command"];
   workspace: GitHubSourceWorkspaceContext;
   options?: GitHubSourceLaunchRequestOptions;
 }) {
   return finalizeGovernedGitHubLaunch({
-    launch: normalizeGitHubIssueLaunchInput({
+    launch: normalizeGitHubIssueCommentCommandLaunchInput({
       issue: input.issue,
+      event: input.event,
+      command: input.command,
       workspaceId: input.workspace.workspaceId,
       workspaceRoot: input.workspace.workspaceRoot,
       gitRemoteUrl: input.workspace.gitRemoteUrl,
@@ -193,21 +162,25 @@ export function buildGovernedGitHubIssueLaunchRequest(input: {
   });
 }
 
-export function buildGovernedGitHubPullRequestLaunchRequest(input: {
+export function buildGovernedGitHubPullRequestReviewCommentLaunchRequest(input: {
   pullRequest: Pick<
     GitHubPullRequest,
     "number" | "title" | "url" | "body" | "headRefName" | "baseRefName" | "isDraft" | "author"
   >;
   diffs?: GitHubPullRequestDiff[] | null;
   comments?: GitHubPullRequestComment[] | null;
+  event: GitHubPullRequestReviewCommentCommandLaunchInput["event"];
+  command: GitHubPullRequestReviewCommentCommandLaunchInput["command"];
   workspace: GitHubSourceWorkspaceContext;
   options?: GitHubSourceLaunchRequestOptions;
 }) {
   return finalizeGovernedGitHubLaunch({
-    launch: normalizeGitHubPullRequestFollowUpLaunchInput({
+    launch: normalizeGitHubPullRequestReviewCommentCommandLaunchInput({
       pullRequest: input.pullRequest,
       diffs: input.diffs ?? null,
       comments: input.comments ?? null,
+      event: input.event,
+      command: input.command,
       workspaceId: input.workspace.workspaceId,
       workspaceRoot: input.workspace.workspaceRoot,
       gitRemoteUrl: input.workspace.gitRemoteUrl,
@@ -215,34 +188,4 @@ export function buildGovernedGitHubPullRequestLaunchRequest(input: {
     workspaceId: input.workspace.workspaceId,
     options: input.options,
   });
-}
-
-export async function launchGovernedGitHubRun(input: {
-  request: RuntimeRunPrepareV2Request;
-  launch: GitHubSourceLaunchSummary;
-  onRefresh?: (() => void | Promise<void>) | null;
-}): Promise<GovernedGitHubRunLaunchAck> {
-  const launchAck = await launchGovernedRuntimeRun({
-    request: input.request,
-    onRefresh: input.onRefresh,
-  });
-  return {
-    ...launchAck,
-    launch: input.launch,
-  };
-}
-
-export function summarizeGovernedGitHubLaunchSource(
-  taskSource: AgentTaskSourceSummary | null | undefined
-) {
-  const label = readOptionalText(taskSource?.label) ?? "GitHub source";
-  const reference = readOptionalText(taskSource?.reference);
-  const repo = readOptionalText(taskSource?.repo?.fullName);
-  if (reference && repo) {
-    return `${label} · ${reference} · ${repo}`;
-  }
-  if (repo) {
-    return `${label} · ${repo}`;
-  }
-  return label;
 }

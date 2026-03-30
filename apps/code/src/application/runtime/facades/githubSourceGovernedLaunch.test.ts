@@ -13,6 +13,10 @@ import {
   evaluateGovernedGitHubLaunchPreflight,
   launchGovernedGitHubRun,
 } from "./githubSourceGovernedLaunch";
+import {
+  buildGovernedGitHubIssueCommentCommandLaunchRequest,
+  buildGovernedGitHubPullRequestReviewCommentLaunchRequest,
+} from "./githubCommentSourceGovernedLaunch";
 
 function createContract() {
   return parseRepositoryExecutionContract(
@@ -214,6 +218,61 @@ describe("githubSourceGovernedLaunch", () => {
     expect(request.executionProfileId).toBe("autonomous-delegate");
   });
 
+  it("builds a governed GitHub issue comment-command launch request with source-linked review defaults", () => {
+    const { request } = buildGovernedGitHubIssueCommentCommandLaunchRequest({
+      issue: {
+        number: 51,
+        title: "Follow up from issue comment",
+        url: "https://github.com/openai/hugecode/issues/51",
+        body: "Issue body",
+      },
+      event: {
+        eventName: "issue_comment",
+        action: "created",
+      },
+      command: {
+        triggerMode: "issue_comment_command",
+        commandKind: "continue",
+        sourceRecordId: "source-51",
+        comment: {
+          commentId: 5101,
+          body: "@hugecode continue",
+          author: { login: "reviewer" },
+        },
+      },
+      workspace: {
+        workspaceId: "ws-1",
+        workspaceRoot: "/workspace/hugecode",
+        gitRemoteUrl: "https://github.com/openai/hugecode.git",
+      },
+      options: {
+        repositoryExecutionContract: createContract(),
+      },
+    });
+
+    expect(request).toEqual(
+      expect.objectContaining({
+        executionProfileId: "autonomous-delegate",
+        reviewProfileId: "issue-review",
+        validationPresetId: "fast-lane",
+        preferredBackendIds: ["backend-issue"],
+        taskSource: expect.objectContaining({
+          kind: "github_issue",
+          githubSource: expect.objectContaining({
+            sourceRecordId: "source-51",
+          }),
+        }),
+        missionBrief: expect.objectContaining({
+          constraints: expect.arrayContaining([
+            "Treat the linked GitHub comment command as the primary follow-up request and resolve it against repository evidence before broadening scope.",
+            "Cite repository evidence for findings, recommendations, and follow-up actions instead of relying on broad network research.",
+          ]),
+        }),
+      })
+    );
+    expect(request.steps[0]?.input).toContain("Command comment summary: @hugecode continue");
+  });
+
   it("builds a governed GitHub PR follow-up request with source-linked review defaults", () => {
     const pullRequest: GitHubPullRequest = {
       number: 17,
@@ -264,6 +323,53 @@ describe("githubSourceGovernedLaunch", () => {
       })
     );
     expect(request.steps[0]?.input).toContain("Changed files (1):");
+  });
+
+  it("builds a governed GitHub PR review-comment follow-up request even when review comment context is missing", () => {
+    const { request } = buildGovernedGitHubPullRequestReviewCommentLaunchRequest({
+      pullRequest: {
+        number: 52,
+        title: "Review comment follow-up",
+        url: "https://github.com/openai/hugecode/pull/52",
+        body: "",
+        headRefName: "feature/review-comment",
+        baseRefName: "main",
+        isDraft: false,
+        author: null,
+      },
+      event: {
+        eventName: "pull_request_review_comment",
+        action: "created",
+      },
+      command: {
+        triggerMode: "pull_request_review_comment_command",
+      },
+      workspace: {
+        workspaceId: "ws-1",
+      },
+      options: {
+        repositoryExecutionContract: createContract(),
+        preferredBackendIds: ["backend-explicit"],
+      },
+    });
+
+    expect(request).toEqual(
+      expect.objectContaining({
+        executionProfileId: "operator-review",
+        reviewProfileId: "pr-review",
+        validationPresetId: "review-first",
+        preferredBackendIds: ["backend-explicit"],
+        taskSource: expect.objectContaining({
+          kind: "github_pr_followup",
+          githubSource: expect.objectContaining({
+            ref: expect.objectContaining({
+              triggerMode: "pull_request_review_comment_command",
+            }),
+          }),
+        }),
+      })
+    );
+    expect(request.steps[0]?.input).toContain("Review comment context unavailable.");
   });
 
   it("prepares, starts, and refreshes a governed GitHub launch in order", async () => {

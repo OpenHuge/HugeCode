@@ -9,6 +9,10 @@ import {
   normalizeGitHubIssueLaunchInput,
   normalizeGitHubPullRequestFollowUpLaunchInput,
 } from "./githubSourceLaunchNormalization";
+import {
+  normalizeGitHubIssueCommentCommandLaunchInput,
+  normalizeGitHubPullRequestReviewCommentCommandLaunchInput,
+} from "./githubCommentSourceLaunchNormalization";
 
 describe("githubSourceLaunchNormalization", () => {
   it("normalizes GitHub issue launch inputs with issue detail context and repo defaults", () => {
@@ -69,6 +73,93 @@ describe("githubSourceLaunchNormalization", () => {
       })
     );
     expect(normalized.instruction).toContain("Issue body unavailable.");
+  });
+
+  it("normalizes GitHub issue comment-command launches with source-linked follow-up context", () => {
+    const issue: GitHubIssue = {
+      number: 21,
+      title: "Carry issue comment context",
+      url: "https://github.com/acme/hugecode/issues/21",
+      updatedAt: "2026-03-18T00:00:00.000Z",
+      body: "Keep the launch governed.",
+      author: { login: "octocat" },
+    };
+
+    const normalized = normalizeGitHubIssueCommentCommandLaunchInput({
+      issue,
+      event: {
+        eventName: "issue_comment",
+        action: "created",
+        deliveryId: "delivery-21",
+      },
+      command: {
+        triggerMode: "issue_comment_command",
+        commandKind: "continue",
+        sourceRecordId: "source-21",
+        comment: {
+          commentId: 2101,
+          url: "https://github.com/acme/hugecode/issues/21#issuecomment-2101",
+          body: "@hugecode continue with the scoped fix.",
+          author: { login: "reviewer" },
+        },
+      },
+    });
+
+    expect(normalized.instruction).toContain(
+      "GitHub issue follow-up from issue comment #21: Carry issue comment context"
+    );
+    expect(normalized.instruction).toContain("GitHub event: issue_comment.created");
+    expect(normalized.instruction).toContain("Trigger mode: issue_comment_command");
+    expect(normalized.instruction).toContain("Command: continue");
+    expect(normalized.instruction).toContain("Comment author: @reviewer");
+    expect(normalized.instruction).toContain(
+      "Command comment summary: @hugecode continue with the scoped fix."
+    );
+    expect(normalized.instruction).toContain(
+      "Follow-up defaults: Stay anchored to the linked GitHub command, issue, and repository evidence."
+    );
+    expect(normalized.taskSource.githubSource).toEqual(
+      expect.objectContaining({
+        sourceRecordId: "source-21",
+        event: expect.objectContaining({
+          eventName: "issue_comment",
+          action: "created",
+          deliveryId: "delivery-21",
+        }),
+        ref: expect.objectContaining({
+          triggerMode: "issue_comment_command",
+          commandKind: "continue",
+        }),
+        comment: expect.objectContaining({
+          commentId: 2101,
+          author: { login: "reviewer" },
+        }),
+      })
+    );
+  });
+
+  it("falls back cleanly when GitHub issue comment-command context is missing", () => {
+    const issue: GitHubIssue = {
+      number: 22,
+      title: "Fallback issue comment follow-up",
+      url: "https://github.com/acme/hugecode/issues/22",
+      updatedAt: "2026-03-18T00:00:00.000Z",
+    };
+
+    const normalized = normalizeGitHubIssueCommentCommandLaunchInput({
+      issue,
+      event: {
+        eventName: "issue_comment",
+        action: "created",
+      },
+      command: {
+        triggerMode: "issue_comment_command",
+      },
+    });
+
+    expect(normalized.instruction).toContain("Issue body unavailable.");
+    expect(normalized.instruction).toContain("Command comment context unavailable.");
+    expect(normalized.taskSource.githubSource?.comment ?? null).toBeNull();
   });
 
   it("normalizes GitHub PR follow-up launch inputs with diff and comment summaries", () => {
@@ -164,5 +255,105 @@ describe("githubSourceLaunchNormalization", () => {
     expect(normalized.instruction).toContain("Pull request body unavailable.");
     expect(normalized.instruction).toContain("Changed files unavailable.");
     expect(normalized.instruction).toContain("Discussion notes unavailable.");
+  });
+
+  it("normalizes GitHub PR review-comment launches with diff, discussion, and review comment context", () => {
+    const pullRequest: GitHubPullRequest = {
+      number: 23,
+      title: "Preserve review-comment linkage",
+      url: "https://github.com/acme/hugecode/pull/23",
+      updatedAt: "2026-03-18T00:00:00.000Z",
+      createdAt: "2026-03-17T00:00:00.000Z",
+      body: "Keep review follow-up routed through runtime.",
+      headRefName: "feature/review-followup",
+      baseRefName: "main",
+      isDraft: false,
+      author: { login: "maintainer" },
+    };
+    const normalized = normalizeGitHubPullRequestReviewCommentCommandLaunchInput({
+      pullRequest,
+      diffs: [{ path: "src/runtime.ts", status: "modified", diff: "@@" }],
+      comments: [
+        {
+          id: 2,
+          body: "Keep the shared runtime facade.",
+          createdAt: "2026-03-17T00:00:00.000Z",
+          url: "https://github.com/acme/hugecode/pull/23#issuecomment-2",
+          author: { login: "reviewer" },
+        },
+      ],
+      event: {
+        eventName: "pull_request_review_comment",
+        action: "created",
+      },
+      command: {
+        triggerMode: "pull_request_review_comment_command",
+        commandKind: "run",
+        headSha: "abcdef123456",
+        sourceRecordId: "source-23",
+        comment: {
+          commentId: 2301,
+          url: "https://github.com/acme/hugecode/pull/23#discussion_r2301",
+          body: "Please keep the launcher on the governed path.",
+          author: { login: "approver" },
+        },
+      },
+    });
+
+    expect(normalized.instruction).toContain(
+      "GitHub PR review-comment follow-up #23: Preserve review-comment linkage"
+    );
+    expect(normalized.instruction).toContain("GitHub event: pull_request_review_comment.created");
+    expect(normalized.instruction).toContain("Trigger mode: pull_request_review_comment_command");
+    expect(normalized.instruction).toContain(
+      "Review comment summary: Please keep the launcher on the governed path."
+    );
+    expect(normalized.instruction).toContain("Changed files (1):");
+    expect(normalized.instruction).toContain("Discussion notes:");
+    expect(normalized.taskSource.githubSource).toEqual(
+      expect.objectContaining({
+        sourceRecordId: "source-23",
+        ref: expect.objectContaining({
+          triggerMode: "pull_request_review_comment_command",
+          commandKind: "run",
+          headSha: "abcdef123456",
+        }),
+        comment: expect.objectContaining({
+          commentId: 2301,
+          author: { login: "approver" },
+        }),
+      })
+    );
+  });
+
+  it("falls back cleanly when GitHub PR review-comment context is missing", () => {
+    const pullRequest: GitHubPullRequest = {
+      number: 24,
+      title: "Fallback review-comment follow-up",
+      url: "https://github.com/acme/hugecode/pull/24",
+      updatedAt: "2026-03-18T00:00:00.000Z",
+      createdAt: "2026-03-17T00:00:00.000Z",
+      body: "",
+      headRefName: "feature/fallback-review-comment",
+      baseRefName: "main",
+      isDraft: false,
+      author: null,
+    };
+
+    const normalized = normalizeGitHubPullRequestReviewCommentCommandLaunchInput({
+      pullRequest,
+      event: {
+        eventName: "pull_request_review_comment",
+        action: "created",
+      },
+      command: {
+        triggerMode: "pull_request_review_comment_command",
+      },
+    });
+
+    expect(normalized.instruction).toContain("Review comment context unavailable.");
+    expect(normalized.instruction).toContain("Changed files unavailable.");
+    expect(normalized.instruction).toContain("Discussion notes unavailable.");
+    expect(normalized.taskSource.githubSource?.comment ?? null).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildGitHubIssueTaskSource,
+  buildGitHubPullRequestFollowUpTaskSource,
   buildScheduleTaskSource,
   resolveRepoContext,
 } from "./runtimeTaskSourceFacade";
@@ -85,6 +86,105 @@ describe("runtimeTaskSourceFacade", () => {
         sourceRunId: "https://github.com/acme/hugecode/issues/42",
         workspaceId: "ws-1",
         workspaceRoot: "/workspace/hugecode",
+      })
+    );
+  });
+
+  it("attaches GitHub comment-command provenance to issue and PR follow-up task sources", () => {
+    const issueSource = buildGitHubIssueTaskSource({
+      issue: {
+        number: 12,
+        title: "Anchor governed issue follow-up",
+        url: "https://github.com/acme/hugecode/issues/12",
+        updatedAt: "2026-03-27T00:00:00.000Z",
+      },
+      gitRemoteUrl: "https://github.com/acme/hugecode.git",
+      githubSource: {
+        sourceRecordId: "source-12",
+        event: {
+          eventName: "issue_comment",
+          action: "created",
+          deliveryId: "delivery-12",
+        },
+        triggerMode: "issue_comment_command",
+        commandKind: "continue",
+        comment: {
+          commentId: 1201,
+          url: "https://github.com/acme/hugecode/issues/12#issuecomment-1201",
+          body: "@hugecode continue with the repo-linked fix.",
+          author: { login: "reviewer" },
+        },
+      },
+    });
+
+    const pullRequestSource = buildGitHubPullRequestFollowUpTaskSource({
+      pullRequest: {
+        number: 18,
+        title: "Carry review-comment provenance",
+        url: "https://github.com/acme/hugecode/pull/18",
+        updatedAt: "2026-03-27T00:00:00.000Z",
+        createdAt: "2026-03-26T00:00:00.000Z",
+        body: "",
+        headRefName: "feature/review-context",
+        baseRefName: "main",
+        isDraft: false,
+        author: null,
+      },
+      gitRemoteUrl: "https://github.com/acme/hugecode.git",
+      githubSource: {
+        sourceRecordId: "source-18",
+        event: {
+          eventName: "pull_request_review_comment",
+          action: "created",
+        },
+        triggerMode: "pull_request_review_comment_command",
+        commandKind: "run",
+        headSha: "abc123def",
+        comment: {
+          commentId: 1801,
+          author: { login: "maintainer" },
+        },
+      },
+    });
+
+    expect(issueSource.githubSource).toEqual(
+      expect.objectContaining({
+        sourceRecordId: "source-12",
+        event: expect.objectContaining({
+          eventName: "issue_comment",
+          action: "created",
+          deliveryId: "delivery-12",
+        }),
+        ref: expect.objectContaining({
+          label: "Issue #12",
+          issueNumber: 12,
+          triggerMode: "issue_comment_command",
+          commandKind: "continue",
+        }),
+        comment: expect.objectContaining({
+          commentId: 1201,
+          url: "https://github.com/acme/hugecode/issues/12#issuecomment-1201",
+          author: { login: "reviewer" },
+        }),
+        launchHandshake: expect.objectContaining({
+          state: "prepared",
+        }),
+      })
+    );
+    expect(pullRequestSource.githubSource).toEqual(
+      expect.objectContaining({
+        sourceRecordId: "source-18",
+        ref: expect.objectContaining({
+          label: "PR #18",
+          pullRequestNumber: 18,
+          triggerMode: "pull_request_review_comment_command",
+          commandKind: "run",
+          headSha: "abc123def",
+        }),
+        comment: expect.objectContaining({
+          commentId: 1801,
+          author: { login: "maintainer" },
+        }),
       })
     );
   });

@@ -9,6 +9,18 @@ import type {
   GitHubPullRequestDiff,
 } from "../../../types";
 import { buildAgentTaskMissionBrief } from "./runtimeMissionDraftFacade";
+import {
+  buildGitHubIssueCommentCommandInstruction,
+  buildGitHubIssueInstruction,
+  buildGitHubPullRequestInstruction,
+  buildGitHubPullRequestReviewCommentInstruction,
+} from "./githubSourceLaunchInstructionShared";
+import {
+  buildGitHubIssueTaskSource,
+  buildGitHubPullRequestFollowUpTaskSource,
+  type GitHubTaskSourceCommentInput,
+  type GitHubTaskSourceProvenanceInput,
+} from "./runtimeTaskSourceFacade";
 
 export type RuntimeNormalizedSourceLaunchSummary = {
   title: string;
@@ -34,6 +46,27 @@ export type GitHubPullRequestFollowUpSourceLaunchInput = SharedSourceLaunchField
   >;
   diffs?: GitHubPullRequestDiff[] | null;
   comments?: GitHubPullRequestComment[] | null;
+};
+
+export type GitHubIssueCommentCommandSourceLaunchInput = SharedSourceLaunchFields & {
+  issue: Pick<GitHubIssue, "number" | "title" | "url" | "body" | "author" | "labels">;
+  event: GitHubTaskSourceProvenanceInput["event"];
+  command: Omit<GitHubTaskSourceProvenanceInput, "event"> & {
+    comment?: GitHubTaskSourceCommentInput | null;
+  };
+};
+
+export type GitHubPullRequestReviewCommentCommandSourceLaunchInput = SharedSourceLaunchFields & {
+  pullRequest: Pick<
+    GitHubPullRequest,
+    "number" | "title" | "url" | "body" | "headRefName" | "baseRefName" | "isDraft" | "author"
+  >;
+  diffs?: GitHubPullRequestDiff[] | null;
+  comments?: GitHubPullRequestComment[] | null;
+  event: GitHubTaskSourceProvenanceInput["event"];
+  command: Omit<GitHubTaskSourceProvenanceInput, "event"> & {
+    comment?: GitHubTaskSourceCommentInput | null;
+  };
 };
 
 export type GitHubDiscussionSourceLaunchInput = SharedSourceLaunchFields & {
@@ -134,6 +167,7 @@ function buildSourceTaskSource(input: {
   pullRequestNumber?: number | null;
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
+  githubSource?: AgentTaskSourceSummary["githubSource"];
 }): AgentTaskSourceSummary {
   const sourceTaskId = summarizeSourceId(input.externalId, input.sourceTaskId);
   const sourceRunId = summarizeSourceId(input.externalId, input.sourceRunId);
@@ -153,6 +187,7 @@ function buildSourceTaskSource(input: {
     requestId: null,
     sourceTaskId,
     sourceRunId,
+    githubSource: input.githubSource ?? null,
   };
 }
 
@@ -170,6 +205,7 @@ function buildSourceLaunchSummary(input: {
   preferredBackendIds?: string[] | null;
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
+  taskSource?: AgentTaskSourceSummary;
 }): RuntimeNormalizedSourceLaunchSummary {
   const title = readOptionalText(input.title) ?? input.label;
   const preferredBackendIds = normalizeOptionalTextList(input.preferredBackendIds);
@@ -181,90 +217,35 @@ function buildSourceLaunchSummary(input: {
       accessMode: null,
       preferredBackendIds,
     }),
-    taskSource: buildSourceTaskSource({
-      kind: input.kind,
-      label: input.label,
-      title,
-      reference: input.reference,
-      url: input.url,
-      externalId: input.externalId,
-      canonicalUrl: input.canonicalUrl,
-      issueNumber: input.issueNumber,
-      pullRequestNumber: input.pullRequestNumber,
-      sourceTaskId: input.sourceTaskId,
-      sourceRunId: input.sourceRunId,
-    }),
+    taskSource:
+      input.taskSource ??
+      buildSourceTaskSource({
+        kind: input.kind,
+        label: input.label,
+        title,
+        reference: input.reference,
+        url: input.url,
+        externalId: input.externalId,
+        canonicalUrl: input.canonicalUrl,
+        issueNumber: input.issueNumber,
+        pullRequestNumber: input.pullRequestNumber,
+        sourceTaskId: input.sourceTaskId,
+        sourceRunId: input.sourceRunId,
+      }),
   };
-}
-
-function summarizeGitHubPullRequestComments(
-  comments: GitHubPullRequestComment[] | null | undefined
-): string[] {
-  if (!Array.isArray(comments)) {
-    return [];
-  }
-  const summary: string[] = [];
-  for (const comment of comments) {
-    const body = readOptionalText(comment.body);
-    if (!body) {
-      continue;
-    }
-    const author = readOptionalText(comment.author?.login);
-    summary.push(author ? `@${author}: ${body}` : body);
-    if (summary.length >= 3) {
-      break;
-    }
-  }
-  return summary;
-}
-
-function summarizeGitHubPullRequestDiffs(
-  diffs: GitHubPullRequestDiff[] | null | undefined
-): string[] {
-  if (!Array.isArray(diffs)) {
-    return [];
-  }
-  const seen = new Set<string>();
-  const paths: string[] = [];
-  for (const diff of diffs) {
-    const path = readOptionalText(diff.path);
-    if (!path || seen.has(path)) {
-      continue;
-    }
-    seen.add(path);
-    paths.push(path);
-    if (paths.length >= 8) {
-      break;
-    }
-  }
-  return paths;
 }
 
 export function normalizeGitHubIssueSourceLaunchInput(
   input: GitHubIssueSourceLaunchInput
 ): RuntimeNormalizedSourceLaunchSummary {
   const title = readOptionalText(input.issue.title) ?? `GitHub issue #${input.issue.number}`;
-  const author = readOptionalText(input.issue.author?.login);
-  const labels = normalizeOptionalTextList(input.issue.labels);
-  const body = readOptionalText(input.issue.body);
-  const lines = [`GitHub issue #${input.issue.number}: ${title}`, `URL: ${input.issue.url}`];
-  if (author) {
-    lines.push(`Author: @${author}`);
-  }
-  if (labels) {
-    lines.push(`Labels: ${labels.join(", ")}`);
-  }
-  lines.push("");
-  if (body) {
-    lines.push("Issue body:", body);
-  } else {
-    lines.push("Issue body unavailable.");
-  }
   return buildSourceLaunchSummary({
     kind: "github_issue",
     label: `GitHub issue #${input.issue.number}`,
     title,
-    instruction: lines.join("\n"),
+    instruction: buildGitHubIssueInstruction({
+      issue: input.issue,
+    }),
     reference: `#${input.issue.number}`,
     url: input.issue.url,
     externalId: input.issue.url,
@@ -276,54 +257,53 @@ export function normalizeGitHubIssueSourceLaunchInput(
   });
 }
 
+export function normalizeGitHubIssueCommentCommandSourceLaunchInput(
+  input: GitHubIssueCommentCommandSourceLaunchInput
+): RuntimeNormalizedSourceLaunchSummary {
+  const title = readOptionalText(input.issue.title) ?? `GitHub issue #${input.issue.number}`;
+  return buildSourceLaunchSummary({
+    kind: "github_issue",
+    label: `GitHub issue #${input.issue.number}`,
+    title,
+    instruction: buildGitHubIssueCommentCommandInstruction({
+      issue: input.issue,
+      event: input.event,
+      command: input.command,
+    }),
+    reference: `#${input.issue.number}`,
+    url: input.issue.url,
+    externalId: input.issue.url,
+    canonicalUrl: input.issue.url,
+    issueNumber: input.issue.number,
+    preferredBackendIds: input.preferredBackendIds,
+    sourceTaskId: input.sourceTaskId,
+    sourceRunId: input.sourceRunId,
+    taskSource: buildGitHubIssueTaskSource({
+      issue: input.issue as GitHubIssue,
+      sourceTaskId: input.sourceTaskId,
+      sourceRunId: input.sourceRunId,
+      githubSource: {
+        ...input.command,
+        event: input.event,
+      },
+    }),
+  });
+}
+
 export function normalizeGitHubPullRequestFollowUpSourceLaunchInput(
   input: GitHubPullRequestFollowUpSourceLaunchInput
 ): RuntimeNormalizedSourceLaunchSummary {
   const title =
     readOptionalText(input.pullRequest.title) ?? `GitHub PR follow-up #${input.pullRequest.number}`;
-  const lines = [
-    `GitHub PR follow-up #${input.pullRequest.number}: ${title}`,
-    `URL: ${input.pullRequest.url}`,
-    `Branches: ${input.pullRequest.baseRefName} <- ${input.pullRequest.headRefName}`,
-  ];
-  const author = readOptionalText(input.pullRequest.author?.login);
-  if (author) {
-    lines.push(`Author: @${author}`);
-  }
-  if (input.pullRequest.isDraft) {
-    lines.push("State: draft");
-  }
-  const body = readOptionalText(input.pullRequest.body);
-  lines.push("");
-  if (body) {
-    lines.push("Pull request body:", body);
-  } else {
-    lines.push("Pull request body unavailable.");
-  }
-
-  const changedFiles = summarizeGitHubPullRequestDiffs(input.diffs);
-  lines.push("");
-  if (changedFiles.length > 0) {
-    lines.push(`Changed files (${changedFiles.length}):`);
-    lines.push(...changedFiles.map((path) => `- ${path}`));
-  } else {
-    lines.push("Changed files unavailable.");
-  }
-
-  const discussionNotes = summarizeGitHubPullRequestComments(input.comments);
-  lines.push("");
-  if (discussionNotes.length > 0) {
-    lines.push("Discussion notes:");
-    lines.push(...discussionNotes.map((note) => `- ${note}`));
-  } else {
-    lines.push("Discussion notes unavailable.");
-  }
-
   return buildSourceLaunchSummary({
     kind: "github_pr_followup",
     label: `GitHub PR follow-up #${input.pullRequest.number}`,
     title,
-    instruction: lines.join("\n"),
+    instruction: buildGitHubPullRequestInstruction({
+      pullRequest: input.pullRequest,
+      diffs: input.diffs,
+      comments: input.comments,
+    }),
     reference: `#${input.pullRequest.number}`,
     url: input.pullRequest.url,
     externalId: input.pullRequest.url,
@@ -332,6 +312,43 @@ export function normalizeGitHubPullRequestFollowUpSourceLaunchInput(
     preferredBackendIds: input.preferredBackendIds,
     sourceTaskId: input.sourceTaskId,
     sourceRunId: input.sourceRunId,
+  });
+}
+
+export function normalizeGitHubPullRequestReviewCommentCommandSourceLaunchInput(
+  input: GitHubPullRequestReviewCommentCommandSourceLaunchInput
+): RuntimeNormalizedSourceLaunchSummary {
+  const title =
+    readOptionalText(input.pullRequest.title) ?? `GitHub PR follow-up #${input.pullRequest.number}`;
+
+  return buildSourceLaunchSummary({
+    kind: "github_pr_followup",
+    label: `GitHub PR follow-up #${input.pullRequest.number}`,
+    title,
+    instruction: buildGitHubPullRequestReviewCommentInstruction({
+      pullRequest: input.pullRequest,
+      diffs: input.diffs,
+      comments: input.comments,
+      event: input.event,
+      command: input.command,
+    }),
+    reference: `#${input.pullRequest.number}`,
+    url: input.pullRequest.url,
+    externalId: input.pullRequest.url,
+    canonicalUrl: input.pullRequest.url,
+    pullRequestNumber: input.pullRequest.number,
+    preferredBackendIds: input.preferredBackendIds,
+    sourceTaskId: input.sourceTaskId,
+    sourceRunId: input.sourceRunId,
+    taskSource: buildGitHubPullRequestFollowUpTaskSource({
+      pullRequest: input.pullRequest as GitHubPullRequest,
+      sourceTaskId: input.sourceTaskId,
+      sourceRunId: input.sourceRunId,
+      githubSource: {
+        ...input.command,
+        event: input.event,
+      },
+    }),
   });
 }
 

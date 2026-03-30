@@ -1,10 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  assertGovernedGitHubLaunchReady,
-  buildGovernedGitHubIssueLaunchRequest,
-  buildGovernedGitHubPullRequestLaunchRequest,
-  launchGovernedGitHubRun,
-} from "../../../../application/runtime/facades/githubSourceGovernedLaunch";
 import { useRuntimeWorkspaceExecutionPolicy } from "../../../../application/runtime/facades/runtimeWorkspaceExecutionPolicyFacade";
 import {
   applyReviewAutofix,
@@ -27,12 +21,23 @@ import type { ReviewPackSelectionRequest } from "../../../review/utils/reviewPac
 import { launchReviewInterventionDraft } from "../reviewInterventionLauncher";
 import type { MainAppLayoutGitReviewBridgeDomainInput } from "./types";
 
+type GitHubSourceGovernedLaunchModule =
+  typeof import("../../../../application/runtime/facades/githubSourceGovernedLaunch");
+
 type ReviewInterventionBackendOption = {
   value: string;
   label: string;
 };
 
 type ReviewInterventionLaunchAck = Awaited<ReturnType<typeof launchReviewInterventionDraft>>;
+
+type GovernedGitHubLaunchRequest =
+  | ReturnType<GitHubSourceGovernedLaunchModule["buildGovernedGitHubIssueLaunchRequest"]>
+  | ReturnType<GitHubSourceGovernedLaunchModule["buildGovernedGitHubPullRequestLaunchRequest"]>;
+
+async function loadGitHubSourceGovernedLaunch() {
+  return import("../../../../application/runtime/facades/githubSourceGovernedLaunch");
+}
 
 export function resolveReviewInterventionFollowUpSelection(input: {
   workspaceId: string;
@@ -121,7 +126,12 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
       gitHubPanelState,
       gitCommitState,
     },
-    actions: { onStartTaskFromGitHubIssue, onStartTaskFromGitHubPullRequest },
+    actions: {
+      onStartTaskFromGitHubIssue,
+      onStartTaskFromGitHubIssueFollowUp,
+      onStartTaskFromGitHubPullRequest,
+      onStartTaskFromGitHubPullRequestReviewFollowUp,
+    },
     reviewPackControllerReady: onReviewPackControllerReady = null,
   } = input;
 
@@ -316,7 +326,8 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
 
   const handleDelegateGitHubIssue = useCallback(
     async (issue: (typeof gitHubPanelState.gitIssues)[number]) => {
-      if (!activeWorkspace) {
+      const workspace = activeWorkspace;
+      if (!workspace) {
         pushErrorToast({
           title: "No active workspace",
           message: "Select a workspace before delegating GitHub work.",
@@ -324,27 +335,28 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
         return;
       }
       try {
-        assertGovernedGitHubLaunchReady({
+        const githubLaunch = await loadGitHubSourceGovernedLaunch();
+        githubLaunch.assertGovernedGitHubLaunchReady({
           policyStatus: activeRepositoryExecutionContractStatus,
           policyError: activeRepositoryExecutionContractError,
         });
-        const issueDetail =
-          (await getGitHubIssueDetails(activeWorkspace.id, issue.number)) ?? issue;
-        const { launch, request } = buildGovernedGitHubIssueLaunchRequest({
-          issue: issueDetail,
-          workspace: {
-            workspaceId: activeWorkspace.id,
-            workspaceRoot: activeWorkspace.path,
-            gitRemoteUrl,
-          },
-          options: {
-            repositoryExecutionContract: activeRepositoryExecutionContract ?? null,
-            preferredBackendIds: defaultRemoteExecutionBackendId
-              ? [defaultRemoteExecutionBackendId]
-              : undefined,
-          },
-        });
-        await launchGovernedGitHubRun({
+        const issueDetail = (await getGitHubIssueDetails(workspace.id, issue.number)) ?? issue;
+        const { launch, request }: GovernedGitHubLaunchRequest =
+          githubLaunch.buildGovernedGitHubIssueLaunchRequest({
+            issue: issueDetail,
+            workspace: {
+              workspaceId: workspace.id,
+              workspaceRoot: workspace.path,
+              gitRemoteUrl,
+            },
+            options: {
+              repositoryExecutionContract: activeRepositoryExecutionContract ?? null,
+              preferredBackendIds: defaultRemoteExecutionBackendId
+                ? [defaultRemoteExecutionBackendId]
+                : undefined,
+            },
+          });
+        await githubLaunch.launchGovernedGitHubRun({
           launch,
           request,
           onRefresh: homeState.refreshMissionControl,
@@ -366,14 +378,14 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
       gitRemoteUrl,
       gitHubPanelState.gitIssues,
       homeState.refreshMissionControl,
-      reviewRuntimeControl,
       setActiveTab,
     ]
   );
 
   const handleDelegateGitHubPullRequest = useCallback(
     async (pullRequest: (typeof gitHubPanelState.gitPullRequests)[number]) => {
-      if (!activeWorkspace) {
+      const workspace = activeWorkspace;
+      if (!workspace) {
         pushErrorToast({
           title: "No active workspace",
           message: "Select a workspace before delegating GitHub work.",
@@ -381,31 +393,33 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
         return;
       }
       try {
-        assertGovernedGitHubLaunchReady({
+        const githubLaunch = await loadGitHubSourceGovernedLaunch();
+        githubLaunch.assertGovernedGitHubLaunchReady({
           policyStatus: activeRepositoryExecutionContractStatus,
           policyError: activeRepositoryExecutionContractError,
         });
         const [diffs, comments] = await Promise.all([
-          getGitHubPullRequestDiff(activeWorkspace.id, pullRequest.number),
-          getGitHubPullRequestComments(activeWorkspace.id, pullRequest.number),
+          getGitHubPullRequestDiff(workspace.id, pullRequest.number),
+          getGitHubPullRequestComments(workspace.id, pullRequest.number),
         ]);
-        const { launch, request } = buildGovernedGitHubPullRequestLaunchRequest({
-          pullRequest,
-          diffs,
-          comments,
-          workspace: {
-            workspaceId: activeWorkspace.id,
-            workspaceRoot: activeWorkspace.path,
-            gitRemoteUrl,
-          },
-          options: {
-            repositoryExecutionContract: activeRepositoryExecutionContract ?? null,
-            preferredBackendIds: defaultRemoteExecutionBackendId
-              ? [defaultRemoteExecutionBackendId]
-              : undefined,
-          },
-        });
-        await launchGovernedGitHubRun({
+        const { launch, request }: GovernedGitHubLaunchRequest =
+          githubLaunch.buildGovernedGitHubPullRequestLaunchRequest({
+            pullRequest,
+            diffs,
+            comments,
+            workspace: {
+              workspaceId: workspace.id,
+              workspaceRoot: workspace.path,
+              gitRemoteUrl,
+            },
+            options: {
+              repositoryExecutionContract: activeRepositoryExecutionContract ?? null,
+              preferredBackendIds: defaultRemoteExecutionBackendId
+                ? [defaultRemoteExecutionBackendId]
+                : undefined,
+            },
+          });
+        await githubLaunch.launchGovernedGitHubRun({
           launch,
           request,
           onRefresh: homeState.refreshMissionControl,
@@ -427,7 +441,6 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
       gitRemoteUrl,
       gitHubPanelState.gitPullRequests,
       homeState.refreshMissionControl,
-      reviewRuntimeControl,
       setActiveTab,
     ]
   );
@@ -475,12 +488,14 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
     gitIssuesLoading: gitHubPanelState.gitIssuesLoading,
     gitIssuesError: gitHubPanelState.gitIssuesError,
     onStartTaskFromGitHubIssue,
+    onStartTaskFromGitHubIssueFollowUp,
     onDelegateGitHubIssue: handleDelegateGitHubIssue,
     gitPullRequests: gitHubPanelState.gitPullRequests,
     gitPullRequestsTotal: gitHubPanelState.gitPullRequestsTotal,
     gitPullRequestsLoading: gitHubPanelState.gitPullRequestsLoading,
     gitPullRequestsError: gitHubPanelState.gitPullRequestsError,
     onStartTaskFromGitHubPullRequest,
+    onStartTaskFromGitHubPullRequestReviewFollowUp,
     onDelegateGitHubPullRequest: handleDelegateGitHubPullRequest,
     selectedPullRequestCommentsLoading: gitHubPanelState.gitPullRequestCommentsLoading,
     selectedPullRequestCommentsError: gitHubPanelState.gitPullRequestCommentsError,
