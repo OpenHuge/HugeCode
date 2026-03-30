@@ -358,7 +358,6 @@ export function SettingsAutomationSection({
   const readOnlyReason = operability.readOnlyReason;
   const unavailableReason = operability.unavailableReason;
   const operabilityNotice = resolveSettingsServerOperabilityNotice(operability);
-  const summaryBlockedReason = unavailableReason ?? error;
   const mutationBlockedReason = unavailableReason ?? readOnlyReason ?? error;
   const emptyStateMessage = unavailableReason
     ? "No runtime-confirmed schedules are available because this surface is unavailable."
