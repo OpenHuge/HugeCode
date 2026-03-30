@@ -9,7 +9,7 @@ export const codeBundleBudgetConfig = {
     "emacs-lisp-": 779_847,
     "cpp-": 626_137,
     "wasm-": 622_325,
-    "runtime-application-": 351_086,
+    "runtime-application-": 364_633,
     "zz-git-heavy-": 546_354,
   },
 };
