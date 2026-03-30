@@ -531,7 +531,12 @@ export function WorkspaceHomeAgentControl({
         testId="workspace-home-runtime-section"
       >
         <Suspense fallback={null}>
-          <LazyWorkspaceHomeAgentRuntimeOrchestration workspaceId={workspace.id} />
+          <LazyWorkspaceHomeAgentRuntimeOrchestration
+            workspaceId={workspace.id}
+            intent={intent}
+            legacyCachedIntent={legacyCachedIntent}
+            legacyCacheCorrupted={legacyCacheCorrupted}
+          />
         </Suspense>
       </WorkspaceHomeAgentLazySection>
       <WorkspaceHomeAgentLazySection
