@@ -60,15 +60,30 @@ async function commitChange(tempRoot: string, relativePath: string) {
   runGit(tempRoot, ["commit", "-m", `change ${relativePath}`]);
 }
 
-function runClassifier(tempRoot: string) {
-  return spawnSync(
+function runClassifier(
+  tempRoot: string,
+  { useGitHubOutput = false }: { useGitHubOutput?: boolean } = {}
+) {
+  const outputPath = path.join(tempRoot, ".classifier-output");
+  const env = { ...process.env };
+
+  if (useGitHubOutput) {
+    env.GITHUB_OUTPUT = outputPath;
+  } else {
+    delete env.GITHUB_OUTPUT;
+  }
+
+  const result = spawnSync(
     process.execPath,
     [path.join(tempRoot, "scripts", "classify-electron-beta-scope.mjs")],
     {
       cwd: tempRoot,
       encoding: "utf8",
+      env,
     }
   );
+
+  return { outputPath, result };
 }
 
 function parseOutput(stdout: string) {
@@ -94,7 +109,7 @@ describe("classify-electron-beta-scope", () => {
     const tempRoot = await createFixtureRepo();
     await commitChange(tempRoot, ".github/workflows/electron-beta.yml");
 
-    const result = runClassifier(tempRoot);
+    const { result } = runClassifier(tempRoot);
 
     expect(result.status).toBe(0);
     expect(parseOutput(result.stdout)).toEqual({
@@ -107,7 +122,7 @@ describe("classify-electron-beta-scope", () => {
     const tempRoot = await createFixtureRepo();
     await commitChange(tempRoot, "apps/code-electron/src/main.ts");
 
-    const result = runClassifier(tempRoot);
+    const { result } = runClassifier(tempRoot);
 
     expect(result.status).toBe(0);
     expect(parseOutput(result.stdout)).toEqual({
@@ -120,12 +135,26 @@ describe("classify-electron-beta-scope", () => {
     const tempRoot = await createFixtureRepo();
     await commitChange(tempRoot, "scripts/classify-electron-beta-scope.mjs");
 
-    const result = runClassifier(tempRoot);
+    const { result } = runClassifier(tempRoot);
 
     expect(result.status).toBe(0);
     expect(parseOutput(result.stdout)).toEqual({
       electron_package_required: "false",
       electron_verify_required: "false",
+    });
+  });
+
+  it("writes GitHub Actions outputs to GITHUB_OUTPUT when present", async () => {
+    const tempRoot = await createFixtureRepo();
+    await commitChange(tempRoot, "apps/code-electron/src/main.ts");
+
+    const { outputPath, result } = runClassifier(tempRoot, { useGitHubOutput: true });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("");
+    expect(parseOutput(await readFile(outputPath, "utf8"))).toEqual({
+      electron_package_required: "true",
+      electron_verify_required: "true",
     });
   });
 });
