@@ -8,13 +8,15 @@ import * as runtimeJobsPort from "../ports/tauriRuntimeJobs";
 import { parseRepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import {
   assertGovernedGitHubLaunchReady,
-  buildGovernedGitHubIssueCommentCommandLaunchRequest,
   buildGovernedGitHubIssueLaunchRequest,
   buildGovernedGitHubPullRequestLaunchRequest,
-  buildGovernedGitHubPullRequestReviewCommentLaunchRequest,
   evaluateGovernedGitHubLaunchPreflight,
   launchGovernedGitHubRun,
 } from "./githubSourceGovernedLaunch";
+import {
+  buildGovernedGitHubIssueCommentCommandLaunchRequest,
+  buildGovernedGitHubPullRequestReviewCommentLaunchRequest,
+} from "./githubCommentSourceGovernedLaunch";
 
 function createContract() {
   return parseRepositoryExecutionContract(

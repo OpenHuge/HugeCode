@@ -6,12 +6,14 @@ import { useGitHubRuntimeTaskLaunchers } from "./useGitHubRuntimeTaskLaunchers";
 import { useRuntimeWorkspaceExecutionPolicy } from "../../../application/runtime/facades/runtimeWorkspaceExecutionPolicyFacade";
 import {
   assertGovernedGitHubLaunchReady,
-  buildGovernedGitHubIssueCommentCommandLaunchRequest,
   buildGovernedGitHubIssueLaunchRequest,
   buildGovernedGitHubPullRequestLaunchRequest,
-  buildGovernedGitHubPullRequestReviewCommentLaunchRequest,
   launchGovernedGitHubRun,
 } from "../../../application/runtime/facades/githubSourceGovernedLaunch";
+import {
+  buildGovernedGitHubIssueCommentCommandLaunchRequest,
+  buildGovernedGitHubPullRequestReviewCommentLaunchRequest,
+} from "../../../application/runtime/facades/githubCommentSourceGovernedLaunch";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import { parseRepositoryExecutionContract } from "../../../application/runtime/facades/runtimeRepositoryExecutionContract";
 import type { GitHubIssue, GitHubPullRequest, GitHubPullRequestComment } from "../../../types";
@@ -22,11 +24,14 @@ vi.mock("../../../application/runtime/facades/runtimeWorkspaceExecutionPolicyFac
 
 vi.mock("../../../application/runtime/facades/githubSourceGovernedLaunch", () => ({
   assertGovernedGitHubLaunchReady: vi.fn(),
-  buildGovernedGitHubIssueCommentCommandLaunchRequest: vi.fn(),
   buildGovernedGitHubIssueLaunchRequest: vi.fn(),
   buildGovernedGitHubPullRequestLaunchRequest: vi.fn(),
-  buildGovernedGitHubPullRequestReviewCommentLaunchRequest: vi.fn(),
   launchGovernedGitHubRun: vi.fn(),
+}));
+
+vi.mock("../../../application/runtime/facades/githubCommentSourceGovernedLaunch", () => ({
+  buildGovernedGitHubIssueCommentCommandLaunchRequest: vi.fn(),
+  buildGovernedGitHubPullRequestReviewCommentLaunchRequest: vi.fn(),
 }));
 
 vi.mock("../../../application/runtime/ports/toasts", () => ({

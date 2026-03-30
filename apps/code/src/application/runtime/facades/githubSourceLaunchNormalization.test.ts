@@ -7,10 +7,12 @@ import type {
 } from "../../../types";
 import {
   normalizeGitHubIssueLaunchInput,
-  normalizeGitHubIssueCommentCommandLaunchInput,
   normalizeGitHubPullRequestFollowUpLaunchInput,
-  normalizeGitHubPullRequestReviewCommentCommandLaunchInput,
 } from "./githubSourceLaunchNormalization";
+import {
+  normalizeGitHubIssueCommentCommandLaunchInput,
+  normalizeGitHubPullRequestReviewCommentCommandLaunchInput,
+} from "./githubCommentSourceLaunchNormalization";
 
 describe("githubSourceLaunchNormalization", () => {
   it("normalizes GitHub issue launch inputs with issue detail context and repo defaults", () => {

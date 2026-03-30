@@ -10,6 +10,12 @@ import type {
 } from "../../../types";
 import { buildAgentTaskMissionBrief } from "./runtimeMissionDraftFacade";
 import {
+  buildGitHubIssueCommentCommandInstruction,
+  buildGitHubIssueInstruction,
+  buildGitHubPullRequestInstruction,
+  buildGitHubPullRequestReviewCommentInstruction,
+} from "./githubSourceLaunchInstructionShared";
+import {
   buildGitHubIssueTaskSource,
   buildGitHubPullRequestFollowUpTaskSource,
   type GitHubTaskSourceCommentInput,
@@ -229,155 +235,17 @@ function buildSourceLaunchSummary(input: {
   };
 }
 
-function readCommentId(comment: GitHubTaskSourceCommentInput | null | undefined): number | null {
-  if (typeof comment?.commentId === "number") {
-    return comment.commentId;
-  }
-  return typeof comment?.id === "number" ? comment.id : null;
-}
-
-function buildGitHubEventLabel(event: GitHubTaskSourceProvenanceInput["event"]): string {
-  return readOptionalText(event.action)
-    ? `${event.eventName}.${readOptionalText(event.action)}`
-    : event.eventName;
-}
-
-function buildIssueCommentCommandContextLines(input: {
-  event: GitHubTaskSourceProvenanceInput["event"];
-  command: GitHubIssueCommentCommandSourceLaunchInput["command"];
-}): string[] {
-  const lines = ["", "Comment command context:"];
-  lines.push(`GitHub event: ${buildGitHubEventLabel(input.event)}`);
-  const triggerMode = readOptionalText(input.command.triggerMode);
-  if (triggerMode) {
-    lines.push(`Trigger mode: ${triggerMode}`);
-  }
-  const commandKind = readOptionalText(input.command.commandKind);
-  if (commandKind) {
-    lines.push(`Command: ${commandKind}`);
-  }
-  const commentAuthor = readOptionalText(input.command.comment?.author?.login);
-  if (commentAuthor) {
-    lines.push(`Comment author: @${commentAuthor}`);
-  }
-  const commentBody = readOptionalText(input.command.comment?.body);
-  const commentUrl = readOptionalText(input.command.comment?.url);
-  const commentId = readCommentId(input.command.comment);
-  if (commentBody) {
-    lines.push(`Command comment summary: ${commentBody}`);
-  } else if (commentId !== null || commentUrl || commentAuthor) {
-    lines.push("Command comment summary unavailable.");
-  } else {
-    lines.push("Command comment context unavailable.");
-  }
-  lines.push(
-    "Follow-up defaults: Stay anchored to the linked GitHub command, issue, and repository evidence."
-  );
-  return lines;
-}
-
-function buildReviewCommentCommandContextLines(input: {
-  event: GitHubTaskSourceProvenanceInput["event"];
-  command: GitHubPullRequestReviewCommentCommandSourceLaunchInput["command"];
-}): string[] {
-  const lines = ["", "Review comment context:"];
-  lines.push(`GitHub event: ${buildGitHubEventLabel(input.event)}`);
-  const triggerMode = readOptionalText(input.command.triggerMode);
-  if (triggerMode) {
-    lines.push(`Trigger mode: ${triggerMode}`);
-  }
-  const commandKind = readOptionalText(input.command.commandKind);
-  if (commandKind) {
-    lines.push(`Command: ${commandKind}`);
-  }
-  const commentAuthor = readOptionalText(input.command.comment?.author?.login);
-  if (commentAuthor) {
-    lines.push(`Review comment author: @${commentAuthor}`);
-  }
-  const commentBody = readOptionalText(input.command.comment?.body);
-  const commentUrl = readOptionalText(input.command.comment?.url);
-  const commentId = readCommentId(input.command.comment);
-  if (commentBody) {
-    lines.push(`Review comment summary: ${commentBody}`);
-  } else if (commentId !== null || commentUrl || commentAuthor) {
-    lines.push("Review comment summary unavailable.");
-  } else {
-    lines.push("Review comment context unavailable.");
-  }
-  lines.push(
-    "Follow-up defaults: Stay anchored to the linked GitHub review command, pull request, and repository evidence."
-  );
-  return lines;
-}
-
-function summarizeGitHubPullRequestComments(
-  comments: GitHubPullRequestComment[] | null | undefined
-): string[] {
-  if (!Array.isArray(comments)) {
-    return [];
-  }
-  const summary: string[] = [];
-  for (const comment of comments) {
-    const body = readOptionalText(comment.body);
-    if (!body) {
-      continue;
-    }
-    const author = readOptionalText(comment.author?.login);
-    summary.push(author ? `@${author}: ${body}` : body);
-    if (summary.length >= 3) {
-      break;
-    }
-  }
-  return summary;
-}
-
-function summarizeGitHubPullRequestDiffs(
-  diffs: GitHubPullRequestDiff[] | null | undefined
-): string[] {
-  if (!Array.isArray(diffs)) {
-    return [];
-  }
-  const seen = new Set<string>();
-  const paths: string[] = [];
-  for (const diff of diffs) {
-    const path = readOptionalText(diff.path);
-    if (!path || seen.has(path)) {
-      continue;
-    }
-    seen.add(path);
-    paths.push(path);
-    if (paths.length >= 8) {
-      break;
-    }
-  }
-  return paths;
-}
-
 export function normalizeGitHubIssueSourceLaunchInput(
   input: GitHubIssueSourceLaunchInput
 ): RuntimeNormalizedSourceLaunchSummary {
   const title = readOptionalText(input.issue.title) ?? `GitHub issue #${input.issue.number}`;
-  const author = readOptionalText(input.issue.author?.login);
-  const labels = normalizeOptionalTextList(input.issue.labels);
-  const body = readOptionalText(input.issue.body);
-  const lines = [`GitHub issue #${input.issue.number}: ${title}`, `URL: ${input.issue.url}`];
-  if (author) {
-    lines.push(`Author: @${author}`);
-  }
-  if (labels) {
-    lines.push(`Labels: ${labels.join(", ")}`);
-  }
-  lines.push("");
-  if (body) {
-    lines.push("Issue body:", body);
-  } else {
-    lines.push("Issue body unavailable.");
-  }
   return buildSourceLaunchSummary({
     kind: "github_issue",
     label: `GitHub issue #${input.issue.number}`,
     title,
-    instruction: lines.join("\n"),
+    instruction: buildGitHubIssueInstruction({
+      issue: input.issue,
+    }),
     reference: `#${input.issue.number}`,
     url: input.issue.url,
     externalId: input.issue.url,
@@ -393,31 +261,15 @@ export function normalizeGitHubIssueCommentCommandSourceLaunchInput(
   input: GitHubIssueCommentCommandSourceLaunchInput
 ): RuntimeNormalizedSourceLaunchSummary {
   const title = readOptionalText(input.issue.title) ?? `GitHub issue #${input.issue.number}`;
-  const author = readOptionalText(input.issue.author?.login);
-  const labels = normalizeOptionalTextList(input.issue.labels);
-  const body = readOptionalText(input.issue.body);
-  const lines = [
-    `GitHub issue follow-up from issue comment #${input.issue.number}: ${title}`,
-    `URL: ${input.issue.url}`,
-  ];
-  if (author) {
-    lines.push(`Author: @${author}`);
-  }
-  if (labels) {
-    lines.push(`Labels: ${labels.join(", ")}`);
-  }
-  lines.push("");
-  if (body) {
-    lines.push("Issue body:", body);
-  } else {
-    lines.push("Issue body unavailable.");
-  }
-  lines.push(...buildIssueCommentCommandContextLines(input));
   return buildSourceLaunchSummary({
     kind: "github_issue",
     label: `GitHub issue #${input.issue.number}`,
     title,
-    instruction: lines.join("\n"),
+    instruction: buildGitHubIssueCommentCommandInstruction({
+      issue: input.issue,
+      event: input.event,
+      command: input.command,
+    }),
     reference: `#${input.issue.number}`,
     url: input.issue.url,
     externalId: input.issue.url,
@@ -443,49 +295,15 @@ export function normalizeGitHubPullRequestFollowUpSourceLaunchInput(
 ): RuntimeNormalizedSourceLaunchSummary {
   const title =
     readOptionalText(input.pullRequest.title) ?? `GitHub PR follow-up #${input.pullRequest.number}`;
-  const lines = [
-    `GitHub PR follow-up #${input.pullRequest.number}: ${title}`,
-    `URL: ${input.pullRequest.url}`,
-    `Branches: ${input.pullRequest.baseRefName} <- ${input.pullRequest.headRefName}`,
-  ];
-  const author = readOptionalText(input.pullRequest.author?.login);
-  if (author) {
-    lines.push(`Author: @${author}`);
-  }
-  if (input.pullRequest.isDraft) {
-    lines.push("State: draft");
-  }
-  const body = readOptionalText(input.pullRequest.body);
-  lines.push("");
-  if (body) {
-    lines.push("Pull request body:", body);
-  } else {
-    lines.push("Pull request body unavailable.");
-  }
-
-  const changedFiles = summarizeGitHubPullRequestDiffs(input.diffs);
-  lines.push("");
-  if (changedFiles.length > 0) {
-    lines.push(`Changed files (${changedFiles.length}):`);
-    lines.push(...changedFiles.map((path) => `- ${path}`));
-  } else {
-    lines.push("Changed files unavailable.");
-  }
-
-  const discussionNotes = summarizeGitHubPullRequestComments(input.comments);
-  lines.push("");
-  if (discussionNotes.length > 0) {
-    lines.push("Discussion notes:");
-    lines.push(...discussionNotes.map((note) => `- ${note}`));
-  } else {
-    lines.push("Discussion notes unavailable.");
-  }
-
   return buildSourceLaunchSummary({
     kind: "github_pr_followup",
     label: `GitHub PR follow-up #${input.pullRequest.number}`,
     title,
-    instruction: lines.join("\n"),
+    instruction: buildGitHubPullRequestInstruction({
+      pullRequest: input.pullRequest,
+      diffs: input.diffs,
+      comments: input.comments,
+    }),
     reference: `#${input.pullRequest.number}`,
     url: input.pullRequest.url,
     externalId: input.pullRequest.url,
@@ -502,51 +320,18 @@ export function normalizeGitHubPullRequestReviewCommentCommandSourceLaunchInput(
 ): RuntimeNormalizedSourceLaunchSummary {
   const title =
     readOptionalText(input.pullRequest.title) ?? `GitHub PR follow-up #${input.pullRequest.number}`;
-  const lines = [
-    `GitHub PR review-comment follow-up #${input.pullRequest.number}: ${title}`,
-    `URL: ${input.pullRequest.url}`,
-    `Branches: ${input.pullRequest.baseRefName} <- ${input.pullRequest.headRefName}`,
-  ];
-  const author = readOptionalText(input.pullRequest.author?.login);
-  if (author) {
-    lines.push(`Author: @${author}`);
-  }
-  if (input.pullRequest.isDraft) {
-    lines.push("State: draft");
-  }
-  const body = readOptionalText(input.pullRequest.body);
-  lines.push("");
-  if (body) {
-    lines.push("Pull request body:", body);
-  } else {
-    lines.push("Pull request body unavailable.");
-  }
-
-  const changedFiles = summarizeGitHubPullRequestDiffs(input.diffs);
-  lines.push("");
-  if (changedFiles.length > 0) {
-    lines.push(`Changed files (${changedFiles.length}):`);
-    lines.push(...changedFiles.map((path) => `- ${path}`));
-  } else {
-    lines.push("Changed files unavailable.");
-  }
-
-  const discussionNotes = summarizeGitHubPullRequestComments(input.comments);
-  lines.push("");
-  if (discussionNotes.length > 0) {
-    lines.push("Discussion notes:");
-    lines.push(...discussionNotes.map((note) => `- ${note}`));
-  } else {
-    lines.push("Discussion notes unavailable.");
-  }
-
-  lines.push(...buildReviewCommentCommandContextLines(input));
 
   return buildSourceLaunchSummary({
     kind: "github_pr_followup",
     label: `GitHub PR follow-up #${input.pullRequest.number}`,
     title,
-    instruction: lines.join("\n"),
+    instruction: buildGitHubPullRequestReviewCommentInstruction({
+      pullRequest: input.pullRequest,
+      diffs: input.diffs,
+      comments: input.comments,
+      event: input.event,
+      command: input.command,
+    }),
     reference: `#${input.pullRequest.number}`,
     url: input.pullRequest.url,
     externalId: input.pullRequest.url,
