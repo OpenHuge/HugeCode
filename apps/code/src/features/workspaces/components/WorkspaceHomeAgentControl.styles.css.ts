@@ -220,3 +220,16 @@ export const actionButton = feature({
   fontSize: "var(--font-size-meta)",
   cursor: "pointer",
 });
+
+export const extractionPreview = feature({
+  borderRadius: "var(--ds-radius-sm)",
+  border: "1px solid var(--ds-border-muted)",
+  background: "color-mix(in srgb, var(--ds-surface-card-base) 88%, var(--ds-surface-muted) 12%)",
+  color: "var(--ds-text-strong)",
+  fontFamily: "var(--font-family-mono)",
+  fontSize: "var(--font-size-fine)",
+  lineHeight: "var(--line-height-150)",
+  padding: "8px 10px",
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+});

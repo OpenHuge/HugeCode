@@ -22,11 +22,13 @@ export type RuntimeBrowserReadinessSummary = {
   source: RuntimeBrowserReadinessSource;
   sourceLabel: string;
   extractionAvailable: boolean;
+  historyAvailable: boolean;
   localOnly: boolean;
   lastResult: DesktopBrowserExtractionResult | null;
   capabilities: {
     browserDebug: boolean;
     browserExtraction: boolean;
+    browserExtractionHistory: boolean;
     webMcp: boolean;
   };
 };
@@ -74,6 +76,7 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       source: "unavailable",
       sourceLabel: "Unavailable",
       extractionAvailable: false,
+      historyAvailable: false,
       localOnly: false,
       lastResult: buildPlaceholderResult({
         status: "failed",
@@ -83,6 +86,7 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       capabilities: {
         browserDebug: false,
         browserExtraction: false,
+        browserExtractionHistory: false,
         webMcp: false,
       },
     };
@@ -110,11 +114,13 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       source: "desktop_host_bridge",
       sourceLabel: "Desktop host bridge",
       extractionAvailable: true,
+      historyAvailable: hasBrowserExtractionHistoryCapability,
       localOnly: false,
       lastResult: null,
       capabilities: {
         browserDebug: hasBrowserDebugCapability,
         browserExtraction: true,
+        browserExtractionHistory: hasBrowserExtractionHistoryCapability,
         webMcp: hasWebMcpSupport,
       },
     };
@@ -132,11 +138,13 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       source: "partial_host_bridge",
       sourceLabel: "Partial desktop host bridge",
       extractionAvailable: false,
+      historyAvailable: true,
       localOnly: false,
       lastResult: null,
       capabilities: {
         browserDebug: hasBrowserDebugCapability,
         browserExtraction: false,
+        browserExtractionHistory: true,
         webMcp: hasWebMcpSupport,
       },
     };
@@ -154,6 +162,7 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       source: "local_placeholder",
       sourceLabel: "Local placeholder",
       extractionAvailable: false,
+      historyAvailable: false,
       localOnly: true,
       lastResult: buildPlaceholderResult({
         status: "empty",
@@ -164,6 +173,7 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       capabilities: {
         browserDebug: hasBrowserDebugCapability,
         browserExtraction: false,
+        browserExtractionHistory: false,
         webMcp: hasWebMcpSupport,
       },
     };
@@ -180,6 +190,7 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
     source: "unavailable",
     sourceLabel: "Unavailable",
     extractionAvailable: false,
+    historyAvailable: false,
     localOnly: false,
     lastResult: buildPlaceholderResult({
       status: "failed",
@@ -190,6 +201,7 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
     capabilities: {
       browserDebug: false,
       browserExtraction: false,
+      browserExtractionHistory: false,
       webMcp: false,
     },
   };
