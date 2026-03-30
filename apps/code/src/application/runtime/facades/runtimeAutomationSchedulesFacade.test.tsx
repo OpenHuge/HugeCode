@@ -40,6 +40,7 @@ describe("useRuntimeAutomationSchedulesFacade", () => {
       deleteEnabled: true,
       runNowEnabled: true,
       cancelRunEnabled: true,
+      unavailableReason: null,
       readOnlyReason: null,
     });
     listRuntimeAutomationSchedulesMock.mockResolvedValue([
@@ -72,6 +73,8 @@ describe("useRuntimeAutomationSchedulesFacade", () => {
       expect(result.current.automationSchedulesSnapshot).toHaveLength(1);
     });
 
+    expect(result.current.automationSchedulesCapabilityEnabled).toBe(true);
+    expect(result.current.automationSchedulesUnavailableReason).toBeNull();
     expect(result.current.automationSchedulesReadOnlyReason).toBeNull();
     expect(result.current.automationSchedulesCreateEnabled).toBe(true);
     expect(result.current.automationSchedulesUpdateEnabled).toBe(true);
@@ -94,7 +97,9 @@ describe("useRuntimeAutomationSchedulesFacade", () => {
     );
 
     await waitFor(() => {
-      expect(result.current.automationSchedulesLoading).toBe(false);
+      expect(result.current.automationSchedulesCapabilityEnabled).toBe(true);
+      expect(result.current.automationSchedulesSnapshot).toEqual([]);
+      expect(result.current.automationSchedulesUnavailableReason).toBeNull();
     });
 
     expect(result.current.automationSchedulesSnapshot).toEqual([]);
@@ -102,7 +107,7 @@ describe("useRuntimeAutomationSchedulesFacade", () => {
     expect(result.current.automationSchedulesReadOnlyReason).toBeNull();
   });
 
-  it("surfaces an explicit read-only reason when runtime schedule summaries are unavailable", async () => {
+  it("surfaces an explicit unavailable reason when runtime schedule summaries are unavailable", async () => {
     readRuntimeAutomationSchedulesAccessMock.mockResolvedValue({
       scheduleSurfaceEnabled: true,
       listEnabled: false,
@@ -111,7 +116,8 @@ describe("useRuntimeAutomationSchedulesFacade", () => {
       deleteEnabled: false,
       runNowEnabled: false,
       cancelRunEnabled: false,
-      readOnlyReason: "Runtime schedule summaries are unavailable in current runtime.",
+      unavailableReason: "Runtime schedule summaries are unavailable in current runtime.",
+      readOnlyReason: null,
     });
 
     const { result } = renderHook(() =>
@@ -121,17 +127,50 @@ describe("useRuntimeAutomationSchedulesFacade", () => {
     );
 
     await waitFor(() => {
-      expect(result.current.automationSchedulesReadOnlyReason).toBe(
+      expect(result.current.automationSchedulesUnavailableReason).toBe(
         "Runtime schedule summaries are unavailable in current runtime."
       );
     });
 
     expect(listRuntimeAutomationSchedulesMock).not.toHaveBeenCalled();
+    expect(result.current.automationSchedulesCapabilityEnabled).toBe(true);
     expect(result.current.automationSchedulesSnapshot).toEqual([]);
+    expect(result.current.automationSchedulesReadOnlyReason).toBeNull();
     expect(result.current.automationSchedulesCreateEnabled).toBe(false);
     expect(result.current.automationSchedulesUpdateEnabled).toBe(false);
     expect(result.current.automationSchedulesRunNowEnabled).toBe(false);
     expect(result.current.automationSchedulesCancelRunEnabled).toBe(false);
+  });
+
+  it("marks the surface unavailable when schedule capability is missing entirely", async () => {
+    readRuntimeAutomationSchedulesAccessMock.mockResolvedValue({
+      scheduleSurfaceEnabled: false,
+      listEnabled: false,
+      createEnabled: false,
+      updateEnabled: false,
+      deleteEnabled: false,
+      runNowEnabled: false,
+      cancelRunEnabled: false,
+      unavailableReason: "Runtime schedule control is unavailable in current runtime.",
+      readOnlyReason: null,
+    });
+
+    const { result } = renderHook(() =>
+      useRuntimeAutomationSchedulesFacade({
+        activeSection: "server",
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.automationSchedulesUnavailableReason).toBe(
+        "Runtime schedule control is unavailable in current runtime."
+      );
+    });
+
+    expect(result.current.automationSchedulesCapabilityEnabled).toBe(false);
+    expect(result.current.automationSchedulesSnapshot).toEqual([]);
+    expect(result.current.automationSchedulesReadOnlyReason).toBeNull();
+    expect(listRuntimeAutomationSchedulesMock).not.toHaveBeenCalled();
   });
 
   it("rejects update actions when runtime schedule mutation support is unavailable", async () => {
@@ -143,6 +182,7 @@ describe("useRuntimeAutomationSchedulesFacade", () => {
       deleteEnabled: false,
       runNowEnabled: true,
       cancelRunEnabled: true,
+      unavailableReason: null,
       readOnlyReason: "Some runtime schedule actions are unavailable in current runtime.",
     });
 
@@ -173,6 +213,7 @@ describe("useRuntimeAutomationSchedulesFacade", () => {
       deleteEnabled: true,
       runNowEnabled: false,
       cancelRunEnabled: false,
+      unavailableReason: null,
       readOnlyReason: "Some runtime schedule actions are unavailable in current runtime.",
     });
 
@@ -183,9 +224,12 @@ describe("useRuntimeAutomationSchedulesFacade", () => {
     );
 
     await waitFor(() => {
-      expect(result.current.automationSchedulesLoading).toBe(false);
+      expect(result.current.automationSchedulesReadOnlyReason).toBe(
+        "Some runtime schedule actions are unavailable in current runtime."
+      );
     });
 
+    expect(result.current.automationSchedulesUnavailableReason).toBeNull();
     await expect(
       result.current.runAutomationScheduleNow({
         scheduleId: "schedule-1",

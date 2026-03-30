@@ -10,6 +10,7 @@ import type {
   RemoteBackendProfile,
 } from "../../../../types";
 import { SettingsServerSection } from "./SettingsServerSection";
+import { createSettingsServerOperabilityState } from "./settings-server-section/shared";
 
 function createBootstrapPreview(): BackendPoolBootstrapPreview {
   return {
@@ -210,6 +211,11 @@ function createProps(
     onOrbitRunnerStop: vi.fn(),
     onOrbitRunnerStatus: vi.fn(),
     onMobileConnectTest: vi.fn(),
+    remoteProfilesOperability: createSettingsServerOperabilityState(),
+    transportModeOperability: createSettingsServerOperabilityState(),
+    gatewayOperability: createSettingsServerOperabilityState(),
+    tcpTransportOperability: createSettingsServerOperabilityState(),
+    orbitTransportOperability: createSettingsServerOperabilityState(),
     backendPoolVisible: true,
     backendPool: null,
     backendPoolLoading: false,
@@ -232,6 +238,7 @@ function createProps(
     onAcpBackendEdit: vi.fn(),
     onAcpBackendProbe: vi.fn(async () => undefined),
     workspaceOptions: [{ id: "workspace-1", label: "Workspace 1" }],
+    automationSchedulesOperability: createSettingsServerOperabilityState(),
     ...overrides,
   };
 }
@@ -455,5 +462,92 @@ describe("SettingsServerSection", () => {
 
     fireEvent.click(connectTestButton);
     expect(onMobileConnectTest).toHaveBeenCalled();
+  });
+
+  it("disables tcp helper controls when transport operability is read-only", () => {
+    render(
+      <SettingsServerSection
+        {...createProps({
+          remoteProfiles: [
+            {
+              id: "profile-default",
+              label: "Default route",
+              provider: "tcp",
+              tcpOverlay: "tailscale",
+              host: "desktop.tailnet.ts.net:4732",
+              token: "secret-token",
+            },
+          ],
+          selectedRemoteProfileId: "profile-default",
+          defaultRemoteProfileId: "profile-default",
+          activeRemoteProvider: "tcp",
+          activeTcpOverlay: "tailscale",
+          tailscaleStatus: {
+            installed: true,
+            running: true,
+            version: "1.76.0",
+            dnsName: "desktop.tailnet.ts.net",
+            hostName: "desktop",
+            tailnetName: "team.tailnet.ts.net",
+            ipv4: ["100.64.0.8"],
+            ipv6: [],
+            suggestedRemoteHost: "desktop.tailnet.ts.net:4732",
+            message: "Backend ready.",
+          },
+          tcpTransportOperability: createSettingsServerOperabilityState({
+            readOnlyReason: "Transport settings are managed by runtime policy.",
+          }),
+        })}
+      />
+    );
+
+    expect(
+      screen.getByText("Read-only: Transport settings are managed by runtime policy.")
+    ).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: "Detect Tailscale" }) as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Refresh daemon command" }) as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Use suggested host" }) as HTMLButtonElement).disabled
+    ).toBe(true);
+  });
+
+  it("disables orbit access and action controls when transport operability is unavailable", () => {
+    render(
+      <SettingsServerSection
+        {...createProps({
+          appSettings: {
+            orbitAutoStartRunner: true,
+          } as AppSettings,
+          activeRemoteProvider: "orbit",
+          activeOrbitUseAccess: true,
+          orbitTransportOperability: createSettingsServerOperabilityState({
+            unavailableReason: "Orbit transport is unavailable in this runtime.",
+          }),
+        })}
+      />
+    );
+
+    expect(
+      screen.getByText("Unavailable: Orbit transport is unavailable in this runtime.")
+    ).toBeTruthy();
+    expect((screen.getByLabelText("Orbit access client ID") as HTMLInputElement).disabled).toBe(
+      true
+    );
+    expect(
+      (screen.getByLabelText("Orbit access client secret ref") as HTMLInputElement).disabled
+    ).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Connect test" }) as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect((screen.getByRole("button", { name: "Sign In" }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
+    expect(
+      (screen.getByRole("button", { name: "Start Runner" }) as HTMLButtonElement).disabled
+    ).toBe(true);
   });
 });

@@ -8,6 +8,11 @@ import {
 } from "../../SettingsSectionGrammar";
 import { SettingsToggleControl } from "../../SettingsToggleControl";
 import { SettingsMobileConnectFieldGroup } from "./SettingsMobileConnectFieldGroup";
+import {
+  resolveSettingsServerOperabilityBlockedReason,
+  resolveSettingsServerOperabilityNotice,
+  type SettingsServerOperabilityState,
+} from "./shared";
 
 type SettingsOrbitTransportSectionsProps = {
   appSettings: AppSettings;
@@ -15,6 +20,7 @@ type SettingsOrbitTransportSectionsProps = {
   isMobileSimplified: boolean;
   activeOrbitUseAccess: boolean;
   compactInputFieldClassName: string;
+  operability: SettingsServerOperabilityState;
   orbitWsUrlDraft: string;
   orbitAuthUrlDraft: string;
   orbitRunnerNameDraft: string;
@@ -57,6 +63,7 @@ export function SettingsOrbitTransportSections({
   isMobileSimplified,
   activeOrbitUseAccess,
   compactInputFieldClassName,
+  operability,
   orbitWsUrlDraft,
   orbitAuthUrlDraft,
   orbitRunnerNameDraft,
@@ -96,6 +103,12 @@ export function SettingsOrbitTransportSections({
     return null;
   }
 
+  const blockedReason = resolveSettingsServerOperabilityBlockedReason(operability);
+  const notice = resolveSettingsServerOperabilityNotice(operability);
+  const controlsDisabled = blockedReason !== null;
+  const orbitAccessFieldsDisabled = controlsDisabled || !activeOrbitUseAccess;
+  const orbitActionsDisabled = controlsDisabled || orbitBusyAction !== null;
+
   return (
     <>
       <SettingsFieldGroup
@@ -113,6 +126,7 @@ export function SettingsOrbitTransportSections({
             inputSize="sm"
             value={orbitWsUrlDraft}
             placeholder="wss://..."
+            disabled={controlsDisabled}
             onValueChange={onSetOrbitWsUrlDraft}
             onBlur={() => {
               void onCommitOrbitWsUrl();
@@ -140,6 +154,7 @@ export function SettingsOrbitTransportSections({
               inputSize="sm"
               value={remoteTokenDraft}
               placeholder="Token (required)"
+              disabled={controlsDisabled}
               onValueChange={onSetRemoteTokenDraft}
               onBlur={() => {
                 void onCommitRemoteToken();
@@ -162,6 +177,7 @@ export function SettingsOrbitTransportSections({
                 inputSize="sm"
                 value={orbitAuthUrlDraft}
                 placeholder="https://..."
+                disabled={controlsDisabled}
                 onValueChange={onSetOrbitAuthUrlDraft}
                 onBlur={() => {
                   void onCommitOrbitAuthUrl();
@@ -183,6 +199,7 @@ export function SettingsOrbitTransportSections({
                 inputSize="sm"
                 value={orbitRunnerNameDraft}
                 placeholder="codex-monitor"
+                disabled={controlsDisabled}
                 onValueChange={onSetOrbitRunnerNameDraft}
                 onBlur={() => {
                   void onCommitOrbitRunnerName();
@@ -199,12 +216,18 @@ export function SettingsOrbitTransportSections({
           </>
         )}
       </SettingsFieldGroup>
+      {notice ? (
+        <div className={`settings-help${notice.tone === "error" ? " settings-help-error" : ""}`}>
+          {notice.text}
+        </div>
+      ) : null}
 
       {isMobileSimplified ? (
         <SettingsMobileConnectFieldGroup
           mobileConnectBusy={mobileConnectBusy}
           mobileConnectStatusText={mobileConnectStatusText}
           mobileConnectStatusError={mobileConnectStatusError}
+          disabled={controlsDisabled}
           onMobileConnectTest={onMobileConnectTest}
           subtitle="Make sure the Orbit endpoint and token match your desktop setup, then retry."
         />
@@ -221,6 +244,7 @@ export function SettingsOrbitTransportSections({
                 <SettingsToggleControl
                   checked={appSettings.orbitAutoStartRunner}
                   ariaLabel="Toggle Orbit auto start runner"
+                  disabled={controlsDisabled}
                   onCheckedChange={() =>
                     void onUpdateAppSettings({
                       ...appSettings,
@@ -237,6 +261,7 @@ export function SettingsOrbitTransportSections({
                 <SettingsToggleControl
                   checked={activeOrbitUseAccess}
                   ariaLabel="Toggle Orbit Access"
+                  disabled={controlsDisabled}
                   onCheckedChange={() => {
                     void onToggleOrbitUseAccess();
                   }}
@@ -250,7 +275,7 @@ export function SettingsOrbitTransportSections({
                 inputSize="sm"
                 value={orbitAccessClientIdDraft}
                 placeholder="client-id"
-                disabled={!activeOrbitUseAccess}
+                disabled={orbitAccessFieldsDisabled}
                 onValueChange={onSetOrbitAccessClientIdDraft}
                 onBlur={() => {
                   void onCommitOrbitAccessClientId();
@@ -274,7 +299,7 @@ export function SettingsOrbitTransportSections({
                 inputSize="sm"
                 value={orbitAccessClientSecretRefDraft}
                 placeholder="secret-ref"
-                disabled={!activeOrbitUseAccess}
+                disabled={orbitAccessFieldsDisabled}
                 onValueChange={onSetOrbitAccessClientSecretRefDraft}
                 onBlur={() => {
                   void onCommitOrbitAccessClientSecretRef();
@@ -302,7 +327,7 @@ export function SettingsOrbitTransportSections({
                     size="sm"
                     className="settings-button-compact"
                     onClick={onOrbitConnectTest}
-                    disabled={orbitBusyAction !== null}
+                    disabled={orbitActionsDisabled}
                   >
                     {orbitBusyAction === "connect-test" ? "Testing..." : "Connect test"}
                   </Button>
@@ -311,7 +336,7 @@ export function SettingsOrbitTransportSections({
                     size="sm"
                     className="settings-button-compact"
                     onClick={onOrbitSignIn}
-                    disabled={orbitBusyAction !== null}
+                    disabled={orbitActionsDisabled}
                   >
                     {orbitBusyAction === "sign-in" ? "Signing In..." : "Sign In"}
                   </Button>
@@ -320,7 +345,7 @@ export function SettingsOrbitTransportSections({
                     size="sm"
                     className="settings-button-compact"
                     onClick={onOrbitSignOut}
-                    disabled={orbitBusyAction !== null}
+                    disabled={orbitActionsDisabled}
                   >
                     {orbitBusyAction === "sign-out" ? "Signing Out..." : "Sign Out"}
                   </Button>
@@ -331,7 +356,7 @@ export function SettingsOrbitTransportSections({
                     size="sm"
                     className="settings-button-compact"
                     onClick={onOrbitRunnerStart}
-                    disabled={orbitBusyAction !== null}
+                    disabled={orbitActionsDisabled}
                   >
                     {orbitBusyAction === "runner-start" ? "Starting..." : "Start Runner"}
                   </Button>
@@ -340,7 +365,7 @@ export function SettingsOrbitTransportSections({
                     size="sm"
                     className="settings-button-compact"
                     onClick={onOrbitRunnerStop}
-                    disabled={orbitBusyAction !== null}
+                    disabled={orbitActionsDisabled}
                   >
                     {orbitBusyAction === "runner-stop" ? "Stopping..." : "Stop Runner"}
                   </Button>
@@ -349,7 +374,7 @@ export function SettingsOrbitTransportSections({
                     size="sm"
                     className="settings-button-compact"
                     onClick={onOrbitRunnerStatus}
-                    disabled={orbitBusyAction !== null}
+                    disabled={orbitActionsDisabled}
                   >
                     {orbitBusyAction === "runner-status" ? "Refreshing..." : "Refresh Status"}
                   </Button>

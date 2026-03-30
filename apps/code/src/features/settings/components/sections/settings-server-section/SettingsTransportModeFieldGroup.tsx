@@ -6,7 +6,12 @@ import {
   SettingsFieldGroup,
 } from "../../SettingsSectionGrammar";
 import { SettingsToggleControl } from "../../SettingsToggleControl";
-import type { SettingsServerCompactSelectProps } from "./shared";
+import {
+  resolveSettingsServerOperabilityBlockedReason,
+  resolveSettingsServerOperabilityNotice,
+  type SettingsServerCompactSelectProps,
+  type SettingsServerOperabilityState,
+} from "./shared";
 
 type SettingsTransportModeFieldGroupProps = {
   appSettings: AppSettings;
@@ -17,6 +22,7 @@ type SettingsTransportModeFieldGroupProps = {
   compactSelectProps: SettingsServerCompactSelectProps;
   backendModeOptions: SelectOption[];
   remoteProviderOptions: SelectOption[];
+  operability: SettingsServerOperabilityState;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
   onChangeRemoteProvider: (provider: RemoteBackendProvider) => Promise<void>;
 };
@@ -30,9 +36,13 @@ export function SettingsTransportModeFieldGroup({
   compactSelectProps,
   backendModeOptions,
   remoteProviderOptions,
+  operability,
   onUpdateAppSettings,
   onChangeRemoteProvider,
 }: SettingsTransportModeFieldGroupProps) {
+  const blockedReason = resolveSettingsServerOperabilityBlockedReason(operability);
+  const notice = resolveSettingsServerOperabilityNotice(operability);
+
   return (
     <SettingsFieldGroup
       title={
@@ -50,6 +60,7 @@ export function SettingsTransportModeFieldGroup({
             ariaLabel="Backend mode"
             options={backendModeOptions}
             value={appSettings.backendMode}
+            disabled={blockedReason !== null}
             onValueChange={(value) =>
               void onUpdateAppSettings({
                 ...appSettings,
@@ -69,6 +80,7 @@ export function SettingsTransportModeFieldGroup({
           ariaLabel={isMobileSimplified ? "Connection type" : "Remote provider"}
           options={remoteProviderOptions}
           value={activeRemoteProvider}
+          disabled={blockedReason !== null}
           onValueChange={(value) => {
             void onChangeRemoteProvider(value as RemoteBackendProvider);
           }}
@@ -83,6 +95,7 @@ export function SettingsTransportModeFieldGroup({
             <SettingsToggleControl
               checked={appSettings.keepDaemonRunningAfterAppClose}
               ariaLabel="Toggle keep daemon running after app closes"
+              disabled={blockedReason !== null}
               onCheckedChange={() =>
                 void onUpdateAppSettings({
                   ...appSettings,
@@ -92,6 +105,11 @@ export function SettingsTransportModeFieldGroup({
             />
           }
         />
+      ) : null}
+      {notice ? (
+        <div className={`settings-help${notice.tone === "error" ? " settings-help-error" : ""}`}>
+          {notice.text}
+        </div>
       ) : null}
     </SettingsFieldGroup>
   );

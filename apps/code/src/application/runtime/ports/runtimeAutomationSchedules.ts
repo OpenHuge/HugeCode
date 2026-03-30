@@ -32,6 +32,7 @@ export type RuntimeAutomationSchedulesAccess = {
   deleteEnabled: boolean;
   runNowEnabled: boolean;
   cancelRunEnabled: boolean;
+  unavailableReason: string | null;
   readOnlyReason: string | null;
 };
 
@@ -85,7 +86,8 @@ export async function readRuntimeAutomationSchedulesAccess(): Promise<RuntimeAut
       deleteEnabled,
       runNowEnabled,
       cancelRunEnabled,
-      readOnlyReason: summary.error,
+      unavailableReason: summary.error,
+      readOnlyReason: null,
     };
   }
 
@@ -98,7 +100,8 @@ export async function readRuntimeAutomationSchedulesAccess(): Promise<RuntimeAut
       deleteEnabled,
       runNowEnabled,
       cancelRunEnabled,
-      readOnlyReason: "Runtime schedule control is unavailable in current runtime.",
+      unavailableReason: "Runtime schedule control is unavailable in current runtime.",
+      readOnlyReason: null,
     };
   }
 
@@ -111,7 +114,8 @@ export async function readRuntimeAutomationSchedulesAccess(): Promise<RuntimeAut
       deleteEnabled,
       runNowEnabled,
       cancelRunEnabled,
-      readOnlyReason: "Runtime schedule summaries are unavailable in current runtime.",
+      unavailableReason: "Runtime schedule summaries are unavailable in current runtime.",
+      readOnlyReason: null,
     };
   }
 
@@ -124,6 +128,7 @@ export async function readRuntimeAutomationSchedulesAccess(): Promise<RuntimeAut
       deleteEnabled,
       runNowEnabled,
       cancelRunEnabled,
+      unavailableReason: null,
       readOnlyReason: "Runtime schedule actions are unavailable in current runtime.",
     };
   }
@@ -137,6 +142,7 @@ export async function readRuntimeAutomationSchedulesAccess(): Promise<RuntimeAut
       deleteEnabled,
       runNowEnabled,
       cancelRunEnabled,
+      unavailableReason: null,
       readOnlyReason: "Some runtime schedule actions are unavailable in current runtime.",
     };
   }
@@ -149,6 +155,7 @@ export async function readRuntimeAutomationSchedulesAccess(): Promise<RuntimeAut
     deleteEnabled,
     runNowEnabled,
     cancelRunEnabled,
+    unavailableReason: null,
     readOnlyReason: null,
   };
 }

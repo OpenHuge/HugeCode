@@ -9,6 +9,7 @@ const pushErrorToastMock = vi.hoisted(() => vi.fn());
 const useRuntimeAutomationSchedulesFacadeMock = vi.hoisted(() => vi.fn());
 const useRuntimeBackendPoolFacadeMock = vi.hoisted(() => vi.fn());
 const useRuntimeOverlayConnectivityFacadeMock = vi.hoisted(() => vi.fn());
+const readRemoteServerProfilesStateMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../application/runtime/facades/runtimeAutomationSchedulesFacade", () => ({
   useRuntimeAutomationSchedulesFacade: (...args: unknown[]) =>
@@ -32,19 +33,7 @@ vi.mock("../../../application/runtime/facades/runtimeRemoteServerProfilesFacade"
     host: "runtime.example.test",
     ...overrides,
   })),
-  readRemoteServerProfilesState: vi.fn(() => ({
-    profiles: [
-      {
-        id: "profile-1",
-        label: "Runtime backend",
-        provider: "tcp",
-        host: "runtime.example.test",
-      },
-    ],
-    selectedProfileId: "profile-1",
-    defaultProfileId: "profile-1",
-    defaultExecutionBackendId: "backend-primary",
-  })),
+  readRemoteServerProfilesState: (...args: unknown[]) => readRemoteServerProfilesStateMock(...args),
   removeRemoteServerProfile: vi.fn((settings: AppSettings) => settings),
   setDefaultRemoteExecutionBackend: vi.fn((settings: AppSettings) => settings),
   setDefaultRemoteServerProfile: vi.fn((settings: AppSettings) => settings),
@@ -61,6 +50,7 @@ vi.mock("../../../utils/platformPaths", () => ({
 
 function createAutomationFacade(overrides: Record<string, unknown> = {}) {
   return {
+    automationSchedulesCapabilityEnabled: true,
     automationSchedulesSnapshot: [
       {
         id: "schedule-1",
@@ -75,6 +65,7 @@ function createAutomationFacade(overrides: Record<string, unknown> = {}) {
     ],
     automationSchedulesLoading: false,
     automationSchedulesError: null,
+    automationSchedulesUnavailableReason: null,
     automationSchedulesReadOnlyReason: null,
     automationSchedulesCreateEnabled: true,
     automationSchedulesUpdateEnabled: true,
@@ -185,6 +176,19 @@ const baseDraft: SettingsAutomationScheduleDraft = {
 describe("useSettingsServerState schedule handlers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    readRemoteServerProfilesStateMock.mockReturnValue({
+      profiles: [
+        {
+          id: "profile-1",
+          label: "Runtime backend",
+          provider: "tcp",
+          host: "runtime.example.test",
+        },
+      ],
+      selectedProfileId: "profile-1",
+      defaultProfileId: "profile-1",
+      defaultExecutionBackendId: "backend-primary",
+    });
     useRuntimeAutomationSchedulesFacadeMock.mockReturnValue(createAutomationFacade());
     useRuntimeBackendPoolFacadeMock.mockReturnValue(createBackendPoolFacade());
     useRuntimeOverlayConnectivityFacadeMock.mockReturnValue(createOverlayFacade());
@@ -280,6 +284,95 @@ describe("useSettingsServerState schedule handlers", () => {
     expect(pushErrorToastMock).toHaveBeenCalledWith({
       title: "Schedule action failed",
       message: "Runtime schedule cancel-run is unavailable in current runtime.",
+    });
+  });
+
+  it("exposes a unified operability contract for server sections", () => {
+    useRuntimeAutomationSchedulesFacadeMock.mockReturnValue(
+      createAutomationFacade({
+        automationSchedulesCapabilityEnabled: false,
+        automationSchedulesUnavailableReason:
+          "Runtime schedule control is unavailable in current runtime.",
+        automationSchedulesReadOnlyReason: null,
+      })
+    );
+
+    const { result } = renderHook(() =>
+      useSettingsServerState({
+        activeSection: "server",
+        appSettings: baseAppSettings,
+        onUpdateAppSettings: vi.fn(async () => undefined),
+        orbitServiceClient: {} as never,
+      })
+    );
+
+    expect(result.current.serverOperability.remoteProfiles).toMatchObject({
+      capabilityEnabled: true,
+      loading: false,
+      error: null,
+      readOnlyReason: null,
+      unavailableReason: null,
+    });
+    expect(result.current.serverOperability.transportMode).toMatchObject({
+      capabilityEnabled: true,
+      loading: false,
+      error: null,
+      readOnlyReason: null,
+      unavailableReason: null,
+    });
+    expect(result.current.serverOperability.gateway).toMatchObject({
+      capabilityEnabled: true,
+      loading: false,
+      error: null,
+      readOnlyReason: null,
+      unavailableReason: null,
+    });
+    expect(result.current.serverOperability.tcpTransport).toMatchObject({
+      capabilityEnabled: true,
+      loading: false,
+      error: null,
+      readOnlyReason: null,
+      unavailableReason: null,
+    });
+    expect(result.current.serverOperability.orbitTransport).toMatchObject({
+      capabilityEnabled: true,
+      loading: false,
+      error: null,
+      readOnlyReason: null,
+      unavailableReason: null,
+    });
+    expect(result.current.serverOperability.automationSchedules).toMatchObject({
+      capabilityEnabled: false,
+      loading: false,
+      error: null,
+      readOnlyReason: null,
+      unavailableReason: "Runtime schedule control is unavailable in current runtime.",
+    });
+  });
+
+  it("does not invent gateway unavailability when no remote profile is selected", () => {
+    readRemoteServerProfilesStateMock.mockReturnValue({
+      profiles: [],
+      selectedProfileId: null,
+      defaultProfileId: null,
+      defaultExecutionBackendId: null,
+    });
+
+    const { result } = renderHook(() =>
+      useSettingsServerState({
+        activeSection: "server",
+        appSettings: baseAppSettings,
+        onUpdateAppSettings: vi.fn(async () => undefined),
+        orbitServiceClient: {} as never,
+      })
+    );
+
+    expect(result.current.serverOperability.gateway).toMatchObject({
+      capabilityEnabled: true,
+      loading: false,
+      error: null,
+      readOnlyReason: null,
+      unavailableReason: null,
     });
   });
 });
