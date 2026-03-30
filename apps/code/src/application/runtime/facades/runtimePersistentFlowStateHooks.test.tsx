@@ -257,4 +257,134 @@ describe("useWorkspacePersistentFlowState", () => {
     ]);
     expect(updateAppSettingsMock).not.toHaveBeenCalled();
   });
+
+  it("treats non-objective intent fields as meaningful persistent flow state", async () => {
+    getAppSettingsMock.mockResolvedValue({});
+    listWorkspaceDiagnosticsMock.mockResolvedValue(null);
+
+    const { result } = renderHook(() =>
+      useWorkspacePersistentFlowState({
+        workspaceId: "workspace-1",
+        intent: {
+          ...blankIntent,
+          constraints: "Keep continuity state across restarts",
+        },
+        runs: [],
+        legacyCachedIntent: null,
+        legacyCacheCorrupted: false,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe("ready");
+      expect(result.current.context?.intent.constraints).toBe(
+        "Keep continuity state across restarts"
+      );
+    });
+
+    await waitFor(() => {
+      expect(updateAppSettingsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          activeIntentContextByWorkspaceId: expect.objectContaining({
+            "workspace-1": expect.objectContaining({
+              intent: expect.objectContaining({
+                constraints: "Keep continuity state across restarts",
+              }),
+            }),
+          }),
+        })
+      );
+    });
+  });
+
+  it("preserves newer host-backed run history when saving from a stale mounted hook instance", async () => {
+    const freshHostContext = {
+      schemaVersion: ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION,
+      intent: {
+        objective: "Recovered objective",
+        constraints: "Keep runtime truth authoritative",
+        successCriteria: "Restart into recovered flow",
+        deadline: null,
+        priority: "high",
+        managerNotes: "Use host data first",
+      },
+      focusedFiles: [
+        {
+          path: "packages/code-platform-interfaces/src/index.ts",
+          reason: "recent_change" as const,
+        },
+      ],
+      unresolvedErrors: [],
+      history: {
+        latestRunId: "run-fresh",
+        latestRunTitle: "Fresh flow",
+        latestReviewPackId: "review-pack-1",
+        lastUpdatedAt: 20,
+        recentChangedPaths: ["packages/code-platform-interfaces/src/index.ts"],
+        validationSummaries: ["TypeScript failed after adding persistent flow state fields."],
+      },
+    };
+
+    getAppSettingsMock
+      .mockResolvedValueOnce({
+        activeIntentContextByWorkspaceId: {
+          "workspace-1": {
+            schemaVersion: ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION,
+            intent: {
+              objective: "Recovered objective",
+              constraints: "Keep runtime truth authoritative",
+              successCriteria: "Restart into recovered flow",
+              deadline: null,
+              priority: "high",
+              managerNotes: "Use host data first",
+            },
+            focusedFiles: [],
+            unresolvedErrors: [],
+            history: {
+              latestRunId: "run-stale",
+              latestRunTitle: "Older flow",
+              latestReviewPackId: null,
+              lastUpdatedAt: 10,
+              recentChangedPaths: [],
+              validationSummaries: [],
+            },
+          },
+        },
+      })
+      .mockResolvedValue({
+        activeIntentContextByWorkspaceId: {
+          "workspace-1": freshHostContext,
+        },
+      });
+    listWorkspaceDiagnosticsMock.mockResolvedValue(null);
+
+    renderHook(() =>
+      useWorkspacePersistentFlowState({
+        workspaceId: "workspace-1",
+        intent: {
+          ...blankIntent,
+          managerNotes: "Update intent without losing recovered run history",
+        },
+        runs: [],
+        legacyCachedIntent: null,
+        legacyCacheCorrupted: false,
+      })
+    );
+
+    await waitFor(() => {
+      expect(updateAppSettingsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          activeIntentContextByWorkspaceId: expect.objectContaining({
+            "workspace-1": expect.objectContaining({
+              history: expect.objectContaining({
+                latestRunId: "run-fresh",
+                latestReviewPackId: "review-pack-1",
+                recentChangedPaths: ["packages/code-platform-interfaces/src/index.ts"],
+              }),
+            }),
+          }),
+        })
+      );
+    });
+  });
 });

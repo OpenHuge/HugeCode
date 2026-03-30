@@ -309,7 +309,7 @@ function resolvePersistenceErrorMessage(error: unknown): string {
 
 function hasMeaningfulActiveIntentContext(context: ActiveIntentContext): boolean {
   return Boolean(
-    context.intent.objective.trim() ||
+    isMeaningfulIntent(context.intent) ||
     context.focusedFiles.length > 0 ||
     context.unresolvedErrors.length > 0 ||
     context.history.latestRunId ||
@@ -326,31 +326,54 @@ function mergeActiveIntentContext(
     return derivedContext;
   }
 
+  const derivedLastUpdatedAt = derivedContext.history.lastUpdatedAt ?? Number.NEGATIVE_INFINITY;
+  const persistedLastUpdatedAt = persistedContext.history.lastUpdatedAt ?? Number.NEGATIVE_INFINITY;
+  const preferDerivedEvidence = derivedLastUpdatedAt >= persistedLastUpdatedAt;
+
   return {
     ...derivedContext,
-    focusedFiles:
-      derivedContext.focusedFiles.length > 0
+    focusedFiles: preferDerivedEvidence
+      ? derivedContext.focusedFiles.length > 0
         ? derivedContext.focusedFiles
-        : persistedContext.focusedFiles,
-    unresolvedErrors:
-      derivedContext.unresolvedErrors.length > 0
+        : persistedContext.focusedFiles
+      : persistedContext.focusedFiles.length > 0
+        ? persistedContext.focusedFiles
+        : derivedContext.focusedFiles,
+    unresolvedErrors: preferDerivedEvidence
+      ? derivedContext.unresolvedErrors.length > 0
         ? derivedContext.unresolvedErrors
-        : persistedContext.unresolvedErrors,
+        : persistedContext.unresolvedErrors
+      : persistedContext.unresolvedErrors.length > 0
+        ? persistedContext.unresolvedErrors
+        : derivedContext.unresolvedErrors,
     history: {
-      latestRunId: derivedContext.history.latestRunId ?? persistedContext.history.latestRunId,
-      latestRunTitle:
-        derivedContext.history.latestRunTitle ?? persistedContext.history.latestRunTitle,
-      latestReviewPackId:
-        derivedContext.history.latestReviewPackId ?? persistedContext.history.latestReviewPackId,
-      lastUpdatedAt: derivedContext.history.lastUpdatedAt ?? persistedContext.history.lastUpdatedAt,
-      recentChangedPaths:
-        derivedContext.history.recentChangedPaths.length > 0
+      latestRunId: preferDerivedEvidence
+        ? (derivedContext.history.latestRunId ?? persistedContext.history.latestRunId)
+        : (persistedContext.history.latestRunId ?? derivedContext.history.latestRunId),
+      latestRunTitle: preferDerivedEvidence
+        ? (derivedContext.history.latestRunTitle ?? persistedContext.history.latestRunTitle)
+        : (persistedContext.history.latestRunTitle ?? derivedContext.history.latestRunTitle),
+      latestReviewPackId: preferDerivedEvidence
+        ? (derivedContext.history.latestReviewPackId ?? persistedContext.history.latestReviewPackId)
+        : (persistedContext.history.latestReviewPackId ??
+          derivedContext.history.latestReviewPackId),
+      lastUpdatedAt: preferDerivedEvidence
+        ? (derivedContext.history.lastUpdatedAt ?? persistedContext.history.lastUpdatedAt)
+        : (persistedContext.history.lastUpdatedAt ?? derivedContext.history.lastUpdatedAt),
+      recentChangedPaths: preferDerivedEvidence
+        ? derivedContext.history.recentChangedPaths.length > 0
           ? derivedContext.history.recentChangedPaths
-          : persistedContext.history.recentChangedPaths,
-      validationSummaries:
-        derivedContext.history.validationSummaries.length > 0
+          : persistedContext.history.recentChangedPaths
+        : persistedContext.history.recentChangedPaths.length > 0
+          ? persistedContext.history.recentChangedPaths
+          : derivedContext.history.recentChangedPaths,
+      validationSummaries: preferDerivedEvidence
+        ? derivedContext.history.validationSummaries.length > 0
           ? derivedContext.history.validationSummaries
-          : persistedContext.history.validationSummaries,
+          : persistedContext.history.validationSummaries
+        : persistedContext.history.validationSummaries.length > 0
+          ? persistedContext.history.validationSummaries
+          : derivedContext.history.validationSummaries,
     },
   };
 }
@@ -451,12 +474,6 @@ export function useWorkspacePersistentFlowState(
       return;
     }
 
-    const persistedPayload = persistedContext ? JSON.stringify(persistedContext) : null;
-    const nextPayload = JSON.stringify(derivedContext);
-    if (persistedPayload === nextPayload) {
-      return;
-    }
-
     let cancelled = false;
     void (async () => {
       try {
@@ -464,18 +481,30 @@ export function useWorkspacePersistentFlowState(
         if (cancelled) {
           return;
         }
+        const currentPersistedContext = readPersistedActiveIntentContext(
+          settings,
+          input.workspaceId
+        );
+        const nextContext = mergeActiveIntentContext(currentPersistedContext, derivedContext);
+        const persistedPayload = currentPersistedContext
+          ? JSON.stringify(currentPersistedContext)
+          : null;
+        const nextPayload = JSON.stringify(nextContext);
+        if (persistedPayload === nextPayload) {
+          return;
+        }
         const saved = await updateAppSettings({
           ...settings,
           activeIntentContextByWorkspaceId: {
             ...(settings.activeIntentContextByWorkspaceId ?? {}),
-            [input.workspaceId]: derivedContext,
+            [input.workspaceId]: nextContext,
           },
         });
         if (cancelled) {
           return;
         }
         setPersistedContext(
-          readPersistedActiveIntentContext(saved, input.workspaceId) ?? derivedContext
+          readPersistedActiveIntentContext(saved, input.workspaceId) ?? nextContext
         );
         setSaveError(null);
       } catch (error) {
