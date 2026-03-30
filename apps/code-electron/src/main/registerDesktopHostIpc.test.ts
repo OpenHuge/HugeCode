@@ -14,6 +14,7 @@ describe("registerDesktopHostIpc", () => {
     registerDesktopHostIpc({
       channels: DESKTOP_HOST_IPC_CHANNELS,
       handlers: {
+        assessBrowserSurface: vi.fn(),
         closeWindow: vi.fn(),
         checkForUpdates: vi.fn(),
         copySupportSnapshot: vi.fn(),
@@ -24,6 +25,7 @@ describe("registerDesktopHostIpc", () => {
         getAppVersion: vi.fn(),
         getCurrentSession: vi.fn(),
         getDiagnosticsInfo: vi.fn(),
+        getLastBrowserAssessmentResult: vi.fn(),
         getLastBrowserExtractionResult: vi.fn(),
         getTrayState: vi.fn(),
         getUpdateState: vi.fn(),
@@ -61,6 +63,7 @@ describe("registerDesktopHostIpc", () => {
     registerDesktopHostIpc({
       channels: DESKTOP_HOST_IPC_CHANNELS,
       handlers: {
+        assessBrowserSurface: vi.fn(),
         closeWindow: vi.fn(),
         checkForUpdates: vi.fn(),
         copySupportSnapshot: vi.fn(),
@@ -71,6 +74,7 @@ describe("registerDesktopHostIpc", () => {
         getAppVersion,
         getCurrentSession: vi.fn(),
         getDiagnosticsInfo: vi.fn(),
+        getLastBrowserAssessmentResult: vi.fn(),
         getLastBrowserExtractionResult: vi.fn(),
         getTrayState: vi.fn(),
         getUpdateState: vi.fn(),

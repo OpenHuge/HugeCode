@@ -89,6 +89,8 @@ const runtimeCompositionResolutionMock = vi.hoisted(() =>
 const readBrowserReadinessMock = vi.hoisted(() => vi.fn());
 const extractBrowserContentMock = vi.hoisted(() => vi.fn());
 const getLastBrowserExtractionResultMock = vi.hoisted(() => vi.fn());
+const assessBrowserSurfaceMock = vi.hoisted(() => vi.fn());
+const getLastBrowserAssessmentResultMock = vi.hoisted(() => vi.fn());
 const runtimeCompositionPreviewMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["previewResolution"]>(async () => ({
     selectedPlugins: [],
@@ -182,6 +184,8 @@ vi.mock("../../../application/runtime/ports/desktopAppSettings", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/browserCapability", () => ({
+  assessBrowserSurface: assessBrowserSurfaceMock,
+  getLastBrowserAssessmentResult: getLastBrowserAssessmentResultMock,
   readBrowserReadiness: readBrowserReadinessMock,
   extractBrowserContent: extractBrowserContentMock,
   getLastBrowserExtractionResult: getLastBrowserExtractionResultMock,
@@ -266,11 +270,16 @@ function createBrowserReadinessSummary(overrides: Record<string, unknown> = {}) 
     runtimeHost: "electron",
     source: "desktop_host_bridge",
     sourceLabel: "Desktop host bridge",
+    assessmentAvailable: true,
+    assessmentHistoryAvailable: true,
     extractionAvailable: true,
     historyAvailable: true,
     localOnly: false,
+    lastAssessmentResult: null,
     lastResult: null,
     capabilities: {
+      browserAssessment: true,
+      browserAssessmentHistory: true,
       browserDebug: true,
       browserExtraction: true,
       browserExtractionHistory: true,
@@ -514,8 +523,12 @@ beforeEach(() => {
     status: "ok",
   });
   readBrowserReadinessMock.mockReturnValue(createBrowserReadinessSummary());
+  assessBrowserSurfaceMock.mockReset();
+  assessBrowserSurfaceMock.mockResolvedValue(null);
   extractBrowserContentMock.mockReset();
   extractBrowserContentMock.mockResolvedValue(null);
+  getLastBrowserAssessmentResultMock.mockReset();
+  getLastBrowserAssessmentResultMock.mockResolvedValue(null);
   getLastBrowserExtractionResultMock.mockReset();
   getLastBrowserExtractionResultMock.mockResolvedValue(null);
   vi.mocked(getProvidersCatalog).mockResolvedValue([]);
@@ -1089,8 +1102,11 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
         runtimeHost: "browser",
         source: "local_placeholder",
         sourceLabel: "Local placeholder",
+        assessmentAvailable: false,
+        assessmentHistoryAvailable: false,
         extractionAvailable: false,
         localOnly: true,
+        lastAssessmentResult: null,
         lastResult: {
           status: "empty",
           normalizedText: null,
@@ -1101,8 +1117,11 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
           trace: [],
         },
         capabilities: {
+          browserAssessment: false,
+          browserAssessmentHistory: false,
           browserDebug: false,
           browserExtraction: false,
+          browserExtractionHistory: false,
           webMcp: true,
         },
       })
@@ -1119,7 +1138,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
       expect(readinessPanel.getAllByText("Attention").length).toBeGreaterThan(0);
       expect(readinessPanel.getByText("Host browser")).toBeTruthy();
-      expect(readinessPanel.getByText("Extraction unavailable")).toBeTruthy();
+      expect(readinessPanel.getByText("Browser loop unavailable")).toBeTruthy();
       expect(readinessPanel.getByText("Source Local placeholder")).toBeTruthy();
       expect(readinessPanel.getByText("Browser readiness is local-only")).toBeTruthy();
       expect(
@@ -1244,8 +1263,11 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
     readBrowserReadinessMock.mockReturnValue(
       createBrowserReadinessSummary({
+        assessmentHistoryAvailable: true,
         historyAvailable: false,
         capabilities: {
+          browserAssessment: true,
+          browserAssessmentHistory: true,
           browserDebug: true,
           browserExtraction: true,
           browserExtractionHistory: false,
@@ -1403,8 +1425,10 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(readinessPanel.getByText("Needs action")).toBeTruthy();
       expect(readinessPanel.getByText("WASI host slot (unbound)")).toBeTruthy();
       expect(readinessPanel.getByText("Source: WASI host")).toBeTruthy();
-      expect(readinessPanel.getByText("Selection: Available inventory")).toBeTruthy();
-      expect(readinessPanel.getByText("Trust: Runtime-published")).toBeTruthy();
+      expect(readinessPanel.getAllByText("Selection: Available inventory").length).toBeGreaterThan(
+        0
+      );
+      expect(readinessPanel.getAllByText("Trust: Runtime-published").length).toBeGreaterThan(0);
       expect(
         readinessPanel.getByText(
           "Capability support: Runtime host binder imports are published, but the binder is not connected."
@@ -1554,7 +1578,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     const section = await screen.findByTestId("workspace-runtime-plugin-operator-actions");
     expect(within(section).getByText("Composition profiles")).toBeTruthy();
     expect(screen.getAllByText("Needs action").length).toBeGreaterThan(0);
-    expect(screen.getByText("Inventory", { selector: "strong" })).toBeTruthy();
+    expect(screen.getAllByText("Inventory", { selector: "strong" }).length).toBeGreaterThan(0);
 
     fireEvent.click(await screen.findByRole("button", { name: "Remote Search Tools: Install" }));
 

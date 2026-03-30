@@ -1,5 +1,7 @@
 import type {
   DesktopAppInfo,
+  DesktopBrowserAssessmentRequest,
+  DesktopBrowserAssessmentResult,
   DesktopBrowserExtractionRequest,
   DesktopBrowserExtractionResult,
   DesktopDiagnosticsInfo,
@@ -40,6 +42,15 @@ type UpdaterController = {
 
 export type CreateDesktopHostHandlersInput = {
   appVersion: string | null;
+  browserAssessment: {
+    assess(
+      input: DesktopBrowserAssessmentRequest
+    ): Promise<DesktopBrowserAssessmentResult | null> | DesktopBrowserAssessmentResult | null;
+    getLastResult():
+      | Promise<DesktopBrowserAssessmentResult | null>
+      | DesktopBrowserAssessmentResult
+      | null;
+  };
   browserExtraction: {
     extract(
       input?: DesktopBrowserExtractionRequest
@@ -74,6 +85,9 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
     checkForUpdates() {
       return input.updaterController.checkForUpdates();
     },
+    assessBrowserSurface(assessmentInput: DesktopBrowserAssessmentRequest) {
+      return input.browserAssessment.assess(assessmentInput);
+    },
     closeWindow: input.windowController.closeWindow,
     copySupportSnapshot() {
       return input.copySupportSnapshot();
@@ -90,6 +104,9 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
     },
     getDiagnosticsInfo() {
       return input.getDiagnosticsInfo();
+    },
+    getLastBrowserAssessmentResult() {
+      return input.browserAssessment.getLastResult();
     },
     getLastBrowserExtractionResult() {
       return input.browserExtraction.getLastResult();

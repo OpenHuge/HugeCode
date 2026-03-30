@@ -25,6 +25,8 @@ import {
   useRuntimeMissionControlSnapshot,
   type RuntimeDurabilityWarningState,
 } from "./runtimeMissionControlSnapshot";
+import { useRuntimeBrowserAssessmentOperator } from "./runtimeBrowserAssessmentOperator";
+import { buildRuntimeBrowserAssessmentPluginDescriptor } from "./runtimeBrowserAssessmentPlugin";
 import { useRuntimeBrowserExtractionOperator } from "./runtimeBrowserExtractionOperator";
 
 export type { RuntimeDurabilityWarningState };
@@ -90,10 +92,24 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     pollSeconds,
   });
   const browserReadiness = readBrowserReadiness();
+  const browserAssessment = useRuntimeBrowserAssessmentOperator(workspaceId, browserReadiness);
   const browserExtraction = useRuntimeBrowserExtractionOperator(browserReadiness);
+  const runtimePlugins = useMemo(() => {
+    const browserAssessmentPlugin = buildRuntimeBrowserAssessmentPluginDescriptor({
+      readiness: browserReadiness,
+      result: browserAssessment.result,
+    });
+    if (!browserAssessmentPlugin) {
+      return snapshot.runtimePlugins;
+    }
+    return [
+      ...snapshot.runtimePlugins.filter((plugin) => plugin.id !== browserAssessmentPlugin.id),
+      browserAssessmentPlugin,
+    ];
+  }, [browserAssessment.result, browserReadiness, snapshot.runtimePlugins]);
   const runtimePluginControlPlaneSurface = useMemo(
     () => ({
-      plugins: snapshot.runtimePlugins,
+      plugins: runtimePlugins,
       pluginsError: snapshot.runtimePluginsError,
       profiles: snapshot.runtimeCompositionProfiles,
       activeProfileId: snapshot.runtimeCompositionActiveProfileId,
@@ -103,7 +119,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
       registryError: snapshot.runtimePluginRegistryError,
     }),
     [
-      snapshot.runtimePlugins,
+      runtimePlugins,
       snapshot.runtimePluginsError,
       snapshot.runtimeCompositionProfiles,
       snapshot.runtimeCompositionActiveProfileId,
@@ -130,7 +146,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
         runtimePolicy: snapshot.runtimePolicy,
         runtimePolicyError: snapshot.runtimePolicyError,
         browserReadiness,
-        runtimePlugins: snapshot.runtimePlugins,
+        runtimePlugins,
         runtimePluginsError: snapshot.runtimePluginsError,
         runtimePluginsProjectionBacked: snapshot.runtimePluginsProjectionBacked,
         runtimePluginRegistryPackages: snapshot.runtimePluginRegistryPackages,
@@ -156,7 +172,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
       snapshot.runtimePolicy,
       snapshot.runtimePolicyError,
       snapshot.runtimePools,
-      snapshot.runtimePlugins,
+      runtimePlugins,
       snapshot.runtimePluginsError,
       snapshot.runtimePluginsProjectionBacked,
       snapshot.runtimePluginRegistryPackages,
@@ -537,6 +553,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
   return {
     executionProfiles,
     missionControlProjection,
+    browserAssessment,
     browserExtraction,
     pollSeconds,
     prepareRunLauncher,

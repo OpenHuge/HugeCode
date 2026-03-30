@@ -20,6 +20,24 @@ function createSnapshot() {
 
 describe("webMcpBridgeRuntimeBrowserTools", () => {
   it("registers runtime browser adapter tools and forwards inspect requests without approval", async () => {
+    const assessRuntimeBrowserSurface = vi.fn(async () => ({
+      status: "passed" as const,
+      target: {
+        kind: "fixture" as const,
+        fixtureName: "mission-control",
+      },
+      domSnapshot: {
+        childElementCount: 1,
+        html: "<main>Mission Control</main>",
+        selector: "main",
+        selectorMatched: true,
+        text: "Mission Control",
+      },
+      consoleEntries: [],
+      accessibilityFailures: [],
+      traceId: null,
+      trace: [],
+    }));
     const getRuntimeBrowserDebugStatus = vi.fn(async () => ({
       workspaceId: "ws-browser",
       available: true,
@@ -52,6 +70,7 @@ describe("webMcpBridgeRuntimeBrowserTools", () => {
         startTask: vi.fn(),
         interruptTask: vi.fn(),
         submitTaskApprovalDecision: vi.fn(),
+        assessRuntimeBrowserSurface,
         getRuntimeBrowserDebugStatus,
         runRuntimeBrowserDebug,
       },
@@ -75,16 +94,48 @@ describe("webMcpBridgeRuntimeBrowserTools", () => {
     });
 
     expect(tools.map((tool) => tool.name)).toEqual([
+      "assess-runtime-browser-surface",
       "get-runtime-browser-debug-status",
       "inspect-runtime-browser",
       "run-runtime-browser-automation",
       "run-chatgpt-decision-lab",
     ]);
 
+    const assessTool = tools.find((tool) => tool.name === "assess-runtime-browser-surface");
     const statusTool = tools.find((tool) => tool.name === "get-runtime-browser-debug-status");
     const inspectTool = tools.find((tool) => tool.name === "inspect-runtime-browser");
+    expect(assessTool?.annotations?.readOnlyHint).toBe(true);
     expect(statusTool?.annotations?.readOnlyHint).toBe(true);
     expect(inspectTool?.annotations?.readOnlyHint).toBe(true);
+
+    const assessResponse = await assessTool?.execute(
+      {
+        targetKind: "fixture",
+        targetValue: "mission-control",
+        selector: "main",
+        waitForMs: 5_000,
+      },
+      null
+    );
+
+    expect(assessRuntimeBrowserSurface).toHaveBeenCalledWith({
+      workspaceId: "ws-browser",
+      target: {
+        kind: "fixture",
+        fixtureName: "mission-control",
+      },
+      selector: "main",
+      waitForMs: 5_000,
+    });
+    expect(assessResponse).toMatchObject({
+      ok: true,
+      message: "Runtime browser assessment completed.",
+      data: {
+        result: expect.objectContaining({
+          status: "passed",
+        }),
+      },
+    });
 
     const inspectResponse = await inspectTool?.execute(
       {
@@ -151,6 +202,7 @@ describe("webMcpBridgeRuntimeBrowserTools", () => {
         startTask: vi.fn(),
         interruptTask: vi.fn(),
         submitTaskApprovalDecision: vi.fn(),
+        assessRuntimeBrowserSurface: vi.fn(async () => null),
         getRuntimeBrowserDebugStatus: vi.fn(async () => ({
           workspaceId: "ws-browser",
           available: true,
@@ -256,6 +308,7 @@ describe("webMcpBridgeRuntimeBrowserTools", () => {
         startTask: vi.fn(),
         interruptTask: vi.fn(),
         submitTaskApprovalDecision: vi.fn(),
+        assessRuntimeBrowserSurface: vi.fn(async () => null),
         getRuntimeBrowserDebugStatus: vi.fn(async () => ({
           workspaceId: "ws-browser",
           available: true,

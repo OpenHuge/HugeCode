@@ -37,6 +37,7 @@ export const AGENT_RUNTIME_CONTROL_TOOL_NAMES = [
   "list-runtime-collaboration-modes",
   "list-runtime-mcp-server-status",
   "inspect-workspace-diagnostics",
+  "assess-runtime-browser-surface",
   "get-runtime-browser-debug-status",
   "inspect-runtime-browser",
   "run-runtime-browser-automation",

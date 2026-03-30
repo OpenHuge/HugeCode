@@ -117,7 +117,10 @@ function toOptionalWorkspaceId(input: JsonRecord): string | null {
 }
 
 function toMetricsScope(scope: "write" | "runtime", toolName: string): RuntimeToolExecutionScope {
-  if (scope === "runtime" && toolName === "run-runtime-computer-observe") {
+  if (
+    scope === "runtime" &&
+    (toolName === "run-runtime-computer-observe" || toolName === "assess-runtime-browser-surface")
+  ) {
     return "computer_observe";
   }
   return scope;

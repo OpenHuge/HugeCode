@@ -30,6 +30,24 @@ function resolveTriagePriority(input: {
   continuationState: ContinuationState;
   hasBlockedSubAgents: boolean;
 }): number {
+  const hasBlockedFollowUp =
+    input.continuationState === "blocked" ||
+    input.continuationState === "attention" ||
+    input.hasBlockedSubAgents;
+  const hasFallbackRouting =
+    input.reviewPack?.placement?.resolutionSource === "runtime_fallback" ||
+    input.reviewPack?.placement?.lifecycleState === "fallback" ||
+    input.run?.placement?.resolutionSource === "runtime_fallback" ||
+    input.run?.placement?.lifecycleState === "fallback";
+  const hasPlacementAttention =
+    input.reviewPack?.placement?.healthSummary === "placement_attention" ||
+    input.reviewPack?.placement?.healthSummary === "placement_blocked" ||
+    input.run?.placement?.healthSummary === "placement_attention" ||
+    input.run?.placement?.healthSummary === "placement_blocked";
+  const hasEvidenceFollowUp =
+    input.reviewPack?.reviewStatus === "incomplete_evidence" ||
+    hasFallbackRouting ||
+    hasPlacementAttention;
   if (
     input.run?.approval?.status === "pending_decision" ||
     Boolean(input.run?.operatorSnapshot?.blocker?.trim()) ||
@@ -44,11 +62,10 @@ function resolveTriagePriority(input: {
   ) {
     return 4;
   }
-  if (
-    input.continuationState === "blocked" ||
-    input.continuationState === "attention" ||
-    input.hasBlockedSubAgents
-  ) {
+  if (hasBlockedFollowUp && hasEvidenceFollowUp) {
+    return 3.5;
+  }
+  if (hasBlockedFollowUp) {
     return 3;
   }
   if (input.autofixAvailable) {
@@ -56,14 +73,8 @@ function resolveTriagePriority(input: {
   }
   if (
     input.reviewPack?.reviewStatus === "incomplete_evidence" ||
-    input.reviewPack?.placement?.resolutionSource === "runtime_fallback" ||
-    input.reviewPack?.placement?.lifecycleState === "fallback" ||
-    input.reviewPack?.placement?.healthSummary === "placement_attention" ||
-    input.reviewPack?.placement?.healthSummary === "placement_blocked" ||
-    input.run?.placement?.resolutionSource === "runtime_fallback" ||
-    input.run?.placement?.lifecycleState === "fallback" ||
-    input.run?.placement?.healthSummary === "placement_attention" ||
-    input.run?.placement?.healthSummary === "placement_blocked" ||
+    hasFallbackRouting ||
+    hasPlacementAttention ||
     input.hasBlockedSubAgents
   ) {
     return 1;

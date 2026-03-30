@@ -11,6 +11,7 @@ import type {
   DesktopUpdateState,
 } from "@ku0/code-platform-interfaces";
 import { DESKTOP_HOST_IPC_CHANNELS } from "@ku0/code-platform-interfaces";
+import { createDesktopBrowserAssessmentCapability } from "./desktopBrowserAssessment.js";
 import { createDesktopBrowserExtractionCapability } from "./desktopBrowserExtraction.js";
 import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
 import {
@@ -45,6 +46,7 @@ const DEFAULT_TRAY_ICON_DATA_URL =
 
 type DesktopBrowserWindowLike = {
   close(): void;
+  destroy?(): void;
   focus(): void;
   getBounds(): DesktopWindowBounds;
   hide(): void;
@@ -62,6 +64,17 @@ type DesktopBrowserWindowLike = {
   restore(): void;
   show(): void;
   webContents: {
+    executeJavaScript(code: string): Promise<unknown>;
+    on(
+      event: "console-message",
+      listener: (
+        event: unknown,
+        level: number,
+        message: string,
+        line: number,
+        sourceId: string
+      ) => void
+    ): void;
     send(channel: string, payload: DesktopLaunchIntent | DesktopUpdateState): void;
     on(
       event: "will-navigate",
@@ -498,9 +511,30 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   const browserExtraction = createDesktopBrowserExtractionCapability({
     listLocalChromeDebuggerEndpoints,
   });
+  const browserAssessment = createDesktopBrowserAssessmentCapability({
+    buildRendererUrl(relativePath) {
+      const normalizedPath = relativePath.replace(/^\/+/u, "");
+      const rendererDevServerUrl = input.rendererDevServerUrl?.trim() ?? "";
+      if (rendererDevServerUrl.length > 0) {
+        return new URL(normalizedPath, `${rendererDevServerUrl.replace(/\/+$/u, "")}/`).toString();
+      }
+      return createDesktopAppRendererUrl(normalizedPath);
+    },
+    createWindow() {
+      return input.browserWindow.create({
+        show: false,
+        webPreferences: {
+          contextIsolation: true,
+          preload: join(input.sourceDirectory, "../preload/preload.js"),
+          sandbox: true,
+        },
+      });
+    },
+  });
 
   const desktopHostHandlers = createDesktopHostHandlers({
     appVersion,
+    browserAssessment,
     browserExtraction,
     copySupportSnapshot,
     consumePendingLaunchIntent: launchIntentController.consumePendingIntent,
