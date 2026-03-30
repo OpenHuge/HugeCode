@@ -20,6 +20,7 @@ export type WorkspaceSkillCatalogEntry = {
   name: string;
   version: string;
   trustLevel: RuntimeWorkspaceSkillManifest["trustLevel"];
+  kind: RuntimeWorkspaceSkillManifest["kind"];
   entrypoint: string | null;
   permissions: string[];
   compatibility: RuntimeWorkspaceSkillManifestCompatibility;
@@ -27,6 +28,8 @@ export type WorkspaceSkillCatalogEntry = {
   manifestPath: string;
   availableInRuntime: boolean;
   enabledInRuntime: boolean;
+  runtimeReadiness: "executable" | "disabled" | "unavailable" | "manifest_only";
+  runtimeReadinessReason: string | null;
   runtimeSkillId: string | null;
   reviewProfileIds: string[];
   reviewProfileLabels: string[];
@@ -67,6 +70,35 @@ function resolveRecommendedFor(input: {
     values.add("delegate");
   }
   return values.size > 0 ? [...values] : ["delegate"];
+}
+
+function resolveRuntimeReadiness(input: {
+  manifest: RuntimeWorkspaceSkillManifest;
+  runtimeSkill: LiveSkillSummary | null;
+}): Pick<WorkspaceSkillCatalogEntry, "runtimeReadiness" | "runtimeReadinessReason"> {
+  if (input.manifest.kind !== "skill") {
+    return {
+      runtimeReadiness: "manifest_only",
+      runtimeReadinessReason:
+        "Workspace manifest kind is source; review/runtime execution may ignore it.",
+    };
+  }
+  if (!input.runtimeSkill) {
+    return {
+      runtimeReadiness: "unavailable",
+      runtimeReadinessReason: "Runtime live skill is unavailable for this workspace.",
+    };
+  }
+  if (!input.runtimeSkill.enabled) {
+    return {
+      runtimeReadiness: "disabled",
+      runtimeReadinessReason: "Runtime live skill is currently disabled.",
+    };
+  }
+  return {
+    runtimeReadiness: "executable",
+    runtimeReadinessReason: null,
+  };
 }
 
 async function listRuntimeLiveSkillsSafe(): Promise<LiveSkillSummary[]> {
@@ -117,20 +149,20 @@ export async function readWorkspaceSkillCatalog(
     const reviewProfileIds = reviewProfilesBySkillId.get(normalizeLiveSkillId(manifest.id)) ?? [];
     const reviewProfileLabels =
       reviewProfileLabelsBySkillId.get(normalizeLiveSkillId(manifest.id)) ?? [];
+    const runtimeReadiness = resolveRuntimeReadiness({
+      manifest,
+      runtimeSkill,
+    });
     const issues: string[] = [];
-    if (manifest.kind !== "skill") {
-      issues.push("Workspace manifest kind is source; review/runtime execution may ignore it.");
-    }
-    if (!runtimeSkill) {
-      issues.push("Runtime live skill is unavailable for this workspace.");
-    } else if (!runtimeSkill.enabled) {
-      issues.push("Runtime live skill is currently disabled.");
+    if (runtimeReadiness.runtimeReadinessReason) {
+      issues.push(runtimeReadiness.runtimeReadinessReason);
     }
     return {
       id: manifest.id,
       name: manifest.name,
       version: manifest.version,
       trustLevel: manifest.trustLevel,
+      kind: manifest.kind,
       entrypoint: manifest.entrypoint,
       permissions: manifest.permissions,
       compatibility: manifest.compatibility,
@@ -142,6 +174,8 @@ export async function readWorkspaceSkillCatalog(
       manifestPath: manifest.manifestPath,
       availableInRuntime: runtimeSkill !== null,
       enabledInRuntime: runtimeSkill?.enabled ?? false,
+      runtimeReadiness: runtimeReadiness.runtimeReadiness,
+      runtimeReadinessReason: runtimeReadiness.runtimeReadinessReason,
       runtimeSkillId: runtimeSkill?.id ?? null,
       reviewProfileIds,
       reviewProfileLabels,
@@ -204,7 +238,11 @@ export function useRuntimeWorkspaceSkillCatalog(
   return state;
 }
 
-export { applyReviewAutofix, runReviewAgent } from "./runtimeReviewIntelligenceActions";
+export {
+  applyReviewAutofix,
+  buildReviewAutofixProposalPreview,
+  runReviewAgent,
+} from "./runtimeReviewIntelligenceActions";
 export {
   resolveReviewIntelligenceSummary,
   resolveReviewProfileDefaults,

@@ -57,10 +57,13 @@ function createCatalogEntry(
       minApp: "1.0.0",
       maxApp: null,
     },
+    kind: "skill",
     recommendedFor: ["review", "delegate"],
     manifestPath: ".hugecode/skills/review-agent/manifest.json",
     availableInRuntime: true,
     enabledInRuntime: true,
+    runtimeReadiness: "executable",
+    runtimeReadinessReason: null,
     runtimeSkillId: "review-agent",
     reviewProfileIds: ["issue-review"],
     reviewProfileLabels: ["Issue Review"],
@@ -137,15 +140,81 @@ describe("reviewPackReviewIntelligenceTruth", () => {
     });
 
     expect(available.autofix.status).toBe("available");
+    expect(available.autofix.actionabilityLabel).toBe("Manual approval ready");
     expect(available.autofix.explicitApprovalRequired).toBe(true);
     expect(available.autofix.operatorGuidance).toContain("explicitly approve");
+    expect(available.autofix.nextStep).toContain("Approve bounded autofix");
+    expect(available.autofix.proposalPreview).toContain(
+      "Apply the bounded autofix candidate before continuing:"
+    );
 
     expect(blocked.autofix.status).toBe("blocked");
+    expect(blocked.autofix.actionabilityLabel).toBe("Blocked");
     expect(blocked.autofix.blockingReason).toBe("Runtime must finish the previous retry first.");
     expect(blocked.autofix.operatorGuidance).toContain("blocked");
+    expect(blocked.autofix.nextStep).toContain("Resolve");
 
     expect(applied.autofix.status).toBe("applied");
+    expect(applied.autofix.actionabilityLabel).toBe("Already applied");
     expect(applied.autofix.actionLabel).toBeNull();
     expect(applied.autofix.operatorGuidance).toContain("already applied");
+    expect(applied.autofix.nextStep).toContain("Inspect the refreshed review evidence");
+  });
+
+  it("projects active review mismatches separately from runtime-ready workspace skills", () => {
+    const truth = buildReviewPackReviewIntelligenceTruth({
+      reviewIntelligence: createReviewIntelligence({
+        allowedSkillIds: ["review-agent", "repo-policy-check", "missing-skill"],
+      }),
+      workspaceSkillCatalog: createCatalogState({
+        entries: [
+          createCatalogEntry(),
+          createCatalogEntry({
+            id: "repo-policy-check",
+            name: "Repository Policy Check",
+            entrypoint: "repo-policy-check",
+            manifestPath: ".hugecode/skills/repo-policy-check/manifest.json",
+            runtimeSkillId: null,
+            availableInRuntime: false,
+            enabledInRuntime: false,
+            runtimeReadiness: "unavailable",
+            runtimeReadinessReason: "Runtime live skill is unavailable for this workspace.",
+            issues: ["Runtime live skill is unavailable for this workspace."],
+          }),
+          createCatalogEntry({
+            id: "notes-helper",
+            name: "Notes Helper",
+            entrypoint: "notes-helper",
+            manifestPath: ".hugecode/skills/notes-helper/manifest.json",
+            reviewProfileIds: [],
+            reviewProfileLabels: [],
+          }),
+        ],
+      }),
+    });
+
+    expect(truth.skillCatalog.summary).toContain("Active review profile recommends 3 skills");
+    expect(truth.skillCatalog.actionableGuidance).toContain("Resolve the flagged review-skill");
+    expect(truth.skillCatalog.entries[0]).toMatchObject({
+      id: "missing-skill",
+      reviewRecommendationLabel: "Recommended now",
+      runtimeLabel: "No workspace manifest",
+    });
+    expect(truth.skillCatalog.entries[1]).toMatchObject({
+      id: "repo-policy-check",
+      reviewRecommendationLabel: "Recommended now",
+      runtimeLabel: "Runtime unavailable",
+      mismatchReason: "Runtime live skill is unavailable for this workspace.",
+    });
+    expect(truth.skillCatalog.entries[2]).toMatchObject({
+      id: "review-agent",
+      reviewRecommendationLabel: "Recommended now",
+      runtimeLabel: "Runtime executable",
+      mismatchReason: null,
+    });
+    expect(
+      truth.skillCatalog.entries.find((entry) => entry.id === "notes-helper")
+        ?.reviewRecommendationLabel
+    ).toBe("Visible in workspace only");
   });
 });

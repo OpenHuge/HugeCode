@@ -9,6 +9,11 @@ import { resolveReviewProfileDefaults } from "./runtimeReviewIntelligenceSummary
 import { summarizeReviewContinuationActionability } from "./runtimeReviewContinuationFacade";
 import type { RuntimeAgentControl } from "../types/webMcpBridge";
 
+export type ReviewAutofixProposalPreview = {
+  reason: string;
+  instructionPatch: string;
+};
+
 function buildReviewAgentInstruction(input: {
   run: Pick<
     HugeCodeRunSummary,
@@ -134,10 +139,22 @@ export async function applyReviewAutofix(input: {
       "Runtime review autofix is unavailable because task intervention is unsupported."
     );
   }
+  const proposalPreview = buildReviewAutofixProposalPreview(input.autofixCandidate);
   return await input.runtimeControl.interveneTask({
     taskId: input.taskId,
     action: "retry",
-    reason: `Apply review autofix ${input.autofixCandidate.id}`,
-    instructionPatch: `Apply the bounded autofix candidate before continuing:\n- ${input.autofixCandidate.summary}`,
+    reason: proposalPreview.reason,
+    instructionPatch: proposalPreview.instructionPatch,
   });
+}
+
+export function buildReviewAutofixProposalPreview(input: {
+  id: string;
+  summary: string;
+  status: "available" | "applied" | "blocked";
+}): ReviewAutofixProposalPreview {
+  return {
+    reason: `Apply review autofix ${input.id}`,
+    instructionPatch: `Apply the bounded autofix candidate before continuing:\n- ${input.summary}`,
+  };
 }

@@ -520,6 +520,9 @@ export function renderReviewIntelligenceSummary(
             <StatusBadge tone={resolveReviewTruthTone(truth.autofix.tone)}>
               {truth.autofix.label}
             </StatusBadge>
+            <StatusBadge tone={resolveReviewTruthTone(truth.autofix.tone)}>
+              {truth.autofix.actionabilityLabel}
+            </StatusBadge>
             <StatusBadge tone={truth.autofix.explicitApprovalRequired ? "warning" : "default"}>
               {truth.autofix.explicitApprovalRequired
                 ? "Operator approval required"
@@ -528,8 +531,17 @@ export function renderReviewIntelligenceSummary(
           </div>
           <div className={styles.actionItemBody}>{truth.autofix.summary}</div>
           <div className={styles.bodyText}>{truth.autofix.operatorGuidance}</div>
+          {truth.autofix.nextStep ? (
+            <div className={styles.bodyText}>Next step: {truth.autofix.nextStep}</div>
+          ) : null}
           {truth.autofix.blockingReason ? (
             <div className={styles.bodyText}>Blocked: {truth.autofix.blockingReason}</div>
+          ) : null}
+          {truth.autofix.proposalPreview ? (
+            <>
+              <div className={styles.bodyText}>Manual proposal preview</div>
+              <div className={styles.actionItemBody}>{truth.autofix.proposalPreview}</div>
+            </>
           ) : null}
         </div>
       </div>
@@ -561,7 +573,10 @@ export function renderReviewIntelligenceActions(
       "available";
   const hasRelaunchAction =
     typeof options.actionHandlers.onRelaunchWithFindings === "function" &&
-    getReviewFindings(detail).length > 0;
+    (getReviewFindings(detail).length > 0 ||
+      truth.autofix.status === "blocked" ||
+      truth.autofix.status === "applied" ||
+      truth.gate.nextRecommendedAction !== null);
 
   if (!hasRunReviewAgentAction && !hasAutofixAction && !hasRelaunchAction) {
     return null;
@@ -601,7 +616,11 @@ export function renderReviewIntelligenceActions(
           variant="ghost"
           onClick={() => options.actionHandlers.onRelaunchWithFindings?.()}
         >
-          Relaunch with findings
+          {truth.autofix.status === "blocked"
+            ? "Open follow-up path"
+            : truth.autofix.status === "applied"
+              ? "Inspect refreshed review"
+              : "Relaunch with findings"}
         </Button>
       ) : null}
       {options.reviewAutomationError ? (
@@ -676,6 +695,9 @@ export function renderWorkspaceSkillCatalog(
                 {entry.title} | {entry.id} | v{entry.version}
               </span>
               <div className={styles.interventionActions}>
+                <StatusBadge tone={resolveReviewTruthTone(entry.reviewRecommendationTone)}>
+                  {entry.reviewRecommendationLabel}
+                </StatusBadge>
                 <StatusBadge tone={resolveReviewTruthTone(entry.runtimeTone)}>
                   {entry.runtimeLabel}
                 </StatusBadge>
@@ -697,6 +719,12 @@ export function renderWorkspaceSkillCatalog(
               <span className={styles.bulletCopy}>Permissions: {entry.permissions.join(", ")}</span>
             ) : null}
             <span className={styles.bulletCopy}>Manifest: {entry.manifestPath}</span>
+            {entry.mismatchReason ? (
+              <span className={styles.bulletCopy}>Mismatch: {entry.mismatchReason}</span>
+            ) : null}
+            {entry.operatorAction ? (
+              <span className={styles.bulletCopy}>Next step: {entry.operatorAction}</span>
+            ) : null}
             {entry.issues.map((issue) => (
               <span key={issue} className={styles.bulletCopy}>
                 Issue: {issue}

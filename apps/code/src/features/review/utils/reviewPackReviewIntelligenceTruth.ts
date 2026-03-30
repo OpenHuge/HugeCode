@@ -3,6 +3,7 @@ import type {
   RuntimeWorkspaceSkillCatalogState,
   WorkspaceSkillCatalogEntry,
 } from "../../../application/runtime/facades/runtimeReviewIntelligenceFacade";
+import { buildReviewAutofixProposalPreview } from "../../../application/runtime/facades/runtimeReviewIntelligenceFacade";
 
 type ReviewTruthTone = "default" | "success" | "warning" | "error" | "progress";
 
@@ -17,6 +18,8 @@ type ReviewTruthCatalogEntry = {
   title: string;
   version: string;
   trustLabel: string;
+  reviewRecommendationLabel: string;
+  reviewRecommendationTone: ReviewTruthTone;
   runtimeLabel: string;
   runtimeTone: ReviewTruthTone;
   compatibilityLabel: string;
@@ -25,6 +28,8 @@ type ReviewTruthCatalogEntry = {
   permissions: string[];
   manifestPath: string;
   issues: string[];
+  mismatchReason: string | null;
+  operatorAction: string | null;
 };
 
 export type RuntimeWorkspaceSkillCatalogSurfaceState = Pick<
@@ -55,6 +60,9 @@ export type ReviewPackReviewIntelligenceTruth = {
     actionLabel: string | null;
     operatorGuidance: string;
     blockingReason: string | null;
+    actionabilityLabel: string;
+    nextStep: string | null;
+    proposalPreview: string | null;
   };
   skillCatalog: {
     status: RuntimeWorkspaceSkillCatalogSurfaceState["status"];
@@ -94,22 +102,111 @@ function resolveRuntimeState(entry: WorkspaceSkillCatalogEntry): {
   label: string;
   tone: ReviewTruthTone;
 } {
-  if (!entry.availableInRuntime) {
-    return {
-      label: "Unavailable in runtime",
-      tone: "error",
-    };
+  switch (entry.runtimeReadiness) {
+    case "manifest_only":
+      return {
+        label: "Manifest visible only",
+        tone: "warning",
+      };
+    case "unavailable":
+      return {
+        label: "Runtime unavailable",
+        tone: "error",
+      };
+    case "disabled":
+      return {
+        label: "Runtime disabled",
+        tone: "warning",
+      };
+    case "executable":
+    default:
+      return {
+        label: "Runtime executable",
+        tone: "success",
+      };
   }
-  if (!entry.enabledInRuntime) {
+}
+
+function normalizeSkillId(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function summarizeCatalogEntries(input: {
+  reviewIntelligence: ReviewIntelligenceSummary | null;
+  workspaceSkillCatalog: RuntimeWorkspaceSkillCatalogSurfaceState;
+}): ReviewTruthCatalogEntry[] {
+  const activeAllowedSkillIds = input.reviewIntelligence?.allowedSkillIds ?? [];
+  const activeAllowedSkillIdSet = new Set(activeAllowedSkillIds.map(normalizeSkillId));
+  const workspaceEntries = input.workspaceSkillCatalog.entries.map((entry) => {
+    const runtimeState = resolveRuntimeState(entry);
+    const recommendedNow = activeAllowedSkillIdSet.has(normalizeSkillId(entry.id));
+    const mismatchReason = recommendedNow ? entry.runtimeReadinessReason : null;
+    const operatorAction = !recommendedNow
+      ? null
+      : entry.runtimeReadiness === "executable"
+        ? null
+        : entry.runtimeReadiness === "disabled"
+          ? "Enable this runtime skill before rerunning review or approving follow-up."
+          : entry.runtimeReadiness === "manifest_only"
+            ? "Replace this source manifest with a runtime-executable skill manifest before relying on it for review."
+            : "Install or register this runtime skill before relying on it for review or autofix.";
     return {
-      label: "Disabled in runtime",
-      tone: "warning",
-    };
-  }
-  return {
-    label: "Enabled in runtime",
-    tone: "success",
-  };
+      id: entry.id,
+      title: entry.name,
+      version: entry.version,
+      trustLabel: titleCase(entry.trustLevel),
+      reviewRecommendationLabel: recommendedNow ? "Recommended now" : "Visible in workspace only",
+      reviewRecommendationTone: recommendedNow ? "success" : "default",
+      runtimeLabel: runtimeState.label,
+      runtimeTone: runtimeState.tone,
+      compatibilityLabel: formatCompatibility(entry),
+      recommendedFor: entry.recommendedFor,
+      reviewProfiles: entry.reviewProfileLabels,
+      permissions: entry.permissions,
+      manifestPath: entry.manifestPath,
+      issues: entry.issues,
+      mismatchReason,
+      operatorAction,
+    } satisfies ReviewTruthCatalogEntry;
+  });
+  const workspaceEntryIds = new Set(workspaceEntries.map((entry) => normalizeSkillId(entry.id)));
+  const missingRecommendedEntries = activeAllowedSkillIds
+    .filter((skillId) => !workspaceEntryIds.has(normalizeSkillId(skillId)))
+    .map(
+      (skillId) =>
+        ({
+          id: skillId,
+          title: skillId,
+          version: "not published",
+          trustLabel: "Missing manifest",
+          reviewRecommendationLabel: "Recommended now",
+          reviewRecommendationTone: "warning",
+          runtimeLabel: "No workspace manifest",
+          runtimeTone: "error",
+          compatibilityLabel: "No workspace skill manifest published.",
+          recommendedFor: ["review"],
+          reviewProfiles: input.reviewIntelligence?.reviewProfileLabel
+            ? [input.reviewIntelligence.reviewProfileLabel]
+            : [],
+          permissions: [],
+          manifestPath: `.hugecode/skills/${skillId}/manifest.json`,
+          issues: [],
+          mismatchReason:
+            "Active review profile recommends this skill, but the workspace skill catalog does not publish it.",
+          operatorAction:
+            "Add the missing workspace manifest or switch to a review profile that does not depend on this skill.",
+        }) satisfies ReviewTruthCatalogEntry
+    );
+  return [...missingRecommendedEntries, ...workspaceEntries].sort((left, right) => {
+    const leftPriority =
+      left.reviewRecommendationLabel === "Recommended now" ? (left.mismatchReason ? 0 : 1) : 2;
+    const rightPriority =
+      right.reviewRecommendationLabel === "Recommended now" ? (right.mismatchReason ? 0 : 1) : 2;
+    if (leftPriority !== rightPriority) {
+      return leftPriority - rightPriority;
+    }
+    return left.id.localeCompare(right.id);
+  });
 }
 
 function buildCatalogActionableGuidance(input: {
@@ -126,11 +223,9 @@ function buildCatalogActionableGuidance(input: {
   if (input.workspaceSkillCatalog.status === "error") {
     return "Fix the workspace skill manifest read error, then reload Review Pack to restore operator-facing skill truth.";
   }
-  const missingRuntimeEntries = input.workspaceSkillCatalog.entries.filter(
-    (entry) => !entry.availableInRuntime || !entry.enabledInRuntime
-  );
-  if (missingRuntimeEntries.length > 0) {
-    return `Enable or install the runtime skill entries flagged in this catalog before relying on them during review or autofix.`;
+  const skillEntries = summarizeCatalogEntries(input);
+  if (skillEntries.some((entry) => entry.mismatchReason !== null)) {
+    return "Resolve the flagged review-skill mismatches before rerunning review or relying on bounded autofix from this panel.";
   }
   return null;
 }
@@ -153,10 +248,23 @@ function buildCatalogSummary(input: {
         ? `No workspace-native skill manifests were found under .hugecode/skills, even though the active review profile allows ${input.reviewIntelligence.allowedSkillIds.join(", ")}.`
         : "No workspace-native skill manifests were found under .hugecode/skills.";
     case "ready":
-    default:
-      return input.workspaceSkillCatalog.entries.length === 1
+    default: {
+      const skillEntries = summarizeCatalogEntries(input);
+      const recommendedNowCount = skillEntries.filter(
+        (entry) => entry.reviewRecommendationLabel === "Recommended now"
+      ).length;
+      const mismatchCount = skillEntries.filter((entry) => entry.mismatchReason !== null).length;
+      const runtimeReadyCount = skillEntries.filter(
+        (entry) =>
+          entry.reviewRecommendationLabel === "Recommended now" && entry.runtimeTone === "success"
+      ).length;
+      if (recommendedNowCount > 0) {
+        return `Active review profile recommends ${recommendedNowCount} skills: ${runtimeReadyCount} runtime executable, ${mismatchCount} mismatched.`;
+      }
+      return skillEntries.length === 1
         ? "1 workspace-native skill manifest is available for review-time inspection."
-        : `${input.workspaceSkillCatalog.entries.length} workspace-native skill manifests are available for review-time inspection.`;
+        : `${skillEntries.length} workspace-native skill manifests are available for review-time inspection.`;
+    }
   }
 }
 
@@ -176,9 +284,15 @@ function buildAutofixTruth(
         reviewIntelligence?.nextRecommendedAction ??
         "Continue with manual review follow-up from the published findings.",
       blockingReason: null,
+      actionabilityLabel: "Manual follow-up",
+      nextStep:
+        reviewIntelligence?.nextRecommendedAction ??
+        "Continue with manual review follow-up from the published findings.",
+      proposalPreview: null,
     };
   }
   if (candidate.status === "available") {
+    const proposalPreview = buildReviewAutofixProposalPreview(candidate);
     return {
       status: "available",
       label: "Bounded autofix available",
@@ -189,6 +303,9 @@ function buildAutofixTruth(
       operatorGuidance:
         "Runtime will not apply this bounded autofix unless an operator explicitly approves it from Review Pack.",
       blockingReason: null,
+      actionabilityLabel: "Manual approval ready",
+      nextStep: "Approve bounded autofix from Review Pack.",
+      proposalPreview: `${proposalPreview.instructionPatch}`,
     };
   }
   if (candidate.status === "blocked") {
@@ -203,6 +320,10 @@ function buildAutofixTruth(
         ? `Bounded autofix is blocked: ${candidate.blockingReason}`
         : "Bounded autofix is blocked until runtime follow-up clears.",
       blockingReason: candidate.blockingReason ?? reviewIntelligence?.blockedReason ?? null,
+      actionabilityLabel: "Blocked",
+      nextStep:
+        "Resolve the runtime blocker, then return to Review Pack for the published follow-up path.",
+      proposalPreview: null,
     };
   }
   return {
@@ -216,6 +337,11 @@ function buildAutofixTruth(
       ? `Bounded autofix already applied. ${reviewIntelligence.nextRecommendedAction}`
       : "Bounded autofix already applied. Inspect the refreshed review evidence before accepting.",
     blockingReason: null,
+    actionabilityLabel: "Already applied",
+    nextStep:
+      reviewIntelligence?.nextRecommendedAction ??
+      "Inspect the refreshed review evidence before accepting.",
+    proposalPreview: null,
   };
 }
 
@@ -234,23 +360,7 @@ export function buildReviewPackReviewIntelligenceTruth(input: {
         : gateState === "fail" || gateState === "blocked"
           ? "error"
           : "default";
-  const skillEntries = input.workspaceSkillCatalog.entries.map((entry) => {
-    const runtimeState = resolveRuntimeState(entry);
-    return {
-      id: entry.id,
-      title: entry.name,
-      version: entry.version,
-      trustLabel: titleCase(entry.trustLevel),
-      runtimeLabel: runtimeState.label,
-      runtimeTone: runtimeState.tone,
-      compatibilityLabel: formatCompatibility(entry),
-      recommendedFor: entry.recommendedFor,
-      reviewProfiles: entry.reviewProfileLabels,
-      permissions: entry.permissions,
-      manifestPath: entry.manifestPath,
-      issues: entry.issues,
-    };
-  });
+  const skillEntries = summarizeCatalogEntries(input);
 
   return {
     overview: {
