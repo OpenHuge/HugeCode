@@ -79,57 +79,87 @@ describe("guard script json mode", () => {
     tempRoots.length = 0;
   });
 
-  it("emits offender details for check-frontend-file-size --json", async () => {
-    const tempRoot = await createTempRoot("frontend-size-json-");
-    await setupCheckOutputFixture(tempRoot, "check-frontend-file-size.mjs");
-    await mkdir(path.join(tempRoot, "apps", "code", "src"), { recursive: true });
+  it("emits offender details for check-ts-file-size --json on package source files", async () => {
+    const tempRoot = await createTempRoot("ts-size-json-");
+    await setupCheckOutputFixture(tempRoot, "check-ts-file-size.mjs");
+    await mkdir(path.join(tempRoot, "packages", "demo", "src"), { recursive: true });
     await writeFile(
-      path.join(tempRoot, "apps", "code", "src", "HugePanel.tsx"),
-      buildLineBlock(1_315, "export const line"),
+      path.join(tempRoot, "packages", "demo", "src", "HugeContract.ts"),
+      buildLineBlock(1_301, "export const line"),
       "utf8"
     );
     runGit(tempRoot, ["init", "--initial-branch=main"]);
 
-    const result = runNode(tempRoot, "scripts/check-frontend-file-size.mjs", ["--json"]);
+    const result = runNode(tempRoot, "scripts/check-ts-file-size.mjs", ["--json"]);
     const payload = parseJsonResult(result);
 
     expect(result.status).toBe(1);
-    expect(payload.check).toBe("check-frontend-file-size");
+    expect(payload.check).toBe("check-ts-file-size");
     expect(payload.ok).toBe(false);
-    expect(payload.errors[0]).toContain("HugePanel.tsx");
+    expect(payload.errors[0]).toContain("HugeContract.ts");
     expect(payload.details?.offenders).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          filePath: "apps/code/src/HugePanel.tsx",
-          currentLines: 1315,
+          filePath: "packages/demo/src/HugeContract.ts",
+          currentLines: 1301,
+          profileName: "workspace-source",
         }),
       ])
     );
   });
 
-  it("reports legacy oversized frontend files in json warnings", async () => {
-    const tempRoot = await createTempRoot("frontend-size-legacy-json-");
-    await setupCheckOutputFixture(tempRoot, "check-frontend-file-size.mjs");
-    await mkdir(path.join(tempRoot, "apps", "code", "src"), { recursive: true });
-    const largeFilePath = path.join(tempRoot, "apps", "code", "src", "LegacyPanel.tsx");
-    await writeFile(largeFilePath, buildLineBlock(1_319, "export const legacy"), "utf8");
+  it("reports legacy oversized package source files in json warnings", async () => {
+    const tempRoot = await createTempRoot("ts-size-legacy-json-");
+    await setupCheckOutputFixture(tempRoot, "check-ts-file-size.mjs");
+    await mkdir(path.join(tempRoot, "packages", "demo", "src"), { recursive: true });
+    const largeFilePath = path.join(tempRoot, "packages", "demo", "src", "LegacyContract.ts");
+    await writeFile(largeFilePath, buildLineBlock(1_305, "export const legacy"), "utf8");
     runGit(tempRoot, ["init", "--initial-branch=main"]);
     runGit(tempRoot, ["config", "user.name", "Codex"]);
     runGit(tempRoot, ["config", "user.email", "codex@example.com"]);
     runGit(tempRoot, ["add", "-A"]);
     runGit(tempRoot, ["commit", "-m", "baseline"]);
 
-    const result = runNode(tempRoot, "scripts/check-frontend-file-size.mjs", ["--json", "--all"]);
+    const result = runNode(tempRoot, "scripts/check-ts-file-size.mjs", ["--json", "--all"]);
     const payload = parseJsonResult(result);
 
     expect(result.status).toBe(0);
     expect(payload.ok).toBe(true);
-    expect(payload.warnings?.[0]).toContain("LegacyPanel.tsx");
+    expect(payload.warnings?.[0]).toContain("LegacyContract.ts");
     expect(payload.details?.legacyOversized).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          filePath: "apps/code/src/LegacyPanel.tsx",
-          currentLines: 1319,
+          filePath: "packages/demo/src/LegacyContract.ts",
+          currentLines: 1305,
+          profileName: "workspace-source",
+        }),
+      ])
+    );
+  });
+
+  it("uses the wider script profile for repo scripts", async () => {
+    const tempRoot = await createTempRoot("ts-size-script-json-");
+    await setupCheckOutputFixture(tempRoot, "check-ts-file-size.mjs");
+    await mkdir(path.join(tempRoot, "scripts"), { recursive: true });
+    await writeFile(
+      path.join(tempRoot, "scripts", "HugeScript.mjs"),
+      buildLineBlock(1_601, "export const line"),
+      "utf8"
+    );
+    runGit(tempRoot, ["init", "--initial-branch=main"]);
+
+    const result = runNode(tempRoot, "scripts/check-ts-file-size.mjs", ["--json"]);
+    const payload = parseJsonResult(result);
+
+    expect(result.status).toBe(1);
+    expect(payload.check).toBe("check-ts-file-size");
+    expect(payload.details?.offenders).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          filePath: "scripts/HugeScript.mjs",
+          currentLines: 1601,
+          profileName: "repo-scripts",
+          maxLines: 1600,
         }),
       ])
     );
