@@ -109,6 +109,20 @@ jobs:
             ' "$timestamp"
           }
 
+          is_recoverable_stuck_merge_queue_state() {
+            local merge_queue_state="$1"
+
+            if [[ "$merge_queue_state" == "AWAITING_CHECKS" ]]; then
+              return 0
+            fi
+
+            if [[ "$merge_queue_state" == "UNMERGEABLE" ]]; then
+              return 0
+            fi
+
+            return 1
+          }
+
           load_merge_group_runs() {
             if [[ -n "$merge_group_runs_file" ]]; then
               return
@@ -234,8 +248,13 @@ jobs:
                 return
               fi
 
-              if [[ -z "$merge_queue_enqueued_at" || "$merge_queue_state" != "AWAITING_CHECKS" ]]; then
-                echo "- PR #$number: already in merge queue with state ${merge_queue_state:-UNKNOWN}." >> "$skipped_file"
+              if [[ -z "$merge_queue_enqueued_at" ]]; then
+                echo "- PR #$number: already in merge queue; could not determine enqueue timestamp." >> "$skipped_file"
+                return
+              fi
+
+              if ! is_recoverable_stuck_merge_queue_state "$merge_queue_state"; then
+                echo "- PR #$number: already in merge queue with unrecoverable state ${merge_queue_state:-UNKNOWN}." >> "$skipped_file"
                 return
               fi
 

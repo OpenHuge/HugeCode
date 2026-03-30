@@ -160,7 +160,8 @@ Public workflow entrypoints currently include:
   queue failure, the workflow should disable and re-enable auto-merge so the
   PR can be enqueued again.
 - `PR Auto Merge` should also self-heal stale merge-queue entries: when an
-  approved PR remains in `AWAITING_CHECKS` past the grace window and no
-  matching `merge_group` run exists since enqueue time, dequeue and enqueue the
-  current head SHA again instead of requiring a manual queue reset.
+  approved PR remains in `AWAITING_CHECKS` or `UNMERGEABLE` past the grace
+  window and no matching `merge_group` run exists since enqueue time, dequeue
+  and enqueue the current head SHA again instead of requiring a manual queue
+  reset.
 - npm Dependabot updates should prefer grouped low-risk development-version bumps to reduce queue pressure and redundant CI fan-out, while keeping higher-risk dependency changes in manual-review lanes.
