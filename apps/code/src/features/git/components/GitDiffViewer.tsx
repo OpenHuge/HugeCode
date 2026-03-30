@@ -51,7 +51,7 @@ type GitDiffViewerProps = {
   pullRequestComments?: GitHubPullRequestComment[];
   pullRequestCommentsLoading?: boolean;
   pullRequestCommentsError?: string | null;
-  onStartTaskFromGitHubPullRequestReviewCommentCommand?: (
+  onStartTaskFromGitHubPullRequestReviewFollowUp?: (
     pullRequest: GitHubPullRequest,
     comment: GitHubPullRequestComment
   ) => Promise<void> | void;
@@ -209,7 +209,7 @@ type PullRequestSummaryProps = {
   pullRequestComments?: GitHubPullRequestComment[];
   pullRequestCommentsLoading: boolean;
   pullRequestCommentsError?: string | null;
-  onStartTaskFromGitHubPullRequestReviewCommentCommand?: (
+  onStartTaskFromGitHubPullRequestReviewFollowUp?: (
     pullRequest: GitHubPullRequest,
     comment: GitHubPullRequestComment
   ) => Promise<void> | void;
@@ -223,7 +223,7 @@ const PullRequestSummary = memo(function PullRequestSummary({
   pullRequestComments,
   pullRequestCommentsLoading,
   pullRequestCommentsError,
-  onStartTaskFromGitHubPullRequestReviewCommentCommand,
+  onStartTaskFromGitHubPullRequestReviewFollowUp,
 }: PullRequestSummaryProps) {
   const prUpdatedLabel = pullRequest.updatedAt
     ? formatRelativeTime(new Date(pullRequest.updatedAt).getTime())
@@ -364,7 +364,7 @@ const PullRequestSummary = memo(function PullRequestSummary({
                     <span className={styles.pullRequestTimelineAuthor}>@{commentAuthor}</span>
                     <span className={styles.pullRequestSeparator}>·</span>
                     <span>{commentTime}</span>
-                    {onStartTaskFromGitHubPullRequestReviewCommentCommand ? (
+                    {onStartTaskFromGitHubPullRequestReviewFollowUp ? (
                       <>
                         <span className={styles.pullRequestSeparator}>·</span>
                         <Button
@@ -372,7 +372,7 @@ const PullRequestSummary = memo(function PullRequestSummary({
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            void onStartTaskFromGitHubPullRequestReviewCommentCommand(
+                            void onStartTaskFromGitHubPullRequestReviewFollowUp(
                               pullRequest,
                               comment
                             );
@@ -415,7 +415,7 @@ export function GitDiffViewer({
   pullRequestComments,
   pullRequestCommentsLoading = false,
   pullRequestCommentsError = null,
-  onStartTaskFromGitHubPullRequestReviewCommentCommand,
+  onStartTaskFromGitHubPullRequestReviewFollowUp,
   canRevert = false,
   onRevertFile,
   onActivePathChange,
@@ -697,8 +697,8 @@ export function GitDiffViewer({
             pullRequestComments={pullRequestComments}
             pullRequestCommentsLoading={pullRequestCommentsLoading}
             pullRequestCommentsError={pullRequestCommentsError}
-            onStartTaskFromGitHubPullRequestReviewCommentCommand={
-              onStartTaskFromGitHubPullRequestReviewCommentCommand
+            onStartTaskFromGitHubPullRequestReviewFollowUp={
+              onStartTaskFromGitHubPullRequestReviewFollowUp
             }
           />
         )}

@@ -136,7 +136,7 @@ export type MainAppGitReviewBridgeParams = {
   onStartTaskFromGitHubIssue: BridgeParams["onStartTaskFromGitHubIssue"];
   onStartTaskFromGitHubIssueFollowUp: BridgeParams["onStartTaskFromGitHubIssueFollowUp"];
   onStartTaskFromGitHubPullRequest: BridgeParams["onStartTaskFromGitHubPullRequest"];
-  onStartTaskFromGitHubPullRequestReviewCommentCommand: BridgeParams["onStartTaskFromGitHubPullRequestReviewCommentCommand"];
+  onStartTaskFromGitHubPullRequestReviewFollowUp: BridgeParams["onStartTaskFromGitHubPullRequestReviewFollowUp"];
   onReviewPackControllerReady?: MainAppReviewPackControllerReady;
 };
 
@@ -225,7 +225,7 @@ export type UseMainAppLayoutNodesStateActionParams = Pick<
     | "onStartTaskFromGitHubIssue"
     | "onStartTaskFromGitHubIssueFollowUp"
     | "onStartTaskFromGitHubPullRequest"
-    | "onStartTaskFromGitHubPullRequestReviewCommentCommand"
+    | "onStartTaskFromGitHubPullRequestReviewFollowUp"
   > &
   Pick<MainAppConversationBridgeParams, "toggleComposerEditorExpanded">;
 
@@ -383,7 +383,7 @@ export type UseMainAppLayoutNodesStateParams = {
       | "onStartTaskFromGitHubIssue"
       | "onStartTaskFromGitHubIssueFollowUp"
       | "onStartTaskFromGitHubPullRequest"
-      | "onStartTaskFromGitHubPullRequestReviewCommentCommand"
+      | "onStartTaskFromGitHubPullRequestReviewFollowUp"
     >;
     reviewPackControllerReady?: MainAppReviewPackControllerReady;
   };

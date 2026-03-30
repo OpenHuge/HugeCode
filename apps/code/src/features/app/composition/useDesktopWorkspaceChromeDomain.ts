@@ -117,35 +117,25 @@ export function useDesktopWorkspaceChromeDomain({
       >
     >[0]
   ) => missionDomain.handleStartTaskFromGitHubIssue(issue);
-  const handleStartTaskFromGitHubPullRequestReviewCommentCommand = (
+  const handleStartTaskFromGitHubPullRequestReviewFollowUp = (
     pullRequest: Parameters<
       NonNullable<
         Parameters<
           typeof useMainAppLayoutNodesState
-        >[0]["gitReview"]["actions"]["onStartTaskFromGitHubPullRequestReviewCommentCommand"]
+        >[0]["gitReview"]["actions"]["onStartTaskFromGitHubPullRequestReviewFollowUp"]
       >
     >[0],
     comment: Parameters<
       NonNullable<
         Parameters<
           typeof useMainAppLayoutNodesState
-        >[0]["gitReview"]["actions"]["onStartTaskFromGitHubPullRequestReviewCommentCommand"]
+        >[0]["gitReview"]["actions"]["onStartTaskFromGitHubPullRequestReviewFollowUp"]
       >
     >[1]
-  ) =>
-    missionDomain.handleStartTaskFromGitHubPullRequestReviewCommentCommand({
-      pullRequest,
-      comments: gitHubPanelState.gitPullRequestComments,
-      event: {
-        eventName: "pull_request_review_comment",
-        action: "created",
-      },
-      command: {
-        triggerMode: "pull_request_review_comment_command",
-        commandKind: "continue",
-        comment,
-      },
-    });
+  ) => {
+    void comment;
+    return missionDomain.handleStartTaskFromGitHubPullRequest(pullRequest);
+  };
 
   const { appClassName, appStyle } = useMainAppSurfaceStyles({
     appSettings,
@@ -310,8 +300,8 @@ export function useDesktopWorkspaceChromeDomain({
         onStartTaskFromGitHubIssue: missionDomain.handleStartTaskFromGitHubIssue,
         onStartTaskFromGitHubIssueFollowUp: handleStartTaskFromGitHubIssueFollowUp,
         onStartTaskFromGitHubPullRequest: missionDomain.handleStartTaskFromGitHubPullRequest,
-        onStartTaskFromGitHubPullRequestReviewCommentCommand:
-          handleStartTaskFromGitHubPullRequestReviewCommentCommand,
+        onStartTaskFromGitHubPullRequestReviewFollowUp:
+          handleStartTaskFromGitHubPullRequestReviewFollowUp,
       },
       reviewPackControllerReady: missionDomain.missionControlState.onReviewPackControllerReady,
     },

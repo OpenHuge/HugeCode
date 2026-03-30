@@ -385,7 +385,7 @@ export type LayoutNodesFieldRegistry = {
   gitPullRequestsLoading: boolean;
   gitPullRequestsError: string | null;
   onStartTaskFromGitHubPullRequest?: (pullRequest: GitHubPullRequest) => Promise<void> | void;
-  onStartTaskFromGitHubPullRequestReviewCommentCommand?: (
+  onStartTaskFromGitHubPullRequestReviewFollowUp?: (
     pullRequest: GitHubPullRequest,
     comment: GitHubPullRequestComment
   ) => Promise<void> | void;
@@ -1000,7 +1000,7 @@ const LAYOUT_GIT_REVIEW_NODE_KEYS = [
   "gitPullRequestsLoading",
   "gitPullRequestsError",
   "onStartTaskFromGitHubPullRequest",
-  "onStartTaskFromGitHubPullRequestReviewCommentCommand",
+  "onStartTaskFromGitHubPullRequestReviewFollowUp",
   "selectedPullRequestNumber",
   "selectedPullRequest",
   "selectedPullRequestComments",

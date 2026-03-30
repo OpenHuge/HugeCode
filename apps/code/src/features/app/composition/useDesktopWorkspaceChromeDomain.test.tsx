@@ -362,4 +362,61 @@ describe("useDesktopWorkspaceChromeDomain", () => {
       input.domains.mission.handleStartTaskFromGitHubIssueCommentCommand
     ).not.toHaveBeenCalled();
   });
+
+  it("routes review follow-up launches through the governed GitHub PR path", async () => {
+    vi.mocked(useMainAppSurfaceStyles).mockReturnValue({
+      appClassName: "desktop-shell",
+      appStyle,
+    });
+    vi.mocked(resolveCompactCodexUiState).mockReturnValue({
+      showCompactCodexThreadActions: true,
+      showMobilePollingFetchStatus: false,
+    });
+    vi.mocked(useMainAppLayoutNodesState).mockReturnValue(
+      layoutNodes as ReturnType<typeof useMainAppLayoutNodesState>
+    );
+    vi.mocked(useMainAppShellSurfaceProps).mockReturnValue({
+      mainAppLayoutProps: mainAppLayoutProps as never,
+      mainAppModalsProps: mainAppModalsProps as never,
+      titlebarControlsNode,
+    });
+
+    const input = createInput();
+    renderHook(() => useDesktopWorkspaceChromeDomain(input));
+
+    const layoutCall = vi.mocked(useMainAppLayoutNodesState).mock.calls[0]?.[0];
+    expect(layoutCall).toBeDefined();
+
+    const pullRequest = {
+      number: 17,
+      title: "Preserve PR follow-up semantics",
+      url: "https://github.com/example/repo/pull/17",
+      createdAt: "2026-03-30T00:00:00.000Z",
+      updatedAt: "2026-03-30T00:00:00.000Z",
+      body: "",
+      headRefName: "feature/review-follow-up",
+      baseRefName: "main",
+      isDraft: false,
+      author: null,
+    };
+    const comment = {
+      id: 1701,
+      body: "Please tighten the runtime boundary.",
+      createdAt: "2026-03-30T00:00:00.000Z",
+      url: "https://github.com/example/repo/pull/17#discussion_r1701",
+      author: { login: "reviewer" },
+    };
+
+    await layoutCall?.gitReview.actions.onStartTaskFromGitHubPullRequestReviewFollowUp?.(
+      pullRequest as never,
+      comment as never
+    );
+
+    expect(input.domains.mission.handleStartTaskFromGitHubPullRequest).toHaveBeenCalledWith(
+      pullRequest
+    );
+    expect(
+      input.domains.mission.handleStartTaskFromGitHubPullRequestReviewCommentCommand
+    ).not.toHaveBeenCalled();
+  });
 });

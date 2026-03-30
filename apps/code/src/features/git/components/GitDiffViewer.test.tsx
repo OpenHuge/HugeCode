@@ -93,8 +93,8 @@ describe("GitDiffViewer", () => {
     expect(screen.queryByText("Oldest comment")).toBeNull();
   });
 
-  it("exposes review-comment follow-up actions from the pull-request timeline", () => {
-    const onStartTaskFromGitHubPullRequestReviewCommentCommand = vi.fn();
+  it("exposes review follow-up actions from the pull-request timeline", () => {
+    const onStartTaskFromGitHubPullRequestReviewFollowUp = vi.fn();
 
     render(
       <GitDiffViewer
@@ -104,8 +104,8 @@ describe("GitDiffViewer", () => {
         error={null}
         pullRequest={pullRequest}
         pullRequestComments={comments}
-        onStartTaskFromGitHubPullRequestReviewCommentCommand={
-          onStartTaskFromGitHubPullRequestReviewCommentCommand
+        onStartTaskFromGitHubPullRequestReviewFollowUp={
+          onStartTaskFromGitHubPullRequestReviewFollowUp
         }
       />
     );
@@ -113,7 +113,7 @@ describe("GitDiffViewer", () => {
     const followUpButtons = screen.getAllByRole("button", { name: "Follow up" });
     fireEvent.click(followUpButtons[0] as HTMLButtonElement);
 
-    expect(onStartTaskFromGitHubPullRequestReviewCommentCommand).toHaveBeenCalledWith(
+    expect(onStartTaskFromGitHubPullRequestReviewFollowUp).toHaveBeenCalledWith(
       pullRequest,
       comments[1]
     );

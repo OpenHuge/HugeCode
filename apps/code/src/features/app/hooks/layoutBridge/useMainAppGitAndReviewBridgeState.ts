@@ -130,7 +130,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
       onStartTaskFromGitHubIssue,
       onStartTaskFromGitHubIssueFollowUp,
       onStartTaskFromGitHubPullRequest,
-      onStartTaskFromGitHubPullRequestReviewCommentCommand,
+      onStartTaskFromGitHubPullRequestReviewFollowUp,
     },
     reviewPackControllerReady: onReviewPackControllerReady = null,
   } = input;
@@ -495,7 +495,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
     gitPullRequestsLoading: gitHubPanelState.gitPullRequestsLoading,
     gitPullRequestsError: gitHubPanelState.gitPullRequestsError,
     onStartTaskFromGitHubPullRequest,
-    onStartTaskFromGitHubPullRequestReviewCommentCommand,
+    onStartTaskFromGitHubPullRequestReviewFollowUp,
     onDelegateGitHubPullRequest: handleDelegateGitHubPullRequest,
     selectedPullRequestCommentsLoading: gitHubPanelState.gitPullRequestCommentsLoading,
     selectedPullRequestCommentsError: gitHubPanelState.gitPullRequestCommentsError,

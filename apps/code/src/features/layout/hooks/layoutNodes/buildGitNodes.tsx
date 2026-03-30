@@ -415,8 +415,8 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
         pullRequestComments={input.selectedPullRequestComments}
         pullRequestCommentsLoading={input.selectedPullRequestCommentsLoading}
         pullRequestCommentsError={input.selectedPullRequestCommentsError}
-        onStartTaskFromGitHubPullRequestReviewCommentCommand={
-          input.onStartTaskFromGitHubPullRequestReviewCommentCommand
+        onStartTaskFromGitHubPullRequestReviewFollowUp={
+          input.onStartTaskFromGitHubPullRequestReviewFollowUp
         }
         canRevert={input.diffSource === "local"}
         onRevertFile={input.onRevertGitFile}
