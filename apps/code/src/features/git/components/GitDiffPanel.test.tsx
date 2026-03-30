@@ -248,21 +248,21 @@ describe("GitDiffPanel", () => {
     expect(stageButton.getAttribute("aria-describedby")).toBe(tooltip.getAttribute("id"));
   });
 
-  it("exposes an issue comment follow-up action through the issues surface", () => {
-    const onStartTaskFromGitHubIssueCommentCommand = vi.fn();
+  it("exposes a governed issue follow-up action through the issues surface", () => {
+    const onStartTaskFromGitHubIssueFollowUp = vi.fn();
 
     render(
       <GitDiffPanel
         {...baseProps}
         mode="issues"
         issues={githubIssues}
-        onStartTaskFromGitHubIssueCommentCommand={onStartTaskFromGitHubIssueCommentCommand}
+        onStartTaskFromGitHubIssueFollowUp={onStartTaskFromGitHubIssueFollowUp}
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Start comment follow-up for issue #42" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start follow-up for issue #42" }));
 
-    expect(onStartTaskFromGitHubIssueCommentCommand).toHaveBeenCalledWith(githubIssues[0]);
+    expect(onStartTaskFromGitHubIssueFollowUp).toHaveBeenCalledWith(githubIssues[0]);
   });
 
   it("adds a show in file manager option for file context menus", async () => {

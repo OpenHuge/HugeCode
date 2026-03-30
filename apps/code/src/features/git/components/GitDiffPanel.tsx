@@ -82,7 +82,7 @@ type GitDiffPanelProps = {
   issuesLoading?: boolean;
   issuesError?: string | null;
   onStartTaskFromGitHubIssue?: (issue: GitHubIssue) => void | Promise<void>;
-  onStartTaskFromGitHubIssueCommentCommand?: (issue: GitHubIssue) => void | Promise<void>;
+  onStartTaskFromGitHubIssueFollowUp?: (issue: GitHubIssue) => void | Promise<void>;
   onDelegateGitHubIssue?: (issue: GitHubIssue) => void | Promise<void>;
   pullRequests?: GitHubPullRequest[];
   pullRequestsTotal?: number;
@@ -205,7 +205,7 @@ export function GitDiffPanel({
   pullRequestsLoading = false,
   pullRequestsError = null,
   onStartTaskFromGitHubPullRequest,
-  onStartTaskFromGitHubIssueCommentCommand,
+  onStartTaskFromGitHubIssueFollowUp,
   selectedPullRequest = null,
   onSelectPullRequest,
   onDelegateGitHubPullRequest,
@@ -856,7 +856,7 @@ export function GitDiffPanel({
         issuesLoading={issuesLoading}
         issues={issues}
         onStartTask={onStartTaskFromGitHubIssue}
-        onStartCommentCommandTask={onStartTaskFromGitHubIssueCommentCommand}
+        onStartFollowUpTask={onStartTaskFromGitHubIssueFollowUp}
         onDelegateIssue={onDelegateGitHubIssue}
       />
     ) : (
@@ -936,7 +936,7 @@ export function GitDiffPanel({
             issuesLoading={issuesLoading}
             issues={issues}
             onStartTask={onStartTaskFromGitHubIssue}
-            onStartCommentCommandTask={onStartTaskFromGitHubIssueCommentCommand}
+            onStartFollowUpTask={onStartTaskFromGitHubIssueFollowUp}
             onDelegateIssue={onDelegateGitHubIssue}
           />
         ) : null}

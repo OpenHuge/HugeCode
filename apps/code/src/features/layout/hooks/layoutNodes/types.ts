@@ -378,7 +378,7 @@ export type LayoutNodesFieldRegistry = {
   gitIssuesLoading: boolean;
   gitIssuesError: string | null;
   onStartTaskFromGitHubIssue?: (issue: GitHubIssue) => Promise<void> | void;
-  onStartTaskFromGitHubIssueCommentCommand?: (issue: GitHubIssue) => Promise<void> | void;
+  onStartTaskFromGitHubIssueFollowUp?: (issue: GitHubIssue) => Promise<void> | void;
   onDelegateGitHubIssue?: (issue: GitHubIssue) => void | Promise<void>;
   gitPullRequests: GitHubPullRequest[];
   gitPullRequestsTotal: number;
@@ -993,7 +993,7 @@ const LAYOUT_GIT_REVIEW_NODE_KEYS = [
   "gitIssuesLoading",
   "gitIssuesError",
   "onStartTaskFromGitHubIssue",
-  "onStartTaskFromGitHubIssueCommentCommand",
+  "onStartTaskFromGitHubIssueFollowUp",
   "onDelegateGitHubIssue",
   "gitPullRequests",
   "gitPullRequestsTotal",

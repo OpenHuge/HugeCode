@@ -318,7 +318,7 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
         issuesLoading={input.gitIssuesLoading}
         issuesError={input.gitIssuesError}
         onStartTaskFromGitHubIssue={input.onStartTaskFromGitHubIssue}
-        onStartTaskFromGitHubIssueCommentCommand={input.onStartTaskFromGitHubIssueCommentCommand}
+        onStartTaskFromGitHubIssueFollowUp={input.onStartTaskFromGitHubIssueFollowUp}
         onDelegateGitHubIssue={input.onDelegateGitHubIssue}
         pullRequests={input.gitPullRequests}
         pullRequestsTotal={input.gitPullRequestsTotal}

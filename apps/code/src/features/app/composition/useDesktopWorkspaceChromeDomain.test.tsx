@@ -220,7 +220,9 @@ function createInput() {
           onReviewPackControllerReady: vi.fn(),
         },
         handleStartTaskFromGitHubIssue: vi.fn(),
+        handleStartTaskFromGitHubIssueCommentCommand: vi.fn(),
         handleStartTaskFromGitHubPullRequest: vi.fn(),
+        handleStartTaskFromGitHubPullRequestReviewCommentCommand: vi.fn(),
       },
     },
     shell: {
@@ -320,5 +322,44 @@ describe("useDesktopWorkspaceChromeDomain", () => {
       showCompactCodexThreadActions: true,
       showMobilePollingFetchStatus: false,
     });
+  });
+
+  it("routes issue follow-up launches through the governed GitHub issue path", async () => {
+    vi.mocked(useMainAppSurfaceStyles).mockReturnValue({
+      appClassName: "desktop-shell",
+      appStyle,
+    });
+    vi.mocked(resolveCompactCodexUiState).mockReturnValue({
+      showCompactCodexThreadActions: true,
+      showMobilePollingFetchStatus: false,
+    });
+    vi.mocked(useMainAppLayoutNodesState).mockReturnValue(
+      layoutNodes as ReturnType<typeof useMainAppLayoutNodesState>
+    );
+    vi.mocked(useMainAppShellSurfaceProps).mockReturnValue({
+      mainAppLayoutProps: mainAppLayoutProps as never,
+      mainAppModalsProps: mainAppModalsProps as never,
+      titlebarControlsNode,
+    });
+
+    const input = createInput();
+    renderHook(() => useDesktopWorkspaceChromeDomain(input));
+
+    const layoutCall = vi.mocked(useMainAppLayoutNodesState).mock.calls[0]?.[0];
+    expect(layoutCall).toBeDefined();
+
+    const issue = {
+      number: 42,
+      title: "Carry governed issue context",
+      url: "https://github.com/example/repo/issues/42",
+      updatedAt: "2026-03-30T00:00:00.000Z",
+    };
+
+    await layoutCall?.gitReview.actions.onStartTaskFromGitHubIssueFollowUp?.(issue as never);
+
+    expect(input.domains.mission.handleStartTaskFromGitHubIssue).toHaveBeenCalledWith(issue);
+    expect(
+      input.domains.mission.handleStartTaskFromGitHubIssueCommentCommand
+    ).not.toHaveBeenCalled();
   });
 });

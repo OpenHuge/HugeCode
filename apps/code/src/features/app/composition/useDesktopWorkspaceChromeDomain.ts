@@ -108,26 +108,15 @@ export function useDesktopWorkspaceChromeDomain({
   } = workspaceState;
   const { handleMobileConnectSuccess } = mobileState;
   const { currentBranch, fileStatus } = gitBranchState;
-  const handleStartTaskFromGitHubIssueCommentCommand = (
+  const handleStartTaskFromGitHubIssueFollowUp = (
     issue: Parameters<
       NonNullable<
         Parameters<
           typeof useMainAppLayoutNodesState
-        >[0]["gitReview"]["actions"]["onStartTaskFromGitHubIssueCommentCommand"]
+        >[0]["gitReview"]["actions"]["onStartTaskFromGitHubIssueFollowUp"]
       >
     >[0]
-  ) =>
-    missionDomain.handleStartTaskFromGitHubIssueCommentCommand({
-      issue,
-      event: {
-        eventName: "issue_comment",
-        action: "created",
-      },
-      command: {
-        triggerMode: "issue_comment_command",
-        commandKind: "continue",
-      },
-    });
+  ) => missionDomain.handleStartTaskFromGitHubIssue(issue);
   const handleStartTaskFromGitHubPullRequestReviewCommentCommand = (
     pullRequest: Parameters<
       NonNullable<
@@ -319,7 +308,7 @@ export function useDesktopWorkspaceChromeDomain({
       },
       actions: {
         onStartTaskFromGitHubIssue: missionDomain.handleStartTaskFromGitHubIssue,
-        onStartTaskFromGitHubIssueCommentCommand: handleStartTaskFromGitHubIssueCommentCommand,
+        onStartTaskFromGitHubIssueFollowUp: handleStartTaskFromGitHubIssueFollowUp,
         onStartTaskFromGitHubPullRequest: missionDomain.handleStartTaskFromGitHubPullRequest,
         onStartTaskFromGitHubPullRequestReviewCommentCommand:
           handleStartTaskFromGitHubPullRequestReviewCommentCommand,

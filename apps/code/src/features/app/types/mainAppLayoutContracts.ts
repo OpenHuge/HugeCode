@@ -134,7 +134,7 @@ export type MainAppGitReviewBridgeParams = {
   gitHubPanelState: ReturnType<typeof useGitHubPanelController>;
   gitCommitState: ReturnType<typeof useGitCommitController>;
   onStartTaskFromGitHubIssue: BridgeParams["onStartTaskFromGitHubIssue"];
-  onStartTaskFromGitHubIssueCommentCommand: BridgeParams["onStartTaskFromGitHubIssueCommentCommand"];
+  onStartTaskFromGitHubIssueFollowUp: BridgeParams["onStartTaskFromGitHubIssueFollowUp"];
   onStartTaskFromGitHubPullRequest: BridgeParams["onStartTaskFromGitHubPullRequest"];
   onStartTaskFromGitHubPullRequestReviewCommentCommand: BridgeParams["onStartTaskFromGitHubPullRequestReviewCommentCommand"];
   onReviewPackControllerReady?: MainAppReviewPackControllerReady;
@@ -223,7 +223,7 @@ export type UseMainAppLayoutNodesStateActionParams = Pick<
     | "handleSetGitRoot"
     | "handleApplyWorktreeChanges"
     | "onStartTaskFromGitHubIssue"
-    | "onStartTaskFromGitHubIssueCommentCommand"
+    | "onStartTaskFromGitHubIssueFollowUp"
     | "onStartTaskFromGitHubPullRequest"
     | "onStartTaskFromGitHubPullRequestReviewCommentCommand"
   > &
@@ -381,7 +381,7 @@ export type UseMainAppLayoutNodesStateParams = {
     actions: Pick<
       UseMainAppLayoutNodesStateActionParams,
       | "onStartTaskFromGitHubIssue"
-      | "onStartTaskFromGitHubIssueCommentCommand"
+      | "onStartTaskFromGitHubIssueFollowUp"
       | "onStartTaskFromGitHubPullRequest"
       | "onStartTaskFromGitHubPullRequestReviewCommentCommand"
     >;

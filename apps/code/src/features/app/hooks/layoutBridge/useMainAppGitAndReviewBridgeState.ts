@@ -128,7 +128,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
     },
     actions: {
       onStartTaskFromGitHubIssue,
-      onStartTaskFromGitHubIssueCommentCommand,
+      onStartTaskFromGitHubIssueFollowUp,
       onStartTaskFromGitHubPullRequest,
       onStartTaskFromGitHubPullRequestReviewCommentCommand,
     },
@@ -488,7 +488,7 @@ export function useMainAppGitAndReviewBridgeState(input: MainAppLayoutGitReviewB
     gitIssuesLoading: gitHubPanelState.gitIssuesLoading,
     gitIssuesError: gitHubPanelState.gitIssuesError,
     onStartTaskFromGitHubIssue,
-    onStartTaskFromGitHubIssueCommentCommand,
+    onStartTaskFromGitHubIssueFollowUp,
     onDelegateGitHubIssue: handleDelegateGitHubIssue,
     gitPullRequests: gitHubPanelState.gitPullRequests,
     gitPullRequestsTotal: gitHubPanelState.gitPullRequestsTotal,
