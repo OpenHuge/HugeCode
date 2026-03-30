@@ -62,6 +62,13 @@ describe("runtimeReviewIntelligenceFacade", () => {
     vi.restoreAllMocks();
   });
 
+  it("returns an empty workspace skill catalog when the repository has no skill manifests", async () => {
+    vi.spyOn(workspaceFilesPort, "listWorkspaceFileEntries").mockResolvedValue([] as never);
+    vi.spyOn(runtimeSkillsPort, "listRuntimeLiveSkills").mockResolvedValue([] as never);
+
+    await expect(readWorkspaceSkillCatalog("ws-1", createContract())).resolves.toEqual([]);
+  });
+
   it("reads workspace skill manifests and resolves runtime availability", async () => {
     vi.spyOn(workspaceFilesPort, "listWorkspaceFileEntries").mockResolvedValue([
       {
@@ -138,6 +145,8 @@ describe("runtimeReviewIntelligenceFacade", () => {
       id: "repo-policy-check",
       availableInRuntime: false,
       enabledInRuntime: false,
+      reviewProfileIds: ["issue-review"],
+      reviewProfileLabels: ["Issue Review"],
       recommendedFor: ["review", "delegate"],
     });
     expect(catalog[0]?.issues).toContain("Runtime live skill is unavailable for this workspace.");
@@ -146,6 +155,8 @@ describe("runtimeReviewIntelligenceFacade", () => {
       availableInRuntime: true,
       enabledInRuntime: true,
       runtimeSkillId: "review-agent",
+      reviewProfileIds: ["default-review", "issue-review"],
+      reviewProfileLabels: ["Default Review", "Issue Review"],
     });
   });
 
