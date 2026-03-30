@@ -1,5 +1,6 @@
 import type {
   AgentTaskSourceKind,
+  TurnSendRequest,
   RuntimeTaskSourceGetRequest,
   RuntimeTaskSourceIngestRequest,
   RuntimeTaskSourceListRequest,
@@ -109,7 +110,6 @@ import type {
   ThreadLiveSubscribeRequest,
   ThreadLiveUnsubscribeRequest,
   TurnInterruptRequestCompat,
-  TurnSendRequestCompat,
 } from "./payloadShared.js";
 
 export interface CodeRuntimeRpcRequestPayloadByMethod {
@@ -282,8 +282,9 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
   };
   [CODE_RUNTIME_RPC_METHODS.THREAD_LIVE_SUBSCRIBE]: ThreadLiveSubscribeRequest;
   [CODE_RUNTIME_RPC_METHODS.THREAD_LIVE_UNSUBSCRIBE]: ThreadLiveUnsubscribeRequest;
+  // Hot-path RPCs stay canonical-only so alias drift fails in contract checks instead of at runtime.
   [CODE_RUNTIME_RPC_METHODS.TURN_SEND]: {
-    payload: TurnSendRequestCompat;
+    payload: TurnSendRequest;
   };
   [CODE_RUNTIME_RPC_METHODS.TURN_INTERRUPT]: {
     payload: TurnInterruptRequestCompat;
@@ -353,11 +354,29 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_POLICY_GET_V2]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_POLICY_SET_V2]: RuntimePolicySetRequest;
   [CODE_RUNTIME_RPC_METHODS.KERNEL_CAPABILITIES_LIST_V2]: CodeRuntimeRpcEmptyParams;
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_SESSIONS_LIST_V2]: KernelSessionsListRequest;
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_JOBS_LIST_V2]: KernelJobsListRequest;
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_CONTEXT_SNAPSHOT_V2]: KernelContextSnapshotRequest;
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_EXTENSIONS_LIST_V2]: KernelExtensionsListRequest;
-  [CODE_RUNTIME_RPC_METHODS.KERNEL_POLICIES_EVALUATE_V2]: KernelPoliciesEvaluateRequest;
+  [CODE_RUNTIME_RPC_METHODS.KERNEL_SESSIONS_LIST_V2]: KernelSessionsListRequest & {
+    workspace_id?: string | null;
+  };
+  [CODE_RUNTIME_RPC_METHODS.KERNEL_JOBS_LIST_V2]: KernelJobsListRequest & {
+    workspace_id?: string | null;
+  };
+  [CODE_RUNTIME_RPC_METHODS.KERNEL_CONTEXT_SNAPSHOT_V2]: KernelContextSnapshotRequest & {
+    workspace_id?: string;
+    thread_id?: string;
+    task_id?: string;
+    run_id?: string;
+  };
+  [CODE_RUNTIME_RPC_METHODS.KERNEL_EXTENSIONS_LIST_V2]: KernelExtensionsListRequest & {
+    workspace_id?: string | null;
+  };
+  [CODE_RUNTIME_RPC_METHODS.KERNEL_POLICIES_EVALUATE_V2]: KernelPoliciesEvaluateRequest & {
+    workspace_id?: string | null;
+    tool_name?: string | null;
+    payload_bytes?: number | null;
+    requires_approval?: boolean | null;
+    capability_id?: string | null;
+    mutation_kind?: string | null;
+  };
   [CODE_RUNTIME_RPC_METHODS.KERNEL_PROJECTION_BOOTSTRAP_V3]: KernelProjectionBootstrapRequest;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKENDS_LIST]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKEND_UPSERT]: RuntimeBackendUpsertInput & {
