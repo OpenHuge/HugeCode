@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(dead_code))]
+
 use super::*;
 
 #[derive(Clone, Debug)]
@@ -9,6 +11,7 @@ pub(super) struct MissionControlProjectionState {
     pub(super) review_packs: Vec<MissionReviewPackProjection>,
 }
 
+#[cfg(test)]
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct MissionControlReadinessSummaryProjection {
@@ -17,6 +20,7 @@ pub(super) struct MissionControlReadinessSummaryProjection {
     pub(super) detail: String,
 }
 
+#[cfg(test)]
 #[derive(Default)]
 struct ContinuitySignalCounts {
     ready_resume_count: usize,
@@ -28,6 +32,7 @@ struct ContinuitySignalCounts {
     blocked_count: usize,
 }
 
+#[cfg(test)]
 fn json_string_field<'a>(value: &'a Option<Value>, key: &str) -> Option<&'a str> {
     value
         .as_ref()?
@@ -37,6 +42,7 @@ fn json_string_field<'a>(value: &'a Option<Value>, key: &str) -> Option<&'a str>
         .filter(|entry| !entry.is_empty())
 }
 
+#[cfg(test)]
 fn json_bool_field(value: &Option<Value>, key: &str) -> bool {
     value
         .as_ref()
@@ -45,6 +51,7 @@ fn json_bool_field(value: &Option<Value>, key: &str) -> bool {
         .unwrap_or(false)
 }
 
+#[cfg(test)]
 fn json_has_non_null_field(value: &Option<Value>, key: &str) -> bool {
     value
         .as_ref()
@@ -52,6 +59,7 @@ fn json_has_non_null_field(value: &Option<Value>, key: &str) -> bool {
         .is_some_and(|entry| !entry.is_null())
 }
 
+#[cfg(test)]
 fn pluralize(count: usize, singular: &str, plural: Option<&str>) -> String {
     let label = if count == 1 {
         singular.to_string()
@@ -63,6 +71,7 @@ fn pluralize(count: usize, singular: &str, plural: Option<&str>) -> String {
     format!("{count} {label}")
 }
 
+#[cfg(test)]
 fn empty_continuity_readiness() -> MissionControlReadinessSummaryProjection {
     MissionControlReadinessSummaryProjection {
         tone: "idle".to_string(),
@@ -72,10 +81,12 @@ fn empty_continuity_readiness() -> MissionControlReadinessSummaryProjection {
     }
 }
 
+#[cfg(test)]
 fn has_recovery_path(run: &MissionRunProjection) -> bool {
     run.publish_handoff.is_some() || json_has_non_null_field(&run.mission_linkage, "navigationTarget")
 }
 
+#[cfg(test)]
 fn quantify_continuity_statement(
     count: usize,
     singular_subject: &str,
@@ -90,6 +101,7 @@ fn quantify_continuity_statement(
     }
 }
 
+#[cfg(test)]
 fn analyze_run_continuity_signal(run: &MissionRunProjection) -> Option<&'static str> {
     if let Some(takeover_bundle) = run.takeover_bundle.as_ref() {
         let state = takeover_bundle.get("state").and_then(Value::as_str);
@@ -156,6 +168,7 @@ fn analyze_run_continuity_signal(run: &MissionRunProjection) -> Option<&'static 
     None
 }
 
+#[cfg(test)]
 fn count_continuity_signals(runs: &[MissionRunProjection]) -> ContinuitySignalCounts {
     let mut counts = ContinuitySignalCounts::default();
     for run in runs {
@@ -182,6 +195,7 @@ fn count_continuity_signals(runs: &[MissionRunProjection]) -> ContinuitySignalCo
     counts
 }
 
+#[cfg(test)]
 pub(super) fn build_continuity_readiness(
     has_active_workspace: bool,
     active_workspace_connected: bool,
@@ -382,3 +396,7 @@ pub(super) async fn build_mission_control_projection_state(
         review_packs,
     }
 }
+
+#[cfg(test)]
+#[path = "rpc_dispatch_mission_control_summary_tests.rs"]
+mod tests;

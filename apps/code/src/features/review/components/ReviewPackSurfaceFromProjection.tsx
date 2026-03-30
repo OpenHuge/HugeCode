@@ -1,6 +1,7 @@
 import type { RuntimeReviewGetV2Response } from "@ku0/code-runtime-host-contract";
 import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";
 import type { RepositoryExecutionContract } from "../../../application/runtime/facades/runtimeRepositoryExecutionContract";
+import { useRuntimeWorkspaceSkillCatalog } from "../../../application/runtime/facades/runtimeReviewIntelligenceFacade";
 import {
   buildCompactReviewEvidenceInput,
   type CompactReviewEvidenceInput,
@@ -94,8 +95,18 @@ export function ReviewPackSurfaceFromProjection({
   }
   const detailWithEvidence =
     detail && compactEvidenceInput ? { ...detail, compactEvidenceInput } : detail;
+  const workspaceSkillCatalogState = useRuntimeWorkspaceSkillCatalog(
+    workspaceId,
+    repositoryExecutionContract
+  );
 
   return (
-    <ReviewPackSurface {...props} items={items} detail={detailWithEvidence} selection={selection} />
+    <ReviewPackSurface
+      {...props}
+      items={items}
+      detail={detailWithEvidence}
+      selection={selection}
+      workspaceSkillCatalogState={workspaceSkillCatalogState}
+    />
   );
 }
