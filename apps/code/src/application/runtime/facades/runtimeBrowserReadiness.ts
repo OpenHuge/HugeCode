@@ -122,9 +122,13 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       state: "ready",
       headline: "Browser readiness confirmed",
       detail:
-        "Desktop host bridge publishes the browser extraction contract, so extraction can move through the canonical capability boundary.",
+        hasBrowserAssessmentCapability
+          ? "Desktop host bridge publishes the canonical browser assessment and extraction contracts."
+          : "Desktop host bridge publishes the browser extraction contract, so extraction can move through the canonical capability boundary.",
       recommendedAction:
-        "Use the desktop-host browser extraction contract as the canonical source for future browser reads.",
+        hasBrowserAssessmentCapability
+          ? "Use the published browser assessment and extraction contracts as the canonical source for future browser feedback loops."
+          : "Use the desktop-host browser extraction contract as the canonical source for future browser reads.",
       runtimeHost,
       source: "desktop_host_bridge",
       sourceLabel: "Desktop host bridge",
@@ -140,6 +144,35 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
         browserAssessmentHistory: hasBrowserAssessmentHistoryCapability,
         browserDebug: hasBrowserDebugCapability,
         browserExtraction: true,
+        browserExtractionHistory: hasBrowserExtractionHistoryCapability,
+        webMcp: hasWebMcpSupport,
+      },
+    };
+  }
+
+  if (hasBrowserAssessmentCapability || hasBrowserAssessmentHistoryCapability) {
+    return {
+      state: "attention",
+      headline: "Browser readiness is partially published",
+      detail:
+        "Desktop host bridge publishes browser assessment capability, but browser extraction is not fully wired yet.",
+      recommendedAction:
+        "Keep using the published browser assessment loop and add the extraction contract before treating browser readiness as fully complete.",
+      runtimeHost,
+      source: "partial_host_bridge",
+      sourceLabel: "Partial desktop host bridge",
+      assessmentAvailable: hasBrowserAssessmentCapability,
+      assessmentHistoryAvailable: hasBrowserAssessmentHistoryCapability,
+      extractionAvailable: false,
+      historyAvailable: hasBrowserExtractionHistoryCapability,
+      localOnly: false,
+      lastAssessmentResult: null,
+      lastResult: null,
+      capabilities: {
+        browserAssessment: hasBrowserAssessmentCapability,
+        browserAssessmentHistory: hasBrowserAssessmentHistoryCapability,
+        browserDebug: hasBrowserDebugCapability,
+        browserExtraction: false,
         browserExtractionHistory: hasBrowserExtractionHistoryCapability,
         webMcp: hasWebMcpSupport,
       },
@@ -186,8 +219,8 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       runtimeHost,
       source: "local_placeholder",
       sourceLabel: "Local placeholder",
-      assessmentAvailable: false,
-      assessmentHistoryAvailable: false,
+      assessmentAvailable: hasBrowserAssessmentCapability,
+      assessmentHistoryAvailable: hasBrowserAssessmentHistoryCapability,
       extractionAvailable: false,
       historyAvailable: false,
       localOnly: true,
@@ -199,8 +232,8 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
         errorCode: "LOCAL_PLACEHOLDER_STATE",
       }),
       capabilities: {
-        browserAssessment: false,
-        browserAssessmentHistory: false,
+        browserAssessment: hasBrowserAssessmentCapability,
+        browserAssessmentHistory: hasBrowserAssessmentHistoryCapability,
         browserDebug: hasBrowserDebugCapability,
         browserExtraction: false,
         browserExtractionHistory: false,
@@ -219,8 +252,8 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
     runtimeHost,
     source: "unavailable",
     sourceLabel: "Unavailable",
-    assessmentAvailable: false,
-    assessmentHistoryAvailable: false,
+    assessmentAvailable: hasBrowserAssessmentCapability,
+    assessmentHistoryAvailable: hasBrowserAssessmentHistoryCapability,
     extractionAvailable: false,
     historyAvailable: false,
     localOnly: false,
@@ -232,8 +265,8 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       errorCode: "BROWSER_CAPABILITY_UNAVAILABLE",
     }),
     capabilities: {
-      browserAssessment: false,
-      browserAssessmentHistory: false,
+      browserAssessment: hasBrowserAssessmentCapability,
+      browserAssessmentHistory: hasBrowserAssessmentHistoryCapability,
       browserDebug: false,
       browserExtraction: false,
       browserExtractionHistory: false,
