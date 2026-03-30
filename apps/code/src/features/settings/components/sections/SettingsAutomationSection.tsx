@@ -17,6 +17,11 @@ import type { MissionNavigationTarget } from "../../../missions/utils/missionCon
 import * as controlStyles from "../SettingsFormControls.css";
 import * as grammar from "../SettingsSectionGrammar.css";
 import { SettingsToggleControl } from "../SettingsToggleControl";
+import {
+  createSettingsServerOperabilityState,
+  resolveSettingsServerOperabilityNotice,
+  type SettingsServerOperabilityState,
+} from "./settings-server-section/shared";
 
 export type SettingsAutomationScheduleStatus = "active" | "paused" | "running" | "blocked";
 
@@ -85,9 +90,7 @@ export type SettingsAutomationSectionProps = {
   workspaceOptions?: Array<{ id: string; label: string }>;
   defaultBackendId?: string | null;
   schedules?: SettingsAutomationScheduleSummary[];
-  loading?: boolean;
-  error?: string | null;
-  readOnlyReason?: string | null;
+  operability?: SettingsServerOperabilityState;
   actionAvailability?: SettingsAutomationScheduleActionAvailability;
   onRefreshSchedules?: () => void | Promise<void>;
   onCreateSchedule?: (draft: SettingsAutomationScheduleDraft) => void | Promise<void>;
@@ -255,26 +258,6 @@ function resolveFieldLabel(value: string | null, fallback: string): string {
   return fallback;
 }
 
-function resolveReadOnlyReason(
-  readOnlyReason: string | null | undefined,
-  loading: boolean | undefined,
-  onRefreshSchedules: SettingsAutomationSectionProps["onRefreshSchedules"],
-  onCreateSchedule: SettingsAutomationSectionProps["onCreateSchedule"],
-  onUpdateSchedule: SettingsAutomationSectionProps["onUpdateSchedule"],
-  onScheduleAction: SettingsAutomationSectionProps["onScheduleAction"]
-): string | null {
-  if (readOnlyReason) {
-    return readOnlyReason;
-  }
-  if (loading) {
-    return "Runtime is still loading schedule summaries.";
-  }
-  if (onRefreshSchedules || onCreateSchedule || onUpdateSchedule || onScheduleAction) {
-    return null;
-  }
-  return "Schedule facade is not wired yet.";
-}
-
 function readScheduleLinkageValue(value: string | null): string | null {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : null;
@@ -335,9 +318,7 @@ export function SettingsAutomationSection({
   workspaceOptions = [],
   defaultBackendId = null,
   schedules = [],
-  loading = false,
-  error = null,
-  readOnlyReason = null,
+  operability = createSettingsServerOperabilityState(),
   actionAvailability,
   onRefreshSchedules,
   onCreateSchedule,
@@ -372,14 +353,19 @@ export function SettingsAutomationSection({
     () => schedules.find((schedule) => schedule.id === selectedScheduleId) ?? null,
     [schedules, selectedScheduleId]
   );
-  const readOnlyStateReason = resolveReadOnlyReason(
-    readOnlyReason,
-    loading,
-    onRefreshSchedules,
-    onCreateSchedule,
-    onUpdateSchedule,
-    onScheduleAction
-  );
+  const loading = operability.loading;
+  const error = operability.error;
+  const readOnlyReason = operability.readOnlyReason;
+  const unavailableReason = operability.unavailableReason;
+  const operabilityNotice = resolveSettingsServerOperabilityNotice(operability);
+  const mutationBlockedReason = unavailableReason ?? readOnlyReason ?? error;
+  const emptyStateMessage = unavailableReason
+    ? "No runtime-confirmed schedules are available because this surface is unavailable."
+    : error
+      ? "No runtime-confirmed schedules are available until runtime summary loading succeeds."
+      : loading
+        ? "Runtime-confirmed schedules are still loading."
+        : "No runtime-confirmed schedules are currently published by the runtime. Create one here to populate confirmed cadence, review state, placement, and blockers.";
 
   useEffect(() => {
     if (selectedScheduleId !== null && selectedSchedule === null) {
@@ -412,14 +398,14 @@ export function SettingsAutomationSection({
 
   const handleSaveDraft = async () => {
     if (selectedScheduleId === null) {
-      if (!onCreateSchedule || !createEnabled) {
+      if (!onCreateSchedule || !createEnabled || mutationBlockedReason) {
         return;
       }
       await onCreateSchedule(draft);
       return;
     }
 
-    if (!onUpdateSchedule || !updateEnabled) {
+    if (!onUpdateSchedule || !updateEnabled || mutationBlockedReason) {
       return;
     }
 
@@ -431,6 +417,9 @@ export function SettingsAutomationSection({
       return;
     }
 
+    if (mutationBlockedReason) {
+      return;
+    }
     if (action === "run-now" && !runNowEnabled) {
       return;
     }
@@ -446,8 +435,8 @@ export function SettingsAutomationSection({
 
   const canSave =
     selectedScheduleId === null
-      ? onCreateSchedule !== undefined && createEnabled
-      : onUpdateSchedule !== undefined && updateEnabled;
+      ? onCreateSchedule !== undefined && createEnabled && mutationBlockedReason === null
+      : onUpdateSchedule !== undefined && updateEnabled && mutationBlockedReason === null;
   const saveLabel = selectedScheduleId === null ? "Create schedule" : "Save changes";
   const backendSelectOptions: SelectOption[] = useMemo(
     () => [
@@ -491,13 +480,16 @@ export function SettingsAutomationSection({
   const selectedScheduleLabel = selectedSchedule?.name ?? "No schedule selected";
   const selectedScheduleActionLabel =
     selectedSchedule?.status === "paused" ? "Resume schedule" : "Pause schedule";
-  const selectedScheduleSupportsToggle = selectedSchedule !== null && updateEnabled;
+  const selectedScheduleSupportsToggle =
+    selectedSchedule !== null && updateEnabled && mutationBlockedReason === null;
   const cancelDisabled =
     loading ||
+    mutationBlockedReason !== null ||
     !cancelRunEnabled ||
     selectedSchedule?.status !== "running" ||
     onScheduleAction === undefined;
-  const runNowDisabled = loading || !runNowEnabled || onScheduleAction === undefined;
+  const runNowDisabled =
+    loading || mutationBlockedReason !== null || !runNowEnabled || onScheduleAction === undefined;
   const selectedScheduleCanLaunch =
     Boolean(selectedSchedule?.workspaceId) && Boolean(selectedSchedule?.prompt.trim().length);
   const pauseResumeDisabled =
@@ -538,7 +530,7 @@ export function SettingsAutomationSection({
                 onClick={() => {
                   void onRefreshSchedules?.();
                 }}
-                disabled={loading || onRefreshSchedules === undefined}
+                disabled={loading || unavailableReason !== null || onRefreshSchedules === undefined}
               >
                 {loading ? "Refreshing..." : "Refresh summaries"}
               </Button>
@@ -548,23 +540,29 @@ export function SettingsAutomationSection({
                 size="sm"
                 className="settings-button-compact"
                 onClick={handleCreateNew}
-                disabled={loading || !createEnabled}
-                title={!createEnabled ? (readOnlyStateReason ?? undefined) : undefined}
+                disabled={loading || mutationBlockedReason !== null || !createEnabled}
+                title={
+                  mutationBlockedReason ??
+                  (!createEnabled
+                    ? "Runtime schedule create is unavailable in current runtime."
+                    : undefined)
+                }
               >
                 New schedule
               </Button>
             </SettingsFooterBar>
 
-            {error ? <div className={grammar.errorText}>{error}</div> : null}
-            {readOnlyStateReason ? (
-              <div className={grammar.helpText}>{readOnlyStateReason}</div>
+            {operabilityNotice ? (
+              <div
+                className={
+                  operabilityNotice.tone === "error" ? grammar.errorText : grammar.helpText
+                }
+              >
+                {operabilityNotice.text}
+              </div>
             ) : null}
             {schedules.length === 0 ? (
-              <div className={grammar.helpText}>
-                {readOnlyStateReason
-                  ? "No runtime-confirmed schedules are available while runtime schedule control is read-only."
-                  : "No runtime-confirmed schedules are currently published by the runtime. Create one here to populate confirmed cadence, review state, placement, and blockers."}
-              </div>
+              <div className={grammar.helpText}>{emptyStateMessage}</div>
             ) : (
               schedules.map((schedule) => {
                 const isSelected = schedule.id === selectedScheduleId;
@@ -964,7 +962,14 @@ export function SettingsAutomationSection({
               void handleSaveDraft();
             }}
             disabled={loading || !canSave}
-            title={!canSave ? (readOnlyStateReason ?? undefined) : undefined}
+            title={
+              !canSave
+                ? (mutationBlockedReason ??
+                  (selectedScheduleId === null
+                    ? "Runtime schedule create is unavailable in current runtime."
+                    : "Runtime schedule update is unavailable in current runtime."))
+                : undefined
+            }
           >
             {saveLabel}
           </Button>
@@ -1112,9 +1117,10 @@ export function SettingsAutomationSection({
                 disabled={pauseResumeDisabled}
                 title={
                   pauseResumeDisabled
-                    ? updateEnabled
-                      ? (readOnlyStateReason ?? undefined)
-                      : (readOnlyStateReason ?? "Runtime schedule state changes are unavailable.")
+                    ? (mutationBlockedReason ??
+                      (updateEnabled
+                        ? undefined
+                        : "Runtime schedule state changes are unavailable."))
                     : undefined
                 }
               >
@@ -1131,9 +1137,8 @@ export function SettingsAutomationSection({
                 disabled={runNowDisabled || !selectedScheduleCanLaunch}
                 title={
                   runNowDisabled
-                    ? !runNowEnabled
-                      ? (readOnlyStateReason ?? "Runtime schedule run-now is unavailable.")
-                      : (readOnlyStateReason ?? undefined)
+                    ? (mutationBlockedReason ??
+                      (!runNowEnabled ? "Runtime schedule run-now is unavailable." : undefined))
                     : !selectedScheduleCanLaunch
                       ? "Select a workspace and prompt before launching."
                       : undefined
@@ -1152,9 +1157,10 @@ export function SettingsAutomationSection({
                 disabled={cancelDisabled}
                 title={
                   cancelDisabled
-                    ? !cancelRunEnabled
-                      ? (readOnlyStateReason ?? "Runtime schedule cancel-run is unavailable.")
-                      : "No current run is active."
+                    ? (mutationBlockedReason ??
+                      (!cancelRunEnabled
+                        ? "Runtime schedule cancel-run is unavailable."
+                        : "No current run is active."))
                     : undefined
                 }
               >

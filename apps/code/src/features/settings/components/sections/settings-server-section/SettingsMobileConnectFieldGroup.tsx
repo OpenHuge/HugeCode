@@ -5,6 +5,7 @@ type SettingsMobileConnectFieldGroupProps = {
   mobileConnectBusy: boolean;
   mobileConnectStatusText: string | null;
   mobileConnectStatusError: boolean;
+  disabled?: boolean;
   onMobileConnectTest: () => void;
   subtitle: string;
 };
@@ -13,6 +14,7 @@ export function SettingsMobileConnectFieldGroup({
   mobileConnectBusy,
   mobileConnectStatusText,
   mobileConnectStatusError,
+  disabled = false,
   onMobileConnectTest,
   subtitle,
 }: SettingsMobileConnectFieldGroupProps) {
@@ -26,7 +28,7 @@ export function SettingsMobileConnectFieldGroup({
               size="sm"
               className="settings-button-compact"
               onClick={onMobileConnectTest}
-              disabled={mobileConnectBusy}
+              disabled={disabled || mobileConnectBusy}
             >
               {mobileConnectBusy ? "Connecting..." : "Connect & test"}
             </Button>

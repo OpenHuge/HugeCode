@@ -10,6 +10,19 @@ import type {
 } from "./SettingsAutomationSection";
 import { SettingsAutomationSection } from "./SettingsAutomationSection";
 
+function createOperability(
+  overrides: Partial<NonNullable<SettingsAutomationSectionProps["operability"]>> = {}
+) {
+  return {
+    capabilityEnabled: true,
+    loading: false,
+    error: null,
+    readOnlyReason: null,
+    unavailableReason: null,
+    ...overrides,
+  };
+}
+
 function createSummaries(): SettingsAutomationScheduleSummary[] {
   return [
     {
@@ -95,9 +108,7 @@ function createProps(
     ],
     defaultBackendId: "backend-primary",
     schedules: createSummaries(),
-    loading: false,
-    error: null,
-    readOnlyReason: null,
+    operability: createOperability(),
     actionAvailability: {
       createEnabled: true,
       updateEnabled: true,
@@ -153,7 +164,10 @@ describe("SettingsAutomationSection", () => {
       <SettingsAutomationSection
         {...createProps({
           schedules: [],
-          readOnlyReason: "Runtime schedule summaries are unavailable in current runtime.",
+          operability: createOperability({
+            capabilityEnabled: false,
+            unavailableReason: "Runtime schedule summaries are unavailable in current runtime.",
+          }),
           actionAvailability: {
             createEnabled: false,
             updateEnabled: false,
@@ -168,16 +182,71 @@ describe("SettingsAutomationSection", () => {
     expect(newScheduleButton).toBeTruthy();
     expect((newScheduleButton as HTMLButtonElement).disabled).toBe(true);
     expect(
-      screen.getByText("Runtime schedule summaries are unavailable in current runtime.")
+      screen.getByText(
+        "Unavailable: Runtime schedule summaries are unavailable in current runtime."
+      )
     ).toBeTruthy();
     expect(
       screen.getByText(
-        "No runtime-confirmed schedules are available while runtime schedule control is read-only."
+        /No runtime-confirmed schedules are available because this surface is unavailable\./
       )
     ).toBeTruthy();
 
     const saveButton = within(container).getByRole("button", { name: "Create schedule" });
     expect((saveButton as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("shows a unified read-only message when summaries are available but actions are downgraded", () => {
+    const { container } = render(
+      <SettingsAutomationSection
+        {...createProps({
+          operability: createOperability({
+            readOnlyReason: "Some runtime schedule actions are unavailable in current runtime.",
+          }),
+          actionAvailability: {
+            createEnabled: false,
+            updateEnabled: false,
+            runNowEnabled: true,
+            cancelRunEnabled: true,
+          },
+        })}
+      />
+    );
+
+    expect(
+      screen.getByText(
+        "Read-only: Some runtime schedule actions are unavailable in current runtime."
+      )
+    ).toBeTruthy();
+    const saveButton = within(container).getByRole("button", { name: "Save changes" });
+    expect((saveButton as HTMLButtonElement).disabled).toBe(true);
+    expect((saveButton as HTMLButtonElement).getAttribute("title")).toBe(
+      "Some runtime schedule actions are unavailable in current runtime."
+    );
+  });
+
+  it("keeps refresh available when summary loading fails", () => {
+    const onRefreshSchedules = vi.fn();
+
+    render(
+      <SettingsAutomationSection
+        {...createProps({
+          schedules: [],
+          operability: createOperability({
+            error: "Unable to load automation schedules.",
+          }),
+          onRefreshSchedules,
+        })}
+      />
+    );
+
+    const refreshButton = screen.getByRole("button", { name: "Refresh summaries" });
+    expect((refreshButton as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(refreshButton);
+
+    expect(onRefreshSchedules).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Error: Unable to load automation schedules.")).toBeTruthy();
   });
 
   it("switches between summaries and invokes run controls for the selected schedule", async () => {

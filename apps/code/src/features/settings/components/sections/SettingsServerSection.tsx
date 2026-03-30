@@ -31,7 +31,10 @@ import { SettingsTransportModeFieldGroup } from "./settings-server-section/Setti
 import { SettingsTcpTransportSections } from "./settings-server-section/SettingsTcpTransportSections";
 import { SettingsWebRuntimeGatewayFieldGroup } from "./settings-server-section/SettingsWebRuntimeGatewayFieldGroup";
 import { SettingsOrbitTransportSections } from "./settings-server-section/SettingsOrbitTransportSections";
-import type { SettingsServerCompactSelectProps } from "./settings-server-section/shared";
+import type {
+  SettingsServerCompactSelectProps,
+  SettingsServerOperabilityState,
+} from "./settings-server-section/shared";
 
 type SettingsServerSectionProps = {
   appSettings: AppSettings;
@@ -130,6 +133,11 @@ type SettingsServerSectionProps = {
   onOrbitRunnerStop: () => void;
   onOrbitRunnerStatus: () => void;
   onMobileConnectTest: () => void;
+  remoteProfilesOperability: SettingsServerOperabilityState;
+  transportModeOperability: SettingsServerOperabilityState;
+  gatewayOperability: SettingsServerOperabilityState;
+  tcpTransportOperability: SettingsServerOperabilityState;
+  orbitTransportOperability: SettingsServerOperabilityState;
   backendPoolVisible: boolean;
   backendPool: BackendPoolSnapshot | null;
   backendPoolLoading: boolean;
@@ -156,9 +164,7 @@ type SettingsServerSectionProps = {
   onAcpBackendProbe: (backendId: string) => Promise<void>;
   workspaceOptions: Array<{ id: string; label: string }>;
   automationSchedules?: SettingsAutomationScheduleSummary[];
-  automationSchedulesLoading?: boolean;
-  automationSchedulesError?: string | null;
-  automationSchedulesReadOnlyReason?: string | null;
+  automationSchedulesOperability: SettingsServerOperabilityState;
   automationScheduleActionAvailability?: SettingsAutomationScheduleActionAvailability;
   onRefreshAutomationSchedules?: () => void | Promise<void>;
   onCreateAutomationSchedule?: (draft: SettingsAutomationScheduleDraft) => void | Promise<void>;
@@ -270,6 +276,11 @@ export function SettingsServerSection({
   onOrbitRunnerStop,
   onOrbitRunnerStatus,
   onMobileConnectTest,
+  remoteProfilesOperability,
+  transportModeOperability,
+  gatewayOperability,
+  tcpTransportOperability,
+  orbitTransportOperability,
   backendPoolVisible,
   backendPool,
   backendPoolLoading,
@@ -293,9 +304,7 @@ export function SettingsServerSection({
   onAcpBackendProbe,
   workspaceOptions,
   automationSchedules,
-  automationSchedulesLoading,
-  automationSchedulesError,
-  automationSchedulesReadOnlyReason,
+  automationSchedulesOperability,
   automationScheduleActionAvailability,
   onRefreshAutomationSchedules,
   onCreateAutomationSchedule,
@@ -430,9 +439,7 @@ export function SettingsServerSection({
           workspaceOptions={workspaceOptions}
           defaultBackendId={defaultRemoteExecutionBackendId}
           schedules={automationSchedules}
-          loading={automationSchedulesLoading}
-          error={automationSchedulesError}
-          readOnlyReason={automationSchedulesReadOnlyReason}
+          operability={automationSchedulesOperability}
           actionAvailability={automationScheduleActionAvailability}
           onRefreshSchedules={onRefreshAutomationSchedules}
           onCreateSchedule={onCreateAutomationSchedule}
@@ -449,6 +456,7 @@ export function SettingsServerSection({
         defaultRemoteProfileId={defaultRemoteProfileId}
         remoteProfileLabelDraft={remoteProfileLabelDraft}
         compactInputFieldClassName={compactInputFieldClassName}
+        operability={remoteProfilesOperability}
         onSelectRemoteProfile={onSelectRemoteProfile}
         onAddRemoteProfile={onAddRemoteProfile}
         onSetDefaultRemoteProfile={onSetDefaultRemoteProfile}
@@ -468,6 +476,7 @@ export function SettingsServerSection({
         compactInputFieldClassName={compactInputFieldClassName}
         compactSelectProps={compactSelectProps}
         gatewayAuthModeOptions={gatewayAuthModeOptions}
+        operability={gatewayOperability}
         onSetGatewayHttpBaseUrlDraft={onSetGatewayHttpBaseUrlDraft}
         onSetGatewayWsBaseUrlDraft={onSetGatewayWsBaseUrlDraft}
         onSetGatewayTokenRefDraft={onSetGatewayTokenRefDraft}
@@ -489,6 +498,7 @@ export function SettingsServerSection({
         compactSelectProps={compactSelectProps}
         backendModeOptions={backendModeOptions}
         remoteProviderOptions={remoteProviderOptions}
+        operability={transportModeOperability}
         onUpdateAppSettings={onUpdateAppSettings}
         onChangeRemoteProvider={onChangeRemoteProvider}
       />
@@ -504,6 +514,7 @@ export function SettingsServerSection({
         compactInputFieldClassName={compactInputFieldClassName}
         compactSelectProps={compactSelectProps}
         tcpOverlayOptions={tcpOverlayOptions}
+        operability={tcpTransportOperability}
         remoteHostDraft={remoteHostDraft}
         remoteTokenDraft={remoteTokenDraft}
         mobileConnectBusy={mobileConnectBusy}
@@ -547,6 +558,7 @@ export function SettingsServerSection({
         isMobileSimplified={isMobileSimplified}
         activeOrbitUseAccess={activeOrbitUseAccess}
         compactInputFieldClassName={compactInputFieldClassName}
+        operability={orbitTransportOperability}
         orbitWsUrlDraft={orbitWsUrlDraft}
         orbitAuthUrlDraft={orbitAuthUrlDraft}
         orbitRunnerNameDraft={orbitRunnerNameDraft}

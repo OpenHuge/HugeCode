@@ -22,11 +22,16 @@ type UseRuntimeAutomationSchedulesFacadeOptions = {
 export function useRuntimeAutomationSchedulesFacade({
   activeSection,
 }: UseRuntimeAutomationSchedulesFacadeOptions) {
+  const [automationSchedulesCapabilityEnabled, setAutomationSchedulesCapabilityEnabled] =
+    useState(false);
   const [automationSchedulesSnapshot, setAutomationSchedulesSnapshot] = useState<
     RuntimeAutomationScheduleRecord[]
   >([]);
   const [automationSchedulesLoading, setAutomationSchedulesLoading] = useState(false);
   const [automationSchedulesError, setAutomationSchedulesError] = useState<string | null>(null);
+  const [automationSchedulesUnavailableReason, setAutomationSchedulesUnavailableReason] = useState<
+    string | null
+  >(null);
   const [automationSchedulesReadOnlyReason, setAutomationSchedulesReadOnlyReason] = useState<
     string | null
   >(null);
@@ -44,52 +49,70 @@ export function useRuntimeAutomationSchedulesFacade({
     deleteEnabled: false,
     runNowEnabled: false,
     cancelRunEnabled: false,
-    readOnlyReason: "Runtime schedule control is unavailable in current runtime.",
+    unavailableReason: "Runtime schedule control is unavailable in current runtime.",
+    readOnlyReason: null,
   });
 
   const applyAutomationSchedulesAccess = useCallback((access: RuntimeAutomationSchedulesAccess) => {
     accessRef.current = access;
+    setAutomationSchedulesCapabilityEnabled(access.scheduleSurfaceEnabled);
     setAutomationSchedulesCreateEnabled(access.createEnabled);
     setAutomationSchedulesUpdateEnabled(access.updateEnabled);
     setAutomationSchedulesDeleteEnabled(access.deleteEnabled);
     setAutomationSchedulesRunNowEnabled(access.runNowEnabled);
     setAutomationSchedulesCancelRunEnabled(access.cancelRunEnabled);
+    setAutomationSchedulesUnavailableReason(access.unavailableReason);
     setAutomationSchedulesReadOnlyReason(access.readOnlyReason);
   }, []);
 
-  const refreshAutomationSchedules = useCallback(async () => {
-    const access = await readRuntimeAutomationSchedulesAccess();
-    applyAutomationSchedulesAccess(access);
-    if (!access.listEnabled) {
-      setAutomationSchedulesSnapshot([]);
+  const refreshAutomationSchedules = useCallback(
+    async (accessOverride?: RuntimeAutomationSchedulesAccess) => {
+      const access = accessOverride ?? (await readRuntimeAutomationSchedulesAccess());
+      applyAutomationSchedulesAccess(access);
       setAutomationSchedulesError(null);
-      setAutomationSchedulesReadOnlyReason(
-        access.readOnlyReason ?? "Runtime schedule summaries are unavailable in current runtime."
-      );
-      return;
-    }
 
-    setAutomationSchedulesLoading(true);
-    setAutomationSchedulesError(null);
-    try {
-      const payload = await listRuntimeAutomationSchedules();
-      if (payload === null) {
+      if (!access.scheduleSurfaceEnabled) {
+        setAutomationSchedulesLoading(false);
         setAutomationSchedulesSnapshot([]);
-        setAutomationSchedulesReadOnlyReason(
-          "Runtime schedule summaries are unavailable in current runtime."
+        setAutomationSchedulesUnavailableReason(
+          access.unavailableReason ?? "Runtime schedule control is unavailable in current runtime."
         );
         return;
       }
-      setAutomationSchedulesSnapshot(payload);
-      setAutomationSchedulesReadOnlyReason(access.readOnlyReason);
-    } catch (error) {
-      setAutomationSchedulesError(
-        formatErrorMessage(error, "Unable to load automation schedules.")
-      );
-    } finally {
-      setAutomationSchedulesLoading(false);
-    }
-  }, [applyAutomationSchedulesAccess]);
+
+      if (!access.listEnabled) {
+        setAutomationSchedulesLoading(false);
+        setAutomationSchedulesSnapshot([]);
+        setAutomationSchedulesUnavailableReason(
+          access.unavailableReason ??
+            "Runtime schedule summaries are unavailable in current runtime."
+        );
+        return;
+      }
+
+      setAutomationSchedulesUnavailableReason(null);
+      setAutomationSchedulesLoading(true);
+      try {
+        const payload = await listRuntimeAutomationSchedules();
+        if (payload === null) {
+          setAutomationSchedulesSnapshot([]);
+          setAutomationSchedulesUnavailableReason(
+            "Runtime schedule summaries are unavailable in current runtime."
+          );
+          return;
+        }
+        setAutomationSchedulesSnapshot(payload);
+        setAutomationSchedulesUnavailableReason(null);
+      } catch (error) {
+        setAutomationSchedulesError(
+          formatErrorMessage(error, "Unable to load automation schedules.")
+        );
+      } finally {
+        setAutomationSchedulesLoading(false);
+      }
+    },
+    [applyAutomationSchedulesAccess]
+  );
 
   useEffect(() => {
     if (activeSection !== "server") {
@@ -104,10 +127,12 @@ export function useRuntimeAutomationSchedulesFacade({
       }
       applyAutomationSchedulesAccess(access);
       if (!access.scheduleSurfaceEnabled || !access.listEnabled) {
+        setAutomationSchedulesLoading(false);
+        setAutomationSchedulesError(null);
         setAutomationSchedulesSnapshot([]);
         return;
       }
-      await refreshAutomationSchedules();
+      await refreshAutomationSchedules(access);
       if (cancelled) {
         return;
       }
@@ -123,7 +148,10 @@ export function useRuntimeAutomationSchedulesFacade({
       if (enabled) {
         return;
       }
-      const readOnlyReason = accessRef.current.readOnlyReason ?? fallbackReadOnlyReason;
+      const readOnlyReason =
+        accessRef.current.readOnlyReason ??
+        accessRef.current.unavailableReason ??
+        fallbackReadOnlyReason;
       setAutomationSchedulesReadOnlyReason(readOnlyReason);
       throw new Error(reason);
     },
@@ -131,9 +159,11 @@ export function useRuntimeAutomationSchedulesFacade({
   );
 
   return {
+    automationSchedulesCapabilityEnabled,
     automationSchedulesSnapshot,
     automationSchedulesLoading,
     automationSchedulesError,
+    automationSchedulesUnavailableReason,
     automationSchedulesReadOnlyReason,
     automationSchedulesCreateEnabled,
     automationSchedulesUpdateEnabled,

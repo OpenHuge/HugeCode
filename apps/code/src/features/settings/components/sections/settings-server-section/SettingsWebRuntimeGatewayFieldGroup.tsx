@@ -6,7 +6,12 @@ import {
   SettingsFieldGroup,
 } from "../../SettingsSectionGrammar";
 import { SettingsToggleControl } from "../../SettingsToggleControl";
-import type { SettingsServerCompactSelectProps } from "./shared";
+import {
+  resolveSettingsServerOperabilityBlockedReason,
+  resolveSettingsServerOperabilityNotice,
+  type SettingsServerCompactSelectProps,
+  type SettingsServerOperabilityState,
+} from "./shared";
 
 type SettingsWebRuntimeGatewayFieldGroupProps = {
   isMobileSimplified: boolean;
@@ -19,6 +24,7 @@ type SettingsWebRuntimeGatewayFieldGroupProps = {
   compactInputFieldClassName: string;
   compactSelectProps: SettingsServerCompactSelectProps;
   gatewayAuthModeOptions: SelectOption[];
+  operability: SettingsServerOperabilityState;
   onSetGatewayHttpBaseUrlDraft: Dispatch<SetStateAction<string>>;
   onSetGatewayWsBaseUrlDraft: Dispatch<SetStateAction<string>>;
   onSetGatewayTokenRefDraft: Dispatch<SetStateAction<string>>;
@@ -42,6 +48,7 @@ export function SettingsWebRuntimeGatewayFieldGroup({
   compactInputFieldClassName,
   compactSelectProps,
   gatewayAuthModeOptions,
+  operability,
   onSetGatewayHttpBaseUrlDraft,
   onSetGatewayWsBaseUrlDraft,
   onSetGatewayTokenRefDraft,
@@ -56,6 +63,9 @@ export function SettingsWebRuntimeGatewayFieldGroup({
   if (isMobileSimplified) {
     return null;
   }
+
+  const blockedReason = resolveSettingsServerOperabilityBlockedReason(operability);
+  const notice = resolveSettingsServerOperabilityNotice(operability);
 
   return (
     <SettingsFieldGroup
@@ -74,6 +84,7 @@ export function SettingsWebRuntimeGatewayFieldGroup({
               <SettingsToggleControl
                 checked={gatewayEnabled}
                 ariaLabel="Toggle gateway enabled"
+                disabled={blockedReason !== null}
                 onCheckedChange={() => {
                   void onToggleGatewayEnabled();
                 }}
@@ -86,6 +97,7 @@ export function SettingsWebRuntimeGatewayFieldGroup({
               inputSize="sm"
               value={gatewayHttpBaseUrlDraft}
               placeholder="https://runtime.example.dev/rpc"
+              disabled={blockedReason !== null}
               onValueChange={onSetGatewayHttpBaseUrlDraft}
               onBlur={() => {
                 void onCommitGatewayHttpBaseUrl();
@@ -96,6 +108,7 @@ export function SettingsWebRuntimeGatewayFieldGroup({
               inputSize="sm"
               value={gatewayWsBaseUrlDraft}
               placeholder="wss://runtime.example.dev/ws"
+              disabled={blockedReason !== null}
               onValueChange={onSetGatewayWsBaseUrlDraft}
               onBlur={() => {
                 void onCommitGatewayWsBaseUrl();
@@ -108,6 +121,7 @@ export function SettingsWebRuntimeGatewayFieldGroup({
               ariaLabel="Gateway auth mode"
               options={gatewayAuthModeOptions}
               value={activeGatewayAuthMode}
+              disabled={blockedReason !== null}
               onValueChange={(value) => {
                 void onSetGatewayAuthMode(value as "none" | "token");
               }}
@@ -117,6 +131,7 @@ export function SettingsWebRuntimeGatewayFieldGroup({
               inputSize="sm"
               value={gatewayTokenRefDraft}
               placeholder="Gateway token ref"
+              disabled={blockedReason !== null}
               onValueChange={onSetGatewayTokenRefDraft}
               onBlur={() => {
                 void onCommitGatewayTokenRef();
@@ -127,6 +142,7 @@ export function SettingsWebRuntimeGatewayFieldGroup({
               inputSize="sm"
               value={gatewayHealthcheckPathDraft}
               placeholder="/health"
+              disabled={blockedReason !== null}
               onValueChange={onSetGatewayHealthcheckPathDraft}
               onBlur={() => {
                 void onCommitGatewayHealthcheckPath();
@@ -135,6 +151,11 @@ export function SettingsWebRuntimeGatewayFieldGroup({
           </div>
         </div>
       </SettingsField>
+      {notice ? (
+        <div className={`settings-help${notice.tone === "error" ? " settings-help-error" : ""}`}>
+          {notice.text}
+        </div>
+      ) : null}
     </SettingsFieldGroup>
   );
 }

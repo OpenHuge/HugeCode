@@ -45,6 +45,10 @@ import {
   mapNativeScheduleToSummary,
   readScheduleText,
 } from "./settingsAutomationSchedules";
+import {
+  createSettingsServerOperabilityState,
+  type SettingsServerOperabilityState,
+} from "../components/sections/settings-server-section/shared";
 
 type UseSettingsServerStateOptions = {
   activeSection: CodexSection;
@@ -208,9 +212,11 @@ export function useSettingsServerState({
     remoteProvider: resolvedRemoteProvider,
   });
   const {
+    automationSchedulesCapabilityEnabled,
     automationSchedulesSnapshot,
     automationSchedulesLoading,
     automationSchedulesError,
+    automationSchedulesUnavailableReason,
     automationSchedulesReadOnlyReason,
     automationSchedulesCreateEnabled,
     automationSchedulesUpdateEnabled,
@@ -679,6 +685,30 @@ export function useSettingsServerState({
       ),
     [automationSchedulesSnapshot, remoteExecutionBackendOptions]
   );
+  const serverOperability = useMemo(
+    () =>
+      ({
+        remoteProfiles: createSettingsServerOperabilityState(),
+        transportMode: createSettingsServerOperabilityState(),
+        gateway: createSettingsServerOperabilityState(),
+        tcpTransport: createSettingsServerOperabilityState(),
+        orbitTransport: createSettingsServerOperabilityState(),
+        automationSchedules: createSettingsServerOperabilityState({
+          capabilityEnabled: automationSchedulesCapabilityEnabled,
+          loading: automationSchedulesLoading,
+          error: automationSchedulesError,
+          readOnlyReason: automationSchedulesReadOnlyReason,
+          unavailableReason: automationSchedulesUnavailableReason,
+        }),
+      }) satisfies Record<string, SettingsServerOperabilityState>,
+    [
+      automationSchedulesCapabilityEnabled,
+      automationSchedulesError,
+      automationSchedulesLoading,
+      automationSchedulesReadOnlyReason,
+      automationSchedulesUnavailableReason,
+    ]
+  );
 
   const handleSelectRemoteProfile = useCallback((profileId: string) => {
     setSelectedRemoteProfileId(profileId);
@@ -964,9 +994,11 @@ export function useSettingsServerState({
     backendPoolBootstrapPreviewError,
     backendPoolDiagnostics,
     backendPoolDiagnosticsError,
+    serverOperability,
     automationSchedules,
     automationSchedulesLoading,
     automationSchedulesError,
+    automationSchedulesUnavailableReason,
     automationSchedulesReadOnlyReason,
     automationSchedulesCreateEnabled,
     automationSchedulesUpdateEnabled,

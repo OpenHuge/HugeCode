@@ -11,7 +11,12 @@ import type {
 } from "../../../../../types";
 import { SettingsField, SettingsFieldGroup } from "../../SettingsSectionGrammar";
 import { SettingsMobileConnectFieldGroup } from "./SettingsMobileConnectFieldGroup";
-import type { SettingsServerCompactSelectProps } from "./shared";
+import {
+  resolveSettingsServerOperabilityBlockedReason,
+  resolveSettingsServerOperabilityNotice,
+  type SettingsServerCompactSelectProps,
+  type SettingsServerOperabilityState,
+} from "./shared";
 
 type SettingsTcpTransportSectionsProps = {
   activeRemoteProvider: RemoteBackendProvider;
@@ -24,6 +29,7 @@ type SettingsTcpTransportSectionsProps = {
   compactInputFieldClassName: string;
   compactSelectProps: SettingsServerCompactSelectProps;
   tcpOverlayOptions: SelectOption[];
+  operability: SettingsServerOperabilityState;
   remoteHostDraft: string;
   remoteTokenDraft: string;
   mobileConnectBusy: boolean;
@@ -72,6 +78,7 @@ export function SettingsTcpTransportSections({
   compactInputFieldClassName,
   compactSelectProps,
   tcpOverlayOptions,
+  operability,
   remoteHostDraft,
   remoteTokenDraft,
   mobileConnectBusy,
@@ -112,6 +119,16 @@ export function SettingsTcpTransportSections({
     return null;
   }
 
+  const blockedReason = resolveSettingsServerOperabilityBlockedReason(operability);
+  const notice = resolveSettingsServerOperabilityNotice(operability);
+  const controlsDisabled = blockedReason !== null;
+  const netbirdStatusDisabled = controlsDisabled || netbirdStatusBusy;
+  const netbirdCommandDisabled = controlsDisabled || netbirdCommandBusy;
+  const netbirdSuggestedHostDisabled = controlsDisabled || !activeTcpSuggestedHost;
+  const tailscaleStatusDisabled = controlsDisabled || tailscaleStatusBusy;
+  const tailscaleCommandDisabled = controlsDisabled || tailscaleCommandBusy;
+  const tailscaleSuggestedHostDisabled = controlsDisabled || !activeTcpSuggestedHost;
+
   return (
     <>
       <SettingsFieldGroup title="TCP overlay" subtitle={tcpOverlaySubtitle}>
@@ -121,11 +138,17 @@ export function SettingsTcpTransportSections({
             ariaLabel="TCP overlay"
             options={tcpOverlayOptions}
             value={activeTcpOverlay}
+            disabled={controlsDisabled}
             onValueChange={(value) => {
               void onChangeTcpOverlay(value as RemoteTcpOverlay);
             }}
           />
         </SettingsField>
+        {notice ? (
+          <div className={`settings-help${notice.tone === "error" ? " settings-help-error" : ""}`}>
+            {notice.text}
+          </div>
+        ) : null}
       </SettingsFieldGroup>
 
       <SettingsFieldGroup title="Remote backend" subtitle={tcpRemoteBackendHelp}>
@@ -136,6 +159,7 @@ export function SettingsTcpTransportSections({
               inputSize="sm"
               value={remoteHostDraft}
               placeholder="127.0.0.1:4732"
+              disabled={controlsDisabled}
               onValueChange={onSetRemoteHostDraft}
               onBlur={() => {
                 void onCommitRemoteHost();
@@ -154,6 +178,7 @@ export function SettingsTcpTransportSections({
               inputSize="sm"
               value={remoteTokenDraft}
               placeholder="Token (required)"
+              disabled={controlsDisabled}
               onValueChange={onSetRemoteTokenDraft}
               onBlur={() => {
                 void onCommitRemoteToken();
@@ -175,6 +200,7 @@ export function SettingsTcpTransportSections({
           mobileConnectBusy={mobileConnectBusy}
           mobileConnectStatusText={mobileConnectStatusText}
           mobileConnectStatusError={mobileConnectStatusError}
+          disabled={controlsDisabled}
           onMobileConnectTest={onMobileConnectTest}
           subtitle="Make sure your desktop app daemon is running and reachable on the selected TCP overlay, then retry this test."
         />
@@ -194,7 +220,7 @@ export function SettingsTcpTransportSections({
                     onClick={() => {
                       void onTcpDaemonStart();
                     }}
-                    disabled={tcpDaemonBusyAction !== null}
+                    disabled={controlsDisabled || tcpDaemonBusyAction !== null}
                   >
                     {tcpDaemonBusyAction === "start" ? "Starting..." : "Start daemon"}
                   </Button>
@@ -205,7 +231,7 @@ export function SettingsTcpTransportSections({
                     onClick={() => {
                       void onTcpDaemonStop();
                     }}
-                    disabled={tcpDaemonBusyAction !== null}
+                    disabled={controlsDisabled || tcpDaemonBusyAction !== null}
                   >
                     {tcpDaemonBusyAction === "stop" ? "Stopping..." : "Stop daemon"}
                   </Button>
@@ -216,7 +242,7 @@ export function SettingsTcpTransportSections({
                     onClick={() => {
                       void onTcpDaemonStatus();
                     }}
-                    disabled={tcpDaemonBusyAction !== null}
+                    disabled={controlsDisabled || tcpDaemonBusyAction !== null}
                   >
                     {tcpDaemonBusyAction === "status" ? "Refreshing..." : "Refresh status"}
                   </Button>
@@ -244,7 +270,7 @@ export function SettingsTcpTransportSections({
                         size="sm"
                         className="settings-button-compact"
                         onClick={onRefreshNetbirdStatus}
-                        disabled={netbirdStatusBusy}
+                        disabled={netbirdStatusDisabled}
                       >
                         {netbirdStatusBusy ? "Checking..." : "Detect NetBird"}
                       </Button>
@@ -253,7 +279,7 @@ export function SettingsTcpTransportSections({
                         size="sm"
                         className="settings-button-compact"
                         onClick={onRefreshNetbirdCommandPreview}
-                        disabled={netbirdCommandBusy}
+                        disabled={netbirdCommandDisabled}
                       >
                         {netbirdCommandBusy ? "Refreshing..." : "Refresh setup command"}
                       </Button>
@@ -261,7 +287,7 @@ export function SettingsTcpTransportSections({
                         variant="primary"
                         size="sm"
                         className="settings-button-compact"
-                        disabled={!activeTcpSuggestedHost}
+                        disabled={netbirdSuggestedHostDisabled}
                         onClick={() => {
                           void onUseSuggestedNetbirdHost();
                         }}
@@ -319,7 +345,7 @@ export function SettingsTcpTransportSections({
                         size="sm"
                         className="settings-button-compact"
                         onClick={onRefreshTailscaleStatus}
-                        disabled={tailscaleStatusBusy}
+                        disabled={tailscaleStatusDisabled}
                       >
                         {tailscaleStatusBusy ? "Checking..." : "Detect Tailscale"}
                       </Button>
@@ -328,7 +354,7 @@ export function SettingsTcpTransportSections({
                         size="sm"
                         className="settings-button-compact"
                         onClick={onRefreshTailscaleCommandPreview}
-                        disabled={tailscaleCommandBusy}
+                        disabled={tailscaleCommandDisabled}
                       >
                         {tailscaleCommandBusy ? "Refreshing..." : "Refresh daemon command"}
                       </Button>
@@ -336,7 +362,7 @@ export function SettingsTcpTransportSections({
                         variant="primary"
                         size="sm"
                         className="settings-button-compact"
-                        disabled={!activeTcpSuggestedHost}
+                        disabled={tailscaleSuggestedHostDisabled}
                         onClick={() => {
                           void onUseSuggestedTailscaleHost();
                         }}

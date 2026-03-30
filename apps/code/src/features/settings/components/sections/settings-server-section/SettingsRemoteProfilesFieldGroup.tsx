@@ -2,6 +2,11 @@ import type { Dispatch, SetStateAction } from "react";
 import { Button, Input, StatusBadge } from "../../../../../design-system";
 import type { RemoteBackendProfile } from "../../../../../types";
 import { SettingsField, SettingsFieldGroup, SettingsFooterBar } from "../../SettingsSectionGrammar";
+import {
+  resolveSettingsServerOperabilityBlockedReason,
+  resolveSettingsServerOperabilityNotice,
+  type SettingsServerOperabilityState,
+} from "./shared";
 
 type SettingsRemoteProfilesFieldGroupProps = {
   isMobileSimplified: boolean;
@@ -10,6 +15,7 @@ type SettingsRemoteProfilesFieldGroupProps = {
   defaultRemoteProfileId: string | null;
   remoteProfileLabelDraft: string;
   compactInputFieldClassName: string;
+  operability: SettingsServerOperabilityState;
   onSelectRemoteProfile: (profileId: string) => void;
   onAddRemoteProfile: () => Promise<void>;
   onSetDefaultRemoteProfile: (profileId: string) => Promise<void>;
@@ -25,6 +31,7 @@ export function SettingsRemoteProfilesFieldGroup({
   defaultRemoteProfileId,
   remoteProfileLabelDraft,
   compactInputFieldClassName,
+  operability,
   onSelectRemoteProfile,
   onAddRemoteProfile,
   onSetDefaultRemoteProfile,
@@ -35,6 +42,9 @@ export function SettingsRemoteProfilesFieldGroup({
   if (isMobileSimplified) {
     return null;
   }
+
+  const blockedReason = resolveSettingsServerOperabilityBlockedReason(operability);
+  const notice = resolveSettingsServerOperabilityNotice(operability);
 
   return (
     <SettingsFieldGroup
@@ -52,6 +62,8 @@ export function SettingsRemoteProfilesFieldGroup({
               variant="secondary"
               size="sm"
               className="settings-button-compact"
+              disabled={blockedReason !== null}
+              title={blockedReason ?? undefined}
               onClick={() => {
                 void onAddRemoteProfile();
               }}
@@ -68,6 +80,8 @@ export function SettingsRemoteProfilesFieldGroup({
                   key={profile.id}
                   type="button"
                   className={`settings-profile-button${isSelected ? " is-selected" : ""}`}
+                  disabled={blockedReason !== null}
+                  title={blockedReason ?? undefined}
                   onClick={() => onSelectRemoteProfile(profile.id)}
                   aria-pressed={isSelected}
                 >
@@ -91,7 +105,10 @@ export function SettingsRemoteProfilesFieldGroup({
                 onClick={() => {
                   void onSetDefaultRemoteProfile(selectedRemoteProfileId);
                 }}
-                disabled={selectedRemoteProfileId === defaultRemoteProfileId}
+                disabled={
+                  blockedReason !== null || selectedRemoteProfileId === defaultRemoteProfileId
+                }
+                title={blockedReason ?? undefined}
               >
                 Set default profile
               </Button>
@@ -103,7 +120,8 @@ export function SettingsRemoteProfilesFieldGroup({
                 onClick={() => {
                   void onRemoveRemoteProfile(selectedRemoteProfileId);
                 }}
-                disabled={remoteProfiles.length <= 1}
+                disabled={blockedReason !== null || remoteProfiles.length <= 1}
+                title={blockedReason ?? undefined}
               >
                 Remove profile
               </Button>
@@ -119,6 +137,7 @@ export function SettingsRemoteProfilesFieldGroup({
           inputSize="sm"
           value={remoteProfileLabelDraft}
           placeholder="Remote backend profile name"
+          disabled={blockedReason !== null}
           onValueChange={onSetRemoteProfileLabelDraft}
           onBlur={() => {
             void onCommitRemoteProfileLabel();
@@ -132,6 +151,11 @@ export function SettingsRemoteProfilesFieldGroup({
           aria-label="Remote backend profile name"
         />
       </SettingsField>
+      {notice ? (
+        <div className={`settings-help${notice.tone === "error" ? " settings-help-error" : ""}`}>
+          {notice.text}
+        </div>
+      ) : null}
     </SettingsFieldGroup>
   );
 }
