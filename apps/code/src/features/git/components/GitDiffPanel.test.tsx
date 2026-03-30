@@ -265,6 +265,46 @@ describe("GitDiffPanel", () => {
     expect(onStartTaskFromGitHubIssueFollowUp).toHaveBeenCalledWith(githubIssues[0]);
   });
 
+  it("renders a governed issue follow-up preview with blocked reason and source evidence", () => {
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        mode="issues"
+        issues={githubIssues}
+        getGitHubIssueFollowUpPreview={() => ({
+          title: "Issue follow-up preview",
+          state: "blocked",
+          summary: "Governed issue follow-up is blocked until runtime policy is ready.",
+          blockedReason:
+            "GitHub source launch is waiting for repository execution defaults to finish loading.",
+          fields: [
+            {
+              id: "backend",
+              label: "Backend preference",
+              value: "Runtime default route",
+              detail: "Resolved after repository execution policy loads.",
+            },
+            {
+              id: "source",
+              label: "Source evidence",
+              value: "GitHub issue #42",
+              detail: "Use canonical taskSource for GitHub issue launches.",
+            },
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getByText("Issue follow-up preview")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "GitHub source launch is waiting for repository execution defaults to finish loading."
+      )
+    ).toBeTruthy();
+    expect(screen.getByText("Runtime default route")).toBeTruthy();
+    expect(screen.getByText("GitHub issue #42")).toBeTruthy();
+  });
+
   it("adds a show in file manager option for file context menus", async () => {
     clipboardWriteText.mockClear();
     const { container } = render(
@@ -597,6 +637,58 @@ describe("GitDiffPanel", () => {
       within(pullRequestEntry as HTMLElement).getByRole("button", { name: "Delegate PR #7" })
     );
     expect(onStartTaskFromGitHubPullRequest).toHaveBeenCalledWith(pullRequest);
+  });
+
+  it("exposes a governed PR follow-up action and preview through the PR surface", () => {
+    const onStartTaskFromGitHubPullRequest = vi.fn();
+    const pullRequest: GitHubPullRequest = {
+      number: 7,
+      title: "Follow up runtime review metadata",
+      url: "https://github.com/ku0/hugecode/pull/7",
+      updatedAt: new Date("2026-03-18T10:00:00Z").toISOString(),
+      createdAt: new Date("2026-03-17T10:00:00Z").toISOString(),
+      body: "",
+      headRefName: "codex/source-linkage",
+      baseRefName: "fastcode",
+      isDraft: false,
+      author: { login: "codex" },
+    };
+
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        mode="prs"
+        pullRequests={[pullRequest]}
+        pullRequestsTotal={1}
+        onStartTaskFromGitHubPullRequest={onStartTaskFromGitHubPullRequest}
+        getGitHubPullRequestFollowUpPreview={() => ({
+          title: "PR follow-up preview",
+          state: "ready",
+          summary: "Governed PR follow-up is ready to launch.",
+          blockedReason: null,
+          fields: [
+            {
+              id: "launch",
+              label: "Launch",
+              value: "operator-review",
+              detail: "read-only · validation review-first",
+            },
+            {
+              id: "backend",
+              label: "Backend preference",
+              value: "backend-pr",
+              detail: "Resolved from repository execution policy.",
+            },
+          ],
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Start follow-up for PR #7" }));
+
+    expect(onStartTaskFromGitHubPullRequest).toHaveBeenCalledWith(pullRequest);
+    expect(screen.getByText("PR follow-up preview")).toBeTruthy();
+    expect(screen.getByText("backend-pr")).toBeTruthy();
   });
 
   it("marks the selected commit row with a pressed state", () => {

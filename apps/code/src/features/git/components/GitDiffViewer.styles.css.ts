@@ -360,6 +360,14 @@ export const pullRequestComment = style({
   },
 });
 
+export const pullRequestTimelinePreview = style({
+  "@layer": {
+    [layers.features]: {
+      marginTop: "10px",
+    },
+  },
+});
+
 export const pullRequestTimelineState = style({
   "@layer": {
     [layers.features]: {

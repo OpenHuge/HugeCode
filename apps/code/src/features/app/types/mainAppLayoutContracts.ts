@@ -134,9 +134,12 @@ export type MainAppGitReviewBridgeParams = {
   gitHubPanelState: ReturnType<typeof useGitHubPanelController>;
   gitCommitState: ReturnType<typeof useGitCommitController>;
   onStartTaskFromGitHubIssue: BridgeParams["onStartTaskFromGitHubIssue"];
+  getGitHubIssueFollowUpPreview: BridgeParams["getGitHubIssueFollowUpPreview"];
   onStartTaskFromGitHubIssueFollowUp: BridgeParams["onStartTaskFromGitHubIssueFollowUp"];
   onStartTaskFromGitHubPullRequest: BridgeParams["onStartTaskFromGitHubPullRequest"];
+  getGitHubPullRequestFollowUpPreview: BridgeParams["getGitHubPullRequestFollowUpPreview"];
   onStartTaskFromGitHubPullRequestReviewFollowUp: BridgeParams["onStartTaskFromGitHubPullRequestReviewFollowUp"];
+  getGitHubPullRequestReviewFollowUpPreview: BridgeParams["getGitHubPullRequestReviewFollowUpPreview"];
   onReviewPackControllerReady?: MainAppReviewPackControllerReady;
 };
 
@@ -223,9 +226,12 @@ export type UseMainAppLayoutNodesStateActionParams = Pick<
     | "handleSetGitRoot"
     | "handleApplyWorktreeChanges"
     | "onStartTaskFromGitHubIssue"
+    | "getGitHubIssueFollowUpPreview"
     | "onStartTaskFromGitHubIssueFollowUp"
     | "onStartTaskFromGitHubPullRequest"
+    | "getGitHubPullRequestFollowUpPreview"
     | "onStartTaskFromGitHubPullRequestReviewFollowUp"
+    | "getGitHubPullRequestReviewFollowUpPreview"
   > &
   Pick<MainAppConversationBridgeParams, "toggleComposerEditorExpanded">;
 
@@ -381,9 +387,12 @@ export type UseMainAppLayoutNodesStateParams = {
     actions: Pick<
       UseMainAppLayoutNodesStateActionParams,
       | "onStartTaskFromGitHubIssue"
+      | "getGitHubIssueFollowUpPreview"
       | "onStartTaskFromGitHubIssueFollowUp"
       | "onStartTaskFromGitHubPullRequest"
+      | "getGitHubPullRequestFollowUpPreview"
       | "onStartTaskFromGitHubPullRequestReviewFollowUp"
+      | "getGitHubPullRequestReviewFollowUpPreview"
     >;
     reviewPackControllerReady?: MainAppReviewPackControllerReady;
   };

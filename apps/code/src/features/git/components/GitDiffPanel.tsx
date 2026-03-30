@@ -9,6 +9,7 @@ import { ask } from "../../../application/runtime/ports/desktopHostDialogs";
 import { LogicalPosition } from "../../../application/runtime/ports/desktopDpi";
 import { Menu, MenuItem } from "../../../application/runtime/ports/desktopMenu";
 import { openUrl, revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
+import type { GovernedGitHubFollowUpPreview } from "../../../application/runtime/facades/githubSourceLaunchPreview";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import { getCurrentWindow } from "../../../application/runtime/ports/desktopHostWindow";
 import type { GitHubIssue, GitHubPullRequest, GitLogEntry } from "../../../types";
@@ -82,6 +83,7 @@ type GitDiffPanelProps = {
   issuesLoading?: boolean;
   issuesError?: string | null;
   onStartTaskFromGitHubIssue?: (issue: GitHubIssue) => void | Promise<void>;
+  getGitHubIssueFollowUpPreview?: (issue: GitHubIssue) => GovernedGitHubFollowUpPreview;
   onStartTaskFromGitHubIssueFollowUp?: (issue: GitHubIssue) => void | Promise<void>;
   onDelegateGitHubIssue?: (issue: GitHubIssue) => void | Promise<void>;
   pullRequests?: GitHubPullRequest[];
@@ -89,6 +91,9 @@ type GitDiffPanelProps = {
   pullRequestsLoading?: boolean;
   pullRequestsError?: string | null;
   onStartTaskFromGitHubPullRequest?: (pullRequest: GitHubPullRequest) => void | Promise<void>;
+  getGitHubPullRequestFollowUpPreview?: (
+    pullRequest: GitHubPullRequest
+  ) => GovernedGitHubFollowUpPreview;
   selectedPullRequest?: number | null;
   onSelectPullRequest?: (pullRequest: GitHubPullRequest) => void;
   onDelegateGitHubPullRequest?: (pullRequest: GitHubPullRequest) => void;
@@ -199,12 +204,14 @@ export function GitDiffPanel({
   issuesLoading = false,
   issuesError = null,
   onStartTaskFromGitHubIssue,
+  getGitHubIssueFollowUpPreview,
   onDelegateGitHubIssue,
   pullRequests = [],
   pullRequestsTotal = 0,
   pullRequestsLoading = false,
   pullRequestsError = null,
   onStartTaskFromGitHubPullRequest,
+  getGitHubPullRequestFollowUpPreview,
   onStartTaskFromGitHubIssueFollowUp,
   selectedPullRequest = null,
   onSelectPullRequest,
@@ -856,6 +863,7 @@ export function GitDiffPanel({
         issuesLoading={issuesLoading}
         issues={issues}
         onStartTask={onStartTaskFromGitHubIssue}
+        getFollowUpPreview={getGitHubIssueFollowUpPreview}
         onStartFollowUpTask={onStartTaskFromGitHubIssueFollowUp}
         onDelegateIssue={onDelegateGitHubIssue}
       />
@@ -865,6 +873,7 @@ export function GitDiffPanel({
         pullRequestsLoading={pullRequestsLoading}
         pullRequests={pullRequests}
         onStartTask={onStartTaskFromGitHubPullRequest}
+        getFollowUpPreview={getGitHubPullRequestFollowUpPreview}
         selectedPullRequest={selectedPullRequest}
         onSelectPullRequest={onSelectPullRequest}
         onDelegatePullRequest={onDelegateGitHubPullRequest}
@@ -936,6 +945,7 @@ export function GitDiffPanel({
             issuesLoading={issuesLoading}
             issues={issues}
             onStartTask={onStartTaskFromGitHubIssue}
+            getFollowUpPreview={getGitHubIssueFollowUpPreview}
             onStartFollowUpTask={onStartTaskFromGitHubIssueFollowUp}
             onDelegateIssue={onDelegateGitHubIssue}
           />
@@ -946,6 +956,7 @@ export function GitDiffPanel({
             pullRequestsLoading={pullRequestsLoading}
             pullRequests={pullRequests}
             onStartTask={onStartTaskFromGitHubPullRequest}
+            getFollowUpPreview={getGitHubPullRequestFollowUpPreview}
             selectedPullRequest={selectedPullRequest}
             onSelectPullRequest={onSelectPullRequest}
             onDelegatePullRequest={onDelegateGitHubPullRequest}

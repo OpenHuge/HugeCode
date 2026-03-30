@@ -64,8 +64,12 @@ export type DesktopWorkspaceMissionContract = Pick<
   ReturnType<typeof useDesktopWorkspaceMissionDomain>,
   | "gitCommitState"
   | "handleStartTaskFromGitHubIssue"
+  | "getGitHubIssueFollowUpPreview"
   | "handleStartTaskFromGitHubIssueCommentCommand"
   | "handleStartTaskFromGitHubPullRequest"
+  | "getGitHubPullRequestFollowUpPreview"
+  | "handleStartTaskFromGitHubPullRequestReviewFollowUp"
+  | "getGitHubPullRequestReviewFollowUpPreview"
   | "handleStartTaskFromGitHubPullRequestReviewCommentCommand"
   | "missionControlState"
 >;

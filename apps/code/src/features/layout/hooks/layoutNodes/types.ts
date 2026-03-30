@@ -3,6 +3,7 @@ import type { RuntimeReviewGetV2Response } from "@ku0/code-runtime-host-contract
 import type { ErrorToast } from "../../../../application/runtime/ports/toasts";
 import type { MissionControlProjection } from "../../../../application/runtime/facades/runtimeMissionControlFacade";
 import type { RepositoryExecutionContract } from "../../../../application/runtime/facades/runtimeRepositoryExecutionContract";
+import type { GovernedGitHubFollowUpPreview } from "../../../../application/runtime/facades/githubSourceLaunchPreview";
 import type {
   AutoDriveRuntimeAutonomyState,
   AutoDriveRuntimeDecisionTrace,
@@ -378,6 +379,7 @@ export type LayoutNodesFieldRegistry = {
   gitIssuesLoading: boolean;
   gitIssuesError: string | null;
   onStartTaskFromGitHubIssue?: (issue: GitHubIssue) => Promise<void> | void;
+  getGitHubIssueFollowUpPreview?: (issue: GitHubIssue) => GovernedGitHubFollowUpPreview;
   onStartTaskFromGitHubIssueFollowUp?: (issue: GitHubIssue) => Promise<void> | void;
   onDelegateGitHubIssue?: (issue: GitHubIssue) => void | Promise<void>;
   gitPullRequests: GitHubPullRequest[];
@@ -385,10 +387,17 @@ export type LayoutNodesFieldRegistry = {
   gitPullRequestsLoading: boolean;
   gitPullRequestsError: string | null;
   onStartTaskFromGitHubPullRequest?: (pullRequest: GitHubPullRequest) => Promise<void> | void;
+  getGitHubPullRequestFollowUpPreview?: (
+    pullRequest: GitHubPullRequest
+  ) => GovernedGitHubFollowUpPreview;
   onStartTaskFromGitHubPullRequestReviewFollowUp?: (
     pullRequest: GitHubPullRequest,
     comment: GitHubPullRequestComment
   ) => Promise<void> | void;
+  getGitHubPullRequestReviewFollowUpPreview?: (
+    pullRequest: GitHubPullRequest,
+    comment: GitHubPullRequestComment
+  ) => GovernedGitHubFollowUpPreview;
   selectedPullRequestNumber: number | null;
   selectedPullRequest: GitHubPullRequest | null;
   selectedPullRequestComments: GitHubPullRequestComment[];
@@ -993,6 +1002,7 @@ const LAYOUT_GIT_REVIEW_NODE_KEYS = [
   "gitIssuesLoading",
   "gitIssuesError",
   "onStartTaskFromGitHubIssue",
+  "getGitHubIssueFollowUpPreview",
   "onStartTaskFromGitHubIssueFollowUp",
   "onDelegateGitHubIssue",
   "gitPullRequests",
@@ -1000,7 +1010,9 @@ const LAYOUT_GIT_REVIEW_NODE_KEYS = [
   "gitPullRequestsLoading",
   "gitPullRequestsError",
   "onStartTaskFromGitHubPullRequest",
+  "getGitHubPullRequestFollowUpPreview",
   "onStartTaskFromGitHubPullRequestReviewFollowUp",
+  "getGitHubPullRequestReviewFollowUpPreview",
   "selectedPullRequestNumber",
   "selectedPullRequest",
   "selectedPullRequestComments",

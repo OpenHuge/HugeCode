@@ -35,6 +35,31 @@ const mainAppModalsProps = { id: "modals" };
 const titlebarControlsNode = <div>titlebar-controls</div>;
 
 function createInput() {
+  const handleStartTaskFromGitHubPullRequestReviewCommentCommand = vi.fn();
+  const handleStartTaskFromGitHubPullRequestReviewFollowUp = vi.fn(
+    async (
+      pullRequest: { number: number },
+      comment: { id: number; body: string; url?: string; author?: { login?: string | null } | null }
+    ) => {
+      handleStartTaskFromGitHubPullRequestReviewCommentCommand({
+        pullRequest,
+        event: {
+          eventName: "pull_request_review_comment",
+          action: "created",
+        },
+        command: {
+          triggerMode: "pull_request_review_comment_command",
+          comment: {
+            commentId: comment.id,
+            body: comment.body,
+            url: comment.url,
+            author: comment.author,
+          },
+        },
+      });
+    }
+  );
+
   return {
     bootstrap: {
       workspaceState: {
@@ -222,7 +247,8 @@ function createInput() {
         handleStartTaskFromGitHubIssue: vi.fn(),
         handleStartTaskFromGitHubIssueCommentCommand: vi.fn(),
         handleStartTaskFromGitHubPullRequest: vi.fn(),
-        handleStartTaskFromGitHubPullRequestReviewCommentCommand: vi.fn(),
+        handleStartTaskFromGitHubPullRequestReviewFollowUp,
+        handleStartTaskFromGitHubPullRequestReviewCommentCommand,
       },
     },
     shell: {
@@ -363,7 +389,7 @@ describe("useDesktopWorkspaceChromeDomain", () => {
     ).not.toHaveBeenCalled();
   });
 
-  it("routes review follow-up launches through the governed GitHub PR path", async () => {
+  it("routes review follow-up launches through the governed GitHub review-comment path", async () => {
     vi.mocked(useMainAppSurfaceStyles).mockReturnValue({
       appClassName: "desktop-shell",
       appStyle,
@@ -412,11 +438,24 @@ describe("useDesktopWorkspaceChromeDomain", () => {
       comment as never
     );
 
-    expect(input.domains.mission.handleStartTaskFromGitHubPullRequest).toHaveBeenCalledWith(
-      pullRequest
-    );
     expect(
       input.domains.mission.handleStartTaskFromGitHubPullRequestReviewCommentCommand
-    ).not.toHaveBeenCalled();
+    ).toHaveBeenCalledWith({
+      pullRequest,
+      event: {
+        eventName: "pull_request_review_comment",
+        action: "created",
+      },
+      command: {
+        triggerMode: "pull_request_review_comment_command",
+        comment: {
+          commentId: 1701,
+          body: "Please tighten the runtime boundary.",
+          url: "https://github.com/example/repo/pull/17#discussion_r1701",
+          author: { login: "reviewer" },
+        },
+      },
+    });
+    expect(input.domains.mission.handleStartTaskFromGitHubPullRequest).not.toHaveBeenCalled();
   });
 });

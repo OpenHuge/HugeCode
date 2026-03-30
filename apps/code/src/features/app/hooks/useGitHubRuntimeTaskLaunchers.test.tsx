@@ -8,6 +8,7 @@ import {
   assertGovernedGitHubLaunchReady,
   buildGovernedGitHubIssueLaunchRequest,
   buildGovernedGitHubPullRequestLaunchRequest,
+  evaluateGovernedGitHubLaunchPreflight,
   launchGovernedGitHubRun,
 } from "../../../application/runtime/facades/githubSourceGovernedLaunch";
 import {
@@ -26,6 +27,7 @@ vi.mock("../../../application/runtime/facades/githubSourceGovernedLaunch", () =>
   assertGovernedGitHubLaunchReady: vi.fn(),
   buildGovernedGitHubIssueLaunchRequest: vi.fn(),
   buildGovernedGitHubPullRequestLaunchRequest: vi.fn(),
+  evaluateGovernedGitHubLaunchPreflight: vi.fn(),
   launchGovernedGitHubRun: vi.fn(),
 }));
 
@@ -59,6 +61,10 @@ describe("useGitHubRuntimeTaskLaunchers", () => {
       repositoryExecutionContract,
       repositoryExecutionContractError: null,
       repositoryExecutionContractStatus: "ready",
+    });
+    vi.mocked(evaluateGovernedGitHubLaunchPreflight).mockReturnValue({
+      state: "ready",
+      reason: null,
     });
   });
 
@@ -242,6 +248,415 @@ describe("useGitHubRuntimeTaskLaunchers", () => {
       request,
       onRefresh: refreshMissionControl,
     });
+  });
+
+  it("builds governed follow-up previews for issue and PR sources", () => {
+    const issue: GitHubIssue = {
+      number: 19,
+      title: "Preview governed issue follow-up",
+      url: "https://github.com/ku0/hugecode/issues/19",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+      body: "Keep issue follow-up grounded in repository evidence.",
+    };
+    const pullRequest: GitHubPullRequest = {
+      number: 27,
+      title: "Preview governed PR follow-up",
+      url: "https://github.com/ku0/hugecode/pull/27",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+      createdAt: "2026-03-24T00:00:00.000Z",
+      body: "Show backend preference before launch.",
+      headRefName: "feature/governed-preview",
+      baseRefName: "main",
+      isDraft: false,
+      author: { login: "octocat" },
+    };
+
+    vi.mocked(buildGovernedGitHubIssueLaunchRequest).mockReturnValue({
+      launch: {
+        title: issue.title,
+        instruction: "Issue instruction",
+        taskSource: {
+          kind: "github_issue",
+          label: "GitHub issue #19",
+          shortLabel: "Issue #19",
+          title: issue.title,
+          reference: "#19",
+          url: issue.url,
+          issueNumber: 19,
+          externalId: issue.url,
+          canonicalUrl: issue.url,
+          sourceTaskId: issue.url,
+          sourceRunId: issue.url,
+          repo: {
+            owner: "ku0",
+            name: "hugecode",
+            fullName: "ku0/hugecode",
+            remoteUrl: "https://github.com/ku0/hugecode.git",
+          },
+          githubSource: null,
+        },
+      },
+      request: {
+        workspaceId: "ws-1",
+        title: issue.title,
+        executionProfileId: "autonomous-delegate",
+        accessMode: "full-access",
+        executionMode: "distributed",
+        preferredBackendIds: ["backend-a"],
+        missionBrief: {
+          objective: issue.title,
+          summary: issue.title,
+          constraints: [],
+        },
+        steps: [{ kind: "read", input: "Issue instruction" }],
+      },
+    } as never);
+    vi.mocked(buildGovernedGitHubPullRequestLaunchRequest).mockReturnValue({
+      launch: {
+        title: pullRequest.title,
+        instruction: "PR instruction",
+        taskSource: {
+          kind: "github_pr_followup",
+          label: "GitHub PR follow-up #27",
+          shortLabel: "PR #27 follow-up",
+          title: pullRequest.title,
+          reference: "#27",
+          url: pullRequest.url,
+          pullRequestNumber: 27,
+          externalId: pullRequest.url,
+          canonicalUrl: pullRequest.url,
+          sourceTaskId: pullRequest.url,
+          sourceRunId: pullRequest.url,
+          repo: {
+            owner: "ku0",
+            name: "hugecode",
+            fullName: "ku0/hugecode",
+            remoteUrl: "https://github.com/ku0/hugecode.git",
+          },
+          githubSource: null,
+        },
+      },
+      request: {
+        workspaceId: "ws-1",
+        title: pullRequest.title,
+        executionProfileId: "operator-review",
+        accessMode: "read-only",
+        executionMode: "single",
+        preferredBackendIds: [],
+        missionBrief: {
+          objective: pullRequest.title,
+          summary: pullRequest.title,
+          constraints: [],
+        },
+        steps: [{ kind: "read", input: "PR instruction" }],
+      },
+    } as never);
+
+    const { result } = renderHook(() =>
+      useGitHubRuntimeTaskLaunchers({
+        activeWorkspace: { id: "ws-1", path: "/workspace/hugecode", connected: true } as never,
+        activeWorkspaceId: "ws-1",
+        gitRemoteUrl: "https://github.com/ku0/hugecode.git",
+        selectedRemoteBackendId: "backend-a",
+        refreshMissionControl,
+      })
+    );
+
+    expect(result.current.getGitHubIssueFollowUpPreview(issue)).toEqual(
+      expect.objectContaining({
+        state: "ready",
+        title: "Issue follow-up preview",
+        fields: expect.arrayContaining([
+          expect.objectContaining({
+            id: "backend",
+            value: "backend-a",
+          }),
+          expect.objectContaining({
+            id: "source",
+            value: expect.stringContaining("GitHub issue #19"),
+          }),
+        ]),
+      })
+    );
+    expect(result.current.getGitHubPullRequestFollowUpPreview(pullRequest)).toEqual(
+      expect.objectContaining({
+        state: "ready",
+        title: "PR follow-up preview",
+        fields: expect.arrayContaining([
+          expect.objectContaining({
+            id: "launch",
+            value: "operator-review",
+          }),
+          expect.objectContaining({
+            id: "backend",
+            value: "backend-a",
+          }),
+        ]),
+      })
+    );
+  });
+
+  it("retains the operator-selected backend in blocked follow-up previews", () => {
+    const issue: GitHubIssue = {
+      number: 28,
+      title: "Blocked preview keeps backend selection",
+      url: "https://github.com/ku0/hugecode/issues/28",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+    };
+    vi.mocked(evaluateGovernedGitHubLaunchPreflight).mockReturnValue({
+      state: "blocked",
+      reason: "Runtime approvals are still resolving.",
+    });
+
+    const { result } = renderHook(() =>
+      useGitHubRuntimeTaskLaunchers({
+        activeWorkspace: { id: "ws-1", path: "/workspace/hugecode", connected: true } as never,
+        activeWorkspaceId: "ws-1",
+        gitRemoteUrl: "https://github.com/ku0/hugecode.git",
+        selectedRemoteBackendId: "backend-a",
+        refreshMissionControl,
+      })
+    );
+
+    expect(result.current.getGitHubIssueFollowUpPreview(issue)).toEqual(
+      expect.objectContaining({
+        state: "blocked",
+        blockedReason: "Runtime approvals are still resolving.",
+        fields: expect.arrayContaining([
+          expect.objectContaining({
+            id: "backend",
+            value: "backend-a",
+            detail: "Selected in operator controls.",
+          }),
+        ]),
+      })
+    );
+  });
+
+  it("builds governed follow-up previews for issue-comment and review-comment sources", () => {
+    const issue: GitHubIssue = {
+      number: 33,
+      title: "Issue comment preview",
+      url: "https://github.com/ku0/hugecode/issues/33",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+      body: "Carry comment context into the operator preview.",
+    };
+    const pullRequest: GitHubPullRequest = {
+      number: 34,
+      title: "Review comment preview",
+      url: "https://github.com/ku0/hugecode/pull/34",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+      createdAt: "2026-03-24T00:00:00.000Z",
+      body: "Show review-comment evidence before launch.",
+      headRefName: "feature/review-comment-preview",
+      baseRefName: "main",
+      isDraft: false,
+      author: { login: "octocat" },
+    };
+
+    vi.mocked(buildGovernedGitHubIssueCommentCommandLaunchRequest).mockReturnValue({
+      launch: {
+        title: issue.title,
+        instruction: "Issue comment instruction",
+        taskSource: {
+          kind: "github_issue",
+          label: "GitHub issue #33",
+          shortLabel: "Issue #33",
+          title: issue.title,
+          reference: "#33",
+          url: issue.url,
+          issueNumber: 33,
+          externalId: issue.url,
+          canonicalUrl: issue.url,
+          sourceTaskId: issue.url,
+          sourceRunId: issue.url,
+          repo: {
+            owner: "ku0",
+            name: "hugecode",
+            fullName: "ku0/hugecode",
+            remoteUrl: "https://github.com/ku0/hugecode.git",
+          },
+          githubSource: {
+            sourceRecordId: "source-33",
+            repo: {
+              owner: "ku0",
+              name: "hugecode",
+              fullName: "ku0/hugecode",
+              remoteUrl: "https://github.com/ku0/hugecode.git",
+            },
+            event: {
+              eventName: "issue_comment",
+              action: "created",
+            },
+            ref: {
+              label: "Issue #33",
+              issueNumber: 33,
+              triggerMode: "issue_comment_command",
+            },
+            comment: {
+              commentId: 3301,
+              author: { login: "reviewer" },
+            },
+            launchHandshake: {
+              state: "prepared",
+              summary:
+                "Governed GitHub issue follow-up prepared from the linked issue comment command.",
+            },
+          },
+        },
+      },
+      request: {
+        workspaceId: "ws-1",
+        title: issue.title,
+        executionProfileId: "autonomous-delegate",
+        accessMode: "full-access",
+        executionMode: "distributed",
+        preferredBackendIds: ["backend-b"],
+        missionBrief: {
+          objective: issue.title,
+          summary: issue.title,
+          constraints: [],
+        },
+        steps: [{ kind: "read", input: "Issue comment instruction" }],
+      },
+    } as never);
+    vi.mocked(buildGovernedGitHubPullRequestReviewCommentLaunchRequest).mockReturnValue({
+      launch: {
+        title: pullRequest.title,
+        instruction: "Review comment instruction",
+        taskSource: {
+          kind: "github_pr_followup",
+          label: "GitHub PR follow-up #34",
+          shortLabel: "PR #34 follow-up",
+          title: pullRequest.title,
+          reference: "#34",
+          url: pullRequest.url,
+          pullRequestNumber: 34,
+          externalId: pullRequest.url,
+          canonicalUrl: pullRequest.url,
+          sourceTaskId: pullRequest.url,
+          sourceRunId: pullRequest.url,
+          repo: {
+            owner: "ku0",
+            name: "hugecode",
+            fullName: "ku0/hugecode",
+            remoteUrl: "https://github.com/ku0/hugecode.git",
+          },
+          githubSource: {
+            sourceRecordId: "source-34",
+            repo: {
+              owner: "ku0",
+              name: "hugecode",
+              fullName: "ku0/hugecode",
+              remoteUrl: "https://github.com/ku0/hugecode.git",
+            },
+            event: {
+              eventName: "pull_request_review_comment",
+              action: "created",
+            },
+            ref: {
+              label: "PR #34",
+              pullRequestNumber: 34,
+              triggerMode: "pull_request_review_comment_command",
+            },
+            comment: {
+              commentId: 3401,
+              author: { login: "reviewer" },
+            },
+            launchHandshake: {
+              state: "prepared",
+              summary:
+                "Governed GitHub PR follow-up prepared from the linked review comment command.",
+            },
+          },
+        },
+      },
+      request: {
+        workspaceId: "ws-1",
+        title: pullRequest.title,
+        executionProfileId: "operator-review",
+        accessMode: "read-only",
+        executionMode: "single",
+        preferredBackendIds: ["backend-b"],
+        missionBrief: {
+          objective: pullRequest.title,
+          summary: pullRequest.title,
+          constraints: [],
+        },
+        steps: [{ kind: "read", input: "Review comment instruction" }],
+      },
+    } as never);
+
+    const { result } = renderHook(() =>
+      useGitHubRuntimeTaskLaunchers({
+        activeWorkspace: { id: "ws-1", path: "/workspace/hugecode", connected: true } as never,
+        activeWorkspaceId: "ws-1",
+        gitRemoteUrl: "https://github.com/ku0/hugecode.git",
+        selectedRemoteBackendId: "backend-b",
+        refreshMissionControl,
+      })
+    );
+
+    expect(
+      result.current.getGitHubIssueCommentCommandFollowUpPreview({
+        issue,
+        event: {
+          eventName: "issue_comment",
+          action: "created",
+        },
+        command: {
+          triggerMode: "issue_comment_command",
+          comment: {
+            commentId: 3301,
+            body: "@hugecode continue",
+            author: { login: "reviewer" },
+          },
+        },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        state: "ready",
+        title: "Issue comment follow-up preview",
+        fields: expect.arrayContaining([
+          expect.objectContaining({
+            id: "source",
+            value: "ku0/hugecode · Issue #33 · issue_comment.created",
+          }),
+        ]),
+      })
+    );
+    expect(
+      result.current.getGitHubPullRequestReviewCommentCommandFollowUpPreview({
+        pullRequest,
+        event: {
+          eventName: "pull_request_review_comment",
+          action: "created",
+        },
+        command: {
+          triggerMode: "pull_request_review_comment_command",
+          comment: {
+            commentId: 3401,
+            body: "Please tighten the runtime boundary.",
+            author: { login: "reviewer" },
+          },
+        },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        state: "ready",
+        title: "Review comment follow-up preview",
+        fields: expect.arrayContaining([
+          expect.objectContaining({
+            id: "backend",
+            value: "backend-b",
+          }),
+          expect.objectContaining({
+            id: "source",
+            detail: expect.stringContaining("Please tighten the runtime boundary."),
+          }),
+        ]),
+      })
+    );
   });
 
   it("surfaces PR review-comment prepare failures through shared toasts", async () => {
