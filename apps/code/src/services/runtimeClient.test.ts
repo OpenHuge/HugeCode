@@ -1377,7 +1377,6 @@ describe("runtimeClient mode detection", () => {
       scope: "write",
       payloadBytes: 128,
       requiresApproval: true,
-      capabilityId: "capability:core-edit",
       mutationKind: "edit",
     });
     expect(invokeMock).toHaveBeenCalledWith(
@@ -1388,7 +1387,6 @@ describe("runtimeClient mode detection", () => {
         scope: "write",
         payloadBytes: 128,
         requiresApproval: true,
-        capabilityId: "capability:core-edit",
         mutationKind: "edit",
       })
     );

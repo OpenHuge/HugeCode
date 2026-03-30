@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 import {
@@ -32,6 +32,7 @@ import type {
   AgentTaskStartRequest,
   AgentTaskSummary,
   AgentTaskStepSummary,
+  CodeRuntimeRpcRequestPayloadByMethod,
   KernelContextSlice,
   KernelJob,
   KernelProjectionBootstrapResponse,
@@ -41,6 +42,46 @@ import type {
   RuntimeExecutionGraphSummary,
   SubAgentSpawnRequest,
 } from "./codeRuntimeRpc";
+
+type AssertFalse<T extends false> = T;
+type HotTurnSendPayload =
+  CodeRuntimeRpcRequestPayloadByMethod[typeof CODE_RUNTIME_RPC_METHODS.TURN_SEND]["payload"];
+type HotRunPreparePayload =
+  CodeRuntimeRpcRequestPayloadByMethod[typeof CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2];
+type HotRunIntervenePayload =
+  CodeRuntimeRpcRequestPayloadByMethod[typeof CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2];
+type HotKernelContextPayload =
+  CodeRuntimeRpcRequestPayloadByMethod[typeof CODE_RUNTIME_RPC_METHODS.KERNEL_CONTEXT_SNAPSHOT_V2];
+type HotKernelPoliciesPayload =
+  CodeRuntimeRpcRequestPayloadByMethod[typeof CODE_RUNTIME_RPC_METHODS.KERNEL_POLICIES_EVALUATE_V2];
+
+const HOT_TURN_SEND_WORKSPACE_IS_CANONICAL: AssertFalse<
+  "workspace_id" extends keyof HotTurnSendPayload ? true : false
+> = false;
+const HOT_TURN_SEND_CONTEXT_IS_CANONICAL: AssertFalse<
+  "context_prefix" extends keyof HotTurnSendPayload ? true : false
+> = false;
+const HOT_RUN_PREPARE_WORKSPACE_IS_CANONICAL: AssertFalse<
+  "workspace_id" extends keyof HotRunPreparePayload ? true : false
+> = false;
+const HOT_RUN_PREPARE_STEP_TIMEOUT_IS_CANONICAL: AssertFalse<
+  "timeout_ms" extends keyof HotRunPreparePayload["steps"][number] ? true : false
+> = false;
+const HOT_RUN_INTERVENE_PATCH_IS_CANONICAL: AssertFalse<
+  "instruction_patch" extends keyof HotRunIntervenePayload ? true : false
+> = false;
+const HOT_KERNEL_CONTEXT_WORKSPACE_IS_CANONICAL: AssertFalse<
+  "workspace_id" extends keyof HotKernelContextPayload ? true : false
+> = false;
+const HOT_KERNEL_POLICIES_WORKSPACE_IS_CANONICAL: AssertFalse<
+  "workspace_id" extends keyof HotKernelPoliciesPayload ? true : false
+> = false;
+const HOT_KERNEL_POLICIES_PAYLOAD_BYTES_IS_CANONICAL: AssertFalse<
+  "payload_bytes" extends keyof HotKernelPoliciesPayload ? true : false
+> = false;
+const _HOT_KERNEL_POLICIES_TOOL_ALIAS_IS_CANONICAL: AssertFalse<
+  "capabilityId" extends keyof HotKernelPoliciesPayload ? true : false
+> = false;
 
 describe("code runtime rpc method consistency", () => {
   it("includes runtime kernel v2 methods in the canonical method list", () => {
@@ -94,6 +135,17 @@ describe("code runtime rpc method consistency", () => {
 });
 
 describe("code runtime rpc compatibility helpers", () => {
+  it("keeps hot rpc request payload types canonical-only", () => {
+    expectTypeOf(HOT_TURN_SEND_WORKSPACE_IS_CANONICAL).toEqualTypeOf<false>();
+    expectTypeOf(HOT_TURN_SEND_CONTEXT_IS_CANONICAL).toEqualTypeOf<false>();
+    expectTypeOf(HOT_RUN_PREPARE_WORKSPACE_IS_CANONICAL).toEqualTypeOf<false>();
+    expectTypeOf(HOT_RUN_PREPARE_STEP_TIMEOUT_IS_CANONICAL).toEqualTypeOf<false>();
+    expectTypeOf(HOT_RUN_INTERVENE_PATCH_IS_CANONICAL).toEqualTypeOf<false>();
+    expectTypeOf(HOT_KERNEL_CONTEXT_WORKSPACE_IS_CANONICAL).toEqualTypeOf<false>();
+    expectTypeOf(HOT_KERNEL_POLICIES_WORKSPACE_IS_CANONICAL).toEqualTypeOf<false>();
+    expectTypeOf(HOT_KERNEL_POLICIES_PAYLOAD_BYTES_IS_CANONICAL).toEqualTypeOf<false>();
+  });
+
   it("includes requestId compat alias mapping", () => {
     expect(CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES).toHaveProperty("requestId", "request_id");
     expect(CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES).toHaveProperty(

@@ -28,4 +28,37 @@ describe("@ku0/code-runtime-client runtimeClientRpcPayloads", () => {
       })
     );
   });
+
+  it("keeps turn send payloads canonical without legacy snake_case aliases", () => {
+    const payload = adaptRuntimeRpcPayload("turnSend", {
+      workspaceId: "ws-1",
+      threadId: null,
+      requestId: "req-1",
+      content: "Inspect runtime payload handling.",
+      contextPrefix: "context",
+      provider: "openai",
+      modelId: "gpt-5.4",
+      reasonEffort: "high",
+      accessMode: "on-request",
+      executionMode: "runtime",
+      preferredBackendIds: ["backend-a"],
+      queue: false,
+      attachments: [],
+      collaborationMode: { mode: "plan" },
+      autonomyRequest: null,
+    });
+
+    expect(payload).toEqual(
+      expect.objectContaining({
+        workspaceId: "ws-1",
+        requestId: "req-1",
+        contextPrefix: "context",
+        preferredBackendIds: ["backend-a"],
+      })
+    );
+    expect(payload).not.toHaveProperty("workspace_id");
+    expect(payload).not.toHaveProperty("request_id");
+    expect(payload).not.toHaveProperty("context_prefix");
+    expect(payload).not.toHaveProperty("preferred_backend_ids");
+  });
 });

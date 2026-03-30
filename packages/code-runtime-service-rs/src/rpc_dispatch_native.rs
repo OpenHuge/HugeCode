@@ -4,7 +4,8 @@ use crate::native_state_store::{
     TABLE_NATIVE_THEMES, TABLE_NATIVE_TOOLS, TABLE_NATIVE_VOICE_CONFIG, TABLE_NATIVE_WATCHERS,
 };
 use crate::rpc_dispatch_native_schedules::{
-    create_native_schedule, list_native_schedules, schedule_run_state_update, update_native_schedule,
+    create_native_schedule, list_native_schedules, schedule_run_state_update,
+    update_native_schedule,
 };
 
 pub(crate) async fn handle_native_rpc(

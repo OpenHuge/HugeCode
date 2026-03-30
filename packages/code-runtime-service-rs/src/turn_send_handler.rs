@@ -4,110 +4,27 @@ use crate::turn_failure_codes::resolve_turn_failure_code;
 
 #[path = "turn_send_handler_acp.rs"]
 mod acp;
+#[path = "turn_send_handler_contract.rs"]
+mod contract;
 mod delta_stream;
 #[path = "turn_send_handler_support.rs"]
 mod support;
 
 use acp::{resolve_requested_acp_backend_id, try_complete_turn_send_via_acp, TurnSendTaskInput};
+use contract::{
+    parse_requested_collaboration_mode, parse_turn_execution_mode, parse_turn_send_request,
+    RequestedCollaborationMode, TurnExecutionMode,
+};
 use delta_stream::{
     TurnDeltaCoalescer, TurnDeltaCoalescerConfig, TurnDeltaPipeline, TurnDeltaPipelineConfig,
 };
-use support::{
-    clear_turn_interrupt_waiter, read_optional_string_array, register_turn_interrupt_waiter,
-};
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum TurnExecutionMode {
-    Runtime,
-    LocalCli,
-    Hybrid,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum RequestedCollaborationMode {
-    Standard,
-    Chat,
-    Plan,
-}
+use support::{clear_turn_interrupt_waiter, register_turn_interrupt_waiter};
 
 #[derive(Clone, Debug, Default)]
 struct TurnQueryOutcome {
     message: provider_requests::ProviderQueryResult,
     local_claude_session_id: Option<String>,
     local_claude_recovered_from_stale_resume: bool,
-}
-
-fn parse_requested_collaboration_mode(
-    payload: &serde_json::Map<String, Value>,
-) -> RequestedCollaborationMode {
-    let collaboration_mode = payload
-        .get("collaborationMode")
-        .or_else(|| payload.get("collaboration_mode"));
-    let normalized = collaboration_mode
-        .and_then(|mode| match mode {
-            Value::String(value) => Some(value.as_str()),
-            Value::Object(mode) => mode
-                .get("mode")
-                .or_else(|| mode.get("modeId"))
-                .or_else(|| mode.get("mode_id"))
-                .and_then(Value::as_str)
-                .or_else(|| {
-                    mode.get("settings")
-                        .and_then(Value::as_object)
-                        .and_then(|settings| settings.get("id"))
-                        .and_then(Value::as_str)
-                }),
-            _ => None,
-        })
-        .map(str::trim)
-        .map(str::to_ascii_lowercase)
-        .unwrap_or_default();
-    if normalized == "plan" {
-        RequestedCollaborationMode::Plan
-    } else if matches!(normalized.as_str(), "default" | "code" | "chat") {
-        RequestedCollaborationMode::Chat
-    } else {
-        RequestedCollaborationMode::Standard
-    }
-}
-
-impl RequestedCollaborationMode {
-    fn suppress_runtime_plan_delta(self) -> bool {
-        matches!(self, Self::Chat)
-    }
-}
-
-impl TurnExecutionMode {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Runtime => "runtime",
-            Self::LocalCli => "local-cli",
-            Self::Hybrid => "hybrid",
-        }
-    }
-
-    fn local_exec_preferred(self) -> bool {
-        matches!(self, Self::LocalCli)
-    }
-}
-
-fn parse_turn_execution_mode(
-    payload: &serde_json::Map<String, Value>,
-) -> Result<TurnExecutionMode, RpcError> {
-    let raw_value = read_optional_string(payload, "executionMode")
-        .or_else(|| read_optional_string(payload, "execution_mode"));
-    let Some(raw_value) = raw_value else {
-        return Ok(TurnExecutionMode::Runtime);
-    };
-    let normalized = raw_value.trim().to_ascii_lowercase().replace('_', "-");
-    match normalized.as_str() {
-        "runtime" => Ok(TurnExecutionMode::Runtime),
-        "local-cli" | "localcli" | "local" => Ok(TurnExecutionMode::LocalCli),
-        "hybrid" => Ok(TurnExecutionMode::Hybrid),
-        _ => Err(RpcError::invalid_params(format!(
-            "Unsupported execution mode `{raw_value}`. Expected one of: runtime, local-cli, hybrid."
-        ))),
-    }
 }
 
 fn build_turn_contents(content: &str, context_prefix: Option<&str>) -> (String, String) {
@@ -836,19 +753,15 @@ async fn complete_turn_send(
 }
 
 pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result<Value, RpcError> {
-    let params_object = as_object(params)?;
-    let payload = params_object
-        .get("payload")
-        .and_then(Value::as_object)
-        .ok_or_else(|| RpcError::invalid_params("Missing turn payload."))?;
+    let request = parse_turn_send_request(params)?;
+    let payload = request.payload;
 
-    let workspace_id = read_required_string(payload, "workspaceId")?;
-    let content = read_required_string(payload, "content")?;
-    let context_prefix = read_optional_string(payload, "contextPrefix")
-        .or_else(|| read_optional_string(payload, "context_prefix"));
+    let workspace_id = payload.workspace_id.as_str();
+    let content = payload.content.as_str();
+    let context_prefix = payload.context_prefix.clone();
     let (provider_content, local_exec_content) =
         build_turn_contents(content, context_prefix.as_deref());
-    let provider_hint = read_optional_string(payload, "provider");
+    let provider_hint = payload.provider.clone();
     let provider_hint_core = provider_hint
         .as_deref()
         .and_then(|provider| parse_runtime_provider(Some(provider)));
@@ -856,7 +769,7 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
     let provider_hint_known_extension = match provider_hint.as_deref() { Some(provider) => resolve_known_provider_extension_by_alias(ctx, provider).await, None => None };
     #[rustfmt::skip]
     let provider_hint_extension = match provider_hint.as_deref() { Some(provider) => resolve_active_provider_extension_by_alias(ctx, provider).await, None => None };
-    let requested_model_id = read_optional_string(payload, "modelId");
+    let requested_model_id = payload.model_id.clone();
     #[rustfmt::skip]
     let model_hint_known_extension = match requested_model_id.as_deref() { Some(model_id) => resolve_known_provider_extension_by_model_id(ctx, model_id).await, None => None };
     #[rustfmt::skip]
@@ -933,7 +846,7 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
                 .or(Some(ctx.config.default_model_id.as_str())),
         ))
     };
-    let requested_thread_id = read_optional_string(payload, "threadId");
+    let requested_thread_id = payload.thread_id.clone();
     let thread_id = requested_thread_id
         .clone()
         .unwrap_or_else(|| new_id("thread"));
@@ -984,18 +897,15 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
     } else {
         Some(model_id.clone())
     };
-    let reason_effort = read_optional_string(payload, "reasonEffort");
-    let service_tier = read_optional_string(payload, "serviceTier")
-        .or_else(|| read_optional_string(payload, "service_tier"));
-    let access_mode =
-        normalize_access_mode(read_optional_string(payload, "accessMode").as_deref())?;
-    let request_id = read_optional_string(payload, "requestId");
-    let collaboration_mode = parse_requested_collaboration_mode(payload);
-    let preferred_backend_ids =
-        read_optional_string_array(payload, "preferredBackendIds", "preferred_backend_ids");
-    let requested_codex_bin = read_optional_string(payload, "codexBin")
-        .or_else(|| read_optional_string(payload, "codex_bin"));
-    let requested_codex_args = read_optional_string_array(payload, "codexArgs", "codex_args");
+    let reason_effort = payload.reason_effort.clone();
+    let service_tier = payload.service_tier.clone();
+    let access_mode = normalize_access_mode(Some(payload.access_mode.as_str()))?;
+    let request_id = payload.request_id.clone();
+    let collaboration_mode =
+        parse_requested_collaboration_mode(payload.collaboration_mode.as_ref());
+    let preferred_backend_ids = payload.preferred_backend_ids.clone().unwrap_or_default();
+    let requested_codex_bin = payload.codex_bin.clone();
+    let requested_codex_args = payload.codex_args.clone().unwrap_or_default();
     let oauth_api_key = oauth_routing
         .as_ref()
         .map(|credentials| credentials.api_key.as_str());
@@ -1092,7 +1002,7 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
     )
     .await;
 
-    let execution_mode = parse_turn_execution_mode(payload)?;
+    let execution_mode = parse_turn_execution_mode(Some(payload.execution_mode.as_str()))?;
     let acp_backend_id =
         resolve_requested_acp_backend_id(ctx, preferred_backend_ids.as_slice()).await;
     let routed_source_response = if acp_backend_id.is_some() {
@@ -1298,116 +1208,7 @@ fn classify_oauth_account_failure_error_code(message: &str) -> Option<&'static s
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        build_turn_contents, classify_oauth_account_failure_error_code,
-        parse_requested_collaboration_mode, parse_turn_execution_mode, RequestedCollaborationMode,
-        TurnExecutionMode,
-    };
-    use serde_json::{json, Value};
-
-    #[test]
-    fn parse_turn_execution_mode_defaults_to_runtime() {
-        let payload = serde_json::Map::new();
-        let parsed = parse_turn_execution_mode(&payload).expect("default execution mode");
-        assert_eq!(parsed, TurnExecutionMode::Runtime);
-    }
-
-    #[test]
-    fn parse_turn_execution_mode_accepts_known_aliases() {
-        let payload = json!({"executionMode": "local_cli"});
-        let parsed = parse_turn_execution_mode(payload.as_object().expect("payload object"))
-            .expect("local cli alias");
-        assert_eq!(parsed, TurnExecutionMode::LocalCli);
-
-        let payload = json!({"execution_mode": "hybrid"});
-        let parsed = parse_turn_execution_mode(payload.as_object().expect("payload object"))
-            .expect("hybrid mode");
-        assert_eq!(parsed, TurnExecutionMode::Hybrid);
-    }
-
-    #[test]
-    fn parse_turn_execution_mode_rejects_unknown_value() {
-        let payload = json!({"executionMode": "distributed"});
-        let error = parse_turn_execution_mode(payload.as_object().expect("payload object"))
-            .expect_err("unsupported execution mode must fail");
-        assert_eq!(error.code.as_str(), "INVALID_PARAMS");
-        assert!(error.message.contains("Unsupported execution mode"));
-    }
-
-    #[test]
-    fn execution_mode_string_values_are_stable() {
-        let pairs = [
-            (TurnExecutionMode::Runtime, "runtime"),
-            (TurnExecutionMode::LocalCli, "local-cli"),
-            (TurnExecutionMode::Hybrid, "hybrid"),
-        ];
-        for (mode, expected) in pairs {
-            assert_eq!(mode.as_str(), expected);
-        }
-    }
-
-    #[test]
-    fn parse_turn_execution_mode_ignores_non_string_values() {
-        let payload =
-            serde_json::Map::from_iter([("executionMode".to_string(), Value::Bool(true))]);
-        let parsed = parse_turn_execution_mode(&payload).expect("non-string falls back to default");
-        assert_eq!(parsed, TurnExecutionMode::Runtime);
-    }
-
-    #[test]
-    fn parse_requested_collaboration_mode_prefers_plan_mode() {
-        let payload = json!({
-            "collaborationMode": {
-                "mode": "plan",
-                "settings": {
-                    "id": "plan"
-                }
-            }
-        });
-        let payload = payload.as_object().expect("payload object");
-        assert_eq!(
-            parse_requested_collaboration_mode(payload),
-            RequestedCollaborationMode::Plan
-        );
-    }
-
-    #[test]
-    fn parse_requested_collaboration_mode_detects_explicit_chat_mode() {
-        let payload = json!({
-            "collaborationMode": {
-                "mode": "default",
-                "settings": {
-                    "id": "default"
-                }
-            }
-        });
-        let payload = payload.as_object().expect("payload object");
-        assert_eq!(
-            parse_requested_collaboration_mode(payload),
-            RequestedCollaborationMode::Chat
-        );
-    }
-
-    #[test]
-    fn parse_requested_collaboration_mode_accepts_string_aliases() {
-        let payload = json!({
-            "collaborationMode": "chat"
-        });
-        let payload = payload.as_object().expect("payload object");
-        assert_eq!(
-            parse_requested_collaboration_mode(payload),
-            RequestedCollaborationMode::Chat
-        );
-    }
-
-    #[test]
-    fn parse_requested_collaboration_mode_defaults_to_standard_when_missing() {
-        let payload = serde_json::Map::new();
-        assert_eq!(
-            parse_requested_collaboration_mode(&payload),
-            RequestedCollaborationMode::Standard
-        );
-    }
+    use super::{build_turn_contents, classify_oauth_account_failure_error_code};
 
     #[test]
     fn build_turn_contents_keeps_raw_content_without_prefix() {

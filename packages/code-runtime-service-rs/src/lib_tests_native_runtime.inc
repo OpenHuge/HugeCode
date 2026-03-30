@@ -364,23 +364,23 @@ async fn native_schedule_run_now_launches_task_when_schedule_has_workspace_conte
     let task_payload = send_rpc_request(
         app,
         json!({
-            "method": "code_runtime_run_subscribe",
+            "method": "code_runtime_run_subscribe_v2",
             "params": {
-                "taskId": task_id
+                "runId": task_id
             }
         }),
     )
     .await;
 
     assert_eq!(task_payload["ok"], Value::Bool(true));
-    assert_eq!(task_payload["result"]["taskId"], json!(task_id));
+    assert_eq!(runtime_run_record(&task_payload)["taskId"], json!(task_id));
     assert_eq!(
-        task_payload["result"]["title"],
+        runtime_run_record(&task_payload)["title"],
         Value::String("Night Operator Review Sweep".to_string())
     );
-    assert_eq!(task_payload["result"]["runSummary"]["id"], json!(run_id));
+    assert_eq!(task_payload["result"]["missionRun"]["id"], json!(run_id));
     assert_eq!(
-        task_payload["result"]["missionLinkage"]["workspaceId"],
+        task_payload["result"]["missionRun"]["workspaceId"],
         Value::String("workspace-1".to_string())
     );
 }
@@ -646,17 +646,17 @@ async fn native_schedule_cancel_run_clears_active_task_linkage() {
     let task_payload = send_rpc_request(
         app,
         json!({
-            "method": "code_runtime_run_subscribe",
+            "method": "code_runtime_run_subscribe_v2",
             "params": {
-                "taskId": task_id
+                "runId": task_id
             }
         }),
     )
     .await;
 
     assert_eq!(task_payload["ok"], Value::Bool(true));
-    assert_eq!(task_payload["result"]["taskId"], json!(task_id));
-    assert_eq!(task_payload["result"]["status"], json!("failed"));
+    assert_eq!(runtime_run_record(&task_payload)["taskId"], json!(task_id));
+    assert_eq!(runtime_run_record(&task_payload)["status"], json!("failed"));
 }
 
 #[tokio::test]
@@ -1119,7 +1119,7 @@ fn native_rpc_capabilities_v2_method_set_hash_is_stable() {
     let methods = list_native_rpc_method_capabilities();
     assert_eq!(
         hash_rpc_method_capabilities(methods.as_slice()),
-        "98292b0982223642"
+        "b13ec061a3412962"
     );
 }
 

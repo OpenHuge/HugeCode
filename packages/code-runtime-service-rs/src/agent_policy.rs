@@ -271,8 +271,9 @@ pub(super) fn ensure_agent_task_capacity(store: &mut AgentTaskStore, max_tasks: 
 mod tests {
     use super::{
         create_agent_step_summary, is_full_access_mode, is_read_only_access_mode,
-        normalize_access_mode, normalize_agent_profile, resolve_agent_step_requires_approval,
-        validate_agent_task_steps, AgentStepKind, AgentTaskStepInput,
+        normalize_access_mode, normalize_agent_profile, parse_agent_task_start_request,
+        resolve_agent_step_requires_approval, validate_agent_task_steps, AgentStepKind,
+        AgentTaskStepInput,
     };
     use serde_json::json;
 
@@ -333,6 +334,77 @@ mod tests {
         assert_eq!(error.code.as_str(), "INVALID_PARAMS");
         assert!(
             error.message.contains("sub-agent orchestration"),
+            "unexpected message: {}",
+            error.message
+        );
+    }
+
+    #[test]
+    fn parse_agent_task_start_request_requires_canonical_hot_path_fields() {
+        let parsed = parse_agent_task_start_request(&json!({
+            "workspaceId": "ws-1",
+            "requestId": "req-1",
+            "accessMode": "on-request",
+            "executionMode": "single",
+            "preferredBackendIds": ["backend-a"],
+            "missionBrief": {
+                "objective": "Inspect the runtime boundary",
+                "preferredBackendIds": ["backend-a"],
+                "evaluationPlan": {
+                    "representativeCommands": ["pnpm check:runtime-contract"]
+                }
+            },
+            "steps": [
+                {
+                    "kind": "read",
+                    "input": "Inspect the hot path"
+                }
+            ]
+        }))
+        .expect("canonical request should parse");
+
+        assert_eq!(parsed.workspace_id, "ws-1");
+        assert_eq!(parsed.request_id.as_deref(), Some("req-1"));
+        let expected_backends = vec!["backend-a".to_string()];
+        assert_eq!(
+            parsed.preferred_backend_ids.as_deref(),
+            Some(expected_backends.as_slice())
+        );
+        let expected_commands = vec!["pnpm check:runtime-contract".to_string()];
+        assert_eq!(
+            parsed
+                .mission_brief
+                .as_ref()
+                .and_then(|brief| brief.evaluation_plan.as_ref())
+                .and_then(|plan| plan.representative_commands.as_ref())
+                .map(Vec::as_slice),
+            Some(expected_commands.as_slice())
+        );
+    }
+
+    #[test]
+    fn parse_agent_task_start_request_rejects_snake_case_hot_path_fields() {
+        let error = parse_agent_task_start_request(&json!({
+            "workspace_id": "ws-1",
+            "access_mode": "on-request",
+            "execution_mode": "single",
+            "preferred_backend_ids": ["backend-a"],
+            "mission_brief": {
+                "objective": "Inspect the runtime boundary"
+            },
+            "steps": [
+                {
+                    "kind": "read",
+                    "input": "Inspect the hot path",
+                    "timeout_ms": 500
+                }
+            ]
+        }))
+        .expect_err("snake_case request should fail");
+
+        assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+        assert!(
+            error.message.contains("Invalid agent task start payload"),
             "unexpected message: {}",
             error.message
         );

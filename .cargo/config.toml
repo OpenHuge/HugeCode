@@ -1,2 +1,5 @@
 [build]
 target-dir = ".cache/cargo-target"
+
+[env]
+RUST_MIN_STACK = "33554432"

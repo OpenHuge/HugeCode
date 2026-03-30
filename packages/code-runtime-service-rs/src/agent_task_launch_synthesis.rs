@@ -1165,21 +1165,15 @@ mod tests {
                 "evaluation".to_string(),
             ])
         );
-        assert!(
-            constraints
-                .iter()
-                .any(|entry| entry.contains("other connected workspaces"))
-        );
-        assert!(
-            constraints
-                .iter()
-                .any(|entry| entry.contains("held-out fixtures"))
-        );
-        assert!(
-            done_definition
-                .iter()
-                .any(|entry| entry.contains("representative automated test lane"))
-        );
+        assert!(constraints
+            .iter()
+            .any(|entry| entry.contains("other connected workspaces")));
+        assert!(constraints
+            .iter()
+            .any(|entry| entry.contains("held-out fixtures")));
+        assert!(done_definition
+            .iter()
+            .any(|entry| entry.contains("representative automated test lane")));
         assert_eq!(
             evaluation_plan.representative_commands,
             Some(vec![
@@ -1196,20 +1190,16 @@ mod tests {
             evaluation_plan.end_to_end_commands,
             Some(vec!["pnpm test:e2e:smoke".to_string()])
         );
-        assert!(
-            evaluation_plan
-                .sample_paths
-                .unwrap_or_default()
-                .iter()
-                .any(|path| path.contains(".codex/e2e-map.json"))
-        );
-        assert!(
-            evaluation_plan
-                .source_signals
-                .unwrap_or_default()
-                .iter()
-                .any(|signal| signal == "e2e_map")
-        );
+        assert!(evaluation_plan
+            .sample_paths
+            .unwrap_or_default()
+            .iter()
+            .any(|path| path.contains(".codex/e2e-map.json")));
+        assert!(evaluation_plan
+            .source_signals
+            .unwrap_or_default()
+            .iter()
+            .any(|signal| signal == "e2e_map"));
         assert_eq!(
             mission_brief
                 .scenario_profile
@@ -1217,15 +1207,13 @@ mod tests {
                 .and_then(|profile| profile.authority_scope.as_deref()),
             Some("workspace_graph")
         );
-        assert!(
-            mission_brief
-                .scenario_profile
-                .as_ref()
-                .and_then(|profile| profile.scenario_keys.clone())
-                .unwrap_or_default()
-                .iter()
-                .any(|key| key == "workspace_graph_launch")
-        );
+        assert!(mission_brief
+            .scenario_profile
+            .as_ref()
+            .and_then(|profile| profile.scenario_keys.clone())
+            .unwrap_or_default()
+            .iter()
+            .any(|key| key == "workspace_graph_launch"));
     }
 
     #[test]

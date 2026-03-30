@@ -168,9 +168,7 @@ fn normalize_task_source_requester(
     Some(normalized)
 }
 
-fn normalize_task_source_event(
-    value: AgentTaskSourceEvent,
-) -> Option<AgentTaskSourceEvent> {
+fn normalize_task_source_event(value: AgentTaskSourceEvent) -> Option<AgentTaskSourceEvent> {
     let normalized = AgentTaskSourceEvent {
         delivery_id: trim_optional_string(value.delivery_id),
         event_name: value.event_name.trim().to_ascii_lowercase(),
@@ -197,7 +195,11 @@ fn normalize_task_source_github_provenance(
     if ref_label.is_empty() {
         return None;
     }
-    let handshake_state = provenance.launch_handshake.state.trim().to_ascii_lowercase();
+    let handshake_state = provenance
+        .launch_handshake
+        .state
+        .trim()
+        .to_ascii_lowercase();
     let handshake_summary = provenance.launch_handshake.summary.trim().to_string();
     if handshake_state.is_empty() || handshake_summary.is_empty() {
         return None;
@@ -308,16 +310,10 @@ fn build_task_source_labels(
                 .unwrap_or_else(|| "GitHub discussion".to_string()),
         ),
         "note" => ("Operator note".to_string(), "Note".to_string()),
-        "customer_feedback" => (
-            "Customer feedback".to_string(),
-            "Feedback".to_string(),
-        ),
+        "customer_feedback" => ("Customer feedback".to_string(), "Feedback".to_string()),
         "doc" => ("Document brief".to_string(), "Doc".to_string()),
         "call_summary" => ("Call summary".to_string(), "Call".to_string()),
-        "external_ref" => (
-            "External reference".to_string(),
-            "Reference".to_string(),
-        ),
+        "external_ref" => ("External reference".to_string(), "Reference".to_string()),
         "schedule" => ("Scheduled task".to_string(), "Schedule".to_string()),
         "external_runtime" => ("External runtime".to_string(), "External".to_string()),
         _ => return None,
@@ -758,21 +754,21 @@ mod tests {
     }
 
     #[test]
-    fn parse_agent_task_intervention_request_trims_fields_and_aliases() {
+    fn parse_agent_task_intervention_request_trims_canonical_fields() {
         let parsed = parse_agent_task_intervention_request(&json!({
-            "task_id": "  task-123  ",
+            "taskId": "  task-123  ",
             "action": "switch_profile_and_retry",
             "reason": "  reroute  ",
-            "instruction_patch": "  retry with validation  ",
-            "execution_profile_id": "  balanced-delegate  ",
-            "preferred_backend_ids": ["  backend-a  ", "", "backend-b"],
-            "relaunch_context": {
-                "source_task_id": "  task-001  ",
-                "source_run_id": "  run-001  ",
-                "source_review_pack_id": "  review-pack:run-001  ",
+            "instructionPatch": "  retry with validation  ",
+            "executionProfileId": "  balanced-delegate  ",
+            "preferredBackendIds": ["  backend-a  ", "", "backend-b"],
+            "relaunchContext": {
+                "sourceTaskId": "  task-001  ",
+                "sourceRunId": "  run-001  ",
+                "sourceReviewPackId": "  review-pack:run-001  ",
                 "summary": "  Retry from runtime snapshot  ",
-                "failure_class": "  validation_failed  ",
-                "recommended_actions": [" retry ", "", "switch_profile_and_retry"]
+                "failureClass": "  validation_failed  ",
+                "recommendedActions": [" retry ", "", "switch_profile_and_retry"]
             }
         }))
         .expect("parse intervention request");

@@ -760,6 +760,7 @@ rl.on("line", (line) => {{
                         "reasonEffort": "high",
                         "accessMode": "on-request",
                         "preferredBackendIds": ["acp:test-turn-prompt-structured"],
+                        "executionMode": "runtime",
                         "queue": false,
                         "attachments": [],
                     }
@@ -840,6 +841,7 @@ rl.on("line", (line) => {{
                         "reasonEffort": "high",
                         "accessMode": "on-request",
                         "preferredBackendIds": ["acp:test-turn-stream"],
+                        "executionMode": "runtime",
                         "queue": false,
                         "attachments": [],
                     }
@@ -929,6 +931,7 @@ rl.on("line", (line) => {{
                         "reasonEffort": "high",
                         "accessMode": "on-request",
                         "preferredBackendIds": ["acp:test-turn-cancel"],
+                        "executionMode": "runtime",
                         "queue": false,
                         "attachments": [],
                     }
@@ -1025,8 +1028,9 @@ rl.on("line", (line) => {{
         service_handle.abort();
     }
 
-    #[tokio::test]
-    async fn agent_task_status_records_acp_diagnostics_from_stream_updates() {
+    #[test]
+    fn agent_task_status_records_acp_diagnostics_from_stream_updates() {
+        run_async_test_on_large_stack_local(|| async move {
         let _guard = acp_runtime_test_lock()
             .lock()
             .expect("acp runtime test lock poisoned");
@@ -1046,7 +1050,7 @@ rl.on("line", (line) => {{
         let start_payload = send_rpc_request(
             app.clone(),
             json!({
-                "method": "code_runtime_run_start",
+                "method": "code_runtime_run_start_v2",
                 "params": {
                     "workspaceId": "workspace-web",
                     "executionMode": "distributed",
@@ -1063,10 +1067,7 @@ rl.on("line", (line) => {{
         )
         .await;
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("acp task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let status_payload =
             wait_for_agent_task_terminal_status(app.clone(), task_id.as_str(), &["completed"])
@@ -1108,6 +1109,7 @@ rl.on("line", (line) => {{
         );
 
         let _ = fs::remove_dir_all(script_path.parent().expect("fake acp dir"));
+        });
     }
 
     #[tokio::test]
@@ -1153,6 +1155,7 @@ rl.on("line", (line) => {{
                         "reasonEffort": "high",
                         "accessMode": "on-request",
                         "preferredBackendIds": ["acp:test-terminal-command"],
+                        "executionMode": "runtime",
                         "queue": false,
                         "attachments": [],
                     }
@@ -1233,6 +1236,7 @@ rl.on("line", (line) => {{
                         "reasonEffort": "high",
                         "accessMode": "on-request",
                         "preferredBackendIds": ["acp:test-terminal-wait-exit"],
+                        "executionMode": "runtime",
                         "queue": false,
                         "attachments": [],
                     }
@@ -1312,6 +1316,7 @@ rl.on("line", (line) => {{
                         "reasonEffort": "high",
                         "accessMode": "on-request",
                         "preferredBackendIds": ["acp:test-terminal-kill"],
+                        "executionMode": "runtime",
                         "queue": false,
                         "attachments": [],
                     }
@@ -1394,6 +1399,7 @@ rl.on("line", (line) => {{
                         "reasonEffort": "high",
                         "accessMode": "on-request",
                         "preferredBackendIds": ["acp:test-terminal-output-limit"],
+                        "executionMode": "runtime",
                         "queue": false,
                         "attachments": [],
                     }
