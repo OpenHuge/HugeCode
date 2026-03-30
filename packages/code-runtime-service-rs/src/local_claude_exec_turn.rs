@@ -839,15 +839,15 @@ pub(crate) async fn query_local_claude_exec_turn(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "macos")]
+    use super::{
+        check_local_claude_cli_readiness, probe_local_claude_cli, query_local_claude_exec_turn,
+    };
     use super::{
         classify_local_claude_error, extract_final_message_from_stream_event,
         extract_init_event_probe, permission_mode_for_local_claude,
         redact_local_claude_sensitive_text, resolve_local_claude_exec_command_args,
         should_collect_local_claude_output_text, LocalClaudeExecTurnInput,
-    };
-    #[cfg(target_os = "macos")]
-    use super::{
-        check_local_claude_cli_readiness, probe_local_claude_cli, query_local_claude_exec_turn,
     };
     use serde_json::json;
 
@@ -1128,5 +1128,4 @@ exit 1
         assert_eq!(turn.session_id.as_deref(), Some("session-123"));
         assert!(!turn.recovered_from_stale_resume);
     }
-
 }

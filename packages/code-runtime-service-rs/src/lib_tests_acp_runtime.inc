@@ -1046,7 +1046,7 @@ rl.on("line", (line) => {{
         let start_payload = send_rpc_request(
             app.clone(),
             json!({
-                "method": "code_runtime_run_start",
+                "method": "code_runtime_run_start_v2",
                 "params": {
                     "workspaceId": "workspace-web",
                     "executionMode": "distributed",

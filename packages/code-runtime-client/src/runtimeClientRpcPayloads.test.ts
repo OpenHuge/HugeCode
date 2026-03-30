@@ -28,4 +28,73 @@ describe("@ku0/code-runtime-client runtimeClientRpcPayloads", () => {
       })
     );
   });
+
+  it("rejects legacy alias fields for turnSend hot-path payloads", () => {
+    expect(() =>
+      adaptRuntimeRpcPayload("turnSend", {
+        workspaceId: "ws-1",
+        content: "Inspect runtime contract drift.",
+        request_id: "req-legacy-1",
+      })
+    ).toThrow(/Legacy snake_case RPC fields are forbidden/);
+  });
+
+  it("rejects legacy collaboration-mode aliases for turnSend hot-path payloads", () => {
+    expect(() =>
+      adaptRuntimeRpcPayload("turnSend", {
+        workspaceId: "ws-1",
+        content: "Inspect runtime contract drift.",
+        collaboration_mode: "plan",
+      })
+    ).toThrow(/Legacy snake_case RPC fields are forbidden/);
+
+    expect(() =>
+      adaptRuntimeRpcPayload("turnSend", {
+        workspaceId: "ws-1",
+        content: "Inspect runtime contract drift.",
+        collaborationMode: {
+          mode_id: "plan",
+          settings: { id: "plan" },
+        },
+      })
+    ).toThrow(/Legacy snake_case RPC fields are forbidden/);
+  });
+
+  it("rejects legacy alias fields for runtimeRunPrepareV2 payloads", () => {
+    expect(() =>
+      adaptRuntimeRpcPayload("runtimeRunPrepareV2", {
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        requestId: "req-1",
+        accessMode: "on-request",
+        executionMode: "single",
+        preferred_backend_ids: ["backend-a"],
+        steps: [{ kind: "read", input: "Inspect runtime." }],
+      })
+    ).toThrow(/Legacy snake_case RPC fields are forbidden/);
+  });
+
+  it("rejects legacy alias fields for runtimeRunStartV2 nested step payloads", () => {
+    expect(() =>
+      adaptRuntimeRpcPayload("runtimeRunStartV2", {
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        requestId: "req-1",
+        approvedPlanVersion: "plan-v1",
+        accessMode: "on-request",
+        executionMode: "single",
+        steps: [{ kind: "read", input: "Inspect runtime.", timeout_ms: 1000 }],
+      })
+    ).toThrow(/Legacy snake_case RPC fields are forbidden/);
+  });
+
+  it("rejects legacy alias fields for runtimeRunIntervention payloads", () => {
+    expect(() =>
+      adaptRuntimeRpcPayload("runtimeRunInterveneV2", {
+        runId: "run-1",
+        action: "switch_profile_and_retry",
+        instruction_patch: "Retry with explicit validation.",
+      })
+    ).toThrow(/Legacy snake_case RPC fields are forbidden/);
+  });
 });

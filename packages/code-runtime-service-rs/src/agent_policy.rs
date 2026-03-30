@@ -5,6 +5,42 @@ const SUPPORTED_ACCESS_MODES: &[&str] = &["read-only", "on-request", "full-acces
 const SUPPORTED_REASON_EFFORTS: &[&str] = &["low", "medium", "high", "xhigh"];
 const SUPPORTED_AGENT_PROFILES: &[&str] =
     &["code", "debug", "architect", "review", "research", "custom"];
+const LEGACY_HOT_PATH_ALIAS_KEYS: &[&str] = &[
+    "workspace_id",
+    "thread_id",
+    "request_id",
+    "task_source",
+    "execution_profile_id",
+    "review_profile_id",
+    "validation_preset_id",
+    "model_id",
+    "reason_effort",
+    "access_mode",
+    "execution_mode",
+    "preferred_backend_ids",
+    "default_backend_id",
+    "mission_brief",
+    "relaunch_context",
+    "approved_plan_version",
+    "auto_drive",
+    "instruction_patch",
+    "run_id",
+    "timeout_ms",
+    "requires_approval",
+    "approval_reason",
+    "context_prefix",
+    "service_tier",
+    "mission_mode",
+    "codex_bin",
+    "codex_args",
+    "source_task_id",
+    "source_run_id",
+    "source_review_pack_id",
+    "source_plan_version",
+    "failure_class",
+    "recommended_actions",
+    "plan_change_summary",
+];
 
 pub(super) fn canonicalize_access_mode(value: Option<&str>) -> Option<&'static str> {
     let normalized = value
@@ -80,9 +116,69 @@ pub(super) fn normalize_agent_profile(value: Option<&str>) -> Result<String, Rpc
     }
 }
 
+fn collect_legacy_alias_field_paths(value: &Value, path: &str, collected: &mut Vec<String>) {
+    match value {
+        Value::Object(object) => {
+            for (key, entry) in object {
+                let next_path = if path.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{path}.{key}")
+                };
+                if LEGACY_HOT_PATH_ALIAS_KEYS.contains(&key.as_str()) {
+                    collected.push(next_path.clone());
+                }
+                collect_legacy_alias_field_paths(entry, next_path.as_str(), collected);
+            }
+        }
+        Value::Array(entries) => {
+            for (index, entry) in entries.iter().enumerate() {
+                collect_legacy_alias_field_paths(
+                    entry,
+                    format!("{path}[{index}]").as_str(),
+                    collected,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+pub(super) fn reject_legacy_alias_fields(value: &Value, context: &str) -> Result<(), RpcError> {
+    let mut legacy_alias_fields = Vec::new();
+    collect_legacy_alias_field_paths(value, "", &mut legacy_alias_fields);
+    if legacy_alias_fields.is_empty() {
+        return Ok(());
+    }
+    Err(RpcError::invalid_params(format!(
+        "{context} no longer accepts legacy alias fields: {}.",
+        legacy_alias_fields.join(", ")
+    )))
+}
+
+pub(super) fn reject_unknown_object_fields(
+    object: &serde_json::Map<String, Value>,
+    allowed_fields: &[&str],
+    context: &str,
+) -> Result<(), RpcError> {
+    let unknown_fields = object
+        .keys()
+        .filter(|field| !allowed_fields.contains(&field.as_str()))
+        .cloned()
+        .collect::<Vec<_>>();
+    if unknown_fields.is_empty() {
+        return Ok(());
+    }
+    Err(RpcError::invalid_params(format!(
+        "{context} contains unsupported fields: {}.",
+        unknown_fields.join(", ")
+    )))
+}
+
 pub(super) fn parse_agent_task_start_request(
     params: &Value,
 ) -> Result<AgentTaskStartRequest, RpcError> {
+    reject_legacy_alias_fields(params, "Runtime run v2 request")?;
     let parsed: AgentTaskStartRequest =
         serde_json::from_value(params.clone()).map_err(|error| {
             RpcError::invalid_params(format!("Invalid agent task start payload: {error}"))
@@ -271,8 +367,9 @@ pub(super) fn ensure_agent_task_capacity(store: &mut AgentTaskStore, max_tasks: 
 mod tests {
     use super::{
         create_agent_step_summary, is_full_access_mode, is_read_only_access_mode,
-        normalize_access_mode, normalize_agent_profile, resolve_agent_step_requires_approval,
-        validate_agent_task_steps, AgentStepKind, AgentTaskStepInput,
+        normalize_access_mode, normalize_agent_profile, parse_agent_task_start_request,
+        resolve_agent_step_requires_approval, validate_agent_task_steps, AgentStepKind,
+        AgentTaskStepInput,
     };
     use serde_json::json;
 
@@ -343,6 +440,53 @@ mod tests {
         assert_eq!(
             normalize_agent_profile(Some("review")).expect("review profile"),
             "review"
+        );
+    }
+
+    #[test]
+    fn parse_agent_task_start_request_rejects_legacy_alias_fields() {
+        let error = parse_agent_task_start_request(&json!({
+            "workspace_id": "ws-1",
+            "request_id": "req-1",
+            "access_mode": "on-request",
+            "execution_mode": "single",
+            "preferred_backend_ids": ["backend-a"],
+            "steps": [{
+                "kind": "read",
+                "input": "Inspect runtime contract drift.",
+                "timeout_ms": 1000
+            }]
+        }))
+        .expect_err("legacy alias fields should be rejected");
+
+        assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+        assert!(
+            error.message.contains("legacy alias fields"),
+            "unexpected message: {}",
+            error.message
+        );
+    }
+
+    #[test]
+    fn parse_agent_task_start_request_rejects_unknown_fields() {
+        let error = parse_agent_task_start_request(&json!({
+            "workspaceId": "ws-1",
+            "requestId": "req-1",
+            "accessMode": "on-request",
+            "executionMode": "single",
+            "unexpectedField": true,
+            "steps": [{
+                "kind": "read",
+                "input": "Inspect runtime contract drift."
+            }]
+        }))
+        .expect_err("unknown fields should be rejected");
+
+        assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+        assert!(
+            error.message.contains("unknown field") || error.message.contains("unsupported fields"),
+            "unexpected message: {}",
+            error.message
         );
     }
 

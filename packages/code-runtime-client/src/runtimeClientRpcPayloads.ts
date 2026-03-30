@@ -36,9 +36,8 @@ import {
   type SubAgentStatusRequest,
   type SubAgentWaitRequest,
   type TurnInterruptRequest,
-  type TurnInterruptRequestCompat,
   type TurnSendRequest,
-  type TurnSendRequestCompat,
+  type TurnInterruptRequestCompat,
   type WorkspaceDiagnosticsListRequest,
   type WorkspacePatchApplyRequest,
 } from "@ku0/code-runtime-host-contract";
@@ -53,11 +52,81 @@ function withCanonicalPayload<Payload extends object>(payload: Payload): Payload
   return { ...payload };
 }
 
-function toCompatTurnSendPayload(payload: TurnSendRequest): TurnSendRequestCompat {
-  const compatPayload = payload as TurnSendRequestCompat;
-  const requestId = payload.requestId ?? compatPayload.request_id;
-  const hasContextPrefixField = "contextPrefix" in payload || "context_prefix" in compatPayload;
-  const contextPrefix = payload.contextPrefix ?? compatPayload.context_prefix ?? null;
+const LEGACY_HOT_PATH_ALIAS_KEYS = new Set([
+  "workspace_id",
+  "thread_id",
+  "request_id",
+  "task_source",
+  "execution_profile_id",
+  "review_profile_id",
+  "validation_preset_id",
+  "model_id",
+  "reason_effort",
+  "access_mode",
+  "execution_mode",
+  "preferred_backend_ids",
+  "default_backend_id",
+  "mission_brief",
+  "relaunch_context",
+  "approved_plan_version",
+  "auto_drive",
+  "instruction_patch",
+  "run_id",
+  "timeout_ms",
+  "requires_approval",
+  "approval_reason",
+  "context_prefix",
+  "collaboration_mode",
+  "mode_id",
+  "service_tier",
+  "mission_mode",
+  "codex_bin",
+  "codex_args",
+  "source_task_id",
+  "source_run_id",
+  "source_review_pack_id",
+  "source_plan_version",
+  "failure_class",
+  "recommended_actions",
+  "plan_change_summary",
+]);
+
+function collectLegacySnakeCasePaths(value: unknown, path: string, collected: string[]): void {
+  if (Array.isArray(value)) {
+    for (const [index, entry] of value.entries()) {
+      collectLegacySnakeCasePaths(entry, `${path}[${index}]`, collected);
+    }
+    return;
+  }
+  if (value == null || typeof value !== "object") {
+    return;
+  }
+
+  for (const [key, entry] of Object.entries(value)) {
+    const nextPath = path.length === 0 ? key : `${path}.${key}`;
+    if (LEGACY_HOT_PATH_ALIAS_KEYS.has(key)) {
+      collected.push(nextPath);
+    }
+    collectLegacySnakeCasePaths(entry, nextPath, collected);
+  }
+}
+
+function assertCanonicalHotPathPayload(payload: object, label: string): void {
+  const legacySnakeCasePaths: string[] = [];
+  collectLegacySnakeCasePaths(payload, "", legacySnakeCasePaths);
+  if (legacySnakeCasePaths.length === 0) {
+    return;
+  }
+  throw new Error(
+    `Legacy snake_case RPC fields are forbidden in ${label}: ${legacySnakeCasePaths.join(", ")}`
+  );
+}
+
+function toCompatTurnSendPayload(payload: TurnSendRequest): TurnSendRequest {
+  assertCanonicalHotPathPayload(payload, "turnSend payload");
+  const requestId = payload.requestId;
+  const hasContextPrefixField = "contextPrefix" in payload;
+  const contextPrefix = payload.contextPrefix ?? null;
   const hasCollaborationModeField = Object.hasOwn(payload, "collaborationMode");
   const collaborationMode = payload.collaborationMode;
   const hasAutoDriveField = Object.hasOwn(payload, "autoDrive");
@@ -89,7 +158,7 @@ function toCompatTurnSendPayload(payload: TurnSendRequest): TurnSendRequestCompa
           collaborationMode,
         }
       : {}),
-  }) as TurnSendRequestCompat;
+  });
 }
 
 function toCompatRuntimeBackendUpsertPayload(payload: RuntimeBackendUpsertInput) {
@@ -127,6 +196,7 @@ function toCompatTurnInterruptPayload(payload: TurnInterruptRequest): TurnInterr
 }
 
 function toCompatRuntimeRunStartPayload(payload: RuntimeRunStartRequest) {
+  assertCanonicalHotPathPayload(payload, "runtimeRunStartV2 payload");
   return withCanonicalPayload({
     ...payload,
     threadId: payload.threadId ?? null,
@@ -152,6 +222,7 @@ function toCompatRuntimeRunStartPayload(payload: RuntimeRunStartRequest) {
 }
 
 function toCompatRuntimeRunPrepareV2Payload(payload: RuntimeRunPrepareV2Request) {
+  assertCanonicalHotPathPayload(payload, "runtimeRunPrepareV2 payload");
   return toCompatRuntimeRunStartPayload(payload);
 }
 
@@ -160,6 +231,7 @@ function toCompatRuntimeRunCancelPayload(payload: RuntimeRunCancelRequest) {
 }
 
 function toCompatRuntimeRunInterventionPayload(payload: RuntimeRunInterventionRequest) {
+  assertCanonicalHotPathPayload(payload, "runtimeRunInterveneV2 payload");
   return withCanonicalPayload({
     ...payload,
     instructionPatch: payload.instructionPatch ?? null,

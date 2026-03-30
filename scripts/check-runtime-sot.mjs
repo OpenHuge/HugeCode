@@ -7,8 +7,12 @@ import process from "node:process";
 const repoRoot = process.cwd();
 
 const HOST_CONTRACT_PATH = "packages/code-runtime-host-contract/src/codeRuntimeRpc.ts";
+const HOST_CONTRACT_CORE_PATH =
+  "packages/code-runtime-host-contract/src/code-runtime-rpc/rpcCore.ts";
 const HOST_CONTRACT_COMPAT_PATH = "packages/code-runtime-host-contract/src/codeRuntimeRpcCompat.ts";
 const HOST_CONTRACT_EVENTS_PATH = "packages/code-runtime-host-contract/src/index.ts";
+const HOST_REQUEST_PAYLOAD_MAP_PATH =
+  "packages/code-runtime-host-contract/src/code-runtime-rpc/requestPayloadMap.ts";
 const SERVICE_LIB_PATH = "packages/code-runtime-service-rs/src/lib.rs";
 const SERVICE_CAPABILITIES_PATH = "packages/code-runtime-service-rs/src/rpc/capabilities.rs";
 const SERVICE_DISPATCH_PATHS = [
@@ -145,27 +149,28 @@ function extractReadonlyStringArray(content, constantName, sourceLabel) {
 
 function parseHostContract() {
   const content = readText(HOST_CONTRACT_PATH);
+  const coreContent = readText(HOST_CONTRACT_CORE_PATH);
   const compatContent = readText(HOST_CONTRACT_COMPAT_PATH);
   const methodSection = sectionBetween(
-    content,
+    coreContent,
     "export const CODE_RUNTIME_RPC_METHODS = {",
     "} as const;",
     "host methods"
   );
   const featureSection = sectionBetween(
-    content,
+    coreContent,
     "export const CODE_RUNTIME_RPC_FEATURES = Object.freeze([",
     "]) as readonly string[];",
     "host features"
   );
   const capabilityProfileSection = sectionBetween(
-    content,
+    coreContent,
     "export const CODE_RUNTIME_RPC_CAPABILITY_PROFILES = Object.freeze({",
     "} as const);",
     "host capability profiles"
   );
   const errorCodeSection = sectionBetween(
-    content,
+    coreContent,
     "export const CODE_RUNTIME_RPC_ERROR_CODES = {",
     "} as const;",
     "host error codes"
@@ -427,6 +432,86 @@ function formatList(values) {
   return values.map((value) => `- ${value}`).join("\n");
 }
 
+function collectShellAndHotPathGuardrailErrors() {
+  const errors = [];
+  const shellSource = readText(HOST_CONTRACT_PATH);
+  const shellLineCount = shellSource.split("\n").length;
+  if (shellLineCount > 140) {
+    errors.push(
+      `canonical shell ${HOST_CONTRACT_PATH} exceeded 140 lines (${shellLineCount}); keep domain ownership in split code-runtime-rpc modules`
+    );
+  }
+  if (shellSource.includes('from "./hugeCodeMissionControl.js"')) {
+    errors.push(
+      `canonical shell ${HOST_CONTRACT_PATH} must not import HugeCode domain modules directly`
+    );
+  }
+  if (shellSource.includes('from "./code-runtime-rpc/runtimeRunsAndSubAgents.js"')) {
+    errors.push(
+      `canonical shell ${HOST_CONTRACT_PATH} must not inline runtimeRunsAndSubAgents ownership`
+    );
+  }
+
+  const requestMapSource = readText(HOST_REQUEST_PAYLOAD_MAP_PATH);
+  const sectionBetweenMarkers = (startMarker, endMarker, label) => {
+    const start = requestMapSource.indexOf(startMarker);
+    const end = requestMapSource.indexOf(endMarker, start + startMarker.length);
+    if (start < 0 || end < 0) {
+      throw new Error(`failed to resolve ${label} section in ${HOST_REQUEST_PAYLOAD_MAP_PATH}`);
+    }
+    return requestMapSource.slice(start, end);
+  };
+  const hotPathSections = [
+    {
+      label: "TURN_SEND",
+      section: sectionBetweenMarkers(
+        "[CODE_RUNTIME_RPC_METHODS.TURN_SEND]",
+        "[CODE_RUNTIME_RPC_METHODS.TURN_INTERRUPT]",
+        "TURN_SEND"
+      ),
+      forbidden: ["TurnSendRequestCompat", "request_id", "context_prefix", "preferred_backend_ids"],
+    },
+    {
+      label: "RUN_PREPARE_V2",
+      section: sectionBetweenMarkers(
+        "[CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2]",
+        "[CODE_RUNTIME_RPC_METHODS.RUN_START_V2]",
+        "RUN_PREPARE_V2"
+      ),
+      forbidden: ["workspace_id", "request_id", "preferred_backend_ids", "timeout_ms"],
+    },
+    {
+      label: "RUN_START_V2",
+      section: sectionBetweenMarkers(
+        "[CODE_RUNTIME_RPC_METHODS.RUN_START_V2]",
+        "[CODE_RUNTIME_RPC_METHODS.RUN_CANCEL_V2]",
+        "RUN_START_V2"
+      ),
+      forbidden: ["workspace_id", "request_id", "preferred_backend_ids", "timeout_ms"],
+    },
+    {
+      label: "RUN_INTERVENE_V2",
+      section: sectionBetweenMarkers(
+        "[CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2]",
+        "[CODE_RUNTIME_RPC_METHODS.RUN_GET_V2]",
+        "RUN_INTERVENE_V2"
+      ),
+      forbidden: ["run_id", "instruction_patch", "preferred_backend_ids"],
+    },
+  ];
+
+  for (const { label, section, forbidden } of hotPathSections) {
+    const found = forbidden.filter((entry) => section.includes(entry));
+    if (found.length > 0) {
+      errors.push(
+        `${HOST_REQUEST_PAYLOAD_MAP_PATH} ${label} section reintroduced forbidden hot-path compatibility tokens: ${found.join(", ")}`
+      );
+    }
+  }
+
+  return errors;
+}
+
 function main() {
   const host = parseHostContract();
   const hostEventKinds = parseHostEventKinds();
@@ -437,6 +522,7 @@ function main() {
   const hostSpec = readJson(HOST_SPEC_PATH);
 
   const errors = [];
+  errors.push(...collectShellAndHotPathGuardrailErrors());
 
   if (service.contractVersion !== host.contractVersion) {
     errors.push(

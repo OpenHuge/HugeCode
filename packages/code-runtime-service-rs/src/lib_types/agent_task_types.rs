@@ -579,7 +579,7 @@ fn derive_safe_bash_approval_prefix(command: Option<&str>) -> Option<String> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentTaskStepInput {
     kind: AgentStepKind,
     #[serde(default)]
@@ -782,7 +782,7 @@ struct AgentTaskSourceSummary {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentTaskStartRequest {
     #[serde(alias = "workspace_id")]
     workspace_id: String,
@@ -830,7 +830,7 @@ struct AgentTaskStartRequest {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentTaskInterventionRequest {
     #[serde(alias = "task_id")]
     task_id: String,

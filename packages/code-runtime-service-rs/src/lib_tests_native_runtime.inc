@@ -364,9 +364,9 @@ async fn native_schedule_run_now_launches_task_when_schedule_has_workspace_conte
     let task_payload = send_rpc_request(
         app,
         json!({
-            "method": "code_runtime_run_subscribe",
+            "method": "code_runtime_run_subscribe_v2",
             "params": {
-                "taskId": task_id
+                "runId": task_id
             }
         }),
     )
@@ -646,9 +646,9 @@ async fn native_schedule_cancel_run_clears_active_task_linkage() {
     let task_payload = send_rpc_request(
         app,
         json!({
-            "method": "code_runtime_run_subscribe",
+            "method": "code_runtime_run_subscribe_v2",
             "params": {
-                "taskId": task_id
+                "runId": task_id
             }
         }),
     )
@@ -1119,7 +1119,7 @@ fn native_rpc_capabilities_v2_method_set_hash_is_stable() {
     let methods = list_native_rpc_method_capabilities();
     assert_eq!(
         hash_rpc_method_capabilities(methods.as_slice()),
-        "98292b0982223642"
+        "b13ec061a3412962"
     );
 }
 
