@@ -6,7 +6,7 @@ import type {
   ReasonEffort,
   TurnExecutionMode,
   TurnSendAttachment,
-} from "../codeRuntimeRpc.js";
+} from "./foundation.js";
 import type {
   HugeCodeContinuationSummary,
   HugeCodeNextOperatorAction,
@@ -25,16 +25,16 @@ import type {
   RuntimeTaskSourceRequester,
   RuntimeTaskSourceTriggerMode,
 } from "../runtimeTaskSourceShared.js";
-import type {
-  RuntimeAutonomyRequestV2,
-  RuntimeBackendOperabilitySummary,
-  RuntimeCheckpointState,
-  RuntimeMissionLinkageSummary,
-  RuntimeReviewActionabilitySummary,
-  RuntimeTakeoverBundle,
-} from "./backendsAndRuns.js";
-import type { LiveSkillSource } from "./runtimeFeatures.js";
+import type { RuntimeBackendOperabilitySummary } from "./runtimeBackends.js";
+import type { LiveSkillSource } from "./liveSkillsShared.js";
 import type { WorkspaceDiagnosticSeverity } from "./workspaceAndGit.js";
+type RuntimeAutonomyRequestV2 = import("./runtimeRunsAndSubAgents.js").RuntimeAutonomyRequestV2;
+type RuntimeCheckpointState = import("./runtimeRunsAndSubAgents.js").RuntimeCheckpointState;
+type RuntimeMissionLinkageSummary =
+  import("./runtimeRunsAndSubAgents.js").RuntimeMissionLinkageSummary;
+type RuntimeReviewActionabilitySummary =
+  import("./runtimeRunsAndSubAgents.js").RuntimeReviewActionabilitySummary;
+type RuntimeTakeoverBundle = import("./runtimeRunsAndSubAgents.js").RuntimeTakeoverBundle;
 
 export type TurnSendRequest = {
   workspaceId: string;

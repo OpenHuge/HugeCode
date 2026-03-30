@@ -1,5 +1,4 @@
 import type {
-  AccessMode,
   AgentRole,
   AgentTaskExecutionMode,
   AgentTaskInterventionAction,
@@ -13,10 +12,8 @@ import type {
   AgentTaskStatus,
   AgentTaskStepApprovalMetadata,
   AgentTaskSummary,
-  ModelProvider,
-  ReasonEffort,
-  TurnExecutionMode,
-} from "../codeRuntimeRpc.js";
+} from "./agentExecution.js";
+import type { AccessMode, ModelProvider, ReasonEffort, TurnExecutionMode } from "./foundation.js";
 import type { HugeCodeReviewPackSummary, HugeCodeRunSummary } from "../hugeCodeMissionControl.js";
 
 export type DistributedTaskGraphRequest = {

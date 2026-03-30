@@ -1,49 +1,20 @@
 import type {
-  AcpIntegrationSummary,
-  DistributedTaskGraph,
-  GitBranchesSnapshot,
-  GitChangesSnapshot,
-  GitCommitResult,
-  GitDiffContent,
-  GitLogResponse,
-  GitOperationResult,
   HealthResponse,
   ModelPoolEntry,
   RemoteStatus,
-  RuntimeBackendSummary,
-  RuntimeBootstrapSnapshot,
-  RuntimeReviewGetV2Response,
-  RuntimeRpcBatchResponse,
-  RuntimeRunCancelV2Response,
-  RuntimeRunCheckpointApprovalAck,
-  RuntimeRunGetV2Response,
-  RuntimeRunInterventionV2Response,
-  RuntimeRunPrepareV2Response,
-  RuntimeRunResumeV2Response,
-  RuntimeRunStartV2Response,
-  RuntimeRunSubscribeV2Response,
-  RuntimeRunSummary,
-  RuntimeTaskSourceIngestResponse,
-  RuntimeTaskSourceReconcileResponse,
-  RuntimeTaskSourceRecord,
-  RuntimeTextFileResponse,
   SettingsSummary,
-  SubAgentCloseAck,
-  SubAgentInterruptAck,
-  SubAgentSendResult,
-  SubAgentSessionSummary,
-  SubAgentWaitResult,
   TerminalSessionSummary,
   TerminalStatus,
   ThreadSummary,
-  TurnAck,
-  WorkspaceDiagnosticsListResponse,
-  WorkspaceFileContent,
-  WorkspaceFileSummary,
-  WorkspacePatchApplyResponse,
   WorkspaceSummary,
-} from "../codeRuntimeRpc.js";
+} from "./foundation.js";
 import type { HugeCodeMissionControlSnapshot } from "../hugeCodeMissionControl.js";
+import type {
+  RuntimeTaskSourceIngestResponse,
+  RuntimeTaskSourceReconcileResponse,
+  RuntimeTaskSourceRecord,
+  TurnAck,
+} from "./agentExecution.js";
 import type {
   CliSessionSummary,
   OAuthAccountSummary,
@@ -59,6 +30,7 @@ import type {
   RuntimeCockpitToolsCodexImportResponse,
   RuntimeProviderCatalogEntry,
 } from "./providersAndAuth.js";
+import type { AcpIntegrationSummary, RuntimeBackendSummary } from "./runtimeBackends.js";
 import type {
   ActionRequiredRecord,
   ActionRequiredStatus,
@@ -99,8 +71,41 @@ import type {
   RuntimeToolGuardrailStateSnapshot,
   ToolPreflightDecision,
 } from "./runtimeFeatures.js";
+import type {
+  DistributedTaskGraph,
+  RuntimeReviewGetV2Response,
+  RuntimeRunCancelV2Response,
+  RuntimeRunCheckpointApprovalAck,
+  RuntimeRunGetV2Response,
+  RuntimeRunInterventionV2Response,
+  RuntimeRunPrepareV2Response,
+  RuntimeRunResumeV2Response,
+  RuntimeRunStartV2Response,
+  RuntimeRunSubscribeV2Response,
+  RuntimeRunSummary,
+  SubAgentCloseAck,
+  SubAgentInterruptAck,
+  SubAgentSendResult,
+  SubAgentSessionSummary,
+  SubAgentWaitResult,
+} from "./runtimeRunsAndSubAgents.js";
+import type {
+  GitBranchesSnapshot,
+  GitChangesSnapshot,
+  GitCommitResult,
+  GitDiffContent,
+  GitLogResponse,
+  GitOperationResult,
+  RuntimeBootstrapSnapshot,
+  RuntimeRpcBatchResponse,
+  RuntimeTextFileResponse,
+  WorkspaceDiagnosticsListResponse,
+  WorkspaceFileContent,
+  WorkspaceFileSummary,
+  WorkspacePatchApplyResponse,
+} from "./workspaceAndGit.js";
 
-import { CODE_RUNTIME_RPC_METHODS, type CodeRuntimeRpcCapabilities } from "../codeRuntimeRpc.js";
+import { CODE_RUNTIME_RPC_METHODS, type CodeRuntimeRpcCapabilities } from "./rpcCore.js";
 
 import type {
   RuntimeAppSettingsRecord,

@@ -53,6 +53,7 @@ async function createFixtureRepo(): Promise<string> {
   await writeNoOpScript(tempRoot, "scripts/check-style-color-tokens.mjs");
   await writeNoOpScript(tempRoot, "scripts/check-style-color-sot.mjs");
   await writeNoOpScript(tempRoot, "scripts/check-style-semantic-primitives.mjs");
+  await writeNoOpScript(tempRoot, "scripts/check-ts-file-size.mjs");
   await writeNoOpScript(tempRoot, "scripts/check-frontend-file-size.mjs");
   await writeNoOpScript(tempRoot, "scripts/check-no-wildcard-exports.mjs");
   await writeNoOpScript(tempRoot, "scripts/check-style-stack.mjs");
@@ -322,7 +323,7 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     expect(result.status).toBe(0);
     expect(commandLog).toContain("pnpm check:workflow-governance");
     expect(commandLog).toContain("pnpm check:app-circular");
-    expect(commandLog).toContain("pnpm check:frontend-file-size:all");
+    expect(commandLog).toContain("pnpm check:ts-file-size:all");
     expect(commandLog).toContain("pnpm check:style-boundary:all");
     expect(commandLog).toContain("pnpm typecheck");
     expect(commandLog).toContain("pnpm test:unit");
@@ -451,7 +452,7 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     expect(commandLog).not.toContain("vitest related --run --passWithNoTests");
     expect(commandLog).not.toContain("pnpm check:workflow-governance");
     expect(commandLog).not.toContain("pnpm check:app-circular");
-    expect(commandLog).not.toContain("pnpm check:frontend-file-size:all");
+    expect(commandLog).not.toContain("pnpm check:ts-file-size:all");
     expect(commandLog).not.toContain("pnpm check:style-boundary:all");
     expect(commandLog).not.toContain("pnpm typecheck");
     expect(commandLog).not.toContain("pnpm test:unit");

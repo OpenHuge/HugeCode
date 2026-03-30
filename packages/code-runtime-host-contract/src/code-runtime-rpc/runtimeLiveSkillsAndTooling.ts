@@ -5,20 +5,10 @@ import type {
   RuntimeTakeoverBundle,
   SubAgentScopeProfile,
   SubAgentScopeProfileDescriptor,
-} from "../codeRuntimeRpc.js";
-export type LiveSkillKind =
-  | "network_analysis"
-  | "research_orchestration"
-  | "file_tree"
-  | "file_search"
-  | "file_read"
-  | "file_write"
-  | "file_edit"
-  | "shell_command"
-  | "computer_observe"
-  | (string & {});
+} from "./runtimeRunsAndSubAgents.js";
+import type { LiveSkillKind, LiveSkillSource } from "./liveSkillsShared.js";
 
-export type LiveSkillSource = "builtin" | "managed" | "workspace" | (string & {});
+export type { LiveSkillKind, LiveSkillSource } from "./liveSkillsShared.js";
 
 export type LiveSkillSummary = {
   id: string;
@@ -371,6 +361,20 @@ export type RuntimeToolGuardrailStateSnapshot = {
 
 export type RuntimePolicyMode = "strict" | "balanced" | "aggressive";
 
+export type PolicyReadiness = "ready" | "attention" | "blocked";
+
+export type PolicyCapabilityEffect = "allow" | "approval" | "restricted" | "blocked";
+
+export type PolicyCapabilityState = {
+  capabilityId: string;
+  label: string;
+  readiness: PolicyReadiness;
+  effect: PolicyCapabilityEffect;
+  activeConstraint: boolean;
+  summary: string;
+  detail?: string | null;
+};
+
 export type ToolRiskLevel = "low" | "medium" | "high" | "critical";
 
 export type ToolPreflightDecisionAction = "allow" | "require_approval" | "deny";
@@ -455,9 +459,18 @@ export type RuntimeToolOutcomeRecordRequest = {
 export type RuntimePolicySnapshot = {
   mode: RuntimePolicyMode;
   updatedAt: number;
+  state: PolicyState;
 };
 
 export type RuntimePolicySetRequest = {
   mode: RuntimePolicyMode;
   actor?: string | null;
+};
+
+export type PolicyState = {
+  readiness: PolicyReadiness;
+  summary: string;
+  activeConstraintCount: number;
+  blockedCapabilityCount: number;
+  capabilities: PolicyCapabilityState[];
 };

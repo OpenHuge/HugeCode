@@ -1,14 +1,11 @@
+import type { AccessMode, ReasonEffort, TurnExecutionMode } from "./foundation.js";
+import type { HugeCodeTaskMode } from "../hugeCodeMissionControl.js";
 import type {
-  AccessMode,
   AgentTaskAutoDriveState,
-  ReasonEffort,
-  RuntimeTextFileKind,
-  RuntimeTextFileScope,
-  TurnExecutionMode,
   TurnInterruptRequest,
   TurnSendRequest,
-} from "../codeRuntimeRpc.js";
-import type { HugeCodeTaskMode } from "../hugeCodeMissionControl.js";
+} from "./agentExecution.js";
+import type { RuntimeTextFileKind, RuntimeTextFileScope } from "./workspaceAndGit.js";
 
 export type RuntimeAppSettingsRecord = Record<string, unknown>;
 

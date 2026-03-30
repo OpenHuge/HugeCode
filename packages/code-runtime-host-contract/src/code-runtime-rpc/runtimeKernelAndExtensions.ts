@@ -1,8 +1,4 @@
-import type {
-  ModelPool,
-  ModelProvider,
-  RuntimeProviderCapabilityMatrix,
-} from "../codeRuntimeRpc.js";
+import type { ModelPool, ModelProvider, RuntimeProviderCapabilityMatrix } from "./foundation.js";
 import type {
   HugeCodeCheckpointSummary,
   HugeCodeMissionLinkageSummary,

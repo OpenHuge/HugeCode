@@ -1,13 +1,12 @@
 import type {
-  CodeRuntimeRpcError,
-  CodeRuntimeRpcMethod,
   HealthResponse,
   ModelPoolEntry,
   RemoteStatus,
   SettingsSummary,
-  TerminalStatus,
   WorkspaceSummary,
-} from "../codeRuntimeRpc.js";
+  TerminalStatus,
+} from "./foundation.js";
+import type { CodeRuntimeRpcError, CodeRuntimeRpcMethod } from "./rpcCore.js";
 
 export type ThreadCreateRequest = {
   workspaceId: string;

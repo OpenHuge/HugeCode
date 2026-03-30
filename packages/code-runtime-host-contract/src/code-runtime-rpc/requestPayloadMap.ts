@@ -1,20 +1,26 @@
 import type {
-  AccessMode,
-  AcpIntegrationProbeRequest,
-  AcpIntegrationSetStateRequest,
-  AcpIntegrationTransportConfig,
-  AcpIntegrationUpsertInput,
   AgentTaskAutoDriveState,
   AgentTaskExecutionMode,
   AgentTaskSourceKind,
   AgentTaskStepInput,
-  DistributedTaskGraphRequest,
-  ReasonEffort,
+  RuntimeTaskSourceGetRequest,
+  RuntimeTaskSourceIngestRequest,
+  RuntimeTaskSourceListRequest,
+  RuntimeTaskSourceReconcileRequest,
+} from "./agentExecution.js";
+import type { AccessMode, ReasonEffort } from "./foundation.js";
+import type {
+  AcpIntegrationProbeRequest,
+  AcpIntegrationSetStateRequest,
+  AcpIntegrationTransportConfig,
+  AcpIntegrationUpsertInput,
   RuntimeBackendRolloutState,
   RuntimeBackendSetStateRequest,
   RuntimeBackendUpsertInput,
+} from "./runtimeBackends.js";
+import type {
+  DistributedTaskGraphRequest,
   RuntimeReviewGetV2Request,
-  RuntimeRpcBatchRequest,
   RuntimeRunCancelRequest,
   RuntimeRunCheckpointApprovalRequest,
   RuntimeRunGetV2Request,
@@ -23,19 +29,18 @@ import type {
   RuntimeRunResumeRequest,
   RuntimeRunsListRequest,
   RuntimeRunStartRequest,
-  RuntimeTaskSourceGetRequest,
-  RuntimeTaskSourceIngestRequest,
-  RuntimeTaskSourceListRequest,
-  RuntimeTaskSourceReconcileRequest,
   SubAgentCloseRequest,
   SubAgentInterruptRequest,
   SubAgentSendRequest,
   SubAgentSpawnRequest,
   SubAgentStatusRequest,
   SubAgentWaitRequest,
+} from "./runtimeRunsAndSubAgents.js";
+import type {
+  RuntimeRpcBatchRequest,
   WorkspaceDiagnosticsListRequest,
   WorkspacePatchApplyRequest,
-} from "../codeRuntimeRpc.js";
+} from "./workspaceAndGit.js";
 import type {
   OAuthAccountUpsertInput,
   OAuthChatgptAuthTokensRefreshRequest,
@@ -98,7 +103,7 @@ import type {
   RuntimeToolPreflightV2Request,
 } from "./runtimeFeatures.js";
 
-import { CODE_RUNTIME_RPC_METHODS, type CodeRuntimeRpcEmptyParams } from "../codeRuntimeRpc.js";
+import { CODE_RUNTIME_RPC_METHODS, type CodeRuntimeRpcEmptyParams } from "./rpcCore.js";
 
 import type {
   RuntimeAppSettingsUpdateRequest,

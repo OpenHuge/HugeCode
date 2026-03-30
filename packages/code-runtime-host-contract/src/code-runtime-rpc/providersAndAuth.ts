@@ -1,4 +1,4 @@
-import type { RuntimeProviderCapabilityMatrix } from "../codeRuntimeRpc.js";
+import type { RuntimeProviderCapabilityMatrix } from "./foundation.js";
 export type PromptLibraryScope = "global" | "workspace";
 
 export type PromptLibraryEntry = {
