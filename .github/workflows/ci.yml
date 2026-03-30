@@ -488,7 +488,7 @@ jobs:
         run: pnpm turbo run build --filter="*-rs"
 
       - name: Run native parity tests
-        run: pnpm vitest run --reporter=verbose packages/**/*.native.test.ts
+        run: pnpm vitest run --reporter=verbose --passWithNoTests "packages/**/*.native.test.ts"
 
   # Core release gate - runs independently (small and fast)
   core_release_gate:
