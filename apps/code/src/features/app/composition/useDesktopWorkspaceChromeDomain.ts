@@ -108,34 +108,6 @@ export function useDesktopWorkspaceChromeDomain({
   } = workspaceState;
   const { handleMobileConnectSuccess } = mobileState;
   const { currentBranch, fileStatus } = gitBranchState;
-  const handleStartTaskFromGitHubIssueFollowUp = (
-    issue: Parameters<
-      NonNullable<
-        Parameters<
-          typeof useMainAppLayoutNodesState
-        >[0]["gitReview"]["actions"]["onStartTaskFromGitHubIssueFollowUp"]
-      >
-    >[0]
-  ) => missionDomain.handleStartTaskFromGitHubIssue(issue);
-  const handleStartTaskFromGitHubPullRequestReviewFollowUp = (
-    pullRequest: Parameters<
-      NonNullable<
-        Parameters<
-          typeof useMainAppLayoutNodesState
-        >[0]["gitReview"]["actions"]["onStartTaskFromGitHubPullRequestReviewFollowUp"]
-      >
-    >[0],
-    comment: Parameters<
-      NonNullable<
-        Parameters<
-          typeof useMainAppLayoutNodesState
-        >[0]["gitReview"]["actions"]["onStartTaskFromGitHubPullRequestReviewFollowUp"]
-      >
-    >[1]
-  ) => {
-    void comment;
-    return missionDomain.handleStartTaskFromGitHubPullRequest(pullRequest);
-  };
 
   const { appClassName, appStyle } = useMainAppSurfaceStyles({
     appSettings,
@@ -298,10 +270,14 @@ export function useDesktopWorkspaceChromeDomain({
       },
       actions: {
         onStartTaskFromGitHubIssue: missionDomain.handleStartTaskFromGitHubIssue,
-        onStartTaskFromGitHubIssueFollowUp: handleStartTaskFromGitHubIssueFollowUp,
+        getGitHubIssueFollowUpPreview: missionDomain.getGitHubIssueFollowUpPreview,
+        onStartTaskFromGitHubIssueFollowUp: missionDomain.handleStartTaskFromGitHubIssue,
         onStartTaskFromGitHubPullRequest: missionDomain.handleStartTaskFromGitHubPullRequest,
+        getGitHubPullRequestFollowUpPreview: missionDomain.getGitHubPullRequestFollowUpPreview,
         onStartTaskFromGitHubPullRequestReviewFollowUp:
-          handleStartTaskFromGitHubPullRequestReviewFollowUp,
+          missionDomain.handleStartTaskFromGitHubPullRequestReviewFollowUp,
+        getGitHubPullRequestReviewFollowUpPreview:
+          missionDomain.getGitHubPullRequestReviewFollowUpPreview,
       },
       reviewPackControllerReady: missionDomain.missionControlState.onReviewPackControllerReady,
     },

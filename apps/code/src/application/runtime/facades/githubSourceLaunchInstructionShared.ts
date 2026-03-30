@@ -92,6 +92,116 @@ function buildGitHubEventLabel(event: GitHubTaskSourceProvenanceInput["event"]):
     : event.eventName;
 }
 
+function summarizeTextSnippet(value: string | null, maxLength = 120): string | null {
+  const normalized = readOptionalText(value);
+  if (!normalized) {
+    return null;
+  }
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
+function joinDefinedDetails(parts: Array<string | null | undefined>): string | null {
+  const details = parts.filter((value): value is string => Boolean(value));
+  return details.length > 0 ? details.join(" | ") : null;
+}
+
+export function buildGitHubIssueEvidenceDetail(input: {
+  issue: Pick<GitHubIssue, "body" | "author" | "labels">;
+}): string {
+  const author = readOptionalText(input.issue.author?.login);
+  const labels = normalizeOptionalTextList(input.issue.labels);
+  const bodySnippet = summarizeTextSnippet(input.issue.body ?? null);
+  return (
+    joinDefinedDetails([
+      author ? `Author @${author}` : null,
+      labels ? `Labels ${labels.join(", ")}` : null,
+      bodySnippet ? `Issue ${bodySnippet}` : "Issue body unavailable.",
+    ]) ?? "Issue body unavailable."
+  );
+}
+
+export function buildGitHubPullRequestEvidenceDetail(input: {
+  pullRequest: Pick<GitHubPullRequest, "body" | "headRefName" | "baseRefName">;
+  diffs?: GitHubPullRequestDiff[] | null;
+  comments?: GitHubPullRequestComment[] | null;
+}): string {
+  const bodySnippet = summarizeTextSnippet(input.pullRequest.body);
+  const changedFiles = summarizeGitHubPullRequestDiffs(input.diffs);
+  const discussionNotes = summarizeGitHubPullRequestComments(input.comments);
+  return (
+    joinDefinedDetails([
+      `Branches ${input.pullRequest.baseRefName} <- ${input.pullRequest.headRefName}`,
+      bodySnippet ? `PR ${bodySnippet}` : "Pull request body unavailable.",
+      changedFiles.length > 0
+        ? `Diff ${changedFiles.slice(0, 3).join(", ")}`
+        : "Changed files unavailable.",
+      discussionNotes.length > 0
+        ? `Discussion ${summarizeTextSnippet(discussionNotes[0] ?? null, 96)}`
+        : "Discussion notes unavailable.",
+    ]) ??
+    joinDefinedDetails([
+      `Branches ${input.pullRequest.baseRefName} <- ${input.pullRequest.headRefName}`,
+      "Pull request body unavailable.",
+      "Changed files unavailable.",
+      "Discussion notes unavailable.",
+    ]) ??
+    "Pull request context unavailable."
+  );
+}
+
+export function buildGitHubIssueCommentCommandEvidenceDetail(input: {
+  issue: Pick<GitHubIssue, "body" | "author" | "labels">;
+  command: {
+    comment?: GitHubTaskSourceCommentInput | null;
+  };
+}): string {
+  const commentSnippet = summarizeTextSnippet(input.command.comment?.body ?? null, 96);
+  const commentId = readCommentId(input.command.comment);
+  const commentAuthor = readOptionalText(input.command.comment?.author?.login);
+  return (
+    joinDefinedDetails([
+      commentSnippet
+        ? `Comment ${commentSnippet}`
+        : commentId !== null || commentAuthor || readOptionalText(input.command.comment?.url)
+          ? "Command comment summary unavailable."
+          : "Command comment context unavailable.",
+      buildGitHubIssueEvidenceDetail({
+        issue: input.issue,
+      }),
+    ]) ?? "Command comment context unavailable."
+  );
+}
+
+export function buildGitHubPullRequestReviewCommentEvidenceDetail(input: {
+  pullRequest: Pick<GitHubPullRequest, "body" | "headRefName" | "baseRefName">;
+  diffs?: GitHubPullRequestDiff[] | null;
+  comments?: GitHubPullRequestComment[] | null;
+  command: {
+    comment?: GitHubTaskSourceCommentInput | null;
+  };
+}): string {
+  const commentSnippet = summarizeTextSnippet(input.command.comment?.body ?? null, 96);
+  const commentId = readCommentId(input.command.comment);
+  const commentAuthor = readOptionalText(input.command.comment?.author?.login);
+  return (
+    joinDefinedDetails([
+      commentSnippet
+        ? `Review comment ${commentSnippet}`
+        : commentId !== null || commentAuthor || readOptionalText(input.command.comment?.url)
+          ? "Review comment summary unavailable."
+          : "Review comment context unavailable.",
+      buildGitHubPullRequestEvidenceDetail({
+        pullRequest: input.pullRequest,
+        diffs: input.diffs,
+        comments: input.comments,
+      }),
+    ]) ?? "Review comment context unavailable."
+  );
+}
+
 export function buildGitHubIssueInstruction(input: {
   issue: Pick<GitHubIssue, "number" | "title" | "url" | "body" | "author" | "labels">;
   heading?: string | null;

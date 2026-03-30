@@ -5,6 +5,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import GitCommitHorizontal from "lucide-react/dist/esm/icons/git-commit-horizontal";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { GovernedGitHubFollowUpPreview } from "../../../application/runtime/facades/githubSourceLaunchPreview";
 import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
 import { ask } from "../../../application/runtime/ports/desktopHostDialogs";
 import * as styles from "./GitDiffViewer.styles.css";
@@ -22,6 +23,7 @@ import {
 } from "../../design-system/diff/diffViewerTheme";
 import { Markdown } from "../../messages/components/Markdown";
 import { getDiffStatusBadgeTone, getDiffStatusLabel, splitPath } from "./GitDiffPanel.utils";
+import { GitHubFollowUpPreview } from "./GitHubFollowUpPreview";
 import { ImageDiffCard } from "./ImageDiffCard";
 import { getGitDiffEmptyStateCopy } from "./gitDiffViewerEmptyState";
 
@@ -55,6 +57,10 @@ type GitDiffViewerProps = {
     pullRequest: GitHubPullRequest,
     comment: GitHubPullRequestComment
   ) => Promise<void> | void;
+  getGitHubPullRequestReviewFollowUpPreview?: (
+    pullRequest: GitHubPullRequest,
+    comment: GitHubPullRequestComment
+  ) => GovernedGitHubFollowUpPreview;
   canRevert?: boolean;
   onRevertFile?: (path: string) => Promise<void> | void;
   onActivePathChange?: (path: string) => void;
@@ -213,6 +219,10 @@ type PullRequestSummaryProps = {
     pullRequest: GitHubPullRequest,
     comment: GitHubPullRequestComment
   ) => Promise<void> | void;
+  getGitHubPullRequestReviewFollowUpPreview?: (
+    pullRequest: GitHubPullRequest,
+    comment: GitHubPullRequestComment
+  ) => GovernedGitHubFollowUpPreview;
 };
 
 const PullRequestSummary = memo(function PullRequestSummary({
@@ -224,6 +234,7 @@ const PullRequestSummary = memo(function PullRequestSummary({
   pullRequestCommentsLoading,
   pullRequestCommentsError,
   onStartTaskFromGitHubPullRequestReviewFollowUp,
+  getGitHubPullRequestReviewFollowUpPreview,
 }: PullRequestSummaryProps) {
   const prUpdatedLabel = pullRequest.updatedAt
     ? formatRelativeTime(new Date(pullRequest.updatedAt).getTime())
@@ -356,6 +367,8 @@ const PullRequestSummary = memo(function PullRequestSummary({
           {visibleComments.map((comment) => {
             const commentAuthor = comment.author?.login ?? "unknown";
             const commentTime = formatRelativeTime(new Date(comment.createdAt).getTime());
+            const followUpPreview =
+              getGitHubPullRequestReviewFollowUpPreview?.(pullRequest, comment) ?? null;
             return (
               <div key={comment.id} className={styles.pullRequestTimelineItem}>
                 <div className={styles.pullRequestTimelineMarker} />
@@ -393,6 +406,12 @@ const PullRequestSummary = memo(function PullRequestSummary({
                       No comment body.
                     </CardDescription>
                   )}
+                  {followUpPreview ? (
+                    <GitHubFollowUpPreview
+                      preview={followUpPreview}
+                      className={styles.pullRequestTimelinePreview}
+                    />
+                  ) : null}
                 </div>
               </div>
             );
@@ -416,6 +435,7 @@ export function GitDiffViewer({
   pullRequestCommentsLoading = false,
   pullRequestCommentsError = null,
   onStartTaskFromGitHubPullRequestReviewFollowUp,
+  getGitHubPullRequestReviewFollowUpPreview,
   canRevert = false,
   onRevertFile,
   onActivePathChange,
@@ -700,6 +720,7 @@ export function GitDiffViewer({
             onStartTaskFromGitHubPullRequestReviewFollowUp={
               onStartTaskFromGitHubPullRequestReviewFollowUp
             }
+            getGitHubPullRequestReviewFollowUpPreview={getGitHubPullRequestReviewFollowUpPreview}
           />
         )}
         {!error && stickyEntry && (

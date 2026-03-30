@@ -4,6 +4,7 @@ import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import RotateCw from "lucide-react/dist/esm/icons/rotate-cw";
 import Upload from "lucide-react/dist/esm/icons/upload";
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
+import type { GovernedGitHubFollowUpPreview } from "../../../application/runtime/facades/githubSourceLaunchPreview";
 import { openUrl } from "../../../application/runtime/facades/desktopHostFacade";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import { Button, IconButton, StatusBadge, Textarea } from "../../../design-system";
@@ -16,6 +17,7 @@ import {
   InspectorSectionHeader,
   RightPanelEmptyState,
 } from "../../right-panel/RightPanelPrimitives";
+import { GitHubFollowUpPreview } from "./GitHubFollowUpPreview";
 import { DEPTH_OPTIONS, normalizeRootPath } from "./GitDiffPanel.utils";
 import * as styles from "./GitDiffPanelModeContent.styles.css";
 import { CommitButton, type DiffFile, DiffSection, GitLogEntryRow } from "./GitDiffPanelShared";
@@ -719,6 +721,7 @@ type GitIssuesModeContentProps = {
   issuesLoading: boolean;
   issues: GitHubIssue[];
   onStartTask?: (issue: GitHubIssue) => void | Promise<void>;
+  getFollowUpPreview?: (issue: GitHubIssue) => GovernedGitHubFollowUpPreview;
   onStartFollowUpTask?: (issue: GitHubIssue) => void | Promise<void>;
   onDelegateIssue?: (issue: GitHubIssue) => void | Promise<void>;
 };
@@ -728,6 +731,7 @@ export function GitIssuesModeContent({
   issuesLoading,
   issues,
   onStartTask,
+  getFollowUpPreview,
   onStartFollowUpTask,
   onDelegateIssue,
 }: GitIssuesModeContentProps) {
@@ -738,6 +742,7 @@ export function GitIssuesModeContent({
       )}
       {issues.map((issue) => {
         const relativeTime = formatRelativeTime(new Date(issue.updatedAt).getTime());
+        const followUpPreview = getFollowUpPreview?.(issue) ?? null;
         return (
           <div key={issue.number} className={joinClassNames(styles.issueEntry, "git-issue-entry")}>
             <div className={joinClassNames(styles.issueSummary, "git-issue-summary")}>
@@ -795,6 +800,7 @@ export function GitIssuesModeContent({
                 Delegate
               </Button>
             </div>
+            {followUpPreview ? <GitHubFollowUpPreview preview={followUpPreview} /> : null}
           </div>
         );
       })}
@@ -807,6 +813,7 @@ type GitPullRequestsModeContentProps = {
   pullRequestsLoading: boolean;
   pullRequests: GitHubPullRequest[];
   onStartTask?: (pullRequest: GitHubPullRequest) => void | Promise<void>;
+  getFollowUpPreview?: (pullRequest: GitHubPullRequest) => GovernedGitHubFollowUpPreview;
   selectedPullRequest: number | null;
   onSelectPullRequest?: (pullRequest: GitHubPullRequest) => void;
   onDelegatePullRequest?: (pullRequest: GitHubPullRequest) => void;
@@ -821,6 +828,7 @@ export function GitPullRequestsModeContent({
   pullRequestsLoading,
   pullRequests,
   onStartTask,
+  getFollowUpPreview,
   selectedPullRequest,
   onSelectPullRequest,
   onDelegatePullRequest,
@@ -835,6 +843,7 @@ export function GitPullRequestsModeContent({
         const relativeTime = formatRelativeTime(new Date(pullRequest.updatedAt).getTime());
         const author = pullRequest.author?.login ?? "unknown";
         const isSelected = selectedPullRequest === pullRequest.number;
+        const followUpPreview = getFollowUpPreview?.(pullRequest) ?? null;
 
         return (
           <div
@@ -879,6 +888,19 @@ export function GitPullRequestsModeContent({
                 variant="ghost"
                 size="sm"
                 className={styles.entryActionButton}
+                aria-label={`Start follow-up for PR #${pullRequest.number}`}
+                onClick={() => {
+                  void onStartTask?.(pullRequest);
+                }}
+                disabled={!onStartTask}
+              >
+                Follow up
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={styles.entryActionButton}
                 aria-label={`Open pull request #${pullRequest.number} on GitHub`}
                 onClick={() => {
                   void openExternalIssueUrl(pullRequest.url);
@@ -904,6 +926,7 @@ export function GitPullRequestsModeContent({
                 Delegate
               </Button>
             </div>
+            {followUpPreview ? <GitHubFollowUpPreview preview={followUpPreview} /> : null}
           </div>
         );
       })}

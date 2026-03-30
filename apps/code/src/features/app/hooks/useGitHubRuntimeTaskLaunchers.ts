@@ -1,26 +1,49 @@
 import { useCallback } from "react";
+import type {
+  GitHubIssue,
+  GitHubPullRequest,
+  GitHubPullRequestComment,
+  WorkspaceInfo,
+} from "../../../types";
+import {
+  buildGovernedGitHubFollowUpPreview,
+  type GovernedGitHubFollowUpPreview,
+  type GovernedGitHubFollowUpPreviewBackendOrigin,
+} from "../../../application/runtime/facades/githubSourceLaunchPreview";
 import {
   assertGovernedGitHubLaunchReady,
   buildGovernedGitHubIssueLaunchRequest,
   buildGovernedGitHubPullRequestLaunchRequest,
+  evaluateGovernedGitHubLaunchPreflight,
   launchGovernedGitHubRun,
 } from "../../../application/runtime/facades/githubSourceGovernedLaunch";
+import {
+  buildGovernedGitHubIssueCommentCommandLaunchRequest,
+  buildGovernedGitHubPullRequestReviewCommentLaunchRequest,
+} from "../../../application/runtime/facades/githubCommentSourceGovernedLaunch";
+import {
+  buildGitHubIssueCommentCommandEvidenceDetail,
+  buildGitHubIssueEvidenceDetail,
+  buildGitHubPullRequestEvidenceDetail,
+  buildGitHubPullRequestReviewCommentEvidenceDetail,
+} from "../../../application/runtime/facades/githubSourceLaunchInstructionShared";
+import {
+  normalizeGitHubIssueCommentCommandLaunchInput,
+  normalizeGitHubPullRequestReviewCommentCommandLaunchInput,
+} from "../../../application/runtime/facades/githubCommentSourceLaunchNormalization";
+import {
+  normalizeGitHubIssueLaunchInput,
+  normalizeGitHubPullRequestFollowUpLaunchInput,
+  type GitHubSourceLaunchSummary,
+} from "../../../application/runtime/facades/githubSourceLaunchNormalization";
 import { useRuntimeWorkspaceExecutionPolicy } from "../../../application/runtime/facades/runtimeWorkspaceExecutionPolicyFacade";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
-import type { GitHubIssue, GitHubPullRequest, WorkspaceInfo } from "../../../types";
-
-type GitHubCommentSourceGovernedLaunchModule =
-  typeof import("../../../application/runtime/facades/githubCommentSourceGovernedLaunch");
 
 type GovernedGitHubLaunchRequest =
   | ReturnType<typeof buildGovernedGitHubIssueLaunchRequest>
   | ReturnType<typeof buildGovernedGitHubPullRequestLaunchRequest>
-  | ReturnType<
-      GitHubCommentSourceGovernedLaunchModule["buildGovernedGitHubIssueCommentCommandLaunchRequest"]
-    >
-  | ReturnType<
-      GitHubCommentSourceGovernedLaunchModule["buildGovernedGitHubPullRequestReviewCommentLaunchRequest"]
-    >;
+  | ReturnType<typeof buildGovernedGitHubIssueCommentCommandLaunchRequest>
+  | ReturnType<typeof buildGovernedGitHubPullRequestReviewCommentLaunchRequest>;
 
 type UseGitHubRuntimeTaskLaunchersParams = {
   activeWorkspace: WorkspaceInfo | null;
@@ -31,21 +54,39 @@ type UseGitHubRuntimeTaskLaunchersParams = {
 };
 
 type GitHubIssueCommentCommandLaunchParams = Omit<
-  Parameters<
-    GitHubCommentSourceGovernedLaunchModule["buildGovernedGitHubIssueCommentCommandLaunchRequest"]
-  >[0],
+  Parameters<typeof buildGovernedGitHubIssueCommentCommandLaunchRequest>[0],
   "workspace" | "options"
 >;
 
 type GitHubPullRequestReviewCommentLaunchParams = Omit<
-  Parameters<
-    GitHubCommentSourceGovernedLaunchModule["buildGovernedGitHubPullRequestReviewCommentLaunchRequest"]
-  >[0],
+  Parameters<typeof buildGovernedGitHubPullRequestReviewCommentLaunchRequest>[0],
   "workspace" | "options"
 >;
 
-async function loadGitHubCommentSourceGovernedLaunch() {
-  return import("../../../application/runtime/facades/githubCommentSourceGovernedLaunch");
+function buildMissingWorkspacePreviewReason() {
+  return "Select a workspace before starting a governed GitHub follow-up.";
+}
+
+function buildReviewCommentLaunchParams(
+  pullRequest: GitHubPullRequest,
+  comment: GitHubPullRequestComment
+): GitHubPullRequestReviewCommentLaunchParams {
+  return {
+    pullRequest,
+    event: {
+      eventName: "pull_request_review_comment",
+      action: "created",
+    },
+    command: {
+      triggerMode: "pull_request_review_comment_command",
+      comment: {
+        commentId: comment.id,
+        body: comment.body,
+        url: comment.url,
+        author: comment.author,
+      },
+    },
+  };
 }
 
 export function useGitHubRuntimeTaskLaunchers({
@@ -63,7 +104,7 @@ export function useGitHubRuntimeTaskLaunchers({
 
   const launchGovernedTask = useCallback(
     async (input: {
-      prepare: () => Promise<GovernedGitHubLaunchRequest> | GovernedGitHubLaunchRequest;
+      prepare: () => GovernedGitHubLaunchRequest;
       errorTitle: string;
       fallbackMessage: string;
     }) => {
@@ -72,7 +113,7 @@ export function useGitHubRuntimeTaskLaunchers({
           policyStatus: repositoryExecutionContractStatus,
           policyError: repositoryExecutionContractError,
         });
-        const { launch, request } = await input.prepare();
+        const { launch, request } = input.prepare();
         await launchGovernedGitHubRun({
           launch,
           request,
@@ -86,6 +127,68 @@ export function useGitHubRuntimeTaskLaunchers({
       }
     },
     [repositoryExecutionContractError, repositoryExecutionContractStatus, refreshMissionControl]
+  );
+
+  const buildPreview = useCallback(
+    (input: {
+      launch: GitHubSourceLaunchSummary;
+      prepare?: (() => GovernedGitHubLaunchRequest) | null;
+      sourceEvidenceDetail: string;
+    }): GovernedGitHubFollowUpPreview => {
+      const preflight = activeWorkspace
+        ? evaluateGovernedGitHubLaunchPreflight({
+            policyStatus: repositoryExecutionContractStatus,
+            policyError: repositoryExecutionContractError,
+          })
+        : {
+            state: "blocked" as const,
+            reason: buildMissingWorkspacePreviewReason(),
+          };
+
+      if (preflight.state === "blocked") {
+        return buildGovernedGitHubFollowUpPreview({
+          launch: input.launch,
+          state: "blocked",
+          blockedReason: preflight.reason,
+          backendOrigin: selectedRemoteBackendId ? "operator_selected" : "runtime_default",
+          preferredBackendIds: selectedRemoteBackendId ? [selectedRemoteBackendId] : null,
+          sourceEvidenceDetail: input.sourceEvidenceDetail,
+        });
+      }
+
+      try {
+        const prepared = input.prepare?.() ?? null;
+        const backendOrigin: GovernedGitHubFollowUpPreviewBackendOrigin =
+          selectedRemoteBackendId !== null
+            ? "operator_selected"
+            : (prepared?.request.preferredBackendIds?.length ?? 0) > 0
+              ? "repository_policy"
+              : "runtime_default";
+        return buildGovernedGitHubFollowUpPreview({
+          launch: prepared?.launch ?? input.launch,
+          request: prepared?.request ?? null,
+          state: "ready",
+          backendOrigin,
+          preferredBackendIds: selectedRemoteBackendId ? [selectedRemoteBackendId] : null,
+          sourceEvidenceDetail: input.sourceEvidenceDetail,
+        });
+      } catch (error) {
+        return buildGovernedGitHubFollowUpPreview({
+          launch: input.launch,
+          state: "blocked",
+          blockedReason: error instanceof Error ? error.message : String(error),
+          backendOrigin: selectedRemoteBackendId ? "operator_selected" : "runtime_default",
+          preferredBackendIds: selectedRemoteBackendId ? [selectedRemoteBackendId] : null,
+          sourceEvidenceDetail: input.sourceEvidenceDetail,
+        });
+      }
+    },
+    [
+      activeWorkspace,
+      repositoryExecutionContractError,
+      repositoryExecutionContractStatus,
+      selectedRemoteBackendId,
+    ]
   );
 
   const handleStartTaskFromGitHubIssue = useCallback(
@@ -116,6 +219,46 @@ export function useGitHubRuntimeTaskLaunchers({
       activeWorkspace,
       gitRemoteUrl,
       launchGovernedTask,
+      repositoryExecutionContract,
+      selectedRemoteBackendId,
+    ]
+  );
+
+  const getGitHubIssueFollowUpPreview = useCallback(
+    (issue: GitHubIssue) =>
+      buildPreview({
+        launch: normalizeGitHubIssueLaunchInput({
+          issue,
+          workspaceId: activeWorkspace?.id,
+          workspaceRoot: activeWorkspace?.path,
+          gitRemoteUrl,
+        }),
+        prepare:
+          activeWorkspace === null
+            ? null
+            : () =>
+                buildGovernedGitHubIssueLaunchRequest({
+                  issue,
+                  workspace: {
+                    workspaceId: activeWorkspace.id,
+                    workspaceRoot: activeWorkspace.path,
+                    gitRemoteUrl,
+                  },
+                  options: {
+                    repositoryExecutionContract,
+                    preferredBackendIds: selectedRemoteBackendId
+                      ? [selectedRemoteBackendId]
+                      : undefined,
+                  },
+                }),
+        sourceEvidenceDetail: buildGitHubIssueEvidenceDetail({
+          issue,
+        }),
+      }),
+    [
+      activeWorkspace,
+      buildPreview,
+      gitRemoteUrl,
       repositoryExecutionContract,
       selectedRemoteBackendId,
     ]
@@ -154,6 +297,46 @@ export function useGitHubRuntimeTaskLaunchers({
     ]
   );
 
+  const getGitHubPullRequestFollowUpPreview = useCallback(
+    (pullRequest: GitHubPullRequest) =>
+      buildPreview({
+        launch: normalizeGitHubPullRequestFollowUpLaunchInput({
+          pullRequest,
+          workspaceId: activeWorkspace?.id,
+          workspaceRoot: activeWorkspace?.path,
+          gitRemoteUrl,
+        }),
+        prepare:
+          activeWorkspace === null
+            ? null
+            : () =>
+                buildGovernedGitHubPullRequestLaunchRequest({
+                  pullRequest,
+                  workspace: {
+                    workspaceId: activeWorkspace.id,
+                    workspaceRoot: activeWorkspace.path,
+                    gitRemoteUrl,
+                  },
+                  options: {
+                    repositoryExecutionContract,
+                    preferredBackendIds: selectedRemoteBackendId
+                      ? [selectedRemoteBackendId]
+                      : undefined,
+                  },
+                }),
+        sourceEvidenceDetail: buildGitHubPullRequestEvidenceDetail({
+          pullRequest,
+        }),
+      }),
+    [
+      activeWorkspace,
+      buildPreview,
+      gitRemoteUrl,
+      repositoryExecutionContract,
+      selectedRemoteBackendId,
+    ]
+  );
+
   const handleStartTaskFromGitHubIssueCommentCommand = useCallback(
     async (input: GitHubIssueCommentCommandLaunchParams) => {
       const workspace = activeWorkspace;
@@ -161,9 +344,8 @@ export function useGitHubRuntimeTaskLaunchers({
         return;
       }
       await launchGovernedTask({
-        prepare: async () => {
-          const githubLaunch = await loadGitHubCommentSourceGovernedLaunch();
-          return githubLaunch.buildGovernedGitHubIssueCommentCommandLaunchRequest({
+        prepare: () =>
+          buildGovernedGitHubIssueCommentCommandLaunchRequest({
             ...input,
             workspace: {
               workspaceId: workspace.id,
@@ -174,8 +356,7 @@ export function useGitHubRuntimeTaskLaunchers({
               repositoryExecutionContract,
               preferredBackendIds: selectedRemoteBackendId ? [selectedRemoteBackendId] : undefined,
             },
-          });
-        },
+          }),
         errorTitle: "Couldn't start issue follow-up task",
         fallbackMessage:
           "Unable to start a runtime-managed follow-up from this GitHub issue comment.",
@@ -190,6 +371,47 @@ export function useGitHubRuntimeTaskLaunchers({
     ]
   );
 
+  const getGitHubIssueCommentCommandFollowUpPreview = useCallback(
+    (input: GitHubIssueCommentCommandLaunchParams) =>
+      buildPreview({
+        launch: normalizeGitHubIssueCommentCommandLaunchInput({
+          ...input,
+          workspaceId: activeWorkspace?.id,
+          workspaceRoot: activeWorkspace?.path,
+          gitRemoteUrl,
+        }),
+        prepare:
+          activeWorkspace === null
+            ? null
+            : () =>
+                buildGovernedGitHubIssueCommentCommandLaunchRequest({
+                  ...input,
+                  workspace: {
+                    workspaceId: activeWorkspace.id,
+                    workspaceRoot: activeWorkspace.path,
+                    gitRemoteUrl,
+                  },
+                  options: {
+                    repositoryExecutionContract,
+                    preferredBackendIds: selectedRemoteBackendId
+                      ? [selectedRemoteBackendId]
+                      : undefined,
+                  },
+                }),
+        sourceEvidenceDetail: buildGitHubIssueCommentCommandEvidenceDetail({
+          issue: input.issue,
+          command: input.command,
+        }),
+      }),
+    [
+      activeWorkspace,
+      buildPreview,
+      gitRemoteUrl,
+      repositoryExecutionContract,
+      selectedRemoteBackendId,
+    ]
+  );
+
   const handleStartTaskFromGitHubPullRequestReviewCommentCommand = useCallback(
     async (input: GitHubPullRequestReviewCommentLaunchParams) => {
       const workspace = activeWorkspace;
@@ -197,9 +419,8 @@ export function useGitHubRuntimeTaskLaunchers({
         return;
       }
       await launchGovernedTask({
-        prepare: async () => {
-          const githubLaunch = await loadGitHubCommentSourceGovernedLaunch();
-          return githubLaunch.buildGovernedGitHubPullRequestReviewCommentLaunchRequest({
+        prepare: () =>
+          buildGovernedGitHubPullRequestReviewCommentLaunchRequest({
             ...input,
             workspace: {
               workspaceId: workspace.id,
@@ -210,8 +431,7 @@ export function useGitHubRuntimeTaskLaunchers({
               repositoryExecutionContract,
               preferredBackendIds: selectedRemoteBackendId ? [selectedRemoteBackendId] : undefined,
             },
-          });
-        },
+          }),
         errorTitle: "Couldn't start review-comment follow-up task",
         fallbackMessage:
           "Unable to start a runtime-managed follow-up from this GitHub review comment.",
@@ -226,10 +446,76 @@ export function useGitHubRuntimeTaskLaunchers({
     ]
   );
 
+  const handleStartTaskFromGitHubPullRequestReviewFollowUp = useCallback(
+    async (pullRequest: GitHubPullRequest, comment: GitHubPullRequestComment) => {
+      await handleStartTaskFromGitHubPullRequestReviewCommentCommand(
+        buildReviewCommentLaunchParams(pullRequest, comment)
+      );
+    },
+    [handleStartTaskFromGitHubPullRequestReviewCommentCommand]
+  );
+
+  const getGitHubPullRequestReviewCommentCommandFollowUpPreview = useCallback(
+    (input: GitHubPullRequestReviewCommentLaunchParams) =>
+      buildPreview({
+        launch: normalizeGitHubPullRequestReviewCommentCommandLaunchInput({
+          ...input,
+          workspaceId: activeWorkspace?.id,
+          workspaceRoot: activeWorkspace?.path,
+          gitRemoteUrl,
+        }),
+        prepare:
+          activeWorkspace === null
+            ? null
+            : () =>
+                buildGovernedGitHubPullRequestReviewCommentLaunchRequest({
+                  ...input,
+                  workspace: {
+                    workspaceId: activeWorkspace.id,
+                    workspaceRoot: activeWorkspace.path,
+                    gitRemoteUrl,
+                  },
+                  options: {
+                    repositoryExecutionContract,
+                    preferredBackendIds: selectedRemoteBackendId
+                      ? [selectedRemoteBackendId]
+                      : undefined,
+                  },
+                }),
+        sourceEvidenceDetail: buildGitHubPullRequestReviewCommentEvidenceDetail({
+          pullRequest: input.pullRequest,
+          diffs: input.diffs,
+          comments: input.comments,
+          command: input.command,
+        }),
+      }),
+    [
+      activeWorkspace,
+      buildPreview,
+      gitRemoteUrl,
+      repositoryExecutionContract,
+      selectedRemoteBackendId,
+    ]
+  );
+
+  const getGitHubPullRequestReviewFollowUpPreview = useCallback(
+    (pullRequest: GitHubPullRequest, comment: GitHubPullRequestComment) =>
+      getGitHubPullRequestReviewCommentCommandFollowUpPreview(
+        buildReviewCommentLaunchParams(pullRequest, comment)
+      ),
+    [getGitHubPullRequestReviewCommentCommandFollowUpPreview]
+  );
+
   return {
     handleStartTaskFromGitHubIssue,
     handleStartTaskFromGitHubPullRequest,
     handleStartTaskFromGitHubIssueCommentCommand,
     handleStartTaskFromGitHubPullRequestReviewCommentCommand,
+    handleStartTaskFromGitHubPullRequestReviewFollowUp,
+    getGitHubIssueFollowUpPreview,
+    getGitHubPullRequestFollowUpPreview,
+    getGitHubIssueCommentCommandFollowUpPreview,
+    getGitHubPullRequestReviewCommentCommandFollowUpPreview,
+    getGitHubPullRequestReviewFollowUpPreview,
   };
 }

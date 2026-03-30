@@ -318,6 +318,7 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
         issuesLoading={input.gitIssuesLoading}
         issuesError={input.gitIssuesError}
         onStartTaskFromGitHubIssue={input.onStartTaskFromGitHubIssue}
+        getGitHubIssueFollowUpPreview={input.getGitHubIssueFollowUpPreview}
         onStartTaskFromGitHubIssueFollowUp={input.onStartTaskFromGitHubIssueFollowUp}
         onDelegateGitHubIssue={input.onDelegateGitHubIssue}
         pullRequests={input.gitPullRequests}
@@ -325,6 +326,7 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
         pullRequestsLoading={input.gitPullRequestsLoading}
         pullRequestsError={input.gitPullRequestsError}
         onStartTaskFromGitHubPullRequest={input.onStartTaskFromGitHubPullRequest}
+        getGitHubPullRequestFollowUpPreview={input.getGitHubPullRequestFollowUpPreview}
         selectedPullRequest={input.selectedPullRequestNumber}
         onSelectPullRequest={input.onSelectPullRequest}
         onDelegateGitHubPullRequest={input.onDelegateGitHubPullRequest}
@@ -418,6 +420,7 @@ export function buildGitNodes(options: LayoutNodesOptions): GitLayoutNodes {
         onStartTaskFromGitHubPullRequestReviewFollowUp={
           input.onStartTaskFromGitHubPullRequestReviewFollowUp
         }
+        getGitHubPullRequestReviewFollowUpPreview={input.getGitHubPullRequestReviewFollowUpPreview}
         canRevert={input.diffSource === "local"}
         onRevertFile={input.onRevertGitFile}
         onActivePathChange={input.onDiffActivePathChange}

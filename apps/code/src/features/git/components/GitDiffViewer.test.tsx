@@ -119,6 +119,50 @@ describe("GitDiffViewer", () => {
     );
   });
 
+  it("renders unified review-comment follow-up preview details in the timeline", () => {
+    render(
+      <GitDiffViewer
+        diffs={[]}
+        selectedPath={null}
+        isLoading={false}
+        error={null}
+        pullRequest={pullRequest}
+        pullRequestComments={comments}
+        getGitHubPullRequestReviewFollowUpPreview={() => ({
+          title: "Review comment follow-up preview",
+          state: "blocked",
+          summary: "Governed review-comment follow-up is waiting on runtime launch readiness.",
+          blockedReason:
+            "GitHub source launch is waiting for repository execution defaults to finish loading.",
+          fields: [
+            {
+              id: "backend",
+              label: "Backend preference",
+              value: "Runtime default route",
+              detail: "Resolved after repository execution policy loads.",
+            },
+            {
+              id: "source",
+              label: "Source evidence",
+              value: "example/repo · PR #42 · pull_request_review_comment.created",
+              detail: "Second comment",
+            },
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getAllByText("Review comment follow-up preview").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(
+        "GitHub source launch is waiting for repository execution defaults to finish loading."
+      ).length
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("example/repo · PR #42 · pull_request_review_comment.created").length
+    ).toBeGreaterThan(0);
+  });
+
   it("surfaces repository-unavailable guidance when no git root is selected", () => {
     render(
       <GitDiffViewer

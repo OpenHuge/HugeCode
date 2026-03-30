@@ -38,12 +38,24 @@ export type DesktopWorkspaceMissionDomainOutput = {
   handleStartTaskFromGitHubIssue: ReturnType<
     typeof useGitHubRuntimeTaskLaunchers
   >["handleStartTaskFromGitHubIssue"];
+  getGitHubIssueFollowUpPreview: ReturnType<
+    typeof useGitHubRuntimeTaskLaunchers
+  >["getGitHubIssueFollowUpPreview"];
   handleStartTaskFromGitHubIssueCommentCommand: ReturnType<
     typeof useGitHubRuntimeTaskLaunchers
   >["handleStartTaskFromGitHubIssueCommentCommand"];
   handleStartTaskFromGitHubPullRequest: ReturnType<
     typeof useGitHubRuntimeTaskLaunchers
   >["handleStartTaskFromGitHubPullRequest"];
+  getGitHubPullRequestFollowUpPreview: ReturnType<
+    typeof useGitHubRuntimeTaskLaunchers
+  >["getGitHubPullRequestFollowUpPreview"];
+  handleStartTaskFromGitHubPullRequestReviewFollowUp: ReturnType<
+    typeof useGitHubRuntimeTaskLaunchers
+  >["handleStartTaskFromGitHubPullRequestReviewFollowUp"];
+  getGitHubPullRequestReviewFollowUpPreview: ReturnType<
+    typeof useGitHubRuntimeTaskLaunchers
+  >["getGitHubPullRequestReviewFollowUpPreview"];
   handleStartTaskFromGitHubPullRequestReviewCommentCommand: ReturnType<
     typeof useGitHubRuntimeTaskLaunchers
   >["handleStartTaskFromGitHubPullRequestReviewCommentCommand"];
@@ -72,8 +84,12 @@ export function useDesktopWorkspaceMissionDomain({
     threadDomain;
   const {
     handleStartTaskFromGitHubIssue,
+    getGitHubIssueFollowUpPreview,
     handleStartTaskFromGitHubIssueCommentCommand,
     handleStartTaskFromGitHubPullRequest,
+    getGitHubPullRequestFollowUpPreview,
+    handleStartTaskFromGitHubPullRequestReviewFollowUp,
+    getGitHubPullRequestReviewFollowUpPreview,
     handleStartTaskFromGitHubPullRequestReviewCommentCommand,
   } = useGitHubRuntimeTaskLaunchers({
     activeWorkspace,
@@ -134,8 +150,12 @@ export function useDesktopWorkspaceMissionDomain({
     missionControlState,
     gitCommitState,
     handleStartTaskFromGitHubIssue,
+    getGitHubIssueFollowUpPreview,
     handleStartTaskFromGitHubIssueCommentCommand,
     handleStartTaskFromGitHubPullRequest,
+    getGitHubPullRequestFollowUpPreview,
+    handleStartTaskFromGitHubPullRequestReviewFollowUp,
+    getGitHubPullRequestReviewFollowUpPreview,
     handleStartTaskFromGitHubPullRequestReviewCommentCommand,
   };
 }
