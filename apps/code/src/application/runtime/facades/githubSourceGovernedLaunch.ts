@@ -28,7 +28,7 @@ type GitHubSourceWorkspaceContext = {
   gitRemoteUrl?: string | null;
 };
 
-type GitHubSourceLaunchRequestOptions = {
+export type GitHubSourceLaunchRequestOptions = {
   repositoryExecutionContract?: RepositoryExecutionContract | null;
   preferredBackendIds?: string[] | null;
 };
@@ -160,16 +160,16 @@ function buildGovernedGitHubLaunchRequest(input: {
   return request;
 }
 
-function finalizeGovernedGitHubLaunch(input: {
+export function buildGovernedGitHubLaunchRequestFromSummary(input: {
   launch: GitHubSourceLaunchSummary;
-  workspaceId: string;
+  workspace: GitHubSourceWorkspaceContext;
   options?: GitHubSourceLaunchRequestOptions;
 }) {
   return {
     launch: input.launch,
     request: buildGovernedGitHubLaunchRequest({
       launch: input.launch,
-      workspaceId: input.workspaceId,
+      workspaceId: input.workspace.workspaceId,
       repositoryExecutionContract: input.options?.repositoryExecutionContract ?? null,
       preferredBackendIds: input.options?.preferredBackendIds,
     }),
@@ -181,14 +181,14 @@ export function buildGovernedGitHubIssueLaunchRequest(input: {
   workspace: GitHubSourceWorkspaceContext;
   options?: GitHubSourceLaunchRequestOptions;
 }) {
-  return finalizeGovernedGitHubLaunch({
+  return buildGovernedGitHubLaunchRequestFromSummary({
     launch: normalizeGitHubIssueLaunchInput({
       issue: input.issue,
       workspaceId: input.workspace.workspaceId,
       workspaceRoot: input.workspace.workspaceRoot,
       gitRemoteUrl: input.workspace.gitRemoteUrl,
     }),
-    workspaceId: input.workspace.workspaceId,
+    workspace: input.workspace,
     options: input.options,
   });
 }
@@ -203,7 +203,7 @@ export function buildGovernedGitHubPullRequestLaunchRequest(input: {
   workspace: GitHubSourceWorkspaceContext;
   options?: GitHubSourceLaunchRequestOptions;
 }) {
-  return finalizeGovernedGitHubLaunch({
+  return buildGovernedGitHubLaunchRequestFromSummary({
     launch: normalizeGitHubPullRequestFollowUpLaunchInput({
       pullRequest: input.pullRequest,
       diffs: input.diffs ?? null,
@@ -212,7 +212,7 @@ export function buildGovernedGitHubPullRequestLaunchRequest(input: {
       workspaceRoot: input.workspace.workspaceRoot,
       gitRemoteUrl: input.workspace.gitRemoteUrl,
     }),
-    workspaceId: input.workspace.workspaceId,
+    workspace: input.workspace,
     options: input.options,
   });
 }

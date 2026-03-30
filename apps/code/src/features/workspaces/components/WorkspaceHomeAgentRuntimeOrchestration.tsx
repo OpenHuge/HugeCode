@@ -23,6 +23,13 @@ const WorkspaceHomeAgentRuntimePluginControlPlane = lazy(async () => {
   };
 });
 
+const WorkspaceHomeAutonomousIssueDrive = lazy(async () => {
+  const module = await import("./WorkspaceHomeAutonomousIssueDrive");
+  return {
+    default: module.WorkspaceHomeAutonomousIssueDrive,
+  };
+});
+
 type WorkspaceHomeAgentRuntimeOrchestrationProps = {
   workspaceId: string;
 };
@@ -295,6 +302,28 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         </div>
       </div>
       <WorkspaceHomeRuntimePolicyIndicator policy={policy} />
+      <Suspense
+        fallback={
+          <MissionControlSectionCard
+            title="Autonomous Issue Drive"
+            statusLabel="Loading"
+            statusTone="neutral"
+          >
+            <div className={controlStyles.sectionMeta}>
+              Preparing the GitHub issue ingestion controls.
+            </div>
+          </MissionControlSectionCard>
+        }
+      >
+        <WorkspaceHomeAutonomousIssueDrive
+          workspaceId={workspaceId}
+          launchAllowed={launchReadiness.launchAllowed}
+          runtimeLoading={runtimeLoading}
+          repositoryExecutionContract={repositoryExecutionContract}
+          preferredBackendIds={selectedProviderRoute?.preferredBackendIds ?? null}
+          refreshRuntimeTasks={refreshRuntimeTasks}
+        />
+      </Suspense>
       <MissionControlSectionCard
         title="Browser readiness"
         statusLabel={browserReadinessStatusLabel}
