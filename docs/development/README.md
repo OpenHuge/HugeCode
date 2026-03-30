@@ -35,6 +35,9 @@ to run or deploy the Cloudflare shell directly.
 
 - `pnpm check:workflow-governance`
   Required when CI workflow docs, workflow files, or reusable workflow mappings change.
+- Exclude-heavy CI scope ownership such as `frontend_optimization` lives in
+  `scripts/classify-ci-change-scope.mjs`; prefer updating that script instead
+  of duplicating large negative-glob sections in workflow YAML.
 
 ## Core Validation Gates
 
@@ -77,6 +80,17 @@ Practical usage:
 - If the change can alter startup timing, browser boot, runtime service
   readiness, or bundle output, run `pnpm validate:frontend-optimization` before
   pushing.
+- Do not wake `frontend_optimization` for generic `apps/code` feature or
+  component edits alone. That lane is reserved for startup/build,
+  runtime-readiness, Playwright/E2E, design-system, bundle-budget, and
+  frontend dependency churn.
+- Do not wake `pnpm test:affected` for storybook-only, fixture-only, or
+  markdown-only support changes. Keep actual `.test` and `.spec` edits on the
+  affected-test path even when affected builds can skip.
+- Keep workflow-governance regression tests, CI wrapper edits, and workflow
+  maps on the repository-governance path. They should not wake product-facing
+  `Quality`, affected build/test, runtime contract parity, or frontend
+  optimization lanes by themselves.
 - If the change only touches workflow docs or CI plumbing, do not guess:
   run `pnpm check:workflow-governance` and classify it as workflow/governance
   work in the PR notes.
