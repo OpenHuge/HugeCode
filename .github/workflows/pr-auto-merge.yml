@@ -17,7 +17,7 @@ on:
       - main
   workflow_dispatch:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "*/10 * * * *"
 
 permissions:
   contents: write
@@ -44,6 +44,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MERGE_QUEUE_ENABLED: ${{ vars.MERGE_QUEUE_ENABLED == 'false' && 'false' || 'true' }}
+          MERGE_QUEUE_STUCK_MINUTES: ${{ vars.MERGE_QUEUE_STUCK_MINUTES }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPOSITORY: ${{ github.repository }}
         run: |
@@ -57,9 +58,12 @@ jobs:
           owner="${REPOSITORY%%/*}"
           repo="${REPOSITORY#*/}"
           enabled_file="$(mktemp)"
+          recovered_file="$(mktemp)"
           rearmed_file="$(mktemp)"
           failed_file="$(mktemp)"
           skipped_file="$(mktemp)"
+          merge_group_runs_file=""
+          stuck_queue_minutes="${MERGE_QUEUE_STUCK_MINUTES:-10}"
 
           append_summary_section() {
             local title="$1"
@@ -88,27 +92,94 @@ jobs:
             gh pr merge --auto --squash --match-head-commit "$head_ref_oid" "$url"
           }
 
+          minutes_since_iso8601() {
+            local timestamp="$1"
+
+            node -e '
+              const timestamp = process.argv[1];
+              const parsed = Date.parse(timestamp);
+              if (!Number.isFinite(parsed)) {
+                process.exit(1);
+              }
+              const minutes = Math.floor((Date.now() - parsed) / 60000);
+              if (!Number.isFinite(minutes) || minutes < 0) {
+                process.exit(1);
+              }
+              console.log(minutes);
+            ' "$timestamp"
+          }
+
+          load_merge_group_runs() {
+            if [[ -n "$merge_group_runs_file" ]]; then
+              return
+            fi
+
+            merge_group_runs_file="$(mktemp)"
+            gh api "repos/$REPOSITORY/actions/runs?event=merge_group&per_page=100" > "$merge_group_runs_file"
+          }
+
+          has_merge_group_run_since_enqueue() {
+            local pr_number="$1"
+            local base_ref_name="$2"
+            local enqueued_at="$3"
+            local queue_branch_prefix="gh-readonly-queue/${base_ref_name}/pr-${pr_number}-"
+
+            load_merge_group_runs
+
+            jq -e \
+              --arg queue_branch_prefix "$queue_branch_prefix" \
+              --arg enqueued_at "$enqueued_at" \
+              '.workflow_runs
+                | any(
+                    .head_branch != null and
+                    (.head_branch | startswith($queue_branch_prefix)) and
+                    .created_at >= $enqueued_at
+                  )' \
+              "$merge_group_runs_file" >/dev/null
+          }
+
+          recover_stuck_merge_queue_entry() {
+            local pr_id="$1"
+            local head_ref_oid="$2"
+
+            gh api graphql \
+              -f query='mutation($id: ID!) { dequeuePullRequest(input: { id: $id }) { mergeQueueEntry { id } } }' \
+              -f id="$pr_id" >/dev/null
+
+            gh api graphql \
+              -f query='mutation($pullRequestId: ID!, $expectedHeadOid: GitObjectID!) { enqueuePullRequest(input: { pullRequestId: $pullRequestId, expectedHeadOid: $expectedHeadOid }) { mergeQueueEntry { id state position } } }' \
+              -f pullRequestId="$pr_id" \
+              -f expectedHeadOid="$head_ref_oid" >/dev/null
+          }
+
           process_pr_json() {
             local pr_json="$1"
+            local pr_id
             local number
             local url
             local review_decision
             local merge_state
             local auto_merge_enabled_at
             local head_ref_oid
+            local base_ref_name
             local head_repository
             local unresolved_threads
             local has_manual_merge_label
             local is_draft
             local is_in_merge_queue
+            local merge_queue_state
+            local merge_queue_enqueued_at
+            local queued_minutes
             local author_login
 
+            pr_id="$(printf '%s' "$pr_json" | jq -r '.id // ""')"
             number="$(printf '%s' "$pr_json" | jq -r '.number')"
             url="$(printf '%s' "$pr_json" | jq -r '.url')"
             review_decision="$(printf '%s' "$pr_json" | jq -r '.reviewDecision // ""')"
             merge_state="$(printf '%s' "$pr_json" | jq -r '.mergeStateStatus // ""')"
             auto_merge_enabled_at="$(printf '%s' "$pr_json" | jq -r '.autoMergeRequest.enabledAt // ""')"
             head_ref_oid="$(printf '%s' "$pr_json" | jq -r '.headRefOid // ""')"
+            base_ref_name="$(printf '%s' "$pr_json" | jq -r '.baseRefName // ""')"
             head_repository="$(printf '%s' "$pr_json" | jq -r '.headRepository.nameWithOwner // ""')"
             unresolved_threads="$(
               printf '%s' "$pr_json" | jq '[.reviewThreads.nodes[] | select(.isResolved == false)] | length'
@@ -118,6 +189,8 @@ jobs:
             )"
             is_draft="$(printf '%s' "$pr_json" | jq -r '.isDraft')"
             is_in_merge_queue="$(printf '%s' "$pr_json" | jq -r '.isInMergeQueue')"
+            merge_queue_state="$(printf '%s' "$pr_json" | jq -r '.mergeQueueEntry.state // ""')"
+            merge_queue_enqueued_at="$(printf '%s' "$pr_json" | jq -r '.mergeQueueEntry.enqueuedAt // ""')"
             author_login="$(printf '%s' "$pr_json" | jq -r '.author.login // ""')"
 
             if [[ "$is_draft" == "true" ]]; then
@@ -156,7 +229,36 @@ jobs:
             fi
 
             if [[ "$is_in_merge_queue" == "true" ]]; then
-              echo "- PR #$number: already in merge queue." >> "$skipped_file"
+              if [[ "$MERGE_QUEUE_ENABLED" != "true" ]]; then
+                echo "- PR #$number: already in merge queue while merge queue mode is disabled." >> "$skipped_file"
+                return
+              fi
+
+              if [[ -z "$merge_queue_enqueued_at" || "$merge_queue_state" != "AWAITING_CHECKS" ]]; then
+                echo "- PR #$number: already in merge queue with state ${merge_queue_state:-UNKNOWN}." >> "$skipped_file"
+                return
+              fi
+
+              if ! queued_minutes="$(minutes_since_iso8601 "$merge_queue_enqueued_at" 2>/dev/null)"; then
+                echo "- PR #$number: already in merge queue; could not parse enqueue timestamp." >> "$skipped_file"
+                return
+              fi
+
+              if (( queued_minutes < stuck_queue_minutes )); then
+                echo "- PR #$number: already in merge queue for ${queued_minutes} minute(s); waiting for GitHub's merge-queue grace window." >> "$skipped_file"
+                return
+              fi
+
+              if has_merge_group_run_since_enqueue "$number" "$base_ref_name" "$merge_queue_enqueued_at"; then
+                echo "- PR #$number: merge queue checks already started after enqueue; leaving queue entry in place." >> "$skipped_file"
+                return
+              fi
+
+              if recover_stuck_merge_queue_entry "$pr_id" "$head_ref_oid"; then
+                echo "- PR #$number: recovered stuck merge queue entry after ${queued_minutes} minute(s) without merge_group checks." >> "$recovered_file"
+              else
+                echo "- PR #$number: failed to recover stuck merge queue entry." >> "$failed_file"
+              fi
               return
             fi
 
@@ -188,7 +290,7 @@ jobs:
                 -F owner="$owner" \
                 -F repo="$repo" \
                 -F number="$PR_NUMBER" \
-                -f query='query($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { number url author { login } autoMergeRequest { enabledAt } headRefOid headRepository { nameWithOwner } isDraft isInMergeQueue labels(first: 50) { nodes { name } } mergeStateStatus reviewDecision reviewThreads(first: 100) { nodes { isResolved } } } } }'
+                -f query='query($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { id number url author { login } autoMergeRequest { enabledAt } baseRefName headRefOid headRepository { nameWithOwner } isDraft isInMergeQueue labels(first: 50) { nodes { name } } mergeQueueEntry { id state enqueuedAt } mergeStateStatus reviewDecision reviewThreads(first: 100) { nodes { isResolved } } } } }'
             )"
 
             pull_request_node="$(printf '%s' "$pr_json" | jq -c '.data.repository.pullRequest')"
@@ -200,7 +302,7 @@ jobs:
               gh api graphql \
                 -F owner="$owner" \
                 -F repo="$repo" \
-                -f query='query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { pullRequests(first: 100, states: OPEN, orderBy: { field: UPDATED_AT, direction: DESC }) { nodes { number url author { login } autoMergeRequest { enabledAt } headRefOid headRepository { nameWithOwner } isDraft isInMergeQueue labels(first: 50) { nodes { name } } mergeStateStatus reviewDecision reviewThreads(first: 100) { nodes { isResolved } } } } } }'
+                -f query='query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { pullRequests(first: 100, states: OPEN, orderBy: { field: UPDATED_AT, direction: DESC }) { nodes { id number url author { login } autoMergeRequest { enabledAt } baseRefName headRefOid headRepository { nameWithOwner } isDraft isInMergeQueue labels(first: 50) { nodes { name } } mergeQueueEntry { id state enqueuedAt } mergeStateStatus reviewDecision reviewThreads(first: 100) { nodes { isResolved } } } } } }'
             )"
 
             while IFS= read -r pr_node; do
@@ -209,6 +311,7 @@ jobs:
           fi
 
           append_summary_section "Enabled auto-merge" "$enabled_file"
+          append_summary_section "Recovered stuck merge queue entries" "$recovered_file"
           append_summary_section "Re-armed auto-merge" "$rearmed_file"
           append_summary_section "Failed auto-merge actions" "$failed_file"
           append_summary_section "Skipped pull requests" "$skipped_file"
