@@ -40,7 +40,7 @@ When this document disagrees with current code, scripts, or package manifests, t
 - Prefer semantic tokens and shared CSS custom properties over ad hoc values.
 - Avoid hardcoded color literals when a token already exists.
 - Do not reintroduce legacy button/style contracts such as `.primary`, `.secondary`, `.ghost`, or `.icon-button`.
-- Frontend file size is capped at 1314 lines by repo checks. Oversized legacy files should not grow when touched.
+- TS/JS source file size is guarded repo-wide by `pnpm check:ts-file-size` using path-based profiles. Oversized legacy files may remain, but they must not grow when touched.
 
 ## 5. Runtime And Package Boundaries
 

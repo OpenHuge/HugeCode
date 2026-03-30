@@ -125,7 +125,7 @@ const FULL_GATE_FRONTEND_WIDE_EXACT_FILES = new Set([
   "vitest.shared.ts",
   "vitest.workspace.ts",
   "scripts/check-circular-deps.mjs",
-  "scripts/check-frontend-file-size.mjs",
+  "scripts/check-ts-file-size.mjs",
   "scripts/check-code-bundle-budget.mjs",
   "scripts/report-code-bundle.mjs",
   "scripts/check-global-style-boundary.mjs",
@@ -301,9 +301,17 @@ const DESIGN_SYSTEM_SURFACE_SEMANTICS_TRIGGER_PATHS = new Set([
   "apps/code/src/design-system/components/toast/ToastPrimitives.test.tsx",
   "apps/code/src/design-system/components/toast/ToastPrimitives.tsx",
 ]);
-const FRONTEND_SIZE_GUARD_PATH_PREFIXES = ["apps/code/src/", "packages/design-system/src/"];
-const FRONTEND_SIZE_GUARD_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mts", ".cts"]);
-const FRONTEND_SIZE_GUARD_TEST_MARKERS = [".test.", ".spec.", ".stories."];
+const TS_FILE_SIZE_GUARD_EXTENSIONS = new Set([
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".mts",
+  ".cts",
+]);
+const TS_FILE_SIZE_GUARD_TEST_MARKERS = [".test.", ".spec.", ".stories."];
 const FRONTEND_OPTIMIZATION_GUARD_TRIGGER_PATHS = [
   "apps/code/",
   "packages/design-system/",
@@ -640,7 +648,7 @@ function requiresFullGate(repoRelativePath) {
   if (/^(apps|packages|tests)\/[^/]+\/package\.json$/u.test(normalized)) {
     return true;
   }
-  return /^(?:scripts\/(?:codex-.*|validate|check-rust-file-size|check-runtime-layering|check-runtime-port-exports|check-native-runtime-parity|check-no-wildcard-exports|check-runtime-sot|check-design-runtime-sot|check-ui-service-boundary|check-frontend-file-size|check-code-bundle-budget|report-code-bundle|check-style-color-tokens|check-style-color-sot|check-style-semantic-primitives|check-theme-token-parity|check-legacy-style-classes|check-style-module-file-names|check-button-semantics|check-inline-styles|check-style-stack|check-duplicate-global-selectors|check-stale-style-selectors|check-style-budgets|check-global-style-boundary|check-style-bridge-files|check-feature-style-islands|check-design-system-ownership|check-llm-scaffolding|collect-style-metrics)\.(mjs|js))$/u.test(
+  return /^(?:scripts\/(?:codex-.*|validate|check-rust-file-size|check-runtime-layering|check-runtime-port-exports|check-native-runtime-parity|check-no-wildcard-exports|check-runtime-sot|check-design-runtime-sot|check-ui-service-boundary|check-ts-file-size|check-frontend-file-size|check-code-bundle-budget|report-code-bundle|check-style-color-tokens|check-style-color-sot|check-style-semantic-primitives|check-theme-token-parity|check-legacy-style-classes|check-style-module-file-names|check-button-semantics|check-inline-styles|check-style-stack|check-duplicate-global-selectors|check-stale-style-selectors|check-style-budgets|check-global-style-boundary|check-style-bridge-files|check-feature-style-islands|check-design-system-ownership|check-llm-scaffolding|collect-style-metrics)\.(mjs|js))$/u.test(
     normalized
   );
 }
@@ -1203,9 +1211,9 @@ async function runFullGate(reason, changedFiles, validationCache) {
   }
   if (shouldRunFrontendWideFullGateChecks(changedFiles)) {
     runCommand("pnpm", ["check:app-circular"], "App circular dependency guard");
-    runCommand("pnpm", ["check:frontend-file-size:all"], "Frontend file size guard (all)");
     runCommand("pnpm", ["check:style-boundary:all"], "Style boundary guards (all)");
   }
+  runCommand("pnpm", ["check:ts-file-size:all"], "TS/JS monolith guard (all)");
   runCommand("pnpm", ["lint"], "Lint");
   runCommand("pnpm", ["format:check"], "Format");
 
@@ -2042,12 +2050,9 @@ function shouldRunDesignSystemBaseline(changedFiles) {
   });
 }
 
-function isFrontendSizeGuardSourceFile(filePath) {
-  if (!FRONTEND_SIZE_GUARD_PATH_PREFIXES.some((prefix) => filePath.startsWith(prefix))) {
-    return false;
-  }
+function isTsFileSizeGuardSourceFile(filePath) {
   const extension = path.posix.extname(filePath).toLowerCase();
-  if (!FRONTEND_SIZE_GUARD_EXTENSIONS.has(extension)) {
+  if (!TS_FILE_SIZE_GUARD_EXTENSIONS.has(extension)) {
     return false;
   }
   if (filePath.endsWith(".d.ts")) {
@@ -2056,14 +2061,17 @@ function isFrontendSizeGuardSourceFile(filePath) {
   if (filePath.includes("/__tests__/")) {
     return false;
   }
-  if (FRONTEND_SIZE_GUARD_TEST_MARKERS.some((marker) => filePath.includes(marker))) {
+  if (TS_FILE_SIZE_GUARD_TEST_MARKERS.some((marker) => filePath.includes(marker))) {
     return false;
   }
-  return true;
+  if (filePath.startsWith("scripts/")) {
+    return true;
+  }
+  return /^(apps|packages)\/[^/]+\/src\//u.test(filePath);
 }
 
-function shouldRunFrontendFileSizeGuard(changedFiles) {
-  return changedFiles.some(isFrontendSizeGuardSourceFile);
+function shouldRunTsFileSizeGuard(changedFiles) {
+  return changedFiles.some(isTsFileSizeGuardSourceFile);
 }
 
 function shouldRunStyleColorTokenGuard(changedFiles) {
@@ -2465,18 +2473,13 @@ async function runDesignSystemBaseline(changedFiles, sharedChangedFilesEnv) {
   });
 }
 
-async function runFrontendFileSizeGuard(changedFiles, sharedChangedFilesEnv) {
-  if (!shouldRunFrontendFileSizeGuard(changedFiles)) {
+async function runTsFileSizeGuard(changedFiles, sharedChangedFilesEnv) {
+  if (!shouldRunTsFileSizeGuard(changedFiles)) {
     return;
   }
-  await runCommandAsync(
-    "node",
-    ["scripts/check-frontend-file-size.mjs"],
-    "Frontend file size guard",
-    {
-      env: sharedChangedFilesEnv,
-    }
-  );
+  await runCommandAsync("node", ["scripts/check-ts-file-size.mjs"], "TS/JS monolith guard", {
+    env: sharedChangedFilesEnv,
+  });
 }
 
 async function runStyleColorTokenGuard(changedFiles, sharedChangedFilesEnv) {
@@ -2740,6 +2743,7 @@ async function main() {
   const skipStyleLintDuplicateGuards = mode === "full";
   const skipFrontendWideFullDuplicateGuards =
     mode === "full" && shouldRunFrontendWideFullGateChecks(changedFiles);
+  const skipTsFileSizeDuplicateGuard = mode === "full";
   printChangedFiles(changedFiles);
 
   if (mode === "docs-only") {
@@ -2768,9 +2772,9 @@ async function main() {
     runFeatureStyleIslandsGuard(changedFiles, sharedChangedFilesEnv),
     runDesignSystemOwnershipGuard(changedFiles, sharedChangedFilesEnv),
     runDesignSystemBaseline(changedFiles, sharedChangedFilesEnv),
-    ...(skipFrontendWideFullDuplicateGuards
+    ...(skipTsFileSizeDuplicateGuard
       ? []
-      : [runFrontendFileSizeGuard(changedFiles, sharedChangedFilesEnv)]),
+      : [runTsFileSizeGuard(changedFiles, sharedChangedFilesEnv)]),
     runStyleColorTokenGuard(changedFiles, sharedChangedFilesEnv),
     ...(skipStyleLintDuplicateGuards
       ? []
