@@ -7,6 +7,8 @@ import process from "node:process";
 const repoRoot = process.cwd();
 
 const HOST_CONTRACT_PATH = "packages/code-runtime-host-contract/src/codeRuntimeRpc.ts";
+const HOST_CONTRACT_CORE_PATH =
+  "packages/code-runtime-host-contract/src/code-runtime-rpc/rpcCore.ts";
 const HOST_CONTRACT_COMPAT_PATH = "packages/code-runtime-host-contract/src/codeRuntimeRpcCompat.ts";
 const HOST_CONTRACT_EVENTS_PATH = "packages/code-runtime-host-contract/src/index.ts";
 const SERVICE_LIB_PATH = "packages/code-runtime-service-rs/src/lib.rs";
@@ -145,27 +147,28 @@ function extractReadonlyStringArray(content, constantName, sourceLabel) {
 
 function parseHostContract() {
   const content = readText(HOST_CONTRACT_PATH);
+  const coreContent = readText(HOST_CONTRACT_CORE_PATH);
   const compatContent = readText(HOST_CONTRACT_COMPAT_PATH);
   const methodSection = sectionBetween(
-    content,
+    coreContent,
     "export const CODE_RUNTIME_RPC_METHODS = {",
     "} as const;",
     "host methods"
   );
   const featureSection = sectionBetween(
-    content,
+    coreContent,
     "export const CODE_RUNTIME_RPC_FEATURES = Object.freeze([",
     "]) as readonly string[];",
     "host features"
   );
   const capabilityProfileSection = sectionBetween(
-    content,
+    coreContent,
     "export const CODE_RUNTIME_RPC_CAPABILITY_PROFILES = Object.freeze({",
     "} as const);",
     "host capability profiles"
   );
   const errorCodeSection = sectionBetween(
-    content,
+    coreContent,
     "export const CODE_RUNTIME_RPC_ERROR_CODES = {",
     "} as const;",
     "host error codes"
