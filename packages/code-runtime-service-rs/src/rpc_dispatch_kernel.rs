@@ -5,6 +5,182 @@ use crate::runtime_tool_domain::{
 };
 use ku0_runtime_shell_core::{TerminalSessionRecord, TerminalSessionState};
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct KernelSessionsListRequest {
+    workspace_id: Option<String>,
+    kind: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct KernelJobsListRequest {
+    workspace_id: Option<String>,
+    status: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct KernelExtensionsListRequest {
+    workspace_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct KernelPoliciesEvaluateRequest {
+    scope: Option<String>,
+    tool_name: Option<String>,
+    payload_bytes: Option<u64>,
+    requires_approval: Option<bool>,
+    workspace_id: Option<String>,
+    mutation_kind: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct KernelContextSnapshotRequest {
+    kind: String,
+    workspace_id: Option<String>,
+    thread_id: Option<String>,
+    task_id: Option<String>,
+    run_id: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum KernelContextSnapshotScope {
+    Global,
+    Workspace { workspace_id: String },
+    Thread { workspace_id: String, thread_id: String },
+    Task { task_id: String },
+    Run { run_id: String },
+    Skills { workspace_id: Option<String> },
+}
+
+fn parse_kernel_sessions_list_request(params: &Value) -> Result<KernelSessionsListRequest, RpcError> {
+    let mut request: KernelSessionsListRequest = serde_json::from_value(params.clone())
+        .map_err(|error| RpcError::invalid_params(format!("Invalid kernel sessions request: {error}")))?;
+    request.workspace_id = trim_optional_string(request.workspace_id);
+    request.kind = trim_optional_string(request.kind);
+    Ok(request)
+}
+
+fn parse_kernel_jobs_list_request(params: &Value) -> Result<KernelJobsListRequest, RpcError> {
+    let mut request: KernelJobsListRequest = serde_json::from_value(params.clone())
+        .map_err(|error| RpcError::invalid_params(format!("Invalid kernel jobs request: {error}")))?;
+    request.workspace_id = trim_optional_string(request.workspace_id);
+    request.status = trim_optional_string(request.status);
+    Ok(request)
+}
+
+fn parse_kernel_extensions_list_request(
+    params: &Value,
+) -> Result<KernelExtensionsListRequest, RpcError> {
+    let mut request: KernelExtensionsListRequest = serde_json::from_value(params.clone())
+        .map_err(|error| RpcError::invalid_params(format!("Invalid kernel extensions request: {error}")))?;
+    request.workspace_id = trim_optional_string(request.workspace_id);
+    Ok(request)
+}
+
+fn parse_kernel_policies_evaluate_request(
+    params: &Value,
+) -> Result<KernelPoliciesEvaluateRequest, RpcError> {
+    let mut request: KernelPoliciesEvaluateRequest = serde_json::from_value(params.clone())
+        .map_err(|error| RpcError::invalid_params(format!("Invalid kernel policies request: {error}")))?;
+    request.scope = trim_optional_string(request.scope);
+    request.tool_name = trim_optional_string(request.tool_name);
+    request.workspace_id = trim_optional_string(request.workspace_id);
+    request.mutation_kind = trim_optional_string(request.mutation_kind);
+    Ok(request)
+}
+
+fn take_required_kernel_field(
+    field_name: &'static str,
+    value: Option<String>,
+) -> Result<String, RpcError> {
+    let value = trim_optional_string(value)
+        .ok_or_else(|| RpcError::invalid_params(format!("{field_name} is required.")))?;
+    Ok(value)
+}
+
+fn ensure_kernel_field_absent(
+    value: &Option<String>,
+    field_name: &'static str,
+    kind: &str,
+) -> Result<(), RpcError> {
+    if trim_optional_string(value.clone()).is_some() {
+        return Err(RpcError::invalid_params(format!(
+            "{field_name} is not supported for kernel context kind `{kind}`."
+        )));
+    }
+    Ok(())
+}
+
+fn parse_kernel_context_snapshot_scope(params: &Value) -> Result<KernelContextSnapshotScope, RpcError> {
+    let mut request: KernelContextSnapshotRequest = serde_json::from_value(params.clone())
+        .map_err(|error| RpcError::invalid_params(format!("Invalid kernel context snapshot request: {error}")))?;
+    request.kind = request.kind.trim().to_string();
+    if request.kind.is_empty() {
+        return Err(RpcError::invalid_params("kind is required."));
+    }
+    request.workspace_id = trim_optional_string(request.workspace_id);
+    request.thread_id = trim_optional_string(request.thread_id);
+    request.task_id = trim_optional_string(request.task_id);
+    request.run_id = trim_optional_string(request.run_id);
+
+    match request.kind.as_str() {
+        "global" => {
+            ensure_kernel_field_absent(&request.workspace_id, "workspaceId", "global")?;
+            ensure_kernel_field_absent(&request.thread_id, "threadId", "global")?;
+            ensure_kernel_field_absent(&request.task_id, "taskId", "global")?;
+            ensure_kernel_field_absent(&request.run_id, "runId", "global")?;
+            Ok(KernelContextSnapshotScope::Global)
+        }
+        "workspace" => {
+            ensure_kernel_field_absent(&request.thread_id, "threadId", "workspace")?;
+            ensure_kernel_field_absent(&request.task_id, "taskId", "workspace")?;
+            ensure_kernel_field_absent(&request.run_id, "runId", "workspace")?;
+            Ok(KernelContextSnapshotScope::Workspace {
+                workspace_id: take_required_kernel_field("workspaceId", request.workspace_id)?,
+            })
+        }
+        "thread" => {
+            ensure_kernel_field_absent(&request.task_id, "taskId", "thread")?;
+            ensure_kernel_field_absent(&request.run_id, "runId", "thread")?;
+            Ok(KernelContextSnapshotScope::Thread {
+                workspace_id: take_required_kernel_field("workspaceId", request.workspace_id)?,
+                thread_id: take_required_kernel_field("threadId", request.thread_id)?,
+            })
+        }
+        "task" => {
+            ensure_kernel_field_absent(&request.workspace_id, "workspaceId", "task")?;
+            ensure_kernel_field_absent(&request.thread_id, "threadId", "task")?;
+            ensure_kernel_field_absent(&request.run_id, "runId", "task")?;
+            Ok(KernelContextSnapshotScope::Task {
+                task_id: take_required_kernel_field("taskId", request.task_id)?,
+            })
+        }
+        "run" => {
+            ensure_kernel_field_absent(&request.workspace_id, "workspaceId", "run")?;
+            ensure_kernel_field_absent(&request.thread_id, "threadId", "run")?;
+            ensure_kernel_field_absent(&request.task_id, "taskId", "run")?;
+            Ok(KernelContextSnapshotScope::Run {
+                run_id: take_required_kernel_field("runId", request.run_id)?,
+            })
+        }
+        "skills" => {
+            ensure_kernel_field_absent(&request.thread_id, "threadId", "skills")?;
+            ensure_kernel_field_absent(&request.task_id, "taskId", "skills")?;
+            ensure_kernel_field_absent(&request.run_id, "runId", "skills")?;
+            Ok(KernelContextSnapshotScope::Skills {
+                workspace_id: request.workspace_id,
+            })
+        }
+        other => Err(RpcError::invalid_params(format!(
+            "Unsupported kernel context scope kind: {other}"
+        ))),
+    }
+}
+
 fn kernel_health_label(healthy: bool) -> &'static str {
     if healthy { "ready" } else { "attention" }
 }
@@ -681,7 +857,7 @@ fn latest_state_fabric_event_payload(ctx: &AppContext) -> Option<Value> {
 
 async fn build_kernel_context_snapshot_payload(
     ctx: &AppContext,
-    params: &serde_json::Map<String, Value>,
+    scope: KernelContextSnapshotScope,
 ) -> Result<Value, RpcError> {
     let revision = ctx.runtime_update_revision.load(Ordering::Relaxed);
     let latest_event = latest_state_fabric_event_payload(ctx);
@@ -693,9 +869,8 @@ async fn build_kernel_context_snapshot_payload(
         .await
         .unwrap_or_default();
 
-    let scope_kind = read_required_string(params, "kind")?;
-    let (scope, snapshot) = match scope_kind {
-        "global" => (
+    let (scope, snapshot) = match scope {
+        KernelContextSnapshotScope::Global => (
             json!({ "kind": "global" }),
             json!({
                 "workspaceCount": state.workspaces.len(),
@@ -706,11 +881,10 @@ async fn build_kernel_context_snapshot_payload(
                 "extensionCount": extension_catalog.len(),
             }),
         ),
-        "workspace" => {
-            let workspace_id = read_required_string(params, "workspaceId")?;
+        KernelContextSnapshotScope::Workspace { workspace_id } => {
             let workspace_threads = state
                 .workspace_threads
-                .get(workspace_id)
+                .get(workspace_id.as_str())
                 .cloned()
                 .unwrap_or_default();
             let sessions = terminal_sessions
@@ -732,7 +906,7 @@ async fn build_kernel_context_snapshot_payload(
                     "jobIds": tasks,
                     "extensionIds": extension_catalog
                         .iter()
-                        .filter(|spec| spec.workspace_id.as_deref() == Some(workspace_id))
+                        .filter(|spec| spec.workspace_id.as_deref() == Some(workspace_id.as_str()))
                         .cloned()
                         .into_iter()
                         .map(|spec| spec.extension_id)
@@ -740,12 +914,13 @@ async fn build_kernel_context_snapshot_payload(
                 }),
             )
         }
-        "thread" => {
-            let workspace_id = read_required_string(params, "workspaceId")?;
-            let thread_id = read_required_string(params, "threadId")?;
+        KernelContextSnapshotScope::Thread {
+            workspace_id,
+            thread_id,
+        } => {
             let thread = state
                 .workspace_threads
-                .get(workspace_id)
+                .get(workspace_id.as_str())
                 .and_then(|threads| threads.iter().find(|thread| thread.id == thread_id))
                 .cloned();
             (
@@ -759,24 +934,21 @@ async fn build_kernel_context_snapshot_payload(
                     "jobIds": agent_tasks
                         .tasks
                         .values()
-                        .filter(|runtime| runtime.summary.thread_id.as_deref() == Some(thread_id))
+                        .filter(|runtime| runtime.summary.thread_id.as_deref() == Some(thread_id.as_str()))
                         .map(|runtime| runtime.summary.task_id.clone())
                         .collect::<Vec<_>>(),
                 }),
             )
         }
-        "task" => {
-            let task_id = read_required_string(params, "taskId")?;
-            let task = agent_tasks.tasks.get(task_id).map(kernel_job_payload);
+        KernelContextSnapshotScope::Task { task_id } => {
+            let task = agent_tasks.tasks.get(task_id.as_str()).map(kernel_job_payload);
             (json!({ "kind": "task", "taskId": task_id }), json!({ "task": task }))
         }
-        "run" => {
-            let run_id = read_required_string(params, "runId")?;
-            let task = agent_tasks.tasks.get(run_id).map(kernel_job_payload);
+        KernelContextSnapshotScope::Run { run_id } => {
+            let task = agent_tasks.tasks.get(run_id.as_str()).map(kernel_job_payload);
             (json!({ "kind": "run", "runId": run_id }), json!({ "run": task }))
         }
-        "skills" => {
-            let workspace_id = read_optional_string(params, "workspaceId");
+        KernelContextSnapshotScope::Skills { workspace_id } => {
             let skills = crate::live_skills::list_live_skills(&ctx.config);
             (
                 json!({ "kind": "skills", "workspaceId": workspace_id }),
@@ -796,11 +968,6 @@ async fn build_kernel_context_snapshot_payload(
                     "networkEnabled": ctx.config.live_skills_network_enabled,
                 }),
             )
-        }
-        other => {
-            return Err(RpcError::invalid_params(format!(
-                "Unsupported kernel context scope kind: {other}"
-            )));
         }
     };
 
@@ -823,9 +990,9 @@ pub(super) async fn handle_kernel_sessions_list_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let workspace_id = read_optional_string(params, "workspaceId");
-    let kind = read_optional_string(params, "kind").unwrap_or_else(|| "pty".to_string());
+    let request = parse_kernel_sessions_list_request(params)?;
+    let workspace_id = request.workspace_id;
+    let kind = request.kind.unwrap_or_else(|| "pty".to_string());
     if kind != "pty" {
         return Err(RpcError::invalid_params(format!(
             "Unsupported kernel session kind: {kind}"
@@ -841,9 +1008,9 @@ pub(super) async fn handle_kernel_jobs_list_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let workspace_id = read_optional_string(params, "workspaceId");
-    let status = read_optional_string(params, "status");
+    let request = parse_kernel_jobs_list_request(params)?;
+    let workspace_id = request.workspace_id;
+    let status = request.status;
     if workspace_id.is_none() && status.is_none() {
         return build_kernel_projection_slice_payload(ctx, KERNEL_PROJECTION_SCOPE_JOBS).await;
     }
@@ -860,16 +1027,16 @@ pub(super) async fn handle_kernel_context_snapshot_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    build_kernel_context_snapshot_payload(ctx, params).await
+    let scope = parse_kernel_context_snapshot_scope(params)?;
+    build_kernel_context_snapshot_payload(ctx, scope).await
 }
 
 pub(super) async fn handle_kernel_extensions_list_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let workspace_id = read_optional_string(params, "workspaceId");
+    let request = parse_kernel_extensions_list_request(params)?;
+    let workspace_id = request.workspace_id;
     if workspace_id.is_none() {
         return build_kernel_projection_slice_payload(ctx, KERNEL_PROJECTION_SCOPE_EXTENSIONS).await;
     }
@@ -880,24 +1047,25 @@ pub(super) async fn handle_kernel_policies_evaluate_v2(
     ctx: &AppContext,
     params: &Value,
 ) -> Result<Value, RpcError> {
-    let params = as_object(params)?;
-    let scope = read_optional_string(params, "scope")
+    let request = parse_kernel_policies_evaluate_request(params)?;
+    let scope = request
+        .scope
         .map(|value| parse_runtime_tool_execution_scope(value.as_str()))
         .transpose()
         .map_err(RpcError::invalid_params)?
         .unwrap_or(RuntimeToolExecutionScope::Runtime);
-    let tool_name = read_optional_string(params, "toolName")
-        .or_else(|| read_optional_string(params, "capabilityId"))
+    let tool_name = request
+        .tool_name
         .unwrap_or_else(|| "kernel.policy".to_string());
-    let payload_bytes = read_optional_u64(params, "payloadBytes").unwrap_or(0);
-    let requires_approval = read_optional_bool(params, "requiresApproval").unwrap_or(false);
+    let payload_bytes = request.payload_bytes.unwrap_or(0);
+    let requires_approval = request.requires_approval.unwrap_or(false);
 
     let mut guardrails = ctx.runtime_tool_guardrails.lock().await;
     let evaluation = guardrails
         .evaluate(&crate::runtime_tool_guardrails::RuntimeToolGuardrailEvaluateRequest {
             tool_name,
             scope,
-            workspace_id: read_optional_string(params, "workspaceId"),
+            workspace_id: request.workspace_id,
             payload_bytes,
             at: Some(now_ms()),
             request_id: None,
@@ -943,7 +1111,7 @@ pub(super) async fn handle_kernel_policies_evaluate_v2(
         "metadata": {
             "guardrail": evaluation,
             "requiresApproval": requires_approval,
-            "mutationKind": read_optional_string(params, "mutationKind"),
+            "mutationKind": request.mutation_kind,
         },
     }))
 }

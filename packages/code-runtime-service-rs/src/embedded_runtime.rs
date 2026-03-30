@@ -798,9 +798,9 @@ mod tests {
                     "mode": "plan",
                     "settings": {
                         "id": "plan",
-                        "developer_instructions": "Return a plan first.",
+                        "developerInstructions": "Return a plan first.",
                         "model": "gpt-5.4",
-                        "reasoning_effort": "high"
+                        "reasoningEffort": "high"
                     }
                 })),
             })

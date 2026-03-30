@@ -38,6 +38,73 @@ const TURN_SEND_ALLOWED_FIELDS: &[&str] = &[
     "autonomyRequest",
 ];
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[allow(dead_code)]
+struct TurnSendAttachmentRequest {
+    id: String,
+    name: String,
+    mime_type: String,
+    size: u64,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TurnSendCollaborationModeSettingsRequest {
+    id: Option<String>,
+    developer_instructions: Option<String>,
+    model: Option<String>,
+    reasoning_effort: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct TurnSendCollaborationModeObjectRequest {
+    mode: Option<String>,
+    settings: Option<TurnSendCollaborationModeSettingsRequest>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+pub(super) enum TurnSendCollaborationModeRequest {
+    String(String),
+    Object(TurnSendCollaborationModeObjectRequest),
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[allow(dead_code)]
+pub(super) struct TurnSendPayloadRequest {
+    pub(super) workspace_id: String,
+    pub(super) thread_id: Option<String>,
+    pub(super) request_id: Option<String>,
+    pub(super) content: String,
+    pub(super) context_prefix: Option<String>,
+    pub(super) provider: Option<String>,
+    pub(super) model_id: Option<String>,
+    pub(super) reason_effort: Option<String>,
+    pub(super) service_tier: Option<String>,
+    #[serde(default)]
+    mission_mode: Option<String>,
+    pub(super) execution_profile_id: Option<String>,
+    pub(super) preferred_backend_ids: Option<Vec<String>>,
+    pub(super) access_mode: String,
+    pub(super) execution_mode: String,
+    pub(super) codex_bin: Option<String>,
+    pub(super) codex_args: Option<Vec<String>>,
+    queue: bool,
+    attachments: Vec<TurnSendAttachmentRequest>,
+    pub(super) collaboration_mode: Option<TurnSendCollaborationModeRequest>,
+    auto_drive: Option<AgentTaskAutoDriveState>,
+    autonomy_request: Option<Value>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct TurnSendRequestEnvelope {
+    pub(super) payload: TurnSendPayloadRequest,
+}
+
 fn reject_legacy_turn_send_nested_aliases(
     payload: &serde_json::Map<String, Value>,
 ) -> Result<(), RpcError> {
@@ -78,19 +145,16 @@ pub(super) fn validate_turn_send_payload_shape(
 }
 
 pub(super) fn parse_requested_collaboration_mode(
-    payload: &serde_json::Map<String, Value>,
+    collaboration_mode: Option<&TurnSendCollaborationModeRequest>,
 ) -> RequestedCollaborationMode {
-    let collaboration_mode = payload.get("collaborationMode");
     let normalized = collaboration_mode
         .and_then(|mode| match mode {
-            Value::String(value) => Some(value.as_str()),
-            Value::Object(mode) => mode.get("mode").and_then(Value::as_str).or_else(|| {
-                mode.get("settings")
-                    .and_then(Value::as_object)
-                    .and_then(|settings| settings.get("id"))
-                    .and_then(Value::as_str)
+            TurnSendCollaborationModeRequest::String(value) => Some(value.as_str()),
+            TurnSendCollaborationModeRequest::Object(mode) => mode.mode.as_deref().or_else(|| {
+                mode.settings
+                    .as_ref()
+                    .and_then(|settings| settings.id.as_deref())
             }),
-            _ => None,
         })
         .map(str::trim)
         .map(str::to_ascii_lowercase)
@@ -125,9 +189,8 @@ impl TurnExecutionMode {
 }
 
 pub(super) fn parse_turn_execution_mode(
-    payload: &serde_json::Map<String, Value>,
+    raw_value: Option<&str>,
 ) -> Result<TurnExecutionMode, RpcError> {
-    let raw_value = read_optional_string(payload, "executionMode");
     let Some(raw_value) = raw_value else {
         return Ok(TurnExecutionMode::Runtime);
     };
@@ -142,38 +205,94 @@ pub(super) fn parse_turn_execution_mode(
     }
 }
 
+pub(super) fn parse_turn_send_request(params: &Value) -> Result<TurnSendRequestEnvelope, RpcError> {
+    let params_object = as_object(params)?;
+    let payload = params_object
+        .get("payload")
+        .and_then(Value::as_object)
+        .ok_or_else(|| RpcError::invalid_params("Missing turn payload."))?;
+    validate_turn_send_payload_shape(payload)?;
+
+    let mut parsed: TurnSendRequestEnvelope = serde_json::from_value(params.clone())
+        .map_err(|error| RpcError::invalid_params(format!("Invalid turn payload: {error}")))?;
+    parsed.payload.workspace_id = parsed.payload.workspace_id.trim().to_string();
+    if parsed.payload.workspace_id.is_empty() {
+        return Err(RpcError::invalid_params("workspaceId is required."));
+    }
+    parsed.payload.content = parsed.payload.content.trim().to_string();
+    if parsed.payload.content.is_empty() {
+        return Err(RpcError::invalid_params("content is required."));
+    }
+    parsed.payload.thread_id = trim_optional_string(parsed.payload.thread_id);
+    parsed.payload.request_id = trim_optional_string(parsed.payload.request_id);
+    parsed.payload.context_prefix = trim_optional_string(parsed.payload.context_prefix);
+    parsed.payload.provider = trim_optional_string(parsed.payload.provider);
+    parsed.payload.model_id = trim_optional_string(parsed.payload.model_id);
+    parsed.payload.reason_effort = trim_optional_string(parsed.payload.reason_effort);
+    parsed.payload.service_tier = trim_optional_string(parsed.payload.service_tier);
+    parsed.payload.execution_profile_id = trim_optional_string(parsed.payload.execution_profile_id);
+    parsed.payload.codex_bin = trim_optional_string(parsed.payload.codex_bin);
+    parsed.payload.codex_args = parsed.payload.codex_args.map(|values| {
+        values
+            .into_iter()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>()
+    });
+    parsed.payload.preferred_backend_ids = parsed.payload.preferred_backend_ids.map(|values| {
+        values
+            .into_iter()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>()
+    });
+    parsed.payload.attachments = parsed
+        .payload
+        .attachments
+        .into_iter()
+        .filter_map(|mut attachment| {
+            attachment.id = attachment.id.trim().to_string();
+            attachment.name = attachment.name.trim().to_string();
+            attachment.mime_type = attachment.mime_type.trim().to_string();
+            if attachment.id.is_empty()
+                || attachment.name.is_empty()
+                || attachment.mime_type.is_empty()
+            {
+                return None;
+            }
+            Some(attachment)
+        })
+        .collect::<Vec<_>>();
+    Ok(parsed)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{
-        parse_requested_collaboration_mode, parse_turn_execution_mode,
-        validate_turn_send_payload_shape, RequestedCollaborationMode, TurnExecutionMode,
-    };
-    use serde_json::{json, Value};
+    use super::*;
+    use serde_json::{Value, json};
+
+    fn parse_collaboration_mode(value: Value) -> Option<TurnSendCollaborationModeRequest> {
+        serde_json::from_value(value).ok()
+    }
 
     #[test]
     fn parse_turn_execution_mode_defaults_to_runtime() {
-        let payload = serde_json::Map::new();
-        let parsed = parse_turn_execution_mode(&payload).expect("default execution mode");
+        let parsed = parse_turn_execution_mode(None).expect("default execution mode");
         assert_eq!(parsed, TurnExecutionMode::Runtime);
     }
 
     #[test]
     fn parse_turn_execution_mode_accepts_canonical_values() {
-        let payload = json!({"executionMode": "local-cli"});
-        let parsed = parse_turn_execution_mode(payload.as_object().expect("payload object"))
-            .expect("local cli mode");
+        let parsed = parse_turn_execution_mode(Some("local-cli")).expect("local cli mode");
         assert_eq!(parsed, TurnExecutionMode::LocalCli);
 
-        let payload = json!({"executionMode": "hybrid"});
-        let parsed = parse_turn_execution_mode(payload.as_object().expect("payload object"))
-            .expect("hybrid mode");
+        let parsed = parse_turn_execution_mode(Some("hybrid")).expect("hybrid mode");
         assert_eq!(parsed, TurnExecutionMode::Hybrid);
     }
 
     #[test]
     fn parse_turn_execution_mode_rejects_unknown_value() {
-        let payload = json!({"executionMode": "distributed"});
-        let error = parse_turn_execution_mode(payload.as_object().expect("payload object"))
+        let error = parse_turn_execution_mode(Some("distributed"))
             .expect_err("unsupported execution mode must fail");
         assert_eq!(error.code.as_str(), "INVALID_PARAMS");
         assert!(error.message.contains("Unsupported execution mode"));
@@ -182,8 +301,7 @@ mod tests {
     #[test]
     fn parse_turn_execution_mode_rejects_legacy_local_aliases() {
         for legacy_value in ["local", "localcli"] {
-            let payload = json!({ "executionMode": legacy_value });
-            let error = parse_turn_execution_mode(payload.as_object().expect("payload object"))
+            let error = parse_turn_execution_mode(Some(legacy_value))
                 .expect_err("legacy local alias should fail");
             assert_eq!(error.code.as_str(), "INVALID_PARAMS");
             assert!(error.message.contains("Unsupported execution mode"));
@@ -203,14 +321,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_turn_execution_mode_ignores_non_string_values() {
-        let payload =
-            serde_json::Map::from_iter([("executionMode".to_string(), Value::Bool(true))]);
-        let parsed = parse_turn_execution_mode(&payload).expect("non-string falls back to default");
-        assert_eq!(parsed, TurnExecutionMode::Runtime);
-    }
-
-    #[test]
     fn parse_requested_collaboration_mode_prefers_plan_mode() {
         let payload = json!({
             "collaborationMode": {
@@ -220,9 +330,10 @@ mod tests {
                 }
             }
         });
-        let payload = payload.as_object().expect("payload object");
         assert_eq!(
-            parse_requested_collaboration_mode(payload),
+            parse_requested_collaboration_mode(
+                parse_collaboration_mode(payload["collaborationMode"].clone()).as_ref()
+            ),
             RequestedCollaborationMode::Plan
         );
     }
@@ -237,9 +348,10 @@ mod tests {
                 }
             }
         });
-        let payload = payload.as_object().expect("payload object");
         assert_eq!(
-            parse_requested_collaboration_mode(payload),
+            parse_requested_collaboration_mode(
+                parse_collaboration_mode(payload["collaborationMode"].clone()).as_ref()
+            ),
             RequestedCollaborationMode::Chat
         );
     }
@@ -249,19 +361,74 @@ mod tests {
         let payload = json!({
             "collaborationMode": "chat"
         });
-        let payload = payload.as_object().expect("payload object");
         assert_eq!(
-            parse_requested_collaboration_mode(payload),
+            parse_requested_collaboration_mode(
+                parse_collaboration_mode(payload["collaborationMode"].clone()).as_ref()
+            ),
             RequestedCollaborationMode::Chat
         );
     }
 
     #[test]
     fn parse_requested_collaboration_mode_defaults_to_standard_when_missing() {
-        let payload = serde_json::Map::new();
         assert_eq!(
-            parse_requested_collaboration_mode(&payload),
+            parse_requested_collaboration_mode(None),
             RequestedCollaborationMode::Standard
+        );
+    }
+
+    #[test]
+    fn parse_turn_send_request_accepts_canonical_hot_path_payload() {
+        let parsed = parse_turn_send_request(&json!({
+            "payload": {
+                "workspaceId": "ws-1",
+                "threadId": null,
+                "requestId": "req-1",
+                "content": "Inspect the runtime boundary",
+                "contextPrefix": "context",
+                "provider": "openai",
+                "modelId": "gpt-5.4",
+                "reasonEffort": "high",
+                "serviceTier": "default",
+                "preferredBackendIds": ["backend-a"],
+                "accessMode": "on-request",
+                "executionMode": "runtime",
+                "queue": false,
+                "attachments": []
+            }
+        }))
+        .expect("canonical payload should parse");
+
+        assert_eq!(parsed.payload.workspace_id, "ws-1");
+        assert_eq!(parsed.payload.request_id.as_deref(), Some("req-1"));
+        assert_eq!(
+            parsed.payload.preferred_backend_ids.as_deref(),
+            Some(vec!["backend-a".to_string()].as_slice())
+        );
+    }
+
+    #[test]
+    fn parse_turn_send_request_rejects_snake_case_hot_path_payload() {
+        let error = parse_turn_send_request(&json!({
+            "payload": {
+                "workspace_id": "ws-1",
+                "thread_id": null,
+                "request_id": "req-1",
+                "content": "Inspect the runtime boundary",
+                "preferred_backend_ids": ["backend-a"],
+                "access_mode": "on-request",
+                "execution_mode": "runtime",
+                "queue": false,
+                "attachments": []
+            }
+        }))
+        .expect_err("snake_case payload should fail");
+
+        assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+        assert!(
+            error.message.contains("legacy alias fields"),
+            "unexpected message: {}",
+            error.message
         );
     }
 

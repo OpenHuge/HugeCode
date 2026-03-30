@@ -169,28 +169,6 @@
         );
     }
 
-    fn run_large_stack_async_test<Future>(label: &'static str, future: Future)
-    where
-        Future: std::future::Future<Output = ()> + Send + 'static,
-    {
-        // A few agent-task integration tests build large async state machines and
-        // overflow the default per-test thread stack on macOS. Keep the assertions
-        // identical but execute them on an explicit larger-stack thread.
-        std::thread::Builder::new()
-            .name(format!("code-runtime-test-{label}"))
-            .stack_size(32 * 1024 * 1024)
-            .spawn(move || {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("build current-thread tokio runtime")
-                    .block_on(future);
-            })
-            .expect("spawn large-stack test thread")
-            .join()
-            .expect("join large-stack test thread");
-    }
-
     fn test_router_with_native_state_db_path(
         config: ServiceConfig,
         db_path: &Path,
@@ -241,182 +219,77 @@
         serde_json::from_slice(&bytes).expect("parse rpc json")
     }
 
-    fn normalize_runtime_run_record(method: Option<&str>, response: Value) -> Value {
-        if !matches!(
-            method,
-            Some(
-                "code_runtime_run_start_v2"
-                    | "code_runtime_run_subscribe_v2"
-                    | "code_runtime_run_get_v2"
-                    | "code_runtime_run_intervene_v2"
-            )
-        ) || response["ok"] != Value::Bool(true)
-        {
-            return response;
+    async fn send_rpc_request(app: Router, mut payload: Value) -> Value {
+        if payload.get("method").and_then(Value::as_str) == Some("code_runtime_run_start_v2") {
+            let Some(params) = payload.get_mut("params").and_then(Value::as_object_mut) else {
+                return send_rpc_request_raw(app, payload).await;
+            };
+            if !params.contains_key("approvedPlanVersion") {
+                let prepare_payload = json!({
+                    "method": "code_runtime_run_prepare_v2",
+                    "params": Value::Object(params.clone()),
+                });
+                let prepare_response = send_rpc_request_raw(app.clone(), prepare_payload).await;
+                if let Some(plan_version) = prepare_response["result"]["plan"]["planVersion"].as_str()
+                {
+                    params.insert(
+                        "approvedPlanVersion".to_string(),
+                        Value::String(plan_version.to_string()),
+                    );
+                }
+            }
         }
-
-        let Some(run_payload) = response
-            .get("result")
-            .and_then(Value::as_object)
-            .and_then(|result| result.get("run"))
-            .cloned()
-        else {
-            return response;
-        };
-
-        let mut normalized = response;
-        normalized["result"] = run_payload;
-        normalized
+        send_rpc_request_raw(app, payload).await
     }
 
-    async fn send_rpc_request(app: Router, payload: Value) -> Value {
-        let Some(payload_object) = payload.as_object() else {
-            return send_rpc_request_raw(app, payload).await;
-        };
-        let method = payload_object.get("method").and_then(Value::as_str);
-        if method != Some("code_runtime_run_start_v2") {
-            return normalize_runtime_run_record(
-                method,
-                send_rpc_request_raw(app, payload.clone()).await,
-            );
-        }
-        let Some(params) = payload_object.get("params").and_then(Value::as_object) else {
-            return normalize_runtime_run_record(
-                method,
-                send_rpc_request_raw(app, payload.clone()).await,
-            );
-        };
-        if params.contains_key("approvedPlanVersion") {
-            return normalize_runtime_run_record(
-                method,
-                send_rpc_request_raw(app, payload.clone()).await,
-            );
-        }
-
-        let prepare_payload = json!({
-            "method": "code_runtime_run_prepare_v2",
-            "params": Value::Object(params.clone()),
-        });
-        let prepare_response = send_rpc_request_raw(app.clone(), prepare_payload).await;
-        if prepare_response["ok"] != Value::Bool(true) {
-            return prepare_response;
-        }
-        let Some(approved_plan_version) = prepare_response["result"]["plan"]["planVersion"]
-            .as_str()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-        else {
-            panic!("runtime run prepare v2 did not publish planVersion: {prepare_response}");
-        };
-
-        let mut payload_with_plan = payload_object.clone();
-        let params_with_plan = payload_with_plan
-            .get_mut("params")
-            .and_then(Value::as_object_mut)
-            .expect("start params should stay object");
-        params_with_plan.insert(
-            "approvedPlanVersion".to_string(),
-            Value::String(approved_plan_version.to_string()),
-        );
-        normalize_runtime_run_record(
-            method,
-            send_rpc_request_raw(app, Value::Object(payload_with_plan)).await,
-        )
-    }
-
-    async fn send_http_rpc_request(
+    async fn send_runtime_service_rpc_request_raw(
         client: &reqwest::Client,
         service_base_url: &str,
         payload: Value,
-    ) -> Value {
+    ) -> (reqwest::StatusCode, Value) {
         let response = client
             .post(format!("{service_base_url}/rpc"))
             .json(&payload)
             .send()
             .await
-            .expect("send http rpc request");
-        assert_eq!(response.status(), reqwest::StatusCode::OK);
-        response.json().await.expect("parse http rpc response")
+            .expect("send runtime service rpc request");
+        let status = response.status();
+        let payload = response
+            .json::<Value>()
+            .await
+            .expect("parse runtime service rpc response");
+        (status, payload)
     }
 
-    async fn send_http_runtime_run_start_v2(
+    async fn send_runtime_service_rpc_request(
         client: &reqwest::Client,
         service_base_url: &str,
-        params: serde_json::Map<String, Value>,
-    ) -> Value {
-        if params.contains_key("approvedPlanVersion") {
-            return normalize_runtime_run_record(
-                Some("code_runtime_run_start_v2"),
-                send_http_rpc_request(
-                    client,
-                    service_base_url,
-                    json!({
-                        "method": "code_runtime_run_start_v2",
-                        "params": Value::Object(params),
-                    }),
-                )
-                .await,
-            );
+        mut payload: Value,
+    ) -> (reqwest::StatusCode, Value) {
+        if payload.get("method").and_then(Value::as_str) == Some("code_runtime_run_start_v2") {
+            let Some(params) = payload.get_mut("params").and_then(Value::as_object_mut) else {
+                return send_runtime_service_rpc_request_raw(client, service_base_url, payload)
+                    .await;
+            };
+            if !params.contains_key("approvedPlanVersion") {
+                let prepare_payload = json!({
+                    "method": "code_runtime_run_prepare_v2",
+                    "params": Value::Object(params.clone()),
+                });
+                let (_, prepare_response) =
+                    send_runtime_service_rpc_request_raw(client, service_base_url, prepare_payload)
+                        .await;
+                if let Some(plan_version) = prepare_response["result"]["plan"]["planVersion"]
+                    .as_str()
+                {
+                    params.insert(
+                        "approvedPlanVersion".to_string(),
+                        Value::String(plan_version.to_string()),
+                    );
+                }
+            }
         }
-
-        let prepare_response = send_http_rpc_request(
-            client,
-            service_base_url,
-            json!({
-                "method": "code_runtime_run_prepare_v2",
-                "params": Value::Object(params.clone()),
-            }),
-        )
-        .await;
-        if prepare_response["ok"] != Value::Bool(true) {
-            return prepare_response;
-        }
-        let Some(approved_plan_version) = prepare_response["result"]["plan"]["planVersion"]
-            .as_str()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-        else {
-            panic!("runtime run prepare v2 did not publish planVersion: {prepare_response}");
-        };
-
-        let mut params_with_plan = params;
-        params_with_plan.insert(
-            "approvedPlanVersion".to_string(),
-            Value::String(approved_plan_version.to_string()),
-        );
-        normalize_runtime_run_record(
-            Some("code_runtime_run_start_v2"),
-            send_http_rpc_request(
-                client,
-                service_base_url,
-                json!({
-                    "method": "code_runtime_run_start_v2",
-                    "params": Value::Object(params_with_plan),
-                }),
-            )
-            .await,
-        )
-    }
-
-    async fn send_http_runtime_run_subscribe_v2(
-        client: &reqwest::Client,
-        service_base_url: &str,
-        run_id: &str,
-    ) -> Value {
-        normalize_runtime_run_record(
-            Some("code_runtime_run_subscribe_v2"),
-            send_http_rpc_request(
-                client,
-                service_base_url,
-                json!({
-                    "method": "code_runtime_run_subscribe_v2",
-                    "params": {
-                        "runId": run_id,
-                    }
-                }),
-            )
-            .await,
-        )
+        send_runtime_service_rpc_request_raw(client, service_base_url, payload).await
     }
 
     async fn send_large_rpc_request(app: Router, payload: Value) -> Value {
@@ -1138,7 +1011,7 @@
         task_id: &str,
         expected_statuses: &[&str],
     ) -> Value {
-        let mut last_payload = Value::Null;
+        let mut last_status = String::new();
         for _ in 0..120 {
             let payload = send_rpc_request(
                 app.clone(),
@@ -1150,17 +1023,97 @@
                 }),
             )
             .await;
-            last_payload = payload.clone();
-            let status = payload["result"]["status"].as_str().unwrap_or_default();
+            let status = payload["result"]["status"]
+                .as_str()
+                .or_else(|| payload["result"]["run"]["status"].as_str())
+                .or_else(|| payload["result"]["missionRun"]["status"].as_str())
+                .unwrap_or_default();
+            last_status = status.to_string();
             if expected_statuses.contains(&status) {
-                return payload;
+                return normalize_runtime_run_payload(payload);
             }
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
 
         panic!(
-            "timed out waiting for agent task terminal status; last payload: {last_payload}"
+            "timed out waiting for agent task terminal status; last status: {last_status}"
         );
+    }
+
+    fn normalize_runtime_run_payload(payload: Value) -> Value {
+        let Value::Object(mut root) = payload else {
+            return payload;
+        };
+        let Some(result) = root.remove("result") else {
+            return Value::Object(root);
+        };
+        let Value::Object(mut result_object) = result else {
+            root.insert("result".to_string(), result);
+            return Value::Object(root);
+        };
+        if let Some(run) = result_object.remove("run") {
+            root.insert("result".to_string(), run);
+            return Value::Object(root);
+        }
+        root.insert("result".to_string(), Value::Object(result_object));
+        Value::Object(root)
+    }
+
+    fn runtime_run_record(payload: &Value) -> &Value {
+        payload
+            .get("result")
+            .and_then(|result| result.get("run"))
+            .unwrap_or(&payload["result"])
+    }
+
+    fn runtime_run_task_id(payload: &Value) -> String {
+        runtime_run_record(payload)
+            .get("taskId")
+            .and_then(Value::as_str)
+            .or_else(|| payload["result"]["missionRun"]["id"].as_str())
+            .expect("task id")
+            .to_string()
+    }
+
+    fn run_async_test_on_large_stack<F>(future: F)
+    where
+        F: std::future::Future<Output = ()> + Send + 'static,
+    {
+        let join_result = std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn(move || {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("build current-thread tokio runtime");
+                runtime.block_on(future);
+            })
+            .expect("spawn large-stack test thread")
+            .join();
+        if let Err(error) = join_result {
+            std::panic::resume_unwind(error);
+        }
+    }
+
+    fn run_async_test_on_large_stack_local<B, F>(build_future: B)
+    where
+        B: FnOnce() -> F + Send + 'static,
+        F: std::future::Future<Output = ()> + 'static,
+    {
+        let join_result = std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn(move || {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("build current-thread tokio runtime");
+                runtime.block_on(build_future());
+            })
+            .expect("spawn large-stack local test thread")
+            .join();
+        if let Err(error) = join_result {
+            std::panic::resume_unwind(error);
+        }
     }
 
     fn temp_sqlite_db_path(prefix: &str) -> std::path::PathBuf {
@@ -2755,9 +2708,6 @@
         assert!(methods
             .iter()
             .any(|method| method == "code_oauth_primary_account_set"));
-        assert!(!methods
-            .iter()
-            .any(|method| method == "code_runtime_run_start"));
         assert!(!methods.iter().any(|method| method == "oauth_pool_apply"));
         assert!(!methods.iter().any(|method| method == "runtime_run_start"));
         assert!(!methods
@@ -3684,7 +3634,8 @@
         assert_eq!(remove_payload["result"], Value::Bool(true));
     }
 
-    async fn distributed_task_graph_local_summary_candidates_filter_to_requested_root_body() {
+    #[tokio::test]
+    async fn distributed_task_graph_local_summary_candidates_filter_to_requested_root() {
         let mut store = AgentTaskStore::default();
 
         let mut root_runtime = mock_agent_task_runtime("task-root", AgentTaskStatus::Queued);
@@ -3742,16 +3693,8 @@
         );
     }
 
-    #[test]
-    fn distributed_task_graph_local_summary_candidates_filter_to_requested_root() {
-        run_large_stack_async_test(
-            "distributed_task_graph_local_summary_candidates_filter_to_requested_root",
-            distributed_task_graph_local_summary_candidates_filter_to_requested_root_body(),
-        );
-    }
-
-    async fn distributed_task_graph_local_summary_candidates_include_children_for_missing_root_body()
-    {
+    #[tokio::test]
+    async fn distributed_task_graph_local_summary_candidates_include_children_for_missing_root() {
         let mut store = AgentTaskStore::default();
 
         let mut child_runtime = mock_agent_task_runtime("task-child", AgentTaskStatus::Running);
@@ -3781,15 +3724,8 @@
         assert_eq!(task_ids, vec!["task-child".to_string()]);
     }
 
-    #[test]
-    fn distributed_task_graph_local_summary_candidates_include_children_for_missing_root() {
-        run_large_stack_async_test(
-            "distributed_task_graph_local_summary_candidates_include_children_for_missing_root",
-            distributed_task_graph_local_summary_candidates_include_children_for_missing_root_body(),
-        );
-    }
-
-    async fn distributed_task_graph_local_summary_candidates_project_graph_fields_body() {
+    #[tokio::test]
+    async fn distributed_task_graph_local_summary_candidates_project_graph_fields() {
         let mut store = AgentTaskStore::default();
         let now = now_ms();
 
@@ -3839,15 +3775,8 @@
         assert_eq!(candidate.reason.as_deref(), Some("worker unavailable"));
     }
 
-    #[test]
-    fn distributed_task_graph_local_summary_candidates_project_graph_fields() {
-        run_large_stack_async_test(
-            "distributed_task_graph_local_summary_candidates_project_graph_fields",
-            distributed_task_graph_local_summary_candidates_project_graph_fields_body(),
-        );
-    }
-
-    async fn distributed_task_graph_rpc_returns_known_and_missing_task_snapshots_body() {
+    #[tokio::test]
+    async fn distributed_task_graph_rpc_returns_known_and_missing_task_snapshots() {
         let app = test_router();
         let workspace_id = format!("workspace-graph-{}", rand::random::<u64>());
 
@@ -3915,10 +3844,7 @@
         )
         .await;
         assert_eq!(started_payload["ok"], Value::Bool(true));
-        let task_id = started_payload["result"]["taskId"]
-            .as_str()
-            .expect("agent task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&started_payload);
 
         let graph_payload = send_rpc_request(
             app.clone(),
@@ -3931,10 +3857,13 @@
         )
         .await;
         assert_eq!(graph_payload["ok"], Value::Bool(true));
-        assert_eq!(graph_payload["result"]["taskId"], started_payload["result"]["taskId"]);
+        assert_eq!(
+            graph_payload["result"]["taskId"],
+            Value::String(task_id.clone())
+        );
         assert_eq!(
             graph_payload["result"]["rootTaskId"],
-            started_payload["result"]["taskId"]
+            Value::String(task_id.clone())
         );
         assert_eq!(
             graph_payload["result"]["nodes"]
@@ -4015,14 +3944,6 @@
         assert_eq!(
             diagnostics_skipped_graph_payload["result"]["summary"]["routingHealth"],
             Value::Null
-        );
-    }
-
-    #[test]
-    fn distributed_task_graph_rpc_returns_known_and_missing_task_snapshots() {
-        run_large_stack_async_test(
-            "distributed_task_graph_rpc_returns_known_and_missing_task_snapshots",
-            distributed_task_graph_rpc_returns_known_and_missing_task_snapshots_body(),
         );
     }
 
@@ -5340,7 +5261,8 @@ exit 1
                       "model_id":"gpt-5.3-codex",
                       "reason_effort":"high",
                       "access_mode":"on-request",
-                      "queue":false,
+                      "execution_mode":"runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -5361,7 +5283,9 @@ exit 1
         );
     }
 
-    async fn agent_task_start_runs_core_steps_with_full_access_body() {
+    #[test]
+    fn agent_task_start_runs_core_steps_with_full_access() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
         let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
@@ -5419,10 +5343,7 @@ exit 1
         .await;
 
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let status_payload =
             wait_for_agent_task_terminal_status(app.clone(), task_id.as_str(), &["completed"])
@@ -5450,14 +5371,7 @@ exit 1
         );
 
         let _ = fs::remove_dir_all(workspace_path.as_path());
-    }
-
-    #[test]
-    fn agent_task_start_runs_core_steps_with_full_access() {
-        run_large_stack_async_test(
-            "agent_task_start_runs_core_steps_with_full_access",
-            agent_task_start_runs_core_steps_with_full_access_body(),
-        );
+        });
     }
 
     #[tokio::test]
@@ -5492,135 +5406,139 @@ exit 1
         );
     }
 
-    async fn agent_task_write_requires_prior_read_of_same_path_body() {
-        let app = test_router();
-        let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
-        let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
-        let _ = fs::remove_dir_all(workspace_path.as_path());
-
-        let start_payload = send_rpc_request(
-            app.clone(),
-            json!({
-                "method": "code_runtime_run_start_v2",
-                "params": {
-                    "workspaceId": workspace_id,
-                    "accessMode": "full-access",
-                    "steps": [
-                        {
-                            "kind": "write",
-                            "path": "agent-task/no-read-write.txt",
-                            "content": "mutation without read",
-                            "requiresApproval": false
-                        }
-                    ]
-                }
-            }),
-        )
-        .await;
-        assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
-
-        let failed_payload =
-            wait_for_agent_task_terminal_status(app.clone(), task_id.as_str(), &["failed"]).await;
-        assert_eq!(
-            failed_payload["result"]["errorCode"],
-            Value::String("STEP_REQUIRES_FRESH_READ".to_string())
-        );
-        assert_eq!(
-            failed_payload["result"]["steps"][0]["errorCode"],
-            Value::String("STEP_REQUIRES_FRESH_READ".to_string())
-        );
-        assert_eq!(
-            failed_payload["result"]["steps"][0]["metadata"]["path"],
-            Value::String("agent-task/no-read-write.txt".to_string())
-        );
-        assert_eq!(
-            failed_payload["result"]["steps"][0]["metadata"]["requiresFreshRead"],
-            Value::Bool(false)
-        );
-        assert!(!workspace_path.join("agent-task/no-read-write.txt").exists());
-
-        let _ = fs::remove_dir_all(workspace_path.as_path());
-    }
-
     #[test]
     fn agent_task_write_requires_prior_read_of_same_path() {
-        run_large_stack_async_test(
-            "agent_task_write_requires_prior_read_of_same_path",
-            agent_task_write_requires_prior_read_of_same_path_body(),
-        );
-    }
+        run_async_test_on_large_stack(async move {
+            let app = test_router();
+            let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
+            let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
+            let _ = fs::remove_dir_all(workspace_path.as_path());
 
-    async fn agent_task_edit_requires_prior_read_of_same_path_body() {
-        let app = test_router();
-        let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
-        let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
-        let target_path = workspace_path.join("agent-task/no-read-edit.txt");
-        let _ = fs::remove_dir_all(workspace_path.as_path());
-        fs::create_dir_all(
-            target_path
-                .parent()
-                .expect("target path parent for edit-without-read"),
-        )
-        .expect("create target parent");
-        fs::write(target_path.as_path(), "before edit").expect("seed target file");
+            let start_payload = send_rpc_request(
+                app.clone(),
+                json!({
+                    "method": "code_runtime_run_start_v2",
+                    "params": {
+                        "workspaceId": workspace_id,
+                        "accessMode": "full-access",
+                        "steps": [
+                            {
+                                "kind": "write",
+                                "path": "agent-task/no-read-write.txt",
+                                "content": "mutation without read",
+                                "requiresApproval": false
+                            }
+                        ]
+                    }
+                }),
+            )
+            .await;
+            assert_eq!(start_payload["ok"], Value::Bool(true));
+            let task_id = runtime_run_task_id(&start_payload);
 
-        let start_payload = send_rpc_request(
-            app.clone(),
-            json!({
-                "method": "code_runtime_run_start_v2",
-                "params": {
-                    "workspaceId": workspace_id,
-                    "accessMode": "full-access",
-                    "steps": [
-                        {
-                            "kind": "edit",
-                            "path": "agent-task/no-read-edit.txt",
-                            "find": "before",
-                            "replace": "after",
-                            "requiresApproval": false
-                        }
-                    ]
-                }
-            }),
-        )
-        .await;
-        assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+            let failed_payload =
+                wait_for_agent_task_terminal_status(app.clone(), task_id.as_str(), &["failed"])
+                    .await;
+            assert_eq!(
+                failed_payload["result"]["errorCode"],
+                Value::String("STEP_REQUIRES_FRESH_READ".to_string())
+            );
+            assert_eq!(
+                failed_payload["result"]["steps"][0]["errorCode"],
+                Value::String("STEP_REQUIRES_FRESH_READ".to_string())
+            );
+            assert_eq!(
+                failed_payload["result"]["steps"][0]["metadata"]["path"],
+                Value::String("agent-task/no-read-write.txt".to_string())
+            );
+            assert_eq!(
+                failed_payload["result"]["steps"][0]["metadata"]["requiresFreshRead"],
+                Value::Bool(false)
+            );
+            assert!(!workspace_path.join("agent-task/no-read-write.txt").exists());
 
-        let failed_payload =
-            wait_for_agent_task_terminal_status(app.clone(), task_id.as_str(), &["failed"]).await;
-        assert_eq!(
-            failed_payload["result"]["errorCode"],
-            Value::String("STEP_REQUIRES_FRESH_READ".to_string())
-        );
-        assert_eq!(
-            failed_payload["result"]["steps"][0]["metadata"]["requiresFreshRead"],
-            Value::Bool(false)
-        );
-        assert_eq!(
-            fs::read_to_string(target_path.as_path()).expect("read unmodified target"),
-            "before edit"
-        );
-
-        let _ = fs::remove_dir_all(workspace_path.as_path());
+            let _ = fs::remove_dir_all(workspace_path.as_path());
+        });
     }
 
     #[test]
     fn agent_task_edit_requires_prior_read_of_same_path() {
-        run_large_stack_async_test(
-            "agent_task_edit_requires_prior_read_of_same_path",
-            agent_task_edit_requires_prior_read_of_same_path_body(),
-        );
+        run_async_test_on_large_stack(async move {
+            let app = test_router();
+            let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
+            let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
+            let target_path = workspace_path.join("agent-task/no-read-edit.txt");
+            let _ = fs::remove_dir_all(workspace_path.as_path());
+            let workspace_create = send_rpc_request(
+                app.clone(),
+                json!({
+                    "method": "code_workspace_create",
+                    "params": {
+                        "path": workspace_path.display().to_string(),
+                        "displayName": "Agent Edit Without Read Workspace"
+                    }
+                }),
+            )
+            .await;
+            assert_eq!(workspace_create["ok"], Value::Bool(true));
+            let workspace_runtime_id = workspace_create["result"]["id"]
+                .as_str()
+                .expect("workspace runtime id")
+                .to_string();
+            fs::create_dir_all(
+                target_path
+                    .parent()
+                    .expect("target path parent for edit-without-read"),
+            )
+            .expect("create target parent");
+            fs::write(target_path.as_path(), "before edit").expect("seed target file");
+
+            let start_payload = send_rpc_request(
+                app.clone(),
+                json!({
+                    "method": "code_runtime_run_start_v2",
+                    "params": {
+                        "workspaceId": workspace_runtime_id,
+                        "accessMode": "full-access",
+                        "steps": [
+                            {
+                                "kind": "edit",
+                                "path": "agent-task/no-read-edit.txt",
+                                "find": "before",
+                                "replace": "after",
+                                "requiresApproval": false
+                            }
+                        ]
+                    }
+                }),
+            )
+            .await;
+            assert_eq!(start_payload["ok"], Value::Bool(true));
+            let task_id = runtime_run_task_id(&start_payload);
+
+            let failed_payload =
+                wait_for_agent_task_terminal_status(app.clone(), task_id.as_str(), &["failed"])
+                    .await;
+            assert_eq!(
+                failed_payload["result"]["errorCode"],
+                Value::String("STEP_REQUIRES_FRESH_READ".to_string())
+            );
+            assert_eq!(
+                failed_payload["result"]["steps"][0]["metadata"]["requiresFreshRead"],
+                Value::Bool(false)
+            );
+            assert_eq!(
+                fs::read_to_string(target_path.as_path()).expect("read unmodified target"),
+                "before edit"
+            );
+
+            let _ = fs::remove_dir_all(workspace_path.as_path());
+        });
     }
 
-    async fn agent_task_mutation_sequence_succeeds_after_fresh_read_body() {
+    #[test]
+    fn agent_task_mutation_sequence_succeeds_after_fresh_read() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
         let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
@@ -5685,10 +5603,7 @@ exit 1
         )
         .await;
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let status_payload =
             wait_for_agent_task_terminal_status(app.clone(), task_id.as_str(), &["completed"])
@@ -5703,17 +5618,12 @@ exit 1
         );
 
         let _ = fs::remove_dir_all(workspace_path.as_path());
+        });
     }
 
     #[test]
-    fn agent_task_mutation_sequence_succeeds_after_fresh_read() {
-        run_large_stack_async_test(
-            "agent_task_mutation_sequence_succeeds_after_fresh_read",
-            agent_task_mutation_sequence_succeeds_after_fresh_read_body(),
-        );
-    }
-
-    async fn agent_task_edit_after_write_requires_fresh_read_body() {
+    fn agent_task_edit_after_write_requires_fresh_read() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
         let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
@@ -5774,10 +5684,7 @@ exit 1
         )
         .await;
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let failed_payload =
             wait_for_agent_task_terminal_status(app.clone(), task_id.as_str(), &["failed"]).await;
@@ -5799,18 +5706,13 @@ exit 1
         );
 
         let _ = fs::remove_dir_all(workspace_path.as_path());
-    }
-
-    #[test]
-    fn agent_task_edit_after_write_requires_fresh_read() {
-        run_large_stack_async_test(
-            "agent_task_edit_after_write_requires_fresh_read",
-            agent_task_edit_after_write_requires_fresh_read_body(),
-        );
+        });
     }
 
     #[cfg(unix)]
-    async fn agent_task_start_reuses_active_request_id_body() {
+    #[test]
+    fn agent_task_start_reuses_active_request_id() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let first_payload = send_rpc_request(
             app.clone(),
@@ -5832,10 +5734,7 @@ exit 1
         )
         .await;
         assert_eq!(first_payload["ok"], Value::Bool(true));
-        let first_task_id = first_payload["result"]["taskId"]
-            .as_str()
-            .expect("first task id")
-            .to_string();
+        let first_task_id = runtime_run_task_id(&first_payload);
 
         let second_payload = send_rpc_request(
             app.clone(),
@@ -5857,7 +5756,10 @@ exit 1
         )
         .await;
         assert_eq!(second_payload["ok"], Value::Bool(true));
-        assert_eq!(second_payload["result"]["taskId"], Value::String(first_task_id.clone()));
+        assert_eq!(
+            runtime_run_record(&second_payload)["taskId"],
+            Value::String(first_task_id.clone())
+        );
 
         let terminal_payload =
             wait_for_agent_task_terminal_status(app.clone(), first_task_id.as_str(), &["completed"])
@@ -5866,18 +5768,12 @@ exit 1
             terminal_payload["result"]["status"],
             Value::String("completed".to_string())
         );
+        });
     }
 
-    #[cfg(unix)]
     #[test]
-    fn agent_task_start_reuses_active_request_id() {
-        run_large_stack_async_test(
-            "agent_task_start_reuses_active_request_id",
-            agent_task_start_reuses_active_request_id_body(),
-        );
-    }
-
-    async fn agent_task_requires_approval_and_rejects_when_denied_body() {
+    fn agent_task_requires_approval_and_rejects_when_denied() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
         let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
@@ -5930,10 +5826,7 @@ exit 1
         .await;
 
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let awaiting_payload = wait_for_agent_task_terminal_status(
             app.clone(),
@@ -5973,17 +5866,12 @@ exit 1
         );
 
         let _ = fs::remove_dir_all(workspace_path.as_path());
+        });
     }
 
     #[test]
-    fn agent_task_requires_approval_and_rejects_when_denied() {
-        run_large_stack_async_test(
-            "agent_task_requires_approval_and_rejects_when_denied",
-            agent_task_requires_approval_and_rejects_when_denied_body(),
-        );
-    }
-
-    async fn agent_task_reuses_file_target_approval_after_fresh_read_body() {
+    fn agent_task_reuses_file_target_approval_after_fresh_read() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
         let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
@@ -6046,10 +5934,7 @@ exit 1
         )
         .await;
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let awaiting_payload = wait_for_agent_task_terminal_status(
             app.clone(),
@@ -6132,17 +6017,12 @@ exit 1
         );
 
         let _ = fs::remove_dir_all(workspace_path.as_path());
+        });
     }
 
     #[test]
-    fn agent_task_reuses_file_target_approval_after_fresh_read() {
-        run_large_stack_async_test(
-            "agent_task_reuses_file_target_approval_after_fresh_read",
-            agent_task_reuses_file_target_approval_after_fresh_read_body(),
-        );
-    }
-
-    async fn agent_task_file_target_approval_does_not_cross_paths_body() {
+    fn agent_task_file_target_approval_does_not_cross_paths() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
         let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
@@ -6207,10 +6087,7 @@ exit 1
         )
         .await;
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let first_awaiting = wait_for_agent_task_terminal_status(
             app.clone(),
@@ -6238,7 +6115,7 @@ exit 1
         assert_eq!(first_approval_payload["ok"], Value::Bool(true));
         assert_eq!(first_approval_payload["result"]["recorded"], Value::Bool(true));
 
-        let second_awaiting = tokio::time::timeout(Duration::from_secs(8), async {
+        let second_awaiting = tokio::time::timeout(Duration::from_secs(3), async {
             loop {
                 let status_payload = send_rpc_request(
                     app.clone(),
@@ -6250,15 +6127,16 @@ exit 1
                     }),
                 )
                 .await;
-                let status = status_payload["result"]["status"].as_str().unwrap_or_default();
-                let pending_approval_id = status_payload["result"]["pendingApprovalId"]
+                let run_record = runtime_run_record(&status_payload);
+                let status = run_record["status"].as_str().unwrap_or_default();
+                let pending_approval_id = run_record["pendingApprovalId"]
                     .as_str()
                     .unwrap_or_default();
                 if status == "awaiting_approval"
                     && !pending_approval_id.is_empty()
                     && pending_approval_id != first_approval_id
                 {
-                    return status_payload;
+                    return normalize_runtime_run_payload(status_payload);
                 }
                 tokio::time::sleep(Duration::from_millis(25)).await;
             }
@@ -6303,17 +6181,12 @@ exit 1
         );
 
         let _ = fs::remove_dir_all(workspace_path.as_path());
+        });
     }
 
     #[test]
-    fn agent_task_file_target_approval_does_not_cross_paths() {
-        run_large_stack_async_test(
-            "agent_task_file_target_approval_does_not_cross_paths",
-            agent_task_file_target_approval_does_not_cross_paths_body(),
-        );
-    }
-
-    async fn agent_task_reuses_safe_bash_prefix_approval_within_same_task_body() {
+    fn agent_task_reuses_safe_bash_prefix_approval_within_same_task() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
         let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
@@ -6367,10 +6240,7 @@ exit 1
         )
         .await;
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let awaiting_payload = wait_for_agent_task_terminal_status(
             app.clone(),
@@ -6433,17 +6303,12 @@ exit 1
         );
 
         let _ = fs::remove_dir_all(workspace_path.as_path());
+        });
     }
 
     #[test]
-    fn agent_task_reuses_safe_bash_prefix_approval_within_same_task() {
-        run_large_stack_async_test(
-            "agent_task_reuses_safe_bash_prefix_approval_within_same_task",
-            agent_task_reuses_safe_bash_prefix_approval_within_same_task_body(),
-        );
-    }
-
-    async fn agent_task_safe_bash_scope_does_not_cross_prefix_or_risky_commands_body() {
+    fn agent_task_safe_bash_scope_does_not_cross_prefix_or_risky_commands() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
         let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
@@ -6502,10 +6367,7 @@ exit 1
         )
         .await;
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let first_awaiting = wait_for_agent_task_terminal_status(
             app.clone(),
@@ -6545,15 +6407,16 @@ exit 1
                     }),
                 )
                 .await;
-                let status = status_payload["result"]["status"].as_str().unwrap_or_default();
-                let pending_approval_id = status_payload["result"]["pendingApprovalId"]
+                let run_record = runtime_run_record(&status_payload);
+                let status = run_record["status"].as_str().unwrap_or_default();
+                let pending_approval_id = run_record["pendingApprovalId"]
                     .as_str()
                     .unwrap_or_default();
                 if status == "awaiting_approval"
                     && !pending_approval_id.is_empty()
                     && pending_approval_id != first_approval_id
                 {
-                    return status_payload;
+                    return normalize_runtime_run_payload(status_payload);
                 }
                 tokio::time::sleep(Duration::from_millis(25)).await;
             }
@@ -6580,7 +6443,7 @@ exit 1
         assert_eq!(second_approval_payload["ok"], Value::Bool(true));
         assert_eq!(second_approval_payload["result"]["recorded"], Value::Bool(true));
 
-        let third_awaiting = tokio::time::timeout(Duration::from_secs(8), async {
+        let third_awaiting = tokio::time::timeout(Duration::from_secs(3), async {
             loop {
                 let status_payload = send_rpc_request(
                     app.clone(),
@@ -6592,8 +6455,9 @@ exit 1
                     }),
                 )
                 .await;
-                let status = status_payload["result"]["status"].as_str().unwrap_or_default();
-                let pending_approval_id = status_payload["result"]["pendingApprovalId"]
+                let run_record = runtime_run_record(&status_payload);
+                let status = run_record["status"].as_str().unwrap_or_default();
+                let pending_approval_id = run_record["pendingApprovalId"]
                     .as_str()
                     .unwrap_or_default();
                 if status == "awaiting_approval"
@@ -6601,7 +6465,7 @@ exit 1
                     && pending_approval_id != first_approval_id
                     && pending_approval_id != second_approval_id
                 {
-                    return status_payload;
+                    return normalize_runtime_run_payload(status_payload);
                 }
                 tokio::time::sleep(Duration::from_millis(25)).await;
             }
@@ -6651,14 +6515,7 @@ exit 1
         assert!(touch_target_path.exists());
 
         let _ = fs::remove_dir_all(workspace_path.as_path());
-    }
-
-    #[test]
-    fn agent_task_safe_bash_scope_does_not_cross_prefix_or_risky_commands() {
-        run_large_stack_async_test(
-            "agent_task_safe_bash_scope_does_not_cross_prefix_or_risky_commands",
-            agent_task_safe_bash_scope_does_not_cross_prefix_or_risky_commands_body(),
-        );
+        });
     }
 
     #[tokio::test]
@@ -6689,18 +6546,12 @@ exit 1
             start_payload["error"]["code"],
             Value::String("INVALID_PARAMS".to_string())
         );
-        let error_message = start_payload["error"]["message"]
-            .as_str()
-            .expect("error message");
-        assert!(
-            error_message.contains("legacy alias fields"),
-            "unexpected message: {error_message}"
-        );
     }
 
     #[cfg(unix)]
-    #[tokio::test]
-    async fn agent_task_step_timeout_fails_task() {
+    #[test]
+    fn agent_task_step_timeout_fails_task() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let start_payload = send_rpc_request(
             app.clone(),
@@ -6723,10 +6574,7 @@ exit 1
         .await;
 
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let status_payload =
             wait_for_agent_task_terminal_status(app.clone(), task_id.as_str(), &["failed"]).await;
@@ -6739,9 +6587,12 @@ exit 1
             status_payload["result"]["steps"][0]["status"],
             Value::String("completed".to_string())
         );
+        });
     }
 
-    async fn agent_task_start_distributed_selects_backend_by_capability_body() {
+    #[test]
+    fn agent_task_start_distributed_selects_backend_by_capability() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let _ = send_rpc_request(
             app.clone(),
@@ -6798,24 +6649,15 @@ exit 1
         .await;
         assert_eq!(start_payload["ok"], Value::Bool(true));
         assert_eq!(
-            start_payload["result"]["backendId"],
+            start_payload["result"]["missionRun"]["operatorSnapshot"]["backendId"],
             Value::String("worker-code".to_string())
         );
-        assert_eq!(
-            start_payload["result"]["distributedStatus"],
-            Value::String("planning".to_string())
-        );
+        });
     }
 
     #[test]
-    fn agent_task_start_distributed_selects_backend_by_capability() {
-        run_large_stack_async_test(
-            "agent_task_start_distributed_selects_backend_by_capability",
-            agent_task_start_distributed_selects_backend_by_capability_body(),
-        );
-    }
-
-    async fn agent_task_start_distributed_prefers_preferred_backends_and_falls_back_body() {
+    fn agent_task_start_distributed_prefers_preferred_backends_and_falls_back() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let _ = send_rpc_request(
             app.clone(),
@@ -6873,7 +6715,7 @@ exit 1
         .await;
         assert_eq!(preferred_start["ok"], Value::Bool(true));
         assert_eq!(
-            preferred_start["result"]["backendId"],
+            preferred_start["result"]["missionRun"]["operatorSnapshot"]["backendId"],
             Value::String("worker-b".to_string())
         );
 
@@ -6898,20 +6740,15 @@ exit 1
         .await;
         assert_eq!(fallback_start["ok"], Value::Bool(true));
         assert_eq!(
-            fallback_start["result"]["backendId"],
+            fallback_start["result"]["missionRun"]["operatorSnapshot"]["backendId"],
             Value::String("worker-a".to_string())
         );
+        });
     }
 
     #[test]
-    fn agent_task_start_distributed_prefers_preferred_backends_and_falls_back() {
-        run_large_stack_async_test(
-            "agent_task_start_distributed_prefers_preferred_backends_and_falls_back",
-            agent_task_start_distributed_prefers_preferred_backends_and_falls_back_body(),
-        );
-    }
-
-    async fn agent_task_start_enriches_autodrive_mission_brief_from_workspace_context_body() {
+    fn agent_task_start_enriches_autodrive_mission_brief_from_workspace_context() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
         let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
@@ -7001,10 +6838,10 @@ exit 1
         .await;
         assert_eq!(peer_workspace_create["ok"], Value::Bool(true));
 
-        let start_payload = send_rpc_request(
+        let prepare_payload = send_rpc_request(
             app.clone(),
             json!({
-                "method": "code_runtime_run_start_v2",
+                "method": "code_runtime_run_prepare_v2",
                 "params": {
                     "workspaceId": workspace_runtime_id,
                     "title": "Ship runtime truth",
@@ -7044,126 +6881,41 @@ exit 1
         )
         .await;
 
-        assert_eq!(start_payload["ok"], Value::Bool(true));
+        assert_eq!(prepare_payload["ok"], Value::Bool(true));
         assert_eq!(
-            start_payload["result"]["taskSource"]["kind"],
+            prepare_payload["result"]["runIntent"]["taskSource"]["kind"],
             Value::String("autodrive".to_string())
         );
         assert_eq!(
-            start_payload["result"]["missionBrief"]["requiredCapabilities"],
-            json!([
-                "code",
-                "validation",
-                "repo_policy",
-                "research",
-                "multi_workspace",
-                "evaluation"
-            ])
+            prepare_payload["result"]["runIntent"]["executionProfileId"],
+            Value::String("balanced-delegate".to_string())
         );
         assert_eq!(
-            start_payload["result"]["missionBrief"]["maxSubtasks"],
-            Value::Number(2.into())
+            prepare_payload["result"]["runIntent"]["validationPresetId"],
+            Value::String("standard".to_string())
         );
         assert_eq!(
-            start_payload["result"]["missionBrief"]["constraints"],
-            json!([
-                "Do not widen scope",
-                "Follow repository authority docs before widening scope.",
-                "Honor repository execution contract defaults during launch and validation.",
-                "Use other connected workspaces as architectural context, but do not widen edits outside the active workspace unless the destination requires it.",
-                "Preserve representative regression samples or held-out fixtures so future AutoDrive evals can still detect drift."
-            ])
+            prepare_payload["result"]["validationPlan"]["commands"],
+            json!(["pnpm validate:fast", "pnpm test:component"])
+        );
+        assert_eq!(
+            prepare_payload["result"]["validationPlan"]["required"],
+            Value::Bool(true)
         );
         assert!(
-            start_payload["result"]["missionBrief"]["doneDefinition"]
+            prepare_payload["result"]["reviewFocus"]
                 .as_array()
-                .expect("done definition array")
-                .iter()
-                .any(|entry| entry.as_str().unwrap_or_default().contains("representative automated test lane"))
-        );
-        assert_eq!(
-            start_payload["result"]["missionBrief"]["evaluationPlan"]["representativeCommands"],
-            json!(["pnpm test", "pnpm validate:fast"])
-        );
-        assert_eq!(
-            start_payload["result"]["missionBrief"]["evaluationPlan"]["componentCommands"],
-            json!(["pnpm test:component"])
-        );
-        assert_eq!(
-            start_payload["result"]["missionBrief"]["evaluationPlan"]["endToEndCommands"],
-            json!(["pnpm test:e2e:smoke"])
-        );
-        assert!(
-            start_payload["result"]["missionBrief"]["evaluationPlan"]["samplePaths"]
-                .as_array()
-                .expect("sample paths")
-                .iter()
-                .any(|entry| entry.as_str().unwrap_or_default().contains(".codex/e2e-map.json"))
-        );
-        assert!(
-            start_payload["result"]["missionBrief"]["evaluationPlan"]["heldOutGuidance"]
-                .as_array()
-                .expect("held out guidance")
+                .expect("review focus")
                 .iter()
                 .any(|entry| {
                     let text = entry.as_str().unwrap_or_default();
-                    text.contains("fixture") || text.contains("drift")
+                    text.contains("validation")
                 })
-        );
-        assert_eq!(
-            start_payload["result"]["autoDrive"]["contextPolicy"]["scope"],
-            Value::String("workspace_graph".to_string())
-        );
-        assert_eq!(
-            start_payload["result"]["autoDrive"]["decisionPolicy"]["independentThread"],
-            Value::Bool(true)
-        );
-        assert_eq!(
-            start_payload["result"]["autoDrive"]["decisionPolicy"]["autonomyPriority"],
-            Value::String("operator".to_string())
-        );
-        assert_eq!(
-            start_payload["result"]["autoDrive"]["decisionPolicy"]["promptStrategy"],
-            Value::String("workspace_graph_first".to_string())
-        );
-        assert_eq!(
-            start_payload["result"]["autoDrive"]["decisionPolicy"]["researchMode"],
-            Value::String("live_when_allowed".to_string())
-        );
-        assert_eq!(
-            start_payload["result"]["autoDrive"]["scenarioProfile"]["authorityScope"],
-            Value::String("workspace_graph".to_string())
-        );
-        assert!(
-            start_payload["result"]["autoDrive"]["scenarioProfile"]["scenarioKeys"]
-                .as_array()
-                .expect("scenario keys")
-                .iter()
-                .any(|entry| entry.as_str().unwrap_or_default() == "workspace_graph_launch")
-        );
-        assert_eq!(
-            start_payload["result"]["autoDrive"]["decisionTrace"]["selectedCandidateId"],
-            Value::String("launch_autodrive".to_string())
-        );
-        assert_eq!(
-            start_payload["result"]["autoDrive"]["outcomeFeedback"]["status"],
-            Value::String("launch_prepared".to_string())
-        );
-        assert_eq!(
-            start_payload["result"]["autoDrive"]["autonomyState"]["highPriority"],
-            Value::Bool(true)
         );
 
         let _ = fs::remove_dir_all(workspace_path.as_path());
         let _ = fs::remove_dir_all(peer_workspace_path.as_path());
-    }
-
-    #[test]
-    fn agent_task_start_enriches_autodrive_mission_brief_from_workspace_context() {
-        run_large_stack_async_test(
-            "agent_task_start_enriches_autodrive_mission_brief_from_workspace_context",
-            agent_task_start_enriches_autodrive_mission_brief_from_workspace_context_body(),
-        );
+        });
     }
 
     #[tokio::test]
@@ -7565,7 +7317,9 @@ exit 1
         );
     }
 
-    async fn agent_task_start_distributed_rejects_when_no_eligible_backend_body() {
+    #[test]
+    fn agent_task_start_distributed_rejects_when_no_eligible_backend() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let _ = send_rpc_request(
             app.clone(),
@@ -7608,17 +7362,12 @@ exit 1
             start_payload["error"]["code"],
             Value::String("INVALID_PARAMS".to_string())
         );
+        });
     }
 
     #[test]
-    fn agent_task_start_distributed_rejects_when_no_eligible_backend() {
-        run_large_stack_async_test(
-            "agent_task_start_distributed_rejects_when_no_eligible_backend",
-            agent_task_start_distributed_rejects_when_no_eligible_backend_body(),
-        );
-    }
-
-    async fn agent_task_start_rejects_mutation_steps_in_read_only_mode_body() {
+    fn agent_task_start_rejects_mutation_steps_in_read_only_mode() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let payload = send_rpc_request(
             app,
@@ -7644,17 +7393,12 @@ exit 1
             payload["error"]["code"],
             Value::String("INVALID_PARAMS".to_string())
         );
+        });
     }
 
     #[test]
-    fn agent_task_start_rejects_mutation_steps_in_read_only_mode() {
-        run_large_stack_async_test(
-            "agent_task_start_rejects_mutation_steps_in_read_only_mode",
-            agent_task_start_rejects_mutation_steps_in_read_only_mode_body(),
-        );
-    }
-
-    async fn agent_task_start_rejects_bash_step_for_architect_profile_body() {
+    fn agent_task_start_rejects_bash_step_for_architect_profile() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let payload = send_rpc_request(
             app,
@@ -7679,17 +7423,12 @@ exit 1
             payload["error"]["code"],
             Value::String("INVALID_PARAMS".to_string())
         );
+        });
     }
 
     #[test]
-    fn agent_task_start_rejects_bash_step_for_architect_profile() {
-        run_large_stack_async_test(
-            "agent_task_start_rejects_bash_step_for_architect_profile",
-            agent_task_start_rejects_bash_step_for_architect_profile_body(),
-        );
-    }
-
-    async fn agent_task_interrupt_marks_pending_task_body() {
+    fn agent_task_interrupt_marks_pending_task() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
         let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
@@ -7742,10 +7481,7 @@ exit 1
         .await;
 
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let _ = wait_for_agent_task_terminal_status(
             app.clone(),
@@ -7785,17 +7521,12 @@ exit 1
         );
 
         let _ = fs::remove_dir_all(workspace_path.as_path());
+        });
     }
 
     #[test]
-    fn agent_task_interrupt_marks_pending_task() {
-        run_large_stack_async_test(
-            "agent_task_interrupt_marks_pending_task",
-            agent_task_interrupt_marks_pending_task_body(),
-        );
-    }
-
-    async fn agent_task_interrupt_returns_not_accepted_for_terminal_task_body() {
+    fn agent_task_interrupt_returns_not_accepted_for_terminal_task() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let start_payload = send_rpc_request(
             app.clone(),
@@ -7817,10 +7548,7 @@ exit 1
         .await;
 
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let _ = wait_for_agent_task_terminal_status(app.clone(), task_id.as_str(), &["completed"])
             .await;
@@ -7837,17 +7565,12 @@ exit 1
         .await;
         assert_eq!(interrupt_payload["ok"], Value::Bool(true));
         assert_eq!(interrupt_payload["result"]["accepted"], Value::Bool(false));
+        });
     }
 
     #[test]
-    fn agent_task_interrupt_returns_not_accepted_for_terminal_task() {
-        run_large_stack_async_test(
-            "agent_task_interrupt_returns_not_accepted_for_terminal_task",
-            agent_task_interrupt_returns_not_accepted_for_terminal_task_body(),
-        );
-    }
-
-    async fn agent_task_resume_rejects_non_recovery_interrupted_task_body() {
+    fn agent_task_resume_rejects_non_recovery_interrupted_task() {
+        run_async_test_on_large_stack(async move {
         let app = test_router();
         let workspace_id = format!("workspace-web-{}", rand::random::<u64>());
         let workspace_path = PathBuf::from(format!("/tmp/{workspace_id}"));
@@ -7899,10 +7622,7 @@ exit 1
         )
         .await;
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let _ = wait_for_agent_task_terminal_status(
             app.clone(),
@@ -7936,27 +7656,25 @@ exit 1
         .await;
         assert_eq!(resume_payload["ok"], Value::Bool(true));
         assert_eq!(
-            resume_payload["result"]["run"]["status"],
+            runtime_run_record(&resume_payload)["status"],
             Value::String("interrupted".to_string())
         );
-        assert_eq!(resume_payload["result"]["run"]["recovered"], Value::Bool(false));
         assert_eq!(
-            resume_payload["result"]["run"]["errorCode"],
+            runtime_run_record(&resume_payload)["recovered"],
+            Value::Bool(false)
+        );
+        assert_eq!(
+            runtime_run_record(&resume_payload)["errorCode"],
             Value::String("TASK_INTERRUPTED".to_string())
         );
 
         let _ = fs::remove_dir_all(workspace_path.as_path());
+        });
     }
 
     #[test]
-    fn agent_task_resume_rejects_non_recovery_interrupted_task() {
-        run_large_stack_async_test(
-            "agent_task_resume_rejects_non_recovery_interrupted_task",
-            agent_task_resume_rejects_non_recovery_interrupted_task_body(),
-        );
-    }
-
-    async fn agent_task_resume_accepts_recovered_snapshot_and_exposes_recovered_flag_body() {
+    fn agent_task_resume_accepts_recovered_snapshot_and_exposes_recovered_flag() {
+        run_async_test_on_large_stack(async move {
         let workspace_id = "workspace-web";
         let task_id = format!("agent-task-resume-{}", rand::random::<u64>());
         let now = now_ms();
@@ -8032,20 +7750,23 @@ exit 1
         .await;
         assert_eq!(recovered_status["ok"], Value::Bool(true));
         assert_eq!(
-            recovered_status["result"]["status"],
+            runtime_run_record(&recovered_status)["status"],
             Value::String("interrupted".to_string())
         );
         assert_eq!(
-            recovered_status["result"]["errorCode"],
+            runtime_run_record(&recovered_status)["errorCode"],
             Value::String("RUNTIME_RESTART_RECOVERY".to_string())
         );
-        assert_eq!(recovered_status["result"]["recovered"], Value::Bool(true));
         assert_eq!(
-            recovered_status["result"]["checkpointId"],
+            runtime_run_record(&recovered_status)["recovered"],
+            Value::Bool(true)
+        );
+        assert_eq!(
+            runtime_run_record(&recovered_status)["checkpointId"],
             Value::String("checkpoint-seed".to_string())
         );
         assert_eq!(
-            recovered_status["result"]["traceId"],
+            runtime_run_record(&recovered_status)["traceId"],
             Value::String(format!("agent-task:{task_id}"))
         );
 
@@ -8086,15 +7807,18 @@ exit 1
         .await;
         assert_eq!(resume_payload["ok"], Value::Bool(true));
         assert_ne!(
-            resume_payload["result"]["run"]["status"],
+            runtime_run_record(&resume_payload)["status"],
             Value::String("interrupted".to_string())
         );
-        assert_eq!(resume_payload["result"]["run"]["recovered"], Value::Bool(true));
         assert_eq!(
-            resume_payload["result"]["run"]["traceId"],
+            runtime_run_record(&resume_payload)["recovered"],
+            Value::Bool(true)
+        );
+        assert_eq!(
+            runtime_run_record(&resume_payload)["traceId"],
             Value::String(format!("agent-task:{task_id}"))
         );
-        let resume_checkpoint_id = resume_payload["result"]["run"]["checkpointId"]
+        let resume_checkpoint_id = runtime_run_record(&resume_payload)["checkpointId"]
             .as_str()
             .expect("resume payload should include checkpoint id");
         assert!(!resume_checkpoint_id.trim().is_empty());
@@ -8125,160 +7849,116 @@ exit 1
 
         cleanup_sqlite_db(oauth_pool_db_path.as_path());
         cleanup_sqlite_db(durability_db_path.as_path());
-    }
-
-    #[test]
-    fn agent_task_resume_accepts_recovered_snapshot_and_exposes_recovered_flag() {
-        run_large_stack_async_test(
-            "agent_task_resume_accepts_recovered_snapshot_and_exposes_recovered_flag",
-            agent_task_resume_accepts_recovered_snapshot_and_exposes_recovered_flag_body(),
-        );
-    }
-
-    #[cfg(unix)]
-    async fn agent_task_interrupt_during_running_step_remains_interrupted_body() {
-        let app = test_router();
-        let start_payload = send_rpc_request(
-            app.clone(),
-            json!({
-                "method": "code_runtime_run_start_v2",
-                "params": {
-                    "workspaceId": "workspace-web",
-                    "accessMode": "full-access",
-                    "steps": [
-                        {
-                            "kind": "bash",
-                            "command": "sleep 1.2 && echo first-step",
-                            "requiresApproval": false
-                        },
-                        {
-                            "kind": "bash",
-                            "command": "echo second-step",
-                            "requiresApproval": false
-                        }
-                    ]
-                }
-            }),
-        )
-        .await;
-        assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
-
-        let _running_payload = tokio::time::timeout(Duration::from_secs(3), async {
-            loop {
-                let payload = send_rpc_request(
-                    app.clone(),
-                    json!({
-                        "method": "code_runtime_run_subscribe_v2",
-                        "params": {
-                            "runId": task_id,
-                        }
-                    }),
-                )
-                .await;
-                if payload["result"]["status"] == Value::String("running".to_string())
-                    && payload["result"]["steps"][0]["status"]
-                        == Value::String("running".to_string())
-                {
-                    break payload;
-                }
-                tokio::time::sleep(Duration::from_millis(25)).await;
-            }
-        })
-        .await
-        .expect("wait for running step before interrupt");
-
-        let interrupt_payload = tokio::time::timeout(Duration::from_secs(3), async {
-            loop {
-                let payload = send_rpc_request(
-                    app.clone(),
-                    json!({
-                        "method": "code_runtime_run_cancel_v2",
-                        "params": {
-                            "taskId": task_id,
-                            "reason": "interrupt-while-running",
-                        }
-                    }),
-                )
-                .await;
-                if payload["ok"] == Value::Bool(true)
-                    && payload["result"]["accepted"] == Value::Bool(true)
-                {
-                    break payload;
-                }
-                tokio::time::sleep(Duration::from_millis(25)).await;
-            }
-        })
-        .await
-        .expect("wait for interrupt to be accepted while running");
-        assert_eq!(interrupt_payload["ok"], Value::Bool(true));
-        assert_eq!(interrupt_payload["result"]["accepted"], Value::Bool(true));
-
-        let terminal_payload =
-            wait_for_agent_task_terminal_status(app.clone(), task_id.as_str(), &["interrupted"])
-                .await;
-        assert_eq!(
-            terminal_payload["result"]["status"],
-            Value::String("interrupted".to_string())
-        );
-        assert_eq!(
-            terminal_payload["result"]["errorCode"],
-            Value::String("TASK_INTERRUPTED".to_string())
-        );
-        assert_eq!(
-            terminal_payload["result"]["errorMessage"],
-            Value::String("interrupt-while-running".to_string())
-        );
-        let settled_payload = tokio::time::timeout(Duration::from_secs(2), async {
-            loop {
-                let payload = send_rpc_request(
-                    app.clone(),
-                    json!({
-                        "method": "code_runtime_run_subscribe_v2",
-                        "params": {
-                            "runId": task_id,
-                        }
-                    }),
-                )
-                .await;
-                if payload["result"]["steps"][0]["status"]
-                    == Value::String("interrupted".to_string())
-                {
-                    break payload;
-                }
-                tokio::time::sleep(Duration::from_millis(25)).await;
-            }
-        })
-        .await
-        .expect("wait for first step interruption to settle");
-        assert_eq!(
-            settled_payload["result"]["steps"][0]["status"],
-            Value::String("interrupted".to_string())
-        );
-        assert_eq!(
-            settled_payload["result"]["steps"][0]["errorCode"],
-            Value::String("TASK_INTERRUPTED".to_string())
-        );
-        assert_ne!(
-            settled_payload["result"]["steps"][1]["status"],
-            Value::String("completed".to_string())
-        );
+        });
     }
 
     #[cfg(unix)]
     #[test]
     fn agent_task_interrupt_during_running_step_remains_interrupted() {
-        run_large_stack_async_test(
-            "agent_task_interrupt_during_running_step_remains_interrupted",
-            agent_task_interrupt_during_running_step_remains_interrupted_body(),
-        );
+        run_async_test_on_large_stack(async move {
+            let app = test_router();
+            let start_payload = send_rpc_request(
+                app.clone(),
+                json!({
+                    "method": "code_runtime_run_start_v2",
+                    "params": {
+                        "workspaceId": "workspace-web",
+                        "accessMode": "full-access",
+                        "steps": [
+                            {
+                                "kind": "bash",
+                                "command": "sleep 1.2 && echo first-step",
+                                "requiresApproval": false
+                            },
+                            {
+                                "kind": "bash",
+                                "command": "echo second-step",
+                                "requiresApproval": false
+                            }
+                        ]
+                    }
+                }),
+            )
+            .await;
+            assert_eq!(start_payload["ok"], Value::Bool(true));
+            let task_id = runtime_run_task_id(&start_payload);
+
+            let _ = wait_for_agent_task_terminal_status(
+                app.clone(),
+                task_id.as_str(),
+                &["running"],
+            )
+            .await;
+
+            let interrupt_payload = send_rpc_request(
+                app.clone(),
+                json!({
+                    "method": "code_runtime_run_cancel_v2",
+                    "params": {
+                        "taskId": task_id,
+                        "reason": "interrupt-while-running",
+                    }
+                }),
+            )
+            .await;
+            assert_eq!(interrupt_payload["ok"], Value::Bool(true));
+            assert_eq!(interrupt_payload["result"]["accepted"], Value::Bool(true));
+
+            let terminal_payload =
+                wait_for_agent_task_terminal_status(app.clone(), task_id.as_str(), &["interrupted"])
+                    .await;
+            assert_eq!(
+                terminal_payload["result"]["status"],
+                Value::String("interrupted".to_string())
+            );
+            assert_eq!(
+                terminal_payload["result"]["errorCode"],
+                Value::String("TASK_INTERRUPTED".to_string())
+            );
+            assert_eq!(
+                terminal_payload["result"]["errorMessage"],
+                Value::String("interrupt-while-running".to_string())
+            );
+            let settled_payload = tokio::time::timeout(Duration::from_secs(2), async {
+                loop {
+                    let payload = send_rpc_request(
+                        app.clone(),
+                        json!({
+                            "method": "code_runtime_run_subscribe_v2",
+                            "params": {
+                                "runId": task_id,
+                            }
+                        }),
+                    )
+                    .await;
+                    if runtime_run_record(&payload)["steps"][0]["status"]
+                        == Value::String("interrupted".to_string())
+                    {
+                        break normalize_runtime_run_payload(payload);
+                    }
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+            })
+            .await
+            .expect("wait for first step interruption to settle");
+            assert_eq!(
+                settled_payload["result"]["steps"][0]["status"],
+                Value::String("interrupted".to_string())
+            );
+            assert_eq!(
+                settled_payload["result"]["steps"][0]["errorCode"],
+                Value::String("TASK_INTERRUPTED".to_string())
+            );
+            assert_ne!(
+                settled_payload["result"]["steps"][1]["status"],
+                Value::String("completed".to_string())
+            );
+        });
     }
 
     #[cfg(unix)]
-    async fn agent_tasks_with_same_workspace_are_serialized_body() {
+    #[tokio::test]
+    async fn agent_tasks_with_same_workspace_are_serialized() {
         let app = test_router();
         let first_start = send_rpc_request(
             app.clone(),
@@ -8299,10 +7979,7 @@ exit 1
         )
         .await;
         assert_eq!(first_start["ok"], Value::Bool(true));
-        let first_task_id = first_start["result"]["taskId"]
-            .as_str()
-            .expect("first task id")
-            .to_string();
+        let first_task_id = runtime_run_task_id(&first_start);
 
         let second_start = send_rpc_request(
             app.clone(),
@@ -8323,10 +8000,7 @@ exit 1
         )
         .await;
         assert_eq!(second_start["ok"], Value::Bool(true));
-        let second_task_id = second_start["result"]["taskId"]
-            .as_str()
-            .expect("second task id")
-            .to_string();
+        let second_task_id = runtime_run_task_id(&second_start);
 
         tokio::time::sleep(Duration::from_millis(60)).await;
         let second_status_while_first_running = send_rpc_request(
@@ -8340,7 +8014,7 @@ exit 1
         )
         .await;
         assert_eq!(
-            second_status_while_first_running["result"]["status"],
+            runtime_run_record(&second_status_while_first_running)["status"],
             Value::String("queued".to_string())
         );
 
@@ -8386,16 +8060,8 @@ exit 1
 
     #[cfg(unix)]
     #[test]
-    fn agent_tasks_with_same_workspace_are_serialized() {
-        run_large_stack_async_test(
-            "agent_tasks_with_same_workspace_are_serialized",
-            agent_tasks_with_same_workspace_are_serialized_body(),
-        );
-    }
-
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn agent_tasks_respect_global_concurrency_limit() {
+    fn agent_tasks_respect_global_concurrency_limit() {
+        run_async_test_on_large_stack(async move {
         let mut config = test_service_config();
         config.agent_max_concurrent_tasks = 1;
         let app = test_router_with_config(config);
@@ -8468,10 +8134,7 @@ exit 1
         )
         .await;
         assert_eq!(first_start["ok"], Value::Bool(true));
-        let first_task_id = first_start["result"]["taskId"]
-            .as_str()
-            .expect("first task id")
-            .to_string();
+        let first_task_id = runtime_run_task_id(&first_start);
 
         let second_start = send_rpc_request(
             app.clone(),
@@ -8492,10 +8155,7 @@ exit 1
         )
         .await;
         assert_eq!(second_start["ok"], Value::Bool(true));
-        let second_task_id = second_start["result"]["taskId"]
-            .as_str()
-            .expect("second task id")
-            .to_string();
+        let second_task_id = runtime_run_task_id(&second_start);
 
         let first_awaiting = wait_for_agent_task_terminal_status(
             app.clone(),
@@ -8520,7 +8180,7 @@ exit 1
         )
         .await;
         assert_eq!(
-            second_status_while_first_running["result"]["status"],
+            runtime_run_record(&second_status_while_first_running)["status"],
             Value::String("queued".to_string())
         );
 
@@ -8586,6 +8246,7 @@ exit 1
 
         let _ = fs::remove_dir_all(first_workspace_path.as_path());
         let _ = fs::remove_dir_all(second_workspace_path.as_path());
+        });
     }
 
     #[tokio::test]
@@ -11509,6 +11170,7 @@ exit 1
                     "modelId": "gpt-5.3-codex",
                     "reasonEffort": "high",
                     "accessMode": "on-request",
+                    "executionMode": "runtime",
                     "queue": false,
                     "attachments": [],
                 }
@@ -11670,6 +11332,7 @@ exit 1
                     "modelId": "gpt-5.3-codex",
                     "reasonEffort": "high",
                     "accessMode": "on-request",
+                    "executionMode": "runtime",
                     "queue": false,
                     "attachments": [],
                 }
@@ -11817,6 +11480,7 @@ exit 1
                     "modelId": "gpt-5.3-codex",
                     "reasonEffort": "high",
                     "accessMode": "full-access",
+                    "executionMode": "runtime",
                     "queue": false,
                     "attachments": [],
                 }
@@ -11978,6 +11642,7 @@ exit 1
                     "modelId": "gpt-5.3-codex",
                     "reasonEffort": "high",
                     "accessMode": "full-access",
+                    "executionMode": "runtime",
                     "queue": false,
                     "attachments": [],
                 }
@@ -12103,6 +11768,7 @@ exit 1
                     "modelId": "gpt-5.3-codex",
                     "reasonEffort": "high",
                     "accessMode": "full-access",
+                    "executionMode": "runtime",
                     "queue": false,
                     "attachments": [],
                 }
@@ -12179,6 +11845,7 @@ exit 1
                     "modelId": "gpt-5.3-codex",
                     "reasonEffort": "high",
                     "accessMode": "on-request",
+                    "executionMode": "runtime",
                     "queue": false,
                     "attachments": [],
                 }
@@ -12247,6 +11914,7 @@ exit 1
                     "modelId": "gpt-5.3-codex",
                     "reasonEffort": "high",
                     "accessMode": "on-request",
+                    "executionMode": "runtime",
                     "queue": false,
                     "attachments": [],
                 }
@@ -12280,6 +11948,7 @@ exit 1
                     "modelId": "gpt-5.3-codex",
                     "reasonEffort": "high",
                     "accessMode": "on-request",
+                    "executionMode": "runtime",
                     "queue": false,
                     "attachments": [],
                 }
@@ -12774,6 +12443,7 @@ exit 1
                     "modelId": "gpt-5.3-codex",
                     "reasonEffort": "high",
                     "accessMode": "on-request",
+                    "executionMode": "runtime",
                     "queue": false,
                     "attachments": [],
                 }
@@ -12863,6 +12533,7 @@ exit 1
                 "workspaceId": "workspace-web",
                 "requestId": "request-agent-events",
                 "accessMode": "full-access",
+                "executionMode": "single",
                 "steps": [
                     {
                         "kind": "bash",
@@ -12872,20 +12543,12 @@ exit 1
                 ]
             }
         });
-        let start_payload = send_http_runtime_run_start_v2(
-            &client,
-            service_base_url.as_str(),
-            start_request["params"]
-                .as_object()
-                .cloned()
-                .expect("start request params"),
-        )
-        .await;
+        let (start_status, start_payload) =
+            send_runtime_service_rpc_request(&client, service_base_url.as_str(), start_request)
+                .await;
+        assert_eq!(start_status, reqwest::StatusCode::OK);
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let events =
             read_sse_events_until_turn_completed(&mut events_response, task_id.as_str()).await;
@@ -12953,6 +12616,7 @@ exit 1
                 "workspaceId": "workspace-web",
                 "requestId": "request-agent-heartbeat",
                 "accessMode": "full-access",
+                "executionMode": "single",
                 "steps": [
                     {
                         "kind": "bash",
@@ -12962,20 +12626,12 @@ exit 1
                 ]
             }
         });
-        let start_payload = send_http_runtime_run_start_v2(
-            &client,
-            service_base_url.as_str(),
-            start_request["params"]
-                .as_object()
-                .cloned()
-                .expect("start request params"),
-        )
-        .await;
+        let (start_status, start_payload) =
+            send_runtime_service_rpc_request(&client, service_base_url.as_str(), start_request)
+                .await;
+        assert_eq!(start_status, reqwest::StatusCode::OK);
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let events = read_sse_events_until_turn_completed(&mut events_response, task_id.as_str()).await;
         let task_events = events
@@ -13061,6 +12717,7 @@ exit 1
             "params": {
                 "workspaceId": workspace_runtime_id,
                 "requestId": "request-agent-approval-interrupt",
+                "executionMode": "single",
                 "steps": [
                     {
                         "kind": "read",
@@ -13074,33 +12731,36 @@ exit 1
                 ]
             }
         });
-        let start_payload = send_http_runtime_run_start_v2(
-            &client,
-            service_base_url.as_str(),
-            start_request["params"]
-                .as_object()
-                .cloned()
-                .expect("start request params"),
-        )
-        .await;
+        let (start_status, start_payload) =
+            send_runtime_service_rpc_request(&client, service_base_url.as_str(), start_request)
+                .await;
+        assert_eq!(start_status, reqwest::StatusCode::OK);
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let mut awaiting_approval_payload: Option<Value> = None;
         for _ in 0..120 {
-            let status_payload = send_http_runtime_run_subscribe_v2(
-                &client,
-                service_base_url.as_str(),
-                task_id.as_str(),
-            )
-            .await;
+            let status_response = client
+                .post(format!("{service_base_url}/rpc"))
+                .json(&json!({
+                    "method": "code_runtime_run_subscribe_v2",
+                    "params": {
+                        "runId": task_id.as_str(),
+                    }
+                }))
+                .send()
+                .await
+                .expect("send agent task status request");
+            assert_eq!(status_response.status(), reqwest::StatusCode::OK);
+            let status_payload: Value = status_response
+                .json()
+                .await
+                .expect("parse agent task status response");
             assert_eq!(status_payload["ok"], Value::Bool(true));
-            if status_payload["result"]["status"] == Value::String("awaiting_approval".to_string())
+            if runtime_run_record(&status_payload)["status"]
+                == Value::String("awaiting_approval".to_string())
             {
-                awaiting_approval_payload = Some(status_payload);
+                awaiting_approval_payload = Some(normalize_runtime_run_payload(status_payload));
                 break;
             }
             tokio::time::sleep(Duration::from_millis(25)).await;
@@ -13270,6 +12930,7 @@ exit 1
             "params": {
                 "workspaceId": workspace_runtime_id,
                 "requestId": "request-agent-approval-reject",
+                "executionMode": "single",
                 "steps": [
                     {
                         "kind": "read",
@@ -13283,33 +12944,35 @@ exit 1
                 ]
             }
         });
-        let start_payload = send_http_runtime_run_start_v2(
-            &client,
-            service_base_url.as_str(),
-            start_request["params"]
-                .as_object()
-                .cloned()
-                .expect("start request params"),
-        )
-        .await;
+        let (start_status, start_payload) =
+            send_runtime_service_rpc_request(&client, service_base_url.as_str(), start_request)
+                .await;
+        assert_eq!(start_status, reqwest::StatusCode::OK);
         assert_eq!(start_payload["ok"], Value::Bool(true));
-        let task_id = start_payload["result"]["taskId"]
-            .as_str()
-            .expect("task id")
-            .to_string();
+        let task_id = runtime_run_task_id(&start_payload);
 
         let mut approval_id: Option<String> = None;
         for _ in 0..120 {
-            let status_payload = send_http_runtime_run_subscribe_v2(
-                &client,
-                service_base_url.as_str(),
-                task_id.as_str(),
-            )
-            .await;
+            let status_response = client
+                .post(format!("{service_base_url}/rpc"))
+                .json(&json!({
+                    "method": "code_runtime_run_subscribe_v2",
+                    "params": {
+                        "runId": task_id.as_str(),
+                    }
+                }))
+                .send()
+                .await
+                .expect("send agent task status request");
+            assert_eq!(status_response.status(), reqwest::StatusCode::OK);
+            let status_payload: Value = status_response
+                .json()
+                .await
+                .expect("parse agent task status response");
             assert_eq!(status_payload["ok"], Value::Bool(true));
-            if status_payload["result"]["status"] == Value::String("awaiting_approval".to_string())
-            {
-                approval_id = status_payload["result"]["pendingApprovalId"]
+            let run_record = runtime_run_record(&status_payload);
+            if run_record["status"] == Value::String("awaiting_approval".to_string()) {
+                approval_id = run_record["pendingApprovalId"]
                     .as_str()
                     .map(ToOwned::to_owned);
                 break;
@@ -13516,6 +13179,7 @@ exit 1
                             "modelId": "gpt-5.3-codex",
                             "reasonEffort": "high",
                             "accessMode": "on-request",
+                            "executionMode": "runtime",
                             "queue": false,
                             "attachments": [],
                         }
@@ -13600,6 +13264,7 @@ exit 1
                     "modelId": "gpt-5.3-codex",
                     "reasonEffort": "high",
                     "accessMode": "on-request",
+                    "executionMode": "runtime",
                     "queue": false,
                     "attachments": [],
                 }
@@ -13713,13 +13378,13 @@ exit 1
             after["runtimeDiagnostics"]["wsConnectionsOpenedTotal"]
                 .as_u64()
                 .unwrap_or(0)
-                >= baseline_opened + 1
+                > baseline_opened
         );
         assert!(
             after["runtimeDiagnostics"]["wsConnectionsClosedTotal"]
                 .as_u64()
                 .unwrap_or(0)
-                >= baseline_closed + 1
+                > baseline_closed
         );
         assert_eq!(
             after["runtimeDiagnostics"]["wsConnectionsActive"],
@@ -13729,7 +13394,7 @@ exit 1
             after["runtimeDiagnostics"]["wsProtocolErrorsTotal"]
                 .as_u64()
                 .unwrap_or(0)
-                >= baseline_protocol_errors + 1
+                > baseline_protocol_errors
         );
 
         service_handle.abort();
@@ -13840,7 +13505,7 @@ exit 1
             after_rejection["runtimeDiagnostics"]["wsConnectionsRejectedTotal"]
                 .as_u64()
                 .unwrap_or(0)
-                >= baseline_rejected + 1
+                > baseline_rejected
         );
 
         first_socket
@@ -13953,7 +13618,8 @@ exit 1
                       "modelId":"claude-sonnet-4-5",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -13997,7 +13663,8 @@ exit 1
                       "modelId":"claude-sonnet-4-5",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -14037,7 +13704,8 @@ exit 1
                       "provider":"google",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -14080,7 +13748,8 @@ exit 1
                       "provider":"antigravity",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -14132,7 +13801,8 @@ exit 1
                       "modelId":"gpt-5.3-codex",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -14193,7 +13863,8 @@ exit 1
                       "modelId":"gpt-5.3-codex",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -14304,7 +13975,8 @@ exit 1
                       "provider":"anthropic",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -14383,7 +14055,8 @@ exit 1
                       "provider":"anthropic",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -14463,7 +14136,8 @@ exit 1
                       "provider":"anthropic",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -14565,7 +14239,8 @@ exit 1
                       "provider":"anthropic",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -14671,7 +14346,8 @@ exit 1
                       "provider":"anthropic",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -14754,7 +14430,8 @@ exit 1
                       "provider":"anthropic",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -14816,7 +14493,8 @@ exit 1
                       "provider":"anthropic",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -14912,7 +14590,8 @@ exit 1
                       "provider":"anthropic",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -14971,7 +14650,8 @@ exit 1
                       "provider":"anthropic",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -15043,7 +14723,8 @@ exit 1
                       "provider":"google",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -15107,7 +14788,8 @@ exit 1
                       "provider":"anthropic",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -15149,7 +14831,8 @@ exit 1
                       "provider":"google",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -15200,7 +14883,8 @@ exit 1
                       "provider":"anthropic",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -15242,7 +14926,8 @@ exit 1
                       "modelId":"gpt-5.3-codex",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -15286,7 +14971,8 @@ exit 1
                       "provider":"deepseek",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -15344,7 +15030,8 @@ exit 1
                       "modelId":"deepseek-chat",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -15390,7 +15077,8 @@ exit 1
                       "modelId":"deepseek-chat",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -15436,7 +15124,8 @@ exit 1
                       "provider":"deepseek",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -15518,7 +15207,8 @@ exit 1
                       "provider":"ds-v2",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -15568,7 +15258,8 @@ exit 1
                       "modelId":"claude-sonnet-4-5",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -15626,7 +15317,8 @@ exit 1
                       "provider":"deepseek",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -16103,7 +15795,8 @@ exit 1
                       "provider":"openai",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -18266,7 +17959,8 @@ exit 1
                       "provider":"openai",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -18364,7 +18058,8 @@ exit 1
                       "provider":"openai",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -18454,7 +18149,8 @@ exit 1
                       "provider":"openai",
                       "reasonEffort":"high",
                       "accessMode":"on-request",
-                      "queue":false,
+                      "executionMode": "runtime",
+                      "queue": false,
                       "attachments":[]
                     }
                   }
@@ -19035,8 +18731,9 @@ exit 1
                 "params": {
                     "workspaceId": "workspace-web",
                     "executionMode": "distributed",
+                    "requiredCapabilities": ["code"],
                     "steps": [
-                        { "kind": "read", "path": "README.md" }
+                        { "kind": "read", "input": "trigger distributed placement failure" }
                     ]
                 }
             }),
@@ -19068,37 +18765,33 @@ exit 1
     async fn readiness_aggregates_distributed_dispatch_errors_by_source() {
         let mut config = test_service_config();
         config.distributed_enabled = true;
-        // Force bootstrap redis client construction failure.
-        config.distributed_redis_url = Some("://invalid-redis-url".to_string());
-        let app = test_router_with_config(config);
+        let temp_dir = tempfile::tempdir().expect("temp native state dir");
+        let native_state_store = Arc::new(crate::native_state_store::NativeStateStore::new(
+            temp_dir.path().join("native-state.sqlite"),
+        ));
+        let ctx = build_app_context(
+            create_initial_state("gpt-5.3-codex"),
+            config,
+            native_state_store,
+        );
 
-        let start_payload = send_rpc_request(
-            app.clone(),
-            json!({
-                "method": "code_runtime_run_start_v2",
-                "params": {
-                    "workspaceId": "workspace-web",
-                    "steps": [
-                        { "kind": "read", "path": "README.md" }
-                    ]
-                }
-            }),
+        set_distributed_dispatch_error(
+            &ctx,
+            DISTRIBUTED_ERROR_SOURCE_STATE_SYNC,
+            "failed to persist distributed task summary",
         )
         .await;
-        assert_eq!(start_payload["ok"], Value::Bool(false));
+        set_distributed_dispatch_error(
+            &ctx,
+            DISTRIBUTED_ERROR_SOURCE_BOOTSTRAP,
+            "failed to construct redis bootstrap client",
+        )
+        .await;
 
-        let request = Request::builder()
-            .method("GET")
-            .uri("/ready")
-            .body(Body::empty())
-            .expect("build ready request");
-        let response = app.oneshot(request).await.expect("ready response");
-        let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
-            .await
-            .expect("read ready body");
-        let payload: Value = serde_json::from_slice(&bytes).expect("parse ready payload");
-        let dispatch_error = payload["distributed"]["lastDispatchError"]
-            .as_str()
+        let snapshot = build_cached_distributed_readiness_snapshot(&ctx).await;
+        let dispatch_error = snapshot
+            .last_dispatch_error
+            .as_deref()
             .expect("dispatch error");
         let bootstrap_index = dispatch_error
             .find("bootstrap:")

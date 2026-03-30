@@ -598,151 +598,151 @@ struct AgentTaskStepInput {
     command: Option<String>,
     #[serde(default)]
     severities: Option<Vec<crate::workspace_diagnostics::WorkspaceDiagnosticSeverity>>,
-    #[serde(default, alias = "max_items")]
+    #[serde(default)]
     max_items: Option<u64>,
-    #[serde(default, alias = "timeout_ms")]
+    #[serde(default)]
     timeout_ms: Option<u64>,
-    #[serde(default, alias = "requires_approval")]
+    #[serde(default)]
     requires_approval: Option<bool>,
-    #[serde(default, alias = "approval_reason")]
+    #[serde(default)]
     approval_reason: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentTaskPermissionSummary {
-    #[serde(default, alias = "access_mode")]
+    #[serde(default)]
     access_mode: Option<String>,
-    #[serde(default, alias = "allow_network")]
+    #[serde(default)]
     allow_network: Option<bool>,
-    #[serde(default, alias = "writable_roots")]
+    #[serde(default)]
     writable_roots: Option<Vec<String>>,
-    #[serde(default, alias = "tool_names")]
+    #[serde(default)]
     tool_names: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentTaskMissionEvaluationPlan {
-    #[serde(default, alias = "representative_commands")]
+    #[serde(default)]
     representative_commands: Option<Vec<String>>,
-    #[serde(default, alias = "component_commands")]
+    #[serde(default)]
     component_commands: Option<Vec<String>>,
-    #[serde(default, alias = "end_to_end_commands")]
+    #[serde(default)]
     end_to_end_commands: Option<Vec<String>>,
-    #[serde(default, alias = "sample_paths")]
+    #[serde(default)]
     sample_paths: Option<Vec<String>>,
-    #[serde(default, alias = "held_out_guidance")]
+    #[serde(default)]
     held_out_guidance: Option<Vec<String>>,
-    #[serde(default, alias = "source_signals")]
+    #[serde(default)]
     source_signals: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentTaskMissionScenarioProfile {
-    #[serde(default, alias = "authority_scope")]
+    #[serde(default)]
     authority_scope: Option<String>,
-    #[serde(default, alias = "authority_sources")]
+    #[serde(default)]
     authority_sources: Option<Vec<String>>,
-    #[serde(default, alias = "representative_commands")]
+    #[serde(default)]
     representative_commands: Option<Vec<String>>,
-    #[serde(default, alias = "component_commands")]
+    #[serde(default)]
     component_commands: Option<Vec<String>>,
-    #[serde(default, alias = "end_to_end_commands")]
+    #[serde(default)]
     end_to_end_commands: Option<Vec<String>>,
-    #[serde(default, alias = "sample_paths")]
+    #[serde(default)]
     sample_paths: Option<Vec<String>>,
-    #[serde(default, alias = "held_out_guidance")]
+    #[serde(default)]
     held_out_guidance: Option<Vec<String>>,
-    #[serde(default, alias = "source_signals")]
+    #[serde(default)]
     source_signals: Option<Vec<String>>,
-    #[serde(default, alias = "scenario_keys")]
+    #[serde(default)]
     scenario_keys: Option<Vec<String>>,
-    #[serde(default, alias = "safe_background")]
+    #[serde(default)]
     safe_background: Option<bool>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentTaskMissionBrief {
     objective: String,
-    #[serde(default, alias = "done_definition")]
+    #[serde(default)]
     done_definition: Option<Vec<String>>,
     #[serde(default)]
     constraints: Option<Vec<String>>,
-    #[serde(default, alias = "risk_level")]
+    #[serde(default)]
     risk_level: Option<String>,
-    #[serde(default, alias = "required_capabilities")]
+    #[serde(default)]
     required_capabilities: Option<Vec<String>>,
-    #[serde(default, alias = "max_subtasks")]
+    #[serde(default)]
     max_subtasks: Option<u32>,
-    #[serde(default, alias = "preferred_backend_ids")]
+    #[serde(default)]
     preferred_backend_ids: Option<Vec<String>>,
-    #[serde(default, alias = "permission_summary")]
+    #[serde(default)]
     permission_summary: Option<AgentTaskPermissionSummary>,
-    #[serde(default, alias = "evaluation_plan")]
+    #[serde(default)]
     evaluation_plan: Option<AgentTaskMissionEvaluationPlan>,
-    #[serde(default, alias = "scenario_profile")]
+    #[serde(default)]
     scenario_profile: Option<AgentTaskMissionScenarioProfile>,
-    #[serde(default, alias = "plan_version")]
+    #[serde(default)]
     plan_version: Option<String>,
-    #[serde(default, alias = "plan_summary")]
+    #[serde(default)]
     plan_summary: Option<String>,
-    #[serde(default, alias = "current_milestone_id")]
+    #[serde(default)]
     current_milestone_id: Option<String>,
-    #[serde(default, alias = "estimated_duration_minutes")]
+    #[serde(default)]
     estimated_duration_minutes: Option<u32>,
-    #[serde(default, alias = "estimated_worker_runs")]
+    #[serde(default)]
     estimated_worker_runs: Option<u32>,
-    #[serde(default, alias = "parallelism_hint")]
+    #[serde(default)]
     parallelism_hint: Option<String>,
-    #[serde(default, alias = "clarification_questions")]
+    #[serde(default)]
     clarification_questions: Option<Vec<String>>,
     #[serde(default)]
     milestones: Option<Vec<AgentTaskMissionPlanMilestone>>,
-    #[serde(default, alias = "validation_lanes")]
+    #[serde(default)]
     validation_lanes: Option<Vec<AgentTaskMissionValidationLane>>,
-    #[serde(default, alias = "skill_plan")]
+    #[serde(default)]
     skill_plan: Option<Vec<AgentTaskMissionSkillPlanItem>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentTaskRelaunchContext {
-    #[serde(default, alias = "source_task_id")]
+    #[serde(default)]
     source_task_id: Option<String>,
-    #[serde(default, alias = "source_run_id")]
+    #[serde(default)]
     source_run_id: Option<String>,
-    #[serde(default, alias = "source_review_pack_id")]
+    #[serde(default)]
     source_review_pack_id: Option<String>,
-    #[serde(default, alias = "source_plan_version")]
+    #[serde(default)]
     source_plan_version: Option<String>,
     #[serde(default)]
     summary: Option<String>,
-    #[serde(default, alias = "failure_class")]
+    #[serde(default)]
     failure_class: Option<String>,
-    #[serde(default, alias = "recommended_actions")]
+    #[serde(default)]
     recommended_actions: Option<Vec<String>>,
-    #[serde(default, alias = "plan_change_summary")]
+    #[serde(default)]
     plan_change_summary: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentTaskSourceRepoContext {
     #[serde(default)]
     owner: Option<String>,
     #[serde(default)]
     name: Option<String>,
-    #[serde(default, alias = "full_name")]
+    #[serde(default)]
     full_name: Option<String>,
-    #[serde(default, alias = "remote_url")]
+    #[serde(default)]
     remote_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentTaskSourceSummary {
     kind: String,
     #[serde(default)]
@@ -755,97 +755,97 @@ struct AgentTaskSourceSummary {
     reference: Option<String>,
     #[serde(default)]
     url: Option<String>,
-    #[serde(default, alias = "issue_number")]
+    #[serde(default)]
     issue_number: Option<u64>,
-    #[serde(default, alias = "pull_request_number")]
+    #[serde(default)]
     pull_request_number: Option<u64>,
     #[serde(default)]
     repo: Option<AgentTaskSourceRepoContext>,
-    #[serde(default, alias = "workspace_id")]
+    #[serde(default)]
     workspace_id: Option<String>,
-    #[serde(default, alias = "workspace_root")]
+    #[serde(default)]
     workspace_root: Option<String>,
-    #[serde(default, alias = "external_id")]
+    #[serde(default)]
     external_id: Option<String>,
-    #[serde(default, alias = "canonical_url")]
+    #[serde(default)]
     canonical_url: Option<String>,
-    #[serde(default, alias = "thread_id")]
+    #[serde(default)]
     thread_id: Option<String>,
-    #[serde(default, alias = "request_id")]
+    #[serde(default)]
     request_id: Option<String>,
-    #[serde(default, alias = "source_task_id")]
+    #[serde(default)]
     source_task_id: Option<String>,
-    #[serde(default, alias = "source_run_id")]
+    #[serde(default)]
     source_run_id: Option<String>,
-    #[serde(default, alias = "github_source")]
+    #[serde(default)]
     github_source: Option<AgentTaskSourceGitHubProvenance>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentTaskStartRequest {
-    #[serde(alias = "workspace_id")]
     workspace_id: String,
-    #[serde(default, alias = "thread_id")]
+    #[serde(default)]
     thread_id: Option<String>,
-    #[serde(default, alias = "request_id")]
+    #[serde(default)]
     request_id: Option<String>,
     #[serde(default)]
     title: Option<String>,
-    #[serde(default, alias = "task_source")]
+    #[serde(default)]
     task_source: Option<AgentTaskSourceSummary>,
-    #[serde(default, alias = "execution_profile_id")]
+    #[serde(default)]
     execution_profile_id: Option<String>,
-    #[serde(default, alias = "review_profile_id")]
+    #[serde(default)]
     review_profile_id: Option<String>,
-    #[serde(default, alias = "validation_preset_id")]
+    #[serde(default)]
     validation_preset_id: Option<String>,
     #[serde(default)]
     provider: Option<String>,
-    #[serde(default, alias = "model_id")]
+    #[serde(default)]
     model_id: Option<String>,
-    #[serde(default, alias = "reason_effort")]
+    #[serde(default)]
     reason_effort: Option<String>,
-    #[serde(default, alias = "access_mode")]
+    #[serde(default)]
     access_mode: Option<String>,
-    #[serde(default, alias = "agent_profile")]
+    #[serde(default)]
     agent_profile: Option<String>,
-    #[serde(default, alias = "execution_mode")]
+    #[serde(default)]
     execution_mode: Option<String>,
-    #[serde(default, alias = "required_capabilities")]
+    #[serde(default)]
     required_capabilities: Option<Vec<String>>,
-    #[serde(default, alias = "preferred_backend_ids")]
+    #[serde(default)]
     preferred_backend_ids: Option<Vec<String>>,
-    #[serde(default, alias = "default_backend_id")]
+    #[serde(default)]
     default_backend_id: Option<String>,
-    #[serde(default, alias = "mission_brief")]
+    #[serde(default)]
     mission_brief: Option<AgentTaskMissionBrief>,
-    #[serde(default, alias = "relaunch_context")]
+    #[serde(default)]
     relaunch_context: Option<AgentTaskRelaunchContext>,
-    #[serde(default, alias = "approved_plan_version")]
+    #[serde(default)]
     approved_plan_version: Option<String>,
-    #[serde(default, alias = "auto_drive")]
+    #[serde(default)]
     auto_drive: Option<AgentTaskAutoDriveState>,
+    #[serde(default)]
+    autonomy_request: Option<Value>,
     steps: Vec<AgentTaskStepInput>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentTaskInterventionRequest {
-    #[serde(alias = "task_id")]
     task_id: String,
     action: AgentTaskInterventionAction,
     #[serde(default)]
     reason: Option<String>,
-    #[serde(default, alias = "instruction_patch")]
+    #[serde(default)]
     instruction_patch: Option<String>,
-    #[serde(default, alias = "execution_profile_id")]
+    #[serde(default)]
     execution_profile_id: Option<String>,
-    #[serde(default, alias = "preferred_backend_ids")]
+    #[serde(default)]
     preferred_backend_ids: Option<Vec<String>>,
-    #[serde(default, alias = "relaunch_context")]
+    #[serde(default)]
     relaunch_context: Option<AgentTaskRelaunchContext>,
-    #[serde(default, alias = "approved_plan_version")]
+    #[serde(default)]
     approved_plan_version: Option<String>,
 }
 

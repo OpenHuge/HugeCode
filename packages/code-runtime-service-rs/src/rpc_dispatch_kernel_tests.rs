@@ -365,3 +365,52 @@ async fn kernel_jobs_compat_handler_populates_projection_slice_cache() {
 
     assert_eq!(cached, Some(jobs));
 }
+
+#[tokio::test]
+async fn kernel_sessions_list_rejects_snake_case_workspace_field() {
+    let ctx = kernel_projection_test_context();
+    let error = handle_kernel_sessions_list_v2(
+        &ctx,
+        &json!({
+            "workspace_id": "ws-1",
+        }),
+    )
+    .await
+    .expect_err("snake_case sessions request must fail");
+
+    assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+    assert!(error.message.contains("Invalid kernel sessions request"));
+}
+
+#[tokio::test]
+async fn kernel_context_snapshot_rejects_snake_case_fields() {
+    let ctx = kernel_projection_test_context();
+    let error = handle_kernel_context_snapshot_v2(
+        &ctx,
+        &json!({
+            "kind": "workspace",
+            "workspace_id": "ws-1",
+        }),
+    )
+    .await
+    .expect_err("snake_case context request must fail");
+
+    assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+    assert!(error.message.contains("Invalid kernel context snapshot request"));
+}
+
+#[tokio::test]
+async fn kernel_policies_evaluate_rejects_legacy_capability_alias() {
+    let ctx = kernel_projection_test_context();
+    let error = handle_kernel_policies_evaluate_v2(
+        &ctx,
+        &json!({
+            "capabilityId": "kernel.exec",
+        }),
+    )
+    .await
+    .expect_err("legacy capability alias must fail");
+
+    assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+    assert!(error.message.contains("Invalid kernel policies request"));
+}

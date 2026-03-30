@@ -10,17 +10,15 @@ mod delta_stream;
 #[path = "turn_send_handler_support.rs"]
 mod support;
 
-use acp::{resolve_requested_acp_backend_id, try_complete_turn_send_via_acp, TurnSendTaskInput};
+use acp::{TurnSendTaskInput, resolve_requested_acp_backend_id, try_complete_turn_send_via_acp};
 use contract::{
-    parse_requested_collaboration_mode, parse_turn_execution_mode,
-    validate_turn_send_payload_shape, RequestedCollaborationMode, TurnExecutionMode,
+    RequestedCollaborationMode, TurnExecutionMode, parse_requested_collaboration_mode,
+    parse_turn_execution_mode, parse_turn_send_request,
 };
 use delta_stream::{
     TurnDeltaCoalescer, TurnDeltaCoalescerConfig, TurnDeltaPipeline, TurnDeltaPipelineConfig,
 };
-use support::{
-    clear_turn_interrupt_waiter, read_optional_string_array, register_turn_interrupt_waiter,
-};
+use support::{clear_turn_interrupt_waiter, register_turn_interrupt_waiter};
 
 #[derive(Clone, Debug, Default)]
 struct TurnQueryOutcome {
@@ -755,19 +753,15 @@ async fn complete_turn_send(
 }
 
 pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result<Value, RpcError> {
-    let params_object = as_object(params)?;
-    let payload = params_object
-        .get("payload")
-        .and_then(Value::as_object)
-        .ok_or_else(|| RpcError::invalid_params("Missing turn payload."))?;
-    validate_turn_send_payload_shape(payload)?;
+    let request = parse_turn_send_request(params)?;
+    let payload = request.payload;
 
-    let workspace_id = read_required_string(payload, "workspaceId")?;
-    let content = read_required_string(payload, "content")?;
-    let context_prefix = read_optional_string(payload, "contextPrefix");
+    let workspace_id = payload.workspace_id.as_str();
+    let content = payload.content.as_str();
+    let context_prefix = payload.context_prefix.clone();
     let (provider_content, local_exec_content) =
         build_turn_contents(content, context_prefix.as_deref());
-    let provider_hint = read_optional_string(payload, "provider");
+    let provider_hint = payload.provider.clone();
     let provider_hint_core = provider_hint
         .as_deref()
         .and_then(|provider| parse_runtime_provider(Some(provider)));
@@ -775,7 +769,7 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
     let provider_hint_known_extension = match provider_hint.as_deref() { Some(provider) => resolve_known_provider_extension_by_alias(ctx, provider).await, None => None };
     #[rustfmt::skip]
     let provider_hint_extension = match provider_hint.as_deref() { Some(provider) => resolve_active_provider_extension_by_alias(ctx, provider).await, None => None };
-    let requested_model_id = read_optional_string(payload, "modelId");
+    let requested_model_id = payload.model_id.clone();
     #[rustfmt::skip]
     let model_hint_known_extension = match requested_model_id.as_deref() { Some(model_id) => resolve_known_provider_extension_by_model_id(ctx, model_id).await, None => None };
     #[rustfmt::skip]
@@ -852,7 +846,7 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
                 .or(Some(ctx.config.default_model_id.as_str())),
         ))
     };
-    let requested_thread_id = read_optional_string(payload, "threadId");
+    let requested_thread_id = payload.thread_id.clone();
     let thread_id = requested_thread_id
         .clone()
         .unwrap_or_else(|| new_id("thread"));
@@ -903,16 +897,15 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
     } else {
         Some(model_id.clone())
     };
-    let reason_effort = read_optional_string(payload, "reasonEffort");
-    let service_tier = read_optional_string(payload, "serviceTier");
-    let access_mode =
-        normalize_access_mode(read_optional_string(payload, "accessMode").as_deref())?;
-    let request_id = read_optional_string(payload, "requestId");
-    let collaboration_mode = parse_requested_collaboration_mode(payload);
-    let preferred_backend_ids =
-        read_optional_string_array(payload, "preferredBackendIds", "preferredBackendIds");
-    let requested_codex_bin = read_optional_string(payload, "codexBin");
-    let requested_codex_args = read_optional_string_array(payload, "codexArgs", "codexArgs");
+    let reason_effort = payload.reason_effort.clone();
+    let service_tier = payload.service_tier.clone();
+    let access_mode = normalize_access_mode(Some(payload.access_mode.as_str()))?;
+    let request_id = payload.request_id.clone();
+    let collaboration_mode =
+        parse_requested_collaboration_mode(payload.collaboration_mode.as_ref());
+    let preferred_backend_ids = payload.preferred_backend_ids.clone().unwrap_or_default();
+    let requested_codex_bin = payload.codex_bin.clone();
+    let requested_codex_args = payload.codex_args.clone().unwrap_or_default();
     let oauth_api_key = oauth_routing
         .as_ref()
         .map(|credentials| credentials.api_key.as_str());
@@ -1009,7 +1002,7 @@ pub(super) async fn handle_turn_send(ctx: &AppContext, params: &Value) -> Result
     )
     .await;
 
-    let execution_mode = parse_turn_execution_mode(payload)?;
+    let execution_mode = parse_turn_execution_mode(Some(payload.execution_mode.as_str()))?;
     let acp_backend_id =
         resolve_requested_acp_backend_id(ctx, preferred_backend_ids.as_slice()).await;
     let routed_source_response = if acp_backend_id.is_some() {

@@ -875,6 +875,14 @@ fn project_native_schedule_launch_outcome(response: &Value) -> NativeScheduleLau
                     .get("taskId")
                     .and_then(Value::as_str)
                     .map(ToOwned::to_owned)
+            })
+            .or_else(|| {
+                response
+                    .get("missionRun")
+                    .and_then(Value::as_object)
+                    .and_then(|entry| entry.get("id"))
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
             }),
         run_id: response
             .get("missionRun")
@@ -1000,6 +1008,18 @@ mod tests {
         }));
 
         assert_eq!(outcome.task_id.as_deref(), Some("runtime-task:42"));
+        assert_eq!(outcome.run_id.as_deref(), Some("run-42"));
+    }
+
+    #[test]
+    fn project_native_schedule_launch_outcome_falls_back_to_mission_run_id_when_task_id_missing() {
+        let outcome = project_native_schedule_launch_outcome(&json!({
+            "missionRun": {
+                "id": "run-42"
+            }
+        }));
+
+        assert_eq!(outcome.task_id.as_deref(), Some("run-42"));
         assert_eq!(outcome.run_id.as_deref(), Some("run-42"));
     }
 }

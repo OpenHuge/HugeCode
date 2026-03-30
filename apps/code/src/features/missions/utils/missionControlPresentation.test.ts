@@ -474,7 +474,7 @@ describe("missionControlPresentation", () => {
     expect(entry.operatorActionLabel).toBe("Inspect runtime");
   });
 
-  it("orders review queue items by most recent in-review entry time and excludes done items", () => {
+  it("prioritizes blocked fallback review items ahead of newer plain in-review items and excludes done items", () => {
     const projection: HugeCodeMissionControlSnapshot = {
       ...createProjection(),
       tasks: [
@@ -620,10 +620,10 @@ describe("missionControlPresentation", () => {
     });
 
     expect(entries.map((entry) => entry.id)).toEqual([
-      "review-pack:run-in-review",
       "review-pack:run-fallback",
+      "review-pack:run-in-review",
     ]);
-    expect(entries[1]).toMatchObject({
+    expect(entries[0]).toMatchObject({
       accountabilityLifecycle: "in_review",
       filterTags: expect.arrayContaining([
         "blocked_follow_up",

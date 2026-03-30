@@ -373,14 +373,14 @@ async fn native_schedule_run_now_launches_task_when_schedule_has_workspace_conte
     .await;
 
     assert_eq!(task_payload["ok"], Value::Bool(true));
-    assert_eq!(task_payload["result"]["taskId"], json!(task_id));
+    assert_eq!(runtime_run_record(&task_payload)["taskId"], json!(task_id));
     assert_eq!(
-        task_payload["result"]["title"],
+        runtime_run_record(&task_payload)["title"],
         Value::String("Night Operator Review Sweep".to_string())
     );
-    assert_eq!(task_payload["result"]["runSummary"]["id"], json!(run_id));
+    assert_eq!(task_payload["result"]["missionRun"]["id"], json!(run_id));
     assert_eq!(
-        task_payload["result"]["missionLinkage"]["workspaceId"],
+        task_payload["result"]["missionRun"]["workspaceId"],
         Value::String("workspace-1".to_string())
     );
 }
@@ -655,8 +655,8 @@ async fn native_schedule_cancel_run_clears_active_task_linkage() {
     .await;
 
     assert_eq!(task_payload["ok"], Value::Bool(true));
-    assert_eq!(task_payload["result"]["taskId"], json!(task_id));
-    assert_eq!(task_payload["result"]["status"], json!("failed"));
+    assert_eq!(runtime_run_record(&task_payload)["taskId"], json!(task_id));
+    assert_eq!(runtime_run_record(&task_payload)["status"], json!("failed"));
 }
 
 #[tokio::test]

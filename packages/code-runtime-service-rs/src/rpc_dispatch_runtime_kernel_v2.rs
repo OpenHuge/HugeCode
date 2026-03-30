@@ -2,6 +2,8 @@ use super::mission_control_dispatch::{
     build_mission_run_projection_by_run_id, build_review_pack_projection_by_run_id,
 };
 use super::runtime_kernel_v2_plan::{build_prepare_plan, build_validation_lanes};
+#[path = "rpc_dispatch_runtime_kernel_v2_run_id.rs"]
+mod run_id;
 use super::*;
 use crate::agent_policy::{
     normalize_access_mode, normalize_agent_profile, normalize_reason_effort,
@@ -14,6 +16,7 @@ use crate::agent_task_launch_synthesis::{
 };
 use crate::repository_execution_contract::RepositoryExecutionResolvedDefaults;
 use crate::runtime_helpers::normalize_agent_task_source_summary;
+use run_id::parse_run_id;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -718,18 +721,10 @@ fn build_validation_plan(workspace_context: &WorkspaceLaunchContext) -> Value {
 }
 
 fn resolve_autonomy_request_value(
-    params: &Value,
+    provided: Option<&Value>,
     auto_drive: Option<&AgentTaskAutoDriveState>,
 ) -> Value {
-    let provided = as_object(params)
-        .ok()
-        .and_then(|record| {
-            record
-                .get("autonomyRequest")
-                .or_else(|| record.get("autonomy_request"))
-        })
-        .and_then(Value::as_object)
-        .cloned();
+    let provided = provided.and_then(Value::as_object).cloned();
     if let Some(mut autonomy_request) = provided {
         autonomy_request
             .entry("autonomyProfile".to_string())
@@ -1102,15 +1097,6 @@ fn build_wake_policy_summary(wake_policy: &Value) -> Value {
     })
 }
 
-fn parse_run_id(params: &Value) -> Result<String, RpcError> {
-    let params = as_object(params)?;
-    read_optional_string(params, "runId")
-        .or_else(|| read_optional_string(params, "run_id"))
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| RpcError::invalid_params("runId is required."))
-}
-
 async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Value, RpcError> {
     let request = parse_agent_task_start_request(params)?;
     let workspace_id = request.workspace_id.trim().to_string();
@@ -1205,7 +1191,8 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
         execution_mode,
         explicit_preferred_backend_ids.as_slice(),
     );
-    let autonomy_request = resolve_autonomy_request_value(params, auto_drive.as_ref());
+    let autonomy_request =
+        resolve_autonomy_request_value(request.autonomy_request.as_ref(), auto_drive.as_ref());
     let wake_policy = autonomy_request
         .get("wakePolicy")
         .cloned()
@@ -1319,7 +1306,17 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
 }
 
 async fn build_run_record_v2(ctx: &AppContext, run_id: &str) -> Result<Value, RpcError> {
-    let run = handle_agent_task_status(ctx, &json!({ "taskId": run_id })).await?;
+    let mut run = handle_agent_task_status(ctx, &json!({ "taskId": run_id })).await?;
+    if let Some(run_object) = run.as_object_mut() {
+        for redundant_field in [
+            "approvalState", "continuation", "executionGraph", "intervention", "missionLinkage",
+            "nextAction", "nextOperatorAction", "operatorState", "placement",
+            "profileReadiness", "reviewActionability", "reviewPackSummary", "routing",
+            "runSummary", "sessionBoundary", "takeoverBundle",
+        ] {
+            run_object.remove(redundant_field);
+        }
+    }
     let mission_run = build_mission_run_projection_by_run_id(ctx, run_id)
         .await
         .ok_or_else(|| RpcError::invalid_params(format!("Run `{run_id}` was not found.")))?;
@@ -1568,6 +1565,7 @@ mod tests {
             mission_brief: None,
             relaunch_context: None,
             auto_drive: None,
+            autonomy_request: None,
             steps: vec![sample_step(
                 AgentStepKind::Read,
                 "Inspect the runtime boundary",

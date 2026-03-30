@@ -18,6 +18,7 @@ import type {
   HealthResponse,
   HugeCodeMissionControlSnapshot,
   KernelCapabilityDescriptor,
+  KernelContextSnapshotRequest,
   KernelContextSlice,
   KernelExtensionBundle,
   KernelJob,
@@ -288,13 +289,7 @@ export type RuntimeClient<TAppSettings extends Record<string, unknown> = Record<
     kernelCapabilitiesListV2: () => Promise<KernelCapabilityDescriptor[]>;
     kernelSessionsListV2: (request?: KernelSessionsListRequest) => Promise<KernelSession[]>;
     kernelJobsListV2: (request?: KernelJobsListRequest) => Promise<KernelJob[]>;
-    kernelContextSnapshotV2: (request: {
-      kind: KernelContextSlice["scope"]["kind"];
-      workspaceId?: string | null;
-      threadId?: string | null;
-      taskId?: string | null;
-      runId?: string | null;
-    }) => Promise<KernelContextSlice>;
+    kernelContextSnapshotV2: (request: KernelContextSnapshotRequest) => Promise<KernelContextSlice>;
     kernelExtensionsListV2: (
       request?: KernelExtensionsListRequest
     ) => Promise<KernelExtensionBundle[]>;
