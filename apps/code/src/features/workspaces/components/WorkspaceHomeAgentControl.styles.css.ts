@@ -97,6 +97,59 @@ export const controlStatusValue = feature({
   textAlign: "right",
 });
 
+export const persistentFlowSurface = feature({
+  display: "grid",
+  gap: "8px",
+  padding: "10px 12px",
+  borderRadius: "var(--ds-radius-md)",
+  border: "1px solid var(--ds-border-subtle)",
+  background:
+    "linear-gradient(180deg, color-mix(in srgb, var(--ds-surface-card-base) 94%, transparent), color-mix(in srgb, var(--ds-surface-card-base) 100%, var(--ds-surface-canvas)))",
+});
+
+export const persistentFlowRecovered = feature({
+  borderColor: "color-mix(in srgb, var(--status-success) 38%, var(--ds-border-subtle))",
+  background:
+    "linear-gradient(180deg, color-mix(in srgb, var(--status-success) 9%, var(--ds-surface-card-base)), color-mix(in srgb, var(--ds-surface-card-base) 100%, var(--ds-surface-canvas)))",
+});
+
+export const persistentFlowWarning = feature({
+  borderColor: "color-mix(in srgb, var(--status-warning) 38%, var(--ds-border-subtle))",
+  background:
+    "linear-gradient(180deg, color-mix(in srgb, var(--status-warning) 10%, var(--ds-surface-card-base)), color-mix(in srgb, var(--ds-surface-card-base) 100%, var(--ds-surface-canvas)))",
+});
+
+export const persistentFlowHeader = feature({
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: "10px",
+});
+
+export const persistentFlowCopy = feature({
+  display: "grid",
+  gap: "4px",
+  minWidth: 0,
+});
+
+export const persistentFlowLabel = feature({
+  fontSize: "var(--font-size-meta)",
+  fontWeight: 600,
+  color: "var(--ds-text-strong)",
+});
+
+export const persistentFlowDetail = feature({
+  fontSize: "var(--font-size-fine)",
+  color: "var(--ds-text-faint)",
+  lineHeight: "var(--line-height-140)",
+});
+
+export const persistentFlowMeta = feature({
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "6px",
+});
+
 export const controlSection = feature({
   display: "flex",
   flexDirection: "column",

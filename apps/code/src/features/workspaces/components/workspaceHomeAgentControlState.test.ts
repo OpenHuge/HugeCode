@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it } from "vitest";
-import { readCachedState, writeCachedState } from "./workspaceHomeAgentControlState";
+import {
+  readCachedState,
+  readCachedStateWithStatus,
+  writeCachedState,
+} from "./workspaceHomeAgentControlState";
 
 const workspaceId = "ws-state-test";
 const storageKey = `workspace-home-agent-control:${workspaceId}`;
@@ -160,5 +164,14 @@ describe("workspaceHomeAgentControlState", () => {
       throw new Error("expected restored state");
     }
     expect(restored.webMcpConsoleMode).toBe("basic");
+  });
+
+  it("marks malformed cache payloads as corrupted so host-backed flow can recover safely", () => {
+    window.localStorage.setItem(storageKey, "{invalid-json");
+
+    const restored = readCachedStateWithStatus(workspaceId);
+
+    expect(restored.state).toBeNull();
+    expect(restored.corrupted).toBe(true);
   });
 });
