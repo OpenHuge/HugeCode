@@ -183,6 +183,74 @@ describe("useWorkspacePersistentFlowState", () => {
     });
   });
 
+  it("returns refreshed runtime evidence immediately instead of waiting for host persistence to finish", async () => {
+    getAppSettingsMock.mockResolvedValue({
+      activeIntentContextByWorkspaceId: {
+        "workspace-1": {
+          schemaVersion: ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION,
+          intent: {
+            objective: "Host-backed objective",
+            constraints: "Keep runtime truth authoritative",
+            successCriteria: "Restart into recovered flow",
+            deadline: null,
+            priority: "high",
+            managerNotes: "Use host data first",
+          },
+          focusedFiles: [],
+          unresolvedErrors: [],
+          history: {
+            latestRunId: "run-0",
+            latestRunTitle: "Older flow",
+            latestReviewPackId: null,
+            lastUpdatedAt: 1,
+            recentChangedPaths: [],
+            validationSummaries: [],
+          },
+        },
+      },
+    });
+    updateAppSettingsMock.mockImplementation(() => new Promise(() => {}));
+
+    const { result } = renderHook(() =>
+      useWorkspacePersistentFlowState({
+        workspaceId: "workspace-1",
+        intent: blankIntent,
+        runs: [
+          {
+            id: "run-1",
+            title: "Persist flow state",
+            updatedAt: 40,
+            changedPaths: ["apps/code/src/types.ts"],
+            validations: [
+              {
+                id: "validation-1",
+                label: "TypeScript",
+                outcome: "failed",
+                summary: "TypeScript failed after host-backed hydration.",
+              },
+            ],
+            reviewPackId: "review-pack-1",
+          },
+        ],
+        legacyCachedIntent: null,
+        legacyCacheCorrupted: false,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe("ready");
+    });
+
+    expect(result.current.context?.history.latestRunId).toBe("run-1");
+    expect(result.current.context?.history.latestReviewPackId).toBe("review-pack-1");
+    expect(result.current.context?.focusedFiles).toEqual(
+      expect.arrayContaining([{ path: "apps/code/src/types.ts", reason: "recent_change" }])
+    );
+    expect(result.current.context?.unresolvedErrors).toEqual(
+      expect.arrayContaining([expect.objectContaining({ source: "tsc", code: "TS2339" })])
+    );
+  });
+
   it("falls back to the last healthy legacy cache snapshot when host-backed state is missing", async () => {
     getAppSettingsMock.mockResolvedValue({});
     listWorkspaceDiagnosticsMock.mockResolvedValue(null);

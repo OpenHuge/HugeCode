@@ -466,8 +466,7 @@ export function useWorkspacePersistentFlowState(
       diagnostics,
     })
   );
-  const effectiveContext =
-    persistedContext ?? (hasMeaningfulActiveIntentContext(derivedContext) ? derivedContext : null);
+  const effectiveContext = hasMeaningfulActiveIntentContext(derivedContext) ? derivedContext : null;
 
   useEffect(() => {
     if (loadState !== "ready" || !hasMeaningfulActiveIntentContext(derivedContext)) {
