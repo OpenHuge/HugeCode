@@ -269,6 +269,7 @@ describe("ReviewPackSurface", () => {
               name: "Review Agent",
               version: "1.0.0",
               trustLevel: "local",
+              kind: "skill",
               entrypoint: "review-agent",
               permissions: ["workspace:read", "runtime:review"],
               compatibility: {
@@ -281,6 +282,8 @@ describe("ReviewPackSurface", () => {
               manifestPath: ".hugecode/skills/review-agent/manifest.json",
               availableInRuntime: false,
               enabledInRuntime: false,
+              runtimeReadiness: "unavailable",
+              runtimeReadinessReason: "Runtime live skill is unavailable for this workspace.",
               runtimeSkillId: null,
               reviewProfileIds: ["issue-review"],
               reviewProfileLabels: ["Issue Review"],
@@ -296,8 +299,369 @@ describe("ReviewPackSurface", () => {
     expect(screen.getByText("Review intelligence")).toBeTruthy();
     expect(screen.getByText("Workspace skill catalog")).toBeTruthy();
     expect(screen.getByText(/Review profiles: Issue Review/)).toBeTruthy();
-    expect(screen.getByText(/Runtime live skill is unavailable for this workspace/)).toBeTruthy();
+    expect(
+      screen.getAllByText(/Runtime live skill is unavailable for this workspace/).length
+    ).toBeGreaterThan(0);
     expect(screen.getByText("Operator approval required")).toBeTruthy();
+  });
+
+  it("shows a manual-ready bounded autofix preview and approval action inside Review Pack", async () => {
+    const onApplyReviewAutofix = vi.fn(async () => undefined);
+
+    render(
+      <ReviewPackSurface
+        workspaceName="Workspace One"
+        items={[]}
+        selection={{
+          request: {
+            workspaceId: "workspace-1",
+            reviewPackId: "review-pack:autofix-ready",
+            source: "review_surface",
+          },
+          status: "selected",
+          source: "runtime_snapshot_v1",
+          selectedWorkspaceId: "workspace-1",
+          selectedTaskId: "task-1",
+          selectedRunId: "run-1",
+          selectedReviewPackId: "review-pack:autofix-ready",
+          fallbackReason: null,
+        }}
+        detail={{
+          ...missionReviewDefaults,
+          id: "review-pack:autofix-ready",
+          workspaceId: "workspace-1",
+          workspaceName: "Workspace One",
+          taskId: "task-1",
+          taskTitle: "Review autofix readiness",
+          runId: "run-1",
+          runTitle: "Review autofix readiness",
+          summary: "Runtime published a bounded autofix that still requires manual approval.",
+          createdAt: Date.now() - 30_000,
+          reviewStatus: "action_required",
+          reviewStatusLabel: "Action required",
+          evidenceState: "confirmed",
+          evidenceLabel: "Confirmed evidence",
+          validationOutcome: "warning",
+          validationLabel: "Validation warning",
+          warningCount: 1,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          checksPerformed: [],
+          recommendedNextAction: "Approve the bounded autofix from Review Pack.",
+          navigationTarget: {
+            kind: "review",
+            workspaceId: "workspace-1",
+            taskId: "task-1",
+            runId: "run-1",
+            reviewPackId: "review-pack:autofix-ready",
+            limitation: null,
+          },
+          secondaryLabel: null,
+          source: "runtime_snapshot_v1",
+          sourceLabel: "Runtime snapshot",
+          failureClass: null,
+          failureClassLabel: null,
+          failureClassSummary: null,
+          publishHandoff: null,
+          continuity: null,
+          assumptions: [],
+          reproductionGuidance: [],
+          rollbackGuidance: [],
+          reviewDecision: {
+            status: "pending",
+            reviewPackId: "review-pack:autofix-ready",
+            label: "Decision pending",
+            summary: "Accept or reject this result from the review surface.",
+            decidedAt: null,
+          },
+          reviewIntelligence: {
+            summary: "Runtime published a manual-ready bounded autofix.",
+            blockedReason: null,
+            nextRecommendedAction: "Approve the bounded autofix from Review Pack.",
+            reviewProfileId: "issue-review",
+            reviewProfileLabel: "Issue Review",
+            reviewProfileDescription: null,
+            sourceMappingKind: "github_issue",
+            reviewProfileFieldOrigin: "repo_source_mapping",
+            validationPresetId: "review-first",
+            validationPresetLabel: "Review first",
+            validationCommands: ["pnpm validate:fast"],
+            validationPresetFieldOrigin: "repo_source_mapping",
+            allowedSkillIds: ["review-agent"],
+            autofixPolicy: "bounded",
+            githubMirrorPolicy: "summary",
+            reviewGate: {
+              state: "warn",
+              summary: "Review found one bounded follow-up before acceptance.",
+              highestSeverity: "warning",
+              findingCount: 1,
+            },
+            reviewFindings: [],
+            reviewRunId: "review-run-1",
+            skillUsage: [],
+            autofixCandidate: {
+              id: "autofix-1",
+              summary: "Restore the skipped validation command.",
+              status: "available",
+            },
+          },
+          reviewProfileId: "issue-review",
+          reviewGate: {
+            state: "warn",
+            summary: "Review found one bounded follow-up before acceptance.",
+            highestSeverity: "warning",
+            findingCount: 1,
+          },
+          reviewFindings: [],
+          reviewRunId: "review-run-1",
+          skillUsage: [],
+          autofixCandidate: {
+            id: "autofix-1",
+            summary: "Restore the skipped validation command.",
+            status: "available",
+          },
+          provenanceSummary: null,
+          backendAudit: {
+            summary: "Runtime backend audit unavailable.",
+            details: [],
+            missingReason: null,
+          },
+          decisionActionability: reviewPackDecisionActionabilityDefaults,
+          governance: undefined,
+          operatorSnapshot: undefined,
+          placement: undefined,
+          workspaceEvidence: undefined,
+          sourceProvenance: undefined,
+          lineage: undefined,
+          ledger: undefined,
+          checkpoint: undefined,
+          executionContext: undefined,
+          missionBrief: undefined,
+          relaunchContext: undefined,
+          compactEvidenceInput: null,
+          decisionActions: [],
+          limitations: [],
+          relaunchOptions: [],
+          subAgentSummary: [],
+          emptySectionLabels: {
+            assumptions: "No assumptions recorded.",
+            warnings: "No warnings recorded.",
+            validations: "No validations recorded.",
+            artifacts: "No artifacts recorded.",
+            reproduction: "No reproduction guidance recorded.",
+            rollback: "No rollback guidance recorded.",
+          },
+        }}
+        workspaceSkillCatalogState={{
+          status: "ready",
+          error: null,
+          entries: [],
+        }}
+        onApplyReviewAutofix={onApplyReviewAutofix}
+        onSelectReviewPack={() => undefined}
+      />
+    );
+
+    expect(screen.getByText("Manual proposal preview")).toBeTruthy();
+    expect(screen.getByText("Next step: Approve bounded autofix from Review Pack.")).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Approve bounded autofix" }));
+    });
+
+    expect(onApplyReviewAutofix).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      taskId: "task-1",
+      runId: "run-1",
+      reviewPackId: "review-pack:autofix-ready",
+      autofixCandidate: {
+        id: "autofix-1",
+        summary: "Restore the skipped validation command.",
+        status: "available",
+      },
+    });
+  });
+
+  it("opens the published follow-up path when bounded autofix is blocked", () => {
+    const onOpenMissionTarget = vi.fn();
+
+    render(
+      <ReviewPackSurface
+        workspaceName="Workspace One"
+        items={[]}
+        selection={{
+          request: {
+            workspaceId: "workspace-1",
+            reviewPackId: "review-pack:autofix-blocked",
+            source: "review_surface",
+          },
+          status: "selected",
+          source: "runtime_snapshot_v1",
+          selectedWorkspaceId: "workspace-1",
+          selectedTaskId: "task-1",
+          selectedRunId: "run-1",
+          selectedReviewPackId: "review-pack:autofix-blocked",
+          fallbackReason: null,
+        }}
+        detail={{
+          ...missionReviewDefaults,
+          id: "review-pack:autofix-blocked",
+          workspaceId: "workspace-1",
+          workspaceName: "Workspace One",
+          taskId: "task-1",
+          taskTitle: "Review autofix blocked",
+          runId: "run-1",
+          runTitle: "Review autofix blocked",
+          summary: "Runtime blocked the bounded autofix until follow-up clears.",
+          createdAt: Date.now() - 30_000,
+          reviewStatus: "action_required",
+          reviewStatusLabel: "Action required",
+          evidenceState: "confirmed",
+          evidenceLabel: "Confirmed evidence",
+          validationOutcome: "warning",
+          validationLabel: "Validation warning",
+          warningCount: 1,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          checksPerformed: [],
+          recommendedNextAction: "Open the linked mission follow-up and clear the runtime blocker.",
+          navigationTarget: {
+            kind: "mission",
+            workspaceId: "workspace-1",
+            taskId: "task-1",
+            runId: "run-1",
+            reviewPackId: "review-pack:autofix-blocked",
+            threadId: "thread-1",
+            limitation: null,
+          },
+          secondaryLabel: null,
+          source: "runtime_snapshot_v1",
+          sourceLabel: "Runtime snapshot",
+          failureClass: null,
+          failureClassLabel: null,
+          failureClassSummary: null,
+          publishHandoff: null,
+          continuity: null,
+          assumptions: [],
+          reproductionGuidance: [],
+          rollbackGuidance: [],
+          reviewDecision: {
+            status: "pending",
+            reviewPackId: "review-pack:autofix-blocked",
+            label: "Decision pending",
+            summary: "Accept or reject this result from the review surface.",
+            decidedAt: null,
+          },
+          reviewIntelligence: {
+            summary: "Runtime blocked the bounded autofix until follow-up clears.",
+            blockedReason: "Runtime must finish the previous retry first.",
+            nextRecommendedAction:
+              "Open the linked mission follow-up and clear the runtime blocker.",
+            reviewProfileId: "issue-review",
+            reviewProfileLabel: "Issue Review",
+            reviewProfileDescription: null,
+            sourceMappingKind: "github_issue",
+            reviewProfileFieldOrigin: "repo_source_mapping",
+            validationPresetId: "review-first",
+            validationPresetLabel: "Review first",
+            validationCommands: ["pnpm validate:fast"],
+            validationPresetFieldOrigin: "repo_source_mapping",
+            allowedSkillIds: ["review-agent"],
+            autofixPolicy: "bounded",
+            githubMirrorPolicy: "summary",
+            reviewGate: {
+              state: "warn",
+              summary: "Review follow-up is blocked.",
+              highestSeverity: "warning",
+              findingCount: 1,
+              blockingReason: "Runtime must finish the previous retry first.",
+            },
+            reviewFindings: [],
+            reviewRunId: "review-run-1",
+            skillUsage: [],
+            autofixCandidate: {
+              id: "autofix-1",
+              summary: "Restore the skipped validation command.",
+              status: "blocked",
+              blockingReason: "Runtime must finish the previous retry first.",
+            },
+          },
+          reviewProfileId: "issue-review",
+          reviewGate: {
+            state: "warn",
+            summary: "Review follow-up is blocked.",
+            highestSeverity: "warning",
+            findingCount: 1,
+            blockingReason: "Runtime must finish the previous retry first.",
+          },
+          reviewFindings: [],
+          reviewRunId: "review-run-1",
+          skillUsage: [],
+          autofixCandidate: {
+            id: "autofix-1",
+            summary: "Restore the skipped validation command.",
+            status: "blocked",
+            blockingReason: "Runtime must finish the previous retry first.",
+          },
+          provenanceSummary: null,
+          backendAudit: {
+            summary: "Runtime backend audit unavailable.",
+            details: [],
+            missingReason: null,
+          },
+          decisionActionability: reviewPackDecisionActionabilityDefaults,
+          governance: undefined,
+          operatorSnapshot: undefined,
+          placement: undefined,
+          workspaceEvidence: undefined,
+          sourceProvenance: undefined,
+          lineage: undefined,
+          ledger: undefined,
+          checkpoint: undefined,
+          executionContext: undefined,
+          missionBrief: undefined,
+          relaunchContext: undefined,
+          compactEvidenceInput: null,
+          decisionActions: [],
+          limitations: [],
+          relaunchOptions: [],
+          subAgentSummary: [],
+          emptySectionLabels: {
+            assumptions: "No assumptions recorded.",
+            warnings: "No warnings recorded.",
+            validations: "No validations recorded.",
+            artifacts: "No artifacts recorded.",
+            reproduction: "No reproduction guidance recorded.",
+            rollback: "No rollback guidance recorded.",
+          },
+        }}
+        workspaceSkillCatalogState={{
+          status: "ready",
+          error: null,
+          entries: [],
+        }}
+        onSelectReviewPack={() => undefined}
+        onOpenMissionTarget={onOpenMissionTarget}
+      />
+    );
+
+    expect(
+      screen.getAllByText("Blocked: Runtime must finish the previous retry first.").length
+    ).toBeGreaterThan(0);
+    const followUpButton = screen.getByRole("button", { name: "Open follow-up path" });
+    fireEvent.click(followUpButton);
+
+    expect(onOpenMissionTarget).toHaveBeenCalledWith({
+      kind: "mission",
+      workspaceId: "workspace-1",
+      taskId: "task-1",
+      runId: "run-1",
+      reviewPackId: "review-pack:autofix-blocked",
+      threadId: "thread-1",
+      limitation: null,
+    });
   });
 
   it("renders evidence-first detail content for a runtime-managed review pack", () => {

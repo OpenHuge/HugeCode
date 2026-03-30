@@ -49,13 +49,12 @@ describe("useReviewPackSurfaceController", () => {
           validationPresetId: null,
           accessMode: "on-request",
           taskSource: null,
-          sourceMappingKind: null,
           fieldOrigins: {
-            executionProfileId: "runtime_fallback",
-            preferredBackendIds: "runtime_fallback",
-            accessMode: "runtime_fallback",
-            validationPresetId: "runtime_fallback",
-            reviewProfileId: "runtime_fallback",
+            executionProfileId: "runtime_recorded",
+            preferredBackendIds: "runtime_recorded",
+            accessMode: "runtime_recorded",
+            validationPresetId: "runtime_recorded",
+            reviewProfileId: "runtime_recorded",
           },
           preferredBackendIds: ["backend-b"],
           sourceTaskId: "task-1",
@@ -100,13 +99,12 @@ describe("useReviewPackSurfaceController", () => {
           validationPresetId: null,
           accessMode: "on-request",
           taskSource: null,
-          sourceMappingKind: null,
           fieldOrigins: {
-            executionProfileId: "runtime_fallback",
-            preferredBackendIds: "runtime_fallback",
-            accessMode: "runtime_fallback",
-            validationPresetId: "runtime_fallback",
-            reviewProfileId: "runtime_fallback",
+            executionProfileId: "runtime_recorded",
+            preferredBackendIds: "runtime_recorded",
+            accessMode: "runtime_recorded",
+            validationPresetId: "runtime_recorded",
+            reviewProfileId: "runtime_recorded",
           },
           sourceTaskId: "task-1",
           sourceRunId: "run-1",
@@ -146,13 +144,12 @@ describe("useReviewPackSurfaceController", () => {
           validationPresetId: null,
           accessMode: "on-request",
           taskSource: null,
-          sourceMappingKind: null,
           fieldOrigins: {
-            executionProfileId: "runtime_fallback",
-            preferredBackendIds: "runtime_fallback",
-            accessMode: "runtime_fallback",
-            validationPresetId: "runtime_fallback",
-            reviewProfileId: "runtime_fallback",
+            executionProfileId: "runtime_recorded",
+            preferredBackendIds: "runtime_recorded",
+            accessMode: "runtime_recorded",
+            validationPresetId: "runtime_recorded",
+            reviewProfileId: "runtime_recorded",
           },
           sourceTaskId: "task-1",
           sourceRunId: "run-1",
@@ -207,18 +204,24 @@ describe("useReviewPackSurfaceController", () => {
     });
   });
 
-  it("rethrows autofix launch errors from the controller", async () => {
-    const { result } = renderHook(() =>
-      useReviewPackSurfaceController({
-        detail: createDetail("review-pack:1"),
-        defaultInterventionBackendId: null,
-        interventionBackendOptions: [],
-        onPrepareInterventionDraft: vi.fn(async () => undefined),
-        onLaunchInterventionDraft: vi.fn(async () => undefined),
-        onApplyReviewAutofix: vi.fn(async () => {
-          throw new Error("Runtime blocked autofix");
+  it("rethrows blocked autofix errors and clears them when the selected detail changes", async () => {
+    const { result, rerender } = renderHook(
+      ({ detail }) =>
+        useReviewPackSurfaceController({
+          detail,
+          defaultInterventionBackendId: null,
+          interventionBackendOptions: [],
+          onPrepareInterventionDraft: vi.fn(async () => undefined),
+          onLaunchInterventionDraft: vi.fn(async () => undefined),
+          onApplyReviewAutofix: vi.fn(async () => {
+            throw new Error("Runtime blocked autofix");
+          }),
         }),
-      })
+      {
+        initialProps: {
+          detail: createDetail("review-pack:1"),
+        },
+      }
     );
 
     let thrownError: unknown = null;
@@ -242,5 +245,9 @@ describe("useReviewPackSurfaceController", () => {
 
     expect(thrownError).toBeInstanceOf(Error);
     expect((thrownError as Error).message).toBe("Runtime blocked autofix");
+    expect(result.current.reviewAutomationError).toBe("Runtime blocked autofix");
+
+    rerender({ detail: createDetail("review-pack:2") });
+    expect(result.current.reviewAutomationError).toBeNull();
   });
 });

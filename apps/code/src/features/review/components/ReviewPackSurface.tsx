@@ -116,7 +116,11 @@ function scrollToSection(sectionId: string) {
   if (typeof document === "undefined") {
     return;
   }
-  document.getElementById(sectionId)?.scrollIntoView({
+  const section = document.getElementById(sectionId);
+  if (!section || typeof section.scrollIntoView !== "function") {
+    return;
+  }
+  section.scrollIntoView({
     block: "start",
     behavior: "smooth",
   });
@@ -807,7 +811,6 @@ export function ReviewPackSurface({
               displayedReviewDecision={displayedReviewDecision}
               fallbackReason={fallbackReason}
             />
-
             {reviewPackDetail.compactEvidenceInput ? (
               <CompactReviewEvidenceCard
                 descriptor={buildCompactReviewEvidenceDescriptor(
@@ -816,9 +819,7 @@ export function ReviewPackSurface({
                 testId="review-pack-compact-evidence"
               />
             ) : null}
-
             {renderControlDeviceHandoff(reviewPackDetail)}
-
             {renderOperatorCockpit({
               operatorSnapshot: reviewPackDetail.operatorSnapshot,
               placement: reviewPackDetail.placement,
@@ -835,7 +836,6 @@ export function ReviewPackSurface({
               onFocusEvidenceBucket: setFocusedEvidenceBucketKind,
               actions: reviewPackCockpitActions,
             })}
-
             {reviewPackDetail.provenanceSummary ||
             reviewPackDetail.placement?.summary ||
             reviewPackDetail.lineage?.summary ? (
@@ -852,7 +852,6 @@ export function ReviewPackSurface({
                 </div>
               </Card>
             ) : null}
-
             {reviewPackDetail.navigationTarget ? (
               <Card className={styles.actionCard} variant="subtle">
                 <CardTitle className={styles.actionTitle}>
@@ -872,7 +871,6 @@ export function ReviewPackSurface({
                 </Button>
               </Card>
             ) : null}
-
             {reviewPackDetail.failureClassLabel || reviewPackDetail.failureClassSummary ? (
               <Card className={styles.actionCard} variant="subtle">
                 <CardTitle className={styles.actionTitle}>
@@ -884,7 +882,6 @@ export function ReviewPackSurface({
                 </CardDescription>
               </Card>
             ) : null}
-
             {(reviewPackDetail.failureClass || reviewPackDetail.publishHandoff) && (
               <section id={FAILURE_CONTEXT_SECTION_ID}>
                 <ReviewDetailSection title="Recovery context">
@@ -903,7 +900,6 @@ export function ReviewPackSurface({
                 </ReviewDetailSection>
               </section>
             )}
-
             <ReviewDetailSection
               title="Assumptions and inferred context"
               meta={
@@ -917,7 +913,6 @@ export function ReviewPackSurface({
                 reviewPackDetail.emptySectionLabels.assumptions
               )}
             </ReviewDetailSection>
-
             <ReviewDetailSection
               title="Validation outcome"
               meta={
@@ -928,7 +923,6 @@ export function ReviewPackSurface({
             >
               {renderValidationItems(reviewPackDetail)}
             </ReviewDetailSection>
-
             <ReviewDetailSection
               title="Warnings"
               meta={
@@ -939,7 +933,6 @@ export function ReviewPackSurface({
             >
               {renderWarnings(reviewPackDetail)}
             </ReviewDetailSection>
-
             <ReviewDetailSection
               title="Checks performed"
               meta={
@@ -962,7 +955,6 @@ export function ReviewPackSurface({
                 </ul>
               )}
             </ReviewDetailSection>
-
             <ReviewDetailSection
               title="Artifacts and evidence"
               meta={
@@ -973,7 +965,6 @@ export function ReviewPackSurface({
             >
               {renderArtifacts(reviewPackDetail)}
             </ReviewDetailSection>
-
             <ReviewDetailSection
               title="Reproduction guidance"
               meta={
@@ -987,7 +978,6 @@ export function ReviewPackSurface({
                 reviewPackDetail.emptySectionLabels.reproduction
               )}
             </ReviewDetailSection>
-
             <ReviewDetailSection
               title="Rollback guidance"
               meta={
@@ -1001,7 +991,6 @@ export function ReviewPackSurface({
                 reviewPackDetail.emptySectionLabels.rollback
               )}
             </ReviewDetailSection>
-
             <ReviewDetailSection
               title="Backend audit"
               meta={reviewPackDetail.backendAudit.missingReason ? "Derived" : undefined}
@@ -1020,7 +1009,6 @@ export function ReviewPackSurface({
                 <div className={styles.bodyText}>{reviewPackDetail.backendAudit.missingReason}</div>
               ) : null}
             </ReviewDetailSection>
-
             {reviewPackDetail.executionContext ? (
               <ReviewDetailSection title="Execution context">
                 <div className={styles.bodyText}>{reviewPackDetail.executionContext.summary}</div>
@@ -1030,7 +1018,6 @@ export function ReviewPackSurface({
                 )}
               </ReviewDetailSection>
             ) : null}
-
             {reviewPackDetail.sourceProvenance ? (
               <ReviewDetailSection title="Source provenance">
                 <div className={styles.bodyText}>{reviewPackDetail.sourceProvenance.summary}</div>
@@ -1040,7 +1027,6 @@ export function ReviewPackSurface({
                 )}
               </ReviewDetailSection>
             ) : null}
-
             {reviewPackDetail.reviewIntelligence ||
             reviewPackDetail.reviewGate ||
             reviewPackDetail.reviewProfileId ||
@@ -1083,18 +1069,20 @@ export function ReviewPackSurface({
                             });
                           }
                         : null,
-                    onRelaunchWithFindings: () => scrollToSection(DECISION_ACTIONS_SECTION_ID),
+                    onRelaunchWithFindings: reviewPackDetail.navigationTarget
+                      ? () => {
+                          onOpenMissionTarget(reviewPackDetail.navigationTarget);
+                        }
+                      : () => scrollToSection(DECISION_ACTIONS_SECTION_ID),
                   },
                 })}
               </ReviewDetailSection>
             ) : null}
-
             {shouldShowWorkspaceSkillCatalog(reviewPackDetail, workspaceSkillCatalogState) && (
               <ReviewDetailSection title="Workspace skill catalog">
                 {renderWorkspaceSkillCatalog(reviewPackDetail, workspaceSkillCatalogState)}
               </ReviewDetailSection>
             )}
-
             {getReviewFindings(reviewPackDetail).length > 0 ? (
               <ReviewDetailSection
                 title="Review findings"
@@ -1103,7 +1091,6 @@ export function ReviewPackSurface({
                 {renderReviewFindings(reviewPackDetail)}
               </ReviewDetailSection>
             ) : null}
-
             {getSkillUsage(reviewPackDetail).length > 0 ? (
               <ReviewDetailSection
                 title="Skill usage"
@@ -1112,7 +1099,6 @@ export function ReviewPackSurface({
                 {renderSkillUsage(reviewPackDetail)}
               </ReviewDetailSection>
             ) : null}
-
             {reviewPackDetail.missionBrief ? (
               <ReviewDetailSection title="Mission brief">
                 <div className={styles.bodyText}>{reviewPackDetail.missionBrief.summary}</div>
@@ -1122,7 +1108,6 @@ export function ReviewPackSurface({
                 )}
               </ReviewDetailSection>
             ) : null}
-
             {reviewPackDetail.relaunchContext ? (
               <ReviewDetailSection title="Relaunch context">
                 <div className={styles.bodyText}>{reviewPackDetail.relaunchContext.summary}</div>
@@ -1141,7 +1126,6 @@ export function ReviewPackSurface({
                 )}
               </ReviewDetailSection>
             ) : null}
-
             {reviewPackDetail.ledger ? (
               <ReviewDetailSection title="Run ledger">
                 <div className={styles.bodyText}>{reviewPackDetail.ledger.summary}</div>

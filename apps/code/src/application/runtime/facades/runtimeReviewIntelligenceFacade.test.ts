@@ -8,6 +8,7 @@ import * as workspaceFilesPort from "../ports/tauriWorkspaceFiles";
 import { parseRepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import {
   applyReviewAutofix,
+  buildReviewAutofixProposalPreview,
   readWorkspaceSkillCatalog,
   resolveReviewIntelligenceSummary,
   resolveReviewProfileDefaults,
@@ -143,8 +144,11 @@ describe("runtimeReviewIntelligenceFacade", () => {
     expect(catalog).toHaveLength(2);
     expect(catalog[0]).toMatchObject({
       id: "repo-policy-check",
+      kind: "skill",
       availableInRuntime: false,
       enabledInRuntime: false,
+      runtimeReadiness: "unavailable",
+      runtimeReadinessReason: "Runtime live skill is unavailable for this workspace.",
       reviewProfileIds: ["issue-review"],
       reviewProfileLabels: ["Issue Review"],
       recommendedFor: ["review", "delegate"],
@@ -152,8 +156,11 @@ describe("runtimeReviewIntelligenceFacade", () => {
     expect(catalog[0]?.issues).toContain("Runtime live skill is unavailable for this workspace.");
     expect(catalog[1]).toMatchObject({
       id: "review-agent",
+      kind: "skill",
       availableInRuntime: true,
       enabledInRuntime: true,
+      runtimeReadiness: "executable",
+      runtimeReadinessReason: null,
       runtimeSkillId: "review-agent",
       reviewProfileIds: ["default-review", "issue-review"],
       reviewProfileLabels: ["Default Review", "Issue Review"],
@@ -418,5 +425,19 @@ describe("runtimeReviewIntelligenceFacade", () => {
         instructionPatch: expect.stringContaining("bounded autofix candidate"),
       })
     );
+  });
+
+  it("builds a manual-only autofix proposal preview without bypassing approval", () => {
+    expect(
+      buildReviewAutofixProposalPreview({
+        id: "autofix-1",
+        summary: "Tighten the validation command and rerun the review pass.",
+        status: "available",
+      })
+    ).toEqual({
+      reason: "Apply review autofix autofix-1",
+      instructionPatch:
+        "Apply the bounded autofix candidate before continuing:\n- Tighten the validation command and rerun the review pass.",
+    });
   });
 });
