@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import {
   CODE_RUNTIME_CANONICAL_MISSION_LAUNCH_METHODS,
@@ -44,6 +44,49 @@ function grepProductLaunchSources(pattern: string): string {
     ) {
       return "";
     }
+
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "ENOENT"
+    ) {
+      const matcher = new RegExp(pattern, "u");
+      const hits: string[] = [];
+
+      const visit = (relativeDir: string) => {
+        const absoluteDir = path.resolve(repoRoot, relativeDir);
+        for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
+          const relativePath = path.posix.join(relativeDir, entry.name);
+          if (entry.isDirectory()) {
+            if (entry.name === "dist") {
+              continue;
+            }
+            visit(relativePath);
+            continue;
+          }
+
+          if (/\.(test|spec)\.[^.]+(?:\.[^.]+)?$/u.test(entry.name)) {
+            continue;
+          }
+
+          const source = readFileSync(path.resolve(repoRoot, relativePath), "utf8");
+          const lines = source.split(/\r?\n/u);
+          for (let index = 0; index < lines.length; index += 1) {
+            if (matcher.test(lines[index] ?? "")) {
+              hits.push(`${relativePath}:${index + 1}:${lines[index]}`);
+            }
+          }
+        }
+      };
+
+      for (const root of productLaunchRoots) {
+        visit(root);
+      }
+
+      return hits.join("\n");
+    }
+
     throw error;
   }
 }
