@@ -44,14 +44,10 @@ function resolveTriagePriority(input: {
   ) {
     return 4;
   }
-  if (
-    input.continuationState === "blocked" ||
-    input.continuationState === "attention" ||
-    input.hasBlockedSubAgents
-  ) {
+  if (input.continuationState === "blocked" || input.hasBlockedSubAgents) {
     return 3;
   }
-  if (input.autofixAvailable) {
+  if (input.continuationState === "attention" || input.autofixAvailable) {
     return 2;
   }
   if (
