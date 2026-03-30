@@ -90,6 +90,216 @@ const blockedContinuityDefaults = {
 } as const;
 
 describe("ReviewPackSurface", () => {
+  it("renders structured review intelligence with a workspace skill catalog surface", () => {
+    render(
+      <ReviewPackSurface
+        workspaceName="Workspace One"
+        items={[
+          {
+            id: "review-pack:skill-catalog",
+            taskId: "task-1",
+            runId: "run-1",
+            workspaceId: "workspace-1",
+            title: "Review skill catalog",
+            summary: "Inspect the operator-facing review truth.",
+            createdAt: Date.now() - 30_000,
+            state: "reviewReady",
+            validationOutcome: "passed",
+            warningCount: 0,
+            recommendedNextAction: "Inspect the bounded autofix before approval.",
+            navigationTarget: {
+              kind: "review",
+              workspaceId: "workspace-1",
+              taskId: "task-1",
+              runId: "run-1",
+              reviewPackId: "review-pack:skill-catalog",
+              limitation: null,
+            },
+            secondaryLabel: null,
+            evidenceLabel: "Confirmed evidence",
+          },
+        ]}
+        selection={{
+          request: {
+            workspaceId: "workspace-1",
+            reviewPackId: "review-pack:skill-catalog",
+            source: "review_surface",
+          },
+          status: "selected",
+          source: "runtime_snapshot_v1",
+          selectedWorkspaceId: "workspace-1",
+          selectedTaskId: "task-1",
+          selectedRunId: "run-1",
+          selectedReviewPackId: "review-pack:skill-catalog",
+          fallbackReason: null,
+        }}
+        detail={{
+          ...missionReviewDefaults,
+          id: "review-pack:skill-catalog",
+          workspaceId: "workspace-1",
+          workspaceName: "Workspace One",
+          taskId: "task-1",
+          taskTitle: "Review skill catalog",
+          runId: "run-1",
+          runTitle: "Review skill catalog",
+          summary: "Inspect the operator-facing review truth.",
+          createdAt: Date.now() - 30_000,
+          reviewStatus: "ready",
+          reviewStatusLabel: "Ready",
+          evidenceState: "confirmed",
+          evidenceLabel: "Confirmed evidence",
+          validationOutcome: "passed",
+          validationLabel: "Passed",
+          warningCount: 0,
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          checksPerformed: [],
+          recommendedNextAction: "Inspect the bounded autofix before approval.",
+          navigationTarget: {
+            kind: "review",
+            workspaceId: "workspace-1",
+            taskId: "task-1",
+            runId: "run-1",
+            reviewPackId: "review-pack:skill-catalog",
+            limitation: null,
+          },
+          secondaryLabel: null,
+          source: "runtime_snapshot_v1",
+          sourceLabel: "Runtime snapshot",
+          failureClass: null,
+          failureClassLabel: null,
+          failureClassSummary: null,
+          publishHandoff: null,
+          continuity: null,
+          assumptions: [],
+          reproductionGuidance: [],
+          rollbackGuidance: [],
+          reviewDecision: {
+            status: "pending",
+            reviewPackId: "review-pack:skill-catalog",
+            label: "Decision pending",
+            summary: "Accept or reject this result from the review surface.",
+            decidedAt: null,
+          },
+          reviewIntelligence: {
+            summary: "Review profile is active and the bounded autofix is available for approval.",
+            blockedReason: null,
+            nextRecommendedAction: "Approve the bounded autofix or continue with manual follow-up.",
+            reviewProfileId: "issue-review",
+            reviewProfileLabel: "Issue Review",
+            reviewProfileDescription: "Issue-driven review profile",
+            sourceMappingKind: "github_issue",
+            reviewProfileFieldOrigin: "repo_source_mapping",
+            validationPresetId: "review-first",
+            validationPresetLabel: "Review first",
+            validationCommands: ["pnpm validate:fast"],
+            validationPresetFieldOrigin: "repo_source_mapping",
+            allowedSkillIds: ["review-agent"],
+            autofixPolicy: "bounded",
+            githubMirrorPolicy: "summary",
+            reviewGate: {
+              state: "warn",
+              summary: "Review found one follow-up before acceptance.",
+              highestSeverity: "warning",
+              findingCount: 1,
+            },
+            reviewFindings: [],
+            reviewRunId: "review-run-1",
+            skillUsage: [],
+            autofixCandidate: {
+              id: "autofix-1",
+              summary: "Restore the skipped validation command.",
+              status: "available",
+            },
+          },
+          reviewProfileId: "issue-review",
+          reviewGate: {
+            state: "warn",
+            summary: "Review found one follow-up before acceptance.",
+            highestSeverity: "warning",
+            findingCount: 1,
+          },
+          reviewFindings: [],
+          reviewRunId: "review-run-1",
+          skillUsage: [],
+          autofixCandidate: {
+            id: "autofix-1",
+            summary: "Restore the skipped validation command.",
+            status: "available",
+          },
+          provenanceSummary: null,
+          backendAudit: {
+            summary: "Runtime backend audit unavailable.",
+            details: [],
+            missingReason: "No route evidence was published.",
+          },
+          decisionActionability: reviewPackDecisionActionabilityDefaults,
+          governance: undefined,
+          operatorSnapshot: undefined,
+          placement: undefined,
+          workspaceEvidence: undefined,
+          sourceProvenance: undefined,
+          lineage: undefined,
+          ledger: undefined,
+          checkpoint: undefined,
+          executionContext: undefined,
+          missionBrief: undefined,
+          relaunchContext: undefined,
+          compactEvidenceInput: null,
+          decisionActions: [],
+          limitations: [],
+          relaunchOptions: [],
+          subAgentSummary: [],
+          emptySectionLabels: {
+            assumptions: "No assumptions recorded.",
+            warnings: "No warnings recorded.",
+            validations: "No validations recorded.",
+            artifacts: "No artifacts recorded.",
+            reproduction: "No reproduction guidance recorded.",
+            rollback: "No rollback guidance recorded.",
+          },
+        }}
+        workspaceSkillCatalogState={{
+          status: "ready",
+          error: null,
+          entries: [
+            {
+              id: "review-agent",
+              name: "Review Agent",
+              version: "1.0.0",
+              trustLevel: "local",
+              entrypoint: "review-agent",
+              permissions: ["workspace:read", "runtime:review"],
+              compatibility: {
+                minRuntime: "1.0.0",
+                maxRuntime: null,
+                minApp: "1.0.0",
+                maxApp: null,
+              },
+              recommendedFor: ["review", "delegate"],
+              manifestPath: ".hugecode/skills/review-agent/manifest.json",
+              availableInRuntime: false,
+              enabledInRuntime: false,
+              runtimeSkillId: null,
+              reviewProfileIds: ["issue-review"],
+              reviewProfileLabels: ["Issue Review"],
+              issues: ["Runtime live skill is unavailable for this workspace."],
+            },
+          ],
+        }}
+        onApplyReviewAutofix={async () => undefined}
+        onSelectReviewPack={() => undefined}
+      />
+    );
+
+    expect(screen.getByText("Review intelligence")).toBeTruthy();
+    expect(screen.getByText("Workspace skill catalog")).toBeTruthy();
+    expect(screen.getByText(/Review profiles: Issue Review/)).toBeTruthy();
+    expect(screen.getByText(/Runtime live skill is unavailable for this workspace/)).toBeTruthy();
+    expect(screen.getByText("Operator approval required")).toBeTruthy();
+  });
+
   it("renders evidence-first detail content for a runtime-managed review pack", () => {
     const onSelectReviewPack = vi.fn();
     const onOpenMissionTarget = vi.fn();

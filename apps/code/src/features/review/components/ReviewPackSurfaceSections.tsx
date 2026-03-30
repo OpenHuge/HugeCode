@@ -9,6 +9,8 @@ import {
   type StatusBadgeTone,
 } from "../../../design-system";
 import { ReviewActionRail, ReviewLoopSection } from "./review-loop/ReviewLoopAdapters";
+import type { RuntimeWorkspaceSkillCatalogSurfaceState } from "../utils/reviewPackReviewIntelligenceTruth";
+import { buildReviewPackReviewIntelligenceTruth } from "../utils/reviewPackReviewIntelligenceTruth";
 import { getSubAgentTone } from "../../../utils/subAgentStatus";
 import { formatRelativeTime } from "../../../utils/time";
 import { resolveMissionEntryActionLabel } from "../../missions/utils/missionNavigation";
@@ -152,6 +154,24 @@ function resolveSubAgentStatusTone(status: string | null | undefined): StatusBad
     case "danger":
       return "error";
     case "neutral":
+    default:
+      return "default";
+  }
+}
+
+function resolveReviewTruthTone(
+  tone: "default" | "success" | "warning" | "error" | "progress"
+): StatusBadgeTone {
+  switch (tone) {
+    case "success":
+      return "success";
+    case "warning":
+      return "warning";
+    case "error":
+      return "error";
+    case "progress":
+      return "progress";
+    case "default":
     default:
       return "default";
   }
@@ -447,58 +467,79 @@ export function renderSkillUsage(detail: ReviewIntelligenceDetail) {
 
 export function renderReviewIntelligenceSummary(
   detail: ReviewIntelligenceDetail,
-  options: {
-    emptyLabel: string;
-    fallbackLabel: string;
-  }
+  workspaceSkillCatalogState: RuntimeWorkspaceSkillCatalogSurfaceState
 ) {
-  const intelligence = detail.reviewIntelligence ?? null;
-  const lines = [
-    intelligence?.reviewProfileLabel
-      ? `Review profile: ${intelligence.reviewProfileLabel}`
-      : detail.reviewProfileId
-        ? `Review profile: ${detail.reviewProfileId}`
-        : null,
-    intelligence?.validationPresetLabel
-      ? `Validation preset: ${intelligence.validationPresetLabel}`
-      : null,
-    intelligence?.allowedSkillIds.length
-      ? `Allowed skills: ${intelligence.allowedSkillIds.join(", ")}`
-      : null,
-    intelligence?.autofixPolicy ? `Autofix policy: ${intelligence.autofixPolicy}` : null,
-    intelligence?.githubMirrorPolicy
-      ? `GitHub mirror policy: ${intelligence.githubMirrorPolicy}`
-      : null,
-    intelligence?.reviewRunId ? `Review run: ${intelligence.reviewRunId}` : null,
-    intelligence?.reviewGate?.state ? `Review gate: ${intelligence.reviewGate.state}` : null,
-    intelligence?.reviewGate?.highestSeverity
-      ? `Highest severity: ${intelligence.reviewGate.highestSeverity}`
-      : null,
-    typeof intelligence?.reviewGate?.findingCount === "number"
-      ? `Finding count: ${intelligence.reviewGate.findingCount}`
-      : null,
-    intelligence?.blockedReason ? `Blocked: ${intelligence.blockedReason}` : null,
-    intelligence?.nextRecommendedAction
-      ? `Next action: ${intelligence.nextRecommendedAction}`
-      : null,
-    intelligence?.autofixCandidate
-      ? `Autofix: ${intelligence.autofixCandidate.status} · ${intelligence.autofixCandidate.summary}`
-      : null,
-  ].filter((value): value is string => Boolean(value));
+  const truth = buildReviewPackReviewIntelligenceTruth({
+    reviewIntelligence: detail.reviewIntelligence ?? null,
+    workspaceSkillCatalog: workspaceSkillCatalogState,
+  });
   return (
     <>
-      <div className={styles.bodyText}>
-        {intelligence?.summary ??
-          detail.reviewGate?.summary ??
-          (detail.reviewProfileId ? options.fallbackLabel : options.emptyLabel)}
+      <div className={styles.bodyText}>{truth.overview.summary}</div>
+      <div className={styles.actionGrid}>
+        <div className={styles.actionItem}>
+          <span className={styles.actionItemTitle}>Policy and profile</span>
+          {truth.overview.facts.length > 0 ? (
+            <ul className={styles.publishList}>
+              {truth.overview.facts.map((fact) => (
+                <li key={`${fact.label}:${fact.value}`} className={styles.publishItem}>
+                  {fact.label}: {fact.value}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className={styles.bodyText}>Review profile metadata was not published.</div>
+          )}
+        </div>
+        <div className={styles.actionItem}>
+          <span className={styles.actionItemTitle}>Review gate</span>
+          <div className={styles.interventionActions}>
+            <StatusBadge tone={resolveReviewTruthTone(truth.gate.stateTone)}>
+              {truth.gate.stateLabel}
+            </StatusBadge>
+            {truth.gate.highestSeverity ? (
+              <StatusBadge tone="warning">{truth.gate.highestSeverity}</StatusBadge>
+            ) : null}
+          </div>
+          <div className={styles.actionItemBody}>{truth.gate.summary}</div>
+          <ul className={styles.publishList}>
+            <li className={styles.publishItem}>Finding count: {truth.gate.findingCount}</li>
+            {truth.gate.blockedReason ? (
+              <li className={styles.publishItem}>Blocked: {truth.gate.blockedReason}</li>
+            ) : null}
+            {truth.gate.nextRecommendedAction ? (
+              <li className={styles.publishItem}>
+                Next action: {truth.gate.nextRecommendedAction}
+              </li>
+            ) : null}
+          </ul>
+        </div>
+        <div className={styles.actionItem}>
+          <span className={styles.actionItemTitle}>Bounded autofix readiness</span>
+          <div className={styles.interventionActions}>
+            <StatusBadge tone={resolveReviewTruthTone(truth.autofix.tone)}>
+              {truth.autofix.label}
+            </StatusBadge>
+            <StatusBadge tone={truth.autofix.explicitApprovalRequired ? "warning" : "default"}>
+              {truth.autofix.explicitApprovalRequired
+                ? "Operator approval required"
+                : "No pending approval"}
+            </StatusBadge>
+          </div>
+          <div className={styles.actionItemBody}>{truth.autofix.summary}</div>
+          <div className={styles.bodyText}>{truth.autofix.operatorGuidance}</div>
+          {truth.autofix.blockingReason ? (
+            <div className={styles.bodyText}>Blocked: {truth.autofix.blockingReason}</div>
+          ) : null}
+        </div>
       </div>
-      {renderDetailList(lines, options.emptyLabel)}
     </>
   );
 }
 
 export function renderReviewIntelligenceActions(
   detail: ReviewIntelligenceDetail,
+  workspaceSkillCatalogState: RuntimeWorkspaceSkillCatalogSurfaceState,
   options: {
     reviewAgentLabel?: string;
     runReviewAgentEnabled?: boolean;
@@ -510,6 +551,10 @@ export function renderReviewIntelligenceActions(
   }
 ) {
   const hasRunReviewAgentAction = typeof options.actionHandlers.onRunReviewAgent === "function";
+  const truth = buildReviewPackReviewIntelligenceTruth({
+    reviewIntelligence: detail.reviewIntelligence ?? null,
+    workspaceSkillCatalog: workspaceSkillCatalogState,
+  });
   const hasAutofixAction =
     typeof options.actionHandlers.onApplyReviewAutofix === "function" &&
     (detail.reviewIntelligence?.autofixCandidate?.status ?? detail.autofixCandidate?.status) ===
@@ -544,7 +589,9 @@ export function renderReviewIntelligenceActions(
           disabled={options.autofixEnabled === false || options.applyingReviewAutofix === true}
           onClick={() => options.actionHandlers.onApplyReviewAutofix?.()}
         >
-          {options.applyingReviewAutofix ? "Applying autofix..." : "Apply bounded autofix"}
+          {options.applyingReviewAutofix
+            ? "Applying autofix..."
+            : (truth.autofix.actionLabel ?? "Approve bounded autofix")}
         </Button>
       ) : null}
       {hasRelaunchAction ? (
@@ -567,8 +614,7 @@ export function renderReviewIntelligenceActions(
 export function renderReviewIntelligenceBlock(
   detail: ReviewIntelligenceDetail,
   options: {
-    emptyLabel: string;
-    fallbackLabel: string;
+    workspaceSkillCatalogState: RuntimeWorkspaceSkillCatalogSurfaceState;
     scopeKey: string;
     runningReviewAgentKey: string | null;
     applyingReviewAutofixKey: string | null;
@@ -584,11 +630,8 @@ export function renderReviewIntelligenceBlock(
     options.applyingReviewAutofixKey === options.scopeKey;
   return (
     <>
-      {renderReviewIntelligenceSummary(detail, {
-        emptyLabel: options.emptyLabel,
-        fallbackLabel: options.fallbackLabel,
-      })}
-      {renderReviewIntelligenceActions(detail, {
+      {renderReviewIntelligenceSummary(detail, options.workspaceSkillCatalogState)}
+      {renderReviewIntelligenceActions(detail, options.workspaceSkillCatalogState, {
         reviewAgentLabel: options.reviewAgentLabel,
         runReviewAgentEnabled: options.runReviewAgentEnabled,
         runningReviewAgent: options.runningReviewAgentKey === options.scopeKey,
@@ -597,6 +640,71 @@ export function renderReviewIntelligenceBlock(
         reviewAutomationError: isActiveScope ? (options.reviewAutomationError ?? null) : null,
         actionHandlers: options.actionHandlers,
       })}
+    </>
+  );
+}
+
+export function renderWorkspaceSkillCatalog(
+  detail: ReviewIntelligenceDetail,
+  workspaceSkillCatalogState: RuntimeWorkspaceSkillCatalogSurfaceState
+) {
+  const truth = buildReviewPackReviewIntelligenceTruth({
+    reviewIntelligence: detail.reviewIntelligence ?? null,
+    workspaceSkillCatalog: workspaceSkillCatalogState,
+  });
+  if (truth.skillCatalog.status !== "ready" || truth.skillCatalog.entries.length === 0) {
+    return (
+      <>
+        <div className={styles.bodyText}>{truth.skillCatalog.summary}</div>
+        {truth.skillCatalog.actionableGuidance ? (
+          <div className={styles.bodyText}>{truth.skillCatalog.actionableGuidance}</div>
+        ) : null}
+      </>
+    );
+  }
+  return (
+    <>
+      <div className={styles.bodyText}>{truth.skillCatalog.summary}</div>
+      {truth.skillCatalog.actionableGuidance ? (
+        <div className={styles.bodyText}>{truth.skillCatalog.actionableGuidance}</div>
+      ) : null}
+      <ul className={styles.bulletList}>
+        {truth.skillCatalog.entries.map((entry) => (
+          <li key={entry.id} className={styles.bulletItem}>
+            <div className={styles.subAgentHeader}>
+              <span className={styles.bulletHeadline}>
+                {entry.title} | {entry.id} | v{entry.version}
+              </span>
+              <div className={styles.interventionActions}>
+                <StatusBadge tone={resolveReviewTruthTone(entry.runtimeTone)}>
+                  {entry.runtimeLabel}
+                </StatusBadge>
+                <StatusBadge tone="default">{entry.trustLabel}</StatusBadge>
+              </div>
+            </div>
+            <span className={styles.bulletCopy}>Compatibility: {entry.compatibilityLabel}</span>
+            {entry.reviewProfiles.length > 0 ? (
+              <span className={styles.bulletCopy}>
+                Review profiles: {entry.reviewProfiles.join(", ")}
+              </span>
+            ) : null}
+            {entry.recommendedFor.length > 0 ? (
+              <span className={styles.bulletCopy}>
+                Recommended for: {entry.recommendedFor.join(", ")}
+              </span>
+            ) : null}
+            {entry.permissions.length > 0 ? (
+              <span className={styles.bulletCopy}>Permissions: {entry.permissions.join(", ")}</span>
+            ) : null}
+            <span className={styles.bulletCopy}>Manifest: {entry.manifestPath}</span>
+            {entry.issues.map((issue) => (
+              <span key={issue} className={styles.bulletCopy}>
+                Issue: {issue}
+              </span>
+            ))}
+          </li>
+        ))}
+      </ul>
     </>
   );
 }

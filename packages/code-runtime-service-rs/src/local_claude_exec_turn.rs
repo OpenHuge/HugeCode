@@ -704,6 +704,8 @@ async fn verify_local_claude_cli_installation() -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(test)]
+#[allow(dead_code)]
 pub(crate) async fn check_local_claude_cli_readiness() -> Result<(), String> {
     let readiness = read_local_claude_cli_readiness().await;
     if readiness.kind == LocalClaudeReadinessKind::Ready {

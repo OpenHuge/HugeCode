@@ -14,14 +14,14 @@ export type PreparedInterventionDraft = {
   draft: MissionInterventionDraft;
 };
 
-type ReviewAutomationTarget = {
+export type ReviewAutomationTarget = {
   workspaceId: string;
   taskId: string;
   runId: string;
   reviewPackId?: string | null;
 };
 
-type ReviewAutofixTarget = ReviewAutomationTarget & {
+export type ReviewAutofixTarget = ReviewAutomationTarget & {
   autofixCandidate: {
     id: string;
     summary: string;
