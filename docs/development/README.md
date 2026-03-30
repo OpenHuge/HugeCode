@@ -106,7 +106,8 @@ Practical usage:
   main-branch drift, instead of treating an existing auto-merge request as a
   terminal success state.
 - The same workflow now self-heals approved PRs that stay in merge queue
-  `AWAITING_CHECKS` past the grace window without any `merge_group` run.
+  `AWAITING_CHECKS` or `UNMERGEABLE` past the grace window without any
+  matching `merge_group` run since the current enqueue time.
   It dequeues and re-enqueues the PR with the current head SHA instead of
   requiring a manual queue reset.
 - Add the `manual-merge` label to keep an approved PR out of auto-merge and the
