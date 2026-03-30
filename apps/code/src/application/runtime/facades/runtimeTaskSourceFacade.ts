@@ -1,5 +1,12 @@
-import type { HugeCodeTaskSourceSummary } from "@ku0/code-runtime-host-contract";
-import type { GitHubIssue, GitHubPullRequest } from "../../../types";
+import type {
+  HugeCodeTaskSourceSummary,
+  RuntimeGitHubSourceProvenance,
+  RuntimeGitHubSourceLaunchHandshakeState,
+  RuntimeTaskSourceCommandKind,
+  RuntimeTaskSourceLaunchDisposition,
+  RuntimeTaskSourceTriggerMode,
+} from "@ku0/code-runtime-host-contract";
+import type { GitHubIssue, GitHubPullRequest, GitHubUser } from "../../../types";
 
 export type RuntimeTaskSourceWorkspaceContext = {
   workspaceId?: string | null;
@@ -11,12 +18,85 @@ export type RuntimeTaskSourceFallback = RuntimeTaskSourceWorkspaceContext & {
   title?: string | null;
 };
 
+export type GitHubTaskSourceCommentInput = {
+  id?: number | null;
+  commentId?: number | null;
+  url?: string | null;
+  body?: string | null;
+  author?: GitHubUser | null;
+};
+
+export type GitHubTaskSourceProvenanceInput = {
+  sourceRecordId?: string | null;
+  event: {
+    eventName: string;
+    action?: string | null;
+    deliveryId?: string | null;
+    receivedAt?: number | null;
+  };
+  triggerMode?: RuntimeTaskSourceTriggerMode | null;
+  commandKind?: RuntimeTaskSourceCommandKind | null;
+  headSha?: string | null;
+  comment?: GitHubTaskSourceCommentInput | null;
+  launchHandshake?: {
+    state?: RuntimeGitHubSourceLaunchHandshakeState | null;
+    summary?: string | null;
+    disposition?: RuntimeTaskSourceLaunchDisposition | null;
+    preparedPlanVersion?: string | null;
+    approvedPlanVersion?: string | null;
+  } | null;
+};
+
 function readOptionalText(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function readOptionalNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readGitHubCommentId(
+  comment: GitHubTaskSourceCommentInput | null | undefined
+): number | null {
+  return readOptionalNumber(comment?.commentId) ?? readOptionalNumber(comment?.id);
+}
+
+function buildFallbackGitHubSourceRecordId(input: {
+  kind: HugeCodeTaskSourceSummary["kind"];
+  issueNumber?: number | null;
+  pullRequestNumber?: number | null;
+  commentId?: number | null;
+}): string {
+  const subject =
+    input.kind === "github_issue"
+      ? `issue-${input.issueNumber ?? "unknown"}`
+      : `pr-${input.pullRequestNumber ?? "unknown"}`;
+  return input.commentId === null
+    ? `github-${subject}`
+    : `github-${subject}-comment-${input.commentId}`;
+}
+
+function buildFallbackGitHubLaunchHandshakeSummary(input: {
+  kind: HugeCodeTaskSourceSummary["kind"];
+  triggerMode?: RuntimeTaskSourceTriggerMode | null;
+}): string {
+  if (input.kind === "github_issue" && input.triggerMode === "issue_comment_command") {
+    return "Governed GitHub issue follow-up prepared from the linked issue comment command.";
+  }
+  if (
+    input.kind === "github_pr_followup" &&
+    input.triggerMode === "pull_request_review_comment_command"
+  ) {
+    return "Governed GitHub PR follow-up prepared from the linked review comment command.";
+  }
+  if (input.kind === "github_pr_followup" && input.triggerMode === "pull_request_comment_command") {
+    return "Governed GitHub PR follow-up prepared from the linked pull request comment command.";
+  }
+  return "Governed GitHub source launch prepared.";
 }
 
 function stripDotGitSegment(value: string): string {
@@ -151,6 +231,109 @@ export function normalizeTaskSourceDraft(
   };
 }
 
+export function buildGitHubSourceProvenance(input: {
+  kind: Extract<HugeCodeTaskSourceSummary["kind"], "github_issue" | "github_pr_followup">;
+  issueNumber?: number | null;
+  pullRequestNumber?: number | null;
+  repo: HugeCodeTaskSourceSummary["repo"];
+  provenance?: GitHubTaskSourceProvenanceInput | null;
+}): RuntimeGitHubSourceProvenance | null {
+  const eventName = readOptionalText(input.provenance?.event.eventName);
+  if (!eventName) {
+    return null;
+  }
+  const commentId = readGitHubCommentId(input.provenance?.comment);
+  const sourceRecordId =
+    readOptionalText(input.provenance?.sourceRecordId) ??
+    buildFallbackGitHubSourceRecordId({
+      kind: input.kind,
+      issueNumber: input.issueNumber,
+      pullRequestNumber: input.pullRequestNumber,
+      commentId,
+    });
+  return {
+    sourceRecordId,
+    repo: input.repo ?? {},
+    event: {
+      eventName,
+      ...(readOptionalText(input.provenance?.event.action)
+        ? { action: readOptionalText(input.provenance?.event.action) }
+        : {}),
+      ...(readOptionalText(input.provenance?.event.deliveryId)
+        ? { deliveryId: readOptionalText(input.provenance?.event.deliveryId) }
+        : {}),
+      ...(readOptionalNumber(input.provenance?.event.receivedAt) !== null
+        ? { receivedAt: readOptionalNumber(input.provenance?.event.receivedAt) }
+        : {}),
+    },
+    ref: {
+      label:
+        input.kind === "github_issue"
+          ? `Issue #${input.issueNumber ?? "?"}`
+          : `PR #${input.pullRequestNumber ?? "?"}`,
+      ...(typeof input.issueNumber === "number" ? { issueNumber: input.issueNumber } : {}),
+      ...(typeof input.pullRequestNumber === "number"
+        ? { pullRequestNumber: input.pullRequestNumber }
+        : {}),
+      ...(readOptionalText(input.provenance?.headSha)
+        ? { headSha: readOptionalText(input.provenance?.headSha) }
+        : {}),
+      ...(readOptionalText(input.provenance?.triggerMode)
+        ? { triggerMode: readOptionalText(input.provenance?.triggerMode) }
+        : {}),
+      ...(readOptionalText(input.provenance?.commandKind)
+        ? { commandKind: readOptionalText(input.provenance?.commandKind) }
+        : {}),
+    },
+    comment:
+      commentId === null &&
+      !readOptionalText(input.provenance?.comment?.url) &&
+      !readOptionalText(input.provenance?.comment?.author?.login)
+        ? null
+        : {
+            ...(commentId !== null ? { commentId } : {}),
+            ...(readOptionalText(input.provenance?.comment?.url)
+              ? { url: readOptionalText(input.provenance?.comment?.url) }
+              : {}),
+            ...(readOptionalText(input.provenance?.comment?.author?.login)
+              ? {
+                  author: {
+                    login: readOptionalText(input.provenance?.comment?.author?.login),
+                  },
+                }
+              : {}),
+          },
+    launchHandshake: {
+      state:
+        input.provenance?.launchHandshake?.state ??
+        ("prepared" as RuntimeGitHubSourceLaunchHandshakeState),
+      summary:
+        readOptionalText(input.provenance?.launchHandshake?.summary) ??
+        buildFallbackGitHubLaunchHandshakeSummary({
+          kind: input.kind,
+          triggerMode: input.provenance?.triggerMode,
+        }),
+      ...(input.provenance?.launchHandshake?.disposition
+        ? { disposition: input.provenance.launchHandshake.disposition }
+        : {}),
+      ...(readOptionalText(input.provenance?.launchHandshake?.preparedPlanVersion)
+        ? {
+            preparedPlanVersion: readOptionalText(
+              input.provenance?.launchHandshake?.preparedPlanVersion
+            ),
+          }
+        : {}),
+      ...(readOptionalText(input.provenance?.launchHandshake?.approvedPlanVersion)
+        ? {
+            approvedPlanVersion: readOptionalText(
+              input.provenance?.launchHandshake?.approvedPlanVersion
+            ),
+          }
+        : {}),
+    },
+  };
+}
+
 export function buildGitHubIssueTaskSource(input: {
   issue: GitHubIssue;
   workspaceId?: string | null;
@@ -158,7 +341,12 @@ export function buildGitHubIssueTaskSource(input: {
   gitRemoteUrl?: string | null;
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
+  githubSource?: GitHubTaskSourceProvenanceInput | null;
 }): HugeCodeTaskSourceSummary {
+  const repo = resolveRepoContext({
+    sourceUrl: input.issue.url,
+    gitRemoteUrl: input.gitRemoteUrl,
+  });
   return normalizeTaskSourceDraft(
     {
       kind: "github_issue",
@@ -172,9 +360,12 @@ export function buildGitHubIssueTaskSource(input: {
       canonicalUrl: input.issue.url,
       sourceTaskId: readOptionalText(input.sourceTaskId) ?? input.issue.url,
       sourceRunId: readOptionalText(input.sourceRunId) ?? input.issue.url,
-      repo: resolveRepoContext({
-        sourceUrl: input.issue.url,
-        gitRemoteUrl: input.gitRemoteUrl,
+      repo,
+      githubSource: buildGitHubSourceProvenance({
+        kind: "github_issue",
+        issueNumber: input.issue.number,
+        repo,
+        provenance: input.githubSource ?? null,
       }),
     },
     input
@@ -188,7 +379,12 @@ export function buildGitHubPullRequestFollowUpTaskSource(input: {
   gitRemoteUrl?: string | null;
   sourceTaskId?: string | null;
   sourceRunId?: string | null;
+  githubSource?: GitHubTaskSourceProvenanceInput | null;
 }): HugeCodeTaskSourceSummary {
+  const repo = resolveRepoContext({
+    sourceUrl: input.pullRequest.url,
+    gitRemoteUrl: input.gitRemoteUrl,
+  });
   return normalizeTaskSourceDraft(
     {
       kind: "github_pr_followup",
@@ -202,9 +398,12 @@ export function buildGitHubPullRequestFollowUpTaskSource(input: {
       canonicalUrl: input.pullRequest.url,
       sourceTaskId: readOptionalText(input.sourceTaskId) ?? input.pullRequest.url,
       sourceRunId: readOptionalText(input.sourceRunId) ?? input.pullRequest.url,
-      repo: resolveRepoContext({
-        sourceUrl: input.pullRequest.url,
-        gitRemoteUrl: input.gitRemoteUrl,
+      repo,
+      githubSource: buildGitHubSourceProvenance({
+        kind: "github_pr_followup",
+        pullRequestNumber: input.pullRequest.number,
+        repo,
+        provenance: input.githubSource ?? null,
       }),
     },
     input

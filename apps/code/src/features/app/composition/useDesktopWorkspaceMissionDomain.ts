@@ -38,9 +38,15 @@ export type DesktopWorkspaceMissionDomainOutput = {
   handleStartTaskFromGitHubIssue: ReturnType<
     typeof useGitHubRuntimeTaskLaunchers
   >["handleStartTaskFromGitHubIssue"];
+  handleStartTaskFromGitHubIssueCommentCommand: ReturnType<
+    typeof useGitHubRuntimeTaskLaunchers
+  >["handleStartTaskFromGitHubIssueCommentCommand"];
   handleStartTaskFromGitHubPullRequest: ReturnType<
     typeof useGitHubRuntimeTaskLaunchers
   >["handleStartTaskFromGitHubPullRequest"];
+  handleStartTaskFromGitHubPullRequestReviewCommentCommand: ReturnType<
+    typeof useGitHubRuntimeTaskLaunchers
+  >["handleStartTaskFromGitHubPullRequestReviewCommentCommand"];
 };
 
 export function useDesktopWorkspaceMissionDomain({
@@ -64,14 +70,18 @@ export function useDesktopWorkspaceMissionDomain({
     workspaceState;
   const { activeThreadId, activeItems, threadStatusById, visibleActiveItems, threadsState } =
     threadDomain;
-  const { handleStartTaskFromGitHubIssue, handleStartTaskFromGitHubPullRequest } =
-    useGitHubRuntimeTaskLaunchers({
-      activeWorkspace,
-      activeWorkspaceId,
-      gitRemoteUrl,
-      selectedRemoteBackendId: threadCodexState.selectedRemoteBackendId,
-      refreshMissionControl: conversationState.homeState.refreshMissionControl,
-    });
+  const {
+    handleStartTaskFromGitHubIssue,
+    handleStartTaskFromGitHubIssueCommentCommand,
+    handleStartTaskFromGitHubPullRequest,
+    handleStartTaskFromGitHubPullRequestReviewCommentCommand,
+  } = useGitHubRuntimeTaskLaunchers({
+    activeWorkspace,
+    activeWorkspaceId,
+    gitRemoteUrl,
+    selectedRemoteBackendId: threadCodexState.selectedRemoteBackendId,
+    refreshMissionControl: conversationState.homeState.refreshMissionControl,
+  });
 
   const missionControlState = useMainAppMissionControlState({
     activeWorkspace,
@@ -124,6 +134,8 @@ export function useDesktopWorkspaceMissionDomain({
     missionControlState,
     gitCommitState,
     handleStartTaskFromGitHubIssue,
+    handleStartTaskFromGitHubIssueCommentCommand,
     handleStartTaskFromGitHubPullRequest,
+    handleStartTaskFromGitHubPullRequestReviewCommentCommand,
   };
 }
