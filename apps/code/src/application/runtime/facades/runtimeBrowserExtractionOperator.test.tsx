@@ -188,4 +188,27 @@ describe("runtimeBrowserExtractionOperator", () => {
     expect(presentation.noDebugTargetDetail).toContain("No local debuggable browser page");
     expect(presentation.traceSummary).toBe("availability -> capture");
   });
+
+  it("surfaces Chrome 136+ remote-debugging remediation when DevTools is unavailable", () => {
+    const presentation = buildRuntimeBrowserExtractionResultPresentation({
+      status: "failed",
+      normalizedText: null,
+      snippet: null,
+      errorCode: "LOCAL_CHROME_DEBUGGER_UNAVAILABLE",
+      errorMessage: "Local Chrome DevTools is unavailable.",
+      traceId: "browser-trace-3",
+      trace: [
+        {
+          stage: "availability",
+          at: "2026-03-30T00:00:00.000Z",
+          message: "No local Chrome DevTools endpoint with an HTTP base URL is available.",
+        },
+      ],
+    });
+
+    expect(presentation.statusLabel).toBe("Failed");
+    expect(presentation.detail).toContain("Local Chrome DevTools is unavailable");
+    expect(presentation.recommendedAction).toContain("--user-data-dir");
+    expect(presentation.noDebugTargetDetail).toContain("--user-data-dir");
+  });
 });

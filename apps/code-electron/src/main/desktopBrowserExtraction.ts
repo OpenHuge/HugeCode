@@ -7,6 +7,7 @@ import type {
 
 type BrowserPageTargetDescriptor = {
   id?: string;
+  subtype?: string;
   title?: string;
   type?: string;
   url?: string;
@@ -112,6 +113,7 @@ function selectPageTarget(
   const debuggablePages = targets.filter(
     (target) =>
       target.type === "page" &&
+      readNonEmptyString(target.subtype) !== "prerender" &&
       readNonEmptyString(target.webSocketDebuggerUrl) !== null &&
       readNonEmptyString(target.url) !== null
   );
@@ -318,7 +320,7 @@ export function createDesktopBrowserExtractionCapability(
           snippet: null,
           errorCode: "LOCAL_CHROME_DEBUGGER_UNAVAILABLE",
           errorMessage:
-            "Local Chrome DevTools is unavailable. Start a Chromium-based browser with remote debugging enabled and retry.",
+            "Local Chrome DevTools is unavailable. Start a Chromium-based browser with remote debugging enabled in a non-default profile. Chrome 136 and later require --user-data-dir together with --remote-debugging-port.",
           traceId,
           trace: [
             buildTraceEntry(

@@ -75,11 +75,11 @@ function buildTraceSummary(result: DesktopBrowserExtractionResult): string | nul
 function buildNoDebugTargetDetail(result: DesktopBrowserExtractionResult): string | null {
   switch (result.errorCode) {
     case "BROWSER_PAGE_TARGET_UNAVAILABLE":
-      return "No local debuggable browser page is currently available. Open the intended page in a Chromium-based browser with remote debugging enabled, then retry.";
+      return "No local debuggable browser page is currently available. Open the intended page in a Chromium-based browser with remote debugging enabled, and if you are on Chrome 136 or later, use a non-default --user-data-dir before retrying.";
     case "BROWSER_SOURCE_URL_NOT_FOUND":
       return "HugeCode could not find a debuggable local browser tab for the requested page URL. Open that page locally or clear the URL filter and retry.";
     case "LOCAL_CHROME_DEBUGGER_UNAVAILABLE":
-      return "HugeCode could not reach a local Chrome DevTools endpoint. Start Chrome or Chromium with remote debugging enabled before retrying extraction.";
+      return "HugeCode could not reach a local Chrome DevTools endpoint. Start Chrome or Chromium with remote debugging enabled in a non-default profile; Chrome 136 and later require --user-data-dir together with --remote-debugging-port before retrying extraction.";
     case "BROWSER_PAGE_TARGET_NOT_DEBUGGABLE":
       return "The selected local browser page was discovered, but it did not expose a debuggable DevTools page target.";
     default:
@@ -129,7 +129,7 @@ export function buildRuntimeBrowserExtractionResultPresentation(
               result.errorMessage ??
               "HugeCode did not find a debuggable local browser page target for extraction.",
             recommendedAction:
-              "Open the intended page in a local Chromium browser with remote debugging enabled, then retry extraction.",
+              "Open the intended page in a local Chromium browser with remote debugging enabled. On Chrome 136 and later, use a non-default --user-data-dir before retrying extraction.",
             traceSummary,
             noDebugTargetDetail,
           };
@@ -197,7 +197,7 @@ export function buildRuntimeBrowserExtractionResultPresentation(
               result.errorMessage ??
               "HugeCode could not reach a local Chromium DevTools endpoint for browser extraction.",
             recommendedAction:
-              "Start Chrome or Chromium with remote debugging enabled and retry extraction.",
+              "Start Chrome or Chromium with remote debugging enabled in a non-default profile. Chrome 136 and later require --user-data-dir together with --remote-debugging-port.",
             traceSummary,
             noDebugTargetDetail,
           };
