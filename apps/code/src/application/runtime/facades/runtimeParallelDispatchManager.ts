@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { LoroDoc, LoroList, LoroMap } from "loro-crdt/web";
-import initLoro from "loro-crdt/web/loro_wasm";
+import initLoro, { LoroDoc, LoroList, LoroMap } from "loro-crdt/web/loro_wasm";
 import loroWasmUrl from "loro-crdt/web/loro_wasm_bg.wasm?url";
 import { startRuntimeRunWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
 import {
