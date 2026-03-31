@@ -24,7 +24,7 @@ function syncTauriBridgeWithMockState() {
   };
   const implementation = isTauriMock.getMockImplementation();
   if (implementation && implementation() === true) {
-    tauriWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__ = "tauri";
+    tauriWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__ = "desktop-compat";
     tauriWindow.__TAURI_INTERNALS__ = {
       invoke: invokeMock,
     };
@@ -117,14 +117,14 @@ describe("runtimeClient mode detection", () => {
     clearAgentRuntimeMarkers();
   });
 
-  it("routes to tauri client when tauri bridge is available", async () => {
+  it("routes to the desktop compatibility client when the legacy bridge is available", async () => {
     isTauriMock.mockReturnValue(true);
     invokeMock.mockResolvedValue([]);
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
 
-    expect(runtime.detectRuntimeMode()).toBe("tauri");
+    expect(runtime.detectRuntimeMode()).toBe("desktop-compat");
     await client.workspaces();
     expect(invokeMock).toHaveBeenCalledWith("code_workspaces_list", {});
     await client.workspacePickDirectory();
@@ -849,7 +849,7 @@ describe("runtimeClient mode detection", () => {
     const runtime = await importRuntimeClientModule();
     const summary = await runtime.readRuntimeCapabilitiesSummary();
 
-    expect(summary.mode).toBe("tauri");
+    expect(summary.mode).toBe("desktop-compat");
     expect(summary.features).toContain("multi_backend_pool_v1");
     expect(summary.methods).toContain("code_runtime_backends_list");
     expect(summary.error).toBeNull();
@@ -2297,7 +2297,7 @@ describe("runtimeClient mode detection", () => {
     expect(legacyRpcBridge).not.toHaveBeenCalled();
   });
 
-  it("uses explicit unavailable mode by default outside tauri", async () => {
+  it("uses explicit unavailable mode by default outside desktop compatibility", async () => {
     isTauriMock.mockReturnValue(false);
 
     const runtime = await importRuntimeClientModule();
@@ -2341,7 +2341,7 @@ describe("runtimeClient mode detection", () => {
     expect(runtime.detectRuntimeMode()).toBe("runtime-gateway-web");
   });
 
-  it("does not mis-detect tauri when __TAURI_INTERNALS__ exists without invoke", async () => {
+  it("does not mis-detect desktop compatibility when __TAURI_INTERNALS__ exists without invoke", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
     isTauriMock.mockReturnValue(false);
     (
@@ -2355,7 +2355,7 @@ describe("runtimeClient mode detection", () => {
     expect(runtime.detectRuntimeMode()).toBe("runtime-gateway-web");
   });
 
-  it("detects tauri when __TAURI_INTERNALS__.invoke is available", async () => {
+  it("detects desktop compatibility when __TAURI_INTERNALS__.invoke is available", async () => {
     isTauriMock.mockReturnValue(false);
     (
       window as Window & {
@@ -2367,7 +2367,7 @@ describe("runtimeClient mode detection", () => {
 
     const runtime = await importRuntimeClientModule();
 
-    expect(runtime.detectRuntimeMode()).toBe("tauri");
+    expect(runtime.detectRuntimeMode()).toBe("desktop-compat");
   });
 
   it("ignores legacy demo env when no supported runtime transport is configured", async () => {

@@ -52,7 +52,7 @@ vi.mock("../../../application/runtime/ports/runtimeEventStateMachine", () => ({
   },
 }));
 
-vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
+vi.mock("../../../application/runtime/ports/threads", () => ({
   subscribeThreadLive: (workspaceId: string, threadId: string, options?: Record<string, unknown>) =>
     subscribeThreadLiveMock(workspaceId, threadId, options),
   unsubscribeThreadLive: (subscriptionId: string, options?: Record<string, unknown>) =>

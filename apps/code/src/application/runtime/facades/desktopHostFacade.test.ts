@@ -44,7 +44,7 @@ vi.mock("../ports/desktopHostEnvironment", () => ({
   readDesktopCompatibilityWindowLabel: readDesktopWindowLabelCompatibilityMock,
 }));
 
-vi.mock("../ports/tauriOpener", () => ({
+vi.mock("../ports/desktopHostOpener", () => ({
   openDesktopCompatibilityPath: openDesktopPathCompatibilityMock,
   openDesktopCompatibilityUrl: openDesktopUrlCompatibilityMock,
   revealDesktopCompatibilityItemInDir: revealDesktopItemCompatibilityMock,

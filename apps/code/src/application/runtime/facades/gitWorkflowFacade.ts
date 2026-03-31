@@ -5,7 +5,7 @@ import type {
   GitWorkflowBranch,
   GitWorkflowStatusResult,
 } from "@ku0/code-runtime-host-contract";
-import { checkoutGitBranch, createGitBranch, getGitHubPullRequests } from "../ports/tauriGit";
+import { checkoutGitBranch, createGitBranch, getGitHubPullRequests } from "../ports/git";
 import type { BranchInfo, GitHubPullRequest, WorkspaceInfo } from "../../../types";
 
 function trimToNull(value: string | null | undefined): string | null {

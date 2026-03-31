@@ -6,7 +6,7 @@ import {
   orbitSignInPoll,
   orbitSignInStart,
   orbitSignOut,
-} from "../../../application/runtime/ports/tauriRemoteServers";
+} from "../../../application/runtime/ports/remoteServers";
 import type { AppSettings } from "../../../types";
 import type { OrbitServiceClient, ShortcutDraftKey, ShortcutSettingKey } from "./settingsTypes";
 

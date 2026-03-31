@@ -8,8 +8,8 @@ import type {
   RuntimeExtensionResourceReadResponse,
   RuntimeExtensionRecord,
 } from "@ku0/code-runtime-host-contract";
-import { listRuntimeLiveSkills } from "../ports/tauriRuntimeSkills";
-import { runRuntimeLiveSkill } from "../ports/tauriRuntime";
+import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
+import { runRuntimeLiveSkill } from "../ports/runtime";
 import {
   evaluateRuntimeExtensionPermissions,
   listRuntimeExtensions,
@@ -17,7 +17,7 @@ import {
   readRuntimeExtensionResource,
 } from "../ports/runtimeExtensions";
 import { listRuntimeKernelCapabilities } from "../ports/runtimeKernelCapabilities";
-import { getProvidersCatalog, listOAuthAccounts, listOAuthPools } from "../ports/tauriOauth";
+import { getProvidersCatalog, listOAuthAccounts, listOAuthPools } from "../ports/oauth";
 import type { RuntimeWorkspaceSkillManifest } from "./runtimeWorkspaceSkillManifests";
 import { readRuntimeWorkspaceSkillManifests } from "./runtimeWorkspaceSkillManifests";
 import {

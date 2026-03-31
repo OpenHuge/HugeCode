@@ -4,7 +4,7 @@ import type {
   RuntimeRunRiskLevelV2,
 } from "@ku0/code-runtime-host-contract";
 import { RuntimeUnavailableError } from "../ports/runtimeClient";
-import { readWorkspaceFile } from "../ports/tauriWorkspaceFiles";
+import { readWorkspaceFile } from "../ports/workspaceFiles";
 import { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
 
 const REPOSITORY_EXECUTION_CONTRACT_PATH = ".hugecode/repository-execution-contract.json";

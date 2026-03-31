@@ -10,15 +10,15 @@ vi.mock("../../../utils/platformPaths", () => ({
   isMobilePlatform: vi.fn(() => true),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriRemoteServers", () => ({
+vi.mock("../../../application/runtime/ports/remoteServers", () => ({
   runBackendPoolOnboardingPreflight: vi.fn(),
 }));
-vi.mock("../../../application/runtime/ports/tauriWorkspaceCatalog", () => ({
+vi.mock("../../../application/runtime/ports/workspaceCatalog", () => ({
   listWorkspaces: vi.fn(),
 }));
 
-import { runBackendPoolOnboardingPreflight } from "../../../application/runtime/ports/tauriRemoteServers";
-import { listWorkspaces } from "../../../application/runtime/ports/tauriWorkspaceCatalog";
+import { runBackendPoolOnboardingPreflight } from "../../../application/runtime/ports/remoteServers";
+import { listWorkspaces } from "../../../application/runtime/ports/workspaceCatalog";
 
 const listWorkspacesMock = vi.mocked(listWorkspaces);
 const runBackendPoolOnboardingPreflightMock = vi.mocked(runBackendPoolOnboardingPreflight);

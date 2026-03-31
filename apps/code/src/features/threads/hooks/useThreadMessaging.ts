@@ -3,7 +3,7 @@ import type { Dispatch, MutableRefObject } from "react";
 import { useCallback } from "react";
 import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
 import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacadeHooks";
-import { prepareRuntimeRunV2 as prepareRuntimeRunV2Service } from "../../../application/runtime/ports/tauriRuntimeJobs";
+import { prepareRuntimeRunV2 as prepareRuntimeRunV2Service } from "../../../application/runtime/ports/runtimeJobs";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type {
   AccessMode,

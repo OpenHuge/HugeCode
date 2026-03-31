@@ -89,7 +89,7 @@ async function loadStartAppServerBridgeV2() {
   return module.startAppServerBridgeV2;
 }
 
-function isTauriRuntime(): boolean {
+function isDesktopCompatRuntime(): boolean {
   try {
     return isTauri();
   } catch {
@@ -443,7 +443,7 @@ async function startAppServerBridge(
 ): Promise<Unsubscribe> {
   const unsubscribers: Unsubscribe[] = [];
 
-  if (isTauriRuntime()) {
+  if (isDesktopCompatRuntime()) {
     const runtimeUnsubscribe = await registerTauriSubscription(
       RUNTIME_HOST_EVENT_NAME,
       (payload) => {
@@ -483,7 +483,7 @@ function createAppServerEventHub() {
       recordRuntimeEventReconnectAttempt();
       updateRuntimeEventChannelDiagnostics(APP_SERVER_BRIDGE_CHANNEL_ID, {
         label: "App server bridge",
-        transport: isTauriRuntime() ? "tauri" : "bridge",
+        transport: isDesktopCompatRuntime() ? "desktop-compat" : "bridge",
         status: "reconnecting",
         retryAttempt: attempt,
         retryDelayMs: delayMs,
@@ -517,7 +517,7 @@ function createAppServerEventHub() {
     }
     updateRuntimeEventChannelDiagnostics(APP_SERVER_BRIDGE_CHANNEL_ID, {
       label: "App server bridge",
-      transport: isTauriRuntime() ? "tauri" : "bridge",
+      transport: isDesktopCompatRuntime() ? "desktop-compat" : "bridge",
       status: "connecting",
       retryDelayMs: null,
     });
@@ -547,7 +547,7 @@ function createAppServerEventHub() {
         recordRuntimeEventReconnectSuccess();
         updateRuntimeEventChannelDiagnostics(APP_SERVER_BRIDGE_CHANNEL_ID, {
           label: "App server bridge",
-          transport: isTauriRuntime() ? "tauri" : "bridge",
+          transport: isDesktopCompatRuntime() ? "desktop-compat" : "bridge",
           status: "open",
           retryAttempt: 0,
           retryDelayMs: null,
@@ -648,7 +648,7 @@ function createEventHub<T>(eventName: string) {
     if (unlisten || listenPromise || listeners.size === 0) {
       return;
     }
-    if (!isTauriRuntime()) {
+    if (!isDesktopCompatRuntime()) {
       return;
     }
     listenPromise = listen<T>(eventName, (event: { payload: T }) => {

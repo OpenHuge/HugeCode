@@ -12,11 +12,11 @@ import {
   cancelCodexLogin,
   runCodexLogin,
   type OAuthAccountSummary,
-} from "../../../application/runtime/ports/tauriOauth";
+} from "../../../application/runtime/ports/oauth";
 import type { AccountSnapshot } from "../../../types";
 import { useAccountSwitching } from "./useAccountSwitching";
 
-vi.mock("../../../application/runtime/ports/tauriOauth", () => ({
+vi.mock("../../../application/runtime/ports/oauth", () => ({
   bindOAuthPoolAccount: vi.fn(),
   runCodexLogin: vi.fn(),
   cancelCodexLogin: vi.fn(),

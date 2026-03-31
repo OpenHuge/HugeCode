@@ -1,6 +1,6 @@
-export { readWorkspaceFile } from "../../../services/tauriRuntimeWorkspaceFilesBridge";
-export { pickAttachmentFiles } from "../../../services/tauriWorkspaceBridge";
-export { pickImageFiles } from "../../../services/tauriWorkspaceBridge";
+export { readWorkspaceFile } from "../../../services/runtimeWorkspaceFilesBridge";
+export { pickAttachmentFiles } from "../../../services/workspaceBridge";
+export { pickImageFiles } from "../../../services/workspaceBridge";
 
 function normalizeFilePath(path: string) {
   if (path.startsWith("file://")) {

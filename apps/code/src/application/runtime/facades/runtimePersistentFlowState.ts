@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import type { AppSettings } from "../../../types";
 import { getAppSettings, updateAppSettings } from "../ports/desktopAppSettings";
 import { subscribeScopedRuntimeUpdatedEvents } from "../ports/runtimeUpdatedEvents";
-import { listWorkspaceDiagnostics } from "../ports/tauriRuntimeDiagnostics";
+import { listWorkspaceDiagnostics } from "../ports/runtimeDiagnostics";
 import type { AgentIntentState } from "../types/webMcpBridge";
 
 type ActiveIntentContextRunInput = {

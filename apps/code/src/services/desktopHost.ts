@@ -162,7 +162,7 @@ export {
   openWorkspaceIn,
   renameWorktreeUpstream,
 } from "./desktopHostWorkspace";
-export { sendNotification } from "./tauriNotificationsBridge";
+export { sendNotification } from "./notificationsBridge";
 export {
   __resetMockOauthSessionFallbackForTests,
   __resetWebRuntimeOauthFallbackStateForTests,
@@ -190,14 +190,14 @@ export {
   setOAuthPrimaryAccount,
   upsertOAuthAccount,
   upsertOAuthPool,
-} from "./tauriOauthBridge";
+} from "./oauthBridge";
 export {
   createPrompt,
   deletePrompt,
   getPromptsList,
   movePrompt,
   updatePrompt,
-} from "./tauriPromptsBridge";
+} from "./promptsBridge";
 export {
   actionRequiredGetV2,
   actionRequiredSubmitV2,
@@ -229,20 +229,20 @@ export {
   updateRuntimePrompt,
   waitSubAgentSession,
   writeRuntimeTerminalSession,
-} from "./tauriRuntimeAgentBridge";
+} from "./runtimeAgentBridge";
 export {
   getInstructionSkill,
   getModelList,
   getSkillsList,
   listRuntimeModels,
-} from "./tauriRuntimeCatalogBridge";
+} from "./runtimeCatalogBridge";
 export {
   getNativeStateFabricDelta,
   getNativeStateFabricDiagnostics,
   getNativeStateFabricSnapshot,
   type NativeStateFabricDeltaRead,
-} from "./tauriRuntimeStateFabricBridge";
-export { subscribeThreadLive, unsubscribeThreadLive } from "./tauriThreadLiveBridge";
+} from "./runtimeStateFabricBridge";
+export { subscribeThreadLive, unsubscribeThreadLive } from "./threadLiveBridge";
 export {
   getRuntimeExtensionsConfig,
   installRuntimeExtension,
@@ -250,7 +250,7 @@ export {
   listRuntimeExtensions,
   removeRuntimeExtension,
   readRuntimeExtensionResource,
-} from "./tauriRuntimeExtensionBridge";
+} from "./runtimeExtensionBridge";
 export {
   cancelNativeScheduleRun,
   createNativeSchedule,
@@ -258,7 +258,7 @@ export {
   listNativeSchedules,
   runNativeScheduleNow,
   updateNativeSchedule,
-} from "./tauriRuntimeSchedulesBridge";
+} from "./runtimeSchedulesBridge";
 export {
   acpIntegrationProbe,
   acpIntegrationsList,
@@ -282,7 +282,7 @@ export {
   runtimeToolMetricsRead,
   runtimeToolMetricsRecord,
   runtimeToolMetricsReset,
-} from "./tauriRuntimeControlBridge";
+} from "./runtimeControlBridge";
 export {
   checkoutGitBranch,
   commitGit,
@@ -295,7 +295,7 @@ export {
   stageGitAll,
   stageGitFile,
   unstageGitFile,
-} from "./tauriRuntimeGitBridge";
+} from "./runtimeGitBridge";
 export {
   closeTerminalSession,
   interruptTerminalSession,
@@ -307,18 +307,15 @@ export {
   stopTerminalSessionStream,
   writeTerminalSession,
   writeTerminalSessionRaw,
-} from "./tauriRuntimeTerminalBridge";
-export { sendUserMessage, steerTurn } from "./tauriRuntimeTurnBridge";
-export {
-  __resetLocalUsageSnapshotCacheForTests,
-  localUsageSnapshot,
-} from "./tauriRuntimeUsageBridge";
-export { getWorkspaceFiles, readWorkspaceFile } from "./tauriRuntimeWorkspaceFilesBridge";
+} from "./runtimeTerminalBridge";
+export { sendUserMessage, steerTurn } from "./runtimeTurnBridge";
+export { __resetLocalUsageSnapshotCacheForTests, localUsageSnapshot } from "./runtimeUsageBridge";
+export { getWorkspaceFiles, readWorkspaceFile } from "./runtimeWorkspaceFilesBridge";
 export type {
   AgentMdResponse,
   GlobalAgentsResponse,
   GlobalCodexConfigResponse,
-} from "./tauriTextFilesBridge";
+} from "./textFilesBridge";
 export {
   readAgentMd,
   readGlobalAgentsMd,
@@ -326,14 +323,14 @@ export {
   writeAgentMd,
   writeGlobalAgentsMd,
   writeGlobalCodexConfigToml,
-} from "./tauriTextFilesBridge";
+} from "./textFilesBridge";
 export {
   archiveThread,
   interruptTurn,
   listThreads,
   resumeThread,
   startThread,
-} from "./tauriThreadBridge";
+} from "./threadBridge";
 export {
   addClone,
   addWorkspace,
@@ -352,5 +349,5 @@ export {
   resolveRuntimeWorkspacePath,
   updateWorkspaceCodexBin,
   updateWorkspaceSettings,
-} from "./tauriWorkspaceBridge";
+} from "./workspaceBridge";
 export type { TextFileResponse } from "./textFileGateway";

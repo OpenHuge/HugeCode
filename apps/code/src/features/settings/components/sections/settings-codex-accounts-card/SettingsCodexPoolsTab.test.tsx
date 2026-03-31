@@ -5,7 +5,7 @@ import { SettingsCodexPoolsTab } from "./SettingsCodexPoolsTab";
 import type {
   OAuthAccountSummary,
   OAuthPoolSummary,
-} from "../../../../../application/runtime/ports/tauriOauth";
+} from "../../../../../application/runtime/ports/oauth";
 import type { PoolDraft, ProviderOption } from "../settingsCodexAccountsCardUtils";
 
 const providerOptions: ProviderOption[] = [

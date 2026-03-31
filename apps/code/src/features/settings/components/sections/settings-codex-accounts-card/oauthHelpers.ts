@@ -8,8 +8,8 @@ import { openUrl } from "../../../../../application/runtime/facades/desktopHostF
 import {
   type OAuthAccountSummary,
   type OAuthPoolSummary,
-} from "../../../../../application/runtime/ports/tauriOauth";
-import { listWorkspaces } from "../../../../../application/runtime/ports/tauriWorkspaceCatalog";
+} from "../../../../../application/runtime/ports/oauth";
+import { listWorkspaces } from "../../../../../application/runtime/ports/workspaceCatalog";
 import { DEFAULT_RUNTIME_WORKSPACE_ID } from "../../../../../utils/runtimeWorkspaceIds";
 
 const LOCAL_CODEX_CLI_ACCOUNT_SOURCE = "local_codex_cli_auth";

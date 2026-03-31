@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 
 import { useEffect, useState } from "react";
-import { isTauri } from "@tauri-apps/api/core";
-import { ask, message } from "@tauri-apps/plugin-dialog";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { ask, message } from "../../../application/runtime/ports/desktopHostDialogs";
 import { logger } from "../../../application/runtime/ports/logger";
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import {
   readPersistedActiveWorkspaceId,
   writePersistedActiveWorkspaceId,
-} from "../../../application/runtime/ports/tauriThreadSnapshots";
+} from "../../../application/runtime/ports/threadSnapshots";
 import {
   subscribeScopedRuntimeUpdatedEvents,
   useScopedRuntimeUpdatedEvent,
@@ -19,41 +19,41 @@ import {
 import {
   isWorkspacePathDir,
   pickWorkspacePaths,
-} from "../../../application/runtime/ports/tauriWorkspaceDialogs";
-import { listWorkspaces } from "../../../application/runtime/ports/tauriWorkspaceCatalog";
+} from "../../../application/runtime/ports/workspaceDialogs";
+import { listWorkspaces } from "../../../application/runtime/ports/workspaceCatalog";
 import {
   addWorkspace as addWorkspaceService,
   removeWorkspace as removeWorkspaceService,
   renameWorktree,
   renameWorktreeUpstream,
   updateWorkspaceSettings,
-} from "../../../application/runtime/ports/tauriWorkspaceMutations";
+} from "../../../application/runtime/ports/workspaceMutations";
 import { createRuntimeUpdatedEventFixture } from "../../../test/runtimeUpdatedEventFixtures";
 import { createRuntimeUpdatedSubscriptionHarness } from "../../../test/runtimeUpdatedSubscriptionHarness";
 import type { AppSettings, WorkspaceInfo } from "../../../types";
 import { useWorkspaces } from "./useWorkspaces";
 import { clearWorkspaceRouteRestoreSelection } from "./workspaceRoute";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("../../../application/runtime/ports/desktopHostCore", () => ({
   isTauri: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({
+vi.mock("../../../application/runtime/ports/desktopHostDialogs", () => ({
   ask: vi.fn(),
   message: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriWorkspaceDialogs", () => ({
+vi.mock("../../../application/runtime/ports/workspaceDialogs", () => ({
   isWorkspacePathDir: vi.fn(),
   pickWorkspacePath: vi.fn(),
   pickWorkspacePaths: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriWorkspaceCatalog", () => ({
+vi.mock("../../../application/runtime/ports/workspaceCatalog", () => ({
   listWorkspaces: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriWorkspaceMutations", () => ({
+vi.mock("../../../application/runtime/ports/workspaceMutations", () => ({
   addClone: vi.fn(),
   addWorkspace: vi.fn(),
   addWorktree: vi.fn(),
@@ -67,7 +67,7 @@ vi.mock("../../../application/runtime/ports/tauriWorkspaceMutations", () => ({
   connectWorkspace: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriThreadSnapshots", () => ({
+vi.mock("../../../application/runtime/ports/threadSnapshots", () => ({
   readPersistedActiveWorkspaceId: vi.fn(),
   writePersistedActiveWorkspaceId: vi.fn(),
 }));
@@ -87,7 +87,7 @@ vi.mock("../../../application/runtime/ports/logger", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "tauri"),
+  detectRuntimeMode: vi.fn(() => "desktop-compat"),
 }));
 
 const runtimeUpdatedHarness = createRuntimeUpdatedSubscriptionHarness();
@@ -101,7 +101,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.history.replaceState({}, "", "/");
   clearWorkspaceRouteRestoreSelection();
-  vi.mocked(detectRuntimeMode).mockReturnValue("tauri");
+  vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
   vi.mocked(isTauri).mockReturnValue(true);
   vi.mocked(readPersistedActiveWorkspaceId).mockResolvedValue(null);
   vi.mocked(writePersistedActiveWorkspaceId).mockResolvedValue(true);

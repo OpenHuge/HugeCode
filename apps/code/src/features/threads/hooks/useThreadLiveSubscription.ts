@@ -5,7 +5,7 @@ import { subscribeRuntimeEventStateChannel } from "../../../application/runtime/
 import {
   subscribeThreadLive,
   unsubscribeThreadLive,
-} from "../../../application/runtime/ports/tauriThreads";
+} from "../../../application/runtime/ports/threads";
 import type { DebugEntry, WorkspaceInfo } from "../../../types";
 import {
   getAppServerParams,

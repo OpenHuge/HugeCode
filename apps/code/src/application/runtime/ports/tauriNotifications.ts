@@ -1,1 +1,0 @@
-export { sendNotification } from "./desktopNotifications";

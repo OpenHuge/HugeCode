@@ -4,7 +4,7 @@ import {
   resolveChatgptAuthTokensRefreshResponse,
   respondToServerRequestResult,
   setThreadName as setThreadNameService,
-} from "../../../application/runtime/ports/tauriThreads";
+} from "../../../application/runtime/ports/threads";
 import type {
   AccessMode,
   ComposerExecutionMode,

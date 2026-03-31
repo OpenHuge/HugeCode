@@ -8,7 +8,7 @@ import type {
   RuntimeRunPrepareV2Response,
   RuntimeRunStartV2Response,
 } from "@ku0/code-runtime-host-contract";
-import { prepareRuntimeRunV2, startRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
+import { prepareRuntimeRunV2, startRuntimeRunV2 } from "../ports/runtimeJobs";
 import {
   buildAgentTaskLaunchControls,
   buildAgentTaskMissionBrief,

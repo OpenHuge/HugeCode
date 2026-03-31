@@ -5,11 +5,11 @@ import {
   revertGitFile,
   stageGitFile,
   unstageGitFile,
-} from "../../../application/runtime/ports/tauriGit";
+} from "../../../application/runtime/ports/git";
 import type { WorkspaceInfo } from "../../../types";
 import { useGitActions } from "./useGitActions";
 
-vi.mock("../../../application/runtime/ports/tauriGit", () => ({
+vi.mock("../../../application/runtime/ports/git", () => ({
   applyWorktreeChanges: vi.fn(),
   revertGitAll: vi.fn(),
   revertGitFile: vi.fn(),

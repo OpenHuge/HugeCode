@@ -2,7 +2,7 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import type {
   OAuthAccountSummary,
   OAuthPoolSummary,
-} from "../../../../../application/runtime/ports/tauriOauth";
+} from "../../../../../application/runtime/ports/oauth";
 import { Button } from "../../../../../design-system";
 import { Input } from "../../../../../design-system";
 import { Select, type SelectOption } from "../../../../../design-system";

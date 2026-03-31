@@ -1,5 +1,5 @@
 import type { AppServerEvent } from "../types";
-import { isTauri } from "../application/runtime/ports/tauriCore";
+import { isTauri } from "../application/runtime/ports/desktopHostCore";
 import { normalizeAppServerPayload } from "./eventsRuntimePayloadAdapter";
 import {
   createEventIdDeduper,
@@ -181,7 +181,7 @@ function readAgentEnvelopeMetadataFromEvent(event: AppServerEvent): AgentEnvelop
   };
 }
 
-function isTauriRuntime(): boolean {
+function isDesktopCompatRuntime(): boolean {
   try {
     return isTauri();
   } catch {
@@ -609,7 +609,7 @@ export async function startAppServerBridgeV2(
   const bridgeState = createRuntimeEventStateMachine({
     id: APP_SERVER_BRIDGE_CHANNEL_ID,
     label: "App server bridge",
-    defaultTransport: isTauriRuntime() ? "tauri" : "bridge",
+    defaultTransport: isDesktopCompatRuntime() ? "desktop-compat" : "bridge",
   });
 
   bridgeState.transition("connecting", {
@@ -619,7 +619,7 @@ export async function startAppServerBridgeV2(
 
   const unsubscribers: Unsubscribe[] = [];
   try {
-    if (isTauriRuntime()) {
+    if (isDesktopCompatRuntime()) {
       const runtimeUnsubscribe = await registerTauriSubscription(
         RUNTIME_HOST_EVENT_NAME,
         (payload) => {
@@ -634,7 +634,7 @@ export async function startAppServerBridgeV2(
         unsubscribers.push(runtimeUnsubscribe);
         bridgeState.transition("open", {
           reason: "tauri-listener-open",
-          transport: "tauri",
+          transport: "desktop-compat",
           retryAttempt: 0,
           retryDelayMs: null,
           consecutiveFailures: 0,

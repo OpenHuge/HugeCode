@@ -3,7 +3,7 @@ import type {
   OAuthPoolSummary,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
-import type { OAuthProviderId } from "../ports/tauriOauth";
+import type { OAuthProviderId } from "../ports/oauth";
 
 export type RuntimeRoutingProviderDescriptor = {
   providerId: OAuthProviderId;

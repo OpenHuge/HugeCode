@@ -16,7 +16,7 @@ import {
   type OAuthAccountSummary,
   type OAuthPrimaryAccountSummary,
   type OAuthPoolSummary,
-} from "../../../../../application/runtime/ports/tauriOauth";
+} from "../../../../../application/runtime/ports/oauth";
 import {
   buildPoolDrafts,
   buildProviderOptionsFromCatalog,

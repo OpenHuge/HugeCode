@@ -17,7 +17,7 @@ import {
   reportOAuthRateLimit,
   selectOAuthPoolAccount,
   setOAuthPrimaryAccount,
-} from "../../../../application/runtime/ports/tauriOauth";
+} from "../../../../application/runtime/ports/oauth";
 import {
   readSafeLocalStorageItem,
   writeSafeLocalStorageItem,

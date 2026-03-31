@@ -11,7 +11,7 @@ import {
   getGitHubIssueDetails,
   getGitHubPullRequestComments,
   getGitHubPullRequestDiff,
-} from "../../../../application/runtime/ports/tauriGit";
+} from "../../../../application/runtime/ports/git";
 import { pushErrorToast } from "../../../../application/runtime/ports/toasts";
 import { DEFAULT_RUNTIME_WORKSPACE_ID } from "../../../../utils/runtimeWorkspaceIds";
 import type { MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";

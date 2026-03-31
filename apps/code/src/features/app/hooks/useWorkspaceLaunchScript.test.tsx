@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { writeTerminalSession } from "../../../application/runtime/ports/tauriTerminal";
+import { writeTerminalSession } from "../../../application/runtime/ports/terminal";
 import type { WorkspaceInfo } from "../../../types";
 import type { TerminalSessionState } from "../../terminal/hooks/useTerminalSession";
 import { useWorkspaceLaunchScript } from "./useWorkspaceLaunchScript";
 
-vi.mock("../../../application/runtime/ports/tauriTerminal", () => ({
+vi.mock("../../../application/runtime/ports/terminal", () => ({
   writeTerminalSession: vi.fn(),
 }));
 

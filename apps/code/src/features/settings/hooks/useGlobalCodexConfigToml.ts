@@ -1,7 +1,7 @@
 import {
   readGlobalCodexConfigToml,
   writeGlobalCodexConfigToml,
-} from "../../../application/runtime/ports/tauriCodexConfig";
+} from "../../../application/runtime/ports/codexConfig";
 import { useFileEditor } from "../../shared/hooks/useFileEditor";
 
 export function useGlobalCodexConfigToml(enabled = true) {

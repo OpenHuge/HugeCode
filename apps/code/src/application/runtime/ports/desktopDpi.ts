@@ -1,1 +1,1 @@
-export { LogicalPosition } from "@tauri-apps/api/dpi";
+export { LogicalPosition } from "./packageCompat/legacyDesktopDpiCompat";

@@ -2,7 +2,7 @@ import type { MissionControlSnapshotState } from "@ku0/code-workspace-client";
 import { getMissionControlSnapshotStore } from "@ku0/code-workspace-client";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useRuntimeKernel } from "../../../application/runtime/kernel/RuntimeKernelContext";
-import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/tauriRuntime";
+import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/runtime";
 import type { RateLimitSnapshot, ThreadTokenUsage, TurnPlan, WorkspaceInfo } from "../../../types";
 import { useLocalUsage } from "../../home/hooks/useLocalUsage";
 import type {

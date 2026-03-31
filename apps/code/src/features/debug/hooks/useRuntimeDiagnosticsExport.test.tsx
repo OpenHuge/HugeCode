@@ -3,11 +3,11 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readRuntimeToolExecutionMetrics } from "../../../application/runtime/ports/runtimeToolExecutionMetrics";
-import { runtimeDiagnosticsExportV1 } from "../../../application/runtime/ports/tauriRuntime";
+import { runtimeDiagnosticsExportV1 } from "../../../application/runtime/ports/runtime";
 import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import { useRuntimeDiagnosticsExport } from "./useRuntimeDiagnosticsExport";
 
-vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
+vi.mock("../../../application/runtime/ports/runtime", () => ({
   runtimeDiagnosticsExportV1: vi.fn(),
 }));
 

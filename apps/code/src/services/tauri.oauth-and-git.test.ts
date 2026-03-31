@@ -56,7 +56,7 @@ vi.mock("@tauri-apps/plugin-notification", () => ({
 }));
 
 vi.mock("./runtimeClient", () => ({
-  detectRuntimeMode: vi.fn(() => "tauri"),
+  detectRuntimeMode: vi.fn(() => "desktop-compat"),
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
@@ -81,9 +81,9 @@ describe("tauri invoke wrappers", () => {
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");
     });
-    vi.mocked(detectRuntimeMode).mockReturnValue("tauri");
+    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-compat",
       methods: [],
       features: [],
       wsEndpointPath: null,
@@ -837,7 +837,7 @@ describe("tauri invoke wrappers", () => {
 
   it("auto-assembles paged git diffs when runtime advertises paging capability", async () => {
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-compat",
       methods: [],
       features: ["git_diff_paging_v1"],
       wsEndpointPath: null,

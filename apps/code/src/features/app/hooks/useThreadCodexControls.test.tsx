@@ -12,8 +12,8 @@ import {
   replaceOAuthPoolMembers,
   setOAuthPrimaryAccount,
   upsertOAuthPool,
-} from "../../../application/runtime/ports/tauriOauth";
-import { runCodexDoctor } from "../../../application/runtime/ports/tauriCodexOperations";
+} from "../../../application/runtime/ports/oauth";
+import { runCodexDoctor } from "../../../application/runtime/ports/codexOperations";
 import type { AppSettings, WorkspaceInfo } from "../../../types";
 import { useCollaborationModes } from "../../collaboration/hooks/useCollaborationModes";
 import { useModels } from "../../models/hooks/useModels";
@@ -28,11 +28,11 @@ vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
   detectRuntimeMode: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriCodexOperations", () => ({
+vi.mock("../../../application/runtime/ports/codexOperations", () => ({
   runCodexDoctor: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriOauth", () => ({
+vi.mock("../../../application/runtime/ports/oauth", () => ({
   getOAuthPrimaryAccount: vi.fn(),
   getProvidersCatalog: vi.fn(),
   listOAuthAccounts: vi.fn(),

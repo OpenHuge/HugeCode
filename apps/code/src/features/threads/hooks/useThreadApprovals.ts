@@ -4,7 +4,7 @@ import {
   rememberApprovalRule,
   respondToServerRequest,
   submitRuntimeJobApprovalDecision,
-} from "../../../application/runtime/ports/tauriThreads";
+} from "../../../application/runtime/ports/threads";
 import type { ApprovalRequest, DebugEntry } from "../../../types";
 import { normalizeCommandTokens } from "../../../utils/approvalRules";
 import type { ThreadAction } from "./useThreadsReducer";

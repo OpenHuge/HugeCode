@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getGitLog, listGitBranches } from "../../../application/runtime/ports/tauriThreads";
+import { getGitLog, listGitBranches } from "../../../application/runtime/ports/threads";
 import type {
   BranchInfo,
   DebugEntry,

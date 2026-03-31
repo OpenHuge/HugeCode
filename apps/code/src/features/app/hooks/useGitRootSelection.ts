@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { pickWorkspacePath } from "../../../application/runtime/ports/tauriWorkspaceDialogs";
+import { pickWorkspacePath } from "../../../application/runtime/ports/workspaceDialogs";
 import type { WorkspaceInfo } from "../../../types";
 
 type UseGitRootSelectionOptions = {

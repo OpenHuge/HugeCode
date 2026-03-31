@@ -10,8 +10,8 @@ import {
   readTerminalSession,
   resizeTerminalSession,
   writeTerminalSessionRaw,
-} from "../../../application/runtime/ports/tauriTerminal";
-import { getRuntimeTerminalStatus } from "../../../application/runtime/ports/tauriRuntime";
+} from "../../../application/runtime/ports/terminal";
+import { getRuntimeTerminalStatus } from "../../../application/runtime/ports/runtime";
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import type { DebugEntry, TerminalStatus, WorkspaceInfo } from "../../../types";
 import { buildErrorDebugEntry } from "../../../utils/debugEntries";
