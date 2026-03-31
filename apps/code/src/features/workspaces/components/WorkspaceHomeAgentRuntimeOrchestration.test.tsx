@@ -1153,6 +1153,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("heading", { name: "Launch readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Continuity readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Approval pressure" })).toBeTruthy();
+      expect(screen.getByRole("heading", { name: "Autonomous Issue Drive" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Extension readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Browser readiness" })).toBeTruthy();
       expect(screen.getByRole("heading", { name: "Run list" })).toBeTruthy();
