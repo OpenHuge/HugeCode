@@ -268,6 +268,111 @@ describe("buildSharedMissionControlSummary", () => {
     expect(summary.reviewItems[0]?.summary).toBe("Open the published review pack.");
   });
 
+  it("prefers canonical continuation and next operator action over stale fragment fallbacks", () => {
+    const summary = buildSharedMissionControlSummary(
+      createSnapshot({
+        tasks: [
+          {
+            id: "task-1",
+            workspaceId: "workspace-1",
+            title: "Canonical continuation",
+            objective: null,
+            origin: {
+              kind: "run",
+              runId: "run-1",
+              threadId: null,
+              requestId: null,
+            },
+            taskSource: null,
+            mode: null,
+            modeSource: "missing",
+            status: "review_ready",
+            createdAt: 0,
+            updatedAt: 0,
+            currentRunId: "run-1",
+            latestRunId: "run-1",
+            latestRunState: "review_ready",
+          },
+        ],
+        runs: [
+          {
+            id: "run-1",
+            workspaceId: "workspace-1",
+            taskId: "task-1",
+            state: "review_ready",
+            title: "Canonical continuation",
+            summary: "Fallback run summary",
+            taskSource: null,
+            startedAt: 0,
+            finishedAt: null,
+            updatedAt: 0,
+            currentStepIndex: null,
+            continuation: {
+              state: "ready",
+              pathKind: "review",
+              source: "review_actionability",
+              summary: "Canonical continuation says the review path is ready.",
+              detail: "Canonical continuation detail should win.",
+              recommendedAction: "Use the canonical review path.",
+              reviewPackId: "review-1",
+              sessionBoundary: {
+                workspaceId: "workspace-1",
+                taskId: "task-1",
+                runId: "run-1",
+                missionTaskId: "task-1",
+                sessionKind: "run",
+                navigationTarget: {
+                  kind: "run",
+                  workspaceId: "workspace-1",
+                  taskId: "task-1",
+                  runId: "run-1",
+                },
+              },
+            },
+            nextOperatorAction: {
+              action: "open_review_pack",
+              label: "Open canonical review",
+              detail: "Canonical operator action detail should win.",
+              source: "continuation",
+              sessionBoundary: {
+                workspaceId: "workspace-1",
+                taskId: "task-1",
+                runId: "run-1",
+                missionTaskId: "task-1",
+                sessionKind: "run",
+                navigationTarget: {
+                  kind: "run",
+                  workspaceId: "workspace-1",
+                  taskId: "task-1",
+                  runId: "run-1",
+                },
+              },
+            },
+            takeoverBundle: {
+              state: "blocked",
+              pathKind: "review",
+              primaryAction: "open_review_pack",
+              summary: "Blocked fragment fallback should not win.",
+              recommendedAction: "Blocked fragment fallback should not win.",
+              reviewPackId: "review-1",
+            },
+            actionability: {
+              state: "blocked",
+              summary: "Blocked actionability fallback should not win.",
+              degradedReasons: [],
+              actions: [],
+            },
+          },
+        ],
+      }),
+      "workspace-1"
+    );
+
+    expect(summary.continuityReadiness.tone).toBe("ready");
+    expect(summary.missionItems[0]?.statusLabel).toBe("Review ready");
+    expect(summary.missionItems[0]?.detail).toBe("Canonical operator action detail should win.");
+  });
+
   it("orders mission activity by operator urgency before recency", () => {
     const summary = buildSharedMissionControlSummary(
       createSnapshot({
