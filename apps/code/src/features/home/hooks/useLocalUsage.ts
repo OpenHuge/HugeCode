@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { localUsageSnapshot } from "../../../application/runtime/ports/tauriUsage";
+import { localUsageSnapshot } from "../../../application/runtime/ports/usage";
 import type { LocalUsageSnapshot } from "../../../types";
 
 type LocalUsageState = {

@@ -18,7 +18,7 @@ function registerWindowListener(eventName: string, handler: () => void) {
   };
 }
 
-vi.mock("@tauri-apps/api/window", () => ({
+vi.mock("@desktop-host/window", () => ({
   getCurrentWindow: () => ({
     listen: listenMock,
   }),

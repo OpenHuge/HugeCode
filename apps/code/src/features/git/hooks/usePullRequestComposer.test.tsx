@@ -197,11 +197,15 @@ describe("usePullRequestComposer", () => {
     const { result } = renderHook(() => usePullRequestComposer(options));
 
     await act(async () => {
-      await result.current.handleComposerSend("/src-tauri/something", []);
+      await result.current.handleComposerSend("/desktop-host/something", []);
     });
 
     expect(options.handleSend).not.toHaveBeenCalled();
-    expect(buildPullRequestPrompt).toHaveBeenCalledWith(pullRequest, diffs, "/src-tauri/something");
+    expect(buildPullRequestPrompt).toHaveBeenCalledWith(
+      pullRequest,
+      diffs,
+      "/desktop-host/something"
+    );
     expect(options.startThreadForWorkspace).toHaveBeenCalledWith(connectedWorkspace.id, {
       activate: false,
     });

@@ -1,4 +1,4 @@
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
 import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import { useMemo } from "react";
@@ -33,7 +33,7 @@ export function OpenAppMenu({
   onSelectOpenAppId,
   iconById = {},
 }: OpenAppMenuProps) {
-  const desktopOpenSupported = isTauri();
+  const desktopOpenSupported = isDesktopHostRuntime();
   const availableTargets = openTargets.length > 0 ? openTargets : DEFAULT_OPEN_APP_TARGETS;
   const openAppId = useMemo(
     () => availableTargets.find((target) => target.id === selectedOpenAppId)?.id,
@@ -130,7 +130,7 @@ export function OpenAppMenu({
   const openWithTarget = async (target: OpenTarget) => {
     try {
       if (target.target.kind === "finder") {
-        if (isTauri()) {
+        if (isDesktopHostRuntime()) {
           await revealItemInDir(path);
         } else {
           await openWorkspaceIn(path, {});
@@ -181,7 +181,7 @@ export function OpenAppMenu({
   const openLabel = selectedCanOpen
     ? `Open in ${selectedOpenTarget.label}`
     : !desktopOpenSupported
-      ? "Open in is unavailable outside Tauri desktop runtime"
+      ? "Open in is unavailable outside desktop host runtime"
       : selectedOpenTarget.target.kind === "command"
         ? "Set command in Settings"
         : "Set app name in Settings";

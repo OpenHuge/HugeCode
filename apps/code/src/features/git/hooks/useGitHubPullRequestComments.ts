@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logger } from "../../../application/runtime/ports/logger";
-import { getGitHubPullRequestComments } from "../../../application/runtime/ports/tauriGit";
+import { getGitHubPullRequestComments } from "../../../application/runtime/ports/git";
 import type { GitHubPullRequestComment, WorkspaceInfo } from "../../../types";
 
 type PullRequestCommentsState = {

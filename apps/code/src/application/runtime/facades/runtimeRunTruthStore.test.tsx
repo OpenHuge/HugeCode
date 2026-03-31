@@ -87,7 +87,7 @@ const { getRuntimeRunV2Mock, subscribeRuntimeRunV2Mock, runtimeUpdatedHarness } 
   })
 );
 
-vi.mock("../ports/tauriRuntimeJobs", () => ({
+vi.mock("../ports/runtimeJobs", () => ({
   getRuntimeRunV2: getRuntimeRunV2Mock,
   subscribeRuntimeRunV2: subscribeRuntimeRunV2Mock,
 }));

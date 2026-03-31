@@ -3,12 +3,12 @@ import { getErrorMessage } from "@ku0/code-runtime-client/runtimeClientErrorUtil
 import { createExtendedRpcRuntimeClient } from "@ku0/code-runtime-client/runtimeClientRpcExtensionsFactory";
 import {
   createRuntimeRpcInvokerWithCandidates,
-  invokeTauriRaw as invokeTauriRawShared,
+  invokeDesktopHostRaw as invokeDesktopHostRawShared,
 } from "@ku0/code-runtime-client/runtimeClientTransportCore";
 import { detectRuntimeMode } from "./runtimeClientMode";
 import {
   resolveCapabilitiesSnapshotByMode,
-  resolveTauriRuntimeRpcMethodCandidates,
+  resolveDesktopHostRuntimeRpcMethodCandidates,
   resolveWebRuntimeRpcMethodCandidates,
 } from "./runtimeClientCapabilitiesProbe";
 import {
@@ -30,8 +30,11 @@ import { invokeWebRuntimeRaw } from "./runtimeClientWebTransport";
 
 type RuntimeClient = SharedRuntimeClient<AppSettings>;
 
-async function invokeTauriRaw<Result>(method: string, params: RuntimeRpcParams): Promise<Result> {
-  return invokeTauriRawShared(
+async function invokeDesktopHostRaw<Result>(
+  method: string,
+  params: RuntimeRpcParams
+): Promise<Result> {
+  return invokeDesktopHostRawShared(
     <Value>(candidate: string, candidateParams: RuntimeRpcParams) =>
       invoke<Value>(candidate, candidateParams),
     method,
@@ -77,15 +80,18 @@ const webRuntimeClient = createExtendedRpcRuntimeClient<AppSettings>(
   createRuntimeRpcInvokerWithCandidates(invokeWebRuntimeRaw, resolveWebRuntimeRpcMethodCandidates)
 );
 
-const tauriClient = createExtendedRpcRuntimeClient<AppSettings>(
-  createRuntimeRpcInvokerWithCandidates(invokeTauriRaw, resolveTauriRuntimeRpcMethodCandidates)
+const desktopHostClient = createExtendedRpcRuntimeClient<AppSettings>(
+  createRuntimeRpcInvokerWithCandidates(
+    invokeDesktopHostRaw,
+    resolveDesktopHostRuntimeRpcMethodCandidates
+  )
 );
 
 export function getRuntimeClient(): RuntimeClient {
   const mode = detectRuntimeMode();
 
-  if (mode === "tauri") {
-    return tauriClient;
+  if (mode === "desktop-host") {
+    return desktopHostClient;
   }
   if (mode === "runtime-gateway-web") {
     return webRuntimeClient;

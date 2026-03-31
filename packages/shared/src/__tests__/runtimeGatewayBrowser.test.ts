@@ -18,14 +18,14 @@ describe("runtimeGatewayBrowser", () => {
     vi.unstubAllEnvs();
     window.localStorage.clear();
 
-    const tauriWindow = window as Window & {
-      __TAURI__?: unknown;
-      __TAURI_INTERNALS__?: unknown;
-      __TAURI_IPC__?: unknown;
+    const desktopHostWindow = window as Window & {
+      __HUGE_CODE_DESKTOP_HOST__?: unknown;
+      __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
+      __HUGE_CODE_DESKTOP_HOST_IPC__?: unknown;
     };
-    delete tauriWindow.__TAURI__;
-    delete tauriWindow.__TAURI_INTERNALS__;
-    delete tauriWindow.__TAURI_IPC__;
+    delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST__;
+    delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__;
+    delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_IPC__;
   });
 
   afterEach(() => {
@@ -70,16 +70,16 @@ describe("runtimeGatewayBrowser", () => {
 
     (
       window as Window & {
-        __TAURI_INTERNALS__?: unknown;
+        __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
       }
-    ).__TAURI_INTERNALS__ = {
+    ).__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {
       invoke: vi.fn(),
     };
 
     expect(detectBrowserRuntimeConnectionState(null)).toBe("discoverable");
   });
 
-  it("detects web runtime from stored profile or env and ignores retired tauri bridge globals", () => {
+  it("detects web runtime from stored profile or env and ignores retired desktop host bridge globals", () => {
     expect(detectBrowserRuntimeMode(null)).toBe("unavailable");
 
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
@@ -97,9 +97,9 @@ describe("runtimeGatewayBrowser", () => {
 
     (
       window as Window & {
-        __TAURI_INTERNALS__?: unknown;
+        __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
       }
-    ).__TAURI_INTERNALS__ = {
+    ).__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {
       invoke: vi.fn(),
     };
 

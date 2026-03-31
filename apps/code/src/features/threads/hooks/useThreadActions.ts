@@ -6,7 +6,7 @@ import {
   listThreads as listThreadsService,
   resumeThread as resumeThreadService,
   startThread as startThreadService,
-} from "../../../application/runtime/ports/tauriThreads";
+} from "../../../application/runtime/ports/threads";
 import type {
   ConversationItem,
   DebugEntry,

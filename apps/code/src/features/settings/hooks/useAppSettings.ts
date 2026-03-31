@@ -3,7 +3,7 @@ import { normalizeActiveIntentContextByWorkspaceId } from "@ku0/code-platform-in
 import { useSharedAppSettingsState } from "@ku0/code-workspace-client/settings-state";
 import { useCallback } from "react";
 import { createDefaultRemoteServerProfile } from "../../../application/runtime/facades/runtimeRemoteServerProfilesFacade";
-import { runCodexDoctor } from "../../../application/runtime/ports/tauriCodexOperations";
+import { runCodexDoctor } from "../../../application/runtime/ports/codexOperations";
 import type {
   AppSettings,
   RemoteBackendProfile,

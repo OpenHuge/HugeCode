@@ -1,7 +1,7 @@
 import { clampReasoningEffortToCapabilityMatrix } from "@ku0/code-runtime-client/runtimeCapabilityMatrix";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getConfigModel, getModelList } from "../../../application/runtime/ports/tauriModels";
-import { getProvidersCatalog } from "../../../application/runtime/ports/tauriOauth";
+import { getConfigModel, getModelList } from "../../../application/runtime/ports/models";
+import { getProvidersCatalog } from "../../../application/runtime/ports/oauth";
 import type {
   ComposerModelSelectionMode,
   DebugEntry,

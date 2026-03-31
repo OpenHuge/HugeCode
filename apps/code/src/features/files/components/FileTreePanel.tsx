@@ -9,7 +9,7 @@ import Search from "lucide-react/dist/esm/icons/search";
 import type { MouseEvent } from "react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
 import { LogicalPosition } from "../../../application/runtime/ports/desktopDpi";
 import { convertFileSrc, readWorkspaceFile } from "../../../application/runtime/ports/desktopFiles";
 import { Menu, MenuItem } from "../../../application/runtime/ports/desktopMenu";
@@ -573,7 +573,7 @@ export function FileTreePanel({
 
   const showMenu = useCallback(
     async (event: MouseEvent<HTMLButtonElement>, relativePath: string) => {
-      if (!isTauri()) {
+      if (!isDesktopHostRuntime()) {
         return;
       }
       event.preventDefault();

@@ -23,7 +23,7 @@ vi.mock("../../workspaces/components/WorkspaceHomeAgentControl", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "tauri"),
+  detectRuntimeMode: vi.fn(() => "desktop-host"),
 }));
 
 vi.mock("../../../application/runtime/ports/toasts", () => ({

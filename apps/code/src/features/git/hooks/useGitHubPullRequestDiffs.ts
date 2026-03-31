@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logger } from "../../../application/runtime/ports/logger";
-import { getGitHubPullRequestDiff } from "../../../application/runtime/ports/tauriGit";
+import { getGitHubPullRequestDiff } from "../../../application/runtime/ports/git";
 import type { GitHubPullRequestDiff, WorkspaceInfo } from "../../../types";
 
 type PullRequestDiffState = {

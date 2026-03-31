@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
 import { getCurrentWebview } from "../../../application/runtime/ports/desktopWebview";
 import type { AppSettings } from "../../../types";
 import { isMacPlatform } from "../../../utils/shortcuts";
@@ -27,7 +27,7 @@ export function useUiScaleShortcuts({
   const uiScale = clampUiScale(settings.uiScale);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !isTauri()) {
+    if (typeof window === "undefined" || !isDesktopHostRuntime()) {
       return;
     }
     getCurrentWebview()

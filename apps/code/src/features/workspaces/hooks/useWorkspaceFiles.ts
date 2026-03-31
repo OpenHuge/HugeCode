@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getWorkspaceFiles } from "../../../application/runtime/ports/tauriWorkspaceFiles";
+import { getWorkspaceFiles } from "../../../application/runtime/ports/workspaceFiles";
 import type { DebugEntry, WorkspaceInfo } from "../../../types";
 
 type UseWorkspaceFilesOptions = {

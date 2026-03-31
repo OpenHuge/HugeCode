@@ -59,7 +59,7 @@ export function applyBrowserRuntimeFlags() {
   }
 
   document.documentElement.dataset.desktopRuntime = "browser";
-  document.documentElement.dataset.tauriRuntime = "false";
+  document.documentElement.dataset.runtime = "false";
   document.documentElement.dataset.electronRuntime = "false";
 }
 

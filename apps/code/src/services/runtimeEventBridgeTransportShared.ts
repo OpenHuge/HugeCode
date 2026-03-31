@@ -48,7 +48,7 @@ export function createCompositeUnsubscribe(unsubscribers: Unsubscribe[]): Unsubs
   };
 }
 
-export async function registerRuntimeEventTauriSubscription(
+export async function registerRuntimeEventDesktopHostSubscription(
   eventName: string,
   onPayload: (payload: unknown) => void,
   onError: (error: unknown) => void

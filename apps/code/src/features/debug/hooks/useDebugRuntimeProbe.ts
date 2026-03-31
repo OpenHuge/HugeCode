@@ -8,7 +8,7 @@ import {
   getRuntimeSettings,
   getRuntimeTerminalStatus,
   runRuntimeLiveSkill,
-} from "../../../application/runtime/ports/tauriRuntime";
+} from "../../../application/runtime/ports/runtime";
 import { formatDebugPayload } from "../utils/formatDebugPayload";
 
 const CORE_TREE_SKILL_ALIASES = new Set(["core-tree", "tree", "file-tree", "file_tree", "ls"]);

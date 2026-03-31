@@ -176,7 +176,7 @@ describe("useComposerImageDrop", () => {
     restoreFileReader();
   });
 
-  it("accepts tauri drag-drop file paths and respects drop target", async () => {
+  it("accepts desktop-host drag-drop file paths and respects drop target", async () => {
     const onAttachImages = vi.fn();
     const hook = renderImageDropHook({ disabled: false, onAttachImages });
 

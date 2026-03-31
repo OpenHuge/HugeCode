@@ -15,7 +15,7 @@ type BranchListProps = {
   emptyText: string;
   listRole?: string;
   itemRole?: string;
-  itemDataTauriDragRegion?: string;
+  itemDataDesktopDragRegion?: string;
   renderMeta?: (branch: BranchInfo) => ReactNode;
   onMouseEnter?: (index: number) => void;
   onSelect: (branch: BranchInfo) => void;
@@ -35,7 +35,7 @@ export function BranchList({
   emptyText,
   listRole,
   itemRole,
-  itemDataTauriDragRegion,
+  itemDataDesktopDragRegion,
   renderMeta,
   onMouseEnter,
   onSelect,
@@ -62,7 +62,7 @@ export function BranchList({
             onClick={() => onSelect(branch)}
             onMouseEnter={onMouseEnter ? () => onMouseEnter(index) : undefined}
             role={itemRole}
-            data-desktop-drag-region={itemDataTauriDragRegion}
+            data-desktop-drag-region={itemDataDesktopDragRegion}
           >
             {itemLabelClassName ? (
               <span className={itemLabelClassName}>{branch.name}</span>

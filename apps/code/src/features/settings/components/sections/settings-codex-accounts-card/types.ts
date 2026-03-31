@@ -1,4 +1,4 @@
-import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/tauriOauth";
+import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/oauth";
 import type { ProviderBrandId } from "../../../../app/utils/antiGravityBranding";
 
 export type AccountPoolsTab = "accounts" | "pools" | "health";

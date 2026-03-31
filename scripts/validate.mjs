@@ -218,7 +218,7 @@ const REVIEW_PACK_SELECTION_FLOW_TEST_REPO_PATH =
 const REVIEW_PACK_SELECTION_FLOW_TRIGGER_PATHS = [
   "apps/code/src/application/runtime/facades/runtimeMissionControlFacade.ts",
   "apps/code/src/application/runtime/facades/runtimeRemoteExecutionFacade.ts",
-  "apps/code/src/application/runtime/ports/tauriRuntimeJobs.ts",
+  "apps/code/src/application/runtime/ports/runtimeJobs.ts",
   "apps/code/src/application/runtime/ports/desktopAppSettings.ts",
   "apps/code/src/features/review/utils/reviewPackSurfaceModel.ts",
   REVIEW_PACK_SELECTION_FLOW_TEST_REPO_PATH,
@@ -229,7 +229,7 @@ const LEGACY_IDENTIFIER_GUARDS = [
   "@ku0/agent-runtime",
   "packages/agent-runtime",
   "apps/desktop",
-  "desktop-tauri",
+  "desktop-host",
   "agent-runtime-",
 ];
 const LOCAL_EPHEMERAL_PATH_PREFIXES = [

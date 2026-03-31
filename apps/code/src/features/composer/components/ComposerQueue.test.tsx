@@ -8,15 +8,15 @@ afterEach(() => {
   cleanup();
 });
 
-vi.mock("@tauri-apps/api/core", () => ({
-  isTauri: vi.fn(() => false),
+vi.mock("@desktop-host/core", () => ({
+  isDesktopHostRuntime: vi.fn(() => false),
 }));
 
-vi.mock("@tauri-apps/api/dpi", () => ({
+vi.mock("@desktop-host/dpi", () => ({
   LogicalPosition: class LogicalPosition {},
 }));
 
-vi.mock("@tauri-apps/api/menu", () => ({
+vi.mock("@desktop-host/menu", () => ({
   Menu: {
     new: vi.fn(),
   },
@@ -25,7 +25,7 @@ vi.mock("@tauri-apps/api/menu", () => ({
   },
 }));
 
-vi.mock("@tauri-apps/api/window", () => ({
+vi.mock("@desktop-host/window", () => ({
   getCurrentWindow: vi.fn(),
 }));
 

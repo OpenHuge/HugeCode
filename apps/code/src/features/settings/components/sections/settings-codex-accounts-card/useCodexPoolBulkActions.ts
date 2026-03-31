@@ -4,7 +4,7 @@ import {
   type OAuthProviderId,
   removeOAuthPool,
   upsertOAuthPool,
-} from "../../../../../application/runtime/ports/tauriOauth";
+} from "../../../../../application/runtime/ports/oauth";
 import { formatError } from "../settingsCodexAccountsCardUtils";
 import { confirmDestructiveAction } from "./oauthHelpers";
 import type { FormBusyAction } from "./types";

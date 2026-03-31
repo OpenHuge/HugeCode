@@ -2,7 +2,7 @@ import { readRuntimeToolExecutionMetrics } from "../../../application/runtime/po
 import { useCallback, useState } from "react";
 import { getWorkspaceRuntimeToolLifecycleSnapshot } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import { buildRuntimeSessionCheckpointBaseline } from "../../../application/runtime/facades/runtimeSessionCheckpointFacade";
-import { runtimeDiagnosticsExportV1 } from "../../../application/runtime/ports/tauriRuntime";
+import { runtimeDiagnosticsExportV1 } from "../../../application/runtime/ports/runtime";
 import type { RuntimeSessionCheckpointBaseline } from "../../../application/runtime/types/runtimeSessionCheckpoint";
 
 type UseRuntimeDiagnosticsExportOptions = {

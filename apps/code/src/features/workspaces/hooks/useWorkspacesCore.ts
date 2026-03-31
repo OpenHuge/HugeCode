@@ -3,18 +3,18 @@ import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeCli
 import {
   readPersistedActiveWorkspaceId,
   writePersistedActiveWorkspaceId,
-} from "../../../application/runtime/ports/tauriThreadSnapshots";
+} from "../../../application/runtime/ports/threadSnapshots";
 import {
   addClone as addCloneService,
   addWorkspace as addWorkspaceService,
   addWorktree as addWorktreeService,
   updateWorkspaceCodexBin as updateWorkspaceCodexBinService,
   updateWorkspaceSettings as updateWorkspaceSettingsService,
-} from "../../../application/runtime/ports/tauriWorkspaceMutations";
+} from "../../../application/runtime/ports/workspaceMutations";
 import {
   isWorkspacePathDir as isWorkspacePathDirService,
   pickWorkspacePaths,
-} from "../../../application/runtime/ports/tauriWorkspaceDialogs";
+} from "../../../application/runtime/ports/workspaceDialogs";
 import type { AppSettings, DebugEntry, WorkspaceInfo, WorkspaceSettings } from "../../../types";
 import { useWorkspaceCollectionState } from "./useWorkspaceCollectionState";
 import { useWorkspaceGrouping } from "./useWorkspaceGrouping";
@@ -108,7 +108,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     appSettings?.lastActiveWorkspaceId ?? null
   );
   const supportsLegacyAppSettingsMirrorRef = useRef(false);
-  supportsLegacyAppSettingsMirrorRef.current = runtimeMode === "tauri";
+  supportsLegacyAppSettingsMirrorRef.current = runtimeMode === "desktop-host";
   const routeSelection = useWorkspaceRouteSelection();
   const showMissionHomeRoute = useDesktopMissionHomeRoute();
   const hasWorkspaceRouteSelection = routeSelection.kind === "workspace";

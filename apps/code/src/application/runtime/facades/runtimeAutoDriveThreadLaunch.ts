@@ -2,7 +2,7 @@ import type {
   AgentTaskAutoDriveState,
   RuntimeAutonomyRequestV2,
 } from "@ku0/code-runtime-host-contract";
-import { sendUserMessage } from "../ports/tauriThreads";
+import { sendUserMessage } from "../ports/threads";
 import type { AccessMode } from "../../../types";
 
 type LaunchAutoDriveThreadInput = {

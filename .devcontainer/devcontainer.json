@@ -30,12 +30,7 @@
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "rust-lang.rust-analyzer",
-        "tauri-apps.tauri-vscode",
-        "ms-playwright.playwright",
-        "vitest.explorer"
-      ],
+      "extensions": ["rust-lang.rust-analyzer", "ms-playwright.playwright", "vitest.explorer"],
       "settings": {
         "rust-analyzer.cargo.targetDir": true,
         "rust-analyzer.checkOnSave.command": "clippy"

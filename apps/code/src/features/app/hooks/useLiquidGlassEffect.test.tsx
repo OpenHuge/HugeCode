@@ -3,16 +3,16 @@ import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useLiquidGlassEffect } from "./useLiquidGlassEffect";
 
-const isTauriMock = vi.fn();
+const isDesktopHostRuntimeMock = vi.fn();
 const getCurrentWindowMock = vi.fn();
 const isGlassSupportedMock = vi.fn();
 const setLiquidGlassEffectMock = vi.fn();
 
-vi.mock("@tauri-apps/api/core", () => ({
-  isTauri: () => isTauriMock(),
+vi.mock("@desktop-host/core", () => ({
+  isDesktopHostRuntime: () => isDesktopHostRuntimeMock(),
 }));
 
-vi.mock("@tauri-apps/api/window", () => ({
+vi.mock("@desktop-host/window", () => ({
   Effect: {
     HudWindow: "HudWindow",
   },
@@ -22,7 +22,7 @@ vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => getCurrentWindowMock(),
 }));
 
-vi.mock("tauri-plugin-liquid-glass-api", () => ({
+vi.mock("@desktop-host/liquid-glass", () => ({
   GlassMaterialVariant: {
     Regular: "Regular",
   },
@@ -32,14 +32,14 @@ vi.mock("tauri-plugin-liquid-glass-api", () => ({
 
 describe("useLiquidGlassEffect", () => {
   beforeEach(() => {
-    isTauriMock.mockReset();
+    isDesktopHostRuntimeMock.mockReset();
     getCurrentWindowMock.mockReset();
     isGlassSupportedMock.mockReset();
     setLiquidGlassEffectMock.mockReset();
   });
 
   it("no-ops on web runtime", () => {
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
     const onDebug = vi.fn();
 
     renderHook(() =>

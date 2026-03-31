@@ -8,7 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const invokeMock = vi.hoisted(() => vi.fn());
-const isTauriMock = vi.hoisted(() => vi.fn());
+const isDesktopHostRuntimeMock = vi.hoisted(() => vi.fn());
 const { runtimeUpdatedListeners, subscribeScopedRuntimeUpdatedEventsMock } = vi.hoisted(() => {
   const listeners = new Set<(event: Record<string, unknown>) => void>();
   return {
@@ -24,9 +24,9 @@ const { runtimeUpdatedListeners, subscribeScopedRuntimeUpdatedEventsMock } = vi.
   };
 });
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: invokeMock,
-  isTauri: isTauriMock,
+  isDesktopHostRuntime: isDesktopHostRuntimeMock,
 }));
 
 vi.mock("./runtimeUpdatedEvents", () => ({
@@ -53,25 +53,25 @@ function createFrozenCapabilitiesPayload(
   };
 }
 
-function clearTauriMarkers() {
-  const tauriWindow = window as Window & {
-    __TAURI__?: unknown;
-    __TAURI_INTERNALS__?: unknown;
-    __TAURI_IPC__?: unknown;
+function clearDesktopHostMarkers() {
+  const desktopHostWindow = window as Window & {
+    __HUGE_CODE_DESKTOP_HOST__?: unknown;
+    __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
+    __HUGE_CODE_DESKTOP_HOST_IPC__?: unknown;
   };
 
-  delete tauriWindow.__TAURI__;
-  delete tauriWindow.__TAURI_INTERNALS__;
-  delete tauriWindow.__TAURI_IPC__;
+  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST__;
+  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__;
+  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_IPC__;
 }
 
-function syncTauriBridgeWithMockState() {
-  const tauriWindow = window as Window & {
-    __TAURI_INTERNALS__?: unknown;
+function syncDesktopHostBridgeWithMockState() {
+  const desktopHostWindow = window as Window & {
+    __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
   };
-  const implementation = isTauriMock.getMockImplementation();
+  const implementation = isDesktopHostRuntimeMock.getMockImplementation();
   if (implementation && implementation() === true) {
-    tauriWindow.__TAURI_INTERNALS__ = {
+    desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {
       invoke: invokeMock,
     };
   }
@@ -79,22 +79,22 @@ function syncTauriBridgeWithMockState() {
 
 async function importRuntimeClientModule() {
   vi.resetModules();
-  syncTauriBridgeWithMockState();
+  syncDesktopHostBridgeWithMockState();
   return import("./runtimeClient");
 }
 
 describe("runtime capability cache invalidation", () => {
   beforeEach(() => {
     invokeMock.mockReset();
-    isTauriMock.mockReset();
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReset();
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     subscribeScopedRuntimeUpdatedEventsMock.mockClear();
     runtimeUpdatedListeners.clear();
-    clearTauriMarkers();
+    clearDesktopHostMarkers();
   });
 
   afterEach(() => {
-    clearTauriMarkers();
+    clearDesktopHostMarkers();
   });
 
   it.each(["runtimeCapabilitiesPatched", "stream_reconnected"])(

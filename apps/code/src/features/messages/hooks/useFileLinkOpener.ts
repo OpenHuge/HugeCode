@@ -1,6 +1,6 @@
 import type { MouseEvent } from "react";
 import { useCallback } from "react";
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
 import { LogicalPosition } from "../../../application/runtime/ports/desktopDpi";
 import { logger } from "../../../application/runtime/ports/logger";
 import { Menu, MenuItem, PredefinedMenuItem } from "../../../application/runtime/ports/desktopMenu";
@@ -95,7 +95,7 @@ export function useFileLinkOpener(
           return;
         }
         if (target.kind === "finder") {
-          if (isTauri()) {
+          if (isDesktopHostRuntime()) {
             await revealItemInDir(resolvedPath);
           } else {
             await openWorkspaceIn(resolvedPath, {});
@@ -140,7 +140,7 @@ export function useFileLinkOpener(
 
   const showFileLinkMenu = useCallback(
     async (event: MouseEvent, rawPath: string) => {
-      if (!isTauri()) {
+      if (!isDesktopHostRuntime()) {
         return;
       }
       event.preventDefault();

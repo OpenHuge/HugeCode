@@ -69,7 +69,7 @@ describe("buildRuntimeMissionControlOrchestrationState", () => {
       ],
       statusFilter: "all",
       capabilities: {
-        mode: "tauri",
+        mode: "desktop-host",
         methods: [],
         features: [],
         wsEndpointPath: "/ws",
@@ -139,7 +139,7 @@ describe("buildRuntimeMissionControlOrchestrationState", () => {
       ],
       statusFilter: "all",
       capabilities: {
-        mode: "tauri",
+        mode: "desktop-host",
         methods: [],
         features: [],
         wsEndpointPath: "/ws",

@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
-import type {
-  RuntimeRunGetV2Response,
-  RuntimeReviewGetV2Response,
-} from "../ports/tauriRuntimeJobs";
-import { getRuntimeRunV2, subscribeRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
+import type { RuntimeRunGetV2Response, RuntimeReviewGetV2Response } from "../ports/runtimeJobs";
+import { getRuntimeRunV2, subscribeRuntimeRunV2 } from "../ports/runtimeJobs";
 import { subscribeScopedRuntimeUpdatedEvents } from "../ports/runtimeUpdatedEvents";
 
 type SnapshotListener = () => void;

@@ -3,13 +3,13 @@ import {
   toSafeExternalUrl,
   WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY,
 } from "@ku0/shared";
-import { isTauri } from "../../../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../../../application/runtime/ports/desktopHostCore";
 import { openUrl } from "../../../../../application/runtime/facades/desktopHostFacade";
 import {
   type OAuthAccountSummary,
   type OAuthPoolSummary,
-} from "../../../../../application/runtime/ports/tauriOauth";
-import { listWorkspaces } from "../../../../../application/runtime/ports/tauriWorkspaceCatalog";
+} from "../../../../../application/runtime/ports/oauth";
+import { listWorkspaces } from "../../../../../application/runtime/ports/workspaceCatalog";
 import { DEFAULT_RUNTIME_WORKSPACE_ID } from "../../../../../utils/runtimeWorkspaceIds";
 
 const LOCAL_CODEX_CLI_ACCOUNT_SOURCE = "local_codex_cli_auth";
@@ -41,9 +41,9 @@ export function confirmDestructiveAction(message: string): boolean {
   }
 }
 
-function isActualTauriRuntime(): boolean {
+function isActualDesktopHostRuntime(): boolean {
   try {
-    return isTauri();
+    return isDesktopHostRuntime();
   } catch {
     return false;
   }
@@ -54,7 +54,7 @@ function isJsdomRuntime(): boolean {
 }
 
 export function shouldUseWebOAuthPopup(): boolean {
-  return !isActualTauriRuntime() && !isJsdomRuntime();
+  return !isActualDesktopHostRuntime() && !isJsdomRuntime();
 }
 
 export function openOAuthPopupWindow(): Window | null {

@@ -9,7 +9,7 @@ import {
   pickDefaultCollaborationModeId,
 } from "./runtimeCollaborationModes";
 
-vi.mock("../ports/tauriCollaboration", () => ({
+vi.mock("../ports/collaboration", () => ({
   getCollaborationModes: vi.fn(),
 }));
 
@@ -38,7 +38,7 @@ describe("runtimeCollaborationModes", () => {
   });
 
   it("loads runtime modes through the canonical transport projection", async () => {
-    const { getCollaborationModes } = await import("../ports/tauriCollaboration");
+    const { getCollaborationModes } = await import("../ports/collaboration");
     vi.mocked(getCollaborationModes).mockResolvedValue({
       result: {
         data: [{ mode: "default" }, { mode: "code" }],

@@ -5,18 +5,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "declaration": false,
     "declarationMap": false,
-    "noEmit": true,
-    "paths": {
-      "@tauri-apps/api/core": ["src/application/runtime/ports/packageCompat/tauriApiCoreCompat.ts"],
-      "@tauri-apps/api/dpi": ["src/application/runtime/ports/packageCompat/tauriApiDpiCompat.ts"],
-      "@tauri-apps/api/menu": ["src/application/runtime/ports/packageCompat/tauriApiMenuCompat.ts"],
-      "@tauri-apps/api/window": [
-        "src/application/runtime/ports/packageCompat/tauriApiWindowCompat.ts"
-      ],
-      "@tauri-apps/plugin-dialog": [
-        "src/application/runtime/ports/packageCompat/tauriPluginDialogCompat.ts"
-      ]
-    }
+    "noEmit": true
   },
   "include": ["src", "vite.config.ts"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]

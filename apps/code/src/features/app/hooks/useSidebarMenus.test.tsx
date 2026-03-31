@@ -8,27 +8,27 @@ import type { WorkspaceInfo } from "../../../types";
 import { fileManagerName } from "../../../utils/platformPaths";
 import { useSidebarMenus } from "./useSidebarMenus";
 
-const isTauriMock = vi.hoisted(() => vi.fn(() => true));
+const isDesktopHostRuntimeMock = vi.hoisted(() => vi.fn(() => true));
 const menuPopup = vi.hoisted(() => vi.fn(async () => undefined));
 const menuNew = vi.hoisted(() => vi.fn(async ({ items }) => ({ popup: menuPopup, items })));
 const menuItemNew = vi.hoisted(() => vi.fn(async (options) => options));
 const clipboardWriteText = vi.hoisted(() => vi.fn(async () => undefined));
 const openWebContextMenuMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@tauri-apps/api/menu", () => ({
+vi.mock("@desktop-host/menu", () => ({
   Menu: { new: menuNew },
   MenuItem: { new: menuItemNew },
 }));
 
-vi.mock("@tauri-apps/api/core", () => ({
-  isTauri: () => isTauriMock(),
+vi.mock("@desktop-host/core", () => ({
+  isDesktopHostRuntime: () => isDesktopHostRuntimeMock(),
 }));
 
-vi.mock("@tauri-apps/api/window", () => ({
+vi.mock("@desktop-host/window", () => ({
   getCurrentWindow: () => ({ scaleFactor: () => 1 }),
 }));
 
-vi.mock("@tauri-apps/api/dpi", () => ({
+vi.mock("@desktop-host/dpi", () => ({
   LogicalPosition: class LogicalPosition {
     x: number;
     y: number;
@@ -108,14 +108,14 @@ describe("useSidebarMenus", () => {
     pushErrorToastMock.mockClear();
     clipboardWriteText.mockClear();
     openWebContextMenuMock.mockReset();
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     Object.defineProperty(window.navigator, "clipboard", {
       configurable: true,
       value: { writeText: clipboardWriteText },
     });
   });
 
-  it("uses tauri menu actions for thread menu", async () => {
+  it("uses desktop host menu actions for thread menu", async () => {
     const handlers = getHandlers();
     const { result } = renderHook(() => useSidebarMenus(handlers));
 
@@ -135,7 +135,7 @@ describe("useSidebarMenus", () => {
     expect(menuPopup).toHaveBeenCalledTimes(1);
   });
 
-  it("uses tauri menu actions for worktree menu", async () => {
+  it("uses desktop host menu actions for worktree menu", async () => {
     const handlers = getHandlers();
     const { result } = renderHook(() => useSidebarMenus(handlers));
     const worktree = createWorktree();
@@ -149,7 +149,7 @@ describe("useSidebarMenus", () => {
     expect(menuPopup).toHaveBeenCalledTimes(1);
   });
 
-  it("uses tauri menu actions for workspace menu", async () => {
+  it("uses desktop host menu actions for workspace menu", async () => {
     const handlers = getHandlers();
     const { result } = renderHook(() => useSidebarMenus(handlers));
 
@@ -163,7 +163,7 @@ describe("useSidebarMenus", () => {
   });
 
   it("uses context menu callback for thread menu in web runtime", async () => {
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
     const handlers = getHandlers();
     const { result } = renderHook(() => useSidebarMenus(handlers));
 
@@ -189,7 +189,7 @@ describe("useSidebarMenus", () => {
   });
 
   it("uses context menu callback for workspace menu in web runtime", async () => {
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
     const handlers = getHandlers();
     const { result } = renderHook(() => useSidebarMenus(handlers));
 
@@ -213,7 +213,7 @@ describe("useSidebarMenus", () => {
   });
 
   it("uses context menu callback for worktree menu in web runtime", async () => {
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
     const handlers = getHandlers();
     const { result } = renderHook(() => useSidebarMenus(handlers));
     const worktree = createWorktree("/tmp/worktree-web");
@@ -238,7 +238,7 @@ describe("useSidebarMenus", () => {
   });
 
   it("supports deleting worktree from context menu in web runtime", async () => {
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
     const handlers = getHandlers();
     const { result } = renderHook(() => useSidebarMenus(handlers));
 

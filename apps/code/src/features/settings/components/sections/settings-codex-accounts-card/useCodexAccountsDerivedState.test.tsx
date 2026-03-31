@@ -3,7 +3,7 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { useCodexAccountsDerivedState } from "./useCodexAccountsDerivedState";
-import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/tauriOauth";
+import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/oauth";
 import type { ProviderOption } from "../settingsCodexAccountsCardUtils";
 
 const providerOptions: ProviderOption[] = [

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
 import { ask } from "../../../application/runtime/ports/desktopHostDialogs";
 import {
   applyWorktreeChanges as applyWorktreeChangesService,
@@ -8,7 +8,7 @@ import {
   stageGitAll as stageGitAllService,
   stageGitFile as stageGitFileService,
   unstageGitFile as unstageGitFileService,
-} from "../../../application/runtime/ports/tauriGit";
+} from "../../../application/runtime/ports/git";
 import type { WorkspaceInfo } from "../../../types";
 
 type UseGitActionsOptions = {
@@ -33,7 +33,7 @@ export function useGitActions({
   const isWorktree = activeWorkspace?.kind === "worktree";
 
   const confirmWarning = useCallback(async (message: string, title: string) => {
-    if (isTauri()) {
+    if (isDesktopHostRuntime()) {
       try {
         return await ask(message, { title, kind: "warning" });
       } catch {

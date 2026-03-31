@@ -4,16 +4,16 @@
 
 ## Goal
 
-Reduce desktop pull-request latency for non host-owned changes by replacing the Linux-only fast-path full Tauri build with a cheaper desktop integration proof.
+Reduce desktop pull-request latency for non host-owned changes by replacing the Linux-only fast-path full desktop host build with a cheaper desktop integration proof.
 
 ## Context
 
-- `Desktop (Tauri)` already distinguishes host-owned PRs from frontend/runtime-only PRs.
-- The remaining Linux-only PR fast path still spent most of its time in `Build Tauri app (fast verify)`.
+- `Desktop host` already distinguishes host-owned PRs from frontend/runtime-only PRs.
+- The remaining Linux-only PR fast path still spent most of its time in `Build desktop host app (fast verify)`.
 - Real GitHub evidence from run `23590509800` showed:
   - setup-desktop-build-env: about 65s
   - local frontend prebuild: about 5s
-  - Tauri build step: about 5m31s
+  - desktop host build step: about 5m31s
   - sccache Rust hit rate: 0.00%
 
 ## Chosen Approach
@@ -21,14 +21,14 @@ Reduce desktop pull-request latency for non host-owned changes by replacing the 
 For non host-owned PR desktop verification:
 
 1. Keep the local frontend prebuild so desktop-facing frontend surfaces still prove they build.
-2. Replace the full Tauri debug build with:
+2. Replace the full desktop host debug build with:
    - `pnpm check:desktop-capabilities`
-   - `pnpm --filter @ku0/code-tauri run check`
-3. Teach `apps/code-tauri/scripts/check-fast.mjs` to skip `cargo check` entirely when CI base/head refs show that no Rust inputs changed.
+   - `pnpm --filter @ku0/code-electron run check`
+3. Teach `apps/code-electron/scripts/check-fast.mjs` to skip `cargo check` entirely when CI base/head refs show that no Rust inputs changed.
 
 ## Why This Approach
 
-- It preserves full Tauri build proof for higher-risk paths:
+- It preserves full desktop host build proof for higher-risk paths:
   - host-owned PRs
   - manifest-sensitive PRs
   - `push` to `main`

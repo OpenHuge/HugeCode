@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useFileLinkOpener } from "./useFileLinkOpener";
 
-const isTauriMock = vi.hoisted(() => vi.fn(() => true));
+const isDesktopHostRuntimeMock = vi.hoisted(() => vi.fn(() => true));
 const menuNew = vi.hoisted(() => vi.fn(async ({ items }) => ({ popup: vi.fn(), items })));
 const menuItemNew = vi.hoisted(() => vi.fn(async (options) => options));
 const predefinedMenuItemNew = vi.hoisted(() => vi.fn(async (options) => options));
@@ -14,21 +14,21 @@ const pushErrorToastMock = vi.hoisted(() => vi.fn());
 const captureExceptionMock = vi.hoisted(() => vi.fn());
 const openWorkspaceInMock = vi.hoisted(() => vi.fn(async () => undefined));
 
-vi.mock("@tauri-apps/api/core", () => ({
-  isTauri: () => isTauriMock(),
+vi.mock("@desktop-host/core", () => ({
+  isDesktopHostRuntime: () => isDesktopHostRuntimeMock(),
 }));
 
-vi.mock("@tauri-apps/api/menu", () => ({
+vi.mock("@desktop-host/menu", () => ({
   Menu: { new: menuNew },
   MenuItem: { new: menuItemNew },
   PredefinedMenuItem: { new: predefinedMenuItemNew },
 }));
 
-vi.mock("@tauri-apps/api/window", () => ({
+vi.mock("@desktop-host/window", () => ({
   getCurrentWindow: () => ({ scaleFactor: () => 1 }),
 }));
 
-vi.mock("@tauri-apps/api/dpi", () => ({
+vi.mock("@desktop-host/dpi", () => ({
   LogicalPosition: class LogicalPosition {
     x: number;
     y: number;
@@ -39,7 +39,7 @@ vi.mock("@tauri-apps/api/dpi", () => ({
   },
 }));
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
+vi.mock("@desktop-host/opener", () => ({
   revealItemInDir: vi.fn(),
 }));
 
@@ -78,7 +78,7 @@ describe("useFileLinkOpener", () => {
     openWorkspaceInMock.mockClear();
     pushErrorToastMock.mockClear();
     captureExceptionMock.mockClear();
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
   });
 
   it("handles menu creation failures without throwing", async () => {
@@ -113,7 +113,7 @@ describe("useFileLinkOpener", () => {
   });
 
   it("opens files through the runtime bridge on the web surface", async () => {
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     const { result } = renderHook(() =>
       useFileLinkOpener(

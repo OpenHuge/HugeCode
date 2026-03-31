@@ -44,7 +44,7 @@ describe("check-runtime-port-exports", () => {
     await copyScript(tempRoot);
     await writeRepoFile(
       tempRoot,
-      "apps/code/src/application/runtime/ports/tauriOauth.ts",
+      "apps/code/src/application/runtime/ports/oauth.ts",
       "export const listOAuthAccounts = async () => [];\n"
     );
 
@@ -53,26 +53,20 @@ describe("check-runtime-port-exports", () => {
     expect(result.status).toBe(0);
   });
 
-  it("fails when retired wide runtime bridge ports are present", async () => {
+  it("fails when retired runtime ports are present", async () => {
     const tempRoot = await mkdtemp(path.join(tmpdir(), "runtime-port-exports-"));
     tempRoots.push(tempRoot);
     await copyScript(tempRoot);
     await writeRepoFile(
       tempRoot,
-      "apps/code/src/application/runtime/ports/tauriSettings.ts",
-      'export { getAppSettings } from "./desktopAppSettings";\n'
-    );
-    await writeRepoFile(
-      tempRoot,
-      "apps/code/src/application/runtime/ports/tauriWorkspaces.ts",
-      'export { listWorkspaces } from "./tauriWorkspaceCatalog";\n'
+      "apps/code/src/application/runtime/ports/runtimeRuns.ts",
+      "export const listRuntimeRuns = async () => [];\n"
     );
 
     const result = runGuard(tempRoot);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("tauriSettings.ts");
-    expect(result.stderr).toContain("tauriWorkspaces.ts");
+    expect(result.stderr).toContain("runtimeRuns.ts");
   });
 
   it("fails when runtimeToolLifecycle port re-exports unscoped or filter helpers", async () => {

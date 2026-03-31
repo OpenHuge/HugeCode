@@ -26,7 +26,7 @@ describe("ui service boundary guard", () => {
   it("rejects deprecated runtime bridge imports in production UI files", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/example/hooks/useExample.ts",
-      'import { getAppSettings } from "../../../application/runtime/ports/tauriSettings";\n'
+      'import { getSkillsList } from "../../../application/runtime/ports/skills";\n'
     );
 
     expect(violations).toEqual([
@@ -36,14 +36,14 @@ describe("ui service boundary guard", () => {
     ]);
   });
 
-  it("rejects direct tauri thread session command imports in thread and composer features", () => {
+  it("rejects direct thread session command imports in thread and composer features", () => {
     const threadViolations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/threads/hooks/useThreadMessaging.ts",
-      'import { sendUserMessage } from "../../../application/runtime/ports/tauriThreads";\n'
+      'import { sendUserMessage } from "../../../application/runtime/ports/threads";\n'
     );
     const composerViolations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/composer/hooks/useComposerActions.ts",
-      'import { interruptTurn } from "../../../application/runtime/ports/tauriThreads";\n'
+      'import { interruptTurn } from "../../../application/runtime/ports/threads";\n'
     );
 
     expect(threadViolations).toEqual([
@@ -147,28 +147,28 @@ describe("ui service boundary guard", () => {
 
     expect(violations).toEqual([]);
   });
-  it("rejects direct tauri imports in shared workspace client files", () => {
+  it("rejects direct desktop-host package imports in shared workspace client files", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "packages/code-workspace-client/src/workspace/WorkspaceClientApp.tsx",
-      'import { invoke } from "@tauri-apps/api/core";\n'
+      'import { invoke } from "@desktop-host/core";\n'
     );
 
     expect(violations).toEqual([
       expect.objectContaining({
-        rule: "tauri-import",
+        rule: "desktop-host-package-import",
       }),
     ]);
   });
 
-  it("rejects direct tauri imports in the web workspace shell", () => {
+  it("rejects direct desktop-host package imports in the web workspace shell", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code-web/app/components/WorkspaceClientApp.tsx",
-      'import { invoke } from "@tauri-apps/api/core";\n'
+      'import { invoke } from "@desktop-host/core";\n'
     );
 
     expect(violations).toEqual([
       expect.objectContaining({
-        rule: "tauri-import",
+        rule: "desktop-host-package-import",
       }),
     ]);
   });
@@ -212,10 +212,10 @@ describe("ui service boundary guard", () => {
     ]);
   });
 
-  it("rejects direct tauri skill bridge imports in production UI files", () => {
+  it("rejects direct retired skill bridge imports in production UI files", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/skills/hooks/useSkills.ts",
-      'import { getSkillsList } from "../../../application/runtime/ports/tauriSkills";\n'
+      'import { getSkillsList } from "../../../application/runtime/ports/skills";\n'
     );
 
     expect(violations).toEqual([
@@ -241,7 +241,7 @@ describe("ui service boundary guard", () => {
   it("rejects deprecated runtime bridge imports in non-UI product files", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/utils/runtimeExample.ts",
-      'import { getAppSettings } from "../application/runtime/ports/tauriSettings";\n'
+      'import { getSkillsList } from "../application/runtime/ports/skills";\n'
     );
 
     expect(violations).toEqual([
@@ -267,7 +267,7 @@ describe("ui service boundary guard", () => {
   it("rejects deprecated runtime bridge imports in the ACP backend form once the migration is complete", () => {
     const violations = collectUiBoundaryViolationsForSource(
       "apps/code/src/features/settings/components/sections/settings-backend-pool/acpBackendForm.ts",
-      'import type { AcpIntegrationSummary } from "../../../../../application/runtime/ports/tauriSettings";\n'
+      'import { getSkillsList } from "../../../../../application/runtime/ports/skills";\n'
     );
 
     expect(violations).toEqual([

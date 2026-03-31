@@ -8,7 +8,7 @@ import type {
   RuntimeRunPrepareV2Response,
 } from "@ku0/code-runtime-host-contract";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
-import { prepareRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
+import { prepareRuntimeRunV2 } from "../ports/runtimeJobs";
 import type { ResolvedRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionContract";
 import { buildGovernedRuntimeRunRequest } from "./runtimeGovernedRunIngestion";
 import { normalizeTaskSourceDraft } from "./runtimeTaskSourceFacade";

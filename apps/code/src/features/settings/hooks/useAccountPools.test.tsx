@@ -4,7 +4,7 @@ import { act } from "react";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "@desktop-host/opener";
 import { subscribeAppServerEvents } from "../../../application/runtime/ports/events";
 import {
   subscribeScopedRuntimeUpdatedEvents,
@@ -18,11 +18,11 @@ import {
   listOAuthPoolMembers,
   listOAuthPools,
   runCodexLogin,
-} from "../../../application/runtime/ports/tauriOauth";
-import { listWorkspaces } from "../../../application/runtime/ports/tauriWorkspaceCatalog";
+} from "../../../application/runtime/ports/oauth";
+import { listWorkspaces } from "../../../application/runtime/ports/workspaceCatalog";
 import { useAccountPools } from "./useAccountPools";
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
+vi.mock("@desktop-host/opener", () => ({
   openUrl: vi.fn(),
 }));
 
@@ -35,10 +35,10 @@ vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   useScopedRuntimeUpdatedEvent: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriOauth", async () => {
-  const actual = await vi.importActual<
-    typeof import("../../../application/runtime/ports/tauriOauth")
-  >("../../../application/runtime/ports/tauriOauth");
+vi.mock("../../../application/runtime/ports/oauth", async () => {
+  const actual = await vi.importActual<typeof import("../../../application/runtime/ports/oauth")>(
+    "../../../application/runtime/ports/oauth"
+  );
   return {
     ...actual,
     getProvidersCatalog: vi.fn(),
@@ -49,7 +49,7 @@ vi.mock("../../../application/runtime/ports/tauriOauth", async () => {
   };
 });
 
-vi.mock("../../../application/runtime/ports/tauriWorkspaceCatalog", () => ({
+vi.mock("../../../application/runtime/ports/workspaceCatalog", () => ({
   listWorkspaces: vi.fn(),
 }));
 

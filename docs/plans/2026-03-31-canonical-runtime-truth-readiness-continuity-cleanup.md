@@ -16,7 +16,7 @@
 
 - Test: `packages/code-workspace-client/src/workspace-shell/sharedMissionControlSummary.test.ts`
 - Test: `apps/code/src/application/runtime/facades/runtimeLaunchReadiness.test.ts`
-- Test: `apps/code/src/services/tauriThreadSnapshotsBridge.test.ts`
+- Test: `apps/code/src/services/threadSnapshotsBridge.test.ts`
 
 **Step 1: Write the failing tests**
 
@@ -32,7 +32,7 @@ Run:
 
 ```bash
 pnpm --filter @ku0/code-workspace-client test -- sharedMissionControlSummary.test.ts
-pnpm --filter @ku0/code exec vitest run --config vitest.config.ts src/application/runtime/facades/runtimeLaunchReadiness.test.ts src/services/tauriThreadSnapshotsBridge.test.ts
+pnpm --filter @ku0/code exec vitest run --config vitest.config.ts src/application/runtime/facades/runtimeLaunchReadiness.test.ts src/services/threadSnapshotsBridge.test.ts
 ```
 
 Expected: FAIL because summary ownership and fallback telemetry are not yet centralized.
@@ -196,9 +196,9 @@ Expected: PASS
 
 **Files:**
 
-- Modify: `apps/code/src/services/tauriThreadSnapshotsBridge.ts`
+- Modify: `apps/code/src/services/threadSnapshotsBridge.ts`
 - Modify: `apps/code/src/features/threads/hooks/useThreadStorage.ts`
-- Test: `apps/code/src/services/tauriThreadSnapshotsBridge.test.ts`
+- Test: `apps/code/src/services/threadSnapshotsBridge.test.ts`
 - Test: `apps/code/src/features/threads/hooks/useThreadStorage.test.tsx`
 
 **Step 1: Write failing tests**
@@ -214,7 +214,7 @@ Cover:
 Run:
 
 ```bash
-pnpm --filter @ku0/code exec vitest run --config vitest.config.ts src/services/tauriThreadSnapshotsBridge.test.ts src/features/threads/hooks/useThreadStorage.test.tsx
+pnpm --filter @ku0/code exec vitest run --config vitest.config.ts src/services/threadSnapshotsBridge.test.ts src/features/threads/hooks/useThreadStorage.test.tsx
 ```
 
 Expected: FAIL because fallback usage is silent and still treated as ambient recovery state.
@@ -230,7 +230,7 @@ Expected: FAIL because fallback usage is silent and still treated as ambient rec
 Run:
 
 ```bash
-pnpm --filter @ku0/code exec vitest run --config vitest.config.ts src/services/tauriThreadSnapshotsBridge.test.ts src/features/threads/hooks/useThreadStorage.test.tsx
+pnpm --filter @ku0/code exec vitest run --config vitest.config.ts src/services/threadSnapshotsBridge.test.ts src/features/threads/hooks/useThreadStorage.test.tsx
 ```
 
 Expected: PASS
@@ -290,7 +290,7 @@ pnpm --filter @ku0/code exec vitest run --config vitest.config.ts \
   src/application/runtime/facades/runtimeContinuityReadiness.test.ts \
   src/application/runtime/facades/runtimeMissionControlFacade.test.ts \
   src/application/runtime/facades/runtimeReviewPackSurfaceFacade.test.ts \
-  src/services/tauriThreadSnapshotsBridge.test.ts \
+  src/services/threadSnapshotsBridge.test.ts \
   src/features/threads/hooks/useThreadStorage.test.tsx
 ```
 

@@ -30,8 +30,8 @@ import {
   selectOAuthPoolAccount,
   setOAuthPrimaryAccount,
   upsertOAuthAccount,
-} from "../../../../application/runtime/ports/tauriOauth";
-import { listWorkspaces } from "../../../../application/runtime/ports/tauriWorkspaceCatalog";
+} from "../../../../application/runtime/ports/oauth";
+import { listWorkspaces } from "../../../../application/runtime/ports/workspaceCatalog";
 import type { AppServerEvent } from "../../../../types";
 import {
   readActiveOauthPopupLoginId,
@@ -61,10 +61,10 @@ vi.mock("../../../../application/runtime/facades/desktopHostFacade", () => ({
   openUrl: vi.fn(),
 }));
 
-vi.mock("../../../../application/runtime/ports/tauriOauth", async () => {
+vi.mock("../../../../application/runtime/ports/oauth", async () => {
   const actual = await vi.importActual<
-    typeof import("../../../../application/runtime/ports/tauriOauth")
-  >("../../../../application/runtime/ports/tauriOauth");
+    typeof import("../../../../application/runtime/ports/oauth")
+  >("../../../../application/runtime/ports/oauth");
   return {
     ...actual,
     getAccountInfo: vi.fn(),
@@ -84,7 +84,7 @@ vi.mock("../../../../application/runtime/ports/tauriOauth", async () => {
   };
 });
 
-vi.mock("../../../../application/runtime/ports/tauriWorkspaceCatalog", () => ({
+vi.mock("../../../../application/runtime/ports/workspaceCatalog", () => ({
   listWorkspaces: vi.fn(),
 }));
 

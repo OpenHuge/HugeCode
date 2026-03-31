@@ -1,14 +1,14 @@
 import { getDesktopHostBridge } from "./desktopHostBridge";
 
 type DesktopCompatibilityEnvironment = {
-  isTauri?: () => boolean | Promise<boolean>;
+  isDesktopHostRuntime?: () => boolean | Promise<boolean>;
   getAppVersion?: () => Promise<string | null>;
   getWindowLabel?: () => Promise<string | null>;
   app?: {
     getVersion?: () => Promise<string | null> | string | null;
   };
   core?: {
-    isTauri?: () => boolean | Promise<boolean>;
+    isDesktopHostRuntime?: () => boolean | Promise<boolean>;
   };
   window?: {
     getCurrentWindow?: () => {
@@ -21,7 +21,7 @@ type DesktopCompatibilityEnvironmentLoader = () => Promise<DesktopCompatibilityE
 
 async function defaultDesktopCompatibilityEnvironmentLoader(): Promise<DesktopCompatibilityEnvironment> {
   return {
-    isTauri: async () => {
+    isDesktopHostRuntime: async () => {
       const bridge = getDesktopHostBridge();
       return bridge?.kind === "electron";
     },
@@ -52,7 +52,11 @@ async function loadCompatibilityEnvironment() {
 export async function detectDesktopHostRuntime() {
   try {
     const environment = await loadCompatibilityEnvironment();
-    const detected = await (environment.isTauri ?? environment.core?.isTauri ?? (() => false))();
+    const detected = await (
+      environment.isDesktopHostRuntime ??
+      environment.core?.isDesktopHostRuntime ??
+      (() => false)
+    )();
     return detected === true;
   } catch {
     return false;
@@ -83,11 +87,8 @@ export async function readDesktopAppVersion() {
   }
 }
 
-export const detectTauriRuntime = detectDesktopHostRuntime;
 export const readDesktopCompatibilityWindowLabel = readDesktopWindowLabel;
 export const readDesktopCompatibilityAppVersion = readDesktopAppVersion;
-export const readTauriWindowLabel = readDesktopWindowLabel;
-export const readTauriAppVersion = readDesktopAppVersion;
 
 export function __setDesktopHostEnvironmentLoaderForTests(
   loader: DesktopCompatibilityEnvironmentLoader
@@ -100,6 +101,3 @@ export function __resetDesktopHostEnvironmentForTests() {
   compatibilityEnvironmentLoader = defaultDesktopCompatibilityEnvironmentLoader;
   cachedCompatibilityEnvironmentPromise = null;
 }
-
-export const __setTauriModuleLoaderForTests = __setDesktopHostEnvironmentLoaderForTests;
-export const __resetTauriRuntimeEnvironmentForTests = __resetDesktopHostEnvironmentForTests;

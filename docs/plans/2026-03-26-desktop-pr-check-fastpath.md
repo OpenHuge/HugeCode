@@ -2,11 +2,11 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Replace the non host-owned desktop PR Linux fast path full Tauri build with a cheaper frontend-prebuild plus desktop-check gate.
+**Goal:** Replace the non host-owned desktop PR Linux fast path full desktop host build with a cheaper frontend-prebuild plus desktop-check gate.
 
-**Architecture:** The desktop workflow will mark the Linux-only PR fast path as `check` mode instead of `build` mode. The reusable PR desktop workflow will branch on that mode, and `apps/code-tauri/scripts/check-fast.mjs` will skip `cargo check` when CI diff refs prove no Rust inputs changed.
+**Architecture:** The desktop workflow will mark the Linux-only PR fast path as `check` mode instead of `build` mode. The reusable PR desktop workflow will branch on that mode, and `apps/code-electron/scripts/check-fast.mjs` will skip `cargo check` when CI diff refs prove no Rust inputs changed.
 
-**Tech Stack:** GitHub Actions workflows, Node ESM scripts, Vitest, Tauri/Rust CI helpers
+**Tech Stack:** GitHub Actions workflows, Node ESM scripts, Vitest, desktop-host/Rust CI helpers
 
 ---
 
@@ -34,7 +34,7 @@ Expected: FAIL because the workflow still wires the Linux-only PR fast path to t
 
 **Step 1: Write the failing test**
 
-Create a fixture git repo with a frontend-only commit and run `apps/code-tauri/scripts/check-fast.mjs` with explicit base/head refs.
+Create a fixture git repo with a frontend-only commit and run `apps/code-electron/scripts/check-fast.mjs` with explicit base/head refs.
 
 **Step 2: Run test to verify it fails**
 
@@ -61,11 +61,11 @@ Pass `verification_mode: check` from `build-pr-fast`, keep `build-pr-full` on th
 
 **Files:**
 
-- Modify: `apps/code-tauri/scripts/check-fast.mjs`
+- Modify: `apps/code-electron/scripts/check-fast.mjs`
 
 **Step 1: Add CI diff helper logic**
 
-Resolve git diff args for explicit base/head refs and detect whether any Rust inputs changed under `apps/code-tauri/src-tauri`.
+Resolve git diff args for explicit base/head refs and detect whether any Rust inputs changed under `apps/code-electron/desktop-host`.
 
 **Step 2: Skip cargo work when the diff proves no Rust input changes**
 
@@ -83,11 +83,11 @@ If explicit refs are provided and no Rust inputs changed, log the skip and exit 
 In `check` mode run:
 
 - `pnpm check:desktop-capabilities`
-- `pnpm --filter @ku0/code-tauri run check`
+- `pnpm --filter @ku0/code-electron run check`
 
 **Step 2: Document the new rule**
 
-Document that frontend/runtime-only desktop PRs keep frontend prebuild proof and desktop capability/Rust-check proof, while host-owned PRs and mainline still keep full Tauri builds.
+Document that frontend/runtime-only desktop PRs keep frontend prebuild proof and desktop capability/Rust-check proof, while host-owned PRs and mainline still keep full desktop host builds.
 
 ### Task 6: Verify
 

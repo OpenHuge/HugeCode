@@ -3,13 +3,13 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { OpenAppMenu } from "./OpenAppMenu";
 
-const isTauriMock = vi.hoisted(() => vi.fn(() => false));
+const isDesktopHostRuntimeMock = vi.hoisted(() => vi.fn(() => false));
 
-vi.mock("@tauri-apps/api/core", () => ({
-  isTauri: () => isTauriMock(),
+vi.mock("@desktop-host/core", () => ({
+  isDesktopHostRuntime: () => isDesktopHostRuntimeMock(),
 }));
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
+vi.mock("@desktop-host/opener", () => ({
   revealItemInDir: vi.fn(async () => undefined),
 }));
 

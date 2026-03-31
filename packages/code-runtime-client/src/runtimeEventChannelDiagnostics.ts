@@ -1,4 +1,4 @@
-export type RuntimeEventChannelTransport = "bridge" | "tauri" | "ws" | "sse" | "unknown";
+export type RuntimeEventChannelTransport = "bridge" | "desktop-host" | "ws" | "sse" | "unknown";
 
 export type RuntimeEventChannelStatus =
   | "idle"

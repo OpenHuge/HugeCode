@@ -52,7 +52,7 @@ Additional targeted checks:
 - `pnpm test:e2e:<category>`
   Run only the relevant Playwright category.
 - `pnpm desktop:verify`
-  Required for Tauri or desktop integration work.
+  Required for desktop integration work.
 - `pnpm ui:contract`
   Required for `apps/code` UI/runtime boundary work.
 - `pnpm repo:doctor`

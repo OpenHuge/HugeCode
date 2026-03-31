@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppSettings, ModelOption, WorkspaceInfo } from "../../../../types";
-import { getProvidersCatalog } from "../../../../application/runtime/ports/tauriOauth";
+import { getProvidersCatalog } from "../../../../application/runtime/ports/oauth";
 
 vi.mock("../../../shared/components/FileEditorCard", () => ({
   FileEditorCard: ({ title }: { title: string }) => (
@@ -16,7 +16,7 @@ vi.mock("./SettingsCodexAccountsCard", () => ({
   SettingsCodexAccountsCard: () => <div data-testid="codex-accounts-card">Codex accounts card</div>,
 }));
 
-vi.mock("../../../../application/runtime/ports/tauriOauth", () => ({
+vi.mock("../../../../application/runtime/ports/oauth", () => ({
   getProvidersCatalog: vi.fn(),
 }));
 

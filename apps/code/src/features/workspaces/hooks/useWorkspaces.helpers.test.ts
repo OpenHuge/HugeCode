@@ -42,7 +42,7 @@ describe("isWorkspacePathValidationUnavailableError", () => {
   it("does not treat legacy message-only errors as unavailable", () => {
     expect(
       isWorkspacePathValidationUnavailableError(
-        new Error("workspace path validation is only available in tauri runtime")
+        new Error("workspace path validation is only available in desktop-host runtime")
       )
     ).toBe(false);
   });

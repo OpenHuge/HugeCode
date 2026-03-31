@@ -101,7 +101,7 @@ docs/                         # Product specs and engineering docs
 - Task start flows must support an explicit backend preference and a shared default-backend fallback path.
 - If no backend is specified by the caller, resolve the default backend through application/runtime logic, never inside a UI component.
 - Once resolved, backend preference must flow through the host-native task-start contract (`preferredBackendIds`), not through implicit UI-side state.
-- Do not introduce new wide aggregation ports like `desktopSettings`, `desktopWorkspaces`, `tauriSettings`, or `tauriWorkspaces` for fresh feature work.
+- Do not introduce new wide aggregation ports like `desktopSettings` or `desktopWorkspaces` for fresh feature work.
 - Legacy wide ports may remain as compatibility layers, but new code should use narrower domain ports and facades.
 - App settings persistence is still a legacy desktop-host adapter until a dedicated `code_app_settings_*` contract exists; keep that legacy boundary explicit in ports and comments.
 - `pnpm check:ui-service-boundary` is the enforcement gate for UI/runtime import boundaries; new UI code must pass it without adding new legacy exceptions.

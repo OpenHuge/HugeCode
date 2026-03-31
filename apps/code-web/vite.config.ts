@@ -28,7 +28,7 @@ export default defineConfig(({ command }) => {
         importProtection: {
           enabled: true,
           server: {
-            specifiers: [/^@tauri-apps\//],
+            specifiers: [/^@desktop-host\//],
           },
         },
         router: {

@@ -30,35 +30,35 @@ const reactJsxDevRuntimeEntry = fileURLToPath(
   new URL("./node_modules/react/jsx-dev-runtime.js", import.meta.url)
 );
 const reactDomEntry = fileURLToPath(new URL("./node_modules/react-dom/index.js", import.meta.url));
-const tauriCoreCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriCore.ts", import.meta.url)
+const desktopHostCoreCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopHostCore.ts", import.meta.url)
 );
-const tauriDpiCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriDpi.ts", import.meta.url)
+const desktopDpiCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopDpi.ts", import.meta.url)
 );
-const tauriMenuCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriMenu.ts", import.meta.url)
+const desktopMenuCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopMenu.ts", import.meta.url)
 );
-const tauriWindowCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriWindow.ts", import.meta.url)
+const desktopHostWindowCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopHostWindow.ts", import.meta.url)
 );
-const tauriDialogCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriDialogs.ts", import.meta.url)
+const desktopHostDialogsCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopHostDialogs.ts", import.meta.url)
 );
-const tauriUpdaterCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriUpdater.ts", import.meta.url)
+const desktopUpdaterCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopUpdater.ts", import.meta.url)
 );
-const tauriProcessCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriProcess.ts", import.meta.url)
+const desktopProcessCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopProcess.ts", import.meta.url)
 );
-const tauriOpenerCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriOpener.ts", import.meta.url)
+const desktopHostOpenerCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopHostOpener.ts", import.meta.url)
 );
-const tauriEventCompatEntry = fileURLToPath(
-  new URL("./src/test/shims/tauriEventCompat.ts", import.meta.url)
+const desktopHostEventCompatEntry = fileURLToPath(
+  new URL("./src/test/shims/desktopHostEventCompat.ts", import.meta.url)
 );
-const tauriNotificationCompatEntry = fileURLToPath(
-  new URL("./src/test/shims/tauriNotificationCompat.ts", import.meta.url)
+const desktopNotificationCompatEntry = fileURLToPath(
+  new URL("./src/test/shims/desktopNotificationCompat.ts", import.meta.url)
 );
 const liquidGlassCompatEntry = fileURLToPath(
   new URL("./src/test/shims/liquidGlassCompat.ts", import.meta.url)
@@ -102,47 +102,47 @@ export default defineConfig({
         replacement: reactDomEntry,
       },
       {
-        find: /^@tauri-apps\/api\/core$/,
-        replacement: tauriCoreCompatEntry,
+        find: /^@desktop-host\/core$/,
+        replacement: desktopHostCoreCompatEntry,
       },
       {
-        find: /^@tauri-apps\/api\/dpi$/,
-        replacement: tauriDpiCompatEntry,
+        find: /^@desktop-host\/dpi$/,
+        replacement: desktopDpiCompatEntry,
       },
       {
-        find: /^@tauri-apps\/api\/event$/,
-        replacement: tauriEventCompatEntry,
+        find: /^@desktop-host\/event$/,
+        replacement: desktopHostEventCompatEntry,
       },
       {
-        find: /^@tauri-apps\/api\/menu$/,
-        replacement: tauriMenuCompatEntry,
+        find: /^@desktop-host\/menu$/,
+        replacement: desktopMenuCompatEntry,
       },
       {
-        find: /^@tauri-apps\/api\/window$/,
-        replacement: tauriWindowCompatEntry,
+        find: /^@desktop-host\/window$/,
+        replacement: desktopHostWindowCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-dialog$/,
-        replacement: tauriDialogCompatEntry,
+        find: /^@desktop-host\/dialogs$/,
+        replacement: desktopHostDialogsCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-notification$/,
-        replacement: tauriNotificationCompatEntry,
+        find: /^@desktop-host\/notifications$/,
+        replacement: desktopNotificationCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-opener$/,
-        replacement: tauriOpenerCompatEntry,
+        find: /^@desktop-host\/opener$/,
+        replacement: desktopHostOpenerCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-process$/,
-        replacement: tauriProcessCompatEntry,
+        find: /^@desktop-host\/process$/,
+        replacement: desktopProcessCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-updater$/,
-        replacement: tauriUpdaterCompatEntry,
+        find: /^@desktop-host\/updater$/,
+        replacement: desktopUpdaterCompatEntry,
       },
       {
-        find: /^tauri-plugin-liquid-glass-api$/,
+        find: /^@desktop-host\/liquid-glass$/,
         replacement: liquidGlassCompatEntry,
       },
       {

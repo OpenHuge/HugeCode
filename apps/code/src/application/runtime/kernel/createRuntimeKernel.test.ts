@@ -130,7 +130,7 @@ vi.mock("../ports/runtimeWebGatewayConfig", async () => {
   };
 });
 
-vi.mock("../ports/tauriMissionControl", () => ({
+vi.mock("../ports/missionControl", () => ({
   getMissionControlSnapshot: vi.fn(async () => ({
     source: "runtime_snapshot_v1",
     generatedAt: 0,
@@ -147,7 +147,7 @@ vi.mock("../ports/desktopAppSettings", () => ({
   syncRuntimeGatewayProfileFromAppSettings: vi.fn(),
 }));
 
-vi.mock("../ports/tauriOauth", () => ({
+vi.mock("../ports/oauth", () => ({
   applyOAuthPool: vi.fn(),
   bindOAuthPoolAccount: vi.fn(),
   getAccountInfo: vi.fn(),
@@ -160,12 +160,12 @@ vi.mock("../ports/tauriOauth", () => ({
   setOAuthPrimaryAccount: vi.fn(),
 }));
 
-vi.mock("../ports/tauriModels", () => ({
+vi.mock("../ports/models", () => ({
   getConfigModel: vi.fn(),
   getModelList: vi.fn(),
 }));
 
-vi.mock("../ports/tauriWorkspaceCatalog", () => ({
+vi.mock("../ports/workspaceCatalog", () => ({
   listWorkspaces: vi.fn(async () => []),
 }));
 
@@ -173,7 +173,7 @@ vi.mock("../ports/runtimeUpdatedEvents", () => ({
   subscribeScopedRuntimeUpdatedEvents: vi.fn(() => () => undefined),
 }));
 
-vi.mock("../ports/tauriRuntimeJobs", () => ({
+vi.mock("../ports/runtimeJobs", () => ({
   prepareRuntimeRunV2: runtimeMocks.prepareRuntimeRun,
   startRuntimeRunV2: runtimeMocks.startRuntimeRun,
   cancelRuntimeRun: runtimeMocks.cancelRuntimeRun,
@@ -182,14 +182,14 @@ vi.mock("../ports/tauriRuntimeJobs", () => ({
   submitRuntimeJobApprovalDecision: runtimeMocks.submitRuntimeJobApprovalDecision,
 }));
 
-vi.mock("../ports/tauriRuntimeThreads", () => ({
+vi.mock("../ports/runtimeThreads", () => ({
   listRuntimeThreads: runtimeMocks.listThreads,
   createRuntimeThread: runtimeMocks.createThread,
   resumeRuntimeThread: runtimeMocks.resumeThread,
   archiveRuntimeThread: runtimeMocks.archiveThread,
 }));
 
-vi.mock("../ports/tauriRuntimeGit", () => ({
+vi.mock("../ports/runtimeGit", () => ({
   listRuntimeGitChanges: runtimeMocks.getGitStatus,
   readRuntimeGitDiff: runtimeMocks.readGitDiff,
   listRuntimeGitBranches: runtimeMocks.listGitBranches,
@@ -203,7 +203,7 @@ vi.mock("../ports/tauriRuntimeGit", () => ({
   commitRuntimeGit: runtimeMocks.commitGit,
 }));
 
-vi.mock("../ports/tauriRuntimeWorkspaceFiles", () => ({
+vi.mock("../ports/runtimeWorkspaceFiles", () => ({
   listRuntimeWorkspaceFileEntries: runtimeMocks.listWorkspaceFileEntries,
   readRuntimeWorkspaceFile: runtimeMocks.readWorkspaceFile,
 }));

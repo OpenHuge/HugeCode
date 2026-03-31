@@ -4,7 +4,7 @@ import Clock3 from "lucide-react/dist/esm/icons/clock-3";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PopoverMenuItem, PopoverSurface } from "../../../design-system";
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
 import { LogicalPosition } from "../../../application/runtime/ports/desktopDpi";
 import { Menu, MenuItem } from "../../../application/runtime/ports/desktopMenu";
 import { getCurrentWindow } from "../../../application/runtime/ports/desktopHostWindow";
@@ -99,7 +99,7 @@ export function ComposerQueue({
           run: () => onDeleteQueued?.(item.id),
         },
       ];
-      if (!isTauri()) {
+      if (!isDesktopHostRuntime()) {
         const target = event.currentTarget as HTMLElement;
         const rect = target.getBoundingClientRect();
         const rawX = event.clientX > 0 ? event.clientX : rect.right;

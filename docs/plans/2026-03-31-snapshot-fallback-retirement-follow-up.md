@@ -6,7 +6,7 @@
 
 ## Inventory
 
-- `apps/code/src/services/tauriThreadSnapshotsBridge.ts`
+- `apps/code/src/services/threadSnapshotsBridge.ts`
   Session thread snapshot state still overlays an empty runtime response, even when there is no clear evidence that the empty runtime state only reflects an in-flight same-tab recovery window.
 - `apps/code/src/features/threads/hooks/useThreadStorage.ts`
   Legacy local `loadThreadSnapshots()` hydration still restores thread snapshots after a successful native read that returns empty snapshots.
@@ -16,7 +16,7 @@
 ## Implementation Steps
 
 1. Add failing tests that prove empty-runtime session overlay is only allowed during an explicit short-lived recovery window and that stale session snapshot state no longer silently regains authority.
-2. Narrow `tauriThreadSnapshotsBridge.ts` so:
+2. Narrow `threadSnapshotsBridge.ts` so:
    - runtime-unavailable reads may still use full session recovery,
    - runtime-available-but-empty reads only use session snapshot overlay when an explicit fresh recovery marker exists,
    - otherwise runtime truth stays authoritative and only client-owned session state is merged.

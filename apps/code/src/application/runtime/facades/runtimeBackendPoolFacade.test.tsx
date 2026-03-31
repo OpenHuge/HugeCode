@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useRuntimeBackendPoolFacade } from "./runtimeBackendPoolFacade";
 
-vi.mock("../ports/tauriRemoteServers", () => ({
+vi.mock("../ports/remoteServers", () => ({
   acpIntegrationProbe: vi.fn(),
   acpIntegrationsList: vi.fn(),
   acpIntegrationRemove: vi.fn(),
@@ -30,7 +30,7 @@ import {
   getRuntimeCapabilitiesSummary,
   runtimeBackendSetState,
   runtimeBackendsList,
-} from "../ports/tauriRemoteServers";
+} from "../ports/remoteServers";
 
 const getRuntimeCapabilitiesSummaryMock = vi.mocked(getRuntimeCapabilitiesSummary);
 const runtimeBackendsListMock = vi.mocked(runtimeBackendsList);
@@ -44,7 +44,7 @@ describe("useRuntimeBackendPoolFacade", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       features: ["multi_backend_pool_v1"],
       methods: [
         "code_runtime_backends_list",

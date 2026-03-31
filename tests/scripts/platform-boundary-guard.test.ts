@@ -44,12 +44,12 @@ describe("check-platform-boundaries", () => {
     expect(findPlatformBoundaryViolations(repoRoot)).toEqual([]);
   });
 
-  it("fails when shared web core imports Tauri directly", () => {
+  it("fails when shared web core imports desktop-host packages directly", () => {
     const repoRoot = createTempRepo();
     writeRepoFile(
       repoRoot,
       "packages/code-workspace-client/src/workspace/index.ts",
-      'import { invoke } from "@tauri-apps/api/core";\nexport const value = invoke;\n'
+      'import { invoke } from "@desktop-host/core";\nexport const value = invoke;\n'
     );
 
     expect(findPlatformBoundaryViolations(repoRoot)).toEqual([

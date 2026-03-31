@@ -9,23 +9,23 @@ import { CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES } from "@ku0/code-runtime-host-co
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const invokeMock = vi.fn();
-const isTauriMock = vi.fn();
+const isDesktopHostRuntimeMock = vi.fn();
 const CANONICAL_WORKSPACES_METHOD = "code_workspaces_list";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: invokeMock,
-  isTauri: isTauriMock,
+  isDesktopHostRuntime: isDesktopHostRuntimeMock,
 }));
 
-function syncTauriBridgeWithMockState() {
-  const tauriWindow = window as Window & {
-    __TAURI_INTERNALS__?: unknown;
+function syncDesktopHostBridgeWithMockState() {
+  const desktopHostWindow = window as Window & {
+    __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
     __HUGE_CODE_RUNTIME_CLIENT_MODE__?: unknown;
   };
-  const implementation = isTauriMock.getMockImplementation();
+  const implementation = isDesktopHostRuntimeMock.getMockImplementation();
   if (implementation && implementation() === true) {
-    tauriWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__ = "tauri";
-    tauriWindow.__TAURI_INTERNALS__ = {
+    desktopHostWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__ = "desktop-host";
+    desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {
       invoke: invokeMock,
     };
   }
@@ -33,22 +33,22 @@ function syncTauriBridgeWithMockState() {
 
 async function importRuntimeClientModule() {
   vi.resetModules();
-  syncTauriBridgeWithMockState();
+  syncDesktopHostBridgeWithMockState();
   return import("./runtimeClient");
 }
 
-function clearTauriMarkers() {
-  const tauriWindow = window as Window & {
-    __TAURI__?: unknown;
-    __TAURI_INTERNALS__?: unknown;
-    __TAURI_IPC__?: unknown;
+function clearDesktopHostMarkers() {
+  const desktopHostWindow = window as Window & {
+    __HUGE_CODE_DESKTOP_HOST__?: unknown;
+    __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
+    __HUGE_CODE_DESKTOP_HOST_IPC__?: unknown;
     __HUGE_CODE_RUNTIME_CLIENT_MODE__?: unknown;
   };
 
-  delete tauriWindow.__TAURI__;
-  delete tauriWindow.__TAURI_INTERNALS__;
-  delete tauriWindow.__TAURI_IPC__;
-  delete tauriWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__;
+  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST__;
+  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__;
+  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_IPC__;
+  delete desktopHostWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__;
 }
 
 function clearAgentRuntimeMarkers() {
@@ -103,28 +103,28 @@ function createFrozenCapabilitiesPayload(
 describe("runtimeClient mode detection", () => {
   beforeEach(() => {
     invokeMock.mockReset();
-    isTauriMock.mockReset();
+    isDesktopHostRuntimeMock.mockReset();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
-    clearTauriMarkers();
+    clearDesktopHostMarkers();
     clearAgentRuntimeMarkers();
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
-    clearTauriMarkers();
+    clearDesktopHostMarkers();
     clearAgentRuntimeMarkers();
   });
 
-  it("routes to tauri client when tauri bridge is available", async () => {
-    isTauriMock.mockReturnValue(true);
+  it("routes to the desktop host client when the desktop host bridge is available", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockResolvedValue([]);
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
 
-    expect(runtime.detectRuntimeMode()).toBe("tauri");
+    expect(runtime.detectRuntimeMode()).toBe("desktop-host");
     await client.workspaces();
     expect(invokeMock).toHaveBeenCalledWith("code_workspaces_list", {});
     await client.workspacePickDirectory();
@@ -835,7 +835,7 @@ describe("runtimeClient mode detection", () => {
   }, 15_000);
 
   it("reads runtime capabilities summary for capability gating", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -849,14 +849,14 @@ describe("runtimeClient mode detection", () => {
     const runtime = await importRuntimeClientModule();
     const summary = await runtime.readRuntimeCapabilitiesSummary();
 
-    expect(summary.mode).toBe("tauri");
+    expect(summary.mode).toBe("desktop-host");
     expect(summary.features).toContain("multi_backend_pool_v1");
     expect(summary.methods).toContain("code_runtime_backends_list");
     expect(summary.error).toBeNull();
   });
 
   it("routes oauth account pool calls through unified rpc contract", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1042,7 +1042,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("keeps legacy workspace selector aliases when only workspaceId is provided", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1103,7 +1103,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("prefers explicit chatgptWorkspaceId over legacy workspaceId for oauth rpc calls", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1173,7 +1173,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("routes backend pool and distributed graph calls through unified rpc contract", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1307,7 +1307,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("invokes kernel v2 rpc methods through the runtime client boundary", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1403,7 +1403,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("routes oauth pool mutations and rate-limit reports through unified rpc contract", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1648,7 +1648,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("bootstraps runtime snapshot through unified rpc contract", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1707,7 +1707,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("rejects oversized network live-skill query before runtime rpc invocation", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
@@ -1726,7 +1726,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("allows long non-network live-skill input through runtime rpc", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1769,7 +1769,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("rejects oversized core-bash command before runtime rpc invocation", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
@@ -1788,7 +1788,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("allows bounded core-bash command through runtime rpc", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1831,7 +1831,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes core-js-repl aliases before runtime rpc invocation", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1887,7 +1887,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes core-js-repl-reset aliases before runtime rpc invocation", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1931,7 +1931,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes research live-skill aliases before runtime rpc invocation", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1974,7 +1974,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("passes typed live-skill context fields through runtime rpc invocation", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2029,7 +2029,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes core-tree aliases before runtime rpc invocation", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2072,7 +2072,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes core-grep aliases before runtime rpc invocation", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2115,7 +2115,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("rejects core-grep request without pattern before runtime rpc invocation", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
@@ -2131,7 +2131,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("rejects invalid core-grep mode before runtime rpc invocation", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
@@ -2150,7 +2150,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes network live-skill aliases before runtime rpc invocation", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2193,7 +2193,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes diagnostics live-skill aliases before runtime rpc invocation", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2236,7 +2236,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes computer-observe aliases before runtime rpc invocation", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2279,7 +2279,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("does not enable legacy runtime bridge markers outside supported runtimes", async () => {
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
     const legacyRpcBridge = vi.fn();
     (
       window as Window & {
@@ -2297,8 +2297,8 @@ describe("runtimeClient mode detection", () => {
     expect(legacyRpcBridge).not.toHaveBeenCalled();
   });
 
-  it("uses explicit unavailable mode by default outside tauri", async () => {
-    isTauriMock.mockReturnValue(false);
+  it("uses explicit unavailable mode by default outside desktop-host", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
@@ -2325,7 +2325,7 @@ describe("runtimeClient mode detection", () => {
   it("ignores legacy demo env when web runtime gateway endpoint is configured", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_DEMO", "1");
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     const runtime = await importRuntimeClientModule();
 
@@ -2334,46 +2334,46 @@ describe("runtimeClient mode detection", () => {
 
   it("supports runtime gateway env key for web mode detection", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc_gateway");
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     const runtime = await importRuntimeClientModule();
 
     expect(runtime.detectRuntimeMode()).toBe("runtime-gateway-web");
   });
 
-  it("does not mis-detect tauri when __TAURI_INTERNALS__ exists without invoke", async () => {
+  it("does not mis-detect the desktop host when __HUGE_CODE_DESKTOP_HOST_INTERNALS__ exists without invoke", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
     (
       window as Window & {
-        __TAURI_INTERNALS__?: unknown;
+        __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
       }
-    ).__TAURI_INTERNALS__ = {};
+    ).__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {};
 
     const runtime = await importRuntimeClientModule();
 
     expect(runtime.detectRuntimeMode()).toBe("runtime-gateway-web");
   });
 
-  it("detects tauri when __TAURI_INTERNALS__.invoke is available", async () => {
-    isTauriMock.mockReturnValue(false);
+  it("detects the desktop host when __HUGE_CODE_DESKTOP_HOST_INTERNALS__.invoke is available", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(false);
     (
       window as Window & {
-        __TAURI_INTERNALS__?: unknown;
+        __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
       }
-    ).__TAURI_INTERNALS__ = {
+    ).__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {
       invoke: vi.fn(),
     };
 
     const runtime = await importRuntimeClientModule();
 
-    expect(runtime.detectRuntimeMode()).toBe("tauri");
+    expect(runtime.detectRuntimeMode()).toBe("desktop-host");
   });
 
   it("ignores legacy demo env when no supported runtime transport is configured", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_DEMO", "1");
     vi.stubEnv("NODE_ENV", "production");
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     const runtime = await importRuntimeClientModule();
 
@@ -2382,7 +2382,7 @@ describe("runtimeClient mode detection", () => {
 
   it("routes to web runtime when endpoint is configured", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as {
@@ -2426,7 +2426,7 @@ describe("runtimeClient mode detection", () => {
 
   it("routes to web runtime when runtime gateway endpoint env is configured", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc_gateway");
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -2467,7 +2467,7 @@ describe("runtimeClient mode detection", () => {
 
   it("returns explicit method_not_found code when web runtime lacks metrics rpc methods", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -2496,7 +2496,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("invokes canonical codex oauth login start and cancel rpc methods", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2553,7 +2553,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("rejects terminalStatus when runtime returns an invalid state payload", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2579,7 +2579,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("rejects terminalOpen when runtime returns an invalid session state payload", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({

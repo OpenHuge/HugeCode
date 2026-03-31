@@ -2,11 +2,11 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Converge the frontend toward a shared Web Core with thin Tauri and Electron shells, starting by freezing new platform leakage and then extracting platform interfaces before any large orchestration move.
+**Goal:** Converge the frontend toward a shared Web Core with thin desktop-host and Electron shells, starting by freezing new platform leakage and then extracting platform interfaces before any large orchestration move.
 
 **Architecture:** Keep `apps/code-web` and the desktop renderer bootstraps thin, introduce explicit platform-interface boundaries first, then migrate application orchestration behind injected facades. Use compatibility wrappers during the transition so the branch stays releasable after every phase.
 
-**Tech Stack:** TypeScript, React 19, pnpm 10, Turbo, Vite 8, Electron 41, Tauri v2, Vitest
+**Tech Stack:** TypeScript, React 19, pnpm 10, Turbo, Vite 8, Electron 41, Electron desktop host, Vitest
 
 ---
 
@@ -37,7 +37,7 @@
 **Steps:**
 
 1. Add a boundary checker that scans `apps/code-web`, `packages/code-workspace-client`, and future `code-domain` / `code-application` / `code-platform-interfaces` packages.
-2. Fail on direct `@tauri-apps/*`, `electron`, `ipcRenderer`, or `window.hugeCodeDesktopHost` usage outside allowed adapter surfaces.
+2. Fail on direct `@desktop-host/*`, `electron`, `ipcRenderer`, or `window.hugeCodeDesktopHost` usage outside allowed adapter surfaces.
 3. Wire the new checker into `pnpm ui:contract`.
 4. Validate with `pnpm check:platform-boundaries` and `pnpm ui:contract`.
 5. Commit and push as the Phase 0 baseline.
@@ -51,7 +51,7 @@
 - Create: `packages/code-platform-interfaces/**`
 - Modify: `apps/code/src/application/runtime/ports/desktopHostBridge.ts`
 - Modify: `apps/code/src/application/runtime/ports/desktopHostEnvironment.ts`
-- Modify: `apps/code/src/application/runtime/ports/tauriOpener.ts`
+- Modify: `apps/code/src/application/runtime/ports/desktopHostOpener.ts`
 - Modify: `apps/code-electron/src/shared/ipc.ts`
 - Modify: `apps/code-electron/src/preload/preload.ts`
 - Modify: `apps/code-electron/src/main/desktopShellState.ts`
@@ -83,11 +83,11 @@
 
 **Guardrail:** Do not let the shared package absorb platform adapters or host shell logic.
 
-### Phase 4: Thin Tauri and Electron Shells Further
+### Phase 4: Thin Desktop-Host and Electron Shells Further
 
 **Intent:** Limit desktop shells to lifecycle, bridge exposure, and packaging/security boundaries.
 
-**Guardrail:** No workflow state, screen state, or page decision logic in Tauri commands, Electron main, or preload.
+**Guardrail:** No workflow state, screen state, or page decision logic in desktop host commands, Electron main, or preload.
 
 ### Phase 5: Remove Compatibility Layers
 

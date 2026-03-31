@@ -6,7 +6,7 @@ import GitCommitHorizontal from "lucide-react/dist/esm/icons/git-commit-horizont
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GovernedGitHubFollowUpPreview } from "../../../application/runtime/facades/githubSourceLaunchPreview";
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
 import { ask } from "../../../application/runtime/ports/desktopHostDialogs";
 import * as styles from "./GitDiffViewer.styles.css";
 import "./GitDiffViewer.global.css";
@@ -529,7 +529,7 @@ export function GitDiffViewer({
 
   const showRevert = canRevert && Boolean(onRevertFile);
   const confirmWarning = useCallback(async (message: string, title: string) => {
-    if (isTauri()) {
+    if (isDesktopHostRuntime()) {
       try {
         return await ask(message, { title, kind: "warning" });
       } catch {

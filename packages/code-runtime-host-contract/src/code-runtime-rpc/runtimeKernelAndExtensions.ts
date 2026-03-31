@@ -491,7 +491,7 @@ export type KernelProjectionSubscriptionAck = {
   ok: true;
   revision: number;
   scopes: KernelProjectionScope[];
-  transport: "ws" | "tauri-event" | "fallback-runtime-updated";
+  transport: "ws" | "desktop-host-event" | "fallback-runtime-updated";
 };
 
 export type KernelSessionsListRequest = {

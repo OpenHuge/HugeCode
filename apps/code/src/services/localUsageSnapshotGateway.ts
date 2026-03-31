@@ -9,11 +9,11 @@ type LocalUsageSnapshotPayload = {
 
 type LocalUsageSnapshotGatewayDeps = {
   cacheTtlMs: number;
-  isTauri: () => boolean;
+  isDesktopHostRuntime: () => boolean;
   readRuntimeCliSessions: () => Promise<LocalCliSession[]>;
   invokeLocalUsageSnapshot: (payload: LocalUsageSnapshotPayload) => Promise<LocalUsageSnapshot>;
-  isMissingTauriInvokeError: (error: unknown) => boolean;
-  isMissingTauriCommandError: (error: unknown, command: string) => boolean;
+  isMissingDesktopHostInvokeError: (error: unknown) => boolean;
+  isMissingDesktopHostCommandError: (error: unknown, command: string) => boolean;
   buildLocalUsageSnapshotFromCliSessions: (
     sessions: LocalCliSession[],
     days: number,
@@ -84,7 +84,7 @@ export function createLocalUsageSnapshotGateway(deps: LocalUsageSnapshotGatewayD
       if (normalizedWorkspacePath) {
         payload.workspacePath = normalizedWorkspacePath;
       }
-      if (!deps.isTauri()) {
+      if (!deps.isDesktopHostRuntime()) {
         const sessions = await deps.readRuntimeCliSessions();
         return deps.buildLocalUsageSnapshotFromCliSessions(
           sessions,
@@ -96,8 +96,8 @@ export function createLocalUsageSnapshotGateway(deps: LocalUsageSnapshotGatewayD
         return await deps.invokeLocalUsageSnapshot(payload);
       } catch (error) {
         if (
-          deps.isMissingTauriInvokeError(error) ||
-          deps.isMissingTauriCommandError(error, "local_usage_snapshot")
+          deps.isMissingDesktopHostInvokeError(error) ||
+          deps.isMissingDesktopHostCommandError(error, "local_usage_snapshot")
         ) {
           const sessions = await deps.readRuntimeCliSessions();
           return deps.buildLocalUsageSnapshotFromCliSessions(

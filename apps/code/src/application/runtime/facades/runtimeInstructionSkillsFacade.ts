@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getAppServerRawMethod } from "../../../utils/appServerEvents";
 import type { DebugEntry, SkillOption } from "../../../types";
 import { useScopedRuntimeUpdatedEvent } from "../ports/runtimeUpdatedEvents";
-import { getInstructionSkill, getSkillsList } from "../ports/tauriSkills";
+import { getInstructionSkill, getSkillsList } from "../ports/skills";
 import type { RuntimeUpdatedEvent } from "../ports/runtimeUpdatedEvents";
 
 type RuntimeInstructionSkillsFacadeOptions = {

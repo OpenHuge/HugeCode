@@ -86,7 +86,7 @@ export function createRuntimeRpcInvokerWithCandidates(
   };
 }
 
-export async function invokeTauriRaw<Result>(
+export async function invokeDesktopHostRaw<Result>(
   invokeRuntime: <Value>(method: string, params: RuntimeRpcParams) => Promise<Value>,
   method: string,
   params: RuntimeRpcParams
@@ -98,7 +98,7 @@ export async function invokeTauriRaw<Result>(
       toRuntimeRpcInvocationError(cause) ??
       new RuntimeRpcInvocationError({
         code: CODE_RUNTIME_RPC_ERROR_CODES.INTERNAL_ERROR,
-        message: `Tauri runtime ${method} failed.`,
+        message: `Desktop host runtime ${method} failed.`,
       })
     );
   }

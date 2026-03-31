@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppServerEvent } from "../types";
-import { isTauri } from "../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
 import type { UnlistenFn } from "../application/runtime/ports/desktopHostEvent";
 import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
@@ -13,13 +13,13 @@ import {
   subscribeMenuNewAgent,
 } from "./events";
 
-type TauriEvent<T> = {
+type DesktopHostEventEnvelope<T> = {
   event?: string;
   id?: number;
   payload: T;
 };
 
-type EventCallback<T> = (event: TauriEvent<T>) => void;
+type EventCallback<T> = (event: DesktopHostEventEnvelope<T>) => void;
 
 const PROCESS_ENV = (
   globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }
@@ -38,7 +38,7 @@ vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
 }));
 
 vi.mock("../application/runtime/ports/desktopHostCore", () => ({
-  isTauri: vi.fn(() => true),
+  isDesktopHostRuntime: vi.fn(() => true),
 }));
 
 class MockEventSource {
@@ -120,7 +120,7 @@ function setProcessEnv(key: string, value?: string) {
 describe("events subscriptions", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, undefined);
     setProcessEnv(WEB_ENDPOINT_ENV, undefined);
     setProcessEnv(WEB_WS_ENDPOINT_ENV, undefined);
@@ -139,15 +139,15 @@ describe("events subscriptions", () => {
     globalThis.WebSocket = ORIGINAL_WEB_SOCKET;
     (
       window as Window & {
-        __TAURI_INTERNALS__?: unknown;
+        __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
       }
-    ).__TAURI_INTERNALS__ = {
+    ).__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {
       invoke: vi.fn(),
     };
   });
 
   it("delivers payloads and unsubscribes on cleanup", async () => {
-    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     let listener: EventCallback<unknown> = () => undefined;
     const unlistenRuntime = vi.fn();
 
@@ -164,7 +164,7 @@ describe("events subscriptions", () => {
     await Promise.resolve();
     expect(listen).toHaveBeenCalledWith("fastcode://runtime/event", expect.any(Function));
 
-    const event: TauriEvent<unknown> = {
+    const event: DesktopHostEventEnvelope<unknown> = {
       event: "fastcode://runtime/event",
       id: 1,
       payload: {
@@ -188,7 +188,7 @@ describe("events subscriptions", () => {
   });
 
   it("falls back to web runtime events when desktop event subscription is unavailable", async () => {
-    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     vi.mocked(listen).mockRejectedValue(
       new Error('Desktop event listener "fastcode://runtime/event" is unavailable.')
     );
@@ -255,7 +255,7 @@ describe("events subscriptions", () => {
     const onEvent = vi.fn();
     const cleanup = subscribeMenuCycleModel(onEvent);
 
-    const event: TauriEvent<void> = {
+    const event: DesktopHostEventEnvelope<void> = {
       event: "menu-composer-cycle-model",
       id: 1,
       payload: undefined,
@@ -278,7 +278,7 @@ describe("events subscriptions", () => {
     const onEvent = vi.fn();
     const cleanup = subscribeMenuCycleCollaborationMode(onEvent);
 
-    const event: TauriEvent<void> = {
+    const event: DesktopHostEventEnvelope<void> = {
       event: "menu-composer-cycle-collaboration",
       id: 1,
       payload: undefined,
@@ -293,7 +293,7 @@ describe("events subscriptions", () => {
     vi.useFakeTimers();
 
     try {
-      vi.mocked(isTauri).mockReturnValue(true);
+      vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
       vi.mocked(listen).mockRejectedValueOnce(new Error("listen startup failure"));
 
       const onEvent = vi.fn();
@@ -313,7 +313,7 @@ describe("events subscriptions", () => {
   });
 
   it("falls back to web runtime events when v2 desktop event subscription is unavailable", async () => {
-    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     vi.mocked(listen).mockRejectedValueOnce(new Error("desktop event bridge unavailable"));
     setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, "https://runtime.example.test/events");
     setProcessEnv(RUNTIME_EVENT_V2_ENV, "1");
@@ -377,7 +377,7 @@ describe("events subscriptions", () => {
           delta: "hello runtime",
         },
       },
-    } as TauriEvent<unknown>);
+    } as DesktopHostEventEnvelope<unknown>);
 
     runtimeListener({
       event: "fastcode://runtime/event",
@@ -388,7 +388,7 @@ describe("events subscriptions", () => {
           turnId: "thread-7",
         },
       },
-    } as TauriEvent<unknown>);
+    } as DesktopHostEventEnvelope<unknown>);
 
     runtimeListener({
       event: "fastcode://runtime/event",
@@ -403,7 +403,7 @@ describe("events subscriptions", () => {
           },
         },
       },
-    } as TauriEvent<unknown>);
+    } as DesktopHostEventEnvelope<unknown>);
 
     expect(onEvent).toHaveBeenNthCalledWith(
       1,
@@ -485,7 +485,7 @@ describe("events subscriptions", () => {
           turnId: "turn-map-1",
         },
       },
-    } as TauriEvent<unknown>);
+    } as DesktopHostEventEnvelope<unknown>);
 
     runtimeListener({
       event: "fastcode://runtime/event",
@@ -497,7 +497,7 @@ describe("events subscriptions", () => {
           turnId: "turn-map-1",
         },
       },
-    } as TauriEvent<unknown>);
+    } as DesktopHostEventEnvelope<unknown>);
 
     expect(onEvent).toHaveBeenNthCalledWith(
       1,
@@ -564,7 +564,7 @@ describe("events subscriptions", () => {
           },
         },
       },
-    } as TauriEvent<unknown>);
+    } as DesktopHostEventEnvelope<unknown>);
 
     runtimeListener({
       event: "fastcode://runtime/event",
@@ -582,7 +582,7 @@ describe("events subscriptions", () => {
           },
         },
       },
-    } as TauriEvent<unknown>);
+    } as DesktopHostEventEnvelope<unknown>);
 
     runtimeListener({
       event: "fastcode://runtime/event",
@@ -600,7 +600,7 @@ describe("events subscriptions", () => {
           },
         },
       },
-    } as TauriEvent<unknown>);
+    } as DesktopHostEventEnvelope<unknown>);
 
     runtimeListener({
       event: "fastcode://runtime/event",
@@ -615,7 +615,7 @@ describe("events subscriptions", () => {
           reason: "auto-allow rule",
         },
       },
-    } as TauriEvent<unknown>);
+    } as DesktopHostEventEnvelope<unknown>);
 
     runtimeListener({
       event: "fastcode://runtime/event",
@@ -629,7 +629,7 @@ describe("events subscriptions", () => {
           streamLaggedDroppedEvents: 3,
         },
       },
-    } as TauriEvent<unknown>);
+    } as DesktopHostEventEnvelope<unknown>);
 
     expect(onEvent).toHaveBeenNthCalledWith(
       1,
@@ -758,7 +758,7 @@ describe("events subscriptions", () => {
           },
         },
       },
-    } as TauriEvent<unknown>);
+    } as DesktopHostEventEnvelope<unknown>);
 
     runtimeListener({
       event: "fastcode://runtime/event",
@@ -772,7 +772,7 @@ describe("events subscriptions", () => {
           message: "step still running",
         },
       },
-    } as TauriEvent<unknown>);
+    } as DesktopHostEventEnvelope<unknown>);
 
     expect(onEvent).toHaveBeenNthCalledWith(
       1,

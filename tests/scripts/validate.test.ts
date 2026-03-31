@@ -854,7 +854,7 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
 
   it("keeps runtime contract parity on the active host contract and runtime service lanes", async () => {
     const tempRoot = await createFixtureRepo();
-    const retiredDesktopPath = ["apps", "code" + "-tauri"].join("/");
+    const retiredDesktopPath = ["apps", "code" + "-electron"].join("/");
     await writeRepoFile(
       tempRoot,
       "packages/code-runtime-host-contract/src/codeRuntimeRpc.ts",

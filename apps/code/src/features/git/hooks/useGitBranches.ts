@@ -3,7 +3,7 @@ import {
   buildGitWorkflowBranchInfo,
   ensureGitWorkflowLocalBranch,
 } from "../../../application/runtime/facades/gitWorkflowFacade";
-import { createGitBranch, listGitBranches } from "../../../application/runtime/ports/tauriGit";
+import { createGitBranch, listGitBranches } from "../../../application/runtime/ports/git";
 import type { BranchInfo, DebugEntry, WorkspaceInfo } from "../../../types";
 
 type UseGitBranchesOptions = {

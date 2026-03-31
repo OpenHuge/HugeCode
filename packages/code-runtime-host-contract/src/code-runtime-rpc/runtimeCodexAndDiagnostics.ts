@@ -277,7 +277,7 @@ export type RuntimeDiagnosticsExportRequest = {
 export type RuntimeDiagnosticsExportResponse = {
   schemaVersion: "runtime-diagnostics-export/v1";
   exportedAt: number;
-  source: "runtime-service" | "tauri";
+  source: "runtime-service" | "desktop-host";
   redactionLevel: RuntimeDiagnosticsRedactionLevel;
   filename: string;
   mimeType: "application/zip";

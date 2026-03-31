@@ -9,8 +9,8 @@ import {
   readTerminalSession,
   resizeTerminalSession,
   writeTerminalSessionRaw,
-} from "../../../application/runtime/ports/tauriTerminal";
-import { getRuntimeTerminalStatus } from "../../../application/runtime/ports/tauriRuntime";
+} from "../../../application/runtime/ports/terminal";
+import { getRuntimeTerminalStatus } from "../../../application/runtime/ports/runtime";
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import type { WorkspaceInfo } from "../../../types";
 import { useTerminalSession } from "./useTerminalSession";
@@ -49,7 +49,7 @@ vi.mock("../../../application/runtime/ports/events", () => ({
   subscribeTerminalExit: vi.fn(() => () => undefined),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriTerminal", () => ({
+vi.mock("../../../application/runtime/ports/terminal", () => ({
   openTerminalSession: vi.fn(),
   readTerminalSession: vi.fn(),
   resizeTerminalSession: vi.fn(),
@@ -57,10 +57,10 @@ vi.mock("../../../application/runtime/ports/tauriTerminal", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "tauri"),
+  detectRuntimeMode: vi.fn(() => "desktop-host"),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
+vi.mock("../../../application/runtime/ports/runtime", () => ({
   getRuntimeTerminalStatus: vi.fn(),
 }));
 
@@ -81,7 +81,7 @@ describe("useTerminalSession", () => {
     vi.clearAllMocks();
     terminalMock.cols = 120;
     terminalMock.rows = 40;
-    vi.mocked(detectRuntimeMode).mockReturnValue("tauri");
+    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-host");
     vi.mocked(getRuntimeTerminalStatus).mockResolvedValue({
       state: "ready",
       message: "Terminal runtime ready.",
@@ -159,7 +159,7 @@ describe("useTerminalSession", () => {
     });
   });
 
-  it("polls terminal readback in runtime-gateway-web mode when tauri output events are unavailable", async () => {
+  it("polls terminal readback in runtime-gateway-web mode when desktop host output events are unavailable", async () => {
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.mocked(openTerminalSession).mockResolvedValue({
       id: "runtime-session-2",

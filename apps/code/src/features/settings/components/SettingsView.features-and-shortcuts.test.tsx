@@ -491,7 +491,7 @@ describe("SettingsView mobile layout", () => {
 describe("SettingsView Backend Pool", () => {
   it("keeps routing defaults ahead of transport-specific server controls", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -532,7 +532,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("hides backend pool section when capability is missing", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: [],
       features: [],
       wsEndpointPath: null,
@@ -549,7 +549,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("shows backend pool section in read-only mode when rpc is unavailable", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: [],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -569,7 +569,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("renders backend rows when capability and payload are available", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -590,7 +590,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("keeps backend actions disabled when set-state method is unavailable", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -619,7 +619,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("submits backend set-state actions when runtime method is available", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_set_state"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -653,7 +653,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("submits backend remove actions when runtime method is available", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: [
         "code_runtime_backends_list",
         "code_runtime_backend_set_state",
@@ -685,7 +685,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("opens the native backend dialog and submits backend upsert actions when runtime method is available", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_upsert"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -752,7 +752,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("keeps the native backend dialog open and shows an error when add fails", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_upsert"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -779,7 +779,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("prefills the native backend edit dialog and submits runtime backend updates", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_upsert"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -878,7 +878,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("keeps the native backend edit dialog open and shows an error when save fails", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_upsert"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -913,7 +913,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("routes ACP backend state changes through ACP integration RPCs", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_set_state"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -971,7 +971,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("shows ACP probe telemetry and routes ACP probe actions through ACP integration RPCs", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: [
         "code_runtime_backends_list",
         "code_runtime_backend_set_state",
@@ -1048,7 +1048,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("prefills ACP edit dialog from the current integration state", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: [
         "code_runtime_backends_list",
         "code_runtime_backend_upsert",
@@ -1116,7 +1116,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("shows an empty probe state in the ACP edit dialog when no probe has run yet", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_upsert"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -1163,7 +1163,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("submits edited ACP transport config without clearing unchanged fields", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_upsert"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -1244,7 +1244,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("submits structured ACP header edits through the existing upsert RPC", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_upsert"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -1328,7 +1328,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("shows duplicate header validation before submit and blocks ACP save", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_upsert"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -1393,7 +1393,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("shows incomplete environment validation only for the active transport", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_upsert"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -1475,7 +1475,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("updates the backend list after editing the experimental HTTP flag", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_upsert"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -1566,7 +1566,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("keeps the ACP edit dialog open and shows an error when save fails", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_upsert"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -1614,7 +1614,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("updates probe status while the ACP edit dialog stays open", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: [
         "code_runtime_backends_list",
         "code_runtime_backend_upsert",
@@ -1692,7 +1692,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("routes ACP backend removals through ACP integration RPCs", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: [
         "code_runtime_backends_list",
         "code_runtime_backend_set_state",
@@ -1737,7 +1737,7 @@ describe("SettingsView Backend Pool", () => {
 
   it("submits ACP backend upserts when the ACP shortcut is used", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_runtime_backends_list", "code_runtime_backend_upsert"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,

@@ -2,12 +2,12 @@
 
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { closeTerminalSession } from "../../../application/runtime/ports/tauriTerminal";
+import { closeTerminalSession } from "../../../application/runtime/ports/terminal";
 import { useTerminalController } from "./useTerminalController";
 import { useTerminalSession } from "./useTerminalSession";
 import { useTerminalTabs } from "./useTerminalTabs";
 
-vi.mock("../../../application/runtime/ports/tauriTerminal", () => ({
+vi.mock("../../../application/runtime/ports/terminal", () => ({
   closeTerminalSession: vi.fn(),
 }));
 

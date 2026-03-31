@@ -4,7 +4,7 @@ import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Search from "lucide-react/dist/esm/icons/search";
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
 import { ask } from "../../../application/runtime/ports/desktopHostDialogs";
 import { LogicalPosition } from "../../../application/runtime/ports/desktopDpi";
 import { Menu, MenuItem } from "../../../application/runtime/ports/desktopMenu";
@@ -295,7 +295,7 @@ export function GitDiffPanel({
   }, [_onSync]);
 
   const confirmWarning = useCallback(async (message: string, title: string) => {
-    if (isTauri()) {
+    if (isDesktopHostRuntime()) {
       try {
         return await ask(message, { title, kind: "warning" });
       } catch {
@@ -324,7 +324,7 @@ export function GitDiffPanel({
 
   const showLogMenu = useCallback(
     async (event: ReactMouseEvent<HTMLElement>, entry: GitLogEntry) => {
-      if (!isTauri()) {
+      if (!isDesktopHostRuntime()) {
         return;
       }
       event.preventDefault();
@@ -372,7 +372,7 @@ export function GitDiffPanel({
 
   const showPullRequestMenu = useCallback(
     async (event: ReactMouseEvent<HTMLElement>, pullRequest: GitHubPullRequest) => {
-      if (!isTauri()) {
+      if (!isDesktopHostRuntime()) {
         return;
       }
       event.preventDefault();
@@ -443,7 +443,7 @@ export function GitDiffPanel({
 
   const showFileMenu = useCallback(
     async (event: ReactMouseEvent<HTMLElement>, path: string, _section: "staged" | "unstaged") => {
-      if (!isTauri()) {
+      if (!isDesktopHostRuntime()) {
         return;
       }
       event.preventDefault();

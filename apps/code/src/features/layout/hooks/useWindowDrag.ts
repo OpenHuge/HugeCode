@@ -1,11 +1,11 @@
 import { useEffect } from "react";
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
 import { getCurrentWindow } from "../../../application/runtime/ports/desktopHostWindow";
 
 export function useWindowDrag(targetId: string) {
   useEffect(() => {
     try {
-      if (!isTauri()) {
+      if (!isDesktopHostRuntime()) {
         return;
       }
     } catch {

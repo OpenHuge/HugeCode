@@ -84,7 +84,7 @@ function buildRuntimeProjectionInput(
     runtimeAccounts,
     runtimePools,
     runtimeCapabilities: {
-      mode: "tauri",
+      mode: "desktop-host",
       methods: ["code_health"],
       features: [],
       wsEndpointPath: "/ws",

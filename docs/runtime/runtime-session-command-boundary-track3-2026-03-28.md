@@ -14,7 +14,7 @@ changing the frozen Track 1 lifecycle boundary.
   shim for existing runtime composition paths. New feature code must not import
   it directly.
 - Thread and composer features must consume session commands through the facade
-  hook surface, not through `tauriThreads` command ports and not through the
+  hook surface, not through `threads` command ports and not through the
   compatibility shim.
 - Track 3 does not widen `application/runtime/ports/runtimeToolLifecycle.ts`
   and does not add page-local lifecycle interpretation.

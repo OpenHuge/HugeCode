@@ -1,7 +1,7 @@
 export {
   getErrorMessage,
-  isMissingTauriCommandError,
-  isMissingTauriInvokeError,
+  isMissingDesktopHostCommandError,
+  isMissingDesktopHostInvokeError,
   isMissingTextFileError,
   isRuntimeMethodUnsupportedError,
   isTimeoutLikeError,

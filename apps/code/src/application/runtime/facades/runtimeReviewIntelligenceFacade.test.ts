@@ -3,8 +3,8 @@ import type {
   RuntimeAgentTaskInterventionResult,
   RuntimeAgentTaskSummary,
 } from "../types/webMcpBridge";
-import * as runtimeSkillsPort from "../ports/tauriRuntimeSkills";
-import * as workspaceFilesPort from "../ports/tauriWorkspaceFiles";
+import * as runtimeSkillsPort from "../ports/runtimeLiveSkills";
+import * as workspaceFilesPort from "../ports/workspaceFiles";
 import { parseRepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import {
   applyReviewAutofix,

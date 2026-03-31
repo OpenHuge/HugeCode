@@ -60,7 +60,7 @@ const allowedCompatFiles = new Map<string, string>([
   ["apps/code/src/design-system/components/textarea/TextareaPrimitives.test.tsx", "export {};\n"],
   [
     "apps/code/src/design-system/components/toast/ToastPrimitives.tsx",
-    'import { ToastCard as SharedToastCard } from "@ku0/design-system";\nfunction join(values) { return values.filter(Boolean).join(" "); }\nexport function ToastCard({ className, ...props }) { return <SharedToastCard {...props} className={join(["ds-toast-card", className])} data-tauri-drag-region="false" />; }\nexport function ToastViewport() { return null; }\nexport function ToastHeader() { return null; }\nexport function ToastTitle() { return null; }\nexport function ToastBody() { return null; }\nexport function ToastActions() { return null; }\nexport function ToastError() { return null; }\n',
+    'import { ToastCard as SharedToastCard } from "@ku0/design-system";\nfunction join(values) { return values.filter(Boolean).join(" "); }\nexport function ToastCard({ className, ...props }) { return <SharedToastCard {...props} className={join(["ds-toast-card", className])} data-desktop-host-drag-region="false" />; }\nexport function ToastViewport() { return null; }\nexport function ToastHeader() { return null; }\nexport function ToastTitle() { return null; }\nexport function ToastBody() { return null; }\nexport function ToastActions() { return null; }\nexport function ToastError() { return null; }\n',
   ],
   ["apps/code/src/design-system/components/toast/ToastPrimitives.test.tsx", "export {};\n"],
   [

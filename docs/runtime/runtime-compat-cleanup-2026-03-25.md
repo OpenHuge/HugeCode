@@ -22,8 +22,8 @@ single canonical path.
 - Removed `code_apps_list_v1` from:
   - TypeScript runtime host contract
   - Rust runtime service dispatch/capabilities
-  - Tauri codex command surface
-  - frozen runtime spec snapshots and tauri gap allowlists
+  - desktop host codex command surface
+  - frozen runtime spec snapshots and desktop-host gap allowlists
 - Removed legacy native-plugin backfill into the runtime extension catalog.
 - Removed `code_extension_ui_apps_list_v2`; callers now read `uiApps` from the
   canonical extension catalog / extension record.

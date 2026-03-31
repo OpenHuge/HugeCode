@@ -3,7 +3,7 @@ import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION } from "@ku0/code-platform-interfaces";
 import { useSharedAppSettingsState } from "@ku0/code-workspace-client/settings-state";
-import { runCodexDoctor } from "../../../application/runtime/ports/tauriCodexOperations";
+import { runCodexDoctor } from "../../../application/runtime/ports/codexOperations";
 import { useAppSettings } from "./useAppSettings";
 
 vi.mock("@ku0/code-workspace-client/settings-state", () => ({
@@ -15,7 +15,7 @@ vi.mock("@ku0/code-workspace-client/settings-state", () => ({
   })),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriCodexOperations", () => ({
+vi.mock("../../../application/runtime/ports/codexOperations", () => ({
   runCodexDoctor: vi.fn(),
 }));
 

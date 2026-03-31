@@ -26,10 +26,10 @@ vi.mock("../../../services/dragDrop", () => ({
   subscribeWindowDragDrop: vi.fn(() => () => undefined),
 }));
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
-  isTauri: vi.fn(() => false),
-  convertFileSrc: (path: string) => `tauri://${path}`,
+  isDesktopHostRuntime: vi.fn(() => false),
+  convertFileSrc: (path: string) => `desktop-host://${path}`,
 }));
 
 vi.mock("../../../utils/platformPaths", async () => {

@@ -153,7 +153,7 @@ export function useRemoteThreadRefreshOnFocus({
     try {
       const windowHandle = getCurrentWindow();
       windowHandle
-        .listen("tauri://focus", handleFocus)
+        .listen("desktop-host://focus", handleFocus)
         .then((unlisten) => {
           if (didCleanup) {
             unlisten();
@@ -165,7 +165,7 @@ export function useRemoteThreadRefreshOnFocus({
           // Ignore: DOM listeners still handle focus changes when available.
         });
       windowHandle
-        .listen("tauri://blur", handleBlur)
+        .listen("desktop-host://blur", handleBlur)
         .then((unlisten) => {
           if (didCleanup) {
             unlisten();
@@ -177,7 +177,7 @@ export function useRemoteThreadRefreshOnFocus({
           // Ignore: DOM listeners still handle visibility changes when available.
         });
     } catch {
-      // In non-Tauri environments, getCurrentWindow can throw.
+      // In non-desktop-host environments, getCurrentWindow can throw.
     }
 
     updatePolling();

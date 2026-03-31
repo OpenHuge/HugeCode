@@ -109,7 +109,7 @@ export function WorkspaceWebUnavailable({
             </strong>
             <span className={unavailableDetailBody}>
               The desktop path keeps filesystem access, native window controls, and local repo
-              workflows inside the Tauri target. This is the path for writable execution and durable
+              workflows inside the desktop host. This is the path for writable execution and durable
               local state.
             </span>
           </article>

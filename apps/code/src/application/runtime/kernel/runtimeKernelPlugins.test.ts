@@ -37,7 +37,7 @@ vi.mock("./runtimeWorkspaceSkillManifests", async () => {
   };
 });
 
-vi.mock("../ports/tauriRuntime", () => ({
+vi.mock("../ports/runtime", () => ({
   runRuntimeLiveSkill: runRuntimeLiveSkillMock,
 }));
 
@@ -45,11 +45,11 @@ vi.mock("../ports/runtimeKernelCapabilities", () => ({
   listRuntimeKernelCapabilities: listRuntimeKernelCapabilitiesMock,
 }));
 
-vi.mock("../ports/tauriRuntimeSkills", () => ({
+vi.mock("../ports/runtimeLiveSkills", () => ({
   listRuntimeLiveSkills: listRuntimeLiveSkillsMock,
 }));
 
-vi.mock("../ports/tauriOauth", () => ({
+vi.mock("../ports/oauth", () => ({
   getProvidersCatalog: getProvidersCatalogMock,
   listOAuthAccounts: listOAuthAccountsMock,
   listOAuthPools: listOAuthPoolsMock,

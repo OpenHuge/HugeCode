@@ -9,7 +9,7 @@ import { getAppSettings } from "../../apps/code/src/application/runtime/ports/de
 import {
   prepareRuntimeRunV2,
   startRuntimeRunV2,
-} from "../../apps/code/src/application/runtime/ports/tauriRuntimeJobs";
+} from "../../apps/code/src/application/runtime/ports/runtimeJobs";
 import {
   resolvePreferredBackendIdsForRuntimeRunLaunch,
   startRuntimeRunWithRemoteSelection,
@@ -23,7 +23,7 @@ vi.mock("../../apps/code/src/application/runtime/ports/desktopAppSettings", () =
   getAppSettings: vi.fn(),
 }));
 
-vi.mock("../../apps/code/src/application/runtime/ports/tauriRuntimeJobs", () => ({
+vi.mock("../../apps/code/src/application/runtime/ports/runtimeJobs", () => ({
   prepareRuntimeRunV2: vi.fn(),
   startRuntimeRunV2: vi.fn(),
 }));

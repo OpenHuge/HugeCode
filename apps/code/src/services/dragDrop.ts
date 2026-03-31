@@ -1,4 +1,4 @@
-import { isTauri } from "../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
 import { getCurrentWindow } from "../application/runtime/ports/desktopHostWindow";
 import { logger } from "./logger";
 
@@ -26,7 +26,7 @@ function start(options?: SubscriptionOptions) {
   if (unlisten || listenPromise) {
     return;
   }
-  if (!isTauri()) {
+  if (!isDesktopHostRuntime()) {
     return;
   }
   listenPromise = getCurrentWindow().onDragDropEvent((event) => {

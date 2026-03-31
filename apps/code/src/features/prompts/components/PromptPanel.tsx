@@ -4,7 +4,7 @@ import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Search from "lucide-react/dist/esm/icons/search";
 import { type MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
 import { LogicalPosition } from "../../../application/runtime/ports/desktopDpi";
 import { Menu, MenuItem } from "../../../application/runtime/ports/desktopMenu";
 import { getCurrentWindow } from "../../../application/runtime/ports/desktopHostWindow";
@@ -338,7 +338,7 @@ export function PromptPanel({
         run: () => handleDeleteRequest(prompt),
       },
     ];
-    if (!isTauri()) {
+    if (!isDesktopHostRuntime()) {
       const rect = event.currentTarget.getBoundingClientRect();
       const rawX = event.clientX > 0 ? event.clientX : rect.right;
       const rawY = event.clientY > 0 ? event.clientY : rect.bottom;

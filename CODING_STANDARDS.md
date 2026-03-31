@@ -64,7 +64,7 @@ Targeted checks:
 
 - Use `pnpm test:e2e:<category>` for focused Playwright coverage.
 - Do not run the full E2E suite by default.
-- Use `pnpm desktop:verify` for Tauri and desktop-runtime changes.
+- Use `pnpm desktop:verify` for desktop-runtime changes.
 - Use `pnpm repo:doctor` or narrower `check:*` commands for repo policy, SOT, or workflow changes.
 
 ## 7. Rust

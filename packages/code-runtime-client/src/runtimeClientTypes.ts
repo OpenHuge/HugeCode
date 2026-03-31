@@ -174,7 +174,7 @@ import type {
   RuntimeExtensionUpdateRequest,
 } from "@ku0/code-runtime-host-contract";
 
-export type RuntimeClientMode = "tauri" | "runtime-gateway-web" | "unavailable";
+export type RuntimeClientMode = "desktop-host" | "runtime-gateway-web" | "unavailable";
 
 export type RuntimeCapabilitiesSummary = {
   mode: RuntimeClientMode;

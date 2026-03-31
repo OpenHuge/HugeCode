@@ -2,7 +2,7 @@ import type {
   AcpIntegrationSummary,
   AcpIntegrationTransport,
   AcpIntegrationUpsertInput,
-} from "../../../../../application/runtime/ports/tauriRemoteServers";
+} from "../../../../../application/runtime/ports/remoteServers";
 
 export type AcpBackendFormMode = "add" | "edit";
 

@@ -1,6 +1,3 @@
-import * as tauriMenu from "@tauri-apps/api/menu";
-import { getDesktopHostBridge } from "./desktopHostBridge";
-
 export { setMenuAccelerators } from "../../../services/desktopHostCommands";
 
 type MenuAction = () => void | Promise<void>;
@@ -36,10 +33,6 @@ type MenuInstance = {
   popup: (_position?: unknown, _window?: unknown) => Promise<void>;
 };
 
-function shouldUseCompatibilityMenu() {
-  return getDesktopHostBridge()?.kind === "electron";
-}
-
 export class MenuItem implements MenuItemInstance {
   readonly action?: MenuAction;
   readonly enabled: boolean;
@@ -52,10 +45,6 @@ export class MenuItem implements MenuItemInstance {
   }
 
   static async new(options: MenuItemOptions): Promise<MenuItemInstance> {
-    if (!shouldUseCompatibilityMenu() && typeof tauriMenu.MenuItem?.new === "function") {
-      return tauriMenu.MenuItem.new(options);
-    }
-
     return new MenuItem(options);
   }
 }
@@ -71,10 +60,6 @@ export class PredefinedMenuItem implements PredefinedMenuItemInstance {
   }
 
   static async new(options: PredefinedMenuItemOptions): Promise<PredefinedMenuItemInstance> {
-    if (!shouldUseCompatibilityMenu() && typeof tauriMenu.PredefinedMenuItem?.new === "function") {
-      return tauriMenu.PredefinedMenuItem.new(options);
-    }
-
     return new PredefinedMenuItem(options);
   }
 }
@@ -87,10 +72,6 @@ export class Menu implements MenuInstance {
   }
 
   static async new(options: MenuOptions): Promise<MenuInstance> {
-    if (!shouldUseCompatibilityMenu() && typeof tauriMenu.Menu?.new === "function") {
-      return tauriMenu.Menu.new(options);
-    }
-
     return new Menu(options);
   }
 

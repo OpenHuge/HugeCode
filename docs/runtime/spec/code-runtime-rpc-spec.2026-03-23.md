@@ -478,4 +478,4 @@ The `executionGraph` payload is the canonical runtime summary for graph-aware ta
 
 - Canonical RPC spec source: `packages/code-runtime-host-contract/src/codeRuntimeRpc.ts`.
 - Compatibility aliases and lifecycle are tracked separately in `packages/code-runtime-host-contract/src/codeRuntimeRpcCompat.ts`.
-- Web/Tauri adapters should treat this file as the frozen source for the cutover batch.
+- Web/desktop-host adapters should treat this file as the frozen source for the cutover batch.

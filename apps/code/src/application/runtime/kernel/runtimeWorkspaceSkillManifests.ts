@@ -1,4 +1,4 @@
-import { listWorkspaceFileEntries, readWorkspaceFile } from "../ports/tauriWorkspaceFiles";
+import { listWorkspaceFileEntries, readWorkspaceFile } from "../ports/workspaceFiles";
 
 export const REPOSITORY_SKILLS_DIRECTORY = ".hugecode/skills";
 export const REPOSITORY_SKILL_MANIFEST_SUFFIX = "/manifest.json";

@@ -7,7 +7,7 @@ import {
   listThreads,
   resumeThread,
   startThread,
-} from "../../../application/runtime/ports/tauriThreads";
+} from "../../../application/runtime/ports/threads";
 import type { ConversationItem, WorkspaceInfo } from "../../../types";
 import {
   buildItemsFromThread,
@@ -20,7 +20,7 @@ import {
 import { saveThreadActivity } from "../utils/threadStorage";
 import { useThreadActions } from "./useThreadActions";
 
-vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
+vi.mock("../../../application/runtime/ports/threads", () => ({
   startThread: vi.fn(),
   forkThread: vi.fn(),
   resumeThread: vi.fn(),

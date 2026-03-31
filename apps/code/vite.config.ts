@@ -23,24 +23,6 @@ const STARTUP_OPTIMIZE_DEPS = [
   "remark-gfm",
   "vscode-material-icons",
 ] as const;
-const tauriCoreCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/packageCompat/tauriApiCoreCompat.ts", import.meta.url)
-);
-const tauriDpiCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/packageCompat/tauriApiDpiCompat.ts", import.meta.url)
-);
-const tauriMenuCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/packageCompat/tauriApiMenuCompat.ts", import.meta.url)
-);
-const tauriWindowCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/packageCompat/tauriApiWindowCompat.ts", import.meta.url)
-);
-const tauriDialogCompatEntry = fileURLToPath(
-  new URL(
-    "./src/application/runtime/ports/packageCompat/tauriPluginDialogCompat.ts",
-    import.meta.url
-  )
-);
 const STARTUP_WARMUP_CLIENT_FILES = [
   "./src/main.tsx",
   "./src/App.tsx",
@@ -99,7 +81,7 @@ const RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeTaskInterventionDraftFacade.ts",
   "/src/application/runtime/facades/runtimeWorkspaceLaunchDefaultsFacade.ts",
   "/src/application/runtime/facades/runtimeWorkspaceMissionControlProjection.ts",
-  "/src/application/runtime/ports/tauriRuntimeDiagnostics.ts",
+  "/src/application/runtime/ports/runtimeDiagnostics.ts",
 ] as const;
 const RUNTIME_BROWSER_ASSESSMENT_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeBrowserAssessment",
@@ -182,29 +164,7 @@ function workspaceEntryRedirectPlugin(): Plugin {
 export default defineConfig({
   plugins: [workspaceEntryRedirectPlugin(), vanillaExtractPlugin(), react()],
   resolve: {
-    alias: [
-      {
-        find: /^@tauri-apps\/api\/core$/,
-        replacement: tauriCoreCompatEntry,
-      },
-      {
-        find: /^@tauri-apps\/api\/dpi$/,
-        replacement: tauriDpiCompatEntry,
-      },
-      {
-        find: /^@tauri-apps\/api\/menu$/,
-        replacement: tauriMenuCompatEntry,
-      },
-      {
-        find: /^@tauri-apps\/api\/window$/,
-        replacement: tauriWindowCompatEntry,
-      },
-      {
-        find: /^@tauri-apps\/plugin-dialog$/,
-        replacement: tauriDialogCompatEntry,
-      },
-      ...createCodeWorkspaceAliases(new URL("./", import.meta.url)),
-    ],
+    alias: [...createCodeWorkspaceAliases(new URL("./", import.meta.url))],
   },
   optimizeDeps: {
     // Keep linked workspace packages on the source pipeline. Vite already treats
@@ -283,9 +243,6 @@ export default defineConfig({
           }
           if (id.includes("/node_modules/@tanstack/")) {
             return "tanstack-vendor";
-          }
-          if (id.includes("/node_modules/@tauri-apps/")) {
-            return "tauri-vendor";
           }
           if (id.includes("/node_modules/@xterm/")) {
             return "xterm-vendor";

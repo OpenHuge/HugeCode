@@ -1,7 +1,7 @@
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/tauriOauth";
+import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/oauth";
 import { Button, PopoverSurface } from "../../../../../design-system";
 import { AccountChecklist } from "./AccountChecklist";
 import * as controlStyles from "./CodexAccountControls.css";
