@@ -11,6 +11,11 @@ export const PRODUCT_ANALYTICS_EVENT_NAMES = [
   "manual_rescue_invoked",
   "review_agent_requested",
   "review_autofix_requested",
+  "browser_verification_triggered",
+  "browser_verification_succeeded",
+  "browser_verification_failed",
+  "browser_verification_attached",
+  "browser_verification_ignored",
   "model_selection_mode_changed",
   "provider_family_switched",
 ] as const;

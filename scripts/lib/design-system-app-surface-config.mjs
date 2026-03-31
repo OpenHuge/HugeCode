@@ -157,7 +157,14 @@ export const APP_DESIGN_SYSTEM_ROOT_COMPAT_EXPORTS = [
   },
   {
     source: "./components/shell/ShellPrimitives",
-    exports: ["ShellFrame", "ShellSection", "ShellToolbar", "SplitPanel"],
+    exports: [
+      "ListRow",
+      "ListRowProps",
+      "ShellFrame",
+      "ShellSection",
+      "ShellToolbar",
+      "SplitPanel",
+    ],
   },
   {
     source: "./components/textarea/TextareaPrimitives",

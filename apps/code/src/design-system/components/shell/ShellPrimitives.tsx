@@ -1,8 +1,10 @@
 import {
+  ListRow as SharedListRow,
   ShellFrame as SharedShellFrame,
   ShellSection as SharedShellSection,
   ShellToolbar as SharedShellToolbar,
   SplitPanel as SharedSplitPanel,
+  type ListRowProps as SharedListRowProps,
   type ShellFrameProps as SharedShellFrameProps,
   type ShellSectionProps as SharedShellSectionProps,
   type ShellToolbarProps as SharedShellToolbarProps,
@@ -61,4 +63,10 @@ export interface SplitPanelProps extends SharedSplitPanelProps {}
 
 export function SplitPanel({ className, ...props }: SplitPanelProps) {
   return <SharedSplitPanel {...props} className={withAppClassName("app-split-panel", className)} />;
+}
+
+export interface ListRowProps extends SharedListRowProps {}
+
+export function ListRow({ className, ...props }: ListRowProps) {
+  return <SharedListRow {...props} className={withAppClassName("app-list-row", className)} />;
 }
