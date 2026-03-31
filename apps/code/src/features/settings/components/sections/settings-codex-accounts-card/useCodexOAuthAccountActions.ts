@@ -2,7 +2,7 @@ import { type Dispatch, type MutableRefObject, type SetStateAction, useCallback 
 import {
   runCodexLogin,
   type OAuthAccountSummary,
-} from "../../../../../application/runtime/ports/tauriOauth";
+} from "../../../../../application/runtime/ports/oauth";
 import { formatError } from "../settingsCodexAccountsCardUtils";
 import { launchCodexOAuthFlow } from "./codexOauthFlow";
 import {

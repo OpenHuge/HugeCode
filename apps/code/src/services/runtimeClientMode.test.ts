@@ -22,7 +22,7 @@ describe("detectRuntimeMode", () => {
     delete tauriWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__;
   });
 
-  it("does not detect tauri until a callable bridge is injected", async () => {
+  it("does not detect desktop compatibility until a callable bridge is injected", async () => {
     const { detectRuntimeMode } = await import("./runtimeClientMode");
 
     expect(detectRuntimeMode()).toBe("unavailable");
@@ -65,7 +65,7 @@ describe("detectRuntimeMode", () => {
     expect(detectRuntimeMode()).toBe("runtime-gateway-web");
   });
 
-  it("detects tauri when a callable legacy bridge is injected", async () => {
+  it("detects desktop compatibility when a callable legacy bridge is injected", async () => {
     (
       window as Window & {
         __TAURI_INTERNALS__?: unknown;
@@ -76,6 +76,6 @@ describe("detectRuntimeMode", () => {
 
     const { detectRuntimeMode } = await import("./runtimeClientMode");
 
-    expect(detectRuntimeMode()).toBe("tauri");
+    expect(detectRuntimeMode()).toBe("desktop-compat");
   });
 });

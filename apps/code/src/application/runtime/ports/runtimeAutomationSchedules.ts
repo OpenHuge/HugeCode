@@ -1,11 +1,11 @@
-import { getRuntimeCapabilitiesSummary } from "./tauriRuntime";
+import { getRuntimeCapabilitiesSummary } from "./runtime";
 export type {
   NativeScheduleCreateRequest as RuntimeAutomationScheduleCreateRequest,
   NativeScheduleDeleteRequest as RuntimeAutomationScheduleDeleteRequest,
   NativeScheduleRecord as RuntimeAutomationScheduleRecord,
   NativeScheduleRunRequest as RuntimeAutomationScheduleRunRequest,
   NativeScheduleUpdateRequest as RuntimeAutomationScheduleUpdateRequest,
-} from "./tauriRuntimeSchedules";
+} from "./runtimeSchedules";
 export {
   cancelNativeScheduleRun as cancelRuntimeAutomationScheduleRun,
   createNativeSchedule as createRuntimeAutomationSchedule,
@@ -13,7 +13,7 @@ export {
   listNativeSchedules as listRuntimeAutomationSchedules,
   runNativeScheduleNow as runRuntimeAutomationScheduleNow,
   updateNativeSchedule as updateRuntimeAutomationSchedule,
-} from "./tauriRuntimeSchedules";
+} from "./runtimeSchedules";
 
 export const RUNTIME_AUTOMATION_SCHEDULE_METHODS = {
   list: "native_schedules_list",

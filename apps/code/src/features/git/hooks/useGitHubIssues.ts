@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logger } from "../../../application/runtime/ports/logger";
-import { getGitHubIssues } from "../../../application/runtime/ports/tauriGit";
+import { getGitHubIssues } from "../../../application/runtime/ports/git";
 import type { GitHubIssue, WorkspaceInfo } from "../../../types";
 
 type GitHubIssuesState = {

@@ -76,7 +76,6 @@ describe("useAppServerEvents", () => {
       onItemCompleted: vi.fn(),
       onAgentMessageCompleted: vi.fn(),
       onAccountUpdated: vi.fn(),
-      onAccountLoginCompleted: vi.fn(),
       onThreadCompacted: vi.fn(),
       onMcpServerOauthLoginCompleted: vi.fn(),
       onModelRerouted: vi.fn(),
@@ -301,17 +300,6 @@ describe("useAppServerEvents", () => {
     });
 
     act(() => {
-      listener?.({
-        workspace_id: "ws-1",
-        message: {
-          method: "account/updated",
-          params: { authMode: "chatgpt" },
-        },
-      });
-    });
-    expect(handlers.onAccountUpdated).toHaveBeenCalledWith("ws-1", "chatgpt");
-
-    act(() => {
       runtimeUpdatedListener?.({
         event: {
           workspace_id: "ws-1",
@@ -366,21 +354,6 @@ describe("useAppServerEvents", () => {
     });
     expect(handlers.onWorkspaceConnected).toHaveBeenCalledTimes(1);
     expect(handlers.onAccountUpdated).not.toHaveBeenCalledWith("workspace-local", null);
-
-    act(() => {
-      listener?.({
-        workspace_id: "ws-1",
-        message: {
-          method: "account/login/completed",
-          params: { loginId: "login-1", success: true, error: null },
-        },
-      });
-    });
-    expect(handlers.onAccountLoginCompleted).toHaveBeenCalledWith("ws-1", {
-      loginId: "login-1",
-      success: true,
-      error: null,
-    });
 
     act(() => {
       listener?.({

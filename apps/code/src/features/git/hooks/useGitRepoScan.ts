@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { listGitRoots } from "../../../application/runtime/ports/tauriGit";
+import { listGitRoots } from "../../../application/runtime/ports/git";
 import type { WorkspaceInfo } from "../../../types";
 
 type GitRepoScanState = {

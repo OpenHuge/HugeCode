@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useRuntimeOverlayConnectivityFacade } from "./runtimeOverlayConnectivityFacade";
 import type { OrbitServiceClient } from "../../../features/settings/components/settingsTypes";
 
-vi.mock("../ports/tauriRemoteServers", () => ({
+vi.mock("../ports/remoteServers", () => ({
   netbirdDaemonCommandPreview: vi.fn(),
   netbirdStatus: vi.fn(),
   runBackendPoolOnboardingPreflight: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock("../ports/tauriRemoteServers", () => ({
   tailscaleDaemonStop: vi.fn(),
   tailscaleStatus: vi.fn(),
 }));
-vi.mock("../ports/tauriWorkspaceCatalog", () => ({
+vi.mock("../ports/workspaceCatalog", () => ({
   listWorkspaces: vi.fn(),
 }));
 
@@ -25,8 +25,8 @@ import {
   tailscaleDaemonCommandPreview,
   tailscaleDaemonStatus,
   tailscaleStatus,
-} from "../ports/tauriRemoteServers";
-import { listWorkspaces } from "../ports/tauriWorkspaceCatalog";
+} from "../ports/remoteServers";
+import { listWorkspaces } from "../ports/workspaceCatalog";
 
 const listWorkspacesMock = vi.mocked(listWorkspaces);
 const runBackendPoolOnboardingPreflightMock = vi.mocked(runBackendPoolOnboardingPreflight);

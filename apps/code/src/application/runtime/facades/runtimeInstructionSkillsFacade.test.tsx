@@ -8,14 +8,14 @@ import {
 } from "../../../test/runtimeUpdatedEventFixtures";
 import { createRuntimeUpdatedSubscriptionHarness } from "../../../test/runtimeUpdatedSubscriptionHarness";
 import type { WorkspaceInfo } from "../../../types";
-import { getSkillsList } from "../ports/tauriSkills";
+import { getSkillsList } from "../ports/skills";
 import {
   type ScopedRuntimeUpdatedEventSnapshot,
   useScopedRuntimeUpdatedEvent,
 } from "../ports/runtimeUpdatedEvents";
 import { useRuntimeInstructionSkillsFacade } from "./runtimeInstructionSkillsFacade";
 
-vi.mock("../ports/tauriSkills", () => ({
+vi.mock("../ports/skills", () => ({
   getSkillsList: vi.fn(),
   getInstructionSkill: vi.fn(),
 }));

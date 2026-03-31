@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import { getAccountInfo } from "../../../application/runtime/ports/tauriThreads";
+import { getAccountInfo } from "../../../application/runtime/ports/threads";
 import type { AccountSnapshot, DebugEntry } from "../../../types";
 import type { ThreadAction } from "./useThreadsReducer";
 

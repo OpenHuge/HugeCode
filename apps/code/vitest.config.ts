@@ -29,37 +29,49 @@ const reactJsxDevRuntimeEntry = fileURLToPath(
 const reactDomEntry = fileURLToPath(new URL("./node_modules/react-dom/index.js", import.meta.url));
 const nodeUtilShimEntry = fileURLToPath(new URL("./src/test/shims/nodeUtil.ts", import.meta.url));
 const nodeTtyShimEntry = fileURLToPath(new URL("./src/test/shims/nodeTty.ts", import.meta.url));
-const tauriCoreCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/packageCompat/tauriApiCoreCompat.ts", import.meta.url)
-);
-const tauriDpiCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/packageCompat/tauriApiDpiCompat.ts", import.meta.url)
-);
-const tauriMenuCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/packageCompat/tauriApiMenuCompat.ts", import.meta.url)
-);
-const tauriWindowCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/packageCompat/tauriApiWindowCompat.ts", import.meta.url)
-);
-const tauriDialogCompatEntry = fileURLToPath(
+const legacyDesktopCoreCompatEntry = fileURLToPath(
   new URL(
-    "./src/application/runtime/ports/packageCompat/tauriPluginDialogCompat.ts",
+    "./src/application/runtime/ports/packageCompat/legacyDesktopCoreCompat.ts",
     import.meta.url
   )
 );
-const tauriUpdaterCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriUpdater.ts", import.meta.url)
+const legacyDesktopDpiCompatEntry = fileURLToPath(
+  new URL(
+    "./src/application/runtime/ports/packageCompat/legacyDesktopDpiCompat.ts",
+    import.meta.url
+  )
 );
-const tauriProcessCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriProcess.ts", import.meta.url)
+const legacyDesktopMenuCompatEntry = fileURLToPath(
+  new URL(
+    "./src/application/runtime/ports/packageCompat/legacyDesktopMenuCompat.ts",
+    import.meta.url
+  )
 );
-const tauriOpenerCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/tauriOpener.ts", import.meta.url)
+const legacyDesktopWindowCompatEntry = fileURLToPath(
+  new URL(
+    "./src/application/runtime/ports/packageCompat/legacyDesktopWindowCompat.ts",
+    import.meta.url
+  )
 );
-const tauriEventCompatEntry = fileURLToPath(
+const legacyDesktopDialogCompatEntry = fileURLToPath(
+  new URL(
+    "./src/application/runtime/ports/packageCompat/legacyDesktopDialogCompat.ts",
+    import.meta.url
+  )
+);
+const desktopUpdaterCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopUpdater.ts", import.meta.url)
+);
+const desktopProcessCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopProcess.ts", import.meta.url)
+);
+const desktopOpenerCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopHostOpener.ts", import.meta.url)
+);
+const legacyDesktopEventCompatEntry = fileURLToPath(
   new URL("./src/test/shims/tauriEventCompat.ts", import.meta.url)
 );
-const tauriNotificationCompatEntry = fileURLToPath(
+const legacyDesktopNotificationCompatEntry = fileURLToPath(
   new URL("./src/test/shims/tauriNotificationCompat.ts", import.meta.url)
 );
 const liquidGlassCompatEntry = fileURLToPath(
@@ -119,43 +131,43 @@ export default defineConfig({
       },
       {
         find: /^@tauri-apps\/api\/core$/,
-        replacement: tauriCoreCompatEntry,
+        replacement: legacyDesktopCoreCompatEntry,
       },
       {
         find: /^@tauri-apps\/api\/dpi$/,
-        replacement: tauriDpiCompatEntry,
+        replacement: legacyDesktopDpiCompatEntry,
       },
       {
         find: /^@tauri-apps\/api\/event$/,
-        replacement: tauriEventCompatEntry,
+        replacement: legacyDesktopEventCompatEntry,
       },
       {
         find: /^@tauri-apps\/api\/menu$/,
-        replacement: tauriMenuCompatEntry,
+        replacement: legacyDesktopMenuCompatEntry,
       },
       {
         find: /^@tauri-apps\/api\/window$/,
-        replacement: tauriWindowCompatEntry,
+        replacement: legacyDesktopWindowCompatEntry,
       },
       {
         find: /^@tauri-apps\/plugin-dialog$/,
-        replacement: tauriDialogCompatEntry,
+        replacement: legacyDesktopDialogCompatEntry,
       },
       {
         find: /^@tauri-apps\/plugin-notification$/,
-        replacement: tauriNotificationCompatEntry,
+        replacement: legacyDesktopNotificationCompatEntry,
       },
       {
         find: /^@tauri-apps\/plugin-opener$/,
-        replacement: tauriOpenerCompatEntry,
+        replacement: desktopOpenerCompatEntry,
       },
       {
         find: /^@tauri-apps\/plugin-process$/,
-        replacement: tauriProcessCompatEntry,
+        replacement: desktopProcessCompatEntry,
       },
       {
         find: /^@tauri-apps\/plugin-updater$/,
-        replacement: tauriUpdaterCompatEntry,
+        replacement: desktopUpdaterCompatEntry,
       },
       {
         find: /^tauri-plugin-liquid-glass-api$/,

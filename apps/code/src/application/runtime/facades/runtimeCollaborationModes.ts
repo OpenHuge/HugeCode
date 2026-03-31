@@ -1,4 +1,4 @@
-import { getCollaborationModes } from "../ports/tauriCollaboration";
+import { getCollaborationModes } from "../ports/collaboration";
 import type { CollaborationModeOption } from "../../../types";
 
 type CollaborationModeSettings = Record<string, unknown> & {

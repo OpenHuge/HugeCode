@@ -7,7 +7,7 @@ import {
   getWorkspacePromptsDir as getWorkspacePromptsDirService,
   movePrompt as movePromptService,
   updatePrompt as updatePromptService,
-} from "../../../application/runtime/ports/tauriPrompts";
+} from "../../../application/runtime/ports/prompts";
 import type { CustomPromptOption, DebugEntry, WorkspaceInfo } from "../../../types";
 import { useRuntimeUpdatedRefresh } from "../../app/hooks/useRuntimeUpdatedRefresh";
 

@@ -1,7 +1,4 @@
-import type {
-  AcpIntegrationSummary,
-  BackendPoolOnboardingPreflight,
-} from "../ports/tauriRemoteServers";
+import type { AcpIntegrationSummary, BackendPoolOnboardingPreflight } from "../ports/remoteServers";
 import { type BackendPoolEntry, type BackendPoolSnapshot } from "../types/backendPool";
 import type {
   NetbirdStatus,

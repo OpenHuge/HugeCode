@@ -4,7 +4,7 @@ import {
   markWorktreeSetupRan,
   openTerminalSession,
   writeTerminalSession,
-} from "../../../application/runtime/ports/tauriTerminal";
+} from "../../../application/runtime/ports/terminal";
 import type { DebugEntry, WorkspaceInfo } from "../../../types";
 import { buildErrorDebugEntry } from "../../../utils/debugEntries";
 

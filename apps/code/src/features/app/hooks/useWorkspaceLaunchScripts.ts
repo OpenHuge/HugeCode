@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { writeTerminalSession } from "../../../application/runtime/ports/tauriTerminal";
+import { writeTerminalSession } from "../../../application/runtime/ports/terminal";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type {
   LaunchScriptEntry,

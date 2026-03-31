@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { getAccountRateLimits } from "../../../application/runtime/ports/tauriThreads";
+import { getAccountRateLimits } from "../../../application/runtime/ports/threads";
 import type { DebugEntry, RateLimitSnapshot } from "../../../types";
 import { resolveRateLimitsSnapshot } from "../../../utils/rateLimits";
 import { normalizeRateLimits } from "../utils/threadNormalize";

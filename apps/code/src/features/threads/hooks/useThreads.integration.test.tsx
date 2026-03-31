@@ -18,7 +18,7 @@ import {
   startReview,
   startThread,
   steerTurn,
-} from "../../../application/runtime/ports/tauriThreads";
+} from "../../../application/runtime/ports/threads";
 import {
   subscribeScopedRuntimeUpdatedEvents,
   type ScopedRuntimeUpdatedEventSnapshot,
@@ -34,7 +34,7 @@ import {
   readPersistedThreadStorageState,
   writePersistedPendingInterruptThreadIds,
   writePersistedThreadStorageState,
-} from "../../../application/runtime/ports/tauriThreadSnapshots";
+} from "../../../application/runtime/ports/threadSnapshots";
 import { useThreads } from "./useThreads";
 
 type AppServerHandlers = Parameters<typeof useAppServerEvents>[0];
@@ -97,7 +97,7 @@ vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   }),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriThreadSnapshots", () => ({
+vi.mock("../../../application/runtime/ports/threadSnapshots", () => ({
   readPersistedThreadStorageState: vi.fn(async () => persistedThreadStorageState),
   writePersistedThreadStorageState: vi.fn(async (state: PersistedThreadStorageState) => {
     persistedThreadStorageState = state;
@@ -120,13 +120,22 @@ vi.mock("../../../application/runtime/ports/tauriThreadSnapshots", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "tauri"),
+  detectRuntimeMode: vi.fn(() => "desktop-compat"),
 }));
 
 vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks", () => ({
   useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
-    sendMessage: ({ threadId, text, options }: Record<string, unknown>) =>
-      sendUserMessageService(workspaceId, String(threadId), String(text), options as never),
+    sendMessage: ({ threadId, text, options }: Record<string, unknown>) => {
+      const { telemetrySource: _telemetrySource, ...restOptions } = ((options as
+        | Record<string, unknown>
+        | undefined) ?? {}) as Record<string, unknown>;
+      return sendUserMessageService(
+        workspaceId,
+        String(threadId),
+        String(text),
+        restOptions as never
+      );
+    },
     steerTurn: ({
       threadId,
       turnId,
@@ -134,16 +143,20 @@ vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks",
       images,
       contextPrefix,
       options,
-    }: Record<string, unknown>) =>
-      steerTurn(
+    }: Record<string, unknown>) => {
+      const { telemetrySource: _telemetrySource, ...restOptions } = ((options as
+        | Record<string, unknown>
+        | undefined) ?? {}) as Record<string, unknown>;
+      return steerTurn(
         workspaceId,
         String(threadId),
         String(turnId),
         String(text),
         images as string[] | undefined,
         (contextPrefix as string | null | undefined) ?? undefined,
-        options as never
-      ),
+        restOptions as never
+      );
+    },
     interruptTurn: ({ threadId, turnId }: Record<string, unknown>) =>
       interruptTurn(workspaceId, String(threadId), String(turnId)),
     startReview: ({ threadId, target, delivery }: Record<string, unknown>) =>
@@ -163,7 +176,7 @@ vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks",
   }),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
+vi.mock("../../../application/runtime/ports/threads", () => ({
   REVIEW_START_DESKTOP_ONLY_MESSAGE: "Review start is only available in the desktop app.",
   respondToServerRequest: vi.fn(),
   respondToServerRequestResult: vi.fn(),
@@ -310,7 +323,9 @@ describe("useThreads UX integration", () => {
     });
 
     await waitFor(() => {
-      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-2");
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-2", {
+        telemetrySource: "thread_actions",
+      });
     });
 
     await waitFor(() => {
@@ -386,7 +401,9 @@ describe("useThreads UX integration", () => {
     });
 
     await waitFor(() => {
-      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-stale");
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-stale", {
+        telemetrySource: "thread_actions",
+      });
     });
 
     await waitFor(() => {
@@ -513,8 +530,12 @@ describe("useThreads UX integration", () => {
       await result.current.sendUserMessage("recover from stale thread", []);
     });
 
-    expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-stale");
-    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
+    expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-stale", {
+      telemetrySource: "thread_actions",
+    });
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1", {
+      telemetrySource: "thread_actions",
+    });
     expect(vi.mocked(sendUserMessageService)).toHaveBeenCalledWith(
       "ws-1",
       "thread-fresh-after-stale",
@@ -1582,7 +1603,7 @@ describe("useThreads UX integration", () => {
         createRuntimeUpdatedEventFixture({
           revision: "threads-refresh-2",
           scope: ["agents"],
-          reason: "code_runtime_run_start",
+          reason: "code_runtime_run_start_v2",
         })
       );
     });
@@ -1803,7 +1824,9 @@ describe("useThreads UX integration", () => {
     });
 
     await waitFor(() => {
-      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-3");
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-3", {
+        telemetrySource: "thread_actions",
+      });
     });
 
     await waitFor(() => {
@@ -1882,7 +1905,9 @@ describe("useThreads UX integration", () => {
     });
 
     await waitFor(() => {
-      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-4");
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-4", {
+        telemetrySource: "thread_actions",
+      });
     });
 
     await waitFor(() => {

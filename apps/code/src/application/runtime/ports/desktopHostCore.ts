@@ -1,4 +1,4 @@
-import * as tauriCore from "@tauri-apps/api/core";
+import * as legacyDesktopCore from "./packageCompat/legacyDesktopCoreCompat";
 
 type InvokePayload = Record<string, unknown> | undefined;
 
@@ -52,17 +52,20 @@ function hasElectronDesktopHostBridge(): boolean {
   return compatWindow?.hugeCodeDesktopHost?.kind === "electron";
 }
 
-function isTauriCompatibilityRuntime(): boolean {
+function isLegacyDesktopCompatibilityRuntime(): boolean {
   try {
-    return typeof tauriCore.isTauri === "function" && tauriCore.isTauri() === true;
+    return (
+      typeof legacyDesktopCore.isLegacyDesktopCompatActive === "function" &&
+      legacyDesktopCore.isLegacyDesktopCompatActive() === true
+    );
   } catch {
     return false;
   }
 }
 
-function resolveTauriInvoke(): DesktopHostInvokeFunction | null {
-  return typeof tauriCore.invoke === "function"
-    ? (tauriCore.invoke as DesktopHostInvokeFunction)
+function resolveLegacyDesktopCompatInvoke(): DesktopHostInvokeFunction | null {
+  return typeof legacyDesktopCore.invokeLegacyDesktopCompat === "function"
+    ? (legacyDesktopCore.invokeLegacyDesktopCompat as DesktopHostInvokeFunction)
     : null;
 }
 
@@ -88,7 +91,7 @@ export function isDesktopHostRuntime() {
   return (
     hasElectronDesktopHostBridge() ||
     resolveLegacyDesktopInvoke() !== null ||
-    isTauriCompatibilityRuntime()
+    isLegacyDesktopCompatibilityRuntime()
   );
 }
 
@@ -104,9 +107,9 @@ export async function invokeDesktopCommand<Result>(
   }
 
   if (!hasElectronDesktopHostBridge()) {
-    const invokeTauri = resolveTauriInvoke();
-    if (invokeTauri) {
-      return await invokeWithOptionalPayload<Result>(invokeTauri, command, payload);
+    const invokeLegacyCompat = resolveLegacyDesktopCompatInvoke();
+    if (invokeLegacyCompat) {
+      return await invokeWithOptionalPayload<Result>(invokeLegacyCompat, command, payload);
     }
   }
 

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { openUrl } from "../../../../application/runtime/facades/desktopHostFacade";
-import { subscribeAppServerEvents } from "../../../../application/runtime/ports/events";
 import {
   subscribeScopedRuntimeUpdatedEvents,
   type RuntimeUpdatedEvent,
@@ -30,9 +29,8 @@ import {
   selectOAuthPoolAccount,
   setOAuthPrimaryAccount,
   upsertOAuthAccount,
-} from "../../../../application/runtime/ports/tauriOauth";
-import { listWorkspaces } from "../../../../application/runtime/ports/tauriWorkspaceCatalog";
-import type { AppServerEvent } from "../../../../types";
+} from "../../../../application/runtime/ports/oauth";
+import { listWorkspaces } from "../../../../application/runtime/ports/workspaceCatalog";
 import {
   readActiveOauthPopupLoginId,
   setActiveOauthPopupLoginId,
@@ -42,10 +40,6 @@ import {
   reviewDeactivatedChatgptWorkspaces,
 } from "../../../../application/runtime/facades/chatgptWorkspaceAutomationFacade";
 import { SettingsCodexAccountsCard } from "./SettingsCodexAccountsCard";
-
-vi.mock("../../../../application/runtime/ports/events", () => ({
-  subscribeAppServerEvents: vi.fn(),
-}));
 
 vi.mock("../../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   subscribeScopedRuntimeUpdatedEvents: vi.fn(),
@@ -61,10 +55,10 @@ vi.mock("../../../../application/runtime/facades/desktopHostFacade", () => ({
   openUrl: vi.fn(),
 }));
 
-vi.mock("../../../../application/runtime/ports/tauriOauth", async () => {
+vi.mock("../../../../application/runtime/ports/oauth", async () => {
   const actual = await vi.importActual<
-    typeof import("../../../../application/runtime/ports/tauriOauth")
-  >("../../../../application/runtime/ports/tauriOauth");
+    typeof import("../../../../application/runtime/ports/oauth")
+  >("../../../../application/runtime/ports/oauth");
   return {
     ...actual,
     getAccountInfo: vi.fn(),
@@ -84,7 +78,7 @@ vi.mock("../../../../application/runtime/ports/tauriOauth", async () => {
   };
 });
 
-vi.mock("../../../../application/runtime/ports/tauriWorkspaceCatalog", () => ({
+vi.mock("../../../../application/runtime/ports/workspaceCatalog", () => ({
   listWorkspaces: vi.fn(),
 }));
 
@@ -93,7 +87,6 @@ vi.mock("../../../../application/runtime/facades/chatgptWorkspaceAutomationFacad
   reviewDeactivatedChatgptWorkspaces: vi.fn(),
 }));
 
-let listener: ((event: AppServerEvent) => void) | null = null;
 let runtimeUpdatedListener: ((event: RuntimeUpdatedEvent) => void) | null = null;
 const unlisten = vi.fn();
 const EMPTY_RUNTIME_UPDATED_SNAPSHOT: ScopedRuntimeUpdatedEventSnapshot = {
@@ -160,14 +153,9 @@ beforeEach(() => {
     window.localStorage.removeItem("codex_pools_provider_filter_v1");
   }
   setActiveOauthPopupLoginId(null);
-  listener = null;
   runtimeUpdatedListener = null;
   runtimeUpdatedRevisionCounter = 0;
   unlisten.mockReset();
-  vi.mocked(subscribeAppServerEvents).mockImplementation((callback) => {
-    listener = callback;
-    return unlisten;
-  });
   vi.mocked(subscribeScopedRuntimeUpdatedEvents).mockImplementation((_options, callback) => {
     runtimeUpdatedListener = callback;
     return unlisten;
@@ -415,7 +403,7 @@ describe("SettingsCodexAccountsCard", () => {
     });
   });
 
-  it("refreshes when account/login/completed reports success", async () => {
+  it("refreshes when runtime/updated oauth reports success", async () => {
     render(<SettingsCodexAccountsCard />);
 
     await waitFor(() => {
@@ -424,15 +412,11 @@ describe("SettingsCodexAccountsCard", () => {
     });
 
     act(() => {
-      listener?.({
-        workspace_id: "workspace-1",
-        message: {
-          method: "account/login/completed",
-          params: {
-            loginId: "login-1",
-            success: true,
-          },
-        },
+      emitRuntimeUpdatedOauth("43", {
+        scope: ["oauth"],
+        reason: "oauth_codex_login_completed",
+        oauthLoginId: "login-1",
+        oauthLoginSuccess: true,
       });
     });
 
@@ -442,7 +426,7 @@ describe("SettingsCodexAccountsCard", () => {
     });
   });
 
-  it("ignores unrelated runtime and login events", async () => {
+  it("ignores unrelated runtime oauth events", async () => {
     render(<SettingsCodexAccountsCard />);
 
     await waitFor(() => {
@@ -451,15 +435,11 @@ describe("SettingsCodexAccountsCard", () => {
     });
 
     act(() => {
-      listener?.({
-        workspace_id: "workspace-1",
-        message: {
-          method: "account/login/completed",
-          params: {
-            loginId: "login-1",
-            success: false,
-          },
-        },
+      emitRuntimeUpdatedOauth("44", {
+        scope: ["oauth"],
+        reason: "oauth_codex_login_completed",
+        oauthLoginId: "login-1",
+        oauthLoginSuccess: false,
       });
     });
 

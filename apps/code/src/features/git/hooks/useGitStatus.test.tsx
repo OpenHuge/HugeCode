@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getGitStatus } from "../../../application/runtime/ports/tauriGit";
+import { getGitStatus } from "../../../application/runtime/ports/git";
 import type { WorkspaceInfo } from "../../../types";
 import { useGitStatus } from "./useGitStatus";
 
-vi.mock("../../../application/runtime/ports/tauriGit", () => ({
+vi.mock("../../../application/runtime/ports/git", () => ({
   getGitStatus: vi.fn(),
 }));
 

@@ -8,7 +8,7 @@ import {
   stageGitAll as stageGitAllService,
   stageGitFile as stageGitFileService,
   unstageGitFile as unstageGitFileService,
-} from "../../../application/runtime/ports/tauriGit";
+} from "../../../application/runtime/ports/git";
 import type { WorkspaceInfo } from "../../../types";
 
 type UseGitActionsOptions = {

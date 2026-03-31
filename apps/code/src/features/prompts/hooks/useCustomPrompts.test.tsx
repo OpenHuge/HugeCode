@@ -2,10 +2,7 @@
 import { useEffect, useState } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  getGlobalPromptsDir,
-  getPromptsList,
-} from "../../../application/runtime/ports/tauriPrompts";
+import { getGlobalPromptsDir, getPromptsList } from "../../../application/runtime/ports/prompts";
 import {
   subscribeScopedRuntimeUpdatedEvents,
   type ScopedRuntimeUpdatedEventSnapshot,
@@ -16,7 +13,7 @@ import { createRuntimeUpdatedSubscriptionHarness } from "../../../test/runtimeUp
 import type { WorkspaceInfo } from "../../../types";
 import { useCustomPrompts } from "./useCustomPrompts";
 
-vi.mock("../../../application/runtime/ports/tauriPrompts", () => ({
+vi.mock("../../../application/runtime/ports/prompts", () => ({
   createPrompt: vi.fn(),
   deletePrompt: vi.fn(),
   getPromptsList: vi.fn(),

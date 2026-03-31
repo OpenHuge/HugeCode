@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { listGitBranches } from "../../../application/runtime/ports/tauriGit";
+import { listGitBranches } from "../../../application/runtime/ports/git";
 import type { WorkspaceInfo } from "../../../types";
 import { useGitBranches } from "./useGitBranches";
 
-vi.mock("../../../application/runtime/ports/tauriGit", () => ({
+vi.mock("../../../application/runtime/ports/git", () => ({
   checkoutGitBranch: vi.fn(),
   createGitBranch: vi.fn(),
   listGitBranches: vi.fn(),

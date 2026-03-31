@@ -4,8 +4,8 @@ import {
   setDefaultRemoteServerProfile,
   upsertRemoteServerProfile,
 } from "../../../application/runtime/facades/runtimeRemoteServerProfilesFacade";
-import { runBackendPoolOnboardingPreflight } from "../../../application/runtime/ports/tauriRemoteServers";
-import { listWorkspaces } from "../../../application/runtime/ports/tauriWorkspaceCatalog";
+import { runBackendPoolOnboardingPreflight } from "../../../application/runtime/ports/remoteServers";
+import { listWorkspaces } from "../../../application/runtime/ports/workspaceCatalog";
 import type { AppSettings, RemoteBackendProfile, RemoteBackendProvider } from "../../../types";
 import { isMobilePlatform } from "../../../utils/platformPaths";
 import type { MobileServerSetupWizardProps } from "../components/MobileServerSetupWizard";

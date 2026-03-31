@@ -1,7 +1,7 @@
 import {
   readGlobalAgentsMd,
   writeGlobalAgentsMd,
-} from "../../../application/runtime/ports/tauriCodexConfig";
+} from "../../../application/runtime/ports/codexConfig";
 import { useFileEditor } from "../../shared/hooks/useFileEditor";
 
 export function useGlobalAgentsMd(enabled = true) {

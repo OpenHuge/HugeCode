@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getConfigModel, getModelList } from "../../../application/runtime/ports/tauriModels";
-import { getProvidersCatalog } from "../../../application/runtime/ports/tauriOauth";
+import { getConfigModel, getModelList } from "../../../application/runtime/ports/models";
+import { getProvidersCatalog } from "../../../application/runtime/ports/oauth";
 import {
   subscribeScopedRuntimeUpdatedEvents,
   type ScopedRuntimeUpdatedEventSnapshot,
@@ -14,12 +14,12 @@ import { createRuntimeUpdatedEventFixture } from "../../../test/runtimeUpdatedEv
 import type { WorkspaceInfo } from "../../../types";
 import { useModels } from "./useModels";
 
-vi.mock("../../../application/runtime/ports/tauriModels", () => ({
+vi.mock("../../../application/runtime/ports/models", () => ({
   getModelList: vi.fn(),
   getConfigModel: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriOauth", () => ({
+vi.mock("../../../application/runtime/ports/oauth", () => ({
   getProvidersCatalog: vi.fn(),
 }));
 

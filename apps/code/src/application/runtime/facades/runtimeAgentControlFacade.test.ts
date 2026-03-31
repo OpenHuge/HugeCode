@@ -5,13 +5,13 @@ import {
   type RuntimeAgentControlDependencies,
 } from "./runtimeAgentControlFacade";
 import type { WorkspaceClientRuntimeBindings } from "@ku0/code-workspace-client";
-import { getMissionControlSnapshot } from "../ports/tauriMissionControl";
+import { getMissionControlSnapshot } from "../ports/missionControl";
 import {
   cancelRuntimeRun,
   submitRuntimeJobApprovalDecision,
   interveneRuntimeRun,
   resumeRuntimeRun,
-} from "../ports/tauriRuntimeJobs";
+} from "../ports/runtimeJobs";
 import { startRuntimeRunWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
 import { createRuntimeAgentControlDependencies } from "../kernel/createRuntimeAgentControlDependencies";
 
@@ -19,11 +19,11 @@ vi.mock("./runtimeRemoteExecutionFacade", () => ({
   startRuntimeRunWithRemoteSelection: vi.fn(),
 }));
 
-vi.mock("../ports/tauriMissionControl", () => ({
+vi.mock("../ports/missionControl", () => ({
   getMissionControlSnapshot: vi.fn(),
 }));
 
-vi.mock("../ports/tauriRuntimeJobs", () => ({
+vi.mock("../ports/runtimeJobs", () => ({
   cancelRuntimeRun: vi.fn(),
   submitRuntimeJobApprovalDecision: vi.fn(),
   interveneRuntimeRun: vi.fn(),

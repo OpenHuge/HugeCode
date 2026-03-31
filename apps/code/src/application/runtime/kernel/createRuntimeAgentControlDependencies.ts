@@ -14,21 +14,21 @@ import {
   sendSubAgentInstruction,
   spawnSubAgentSession,
   waitSubAgentSession,
-} from "../ports/tauriRuntimeSubAgents";
-import { actionRequiredGetV2, actionRequiredSubmitV2 } from "../ports/tauriRuntimeActionRequired";
+} from "../ports/runtimeSubAgents";
+import { actionRequiredGetV2, actionRequiredSubmitV2 } from "../ports/runtimeActionRequired";
 import {
   distributedTaskGraph,
   respondToServerRequest,
   respondToServerRequestResult,
   respondToUserInputRequest,
-} from "../ports/tauriThreads";
-import { getMissionControlSnapshot } from "../ports/tauriMissionControl";
+} from "../ports/threads";
+import { getMissionControlSnapshot } from "../ports/missionControl";
 import {
   cancelRuntimeRun,
   submitRuntimeJobApprovalDecision,
   interveneRuntimeRun,
   resumeRuntimeRun,
-} from "../ports/tauriRuntimeJobs";
+} from "../ports/runtimeJobs";
 import {
   checkoutGitBranch,
   commitGit,
@@ -40,15 +40,15 @@ import {
   stageGitAll,
   stageGitFile,
   unstageGitFile,
-} from "../ports/tauriGit";
+} from "../ports/git";
 import {
   getRuntimeCapabilitiesSummary,
   getRuntimeHealth,
   getRuntimeTerminalStatus,
   runRuntimeLiveSkill,
-} from "../ports/tauriRuntime";
-import { listRuntimeLiveSkills } from "../ports/tauriRuntimeSkills";
-import { runtimeToolGuardrailRead, runtimeToolMetricsRead } from "../ports/tauriRuntimeDiagnostics";
+} from "../ports/runtime";
+import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
+import { runtimeToolGuardrailRead, runtimeToolMetricsRead } from "../ports/runtimeDiagnostics";
 import { buildRuntimeDiscoveryControl } from "../facades/runtimeDiscoveryControl";
 import { startRuntimeRunWithRemoteSelection } from "../facades/runtimeRemoteExecutionFacade";
 import type { RuntimeAgentControlDependencies } from "../facades/runtimeAgentControlFacade";

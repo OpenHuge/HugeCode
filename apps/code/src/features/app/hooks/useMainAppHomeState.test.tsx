@@ -7,13 +7,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RuntimeKernelProvider } from "../../../application/runtime/kernel/RuntimeKernelContext";
 import type { RuntimeKernel } from "../../../application/runtime/kernel/runtimeKernelTypes";
 import type { RuntimeClientMode } from "../../../application/runtime/ports/runtimeClient";
-import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/tauriRuntime";
+import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/runtime";
 import type { TurnPlan, WorkspaceInfo } from "../../../types";
 import { useLocalUsage } from "../../home/hooks/useLocalUsage";
 import type { ThreadStatusSummary } from "../../threads/utils/threadExecutionState";
 import { useMainAppHomeState } from "./useMainAppHomeState";
 
-vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
+vi.mock("../../../application/runtime/ports/runtime", () => ({
   getRuntimeCapabilitiesSummary: vi.fn(),
 }));
 vi.mock("../../home/hooks/useLocalUsage", () => ({

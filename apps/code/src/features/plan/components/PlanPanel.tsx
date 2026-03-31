@@ -1,9 +1,9 @@
 import { CODE_RUNTIME_RPC_METHODS } from "@ku0/code-runtime-host-contract";
 import { useCallback, useEffect, useState } from "react";
 import { StatusBadge } from "../../../design-system";
-import { distributedTaskGraph } from "../../../application/runtime/ports/tauriThreads";
-import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/tauriRuntime";
-import { cancelRuntimeRun } from "../../../application/runtime/ports/tauriRuntimeJobs";
+import { distributedTaskGraph } from "../../../application/runtime/ports/threads";
+import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/runtime";
+import { cancelRuntimeRun } from "../../../application/runtime/ports/runtimeJobs";
 import type { TurnPlan } from "../../../types";
 import type { ResolvedPlanArtifact } from "../../messages/utils/planArtifact";
 import {

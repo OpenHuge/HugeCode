@@ -8,8 +8,8 @@ import {
   tailscaleDaemonStatus,
   tailscaleDaemonStop,
   tailscaleStatus as fetchTailscaleStatus,
-} from "../ports/tauriRemoteServers";
-import { listWorkspaces } from "../ports/tauriWorkspaceCatalog";
+} from "../ports/remoteServers";
+import { listWorkspaces } from "../ports/workspaceCatalog";
 import type { RemoteBackendProvider, RemoteTcpOverlay } from "../../../types";
 import {
   DEFAULT_REMOTE_HOST,

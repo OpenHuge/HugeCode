@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import {
   interruptTerminalSession,
   writeTerminalSession,
-} from "../../../application/runtime/ports/tauriTerminal";
+} from "../../../application/runtime/ports/terminal";
 
 type DebugEntry = {
   id: string;

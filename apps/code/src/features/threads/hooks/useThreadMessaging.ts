@@ -3,7 +3,7 @@ import type { Dispatch, MutableRefObject } from "react";
 import { useCallback } from "react";
 import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
 import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacadeHooks";
-import { prepareRuntimeRunV2 as prepareRuntimeRunV2Service } from "../../../application/runtime/ports/tauriRuntimeJobs";
+import { prepareRuntimeRunV2 as prepareRuntimeRunV2Service } from "../../../application/runtime/ports/runtimeJobs";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type {
   AccessMode,
@@ -153,6 +153,7 @@ async function invokeSteerTurnRequest(
     preferredBackendIds: params.preferredBackendIds,
     codexBin: params.codexBin,
     codexArgs: params.codexArgs,
+    telemetrySource: "thread_messaging",
     ...(params.autoDrive ? { autoDrive: params.autoDrive } : {}),
     ...(params.autonomyRequest ? { autonomyRequest: params.autonomyRequest } : {}),
   };
@@ -578,7 +579,10 @@ export function useThreadMessaging({
           runtimeSessionCommands.sendMessage({
             threadId,
             text: finalText,
-            options: startPayload,
+            options: {
+              ...startPayload,
+              telemetrySource: "thread_messaging",
+            },
           });
 
         let response: Record<string, unknown>;
@@ -819,6 +823,7 @@ export function useThreadMessaging({
       const response = await resolveRuntimeSessionCommands(activeWorkspace.id).interruptTurn({
         threadId: activeThreadId,
         turnId,
+        telemetrySource: "thread_messaging",
       });
       const interruptAccepted = isInterruptRequestSuccessful(response);
       onDebug?.({

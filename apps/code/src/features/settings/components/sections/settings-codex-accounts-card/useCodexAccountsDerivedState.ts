@@ -3,7 +3,7 @@ import { hasRuntimeRoutingCredential } from "../../../../../application/runtime/
 import type {
   OAuthAccountSummary,
   OAuthPoolSummary,
-} from "../../../../../application/runtime/ports/tauriOauth";
+} from "../../../../../application/runtime/ports/oauth";
 import {
   canonicalizeProviderBrandId,
   matchesProviderBrand,

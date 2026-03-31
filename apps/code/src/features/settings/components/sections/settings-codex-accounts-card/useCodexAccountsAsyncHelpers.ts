@@ -7,7 +7,7 @@ import {
   type OAuthAccountSummary,
   type OAuthPoolSummary,
   type OAuthProviderId,
-} from "../../../../../application/runtime/ports/tauriOauth";
+} from "../../../../../application/runtime/ports/oauth";
 import { buildPoolMembersFromDraft, type PoolDraft } from "../settingsCodexAccountsCardUtils";
 import { waitForCodexOauthBinding as waitForCodexOauthBindingWithDeps } from "./codexOauthBinding";
 import type { PoolSelectionPreview } from "./types";

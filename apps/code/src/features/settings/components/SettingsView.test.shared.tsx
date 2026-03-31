@@ -20,10 +20,10 @@ import {
   setOAuthPrimaryAccount,
   upsertOAuthAccount,
   upsertOAuthPool,
-} from "../../../application/runtime/ports/tauriOauth";
+} from "../../../application/runtime/ports/oauth";
 import { ask, open } from "../../../application/runtime/ports/desktopHostDialogs";
-import { getModelList } from "../../../application/runtime/ports/tauriModels";
-import { listWorkspaces } from "../../../application/runtime/ports/tauriWorkspaceCatalog";
+import { getModelList } from "../../../application/runtime/ports/models";
+import { listWorkspaces } from "../../../application/runtime/ports/workspaceCatalog";
 import {
   acpIntegrationProbe,
   acpIntegrationsList,
@@ -43,7 +43,7 @@ import {
   tailscaleDaemonStatus,
   tailscaleStatus,
   updateNativeSchedule,
-} from "../../../application/runtime/ports/tauriRemoteServers";
+} from "../../../application/runtime/ports/remoteServers";
 import type { AppSettings, RemoteBackendProfile, WorkspaceInfo } from "../../../types";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "../../../utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
@@ -58,20 +58,20 @@ vi.mock("../../../application/runtime/ports/desktopAppSettings", () => ({
   updateAppSettings: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriModels", async () => {
-  const actual = await vi.importActual<
-    typeof import("../../../application/runtime/ports/tauriModels")
-  >("../../../application/runtime/ports/tauriModels");
+vi.mock("../../../application/runtime/ports/models", async () => {
+  const actual = await vi.importActual<typeof import("../../../application/runtime/ports/models")>(
+    "../../../application/runtime/ports/models"
+  );
   return {
     ...actual,
     getModelList: vi.fn(),
   };
 });
 
-vi.mock("../../../application/runtime/ports/tauriOauth", async () => {
-  const actual = await vi.importActual<
-    typeof import("../../../application/runtime/ports/tauriOauth")
-  >("../../../application/runtime/ports/tauriOauth");
+vi.mock("../../../application/runtime/ports/oauth", async () => {
+  const actual = await vi.importActual<typeof import("../../../application/runtime/ports/oauth")>(
+    "../../../application/runtime/ports/oauth"
+  );
   return {
     ...actual,
     getAccountInfo: vi.fn(),
@@ -90,14 +90,14 @@ vi.mock("../../../application/runtime/ports/tauriOauth", async () => {
   };
 });
 
-vi.mock("../../../application/runtime/ports/tauriWorkspaceCatalog", () => ({
+vi.mock("../../../application/runtime/ports/workspaceCatalog", () => ({
   listWorkspaces: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriRemoteServers", async () => {
+vi.mock("../../../application/runtime/ports/remoteServers", async () => {
   const actual = await vi.importActual<
-    typeof import("../../../application/runtime/ports/tauriRemoteServers")
-  >("../../../application/runtime/ports/tauriRemoteServers");
+    typeof import("../../../application/runtime/ports/remoteServers")
+  >("../../../application/runtime/ports/remoteServers");
   return {
     ...actual,
     acpIntegrationProbe: vi.fn(),
@@ -332,7 +332,7 @@ beforeEach(() => {
   getAppSettingsMock.mockResolvedValue(baseSettings);
   getModelListMock.mockResolvedValue({ result: { data: [] } });
   getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-    mode: "tauri",
+    mode: "desktop-compat",
     methods: [],
     features: [],
     wsEndpointPath: null,

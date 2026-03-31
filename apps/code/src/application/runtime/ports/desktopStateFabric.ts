@@ -3,4 +3,4 @@ export {
   getNativeStateFabricDiagnostics,
   getNativeStateFabricSnapshot,
   type NativeStateFabricDeltaRead,
-} from "../../../services/tauriRuntimeStateFabricBridge";
+} from "../../../services/runtimeStateFabricBridge";

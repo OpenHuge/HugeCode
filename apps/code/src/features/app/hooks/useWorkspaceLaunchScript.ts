@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { writeTerminalSession } from "../../../application/runtime/ports/tauriTerminal";
+import { writeTerminalSession } from "../../../application/runtime/ports/terminal";
 import type { WorkspaceInfo, WorkspaceSettings } from "../../../types";
 import type { TerminalSessionState } from "../../terminal/hooks/useTerminalSession";
 

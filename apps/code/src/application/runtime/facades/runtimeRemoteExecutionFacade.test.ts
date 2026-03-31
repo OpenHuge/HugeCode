@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeRunStartRequest, RuntimeRunStartV2Response } from "../ports/runtimeClient";
 import { getAppSettings } from "../ports/desktopAppSettings";
-import { prepareRuntimeRunV2, startRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
+import { prepareRuntimeRunV2, startRuntimeRunV2 } from "../ports/runtimeJobs";
 import {
   resolveRuntimePreferredBackendIdsInput,
   resolvePreferredBackendIdsForRuntimeRunLaunch,
@@ -12,7 +12,7 @@ vi.mock("../ports/desktopAppSettings", () => ({
   getAppSettings: vi.fn(),
 }));
 
-vi.mock("../ports/tauriRuntimeJobs", () => ({
+vi.mock("../ports/runtimeJobs", () => ({
   prepareRuntimeRunV2: vi.fn(),
   startRuntimeRunV2: vi.fn(),
 }));

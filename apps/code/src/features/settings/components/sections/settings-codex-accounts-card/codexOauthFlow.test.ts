@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/tauriOauth";
+import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/oauth";
 import {
   CodexOAuthPopupBlockedError,
   CodexOAuthSyncNotDetectedError,

@@ -11,7 +11,7 @@ function buildCapabilitiesSummary(
   overrides: Partial<RuntimeCapabilitiesSummary> = {}
 ): RuntimeCapabilitiesSummary {
   return {
-    mode: "tauri",
+    mode: "desktop-compat",
     methods: ["code_health"],
     features: ["distributed_subtask_graph"],
     wsEndpointPath: "/ws",

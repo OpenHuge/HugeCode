@@ -8,6 +8,7 @@ import {
   type KernelProjectionScope,
   type KernelProjectionSubscriptionRequest,
 } from "@ku0/code-runtime-host-contract";
+import { invokeWebRuntimeRawAttempt } from "@ku0/code-runtime-client/runtimeClientWebHttpTransport";
 import {
   buildManualWebRuntimeGatewayProfile,
   detectBrowserRuntimeConnectionState,
@@ -196,71 +197,31 @@ export async function invokeBrowserWorkspaceRuntime<
   if (!profile?.httpBaseUrl) {
     throw new Error("Web runtime gateway is unavailable.");
   }
-
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-  };
-  if (profile.authToken) {
-    headers["x-code-runtime-auth-token"] = profile.authToken;
-  }
-
-  const response = await fetch(profile.httpBaseUrl, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      method,
-      params,
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(`Web runtime gateway ${String(method)} failed with HTTP ${response.status}.`);
-  }
-
-  const body = (await response.json()) as {
-    ok?: boolean;
-    result?: CodeRuntimeRpcResponsePayloadByMethod[M];
-    error?: { message?: string };
-  };
-  if (!body.ok) {
-    throw new Error(
-      body.error?.message ?? `Web runtime gateway ${String(method)} rejected request.`
-    );
-  }
-  return body.result as CodeRuntimeRpcResponsePayloadByMethod[M];
+  return invokeWebRuntimeRawAttempt<CodeRuntimeRpcResponsePayloadByMethod[M]>(
+    profile.httpBaseUrl,
+    String(method),
+    params,
+    undefined,
+    {
+      authToken: profile.authToken,
+    }
+  );
 }
 
 export async function probeBrowserWorkspaceRuntimeTarget(
   target: DiscoveredLocalRuntimeGatewayTarget,
   probeTimeoutMs: number
 ): Promise<boolean> {
-  const abortController = new AbortController();
-  const timeout = setTimeout(() => {
-    abortController.abort();
-  }, probeTimeoutMs);
-
   try {
-    const response = await fetch(target.httpBaseUrl, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        method: CODE_RUNTIME_RPC_METHODS.WORKSPACES_LIST,
-        params: {},
-      }),
-      signal: abortController.signal,
-    });
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const body = (await response.json()) as { ok?: boolean };
-    return body.ok === true;
+    await invokeWebRuntimeRawAttempt(
+      target.httpBaseUrl,
+      CODE_RUNTIME_RPC_METHODS.WORKSPACES_LIST,
+      {},
+      probeTimeoutMs
+    );
+    return true;
   } catch {
     return false;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 

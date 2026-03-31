@@ -29,7 +29,7 @@ vi.mock("../ports/desktopAppSettings", () => ({
   updateAppSettings: updateAppSettingsMock,
 }));
 
-vi.mock("../ports/tauriRuntimeDiagnostics", () => ({
+vi.mock("../ports/runtimeDiagnostics", () => ({
   listWorkspaceDiagnostics: listWorkspaceDiagnosticsMock,
 }));
 

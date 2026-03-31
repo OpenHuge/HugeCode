@@ -8,7 +8,7 @@ import {
   Textarea,
   type SelectOption,
 } from "../../../../../design-system";
-import type { AcpIntegrationSummary } from "../../../../../application/runtime/ports/tauriRemoteServers";
+import type { AcpIntegrationSummary } from "../../../../../application/runtime/ports/remoteServers";
 import * as controlStyles from "../../SettingsFormControls.css";
 import { SettingsField, SettingsFooterBar } from "../../SettingsSectionGrammar";
 import {

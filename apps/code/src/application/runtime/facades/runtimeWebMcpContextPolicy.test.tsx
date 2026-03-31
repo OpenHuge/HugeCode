@@ -8,7 +8,7 @@ import {
   buildRuntimeWebMcpContextPrepareRequest,
   useRuntimeWebMcpContextPolicy,
 } from "./runtimeWebMcpContextPolicy";
-import { prepareRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
+import { prepareRuntimeRunV2 } from "../ports/runtimeJobs";
 import { recordSentryMetric } from "../../../features/shared/sentry";
 
 const { runtimeUpdatedListeners, subscribeScopedRuntimeUpdatedEventsMock } = vi.hoisted(() => {
@@ -27,7 +27,7 @@ const { runtimeUpdatedListeners, subscribeScopedRuntimeUpdatedEventsMock } = vi.
   };
 });
 
-vi.mock("../ports/tauriRuntimeJobs", () => ({
+vi.mock("../ports/runtimeJobs", () => ({
   prepareRuntimeRunV2: vi.fn(),
 }));
 

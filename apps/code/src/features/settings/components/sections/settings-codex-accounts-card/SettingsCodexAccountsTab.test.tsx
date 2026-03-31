@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SettingsCodexAccountsTab } from "./SettingsCodexAccountsTab";
 import type { ProviderOption } from "../settingsCodexAccountsCardUtils";
-import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/tauriOauth";
+import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/oauth";
 
 const providerOptions: ProviderOption[] = [
   {
@@ -94,7 +94,7 @@ function renderTab(
       onReauthenticateAccount={noop}
       onRemoveAccount={noop}
       subscriptionPersistenceCapability={{
-        hostMode: "tauri",
+        hostMode: "desktop-compat",
         persistenceKind: "runtime-backed",
         runtimeBacked: true,
         durableStorage: true,

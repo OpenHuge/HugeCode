@@ -10,7 +10,7 @@ import type {
   OAuthAccountSummary,
   OAuthPoolSummary,
   OAuthProviderId,
-} from "../../../../application/runtime/ports/tauriOauth";
+} from "../../../../application/runtime/ports/oauth";
 import type { RuntimeProviderCatalogEntry } from "../../../../contracts/runtime";
 import {
   buildProviderBrandOptionsFromCatalog,

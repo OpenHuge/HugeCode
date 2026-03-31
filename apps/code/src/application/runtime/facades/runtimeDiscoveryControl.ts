@@ -16,10 +16,10 @@ import {
   applyWorkspacePatch,
   getRuntimeBrowserDebugStatus,
   runRuntimeBrowserDebug,
-} from "../ports/tauriRuntimeAutomation";
-import { getCollaborationModes } from "../ports/tauriCollaboration";
-import { listRuntimeModels } from "../ports/tauriRuntimeCatalog";
-import { listMcpServerStatus, listWorkspaceDiagnostics } from "../ports/tauriRuntimeDiagnostics";
+} from "../ports/runtimeAutomation";
+import { getCollaborationModes } from "../ports/collaboration";
+import { listRuntimeModels } from "../ports/runtimeCatalog";
+import { listMcpServerStatus, listWorkspaceDiagnostics } from "../ports/runtimeDiagnostics";
 import {
   evaluateRuntimeExtensionPermissions,
   getRuntimeExtension,
@@ -34,7 +34,7 @@ import {
   searchRuntimeExtensionRegistry,
   setRuntimeExtensionState,
   updateRuntimeExtension,
-} from "../ports/tauriRuntimeExtensions";
+} from "../ports/runtimeExtensions";
 import {
   runRuntimeCodexDoctor,
   runRuntimeCodexUpdate,
@@ -42,15 +42,15 @@ import {
   runtimeSessionDeleteV1,
   runtimeSessionExportV1,
   runtimeSessionImportV1,
-} from "../ports/tauriRuntimeOperations";
-import { getRuntimePolicy, setRuntimePolicy } from "../ports/tauriRuntimePolicy";
+} from "../ports/runtimeOperations";
+import { getRuntimePolicy, setRuntimePolicy } from "../ports/runtimePolicy";
 import {
   createRuntimePrompt,
   deleteRuntimePrompt,
   listRuntimePrompts,
   moveRuntimePrompt,
   updateRuntimePrompt,
-} from "../ports/tauriRuntimePrompts";
+} from "../ports/runtimePrompts";
 import {
   closeRuntimeTerminalSession,
   interruptRuntimeTerminalSession,
@@ -58,7 +58,7 @@ import {
   readRuntimeTerminalSession,
   resizeRuntimeTerminalSession,
   writeRuntimeTerminalSession,
-} from "../ports/tauriRuntimeTerminal";
+} from "../ports/runtimeTerminal";
 import {
   applyOAuthPool,
   getAccountInfo,
@@ -70,20 +70,20 @@ import {
   removeOAuthPool,
   selectOAuthPoolAccount,
   upsertOAuthAccount,
-} from "../ports/tauriOauth";
+} from "../ports/oauth";
 import {
   runtimeBackendRemove,
   runtimeBackendSetState,
   runtimeBackendsList,
   runtimeBackendUpsert,
-} from "../ports/tauriRemoteServers";
+} from "../ports/remoteServers";
 import {
   getRuntimeBootstrapSnapshot,
   runtimeDiagnosticsExportV1,
   getRuntimeRemoteStatus,
   getRuntimeSettings,
-} from "../ports/tauriRuntime";
-import { getAccountRateLimits } from "../ports/tauriThreads";
+} from "../ports/runtime";
+import { getAccountRateLimits } from "../ports/threads";
 
 export function buildRuntimeDiscoveryControl(workspaceId: string) {
   return {

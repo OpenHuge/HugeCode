@@ -2,7 +2,7 @@ import type { Dispatch, KeyboardEvent, RefObject, SetStateAction } from "react";
 import type {
   OAuthAccountSummary,
   OAuthSubscriptionPersistenceCapability,
-} from "../../../../../application/runtime/ports/tauriOauth";
+} from "../../../../../application/runtime/ports/oauth";
 import { Avatar } from "../../../../../design-system";
 import { Button } from "../../../../../design-system";
 import { Input } from "../../../../../design-system";
