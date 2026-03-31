@@ -802,18 +802,20 @@ export function createRuntimeParallelDispatchManager(
         const nextErrorMessage = runtimeTask.errorMessage ?? null;
         const currentTaskSnapshot = sessionSnapshot?.tasks.find((task) => task.taskKey === taskKey);
         if (nextStatus === "failed") {
+          const shouldRetryRuntimeFailure =
+            runtimeTask.status === "failed" && chunk.attemptCount <= chunk.maxRetries;
           const terminalStatus: RuntimeParallelDispatchChunkStatus =
             chunk.onFailure === "skip" ? "skipped" : "failed";
           if (
             currentTaskSnapshot?.status === terminalStatus &&
             currentTaskSnapshot.resolvedBackendId === nextResolvedBackendId &&
             currentTaskSnapshot.errorMessage === nextErrorMessage &&
-            (runtimeTask.status !== "failed" || chunk.attemptCount > chunk.maxRetries)
+            !shouldRetryRuntimeFailure
           ) {
             continue;
           }
           const updatedAt = now();
-          if (chunk.attemptCount <= chunk.maxRetries) {
+          if (shouldRetryRuntimeFailure) {
             chunk.taskId = null;
             chunk.runId = null;
             retryChunkAfterFailure({

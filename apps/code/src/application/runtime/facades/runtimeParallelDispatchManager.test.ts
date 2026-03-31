@@ -508,6 +508,69 @@ describe("runtimeParallelDispatchManager", () => {
     ]);
   });
 
+  it("does not retry interrupted chunks even when maxRetries remain", async () => {
+    const launchRun = vi.fn(async (request: RuntimeRunStartRequest) =>
+      createRuntimeRunRecord("run-interrupted", {
+        title: request.title ?? "Interruptible chunk",
+        backendId: "backend-interrupted",
+        preferredBackendIds: ["backend-interrupted"],
+        status: "queued",
+      })
+    );
+    const manager = createRuntimeParallelDispatchManager({
+      launchRun,
+      now: (() => {
+        let tick = 250;
+        return () => tick++;
+      })(),
+    });
+
+    await manager.startDispatch({
+      workspaceId: "ws-1",
+      objective: "Interrupt objective",
+      launchRequest: createLaunchRequest(),
+      plan: parseRuntimeParallelDispatchPlan(
+        JSON.stringify({
+          enabled: true,
+          maxParallel: 1,
+          tasks: [
+            {
+              taskKey: "interruptible",
+              title: "Interruptible chunk",
+              instruction: "This chunk should not auto-retry after an interrupt.",
+              preferredBackendIds: ["backend-interrupted"],
+              dependsOn: [],
+              maxRetries: 2,
+              onFailure: "continue",
+            },
+          ],
+        })
+      ),
+    });
+    await flushMicrotasks();
+
+    manager.reconcileRuntimeTasks("ws-1", [
+      createRuntimeTaskSummary("run-interrupted", "interrupted", {
+        title: "Interruptible chunk",
+        backendId: "backend-interrupted",
+        preferredBackendIds: ["backend-interrupted"],
+        errorMessage: "operator interrupted",
+      }),
+    ]);
+    await flushMicrotasks();
+
+    expect(launchRun).toHaveBeenCalledTimes(1);
+    expect(manager.getWorkspaceSnapshot("ws-1").sessions[0]?.tasks).toEqual([
+      expect.objectContaining({
+        taskKey: "interruptible",
+        status: "failed",
+        attemptCount: 1,
+        taskId: "run-interrupted",
+        errorMessage: "operator interrupted",
+      }),
+    ]);
+  });
+
   it("treats skip-policy failures as skipped and skips dependent chunks without halting unrelated work", async () => {
     const launchRun = vi.fn(async (request: RuntimeRunStartRequest) => {
       switch (request.title) {
