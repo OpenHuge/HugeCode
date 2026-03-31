@@ -7,12 +7,12 @@ import {
   readDesktopWindowLabel,
 } from "./desktopHostEnvironment";
 
-describe("desktopHostEnvironment", () => {
+describe("runtimeEnvironment", () => {
   beforeEach(() => {
     __resetDesktopHostEnvironmentForTests();
   });
 
-  it("falls back when the desktop host environment loader fails", async () => {
+  it("falls back when the desktop host module loader fails", async () => {
     __setDesktopHostEnvironmentLoaderForTests(async () => {
       throw new Error("module unavailable");
     });
@@ -28,7 +28,7 @@ describe("desktopHostEnvironment", () => {
         getVersion: async () => "9.9.9",
       },
       core: {
-        isTauri: () => true,
+        isDesktopHostRuntime: () => true,
       },
       window: {
         getCurrentWindow: () => ({

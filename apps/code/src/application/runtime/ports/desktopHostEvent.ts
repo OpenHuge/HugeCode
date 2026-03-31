@@ -15,8 +15,8 @@ function getCompatWindow() {
   }
 
   return window as Window & {
-    __TAURI__?: unknown;
-    __TAURI_INTERNALS__?: unknown;
+    __HUGE_CODE_DESKTOP_HOST__?: unknown;
+    __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
   };
 }
 
@@ -26,15 +26,15 @@ function resolveLegacyDesktopEventListener(): DesktopHostEventListener | null {
     return null;
   }
 
-  if (isRecord(compatWindow.__TAURI_INTERNALS__)) {
-    const event = compatWindow.__TAURI_INTERNALS__.event;
+  if (isRecord(compatWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__)) {
+    const event = compatWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__.event;
     if (isRecord(event) && typeof event.listen === "function") {
       return event.listen as DesktopHostEventListener;
     }
   }
 
-  if (isRecord(compatWindow.__TAURI__)) {
-    const event = compatWindow.__TAURI__.event;
+  if (isRecord(compatWindow.__HUGE_CODE_DESKTOP_HOST__)) {
+    const event = compatWindow.__HUGE_CODE_DESKTOP_HOST__.event;
     if (isRecord(event) && typeof event.listen === "function") {
       return event.listen as DesktopHostEventListener;
     }

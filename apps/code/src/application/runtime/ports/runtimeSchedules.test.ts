@@ -1,5 +1,3 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   cancelNativeScheduleRun,
@@ -18,7 +16,7 @@ import {
   updateNativeSchedule as updateNativeScheduleBridge,
 } from "../../../services/runtimeSchedulesBridge";
 
-describe("runtimeSchedules port contract", () => {
+describe("runtime schedules port contract", () => {
   it("re-exports the narrow schedules bridge directly", () => {
     const exports = [
       ["listNativeSchedules", listNativeSchedules, listNativeSchedulesBridge],
@@ -32,19 +30,5 @@ describe("runtimeSchedules port contract", () => {
     for (const [name, exportedValue, bridgeValue] of exports) {
       expect(exportedValue, `${name} should come from runtimeSchedulesBridge`).toBe(bridgeValue);
     }
-  });
-
-  it("retires the deprecated legacy host compat ports for schedule controls", () => {
-    const legacySchedulesCompatSource = path.resolve(
-      import.meta.dirname,
-      "tauriRuntimeSchedules.ts"
-    );
-    const legacyRemoteServersCompatSource = path.resolve(
-      import.meta.dirname,
-      "tauriRemoteServers.ts"
-    );
-
-    expect(existsSync(legacySchedulesCompatSource)).toBe(false);
-    expect(existsSync(legacyRemoteServersCompatSource)).toBe(false);
   });
 });

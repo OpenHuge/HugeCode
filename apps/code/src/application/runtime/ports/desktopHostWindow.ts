@@ -1,4 +1,3 @@
-import * as legacyDesktopWindow from "./packageCompat/legacyDesktopWindowCompat";
 import { getDesktopHostBridge } from "./desktopHostBridge";
 
 type WindowEffectInput = {
@@ -9,27 +8,13 @@ type WindowEffectInput = {
 
 type WindowListener = (payload: unknown) => void;
 
-function readTauriWindowExport(key: "Effect" | "EffectState" | "getCurrentWindow") {
-  try {
-    return Object.prototype.hasOwnProperty.call(legacyDesktopWindow, key)
-      ? Reflect.get(legacyDesktopWindow, key)
-      : undefined;
-  } catch {
-    return undefined;
-  }
-}
+export const Effect = {
+  HudWindow: "hudWindow",
+} as const;
 
-export const Effect =
-  readTauriWindowExport("Effect") ??
-  ({
-    HudWindow: "hudWindow",
-  } as const);
-
-export const EffectState =
-  readTauriWindowExport("EffectState") ??
-  ({
-    Active: "active",
-  } as const);
+export const EffectState = {
+  Active: "active",
+} as const;
 
 type CompatWindowHandle = {
   listen: (_eventName: string, _listener: WindowListener) => Promise<() => void>;
@@ -52,16 +37,6 @@ const compatWindowHandle: CompatWindowHandle = {
 };
 
 export function getCurrentWindow(): CompatWindowHandle {
-  if (getDesktopHostBridge()?.kind === "electron") {
-    return compatWindowHandle;
-  }
-
-  try {
-    const getCurrentWindowExport = readTauriWindowExport("getCurrentWindow");
-    return typeof getCurrentWindowExport === "function"
-      ? (getCurrentWindowExport() as CompatWindowHandle)
-      : compatWindowHandle;
-  } catch {
-    return compatWindowHandle;
-  }
+  void getDesktopHostBridge();
+  return compatWindowHandle;
 }

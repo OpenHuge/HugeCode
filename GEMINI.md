@@ -32,7 +32,7 @@ This file exists so Gemini CLI loads the same repo-level guidance as Codex and C
 - Keep `apps/code` runtime access behind `apps/code/src/application/runtime/*`.
 - Do not orchestrate runtime, desktop-host, or transport ports directly from UI components or feature hooks.
 - New remote execution behavior should enter through an application/runtime facade or service first.
-- Do not introduce new wide aggregation ports like `tauriSettings` or `tauriWorkspaces` for fresh feature work.
+- Do not introduce new wide aggregation ports like `desktopSettings` or `desktopWorkspaces` for fresh feature work.
 - Remote backend preference must flow through runtime/application logic and the `preferredBackendIds` contract path.
 
 ## Stack And Non-Negotiables

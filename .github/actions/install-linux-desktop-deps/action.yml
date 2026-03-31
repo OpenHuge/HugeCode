@@ -1,5 +1,5 @@
 name: Install Linux desktop dependencies
-description: Install the Linux system packages required by desktop/Tauri and Playwright-enabled jobs.
+description: Install the Linux system packages required by desktop host and Playwright-enabled jobs.
 
 runs:
   using: composite

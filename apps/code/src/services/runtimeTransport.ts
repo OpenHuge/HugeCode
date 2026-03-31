@@ -11,8 +11,8 @@ import {
 } from "./runtimeClientWebGateway";
 import {
   getErrorMessage,
-  isMissingTauriCommandError,
-  isMissingTauriInvokeError,
+  isMissingDesktopHostCommandError,
+  isMissingDesktopHostInvokeError,
   isMissingTextFileError,
   isRuntimeMethodUnsupportedError,
   isWebRuntimeConnectionError,
@@ -140,8 +140,8 @@ export {
   deriveWebEventsEndpoint,
   deriveWebWsEndpoint,
   getErrorMessage,
-  isMissingTauriCommandError,
-  isMissingTauriInvokeError,
+  isMissingDesktopHostCommandError,
+  isMissingDesktopHostInvokeError,
   isMissingTextFileError,
   isRuntimeMethodUnsupportedError,
   isWebRuntimeConnectionError,

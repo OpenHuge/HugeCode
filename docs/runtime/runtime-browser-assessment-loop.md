@@ -54,7 +54,7 @@ cannot recursively assess the assessment proxy itself.
 - Browser assessment capability truth comes from the desktop/browser capability boundary.
 - Readiness and history are exposed through runtime facades, not page-local heuristics.
 - Tool metrics remain asynchronous observability only; they do not become control truth.
-- New assessment work must continue to use narrow runtime/browser ports instead of adding wide `desktop*` or `tauri*` aggregation ports.
+- New assessment work must continue to use narrow runtime/browser ports instead of adding wide `desktop*` or `desktop-host*` aggregation ports.
 
 ## Validation Expectations
 

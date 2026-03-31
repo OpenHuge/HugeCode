@@ -10,7 +10,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tokio::{sync::broadcast, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 
-const DEFAULT_EMBEDDED_RUNTIME_BACKEND_ID: &str = "tauri-embedded-runtime";
+const DEFAULT_EMBEDDED_RUNTIME_BACKEND_ID: &str = "desktop-host-embedded-runtime";
 const DEFAULT_EMBEDDED_RUNTIME_PORT: u16 = 8788;
 const DEFAULT_EMBEDDED_OAUTH_SECRET_KEY: &str =
     "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=";

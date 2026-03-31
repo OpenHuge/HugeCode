@@ -242,6 +242,6 @@ describe("runtime launch path governance", () => {
     expect(source).toMatch(/createRuntimeSessionCommandFacade/);
     expect(source).toMatch(/telemetrySource:\s*"runtime_autodrive_thread_launch"/);
     expect(source).not.toMatch(/sendUserMessage/);
-    expect(source).not.toMatch(/ports\/tauriThreads/);
+    expect(source).not.toMatch(/ports\/runtimeThreads/);
   });
 });

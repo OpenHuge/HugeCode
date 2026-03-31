@@ -46,9 +46,9 @@ runtime-backed UI behavior:
 ## Boundary Rules
 
 - Shared workspace code in `packages/code-workspace-client` must not import
-  `@tauri-apps/*`.
+  `@desktop-host/*`.
 - Web shell code in `apps/code-web` must not import desktop-only
-  `application/runtime/ports/tauri*`.
+  `application/runtime/ports/desktop-host*`.
 - Desktop runtime-backed behavior must enter through `RuntimeKernel` or
   narrower runtime ports, not by reassembling raw runtime clients in UI code.
 - New shared workspace features must extend `WorkspaceClientBindings` first and

@@ -18,9 +18,9 @@ This change establishes four hard rules:
 3. `application/runtime/facades/*` and `application/runtime/kernel/*` must not
    import `getRuntimeClient()` directly. Runtime reads must flow through
    `RuntimeKernel` or a narrower runtime port.
-4. runtime-specific ports such as `tauriRuntimeRuns`, `tauriRuntimeSubAgents`,
-   `tauriRuntimeDiagnostics`, and `tauriRuntimePolicy` must not route through
-   the raw `ports/tauri.ts` aggregation barrel. They must import a dedicated
+4. runtime-specific ports such as `runtimeRuns`, `runtimeSubAgents`,
+   `runtimeDiagnostics`, and `runtimePolicy` must not route through
+   the raw `retired compatibility aggregation barrel` aggregation barrel. They must import a dedicated
    service bridge instead.
 
 ## What Changed
@@ -35,7 +35,7 @@ This change establishes four hard rules:
   - `runtimeBackendPoolFacade.ts`
   - `runtimeOverlayConnectivityFacade.ts`
   - `runtimeAutomationSchedulesFacade.ts`
-- retired wide bridge ports `tauriSettings.ts` and `tauriWorkspaces.ts` have
+- retired wide bridge ports `retired settings compatibility port` and `retired workspace compatibility port` have
   been deleted; boundary and runtime-port guards now treat them as forbidden
   reintroductions instead of tolerated migration barrels
 - runtime backend profiles now carry an explicit `policy` object through
@@ -58,7 +58,7 @@ This change establishes four hard rules:
   `createRuntimeKernel.ts` inline raw runtime RPC calls for agent control,
   thread, git, and workspace-file bindings.
 - runtime-specific service bridges were split out of the legacy
-  `tauriRuntimeAgentBridge.ts` surface so ports can target focused adapters for:
+  `runtimeAgentBridge.ts` surface so ports can target focused adapters for:
   - runs
   - sub-agents
   - mission control
@@ -71,7 +71,7 @@ This change establishes four hard rules:
   - a runtime facade reintroduces `getRuntimeClient()`
   - runtime kernel code reintroduces `getRuntimeClient()`
   - desktop workspace bindings start assembling broad runtime ports again
-  - runtime ports route back through raw `ports/tauri.ts` on the main runtime path
+  - runtime ports route back through raw `retired compatibility aggregation barrel` on the main runtime path
   - product code imports the retired `runtimeOperationsFacade`
 
 ## Breaking Changes
@@ -93,8 +93,8 @@ This change establishes four hard rules:
 - Code that previously relied on facade-local `getRuntimeClient()` access must
   move to:
   - `RuntimeKernel.runtimeGateway`
-  - a narrow runtime port such as `tauriMissionControl` or
-    `tauriWorkspaceFiles`
+  - a narrow runtime port such as `missionControl` or
+    `workspaceFiles`
 - Code that previously imported `useRuntimeOperationsFacade` must choose one of:
   - `useRuntimeBackendPoolFacade`
   - `useRuntimeOverlayConnectivityFacade`
@@ -103,8 +103,8 @@ This change establishes four hard rules:
   consumed by `createDesktopWorkspaceClientBindings.tsx`. Do not wire new
   runtime ports straight into the web entry.
 - If a runtime port only exists to expose one runtime domain, create or reuse a
-  dedicated bridge in `apps/code/src/services/tauriRuntime*Bridge.ts` instead of
-  adding another re-export to `ports/tauri.ts`.
+  dedicated bridge in `apps/code/src/services/runtime*Bridge.ts` instead of
+  adding another re-export to `retired compatibility aggregation barrel`.
 - Code that reads backend pool state should treat `policy` as runtime truth.
   Do not synthesize trust or approval heuristics in UI components.
 

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
 import { useEffect, useState } from "react";
+import { isDesktopHostRuntime } from "@desktop-host/core";
+import { ask, message } from "@desktop-host/dialogs";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
-import { ask, message } from "../../../application/runtime/ports/desktopHostDialogs";
 import { logger } from "../../../application/runtime/ports/logger";
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import {
@@ -34,11 +34,11 @@ import type { AppSettings, WorkspaceInfo } from "../../../types";
 import { useWorkspaces } from "./useWorkspaces";
 import { clearWorkspaceRouteRestoreSelection } from "./workspaceRoute";
 
-vi.mock("../../../application/runtime/ports/desktopHostCore", () => ({
-  isTauri: vi.fn(),
+vi.mock("@desktop-host/core", () => ({
+  isDesktopHostRuntime: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/desktopHostDialogs", () => ({
+vi.mock("@desktop-host/dialogs", () => ({
   ask: vi.fn(),
   message: vi.fn(),
 }));
@@ -87,7 +87,7 @@ vi.mock("../../../application/runtime/ports/logger", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-compat"),
+  detectRuntimeMode: vi.fn(() => "desktop-host"),
 }));
 
 const runtimeUpdatedHarness = createRuntimeUpdatedSubscriptionHarness();
@@ -101,8 +101,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.history.replaceState({}, "", "/");
   clearWorkspaceRouteRestoreSelection();
-  vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
-  vi.mocked(isTauri).mockReturnValue(true);
+  vi.mocked(detectRuntimeMode).mockReturnValue("desktop-host");
+  vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
   vi.mocked(readPersistedActiveWorkspaceId).mockResolvedValue(null);
   vi.mocked(writePersistedActiveWorkspaceId).mockResolvedValue(true);
   runtimeUpdatedHarness.reset();
@@ -325,10 +325,10 @@ describe("useWorkspaces.updateWorkspaceSettings", () => {
     const listWorkspacesMock = vi.mocked(listWorkspaces);
     const updateWorkspaceSettingsMock = vi.mocked(updateWorkspaceSettings);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     listWorkspacesMock.mockResolvedValue([{ ...workspaceOne }]);
     updateWorkspaceSettingsMock.mockRejectedValue(
-      new Error("Workspace settings update is only available in Tauri runtime.")
+      new Error("Workspace settings update is only available in Desktop host runtime.")
     );
 
     const { result } = renderHook(() => useWorkspaces());
@@ -363,10 +363,10 @@ describe("useWorkspaces.updateWorkspaceSettings", () => {
     const listWorkspacesMock = vi.mocked(listWorkspaces);
     const updateWorkspaceSettingsMock = vi.mocked(updateWorkspaceSettings);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     listWorkspacesMock.mockResolvedValue([{ ...workspaceOne }]);
     updateWorkspaceSettingsMock.mockRejectedValue(
-      new Error("Workspace settings update is only available in Tauri runtime.")
+      new Error("Workspace settings update is only available in Desktop host runtime.")
     );
 
     const { result } = renderHook(() => useWorkspaces());
@@ -487,7 +487,7 @@ describe("useWorkspaces.addWorkspace (bulk)", () => {
     const isWorkspacePathDirMock = vi.mocked(isWorkspacePathDir);
     const addWorkspaceMock = vi.mocked(addWorkspaceService);
     const messageMock = vi.mocked(message);
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
 
     listWorkspacesMock.mockResolvedValue([]);
     pickWorkspacePathsMock.mockResolvedValue(["/tmp/ws-web"]);
@@ -553,7 +553,7 @@ describe("useWorkspaces.addWorkspace (bulk)", () => {
     const addWorkspaceMock = vi.mocked(addWorkspaceService);
     const messageMock = vi.mocked(message);
     const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => undefined);
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
 
     listWorkspacesMock.mockResolvedValue([workspaceOne]);
     pickWorkspacePathsMock.mockResolvedValue([workspaceOne.path, workspaceTwo.path]);
@@ -917,12 +917,12 @@ describe("useWorkspaces.active workspace persistence", () => {
 });
 
 describe("useWorkspaces.removeWorkspace", () => {
-  it("uses confirm fallback on web instead of tauri ask", async () => {
+  it("uses confirm fallback on web instead of desktop-host ask", async () => {
     const listWorkspacesMock = vi.mocked(listWorkspaces);
     const askMock = vi.mocked(ask);
     const removeWorkspaceMock = vi.mocked(removeWorkspaceService);
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     listWorkspacesMock.mockResolvedValue([workspaceOne]);
     removeWorkspaceMock.mockResolvedValue(undefined);
 

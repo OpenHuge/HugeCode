@@ -19,7 +19,7 @@ function createBaseDeps(): OAuthBridgeMutationFacadeDeps {
     oauthPrimaryAccountSetRpcMethod: "code_oauth_primary_account_set",
     webRuntimeOauthDirectRpcTimeoutMs: 1000,
     webRuntimeOauthFallbackTimeoutMs: 1000,
-    isTauri: () => false,
+    isDesktopHostRuntime: () => false,
     shouldUseWebRuntimeDirectRpc: () => false,
     runWebRuntimeOAuthRequest: async (_key, request) => request(),
     awaitWebRuntimeWithFallbackTimeout: async (request) => request(undefined),

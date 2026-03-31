@@ -16,8 +16,8 @@ import type { DebugEntry } from "../../../types";
 import { STORAGE_KEY_PENDING_POST_UPDATE_VERSION } from "../utils/postUpdateRelease";
 import { resolveInitialUpdaterStartupAction, useUpdater } from "./useUpdater";
 
-vi.mock("@tauri-apps/api/core", () => ({
-  isTauri: vi.fn(() => true),
+vi.mock("@desktop-host/core", () => ({
+  isDesktopHostRuntime: vi.fn(() => true),
 }));
 
 vi.mock("../../../application/runtime/ports/desktopUpdater", () => ({

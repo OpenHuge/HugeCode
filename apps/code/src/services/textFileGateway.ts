@@ -22,7 +22,7 @@ const EMPTY_TEXT_FILE_RESPONSE: TextFileResponse = {
 };
 
 type TextFileGatewayDeps = {
-  isTauri: () => boolean;
+  isDesktopHostRuntime: () => boolean;
   detectRuntimeMode: () => string;
   readCommand: string;
   writeCommand: string;
@@ -34,8 +34,8 @@ type TextFileGatewayDeps = {
     workspaceId?: string
   ) => Promise<void>;
   isMissingTextFileError: (error: unknown) => boolean;
-  isMissingTauriInvokeError: (error: unknown) => boolean;
-  isMissingTauriCommandError: (error: unknown, command: string) => boolean;
+  isMissingDesktopHostInvokeError: (error: unknown) => boolean;
+  isMissingDesktopHostCommandError: (error: unknown, command: string) => boolean;
   logRuntimeWarning: (message: string, context?: unknown) => void;
 };
 
@@ -99,7 +99,7 @@ export function createTextFileGateway(deps: TextFileGatewayDeps) {
     kind: FileKind,
     workspaceId?: string
   ): Promise<TextFileResponse> => {
-    if (!deps.isTauri()) {
+    if (!deps.isDesktopHostRuntime()) {
       if (!canUseBrowserTextFileFallback(deps.detectRuntimeMode())) {
         throw new Error("Text-file fallback is only available in runtime-gateway-web mode.");
       }
@@ -111,18 +111,21 @@ export function createTextFileGateway(deps: TextFileGatewayDeps) {
       if (deps.isMissingTextFileError(error)) {
         return EMPTY_TEXT_FILE_RESPONSE;
       }
-      if (deps.isMissingTauriInvokeError(error)) {
-        deps.logRuntimeWarning("Tauri invoke bridge unavailable; using local text-file fallback.", {
-          capabilityState: "browser-local-only",
-          scope,
-          kind,
-          workspaceId: workspaceId ?? null,
-        });
+      if (deps.isMissingDesktopHostInvokeError(error)) {
+        deps.logRuntimeWarning(
+          "Desktop host invoke bridge unavailable; using local text-file fallback.",
+          {
+            capabilityState: "browser-local-only",
+            scope,
+            kind,
+            workspaceId: workspaceId ?? null,
+          }
+        );
         return readMockTextFile(scope, kind, workspaceId);
       }
-      if (deps.isMissingTauriCommandError(error, deps.readCommand)) {
+      if (deps.isMissingDesktopHostCommandError(error, deps.readCommand)) {
         deps.logRuntimeWarning(
-          `Tauri ${deps.readCommand} command unavailable; using browser-local text-file fallback.`,
+          `Desktop host ${deps.readCommand} command unavailable; using browser-local text-file fallback.`,
           {
             capabilityState: "browser-local-only",
             scope,
@@ -142,7 +145,7 @@ export function createTextFileGateway(deps: TextFileGatewayDeps) {
     content: string,
     workspaceId?: string
   ): Promise<void> => {
-    if (!deps.isTauri()) {
+    if (!deps.isDesktopHostRuntime()) {
       if (!canUseBrowserTextFileFallback(deps.detectRuntimeMode())) {
         throw new Error("Text-file fallback is only available in runtime-gateway-web mode.");
       }
@@ -152,9 +155,9 @@ export function createTextFileGateway(deps: TextFileGatewayDeps) {
     try {
       await deps.invokeWrite(scope, kind, content, workspaceId);
     } catch (error) {
-      if (deps.isMissingTauriInvokeError(error)) {
+      if (deps.isMissingDesktopHostInvokeError(error)) {
         deps.logRuntimeWarning(
-          "Tauri invoke bridge unavailable; using browser-local text-file fallback write.",
+          "Desktop host invoke bridge unavailable; using browser-local text-file fallback write.",
           {
             capabilityState: "browser-local-only",
             scope,
@@ -165,9 +168,9 @@ export function createTextFileGateway(deps: TextFileGatewayDeps) {
         writeMockTextFile(scope, kind, content, workspaceId);
         return;
       }
-      if (deps.isMissingTauriCommandError(error, deps.writeCommand)) {
+      if (deps.isMissingDesktopHostCommandError(error, deps.writeCommand)) {
         deps.logRuntimeWarning(
-          `Tauri ${deps.writeCommand} command unavailable; using browser-local text-file fallback.`,
+          `Desktop host ${deps.writeCommand} command unavailable; using browser-local text-file fallback.`,
           {
             capabilityState: "browser-local-only",
             scope,

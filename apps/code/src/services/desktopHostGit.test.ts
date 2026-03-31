@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchGit,
@@ -11,22 +11,22 @@ import {
   revertGitAll,
 } from "./desktopHostGit";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
-  isTauri: vi.fn(),
+  isDesktopHostRuntime: vi.fn(),
 }));
 
 const invokeMock = vi.mocked(invoke);
-const isTauriMock = vi.mocked(isTauri);
+const isDesktopHostRuntimeMock = vi.mocked(isDesktopHostRuntime);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  isTauriMock.mockReturnValue(true);
+  isDesktopHostRuntimeMock.mockReturnValue(true);
 });
 
-describe("tauriDesktopGit", () => {
-  it("returns fallback values for non-tauri list/read APIs", async () => {
-    isTauriMock.mockReturnValue(false);
+describe("desktopHostGit", () => {
+  it("returns fallback values for non-desktop-host list/read APIs", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(listGitRoots("ws-1", 2)).resolves.toEqual([]);
     await expect(getGitHubIssues("ws-1")).resolves.toEqual({ issues: [], total: 0 });
@@ -36,8 +36,8 @@ describe("tauriDesktopGit", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("throws for non-tauri mutating desktop commands", async () => {
-    isTauriMock.mockReturnValue(false);
+  it("throws for non-desktop-host mutating desktop commands", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(pushGit("ws-1")).rejects.toThrow(
       "Git push is not available outside the desktop app."
@@ -51,7 +51,7 @@ describe("tauriDesktopGit", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("invokes desktop commands with normalized payloads in tauri mode", async () => {
+  it("invokes desktop commands with normalized payloads in desktop-host mode", async () => {
     invokeMock.mockResolvedValueOnce(["/repo"]);
     invokeMock.mockResolvedValueOnce([{ path: "src/a.ts", diff: "@@" }]);
     invokeMock.mockResolvedValueOnce(undefined);

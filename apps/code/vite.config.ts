@@ -23,36 +23,6 @@ const STARTUP_OPTIMIZE_DEPS = [
   "remark-gfm",
   "vscode-material-icons",
 ] as const;
-const legacyDesktopCoreCompatEntry = fileURLToPath(
-  new URL(
-    "./src/application/runtime/ports/packageCompat/legacyDesktopCoreCompat.ts",
-    import.meta.url
-  )
-);
-const legacyDesktopDpiCompatEntry = fileURLToPath(
-  new URL(
-    "./src/application/runtime/ports/packageCompat/legacyDesktopDpiCompat.ts",
-    import.meta.url
-  )
-);
-const legacyDesktopMenuCompatEntry = fileURLToPath(
-  new URL(
-    "./src/application/runtime/ports/packageCompat/legacyDesktopMenuCompat.ts",
-    import.meta.url
-  )
-);
-const legacyDesktopWindowCompatEntry = fileURLToPath(
-  new URL(
-    "./src/application/runtime/ports/packageCompat/legacyDesktopWindowCompat.ts",
-    import.meta.url
-  )
-);
-const legacyDesktopDialogCompatEntry = fileURLToPath(
-  new URL(
-    "./src/application/runtime/ports/packageCompat/legacyDesktopDialogCompat.ts",
-    import.meta.url
-  )
-);
 const STARTUP_WARMUP_CLIENT_FILES = [
   "./src/main.tsx",
   "./src/App.tsx",
@@ -194,29 +164,7 @@ function workspaceEntryRedirectPlugin(): Plugin {
 export default defineConfig({
   plugins: [workspaceEntryRedirectPlugin(), vanillaExtractPlugin(), react()],
   resolve: {
-    alias: [
-      {
-        find: /^@tauri-apps\/api\/core$/,
-        replacement: legacyDesktopCoreCompatEntry,
-      },
-      {
-        find: /^@tauri-apps\/api\/dpi$/,
-        replacement: legacyDesktopDpiCompatEntry,
-      },
-      {
-        find: /^@tauri-apps\/api\/menu$/,
-        replacement: legacyDesktopMenuCompatEntry,
-      },
-      {
-        find: /^@tauri-apps\/api\/window$/,
-        replacement: legacyDesktopWindowCompatEntry,
-      },
-      {
-        find: /^@tauri-apps\/plugin-dialog$/,
-        replacement: legacyDesktopDialogCompatEntry,
-      },
-      ...createCodeWorkspaceAliases(new URL("./", import.meta.url)),
-    ],
+    alias: [...createCodeWorkspaceAliases(new URL("./", import.meta.url))],
   },
   optimizeDeps: {
     // Keep linked workspace packages on the source pipeline. Vite already treats
@@ -295,9 +243,6 @@ export default defineConfig({
           }
           if (id.includes("/node_modules/@tanstack/")) {
             return "tanstack-vendor";
-          }
-          if (id.includes("/node_modules/@tauri-apps/")) {
-            return "desktop-compat-vendor";
           }
           if (id.includes("/node_modules/@xterm/")) {
             return "xterm-vendor";

@@ -243,7 +243,7 @@ Changes must use the narrowest gate that matches the blast radius:
 - `pnpm ui:contract`
   Required when `apps/code` UI/runtime boundaries change.
 - `pnpm desktop:verify:fast`
-  Default desktop verification gate for Tauri integration changes.
+  Default desktop verification gate for desktop host integration changes.
 - `pnpm desktop:verify`
   Escalate when the change is packaging-sensitive or needs a full debug/no-bundle desktop build.
 

@@ -9,12 +9,12 @@ import { CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES } from "@ku0/code-runtime-host-co
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const invokeMock = vi.fn();
-const isTauriMock = vi.fn(() => false);
+const isDesktopHostRuntimeMock = vi.fn(() => false);
 const listenMock = vi.fn();
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: invokeMock,
-  isTauri: isTauriMock,
+  isDesktopHostRuntime: isDesktopHostRuntimeMock,
 }));
 
 vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
@@ -57,7 +57,7 @@ describe("web worker quick gate", () => {
     vi.resetAllMocks();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
     listenMock.mockResolvedValue(vi.fn());
   });
 
@@ -205,8 +205,8 @@ describe("web worker quick gate", () => {
     unsubscribe();
   });
 
-  it("resolves relative websocket turn stream endpoints in tauri web fallback", async () => {
-    listenMock.mockRejectedValueOnce(new Error("tauri event bridge unavailable"));
+  it("resolves relative websocket turn stream endpoints in desktop-host web fallback", async () => {
+    listenMock.mockRejectedValueOnce(new Error("desktop host event bridge unavailable"));
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc?token=test#anchor");
     vi.stubGlobal(
       "fetch",
@@ -248,8 +248,8 @@ describe("web worker quick gate", () => {
     vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
     vi.stubGlobal("EventSource", undefined);
 
-    const tauri = await import("./tauri");
-    const unlisten = await tauri.listenRuntimeTurnEvents(() => undefined);
+    const runtimeTurnBridge = await import("./runtimeTerminalBridge");
+    const unlisten = await runtimeTurnBridge.listenRuntimeTurnEvents(() => undefined);
     expect(MockWebSocket.instances).toHaveLength(1);
     expect(MockWebSocket.instances[0]?.url).toBe(expectedWsEndpoint("/ws", "test"));
     unlisten();

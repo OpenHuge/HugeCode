@@ -1,4 +1,4 @@
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
 import { ask, message } from "../../../application/runtime/ports/desktopHostDialogs";
 import type { WorkspaceGroup, WorkspaceInfo } from "../../../types";
 import {
@@ -281,7 +281,7 @@ export function isWorkspacePathValidationUnavailableError(error: unknown): boole
 
 export function supportsWorkspacePathValidation(): boolean {
   try {
-    return isTauri();
+    return isDesktopHostRuntime();
   } catch {
     return false;
   }
@@ -295,7 +295,7 @@ function getDialogTitle(options?: AskOptions | MessageOptions): string {
 }
 
 export async function askWithFallback(content: string, options?: AskOptions) {
-  if (isTauri()) {
+  if (isDesktopHostRuntime()) {
     try {
       return await ask(content, options);
     } catch {
@@ -311,7 +311,7 @@ export async function askWithFallback(content: string, options?: AskOptions) {
 }
 
 export function messageWithFallback(content: string, options?: MessageOptions) {
-  if (isTauri()) {
+  if (isDesktopHostRuntime()) {
     try {
       void message(content, options);
       return;

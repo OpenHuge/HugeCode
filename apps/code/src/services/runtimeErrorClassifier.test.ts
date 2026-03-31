@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  isMissingTauriCommandError,
+  isMissingDesktopHostCommandError,
   isRuntimeMethodUnsupportedError,
   isTimeoutLikeError,
   isWebRuntimeConnectionError,
@@ -9,14 +9,14 @@ import {
 } from "@ku0/code-runtime-client/runtimeErrorClassifier";
 
 describe("runtimeErrorClassifier", () => {
-  it("detects missing tauri command via structured method-not-found code", () => {
+  it("detects missing desktop host command via structured method-not-found code", () => {
     const error = {
       code: "METHOD_NOT_FOUND",
       method: "code_text_file_read_v1",
       message: "ignored",
     };
-    expect(isMissingTauriCommandError(error, "code_text_file_read_v1")).toBe(true);
-    expect(isMissingTauriCommandError(error, "code_text_file_write_v1")).toBe(false);
+    expect(isMissingDesktopHostCommandError(error, "code_text_file_read_v1")).toBe(true);
+    expect(isMissingDesktopHostCommandError(error, "code_text_file_write_v1")).toBe(false);
   });
 
   it("detects runtime method unsupported from structured code and method", () => {

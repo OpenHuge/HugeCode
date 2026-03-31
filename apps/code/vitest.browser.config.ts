@@ -30,7 +30,7 @@ const reactJsxDevRuntimeEntry = fileURLToPath(
   new URL("./node_modules/react/jsx-dev-runtime.js", import.meta.url)
 );
 const reactDomEntry = fileURLToPath(new URL("./node_modules/react-dom/index.js", import.meta.url));
-const desktopCoreCompatEntry = fileURLToPath(
+const desktopHostCoreCompatEntry = fileURLToPath(
   new URL("./src/application/runtime/ports/desktopHostCore.ts", import.meta.url)
 );
 const desktopDpiCompatEntry = fileURLToPath(
@@ -39,10 +39,10 @@ const desktopDpiCompatEntry = fileURLToPath(
 const desktopMenuCompatEntry = fileURLToPath(
   new URL("./src/application/runtime/ports/desktopMenu.ts", import.meta.url)
 );
-const desktopWindowCompatEntry = fileURLToPath(
+const desktopHostWindowCompatEntry = fileURLToPath(
   new URL("./src/application/runtime/ports/desktopHostWindow.ts", import.meta.url)
 );
-const desktopDialogCompatEntry = fileURLToPath(
+const desktopHostDialogsCompatEntry = fileURLToPath(
   new URL("./src/application/runtime/ports/desktopHostDialogs.ts", import.meta.url)
 );
 const desktopUpdaterCompatEntry = fileURLToPath(
@@ -51,14 +51,14 @@ const desktopUpdaterCompatEntry = fileURLToPath(
 const desktopProcessCompatEntry = fileURLToPath(
   new URL("./src/application/runtime/ports/desktopProcess.ts", import.meta.url)
 );
-const desktopOpenerCompatEntry = fileURLToPath(
+const desktopHostOpenerCompatEntry = fileURLToPath(
   new URL("./src/application/runtime/ports/desktopHostOpener.ts", import.meta.url)
 );
-const legacyDesktopEventCompatEntry = fileURLToPath(
-  new URL("./src/test/shims/tauriEventCompat.ts", import.meta.url)
+const desktopHostEventCompatEntry = fileURLToPath(
+  new URL("./src/test/shims/desktopHostEventCompat.ts", import.meta.url)
 );
-const legacyDesktopNotificationCompatEntry = fileURLToPath(
-  new URL("./src/test/shims/tauriNotificationCompat.ts", import.meta.url)
+const desktopNotificationCompatEntry = fileURLToPath(
+  new URL("./src/test/shims/desktopNotificationCompat.ts", import.meta.url)
 );
 const liquidGlassCompatEntry = fileURLToPath(
   new URL("./src/test/shims/liquidGlassCompat.ts", import.meta.url)
@@ -102,47 +102,47 @@ export default defineConfig({
         replacement: reactDomEntry,
       },
       {
-        find: /^@tauri-apps\/api\/core$/,
-        replacement: desktopCoreCompatEntry,
+        find: /^@desktop-host\/core$/,
+        replacement: desktopHostCoreCompatEntry,
       },
       {
-        find: /^@tauri-apps\/api\/dpi$/,
+        find: /^@desktop-host\/dpi$/,
         replacement: desktopDpiCompatEntry,
       },
       {
-        find: /^@tauri-apps\/api\/event$/,
-        replacement: legacyDesktopEventCompatEntry,
+        find: /^@desktop-host\/event$/,
+        replacement: desktopHostEventCompatEntry,
       },
       {
-        find: /^@tauri-apps\/api\/menu$/,
+        find: /^@desktop-host\/menu$/,
         replacement: desktopMenuCompatEntry,
       },
       {
-        find: /^@tauri-apps\/api\/window$/,
-        replacement: desktopWindowCompatEntry,
+        find: /^@desktop-host\/window$/,
+        replacement: desktopHostWindowCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-dialog$/,
-        replacement: desktopDialogCompatEntry,
+        find: /^@desktop-host\/dialogs$/,
+        replacement: desktopHostDialogsCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-notification$/,
-        replacement: legacyDesktopNotificationCompatEntry,
+        find: /^@desktop-host\/notifications$/,
+        replacement: desktopNotificationCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-opener$/,
-        replacement: desktopOpenerCompatEntry,
+        find: /^@desktop-host\/opener$/,
+        replacement: desktopHostOpenerCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-process$/,
+        find: /^@desktop-host\/process$/,
         replacement: desktopProcessCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-updater$/,
+        find: /^@desktop-host\/updater$/,
         replacement: desktopUpdaterCompatEntry,
       },
       {
-        find: /^tauri-plugin-liquid-glass-api$/,
+        find: /^@desktop-host\/liquid-glass$/,
         replacement: liquidGlassCompatEntry,
       },
       {

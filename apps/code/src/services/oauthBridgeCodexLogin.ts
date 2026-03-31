@@ -32,7 +32,7 @@ type RuntimeClientCodexLoginBridge = {
 
 export type CodexLoginDeps = {
   webRuntimeRpcEndpointEnvKey: string;
-  isTauri(): boolean;
+  isDesktopHostRuntime(): boolean;
   isRecord(value: unknown): value is JsonRecord;
   normalizeNullableText(value: unknown): string | null;
   listOAuthAccounts(
@@ -207,7 +207,7 @@ export async function runCodexLoginWithDeps(
   workspaceId: string,
   options: CodexLoginOptions = {}
 ): Promise<CodexLoginResult> {
-  if (!deps.isTauri()) {
+  if (!deps.isDesktopHostRuntime()) {
     const codexAccounts = await deps.listOAuthAccounts("codex");
     const usableExisting = deps.pickPreferredOAuthAccount(
       codexAccounts.filter(
@@ -259,7 +259,7 @@ export async function cancelCodexLoginWithDeps(
   deps: CodexLoginDeps,
   workspaceId: string
 ): Promise<CancelCodexLoginResult> {
-  if (!deps.isTauri()) {
+  if (!deps.isDesktopHostRuntime()) {
     try {
       const canceled = await deps.runWebRuntimeOAuthRequest(
         `codex_login_cancel:${workspaceId}`,

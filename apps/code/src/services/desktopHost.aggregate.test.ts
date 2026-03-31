@@ -1,6 +1,6 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { open } from "@tauri-apps/plugin-dialog";
+import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
+import { listen } from "@desktop-host/event";
+import { open } from "@desktop-host/dialogs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   detectRuntimeMode,
@@ -26,20 +26,20 @@ import {
   updateWorkspaceSettings,
 } from "./desktopHost";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
-  isTauri: vi.fn(() => true),
+  isDesktopHostRuntime: vi.fn(() => true),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("@desktop-host/event", () => ({
   listen: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({
+vi.mock("@desktop-host/dialogs", () => ({
   open: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-notification", () => ({
+vi.mock("@desktop-host/notifications", () => ({
   isPermissionGranted: vi.fn(),
   requestPermission: vi.fn(),
   sendNotification: vi.fn(),
@@ -51,7 +51,7 @@ vi.mock("./runtimeClient", () => ({
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
 
-describe("tauri invoke wrappers", () => {
+describe("desktop host invoke wrappers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
@@ -61,7 +61,7 @@ describe("tauri invoke wrappers", () => {
     localStorage.clear();
     const invokeMock = vi.mocked(invoke);
     vi.mocked(listen).mockResolvedValue(async () => undefined);
-    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "is_macos_debug_build") {
         return false;
@@ -119,7 +119,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("uses runtime workspaceCreate in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const runtimeWorkspaceCreateMock = vi.fn().mockResolvedValue({
       id: "ws-web-1",
@@ -142,7 +142,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("falls back to direct web RPC workspaceCreate when runtime client create fails", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
     const runtimeWorkspaceCreateMock = vi
@@ -191,7 +191,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("uses runtime workspaceRemove in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const runtimeWorkspaceRemoveMock = vi.fn().mockResolvedValue(true);
     vi.mocked(getRuntimeClient).mockReturnValue({
@@ -214,7 +214,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("does not fall back to mock connectWorkspace when runtime lookup fails in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const runtimeWorkspacesMock = vi.fn().mockRejectedValue(new Error("runtime workspaces failed"));
     vi.mocked(getRuntimeClient).mockReturnValue({
@@ -225,43 +225,43 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("does not use clone fallback in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
 
     await expect(addClone("ws-source", "/tmp/copies", "copy-a")).rejects.toThrow(
-      "Workspace cloning is only available in Tauri runtime."
+      "Workspace cloning is only available in Desktop host runtime."
     );
   });
 
   it("does not use worktree creation fallback in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
 
     await expect(addWorktree("ws-parent", "feature/new", null)).rejects.toThrow(
-      "Worktree creation is only available in Tauri runtime."
+      "Worktree creation is only available in Desktop host runtime."
     );
   });
 
   it("does not use worktree removal fallback in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
 
     await expect(removeWorktree("wt-remove")).rejects.toThrow(
-      "Worktree removal is only available in Tauri runtime."
+      "Worktree removal is only available in Desktop host runtime."
     );
   });
 
   it("does not use worktree rename fallback in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
 
     await expect(renameWorktree("wt-rename", "feature/new-name")).rejects.toThrow(
-      "Worktree rename is only available in Tauri runtime."
+      "Worktree rename is only available in Desktop host runtime."
     );
   });
 
   it("does not silently skip upstream worktree rename in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
 
     await expect(
@@ -270,7 +270,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("does not use workspace settings fallback in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
 
     await expect(
@@ -285,25 +285,25 @@ describe("tauri invoke wrappers", () => {
         launchScripts: null,
         worktreeSetupScript: null,
       })
-    ).rejects.toThrow("Workspace settings update is only available in Tauri runtime.");
+    ).rejects.toThrow("Workspace settings update is only available in Desktop host runtime.");
   });
 
   it("does not use workspace codex bin fallback in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
 
     await expect(updateWorkspaceCodexBin("ws-codex-web", "codex-cli")).rejects.toThrow(
-      "Workspace codex bin update is only available in Tauri runtime."
+      "Workspace codex bin update is only available in Desktop host runtime."
     );
   });
 
   it("does not use workspace path validation fallback in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const invokeMock = vi.mocked(invoke);
 
     await expect(isWorkspacePathDir("/tmp/workspace")).rejects.toThrow(
-      "Workspace path validation is only available in Tauri runtime."
+      "Workspace path validation is only available in Desktop host runtime."
     );
     expect(invokeMock).not.toHaveBeenCalledWith("is_workspace_path_dir", expect.anything());
   });
@@ -332,7 +332,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("does not use browser directory picker fallback for single workspace selection in web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(open).mockRejectedValueOnce(
       new TypeError("Cannot read properties of undefined (reading 'invoke')")
     );
@@ -347,7 +347,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("uses runtime workspace picker for single selection in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const workspacePickDirectoryMock = vi.fn().mockResolvedValue("/tmp/runtime-workspace");
     vi.mocked(getRuntimeClient).mockReturnValue({
@@ -361,7 +361,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("returns null for single selection in runtime-gateway-web mode when runtime picker is cancelled", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const workspacePickDirectoryMock = vi.fn().mockResolvedValue(null);
     vi.mocked(getRuntimeClient).mockReturnValue({
@@ -375,7 +375,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("falls back to direct web RPC workspace picker when runtime client picker fails", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
     const workspacePickDirectoryMock = vi
@@ -398,7 +398,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("surfaces upgrade guidance when runtime picker RPC is unsupported", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
     const workspacePickDirectoryMock = vi
@@ -439,7 +439,7 @@ describe("tauri invoke wrappers", () => {
   it("returns empty workspace selections when picker bridge is unavailable", async () => {
     const openMock = vi.mocked(open);
     openMock.mockRejectedValueOnce(
-      new TypeError("window.__TAURI_INTERNALS__.invoke is not a function")
+      new TypeError("window.__HUGE_CODE_DESKTOP_HOST_INTERNALS__.invoke is not a function")
     );
 
     await expect(pickWorkspacePaths()).resolves.toEqual([]);
@@ -453,7 +453,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("uses runtime workspace picker for multi-selection in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const workspacePickDirectoryMock = vi.fn().mockResolvedValue("/tmp/runtime-multi");
     vi.mocked(getRuntimeClient).mockReturnValue({
@@ -467,7 +467,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("returns empty multi-workspace selection in runtime-gateway-web mode when runtime picker is cancelled", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const workspacePickDirectoryMock = vi.fn().mockResolvedValue(null);
     vi.mocked(getRuntimeClient).mockReturnValue({
@@ -481,7 +481,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("does not use browser picker fallback for multi-selection in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const workspacePickDirectoryMock = vi.fn().mockResolvedValue("/tmp/runtime-picked");
     vi.mocked(getRuntimeClient).mockReturnValue({
@@ -499,9 +499,9 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("does not use browser picker fallback for multi-selection in web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(open).mockRejectedValueOnce(
-      new TypeError("window.__TAURI_INTERNALS__.invoke is not a function")
+      new TypeError("window.__HUGE_CODE_DESKTOP_HOST_INTERNALS__.invoke is not a function")
     );
     const showDirectoryPicker = vi.fn().mockResolvedValue({ name: "folder-only" });
     Object.defineProperty(window, "showDirectoryPicker", {
@@ -516,7 +516,7 @@ describe("tauri invoke wrappers", () => {
   it("returns empty image selections when picker bridge is unavailable", async () => {
     const openMock = vi.mocked(open);
     openMock.mockRejectedValueOnce(
-      new TypeError("window.__TAURI_INTERNALS__.invoke is not a function")
+      new TypeError("window.__HUGE_CODE_DESKTOP_HOST_INTERNALS__.invoke is not a function")
     );
 
     await expect(pickImageFiles()).resolves.toEqual([]);

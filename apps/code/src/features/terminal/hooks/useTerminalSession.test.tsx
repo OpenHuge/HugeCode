@@ -165,7 +165,7 @@ describe("useTerminalSession", () => {
     });
   });
 
-  it("polls terminal readback in runtime-gateway-web mode when tauri output events are unavailable", async () => {
+  it("polls terminal readback in runtime-gateway-web mode when desktop host output events are unavailable", async () => {
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.mocked(openTerminalSession).mockResolvedValue({
       id: "runtime-session-2",

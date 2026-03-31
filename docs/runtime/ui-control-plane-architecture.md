@@ -47,4 +47,4 @@
 
 - Shared UI depends on explicit intents such as OAuth launch and popup binding flows.
 - Broad capability bags and `available` toggles are not the shared UI contract anymore.
-- Desktop keeps the least-privilege Tauri mapping inside host/runtime adapters rather than exposing raw host bridges to shared code.
+- Desktop keeps the least-privilege desktop host mapping inside host/runtime adapters rather than exposing raw host bridges to shared code.

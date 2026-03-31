@@ -1,5 +1,5 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
+import { listen } from "@desktop-host/event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   detectRuntimeMode,
@@ -25,16 +25,16 @@ import {
   upsertOAuthAccount,
 } from "./desktopHost";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
-  isTauri: vi.fn(() => true),
+  isDesktopHostRuntime: vi.fn(() => true),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("@desktop-host/event", () => ({
   listen: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-notification", () => ({
+vi.mock("@desktop-host/notifications", () => ({
   isPermissionGranted: vi.fn(),
   requestPermission: vi.fn(),
   sendNotification: vi.fn(),
@@ -46,7 +46,7 @@ vi.mock("./runtimeClient", () => ({
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
 
-describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
+describe("desktop host invoke wrappers (usage + oauth fallbacks)", () => {
   function formatRolloutPathTimestamp(epochMs: number) {
     const date = new Date(epochMs);
     const year = date.getUTCFullYear();
@@ -68,7 +68,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
     localStorage.clear();
     const invokeMock = vi.mocked(invoke);
     vi.mocked(listen).mockResolvedValue(async () => undefined);
-    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "is_macos_debug_build") {
         return false;
@@ -89,7 +89,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("builds local usage snapshot from runtime cli sessions in web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     const sessionAUpdatedAt = Date.now() - 90 * 60 * 1000;
     const sessionBUpdatedAt = Date.now() - 30 * 60 * 1000;
     const runtimeCliSessionsMock = vi.fn().mockResolvedValue([
@@ -120,7 +120,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("normalizes non-positive local usage windows in web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     const runtimeCliSessionsMock = vi.fn().mockResolvedValue([]);
     vi.mocked(getRuntimeClient).mockReturnValue({
       cliSessions: runtimeCliSessionsMock,
@@ -157,7 +157,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("deduplicates concurrent local usage snapshot requests for identical inputs", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     let resolveSessions!: (value: Array<Record<string, unknown>>) => void;
     const sessionsPromise = new Promise<Array<Record<string, unknown>>>((resolve) => {
       resolveSessions = resolve;
@@ -188,7 +188,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("reuses a recent local usage snapshot for repeated identical inputs", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     const runtimeCliSessionsMock = vi.fn().mockResolvedValue([
       {
         sessionId: "session-cached",
@@ -337,7 +337,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
     });
   });
 
-  it("routes oauth inventory and mutation wrappers through runtime client in tauri mode", async () => {
+  it("routes oauth inventory and mutation wrappers through runtime client in desktop-host mode", async () => {
     const oauthAccountsMock = vi.fn().mockResolvedValue([
       {
         accountId: "acc-1",
@@ -549,7 +549,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("fails closed instead of persisting typed route config when web oauth persistence is unavailable", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");
@@ -1038,7 +1038,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("fails closed for multi-provider oauth account reads in web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(getRuntimeClient).mockReturnValue({
       oauthAccounts: vi.fn().mockRejectedValue(new Error("accounts failed")),
       oauthPools: vi.fn().mockRejectedValue(new Error("pools failed")),
@@ -1060,7 +1060,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("fails closed for oauth pool member writes and reads in web mode when runtime calls fail", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(getRuntimeClient).mockReturnValue({
       oauthReplacePoolMembers: vi.fn().mockRejectedValue(new Error("replace failed")),
       oauthPoolMembers: vi.fn().mockRejectedValue(new Error("members list failed")),
@@ -1083,7 +1083,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("fails closed for oauth pool selection in web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(getRuntimeClient).mockReturnValue({
       oauthSelectPoolAccount: vi.fn().mockRejectedValue(new Error("selection failed")),
     } as unknown as ReturnType<typeof getRuntimeClient>);
@@ -1094,7 +1094,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("forwards explicit chatgptWorkspaceId to runtime selection and still fails closed in web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     const oauthSelectPoolAccountMock = vi.fn().mockRejectedValue(new Error("selection failed"));
     vi.mocked(getRuntimeClient).mockReturnValue({
       oauthSelectPoolAccount: oauthSelectPoolAccountMock,
@@ -1115,7 +1115,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("fails closed for rate-limit reporting in web mode when runtime calls fail", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(getRuntimeClient).mockReturnValue({
       oauthReportRateLimit: vi.fn().mockRejectedValue(new Error("report failed")),
     } as unknown as ReturnType<typeof getRuntimeClient>);
@@ -1135,7 +1135,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("does not write mock oauth fallback storage in web mode when persistence is unavailable", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
 
     await expect(
       upsertOAuthAccount({
@@ -1151,8 +1151,8 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
     expect(localStorage.getItem("codex_monitor_mock_oauth_pool_members_v1")).toBeNull();
   });
 
-  it("reports runtime-backed oauth subscription persistence in tauri mode", () => {
-    vi.mocked(isTauri).mockReturnValue(true);
+  it("reports runtime-backed oauth subscription persistence in desktop compatibility mode", () => {
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
 
     expect(readOAuthSubscriptionPersistenceCapability()).toEqual({
@@ -1167,7 +1167,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("reports unavailable oauth subscription persistence when web oauth cannot durably bind state", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");
@@ -1185,7 +1185,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("fails closed for oauth pool apply in web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(getRuntimeClient).mockReturnValue({
       oauthApplyPool: vi.fn().mockRejectedValue(new Error("runtime oauth apply failed")),
     } as unknown as ReturnType<typeof getRuntimeClient>);
@@ -1209,7 +1209,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("rejects oauth pool apply when structured conflict code is present in nested error chain", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(getRuntimeClient).mockReturnValue({
       oauthApplyPool: vi.fn().mockRejectedValue({
         details: {
@@ -1245,7 +1245,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("does not treat legacy prefix-only oauth pool apply failures as version mismatch conflicts", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(getRuntimeClient).mockReturnValue({
       oauthApplyPool: vi
         .fn()
@@ -1271,7 +1271,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("fails closed when web runtime oauth account listing hangs", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
 
     const runtimeOauthAccountsMock = vi.fn(
       () =>
@@ -1297,7 +1297,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("aborts direct web oauth rpc requests when timeout elapses", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
 
@@ -1332,7 +1332,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("skips repeated runtime oauth account calls during cooldown after timeout", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
 
     const runtimeOauthAccountsMock = vi.fn(
       () =>
@@ -1362,7 +1362,7 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
   });
 
   it("dedupes concurrent web oauth account calls for the same provider", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     const sharedAccounts = [
       {
         accountId: "web-concurrent-1",

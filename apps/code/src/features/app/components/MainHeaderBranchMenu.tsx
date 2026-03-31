@@ -130,7 +130,7 @@ export function MainHeaderBranchMenu({
         itemClassName="branch-item"
         currentItemClassName="is-active"
         itemRole="menuitem"
-        itemDataTauriDragRegion="false"
+        itemDataDesktopDragRegion="false"
         emptyClassName="branch-empty"
         emptyText="No branches found"
         onSelect={async (branch) => {

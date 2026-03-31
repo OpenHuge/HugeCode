@@ -18,7 +18,7 @@ in `apps/code`.
 - Public web routes that can use SSR today and prerender later.
 - Client-only `/app` entry that composes the shared workspace shell from
   `packages/code-workspace-client` and `packages/code-application` without
-  changing the Tauri frontend contract.
+  changing the desktop frontend contract.
 - Web PWA installability, update flow, offline fallback shell, and static
   service worker ownership for the web host.
 - Web-platform ownership remains separate from the desktop host shell.
@@ -62,7 +62,7 @@ Use the canonical `pnpm web:*` command family directly. The legacy
 ## Boundary Rules
 
 - Cloudflare bindings and Worker-only code must stay on the Start server side.
-- Do not import `@tauri-apps/*` into SSR code paths.
-- Tauri continues to load `apps/code`, not this package.
+- Do not import `@desktop-host/*` into SSR code paths.
+- The desktop host continues to load `apps/code`, not this package.
 - New shared workspace behavior should enter through the shared packages before
   either host shell grows another private copy.

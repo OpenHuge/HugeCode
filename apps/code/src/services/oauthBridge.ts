@@ -1,4 +1,4 @@
-import { isTauri } from "../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
 import { logger } from "./logger";
 import {
   detectRuntimeMode,
@@ -197,7 +197,7 @@ function createListingFacadeDeps(): OAuthBridgeListingFacadeDeps {
     oauthPoolMembersRpcMethod: "code_oauth_pool_members_list",
     webRuntimeOauthDirectRpcTimeoutMs: WEB_RUNTIME_OAUTH_DIRECT_RPC_TIMEOUT_MS,
     webRuntimeOauthFallbackTimeoutMs: WEB_RUNTIME_OAUTH_FALLBACK_TIMEOUT_MS,
-    isTauri,
+    isDesktopHostRuntime,
     shouldUseWebRuntimeDirectRpc,
     isWebRuntimeOauthCooldownActive,
     runWebRuntimeOAuthRequest,
@@ -220,7 +220,7 @@ function createMutationFacadeDeps(): OAuthBridgeMutationFacadeDeps {
     oauthPrimaryAccountSetRpcMethod: CODE_RUNTIME_RPC_METHOD_OAUTH_PRIMARY_ACCOUNT_SET,
     webRuntimeOauthDirectRpcTimeoutMs: WEB_RUNTIME_OAUTH_DIRECT_RPC_TIMEOUT_MS,
     webRuntimeOauthFallbackTimeoutMs: WEB_RUNTIME_OAUTH_FALLBACK_TIMEOUT_MS,
-    isTauri,
+    isDesktopHostRuntime,
     shouldUseWebRuntimeDirectRpc,
     runWebRuntimeOAuthRequest,
     awaitWebRuntimeWithFallbackTimeout,
@@ -275,7 +275,7 @@ export async function getProvidersCatalog(): Promise<RuntimeProviderCatalogEntry
     clearWebRuntimeOauthCooldown();
     return providers;
   } catch (error) {
-    if (isTauri()) {
+    if (isDesktopHostRuntime()) {
       throw error;
     }
     markWebRuntimeOauthCooldown(error, "providers catalog");
@@ -399,7 +399,7 @@ export async function resolveChatgptAuthTokensRefreshResponse(
 ): Promise<ChatgptAuthTokensRefreshResolution | null> {
   return resolveChatgptAuthTokensRefreshResponseWithFacade(
     {
-      isTauri,
+      isDesktopHostRuntime,
       isRecord,
       normalizeNullableText,
       listOAuthAccounts,
@@ -487,7 +487,7 @@ export async function runCodexLogin(
   return runCodexLoginWithFacade(
     {
       webRuntimeRpcEndpointEnvKey: WEB_RUNTIME_RPC_ENDPOINT_ENV_KEY,
-      isTauri,
+      isDesktopHostRuntime,
       isRecord,
       normalizeNullableText,
       listOAuthAccounts,
@@ -522,7 +522,7 @@ export async function cancelCodexLogin(workspaceId: string) {
   return cancelCodexLoginWithFacade(
     {
       webRuntimeRpcEndpointEnvKey: WEB_RUNTIME_RPC_ENDPOINT_ENV_KEY,
-      isTauri,
+      isDesktopHostRuntime,
       isRecord,
       normalizeNullableText,
       listOAuthAccounts,

@@ -43,7 +43,7 @@ export type OAuthBridgeMutationFacadeDeps = {
   oauthPrimaryAccountSetRpcMethod: string;
   webRuntimeOauthDirectRpcTimeoutMs: number;
   webRuntimeOauthFallbackTimeoutMs: number;
-  isTauri(): boolean;
+  isDesktopHostRuntime(): boolean;
   shouldUseWebRuntimeDirectRpc(): boolean;
   runWebRuntimeOAuthRequest<Result>(key: string, request: () => Promise<Result>): Promise<Result>;
   awaitWebRuntimeWithFallbackTimeout<Result>(
@@ -88,7 +88,7 @@ export async function upsertOAuthAccount(
     deps.clearMockOauthFallbackActive();
     return deps.normalizeOAuthAccountSummary(account);
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
     throw createWebRuntimeOauthPersistenceUnavailableError("oauth account upsert", error);
@@ -105,7 +105,7 @@ export async function removeOAuthAccount(
     deps.clearMockOauthFallbackActive();
     return removed;
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
     throw createWebRuntimeOauthPersistenceUnavailableError("oauth account removal", error);
@@ -122,7 +122,7 @@ export async function upsertOAuthPool(
     deps.clearMockOauthFallbackActive();
     return pool;
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
     throw createWebRuntimeOauthPersistenceUnavailableError("oauth pool upsert", error);
@@ -161,7 +161,7 @@ export async function setOAuthPrimaryAccount(
     deps.clearMockOauthFallbackActive();
     return summary;
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
     deps.markWebRuntimeOauthCooldown(error, "oauth primary account set");
@@ -180,7 +180,7 @@ export async function replaceOAuthPoolMembers(
     deps.clearMockOauthFallbackActive();
     return updatedMembers;
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
     throw createWebRuntimeOauthPersistenceUnavailableError("oauth pool members replace", error);
@@ -221,7 +221,7 @@ export async function applyOAuthPool(
     return result;
   } catch (error) {
     const normalizedError = deps.normalizeCaughtOauthError(error, "oauth pool apply failed.");
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw normalizedError;
     }
     if (deps.readRuntimeErrorCode(normalizedError) === deps.runtimePoolVersionMismatchCode) {
@@ -242,7 +242,7 @@ export async function removeOAuthPool(
     deps.clearMockOauthFallbackActive();
     return removed;
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
     throw createWebRuntimeOauthPersistenceUnavailableError("oauth pool removal", error);
@@ -259,7 +259,7 @@ export async function selectOAuthPoolAccount(
     deps.clearMockOauthFallbackActive();
     return selected;
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
     throw createWebRuntimeOauthPersistenceUnavailableError("oauth pool selection", error);
@@ -276,7 +276,7 @@ export async function bindOAuthPoolAccount(
     deps.clearMockOauthFallbackActive();
     return selected;
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
     throw createWebRuntimeOauthPersistenceUnavailableError("oauth pool binding", error);
@@ -293,7 +293,7 @@ export async function reportOAuthRateLimit(
     deps.clearMockOauthFallbackActive();
     return reported;
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
     throw createWebRuntimeOauthPersistenceUnavailableError("oauth rate limit reporting", error);

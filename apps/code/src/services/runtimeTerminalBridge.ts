@@ -15,7 +15,7 @@ import {
   requireRuntimeTerminalSessionId,
   setRuntimeTerminalSessionId,
 } from "./runtimeTurnHelpers";
-import { registerRuntimeEventTauriSubscription } from "./runtimeEventBridgeTransportShared";
+import { registerRuntimeEventDesktopHostSubscription } from "./runtimeEventBridgeTransportShared";
 
 type UnlistenFn = () => void;
 
@@ -104,7 +104,7 @@ export async function listenRuntimeTurnEvents(
   callback: (event: CodeRuntimeHostEventEnvelope) => void
 ): Promise<UnlistenFn> {
   try {
-    const subscription = await registerRuntimeEventTauriSubscription(
+    const subscription = await registerRuntimeEventDesktopHostSubscription(
       RUNTIME_TURN_EVENT_NAME,
       (payload) => {
         const parsed = parseRuntimeTurnEventPayload(payload);

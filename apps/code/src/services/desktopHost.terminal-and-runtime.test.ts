@@ -1,5 +1,5 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
+import { listen } from "@desktop-host/event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   detectRuntimeMode,
@@ -80,20 +80,20 @@ import {
   submitRuntimeJobApprovalDecision,
 } from "./runtimeJobsBridge";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
-  isTauri: vi.fn(() => true),
+  isDesktopHostRuntime: vi.fn(() => true),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("@desktop-host/event", () => ({
   listen: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({
+vi.mock("@desktop-host/dialogs", () => ({
   open: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-notification", () => ({
+vi.mock("@desktop-host/notifications", () => ({
   isPermissionGranted: vi.fn(),
   requestPermission: vi.fn(),
   sendNotification: vi.fn(),
@@ -105,7 +105,7 @@ vi.mock("./runtimeClient", () => ({
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
 
-describe("tauri invoke wrappers", () => {
+describe("desktop host invoke wrappers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
@@ -115,7 +115,7 @@ describe("tauri invoke wrappers", () => {
     localStorage.clear();
     const invokeMock = vi.mocked(invoke);
     vi.mocked(listen).mockResolvedValue(async () => undefined);
-    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "is_macos_debug_build") {
         return false;
@@ -149,7 +149,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("returns an empty providers catalog when web runtime providers call hangs", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     const runtimeProvidersCatalogMock = vi.fn(
       () =>
         new Promise<unknown>(() => undefined) as Promise<
@@ -171,7 +171,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("skips repeated runtime providers catalog calls during cooldown after timeout", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     const runtimeProvidersCatalogMock = vi.fn(
       () =>
         new Promise<unknown>(() => undefined) as Promise<
@@ -195,7 +195,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("dedupes concurrent web providers catalog calls", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     const sharedProviders = [
       {
         oauthProviderId: "codex",
@@ -700,7 +700,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("uses local text-file fallback in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const invokeMock = vi.mocked(invoke);
 
@@ -766,7 +766,7 @@ describe("tauri invoke wrappers", () => {
   it("falls back to local text-file storage when invoke exists but is not callable", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockRejectedValue(
-      new TypeError("window.__TAURI_INTERNALS__.invoke is not a function")
+      new TypeError("window.__HUGE_CODE_DESKTOP_HOST_INTERNALS__.invoke is not a function")
     );
 
     await expect(readGlobalAgentsMd()).resolves.toEqual({
@@ -821,7 +821,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("handles localStorage read/write failures in runtime-gateway-web fallback mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const getItemSpy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("localStorage blocked");
@@ -1496,8 +1496,10 @@ describe("tauri invoke wrappers", () => {
       distributedTaskGraph: vi.fn().mockRejectedValue(connectionError),
     } as unknown as ReturnType<typeof getRuntimeClient>);
 
-    await expect(runtimeBackendsList("ws-tauri")).rejects.toThrow("Failed to fetch");
-    await expect(distributedTaskGraph({ taskId: "task-tauri" })).rejects.toThrow("Failed to fetch");
+    await expect(runtimeBackendsList("ws-desktop")).rejects.toThrow("Failed to fetch");
+    await expect(distributedTaskGraph({ taskId: "task-desktop" })).rejects.toThrow(
+      "Failed to fetch"
+    );
   });
 
   it("routes diagnostics export wrapper through runtime client", async () => {

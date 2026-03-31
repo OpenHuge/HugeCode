@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
 import { ask } from "../../../application/runtime/ports/desktopHostDialogs";
 import {
   applyWorktreeChanges as applyWorktreeChangesService,
@@ -33,7 +33,7 @@ export function useGitActions({
   const isWorktree = activeWorkspace?.kind === "worktree";
 
   const confirmWarning = useCallback(async (message: string, title: string) => {
-    if (isTauri()) {
+    if (isDesktopHostRuntime()) {
       try {
         return await ask(message, { title, kind: "warning" });
       } catch {

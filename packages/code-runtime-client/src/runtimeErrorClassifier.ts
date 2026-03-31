@@ -90,9 +90,9 @@ function normalizeErrorCodeToken(code: string): string {
     .replace(/[\s.-]+/g, "_");
 }
 
-export function isMissingTauriInvokeError(error: unknown): boolean {
+export function isMissingDesktopHostInvokeError(error: unknown): boolean {
   const code = readErrorCode(error).toLowerCase();
-  if (code.includes("invoke_unavailable") || code.includes("tauri_invoke_unavailable")) {
+  if (code.includes("invoke_unavailable") || code.includes("desktop_host_invoke_unavailable")) {
     return true;
   }
 
@@ -104,12 +104,12 @@ export function isMissingTauriInvokeError(error: unknown): boolean {
     message.includes("reading 'invoke'") ||
     message.includes('reading "invoke"') ||
     message.includes(".invoke is not a function") ||
-    message.includes("__TAURI_INTERNALS__") ||
-    message.includes("__TAURI_IPC__")
+    message.includes("__HUGE_CODE_DESKTOP_HOST_INTERNALS__") ||
+    message.includes("__HUGE_CODE_DESKTOP_HOST_IPC__")
   );
 }
 
-export function isMissingTauriCommandError(error: unknown, command: string): boolean {
+export function isMissingDesktopHostCommandError(error: unknown, command: string): boolean {
   const normalizedCommand = command.trim().toLowerCase();
   const code = readErrorCode(error).toLowerCase();
   const method = readErrorMethod(error).toLowerCase();

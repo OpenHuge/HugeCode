@@ -1,5 +1,5 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
+import { listen } from "@desktop-host/event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   detectRuntimeMode,
@@ -36,20 +36,20 @@ import {
   upsertOAuthAccount,
 } from "./desktopHost";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
-  isTauri: vi.fn(() => true),
+  isDesktopHostRuntime: vi.fn(() => true),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("@desktop-host/event", () => ({
   listen: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({
+vi.mock("@desktop-host/dialogs", () => ({
   open: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-notification", () => ({
+vi.mock("@desktop-host/notifications", () => ({
   isPermissionGranted: vi.fn(),
   requestPermission: vi.fn(),
   sendNotification: vi.fn(),
@@ -61,7 +61,7 @@ vi.mock("./runtimeClient", () => ({
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
 
-describe("tauri invoke wrappers", () => {
+describe("desktop host invoke wrappers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
@@ -71,7 +71,7 @@ describe("tauri invoke wrappers", () => {
     localStorage.clear();
     const invokeMock = vi.mocked(invoke);
     vi.mocked(listen).mockResolvedValue(async () => undefined);
-    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "is_macos_debug_build") {
         return false;
@@ -92,7 +92,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("invalidates web oauth account in-flight cache after account upsert", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     let resolveStaleAccounts: (value: OAuthAccountSummary[]) => void = () => undefined;
     const staleAccountsPromise = new Promise<OAuthAccountSummary[]>((resolve) => {
       resolveStaleAccounts = resolve;
@@ -205,7 +205,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("starts web codex oauth via runtime service when no account credentials are available", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
@@ -249,7 +249,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("preserves codex auth URL query parameters from web runtime", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
@@ -286,7 +286,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("surfaces web codex oauth start errors from runtime service", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
@@ -324,7 +324,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("starts oauth when existing codex account is present but durable workspace binding is not verified", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
@@ -380,7 +380,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("forces web codex oauth start when forceOAuth is enabled", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
 
@@ -440,18 +440,18 @@ describe("tauri invoke wrappers", () => {
     );
   });
 
-  it("normalizes codex auth URL from tauri runtime oauth payload", async () => {
-    vi.mocked(isTauri).mockReturnValue(true);
+  it("normalizes codex auth URL from desktop-host runtime oauth payload", async () => {
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     vi.mocked(getRuntimeClient).mockReturnValue({
       oauthCodexLoginStart: vi.fn(async () => ({
-        loginId: "login-tauri-1",
+        loginId: "login-desktop-1",
         authUrl:
-          "https://auth.openai.com/api/oauth/oauth2/auth?client_id=app_EMoamEEZ73f0CkXaXp7hrann&redirect_uri=http%3A%2F%2F127.0.0.1%3A8788%2Fauth%2Fcallback&allowed_workspace_id=workspace-local&state=test-tauri",
+          "https://auth.openai.com/api/oauth/oauth2/auth?client_id=app_EMoamEEZ73f0CkXaXp7hrann&redirect_uri=http%3A%2F%2F127.0.0.1%3A8788%2Fauth%2Fcallback&allowed_workspace_id=workspace-local&state=test-desktop",
       })),
     } as never);
 
-    const result = await runCodexLogin("ws-tauri-1");
-    expect(result.loginId).toBe("login-tauri-1");
+    const result = await runCodexLogin("ws-desktop-1");
+    expect(result.loginId).toBe("login-desktop-1");
     const parsed = new URL(result.authUrl);
     expect(parsed.pathname).toBe("/oauth/authorize");
     expect(parsed.searchParams.get("allowed_workspace_id")).toBe("workspace-local");
@@ -1005,7 +1005,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("does not fall back to mock workspaces when runtime workspaces fails in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const runtimeWorkspacesMock = vi.fn().mockRejectedValue(new Error("runtime workspaces failed"));
     vi.mocked(getRuntimeClient).mockReturnValue({
@@ -1016,7 +1016,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("falls back to direct web RPC workspaces list when runtime client list fails", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
     const runtimeWorkspacesMock = vi
@@ -1223,7 +1223,7 @@ describe("tauri invoke wrappers", () => {
 
   it("returns empty thread list when web runtime transport is unavailable", async () => {
     const invokeMock = vi.mocked(invoke);
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const runtimeThreadsMock = vi
       .fn()
@@ -1254,7 +1254,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("does not fall back to mock workspace cwd when runtime workspace lookup fails in runtime-gateway-web mode", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     const runtimeThread = {
       id: "thread-runtime-gateway-web-cwd",

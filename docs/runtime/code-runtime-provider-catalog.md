@@ -2,7 +2,7 @@
 
 ## Goal
 
-Keep provider routing semantics in the runtime service, not in UI clients, so `web` / `tauri` / future `cli` / `telegram` clients consume one stable contract.
+Keep provider routing semantics in the runtime service, not in UI clients, so `web` / `desktop-host` / future `cli` / `telegram` clients consume one stable contract.
 
 ## What Is Canonical Now
 

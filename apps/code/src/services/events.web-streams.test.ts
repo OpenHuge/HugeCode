@@ -1,4 +1,4 @@
-import { isTauri } from "@tauri-apps/api/core";
+import { isDesktopHostRuntime } from "@desktop-host/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { __resetRuntimeTurnContextForTests, subscribeAppServerEvents } from "./events";
 
@@ -13,12 +13,12 @@ const WEB_WS_ENDPOINT_ENV = "VITE_CODE_RUNTIME_GATEWAY_WEB_WS_ENDPOINT";
 const ORIGINAL_EVENT_SOURCE = globalThis.EventSource;
 const ORIGINAL_WEB_SOCKET = globalThis.WebSocket;
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("@desktop-host/event", () => ({
   listen: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/api/core", () => ({
-  isTauri: vi.fn(() => true),
+vi.mock("@desktop-host/core", () => ({
+  isDesktopHostRuntime: vi.fn(() => true),
 }));
 
 class MockEventSource {
@@ -108,7 +108,7 @@ async function flushAsyncWork() {
 describe("events subscriptions", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, undefined);
     setProcessEnv(WEB_ENDPOINT_ENV, undefined);
     setProcessEnv(WEB_WS_ENDPOINT_ENV, undefined);
@@ -126,7 +126,7 @@ describe("events subscriptions", () => {
   });
 
   it("uses explicit web events endpoint for SSE and adapts runtime-host payloads", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, "http://127.0.0.1:8788/events");
     globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
 
@@ -163,7 +163,7 @@ describe("events subscriptions", () => {
   });
 
   it("dedupes sse events by last-event-id", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, "http://127.0.0.1:8788/events");
     globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
 
@@ -187,7 +187,7 @@ describe("events subscriptions", () => {
   });
 
   it("dedupes sse events by payload eventId when last-event-id is absent", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, "http://127.0.0.1:8788/events");
     globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
 
@@ -212,7 +212,7 @@ describe("events subscriptions", () => {
   });
 
   it("preserves native state fabric resync diagnostics from web runtime events", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, "http://127.0.0.1:8788/events");
     globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
 
@@ -273,7 +273,7 @@ describe("events subscriptions", () => {
   });
 
   it("preserves native state fabric oauth login diagnostics from runtime host events", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, "http://127.0.0.1:8788/events");
     globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
 
@@ -316,7 +316,7 @@ describe("events subscriptions", () => {
   });
 
   it("preserves native state fabric durability degraded diagnostics from runtime host events", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, "http://127.0.0.1:8788/events");
     globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
 
@@ -375,7 +375,7 @@ describe("events subscriptions", () => {
   });
 
   it("preserves remote execution diagnostics from turn terminal events", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, "http://127.0.0.1:8788/events");
     globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
 
@@ -418,7 +418,7 @@ describe("events subscriptions", () => {
   });
 
   it("prefers web runtime websocket stream when capabilities expose ws transport", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     setProcessEnv(WEB_ENDPOINT_ENV, "http://127.0.0.1:8788/rpc");
     globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
     globalThis.WebSocket = MockWebSocket as unknown as typeof WebSocket;
@@ -476,7 +476,7 @@ describe("events subscriptions", () => {
   });
 
   it("resolves relative websocket events endpoint against current origin for worker deployments", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     setProcessEnv(WEB_ENDPOINT_ENV, "/__code_runtime_rpc?token=test#anchor");
     globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
     globalThis.WebSocket = MockWebSocket as unknown as typeof WebSocket;
@@ -513,7 +513,7 @@ describe("events subscriptions", () => {
   it("reconnects websocket app event stream with lastEventId replay query", async () => {
     vi.useFakeTimers();
     try {
-      vi.mocked(isTauri).mockReturnValue(false);
+      vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
       setProcessEnv(WEB_ENDPOINT_ENV, "http://127.0.0.1:8788/rpc");
       globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
       globalThis.WebSocket = MockWebSocket as unknown as typeof WebSocket;
@@ -582,7 +582,7 @@ describe("events subscriptions", () => {
   it("dedupes websocket replay events by event id across reconnect", async () => {
     vi.useFakeTimers();
     try {
-      vi.mocked(isTauri).mockReturnValue(false);
+      vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
       setProcessEnv(WEB_ENDPOINT_ENV, "http://127.0.0.1:8788/rpc");
       globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
       globalThis.WebSocket = MockWebSocket as unknown as typeof WebSocket;
@@ -658,7 +658,7 @@ describe("events subscriptions", () => {
   it("emits native state fabric after websocket app event stream reconnects", async () => {
     vi.useFakeTimers();
     try {
-      vi.mocked(isTauri).mockReturnValue(false);
+      vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
       setProcessEnv(WEB_ENDPOINT_ENV, "http://127.0.0.1:8788/rpc");
       globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
       globalThis.WebSocket = MockWebSocket as unknown as typeof WebSocket;
@@ -714,7 +714,7 @@ describe("events subscriptions", () => {
   });
 
   it("falls back to sse when websocket connection setup fails", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     setProcessEnv(WEB_ENDPOINT_ENV, "http://127.0.0.1:8788/rpc");
     globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
     class ThrowingWebSocket {
@@ -773,7 +773,7 @@ describe("events subscriptions", () => {
     vi.useFakeTimers();
     let cleanup: (() => void) | null = null;
     try {
-      vi.mocked(isTauri).mockReturnValue(false);
+      vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
       setProcessEnv(WEB_ENDPOINT_ENV, "http://127.0.0.1:8788/rpc");
       globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
       class FlakyWebSocket extends MockWebSocket {
@@ -829,7 +829,7 @@ describe("events subscriptions", () => {
     vi.useFakeTimers();
     let cleanup: (() => void) | null = null;
     try {
-      vi.mocked(isTauri).mockReturnValue(false);
+      vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
       setProcessEnv(WEB_ENDPOINT_ENV, "http://127.0.0.1:8788/rpc");
       globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
       class TwiceThrowingWebSocket extends MockWebSocket {
@@ -894,7 +894,7 @@ describe("events subscriptions", () => {
     let cleanup: (() => void) | null = null;
     let eventSourceReadCount = 0;
     try {
-      vi.mocked(isTauri).mockReturnValue(false);
+      vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
       setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, "http://127.0.0.1:8788/events");
       setProcessEnv(WEB_ENDPOINT_ENV, undefined);
       setProcessEnv(WEB_WS_ENDPOINT_ENV, undefined);
@@ -957,7 +957,7 @@ describe("events subscriptions", () => {
     let eventSourceReadCount = 0;
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     try {
-      vi.mocked(isTauri).mockReturnValue(false);
+      vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
       setProcessEnv(WEB_EVENTS_ENDPOINT_ENV, "http://127.0.0.1:8788/events");
       setProcessEnv(WEB_ENDPOINT_ENV, undefined);
       setProcessEnv(WEB_WS_ENDPOINT_ENV, undefined);
@@ -1018,7 +1018,7 @@ describe("events subscriptions", () => {
   });
 
   it("derives web events endpoint from web rpc endpoint", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     setProcessEnv(WEB_ENDPOINT_ENV, "http://127.0.0.1:8788/rpc");
     globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
     globalThis.WebSocket = undefined as unknown as typeof WebSocket;
@@ -1034,7 +1034,7 @@ describe("events subscriptions", () => {
   });
 
   it("derives web events endpoint from underscore rpc endpoint alias", async () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     setProcessEnv(WEB_ENDPOINT_ENV, "/__code_runtime_rpc");
     globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
     globalThis.WebSocket = undefined as unknown as typeof WebSocket;
@@ -1049,8 +1049,8 @@ describe("events subscriptions", () => {
     cleanup();
   });
 
-  it("gracefully no-ops in non-tauri mode when no web endpoint is configured", () => {
-    vi.mocked(isTauri).mockReturnValue(false);
+  it("gracefully no-ops in non-desktop-host mode when no web endpoint is configured", () => {
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
 
     const onEvent = vi.fn();
     const onError = vi.fn();

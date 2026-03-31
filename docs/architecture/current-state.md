@@ -71,7 +71,7 @@ The real end-to-end runtime path today is:
   `apps/code/src/application/runtime/ports/*`
 - App transport and host bridges:
   `apps/code/src/services/runtimeClient*.ts`
-  `apps/code/src/services/desktopHost*.ts` plus legacy `tauri*.ts` shims
+  `apps/code/src/services/desktopHost*.ts` plus legacy `desktop-host*.ts` shims
   `apps/code/src/services/webMcpBridge*.ts`
 - Shared client packages:
   `packages/code-runtime-client`

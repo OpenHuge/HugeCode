@@ -29,35 +29,20 @@ const reactJsxDevRuntimeEntry = fileURLToPath(
 const reactDomEntry = fileURLToPath(new URL("./node_modules/react-dom/index.js", import.meta.url));
 const nodeUtilShimEntry = fileURLToPath(new URL("./src/test/shims/nodeUtil.ts", import.meta.url));
 const nodeTtyShimEntry = fileURLToPath(new URL("./src/test/shims/nodeTty.ts", import.meta.url));
-const legacyDesktopCoreCompatEntry = fileURLToPath(
-  new URL(
-    "./src/application/runtime/ports/packageCompat/legacyDesktopCoreCompat.ts",
-    import.meta.url
-  )
+const desktopHostCoreCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopHostCore.ts", import.meta.url)
 );
-const legacyDesktopDpiCompatEntry = fileURLToPath(
-  new URL(
-    "./src/application/runtime/ports/packageCompat/legacyDesktopDpiCompat.ts",
-    import.meta.url
-  )
+const desktopDpiCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopDpi.ts", import.meta.url)
 );
-const legacyDesktopMenuCompatEntry = fileURLToPath(
-  new URL(
-    "./src/application/runtime/ports/packageCompat/legacyDesktopMenuCompat.ts",
-    import.meta.url
-  )
+const desktopMenuCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopMenu.ts", import.meta.url)
 );
-const legacyDesktopWindowCompatEntry = fileURLToPath(
-  new URL(
-    "./src/application/runtime/ports/packageCompat/legacyDesktopWindowCompat.ts",
-    import.meta.url
-  )
+const desktopHostWindowCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopHostWindow.ts", import.meta.url)
 );
-const legacyDesktopDialogCompatEntry = fileURLToPath(
-  new URL(
-    "./src/application/runtime/ports/packageCompat/legacyDesktopDialogCompat.ts",
-    import.meta.url
-  )
+const desktopHostDialogsCompatEntry = fileURLToPath(
+  new URL("./src/application/runtime/ports/desktopHostDialogs.ts", import.meta.url)
 );
 const desktopUpdaterCompatEntry = fileURLToPath(
   new URL("./src/application/runtime/ports/desktopUpdater.ts", import.meta.url)
@@ -65,14 +50,14 @@ const desktopUpdaterCompatEntry = fileURLToPath(
 const desktopProcessCompatEntry = fileURLToPath(
   new URL("./src/application/runtime/ports/desktopProcess.ts", import.meta.url)
 );
-const desktopOpenerCompatEntry = fileURLToPath(
+const desktopHostOpenerCompatEntry = fileURLToPath(
   new URL("./src/application/runtime/ports/desktopHostOpener.ts", import.meta.url)
 );
-const legacyDesktopEventCompatEntry = fileURLToPath(
-  new URL("./src/test/shims/tauriEventCompat.ts", import.meta.url)
+const desktopHostEventCompatEntry = fileURLToPath(
+  new URL("./src/test/shims/desktopHostEventCompat.ts", import.meta.url)
 );
-const legacyDesktopNotificationCompatEntry = fileURLToPath(
-  new URL("./src/test/shims/tauriNotificationCompat.ts", import.meta.url)
+const desktopNotificationCompatEntry = fileURLToPath(
+  new URL("./src/test/shims/desktopNotificationCompat.ts", import.meta.url)
 );
 const liquidGlassCompatEntry = fileURLToPath(
   new URL("./src/test/shims/liquidGlassCompat.ts", import.meta.url)
@@ -130,47 +115,47 @@ export default defineConfig({
         replacement: nodeTtyShimEntry,
       },
       {
-        find: /^@tauri-apps\/api\/core$/,
-        replacement: legacyDesktopCoreCompatEntry,
+        find: /^@desktop-host\/core$/,
+        replacement: desktopHostCoreCompatEntry,
       },
       {
-        find: /^@tauri-apps\/api\/dpi$/,
-        replacement: legacyDesktopDpiCompatEntry,
+        find: /^@desktop-host\/dpi$/,
+        replacement: desktopDpiCompatEntry,
       },
       {
-        find: /^@tauri-apps\/api\/event$/,
-        replacement: legacyDesktopEventCompatEntry,
+        find: /^@desktop-host\/event$/,
+        replacement: desktopHostEventCompatEntry,
       },
       {
-        find: /^@tauri-apps\/api\/menu$/,
-        replacement: legacyDesktopMenuCompatEntry,
+        find: /^@desktop-host\/menu$/,
+        replacement: desktopMenuCompatEntry,
       },
       {
-        find: /^@tauri-apps\/api\/window$/,
-        replacement: legacyDesktopWindowCompatEntry,
+        find: /^@desktop-host\/window$/,
+        replacement: desktopHostWindowCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-dialog$/,
-        replacement: legacyDesktopDialogCompatEntry,
+        find: /^@desktop-host\/dialogs$/,
+        replacement: desktopHostDialogsCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-notification$/,
-        replacement: legacyDesktopNotificationCompatEntry,
+        find: /^@desktop-host\/notifications$/,
+        replacement: desktopNotificationCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-opener$/,
-        replacement: desktopOpenerCompatEntry,
+        find: /^@desktop-host\/opener$/,
+        replacement: desktopHostOpenerCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-process$/,
+        find: /^@desktop-host\/process$/,
         replacement: desktopProcessCompatEntry,
       },
       {
-        find: /^@tauri-apps\/plugin-updater$/,
+        find: /^@desktop-host\/updater$/,
         replacement: desktopUpdaterCompatEntry,
       },
       {
-        find: /^tauri-plugin-liquid-glass-api$/,
+        find: /^@desktop-host\/liquid-glass$/,
         replacement: liquidGlassCompatEntry,
       },
       {

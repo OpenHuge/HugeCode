@@ -10,7 +10,8 @@ const IMPORT_PATTERN = /(?:from\s+["']([^"']+)["']|import\(\s*["']([^"']+)["']\s
 const RULES = [
   {
     id: "shared-web-core-platform-import",
-    description: "shared web core surfaces must not import Tauri or Electron runtime APIs directly",
+    description:
+      "shared web core surfaces must not import desktop-host packages or Electron runtime APIs directly",
     roots: ["apps/code-web", "packages/code-workspace-client"],
     appliesTo(relativeFilePath) {
       return (
@@ -20,7 +21,7 @@ const RULES = [
     },
     matches(content, specifier) {
       return (
-        specifier.startsWith("@tauri-apps/") ||
+        specifier.startsWith("@desktop-host/") ||
         specifier === "electron" ||
         content.includes("window.hugeCodeDesktopHost") ||
         content.includes("ipcRenderer")
@@ -30,7 +31,7 @@ const RULES = [
   {
     id: "code-domain-platform-import",
     description:
-      "code-domain must stay framework- and platform-neutral; no React, browser host, Tauri, or Electron imports",
+      "code-domain must stay framework- and platform-neutral; no React, browser host, desktop-host, or Electron imports",
     roots: ["packages/code-domain"],
     appliesTo(relativeFilePath) {
       return relativeFilePath.startsWith("packages/code-domain/");
@@ -39,7 +40,7 @@ const RULES = [
       return (
         specifier === "react" ||
         specifier === "react-dom" ||
-        specifier.startsWith("@tauri-apps/") ||
+        specifier.startsWith("@desktop-host/") ||
         specifier === "electron" ||
         content.includes("window.hugeCodeDesktopHost") ||
         content.includes("ipcRenderer")
@@ -49,14 +50,14 @@ const RULES = [
   {
     id: "code-application-platform-import",
     description:
-      "code-application must depend on platform interfaces, not concrete Tauri or Electron APIs",
+      "code-application must depend on platform interfaces, not concrete desktop-host or Electron APIs",
     roots: ["packages/code-application"],
     appliesTo(relativeFilePath) {
       return relativeFilePath.startsWith("packages/code-application/");
     },
     matches(content, specifier) {
       return (
-        specifier.startsWith("@tauri-apps/") ||
+        specifier.startsWith("@desktop-host/") ||
         specifier === "electron" ||
         content.includes("window.hugeCodeDesktopHost") ||
         content.includes("ipcRenderer")
@@ -66,7 +67,7 @@ const RULES = [
   {
     id: "code-platform-interfaces-neutrality",
     description:
-      "code-platform-interfaces must stay abstract and must not import React, Tauri, or Electron runtime implementations",
+      "code-platform-interfaces must stay abstract and must not import React, desktop-host, or Electron runtime implementations",
     roots: ["packages/code-platform-interfaces"],
     appliesTo(relativeFilePath) {
       return relativeFilePath.startsWith("packages/code-platform-interfaces/");
@@ -75,7 +76,7 @@ const RULES = [
       return (
         specifier === "react" ||
         specifier === "react-dom" ||
-        specifier.startsWith("@tauri-apps/") ||
+        specifier.startsWith("@desktop-host/") ||
         specifier === "electron" ||
         content.includes("window.hugeCodeDesktopHost") ||
         content.includes("ipcRenderer")

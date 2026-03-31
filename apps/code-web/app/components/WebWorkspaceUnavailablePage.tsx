@@ -51,7 +51,7 @@ export function WebWorkspaceUnavailablePage() {
             <h3 className={infoTitle}>Use the local runtime for repos and OS tools</h3>
             <p className={infoCopy}>
               The desktop path keeps filesystem access, native window controls, and local repo
-              workflows inside the Tauri target.
+              workflows inside the desktop host.
             </p>
           </article>
           <article className={infoCard}>

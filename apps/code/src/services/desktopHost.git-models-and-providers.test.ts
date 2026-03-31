@@ -1,5 +1,5 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
+import { listen } from "@desktop-host/event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   detectRuntimeMode,
@@ -19,20 +19,20 @@ import {
   unstageGitFile,
 } from "./desktopHost";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
-  isTauri: vi.fn(() => true),
+  isDesktopHostRuntime: vi.fn(() => true),
 }));
 
-vi.mock("@tauri-apps/api/event", () => ({
+vi.mock("@desktop-host/event", () => ({
   listen: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({
+vi.mock("@desktop-host/dialogs", () => ({
   open: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-notification", () => ({
+vi.mock("@desktop-host/notifications", () => ({
   isPermissionGranted: vi.fn(),
   requestPermission: vi.fn(),
   sendNotification: vi.fn(),
@@ -44,7 +44,7 @@ vi.mock("./runtimeClient", () => ({
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
 
-describe("tauri invoke wrappers", () => {
+describe("desktop host invoke wrappers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
@@ -54,7 +54,7 @@ describe("tauri invoke wrappers", () => {
     localStorage.clear();
     const invokeMock = vi.mocked(invoke);
     vi.mocked(listen).mockResolvedValue(async () => undefined);
-    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "is_macos_debug_build") {
         return false;

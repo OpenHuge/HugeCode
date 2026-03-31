@@ -26,7 +26,7 @@ export function useWindowFocusState() {
     try {
       const windowHandle = getCurrentWindow();
       windowHandle
-        .listen("tauri://focus", handleFocus)
+        .listen("desktop-host://focus", handleFocus)
         .then((handler) => {
           unlistenFocus = handler;
         })
@@ -34,7 +34,7 @@ export function useWindowFocusState() {
           // Ignore; fallback listeners below cover focus changes.
         });
       windowHandle
-        .listen("tauri://blur", handleBlur)
+        .listen("desktop-host://blur", handleBlur)
         .then((handler) => {
           unlistenBlur = handler;
         })
@@ -42,7 +42,7 @@ export function useWindowFocusState() {
           // Ignore; fallback listeners below cover focus changes.
         });
     } catch {
-      // In non-Tauri environments, getCurrentWindow can throw.
+      // In non-desktop-host environments, getCurrentWindow can throw.
       // The DOM listeners below still provide focus state.
     }
 

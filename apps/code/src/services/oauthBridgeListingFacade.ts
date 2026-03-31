@@ -25,7 +25,7 @@ export type OAuthBridgeListingFacadeDeps = {
   oauthPoolMembersRpcMethod: string;
   webRuntimeOauthDirectRpcTimeoutMs: number;
   webRuntimeOauthFallbackTimeoutMs: number;
-  isTauri(): boolean;
+  isDesktopHostRuntime(): boolean;
   shouldUseWebRuntimeDirectRpc(): boolean;
   isWebRuntimeOauthCooldownActive(): boolean;
   runWebRuntimeOAuthRequest<Result>(key: string, request: () => Promise<Result>): Promise<Result>;
@@ -84,7 +84,7 @@ export async function listOAuthAccounts(
     deps.clearMockOauthFallbackActive();
     return accounts.map(deps.normalizeOAuthAccountSummary);
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
     deps.markWebRuntimeOauthCooldown(error, "oauth accounts");
@@ -123,7 +123,7 @@ export async function listOAuthPools(
     deps.clearMockOauthFallbackActive();
     return pools;
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
     deps.markWebRuntimeOauthCooldown(error, "oauth pools");
@@ -162,7 +162,7 @@ export async function listOAuthPoolMembers(
     deps.clearMockOauthFallbackActive();
     return members;
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
     deps.markWebRuntimeOauthCooldown(error, "oauth pool members");
@@ -201,7 +201,7 @@ export async function getOAuthPrimaryAccount(
     deps.clearMockOauthFallbackActive();
     return summary;
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
     deps.markWebRuntimeOauthCooldown(error, "oauth primary account");

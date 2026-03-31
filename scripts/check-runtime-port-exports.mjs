@@ -40,55 +40,44 @@ const GUARDED_PORT_FILES = new Set([
   "desktopStateFabric.ts",
   "desktopUpdater.ts",
   "desktopWebview.ts",
-  "tauri.ts",
-  "tauriCodex.ts",
-  "tauriCodexConfig.ts",
-  "tauriCollaboration.ts",
-  "tauriDictation.ts",
-  "tauriFiles.ts",
-  "tauriMenu.ts",
-  "tauriModels.ts",
-  "tauriNotifications.ts",
-  "tauriOauth.ts",
-  "tauriPrompts.ts",
-  "tauriRemoteServers.ts",
-  "tauriRuntime.ts",
-  "tauriRuntimeActionRequired.ts",
-  "tauriRuntimeAutomation.ts",
-  "tauriRuntimeCatalog.ts",
-  "tauriRuntimeExtensions.ts",
+  "codexConfig.ts",
+  "collaboration.ts",
+  "desktopFiles.ts",
+  "git.ts",
+  "desktopMenu.ts",
+  "models.ts",
+  "desktopNotifications.ts",
+  "oauth.ts",
+  "prompts.ts",
+  "remoteServers.ts",
+  "runtime.ts",
+  "runtimeActionRequired.ts",
+  "runtimeAutomation.ts",
+  "runtimeCatalog.ts",
+  "runtimeDiagnostics.ts",
+  "runtimeExtensions.ts",
   "runtimeJobs.ts",
-  "tauriRuntimeOperations.ts",
-  "tauriRuntimePolicy.ts",
-  "tauriRuntimePrompts.ts",
-  "tauriRuntimeSkills.ts",
-  "tauriRuntimeSubAgents.ts",
-  "tauriRuntimeTerminal.ts",
-  "tauriSkills.ts",
-  "tauriTerminal.ts",
-  "tauriThreads.ts",
-  "tauriUsage.ts",
-  "tauriWorkspaceCatalog.ts",
-  "tauriWorkspaceDialogs.ts",
-  "tauriWorkspaceFiles.ts",
-  "tauriWorkspaceMutations.ts",
+  "runtimeOperations.ts",
+  "runtimePolicy.ts",
+  "runtimePrompts.ts",
+  "runtimeLiveSkills.ts",
+  "runtimeSubAgents.ts",
+  "runtimeTerminal.ts",
+  "skills.ts",
+  "terminal.ts",
+  "threads.ts",
+  "usage.ts",
+  "workspaceCatalog.ts",
+  "workspaceDialogs.ts",
+  "workspaceFiles.ts",
+  "workspaceMutations.ts",
   "toasts.ts",
   "webMcpBridge.ts",
   "webMcpInputSchemaValidationError.ts",
   "webMcpModelInputSchemas.ts",
   "webMcpToolInputSchemaValidation.ts",
 ]);
-const RETIRED_RUNTIME_PORT_FILES = new Set([
-  "tauriAppSettings.ts",
-  "tauriApps.ts",
-  "tauriCodex.ts",
-  "tauriGit.ts",
-  "tauriRuntimeDiagnostics.ts",
-  "tauriRuntimeRuns.ts",
-  "tauriThreadSnapshots.ts",
-  "tauriSettings.ts",
-  "tauriWorkspaces.ts",
-]);
+const RETIRED_RUNTIME_PORT_FILES = new Set(["runtimeRuns.ts"]);
 const GUARDED_APP_FILES = new Set([
   "dragDrop.ts",
   "events.ts",
@@ -109,38 +98,6 @@ const GUARDED_APP_FILES = new Set([
 ]);
 const GUARDED_CODE_RUNTIME_HOST_CONTRACT_FILES = new Set(["index.ts"]);
 const GUARDED_NATIVE_RUNTIME_HOST_CONTRACT_FILES = new Set(["index.ts"]);
-const NO_RAW_TAURI_AGGREGATION_PORT_FILES = new Set([
-  "tauriCollaboration.ts",
-  "tauriCodexOperations.ts",
-  "tauriFiles.ts",
-  "tauriMenu.ts",
-  "tauriMissionControl.ts",
-  "tauriModels.ts",
-  "tauriNotifications.ts",
-  "tauriOauth.ts",
-  "tauriRuntime.ts",
-  "tauriRuntimeActionRequired.ts",
-  "tauriRuntimeAutomation.ts",
-  "tauriRuntimeCatalog.ts",
-  "tauriRuntimeDiagnostics.ts",
-  "tauriRuntimeExtensions.ts",
-  "runtimeJobs.ts",
-  "tauriRuntimeOperations.ts",
-  "tauriRuntimePolicy.ts",
-  "tauriRuntimePrompts.ts",
-  "tauriRuntimeSchedules.ts",
-  "tauriRuntimeSkills.ts",
-  "tauriRuntimeSubAgents.ts",
-  "tauriRuntimeTerminal.ts",
-  "tauriSkills.ts",
-  "tauriUsage.ts",
-  "tauriWorkspaceDialogs.ts",
-  "tauriWorkspaceCatalog.ts",
-]);
-const NO_LEGACY_TAURI_SERVICE_IMPORT_PORT_FILES = new Set([
-  "tauriRuntimeGit.ts",
-  "tauriRuntimeWorkspaceFiles.ts",
-]);
 const GUARD_TARGETS = [
   { dir: RUNTIME_PORTS_DIR, guardedFiles: GUARDED_PORT_FILES },
   { dir: RUNTIME_APP_DIR, guardedFiles: GUARDED_APP_FILES },
@@ -154,10 +111,6 @@ const GUARD_TARGETS = [
   },
 ];
 const WILDCARD_EXPORT_PATTERN = /^\s*export\s+\*\s+from\s+["'][^"']+["'];?\s*$/mu;
-const RAW_TAURI_AGGREGATION_IMPORT_PATTERN =
-  /^\s*(?:export|import)[\s\S]*from\s+["']\.\/tauri["'];?\s*$/mu;
-const LEGACY_TAURI_SERVICE_IMPORT_PATTERN =
-  /^\s*import[\s\S]*from\s+["']\.\.\/\.\.\/\.\.\/services\/tauri["'];?\s*$/mu;
 const RUNTIME_SESSION_COMMANDS_PORT_PATH = `${RUNTIME_PORTS_DIR}/runtimeSessionCommands.ts`;
 const RUNTIME_TOOL_LIFECYCLE_PORT_PATH = `${RUNTIME_PORTS_DIR}/runtimeToolLifecycle.ts`;
 const RUNTIME_TOOL_LIFECYCLE_FORBIDDEN_EXPORT_PATTERN =
@@ -321,22 +274,6 @@ for (const filePath of files) {
   }
 
   const baseName = path.posix.basename(filePath);
-  if (
-    NO_RAW_TAURI_AGGREGATION_PORT_FILES.has(baseName) &&
-    RAW_TAURI_AGGREGATION_IMPORT_PATTERN.test(content)
-  ) {
-    violations.push(
-      `${filePath}: runtime port must not import ./tauri; import a dedicated service bridge instead`
-    );
-  }
-  if (
-    NO_LEGACY_TAURI_SERVICE_IMPORT_PORT_FILES.has(baseName) &&
-    LEGACY_TAURI_SERVICE_IMPORT_PATTERN.test(content)
-  ) {
-    violations.push(
-      `${filePath}: raw kernel port must not import legacy services/tauri types; use runtimeClient or runtime contract types instead`
-    );
-  }
   if (RETIRED_RUNTIME_PORT_FILES.has(baseName)) {
     violations.push(
       `${filePath}: retired runtime bridge port must not exist; use narrower domain ports instead`

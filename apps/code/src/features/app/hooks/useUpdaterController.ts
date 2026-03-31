@@ -7,7 +7,7 @@ import { useWindowFocusState } from "../../layout/hooks/useWindowFocusState";
 import { useAgentSoundNotifications } from "../../notifications/hooks/useAgentSoundNotifications";
 import { useAgentSystemNotifications } from "../../notifications/hooks/useAgentSystemNotifications";
 import { useUpdater } from "../../update/hooks/useUpdater";
-import { useTauriEvent } from "./useTauriEvent";
+import { useDesktopHostEvent } from "./useDesktopHostEvent";
 
 type Params = {
   enabled?: boolean;
@@ -60,7 +60,7 @@ export function useUpdaterController({
     [onDebug]
   );
 
-  useTauriEvent(
+  useDesktopHostEvent(
     subscribeUpdaterCheckEvent,
     () => {
       void checkForUpdates({ announceNoUpdate: true });

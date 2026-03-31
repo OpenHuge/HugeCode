@@ -1,6 +1,6 @@
 import type { AppServerEvent } from "../types";
 import { listen } from "../application/runtime/ports/desktopHostEvent";
-import { isTauri } from "../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
 import {
   __resetRuntimeTurnContextForTests,
   normalizeAppServerPayload,
@@ -22,7 +22,7 @@ import {
   APP_SERVER_WS_CHANNEL_ID,
   createCompositeUnsubscribe,
   createRuntimeReconnectSignalEvent,
-  registerRuntimeEventTauriSubscription,
+  registerRuntimeEventDesktopHostSubscription,
   RUNTIME_HOST_EVENT_NAME,
   subscribeWebRuntimeSseEventsShared,
   WEB_RUNTIME_EVENTS_RECONNECT_BASE_MS,
@@ -89,9 +89,9 @@ async function loadStartAppServerBridgeV2() {
   return module.startAppServerBridgeV2;
 }
 
-function isDesktopCompatRuntime(): boolean {
+function isDesktopHostRuntimeRuntime(): boolean {
   try {
-    return isTauri();
+    return isDesktopHostRuntime();
   } catch {
     return false;
   }
@@ -109,12 +109,12 @@ function notifySubscriptionError(
   }
 }
 
-async function registerTauriSubscription(
+async function registerDesktopHostSubscription(
   eventName: string,
   onPayload: (payload: unknown) => void,
   options?: SubscriptionOptions
 ): Promise<Unsubscribe | null> {
-  return registerRuntimeEventTauriSubscription(eventName, onPayload, (error) => {
+  return registerRuntimeEventDesktopHostSubscription(eventName, onPayload, (error) => {
     notifySubscriptionError(options, error, `${eventName} listener startup`);
   });
 }
@@ -443,8 +443,8 @@ async function startAppServerBridge(
 ): Promise<Unsubscribe> {
   const unsubscribers: Unsubscribe[] = [];
 
-  if (isDesktopCompatRuntime()) {
-    const runtimeUnsubscribe = await registerTauriSubscription(
+  if (isDesktopHostRuntimeRuntime()) {
+    const runtimeUnsubscribe = await registerDesktopHostSubscription(
       RUNTIME_HOST_EVENT_NAME,
       (payload) => {
         const normalized = normalizeAppServerPayload(payload);
@@ -483,7 +483,7 @@ function createAppServerEventHub() {
       recordRuntimeEventReconnectAttempt();
       updateRuntimeEventChannelDiagnostics(APP_SERVER_BRIDGE_CHANNEL_ID, {
         label: "App server bridge",
-        transport: isDesktopCompatRuntime() ? "desktop-compat" : "bridge",
+        transport: isDesktopHostRuntimeRuntime() ? "desktop-compat" : "bridge",
         status: "reconnecting",
         retryAttempt: attempt,
         retryDelayMs: delayMs,
@@ -517,7 +517,7 @@ function createAppServerEventHub() {
     }
     updateRuntimeEventChannelDiagnostics(APP_SERVER_BRIDGE_CHANNEL_ID, {
       label: "App server bridge",
-      transport: isDesktopCompatRuntime() ? "desktop-compat" : "bridge",
+      transport: isDesktopHostRuntimeRuntime() ? "desktop-compat" : "bridge",
       status: "connecting",
       retryDelayMs: null,
     });
@@ -547,7 +547,7 @@ function createAppServerEventHub() {
         recordRuntimeEventReconnectSuccess();
         updateRuntimeEventChannelDiagnostics(APP_SERVER_BRIDGE_CHANNEL_ID, {
           label: "App server bridge",
-          transport: isDesktopCompatRuntime() ? "desktop-compat" : "bridge",
+          transport: isDesktopHostRuntimeRuntime() ? "desktop-compat" : "bridge",
           status: "open",
           retryAttempt: 0,
           retryDelayMs: null,
@@ -648,7 +648,7 @@ function createEventHub<T>(eventName: string) {
     if (unlisten || listenPromise || listeners.size === 0) {
       return;
     }
-    if (!isDesktopCompatRuntime()) {
+    if (!isDesktopHostRuntimeRuntime()) {
       return;
     }
     listenPromise = listen<T>(eventName, (event: { payload: T }) => {

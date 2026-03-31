@@ -4,24 +4,24 @@ import type { Unsubscribe } from "../../../application/runtime/ports/events";
 type Subscribe<T> = (handler: (payload: T) => void) => Unsubscribe;
 type SubscribeVoid = (handler: () => void) => Unsubscribe;
 
-type UseTauriEventOptions = {
+type UseDesktopHostEventOptions = {
   enabled?: boolean;
 };
 
-export function useTauriEvent(
+export function useDesktopHostEvent(
   subscribe: SubscribeVoid,
   handler: () => void,
-  options?: UseTauriEventOptions
+  options?: UseDesktopHostEventOptions
 ): void;
-export function useTauriEvent<T>(
+export function useDesktopHostEvent<T>(
   subscribe: Subscribe<T>,
   handler: (payload: T) => void,
-  options?: UseTauriEventOptions
+  options?: UseDesktopHostEventOptions
 ): void;
-export function useTauriEvent<T>(
+export function useDesktopHostEvent<T>(
   subscribe: Subscribe<T> | SubscribeVoid,
   handler: ((payload: T) => void) | (() => void),
-  options: UseTauriEventOptions = {}
+  options: UseDesktopHostEventOptions = {}
 ): void {
   const handlerRef = useRef<(payload: T) => void>(handler as (payload: T) => void);
   const enabled = options.enabled ?? true;

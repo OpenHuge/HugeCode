@@ -44,7 +44,7 @@ The intended flow is:
 
 Use the desktop bootstrap preview command when available:
 
-- Tauri command: `backend_pool_bootstrap_preview`
+- desktop host command: `backend_pool_bootstrap_preview`
 
 That payload returns:
 
@@ -58,7 +58,7 @@ The preview intentionally uses placeholder token wiring such as `$CODEX_BACKEND_
 
 Use the desktop onboarding command:
 
-- Tauri command: `backend_pool_onboarding_preflight`
+- desktop host command: `backend_pool_onboarding_preflight`
 
 The payload accepts:
 

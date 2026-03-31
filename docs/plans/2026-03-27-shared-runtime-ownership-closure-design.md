@@ -50,7 +50,7 @@ That keeps canonical truth split between app-local services and shared packages.
 
 - Delete app-local files when the package can own the full implementation.
 - Keep app-local wrappers only when they inject host-specific inputs such as:
-  - Tauri invoke bridge
+  - desktop host invoke bridge
   - runtime gateway endpoint discovery
   - auth token resolution
   - app runtime update subscriptions
@@ -106,7 +106,7 @@ Reject for this PR. That is too large for a safe production-quality convergence 
 `apps/code/src/services/runtimeClientTransport.ts` becomes a mode switch plus host invoker assembly:
 
 - resolve mode
-- create raw invokers for Tauri and web runtime
+- create raw invokers for desktop host and web runtime
 - call the shared client factory
 
 `apps/code/src/services/runtimeClientWebHttpTransport.ts` remains only as a thin host wrapper around the shared HTTP transport to inject:

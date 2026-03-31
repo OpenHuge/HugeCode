@@ -34,16 +34,16 @@ Updated: 2026-03-22
   - server -> client: `transport.ready`, `rpc.response`, `runtime.event`, `pong`
   - replay cursor via `lastEventId` query parameter
 - Service/web `code_rpc_capabilities` publishes `transports` metadata, including endpoint paths, protocol ids, and replay key semantics.
-- Tauri `code_rpc_capabilities` may omit `transports` because invoke transport is in-process.
+- desktop-host `code_rpc_capabilities` may omit `transports` because invoke transport is in-process.
 - Service runtime (`@ku0/code-runtime-service-rs`) emits structured method-not-found:
   - `error.code = "METHOD_NOT_FOUND"`
-- Tauri invoke path must preserve structured error semantics without introducing alias-specific fallback behavior.
+- desktop host invoke path must preserve structured error semantics without introducing alias-specific fallback behavior.
 - Adapters should probe `code_rpc_capabilities` and use its method/feature/transport baseline directly.
-- Runtime SOT guard (`scripts/check-runtime-sot.mjs`) enforces host/service method parity and bounded tauri method-gap rollout via allowlist.
+- Runtime SOT guard (`scripts/check-runtime-sot.mjs`) enforces host/service method parity and bounded desktop-host method-gap rollout via allowlist.
 
 ## Client Integration Rules
 
-- Web / Tauri / future clients:
+- Web / desktop host / future clients:
   - import method constants from `@ku0/code-runtime-host-contract`
   - import contract baseline constants (`CODE_RUNTIME_RPC_CONTRACT_VERSION`, `CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT`) from `@ku0/code-runtime-host-contract`
   - call canonical `code_*` methods only

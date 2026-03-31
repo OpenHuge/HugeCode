@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyWorktreeChanges,
@@ -9,20 +9,20 @@ import {
   renameWorktreeUpstream,
 } from "./desktopHostWorkspace";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
-  isTauri: vi.fn(),
+  isDesktopHostRuntime: vi.fn(),
 }));
 
 const invokeMock = vi.mocked(invoke);
-const isTauriMock = vi.mocked(isTauri);
+const isDesktopHostRuntimeMock = vi.mocked(isDesktopHostRuntime);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  isTauriMock.mockReturnValue(true);
+  isDesktopHostRuntimeMock.mockReturnValue(true);
 });
 
-describe("tauriDesktopWorkspace", () => {
+describe("desktopHostWorkspace", () => {
   it("maps invoke payloads for workspace desktop wrappers", async () => {
     invokeMock.mockResolvedValueOnce({ shouldRun: true, script: "./setup.sh" });
     invokeMock.mockResolvedValueOnce(undefined);
@@ -73,8 +73,8 @@ describe("tauriDesktopWorkspace", () => {
     });
   });
 
-  it("throws for open_workspace_in outside tauri runtime", async () => {
-    isTauriMock.mockReturnValue(false);
+  it("throws for open_workspace_in outside desktop-host runtime", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(openWorkspaceIn("/tmp/defaults", {})).rejects.toThrow(
       "Open in is unavailable outside the desktop host."
@@ -101,8 +101,8 @@ describe("tauriDesktopWorkspace", () => {
     });
   });
 
-  it("throws for upstream worktree rename outside tauri runtime", async () => {
-    isTauriMock.mockReturnValue(false);
+  it("throws for upstream worktree rename outside desktop-host runtime", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(
       renameWorktreeUpstream("wt-upstream", "feature/old", "feature/new")
@@ -111,7 +111,7 @@ describe("tauriDesktopWorkspace", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("invokes upstream worktree rename in tauri mode", async () => {
+  it("invokes upstream worktree rename in desktop-host mode", async () => {
     invokeMock.mockResolvedValueOnce(undefined);
 
     await expect(

@@ -1,4 +1,4 @@
-import { isTauri } from "../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
 import { logger } from "./logger";
 import { detectRuntimeMode } from "./runtimeClient";
 import { getErrorMessage } from "@ku0/code-runtime-client/runtimeClientErrorUtils";
@@ -32,7 +32,7 @@ export function resolveWebRuntimeControlEndpoint(path: string): string | null {
 }
 
 export function shouldUseWebRuntimeDirectRpc(): boolean {
-  return !isTauri() && detectRuntimeMode() === "runtime-gateway-web";
+  return !isDesktopHostRuntime() && detectRuntimeMode() === "runtime-gateway-web";
 }
 
 function logRuntimeWarning(message: string, context?: unknown): void {
@@ -40,7 +40,7 @@ function logRuntimeWarning(message: string, context?: unknown): void {
 }
 
 export function isWebRuntimeOauthCooldownActive(now = Date.now()): boolean {
-  return !isTauri() && now < webRuntimeOauthCooldownUntilMs;
+  return !isDesktopHostRuntime() && now < webRuntimeOauthCooldownUntilMs;
 }
 
 export function clearWebRuntimeOauthCooldown(): void {
@@ -60,7 +60,7 @@ export async function runWebRuntimeOAuthRequest<T>(
   key: string,
   task: () => Promise<T>
 ): Promise<T> {
-  if (isTauri()) {
+  if (isDesktopHostRuntime()) {
     return task();
   }
   const existing = webRuntimeOauthRequestInFlight.get(key);
@@ -83,7 +83,7 @@ function shouldTripWebRuntimeOauthCooldown(error: unknown): boolean {
 }
 
 export function markWebRuntimeOauthCooldown(error: unknown, label: string): void {
-  if (isTauri()) {
+  if (isDesktopHostRuntime()) {
     return;
   }
   if (!shouldTripWebRuntimeOauthCooldown(error)) {
@@ -116,7 +116,7 @@ export async function awaitWebRuntimeWithFallbackTimeout<T>(
   label: string,
   timeoutMs = WEB_RUNTIME_OAUTH_FALLBACK_TIMEOUT_MS
 ): Promise<T> {
-  if (isTauri()) {
+  if (isDesktopHostRuntime()) {
     return taskFactory(undefined);
   }
   const controller = typeof AbortController === "function" ? new AbortController() : null;

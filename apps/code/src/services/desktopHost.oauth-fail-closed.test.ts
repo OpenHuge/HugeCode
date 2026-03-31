@@ -1,4 +1,4 @@
-import { isTauri } from "@tauri-apps/api/core";
+import { isDesktopHostRuntime } from "@desktop-host/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { detectRuntimeMode, getRuntimeClient } from "./runtimeClient";
 import {
@@ -11,9 +11,9 @@ import {
   upsertOAuthAccount,
 } from "./desktopHost";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
-  isTauri: vi.fn(() => true),
+  isDesktopHostRuntime: vi.fn(() => true),
 }));
 
 vi.mock("./runtimeClient", () => ({
@@ -21,14 +21,14 @@ vi.mock("./runtimeClient", () => ({
   getRuntimeClient: vi.fn(),
 }));
 
-describe("tauri oauth fail-closed behavior", () => {
+describe("desktop host oauth fail-closed behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     __resetWebRuntimeOauthFallbackStateForTests();
     __resetMockOauthSessionFallbackForTests();
-    vi.mocked(isTauri).mockReturnValue(false);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");

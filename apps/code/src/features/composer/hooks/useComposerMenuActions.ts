@@ -6,7 +6,7 @@ import {
   subscribeMenuCycleReasoning,
 } from "../../../application/runtime/ports/events";
 import type { AccessMode } from "../../../types";
-import { useTauriEvent } from "../../app/hooks/useTauriEvent";
+import { useDesktopHostEvent } from "../../app/hooks/useDesktopHostEvent";
 
 type ModelOption = { id: string; displayName: string; model: string; available?: boolean };
 
@@ -115,19 +115,19 @@ export function useComposerMenuActions({
     ]
   );
 
-  useTauriEvent(subscribeMenuCycleModel, () => {
+  useDesktopHostEvent(subscribeMenuCycleModel, () => {
     handlers.cycleModel();
   });
 
-  useTauriEvent(subscribeMenuCycleAccessMode, () => {
+  useDesktopHostEvent(subscribeMenuCycleAccessMode, () => {
     handlers.cycleAccessMode();
   });
 
-  useTauriEvent(subscribeMenuCycleCollaborationMode, () => {
+  useDesktopHostEvent(subscribeMenuCycleCollaborationMode, () => {
     handlers.cycleCollaborationMode();
   });
 
-  useTauriEvent(subscribeMenuCycleReasoning, () => {
+  useDesktopHostEvent(subscribeMenuCycleReasoning, () => {
     handlers.cycleReasoning();
   });
 

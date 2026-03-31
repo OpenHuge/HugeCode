@@ -119,9 +119,9 @@ export function detectBrowserRuntimeConnectionState(
   return "discoverable";
 }
 
-export function isTauriRuntimeBridgeAvailable(): boolean {
-  // Tauri runtime detection is retired. Keep the helper as a stable
-  // compatibility export while the remaining compat shims are removed.
+export function isDesktopHostRuntimeBridgeAvailable(): boolean {
+  // Desktop host runtime auto-detection is retired. Keep the helper as a
+  // stable compatibility export while the remaining compat shims are removed.
   return false;
 }
 

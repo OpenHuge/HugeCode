@@ -1,5 +1,5 @@
 import { type MouseEvent, useCallback } from "react";
-import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
 import { LogicalPosition } from "../../../application/runtime/ports/desktopDpi";
 import { Menu, MenuItem } from "../../../application/runtime/ports/desktopMenu";
 import { revealItemInDir } from "../../../application/runtime/facades/desktopHostFacade";
@@ -60,7 +60,7 @@ export function useSidebarMenus({
     async (event: MouseEvent, workspaceId: string, threadId: string, canPin: boolean) => {
       event.preventDefault();
       event.stopPropagation();
-      if (!isTauri()) {
+      if (!isDesktopHostRuntime()) {
         const actions: SidebarWebContextMenuAction[] = [
           {
             label: "Rename",
@@ -162,7 +162,7 @@ export function useSidebarMenus({
     async (event: MouseEvent, workspaceId: string) => {
       event.preventDefault();
       event.stopPropagation();
-      if (!isTauri()) {
+      if (!isDesktopHostRuntime()) {
         const actions: SidebarWebContextMenuAction[] = [
           {
             label: "Reload threads",
@@ -209,7 +209,7 @@ export function useSidebarMenus({
       event.preventDefault();
       event.stopPropagation();
       const fileManagerLabel = fileManagerName();
-      if (!isTauri()) {
+      if (!isDesktopHostRuntime()) {
         const actions: SidebarWebContextMenuAction[] = [
           {
             label: "Reload threads",

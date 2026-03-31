@@ -2,5 +2,5 @@
 import process from "node:process";
 
 process.stdout.write(
-  "Electron is the canonical desktop host on this branch; no Tauri capability manifest check is required.\n"
+  "Electron is the canonical desktop host on this branch; no desktop capability manifest check is required.\n"
 );

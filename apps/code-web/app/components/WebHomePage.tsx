@@ -33,7 +33,7 @@ const routeCards = [
   {
     title: "Client-only workspace shell",
     kicker: "/app boundary",
-    copy: "The interactive workspace still loads through a controlled client bridge. That keeps Tauri assumptions out of Web SSR and avoids forced runtime unification.",
+    copy: "The interactive workspace still loads through a controlled client bridge. That keeps desktop host assumptions out of Web SSR and avoids forced runtime unification.",
   },
   {
     title: "Installable shell with explicit offline boundaries",
@@ -50,7 +50,7 @@ const stackFacts = [
   },
   {
     label: "Desktop target",
-    value: "Tauri v2 + apps/code",
+    value: "Electron + apps/code",
     copy: "Static host and CSR pipeline stay intact.",
   },
   {
@@ -65,7 +65,7 @@ const stackFacts = [
   },
   {
     label: "Boundary rule",
-    value: "No Tauri in SSR",
+    value: "No desktop host in SSR",
     copy: "Server routes stay clear of desktop-only modules.",
   },
 ] as const;
@@ -77,7 +77,8 @@ export function WebHomePage() {
         <div className={heroCard}>
           <span className={eyebrow}>HugeCode Web Surface</span>
           <h1 className={heroTitle}>
-            A focused web shell on TanStack Start, without pulling Tauri into the server path.
+            A focused web shell on TanStack Start, without pulling the desktop host into the server
+            path.
           </h1>
           <p className={heroCopy}>
             This web target is optimized for Cloudflare Workers, public SSR, and deliberate runtime

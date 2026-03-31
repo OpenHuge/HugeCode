@@ -19,7 +19,7 @@ function createBaseDeps(): OAuthBridgeListingFacadeDeps {
     oauthPoolMembersRpcMethod: "code_oauth_pool_members_list",
     webRuntimeOauthDirectRpcTimeoutMs: 1000,
     webRuntimeOauthFallbackTimeoutMs: 1000,
-    isTauri: () => false,
+    isDesktopHostRuntime: () => false,
     shouldUseWebRuntimeDirectRpc: () => false,
     isWebRuntimeOauthCooldownActive: () => false,
     runWebRuntimeOAuthRequest: async (_key, request) => request(),

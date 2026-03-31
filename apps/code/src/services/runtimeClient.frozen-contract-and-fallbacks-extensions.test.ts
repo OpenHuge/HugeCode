@@ -9,7 +9,7 @@ import { CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES } from "@ku0/code-runtime-host-co
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const invokeMock = vi.fn();
-const isTauriMock = vi.fn();
+const isDesktopHostRuntimeMock = vi.fn();
 const REQUIRED_CONTRACT_FROZEN_FEATURE = `contract_frozen_${CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT.replaceAll("-", "_")}`;
 const CANONICAL_WORKSPACES_METHOD = "code_workspaces_list";
 const CANONICAL_WORKSPACES_METHOD_SET_HASH = computeCodeRuntimeRpcMethodSetHash([
@@ -17,18 +17,18 @@ const CANONICAL_WORKSPACES_METHOD_SET_HASH = computeCodeRuntimeRpcMethodSetHash(
 ]);
 const NON_CANONICAL_RUNTIME_METHOD = "code_runtime_probe_invalid_v1";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: invokeMock,
-  isTauri: isTauriMock,
+  isDesktopHostRuntime: isDesktopHostRuntimeMock,
 }));
 
-function syncTauriBridgeWithMockState() {
-  const tauriWindow = window as Window & {
-    __TAURI_INTERNALS__?: unknown;
+function syncDesktopHostBridgeWithMockState() {
+  const desktopHostWindow = window as Window & {
+    __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
   };
-  const implementation = isTauriMock.getMockImplementation();
+  const implementation = isDesktopHostRuntimeMock.getMockImplementation();
   if (implementation && implementation() === true) {
-    tauriWindow.__TAURI_INTERNALS__ = {
+    desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {
       invoke: invokeMock,
     };
   }
@@ -36,20 +36,20 @@ function syncTauriBridgeWithMockState() {
 
 async function importRuntimeClientModule() {
   vi.resetModules();
-  syncTauriBridgeWithMockState();
+  syncDesktopHostBridgeWithMockState();
   return import("./runtimeClient");
 }
 
-function clearTauriMarkers() {
-  const tauriWindow = window as Window & {
-    __TAURI__?: unknown;
-    __TAURI_INTERNALS__?: unknown;
-    __TAURI_IPC__?: unknown;
+function clearDesktopHostMarkers() {
+  const desktopHostWindow = window as Window & {
+    __HUGE_CODE_DESKTOP_HOST__?: unknown;
+    __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
+    __HUGE_CODE_DESKTOP_HOST_IPC__?: unknown;
   };
 
-  delete tauriWindow.__TAURI__;
-  delete tauriWindow.__TAURI_INTERNALS__;
-  delete tauriWindow.__TAURI_IPC__;
+  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST__;
+  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__;
+  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_IPC__;
 }
 
 function clearAgentRuntimeMarkers() {
@@ -105,11 +105,11 @@ function createFrozenCapabilitiesPayload(
 describe("runtimeClient mode detection", () => {
   beforeEach(() => {
     invokeMock.mockReset();
-    isTauriMock.mockReset();
+    isDesktopHostRuntimeMock.mockReset();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     window.localStorage.clear();
-    clearTauriMarkers();
+    clearDesktopHostMarkers();
     clearAgentRuntimeMarkers();
   });
 
@@ -117,12 +117,12 @@ describe("runtimeClient mode detection", () => {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     window.localStorage.clear();
-    clearTauriMarkers();
+    clearDesktopHostMarkers();
     clearAgentRuntimeMarkers();
   });
 
   it("returns structured unsupported error for sendTurn METHOD_NOT_FOUND", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_turn_send") {
         throw {
@@ -169,8 +169,8 @@ describe("runtimeClient mode detection", () => {
     expect(invokeMock).toHaveBeenCalledTimes(2);
   });
 
-  it("treats tauri command-not-found message as structured unsupported error", async () => {
-    isTauriMock.mockReturnValue(true);
+  it("treats desktop-host command-not-found message as structured unsupported error", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_workspaces_list") {
         throw new Error("invalid args for command invoke: command code_workspaces_list not found");
@@ -191,8 +191,8 @@ describe("runtimeClient mode detection", () => {
     expect(invokeMock).toHaveBeenCalledTimes(2);
   });
 
-  it("retries tauri capabilities probe after transient failure instead of caching null forever", async () => {
-    isTauriMock.mockReturnValue(true);
+  it("retries desktop-host capabilities probe after transient failure instead of caching null forever", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(true);
 
     let capabilitiesProbeCount = 0;
     invokeMock.mockImplementation(async (method: string) => {
@@ -233,8 +233,8 @@ describe("runtimeClient mode detection", () => {
     expect(calledMethods.filter((method) => method === "code_workspaces_list")).toHaveLength(2);
   });
 
-  it("rejects tauri runtime when capabilities omit canonical command", async () => {
-    isTauriMock.mockReturnValue(true);
+  it("rejects desktop-host runtime when capabilities omit canonical command", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -256,8 +256,8 @@ describe("runtimeClient mode detection", () => {
     expect(invokeMock).not.toHaveBeenCalledWith("code_workspaces_list", {});
   });
 
-  it("rejects tauri runtime when rpc contract version is below minimum", async () => {
-    isTauriMock.mockReturnValue(true);
+  it("rejects desktop-host runtime when rpc contract version is below minimum", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return {
@@ -289,8 +289,8 @@ describe("runtimeClient mode detection", () => {
     expect(invokeMock).not.toHaveBeenCalledWith("code_workspaces_list", {});
   });
 
-  it("rejects tauri runtime when rpc contract version format is invalid", async () => {
-    isTauriMock.mockReturnValue(true);
+  it("rejects desktop-host runtime when rpc contract version format is invalid", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return {
@@ -320,8 +320,8 @@ describe("runtimeClient mode detection", () => {
     expect(invokeMock).not.toHaveBeenCalledWith("code_workspaces_list", {});
   });
 
-  it("rejects tauri runtime when frozen rpc contract is missing required frozen features", async () => {
-    isTauriMock.mockReturnValue(true);
+  it("rejects desktop-host runtime when frozen rpc contract is missing required frozen features", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -346,7 +346,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("accepts full-runtime capabilities when optional git diff paging feature is missing", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -370,8 +370,8 @@ describe("runtimeClient mode detection", () => {
     expect(invokeMock).toHaveBeenNthCalledWith(2, "code_workspaces_list", {});
   });
 
-  it("accepts tauri desktop-core profile when desktop frozen baseline features are present", async () => {
-    isTauriMock.mockReturnValue(true);
+  it("accepts desktop-host desktop-core profile when desktop frozen baseline features are present", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -397,8 +397,8 @@ describe("runtimeClient mode detection", () => {
     expect(invokeMock).toHaveBeenNthCalledWith(2, "code_workspaces_list", {});
   });
 
-  it("rejects tauri runtime when capability profile is unknown", async () => {
-    isTauriMock.mockReturnValue(true);
+  it("rejects desktop-host runtime when capability profile is unknown", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -427,8 +427,8 @@ describe("runtimeClient mode detection", () => {
     expect(invokeMock).not.toHaveBeenCalledWith("code_workspaces_list", {});
   });
 
-  it("rejects tauri runtime when capabilities advertise non-canonical method names", async () => {
-    isTauriMock.mockReturnValue(true);
+  it("rejects desktop-host runtime when capabilities advertise non-canonical method names", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -452,8 +452,8 @@ describe("runtimeClient mode detection", () => {
     expect(invokeMock).not.toHaveBeenCalledWith("code_workspaces_list", {});
   });
 
-  it("accepts tauri rpc capabilities metadata provided with snake_case keys", async () => {
-    isTauriMock.mockReturnValue(true);
+  it("accepts desktop-host rpc capabilities metadata provided with snake_case keys", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return {
@@ -481,7 +481,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("does not fall back when canonical call fails with non method-not-found error", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockRejectedValue({
       code: "INTERNAL_ERROR",
       message: "runtime failure",
@@ -500,7 +500,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("does not fall back for non-METHOD_NOT_FOUND sendTurn failures", async () => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_turn_send") {
         throw {
@@ -542,7 +542,7 @@ describe("runtimeClient mode detection", () => {
 
   it("web runtime returns structured unsupported error on METHOD_NOT_FOUND", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -579,7 +579,7 @@ describe("runtimeClient mode detection", () => {
 
   it("retries web capabilities probe after transient failure instead of caching null forever", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     let capabilitiesProbeCount = 0;
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
@@ -628,7 +628,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("clears stale loopback manual runtime profiles when capabilities advertise non-canonical methods", async () => {
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
     window.localStorage.setItem(
       "code.manual-web-runtime-gateway-profile.v1",
       JSON.stringify({
@@ -667,7 +667,7 @@ describe("runtimeClient mode detection", () => {
 
   it("routes terminal controls through web runtime endpoint", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as {

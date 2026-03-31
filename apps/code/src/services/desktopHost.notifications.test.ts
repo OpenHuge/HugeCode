@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
@@ -12,16 +12,16 @@ import {
   sendNotification,
 } from "./desktopHost";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
-  isTauri: vi.fn(() => true),
+  isDesktopHostRuntime: vi.fn(() => true),
 }));
 
 vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({
+vi.mock("@desktop-host/dialogs", () => ({
   open: vi.fn(),
 }));
 
@@ -60,7 +60,7 @@ function installNotificationApiMock(config: {
   return { instances, requestPermission };
 }
 
-describe("tauri invoke wrappers", () => {
+describe("desktop host invoke wrappers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
@@ -71,7 +71,7 @@ describe("tauri invoke wrappers", () => {
     delete window.hugeCodeDesktopHost;
     const invokeMock = vi.mocked(invoke);
     vi.mocked(listen).mockResolvedValue(async () => undefined);
-    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "is_macos_debug_build") {
         return false;
@@ -94,7 +94,7 @@ describe("tauri invoke wrappers", () => {
   it("emits runtime.updated after web event stream reconnects", async () => {
     vi.useFakeTimers();
     try {
-      vi.mocked(listen).mockRejectedValue(new Error("tauri event bridge unavailable"));
+      vi.mocked(listen).mockRejectedValue(new Error("desktop host event bridge unavailable"));
       vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_EVENTS_ENDPOINT", "/runtime/events");
       vi.stubGlobal("WebSocket", undefined);
 
@@ -135,9 +135,9 @@ describe("tauri invoke wrappers", () => {
 
       vi.stubGlobal("EventSource", FakeEventSource as unknown as typeof EventSource);
 
-      const tauri = await import("./tauri");
+      const runtimeTurnBridge = await import("./runtimeTerminalBridge");
       const callback = vi.fn();
-      const unlisten = await tauri.listenRuntimeTurnEvents(callback);
+      const unlisten = await runtimeTurnBridge.listenRuntimeTurnEvents(callback);
 
       const first = FakeEventSource.instances[0];
       expect(first?.url).toBe("/runtime/events");
@@ -174,7 +174,7 @@ describe("tauri invoke wrappers", () => {
   it("throttles repeated runtime.updated reconnect signals", async () => {
     vi.useFakeTimers();
     try {
-      vi.mocked(listen).mockRejectedValue(new Error("tauri event bridge unavailable"));
+      vi.mocked(listen).mockRejectedValue(new Error("desktop host event bridge unavailable"));
       vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_EVENTS_ENDPOINT", "/runtime/events");
       vi.stubGlobal("WebSocket", undefined);
 
@@ -215,9 +215,9 @@ describe("tauri invoke wrappers", () => {
 
       vi.stubGlobal("EventSource", FakeEventSource as unknown as typeof EventSource);
 
-      const tauri = await import("./tauri");
+      const runtimeTurnBridge = await import("./runtimeTerminalBridge");
       const callback = vi.fn();
-      const unlisten = await tauri.listenRuntimeTurnEvents(callback);
+      const unlisten = await runtimeTurnBridge.listenRuntimeTurnEvents(callback);
 
       const first = FakeEventSource.instances[0];
       first?.emit("open", "");
@@ -258,7 +258,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("derives web event endpoint from rpc endpoint with query/hash and supports nested event payload", async () => {
-    vi.mocked(listen).mockRejectedValue(new Error("tauri event bridge unavailable"));
+    vi.mocked(listen).mockRejectedValue(new Error("desktop host event bridge unavailable"));
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc?token=test#anchor");
     vi.stubGlobal("WebSocket", undefined);
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("capabilities probe unavailable")));
@@ -296,9 +296,9 @@ describe("tauri invoke wrappers", () => {
 
     vi.stubGlobal("EventSource", FakeEventSource as unknown as typeof EventSource);
 
-    const tauri = await import("./tauri");
+    const runtimeTurnBridge = await import("./runtimeTerminalBridge");
     const callback = vi.fn();
-    await tauri.listenRuntimeTurnEvents(callback);
+    await runtimeTurnBridge.listenRuntimeTurnEvents(callback);
 
     const eventSource = FakeEventSource.instance;
     expect(eventSource?.url).toBe("/__code_runtime_events?token=test");
@@ -324,13 +324,13 @@ describe("tauri invoke wrappers", () => {
     );
   });
 
-  it("returns noop unlisten when tauri listener fails and web events are unavailable", async () => {
-    vi.mocked(listen).mockRejectedValue(new Error("tauri event bridge unavailable"));
+  it("returns noop unlisten when desktop host listener fails and web events are unavailable", async () => {
+    vi.mocked(listen).mockRejectedValue(new Error("desktop host event bridge unavailable"));
     vi.stubGlobal("EventSource", undefined);
 
-    const tauri = await import("./tauri");
+    const runtimeTurnBridge = await import("./runtimeTerminalBridge");
     const callback = vi.fn();
-    const unlisten = await tauri.listenRuntimeTurnEvents(callback);
+    const unlisten = await runtimeTurnBridge.listenRuntimeTurnEvents(callback);
 
     expect(typeof unlisten).toBe("function");
     expect(callback).not.toHaveBeenCalled();

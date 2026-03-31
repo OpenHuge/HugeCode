@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@desktop-host/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getRuntimeClient } from "./runtimeClient";
 import {
@@ -19,7 +19,7 @@ import {
   setThreadName,
 } from "./desktopHostRpc";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
 }));
 
@@ -45,7 +45,7 @@ beforeEach(() => {
   getRuntimeClientMock.mockReturnValue(runtimeClientMockInstance);
 });
 
-describe("tauriDesktopRpc", () => {
+describe("desktopHostRpc", () => {
   it("routes codex config path through runtime client", async () => {
     invokeMock.mockResolvedValueOnce({ model: " gpt-5 " });
     getCodexConfigPathWithFallbackMock.mockResolvedValueOnce("/tmp/codex.toml");
@@ -59,7 +59,7 @@ describe("tauriDesktopRpc", () => {
     });
   });
 
-  it("returns null when the tauri invoke bridge is unavailable", async () => {
+  it("returns null when the desktop host invoke bridge is unavailable", async () => {
     invokeMock.mockRejectedValueOnce(
       new TypeError("Cannot read properties of undefined (reading 'invoke')")
     );
@@ -120,7 +120,7 @@ describe("tauriDesktopRpc", () => {
     });
   });
 
-  it("falls back to local metadata derivation when tauri invoke is unavailable", async () => {
+  it("falls back to local metadata derivation when the desktop host invoke bridge is unavailable", async () => {
     invokeMock.mockRejectedValueOnce(
       new TypeError("Cannot read properties of undefined (reading 'invoke')")
     );

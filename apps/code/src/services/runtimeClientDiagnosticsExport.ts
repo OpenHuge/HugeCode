@@ -10,9 +10,7 @@ import { toRuntimeRpcInvocationError } from "@ku0/code-runtime-client/runtimeCli
 import type { RuntimeClient } from "./runtimeClient";
 
 const SUPPORTED_DIAGNOSTICS_SOURCES: ReadonlySet<RuntimeDiagnosticsExportResponse["source"]> =
-  // The shared RPC contract still publishes the legacy desktop-export source as
-  // "tauri". Keep accepting it here until that contract is revised.
-  new Set(["runtime-service", "tauri"]);
+  new Set(["runtime-service", "desktop-host"]);
 const SUPPORTED_REDACTION_LEVELS: ReadonlySet<RuntimeDiagnosticsRedactionLevel> = new Set([
   "strict",
   "balanced",
@@ -111,7 +109,7 @@ function validateRuntimeDiagnosticsExportResponse(
     !SUPPORTED_DIAGNOSTICS_SOURCES.has(value.source as RuntimeDiagnosticsExportResponse["source"])
   ) {
     return new RuntimeDiagnosticsExportPayloadInvalidError(
-      "source must be runtime-service or tauri"
+      "source must be runtime-service or desktop-host"
     );
   }
 

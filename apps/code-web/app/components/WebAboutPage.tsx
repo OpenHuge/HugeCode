@@ -44,7 +44,7 @@ const productPrinciples = [
   },
   {
     title: "Cloudflare remains the first-class host",
-    copy: "The Start app is structured for Workers deployment now, without re-binding Tauri or collapsing both targets back into one runtime.",
+    copy: "The Start app is structured for Workers deployment now, without re-binding the desktop host or collapsing both targets back into one runtime.",
   },
 ] as const;
 
@@ -74,7 +74,7 @@ export function WebAboutPage() {
             </div>
             <div className={aboutMetaItem}>
               <span className={aboutMetaLabel}>Desktop target</span>
-              <strong className={aboutMetaValue}>Tauri v2</strong>
+              <strong className={aboutMetaValue}>Electron desktop host</strong>
             </div>
             <div className={aboutMetaItem}>
               <span className={aboutMetaLabel}>Workspace path</span>

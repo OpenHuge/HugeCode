@@ -40,7 +40,6 @@ export async function openDesktopCompatibilityUrl(url: string) {
 
 export const openUrl = openDesktopCompatibilityUrl;
 export const openExternal = openDesktopCompatibilityUrl;
-
 export async function revealDesktopCompatibilityItemInDir(path: string) {
   const opener = await loadCompatibilityOpener();
   if (opener?.revealItemInDir) {
@@ -51,7 +50,6 @@ export async function revealDesktopCompatibilityItemInDir(path: string) {
 }
 
 export const revealItemInDir = revealDesktopCompatibilityItemInDir;
-
 export async function openDesktopCompatibilityPath(path: string) {
   const opener = await loadCompatibilityOpener();
   if (opener?.openPath) {
@@ -63,20 +61,15 @@ export async function openDesktopCompatibilityPath(path: string) {
 
 export const openPath = openDesktopCompatibilityPath;
 
-export function __setDesktopCompatibilityOpenerLoaderForTests(
-  loader: DesktopCompatibilityOpenerLoader
-) {
+export function __setDesktopHostOpenerLoaderForTests(loader: DesktopCompatibilityOpenerLoader) {
   compatibilityOpenerLoader = loader;
   cachedCompatibilityOpenerPromise = null;
 }
 
-export function __resetDesktopCompatibilityOpenerForTests() {
+export function __resetDesktopHostOpenerForTests() {
   compatibilityOpenerLoader = defaultDesktopCompatibilityOpenerLoader;
   cachedCompatibilityOpenerPromise = null;
 }
 
-export const openTauriUrl = openDesktopCompatibilityUrl;
-export const revealTauriItemInDir = revealDesktopCompatibilityItemInDir;
-export const openTauriPath = openDesktopCompatibilityPath;
-export const __setTauriOpenerLoaderForTests = __setDesktopCompatibilityOpenerLoaderForTests;
-export const __resetTauriOpenerForTests = __resetDesktopCompatibilityOpenerForTests;
+export const __setDesktopCompatibilityOpenerLoaderForTests = __setDesktopHostOpenerLoaderForTests;
+export const __resetDesktopCompatibilityOpenerForTests = __resetDesktopHostOpenerForTests;

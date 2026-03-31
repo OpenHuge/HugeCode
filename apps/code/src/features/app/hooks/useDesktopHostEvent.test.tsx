@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
-import { useTauriEvent } from "./useTauriEvent";
+import { useDesktopHostEvent } from "./useDesktopHostEvent";
 
 type Subscribe = (handler: (payload: string) => void) => () => void;
 
@@ -17,7 +17,7 @@ function Harness({
   handler: (payload: string) => void;
   enabled?: boolean;
 }) {
-  useTauriEvent(subscribe, handler, { enabled });
+  useDesktopHostEvent(subscribe, handler, { enabled });
   return null;
 }
 
@@ -30,7 +30,7 @@ async function mountHarness(props: ComponentProps<typeof Harness>) {
   return { root };
 }
 
-describe("useTauriEvent", () => {
+describe("useDesktopHostEvent", () => {
   it("subscribes once and routes to the latest handler", async () => {
     let emit: (payload: string) => void = () => undefined;
     const unlisten = vi.fn();

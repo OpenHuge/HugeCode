@@ -5,26 +5,26 @@ import type { GitHubIssue, GitHubPullRequest, GitLogEntry } from "../../../types
 import { fileManagerName } from "../../../utils/platformPaths";
 import { GitDiffPanel } from "./GitDiffPanel";
 
-const isTauriMock = vi.hoisted(() => vi.fn(() => true));
+const isDesktopHostRuntimeMock = vi.hoisted(() => vi.fn(() => true));
 const menuNew = vi.hoisted(() => vi.fn(async ({ items }) => ({ popup: vi.fn(), items })));
 const menuItemNew = vi.hoisted(() => vi.fn(async (options) => options));
 const clipboardWriteText = vi.hoisted(() => vi.fn());
 const openUrlMock = vi.hoisted(() => vi.fn(async () => undefined));
 
-vi.mock("@tauri-apps/api/core", () => ({
-  isTauri: isTauriMock,
+vi.mock("@desktop-host/core", () => ({
+  isDesktopHostRuntime: isDesktopHostRuntimeMock,
 }));
 
-vi.mock("@tauri-apps/api/menu", () => ({
+vi.mock("@desktop-host/menu", () => ({
   Menu: { new: menuNew },
   MenuItem: { new: menuItemNew },
 }));
 
-vi.mock("@tauri-apps/api/window", () => ({
+vi.mock("@desktop-host/window", () => ({
   getCurrentWindow: () => ({ scaleFactor: () => 1 }),
 }));
 
-vi.mock("@tauri-apps/api/dpi", () => ({
+vi.mock("@desktop-host/dpi", () => ({
   LogicalPosition: class LogicalPosition {
     x: number;
     y: number;
@@ -43,7 +43,7 @@ vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
   revealItemInDir,
 }));
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({
+vi.mock("@desktop-host/dialogs", () => ({
   ask: vi.fn(async () => true),
 }));
 
@@ -101,7 +101,7 @@ const githubPullRequests: GitHubPullRequest[] = [
 
 describe("GitDiffPanel", () => {
   beforeEach(() => {
-    isTauriMock.mockReturnValue(true);
+    isDesktopHostRuntimeMock.mockReturnValue(true);
     openUrlMock.mockClear();
     pushErrorToastMock.mockClear();
   });
@@ -365,8 +365,8 @@ describe("GitDiffPanel", () => {
     expect(clipboardWriteText).toHaveBeenCalledWith("src/sample.ts");
   });
 
-  it("skips tauri menu actions in web runtime", async () => {
-    isTauriMock.mockReturnValue(false);
+  it("skips desktop host menu actions in web runtime", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(false);
     menuNew.mockClear();
     const { container } = render(
       <GitDiffPanel

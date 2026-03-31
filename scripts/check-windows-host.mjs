@@ -106,7 +106,7 @@ function main() {
     );
   } else {
     warnings.push(
-      "WebView2 runtime was not detected. `tauri dev` may fail locally, but Windows bundles use an embedded bootstrapper for end-user installs."
+      "WebView2 runtime was not detected. local desktop host bootstrap may be missing, but Windows bundles use an embedded bootstrapper for end-user installs."
     );
   }
 

@@ -1,10 +1,10 @@
+import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { detectRuntimeMode } from "./runtimeClient";
 import {
   isRuntimeMethodUnsupportedError,
   isWebRuntimeConnectionError,
 } from "@ku0/code-runtime-client/runtimeErrorClassifier";
-import { invoke, isTauri } from "../application/runtime/ports/desktopHostCore";
 import {
   cancelNativeScheduleRun,
   createNativeSchedule,
@@ -19,9 +19,9 @@ const { webRuntimeDirectRpcMock, warnMock } = vi.hoisted(() => ({
   warnMock: vi.fn(),
 }));
 
-vi.mock("../application/runtime/ports/desktopHostCore", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
-  isTauri: vi.fn(),
+  isDesktopHostRuntime: vi.fn(),
 }));
 
 vi.mock("./runtimeClient", () => ({
@@ -45,7 +45,7 @@ vi.mock("./logger", () => ({
 
 describe("runtimeSchedulesBridge", () => {
   const invokeMock = vi.mocked(invoke);
-  const isTauriMock = vi.mocked(isTauri);
+  const isDesktopHostRuntimeMock = vi.mocked(isDesktopHostRuntime);
   const detectRuntimeModeMock = vi.mocked(detectRuntimeMode);
   const isRuntimeMethodUnsupportedErrorMock = vi.mocked(isRuntimeMethodUnsupportedError);
   const isWebRuntimeConnectionErrorMock = vi.mocked(isWebRuntimeConnectionError);
@@ -110,8 +110,8 @@ describe("runtimeSchedulesBridge", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    isTauriMock.mockReturnValue(true);
-    detectRuntimeModeMock.mockReturnValue("desktop-compat");
+    isDesktopHostRuntimeMock.mockReturnValue(true);
+    detectRuntimeModeMock.mockReturnValue("desktop-host");
     isRuntimeMethodUnsupportedErrorMock.mockReturnValue(false);
     isWebRuntimeConnectionErrorMock.mockReturnValue(false);
     invokeMock.mockReset();
@@ -218,7 +218,7 @@ describe("runtimeSchedulesBridge", () => {
   });
 
   it("uses direct web runtime rpc in runtime-gateway-web mode", async () => {
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
     detectRuntimeModeMock.mockReturnValue("runtime-gateway-web");
     webRuntimeDirectRpcSpy.mockImplementation(
       async (method: string, params: Record<string, unknown>) => {
@@ -311,7 +311,7 @@ describe("runtimeSchedulesBridge", () => {
   });
 
   it("logs and returns a null fallback when the web runtime connection is unavailable", async () => {
-    isTauriMock.mockReturnValue(false);
+    isDesktopHostRuntimeMock.mockReturnValue(false);
     detectRuntimeModeMock.mockReturnValue("runtime-gateway-web");
     const connectionError = new Error("fetch failed");
     webRuntimeDirectRpcSpy.mockRejectedValueOnce(connectionError);

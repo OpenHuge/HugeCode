@@ -8,7 +8,7 @@ This document tracks restricted runtime isolation support. It is separate from d
 | ------------------- | ----------------- | ----------------- | ------------------------------------------------------------------------------------- |
 | macOS Apple Silicon | Yes               | Yes               | Primary macOS PR target.                                                              |
 | macOS Intel         | No                | Yes               | Release-only to keep PR runtime lower.                                                |
-| Windows x64         | Yes               | Yes               | Uses Tauri Windows host checks plus NSIS packaging.                                   |
+| Windows x64         | Yes               | Yes               | Uses desktop host Windows host checks plus NSIS packaging.                            |
 | Windows ARM64       | No                | No                | CI packaging disabled until upstream Node/runtime dependencies support `win32 arm64`. |
 | Linux x64           | Yes               | Yes               | Uses deb/appimage packaging in release workflows.                                     |
 | Linux ARM64         | No                | Yes               | Release-only packaging target.                                                        |

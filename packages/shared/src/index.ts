@@ -36,7 +36,7 @@ export {
   DEFAULT_LOCAL_RUNTIME_GATEWAY_PORTS,
   detectBrowserRuntimeMode,
   discoverLocalRuntimeGatewayTargets,
-  isTauriRuntimeBridgeAvailable,
+  isDesktopHostRuntimeBridgeAvailable,
   LOCAL_RUNTIME_GATEWAY_PROBE_TIMEOUT_MS,
   LOOPBACK_HOST_PREFERENCE,
   MANUAL_WEB_RUNTIME_GATEWAY_PROFILE_STORAGE_KEY,

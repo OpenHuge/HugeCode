@@ -9,8 +9,8 @@ vi.mock("../../../services/dragDrop", () => ({
   subscribeWindowDragDrop: vi.fn(() => () => undefined),
 }));
 
-vi.mock("@tauri-apps/api/core", () => ({
-  convertFileSrc: (path: string) => `tauri://${path}`,
+vi.mock("@desktop-host/core", () => ({
+  convertFileSrc: (path: string) => `desktop-host://${path}`,
 }));
 
 type HarnessProps = {

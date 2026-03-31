@@ -212,7 +212,6 @@ apps/code-electron/out/
 **/target/
 packages/*/Cargo.lock
 packages/*/native/Cargo.lock
-apps/*/src-tauri/Cargo.lock
 *.tsbuildinfo
 /build.log
 /build_debug.log
@@ -254,7 +253,4 @@ packages/runtime-diagnostics-export-core-rs/target/
 packages/runtime-diagnostics-export-core-rs/Cargo.lock
 
 
-# Desktop Tauri
-apps/code-tauri/src-tauri/target/
-apps/code-tauri/src-tauri/gen/
-apps/code-tauri/src-tauri/Cargo.lock
+# Desktop host

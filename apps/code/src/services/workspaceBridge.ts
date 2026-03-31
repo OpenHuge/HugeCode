@@ -1,12 +1,12 @@
-import { invoke, isTauri } from "../application/runtime/ports/desktopHostCore";
+import { invoke, isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
 import { open } from "../application/runtime/ports/desktopHostDialogs";
 import type { WorkspaceInfo, WorkspaceSettings } from "../types";
 import { logger } from "./logger";
 import { detectRuntimeMode, getRuntimeClient } from "./runtimeClient";
 import { resolveWebRuntimeEndpoint } from "./runtimeClientWebGateway";
 import {
-  isMissingTauriCommandError,
-  isMissingTauriInvokeError,
+  isMissingDesktopHostCommandError,
+  isMissingDesktopHostInvokeError,
   isRuntimeMethodUnsupportedError,
 } from "@ku0/code-runtime-client/runtimeErrorClassifier";
 import { invokeWebRuntimeDirectRpc } from "./runtimeWebDirectRpc";
@@ -235,7 +235,7 @@ export async function pickWorkspacePath(): Promise<string | null> {
     }
     return selection;
   } catch (error) {
-    if (isMissingTauriInvokeError(error) || isMissingTauriCommandError(error, "open")) {
+    if (isMissingDesktopHostInvokeError(error) || isMissingDesktopHostCommandError(error, "open")) {
       logRuntimeWarning("Workspace picker unavailable; returning null selection.");
       return null;
     }
@@ -255,7 +255,7 @@ export async function pickWorkspacePaths(): Promise<string[]> {
     }
     return Array.isArray(selection) ? selection : [selection];
   } catch (error) {
-    if (isMissingTauriInvokeError(error) || isMissingTauriCommandError(error, "open")) {
+    if (isMissingDesktopHostInvokeError(error) || isMissingDesktopHostCommandError(error, "open")) {
       logRuntimeWarning("Workspace picker unavailable; returning empty selections.");
       return [];
     }
@@ -264,7 +264,7 @@ export async function pickWorkspacePaths(): Promise<string[]> {
 }
 
 export async function pickAttachmentFiles(): Promise<string[]> {
-  if (!isTauri()) {
+  if (!isDesktopHostRuntime()) {
     return [];
   }
   try {
@@ -276,7 +276,7 @@ export async function pickAttachmentFiles(): Promise<string[]> {
     }
     return Array.isArray(selection) ? selection : [selection];
   } catch (error) {
-    if (isMissingTauriInvokeError(error) || isMissingTauriCommandError(error, "open")) {
+    if (isMissingDesktopHostInvokeError(error) || isMissingDesktopHostCommandError(error, "open")) {
       logRuntimeWarning("Attachment picker unavailable; returning empty attachment selections.");
       return [];
     }
@@ -343,9 +343,9 @@ export async function renameWorkspace(id: string, displayName: string): Promise<
 }
 
 export async function isWorkspacePathDir(path: string): Promise<boolean> {
-  if (!isTauri()) {
+  if (!isDesktopHostRuntime()) {
     void path;
-    throw new Error("Workspace path validation is only available in Tauri runtime.");
+    throw new Error("Workspace path validation is only available in Desktop host runtime.");
   }
   return invoke<boolean>("is_workspace_path_dir", { path });
 }
@@ -355,11 +355,11 @@ export async function addClone(
   copiesFolder: string,
   copyName: string
 ): Promise<WorkspaceInfo> {
-  if (!isTauri()) {
+  if (!isDesktopHostRuntime()) {
     void sourceWorkspaceId;
     void copiesFolder;
     void copyName;
-    throw new Error("Workspace cloning is only available in Tauri runtime.");
+    throw new Error("Workspace cloning is only available in Desktop host runtime.");
   }
   return invoke<WorkspaceInfo>("add_clone", {
     sourceWorkspaceId,
@@ -374,12 +374,12 @@ export async function addWorktree(
   name: string | null,
   copyAgentsMd = true
 ): Promise<WorkspaceInfo> {
-  if (!isTauri()) {
+  if (!isDesktopHostRuntime()) {
     void parentId;
     void branch;
     void name;
     void copyAgentsMd;
-    throw new Error("Worktree creation is only available in Tauri runtime.");
+    throw new Error("Worktree creation is only available in Desktop host runtime.");
   }
   return invoke<WorkspaceInfo>("add_worktree", { parentId, branch, name, copyAgentsMd });
 }
@@ -388,10 +388,10 @@ export async function updateWorkspaceSettings(
   id: string,
   settings: WorkspaceSettings
 ): Promise<WorkspaceInfo> {
-  if (!isTauri()) {
+  if (!isDesktopHostRuntime()) {
     void id;
     void settings;
-    throw new Error("Workspace settings update is only available in Tauri runtime.");
+    throw new Error("Workspace settings update is only available in Desktop host runtime.");
   }
   return invoke<WorkspaceInfo>("update_workspace_settings", { id, settings });
 }
@@ -400,10 +400,10 @@ export async function updateWorkspaceCodexBin(
   id: string,
   codex_bin: string | null
 ): Promise<WorkspaceInfo> {
-  if (!isTauri()) {
+  if (!isDesktopHostRuntime()) {
     void id;
     void codex_bin;
-    throw new Error("Workspace codex bin update is only available in Tauri runtime.");
+    throw new Error("Workspace codex bin update is only available in Desktop host runtime.");
   }
   return invoke<WorkspaceInfo>("update_workspace_codex_bin", { id, codex_bin });
 }
@@ -413,18 +413,18 @@ export async function removeWorkspace(id: string): Promise<void> {
 }
 
 export async function removeWorktree(id: string): Promise<void> {
-  if (!isTauri()) {
+  if (!isDesktopHostRuntime()) {
     void id;
-    throw new Error("Worktree removal is only available in Tauri runtime.");
+    throw new Error("Worktree removal is only available in Desktop host runtime.");
   }
   return invoke("remove_worktree", { id });
 }
 
 export async function renameWorktree(id: string, branch: string): Promise<WorkspaceInfo> {
-  if (!isTauri()) {
+  if (!isDesktopHostRuntime()) {
     void id;
     void branch;
-    throw new Error("Worktree rename is only available in Tauri runtime.");
+    throw new Error("Worktree rename is only available in Desktop host runtime.");
   }
   return invoke<WorkspaceInfo>("rename_worktree", { id, branch });
 }

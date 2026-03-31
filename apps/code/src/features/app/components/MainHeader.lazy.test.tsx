@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceInfo } from "../../../types";
 import { MainHeader } from "./MainHeader";
 
-vi.mock("@tauri-apps/plugin-opener", () => ({
+vi.mock("@desktop-host/opener", () => ({
   revealItemInDir: vi.fn(async () => undefined),
 }));
 

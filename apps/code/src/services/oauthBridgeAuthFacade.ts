@@ -43,7 +43,7 @@ export type { CodexLoginOptions, CodexLoginResult } from "./oauthBridgeCodexLogi
 
 export type OAuthBridgeAuthFacadeDeps = {
   webRuntimeRpcEndpointEnvKey: string;
-  isTauri(): boolean;
+  isDesktopHostRuntime(): boolean;
   isRecord(value: unknown): value is JsonRecord;
   normalizeNullableText(value: unknown): string | null;
   listOAuthAccounts(
@@ -102,7 +102,7 @@ type ChatgptRefreshFacadeDeps = Pick<
   | "getRuntimeClient"
   | "clearWebRuntimeOauthCooldown"
   | "isRuntimeMethodUnsupportedError"
-  | "isTauri"
+  | "isDesktopHostRuntime"
   | "markWebRuntimeOauthCooldown"
   | "logRuntimeWarning"
   | "getErrorMessage"
@@ -114,7 +114,7 @@ type ChatgptRefreshFacadeDeps = Pick<
 function createCodexLoginDeps(deps: OAuthBridgeAuthFacadeDeps): CodexLoginDeps {
   return {
     webRuntimeRpcEndpointEnvKey: deps.webRuntimeRpcEndpointEnvKey,
-    isTauri: deps.isTauri,
+    isDesktopHostRuntime: deps.isDesktopHostRuntime,
     isRecord: deps.isRecord,
     normalizeNullableText: deps.normalizeNullableText,
     listOAuthAccounts: deps.listOAuthAccounts,
@@ -154,7 +154,7 @@ export async function resolveChatgptAuthTokensRefreshResponse(
       getRuntimeClient: deps.getRuntimeClient,
       clearWebRuntimeOauthCooldown: deps.clearWebRuntimeOauthCooldown,
       isRuntimeMethodUnsupportedError: deps.isRuntimeMethodUnsupportedError,
-      isTauri: deps.isTauri,
+      isDesktopHostRuntime: deps.isDesktopHostRuntime,
       markWebRuntimeOauthCooldown: deps.markWebRuntimeOauthCooldown,
       logRuntimeWarning: deps.logRuntimeWarning,
       getErrorMessage: deps.getErrorMessage,

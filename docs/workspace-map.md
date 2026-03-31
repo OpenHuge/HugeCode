@@ -22,7 +22,7 @@ Interpret this carefully:
   implementation imports.
 - `packages/code-platform-interfaces` is the shared capability-contract layer
   for desktop and web host adapters. Keep it free of concrete Electron runtime
-  imports and legacy Tauri compatibility details.
+  imports and legacy desktop host compatibility details.
 - `apps/code` remains the desktop-first host shell and runtime bootstrap layer
   around that shared workspace client.
 - `apps/code-electron` is the canonical desktop shell around the same

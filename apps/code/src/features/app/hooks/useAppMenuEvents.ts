@@ -17,7 +17,7 @@ import {
 } from "../../../application/runtime/ports/events";
 import type { WorkspaceInfo } from "../../../types";
 import type { CodexSection } from "../../settings/components/settingsTypes";
-import { useTauriEvent } from "./useTauriEvent";
+import { useDesktopHostEvent } from "./useDesktopHostEvent";
 
 type Params = {
   activeWorkspaceRef: MutableRefObject<WorkspaceInfo | null>;
@@ -62,28 +62,28 @@ export function useAppMenuEvents({
 }: Params) {
   const lastMenuAddWorkspaceAtRef = useRef(0);
 
-  useTauriEvent(subscribeMenuNewAgent, () => {
+  useDesktopHostEvent(subscribeMenuNewAgent, () => {
     const workspace = activeWorkspaceRef.current;
     if (workspace) {
       onAddAgent(workspace);
     }
   });
 
-  useTauriEvent(subscribeMenuNewWorktreeAgent, () => {
+  useDesktopHostEvent(subscribeMenuNewWorktreeAgent, () => {
     const workspace = baseWorkspaceRef.current;
     if (workspace) {
       onAddWorktreeAgent(workspace);
     }
   });
 
-  useTauriEvent(subscribeMenuNewCloneAgent, () => {
+  useDesktopHostEvent(subscribeMenuNewCloneAgent, () => {
     const workspace = baseWorkspaceRef.current;
     if (workspace) {
       onAddCloneAgent(workspace);
     }
   });
 
-  useTauriEvent(subscribeMenuAddWorkspace, () => {
+  useDesktopHostEvent(subscribeMenuAddWorkspace, () => {
     if (typeof document !== "undefined" && document.visibilityState !== "visible") {
       return;
     }
@@ -95,35 +95,35 @@ export function useAppMenuEvents({
     onAddWorkspace();
   });
 
-  useTauriEvent(subscribeMenuOpenSettings, () => {
+  useDesktopHostEvent(subscribeMenuOpenSettings, () => {
     onOpenSettings();
   });
 
-  useTauriEvent(subscribeMenuNextAgent, () => {
+  useDesktopHostEvent(subscribeMenuNextAgent, () => {
     onCycleAgent("next");
   });
 
-  useTauriEvent(subscribeMenuPrevAgent, () => {
+  useDesktopHostEvent(subscribeMenuPrevAgent, () => {
     onCycleAgent("prev");
   });
 
-  useTauriEvent(subscribeMenuNextWorkspace, () => {
+  useDesktopHostEvent(subscribeMenuNextWorkspace, () => {
     onCycleWorkspace("next");
   });
 
-  useTauriEvent(subscribeMenuPrevWorkspace, () => {
+  useDesktopHostEvent(subscribeMenuPrevWorkspace, () => {
     onCycleWorkspace("prev");
   });
 
-  useTauriEvent(subscribeMenuToggleDebugPanel, () => {
+  useDesktopHostEvent(subscribeMenuToggleDebugPanel, () => {
     onToggleDebug();
   });
 
-  useTauriEvent(subscribeMenuToggleTerminal, () => {
+  useDesktopHostEvent(subscribeMenuToggleTerminal, () => {
     onToggleTerminal();
   });
 
-  useTauriEvent(subscribeMenuToggleProjectsSidebar, () => {
+  useDesktopHostEvent(subscribeMenuToggleProjectsSidebar, () => {
     if (sidebarCollapsed) {
       onExpandSidebar();
     } else {
@@ -131,7 +131,7 @@ export function useAppMenuEvents({
     }
   });
 
-  useTauriEvent(subscribeMenuToggleGitSidebar, () => {
+  useDesktopHostEvent(subscribeMenuToggleGitSidebar, () => {
     if (rightPanelCollapsed) {
       onExpandRightPanel();
     } else {

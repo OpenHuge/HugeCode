@@ -1,10 +1,10 @@
-import { invoke, isTauri } from "../application/runtime/ports/desktopHostCore";
+import { invoke, isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
 import type { LocalUsageSnapshot } from "../types";
 import { createLocalUsageSnapshotGateway } from "./localUsageSnapshotGateway";
 import { getRuntimeClient } from "./runtimeClient";
 import {
-  isMissingTauriCommandError,
-  isMissingTauriInvokeError,
+  isMissingDesktopHostCommandError,
+  isMissingDesktopHostInvokeError,
   LOCAL_USAGE_CACHE_TTL_MS,
 } from "./runtimeTransport";
 import { buildLocalUsageSnapshotFromCliSessions } from "./runtimeTurnHelpers";
@@ -17,15 +17,15 @@ function getLocalUsageSnapshotGateway() {
   }
   localUsageSnapshotGateway = createLocalUsageSnapshotGateway({
     cacheTtlMs: LOCAL_USAGE_CACHE_TTL_MS,
-    isTauri: () => isTauri(),
+    isDesktopHostRuntime: () => isDesktopHostRuntime(),
     readRuntimeCliSessions: async () =>
       (await getRuntimeClient().cliSessions()) as Array<
         { updatedAt: number } & Record<string, unknown>
       >,
     invokeLocalUsageSnapshot: async (payload) =>
       invoke<LocalUsageSnapshot>("local_usage_snapshot", payload),
-    isMissingTauriInvokeError,
-    isMissingTauriCommandError,
+    isMissingDesktopHostInvokeError,
+    isMissingDesktopHostCommandError,
     buildLocalUsageSnapshotFromCliSessions,
   });
   return localUsageSnapshotGateway;

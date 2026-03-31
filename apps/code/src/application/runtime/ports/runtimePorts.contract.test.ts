@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -116,32 +116,6 @@ import {
   pickWorkspacePaths as pickWorkspacePathsBridge,
 } from "../../../services/workspaceBridge";
 
-function collectSourceFiles(directory: string): string[] {
-  return readdirSync(directory).flatMap((entry) => {
-    const absolutePath = path.join(directory, entry);
-    const stats = statSync(absolutePath);
-
-    if (stats.isDirectory()) {
-      return collectSourceFiles(absolutePath);
-    }
-
-    if (!absolutePath.endsWith(".ts") && !absolutePath.endsWith(".tsx")) {
-      return [];
-    }
-
-    if (
-      absolutePath.endsWith(".test.ts") ||
-      absolutePath.endsWith(".test.tsx") ||
-      absolutePath.endsWith(".test.shared.tsx") ||
-      absolutePath.includes(`${path.sep}test${path.sep}`)
-    ) {
-      return [];
-    }
-
-    return [absolutePath];
-  });
-}
-
 describe("runtime port contract", () => {
   it("re-exports critical runtime functions from narrow runtime ports", () => {
     const runtimePortExports = [
@@ -240,55 +214,49 @@ describe("runtime port contract", () => {
     }
   });
 
-  it("keeps active renderer source off tauri-named runtime ports", () => {
-    const appSourceRoot = path.resolve(import.meta.dirname, "../../..");
-    const offenders = collectSourceFiles(appSourceRoot)
-      .filter(
-        (filePath) =>
-          !filePath.includes(`${path.sep}application${path.sep}runtime${path.sep}ports${path.sep}`)
-      )
-      .filter((filePath) => {
-        const source = readFileSync(filePath, "utf8");
-        return /application\/runtime\/ports\/tauri[A-Z][A-Za-z]+/.test(source);
-      })
-      .map((filePath) => path.relative(appSourceRoot, filePath))
-      .sort();
+  it("keeps remoteServers focused on runtime server controls", () => {
+    const source = readFileSync(path.resolve(import.meta.dirname, "remoteServers.ts"), "utf8");
 
-    expect(offenders).toEqual([]);
+    expect(source).not.toMatch(
+      /acpIntegrationProbe[\s\S]*acpIntegrationsList[\s\S]*acpIntegrationRemove[\s\S]*acpIntegrationSetState[\s\S]*acpIntegrationUpsert[\s\S]*getBackendPoolBootstrapPreview[\s\S]*getBackendPoolDiagnostics[\s\S]*orbitConnectTest[\s\S]*orbitRunnerStart[\s\S]*orbitRunnerStatus[\s\S]*orbitRunnerStop[\s\S]*orbitSignInPoll[\s\S]*orbitSignInStart[\s\S]*orbitSignOut[\s\S]*netbirdDaemonCommandPreview[\s\S]*netbirdStatus[\s\S]*runtimeBackendRemove[\s\S]*runtimeBackendSetState[\s\S]*runtimeBackendsList[\s\S]*runtimeBackendUpsert[\s\S]*tailscaleDaemonCommandPreview[\s\S]*tailscaleDaemonStart[\s\S]*tailscaleDaemonStatus[\s\S]*tailscaleDaemonStop[\s\S]*tailscaleStatus/
+    );
   });
 
-  it("keeps canonical runtime ports off tauri-named wrappers and bridge modules", () => {
-    const runtimePortsRoot = path.resolve(import.meta.dirname);
-    const offenders = collectSourceFiles(runtimePortsRoot)
-      .filter((filePath) => !filePath.includes(`${path.sep}packageCompat${path.sep}`))
-      .filter((filePath) => !path.basename(filePath).startsWith("tauri"))
-      .filter((filePath) => {
-        const source = readFileSync(filePath, "utf8");
-        return (
-          /from\s+["']\.\/tauri[A-Z][A-Za-z]+["']/.test(source) ||
-          /from\s+["']\.\.\/\.\.\/\.\.\/services\/tauri[A-Z][A-Za-z]+Bridge["']/.test(source)
-        );
-      })
-      .map((filePath) => path.relative(runtimePortsRoot, filePath))
-      .sort();
+  it("does not expose workspace catalog reads from remoteServers", () => {
+    const remoteServersSource = readFileSync(
+      path.resolve(import.meta.dirname, "remoteServers.ts"),
+      "utf8"
+    );
 
-    expect(offenders).toEqual([]);
+    expect(remoteServersSource).not.toMatch(/export\s*\{\s*listWorkspaces\s*\}\s*from/);
   });
 
-  it("retires tauri-named runtime port wrappers entirely", () => {
-    const runtimePortsRoot = path.resolve(import.meta.dirname);
-    const tauriCompatFiles = readdirSync(runtimePortsRoot)
-      .filter((entry) => entry.startsWith("tauri"))
-      .filter((entry) => entry.endsWith(".ts"))
-      .sort();
+  it("keeps leaf ports free of retired compatibility aggregation imports", () => {
+    const leafPortSources = [
+      "collaboration.ts",
+      "desktopFiles.ts",
+      "desktopMenu.ts",
+      "models.ts",
+      "desktopNotifications.ts",
+      "skills.ts",
+      "usage.ts",
+      "workspaceDialogs.ts",
+    ] as const;
 
-    expect(tauriCompatFiles).toEqual([]);
+    for (const fileName of leafPortSources) {
+      const source = readFileSync(path.resolve(import.meta.dirname, fileName), "utf8");
+
+      expect(
+        source,
+        `${fileName} should not import retired compatibility aggregation exports`
+      ).not.toMatch(/from\s+["']\.\/(?:compat|legacy)[A-Za-z0-9]*["']/);
+    }
   });
 
-  it("retires the deprecated tauri service barrel entirely", () => {
-    const source = path.resolve(import.meta.dirname, "../../../services/tauri.ts");
+  it("keeps runtimeJobs free of retired compatibility aggregation imports", () => {
+    const source = readFileSync(path.resolve(import.meta.dirname, "runtimeJobs.ts"), "utf8");
 
-    expect(existsSync(source)).toBe(false);
+    expect(source).not.toMatch(/from\s+["']\.\/(?:compat|legacy)[A-Za-z0-9]*["']/);
   });
 
   it("keeps workspace client runtime bindings on kernel jobs instead of legacy runtime runs", () => {
@@ -298,7 +266,7 @@ describe("runtime port contract", () => {
     );
 
     expect(source).toMatch(/from\s+["']\.\.\/ports\/runtimeJobs["']/);
-    expect(source).not.toMatch(/from\s+["']\.\.\/ports\/tauriRuntimeRuns["']/);
+    expect(source).not.toMatch(/from\s+["']\.\.\/ports\/runtimeRuns["']/);
   });
 
   it("routes runtime agent control dependencies through kernel jobs for control-plane mutations", () => {
@@ -311,9 +279,56 @@ describe("runtime port contract", () => {
     expect(source).toMatch(/startRuntimeRunWithRemoteSelection/);
   });
 
-  it("retires tauriRuntimeRuns in favor of kernel jobs and mission-control projections", () => {
-    const source = path.resolve(import.meta.dirname, "tauriRuntimeRuns.ts");
+  it("removes legacy run-first approval names from shared and app-facing control surfaces", () => {
+    const appSurfaceSource = readFileSync(
+      path.resolve(import.meta.dirname, "../types/webMcpBridge.ts"),
+      "utf8"
+    );
+    const sharedSurfaceSource = readFileSync(
+      path.resolve(
+        import.meta.dirname,
+        "../../../../../../packages/code-runtime-webmcp-client/src/webMcpBridgeTypes.ts"
+      ),
+      "utf8"
+    );
+    const facadeSource = readFileSync(
+      path.resolve(import.meta.dirname, "../facades/runtimeAgentControlFacade.ts"),
+      "utf8"
+    );
 
-    expect(existsSync(source)).toBe(false);
+    expect(appSurfaceSource).toContain("@ku0/code-runtime-webmcp-client/webMcpBridgeTypes");
+    expect(appSurfaceSource).not.toContain("checkpointRunApproval");
+    expect(sharedSurfaceSource).toContain("submitTaskApprovalDecision");
+    expect(sharedSurfaceSource).not.toContain("checkpointRunApproval");
+    expect(facadeSource).toContain("submitTaskApprovalDecision");
+    expect(facadeSource).not.toContain("checkpointRunApproval");
+  });
+
+  it("retires runtimeRuns in favor of kernel jobs and mission-control projections", () => {
+    const source = path.resolve(import.meta.dirname, "runtimeRuns.ts");
+
+    expect(() => readFileSync(source, "utf8")).toThrow();
+  });
+
+  it("keeps threads off legacy runtime run controls", () => {
+    const source = readFileSync(path.resolve(import.meta.dirname, "threads.ts"), "utf8");
+
+    expect(source).not.toMatch(/cancelRuntimeRun/);
+    expect(source).not.toMatch(/listRuntimeRuns/);
+    expect(source).not.toMatch(/startRuntimeRun/);
+    expect(source).not.toMatch(/subscribeRuntimeRun/);
+    expect(source).not.toMatch(/\.\/runtimeRuns/);
+  });
+
+  it("keeps workspaceCatalog free of retired compatibility aggregation imports", () => {
+    const source = readFileSync(path.resolve(import.meta.dirname, "workspaceCatalog.ts"), "utf8");
+
+    expect(source).not.toMatch(/from\s+["']\.\/(?:compat|legacy)[A-Za-z0-9]*["']/);
+  });
+
+  it("keeps oauth free of retired compatibility aggregation imports", () => {
+    const source = readFileSync(path.resolve(import.meta.dirname, "oauth.ts"), "utf8");
+
+    expect(source).not.toMatch(/from\s+["']\.\/(?:compat|legacy)[A-Za-z0-9]*["']/);
   });
 });

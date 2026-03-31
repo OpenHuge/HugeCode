@@ -406,7 +406,7 @@ type SelectOAuthPoolAccountWithFallbackDeps = {
       request: OAuthPoolSelectionRequest
     ) => Promise<OAuthPoolSelectionResult | null>;
   };
-  isTauri: () => boolean;
+  isDesktopHostRuntime: () => boolean;
   normalizeNullableText: (value: unknown) => string | null;
   readMockOAuthPools: () => OAuthPoolSummary[];
   readMockOAuthAccounts: () => OAuthAccountSummary[];
@@ -426,7 +426,7 @@ export async function selectOAuthPoolAccountWithFallback(
     deps.clearMockOauthFallbackActive();
     return selected ?? null;
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
   }
@@ -532,7 +532,7 @@ type BindOAuthPoolAccountWithFallbackDeps = {
       request: OAuthPoolAccountBindRequest
     ) => Promise<OAuthPoolSelectionResult | null>;
   };
-  isTauri: () => boolean;
+  isDesktopHostRuntime: () => boolean;
   normalizeNullableText: (value: unknown) => string | null;
   readMockOAuthAccounts: () => OAuthAccountSummary[];
   readMockProjectWorkspaceBindings: () => Record<string, string>;
@@ -551,7 +551,7 @@ export async function bindOAuthPoolAccountWithFallback(
     deps.clearMockOauthFallbackActive();
     return selected ?? null;
   } catch (error) {
-    if (deps.isTauri()) {
+    if (deps.isDesktopHostRuntime()) {
       throw error;
     }
   }

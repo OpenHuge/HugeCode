@@ -1,21 +1,21 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateCommitMessage, setMenuAccelerators } from "./desktopHostCommands";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
-  isTauri: vi.fn(),
+  isDesktopHostRuntime: vi.fn(),
 }));
 
 const invokeMock = vi.mocked(invoke);
-const isTauriMock = vi.mocked(isTauri);
+const isDesktopHostRuntimeMock = vi.mocked(isDesktopHostRuntime);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  isTauriMock.mockReturnValue(true);
+  isDesktopHostRuntimeMock.mockReturnValue(true);
 });
 
-describe("tauriDesktopCommands", () => {
+describe("desktopHostCommands", () => {
   it("maps menu accelerator updates", async () => {
     invokeMock.mockResolvedValueOnce(undefined);
 
@@ -34,7 +34,7 @@ describe("tauriDesktopCommands", () => {
     });
   });
 
-  it("invokes commit message generation in tauri mode", async () => {
+  it("invokes commit message generation in desktop-host mode", async () => {
     invokeMock.mockResolvedValueOnce("feat: update runtime adapter");
 
     await expect(generateCommitMessage("ws-1")).resolves.toBe("feat: update runtime adapter");
@@ -43,8 +43,8 @@ describe("tauriDesktopCommands", () => {
     });
   });
 
-  it("rejects commit message generation outside tauri mode", async () => {
-    isTauriMock.mockReturnValue(false);
+  it("rejects commit message generation outside desktop-host mode", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(generateCommitMessage("ws-2")).rejects.toThrow(
       "Commit message generation is not available outside the desktop app."
@@ -52,8 +52,8 @@ describe("tauriDesktopCommands", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("skips menu accelerator updates outside tauri mode", async () => {
-    isTauriMock.mockReturnValue(false);
+  it("skips menu accelerator updates outside desktop-host mode", async () => {
+    isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(
       setMenuAccelerators([{ id: "new-agent", accelerator: "CommandOrControl+N" }])

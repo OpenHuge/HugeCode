@@ -1898,7 +1898,7 @@ describe("method-not-found error code detection", () => {
     expect(isCodeRuntimeRpcMethodNotFoundErrorCode(null)).toBe(false);
   });
 
-  it("normalizes tauri/web message variants into METHOD_NOT_FOUND", () => {
+  it("normalizes desktop-host/web message variants into METHOD_NOT_FOUND", () => {
     const messages = [
       "Unsupported RPC method: code_workspaces_list",
       "Unknown command code_workspaces_list",

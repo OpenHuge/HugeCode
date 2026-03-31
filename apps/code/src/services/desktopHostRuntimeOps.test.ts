@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@desktop-host/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getRuntimeClient } from "./runtimeClient";
 import { runCodexDoctorWithFallback, runCodexUpdateWithFallback } from "./runtimeClientCodex";
@@ -27,7 +27,7 @@ import {
   tailscaleStatus,
 } from "./desktopHostRuntimeOps";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
 }));
 
@@ -51,7 +51,7 @@ beforeEach(() => {
   getRuntimeClientMock.mockReturnValue(runtimeClientMockInstance);
 });
 
-describe("tauriDesktopRuntimeOps", () => {
+describe("desktopHostRuntimeOps", () => {
   it("maps runtime environment wrappers", async () => {
     invokeMock.mockResolvedValueOnce(false);
 

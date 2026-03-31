@@ -9,7 +9,7 @@ Status: Active
 
 Supported runtime modes are now:
 
-- `tauri` (legacy desktop-host compatibility label retained for runtime-mode stability)
+- `desktop-host`
 - `runtime-gateway-web`
 - `unavailable`
 

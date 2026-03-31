@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "../application/runtime/ports/desktopHostCore";
+import { invoke, isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
 import type {
   NativeStateFabricChange,
   NativeStateFabricDelta,
@@ -252,7 +252,7 @@ function normalizeDiagnostics(value: unknown): NativeStateFabricDiagnostics {
 }
 
 async function invokeNativeStateFabric(method: string, params: Record<string, unknown> = {}) {
-  if (isTauri()) {
+  if (isDesktopHostRuntime()) {
     return extractRpcPayload(await invoke(method, params));
   }
   if (detectRuntimeMode() === "runtime-gateway-web") {

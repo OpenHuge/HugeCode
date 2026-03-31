@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@tauri-apps/api/core", () => ({
-  isTauri: vi.fn(),
+vi.mock("@desktop-host/core", () => ({
+  isDesktopHostRuntime: vi.fn(),
 }));
 
 describe("detectRuntimeMode", () => {
@@ -10,16 +10,16 @@ describe("detectRuntimeMode", () => {
     vi.unstubAllEnvs();
     window.localStorage.clear();
 
-    const tauriWindow = window as Window & {
-      __TAURI__?: unknown;
-      __TAURI_INTERNALS__?: unknown;
-      __TAURI_IPC__?: unknown;
+    const desktopHostWindow = window as Window & {
+      __HUGE_CODE_DESKTOP_HOST__?: unknown;
+      __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
+      __HUGE_CODE_DESKTOP_HOST_IPC__?: unknown;
       __HUGE_CODE_RUNTIME_CLIENT_MODE__?: unknown;
     };
-    delete tauriWindow.__TAURI__;
-    delete tauriWindow.__TAURI_INTERNALS__;
-    delete tauriWindow.__TAURI_IPC__;
-    delete tauriWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__;
+    delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST__;
+    delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__;
+    delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_IPC__;
+    delete desktopHostWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__;
   });
 
   it("does not detect desktop compatibility until a callable bridge is injected", async () => {
@@ -68,9 +68,9 @@ describe("detectRuntimeMode", () => {
   it("detects desktop compatibility when a callable legacy bridge is injected", async () => {
     (
       window as Window & {
-        __TAURI_INTERNALS__?: unknown;
+        __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
       }
-    ).__TAURI_INTERNALS__ = {
+    ).__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {
       invoke: vi.fn(),
     };
 

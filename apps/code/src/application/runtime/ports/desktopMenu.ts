@@ -1,6 +1,3 @@
-import * as legacyDesktopMenu from "./packageCompat/legacyDesktopMenuCompat";
-import { getDesktopHostBridge } from "./desktopHostBridge";
-
 export { setMenuAccelerators } from "../../../services/desktopHostCommands";
 
 type MenuAction = () => void | Promise<void>;
@@ -36,10 +33,6 @@ type MenuInstance = {
   popup: (_position?: unknown, _window?: unknown) => Promise<void>;
 };
 
-function shouldUseCompatibilityMenu() {
-  return getDesktopHostBridge()?.kind === "electron";
-}
-
 export class MenuItem implements MenuItemInstance {
   readonly action?: MenuAction;
   readonly enabled: boolean;
@@ -52,10 +45,6 @@ export class MenuItem implements MenuItemInstance {
   }
 
   static async new(options: MenuItemOptions): Promise<MenuItemInstance> {
-    if (!shouldUseCompatibilityMenu() && typeof legacyDesktopMenu.MenuItem?.new === "function") {
-      return legacyDesktopMenu.MenuItem.new(options);
-    }
-
     return new MenuItem(options);
   }
 }
@@ -71,13 +60,6 @@ export class PredefinedMenuItem implements PredefinedMenuItemInstance {
   }
 
   static async new(options: PredefinedMenuItemOptions): Promise<PredefinedMenuItemInstance> {
-    if (
-      !shouldUseCompatibilityMenu() &&
-      typeof legacyDesktopMenu.PredefinedMenuItem?.new === "function"
-    ) {
-      return legacyDesktopMenu.PredefinedMenuItem.new(options);
-    }
-
     return new PredefinedMenuItem(options);
   }
 }
@@ -90,10 +72,6 @@ export class Menu implements MenuInstance {
   }
 
   static async new(options: MenuOptions): Promise<MenuInstance> {
-    if (!shouldUseCompatibilityMenu() && typeof legacyDesktopMenu.Menu?.new === "function") {
-      return legacyDesktopMenu.Menu.new(options);
-    }
-
     return new Menu(options);
   }
 

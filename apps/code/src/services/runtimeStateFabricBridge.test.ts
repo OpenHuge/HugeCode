@@ -1,22 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke, isTauri } from "../application/runtime/ports/desktopHostCore";
 import {
   getNativeStateFabricDelta,
   getNativeStateFabricDiagnostics,
   getNativeStateFabricSnapshot,
 } from "./runtimeStateFabricBridge";
 
-const { invokeMock, isTauriMock, detectRuntimeModeMock, invokeWebRuntimeDirectRpcMock } =
-  vi.hoisted(() => ({
-    invokeMock: vi.fn(),
-    isTauriMock: vi.fn(),
-    detectRuntimeModeMock: vi.fn(),
-    invokeWebRuntimeDirectRpcMock: vi.fn(),
-  }));
+const {
+  invokeMock,
+  isDesktopHostRuntimeMock,
+  detectRuntimeModeMock,
+  invokeWebRuntimeDirectRpcMock,
+} = vi.hoisted(() => ({
+  invokeMock: vi.fn(),
+  isDesktopHostRuntimeMock: vi.fn(),
+  detectRuntimeModeMock: vi.fn(),
+  invokeWebRuntimeDirectRpcMock: vi.fn(),
+}));
 
-vi.mock("../application/runtime/ports/desktopHostCore", () => ({
+vi.mock("@desktop-host/core", () => ({
   invoke: invokeMock,
-  isTauri: isTauriMock,
+  isDesktopHostRuntime: isDesktopHostRuntimeMock,
 }));
 
 vi.mock("./runtimeClient", () => ({
@@ -28,11 +31,8 @@ vi.mock("./runtimeWebDirectRpc", () => ({
 }));
 
 describe("runtimeStateFabricBridge", () => {
-  const invokeDesktopHostMock = vi.mocked(invoke);
-  const isDesktopHostRuntimeMock = vi.mocked(isTauri);
-
   beforeEach(() => {
-    invokeDesktopHostMock.mockReset();
+    invokeMock.mockReset();
     isDesktopHostRuntimeMock.mockReset();
     detectRuntimeModeMock.mockReset();
     invokeWebRuntimeDirectRpcMock.mockReset();
@@ -41,7 +41,7 @@ describe("runtimeStateFabricBridge", () => {
   });
 
   it("reads state fabric snapshots through desktop host invoke", async () => {
-    invokeDesktopHostMock.mockResolvedValue({
+    invokeMock.mockResolvedValue({
       revision: 7,
       scope: { kind: "workspace", workspaceId: "ws-1" },
       state: { workspace: { id: "ws-1" } },
@@ -55,7 +55,7 @@ describe("runtimeStateFabricBridge", () => {
       state: { workspace: { id: "ws-1" } },
     });
 
-    expect(invokeDesktopHostMock).toHaveBeenCalledWith("native_state_fabric_snapshot", {
+    expect(invokeMock).toHaveBeenCalledWith("native_state_fabric_snapshot", {
       scope: { kind: "workspace", workspaceId: "ws-1" },
     });
   });
@@ -107,7 +107,7 @@ describe("runtimeStateFabricBridge", () => {
   });
 
   it("normalizes diagnostics envelopes returned under result", async () => {
-    invokeDesktopHostMock.mockResolvedValue({
+    invokeMock.mockResolvedValue({
       result: {
         revision: 9,
         oldestAvailableRevision: null,
@@ -125,7 +125,7 @@ describe("runtimeStateFabricBridge", () => {
   });
 
   it("normalizes task snapshots and run delta envelopes", async () => {
-    invokeDesktopHostMock
+    invokeMock
       .mockResolvedValueOnce({
         revision: 12,
         scope: { kind: "task", taskId: "task-1" },

@@ -8,8 +8,8 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import { getRuntimeClient } from "./runtimeClient";
 import {
-  isMissingTauriCommandError,
-  isMissingTauriInvokeError,
+  isMissingDesktopHostCommandError,
+  isMissingDesktopHostInvokeError,
 } from "@ku0/code-runtime-client/runtimeErrorClassifier";
 import {
   getCodexConfigPathWithFallback,
@@ -52,7 +52,10 @@ export async function getConfigModel(workspaceId: string): Promise<string | null
       workspaceId,
     });
   } catch (error) {
-    if (isMissingTauriInvokeError(error) || isMissingTauriCommandError(error, "get_config_model")) {
+    if (
+      isMissingDesktopHostInvokeError(error) ||
+      isMissingDesktopHostCommandError(error, "get_config_model")
+    ) {
       return null;
     }
     throw error;
@@ -90,8 +93,8 @@ export async function generateRunMetadata(workspaceId: string, prompt: string) {
     );
   } catch (error) {
     if (
-      !isMissingTauriInvokeError(error) &&
-      !isMissingTauriCommandError(error, "generate_run_metadata")
+      !isMissingDesktopHostInvokeError(error) &&
+      !isMissingDesktopHostCommandError(error, "generate_run_metadata")
     ) {
       throw error;
     }

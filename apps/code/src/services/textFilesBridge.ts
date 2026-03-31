@@ -1,8 +1,8 @@
-import { invoke, isTauri } from "../application/runtime/ports/desktopHostCore";
+import { invoke, isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
 import { detectRuntimeMode } from "./runtimeClient";
 import {
-  isMissingTauriCommandError,
-  isMissingTauriInvokeError,
+  isMissingDesktopHostCommandError,
+  isMissingDesktopHostInvokeError,
   isMissingTextFileError,
 } from "./runtimeTransport";
 import { logRuntimeWarning } from "./runtimeTurnHelpers";
@@ -17,7 +17,7 @@ const TEXT_FILE_WRITE_COMMAND = "code_text_file_write_v1";
 
 function getTextFileGateway() {
   return createTextFileGateway({
-    isTauri: () => isTauri(),
+    isDesktopHostRuntime: () => isDesktopHostRuntime(),
     detectRuntimeMode,
     readCommand: TEXT_FILE_READ_COMMAND,
     writeCommand: TEXT_FILE_WRITE_COMMAND,
@@ -26,8 +26,8 @@ function getTextFileGateway() {
     invokeWrite: async (scope, kind, content, workspaceId) =>
       invoke(TEXT_FILE_WRITE_COMMAND, { scope, kind, workspaceId, content }),
     isMissingTextFileError,
-    isMissingTauriInvokeError,
-    isMissingTauriCommandError,
+    isMissingDesktopHostInvokeError,
+    isMissingDesktopHostCommandError,
     logRuntimeWarning,
   });
 }

@@ -40,8 +40,8 @@ function createRuntimeClientMock(
 ) {
   return {
     oauthCodexLoginStart: async () => ({
-      loginId: "login-tauri-1",
-      authUrl: "https://auth.openai.com/oauth/authorize?state=tauri-test",
+      loginId: "login-desktop-1",
+      authUrl: "https://auth.openai.com/oauth/authorize?state=desktop-host-test",
     }),
     oauthCodexLoginCancel: async () => ({
       canceled: true,
@@ -56,7 +56,7 @@ function createRuntimeClientMock(
 function createBaseDeps(): OAuthBridgeAuthFacadeDeps {
   return {
     webRuntimeRpcEndpointEnvKey: "VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT",
-    isTauri: () => false,
+    isDesktopHostRuntime: () => false,
     isRecord: (value: unknown): value is Record<string, unknown> =>
       Boolean(value) && typeof value === "object" && !Array.isArray(value),
     normalizeNullableText: (value: unknown) =>

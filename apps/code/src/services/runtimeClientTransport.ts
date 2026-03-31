@@ -3,7 +3,7 @@ import { getErrorMessage } from "@ku0/code-runtime-client/runtimeClientErrorUtil
 import { createExtendedRpcRuntimeClient } from "@ku0/code-runtime-client/runtimeClientRpcExtensionsFactory";
 import {
   createRuntimeRpcInvokerWithCandidates,
-  invokeTauriRaw as invokeTauriRawShared,
+  invokeDesktopHostRaw as invokeDesktopHostRawShared,
 } from "@ku0/code-runtime-client/runtimeClientTransportCore";
 import { detectRuntimeMode } from "./runtimeClientMode";
 import {
@@ -30,11 +30,11 @@ import { invokeWebRuntimeRaw } from "./runtimeClientWebTransport";
 
 type RuntimeClient = SharedRuntimeClient<AppSettings>;
 
-async function invokeDesktopCompatRaw<Result>(
+async function invokeDesktopHostRaw<Result>(
   method: string,
   params: RuntimeRpcParams
 ): Promise<Result> {
-  return invokeTauriRawShared(
+  return invokeDesktopHostRawShared(
     <Value>(candidate: string, candidateParams: RuntimeRpcParams) =>
       invoke<Value>(candidate, candidateParams),
     method,
@@ -82,7 +82,7 @@ const webRuntimeClient = createExtendedRpcRuntimeClient<AppSettings>(
 
 const desktopCompatClient = createExtendedRpcRuntimeClient<AppSettings>(
   createRuntimeRpcInvokerWithCandidates(
-    invokeDesktopCompatRaw,
+    invokeDesktopHostRaw,
     resolveDesktopCompatRuntimeRpcMethodCandidates
   )
 );

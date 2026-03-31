@@ -65,7 +65,7 @@ export type ChatgptAuthTokensRefreshResolverDeps = {
   getRuntimeClient(): RuntimeClientOAuthBridge;
   clearWebRuntimeOauthCooldown(): void;
   isRuntimeMethodUnsupportedError(error: unknown, method: string): boolean;
-  isTauri(): boolean;
+  isDesktopHostRuntime(): boolean;
   markWebRuntimeOauthCooldown(error: unknown, label: string): void;
   logRuntimeWarning(message: string, context?: unknown): void;
   getErrorMessage(error: unknown): string;
@@ -443,7 +443,7 @@ async function resolveChatgptAuthTokensRefreshViaRuntimeRpc(
     ) {
       return undefined;
     }
-    if (!deps.isTauri()) {
+    if (!deps.isDesktopHostRuntime()) {
       deps.markWebRuntimeOauthCooldown(error, "oauth chatgpt auth token refresh");
     }
     deps.logRuntimeWarning(

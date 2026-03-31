@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "../application/runtime/ports/desktopHostCore";
+import { invoke, isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
 import { logger } from "./logger";
 import {
   isRuntimeMethodUnsupportedError,
@@ -80,9 +80,9 @@ function normalizeNumber(value: unknown): number | null {
   return null;
 }
 
-function isTauriRuntime(): boolean {
+function isDesktopHostRuntimeRuntime(): boolean {
   try {
-    return isTauri();
+    return isDesktopHostRuntime();
   } catch {
     return false;
   }
@@ -194,7 +194,7 @@ async function invokeNativeScheduleRpc<Result>(
 ): Promise<Result | null> {
   const runtimeMode = detectRuntimeMode();
   try {
-    if (isTauriRuntime()) {
+    if (isDesktopHostRuntimeRuntime()) {
       return await invoke<Result>(method, params);
     }
     if (runtimeMode === "runtime-gateway-web") {
