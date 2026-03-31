@@ -6,6 +6,7 @@ import { writeCachedState } from "./workspaceHomeAgentControlState";
 import type { WorkspaceAgentControlPersistedControls } from "./workspaceHomeAgentControlState";
 import { syncWebMcpAgentControl } from "../../../application/runtime/ports/webMcpBridge";
 import { useRuntimeWebMcpContextPolicy } from "../../../application/runtime/facades/runtimeWebMcpContextPolicy";
+import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
 
 vi.mock("../../../application/runtime/ports/webMcpBridge", () => ({
   supportsWebMcp: vi.fn(() => true),
@@ -50,8 +51,47 @@ vi.mock("../../../application/runtime/facades/runtimeWebMcpContextPolicy", () =>
   })),
 }));
 
+vi.mock("../../../application/runtime/facades/runtimePersistentFlowState", () => ({
+  useWorkspacePersistentFlowState: vi.fn(() => ({
+    context: {
+      schemaVersion: "active-intent-context/v1",
+      intent: {
+        objective: "Recovered flow",
+        constraints: "",
+        successCriteria: "",
+        deadline: null,
+        priority: "medium",
+        managerNotes: "",
+      },
+      focusedFiles: [{ path: "apps/code/src/types.ts", reason: "recent_change" }],
+      unresolvedErrors: [],
+      history: {
+        latestRunId: "run-1",
+        latestRunTitle: "Persist flow state",
+        latestReviewPackId: null,
+        lastUpdatedAt: 1,
+        recentChangedPaths: ["apps/code/src/types.ts"],
+        validationSummaries: [],
+      },
+    },
+    hydratedIntent: null,
+    source: "derived",
+    loadState: "ready",
+    saveError: null,
+    indicator: {
+      tone: "neutral",
+      label: "Persistent flow state",
+      detail:
+        "Host-backed persistent flow state is tracking current intent and workspace evidence.",
+      recovered: false,
+    },
+  })),
+}));
+
 vi.mock("./WorkspaceHomeAgentIntentSection", () => ({
-  WorkspaceHomeAgentIntentSection: () => <div data-testid="intent-section-stub" />,
+  WorkspaceHomeAgentIntentSection: ({ intent }: { intent: { objective: string } }) => (
+    <div data-testid="intent-section-stub">{intent.objective}</div>
+  ),
 }));
 
 vi.mock("./WorkspaceHomeAgentRuntimeOrchestration", () => ({
@@ -131,6 +171,40 @@ describe("WorkspaceHomeAgentControl", () => {
       error: null,
       truthSourceLabel: "Runtime kernel v2 prepare",
     });
+    vi.mocked(useWorkspacePersistentFlowState).mockReturnValue({
+      context: {
+        schemaVersion: "active-intent-context/v1",
+        intent: {
+          objective: "Recovered flow",
+          constraints: "",
+          successCriteria: "",
+          deadline: null,
+          priority: "medium",
+          managerNotes: "",
+        },
+        focusedFiles: [{ path: "apps/code/src/types.ts", reason: "recent_change" }],
+        unresolvedErrors: [],
+        history: {
+          latestRunId: "run-1",
+          latestRunTitle: "Persist flow state",
+          latestReviewPackId: null,
+          lastUpdatedAt: 1,
+          recentChangedPaths: ["apps/code/src/types.ts"],
+          validationSummaries: [],
+        },
+      },
+      hydratedIntent: null,
+      source: "derived",
+      loadState: "ready",
+      saveError: null,
+      indicator: {
+        tone: "neutral",
+        label: "Persistent flow state",
+        detail:
+          "Host-backed persistent flow state is tracking current intent and workspace evidence.",
+        recovered: false,
+      },
+    });
     writeCachedState(workspace.id, {
       version: 7,
       intent: {
@@ -175,6 +249,8 @@ describe("WorkspaceHomeAgentControl", () => {
     });
 
     expect(screen.getByTestId("intent-section-stub")).toBeTruthy();
+    expect(screen.getByText("Persistent flow state")).toBeTruthy();
+    expect(screen.getByText("Latest run Persist flow state")).toBeTruthy();
     expect(screen.queryByTestId("runtime-section-stub")).toBeNull();
     expect(screen.queryByTestId("webmcp-console-stub")).toBeNull();
     expect(screen.queryByText("Coordination")).toBeNull();
@@ -283,5 +359,59 @@ describe("WorkspaceHomeAgentControl", () => {
 
     expect(screen.getByText(/Using provider heuristics/i)).toBeTruthy();
     expect(screen.getByText(/Runtime WebMCP context policy is unavailable/i)).toBeTruthy();
+  });
+
+  it("hydrates the intent from recovered host-backed flow state when local intent is empty", async () => {
+    window.localStorage.removeItem(storageKey);
+    vi.mocked(useWorkspacePersistentFlowState).mockReturnValue({
+      context: {
+        schemaVersion: "active-intent-context/v1",
+        intent: {
+          objective: "Recovered host-backed objective",
+          constraints: "",
+          successCriteria: "",
+          deadline: null,
+          priority: "high",
+          managerNotes: "",
+        },
+        focusedFiles: [],
+        unresolvedErrors: [],
+        history: {
+          latestRunId: "run-1",
+          latestRunTitle: "Persist flow state",
+          latestReviewPackId: null,
+          lastUpdatedAt: 1,
+          recentChangedPaths: [],
+          validationSummaries: [],
+        },
+      },
+      hydratedIntent: {
+        objective: "Recovered host-backed objective",
+        constraints: "",
+        successCriteria: "",
+        deadline: null,
+        priority: "high",
+        managerNotes: "",
+      },
+      source: "host",
+      loadState: "ready",
+      saveError: null,
+      indicator: {
+        tone: "success",
+        label: "Recovered flow state",
+        detail: "Recovered host-backed intent, file focus, and unresolved diagnostics.",
+        recovered: true,
+      },
+    });
+
+    render(
+      <WorkspaceHomeAgentControl workspace={workspace} approvals={[]} userInputRequests={[]} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Recovered host-backed objective")).toBeTruthy();
+    });
+
+    expect(screen.getByText("Recovered flow state")).toBeTruthy();
   });
 });
