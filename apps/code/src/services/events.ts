@@ -483,7 +483,7 @@ function createAppServerEventHub() {
       recordRuntimeEventReconnectAttempt();
       updateRuntimeEventChannelDiagnostics(APP_SERVER_BRIDGE_CHANNEL_ID, {
         label: "App server bridge",
-        transport: isDesktopHostRuntimeRuntime() ? "desktop-host" : "bridge",
+        transport: isDesktopHostRuntimeRuntime() ? "desktop-compat" : "bridge",
         status: "reconnecting",
         retryAttempt: attempt,
         retryDelayMs: delayMs,
@@ -517,7 +517,7 @@ function createAppServerEventHub() {
     }
     updateRuntimeEventChannelDiagnostics(APP_SERVER_BRIDGE_CHANNEL_ID, {
       label: "App server bridge",
-      transport: isDesktopHostRuntimeRuntime() ? "desktop-host" : "bridge",
+      transport: isDesktopHostRuntimeRuntime() ? "desktop-compat" : "bridge",
       status: "connecting",
       retryDelayMs: null,
     });
@@ -547,7 +547,7 @@ function createAppServerEventHub() {
         recordRuntimeEventReconnectSuccess();
         updateRuntimeEventChannelDiagnostics(APP_SERVER_BRIDGE_CHANNEL_ID, {
           label: "App server bridge",
-          transport: isDesktopHostRuntimeRuntime() ? "desktop-host" : "bridge",
+          transport: isDesktopHostRuntimeRuntime() ? "desktop-compat" : "bridge",
           status: "open",
           retryAttempt: 0,
           retryDelayMs: null,

@@ -609,7 +609,7 @@ export async function startAppServerBridgeV2(
   const bridgeState = createRuntimeEventStateMachine({
     id: APP_SERVER_BRIDGE_CHANNEL_ID,
     label: "App server bridge",
-    defaultTransport: isDesktopHostRuntimeRuntime() ? "desktop-host" : "bridge",
+    defaultTransport: isDesktopHostRuntimeRuntime() ? "desktop-compat" : "bridge",
   });
 
   bridgeState.transition("connecting", {
@@ -633,8 +633,8 @@ export async function startAppServerBridgeV2(
       if (runtimeUnsubscribe) {
         unsubscribers.push(runtimeUnsubscribe);
         bridgeState.transition("open", {
-          reason: "desktop-host-listener-open",
-          transport: "desktop-host",
+          reason: "desktop-compat-listener-open",
+          transport: "desktop-compat",
           retryAttempt: 0,
           retryDelayMs: null,
           consecutiveFailures: 0,
