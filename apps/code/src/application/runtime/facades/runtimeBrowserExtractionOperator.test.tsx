@@ -29,11 +29,16 @@ function createReadinessSummary(
     runtimeHost: "electron",
     source: "desktop_host_bridge",
     sourceLabel: "Desktop host bridge",
+    assessmentAvailable: false,
+    assessmentHistoryAvailable: false,
     extractionAvailable: true,
     historyAvailable: true,
     localOnly: false,
+    lastAssessmentResult: null,
     lastResult: null,
     capabilities: {
+      browserAssessment: false,
+      browserAssessmentHistory: false,
       browserDebug: true,
       browserExtraction: true,
       browserExtractionHistory: true,
@@ -86,6 +91,8 @@ describe("runtimeBrowserExtractionOperator", () => {
         createReadinessSummary({
           historyAvailable: false,
           capabilities: {
+            browserAssessment: false,
+            browserAssessmentHistory: false,
             browserDebug: true,
             browserExtraction: true,
             browserExtractionHistory: false,

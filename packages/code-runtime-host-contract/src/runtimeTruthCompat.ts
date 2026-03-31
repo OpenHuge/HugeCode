@@ -303,11 +303,11 @@ export function resolveRuntimeNextOperatorAction(
   ) {
     return {
       action: "open_review_pack",
-      label: resolveReviewPackActionLabel(input.reviewStatus),
+      label: input.nextAction?.label ?? resolveReviewPackActionLabel(input.reviewStatus),
       detail:
+        input.nextAction?.detail ??
         continuation?.detail ??
         continuation?.summary ??
-        input.nextAction?.detail ??
         input.reviewDecision?.summary ??
         null,
       source: "review_pack",
@@ -331,12 +331,13 @@ export function resolveRuntimeNextOperatorAction(
     return {
       action: "open_review_pack",
       label:
-        continuation.state === "blocked"
+        input.nextAction?.label ??
+        (continuation.state === "blocked"
           ? "Resolve review"
           : continuation.state === "attention"
             ? "Inspect review"
-            : "Open review",
-      detail: continuation.detail ?? continuation.summary,
+            : "Open review"),
+      detail: input.nextAction?.detail ?? continuation.detail ?? continuation.summary,
       source: "continuation",
       target: continuation.target ?? reviewTarget ?? missionTarget,
       sessionBoundary: boundary,

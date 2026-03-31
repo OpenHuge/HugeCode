@@ -225,6 +225,93 @@ describe("tauriThreadSnapshotsBridge", () => {
     await expect(writePromise).resolves.toBe(true);
   });
 
+  it("clears session thread snapshot fallback state after runtime-backed persistence succeeds", async () => {
+    const threadSnapshotsGetV1 = vi.fn().mockResolvedValue({
+      snapshots: {},
+    });
+    const threadSnapshotsSetV1 = vi.fn().mockResolvedValue({
+      ok: true,
+    });
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      threadSnapshotsGetV1,
+      threadSnapshotsSetV1,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
+
+    await expect(
+      writePersistedThreadStorageState({
+        snapshots: {
+          "workspace-web:thread-1": {
+            workspaceId: "workspace-web",
+            threadId: "thread-1",
+            name: "Thread 1",
+            updatedAt: 1,
+            items: [
+              {
+                id: "message-1",
+                kind: "message",
+                role: "user",
+                text: "hello",
+              },
+            ],
+            lastDurationMs: null,
+          },
+        },
+        pendingDraftMessagesByWorkspace: {},
+        lastActiveWorkspaceId: "workspace-web",
+        lastActiveThreadIdByWorkspace: {
+          "workspace-web": "thread-1",
+        },
+      })
+    ).resolves.toBe(true);
+
+    expect(sessionStorage.getItem("codexmonitor.threadStorageSession")).toBeNull();
+    expect(sessionStorage.getItem("codexmonitor.threadStorageRecoverySession")).toBeNull();
+    expect(sessionStorage.getItem("codexmonitor.activeWorkspaceSession")).toBe("workspace-web");
+    expect(sessionStorage.getItem("codexmonitor.activeThreadIdsSession")).toBe(
+      JSON.stringify({ "workspace-web": "thread-1" })
+    );
+  });
+
+  it("keeps session thread snapshot fallback state when runtime persistence is unavailable", async () => {
+    vi.mocked(isRuntimeMethodUnsupportedError).mockImplementation(
+      (error) => error instanceof Error && error.message === "unsupported"
+    );
+    const threadSnapshotsGetV1 = vi.fn().mockResolvedValue({
+      snapshots: {},
+    });
+    const threadSnapshotsSetV1 = vi.fn().mockRejectedValue(new Error("unsupported"));
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      threadSnapshotsGetV1,
+      threadSnapshotsSetV1,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
+
+    await expect(
+      writePersistedThreadStorageState({
+        snapshots: {
+          "workspace-web:thread-1": {
+            workspaceId: "workspace-web",
+            threadId: "thread-1",
+            name: "Thread 1",
+            updatedAt: 1,
+            items: [
+              {
+                id: "message-1",
+                kind: "message",
+                role: "user",
+                text: "hello",
+              },
+            ],
+            lastDurationMs: null,
+          },
+        },
+        pendingDraftMessagesByWorkspace: {},
+      })
+    ).resolves.toBe(false);
+
+    expect(sessionStorage.getItem("codexmonitor.threadStorageSession")).not.toBeNull();
+    expect(sessionStorage.getItem("codexmonitor.threadStorageRecoverySession")).not.toBeNull();
+  });
+
   it("restores session-mirrored thread snapshots during a fast same-tab reload before native persistence resolves", async () => {
     let releaseWrite: VoidFunction = () => undefined;
     const persistedState: PersistedThreadStorageState = {
@@ -273,12 +360,18 @@ describe("tauriThreadSnapshotsBridge", () => {
     __resetPersistedThreadStorageCacheForTests();
 
     await expect(readPersistedThreadStorageState()).resolves.toMatchObject(persistedState);
+    expect(logRuntimeWarning).toHaveBeenCalledWith(
+      "Using session thread snapshot fallback until runtime-published thread state is available.",
+      expect.objectContaining({
+        snapshotCount: 1,
+      })
+    );
 
     releaseWrite();
     await expect(writePromise).resolves.toBe(true);
   });
 
-  it("merges session thread storage overlays with native snapshots instead of replacing them", async () => {
+  it("keeps runtime-published snapshots canonical and only merges client-owned session state", async () => {
     sessionStorage.setItem(
       "codexmonitor.threadStorageSession",
       JSON.stringify({
@@ -369,21 +462,6 @@ describe("tauriThreadSnapshotsBridge", () => {
           ],
           lastDurationMs: null,
         },
-        "workspace-web:thread-session": {
-          workspaceId: "workspace-web",
-          threadId: "thread-session",
-          name: "session thread",
-          updatedAt: 2,
-          items: [
-            {
-              id: "message-session",
-              kind: "message",
-              role: "user",
-              text: "session copy",
-            },
-          ],
-          lastDurationMs: null,
-        },
       },
       pendingDraftMessagesByWorkspace: {
         "workspace-native": [
@@ -409,6 +487,128 @@ describe("tauriThreadSnapshotsBridge", () => {
         "workspace-session": "thread-session",
       },
     });
+    expect(logRuntimeWarning).toHaveBeenCalledWith(
+      "Ignoring session thread snapshot fallback because runtime-published thread state is available.",
+      expect.objectContaining({
+        runtimeSnapshotCount: 1,
+        sessionSnapshotCount: 1,
+      })
+    );
+  });
+
+  it("ignores stale session thread snapshots when runtime responds empty outside the recovery window", async () => {
+    sessionStorage.setItem(
+      "codexmonitor.threadStorageSession",
+      JSON.stringify({
+        snapshots: {
+          "workspace-session:thread-session": {
+            workspaceId: "workspace-session",
+            threadId: "thread-session",
+            name: "stale session thread",
+            updatedAt: 2,
+            items: [
+              {
+                id: "message-session",
+                kind: "message",
+                role: "user",
+                text: "stale session copy",
+              },
+            ],
+            lastDurationMs: null,
+          },
+        },
+        atlasMemoryDigests: {
+          "workspace-session:thread-session": {
+            summary: "stale digest",
+            updatedAt: 3,
+          },
+        },
+        pendingDraftMessagesByWorkspace: {
+          "workspace-session": [
+            {
+              id: "draft-session",
+              kind: "message",
+              role: "user",
+              text: "session draft",
+            },
+          ],
+        },
+        lastActiveThreadIdByWorkspace: {
+          "workspace-session": "thread-session",
+        },
+      })
+    );
+    sessionStorage.setItem(
+      "codexmonitor.threadStorageRecoverySession",
+      JSON.stringify({
+        updatedAt: Date.now() - 60_000,
+      })
+    );
+    const threadSnapshotsGetV1 = vi.fn().mockResolvedValue({
+      snapshots: {},
+    });
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      threadSnapshotsGetV1,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
+
+    await expect(readPersistedThreadStorageState()).resolves.toEqual({
+      snapshots: {},
+      pendingDraftMessagesByWorkspace: {
+        "workspace-session": [
+          {
+            id: "draft-session",
+            kind: "message",
+            role: "user",
+            text: "session draft",
+          },
+        ],
+      },
+      lastActiveWorkspaceId: null,
+      lastActiveThreadIdByWorkspace: {
+        "workspace-session": "thread-session",
+      },
+    });
+    expect(logRuntimeWarning).toHaveBeenCalledWith(
+      "Ignoring session thread snapshot fallback because runtime-published thread state is empty outside the temporary recovery window.",
+      expect.objectContaining({
+        runtimeSnapshotCount: 0,
+        sessionSnapshotCount: 1,
+        recoveryWindowState: "expired",
+      })
+    );
+  });
+
+  it("does not treat session atlas digests as thread snapshot fallback truth", async () => {
+    sessionStorage.setItem(
+      "codexmonitor.threadStorageSession",
+      JSON.stringify({
+        atlasMemoryDigests: {
+          "workspace-session:thread-session": {
+            summary: "session atlas digest",
+            updatedAt: 7,
+          },
+        },
+        pendingDraftMessagesByWorkspace: {},
+      })
+    );
+    sessionStorage.setItem(
+      "codexmonitor.threadStorageRecoverySession",
+      JSON.stringify({
+        updatedAt: Date.now(),
+      })
+    );
+    const threadSnapshotsGetV1 = vi.fn().mockResolvedValue({
+      snapshots: {},
+    });
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      threadSnapshotsGetV1,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
+
+    await expect(readPersistedThreadAtlasMemoryDigests()).resolves.toEqual({});
+    expect(logRuntimeWarning).not.toHaveBeenCalledWith(
+      "Using session thread snapshot fallback until runtime-published thread state is available.",
+      expect.anything()
+    );
   });
 
   it("prefers the same-tab session active thread ids during fast reloads", async () => {

@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION,
+  buildDesktopBrowserAssessmentProxyPath,
+  buildDesktopBrowserAssessmentTargetUrl,
   DESKTOP_HOST_IPC_CHANNELS,
+  DESKTOP_BROWSER_ASSESSMENT_PROXY_FIXTURE,
+  DESKTOP_BROWSER_ASSESSMENT_SENTINEL_QUERY_PARAM,
   normalizeActiveIntentContext,
   normalizeActiveIntentContextByWorkspaceId,
+  readDesktopBrowserAssessmentProxyRequest,
   type DesktopAppInfo,
+  type DesktopBrowserAssessmentResult,
   type DesktopBrowserExtractionResult,
   type DesktopDiagnosticsInfo,
   type DesktopLaunchIntent,
@@ -106,12 +112,148 @@ describe("code-platform-interfaces", () => {
     expect(extractionResult.traceId).toBe("browser-trace-1");
   });
 
+  it("supports browser assessment result contracts with DOM, console, and accessibility details", () => {
+    const assessmentResult: DesktopBrowserAssessmentResult = {
+      status: "failed",
+      target: {
+        kind: "fixture",
+        fixtureName: "mission-control",
+      },
+      domSnapshot: {
+        childElementCount: 4,
+        html: "<main><button>Run</button></main>",
+        selector: "main",
+        selectorMatched: true,
+        text: "Run",
+      },
+      consoleEntries: [
+        {
+          level: "error",
+          message: "Failed to load resource",
+          line: 18,
+          sourceId: "mission-control.tsx",
+        },
+      ],
+      accessibilityFailures: [
+        {
+          code: "button-name-missing",
+          message: "Interactive button is missing an accessible name.",
+          selector: "button",
+        },
+      ],
+      sourceUrl: "http://desktop-app/fixtures.html?fixture=mission-control",
+      title: "Mission Control fixture",
+      errorCode: "BROWSER_A11Y_FAILURES_DETECTED",
+      errorMessage: "Accessibility failures were detected in the assessed surface.",
+      traceId: "browser-assessment-1",
+      trace: [
+        {
+          stage: "proxy",
+          message: "Loaded the canonical browser assessment proxy.",
+          at: "2026-03-30T00:00:00.000Z",
+        },
+        {
+          stage: "audit",
+          message: "Collected accessibility failures from the assessed surface.",
+          at: "2026-03-30T00:00:00.350Z",
+          code: "BROWSER_A11Y_FAILURES_DETECTED",
+        },
+      ],
+    };
+
+    expect(assessmentResult.status).toBe("failed");
+    expect(assessmentResult.target.kind).toBe("fixture");
+    expect(assessmentResult.domSnapshot?.selectorMatched).toBe(true);
+    expect(assessmentResult.consoleEntries[0]?.level).toBe("error");
+    expect(assessmentResult.accessibilityFailures[0]?.code).toBe("button-name-missing");
+    expect(assessmentResult.trace[1]?.stage).toBe("audit");
+  });
+
+  it("builds proxy and target URLs that guard against recursive browser assessment loops", () => {
+    expect(
+      buildDesktopBrowserAssessmentProxyPath({
+        target: {
+          kind: "fixture",
+          fixtureName: "mission-control",
+        },
+        selector: "main",
+        waitForMs: 2400,
+      })
+    ).toBe(
+      `/fixtures.html?fixture=${DESKTOP_BROWSER_ASSESSMENT_PROXY_FIXTURE}&browserAssessmentTargetKind=fixture&browserAssessmentTargetFixture=mission-control&browserAssessmentSelector=main&browserAssessmentWaitMs=2400`
+    );
+    expect(
+      buildDesktopBrowserAssessmentTargetUrl({
+        kind: "fixture",
+        fixtureName: "mission-control",
+      })
+    ).toBe(
+      `/fixtures.html?fixture=mission-control&${DESKTOP_BROWSER_ASSESSMENT_SENTINEL_QUERY_PARAM}=1`
+    );
+    expect(
+      buildDesktopBrowserAssessmentTargetUrl({
+        kind: "route",
+        routePath: "/workspace/alpha?tab=mission-control",
+      })
+    ).toBe(
+      `/workspace/alpha?tab=mission-control&${DESKTOP_BROWSER_ASSESSMENT_SENTINEL_QUERY_PARAM}=1`
+    );
+
+    expect(() =>
+      buildDesktopBrowserAssessmentTargetUrl({
+        kind: "fixture",
+        fixtureName: DESKTOP_BROWSER_ASSESSMENT_PROXY_FIXTURE,
+      })
+    ).toThrow(/cannot target itself/i);
+    expect(() =>
+      buildDesktopBrowserAssessmentTargetUrl({
+        kind: "route",
+        routePath: `/fixtures.html?fixture=${DESKTOP_BROWSER_ASSESSMENT_PROXY_FIXTURE}`,
+      })
+    ).toThrow(/cannot target itself/i);
+    expect(() =>
+      buildDesktopBrowserAssessmentTargetUrl({
+        kind: "route",
+        routePath: `/workspace/alpha?${DESKTOP_BROWSER_ASSESSMENT_SENTINEL_QUERY_PARAM}=1`,
+      })
+    ).toThrow(/sentinel/i);
+  });
+
+  it("reads browser assessment proxy requests from the shared fixture query contract", () => {
+    expect(
+      readDesktopBrowserAssessmentProxyRequest(
+        `?fixture=${DESKTOP_BROWSER_ASSESSMENT_PROXY_FIXTURE}&browserAssessmentTargetKind=route&browserAssessmentTargetRoute=%2Fworkspace%2Falpha&browserAssessmentSelector=main&browserAssessmentWaitMs=3500`
+      )
+    ).toEqual({
+      ok: true,
+      request: {
+        target: {
+          kind: "route",
+          routePath: "/workspace/alpha",
+        },
+        selector: "main",
+        waitForMs: 3500,
+      },
+    });
+    expect(
+      readDesktopBrowserAssessmentProxyRequest(
+        `?fixture=${DESKTOP_BROWSER_ASSESSMENT_PROXY_FIXTURE}&browserAssessmentTargetKind=fixture`
+      )
+    ).toEqual({
+      ok: false,
+      code: "BROWSER_ASSESSMENT_PROXY_FIXTURE_REQUIRED",
+      message: "Browser assessment proxy requires a fixture target when target kind is fixture.",
+    });
+  });
+
   it("exports the canonical desktop host ipc channel contract", () => {
     expect(DESKTOP_HOST_IPC_CHANNELS).toEqual({
       getAppInfo: "hugecode:desktop-host:get-app-info",
       getAppVersion: "hugecode:desktop-host:get-app-version",
       getDiagnosticsInfo: "hugecode:desktop-host:get-diagnostics-info",
       copySupportSnapshot: "hugecode:desktop-host:copy-support-snapshot",
+      assessBrowserSurface: "hugecode:desktop-host:assess-browser-surface",
+      getLastBrowserAssessmentResult: "hugecode:desktop-host:get-last-browser-assessment-result",
       extractBrowserContent: "hugecode:desktop-host:extract-browser-content",
       getLastBrowserExtractionResult: "hugecode:desktop-host:get-last-browser-extraction-result",
       consumePendingLaunchIntent: "hugecode:desktop-host:consume-pending-launch-intent",

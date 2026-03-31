@@ -130,6 +130,10 @@ export type WorkspaceClientRuntimeMissionControlSourceAdapter = {
   bootstrapKernelProjection?: (
     request?: KernelProjectionBootstrapRequest
   ) => Promise<KernelProjectionBootstrapResponse>;
+  reportMissionControlFallback?: (event: {
+    reason: "projection_bootstrap_failed" | "projection_slice_missing";
+    error?: unknown;
+  }) => void;
 };
 
 export type WorkspaceClientRuntimeKernelProjectionBindings = {

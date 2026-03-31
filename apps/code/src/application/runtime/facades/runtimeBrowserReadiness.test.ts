@@ -33,6 +33,8 @@ describe("runtimeBrowserReadiness", () => {
 
     expect(summary.state).toBe("ready");
     expect(summary.runtimeHost).toBe("electron");
+    expect(summary.assessmentAvailable).toBe(false);
+    expect(summary.assessmentHistoryAvailable).toBe(false);
     expect(summary.extractionAvailable).toBe(true);
     expect(summary.historyAvailable).toBe(false);
     expect(summary.localOnly).toBe(false);
@@ -53,12 +55,38 @@ describe("runtimeBrowserReadiness", () => {
 
     expect(summary.state).toBe("attention");
     expect(summary.runtimeHost).toBe("electron");
+    expect(summary.assessmentAvailable).toBe(false);
+    expect(summary.assessmentHistoryAvailable).toBe(false);
     expect(summary.extractionAvailable).toBe(false);
     expect(summary.historyAvailable).toBe(true);
     expect(summary.localOnly).toBe(false);
     expect(summary.capabilities.browserExtractionHistory).toBe(true);
     expect(summary.source).toBe("partial_host_bridge");
     expect(summary.headline).toContain("partially published");
+  });
+
+  it("reports partial host attention when browser assessment is published without extraction", () => {
+    getDesktopHostBridgeMock.mockReturnValue({
+      kind: "electron",
+      browserAssessment: {
+        assess: async () => null,
+        getLastResult: async () => null,
+      },
+    });
+
+    const summary = readBrowserReadiness();
+
+    expect(summary.state).toBe("attention");
+    expect(summary.runtimeHost).toBe("electron");
+    expect(summary.assessmentAvailable).toBe(true);
+    expect(summary.assessmentHistoryAvailable).toBe(true);
+    expect(summary.extractionAvailable).toBe(false);
+    expect(summary.historyAvailable).toBe(false);
+    expect(summary.localOnly).toBe(false);
+    expect(summary.capabilities.browserAssessment).toBe(true);
+    expect(summary.capabilities.browserAssessmentHistory).toBe(true);
+    expect(summary.source).toBe("partial_host_bridge");
+    expect(summary.detail).toContain("browser assessment capability");
   });
 
   it("reports local placeholder attention when browser runtime integrations are present", () => {
@@ -68,6 +96,8 @@ describe("runtimeBrowserReadiness", () => {
 
     expect(summary.state).toBe("attention");
     expect(summary.runtimeHost).toBe("browser");
+    expect(summary.assessmentAvailable).toBe(false);
+    expect(summary.assessmentHistoryAvailable).toBe(false);
     expect(summary.extractionAvailable).toBe(false);
     expect(summary.historyAvailable).toBe(false);
     expect(summary.localOnly).toBe(true);
@@ -90,6 +120,7 @@ describe("runtimeBrowserReadiness", () => {
 
     expect(summary.state).toBe("attention");
     expect(summary.capabilities.browserDebug).toBe(true);
+    expect(summary.capabilities.browserAssessment).toBe(false);
     expect(summary.extractionAvailable).toBe(false);
     expect(summary.historyAvailable).toBe(false);
     expect(summary.localOnly).toBe(true);
@@ -101,6 +132,7 @@ describe("runtimeBrowserReadiness", () => {
 
     expect(summary.state).toBe("blocked");
     expect(summary.runtimeHost).toBe("browser");
+    expect(summary.assessmentAvailable).toBe(false);
     expect(summary.historyAvailable).toBe(false);
     expect(summary.localOnly).toBe(false);
     expect(summary.source).toBe("unavailable");
@@ -117,6 +149,8 @@ describe("runtimeBrowserReadiness", () => {
     expect(summary.state).toBe("blocked");
     expect(summary.runtimeHost).toBe("electron");
     expect(summary.capabilities.browserDebug).toBe(false);
+    expect(summary.capabilities.browserAssessment).toBe(false);
+    expect(summary.capabilities.browserAssessmentHistory).toBe(false);
     expect(summary.capabilities.browserExtraction).toBe(false);
     expect(summary.capabilities.browserExtractionHistory).toBe(false);
     expect(summary.capabilities.webMcp).toBe(false);
